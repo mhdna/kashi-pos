@@ -1,30 +1,84 @@
 <template>
-  <v-navigation-drawer permanent width="140">
+  <v-navigation-drawer permanent width="172">
     <v-divider></v-divider>
-    <v-list nav>
-      <v-list-item value="invoice">
-        <div height="140" flat hover class="d-flex flex-column justify-center align-center" density="compact">
-          <v-icon size="40">mdi-invoice</v-icon>
-          <h3>Invoice</h3>
+    <v-list nav class="d-flex flex-column justify-space-evenly fill-height">
+      <v-list-item v-for="i in items" :key="i.value" :value="i.value" :to="i.to">
+        <div class="d-flex flex-column justify-center align-center" :class="i.class">
+          <v-icon size="40" :class="i.iconClass">
+            {{ i.icon }}
+          </v-icon>
+          <h3>{{ i.title }}</h3>
         </div>
       </v-list-item>
-      <v-list-item value="inventory">
-        <div height="140" flat hover class="d-flex flex-column justify-center align-center" density="compact">
-          <v-icon size="40">mdi-chart-bell-curve</v-icon>
-          <h3>Inventory</h3>
-        </div>
-      </v-list-item>
-      <v-list-item value="report">
-        <div height="140" flat hover class="d-flex flex-column justify-center align-center" density="compact">
-          <v-icon size="40">mdi-chart-box</v-icon>
-          <h3>X-Report</h3>
-        </div>
-      </v-list-item>
-      <!-- <v-list-item  value="inventory" title="Inventory"> -->
-      <!--   <template v-slot:prepend> -->
-      <!--       <v-icon size="65">mdi-cart</v-icon> -->
-      <!--   </template> -->
-      <!-- </v-list-item> -->
     </v-list>
   </v-navigation-drawer>
 </template>
+
+<script setup>
+import { ref } from 'vue';
+
+const items = ref([
+  {
+    value: "invoice",
+    to: "/",
+    icon: "mdi-invoice",
+    title: "Invoice"
+  },
+  {
+    value: "inventory",
+    to: "/inventory",
+    icon: "mdi-package-variant-closed",
+    title: "Inventory"
+  },
+  {
+    value: "transfer",
+    to: "/transfers",
+    icon: "mdi-truck",
+    title: "Transfers",
+    class: "bg-yellow",
+    iconClass: "bounce"
+  },
+  {
+    value: "clients",
+    to: "/clients",
+    icon: "mdi-account-multiple",
+    title: "Clients"
+  },
+  {
+    value: "attendance",
+    to: "/attendance",
+    icon: "mdi-badge-account",
+    title: "Attendance"
+  },
+  {
+    value: "shifts",
+    to: "/shifts",
+    icon: "mdi-timeline-clock",
+    title: "Balance & Shifts"
+  },
+  {
+    value: "close-shift",
+    to: "/close-shift",
+    icon: "mdi-close-circle-outline",
+    title: "Close Shift"
+  }
+])
+</script>
+
+<style>
+@keyframes bounce {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+.bounce {
+  animation: bounce 1.5s infinite;
+}
+</style>
