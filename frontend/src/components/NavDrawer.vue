@@ -1,6 +1,5 @@
 <template>
   <v-navigation-drawer permanent width="172">
-    <v-divider></v-divider>
     <v-list nav class="d-flex flex-column justify-space-evenly fill-height">
       <v-list-item v-for="i in items" :key="i.value" :value="i.value" :to="i.to">
         <div class="d-flex flex-column justify-center align-center" :class="i.class">
@@ -10,17 +9,32 @@
           <h3>{{ i.title }}</h3>
         </div>
       </v-list-item>
+      <v-list-item value="close_shift" :active="false" @click="closeShiftDialog = true">
+        <div class="d-flex flex-column justify-center align-center">
+          <v-icon size="40">
+            mdi-close-circle-outline
+          </v-icon>
+          <h3>Close Shift</h3>
+        </div>
+      </v-list-item>
     </v-list>
   </v-navigation-drawer>
+
+  <v-dialog v-model="closeShiftDialog" max-width="600">
+    <close-shift-card />
+  </v-dialog>
 </template>
 
 <script setup>
 import { ref } from 'vue';
+import CloseShiftCard from './CloseShiftCard.vue';
+
+const closeShiftDialog = ref(false);
 
 const items = ref([
   {
     value: "invoice",
-    to: "/",
+    to: "/home",
     icon: "mdi-invoice",
     title: "Invoice"
   },
@@ -55,13 +69,13 @@ const items = ref([
     to: "/shifts",
     icon: "mdi-timeline-clock",
     title: "Balance & Shifts"
-  },
-  {
-    value: "close-shift",
-    to: "/close-shift",
-    icon: "mdi-close-circle-outline",
-    title: "Close Shift"
   }
+  //{
+  //  value: "close-shift",
+  //  to: "/close-shift",
+  //  icon: "mdi-close-circle-outline",
+  //  title: "Close Shift"
+  //}
 ])
 </script>
 
