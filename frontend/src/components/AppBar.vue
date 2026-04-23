@@ -15,12 +15,7 @@
       <!-- <v-btn icon> -->
       <!--   <v-icon>mdi-dots-vertical</v-icon> -->
       <!-- </v-btn> -->
-      <v-list-item title="Sandra Adams" subtitle="Salesman">
-        <template v-slot:prepend>
-          <v-avatar color="purple" size="42">
-            <span class="text-headline-small">SA</span>
-          </v-avatar>
-        </template>
+        <OnHoldMenu />
       </v-list-item>
     </template>
   </v-app-bar>
