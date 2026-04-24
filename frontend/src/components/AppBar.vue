@@ -16,7 +16,7 @@ import OnHoldDialog from "./OnHoldDialog.vue";
       <!-- <v-btn icon> -->
       <!--   <v-icon>mdi-dots-vertical</v-icon> -->
       <!-- </v-btn> -->
-        <OnHoldDialog />
+      <new-transfer-alert />
       </v-list-item>
     </template>
   </v-app-bar>
