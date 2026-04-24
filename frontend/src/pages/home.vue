@@ -18,13 +18,13 @@
       <Calculator />
     </div>
     <div style="flex: 0 0 20%;">
-      <BottomBar />
+      <ActionBar />
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
 import InvoicesTable from '@/components/InvoicesTable.vue';
-import BottomBar from '@/components/BottomBar.vue';
+import ActionBar from '@/components/ActionBar.vue';
 import Calculator from '@/components/Calculator.vue';
 </script>
