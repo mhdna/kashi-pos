@@ -1,3 +1,4 @@
+import OnHoldDialog from "./OnHoldDialog.vue";
 <template>
   <v-app-bar color="grey-darken-3">
     <!-- <template v-slot:prepend> -->
@@ -15,7 +16,7 @@
       <!-- <v-btn icon> -->
       <!--   <v-icon>mdi-dots-vertical</v-icon> -->
       <!-- </v-btn> -->
-        <OnHoldMenu />
+        <OnHoldDialog />
       </v-list-item>
     </template>
   </v-app-bar>
