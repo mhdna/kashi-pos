@@ -3,8 +3,7 @@
     <div style="flex: 0 0 50%;">
       <v-sheet>
         <div>
-          <v-card-title>
-            Invoice
+            <return-invoice-menu />
           </v-card-title>
           <v-card-subtitle>
             SA/CN/2026/1441
@@ -27,4 +26,5 @@
 import InvoicesTable from '@/components/InvoicesTable.vue';
 import ActionBar from '@/components/ActionBar.vue';
 import Calculator from '@/components/Calculator.vue';
+import ReturnInvoiceMenu from '@/components/ReturnInvoiceMenu.vue';
 </script>
