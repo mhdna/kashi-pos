@@ -4,20 +4,18 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	_ "embed"
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-	"runtime"
 
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "modernc.org/sqlite"
 
 	db "kashi-pos/db/sqlc"
-
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/sqlite"
 )
+
+//go:embed db/kashi.db
+var embeddedDB []byte
 
 type App struct {
 	ctx     context.Context
@@ -32,24 +30,19 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		log.Fatal(err)
+	if _, err := os.Stat("./database"); os.IsNotExist(err) {
+		if err := os.WriteFile("./database", embeddedDB, 0644); err != nil {
+			log.Fatal("failed to create database:", err)
+		}
+		log.Println("copied embedded database")
 	}
-	dbDir := filepath.Join(dir, "kashi-pos")
-	if err := os.MkdirAll(dbDir, 0755); err != nil {
-		log.Fatal(err)
-	}
-	dbPath := filepath.Join(dbDir, "kashi.db")
 
-	a.conn, err = sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)")
+	var err error
+	a.conn, err = sql.Open("sqlite", "./database"+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := runMigrations(dbPath); err != nil {
-		log.Fatal("migrations failed:", err)
-	}
 	a.queries = db.New(a.conn)
 	a.seedDefaults()
 }
@@ -58,55 +51,6 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.conn != nil {
 		a.conn.Close()
 	}
-}
-
-func runMigrations(dbPath string) error {
-	migrationsPath := resolveMigrationsPath()
-	migDB, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return fmt.Errorf("migrate db: %w", err)
-	}
-	defer migDB.Close()
-
-	driver, err := sqlite.WithInstance(migDB, &sqlite.Config{})
-	if err != nil {
-		return fmt.Errorf("migrate driver: %w", err)
-	}
-
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://"+migrationsPath,
-		"sqlite",
-		driver,
-	)
-	if err != nil {
-		return fmt.Errorf("migrate init: %w", err)
-	}
-	defer m.Close()
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("migrate up: %w", err)
-	}
-	return nil
-}
-
-func resolveMigrationsPath() string {
-	// Try relative to executable first
-	exe, err := os.Executable()
-	if err == nil {
-		p := filepath.Join(filepath.Dir(exe), "db", "migrations")
-		if info, err := os.Stat(p); err == nil && info.IsDir() {
-			return p
-		}
-	}
-	// Fallback to CWD
-	p := filepath.Join(".", "db", "migrations")
-	if info, err := os.Stat(p); err == nil && info.IsDir() {
-		abs, _ := filepath.Abs(p)
-		return abs
-	}
-	// Fallback to project root (dev mode)
-	_, b, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(b), "db", "migrations")
 }
 
 func (a *App) VerifyLogin(username, password string) (map[string]interface{}, error) {
