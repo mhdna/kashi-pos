@@ -6,12 +6,20 @@ export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }
 
+export function GetAppSettings() {
+  return window['go']['main']['App']['GetAppSettings']();
+}
+
 export function GetTheme() {
   return window['go']['main']['App']['GetTheme']();
 }
 
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
+}
+
+export function UpdateSettings(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4);
 }
 
 export function VerifyLogin(arg1, arg2) {

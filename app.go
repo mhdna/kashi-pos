@@ -167,7 +167,7 @@ func (a *App) seedDefaults() {
 		log.Fatal("create admin role:", err)
 	}
 
-	_, err = a.queries.CreateRole(ctx, db.CreateRoleParams{
+	cashierRole, err := a.queries.CreateRole(ctx, db.CreateRoleParams{
 		Name:        "cashier",
 		Description: "Cashier",
 	})
@@ -183,6 +183,15 @@ func (a *App) seedDefaults() {
 	})
 	if err != nil {
 		log.Fatal("create default admin:", err)
+	}
+	_, err = a.queries.CreateUser(ctx, db.CreateUserParams{
+		Username:     "user",
+		PasswordHash: hashPassword("user"),
+		RoleID:       cashierRole.ID,
+		Active:       1,
+	})
+	if err != nil {
+		log.Fatal("create default user:", err)
 	}
 
 	log.Println("seeded default roles and admin user")
@@ -217,4 +226,31 @@ func (a *App) SetTheme(theme string) error {
 		return err
 	}
 	return nil
+}
+
+func (a *App) GetAppSettings() (map[string]interface{}, error) {
+	settings, err := a.queries.GetSettings(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"branchName":  settings.BranchName,
+		"apiKey":      settings.ApiKey,
+		"printerID":   settings.PrinterID,
+		"printerSize": settings.PrinterSize,
+	}, nil
+}
+
+func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize string) error {
+	current, err := a.queries.GetSettings(a.ctx)
+	if err != nil {
+		return err
+	}
+	return a.queries.UpdateSettings(a.ctx, db.UpdateSettingsParams{
+		BranchName:  branchName,
+		ApiKey:      apiKey,
+		PrinterID:   printerID,
+		PrinterSize: printerSize,
+		Theme:       current.Theme,
+	})
 }

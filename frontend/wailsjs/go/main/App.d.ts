@@ -3,8 +3,12 @@
 
 export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function GetAppSettings():Promise<Record<string, any>>;
+
 export function GetTheme():Promise<string>;
 
 export function SetTheme(arg1:string):Promise<void>;
+
+export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function VerifyLogin(arg1:string,arg2:string):Promise<Record<string, any>>;
