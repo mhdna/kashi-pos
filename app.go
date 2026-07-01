@@ -36,9 +36,12 @@ func (a *App) startup(ctx context.Context) {
 		dbPath = filepath.Join(filepath.Dir(exe), "database")
 	}
 
+	log.Println("database path:", dbPath)
+
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		if err := os.WriteFile(dbPath, embeddedDB, 0644); err != nil {
-			log.Fatal("failed to create database:", err)
+			log.Println("failed to create database:", err)
+			return
 		}
 		log.Println("copied embedded database")
 	}
@@ -46,7 +49,8 @@ func (a *App) startup(ctx context.Context) {
 	var err error
 	a.conn, err = sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)")
 	if err != nil {
-		log.Fatal(err)
+		log.Println("failed to open database:", err)
+		return
 	}
 
 	a.queries = db.New(a.conn)
@@ -60,6 +64,9 @@ func (a *App) shutdown(ctx context.Context) {
 }
 
 func (a *App) VerifyLogin(username, password string) (map[string]interface{}, error) {
+	if a.queries == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
 	user, err := a.queries.GetUserByUsername(a.ctx, username)
 	if err != nil {
 		return nil, fmt.Errorf("user not found")
@@ -102,6 +109,10 @@ func (a *App) ChangePassword(username, oldPassword, newPassword string) error {
 }
 
 func (a *App) seedDefaults() {
+	if a.queries == nil {
+		return
+	}
+
 	ctx := context.Background()
 
 	roles, err := a.queries.ListRoles(ctx)
@@ -114,7 +125,8 @@ func (a *App) seedDefaults() {
 		Description: "Administrator",
 	})
 	if err != nil {
-		log.Fatal("create admin role:", err)
+		log.Println("create admin role:", err)
+		return
 	}
 
 	cashierRole, err := a.queries.CreateRole(ctx, db.CreateRoleParams{
@@ -122,7 +134,8 @@ func (a *App) seedDefaults() {
 		Description: "Cashier",
 	})
 	if err != nil {
-		log.Fatal("create cashier role:", err)
+		log.Println("create cashier role:", err)
+		return
 	}
 
 	_, err = a.queries.CreateUser(ctx, db.CreateUserParams{
@@ -132,7 +145,8 @@ func (a *App) seedDefaults() {
 		Active:       1,
 	})
 	if err != nil {
-		log.Fatal("create default admin:", err)
+		log.Println("create default admin:", err)
+		return
 	}
 	_, err = a.queries.CreateUser(ctx, db.CreateUserParams{
 		Username:     "user",
@@ -141,7 +155,8 @@ func (a *App) seedDefaults() {
 		Active:       1,
 	})
 	if err != nil {
-		log.Fatal("create default user:", err)
+		log.Println("create default user:", err)
+		return
 	}
 
 	log.Println("seeded default roles and admin user")
