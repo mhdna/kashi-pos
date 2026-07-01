@@ -6,6 +6,13 @@
   </v-app>
 </template>
 
-<script lang="ts" setup>
-  //
+<script setup>
+import { GetTheme } from "@/wailsjs/go/main/App";
+import { useTheme } from "vuetify";
+
+const theme = useTheme();
+
+GetTheme().then((saved) => {
+  if (saved) theme.global.name.value = saved;
+});
 </script>
