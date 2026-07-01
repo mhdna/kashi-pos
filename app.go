@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	_ "modernc.org/sqlite"
 
@@ -30,15 +31,20 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	if _, err := os.Stat("./database"); os.IsNotExist(err) {
-		if err := os.WriteFile("./database", embeddedDB, 0644); err != nil {
+	dbPath := "database"
+	if exe, err := os.Executable(); err == nil {
+		dbPath = filepath.Join(filepath.Dir(exe), "database")
+	}
+
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		if err := os.WriteFile(dbPath, embeddedDB, 0644); err != nil {
 			log.Fatal("failed to create database:", err)
 		}
 		log.Println("copied embedded database")
 	}
 
 	var err error
-	a.conn, err = sql.Open("sqlite", "./database"+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)")
+	a.conn, err = sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)")
 	if err != nil {
 		log.Fatal(err)
 	}
