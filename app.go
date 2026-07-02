@@ -91,6 +91,9 @@ func (a *App) VerifyLogin(username, password string) (map[string]interface{}, er
 }
 
 func (a *App) ChangePassword(username, oldPassword, newPassword string) error {
+	if a.queries == nil {
+		return fmt.Errorf("database not initialized")
+	}
 	user, err := a.queries.GetUserByUsername(a.ctx, username)
 	if err != nil {
 		return fmt.Errorf("user not found")
@@ -167,7 +170,7 @@ func (a *App) seedDefaults() {
 			ApiKey:      "",
 			PrinterID:   "",
 			PrinterSize: "",
-			Theme:       "system",
+			Theme:       "light",
 		})
 	}
 }
@@ -178,14 +181,20 @@ func hashPassword(pw string) string {
 }
 
 func (a *App) GetTheme() (string, error) {
+	if a.queries == nil {
+		return "light", nil
+	}
 	settings, err := a.queries.GetSettings(a.ctx)
 	if err != nil {
-		return "", err
+		return "light", nil
 	}
 	return settings.Theme, nil
 }
 
 func (a *App) SetTheme(theme string) error {
+	if a.queries == nil {
+		return fmt.Errorf("database not initialized")
+	}
 	err := a.queries.UpdateTheme(a.ctx, theme)
 	if err != nil {
 		return err
@@ -194,6 +203,9 @@ func (a *App) SetTheme(theme string) error {
 }
 
 func (a *App) GetAppSettings() (map[string]interface{}, error) {
+	if a.queries == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
 	settings, err := a.queries.GetSettings(a.ctx)
 	if err != nil {
 		return nil, err
@@ -207,6 +219,9 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 }
 
 func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize string) error {
+	if a.queries == nil {
+		return fmt.Errorf("database not initialized")
+	}
 	current, err := a.queries.GetSettings(a.ctx)
 	if err != nil {
 		return err

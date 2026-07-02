@@ -7,12 +7,22 @@
 </template>
 
 <script setup>
-import { GetTheme } from "@/wailsjs/go/main/App";
+import { GetTheme } from "../wailsjs/go/main/App";
 import { useTheme } from "vuetify";
 
 const theme = useTheme();
 
-GetTheme().then((saved) => {
-  if (saved) theme.global.name.value = saved;
-});
+GetTheme()
+  .then((saved) => {
+    if (saved && saved !== "system") theme.global.name.value = saved;
+  })
+  .catch(() => {});
 </script>
+
+<style>
+*, *::before, *::after {
+  transition: none !important;
+  animation: none !important;
+}
+</style>
+

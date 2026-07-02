@@ -1,19 +1,31 @@
-/**
- * plugins/vuetify.ts
- *
- * Framework documentation: https://vuetifyjs.com`
- */
+import { createVuetify } from "vuetify";
+import "vuetify/styles";
+import { aliases, mdi } from "../lib/icons";
 
-// Composables
-import { createVuetify } from 'vuetify'
-// Styles
-import '@mdi/font/css/materialdesignicons.css'
-
-import 'vuetify/styles'
-
-// https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
 export default createVuetify({
   theme: {
-    defaultTheme: 'system',
+    defaultTheme: "light",
+    variations: false,
   },
-})
+  icons: {
+    defaultSet: "mdi",
+    aliases,
+    sets: { mdi },
+  },
+  defaults: {
+    global: {
+      transition: false,
+    },
+    VBtn: { ripple: false },
+    VListItem: { ripple: false },
+    VTextField: { ripple: false },
+    VSelect: { ripple: false },
+    VNavigationDrawer: { ripple: false },
+    VCard: { ripple: false },
+    VMenu: { ripple: false },
+    VTabs: { ripple: false },
+    VCheckbox: { ripple: false },
+    VRadio: { ripple: false },
+    VSwitch: { ripple: false },
+  },
+});
