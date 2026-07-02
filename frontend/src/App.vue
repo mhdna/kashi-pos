@@ -19,10 +19,3 @@ GetTheme()
   .catch(() => {});
 </script>
 
-<style>
-*, *::before, *::after {
-  transition: none !important;
-  animation: none !important;
-}
-</style>
-
