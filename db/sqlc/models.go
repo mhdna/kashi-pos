@@ -25,6 +25,12 @@ type CashboxAccount struct {
 	CurrencyCode string `json:"currencyCode"`
 }
 
+type CategoryIcon struct {
+	ID         int64  `json:"id"`
+	Icon       string `json:"icon"`
+	Categories string `json:"categories"`
+}
+
 type Client struct {
 	ID                 int64  `json:"id"`
 	Name               string `json:"name"`

@@ -82,6 +82,7 @@ type Querier interface {
 	ListAccounts(ctx context.Context) ([]Account, error)
 	ListAssets(ctx context.Context) ([]Asset, error)
 	ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
+	ListCategoryIcons(ctx context.Context) ([]CategoryIcon, error)
 	ListClients(ctx context.Context) ([]Client, error)
 	ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error)
 	ListCurrencies(ctx context.Context) ([]Currency, error)

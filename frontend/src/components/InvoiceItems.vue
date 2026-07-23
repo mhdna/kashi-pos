@@ -97,7 +97,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
+import { ListCategoryIcons } from "../../wailsjs/go/main/App";
 
 interface LineItem {
   name: string;
@@ -116,54 +117,26 @@ function totalAfterDiscount(item: LineItem): number {
   return item.price * item.qty - discountAmount(item);
 }
 
-const categoryIcons: Record<string, string> = {
-  "t-shirt": "mdi-tshirt-crew",
-  "t-shirt-outline": "mdi-tshirt-crew-outline",
-  sweatshirt: "mdi-coat-rack",
-  pants: "mdi-hanger",
-  shoes: "mdi-shoe-sneaker",
-  hat: "mdi-hat-fedora",
-  coat: "mdi-coat-rack",
-  jacket: "mdi-coat-rack",
-  blazer: "mdi-account-tie",
-  dress: "mdi-account-tie-woman",
-  formal: "mdi-account-tie",
-  "formal-woman": "mdi-account-tie-woman",
-  "formal-hat": "mdi-account-tie-hat",
-  underwear: "mdi-underwear-outline",
-  tie: "mdi-tie",
-  "bow-tie": "mdi-bow-tie",
-  glasses: "mdi-glasses",
-  sunglasses: "mdi-sunglasses",
-  necklace: "mdi-necklace",
-  ring: "mdi-ring",
-  watch: "mdi-watch",
-  wallet: "mdi-wallet",
-  purse: "mdi-purse",
-  bag: "mdi-bag-personal",
-  suitcase: "mdi-bag-suitcase",
-  umbrella: "mdi-umbrella",
-  mask: "mdi-face-mask",
-  "boxing-gloves": "mdi-boxing-glove",
-  scarf: "mdi-tie",
-  belt: "mdi-watch",
-  shorts: "mdi-hanger",
-  skirt: "mdi-account-tie-woman",
-  romper: "mdi-tshirt-crew-outline",
-  jumpsuit: "mdi-hanger",
-  leggings: "mdi-hanger",
-  socks: "mdi-shoe-sneaker",
-  cap: "mdi-hat-fedora",
-  beanie: "mdi-hat-fedora",
-  sandals: "mdi-shoe-sneaker",
-  heels: "mdi-shoe-sneaker",
-};
+const categoryIcons = ref<Map<string, string>>(new Map());
 
 function iconFor(category: string): string {
-  return categoryIcons[category] || "mdi-cart-outline";
+  return categoryIcons.value.get(category) || "mdi-cart-outline";
 }
 
 const items = ref<LineItem[]>([]);
+
+onMounted(async () => {
+  try {
+    const entries = (await ListCategoryIcons()) as { icon: string; categories: string }[];
+    const map = new Map<string, string>();
+    for (const row of entries) {
+      for (const cat of row.categories.split(",")) {
+        map.set(cat.trim(), row.icon);
+      }
+    }
+    categoryIcons.value = map;
+  } catch {}
+});
 
 function increaseQty(item: LineItem) {
   item.qty++;

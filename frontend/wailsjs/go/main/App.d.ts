@@ -13,13 +13,13 @@ export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
 
 export function GetTheme():Promise<string>;
 
+export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
+
 export function ListCurrencies():Promise<Array<Record<string, any>>>;
 
 export function ListPaymentMethods():Promise<Array<Record<string, any>>>;
 
 export function ListProducts():Promise<Array<Record<string, any>>>;
-
-export function ListSalespersons():Promise<Array<Record<string, any>>>;
 
 export function ListSalespersons():Promise<Array<Record<string, any>>>;
 

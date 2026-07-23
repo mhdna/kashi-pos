@@ -26,6 +26,10 @@ export function GetTheme() {
   return window['go']['main']['App']['GetTheme']();
 }
 
+export function ListCategoryIcons() {
+  return window['go']['main']['App']['ListCategoryIcons']();
+}
+
 export function ListCurrencies() {
   return window['go']['main']['App']['ListCurrencies']();
 }
@@ -36,10 +40,6 @@ export function ListPaymentMethods() {
 
 export function ListProducts() {
   return window['go']['main']['App']['ListProducts']();
-}
-
-export function ListSalespersons() {
-  return window['go']['main']['App']['ListSalespersons']();
 }
 
 export function ListSalespersons() {
