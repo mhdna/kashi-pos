@@ -1,20 +1,30 @@
 <template>
-  <ServerSideTable :api-u-r-l="apiURL" :header="headers" root-key="products" />
+  <v-card class="pa-4 ma-4">
+    <v-card-title>Invoices</v-card-title>
+    <v-data-table :headers="headers" :items="items" :loading="loading" density="compact" hover>
+      <template #item.grandTotal="{ item }">${{ (item.grandTotal / 100).toFixed(2) }}</template>
+      <template #item.createdAt="{ item }">{{ item.createdAt?.slice(0, 19) }}</template>
+    </v-data-table>
+  </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import ServerSideTable from "@/components/ServerSideTable.vue";
+import { ref, onMounted } from "vue";
+import { ListInvoices } from "../../wailsjs/go/main/App";
 
-const apiURL = "http://localhost:4123/products";
-const headers = ref([
-  { title: "ID", key: "id", align: "start" },
-  { title: "Code", key: "code", align: "start" },
-  { title: "Name", key: "name", align: "start" },
-  { title: "Description", key: "description", align: "start" },
-  { title: "Active", key: "is_active", align: "center" },
-  { title: "Price", key: "price", align: "end" },
-  { title: "Discount", key: "discount", align: "end" },
-  { title: "Created At", key: "created_at", align: "end" },
-]);
+const headers = [
+  { title: "Code", key: "invoiceCode" },
+  { title: "Client", key: "clientId" },
+  { title: "Subtotal", key: "subtotal" },
+  { title: "Discount", key: "discountedTotal" },
+  { title: "Total", key: "grandTotal" },
+  { title: "Date", key: "createdAt" },
+];
+const items = ref<any[]>([]);
+const loading = ref(true);
+
+onMounted(async () => {
+  try { items.value = await ListInvoices(); } catch {}
+  loading.value = false;
+});
 </script>
