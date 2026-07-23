@@ -1,47 +1,66 @@
 <template>
-    <v-dialog v-model="dialog" :close-on-content-click="false" location="bottom" max-width="800">
-        <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" class="py-6 px-0 me-4">
-                <v-list-item title="Sandra Adams" subtitle="Salesperson">
-                    <template v-slot:prepend>
-                        <v-avatar color="purple" size="42">
-                            <span class="text-headline-small">SA</span>
-                        </v-avatar>
-                    </template>
-                </v-list-item>
-            </v-btn>
+  <v-menu v-model="menu" :close-on-content-click="false" location="bottom end">
+    <template #activator="{ props }">
+      <v-btn v-bind="props" class="py-6 px-0 me-4">
+        <v-list-item
+          subtitle="Salesperson"
+          :title="selectedName"
+          style="min-width: 180px"
+        >
+          <template #prepend>
+            <v-avatar :color="selectedColor" size="42">
+              <span class="text-headline-small">{{ selectedInitials }}</span>
+            </v-avatar>
+          </template>
+        </v-list-item>
+      </v-btn>
+    </template>
+    <v-list density="compact" nav style="max-height: 400px; overflow-y: auto">
+      <v-list-item
+        v-for="p in salespersons"
+        :key="p.id"
+        @click="selectSalesperson(p)"
+      >
+        <template #prepend>
+          <v-avatar :color="colorFor(p.id)" size="32">
+            <span class="text-body-small font-weight-bold">{{ initials(p.fullName) }}</span>
+          </v-avatar>
         </template>
-        <v-card max-width="800" max-height="550" class="px-2 pb-2">
-            <v-card-title>
-                Salespersons
-            </v-card-title>
-            <div class="d-flex flex-wrap">
-                <v-card v-for="p in salespersons" min-width="250" min-height="150" link
-                    class="ma-1 d-flex flex-column justify-center align-center">
-                    <initials-avatar :firstName="p.firstName" :lastName="p.lastName" :color="p.color" />
-                    <div class="mt-5 text-headline-small">
-                        {{ p.firstName }}
-                        {{ p.lastName }}
-                    </div>
-                </v-card>
-            </div>
-        </v-card>
-    </v-dialog>
+        <v-list-item-title class="text-body-2">{{ p.fullName }}</v-list-item-title>
+      </v-list-item>
+    </v-list>
+  </v-menu>
 </template>
-<script setup>
-import { ref } from 'vue'
-import InitialsAvatar from './InitialsAvatar.vue';
 
-const dialog = ref(false)
+<script setup lang="ts">
+import { ref, computed, onMounted } from "vue";
+import { ListSalespersons } from "../../wailsjs/go/main/App";
 
-const salespersons = ref([
-    { id: 1, firstName: "Sandra", lastName: "Adams", color: "yellow" },
-    { id: 2, firstName: "Khanda", lastName: "Adams", color: "blue" },
-    { id: 3, firstName: "Uganda", lastName: "Adams", color: "red" },
-    { id: 4, firstName: "Sinda", lastName: "Adams", color: "pink" },
-    { id: 5, firstName: "Sinda", lastName: "Adams", color: "purple" },
-    { id: 6, firstName: "Sinda", lastName: "Adams", color: "green" },
-    { id: 6, firstName: "Sinda", lastName: "Adams", color: "teal" },
-    { id: 7, firstName: "Sinda", lastName: "Adams", color: "cyan" },
-])
+const menu = ref(false);
+const colors = ["yellow", "blue", "red", "purple", "pink", "green", "orange", "teal"];
+
+interface Salesperson { id: number; fullName: string; }
+
+const salespersons = ref<Salesperson[]>([]);
+const selected = ref<Salesperson>({ id: 0, fullName: "Anonymous" });
+
+const selectedName = computed(() => selected.value.fullName);
+const selectedColor = computed(() => colorFor(selected.value.id));
+const selectedInitials = computed(() => initials(selected.value.fullName));
+
+function colorFor(id: number) { return colors[id % colors.length]; }
+function initials(name: string) { return name.split(" ").map((w) => w[0]).join(""); }
+
+function selectSalesperson(p: Salesperson) {
+  selected.value = p;
+  menu.value = false;
+}
+
+onMounted(async () => {
+  const list = await ListSalespersons();
+  if (list.length) {
+    salespersons.value = list;
+    selected.value = list[0];
+  }
+});
 </script>

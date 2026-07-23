@@ -173,6 +173,18 @@ func (a *App) seedDefaults() {
 	}
 	a.seedCashboxAccounts()
 	a.seedProducts()
+	a.seedSalespersons()
+}
+
+func (a *App) seedSalespersons() {
+	existing, _ := a.queries.ListSalespersons(context.Background())
+	if len(existing) > 0 {
+		return
+	}
+	for _, name := range []string{"Sarah M", "Fatima G", "Ali A", "Zahraa M", "Alex A"} {
+		a.queries.CreateSalesperson(context.Background(), name)
+	}
+	log.Println("seeded salespersons")
 }
 
 func (a *App) seedCashboxAccounts() {

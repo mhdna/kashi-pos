@@ -14,10 +14,6 @@ export function GetDefaultCurrency() {
   return window['go']['main']['App']['GetDefaultCurrency']();
 }
 
-export function GetDefaultCurrency() {
-  return window['go']['main']['App']['GetDefaultCurrency']();
-}
-
 export function GetProductByBarcode(arg1) {
   return window['go']['main']['App']['GetProductByBarcode'](arg1);
 }
@@ -38,16 +34,16 @@ export function ListPaymentMethods() {
   return window['go']['main']['App']['ListPaymentMethods']();
 }
 
-export function ListCurrencies() {
-  return window['go']['main']['App']['ListCurrencies']();
-}
-
-export function ListPaymentMethods() {
-  return window['go']['main']['App']['ListPaymentMethods']();
-}
-
 export function ListProducts() {
   return window['go']['main']['App']['ListProducts']();
+}
+
+export function ListSalespersons() {
+  return window['go']['main']['App']['ListSalespersons']();
+}
+
+export function ListSalespersons() {
+  return window['go']['main']['App']['ListSalespersons']();
 }
 
 export function SetTheme(arg1) {
