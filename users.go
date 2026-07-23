@@ -1,0 +1,103 @@
+package main
+
+import (
+	"fmt"
+
+	db "kashi-pos/db/sqlc"
+)
+
+func (a *App) ListUsers() ([]map[string]any, error) {
+	if a.queries == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	users, err := a.queries.ListUsers(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]any, len(users))
+	for i, u := range users {
+		role, _ := a.queries.GetRoleByID(a.ctx, u.RoleID)
+		roleName := ""
+		if role.Name != "" {
+			roleName = role.Name
+		}
+		result[i] = map[string]any{
+			"id":       u.ID,
+			"username": u.Username,
+			"roleId":   u.RoleID,
+			"role":     roleName,
+			"active":   u.Active,
+		}
+	}
+	return result, nil
+}
+
+func (a *App) CreateUser(username, password string, roleID int64) (map[string]any, error) {
+	if a.queries == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	user, err := a.queries.CreateUser(a.ctx, db.CreateUserParams{
+		Username:     username,
+		PasswordHash: hashPassword(password),
+		RoleID:       roleID,
+		Active:       1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"id":       user.ID,
+		"username": user.Username,
+		"roleId":   user.RoleID,
+		"active":   user.Active,
+	}, nil
+}
+
+func (a *App) UpdateUser(id int64, username, password string, roleID, active int64) error {
+	if a.queries == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	params := db.UpdateUserParams{
+		ID:       id,
+		Username: username,
+		RoleID:   roleID,
+		Active:   active,
+	}
+	if password != "" {
+		params.PasswordHash = hashPassword(password)
+	} else {
+		user, err := a.queries.GetUserByID(a.ctx, id)
+		if err != nil {
+			return err
+		}
+		params.PasswordHash = user.PasswordHash
+	}
+	_, err := a.queries.UpdateUser(a.ctx, params)
+	return err
+}
+
+func (a *App) DeleteUser(id int64) error {
+	if a.queries == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.queries.DeleteUser(a.ctx, id)
+}
+
+func (a *App) ListRoles() ([]map[string]any, error) {
+	if a.queries == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	roles, err := a.queries.ListRoles(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]any, len(roles))
+	for i, r := range roles {
+		result[i] = map[string]any{
+			"id":          r.ID,
+			"name":        r.Name,
+			"description": r.Description,
+		}
+	}
+	return result, nil
+}
