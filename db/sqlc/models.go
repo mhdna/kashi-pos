@@ -20,8 +20,9 @@ type Asset struct {
 }
 
 type CashboxAccount struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	CurrencyCode string `json:"currencyCode"`
 }
 
 type Client struct {
@@ -48,6 +49,7 @@ type Currency struct {
 	Name                   string `json:"name"`
 	Symbol                 string `json:"symbol"`
 	IsDefault              bool   `json:"isDefault"`
+	IsActive               bool   `json:"isActive"`
 	ValueInDefaultCurrency int64  `json:"valueInDefaultCurrency"`
 }
 

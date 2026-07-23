@@ -17,6 +17,7 @@ func (a *App) ListCurrencies() ([]map[string]any, error) {
 			"name":                   c.Name,
 			"symbol":                 c.Symbol,
 			"isDefault":              c.IsDefault,
+			"isActive":               c.IsActive,
 			"valueInDefaultCurrency": c.ValueInDefaultCurrency,
 		}
 	}
@@ -51,8 +52,9 @@ func (a *App) ListPaymentMethods() ([]map[string]any, error) {
 	result := make([]map[string]any, len(accounts))
 	for i, acc := range accounts {
 		result[i] = map[string]any{
-			"id":   acc.ID,
-			"name": acc.Name,
+			"id":           acc.ID,
+			"name":         acc.Name,
+			"currencyCode": acc.CurrencyCode,
 		}
 	}
 	return result, nil

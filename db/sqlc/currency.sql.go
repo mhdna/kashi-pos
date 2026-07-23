@@ -10,7 +10,7 @@ import (
 )
 
 const getDefaultCurrency = `-- name: GetDefaultCurrency :one
-SELECT code, name, symbol, is_default, value_in_default_currency FROM currencies WHERE is_default = true
+SELECT code, name, symbol, is_default, is_active, value_in_default_currency FROM currencies WHERE is_default = true
 `
 
 func (q *Queries) GetDefaultCurrency(ctx context.Context) (Currency, error) {
@@ -21,13 +21,14 @@ func (q *Queries) GetDefaultCurrency(ctx context.Context) (Currency, error) {
 		&i.Name,
 		&i.Symbol,
 		&i.IsDefault,
+		&i.IsActive,
 		&i.ValueInDefaultCurrency,
 	)
 	return i, err
 }
 
 const listCurrencies = `-- name: ListCurrencies :many
-SELECT code, name, symbol, is_default, value_in_default_currency FROM currencies ORDER BY code
+SELECT code, name, symbol, is_default, is_active, value_in_default_currency FROM currencies ORDER BY code
 `
 
 func (q *Queries) ListCurrencies(ctx context.Context) ([]Currency, error) {
@@ -44,6 +45,7 @@ func (q *Queries) ListCurrencies(ctx context.Context) ([]Currency, error) {
 			&i.Name,
 			&i.Symbol,
 			&i.IsDefault,
+			&i.IsActive,
 			&i.ValueInDefaultCurrency,
 		); err != nil {
 			return nil, err

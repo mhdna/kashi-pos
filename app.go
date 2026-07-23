@@ -182,8 +182,16 @@ func (a *App) seedCashboxAccounts() {
 	if len(existing) > 0 {
 		return
 	}
-	for _, name := range []string{"Cash", "Card", "Whish", "Visa"} {
-		a.queries.CreateCashboxAccount(context.Background(), name)
+	for _, acc := range []struct{ name, currency string }{
+		{"USD", "USD"},
+		{"LBP", "LBP"},
+		{"Visa", "USD"},
+		{"Whish", "USD"},
+	} {
+		a.queries.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
+			Name:         acc.name,
+			CurrencyCode: acc.currency,
+		})
 	}
 	log.Println("seeded cashbox accounts")
 }
