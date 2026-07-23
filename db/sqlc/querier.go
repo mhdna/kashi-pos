@@ -10,6 +10,7 @@ import (
 )
 
 type Querier interface {
+	AddHoldInvoiceItem(ctx context.Context, arg AddHoldInvoiceItemParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
 	CloseShift(ctx context.Context, arg CloseShiftParams) error
 	CreateAccount(ctx context.Context, name string) (Account, error)
@@ -18,7 +19,7 @@ type Querier interface {
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
 	CreateDiscountOverride(ctx context.Context, arg CreateDiscountOverrideParams) (DiscountOverride, error)
-	CreateHoldInvoice(ctx context.Context, itemsJson string) (HoldInvoice, error)
+	CreateHoldInvoice(ctx context.Context) (HoldInvoice, error)
 	CreateInventory(ctx context.Context, name string) (Inventory, error)
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error)
 	CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error
@@ -92,6 +93,7 @@ type Querier interface {
 	ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error)
 	ListCurrencies(ctx context.Context) ([]Currency, error)
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
+	ListHoldInvoiceItems(ctx context.Context, holdInvoiceID int64) ([]ListHoldInvoiceItemsRow, error)
 	ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error)
 	ListInventories(ctx context.Context) ([]Inventory, error)
 	ListInventoryItems(ctx context.Context, inventoryID int64) ([]InventoryItem, error)

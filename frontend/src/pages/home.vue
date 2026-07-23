@@ -95,6 +95,11 @@ const receiptPath = ref("");
 
 async function getItemsJSON(): Promise<string> {
   const items = invoiceItems.value?.items ?? [];
+  return JSON.stringify(items.map((i: any) => ({ code: i.code, qty: i.qty })));
+}
+
+async function getFullItemsJSON(): Promise<string> {
+  const items = invoiceItems.value?.items ?? [];
   return JSON.stringify(items.map((i: any) => ({
     name: i.name, code: i.code, category: i.category,
     price: i.price, discount: i.discount, qty: i.qty,
@@ -109,14 +114,14 @@ async function onHold() {
 }
 
 async function onVoid() {
-  const json = await getItemsJSON();
+  const json = await getFullItemsJSON();
   if (json === "[]") return;
   await VoidInvoice(json, "");
   invoiceItems.value?.clearItems();
 }
 
 async function onCheckout() {
-  const json = await getItemsJSON();
+  const json = await getFullItemsJSON();
   if (json === "[]") return;
   const settings = await GetAppSettings();
   const receiptNo = "INV-" + Date.now();
@@ -132,15 +137,12 @@ async function onCheckout() {
   invoiceItems.value?.clearItems();
 }
 
-function onRestoreHold(itemsJSON: string) {
+function onRestoreHold(items: any[]) {
   if (!invoiceItems.value) return;
   invoiceItems.value.clearItems();
-  try {
-    const items = JSON.parse(itemsJSON);
-    for (const item of items) {
-      invoiceItems.value.addItem(item);
-    }
-  } catch {}
+  for (const item of items) {
+    invoiceItems.value.addItem({ ...item, qty: item.qty || 1 });
+  }
 }
 
 onMounted(async () => {

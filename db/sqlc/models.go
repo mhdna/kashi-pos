@@ -69,8 +69,14 @@ type DiscountOverride struct {
 
 type HoldInvoice struct {
 	ID        int64  `json:"id"`
-	ItemsJson string `json:"itemsJson"`
 	CreatedAt string `json:"createdAt"`
+}
+
+type HoldInvoiceItem struct {
+	ID            int64 `json:"id"`
+	HoldInvoiceID int64 `json:"holdInvoiceId"`
+	ProductID     int64 `json:"productId"`
+	Qty           int64 `json:"qty"`
 }
 
 type Inventory struct {

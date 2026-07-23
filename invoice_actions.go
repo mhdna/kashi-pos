@@ -25,9 +25,27 @@ func (a *App) HoldInvoice(itemsJSON string) (int64, error) {
 	if a.queries == nil {
 		return 0, fmt.Errorf("database not initialized")
 	}
-	inv, err := a.queries.CreateHoldInvoice(a.ctx, itemsJSON)
+	var items []struct {
+		Code string  `json:"code"`
+		Qty  float64 `json:"qty"`
+	}
+	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
+		return 0, err
+	}
+	inv, err := a.queries.CreateHoldInvoice(a.ctx)
 	if err != nil {
 		return 0, err
+	}
+	for _, it := range items {
+		product, err := a.queries.GetProductByCode(a.ctx, it.Code)
+		if err != nil {
+			continue
+		}
+		a.queries.AddHoldInvoiceItem(a.ctx, db.AddHoldInvoiceItemParams{
+			HoldInvoiceID: inv.ID,
+			ProductID:     product.ID,
+			Qty:           int64(it.Qty),
+		})
 	}
 	return inv.ID, nil
 }
@@ -42,9 +60,23 @@ func (a *App) ListHoldInvoices() ([]map[string]any, error) {
 	}
 	result := make([]map[string]any, len(list))
 	for i, inv := range list {
+		items, _ := a.queries.ListHoldInvoiceItems(a.ctx, inv.ID)
+		itemCount := len(items)
+		var itemList []map[string]any
+		for _, it := range items {
+			itemList = append(itemList, map[string]any{
+				"name":     it.Name,
+				"code":     it.Code,
+				"price":    float64(it.Price) / 100,
+				"discount": it.Discount,
+				"qty":      it.Qty,
+				"category": it.Category,
+			})
+		}
 		result[i] = map[string]any{
 			"id":        inv.ID,
-			"itemsJson": inv.ItemsJson,
+			"itemCount": itemCount,
+			"items":     itemList,
 			"createdAt": inv.CreatedAt,
 		}
 	}
@@ -111,8 +143,6 @@ func (a *App) generateReceipt(items []invoiceItem, storeName, branch, phone, sal
 		if align == "C" {
 			pdf.SetXY(margin, pdf.GetY())
 			w = contentW
-		} else if align == "R" {
-			pdf.SetXY(margin, pdf.GetY())
 		}
 		pdf.CellFormat(w, 4, s, "", 0, align, false, 0, "")
 	}
@@ -127,7 +157,6 @@ func (a *App) generateReceipt(items []invoiceItem, storeName, branch, phone, sal
 	}
 
 	center := func(s string, size float64) { boldText(s, size, "C") }
-
 	down := func(mm float64) { pdf.SetY(pdf.GetY() + mm) }
 
 	dashedRule := func() {
@@ -139,7 +168,6 @@ func (a *App) generateReceipt(items []invoiceItem, storeName, branch, phone, sal
 	}
 
 	pdf.SetY(8)
-
 	center(storeName, 21)
 	down(8)
 	center(branch, 12)
@@ -187,9 +215,8 @@ func (a *App) generateReceipt(items []invoiceItem, storeName, branch, phone, sal
 
 	dashedRule()
 	down(4)
-
 	taxable := subtotal - totalDiscount
-	grandTotal := taxable // no tax for now
+	grandTotal := taxable
 
 	twoCol("Subtotal", fmt.Sprintf("$%.2f", subtotal), 11)
 	down(4)
@@ -203,13 +230,11 @@ func (a *App) generateReceipt(items []invoiceItem, storeName, branch, phone, sal
 	down(6)
 	dashedRule()
 	down(4)
-
 	center("Thank you for shopping with us!", 10)
 	down(4)
 	center(receiptNo, 11)
 	down(8)
 
-	// barcode
 	seed := int64(0)
 	for _, c := range receiptNo {
 		seed += int64(c)
