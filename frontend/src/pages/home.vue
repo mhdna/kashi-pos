@@ -1,30 +1,130 @@
 <template>
-  <div class="d-flex">
-    <div style="flex: 0 0 50%;">
+  <div class="d-flex" style="width: 100%; overflow: hidden">
+    <div style="flex: 5 5 0; min-width: 0">
       <v-sheet>
         <div>
-            <return-invoice-menu />
+          <v-card-title class="d-flex justify-space-between">
+            <div>Invoice</div>
+            <div class="d-flex">
+              <div class="me-2">
+                <OnHoldMenu />
+              </div>
+              <ReturnInvoiceMenu />
+            </div>
           </v-card-title>
-          <v-card-subtitle>
-            SA/CN/2026/1441
-          </v-card-subtitle>
+          <v-card-subtitle> SA/CN/2026/1441 </v-card-subtitle>
         </div>
-        <v-text-field class="mx-4 mt-4" variant="solo-filled" hide-details="auto" label="Barcode"></v-text-field>
-        <InvoicesTable />
+        <div class="d-flex align-center mx-4 mt-4">
+          <v-text-field
+            ref="barcodeInput"
+            v-model="barcodeValue"
+            class="flex-grow-1"
+            density="compact"
+            hide-details="auto"
+            placeholder="Scan or Enter Barcode"
+            variant="outlined"
+            @blur="onBlur"
+            @keydown.enter="onBarcodeEnter"
+          />
+          <v-btn
+            icon
+            size="small"
+            variant="text"
+            class="ms-1"
+            @click="onBarcodeEnter"
+          >
+            <v-icon icon="mdi-magnify" size="20" />
+          </v-btn>
+          <!-- <ProductSearchDialog @select="onProductSelect" /> -->
+        </div>
+        <InvoiceItems ref="invoiceItems" />
+        <InvoiceSummary
+          :subtotal="invoiceItems?.subtotal ?? 0"
+          :total-discount="invoiceItems?.totalDiscount ?? 0"
+        />
       </v-sheet>
     </div>
-    <div style="flex: 0 0 30%;">
-      <Calculator />
+    <div style="flex: 3 3 0; min-width: 0">
+      <Calculator :total="invoiceTotal" />
     </div>
-    <div style="flex: 0 0 20%;">
-      <ActionBar />
+    <div class="me-2" style="flex: 2 2 0; min-width: 0">
+      <ActionBar :total="invoiceTotal" />
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import InvoicesTable from '@/components/InvoicesTable.vue';
-import ActionBar from '@/components/ActionBar.vue';
-import Calculator from '@/components/Calculator.vue';
-import ReturnInvoiceMenu from '@/components/ReturnInvoiceMenu.vue';
+import { ref, provide, watch, onMounted, computed } from "vue";
+import { GetProductByBarcode, ListProducts } from "../../wailsjs/go/main/App";
+import ActionBar from "@/components/ActionBar.vue";
+import Calculator from "@/components/Calculator.vue";
+import InvoiceItems from "@/components/InvoiceItems.vue";
+import InvoiceSummary from "@/components/InvoiceSummary.vue";
+import OnHoldMenu from "@/components/OnHoldMenu.vue";
+import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
+import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
+
+const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
+const invoiceTotal = computed(() => {
+  const subtotal = invoiceItems.value?.subtotal ?? 0;
+  const totalDiscount = invoiceItems.value?.totalDiscount ?? 0;
+  return (subtotal - totalDiscount) * 1.11;
+});
+const barcodeValue = ref("");
+const barcodeInput = ref<InstanceType<
+  typeof import("vuetify/components").VTextField
+> | null>(null);
+const dialogOpen = ref(false);
+
+provide("dialogOpen", dialogOpen);
+
+watch(dialogOpen, (v) => {
+  if (!v) focusBarcode();
+});
+
+function focusBarcode() {
+  barcodeInput.value?.focus();
+}
+
+function onBlur() {
+  if (!dialogOpen.value) focusBarcode();
+}
+
+function onProductSelect(product: {
+  name: string;
+  code: string;
+  category: string;
+  price: number;
+  discount: number;
+  qty: number;
+}) {
+  invoiceItems.value?.addItem(product);
+  focusBarcode();
+}
+
+async function onBarcodeEnter() {
+  const value = barcodeValue.value;
+  if (!value) return;
+
+  let match: any = null;
+  try {
+    const p = await GetProductByBarcode(value);
+    match = { ...p, qty: 1 };
+  } catch {
+    match = products.value.find((p) => p.code === value);
+  }
+
+  if (match) invoiceItems.value?.addItem(match);
+  barcodeValue.value = "";
+  focusBarcode();
+}
+
+const products = ref<any[]>([]);
+
+onMounted(async () => {
+  focusBarcode();
+  try {
+    products.value = (await ListProducts()).map((p) => ({ ...p, qty: 1 }));
+  } catch {}
+});
 </script>
