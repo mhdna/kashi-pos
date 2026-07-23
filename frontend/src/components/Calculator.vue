@@ -35,8 +35,8 @@
       <v-col cols="4"><v-btn block class="text-h6" @click="input('0')">0</v-btn></v-col>
       <v-col cols="4"><v-btn block class="text-h6" @click="input('00')">00</v-btn></v-col>
       <v-col cols="4"><v-btn block class="text-h6 font-weight-bold" @click="input('.')">.</v-btn></v-col>
-      <v-col cols="4"><v-btn block class="text-h6" color="red-darken-2" @click="clearAll()">CA</v-btn></v-col>
-      <v-col cols="4"><v-btn block class="text-h6" @click="input('back')">⌫</v-btn></v-col>
+      <v-col cols="6"><v-btn block class="text-h6" color="red-darken-2" @click="clearAll()">CA</v-btn></v-col>
+      <v-col cols="6"><v-btn block class="text-h6" @click="input('back')">⌫</v-btn></v-col>
     </v-row>
 
     <v-btn
