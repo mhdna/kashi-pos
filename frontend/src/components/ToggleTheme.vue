@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { useTheme } from "vuetify";
-import { SetTheme } from "@/wailsjs/go/main/App";
+import { SetTheme } from "../../wailsjs/go/main/App";
 
 const theme = useTheme();
 

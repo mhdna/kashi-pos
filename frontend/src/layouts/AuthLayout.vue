@@ -1,4 +1,3 @@
 <template>
-    default
-    <router-view />
+  <router-view />
 </template>

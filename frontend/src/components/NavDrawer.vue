@@ -1,98 +1,80 @@
 <template>
-  <v-navigation-drawer permanent width="172">
-    <v-list nav class="d-flex flex-column justify-space-evenly fill-height">
-      <v-list-item v-for="i in items" :key="i.value" :value="i.value" :to="i.to">
-        <div class="d-flex flex-column justify-center align-center" :class="i.class">
-          <v-icon size="40" :class="i.iconClass">
-            {{ i.icon }}
-          </v-icon>
-          <h3>{{ i.title }}</h3>
+  <v-navigation-drawer permanent width="120">
+    <v-list class="d-flex flex-column justify-space-evenly fill-height" nav>
+      <v-list-item
+        v-for="item in items"
+        :key="item.value"
+        class="flex-fill"
+        :to="item.to"
+        :value="item.value"
+      >
+        <div class="d-flex flex-column justify-center align-center pt-4">
+          <v-icon :icon="item.icon" size="20" />
+          <h5 class="text-center mt-1">{{ item.t }}</h5>
         </div>
       </v-list-item>
-      <v-list-item value="close_shift" :active="false" @click="closeShiftDialog = true">
+      <v-list-item
+        :active="false"
+        value="close_shift"
+        @click="closeShiftDialog = true"
+      >
         <div class="d-flex flex-column justify-center align-center">
-          <v-icon size="40">
-            mdi-close-circle-outline
-          </v-icon>
-          <h3>Close Shift</h3>
+          <v-icon icon="mdi-close-circle-outline" size="20" />
+          <h5 class="text-center mt-1">Logout</h5>
         </div>
       </v-list-item>
     </v-list>
   </v-navigation-drawer>
-
   <v-dialog v-model="closeShiftDialog" max-width="600">
     <close-shift-card />
   </v-dialog>
 </template>
 
-<script setup>
-import { ref } from 'vue';
-import CloseShiftCard from './CloseShiftCard.vue';
+<script setup lang="ts">
+import { ref, computed } from "vue";
+import { useAuthStore } from "@/stores/auth";
+import CloseShiftCard from "./CloseShiftCard.vue";
+
+const auth = useAuthStore();
 
 const closeShiftDialog = ref(false);
-
-const items = ref([
-  {
-    value: "invoice",
-    to: "/home",
-    icon: "mdi-invoice",
-    title: "Invoice"
-  },
-  {
-    value: "inventory",
-    to: "/inventory",
-    icon: "mdi-package-variant-closed",
-    title: "Inventory"
-  },
-  {
-    value: "transfer",
-    to: "/transfers",
-    icon: "mdi-truck",
-    title: "Transfers",
-    class: "bg-yellow",
-    iconClass: "bounce"
-  },
-  {
-    value: "clients",
-    to: "/clients",
-    icon: "mdi-account-multiple",
-    title: "Clients"
-  },
-  {
-    value: "attendance",
-    to: "/attendance",
-    icon: "mdi-badge-account",
-    title: "Attendance"
-  },
-  {
-    value: "shifts",
-    to: "/shifts",
-    icon: "mdi-timeline-clock",
-    title: "Balance & Shifts"
-  }
-  //{
-  //  value: "close-shift",
-  //  to: "/close-shift",
-  //  icon: "mdi-close-circle-outline",
-  //  title: "Close Shift"
-  //}
-])
+const items = computed(() => {
+  const all = [
+    { value: "invoice", to: "/home", icon: "mdi-cash-register", t: "Invoice" },
+    { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
+    {
+      value: "invoices-list",
+      to: "/invoices-list",
+      icon: "mdi-format-list-bulleted-square",
+      t: "Invoice List",
+    },
+    {
+      value: "inventory",
+      to: "/inventory",
+      icon: "mdi-package-variant-closed",
+      t: "Inventory",
+    },
+    { value: "transfer", to: "/transfers", icon: "mdi-truck", t: "Transfers" },
+    {
+      value: "clients",
+      to: "/clients",
+      icon: "mdi-account-multiple",
+      t: "Clients",
+    },
+    {
+      value: "attendance",
+      to: "/attendance",
+      icon: "mdi-account-multiple",
+      t: "Attendance",
+    },
+    {
+      value: "shifts",
+      to: "/shifts",
+      icon: "mdi-cash-fast",
+      t: "Balance & Shifts",
+    },
+  ];
+  // show certain navigation items only for admin
+  return all.filter((item) => item.value !== "settings" || auth.isAdmin);
+});
 </script>
-
-<style>
-@keyframes bounce {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(8px);
-  }
-}
-
-.bounce {
-  animation: bounce 1.5s infinite;
-}
-</style>

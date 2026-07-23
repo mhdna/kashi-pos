@@ -1,0 +1,247 @@
+<svg width="870" height="430" viewBox="0 0 870 430" xmlns="http://www.w3.org/2000/svg">
+  <title>Kashi wordmark</title>
+
+  <defs>
+    <!-- Exact same gradient as the K logo -->
+    <linearGradient id="kGrad" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#c87d20"/>
+      <stop offset="35%" stop-color="#a0620f"/>
+      <stop offset="100%" stop-color="#5a3508"/>
+    </linearGradient>
+
+    <!-- Exact same shine -->
+    <linearGradient id="kShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8a030" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#e8a030" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Per-letter gradient instances (same colors, applied per bounding box) -->
+    <!-- a -->
+    <linearGradient id="gA" x1="0.2" y1="0" x2="0.8" y2="1" gradientUnits="userSpaceOnUse" x1="225" y1="155" x2="390" y2="370">
+      <stop offset="0%" stop-color="#c87d20"/>
+      <stop offset="35%" stop-color="#a0620f"/>
+      <stop offset="100%" stop-color="#5a3508"/>
+    </linearGradient>
+    <linearGradient id="sA" x1="225" y1="155" x2="390" y2="370" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e8a030" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#e8a030" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- s -->
+    <linearGradient id="gS" x1="382" y1="155" x2="540" y2="370" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c87d20"/>
+      <stop offset="35%" stop-color="#a0620f"/>
+      <stop offset="100%" stop-color="#5a3508"/>
+    </linearGradient>
+    <linearGradient id="sS" x1="382" y1="155" x2="540" y2="370" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e8a030" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#e8a030" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- h -->
+    <linearGradient id="gH" x1="530" y1="55" x2="730" y2="370" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c87d20"/>
+      <stop offset="35%" stop-color="#a0620f"/>
+      <stop offset="100%" stop-color="#5a3508"/>
+    </linearGradient>
+    <linearGradient id="sH" x1="530" y1="55" x2="730" y2="370" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e8a030" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#e8a030" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- i -->
+    <linearGradient id="gI" x1="718" y1="155" x2="820" y2="370" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c87d20"/>
+      <stop offset="35%" stop-color="#a0620f"/>
+      <stop offset="100%" stop-color="#5a3508"/>
+    </linearGradient>
+    <linearGradient id="sI" x1="718" y1="60" x2="820" y2="370" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e8a030" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#e8a030" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- K gradients — userSpaceOnUse to match original proportional feel -->
+    <linearGradient id="gK" x1="30" y1="55" x2="240" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c87d20"/>
+      <stop offset="35%" stop-color="#a0620f"/>
+      <stop offset="100%" stop-color="#5a3508"/>
+    </linearGradient>
+    <linearGradient id="sK" x1="30" y1="55" x2="240" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e8a030" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#e8a030" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- dot radial for i -->
+    <radialGradient id="dotGrad" cx="38%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#c87d20"/>
+      <stop offset="55%" stop-color="#a0620f"/>
+      <stop offset="100%" stop-color="#5a3508"/>
+    </radialGradient>
+  </defs>
+
+  <!--
+    Coordinate system:
+      Cap height: y=55 (top) to y=375 (bottom) — 320px
+      Lowercase x-height: y=155 to y=375 — 220px
+      stroke-width: 44 (main), 22 (shine), shadow offset (5,6)
+      All letters share these Y anchors for perfect visual alignment.
+
+    K: exact bezier shapes from the original logo, rescaled to fit this system.
+       Original K (after logo transform) had path height ~290px and sw=57.
+       Here height=320, sw=44. Scale factor ≈ 1.10 on Y, but we redraw to fit exactly.
+
+    Letter X positions (path left edge):
+      K stem: x=60
+      a left:  x=228
+      s left:  x=385
+      h stem:  x=545
+      i stem:  x=748
+  -->
+
+  <!-- ═══════════════════════ K (exact logo beziers, refitted) ═══════════════════════ -->
+  <!--
+    Original logo K (screen coords): 
+      stem:       M263,194 C260,262 267,328 261,484  (height 290)
+      upper diag: M263,337 C293,315 333,282 410,198
+      lower diag: M267,352 C296,381 340,418 417,486
+      sw=57.2
+
+    Rescale to fit y=55..375 (height=320), keep proportions.
+    Scale = 320/290 = 1.103
+    X shift: stem at x=60 (was 263 in logo space)
+    dx = 60-263 = -203, dy = 55-194 = -139, then scale from new origin
+
+    Simpler: just remap linearly.
+    y_new = (y_old - 194) * (320/290) + 55
+    x_new = (x_old - 263) * (320/290) + 60
+
+    Let's compute:
+  -->
+
+  <!-- K — shadow layer (offset +5,+6) -->
+  <g stroke="#2a1005" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="44" opacity="0.65" transform="translate(5,6)">
+    <!-- stem: M263,194 C260,262 267,328 261,484 → remap -->
+    <!-- y: 194→55, 262→(262-194)*1.103+55=130, 328→(328-194)*1.103+55=203, 484→375 -->
+    <!-- x: 263→60, 260→57, 267→64, 261→58 -->
+    <path d="M60,55 C57,130 64,203 58,375"/>
+    <!-- upper diag: M263,337 C293,315 333,282 410,198 -->
+    <!-- y: 337→(337-194)*1.103+55=213, 315→(315-194)*1.103+55=188, 282→(282-194)*1.103+55=152, 198→(198-194)*1.103+55=59 -->
+    <!-- x: 263→60, 293→93, 333→126+7=127... let me redo precisely -->
+    <!-- scale=1.103, x_ref=263, x_new=(x-263)*1.103+60 -->
+    <!-- 263→60, 293→(30)*1.103+60=93, 333→(70)*1.103+60=137, 410→(147)*1.103+60=222 -->
+    <path d="M60,213 C93,188 137,152 222,59"/>
+    <!-- lower diag: M267,352 C296,381 340,418 417,486 -->
+    <!-- y: 352→(352-194)*1.103+55=229, 381→(381-194)*1.103+55=261, 418→(418-194)*1.103+55=302, 486→(486-194)*1.103+55=377 -->
+    <!-- x: 267→(4)*1.103+60=64, 296→(33)*1.103+60=96, 340→(77)*1.103+60=145, 417→(154)*1.103+60=230 -->
+    <path d="M64,229 C96,261 145,302 230,377"/>
+  </g>
+
+  <!-- K — main strokes -->
+  <g stroke="url(#gK)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="44">
+    <path d="M60,55 C57,130 64,203 58,375"/>
+    <path d="M60,213 C93,188 137,152 222,59"/>
+    <path d="M64,229 C96,261 145,302 230,377"/>
+  </g>
+
+  <!-- K — shine highlight -->
+  <g stroke="url(#sK)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="22">
+    <path d="M60,55 C57,130 64,203 58,260"/>
+    <path d="M60,213 C93,188 137,152 222,59"/>
+  </g>
+
+  <!-- ═══════════════════════ a ═══════════════════════ -->
+  <!--
+    Lowercase a: rounded bowl + right stem
+    Bowl center: x=295, y=265 (midway x-height), radius ~90x110
+    Stem: right side of bowl, straight down to baseline
+    x-height top: y=155, baseline: y=375
+    Bowl: left x=228, right x=368, top y=155, bottom y=375
+  -->
+  <!-- shadow -->
+  <g stroke="#2a1005" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="44" opacity="0.65" transform="translate(5,6)">
+    <!-- bowl: arc from top-right, around left, to bottom-right -->
+    <path d="M362,168 C340,150 268,150 248,185 C228,220 228,310 248,345 C268,380 340,382 364,362"/>
+    <!-- right stem: top to bottom -->
+    <path d="M364,160 C366,220 366,300 364,375"/>
+  </g>
+  <!-- main -->
+  <g stroke="url(#gA)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="44">
+    <path d="M362,168 C340,150 268,150 248,185 C228,220 228,310 248,345 C268,380 340,382 364,362"/>
+    <path d="M364,160 C366,220 366,300 364,375"/>
+  </g>
+  <!-- shine -->
+  <g stroke="url(#sA)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="22">
+    <path d="M362,168 C340,150 268,150 248,185 C234,210 230,250 238,285"/>
+    <path d="M364,160 C366,200 366,240 365,272"/>
+  </g>
+
+  <!-- ═══════════════════════ s ═══════════════════════ -->
+  <!--
+    s: two opposing arcs
+    x range: 390–530, y: 155–375
+    Top arc curves right-to-left; bottom arc left-to-right
+  -->
+  <!-- shadow -->
+  <g stroke="#2a1005" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="44" opacity="0.65" transform="translate(5,6)">
+    <path d="M522,178 C502,150 440,148 418,172 C396,196 400,230 424,248 C448,266 502,272 520,298 C538,324 532,362 508,376 C484,390 426,388 402,364"/>
+  </g>
+  <!-- main -->
+  <g stroke="url(#gS)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="44">
+    <path d="M522,178 C502,150 440,148 418,172 C396,196 400,230 424,248 C448,266 502,272 520,298 C538,324 532,362 508,376 C484,390 426,388 402,364"/>
+  </g>
+  <!-- shine (top arc only) -->
+  <g stroke="url(#sS)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="22">
+    <path d="M522,178 C502,150 440,148 418,172 C400,192 400,218 416,238"/>
+  </g>
+
+  <!-- ═══════════════════════ h ═══════════════════════ -->
+  <!--
+    h: full-height left stem + right arch down to baseline
+    Left stem: x=560, y=55 to y=375
+    Arch: from stem at y≈230, curves up to top of bump, down right stem to y=375
+    Right stem: x=715
+  -->
+  <!-- shadow -->
+  <g stroke="#2a1005" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="44" opacity="0.65" transform="translate(5,6)">
+    <!-- full-height left stem -->
+    <path d="M560,55 C558,130 560,220 558,375"/>
+    <!-- arch: from stem at mid-height, up and over to right stem -->
+    <path d="M560,228 C564,182 592,152 630,152 C668,152 714,172 714,220 C714,268 714,320 714,375"/>
+  </g>
+  <!-- main -->
+  <g stroke="url(#gH)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="44">
+    <path d="M560,55 C558,130 560,220 558,375"/>
+    <path d="M560,228 C564,182 592,152 630,152 C668,152 714,172 714,220 C714,268 714,320 714,375"/>
+  </g>
+  <!-- shine -->
+  <g stroke="url(#sH)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="22">
+    <path d="M560,55 C558,130 560,200 558,260"/>
+    <path d="M560,228 C564,182 592,152 630,152 C664,152 710,168 714,212"/>
+  </g>
+
+  <!-- ═══════════════════════ i ═══════════════════════ -->
+  <!--
+    i: dot + stem
+    Stem: x=757, y=155 to y=375
+    Dot: cx=757, cy=90, r=22
+  -->
+  <!-- shadow -->
+  <g stroke="#2a1005" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="44" opacity="0.65" transform="translate(5,6)">
+    <path d="M757,155 C757,220 757,305 757,375"/>
+  </g>
+  <circle cx="757" cy="90" r="24" fill="#2a1005" opacity="0.65" transform="translate(5,6)"/>
+
+  <!-- main stem -->
+  <g stroke="url(#gI)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="44">
+    <path d="M757,155 C757,220 757,305 757,375"/>
+  </g>
+  <!-- dot -->
+  <circle cx="757" cy="90" r="24" fill="url(#dotGrad)"/>
+  <!-- dot shine -->
+  <circle cx="748" cy="81" r="10" fill="#e8a030" opacity="0.5"/>
+  <!-- stem shine -->
+  <g stroke="url(#sI)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="22">
+    <path d="M757,155 C757,210 757,270 757,310"/>
+  </g>
+
+</svg>

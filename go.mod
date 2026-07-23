@@ -3,6 +3,7 @@ module kashi-pos
 go 1.25.0
 
 require (
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/wailsapp/wails/v2 v2.11.0
 	modernc.org/sqlite v1.53.0
 )

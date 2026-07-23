@@ -59,8 +59,8 @@ function selectSalesperson(p: Salesperson) {
 onMounted(async () => {
   const list = await ListSalespersons();
   if (list.length) {
-    salespersons.value = list;
-    selected.value = list[0];
+    salespersons.value = list as Salesperson[];
+    selected.value = list[0] as Salesperson;
   }
 });
 </script>

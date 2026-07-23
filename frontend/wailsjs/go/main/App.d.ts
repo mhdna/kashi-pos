@@ -3,17 +3,11 @@
 
 export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<string, any>>;
 
-export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<string, any>>;
-
 export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
-export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
-
 export function GetAppSettings():Promise<Record<string, any>>;
-
-export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
 
 export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
 

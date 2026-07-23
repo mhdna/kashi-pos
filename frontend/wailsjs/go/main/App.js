@@ -6,10 +6,6 @@ export function AddClientLoyaltyPoints(arg1, arg2) {
   return window['go']['main']['App']['AddClientLoyaltyPoints'](arg1, arg2);
 }
 
-export function AddClientLoyaltyPoints(arg1, arg2) {
-  return window['go']['main']['App']['AddClientLoyaltyPoints'](arg1, arg2);
-}
-
 export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }
@@ -18,16 +14,8 @@ export function CreateClient(arg1, arg2) {
   return window['go']['main']['App']['CreateClient'](arg1, arg2);
 }
 
-export function CreateClient(arg1, arg2) {
-  return window['go']['main']['App']['CreateClient'](arg1, arg2);
-}
-
 export function GetAppSettings() {
   return window['go']['main']['App']['GetAppSettings']();
-}
-
-export function GetClientByPhone(arg1) {
-  return window['go']['main']['App']['GetClientByPhone'](arg1);
 }
 
 export function GetClientByPhone(arg1) {
