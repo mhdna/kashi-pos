@@ -19,11 +19,11 @@
     </div>
 
     <v-btn-toggle v-model="activeType" class="mb-2 w-100" divided mandatory>
-      <v-btn v-for="t in types" :key="t" class="flex-grow-1" size="small" :value="t">{{ t }}</v-btn>
+      <v-btn v-for="t in types" :key="t.name" class="flex-grow-1" size="small" :value="t.name">{{ t.name }}</v-btn>
     </v-btn-toggle>
 
     <v-card class="pa-4 mb-4 text-right font-weight-bold" color="grey-darken-3" style="font-size: 14px">
-      {{ currentInput || "0" }} <span class="ml-1">{{ activeType }}</span>
+      {{ currentInput || "0" }} <span class="ml-1">{{ activeCurrency }}</span>
     </v-card>
 
     <v-row class="font-weight-bold" :no-gutters="true">
@@ -55,35 +55,84 @@
         :class="e.amount >= 0 ? 'text-green-darken-3' : 'text-red-darken-4'"
       >
         <span class="text-body-1 font-weight-medium">{{ e.type }}</span>
-        <span class="text-body-1 font-weight-bold">{{ e.amount >= 0 ? "+" : "" }}{{ e.amount }} $</span>
+        <span class="text-body-1 font-weight-bold">{{ e.amount >= 0 ? "+" : "" }}{{ e.amount }} {{ getCurrencySymbol(e.type) }}</span>
         <v-btn icon size="small" variant="text" @click="removeEntry(i)">
           <v-icon icon="mdi-delete" size="18" />
         </v-btn>
       </div>
+    </div>
+
+    <div v-if="total > 0" class="mt-4 text-caption text-medium-emphasis text-center">
+      <span v-for="(c, i) in activeCurrencies" :key="c.code">
+        <template v-if="i > 0"> · </template>
+        {{ c.symbol }} {{ convertTotal(c).toFixed(2) }}
+      </span>
     </div>
   </v-sheet>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue";
-import { ListPaymentMethods } from "../../wailsjs/go/main/App";
+import { ListCurrencies, ListPaymentMethods } from "../../wailsjs/go/main/App";
 
 const props = defineProps<{ total: number }>();
 
-const types = ref<string[]>([]);
+interface PaymentMethod { name: string; currencyCode: string; }
+interface Currency { code: string; symbol: string; isActive: boolean; valueInDefaultCurrency: number; }
+
+const types = ref<PaymentMethod[]>([]);
+const currencies = ref<Currency[]>([]);
 const activeType = ref("");
 const entries = ref<{ type: string; amount: number }[]>([]);
 const currentInput = ref("");
 
-const paidUSD = computed(() => entries.value.reduce((sum, e) => sum + e.amount, 0));
+const activeCurrency = computed(() =>
+  types.value.find((t) => t.name === activeType.value)?.currencyCode ?? ""
+);
+
+const currencyMap = computed(() =>
+  Object.fromEntries(currencies.value.map((c) => [c.code, c]))
+);
+
+const activeCurrencies = computed(() =>
+  currencies.value.filter((c) => c.isActive)
+);
+
+function toUSD(amount: number, currencyCode: string): number {
+  const c = currencyMap.value[currencyCode];
+  if (!c) return amount;
+  return (amount * 100) / c.valueInDefaultCurrency;
+}
+
+const paidUSD = computed(() =>
+  entries.value.reduce((sum, e) => {
+    const method = types.value.find((t) => t.name === e.type);
+    return sum + toUSD(e.amount, method?.currencyCode ?? "USD");
+  }, 0),
+);
+
 const diff = computed(() => paidUSD.value - props.total);
 const isReturning = computed(() => diff.value >= 0);
 
+function getCurrencySymbol(type: string): string {
+  const method = types.value.find((t) => t.name === type);
+  if (!method) return "$";
+  return currencyMap.value[method.currencyCode]?.symbol ?? "$";
+}
+
+function convertTotal(c: Currency): number {
+  return (props.total * c.valueInDefaultCurrency) / 100;
+}
+
 onMounted(async () => {
   try {
-    const methods = await ListPaymentMethods();
-    types.value = methods.map((m: any) => m.name);
-    if (types.value.length) activeType.value = types.value[0];
+    const [methods, currs] = await Promise.all([ListPaymentMethods(), ListCurrencies()]);
+    types.value = methods.map((m: any) => ({ name: m.name, currencyCode: m.currencyCode }));
+    currencies.value = currs.map((c: any) => ({
+      code: c.code, symbol: c.symbol, isActive: c.isActive,
+      valueInDefaultCurrency: c.valueInDefaultCurrency,
+    }));
+    if (types.value.length) activeType.value = types.value[0].name;
   } catch {}
 });
 
