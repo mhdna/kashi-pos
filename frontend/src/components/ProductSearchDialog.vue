@@ -66,8 +66,7 @@ const products = ref<any[]>([]);
 onMounted(async () => {
   try {
     products.value = (await ListProducts()).map((p) => ({ ...p, qty: 1 }));
-  } catch {}
-});
+  } catch (e) { console.error("ListProducts failed:", e) }});
 
 function selectProduct(_event: any, row: any) {
   emit("select", row.item);

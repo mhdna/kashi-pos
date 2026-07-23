@@ -39,12 +39,9 @@ func (a *App) startup(ctx context.Context) {
 
 	log.Println("database path:", dbPath)
 
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		if err := os.WriteFile(dbPath, embeddedDB, 0644); err != nil {
-			log.Println("failed to create database:", err)
-			return
-		}
-		log.Println("copied embedded database")
+	if err := os.WriteFile(dbPath, embeddedDB, 0644); err != nil {
+		log.Println("failed to create database:", err)
+		return
 	}
 
 	var err error

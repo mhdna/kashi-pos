@@ -35,7 +35,7 @@
           >
             <v-icon icon="mdi-magnify" size="20" />
           </v-btn>
-          <!-- <ProductSearchDialog @select="onProductSelect" /> -->
+          <ProductSearchDialog @select="onProductSelect" />
         </div>
         <InvoiceItems ref="invoiceItems" />
         <InvoiceSummary
@@ -125,6 +125,6 @@ onMounted(async () => {
   focusBarcode();
   try {
     products.value = (await ListProducts()).map((p) => ({ ...p, qty: 1 }));
-  } catch {}
+  } catch (e) { console.error("ListProducts failed:", e) }
 });
 </script>

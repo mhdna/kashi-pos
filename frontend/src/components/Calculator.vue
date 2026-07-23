@@ -132,7 +132,7 @@ onMounted(async () => {
       code: c.code, symbol: c.symbol, isActive: c.isActive,
       valueInDefaultCurrency: c.valueInDefaultCurrency,
     }));
-    if (types.value.length) activeType.value = types.value[0].name;
+    if (types.value.length) activeType.value = types.value[0]!.name;
   } catch {}
 });
 
