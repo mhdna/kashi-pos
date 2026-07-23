@@ -173,7 +173,19 @@ func (a *App) seedDefaults() {
 			Theme:       "light",
 		})
 	}
+	a.seedCashboxAccounts()
 	a.seedProducts()
+}
+
+func (a *App) seedCashboxAccounts() {
+	existing, _ := a.queries.ListCashboxAccounts(context.Background())
+	if len(existing) > 0 {
+		return
+	}
+	for _, name := range []string{"Cash", "Card", "Whish", "Visa"} {
+		a.queries.CreateCashboxAccount(context.Background(), name)
+	}
+	log.Println("seeded cashbox accounts")
 }
 
 func (a *App) seedProducts() {
