@@ -10,6 +10,10 @@ export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }
 
+export function ClearScreen(arg1) {
+  return window['go']['main']['App']['ClearScreen'](arg1);
+}
+
 export function CreateClient(arg1, arg2) {
   return window['go']['main']['App']['CreateClient'](arg1, arg2);
 }
@@ -58,14 +62,26 @@ export function ListSalespersons() {
   return window['go']['main']['App']['ListSalespersons']();
 }
 
+export function ListSerialPorts() {
+  return window['go']['main']['App']['ListSerialPorts']();
+}
+
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
-export function UpdateSettings(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4);
+export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 }
 
 export function VerifyLogin(arg1, arg2) {
   return window['go']['main']['App']['VerifyLogin'](arg1, arg2);
+}
+
+export function WriteAndClearScreen(arg1, arg2) {
+  return window['go']['main']['App']['WriteAndClearScreen'](arg1, arg2);
+}
+
+export function WriteToScreen(arg1, arg2) {
+  return window['go']['main']['App']['WriteToScreen'](arg1, arg2);
 }

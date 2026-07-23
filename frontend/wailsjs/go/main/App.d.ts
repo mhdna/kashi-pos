@@ -5,6 +5,8 @@ export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<s
 
 export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function ClearScreen(arg1:string):Promise<void>;
+
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function GetAppSettings():Promise<Record<string, any>>;
@@ -29,8 +31,14 @@ export function ListProducts():Promise<Array<Record<string, any>>>;
 
 export function ListSalespersons():Promise<Array<Record<string, any>>>;
 
+export function ListSerialPorts():Promise<Array<string>>;
+
 export function SetTheme(arg1:string):Promise<void>;
 
-export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:number,arg8:number):Promise<void>;
 
 export function VerifyLogin(arg1:string,arg2:string):Promise<Record<string, any>>;
+
+export function WriteAndClearScreen(arg1:string,arg2:string):Promise<void>;
+
+export function WriteToScreen(arg1:string,arg2:string):Promise<void>;
