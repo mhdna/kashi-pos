@@ -22,18 +22,33 @@
       <span>Total</span>
       <span>${{ total.toFixed(2) }}</span>
     </div>
+    <div v-if="total > 0" class="mt-2 text-center text-caption text-medium-emphasis">
+      <span v-for="(c, i) in currencies" :key="c.code">
+        <template v-if="i > 0"> · </template>
+        {{ c.symbol }} {{ (total * (c.valueInDefaultCurrency / 100)).toFixed(2) }}
+      </span>
+    </div>
   </v-sheet>
 </template>
 
 <script lang="ts" setup>
-import { computed } from "vue";
+import { computed, ref, onMounted } from "vue";
+import { ListCurrencies } from "../../wailsjs/go/main/App";
 
 const props = defineProps<{
   subtotal: number;
   totalDiscount: number;
 }>();
 
+const currencies = ref<any[]>([]);
+
 const afterDiscount = computed(() => props.subtotal - props.totalDiscount);
 const vat = computed(() => afterDiscount.value * 0.11);
 const total = computed(() => afterDiscount.value + vat.value);
+
+onMounted(async () => {
+  try {
+    currencies.value = await ListCurrencies();
+  } catch {}
+});
 </script>

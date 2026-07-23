@@ -62,26 +62,18 @@
       </div>
     </div>
 
-    <div v-if="total > 0" class="mt-4 text-caption text-medium-emphasis text-center">
-      <span v-for="(c, i) in activeCurrencies" :key="c.code">
-        <template v-if="i > 0"> · </template>
-        {{ c.symbol }} {{ convertTotal(c).toFixed(2) }}
-      </span>
-    </div>
   </v-sheet>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue";
-import { ListCurrencies, ListPaymentMethods } from "../../wailsjs/go/main/App";
+import { ListPaymentMethods } from "../../wailsjs/go/main/App";
 
 const props = defineProps<{ total: number }>();
 
 interface PaymentMethod { name: string; currencyCode: string; }
-interface Currency { code: string; symbol: string; isActive: boolean; valueInDefaultCurrency: number; }
 
 const types = ref<PaymentMethod[]>([]);
-const currencies = ref<Currency[]>([]);
 const activeType = ref("");
 const entries = ref<{ type: string; amount: number }[]>([]);
 const currentInput = ref("");
@@ -90,18 +82,8 @@ const activeCurrency = computed(() =>
   types.value.find((t) => t.name === activeType.value)?.currencyCode ?? ""
 );
 
-const currencyMap = computed(() =>
-  Object.fromEntries(currencies.value.map((c) => [c.code, c]))
-);
-
-const activeCurrencies = computed(() =>
-  currencies.value.filter((c) => c.isActive)
-);
-
 function toUSD(amount: number, currencyCode: string): number {
-  const c = currencyMap.value[currencyCode];
-  if (!c) return amount;
-  return (amount * 100) / c.valueInDefaultCurrency;
+  return amount;
 }
 
 const paidUSD = computed(() =>
@@ -115,23 +97,13 @@ const diff = computed(() => paidUSD.value - props.total);
 const isReturning = computed(() => diff.value >= 0);
 
 function getCurrencySymbol(type: string): string {
-  const method = types.value.find((t) => t.name === type);
-  if (!method) return "$";
-  return currencyMap.value[method.currencyCode]?.symbol ?? "$";
-}
-
-function convertTotal(c: Currency): number {
-  return (props.total * c.valueInDefaultCurrency) / 100;
+  return "$";
 }
 
 onMounted(async () => {
   try {
-    const [methods, currs] = await Promise.all([ListPaymentMethods(), ListCurrencies()]);
+    const methods = await ListPaymentMethods();
     types.value = methods.map((m: any) => ({ name: m.name, currencyCode: m.currencyCode }));
-    currencies.value = currs.map((c: any) => ({
-      code: c.code, symbol: c.symbol, isActive: c.isActive,
-      valueInDefaultCurrency: c.valueInDefaultCurrency,
-    }));
     if (types.value.length) activeType.value = types.value[0]!.name;
   } catch {}
 });
