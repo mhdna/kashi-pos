@@ -10,7 +10,7 @@ import (
 )
 
 const getSettings = `-- name: GetSettings :one
-SELECT branch_name, api_key, printer_id, printer_size, theme FROM settings LIMIT 1
+SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme FROM settings LIMIT 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -21,6 +21,10 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.ApiKey,
 		&i.PrinterID,
 		&i.PrinterSize,
+		&i.ReceiptPrinter,
+		&i.ScreenPort,
+		&i.ReceiptWidth,
+		&i.ReceiptHeight,
 		&i.Theme,
 	)
 	return i, err
@@ -28,19 +32,21 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 
 const updateSettings = `-- name: UpdateSettings :exec
 UPDATE settings
-SET branch_name = ?,
-    api_key = ?,
-    printer_id = ?,
-    printer_size = ?,
+SET branch_name = ?, api_key = ?, printer_id = ?, printer_size = ?,
+    receipt_printer = ?, screen_port = ?, receipt_width = ?, receipt_height = ?,
     theme = ?
 `
 
 type UpdateSettingsParams struct {
-	BranchName  string `json:"branchName"`
-	ApiKey      string `json:"apiKey"`
-	PrinterID   string `json:"printerId"`
-	PrinterSize string `json:"printerSize"`
-	Theme       string `json:"theme"`
+	BranchName     string `json:"branchName"`
+	ApiKey         string `json:"apiKey"`
+	PrinterID      string `json:"printerId"`
+	PrinterSize    string `json:"printerSize"`
+	ReceiptPrinter string `json:"receiptPrinter"`
+	ScreenPort     string `json:"screenPort"`
+	ReceiptWidth   int64  `json:"receiptWidth"`
+	ReceiptHeight  int64  `json:"receiptHeight"`
+	Theme          string `json:"theme"`
 }
 
 func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error {
@@ -49,6 +55,10 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.ApiKey,
 		arg.PrinterID,
 		arg.PrinterSize,
+		arg.ReceiptPrinter,
+		arg.ScreenPort,
+		arg.ReceiptWidth,
+		arg.ReceiptHeight,
 		arg.Theme,
 	)
 	return err
@@ -64,16 +74,20 @@ func (q *Queries) UpdateTheme(ctx context.Context, theme string) error {
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
-INSERT INTO settings (branch_name, api_key, printer_id, printer_size, theme)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type UpsertSettingsParams struct {
-	BranchName  string `json:"branchName"`
-	ApiKey      string `json:"apiKey"`
-	PrinterID   string `json:"printerId"`
-	PrinterSize string `json:"printerSize"`
-	Theme       string `json:"theme"`
+	BranchName     string `json:"branchName"`
+	ApiKey         string `json:"apiKey"`
+	PrinterID      string `json:"printerId"`
+	PrinterSize    string `json:"printerSize"`
+	ReceiptPrinter string `json:"receiptPrinter"`
+	ScreenPort     string `json:"screenPort"`
+	ReceiptWidth   int64  `json:"receiptWidth"`
+	ReceiptHeight  int64  `json:"receiptHeight"`
+	Theme          string `json:"theme"`
 }
 
 func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) error {
@@ -82,6 +96,10 @@ func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) 
 		arg.ApiKey,
 		arg.PrinterID,
 		arg.PrinterSize,
+		arg.ReceiptPrinter,
+		arg.ScreenPort,
+		arg.ReceiptWidth,
+		arg.ReceiptHeight,
 		arg.Theme,
 	)
 	return err

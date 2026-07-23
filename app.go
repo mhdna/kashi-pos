@@ -164,11 +164,15 @@ func (a *App) seedDefaults() {
 	_, err = a.queries.GetSettings(ctx)
 	if err != nil {
 		a.queries.UpsertSettings(ctx, db.UpsertSettingsParams{
-			BranchName:  "",
-			ApiKey:      "",
-			PrinterID:   "",
-			PrinterSize: "",
-			Theme:       "light",
+			BranchName:     "",
+			ApiKey:         "",
+			PrinterID:      "",
+			PrinterSize:    "",
+			ReceiptPrinter: "",
+			ScreenPort:     "",
+			ReceiptWidth:   80,
+			ReceiptHeight:  297,
+			Theme:          "light",
 		})
 	}
 	a.seedCashboxAccounts()
@@ -294,14 +298,18 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		return nil, err
 	}
 	return map[string]interface{}{
-		"branchName":  settings.BranchName,
-		"apiKey":      settings.ApiKey,
-		"printerID":   settings.PrinterID,
-		"printerSize": settings.PrinterSize,
+		"branchName":     settings.BranchName,
+		"apiKey":         settings.ApiKey,
+		"printerID":      settings.PrinterID,
+		"printerSize":    settings.PrinterSize,
+		"receiptPrinter": settings.ReceiptPrinter,
+		"screenPort":     settings.ScreenPort,
+		"receiptWidth":   settings.ReceiptWidth,
+		"receiptHeight":  settings.ReceiptHeight,
 	}, nil
 }
 
-func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize string) error {
+func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64) error {
 	if a.queries == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -310,10 +318,14 @@ func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize string) 
 		return err
 	}
 	return a.queries.UpdateSettings(a.ctx, db.UpdateSettingsParams{
-		BranchName:  branchName,
-		ApiKey:      apiKey,
-		PrinterID:   printerID,
-		PrinterSize: printerSize,
-		Theme:       current.Theme,
+		BranchName:     branchName,
+		ApiKey:         apiKey,
+		PrinterID:      printerID,
+		PrinterSize:    printerSize,
+		ReceiptPrinter: receiptPrinter,
+		ScreenPort:     screenPort,
+		ReceiptWidth:   receiptWidth,
+		ReceiptHeight:  receiptHeight,
+		Theme:          current.Theme,
 	})
 }

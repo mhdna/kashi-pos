@@ -169,11 +169,15 @@ type Salesperson struct {
 }
 
 type Setting struct {
-	BranchName  string `json:"branchName"`
-	ApiKey      string `json:"apiKey"`
-	PrinterID   string `json:"printerId"`
-	PrinterSize string `json:"printerSize"`
-	Theme       string `json:"theme"`
+	BranchName     string `json:"branchName"`
+	ApiKey         string `json:"apiKey"`
+	PrinterID      string `json:"printerId"`
+	PrinterSize    string `json:"printerSize"`
+	ReceiptPrinter string `json:"receiptPrinter"`
+	ScreenPort     string `json:"screenPort"`
+	ReceiptWidth   int64  `json:"receiptWidth"`
+	ReceiptHeight  int64  `json:"receiptHeight"`
+	Theme          string `json:"theme"`
 }
 
 type Shift struct {
