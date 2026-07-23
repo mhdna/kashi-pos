@@ -67,6 +67,12 @@ type DiscountOverride struct {
 	CreatedAt string        `json:"createdAt"`
 }
 
+type HoldInvoice struct {
+	ID        int64  `json:"id"`
+	ItemsJson string `json:"itemsJson"`
+	CreatedAt string `json:"createdAt"`
+}
+
 type Inventory struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
@@ -215,4 +221,11 @@ type User struct {
 	PasswordHash string `json:"passwordHash"`
 	RoleID       int64  `json:"roleId"`
 	Active       int64  `json:"active"`
+}
+
+type VoidInvoice struct {
+	ID        int64  `json:"id"`
+	ItemsJson string `json:"itemsJson"`
+	Reason    string `json:"reason"`
+	CreatedAt string `json:"createdAt"`
 }

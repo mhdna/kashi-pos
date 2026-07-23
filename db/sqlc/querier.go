@@ -18,6 +18,7 @@ type Querier interface {
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
 	CreateDiscountOverride(ctx context.Context, arg CreateDiscountOverrideParams) (DiscountOverride, error)
+	CreateHoldInvoice(ctx context.Context, itemsJson string) (HoldInvoice, error)
 	CreateInventory(ctx context.Context, name string) (Inventory, error)
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error)
 	CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error
@@ -32,12 +33,14 @@ type Querier interface {
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	CreateVoidInvoice(ctx context.Context, arg CreateVoidInvoiceParams) (VoidInvoice, error)
 	DeleteAccount(ctx context.Context, id int64) error
 	DeleteAsset(ctx context.Context, id int64) error
 	DeleteCashboxAccount(ctx context.Context, id int64) error
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteCoupon(ctx context.Context, code string) error
 	DeleteDiscountOverride(ctx context.Context, id int64) error
+	DeleteHoldInvoice(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
 	DeleteInventoryItem(ctx context.Context, arg DeleteInventoryItemParams) error
 	DeleteInvoiceProducts(ctx context.Context, invoiceID int64) error
@@ -89,6 +92,7 @@ type Querier interface {
 	ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error)
 	ListCurrencies(ctx context.Context) ([]Currency, error)
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
+	ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error)
 	ListInventories(ctx context.Context) ([]Inventory, error)
 	ListInventoryItems(ctx context.Context, inventoryID int64) ([]InventoryItem, error)
 	ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
