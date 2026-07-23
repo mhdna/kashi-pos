@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createInvoice = `-- name: CreateInvoice :one
@@ -122,6 +123,42 @@ func (q *Queries) DeleteInvoiceProducts(ctx context.Context, invoiceID int64) er
 	return err
 }
 
+const getDailyIncomeByMonth = `-- name: GetDailyIncomeByMonth :many
+SELECT date(created_at) as day, SUM(grand_total) as total
+FROM invoices
+WHERE strftime('%Y-%m', created_at) = ?
+GROUP BY date(created_at)
+ORDER BY day
+`
+
+type GetDailyIncomeByMonthRow struct {
+	Day   interface{}     `json:"day"`
+	Total sql.NullFloat64 `json:"total"`
+}
+
+func (q *Queries) GetDailyIncomeByMonth(ctx context.Context, createdAt string) ([]GetDailyIncomeByMonthRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDailyIncomeByMonth, createdAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetDailyIncomeByMonthRow{}
+	for rows.Next() {
+		var i GetDailyIncomeByMonthRow
+		if err := rows.Scan(&i.Day, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getInvoiceByID = `-- name: GetInvoiceByID :one
 SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at FROM invoices WHERE id = ?
 `
@@ -190,6 +227,43 @@ func (q *Queries) GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductPa
 		&i.Quantity,
 	)
 	return i, err
+}
+
+const getTodayIncomeByAccount = `-- name: GetTodayIncomeByAccount :many
+SELECT ca.name, SUM(i.grand_total) as total
+FROM invoices i
+JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
+WHERE date(i.created_at) = date('now')
+GROUP BY i.cashbox_id
+ORDER BY ca.name
+`
+
+type GetTodayIncomeByAccountRow struct {
+	Name  string          `json:"name"`
+	Total sql.NullFloat64 `json:"total"`
+}
+
+func (q *Queries) GetTodayIncomeByAccount(ctx context.Context) ([]GetTodayIncomeByAccountRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTodayIncomeByAccount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetTodayIncomeByAccountRow{}
+	for rows.Next() {
+		var i GetTodayIncomeByAccountRow
+		if err := rows.Scan(&i.Name, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listInvoiceProducts = `-- name: ListInvoiceProducts :many

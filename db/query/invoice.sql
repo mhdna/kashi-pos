@@ -40,3 +40,18 @@ INSERT INTO sales_invoices (invoice_id) VALUES (?);
 
 -- name: CreateReturnInvoice :exec
 INSERT INTO return_invoices (invoice_id, sales_invoice_id) VALUES (?, ?);
+
+-- name: GetDailyIncomeByMonth :many
+SELECT date(created_at) as day, SUM(grand_total) as total
+FROM invoices
+WHERE strftime('%Y-%m', created_at) = ?
+GROUP BY date(created_at)
+ORDER BY day;
+
+-- name: GetTodayIncomeByAccount :many
+SELECT ca.name, SUM(i.grand_total) as total
+FROM invoices i
+JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
+WHERE date(i.created_at) = date('now')
+GROUP BY i.cashbox_id
+ORDER BY ca.name;
