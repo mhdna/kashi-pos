@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand"
+	"os"
+	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/go-pdf/fpdf"
@@ -101,23 +103,44 @@ func (a *App) VoidInvoice(itemsJSON string, reason string) error {
 	return err
 }
 
-func (a *App) CheckoutInvoice(itemsJSON string, storeName, branch, phone, salesperson, receiptNo, receiptPrinter string) (string, error) {
+func (a *App) CheckoutInvoice(itemsJSON string, storeName, branch, phone, salesperson, receiptNo, receiptPrinter string) error {
 	var items []invoiceItem
 	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
-		return "", err
+		return err
 	}
 	if len(items) == 0 {
-		return "", fmt.Errorf("no items")
+		return fmt.Errorf("no items")
 	}
-
-	pdfPath, err := a.generateReceipt(items, storeName, branch, phone, salesperson, receiptNo)
-	if err != nil {
-		return "", err
-	}
-	return pdfPath, nil
+	return a.printReceipt(items, storeName, branch, phone, salesperson, receiptNo, receiptPrinter)
 }
 
-func (a *App) generateReceipt(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo string) (string, error) {
+func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo, printerName string) error {
+	if printerName == "" {
+		return fmt.Errorf("no receipt printer configured")
+	}
+
+	pdf := buildReceiptPDF(items, storeName, branch, phone, salesperson, receiptNo)
+
+	tmpFile := fmt.Sprintf("%s.pdf", receiptNo)
+	if err := pdf.OutputFileAndClose(tmpFile); err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile)
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("print", "/D:"+printerName, tmpFile)
+	default:
+		cmd = exec.Command("lp", "-d", printerName, tmpFile)
+	}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("print failed: %v — %s", err, string(out))
+	}
+	return nil
+}
+
+func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo string) *fpdf.Fpdf {
 	const (
 		pageW    = 80.0
 		margin   = 4.0
@@ -256,10 +279,5 @@ func (a *App) generateReceipt(items []invoiceItem, storeName, branch, phone, sal
 	center(receiptNo, 11)
 	down(6)
 
-	path := fmt.Sprintf("%s.png", receiptNo)
-	if err := pdf.OutputFileAndClose(path); err != nil {
-		return "", err
-	}
-	log.Println("receipt saved:", path)
-	return path, nil
+	return pdf
 }

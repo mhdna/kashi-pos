@@ -35,13 +35,20 @@
     </div>
   </div>
 
-  <v-dialog v-model="showReceipt" max-width="320">
-    <v-img v-if="receiptPath" :src="'file://' + receiptPath" width="320" />
-  </v-dialog>
+  <v-overlay v-model="printing" class="align-center justify-center" persistent>
+    <v-card class="pa-8 text-center" width="300">
+      <v-progress-circular indeterminate color="primary" size="64" class="mb-4" />
+      <div class="text-h6">Printing receipt...</div>
+    </v-card>
+  </v-overlay>
+
+  <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000" location="top">
+    {{ snackbar.text }}
+  </v-snackbar>
 </template>
 
 <script lang="ts" setup>
-import { ref, provide, watch, onMounted, computed } from "vue";
+import { ref, provide, watch, onMounted, computed, reactive } from "vue";
 import { GetProductByBarcode, ListProducts, HoldInvoice, VoidInvoice, CheckoutInvoice, GetAppSettings } from "../../wailsjs/go/main/App";
 import ActionBar from "@/components/ActionBar.vue";
 import Calculator from "@/components/Calculator.vue";
@@ -90,8 +97,8 @@ async function onBarcodeEnter() {
 
 const products = ref<any[]>([]);
 
-const showReceipt = ref(false);
-const receiptPath = ref("");
+const printing = ref(false);
+const snackbar = reactive({ show: false, text: "", color: "success" });
 
 async function getItemsJSON(): Promise<string> {
   const items = invoiceItems.value?.items ?? [];
@@ -123,18 +130,24 @@ async function onVoid() {
 async function onCheckout() {
   const json = await getFullItemsJSON();
   if (json === "[]") return;
-  const settings = await GetAppSettings();
-  const receiptNo = "INV-" + Date.now();
-  const path = await CheckoutInvoice(json,
-    settings.branchName || "Store", settings.branchName || "Branch",
-    "", "", receiptNo, settings.receiptPrinter || "",
-  );
-  if (path) {
-    receiptPath.value = path;
-    showReceipt.value = true;
-    setTimeout(() => { showReceipt.value = false; }, 2000);
+  printing.value = true;
+  try {
+    const settings = await GetAppSettings();
+    const receiptNo = "INV-" + Date.now();
+    await CheckoutInvoice(json,
+      settings.branchName || "Store", settings.branchName || "Branch",
+      "", "", receiptNo, settings.receiptPrinter || "",
+    );
+    snackbar.text = "Receipt printed successfully";
+    snackbar.color = "success";
+    snackbar.show = true;
+    invoiceItems.value?.clearItems();
+  } catch (e: any) {
+    snackbar.text = e?.toString() || "Print failed";
+    snackbar.color = "red";
+    snackbar.show = true;
   }
-  invoiceItems.value?.clearItems();
+  printing.value = false;
 }
 
 function onRestoreHold(items: any[]) {

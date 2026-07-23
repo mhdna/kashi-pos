@@ -5,7 +5,7 @@ export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<s
 
 export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 
-export function CheckoutInvoice(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string):Promise<string>;
+export function CheckoutInvoice(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string):Promise<void>;
 
 export function ClearScreen(arg1:string):Promise<void>;
 
