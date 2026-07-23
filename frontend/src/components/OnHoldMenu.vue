@@ -8,33 +8,35 @@
         On Hold
       </v-btn>
     </template>
-    <v-card
-      class="d-flex flex-column text-center"
-      min-height="200"
-      min-width="300"
-      subtitle="Invoices On Hold"
-    >
+    <v-card class="d-flex flex-column text-center" min-height="200" min-width="300" subtitle="Invoices On Hold">
       <v-card-text class="pa-0 flex-grow-1 overflow-y-auto">
-        <v-list max-height="300">
-          <v-list-item> hi </v-list-item>
-          <v-list-item> hi </v-list-item>
-          <v-list-item> hi </v-list-item>
-          <v-list-item> hi </v-list-item>
-          <v-list-item> hi </v-list-item>
-          <v-list-item> hi </v-list-item>
-          <v-list-item> hi </v-list-item>
-          <v-list-item> hi </v-list-item>
+        <v-list v-if="holds.length" max-height="300">
+          <v-list-item v-for="h in holds" :key="h.id" @click="$emit('restore', h.itemsJson)">
+            <v-list-item-title>#{{ h.id }} - {{ h.createdAt?.slice(0, 19) }}</v-list-item-title>
+            <template #append>
+              <v-btn icon size="small" variant="text" @click.stop="removeHold(h.id)">
+                <v-icon icon="mdi-close" size="16" />
+              </v-btn>
+            </template>
+          </v-list-item>
         </v-list>
+        <v-list-item v-else>No invoices on hold</v-list-item>
       </v-card-text>
-
-      <v-card-actions class="pa-2">
-        <v-btn variant="tonal" block>Set Up</v-btn>
-      </v-card-actions>
     </v-card>
   </v-menu>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
+import { ListHoldInvoices, DeleteHoldInvoice } from "../../wailsjs/go/main/App";
+
+defineEmits<{ restore: [itemsJSON: string] }>();
+
 const menu = ref(false);
+const holds = ref<any[]>([]);
+
+async function load() { holds.value = await ListHoldInvoices(); }
+async function removeHold(id: number) { await DeleteHoldInvoice(id); await load(); }
+
+watch(menu, async (v) => { if (v) await load(); });
 </script>

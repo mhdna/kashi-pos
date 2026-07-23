@@ -215,6 +215,10 @@ function addItem(item: LineItem) {
   }
 }
 
+function clearItems() {
+  items.value = [];
+}
+
 const subtotal = computed(() =>
   items.value.reduce((sum, i) => sum + i.price * i.qty, 0),
 );
@@ -222,5 +226,5 @@ const totalDiscount = computed(() =>
   items.value.reduce((sum, i) => sum + discountAmount(i), 0),
 );
 
-defineExpose({ subtotal, totalDiscount, addItem });
+defineExpose({ subtotal, totalDiscount, addItem, items, clearItems });
 </script>

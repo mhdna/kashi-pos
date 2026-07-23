@@ -5,17 +5,25 @@ export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<s
 
 export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function CheckoutInvoice(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string):Promise<string>;
+
 export function ClearScreen(arg1:string):Promise<void>;
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function CreateUser(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
 
+export function DeleteHoldInvoice(arg1:number):Promise<void>;
+
 export function DeleteUser(arg1:number):Promise<void>;
 
 export function GetAppSettings():Promise<Record<string, any>>;
 
 export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
+
+export function GetCurrentMonth():Promise<string>;
+
+export function GetDailyIncomeByMonth(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function GetDefaultCurrency():Promise<Record<string, any>>;
 
@@ -25,13 +33,23 @@ export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
 
 export function GetTheme():Promise<string>;
 
+export function GetTodayIncomeByAccount():Promise<Array<Record<string, any>>>;
+
+export function HoldInvoice(arg1:string):Promise<number>;
+
 export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
+
+export function ListClients():Promise<Array<Record<string, any>>>;
 
 export function ListCurrencies():Promise<Array<Record<string, any>>>;
 
-export function ListPaymentMethods():Promise<Array<Record<string, any>>>;
+export function ListHoldInvoices():Promise<Array<Record<string, any>>>;
 
-export function ListPrinters():Promise<Array<string>>;
+export function ListInventories():Promise<Array<Record<string, any>>>;
+
+export function ListInventoryItems(arg1:number):Promise<Array<Record<string, any>>>;
+
+export function ListInvoices():Promise<Array<Record<string, any>>>;
 
 export function ListPaymentMethods():Promise<Array<Record<string, any>>>;
 
@@ -45,6 +63,12 @@ export function ListSalespersons():Promise<Array<Record<string, any>>>;
 
 export function ListSerialPorts():Promise<Array<string>>;
 
+export function ListShiftBalances(arg1:number):Promise<Array<Record<string, any>>>;
+
+export function ListShifts():Promise<Array<Record<string, any>>>;
+
+export function ListTransfers():Promise<Array<Record<string, any>>>;
+
 export function ListUsers():Promise<Array<Record<string, any>>>;
 
 export function SetTheme(arg1:string):Promise<void>;
@@ -54,6 +78,8 @@ export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,a
 export function UpdateUser(arg1:number,arg2:string,arg3:string,arg4:number,arg5:number):Promise<void>;
 
 export function VerifyLogin(arg1:string,arg2:string):Promise<Record<string, any>>;
+
+export function VoidInvoice(arg1:string,arg2:string):Promise<void>;
 
 export function WriteAndClearScreen(arg1:string,arg2:string):Promise<void>;
 
