@@ -23,7 +23,9 @@
     </v-btn-toggle>
 
     <v-card class="pa-4 mb-4 text-right font-weight-bold" color="grey-darken-3" style="font-size: 14px">
-      {{ currentInput || "0" }} <span class="ml-1">{{ activeCurrency }}</span>
+      {{ currentInput || "0" }}
+      <span v-if="currentInput && activeCurrency === 'LBP'">000</span>
+      <span class="ml-1">{{ activeType }}</span>
     </v-card>
 
     <v-row class="font-weight-bold" :no-gutters="true">
@@ -32,7 +34,6 @@
       </v-col>
       <v-col cols="4"><v-btn block class="text-h6" @click="input('0')">0</v-btn></v-col>
       <v-col cols="4"><v-btn block class="text-h6" @click="input('00')">00</v-btn></v-col>
-      <v-col cols="4"><v-btn block class="text-h6" @click="input('000')">000</v-btn></v-col>
       <v-col cols="4"><v-btn block class="text-h6 font-weight-bold" @click="input('.')">.</v-btn></v-col>
       <v-col cols="4"><v-btn block class="text-h6" color="red-darken-2" @click="clearAll()">CA</v-btn></v-col>
       <v-col cols="4"><v-btn block class="text-h6" @click="input('back')">⌫</v-btn></v-col>
@@ -116,8 +117,10 @@ function input(val: string) {
 }
 
 function confirm() {
-  const amount = Number(currentInput.value);
+  let amount = Number(currentInput.value);
   if (!amount) return;
+  const method = types.value.find((t) => t.name === activeType.value);
+  if (method?.currencyCode === "LBP") amount *= 1000;
   entries.value.push({ type: activeType.value, amount: isReturning.value ? -amount : amount });
   currentInput.value = "";
 }
