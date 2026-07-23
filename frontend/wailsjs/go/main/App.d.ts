@@ -13,10 +13,6 @@ export function CreateUser(arg1:string,arg2:string,arg3:number):Promise<Record<s
 
 export function DeleteUser(arg1:number):Promise<void>;
 
-export function CreateUser(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
-
-export function DeleteUser(arg1:number):Promise<void>;
-
 export function GetAppSettings():Promise<Record<string, any>>;
 
 export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
@@ -35,9 +31,13 @@ export function ListCurrencies():Promise<Array<Record<string, any>>>;
 
 export function ListPaymentMethods():Promise<Array<Record<string, any>>>;
 
-export function ListProducts():Promise<Array<Record<string, any>>>;
+export function ListPrinters():Promise<Array<string>>;
 
-export function ListRoles():Promise<Array<Record<string, any>>>;
+export function ListPaymentMethods():Promise<Array<Record<string, any>>>;
+
+export function ListPrinters():Promise<Array<string>>;
+
+export function ListProducts():Promise<Array<Record<string, any>>>;
 
 export function ListRoles():Promise<Array<Record<string, any>>>;
 
@@ -47,13 +47,9 @@ export function ListSerialPorts():Promise<Array<string>>;
 
 export function ListUsers():Promise<Array<Record<string, any>>>;
 
-export function ListUsers():Promise<Array<Record<string, any>>>;
-
 export function SetTheme(arg1:string):Promise<void>;
 
 export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:number,arg8:number):Promise<void>;
-
-export function UpdateUser(arg1:number,arg2:string,arg3:string,arg4:number,arg5:number):Promise<void>;
 
 export function UpdateUser(arg1:number,arg2:string,arg3:string,arg4:number,arg5:number):Promise<void>;
 

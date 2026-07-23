@@ -26,14 +26,6 @@ export function DeleteUser(arg1) {
   return window['go']['main']['App']['DeleteUser'](arg1);
 }
 
-export function CreateUser(arg1, arg2, arg3) {
-  return window['go']['main']['App']['CreateUser'](arg1, arg2, arg3);
-}
-
-export function DeleteUser(arg1) {
-  return window['go']['main']['App']['DeleteUser'](arg1);
-}
-
 export function GetAppSettings() {
   return window['go']['main']['App']['GetAppSettings']();
 }
@@ -62,6 +54,10 @@ export function ListCategoryIcons() {
   return window['go']['main']['App']['ListCategoryIcons']();
 }
 
+export function ListPrinters() {
+  return window['go']['main']['App']['ListPrinters']();
+}
+
 export function ListCurrencies() {
   return window['go']['main']['App']['ListCurrencies']();
 }
@@ -70,12 +66,12 @@ export function ListPaymentMethods() {
   return window['go']['main']['App']['ListPaymentMethods']();
 }
 
-export function ListProducts() {
-  return window['go']['main']['App']['ListProducts']();
+export function ListPrinters() {
+  return window['go']['main']['App']['ListPrinters']();
 }
 
-export function ListRoles() {
-  return window['go']['main']['App']['ListRoles']();
+export function ListProducts() {
+  return window['go']['main']['App']['ListProducts']();
 }
 
 export function ListRoles() {
@@ -94,20 +90,12 @@ export function ListUsers() {
   return window['go']['main']['App']['ListUsers']();
 }
 
-export function ListUsers() {
-  return window['go']['main']['App']['ListUsers']();
-}
-
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
 export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
   return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-}
-
-export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['UpdateUser'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os/exec"
+	"runtime"
+	"strings"
 	"time"
 
 	"go.bug.st/serial"
@@ -15,6 +18,31 @@ func (a *App) ListSerialPorts() ([]string, error) {
 		return []string{}, nil
 	}
 	return ports, nil
+}
+
+func (a *App) ListPrinters() ([]string, error) {
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("powershell", "-Command", "Get-Printer | Select-Object -ExpandProperty Name")
+	} else {
+		cmd = exec.Command("lpstat", "-e")
+	}
+	out, err := cmd.Output()
+	if err != nil {
+		return []string{}, nil
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	var result []string
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l != "" {
+			result = append(result, l)
+		}
+	}
+	if result == nil {
+		return []string{}, nil
+	}
+	return result, nil
 }
 
 func (a *App) WriteToScreen(port string, message string) error {

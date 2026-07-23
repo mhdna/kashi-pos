@@ -15,7 +15,7 @@
             <v-text-field v-model="form.apiKey" label="API Key" variant="outlined" density="compact" class="mb-2"
               :append-inner-icon="showApiKey ? 'mdi-eye' : 'mdi-eye-off'" :type="showApiKey ? 'text' : 'password'"
               @click:append-inner="showApiKey = !showApiKey" />
-            <v-text-field v-model="form.receiptPrinter" label="Receipt Printer Name" variant="outlined" density="compact" class="mb-2" />
+            <v-select v-model="form.receiptPrinter" :items="printers" label="Receipt Printer" variant="outlined" density="compact" class="mb-2" />
             <v-select v-model="form.printerSize" :items="['58mm', '80mm']" label="Printing Size" variant="outlined" density="compact" class="mb-2" />
             <v-text-field v-model.number="form.receiptWidth" label="Receipt Width (mm)" type="number" variant="outlined" density="compact" class="mb-2" />
             <v-text-field v-model.number="form.receiptHeight" label="Receipt Height (mm)" type="number" variant="outlined" density="compact" class="mb-2" />
@@ -134,7 +134,7 @@ import { ref, reactive, onMounted } from "vue";
 import {
   GetAppSettings, UpdateSettings, ChangePassword,
   ListUsers, CreateUser, UpdateUser, DeleteUser, ListRoles,
-  ListSerialPorts,
+  ListSerialPorts, ListPrinters,
 } from "../../wailsjs/go/main/App";
 import { useAuthStore } from "@/stores/auth";
 
@@ -146,6 +146,7 @@ const form = reactive({
   receiptPrinter: "", screenPort: "", receiptWidth: 80, receiptHeight: 297,
 });
 const serialPorts = ref<string[]>([]);
+const printers = ref<string[]>([]);
 const saving = ref(false);
 const showApiKey = ref(false);
 
@@ -190,6 +191,7 @@ onMounted(async () => {
     });
   } catch {}
   try { serialPorts.value = await ListSerialPorts(); } catch {}
+  try { printers.value = await ListPrinters(); } catch {}
   await loadUsers();
   try { roles.value = await ListRoles(); } catch {}
 });
