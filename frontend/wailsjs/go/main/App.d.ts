@@ -5,7 +5,17 @@ export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void
 
 export function GetAppSettings():Promise<Record<string, any>>;
 
+export function GetProductByBarcode(arg1:string):Promise<Record<string, any>>;
+
+export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
+
+export function ListProducts():Promise<Array<Record<string, any>>>;
+
+export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
+
 export function GetTheme():Promise<string>;
+
+export function ListProducts():Promise<Array<Record<string, any>>>;
 
 export function SetTheme(arg1:string):Promise<void>;
 

@@ -10,8 +10,28 @@ export function GetAppSettings() {
   return window['go']['main']['App']['GetAppSettings']();
 }
 
+export function GetProductByBarcode(arg1) {
+  return window['go']['main']['App']['GetProductByBarcode'](arg1);
+}
+
+export function GetProductByCode(arg1) {
+  return window['go']['main']['App']['GetProductByCode'](arg1);
+}
+
+export function ListProducts() {
+  return window['go']['main']['App']['ListProducts']();
+}
+
+export function GetProductByCode(arg1) {
+  return window['go']['main']['App']['GetProductByCode'](arg1);
+}
+
 export function GetTheme() {
   return window['go']['main']['App']['GetTheme']();
+}
+
+export function ListProducts() {
+  return window['go']['main']['App']['ListProducts']();
 }
 
 export function SetTheme(arg1) {
