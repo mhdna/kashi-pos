@@ -41,7 +41,15 @@
       <div
         v-if="!hasItems"
         class="position-absolute d-flex align-center justify-center"
-        style="top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.1); z-index: 10"
+        style="
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.1);
+          backdrop-filter: blur(4px);
+          z-index: 10;
+        "
       >
         <v-card class="pa-4 text-center" rounded="lg" width="240">
           <v-icon icon="mdi-barcode" size="32" class="mb-2" />
