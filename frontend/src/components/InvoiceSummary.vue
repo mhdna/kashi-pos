@@ -1,5 +1,5 @@
 <template>
-  <v-sheet class="mx-2 mb-2 pa-3" color="grey-darken-4" rounded>
+  <div class="mx-2 pa-3 mb-12" color="grey-darken-4">
     <div class="d-flex justify-space-between text-caption">
       <span class="text-medium-emphasis">Subtotal</span>
       <span>${{ subtotal.toFixed(2) }}</span>
@@ -22,13 +22,17 @@
       <span>Total</span>
       <span>${{ total.toFixed(2) }}</span>
     </div>
-    <div v-if="total > 0" class="mt-2 text-center text-caption text-medium-emphasis">
+    <div
+      v-if="total > 0"
+      class="mt-2 text-center text-caption text-medium-emphasis"
+    >
       <span v-for="(c, i) in currencies" :key="c.code">
         <template v-if="i > 0"> · </template>
-        {{ c.symbol }} {{ (total * (c.valueInDefaultCurrency / 100)).toFixed(2) }}
+        {{ c.symbol }}
+        {{ (total * (c.valueInDefaultCurrency / 100)).toFixed(2) }}
       </span>
     </div>
-  </v-sheet>
+  </div>
 </template>
 
 <script lang="ts" setup>

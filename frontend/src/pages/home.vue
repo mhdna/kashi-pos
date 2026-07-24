@@ -1,55 +1,92 @@
 <template>
   <div class="d-flex" style="width: 100%; overflow: hidden">
     <div style="flex: 5 5 0; min-width: 0">
-      <v-sheet>
-        <div>
-          <v-card-title class="d-flex justify-space-between">
-            <div>Invoice</div>
-            <div class="d-flex">
-              <div class="me-2">
-                <OnHoldMenu @restore="onRestoreHold" />
-              </div>
-              <ReturnInvoiceMenu />
+      <div>
+        <v-card-title class="d-flex justify-space-between">
+          <div>Invoice</div>
+          <div class="d-flex">
+            <div class="me-2">
+              <OnHoldMenu @restore="onRestoreHold" />
             </div>
-          </v-card-title>
-          <v-card-subtitle> SA/CN/2026/1441 </v-card-subtitle>
-        </div>
-        <div class="d-flex align-center mx-4 mt-4">
-          <v-text-field ref="barcodeInput" v-model="barcodeValue" class="flex-grow-1" density="compact"
-            hide-details="auto" placeholder="Scan or Enter Barcode" variant="outlined" @blur="onBlur"
-            @keydown.enter="onBarcodeEnter" />
-          <v-btn icon size="small" variant="text" class="ms-1" @click="onBarcodeEnter">
-            <v-icon icon="mdi-magnify" size="20" />
-          </v-btn>
-          <ProductSearchDialog @select="onProductSelect" />
-        </div>
-        <InvoiceItems ref="invoiceItems" />
-        <InvoiceSummary :subtotal="invoiceItems?.subtotal ?? 0" :total-discount="invoiceItems?.totalDiscount ?? 0" />
-      </v-sheet>
+            <ReturnInvoiceMenu />
+          </div>
+        </v-card-title>
+        <v-card-subtitle> SA/CN/2026/1441 </v-card-subtitle>
+      </div>
+      <div class="d-flex align-center mx-4 mt-4">
+        <v-text-field
+          ref="barcodeInput"
+          v-model="barcodeValue"
+          class="flex-grow-1"
+          density="compact"
+          hide-details="auto"
+          placeholder="Scan or Enter Barcode"
+          variant="outlined"
+          @blur="onBlur"
+          @keydown.enter="onBarcodeEnter"
+        />
+        <v-btn
+          icon
+          size="small"
+          variant="text"
+          class="ms-1"
+          @click="onBarcodeEnter"
+        >
+          <v-icon icon="mdi-magnify" size="20" />
+        </v-btn>
+        <ProductSearchDialog @select="onProductSelect" />
+      </div>
+      <InvoiceItems ref="invoiceItems" />
+      <InvoiceSummary
+        :subtotal="invoiceItems?.subtotal ?? 0"
+        :total-discount="invoiceItems?.totalDiscount ?? 0"
+      />
     </div>
-    <div style="flex: 3 3 0; min-width: 0">
+    <div style="flex: 4 4 0; min-width: 0">
       <Calculator :total="invoiceTotal" />
     </div>
-    <div class="me-2" style="flex: 2 2 0; min-width: 0">
-      <ActionBar :total="invoiceTotal" @hold="onHold" @void="onVoid" @checkout="onCheckout" />
+    <div style="flex: 2 2 0; min-width: 0">
+      <ActionBar
+        :total="invoiceTotal"
+        @hold="onHold"
+        @void="onVoid"
+        @checkout="onCheckout"
+      />
     </div>
   </div>
 
   <v-overlay v-model="printing" class="align-center justify-center" persistent>
     <v-card class="pa-8 text-center" width="300">
-      <v-progress-circular indeterminate color="primary" size="64" class="mb-4" />
+      <v-progress-circular
+        indeterminate
+        color="primary"
+        size="64"
+        class="mb-4"
+      />
       <div class="text-h6">Printing receipt...</div>
     </v-card>
   </v-overlay>
 
-  <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000" location="top">
+  <v-snackbar
+    v-model="snackbar.show"
+    :color="snackbar.color"
+    timeout="4000"
+    location="top"
+  >
     {{ snackbar.text }}
   </v-snackbar>
 </template>
 
 <script lang="ts" setup>
 import { ref, provide, watch, onMounted, computed, reactive } from "vue";
-import { GetProductByBarcode, ListProducts, HoldInvoice, VoidInvoice, CheckoutInvoice, GetAppSettings } from "../../wailsjs/go/main/App";
+import {
+  GetProductByBarcode,
+  ListProducts,
+  HoldInvoice,
+  VoidInvoice,
+  CheckoutInvoice,
+  GetAppSettings,
+} from "../../wailsjs/go/main/App";
 import ActionBar from "@/components/ActionBar.vue";
 import Calculator from "@/components/Calculator.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
@@ -65,17 +102,32 @@ const invoiceTotal = computed(() => {
   return (subtotal - totalDiscount) * 1.11;
 });
 const barcodeValue = ref("");
-const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
+const barcodeInput = ref<InstanceType<
+  typeof import("vuetify/components").VTextField
+> | null>(null);
 const dialogOpen = ref(false);
 
 provide("dialogOpen", dialogOpen);
 
-watch(dialogOpen, (v) => { if (!v) focusBarcode(); });
+watch(dialogOpen, (v) => {
+  if (!v) focusBarcode();
+});
 
-function focusBarcode() { barcodeInput.value?.focus(); }
-function onBlur() { if (!dialogOpen.value) focusBarcode(); }
+function focusBarcode() {
+  barcodeInput.value?.focus();
+}
+function onBlur() {
+  if (!dialogOpen.value) focusBarcode();
+}
 
-function onProductSelect(product: { name: string; code: string; category: string; price: number; discount: number; qty: number }) {
+function onProductSelect(product: {
+  name: string;
+  code: string;
+  category: string;
+  price: number;
+  discount: number;
+  qty: number;
+}) {
   invoiceItems.value?.addItem(product);
   focusBarcode();
 }
@@ -107,10 +159,16 @@ async function getItemsJSON(): Promise<string> {
 
 async function getFullItemsJSON(): Promise<string> {
   const items = invoiceItems.value?.items ?? [];
-  return JSON.stringify(items.map((i: any) => ({
-    name: i.name, code: i.code, category: i.category,
-    price: i.price, discount: i.discount, qty: i.qty,
-  })));
+  return JSON.stringify(
+    items.map((i: any) => ({
+      name: i.name,
+      code: i.code,
+      category: i.category,
+      price: i.price,
+      discount: i.discount,
+      qty: i.qty,
+    })),
+  );
 }
 
 async function onHold() {
@@ -134,9 +192,14 @@ async function onCheckout() {
   try {
     const settings = await GetAppSettings();
     const receiptNo = "INV-" + Date.now();
-    await CheckoutInvoice(json,
-      settings.branchName || "Store", settings.branchName || "Branch",
-      "", "", receiptNo, settings.receiptPrinter || "",
+    await CheckoutInvoice(
+      json,
+      settings.branchName || "Store",
+      settings.branchName || "Branch",
+      "",
+      "",
+      receiptNo,
+      settings.receiptPrinter || "",
     );
     snackbar.text = "Receipt printed successfully";
     snackbar.color = "success";
@@ -162,6 +225,8 @@ onMounted(async () => {
   focusBarcode();
   try {
     products.value = (await ListProducts()).map((p) => ({ ...p, qty: 1 }));
-  } catch (e) { console.error("ListProducts failed:", e) }
+  } catch (e) {
+    console.error("ListProducts failed:", e);
+  }
 });
 </script>

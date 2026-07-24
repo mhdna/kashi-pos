@@ -11,6 +11,7 @@
     "type-check": "vue-tsc --build --force",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
+    "format": "prettier --write .",
     "mcp": "ruler apply",
     "mcp:revert": "ruler revert"
   },
@@ -29,6 +30,7 @@
     "eslint": "^9.39.2",
     "eslint-config-vuetify": "^4.3.4",
     "npm-run-all2": "^8.0.4",
+    "prettier": "^3.9.6",
     "sass-embedded": "^1.97.1",
     "typescript": "~5.9.3",
     "vite": "^7.3.0",
