@@ -20,12 +20,9 @@
           width="100%"
           @click="clientDialog = true"
         >
-          <v-avatar
-            class="font-weight-bold"
-            color="yellow-darken-3"
-            size="42"
-            >{{ client.initials }}</v-avatar
-          >
+          <v-avatar class="font-weight-bold" color="yellow-darken-3" size="42">{{
+            client.initials
+          }}</v-avatar>
           <div>{{ client.name }}</div>
           <div v-if="client.phone">{{ client.phone }}</div>
         </v-card>
@@ -43,7 +40,7 @@
       color="yellow-darken-4"
       variant="tonal"
       width="100%"
-      @click="$emit('void')"
+      @click="ask('void')"
     >
       <template #prepend>
         <v-icon icon="mdi-circle" size="20" class="me-2" />
@@ -56,7 +53,7 @@
       text="Hold"
       variant="tonal"
       width="100%"
-      @click="$emit('hold')"
+      @click="ask('hold')"
     >
       <template #prepend>
         <v-icon icon="mdi-pause" size="25" class="me-2" />
@@ -76,13 +73,49 @@
       </template>
     </v-btn>
   </div>
+
+  <v-dialog v-model="dialog" max-width="350">
+    <v-card>
+      <v-card-title>Confirm {{ action }}</v-card-title>
+      <v-card-text>
+        {{
+          action === "hold"
+            ? "Save the current invoice to hold?"
+            : "Void the current invoice? This cannot be undone."
+        }}
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn variant="text" @click="dialog = false">Cancel</v-btn>
+        <v-btn
+          :color="action === 'hold' ? 'red-darken-4' : 'yellow-darken-4'"
+          variant="flat"
+          @click="doConfirm"
+          >Confirm</v-btn
+        >
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import ClientDialog, { type Client } from "./ClientDialog.vue";
 
-defineEmits<{ hold: []; void: []; checkout: [] }>();
+const emit = defineEmits<{ hold: []; void: []; checkout: [] }>();
+
+const dialog = ref(false);
+const action = ref<"hold" | "void">("hold");
+
+function ask(act: "hold" | "void") {
+  action.value = act;
+  dialog.value = true;
+}
+function doConfirm() {
+  if (action.value === "hold") emit("hold");
+  else emit("void");
+  dialog.value = false;
+}
 
 const props = defineProps<{ total: number }>();
 
