@@ -43,7 +43,7 @@ func (a *App) HoldInvoice(itemsJSON string) (int64, error) {
 		if err != nil {
 			continue
 		}
-		a.queries.AddHoldInvoiceItem(a.ctx, db.AddHoldInvoiceItemParams{
+		_ = a.queries.AddHoldInvoiceItem(a.ctx, db.AddHoldInvoiceItemParams{
 			HoldInvoiceID: inv.ID,
 			ProductID:     product.ID,
 			Qty:           int64(it.Qty),

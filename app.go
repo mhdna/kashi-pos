@@ -163,7 +163,7 @@ func (a *App) seedDefaults() {
 	log.Println("seeded default roles and admin user")
 	_, err = a.queries.GetSettings(ctx)
 	if err != nil {
-		a.queries.UpsertSettings(ctx, db.UpsertSettingsParams{
+		if err := a.queries.UpsertSettings(ctx, db.UpsertSettingsParams{
 			BranchName:     "",
 			ApiKey:         "",
 			PrinterID:      "",
@@ -173,7 +173,9 @@ func (a *App) seedDefaults() {
 			ReceiptWidth:   80,
 			ReceiptHeight:  297,
 			Theme:          "light",
-		})
+		}); err != nil {
+			log.Println("upsert settings:", err)
+		}
 	}
 	a.seedCashboxAccounts()
 	a.seedProducts()
@@ -186,7 +188,9 @@ func (a *App) seedSalespersons() {
 		return
 	}
 	for _, name := range []string{"Sarah M", "Fatima G", "Ali A", "Zahraa M", "Alex A"} {
-		a.queries.CreateSalesperson(context.Background(), name)
+		if _, err := a.queries.CreateSalesperson(context.Background(), name); err != nil {
+			log.Println("seed salesperson:", err)
+		}
 	}
 	log.Println("seeded salespersons")
 }
@@ -202,10 +206,12 @@ func (a *App) seedCashboxAccounts() {
 		{"Visa", "USD"},
 		{"Whish", "USD"},
 	} {
-		a.queries.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
+		if _, err := a.queries.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
 			Name:         acc.name,
 			CurrencyCode: acc.currency,
-		})
+		}); err != nil {
+			log.Println("seed cashbox account:", err)
+		}
 	}
 	log.Println("seeded cashbox accounts")
 }

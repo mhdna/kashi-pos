@@ -7,6 +7,7 @@ fmt:
 lint:
 	cd frontend && pnpm run type-check
 	go vet ./...
+	golangci-lint run ./...
 
 dev:
 	wails dev

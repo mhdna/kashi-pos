@@ -53,7 +53,7 @@ func (a *App) WriteToScreen(port string, message string) error {
 	}
 	defer p.Close()
 
-	p.Write([]byte{0x1B, 0x40})
+	_, _ = p.Write([]byte{0x1B, 0x40})
 	time.Sleep(50 * time.Millisecond)
 	_, err = p.Write([]byte(message))
 	return err
@@ -67,7 +67,7 @@ func (a *App) ClearScreen(port string) error {
 	}
 	defer p.Close()
 
-	p.Write([]byte{0x1B, 0x40})
+	_, _ = p.Write([]byte{0x1B, 0x40})
 	return nil
 }
 
