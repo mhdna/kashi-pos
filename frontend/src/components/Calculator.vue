@@ -171,5 +171,5 @@ function clearAll() {
   entries.value = [];
 }
 
-defineExpose({ diff });
+defineExpose({ diff, clearAll });
 </script>

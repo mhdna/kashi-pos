@@ -119,6 +119,10 @@ const dialogOpen = ref(false);
 
 provide("dialogOpen", dialogOpen);
 
+watch(hasItems, (val) => {
+  if (!val) calculator.value?.clearAll();
+});
+
 watch(dialogOpen, (v) => {
   if (!v) focusBarcode();
 });
