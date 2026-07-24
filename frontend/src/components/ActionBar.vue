@@ -41,6 +41,7 @@
       variant="tonal"
       width="100%"
       @click="ask('void')"
+      :disabled="!hasItems"
     >
       <template #prepend>
         <v-icon icon="mdi-circle" size="20" class="me-2" />
@@ -54,6 +55,7 @@
       variant="tonal"
       width="100%"
       @click="ask('hold')"
+      :disabled="!hasItems"
     >
       <template #prepend>
         <v-icon icon="mdi-pause" size="25" class="me-2" />
@@ -67,6 +69,7 @@
       variant="tonal"
       width="100%"
       @click="$emit('checkout')"
+      :disabled="!canCheckout"
     >
       <template #prepend>
         <v-icon icon="mdi-cash" size="25" class="me-2" />
@@ -117,7 +120,7 @@ function doConfirm() {
   dialog.value = false;
 }
 
-const props = defineProps<{ total: number }>();
+const props = defineProps<{ total: number; canCheckout: boolean; hasItems: boolean }>();
 
 const clientDialog = ref(false);
 const client = reactive<Client>({

@@ -38,10 +38,17 @@
       />
     </div>
     <div style="flex: 3 3 0; min-width: 0">
-      <Calculator :total="invoiceTotal" />
+      <Calculator ref="calculator" :total="invoiceTotal" />
     </div>
     <div style="flex: 2 2 0; min-width: 0">
-      <ActionBar :total="invoiceTotal" @hold="onHold" @void="onVoid" @checkout="onCheckout" />
+      <ActionBar
+        :total="invoiceTotal"
+        :can-checkout="canCheckout"
+        :has-items="hasItems"
+        @hold="onHold"
+        @void="onVoid"
+        @checkout="onCheckout"
+      />
     </div>
   </div>
 
@@ -52,7 +59,7 @@
     </v-card>
   </v-overlay>
 
-  <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000" location="top">
+  <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000" location="top right">
     {{ snackbar.text }}
   </v-snackbar>
 </template>
@@ -78,11 +85,14 @@ import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 
 const taxRate = ref(0);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
+const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const invoiceTotal = computed(() => {
   const subtotal = invoiceItems.value?.subtotal ?? 0;
   const totalDiscount = invoiceItems.value?.totalDiscount ?? 0;
   return (subtotal - totalDiscount) * (1 + taxRate.value);
 });
+const canCheckout = computed(() => calculator.value?.diff === 0 && invoiceTotal.value > 0);
+const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
 const barcodeValue = ref("");
 const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
 const dialogOpen = ref(false);
@@ -187,7 +197,7 @@ async function onCheckout() {
     invoiceItems.value?.clearItems();
   } catch (e: any) {
     snackbar.text = e?.toString() || "Print failed";
-    snackbar.color = "red";
+    snackbar.color = "red-darken-4";
     snackbar.show = true;
   }
   printing.value = false;

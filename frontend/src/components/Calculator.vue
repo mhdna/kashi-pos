@@ -170,4 +170,6 @@ function clearAll() {
   currentInput.value = "";
   entries.value = [];
 }
+
+defineExpose({ diff });
 </script>
