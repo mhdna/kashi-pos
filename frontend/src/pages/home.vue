@@ -37,18 +37,30 @@
         :tax-rate="taxRate"
       />
     </div>
-    <div style="flex: 3 3 0; min-width: 0">
-      <Calculator ref="calculator" :total="invoiceTotal" />
-    </div>
-    <div style="flex: 2 2 0; min-width: 0">
-      <ActionBar
-        :total="invoiceTotal"
-        :can-checkout="canCheckout"
-        :has-items="hasItems"
-        @hold="onHold"
-        @void="onVoid"
-        @checkout="onCheckout"
-      />
+    <div class="d-flex position-relative" style="flex: 5 5 0; min-width: 0">
+      <div
+        v-if="!hasItems"
+        class="position-absolute d-flex align-center justify-center"
+        style="top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.1); z-index: 10"
+      >
+        <v-card class="pa-4 text-center" rounded="lg" width="240">
+          <v-icon icon="mdi-barcode" size="32" class="mb-2" />
+          <div class="text-body-2">Scan a barcode or add products to begin</div>
+        </v-card>
+      </div>
+      <div style="flex: 3 3 0; min-width: 0">
+        <Calculator ref="calculator" :total="invoiceTotal" />
+      </div>
+      <div style="flex: 2 2 0; min-width: 0">
+        <ActionBar
+          :total="invoiceTotal"
+          :can-checkout="canCheckout"
+          :has-items="hasItems"
+          @hold="onHold"
+          @void="onVoid"
+          @checkout="onCheckout"
+        />
+      </div>
     </div>
   </div>
 
