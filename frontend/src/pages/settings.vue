@@ -62,7 +62,7 @@
             />
             <v-text-field
               v-model.number="form.taxRate"
-              label="VAT Rate (e.g. 0.11 = 11%)"
+              label="VAT Rate (e.g. 0.11 = 11%, 0 = no VAT)"
               type="number"
               step="0.01"
               min="0"

@@ -66,6 +66,7 @@ import {
   VoidInvoice,
   CheckoutInvoice,
   GetAppSettings,
+  DeleteHoldInvoice,
 } from "../../wailsjs/go/main/App";
 import ActionBar from "@/components/ActionBar.vue";
 import Calculator from "@/components/Calculator.vue";
@@ -192,12 +193,13 @@ async function onCheckout() {
   printing.value = false;
 }
 
-function onRestoreHold(items: any[]) {
+function onRestoreHold(id: number, items: any[]) {
   if (!invoiceItems.value) return;
   invoiceItems.value.clearItems();
   for (const item of items) {
     invoiceItems.value.addItem({ ...item, qty: item.qty || 1 });
   }
+  DeleteHoldInvoice(id);
 }
 
 onMounted(async () => {

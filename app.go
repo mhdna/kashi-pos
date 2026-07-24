@@ -54,7 +54,7 @@ func (a *App) startup(ctx context.Context) {
 	a.queries = db.New(a.conn)
 
 	// Apply pending migrations
-	a.conn.Exec("ALTER TABLE settings ADD COLUMN tax_rate REAL NOT NULL DEFAULT 0.11")
+	a.conn.Exec("ALTER TABLE settings ADD COLUMN tax_rate REAL NOT NULL DEFAULT 0.0")
 
 	a.seedDefaults()
 }
@@ -177,7 +177,7 @@ func (a *App) seedDefaults() {
 			ReceiptWidth:   80,
 			ReceiptHeight:  297,
 			Theme:          "light",
-			TaxRate:        0.11,
+			TaxRate:        0.0,
 		}); err != nil {
 			log.Println("upsert settings:", err)
 		}
