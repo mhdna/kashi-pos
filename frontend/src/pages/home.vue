@@ -1,5 +1,5 @@
 <template>
-  <div class="d-flex" style="width: 100%; overflow: hidden">
+  <div class="d-flex h-100" style="width: 100%; overflow: hidden">
     <div class="d-flex flex-column" style="flex: 5 5 0; min-width: 0; min-height: 0">
       <div>
         <v-card-title class="d-flex justify-space-between">

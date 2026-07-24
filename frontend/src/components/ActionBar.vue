@@ -1,6 +1,6 @@
 <template>
   <ClientDialog v-model="clientDialog" @select="onClientSelect" />
-  <div class="d-flex flex-column w-100 px-4" style="height: 91vh">
+  <div class="d-flex flex-column w-100 h-100 px-4">
     <v-card
       class="ma-0 d-flex justify-center text-title-medium my-2 w-100 flex-column"
       color="gray"

@@ -3,7 +3,7 @@
     <AppBar />
     <NavDrawer />
     <v-main>
-      <v-container class="pa-0" fluid style="height: 91vh; overflow: hidden;">
+      <v-container class="pa-0 h-100" fluid style="overflow: hidden">
         <router-view />
       </v-container>
     </v-main>
@@ -11,6 +11,6 @@
 </template>
 
 <script setup>
-  import AppBar from '@/components/AppBar.vue'
-  import NavDrawer from '@/components/NavDrawer.vue'
+import AppBar from "@/components/AppBar.vue";
+import NavDrawer from "@/components/NavDrawer.vue";
 </script>
