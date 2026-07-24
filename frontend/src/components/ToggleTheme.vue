@@ -1,10 +1,6 @@
 <template>
   <v-btn icon variant="text" @click="toggleTheme" :title="currentTheme">
-    <v-icon
-      :icon="
-        currentTheme === 'dark' ? 'mdi-weather-sunny' : 'mdi-weather-night'
-      "
-    />
+    <v-icon :icon="currentTheme === 'dark' ? 'mdi-weather-sunny' : 'mdi-weather-night'" />
   </v-btn>
 </template>
 
@@ -14,11 +10,11 @@ import { SetTheme } from "../../wailsjs/go/main/App";
 
 const theme = useTheme();
 
-const currentTheme = theme.global.name;
+const currentTheme = theme.name;
 
 function toggleTheme() {
-  const next = theme.global.name.value === "dark" ? "light" : "dark";
-  theme.global.name.value = next;
+  const next = theme.name.value === "dark" ? "light" : "dark";
+  theme.change(next);
   SetTheme(next);
 }
 </script>

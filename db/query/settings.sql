@@ -5,11 +5,11 @@ SELECT * FROM settings LIMIT 1;
 UPDATE settings
 SET branch_name = ?, api_key = ?, printer_id = ?, printer_size = ?,
     receipt_printer = ?, screen_port = ?, receipt_width = ?, receipt_height = ?,
-    theme = ?;
+    theme = ?, tax_rate = ?;
 
 -- name: UpdateTheme :exec
 UPDATE settings SET theme = ?;
 
 -- name: UpsertSettings :exec
-INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);

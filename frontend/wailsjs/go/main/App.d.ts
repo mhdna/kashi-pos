@@ -71,9 +71,11 @@ export function ListTransfers():Promise<Array<Record<string, any>>>;
 
 export function ListUsers():Promise<Array<Record<string, any>>>;
 
+export function SetTaxRate(arg1:number):Promise<void>;
+
 export function SetTheme(arg1:string):Promise<void>;
 
-export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:number,arg8:number):Promise<void>;
+export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:number,arg8:number,arg9:number):Promise<void>;
 
 export function UpdateUser(arg1:number,arg2:string,arg3:string,arg4:number,arg5:number):Promise<void>;
 

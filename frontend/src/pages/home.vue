@@ -1,6 +1,6 @@
 <template>
   <div class="d-flex" style="width: 100%; overflow: hidden">
-    <div style="flex: 5 5 0; min-width: 0">
+    <div class="d-flex flex-column" style="flex: 5 5 0; min-width: 0; min-height: 0">
       <div>
         <v-card-title class="d-flex justify-space-between">
           <div>Invoice</div>
@@ -25,54 +25,34 @@
           @blur="onBlur"
           @keydown.enter="onBarcodeEnter"
         />
-        <v-btn
-          icon
-          size="small"
-          variant="text"
-          class="ms-1"
-          @click="onBarcodeEnter"
-        >
+        <v-btn icon size="small" variant="text" class="ms-1" @click="onBarcodeEnter">
           <v-icon icon="mdi-magnify" size="20" />
         </v-btn>
         <ProductSearchDialog @select="onProductSelect" />
       </div>
-      <InvoiceItems ref="invoiceItems" />
+      <InvoiceItems ref="invoiceItems" style="flex: 1 1 0; min-height: 0" />
       <InvoiceSummary
         :subtotal="invoiceItems?.subtotal ?? 0"
         :total-discount="invoiceItems?.totalDiscount ?? 0"
+        :tax-rate="taxRate"
       />
     </div>
-    <div style="flex: 4 4 0; min-width: 0">
+    <div style="flex: 3 3 0; min-width: 0">
       <Calculator :total="invoiceTotal" />
     </div>
     <div style="flex: 2 2 0; min-width: 0">
-      <ActionBar
-        :total="invoiceTotal"
-        @hold="onHold"
-        @void="onVoid"
-        @checkout="onCheckout"
-      />
+      <ActionBar :total="invoiceTotal" @hold="onHold" @void="onVoid" @checkout="onCheckout" />
     </div>
   </div>
 
   <v-overlay v-model="printing" class="align-center justify-center" persistent>
     <v-card class="pa-8 text-center" width="300">
-      <v-progress-circular
-        indeterminate
-        color="primary"
-        size="64"
-        class="mb-4"
-      />
+      <v-progress-circular indeterminate color="primary" size="64" class="mb-4" />
       <div class="text-h6">Printing receipt...</div>
     </v-card>
   </v-overlay>
 
-  <v-snackbar
-    v-model="snackbar.show"
-    :color="snackbar.color"
-    timeout="4000"
-    location="top"
-  >
+  <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000" location="top">
     {{ snackbar.text }}
   </v-snackbar>
 </template>
@@ -95,16 +75,15 @@ import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 
+const taxRate = ref(0);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const invoiceTotal = computed(() => {
   const subtotal = invoiceItems.value?.subtotal ?? 0;
   const totalDiscount = invoiceItems.value?.totalDiscount ?? 0;
-  return (subtotal - totalDiscount) * 1.11;
+  return (subtotal - totalDiscount) * (1 + taxRate.value);
 });
 const barcodeValue = ref("");
-const barcodeInput = ref<InstanceType<
-  typeof import("vuetify/components").VTextField
-> | null>(null);
+const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
 const dialogOpen = ref(false);
 
 provide("dialogOpen", dialogOpen);
@@ -228,5 +207,9 @@ onMounted(async () => {
   } catch (e) {
     console.error("ListProducts failed:", e);
   }
+  try {
+    const settings = await GetAppSettings();
+    taxRate.value = settings?.taxRate ?? 0;
+  } catch {}
 });
 </script>

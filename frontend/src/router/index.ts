@@ -11,9 +11,7 @@ const router = createRouter({
     {
       path: "/auth",
       component: () => import("@/layouts/AuthLayout.vue"),
-      children: [
-        { path: "/login", component: () => import("@/pages/login.vue") },
-      ],
+      children: [{ path: "/login", component: () => import("@/pages/login.vue") }],
     },
     {
       path: "/",
@@ -40,19 +38,24 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
-  const { useAuthStore } = await import("@/stores/auth");
-  const auth = useAuthStore();
-  const isLoginPage = to.path === "/login";
-  const isSettings = to.path === "/settings";
+  try {
+    const { useAuthStore } = await import("@/stores/auth");
+    const auth = useAuthStore();
+    const isLoginPage = to.path === "/login";
+    const isSettings = to.path === "/settings";
 
-  if (!auth.isLoggedIn && !isLoginPage) {
-    return "/login";
-  }
-  if (auth.isLoggedIn && isLoginPage) {
-    return "/home";
-  }
-  if (isSettings && !auth.isAdmin) {
-    return "/home";
+    if (!auth.isLoggedIn && !isLoginPage) {
+      return "/login";
+    }
+    if (auth.isLoggedIn && isLoginPage) {
+      return "/home";
+    }
+    if (isSettings && !auth.isAdmin) {
+      return "/home";
+    }
+  } catch {
+    // Allow navigation if auth module can't be loaded (e.g. Wails runtime not ready)
+    return true;
   }
 });
 

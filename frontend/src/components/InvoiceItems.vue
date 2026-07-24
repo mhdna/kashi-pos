@@ -1,10 +1,5 @@
 <template>
-  <v-virtual-scroll
-    :items="items"
-    height="calc(100vh - 260px)"
-    item-height="48"
-    class="ma-2"
-  >
+  <v-virtual-scroll :items="items" height="100%" item-height="48" class="ma-2">
     <template #default="{ item }">
       <v-list-item>
         <template #prepend>
@@ -24,7 +19,9 @@
               <v-btn density="compact" variant="text" size="small" @click="decreaseQty(item)">
                 <v-icon icon="mdi-minus" size="20" />
               </v-btn>
-              <span class="text-body-2 font-weight-bold text-center" style="min-width: 1.5rem">{{ item.qty }}</span>
+              <span class="text-body-2 font-weight-bold text-center" style="min-width: 1.5rem">{{
+                item.qty
+              }}</span>
               <v-btn density="compact" variant="text" size="small" @click="increaseQty(item)">
                 <v-icon icon="mdi-plus" size="20" />
               </v-btn>
@@ -32,9 +29,17 @@
             <div class="d-flex flex-column align-end" style="flex: 1 1 auto">
               <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
               <span v-if="item.discount" class="text-caption text-red">-{{ item.discount }}%</span>
-              <span class="text-caption font-weight-bold">${{ totalAfterDiscount(item).toFixed(2) }}</span>
+              <span class="text-caption font-weight-bold"
+                >${{ totalAfterDiscount(item).toFixed(2) }}</span
+              >
             </div>
-            <v-btn density="compact" variant="text" size="small" class="ml-1" @click="removeItem(item)">
+            <v-btn
+              density="compact"
+              variant="text"
+              size="small"
+              class="ml-1"
+              @click="removeItem(item)"
+            >
               <v-icon icon="mdi-delete" size="18" color="grey" />
             </v-btn>
           </div>
@@ -86,7 +91,9 @@ onMounted(async () => {
   } catch {}
 });
 
-function increaseQty(item: LineItem) { item.qty++; }
+function increaseQty(item: LineItem) {
+  item.qty++;
+}
 
 function decreaseQty(item: LineItem) {
   if (item.qty > 1) item.qty--;
@@ -109,12 +116,8 @@ function clearItems() {
   items.value = [];
 }
 
-const subtotal = computed(() =>
-  items.value.reduce((sum, i) => sum + i.price * i.qty, 0),
-);
-const totalDiscount = computed(() =>
-  items.value.reduce((sum, i) => sum + discountAmount(i), 0),
-);
+const subtotal = computed(() => items.value.reduce((sum, i) => sum + i.price * i.qty, 0));
+const totalDiscount = computed(() => items.value.reduce((sum, i) => sum + discountAmount(i), 0));
 
 defineExpose({ subtotal, totalDiscount, addItem, items, clearItems });
 </script>

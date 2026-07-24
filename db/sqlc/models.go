@@ -188,8 +188,9 @@ type Setting struct {
 	ReceiptPrinter string `json:"receiptPrinter"`
 	ScreenPort     string `json:"screenPort"`
 	ReceiptWidth   int64  `json:"receiptWidth"`
-	ReceiptHeight  int64  `json:"receiptHeight"`
-	Theme          string `json:"theme"`
+	ReceiptHeight  int64   `json:"receiptHeight"`
+	Theme          string  `json:"theme"`
+	TaxRate        float64 `json:"taxRate"`
 }
 
 type Shift struct {

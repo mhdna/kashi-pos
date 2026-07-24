@@ -52,6 +52,10 @@ func (a *App) startup(ctx context.Context) {
 	}
 
 	a.queries = db.New(a.conn)
+
+	// Apply pending migrations
+	a.conn.Exec("ALTER TABLE settings ADD COLUMN tax_rate REAL NOT NULL DEFAULT 0.11")
+
 	a.seedDefaults()
 }
 
@@ -173,6 +177,7 @@ func (a *App) seedDefaults() {
 			ReceiptWidth:   80,
 			ReceiptHeight:  297,
 			Theme:          "light",
+			TaxRate:        0.11,
 		}); err != nil {
 			log.Println("upsert settings:", err)
 		}
@@ -312,10 +317,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"screenPort":     settings.ScreenPort,
 		"receiptWidth":   settings.ReceiptWidth,
 		"receiptHeight":  settings.ReceiptHeight,
+		"taxRate":        settings.TaxRate,
 	}, nil
 }
 
-func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64) error {
+func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64, taxRate float64) error {
 	if a.queries == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -333,5 +339,28 @@ func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize, receipt
 		ReceiptWidth:   receiptWidth,
 		ReceiptHeight:  receiptHeight,
 		Theme:          current.Theme,
+		TaxRate:        taxRate,
+	})
+}
+
+func (a *App) SetTaxRate(rate float64) error {
+	if a.queries == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	current, err := a.queries.GetSettings(a.ctx)
+	if err != nil {
+		return err
+	}
+	return a.queries.UpdateSettings(a.ctx, db.UpdateSettingsParams{
+		BranchName:     current.BranchName,
+		ApiKey:         current.ApiKey,
+		PrinterID:      current.PrinterID,
+		PrinterSize:    current.PrinterSize,
+		ReceiptPrinter: current.ReceiptPrinter,
+		ScreenPort:     current.ScreenPort,
+		ReceiptWidth:   current.ReceiptWidth,
+		ReceiptHeight:  current.ReceiptHeight,
+		Theme:          current.Theme,
+		TaxRate:        rate,
 	})
 }

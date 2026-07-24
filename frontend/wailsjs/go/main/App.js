@@ -142,12 +142,16 @@ export function ListUsers() {
   return window['go']['main']['App']['ListUsers']();
 }
 
+export function SetTaxRate(arg1) {
+  return window['go']['main']['App']['SetTaxRate'](arg1);
+}
+
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
-export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
-  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
+  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 }
 
 export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {
