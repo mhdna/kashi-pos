@@ -16,6 +16,7 @@
           class="px-3 py-1 ma-4 text-center"
           color="surface-light"
           elevation="0"
+          min-height="100px"
           rounded="lg"
           width="100%"
           @click="clientDialog = true"
@@ -26,8 +27,14 @@
           <div>{{ client.name }}</div>
           <div v-if="client.phone">{{ client.phone }}</div>
         </v-card>
-        <div class="text-center">
-          <div>{{ client.tier }} Tier</div>
+        <div v-if="client.id !== 0" class="text-center">
+          <v-icon
+            :color="tierColor"
+            class="mb-4"
+            icon="mdi-cards-diamond"
+            size="44"
+            :title="tierLabel"
+          />
           <div>Has: {{ client.totalLoyaltyPoints }} Points</div>
           <div>Earns: {{ earns }} Points</div>
         </div>
@@ -135,6 +142,21 @@ const client = reactive<Client>({
 });
 
 const earns = computed(() => Math.floor(props.total));
+
+const tierLabel = computed(() => {
+  const pts = client.totalLoyaltyPoints;
+  if (pts >= 500) return "Gold";
+  if (pts >= 200) return "Silver";
+  if (pts >= 1) return "Bronze";
+  return "None";
+});
+const tierColor = computed(() => {
+  const pts = client.totalLoyaltyPoints;
+  if (pts >= 500) return "yellow-darken-2";
+  if (pts >= 200) return "grey-lighten-1";
+  if (pts >= 1) return "brown";
+  return "grey";
+});
 
 function onClientSelect(selected: Client) {
   Object.assign(client, selected);

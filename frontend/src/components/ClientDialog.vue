@@ -11,9 +11,9 @@
           autofocus
           @keydown.enter="lookupPhone"
         />
-      </v-card-text>
-      <v-card-actions class="flex-column ga-2 pa-4">
-        <v-btn class="w-100" variant="elevated" color="primary" @click="lookupPhone">Continue</v-btn>
+        <v-btn class="w-100 mb-4" variant="elevated" color="primary" @click="lookupPhone"
+          >Continue</v-btn
+        >
         <v-btn class="w-100" variant="tonal" @click="selectAnonymous">Prefer not to say</v-btn>
       </v-card-actions>
     </v-card>
