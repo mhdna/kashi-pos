@@ -21,9 +21,7 @@
           width="100%"
           @click="clientDialog = true"
         >
-          <v-avatar class="font-weight-bold" color="yellow-darken-3" size="42">{{
-            client.initials
-          }}</v-avatar>
+          <InitialsAvatar :name="client.name" color="yellow-darken-3" :size="42" />
           <div>{{ client.name }}</div>
           <div v-if="client.phone">{{ client.phone }}</div>
         </v-card>
@@ -111,6 +109,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import ClientDialog, { type Client } from "./ClientDialog.vue";
+import InitialsAvatar from "./InitialsAvatar.vue";
 
 const emit = defineEmits<{ hold: []; void: []; checkout: [] }>();
 
