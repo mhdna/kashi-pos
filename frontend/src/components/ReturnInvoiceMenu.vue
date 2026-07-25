@@ -1,12 +1,10 @@
 <template>
-  <v-menu v-model="menu" :close-on-content-click="false" location="bottom">
-    <template #activator="{ props }">
-      <v-btn v-bind="props" class="px-5" variant="tonal">
-        <template #prepend><v-icon icon="mdi-autorenew" size="20" class="me-2" /></template>
-        Exchange
-      </v-btn>
-    </template>
-    <v-card min-width="430" class="d-flex flex-column">
+  <v-btn class="px-5" variant="tonal" @click="menu = true">
+    <template #prepend><v-icon icon="mdi-autorenew" size="20" class="me-2" /></template>
+    Exchange
+  </v-btn>
+  <v-dialog v-model="menu" max-width="430">
+    <v-card class="d-flex flex-column">
       <v-card-title>Exchange Invoice</v-card-title>
       <v-card-subtitle>Scan the original sales invoice, then scan the item being returned.</v-card-subtitle>
       <v-card-text>
@@ -29,7 +27,7 @@
         <v-btn class="flex-1-1" color="primary" :disabled="!returned || !replacement || effectivePrice(replacement) < effectivePrice(returned)" @click="startExchange">Start exchange</v-btn>
       </v-card-actions>
     </v-card>
-  </v-menu>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
