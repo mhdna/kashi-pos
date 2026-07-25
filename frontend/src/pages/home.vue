@@ -156,7 +156,11 @@ const invoiceTotal = computed(() => {
   return (discountedCents + taxCents) / 100;
 });
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
-const canCheckout = computed(() => Boolean(calculator.value?.checkoutReady) && (exchangeState.value ? hasItems.value : invoiceTotal.value > 0));
+const canCheckout = computed(
+  () =>
+    Boolean(calculator.value?.checkoutReady) &&
+    (exchangeState.value ? hasItems.value : invoiceTotal.value > 0),
+);
 const barcodeValue = ref("");
 const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
 const dialogOpen = ref(false);
@@ -224,7 +228,7 @@ function showCustomerTotal() {
     queueScreenUpdate("");
     return;
   }
-  queueScreenUpdate(`TOTAL\r\n$${invoiceTotal.value.toFixed(2)}`);
+  queueScreenUpdate(invoiceTotal.value.toFixed(2));
 }
 
 watch([invoiceTotal, hasItems], showCustomerTotal);
@@ -271,24 +275,36 @@ async function onCheckout() {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
     const clientID = actionBar.value?.clientId ?? 0;
     const result = exchangeState.value
-      ? await CheckoutExchangeInvoice(json, paymentsJSON, exchangeState.value.originalInvoiceId, clientID)
-      : await CheckoutInvoice(json, paymentsJSON, clientID, branchName.value, branchName.value, "", "", receiptPrinter.value);
+      ? await CheckoutExchangeInvoice(
+          json,
+          paymentsJSON,
+          exchangeState.value.originalInvoiceId,
+          clientID,
+        )
+      : await CheckoutInvoice(
+          json,
+          paymentsJSON,
+          clientID,
+          branchName.value,
+          branchName.value,
+          "",
+          "",
+          receiptPrinter.value,
+        );
     snackbar.text = result?.receiptError
       ? `Invoice created; receipt failed — ${result.receiptError}`
       : isExchange
         ? `Exchange completed — ${result?.invoiceCode ?? ""}`
         : receiptEnabled.value
-        ? `Receipt printed — ${result?.invoiceCode ?? ""}`
-        : `Invoice created — ${result?.invoiceCode ?? ""}`;
+          ? `Receipt printed — ${result?.invoiceCode ?? ""}`
+          : `Invoice created — ${result?.invoiceCode ?? ""}`;
     snackbar.color = "success";
     snackbar.show = true;
     invoiceItems.value?.clearItems();
     exchangeState.value = null;
     if (isExchange) actionBar.value?.resetClient();
     await nextTick();
-    if (result?.invoiceCode) {
-      queueScreenUpdate(`INVOICE\r\n${result.invoiceCode}`);
-    }
+    queueScreenUpdate("");
     await refreshNextInvoiceCode("sales");
   } catch (e: any) {
     snackbar.text = e?.toString() || "Checkout failed";
