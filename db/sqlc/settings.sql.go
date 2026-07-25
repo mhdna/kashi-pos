@@ -10,7 +10,7 @@ import (
 )
 
 const getSettings = `-- name: GetSettings :one
-SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code FROM settings LIMIT 1
+SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate FROM settings LIMIT 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -31,6 +31,7 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.ReceiptEnabled,
 		&i.SalesInventoryID,
 		&i.BranchCode,
+		&i.ExchangeRate,
 	)
 	return i, err
 }
@@ -39,7 +40,7 @@ const updateSettings = `-- name: UpdateSettings :exec
 UPDATE settings
 SET branch_name = ?, branch_code = ?, api_key = ?, printer_id = ?, printer_size = ?,
     receipt_printer = ?, screen_port = ?, receipt_width = ?, receipt_height = ?,
-    theme = ?, tax_rate = ?, rounding_mode = ?, receipt_enabled = ?, sales_inventory_id = ?
+    theme = ?, tax_rate = ?, rounding_mode = ?, receipt_enabled = ?, sales_inventory_id = ?, exchange_rate = ?
 `
 
 type UpdateSettingsParams struct {
@@ -57,6 +58,7 @@ type UpdateSettingsParams struct {
 	RoundingMode     string  `json:"roundingMode"`
 	ReceiptEnabled   int64   `json:"receiptEnabled"`
 	SalesInventoryID int64   `json:"salesInventoryId"`
+	ExchangeRate     int64   `json:"exchangeRate"`
 }
 
 func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error {
@@ -75,6 +77,7 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.RoundingMode,
 		arg.ReceiptEnabled,
 		arg.SalesInventoryID,
+		arg.ExchangeRate,
 	)
 	return err
 }
@@ -89,8 +92,8 @@ func (q *Queries) UpdateTheme(ctx context.Context, theme string) error {
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
-INSERT INTO settings (branch_name, branch_code, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO settings (branch_name, branch_code, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, exchange_rate)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type UpsertSettingsParams struct {
@@ -108,6 +111,7 @@ type UpsertSettingsParams struct {
 	RoundingMode     string  `json:"roundingMode"`
 	ReceiptEnabled   int64   `json:"receiptEnabled"`
 	SalesInventoryID int64   `json:"salesInventoryId"`
+	ExchangeRate     int64   `json:"exchangeRate"`
 }
 
 func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) error {
@@ -126,6 +130,7 @@ func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) 
 		arg.RoundingMode,
 		arg.ReceiptEnabled,
 		arg.SalesInventoryID,
+		arg.ExchangeRate,
 	)
 	return err
 }

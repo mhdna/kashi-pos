@@ -105,6 +105,7 @@ type Invoice struct {
 	DiscountedTotal int64  `json:"discountedTotal"`
 	GrandTotal      int64  `json:"grandTotal"`
 	CreatedAt       string `json:"createdAt"`
+	SalespersonID   int64  `json:"salespersonId"`
 }
 
 type InvoiceIndex struct {
@@ -209,6 +210,7 @@ type Setting struct {
 	ReceiptEnabled   int64   `json:"receiptEnabled"`
 	SalesInventoryID int64   `json:"salesInventoryId"`
 	BranchCode       string  `json:"branchCode"`
+	ExchangeRate     int64   `json:"exchangeRate"`
 }
 
 type Shift struct {

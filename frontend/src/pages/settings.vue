@@ -113,6 +113,18 @@
                 variant="outlined"
                 density="compact"
               />
+              <v-text-field
+                v-model.number="form.exchangeRate"
+                label="Exchange rate (LBP per USD)"
+                hint="Used to show and accept change in Lebanese pounds."
+                persistent-hint
+                type="number"
+                min="1"
+                step="1"
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
               <v-select
                 v-model="form.roundingMode"
                 :items="roundingModes"
@@ -381,6 +393,7 @@ const form = reactive({
   roundingMode: "half_up",
   receiptEnabled: false,
   salesInventoryId: 0,
+  exchangeRate: 90000,
 });
 const roundingModes = [
   { title: "Half up (standard)", value: "half_up" },
@@ -444,6 +457,7 @@ async function loadSettings() {
         roundingMode: s.roundingMode ?? "half_up",
         receiptEnabled: Boolean(s.receiptEnabled),
         salesInventoryId: Number(s.salesInventoryId ?? 0),
+        exchangeRate: Number(s.exchangeRate ?? 90000),
       });
   } catch {
     settingsLoadError.value = true;
@@ -475,6 +489,7 @@ async function saveSettings() {
     const receiptWidth = Number(form.receiptWidth);
     const receiptHeight = Number(form.receiptHeight);
     const taxRate = Number(form.taxRate);
+    const exchangeRate = Number(form.exchangeRate);
     await UpdateSettings(
       form.branchName,
       form.branchCode.trim().toUpperCase(),
@@ -489,6 +504,7 @@ async function saveSettings() {
       roundingModes.some((m) => m.value === form.roundingMode) ? form.roundingMode : "half_up",
       Boolean(form.receiptEnabled),
       Number(form.salesInventoryId) > 0 ? Number(form.salesInventoryId) : 0,
+      Number.isFinite(exchangeRate) && exchangeRate > 0 ? Math.round(exchangeRate) : 90000,
     );
     notify("Settings saved");
   } catch {

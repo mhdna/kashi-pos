@@ -6,6 +6,18 @@ export function AddClientLoyaltyPoints(arg1, arg2) {
   return window['go']['main']['App']['AddClientLoyaltyPoints'](arg1, arg2);
 }
 
+export function ChangeInvoiceClient(arg1, arg2) {
+  return window['go']['main']['App']['ChangeInvoiceClient'](arg1, arg2);
+}
+
+export function ChangeInvoiceSalesperson(arg1, arg2) {
+  return window['go']['main']['App']['ChangeInvoiceSalesperson'](arg1, arg2);
+}
+
+export function ChangeInvoiceSettlement(arg1, arg2) {
+  return window['go']['main']['App']['ChangeInvoiceSettlement'](arg1, arg2);
+}
+
 export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }
@@ -64,6 +76,10 @@ export function GetDefaultCurrency() {
 
 export function GetExchangeInvoice(arg1) {
   return window['go']['main']['App']['GetExchangeInvoice'](arg1);
+}
+
+export function GetInvoiceDetails(arg1) {
+  return window['go']['main']['App']['GetInvoiceDetails'](arg1);
 }
 
 export function GetNextInvoiceCode(arg1) {
@@ -174,6 +190,10 @@ export function OpenShift() {
   return window['go']['main']['App']['OpenShift']();
 }
 
+export function ReprintInvoice(arg1) {
+  return window['go']['main']['App']['ReprintInvoice'](arg1);
+}
+
 export function SetTaxRate(arg1) {
   return window['go']['main']['App']['SetTaxRate'](arg1);
 }
@@ -182,8 +202,8 @@ export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
-export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13) {
-  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
+export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14) {
+  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
 }
 
 export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {

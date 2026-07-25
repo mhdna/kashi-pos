@@ -228,6 +228,7 @@ func (a *App) seedDefaults() {
 			ReceiptHeight:  297,
 			Theme:          "light",
 			TaxRate:        0.0,
+			ExchangeRate:   90000,
 		}); err != nil {
 			log.Println("upsert settings:", err)
 		}
@@ -373,10 +374,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"roundingMode":     settings.RoundingMode,
 		"receiptEnabled":   settings.ReceiptEnabled != 0,
 		"salesInventoryId": settings.SalesInventoryID,
+		"exchangeRate":     settings.ExchangeRate,
 	}, nil
 }
 
-func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64, taxRate float64, roundingMode string, receiptEnabled bool, salesInventoryID int64) error {
+func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64, taxRate float64, roundingMode string, receiptEnabled bool, salesInventoryID, exchangeRate int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -389,6 +391,9 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 	}
 	if roundingMode, err = normalizeRoundingMode(roundingMode); err != nil {
 		return err
+	}
+	if exchangeRate <= 0 {
+		return fmt.Errorf("exchange rate must be greater than zero")
 	}
 	if branchCode, err = normalizeBranchCode(branchCode); err != nil {
 		return err
@@ -413,6 +418,7 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		RoundingMode:     roundingMode,
 		ReceiptEnabled:   boolInt(receiptEnabled),
 		SalesInventoryID: salesInventoryID,
+		ExchangeRate:     exchangeRate,
 	})
 }
 
@@ -439,6 +445,7 @@ func (a *App) SetTaxRate(rate float64) error {
 		RoundingMode:     current.RoundingMode,
 		ReceiptEnabled:   current.ReceiptEnabled,
 		SalesInventoryID: current.SalesInventoryID,
+		ExchangeRate:     current.ExchangeRate,
 	})
 }
 

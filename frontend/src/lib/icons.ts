@@ -1,5 +1,6 @@
 import {
   mdiAccount,
+  mdiAccountEdit,
   mdiAccountGroupOutline,
   mdiAccountMultiple,
   mdiAccountTie,
@@ -36,6 +37,8 @@ import {
   mdiCloud,
   mdiCloudCheckVariant,
   mdiCloudUpload,
+  mdiCreditCardEdit,
+  mdiCreditCard,
   mdiCoatRack,
   mdiCog,
   mdiCogOutline,
@@ -43,6 +46,7 @@ import {
   mdiContentSaveOutline,
   mdiDeleteOutline,
   mdiDelete,
+  mdiDotsVertical,
   mdiEmailOutline,
   mdiEye,
   mdiEyeOff,
@@ -103,6 +107,7 @@ import { h } from "vue";
 
 const iconPaths: Record<string, string> = {
   "mdi-account": mdiAccount,
+  "mdi-account-edit": mdiAccountEdit,
   "mdi-account-group-outline": mdiAccountGroupOutline,
   "mdi-account-multiple": mdiAccountMultiple,
   "mdi-account-tie": mdiAccountTie,
@@ -139,6 +144,8 @@ const iconPaths: Record<string, string> = {
   "mdi-cloud": mdiCloud,
   "mdi-cloud-check-variant": mdiCloudCheckVariant,
   "mdi-cloud-upload": mdiCloudUpload,
+  "mdi-credit-card-edit": mdiCreditCardEdit,
+  "mdi-credit-card": mdiCreditCard,
   "mdi-coat-rack": mdiCoatRack,
   "mdi-cog": mdiCog,
   "mdi-cog-outline": mdiCogOutline,
@@ -146,6 +153,7 @@ const iconPaths: Record<string, string> = {
   "mdi-content-save-outline": mdiContentSaveOutline,
   "mdi-delete": mdiDelete,
   "mdi-delete-outline": mdiDeleteOutline,
+  "mdi-dots-vertical": mdiDotsVertical,
   "mdi-email-outline": mdiEmailOutline,
   "mdi-eye": mdiEye,
   "mdi-eye-off": mdiEyeOff,

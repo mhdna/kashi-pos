@@ -82,7 +82,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue";
-import { ListCurrencies, ListPaymentMethods } from "../../wailsjs/go/main/App";
+import { GetAppSettings, ListCurrencies, ListPaymentMethods } from "../../wailsjs/go/main/App";
 
 const props = defineProps<{ total: number }>();
 
@@ -102,6 +102,7 @@ const currencies = ref<Currency[]>([]);
 const activeType = ref("");
 const entries = ref<{ type: string; amount: number; amountCents: number; accountId: number }[]>([]);
 const currentInput = ref("");
+const exchangeRate = ref(90000);
 
 const activeCurrency = computed(
   () => types.value.find((t) => t.name === activeType.value)?.currencyCode ?? "",
@@ -113,7 +114,9 @@ const displayValue = computed(() => {
 });
 
 const activeRate = computed(
-  () => currencies.value.find((c) => c.code === activeCurrency.value)?.valueInDefaultCurrency ?? 0,
+  () => activeCurrency.value === "LBP"
+    ? exchangeRate.value * usdRate.value
+    : currencies.value.find((c) => c.code === activeCurrency.value)?.valueInDefaultCurrency ?? 0,
 );
 const usdRate = computed(
   () => currencies.value.find((c) => c.code === "USD")?.valueInDefaultCurrency ?? 100,
@@ -135,9 +138,11 @@ const statusLabel = computed(() => {
 
 const statusAmount = computed(() => {
   if (diffCents.value === 0) return "Exact";
+  const dollarAmount = Math.abs(diff.value).toFixed(2);
+  const lbpAmount = Math.round(Math.abs(diff.value) * exchangeRate.value).toLocaleString();
   return diffCents.value > 0
-    ? `+${diff.value.toFixed(2)} $`
-    : `${Math.abs(diff.value).toFixed(2)} $ due`;
+    ? `+${dollarAmount} $ / ${lbpAmount} LL`
+    : `${dollarAmount} $ / ${lbpAmount} LL due`;
 });
 
 const statusColor = computed(() => {
@@ -155,6 +160,11 @@ function getCurrencySymbol(type: string): string {
 }
 
 onMounted(async () => {
+  try {
+    const settings = await GetAppSettings();
+    const configuredRate = Number(settings?.exchangeRate);
+    if (Number.isFinite(configuredRate) && configuredRate > 0) exchangeRate.value = configuredRate;
+  } catch {}
   try {
     const methods = await ListPaymentMethods();
     types.value = methods.map((m: any) => ({
