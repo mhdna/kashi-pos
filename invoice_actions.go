@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/go-pdf/fpdf"
@@ -114,7 +112,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 	}
 	settings, settingsErr := a.store.GetSettings(a.ctx)
 	if settingsErr == nil && settings.ReceiptEnabled != 0 {
-		if err := a.printReceipt(result.Items, settings.BranchName, settings.BranchName, phone, salesperson, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal); err != nil {
+		if err := a.printReceipt(result.Items, settings.BranchName, settings.BranchName, phone, salesperson, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, settings.ExchangeRate, settings.ReceiptWidth, settings.ReceiptHeight); err != nil {
 			response["receiptError"] = err.Error()
 		} else {
 			response["receiptPrinted"] = true
@@ -251,42 +249,44 @@ func (a *App) ReprintInvoice(id int64) error {
 	if err != nil {
 		return err
 	}
-	return a.printReceipt(items, settings.BranchName, settings.BranchName, details["clientPhone"].(string), details["salespersonName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64))
+	return a.printReceipt(items, settings.BranchName, settings.BranchName, details["clientPhone"].(string), details["salespersonName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64), settings.ExchangeRate, settings.ReceiptWidth, settings.ReceiptHeight)
 }
 
-func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo, printerName string, grandTotalCents int64) error {
+func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo, printerName string, grandTotalCents, exchangeRate, receiptWidth, receiptHeight int64) error {
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")
 	}
 
-	pdf := buildReceiptPDF(items, storeName, branch, phone, salesperson, receiptNo, grandTotalCents)
-
-	tmpFile, err := os.CreateTemp("", "kashi-receipt-*.pdf")
-	if err != nil {
-		return err
-	}
-	tmpPath := filepath.Clean(tmpFile.Name())
-	if err := tmpFile.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	tmpFileName := tmpPath
-	if err := pdf.OutputFileAndClose(tmpFileName); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	defer os.Remove(tmpPath)
-
-	return printPDFToPrinter(tmpPath, printerName)
+	return printReceiptToPrinter(printReceiptData{
+		Items:           items,
+		StoreName:       storeName,
+		Branch:          branch,
+		Phone:           phone,
+		Salesperson:     salesperson,
+		ReceiptNo:       receiptNo,
+		PrinterName:     printerName,
+		GrandTotalCents: grandTotalCents,
+		ExchangeRate:    exchangeRate,
+		ReceiptWidth:    receiptWidth,
+		ReceiptHeight:   receiptHeight,
+	})
 }
 
-func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo string, grandTotalCents int64) *fpdf.Fpdf {
+func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo string, grandTotalCents, exchangeRate, receiptWidth, receiptHeight int64) *fpdf.Fpdf {
 	const (
-		pageW    = 80.0
-		margin   = 4.0
-		pageH    = 260.0
-		contentW = pageW - 2*margin
+		defaultPageW = 80.0
+		defaultPageH = 297.0
+		margin       = 4.0
 	)
+	pageW := float64(receiptWidth)
+	if pageW <= 0 {
+		pageW = defaultPageW
+	}
+	pageH := float64(receiptHeight)
+	if pageH <= 0 {
+		pageH = defaultPageH
+	}
+	contentW := pageW - 2*margin
 
 	pdf := fpdf.NewCustom(&fpdf.InitType{
 		OrientationStr: "P",
@@ -392,7 +392,11 @@ func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson,
 	down(5)
 	twoCol("TOTAL", fmt.Sprintf("$%.2f", grandTotal), 13)
 	down(5)
-	twoCol("LBP TOTAL", fmt.Sprintf("%.0f L.L.", grandTotal*90000), 11)
+	rate := exchangeRate
+	if rate <= 0 {
+		rate = 90000
+	}
+	twoCol("LBP TOTAL", fmt.Sprintf("%.0f L.L.", grandTotal*float64(rate)), 11)
 	down(6)
 	dashedRule()
 	down(4)

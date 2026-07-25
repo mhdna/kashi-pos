@@ -9,68 +9,73 @@ import (
 )
 
 const (
-	swHide                = 0
-	seeMaskNoCloseProcess = 0x00000040
+	printerAccessUse     = 0x00000008
+	startDocPrinterLevel = 1
 )
 
-type shellExecuteInfo struct {
-	cbSize         uint32
-	fMask          uint32
-	hwnd           uintptr
-	lpVerb         *uint16
-	lpFile         *uint16
-	lpParameters   *uint16
-	lpDirectory    *uint16
-	nShow          int32
-	hInstApp       uintptr
-	lpIDList       uintptr
-	lpClass        *uint16
-	hkeyClass      uintptr
-	dwHotKey       uint32
-	hIconOrMonitor uintptr
-	hProcess       uintptr
+type docInfo1 struct {
+	docName    *uint16
+	outputFile *uint16
+	datatype   *uint16
 }
 
 var (
-	shell32             = syscall.NewLazyDLL("shell32.dll")
-	shellExecuteEx      = shell32.NewProc("ShellExecuteExW")
-	kernel32            = syscall.NewLazyDLL("kernel32.dll")
-	waitForSingleObject = kernel32.NewProc("WaitForSingleObject")
-	closeHandle         = kernel32.NewProc("CloseHandle")
+	winspool         = syscall.NewLazyDLL("winspool.drv")
+	openPrinter      = winspool.NewProc("OpenPrinterW")
+	closePrinter     = winspool.NewProc("ClosePrinter")
+	startDocPrinter  = winspool.NewProc("StartDocPrinterW")
+	endDocPrinter    = winspool.NewProc("EndDocPrinter")
+	startPagePrinter = winspool.NewProc("StartPagePrinter")
+	endPagePrinter   = winspool.NewProc("EndPagePrinter")
+	writePrinter     = winspool.NewProc("WritePrinter")
 )
 
-func printPDFToPrinter(pdfPath, printerName string) error {
-	verb, err := syscall.UTF16PtrFromString("printto")
-	if err != nil {
-		return err
-	}
-	file, err := syscall.UTF16PtrFromString(pdfPath)
-	if err != nil {
-		return err
-	}
-	printer, err := syscall.UTF16PtrFromString(fmt.Sprintf("%q", printerName))
+func printReceiptToPrinter(data printReceiptData) error {
+	payload := buildESCPosReceipt(data)
+	printerName, err := syscall.UTF16PtrFromString(data.PrinterName)
 	if err != nil {
 		return err
 	}
 
-	info := shellExecuteInfo{
-		cbSize:       uint32(unsafe.Sizeof(shellExecuteInfo{})),
-		fMask:        seeMaskNoCloseProcess,
-		lpVerb:       verb,
-		lpFile:       file,
-		lpParameters: printer,
-		nShow:        swHide,
-	}
-	ret, _, callErr := shellExecuteEx.Call(uintptr(unsafe.Pointer(&info)))
+	var printer uintptr
+	ret, _, callErr := openPrinter.Call(uintptr(unsafe.Pointer(printerName)), uintptr(unsafe.Pointer(&printer)), printerAccessUse)
 	if ret == 0 {
-		return fmt.Errorf("Windows PDF print handoff failed: %w", callErr)
+		return fmt.Errorf("open printer %q failed: %w", data.PrinterName, callErr)
 	}
+	defer closePrinter.Call(printer)
 
-	// Wait until the PDF handler has handed the job to the spooler before
-	// printReceipt removes the temporary PDF file.
-	if info.hProcess != 0 {
-		waitForSingleObject.Call(info.hProcess, 30000)
-		closeHandle.Call(info.hProcess)
+	docName, _ := syscall.UTF16PtrFromString("Kashi POS Receipt")
+	raw, _ := syscall.UTF16PtrFromString("RAW")
+	docInfo := docInfo1{docName: docName, datatype: raw}
+	if ret, _, callErr := startDocPrinter.Call(printer, startDocPrinterLevel, uintptr(unsafe.Pointer(&docInfo))); ret == 0 {
+		return fmt.Errorf("start printer document failed: %w", callErr)
+	}
+	docStarted := true
+	defer func() {
+		if docStarted {
+			endDocPrinter.Call(printer)
+		}
+	}()
+
+	if ret, _, callErr := startPagePrinter.Call(printer); ret == 0 {
+		return fmt.Errorf("start printer page failed: %w", callErr)
+	}
+	pageStarted := true
+	defer func() {
+		if pageStarted {
+			endPagePrinter.Call(printer)
+		}
+	}()
+
+	var written uint32
+	if len(payload) == 0 {
+		return fmt.Errorf("empty receipt payload")
+	}
+	if ret, _, callErr := writePrinter.Call(printer, uintptr(unsafe.Pointer(&payload[0])), uintptr(len(payload)), uintptr(unsafe.Pointer(&written))); ret == 0 {
+		return fmt.Errorf("write receipt to printer failed: %w", callErr)
+	}
+	if written != uint32(len(payload)) {
+		return fmt.Errorf("printer accepted %d of %d receipt bytes", written, len(payload))
 	}
 	return nil
 }
