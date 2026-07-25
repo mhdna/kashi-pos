@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"math"
+	"math/big"
 )
+
+const lbpRoundingUnit int64 = 10000
 
 const (
 	roundingHalfUp = "half_up"
@@ -57,4 +60,29 @@ func roundFloatToCents(value float64, mode string) (int64, error) {
 	default:
 		return int64(math.Floor(scaled + 0.5)), nil
 	}
+}
+
+// roundLBPFromCents converts an accounting amount to LBP and applies the
+// configured cash rounding rule. The conversion is integer-based so the
+// printed amount cannot drift from the amount used by checkout.
+func roundLBPFromCents(cents, exchangeRate int64, mode string) (int64, error) {
+	if cents < 0 || exchangeRate <= 0 {
+		return 0, fmt.Errorf("invalid LBP conversion")
+	}
+	normalizedMode, err := normalizeRoundingMode(mode)
+	if err != nil {
+		return 0, err
+	}
+	numerator := new(big.Int).Mul(big.NewInt(cents), big.NewInt(exchangeRate))
+	denominator := big.NewInt(100 * lbpRoundingUnit)
+	quotient, remainder := new(big.Int), new(big.Int)
+	quotient.QuoRem(numerator, denominator, remainder)
+	if normalizedMode == roundingUp || (normalizedMode == roundingHalfUp && new(big.Int).Mul(remainder, big.NewInt(2)).Cmp(denominator) >= 0) {
+		quotient.Add(quotient, big.NewInt(1))
+	}
+	quotient.Mul(quotient, big.NewInt(lbpRoundingUnit))
+	if !quotient.IsInt64() {
+		return 0, fmt.Errorf("LBP value is too large")
+	}
+	return quotient.Int64(), nil
 }

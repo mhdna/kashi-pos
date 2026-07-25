@@ -86,8 +86,9 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue";
 import { GetAppSettings, ListCurrencies, ListPaymentMethods } from "../../wailsjs/go/main/App";
+import { roundLbpFromCents } from "@/lib/money";
 
-const props = defineProps<{ total: number }>();
+const props = defineProps<{ total: number; roundingMode?: string }>();
 
 interface PaymentMethod {
   id: number;
@@ -106,6 +107,7 @@ const activeType = ref("");
 const entries = ref<{ type: string; amount: number; amountCents: number; accountId: number }[]>([]);
 const currentInput = ref("");
 const exchangeRate = ref(90000);
+const roundingMode = computed(() => props.roundingMode ?? "half_up");
 
 const activeCurrency = computed(
   () => types.value.find((t) => t.name === activeType.value)?.currencyCode ?? "",
@@ -131,7 +133,7 @@ const diffCents = computed(() => paidCents.value - totalCents.value);
 const diff = computed(() => diffCents.value / 100);
 // A rounded 10,000-LBP amount can differ from the exact amount by at most
 // half of 10,000 LBP. Convert that allowance to accounting cents.
-const roundingToleranceCents = computed(() => Math.ceil((5000 * 100) / exchangeRate.value));
+const roundingToleranceCents = computed(() => Math.ceil(((roundingMode.value === "half_up" ? 5000 : 10000) * 100) / exchangeRate.value));
 const checkoutReady = computed(() => Math.abs(diffCents.value) <= roundingToleranceCents.value);
 
 const progressPct = computed(() =>
@@ -149,10 +151,7 @@ const statusLines = computed(() => {
   const dollarAmount = amountCents / 100;
   const wholeDollars = Math.floor(dollarAmount / 10) * 10;
   const remainderCents = amountCents - wholeDollars * 100;
-  const exactLbp = (remainderCents * exchangeRate.value) / 100;
-  const roundedLbp = Math.floor((exactLbp + 5000) / 10000) * 10000;
-  const roundingLabel =
-    roundedLbp > exactLbp ? " (rounded up)" : roundedLbp < exactLbp ? " (rounded down)" : "";
+  const roundedLbp = roundLbpFromCents(remainderCents, exchangeRate.value, roundingMode.value);
   const lines = [];
   if (wholeDollars > 0) lines.push(`${diffCents.value > 0 ? "+" : ""}${wholeDollars}$`);
   if (roundedLbp > 0) {

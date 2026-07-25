@@ -29,6 +29,25 @@ func TestBuildESCPosReceiptContainsInvoiceAndAuthoritativeTotals(t *testing.T) {
 	}
 }
 
+func TestBuildESCPosReceiptContainsTenderAndPolicy(t *testing.T) {
+	payload := buildESCPosReceipt(printReceiptData{
+		StoreName:       "Kashi Store",
+		ReceiptNo:       "INV-1",
+		GrandTotalCents: 1000,
+		ExchangeRate:    90000,
+		RoundingMode:    roundingHalfUp,
+		Payments: []receiptPayment{
+			{AccountName: "Cash", CurrencyCode: "USD", AmountCents: 2000, EntryType: "payment"},
+			{AccountName: "Cash", CurrencyCode: "LBP", AmountCents: -1000, EntryType: "change"},
+		},
+	})
+	for _, want := range []string{"CASH RECEIVED Cash", "CHANGE RETURNED Cash", "PAYMENT DETAILS", "RETURN & EXCHANGE POLICY", "3 days"} {
+		if !bytes.Contains(payload, []byte(want)) {
+			t.Fatalf("payload does not contain %q: %q", want, payload)
+		}
+	}
+}
+
 func TestBuildESCPosReceiptUses58mmColumnsAndSanitizesText(t *testing.T) {
 	payload := buildESCPosReceipt(printReceiptData{
 		StoreName:       "Café",

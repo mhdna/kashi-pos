@@ -83,7 +83,7 @@
         </v-card>
       </div>
       <div style="flex: 3 3 0; min-width: 0">
-        <Calculator ref="calculator" :total="invoiceTotal" />
+        <Calculator ref="calculator" :total="invoiceTotal" :rounding-mode="roundingMode" />
       </div>
       <div style="flex: 2 2 0; min-width: 0">
         <ActionBar
@@ -136,6 +136,7 @@ import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
+import { roundCents } from "@/lib/money";
 
 const taxRate = ref(0);
 const roundingMode = ref("half_up");
@@ -148,12 +149,6 @@ const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
-
-function roundCents(value: number, mode: string): number {
-  if (mode === "down") return Math.floor(value + 1e-9);
-  if (mode === "up") return Math.ceil(value - 1e-9);
-  return Math.floor(value + 0.5);
-}
 
 const invoiceTotal = computed(() => {
   const discountedCents = invoiceItems.value?.discountedSubtotalCents ?? 0;

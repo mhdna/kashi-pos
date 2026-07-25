@@ -1,3 +1,5 @@
+import { roundLbpFromCents } from "@/lib/money";
+
 export function formatNumber(value: number, maximumFractionDigits = 2): string {
   return value.toLocaleString(undefined, { maximumFractionDigits });
 }
@@ -8,7 +10,7 @@ export function formatUsd(value: number): string {
 
 export function formatBalance(cents: number, currencyCode: string, exchangeRate: number): string {
   if (currencyCode === "LBP") {
-    return `${Math.round((cents / 100) * exchangeRate).toLocaleString()} LBP`;
+    return `${roundLbpFromCents(cents, exchangeRate).toLocaleString()} LBP`;
   }
   return formatUsd(cents / 100);
 }

@@ -42,6 +42,29 @@ func TestRoundFloatToCents(t *testing.T) {
 	}
 }
 
+func TestRoundLBPFromCents(t *testing.T) {
+	const rate = int64(90000)
+	tests := []struct {
+		name  string
+		cents int64
+		mode  string
+		want  int64
+	}{
+		{"half up below midpoint", 5, roundingHalfUp, 0},
+		{"half up midpoint", 6, roundingHalfUp, 10000},
+		{"down", 11, roundingDown, 0},
+		{"up", 1, roundingUp, 10000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := roundLBPFromCents(tt.cents, rate, tt.mode)
+			if err != nil || got != tt.want {
+				t.Fatalf("roundLBPFromCents(%d, %d, %q) = %d, %v; want %d", tt.cents, rate, tt.mode, got, err, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseSalesItemsRejectsUnsafeInput(t *testing.T) {
 	for _, raw := range []string{
 		`[]`,

@@ -69,7 +69,31 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	writeESCPosLine(&out, "Tax", fmt.Sprintf("$%.2f", tax), columns)
 	out.WriteString(separator + "\n")
 	writeESCPosBoldLine(&out, "TOTAL", fmt.Sprintf("$%.2f", grandTotal), columns)
-	writeESCPosLine(&out, "LBP TOTAL", fmt.Sprintf("%.0f L.L.", grandTotal*float64(rate)), columns)
+	roundedLBP, err := roundLBPFromCents(data.GrandTotalCents, rate, data.RoundingMode)
+	if err != nil {
+		roundedLBP = int64(grandTotal * float64(rate))
+	}
+	writeESCPosLine(&out, "LBP TOTAL", fmt.Sprintf("%s L.L.", formatInt(roundedLBP)), columns)
+	writeESCPosCentered(&out, "PAYMENT DETAILS", columns, true)
+	for _, payment := range data.Payments {
+		label := payment.AccountName
+		if label == "" {
+			label = "Cash"
+		}
+		if payment.EntryType == "change" {
+			label = "CHANGE RETURNED " + label
+		} else {
+			label = "CASH RECEIVED " + label
+		}
+		writeESCPosLine(&out, label, formatReceiptPayment(payment, rate, data.RoundingMode), columns)
+	}
+	out.WriteString(separator + "\n")
+	writeESCPosCentered(&out, "RETURN & EXCHANGE POLICY", columns, true)
+	writeESCPosText(&out, "Exchanges accepted within 3 days.")
+	writeESCPosText(&out, "Items must be unworn, unused,")
+	writeESCPosText(&out, "unwashed, undamaged, with tags.")
+	writeESCPosText(&out, "Present this receipt.")
+	writeESCPosText(&out, "Subject to availability.")
 	out.WriteString(separator + "\n")
 	writeESCPosCentered(&out, "Thank you for shopping with us!", columns, false)
 	writeESCPosCentered(&out, data.ReceiptNo, columns, false)

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/rand"
 	"time"
 
@@ -112,7 +113,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 	}
 	settings, settingsErr := a.store.GetSettings(a.ctx)
 	if settingsErr == nil && settings.ReceiptEnabled != 0 {
-		if err := a.printReceipt(result.Items, settings.BranchName, settings.BranchName, phone, salesperson, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, settings.ExchangeRate, settings.ReceiptWidth, settings.ReceiptHeight); err != nil {
+		if err := a.printReceipt(result.Items, settings.BranchName, settings.BranchName, phone, salesperson, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.Payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight); err != nil {
 			response["receiptError"] = err.Error()
 		} else {
 			response["receiptPrinted"] = true
@@ -249,14 +250,22 @@ func (a *App) ReprintInvoice(id int64) error {
 	if err != nil {
 		return err
 	}
-	return a.printReceipt(items, settings.BranchName, settings.BranchName, details["clientPhone"].(string), details["salespersonName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64), settings.ExchangeRate, settings.ReceiptWidth, settings.ReceiptHeight)
+	return a.printReceipt(items, settings.BranchName, settings.BranchName, details["clientPhone"].(string), details["salespersonName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64), nil, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight)
 }
 
-func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo, printerName string, grandTotalCents, exchangeRate, receiptWidth, receiptHeight int64) error {
+func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo, printerName string, grandTotalCents int64, payments []checkoutPayment, exchangeRate int64, roundingMode string, receiptWidth, receiptHeight int64) error {
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")
 	}
 
+	receiptPayments := make([]receiptPayment, 0, len(payments))
+	for _, payment := range payments {
+		account, err := a.store.GetCashboxAccountByID(a.ctx, payment.AccountID)
+		if err != nil {
+			return fmt.Errorf("receipt payment account: %w", err)
+		}
+		receiptPayments = append(receiptPayments, receiptPayment{AccountName: account.Name, CurrencyCode: account.CurrencyCode, AmountCents: payment.AmountCents, EntryType: payment.EntryType})
+	}
 	return printReceiptToPrinter(printReceiptData{
 		Items:           items,
 		StoreName:       storeName,
@@ -266,13 +275,15 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesp
 		ReceiptNo:       receiptNo,
 		PrinterName:     printerName,
 		GrandTotalCents: grandTotalCents,
+		Payments:        receiptPayments,
 		ExchangeRate:    exchangeRate,
+		RoundingMode:    roundingMode,
 		ReceiptWidth:    receiptWidth,
 		ReceiptHeight:   receiptHeight,
 	})
 }
 
-func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo string, grandTotalCents, exchangeRate, receiptWidth, receiptHeight int64) *fpdf.Fpdf {
+func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo string, grandTotalCents int64, payments []receiptPayment, exchangeRate int64, roundingMode string, receiptWidth, receiptHeight int64) *fpdf.Fpdf {
 	const (
 		defaultPageW = 80.0
 		defaultPageH = 297.0
@@ -396,8 +407,46 @@ func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson,
 	if rate <= 0 {
 		rate = 90000
 	}
-	twoCol("LBP TOTAL", fmt.Sprintf("%.0f L.L.", grandTotal*float64(rate)), 11)
+	roundedTotalLBP, roundErr := roundLBPFromCents(grandTotalCents, rate, roundingMode)
+	if roundErr != nil {
+		roundedTotalLBP = int64(math.Round(grandTotal*float64(rate)/float64(lbpRoundingUnit))) * lbpRoundingUnit
+	}
+	twoCol("LBP TOTAL", fmt.Sprintf("%s L.L.", formatInt(roundedTotalLBP)), 11)
 	down(6)
+	if len(payments) > 0 {
+		dashedRule()
+		down(4)
+		center("PAYMENT DETAILS", 11)
+		down(4)
+		for _, payment := range payments {
+			label := payment.AccountName
+			if label == "" {
+				label = "Cash"
+			}
+			if payment.EntryType == "change" {
+				label = "Change returned - " + label
+			} else {
+				label = "Cash received - " + label
+			}
+			amount := formatReceiptPayment(payment, rate, roundingMode)
+			twoCol(label, amount, 10)
+			down(4)
+		}
+	}
+	dashedRule()
+	down(4)
+	center("RETURN & EXCHANGE POLICY", 10)
+	down(4)
+	for _, line := range []string{
+		"Exchanges accepted within 3 days.",
+		"Items must be unworn, unused,",
+		"unwashed, undamaged, with tags.",
+		"Present this receipt.",
+		"Subject to availability.",
+	} {
+		center(line, 8.5)
+		down(3.5)
+	}
 	dashedRule()
 	down(4)
 	center("Thank you for shopping with us!", 10)
@@ -427,4 +476,31 @@ func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson,
 	down(6)
 
 	return pdf
+}
+
+func formatInt(value int64) string {
+	sign := ""
+	if value < 0 {
+		sign = "-"
+		value = -value
+	}
+	digits := fmt.Sprintf("%d", value)
+	for i := len(digits) - 3; i > 0; i -= 3 {
+		digits = digits[:i] + "," + digits[i:]
+	}
+	return sign + digits
+}
+
+func formatReceiptPayment(payment receiptPayment, exchangeRate int64, roundingMode string) string {
+	amount := payment.AmountCents
+	if amount < 0 {
+		amount = -amount
+	}
+	if payment.CurrencyCode == "LBP" {
+		if rounded, err := roundLBPFromCents(amount, exchangeRate, roundingMode); err == nil {
+			return fmt.Sprintf("%s LBP", formatInt(rounded))
+		}
+		return "0 LBP"
+	}
+	return fmt.Sprintf("$%.2f", float64(amount)/100)
 }
