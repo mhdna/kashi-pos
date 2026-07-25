@@ -45,7 +45,9 @@
     <div class="mt-6">
       <div class="d-flex justify-space-between align-center mb-1">
         <span class="text-caption text-medium-emphasis">{{ statusLabel }}</span>
-        <span class="text-body-2 font-weight-medium" :class="statusColor">{{ statusAmount }}</span>
+        <span class="text-body-2 font-weight-medium text-right" :class="statusColor">
+          <span v-for="line in statusLines" :key="line" class="d-block">{{ line }}</span>
+        </span>
       </div>
       <v-progress-linear
         bg-color="grey-darken-3"
@@ -70,7 +72,8 @@
           class="text-body-1 font-weight-bold mr-2"
           :class="e.amount >= 0 ? 'text-green-darken-3' : 'text-red-darken-4'"
         >
-          {{ e.amount >= 0 ? "+" : "" }}{{ e.amount }} {{ getCurrencySymbol(e.type) }}
+          {{ e.amount >= 0 ? "+" : "" }}{{ formatEntryAmount(e.amount) }}
+          {{ getCurrencySymbol(e.type) }}
         </span>
         <v-btn icon size="small" variant="text" @click="removeEntry(i)">
           <v-icon icon="mdi-delete" size="18" />
@@ -140,8 +143,8 @@ const statusLabel = computed(() => {
   return diffCents.value > 0 ? "Change" : "Remaining";
 });
 
-const statusAmount = computed(() => {
-  if (diffCents.value === 0) return "Exact";
+const statusLines = computed(() => {
+  if (diffCents.value === 0) return ["Exact"];
   const amountCents = Math.abs(diffCents.value);
   const dollarAmount = amountCents / 100;
   const wholeDollars = Math.floor(dollarAmount / 10) * 10;
@@ -150,11 +153,13 @@ const statusAmount = computed(() => {
   const roundedLbp = Math.floor((exactLbp + 5000) / 10000) * 10000;
   const roundingLabel =
     roundedLbp > exactLbp ? " (rounded up)" : roundedLbp < exactLbp ? " (rounded down)" : "";
-  const parts = [];
-  if (wholeDollars > 0) parts.push(`${wholeDollars}$`);
-  if (roundedLbp > 0) parts.push(`${roundedLbp.toLocaleString()} LBP${roundingLabel}`);
-  const amount = parts.join(" + ");
-  return diffCents.value > 0 ? `+${amount}` : `${amount} due`;
+  const lines = [];
+  if (wholeDollars > 0) lines.push(`${diffCents.value > 0 ? "+" : ""}${wholeDollars}$`);
+  if (roundedLbp > 0) {
+    // lines.push(`${roundedLbp.toLocaleString()} LBP${roundingLabel}${diffCents.value > 0 ? "" : " due"}`);
+    lines.push(`${roundedLbp.toLocaleString()} LBP`);
+  }
+  return lines;
 });
 
 const statusColor = computed(() => {
@@ -168,7 +173,12 @@ const progressColor = computed(() => {
 });
 
 function getCurrencySymbol(type: string): string {
-  return "$";
+  const currencyCode = types.value.find((t) => t.name === type)?.currencyCode;
+  return currencyCode === "LBP" ? "LBP" : "$";
+}
+
+function formatEntryAmount(amount: number): string {
+  return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 onMounted(async () => {

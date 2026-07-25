@@ -361,7 +361,7 @@ func (q *Queries) GetSalesInvoiceByID(ctx context.Context, id int64) (Invoice, e
 }
 
 const getTodayIncomeByAccount = `-- name: GetTodayIncomeByAccount :many
-SELECT ca.name, SUM(i.grand_total) as total
+SELECT ca.name, ca.currency_code, SUM(i.grand_total) as total
 FROM invoices i
 JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
 WHERE date(i.created_at) = date('now')
@@ -370,8 +370,9 @@ ORDER BY ca.name
 `
 
 type GetTodayIncomeByAccountRow struct {
-	Name  string          `json:"name"`
-	Total sql.NullFloat64 `json:"total"`
+	Name         string          `json:"name"`
+	CurrencyCode string          `json:"currencyCode"`
+	Total        sql.NullFloat64 `json:"total"`
 }
 
 func (q *Queries) GetTodayIncomeByAccount(ctx context.Context) ([]GetTodayIncomeByAccountRow, error) {
@@ -383,7 +384,7 @@ func (q *Queries) GetTodayIncomeByAccount(ctx context.Context) ([]GetTodayIncome
 	items := []GetTodayIncomeByAccountRow{}
 	for rows.Next() {
 		var i GetTodayIncomeByAccountRow
-		if err := rows.Scan(&i.Name, &i.Total); err != nil {
+		if err := rows.Scan(&i.Name, &i.CurrencyCode, &i.Total); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

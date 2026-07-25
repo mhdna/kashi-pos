@@ -13,7 +13,7 @@
             class="d-flex justify-space-between py-1"
           >
             <span>{{ balance.accountName }}</span>
-            <span class="font-weight-bold">${{ (balance.balance / 100).toFixed(2) }}</span>
+            <span class="font-weight-bold">{{ formatBalance(balance.balance, balance.currencyCode ?? "USD", exchangeRate ?? 90000) }}</span>
           </div>
         </div>
         <div v-else class="text-center text-medium-emphasis mb-4">No transactions this shift</div>
@@ -30,12 +30,14 @@
 
 <script setup lang="ts">
 import type { Balance, Shift } from "@/types/shifts";
+import { formatBalance } from "@/lib/format";
 
 defineProps<{
   modelValue: boolean;
   openShift: Shift | null;
   closeBalances: Balance[];
   closing: boolean;
+  exchangeRate?: number;
 }>();
 
 defineEmits<{

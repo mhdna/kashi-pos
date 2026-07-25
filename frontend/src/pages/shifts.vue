@@ -3,7 +3,7 @@
     <!-- <ShiftSummaryCard :open-shift="openShift" @close="closeDialog = true" /> -->
 
     <div class="shifts-cards d-flex ga-2">
-      <TodayIncomeCard :items="todayIncome" :loading="loadingToday" />
+      <TodayIncomeCard :items="todayIncome" :loading="loadingToday" :exchange-rate="exchangeRate" />
       <MonthlyIncomeCard
         :month="currentMonth"
         :rows="dailyRows"
@@ -14,6 +14,7 @@
         :shift-expanded="shiftExpanded"
         :balance-cache="balanceCache"
         :balance-loading="balanceLoading"
+        :exchange-rate="exchangeRate"
         @toggle-all="toggleAllDays"
         @toggle-day="toggleDay"
         @toggle-shift="toggleShift"
@@ -25,6 +26,7 @@
       :open-shift="openShift"
       :close-balances="closeBalances"
       :closing="closing"
+      :exchange-rate="exchangeRate"
       @confirm="doCloseShift"
     />
   </div>
@@ -38,6 +40,7 @@ import {
   GetOpenShift,
   GetShiftTotals,
   GetTodayIncomeByAccount,
+  GetAppSettings,
   ListShiftBalances,
   OpenShift,
 } from "../../wailsjs/go/main/App";
@@ -46,6 +49,7 @@ import MonthlyIncomeCard from "@/components/shifts/MonthlyIncomeCard.vue";
 import ShiftSummaryCard from "@/components/shifts/ShiftSummaryCard.vue";
 import TodayIncomeCard from "@/components/shifts/TodayIncomeCard.vue";
 import type { Balance, DayRow, IncomeRow, Shift } from "@/types/shifts";
+const exchangeRate = ref(90000);
 
 const openShift = ref<Shift | null>(null);
 const todayIncome = ref<IncomeRow[]>([]);
@@ -183,6 +187,11 @@ async function refresh() {
 }
 
 onMounted(async () => {
+  try {
+    const settings = await GetAppSettings();
+    const rate = Number(settings?.exchangeRate);
+    if (Number.isFinite(rate) && rate > 0) exchangeRate.value = rate;
+  } catch {}
   try {
     currentMonth.value = await GetCurrentMonth();
   } catch {}

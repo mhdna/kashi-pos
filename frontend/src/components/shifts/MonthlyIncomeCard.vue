@@ -75,9 +75,7 @@
                     <v-list-item v-for="balance in balanceCache[shift.id]" :key="balance.accountId">
                       <template #title>{{ balance.accountName }}</template>
                       <template #append>
-                        <span class="font-weight-bold"
-                          >${{ (balance.balance / 100).toFixed(2) }}</span
-                        >
+                        <span class="font-weight-bold">{{ formatBalance(balance.balance, balance.currencyCode ?? "USD", exchangeRate) }}</span>
                       </template>
                     </v-list-item>
                   </v-list>
@@ -98,6 +96,7 @@
 
 <script setup lang="ts">
 import type { Balance, DayRow } from "@/types/shifts";
+import { formatBalance } from "@/lib/format";
 
 defineProps<{
   month: string;
@@ -109,6 +108,7 @@ defineProps<{
   shiftExpanded: Set<number>;
   balanceCache: Record<number, Balance[]>;
   balanceLoading: Record<number, boolean>;
+  exchangeRate: number;
 }>();
 
 defineEmits<{

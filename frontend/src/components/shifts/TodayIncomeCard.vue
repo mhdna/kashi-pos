@@ -6,7 +6,7 @@
       <v-list-item v-for="item in items" :key="item.accountName">
         <template #title>{{ item.accountName }}</template>
         <template #append>
-          <span class="font-weight-bold">${{ (item.total / 100).toFixed(2) }}</span>
+          <span class="font-weight-bold">{{ formatBalance(item.total, item.currencyCode ?? "USD", exchangeRate) }}</span>
         </template>
       </v-list-item>
     </v-list>
@@ -16,10 +16,12 @@
 
 <script setup lang="ts">
 import type { IncomeRow } from "@/types/shifts";
+import { formatBalance } from "@/lib/format";
 
 defineProps<{
   items: IncomeRow[];
   loading: boolean;
+  exchangeRate: number;
 }>();
 </script>
 

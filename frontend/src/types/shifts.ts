@@ -10,11 +10,13 @@ export interface Balance {
   accountId: number;
   accountName: string;
   balance: number;
+  currencyCode?: string;
 }
 
 export interface IncomeRow {
   accountName: string;
   total: number;
+  currencyCode?: string;
 }
 
 export interface DayRow {

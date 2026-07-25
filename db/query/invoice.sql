@@ -99,7 +99,7 @@ ON CONFLICT (year, type) DO UPDATE SET last_index = last_index + 1
 RETURNING last_index;
 
 -- name: GetTodayIncomeByAccount :many
-SELECT ca.name, SUM(i.grand_total) as total
+SELECT ca.name, ca.currency_code, SUM(i.grand_total) as total
 FROM invoices i
 JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
 WHERE date(i.created_at) = date('now')

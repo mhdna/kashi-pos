@@ -126,6 +126,7 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 			"accountId":   b.AccountID,
 			"accountName": name,
 			"balance":     b.Balance,
+			"currencyCode": account.CurrencyCode,
 		}
 	}
 	return result, nil
@@ -193,7 +194,7 @@ func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 		if r.Total.Valid {
 			total = r.Total.Float64
 		}
-		result[i] = map[string]any{"accountName": r.Name, "total": total}
+		result[i] = map[string]any{"accountName": r.Name, "currencyCode": r.CurrencyCode, "total": total}
 	}
 	return result, nil
 }
