@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"testing"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 
@@ -77,7 +78,8 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	}
 	settings.SalesInventoryID = inventory.ID
 	if err := store.UpdateSettings(ctx, db.UpdateSettingsParams{
-		BranchName: settings.BranchName, ApiKey: settings.ApiKey, PrinterID: settings.PrinterID,
+		BranchName: settings.BranchName, BranchCode: settings.BranchCode,
+		ApiKey: settings.ApiKey, PrinterID: settings.PrinterID,
 		PrinterSize: settings.PrinterSize, ReceiptPrinter: settings.ReceiptPrinter, ScreenPort: settings.ScreenPort,
 		ReceiptWidth: settings.ReceiptWidth, ReceiptHeight: settings.ReceiptHeight, Theme: settings.Theme,
 		TaxRate: settings.TaxRate, RoundingMode: settings.RoundingMode, ReceiptEnabled: settings.ReceiptEnabled,
@@ -127,8 +129,20 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 		{Code: secondReplacement.Code, Qty: 1},
 	})
 	exchangePayments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 200}})
-	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0); err != nil {
+	exchangeResult, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0)
+	if err != nil {
 		t.Fatal(err)
+	}
+	year := int64(time.Now().Year())
+	if expected := formatInvoiceCode("EX", "CN", year, 1); exchangeResult["invoiceCode"] != expected {
+		t.Fatalf("exchange code = %q, want %q", exchangeResult["invoiceCode"], expected)
+	}
+	nextExchangeCode, err := app.GetNextInvoiceCode("exchange")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected := formatInvoiceCode("EX", "CN", year, 2); nextExchangeCode != expected {
+		t.Fatalf("next exchange code = %q, want %q", nextExchangeCode, expected)
 	}
 	exchangeInvoice, err := store.GetInvoiceByID(ctx, 2)
 	if err != nil {

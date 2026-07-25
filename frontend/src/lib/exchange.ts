@@ -20,7 +20,6 @@ export interface ExchangeInvoice {
 
 export interface ExchangeSelection {
   originalInvoiceId: number;
-  sourceInvoiceCode: string;
   client: Client;
   returned: ExchangeItem;
   replacements: ExchangeItem[];

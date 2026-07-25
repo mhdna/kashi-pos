@@ -14,7 +14,7 @@ func TestApplyMigrationsFreshDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("apply migrations: %v", err)
 	}
-	assertMigrationVersion(t, conn, 19)
+	assertMigrationVersion(t, conn, 20)
 	assertTableExists(t, conn, "settings")
 	assertTableExists(t, conn, "schema_migrations")
 }
@@ -51,11 +51,50 @@ func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, databasePath, true); err != nil {
 		t.Fatalf("upgrade legacy database: %v", err)
 	}
-	assertMigrationVersion(t, conn, 19)
+	assertMigrationVersion(t, conn, 20)
 	assertTableExists(t, conn, "schema_migrations")
 	backupMatches, err := filepath.Glob(databasePath + ".backup-*")
 	if err != nil || len(backupMatches) != 1 {
 		t.Fatalf("expected one database backup, found %v (err=%v)", backupMatches, err)
+	}
+}
+
+func TestBranchInvoiceNumberingMigrationPreservesHighestYearlyIndex(t *testing.T) {
+	conn := openTestDatabase(t)
+	migrations, err := loadMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var numberingMigration migration
+	for _, migration := range migrations {
+		if migration.version < 20 {
+			if _, err := conn.Exec(migration.sql); err != nil {
+				t.Fatalf("apply migration %d: %v", migration.version, err)
+			}
+			continue
+		}
+		if migration.version == 20 {
+			numberingMigration = migration
+			break
+		}
+	}
+	if _, err := conn.Exec(`INSERT INTO invoice_indexes(year, cashbox_id, last_index, type)
+		VALUES (2026, 1, 4, 'sales'), (2026, 2, 7, 'sales'), (2026, 1, 3, 'return')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(numberingMigration.sql); err != nil {
+		t.Fatal(err)
+	}
+
+	var salesIndex, exchangeIndex int64
+	if err := conn.QueryRow(`SELECT last_index FROM invoice_indexes WHERE year = 2026 AND type = 'sales'`).Scan(&salesIndex); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.QueryRow(`SELECT last_index FROM invoice_indexes WHERE year = 2026 AND type = 'return'`).Scan(&exchangeIndex); err != nil {
+		t.Fatal(err)
+	}
+	if salesIndex != 7 || exchangeIndex != 3 {
+		t.Fatalf("migrated indexes: sales=%d exchange=%d", salesIndex, exchangeIndex)
 	}
 }
 

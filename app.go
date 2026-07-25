@@ -218,6 +218,7 @@ func (a *App) seedDefaults() {
 	if err != nil {
 		if err := a.store.UpsertSettings(ctx, db.UpsertSettingsParams{
 			BranchName:     "Main",
+			BranchCode:     "CN",
 			ApiKey:         "",
 			PrinterID:      "",
 			PrinterSize:    "",
@@ -360,6 +361,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	}
 	return map[string]interface{}{
 		"branchName":       settings.BranchName,
+		"branchCode":       settings.BranchCode,
 		"apiKey":           settings.ApiKey,
 		"printerID":        settings.PrinterID,
 		"printerSize":      settings.PrinterSize,
@@ -374,7 +376,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	}, nil
 }
 
-func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64, taxRate float64, roundingMode string, receiptEnabled bool, salesInventoryID int64) error {
+func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64, taxRate float64, roundingMode string, receiptEnabled bool, salesInventoryID int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -388,6 +390,9 @@ func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize, receipt
 	if roundingMode, err = normalizeRoundingMode(roundingMode); err != nil {
 		return err
 	}
+	if branchCode, err = normalizeBranchCode(branchCode); err != nil {
+		return err
+	}
 	if salesInventoryID > 0 {
 		if _, err := a.store.GetInventoryByID(a.ctx, salesInventoryID); err != nil {
 			return fmt.Errorf("sales inventory: %w", err)
@@ -395,6 +400,7 @@ func (a *App) UpdateSettings(branchName, apiKey, printerID, printerSize, receipt
 	}
 	return a.store.UpdateSettings(a.ctx, db.UpdateSettingsParams{
 		BranchName:       branchName,
+		BranchCode:       branchCode,
 		ApiKey:           apiKey,
 		PrinterID:        printerID,
 		PrinterSize:      printerSize,
@@ -420,6 +426,7 @@ func (a *App) SetTaxRate(rate float64) error {
 	}
 	return a.store.UpdateSettings(a.ctx, db.UpdateSettingsParams{
 		BranchName:       current.BranchName,
+		BranchCode:       current.BranchCode,
 		ApiKey:           current.ApiKey,
 		PrinterID:        current.PrinterID,
 		PrinterSize:      current.PrinterSize,

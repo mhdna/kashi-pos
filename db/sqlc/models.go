@@ -109,7 +109,6 @@ type Invoice struct {
 
 type InvoiceIndex struct {
 	Year      int64  `json:"year"`
-	CashboxID int64  `json:"cashboxId"`
 	LastIndex int64  `json:"lastIndex"`
 	Type      string `json:"type"`
 }
@@ -209,6 +208,7 @@ type Setting struct {
 	RoundingMode     string  `json:"roundingMode"`
 	ReceiptEnabled   int64   `json:"receiptEnabled"`
 	SalesInventoryID int64   `json:"salesInventoryId"`
+	BranchCode       string  `json:"branchCode"`
 }
 
 type Shift struct {

@@ -65,7 +65,9 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 		if err != nil {
 			return err
 		}
-		invoice, err := createExchangeInvoice(a, q, cashbox, shift, source, inventoryID, total)
+		invoice, err := createExchangeInvoice(
+			a, q, cashbox, shift, source, inventoryID, total, settings.BranchCode,
+		)
 		if err != nil {
 			return err
 		}
@@ -106,17 +108,17 @@ func exchangeCashbox(a *App, q *db.Queries, payments []checkoutPayment) (db.Cash
 	return accounts[0], nil
 }
 
-func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shift db.Shift, source db.Invoice, inventoryID, total int64) (db.Invoice, error) {
+func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shift db.Shift, source db.Invoice, inventoryID, total int64, branchCode string) (db.Invoice, error) {
 	year := int64(time.Now().Year())
-	index, err := q.IncrementInvoicesIndex(a.ctx, db.IncrementInvoicesIndexParams{
-		Year: year, CashboxID: cashbox.ID, Type: "return",
-	})
+	invoiceCode, index, err := a.allocateInvoiceCode(
+		q, invoiceTypeExchange, branchCode, year,
+	)
 	if err != nil {
 		return db.Invoice{}, err
 	}
 	invoice, err := q.CreateInvoice(a.ctx, db.CreateInvoiceParams{
 		CashboxID: cashbox.ID, ShiftID: shift.ID,
-		InvoiceCode:  fmt.Sprintf("EX-%s-%d-%05d", cashbox.Name, year, index),
+		InvoiceCode:  invoiceCode,
 		InvoiceIndex: index, Year: year, ClientID: source.ClientID,
 		InventoryID: inventoryID, Discount: 0,
 		Subtotal: total, DiscountedTotal: total, GrandTotal: total,

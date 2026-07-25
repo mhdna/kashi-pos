@@ -10,7 +10,7 @@ import (
 )
 
 const getSettings = `-- name: GetSettings :one
-SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id FROM settings LIMIT 1
+SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code FROM settings LIMIT 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -30,19 +30,21 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.RoundingMode,
 		&i.ReceiptEnabled,
 		&i.SalesInventoryID,
+		&i.BranchCode,
 	)
 	return i, err
 }
 
 const updateSettings = `-- name: UpdateSettings :exec
 UPDATE settings
-SET branch_name = ?, api_key = ?, printer_id = ?, printer_size = ?,
+SET branch_name = ?, branch_code = ?, api_key = ?, printer_id = ?, printer_size = ?,
     receipt_printer = ?, screen_port = ?, receipt_width = ?, receipt_height = ?,
     theme = ?, tax_rate = ?, rounding_mode = ?, receipt_enabled = ?, sales_inventory_id = ?
 `
 
 type UpdateSettingsParams struct {
 	BranchName       string  `json:"branchName"`
+	BranchCode       string  `json:"branchCode"`
 	ApiKey           string  `json:"apiKey"`
 	PrinterID        string  `json:"printerId"`
 	PrinterSize      string  `json:"printerSize"`
@@ -60,6 +62,7 @@ type UpdateSettingsParams struct {
 func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error {
 	_, err := q.db.ExecContext(ctx, updateSettings,
 		arg.BranchName,
+		arg.BranchCode,
 		arg.ApiKey,
 		arg.PrinterID,
 		arg.PrinterSize,
@@ -86,12 +89,13 @@ func (q *Queries) UpdateTheme(ctx context.Context, theme string) error {
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
-INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO settings (branch_name, branch_code, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type UpsertSettingsParams struct {
 	BranchName       string  `json:"branchName"`
+	BranchCode       string  `json:"branchCode"`
 	ApiKey           string  `json:"apiKey"`
 	PrinterID        string  `json:"printerId"`
 	PrinterSize      string  `json:"printerSize"`
@@ -109,6 +113,7 @@ type UpsertSettingsParams struct {
 func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) error {
 	_, err := q.db.ExecContext(ctx, upsertSettings,
 		arg.BranchName,
+		arg.BranchCode,
 		arg.ApiKey,
 		arg.PrinterID,
 		arg.PrinterSize,

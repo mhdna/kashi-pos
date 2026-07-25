@@ -24,7 +24,7 @@
             </v-btn>
           </div>
         </v-card-title>
-        <v-card-subtitle> {{ invoiceCode || "------" }} </v-card-subtitle>
+        <v-card-subtitle>{{ invoiceCode }}</v-card-subtitle>
       </div>
       <div class="d-flex align-center mx-4 mt-4">
         <v-text-field
@@ -121,6 +121,7 @@ import {
   VoidInvoice,
   CheckoutInvoice,
   CheckoutExchangeInvoice,
+  GetNextInvoiceCode,
   GetAppSettings,
   DeleteHoldInvoice,
   GetOpenShift,
@@ -140,8 +141,8 @@ const roundingMode = ref("half_up");
 const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
 const branchName = ref("Store");
-const invoiceCode = ref("");
-const exchangeState = ref<{ originalInvoiceId: number; sourceInvoiceCode: string } | null>(null);
+const invoiceCode = ref("Loading invoice code…");
+const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
@@ -256,7 +257,6 @@ async function onCheckout() {
     const result = exchangeState.value
       ? await CheckoutExchangeInvoice(json, paymentsJSON, exchangeState.value.originalInvoiceId, clientID)
       : await CheckoutInvoice(json, paymentsJSON, clientID, branchName.value, branchName.value, "", "", receiptPrinter.value);
-    invoiceCode.value = result?.invoiceCode ?? "";
     snackbar.text = result?.receiptError
       ? `Invoice created; receipt failed — ${result.receiptError}`
       : isExchange
@@ -269,6 +269,7 @@ async function onCheckout() {
     invoiceItems.value?.clearItems();
     exchangeState.value = null;
     if (isExchange) actionBar.value?.resetClient();
+    await refreshNextInvoiceCode("sales");
   } catch (e: any) {
     snackbar.text = e?.toString() || "Checkout failed";
     snackbar.color = "red-darken-4";
@@ -277,7 +278,7 @@ async function onCheckout() {
   printing.value = false;
 }
 
-function onExchange(payload: ExchangeSelection) {
+async function onExchange(payload: ExchangeSelection) {
   invoiceItems.value?.clearItems();
   invoiceItems.value?.addExchangeItems(
     { ...payload.returned, category: payload.returned.category ?? "", qty: -1 },
@@ -288,22 +289,28 @@ function onExchange(payload: ExchangeSelection) {
     })),
   );
   actionBar.value?.setClient(payload.client);
-  invoiceCode.value = payload.sourceInvoiceCode;
-  exchangeState.value = {
-    originalInvoiceId: payload.originalInvoiceId,
-    sourceInvoiceCode: payload.sourceInvoiceCode,
-  };
+  exchangeState.value = { originalInvoiceId: payload.originalInvoiceId };
+  await refreshNextInvoiceCode("exchange");
   calculator.value?.clearAll();
   snackbar.text = "Exchange loaded. Collect the difference, if any, and check out.";
   snackbar.color = "info";
   snackbar.show = true;
 }
 
-function cancelExchange() {
+async function cancelExchange() {
   invoiceItems.value?.clearItems();
   calculator.value?.clearAll();
   exchangeState.value = null;
   actionBar.value?.resetClient();
+  await refreshNextInvoiceCode("sales");
+}
+
+async function refreshNextInvoiceCode(kind: "sales" | "exchange") {
+  try {
+    invoiceCode.value = await GetNextInvoiceCode(kind);
+  } catch {
+    invoiceCode.value = "Invoice code unavailable";
+  }
 }
 
 function onRestoreHold(id: number, items: any[]) {
@@ -337,5 +344,6 @@ onMounted(async () => {
       await OpenShift();
     } catch {}
   }
+  await refreshNextInvoiceCode("sales");
 });
 </script>

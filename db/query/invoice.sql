@@ -54,12 +54,12 @@ VALUES (?, ?, ?, ?);
 DELETE FROM invoice_products WHERE invoice_id = ?;
 
 -- name: GetInvoiceIndex :one
-SELECT * FROM invoice_indexes WHERE cashbox_id = ? AND year = ? AND type = ?;
+SELECT * FROM invoice_indexes WHERE year = ? AND type = ?;
 
 -- name: UpsertInvoiceIndex :exec
-INSERT INTO invoice_indexes (year, cashbox_id, last_index, type)
-VALUES (?, ?, ?, ?)
-ON CONFLICT (cashbox_id, year) DO UPDATE SET last_index = excluded.last_index;
+INSERT INTO invoice_indexes (year, last_index, type)
+VALUES (?, ?, ?)
+ON CONFLICT (year, type) DO UPDATE SET last_index = excluded.last_index;
 
 -- name: CreateSalesInvoice :exec
 INSERT INTO sales_invoices (invoice_id) VALUES (?);
@@ -75,9 +75,9 @@ GROUP BY date(created_at)
 ORDER BY day;
 
 -- name: IncrementInvoicesIndex :one
-INSERT INTO invoice_indexes (year, cashbox_id, last_index, type)
-VALUES (?, ?, 1, ?)
-ON CONFLICT (cashbox_id, year, type) DO UPDATE SET last_index = last_index + 1
+INSERT INTO invoice_indexes (year, last_index, type)
+VALUES (?, 1, ?)
+ON CONFLICT (year, type) DO UPDATE SET last_index = last_index + 1
 RETURNING last_index;
 
 -- name: GetTodayIncomeByAccount :many

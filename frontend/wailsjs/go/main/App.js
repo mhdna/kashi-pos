@@ -66,6 +66,10 @@ export function GetExchangeInvoice(arg1) {
   return window['go']['main']['App']['GetExchangeInvoice'](arg1);
 }
 
+export function GetNextInvoiceCode(arg1) {
+  return window['go']['main']['App']['GetNextInvoiceCode'](arg1);
+}
+
 export function GetOpenShift() {
   return window['go']['main']['App']['GetOpenShift']();
 }
@@ -178,8 +182,8 @@ export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
-export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12) {
-  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
+export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13) {
+  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
 }
 
 export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {

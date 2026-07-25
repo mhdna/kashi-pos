@@ -76,13 +76,6 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		if err != nil {
 			return fmt.Errorf("payment account: %w", err)
 		}
-		invoiceIndex, err := q.IncrementInvoicesIndex(a.ctx, db.IncrementInvoicesIndexParams{
-			Year: year, CashboxID: cashbox.ID, Type: "sales",
-		})
-		if err != nil {
-			return fmt.Errorf("increment invoice index: %w", err)
-		}
-
 		products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode)
 		if err != nil {
 			return err
@@ -99,7 +92,12 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			return err
 		}
 
-		invoiceCode := fmt.Sprintf("SA-%s-%d-%05d", cashbox.Name, year, invoiceIndex)
+		invoiceCode, invoiceIndex, err := a.allocateInvoiceCode(
+			q, invoiceTypeSales, settings.BranchCode, year,
+		)
+		if err != nil {
+			return fmt.Errorf("allocate invoice code: %w", err)
+		}
 		invoice, err := q.CreateInvoice(a.ctx, db.CreateInvoiceParams{
 			CashboxID: cashbox.ID, ShiftID: shift.ID, InvoiceCode: invoiceCode,
 			InvoiceIndex: invoiceIndex, Year: year, ClientID: clientID,

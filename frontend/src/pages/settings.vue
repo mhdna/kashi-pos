@@ -45,6 +45,17 @@
                 class="mb-2"
               />
               <v-text-field
+                v-model="form.branchCode"
+                label="Branch Code"
+                hint="Used in invoice numbers, for example CN."
+                maxlength="8"
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+                @update:model-value="form.branchCode = form.branchCode.toUpperCase()"
+              />
+              <v-text-field
                 v-model="form.apiKey"
                 label="API Key"
                 variant="outlined"
@@ -358,6 +369,7 @@ const tab = ref("general");
 
 const form = reactive({
   branchName: "",
+  branchCode: "CN",
   apiKey: "",
   printerID: "",
   printerSize: "80mm",
@@ -420,6 +432,7 @@ async function loadSettings() {
     if (s)
       Object.assign(form, {
         branchName: s.branchName ?? "",
+        branchCode: s.branchCode ?? "CN",
         apiKey: s.apiKey ?? "",
         printerID: s.printerID ?? "",
         printerSize: s.printerSize ?? "80mm",
@@ -464,6 +477,7 @@ async function saveSettings() {
     const taxRate = Number(form.taxRate);
     await UpdateSettings(
       form.branchName,
+      form.branchCode.trim().toUpperCase(),
       form.apiKey,
       form.printerID,
       form.printerSize,

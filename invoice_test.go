@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"testing"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 
@@ -31,7 +32,8 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := store.UpdateSettings(ctx, db.UpdateSettingsParams{
-		BranchName: settings.BranchName, ApiKey: settings.ApiKey, PrinterID: settings.PrinterID,
+		BranchName: settings.BranchName, BranchCode: settings.BranchCode,
+		ApiKey: settings.ApiKey, PrinterID: settings.PrinterID,
 		PrinterSize: settings.PrinterSize, ReceiptPrinter: settings.ReceiptPrinter, ScreenPort: settings.ScreenPort,
 		ReceiptWidth: settings.ReceiptWidth, ReceiptHeight: settings.ReceiptHeight, Theme: settings.Theme,
 		TaxRate: settings.TaxRate, RoundingMode: settings.RoundingMode, ReceiptEnabled: 0,
@@ -65,7 +67,8 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := store.UpdateSettings(ctx, db.UpdateSettingsParams{
-		BranchName: settings.BranchName, ApiKey: settings.ApiKey, PrinterID: settings.PrinterID,
+		BranchName: settings.BranchName, BranchCode: settings.BranchCode,
+		ApiKey: settings.ApiKey, PrinterID: settings.PrinterID,
 		PrinterSize: settings.PrinterSize, ReceiptPrinter: settings.ReceiptPrinter, ScreenPort: settings.ScreenPort,
 		ReceiptWidth: settings.ReceiptWidth, ReceiptHeight: settings.ReceiptHeight, Theme: settings.Theme,
 		TaxRate: settings.TaxRate, RoundingMode: settings.RoundingMode, ReceiptEnabled: 0,
@@ -75,6 +78,14 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 	}
 
 	app := &App{ctx: ctx, store: store}
+	year := int64(time.Now().Year())
+	nextCode, err := app.GetNextInvoiceCode("sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected := formatInvoiceCode("SA", "CN", year, 1); nextCode != expected {
+		t.Fatalf("next sales code = %q, want %q", nextCode, expected)
+	}
 	items, _ := json.Marshal([]map[string]any{{"code": "SKU-1", "qty": 3, "price": 9999, "discount": 100}})
 	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 369}})
 	result, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: string(items), PaymentsJSON: string(payments), ClientID: client.ID})
@@ -83,6 +94,23 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 	}
 	if result.InvoiceCode == "" {
 		t.Fatal("invoice code is empty")
+	}
+	if expected := formatInvoiceCode("SA", "CN", year, 1); result.InvoiceCode != expected {
+		t.Fatalf("sales code = %q, want %q", result.InvoiceCode, expected)
+	}
+	nextCode, err = app.GetNextInvoiceCode("sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected := formatInvoiceCode("SA", "CN", year, 2); nextCode != expected {
+		t.Fatalf("next sales code = %q, want %q", nextCode, expected)
+	}
+	exchangeCode, err := app.GetNextInvoiceCode("exchange")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expected := formatInvoiceCode("EX", "CN", year, 1); exchangeCode != expected {
+		t.Fatalf("next exchange code = %q, want %q", exchangeCode, expected)
 	}
 	invoice, err := store.GetInvoiceByID(ctx, 1)
 	if err != nil {

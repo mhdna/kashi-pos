@@ -223,24 +223,18 @@ func (q *Queries) GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 }
 
 const getInvoiceIndex = `-- name: GetInvoiceIndex :one
-SELECT year, cashbox_id, last_index, type FROM invoice_indexes WHERE cashbox_id = ? AND year = ? AND type = ?
+SELECT year, last_index, type FROM invoice_indexes WHERE year = ? AND type = ?
 `
 
 type GetInvoiceIndexParams struct {
-	CashboxID int64  `json:"cashboxId"`
-	Year      int64  `json:"year"`
-	Type      string `json:"type"`
+	Year int64  `json:"year"`
+	Type string `json:"type"`
 }
 
 func (q *Queries) GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams) (InvoiceIndex, error) {
-	row := q.db.QueryRowContext(ctx, getInvoiceIndex, arg.CashboxID, arg.Year, arg.Type)
+	row := q.db.QueryRowContext(ctx, getInvoiceIndex, arg.Year, arg.Type)
 	var i InvoiceIndex
-	err := row.Scan(
-		&i.Year,
-		&i.CashboxID,
-		&i.LastIndex,
-		&i.Type,
-	)
+	err := row.Scan(&i.Year, &i.LastIndex, &i.Type)
 	return i, err
 }
 
@@ -380,20 +374,19 @@ func (q *Queries) GetTodayIncomeByAccount(ctx context.Context) ([]GetTodayIncome
 }
 
 const incrementInvoicesIndex = `-- name: IncrementInvoicesIndex :one
-INSERT INTO invoice_indexes (year, cashbox_id, last_index, type)
-VALUES (?, ?, 1, ?)
-ON CONFLICT (cashbox_id, year, type) DO UPDATE SET last_index = last_index + 1
+INSERT INTO invoice_indexes (year, last_index, type)
+VALUES (?, 1, ?)
+ON CONFLICT (year, type) DO UPDATE SET last_index = last_index + 1
 RETURNING last_index
 `
 
 type IncrementInvoicesIndexParams struct {
-	Year      int64  `json:"year"`
-	CashboxID int64  `json:"cashboxId"`
-	Type      string `json:"type"`
+	Year int64  `json:"year"`
+	Type string `json:"type"`
 }
 
 func (q *Queries) IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, incrementInvoicesIndex, arg.Year, arg.CashboxID, arg.Type)
+	row := q.db.QueryRowContext(ctx, incrementInvoicesIndex, arg.Year, arg.Type)
 	var last_index int64
 	err := row.Scan(&last_index)
 	return last_index, err
@@ -516,24 +509,18 @@ func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]I
 }
 
 const upsertInvoiceIndex = `-- name: UpsertInvoiceIndex :exec
-INSERT INTO invoice_indexes (year, cashbox_id, last_index, type)
-VALUES (?, ?, ?, ?)
-ON CONFLICT (cashbox_id, year) DO UPDATE SET last_index = excluded.last_index
+INSERT INTO invoice_indexes (year, last_index, type)
+VALUES (?, ?, ?)
+ON CONFLICT (year, type) DO UPDATE SET last_index = excluded.last_index
 `
 
 type UpsertInvoiceIndexParams struct {
 	Year      int64  `json:"year"`
-	CashboxID int64  `json:"cashboxId"`
 	LastIndex int64  `json:"lastIndex"`
 	Type      string `json:"type"`
 }
 
 func (q *Queries) UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error {
-	_, err := q.db.ExecContext(ctx, upsertInvoiceIndex,
-		arg.Year,
-		arg.CashboxID,
-		arg.LastIndex,
-		arg.Type,
-	)
+	_, err := q.db.ExecContext(ctx, upsertInvoiceIndex, arg.Year, arg.LastIndex, arg.Type)
 	return err
 }
