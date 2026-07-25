@@ -129,16 +129,15 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			// 	return fmt.Errorf("insufficient stock for product %s", product.product.Code)
 			// }
 		}
-		netByAccount := make(map[int64]int64)
+		netByAccount := netPaymentsByAccount(payments)
 		for _, payment := range payments {
 			if err := q.CreateInvoicePaymentEntry(a.ctx, db.CreateInvoicePaymentEntryParams{InvoiceID: invoice.ID, CashboxID: payment.AccountID, Amount: payment.AmountCents, EntryType: payment.EntryType}); err != nil {
 				return fmt.Errorf("record payment entry: %w", err)
 			}
-			netByAccount[payment.AccountID] += payment.AmountCents
 		}
 		for accountID, amount := range netByAccount {
-			if amount <= 0 {
-				return fmt.Errorf("payment account %d has no positive net payment", accountID)
+			if amount == 0 {
+				continue
 			}
 			if err := q.CreateInvoicePayment(a.ctx, db.CreateInvoicePaymentParams{InvoiceID: invoice.ID, CashboxID: accountID, Amount: amount}); err != nil {
 				return fmt.Errorf("record net payment: %w", err)
@@ -158,6 +157,14 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		return nil
 	})
 	return result, err
+}
+
+func netPaymentsByAccount(payments []checkoutPayment) map[int64]int64 {
+	netByAccount := make(map[int64]int64)
+	for _, payment := range payments {
+		netByAccount[payment.AccountID] += payment.AmountCents
+	}
+	return netByAccount
 }
 
 func parseSalesItems(raw string) ([]salesInvoiceItem, error) {

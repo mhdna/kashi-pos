@@ -170,7 +170,7 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 }
 
 func recordExchangePayments(a *App, q *db.Queries, invoiceID, shiftID int64, payments []checkoutPayment) error {
-	netByAccount := make(map[int64]int64)
+	netByAccount := netPaymentsByAccount(payments)
 	for _, payment := range payments {
 		if err := q.CreateInvoicePaymentEntry(a.ctx, db.CreateInvoicePaymentEntryParams{
 			InvoiceID: invoiceID, CashboxID: payment.AccountID,
@@ -178,11 +178,10 @@ func recordExchangePayments(a *App, q *db.Queries, invoiceID, shiftID int64, pay
 		}); err != nil {
 			return err
 		}
-		netByAccount[payment.AccountID] += payment.AmountCents
 	}
 	for accountID, amount := range netByAccount {
-		if amount <= 0 {
-			return fmt.Errorf("payment account %d has no positive net payment", accountID)
+		if amount == 0 {
+			continue
 		}
 		if err := q.CreateInvoicePayment(a.ctx, db.CreateInvoicePaymentParams{
 			InvoiceID: invoiceID, CashboxID: accountID, Amount: amount,

@@ -131,3 +131,17 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 	}
 	_ = shift
 }
+
+func TestNetPaymentsByAccountAllowsNegativeAndSkipsZero(t *testing.T) {
+	payments := []checkoutPayment{
+		{AccountID: 1, AmountCents: 1000, EntryType: "payment"},
+		{AccountID: 2, AmountCents: -500, EntryType: "change"},
+		{AccountID: 3, AmountCents: 500, EntryType: "payment"},
+		{AccountID: 3, AmountCents: -500, EntryType: "change"},
+	}
+
+	net := netPaymentsByAccount(payments)
+	if net[1] != 1000 || net[2] != -500 || net[3] != 0 {
+		t.Fatalf("net payments = %#v, want account 1=1000, account 2=-500, account 3=0", net)
+	}
+}

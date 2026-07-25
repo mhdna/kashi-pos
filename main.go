@@ -18,13 +18,13 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:      "kashi-pos",
-		Width:      appWindowWidth,
-		Height:     appWindowHeight,
-		MinWidth:   appMinWindowWidth,
-		MinHeight:  appMinWindowHeight,
-		Fullscreen: false,
-		// WindowStartState: options.Maximised,
+		Title: "kashi-pos",
+		// Width:      appWindowWidth,
+		// Height:     appWindowHeight,
+		// MinWidth:   appMinWindowWidth,
+		// MinHeight:  appMinWindowHeight,
+		Fullscreen:       false,
+		WindowStartState: options.Maximised,
 		AssetServer:      &assetserver.Options{Assets: assets},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 255},
 		Windows: &windows.Options{
