@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/go-pdf/fpdf"
@@ -279,17 +277,7 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesp
 	}
 	defer os.Remove(tmpPath)
 
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("print", "/D:"+printerName, tmpPath)
-	default:
-		cmd = exec.Command("lp", "-d", printerName, tmpPath)
-	}
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("print failed: %v — %s", err, string(out))
-	}
-	return nil
+	return printPDFToPrinter(tmpPath, printerName)
 }
 
 func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo string, grandTotalCents int64) *fpdf.Fpdf {
