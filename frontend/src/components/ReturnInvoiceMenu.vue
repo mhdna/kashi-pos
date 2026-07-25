@@ -14,7 +14,7 @@
         <v-btn block color="primary" variant="tonal" :loading="loading" @click="loadInvoice">Load invoice</v-btn>
         <template v-if="invoice">
           <v-alert class="mt-3" density="compact" type="info">{{ invoice.invoiceCode }}</v-alert>
-          <v-text-field v-model="scanValue" class="mt-3" :label="returned ? 'Scan replacement item' : 'Scan returned item'" prepend-inner-icon="mdi-barcode-scan" variant="outlined" density="compact" @keydown.enter="scanItem" />
+          <v-text-field v-model="scanValue" class="mt-3" :label="returned ? 'Scan replacement item' : 'Scan returned item'" prepend-inner-icon="mdi-barcode" variant="outlined" density="compact" @keydown.enter="scanItem" />
           <v-list v-if="returned" density="compact" class="pa-0">
             <v-list-item title="Returning" :subtitle="`${returned.name} — $${effectivePrice(returned).toFixed(2)}`" />
             <v-list-item v-if="replacement" title="Replacing with" :subtitle="`${replacement.name} — $${effectivePrice(replacement).toFixed(2)}`" />
