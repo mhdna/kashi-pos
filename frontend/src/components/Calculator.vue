@@ -1,38 +1,60 @@
 <template>
-  <div class="w-100 h-100 px-4 py-2 rounded-xl">
+  <div class="calculator-shell w-100 h-100 px-4 py-2 rounded-xl">
     <!-- Payment type -->
-    <v-btn-toggle v-model="activeType" class="w-100 mb-2" divided mandatory density="comfortable">
+    <v-btn-toggle
+      v-model="activeType"
+      class="calculator-types w-100 mb-3"
+      divided
+      mandatory
+      density="comfortable"
+    >
       <v-btn v-for="t in types" :key="t.name" class="flex-grow-1" size="small" :value="t.name">
         {{ t.name }}
       </v-btn>
     </v-btn-toggle>
 
     <!-- Amount display -->
-    <v-card class="pa-4 mb-4 text-right" variant="outlined" rounded="lg">
+    <v-card class="calculator-display pa-3 mb-3 text-right" variant="outlined" rounded="lg">
       <span class="text-h5 font-weight-bold">{{ displayValue }}</span>
       <span class="text-body-2 text-medium-emphasis ml-1">{{ activeType }}</span>
     </v-card>
 
     <!-- Keypad -->
-    <v-row>
-      <v-col v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9]" :key="n" cols="4">
-        <v-btn block class="text-h6" @click="input(n.toString())">{{ n }}</v-btn>
-      </v-col>
-      <v-col cols="4"><v-btn block class="text-h6" @click="input('.')">.</v-btn></v-col>
-      <v-col cols="4"><v-btn block class="text-h6" @click="input('0')">0</v-btn></v-col>
-      <v-col cols="4"><v-btn block class="text-h6" @click="input('00')">00</v-btn></v-col>
-      <v-col cols="6">
-        <v-btn block class="text-h6" color="red-darken-2" @click="clearAll">CA</v-btn>
-      </v-col>
-      <v-col cols="6">
-        <v-btn block class="text-h6" @click="input('back')">⌫</v-btn>
-      </v-col>
-    </v-row>
+    <div class="calculator-keypad">
+      <v-btn
+        v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9]"
+        :key="n"
+        class="keypad-button text-h6"
+        variant="tonal"
+        @click="input(n.toString())"
+      >
+        {{ n }}
+      </v-btn>
+      <v-btn class="keypad-button text-h6" variant="tonal" @click="input('.')">.</v-btn>
+      <v-btn class="keypad-button text-h6" variant="tonal" @click="input('0')">0</v-btn>
+      <v-btn class="keypad-button text-h6" variant="tonal" @click="input('00')">00</v-btn>
+      <v-btn
+        class="keypad-button keypad-action text-h6"
+        color="red-darken-2"
+        variant="tonal"
+        @click="clearAll"
+      >
+        CA
+      </v-btn>
+      <v-btn
+        class="keypad-button keypad-action text-h6"
+        variant="outlined"
+        aria-label="Backspace"
+        @click="input('back')"
+      >
+        ⌫
+      </v-btn>
+    </div>
 
     <!-- Confirm -->
     <v-btn
       block
-      class="mt-4 text-h6 font-weight-bold"
+      class="calculator-confirm mt-3 text-h6 font-weight-bold"
       :color="diffCents > 0 ? 'grey-darken-1' : 'grey-darken-4'"
       :disabled="!currentInput || total === 0"
       height="44"
@@ -42,7 +64,7 @@
     </v-btn>
 
     <!-- Progress -->
-    <div class="mt-6">
+    <div class="mt-4">
       <div class="d-flex justify-space-between align-center mb-1">
         <span class="text-caption text-medium-emphasis">{{ statusLabel }}</span>
         <span class="text-body-2 font-weight-medium text-right" :class="statusColor">
@@ -61,7 +83,7 @@
 
     <!-- Entries -->
     <template v-if="entries.length">
-      <v-divider class="my-4" />
+      <v-divider class="my-3" />
       <div
         v-for="(e, i) in entries"
         :key="i"
@@ -133,7 +155,9 @@ const diffCents = computed(() => paidCents.value - totalCents.value);
 const diff = computed(() => diffCents.value / 100);
 // A rounded 10,000-LBP amount can differ from the exact amount by at most
 // half of 10,000 LBP. Convert that allowance to accounting cents.
-const roundingToleranceCents = computed(() => Math.ceil(((roundingMode.value === "half_up" ? 5000 : 10000) * 100) / exchangeRate.value));
+const roundingToleranceCents = computed(() =>
+  Math.ceil(((roundingMode.value === "half_up" ? 5000 : 10000) * 100) / exchangeRate.value),
+);
 const checkoutReady = computed(() => Math.abs(diffCents.value) <= roundingToleranceCents.value);
 
 const progressPct = computed(() =>
@@ -264,3 +288,34 @@ const paymentsJSON = computed(() => {
 
 defineExpose({ diff, checkoutReady, clearAll, firstEntryAccountId, paymentsJSON });
 </script>
+
+<style scoped>
+.calculator-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.keypad-button {
+  min-height: 48px;
+  border-radius: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.keypad-action {
+  min-height: 44px;
+}
+
+.calculator-display {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-color: rgba(var(--v-theme-on-surface), 0.18);
+}
+
+.calculator-confirm {
+  min-height: 48px;
+  border-radius: 12px;
+}
+</style>
