@@ -90,6 +90,22 @@ func (a *App) DeleteHoldInvoice(id int64) error {
 	return a.store.DeleteHoldInvoice(a.ctx, id)
 }
 
+func (a *App) DeleteInvoice(id int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if _, err := a.store.GetInvoiceByID(a.ctx, id); err != nil {
+		return err
+	}
+	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		if err := q.DeleteInvoicePayments(a.ctx, id); err != nil { return err }
+		if err := q.DeleteInvoicePaymentEntries(a.ctx, id); err != nil { return err }
+		if err := q.DeleteInvoiceProducts(a.ctx, id); err != nil { return err }
+		if err := q.DeleteSalesInvoice(a.ctx, id); err != nil { return err }
+		return q.DeleteInvoice(a.ctx, id)
+	})
+}
+
 func (a *App) VoidInvoice(itemsJSON string, reason string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")

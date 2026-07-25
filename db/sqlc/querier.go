@@ -51,6 +51,7 @@ type Querier interface {
 	DeleteHoldInvoice(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
 	DeleteInventoryItem(ctx context.Context, arg DeleteInventoryItemParams) error
+	DeleteInvoice(ctx context.Context, id int64) error
 	DeleteInvoicePaymentEntries(ctx context.Context, invoiceID int64) error
 	DeleteInvoicePayments(ctx context.Context, invoiceID int64) error
 	DeleteInvoiceProducts(ctx context.Context, invoiceID int64) error
@@ -59,6 +60,7 @@ type Querier interface {
 	DeleteProduct(ctx context.Context, id int64) error
 	DeleteRole(ctx context.Context, id int64) error
 	DeleteRolePermissions(ctx context.Context, roleID int64) error
+	DeleteSalesInvoice(ctx context.Context, invoiceID int64) error
 	DeleteSalesperson(ctx context.Context, id int64) error
 	DeleteTransferItems(ctx context.Context, transferID int64) error
 	DeleteUser(ctx context.Context, id int64) error

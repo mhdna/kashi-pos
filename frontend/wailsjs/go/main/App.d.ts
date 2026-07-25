@@ -21,9 +21,15 @@ export function CloseShiftByID(arg1:number,arg2:Array<Record<string, any>>):Prom
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
+export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
+
 export function CreateUser(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
 
 export function DeleteHoldInvoice(arg1:number):Promise<void>;
+
+export function DeleteInvoice(arg1:number):Promise<void>;
+
+export function DeleteSalesperson(arg1:number):Promise<void>;
 
 export function DeleteUser(arg1:number):Promise<void>;
 
@@ -100,6 +106,8 @@ export function ReprintInvoice(arg1:number):Promise<void>;
 export function SetTaxRate(arg1:number):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
+
+export function UpdateSalesperson(arg1:number,arg2:string):Promise<Record<string, any>>;
 
 export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:number,arg9:number,arg10:number,arg11:string,arg12:boolean,arg13:number,arg14:number):Promise<void>;
 

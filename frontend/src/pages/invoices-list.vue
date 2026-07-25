@@ -20,6 +20,7 @@
                 <v-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
                 <v-list-item prepend-icon="mdi-credit-card-edit" title="Change Settlement" @click.stop="startChange('settlement', item)" />
                 <v-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startChange('salesperson', item)" />
+                <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
               </v-list>
             </v-menu>
           </template>
@@ -44,6 +45,9 @@
       </v-card>
     </v-dialog>
 
+    <v-dialog v-model="deleteOpen" max-width="420">
+      <v-card><v-card-title>Delete invoice?</v-card-title><v-card-text>This permanently deletes {{ deleteInvoice?.invoiceCode || 'this invoice' }} and its payment records.</v-card-text><v-card-actions><v-spacer /><v-btn variant="text" @click="deleteOpen = false">Cancel</v-btn><v-btn color="error" :loading="deleting" @click="deleteSelected">Delete</v-btn></v-card-actions></v-card>
+    </v-dialog>
     <v-dialog v-model="changeOpen" max-width="420">
       <v-card><v-card-title>{{ changeTitle }}</v-card-title><v-card-text>
         <v-select v-if="changeType === 'client'" v-model="changeValue" label="Client" :items="clients" item-title="name" item-value="id" variant="outlined" />
@@ -51,17 +55,20 @@
         <v-select v-else v-model="changeValue" label="Salesman" :items="salespersons" item-title="fullName" item-value="id" variant="outlined" />
       </v-card-text><v-card-actions><v-spacer /><v-btn variant="text" @click="changeOpen = false">Cancel</v-btn><v-btn color="primary" :loading="saving" :disabled="!changeValue && changeType !== 'salesperson'" @click="saveChange">Save</v-btn></v-card-actions></v-card>
     </v-dialog>
-    <v-snackbar v-model="snackbar.show" :color="snackbar.color" location="top right">{{ snackbar.text }}</v-snackbar>
+    <v-snackbar v-model="snackbar.show" class="app-snackbar" timeout="3500" location="top" variant="flat">{{ snackbar.text }}</v-snackbar>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { ChangeInvoiceClient, ChangeInvoiceSalesperson, ChangeInvoiceSettlement, GetInvoiceDetails, ListClients, ListInvoices, ListPaymentMethods, ListSalespersons, ReprintInvoice } from "../../wailsjs/go/main/App";
+import { ChangeInvoiceClient, ChangeInvoiceSalesperson, ChangeInvoiceSettlement, DeleteInvoice, GetInvoiceDetails, ListClients, ListInvoices, ListPaymentMethods, ListSalespersons, ReprintInvoice } from "../../wailsjs/go/main/App";
+import { useAuthStore } from "../stores/auth";
 
 const pageSize = 20, items = ref<any[]>([]), visibleCount = ref(pageSize), loading = ref(true);
+const auth = useAuthStore();
 const visibleItems = computed(() => items.value.slice(0, visibleCount.value));
 const selected = ref<any>(null), detailOpen = ref(false), changeOpen = ref(false), saving = ref(false), printingId = ref<number | null>(null);
+const deleteOpen = ref(false), deleting = ref(false), deleteInvoice = ref<any>(null);
 const changeType = ref<"client" | "settlement" | "salesperson">("client"), changeValue = ref<number | null>(null), changeInvoice = ref<any>(null);
 const clients = ref<any[]>([]), paymentMethods = ref<any[]>([]), salespersons = ref<any[]>([]);
 const snackbar = reactive({ show: false, text: "", color: "success" });
@@ -73,6 +80,8 @@ function loadMore({ done }: { done: (status: "ok" | "empty" | "error") => void }
 async function openInvoice(item: any) { try { selected.value = await GetInvoiceDetails(item.id); detailOpen.value = true; } catch { notify("Could not load invoice details", "error"); } }
 async function reprint(item: any) { printingId.value = item.id; try { await ReprintInvoice(item.id); notify("Receipt sent to the default receipt printer"); } catch (e: any) { notify(e?.toString() || "Could not print receipt", "error"); } finally { printingId.value = null; } }
 function startChange(type: "client" | "settlement" | "salesperson", item: any) { changeType.value = type; changeInvoice.value = item; changeValue.value = type === "client" ? item.clientId : type === "salesperson" ? (item.salespersonId || 0) : item.cashboxId; changeOpen.value = true; }
+function requestDelete(item: any) { deleteInvoice.value = item; deleteOpen.value = true; }
+async function deleteSelected() { if (!deleteInvoice.value || !auth.isAdmin) return; deleting.value = true; try { await DeleteInvoice(deleteInvoice.value.id); deleteOpen.value = false; notify("Invoice deleted"); await refresh(); } catch (e: any) { notify(e?.toString() || "Could not delete invoice", "error"); } finally { deleting.value = false; } }
 async function saveChange() { if (!changeInvoice.value) return; saving.value = true; try { if (changeType.value === "client") await ChangeInvoiceClient(changeInvoice.value.id, changeValue.value || 0); else if (changeType.value === "settlement") await ChangeInvoiceSettlement(changeInvoice.value.id, changeValue.value || 0); else await ChangeInvoiceSalesperson(changeInvoice.value.id, changeValue.value || 0); await openInvoice(changeInvoice.value); changeOpen.value = false; await refresh(); notify("Invoice updated"); } catch (e: any) { notify(e?.toString() || "Could not update invoice", "error"); } finally { saving.value = false; } }
 function notify(text: string, color = "success") { snackbar.text = text; snackbar.color = color; snackbar.show = true; }
 async function refresh() { const invoices = (await ListInvoices()) as any[]; items.value = [...(invoices ?? [])].sort((a, b) => Number(b.id) - Number(a.id)); }
@@ -87,4 +96,10 @@ onMounted(async () => { try { await refresh(); [clients.value, paymentMethods.va
 .invoice-total { min-width: 100px; }
 .invoices-empty { margin: auto; }
 .totals > div { display: flex; justify-content: space-between; margin: 4px 0; }
+.app-snackbar .v-snackbar__wrapper {
+  background: rgba(var(--v-theme-surface-variant), 0.72) !important;
+  color: rgb(var(--v-theme-on-surface-variant)) !important;
+  border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
+}
 </style>

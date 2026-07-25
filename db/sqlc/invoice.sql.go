@@ -155,6 +155,15 @@ func (q *Queries) CreateSalesInvoice(ctx context.Context, invoiceID int64) error
 	return err
 }
 
+const deleteInvoice = `-- name: DeleteInvoice :exec
+DELETE FROM invoices WHERE id = ?
+`
+
+func (q *Queries) DeleteInvoice(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteInvoice, id)
+	return err
+}
+
 const deleteInvoicePaymentEntries = `-- name: DeleteInvoicePaymentEntries :exec
 DELETE FROM invoice_payment_entries WHERE invoice_id = ?
 `
@@ -179,6 +188,15 @@ DELETE FROM invoice_products WHERE invoice_id = ?
 
 func (q *Queries) DeleteInvoiceProducts(ctx context.Context, invoiceID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteInvoiceProducts, invoiceID)
+	return err
+}
+
+const deleteSalesInvoice = `-- name: DeleteSalesInvoice :exec
+DELETE FROM sales_invoices WHERE invoice_id = ?
+`
+
+func (q *Queries) DeleteSalesInvoice(ctx context.Context, invoiceID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteSalesInvoice, invoiceID)
 	return err
 }
 

@@ -71,6 +71,12 @@ VALUES (?, ?, ?, ?);
 -- name: DeleteInvoiceProducts :exec
 DELETE FROM invoice_products WHERE invoice_id = ?;
 
+-- name: DeleteSalesInvoice :exec
+DELETE FROM sales_invoices WHERE invoice_id = ?;
+
+-- name: DeleteInvoice :exec
+DELETE FROM invoices WHERE id = ?;
+
 -- name: GetInvoiceIndex :one
 SELECT * FROM invoice_indexes WHERE year = ? AND type = ?;
 
