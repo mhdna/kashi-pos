@@ -45,7 +45,7 @@
       color="brown-lighten-4"
       width="100%"
       @click="ask('void')"
-      :disabled="!hasItems"
+      :disabled="!hasItems || exchangeMode"
     >
       <template #prepend>
         <v-icon icon="mdi-circle" size="20" class="me-2" />
@@ -58,7 +58,7 @@
       text="Hold"
       width="100%"
       @click="ask('hold')"
-      :disabled="!hasItems"
+      :disabled="!hasItems || exchangeMode"
     >
       <template #prepend>
         <v-icon icon="mdi-pause" size="25" class="me-2" />
@@ -109,6 +109,12 @@ import ClientDialog, { type Client } from "./ClientDialog.vue";
 import InitialsAvatar from "./InitialsAvatar.vue";
 
 const emit = defineEmits<{ hold: []; void: []; checkout: [] }>();
+const props = defineProps<{
+  total: number;
+  canCheckout: boolean;
+  hasItems: boolean;
+  exchangeMode?: boolean;
+}>();
 
 const dialog = ref(false);
 const action = ref<"hold" | "void">("hold");
@@ -122,8 +128,6 @@ function doConfirm() {
   else emit("void");
   dialog.value = false;
 }
-
-const props = defineProps<{ total: number; canCheckout: boolean; hasItems: boolean }>();
 
 const clientDialog = ref(false);
 const client = reactive<Client>({

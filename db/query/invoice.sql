@@ -14,7 +14,7 @@ JOIN sales_invoices s ON s.invoice_id = i.id
 WHERE i.id = ?;
 
 -- name: GetReturnedQuantityForProduct :one
-SELECT COALESCE(SUM(ip.quantity), 0) AS quantity
+SELECT COALESCE(SUM(CASE WHEN ip.quantity < 0 THEN -ip.quantity ELSE 0 END), 0) AS quantity
 FROM return_invoices r
 JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
 WHERE r.sales_invoice_id = ? AND ip.product_id = ?;

@@ -3,12 +3,21 @@
     <div class="d-flex flex-column" style="flex: 5 5 0; min-width: 0; min-height: 0">
       <div>
         <v-card-title class="d-flex justify-space-between">
-          <div>Invoice</div>
+          <div>{{ exchangeState ? "Exchange" : "Invoice" }}</div>
           <div class="d-flex">
             <div class="me-2">
-              <OnHoldMenu @restore="onRestoreHold" />
+              <OnHoldMenu v-if="!exchangeState" @restore="onRestoreHold" />
             </div>
-            <ReturnInvoiceMenu @exchange="onExchange" />
+            <ReturnInvoiceMenu v-if="!exchangeState" @exchange="onExchange" />
+            <v-btn
+              v-else
+              color="red-darken-2"
+              variant="tonal"
+              prepend-icon="mdi-close"
+              @click="cancelExchange"
+            >
+              Cancel exchange
+            </v-btn>
           </div>
         </v-card-title>
         <v-card-subtitle> {{ invoiceCode || "------" }} </v-card-subtitle>
@@ -26,12 +35,24 @@
           @blur="onBlur"
           @keydown.enter="onBarcodeEnter"
         />
-        <v-btn icon size="small" variant="text" class="ms-1" @click="onBarcodeEnter">
+        <v-btn
+          v-if="!exchangeState"
+          icon
+          size="small"
+          variant="text"
+          class="ms-1"
+          @click="onBarcodeEnter"
+        >
           <v-icon icon="mdi-magnify" size="20" />
         </v-btn>
-        <ProductSearchDialog @select="onProductSelect" />
+        <ProductSearchDialog v-if="!exchangeState" @select="onProductSelect" />
       </div>
-      <InvoiceItems ref="invoiceItems" :rounding-mode="roundingMode" style="flex: 1 1 0; min-height: 0" />
+      <InvoiceItems
+        ref="invoiceItems"
+        :rounding-mode="roundingMode"
+        :readonly="Boolean(exchangeState)"
+        style="flex: 1 1 0; min-height: 0"
+      />
       <InvoiceSummary
         :subtotal="invoiceItems?.subtotal ?? 0"
         :total-discount="invoiceItems?.totalDiscount ?? 0"
@@ -66,6 +87,7 @@
           :total="invoiceTotal"
           :can-checkout="canCheckout"
           :has-items="hasItems"
+          :exchange-mode="Boolean(exchangeState)"
           @hold="onHold"
           @void="onVoid"
           @checkout="onCheckout"
@@ -221,7 +243,8 @@ async function onVoid() {
 async function onCheckout() {
   const json = await getFullItemsJSON();
   if (json === "[]") return;
-  printing.value = receiptEnabled.value;
+  const isExchange = Boolean(exchangeState.value);
+  printing.value = receiptEnabled.value && !isExchange;
   try {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
     const clientID = actionBar.value?.clientId ?? 0;
@@ -231,11 +254,11 @@ async function onCheckout() {
     invoiceCode.value = result?.invoiceCode ?? "";
     snackbar.text = result?.receiptError
       ? `Invoice created; receipt failed — ${result.receiptError}`
-      : receiptEnabled.value
+      : isExchange
+        ? `Exchange completed — ${result?.invoiceCode ?? ""}`
+        : receiptEnabled.value
         ? `Receipt printed — ${result?.invoiceCode ?? ""}`
-        : exchangeState.value
-          ? `Exchange completed — ${result?.invoiceCode ?? ""}`
-          : `Invoice created — ${result?.invoiceCode ?? ""}`;
+        : `Invoice created — ${result?.invoiceCode ?? ""}`;
     snackbar.color = "success";
     snackbar.show = true;
     invoiceItems.value?.clearItems();
@@ -256,6 +279,12 @@ function onExchange(payload: { originalInvoiceId: number; returned: any; replace
   snackbar.text = "Exchange loaded. Collect the difference, if any, and check out.";
   snackbar.color = "info";
   snackbar.show = true;
+}
+
+function cancelExchange() {
+  invoiceItems.value?.clearItems();
+  calculator.value?.clearAll();
+  exchangeState.value = null;
 }
 
 function onRestoreHold(id: number, items: any[]) {

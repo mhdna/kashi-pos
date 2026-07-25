@@ -16,13 +16,25 @@
         <template #append>
           <div class="d-flex align-center" style="min-width: 240px">
             <div class="d-flex align-center ga-1" style="width: 60px; flex: 0 0 auto">
-              <v-btn density="compact" variant="text" size="small" @click="decreaseQty(item)">
+              <v-btn
+                v-if="!readonly"
+                density="compact"
+                variant="text"
+                size="small"
+                @click="decreaseQty(item)"
+              >
                 <v-icon icon="mdi-minus" size="20" />
               </v-btn>
               <span class="text-body-2 font-weight-bold text-center" style="min-width: 1.5rem">{{
                 item.qty
               }}</span>
-              <v-btn density="compact" variant="text" size="small" @click="increaseQty(item)">
+              <v-btn
+                v-if="!readonly"
+                density="compact"
+                variant="text"
+                size="small"
+                @click="increaseQty(item)"
+              >
                 <v-icon icon="mdi-plus" size="20" />
               </v-btn>
             </div>
@@ -33,7 +45,7 @@
                 >${{ totalAfterDiscount(item).toFixed(2) }}</span
               >
             </div>
-            <v-btn variant="text" rounded size="small" @click="removeItem(item)">
+            <v-btn v-if="!readonly" variant="text" rounded size="small" @click="removeItem(item)">
               <v-icon icon="mdi-delete" size="18" color="grey" />
             </v-btn>
           </div>
@@ -56,7 +68,8 @@ interface LineItem {
   qty: number;
 }
 
-const props = defineProps<{ roundingMode?: string }>();
+const props = defineProps<{ roundingMode?: string; readonly?: boolean }>();
+const readonly = computed(() => props.readonly ?? false);
 
 function discountAmount(item: LineItem): number {
   return item.price * item.qty * (item.discount / 100);

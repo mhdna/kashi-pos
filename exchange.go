@@ -59,6 +59,9 @@ func (a *App) GetExchangeInvoice(code string) (map[string]any, error) {
 			"available": available,
 		})
 	}
+	if len(items) == 0 {
+		return nil, fmt.Errorf("all items on this invoice have already been returned")
+	}
 	return map[string]any{
 		"id":          invoice.ID,
 		"invoiceCode": invoice.InvoiceCode,
