@@ -14,13 +14,7 @@ func (a *App) GetClientByPhone(phone string) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("client not found")
 	}
-	return map[string]any{
-		"id":                 client.ID,
-		"name":               client.Name,
-		"phone":              client.Phone,
-		"totalLoyaltyPoints": client.TotalLoyaltyPoints,
-		"validLoyaltyPoints": client.ValidLoyaltyPoints,
-	}, nil
+	return clientResponse(client), nil
 }
 
 func (a *App) CreateClient(name, phone string) (map[string]any, error) {
@@ -36,13 +30,7 @@ func (a *App) CreateClient(name, phone string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{
-		"id":                 client.ID,
-		"name":               client.Name,
-		"phone":              client.Phone,
-		"totalLoyaltyPoints": client.TotalLoyaltyPoints,
-		"validLoyaltyPoints": client.ValidLoyaltyPoints,
-	}, nil
+	return clientResponse(client), nil
 }
 
 func (a *App) AddClientLoyaltyPoints(clientID int64, points int64) (map[string]any, error) {
@@ -63,11 +51,15 @@ func (a *App) AddClientLoyaltyPoints(clientID int64, points int64) (map[string]a
 	if err != nil {
 		return nil, err
 	}
+	return clientResponse(updated), nil
+}
+
+func clientResponse(client db.Client) map[string]any {
 	return map[string]any{
-		"id":                 updated.ID,
-		"name":               updated.Name,
-		"phone":              updated.Phone,
-		"totalLoyaltyPoints": updated.TotalLoyaltyPoints,
-		"validLoyaltyPoints": updated.ValidLoyaltyPoints,
-	}, nil
+		"id":                 client.ID,
+		"name":               client.Name,
+		"phone":              client.Phone,
+		"totalLoyaltyPoints": client.TotalLoyaltyPoints,
+		"validLoyaltyPoints": client.ValidLoyaltyPoints,
+	}
 }

@@ -107,6 +107,10 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if items[0]["code"] != returnedProduct.Code || items[0]["barcode"] != returnedProduct.Barcode {
 		t.Fatalf("loaded item = %#v", items[0])
 	}
+	loadedClient, ok := loaded["client"].(map[string]any)
+	if !ok || loadedClient["id"] != client.ID {
+		t.Fatalf("loaded client = %#v", loaded["client"])
+	}
 
 	sourceID := loaded["id"].(int64)
 	tooLowItems, _ := json.Marshal([]exchangeLine{
@@ -184,5 +188,15 @@ func TestParseExchangeRequestMergesDuplicateReplacementLines(t *testing.T) {
 	}
 	if len(request.replacements) != 1 || request.replacements[0].Qty != 3 {
 		t.Fatalf("replacements = %#v", request.replacements)
+	}
+}
+
+func TestParseExchangeRequestRejectsReturnedProductAsReplacement(t *testing.T) {
+	if _, err := parseExchangeRequest(`[
+		{"code":"PRD-2","qty":-1},
+		{"code":"prd-2","qty":1},
+		{"code":"OTHER","qty":1}
+	]`); err == nil {
+		t.Fatal("expected returned product used as a replacement to fail")
 	}
 }

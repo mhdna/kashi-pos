@@ -57,9 +57,14 @@ func (a *App) GetExchangeInvoice(code string) (map[string]any, error) {
 	if len(items) == 0 {
 		return nil, fmt.Errorf("all items on this invoice have already been returned")
 	}
+	client, err := a.store.GetClientByID(a.ctx, invoice.ClientID)
+	if err != nil {
+		return nil, fmt.Errorf("invoice customer: %w", err)
+	}
 	return map[string]any{
 		"id":          invoice.ID,
 		"invoiceCode": invoice.InvoiceCode,
+		"client":      clientResponse(client),
 		"items":       items,
 	}, nil
 }

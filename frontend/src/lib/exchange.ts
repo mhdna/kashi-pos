@@ -1,3 +1,5 @@
+import type { Client } from "@/lib/client";
+
 export interface ExchangeItem {
   code: string;
   barcode: string;
@@ -12,11 +14,14 @@ export interface ExchangeItem {
 export interface ExchangeInvoice {
   id: number;
   invoiceCode: string;
+  client: Client;
   items: ExchangeItem[];
 }
 
 export interface ExchangeSelection {
   originalInvoiceId: number;
+  sourceInvoiceCode: string;
+  client: Client;
   returned: ExchangeItem;
   replacements: ExchangeItem[];
 }

@@ -49,7 +49,7 @@
 
         <template v-if="invoice">
           <v-alert class="mb-3" density="compact" type="success" variant="tonal">
-            {{ invoice.invoiceCode }} loaded — {{ invoice.items.length }} available
+            {{ invoice.invoiceCode }} · {{ invoice.client.name }} — {{ invoice.items.length }} available
             {{ invoice.items.length === 1 ? "item" : "items" }}
           </v-alert>
 

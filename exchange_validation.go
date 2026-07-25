@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -35,6 +36,7 @@ func parseExchangeRequest(raw string) (exchangeRequest, error) {
 	var request exchangeRequest
 	replacementIndex := make(map[string]int)
 	for _, line := range lines {
+		line.Code = strings.TrimSpace(line.Code)
 		if line.Code == "" || line.Qty == 0 {
 			return exchangeRequest{}, fmt.Errorf("invalid exchange item")
 		}
@@ -45,10 +47,11 @@ func parseExchangeRequest(raw string) (exchangeRequest, error) {
 			request.returned = line
 			continue
 		}
-		if line.Code == request.returned.Code {
+		normalizedCode := strings.ToLower(line.Code)
+		if request.returned.Code != "" && strings.EqualFold(line.Code, request.returned.Code) {
 			return exchangeRequest{}, fmt.Errorf("choose different products as replacements")
 		}
-		if index, exists := replacementIndex[line.Code]; exists {
+		if index, exists := replacementIndex[normalizedCode]; exists {
 			current := request.replacements[index].Qty
 			if line.Qty > math.MaxInt64-current {
 				return exchangeRequest{}, fmt.Errorf("replacement quantity is too large")
@@ -56,14 +59,14 @@ func parseExchangeRequest(raw string) (exchangeRequest, error) {
 			request.replacements[index].Qty += line.Qty
 			continue
 		}
-		replacementIndex[line.Code] = len(request.replacements)
+		replacementIndex[normalizedCode] = len(request.replacements)
 		request.replacements = append(request.replacements, line)
 	}
 	if request.returned.Code == "" || len(request.replacements) == 0 {
 		return exchangeRequest{}, fmt.Errorf("an exchange needs one returned item and at least one replacement")
 	}
 	for _, replacement := range request.replacements {
-		if replacement.Code == request.returned.Code {
+		if strings.EqualFold(replacement.Code, request.returned.Code) {
 			return exchangeRequest{}, fmt.Errorf("choose different products as replacements")
 		}
 	}

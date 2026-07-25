@@ -19,7 +19,7 @@
           min-height="100px"
           rounded="lg"
           width="100%"
-          @click="clientDialog = true"
+          @click="openClientDialog"
         >
           <InitialsAvatar :name="client.name" color="yellow-darken-3" :size="42" />
           <div>{{ client.name }}</div>
@@ -105,8 +105,9 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import ClientDialog, { type Client } from "./ClientDialog.vue";
+import ClientDialog from "./ClientDialog.vue";
 import InitialsAvatar from "./InitialsAvatar.vue";
+import { anonymousClient, toClient, type Client } from "@/lib/client";
 
 const emit = defineEmits<{ hold: []; void: []; checkout: [] }>();
 const props = defineProps<{
@@ -130,18 +131,13 @@ function doConfirm() {
 }
 
 const clientDialog = ref(false);
-const client = reactive<Client>({
-  id: 0,
-  name: "Anonymous",
-  phone: "",
-  initials: "AN",
-  tier: "None",
-  points: 0,
-  totalLoyaltyPoints: 0,
-  validLoyaltyPoints: 0,
-});
+const client = reactive<Client>(anonymousClient());
 
 const earns = computed(() => Math.floor(props.total));
+
+function openClientDialog() {
+  if (!props.exchangeMode) clientDialog.value = true;
+}
 
 const tierLabel = computed(() => {
   const pts = client.totalLoyaltyPoints;
@@ -159,8 +155,16 @@ const tierColor = computed(() => {
 });
 
 function onClientSelect(selected: Client) {
-  Object.assign(client, selected);
+  Object.assign(client, toClient(selected));
 }
 
-defineExpose({ clientId: computed(() => client.id) });
+function setClient(selected: Client) {
+  Object.assign(client, toClient(selected));
+}
+
+function resetClient() {
+  Object.assign(client, anonymousClient());
+}
+
+defineExpose({ clientId: computed(() => client.id), setClient, resetClient });
 </script>

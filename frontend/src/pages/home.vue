@@ -141,7 +141,7 @@ const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
 const branchName = ref("Store");
 const invoiceCode = ref("");
-const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
+const exchangeState = ref<{ originalInvoiceId: number; sourceInvoiceCode: string } | null>(null);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
@@ -268,6 +268,7 @@ async function onCheckout() {
     snackbar.show = true;
     invoiceItems.value?.clearItems();
     exchangeState.value = null;
+    if (isExchange) actionBar.value?.resetClient();
   } catch (e: any) {
     snackbar.text = e?.toString() || "Checkout failed";
     snackbar.color = "red-darken-4";
@@ -286,7 +287,12 @@ function onExchange(payload: ExchangeSelection) {
       qty: Number(item.qty || 1),
     })),
   );
-  exchangeState.value = { originalInvoiceId: payload.originalInvoiceId };
+  actionBar.value?.setClient(payload.client);
+  invoiceCode.value = payload.sourceInvoiceCode;
+  exchangeState.value = {
+    originalInvoiceId: payload.originalInvoiceId,
+    sourceInvoiceCode: payload.sourceInvoiceCode,
+  };
   calculator.value?.clearAll();
   snackbar.text = "Exchange loaded. Collect the difference, if any, and check out.";
   snackbar.color = "info";
@@ -297,6 +303,7 @@ function cancelExchange() {
   invoiceItems.value?.clearItems();
   calculator.value?.clearAll();
   exchangeState.value = null;
+  actionBar.value?.resetClient();
 }
 
 function onRestoreHold(id: number, items: any[]) {

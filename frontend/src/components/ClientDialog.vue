@@ -55,17 +55,7 @@
 <script lang="ts" setup>
 import { ref, reactive, inject, watch } from "vue";
 import { GetClientByPhone, CreateClient } from "../../wailsjs/go/main/App";
-
-export interface Client {
-  id: number;
-  name: string;
-  phone: string;
-  initials: string;
-  tier: string;
-  points: number;
-  totalLoyaltyPoints: number;
-  validLoyaltyPoints: number;
-}
+import { anonymousClient, toClient, type Client } from "@/lib/client";
 
 const emit = defineEmits<{ select: [client: Client] }>();
 
@@ -78,34 +68,6 @@ watch(dialog, (v) => {
 const step = ref<"phone" | "new">("phone");
 const phone = ref("");
 const newClient = reactive({ name: "", phone: "" });
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-function tier(points: number) {
-  if (points >= 500) return "Gold";
-  if (points >= 200) return "Silver";
-  return "Bronze";
-}
-
-function toClient(raw: any): Client {
-  return {
-    id: raw.id,
-    name: raw.name,
-    phone: raw.phone,
-    initials: initials(raw.name),
-    tier: tier(raw.totalLoyaltyPoints),
-    points: raw.totalLoyaltyPoints,
-    totalLoyaltyPoints: raw.totalLoyaltyPoints,
-    validLoyaltyPoints: raw.validLoyaltyPoints,
-  };
-}
 
 async function lookupPhone() {
   const p = phone.value.replace(/\D/g, "");
@@ -127,32 +89,14 @@ async function createClient() {
     const c = await CreateClient(newClient.name.trim(), newClient.phone);
     emit("select", toClient(c));
   } catch {
-    emit("select", {
-      id: 0,
-      name: newClient.name.trim(),
-      phone: newClient.phone,
-      initials: initials(newClient.name.trim()),
-      tier: "Bronze",
-      points: 0,
-      totalLoyaltyPoints: 0,
-      validLoyaltyPoints: 0,
-    });
+    emit("select", toClient({ id: 0, name: newClient.name.trim(), phone: newClient.phone }));
   }
   dialog.value = false;
   reset();
 }
 
 function selectAnonymous() {
-  emit("select", {
-    id: 0,
-    name: "Anonymous",
-    phone: "",
-    initials: "AN",
-    tier: "None",
-    points: 0,
-    totalLoyaltyPoints: 0,
-    validLoyaltyPoints: 0,
-  });
+  emit("select", anonymousClient());
   dialog.value = false;
   reset();
 }

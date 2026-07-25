@@ -160,6 +160,8 @@ export function useExchangeDialog(roundingMode: () => string) {
     if (!invoice.value || !returned.value || !hasEnoughReplacementValue.value) return null;
     return {
       originalInvoiceId: invoice.value.id,
+      sourceInvoiceCode: invoice.value.invoiceCode,
+      client: { ...invoice.value.client },
       returned: { ...returned.value },
       replacements: replacements.value.map((item) => ({ ...item })),
     };
