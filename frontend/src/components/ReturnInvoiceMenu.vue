@@ -91,5 +91,12 @@ function startExchange() {
   reset();
 }
 
-function reset() { invoiceCode.value = ""; scanValue.value = ""; invoice.value = null; returned.value = null; replacement.value = null; }
+function reset() {
+  menu.value = false;
+  invoiceCode.value = "";
+  scanValue.value = "";
+  invoice.value = null;
+  returned.value = null;
+  replacement.value = null;
+}
 </script>
