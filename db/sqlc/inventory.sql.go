@@ -7,7 +7,25 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
+
+const addInventoryProductQuantity = `-- name: AddInventoryProductQuantity :exec
+INSERT INTO inventory_items (inventory_id, product_id, quantity)
+VALUES (?, ?, ?)
+ON CONFLICT (inventory_id, product_id) DO UPDATE SET quantity = inventory_items.quantity + excluded.quantity
+`
+
+type AddInventoryProductQuantityParams struct {
+	InventoryID int64 `json:"inventoryId"`
+	ProductID   int64 `json:"productId"`
+	Quantity    int64 `json:"quantity"`
+}
+
+func (q *Queries) AddInventoryProductQuantity(ctx context.Context, arg AddInventoryProductQuantityParams) error {
+	_, err := q.db.ExecContext(ctx, addInventoryProductQuantity, arg.InventoryID, arg.ProductID, arg.Quantity)
+	return err
+}
 
 const createInventory = `-- name: CreateInventory :one
 INSERT INTO inventories (name) VALUES (?) RETURNING id, name
@@ -18,6 +36,28 @@ func (q *Queries) CreateInventory(ctx context.Context, name string) (Inventory, 
 	var i Inventory
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err
+}
+
+const decreaseInventoryProductQuantity = `-- name: DecreaseInventoryProductQuantity :execresult
+UPDATE inventory_items
+SET quantity = quantity - ?
+WHERE inventory_id = ? AND product_id = ? AND quantity >= ?
+`
+
+type DecreaseInventoryProductQuantityParams struct {
+	Quantity    int64 `json:"quantity"`
+	InventoryID int64 `json:"inventoryId"`
+	ProductID   int64 `json:"productId"`
+	Quantity_2  int64 `json:"quantity2"`
+}
+
+func (q *Queries) DecreaseInventoryProductQuantity(ctx context.Context, arg DecreaseInventoryProductQuantityParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, decreaseInventoryProductQuantity,
+		arg.Quantity,
+		arg.InventoryID,
+		arg.ProductID,
+		arg.Quantity_2,
+	)
 }
 
 const deleteInventory = `-- name: DeleteInventory :exec

@@ -24,6 +24,14 @@ SELECT * FROM invoice_products WHERE invoice_id = ?;
 INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity)
 VALUES (?, ?, ?, ?, ?, ?);
 
+-- name: CreateInvoicePayment :exec
+INSERT INTO invoice_payments (invoice_id, cashbox_id, amount) VALUES (?, ?, ?)
+ON CONFLICT (invoice_id, cashbox_id) DO UPDATE SET amount = invoice_payments.amount + excluded.amount;
+
+-- name: CreateInvoicePaymentEntry :exec
+INSERT INTO invoice_payment_entries (invoice_id, cashbox_id, amount, entry_type)
+VALUES (?, ?, ?, ?);
+
 -- name: DeleteInvoiceProducts :exec
 DELETE FROM invoice_products WHERE invoice_id = ?;
 
@@ -47,6 +55,12 @@ FROM invoices
 WHERE strftime('%Y-%m', created_at) = ?
 GROUP BY date(created_at)
 ORDER BY day;
+
+-- name: IncrementInvoicesIndex :one
+INSERT INTO invoice_indexes (year, cashbox_id, last_index, type)
+VALUES (?, ?, 1, ?)
+ON CONFLICT (cashbox_id, year, type) DO UPDATE SET last_index = last_index + 1
+RETURNING last_index;
 
 -- name: GetTodayIncomeByAccount :many
 SELECT ca.name, SUM(i.grand_total) as total

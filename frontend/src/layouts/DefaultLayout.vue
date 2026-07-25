@@ -2,10 +2,8 @@
   <v-app>
     <AppBar />
     <NavDrawer />
-    <v-main>
-      <v-container class="pa-0 h-100" fluid style="overflow: hidden">
-        <router-view />
-      </v-container>
+    <v-main class="app-main">
+      <router-view />
     </v-main>
   </v-app>
 </template>
@@ -14,3 +12,17 @@
 import AppBar from "@/components/AppBar.vue";
 import NavDrawer from "@/components/NavDrawer.vue";
 </script>
+
+<style>
+html,
+body {
+  overflow: hidden;
+}
+.app-main {
+  height: 100vh;
+}
+.app-main :deep(.v-main__wrap) {
+  height: 100%;
+  overflow-y: auto;
+}
+</style>

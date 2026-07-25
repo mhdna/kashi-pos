@@ -1,0 +1,55 @@
+/* Layout adjustments for the 1024x768 Windows build. */
+.kashi-compact {
+  font-size: 13px;
+
+  .v-app-bar {
+    height: 48px !important;
+  }
+
+  .v-navigation-drawer {
+    width: 86px !important;
+  }
+
+  .v-list-item {
+    padding-inline: 4px;
+  }
+
+  .v-card-title {
+    padding: 12px 14px 6px;
+  }
+
+  .v-card-text {
+    padding: 10px 14px 2px;
+  }
+
+  .v-card-actions {
+    padding: 8px 14px;
+  }
+
+  .settings-page {
+    padding: 14px;
+  }
+
+  .settings-grid {
+    gap: 10px;
+  }
+
+  .settings-card .v-card-title,
+  .settings-card .v-card-text {
+    padding-inline: 14px;
+  }
+
+  .settings-card .v-card-title {
+    padding-top: 12px;
+  }
+}
+
+/* This also disables Vuetify transitions and component animations. */
+.animations-disabled,
+.animations-disabled * {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}

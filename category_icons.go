@@ -3,10 +3,10 @@ package main
 import "fmt"
 
 func (a *App) ListCategoryIcons() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	list, err := a.queries.ListCategoryIcons(a.ctx)
+	list, err := a.store.ListCategoryIcons(a.ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -6,10 +6,10 @@ import (
 )
 
 func (a *App) ListInventories() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	list, err := a.queries.ListInventories(a.ctx)
+	list, err := a.store.ListInventories(a.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -21,16 +21,16 @@ func (a *App) ListInventories() ([]map[string]any, error) {
 }
 
 func (a *App) ListInventoryItems(inventoryID int64) ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	items, err := a.queries.ListInventoryItems(a.ctx, inventoryID)
+	items, err := a.store.ListInventoryItems(a.ctx, inventoryID)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]map[string]any, len(items))
 	for i, item := range items {
-		product, _ := a.queries.GetProductByID(a.ctx, item.ProductID)
+		product, _ := a.store.GetProductByID(a.ctx, item.ProductID)
 		name := ""
 		if product.Name != "" {
 			name = product.Name
@@ -45,10 +45,10 @@ func (a *App) ListInventoryItems(inventoryID int64) ([]map[string]any, error) {
 }
 
 func (a *App) ListTransfers() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	list, err := a.queries.ListTransfers(a.ctx)
+	list, err := a.store.ListTransfers(a.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -66,10 +66,10 @@ func (a *App) ListTransfers() ([]map[string]any, error) {
 }
 
 func (a *App) ListClients() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	list, err := a.queries.ListClients(a.ctx)
+	list, err := a.store.ListClients(a.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -88,36 +88,36 @@ func (a *App) ListClients() ([]map[string]any, error) {
 }
 
 func (a *App) ListShifts() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	list, err := a.queries.ListShifts(a.ctx)
+	list, err := a.store.ListShifts(a.ctx)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]map[string]any, len(list))
 	for i, s := range list {
 		result[i] = map[string]any{
-			"id":       s.ID,
-			"isClosed": s.IsClosed,
-			"createdAt": s.CreatedAt,
-			"closedAt": s.ClosedAt,
+			"id":        s.ID,
+			"isClosed":  s.IsClosed,
+			"createdAt": toLocalTime(s.CreatedAt),
+			"closedAt":  toLocalTime(s.ClosedAt),
 		}
 	}
 	return result, nil
 }
 
 func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	balances, err := a.queries.ListShiftAccountBalances(a.ctx, shiftID)
+	balances, err := a.store.ListShiftAccountBalances(a.ctx, shiftID)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]map[string]any, len(balances))
 	for i, b := range balances {
-		account, _ := a.queries.GetCashboxAccountByID(a.ctx, b.AccountID)
+		account, _ := a.store.GetCashboxAccountByID(a.ctx, b.AccountID)
 		name := ""
 		if account.Name != "" {
 			name = account.Name
@@ -132,10 +132,10 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 }
 
 func (a *App) ListInvoices() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	list, err := a.queries.ListInvoices(a.ctx)
+	list, err := a.store.ListInvoices(a.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -155,10 +155,10 @@ func (a *App) ListInvoices() ([]map[string]any, error) {
 }
 
 func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.queries.GetDailyIncomeByMonth(a.ctx, yearMonth)
+	rows, err := a.store.GetDailyIncomeByMonth(a.ctx, yearMonth)
 	if err != nil {
 		return nil, err
 	}
@@ -178,10 +178,10 @@ func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) 
 }
 
 func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.queries.GetTodayIncomeByAccount(a.ctx)
+	rows, err := a.store.GetTodayIncomeByAccount(a.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -199,4 +199,29 @@ func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 func (a *App) GetCurrentMonth() string {
 	now := time.Now()
 	return now.Format("2006-01")
+}
+
+func (a *App) GetShiftTotals() ([]map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	rows, err := a.store.GetShiftTotals(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]any, len(rows))
+	for i, r := range rows {
+		total := float64(0)
+		if t, ok := r.Total.(int64); ok {
+			total = float64(t)
+		}
+		result[i] = map[string]any{
+			"id":        r.ID,
+			"isClosed":  r.IsClosed,
+			"createdAt": toLocalTime(r.CreatedAt),
+			"closedAt":  toLocalTime(r.ClosedAt),
+			"total":     total,
+		}
+	}
+	return result, nil
 }

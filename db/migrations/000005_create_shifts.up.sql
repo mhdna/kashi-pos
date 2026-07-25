@@ -7,7 +7,7 @@ create table if not exists cashbox_accounts (
 create table if not exists shifts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     is_closed integer not null default 0,
-    created_at text not null default (datetime('now')),
+    created_at text not null default (datetime('now', 'localtime')),
     closed_at text not null default ''
 );
 

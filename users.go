@@ -7,16 +7,16 @@ import (
 )
 
 func (a *App) ListUsers() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	users, err := a.queries.ListUsers(a.ctx)
+	users, err := a.store.ListUsers(a.ctx)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]map[string]any, len(users))
 	for i, u := range users {
-		role, _ := a.queries.GetRoleByID(a.ctx, u.RoleID)
+		role, _ := a.store.GetRoleByID(a.ctx, u.RoleID)
 		roleName := ""
 		if role.Name != "" {
 			roleName = role.Name
@@ -33,10 +33,10 @@ func (a *App) ListUsers() ([]map[string]any, error) {
 }
 
 func (a *App) CreateUser(username, password string, roleID int64) (map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	user, err := a.queries.CreateUser(a.ctx, db.CreateUserParams{
+	user, err := a.store.CreateUser(a.ctx, db.CreateUserParams{
 		Username:     username,
 		PasswordHash: hashPassword(password),
 		RoleID:       roleID,
@@ -54,7 +54,7 @@ func (a *App) CreateUser(username, password string, roleID int64) (map[string]an
 }
 
 func (a *App) UpdateUser(id int64, username, password string, roleID, active int64) error {
-	if a.queries == nil {
+	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
 	params := db.UpdateUserParams{
@@ -66,28 +66,28 @@ func (a *App) UpdateUser(id int64, username, password string, roleID, active int
 	if password != "" {
 		params.PasswordHash = hashPassword(password)
 	} else {
-		user, err := a.queries.GetUserByID(a.ctx, id)
+		user, err := a.store.GetUserByID(a.ctx, id)
 		if err != nil {
 			return err
 		}
 		params.PasswordHash = user.PasswordHash
 	}
-	_, err := a.queries.UpdateUser(a.ctx, params)
+	_, err := a.store.UpdateUser(a.ctx, params)
 	return err
 }
 
 func (a *App) DeleteUser(id int64) error {
-	if a.queries == nil {
+	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return a.queries.DeleteUser(a.ctx, id)
+	return a.store.DeleteUser(a.ctx, id)
 }
 
 func (a *App) ListRoles() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	roles, err := a.queries.ListRoles(a.ctx)
+	roles, err := a.store.ListRoles(a.ctx)
 	if err != nil {
 		return nil, err
 	}

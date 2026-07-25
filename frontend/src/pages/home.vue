@@ -11,7 +11,7 @@
             <ReturnInvoiceMenu />
           </div>
         </v-card-title>
-        <v-card-subtitle> SA/CN/2026/1441 </v-card-subtitle>
+        <v-card-subtitle> {{ invoiceCode || "------" }} </v-card-subtitle>
       </div>
       <div class="d-flex align-center mx-4 mt-4">
         <v-text-field
@@ -30,7 +30,7 @@
         </v-btn>
         <ProductSearchDialog @select="onProductSelect" />
       </div>
-      <InvoiceItems ref="invoiceItems" style="flex: 1 1 0; min-height: 0" />
+      <InvoiceItems ref="invoiceItems" :rounding-mode="roundingMode" style="flex: 1 1 0; min-height: 0" />
       <InvoiceSummary
         :subtotal="invoiceItems?.subtotal ?? 0"
         :total-discount="invoiceItems?.totalDiscount ?? 0"
@@ -61,6 +61,7 @@
       </div>
       <div style="flex: 2 2 0; min-width: 0">
         <ActionBar
+          ref="actionBar"
           :total="invoiceTotal"
           :can-checkout="canCheckout"
           :has-items="hasItems"
@@ -94,6 +95,8 @@ import {
   CheckoutInvoice,
   GetAppSettings,
   DeleteHoldInvoice,
+  GetOpenShift,
+  OpenShift,
 } from "../../wailsjs/go/main/App";
 import ActionBar from "@/components/ActionBar.vue";
 import Calculator from "@/components/Calculator.vue";
@@ -104,12 +107,25 @@ import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 
 const taxRate = ref(0);
+const roundingMode = ref("half_up");
+const receiptEnabled = ref(false);
+const receiptPrinter = ref("");
+const branchName = ref("Store");
+const invoiceCode = ref("");
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
+const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
+
+function roundCents(value: number, mode: string): number {
+  if (mode === "down") return Math.floor(value + 1e-9);
+  if (mode === "up") return Math.ceil(value - 1e-9);
+  return Math.floor(value + 0.5);
+}
+
 const invoiceTotal = computed(() => {
-  const subtotal = invoiceItems.value?.subtotal ?? 0;
-  const totalDiscount = invoiceItems.value?.totalDiscount ?? 0;
-  return (subtotal - totalDiscount) * (1 + taxRate.value);
+  const discountedCents = invoiceItems.value?.discountedSubtotalCents ?? 0;
+  const taxCents = roundCents((discountedCents / 100) * taxRate.value * 100, roundingMode.value);
+  return (discountedCents + taxCents) / 100;
 });
 const canCheckout = computed(() => calculator.value?.diff === 0 && invoiceTotal.value > 0);
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
@@ -202,25 +218,31 @@ async function onVoid() {
 async function onCheckout() {
   const json = await getFullItemsJSON();
   if (json === "[]") return;
-  printing.value = true;
+  printing.value = receiptEnabled.value;
   try {
-    const settings = await GetAppSettings();
-    const receiptNo = "INV-" + Date.now();
-    await CheckoutInvoice(
+    const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
+    const clientID = actionBar.value?.clientId ?? 0;
+    const result = await CheckoutInvoice(
       json,
-      settings.branchName || "Store",
-      settings.branchName || "Branch",
+      paymentsJSON,
+      clientID,
+      branchName.value,
+      branchName.value,
       "",
       "",
-      receiptNo,
-      settings.receiptPrinter || "",
+      receiptPrinter.value,
     );
-    snackbar.text = "Receipt printed successfully";
+    invoiceCode.value = result?.invoiceCode ?? "";
+    snackbar.text = result?.receiptError
+      ? `Invoice created; receipt failed — ${result.receiptError}`
+      : receiptEnabled.value
+        ? `Receipt printed — ${result?.invoiceCode ?? ""}`
+        : `Invoice created — ${result?.invoiceCode ?? ""}`;
     snackbar.color = "success";
     snackbar.show = true;
     invoiceItems.value?.clearItems();
   } catch (e: any) {
-    snackbar.text = e?.toString() || "Print failed";
+    snackbar.text = e?.toString() || "Checkout failed";
     snackbar.color = "red-darken-4";
     snackbar.show = true;
   }
@@ -245,7 +267,18 @@ onMounted(async () => {
   }
   try {
     const settings = await GetAppSettings();
-    taxRate.value = settings?.taxRate ?? 0;
+    taxRate.value = Number(settings?.taxRate ?? 0);
+    roundingMode.value = settings?.roundingMode ?? "half_up";
+    receiptEnabled.value = Boolean(settings?.receiptEnabled);
+    receiptPrinter.value = settings?.receiptPrinter ?? "";
+    branchName.value = settings?.branchName || "Store";
   } catch {}
+  try {
+    await GetOpenShift();
+  } catch {
+    try {
+      await OpenShift();
+    } catch {}
+  }
 });
 </script>

@@ -10,40 +10,44 @@
   />
 </template>
 <script setup>
-  import { ref } from 'vue'
+import { ref } from "vue";
 
-  const search = ref('')
-  const headers = [
-    {
-      title: 'Description',
-      align: 'start',
-      key: 'name',
-    },
-    {
-      title: 'Code',
-      align: 'end',
-      key: 'cores',
-    },
-    {
-      title: 'Qty',
-      align: 'end',
-      key: 'threads',
-    },
-    {
-      title: 'Discount',
-      align: 'end',
-      key: 'boostClock',
-    },
-    {
-      title: 'Net Amount',
-      align: 'end',
-      key: 'tdp',
-    },
-  ]
-  const items = [
-  ]
+const search = ref("");
+const headers = [
+  {
+    title: "Description",
+    align: "start",
+    key: "name",
+  },
+  {
+    title: "Code",
+    align: "end",
+    key: "cores",
+  },
+  {
+    title: "Qty",
+    align: "end",
+    key: "threads",
+  },
+  {
+    title: "Discount",
+    align: "end",
+    key: "boostClock",
+  },
+  {
+    title: "Net Amount",
+    align: "end",
+    key: "tdp",
+  },
+];
+const items = [];
 
-  function filterOnlyCapsText (value, query, item) {
-    return value != null && query != null && typeof value === 'string' && value.toString().toLocaleUpperCase().includes(query)
-  }
+function filterOnlyCapsText(value, query, item) {
+  return (
+    value != null &&
+    query != null &&
+    typeof value === "string" &&
+    value.toString().toLocaleUpperCase().includes(query)
+  );
+}
 </script>

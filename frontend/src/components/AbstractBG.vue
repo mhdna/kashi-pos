@@ -1,14 +1,7 @@
 <template>
   <svg
     ref="svgEl"
-    style="
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: block;
-    "
+    style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block"
     version="1.1"
   />
 </template>
@@ -30,8 +23,7 @@ class Vector {
 }
 
 function jitter(point, attr, dimension) {
-  point[attr] +=
-    Math.random() * (Math.random() > 0.5 ? -1 : 1) * dimension * 0.175;
+  point[attr] += Math.random() * (Math.random() > 0.5 ? -1 : 1) * dimension * 0.175;
 }
 
 function generatePoints(cols, rows) {
@@ -44,8 +36,7 @@ function generatePoints(cols, rows) {
       let topLeft, topRight, bottomLeft;
       const bottomRight = new Vector((c + 1) * colW, (r + 1) * rowH);
 
-      topRight =
-        r === 0 ? new Vector((c + 1) * colW, 0) : grid[r - 1][c].bottomRight;
+      topRight = r === 0 ? new Vector((c + 1) * colW, 0) : grid[r - 1][c].bottomRight;
 
       if (c === 0) {
         topLeft = r === 0 ? new Vector(0, 0) : grid[r - 1][0].bottomLeft;
@@ -70,24 +61,14 @@ function render(svg, grid, rows, cols) {
   svg.innerHTML = "";
   const w = window.innerWidth,
     h = window.innerHeight;
-  const px = (p) =>
-    `${Math.floor((p.x / 100) * w)},${Math.floor((p.y / 100) * h)}`;
+  const px = (p) => `${Math.floor((p.x / 100) * w)},${Math.floor((p.y / 100) * h)}`;
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const { topLeft, topRight, bottomLeft, bottomRight } = grid[r][c];
-      const el = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "polygon",
-      );
-      el.setAttribute(
-        "points",
-        [topLeft, topRight, bottomRight, bottomLeft].map(px).join(" "),
-      );
-      el.setAttribute(
-        "style",
-        "fill:white;fill-opacity:1;stroke:#222;stroke-width:1px;",
-      );
+      const el = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      el.setAttribute("points", [topLeft, topRight, bottomRight, bottomLeft].map(px).join(" "));
+      el.setAttribute("style", "fill:#4a352f;fill-opacity:1;stroke:#222;stroke-width:1px;");
       svg.append(el);
     }
   }

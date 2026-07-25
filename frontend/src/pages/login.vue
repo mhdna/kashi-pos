@@ -1,24 +1,41 @@
 <script setup lang="ts">
-// import AbstractBG from "@/components/AbstractBG.vue";
+import AbstractBG from "@/components/AbstractBG.vue";
 import FloatingIcons from "@/components/FloatingIcons.vue";
 import LoginForm from "@/components/LoginForm.vue";
+import bg from "@/assets/bg.png";
 </script>
 
 <template>
-  <!-- <AbstractBG /> -->
+  <div class="login-page bg-brown-lighten-4">
+    <!-- <AbstractBG /> -->
+    <!-- <v-img :src="bg" cover class="login-background" /> -->
 
-  <floating-icons />
-  <div
-    class="d-flex flex-column"
-    style="
-      position: relative;
-      z-index: 1;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    "
-  >
-    <LoginForm />
+    <FloatingIcons />
+    <div class="login-content">
+      <LoginForm />
+    </div>
   </div>
 </template>
+
+<style scoped>
+.login-page {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.login-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.login-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+</style>

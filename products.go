@@ -3,11 +3,11 @@ package main
 import "fmt"
 
 func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	product, err := a.queries.GetProductByBarcode(a.ctx, barcode)
+	product, err := a.store.GetProductByBarcode(a.ctx, barcode)
 	if err != nil {
 		return nil, fmt.Errorf("product not found")
 	}
@@ -24,11 +24,11 @@ func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
 }
 
 func (a *App) GetProductByCode(code string) (map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	product, err := a.queries.GetProductByCode(a.ctx, code)
+	product, err := a.store.GetProductByCode(a.ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("product not found")
 	}
@@ -45,11 +45,11 @@ func (a *App) GetProductByCode(code string) (map[string]any, error) {
 }
 
 func (a *App) ListProducts() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	products, err := a.queries.ListProducts(a.ctx)
+	products, err := a.store.ListProducts(a.ctx)
 	if err != nil {
 		return nil, err
 	}

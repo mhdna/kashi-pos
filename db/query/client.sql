@@ -19,6 +19,12 @@ SET name = ?,
     valid_loyalty_points = ?
 WHERE id = ? RETURNING *;
 
+-- name: AddClientLoyaltyPoints :exec
+UPDATE clients
+SET total_loyalty_points = total_loyalty_points + ?,
+    valid_loyalty_points = valid_loyalty_points + ?
+WHERE id = ?;
+
 -- name: DeleteClient :exec
 DELETE FROM clients WHERE id = ?;
 

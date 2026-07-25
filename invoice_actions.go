@@ -24,7 +24,7 @@ type invoiceItem struct {
 }
 
 func (a *App) HoldInvoice(itemsJSON string) (int64, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return 0, fmt.Errorf("database not initialized")
 	}
 	var items []struct {
@@ -34,16 +34,16 @@ func (a *App) HoldInvoice(itemsJSON string) (int64, error) {
 	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
 		return 0, err
 	}
-	inv, err := a.queries.CreateHoldInvoice(a.ctx)
+	inv, err := a.store.CreateHoldInvoice(a.ctx)
 	if err != nil {
 		return 0, err
 	}
 	for _, it := range items {
-		product, err := a.queries.GetProductByCode(a.ctx, it.Code)
+		product, err := a.store.GetProductByCode(a.ctx, it.Code)
 		if err != nil {
 			continue
 		}
-		_ = a.queries.AddHoldInvoiceItem(a.ctx, db.AddHoldInvoiceItemParams{
+		_ = a.store.AddHoldInvoiceItem(a.ctx, db.AddHoldInvoiceItemParams{
 			HoldInvoiceID: inv.ID,
 			ProductID:     product.ID,
 			Qty:           int64(it.Qty),
@@ -53,16 +53,16 @@ func (a *App) HoldInvoice(itemsJSON string) (int64, error) {
 }
 
 func (a *App) ListHoldInvoices() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	list, err := a.queries.ListHoldInvoices(a.ctx)
+	list, err := a.store.ListHoldInvoices(a.ctx)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]map[string]any, len(list))
 	for i, inv := range list {
-		items, _ := a.queries.ListHoldInvoiceItems(a.ctx, inv.ID)
+		items, _ := a.store.ListHoldInvoiceItems(a.ctx, inv.ID)
 		itemCount := len(items)
 		var itemList []map[string]any
 		for _, it := range items {
@@ -86,32 +86,42 @@ func (a *App) ListHoldInvoices() ([]map[string]any, error) {
 }
 
 func (a *App) DeleteHoldInvoice(id int64) error {
-	if a.queries == nil {
+	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return a.queries.DeleteHoldInvoice(a.ctx, id)
+	return a.store.DeleteHoldInvoice(a.ctx, id)
 }
 
 func (a *App) VoidInvoice(itemsJSON string, reason string) error {
-	if a.queries == nil {
+	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	_, err := a.queries.CreateVoidInvoice(a.ctx, db.CreateVoidInvoiceParams{
+	_, err := a.store.CreateVoidInvoice(a.ctx, db.CreateVoidInvoiceParams{
 		ItemsJson: itemsJSON,
 		Reason:    reason,
 	})
 	return err
 }
 
-func (a *App) CheckoutInvoice(itemsJSON string, storeName, branch, phone, salesperson, receiptNo, receiptPrinter string) error {
-	var items []invoiceItem
-	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
-		return err
+func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter string) (map[string]any, error) {
+	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID})
+	if err != nil {
+		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}
-	if len(items) == 0 {
-		return fmt.Errorf("no items")
+
+	response := map[string]any{
+		"invoiceCode":    result.InvoiceCode,
+		"receiptPrinted": false,
 	}
-	return a.printReceipt(items, storeName, branch, phone, salesperson, receiptNo, receiptPrinter)
+	settings, settingsErr := a.store.GetSettings(a.ctx)
+	if settingsErr == nil && settings.ReceiptEnabled != 0 {
+		if err := a.printReceipt(result.Items, settings.BranchName, settings.BranchName, phone, salesperson, result.InvoiceCode, settings.ReceiptPrinter); err != nil {
+			response["receiptError"] = err.Error()
+		} else {
+			response["receiptPrinted"] = true
+		}
+	}
+	return response, nil
 }
 
 func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo, printerName string) error {

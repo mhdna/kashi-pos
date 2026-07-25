@@ -8,11 +8,7 @@
         Return Invoice
       </v-btn>
     </template>
-    <v-card
-      class="d-flex flex-column text-center"
-      min-width="400"
-      subtitle="Return Invoice"
-    >
+    <v-card class="d-flex flex-column text-center" min-width="400" subtitle="Return Invoice">
       <v-card-text class="flex-grow-1">
         <v-text-field
           density="compact"
@@ -24,9 +20,7 @@
       </v-card-text>
       <v-card-actions class="pa-2 ga-2">
         <v-btn class="flex-1-1" variant="elevated">Cancel</v-btn>
-        <v-btn class="flex-1-1" color="red-darken-4" variant="elevated"
-          >Return Invoice</v-btn
-        >
+        <v-btn class="flex-1-1" color="red-darken-4" variant="elevated">Return Invoice</v-btn>
       </v-card-actions>
     </v-card>
   </v-menu>

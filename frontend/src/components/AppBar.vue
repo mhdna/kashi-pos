@@ -1,11 +1,9 @@
 <template>
-  <v-app-bar color="red-darken-4">
+  <v-app-bar color="brown-darken-3">
     <template #prepend>
       <div class="d-flex flex-column align-last justify-center mx-2">
-        <v-app-bar-title class="text-title-medium"
-          >GB POS Terminal
-        </v-app-bar-title>
-        <div class="text-title-small">Main</div>
+        <v-app-bar-title class="text-title-medium"> Kashi POS </v-app-bar-title>
+        <div class="text-title-small">{{ branchName || "Branch" }}</div>
       </div>
       <div class="mx-8 me-0 text-title-small">{{ time }}</div>
       <!-- <div class="mx-8 text-title-small text-green pa-1 px-3"> -->
@@ -23,11 +21,13 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
+import { GetAppSettings } from "../../wailsjs/go/main/App";
 import ToggleTheme from "./ToggleTheme.vue";
 import NewTransferAlert from "./NewTransferAlert.vue";
 import SalespersonsDialog from "./SalespersonsDialog.vue";
 
 const time = ref("");
+const branchName = ref("");
 
 function updateTime() {
   const now = new Date();
@@ -36,9 +36,13 @@ function updateTime() {
 }
 
 let interval: ReturnType<typeof setInterval>;
-onMounted(() => {
+onMounted(async () => {
   updateTime();
   interval = setInterval(updateTime, 1000);
+  try {
+    const settings = await GetAppSettings();
+    branchName.value = settings?.branchName ?? "";
+  } catch {}
 });
 onUnmounted(() => clearInterval(interval));
 </script>

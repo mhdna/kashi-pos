@@ -42,8 +42,7 @@
       class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
       rounded="lg"
       text="Void"
-      color="yellow-darken-4"
-      variant="tonal"
+      color="brown-lighten-4"
       width="100%"
       @click="ask('void')"
       :disabled="!hasItems"
@@ -54,10 +53,9 @@
     </v-btn>
     <v-btn
       class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
-      color="red-darken-4"
+      color="red-lighten-4"
       rounded="lg"
       text="Hold"
-      variant="tonal"
       width="100%"
       @click="ask('hold')"
       :disabled="!hasItems"
@@ -68,10 +66,9 @@
     </v-btn>
     <v-btn
       class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
-      color="green-darken-4"
+      color="green-lighten-4"
       rounded="lg"
       text="Check Out"
-      variant="tonal"
       width="100%"
       @click="$emit('checkout')"
       :disabled="!canCheckout"
@@ -160,4 +157,6 @@ const tierColor = computed(() => {
 function onClientSelect(selected: Client) {
   Object.assign(client, selected);
 }
+
+defineExpose({ clientId: computed(() => client.id) });
 </script>

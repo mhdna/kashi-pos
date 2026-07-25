@@ -65,6 +65,44 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 	return i, err
 }
 
+const createInvoicePayment = `-- name: CreateInvoicePayment :exec
+INSERT INTO invoice_payments (invoice_id, cashbox_id, amount) VALUES (?, ?, ?)
+ON CONFLICT (invoice_id, cashbox_id) DO UPDATE SET amount = invoice_payments.amount + excluded.amount
+`
+
+type CreateInvoicePaymentParams struct {
+	InvoiceID int64 `json:"invoiceId"`
+	CashboxID int64 `json:"cashboxId"`
+	Amount    int64 `json:"amount"`
+}
+
+func (q *Queries) CreateInvoicePayment(ctx context.Context, arg CreateInvoicePaymentParams) error {
+	_, err := q.db.ExecContext(ctx, createInvoicePayment, arg.InvoiceID, arg.CashboxID, arg.Amount)
+	return err
+}
+
+const createInvoicePaymentEntry = `-- name: CreateInvoicePaymentEntry :exec
+INSERT INTO invoice_payment_entries (invoice_id, cashbox_id, amount, entry_type)
+VALUES (?, ?, ?, ?)
+`
+
+type CreateInvoicePaymentEntryParams struct {
+	InvoiceID int64  `json:"invoiceId"`
+	CashboxID int64  `json:"cashboxId"`
+	Amount    int64  `json:"amount"`
+	EntryType string `json:"entryType"`
+}
+
+func (q *Queries) CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoicePaymentEntryParams) error {
+	_, err := q.db.ExecContext(ctx, createInvoicePaymentEntry,
+		arg.InvoiceID,
+		arg.CashboxID,
+		arg.Amount,
+		arg.EntryType,
+	)
+	return err
+}
+
 const createInvoiceProduct = `-- name: CreateInvoiceProduct :exec
 INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity)
 VALUES (?, ?, ?, ?, ?, ?)
@@ -264,6 +302,26 @@ func (q *Queries) GetTodayIncomeByAccount(ctx context.Context) ([]GetTodayIncome
 		return nil, err
 	}
 	return items, nil
+}
+
+const incrementInvoicesIndex = `-- name: IncrementInvoicesIndex :one
+INSERT INTO invoice_indexes (year, cashbox_id, last_index, type)
+VALUES (?, ?, 1, ?)
+ON CONFLICT (cashbox_id, year, type) DO UPDATE SET last_index = last_index + 1
+RETURNING last_index
+`
+
+type IncrementInvoicesIndexParams struct {
+	Year      int64  `json:"year"`
+	CashboxID int64  `json:"cashboxId"`
+	Type      string `json:"type"`
+}
+
+func (q *Queries) IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, incrementInvoicesIndex, arg.Year, arg.CashboxID, arg.Type)
+	var last_index int64
+	err := row.Scan(&last_index)
+	return last_index, err
 }
 
 const listInvoiceProducts = `-- name: ListInvoiceProducts :many

@@ -1,5 +1,5 @@
 <template>
-  <v-card class="pa-4 ma-4">
+  <v-card class="pa-4">
     <v-card-title>Clients</v-card-title>
     <v-data-table :headers="headers" :items="items" :loading="loading" density="compact" hover>
       <template #item.avatar="{ item }">

@@ -24,5 +24,15 @@ INSERT INTO inventory_items (inventory_id, product_id, quantity)
 VALUES (?, ?, ?)
 ON CONFLICT (inventory_id, product_id) DO UPDATE SET quantity = excluded.quantity;
 
+-- name: AddInventoryProductQuantity :exec
+INSERT INTO inventory_items (inventory_id, product_id, quantity)
+VALUES (?, ?, ?)
+ON CONFLICT (inventory_id, product_id) DO UPDATE SET quantity = inventory_items.quantity + excluded.quantity;
+
+-- name: DecreaseInventoryProductQuantity :execresult
+UPDATE inventory_items
+SET quantity = quantity - ?
+WHERE inventory_id = ? AND product_id = ? AND quantity >= ?;
+
 -- name: DeleteInventoryItem :exec
 DELETE FROM inventory_items WHERE inventory_id = ? AND product_id = ?;

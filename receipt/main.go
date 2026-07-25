@@ -39,11 +39,11 @@ const (
 
 // ---------- Fictional store data ----------
 const (
-	storeName    = "Demo Store"
-	storeTagline = "Ultimate Shopping Destination"
-	branch       = "Branch: Main Branch"
-	phone        = "Tel: +961 70 000 000"
-	salesperson  = "Sold by: Sarah M."
+	storeName    = "G"
+	storeTagline = "U"
+	branch       = "Branch: "
+	phone        = "T"
+	salesperson  = "Sold by: S"
 	cashierID    = "Register #1"
 	receiptNo    = "INV-2026-00001"
 	currency     = "$"

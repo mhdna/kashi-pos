@@ -15,19 +15,38 @@
           >Continue</v-btn
         >
         <v-btn class="w-100" variant="tonal" @click="selectAnonymous">Prefer not to say</v-btn>
-      </v-card-actions>
+      </v-card-text>
     </v-card>
 
     <v-card v-else-if="step === 'new'">
       <v-card-title>New Client</v-card-title>
       <v-card-text>
-        <v-text-field v-model="newClient.phone" label="Phone Number" variant="outlined" density="compact" class="mb-2" readonly />
-        <v-text-field v-model="newClient.name" label="Name" variant="outlined" density="compact" autofocus />
+        <v-text-field
+          v-model="newClient.phone"
+          label="Phone Number"
+          variant="outlined"
+          density="compact"
+          class="mb-2"
+          readonly
+        />
+        <v-text-field
+          v-model="newClient.name"
+          label="Name"
+          variant="outlined"
+          density="compact"
+          autofocus
+        />
       </v-card-text>
       <v-card-actions class="pa-4">
         <v-btn variant="text" @click="step = 'phone'">Back</v-btn>
         <v-spacer />
-        <v-btn variant="elevated" color="primary" :disabled="!newClient.name.trim()" @click="createClient">Save</v-btn>
+        <v-btn
+          variant="elevated"
+          color="primary"
+          :disabled="!newClient.name.trim()"
+          @click="createClient"
+          >Save</v-btn
+        >
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -52,14 +71,21 @@ const emit = defineEmits<{ select: [client: Client] }>();
 
 const dialog = defineModel<boolean>({ default: false });
 const dialogOpen = inject<import("vue").Ref<boolean>>("dialogOpen", { value: false } as any);
-watch(dialog, (v) => { dialogOpen.value = v; });
+watch(dialog, (v) => {
+  dialogOpen.value = v;
+});
 
 const step = ref<"phone" | "new">("phone");
 const phone = ref("");
 const newClient = reactive({ name: "", phone: "" });
 
 function initials(name: string) {
-  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 }
 
 function tier(points: number) {
@@ -102,9 +128,14 @@ async function createClient() {
     emit("select", toClient(c));
   } catch {
     emit("select", {
-      id: 0, name: newClient.name.trim(), phone: newClient.phone,
-      initials: initials(newClient.name.trim()), tier: "Bronze",
-      points: 0, totalLoyaltyPoints: 0, validLoyaltyPoints: 0,
+      id: 0,
+      name: newClient.name.trim(),
+      phone: newClient.phone,
+      initials: initials(newClient.name.trim()),
+      tier: "Bronze",
+      points: 0,
+      totalLoyaltyPoints: 0,
+      validLoyaltyPoints: 0,
     });
   }
   dialog.value = false;
@@ -113,9 +144,14 @@ async function createClient() {
 
 function selectAnonymous() {
   emit("select", {
-    id: 0, name: "Anonymous", phone: "",
-    initials: "AN", tier: "None",
-    points: 0, totalLoyaltyPoints: 0, validLoyaltyPoints: 0,
+    id: 0,
+    name: "Anonymous",
+    phone: "",
+    initials: "AN",
+    tier: "None",
+    points: 0,
+    totalLoyaltyPoints: 0,
+    validLoyaltyPoints: 0,
   });
   dialog.value = false;
   reset();

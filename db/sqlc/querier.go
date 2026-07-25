@@ -10,8 +10,12 @@ import (
 )
 
 type Querier interface {
+	AddCashboxAccountBalance(ctx context.Context, arg AddCashboxAccountBalanceParams) (ShiftsAccountsBalance, error)
+	AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyaltyPointsParams) error
 	AddHoldInvoiceItem(ctx context.Context, arg AddHoldInvoiceItemParams) error
+	AddInventoryProductQuantity(ctx context.Context, arg AddInventoryProductQuantityParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
+	CloseOpenShifts(ctx context.Context, closedAt string) error
 	CloseShift(ctx context.Context, arg CloseShiftParams) error
 	CreateAccount(ctx context.Context, name string) (Account, error)
 	CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error)
@@ -22,6 +26,8 @@ type Querier interface {
 	CreateHoldInvoice(ctx context.Context) (HoldInvoice, error)
 	CreateInventory(ctx context.Context, name string) (Inventory, error)
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error)
+	CreateInvoicePayment(ctx context.Context, arg CreateInvoicePaymentParams) error
+	CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoicePaymentEntryParams) error
 	CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) (Permission, error)
 	CreatePriceOverride(ctx context.Context, arg CreatePriceOverrideParams) (PriceOverride, error)
@@ -30,11 +36,12 @@ type Querier interface {
 	CreateRole(ctx context.Context, arg CreateRoleParams) (Role, error)
 	CreateSalesInvoice(ctx context.Context, invoiceID int64) error
 	CreateSalesperson(ctx context.Context, fullName string) (Salesperson, error)
-	CreateShift(ctx context.Context, arg CreateShiftParams) (Shift, error)
+	CreateShift(ctx context.Context, isClosed int64) (Shift, error)
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateVoidInvoice(ctx context.Context, arg CreateVoidInvoiceParams) (VoidInvoice, error)
+	DecreaseInventoryProductQuantity(ctx context.Context, arg DecreaseInventoryProductQuantityParams) (sql.Result, error)
 	DeleteAccount(ctx context.Context, id int64) error
 	DeleteAsset(ctx context.Context, id int64) error
 	DeleteCashboxAccount(ctx context.Context, id int64) error
@@ -67,6 +74,7 @@ type Querier interface {
 	GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 	GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams) (InvoiceIndex, error)
 	GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductParams) (InvoiceProduct, error)
+	GetOpenShift(ctx context.Context) (Shift, error)
 	GetPermissionByID(ctx context.Context, id int64) (Permission, error)
 	GetPermissionByName(ctx context.Context, name string) (Permission, error)
 	GetPriceOverride(ctx context.Context, id int64) (PriceOverride, error)
@@ -80,11 +88,13 @@ type Querier interface {
 	GetSettings(ctx context.Context) (Setting, error)
 	GetShiftAccountBalance(ctx context.Context, arg GetShiftAccountBalanceParams) (ShiftsAccountsBalance, error)
 	GetShiftByID(ctx context.Context, id int64) (Shift, error)
+	GetShiftTotals(ctx context.Context) ([]GetShiftTotalsRow, error)
 	GetTodayIncomeByAccount(ctx context.Context) ([]GetTodayIncomeByAccountRow, error)
 	GetTransferByID(ctx context.Context, id int64) (Transfer, error)
 	GetTransferItemByID(ctx context.Context, id int64) (TransferItem, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
+	IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error)
 	ListAccounts(ctx context.Context) ([]Account, error)
 	ListAssets(ctx context.Context) ([]Asset, error)
 	ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
@@ -126,7 +136,6 @@ type Querier interface {
 	UpsertInventoryItem(ctx context.Context, arg UpsertInventoryItemParams) error
 	UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error
 	UpsertSettings(ctx context.Context, arg UpsertSettingsParams) error
-	UpsertShiftAccountBalance(ctx context.Context, arg UpsertShiftAccountBalanceParams) error
 }
 
 var _ Querier = (*Queries)(nil)

@@ -9,14 +9,9 @@
   >
     <div
       class="text-center mb-6 text-white d-flex flex-column align-center"
-      style="
-        flex: 0 0 auto;
-        font-size: 32px;
-        font-weight: 900;
-        font-family: Belleza;
-      "
+      style="flex: 0 0 auto; font-size: 32px; font-weight: 900; font-family: Belleza, Arial, sans-serif"
     >
-      <v-img :src="logo" width="129" style="filter: invert(0.7)" />
+      <v-img :src="logo" width="140" style="filter: invert(0.7)" />
       <!-- <div>KBS</div> -->
     </div>
     <v-text-field
@@ -51,7 +46,7 @@
       class="mb-8"
       size="large"
       rounded="lg"
-      color="grey-darken-3"
+      color="green-lighten-4"
       @click="handleLogin"
       :loading="loading"
       :disabled="!username.trim() || !password.trim()"
@@ -117,8 +112,6 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-@import url("https://fonts.googleapis.com/css2?family=Belleza&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap");
-
 /*.v-btn.v-btn--disabled {
   background-color: rgb(139, 28, 28) !important;
   opacity: 0.5;

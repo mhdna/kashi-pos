@@ -10,12 +10,16 @@ export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }
 
-export function CheckoutInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
-  return window['go']['main']['App']['CheckoutInvoice'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+export function CheckoutInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+  return window['go']['main']['App']['CheckoutInvoice'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 }
 
 export function ClearScreen(arg1) {
   return window['go']['main']['App']['ClearScreen'](arg1);
+}
+
+export function CloseShiftByID(arg1, arg2) {
+  return window['go']['main']['App']['CloseShiftByID'](arg1, arg2);
 }
 
 export function CreateClient(arg1, arg2) {
@@ -54,12 +58,24 @@ export function GetDefaultCurrency() {
   return window['go']['main']['App']['GetDefaultCurrency']();
 }
 
+export function GetOpenShift() {
+  return window['go']['main']['App']['GetOpenShift']();
+}
+
 export function GetProductByBarcode(arg1) {
   return window['go']['main']['App']['GetProductByBarcode'](arg1);
 }
 
 export function GetProductByCode(arg1) {
   return window['go']['main']['App']['GetProductByCode'](arg1);
+}
+
+export function GetShiftTotals() {
+  return window['go']['main']['App']['GetShiftTotals']();
+}
+
+export function GetStartupError() {
+  return window['go']['main']['App']['GetStartupError']();
 }
 
 export function GetTheme() {
@@ -142,6 +158,10 @@ export function ListUsers() {
   return window['go']['main']['App']['ListUsers']();
 }
 
+export function OpenShift() {
+  return window['go']['main']['App']['OpenShift']();
+}
+
 export function SetTaxRate(arg1) {
   return window['go']['main']['App']['SetTaxRate'](arg1);
 }
@@ -150,8 +170,8 @@ export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
-export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
-  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12) {
+  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
 }
 
 export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {

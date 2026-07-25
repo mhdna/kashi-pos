@@ -33,13 +33,7 @@
                 >${{ totalAfterDiscount(item).toFixed(2) }}</span
               >
             </div>
-            <v-btn
-              density="compact"
-              variant="text"
-              size="small"
-              class="ml-1"
-              @click="removeItem(item)"
-            >
+            <v-btn variant="text" rounded size="small" @click="removeItem(item)">
               <v-icon icon="mdi-delete" size="18" color="grey" />
             </v-btn>
           </div>
@@ -61,6 +55,8 @@ interface LineItem {
   discount: number;
   qty: number;
 }
+
+const props = defineProps<{ roundingMode?: string }>();
 
 function discountAmount(item: LineItem): number {
   return item.price * item.qty * (item.discount / 100);
@@ -118,6 +114,23 @@ function clearItems() {
 
 const subtotal = computed(() => items.value.reduce((sum, i) => sum + i.price * i.qty, 0));
 const totalDiscount = computed(() => items.value.reduce((sum, i) => sum + discountAmount(i), 0));
+const subtotalCents = computed(() =>
+  items.value.reduce((sum, i) => sum + Math.round(i.price * 100) * Math.trunc(i.qty), 0),
+);
+const discountedSubtotalCents = computed(() =>
+  items.value.reduce((sum, i) => {
+    const gross = Math.round(i.price * 100) * Math.trunc(i.qty);
+    const discount = roundDiscount(gross, i.discount, props.roundingMode ?? "half_up");
+    return sum + gross - discount;
+  }, 0),
+);
 
-defineExpose({ subtotal, totalDiscount, addItem, items, clearItems });
+function roundDiscount(gross: number, discount: number, mode: string): number {
+  const numerator = gross * Math.trunc(discount);
+  if (mode === "down") return Math.floor(numerator / 100);
+  if (mode === "up") return Math.ceil(numerator / 100);
+  return Math.floor(numerator / 100 + 0.5);
+}
+
+defineExpose({ subtotal, totalDiscount, subtotalCents, discountedSubtotalCents, addItem, items, clearItems });
 </script>

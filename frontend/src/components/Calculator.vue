@@ -1,126 +1,154 @@
 <template>
-  <div class="w-100 h-100 position-relative pa-4" rounded="xl">
-    <div class="mb-2">
-      <v-progress-linear
-        bg-color="grey-darken-3"
-        :color="diff === 0 ? 'white' : diff > 0 ? 'green-darken-2' : 'red-darken-2'"
-        height="28"
-        :model-value="Math.min(total > 0 ? (paidUSD / total) * 100 : 0, 100)"
-        rounded
-      >
-        <template #default>
-          <span v-if="diff === 0" class="text-body-2 font-weight-bold text-green-darken-2">
-            Exact!</span
-          >
-          <span v-else>
-            <span v-if="diff > 0"
-              >Change: +{{ diff.toFixed(2) }} $ ({{ ((paidUSD / total) * 100).toFixed(0) }}%)</span
-            >
-            <span v-else
-              >Due: {{ Math.abs(diff).toFixed(2) }} $ ({{
-                ((paidUSD / total) * 100).toFixed(0)
-              }}%)</span
-            >
-          </span>
-        </template>
-      </v-progress-linear>
-    </div>
-
-    <v-btn-toggle v-model="activeType" class="mb-2 w-100" divided mandatory>
-      <v-btn v-for="t in types" :key="t.name" class="flex-grow-1" size="small" :value="t.name">{{
-        t.name
-      }}</v-btn>
+  <div class="w-100 h-100 px-4 py-2 rounded-xl">
+    <!-- Payment type -->
+    <v-btn-toggle v-model="activeType" class="w-100 mb-2" divided mandatory density="comfortable">
+      <v-btn v-for="t in types" :key="t.name" class="flex-grow-1" size="small" :value="t.name">
+        {{ t.name }}
+      </v-btn>
     </v-btn-toggle>
 
-    <v-card
-      class="pa-4 mb-4 text-right font-weight-bold"
-      color="grey-darken-3"
-      style="font-size: 14px"
-    >
-      {{ currentInput || "0" }}
-      <span v-if="currentInput && activeCurrency === 'LBP'">000</span>
-      <span class="ml-1">{{ activeType }}</span>
+    <!-- Amount display -->
+    <v-card class="pa-4 mb-4 text-right" variant="outlined" rounded="lg">
+      <span class="text-h5 font-weight-bold">{{ displayValue }}</span>
+      <span class="text-body-2 text-medium-emphasis ml-1">{{ activeType }}</span>
     </v-card>
 
-    <v-row class="font-weight-bold" density="compact">
+    <!-- Keypad -->
+    <v-row>
       <v-col v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9]" :key="n" cols="4">
         <v-btn block class="text-h6" @click="input(n.toString())">{{ n }}</v-btn>
       </v-col>
-      <v-col cols="4"
-        ><v-btn block class="text-h6 font-weight-bold" @click="input('.')">.</v-btn></v-col
-      >
+      <v-col cols="4"><v-btn block class="text-h6" @click="input('.')">.</v-btn></v-col>
       <v-col cols="4"><v-btn block class="text-h6" @click="input('0')">0</v-btn></v-col>
       <v-col cols="4"><v-btn block class="text-h6" @click="input('00')">00</v-btn></v-col>
-      <v-col cols="6"
-        ><v-btn block class="text-h6" color="red-darken-2" @click="clearAll()">CA</v-btn></v-col
-      >
-      <v-col cols="6"><v-btn block class="text-h6" @click="input('back')">⌫</v-btn></v-col>
+      <v-col cols="6">
+        <v-btn block class="text-h6" color="red-darken-2" @click="clearAll">CA</v-btn>
+      </v-col>
+      <v-col cols="6">
+        <v-btn block class="text-h6" @click="input('back')">⌫</v-btn>
+      </v-col>
     </v-row>
 
+    <!-- Confirm -->
     <v-btn
       block
       class="mt-4 text-h6 font-weight-bold"
-      :color="isReturning ? 'grey' : 'grey-darken-4'"
-      :disabled="currentInput === '' || total === 0"
+      :color="diffCents > 0 ? 'grey-darken-1' : 'grey-darken-4'"
+      :disabled="!currentInput || total === 0"
       height="44"
       @click="confirm"
     >
-      {{ isReturning ? "− Return" : "+ Add" }}
+      {{ diffCents > 0 ? '− Subtract payment' : '+ Add payment' }}
     </v-btn>
 
-    <div v-if="entries.length > 0" class="mt-4">
-      <v-divider class="mb-2" />
+    <!-- Progress -->
+    <div class="mt-6">
+      <div class="d-flex justify-space-between align-center mb-1">
+        <span class="text-caption text-medium-emphasis">{{ statusLabel }}</span>
+        <span class="text-body-2 font-weight-medium" :class="statusColor">{{ statusAmount }}</span>
+      </div>
+      <v-progress-linear
+        bg-color="grey-darken-3"
+        :color="progressColor"
+        striped
+        height="10"
+        :model-value="progressPct"
+        rounded
+      />
+    </div>
+
+    <!-- Entries -->
+    <template v-if="entries.length">
+      <v-divider class="my-4" />
       <div
         v-for="(e, i) in entries"
         :key="i"
         class="d-flex align-center justify-space-between py-2 px-1"
-        :class="e.amount >= 0 ? 'text-green-darken-3' : 'text-red-darken-4'"
       >
-        <span class="text-body-1 font-weight-medium">{{ e.type }}</span>
-        <span class="text-body-1 font-weight-bold"
-          >{{ e.amount >= 0 ? "+" : "" }}{{ e.amount }} {{ getCurrencySymbol(e.type) }}</span
+        <span class="text-body-2">{{ e.type }}</span>
+        <span
+          class="text-body-1 font-weight-bold mr-2"
+          :class="e.amount >= 0 ? 'text-green-darken-3' : 'text-red-darken-4'"
         >
+          {{ e.amount >= 0 ? "+" : "" }}{{ e.amount }} {{ getCurrencySymbol(e.type) }}
+        </span>
         <v-btn icon size="small" variant="text" @click="removeEntry(i)">
           <v-icon icon="mdi-delete" size="18" />
         </v-btn>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue";
-import { ListPaymentMethods } from "../../wailsjs/go/main/App";
+import { ListCurrencies, ListPaymentMethods } from "../../wailsjs/go/main/App";
 
 const props = defineProps<{ total: number }>();
 
 interface PaymentMethod {
+  id: number;
   name: string;
   currencyCode: string;
 }
 
+interface Currency {
+  code: string;
+  valueInDefaultCurrency: number;
+}
+
 const types = ref<PaymentMethod[]>([]);
+const currencies = ref<Currency[]>([]);
 const activeType = ref("");
-const entries = ref<{ type: string; amount: number }[]>([]);
+const entries = ref<{ type: string; amount: number; amountCents: number; accountId: number }[]>([]);
 const currentInput = ref("");
 
 const activeCurrency = computed(
   () => types.value.find((t) => t.name === activeType.value)?.currencyCode ?? "",
 );
 
-function toUSD(amount: number, currencyCode: string): number {
-  return amount;
-}
+const displayValue = computed(() => {
+  if (!currentInput.value) return "0";
+  return Number(currentInput.value).toLocaleString();
+});
 
-const paidUSD = computed(() =>
-  entries.value.reduce((sum, e) => {
-    const method = types.value.find((t) => t.name === e.type);
-    return sum + toUSD(e.amount, method?.currencyCode ?? "USD");
-  }, 0),
+const activeRate = computed(
+  () => currencies.value.find((c) => c.code === activeCurrency.value)?.valueInDefaultCurrency ?? 0,
+);
+const usdRate = computed(
+  () => currencies.value.find((c) => c.code === "USD")?.valueInDefaultCurrency ?? 100,
+);
+const totalCents = computed(() => Math.round(props.total * 100));
+const paidCents = computed(() => entries.value.reduce((sum, e) => sum + e.amountCents, 0));
+
+const diffCents = computed(() => paidCents.value - totalCents.value);
+const diff = computed(() => diffCents.value / 100);
+
+const progressPct = computed(() =>
+  Math.min(totalCents.value > 0 ? (paidCents.value / totalCents.value) * 100 : 0, 100),
 );
 
-const diff = computed(() => paidUSD.value - props.total);
-const isReturning = computed(() => diff.value >= 0);
+const statusLabel = computed(() => {
+  if (diffCents.value === 0) return "Paid in full";
+  return diffCents.value > 0 ? "Change due to customer" : "Remaining balance";
+});
+
+const statusAmount = computed(() => {
+  if (diffCents.value === 0) return "Exact";
+  return diffCents.value > 0
+    ? `+${diff.value.toFixed(2)} $`
+    : `${Math.abs(diff.value).toFixed(2)} $ due`;
+});
+
+const statusColor = computed(() => {
+  if (diff.value === 0) return "text-green-darken-2";
+  return diff.value > 0 ? "text-green-darken-1" : "text-red-darken-2";
+});
+
+const progressColor = computed(() => {
+  if (diff.value === 0) return "green-darken-2";
+  return diff.value > 0 ? "green-darken-1" : "red-darken-2";
+});
 
 function getCurrencySymbol(type: string): string {
   return "$";
@@ -130,10 +158,17 @@ onMounted(async () => {
   try {
     const methods = await ListPaymentMethods();
     types.value = methods.map((m: any) => ({
+      id: m.id,
       name: m.name,
       currencyCode: m.currencyCode,
     }));
     if (types.value.length) activeType.value = types.value[0]!.name;
+  } catch {}
+  try {
+    currencies.value = (await ListCurrencies()).map((c: any) => ({
+      code: c.code,
+      valueInDefaultCurrency: Number(c.valueInDefaultCurrency),
+    }));
   } catch {}
 });
 
@@ -142,22 +177,25 @@ function input(val: string) {
     currentInput.value = currentInput.value.slice(0, -1);
     return;
   }
-  if (val === "clear") {
-    currentInput.value = "";
-    return;
-  }
   if (val === "." && currentInput.value.includes(".")) return;
   currentInput.value += val;
 }
 
 function confirm() {
-  let amount = Number(currentInput.value);
-  if (!amount) return;
+  const amount = Number(currentInput.value);
+  if (!Number.isFinite(amount) || amount <= 0 || activeRate.value <= 0 || usdRate.value <= 0) return;
   const method = types.value.find((t) => t.name === activeType.value);
-  if (method?.currencyCode === "LBP") amount *= 1000;
+  const amountCents = Math.round((amount * usdRate.value * 100) / activeRate.value);
+  if (amountCents <= 0) return;
+  // Once the customer has overpaid, new amounts represent change being
+  // returned, so subtract them from the paid total instead of adding them.
+  const signedAmount = diffCents.value > 0 ? -amount : amount;
+  const signedAmountCents = diffCents.value > 0 ? -amountCents : amountCents;
   entries.value.push({
     type: activeType.value,
-    amount: isReturning.value ? -amount : amount,
+    amount: signedAmount,
+    amountCents: signedAmountCents,
+    accountId: method?.id ?? 0,
   });
   currentInput.value = "";
 }
@@ -171,5 +209,14 @@ function clearAll() {
   entries.value = [];
 }
 
-defineExpose({ diff, clearAll });
+const firstEntryAccountId = computed(() => entries.value[0]?.accountId ?? 0);
+const paymentsJSON = computed(() => {
+  return JSON.stringify(entries.value.map((entry) => ({
+    accountId: entry.accountId,
+    amountCents: entry.amountCents,
+    entryType: entry.amountCents < 0 ? "change" : "payment",
+  })));
+});
+
+defineExpose({ diff, clearAll, firstEntryAccountId, paymentsJSON });
 </script>

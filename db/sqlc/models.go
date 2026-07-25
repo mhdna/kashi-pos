@@ -114,6 +114,21 @@ type InvoiceIndex struct {
 	Type      string `json:"type"`
 }
 
+type InvoicePayment struct {
+	InvoiceID int64 `json:"invoiceId"`
+	CashboxID int64 `json:"cashboxId"`
+	Amount    int64 `json:"amount"`
+}
+
+type InvoicePaymentEntry struct {
+	ID        int64  `json:"id"`
+	InvoiceID int64  `json:"invoiceId"`
+	CashboxID int64  `json:"cashboxId"`
+	Amount    int64  `json:"amount"`
+	EntryType string `json:"entryType"`
+	CreatedAt string `json:"createdAt"`
+}
+
 type InvoiceProduct struct {
 	InvoiceID int64 `json:"invoiceId"`
 	ProductID int64 `json:"productId"`
@@ -181,16 +196,19 @@ type Salesperson struct {
 }
 
 type Setting struct {
-	BranchName     string `json:"branchName"`
-	ApiKey         string `json:"apiKey"`
-	PrinterID      string `json:"printerId"`
-	PrinterSize    string `json:"printerSize"`
-	ReceiptPrinter string `json:"receiptPrinter"`
-	ScreenPort     string `json:"screenPort"`
-	ReceiptWidth   int64  `json:"receiptWidth"`
-	ReceiptHeight  int64   `json:"receiptHeight"`
-	Theme          string  `json:"theme"`
-	TaxRate        float64 `json:"taxRate"`
+	BranchName       string  `json:"branchName"`
+	ApiKey           string  `json:"apiKey"`
+	PrinterID        string  `json:"printerId"`
+	PrinterSize      string  `json:"printerSize"`
+	ReceiptPrinter   string  `json:"receiptPrinter"`
+	ScreenPort       string  `json:"screenPort"`
+	ReceiptWidth     int64   `json:"receiptWidth"`
+	ReceiptHeight    int64   `json:"receiptHeight"`
+	Theme            string  `json:"theme"`
+	TaxRate          float64 `json:"taxRate"`
+	RoundingMode     string  `json:"roundingMode"`
+	ReceiptEnabled   int64   `json:"receiptEnabled"`
+	SalesInventoryID int64   `json:"salesInventoryId"`
 }
 
 type Shift struct {

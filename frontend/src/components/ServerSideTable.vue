@@ -31,41 +31,61 @@
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue'
+import { ref } from "vue";
 
-  const props = defineProps<{
-    apiURL: string
-    header: { title: string, align: string, key: string }[]
-    rootKey: string
-  }>()
+const props = defineProps<{
+  apiURL: string;
+  header: { title: string; align: string; key: string }[];
+  rootKey: string;
+}>();
 
-  const itemsPerPage = ref(14)
-  const search = ref('')
-  const serverItems = ref<any[]>([])
-  const loading = ref(true)
-  const totalItems = ref(0)
+const itemsPerPage = ref(14);
+const search = ref("");
+const serverItems = ref<any[]>([]);
+const loading = ref(true);
+const totalItems = ref(0);
 
-  async function fetchProducts ({ page, itemsPerPage, sortBy }: { page: number, itemsPerPage: number, sortBy: { key: string, order: string }[] }) {
-    const res = await fetch(props.apiURL)
-    const data = await res.json()
-    let items = data[props.rootKey]
-    if (sortBy.length > 0 && sortBy[0]) {
-      const sortKey = sortBy[0].key
-      const sortOrder = sortBy[0].order
-      items = items.slice().toSorted((a: any, b: any) => {
-        const aValue = a[sortKey], bValue = b[sortKey]
-        return sortOrder === 'desc' ? (bValue > aValue ? 1 : -1) : (aValue > bValue ? 1 : -1)
-      })
-    }
-    return { items: items.slice((page - 1) * itemsPerPage, (page - 1) * itemsPerPage + itemsPerPage), total: items.length }
+async function fetchProducts({
+  page,
+  itemsPerPage,
+  sortBy,
+}: {
+  page: number;
+  itemsPerPage: number;
+  sortBy: { key: string; order: string }[];
+}) {
+  const res = await fetch(props.apiURL);
+  const data = await res.json();
+  let items = data[props.rootKey];
+  if (sortBy.length > 0 && sortBy[0]) {
+    const sortKey = sortBy[0].key;
+    const sortOrder = sortBy[0].order;
+    items = items.slice().toSorted((a: any, b: any) => {
+      const aValue = a[sortKey],
+        bValue = b[sortKey];
+      return sortOrder === "desc" ? (bValue > aValue ? 1 : -1) : aValue > bValue ? 1 : -1;
+    });
   }
+  return {
+    items: items.slice((page - 1) * itemsPerPage, (page - 1) * itemsPerPage + itemsPerPage),
+    total: items.length,
+  };
+}
 
-  function loadItems ({ page, itemsPerPage, sortBy }: { page: number, itemsPerPage: number, sortBy: { key: string, order: string }[] }) {
-    loading.value = true
-    fetchProducts({ page, itemsPerPage, sortBy }).then(({ items, total }) => {
-      serverItems.value = items
-      totalItems.value = total
-      loading.value = false
-    })
-  }
+function loadItems({
+  page,
+  itemsPerPage,
+  sortBy,
+}: {
+  page: number;
+  itemsPerPage: number;
+  sortBy: { key: string; order: string }[];
+}) {
+  loading.value = true;
+  fetchProducts({ page, itemsPerPage, sortBy }).then(({ items, total }) => {
+    serverItems.value = items;
+    totalItems.value = total;
+    loading.value = false;
+  });
+}
 </script>

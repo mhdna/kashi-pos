@@ -27,16 +27,9 @@ export const useAuthStore = defineStore("auth", () => {
     currentUser.value = null;
   }
 
-  async function changePassword(
-    oldPassword: string,
-    newPassword: string,
-  ): Promise<boolean> {
+  async function changePassword(oldPassword: string, newPassword: string): Promise<boolean> {
     try {
-      await ChangePassword(
-        currentUser.value!.username,
-        oldPassword,
-        newPassword,
-      );
+      await ChangePassword(currentUser.value!.username, oldPassword, newPassword);
       return true;
     } catch {
       return false;

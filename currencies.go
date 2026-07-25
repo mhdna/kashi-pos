@@ -3,10 +3,10 @@ package main
 import "fmt"
 
 func (a *App) ListCurrencies() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	currencies, err := a.queries.ListCurrencies(a.ctx)
+	currencies, err := a.store.ListCurrencies(a.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -25,10 +25,10 @@ func (a *App) ListCurrencies() ([]map[string]any, error) {
 }
 
 func (a *App) GetDefaultCurrency() (map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	c, err := a.queries.GetDefaultCurrency(a.ctx)
+	c, err := a.store.GetDefaultCurrency(a.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -42,10 +42,10 @@ func (a *App) GetDefaultCurrency() (map[string]any, error) {
 }
 
 func (a *App) ListPaymentMethods() ([]map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	accounts, err := a.queries.ListCashboxAccounts(a.ctx)
+	accounts, err := a.store.ListCashboxAccounts(a.ctx)
 	if err != nil {
 		return nil, err
 	}

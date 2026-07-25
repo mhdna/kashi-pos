@@ -9,6 +9,35 @@ import (
 	"context"
 )
 
+const addCashboxAccountBalance = `-- name: AddCashboxAccountBalance :one
+INSERT INTO shifts_accounts_balances (account_id, shift_id, balance)
+VALUES (?, ?, ?)
+ON CONFLICT (account_id, shift_id) DO UPDATE SET balance = shifts_accounts_balances.balance + excluded.balance
+RETURNING account_id, shift_id, balance
+`
+
+type AddCashboxAccountBalanceParams struct {
+	AccountID int64 `json:"accountId"`
+	ShiftID   int64 `json:"shiftId"`
+	Balance   int64 `json:"balance"`
+}
+
+func (q *Queries) AddCashboxAccountBalance(ctx context.Context, arg AddCashboxAccountBalanceParams) (ShiftsAccountsBalance, error) {
+	row := q.db.QueryRowContext(ctx, addCashboxAccountBalance, arg.AccountID, arg.ShiftID, arg.Balance)
+	var i ShiftsAccountsBalance
+	err := row.Scan(&i.AccountID, &i.ShiftID, &i.Balance)
+	return i, err
+}
+
+const closeOpenShifts = `-- name: CloseOpenShifts :exec
+UPDATE shifts SET is_closed = 1, closed_at = ? WHERE is_closed = 0
+`
+
+func (q *Queries) CloseOpenShifts(ctx context.Context, closedAt string) error {
+	_, err := q.db.ExecContext(ctx, closeOpenShifts, closedAt)
+	return err
+}
+
 const closeShift = `-- name: CloseShift :exec
 UPDATE shifts SET is_closed = 1, closed_at = ? WHERE id = ?
 `
@@ -51,17 +80,11 @@ func (q *Queries) CreateCashboxAccount(ctx context.Context, arg CreateCashboxAcc
 }
 
 const createShift = `-- name: CreateShift :one
-INSERT INTO shifts (is_closed, created_at, closed_at) VALUES (?, ?, ?) RETURNING id, is_closed, created_at, closed_at
+INSERT INTO shifts (is_closed, created_at) VALUES (?, datetime('now', 'localtime')) RETURNING id, is_closed, created_at, closed_at
 `
 
-type CreateShiftParams struct {
-	IsClosed  int64  `json:"isClosed"`
-	CreatedAt string `json:"createdAt"`
-	ClosedAt  string `json:"closedAt"`
-}
-
-func (q *Queries) CreateShift(ctx context.Context, arg CreateShiftParams) (Shift, error) {
-	row := q.db.QueryRowContext(ctx, createShift, arg.IsClosed, arg.CreatedAt, arg.ClosedAt)
+func (q *Queries) CreateShift(ctx context.Context, isClosed int64) (Shift, error) {
+	row := q.db.QueryRowContext(ctx, createShift, isClosed)
 	var i Shift
 	err := row.Scan(
 		&i.ID,
@@ -112,6 +135,22 @@ func (q *Queries) GetCashboxAccountByID(ctx context.Context, id int64) (CashboxA
 	return i, err
 }
 
+const getOpenShift = `-- name: GetOpenShift :one
+SELECT id, is_closed, created_at, closed_at FROM shifts WHERE is_closed = 0 LIMIT 1
+`
+
+func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
+	row := q.db.QueryRowContext(ctx, getOpenShift)
+	var i Shift
+	err := row.Scan(
+		&i.ID,
+		&i.IsClosed,
+		&i.CreatedAt,
+		&i.ClosedAt,
+	)
+	return i, err
+}
+
 const getShiftAccountBalance = `-- name: GetShiftAccountBalance :one
 SELECT account_id, shift_id, balance FROM shifts_accounts_balances WHERE account_id = ? AND shift_id = ?
 `
@@ -142,6 +181,52 @@ func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
 		&i.ClosedAt,
 	)
 	return i, err
+}
+
+const getShiftTotals = `-- name: GetShiftTotals :many
+SELECT s.id, s.is_closed, s.created_at, s.closed_at,
+       COALESCE(SUM(i.grand_total), 0) as total
+FROM shifts s
+LEFT JOIN invoices i ON i.shift_id = s.id
+GROUP BY s.id
+ORDER BY s.id DESC
+`
+
+type GetShiftTotalsRow struct {
+	ID        int64       `json:"id"`
+	IsClosed  int64       `json:"isClosed"`
+	CreatedAt string      `json:"createdAt"`
+	ClosedAt  string      `json:"closedAt"`
+	Total     interface{} `json:"total"`
+}
+
+func (q *Queries) GetShiftTotals(ctx context.Context) ([]GetShiftTotalsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getShiftTotals)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetShiftTotalsRow{}
+	for rows.Next() {
+		var i GetShiftTotalsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.IsClosed,
+			&i.CreatedAt,
+			&i.ClosedAt,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAccounts = `-- name: ListAccounts :many
@@ -255,21 +340,4 @@ func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
 		return nil, err
 	}
 	return items, nil
-}
-
-const upsertShiftAccountBalance = `-- name: UpsertShiftAccountBalance :exec
-INSERT INTO shifts_accounts_balances (account_id, shift_id, balance)
-VALUES (?, ?, ?)
-ON CONFLICT (account_id, shift_id) DO UPDATE SET balance = excluded.balance
-`
-
-type UpsertShiftAccountBalanceParams struct {
-	AccountID int64 `json:"accountId"`
-	ShiftID   int64 `json:"shiftId"`
-	Balance   int64 `json:"balance"`
-}
-
-func (q *Queries) UpsertShiftAccountBalance(ctx context.Context, arg UpsertShiftAccountBalanceParams) error {
-	_, err := q.db.ExecContext(ctx, upsertShiftAccountBalance, arg.AccountID, arg.ShiftID, arg.Balance)
-	return err
 }

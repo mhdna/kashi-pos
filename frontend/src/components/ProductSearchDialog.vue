@@ -1,13 +1,7 @@
 <template>
   <v-dialog v-model="dialog" max-width="700">
     <template #activator="{ props: activatorProps }">
-      <v-btn
-        v-bind="activatorProps"
-        variant="text"
-        size="small"
-        density="compact"
-        class="ms-1"
-      >
+      <v-btn v-bind="activatorProps" variant="text" class="ms-1">
         <v-icon icon="mdi-format-list-bulleted-square" size="20" class="me-1" />
         Products List
       </v-btn>
@@ -45,14 +39,25 @@ import { ref, inject, watch, onMounted } from "vue";
 import { ListProducts } from "../../wailsjs/go/main/App";
 
 const emit = defineEmits<{
-  select: [product: { name: string; code: string; category: string; price: number; discount: number; qty: number }];
+  select: [
+    product: {
+      name: string;
+      code: string;
+      category: string;
+      price: number;
+      discount: number;
+      qty: number;
+    },
+  ];
 }>();
 
 const dialogOpen = inject<import("vue").Ref<boolean>>("dialogOpen", { value: false } as any);
 const dialog = ref(false);
 const search = ref("");
 
-watch(dialog, (v) => { dialogOpen.value = v; });
+watch(dialog, (v) => {
+  dialogOpen.value = v;
+});
 
 const headers = [
   { title: "Code", key: "code", align: "start" as const },
@@ -66,7 +71,10 @@ const products = ref<any[]>([]);
 onMounted(async () => {
   try {
     products.value = (await ListProducts()).map((p) => ({ ...p, qty: 1 }));
-  } catch (e) { console.error("ListProducts failed:", e) }});
+  } catch (e) {
+    console.error("ListProducts failed:", e);
+  }
+});
 
 function selectProduct(_event: any, row: any) {
   emit("select", row.item);

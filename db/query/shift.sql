@@ -16,11 +16,17 @@ SELECT * FROM shifts WHERE id = ?;
 -- name: ListShifts :many
 SELECT * FROM shifts ORDER BY id;
 
+-- name: GetOpenShift :one
+SELECT * FROM shifts WHERE is_closed = 0 LIMIT 1;
+
 -- name: CreateShift :one
-INSERT INTO shifts (is_closed, created_at, closed_at) VALUES (?, ?, ?) RETURNING *;
+INSERT INTO shifts (is_closed, created_at) VALUES (?, datetime('now', 'localtime')) RETURNING *;
 
 -- name: CloseShift :exec
 UPDATE shifts SET is_closed = 1, closed_at = ? WHERE id = ?;
+
+-- name: CloseOpenShifts :exec
+UPDATE shifts SET is_closed = 1, closed_at = ? WHERE is_closed = 0;
 
 -- name: GetAccountByID :one
 SELECT * FROM accounts WHERE id = ?;
@@ -40,7 +46,16 @@ SELECT * FROM shifts_accounts_balances WHERE account_id = ? AND shift_id = ?;
 -- name: ListShiftAccountBalances :many
 SELECT * FROM shifts_accounts_balances WHERE shift_id = ?;
 
--- name: UpsertShiftAccountBalance :exec
+-- name: AddCashboxAccountBalance :one
 INSERT INTO shifts_accounts_balances (account_id, shift_id, balance)
 VALUES (?, ?, ?)
-ON CONFLICT (account_id, shift_id) DO UPDATE SET balance = excluded.balance;
+ON CONFLICT (account_id, shift_id) DO UPDATE SET balance = shifts_accounts_balances.balance + excluded.balance
+RETURNING account_id, shift_id, balance;
+
+-- name: GetShiftTotals :many
+SELECT s.id, s.is_closed, s.created_at, s.closed_at,
+       COALESCE(SUM(i.grand_total), 0) as total
+FROM shifts s
+LEFT JOIN invoices i ON i.shift_id = s.id
+GROUP BY s.id
+ORDER BY s.id DESC;

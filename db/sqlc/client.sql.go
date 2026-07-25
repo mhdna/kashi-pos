@@ -9,6 +9,24 @@ import (
 	"context"
 )
 
+const addClientLoyaltyPoints = `-- name: AddClientLoyaltyPoints :exec
+UPDATE clients
+SET total_loyalty_points = total_loyalty_points + ?,
+    valid_loyalty_points = valid_loyalty_points + ?
+WHERE id = ?
+`
+
+type AddClientLoyaltyPointsParams struct {
+	TotalLoyaltyPoints int64 `json:"totalLoyaltyPoints"`
+	ValidLoyaltyPoints int64 `json:"validLoyaltyPoints"`
+	ID                 int64 `json:"id"`
+}
+
+func (q *Queries) AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyaltyPointsParams) error {
+	_, err := q.db.ExecContext(ctx, addClientLoyaltyPoints, arg.TotalLoyaltyPoints, arg.ValidLoyaltyPoints, arg.ID)
+	return err
+}
+
 const createClient = `-- name: CreateClient :one
 INSERT INTO clients (name, phone, total_loyalty_points, valid_loyalty_points)
 VALUES (?, ?, ?, ?) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at

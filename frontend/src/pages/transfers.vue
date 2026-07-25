@@ -1,5 +1,5 @@
 <template>
-  <v-card class="pa-4 ma-4">
+  <v-card class="pa-4">
     <v-card-title>Transfers</v-card-title>
     <v-data-table :headers="headers" :items="items" :loading="loading" density="compact" hover />
   </v-card>
@@ -20,7 +20,9 @@ const items = ref<any[]>([]);
 const loading = ref(true);
 
 onMounted(async () => {
-  try { items.value = await ListTransfers(); } catch {}
+  try {
+    items.value = await ListTransfers();
+  } catch {}
   loading.value = false;
 });
 </script>

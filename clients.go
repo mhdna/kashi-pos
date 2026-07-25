@@ -7,10 +7,10 @@ import (
 )
 
 func (a *App) GetClientByPhone(phone string) (map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	client, err := a.queries.GetClientByPhone(a.ctx, phone)
+	client, err := a.store.GetClientByPhone(a.ctx, phone)
 	if err != nil {
 		return nil, fmt.Errorf("client not found")
 	}
@@ -24,10 +24,10 @@ func (a *App) GetClientByPhone(phone string) (map[string]any, error) {
 }
 
 func (a *App) CreateClient(name, phone string) (map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	client, err := a.queries.CreateClient(a.ctx, db.CreateClientParams{
+	client, err := a.store.CreateClient(a.ctx, db.CreateClientParams{
 		Name:               name,
 		Phone:              phone,
 		TotalLoyaltyPoints: 0,
@@ -46,14 +46,14 @@ func (a *App) CreateClient(name, phone string) (map[string]any, error) {
 }
 
 func (a *App) AddClientLoyaltyPoints(clientID int64, points int64) (map[string]any, error) {
-	if a.queries == nil {
+	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	client, err := a.queries.GetClientByID(a.ctx, clientID)
+	client, err := a.store.GetClientByID(a.ctx, clientID)
 	if err != nil {
 		return nil, fmt.Errorf("client not found")
 	}
-	updated, err := a.queries.UpdateClient(a.ctx, db.UpdateClientParams{
+	updated, err := a.store.UpdateClient(a.ctx, db.UpdateClientParams{
 		Name:               client.Name,
 		Phone:              client.Phone,
 		TotalLoyaltyPoints: client.TotalLoyaltyPoints + points,
