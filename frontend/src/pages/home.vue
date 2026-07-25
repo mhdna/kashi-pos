@@ -8,7 +8,7 @@
             <div class="me-2">
               <OnHoldMenu @restore="onRestoreHold" />
             </div>
-            <ReturnInvoiceMenu />
+            <ReturnInvoiceMenu @exchange="onExchange" />
           </div>
         </v-card-title>
         <v-card-subtitle> {{ invoiceCode || "------" }} </v-card-subtitle>
@@ -21,6 +21,7 @@
           density="compact"
           hide-details="auto"
           placeholder="Scan or Enter Barcode"
+          :disabled="Boolean(exchangeState)"
           variant="outlined"
           @blur="onBlur"
           @keydown.enter="onBarcodeEnter"
@@ -93,6 +94,7 @@ import {
   HoldInvoice,
   VoidInvoice,
   CheckoutInvoice,
+  CheckoutExchangeInvoice,
   GetAppSettings,
   DeleteHoldInvoice,
   GetOpenShift,
@@ -112,6 +114,7 @@ const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
 const branchName = ref("Store");
 const invoiceCode = ref("");
+const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
@@ -127,8 +130,8 @@ const invoiceTotal = computed(() => {
   const taxCents = roundCents((discountedCents / 100) * taxRate.value * 100, roundingMode.value);
   return (discountedCents + taxCents) / 100;
 });
-const canCheckout = computed(() => calculator.value?.diff === 0 && invoiceTotal.value > 0);
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
+const canCheckout = computed(() => calculator.value?.diff === 0 && (exchangeState.value ? hasItems.value : invoiceTotal.value > 0));
 const barcodeValue = ref("");
 const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
 const dialogOpen = ref(false);
@@ -222,31 +225,37 @@ async function onCheckout() {
   try {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
     const clientID = actionBar.value?.clientId ?? 0;
-    const result = await CheckoutInvoice(
-      json,
-      paymentsJSON,
-      clientID,
-      branchName.value,
-      branchName.value,
-      "",
-      "",
-      receiptPrinter.value,
-    );
+    const result = exchangeState.value
+      ? await CheckoutExchangeInvoice(json, paymentsJSON, exchangeState.value.originalInvoiceId, clientID)
+      : await CheckoutInvoice(json, paymentsJSON, clientID, branchName.value, branchName.value, "", "", receiptPrinter.value);
     invoiceCode.value = result?.invoiceCode ?? "";
     snackbar.text = result?.receiptError
       ? `Invoice created; receipt failed — ${result.receiptError}`
       : receiptEnabled.value
         ? `Receipt printed — ${result?.invoiceCode ?? ""}`
-        : `Invoice created — ${result?.invoiceCode ?? ""}`;
+        : exchangeState.value
+          ? `Exchange completed — ${result?.invoiceCode ?? ""}`
+          : `Invoice created — ${result?.invoiceCode ?? ""}`;
     snackbar.color = "success";
     snackbar.show = true;
     invoiceItems.value?.clearItems();
+    exchangeState.value = null;
   } catch (e: any) {
     snackbar.text = e?.toString() || "Checkout failed";
     snackbar.color = "red-darken-4";
     snackbar.show = true;
   }
   printing.value = false;
+}
+
+function onExchange(payload: { originalInvoiceId: number; returned: any; replacement: any }) {
+  invoiceItems.value?.clearItems();
+  invoiceItems.value?.addExchangeItems(payload.returned, payload.replacement);
+  exchangeState.value = { originalInvoiceId: payload.originalInvoiceId };
+  calculator.value?.clearAll();
+  snackbar.text = "Exchange loaded. Collect the difference, if any, and check out.";
+  snackbar.color = "info";
+  snackbar.show = true;
 }
 
 function onRestoreHold(id: number, items: any[]) {

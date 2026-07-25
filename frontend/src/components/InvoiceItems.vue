@@ -108,6 +108,13 @@ function addItem(item: LineItem) {
   }
 }
 
+function addExchangeItems(returned: LineItem, replacement: LineItem) {
+  items.value = [
+    { ...returned, price: Number(returned.price), discount: 0, qty: -1 },
+    { ...replacement, price: Number(replacement.price), qty: 1 },
+  ];
+}
+
 function clearItems() {
   items.value = [];
 }
@@ -132,5 +139,5 @@ function roundDiscount(gross: number, discount: number, mode: string): number {
   return Math.floor(numerator / 100 + 0.5);
 }
 
-defineExpose({ subtotal, totalDiscount, subtotalCents, discountedSubtotalCents, addItem, items, clearItems });
+defineExpose({ subtotal, totalDiscount, subtotalCents, discountedSubtotalCents, addItem, addExchangeItems, items, clearItems });
 </script>

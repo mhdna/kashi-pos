@@ -10,6 +10,10 @@ export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }
 
+export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4);
+}
+
 export function CheckoutInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
   return window['go']['main']['App']['CheckoutInvoice'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 }
@@ -56,6 +60,10 @@ export function GetDailyIncomeByMonth(arg1) {
 
 export function GetDefaultCurrency() {
   return window['go']['main']['App']['GetDefaultCurrency']();
+}
+
+export function GetExchangeInvoice(arg1) {
+  return window['go']['main']['App']['GetExchangeInvoice'](arg1);
 }
 
 export function GetOpenShift() {

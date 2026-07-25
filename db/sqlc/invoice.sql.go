@@ -267,6 +267,81 @@ func (q *Queries) GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductPa
 	return i, err
 }
 
+const getReturnedQuantityForProduct = `-- name: GetReturnedQuantityForProduct :one
+SELECT COALESCE(SUM(ip.quantity), 0) AS quantity
+FROM return_invoices r
+JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
+WHERE r.sales_invoice_id = ? AND ip.product_id = ?
+`
+
+type GetReturnedQuantityForProductParams struct {
+	SalesInvoiceID int64 `json:"salesInvoiceId"`
+	ProductID      int64 `json:"productId"`
+}
+
+func (q *Queries) GetReturnedQuantityForProduct(ctx context.Context, arg GetReturnedQuantityForProductParams) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getReturnedQuantityForProduct, arg.SalesInvoiceID, arg.ProductID)
+	var quantity interface{}
+	err := row.Scan(&quantity)
+	return quantity, err
+}
+
+const getSalesInvoiceByCode = `-- name: GetSalesInvoiceByCode :one
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at
+FROM invoices i
+JOIN sales_invoices s ON s.invoice_id = i.id
+WHERE lower(i.invoice_code) = lower(?)
+`
+
+func (q *Queries) GetSalesInvoiceByCode(ctx context.Context, lower string) (Invoice, error) {
+	row := q.db.QueryRowContext(ctx, getSalesInvoiceByCode, lower)
+	var i Invoice
+	err := row.Scan(
+		&i.ID,
+		&i.CashboxID,
+		&i.ShiftID,
+		&i.InvoiceCode,
+		&i.InvoiceIndex,
+		&i.Year,
+		&i.ClientID,
+		&i.InventoryID,
+		&i.Discount,
+		&i.Subtotal,
+		&i.DiscountedTotal,
+		&i.GrandTotal,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getSalesInvoiceByID = `-- name: GetSalesInvoiceByID :one
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at
+FROM invoices i
+JOIN sales_invoices s ON s.invoice_id = i.id
+WHERE i.id = ?
+`
+
+func (q *Queries) GetSalesInvoiceByID(ctx context.Context, id int64) (Invoice, error) {
+	row := q.db.QueryRowContext(ctx, getSalesInvoiceByID, id)
+	var i Invoice
+	err := row.Scan(
+		&i.ID,
+		&i.CashboxID,
+		&i.ShiftID,
+		&i.InvoiceCode,
+		&i.InvoiceIndex,
+		&i.Year,
+		&i.ClientID,
+		&i.InventoryID,
+		&i.Discount,
+		&i.Subtotal,
+		&i.DiscountedTotal,
+		&i.GrandTotal,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getTodayIncomeByAccount = `-- name: GetTodayIncomeByAccount :many
 SELECT ca.name, SUM(i.grand_total) as total
 FROM invoices i

@@ -1,6 +1,24 @@
 -- name: GetInvoiceByID :one
 SELECT * FROM invoices WHERE id = ?;
 
+-- name: GetSalesInvoiceByCode :one
+SELECT i.*
+FROM invoices i
+JOIN sales_invoices s ON s.invoice_id = i.id
+WHERE lower(i.invoice_code) = lower(?);
+
+-- name: GetSalesInvoiceByID :one
+SELECT i.*
+FROM invoices i
+JOIN sales_invoices s ON s.invoice_id = i.id
+WHERE i.id = ?;
+
+-- name: GetReturnedQuantityForProduct :one
+SELECT COALESCE(SUM(ip.quantity), 0) AS quantity
+FROM return_invoices r
+JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
+WHERE r.sales_invoice_id = ? AND ip.product_id = ?;
+
 -- name: ListInvoices :many
 SELECT * FROM invoices ORDER BY id;
 
