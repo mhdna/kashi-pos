@@ -102,22 +102,40 @@
               </template>
             </v-list-item>
             <v-list-item
-              v-if="replacement"
+              v-for="item in replacements"
+              :key="item.code"
               title="Replacement"
-              :subtitle="`${replacement.name} · ${replacement.code}`"
+              :subtitle="`${item.name} · ${item.code} · Qty ${item.qty}`"
             >
               <template #append>
                 <span class="text-green-darken-2 font-weight-medium">
-                  +${{ effectivePrice(replacement).toFixed(2) }}
+                  +${{ exchangeLineTotal(item, roundingMode).toFixed(2) }}
                 </span>
+                <v-btn
+                  class="ms-2"
+                  icon="mdi-delete"
+                  size="x-small"
+                  variant="text"
+                  @click="removeReplacement(item.code)"
+                />
               </template>
             </v-list-item>
           </v-list>
 
-          <v-alert v-if="replacement" class="mt-2" density="compact" type="info" variant="tonal">
-            Customer pays
-            ${{ exchangeDifference().toFixed(2) }}
-            plus applicable tax at checkout.
+          <v-alert
+            v-if="replacements.length"
+            class="mt-2"
+            density="compact"
+            :type="hasEnoughReplacementValue ? 'success' : 'warning'"
+            variant="tonal"
+          >
+            <template v-if="hasEnoughReplacementValue">
+              Replacement total: ${{ replacementsTotal.toFixed(2) }}. Customer pays
+              ${{ exchangeDifference.toFixed(2) }} plus applicable tax at checkout.
+            </template>
+            <template v-else>
+              Add ${{ remainingReplacementValue.toFixed(2) }} more in replacement products.
+            </template>
           </v-alert>
         </template>
       </v-card-text>
@@ -127,7 +145,7 @@
         <v-btn
           class="flex-1-1"
           color="primary"
-          :disabled="!returned || !replacement"
+          :disabled="!returned || !hasEnoughReplacementValue"
           @click="startExchange"
         >
           Start exchange
@@ -138,198 +156,56 @@
 </template>
 
 <script setup lang="ts">
-import { inject, nextTick, ref, watch, type Ref } from "vue";
-import { GetExchangeInvoice, GetProductByBarcode, GetProductByCode } from "../../wailsjs/go/main/App";
-
-interface ExchangeItem {
-  code: string;
-  barcode: string;
-  name: string;
-  price: number;
-  discount: number;
-  available?: number;
-  qty?: number;
-}
-
-interface ExchangeInvoice {
-  id: number;
-  invoiceCode: string;
-  items: ExchangeItem[];
-}
+import { computed, inject, ref, watch, type Ref } from "vue";
+import { useExchangeDialog } from "@/composables/useExchangeDialog";
+import { effectiveExchangePrice, exchangeLineTotal, type ExchangeSelection } from "@/lib/exchange";
 
 const emit = defineEmits<{
-  exchange: [payload: { originalInvoiceId: number; returned: ExchangeItem; replacement: ExchangeItem }];
+  exchange: [payload: ExchangeSelection];
 }>();
+const props = defineProps<{ roundingMode?: string }>();
+const roundingMode = computed(() => props.roundingMode ?? "half_up");
 
 const dialogOpen = inject<Ref<boolean>>("dialogOpen");
 const menu = ref(false);
-const loading = ref(false);
-const scanning = ref(false);
-const invoiceCode = ref("");
-const scanValue = ref("");
-const invoice = ref<ExchangeInvoice | null>(null);
-const returned = ref<ExchangeItem | null>(null);
-const replacement = ref<ExchangeItem | null>(null);
-const invoiceError = ref("");
-const scanError = ref("");
-const invoiceInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
-const scanInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
+const {
+  loading,
+  scanning,
+  invoiceCode,
+  scanValue,
+  invoice,
+  returned,
+  replacements,
+  invoiceError,
+  scanError,
+  invoiceInput,
+  scanInput,
+  replacementsTotal,
+  exchangeDifference,
+  remainingReplacementValue,
+  hasEnoughReplacementValue,
+  focusInvoiceInput,
+  loadInvoice,
+  selectReturned,
+  scanItem,
+  removeReplacement,
+  changeInvoice,
+  createSelection,
+  clearForm,
+} = useExchangeDialog(() => props.roundingMode ?? "half_up");
 
 watch(menu, (open) => {
   if (dialogOpen) dialogOpen.value = open;
 });
 
-function normalize(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function effectivePrice(item: ExchangeItem): number {
-  return Number(item.price) * (1 - Number(item.discount || 0) / 100);
-}
-
-function exchangeDifference(): number {
-  if (!returned.value || !replacement.value) return 0;
-  return effectivePrice(replacement.value) - effectivePrice(returned.value);
-}
-
-function focusInvoiceInput() {
-  nextTick(() => invoiceInput.value?.focus());
-}
-
-function focusScanInput() {
-  nextTick(() => scanInput.value?.focus());
-}
-
-async function loadInvoice() {
-  const code = invoiceCode.value.trim();
-  if (!code || loading.value) return;
-  loading.value = true;
-  invoiceError.value = "";
-  try {
-    const loaded = (await GetExchangeInvoice(code)) as ExchangeInvoice;
-    invoice.value = {
-      ...loaded,
-      items: (loaded.items ?? []).map((item) => ({
-        ...item,
-        price: Number(item.price),
-        discount: Number(item.discount),
-        available: Number(item.available),
-      })),
-    };
-    returned.value = null;
-    replacement.value = null;
-    scanValue.value = "";
-    focusScanInput();
-  } catch (error: any) {
-    invoice.value = null;
-    invoiceError.value = error?.toString() || "Sales invoice not found.";
-    focusInvoiceInput();
-  } finally {
-    loading.value = false;
-  }
-}
-
-function findInvoiceItem(value: string): ExchangeItem | undefined {
-  const scanned = normalize(value);
-  return invoice.value?.items.find(
-    (item) => normalize(item.code) === scanned || normalize(item.barcode || "") === scanned,
-  );
-}
-
-function selectReturned(item: ExchangeItem) {
-  returned.value = {
-    ...item,
-    price: effectivePrice(item),
-    discount: 0,
-    qty: -1,
-  };
-  replacement.value = null;
-  scanError.value = "";
-  scanValue.value = "";
-  focusScanInput();
-}
-
-async function findProduct(value: string): Promise<ExchangeItem> {
-  try {
-    return (await GetProductByBarcode(value)) as ExchangeItem;
-  } catch {
-    return (await GetProductByCode(value)) as ExchangeItem;
-  }
-}
-
-async function scanItem() {
-  const value = scanValue.value.trim();
-  if (!value || scanning.value) return;
-  scanError.value = "";
-
-  if (!returned.value) {
-    const item = findInvoiceItem(value);
-    if (!item) {
-      scanError.value = "This product is not available to return on the loaded invoice.";
-      scanValue.value = "";
-      focusScanInput();
-      return;
-    }
-    selectReturned(item);
-    return;
-  }
-
-  scanning.value = true;
-  try {
-    const product = await findProduct(value);
-    const candidate: ExchangeItem = {
-      ...product,
-      price: Number(product.price),
-      discount: Number(product.discount),
-      qty: 1,
-    };
-    if (normalize(candidate.code) === normalize(returned.value.code)) {
-      throw new Error("Choose a different product as the replacement.");
-    }
-    if (effectivePrice(candidate) < effectivePrice(returned.value)) {
-      throw new Error("Replacement must be the same price or more expensive.");
-    }
-    replacement.value = candidate;
-    scanValue.value = "";
-  } catch (error: any) {
-    replacement.value = null;
-    scanValue.value = "";
-    scanError.value = error?.toString() || "Replacement product not found.";
-  } finally {
-    scanning.value = false;
-    focusScanInput();
-  }
+function effectivePrice(item: Parameters<typeof effectiveExchangePrice>[0]): number {
+  return effectiveExchangePrice(item, props.roundingMode ?? "half_up");
 }
 
 function startExchange() {
-  if (!invoice.value || !returned.value || !replacement.value) return;
-  emit("exchange", {
-    originalInvoiceId: invoice.value.id,
-    returned: returned.value,
-    replacement: replacement.value,
-  });
+  const selection = createSelection();
+  if (!selection) return;
+  emit("exchange", selection);
   menu.value = false;
-}
-
-function changeInvoice() {
-  invoice.value = null;
-  returned.value = null;
-  replacement.value = null;
-  scanValue.value = "";
-  scanError.value = "";
-  invoiceError.value = "";
-  focusInvoiceInput();
-}
-
-function clearForm() {
-  invoiceCode.value = "";
-  invoice.value = null;
-  returned.value = null;
-  replacement.value = null;
-  scanValue.value = "";
-  invoiceError.value = "";
-  scanError.value = "";
-  loading.value = false;
-  scanning.value = false;
 }
 </script>

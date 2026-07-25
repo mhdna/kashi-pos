@@ -64,28 +64,40 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			return nil, 0, 0, nil, fmt.Errorf("product %s is inactive", item.Code)
 		}
 		qty := int64(item.Qty)
-		if product.Price <= 0 || product.Discount < 0 || product.Discount > 100 {
-			return nil, 0, 0, nil, fmt.Errorf("invalid pricing for product %s", item.Code)
-		}
-		if qty > math.MaxInt64/product.Price {
-			return nil, 0, 0, nil, fmt.Errorf("line total is too large for product %s", item.Code)
+		priced, err := priceInvoiceProduct(product, qty, roundingMode)
+		if err != nil {
+			return nil, 0, 0, nil, err
 		}
 		gross := product.Price * qty
-		if product.Discount > 0 && gross > math.MaxInt64/product.Discount {
-			return nil, 0, 0, nil, fmt.Errorf("line discount is too large for product %s", item.Code)
-		}
-		lineDiscount := roundRatio(gross*product.Discount, 100, roundingMode)
-		if gross > math.MaxInt64-lineDiscount {
-			return nil, 0, 0, nil, fmt.Errorf("line total is too large for product %s", item.Code)
-		}
-		lineTotal := gross - lineDiscount
+		lineTotal := priced.lineTotal
 		if subtotal > math.MaxInt64-gross || discountedSubtotal > math.MaxInt64-lineTotal {
 			return nil, 0, 0, nil, fmt.Errorf("invoice total is too large")
 		}
 		subtotal += gross
 		discountedSubtotal += lineTotal
-		products = append(products, pricedInvoiceProduct{product: product, qty: qty, unitPrice: product.Price, discount: product.Discount, lineTotal: lineTotal})
+		products = append(products, priced)
 		receiptItems = append(receiptItems, invoiceItem{Name: product.Name, Code: product.Code, Category: product.Description, Price: float64(product.Price) / 100, Discount: float64(product.Discount), Qty: float64(qty)})
 	}
 	return products, subtotal, discountedSubtotal, receiptItems, nil
+}
+
+func priceInvoiceProduct(product db.Product, qty int64, roundingMode string) (pricedInvoiceProduct, error) {
+	if qty <= 0 || product.Price <= 0 || product.Discount < 0 || product.Discount > 100 {
+		return pricedInvoiceProduct{}, fmt.Errorf("invalid pricing for product %s", product.Code)
+	}
+	if qty > math.MaxInt64/product.Price {
+		return pricedInvoiceProduct{}, fmt.Errorf("line total is too large for product %s", product.Code)
+	}
+	gross := product.Price * qty
+	if product.Discount > 0 && gross > math.MaxInt64/product.Discount {
+		return pricedInvoiceProduct{}, fmt.Errorf("line discount is too large for product %s", product.Code)
+	}
+	lineDiscount := roundRatio(gross*product.Discount, 100, roundingMode)
+	return pricedInvoiceProduct{
+		product:   product,
+		qty:       qty,
+		unitPrice: product.Price,
+		discount:  product.Discount,
+		lineTotal: gross - lineDiscount,
+	}, nil
 }

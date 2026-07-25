@@ -53,12 +53,18 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 		t.Fatal(err)
 	}
 	replacementProduct, err := store.CreateProduct(ctx, db.CreateProductParams{
-		Barcode: "222", Code: "REPLACE-1", Name: "Replacement product", IsActive: 1, Price: 1000,
+		Barcode: "222", Code: "REPLACE-1", Name: "First replacement", IsActive: 1, Price: 600,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, product := range []db.Product{returnedProduct, replacementProduct} {
+	secondReplacement, err := store.CreateProduct(ctx, db.CreateProductParams{
+		Barcode: "333", Code: "REPLACE-2", Name: "Second replacement", IsActive: 1, Price: 600,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, product := range []db.Product{returnedProduct, replacementProduct, secondReplacement} {
 		if err := store.UpsertInventoryItem(ctx, db.UpsertInventoryItemParams{
 			InventoryID: inventory.ID, ProductID: product.ID, Quantity: 5,
 		}); err != nil {
@@ -103,12 +109,33 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	}
 
 	sourceID := loaded["id"].(int64)
-	exchangeItems, _ := json.Marshal([]exchangeLine{
+	tooLowItems, _ := json.Marshal([]exchangeLine{
 		{Code: returnedProduct.Code, Qty: -1},
 		{Code: replacementProduct.Code, Qty: 1},
 	})
-	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), "[]", sourceID, 0); err != nil {
+	if _, err := app.CheckoutExchangeInvoice(string(tooLowItems), "[]", sourceID, 0); err == nil {
+		t.Fatal("expected a replacement total below the return value to fail")
+	}
+
+	exchangeItems, _ := json.Marshal([]exchangeLine{
+		{Code: returnedProduct.Code, Qty: -1},
+		{Code: replacementProduct.Code, Qty: 1},
+		{Code: secondReplacement.Code, Qty: 1},
+	})
+	exchangePayments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 200}})
+	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0); err != nil {
 		t.Fatal(err)
+	}
+	exchangeInvoice, err := store.GetInvoiceByID(ctx, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exchangeLines, err := store.ListInvoiceProducts(ctx, exchangeInvoice.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exchangeInvoice.GrandTotal != 200 || len(exchangeLines) != 3 {
+		t.Fatalf("exchange total=%d lines=%d", exchangeInvoice.GrandTotal, len(exchangeLines))
 	}
 
 	returnedStock, err := store.GetInventoryItem(ctx, db.GetInventoryItemParams{
@@ -123,14 +150,39 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if returnedStock.Quantity != 5 || replacementStock.Quantity != 4 {
-		t.Fatalf("stock after exchange: returned=%d replacement=%d", returnedStock.Quantity, replacementStock.Quantity)
+	secondReplacementStock, err := store.GetInventoryItem(ctx, db.GetInventoryItemParams{
+		InventoryID: inventory.ID, ProductID: secondReplacement.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if returnedStock.Quantity != 5 || replacementStock.Quantity != 4 || secondReplacementStock.Quantity != 4 {
+		t.Fatalf(
+			"stock after exchange: returned=%d first=%d second=%d",
+			returnedStock.Quantity,
+			replacementStock.Quantity,
+			secondReplacementStock.Quantity,
+		)
 	}
 
 	if _, err := app.GetExchangeInvoice(sale.InvoiceCode); err == nil {
 		t.Fatal("expected fully returned invoice to have no available items")
 	}
-	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), "[]", sourceID, 0); err == nil {
+	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0); err == nil {
 		t.Fatal("expected duplicate exchange to fail")
+	}
+}
+
+func TestParseExchangeRequestMergesDuplicateReplacementLines(t *testing.T) {
+	request, err := parseExchangeRequest(`[
+		{"code":"RETURN","qty":-1},
+		{"code":"REPLACE","qty":1},
+		{"code":"REPLACE","qty":2}
+	]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(request.replacements) != 1 || request.replacements[0].Qty != 3 {
+		t.Fatalf("replacements = %#v", request.replacements)
 	}
 }

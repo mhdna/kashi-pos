@@ -121,10 +121,14 @@ function addItem(item: LineItem) {
   }
 }
 
-function addExchangeItems(returned: LineItem, replacement: LineItem) {
+function addExchangeItems(returned: LineItem, replacements: LineItem[]) {
   items.value = [
     { ...returned, price: Number(returned.price), discount: 0, qty: -1 },
-    { ...replacement, price: Number(replacement.price), qty: 1 },
+    ...replacements.map((item) => ({
+      ...item,
+      price: Number(item.price),
+      qty: Number(item.qty || 1),
+    })),
   ];
 }
 

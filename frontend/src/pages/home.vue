@@ -8,7 +8,11 @@
             <div class="me-2">
               <OnHoldMenu v-if="!exchangeState" @restore="onRestoreHold" />
             </div>
-            <ReturnInvoiceMenu v-if="!exchangeState" @exchange="onExchange" />
+            <ReturnInvoiceMenu
+              v-if="!exchangeState"
+              :rounding-mode="roundingMode"
+              @exchange="onExchange"
+            />
             <v-btn
               v-else
               color="red-darken-2"
@@ -129,6 +133,7 @@ import InvoiceSummary from "@/components/InvoiceSummary.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
+import type { ExchangeSelection } from "@/lib/exchange";
 
 const taxRate = ref(0);
 const roundingMode = ref("half_up");
@@ -271,9 +276,16 @@ async function onCheckout() {
   printing.value = false;
 }
 
-function onExchange(payload: { originalInvoiceId: number; returned: any; replacement: any }) {
+function onExchange(payload: ExchangeSelection) {
   invoiceItems.value?.clearItems();
-  invoiceItems.value?.addExchangeItems(payload.returned, payload.replacement);
+  invoiceItems.value?.addExchangeItems(
+    { ...payload.returned, category: payload.returned.category ?? "", qty: -1 },
+    payload.replacements.map((item) => ({
+      ...item,
+      category: item.category ?? "",
+      qty: Number(item.qty || 1),
+    })),
+  );
   exchangeState.value = { originalInvoiceId: payload.originalInvoiceId };
   calculator.value?.clearAll();
   snackbar.text = "Exchange loaded. Collect the difference, if any, and check out.";
