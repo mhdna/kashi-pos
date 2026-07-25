@@ -33,10 +33,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { inject, ref, watch, type Ref } from "vue";
 import { GetExchangeInvoice, GetProductByBarcode, GetProductByCode } from "../../wailsjs/go/main/App";
 
 const emit = defineEmits<{ exchange: [payload: { originalInvoiceId: number; returned: any; replacement: any }] }>();
+const dialogOpen = inject<Ref<boolean>>("dialogOpen");
 const menu = ref(false);
 const loading = ref(false);
 const invoiceCode = ref("");
@@ -44,6 +45,10 @@ const scanValue = ref("");
 const invoice = ref<any>(null);
 const returned = ref<any>(null);
 const replacement = ref<any>(null);
+
+watch(menu, (open) => {
+  if (dialogOpen) dialogOpen.value = open;
+});
 
 async function loadInvoice() {
   if (!invoiceCode.value.trim()) return;
