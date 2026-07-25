@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -115,7 +116,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 	}
 	settings, settingsErr := a.store.GetSettings(a.ctx)
 	if settingsErr == nil && settings.ReceiptEnabled != 0 {
-		if err := a.printReceipt(result.Items, settings.BranchName, settings.BranchName, phone, salesperson, result.InvoiceCode, settings.ReceiptPrinter); err != nil {
+		if err := a.printReceipt(result.Items, settings.BranchName, settings.BranchName, phone, salesperson, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal); err != nil {
 			response["receiptError"] = err.Error()
 		} else {
 			response["receiptPrinted"] = true
@@ -252,28 +253,38 @@ func (a *App) ReprintInvoice(id int64) error {
 	if err != nil {
 		return err
 	}
-	return a.printReceipt(items, settings.BranchName, settings.BranchName, details["clientPhone"].(string), details["salespersonName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter)
+	return a.printReceipt(items, settings.BranchName, settings.BranchName, details["clientPhone"].(string), details["salespersonName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64))
 }
 
-func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo, printerName string) error {
+func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo, printerName string, grandTotalCents int64) error {
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")
 	}
 
-	pdf := buildReceiptPDF(items, storeName, branch, phone, salesperson, receiptNo)
+	pdf := buildReceiptPDF(items, storeName, branch, phone, salesperson, receiptNo, grandTotalCents)
 
-	tmpFile := fmt.Sprintf("%s.pdf", receiptNo)
-	if err := pdf.OutputFileAndClose(tmpFile); err != nil {
+	tmpFile, err := os.CreateTemp("", "kashi-receipt-*.pdf")
+	if err != nil {
 		return err
 	}
-	defer os.Remove(tmpFile)
+	tmpPath := filepath.Clean(tmpFile.Name())
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	tmpFileName := tmpPath
+	if err := pdf.OutputFileAndClose(tmpFileName); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	defer os.Remove(tmpPath)
 
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("print", "/D:"+printerName, tmpFile)
+		cmd = exec.Command("print", "/D:"+printerName, tmpPath)
 	default:
-		cmd = exec.Command("lp", "-d", printerName, tmpFile)
+		cmd = exec.Command("lp", "-d", printerName, tmpPath)
 	}
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("print failed: %v — %s", err, string(out))
@@ -281,7 +292,7 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesp
 	return nil
 }
 
-func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo string) *fpdf.Fpdf {
+func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo string, grandTotalCents int64) *fpdf.Fpdf {
 	const (
 		pageW    = 80.0
 		margin   = 4.0
@@ -380,11 +391,14 @@ func buildReceiptPDF(items []invoiceItem, storeName, branch, phone, salesperson,
 	dashedRule()
 	down(4)
 	taxable := subtotal - totalDiscount
-	grandTotal := taxable
+	grandTotal := float64(grandTotalCents) / 100
+	tax := grandTotal - taxable
 
 	twoCol("Subtotal", fmt.Sprintf("$%.2f", subtotal), 11)
 	down(4)
 	twoCol("Discount", fmt.Sprintf("-$%.2f", totalDiscount), 11)
+	down(5)
+	twoCol("Tax", fmt.Sprintf("$%.2f", tax), 11)
 	down(5)
 	dashedRule()
 	down(5)

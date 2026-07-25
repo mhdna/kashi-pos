@@ -113,7 +113,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, provide, watch, onMounted, computed, reactive } from "vue";
+import { ref, provide, watch, onMounted, computed, reactive, nextTick } from "vue";
 import {
   GetProductByBarcode,
   ListProducts,
@@ -126,6 +126,7 @@ import {
   DeleteHoldInvoice,
   GetOpenShift,
   OpenShift,
+  WriteToScreen,
 } from "../../wailsjs/go/main/App";
 import ActionBar from "@/components/ActionBar.vue";
 import Calculator from "@/components/Calculator.vue";
@@ -141,6 +142,7 @@ const roundingMode = ref("half_up");
 const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
 const branchName = ref("Store");
+const screenPort = ref("");
 const invoiceCode = ref("Loading invoice code…");
 const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
@@ -213,6 +215,25 @@ const products = ref<any[]>([]);
 const printing = ref(false);
 const snackbar = reactive({ show: false, text: "", color: "success" });
 
+let screenQueue = Promise.resolve();
+function queueScreenUpdate(message: string) {
+  const port = screenPort.value.trim();
+  if (!port) return;
+  screenQueue = screenQueue
+    .then(() => WriteToScreen(port, message))
+    .catch((error) => console.warn("Customer screen update failed:", error));
+}
+
+function showCustomerTotal() {
+  if (!hasItems.value) {
+    queueScreenUpdate("");
+    return;
+  }
+  queueScreenUpdate(`TOTAL\r\n$${invoiceTotal.value.toFixed(2)}`);
+}
+
+watch([invoiceTotal, hasItems], showCustomerTotal);
+
 async function getItemsJSON(): Promise<string> {
   const items = invoiceItems.value?.items ?? [];
   return JSON.stringify(items.map((i: any) => ({ code: i.code, qty: i.qty })));
@@ -269,6 +290,10 @@ async function onCheckout() {
     invoiceItems.value?.clearItems();
     exchangeState.value = null;
     if (isExchange) actionBar.value?.resetClient();
+    await nextTick();
+    if (result?.invoiceCode) {
+      queueScreenUpdate(`INVOICE\r\n${result.invoiceCode}`);
+    }
     await refreshNextInvoiceCode("sales");
   } catch (e: any) {
     snackbar.text = e?.toString() || "Checkout failed";
@@ -335,6 +360,7 @@ onMounted(async () => {
     roundingMode.value = settings?.roundingMode ?? "half_up";
     receiptEnabled.value = Boolean(settings?.receiptEnabled);
     receiptPrinter.value = settings?.receiptPrinter ?? "";
+    screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
   } catch {}
   try {
@@ -344,6 +370,7 @@ onMounted(async () => {
       await OpenShift();
     } catch {}
   }
+  showCustomerTotal();
   await refreshNextInvoiceCode("sales");
 });
 </script>
