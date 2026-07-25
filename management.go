@@ -143,12 +143,14 @@ func (a *App) ListInvoices() ([]map[string]any, error) {
 	for i, inv := range list {
 		result[i] = map[string]any{
 			"id":              inv.ID,
+			"cashboxId":       inv.CashboxID,
 			"invoiceCode":     inv.InvoiceCode,
 			"clientId":        inv.ClientID,
 			"subtotal":        inv.Subtotal,
 			"discountedTotal": inv.DiscountedTotal,
 			"grandTotal":      inv.GrandTotal,
 			"createdAt":       inv.CreatedAt,
+			"salespersonId":   inv.SalespersonID,
 		}
 	}
 	return result, nil

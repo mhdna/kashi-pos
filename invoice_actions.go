@@ -124,6 +124,137 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 	return response, nil
 }
 
+func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	inv, err := a.store.GetInvoiceByID(a.ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	products, err := a.store.ListInvoiceProducts(a.ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]map[string]any, 0, len(products))
+	for _, line := range products {
+		product, productErr := a.store.GetProductByID(a.ctx, line.ProductID)
+		if productErr != nil {
+			continue
+		}
+		items = append(items, map[string]any{
+			"name": product.Name, "code": product.Code, "category": product.Description,
+			"price": float64(line.UnitPrice) / 100, "lineTotal": float64(line.LineTotal) / 100,
+			"discount": line.Discount, "qty": line.Quantity,
+		})
+	}
+	payments, err := a.store.ListInvoicePayments(a.ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	paymentList := make([]map[string]any, 0, len(payments))
+	for _, payment := range payments {
+		account, _ := a.store.GetCashboxAccountByID(a.ctx, payment.CashboxID)
+		paymentList = append(paymentList, map[string]any{"accountId": payment.CashboxID, "accountName": account.Name, "amount": payment.Amount})
+	}
+	clientName := "Walk-in customer"
+	clientPhone := ""
+	if client, clientErr := a.store.GetClientByID(a.ctx, inv.ClientID); clientErr == nil {
+		clientName, clientPhone = client.Name, client.Phone
+	}
+	salespersonName := "Anonymous"
+	if inv.SalespersonID > 0 {
+		if salesperson, salespersonErr := a.store.GetSalespersonByID(a.ctx, inv.SalespersonID); salespersonErr == nil {
+			salespersonName = salesperson.FullName
+		}
+	}
+	return map[string]any{
+		"id": inv.ID, "invoiceCode": inv.InvoiceCode, "clientId": inv.ClientID, "clientName": clientName, "clientPhone": clientPhone,
+		"salespersonId": inv.SalespersonID, "salespersonName": salespersonName, "cashboxId": inv.CashboxID,
+		"subtotal": inv.Subtotal, "discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
+		"createdAt": inv.CreatedAt, "items": items, "payments": paymentList,
+	}, nil
+}
+
+func (a *App) ChangeInvoiceClient(invoiceID, clientID int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if _, err := a.store.GetClientByID(a.ctx, clientID); err != nil {
+		return err
+	}
+	return a.store.UpdateInvoiceClient(a.ctx, db.UpdateInvoiceClientParams{ClientID: clientID, ID: invoiceID})
+}
+
+func (a *App) ChangeInvoiceSalesperson(invoiceID, salespersonID int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if salespersonID > 0 {
+		if _, err := a.store.GetSalespersonByID(a.ctx, salespersonID); err != nil {
+			return err
+		}
+	}
+	return a.store.UpdateInvoiceSalesperson(a.ctx, db.UpdateInvoiceSalespersonParams{SalespersonID: salespersonID, ID: invoiceID})
+}
+
+func (a *App) ChangeInvoiceSettlement(invoiceID, cashboxID int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	account, err := a.store.GetCashboxAccountByID(a.ctx, cashboxID)
+	if err != nil || account.ID == 0 {
+		return fmt.Errorf("settlement account not found")
+	}
+	inv, err := a.store.GetInvoiceByID(a.ctx, invoiceID)
+	if err != nil {
+		return err
+	}
+	oldPayments, err := a.store.ListInvoicePayments(a.ctx, invoiceID)
+	if err != nil {
+		return err
+	}
+	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		for _, payment := range oldPayments {
+			if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{AccountID: payment.CashboxID, ShiftID: inv.ShiftID, Balance: -payment.Amount}); err != nil {
+				return err
+			}
+		}
+		if err := q.DeleteInvoicePayments(a.ctx, invoiceID); err != nil {
+			return err
+		}
+		if err := q.DeleteInvoicePaymentEntries(a.ctx, invoiceID); err != nil {
+			return err
+		}
+		if err := q.CreateInvoicePayment(a.ctx, db.CreateInvoicePaymentParams{InvoiceID: invoiceID, CashboxID: cashboxID, Amount: inv.GrandTotal}); err != nil {
+			return err
+		}
+		if err := q.CreateInvoicePaymentEntry(a.ctx, db.CreateInvoicePaymentEntryParams{InvoiceID: invoiceID, CashboxID: cashboxID, Amount: inv.GrandTotal, EntryType: "payment"}); err != nil {
+			return err
+		}
+		if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{AccountID: cashboxID, ShiftID: inv.ShiftID, Balance: inv.GrandTotal}); err != nil {
+			return err
+		}
+		return q.UpdateInvoiceCashbox(a.ctx, db.UpdateInvoiceCashboxParams{CashboxID: cashboxID, ID: invoiceID})
+	})
+}
+
+func (a *App) ReprintInvoice(id int64) error {
+	details, err := a.GetInvoiceDetails(id)
+	if err != nil {
+		return err
+	}
+	items := make([]invoiceItem, 0)
+	for _, raw := range details["items"].([]map[string]any) {
+		items = append(items, invoiceItem{Name: raw["name"].(string), Code: raw["code"].(string), Category: raw["category"].(string), Price: raw["price"].(float64), Discount: float64(raw["discount"].(int64)), Qty: float64(raw["qty"].(int64))})
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return err
+	}
+	return a.printReceipt(items, settings.BranchName, settings.BranchName, details["clientPhone"].(string), details["salespersonName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter)
+}
+
 func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, salesperson, receiptNo, printerName string) error {
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")

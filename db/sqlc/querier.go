@@ -51,6 +51,8 @@ type Querier interface {
 	DeleteHoldInvoice(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
 	DeleteInventoryItem(ctx context.Context, arg DeleteInventoryItemParams) error
+	DeleteInvoicePaymentEntries(ctx context.Context, invoiceID int64) error
+	DeleteInvoicePayments(ctx context.Context, invoiceID int64) error
 	DeleteInvoiceProducts(ctx context.Context, invoiceID int64) error
 	DeletePermission(ctx context.Context, id int64) error
 	DeletePriceOverride(ctx context.Context, id int64) error
@@ -110,6 +112,7 @@ type Querier interface {
 	ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error)
 	ListInventories(ctx context.Context) ([]Inventory, error)
 	ListInventoryItems(ctx context.Context, inventoryID int64) ([]InventoryItem, error)
+	ListInvoicePayments(ctx context.Context, invoiceID int64) ([]InvoicePayment, error)
 	ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
 	ListInvoices(ctx context.Context) ([]Invoice, error)
 	ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error)
@@ -129,6 +132,9 @@ type Querier interface {
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
 	UpdateCouponStatus(ctx context.Context, arg UpdateCouponStatusParams) error
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) (Inventory, error)
+	UpdateInvoiceCashbox(ctx context.Context, arg UpdateInvoiceCashboxParams) error
+	UpdateInvoiceClient(ctx context.Context, arg UpdateInvoiceClientParams) error
+	UpdateInvoiceSalesperson(ctx context.Context, arg UpdateInvoiceSalespersonParams) error
 	UpdatePermission(ctx context.Context, arg UpdatePermissionParams) (Permission, error)
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error)
