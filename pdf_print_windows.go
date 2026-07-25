@@ -13,6 +13,12 @@ const (
 	startDocPrinterLevel = 1
 )
 
+type printerDefaults struct {
+	datatype      *uint16
+	devMode       uintptr
+	desiredAccess uint32
+}
+
 type docInfo1 struct {
 	docName    *uint16
 	outputFile *uint16
@@ -38,7 +44,12 @@ func printReceiptToPrinter(data printReceiptData) error {
 	}
 
 	var printer uintptr
-	ret, _, callErr := openPrinter.Call(uintptr(unsafe.Pointer(printerName)), uintptr(unsafe.Pointer(&printer)), printerAccessUse)
+	defaults := printerDefaults{desiredAccess: printerAccessUse}
+	ret, _, callErr := openPrinter.Call(
+		uintptr(unsafe.Pointer(printerName)),
+		uintptr(unsafe.Pointer(&printer)),
+		uintptr(unsafe.Pointer(&defaults)),
+	)
 	if ret == 0 {
 		return fmt.Errorf("open printer %q failed: %w", data.PrinterName, callErr)
 	}
