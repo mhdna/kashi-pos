@@ -14,9 +14,10 @@ func TestApplyMigrationsFreshDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("apply migrations: %v", err)
 	}
-	assertMigrationVersion(t, conn, 20)
+	assertMigrationVersion(t, conn, 21)
 	assertTableExists(t, conn, "settings")
 	assertTableExists(t, conn, "schema_migrations")
+	assertTableExists(t, conn, "invoice_payment_entries")
 }
 
 func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
@@ -51,12 +52,52 @@ func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, databasePath, true); err != nil {
 		t.Fatalf("upgrade legacy database: %v", err)
 	}
-	assertMigrationVersion(t, conn, 20)
+	assertMigrationVersion(t, conn, 21)
 	assertTableExists(t, conn, "schema_migrations")
+	assertTableExists(t, conn, "invoice_payment_entries")
 	backupMatches, err := filepath.Glob(databasePath + ".backup-*")
 	if err != nil || len(backupMatches) != 1 {
 		t.Fatalf("expected one database backup, found %v (err=%v)", backupMatches, err)
 	}
+}
+
+func TestInvoicePaymentEntriesMigrationRepairsMissingTable(t *testing.T) {
+	conn := openTestDatabase(t)
+	migrations, err := loadMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, migration := range migrations {
+		if migration.version > 20 {
+			break
+		}
+		if _, err := conn.Exec(migration.sql); err != nil {
+			t.Fatalf("apply migration %d: %v", migration.version, err)
+		}
+	}
+	if _, err := conn.Exec(`CREATE TABLE schema_migrations (
+		version INTEGER PRIMARY KEY,
+		name TEXT NOT NULL,
+		applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	for _, migration := range migrations {
+		if migration.version > 20 {
+			break
+		}
+		if _, err := conn.Exec("INSERT INTO schema_migrations(version, name) VALUES (?, ?)", migration.version, migration.name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := conn.Exec("DROP TABLE invoice_payment_entries"); err != nil {
+		t.Fatal(err)
+	}
+	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
+		t.Fatalf("repair missing payment-entry table: %v", err)
+	}
+	assertMigrationVersion(t, conn, 21)
+	assertTableExists(t, conn, "invoice_payment_entries")
 }
 
 func TestBranchInvoiceNumberingMigrationPreservesHighestYearlyIndex(t *testing.T) {
