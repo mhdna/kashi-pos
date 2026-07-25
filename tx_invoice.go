@@ -103,6 +103,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			InvoiceIndex: invoiceIndex, Year: year, ClientID: clientID,
 			InventoryID: inventoryID, Discount: 0,
 			Subtotal: subtotal, DiscountedTotal: discountedSubtotal, GrandTotal: grandTotal,
+			SalespersonID: 0,
 		})
 		if err != nil {
 			return fmt.Errorf("create invoice: %w", err)
@@ -118,15 +119,15 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			}); err != nil {
 				return fmt.Errorf("add product %s: %w", product.product.Code, err)
 			}
-			updated, err := q.DecreaseInventoryProductQuantity(a.ctx, db.DecreaseInventoryProductQuantityParams{
-				Quantity: product.qty, InventoryID: inventoryID, ProductID: product.product.ID, Quantity_2: product.qty,
-			})
-			if err != nil {
-				return fmt.Errorf("inventory update %s: %w", product.product.Code, err)
-			}
-			if count, err := updated.RowsAffected(); err != nil || count != 1 {
-				return fmt.Errorf("insufficient stock for product %s", product.product.Code)
-			}
+			// updated, err := q.DecreaseInventoryProductQuantity(a.ctx, db.DecreaseInventoryProductQuantityParams{
+			// 	Quantity: product.qty, InventoryID: inventoryID, ProductID: product.product.ID, Quantity_2: product.qty,
+			// })
+			// if err != nil {
+			// 	return fmt.Errorf("inventory update %s: %w", product.product.Code, err)
+			// }
+			// if count, err := updated.RowsAffected(); err != nil || count != 1 {
+			// 	return fmt.Errorf("insufficient stock for product %s", product.product.Code)
+			// }
 		}
 		netByAccount := make(map[int64]int64)
 		for _, payment := range payments {

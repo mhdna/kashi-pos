@@ -155,16 +155,16 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 		}); err != nil {
 			return err
 		}
-		updated, err := q.DecreaseInventoryProductQuantity(a.ctx, db.DecreaseInventoryProductQuantityParams{
-			Quantity: replacement.qty, InventoryID: inventoryID,
-			ProductID: replacement.product.ID, Quantity_2: replacement.qty,
-		})
-		if err != nil {
-			return err
-		}
-		if count, err := updated.RowsAffected(); err != nil || count != 1 {
-			return fmt.Errorf("insufficient stock for replacement product %s", replacement.product.Code)
-		}
+		// updated, err := q.DecreaseInventoryProductQuantity(a.ctx, db.DecreaseInventoryProductQuantityParams{
+		// 	Quantity: replacement.qty, InventoryID: inventoryID,
+		// 	ProductID: replacement.product.ID, Quantity_2: replacement.qty,
+		// })
+		// if err != nil {
+		// 	return err
+		// }
+		// if count, err := updated.RowsAffected(); err != nil || count != 1 {
+		// 	return fmt.Errorf("insufficient stock for replacement product %s", replacement.product.Code)
+		// }
 	}
 	return nil
 }
