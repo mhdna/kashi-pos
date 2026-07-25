@@ -38,7 +38,7 @@
       height="44"
       @click="confirm"
     >
-      {{ diffCents > 0 ? '− Subtract payment' : '+ Add payment' }}
+      {{ diffCents > 0 ? "− Subtract payment" : "+ Add payment" }}
     </v-btn>
 
     <!-- Progress -->
@@ -113,10 +113,10 @@ const displayValue = computed(() => {
   return Number(currentInput.value).toLocaleString();
 });
 
-const activeRate = computed(
-  () => activeCurrency.value === "LBP"
+const activeRate = computed(() =>
+  activeCurrency.value === "LBP"
     ? exchangeRate.value * usdRate.value
-    : currencies.value.find((c) => c.code === activeCurrency.value)?.valueInDefaultCurrency ?? 0,
+    : (currencies.value.find((c) => c.code === activeCurrency.value)?.valueInDefaultCurrency ?? 0),
 );
 const usdRate = computed(
   () => currencies.value.find((c) => c.code === "USD")?.valueInDefaultCurrency ?? 100,
@@ -126,6 +126,10 @@ const paidCents = computed(() => entries.value.reduce((sum, e) => sum + e.amount
 
 const diffCents = computed(() => paidCents.value - totalCents.value);
 const diff = computed(() => diffCents.value / 100);
+// A rounded 10,000-LBP amount can differ from the exact amount by at most
+// half of 10,000 LBP. Convert that allowance to accounting cents.
+const roundingToleranceCents = computed(() => Math.ceil((5000 * 100) / exchangeRate.value));
+const checkoutReady = computed(() => Math.abs(diffCents.value) <= roundingToleranceCents.value);
 
 const progressPct = computed(() =>
   Math.min(totalCents.value > 0 ? (paidCents.value / totalCents.value) * 100 : 0, 100),
@@ -133,16 +137,24 @@ const progressPct = computed(() =>
 
 const statusLabel = computed(() => {
   if (diffCents.value === 0) return "Paid in full";
-  return diffCents.value > 0 ? "Change due to customer" : "Remaining balance";
+  return diffCents.value > 0 ? "Change" : "Remaining";
 });
 
 const statusAmount = computed(() => {
   if (diffCents.value === 0) return "Exact";
-  const dollarAmount = Math.abs(diff.value).toFixed(2);
-  const lbpAmount = Math.round(Math.abs(diff.value) * exchangeRate.value).toLocaleString();
-  return diffCents.value > 0
-    ? `+${dollarAmount} $ / ${lbpAmount} LL`
-    : `${dollarAmount} $ / ${lbpAmount} LL due`;
+  const amountCents = Math.abs(diffCents.value);
+  const dollarAmount = amountCents / 100;
+  const wholeDollars = Math.floor(dollarAmount / 10) * 10;
+  const remainderCents = amountCents - wholeDollars * 100;
+  const exactLbp = (remainderCents * exchangeRate.value) / 100;
+  const roundedLbp = Math.floor((exactLbp + 5000) / 10000) * 10000;
+  const roundingLabel =
+    roundedLbp > exactLbp ? " (rounded up)" : roundedLbp < exactLbp ? " (rounded down)" : "";
+  const parts = [];
+  if (wholeDollars > 0) parts.push(`${wholeDollars}$`);
+  if (roundedLbp > 0) parts.push(`${roundedLbp.toLocaleString()} LBP${roundingLabel}`);
+  const amount = parts.join(" + ");
+  return diffCents.value > 0 ? `+${amount}` : `${amount} due`;
 });
 
 const statusColor = computed(() => {
@@ -193,7 +205,8 @@ function input(val: string) {
 
 function confirm() {
   const amount = Number(currentInput.value);
-  if (!Number.isFinite(amount) || amount <= 0 || activeRate.value <= 0 || usdRate.value <= 0) return;
+  if (!Number.isFinite(amount) || amount <= 0 || activeRate.value <= 0 || usdRate.value <= 0)
+    return;
   const method = types.value.find((t) => t.name === activeType.value);
   const amountCents = Math.round((amount * usdRate.value * 100) / activeRate.value);
   if (amountCents <= 0) return;
@@ -221,12 +234,24 @@ function clearAll() {
 
 const firstEntryAccountId = computed(() => entries.value[0]?.accountId ?? 0);
 const paymentsJSON = computed(() => {
-  return JSON.stringify(entries.value.map((entry) => ({
+  const payments = entries.value.map((entry) => ({
     accountId: entry.accountId,
     amountCents: entry.amountCents,
     entryType: entry.amountCents < 0 ? "change" : "payment",
-  })));
+  }));
+
+  // Rounded LBP tender is displayed to the cashier, while checkout still
+  // records an invoice-balanced amount in USD cents.
+  if (checkoutReady.value && diffCents.value !== 0) {
+    for (let i = payments.length - 1; i >= 0; i -= 1) {
+      if (payments[i]!.amountCents > 0) {
+        payments[i]!.amountCents -= diffCents.value;
+        break;
+      }
+    }
+  }
+  return JSON.stringify(payments);
 });
 
-defineExpose({ diff, clearAll, firstEntryAccountId, paymentsJSON });
+defineExpose({ diff, checkoutReady, clearAll, firstEntryAccountId, paymentsJSON });
 </script>

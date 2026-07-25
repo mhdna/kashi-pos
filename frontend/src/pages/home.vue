@@ -159,7 +159,7 @@ const invoiceTotal = computed(() => {
   return (discountedCents + taxCents) / 100;
 });
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
-const canCheckout = computed(() => calculator.value?.diff === 0 && (exchangeState.value ? hasItems.value : invoiceTotal.value > 0));
+const canCheckout = computed(() => Boolean(calculator.value?.checkoutReady) && (exchangeState.value ? hasItems.value : invoiceTotal.value > 0));
 const barcodeValue = ref("");
 const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
 const dialogOpen = ref(false);
