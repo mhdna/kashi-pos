@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="700">
+  <v-dialog v-model="dialog" max-width="700" min-height="440">
     <template #activator="{ props: activatorProps }">
       <v-btn v-bind="activatorProps" variant="text" class="ms-1">
         <v-icon icon="mdi-format-list-bulleted-square" size="20" class="me-1" />
@@ -21,22 +21,25 @@
           autofocus
         />
       </v-card-title>
-      <v-data-table
+      <v-data-table-server
+        v-model:items-per-page="itemsPerPage"
         :headers="headers"
-        :items="products"
+        :items="serverItems"
+        :items-length="totalItems"
+        :loading="loading"
         :search="search"
-        :items-per-page="10"
         hover
         return-object
         @click:row="selectProduct"
+        @update:options="loadItems"
       />
     </v-card>
   </v-dialog>
 </template>
 
 <script lang="ts" setup>
-import { ref, inject, watch, onMounted } from "vue";
-import { ListProducts } from "../../wailsjs/go/main/App";
+import { ref, inject, watch } from "vue";
+import { ListProductsPage } from "../../wailsjs/go/main/App";
 
 const emit = defineEmits<{
   select: [
@@ -62,19 +65,29 @@ watch(dialog, (v) => {
 const headers = [
   { title: "Code", key: "code", align: "start" as const },
   { title: "Name", key: "name", align: "start" as const },
-  { title: "Category", key: "category", align: "start" as const },
+  // { title: "Category", key: "category", align: "start" as const },
   { title: "Price", key: "price", align: "end" as const },
 ];
 
-const products = ref<any[]>([]);
+const itemsPerPage = ref(5);
+const serverItems = ref<any[]>([]);
+const totalItems = ref(0);
+const loading = ref(false);
 
-onMounted(async () => {
+async function loadItems({ page, itemsPerPage: requestedItemsPerPage }: { page: number; itemsPerPage: number }) {
+  loading.value = true;
   try {
-    products.value = (await ListProducts()).map((p) => ({ ...p, qty: 1 }));
+    const result = await ListProductsPage(page, requestedItemsPerPage, search.value);
+    serverItems.value = result.items.map((p) => ({ ...p, qty: 1 }));
+    totalItems.value = result.total;
   } catch (e) {
-    console.error("ListProducts failed:", e);
+    console.error("ListProductsPage failed:", e);
+    serverItems.value = [];
+    totalItems.value = 0;
+  } finally {
+    loading.value = false;
   }
-});
+}
 
 function selectProduct(_event: any, row: any) {
   emit("select", row.item);

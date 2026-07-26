@@ -6,11 +6,12 @@ import bg from "@/assets/bg.png";
 </script>
 
 <template>
-  <div class="login-page bg-brown-lighten-4">
+  <div class="login-page">
     <!-- <AbstractBG /> -->
     <!-- <v-img :src="bg" cover class="login-background" /> -->
+    <!-- <v-img :src="bg" cover class="login-background" /> -->
 
-    <FloatingIcons />
+    <!-- <FloatingIcons /> -->
     <div class="login-content">
       <LoginForm />
     </div>

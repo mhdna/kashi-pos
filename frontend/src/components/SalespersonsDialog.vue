@@ -1,7 +1,12 @@
 <template>
   <v-menu v-model="menu" :close-on-content-click="false" location="bottom end">
     <template #activator="{ props }">
-      <v-btn v-bind="props" class="py-6 px-0 me-4" :class="{ 'missing-selection-pulse': pulseMissingSalesperson }">
+      <v-btn
+        v-bind="props"
+        class="py-6 px-0 me-4"
+        min-width="200"
+        :class="{ 'missing-selection-pulse': pulseMissingSalesperson }"
+      >
         <v-list-item
           :subtitle="selected ? 'Salesperson' : undefined"
           :title="selectedName"
@@ -40,7 +45,7 @@ const salespersonAvatarColor = "green-lighten-4";
 const salespersons = ref<Salesperson[]>([]);
 const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperson();
 
-const selectedName = computed(() => selected.value?.fullName ?? "Select salesperson");
+const selectedName = computed(() => selected.value?.fullName ?? "Salesperson");
 const selectedColor = computed(() => salespersonAvatarColor);
 
 function colorFor(id: number) {
@@ -73,7 +78,12 @@ onMounted(async () => {
 }
 
 @keyframes missing-selection-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0); }
-  50% { box-shadow: 0 0 0 8px rgba(var(--v-theme-warning), 0.32); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(var(--v-theme-warning), 0.32);
+  }
 }
 </style>

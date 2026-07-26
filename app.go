@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -228,7 +227,6 @@ func (a *App) seedDefaults() {
 		}
 	}
 	a.seedCashboxAccounts()
-	a.seedProducts()
 	a.seedSalespersons()
 	a.seedDefaults2()
 }
@@ -265,58 +263,6 @@ func (a *App) seedCashboxAccounts() {
 		}
 	}
 	log.Println("seeded cashbox accounts")
-}
-
-func (a *App) seedProducts() {
-	existing, _ := a.store.ListProducts(context.Background())
-	if len(existing) > 0 {
-		return
-	}
-
-	categories := []string{
-		"t-shirt", "sweatshirt", "pants", "shoes", "hat", "coat", "jacket",
-		"blazer", "dress", "formal", "formal-woman", "underwear", "tie",
-		"bow-tie", "glasses", "sunglasses", "necklace", "ring", "watch",
-		"wallet", "purse", "bag", "suitcase", "umbrella", "mask",
-		"boxing-gloves", "scarf", "belt", "shorts", "skirt", "leggings",
-		"socks", "sandals", "heels",
-	}
-	names := []string{
-		"Classic", "Premium", "Slim", "Relaxed", "Vintage", "Modern", "Sport",
-		"Casual", "Formal", "Essential", "Deluxe", "Urban", "Retro", "Elite",
-		"Basic", "Signature", "Artisan", "Luxe", "Core", "Pro",
-	}
-	items := []string{
-		"Tee", "Hoodie", "Pants", "Sneakers", "Fedora", "Overcoat", "Jacket",
-		"Blazer", "Dress", "Suit", "Gown", "Boxers", "Necktie", "Bow Tie",
-		"Glasses", "Sunglasses", "Necklace", "Ring", "Watch", "Wallet",
-		"Purse", "Tote", "Suitcase", "Umbrella", "Mask", "Gloves",
-		"Scarf", "Belt", "Shorts", "Skirt", "Leggings", "Socks", "Sandals", "Heels",
-	}
-	discounts := []int64{0, 0, 0, 0, 5, 5, 10, 10, 15, 20}
-
-	for i := 1; i <= 100; i++ {
-		barcode := fmt.Sprintf("%d", i)
-		code := fmt.Sprintf("PRD-%03d", i)
-		name := fmt.Sprintf("%s %s", names[rand.Intn(len(names))], items[rand.Intn(len(items))])
-		category := categories[rand.Intn(len(categories))]
-		price := 5.0 + rand.Float64()*195.0
-		discount := discounts[rand.Intn(len(discounts))]
-
-		_, err := a.store.CreateProduct(context.Background(), db.CreateProductParams{
-			Barcode:     barcode,
-			Code:        code,
-			Name:        name,
-			Description: category,
-			IsActive:    1,
-			Price:       int64(price * 100),
-			Discount:    discount,
-		})
-		if err != nil {
-			log.Println("seed product:", code, err)
-		}
-	}
-	log.Println("seeded 100 products")
 }
 
 func hashPassword(pw string) string {

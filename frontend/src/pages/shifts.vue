@@ -1,6 +1,6 @@
 <template>
   <div class="shifts-page d-flex flex-column ga-4 pa-4 h-100">
-    <ShiftSummaryCard :open-shift="openShift" @close="closeDialog = true" />
+    <!-- <ShiftSummaryCard :open-shift="openShift" @close="closeDialog = true" /> -->
 
     <div class="shifts-cards d-flex ga-4">
       <TodayIncomeCard :items="todayIncome" :loading="loadingToday" :exchange-rate="exchangeRate" />

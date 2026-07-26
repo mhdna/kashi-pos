@@ -13,6 +13,20 @@ SELECT * FROM products ORDER BY id;
 -- name: SearchProductsByName :many
 SELECT * FROM products WHERE name LIKE ? ORDER BY id;
 
+-- name: ListProductsPage :many
+SELECT * FROM products
+WHERE name LIKE '%' || sqlc.arg(search) || '%'
+   OR code LIKE '%' || sqlc.arg(search) || '%'
+   OR barcode LIKE '%' || sqlc.arg(search) || '%'
+ORDER BY id
+LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
+
+-- name: CountProducts :one
+SELECT COUNT(*) FROM products
+WHERE name LIKE '%' || sqlc.arg(search) || '%'
+   OR code LIKE '%' || sqlc.arg(search) || '%'
+   OR barcode LIKE '%' || sqlc.arg(search) || '%';
+
 -- name: CreateProduct :one
 INSERT INTO products (barcode, code, name, description, is_active, price, discount)
 VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *;

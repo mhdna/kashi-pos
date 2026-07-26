@@ -160,15 +160,18 @@ type PriceOverride struct {
 }
 
 type Product struct {
-	ID          int64  `json:"id"`
-	Barcode     string `json:"barcode"`
-	Code        string `json:"code"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsActive    int64  `json:"isActive"`
-	Price       int64  `json:"price"`
-	Discount    int64  `json:"discount"`
-	CreatedAt   string `json:"createdAt"`
+	ID           int64  `json:"id"`
+	Barcode      string `json:"barcode"`
+	Code         string `json:"code"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	IsActive     int64  `json:"isActive"`
+	Price        int64  `json:"price"`
+	Discount     int64  `json:"discount"`
+	Color        string `json:"color"`
+	Size         string `json:"size"`
+	CurrencyCode string `json:"currencyCode"`
+	CreatedAt    string `json:"createdAt"`
 }
 
 type ReturnInvoice struct {

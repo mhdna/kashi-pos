@@ -66,7 +66,7 @@ func (q *Queries) DeleteHoldInvoice(ctx context.Context, id int64) error {
 }
 
 const listHoldInvoiceItems = `-- name: ListHoldInvoiceItems :many
-SELECT hii.id, hii.hold_invoice_id, hii.product_id, hii.qty, p.name, p.code, p.price, p.discount, p.description as category
+SELECT hii.id, hii.hold_invoice_id, hii.product_id, hii.qty, p.name, p.code, p.barcode, p.price, p.discount, p.description as category, p.color, p.size
 FROM hold_invoice_items hii
 JOIN products p ON p.id = hii.product_id
 WHERE hii.hold_invoice_id = ?
@@ -80,9 +80,12 @@ type ListHoldInvoiceItemsRow struct {
 	Qty           int64  `json:"qty"`
 	Name          string `json:"name"`
 	Code          string `json:"code"`
+	Barcode       string `json:"barcode"`
 	Price         int64  `json:"price"`
 	Discount      int64  `json:"discount"`
 	Category      string `json:"category"`
+	Color         string `json:"color"`
+	Size          string `json:"size"`
 }
 
 func (q *Queries) ListHoldInvoiceItems(ctx context.Context, holdInvoiceID int64) ([]ListHoldInvoiceItemsRow, error) {
@@ -101,9 +104,12 @@ func (q *Queries) ListHoldInvoiceItems(ctx context.Context, holdInvoiceID int64)
 			&i.Qty,
 			&i.Name,
 			&i.Code,
+			&i.Barcode,
 			&i.Price,
 			&i.Discount,
 			&i.Category,
+			&i.Color,
+			&i.Size,
 		); err != nil {
 			return nil, err
 		}

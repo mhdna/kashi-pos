@@ -5,7 +5,7 @@ INSERT INTO hold_invoices DEFAULT VALUES RETURNING *;
 INSERT INTO hold_invoice_items (hold_invoice_id, product_id, qty) VALUES (?, ?, ?);
 
 -- name: ListHoldInvoiceItems :many
-SELECT hii.*, p.name, p.code, p.price, p.discount, p.description as category
+SELECT hii.*, p.name, p.code, p.barcode, p.price, p.discount, p.description as category, p.color, p.size
 FROM hold_invoice_items hii
 JOIN products p ON p.id = hii.product_id
 WHERE hii.hold_invoice_id = ?

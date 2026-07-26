@@ -26,7 +26,7 @@
             autofocus
             class="flex-grow-1"
             density="compact"
-            label="Sales invoice code or barcode"
+            placeholder="Sales invoice code or barcode"
             prepend-inner-icon="mdi-barcode"
             variant="outlined"
             :disabled="Boolean(invoice)"
@@ -81,7 +81,7 @@
             ref="scanInput"
             v-model="scanValue"
             density="compact"
-            :label="returned ? 'Scan replacement product' : 'Scan product being returned'"
+            :placeholder="returned ? 'Scan replacement product' : 'Scan product being returned'"
             prepend-inner-icon="mdi-barcode"
             variant="outlined"
             :loading="scanning"

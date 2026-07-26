@@ -82,7 +82,7 @@ export function ListInventoryItems(arg1:number):Promise<Array<Record<string, any
 
 export function ListInvoices():Promise<Array<Record<string, any>>>;
 
-export function ListInvoicesPage(arg1:number,arg2:number):Promise<Record<string, any>>;
+export function ListInvoicesPage(arg1:number,arg2:number):Promise<main.InvoicePage>;
 
 export function ListPaymentMethods():Promise<Array<Record<string, any>>>;
 

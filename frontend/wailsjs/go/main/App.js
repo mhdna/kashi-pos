@@ -178,6 +178,10 @@ export function ListProducts() {
   return window['go']['main']['App']['ListProducts']();
 }
 
+export function ListProductsPage(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListProductsPage'](arg1, arg2, arg3);
+}
+
 export function ListRoles() {
   return window['go']['main']['App']['ListRoles']();
 }
