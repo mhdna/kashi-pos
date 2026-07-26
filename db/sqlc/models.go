@@ -221,6 +221,9 @@ type Setting struct {
 	ReceiptTitleSize  float64 `json:"receiptTitleSize"`
 	ReceiptBodySize   float64 `json:"receiptBodySize"`
 	ReceiptCutoff     int64   `json:"receiptCutoff"`
+	ReceiptBodyFont   string  `json:"receiptBodyFont"`
+	BranchPhone       string  `json:"branchPhone"`
+	CounterNumber     string  `json:"counterNumber"`
 }
 
 type Shift struct {

@@ -211,12 +211,15 @@
               <v-text-field v-model="form.marketName" label="Market name" hint="Printed large at the top, separately from the branch." persistent-hint variant="outlined" density="compact" class="mb-2" />
               <v-text-field v-model="form.marketPhone" label="Phone number" variant="outlined" density="compact" class="mb-2" />
               <v-text-field v-model="form.marketDescription" label="Description / tagline" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.branchPhone" label="Branch phone number" hint="Printed below the description." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.counterNumber" label="Counter number" variant="outlined" density="compact" class="mb-2" />
               <v-textarea v-model="form.returnPolicy" label="Return policy" rows="3" variant="outlined" density="compact" class="mb-2" />
               <v-row density="comfortable">
                 <v-col cols="6"><v-text-field v-model="form.website" label="Website" variant="outlined" density="compact" /></v-col>
                 <v-col cols="6"><v-text-field v-model="form.instagram" label="Instagram" variant="outlined" density="compact" /></v-col>
               </v-row>
               <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" label="Receipt font" hint="Belleza is bundled for offline printing." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-select v-model="form.receiptBodyFont" :items="['Courier', 'Helvetica', 'Times', 'Belleza']" label="Body font" hint="Courier is the regular receipt font used previously." persistent-hint variant="outlined" density="compact" class="mb-2" />
               <v-row density="comfortable">
                 <v-col cols="6"><v-text-field v-model.number="form.receiptTitleSize" label="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" /></v-col>
                 <v-col cols="6"><v-text-field v-model.number="form.receiptBodySize" label="Body size" type="number" min="6" max="24" variant="outlined" density="compact" /></v-col>
@@ -497,6 +500,8 @@ const form = reactive({
   exchangeRate: 90000,
   marketName: "",
   marketPhone: "",
+  branchPhone: "",
+  counterNumber: "1",
   marketDescription: "Shop for all",
   returnPolicy: "Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt.",
   website: "yourwebsite.com",
@@ -504,6 +509,7 @@ const form = reactive({
   receiptFont: "Belleza",
   receiptTitleSize: 21,
   receiptBodySize: 11,
+  receiptBodyFont: "Courier",
   receiptCutoff: true,
 });
 const roundingModes = [
@@ -587,6 +593,8 @@ async function loadSettings() {
         exchangeRate: Number(s.exchangeRate ?? 90000),
         marketName: s.marketName ?? "",
         marketPhone: s.marketPhone ?? "",
+        branchPhone: s.branchPhone ?? "",
+        counterNumber: s.counterNumber ?? "1",
         marketDescription: s.marketDescription ?? "Shop for all",
         returnPolicy: s.returnPolicy ?? "",
         website: s.website ?? "yourwebsite.com",
@@ -594,6 +602,7 @@ async function loadSettings() {
         receiptFont: s.receiptFont ?? "Belleza",
         receiptTitleSize: Number(s.receiptTitleSize ?? 21),
         receiptBodySize: Number(s.receiptBodySize ?? 11),
+        receiptBodyFont: s.receiptBodyFont ?? "Courier",
         receiptCutoff: s.receiptCutoff !== false,
       });
   } catch {
@@ -660,8 +669,9 @@ async function saveSettings() {
       Number.isFinite(exchangeRate) && exchangeRate > 0 ? Math.round(exchangeRate) : 90000,
     );
     await UpdateReceiptSettings(
-      form.marketName.trim(), form.marketPhone.trim(), form.marketDescription.trim(), form.returnPolicy.trim(),
-      form.website.trim(), form.instagram.trim(), form.receiptFont, Number(form.receiptTitleSize), Number(form.receiptBodySize),
+      form.marketName.trim(), form.marketPhone.trim(), form.branchPhone.trim(), form.marketDescription.trim(), form.returnPolicy.trim(),
+      form.website.trim(), form.instagram.trim(), form.counterNumber.trim(), form.receiptFont, form.receiptBodyFont,
+      Number(form.receiptTitleSize), Number(form.receiptBodySize),
       Boolean(form.receiptCutoff),
     );
     await refreshReceiptPreview();

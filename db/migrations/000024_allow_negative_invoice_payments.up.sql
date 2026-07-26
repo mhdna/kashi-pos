@@ -24,3 +24,6 @@ ALTER TABLE settings ADD COLUMN receipt_font text NOT NULL DEFAULT 'Belleza';
 ALTER TABLE settings ADD COLUMN receipt_title_size real NOT NULL DEFAULT 21;
 ALTER TABLE settings ADD COLUMN receipt_body_size real NOT NULL DEFAULT 11;
 ALTER TABLE settings ADD COLUMN receipt_cutoff integer NOT NULL DEFAULT 1 CHECK (receipt_cutoff IN (0, 1));
+ALTER TABLE settings ADD COLUMN receipt_body_font text NOT NULL DEFAULT 'Courier';
+ALTER TABLE settings ADD COLUMN branch_phone text NOT NULL DEFAULT '';
+ALTER TABLE settings ADD COLUMN counter_number text NOT NULL DEFAULT '1';

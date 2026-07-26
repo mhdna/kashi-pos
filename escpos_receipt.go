@@ -30,10 +30,19 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	writeESCPosCentered(&out, data.StoreName, columns, true)
 	writeESCPosCentered(&out, data.Branch, columns, false)
 	if data.Description != "" {
-		writeESCPosCentered(&out, data.Description, columns, false)
+		for _, line := range strings.Split(data.Description, "\n") {
+			writeESCPosCentered(&out, line, columns, false)
+		}
 	}
-	if data.Phone != "" {
-		writeESCPosCentered(&out, data.Phone, columns, false)
+	branchPhone := data.BranchPhone
+	if branchPhone == "" {
+		branchPhone = data.Phone
+	}
+	if branchPhone != "" {
+		writeESCPosCentered(&out, branchPhone, columns, false)
+	}
+	if data.CounterNumber != "" {
+		writeESCPosCentered(&out, "Counter: "+data.CounterNumber, columns, false)
 	}
 	out.WriteString(separator + "\n")
 	writeESCPosLine(&out, "Invoice:", data.ReceiptNo, columns)

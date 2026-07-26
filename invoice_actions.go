@@ -162,7 +162,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 				}
 			}
 		}
-		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.MarketDescription, salesperson, customer, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.Payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, settings.ReceiptFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0); err != nil {
+		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.Payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0); err != nil {
 			response["receiptError"] = err.Error()
 		} else {
 			response["receiptPrinted"] = true
@@ -303,7 +303,7 @@ func (a *App) ReprintInvoice(id int64) error {
 	if marketName == "" {
 		marketName = "Market"
 	}
-	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.MarketDescription, details["salespersonName"].(string), details["clientName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64), nil, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, settings.ReceiptFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0)
+	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), details["clientName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64), nil, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0)
 }
 
 // GetReceiptPreview returns a PDF rendered with the current receipt settings.
@@ -327,12 +327,12 @@ func (a *App) GetReceiptPreview() (string, error) {
 			{Name: "Lady Shorts - Khaki", Code: "DEMO-002", Price: 15, Qty: 1, Discount: 15},
 			{Name: "Men Jeans", Code: "DEMO-003", Price: 25, Qty: 2, Discount: 10},
 		},
-		StoreName: marketName, Branch: settings.BranchName, Phone: settings.MarketPhone,
-		Description: settings.MarketDescription, Salesperson: "Sarah Demo", Customer: "Walk-in",
+		StoreName: marketName, Branch: settings.BranchName, Phone: settings.MarketPhone, BranchPhone: settings.BranchPhone,
+		Description: settings.MarketDescription, CounterNumber: settings.CounterNumber, Salesperson: "Sarah Demo", Customer: "Walk-in",
 		ReceiptNo: "INV-DEMO-0001", GrandTotalCents: 6500, ExchangeRate: settings.ExchangeRate,
 		RoundingMode: settings.RoundingMode, ReceiptWidth: settings.ReceiptWidth, ReceiptHeight: settings.ReceiptHeight,
 		ReturnPolicy: settings.ReturnPolicy, Website: settings.Website, Instagram: settings.Instagram,
-		Font: settings.ReceiptFont, TitleSize: settings.ReceiptTitleSize, BodySize: settings.ReceiptBodySize,
+		Font: settings.ReceiptFont, BodyFont: settings.ReceiptBodyFont, TitleSize: settings.ReceiptTitleSize, BodySize: settings.ReceiptBodySize,
 	}
 	pdf := buildReceiptPDF(data)
 	var output bytes.Buffer
@@ -342,7 +342,7 @@ func (a *App) GetReceiptPreview() (string, error) {
 	return base64.StdEncoding.EncodeToString(output.Bytes()), nil
 }
 
-func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, description, salesperson, customer, receiptNo, printerName string, grandTotalCents int64, payments []checkoutPayment, exchangeRate int64, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram, font string, titleSize, bodySize float64, cutoff bool) error {
+func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, counter, salesperson, customer, receiptNo, printerName string, grandTotalCents int64, payments []checkoutPayment, exchangeRate int64, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram, font, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")
 	}
@@ -360,13 +360,16 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, descri
 		StoreName:       storeName,
 		Branch:          branch,
 		Phone:           phone,
+		BranchPhone:     branchPhone,
 		Description:     description,
+		CounterNumber:   counter,
 		Salesperson:     salesperson,
 		Customer:        customer,
 		ReturnPolicy:    returnPolicy,
 		Website:         website,
 		Instagram:       instagram,
 		Font:            font,
+		BodyFont:        bodyFont,
 		TitleSize:       titleSize,
 		BodySize:        bodySize,
 		Cutoff:          cutoff,
@@ -407,13 +410,20 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	pdf.SetAutoPageBreak(false, 0)
 	pdf.AddPage()
 
-	fontFamily := data.Font
-	if fontFamily == "Belleza" || fontFamily == "" {
-		fontFamily = "Belleza"
-	} else if fontFamily != "Helvetica" && fontFamily != "Times" && fontFamily != "Courier" {
-		fontFamily = "Belleza"
+	titleFont := data.Font
+	if titleFont == "" {
+		titleFont = "Belleza"
+	} else if titleFont != "Belleza" && titleFont != "Helvetica" && titleFont != "Times" && titleFont != "Courier" {
+		titleFont = "Belleza"
 	}
-	if fontFamily == "Belleza" {
+	bodyFont := data.BodyFont
+	if bodyFont == "" {
+		bodyFont = "Courier"
+	}
+	if bodyFont != "Helvetica" && bodyFont != "Times" && bodyFont != "Courier" && bodyFont != "Belleza" {
+		bodyFont = "Courier"
+	}
+	if titleFont == "Belleza" || bodyFont == "Belleza" {
 		pdf.AddUTF8FontFromBytes("Belleza", "", bellezaFont)
 		pdf.AddUTF8FontFromBytes("Belleza", "B", bellezaFont)
 	}
@@ -426,7 +436,7 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	}
 
 	boldText := func(s string, size float64, align string) {
-		pdf.SetFont(fontFamily, "B", size)
+		pdf.SetFont(bodyFont, "B", size)
 		w := contentW
 		if align == "C" {
 			pdf.SetXY(margin, pdf.GetY())
@@ -436,7 +446,7 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	}
 
 	twoCol := func(left, right string, size float64) {
-		pdf.SetFont(fontFamily, "B", size)
+		pdf.SetFont(bodyFont, "B", size)
 		y := pdf.GetY()
 		pdf.SetXY(margin, y)
 		pdf.CellFormat(contentW/2, 4, left, "", 0, "L", false, 0, "")
@@ -444,8 +454,19 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		pdf.CellFormat(contentW/2, 4, right, "", 0, "R", false, 0, "")
 	}
 
-	center := func(s string, size float64) { boldText(s, size, "C") }
 	down := func(mm float64) { pdf.SetY(pdf.GetY() + mm) }
+	center := func(s string, size float64) { boldText(s, size, "C") }
+	centerWithFont := func(s, font string, size float64) {
+		pdf.SetFont(font, "B", size)
+		pdf.SetXY(margin, pdf.GetY())
+		pdf.CellFormat(contentW, 4, s, "", 0, "C", false, 0, "")
+	}
+	centerLines := func(s string, size float64) {
+		for _, line := range strings.Split(s, "\n") {
+			center(line, size)
+			down(4)
+		}
+	}
 
 	dashedRule := func() {
 		pdf.SetDashPattern([]float64{1.1, 1.0}, 0)
@@ -456,15 +477,25 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	}
 
 	pdf.SetY(8)
-	center(data.StoreName, titleSize)
+	centerWithFont(data.StoreName, titleFont, titleSize)
 	down(8)
 	center(data.Branch, bodySize)
 	down(4)
 	if data.Description != "" {
-		center(data.Description, bodySize)
+		centerLines(data.Description, bodySize)
+	}
+	branchPhone := data.BranchPhone
+	if branchPhone == "" {
+		branchPhone = data.Phone
+	}
+	if branchPhone != "" {
+		center(branchPhone, bodySize)
 		down(4)
 	}
-	center(data.Phone, bodySize)
+	if data.CounterNumber != "" {
+		center("Counter: "+data.CounterNumber, bodySize)
+		down(4)
+	}
 	down(5)
 	dashedRule()
 	down(4)
@@ -495,7 +526,7 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		twoCol(it.Name, fmt.Sprintf("$%.2f", lineTotal), 11)
 		down(4)
 
-		pdf.SetFont(fontFamily, "", 10)
+		pdf.SetFont(bodyFont, "", 10)
 		qtyLine := fmt.Sprintf("%.0f x $%.2f", it.Qty, it.Price)
 		if it.Discount > 0 {
 			qtyLine += fmt.Sprintf("  (-%.0f%% = -$%.2f)", it.Discount, discAmt)

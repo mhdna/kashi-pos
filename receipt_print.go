@@ -5,7 +5,9 @@ type printReceiptData struct {
 	StoreName       string
 	Branch          string
 	Phone           string
+	BranchPhone     string
 	Description     string
+	CounterNumber   string
 	Salesperson     string
 	Customer        string
 	ReturnPolicy    string
@@ -14,6 +16,7 @@ type printReceiptData struct {
 	Font            string
 	TitleSize       float64
 	BodySize        float64
+	BodyFont        string
 	Cutoff          bool
 	ReceiptNo       string
 	PrinterName     string

@@ -379,6 +379,8 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"exchangeRate":      settings.ExchangeRate,
 		"marketName":        settings.MarketName,
 		"marketPhone":       settings.MarketPhone,
+		"branchPhone":       settings.BranchPhone,
+		"counterNumber":     settings.CounterNumber,
 		"marketDescription": settings.MarketDescription,
 		"returnPolicy":      settings.ReturnPolicy,
 		"website":           settings.Website,
@@ -386,11 +388,12 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"receiptFont":       settings.ReceiptFont,
 		"receiptTitleSize":  settings.ReceiptTitleSize,
 		"receiptBodySize":   settings.ReceiptBodySize,
+		"receiptBodyFont":   settings.ReceiptBodyFont,
 		"receiptCutoff":     settings.ReceiptCutoff != 0,
 	}, nil
 }
 
-func (a *App) UpdateReceiptSettings(marketName, marketPhone, marketDescription, returnPolicy, website, instagram, receiptFont string, titleSize, bodySize float64, cutoff bool) error {
+func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, marketDescription, returnPolicy, website, instagram, counterNumber, receiptFont, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -407,14 +410,17 @@ func (a *App) UpdateReceiptSettings(marketName, marketPhone, marketDescription, 
 	if receiptFont == "" {
 		receiptFont = "Belleza"
 	}
+	if bodyFont == "" {
+		bodyFont = "Courier"
+	}
 	return a.store.UpdateSettings(a.ctx, db.UpdateSettingsParams{
 		BranchName: current.BranchName, BranchCode: current.BranchCode, ApiKey: current.ApiKey, PrinterID: current.PrinterID,
 		PrinterSize: current.PrinterSize, ReceiptPrinter: current.ReceiptPrinter, ScreenPort: current.ScreenPort,
 		ReceiptWidth: current.ReceiptWidth, ReceiptHeight: current.ReceiptHeight, Theme: current.Theme, TaxRate: current.TaxRate,
 		RoundingMode: current.RoundingMode, ReceiptEnabled: current.ReceiptEnabled, SalesInventoryID: current.SalesInventoryID,
-		ExchangeRate: current.ExchangeRate, MarketName: marketName, MarketPhone: marketPhone, MarketDescription: marketDescription,
+		ExchangeRate: current.ExchangeRate, MarketName: marketName, MarketPhone: marketPhone, BranchPhone: branchPhone, MarketDescription: marketDescription,
 		ReturnPolicy: returnPolicy, Website: website, Instagram: instagram, ReceiptFont: receiptFont, ReceiptTitleSize: titleSize,
-		ReceiptBodySize: bodySize, ReceiptCutoff: boolInt(cutoff),
+		ReceiptBodySize: bodySize, ReceiptCutoff: boolInt(cutoff), ReceiptBodyFont: bodyFont, CounterNumber: counterNumber,
 	})
 }
 
@@ -462,6 +468,7 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		MarketName:       current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
 		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, ReceiptFont: current.ReceiptFont,
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
+		ReceiptBodyFont: current.ReceiptBodyFont, BranchPhone: current.BranchPhone, CounterNumber: current.CounterNumber,
 	})
 }
 
@@ -492,6 +499,7 @@ func (a *App) SetTaxRate(rate float64) error {
 		MarketName:       current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
 		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, ReceiptFont: current.ReceiptFont,
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
+		ReceiptBodyFont: current.ReceiptBodyFont, BranchPhone: current.BranchPhone, CounterNumber: current.CounterNumber,
 	})
 }
 
