@@ -200,7 +200,7 @@ func sanitizeESCPos(value string) string {
 }
 
 func currentReceiptDate() string {
-	return time.Now().Format("02/01/2006 15:04")
+	return time.Now().Format("02-01-2006 15:04")
 }
 
 func maxInt(a, b int) int {

@@ -463,11 +463,37 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		pdf.SetXY(margin, pdf.GetY())
 		pdf.CellFormat(contentW, 4, s, "", 0, "C", false, 0, "")
 	}
-	centerLines := func(s string, size float64) {
-		for _, line := range strings.Split(s, "\n") {
-			center(line, size)
-			down(4)
+	wrapLines := func(s string, size float64) []string {
+		pdf.SetFont(bodyFont, "B", size)
+		lines := make([]string, 0)
+		for _, paragraph := range strings.Split(s, "\n") {
+			words := strings.Fields(paragraph)
+			if len(words) == 0 {
+				lines = append(lines, "")
+				continue
+			}
+			line := words[0]
+			for _, word := range words[1:] {
+				candidate := line + " " + word
+				if pdf.GetStringWidth(candidate) > contentW && line != "" {
+					lines = append(lines, line)
+					line = word
+				} else {
+					line = candidate
+				}
+			}
+			lines = append(lines, line)
 		}
+		return lines
+	}
+	centerWrapped := func(s string, size float64, spacing float64) {
+		for _, line := range wrapLines(s, size) {
+			center(line, size)
+			down(spacing)
+		}
+	}
+	centerLines := func(s string, size float64) {
+		centerWrapped(s, size, 4)
 	}
 
 	dashedRule := func() {
@@ -505,7 +531,7 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	twoCol("Receipt: "+data.ReceiptNo, "", bodySize)
 	down(4)
 	now := time.Now()
-	twoCol("Date: "+now.Format("02/01/2006"), "Time: "+now.Format("15:04"), 11)
+	twoCol("Date: "+now.Format("02-01-2006 15:04"), "", bodySize)
 	down(4)
 	twoCol("Sold by: "+data.Salesperson, "", bodySize)
 	down(4)
@@ -594,19 +620,14 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	if policy == "" {
 		policy = "Exchanges accepted within 3 days."
 	}
-	for _, line := range strings.Split(policy, "\n") {
-		center(line, 8.5)
-		down(3.5)
-	}
+	centerWrapped(policy, 8.5, 3.5)
 	dashedRule()
 	down(4)
 	if data.Website != "" {
-		center("Follow us: "+data.Website, bodySize)
-		down(3.5)
+		centerWrapped("Follow us: "+data.Website, bodySize, 3.5)
 	}
 	if data.Instagram != "" {
-		center("Instagram: "+data.Instagram, bodySize)
-		down(3.5)
+		centerWrapped("Instagram: "+data.Instagram, bodySize, 3.5)
 	}
 	center("Thank you for shopping with us!", bodySize)
 	down(4)
