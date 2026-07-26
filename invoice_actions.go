@@ -19,6 +19,21 @@ import (
 //go:embed assets/fonts/Belleza-Regular.ttf
 var bellezaFont []byte
 
+//go:embed pdf-icons/facebook.png
+var facebookIcon []byte
+
+//go:embed pdf-icons/instagram.png
+var instagramIcon []byte
+
+//go:embed pdf-icons/threads.png
+var threadsIcon []byte
+
+//go:embed pdf-icons/tiktok.png
+var tiktokIcon []byte
+
+//go:embed pdf-icons/youtube.png
+var youtubeIcon []byte
+
 type invoiceItem struct {
 	Name     string  `json:"name"`
 	Code     string  `json:"code"`
@@ -162,7 +177,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 				}
 			}
 		}
-		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.Payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0); err != nil {
+		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.Payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0); err != nil {
 			response["receiptError"] = err.Error()
 		} else {
 			response["receiptPrinted"] = true
@@ -303,7 +318,7 @@ func (a *App) ReprintInvoice(id int64) error {
 	if marketName == "" {
 		marketName = "Market"
 	}
-	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), details["clientName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64), nil, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0)
+	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), details["clientName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64), nil, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0)
 }
 
 // GetReceiptPreview returns a PDF rendered with the current receipt settings.
@@ -331,7 +346,7 @@ func (a *App) GetReceiptPreview() (string, error) {
 		Description: settings.MarketDescription, CounterNumber: settings.CounterNumber, Salesperson: "Sarah Demo", Customer: "Walk-in",
 		ReceiptNo: "INV-DEMO-0001", GrandTotalCents: 6500, ExchangeRate: settings.ExchangeRate,
 		RoundingMode: settings.RoundingMode, ReceiptWidth: settings.ReceiptWidth, ReceiptHeight: settings.ReceiptHeight,
-		ReturnPolicy: settings.ReturnPolicy, Website: settings.Website, Instagram: settings.Instagram,
+		ReturnPolicy: settings.ReturnPolicy, Website: settings.Website, Instagram: settings.Instagram, SocialPlatforms: decodeSocialPlatforms(settings.SocialPlatforms), SocialHandles: decodeSocialHandles(settings.SocialHandles),
 		Font: settings.ReceiptFont, BodyFont: settings.ReceiptBodyFont, TitleSize: settings.ReceiptTitleSize, BodySize: settings.ReceiptBodySize,
 	}
 	pdf := buildReceiptPDF(data)
@@ -342,7 +357,7 @@ func (a *App) GetReceiptPreview() (string, error) {
 	return base64.StdEncoding.EncodeToString(output.Bytes()), nil
 }
 
-func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, counter, salesperson, customer, receiptNo, printerName string, grandTotalCents int64, payments []checkoutPayment, exchangeRate int64, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram, font, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
+func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, counter, salesperson, customer, receiptNo, printerName string, grandTotalCents int64, payments []checkoutPayment, exchangeRate int64, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram string, socialPlatforms []string, socialHandles map[string]string, font, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")
 	}
@@ -368,6 +383,8 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 		ReturnPolicy:    returnPolicy,
 		Website:         website,
 		Instagram:       instagram,
+		SocialPlatforms: socialPlatforms,
+		SocialHandles:   socialHandles,
 		Font:            font,
 		BodyFont:        bodyFont,
 		TitleSize:       titleSize,
@@ -520,10 +537,14 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		center(branchPhone, bodySize)
 		down(4)
 	}
-	if data.CounterNumber != "" {
-		center("Counter: "+data.CounterNumber, bodySize)
+	if data.Website != "" {
+		center(data.Website, bodySize)
 		down(4)
 	}
+	// if data.CounterNumber != "" {
+	// 	center("Counter: "+data.CounterNumber, bodySize)
+	// 	down(4)
+	// }
 	down(5)
 	dashedRule()
 	down(4)
@@ -618,20 +639,24 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	down(4)
 	policy := data.ReturnPolicy
 	if policy == "" {
-		policy = "Exchanges accepted within 3 days."
+		policy = "Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt."
 	}
-	centerWrapped(policy, 8.5, 3.5)
+	down(2)
+	centerWrapped(policy, 8.5, 4.5)
+	down(2)
 	dashedRule()
 	down(4)
-	if data.Website != "" {
-		centerWrapped("Follow us: "+data.Website, bodySize, 3.5)
-	}
-	if data.Instagram != "" {
-		centerWrapped("Instagram: "+data.Instagram, bodySize, 3.5)
+	socialItems := socialFooterItems(data.SocialPlatforms, data.SocialHandles)
+	if len(socialItems) > 0 {
+		pdf.SetX(margin)
+		boldText("Follow us:", bodySize, "L")
+		down(4)
+		drawSocialFooterRows(pdf, socialItems, margin-5, pdf.GetY(), contentW, bodySize)
+		down(float64(len(socialItems)) * 2.5)
 	}
 	center("Thank you for shopping with us!", bodySize)
 	down(4)
-	center(data.ReceiptNo, bodySize)
+	// center(data.ReceiptNo, bodySize)
 	down(8)
 
 	seed := int64(0)
@@ -683,4 +708,69 @@ func formatReceiptPayment(payment receiptPayment, exchangeRate int64, roundingMo
 		return "0 LBP"
 	}
 	return fmt.Sprintf("$%.2f", float64(amount)/100)
+}
+
+type socialFooterItem struct {
+	platform string
+	handle   string
+}
+
+func socialFooterItems(platforms []string, handles map[string]string) []socialFooterItem {
+	items := make([]socialFooterItem, 0, len(platforms))
+	for _, platform := range platforms {
+		handle := strings.TrimSpace(handles[platform])
+		if handle == "" {
+			continue
+		}
+		items = append(items, socialFooterItem{platform: platform, handle: handle})
+	}
+	return items
+}
+
+func drawSocialFooterRows(pdf *fpdf.Fpdf, items []socialFooterItem, left, top, contentW, fontSize float64) {
+	const iconSize = 4.5
+	const handleWidth = 28.0
+	const lineHeight = 6.5
+	itemWidth := iconSize + 2.0 + handleWidth
+
+	for i, item := range items {
+		lineTop := top + float64(i)*lineHeight
+		startX := left + (contentW-itemWidth)/2
+		drawSocialFooterIcon(pdf, item.platform, item.handle, startX, lineTop, iconSize, handleWidth, fontSize)
+	}
+}
+
+func drawSocialFooterIcon(pdf *fpdf.Fpdf, platform, handle string, x, top, iconSize, handleWidth, fontSize float64) {
+	iconBytes := socialPlatformIconBytes(platform)
+	if len(iconBytes) == 0 {
+		pdf.SetXY(x, top)
+		pdf.CellFormat(iconSize+2+handleWidth, 5, handle, "", 0, "L", false, 0, "")
+		return
+	}
+	iconY := top + 0.3
+	iconName := "social-" + platform
+	opts := fpdf.ImageOptions{ImageType: "png", ReadDpi: true}
+	pdf.RegisterImageOptionsReader(iconName, opts, bytes.NewReader(iconBytes))
+	pdf.ImageOptions(iconName, x, iconY, iconSize, iconSize, false, opts, 0, "")
+	pdf.SetTextColor(0, 0, 0)
+	pdf.SetFont("Helvetica", "", fontSize)
+	pdf.SetXY(x+iconSize+2, top)
+	pdf.CellFormat(handleWidth, 5, handle, "", 0, "L", false, 0, "")
+}
+
+func socialPlatformIconBytes(platform string) []byte {
+	switch platform {
+	case "facebook":
+		return facebookIcon
+	case "instagram":
+		return instagramIcon
+	case "threads":
+		return threadsIcon
+	case "youtube":
+		return youtubeIcon
+	case "tiktok":
+		return tiktokIcon
+	default:
+		return nil
+	}
 }

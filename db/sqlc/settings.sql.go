@@ -10,7 +10,7 @@ import (
 )
 
 const getSettings = `-- name: GetSettings :one
-SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number FROM settings LIMIT 1
+SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number FROM settings LIMIT 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -38,6 +38,8 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.ReturnPolicy,
 		&i.Website,
 		&i.Instagram,
+		&i.SocialPlatforms,
+		&i.SocialHandles,
 		&i.ReceiptFont,
 		&i.ReceiptTitleSize,
 		&i.ReceiptBodySize,
@@ -54,7 +56,7 @@ UPDATE settings
 SET branch_name = ?, branch_code = ?, api_key = ?, printer_id = ?, printer_size = ?,
     receipt_printer = ?, screen_port = ?, receipt_width = ?, receipt_height = ?,
     theme = ?, tax_rate = ?, rounding_mode = ?, receipt_enabled = ?, sales_inventory_id = ?, exchange_rate = ?,
-    market_name = ?, market_phone = ?, market_description = ?, return_policy = ?, website = ?, instagram = ?,
+    market_name = ?, market_phone = ?, market_description = ?, return_policy = ?, website = ?, instagram = ?, social_platforms = ?, social_handles = ?,
     receipt_font = ?, receipt_title_size = ?, receipt_body_size = ?, receipt_cutoff = ?, receipt_body_font = ?, branch_phone = ?, counter_number = ?
 `
 
@@ -80,6 +82,8 @@ type UpdateSettingsParams struct {
 	ReturnPolicy      string  `json:"returnPolicy"`
 	Website           string  `json:"website"`
 	Instagram         string  `json:"instagram"`
+	SocialPlatforms   string  `json:"socialPlatforms"`
+	SocialHandles     string  `json:"socialHandles"`
 	ReceiptFont       string  `json:"receiptFont"`
 	ReceiptTitleSize  float64 `json:"receiptTitleSize"`
 	ReceiptBodySize   float64 `json:"receiptBodySize"`
@@ -112,6 +116,8 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.ReturnPolicy,
 		arg.Website,
 		arg.Instagram,
+		arg.SocialPlatforms,
+		arg.SocialHandles,
 		arg.ReceiptFont,
 		arg.ReceiptTitleSize,
 		arg.ReceiptBodySize,
@@ -133,8 +139,8 @@ func (q *Queries) UpdateTheme(ctx context.Context, theme string) error {
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
-INSERT INTO settings (branch_name, branch_code, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO settings (branch_name, branch_code, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type UpsertSettingsParams struct {
@@ -159,6 +165,8 @@ type UpsertSettingsParams struct {
 	ReturnPolicy      string  `json:"returnPolicy"`
 	Website           string  `json:"website"`
 	Instagram         string  `json:"instagram"`
+	SocialPlatforms   string  `json:"socialPlatforms"`
+	SocialHandles     string  `json:"socialHandles"`
 	ReceiptFont       string  `json:"receiptFont"`
 	ReceiptTitleSize  float64 `json:"receiptTitleSize"`
 	ReceiptBodySize   float64 `json:"receiptBodySize"`
@@ -191,6 +199,8 @@ func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) 
 		arg.ReturnPolicy,
 		arg.Website,
 		arg.Instagram,
+		arg.SocialPlatforms,
+		arg.SocialHandles,
 		arg.ReceiptFont,
 		arg.ReceiptTitleSize,
 		arg.ReceiptBodySize,

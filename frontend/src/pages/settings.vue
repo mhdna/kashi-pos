@@ -214,9 +214,40 @@
               <v-text-field v-model="form.branchPhone" label="Branch phone number" hint="Printed below the description." persistent-hint variant="outlined" density="compact" class="mb-2" />
               <v-text-field v-model="form.counterNumber" label="Counter number" variant="outlined" density="compact" class="mb-2" />
               <v-textarea v-model="form.returnPolicy" label="Return policy" rows="3" variant="outlined" density="compact" class="mb-2" />
+              <v-select
+                v-model="form.socialPlatforms"
+                :items="socialPlatformOptions"
+                label="Social platforms"
+                multiple
+                chips
+                closable-chips
+                hide-selected
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              >
+                <template #chip="{ props, item }">
+                  <v-chip v-bind="props" :icon="platformIcon(String(item.value))" label variant="tonal" />
+                </template>
+                <template #item="{ props, item }">
+                  <v-list-item v-bind="props" :prepend-icon="platformIcon(String(item.value))">
+                    <template #title>
+                      <span class="sr-only">{{ platformLabel(String(item.value)) }}</span>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-select>
+              <div v-for="platform in form.socialPlatforms" :key="platform" class="mb-2">
+                <v-text-field
+                  v-model="form.socialHandles[platform]"
+                  :label="`${platformLabel(platform)} handle`"
+                  :prepend-inner-icon="platformIcon(platform)"
+                  variant="outlined"
+                  density="compact"
+                />
+              </div>
               <v-row density="comfortable">
-                <v-col cols="6"><v-text-field v-model="form.website" label="Website" variant="outlined" density="compact" /></v-col>
-                <v-col cols="6"><v-text-field v-model="form.instagram" label="Instagram" variant="outlined" density="compact" /></v-col>
+                <v-col cols="12"><v-text-field v-model="form.website" label="Website" variant="outlined" density="compact" /></v-col>
               </v-row>
               <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" label="Receipt font" hint="Belleza is bundled for offline printing." persistent-hint variant="outlined" density="compact" class="mb-2" />
               <v-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" label="Body font" hint="Printer Font A uses the thermal printer's native font." persistent-hint variant="outlined" density="compact" class="mb-2" />
@@ -229,19 +260,6 @@
             <v-card-actions class="px-4 pb-4"><v-spacer /><v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings"><v-icon start icon="mdi-content-save-outline" /> Save changes</v-btn></v-card-actions>
           </v-card>
 
-          <v-card class="settings-card settings-preview-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36"><v-icon icon="mdi-printer-outline" size="20" /></v-avatar>
-              <div><div class="text-subtitle-1 font-weight-bold">Live receipt preview</div><div class="text-caption text-medium-emphasis">Demo items update as you edit the receipt settings.</div></div>
-              <v-spacer />
-              <v-progress-circular v-if="previewLoading" indeterminate size="18" width="2" color="primary" />
-            </v-card-title>
-            <v-card-text class="preview-card-text">
-              <div v-if="previewError" class="text-body-2 text-error pa-4">Preview unavailable. Save the settings and try again.</div>
-              <iframe v-else-if="previewSrc" class="receipt-preview-frame" :src="previewSrc" title="Receipt preview" />
-              <div v-else class="text-body-2 text-medium-emphasis pa-4">Loading preview…</div>
-            </v-card-text>
-          </v-card>
         </div>
       </v-window-item>
 
@@ -460,7 +478,6 @@
 import { ref, reactive, onMounted } from "vue";
 import {
   GetAppSettings,
-  GetReceiptPreview,
   UpdateSettings,
   UpdateReceiptSettings,
   ChangePassword,
@@ -506,6 +523,8 @@ const form = reactive({
   returnPolicy: "Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt.",
   website: "yourwebsite.com",
   instagram: "@your_instagram",
+  socialPlatforms: [] as string[],
+  socialHandles: {} as Record<string, string>,
   receiptFont: "Belleza",
   receiptTitleSize: 21,
   receiptBodySize: 11,
@@ -518,16 +537,27 @@ const roundingModes = [
   { title: "Always up", value: "up" },
 ];
 const inventories = ref<any[]>([]);
+const socialPlatformOptions = [
+  { title: "", value: "facebook", icon: "mdi-facebook", label: "Facebook" },
+  { title: "", value: "tiktok", icon: "mdi-music-note", label: "TikTok" },
+  { title: "", value: "instagram", icon: "mdi-instagram", label: "Instagram" },
+  { title: "", value: "threads", icon: "mdi-at", label: "Threads" },
+  { title: "", value: "youtube", icon: "mdi-youtube", label: "YouTube" },
+];
+
+function platformIcon(platform: string) {
+  return socialPlatformOptions.find((item) => item.value === platform)?.icon ?? "mdi-at";
+}
+
+function platformLabel(platform: string) {
+  return socialPlatformOptions.find((item) => item.value === platform)?.label ?? platform;
+}
 const serialPorts = ref<string[]>([]);
 const printers = ref<string[]>([]);
 const saving = ref(false);
 const showApiKey = ref(false);
 const settingsLoading = ref(true);
 const settingsLoadError = ref(false);
-const previewSrc = ref("");
-const previewLoading = ref(false);
-const previewError = ref(false);
-let previewRequest = 0;
 const passwordForm = reactive({ current: "", newPass: "", confirm: "" });
 const showPw = ref(false);
 const changingPassword = ref(false);
@@ -599,6 +629,8 @@ async function loadSettings() {
         returnPolicy: s.returnPolicy ?? "",
         website: s.website ?? "yourwebsite.com",
         instagram: s.instagram ?? "@your_instagram",
+        socialPlatforms: Array.isArray(s.socialPlatforms) ? s.socialPlatforms : [],
+        socialHandles: typeof s.socialHandles === "object" && s.socialHandles ? s.socialHandles : {},
         receiptFont: s.receiptFont ?? "Belleza",
         receiptTitleSize: Number(s.receiptTitleSize ?? 21),
         receiptBodySize: Number(s.receiptBodySize ?? 11),
@@ -614,7 +646,6 @@ async function loadSettings() {
 
 onMounted(async () => {
   await loadSettings();
-  await refreshReceiptPreview();
   try {
     serialPorts.value = await ListSerialPorts();
   } catch {}
@@ -630,20 +661,6 @@ onMounted(async () => {
     roles.value = await ListRoles();
   } catch {}
 });
-
-async function refreshReceiptPreview() {
-  const request = ++previewRequest;
-  previewLoading.value = true;
-  previewError.value = false;
-  try {
-    const pdfBase64 = await GetReceiptPreview();
-    if (request === previewRequest) previewSrc.value = `data:application/pdf;base64,${pdfBase64}`;
-  } catch {
-    if (request === previewRequest) previewError.value = true;
-  } finally {
-    if (request === previewRequest) previewLoading.value = false;
-  }
-}
 
 async function saveSettings() {
   saving.value = true;
@@ -670,11 +687,11 @@ async function saveSettings() {
     );
     await UpdateReceiptSettings(
       form.marketName.trim(), form.marketPhone.trim(), form.branchPhone.trim(), form.marketDescription.trim(), form.returnPolicy.trim(),
-      form.website.trim(), form.instagram.trim(), form.counterNumber.trim(), form.receiptFont, form.receiptBodyFont,
+      form.website.trim(), form.instagram.trim(), JSON.stringify(form.socialPlatforms ?? []), JSON.stringify(form.socialHandles ?? {}),
+      form.counterNumber.trim(), form.receiptFont, form.receiptBodyFont,
       Number(form.receiptTitleSize), Number(form.receiptBodySize),
       Boolean(form.receiptCutoff),
     );
-    await refreshReceiptPreview();
     notify("Settings saved");
   } catch {
     notify("Failed to save", "red");
@@ -852,26 +869,6 @@ async function deleteUser() {
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-
-.settings-preview-card {
-  position: sticky;
-  top: 16px;
-}
-
-.preview-card-text {
-  min-height: 560px;
-  padding: 12px !important;
-  background: rgba(var(--v-theme-surface-variant), 0.2);
-}
-
-.receipt-preview-frame {
-  display: block;
-  width: 100%;
-  height: 680px;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 8px;
-  background: white;
 }
 
 .settings-card :deep(.v-card-title) {

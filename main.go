@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -13,6 +14,18 @@ import (
 var assets embed.FS
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--receipt-preview" {
+		if err := runReceiptPreview(os.Args[2:]); err != nil {
+			println("Error generating receipt preview:", err.Error())
+			os.Exit(1)
+		}
+		return
+	}
+
+	if err := configureWebView(); err != nil {
+		println("Error configuring WebView:", err.Error())
+	}
+
 	// Create an instance of the app structure
 	app := NewApp()
 
@@ -25,6 +38,7 @@ func main() {
 		// MinHeight:  appMinWindowHeight,
 		Fullscreen:       false,
 		WindowStartState: options.Maximised,
+		// DisableResize:    true,
 		AssetServer:      &assetserver.Options{Assets: assets},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 255},
 		Windows: &windows.Options{
@@ -35,9 +49,9 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
-		Debug: options.Debug{
-			OpenInspectorOnStartup: true,
-		},
+		// Debug: options.Debug{
+		// 	OpenInspectorOnStartup: true,
+		// },
 	})
 
 	if err != nil {

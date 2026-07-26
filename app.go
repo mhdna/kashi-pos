@@ -5,17 +5,21 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 
 	db "kashi-pos/db/sqlc"
 )
+
+var supportedSocialPlatforms = []string{"facebook", "tiktok", "instagram", "threads", "youtube"}
 
 //go:embed db/kashi.db
 var embeddedDB []byte
@@ -385,6 +389,8 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"returnPolicy":      settings.ReturnPolicy,
 		"website":           settings.Website,
 		"instagram":         settings.Instagram,
+		"socialPlatforms":   decodeSocialPlatforms(settings.SocialPlatforms),
+		"socialHandles":     decodeSocialHandles(settings.SocialHandles),
 		"receiptFont":       settings.ReceiptFont,
 		"receiptTitleSize":  settings.ReceiptTitleSize,
 		"receiptBodySize":   settings.ReceiptBodySize,
@@ -393,7 +399,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	}, nil
 }
 
-func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, marketDescription, returnPolicy, website, instagram, counterNumber, receiptFont, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
+func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, marketDescription, returnPolicy, website, instagram, socialPlatformsJSON, socialHandlesJSON, counterNumber, receiptFont, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -413,13 +419,29 @@ func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, market
 	if bodyFont == "" {
 		bodyFont = "Printer Font A"
 	}
+	socialPlatforms, err := normalizeSocialPlatforms(socialPlatformsJSON)
+	if err != nil {
+		return err
+	}
+	socialHandles, err := normalizeSocialHandles(socialHandlesJSON, socialPlatforms)
+	if err != nil {
+		return err
+	}
+	socialPlatformsJSON, err = marshalJSONString(socialPlatforms)
+	if err != nil {
+		return err
+	}
+	socialHandlesJSON, err = marshalJSONString(socialHandles)
+	if err != nil {
+		return err
+	}
 	return a.store.UpdateSettings(a.ctx, db.UpdateSettingsParams{
 		BranchName: current.BranchName, BranchCode: current.BranchCode, ApiKey: current.ApiKey, PrinterID: current.PrinterID,
 		PrinterSize: current.PrinterSize, ReceiptPrinter: current.ReceiptPrinter, ScreenPort: current.ScreenPort,
 		ReceiptWidth: current.ReceiptWidth, ReceiptHeight: current.ReceiptHeight, Theme: current.Theme, TaxRate: current.TaxRate,
 		RoundingMode: current.RoundingMode, ReceiptEnabled: current.ReceiptEnabled, SalesInventoryID: current.SalesInventoryID,
 		ExchangeRate: current.ExchangeRate, MarketName: marketName, MarketPhone: marketPhone, BranchPhone: branchPhone, MarketDescription: marketDescription,
-		ReturnPolicy: returnPolicy, Website: website, Instagram: instagram, ReceiptFont: receiptFont, ReceiptTitleSize: titleSize,
+		ReturnPolicy: returnPolicy, Website: website, Instagram: instagram, SocialPlatforms: socialPlatformsJSON, SocialHandles: socialHandlesJSON, ReceiptFont: receiptFont, ReceiptTitleSize: titleSize,
 		ReceiptBodySize: bodySize, ReceiptCutoff: boolInt(cutoff), ReceiptBodyFont: bodyFont, CounterNumber: counterNumber,
 	})
 }
@@ -466,7 +488,7 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		SalesInventoryID: salesInventoryID,
 		ExchangeRate:     exchangeRate,
 		MarketName:       current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
-		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, ReceiptFont: current.ReceiptFont,
+		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, SocialPlatforms: current.SocialPlatforms, SocialHandles: current.SocialHandles, ReceiptFont: current.ReceiptFont,
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
 		ReceiptBodyFont: current.ReceiptBodyFont, BranchPhone: current.BranchPhone, CounterNumber: current.CounterNumber,
 	})
@@ -497,7 +519,7 @@ func (a *App) SetTaxRate(rate float64) error {
 		SalesInventoryID: current.SalesInventoryID,
 		ExchangeRate:     current.ExchangeRate,
 		MarketName:       current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
-		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, ReceiptFont: current.ReceiptFont,
+		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, SocialPlatforms: current.SocialPlatforms, SocialHandles: current.SocialHandles, ReceiptFont: current.ReceiptFont,
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
 		ReceiptBodyFont: current.ReceiptBodyFont, BranchPhone: current.BranchPhone, CounterNumber: current.CounterNumber,
 	})
@@ -508,6 +530,80 @@ func boolInt(value bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+func marshalJSONString(value any) (string, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func decodeSocialPlatforms(raw string) []string {
+	var values []string
+	if err := json.Unmarshal([]byte(raw), &values); err != nil {
+		return nil
+	}
+	return normalizePlatformSlice(values)
+}
+
+func decodeSocialHandles(raw string) map[string]string {
+	var values map[string]string
+	if err := json.Unmarshal([]byte(raw), &values); err != nil || values == nil {
+		return map[string]string{}
+	}
+	out := map[string]string{}
+	for _, platform := range supportedSocialPlatforms {
+		if handle := strings.TrimSpace(values[platform]); handle != "" {
+			out[platform] = handle
+		}
+	}
+	return out
+}
+
+func normalizeSocialPlatforms(raw string) ([]string, error) {
+	var values []string
+	if err := json.Unmarshal([]byte(raw), &values); err != nil {
+		return nil, fmt.Errorf("invalid social platform selection")
+	}
+	return normalizePlatformSlice(values), nil
+}
+
+func normalizeSocialHandles(raw string, platforms []string) (map[string]string, error) {
+	var values map[string]string
+	if err := json.Unmarshal([]byte(raw), &values); err != nil {
+		return nil, fmt.Errorf("invalid social handles")
+	}
+	out := map[string]string{}
+	for _, platform := range platforms {
+		handle := strings.TrimSpace(values[platform])
+		if handle != "" {
+			out[platform] = handle
+		}
+	}
+	return out, nil
+}
+
+func normalizePlatformSlice(values []string) []string {
+	allowed := map[string]struct{}{}
+	for _, platform := range supportedSocialPlatforms {
+		allowed[platform] = struct{}{}
+	}
+	out := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if _, ok := allowed[value]; !ok {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 func (a *App) seedDefaults2() {

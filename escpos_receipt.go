@@ -41,6 +41,9 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	if branchPhone != "" {
 		writeESCPosCentered(&out, branchPhone, columns, false)
 	}
+	if data.Website != "" {
+		writeESCPosCentered(&out, data.Website, columns, false)
+	}
 	if data.CounterNumber != "" {
 		writeESCPosCentered(&out, "Counter: "+data.CounterNumber, columns, false)
 	}
@@ -104,14 +107,17 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	if policy == "" {
 		policy = "Exchanges accepted within 3 days."
 	}
+	writeESCPosText(&out, "")
 	for _, line := range strings.Split(policy, "\n") {
 		writeESCPosText(&out, line)
 	}
-	if data.Website != "" {
-		writeESCPosCentered(&out, "Follow: "+data.Website, columns, false)
-	}
-	if data.Instagram != "" {
-		writeESCPosCentered(&out, "Instagram: "+data.Instagram, columns, false)
+	writeESCPosText(&out, "")
+	if len(data.SocialPlatforms) > 0 {
+		writeESCPosCentered(&out, "Follow us:", columns, true)
+		socialLines := formatSocialFooterLines(data.SocialPlatforms, data.SocialHandles)
+		for _, line := range socialLines {
+			writeESCPosCentered(&out, line, columns, false)
+		}
 	}
 	out.WriteString(separator + "\n")
 	writeESCPosCentered(&out, "Thank you for shopping with us!", columns, false)
@@ -180,6 +186,35 @@ func writeESCPosLineMode(out *bytes.Buffer, left, right string, columns int, bol
 func writeESCPosText(out *bytes.Buffer, value string) {
 	out.WriteString(sanitizeESCPos(value))
 	out.WriteByte('\n')
+}
+
+func formatSocialFooterLines(platforms []string, handles map[string]string) []string {
+	lines := make([]string, 0, len(platforms))
+	for _, platform := range platforms {
+		handle := strings.TrimSpace(handles[platform])
+		if handle == "" {
+			continue
+		}
+		lines = append(lines, socialPlatformMarker(platform)+" "+handle)
+	}
+	return lines
+}
+
+func socialPlatformMarker(platform string) string {
+	switch platform {
+	case "facebook":
+		return "[f]"
+	case "instagram":
+		return "[ig]"
+	case "threads":
+		return "[@]"
+	case "youtube":
+		return "[yt]"
+	case "tiktok":
+		return "[♪]"
+	default:
+		return "[@]"
+	}
 }
 
 func sanitizeESCPos(value string) string {

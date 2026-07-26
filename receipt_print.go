@@ -13,6 +13,8 @@ type printReceiptData struct {
 	ReturnPolicy    string
 	Website         string
 	Instagram       string
+	SocialPlatforms  []string
+	SocialHandles    map[string]string
 	Font            string
 	TitleSize       float64
 	BodySize        float64

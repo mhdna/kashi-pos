@@ -20,6 +20,8 @@ ALTER TABLE settings ADD COLUMN market_description text NOT NULL DEFAULT 'Shop f
 ALTER TABLE settings ADD COLUMN return_policy text NOT NULL DEFAULT 'Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt.';
 ALTER TABLE settings ADD COLUMN website text NOT NULL DEFAULT 'yourwebsite.com';
 ALTER TABLE settings ADD COLUMN instagram text NOT NULL DEFAULT '@your_instagram';
+ALTER TABLE settings ADD COLUMN social_platforms text NOT NULL DEFAULT '[]';
+ALTER TABLE settings ADD COLUMN social_handles text NOT NULL DEFAULT '{}';
 ALTER TABLE settings ADD COLUMN receipt_font text NOT NULL DEFAULT 'Belleza';
 ALTER TABLE settings ADD COLUMN receipt_title_size real NOT NULL DEFAULT 21;
 ALTER TABLE settings ADD COLUMN receipt_body_size real NOT NULL DEFAULT 11;

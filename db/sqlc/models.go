@@ -217,6 +217,8 @@ type Setting struct {
 	ReturnPolicy      string  `json:"returnPolicy"`
 	Website           string  `json:"website"`
 	Instagram         string  `json:"instagram"`
+	SocialPlatforms   string  `json:"socialPlatforms"`
+	SocialHandles     string  `json:"socialHandles"`
 	ReceiptFont       string  `json:"receiptFont"`
 	ReceiptTitleSize  float64 `json:"receiptTitleSize"`
 	ReceiptBodySize   float64 `json:"receiptBodySize"`

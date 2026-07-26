@@ -10,23 +10,23 @@ import (
 )
 
 func printReceiptToPrinter(data printReceiptData) error {
-	pdf := buildReceiptPDF(data)
-	tmpFile, err := os.CreateTemp("", "kashi-receipt-*.pdf")
+	tmpFile, err := os.CreateTemp("", "kashi-receipt-*.bin")
 	if err != nil {
-		return err
+		return fmt.Errorf("create receipt payload: %w", err)
 	}
 	tmpPath := filepath.Clean(tmpFile.Name())
+	if _, err := tmpFile.Write(buildESCPosReceipt(data)); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("write receipt payload: %w", err)
+	}
 	if err := tmpFile.Close(); err != nil {
 		_ = os.Remove(tmpPath)
-		return err
-	}
-	if err := pdf.OutputFileAndClose(tmpPath); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
+		return fmt.Errorf("close receipt payload: %w", err)
 	}
 	defer os.Remove(tmpPath)
 
-	cmd := exec.Command("lp", "-d", data.PrinterName, tmpPath)
+	cmd := exec.Command("lp", "-d", data.PrinterName, "-o", "raw", tmpPath)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("print failed: %v — %s", err, string(out))
 	}
