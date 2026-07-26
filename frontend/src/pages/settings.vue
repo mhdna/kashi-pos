@@ -17,6 +17,7 @@
 
     <v-tabs v-model="tab" class="settings-tabs mb-5" color="primary" grow>
       <v-tab value="general" prepend-icon="mdi-printer-wireless">Printing &amp; Screen</v-tab>
+      <v-tab value="receipt" prepend-icon="mdi-printer-outline">Receipt</v-tab>
       <v-tab value="admin" prepend-icon="mdi-shield-account-outline">Passwords &amp; Users</v-tab>
     </v-tabs>
     <v-progress-linear v-if="settingsLoading" indeterminate color="primary" class="mb-4" />
@@ -168,8 +169,43 @@
 
           <v-card class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36">
+                <v-icon icon="mdi-monitor-dashboard" size="20" />
+              </v-avatar>
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Customer screen</div>
+                <div class="text-caption text-medium-emphasis">
+                  Choose the display used at checkout.
+                </div>
+              </div>
+            </v-card-title>
+            <v-card-text>
+              <v-select
+                v-model="form.screenPort"
+                :items="serialPorts"
+                label="Serial Port"
+                hint="Leave empty if no customer display is connected."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+              />
+            </v-card-text>
+            <v-card-actions class="px-4 pb-4">
+              <v-spacer />
+              <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+                <v-icon start icon="mdi-content-save-outline" /> Save changes
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </div>
+      </v-window-item>
+
+      <v-window-item value="receipt">
+        <div class="settings-grid settings-grid--receipt">
+          <v-card class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
               <v-avatar color="primary" variant="tonal" size="36"><v-icon icon="mdi-printer-outline" size="20" /></v-avatar>
-              <div><div class="text-subtitle-1 font-weight-bold">Receipt</div><div class="text-caption text-medium-emphasis">Customize the printed market identity and footer.</div></div>
+              <div><div class="text-subtitle-1 font-weight-bold">Receipt settings</div><div class="text-caption text-medium-emphasis">Customize the printed market identity and footer.</div></div>
             </v-card-title>
             <v-card-text>
               <v-text-field v-model="form.marketName" label="Market name" hint="Printed large at the top, separately from the branch." persistent-hint variant="outlined" density="compact" class="mb-2" />
@@ -202,37 +238,6 @@
               <iframe v-else-if="previewSrc" class="receipt-preview-frame" :src="previewSrc" title="Receipt preview" />
               <div v-else class="text-body-2 text-medium-emphasis pa-4">Loading preview…</div>
             </v-card-text>
-          </v-card>
-
-          <v-card class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-monitor-dashboard" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Customer screen</div>
-                <div class="text-caption text-medium-emphasis">
-                  Choose the display used at checkout.
-                </div>
-              </div>
-            </v-card-title>
-            <v-card-text>
-              <v-select
-                v-model="form.screenPort"
-                :items="serialPorts"
-                label="Serial Port"
-                hint="Leave empty if no customer display is connected."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-              />
-            </v-card-text>
-            <v-card-actions class="px-4 pb-4">
-              <v-spacer />
-              <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-                <v-icon start icon="mdi-content-save-outline" /> Save changes
-              </v-btn>
-            </v-card-actions>
           </v-card>
         </div>
       </v-window-item>
