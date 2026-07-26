@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"time"
+
+	db "kashi-pos/db/sqlc"
 )
 
 func (a *App) ListInventories() ([]map[string]any, error) {
@@ -155,6 +157,49 @@ func (a *App) ListInvoices() ([]map[string]any, error) {
 		}
 	}
 	return result, nil
+}
+
+type InvoicePage struct {
+	Items []map[string]any `json:"items"`
+	Total int64            `json:"total"`
+}
+
+func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) {
+	if a.store == nil {
+		return InvoicePage{}, fmt.Errorf("database not initialized")
+	}
+	if page < 1 {
+		page = 1
+	}
+	if itemsPerPage < 1 {
+		itemsPerPage = 20
+	}
+	if itemsPerPage > 100 {
+		itemsPerPage = 100
+	}
+
+	invoices, err := a.store.ListInvoicesPage(a.ctx, db.ListInvoicesPageParams{
+		Limit:  int64(itemsPerPage),
+		Offset: int64(page-1) * int64(itemsPerPage),
+	})
+	if err != nil {
+		return InvoicePage{}, err
+	}
+	total, err := a.store.CountInvoices(a.ctx)
+	if err != nil {
+		return InvoicePage{}, err
+	}
+
+	result := make([]map[string]any, len(invoices))
+	for i, inv := range invoices {
+		result[i] = map[string]any{
+			"id": inv.ID, "cashboxId": inv.CashboxID, "invoiceCode": inv.InvoiceCode,
+			"clientId": inv.ClientID, "subtotal": inv.Subtotal,
+			"discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
+			"createdAt": inv.CreatedAt, "salespersonId": inv.SalespersonID,
+		}
+	}
+	return InvoicePage{Items: result, Total: total}, nil
 }
 
 func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) {

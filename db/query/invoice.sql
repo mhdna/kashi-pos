@@ -40,6 +40,12 @@ WHERE r.sales_invoice_id = ? AND ip.product_id = ?;
 -- name: ListInvoices :many
 SELECT * FROM invoices ORDER BY id;
 
+-- name: ListInvoicesPage :many
+SELECT * FROM invoices ORDER BY id DESC LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
+
+-- name: CountInvoices :one
+SELECT COUNT(*) FROM invoices;
+
 -- name: ListInvoicesByShiftID :many
 SELECT * FROM invoices WHERE shift_id = ? ORDER BY id;
 

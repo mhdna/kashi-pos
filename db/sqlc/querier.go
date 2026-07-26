@@ -118,6 +118,7 @@ type Querier interface {
 	ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
 	ListInvoices(ctx context.Context) ([]Invoice, error)
 	ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error)
+	ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]Invoice, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPriceOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]PriceOverride, error)
 	ListProducts(ctx context.Context) ([]Product, error)

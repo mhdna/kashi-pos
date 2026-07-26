@@ -10,6 +10,17 @@ import (
 	"database/sql"
 )
 
+const countInvoices = `-- name: CountInvoices :one
+SELECT COUNT(*) FROM invoices
+`
+
+func (q *Queries) CountInvoices(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countInvoices)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createInvoice = `-- name: CreateInvoice :one
 INSERT INTO invoices (
     cashbox_id, shift_id, invoice_code, invoice_index,
@@ -551,6 +562,54 @@ SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, i
 
 func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error) {
 	rows, err := q.db.QueryContext(ctx, listInvoicesByShiftID, shiftID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Invoice{}
+	for rows.Next() {
+		var i Invoice
+		if err := rows.Scan(
+			&i.ID,
+			&i.CashboxID,
+			&i.ShiftID,
+			&i.InvoiceCode,
+			&i.InvoiceIndex,
+			&i.Year,
+			&i.ClientID,
+			&i.InventoryID,
+			&i.Discount,
+			&i.Subtotal,
+			&i.DiscountedTotal,
+			&i.GrandTotal,
+			&i.CreatedAt,
+			&i.SalespersonID,
+			&i.Notes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvoicesPage = `-- name: ListInvoicesPage :many
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes FROM invoices ORDER BY id DESC LIMIT ?2 OFFSET ?1
+`
+
+type ListInvoicesPageParams struct {
+	Offset int64 `json:"offset"`
+	Limit  int64 `json:"limit"`
+}
+
+func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]Invoice, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoicesPage, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

@@ -162,6 +162,10 @@ export function ListInvoices() {
   return window['go']['main']['App']['ListInvoices']();
 }
 
+export function ListInvoicesPage(arg1, arg2) {
+  return window['go']['main']['App']['ListInvoicesPage'](arg1, arg2);
+}
+
 export function ListPaymentMethods() {
   return window['go']['main']['App']['ListPaymentMethods']();
 }

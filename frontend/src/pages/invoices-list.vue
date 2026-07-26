@@ -1,87 +1,55 @@
 <template>
   <div class="invoices-page">
-    <v-progress-linear v-if="loading" indeterminate color="primary" />
-    <v-infinite-scroll
-      v-else-if="items.length"
-      class="invoices-scroll"
-      height="100%"
-      side="end"
-      empty-text="All invoices loaded"
-      @load="loadMore"
+    <v-data-table-server
+      v-model:items-per-page="itemsPerPage"
+      class="invoices-table"
+      :headers="headers"
+      :items="items"
+      :items-length="totalItems"
+      :loading="loading"
+      item-value="id"
+      hover
+      @update:options="loadInvoices"
+      @click:row="openInvoiceRow"
     >
-      <v-list class="pa-0" lines="two">
-        <v-list-item
-          v-for="item in visibleItems"
-          :key="item.id"
-          class="invoice-item py-3 px-5"
-          @click="openInvoice(item)"
-        >
-          <template #prepend>
-            <v-avatar color="primary" variant="tonal" size="36" class="me-3"
-              ><v-icon icon="mdi-cash-register" size="19"
-            /></v-avatar>
+      <template #item.invoiceCode="{ item }">
+        <span class="font-weight-bold">{{ item.invoiceCode || `Invoice #${item.id}` }}</span>
+      </template>
+      <template #item.clientId="{ item }">
+        {{ item.clientId ? `Client #${item.clientId}` : "Walk-in customer" }}
+      </template>
+      <template #item.createdAt="{ item }">{{ formatDate(item.createdAt) }}</template>
+      <template #item.grandTotal="{ item }">
+        <span class="font-weight-bold">${{ money(item.grandTotal) }}</span>
+      </template>
+      <template #item.actions="{ item }">
+        <v-btn
+          icon="mdi-printer-outline"
+          variant="text"
+          density="comfortable"
+          :loading="printingId === item.id"
+          title="Print receipt again"
+          @click.stop="reprint(item)"
+        />
+        <v-menu location="bottom end">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon="mdi-dots-vertical" variant="text" density="comfortable" @click.stop />
           </template>
-          <template #title
-            ><span class="font-weight-bold">{{
-              item.invoiceCode || `Invoice #${item.id}`
-            }}</span></template
-          >
-          <template #subtitle>
-            <span>{{ item.clientId ? `Client #${item.clientId}` : "Walk-in customer" }}</span
-            ><span class="mx-1">·</span><span>{{ formatDate(item.createdAt) }}</span>
-          </template>
-          <template #append>
-            <div class="invoice-total text-right me-2">
-              <div class="text-subtitle-1 font-weight-bold">${{ money(item.grandTotal) }}</div>
-              <div class="text-caption text-medium-emphasis">Total</div>
-            </div>
-            <v-btn
-              icon="mdi-printer-outline"
-              variant="text"
-              density="comfortable"
-              :loading="printingId === item.id"
-              title="Print receipt again"
-              @click.stop="reprint(item)"
-            />
-            <v-menu location="bottom end">
-              <template #activator="{ props }"
-                ><v-btn
-                  v-bind="props"
-                  icon="mdi-dots-vertical"
-                  variant="text"
-                  density="comfortable"
-                  @click.stop
-              /></template>
-              <v-list density="compact" min-width="190">
-                <v-list-item
-                  prepend-icon="mdi-account-edit"
-                  title="Change Client"
-                  @click.stop="startChange('client', item)"
-                />
-                <!-- <v-list-item prepend-icon="mdi-credit-card-edit" title="Change Settlement" @click.stop="startChange('settlement', item)" /> -->
-                <v-list-item
-                  prepend-icon="mdi-account-tie"
-                  title="Change Salesman"
-                  @click.stop="startChange('salesperson', item)"
-                />
-                <v-list-item
-                  v-if="auth.isAdmin"
-                  prepend-icon="mdi-delete-outline"
-                  title="Delete Invoice"
-                  base-color="error"
-                  @click.stop="requestDelete(item)"
-                />
-              </v-list>
-            </v-menu>
-          </template>
-        </v-list-item>
-      </v-list>
-    </v-infinite-scroll>
-    <div v-else class="invoices-empty pa-8 text-center">
-      <v-icon icon="mdi-cash-register" size="48" class="mb-3 text-medium-emphasis" />
-      <div class="text-subtitle-1 font-weight-bold">No invoices found</div>
-      <div class="text-body-2 text-medium-emphasis">Completed invoices will appear here.</div>
-    </div>
+          <v-list density="compact" min-width="190">
+            <v-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
+            <v-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startChange('salesperson', item)" />
+            <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
+          </v-list>
+        </v-menu>
+      </template>
+      <template #no-data>
+        <div class="invoices-empty pa-8 text-center">
+          <v-icon icon="mdi-cash-register" size="48" class="mb-3 text-medium-emphasis" />
+          <div class="text-subtitle-1 font-weight-bold">No invoices found</div>
+          <div class="text-body-2 text-medium-emphasis">Completed invoices will appear here.</div>
+        </div>
+      </template>
+    </v-data-table-server>
 
     <v-dialog v-model="detailOpen" max-width="620">
       <v-card v-if="selected">
@@ -215,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import {
   ChangeInvoiceClient,
   ChangeInvoiceSalesperson,
@@ -223,19 +191,19 @@ import {
   DeleteInvoice,
   GetInvoiceDetails,
   ListClients,
-  ListInvoices,
+  ListInvoicesPage,
   ListPaymentMethods,
   ListSalespersons,
   ReprintInvoice,
 } from "../../wailsjs/go/main/App";
 import { useAuthStore } from "../stores/auth";
 
-const pageSize = 20,
-  items = ref<any[]>([]),
-  visibleCount = ref(pageSize),
-  loading = ref(true);
+const items = ref<any[]>([]),
+  totalItems = ref(0),
+  itemsPerPage = ref(20),
+  loading = ref(true),
+  currentPage = ref(1);
 const auth = useAuthStore();
-const visibleItems = computed(() => items.value.slice(0, visibleCount.value));
 const selected = ref<any>(null),
   detailOpen = ref(false),
   changeOpen = ref(false),
@@ -267,11 +235,13 @@ function cents(value: number | undefined) {
 function formatDate(value?: string) {
   return value?.slice(0, 19) || "Date unavailable";
 }
-function loadMore({ done }: { done: (status: "ok" | "empty" | "error") => void }) {
-  if (visibleCount.value >= items.value.length) return done("empty");
-  visibleCount.value = Math.min(visibleCount.value + pageSize, items.value.length);
-  done("ok");
-}
+const headers = [
+  { title: "Invoice", key: "invoiceCode" },
+  { title: "Customer", key: "clientId" },
+  { title: "Date", key: "createdAt" },
+  { title: "Total", key: "grandTotal", align: "end" as const },
+  { title: "", key: "actions", sortable: false, align: "end" as const },
+];
 async function openInvoice(item: any) {
   try {
     selected.value = await GetInvoiceDetails(item.id);
@@ -279,6 +249,9 @@ async function openInvoice(item: any) {
   } catch {
     notify("Could not load invoice details", "error");
   }
+}
+function openInvoiceRow(_event: any, row: { item: any }) {
+  openInvoice(row.item);
 }
 async function reprint(item: any) {
   printingId.value = item.id;
@@ -291,7 +264,8 @@ async function reprint(item: any) {
     printingId.value = null;
   }
 }
-function startChange(type: "client" | "settlement" | "salesperson", item: any) {
+async function startChange(type: "client" | "settlement" | "salesperson", item: any) {
+  await ensureEditOptions();
   changeType.value = type;
   changeInvoice.value = item;
   changeValue.value =
@@ -344,24 +318,41 @@ function notify(text: string, color = "success") {
   snackbar.color = color;
   snackbar.show = true;
 }
-async function refresh() {
-  const invoices = (await ListInvoices()) as any[];
-  items.value = [...(invoices ?? [])].sort((a, b) => Number(b.id) - Number(a.id));
-}
-onMounted(async () => {
+async function loadInvoices({ page, itemsPerPage: requestedItemsPerPage }: { page: number; itemsPerPage: number }) {
+  loading.value = true;
+  currentPage.value = page;
   try {
-    await refresh();
-    [clients.value, paymentMethods.value, salespersons.value] = await Promise.all([
-      ListClients(),
-      ListPaymentMethods(),
-      ListSalespersons(),
-    ]);
+    const result = await ListInvoicesPage(page, requestedItemsPerPage);
+    items.value = result.items ?? [];
+    totalItems.value = result.total ?? 0;
   } catch {
     items.value = [];
+    totalItems.value = 0;
   } finally {
     loading.value = false;
   }
-});
+}
+
+async function refresh() {
+  await loadInvoices({ page: currentPage.value, itemsPerPage: itemsPerPage.value });
+}
+
+let editOptionsPromise: Promise<void> | null = null;
+async function ensureEditOptions() {
+  if (!editOptionsPromise) {
+    editOptionsPromise = Promise.all([ListClients(), ListPaymentMethods(), ListSalespersons()])
+      .then(([loadedClients, loadedPaymentMethods, loadedSalespersons]) => {
+        clients.value = loadedClients;
+        paymentMethods.value = loadedPaymentMethods;
+        salespersons.value = loadedSalespersons;
+      })
+      .catch(() => {
+        editOptionsPromise = null;
+        throw new Error("Could not load invoice edit options");
+      });
+  }
+  return editOptionsPromise;
+}
 </script>
 
 <style scoped>
