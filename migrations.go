@@ -89,7 +89,7 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 		return err
 	}
 	if current >= latestMigrationVersion(migrations) {
-		return nil
+		return ensureReceiptBrandingColumns(ctx, conn)
 	}
 	for _, m := range migrations {
 		if m.version <= current {
@@ -112,6 +112,30 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 			return fmt.Errorf("migration %s failed: %w", m.name, err)
 		}
 		log.Printf("database migration applied: version=%d name=%s", m.version, m.name)
+	}
+	if err := ensureReceiptBrandingColumns(ctx, conn); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensureReceiptBrandingColumns(ctx context.Context, conn *sql.DB) error {
+	columns := []struct{ name, definition string }{
+		{"market_name", "text NOT NULL DEFAULT ''"}, {"market_phone", "text NOT NULL DEFAULT ''"},
+		{"market_description", "text NOT NULL DEFAULT 'Shop for all'"}, {"return_policy", "text NOT NULL DEFAULT 'Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt.'"},
+		{"website", "text NOT NULL DEFAULT 'yourwebsite.com'"}, {"instagram", "text NOT NULL DEFAULT '@your_instagram'"}, {"receipt_font", "text NOT NULL DEFAULT 'Belleza'"},
+		{"receipt_title_size", "real NOT NULL DEFAULT 21"}, {"receipt_body_size", "real NOT NULL DEFAULT 11"}, {"receipt_cutoff", "integer NOT NULL DEFAULT 1"},
+	}
+	for _, column := range columns {
+		var count int
+		if err := conn.QueryRowContext(ctx, "SELECT count(*) FROM pragma_table_info('settings') WHERE name = ?", column.name).Scan(&count); err != nil {
+			return err
+		}
+		if count == 0 {
+			if _, err := conn.ExecContext(ctx, "ALTER TABLE settings ADD COLUMN "+column.name+" "+column.definition); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

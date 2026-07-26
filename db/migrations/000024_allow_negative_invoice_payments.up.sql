@@ -13,3 +13,14 @@ SELECT invoice_id, cashbox_id, amount FROM invoice_payments;
 
 DROP TABLE invoice_payments;
 ALTER TABLE invoice_payments_new RENAME TO invoice_payments;
+
+ALTER TABLE settings ADD COLUMN market_name text NOT NULL DEFAULT '';
+ALTER TABLE settings ADD COLUMN market_phone text NOT NULL DEFAULT '';
+ALTER TABLE settings ADD COLUMN market_description text NOT NULL DEFAULT 'Shop for all';
+ALTER TABLE settings ADD COLUMN return_policy text NOT NULL DEFAULT 'Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt.';
+ALTER TABLE settings ADD COLUMN website text NOT NULL DEFAULT 'yourwebsite.com';
+ALTER TABLE settings ADD COLUMN instagram text NOT NULL DEFAULT '@your_instagram';
+ALTER TABLE settings ADD COLUMN receipt_font text NOT NULL DEFAULT 'Belleza';
+ALTER TABLE settings ADD COLUMN receipt_title_size real NOT NULL DEFAULT 21;
+ALTER TABLE settings ADD COLUMN receipt_body_size real NOT NULL DEFAULT 11;
+ALTER TABLE settings ADD COLUMN receipt_cutoff integer NOT NULL DEFAULT 1 CHECK (receipt_cutoff IN (0, 1));

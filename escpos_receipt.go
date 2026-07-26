@@ -29,15 +29,17 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	out.Write([]byte{esc, '@'})
 	writeESCPosCentered(&out, data.StoreName, columns, true)
 	writeESCPosCentered(&out, data.Branch, columns, false)
+	if data.Description != "" {
+		writeESCPosCentered(&out, data.Description, columns, false)
+	}
 	if data.Phone != "" {
 		writeESCPosCentered(&out, data.Phone, columns, false)
 	}
 	out.WriteString(separator + "\n")
 	writeESCPosLine(&out, "Invoice:", data.ReceiptNo, columns)
 	writeESCPosLine(&out, "Date:", currentReceiptDate(), columns)
-	if data.Salesperson != "" {
-		writeESCPosLine(&out, "Salesperson:", data.Salesperson, columns)
-	}
+	writeESCPosLine(&out, "Sold by:", fallbackReceiptValue(data.Salesperson, "Not specified"), columns)
+	writeESCPosLine(&out, "Customer:", fallbackReceiptValue(data.Customer, "Walk-in"), columns)
 	out.WriteString(separator + "\n")
 	writeESCPosLine(&out, "ITEM", "TOTAL", columns)
 	out.WriteString(separator + "\n")
@@ -89,17 +91,35 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	}
 	out.WriteString(separator + "\n")
 	writeESCPosCentered(&out, "RETURN & EXCHANGE POLICY", columns, true)
-	writeESCPosText(&out, "Exchanges accepted within 3 days.")
-	writeESCPosText(&out, "Items must be unworn, unused,")
-	writeESCPosText(&out, "unwashed, undamaged, with tags.")
-	writeESCPosText(&out, "Present this receipt.")
-	writeESCPosText(&out, "Subject to availability.")
+	policy := data.ReturnPolicy
+	if policy == "" {
+		policy = "Exchanges accepted within 3 days."
+	}
+	for _, line := range strings.Split(policy, "\n") {
+		writeESCPosText(&out, line)
+	}
+	if data.Website != "" {
+		writeESCPosCentered(&out, "Follow: "+data.Website, columns, false)
+	}
+	if data.Instagram != "" {
+		writeESCPosCentered(&out, "Instagram: "+data.Instagram, columns, false)
+	}
 	out.WriteString(separator + "\n")
 	writeESCPosCentered(&out, "Thank you for shopping with us!", columns, false)
 	writeESCPosCentered(&out, data.ReceiptNo, columns, false)
 	out.WriteString("\n\n\n")
-	out.Write([]byte{gs, cutMode, 3})
+	// Keep the historical default for callers that do not provide receipt settings.
+	if data.Cutoff || data.Font == "" {
+		out.Write([]byte{gs, cutMode, 3})
+	}
 	return out.Bytes()
+}
+
+func fallbackReceiptValue(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
 }
 
 func writeESCPosCentered(out *bytes.Buffer, value string, columns int, bold bool) {

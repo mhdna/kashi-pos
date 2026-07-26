@@ -28,6 +28,7 @@ type SalesInvoiceParams struct {
 }
 
 type SalesInvoiceResult struct {
+	InvoiceID   int64
 	InvoiceCode string
 	Items       []invoiceItem
 	GrandTotal  int64
@@ -155,7 +156,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		}); err != nil {
 			return fmt.Errorf("add loyalty points: %w", err)
 		}
-		result.InvoiceCode, result.Items, result.GrandTotal, result.Payments = invoiceCode, receiptItems, grandTotal, payments
+		result.InvoiceID, result.InvoiceCode, result.Items, result.GrandTotal, result.Payments = invoice.ID, invoiceCode, receiptItems, grandTotal, payments
 		return nil
 	})
 	return result, err

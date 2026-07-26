@@ -55,6 +55,8 @@ export function GetProductByBarcode(arg1:string):Promise<Record<string, any>>;
 
 export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
 
+export function GetReceiptPreview():Promise<string>;
+
 export function GetShiftTotals():Promise<Array<Record<string, any>>>;
 
 export function GetStartupError():Promise<string>;
@@ -106,6 +108,8 @@ export function ReprintInvoice(arg1:number):Promise<void>;
 export function SetTaxRate(arg1:number):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
+
+export function UpdateReceiptSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:number,arg9:number,arg10:boolean):Promise<void>;
 
 export function UpdateSalesperson(arg1:number,arg2:string):Promise<Record<string, any>>;
 

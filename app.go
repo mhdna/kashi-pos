@@ -217,18 +217,20 @@ func (a *App) seedDefaults() {
 	_, err = a.store.GetSettings(ctx)
 	if err != nil {
 		if err := a.store.UpsertSettings(ctx, db.UpsertSettingsParams{
-			BranchName:     "Main",
-			BranchCode:     "CN",
-			ApiKey:         "",
-			PrinterID:      "",
-			PrinterSize:    "",
-			ReceiptPrinter: "",
-			ScreenPort:     "",
-			ReceiptWidth:   80,
-			ReceiptHeight:  297,
-			Theme:          "light",
-			TaxRate:        0.0,
-			ExchangeRate:   90000,
+			BranchName:        "Main",
+			MarketName:        "Main",
+			MarketDescription: "Shop for all",
+			BranchCode:        "CN",
+			ApiKey:            "",
+			PrinterID:         "",
+			PrinterSize:       "",
+			ReceiptPrinter:    "",
+			ScreenPort:        "",
+			ReceiptWidth:      80,
+			ReceiptHeight:     297,
+			Theme:             "light",
+			TaxRate:           0.0,
+			ExchangeRate:      90000,
 		}); err != nil {
 			log.Println("upsert settings:", err)
 		}
@@ -361,21 +363,59 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		return nil, err
 	}
 	return map[string]interface{}{
-		"branchName":       settings.BranchName,
-		"branchCode":       settings.BranchCode,
-		"apiKey":           settings.ApiKey,
-		"printerID":        settings.PrinterID,
-		"printerSize":      settings.PrinterSize,
-		"receiptPrinter":   settings.ReceiptPrinter,
-		"screenPort":       settings.ScreenPort,
-		"receiptWidth":     settings.ReceiptWidth,
-		"receiptHeight":    settings.ReceiptHeight,
-		"taxRate":          settings.TaxRate,
-		"roundingMode":     settings.RoundingMode,
-		"receiptEnabled":   settings.ReceiptEnabled != 0,
-		"salesInventoryId": settings.SalesInventoryID,
-		"exchangeRate":     settings.ExchangeRate,
+		"branchName":        settings.BranchName,
+		"branchCode":        settings.BranchCode,
+		"apiKey":            settings.ApiKey,
+		"printerID":         settings.PrinterID,
+		"printerSize":       settings.PrinterSize,
+		"receiptPrinter":    settings.ReceiptPrinter,
+		"screenPort":        settings.ScreenPort,
+		"receiptWidth":      settings.ReceiptWidth,
+		"receiptHeight":     settings.ReceiptHeight,
+		"taxRate":           settings.TaxRate,
+		"roundingMode":      settings.RoundingMode,
+		"receiptEnabled":    settings.ReceiptEnabled != 0,
+		"salesInventoryId":  settings.SalesInventoryID,
+		"exchangeRate":      settings.ExchangeRate,
+		"marketName":        settings.MarketName,
+		"marketPhone":       settings.MarketPhone,
+		"marketDescription": settings.MarketDescription,
+		"returnPolicy":      settings.ReturnPolicy,
+		"website":           settings.Website,
+		"instagram":         settings.Instagram,
+		"receiptFont":       settings.ReceiptFont,
+		"receiptTitleSize":  settings.ReceiptTitleSize,
+		"receiptBodySize":   settings.ReceiptBodySize,
+		"receiptCutoff":     settings.ReceiptCutoff != 0,
 	}, nil
+}
+
+func (a *App) UpdateReceiptSettings(marketName, marketPhone, marketDescription, returnPolicy, website, instagram, receiptFont string, titleSize, bodySize float64, cutoff bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	current, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return err
+	}
+	if titleSize < 8 || titleSize > 40 {
+		titleSize = 21
+	}
+	if bodySize < 6 || bodySize > 24 {
+		bodySize = 11
+	}
+	if receiptFont == "" {
+		receiptFont = "Belleza"
+	}
+	return a.store.UpdateSettings(a.ctx, db.UpdateSettingsParams{
+		BranchName: current.BranchName, BranchCode: current.BranchCode, ApiKey: current.ApiKey, PrinterID: current.PrinterID,
+		PrinterSize: current.PrinterSize, ReceiptPrinter: current.ReceiptPrinter, ScreenPort: current.ScreenPort,
+		ReceiptWidth: current.ReceiptWidth, ReceiptHeight: current.ReceiptHeight, Theme: current.Theme, TaxRate: current.TaxRate,
+		RoundingMode: current.RoundingMode, ReceiptEnabled: current.ReceiptEnabled, SalesInventoryID: current.SalesInventoryID,
+		ExchangeRate: current.ExchangeRate, MarketName: marketName, MarketPhone: marketPhone, MarketDescription: marketDescription,
+		ReturnPolicy: returnPolicy, Website: website, Instagram: instagram, ReceiptFont: receiptFont, ReceiptTitleSize: titleSize,
+		ReceiptBodySize: bodySize, ReceiptCutoff: boolInt(cutoff),
+	})
 }
 
 func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64, taxRate float64, roundingMode string, receiptEnabled bool, salesInventoryID, exchangeRate int64) error {
@@ -419,6 +459,9 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		ReceiptEnabled:   boolInt(receiptEnabled),
 		SalesInventoryID: salesInventoryID,
 		ExchangeRate:     exchangeRate,
+		MarketName:       current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
+		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, ReceiptFont: current.ReceiptFont,
+		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
 	})
 }
 
@@ -446,6 +489,9 @@ func (a *App) SetTaxRate(rate float64) error {
 		ReceiptEnabled:   current.ReceiptEnabled,
 		SalesInventoryID: current.SalesInventoryID,
 		ExchangeRate:     current.ExchangeRate,
+		MarketName:       current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
+		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, ReceiptFont: current.ReceiptFont,
+		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
 	})
 }
 

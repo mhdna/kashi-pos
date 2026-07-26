@@ -110,6 +110,10 @@ export function GetProductByCode(arg1) {
   return window['go']['main']['App']['GetProductByCode'](arg1);
 }
 
+export function GetReceiptPreview() {
+  return window['go']['main']['App']['GetReceiptPreview']();
+}
+
 export function GetShiftTotals() {
   return window['go']['main']['App']['GetShiftTotals']();
 }
@@ -212,6 +216,10 @@ export function SetTaxRate(arg1) {
 
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
+}
+
+export function UpdateReceiptSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) {
+  return window['go']['main']['App']['UpdateReceiptSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
 }
 
 export function UpdateSalesperson(arg1, arg2) {

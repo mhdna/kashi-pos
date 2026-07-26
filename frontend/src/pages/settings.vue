@@ -81,7 +81,7 @@
                 density="compact"
                 class="mb-2"
               />
-              <v-row dense>
+              <v-row density="comfortable">
                 <v-col cols="6">
                   <v-text-field
                     v-model.number="form.receiptWidth"
@@ -164,6 +164,44 @@
                 <v-icon start icon="mdi-content-save-outline" /> Save changes
               </v-btn>
             </v-card-actions>
+          </v-card>
+
+          <v-card class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36"><v-icon icon="mdi-printer-outline" size="20" /></v-avatar>
+              <div><div class="text-subtitle-1 font-weight-bold">Receipt</div><div class="text-caption text-medium-emphasis">Customize the printed market identity and footer.</div></div>
+            </v-card-title>
+            <v-card-text>
+              <v-text-field v-model="form.marketName" label="Market name" hint="Printed large at the top, separately from the branch." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.marketPhone" label="Phone number" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.marketDescription" label="Description / tagline" variant="outlined" density="compact" class="mb-2" />
+              <v-textarea v-model="form.returnPolicy" label="Return policy" rows="3" variant="outlined" density="compact" class="mb-2" />
+              <v-row density="comfortable">
+                <v-col cols="6"><v-text-field v-model="form.website" label="Website" variant="outlined" density="compact" /></v-col>
+                <v-col cols="6"><v-text-field v-model="form.instagram" label="Instagram" variant="outlined" density="compact" /></v-col>
+              </v-row>
+              <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" label="Receipt font" hint="Belleza is bundled for offline printing." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-row density="comfortable">
+                <v-col cols="6"><v-text-field v-model.number="form.receiptTitleSize" label="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" /></v-col>
+                <v-col cols="6"><v-text-field v-model.number="form.receiptBodySize" label="Body size" type="number" min="6" max="24" variant="outlined" density="compact" /></v-col>
+              </v-row>
+              <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details />
+            </v-card-text>
+            <v-card-actions class="px-4 pb-4"><v-spacer /><v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings"><v-icon start icon="mdi-content-save-outline" /> Save changes</v-btn></v-card-actions>
+          </v-card>
+
+          <v-card class="settings-card settings-preview-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36"><v-icon icon="mdi-printer-outline" size="20" /></v-avatar>
+              <div><div class="text-subtitle-1 font-weight-bold">Live receipt preview</div><div class="text-caption text-medium-emphasis">Demo items update as you edit the receipt settings.</div></div>
+              <v-spacer />
+              <v-progress-circular v-if="previewLoading" indeterminate size="18" width="2" color="primary" />
+            </v-card-title>
+            <v-card-text class="preview-card-text">
+              <div v-if="previewError" class="text-body-2 text-error pa-4">Preview unavailable. Save the settings and try again.</div>
+              <iframe v-else-if="previewSrc" class="receipt-preview-frame" :src="previewSrc" title="Receipt preview" />
+              <div v-else class="text-body-2 text-medium-emphasis pa-4">Loading preview…</div>
+            </v-card-text>
           </v-card>
 
           <v-card class="settings-card">
@@ -288,6 +326,32 @@
               </template>
             </v-data-table>
           </v-card>
+
+          <v-card class="settings-card settings-card--wide">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36">
+                <v-icon icon="mdi-account-tie" size="20" />
+              </v-avatar>
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Salespersons</div>
+                <div class="text-caption text-medium-emphasis">Manage the people assigned to sales.</div>
+              </div>
+              <v-spacer />
+              <v-btn color="primary" size="small" @click="openSalespersonDialog()">
+                <v-icon start icon="mdi-plus" /> Add salesperson
+              </v-btn>
+            </v-card-title>
+            <v-data-table :headers="salespersonHeaders" :items="salespersons" density="comfortable" hover>
+              <template #item.actions="{ item }">
+                <v-btn icon size="small" variant="text" @click="openSalespersonDialog(item)">
+                  <v-icon icon="mdi-pencil-outline" size="18" />
+                </v-btn>
+                <v-btn icon size="small" variant="text" @click="deleteSalespersonConfirm(item)">
+                  <v-icon icon="mdi-delete-outline" size="18" color="red" />
+                </v-btn>
+              </template>
+            </v-data-table>
+          </v-card>
         </div>
       </v-window-item>
     </v-window>
@@ -352,17 +416,45 @@
       </v-card>
     </v-dialog>
 
-    <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000" location="top">
+    <v-dialog v-model="salespersonDialog" max-width="400">
+      <v-card>
+        <v-card-title>{{ editingSalesperson ? "Edit Salesperson" : "New Salesperson" }}</v-card-title>
+        <v-card-text>
+          <v-text-field v-model="salespersonName" label="Full name" variant="outlined" density="compact" autofocus />
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" @click="salespersonDialog = false">Cancel</v-btn>
+          <v-spacer />
+          <v-btn color="primary" variant="flat" :disabled="!salespersonName.trim()" :loading="savingSalesperson" @click="saveSalesperson">Save</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="deleteSalespersonDialog" max-width="400">
+      <v-card>
+        <v-card-title>Delete Salesperson</v-card-title>
+        <v-card-text>Delete {{ deleteSalespersonTarget?.fullName }}?</v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" @click="deleteSalespersonDialog = false">Cancel</v-btn>
+          <v-spacer />
+          <v-btn color="red" variant="flat" @click="deleteSalesperson">Delete</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-snackbar v-model="snackbar.show" class="app-snackbar" timeout="3500" location="top" variant="flat">
       {{ snackbar.text }}
     </v-snackbar>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, watch } from "vue";
 import {
   GetAppSettings,
+  GetReceiptPreview,
   UpdateSettings,
+  UpdateReceiptSettings,
   ChangePassword,
   ListUsers,
   CreateUser,
@@ -371,7 +463,11 @@ import {
   ListRoles,
   ListSerialPorts,
   ListPrinters,
-  ListInventories,
+    ListInventories,
+  ListSalespersons,
+  CreateSalesperson,
+  UpdateSalesperson,
+  DeleteSalesperson,
 } from "../../wailsjs/go/main/App";
 import { useAuthStore } from "@/stores/auth";
 import { animationsEnabled, setAnimationsEnabled } from "@/lib/display";
@@ -394,6 +490,16 @@ const form = reactive({
   receiptEnabled: false,
   salesInventoryId: 0,
   exchangeRate: 90000,
+  marketName: "",
+  marketPhone: "",
+  marketDescription: "Shop for all",
+  returnPolicy: "Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt.",
+  website: "yourwebsite.com",
+  instagram: "@your_instagram",
+  receiptFont: "Belleza",
+  receiptTitleSize: 21,
+  receiptBodySize: 11,
+  receiptCutoff: true,
 });
 const roundingModes = [
   { title: "Half up (standard)", value: "half_up" },
@@ -407,6 +513,11 @@ const saving = ref(false);
 const showApiKey = ref(false);
 const settingsLoading = ref(true);
 const settingsLoadError = ref(false);
+const previewSrc = ref("");
+const previewLoading = ref(false);
+const previewError = ref(false);
+let previewTimer: ReturnType<typeof setTimeout> | undefined;
+let previewRequest = 0;
 const passwordForm = reactive({ current: "", newPass: "", confirm: "" });
 const showPw = ref(false);
 const changingPassword = ref(false);
@@ -428,6 +539,18 @@ const savingUser = ref(false);
 
 const deleteDialog = ref(false);
 const deleteTarget = ref<any>(null);
+
+const salespersons = ref<any[]>([]);
+const salespersonHeaders = [
+  { title: "Name", key: "fullName" },
+  { title: "", key: "actions", sortable: false, align: "end" as const },
+];
+const salespersonDialog = ref(false);
+const editingSalesperson = ref<any>(null);
+const salespersonName = ref("");
+const savingSalesperson = ref(false);
+const deleteSalespersonDialog = ref(false);
+const deleteSalespersonTarget = ref<any>(null);
 
 const snackbar = reactive({ show: false, text: "", color: "success" });
 
@@ -458,6 +581,16 @@ async function loadSettings() {
         receiptEnabled: Boolean(s.receiptEnabled),
         salesInventoryId: Number(s.salesInventoryId ?? 0),
         exchangeRate: Number(s.exchangeRate ?? 90000),
+        marketName: s.marketName ?? "",
+        marketPhone: s.marketPhone ?? "",
+        marketDescription: s.marketDescription ?? "Shop for all",
+        returnPolicy: s.returnPolicy ?? "",
+        website: s.website ?? "yourwebsite.com",
+        instagram: s.instagram ?? "@your_instagram",
+        receiptFont: s.receiptFont ?? "Belleza",
+        receiptTitleSize: Number(s.receiptTitleSize ?? 21),
+        receiptBodySize: Number(s.receiptBodySize ?? 11),
+        receiptCutoff: s.receiptCutoff !== false,
       });
   } catch {
     settingsLoadError.value = true;
@@ -468,6 +601,7 @@ async function loadSettings() {
 
 onMounted(async () => {
   await loadSettings();
+  await refreshReceiptPreview();
   try {
     serialPorts.value = await ListSerialPorts();
   } catch {}
@@ -478,10 +612,30 @@ onMounted(async () => {
     inventories.value = await ListInventories();
   } catch {}
   await loadUsers();
+  await loadSalespersons();
   try {
     roles.value = await ListRoles();
   } catch {}
 });
+
+watch(form, () => {
+  if (previewTimer) clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => { void refreshReceiptPreview(); }, 250);
+}, { deep: true });
+
+async function refreshReceiptPreview() {
+  const request = ++previewRequest;
+  previewLoading.value = true;
+  previewError.value = false;
+  try {
+    const pdfBase64 = await GetReceiptPreview();
+    if (request === previewRequest) previewSrc.value = `data:application/pdf;base64,${pdfBase64}`;
+  } catch {
+    if (request === previewRequest) previewError.value = true;
+  } finally {
+    if (request === previewRequest) previewLoading.value = false;
+  }
+}
 
 async function saveSettings() {
   saving.value = true;
@@ -506,11 +660,63 @@ async function saveSettings() {
       Number(form.salesInventoryId) > 0 ? Number(form.salesInventoryId) : 0,
       Number.isFinite(exchangeRate) && exchangeRate > 0 ? Math.round(exchangeRate) : 90000,
     );
+    await UpdateReceiptSettings(
+      form.marketName.trim(), form.marketPhone.trim(), form.marketDescription.trim(), form.returnPolicy.trim(),
+      form.website.trim(), form.instagram.trim(), form.receiptFont, Number(form.receiptTitleSize), Number(form.receiptBodySize),
+      Boolean(form.receiptCutoff),
+    );
     notify("Settings saved");
   } catch {
     notify("Failed to save", "red");
   }
   saving.value = false;
+}
+
+async function loadSalespersons() {
+  try {
+    salespersons.value = await ListSalespersons();
+  } catch {}
+}
+
+function openSalespersonDialog(salesperson?: any) {
+  editingSalesperson.value = salesperson ?? null;
+  salespersonName.value = salesperson?.fullName ?? "";
+  salespersonDialog.value = true;
+}
+
+async function saveSalesperson() {
+  if (!salespersonName.value.trim()) return;
+  savingSalesperson.value = true;
+  try {
+    if (editingSalesperson.value) {
+      await UpdateSalesperson(editingSalesperson.value.id, salespersonName.value);
+    } else {
+      await CreateSalesperson(salespersonName.value);
+    }
+    salespersonDialog.value = false;
+    notify(editingSalesperson.value ? "Salesperson updated" : "Salesperson created");
+    await loadSalespersons();
+  } catch {
+    notify("Failed to save salesperson", "red");
+  } finally {
+    savingSalesperson.value = false;
+  }
+}
+
+function deleteSalespersonConfirm(salesperson: any) {
+  deleteSalespersonTarget.value = salesperson;
+  deleteSalespersonDialog.value = true;
+}
+
+async function deleteSalesperson() {
+  try {
+    await DeleteSalesperson(deleteSalespersonTarget.value.id);
+    deleteSalespersonDialog.value = false;
+    notify("Salesperson deleted");
+    await loadSalespersons();
+  } catch {
+    notify("Could not delete salesperson", "red");
+  }
 }
 
 async function changePassword() {
@@ -638,6 +844,26 @@ async function deleteUser() {
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
+.settings-preview-card {
+  position: sticky;
+  top: 16px;
+}
+
+.preview-card-text {
+  min-height: 560px;
+  padding: 12px !important;
+  background: rgba(var(--v-theme-surface-variant), 0.2);
+}
+
+.receipt-preview-frame {
+  display: block;
+  width: 100%;
+  height: 680px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  background: white;
+}
+
 .settings-card :deep(.v-card-title) {
   padding: 20px 20px 8px;
 }
@@ -648,6 +874,13 @@ async function deleteUser() {
 
 .settings-card :deep(.v-data-table-footer) {
   padding-inline: 20px;
+}
+
+.app-snackbar .v-snackbar__wrapper {
+  background: rgba(var(--v-theme-surface-variant), 0.72) !important;
+  color: rgb(var(--v-theme-on-surface-variant)) !important;
+  border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
 }
 
 @media (max-width: 900px) {

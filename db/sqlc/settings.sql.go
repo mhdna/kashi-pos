@@ -10,7 +10,7 @@ import (
 )
 
 const getSettings = `-- name: GetSettings :one
-SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate FROM settings LIMIT 1
+SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff FROM settings LIMIT 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -32,6 +32,16 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.SalesInventoryID,
 		&i.BranchCode,
 		&i.ExchangeRate,
+		&i.MarketName,
+		&i.MarketPhone,
+		&i.MarketDescription,
+		&i.ReturnPolicy,
+		&i.Website,
+		&i.Instagram,
+		&i.ReceiptFont,
+		&i.ReceiptTitleSize,
+		&i.ReceiptBodySize,
+		&i.ReceiptCutoff,
 	)
 	return i, err
 }
@@ -40,25 +50,37 @@ const updateSettings = `-- name: UpdateSettings :exec
 UPDATE settings
 SET branch_name = ?, branch_code = ?, api_key = ?, printer_id = ?, printer_size = ?,
     receipt_printer = ?, screen_port = ?, receipt_width = ?, receipt_height = ?,
-    theme = ?, tax_rate = ?, rounding_mode = ?, receipt_enabled = ?, sales_inventory_id = ?, exchange_rate = ?
+    theme = ?, tax_rate = ?, rounding_mode = ?, receipt_enabled = ?, sales_inventory_id = ?, exchange_rate = ?,
+    market_name = ?, market_phone = ?, market_description = ?, return_policy = ?, website = ?, instagram = ?,
+    receipt_font = ?, receipt_title_size = ?, receipt_body_size = ?, receipt_cutoff = ?
 `
 
 type UpdateSettingsParams struct {
-	BranchName       string  `json:"branchName"`
-	BranchCode       string  `json:"branchCode"`
-	ApiKey           string  `json:"apiKey"`
-	PrinterID        string  `json:"printerId"`
-	PrinterSize      string  `json:"printerSize"`
-	ReceiptPrinter   string  `json:"receiptPrinter"`
-	ScreenPort       string  `json:"screenPort"`
-	ReceiptWidth     int64   `json:"receiptWidth"`
-	ReceiptHeight    int64   `json:"receiptHeight"`
-	Theme            string  `json:"theme"`
-	TaxRate          float64 `json:"taxRate"`
-	RoundingMode     string  `json:"roundingMode"`
-	ReceiptEnabled   int64   `json:"receiptEnabled"`
-	SalesInventoryID int64   `json:"salesInventoryId"`
-	ExchangeRate     int64   `json:"exchangeRate"`
+	BranchName        string  `json:"branchName"`
+	BranchCode        string  `json:"branchCode"`
+	ApiKey            string  `json:"apiKey"`
+	PrinterID         string  `json:"printerId"`
+	PrinterSize       string  `json:"printerSize"`
+	ReceiptPrinter    string  `json:"receiptPrinter"`
+	ScreenPort        string  `json:"screenPort"`
+	ReceiptWidth      int64   `json:"receiptWidth"`
+	ReceiptHeight     int64   `json:"receiptHeight"`
+	Theme             string  `json:"theme"`
+	TaxRate           float64 `json:"taxRate"`
+	RoundingMode      string  `json:"roundingMode"`
+	ReceiptEnabled    int64   `json:"receiptEnabled"`
+	SalesInventoryID  int64   `json:"salesInventoryId"`
+	ExchangeRate      int64   `json:"exchangeRate"`
+	MarketName        string  `json:"marketName"`
+	MarketPhone       string  `json:"marketPhone"`
+	MarketDescription string  `json:"marketDescription"`
+	ReturnPolicy      string  `json:"returnPolicy"`
+	Website           string  `json:"website"`
+	Instagram         string  `json:"instagram"`
+	ReceiptFont       string  `json:"receiptFont"`
+	ReceiptTitleSize  float64 `json:"receiptTitleSize"`
+	ReceiptBodySize   float64 `json:"receiptBodySize"`
+	ReceiptCutoff     int64   `json:"receiptCutoff"`
 }
 
 func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error {
@@ -78,6 +100,16 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.ReceiptEnabled,
 		arg.SalesInventoryID,
 		arg.ExchangeRate,
+		arg.MarketName,
+		arg.MarketPhone,
+		arg.MarketDescription,
+		arg.ReturnPolicy,
+		arg.Website,
+		arg.Instagram,
+		arg.ReceiptFont,
+		arg.ReceiptTitleSize,
+		arg.ReceiptBodySize,
+		arg.ReceiptCutoff,
 	)
 	return err
 }
@@ -92,26 +124,36 @@ func (q *Queries) UpdateTheme(ctx context.Context, theme string) error {
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
-INSERT INTO settings (branch_name, branch_code, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, exchange_rate)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO settings (branch_name, branch_code, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type UpsertSettingsParams struct {
-	BranchName       string  `json:"branchName"`
-	BranchCode       string  `json:"branchCode"`
-	ApiKey           string  `json:"apiKey"`
-	PrinterID        string  `json:"printerId"`
-	PrinterSize      string  `json:"printerSize"`
-	ReceiptPrinter   string  `json:"receiptPrinter"`
-	ScreenPort       string  `json:"screenPort"`
-	ReceiptWidth     int64   `json:"receiptWidth"`
-	ReceiptHeight    int64   `json:"receiptHeight"`
-	Theme            string  `json:"theme"`
-	TaxRate          float64 `json:"taxRate"`
-	RoundingMode     string  `json:"roundingMode"`
-	ReceiptEnabled   int64   `json:"receiptEnabled"`
-	SalesInventoryID int64   `json:"salesInventoryId"`
-	ExchangeRate     int64   `json:"exchangeRate"`
+	BranchName        string  `json:"branchName"`
+	BranchCode        string  `json:"branchCode"`
+	ApiKey            string  `json:"apiKey"`
+	PrinterID         string  `json:"printerId"`
+	PrinterSize       string  `json:"printerSize"`
+	ReceiptPrinter    string  `json:"receiptPrinter"`
+	ScreenPort        string  `json:"screenPort"`
+	ReceiptWidth      int64   `json:"receiptWidth"`
+	ReceiptHeight     int64   `json:"receiptHeight"`
+	Theme             string  `json:"theme"`
+	TaxRate           float64 `json:"taxRate"`
+	RoundingMode      string  `json:"roundingMode"`
+	ReceiptEnabled    int64   `json:"receiptEnabled"`
+	SalesInventoryID  int64   `json:"salesInventoryId"`
+	ExchangeRate      int64   `json:"exchangeRate"`
+	MarketName        string  `json:"marketName"`
+	MarketPhone       string  `json:"marketPhone"`
+	MarketDescription string  `json:"marketDescription"`
+	ReturnPolicy      string  `json:"returnPolicy"`
+	Website           string  `json:"website"`
+	Instagram         string  `json:"instagram"`
+	ReceiptFont       string  `json:"receiptFont"`
+	ReceiptTitleSize  float64 `json:"receiptTitleSize"`
+	ReceiptBodySize   float64 `json:"receiptBodySize"`
+	ReceiptCutoff     int64   `json:"receiptCutoff"`
 }
 
 func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) error {
@@ -131,6 +173,16 @@ func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) 
 		arg.ReceiptEnabled,
 		arg.SalesInventoryID,
 		arg.ExchangeRate,
+		arg.MarketName,
+		arg.MarketPhone,
+		arg.MarketDescription,
+		arg.ReturnPolicy,
+		arg.Website,
+		arg.Instagram,
+		arg.ReceiptFont,
+		arg.ReceiptTitleSize,
+		arg.ReceiptBodySize,
+		arg.ReceiptCutoff,
 	)
 	return err
 }

@@ -10,7 +10,7 @@ import (
 )
 
 func printReceiptToPrinter(data printReceiptData) error {
-	pdf := buildReceiptPDF(data.Items, data.StoreName, data.Branch, data.Phone, data.Salesperson, data.ReceiptNo, data.GrandTotalCents, data.Payments, data.ExchangeRate, data.RoundingMode, data.ReceiptWidth, data.ReceiptHeight)
+	pdf := buildReceiptPDF(data)
 	tmpFile, err := os.CreateTemp("", "kashi-receipt-*.pdf")
 	if err != nil {
 		return err
