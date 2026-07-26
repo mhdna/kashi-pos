@@ -9,19 +9,13 @@ import (
 )
 
 func printReceiptToPrinter(data printReceiptData) error {
-	const (
-		printerAccessUse     = 0x00000008
-		startDocPrinterLevel = 1
-	)
-	type printerDefaults struct {
-		datatype      *uint16
-		devMode       uintptr
-		desiredAccess uint32
+	payload, err := buildESCPOSRasterReceipt(data)
+	if err != nil {
+		return err
 	}
-	type docInfo1 struct {
-		docName    *uint16
-		outputFile *uint16
-		datatype   *uint16
+	printerName, err := syscall.UTF16PtrFromString(data.PrinterName)
+	if err != nil {
+		return fmt.Errorf("invalid printer name: %w", err)
 	}
 
 	winspool := syscall.NewLazyDLL("winspool.drv")
@@ -33,39 +27,39 @@ func printReceiptToPrinter(data printReceiptData) error {
 	endPagePrinter := winspool.NewProc("EndPagePrinter")
 	writePrinter := winspool.NewProc("WritePrinter")
 
-	payload := buildESCPosReceipt(data)
-	printerName, err := syscall.UTF16PtrFromString(data.PrinterName)
-	if err != nil {
-		return err
+	type printerDefaults struct {
+		datatype      *uint16
+		devMode       uintptr
+		desiredAccess uint32
+	}
+	type docInfo struct {
+		docName    *uint16
+		outputFile *uint16
+		datatype   *uint16
 	}
 
 	var printer uintptr
-	defaults := printerDefaults{desiredAccess: printerAccessUse}
-	ret, _, callErr := openPrinter.Call(uintptr(unsafe.Pointer(printerName)), uintptr(unsafe.Pointer(&printer)), uintptr(unsafe.Pointer(&defaults)))
-	if ret == 0 {
-		return fmt.Errorf("open printer %q failed: %w", data.PrinterName, callErr)
+	defaults := printerDefaults{desiredAccess: 0x00000008}
+	if result, _, callErr := openPrinter.Call(uintptr(unsafe.Pointer(printerName)), uintptr(unsafe.Pointer(&printer)), uintptr(unsafe.Pointer(&defaults))); result == 0 {
+		return fmt.Errorf("open printer %q: %w", data.PrinterName, callErr)
 	}
 	defer closePrinter.Call(printer)
 
 	docName, _ := syscall.UTF16PtrFromString("Kashi POS Receipt")
 	raw, _ := syscall.UTF16PtrFromString("RAW")
-	docInfo := docInfo1{docName: docName, datatype: raw}
-	if ret, _, callErr := startDocPrinter.Call(printer, startDocPrinterLevel, uintptr(unsafe.Pointer(&docInfo))); ret == 0 {
-		return fmt.Errorf("start printer document failed: %w", callErr)
+	document := docInfo{docName: docName, datatype: raw}
+	if result, _, callErr := startDocPrinter.Call(printer, 1, uintptr(unsafe.Pointer(&document))); result == 0 {
+		return fmt.Errorf("start receipt document: %w", callErr)
 	}
 	defer endDocPrinter.Call(printer)
-
-	if ret, _, callErr := startPagePrinter.Call(printer); ret == 0 {
-		return fmt.Errorf("start printer page failed: %w", callErr)
+	if result, _, callErr := startPagePrinter.Call(printer); result == 0 {
+		return fmt.Errorf("start receipt page: %w", callErr)
 	}
 	defer endPagePrinter.Call(printer)
 
-	if len(payload) == 0 {
-		return fmt.Errorf("empty receipt payload")
-	}
 	var written uint32
-	if ret, _, callErr := writePrinter.Call(printer, uintptr(unsafe.Pointer(&payload[0])), uintptr(len(payload)), uintptr(unsafe.Pointer(&written))); ret == 0 {
-		return fmt.Errorf("write receipt to printer failed: %w", callErr)
+	if result, _, callErr := writePrinter.Call(printer, uintptr(unsafe.Pointer(&payload[0])), uintptr(len(payload)), uintptr(unsafe.Pointer(&written))); result == 0 {
+		return fmt.Errorf("write receipt data: %w", callErr)
 	}
 	if written != uint32(len(payload)) {
 		return fmt.Errorf("printer accepted %d of %d receipt bytes", written, len(payload))

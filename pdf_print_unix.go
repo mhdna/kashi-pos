@@ -10,25 +10,27 @@ import (
 )
 
 func printReceiptToPrinter(data printReceiptData) error {
-	tmpFile, err := os.CreateTemp("", "kashi-receipt-*.bin")
+	payload, err := buildESCPOSRasterReceipt(data)
+	if err != nil {
+		return err
+	}
+	tmpFile, err := os.CreateTemp("", "kashi-receipt-*.escpos")
 	if err != nil {
 		return fmt.Errorf("create receipt payload: %w", err)
 	}
 	tmpPath := filepath.Clean(tmpFile.Name())
-	if _, err := tmpFile.Write(buildESCPosReceipt(data)); err != nil {
+	defer os.Remove(tmpPath)
+	if _, err := tmpFile.Write(payload); err != nil {
 		_ = tmpFile.Close()
-		_ = os.Remove(tmpPath)
 		return fmt.Errorf("write receipt payload: %w", err)
 	}
 	if err := tmpFile.Close(); err != nil {
-		_ = os.Remove(tmpPath)
 		return fmt.Errorf("close receipt payload: %w", err)
 	}
-	defer os.Remove(tmpPath)
 
 	cmd := exec.Command("lp", "-d", data.PrinterName, "-o", "raw", tmpPath)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("print failed: %v — %s", err, string(out))
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("print receipt to %q: %v: %s", data.PrinterName, err, output)
 	}
 	return nil
 }
