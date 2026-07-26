@@ -73,7 +73,7 @@
       class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
       color="primary"
       rounded="lg"
-      text="Pay"
+      text="Check Out"
       variant="tonal"
       width="100%"
       @click="$emit('checkout')"

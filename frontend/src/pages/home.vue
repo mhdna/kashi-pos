@@ -113,11 +113,14 @@
           <div class="text-body-2">Scan a barcode or add products to begin</div>
         </v-card>
       </div>
-      <div style="flex: 1 1 0; min-width: 0">
+      <div class="mb-3 mt-1" style="flex: 3 3 0; min-width: 0">
+        <Calculator ref="calculator" :total="invoiceTotal" :rounding-mode="roundingMode" />
+      </div>
+      <div style="flex: 2 2 0; min-width: 0">
         <ActionBar
           ref="actionBar"
           :total="invoiceTotal"
-          :can-checkout="canOpenPayment"
+          :can-checkout="canCheckout"
           :has-items="hasItems"
           :pulse-client="pulseClient"
           :exchange-mode="Boolean(exchangeState)"
@@ -128,66 +131,6 @@
       </div>
     </div>
   </div>
-
-  <v-dialog v-model="paymentDialog" persistent max-width="980">
-    <v-card rounded="xl">
-      <v-card-title class="d-flex align-center px-6 pt-5">
-        <div>
-          <div class="text-h6">Payment</div>
-          <div class="text-caption text-medium-emphasis">{{ invoiceCode }}</div>
-        </div>
-        <v-spacer />
-        <v-btn icon="mdi-close" variant="text" aria-label="Cancel payment" @click="paymentDialog = false" />
-      </v-card-title>
-      <v-card-text class="px-6 pb-3">
-        <div class="payment-dialog-grid">
-          <v-card variant="tonal" rounded="lg" class="payment-summary pa-4">
-            <div class="text-subtitle-1 font-weight-bold mb-3">Invoice details</div>
-            <div class="d-flex justify-space-between text-body-2 mb-2">
-              <span class="text-medium-emphasis">Items</span>
-              <span>{{ invoiceItems?.items?.length ?? 0 }}</span>
-            </div>
-            <div class="d-flex justify-space-between text-body-2 mb-2">
-              <span class="text-medium-emphasis">Subtotal</span>
-              <span>{{ formatUsd(invoiceSubtotal) }}</span>
-            </div>
-            <div class="d-flex justify-space-between text-body-2 mb-2">
-              <span class="text-medium-emphasis">Discount</span>
-              <span class="text-red">-{{ formatUsd(invoiceDiscount) }}</span>
-            </div>
-            <div class="d-flex justify-space-between text-body-2 mb-2">
-              <span class="text-medium-emphasis">VAT</span>
-              <span>{{ formatUsd(invoiceVat) }}</span>
-            </div>
-            <v-divider class="my-3" />
-            <div class="d-flex justify-space-between text-h6 font-weight-bold">
-              <span>Total</span>
-              <span>{{ formatUsd(invoiceTotal) }}</span>
-            </div>
-            <v-card class="mt-5 pa-3" variant="outlined" rounded="lg">
-              <div class="text-caption text-medium-emphasis">{{ paymentDifference < 0 ? "Remaining" : "Change" }}</div>
-              <div class="text-h5 font-weight-bold" :class="paymentDifference <= 0 ? 'text-red-darken-2' : 'text-green-darken-2'">
-                {{ formatUsd(Math.abs(paymentDifference)) }}
-              </div>
-              <div class="text-caption text-medium-emphasis mt-1">
-                {{ paymentDifference === 0 ? "Payment is balanced" : paymentDifference < 0 ? "Enter the amount received" : "Return this change to the customer" }}
-              </div>
-            </v-card>
-          </v-card>
-          <div class="payment-calculator">
-            <Calculator ref="calculator" :total="invoiceTotal" :rounding-mode="roundingMode" />
-          </div>
-        </div>
-      </v-card-text>
-      <v-card-actions class="px-6 pb-5">
-        <v-btn variant="text" @click="paymentDialog = false">Back</v-btn>
-        <v-spacer />
-        <v-btn color="primary" size="large" prepend-icon="mdi-check-circle" :disabled="!canCheckout" @click="completeCheckout">
-          Confirm payment
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
 
   <v-overlay v-model="printing" class="align-center justify-center" persistent>
     <v-card class="pa-8 text-center" width="300">
@@ -234,7 +177,6 @@ import type { ExchangeSelection } from "@/lib/exchange";
 import { roundCents } from "@/lib/money";
 import type { Client } from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
-import { formatUsd } from "@/lib/format";
 
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
 type InvoiceDraft = { items: any[]; client: Client; notes?: string };
@@ -272,18 +214,9 @@ const canCheckout = computed(
     clientSelected.value &&
     salespersonSelected.value,
 );
-const canOpenPayment = computed(
-  () => hasItems.value && clientSelected.value && salespersonSelected.value,
-);
-const invoiceSubtotal = computed(() => invoiceItems.value?.subtotal ?? 0);
-const invoiceDiscount = computed(() => invoiceItems.value?.totalDiscount ?? 0);
-const invoiceAfterDiscount = computed(() => invoiceSubtotal.value - invoiceDiscount.value);
-const invoiceVat = computed(() => invoiceAfterDiscount.value * taxRate.value);
-const paymentDifference = computed(() => Number(calculator.value?.diff ?? 0));
 const barcodeValue = ref("");
 const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
 const dialogOpen = ref(false);
-const paymentDialog = ref(false);
 let restoringDraft = true;
 
 provide("dialogOpen", dialogOpen);
@@ -468,13 +401,6 @@ async function onCheckout() {
     snackbar.show = true;
     return;
   }
-  paymentDialog.value = true;
-}
-
-async function completeCheckout() {
-  const json = await getFullItemsJSON();
-  if (json === "[]" || !canCheckout.value) return;
-  const isExchange = Boolean(exchangeState.value);
   printing.value = receiptEnabled.value;
   try {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
@@ -508,7 +434,6 @@ async function completeCheckout() {
           : `Invoice created — ${result?.invoiceCode ?? ""}`;
     snackbar.color = "success";
     snackbar.show = true;
-    paymentDialog.value = false;
     clearInvoice();
     exchangeState.value = null;
     await nextTick();
@@ -602,25 +527,5 @@ onMounted(async () => {
   color: rgb(var(--v-theme-on-surface-variant)) !important;
   border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
-}
-.payment-dialog-grid {
-  display: grid;
-  grid-template-columns: minmax(230px, 0.9fr) minmax(420px, 1.35fr);
-  gap: 20px;
-  align-items: stretch;
-}
-.payment-summary,
-.payment-calculator {
-  min-width: 0;
-}
-.payment-calculator :deep(.calculator-shell) {
-  height: auto !important;
-  min-height: 100%;
-  margin: 0 !important;
-}
-@media (max-width: 760px) {
-  .payment-dialog-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
