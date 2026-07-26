@@ -3,6 +3,13 @@ import "vuetify/styles";
 import { aliases, mdi } from "../lib/icons";
 
 export default createVuetify({
+  defaults: {
+    VDialog: { transition: false },
+    VMenu: { transition: false },
+    VOverlay: { transition: false },
+    VSnackbar: { transition: false },
+    VTooltip: { transition: false },
+  },
   theme: {
     defaultTheme: "light",
     themes: {

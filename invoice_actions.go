@@ -9,7 +9,6 @@ import (
 	"math"
 	"math/rand"
 	"strings"
-	"time"
 
 	"github.com/go-pdf/fpdf"
 
@@ -147,8 +146,8 @@ func (a *App) VoidInvoice(itemsJSON string, reason string) error {
 	return err
 }
 
-func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter string) (map[string]any, error) {
-	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID})
+func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes string) (map[string]any, error) {
+	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes})
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}
@@ -177,7 +176,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 				}
 			}
 		}
-		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.Payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0); err != nil {
+		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.Notes, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.Payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0); err != nil {
 			response["receiptError"] = err.Error()
 		} else {
 			response["receiptPrinted"] = true
@@ -234,7 +233,7 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 		"id": inv.ID, "invoiceCode": inv.InvoiceCode, "clientId": inv.ClientID, "clientName": clientName, "clientPhone": clientPhone,
 		"salespersonId": inv.SalespersonID, "salespersonName": salespersonName, "cashboxId": inv.CashboxID,
 		"subtotal": inv.Subtotal, "discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
-		"createdAt": inv.CreatedAt, "items": items, "payments": paymentList,
+		"createdAt": inv.CreatedAt, "notes": inv.Notes, "items": items, "payments": paymentList,
 	}, nil
 }
 
@@ -302,6 +301,10 @@ func (a *App) ChangeInvoiceSettlement(invoiceID, cashboxID int64) error {
 }
 
 func (a *App) ReprintInvoice(id int64) error {
+	return a.printInvoiceReceipt(id, nil)
+}
+
+func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	details, err := a.GetInvoiceDetails(id)
 	if err != nil {
 		return err
@@ -318,7 +321,7 @@ func (a *App) ReprintInvoice(id int64) error {
 	if marketName == "" {
 		marketName = "Market"
 	}
-	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), details["clientName"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64), nil, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0)
+	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), details["clientName"].(string), details["notes"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, details["grandTotal"].(int64), payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0)
 }
 
 // GetReceiptPreview returns a PDF rendered with the current receipt settings.
@@ -357,7 +360,7 @@ func (a *App) GetReceiptPreview() (string, error) {
 	return base64.StdEncoding.EncodeToString(output.Bytes()), nil
 }
 
-func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, counter, salesperson, customer, receiptNo, printerName string, grandTotalCents int64, payments []checkoutPayment, exchangeRate int64, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram string, socialPlatforms []string, socialHandles map[string]string, font, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
+func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, counter, salesperson, customer, notes, receiptNo, printerName string, grandTotalCents int64, payments []checkoutPayment, exchangeRate int64, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram string, socialPlatforms []string, socialHandles map[string]string, font, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")
 	}
@@ -380,6 +383,7 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 		CounterNumber:   counter,
 		Salesperson:     salesperson,
 		Customer:        customer,
+		Notes:           notes,
 		ReturnPolicy:    returnPolicy,
 		Website:         website,
 		Instagram:       instagram,
@@ -435,9 +439,9 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	}
 	bodyFont := data.BodyFont
 	if bodyFont == "" || bodyFont == "Printer Font A" {
-		// Printer Font A is hardware-defined for ESC/POS. Helvetica is the
-		// closest stable PDF preview fallback.
-		bodyFont = "Helvetica"
+		// Printer Font A is hardware-defined for ESC/POS; Courier keeps the
+		// PDF preview aligned with the receipt's default monospace body font.
+		bodyFont = "Courier"
 	}
 	if bodyFont != "Helvetica" && bodyFont != "Times" && bodyFont != "Courier" && bodyFont != "Belleza" {
 		bodyFont = "Courier"
@@ -475,13 +479,19 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 
 	down := func(mm float64) { pdf.SetY(pdf.GetY() + mm) }
 	center := func(s string, size float64) { boldText(s, size, "C") }
+	normalText := func(s string, size float64, align string) {
+		pdf.SetFont(bodyFont, "", size)
+		pdf.SetXY(margin, pdf.GetY())
+		pdf.CellFormat(contentW, 4, s, "", 0, align, false, 0, "")
+	}
+	centerNormal := func(s string, size float64) { normalText(s, size, "C") }
 	centerWithFont := func(s, font string, size float64) {
 		pdf.SetFont(font, "B", size)
 		pdf.SetXY(margin, pdf.GetY())
 		pdf.CellFormat(contentW, 4, s, "", 0, "C", false, 0, "")
 	}
 	wrapLines := func(s string, size float64) []string {
-		pdf.SetFont(bodyFont, "B", size)
+		pdf.SetFont(bodyFont, "", size)
 		lines := make([]string, 0)
 		for _, paragraph := range strings.Split(s, "\n") {
 			words := strings.Fields(paragraph)
@@ -529,6 +539,12 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	if data.Description != "" {
 		centerLines(data.Description, bodySize)
 	}
+	drawPDFBarcode(pdf, margin, pdf.GetY()+2, contentW, 9, data.ReceiptNo)
+	down(12)
+	centerNormal("Invoice# "+data.ReceiptNo, bodySize)
+	down(4)
+	centerNormal(currentReceiptDate(), bodySize)
+	down(6)
 	branchPhone := data.BranchPhone
 	if branchPhone == "" {
 		branchPhone = data.Phone
@@ -549,15 +565,16 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	dashedRule()
 	down(4)
 
-	twoCol("Receipt: "+data.ReceiptNo, "", bodySize)
-	down(4)
-	now := time.Now()
-	twoCol("Date: "+now.Format("02-01-2006 15:04"), "", bodySize)
-	down(4)
 	twoCol("Sold by: "+data.Salesperson, "", bodySize)
 	down(4)
 	twoCol("Customer: "+data.Customer, "", bodySize)
 	down(5)
+	if strings.TrimSpace(data.Notes) != "" {
+		dashedRule()
+		down(4)
+		normalText("Note: "+strings.TrimSpace(data.Notes), bodySize, "L")
+		down(5)
+	}
 	dashedRule()
 	down(4)
 
@@ -576,6 +593,12 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 
 		twoCol(it.Name, fmt.Sprintf("$%.2f", lineTotal), 11)
 		down(4)
+		if it.Code != "" {
+			pdf.SetFont(bodyFont, "", 10)
+			pdf.SetXY(margin+2, pdf.GetY())
+			pdf.CellFormat(contentW-2, 4, "Code: "+it.Code, "", 0, "L", false, 0, "")
+			down(4)
+		}
 
 		pdf.SetFont(bodyFont, "", 10)
 		qtyLine := fmt.Sprintf("%.0f x $%.2f", it.Qty, it.Price)
@@ -601,6 +624,7 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	down(5)
 	dashedRule()
 	down(5)
+	drawDottedPDFBox(pdf, margin, pdf.GetY(), contentW, 12)
 	twoCol("TOTAL", fmt.Sprintf("$%.2f", grandTotal), 13)
 	down(5)
 	rate := data.ExchangeRate
@@ -659,28 +683,31 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	// center(data.ReceiptNo, bodySize)
 	down(8)
 
+	return pdf
+}
+
+func drawDottedPDFBox(pdf *fpdf.Fpdf, x, y, width, height float64) {
+	pdf.SetDashPattern([]float64{1.1, 1.0}, 0)
+	pdf.SetLineWidth(0.35)
+	pdf.Rect(x, y, width, height, "D")
+	pdf.SetDashPattern([]float64{}, 0)
+}
+
+func drawPDFBarcode(pdf *fpdf.Fpdf, x, y, width, height float64, value string) {
 	seed := int64(0)
-	for _, c := range data.ReceiptNo {
-		seed += int64(c)
+	for _, char := range value {
+		seed += int64(char)
 	}
 	rnd := rand.New(rand.NewSource(seed))
-	widths := []float64{0.35, 0.55, 0.8, 1.05}
-	cx := margin
-	top := pdf.GetY()
-	const barH = 9.0
-	for cx < margin+contentW {
-		w := widths[rnd.Intn(len(widths))]
+	barWidths := []float64{0.35, 0.55, 0.8, 1.05}
+	for cx := x; cx < x+width; {
+		barWidth := barWidths[rnd.Intn(len(barWidths))]
 		if rnd.Float64() > 0.35 {
-			pdf.SetLineWidth(w)
-			pdf.Line(cx, top, cx, top+barH)
+			pdf.SetLineWidth(barWidth)
+			pdf.Line(cx, y, cx, y+height)
 		}
-		cx += w + 0.3
+		cx += barWidth + 0.3
 	}
-	down(barH + 3)
-	center(data.ReceiptNo, bodySize)
-	down(6)
-
-	return pdf
 }
 
 func formatInt(value int64) string {

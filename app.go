@@ -80,6 +80,9 @@ func (a *App) startup(ctx context.Context) {
 	a.store = db.NewStore(a.conn)
 
 	a.seedDefaults()
+	if err := a.applyEnvironmentDefaults(); err != nil {
+		log.Println("apply environment setting defaults:", err)
+	}
 }
 
 func applicationDatabasePath() (string, error) {
@@ -220,22 +223,7 @@ func (a *App) seedDefaults() {
 	log.Println("seeded default roles and admin user")
 	_, err = a.store.GetSettings(ctx)
 	if err != nil {
-		if err := a.store.UpsertSettings(ctx, db.UpsertSettingsParams{
-			BranchName:        "Main",
-			MarketName:        "Main",
-			MarketDescription: "Shop for all",
-			BranchCode:        "CN",
-			ApiKey:            "",
-			PrinterID:         "",
-			PrinterSize:       "",
-			ReceiptPrinter:    "",
-			ScreenPort:        "",
-			ReceiptWidth:      80,
-			ReceiptHeight:     297,
-			Theme:             "light",
-			TaxRate:           0.0,
-			ExchangeRate:      90000,
-		}); err != nil {
+		if err := a.store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
 			log.Println("upsert settings:", err)
 		}
 	}

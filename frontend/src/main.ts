@@ -12,6 +12,7 @@ import { registerPlugins } from "@/plugins";
 
 // Components
 import App from "./App.vue";
+import "./styles/settings.scss";
 import "./styles/compact.scss";
 
 const app = createApp(App);

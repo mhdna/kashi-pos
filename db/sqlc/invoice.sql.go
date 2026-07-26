@@ -14,8 +14,8 @@ const createInvoice = `-- name: CreateInvoice :one
 INSERT INTO invoices (
     cashbox_id, shift_id, invoice_code, invoice_index,
     year, client_id, inventory_id, discount,
-    subtotal, discounted_total, grand_total, salesperson_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id
+    subtotal, discounted_total, grand_total, salesperson_id, notes
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes
 `
 
 type CreateInvoiceParams struct {
@@ -31,6 +31,7 @@ type CreateInvoiceParams struct {
 	DiscountedTotal int64  `json:"discountedTotal"`
 	GrandTotal      int64  `json:"grandTotal"`
 	SalespersonID   int64  `json:"salespersonId"`
+	Notes           string `json:"notes"`
 }
 
 func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error) {
@@ -47,6 +48,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		arg.DiscountedTotal,
 		arg.GrandTotal,
 		arg.SalespersonID,
+		arg.Notes,
 	)
 	var i Invoice
 	err := row.Scan(
@@ -64,6 +66,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		&i.GrandTotal,
 		&i.CreatedAt,
 		&i.SalespersonID,
+		&i.Notes,
 	)
 	return i, err
 }
@@ -237,7 +240,7 @@ func (q *Queries) GetDailyIncomeByMonth(ctx context.Context, createdAt string) (
 }
 
 const getInvoiceByID = `-- name: GetInvoiceByID :one
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id FROM invoices WHERE id = ?
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes FROM invoices WHERE id = ?
 `
 
 func (q *Queries) GetInvoiceByID(ctx context.Context, id int64) (Invoice, error) {
@@ -258,6 +261,7 @@ func (q *Queries) GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 		&i.GrandTotal,
 		&i.CreatedAt,
 		&i.SalespersonID,
+		&i.Notes,
 	)
 	return i, err
 }
@@ -321,7 +325,7 @@ func (q *Queries) GetReturnedQuantityForProduct(ctx context.Context, arg GetRetu
 }
 
 const getSalesInvoiceByCode = `-- name: GetSalesInvoiceByCode :one
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes
 FROM invoices i
 JOIN sales_invoices s ON s.invoice_id = i.id
 WHERE lower(i.invoice_code) = lower(?)
@@ -345,12 +349,13 @@ func (q *Queries) GetSalesInvoiceByCode(ctx context.Context, lower string) (Invo
 		&i.GrandTotal,
 		&i.CreatedAt,
 		&i.SalespersonID,
+		&i.Notes,
 	)
 	return i, err
 }
 
 const getSalesInvoiceByID = `-- name: GetSalesInvoiceByID :one
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes
 FROM invoices i
 JOIN sales_invoices s ON s.invoice_id = i.id
 WHERE i.id = ?
@@ -374,6 +379,7 @@ func (q *Queries) GetSalesInvoiceByID(ctx context.Context, id int64) (Invoice, e
 		&i.GrandTotal,
 		&i.CreatedAt,
 		&i.SalespersonID,
+		&i.Notes,
 	)
 	return i, err
 }
@@ -497,7 +503,7 @@ func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]I
 }
 
 const listInvoices = `-- name: ListInvoices :many
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id FROM invoices ORDER BY id
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes FROM invoices ORDER BY id
 `
 
 func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
@@ -524,6 +530,7 @@ func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
 			&i.GrandTotal,
 			&i.CreatedAt,
 			&i.SalespersonID,
+			&i.Notes,
 		); err != nil {
 			return nil, err
 		}
@@ -539,7 +546,7 @@ func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
 }
 
 const listInvoicesByShiftID = `-- name: ListInvoicesByShiftID :many
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id FROM invoices WHERE shift_id = ? ORDER BY id
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes FROM invoices WHERE shift_id = ? ORDER BY id
 `
 
 func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error) {
@@ -566,6 +573,7 @@ func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]I
 			&i.GrandTotal,
 			&i.CreatedAt,
 			&i.SalespersonID,
+			&i.Notes,
 		); err != nil {
 			return nil, err
 		}

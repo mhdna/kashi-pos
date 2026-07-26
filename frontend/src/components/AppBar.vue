@@ -1,8 +1,8 @@
 <template>
-  <v-app-bar color="brown-darken-3">
+  <v-app-bar color="#4a352f">
     <template #prepend>
       <div class="d-flex flex-column align-last justify-center mx-2">
-        <v-app-bar-title class="text-title-medium"> Kashi POS </v-app-bar-title>
+        <v-app-bar-title class="text-title-medium">EV POS TERMINAL</v-app-bar-title>
         <div class="text-title-small">{{ branchName || "Branch" }}</div>
       </div>
       <div class="mx-8 me-0 text-title-small">{{ time }}</div>

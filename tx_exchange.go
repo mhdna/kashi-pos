@@ -10,7 +10,11 @@ import (
 
 // CheckoutExchangeInvoice records one returned line and one or more
 // replacement lines. Only the positive difference is paid by the customer.
-func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64) (map[string]any, error) {
+func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, noteArgs ...string) (map[string]any, error) {
+	notes := ""
+	if len(noteArgs) > 0 {
+		notes = noteArgs[0]
+	}
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -43,6 +47,7 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 	}
 
 	var result map[string]any
+	var exchangeInvoiceID int64
 	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
 		source, err := q.GetSalesInvoiceByID(a.ctx, originalInvoiceID)
 		if err != nil {
@@ -66,7 +71,7 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 			return err
 		}
 		invoice, err := createExchangeInvoice(
-			a, q, cashbox, shift, source, inventoryID, total, settings.BranchCode,
+			a, q, cashbox, shift, source, inventoryID, total, settings.BranchCode, notes,
 		)
 		if err != nil {
 			return err
@@ -77,12 +82,24 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 		if err := recordExchangePayments(a, q, invoice.ID, shift.ID, payments); err != nil {
 			return err
 		}
+		exchangeInvoiceID = invoice.ID
 		result = map[string]any{
-			"invoiceCode": invoice.InvoiceCode,
-			"difference":  float64(total) / 100,
+			"invoiceCode":    invoice.InvoiceCode,
+			"difference":     float64(total) / 100,
+			"receiptPrinted": false,
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	if settings.ReceiptEnabled != 0 {
+		if err := a.printInvoiceReceipt(exchangeInvoiceID, payments); err != nil {
+			result["receiptError"] = err.Error()
+		} else {
+			result["receiptPrinted"] = true
+		}
+	}
 	return result, err
 }
 
@@ -108,7 +125,7 @@ func exchangeCashbox(a *App, q *db.Queries, payments []checkoutPayment) (db.Cash
 	return accounts[0], nil
 }
 
-func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shift db.Shift, source db.Invoice, inventoryID, total int64, branchCode string) (db.Invoice, error) {
+func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shift db.Shift, source db.Invoice, inventoryID, total int64, branchCode, notes string) (db.Invoice, error) {
 	year := int64(time.Now().Year())
 	invoiceCode, index, err := a.allocateInvoiceCode(
 		q, invoiceTypeExchange, branchCode, year,
@@ -122,6 +139,7 @@ func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shi
 		InvoiceIndex: index, Year: year, ClientID: source.ClientID,
 		InventoryID: inventoryID, Discount: 0,
 		Subtotal: total, DiscountedTotal: total, GrandTotal: total,
+		Notes: strings.TrimSpace(notes),
 	})
 	if err != nil {
 		return db.Invoice{}, err

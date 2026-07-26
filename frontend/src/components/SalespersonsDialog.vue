@@ -1,8 +1,12 @@
 <template>
   <v-menu v-model="menu" :close-on-content-click="false" location="bottom end">
     <template #activator="{ props }">
-      <v-btn v-bind="props" class="py-6 px-0 me-4">
-        <v-list-item subtitle="Salesperson" :title="selectedName" style="min-width: 180px">
+      <v-btn v-bind="props" class="py-6 px-0 me-4" :class="{ 'missing-selection-pulse': pulseMissingSalesperson }">
+        <v-list-item
+          :subtitle="selected ? 'Salesperson' : undefined"
+          :title="selectedName"
+          style="min-width: 180px"
+        >
           <template #prepend>
             <InitialsAvatar
               :name="selectedName ?? ''"
@@ -28,24 +32,19 @@
 import { ref, computed, onMounted } from "vue";
 import { ListSalespersons } from "../../wailsjs/go/main/App";
 import InitialsAvatar from "./InitialsAvatar.vue";
+import { useSalesperson, type Salesperson } from "@/composables/useSalesperson";
 
 const menu = ref(false);
-const colors = ["yellow", "blue", "red", "purple", "pink", "green", "orange", "teal"];
-
-interface Salesperson {
-  id: number;
-  fullName: string;
-}
+const salespersonAvatarColor = "green-lighten-4";
 
 const salespersons = ref<Salesperson[]>([]);
-const selected = ref<Salesperson>({ id: 0, fullName: "Anonymous" });
+const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperson();
 
-const selectedName = computed(() => selected.value.fullName);
-const selectedColor = computed(() => colorFor(selected.value.id));
-const selectedInitials = computed(() => initials(selected.value.fullName));
+const selectedName = computed(() => selected.value?.fullName ?? "Select salesperson");
+const selectedColor = computed(() => salespersonAvatarColor);
 
 function colorFor(id: number) {
-  return colors[id % colors.length];
+  return salespersonAvatarColor;
 }
 function initials(name: string) {
   return name
@@ -63,7 +62,18 @@ onMounted(async () => {
   const list = await ListSalespersons();
   if (list.length) {
     salespersons.value = list as Salesperson[];
-    selected.value = list[0] as Salesperson;
   }
 });
 </script>
+
+<style scoped>
+.missing-selection-pulse {
+  animation: missing-selection-pulse 700ms ease-in-out 2;
+  border-radius: 12px;
+}
+
+@keyframes missing-selection-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0); }
+  50% { box-shadow: 0 0 0 8px rgba(var(--v-theme-warning), 0.32); }
+}
+</style>

@@ -14,6 +14,8 @@ import (
 var assets embed.FS
 
 func main() {
+	loadDotEnv()
+
 	if len(os.Args) > 1 && os.Args[1] == "--receipt-preview" {
 		if err := runReceiptPreview(os.Args[2:]); err != nil {
 			println("Error generating receipt preview:", err.Error())

@@ -8,3 +8,13 @@
 // @use 'vuetify/settings' with (
 //   $color-pack: false
 // );
+*,
+*::before,
+*::after {
+  transition: none !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  animation: none !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+}

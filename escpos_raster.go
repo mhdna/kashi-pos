@@ -13,6 +13,7 @@ import (
 	xdraw "golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gobold"
+	"golang.org/x/image/font/gofont/gomono"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
@@ -89,6 +90,11 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if c.data.Description != "" {
 		y, _ = c.centerWrapped(y, c.data.Description, c.data.BodySize, 12)
 	}
+	y = c.barcode(y+12, c.data.ReceiptNo) + 10
+	y, _ = c.center(y, "Invoice# "+c.data.ReceiptNo, c.data.BodySize, false, false)
+	y += 8
+	y, _ = c.center(y, currentReceiptDate(), c.data.BodySize, false, false)
+	y += 18
 	phone := c.data.BranchPhone
 	if phone == "" {
 		phone = c.data.Phone
@@ -106,14 +112,17 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y = c.rule(y) + 18
 
 	metadata := []string{
-		"Receipt: " + c.data.ReceiptNo,
-		"Date: " + currentReceiptDate(),
 		"Sold by: " + fallbackReceiptValue(c.data.Salesperson, "Not specified"),
 		"Customer: " + fallbackReceiptValue(c.data.Customer, "Walk-in"),
 	}
 	for _, line := range metadata {
-		y, _ = c.left(y, line, c.data.BodySize, true)
+		y, _ = c.left(y, line, c.data.BodySize, false)
 		y += 12
+	}
+	if strings.TrimSpace(c.data.Notes) != "" {
+		y = c.rule(y) + 14
+		y, _ = c.left(y, "Note: "+strings.TrimSpace(c.data.Notes), c.data.BodySize, false)
+		y += 14
 	}
 	y = c.rule(y) + 18
 	y, _ = c.twoCol(y, "ITEM", "TOTAL", 11, true)
@@ -128,6 +137,10 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		discountTotal += discount
 		y, _ = c.twoCol(y, item.Name, fmt.Sprintf("$%.2f", lineTotal), 11, true)
 		y += 10
+		if item.Code != "" {
+			y, _ = c.indented(y, "Code: "+item.Code, 10)
+			y += 6
+		}
 		qty := fmt.Sprintf("%.0f x $%.2f", item.Qty, item.Price)
 		if item.Discount > 0 {
 			qty += fmt.Sprintf("  (-%.0f%% = -$%.2f)", item.Discount, discount)
@@ -149,6 +162,8 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		y += 12
 	}
 	y = c.rule(y) + 20
+	y = c.dottedBox(y, 34)
+	y += 8
 	y, _ = c.twoCol(y, "TOTAL", fmt.Sprintf("$%.2f", grandTotal), 13, true)
 	y += 14
 	rate := c.data.ExchangeRate
@@ -205,10 +220,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y += 22
 	y, _ = c.center(y, "Thank you for shopping with us!", c.data.BodySize, true, false)
 	y += 42
-	y = c.barcode(y, c.data.ReceiptNo)
-	y += 18
-	y, _ = c.center(y, c.data.ReceiptNo, c.data.BodySize, true, false)
-	return y + 64, nil
+	return y + 42, nil
 }
 
 func (c *receiptCanvas) face(size float64, bold, title bool) (font.Face, error) {
@@ -216,9 +228,12 @@ func (c *receiptCanvas) face(size float64, bold, title bool) (font.Face, error) 
 	if face := c.faces[key]; face != nil {
 		return face, nil
 	}
-	fontData := goregular.TTF
+	fontData := gomono.TTF
 	if bold {
 		fontData = gobold.TTF
+	}
+	if title {
+		fontData = goregular.TTF
 	}
 	if (title && c.data.Font == "Belleza") || (!title && c.data.BodyFont == "Belleza") {
 		fontData = bellezaFont
@@ -325,6 +340,24 @@ func (c *receiptCanvas) rule(y int) int {
 		}
 	}
 	return y + 2
+}
+
+func (c *receiptCanvas) dottedBox(y, height int) int {
+	for x := c.margin; x < c.margin+c.contentW; x += 8 {
+		for dx := 0; dx < 4 && x+dx < c.margin+c.contentW; dx++ {
+			c.img.Set(x+dx, y, color.Black)
+			c.img.Set(x+dx, y+height, color.Black)
+		}
+	}
+	for yy := y; yy <= y+height; yy += 8 {
+		for dx := 0; dx < 4; dx++ {
+			if y+height <= c.img.Bounds().Dy() {
+				c.img.Set(c.margin, yy+dx, color.Black)
+				c.img.Set(c.margin+c.contentW-1, yy+dx, color.Black)
+			}
+		}
+	}
+	return y
 }
 
 func (c *receiptCanvas) social(y int, item socialFooterItem) (int, error) {

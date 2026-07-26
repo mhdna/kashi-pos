@@ -47,8 +47,8 @@ SELECT * FROM invoices WHERE shift_id = ? ORDER BY id;
 INSERT INTO invoices (
     cashbox_id, shift_id, invoice_code, invoice_index,
     year, client_id, inventory_id, discount,
-    subtotal, discounted_total, grand_total, salesperson_id
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *;
+    subtotal, discounted_total, grand_total, salesperson_id, notes
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *;
 
 -- name: GetInvoiceProduct :one
 SELECT * FROM invoice_products WHERE invoice_id = ? AND product_id = ?;

@@ -106,6 +106,7 @@ type Invoice struct {
 	GrandTotal      int64  `json:"grandTotal"`
 	CreatedAt       string `json:"createdAt"`
 	SalespersonID   int64  `json:"salespersonId"`
+	Notes           string `json:"notes"`
 }
 
 type InvoiceIndex struct {

@@ -57,6 +57,18 @@
         :readonly="Boolean(exchangeState)"
         style="flex: 1 1 0; min-height: 0"
       />
+      <v-textarea
+        v-model="invoiceNotes"
+        class="mx-4 mb-2"
+        label="Note"
+        placeholder="Optional note for this invoice"
+        rows="2"
+        auto-grow
+        max-rows="4"
+        density="compact"
+        variant="outlined"
+        hide-details
+      />
       <InvoiceSummary
         :subtotal="invoiceItems?.subtotal ?? 0"
         :total-discount="invoiceItems?.totalDiscount ?? 0"
@@ -82,7 +94,7 @@
           <div class="text-body-2">Scan a barcode or add products to begin</div>
         </v-card>
       </div>
-      <div style="flex: 3 3 0; min-width: 0">
+      <div class="mb-3 mt-1" style="flex: 3 3 0; min-width: 0">
         <Calculator ref="calculator" :total="invoiceTotal" :rounding-mode="roundingMode" />
       </div>
       <div style="flex: 2 2 0; min-width: 0">
@@ -91,6 +103,7 @@
           :total="invoiceTotal"
           :can-checkout="canCheckout"
           :has-items="hasItems"
+          :pulse-client="pulseClient"
           :exchange-mode="Boolean(exchangeState)"
           @hold="onHold"
           @void="onVoid"
@@ -107,7 +120,13 @@
     </v-card>
   </v-overlay>
 
-  <v-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="4000" location="top right">
+  <v-snackbar
+    v-model="snackbar.show"
+    class="app-snackbar"
+    timeout="3500"
+    location="top"
+    variant="flat"
+  >
     {{ snackbar.text }}
   </v-snackbar>
 </template>
@@ -137,14 +156,23 @@ import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { roundCents } from "@/lib/money";
+import type { Client } from "@/lib/client";
+import { useSalesperson } from "@/composables/useSalesperson";
+
+const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
+type InvoiceDraft = { items: any[]; client: Client; notes?: string };
+const { selectedSalesperson, pulseSalesperson } = useSalesperson();
 
 const taxRate = ref(0);
 const roundingMode = ref("half_up");
 const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
+const pulseClient = ref(false);
+let pulseClientTimer: ReturnType<typeof setTimeout> | undefined;
 const branchName = ref("Store");
 const screenPort = ref("");
 const invoiceCode = ref("Loading invoice code…");
+const invoiceNotes = ref("");
 const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
@@ -156,14 +184,19 @@ const invoiceTotal = computed(() => {
   return (discountedCents + taxCents) / 100;
 });
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
+const clientSelected = computed(() => Boolean(actionBar.value?.clientSelected));
+const salespersonSelected = computed(() => Boolean(selectedSalesperson.value));
 const canCheckout = computed(
   () =>
     Boolean(calculator.value?.checkoutReady) &&
-    (exchangeState.value ? hasItems.value : invoiceTotal.value > 0),
+    (exchangeState.value ? hasItems.value : invoiceTotal.value > 0) &&
+    clientSelected.value &&
+    salespersonSelected.value,
 );
 const barcodeValue = ref("");
 const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
 const dialogOpen = ref(false);
+let restoringDraft = true;
 
 provide("dialogOpen", dialogOpen);
 
@@ -174,6 +207,49 @@ watch(hasItems, (val) => {
 watch(dialogOpen, (v) => {
   if (!v) focusBarcode();
 });
+
+watch(
+  [() => invoiceItems.value?.items, () => actionBar.value?.client],
+  ([items, client]) => {
+    if (restoringDraft || !client) return;
+    if (!items?.length && client.id === 0) {
+      localStorage.removeItem(INVOICE_DRAFT_KEY);
+      return;
+    }
+    localStorage.setItem(
+      INVOICE_DRAFT_KEY,
+      JSON.stringify({ items: items ?? [], client, notes: invoiceNotes.value } satisfies InvoiceDraft),
+    );
+  },
+  { deep: true },
+);
+
+function restoreDraft() {
+  try {
+    const draft = JSON.parse(
+      localStorage.getItem(INVOICE_DRAFT_KEY) || "null",
+    ) as InvoiceDraft | null;
+    if (!draft) return;
+    for (const item of draft.items ?? []) invoiceItems.value?.addItem({ ...item });
+    if (draft.client?.id) actionBar.value?.setClient(draft.client);
+    invoiceNotes.value = draft.notes ?? "";
+  } catch {
+    localStorage.removeItem(INVOICE_DRAFT_KEY);
+  } finally {
+    restoringDraft = false;
+  }
+}
+
+function clearDraft() {
+	localStorage.removeItem(INVOICE_DRAFT_KEY);
+}
+
+function clearInvoice() {
+  invoiceItems.value?.clearItems();
+  invoiceNotes.value = "";
+  clearDraft();
+  actionBar.value?.resetClient();
+}
 
 function focusBarcode() {
   barcodeInput.value?.focus();
@@ -256,30 +332,49 @@ async function onHold() {
   const json = await getItemsJSON();
   if (json === "[]") return;
   await HoldInvoice(json);
-  invoiceItems.value?.clearItems();
+  clearInvoice();
 }
 
 async function onVoid() {
   const json = await getFullItemsJSON();
   if (json === "[]") return;
   await VoidInvoice(json, "");
-  invoiceItems.value?.clearItems();
+  clearInvoice();
 }
 
 async function onCheckout() {
   const json = await getFullItemsJSON();
   if (json === "[]") return;
   const isExchange = Boolean(exchangeState.value);
-  printing.value = receiptEnabled.value && !isExchange;
+  const missingClient = !clientSelected.value;
+  const missingSalesperson = !salespersonSelected.value;
+  if (missingClient || missingSalesperson) {
+    pulseClient.value = false;
+    nextTick(() => {
+      pulseClient.value = missingClient;
+      clearTimeout(pulseClientTimer);
+      pulseClientTimer = setTimeout(() => {
+        pulseClient.value = false;
+      }, 1500);
+      if (missingSalesperson) pulseSalesperson();
+    });
+    snackbar.text = `Select ${[missingSalesperson && "a salesperson", missingClient && "a client"].filter(Boolean).join(" and ")} before checkout.`;
+    snackbar.color = "warning";
+    snackbar.show = true;
+    return;
+  }
+  printing.value = receiptEnabled.value;
   try {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
     const clientID = actionBar.value?.clientId ?? 0;
+    const salesperson = selectedSalesperson.value;
     const result = exchangeState.value
       ? await CheckoutExchangeInvoice(
           json,
           paymentsJSON,
           exchangeState.value.originalInvoiceId,
           clientID,
+          [invoiceNotes.value],
         )
       : await CheckoutInvoice(
           json,
@@ -288,8 +383,9 @@ async function onCheckout() {
           branchName.value,
           branchName.value,
           "",
-          "",
+          salesperson!.fullName,
           receiptPrinter.value,
+          invoiceNotes.value,
         );
     snackbar.text = result?.receiptError
       ? `Invoice created; receipt failed — ${result.receiptError}`
@@ -300,9 +396,8 @@ async function onCheckout() {
           : `Invoice created — ${result?.invoiceCode ?? ""}`;
     snackbar.color = "success";
     snackbar.show = true;
-    invoiceItems.value?.clearItems();
+    clearInvoice();
     exchangeState.value = null;
-    if (isExchange) actionBar.value?.resetClient();
     await nextTick();
     queueScreenUpdate("");
     await refreshNextInvoiceCode("sales");
@@ -315,7 +410,7 @@ async function onCheckout() {
 }
 
 async function onExchange(payload: ExchangeSelection) {
-  invoiceItems.value?.clearItems();
+  clearInvoice();
   invoiceItems.value?.addExchangeItems(
     { ...payload.returned, category: payload.returned.category ?? "", qty: -1 },
     payload.replacements.map((item) => ({
@@ -334,7 +429,7 @@ async function onExchange(payload: ExchangeSelection) {
 }
 
 async function cancelExchange() {
-  invoiceItems.value?.clearItems();
+  clearInvoice();
   calculator.value?.clearAll();
   exchangeState.value = null;
   actionBar.value?.resetClient();
@@ -359,6 +454,8 @@ function onRestoreHold(id: number, items: any[]) {
 }
 
 onMounted(async () => {
+  await nextTick();
+  restoreDraft();
   focusBarcode();
   try {
     products.value = (await ListProducts()).map((p) => ({ ...p, qty: 1 }));
@@ -385,3 +482,12 @@ onMounted(async () => {
   await refreshNextInvoiceCode("sales");
 });
 </script>
+
+<style>
+.app-snackbar .v-snackbar__wrapper {
+  background: rgba(var(--v-theme-surface-variant), 0.72) !important;
+  color: rgb(var(--v-theme-on-surface-variant)) !important;
+  border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
+}
+</style>

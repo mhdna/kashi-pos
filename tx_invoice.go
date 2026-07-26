@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	db "kashi-pos/db/sqlc"
@@ -25,6 +26,7 @@ type SalesInvoiceParams struct {
 	ItemsJSON    string `json:"itemsJson"`
 	PaymentsJSON string `json:"paymentsJson"`
 	ClientID     int64  `json:"clientId"`
+	Notes        string `json:"notes"`
 }
 
 type SalesInvoiceResult struct {
@@ -33,6 +35,7 @@ type SalesInvoiceResult struct {
 	Items       []invoiceItem
 	GrandTotal  int64
 	Payments    []checkoutPayment
+	Notes       string
 }
 
 func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, error) {
@@ -107,6 +110,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			InventoryID: inventoryID, Discount: 0,
 			Subtotal: subtotal, DiscountedTotal: discountedSubtotal, GrandTotal: grandTotal,
 			SalespersonID: 0,
+			Notes:         strings.TrimSpace(params.Notes),
 		})
 		if err != nil {
 			return fmt.Errorf("create invoice: %w", err)
@@ -156,7 +160,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		}); err != nil {
 			return fmt.Errorf("add loyalty points: %w", err)
 		}
-		result.InvoiceID, result.InvoiceCode, result.Items, result.GrandTotal, result.Payments = invoice.ID, invoiceCode, receiptItems, grandTotal, payments
+		result.InvoiceID, result.InvoiceCode, result.Items, result.GrandTotal, result.Payments, result.Notes = invoice.ID, invoiceCode, receiptItems, grandTotal, payments, strings.TrimSpace(params.Notes)
 		return nil
 	})
 	return result, err

@@ -1,6 +1,7 @@
 <template>
   <v-card class="monthly-income-card shifts-card pa-4" style="flex: 2; min-width: 0">
     <div class="monthly-income-title d-flex align-center">
+      <v-icon icon="mdi-calendar-month-outline" color="primary" class="me-2" />
       <v-card-title class="text-body-1 font-weight-bold px-0">
         Monthly Income ({{ month }})
       </v-card-title>
@@ -17,14 +18,24 @@
     </div>
 
     <div class="monthly-income-header text-caption font-weight-bold">
-      <span>Day</span>
-      <span>Total</span>
+      <span><v-icon icon="mdi-calendar-today" size="16" class="me-1" />Day</span>
+      <span><v-icon icon="mdi-cash-multiple" size="16" class="me-1" />Total</span>
     </div>
     <v-progress-linear v-if="loading" indeterminate />
-    <v-virtual-scroll v-else :items="rows" :item-height="40" class="monthly-income-scroll">
+    <v-virtual-scroll
+      ref="monthlyIncomeScroll"
+      v-else
+      :items="rows"
+      :item-height="40"
+      class="monthly-income-scroll"
+    >
       <template #default="{ item }">
         <div>
-          <div class="monthly-income-row">
+          <div
+            :ref="item.day === currentDay ? setCurrentDayRow : undefined"
+            class="monthly-income-row"
+            :class="{ 'monthly-income-current-day': item.day === currentDay }"
+          >
             <v-btn
               class="monthly-income-expand"
               variant="text"
@@ -88,17 +99,18 @@
       </template>
     </v-virtual-scroll>
     <div class="monthly-income-total font-weight-bold">
-      <span>Total</span>
-      <span>${{ (grandTotal / 100).toFixed(2) }}</span>
+      <span><v-icon icon="mdi-sigma" size="18" class="me-1" />Total</span>
+      <span><v-icon icon="mdi-currency-usd" size="18" />{{ (grandTotal / 100).toFixed(2) }}</span>
     </div>
   </v-card>
 </template>
 
 <script setup lang="ts">
+import { nextTick, ref, watch, type ComponentPublicInstance } from "vue";
 import type { Balance, DayRow } from "@/types/shifts";
 import { formatBalance } from "@/lib/format";
 
-defineProps<{
+const props = defineProps<{
   month: string;
   rows: DayRow[];
   grandTotal: number;
@@ -109,7 +121,47 @@ defineProps<{
   balanceCache: Record<number, Balance[]>;
   balanceLoading: Record<number, boolean>;
   exchangeRate: number;
+  currentDay: string;
 }>();
+
+const monthlyIncomeScroll = ref<{
+  $el: HTMLElement;
+  scrollToIndex?: (index: number) => void;
+} | null>(null);
+const currentDayRow = ref<HTMLElement | null>(null);
+
+function setCurrentDayRow(element: Element | ComponentPublicInstance | null) {
+  currentDayRow.value = element instanceof HTMLElement ? element : null;
+}
+
+async function centerCurrentDay() {
+  if (props.loading || !props.rows.length) return;
+
+  await nextTick();
+  const index = props.rows.findIndex((row) => row.day === props.currentDay);
+  if (index < 0) return;
+
+  monthlyIncomeScroll.value?.scrollToIndex?.(index);
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await nextTick();
+
+  requestAnimationFrame(() => {
+    const row = currentDayRow.value;
+    const container = monthlyIncomeScroll.value?.$el;
+    if (!row || !container) return;
+
+    container.scrollTop +=
+      row.getBoundingClientRect().top -
+      container.getBoundingClientRect().top -
+      (container.clientHeight - row.offsetHeight) / 2;
+  });
+}
+
+watch(
+  () => [props.loading, props.rows.length, props.currentDay],
+  centerCurrentDay,
+  { immediate: true },
+);
 
 defineEmits<{
   "toggle-all": [];
@@ -127,10 +179,14 @@ defineEmits<{
 .monthly-income-card {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(var(--v-theme-primary), 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .monthly-income-title {
   min-height: 40px;
+  padding-bottom: 8px;
 }
 
 .monthly-income-scroll {
@@ -158,12 +214,26 @@ defineEmits<{
   min-height: 40px;
   padding: 0 12px;
   border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+.monthly-income-header > span,
+.monthly-income-total > span {
+  display: inline-flex;
+  align-items: center;
 }
 
 .monthly-income-row {
   min-height: 40px;
   padding: 0 12px 0 0;
   border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.monthly-income-current-day {
+  background: rgba(var(--v-theme-primary), 0.08);
+  border-radius: 8px;
+  color: rgb(var(--v-theme-primary));
+  font-weight: 600;
 }
 
 .shift-row {
@@ -181,5 +251,6 @@ defineEmits<{
   min-height: 40px;
   padding: 0 12px;
   border-top: 1px solid rgba(128, 128, 128, 0.35);
+  color: rgb(var(--v-theme-primary));
 }
 </style>

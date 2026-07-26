@@ -1,8 +1,8 @@
 <template>
-  <div class="shifts-page d-flex flex-column ga-2 pa-2 h-100">
-    <!-- <ShiftSummaryCard :open-shift="openShift" @close="closeDialog = true" /> -->
+  <div class="shifts-page d-flex flex-column ga-4 pa-4 h-100">
+    <ShiftSummaryCard :open-shift="openShift" @close="closeDialog = true" />
 
-    <div class="shifts-cards d-flex ga-2">
+    <div class="shifts-cards d-flex ga-4">
       <TodayIncomeCard :items="todayIncome" :loading="loadingToday" :exchange-rate="exchangeRate" />
       <MonthlyIncomeCard
         :month="currentMonth"
@@ -15,6 +15,7 @@
         :balance-cache="balanceCache"
         :balance-loading="balanceLoading"
         :exchange-rate="exchangeRate"
+        :current-day="currentDay"
         @toggle-all="toggleAllDays"
         @toggle-day="toggleDay"
         @toggle-shift="toggleShift"
@@ -62,6 +63,10 @@ const balanceCache = reactive<Record<number, Balance[]>>({});
 const balanceLoading = reactive<Record<number, boolean>>({});
 const shiftExpanded = reactive(new Set<number>());
 const expandedDays = ref<string[]>([]);
+const currentDay = computed(() => {
+  const now = new Date();
+  return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+});
 
 const dailyRows = computed<DayRow[]>(() => {
   const groups: Record<string, Shift[]> = {};
@@ -195,6 +200,9 @@ onMounted(async () => {
   try {
     currentMonth.value = await GetCurrentMonth();
   } catch {}
+  if (currentMonth.value === `${new Date().getFullYear()}-${pad(new Date().getMonth() + 1)}`) {
+    expandedDays.value = [currentDay.value];
+  }
   await refresh();
 });
 </script>

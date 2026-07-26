@@ -1,5 +1,5 @@
 <template>
-  <div class="calculator-shell w-100 h-100 px-4 py-2 rounded-xl">
+  <v-card class="calculator-shell w-100 h-100 mx-2 px-2 py-2 rounded-xl my-1">
     <!-- Payment type -->
     <v-btn-toggle
       v-model="activeType"
@@ -14,25 +14,37 @@
     </v-btn-toggle>
 
     <!-- Amount display -->
-    <v-card class="calculator-display pa-3 mb-3 text-right" variant="outlined" rounded="lg">
-      <span class="text-h5 font-weight-bold">{{ displayValue }}</span>
-      <span class="text-body-2 text-medium-emphasis ml-1">{{ activeType }}</span>
-    </v-card>
+    <div class="calculator-entry-row mb-3">
+      <v-card class="calculator-display pa-3 text-right" variant="outlined" rounded="lg">
+        <span class="text-h5 font-weight-bold">{{ displayValue }}</span>
+        <span class="text-body-2 text-medium-emphasis ml-1">{{ displayCurrency }}</span>
+      </v-card>
+      <v-btn
+        class="calculator-confirm"
+        :color="diffCents > 0 ? 'grey-darken-1' : 'grey-darken-4'"
+        :disabled="!currentInput || total === 0"
+        height="56"
+        min-width="56"
+        @click="confirm"
+      >
+        {{ diffCents > 0 ? "−" : "+" }}
+      </v-btn>
+    </div>
 
     <!-- Keypad -->
     <div class="calculator-keypad">
       <v-btn
         v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9]"
         :key="n"
-        class="keypad-button text-h6"
+        class="keypad-button keypad-number text-h6"
         variant="tonal"
         @click="input(n.toString())"
       >
         {{ n }}
       </v-btn>
-      <v-btn class="keypad-button text-h6" variant="tonal" @click="input('.')">.</v-btn>
-      <v-btn class="keypad-button text-h6" variant="tonal" @click="input('0')">0</v-btn>
-      <v-btn class="keypad-button text-h6" variant="tonal" @click="input('00')">00</v-btn>
+      <v-btn class="keypad-button keypad-number text-h6" variant="tonal" @click="input('.')">.</v-btn>
+      <v-btn class="keypad-button keypad-number text-h6" variant="tonal" @click="input('0')">0</v-btn>
+      <v-btn class="keypad-button keypad-number text-h6" variant="tonal" @click="input('00')">00</v-btn>
       <v-btn
         class="keypad-button keypad-action text-h6"
         color="red-darken-2"
@@ -51,31 +63,25 @@
       </v-btn>
     </div>
 
-    <!-- Confirm -->
-    <v-btn
-      block
-      class="calculator-confirm mt-3 text-h6 font-weight-bold"
-      :color="diffCents > 0 ? 'grey-darken-1' : 'grey-darken-4'"
-      :disabled="!currentInput || total === 0"
-      height="44"
-      @click="confirm"
-    >
-      {{ diffCents > 0 ? "− Subtract payment" : "+ Add payment" }}
-    </v-btn>
-
     <!-- Progress -->
     <div class="mt-4">
       <div class="d-flex justify-space-between align-center mb-1">
-        <span class="text-caption text-medium-emphasis">{{ statusLabel }}</span>
-        <span class="text-body-2 font-weight-medium text-right" :class="statusColor">
-          <span v-for="line in statusLines" :key="line" class="d-block">{{ line }}</span>
+        <span class="text-caption font-weight-medium" :class="statusColor">
+          {{ paymentStatus }}
+        </span>
+        <span v-if="diffCents === 0" class="calculator-paid-state">
+          <v-icon icon="mdi-check-circle" size="18" />
+          <span>Ready to check out</span>
         </span>
       </div>
+      <div v-if="diffCents !== 0" class="calculator-amounts mb-2">
+        <span>USD</span><strong>{{ statusRows.usd }}</strong> <span>L.L.</span
+        ><strong>{{ statusRows.lbp }}</strong>
+      </div>
       <v-progress-linear
-        bg-color="grey-darken-3"
-        :color="progressColor"
-        striped
-        height="10"
+        bg-color="surface-variant"
+        color="primary"
+        height="6"
         :model-value="progressPct"
         rounded
       />
@@ -84,25 +90,25 @@
     <!-- Entries -->
     <template v-if="entries.length">
       <v-divider class="my-3" />
-      <div
-        v-for="(e, i) in entries"
-        :key="i"
-        class="d-flex align-center justify-space-between py-2 px-1"
-      >
-        <span class="text-body-2">{{ e.type }}</span>
-        <span
-          class="text-body-1 font-weight-bold mr-2"
-          :class="e.amount >= 0 ? 'text-green-darken-3' : 'text-red-darken-4'"
-        >
-          {{ e.amount >= 0 ? "+" : "" }}{{ formatEntryAmount(e.amount) }}
-          {{ getCurrencySymbol(e.type) }}
-        </span>
-        <v-btn icon size="small" variant="text" @click="removeEntry(i)">
-          <v-icon icon="mdi-delete" size="18" />
-        </v-btn>
-      </div>
+      <v-virtual-scroll :items="entries" height="160" item-height="48">
+        <template #default="{ item, index }">
+          <div class="d-flex align-center justify-space-between py-2 px-1">
+            <span class="text-body-2">{{ item.type }}</span>
+            <span
+              class="text-body-1 font-weight-bold mr-2"
+              :class="item.amount >= 0 ? 'text-green-darken-3' : 'text-red-darken-4'"
+            >
+              {{ item.amount >= 0 ? "+" : "" }}{{ formatEntryAmount(item.amount) }}
+              {{ getCurrencySymbol(item.type) }}
+            </span>
+            <v-btn icon size="small" variant="text" @click="removeEntry(index)">
+              <v-icon icon="mdi-delete" size="18" />
+            </v-btn>
+          </div>
+        </template>
+      </v-virtual-scroll>
     </template>
-  </div>
+  </v-card>
 </template>
 
 <script setup lang="ts">
@@ -134,6 +140,11 @@ const roundingMode = computed(() => props.roundingMode ?? "half_up");
 const activeCurrency = computed(
   () => types.value.find((t) => t.name === activeType.value)?.currencyCode ?? "",
 );
+const displayCurrency = computed(() => {
+  if (activeCurrency.value === "USD") return "$";
+  if (activeCurrency.value === "LBP") return "L.L.";
+  return activeCurrency.value || activeType.value;
+});
 
 const displayValue = computed(() => {
   if (!currentInput.value) return "0";
@@ -164,35 +175,27 @@ const progressPct = computed(() =>
   Math.min(totalCents.value > 0 ? (paidCents.value / totalCents.value) * 100 : 0, 100),
 );
 
-const statusLabel = computed(() => {
-  if (diffCents.value === 0) return "Paid in full";
-  return diffCents.value > 0 ? "Change" : "Remaining";
+const paymentStatus = computed(() => {
+  if (diffCents.value === 0) return "Nothing remaining — paid in full";
+  return diffCents.value > 0 ? "Change to return" : "Amount to pay";
 });
 
-const statusLines = computed(() => {
-  if (diffCents.value === 0) return ["Exact"];
+const statusRows = computed(() => {
   const amountCents = Math.abs(diffCents.value);
   const dollarAmount = amountCents / 100;
   const wholeDollars = Math.floor(dollarAmount / 10) * 10;
   const remainderCents = amountCents - wholeDollars * 100;
   const roundedLbp = roundLbpFromCents(remainderCents, exchangeRate.value, roundingMode.value);
-  const lines = [];
-  if (wholeDollars > 0) lines.push(`${diffCents.value > 0 ? "+" : ""}${wholeDollars}$`);
-  if (roundedLbp > 0) {
-    // lines.push(`${roundedLbp.toLocaleString()} LBP${roundingLabel}${diffCents.value > 0 ? "" : " due"}`);
-    lines.push(`${roundedLbp.toLocaleString()} LBP`);
-  }
-  return lines;
+  const sign = diffCents.value > 0 ? "+" : "−";
+  return {
+    usd: `${sign}$${wholeDollars.toLocaleString()}`,
+    lbp: `${sign}${roundedLbp.toLocaleString()}`,
+  };
 });
 
 const statusColor = computed(() => {
   if (diff.value === 0) return "text-green-darken-2";
   return diff.value > 0 ? "text-green-darken-1" : "text-red-darken-2";
-});
-
-const progressColor = computed(() => {
-  if (diff.value === 0) return "green-darken-2";
-  return diff.value > 0 ? "green-darken-1" : "red-darken-2";
 });
 
 function getCurrencySymbol(type: string): string {
@@ -263,6 +266,7 @@ function removeEntry(i: number) {
 function clearAll() {
   currentInput.value = "";
   entries.value = [];
+  activeType.value = types.value.find((type) => type.currencyCode === "USD")?.name ?? "USD";
 }
 
 const firstEntryAccountId = computed(() => entries.value[0]?.accountId ?? 0);
@@ -296,10 +300,24 @@ defineExpose({ diff, checkoutReady, clearAll, firstEntryAccountId, paymentsJSON 
   gap: 6px;
 }
 
+.calculator-entry-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.calculator-entry-row .calculator-display {
+  flex: 1;
+}
+
 .keypad-button {
-  min-height: 48px;
+  min-height: 44px;
   border-radius: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+.keypad-number {
+  min-height: 40px;
 }
 
 .keypad-action {
@@ -315,7 +333,48 @@ defineExpose({ diff, checkoutReady, clearAll, firstEntryAccountId, paymentsJSON 
 }
 
 .calculator-confirm {
-  min-height: 48px;
+  min-height: 56px;
   border-radius: 12px;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.calculator-paid-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgb(var(--v-theme-primary));
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.calculator-amounts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 12px;
+  padding: 8px 12px;
+  border: 1px solid rgba(var(--v-border-color), 0.12);
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+.calculator-amounts > span {
+  padding: 5px 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.calculator-amounts strong {
+  padding: 5px 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+}
+
+.calculator-amounts > span:nth-of-type(2),
+.calculator-amounts > strong:nth-of-type(2) {
+  border-top: 1px solid rgba(var(--v-border-color), 0.1);
 }
 </style>

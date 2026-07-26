@@ -2,11 +2,11 @@
   <v-virtual-scroll :items="items" height="100%" item-height="48" class="ma-2">
     <template #default="{ item }">
       <v-list-item>
-        <template #prepend>
-          <v-avatar size="32" class="me-3 bg-grey-lighten-2">
-            <v-icon :icon="iconFor(item.category)" size="18" />
-          </v-avatar>
-        </template>
+        <!-- <template #prepend> -->
+        <!--   <v-avatar size="32" class="me-3 bg-grey-lighten-2"> -->
+        <!--     <v-icon :icon="iconFor(item.category)" size="18" /> -->
+        <!--   </v-avatar> -->
+        <!-- </template> -->
         <template #title>
           <span class="text-caption font-weight-medium">{{ item.name }}</span>
         </template>
@@ -156,5 +156,14 @@ function roundDiscount(gross: number, discount: number, mode: string): number {
   return Math.floor(numerator / 100 + 0.5);
 }
 
-defineExpose({ subtotal, totalDiscount, subtotalCents, discountedSubtotalCents, addItem, addExchangeItems, items, clearItems });
+defineExpose({
+  subtotal,
+  totalDiscount,
+  subtotalCents,
+  discountedSubtotalCents,
+  addItem,
+  addExchangeItems,
+  items,
+  clearItems,
+});
 </script>

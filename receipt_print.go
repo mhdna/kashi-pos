@@ -10,11 +10,12 @@ type printReceiptData struct {
 	CounterNumber   string
 	Salesperson     string
 	Customer        string
+	Notes           string
 	ReturnPolicy    string
 	Website         string
 	Instagram       string
-	SocialPlatforms  []string
-	SocialHandles    map[string]string
+	SocialPlatforms []string
+	SocialHandles   map[string]string
 	Font            string
 	TitleSize       float64
 	BodySize        float64

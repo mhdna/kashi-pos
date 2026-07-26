@@ -1,101 +1,396 @@
 <template>
   <div class="invoices-page">
     <v-progress-linear v-if="loading" indeterminate color="primary" />
-    <v-infinite-scroll v-else-if="items.length" class="invoices-scroll" height="100%" side="end" empty-text="All invoices loaded" @load="loadMore">
+    <v-infinite-scroll
+      v-else-if="items.length"
+      class="invoices-scroll"
+      height="100%"
+      side="end"
+      empty-text="All invoices loaded"
+      @load="loadMore"
+    >
       <v-list class="pa-0" lines="two">
-        <v-list-item v-for="item in visibleItems" :key="item.id" class="invoice-item py-3 px-5" @click="openInvoice(item)">
+        <v-list-item
+          v-for="item in visibleItems"
+          :key="item.id"
+          class="invoice-item py-3 px-5"
+          @click="openInvoice(item)"
+        >
           <template #prepend>
-            <v-avatar color="primary" variant="tonal" size="36" class="me-3"><v-icon icon="mdi-cash-register" size="19" /></v-avatar>
+            <v-avatar color="primary" variant="tonal" size="36" class="me-3"
+              ><v-icon icon="mdi-cash-register" size="19"
+            /></v-avatar>
           </template>
-          <template #title><span class="font-weight-bold">{{ item.invoiceCode || `Invoice #${item.id}` }}</span></template>
+          <template #title
+            ><span class="font-weight-bold">{{
+              item.invoiceCode || `Invoice #${item.id}`
+            }}</span></template
+          >
           <template #subtitle>
-            <span>{{ item.clientId ? `Client #${item.clientId}` : "Walk-in customer" }}</span><span class="mx-1">·</span><span>{{ formatDate(item.createdAt) }}</span>
+            <span>{{ item.clientId ? `Client #${item.clientId}` : "Walk-in customer" }}</span
+            ><span class="mx-1">·</span><span>{{ formatDate(item.createdAt) }}</span>
           </template>
           <template #append>
-            <div class="invoice-total text-right me-2"><div class="text-subtitle-1 font-weight-bold">${{ money(item.grandTotal) }}</div><div class="text-caption text-medium-emphasis">Total</div></div>
-            <v-btn icon="mdi-printer-outline" variant="text" density="comfortable" :loading="printingId === item.id" title="Print receipt again" @click.stop="reprint(item)" />
+            <div class="invoice-total text-right me-2">
+              <div class="text-subtitle-1 font-weight-bold">${{ money(item.grandTotal) }}</div>
+              <div class="text-caption text-medium-emphasis">Total</div>
+            </div>
+            <v-btn
+              icon="mdi-printer-outline"
+              variant="text"
+              density="comfortable"
+              :loading="printingId === item.id"
+              title="Print receipt again"
+              @click.stop="reprint(item)"
+            />
             <v-menu location="bottom end">
-              <template #activator="{ props }"><v-btn v-bind="props" icon="mdi-dots-vertical" variant="text" density="comfortable" @click.stop /></template>
+              <template #activator="{ props }"
+                ><v-btn
+                  v-bind="props"
+                  icon="mdi-dots-vertical"
+                  variant="text"
+                  density="comfortable"
+                  @click.stop
+              /></template>
               <v-list density="compact" min-width="190">
-                <v-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
-                <v-list-item prepend-icon="mdi-credit-card-edit" title="Change Settlement" @click.stop="startChange('settlement', item)" />
-                <v-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startChange('salesperson', item)" />
-                <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
+                <v-list-item
+                  prepend-icon="mdi-account-edit"
+                  title="Change Client"
+                  @click.stop="startChange('client', item)"
+                />
+                <!-- <v-list-item prepend-icon="mdi-credit-card-edit" title="Change Settlement" @click.stop="startChange('settlement', item)" /> -->
+                <v-list-item
+                  prepend-icon="mdi-account-tie"
+                  title="Change Salesman"
+                  @click.stop="startChange('salesperson', item)"
+                />
+                <v-list-item
+                  v-if="auth.isAdmin"
+                  prepend-icon="mdi-delete-outline"
+                  title="Delete Invoice"
+                  base-color="error"
+                  @click.stop="requestDelete(item)"
+                />
               </v-list>
             </v-menu>
           </template>
         </v-list-item>
       </v-list>
     </v-infinite-scroll>
-    <div v-else class="invoices-empty pa-8 text-center"><v-icon icon="mdi-cash-register" size="48" class="mb-3 text-medium-emphasis" /><div class="text-subtitle-1 font-weight-bold">No invoices found</div><div class="text-body-2 text-medium-emphasis">Completed invoices will appear here.</div></div>
+    <div v-else class="invoices-empty pa-8 text-center">
+      <v-icon icon="mdi-cash-register" size="48" class="mb-3 text-medium-emphasis" />
+      <div class="text-subtitle-1 font-weight-bold">No invoices found</div>
+      <div class="text-body-2 text-medium-emphasis">Completed invoices will appear here.</div>
+    </div>
 
     <v-dialog v-model="detailOpen" max-width="620">
       <v-card v-if="selected">
-        <v-card-title class="d-flex align-center"><div><div class="text-h6">{{ selected.invoiceCode }}</div><div class="text-caption text-medium-emphasis">{{ formatDate(selected.createdAt) }}</div></div><v-spacer /><v-btn icon="mdi-printer-outline" variant="text" :loading="printingId === selected.id" @click="reprint(selected)" /><v-btn icon="mdi-close" variant="text" @click="detailOpen = false" /></v-card-title>
+        <v-card-title class="d-flex align-center"
+          ><div>
+            <div class="text-h6">{{ selected.invoiceCode }}</div>
+            <div class="text-caption text-medium-emphasis">
+              {{ formatDate(selected.createdAt) }}
+            </div>
+          </div>
+          <v-spacer /><v-btn
+            icon="mdi-printer-outline"
+            variant="text"
+            :loading="printingId === selected.id"
+            @click="reprint(selected)" /><v-btn
+            icon="mdi-close"
+            variant="text"
+            @click="detailOpen = false"
+        /></v-card-title>
         <v-card-text>
-          <div class="d-flex flex-wrap ga-2 mb-4"><v-chip size="small" variant="tonal" prepend-icon="mdi-account">{{ selected.clientName }}</v-chip><v-chip size="small" variant="tonal" prepend-icon="mdi-account-tie">{{ selected.salespersonName }}</v-chip><v-chip size="small" variant="tonal" prepend-icon="mdi-credit-card">{{ selected.payments?.map((p: any) => p.accountName).join(', ') || 'No settlement' }}</v-chip></div>
+          <div class="d-flex flex-wrap ga-2 mb-4">
+            <v-chip size="small" variant="tonal" prepend-icon="mdi-account">{{
+              selected.clientName
+            }}</v-chip
+            ><v-chip size="small" variant="tonal" prepend-icon="mdi-account-tie">{{
+              selected.salespersonName
+            }}</v-chip
+            ><v-chip size="small" variant="tonal" prepend-icon="mdi-credit-card">{{
+              selected.payments?.map((p: any) => p.accountName).join(", ") || "No settlement"
+            }}</v-chip>
+          </div>
           <v-list class="pa-0 mb-4" density="compact">
             <v-list-item v-for="line in selected.items" :key="line.code">
-              <template #title>{{ line.name }}</template><template #subtitle>{{ line.qty }} × ${{ Number(line.price).toFixed(2) }}<span v-if="line.discount"> · {{ line.discount }}% discount</span></template>
-              <template #append><span class="font-weight-bold">${{ Number(line.lineTotal).toFixed(2) }}</span></template>
+              <template #title>{{ line.name }}</template
+              ><template #subtitle
+                >{{ line.qty }} × ${{ Number(line.price).toFixed(2)
+                }}<span v-if="line.discount"> · {{ line.discount }}% discount</span></template
+              >
+              <template #append
+                ><span class="font-weight-bold"
+                  >${{ Number(line.lineTotal).toFixed(2) }}</span
+                ></template
+              >
             </v-list-item>
           </v-list>
-          <div class="totals"><div><span>Subtotal</span><span>${{ cents(selected.subtotal) }}</span></div><div><span>Discount</span><span class="text-red">-${{ cents(Number(selected.subtotal) - Number(selected.discountedTotal)) }}</span></div><v-divider class="my-2" /><div class="text-body-1 font-weight-bold"><span>Total</span><span>${{ cents(selected.grandTotal) }}</span></div></div>
+          <div class="totals">
+            <div>
+              <span>Subtotal</span><span>${{ cents(selected.subtotal) }}</span>
+            </div>
+            <div>
+              <span>Discount</span
+              ><span class="text-red"
+                >-${{ cents(Number(selected.subtotal) - Number(selected.discountedTotal)) }}</span
+              >
+            </div>
+            <v-divider class="my-2" />
+            <div class="text-body-1 font-weight-bold">
+              <span>Total</span><span>${{ cents(selected.grandTotal) }}</span>
+            </div>
+          </div>
         </v-card-text>
       </v-card>
     </v-dialog>
 
     <v-dialog v-model="deleteOpen" max-width="420">
-      <v-card><v-card-title>Delete invoice?</v-card-title><v-card-text>This permanently deletes {{ deleteInvoice?.invoiceCode || 'this invoice' }} and its payment records.</v-card-text><v-card-actions><v-spacer /><v-btn variant="text" @click="deleteOpen = false">Cancel</v-btn><v-btn color="error" :loading="deleting" @click="deleteSelected">Delete</v-btn></v-card-actions></v-card>
+      <v-card
+        ><v-card-title>Delete invoice?</v-card-title
+        ><v-card-text
+          >This permanently deletes {{ deleteInvoice?.invoiceCode || "this invoice" }} and its
+          payment records.</v-card-text
+        ><v-card-actions
+          ><v-spacer /><v-btn variant="text" @click="deleteOpen = false">Cancel</v-btn
+          ><v-btn color="error" :loading="deleting" @click="deleteSelected"
+            >Delete</v-btn
+          ></v-card-actions
+        ></v-card
+      >
     </v-dialog>
     <v-dialog v-model="changeOpen" max-width="420">
-      <v-card><v-card-title>{{ changeTitle }}</v-card-title><v-card-text>
-        <v-select v-if="changeType === 'client'" v-model="changeValue" label="Client" :items="clients" item-title="name" item-value="id" variant="outlined" />
-        <v-select v-else-if="changeType === 'settlement'" v-model="changeValue" label="Settlement" :items="paymentMethods" item-title="name" item-value="id" variant="outlined" />
-        <v-select v-else v-model="changeValue" label="Salesman" :items="salespersons" item-title="fullName" item-value="id" variant="outlined" />
-      </v-card-text><v-card-actions><v-spacer /><v-btn variant="text" @click="changeOpen = false">Cancel</v-btn><v-btn color="primary" :loading="saving" :disabled="!changeValue && changeType !== 'salesperson'" @click="saveChange">Save</v-btn></v-card-actions></v-card>
+      <v-card
+        ><v-card-title>{{ changeTitle }}</v-card-title
+        ><v-card-text>
+          <v-select
+            v-if="changeType === 'client'"
+            v-model="changeValue"
+            label="Client"
+            :items="clients"
+            item-title="name"
+            item-value="id"
+            variant="outlined"
+          />
+          <v-select
+            v-else-if="changeType === 'settlement'"
+            v-model="changeValue"
+            label="Settlement"
+            :items="paymentMethods"
+            item-title="name"
+            item-value="id"
+            variant="outlined"
+          />
+          <v-select
+            v-else
+            v-model="changeValue"
+            label="Salesman"
+            :items="salespersons"
+            item-title="fullName"
+            item-value="id"
+            variant="outlined"
+          /> </v-card-text
+        ><v-card-actions
+          ><v-spacer /><v-btn variant="text" @click="changeOpen = false">Cancel</v-btn
+          ><v-btn
+            color="primary"
+            :loading="saving"
+            :disabled="!changeValue && changeType !== 'salesperson'"
+            @click="saveChange"
+            >Save</v-btn
+          ></v-card-actions
+        ></v-card
+      >
     </v-dialog>
-    <v-snackbar v-model="snackbar.show" class="app-snackbar" timeout="3500" location="top" variant="flat">{{ snackbar.text }}</v-snackbar>
+    <v-snackbar
+      v-model="snackbar.show"
+      class="app-snackbar"
+      timeout="3500"
+      location="top"
+      variant="flat"
+      >{{ snackbar.text }}</v-snackbar
+    >
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { ChangeInvoiceClient, ChangeInvoiceSalesperson, ChangeInvoiceSettlement, DeleteInvoice, GetInvoiceDetails, ListClients, ListInvoices, ListPaymentMethods, ListSalespersons, ReprintInvoice } from "../../wailsjs/go/main/App";
+import {
+  ChangeInvoiceClient,
+  ChangeInvoiceSalesperson,
+  ChangeInvoiceSettlement,
+  DeleteInvoice,
+  GetInvoiceDetails,
+  ListClients,
+  ListInvoices,
+  ListPaymentMethods,
+  ListSalespersons,
+  ReprintInvoice,
+} from "../../wailsjs/go/main/App";
 import { useAuthStore } from "../stores/auth";
 
-const pageSize = 20, items = ref<any[]>([]), visibleCount = ref(pageSize), loading = ref(true);
+const pageSize = 20,
+  items = ref<any[]>([]),
+  visibleCount = ref(pageSize),
+  loading = ref(true);
 const auth = useAuthStore();
 const visibleItems = computed(() => items.value.slice(0, visibleCount.value));
-const selected = ref<any>(null), detailOpen = ref(false), changeOpen = ref(false), saving = ref(false), printingId = ref<number | null>(null);
-const deleteOpen = ref(false), deleting = ref(false), deleteInvoice = ref<any>(null);
-const changeType = ref<"client" | "settlement" | "salesperson">("client"), changeValue = ref<number | null>(null), changeInvoice = ref<any>(null);
-const clients = ref<any[]>([]), paymentMethods = ref<any[]>([]), salespersons = ref<any[]>([]);
+const selected = ref<any>(null),
+  detailOpen = ref(false),
+  changeOpen = ref(false),
+  saving = ref(false),
+  printingId = ref<number | null>(null);
+const deleteOpen = ref(false),
+  deleting = ref(false),
+  deleteInvoice = ref<any>(null);
+const changeType = ref<"client" | "settlement" | "salesperson">("client"),
+  changeValue = ref<number | null>(null),
+  changeInvoice = ref<any>(null);
+const clients = ref<any[]>([]),
+  paymentMethods = ref<any[]>([]),
+  salespersons = ref<any[]>([]);
 const snackbar = reactive({ show: false, text: "", color: "success" });
-const changeTitle = computed(() => changeType.value === "client" ? "Change Client" : changeType.value === "settlement" ? "Change Settlement" : "Change Salesman");
-function money(value: number | undefined) { return ((Number(value) || 0) / 100).toFixed(2); }
-function cents(value: number | undefined) { return ((Number(value) || 0) / 100).toFixed(2); }
-function formatDate(value?: string) { return value?.slice(0, 19) || "Date unavailable"; }
-function loadMore({ done }: { done: (status: "ok" | "empty" | "error") => void }) { if (visibleCount.value >= items.value.length) return done("empty"); visibleCount.value = Math.min(visibleCount.value + pageSize, items.value.length); done("ok"); }
-async function openInvoice(item: any) { try { selected.value = await GetInvoiceDetails(item.id); detailOpen.value = true; } catch { notify("Could not load invoice details", "error"); } }
-async function reprint(item: any) { printingId.value = item.id; try { await ReprintInvoice(item.id); notify("Receipt sent to the default receipt printer"); } catch (e: any) { notify(e?.toString() || "Could not print receipt", "error"); } finally { printingId.value = null; } }
-function startChange(type: "client" | "settlement" | "salesperson", item: any) { changeType.value = type; changeInvoice.value = item; changeValue.value = type === "client" ? item.clientId : type === "salesperson" ? (item.salespersonId || 0) : item.cashboxId; changeOpen.value = true; }
-function requestDelete(item: any) { deleteInvoice.value = item; deleteOpen.value = true; }
-async function deleteSelected() { if (!deleteInvoice.value || !auth.isAdmin) return; deleting.value = true; try { await DeleteInvoice(deleteInvoice.value.id); deleteOpen.value = false; notify("Invoice deleted"); await refresh(); } catch (e: any) { notify(e?.toString() || "Could not delete invoice", "error"); } finally { deleting.value = false; } }
-async function saveChange() { if (!changeInvoice.value) return; saving.value = true; try { if (changeType.value === "client") await ChangeInvoiceClient(changeInvoice.value.id, changeValue.value || 0); else if (changeType.value === "settlement") await ChangeInvoiceSettlement(changeInvoice.value.id, changeValue.value || 0); else await ChangeInvoiceSalesperson(changeInvoice.value.id, changeValue.value || 0); await openInvoice(changeInvoice.value); changeOpen.value = false; await refresh(); notify("Invoice updated"); } catch (e: any) { notify(e?.toString() || "Could not update invoice", "error"); } finally { saving.value = false; } }
-function notify(text: string, color = "success") { snackbar.text = text; snackbar.color = color; snackbar.show = true; }
-async function refresh() { const invoices = (await ListInvoices()) as any[]; items.value = [...(invoices ?? [])].sort((a, b) => Number(b.id) - Number(a.id)); }
-onMounted(async () => { try { await refresh(); [clients.value, paymentMethods.value, salespersons.value] = await Promise.all([ListClients(), ListPaymentMethods(), ListSalespersons()]); } catch { items.value = []; } finally { loading.value = false; } });
+const changeTitle = computed(() =>
+  changeType.value === "client"
+    ? "Change Client"
+    : changeType.value === "settlement"
+      ? "Change Settlement"
+      : "Change Salesman",
+);
+function money(value: number | undefined) {
+  return ((Number(value) || 0) / 100).toFixed(2);
+}
+function cents(value: number | undefined) {
+  return ((Number(value) || 0) / 100).toFixed(2);
+}
+function formatDate(value?: string) {
+  return value?.slice(0, 19) || "Date unavailable";
+}
+function loadMore({ done }: { done: (status: "ok" | "empty" | "error") => void }) {
+  if (visibleCount.value >= items.value.length) return done("empty");
+  visibleCount.value = Math.min(visibleCount.value + pageSize, items.value.length);
+  done("ok");
+}
+async function openInvoice(item: any) {
+  try {
+    selected.value = await GetInvoiceDetails(item.id);
+    detailOpen.value = true;
+  } catch {
+    notify("Could not load invoice details", "error");
+  }
+}
+async function reprint(item: any) {
+  printingId.value = item.id;
+  try {
+    await ReprintInvoice(item.id);
+    notify("Receipt sent to the default receipt printer");
+  } catch (e: any) {
+    notify(e?.toString() || "Could not print receipt", "error");
+  } finally {
+    printingId.value = null;
+  }
+}
+function startChange(type: "client" | "settlement" | "salesperson", item: any) {
+  changeType.value = type;
+  changeInvoice.value = item;
+  changeValue.value =
+    type === "client"
+      ? item.clientId
+      : type === "salesperson"
+        ? item.salespersonId || 0
+        : item.cashboxId;
+  changeOpen.value = true;
+}
+function requestDelete(item: any) {
+  deleteInvoice.value = item;
+  deleteOpen.value = true;
+}
+async function deleteSelected() {
+  if (!deleteInvoice.value || !auth.isAdmin) return;
+  deleting.value = true;
+  try {
+    await DeleteInvoice(deleteInvoice.value.id);
+    deleteOpen.value = false;
+    notify("Invoice deleted");
+    await refresh();
+  } catch (e: any) {
+    notify(e?.toString() || "Could not delete invoice", "error");
+  } finally {
+    deleting.value = false;
+  }
+}
+async function saveChange() {
+  if (!changeInvoice.value) return;
+  saving.value = true;
+  try {
+    if (changeType.value === "client")
+      await ChangeInvoiceClient(changeInvoice.value.id, changeValue.value || 0);
+    else if (changeType.value === "settlement")
+      await ChangeInvoiceSettlement(changeInvoice.value.id, changeValue.value || 0);
+    else await ChangeInvoiceSalesperson(changeInvoice.value.id, changeValue.value || 0);
+    await openInvoice(changeInvoice.value);
+    changeOpen.value = false;
+    await refresh();
+    notify("Invoice updated");
+  } catch (e: any) {
+    notify(e?.toString() || "Could not update invoice", "error");
+  } finally {
+    saving.value = false;
+  }
+}
+function notify(text: string, color = "success") {
+  snackbar.text = text;
+  snackbar.color = color;
+  snackbar.show = true;
+}
+async function refresh() {
+  const invoices = (await ListInvoices()) as any[];
+  items.value = [...(invoices ?? [])].sort((a, b) => Number(b.id) - Number(a.id));
+}
+onMounted(async () => {
+  try {
+    await refresh();
+    [clients.value, paymentMethods.value, salespersons.value] = await Promise.all([
+      ListClients(),
+      ListPaymentMethods(),
+      ListSalespersons(),
+    ]);
+  } catch {
+    items.value = [];
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
 
 <style scoped>
-.invoices-page { height: 100%; min-height: 0; }
-.invoices-scroll { flex: 1 1 auto; min-height: 0; }
-.invoice-item { border-bottom: 1px solid rgba(var(--v-border-color), 0.08); cursor: pointer; }
-.invoice-item:last-child { border-bottom: 0; }
-.invoice-total { min-width: 100px; }
-.invoices-empty { margin: auto; }
-.totals > div { display: flex; justify-content: space-between; margin: 4px 0; }
+.invoices-page {
+  height: 100%;
+  min-height: 0;
+}
+.invoices-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.invoice-item {
+  border-bottom: 1px solid rgba(var(--v-border-color), 0.08);
+  cursor: pointer;
+}
+.invoice-item:last-child {
+  border-bottom: 0;
+}
+.invoice-total {
+  min-width: 100px;
+}
+.invoices-empty {
+  margin: auto;
+}
+.totals > div {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0;
+}
 .app-snackbar .v-snackbar__wrapper {
   background: rgba(var(--v-theme-surface-variant), 0.72) !important;
   color: rgb(var(--v-theme-on-surface-variant)) !important;
