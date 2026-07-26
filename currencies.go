@@ -51,9 +51,16 @@ func (a *App) ListPaymentMethods() ([]map[string]any, error) {
 	}
 	result := make([]map[string]any, len(accounts))
 	for i, acc := range accounts {
+		// Keep the database names stable while presenting the shared label
+		// used by the first two cash payment cards.
+		displayName := acc.Name
+		if i < 2 {
+			displayName = "Cash"
+		}
 		result[i] = map[string]any{
 			"id":           acc.ID,
 			"name":         acc.Name,
+			"displayName":  displayName,
 			"currencyCode": acc.CurrencyCode,
 		}
 	}

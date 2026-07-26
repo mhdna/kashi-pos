@@ -1,70 +1,7 @@
 <template>
   <v-card class="calculator-shell w-100 h-100 mx-2 px-2 py-2 rounded-xl my-1">
-    <!-- Payment type -->
-    <v-btn-toggle
-      v-model="activeType"
-      class="calculator-types w-100 mb-3"
-      divided
-      mandatory
-      density="comfortable"
-    >
-      <v-btn v-for="t in types" :key="t.name" class="flex-grow-1" size="small" :value="t.name">
-        {{ t.name }}
-      </v-btn>
-    </v-btn-toggle>
-
-    <!-- Amount display -->
-    <div class="calculator-entry-row mb-3">
-      <v-card class="calculator-display pa-3 text-right" variant="outlined" rounded="lg">
-        <span class="text-h5 font-weight-bold">{{ displayValue }}</span>
-        <span class="text-body-2 text-medium-emphasis ml-1">{{ displayCurrency }}</span>
-      </v-card>
-      <v-btn
-        class="calculator-confirm"
-        :color="diffCents > 0 ? 'grey-darken-1' : 'grey-darken-4'"
-        :disabled="!currentInput || total === 0"
-        height="56"
-        min-width="56"
-        @click="confirm"
-      >
-        {{ diffCents > 0 ? "−" : "+" }}
-      </v-btn>
-    </div>
-
-    <!-- Keypad -->
-    <div class="calculator-keypad">
-      <v-btn
-        v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9]"
-        :key="n"
-        class="keypad-button keypad-number text-h6"
-        variant="tonal"
-        @click="input(n.toString())"
-      >
-        {{ n }}
-      </v-btn>
-      <v-btn class="keypad-button keypad-number text-h6" variant="tonal" @click="input('.')">.</v-btn>
-      <v-btn class="keypad-button keypad-number text-h6" variant="tonal" @click="input('0')">0</v-btn>
-      <v-btn class="keypad-button keypad-number text-h6" variant="tonal" @click="input('00')">00</v-btn>
-      <v-btn
-        class="keypad-button keypad-action text-h6"
-        color="red-darken-2"
-        variant="tonal"
-        @click="clearAll"
-      >
-        CA
-      </v-btn>
-      <v-btn
-        class="keypad-button keypad-action text-h6"
-        variant="outlined"
-        aria-label="Backspace"
-        @click="input('back')"
-      >
-        ⌫
-      </v-btn>
-    </div>
-
     <!-- Progress -->
-    <div class="mt-4">
+    <div class="mb-4">
       <div class="d-flex justify-space-between align-center mb-1">
         <span class="text-caption font-weight-medium" :class="statusColor">
           {{ paymentStatus }}
@@ -75,34 +12,88 @@
         </span>
       </div>
       <div v-if="diffCents !== 0" class="calculator-amounts mb-2">
-        <span>USD</span><strong>{{ statusRows.usd }}</strong> <span>L.L.</span
-        ><strong>{{ statusRows.lbp }}</strong>
+        <div>
+          <strong :class="statusColor">{{ statusRows.usd }}</strong>
+        </div>
+        <span class="calculator-amounts-plus" aria-hidden="true">+</span>
+        <div>
+          <strong :class="statusColor">{{ statusRows.lbp }}</strong>
+        </div>
       </div>
-      <v-progress-linear
-        bg-color="surface-variant"
-        color="primary"
-        height="6"
-        :model-value="progressPct"
-        rounded
-      />
+    </div>
+
+    <!-- Amount display -->
+    <v-card class="calculator-display pa-3 mb-3" variant="outlined" rounded="lg">
+      <span class="text-h5 font-weight-bold">{{ displayValue }}</span>
+    </v-card>
+
+    <!-- Keypad -->
+    <div class="calculator-keypad">
+      <div class="keypad-numbers">
+        <v-btn
+          v-for="n in [1, 2, 3, 4, 5, 6, 7, 8, 9]"
+          :key="n"
+          class="keypad-button keypad-number text-h6"
+          @click="input(n.toString())"
+        >
+          {{ n }}
+        </v-btn>
+        <v-btn class="keypad-button keypad-number text-h6" variant="tonal" @click="input('.')"
+          >.</v-btn
+        >
+        <v-btn class="keypad-button keypad-number text-h6" @click="input('0')">0</v-btn>
+        <v-btn class="keypad-button keypad-number text-h6" @click="input('00')">00</v-btn>
+      </div>
+      <div class="keypad-actions">
+        <v-btn
+          class="keypad-button keypad-action text-h6"
+          aria-label="Backspace"
+          @click="input('back')"
+        >
+          ⌫
+        </v-btn>
+        <v-btn class="keypad-button keypad-action text-h6" color="red-darken-4" @click="clearInput">
+          CA
+        </v-btn>
+      </div>
+    </div>
+
+    <!-- Payment methods also confirm the entered amount. -->
+    <div class="calculator-types mt-3" role="list" aria-label="Payment methods">
+      <v-card
+        v-for="t in types"
+        :key="t.name"
+        class="calculator-type-card"
+        :class="{ 'calculator-type-card--active': activeType === t.name }"
+        role="button"
+        tabindex="0"
+        @click="selectAndConfirm(t.name)"
+        @keydown.enter="selectAndConfirm(t.name)"
+        @keydown.space.prevent="selectAndConfirm(t.name)"
+      >
+        <v-card-text class="text-center py-3 px-2">
+          <div class="text-subtitle-2 font-weight-bold">{{ t.displayName }}</div>
+          <div class="text-caption text-medium-emphasis">{{ t.currencyCode }}</div>
+        </v-card-text>
+      </v-card>
     </div>
 
     <!-- Entries -->
     <template v-if="entries.length">
       <v-divider class="my-3" />
-      <v-virtual-scroll :items="entries" height="160" item-height="48">
+      <v-virtual-scroll :items="entries" height="160" item-height="30">
         <template #default="{ item, index }">
-          <div class="d-flex align-center justify-space-between py-2 px-1">
-            <span class="text-body-2">{{ item.type }}</span>
+          <div class="d-flex align-center justify-space-between py-0 px-1">
+            <span class="calculator-entry-text text-caption">{{ item.type }}</span>
             <span
-              class="text-body-1 font-weight-bold mr-2"
+              class="calculator-entry-text text-caption font-weight-bold mr-2"
               :class="item.amount >= 0 ? 'text-green-darken-3' : 'text-red-darken-4'"
             >
               {{ item.amount >= 0 ? "+" : "" }}{{ formatEntryAmount(item.amount) }}
               {{ getCurrencySymbol(item.type) }}
             </span>
-            <v-btn icon size="small" variant="text" @click="removeEntry(index)">
-              <v-icon icon="mdi-delete" size="18" />
+            <v-btn icon size="x-small" variant="text" @click="removeEntry(index)">
+              <v-icon icon="mdi-delete" size="16" />
             </v-btn>
           </div>
         </template>
@@ -121,6 +112,7 @@ const props = defineProps<{ total: number; roundingMode?: string }>();
 interface PaymentMethod {
   id: number;
   name: string;
+  displayName: string;
   currencyCode: string;
 }
 
@@ -140,12 +132,6 @@ const roundingMode = computed(() => props.roundingMode ?? "half_up");
 const activeCurrency = computed(
   () => types.value.find((t) => t.name === activeType.value)?.currencyCode ?? "",
 );
-const displayCurrency = computed(() => {
-  if (activeCurrency.value === "USD") return "$";
-  if (activeCurrency.value === "LBP") return "L.L.";
-  return activeCurrency.value || activeType.value;
-});
-
 const displayValue = computed(() => {
   if (!currentInput.value) return "0";
   return Number(currentInput.value).toLocaleString();
@@ -171,10 +157,6 @@ const roundingToleranceCents = computed(() =>
 );
 const checkoutReady = computed(() => Math.abs(diffCents.value) <= roundingToleranceCents.value);
 
-const progressPct = computed(() =>
-  Math.min(totalCents.value > 0 ? (paidCents.value / totalCents.value) * 100 : 0, 100),
-);
-
 const paymentStatus = computed(() => {
   if (diffCents.value === 0) return "Nothing remaining — paid in full";
   return diffCents.value > 0 ? "Change to return" : "Amount to pay";
@@ -186,10 +168,9 @@ const statusRows = computed(() => {
   const wholeDollars = Math.floor(dollarAmount / 10) * 10;
   const remainderCents = amountCents - wholeDollars * 100;
   const roundedLbp = roundLbpFromCents(remainderCents, exchangeRate.value, roundingMode.value);
-  const sign = diffCents.value > 0 ? "+" : "−";
   return {
-    usd: `${sign}$${wholeDollars.toLocaleString()}`,
-    lbp: `${sign}${roundedLbp.toLocaleString()}`,
+    usd: `$${wholeDollars.toLocaleString()}`,
+    lbp: `L.L. ${roundedLbp.toLocaleString()}`,
   };
 });
 
@@ -218,6 +199,7 @@ onMounted(async () => {
     types.value = methods.map((m: any) => ({
       id: m.id,
       name: m.name,
+      displayName: m.displayName ?? m.name,
       currencyCode: m.currencyCode,
     }));
     if (types.value.length) activeType.value = types.value[0]!.name;
@@ -259,6 +241,15 @@ function confirm() {
   currentInput.value = "";
 }
 
+function selectAndConfirm(typeName: string) {
+  activeType.value = typeName;
+  confirm();
+}
+
+function clearInput() {
+  currentInput.value = "";
+}
+
 function removeEntry(i: number) {
   entries.value.splice(i, 1);
 }
@@ -296,18 +287,20 @@ defineExpose({ diff, checkoutReady, clearAll, firstEntryAccountId, paymentsJSON 
 <style scoped>
 .calculator-keypad {
   display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+  column-gap: 18px;
+}
+
+.keypad-numbers {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
-.calculator-entry-row {
+.keypad-actions {
   display: flex;
-  align-items: stretch;
-  gap: 8px;
-}
-
-.calculator-entry-row .calculator-display {
-  flex: 1;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .keypad-button {
@@ -321,22 +314,16 @@ defineExpose({ diff, checkoutReady, clearAll, firstEntryAccountId, paymentsJSON 
 }
 
 .keypad-action {
-  min-height: 44px;
+  min-height: 0;
+  flex: 1;
 }
 
 .calculator-display {
   min-height: 56px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   border-color: rgba(var(--v-theme-on-surface), 0.18);
-}
-
-.calculator-confirm {
-  min-height: 56px;
-  border-radius: 12px;
-  font-size: 1.5rem;
-  font-weight: 700;
 }
 
 .calculator-paid-state {
@@ -348,33 +335,61 @@ defineExpose({ diff, checkoutReady, clearAll, firstEntryAccountId, paymentsJSON 
   font-weight: 700;
 }
 
+.calculator-entry-text {
+  font-size: 0.85rem;
+  line-height: 1.1;
+}
+
+.calculator-types {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calculator-type-card {
+  cursor: pointer;
+  border: 1px solid rgba(var(--v-border-color), 0.18);
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.calculator-type-card:hover,
+.calculator-type-card--active {
+  border-color: rgb(var(--v-theme-primary));
+  background-color: rgba(var(--v-theme-primary), 0.08);
+}
+
 .calculator-amounts {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0 12px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  min-height: 56px;
+  align-items: center;
+  gap: 12px;
   padding: 8px 12px;
   border: 1px solid rgba(var(--v-border-color), 0.12);
   border-radius: 10px;
   font-size: 0.8rem;
 }
 
-.calculator-amounts > span {
-  padding: 5px 0;
-  font-size: 0.7rem;
+.calculator-amounts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.calculator-amounts-plus {
+  align-self: center;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  font-size: 1.1rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .calculator-amounts strong {
-  padding: 5px 0;
-  text-align: right;
+  padding: 0;
+  text-align: center;
   font-variant-numeric: tabular-nums;
   font-size: 0.95rem;
-}
-
-.calculator-amounts > span:nth-of-type(2),
-.calculator-amounts > strong:nth-of-type(2) {
-  border-top: 1px solid rgba(var(--v-border-color), 0.1);
 }
 </style>
