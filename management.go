@@ -125,9 +125,9 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 			name = account.Name
 		}
 		result[i] = map[string]any{
-			"accountId":   b.AccountID,
-			"accountName": name,
-			"balance":     b.Balance,
+			"accountId":    b.AccountID,
+			"accountName":  name,
+			"balance":      b.Balance,
 			"currencyCode": account.CurrencyCode,
 		}
 	}

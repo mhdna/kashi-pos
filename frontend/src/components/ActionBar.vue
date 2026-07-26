@@ -22,16 +22,12 @@
           width="100%"
           @click="openClientDialog"
         >
-          <InitialsAvatar
-            :name="clientSelected ? client.name : '?'"
-            color="primary"
-            :size="48"
-          />
+          <InitialsAvatar :name="clientSelected ? client.name : '?'" color="primary" :size="48" />
           <div class="text-subtitle-1 font-weight-bold mt-2">
             {{ clientSelected ? client.name : "Choose a client" }}
           </div>
           <div class="text-caption text-medium-emphasis mt-1">
-            {{ clientSelected ? (client.phone || "Walk-in customer") : "Required before checkout" }}
+            {{ clientSelected ? client.phone || "Walk-in customer" : "Required before checkout" }}
           </div>
         </v-card>
         <div v-if="client.id !== 0" class="text-center">
@@ -51,7 +47,6 @@
       class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
       rounded="lg"
       text="Void"
-      color="brown-darken-1"
       variant="tonal"
       width="100%"
       @click="ask('void')"
@@ -63,7 +58,6 @@
     </v-btn>
     <v-btn
       class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
-      color="blue-grey-darken-1"
       rounded="lg"
       text="Hold"
       variant="tonal"
@@ -203,7 +197,9 @@ defineExpose({
   justify-content: center;
   border: 1px solid rgba(var(--v-border-color), 0.08);
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
 }
 
 .client-card:hover {
@@ -217,7 +213,12 @@ defineExpose({
 }
 
 @keyframes missing-selection-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0); }
-  50% { box-shadow: 0 0 0 8px rgba(var(--v-theme-warning), 0.32); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(var(--v-theme-warning), 0.32);
+  }
 }
 </style>

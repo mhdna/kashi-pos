@@ -12,8 +12,9 @@ import (
 )
 
 type salesInvoiceItem struct {
-	Code string  `json:"code"`
-	Qty  float64 `json:"qty"`
+	Code    string  `json:"code"`
+	Barcode string  `json:"barcode"`
+	Qty     float64 `json:"qty"`
 }
 
 type checkoutPayment struct {
@@ -181,10 +182,14 @@ func parseSalesItems(raw string) ([]salesInvoiceItem, error) {
 	}
 	seen := make(map[string]bool, len(items))
 	for _, item := range items {
-		if item.Code == "" || item.Qty <= 0 || math.Trunc(item.Qty) != item.Qty || item.Qty > math.MaxInt64 || seen[item.Code] {
+		key := item.Code
+		if item.Barcode != "" {
+			key = "barcode:" + item.Barcode
+		}
+		if (item.Code == "" && item.Barcode == "") || item.Qty <= 0 || math.Trunc(item.Qty) != item.Qty || item.Qty > math.MaxInt64 || seen[key] {
 			return nil, fmt.Errorf("invalid or duplicate item %q", item.Code)
 		}
-		seen[item.Code] = true
+		seen[key] = true
 	}
 	return items, nil
 }

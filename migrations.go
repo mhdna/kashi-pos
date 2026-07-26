@@ -248,9 +248,41 @@ func latestMigrationVersion(migrations []migration) int {
 }
 
 func applyOneMigration(ctx context.Context, conn *sql.DB, m migration) error {
+	// Migration 27 rebuilds products to remove the old UNIQUE(code) constraint.
+	// SQLite cannot change PRAGMA foreign_keys inside a transaction, so pin a
+	// connection and disable enforcement before beginning that migration.
+	if m.version == 27 {
+		return applyProductVariantMigration(ctx, conn, m)
+	}
 	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, m.sql); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "INSERT INTO schema_migrations(version, name) VALUES (?, ?)", m.version, m.name); err != nil {
+		return fmt.Errorf("record migration: %w", err)
+	}
+	return tx.Commit()
+}
+
+func applyProductVariantMigration(ctx context.Context, conn *sql.DB, m migration) error {
+	dbConn, err := conn.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("get migration connection: %w", err)
+	}
+	defer dbConn.Close()
+
+	if _, err := dbConn.ExecContext(ctx, "PRAGMA foreign_keys = OFF"); err != nil {
+		return fmt.Errorf("disable foreign keys for product migration: %w", err)
+	}
+	defer dbConn.ExecContext(ctx, "PRAGMA foreign_keys = ON")
+
+	tx, err := dbConn.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin product migration: %w", err)
 	}
 	defer tx.Rollback()
 	if _, err := tx.ExecContext(ctx, m.sql); err != nil {

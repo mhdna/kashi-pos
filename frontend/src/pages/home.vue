@@ -5,6 +5,37 @@
         <v-card-title class="d-flex justify-space-between">
           <div>{{ exchangeState ? "Exchange" : "Invoice" }}</div>
           <div class="d-flex">
+            <v-menu v-model="noteMenu" :close-on-content-click="false" location="bottom end">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  icon
+                  size="small"
+                  variant="text"
+                  :color="invoiceNotes ? 'primary' : undefined"
+                  class="me-1"
+                >
+                  <v-icon icon="mdi-note-text-outline" size="20" />
+                </v-btn>
+              </template>
+              <v-card class="pa-3" min-width="280">
+                <v-textarea
+                  v-model="noteDraft"
+                  auto-grow
+                  density="compact"
+                  hide-details
+                  placeholder="Add a note"
+                  rows="3"
+                  variant="outlined"
+                />
+                <div class="d-flex justify-end mt-2">
+                  <v-btn color="primary" variant="tonal" @click="saveNote">
+                    <v-icon icon="mdi-plus" size="18" class="me-1" />
+                    Add
+                  </v-btn>
+                </div>
+              </v-card>
+            </v-menu>
             <div class="me-2">
               <OnHoldMenu v-if="!exchangeState" @restore="onRestoreHold" />
             </div>
@@ -56,18 +87,6 @@
         :rounding-mode="roundingMode"
         :readonly="Boolean(exchangeState)"
         style="flex: 1 1 0; min-height: 0"
-      />
-      <v-textarea
-        v-model="invoiceNotes"
-        class="mx-4 mb-2"
-        label="Note"
-        placeholder="Optional note for this invoice"
-        rows="2"
-        auto-grow
-        max-rows="4"
-        density="compact"
-        variant="outlined"
-        hide-details
       />
       <InvoiceSummary
         :subtotal="invoiceItems?.subtotal ?? 0"
@@ -231,6 +250,8 @@ const branchName = ref("Store");
 const screenPort = ref("");
 const invoiceCode = ref("Loading invoice code…");
 const invoiceNotes = ref("");
+const noteMenu = ref(false);
+const noteDraft = ref("");
 const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
@@ -275,8 +296,12 @@ watch(dialogOpen, (v) => {
   if (!v) focusBarcode();
 });
 
+watch(noteMenu, (open) => {
+  if (open) noteDraft.value = invoiceNotes.value;
+});
+
 watch(
-  [() => invoiceItems.value?.items, () => actionBar.value?.client],
+  [() => invoiceItems.value?.items, () => actionBar.value?.client, invoiceNotes],
   ([items, client]) => {
     if (restoringDraft || !client) return;
     if (!items?.length && client.id === 0) {
@@ -285,7 +310,11 @@ watch(
     }
     localStorage.setItem(
       INVOICE_DRAFT_KEY,
-      JSON.stringify({ items: items ?? [], client, notes: invoiceNotes.value } satisfies InvoiceDraft),
+      JSON.stringify({
+        items: items ?? [],
+        client,
+        notes: invoiceNotes.value,
+      } satisfies InvoiceDraft),
     );
   },
   { deep: true },
@@ -300,6 +329,7 @@ function restoreDraft() {
     for (const item of draft.items ?? []) invoiceItems.value?.addItem({ ...item });
     if (draft.client?.id) actionBar.value?.setClient(draft.client);
     invoiceNotes.value = draft.notes ?? "";
+    noteDraft.value = invoiceNotes.value;
   } catch {
     localStorage.removeItem(INVOICE_DRAFT_KEY);
   } finally {
@@ -308,14 +338,22 @@ function restoreDraft() {
 }
 
 function clearDraft() {
-	localStorage.removeItem(INVOICE_DRAFT_KEY);
+  localStorage.removeItem(INVOICE_DRAFT_KEY);
 }
 
 function clearInvoice() {
   invoiceItems.value?.clearItems();
   invoiceNotes.value = "";
+  noteDraft.value = "";
+  noteMenu.value = false;
   clearDraft();
   actionBar.value?.resetClient();
+}
+
+function saveNote() {
+  invoiceNotes.value = noteDraft.value.trim();
+  noteMenu.value = false;
+  focusBarcode();
 }
 
 function focusBarcode() {
@@ -378,7 +416,7 @@ watch([invoiceTotal, hasItems], showCustomerTotal);
 
 async function getItemsJSON(): Promise<string> {
   const items = invoiceItems.value?.items ?? [];
-  return JSON.stringify(items.map((i: any) => ({ code: i.code, qty: i.qty })));
+  return JSON.stringify(items.map((i: any) => ({ code: i.code, barcode: i.barcode, qty: i.qty })));
 }
 
 async function getFullItemsJSON(): Promise<string> {

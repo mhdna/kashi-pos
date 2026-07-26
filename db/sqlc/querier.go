@@ -17,6 +17,8 @@ type Querier interface {
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
 	CloseOpenShifts(ctx context.Context, closedAt string) error
 	CloseShift(ctx context.Context, arg CloseShiftParams) error
+	CountInvoices(ctx context.Context) (int64, error)
+	CountProducts(ctx context.Context, search sql.NullString) (int64, error)
 	CreateAccount(ctx context.Context, name string) (Account, error)
 	CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error)
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
@@ -122,6 +124,7 @@ type Querier interface {
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPriceOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]PriceOverride, error)
 	ListProducts(ctx context.Context) ([]Product, error)
+	ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListSalespersons(ctx context.Context) ([]Salesperson, error)
 	ListShiftAccountBalances(ctx context.Context, shiftID int64) ([]ShiftsAccountsBalance, error)

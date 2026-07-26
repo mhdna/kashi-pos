@@ -1,6 +1,16 @@
 package main
 
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
+
+	db "kashi-pos/db/sqlc"
+)
+
+type ProductPage struct {
+	Items []map[string]any `json:"items"`
+	Total int64            `json:"total"`
+}
 
 func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
 	if a.store == nil {
@@ -13,13 +23,10 @@ func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
 	}
 
 	return map[string]any{
-		"id":       product.ID,
-		"barcode":  product.Barcode,
-		"code":     product.Code,
-		"name":     product.Name,
-		"category": product.Description,
-		"price":    float64(product.Price) / 100,
-		"discount": product.Discount,
+		"id": product.ID, "barcode": product.Barcode, "code": product.Code,
+		"name": product.Name, "category": product.Description,
+		"price": float64(product.Price) / 100, "discount": product.Discount,
+		"color": product.Color, "size": product.Size, "currency": product.CurrencyCode,
 	}, nil
 }
 
@@ -34,13 +41,10 @@ func (a *App) GetProductByCode(code string) (map[string]any, error) {
 	}
 
 	return map[string]any{
-		"id":       product.ID,
-		"barcode":  product.Barcode,
-		"code":     product.Code,
-		"name":     product.Name,
-		"category": product.Description,
-		"price":    float64(product.Price) / 100,
-		"discount": product.Discount,
+		"id": product.ID, "barcode": product.Barcode, "code": product.Code,
+		"name": product.Name, "category": product.Description,
+		"price": float64(product.Price) / 100, "discount": product.Discount,
+		"color": product.Color, "size": product.Size, "currency": product.CurrencyCode,
 	}, nil
 }
 
@@ -57,14 +61,55 @@ func (a *App) ListProducts() ([]map[string]any, error) {
 	result := make([]map[string]any, len(products))
 	for i, p := range products {
 		result[i] = map[string]any{
-			"id":       p.ID,
-			"barcode":  p.Barcode,
-			"code":     p.Code,
-			"name":     p.Name,
-			"category": p.Description,
-			"price":    float64(p.Price) / 100,
-			"discount": p.Discount,
+			"id": p.ID, "barcode": p.Barcode, "code": p.Code,
+			"name": p.Name, "category": p.Description,
+			"price": float64(p.Price) / 100, "discount": p.Discount,
+			"color": p.Color, "size": p.Size, "currency": p.CurrencyCode,
 		}
 	}
 	return result, nil
+}
+
+func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (ProductPage, error) {
+	if a.store == nil {
+		return ProductPage{}, fmt.Errorf("database not initialized")
+	}
+	if page < 1 {
+		page = 1
+	}
+	if itemsPerPage < 1 {
+		itemsPerPage = 5
+	}
+	if itemsPerPage > 100 {
+		itemsPerPage = 100
+	}
+
+	params := db.ListProductsPageParams{
+		Search: sql.NullString{String: search, Valid: true},
+		Limit:  int64(itemsPerPage),
+		Offset: int64(page-1) * int64(itemsPerPage),
+	}
+	products, err := a.store.ListProductsPage(a.ctx, params)
+	if err != nil {
+		return ProductPage{}, err
+	}
+	total, err := a.store.CountProducts(a.ctx, sql.NullString{String: search, Valid: true})
+	if err != nil {
+		return ProductPage{}, err
+	}
+
+	result := make([]map[string]any, len(products))
+	for i, p := range products {
+		result[i] = productMap(p)
+	}
+	return ProductPage{Items: result, Total: total}, nil
+}
+
+func productMap(p db.Product) map[string]any {
+	return map[string]any{
+		"id": p.ID, "barcode": p.Barcode, "code": p.Code,
+		"name": p.Name, "category": p.Description,
+		"price": float64(p.Price) / 100, "discount": p.Discount,
+		"color": p.Color, "size": p.Size, "currency": p.CurrencyCode,
+	}
 }

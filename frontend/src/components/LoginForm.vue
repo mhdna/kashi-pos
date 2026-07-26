@@ -9,11 +9,17 @@
   >
     <div
       class="text-center mb-6 text-white d-flex flex-column align-center"
-      style="flex: 0 0 auto; font-size: 32px; font-weight: 900; font-family: Belleza, Arial, sans-serif"
+      style="
+        flex: 0 0 auto;
+        font-size: 32px;
+        font-weight: 900;
+        font-family: Belleza, Arial, sans-serif;
+      "
     >
-      <v-img :src="logo" width="140" style="filter: invert(0.7)" />
+      <v-img :src="logo" width="190" />
       <!-- <div>KBS</div> -->
     </div>
+    <!-- <div style="font-family: Belleza">Demo Store</div> -->
     <v-text-field
       density="compact"
       placeholder="Username"
@@ -46,7 +52,6 @@
       class="mb-8"
       size="large"
       rounded="lg"
-      color="green-lighten-4"
       @click="handleLogin"
       :loading="loading"
       :disabled="!username.trim() || !password.trim()"
@@ -70,7 +75,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import logo from "@/assets/everywear.png";
+import logo from "@/assets/appicon.png";
 
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";

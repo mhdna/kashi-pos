@@ -47,8 +47,9 @@ func (a *App) HoldInvoice(itemsJSON string) (int64, error) {
 		return 0, fmt.Errorf("database not initialized")
 	}
 	var items []struct {
-		Code string  `json:"code"`
-		Qty  float64 `json:"qty"`
+		Code    string  `json:"code"`
+		Barcode string  `json:"barcode"`
+		Qty     float64 `json:"qty"`
 	}
 	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
 		return 0, err
@@ -58,7 +59,12 @@ func (a *App) HoldInvoice(itemsJSON string) (int64, error) {
 		return 0, err
 	}
 	for _, it := range items {
-		product, err := a.store.GetProductByCode(a.ctx, it.Code)
+		var product db.Product
+		if strings.TrimSpace(it.Barcode) != "" {
+			product, err = a.store.GetProductByBarcode(a.ctx, strings.TrimSpace(it.Barcode))
+		} else {
+			product, err = a.store.GetProductByCode(a.ctx, it.Code)
+		}
 		if err != nil {
 			continue
 		}
@@ -88,7 +94,10 @@ func (a *App) ListHoldInvoices() ([]map[string]any, error) {
 			itemList = append(itemList, map[string]any{
 				"name":     it.Name,
 				"code":     it.Code,
+				"barcode":  it.Barcode,
 				"price":    float64(it.Price) / 100,
+				"color":    it.Color,
+				"size":     it.Size,
 				"discount": it.Discount,
 				"qty":      it.Qty,
 				"category": it.Category,
@@ -364,6 +373,7 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")
 	}
+	notes = strings.TrimSpace(notes)
 
 	receiptPayments := make([]receiptPayment, 0, len(payments))
 	for _, payment := range payments {

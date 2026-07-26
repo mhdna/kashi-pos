@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -56,7 +57,13 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 	receiptItems := make([]invoiceItem, 0, len(items))
 	var subtotal, discountedSubtotal int64
 	for _, item := range items {
-		product, err := q.GetProductByCode(a.ctx, item.Code)
+		var product db.Product
+		var err error
+		if strings.TrimSpace(item.Barcode) != "" {
+			product, err = q.GetProductByBarcode(a.ctx, strings.TrimSpace(item.Barcode))
+		} else {
+			product, err = q.GetProductByCode(a.ctx, item.Code)
+		}
 		if err != nil {
 			return nil, 0, 0, nil, fmt.Errorf("product %s: %w", item.Code, err)
 		}

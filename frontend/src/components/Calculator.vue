@@ -1,5 +1,5 @@
 <template>
-  <v-card class="calculator-shell w-100 h-100 mx-2 px-2 py-2 rounded-xl my-1">
+  <v-card flat class="calculator-shell w-100 h-100 mx-2 px-2 py-2 rounded-xl my-1">
     <!-- Progress -->
     <div class="mb-4">
       <div class="d-flex justify-space-between align-center mb-1">

@@ -10,6 +10,20 @@ import (
 	"database/sql"
 )
 
+const countProducts = `-- name: CountProducts :one
+SELECT COUNT(*) FROM products
+WHERE name LIKE '%' || ?1 || '%'
+   OR code LIKE '%' || ?1 || '%'
+   OR barcode LIKE '%' || ?1 || '%'
+`
+
+func (q *Queries) CountProducts(ctx context.Context, search sql.NullString) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProducts, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createDiscountOverride = `-- name: CreateDiscountOverride :one
 INSERT INTO discount_overrides (name, product_id, discount) VALUES (?, ?, ?) RETURNING id, name, product_id, discount, created_at
 `
@@ -58,7 +72,7 @@ func (q *Queries) CreatePriceOverride(ctx context.Context, arg CreatePriceOverri
 
 const createProduct = `-- name: CreateProduct :one
 INSERT INTO products (barcode, code, name, description, is_active, price, discount)
-VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id, barcode, code, name, description, is_active, price, discount, created_at
+VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at
 `
 
 type CreateProductParams struct {
@@ -91,6 +105,9 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 		&i.IsActive,
 		&i.Price,
 		&i.Discount,
+		&i.Color,
+		&i.Size,
+		&i.CurrencyCode,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -158,7 +175,7 @@ func (q *Queries) GetPriceOverride(ctx context.Context, id int64) (PriceOverride
 }
 
 const getProductByBarcode = `-- name: GetProductByBarcode :one
-SELECT id, barcode, code, name, description, is_active, price, discount, created_at FROM products WHERE barcode = ?
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products WHERE barcode = ?
 `
 
 func (q *Queries) GetProductByBarcode(ctx context.Context, barcode string) (Product, error) {
@@ -173,13 +190,16 @@ func (q *Queries) GetProductByBarcode(ctx context.Context, barcode string) (Prod
 		&i.IsActive,
 		&i.Price,
 		&i.Discount,
+		&i.Color,
+		&i.Size,
+		&i.CurrencyCode,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getProductByCode = `-- name: GetProductByCode :one
-SELECT id, barcode, code, name, description, is_active, price, discount, created_at FROM products WHERE code = ?
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products WHERE code = ?
 `
 
 func (q *Queries) GetProductByCode(ctx context.Context, code string) (Product, error) {
@@ -194,13 +214,16 @@ func (q *Queries) GetProductByCode(ctx context.Context, code string) (Product, e
 		&i.IsActive,
 		&i.Price,
 		&i.Discount,
+		&i.Color,
+		&i.Size,
+		&i.CurrencyCode,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getProductByID = `-- name: GetProductByID :one
-SELECT id, barcode, code, name, description, is_active, price, discount, created_at FROM products WHERE id = ?
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products WHERE id = ?
 `
 
 func (q *Queries) GetProductByID(ctx context.Context, id int64) (Product, error) {
@@ -215,6 +238,9 @@ func (q *Queries) GetProductByID(ctx context.Context, id int64) (Product, error)
 		&i.IsActive,
 		&i.Price,
 		&i.Discount,
+		&i.Color,
+		&i.Size,
+		&i.CurrencyCode,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -287,7 +313,7 @@ func (q *Queries) ListPriceOverridesByProduct(ctx context.Context, productID sql
 }
 
 const listProducts = `-- name: ListProducts :many
-SELECT id, barcode, code, name, description, is_active, price, discount, created_at FROM products ORDER BY id
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products ORDER BY id
 `
 
 func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
@@ -308,6 +334,60 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 			&i.IsActive,
 			&i.Price,
 			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductsPage = `-- name: ListProductsPage :many
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products
+WHERE name LIKE '%' || ?1 || '%'
+   OR code LIKE '%' || ?1 || '%'
+   OR barcode LIKE '%' || ?1 || '%'
+ORDER BY id
+LIMIT ?3 OFFSET ?2
+`
+
+type ListProductsPageParams struct {
+	Search sql.NullString `json:"search"`
+	Offset int64          `json:"offset"`
+	Limit  int64          `json:"limit"`
+}
+
+func (q *Queries) ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error) {
+	rows, err := q.db.QueryContext(ctx, listProductsPage, arg.Search, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -324,7 +404,7 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 }
 
 const searchProductsByName = `-- name: SearchProductsByName :many
-SELECT id, barcode, code, name, description, is_active, price, discount, created_at FROM products WHERE name LIKE ? ORDER BY id
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products WHERE name LIKE ? ORDER BY id
 `
 
 func (q *Queries) SearchProductsByName(ctx context.Context, name string) ([]Product, error) {
@@ -345,6 +425,9 @@ func (q *Queries) SearchProductsByName(ctx context.Context, name string) ([]Prod
 			&i.IsActive,
 			&i.Price,
 			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -364,7 +447,7 @@ const updateProduct = `-- name: UpdateProduct :one
 UPDATE products
 SET barcode = ?, code = ?, name = ?, description = ?,
     is_active = ?, price = ?, discount = ?
-WHERE id = ? RETURNING id, barcode, code, name, description, is_active, price, discount, created_at
+WHERE id = ? RETURNING id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at
 `
 
 type UpdateProductParams struct {
@@ -399,6 +482,9 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (P
 		&i.IsActive,
 		&i.Price,
 		&i.Discount,
+		&i.Color,
+		&i.Size,
+		&i.CurrencyCode,
 		&i.CreatedAt,
 	)
 	return i, err

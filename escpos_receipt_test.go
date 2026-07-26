@@ -64,3 +64,23 @@ func TestBuildESCPosReceiptUses58mmColumnsAndSanitizesText(t *testing.T) {
 		t.Fatalf("payload does not sanitize non-ASCII text: %q", payload)
 	}
 }
+
+func TestBuildESCPosReceiptIncludesOnlyNonEmptyNote(t *testing.T) {
+	withNote := buildESCPosReceipt(printReceiptData{
+		StoreName: "Kashi Store",
+		ReceiptNo: "INV-1",
+		Notes:     "Customer requested gift wrapping",
+	})
+	if !bytes.Contains(withNote, []byte("Note: Customer requested gift wrapping")) {
+		t.Fatal("receipt does not contain the invoice note")
+	}
+
+	withoutNote := buildESCPosReceipt(printReceiptData{
+		StoreName: "Kashi Store",
+		ReceiptNo: "INV-1",
+		Notes:     "   ",
+	})
+	if bytes.Contains(withoutNote, []byte("Note:")) {
+		t.Fatal("receipt contains an empty invoice note")
+	}
+}

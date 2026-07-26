@@ -12,6 +12,9 @@
         </template>
         <template #subtitle>
           <span class="text-overline text-medium-emphasis">{{ item.code }}</span>
+          <span v-if="item.color || item.size" class="text-caption text-medium-emphasis ms-2">
+            {{ [item.color, item.size].filter(Boolean).join(" / ") }}
+          </span>
         </template>
         <template #append>
           <div class="d-flex align-center" style="min-width: 240px">
@@ -62,6 +65,9 @@ import { ListCategoryIcons } from "../../wailsjs/go/main/App";
 interface LineItem {
   name: string;
   code: string;
+  barcode?: string;
+  color?: string;
+  size?: string;
   category: string;
   price: number;
   discount: number;
@@ -109,11 +115,11 @@ function decreaseQty(item: LineItem) {
 }
 
 function removeItem(item: LineItem) {
-  items.value = items.value.filter((i) => i.code !== item.code);
+  items.value = items.value.filter((i) => i.barcode !== item.barcode);
 }
 
 function addItem(item: LineItem) {
-  const existing = items.value.find((i) => i.code === item.code);
+  const existing = items.value.find((i) => i.barcode === item.barcode);
   if (existing) {
     existing.qty++;
   } else {
