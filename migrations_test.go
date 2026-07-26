@@ -14,10 +14,12 @@ func TestApplyMigrationsFreshDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("apply migrations: %v", err)
 	}
-	assertMigrationVersion(t, conn, 25)
+	assertMigrationVersion(t, conn, 26)
 	assertTableExists(t, conn, "settings")
 	assertTableExists(t, conn, "schema_migrations")
 	assertTableExists(t, conn, "invoice_payment_entries")
+	assertIndexExists(t, conn, "idx_clients_phone", "clients")
+	assertIndexExists(t, conn, "idx_products_barcode", "products")
 }
 
 func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
@@ -52,9 +54,11 @@ func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, databasePath, true); err != nil {
 		t.Fatalf("upgrade legacy database: %v", err)
 	}
-	assertMigrationVersion(t, conn, 25)
+	assertMigrationVersion(t, conn, 26)
 	assertTableExists(t, conn, "schema_migrations")
 	assertTableExists(t, conn, "invoice_payment_entries")
+	assertIndexExists(t, conn, "idx_clients_phone", "clients")
+	assertIndexExists(t, conn, "idx_products_barcode", "products")
 	backupMatches, err := filepath.Glob(databasePath + ".backup-*")
 	if err != nil || len(backupMatches) != 1 {
 		t.Fatalf("expected one database backup, found %v (err=%v)", backupMatches, err)
@@ -96,8 +100,10 @@ func TestInvoicePaymentEntriesMigrationRepairsMissingTable(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("repair missing payment-entry table: %v", err)
 	}
-	assertMigrationVersion(t, conn, 25)
+	assertMigrationVersion(t, conn, 26)
 	assertTableExists(t, conn, "invoice_payment_entries")
+	assertIndexExists(t, conn, "idx_clients_phone", "clients")
+	assertIndexExists(t, conn, "idx_products_barcode", "products")
 }
 
 func TestBranchInvoiceNumberingMigrationPreservesHighestYearlyIndex(t *testing.T) {
@@ -170,6 +176,35 @@ func assertTableExists(t *testing.T, conn *sql.DB, table string) {
 	if count != 1 {
 		t.Fatalf("table %q does not exist", table)
 	}
+}
+
+func assertIndexExists(t *testing.T, conn *sql.DB, index, table string) {
+	t.Helper()
+	var count int
+	if err := conn.QueryRow("SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = ? AND tbl_name = ?", index, table).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("index %q on table %q does not exist", index, table)
+	}
+}
+
+func TestLookupIndexesAreRepairedForCurrentDatabase(t *testing.T) {
+	conn := openTestDatabase(t)
+	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
+	if _, err := conn.Exec("DROP INDEX idx_clients_phone; DROP INDEX idx_products_barcode"); err != nil {
+		t.Fatalf("drop lookup indexes: %v", err)
+	}
+	if _, err := conn.Exec("DELETE FROM schema_migrations WHERE version = 26"); err != nil {
+		t.Fatalf("rewind migration metadata: %v", err)
+	}
+	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
+		t.Fatalf("repair lookup indexes: %v", err)
+	}
+	assertIndexExists(t, conn, "idx_clients_phone", "clients")
+	assertIndexExists(t, conn, "idx_products_barcode", "products")
 }
 
 func TestApplicationDatabasePathOverride(t *testing.T) {
