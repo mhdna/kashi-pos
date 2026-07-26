@@ -454,7 +454,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted, watch } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import {
   GetAppSettings,
   GetReceiptPreview,
@@ -521,7 +521,6 @@ const settingsLoadError = ref(false);
 const previewSrc = ref("");
 const previewLoading = ref(false);
 const previewError = ref(false);
-let previewTimer: ReturnType<typeof setTimeout> | undefined;
 let previewRequest = 0;
 const passwordForm = reactive({ current: "", newPass: "", confirm: "" });
 const showPw = ref(false);
@@ -623,11 +622,6 @@ onMounted(async () => {
   } catch {}
 });
 
-watch(form, () => {
-  if (previewTimer) clearTimeout(previewTimer);
-  previewTimer = setTimeout(() => { void refreshReceiptPreview(); }, 250);
-}, { deep: true });
-
 async function refreshReceiptPreview() {
   const request = ++previewRequest;
   previewLoading.value = true;
@@ -670,6 +664,7 @@ async function saveSettings() {
       form.website.trim(), form.instagram.trim(), form.receiptFont, Number(form.receiptTitleSize), Number(form.receiptBodySize),
       Boolean(form.receiptCutoff),
     );
+    await refreshReceiptPreview();
     notify("Settings saved");
   } catch {
     notify("Failed to save", "red");
