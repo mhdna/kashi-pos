@@ -417,8 +417,10 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		titleFont = "Belleza"
 	}
 	bodyFont := data.BodyFont
-	if bodyFont == "" {
-		bodyFont = "Courier"
+	if bodyFont == "" || bodyFont == "Printer Font A" {
+		// Printer Font A is hardware-defined for ESC/POS. Helvetica is the
+		// closest stable PDF preview fallback.
+		bodyFont = "Helvetica"
 	}
 	if bodyFont != "Helvetica" && bodyFont != "Times" && bodyFont != "Courier" && bodyFont != "Belleza" {
 		bodyFont = "Courier"

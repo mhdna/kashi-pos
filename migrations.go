@@ -125,7 +125,7 @@ func ensureReceiptBrandingColumns(ctx context.Context, conn *sql.DB) error {
 		{"market_description", "text NOT NULL DEFAULT 'Shop for all'"}, {"return_policy", "text NOT NULL DEFAULT 'Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt.'"},
 		{"website", "text NOT NULL DEFAULT 'yourwebsite.com'"}, {"instagram", "text NOT NULL DEFAULT '@your_instagram'"}, {"receipt_font", "text NOT NULL DEFAULT 'Belleza'"},
 		{"receipt_title_size", "real NOT NULL DEFAULT 21"}, {"receipt_body_size", "real NOT NULL DEFAULT 11"}, {"receipt_cutoff", "integer NOT NULL DEFAULT 1"},
-		{"receipt_body_font", "text NOT NULL DEFAULT 'Courier'"}, {"branch_phone", "text NOT NULL DEFAULT ''"}, {"counter_number", "text NOT NULL DEFAULT '1'"},
+		{"receipt_body_font", "text NOT NULL DEFAULT 'Printer Font A'"}, {"branch_phone", "text NOT NULL DEFAULT ''"}, {"counter_number", "text NOT NULL DEFAULT '1'"},
 	}
 	for _, column := range columns {
 		var count int

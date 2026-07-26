@@ -219,7 +219,7 @@
                 <v-col cols="6"><v-text-field v-model="form.instagram" label="Instagram" variant="outlined" density="compact" /></v-col>
               </v-row>
               <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" label="Receipt font" hint="Belleza is bundled for offline printing." persistent-hint variant="outlined" density="compact" class="mb-2" />
-              <v-select v-model="form.receiptBodyFont" :items="['Courier', 'Helvetica', 'Times', 'Belleza']" label="Body font" hint="Courier is the regular receipt font used previously." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" label="Body font" hint="Printer Font A uses the thermal printer's native font." persistent-hint variant="outlined" density="compact" class="mb-2" />
               <v-row density="comfortable">
                 <v-col cols="6"><v-text-field v-model.number="form.receiptTitleSize" label="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" /></v-col>
                 <v-col cols="6"><v-text-field v-model.number="form.receiptBodySize" label="Body size" type="number" min="6" max="24" variant="outlined" density="compact" /></v-col>
@@ -509,7 +509,7 @@ const form = reactive({
   receiptFont: "Belleza",
   receiptTitleSize: 21,
   receiptBodySize: 11,
-  receiptBodyFont: "Courier",
+  receiptBodyFont: "Printer Font A",
   receiptCutoff: true,
 });
 const roundingModes = [
@@ -602,7 +602,7 @@ async function loadSettings() {
         receiptFont: s.receiptFont ?? "Belleza",
         receiptTitleSize: Number(s.receiptTitleSize ?? 21),
         receiptBodySize: Number(s.receiptBodySize ?? 11),
-        receiptBodyFont: s.receiptBodyFont ?? "Courier",
+        receiptBodyFont: s.receiptBodyFont ?? "Printer Font A",
         receiptCutoff: s.receiptCutoff !== false,
       });
   } catch {

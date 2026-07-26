@@ -411,7 +411,7 @@ func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, market
 		receiptFont = "Belleza"
 	}
 	if bodyFont == "" {
-		bodyFont = "Courier"
+		bodyFont = "Printer Font A"
 	}
 	return a.store.UpdateSettings(a.ctx, db.UpdateSettingsParams{
 		BranchName: current.BranchName, BranchCode: current.BranchCode, ApiKey: current.ApiKey, PrinterID: current.PrinterID,
