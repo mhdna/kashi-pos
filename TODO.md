@@ -1,0 +1,15 @@
+- Printing exchange fails and hangs the app
+- title too long overflows price
+- make receipt stuff monospace
+- loading invoices was slow
+- show totals above calc (not just split l.l. & $)?
+- lbp shift total is showing a $ before it (total is right though)
+- exchange failed --> restart app --> item = -1 --> total = total - item price which is wrong. it should clear
+- money in receipt received should be totaled according to currency not shown as splits (not 20$ 8$ but 28$)
+- select who opened and closed the shift and show it in monthly income
+
+
+Bazar:
+
+400 = 4.46 ==> we have less stuff
+We should round up or down so that it's exactly 400,000 not 400,005
