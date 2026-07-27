@@ -13,7 +13,7 @@ const props = defineProps<{
   size?: number;
 }>();
 
-const avatarSize = computed(() => props.size ?? 42);
+const avatarSize = computed(() => props.size ?? 36);
 
 const initials = computed(() =>
   props.name

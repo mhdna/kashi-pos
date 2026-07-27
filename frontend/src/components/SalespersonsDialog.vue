@@ -13,11 +13,7 @@
           style="min-width: 180px"
         >
           <template #prepend>
-            <InitialsAvatar
-              :name="selectedName ?? ''"
-              :color="selectedColor ?? 'grey'"
-              :size="42"
-            />
+            <InitialsAvatar :name="selectedName ?? ''" :color="selectedColor ?? 'grey'" />
           </template>
         </v-list-item>
       </v-btn>

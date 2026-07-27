@@ -56,7 +56,7 @@ const items = computed(() => {
       t: "Invoice List",
     },
     { value: "shifts", to: "/shifts", icon: "mdi-cash-fast", t: "Balance & Shifts" },
-    { value: "clients", to: "/clients", icon: "mdi-account-multiple", t: "Clients", locked: true },
+    { value: "clients", to: "/clients", icon: "mdi-account-multiple", t: "Clients" },
     {
       value: "inventory",
       to: "/inventory",
@@ -82,6 +82,11 @@ const items = computed(() => {
 .nav-item {
   flex: 1 1 0;
   min-height: 0;
+}
+
+.nav-item.v-list-item--active {
+  background: rgba(var(--v-theme-primary), 0.14);
+  color: rgb(var(--v-theme-primary));
 }
 
 .nav-item-content {

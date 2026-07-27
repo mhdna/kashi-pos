@@ -4,6 +4,9 @@ import { aliases, mdi } from "../lib/icons";
 
 export default createVuetify({
   defaults: {
+    VBtn: { ripple: false },
+    VCard: { ripple: false },
+    VListItem: { ripple: false },
     VDialog: { transition: false },
     VMenu: { transition: false },
     VOverlay: { transition: false },

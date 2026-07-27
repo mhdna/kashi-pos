@@ -3,7 +3,7 @@
     <template #activator="{ props: activatorProps }">
       <v-btn v-bind="activatorProps" variant="text" class="ms-1">
         <v-icon icon="mdi-format-list-bulleted-square" size="20" class="me-1" />
-        Products List
+        {{ activatorText }}
       </v-btn>
     </template>
     <v-card>
@@ -53,6 +53,11 @@ const emit = defineEmits<{
     },
   ];
 }>();
+
+const props = withDefaults(defineProps<{ activatorText?: string }>(), {
+  activatorText: "Products List",
+});
+const activatorText = props.activatorText;
 
 const dialogOpen = inject<import("vue").Ref<boolean>>("dialogOpen", { value: false } as any);
 const dialog = ref(false);

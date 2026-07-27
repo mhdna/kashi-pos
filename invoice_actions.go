@@ -18,6 +18,12 @@ import (
 //go:embed assets/fonts/Belleza-Regular.ttf
 var bellezaFont []byte
 
+//go:embed assets/fonts/CascadiaMono-Regular.ttf
+var cascadiaMonoRegular []byte
+
+//go:embed assets/fonts/CascadiaMono-Bold.ttf
+var cascadiaMonoBold []byte
+
 //go:embed pdf-icons/facebook.png
 var facebookIcon []byte
 
@@ -415,11 +421,15 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 	})
 }
 
+// buildReceiptPDF renders a compact, boutique-style receipt: tight vertical
+// rhythm, a slim header, condensed item rows (name + qty/price on one line
+// where it fits), and a single-row "Follow us on:" social strip with one
+// handle beneath it.
 func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	const (
 		defaultPageW = 80.0
 		defaultPageH = 297.0
-		margin       = 4.0
+		margin       = 3.5
 	)
 	pageW := float64(data.ReceiptWidth)
 	if pageW <= 0 {
@@ -448,57 +458,56 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		titleFont = "Belleza"
 	}
 	bodyFont := data.BodyFont
-	if bodyFont == "" || bodyFont == "Printer Font A" {
-		// Printer Font A is hardware-defined for ESC/POS; Courier keeps the
-		// PDF preview aligned with the receipt's default monospace body font.
-		bodyFont = "Courier"
+	if bodyFont == "" || bodyFont == "Printer Font A" || bodyFont == "Courier" {
+		// Printer Font A is hardware-defined for ESC/POS; CascadiaMono is the
+		// PDF equivalent — a natural monospace instead of Courier's typewriter look.
+		bodyFont = "CascadiaMono"
 	}
-	if bodyFont != "Helvetica" && bodyFont != "Times" && bodyFont != "Courier" && bodyFont != "Belleza" {
-		bodyFont = "Courier"
+	if bodyFont != "Helvetica" && bodyFont != "Times" && bodyFont != "CascadiaMono" && bodyFont != "Belleza" {
+		bodyFont = "CascadiaMono"
 	}
 	if titleFont == "Belleza" || bodyFont == "Belleza" {
 		pdf.AddUTF8FontFromBytes("Belleza", "", bellezaFont)
 		pdf.AddUTF8FontFromBytes("Belleza", "B", bellezaFont)
 	}
+	if bodyFont == "CascadiaMono" {
+		pdf.AddUTF8FontFromBytes("CascadiaMono", "", cascadiaMonoRegular)
+		pdf.AddUTF8FontFromBytes("CascadiaMono", "B", cascadiaMonoBold)
+	}
 	titleSize, bodySize := data.TitleSize, data.BodySize
 	if titleSize <= 0 {
-		titleSize = 21
+		titleSize = 19
 	}
 	if bodySize <= 0 {
-		bodySize = 11
+		bodySize = 9.5
 	}
+	const lh = 3.6 // base line height, tighter than the old 4mm rhythm
 
 	boldText := func(s string, size float64, align string) {
 		pdf.SetFont(bodyFont, "B", size)
-		w := contentW
-		if align == "C" {
-			pdf.SetXY(margin, pdf.GetY())
-			w = contentW
-		}
-		pdf.CellFormat(w, 4, s, "", 0, align, false, 0, "")
+		pdf.SetXY(margin, pdf.GetY())
+		pdf.CellFormat(contentW, lh, s, "", 0, align, false, 0, "")
 	}
-
 	twoCol := func(left, right string, size float64) {
 		pdf.SetFont(bodyFont, "B", size)
 		y := pdf.GetY()
 		pdf.SetXY(margin, y)
-		pdf.CellFormat(contentW/2, 4, left, "", 0, "L", false, 0, "")
+		pdf.CellFormat(contentW/2, lh, left, "", 0, "L", false, 0, "")
 		pdf.SetXY(margin+contentW/2, y)
-		pdf.CellFormat(contentW/2, 4, right, "", 0, "R", false, 0, "")
+		pdf.CellFormat(contentW/2, lh, right, "", 0, "R", false, 0, "")
 	}
-
 	down := func(mm float64) { pdf.SetY(pdf.GetY() + mm) }
 	center := func(s string, size float64) { boldText(s, size, "C") }
 	normalText := func(s string, size float64, align string) {
 		pdf.SetFont(bodyFont, "", size)
 		pdf.SetXY(margin, pdf.GetY())
-		pdf.CellFormat(contentW, 4, s, "", 0, align, false, 0, "")
+		pdf.CellFormat(contentW, lh, s, "", 0, align, false, 0, "")
 	}
 	centerNormal := func(s string, size float64) { normalText(s, size, "C") }
 	centerWithFont := func(s, font string, size float64) {
 		pdf.SetFont(font, "B", size)
 		pdf.SetXY(margin, pdf.GetY())
-		pdf.CellFormat(contentW, 4, s, "", 0, "C", false, 0, "")
+		pdf.CellFormat(contentW, lh, s, "", 0, "C", false, 0, "")
 	}
 	wrapLines := func(s string, size float64) []string {
 		pdf.SetFont(bodyFont, "", size)
@@ -530,113 +539,141 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		}
 	}
 	centerLines := func(s string, size float64) {
-		centerWrapped(s, size, 4)
+		centerWrapped(s, size, lh)
 	}
 
 	dashedRule := func() {
-		pdf.SetDashPattern([]float64{1.1, 1.0}, 0)
-		pdf.SetLineWidth(0.35)
+		pdf.SetDashPattern([]float64{1.0, 0.9}, 0)
+		pdf.SetLineWidth(0.3)
 		y := pdf.GetY()
 		pdf.Line(margin, y, pageW-margin, y)
 		pdf.SetDashPattern([]float64{}, 0)
 	}
 
-	pdf.SetY(8)
+	// ---- Header --------------------------------------------------------
+	pdf.SetY(6)
 	centerWithFont(data.StoreName, titleFont, titleSize)
-	down(8)
-	center(data.Branch, bodySize)
-	down(4)
-	if data.Description != "" {
-		centerLines(data.Description, bodySize)
+	down(titleSize/3 + 2.5)
+	if data.Branch != "" {
+		center(data.Branch, bodySize-1)
+		down(lh - 0.5)
 	}
-	drawPDFBarcode(pdf, margin, pdf.GetY()+2, contentW, 9, data.ReceiptNo)
-	down(12)
-	centerNormal("Invoice# "+data.ReceiptNo, bodySize)
-	down(4)
-	centerNormal(currentReceiptDate(), bodySize)
-	down(6)
+	if data.Description != "" {
+		centerLines(data.Description, bodySize-1)
+	}
+	down(1)
+
+	drawPDFBarcode(pdf, margin, pdf.GetY(), contentW, 7, data.ReceiptNo)
+	down(9)
+	twoCol("Inv# "+data.ReceiptNo, currentReceiptDate(), bodySize-1)
+	down(lh)
+
 	branchPhone := data.BranchPhone
 	if branchPhone == "" {
 		branchPhone = data.Phone
 	}
-	if branchPhone != "" {
-		center(branchPhone, bodySize)
-		down(4)
+	if branchPhone != "" || data.Website != "" {
+		contact := strings.TrimSpace(strings.Join(filterEmpty(branchPhone, data.Website), "  •  "))
+		if contact != "" {
+			center(contact, bodySize-1.5)
+			down(lh)
+		}
 	}
-	if data.Website != "" {
-		center(data.Website, bodySize)
-		down(4)
-	}
-	// if data.CounterNumber != "" {
-	// 	center("Counter: "+data.CounterNumber, bodySize)
-	// 	down(4)
-	// }
-	down(5)
-	dashedRule()
-	down(4)
 
-	twoCol("Sold by: "+data.Salesperson, "", bodySize)
-	down(4)
-	twoCol("Customer: "+data.Customer, "", bodySize)
-	down(5)
+	down(1)
+	dashedRule()
+	down(2.5)
+
+	// ---- Sale / customer -------------------------------------------------
+	twoCol("Sold by: "+data.Salesperson, "", bodySize-1)
+	down(lh)
+	twoCol("Customer: "+data.Customer, "", bodySize-1)
+	down(lh - 0.5)
 	if strings.TrimSpace(data.Notes) != "" {
-		dashedRule()
-		down(4)
-		normalText("Note: "+strings.TrimSpace(data.Notes), bodySize, "L")
-		down(5)
+		down(1.5)
+		normalText("Note: "+strings.TrimSpace(data.Notes), bodySize-1.5, "L")
+		down(lh)
 	}
+	down(1)
 	dashedRule()
-	down(4)
+	down(2.5)
 
-	twoCol("ITEM", "TOTAL", 11)
-	down(3)
+	// ---- Items ------------------------------------------------------------
+	twoCol("ITEM", "TOTAL", bodySize)
+	down(lh - 0.6)
 	dashedRule()
-	down(4)
+	down(2.5)
 
 	var subtotal, totalDiscount float64
-	for _, it := range data.Items {
+	for i, it := range data.Items {
 		gross := it.Qty * it.Price
 		discAmt := gross * (it.Discount / 100.0)
 		lineTotal := gross - discAmt
 		subtotal += gross
 		totalDiscount += discAmt
 
-		twoCol(it.Name, fmt.Sprintf("$%.2f", lineTotal), 11)
-		down(4)
-		if it.Code != "" {
-			pdf.SetFont(bodyFont, "", 10)
-			pdf.SetXY(margin+2, pdf.GetY())
-			pdf.CellFormat(contentW-2, 4, "Code: "+it.Code, "", 0, "L", false, 0, "")
-			down(4)
+		price := fmt.Sprintf("$%.2f", lineTotal)
+		pdf.SetFont(bodyFont, "B", bodySize)
+		priceW := pdf.GetStringWidth(price)
+		nameMaxW := contentW - priceW - 2.5
+		nameLines := wrapToWidth(pdf, it.Name, nameMaxW, contentW)
+
+		for idx, line := range nameLines {
+			pdf.SetFont(bodyFont, "B", bodySize)
+			pdf.SetXY(margin, pdf.GetY())
+			if idx == 0 {
+				pdf.CellFormat(nameMaxW, lh, line, "", 0, "L", false, 0, "")
+				pdf.SetXY(margin+contentW-priceW, pdf.GetY())
+				pdf.CellFormat(priceW, lh, price, "", 0, "R", false, 0, "")
+			} else {
+				pdf.CellFormat(contentW, lh, line, "", 0, "L", false, 0, "")
+			}
+			down(lh - 0.3)
 		}
 
-		pdf.SetFont(bodyFont, "", 10)
-		qtyLine := fmt.Sprintf("%.0f x $%.2f", it.Qty, it.Price)
+		// Code + qty/price on a single condensed detail line.
+		pdf.SetFont(bodyFont, "", bodySize-1.5)
+		detail := fmt.Sprintf("%.0f x $%.2f", it.Qty, it.Price)
 		if it.Discount > 0 {
-			qtyLine += fmt.Sprintf("  (-%.0f%% = -$%.2f)", it.Discount, discAmt)
+			detail += fmt.Sprintf("  (-%.0f%%)", it.Discount)
+		}
+		if it.Code != "" {
+			detail = "Code: " + it.Code + "   " + detail
 		}
 		pdf.SetXY(margin+2, pdf.GetY())
-		pdf.CellFormat(contentW-2, 4, qtyLine, "", 0, "L", false, 0, "")
-		down(5)
+		pdf.CellFormat(contentW-2, lh-0.6, detail, "", 0, "L", false, 0, "")
+		down(lh - 0.3)
+
+		if i < len(data.Items)-1 {
+			down(1.2)
+		}
 	}
+	down(1.5)
 
 	dashedRule()
-	down(4)
+	down(2.5)
 	taxable := subtotal - totalDiscount
 	grandTotal := float64(data.GrandTotalCents) / 100
 	tax := grandTotal - taxable
 
-	twoCol("Subtotal", fmt.Sprintf("$%.2f", subtotal), 11)
-	down(4)
-	twoCol("Discount", fmt.Sprintf("-$%.2f", totalDiscount), 11)
-	down(5)
-	twoCol("Tax", fmt.Sprintf("$%.2f", tax), 11)
-	down(5)
+	twoCol("Subtotal", fmt.Sprintf("$%.2f", subtotal), bodySize-1)
+	down(lh - 0.4)
+	if totalDiscount > 0 {
+		twoCol("Discount", fmt.Sprintf("-$%.2f", totalDiscount), bodySize-1)
+		down(lh - 0.4)
+	}
+	if math.Abs(tax) > 0.005 {
+		twoCol("Tax", fmt.Sprintf("$%.2f", tax), bodySize-1)
+		down(lh - 0.4)
+	}
+	down(1)
 	dashedRule()
-	down(5)
-	drawDottedPDFBox(pdf, margin, pdf.GetY(), contentW, 12)
-	twoCol("TOTAL", fmt.Sprintf("$%.2f", grandTotal), 13)
-	down(5)
+	down(3)
+	drawDottedPDFBox(pdf, margin, pdf.GetY(), contentW, 10.5)
+	down(1)
+	twoCol("TOTAL", fmt.Sprintf("$%.2f", grandTotal), bodySize+2)
+	down(lh + 1)
+
 	rate := data.ExchangeRate
 	if rate <= 0 {
 		rate = 90000
@@ -645,60 +682,114 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	if roundErr != nil {
 		roundedTotalLBP = int64(math.Round(grandTotal*float64(rate)/float64(lbpRoundingUnit))) * lbpRoundingUnit
 	}
-	twoCol("LBP TOTAL", fmt.Sprintf("%s L.L.", formatInt(roundedTotalLBP)), 11)
-	down(6)
+	twoCol("LBP TOTAL", fmt.Sprintf("%s L.L.", formatInt(roundedTotalLBP)), bodySize-1)
+	down(lh + 1)
+
+	// ---- Payments -----------------------------------------------------
 	if len(data.Payments) > 0 {
 		dashedRule()
-		down(4)
-		center("PAYMENT DETAILS", 11)
-		down(4)
+		down(2.5)
+		center("PAYMENT DETAILS", bodySize-1)
+		down(lh)
 		for _, payment := range data.Payments {
 			label := payment.AccountName
 			if label == "" {
 				label = "Cash"
 			}
 			if payment.EntryType == "change" {
-				label = "Change returned - " + label
+				label = "Change - " + label
 			} else {
-				label = "Cash received - " + label
+				label = "Received - " + label
 			}
 			amount := formatReceiptPayment(payment, rate, data.RoundingMode)
-			twoCol(label, amount, 10)
-			down(4)
+			twoCol(label, amount, bodySize-1.5)
+			down(lh - 0.4)
 		}
+		down(1)
 	}
+
+	// ---- Policy ---------------------------------------------------------
 	dashedRule()
-	down(4)
-	center("RETURN & EXCHANGE POLICY", 10)
-	down(4)
+	down(2.5)
+	center("RETURN & EXCHANGE POLICY", bodySize-1.5)
+	down(lh)
 	policy := data.ReturnPolicy
 	if policy == "" {
 		policy = "Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt."
 	}
-	down(2)
-	centerWrapped(policy, 8.5, 4.5)
-	down(2)
+	centerWrapped(policy, bodySize-2.5, lh-0.5)
+	down(1)
 	dashedRule()
-	down(4)
+	down(3)
+
+	// ---- Social footer: single row of icons, one handle below ----------
 	socialItems := socialFooterItems(data.SocialPlatforms, data.SocialHandles)
 	if len(socialItems) > 0 {
-		pdf.SetX(margin)
-		boldText("Follow us:", bodySize, "L")
-		down(4)
-		drawSocialFooterRows(pdf, socialItems, margin-5, pdf.GetY(), contentW, bodySize)
-		down(float64(len(socialItems)) * 2.5)
+		const iconSize = 5.0
+		const gap = 2.5
+		label := "Follow us on:"
+		pdf.SetFont(bodyFont, "B", bodySize-1)
+		labelW := pdf.GetStringWidth(label) + 2
+		rowW := labelW + float64(len(socialItems))*iconSize + float64(len(socialItems)-1)*gap
+		startX := margin + (contentW-rowW)/2
+		if startX < margin {
+			startX = margin
+		}
+
+		pdf.SetXY(startX, pdf.GetY())
+		pdf.CellFormat(labelW, 5, label, "", 0, "L", false, 0, "")
+		drawSocialFooterRow(pdf, socialItems, startX+labelW, pdf.GetY(), iconSize, gap)
+		down(iconSize + 2)
+
+		handle := socialItems[0].handle
+		centerNormal(handle, bodySize-1.5)
+		down(lh)
+		down(1)
 	}
-	center("Thank you for shopping with us!", bodySize)
-	down(4)
-	// center(data.ReceiptNo, bodySize)
-	down(8)
+
+	center("Thank you for shopping with us!", bodySize-1)
+	down(lh + 2)
 
 	return pdf
 }
 
+// wrapToWidth wraps s into lines, keeping the first line within firstLineW
+// (to leave room for a trailing price) and subsequent lines within fullW.
+func wrapToWidth(pdf *fpdf.Fpdf, s string, firstLineW, fullW float64) []string {
+	words := strings.Fields(s)
+	if len(words) == 0 {
+		return []string{""}
+	}
+	lines := make([]string, 0, 2)
+	lines = append(lines, words[0])
+	for _, word := range words[1:] {
+		candidate := lines[len(lines)-1] + " " + word
+		limit := fullW
+		if len(lines) == 1 {
+			limit = firstLineW
+		}
+		if pdf.GetStringWidth(candidate) > limit {
+			lines = append(lines, word)
+		} else {
+			lines[len(lines)-1] = candidate
+		}
+	}
+	return lines
+}
+
+func filterEmpty(values ...string) []string {
+	out := make([]string, 0, len(values))
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 func drawDottedPDFBox(pdf *fpdf.Fpdf, x, y, width, height float64) {
-	pdf.SetDashPattern([]float64{1.1, 1.0}, 0)
-	pdf.SetLineWidth(0.35)
+	pdf.SetDashPattern([]float64{1.0, 0.9}, 0)
+	pdf.SetLineWidth(0.3)
 	pdf.Rect(x, y, width, height, "D")
 	pdf.SetDashPattern([]float64{}, 0)
 }
@@ -764,35 +855,23 @@ func socialFooterItems(platforms []string, handles map[string]string) []socialFo
 	return items
 }
 
-func drawSocialFooterRows(pdf *fpdf.Fpdf, items []socialFooterItem, left, top, contentW, fontSize float64) {
-	const iconSize = 4.5
-	const handleWidth = 28.0
-	const lineHeight = 6.5
-	itemWidth := iconSize + 2.0 + handleWidth
-
-	for i, item := range items {
-		lineTop := top + float64(i)*lineHeight
-		startX := left + (contentW-itemWidth)/2
-		drawSocialFooterIcon(pdf, item.platform, item.handle, startX, lineTop, iconSize, handleWidth, fontSize)
+// drawSocialFooterRow draws all platform icons in a single horizontal row
+// starting at startX, vertically aligned at top. Pair with a centered
+// handle line drawn separately beneath it.
+func drawSocialFooterRow(pdf *fpdf.Fpdf, items []socialFooterItem, startX, top, iconSize, gap float64) {
+	x := startX
+	for _, item := range items {
+		iconBytes := socialPlatformIconBytes(item.platform)
+		if len(iconBytes) == 0 {
+			x += iconSize + gap
+			continue
+		}
+		iconName := "social-" + item.platform
+		opts := fpdf.ImageOptions{ImageType: "png", ReadDpi: true}
+		pdf.RegisterImageOptionsReader(iconName, opts, bytes.NewReader(iconBytes))
+		pdf.ImageOptions(iconName, x, top, iconSize, iconSize, false, opts, 0, "")
+		x += iconSize + gap
 	}
-}
-
-func drawSocialFooterIcon(pdf *fpdf.Fpdf, platform, handle string, x, top, iconSize, handleWidth, fontSize float64) {
-	iconBytes := socialPlatformIconBytes(platform)
-	if len(iconBytes) == 0 {
-		pdf.SetXY(x, top)
-		pdf.CellFormat(iconSize+2+handleWidth, 5, handle, "", 0, "L", false, 0, "")
-		return
-	}
-	iconY := top + 0.3
-	iconName := "social-" + platform
-	opts := fpdf.ImageOptions{ImageType: "png", ReadDpi: true}
-	pdf.RegisterImageOptionsReader(iconName, opts, bytes.NewReader(iconBytes))
-	pdf.ImageOptions(iconName, x, iconY, iconSize, iconSize, false, opts, 0, "")
-	pdf.SetTextColor(0, 0, 0)
-	pdf.SetFont("Helvetica", "", fontSize)
-	pdf.SetXY(x+iconSize+2, top)
-	pdf.CellFormat(handleWidth, 5, handle, "", 0, "L", false, 0, "")
 }
 
 func socialPlatformIconBytes(platform string) []byte {

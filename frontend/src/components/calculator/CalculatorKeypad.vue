@@ -1,0 +1,70 @@
+<template>
+  <div class="calculator-keypad">
+    <div class="keypad-numbers">
+      <v-btn
+        v-for="n in digitKeys"
+        :key="n"
+        class="keypad-button keypad-number text-h6"
+        @click="$emit('digit', n)"
+        >{{ n }}</v-btn
+      >
+      <v-btn
+        class="keypad-button keypad-number text-h6"
+        variant="tonal"
+        @click="$emit('digit', '.')"
+        >.</v-btn
+      >
+      <v-btn class="keypad-button keypad-number text-h6" @click="$emit('digit', '0')">0</v-btn>
+      <v-btn class="keypad-button keypad-number text-h6" @click="$emit('digit', '00')">00</v-btn>
+    </div>
+    <div class="keypad-actions">
+      <v-btn
+        class="keypad-button keypad-action text-h6"
+        aria-label="Backspace"
+        @click="$emit('backspace')"
+        >⌫</v-btn
+      >
+      <v-btn
+        class="keypad-button keypad-action text-h6"
+        color="red-darken-4"
+        @click="$emit('clear')"
+        >CA</v-btn
+      >
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+defineEmits<{ digit: [value: string]; backspace: []; clear: [] }>();
+const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
+</script>
+
+<style scoped>
+.calculator-keypad {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+  column-gap: 18px;
+}
+.keypad-numbers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.keypad-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.keypad-button {
+  min-height: 44px;
+  border-radius: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.keypad-number {
+  min-height: 40px;
+}
+.keypad-action {
+  min-height: 0;
+  flex: 1;
+}
+</style>

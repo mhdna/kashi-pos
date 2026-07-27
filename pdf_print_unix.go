@@ -3,10 +3,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 func printReceiptToPrinter(data printReceiptData) error {
@@ -28,8 +30,13 @@ func printReceiptToPrinter(data printReceiptData) error {
 		return fmt.Errorf("close receipt payload: %w", err)
 	}
 
-	cmd := exec.Command("lp", "-d", data.PrinterName, "-o", "raw", tmpPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "lp", "-d", data.PrinterName, "-o", "raw", tmpPath)
 	if output, err := cmd.CombinedOutput(); err != nil {
+		if ctx.Err() != nil {
+			return fmt.Errorf("print receipt to %q timed out after 15 seconds", data.PrinterName)
+		}
 		return fmt.Errorf("print receipt to %q: %v: %s", data.PrinterName, err, output)
 	}
 	return nil

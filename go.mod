@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/go-pdf/fpdf v0.9.0
+	github.com/nyaruka/phonenumbers v1.8.1
 	github.com/wailsapp/wails/v2 v2.11.0
 	go.bug.st/serial v1.8.0
 	golang.org/x/image v0.30.0
@@ -43,6 +44,7 @@ require (
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	modernc.org/libc v1.73.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

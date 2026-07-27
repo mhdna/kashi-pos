@@ -10,7 +10,7 @@ export function formatUsd(value: number): string {
 
 export function formatBalance(cents: number, currencyCode: string, exchangeRate: number): string {
   if (currencyCode === "LBP") {
-    return `${roundLbpFromCents(cents, exchangeRate).toLocaleString()} LBP`;
+    return `L.L. ${roundLbpFromCents(cents, exchangeRate).toLocaleString()}`;
   }
   return formatUsd(cents / 100);
 }

@@ -20,44 +20,45 @@
       <!-- <div>KBS</div> -->
     </div>
     <!-- <div style="font-family: Belleza">Demo Store</div> -->
-    <v-text-field
-      density="compact"
-      placeholder="Username"
-      :rules="usernameRules"
-      bg-color="white"
-      :prepend-inner-icon="'mdi-account'"
-      class="mb-2"
-      variant="outlined"
-      v-model="username"
-      @keydown.enter="handleLogin"
-    >
-    </v-text-field>
-    <v-text-field
-      density="compact"
-      placeholder="Enter your password"
-      :type="visible ? 'text' : 'password'"
-      bg-color="white"
-      :rules="passwordRules"
-      class="mb-2 text-white"
-      variant="outlined"
-      v-model="password"
-      :prepend-inner-icon="'mdi-lock-outline'"
-      :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'"
-      @click:append-inner="visible = !visible"
-    >
-    </v-text-field>
+    <v-form @submit.prevent="handleLogin">
+      <v-text-field
+        density="compact"
+        placeholder="Username"
+        :rules="usernameRules"
+        bg-color="white"
+        :prepend-inner-icon="'mdi-account'"
+        class="mb-2"
+        variant="outlined"
+        v-model="username"
+      >
+      </v-text-field>
+      <v-text-field
+        density="compact"
+        placeholder="Enter your password"
+        :type="visible ? 'text' : 'password'"
+        bg-color="white"
+        :rules="passwordRules"
+        class="mb-2 text-white"
+        variant="outlined"
+        v-model="password"
+        :prepend-inner-icon="'mdi-lock-outline'"
+        :append-inner-icon="visible ? 'mdi-eye-off' : 'mdi-eye'"
+        @click:append-inner="visible = !visible"
+      >
+      </v-text-field>
 
-    <v-btn
-      block
-      class="mb-8"
-      size="large"
-      rounded="lg"
-      @click="handleLogin"
-      :loading="loading"
-      :disabled="!username.trim() || !password.trim()"
-    >
-      Log In
-    </v-btn>
+      <v-btn
+        block
+        class="mb-8"
+        size="large"
+        rounded="lg"
+        type="submit"
+        :loading="loading"
+        :disabled="!username.trim() || !password.trim()"
+      >
+        Log In
+      </v-btn>
+    </v-form>
     <div class="alert-wrapper">
       <v-alert
         v-if="error"

@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
+	"math"
 	"math/rand"
 	"strings"
 
@@ -84,49 +85,42 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if y, err = c.center(y, c.data.StoreName, c.data.TitleSize, true, true); err != nil {
 		return 0, err
 	}
-	y += 36
-	y, _ = c.center(y, c.data.Branch, c.data.BodySize, true, false)
-	y += 20
+	y += 22
+	y, _ = c.center(y, c.data.Branch, c.data.BodySize-1, true, false)
+	y += 10
 	if c.data.Description != "" {
-		y, _ = c.centerWrapped(y, c.data.Description, c.data.BodySize, 12)
+		y, _ = c.centerWrapped(y, c.data.Description, c.data.BodySize-1, 8)
 	}
-	y = c.barcode(y+12, c.data.ReceiptNo) + 10
-	y, _ = c.center(y, "Invoice# "+c.data.ReceiptNo, c.data.BodySize, false, false)
+	y = c.barcode(y+6, c.data.ReceiptNo) + 6
+	y, _ = c.twoCol(y, "Inv# "+c.data.ReceiptNo, currentReceiptDate(), c.data.BodySize-1, true)
 	y += 8
-	y, _ = c.center(y, currentReceiptDate(), c.data.BodySize, false, false)
-	y += 18
 	phone := c.data.BranchPhone
 	if phone == "" {
 		phone = c.data.Phone
 	}
-	for _, value := range []string{phone, c.data.Website} {
-		if value != "" {
-			y, _ = c.center(y, value, c.data.BodySize, true, false)
-			y += 18
-		}
+	contact := strings.TrimSpace(strings.Join(filterEmpty(phone, c.data.Website), "  •  "))
+	if contact != "" {
+		y, _ = c.center(y, contact, c.data.BodySize-1, true, false)
+		y += 8
 	}
-	if c.data.CounterNumber != "" {
-		y, _ = c.center(y, "Counter: "+c.data.CounterNumber, c.data.BodySize, true, false)
-		y += 24
-	}
-	y = c.rule(y) + 18
+	y = c.rule(y) + 10
 
 	metadata := []string{
 		"Sold by: " + fallbackReceiptValue(c.data.Salesperson, "Not specified"),
 		"Customer: " + fallbackReceiptValue(c.data.Customer, "Walk-in"),
 	}
 	for _, line := range metadata {
-		y, _ = c.left(y, line, c.data.BodySize, false)
-		y += 12
+		y, _ = c.left(y, line, c.data.BodySize-1, false)
+		y += 8
 	}
 	if strings.TrimSpace(c.data.Notes) != "" {
-		y = c.rule(y) + 14
-		y, _ = c.left(y, "Note: "+strings.TrimSpace(c.data.Notes), c.data.BodySize, false)
-		y += 14
+		y += 6
+		y, _ = c.left(y, "Note: "+strings.TrimSpace(c.data.Notes), c.data.BodySize-1, false)
+		y += 8
 	}
-	y = c.rule(y) + 18
-	y, _ = c.twoCol(y, "ITEM", "TOTAL", 11, true)
-	y = c.rule(y+10) + 18
+	y = c.rule(y) + 10
+	y, _ = c.twoCol(y, "ITEM", "TOTAL", c.data.BodySize, true)
+	y = c.rule(y+6) + 10
 
 	var subtotal, discountTotal float64
 	for _, item := range c.data.Items {
@@ -135,37 +129,39 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		lineTotal := gross - discount
 		subtotal += gross
 		discountTotal += discount
-		y, _ = c.twoCol(y, item.Name, fmt.Sprintf("$%.2f", lineTotal), 11, true)
-		y += 10
+		y, _ = c.itemRow(y, item.Name, fmt.Sprintf("$%.2f", lineTotal), 11)
+		y += 5
 		if item.Code != "" {
 			y, _ = c.indented(y, "Code: "+item.Code, 10)
-			y += 6
+			y += 3
 		}
 		qty := fmt.Sprintf("%.0f x $%.2f", item.Qty, item.Price)
 		if item.Discount > 0 {
 			qty += fmt.Sprintf("  (-%.0f%% = -$%.2f)", item.Discount, discount)
 		}
 		y, _ = c.indented(y, qty, 10)
-		y += 18
+		y += 7
 	}
 
-	y = c.rule(y) + 18
+	y = c.rule(y) + 10
 	grandTotal := float64(c.data.GrandTotalCents) / 100
 	tax := grandTotal - (subtotal - discountTotal)
-	rows := [][2]string{
-		{"Subtotal", fmt.Sprintf("$%.2f", subtotal)},
-		{"Discount", fmt.Sprintf("-$%.2f", discountTotal)},
-		{"Tax", fmt.Sprintf("$%.2f", tax)},
+	rows := [][2]string{{"Subtotal", fmt.Sprintf("$%.2f", subtotal)}}
+	if discountTotal > 0 {
+		rows = append(rows, [2]string{"Discount", fmt.Sprintf("-$%.2f", discountTotal)})
+	}
+	if math.Abs(tax) > 0.005 {
+		rows = append(rows, [2]string{"Tax", fmt.Sprintf("$%.2f", tax)})
 	}
 	for _, row := range rows {
 		y, _ = c.twoCol(y, row[0], row[1], 11, true)
-		y += 12
+		y += 7
 	}
-	y = c.rule(y) + 20
-	y = c.dottedBox(y, 34)
-	y += 8
+	y = c.rule(y) + 12
+	y = c.dottedBox(y, 27)
+	y += 6
 	y, _ = c.twoCol(y, "TOTAL", fmt.Sprintf("$%.2f", grandTotal), 13, true)
-	y += 14
+	y += 8
 	rate := c.data.ExchangeRate
 	if rate <= 0 {
 		rate = 90000
@@ -175,12 +171,12 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		lbp = int64(grandTotal * float64(rate))
 	}
 	y, _ = c.twoCol(y, "LBP TOTAL", formatInt(lbp)+" L.L.", 11, true)
-	y += 24
+	y += 12
 
 	if len(c.data.Payments) > 0 {
-		y = c.rule(y) + 18
-		y, _ = c.center(y, "PAYMENT DETAILS", 11, true, false)
-		y += 16
+		y = c.rule(y) + 10
+		y, _ = c.center(y, "PAYMENT DETAILS", c.data.BodySize-1, true, false)
+		y += 8
 		for _, payment := range c.data.Payments {
 			label := payment.AccountName
 			if label == "" {
@@ -192,35 +188,34 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 				label = "Cash received - " + label
 			}
 			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, rate, c.data.RoundingMode), 10, true)
-			y += 12
+			y += 7
 		}
 	}
 
-	y = c.rule(y) + 18
-	y, _ = c.center(y, "RETURN & EXCHANGE POLICY", 10, true, false)
-	y += 18
+	y = c.rule(y) + 10
+	y, _ = c.center(y, "RETURN & EXCHANGE POLICY", c.data.BodySize-1.5, true, false)
+	y += 8
 	policy := c.data.ReturnPolicy
 	if policy == "" {
 		policy = "Exchanges accepted within 3 days."
 	}
-	y, _ = c.centerWrapped(y, policy, 8.5, 10)
-	y = c.rule(y+10) + 18
+	y, _ = c.centerWrapped(y, policy, c.data.BodySize-2.5, 8)
+	y = c.rule(y+6) + 10
 
 	socials := socialFooterItems(c.data.SocialPlatforms, c.data.SocialHandles)
 	if len(socials) > 0 {
-		y, _ = c.left(y, "Follow us", c.data.BodySize, true)
-		y += 24
+		y, _ = c.left(y, "Follow us on:", c.data.BodySize-1, true)
+		y += 10
 		for _, social := range socials {
 			if y, err = c.social(y, social); err != nil {
 				return 0, err
 			}
-			y += 12
+			y += 6
 		}
 	}
-	y += 22
-	y, _ = c.center(y, "Thank you for shopping with us!", c.data.BodySize, true, false)
-	y += 42
-	return y + 42, nil
+	y += 10
+	y, _ = c.center(y, "Thank you for shopping with us!", c.data.BodySize-1, true, false)
+	return y + 24, nil
 }
 
 func (c *receiptCanvas) face(size float64, bold, title bool) (font.Face, error) {
@@ -237,6 +232,11 @@ func (c *receiptCanvas) face(size float64, bold, title bool) (font.Face, error) 
 	}
 	if (title && c.data.Font == "Belleza") || (!title && c.data.BodyFont == "Belleza") {
 		fontData = bellezaFont
+	} else if !title && (c.data.BodyFont == "CascadiaMono" || c.data.BodyFont == "Helvetica" || c.data.BodyFont == "Courier" || c.data.BodyFont == "Printer Font A") {
+		fontData = cascadiaMonoRegular
+		if bold {
+			fontData = cascadiaMonoBold
+		}
 	}
 	parsed, err := opentype.Parse(fontData)
 	if err != nil {
@@ -298,6 +298,57 @@ func (c *receiptCanvas) twoCol(y int, left, right string, size float64, bold boo
 		return y, err
 	}
 	return c.text(c.margin+c.contentW-rightWidth, y, right, size, bold, false)
+}
+
+// itemRow keeps the amount in a protected right-hand column and wraps the
+// product name into the remaining space. This prevents long names from being
+// drawn underneath the amount on thermal printers.
+func (c *receiptCanvas) itemRow(y int, name, amount string, size float64) (int, error) {
+	rightWidth, err := c.measure(amount, size, true, false)
+	if err != nil {
+		return y, err
+	}
+	nameWidth := c.contentW - rightWidth - 16
+	face, err := c.face(size, true, false)
+	if err != nil {
+		return y, err
+	}
+	lines := make([]string, 0, 2)
+	for _, word := range strings.Fields(name) {
+		if len(lines) == 0 {
+			lines = append(lines, word)
+			continue
+		}
+		candidate := lines[len(lines)-1] + " " + word
+		limit := c.contentW
+		if len(lines) == 1 {
+			limit = nameWidth
+		}
+		if font.MeasureString(face, candidate).Ceil() > limit {
+			lines = append(lines, word)
+		} else {
+			lines[len(lines)-1] = candidate
+		}
+	}
+	if len(lines) == 0 {
+		lines = append(lines, "")
+	}
+	for index, line := range lines {
+		if index == 0 {
+			if _, err = c.text(c.margin, y, line, size, true, false); err != nil {
+				return y, err
+			}
+			if _, err = c.text(c.margin+c.contentW-rightWidth, y, amount, size, true, false); err != nil {
+				return y, err
+			}
+		} else if _, err = c.text(c.margin, y, line, size, true, false); err != nil {
+			return y, err
+		}
+		if index < len(lines)-1 {
+			y += 10
+		}
+	}
+	return y, nil
 }
 
 func (c *receiptCanvas) centerWrapped(y int, value string, size float64, spacing int) (int, error) {

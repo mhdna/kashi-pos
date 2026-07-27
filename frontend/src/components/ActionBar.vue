@@ -22,7 +22,7 @@
           width="100%"
           @click="openClientDialog"
         >
-          <InitialsAvatar :name="clientSelected ? client.name : '?'" color="primary" :size="48" />
+          <InitialsAvatar :name="clientSelected ? client.name : '?'" color="primary" />
           <div class="text-subtitle-1 font-weight-bold mt-2">
             {{ clientSelected ? client.name : "Choose a client" }}
           </div>

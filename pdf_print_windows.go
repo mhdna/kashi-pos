@@ -5,10 +5,22 @@ package main
 import (
 	"fmt"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
 func printReceiptToPrinter(data printReceiptData) error {
+	result := make(chan error, 1)
+	go func() { result <- printReceiptToPrinterBlocking(data) }()
+	select {
+	case err := <-result:
+		return err
+	case <-time.After(15 * time.Second):
+		return fmt.Errorf("print receipt to %q timed out after 15 seconds", data.PrinterName)
+	}
+}
+
+func printReceiptToPrinterBlocking(data printReceiptData) error {
 	payload, err := buildESCPOSRasterReceipt(data)
 	if err != nil {
 		return err

@@ -88,6 +88,7 @@
         :readonly="Boolean(exchangeState)"
         style="flex: 1 1 0; min-height: 0"
       />
+      <QuickAccessPanel v-if="!exchangeState" @add="(item) => invoiceItems?.addItem(item)" />
       <InvoiceSummary
         :subtotal="invoiceItems?.subtotal ?? 0"
         :total-discount="invoiceItems?.totalDiscount ?? 0"
@@ -172,6 +173,7 @@ import InvoiceItems from "@/components/InvoiceItems.vue";
 import InvoiceSummary from "@/components/InvoiceSummary.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
+import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { roundCents } from "@/lib/money";

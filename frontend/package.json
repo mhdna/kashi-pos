@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",
+    "libphonenumber-js": "^1.13.9",
     "pinia": "^3.0.4",
     "vue": "^3.5.26",
     "vue-router": "^4.6.4",

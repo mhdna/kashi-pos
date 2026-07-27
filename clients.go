@@ -2,13 +2,19 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/nyaruka/phonenumbers"
 	db "kashi-pos/db/sqlc"
 )
 
 func (a *App) GetClientByPhone(phone string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
+	}
+	phone, err := normalizeClientPhone(phone)
+	if err != nil {
+		return nil, err
 	}
 	client, err := a.store.GetClientByPhone(a.ctx, phone)
 	if err != nil {
@@ -21,6 +27,10 @@ func (a *App) CreateClient(name, phone string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
+	phone, err := normalizeClientPhone(phone)
+	if err != nil {
+		return nil, err
+	}
 	client, err := a.store.CreateClient(a.ctx, db.CreateClientParams{
 		Name:               name,
 		Phone:              phone,
@@ -31,6 +41,18 @@ func (a *App) CreateClient(name, phone string) (map[string]any, error) {
 		return nil, err
 	}
 	return clientResponse(client), nil
+}
+
+func normalizeClientPhone(phone string) (string, error) {
+	phone = strings.TrimSpace(phone)
+	if phone == "00000000" {
+		return phone, nil
+	}
+	parsed, err := phonenumbers.Parse(phone, "LB")
+	if err != nil || !phonenumbers.IsValidNumber(parsed) {
+		return "", fmt.Errorf("invalid phone number")
+	}
+	return phonenumbers.Format(parsed, phonenumbers.E164), nil
 }
 
 func (a *App) AddClientLoyaltyPoints(clientID int64, points int64) (map[string]any, error) {

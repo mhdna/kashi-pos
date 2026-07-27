@@ -1,5 +1,5 @@
 <template>
-  <v-app-bar color="#4a352f">
+  <v-app-bar color="#4a352f" density="compact" elevation="4">
     <template #prepend>
       <div class="d-flex flex-column align-last justify-center mx-2">
         <v-app-bar-title class="text-title-medium">EV POS TERMINAL</v-app-bar-title>

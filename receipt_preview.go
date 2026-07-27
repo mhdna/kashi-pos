@@ -41,7 +41,7 @@ func runReceiptPreview(args []string) error {
 			"youtube":   "Kashi Market",
 		},
 		Font:            "Belleza",
-		BodyFont:        "Helvetica",
+		BodyFont:        "CascadiaMono",
 		TitleSize:       21,
 		BodySize:        11,
 		ReceiptNo:       "INV-PREVIEW-0001",
