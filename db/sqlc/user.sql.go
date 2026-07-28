@@ -17,7 +17,7 @@ INSERT INTO users (
     active
 )
 VALUES (?, ?, ?, ?)
-RETURNING id, username, password_hash, role_id, active
+RETURNING id, username, password_hash, role_id, active, attendance_user_id
 `
 
 type CreateUserParams struct {
@@ -41,6 +41,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PasswordHash,
 		&i.RoleID,
 		&i.Active,
+		&i.AttendanceUserID,
 	)
 	return i, err
 }
@@ -56,7 +57,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password_hash, role_id, active
+SELECT id, username, password_hash, role_id, active, attendance_user_id
 FROM users
 WHERE id = ?
 `
@@ -70,12 +71,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.PasswordHash,
 		&i.RoleID,
 		&i.Active,
+		&i.AttendanceUserID,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash, role_id, active
+SELECT id, username, password_hash, role_id, active, attendance_user_id
 FROM users
 WHERE username = ?
 `
@@ -89,12 +91,13 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.PasswordHash,
 		&i.RoleID,
 		&i.Active,
+		&i.AttendanceUserID,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, password_hash, role_id, active
+SELECT id, username, password_hash, role_id, active, attendance_user_id
 FROM users
 ORDER BY id
 `
@@ -114,6 +117,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.PasswordHash,
 			&i.RoleID,
 			&i.Active,
+			&i.AttendanceUserID,
 		); err != nil {
 			return nil, err
 		}
@@ -135,7 +139,7 @@ SET username = ?,
     role_id = ?,
     active = ?
 WHERE id = ?
-RETURNING id, username, password_hash, role_id, active
+RETURNING id, username, password_hash, role_id, active, attendance_user_id
 `
 
 type UpdateUserParams struct {
@@ -161,6 +165,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.PasswordHash,
 		&i.RoleID,
 		&i.Active,
+		&i.AttendanceUserID,
 	)
 	return i, err
 }

@@ -19,6 +19,38 @@ type Asset struct {
 	Description string `json:"description"`
 }
 
+type AttendanceComplaint struct {
+	ID             int64  `json:"id"`
+	EmployeeID     int64  `json:"employeeId"`
+	AttendanceDate string `json:"attendanceDate"`
+	RequestedTime  string `json:"requestedTime"`
+	Note           string `json:"note"`
+	Approved       int64  `json:"approved"`
+	CreatedAt      string `json:"createdAt"`
+}
+
+type AttendanceConfig struct {
+	ID                int64  `json:"id"`
+	AkuvoxIp          string `json:"akuvoxIp"`
+	AkuvoxUsername    string `json:"akuvoxUsername"`
+	AkuvoxPassword    string `json:"akuvoxPassword"`
+	AttendanceEnabled int64  `json:"attendanceEnabled"`
+}
+
+type AttendanceEvent struct {
+	ID           int64  `json:"id"`
+	DeviceID     string `json:"deviceId"`
+	EventID      string `json:"eventId"`
+	EmployeeID   int64  `json:"employeeId"`
+	AkuvoxUserID string `json:"akuvoxUserId"`
+	EmployeeName string `json:"employeeName"`
+	EventDate    string `json:"eventDate"`
+	EventTime    string `json:"eventTime"`
+	EventAt      string `json:"eventAt"`
+	Type         string `json:"type"`
+	Status       string `json:"status"`
+}
+
 type CashboxAccount struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
@@ -262,11 +294,12 @@ type TransferItem struct {
 }
 
 type User struct {
-	ID           int64  `json:"id"`
-	Username     string `json:"username"`
-	PasswordHash string `json:"passwordHash"`
-	RoleID       int64  `json:"roleId"`
-	Active       int64  `json:"active"`
+	ID               int64  `json:"id"`
+	Username         string `json:"username"`
+	PasswordHash     string `json:"passwordHash"`
+	RoleID           int64  `json:"roleId"`
+	Active           int64  `json:"active"`
+	AttendanceUserID string `json:"attendanceUserId"`
 }
 
 type VoidInvoice struct {

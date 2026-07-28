@@ -14,6 +14,7 @@ type Querier interface {
 	AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyaltyPointsParams) error
 	AddHoldInvoiceItem(ctx context.Context, arg AddHoldInvoiceItemParams) error
 	AddInventoryProductQuantity(ctx context.Context, arg AddInventoryProductQuantityParams) error
+	ApproveAttendanceComplaint(ctx context.Context, arg ApproveAttendanceComplaintParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
 	CloseOpenShifts(ctx context.Context, closedAt string) error
 	CloseShift(ctx context.Context, arg CloseShiftParams) error
@@ -21,6 +22,7 @@ type Querier interface {
 	CountProducts(ctx context.Context, search sql.NullString) (int64, error)
 	CreateAccount(ctx context.Context, name string) (Account, error)
 	CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error)
+	CreateAttendanceComplaint(ctx context.Context, arg CreateAttendanceComplaintParams) (AttendanceComplaint, error)
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
@@ -104,8 +106,14 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error)
+	InsertAttendanceEvent(ctx context.Context, arg InsertAttendanceEventParams) error
 	ListAccounts(ctx context.Context) ([]Account, error)
 	ListAssets(ctx context.Context) ([]Asset, error)
+	ListAttendanceComplaints(ctx context.Context, attendanceDate string) ([]AttendanceComplaint, error)
+	ListAttendanceComplaintsByDate(ctx context.Context, attendanceDate string) ([]AttendanceComplaint, error)
+	ListAttendanceEvents(ctx context.Context, eventDate string) ([]AttendanceEvent, error)
+	ListAttendanceEventsByEmployeeDate(ctx context.Context, arg ListAttendanceEventsByEmployeeDateParams) ([]AttendanceEvent, error)
+	ListAttendanceEventsByMonth(ctx context.Context, eventDate string) ([]AttendanceEvent, error)
 	ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
 	ListCategoryIcons(ctx context.Context) ([]CategoryIcon, error)
 	ListClients(ctx context.Context) ([]Client, error)
@@ -148,6 +156,7 @@ type Querier interface {
 	UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error
 	UpdateTheme(ctx context.Context, theme string) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
+	UpdateUserAttendanceID(ctx context.Context, arg UpdateUserAttendanceIDParams) error
 	UpsertInventoryItem(ctx context.Context, arg UpsertInventoryItemParams) error
 	UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error
 	UpsertSettings(ctx context.Context, arg UpsertSettingsParams) error

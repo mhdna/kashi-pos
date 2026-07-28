@@ -158,6 +158,12 @@
                 hide-details
                 @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
               />
+              <v-divider class="my-4" />
+              <div class="text-subtitle-2 font-weight-bold mb-2">Attendance machine</div>
+              <v-text-field v-model="form.akuvoxIP" label="Akuvox IP address" placeholder="192.168.1.100" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.akuvoxUsername" label="Device username (optional)" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.akuvoxPassword" label="Device password (optional)" type="password" variant="outlined" density="compact" class="mb-2" />
+              <v-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details />
             </v-card-text>
             <v-card-actions class="px-4 pb-4">
               <v-spacer />
@@ -414,6 +420,7 @@
             density="compact"
             class="mb-2"
           />
+          <v-text-field v-model="userForm.attendanceUserId" label="Akuvox UserID (leave blank for visitors)" variant="outlined" density="compact" />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="userDialog = false">Cancel</v-btn>
@@ -479,6 +486,8 @@ import { ref, reactive, onMounted } from "vue";
 import {
   GetAppSettings,
   UpdateSettings,
+  UpdateAttendanceConfig,
+  UpdateUserAttendanceID,
   UpdateReceiptSettings,
   ChangePassword,
   ListUsers,
@@ -530,6 +539,10 @@ const form = reactive({
   receiptBodySize: 11,
   receiptBodyFont: "Printer Font A",
   receiptCutoff: true,
+  akuvoxIP: "",
+  akuvoxUsername: "",
+  akuvoxPassword: "",
+  attendanceEnabled: false,
 });
 const roundingModes = [
   { title: "Half up (standard)", value: "half_up" },
@@ -573,7 +586,7 @@ const userHeaders = [
 
 const userDialog = ref(false);
 const editingUser = ref<any>(null);
-const userForm = reactive({ username: "", password: "", roleId: 1 });
+const userForm = reactive({ username: "", password: "", roleId: 1, attendanceUserId: "" });
 const showUpw = ref(false);
 const savingUser = ref(false);
 
@@ -636,6 +649,9 @@ async function loadSettings() {
         receiptBodySize: Number(s.receiptBodySize ?? 11),
         receiptBodyFont: s.receiptBodyFont ?? "Printer Font A",
         receiptCutoff: s.receiptCutoff !== false,
+        akuvoxIP: s.attendance?.ip ?? "",
+        akuvoxUsername: s.attendance?.username ?? "",
+        attendanceEnabled: Boolean(s.attendance?.enabled),
       });
   } catch {
     settingsLoadError.value = true;
@@ -692,6 +708,7 @@ async function saveSettings() {
       Number(form.receiptTitleSize), Number(form.receiptBodySize),
       Boolean(form.receiptCutoff),
     );
+    await UpdateAttendanceConfig(form.akuvoxIP, form.akuvoxUsername, form.akuvoxPassword, Boolean(form.attendanceEnabled));
     notify("Settings saved");
   } catch {
     notify("Failed to save", "red");
@@ -776,10 +793,12 @@ function openUserDialog(user?: any) {
     userForm.username = user.username;
     userForm.password = "";
     userForm.roleId = user.roleId;
+    userForm.attendanceUserId = user.attendanceUserId ?? "";
   } else {
     userForm.username = "";
     userForm.password = "";
     userForm.roleId = roles.value[0]?.id ?? 1;
+    userForm.attendanceUserId = "";
   }
   userDialog.value = true;
 }
@@ -795,8 +814,10 @@ async function saveUser() {
         userForm.roleId,
         1,
       );
+      await UpdateUserAttendanceID(editingUser.value.id, userForm.attendanceUserId.trim());
     } else {
-      await CreateUser(userForm.username, userForm.password, userForm.roleId);
+      const created = await CreateUser(userForm.username, userForm.password, userForm.roleId);
+      await UpdateUserAttendanceID(Number(created.id), userForm.attendanceUserId.trim());
     }
     notify(editingUser.value ? "User updated" : "User created");
     userDialog.value = false;

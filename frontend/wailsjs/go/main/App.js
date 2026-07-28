@@ -6,6 +6,10 @@ export function AddClientLoyaltyPoints(arg1, arg2) {
   return window['go']['main']['App']['AddClientLoyaltyPoints'](arg1, arg2);
 }
 
+export function ApproveAttendanceComplaint(arg1, arg2) {
+  return window['go']['main']['App']['ApproveAttendanceComplaint'](arg1, arg2);
+}
+
 export function ChangeInvoiceClient(arg1, arg2) {
   return window['go']['main']['App']['ChangeInvoiceClient'](arg1, arg2);
 }
@@ -66,8 +70,16 @@ export function DeleteUser(arg1) {
   return window['go']['main']['App']['DeleteUser'](arg1);
 }
 
+export function ExportAttendanceMonth(arg1) {
+  return window['go']['main']['App']['ExportAttendanceMonth'](arg1);
+}
+
 export function GetAppSettings() {
   return window['go']['main']['App']['GetAppSettings']();
+}
+
+export function GetAttendanceConfig() {
+  return window['go']['main']['App']['GetAttendanceConfig']();
 }
 
 export function GetClientByPhone(arg1) {
@@ -132,6 +144,14 @@ export function GetTodayIncomeByAccount() {
 
 export function HoldInvoice(arg1) {
   return window['go']['main']['App']['HoldInvoice'](arg1);
+}
+
+export function ListAttendance(arg1) {
+  return window['go']['main']['App']['ListAttendance'](arg1);
+}
+
+export function ListAttendanceComplaints(arg1) {
+  return window['go']['main']['App']['ListAttendanceComplaints'](arg1);
 }
 
 export function ListCategoryIcons() {
@@ -226,6 +246,18 @@ export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
+export function SubmitAttendanceComplaint(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SubmitAttendanceComplaint'](arg1, arg2, arg3, arg4);
+}
+
+export function SyncAttendance(arg1) {
+  return window['go']['main']['App']['SyncAttendance'](arg1);
+}
+
+export function UpdateAttendanceConfig(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UpdateAttendanceConfig'](arg1, arg2, arg3, arg4);
+}
+
 export function UpdateReceiptSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15) {
   return window['go']['main']['App']['UpdateReceiptSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
 }
@@ -240,6 +272,10 @@ export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, a
 
 export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['UpdateUser'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function UpdateUserAttendanceID(arg1, arg2) {
+  return window['go']['main']['App']['UpdateUserAttendanceID'](arg1, arg2);
 }
 
 export function VerifyLogin(arg1, arg2) {

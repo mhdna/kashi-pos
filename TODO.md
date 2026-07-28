@@ -1,4 +1,5 @@
 - [ ] ps-2Printing exchange fails and hangs the app
+- [I] Not cutting
 - [ ] title too long overflows price
 - [ ] make receipt stuff monospace
 - [X] loading invoices was slow

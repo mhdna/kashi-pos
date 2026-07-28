@@ -22,14 +22,22 @@ func (a *App) ListUsers() ([]map[string]any, error) {
 			roleName = role.Name
 		}
 		result[i] = map[string]any{
-			"id":       u.ID,
-			"username": u.Username,
-			"roleId":   u.RoleID,
-			"role":     roleName,
-			"active":   u.Active,
+			"id":               u.ID,
+			"username":         u.Username,
+			"roleId":           u.RoleID,
+			"role":             roleName,
+			"active":           u.Active,
+			"attendanceUserId": u.AttendanceUserID,
 		}
 	}
 	return result, nil
+}
+
+func (a *App) UpdateUserAttendanceID(id int64, attendanceUserID string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.UpdateUserAttendanceID(a.ctx, db.UpdateUserAttendanceIDParams{ID: id, AttendanceUserID: attendanceUserID})
 }
 
 func (a *App) CreateUser(username, password string, roleID int64) (map[string]any, error) {

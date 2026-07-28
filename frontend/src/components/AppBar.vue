@@ -6,6 +6,9 @@
         <div class="text-title-small">{{ branchName || "Branch" }}</div>
       </div>
       <div class="mx-8 me-0 text-title-small">{{ time }}</div>
+      <v-tooltip v-if="attendanceUnreachable" text="Attendance machine is unreachable">
+        <template #activator="{ props }"><v-badge v-bind="props" color="error" dot inline class="ms-3"><v-icon icon="mdi-lan-disconnect" color="error" size="20" /></v-badge></template>
+      </v-tooltip>
       <!-- <div class="mx-8 text-title-small text-green pa-1 px-3"> -->
       <!--   <v-icon icon="mdi-cloud-check-variant" size="18" class="me-1" /> -->
       <!--   Synced -->
@@ -22,12 +25,14 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
 import { GetAppSettings } from "../../wailsjs/go/main/App";
+import { SyncAttendance } from "../../wailsjs/go/main/App";
 import ToggleTheme from "./ToggleTheme.vue";
 import NewTransferAlert from "./NewTransferAlert.vue";
 import SalespersonsDialog from "./SalespersonsDialog.vue";
 
 const time = ref("");
 const branchName = ref("");
+const attendanceUnreachable = ref(false);
 
 function updateTime() {
   const now = new Date();
@@ -43,6 +48,17 @@ onMounted(async () => {
     const settings = await GetAppSettings();
     branchName.value = settings?.branchName ?? "";
   } catch {}
+  const checkAttendance = async () => {
+    try {
+      const config = await GetAppSettings();
+      if (!config?.attendance?.enabled) { attendanceUnreachable.value = false; return; }
+      const result = await SyncAttendance(new Date().toISOString().slice(0, 10));
+      attendanceUnreachable.value = result?.configured === true && result?.reachable !== true;
+    } catch { attendanceUnreachable.value = true; }
+  };
+  await checkAttendance();
+  clearInterval(interval);
+  interval = setInterval(async () => { updateTime(); await checkAttendance(); }, 3000);
 });
 onUnmounted(() => clearInterval(interval));
 </script>

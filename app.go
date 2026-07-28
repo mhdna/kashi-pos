@@ -300,7 +300,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{
+	result := map[string]interface{}{
 		"branchName":        settings.BranchName,
 		"branchCode":        settings.BranchCode,
 		"apiKey":            settings.ApiKey,
@@ -330,7 +330,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"receiptBodySize":   settings.ReceiptBodySize,
 		"receiptBodyFont":   settings.ReceiptBodyFont,
 		"receiptCutoff":     settings.ReceiptCutoff != 0,
-	}, nil
+	}
+	if config, configErr := a.GetAttendanceConfig(); configErr == nil {
+		result["attendance"] = config
+	}
+	return result, nil
 }
 
 func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, marketDescription, returnPolicy, website, instagram, socialPlatformsJSON, socialHandlesJSON, counterNumber, receiptFont, bodyFont string, titleSize, bodySize float64, cutoff bool) error {

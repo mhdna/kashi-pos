@@ -89,7 +89,10 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 		return err
 	}
 	if current >= latestMigrationVersion(migrations) {
-		return ensureReceiptBrandingColumns(ctx, conn)
+		if err := ensureReceiptBrandingColumns(ctx, conn); err != nil {
+			return err
+		}
+		return ensureAttendanceColumns(ctx, conn)
 	}
 	for _, m := range migrations {
 		if m.version <= current {
@@ -116,7 +119,35 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 	if err := ensureReceiptBrandingColumns(ctx, conn); err != nil {
 		return err
 	}
-	return nil
+	return ensureAttendanceColumns(ctx, conn)
+}
+
+func ensureAttendanceColumns(ctx context.Context, conn *sql.DB) error {
+	rows, err := conn.QueryContext(ctx, "PRAGMA table_info(users)")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	found := false
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull, pk int
+		var defaultValue interface{}
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); err != nil {
+			return err
+		}
+		if name == "attendance_user_id" {
+			found = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if !found {
+		_, err = conn.ExecContext(ctx, `ALTER TABLE users ADD COLUMN attendance_user_id TEXT NOT NULL DEFAULT ''`)
+	}
+	return err
 }
 
 func ensureReceiptBrandingColumns(ctx context.Context, conn *sql.DB) error {

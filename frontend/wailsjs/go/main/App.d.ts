@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<string, any>>;
 
+export function ApproveAttendanceComplaint(arg1:number,arg2:boolean):Promise<void>;
+
 export function ChangeInvoiceClient(arg1:number,arg2:number):Promise<void>;
 
 export function ChangeInvoiceSalesperson(arg1:number,arg2:number):Promise<void>;
@@ -34,7 +36,11 @@ export function DeleteSalesperson(arg1:number):Promise<void>;
 
 export function DeleteUser(arg1:number):Promise<void>;
 
+export function ExportAttendanceMonth(arg1:string):Promise<string>;
+
 export function GetAppSettings():Promise<Record<string, any>>;
+
+export function GetAttendanceConfig():Promise<Record<string, any>>;
 
 export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
 
@@ -67,6 +73,10 @@ export function GetTheme():Promise<string>;
 export function GetTodayIncomeByAccount():Promise<Array<Record<string, any>>>;
 
 export function HoldInvoice(arg1:string):Promise<number>;
+
+export function ListAttendance(arg1:string):Promise<Array<Record<string, any>>>;
+
+export function ListAttendanceComplaints(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
 
@@ -114,6 +124,12 @@ export function SetTaxRate(arg1:number):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
 
+export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:string,arg4:string):Promise<void>;
+
+export function SyncAttendance(arg1:string):Promise<Record<string, any>>;
+
+export function UpdateAttendanceConfig(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<void>;
+
 export function UpdateReceiptSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string,arg10:string,arg11:string,arg12:string,arg13:number,arg14:number,arg15:boolean):Promise<void>;
 
 export function UpdateSalesperson(arg1:number,arg2:string):Promise<Record<string, any>>;
@@ -121,6 +137,8 @@ export function UpdateSalesperson(arg1:number,arg2:string):Promise<Record<string
 export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:number,arg9:number,arg10:number,arg11:string,arg12:boolean,arg13:number,arg14:number):Promise<void>;
 
 export function UpdateUser(arg1:number,arg2:string,arg3:string,arg4:number,arg5:number):Promise<void>;
+
+export function UpdateUserAttendanceID(arg1:number,arg2:string):Promise<void>;
 
 export function VerifyLogin(arg1:string,arg2:string):Promise<Record<string, any>>;
 
