@@ -484,7 +484,9 @@ func encodeRasterBands(img *image.RGBA, cutoff bool) []byte {
 	}
 	out.Write([]byte{esc, '2', '\n', '\n', '\n'})
 	if cutoff {
-		out.Write([]byte{gs, cutMode, 3})
+		// GS V 0 selects a full cut. The previous parameter (3) is not a
+		// standard ESC/POS cut mode and is ignored by many printers.
+		out.Write([]byte{gs, cutMode, 0})
 	}
 	return out.Bytes()
 }

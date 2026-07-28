@@ -24,7 +24,7 @@ func TestBuildESCPOSRasterReceiptUsesSafeBands(t *testing.T) {
 	if img.Bounds().Dy() < 500 {
 		t.Fatalf("receipt raster is unexpectedly short: %d", img.Bounds().Dy())
 	}
-	if !bytes.HasSuffix(payload, []byte{gs, cutMode, 3}) {
+	if !bytes.HasSuffix(payload, []byte{gs, cutMode, 0}) {
 		t.Fatal("cutoff-enabled receipt does not end with the full-cut command")
 	}
 	blackPixels := 0
@@ -54,6 +54,18 @@ func TestBuildESCPOSRasterReceiptUsesSafeBands(t *testing.T) {
 		if err := png.Encode(file, img); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestBuildESCPOSRasterReceiptOmitsCutoffWhenDisabled(t *testing.T) {
+	data := rasterTestReceipt(80)
+	data.Cutoff = false
+	payload, err := buildESCPOSRasterReceipt(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(payload, []byte{gs, cutMode}) {
+		t.Fatal("cutoff-disabled receipt contains a cut command")
 	}
 }
 

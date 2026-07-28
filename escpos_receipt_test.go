@@ -24,7 +24,7 @@ func TestBuildESCPosReceiptContainsInvoiceAndAuthoritativeTotals(t *testing.T) {
 	if !bytes.HasPrefix(payload, []byte{esc, '@'}) {
 		t.Fatalf("payload does not begin with ESC/POS initialize command")
 	}
-	if !bytes.HasSuffix(payload, []byte{gs, cutMode, 3}) {
+	if !bytes.HasSuffix(payload, []byte{gs, cutMode, 0}) {
 		t.Fatalf("payload does not end with ESC/POS cut command")
 	}
 }
