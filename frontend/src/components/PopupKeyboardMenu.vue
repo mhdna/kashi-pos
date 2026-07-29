@@ -13,12 +13,16 @@
           class="popup-keyboard-activator"
           type="button"
         >
-          {{ modelValue || "ABC" }}
+          <v-icon icon="mdi-keyboard" size="22" />
         </button>
       </slot>
     </template>
 
-    <v-card class="popup-keyboard pa-2" rounded="lg">
+    <v-card
+      class="popup-keyboard pa-2"
+      rounded="lg"
+      :style="{ width: `${keyboardWidth}px` }"
+    >
       <div class="popup-keyboard-display">{{ draft || placeholder }}</div>
       <div
         v-for="(row, rowIndex) in visibleRows"
@@ -67,12 +71,14 @@ const props = withDefaults(
     ariaLabel?: string;
     layout?: "text" | "code";
     placeholder?: string;
+    keyboardWidth?: number;
   }>(),
   {
     maxLength: 80,
     ariaLabel: "Open keyboard",
     layout: "text",
     placeholder: "Enter text",
+    keyboardWidth: 390,
   },
 );
 
@@ -155,10 +161,6 @@ onBeforeUnmount(() => {
 .popup-keyboard-activator:focus-visible {
   background: rgba(var(--v-theme-primary), 0.09);
   outline: none;
-}
-
-.popup-keyboard {
-  width: 390px;
 }
 
 .popup-keyboard-display {

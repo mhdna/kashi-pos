@@ -120,6 +120,8 @@ export function OpenShift():Promise<Record<string, any>>;
 
 export function ReprintInvoice(arg1:number):Promise<void>;
 
+export function SearchClients(arg1:string,arg2:number):Promise<Array<Record<string, any>>>;
+
 export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
 
 export function SetTaxRate(arg1:number):Promise<void>;

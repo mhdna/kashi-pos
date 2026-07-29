@@ -71,13 +71,13 @@
     </v-btn>
     <v-btn
       class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
-      color="primary"
+      color="green-darken-2"
       rounded="lg"
       text="Check Out"
       variant="tonal"
       width="100%"
       @click="$emit('checkout')"
-      :disabled="!hasItems || (!canCheckout && clientSelected && Boolean(selectedSalesperson))"
+      :disabled="!hasItems || !canCheckout"
     >
       <template #prepend>
         <v-icon icon="mdi-cash" size="25" class="me-2" />

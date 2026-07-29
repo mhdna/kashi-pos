@@ -20,7 +20,11 @@ const router = createRouter({
       component: () => import("@/layouts/DefaultLayout.vue"),
       children: [
         { path: "home", component: () => import("@/pages/home.vue") },
-        { path: "settings", component: () => import("@/pages/settings.vue") },
+        {
+          path: "settings",
+          component: () => import("@/pages/settings.vue"),
+          meta: { requiresAdmin: true },
+        },
         {
           path: "attendance",
           component: () => import("@/pages/attendance.vue"),
@@ -31,7 +35,11 @@ const router = createRouter({
         },
         { path: "inventory", component: () => import("@/pages/inventory.vue") },
         { path: "transfers", component: () => import("@/pages/transfers.vue") },
-        { path: "clients", component: () => import("@/pages/clients.vue") },
+        {
+          path: "clients",
+          component: () => import("@/pages/clients.vue"),
+          meta: { requiresAdmin: true },
+        },
         // { path: 'attendance', component: () => import('@/pages/attendance.vue') },
         { path: "shifts", component: () => import("@/pages/shifts.vue") },
       ],
@@ -46,7 +54,7 @@ router.beforeEach(async (to) => {
     const { useAuthStore } = await import("@/stores/auth");
     const auth = useAuthStore();
     const isLoginPage = to.path === "/login";
-    const isSettings = to.path === "/settings";
+    const requiresAdmin = to.matched.some((route) => route.meta.requiresAdmin);
 
     if (!auth.isLoggedIn && !isLoginPage) {
       return "/login";
@@ -54,7 +62,7 @@ router.beforeEach(async (to) => {
     if (auth.isLoggedIn && isLoginPage) {
       return "/home";
     }
-    if (isSettings && !auth.isAdmin) {
+    if (requiresAdmin && !auth.isAdmin) {
       return "/home";
     }
   } catch {

@@ -238,6 +238,10 @@ export function ReprintInvoice(arg1) {
   return window['go']['main']['App']['ReprintInvoice'](arg1);
 }
 
+export function SearchClients(arg1, arg2) {
+  return window['go']['main']['App']['SearchClients'](arg1, arg2);
+}
+
 export function SetCustomItemDiscountsEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemDiscountsEnabled'](arg1);
 }

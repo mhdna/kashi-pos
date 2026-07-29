@@ -91,11 +91,11 @@
         @discount-error="showDiscountError"
       />
       <QuickAccessPanel v-if="!exchangeState" @add="(item) => invoiceItems?.addItem(item)" />
-      <InvoiceSummary
+      <!-- <InvoiceSummary
         :subtotal="invoiceItems?.subtotal ?? 0"
         :total-discount="invoiceItems?.totalDiscount ?? 0"
         :tax-rate="taxRate"
-      />
+      /> -->
     </div>
     <div class="d-flex position-relative" style="flex: 5 5 0; min-width: 0">
       <div
@@ -181,7 +181,7 @@ import {
 import ActionBar from "@/components/ActionBar.vue";
 import Calculator from "@/components/Calculator.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
-import InvoiceSummary from "@/components/InvoiceSummary.vue";
+// import InvoiceSummary from "@/components/InvoiceSummary.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
@@ -382,6 +382,9 @@ async function getFullItemsJSON(): Promise<string> {
       code: i.code,
       category: i.category,
       price: i.price,
+      customPriceCents: customItemDiscountsEnabled.value
+        ? Math.round(Number(i.price) * 100)
+        : undefined,
       discount: i.discount,
       qty: i.qty,
     })),
@@ -403,7 +406,7 @@ async function onVoid() {
 }
 
 async function onCheckout() {
-  if (invoiceItems.value && !(await invoiceItems.value.flushDiscounts())) return;
+  if (invoiceItems.value && !(await invoiceItems.value.flushChanges())) return;
   const json = await getFullItemsJSON();
   if (json === "[]") return;
   const isExchange = Boolean(exchangeState.value);

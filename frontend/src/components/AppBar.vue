@@ -1,5 +1,5 @@
 <template>
-  <v-app-bar density="compact" elevation="4">
+  <v-app-bar color="blue-darken-3" density="compact" elevation="4">
     <template #prepend>
       <div class="d-flex flex-column align-last justify-center mx-2">
         <v-app-bar-title class="text-title-medium">Kashi Cloud</v-app-bar-title>

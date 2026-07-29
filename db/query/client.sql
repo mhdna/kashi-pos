@@ -7,6 +7,15 @@ SELECT * FROM clients WHERE phone = ?;
 -- name: ListClients :many
 SELECT * FROM clients ORDER BY id;
 
+-- name: SearchClients :many
+SELECT *
+FROM clients
+WHERE trim(sqlc.arg(search)) = ''
+   OR name LIKE '%' || sqlc.arg(search) || '%' COLLATE NOCASE
+   OR phone LIKE '%' || sqlc.arg(search) || '%'
+ORDER BY id
+LIMIT sqlc.arg(result_limit);
+
 -- name: CreateClient :one
 INSERT INTO clients (name, phone, total_loyalty_points, valid_loyalty_points)
 VALUES (?, ?, ?, ?) RETURNING *;

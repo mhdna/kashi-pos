@@ -12,9 +12,10 @@ import (
 )
 
 type salesInvoiceItem struct {
-	Code    string  `json:"code"`
-	Barcode string  `json:"barcode"`
-	Qty     float64 `json:"qty"`
+	Code             string  `json:"code"`
+	Barcode          string  `json:"barcode"`
+	Qty              float64 `json:"qty"`
+	CustomPriceCents *int64  `json:"customPriceCents,omitempty"`
 }
 
 type checkoutPayment struct {
@@ -76,6 +77,10 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 	if err != nil {
 		return result, err
 	}
+	customPricingEnabled := false
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
+		customPricingEnabled = enabled != 0
+	}
 
 	year := int64(time.Now().Year())
 	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
@@ -83,7 +88,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		if err != nil {
 			return fmt.Errorf("payment account: %w", err)
 		}
-		products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode)
+		products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled)
 		if err != nil {
 			return err
 		}
@@ -189,6 +194,9 @@ func parseSalesItems(raw string) ([]salesInvoiceItem, error) {
 		if (item.Code == "" && item.Barcode == "") || item.Qty <= 0 || math.Trunc(item.Qty) != item.Qty || item.Qty > math.MaxInt64 || seen[key] {
 			return nil, fmt.Errorf("invalid or duplicate item %q", item.Code)
 		}
+		if item.CustomPriceCents != nil && (*item.CustomPriceCents <= 0 || *item.CustomPriceCents > 99999999) {
+			return nil, fmt.Errorf("invalid custom price for item %q", item.Code)
+		}
 		seen[key] = true
 	}
 	return items, nil
@@ -225,8 +233,8 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 		}
 		paid += payment.AmountCents
 	}
-	if paid != total {
-		return fmt.Errorf("payments total %d does not equal invoice total %d", paid, total)
+	if paid < total {
+		return fmt.Errorf("payments total %d is less than invoice total %d", paid, total)
 	}
 	return nil
 }

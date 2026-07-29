@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="700" min-height="440">
+  <v-dialog v-model="dialog" max-width="760" min-height="440">
     <template #activator="{ props: activatorProps }">
       <v-btn v-bind="activatorProps" variant="text" class="ms-1">
         <v-icon icon="mdi-format-list-bulleted-square" size="20" class="me-1" />
@@ -10,27 +10,15 @@
       <v-card-title class="d-flex align-center">
         Products
         <v-spacer />
-        <div class="product-search-control ms-4">
-          <v-text-field
-            v-model="search"
-            density="compact"
-            hide-details
-            placeholder="Search products..."
-            variant="outlined"
-            autofocus
-          />
-          <PopupKeyboardMenu
-            v-model="search"
-            :max-length="80"
-            aria-label="Open product search keyboard"
-            layout="code"
-            placeholder="Search by name, code, or barcode"
-          >
-            <template #activator="{ props }">
-              <v-btn v-bind="props" class="product-search-keyboard" variant="tonal">ABC</v-btn>
-            </template>
-          </PopupKeyboardMenu>
-        </div>
+        <v-text-field
+          v-model="search"
+          class="product-search-control ms-4"
+          density="compact"
+          hide-details
+          placeholder="Search products..."
+          variant="outlined"
+          autofocus
+        />
       </v-card-title>
       <v-data-table-server
         v-model:items-per-page="itemsPerPage"
@@ -44,6 +32,10 @@
         @click:row="selectProduct"
         @update:options="loadItems"
       />
+      <v-divider />
+      <v-card-text class="product-inline-keyboard">
+        <InlineKeyboard v-model="search" :max-length="80" layout="code" />
+      </v-card-text>
     </v-card>
   </v-dialog>
 </template>
@@ -51,7 +43,7 @@
 <script lang="ts" setup>
 import { ref, inject, onBeforeUnmount, watch } from "vue";
 import { ListProductsPage } from "../../wailsjs/go/main/App";
-import PopupKeyboardMenu from "@/components/PopupKeyboardMenu.vue";
+import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
 const emit = defineEmits<{
   select: [
@@ -140,21 +132,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .product-search-control {
-  align-items: center;
-  display: flex;
-  gap: 6px;
   max-width: 320px;
   width: 100%;
 }
 
-.product-search-control :deep(.v-input) {
-  flex: 1 1 auto;
-}
-
-.product-search-keyboard {
-  flex: 0 0 48px;
-  font-weight: 700;
-  height: 40px;
-  min-width: 48px;
+.product-inline-keyboard {
+  margin-inline: auto;
+  max-width: 600px;
+  padding-block: 12px;
 }
 </style>

@@ -46,8 +46,33 @@
               @commit="persistDiscount(item)"
               @navigate="(direction) => saveAndMove(item, index, direction)"
             />
+            <NumberPadMenu
+              v-if="customDiscountsEnabled && !readonly && item.qty > 0"
+              :model-value="item.price.toFixed(2)"
+              allow-decimal
+              aria-label="Set custom item price"
+              :min="0.01"
+              :max="999999.99"
+              :max-length="9"
+              prefix="$"
+              :display-note="priceDifferencePercent(item)"
+              @update:model-value="(value) => setDraftPrice(item, value)"
+            >
+              <template #activator="{ props: activatorProps }">
+                <v-btn
+                  v-bind="activatorProps"
+                  icon="mdi-cash-edit"
+                  aria-label="Set custom item price"
+                  title="Set custom item price"
+                  size="small"
+                  variant="text"
+                />
+              </template>
+            </NumberPadMenu>
             <div class="d-flex flex-column align-end" style="flex: 1 1 auto">
-              <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
+              <span class="text-caption text-medium-emphasis">
+                ${{ item.price.toFixed(2) }}
+              </span>
               <span
                 v-if="item.discount && !customDiscountsEnabled"
                 class="text-caption text-red"
@@ -86,6 +111,7 @@ interface LineItem {
   size?: string;
   category: string;
   price: number;
+  originalPrice?: number;
   discount: number;
   qty: number;
 }
@@ -150,16 +176,29 @@ function addItem(item: LineItem) {
   } else {
     const discount = savedDiscounts.get(item.code) ?? Number(item.discount || 0);
     savedDiscounts.set(item.code, discount);
-    items.value.push({ ...item, discount });
+    const price = Number(item.price);
+    items.value.push({
+      ...item,
+      discount,
+      price,
+      originalPrice: Number(item.originalPrice ?? price),
+    });
   }
 }
 
 function addExchangeItems(returned: LineItem, replacements: LineItem[]) {
   items.value = [
-    { ...returned, price: Number(returned.price), discount: 0, qty: -1 },
+    {
+      ...returned,
+      price: Number(returned.price),
+      originalPrice: Number(returned.originalPrice ?? returned.price),
+      discount: 0,
+      qty: -1,
+    },
     ...replacements.map((item) => ({
       ...item,
       price: Number(item.price),
+      originalPrice: Number(item.originalPrice ?? item.price),
       qty: Number(item.qty || 1),
     })),
   ];
@@ -185,6 +224,24 @@ function setDraftDiscount(item: LineItem, value: unknown) {
   item.discount = Number.isFinite(numeric)
     ? Math.min(100, Math.max(0, Math.trunc(numeric)))
     : 0;
+}
+
+function setDraftPrice(item: LineItem, value: unknown) {
+  const numeric = Number(value);
+  item.price = Number.isFinite(numeric)
+    ? Math.round(Math.min(999999.99, Math.max(0.01, numeric)) * 100) / 100
+    : 0.01;
+}
+
+function priceDifferencePercent(item: LineItem): string {
+  const originalPrice = Number(item.originalPrice ?? item.price);
+  if (!Number.isFinite(originalPrice) || originalPrice <= 0) return "0%";
+
+  const difference = ((item.price - originalPrice) / originalPrice) * 100;
+  const rounded = Math.round(difference * 10) / 10;
+  const normalized = Object.is(rounded, -0) ? 0 : rounded;
+  const sign = normalized > 0 ? "+" : "";
+  return `${sign}${normalized.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
 }
 
 function persistDiscount(item: LineItem): Promise<boolean> {
@@ -225,9 +282,9 @@ async function saveAndMove(item: LineItem, index: number, direction: -1 | 1) {
   requestAnimationFrame(() => discountInputs.get(target)?.focus());
 }
 
-async function flushDiscounts(): Promise<boolean> {
-  const results = await Promise.all(items.value.map(persistDiscount));
-  return results.every(Boolean);
+async function flushChanges(): Promise<boolean> {
+  const discountResults = await Promise.all(items.value.map(persistDiscount));
+  return discountResults.every(Boolean);
 }
 
 const subtotal = computed(() => items.value.reduce((sum, i) => sum + i.price * i.qty, 0));
@@ -259,12 +316,12 @@ defineExpose({
   addExchangeItems,
   items,
   clearItems,
-  flushDiscounts,
+  flushChanges,
 });
 </script>
 
 <style scoped>
 .invoice-item-actions {
-  min-width: 220px;
+  min-width: 280px;
 }
 </style>

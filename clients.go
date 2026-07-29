@@ -23,6 +23,42 @@ func (a *App) GetClientByPhone(phone string) (map[string]any, error) {
 	return clientResponse(client), nil
 }
 
+func (a *App) SearchClients(search string, selectedID int64) ([]map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	search = strings.TrimSpace(search)
+	if len(search) > 80 {
+		search = search[:80]
+	}
+
+	limit := int64(25)
+	if selectedID > 0 {
+		limit--
+	}
+	clients, err := a.store.SearchClients(a.ctx, db.SearchClientsParams{
+		Search: search, ResultLimit: limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]map[string]any, 0, 25)
+	selectedIncluded := false
+	for _, client := range clients {
+		if client.ID == selectedID {
+			selectedIncluded = true
+		}
+		result = append(result, clientResponse(client))
+	}
+	if selectedID > 0 && !selectedIncluded {
+		if selected, selectedErr := a.store.GetClientByID(a.ctx, selectedID); selectedErr == nil {
+			result = append([]map[string]any{clientResponse(selected)}, result...)
+		}
+	}
+	return result, nil
+}
+
 func (a *App) CreateClient(name, phone string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")

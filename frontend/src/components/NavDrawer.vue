@@ -56,7 +56,13 @@ const items = computed(() => {
       t: "Invoice List",
     },
     { value: "shifts", to: "/shifts", icon: "mdi-cash-fast", t: "Balance & Shifts" },
-    { value: "clients", to: "/clients", icon: "mdi-account-multiple", t: "Clients" },
+    {
+      value: "clients",
+      to: "/clients",
+      icon: "mdi-account-multiple",
+      t: "Clients",
+      locked: !auth.isAdmin,
+    },
     {
       value: "inventory",
       to: "/inventory",

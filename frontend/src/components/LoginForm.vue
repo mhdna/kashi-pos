@@ -16,7 +16,7 @@
         font-family: Belleza, Arial, sans-serif;
       "
     >
-      <v-img :src="logo" width="190" />
+      <v-img :src="logo" width="190" :class="{ 'login-logo--dark': currentTheme === 'dark' }" />
       <!-- <div>KBS</div> -->
     </div>
     <!-- <div style="font-family: Belleza">Demo Store</div> -->
@@ -80,9 +80,12 @@ import logo from "@/assets/appicon.webp";
 
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { useTheme } from "vuetify";
 
 const router = useRouter();
 const auth = useAuthStore();
+const theme = useTheme();
+const currentTheme = theme.name;
 
 const username = ref("");
 const password = ref("");
@@ -124,5 +127,8 @@ async function handleLogin() {
 }*/
 .alert-wrapper {
   min-height: 48px; /* or whatever the alert's natural height is */
+}
+.login-logo--dark {
+  filter: invert(1);
 }
 </style>

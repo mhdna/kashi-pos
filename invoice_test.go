@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -143,5 +144,38 @@ func TestNetPaymentsByAccountAllowsNegativeAndSkipsZero(t *testing.T) {
 	net := netPaymentsByAccount(payments)
 	if net[1] != 1000 || net[2] != -500 || net[3] != 0 {
 		t.Fatalf("net payments = %#v, want account 1=1000, account 2=-500, account 3=0", net)
+	}
+}
+
+func TestValidatePaymentsAllowsOverpaymentAndRejectsUnderpayment(t *testing.T) {
+	ctx := context.Background()
+	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "payments.db")+"?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+
+	store := db.NewStore(database)
+	cashbox, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{
+		Name: "Cash", CurrencyCode: "USD",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validatePayments(ctx, store.Queries, []checkoutPayment{{
+		AccountID: cashbox.ID, AmountCents: 1800, EntryType: "payment",
+	}}, 1780); err != nil {
+		t.Fatalf("overpayment should be accepted: %v", err)
+	}
+
+	err = validatePayments(ctx, store.Queries, []checkoutPayment{{
+		AccountID: cashbox.ID, AmountCents: 1779, EntryType: "payment",
+	}}, 1780)
+	if err == nil || !strings.Contains(err.Error(), "less than invoice total") {
+		t.Fatalf("underpayment error = %v, want less-than-total error", err)
 	}
 }

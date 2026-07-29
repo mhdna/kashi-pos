@@ -17,7 +17,7 @@
   <section class="mb-4">
     <div class="d-flex justify-space-between align-center mb-1">
       <span class="text-caption font-weight-medium" :class="statusColor">{{ paymentStatus }}</span>
-      <span v-if="isPaidInFull" class="calculator-paid-state">
+      <span v-if="showReadyState" class="calculator-paid-state">
         <v-icon icon="mdi-check-circle" size="18" />
         <span>Ready to check out</span>
       </span>
@@ -25,8 +25,8 @@
 
     <div
       class="calculator-amounts mb-2"
-      :class="{ 'calculator-amounts-hidden': isPaidInFull }"
-      :aria-hidden="isPaidInFull"
+      :class="{ 'calculator-amounts-hidden': showReadyState }"
+      :aria-hidden="showReadyState"
     >
       <div>
         <strong :class="statusColor">{{ remainingAmount.usd }}</strong>
@@ -43,7 +43,7 @@
 defineProps<{
   paymentStatus: string;
   statusColor: string;
-  isPaidInFull: boolean;
+  showReadyState: boolean;
   remainingAmount: { usd: string; lbp: string };
   totalSummary: { usd: string; lbp: string; split: string };
 }>();

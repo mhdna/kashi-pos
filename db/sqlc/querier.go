@@ -143,6 +143,7 @@ type Querier interface {
 	ListTransfers(ctx context.Context) ([]Transfer, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
+	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)

@@ -52,7 +52,7 @@ func (a *App) resolveClientID(id int64) (int64, error) {
 	return 0, fmt.Errorf("walk-in client is not configured")
 }
 
-func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
+func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
 	products := make([]pricedInvoiceProduct, 0, len(items))
 	receiptItems := make([]invoiceItem, 0, len(items))
 	var subtotal, discountedSubtotal int64
@@ -69,6 +69,12 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		}
 		if product.IsActive == 0 {
 			return nil, 0, 0, nil, fmt.Errorf("product %s is inactive", item.Code)
+		}
+		if item.CustomPriceCents != nil {
+			if !customPricingEnabled {
+				return nil, 0, 0, nil, fmt.Errorf("custom item pricing is disabled")
+			}
+			product.Price = *item.CustomPriceCents
 		}
 		qty := int64(item.Qty)
 		priced, err := priceInvoiceProduct(product, qty, roundingMode)

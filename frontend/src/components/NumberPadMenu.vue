@@ -31,6 +31,7 @@
         <span v-if="prefix" class="number-pad-display-affix">{{ prefix }}</span>
         <span>{{ draft || "0" }}</span>
         <span v-if="suffix" class="number-pad-display-affix">{{ suffix }}</span>
+        <span v-if="displayNote" class="number-pad-display-note">({{ displayNote }})</span>
       </div>
       <div class="number-pad-grid">
         <v-btn
@@ -47,7 +48,24 @@
         <v-btn class="number-pad-key" size="small" variant="tonal" @click="appendDigit('0')">
           0
         </v-btn>
-        <v-btn class="number-pad-key" size="small" variant="text" @click="backspace">⌫</v-btn>
+        <v-btn
+          v-if="allowDecimal"
+          class="number-pad-key"
+          size="small"
+          variant="tonal"
+          @click="appendDecimal"
+        >
+          .
+        </v-btn>
+        <v-btn
+          class="number-pad-key"
+          :class="{ 'number-pad-key--wide': allowDecimal }"
+          size="small"
+          variant="text"
+          @click="backspace"
+        >
+          ⌫
+        </v-btn>
       </div>
       <v-btn block class="mt-2" color="primary" size="small" variant="flat" @click="apply">
         Done
@@ -69,9 +87,12 @@ const props = withDefaults(
     replaceOnOpen?: boolean;
     prefix?: string;
     suffix?: string;
+    displayNote?: string;
     ariaLabel?: string;
     disabled?: boolean;
     tone?: "default" | "error";
+    allowDecimal?: boolean;
+    decimalPlaces?: number;
   }>(),
   {
     min: 0,
@@ -81,9 +102,12 @@ const props = withDefaults(
     replaceOnOpen: true,
     prefix: "",
     suffix: "",
+    displayNote: "",
     ariaLabel: "Open number pad",
     disabled: false,
     tone: "default",
+    allowDecimal: false,
+    decimalPlaces: 2,
   },
 );
 
@@ -116,10 +140,21 @@ watch(open, (value) => {
 
 function appendDigit(digit: string) {
   if (!replaceOnInput.value && draft.value.length >= props.maxLength) return;
+  if (props.allowDecimal && draft.value.includes(".")) {
+    const fractionalPart = draft.value.split(".")[1] ?? "";
+    if (!replaceOnInput.value && fractionalPart.length >= props.decimalPlaces) return;
+  }
   const candidate =
     replaceOnInput.value || draft.value === "0" ? digit : `${draft.value}${digit}`;
   if (!props.preserveString && Number(candidate) > props.max) return;
   draft.value = candidate;
+  replaceOnInput.value = false;
+  emitDraft();
+}
+
+function appendDecimal() {
+  if (!props.allowDecimal || (!replaceOnInput.value && draft.value.includes("."))) return;
+  draft.value = replaceOnInput.value || !draft.value ? "0." : `${draft.value}.`;
   replaceOnInput.value = false;
   emitDraft();
 }
@@ -138,7 +173,9 @@ function backspace() {
 
 function normalizedValue() {
   if (props.preserveString) return draft.value;
-  const numeric = Math.trunc(Number(draft.value) || 0);
+  const raw = Number(draft.value) || 0;
+  const factor = 10 ** props.decimalPlaces;
+  const numeric = props.allowDecimal ? Math.round(raw * factor) / factor : Math.trunc(raw);
   return Math.min(props.max, Math.max(props.min, numeric));
 }
 
@@ -210,6 +247,13 @@ defineExpose({ focus });
   opacity: 0.7;
 }
 
+.number-pad-display-note {
+  color: rgb(var(--v-theme-error));
+  font-size: 0.58em;
+  font-weight: 600;
+  margin-inline-start: 5px;
+}
+
 .number-pad {
   width: 176px;
 }
@@ -227,6 +271,10 @@ defineExpose({ focus });
   display: grid;
   gap: 4px;
   grid-template-columns: repeat(3, 1fr);
+}
+
+.number-pad-key--wide {
+  grid-column: 1 / -1;
 }
 
 .number-pad-key {

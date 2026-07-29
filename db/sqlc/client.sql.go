@@ -236,6 +236,51 @@ func (q *Queries) ListCouponsByClientID(ctx context.Context, clientID int64) ([]
 	return items, nil
 }
 
+const searchClients = `-- name: SearchClients :many
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at
+FROM clients
+WHERE trim(?1) = ''
+   OR name LIKE '%' || ?1 || '%' COLLATE NOCASE
+   OR phone LIKE '%' || ?1 || '%'
+ORDER BY id
+LIMIT ?2
+`
+
+type SearchClientsParams struct {
+	Search      string `json:"search"`
+	ResultLimit int64  `json:"resultLimit"`
+}
+
+func (q *Queries) SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error) {
+	rows, err := q.db.QueryContext(ctx, searchClients, arg.Search, arg.ResultLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Client{}
+	for rows.Next() {
+		var i Client
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.TotalLoyaltyPoints,
+			&i.ValidLoyaltyPoints,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateClient = `-- name: UpdateClient :one
 UPDATE clients
 SET name = ?,

@@ -36,13 +36,14 @@
           title="Print receipt again"
           @click.stop="reprint(item)"
         />
-        <v-menu location="bottom end">
+        <v-menu v-model="actionMenus[item.id]" location="bottom end">
           <template #activator="{ props }">
             <v-btn v-bind="props" icon="mdi-dots-vertical" variant="text" density="comfortable" @click.stop />
           </template>
           <v-list density="compact" min-width="190">
             <v-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
             <v-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startChange('salesperson', item)" />
+            <v-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" @click.stop="startChange('settlement', item)" />
             <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
           </v-list>
         </v-menu>
@@ -137,24 +138,39 @@
       <v-card
         ><v-card-title>{{ changeTitle }}</v-card-title
         ><v-card-text>
-          <v-select
+          <v-autocomplete
             v-if="changeType === 'client'"
             v-model="changeValue"
+            v-model:search="clientSearch"
             label="Client"
             :items="clients"
-            item-title="name"
+            :item-title="clientOptionTitle"
             item-value="id"
+            :loading="optionsLoading"
+            no-filter
+            placeholder="Search by name or phone"
             variant="outlined"
+            @update:search="scheduleClientSearch"
           />
           <v-select
             v-else-if="changeType === 'settlement'"
             v-model="changeValue"
             label="Settlement"
             :items="paymentMethods"
-            item-title="name"
+            :item-title="settlementOptionTitle"
             item-value="id"
+            :loading="optionsLoading"
+            :disabled="optionsLoading"
             variant="outlined"
           />
+          <div
+            v-if="changeType === 'settlement' && selectedSettlement"
+            class="text-body-2 text-medium-emphasis mt-2"
+          >
+            The settlement will be recorded as
+            <strong>{{ settlementAmountLabel(selectedSettlement) }}</strong>
+            in {{ selectedSettlement.displayName ?? selectedSettlement.name }}.
+          </div>
           <v-select
             v-else
             v-model="changeValue"
@@ -164,6 +180,8 @@
             item-value="id"
             placeholder="Select a salesman"
             clearable
+            :loading="optionsLoading"
+            :disabled="optionsLoading"
             variant="outlined"
           /> </v-card-text
         ><v-card-actions
@@ -171,7 +189,7 @@
           ><v-btn
             color="primary"
             :loading="saving"
-            :disabled="!changeValue && changeType !== 'salesperson'"
+            :disabled="optionsLoading || (!changeValue && changeType !== 'salesperson')"
             @click="saveChange"
             >Save</v-btn
           ></v-card-actions
@@ -196,14 +214,16 @@ import {
   ChangeInvoiceSalesperson,
   ChangeInvoiceSettlement,
   DeleteInvoice,
+  GetAppSettings,
   GetInvoiceDetails,
-  ListClients,
   ListInvoicesPage,
   ListPaymentMethods,
   ListSalespersons,
   ReprintInvoice,
+  SearchClients,
 } from "../../wailsjs/go/main/App";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
+import { formatBalance } from "@/lib/format";
 import { useAuthStore } from "../stores/auth";
 
 const items = ref<any[]>([]),
@@ -215,17 +235,21 @@ const auth = useAuthStore();
 const selected = ref<any>(null),
   detailOpen = ref(false),
   changeOpen = ref(false),
+  optionsLoading = ref(false),
   saving = ref(false),
   printingId = ref<number | null>(null);
 const deleteOpen = ref(false),
   deleting = ref(false),
   deleteInvoice = ref<any>(null);
+const actionMenus = reactive<Record<number, boolean>>({});
 const changeType = ref<"client" | "settlement" | "salesperson">("client"),
   changeValue = ref<number | null>(null),
   changeInvoice = ref<any>(null);
 const clients = ref<any[]>([]),
   paymentMethods = ref<any[]>([]),
   salespersons = ref<any[]>([]);
+const exchangeRate = ref(90000);
+const clientSearch = ref("");
 const snackbar = reactive({ show: false, text: "", color: "success" });
 const changeTitle = computed(() =>
   changeType.value === "client"
@@ -234,14 +258,45 @@ const changeTitle = computed(() =>
       ? "Change Settlement"
       : "Change Salesman",
 );
+const selectedSettlement = computed(() =>
+  paymentMethods.value.find((method) => method.id === changeValue.value),
+);
+const settlementCents = computed(() => {
+  const payments = changeInvoice.value?.payments;
+  if (Array.isArray(payments) && payments.length)
+    return payments.reduce((total: number, payment: any) => total + Number(payment.amount || 0), 0);
+  return Number(changeInvoice.value?.grandTotal || 0);
+});
 function money(value: number | undefined) {
   return ((Number(value) || 0) / 100).toFixed(2);
 }
 function cents(value: number | undefined) {
   return ((Number(value) || 0) / 100).toFixed(2);
 }
+function settlementOptionTitle(method: any): string {
+  return `${method.displayName ?? method.name} (${method.currencyCode})`;
+}
+function settlementAmountLabel(method: any): string {
+  return formatBalance(
+    settlementCents.value,
+    method.currencyCode ?? "USD",
+    exchangeRate.value,
+  );
+}
 function formatDate(value?: string) {
-  return value?.slice(0, 19) || "Date unavailable";
+  if (!value) return "Date unavailable";
+
+  // SQLite stores invoice timestamps in UTC without a timezone suffix.
+  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+  const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/i.test(normalized);
+  const date = new Date(hasTimezone ? normalized : `${normalized}Z`);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 19);
+
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return [
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`,
+  ].join(" ");
 }
 const headers = [
   { title: "Invoice", key: "invoiceCode" },
@@ -274,7 +329,7 @@ async function reprint(item: any) {
   }
 }
 async function startChange(type: "client" | "settlement" | "salesperson", item: any) {
-  await ensureEditOptions();
+  actionMenus[item.id] = false;
   changeType.value = type;
   changeInvoice.value = item;
   changeValue.value =
@@ -284,8 +339,26 @@ async function startChange(type: "client" | "settlement" | "salesperson", item: 
         ? item.salespersonId || null
         : item.cashboxId;
   changeOpen.value = true;
+  if (type === "client") clientSearch.value = "";
+
+  optionsLoading.value = true;
+  try {
+    const [, invoiceDetails] = await Promise.all([
+      ensureEditOptions(type),
+      type === "settlement" ? GetInvoiceDetails(item.id) : Promise.resolve(null),
+    ]);
+    if (invoiceDetails && changeInvoice.value?.id === item.id) {
+      changeInvoice.value = invoiceDetails;
+      changeValue.value = invoiceDetails.cashboxId;
+    }
+  } catch (e: any) {
+    notify(e?.toString() || "Could not load invoice edit options", "error");
+  } finally {
+    optionsLoading.value = false;
+  }
 }
 function requestDelete(item: any) {
+  actionMenus[item.id] = false;
   deleteInvoice.value = item;
   deleteOpen.value = true;
 }
@@ -314,10 +387,9 @@ async function saveChange() {
       await ChangeInvoiceSettlement(changeInvoice.value.id, changeValue.value || 0);
       notifyIncomeChanged();
     } else await ChangeInvoiceSalesperson(changeInvoice.value.id, changeValue.value || 0);
-    await openInvoice(changeInvoice.value);
     changeOpen.value = false;
-    await refresh();
     notify("Invoice updated");
+    await refresh();
   } catch (e: any) {
     notify(e?.toString() || "Could not update invoice", "error");
   } finally {
@@ -376,33 +448,88 @@ async function refresh() {
   await loadInvoices({ page: currentPage.value, itemsPerPage: itemsPerPage.value });
 }
 
-let editOptionsPromise: Promise<void> | null = null;
-async function ensureEditOptions() {
-  if (!editOptionsPromise) {
-    editOptionsPromise = Promise.all([ListClients(), ListPaymentMethods(), ListSalespersons()])
-      .then(([loadedClients, loadedPaymentMethods, loadedSalespersons]) => {
-        clients.value = loadedClients;
-        paymentMethods.value = loadedPaymentMethods;
+let paymentMethodOptionsPromise: Promise<void> | null = null;
+let salespersonOptionsPromise: Promise<void> | null = null;
+let clientSearchTimer: ReturnType<typeof setTimeout> | undefined;
+let clientSearchRequest = 0;
+
+function clientOptionTitle(client: any): string {
+  return client.phone ? `${client.name} · ${client.phone}` : client.name;
+}
+
+async function loadClientOptions(search: string): Promise<void> {
+  const request = ++clientSearchRequest;
+  optionsLoading.value = true;
+  try {
+    const loadedClients = await SearchClients(
+      search.trim(),
+      changeType.value === "client" ? Number(changeValue.value || 0) : 0,
+    );
+    if (pageActive && request === clientSearchRequest) clients.value = loadedClients;
+  } finally {
+    if (request === clientSearchRequest) optionsLoading.value = false;
+  }
+}
+
+function scheduleClientSearch(search: string | null) {
+  clearTimeout(clientSearchTimer);
+  if (!changeOpen.value || changeType.value !== "client") return;
+  clientSearchTimer = setTimeout(() => {
+    void loadClientOptions(search ?? "").catch(() => {
+      notify("Could not search clients", "error");
+    });
+  }, 200);
+}
+
+function ensureEditOptions(type: "client" | "settlement" | "salesperson"): Promise<void> {
+  if (type === "client") {
+    return loadClientOptions(clientSearch.value);
+  }
+
+  if (type === "settlement") {
+    if (!paymentMethodOptionsPromise) {
+      paymentMethodOptionsPromise = Promise.all([ListPaymentMethods(), GetAppSettings()])
+        .then(([loadedPaymentMethods, settings]) => {
+          paymentMethods.value = loadedPaymentMethods;
+          const configuredRate = Number(settings?.exchangeRate);
+          if (Number.isFinite(configuredRate) && configuredRate > 0)
+            exchangeRate.value = configuredRate;
+        })
+        .catch((error) => {
+          paymentMethodOptionsPromise = null;
+          throw error;
+        });
+    }
+    return paymentMethodOptionsPromise;
+  }
+
+  if (!salespersonOptionsPromise) {
+    salespersonOptionsPromise = ListSalespersons()
+      .then((loadedSalespersons) => {
         salespersons.value = loadedSalespersons;
       })
-      .catch(() => {
-        editOptionsPromise = null;
-        throw new Error("Could not load invoice edit options");
+      .catch((error) => {
+        salespersonOptionsPromise = null;
+        throw error;
       });
   }
-  return editOptionsPromise;
+  return salespersonOptionsPromise;
 }
 
 onBeforeUnmount(() => {
   pageActive = false;
   queuedLoad = null;
+  clearTimeout(clientSearchTimer);
+  clientSearchRequest++;
 });
 </script>
 
 <style scoped>
 .invoices-page {
+  box-sizing: border-box;
   height: 100%;
   min-height: 0;
+  overflow-y: auto;
 }
 .invoices-scroll {
   flex: 1 1 auto;

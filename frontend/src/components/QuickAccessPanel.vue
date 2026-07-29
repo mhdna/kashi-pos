@@ -139,7 +139,7 @@ function confirmRemoval() {
   transition: none !important;
 }
 .quick-access--open {
-  flex-basis: 168px;
+  flex-basis: 240px;
 }
 .quick-access:not(.quick-access--open) {
   align-self: flex-start;

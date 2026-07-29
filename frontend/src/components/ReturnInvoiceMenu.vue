@@ -8,7 +8,7 @@
 
   <v-dialog
     v-model="menu"
-    max-width="560"
+    max-width="780"
     @after-enter="focusInvoiceInput"
     @after-leave="clearForm"
   >
@@ -18,7 +18,8 @@
         Load the original sale, scan the returned item, then scan its replacement.
       </v-card-subtitle>
 
-      <v-card-text>
+      <v-card-text class="exchange-dialog-layout">
+        <div class="exchange-dialog-content">
         <div class="exchange-input-row">
           <div class="exchange-input-control">
             <v-text-field
@@ -34,26 +35,6 @@
               @keydown.enter.prevent="loadInvoice"
               @update:model-value="invoiceError = ''"
             />
-            <NumberPadMenu
-              :model-value="invoiceCode"
-              :max-length="64"
-              :replace-on-open="false"
-              aria-label="Open invoice number pad"
-              preserve-string
-              @update:model-value="invoiceCode = String($event)"
-              @commit="loadInvoice"
-            >
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  class="exchange-keyboard-toggle"
-                  variant="tonal"
-                  :disabled="Boolean(invoice)"
-                >
-                  123
-                </v-btn>
-              </template>
-            </NumberPadMenu>
           </div>
           <v-btn
             v-if="!invoice"
@@ -111,26 +92,6 @@
               @keydown.enter.prevent="scanItem"
               @update:model-value="scanError = ''"
             />
-            <NumberPadMenu
-              :model-value="scanValue"
-              :max-length="80"
-              :replace-on-open="false"
-              aria-label="Open product barcode number pad"
-              preserve-string
-              @update:model-value="scanValue = String($event)"
-              @commit="scanItem"
-            >
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  class="exchange-keyboard-toggle"
-                  variant="tonal"
-                  :disabled="scanning"
-                >
-                  123
-                </v-btn>
-              </template>
-            </NumberPadMenu>
           </div>
 
           <v-list v-if="returned" density="compact" class="pa-0">
@@ -181,6 +142,70 @@
             </template>
           </v-alert>
         </template>
+        </div>
+
+        <div class="exchange-inline-numpad">
+          <div class="exchange-inline-numpad-label">
+            {{ invoice ? "Product barcode" : "Invoice code" }}
+          </div>
+          <div class="exchange-inline-numpad-display">
+            {{ activeExchangeInput || "0" }}
+          </div>
+          <div class="exchange-inline-numpad-grid">
+            <v-btn
+              v-for="digit in exchangePadDigits"
+              :key="digit"
+              class="exchange-inline-numpad-key"
+              size="small"
+              variant="tonal"
+              :disabled="exchangePadDisabled"
+              @click="appendExchangeDigit(digit)"
+            >
+              {{ digit }}
+            </v-btn>
+            <v-btn
+              aria-label="Clear exchange input"
+              class="exchange-inline-numpad-key"
+              size="small"
+              variant="text"
+              :disabled="exchangePadDisabled"
+              @click="clearExchangeInput"
+            >
+              C
+            </v-btn>
+            <v-btn
+              class="exchange-inline-numpad-key"
+              size="small"
+              variant="tonal"
+              :disabled="exchangePadDisabled"
+              @click="appendExchangeDigit('0')"
+            >
+              0
+            </v-btn>
+            <v-btn
+              aria-label="Delete last exchange digit"
+              class="exchange-inline-numpad-key"
+              size="small"
+              variant="text"
+              :disabled="exchangePadDisabled"
+              @click="backspaceExchangeInput"
+            >
+              ⌫
+            </v-btn>
+          </div>
+          <v-btn
+            block
+            class="mt-2"
+            color="primary"
+            size="small"
+            variant="flat"
+            :disabled="exchangePadDisabled || !activeExchangeInput.trim()"
+            :loading="exchangePadDisabled"
+            @click="submitExchangeInput"
+          >
+            {{ invoice ? "Scan" : "Load" }}
+          </v-btn>
+        </div>
       </v-card-text>
 
       <v-card-actions class="pa-3">
@@ -202,7 +227,6 @@
 import { computed, inject, ref, watch, type Ref } from "vue";
 import { useExchangeDialog } from "@/composables/useExchangeDialog";
 import { effectiveExchangePrice, exchangeLineTotal, type ExchangeSelection } from "@/lib/exchange";
-import NumberPadMenu from "@/components/NumberPadMenu.vue";
 
 const emit = defineEmits<{
   exchange: [payload: ExchangeSelection];
@@ -212,6 +236,7 @@ const roundingMode = computed(() => props.roundingMode ?? "half_up");
 
 const dialogOpen = inject<Ref<boolean>>("dialogOpen");
 const menu = ref(false);
+const exchangePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const {
   loading,
   scanning,
@@ -237,6 +262,8 @@ const {
   createSelection,
   clearForm,
 } = useExchangeDialog(() => props.roundingMode ?? "half_up");
+const activeExchangeInput = computed(() => invoice.value ? scanValue.value : invoiceCode.value);
+const exchangePadDisabled = computed(() => loading.value || scanning.value);
 
 watch(menu, (open) => {
   if (dialogOpen) dialogOpen.value = open;
@@ -244,6 +271,42 @@ watch(menu, (open) => {
 
 function effectivePrice(item: Parameters<typeof effectiveExchangePrice>[0]): number {
   return effectiveExchangePrice(item, props.roundingMode ?? "half_up");
+}
+
+function appendExchangeDigit(digit: string) {
+  if (exchangePadDisabled.value) return;
+  if (invoice.value) {
+    if (scanValue.value.length < 80) scanValue.value += digit;
+    scanError.value = "";
+  } else {
+    if (invoiceCode.value.length < 64) invoiceCode.value += digit;
+    invoiceError.value = "";
+  }
+}
+
+function clearExchangeInput() {
+  if (invoice.value) {
+    scanValue.value = "";
+    scanError.value = "";
+  } else {
+    invoiceCode.value = "";
+    invoiceError.value = "";
+  }
+}
+
+function backspaceExchangeInput() {
+  if (invoice.value) {
+    scanValue.value = scanValue.value.slice(0, -1);
+    scanError.value = "";
+  } else {
+    invoiceCode.value = invoiceCode.value.slice(0, -1);
+    invoiceError.value = "";
+  }
+}
+
+function submitExchangeInput() {
+  if (invoice.value) void scanItem();
+  else void loadInvoice();
 }
 
 function startExchange() {
@@ -272,10 +335,58 @@ function startExchange() {
   min-width: 0;
 }
 
-.exchange-keyboard-toggle {
-  flex: 0 0 48px;
+.exchange-dialog-layout {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 176px;
+}
+
+.exchange-dialog-content {
+  min-width: 0;
+}
+
+.exchange-inline-numpad {
+  align-self: start;
+  width: 176px;
+}
+
+.exchange-inline-numpad-label {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  text-align: center;
+}
+
+.exchange-inline-numpad-display {
+  font-size: 1.15rem;
   font-weight: 700;
-  height: 40px;
-  min-width: 48px;
+  min-height: 40px;
+  overflow: hidden;
+  padding: 6px 4px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exchange-inline-numpad-grid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.exchange-inline-numpad-key {
+  font-size: 1rem;
+  height: 36px;
+  min-width: 0;
+  padding: 0;
+}
+
+@media (max-width: 650px) {
+  .exchange-dialog-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .exchange-inline-numpad {
+    justify-self: center;
+  }
 }
 </style>

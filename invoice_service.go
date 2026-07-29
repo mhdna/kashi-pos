@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 
 	db "kashi-pos/db/sqlc"
@@ -226,7 +227,10 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 	paymentList := make([]map[string]any, 0, len(payments))
 	for _, payment := range payments {
 		account, _ := a.store.GetCashboxAccountByID(a.ctx, payment.CashboxID)
-		paymentList = append(paymentList, map[string]any{"accountId": payment.CashboxID, "accountName": account.Name, "amount": payment.Amount})
+		paymentList = append(paymentList, map[string]any{
+			"accountId": payment.CashboxID, "accountName": account.Name,
+			"currencyCode": account.CurrencyCode, "amount": payment.Amount,
+		})
 	}
 	clientName := "Walk-in"
 	clientPhone := ""
@@ -285,6 +289,20 @@ func (a *App) ChangeInvoiceSettlement(invoiceID, cashboxID int64) error {
 	if err != nil {
 		return err
 	}
+	settlementAmount := inv.GrandTotal
+	if len(oldPayments) > 0 {
+		settlementAmount = 0
+		for _, payment := range oldPayments {
+			if (payment.Amount > 0 && settlementAmount > math.MaxInt64-payment.Amount) ||
+				(payment.Amount < 0 && settlementAmount < math.MinInt64-payment.Amount) {
+				return fmt.Errorf("settlement amount is too large")
+			}
+			settlementAmount += payment.Amount
+		}
+	}
+	if settlementAmount <= 0 {
+		return fmt.Errorf("invoice has no positive settlement")
+	}
 	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
 		for _, payment := range oldPayments {
 			if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{AccountID: payment.CashboxID, ShiftID: inv.ShiftID, Balance: -payment.Amount}); err != nil {
@@ -297,13 +315,13 @@ func (a *App) ChangeInvoiceSettlement(invoiceID, cashboxID int64) error {
 		if err := q.DeleteInvoicePaymentEntries(a.ctx, invoiceID); err != nil {
 			return err
 		}
-		if err := q.CreateInvoicePayment(a.ctx, db.CreateInvoicePaymentParams{InvoiceID: invoiceID, CashboxID: cashboxID, Amount: inv.GrandTotal}); err != nil {
+		if err := q.CreateInvoicePayment(a.ctx, db.CreateInvoicePaymentParams{InvoiceID: invoiceID, CashboxID: cashboxID, Amount: settlementAmount}); err != nil {
 			return err
 		}
-		if err := q.CreateInvoicePaymentEntry(a.ctx, db.CreateInvoicePaymentEntryParams{InvoiceID: invoiceID, CashboxID: cashboxID, Amount: inv.GrandTotal, EntryType: "payment"}); err != nil {
+		if err := q.CreateInvoicePaymentEntry(a.ctx, db.CreateInvoicePaymentEntryParams{InvoiceID: invoiceID, CashboxID: cashboxID, Amount: settlementAmount, EntryType: "payment"}); err != nil {
 			return err
 		}
-		if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{AccountID: cashboxID, ShiftID: inv.ShiftID, Balance: inv.GrandTotal}); err != nil {
+		if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{AccountID: cashboxID, ShiftID: inv.ShiftID, Balance: settlementAmount}); err != nil {
 			return err
 		}
 		return q.UpdateInvoiceCashbox(a.ctx, db.UpdateInvoiceCashboxParams{CashboxID: cashboxID, ID: invoiceID})

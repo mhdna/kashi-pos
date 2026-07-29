@@ -36,7 +36,7 @@ import InitialsAvatar from "./InitialsAvatar.vue";
 import { useSalesperson, type Salesperson } from "@/composables/useSalesperson";
 
 const menu = ref(false);
-const salespersonAvatarColor = "green-lighten-4";
+const salespersonAvatarColor = "yellow-darken-2";
 
 const salespersons = ref<Salesperson[]>([]);
 const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperson();
@@ -62,7 +62,9 @@ function selectSalesperson(p: Salesperson) {
 onMounted(async () => {
   const list = await ListSalespersons();
   if (list.length) {
-    salespersons.value = list as Salesperson[];
+    salespersons.value = [...(list as Salesperson[])].sort((a, b) =>
+      a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }),
+    );
   }
 });
 </script>

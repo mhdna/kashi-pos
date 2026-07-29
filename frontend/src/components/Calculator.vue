@@ -1,9 +1,9 @@
 <template>
-  <v-card flat class="calculator-shell w-100 h-100 mx-2 px-2 py-2 rounded-xl my-1">
+  <div class="calculator-shell w-100 h-100 mx-2 px-2 py-2 rounded-xl my-1">
     <CalculatorStatus
       :payment-status="paymentStatus"
       :status-color="statusColor"
-      :is-paid-in-full="isPaidInFull"
+      :show-ready-state="showReadyState"
       :remaining-amount="remainingAmount"
       :total-summary="totalSummary"
     />
@@ -24,7 +24,7 @@
       :currency-symbol-for="currencySymbolFor"
       @remove="removeEntry"
     />
-  </v-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -56,9 +56,6 @@ interface Entry {
 
 const DEFAULT_EXCHANGE_RATE = 90000;
 const DEFAULT_USD_RATE = 100;
-const HALF_UP_LBP_TOLERANCE = 5000;
-const HALF_DOWN_LBP_TOLERANCE = 10000;
-
 const props = defineProps<{ total: number; roundingMode?: string }>();
 const roundingMode = computed(() => props.roundingMode ?? "half_up");
 const paymentMethods = ref<PaymentMethod[]>([]);
@@ -91,21 +88,30 @@ const paidCents = computed(() => entries.value.reduce((sum, entry) => sum + entr
 const diffCents = computed(() => paidCents.value - totalCents.value);
 const diff = computed(() => diffCents.value / 100);
 const isPaidInFull = computed(() => diffCents.value === 0);
-const roundingToleranceCents = computed(() => {
-  const stepLbp =
-    roundingMode.value === "half_up" ? HALF_UP_LBP_TOLERANCE : HALF_DOWN_LBP_TOLERANCE;
-  return Math.ceil((stepLbp * 100) / exchangeRate.value);
-});
-const checkoutReady = computed(() => Math.abs(diffCents.value) <= roundingToleranceCents.value);
+const roundedShortfallLbp = computed(() =>
+  diffCents.value < 0
+    ? roundLbpFromCents(-diffCents.value, exchangeRate.value, roundingMode.value)
+    : 0,
+);
+const checkoutReady = computed(
+  () => diffCents.value >= 0 || roundedShortfallLbp.value === 0,
+);
+const showReadyState = computed(() => checkoutReady.value && diffCents.value <= 0);
 const paymentStatus = computed(() =>
-  isPaidInFull.value ? "Paid" : diffCents.value > 0 ? "Change to return" : "Amount to pay",
+  isPaidInFull.value
+    ? "Paid"
+    : diffCents.value > 0
+      ? "Overpayment accepted"
+      : checkoutReady.value
+        ? "Paid (cash rounded)"
+        : "Amount to pay",
 );
 const statusColor = computed(() =>
-  diff.value === 0
-    ? "text-green-darken-2"
-    : diff.value > 0
+  checkoutReady.value
+    ? diff.value > 0
       ? "text-green-darken-1"
-      : "text-red-darken-2",
+      : "text-green-darken-2"
+    : "text-red-darken-2",
 );
 const remainingAmount = computed(() => {
   const amountCents = Math.abs(diffCents.value);
@@ -208,7 +214,10 @@ const paymentsJSON = computed(() => {
     amountCents: entry.amountCents,
     entryType: entry.amountCents < 0 ? "change" : "payment",
   }));
-  if (checkoutReady.value && diffCents.value !== 0) {
+  // Cash rounding can make a small USD-cent shortfall equal zero LBP.
+  // Normalize that accepted shortfall so backend totals and invoice totals
+  // remain equal; leave genuine overpayments unchanged.
+  if (checkoutReady.value && diffCents.value < 0) {
     for (let i = payments.length - 1; i >= 0; i -= 1) {
       if (payments[i]!.amountCents > 0) {
         payments[i]!.amountCents -= diffCents.value;

@@ -277,9 +277,9 @@
                 <v-icon icon="mdi-sale-outline" size="20" />
               </v-avatar>
               <div>
-                <div class="text-subtitle-1 font-weight-bold">Custom item discounts</div>
+                <div class="text-subtitle-1 font-weight-bold">Custom item pricing</div>
                 <div class="text-caption text-medium-emphasis">
-                  Let cashiers edit and save product discounts from the invoice.
+                  Let cashiers edit and save product prices and discounts from the invoice.
                 </div>
               </div>
             </v-card-title>
@@ -289,7 +289,7 @@
                 :loading="discountSettingSaving"
                 color="primary"
                 hide-details
-                label="Enable custom item discounts"
+                label="Enable custom prices and discounts"
                 @update:model-value="setCustomDiscountsEnabled"
               />
             </v-card-text>
@@ -694,10 +694,10 @@ async function setCustomDiscountsEnabled(value: boolean | null) {
   discountSettingSaving.value = true;
   try {
     await SetCustomItemDiscountsEnabled(enabled);
-    notify(`Custom item discounts ${enabled ? "enabled" : "disabled"}`);
+    notify(`Custom item pricing ${enabled ? "enabled" : "disabled"}`);
   } catch {
     form.customItemDiscountsEnabled = previous;
-    notify("Failed to update custom item discounts", "red");
+    notify("Failed to update custom item pricing", "red");
   } finally {
     discountSettingSaving.value = false;
   }

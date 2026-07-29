@@ -1,61 +1,102 @@
 <template>
-  <v-dialog v-model="dialog" max-width="400">
+  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 640 : 620">
     <v-card v-if="step === 'phone'">
       <v-card-title>Enter Phone Number</v-card-title>
-      <v-card-text>
-        <v-autocomplete
-          v-model="selectedCountry"
-          :items="countries"
-          item-title="displayName"
-          item-value="code"
-          placeholder="Country"
-          variant="outlined"
-          density="compact"
-          class="mb-2"
-          hide-details
-          autocomplete="off"
-        >
-          <template #selection="{ item }">
-            <span class="country-flag">{{ item.flag }}</span>
-            <span>{{ item.displayName }}</span>
-          </template>
-          <template #item="{ props: itemProps, item }">
-            <v-list-item v-bind="itemProps" :subtitle="`+${item.dialCode}`">
-              <template #title>
-                <span class="country-flag">{{ item.flag }}</span>
-                <span>{{ item.name }}</span>
-              </template>
-            </v-list-item>
-          </template>
-        </v-autocomplete>
-        <div class="client-input-with-toggle">
+      <v-card-text class="client-phone-layout">
+        <div class="client-phone-form">
+          <v-autocomplete
+            v-model="selectedCountry"
+            :items="countries"
+            item-title="displayName"
+            item-value="code"
+            placeholder="Country"
+            variant="outlined"
+            density="compact"
+            class="mb-2"
+            hide-details
+            autocomplete="off"
+          >
+            <template #selection="{ item }">
+              <span class="country-flag">{{ item.flag }}</span>
+              <span>{{ item.displayName }}</span>
+            </template>
+            <template #item="{ props: itemProps, item }">
+              <v-list-item v-bind="itemProps" :subtitle="`+${item.dialCode}`">
+                <template #title>
+                  <span class="country-flag">{{ item.flag }}</span>
+                  <span>{{ item.name }}</span>
+                </template>
+              </v-list-item>
+            </template>
+          </v-autocomplete>
           <v-text-field
             v-model="phone"
             :placeholder="`Phone Number (+${selectedDialCode})`"
             variant="outlined"
             density="compact"
             autofocus
+            maxlength="15"
             :error-messages="phoneError"
             @keydown.enter="lookupPhone"
           />
-          <NumberPadMenu
-            :model-value="phone"
-            :max-length="15"
-            :prefix="`+${selectedDialCode}`"
-            preserve-string
-            :replace-on-open="false"
-            aria-label="Open phone number pad"
-            @update:model-value="phone = String($event)"
+          <v-btn
+            class="w-100 mb-4"
+            variant="elevated"
+            color="primary"
+            :disabled="Boolean(phoneError) || !phone.trim()"
+            @click="lookupPhone"
           >
-            <template #activator="{ props }">
-              <v-btn v-bind="props" class="client-input-toggle" variant="tonal">123</v-btn>
-            </template>
-          </NumberPadMenu>
+            Continue
+          </v-btn>
+          <v-btn class="w-100" variant="tonal" @click="selectAnonymous">
+            Prefer not to say
+          </v-btn>
         </div>
-        <v-btn class="w-100 mb-4" variant="elevated" color="primary" :disabled="Boolean(phoneError) || !phone.trim()" @click="lookupPhone"
-          >Continue</v-btn
-        >
-        <v-btn class="w-100" variant="tonal" @click="selectAnonymous">Prefer not to say</v-btn>
+
+        <div class="client-phone-numpad">
+          <div class="client-phone-numpad-display">
+            <span class="client-phone-numpad-prefix">+{{ selectedDialCode }}</span>
+            <span>{{ phone || "0" }}</span>
+          </div>
+          <div class="client-phone-numpad-grid">
+            <v-btn
+              v-for="digit in phonePadDigits"
+              :key="digit"
+              class="client-phone-numpad-key"
+              size="small"
+              variant="tonal"
+              @click="appendPhoneDigit(digit)"
+            >
+              {{ digit }}
+            </v-btn>
+            <v-btn
+              aria-label="Clear phone number"
+              class="client-phone-numpad-key"
+              size="small"
+              variant="text"
+              @click="clearPhone"
+            >
+              C
+            </v-btn>
+            <v-btn
+              class="client-phone-numpad-key"
+              size="small"
+              variant="tonal"
+              @click="appendPhoneDigit('0')"
+            >
+              0
+            </v-btn>
+            <v-btn
+              aria-label="Delete last phone digit"
+              class="client-phone-numpad-key"
+              size="small"
+              variant="text"
+              @click="backspacePhone"
+            >
+              ⌫
+            </v-btn>
+          </div>
+        </div>
       </v-card-text>
     </v-card>
 
@@ -75,23 +116,18 @@
             <span>+{{ selectedDialCode }}</span>
           </template>
         </v-text-field>
-        <div class="client-input-with-toggle">
-          <v-text-field
-            v-model="newClient.name"
-            placeholder="Name"
-            variant="outlined"
-            density="compact"
-            autofocus
-          />
-          <PopupKeyboardMenu v-model="newClient.name" aria-label="Open name keyboard">
-            <template #activator="{ props }">
-              <v-btn v-bind="props" class="client-input-toggle" variant="tonal">ABC</v-btn>
-            </template>
-          </PopupKeyboardMenu>
-        </div>
+        <v-text-field
+          v-model="newClient.name"
+          placeholder="Name"
+          variant="outlined"
+          density="compact"
+          maxlength="80"
+          autofocus
+        />
         <div class="text-caption text-medium-emphasis mt-n1">
           Please don't use rediculous names like "nonameeeeee", or "ali4738432".
         </div>
+        <InlineKeyboard v-model="newClient.name" class="client-name-keyboard mt-3" />
       </v-card-text>
       <v-card-actions class="pa-4">
         <v-btn variant="text" @click="step = 'phone'">Back</v-btn>
@@ -113,8 +149,7 @@ import { ref, reactive, inject, watch, computed } from "vue";
 import { getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js/min";
 import { GetClientByPhone, CreateClient } from "../../wailsjs/go/main/App";
 import { anonymousClient, toClient, type Client } from "@/lib/client";
-import NumberPadMenu from "@/components/NumberPadMenu.vue";
-import PopupKeyboardMenu from "@/components/PopupKeyboardMenu.vue";
+import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
 const emit = defineEmits<{ select: [client: Client] }>();
 
@@ -128,6 +163,7 @@ const step = ref<"phone" | "new">("phone");
 const phone = ref("");
 const selectedCountry = ref<CountryCode>("LB");
 const newClient = reactive({ name: "", phone: "" });
+const phonePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
 const countries = getCountries().map((code) => ({
   code,
@@ -147,6 +183,19 @@ function flagForCountry(code: string) {
 function normalizePhone(value: string) {
   const parsed = parsePhoneNumberFromString(value, selectedCountry.value);
   return parsed?.isValid() ? parsed.number : value === "00000000" ? value : "";
+}
+
+function appendPhoneDigit(digit: string) {
+  if (phone.value.length >= 15) return;
+  phone.value += digit;
+}
+
+function clearPhone() {
+  phone.value = "";
+}
+
+function backspacePhone() {
+  phone.value = phone.value.slice(0, -1);
 }
 
 async function lookupPhone() {
@@ -197,20 +246,63 @@ function reset() {
   line-height: 1;
 }
 
-.client-input-with-toggle {
-  align-items: flex-start;
+.client-phone-layout {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 176px;
+}
+
+.client-phone-form {
+  min-width: 0;
+}
+
+.client-phone-numpad {
+  align-self: start;
+  width: 176px;
+}
+
+.client-phone-numpad-display {
+  align-items: baseline;
   display: flex;
-  gap: 6px;
-}
-
-.client-input-with-toggle :deep(.v-input) {
-  flex: 1 1 auto;
-}
-
-.client-input-toggle {
-  flex: 0 0 48px;
+  font-size: 1.4rem;
   font-weight: 700;
-  height: 40px;
-  min-width: 48px;
+  justify-content: center;
+  min-height: 40px;
+  overflow: hidden;
+}
+
+.client-phone-numpad-prefix {
+  font-size: 0.72em;
+  font-weight: 600;
+  margin-inline-end: 4px;
+  opacity: 0.7;
+}
+
+.client-phone-numpad-grid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.client-phone-numpad-key {
+  font-size: 1rem;
+  height: 36px;
+  min-width: 0;
+  padding: 0;
+}
+
+.client-name-keyboard {
+  margin-inline: auto;
+  max-width: 540px;
+}
+
+@media (max-width: 600px) {
+  .client-phone-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .client-phone-numpad {
+    justify-self: center;
+  }
 }
 </style>
