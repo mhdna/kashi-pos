@@ -20,8 +20,8 @@ func runReceiptPreview(args []string) error {
 
 	data := printReceiptData{
 		Items: []invoiceItem{
-			{Name: "Classic Cotton T-Shirt", Qty: 2, Price: 18.00},
-			{Name: "Canvas Everyday Sneakers", Qty: 1, Price: 42.50, Discount: 10},
+			{Name: "Classic Cotton T-Shirtfjjjffffffffffffffffffffffffffffffffffffffffffffffffffffffff", Barcode: "100000000004", Qty: 2, Price: 18.00},
+			{Name: "Canvas Everyday Sneakers", Barcode: "100000000005", Qty: 1, Price: 42.50, Discount: 10},
 		},
 		StoreName:       "Kashi Market",
 		Branch:          "Downtown Branch",

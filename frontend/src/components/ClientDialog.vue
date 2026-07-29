@@ -15,9 +15,17 @@
           hide-details
           autocomplete="off"
         >
-          <template #selection="{ item }">{{ item.flag }} {{ item.displayName }}</template>
+          <template #selection="{ item }">
+            <span class="country-flag">{{ item.flag }}</span>
+            <span>{{ item.displayName }}</span>
+          </template>
           <template #item="{ props: itemProps, item }">
-            <v-list-item v-bind="itemProps" :title="`${item.flag} ${item.name}`" :subtitle="`+${item.dialCode}`" />
+            <v-list-item v-bind="itemProps" :subtitle="`+${item.dialCode}`">
+              <template #title>
+                <span class="country-flag">{{ item.flag }}</span>
+                <span>{{ item.name }}</span>
+              </template>
+            </v-list-item>
           </template>
         </v-autocomplete>
         <v-text-field
@@ -47,7 +55,10 @@
           class="mb-2"
           readonly
         >
-          <template #prepend>{{ selectedFlag }} +{{ selectedDialCode }}</template>
+          <template #prepend>
+            <span class="country-flag">{{ selectedFlag }}</span>
+            <span>+{{ selectedDialCode }}</span>
+          </template>
         </v-text-field>
         <v-text-field
           v-model="newClient.name"
@@ -154,3 +165,17 @@ function reset() {
   newClient.phone = "";
 }
 </script>
+
+<style scoped>
+.country-flag {
+  display: inline-block;
+  margin-inline-end: 6px;
+  font-family:
+    "Segoe UI Emoji",
+    "Apple Color Emoji",
+    "Noto Color Emoji",
+    sans-serif;
+  font-variant-emoji: emoji;
+  line-height: 1;
+}
+</style>

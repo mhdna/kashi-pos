@@ -36,12 +36,10 @@ var threadsIcon []byte
 //go:embed pdf-icons/tiktok.png
 var tiktokIcon []byte
 
-//go:embed pdf-icons/youtube.png
-var youtubeIcon []byte
-
 type invoiceItem struct {
 	Name     string  `json:"name"`
 	Code     string  `json:"code"`
+	Barcode  string  `json:"barcode"`
 	Category string  `json:"category"`
 	Price    float64 `json:"price"`
 	Discount float64 `json:"discount"`
@@ -222,7 +220,7 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			continue
 		}
 		items = append(items, map[string]any{
-			"name": product.Name, "code": product.Code, "category": product.Description,
+			"name": product.Name, "code": product.Code, "barcode": product.Barcode, "category": product.Description,
 			"price": float64(line.UnitPrice) / 100, "lineTotal": float64(line.LineTotal) / 100,
 			"discount": line.Discount, "qty": line.Quantity,
 		})
@@ -329,7 +327,7 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	}
 	items := make([]invoiceItem, 0)
 	for _, raw := range details["items"].([]map[string]any) {
-		items = append(items, invoiceItem{Name: raw["name"].(string), Code: raw["code"].(string), Category: raw["category"].(string), Price: raw["price"].(float64), Discount: float64(raw["discount"].(int64)), Qty: float64(raw["qty"].(int64))})
+		items = append(items, invoiceItem{Name: raw["name"].(string), Code: raw["code"].(string), Barcode: raw["barcode"].(string), Category: raw["category"].(string), Price: raw["price"].(float64), Discount: float64(raw["discount"].(int64)), Qty: float64(raw["qty"].(int64))})
 	}
 	settings, err := a.store.GetSettings(a.ctx)
 	if err != nil {
@@ -359,9 +357,9 @@ func (a *App) GetReceiptPreview() (string, error) {
 	}
 	data := printReceiptData{
 		Items: []invoiceItem{
-			{Name: "Kids Boy Pants - White", Code: "DEMO-001", Price: 12, Qty: 1},
-			{Name: "Lady Shorts - Khaki", Code: "DEMO-002", Price: 15, Qty: 1, Discount: 15},
-			{Name: "Men Jeans", Code: "DEMO-003", Price: 25, Qty: 2, Discount: 10},
+			{Name: "Kids Boy Pants - White", Code: "DEMO-001", Barcode: "100000000001", Price: 12, Qty: 1},
+			{Name: "Lady Shorts - Khaki", Code: "DEMO-002", Barcode: "100000000002", Price: 15, Qty: 1, Discount: 15},
+			{Name: "Men Jeans", Code: "DEMO-003", Barcode: "100000000003", Price: 25, Qty: 2, Discount: 10},
 		},
 		StoreName: marketName, Branch: settings.BranchName, Phone: settings.MarketPhone, BranchPhone: settings.BranchPhone,
 		Description: settings.MarketDescription, CounterNumber: settings.CounterNumber, Salesperson: "Sarah Demo", Customer: "Walk-in",
@@ -511,6 +509,14 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		pdf.SetFont(font, "B", size)
 		pdf.SetXY(margin, pdf.GetY())
 		pdf.CellFormat(contentW, lh, s, "", 0, "C", false, 0, "")
+		// Slight overprint makes the preview title match the heavier printed title.
+		pdf.SetXY(margin+0.18, pdf.GetY())
+		pdf.CellFormat(contentW, lh, s, "", 0, "C", false, 0, "")
+	}
+	centerWithFontNormal := func(s, font string, size float64) {
+		pdf.SetFont(font, "", size)
+		pdf.SetXY(margin, pdf.GetY())
+		pdf.CellFormat(contentW, lh, s, "", 0, "C", false, 0, "")
 	}
 	wrapLines := func(s string, size float64) []string {
 		pdf.SetFont(bodyFont, "", size)
@@ -541,10 +547,6 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 			down(spacing)
 		}
 	}
-	centerLines := func(s string, size float64) {
-		centerWrapped(s, size, lh)
-	}
-
 	dashedRule := func() {
 		pdf.SetDashPattern([]float64{1.0, 0.9}, 0)
 		pdf.SetLineWidth(0.3)
@@ -554,27 +556,32 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	}
 
 	// ---- Header --------------------------------------------------------
-	pdf.SetY(6)
+	pdf.SetY(2)
 	centerWithFont(data.StoreName, titleFont, titleSize)
-	down(titleSize/3 + 2.5)
-	if data.Branch != "" {
-		center(data.Branch, bodySize-1)
-		down(lh - 0.5)
-	}
-	if data.Description != "" {
-		centerLines(data.Description, bodySize-1)
-	}
-	down(1)
-
-	twoCol("Inv# "+data.ReceiptNo, currentReceiptDate(), bodySize-1)
-	down(lh)
-
+	down(titleSize/3 - 0.5)
 	branchPhone := data.BranchPhone
 	if branchPhone == "" {
 		branchPhone = data.Phone
 	}
-	if branchPhone != "" || data.Website != "" {
-		contact := strings.TrimSpace(strings.Join(filterEmpty(branchPhone, data.Website), "  •  "))
+	if data.Branch != "" {
+		centerWithFontNormal(data.Branch, titleFont, titleSize-8)
+		down(lh + 0.5)
+	}
+	if branchPhone != "" {
+		centerWithFontNormal(branchPhone, titleFont, titleSize-8)
+		down(lh + 2)
+	}
+	// Receipt description temporarily disabled.
+	// if data.Description != "" {
+	// 	centerNormalWrapped(data.Description, bodySize-1, lh)
+	// }
+	down(4)
+
+	center(receiptInvoiceLabel(data.ReceiptNo)+": "+data.ReceiptNo, bodySize-1)
+	down(lh)
+
+	if data.Website != "" {
+		contact := strings.TrimSpace(data.Website)
 		if contact != "" {
 			center(contact, bodySize-1.5)
 			down(lh)
@@ -586,9 +593,11 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	down(2.5)
 
 	// ---- Sale / customer -------------------------------------------------
-	twoCol("Sold by: "+data.Salesperson, "", bodySize-1)
+	normalText("Customer: "+data.Customer, bodySize-1, "L")
 	down(lh)
-	twoCol("Customer: "+data.Customer, "", bodySize-1)
+	normalText("Salesperson: "+formatReceiptSalesperson(data.Salesperson), bodySize-1, "L")
+	down(lh)
+	normalText("Date: "+currentReceiptDate(), bodySize-1, "L")
 	down(lh - 0.5)
 	if strings.TrimSpace(data.Notes) != "" {
 		down(1.5)
@@ -638,8 +647,8 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		if it.Discount > 0 {
 			detail += fmt.Sprintf("  (-%.0f%%)", it.Discount)
 		}
-		if it.Code != "" {
-			detail = "Code: " + it.Code + "   " + detail
+		if it.Barcode != "" {
+			detail = "Barcode: " + it.Barcode + "   " + detail
 		}
 		pdf.SetXY(margin+2, pdf.GetY())
 		pdf.CellFormat(contentW-2, lh-0.6, detail, "", 0, "L", false, 0, "")
@@ -751,10 +760,11 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	down(9)
 	center("Thank you for shopping with us!", bodySize-1)
 	down(9)
-	drawPDFBarcode(pdf, margin, pdf.GetY(), contentW, 7, data.ReceiptNo)
-	down(9)
+	// PDF barcode temporarily disabled.
+	// drawPDFBarcode(pdf, margin, pdf.GetY(), contentW, 7, data.ReceiptNo)
+	// down(9)
 
-	down(lh + 2)
+	down(lh + 12)
 
 	return pdf
 }
@@ -767,20 +777,46 @@ func wrapToWidth(pdf *fpdf.Fpdf, s string, firstLineW, fullW float64) []string {
 		return []string{""}
 	}
 	lines := make([]string, 0, 2)
-	lines = append(lines, words[0])
-	for _, word := range words[1:] {
-		candidate := lines[len(lines)-1] + " " + word
+	for _, word := range words {
 		limit := fullW
-		if len(lines) == 1 {
+		if len(lines) == 0 {
 			limit = firstLineW
 		}
-		if pdf.GetStringWidth(candidate) > limit {
+		if len(lines) > 0 {
+			candidate := lines[len(lines)-1] + " " + word
+			if pdf.GetStringWidth(candidate) <= limit {
+				lines[len(lines)-1] = candidate
+				continue
+			}
+		}
+		if pdf.GetStringWidth(word) <= limit {
 			lines = append(lines, word)
-		} else {
-			lines[len(lines)-1] = candidate
+			continue
+		}
+		for _, chunk := range splitPDFWord(pdf, word, limit) {
+			lines = append(lines, chunk)
+			limit = fullW
 		}
 	}
 	return lines
+}
+
+func splitPDFWord(pdf *fpdf.Fpdf, word string, width float64) []string {
+	chunks := make([]string, 0, 2)
+	chunk := ""
+	for _, r := range word {
+		candidate := chunk + string(r)
+		if chunk != "" && pdf.GetStringWidth(candidate) > width {
+			chunks = append(chunks, chunk)
+			chunk = string(r)
+		} else {
+			chunk = candidate
+		}
+	}
+	if chunk != "" {
+		chunks = append(chunks, chunk)
+	}
+	return chunks
 }
 
 func filterEmpty(values ...string) []string {
@@ -888,8 +924,6 @@ func socialPlatformIconBytes(platform string) []byte {
 		return instagramIcon
 	case "threads":
 		return threadsIcon
-	case "youtube":
-		return youtubeIcon
 	case "tiktok":
 		return tiktokIcon
 	default:

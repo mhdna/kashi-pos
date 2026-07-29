@@ -49,6 +49,9 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 		if err != nil {
 			return fmt.Errorf("source invoice: %w", err)
 		}
+		if err := validateExchangeWindow(source.CreatedAt, time.Now()); err != nil {
+			return err
+		}
 		priced, err := a.validateAndPriceExchange(q, source.ID, request, roundingMode)
 		if err != nil {
 			return err

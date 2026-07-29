@@ -1,5 +1,7 @@
 package main
 
+import "strings"
+
 type printReceiptData struct {
 	Items           []invoiceItem
 	StoreName       string
@@ -36,4 +38,26 @@ type receiptPayment struct {
 	CurrencyCode string
 	AmountCents  int64
 	EntryType    string
+}
+
+func formatReceiptSalesperson(name string) string {
+	parts := strings.Fields(strings.TrimSpace(name))
+	if len(parts) == 0 {
+		return "Not specified"
+	}
+	if len(parts) == 1 {
+		return parts[0]
+	}
+	last := []rune(parts[len(parts)-1])
+	if len(last) == 0 {
+		return parts[0]
+	}
+	return parts[0] + " " + string(last[0]) + "."
+}
+
+func receiptInvoiceLabel(receiptNo string) string {
+	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(receiptNo)), "EX/") {
+		return "Exchange Invoice"
+	}
+	return "Sales Invoice"
 }

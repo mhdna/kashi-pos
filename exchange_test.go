@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -188,6 +189,29 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	}
 	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, ""); err == nil {
 		t.Fatal("expected duplicate exchange to fail")
+	}
+
+	if _, err := database.Exec(
+		`UPDATE invoices SET created_at = datetime('now', '-4 days') WHERE id = ?`,
+		sourceID,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.GetExchangeInvoice(sale.InvoiceCode); err == nil || !strings.Contains(err.Error(), "more than 3 days") {
+		t.Fatalf("expired invoice load error = %v", err)
+	}
+	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, ""); err == nil || !strings.Contains(err.Error(), "more than 3 days") {
+		t.Fatalf("expired invoice checkout error = %v", err)
+	}
+}
+
+func TestValidateExchangeWindow(t *testing.T) {
+	createdAt := "2026-07-26 12:00:00"
+	if err := validateExchangeWindow(createdAt, time.Date(2026, 7, 29, 12, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("exchange at exactly 3 days should be allowed: %v", err)
+	}
+	if err := validateExchangeWindow(createdAt, time.Date(2026, 7, 29, 12, 0, 1, 0, time.UTC)); err == nil {
+		t.Fatal("exchange after 3 days should be rejected")
 	}
 }
 

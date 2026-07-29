@@ -23,7 +23,11 @@
       </span>
     </div>
 
-    <div v-if="!isPaidInFull" class="calculator-amounts mb-2">
+    <div
+      class="calculator-amounts mb-2"
+      :class="{ 'calculator-amounts-hidden': isPaidInFull }"
+      :aria-hidden="isPaidInFull"
+    >
       <div>
         <strong :class="statusColor">{{ remainingAmount.usd }}</strong>
       </div>
@@ -67,6 +71,9 @@ defineProps<{
   border: 1px solid rgba(var(--v-border-color), 0.12);
   border-radius: 10px;
   font-size: 0.8rem;
+}
+.calculator-amounts-hidden {
+  visibility: hidden;
 }
 .calculator-amounts > div {
   display: flex;

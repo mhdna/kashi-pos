@@ -555,7 +555,6 @@ const socialPlatformOptions = [
   { title: "", value: "tiktok", icon: "mdi-music-note", label: "TikTok" },
   { title: "", value: "instagram", icon: "mdi-instagram", label: "Instagram" },
   { title: "", value: "threads", icon: "mdi-at", label: "Threads" },
-  { title: "", value: "youtube", icon: "mdi-youtube", label: "YouTube" },
 ];
 
 function platformIcon(platform: string) {

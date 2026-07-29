@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -22,6 +23,9 @@ func (a *App) GetExchangeInvoice(code string) (map[string]any, error) {
 	invoice, err := a.store.GetSalesInvoiceByCode(a.ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("sales invoice not found")
+	}
+	if err := validateExchangeWindow(invoice.CreatedAt, time.Now()); err != nil {
+		return nil, err
 	}
 	lines, err := a.store.ListInvoiceProducts(a.ctx, invoice.ID)
 	if err != nil {
@@ -67,6 +71,29 @@ func (a *App) GetExchangeInvoice(code string) (map[string]any, error) {
 		"client":      clientResponse(client),
 		"items":       items,
 	}, nil
+}
+
+const exchangeWindow = 3 * 24 * time.Hour
+
+func validateExchangeWindow(createdAt string, now time.Time) error {
+	invoiceTime, err := parseInvoiceTime(createdAt)
+	if err != nil {
+		return fmt.Errorf("invalid sales invoice date")
+	}
+	if now.UTC().After(invoiceTime.Add(exchangeWindow)) {
+		return fmt.Errorf("exchanges are not allowed more than 3 days after the sale")
+	}
+	return nil
+}
+
+func parseInvoiceTime(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	for _, layout := range []string{"2006-01-02 15:04:05", time.RFC3339Nano} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed.UTC(), nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unsupported invoice date %q", value)
 }
 
 func databaseInt64(value any) int64 {

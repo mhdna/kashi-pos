@@ -30,7 +30,7 @@
             {{ clientSelected ? client.phone || "Walk-in customer" : "Required before checkout" }}
           </div>
         </v-card>
-        <div v-if="client.id !== 0" class="text-center">
+        <div v-if="!isAnonymousClient" class="text-center">
           <v-icon
             :color="tierColor"
             class="mb-4"
@@ -142,6 +142,9 @@ const clientDialog = ref(false);
 const client = reactive<Client>(anonymousClient());
 const clientSelected = ref(false);
 const { selectedSalesperson } = useSalesperson();
+const isAnonymousClient = computed(
+  () => client.id === 0 || /anonymous|walk[\s-]?in/i.test(client.name.trim()),
+);
 
 const earns = computed(() => Math.floor(props.total));
 

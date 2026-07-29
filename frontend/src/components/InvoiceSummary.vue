@@ -12,7 +12,7 @@
       <span class="text-medium-emphasis">After Discount</span>
       <span>{{ formatUsd(afterDiscount) }}</span>
     </div>
-    <v-divider class="my-1" />
+    <!-- <v-divider class="my-1" /> -->
     <div class="d-flex justify-space-between text-caption">
       <span class="text-medium-emphasis">VAT ({{ (taxRate * 100).toFixed(0) }}%)</span>
       <span>{{ formatUsd(vat) }}</span>

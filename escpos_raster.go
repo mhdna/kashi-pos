@@ -70,13 +70,26 @@ func buildESCPOSRasterReceipt(data printReceiptData) ([]byte, error) {
 		return nil, fmt.Errorf("receipt raster height is invalid: %d", y)
 	}
 
-	cropped := image.NewRGBA(image.Rect(0, 0, width, y))
-	draw.Draw(cropped, cropped.Bounds(), c.img, image.Point{}, draw.Src)
+	top := firstRasterInkRow(c.img, y)
+	cropped := image.NewRGBA(image.Rect(0, 0, width, y-top))
+	draw.Draw(cropped, cropped.Bounds(), c.img, image.Point{Y: top}, draw.Src)
 	payload := encodeRasterBands(cropped, data.Cutoff)
 	if err := validateRasterPayload(payload, width); err != nil {
 		return nil, fmt.Errorf("unsafe printer payload rejected: %w", err)
 	}
 	return payload, nil
+}
+
+func firstRasterInkRow(img *image.RGBA, height int) int {
+	for y := 0; y < height; y++ {
+		for x := 0; x < img.Bounds().Dx(); x++ {
+			pixel := img.RGBAAt(x, y)
+			if pixel.A > 32 && (int(pixel.R)+int(pixel.G)+int(pixel.B))/3 < 176 {
+				return y
+			}
+		}
+	}
+	return 0
 }
 
 func (c *receiptCanvas) drawReceipt() (int, error) {
@@ -85,29 +98,43 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if y, err = c.center(y, c.data.StoreName, c.data.TitleSize, true, true); err != nil {
 		return 0, err
 	}
-	y += 22
-	y, _ = c.center(y, c.data.Branch, c.data.BodySize-1, true, false)
-	y += 10
-	if c.data.Description != "" {
-		y, _ = c.centerWrapped(y, c.data.Description, c.data.BodySize-1, 8)
+	y += 4
+	branchPhone := c.data.BranchPhone
+	if branchPhone == "" {
+		branchPhone = c.data.Phone
 	}
-	y = c.barcode(y+6, c.data.ReceiptNo) + 6
-	y, _ = c.twoCol(y, "Inv# "+c.data.ReceiptNo, currentReceiptDate(), c.data.BodySize-1, true)
+	branchSize := c.data.TitleSize - 8
+	phoneSize := c.data.TitleSize - 8
+	if branchSize <= 0 {
+		branchSize = c.data.BodySize
+	}
+	if phoneSize <= 0 {
+		phoneSize = c.data.BodySize - 1
+	}
+	if c.data.Branch != "" {
+		y, _ = c.center(y+2, c.data.Branch, branchSize, false, true)
+		y += 10
+	}
+	if branchPhone != "" {
+		y, _ = c.center(y, branchPhone, phoneSize, false, true)
+		y += 12
+	}
+	// Receipt description temporarily disabled.
+	// if c.data.Description != "" {
+	// 	y, _ = c.centerWrappedNormal(y, c.data.Description, c.data.BodySize-1, 8)
+	// }
+	y, _ = c.center(y+8, receiptInvoiceLabel(c.data.ReceiptNo)+": "+c.data.ReceiptNo, c.data.BodySize-1, true, false)
 	y += 8
-	phone := c.data.BranchPhone
-	if phone == "" {
-		phone = c.data.Phone
-	}
-	contact := strings.TrimSpace(strings.Join(filterEmpty(phone, c.data.Website), "  •  "))
-	if contact != "" {
-		y, _ = c.center(y, contact, c.data.BodySize-1, true, false)
+	if strings.TrimSpace(c.data.Website) != "" {
+		y, _ = c.center(y, strings.TrimSpace(c.data.Website), c.data.BodySize-1.5, true, false)
 		y += 8
 	}
 	y = c.rule(y) + 10
 
 	metadata := []string{
-		"Sold by: " + fallbackReceiptValue(c.data.Salesperson, "Not specified"),
 		"Customer: " + fallbackReceiptValue(c.data.Customer, "Walk-in"),
+		"Salesperson: " + formatReceiptSalesperson(c.data.Salesperson),
+		"Date: " + currentReceiptDate(),
 	}
 	for _, line := range metadata {
 		y, _ = c.left(y, line, c.data.BodySize-1, false)
@@ -131,8 +158,8 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		discountTotal += discount
 		y, _ = c.itemRow(y, item.Name, fmt.Sprintf("$%.2f", lineTotal), 11)
 		y += 5
-		if item.Code != "" {
-			y, _ = c.indented(y, "Code: "+item.Code, 10)
+		if item.Barcode != "" {
+			y, _ = c.indented(y, item.Barcode, 10)
 			y += 3
 		}
 		qty := fmt.Sprintf("%.0f x $%.2f", item.Qty, item.Price)
@@ -157,9 +184,8 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		y, _ = c.twoCol(y, row[0], row[1], 11, true)
 		y += 7
 	}
-	y = c.rule(y) + 12
-	y = c.dottedBox(y, 27)
-	y += 6
+	boxTop := c.rule(y) + 12
+	y = boxTop + 8
 	y, _ = c.twoCol(y, "TOTAL", fmt.Sprintf("$%.2f", grandTotal), 13, true)
 	y += 8
 	rate := c.data.ExchangeRate
@@ -171,7 +197,9 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		lbp = int64(grandTotal * float64(rate))
 	}
 	y, _ = c.twoCol(y, "LBP TOTAL", formatInt(lbp)+" L.L.", 11, true)
-	y += 12
+	y += 8
+	c.dottedBox(boxTop, y-boxTop)
+	y += 6
 
 	if len(c.data.Payments) > 0 {
 		y = c.rule(y) + 10
@@ -183,9 +211,9 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 				label = "Cash"
 			}
 			if payment.EntryType == "change" {
-				label = "Change returned - " + label
+				label = "Change - " + label
 			} else {
-				label = "Cash received - " + label
+				label = "Received - " + label
 			}
 			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, rate, c.data.RoundingMode), 10, true)
 			y += 7
@@ -197,7 +225,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y += 8
 	policy := c.data.ReturnPolicy
 	if policy == "" {
-		policy = "Exchanges accepted within 3 days."
+		policy = "Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt."
 	}
 	y, _ = c.centerWrapped(y, policy, c.data.BodySize-2.5, 8)
 	y = c.rule(y+6) + 10
@@ -217,7 +245,11 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	}
 	y += 10
 	y, _ = c.center(y, "Thank you for shopping with us!", c.data.BodySize-1, true, false)
-	return y + 24, nil
+	y += 56
+	// Printer barcode temporarily disabled.
+	// y = c.barcode(y, c.data.ReceiptNo) + 24
+	y += 24
+	return y, nil
 }
 
 func (c *receiptCanvas) face(size float64, bold, title bool) (font.Face, error) {
@@ -226,11 +258,13 @@ func (c *receiptCanvas) face(size float64, bold, title bool) (font.Face, error) 
 		return face, nil
 	}
 	fontData := gomono.TTF
-	if bold {
-		fontData = gobold.TTF
-	}
 	if title {
 		fontData = goregular.TTF
+		if bold {
+			fontData = gobold.TTF
+		}
+	} else if bold {
+		fontData = gobold.TTF
 	}
 	if (title && c.data.Font == "Belleza") || (!title && c.data.BodyFont == "Belleza") {
 		fontData = bellezaFont
@@ -315,42 +349,76 @@ func (c *receiptCanvas) itemRow(y int, name, amount string, size float64) (int, 
 	if err != nil {
 		return y, err
 	}
-	lines := make([]string, 0, 2)
-	for _, word := range strings.Fields(name) {
-		if len(lines) == 0 {
-			lines = append(lines, word)
+	lines := wrapRasterItemName(face, name, nameWidth, c.contentW)
+	lineY := y
+	bottom := y
+	for index, line := range lines {
+		lineBottom, drawErr := c.text(c.margin, lineY, line, size, true, false)
+		if drawErr != nil {
+			return y, drawErr
+		}
+		if index == 0 {
+			amountBottom, amountErr := c.text(c.margin+c.contentW-rightWidth, lineY, amount, size, true, false)
+			if amountErr != nil {
+				return y, amountErr
+			}
+			if amountBottom > lineBottom {
+				lineBottom = amountBottom
+			}
+		}
+		bottom = lineBottom
+		if index < len(lines)-1 {
+			lineY = bottom + 2
+		}
+	}
+	return bottom, nil
+}
+
+func wrapRasterItemName(face font.Face, name string, firstWidth, fullWidth int) []string {
+	words := strings.Fields(name)
+	if len(words) == 0 {
+		return []string{""}
+	}
+	if firstWidth < 1 {
+		firstWidth = 1
+	}
+	if fullWidth < 1 {
+		fullWidth = 1
+	}
+
+	lines := []string{""}
+	for _, word := range words {
+		lineIndex := len(lines) - 1
+		limit := fullWidth
+		if lineIndex == 0 {
+			limit = firstWidth
+		}
+		candidate := word
+		if lines[lineIndex] != "" {
+			candidate = lines[lineIndex] + " " + word
+		}
+		if font.MeasureString(face, candidate).Ceil() <= limit {
+			lines[lineIndex] = candidate
 			continue
 		}
-		candidate := lines[len(lines)-1] + " " + word
-		limit := c.contentW
-		if len(lines) == 1 {
-			limit = nameWidth
+
+		if lines[lineIndex] != "" {
+			lines = append(lines, "")
+			lineIndex++
+			limit = fullWidth
 		}
-		if font.MeasureString(face, candidate).Ceil() > limit {
-			lines = append(lines, word)
-		} else {
-			lines[len(lines)-1] = candidate
-		}
-	}
-	if len(lines) == 0 {
-		lines = append(lines, "")
-	}
-	for index, line := range lines {
-		if index == 0 {
-			if _, err = c.text(c.margin, y, line, size, true, false); err != nil {
-				return y, err
+		for _, character := range word {
+			candidate = lines[lineIndex] + string(character)
+			if lines[lineIndex] != "" && font.MeasureString(face, candidate).Ceil() > limit {
+				lines = append(lines, string(character))
+				lineIndex++
+				limit = fullWidth
+			} else {
+				lines[lineIndex] = candidate
 			}
-			if _, err = c.text(c.margin+c.contentW-rightWidth, y, amount, size, true, false); err != nil {
-				return y, err
-			}
-		} else if _, err = c.text(c.margin, y, line, size, true, false); err != nil {
-			return y, err
-		}
-		if index < len(lines)-1 {
-			y += 10
 		}
 	}
-	return y, nil
+	return lines
 }
 
 func (c *receiptCanvas) centerWrapped(y int, value string, size float64, spacing int) (int, error) {
@@ -376,6 +444,38 @@ func (c *receiptCanvas) centerWrapped(y int, value string, size float64, spacing
 		if line != "" {
 			var err error
 			y, err = c.center(y, line, size, true, false)
+			if err != nil {
+				return y, err
+			}
+			y += spacing
+		}
+	}
+	return y, nil
+}
+
+func (c *receiptCanvas) centerWrappedNormal(y int, value string, size float64, spacing int) (int, error) {
+	for _, paragraph := range strings.Split(value, "\n") {
+		line := ""
+		for _, word := range strings.Fields(paragraph) {
+			candidate := strings.TrimSpace(line + " " + word)
+			width, err := c.measure(candidate, size, false, false)
+			if err != nil {
+				return y, err
+			}
+			if line != "" && width > c.contentW {
+				y, err = c.center(y, line, size, false, false)
+				if err != nil {
+					return y, err
+				}
+				y += spacing
+				line = word
+			} else {
+				line = candidate
+			}
+		}
+		if line != "" {
+			var err error
+			y, err = c.center(y, line, size, false, false)
 			if err != nil {
 				return y, err
 			}

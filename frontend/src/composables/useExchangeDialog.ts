@@ -1,5 +1,10 @@
 import { computed, nextTick, ref } from "vue";
-import { GetExchangeInvoice, GetProductByBarcode, GetProductByCode } from "../../wailsjs/go/main/App";
+import {
+  GetAppSettings,
+  GetExchangeInvoice,
+  GetProductByBarcode,
+  GetProductByCode,
+} from "../../wailsjs/go/main/App";
 import {
   effectiveExchangePrice,
   normalizeExchangeCode,
@@ -54,7 +59,8 @@ export function useExchangeDialog(roundingMode: () => string) {
     loading.value = true;
     invoiceError.value = "";
     try {
-      const loaded = (await GetExchangeInvoice(code)) as ExchangeInvoice;
+      const loaded = (await GetExchangeInvoice(await fullInvoiceCode(code))) as ExchangeInvoice;
+      invoiceCode.value = loaded.invoiceCode;
       invoice.value = {
         ...loaded,
         items: (loaded.items ?? []).map((item) => ({
@@ -203,6 +209,16 @@ export function useExchangeDialog(roundingMode: () => string) {
     createSelection,
     clearForm,
   };
+}
+
+async function fullInvoiceCode(value: string): Promise<string> {
+  if (!/^\d{5}$/.test(value)) return value;
+
+  const settings = await GetAppSettings();
+  const branchCode = String(settings?.branchCode ?? "").trim().toUpperCase();
+  if (!branchCode) throw new Error("Branch code is not configured.");
+
+  return `SA/${branchCode}/${new Date().getFullYear()}/${value}`;
 }
 
 async function findProduct(value: string): Promise<ExchangeItem> {

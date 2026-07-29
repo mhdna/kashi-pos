@@ -39,8 +39,8 @@ func TestBuildESCPOSRasterReceiptUsesSafeBands(t *testing.T) {
 			}
 		}
 	}
-	if firstBlackRow > 16 {
-		t.Fatalf("receipt has unexpected top padding: first content row is %d", firstBlackRow)
+	if firstBlackRow != 0 {
+		t.Fatalf("receipt has top padding: first content row is %d", firstBlackRow)
 	}
 	if blackPixels < 1000 {
 		t.Fatalf("receipt raster contains too little printable content: %d pixels", blackPixels)
