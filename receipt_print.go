@@ -34,10 +34,36 @@ type printReceiptData struct {
 }
 
 type receiptPayment struct {
+	AccountID    int64
 	AccountName  string
 	CurrencyCode string
 	AmountCents  int64
 	EntryType    string
+}
+
+func aggregateReceiptPayments(payments []receiptPayment) []receiptPayment {
+	type paymentKey struct {
+		accountID    int64
+		currencyCode string
+		entryType    string
+	}
+
+	aggregated := make([]receiptPayment, 0, len(payments))
+	indexByKey := make(map[paymentKey]int, len(payments))
+	for _, payment := range payments {
+		key := paymentKey{
+			accountID:    payment.AccountID,
+			currencyCode: payment.CurrencyCode,
+			entryType:    payment.EntryType,
+		}
+		if index, ok := indexByKey[key]; ok {
+			aggregated[index].AmountCents += payment.AmountCents
+			continue
+		}
+		indexByKey[key] = len(aggregated)
+		aggregated = append(aggregated, payment)
+	}
+	return aggregated
 }
 
 func formatReceiptSalesperson(name string) string {

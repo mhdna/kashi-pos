@@ -346,8 +346,15 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 		if err != nil {
 			return fmt.Errorf("receipt payment account: %w", err)
 		}
-		receiptPayments = append(receiptPayments, receiptPayment{AccountName: account.Name, CurrencyCode: account.CurrencyCode, AmountCents: payment.AmountCents, EntryType: payment.EntryType})
+		receiptPayments = append(receiptPayments, receiptPayment{
+			AccountID:    account.ID,
+			AccountName:  account.Name,
+			CurrencyCode: account.CurrencyCode,
+			AmountCents:  payment.AmountCents,
+			EntryType:    payment.EntryType,
+		})
 	}
+	receiptPayments = aggregateReceiptPayments(receiptPayments)
 	return printReceiptToPrinter(printReceiptData{
 		Items:           items,
 		StoreName:       storeName,
