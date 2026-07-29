@@ -242,6 +242,10 @@ export function SetTaxRate(arg1) {
   return window['go']['main']['App']['SetTaxRate'](arg1);
 }
 
+export function SetCustomItemDiscountsEnabled(arg1) {
+  return window['go']['main']['App']['SetCustomItemDiscountsEnabled'](arg1);
+}
+
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
@@ -264,6 +268,10 @@ export function UpdateClient(arg1, arg2, arg3) {
 
 export function UpdateReceiptSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15) {
   return window['go']['main']['App']['UpdateReceiptSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
+}
+
+export function UpdateProductDiscount(arg1, arg2) {
+  return window['go']['main']['App']['UpdateProductDiscount'](arg1, arg2);
 }
 
 export function UpdateSalesperson(arg1, arg2) {

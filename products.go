@@ -3,9 +3,12 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	db "kashi-pos/db/sqlc"
 )
+
+const customItemDiscountsFlag = "custom_item_discounts"
 
 type ProductPage struct {
 	Items []map[string]any `json:"items"`
@@ -112,4 +115,27 @@ func productMap(p db.Product) map[string]any {
 		"price": float64(p.Price) / 100, "discount": p.Discount,
 		"color": p.Color, "size": p.Size, "currency": p.CurrencyCode,
 	}
+}
+
+func (a *App) UpdateProductDiscount(code string, discount int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	enabled, err := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag)
+	if err != nil || enabled == 0 {
+		return fmt.Errorf("custom item discounts are disabled")
+	}
+	if discount < 0 || discount > 100 {
+		return fmt.Errorf("discount must be between 0 and 100")
+	}
+	product, err := a.store.GetProductByCode(a.ctx, strings.TrimSpace(code))
+	if err != nil {
+		return fmt.Errorf("product not found")
+	}
+	_, err = a.store.UpdateProduct(a.ctx, db.UpdateProductParams{
+		Barcode: product.Barcode, Code: product.Code, Name: product.Name,
+		Description: product.Description, IsActive: product.IsActive,
+		Price: product.Price, Discount: discount, ID: product.ID,
+	})
+	return err
 }

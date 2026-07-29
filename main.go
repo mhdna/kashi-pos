@@ -24,7 +24,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title: "kashi-pos",
+		Title: "Kashi Cloud",
 		// Width:      appWindowWidth,
 		// Height:     appWindowHeight,
 		// MinWidth:   appMinWindowWidth,

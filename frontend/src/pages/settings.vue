@@ -271,6 +271,30 @@
 
       <v-window-item value="admin">
         <div class="settings-grid settings-grid--admin">
+          <v-card class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36">
+                <v-icon icon="mdi-sale-outline" size="20" />
+              </v-avatar>
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Custom item discounts</div>
+                <div class="text-caption text-medium-emphasis">
+                  Let cashiers edit and save product discounts from the invoice.
+                </div>
+              </div>
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.customItemDiscountsEnabled"
+                :loading="discountSettingSaving"
+                color="primary"
+                hide-details
+                label="Enable custom item discounts"
+                @update:model-value="setCustomDiscountsEnabled"
+              />
+            </v-card-text>
+          </v-card>
+
           <v-form @submit.prevent="changePassword">
             <v-card class="settings-card">
               <v-card-title class="d-flex align-center ga-3">
@@ -487,6 +511,7 @@ import {
   GetAppSettings,
   UpdateSettings,
   UpdateAttendanceConfig,
+  SetCustomItemDiscountsEnabled,
   UpdateUserAttendanceID,
   UpdateReceiptSettings,
   ChangePassword,
@@ -539,6 +564,7 @@ const form = reactive({
   receiptBodySize: 11,
   receiptBodyFont: "Printer Font A",
   receiptCutoff: true,
+  customItemDiscountsEnabled: false,
   akuvoxIP: "",
   akuvoxUsername: "",
   akuvoxPassword: "",
@@ -567,6 +593,7 @@ function platformLabel(platform: string) {
 const serialPorts = ref<string[]>([]);
 const printers = ref<string[]>([]);
 const saving = ref(false);
+const discountSettingSaving = ref(false);
 const showApiKey = ref(false);
 const settingsLoading = ref(true);
 const settingsLoadError = ref(false);
@@ -648,6 +675,7 @@ async function loadSettings() {
         receiptBodySize: Number(s.receiptBodySize ?? 11),
         receiptBodyFont: s.receiptBodyFont ?? "Printer Font A",
         receiptCutoff: s.receiptCutoff !== false,
+        customItemDiscountsEnabled: Boolean(s.customItemDiscountsEnabled),
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
@@ -656,6 +684,22 @@ async function loadSettings() {
     settingsLoadError.value = true;
   } finally {
     settingsLoading.value = false;
+  }
+}
+
+async function setCustomDiscountsEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.customItemDiscountsEnabled;
+  form.customItemDiscountsEnabled = enabled;
+  discountSettingSaving.value = true;
+  try {
+    await SetCustomItemDiscountsEnabled(enabled);
+    notify(`Custom item discounts ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.customItemDiscountsEnabled = previous;
+    notify("Failed to update custom item discounts", "red");
+  } finally {
+    discountSettingSaving.value = false;
   }
 }
 

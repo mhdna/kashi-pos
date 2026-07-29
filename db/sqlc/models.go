@@ -99,6 +99,11 @@ type DiscountOverride struct {
 	CreatedAt string        `json:"createdAt"`
 }
 
+type FeatureFlag struct {
+	Key     string `json:"key"`
+	Enabled int64  `json:"enabled"`
+}
+
 type HoldInvoice struct {
 	ID        int64  `json:"id"`
 	CreatedAt string `json:"createdAt"`

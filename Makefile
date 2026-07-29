@@ -20,4 +20,4 @@ build-windows:
 	wails build -platform windows/amd64 -clean
 
 build-windows-compact:
-	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -clean -o kashi-pos-compact.exe
+	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -clean -o "Kashi Cloud Compact.exe"

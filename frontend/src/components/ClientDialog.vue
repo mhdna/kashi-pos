@@ -170,12 +170,6 @@ function reset() {
 .country-flag {
   display: inline-block;
   margin-inline-end: 6px;
-  font-family:
-    "Segoe UI Emoji",
-    "Apple Color Emoji",
-    "Noto Color Emoji",
-    sans-serif;
-  font-variant-emoji: emoji;
   line-height: 1;
 }
 </style>

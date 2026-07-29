@@ -113,23 +113,40 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	balances, err := a.store.ListShiftAccountBalances(a.ctx, shiftID)
+	invoices, err := a.store.ListInvoicesByShiftID(a.ctx, shiftID)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]map[string]any, len(balances))
-	for i, b := range balances {
-		account, _ := a.store.GetCashboxAccountByID(a.ctx, b.AccountID)
-		name := ""
-		if account.Name != "" {
-			name = account.Name
+	totals := make(map[int64]int64)
+	for _, invoice := range invoices {
+		payments, err := a.store.ListInvoicePayments(a.ctx, invoice.ID)
+		if err != nil {
+			return nil, err
 		}
-		result[i] = map[string]any{
-			"accountId":    b.AccountID,
-			"accountName":  name,
-			"balance":      b.Balance,
+		if len(payments) == 0 {
+			totals[invoice.CashboxID] += invoice.GrandTotal
+			continue
+		}
+		for _, payment := range payments {
+			totals[payment.CashboxID] += payment.Amount
+		}
+	}
+	accounts, err := a.store.ListCashboxAccounts(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]any, 0, len(totals))
+	for _, account := range accounts {
+		balance, exists := totals[account.ID]
+		if !exists {
+			continue
+		}
+		result = append(result, map[string]any{
+			"accountId":    account.ID,
+			"accountName":  account.Name,
+			"balance":      balance,
 			"currencyCode": account.CurrencyCode,
-		}
+		})
 	}
 	return result, nil
 }

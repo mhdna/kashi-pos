@@ -331,10 +331,24 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"receiptBodyFont":   settings.ReceiptBodyFont,
 		"receiptCutoff":     settings.ReceiptCutoff != 0,
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
+		result["customItemDiscountsEnabled"] = enabled != 0
+	} else {
+		result["customItemDiscountsEnabled"] = false
+	}
 	if config, configErr := a.GetAttendanceConfig(); configErr == nil {
 		result["attendance"] = config
 	}
 	return result, nil
+}
+
+func (a *App) SetCustomItemDiscountsEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: customItemDiscountsFlag, Enabled: boolInt(enabled),
+	})
 }
 
 func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, marketDescription, returnPolicy, website, instagram, socialPlatformsJSON, socialHandlesJSON, counterNumber, receiptFont, bodyFont string, titleSize, bodySize float64, cutoff bool) error {

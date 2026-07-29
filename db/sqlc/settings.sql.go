@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const getFeatureFlag = `-- name: GetFeatureFlag :one
+SELECT enabled FROM feature_flags WHERE key = ?
+`
+
+func (q *Queries) GetFeatureFlag(ctx context.Context, key string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getFeatureFlag, key)
+	var enabled int64
+	err := row.Scan(&enabled)
+	return enabled, err
+}
+
 const getSettings = `-- name: GetSettings :one
 SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number FROM settings LIMIT 1
 `
@@ -49,6 +60,21 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.CounterNumber,
 	)
 	return i, err
+}
+
+const setFeatureFlag = `-- name: SetFeatureFlag :exec
+INSERT INTO feature_flags (key, enabled) VALUES (?, ?)
+ON CONFLICT (key) DO UPDATE SET enabled = excluded.enabled
+`
+
+type SetFeatureFlagParams struct {
+	Key     string `json:"key"`
+	Enabled int64  `json:"enabled"`
+}
+
+func (q *Queries) SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error {
+	_, err := q.db.ExecContext(ctx, setFeatureFlag, arg.Key, arg.Enabled)
+	return err
 }
 
 const updateSettings = `-- name: UpdateSettings :exec

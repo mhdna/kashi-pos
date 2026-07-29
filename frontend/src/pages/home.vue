@@ -86,7 +86,10 @@
         ref="invoiceItems"
         :rounding-mode="roundingMode"
         :readonly="Boolean(exchangeState)"
+        :custom-discounts-enabled="customItemDiscountsEnabled"
         style="flex: 1 1 0; min-height: 0"
+        @discount-error="showDiscountError"
+        @discount-saved="onDiscountSaved"
       />
       <QuickAccessPanel v-if="!exchangeState" @add="(item) => invoiceItems?.addItem(item)" />
       <InvoiceSummary
@@ -188,6 +191,7 @@ const taxRate = ref(0);
 const roundingMode = ref("half_up");
 const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
+const customItemDiscountsEnabled = ref(false);
 const pulseClient = ref(false);
 let pulseClientTimer: ReturnType<typeof setTimeout> | undefined;
 const branchName = ref("Store");
@@ -327,6 +331,17 @@ async function onBarcodeEnter() {
 
 const products = ref<any[]>([]);
 
+function onDiscountSaved(code: string, discount: number) {
+  const product = products.value.find((item) => item.code === code);
+  if (product) product.discount = discount;
+}
+
+function showDiscountError(message: string) {
+  snackbar.text = message || "Could not save discount.";
+  snackbar.color = "red-darken-4";
+  snackbar.show = true;
+}
+
 const printing = ref(false);
 const snackbar = reactive({ show: false, text: "", color: "success" });
 
@@ -383,6 +398,7 @@ async function onVoid() {
 }
 
 async function onCheckout() {
+  if (invoiceItems.value && !(await invoiceItems.value.flushDiscounts())) return;
   const json = await getFullItemsJSON();
   if (json === "[]") return;
   const isExchange = Boolean(exchangeState.value);
@@ -508,6 +524,7 @@ onMounted(async () => {
     roundingMode.value = settings?.roundingMode ?? "half_up";
     receiptEnabled.value = Boolean(settings?.receiptEnabled);
     receiptPrinter.value = settings?.receiptPrinter ?? "";
+    customItemDiscountsEnabled.value = Boolean(settings?.customItemDiscountsEnabled);
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
   } catch {}

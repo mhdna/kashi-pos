@@ -26,7 +26,7 @@
           elevation="1"
           rounded="lg"
           :aria-label="item.name"
-          @click="emit('add', item)"
+          @click="addToInvoice(item)"
         >
           <div class="quick-access__name text-caption text-truncate">{{ item.name }}</div>
           <div class="quick-access__code text-caption text-truncate">{{ item.code }}</div>
@@ -64,6 +64,7 @@
 <script lang="ts" setup>
 import { ref, watch } from "vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
+import { GetProductByCode } from "../../wailsjs/go/main/App";
 
 type QuickAccessItem = {
   name: string;
@@ -103,6 +104,13 @@ watch(
 function addPinnedItem(item: QuickAccessItem) {
   if (!items.value.some((existing) => existing.code === item.code))
     items.value.push({ ...item, qty: 1 });
+}
+async function addToInvoice(item: QuickAccessItem) {
+  try {
+    const latest = (await GetProductByCode(item.code)) as QuickAccessItem;
+    Object.assign(item, latest);
+  } catch {}
+  emit("add", { ...item, qty: 1 });
 }
 function removePinnedItem(code: string) {
   const item = items.value.find((entry) => entry.code === code);

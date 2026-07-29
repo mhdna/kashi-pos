@@ -77,6 +77,7 @@ type Querier interface {
 	GetDailyIncomeByMonth(ctx context.Context, createdAt string) ([]GetDailyIncomeByMonthRow, error)
 	GetDefaultCurrency(ctx context.Context) (Currency, error)
 	GetDiscountOverride(ctx context.Context, id int64) (DiscountOverride, error)
+	GetFeatureFlag(ctx context.Context, key string) (int64, error)
 	GetInventoryByID(ctx context.Context, id int64) (Inventory, error)
 	GetInventoryItem(ctx context.Context, arg GetInventoryItemParams) (InventoryItem, error)
 	GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
@@ -135,13 +136,13 @@ type Querier interface {
 	ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListSalespersons(ctx context.Context) ([]Salesperson, error)
-	ListShiftAccountBalances(ctx context.Context, shiftID int64) ([]ShiftsAccountsBalance, error)
 	ListShifts(ctx context.Context) ([]Shift, error)
 	ListTransferItems(ctx context.Context, transferID int64) ([]TransferItem, error)
 	ListTransfers(ctx context.Context) ([]Transfer, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
+	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
 	UpdateCouponStatus(ctx context.Context, arg UpdateCouponStatusParams) error
