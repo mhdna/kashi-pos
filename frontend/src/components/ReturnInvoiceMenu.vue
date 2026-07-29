@@ -19,21 +19,42 @@
       </v-card-subtitle>
 
       <v-card-text>
-        <div class="d-flex ga-2 align-start">
-          <v-text-field
-            ref="invoiceInput"
-            v-model="invoiceCode"
-            autofocus
-            class="flex-grow-1"
-            density="compact"
-            placeholder="Sales invoice code or barcode"
-            prepend-inner-icon="mdi-barcode"
-            variant="outlined"
-            :disabled="Boolean(invoice)"
-            :error-messages="invoiceError"
-            @keydown.enter.prevent="loadInvoice"
-            @update:model-value="invoiceError = ''"
-          />
+        <div class="exchange-input-row">
+          <div class="exchange-input-control">
+            <v-text-field
+              ref="invoiceInput"
+              v-model="invoiceCode"
+              autofocus
+              density="compact"
+              placeholder="Sales invoice code or barcode"
+              prepend-inner-icon="mdi-barcode"
+              variant="outlined"
+              :disabled="Boolean(invoice)"
+              :error-messages="invoiceError"
+              @keydown.enter.prevent="loadInvoice"
+              @update:model-value="invoiceError = ''"
+            />
+            <NumberPadMenu
+              :model-value="invoiceCode"
+              :max-length="64"
+              :replace-on-open="false"
+              aria-label="Open invoice number pad"
+              preserve-string
+              @update:model-value="invoiceCode = String($event)"
+              @commit="loadInvoice"
+            >
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  class="exchange-keyboard-toggle"
+                  variant="tonal"
+                  :disabled="Boolean(invoice)"
+                >
+                  123
+                </v-btn>
+              </template>
+            </NumberPadMenu>
+          </div>
           <v-btn
             v-if="!invoice"
             color="primary"
@@ -77,18 +98,40 @@
             </v-list>
           </v-card>
 
-          <v-text-field
-            ref="scanInput"
-            v-model="scanValue"
-            density="compact"
-            :placeholder="returned ? 'Scan replacement product' : 'Scan product being returned'"
-            prepend-inner-icon="mdi-barcode"
-            variant="outlined"
-            :loading="scanning"
-            :error-messages="scanError"
-            @keydown.enter.prevent="scanItem"
-            @update:model-value="scanError = ''"
-          />
+          <div class="exchange-input-control">
+            <v-text-field
+              ref="scanInput"
+              v-model="scanValue"
+              density="compact"
+              :placeholder="returned ? 'Scan replacement product' : 'Scan product being returned'"
+              prepend-inner-icon="mdi-barcode"
+              variant="outlined"
+              :loading="scanning"
+              :error-messages="scanError"
+              @keydown.enter.prevent="scanItem"
+              @update:model-value="scanError = ''"
+            />
+            <NumberPadMenu
+              :model-value="scanValue"
+              :max-length="80"
+              :replace-on-open="false"
+              aria-label="Open product barcode number pad"
+              preserve-string
+              @update:model-value="scanValue = String($event)"
+              @commit="scanItem"
+            >
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  class="exchange-keyboard-toggle"
+                  variant="tonal"
+                  :disabled="scanning"
+                >
+                  123
+                </v-btn>
+              </template>
+            </NumberPadMenu>
+          </div>
 
           <v-list v-if="returned" density="compact" class="pa-0">
             <v-list-item
@@ -159,6 +202,7 @@
 import { computed, inject, ref, watch, type Ref } from "vue";
 import { useExchangeDialog } from "@/composables/useExchangeDialog";
 import { effectiveExchangePrice, exchangeLineTotal, type ExchangeSelection } from "@/lib/exchange";
+import NumberPadMenu from "@/components/NumberPadMenu.vue";
 
 const emit = defineEmits<{
   exchange: [payload: ExchangeSelection];
@@ -209,3 +253,29 @@ function startExchange() {
   menu.value = false;
 }
 </script>
+
+<style scoped>
+.exchange-input-row,
+.exchange-input-control {
+  align-items: flex-start;
+  display: flex;
+  gap: 6px;
+}
+
+.exchange-input-control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.exchange-input-control :deep(.v-input) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.exchange-keyboard-toggle {
+  flex: 0 0 48px;
+  font-weight: 700;
+  height: 40px;
+  min-width: 48px;
+}
+</style>

@@ -89,7 +89,6 @@
         :custom-discounts-enabled="customItemDiscountsEnabled"
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
-        @discount-saved="onDiscountSaved"
       />
       <QuickAccessPanel v-if="!exchangeState" @add="(item) => invoiceItems?.addItem(item)" />
       <InvoiceSummary
@@ -155,10 +154,19 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, provide, watch, onMounted, computed, reactive, nextTick } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  provide,
+  reactive,
+  ref,
+  watch,
+} from "vue";
 import {
   GetProductByBarcode,
-  ListProducts,
+  GetProductByCode,
   HoldInvoice,
   VoidInvoice,
   CheckoutInvoice,
@@ -186,6 +194,7 @@ import { useSalesperson } from "@/composables/useSalesperson";
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
 type InvoiceDraft = { items: any[]; client: Client; notes?: string };
 const { selectedSalesperson, pulseSalesperson } = useSalesperson();
+let pageActive = true;
 
 const taxRate = ref(0);
 const roundingMode = ref("half_up");
@@ -322,18 +331,14 @@ async function onBarcodeEnter() {
     const p = await GetProductByBarcode(value);
     match = { ...p, qty: 1 };
   } catch {
-    match = products.value.find((p) => p.code === value);
+    try {
+      const p = await GetProductByCode(value);
+      match = { ...p, qty: 1 };
+    } catch {}
   }
   if (match) invoiceItems.value?.addItem(match);
   barcodeValue.value = "";
   focusBarcode();
-}
-
-const products = ref<any[]>([]);
-
-function onDiscountSaved(code: string, discount: number) {
-  const product = products.value.find((item) => item.code === code);
-  if (product) product.discount = discount;
 }
 
 function showDiscountError(message: string) {
@@ -430,6 +435,7 @@ async function onCheckout() {
           paymentsJSON,
           exchangeState.value.originalInvoiceId,
           clientID,
+          salesperson!.id,
           invoiceNotes.value,
         )
       : await CheckoutInvoice(
@@ -511,15 +517,12 @@ function onRestoreHold(id: number, items: any[]) {
 
 onMounted(async () => {
   await nextTick();
+  if (!pageActive) return;
   restoreDraft();
   focusBarcode();
   try {
-    products.value = (await ListProducts()).map((p) => ({ ...p, qty: 1 }));
-  } catch (e) {
-    console.error("ListProducts failed:", e);
-  }
-  try {
     const settings = await GetAppSettings();
+    if (!pageActive) return;
     taxRate.value = Number(settings?.taxRate ?? 0);
     roundingMode.value = settings?.roundingMode ?? "half_up";
     receiptEnabled.value = Boolean(settings?.receiptEnabled);
@@ -528,15 +531,23 @@ onMounted(async () => {
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
   } catch {}
+  if (!pageActive) return;
   try {
     await GetOpenShift();
   } catch {
+    if (!pageActive) return;
     try {
       await OpenShift();
     } catch {}
   }
+  if (!pageActive) return;
   showCustomerTotal();
   await refreshNextInvoiceCode("sales");
+});
+
+onBeforeUnmount(() => {
+  pageActive = false;
+  clearTimeout(pulseClientTimer);
 });
 </script>
 

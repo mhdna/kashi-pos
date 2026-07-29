@@ -23,50 +23,28 @@
           </span>
         </template>
         <template #append>
-          <div class="d-flex align-center ga-2" style="min-width: 320px">
-            <div class="d-flex align-center ga-1" style="width: 60px; flex: 0 0 auto">
-              <v-btn
-                v-if="!readonly"
-                density="compact"
-                variant="text"
-                size="small"
-                @click="decreaseQty(item)"
-              >
-                <v-icon icon="mdi-minus" size="20" />
-              </v-btn>
-              <span class="text-body-2 font-weight-bold text-center" style="min-width: 1.5rem">{{
-                item.qty
-              }}</span>
-              <v-btn
-                v-if="!readonly"
-                density="compact"
-                variant="text"
-                size="small"
-                @click="increaseQty(item)"
-              >
-                <v-icon icon="mdi-plus" size="20" />
-              </v-btn>
-            </div>
-            <v-text-field
+          <div class="invoice-item-actions d-flex align-center ga-1">
+            <NumberPadMenu
+              :model-value="item.qty"
+              :disabled="readonly || item.qty < 0"
+              :min="1"
+              :max="999"
+              aria-label="Edit item quantity"
+              prefix="Qty"
+              @update:model-value="(value) => setQuantity(item, Number(value))"
+            />
+            <NumberPadMenu
               v-if="customDiscountsEnabled && !readonly && item.qty > 0"
               :ref="(element) => setDiscountInput(index, element)"
               :model-value="item.discount"
               aria-label="Item discount percentage"
-              class="invoice-discount-input"
-              density="compact"
-              hide-details
-              max="100"
-              min="0"
-              step="1"
+              :min="0"
+              :max="100"
               suffix="%"
-              type="number"
-              variant="outlined"
-              @focus="selectDiscount"
+              tone="error"
               @update:model-value="(value) => setDraftDiscount(item, value)"
-              @blur="persistDiscount(item)"
-              @keydown.enter.prevent="saveAndMove(item, index, 1)"
-              @keydown.up.prevent="saveAndMove(item, index, -1)"
-              @keydown.down.prevent="saveAndMove(item, index, 1)"
+              @commit="persistDiscount(item)"
+              @navigate="(direction) => saveAndMove(item, index, direction)"
             />
             <div class="d-flex flex-column align-end" style="flex: 1 1 auto">
               <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
@@ -98,6 +76,7 @@ import {
   type ComponentPublicInstance,
 } from "vue";
 import { ListCategoryIcons, UpdateProductDiscount } from "../../wailsjs/go/main/App";
+import NumberPadMenu from "@/components/NumberPadMenu.vue";
 
 interface LineItem {
   name: string;
@@ -156,12 +135,8 @@ onMounted(async () => {
   } catch {}
 });
 
-function increaseQty(item: LineItem) {
-  item.qty++;
-}
-
-function decreaseQty(item: LineItem) {
-  if (item.qty > 1) item.qty--;
+function setQuantity(item: LineItem, value: number) {
+  item.qty = Math.max(1, Math.trunc(value));
 }
 
 function removeItem(item: LineItem) {
@@ -203,10 +178,6 @@ function setDiscountInput(
   } else {
     discountInputs.delete(index);
   }
-}
-
-function selectDiscount(event: FocusEvent) {
-  (event.target as HTMLInputElement | null)?.select();
 }
 
 function setDraftDiscount(item: LineItem, value: unknown) {
@@ -293,8 +264,7 @@ defineExpose({
 </script>
 
 <style scoped>
-.invoice-discount-input {
-  flex: 0 0 78px;
-  max-width: 78px;
+.invoice-item-actions {
+  min-width: 220px;
 }
 </style>

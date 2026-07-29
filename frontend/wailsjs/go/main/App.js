@@ -26,8 +26,8 @@ export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }
 
-export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5);
+export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function CheckoutInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
@@ -238,12 +238,12 @@ export function ReprintInvoice(arg1) {
   return window['go']['main']['App']['ReprintInvoice'](arg1);
 }
 
-export function SetTaxRate(arg1) {
-  return window['go']['main']['App']['SetTaxRate'](arg1);
-}
-
 export function SetCustomItemDiscountsEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemDiscountsEnabled'](arg1);
+}
+
+export function SetTaxRate(arg1) {
+  return window['go']['main']['App']['SetTaxRate'](arg1);
 }
 
 export function SetTheme(arg1) {
@@ -266,12 +266,12 @@ export function UpdateClient(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateClient'](arg1, arg2, arg3);
 }
 
-export function UpdateReceiptSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15) {
-  return window['go']['main']['App']['UpdateReceiptSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
-}
-
 export function UpdateProductDiscount(arg1, arg2) {
   return window['go']['main']['App']['UpdateProductDiscount'](arg1, arg2);
+}
+
+export function UpdateReceiptSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15) {
+  return window['go']['main']['App']['UpdateReceiptSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
 }
 
 export function UpdateSalesperson(arg1, arg2) {

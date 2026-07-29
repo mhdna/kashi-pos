@@ -1,11 +1,9 @@
 <template>
-  <v-app>
-    <AppBar />
-    <NavDrawer />
-    <v-main class="app-main">
-      <router-view />
-    </v-main>
-  </v-app>
+  <AppBar />
+  <NavDrawer />
+  <v-main class="app-main">
+    <router-view />
+  </v-main>
 </template>
 
 <script setup>

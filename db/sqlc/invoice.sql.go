@@ -611,7 +611,11 @@ func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]I
 }
 
 const listInvoicesPage = `-- name: ListInvoicesPage :many
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes FROM invoices ORDER BY id DESC LIMIT ?2 OFFSET ?1
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+FROM invoices i
+LEFT JOIN salespersons s ON s.id = i.salesperson_id
+ORDER BY i.id DESC
+LIMIT ?2 OFFSET ?1
 `
 
 type ListInvoicesPageParams struct {
@@ -619,15 +623,34 @@ type ListInvoicesPageParams struct {
 	Limit  int64 `json:"limit"`
 }
 
-func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]Invoice, error) {
+type ListInvoicesPageRow struct {
+	ID              int64  `json:"id"`
+	CashboxID       int64  `json:"cashboxId"`
+	ShiftID         int64  `json:"shiftId"`
+	InvoiceCode     string `json:"invoiceCode"`
+	InvoiceIndex    int64  `json:"invoiceIndex"`
+	Year            int64  `json:"year"`
+	ClientID        int64  `json:"clientId"`
+	InventoryID     int64  `json:"inventoryId"`
+	Discount        int64  `json:"discount"`
+	Subtotal        int64  `json:"subtotal"`
+	DiscountedTotal int64  `json:"discountedTotal"`
+	GrandTotal      int64  `json:"grandTotal"`
+	CreatedAt       string `json:"createdAt"`
+	SalespersonID   int64  `json:"salespersonId"`
+	Notes           string `json:"notes"`
+	SalespersonName string `json:"salespersonName"`
+}
+
+func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]ListInvoicesPageRow, error) {
 	rows, err := q.db.QueryContext(ctx, listInvoicesPage, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Invoice{}
+	items := []ListInvoicesPageRow{}
 	for rows.Next() {
-		var i Invoice
+		var i ListInvoicesPageRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.CashboxID,
@@ -644,6 +667,7 @@ func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPagePara
 			&i.CreatedAt,
 			&i.SalespersonID,
 			&i.Notes,
+			&i.SalespersonName,
 		); err != nil {
 			return nil, err
 		}

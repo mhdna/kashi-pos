@@ -1,11 +1,9 @@
 <template>
   <v-app :class="{ 'kashi-compact': isCompactBuild, 'animations-disabled': !animationsEnabled }">
-    <v-main>
-      <v-alert v-if="startupError" type="error" prominent class="ma-4">
-        {{ startupError }}
-      </v-alert>
-      <router-view />
-    </v-main>
+    <v-alert v-if="startupError" type="error" prominent class="ma-4">
+      {{ startupError }}
+    </v-alert>
+    <router-view v-else />
   </v-app>
 </template>
 

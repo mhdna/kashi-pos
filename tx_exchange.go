@@ -10,9 +10,15 @@ import (
 
 // CheckoutExchangeInvoice records one returned line and one or more
 // replacement lines. Only the positive difference is paid by the customer.
-func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, notes string) (map[string]any, error) {
+func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, salespersonID int64, notes string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
+	}
+	if salespersonID <= 0 {
+		return nil, fmt.Errorf("salesperson is required")
+	}
+	if _, err := a.store.GetSalespersonByID(a.ctx, salespersonID); err != nil {
+		return nil, fmt.Errorf("salesperson: %w", err)
 	}
 	request, err := parseExchangeRequest(itemsJSON)
 	if err != nil {
@@ -70,7 +76,7 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 			return err
 		}
 		invoice, err := createExchangeInvoice(
-			a, q, cashbox, shift, source, inventoryID, total, settings.BranchCode, notes,
+			a, q, cashbox, shift, source, inventoryID, salespersonID, total, settings.BranchCode, notes,
 		)
 		if err != nil {
 			return err
@@ -124,7 +130,7 @@ func exchangeCashbox(a *App, q *db.Queries, payments []checkoutPayment) (db.Cash
 	return accounts[0], nil
 }
 
-func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shift db.Shift, source db.Invoice, inventoryID, total int64, branchCode, notes string) (db.Invoice, error) {
+func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shift db.Shift, source db.Invoice, inventoryID, salespersonID, total int64, branchCode, notes string) (db.Invoice, error) {
 	year := int64(time.Now().Year())
 	invoiceCode, index, err := a.allocateInvoiceCode(
 		q, invoiceTypeExchange, branchCode, year,
@@ -138,7 +144,8 @@ func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shi
 		InvoiceIndex: index, Year: year, ClientID: source.ClientID,
 		InventoryID: inventoryID, Discount: 0,
 		Subtotal: total, DiscountedTotal: total, GrandTotal: total,
-		Notes: strings.TrimSpace(notes),
+		SalespersonID: salespersonID,
+		Notes:         strings.TrimSpace(notes),
 	})
 	if err != nil {
 		return db.Invoice{}, err

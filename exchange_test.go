@@ -48,6 +48,10 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	salesperson, err := store.CreateSalesperson(ctx, "Exchange Salesperson")
+	if err != nil {
+		t.Fatal(err)
+	}
 	returnedProduct, err := store.CreateProduct(ctx, db.CreateProductParams{
 		Barcode: "111", Code: "RETURN-1", Name: "Returned product", IsActive: 1, Price: 1000,
 	})
@@ -120,7 +124,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 		{Code: returnedProduct.Code, Qty: -1},
 		{Code: replacementProduct.Code, Qty: 1},
 	})
-	if _, err := app.CheckoutExchangeInvoice(string(tooLowItems), "[]", sourceID, 0, ""); err == nil {
+	if _, err := app.CheckoutExchangeInvoice(string(tooLowItems), "[]", sourceID, 0, salesperson.ID, ""); err == nil {
 		t.Fatal("expected a replacement total below the return value to fail")
 	}
 
@@ -130,7 +134,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 		{Code: secondReplacement.Code, Qty: 1},
 	})
 	exchangePayments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 200}})
-	exchangeResult, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, "")
+	exchangeResult, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, salesperson.ID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,6 +159,16 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	}
 	if exchangeInvoice.GrandTotal != 200 || len(exchangeLines) != 3 {
 		t.Fatalf("exchange total=%d lines=%d", exchangeInvoice.GrandTotal, len(exchangeLines))
+	}
+	if exchangeInvoice.SalespersonID != salesperson.ID {
+		t.Fatalf("exchange salesperson=%d, want %d", exchangeInvoice.SalespersonID, salesperson.ID)
+	}
+	exchangeDetails, err := app.GetInvoiceDetails(exchangeInvoice.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exchangeDetails["salespersonName"] != salesperson.FullName {
+		t.Fatalf("exchange salesperson name=%q, want %q", exchangeDetails["salespersonName"], salesperson.FullName)
 	}
 
 	returnedStock, err := store.GetInventoryItem(ctx, db.GetInventoryItemParams{
@@ -187,7 +201,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if _, err := app.GetExchangeInvoice(sale.InvoiceCode); err == nil {
 		t.Fatal("expected fully returned invoice to have no available items")
 	}
-	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, ""); err == nil {
+	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, salesperson.ID, ""); err == nil {
 		t.Fatal("expected duplicate exchange to fail")
 	}
 
@@ -200,8 +214,71 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if _, err := app.GetExchangeInvoice(sale.InvoiceCode); err == nil || !strings.Contains(err.Error(), "more than 3 days") {
 		t.Fatalf("expired invoice load error = %v", err)
 	}
-	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, ""); err == nil || !strings.Contains(err.Error(), "more than 3 days") {
+	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, salesperson.ID, ""); err == nil || !strings.Contains(err.Error(), "more than 3 days") {
 		t.Fatalf("expired invoice checkout error = %v", err)
+	}
+}
+
+func TestCreateExchangeInvoicePersistsSalesperson(t *testing.T) {
+	ctx := context.Background()
+	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "exchange-salesperson.db")+"?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+
+	store := db.NewStore(database)
+	cashbox, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shift, err := store.CreateShift(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := store.CreateInventory(ctx, "Sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	salesperson, err := store.CreateSalesperson(ctx, "Exchange Salesperson")
+	if err != nil {
+		t.Fatal(err)
+	}
+	year := int64(time.Now().Year())
+	source, err := store.CreateInvoice(ctx, db.CreateInvoiceParams{
+		CashboxID: cashbox.ID, ShiftID: shift.ID, InvoiceCode: "INV-SOURCE",
+		InvoiceIndex: 1, Year: year, ClientID: client.ID, InventoryID: inventory.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateSalesInvoice(ctx, source.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{ctx: ctx, store: store}
+	exchange, err := createExchangeInvoice(
+		app, store.Queries, cashbox, shift, source, inventory.ID, salesperson.ID, 200, "CN", "",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exchange.SalespersonID != salesperson.ID {
+		t.Fatalf("exchange salesperson=%d, want %d", exchange.SalespersonID, salesperson.ID)
+	}
+	details, err := app.GetInvoiceDetails(exchange.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if details["salespersonName"] != salesperson.FullName {
+		t.Fatalf("exchange salesperson name=%q, want %q", details["salespersonName"], salesperson.FullName)
 	}
 }
 

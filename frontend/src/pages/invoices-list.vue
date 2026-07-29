@@ -190,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, reactive, ref } from "vue";
 import {
   ChangeInvoiceClient,
   ChangeInvoiceSalesperson,
@@ -329,18 +329,46 @@ function notify(text: string, color = "success") {
   snackbar.color = color;
   snackbar.show = true;
 }
-async function loadInvoices({ page, itemsPerPage: requestedItemsPerPage }: { page: number; itemsPerPage: number }) {
+type InvoicePageOptions = { page: number; itemsPerPage: number };
+
+let pageActive = true;
+let queuedLoad: InvoicePageOptions | null = null;
+let activeLoad: Promise<void> | null = null;
+
+function loadInvoices(options: InvoicePageOptions): Promise<void> {
+  queuedLoad = { ...options };
+  if (!activeLoad) {
+    activeLoad = drainInvoiceLoads().finally(() => {
+      activeLoad = null;
+      if (pageActive && queuedLoad) void loadInvoices(queuedLoad);
+    });
+  }
+  return activeLoad;
+}
+
+async function drainInvoiceLoads() {
   loading.value = true;
-  currentPage.value = page;
   try {
-    const result = await ListInvoicesPage(page, requestedItemsPerPage);
-    items.value = result.items ?? [];
-    totalItems.value = result.total ?? 0;
-  } catch {
-    items.value = [];
-    totalItems.value = 0;
+    while (pageActive && queuedLoad) {
+      const options = queuedLoad;
+      queuedLoad = null;
+      currentPage.value = options.page;
+
+      try {
+        const result = await ListInvoicesPage(options.page, options.itemsPerPage);
+        if (!pageActive) return;
+        if (queuedLoad) continue;
+        items.value = result.items ?? [];
+        totalItems.value = result.total ?? 0;
+      } catch {
+        if (!pageActive) return;
+        if (queuedLoad) continue;
+        items.value = [];
+        totalItems.value = 0;
+      }
+    }
   } finally {
-    loading.value = false;
+    if (pageActive) loading.value = false;
   }
 }
 
@@ -364,6 +392,11 @@ async function ensureEditOptions() {
   }
   return editOptionsPromise;
 }
+
+onBeforeUnmount(() => {
+  pageActive = false;
+  queuedLoad = null;
+});
 </script>
 
 <style scoped>

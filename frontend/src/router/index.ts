@@ -5,6 +5,8 @@
  */
 import { createRouter, createWebHashHistory } from "vue-router";
 
+const loadInvoicesList = () => import("@/pages/invoices-list.vue");
+
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
@@ -25,7 +27,7 @@ const router = createRouter({
         },
         {
           path: "invoices-list",
-          component: () => import("@/pages/invoices-list.vue"),
+          component: loadInvoicesList,
         },
         { path: "inventory", component: () => import("@/pages/inventory.vue") },
         { path: "transfers", component: () => import("@/pages/transfers.vue") },
@@ -36,6 +38,8 @@ const router = createRouter({
     },
   ],
 });
+
+router.isReady().then(() => void loadInvoicesList().catch(() => undefined));
 
 router.beforeEach(async (to) => {
   try {

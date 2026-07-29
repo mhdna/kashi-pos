@@ -10,16 +10,27 @@
       <v-card-title class="d-flex align-center">
         Products
         <v-spacer />
-        <v-text-field
-          v-model="search"
-          density="compact"
-          hide-details
-          placeholder="Search products..."
-          variant="outlined"
-          class="ms-4"
-          style="max-width: 250px"
-          autofocus
-        />
+        <div class="product-search-control ms-4">
+          <v-text-field
+            v-model="search"
+            density="compact"
+            hide-details
+            placeholder="Search products..."
+            variant="outlined"
+            autofocus
+          />
+          <PopupKeyboardMenu
+            v-model="search"
+            :max-length="80"
+            aria-label="Open product search keyboard"
+            layout="code"
+            placeholder="Search by name, code, or barcode"
+          >
+            <template #activator="{ props }">
+              <v-btn v-bind="props" class="product-search-keyboard" variant="tonal">ABC</v-btn>
+            </template>
+          </PopupKeyboardMenu>
+        </div>
       </v-card-title>
       <v-data-table-server
         v-model:items-per-page="itemsPerPage"
@@ -40,6 +51,7 @@
 <script lang="ts" setup>
 import { ref, inject, watch } from "vue";
 import { ListProductsPage } from "../../wailsjs/go/main/App";
+import PopupKeyboardMenu from "@/components/PopupKeyboardMenu.vue";
 
 const emit = defineEmits<{
   select: [
@@ -100,3 +112,24 @@ function selectProduct(_event: any, row: any) {
   search.value = "";
 }
 </script>
+
+<style scoped>
+.product-search-control {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  max-width: 320px;
+  width: 100%;
+}
+
+.product-search-control :deep(.v-input) {
+  flex: 1 1 auto;
+}
+
+.product-search-keyboard {
+  flex: 0 0 48px;
+  font-weight: 700;
+  height: 40px;
+  min-width: 48px;
+}
+</style>

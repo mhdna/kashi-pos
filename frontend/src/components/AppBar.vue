@@ -41,6 +41,7 @@ function updateTime() {
 }
 
 let interval: ReturnType<typeof setInterval>;
+let attendanceCheckRunning = false;
 onMounted(async () => {
   updateTime();
   interval = setInterval(updateTime, 1000);
@@ -49,12 +50,18 @@ onMounted(async () => {
     branchName.value = settings?.branchName ?? "";
   } catch {}
   const checkAttendance = async () => {
+    if (attendanceCheckRunning) return;
+    attendanceCheckRunning = true;
     try {
       const config = await GetAppSettings();
       if (!config?.attendance?.enabled) { attendanceUnreachable.value = false; return; }
       const result = await SyncAttendance(new Date().toISOString().slice(0, 10));
       attendanceUnreachable.value = result?.configured === true && result?.reachable !== true;
-    } catch { attendanceUnreachable.value = true; }
+    } catch {
+      attendanceUnreachable.value = true;
+    } finally {
+      attendanceCheckRunning = false;
+    }
   };
   await checkAttendance();
   clearInterval(interval);

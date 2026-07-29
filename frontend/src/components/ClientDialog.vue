@@ -28,15 +28,30 @@
             </v-list-item>
           </template>
         </v-autocomplete>
-        <v-text-field
-          v-model="phone"
-          :placeholder="`Phone Number (+${selectedDialCode})`"
-          variant="outlined"
-          density="compact"
-          autofocus
-          :error-messages="phoneError"
-          @keydown.enter="lookupPhone"
-        />
+        <div class="client-input-with-toggle">
+          <v-text-field
+            v-model="phone"
+            :placeholder="`Phone Number (+${selectedDialCode})`"
+            variant="outlined"
+            density="compact"
+            autofocus
+            :error-messages="phoneError"
+            @keydown.enter="lookupPhone"
+          />
+          <NumberPadMenu
+            :model-value="phone"
+            :max-length="15"
+            :prefix="`+${selectedDialCode}`"
+            preserve-string
+            :replace-on-open="false"
+            aria-label="Open phone number pad"
+            @update:model-value="phone = String($event)"
+          >
+            <template #activator="{ props }">
+              <v-btn v-bind="props" class="client-input-toggle" variant="tonal">123</v-btn>
+            </template>
+          </NumberPadMenu>
+        </div>
         <v-btn class="w-100 mb-4" variant="elevated" color="primary" :disabled="Boolean(phoneError) || !phone.trim()" @click="lookupPhone"
           >Continue</v-btn
         >
@@ -60,13 +75,20 @@
             <span>+{{ selectedDialCode }}</span>
           </template>
         </v-text-field>
-        <v-text-field
-          v-model="newClient.name"
-          placeholder="Name"
-          variant="outlined"
-          density="compact"
-          autofocus
-        />
+        <div class="client-input-with-toggle">
+          <v-text-field
+            v-model="newClient.name"
+            placeholder="Name"
+            variant="outlined"
+            density="compact"
+            autofocus
+          />
+          <PopupKeyboardMenu v-model="newClient.name" aria-label="Open name keyboard">
+            <template #activator="{ props }">
+              <v-btn v-bind="props" class="client-input-toggle" variant="tonal">ABC</v-btn>
+            </template>
+          </PopupKeyboardMenu>
+        </div>
         <div class="text-caption text-medium-emphasis mt-n1">
           Please don't use rediculous names like "nonameeeeee", or "ali4738432".
         </div>
@@ -91,6 +113,8 @@ import { ref, reactive, inject, watch, computed } from "vue";
 import { getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js/min";
 import { GetClientByPhone, CreateClient } from "../../wailsjs/go/main/App";
 import { anonymousClient, toClient, type Client } from "@/lib/client";
+import NumberPadMenu from "@/components/NumberPadMenu.vue";
+import PopupKeyboardMenu from "@/components/PopupKeyboardMenu.vue";
 
 const emit = defineEmits<{ select: [client: Client] }>();
 
@@ -171,5 +195,22 @@ function reset() {
   display: inline-block;
   margin-inline-end: 6px;
   line-height: 1;
+}
+
+.client-input-with-toggle {
+  align-items: flex-start;
+  display: flex;
+  gap: 6px;
+}
+
+.client-input-with-toggle :deep(.v-input) {
+  flex: 1 1 auto;
+}
+
+.client-input-toggle {
+  flex: 0 0 48px;
+  font-weight: 700;
+  height: 40px;
+  min-width: 48px;
 }
 </style>

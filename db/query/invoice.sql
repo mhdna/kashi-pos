@@ -41,7 +41,11 @@ WHERE r.sales_invoice_id = ? AND ip.product_id = ?;
 SELECT * FROM invoices ORDER BY id;
 
 -- name: ListInvoicesPage :many
-SELECT * FROM invoices ORDER BY id DESC LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
+SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+FROM invoices i
+LEFT JOIN salespersons s ON s.id = i.salesperson_id
+ORDER BY i.id DESC
+LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
 -- name: CountInvoices :one
 SELECT COUNT(*) FROM invoices;

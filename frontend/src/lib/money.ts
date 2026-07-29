@@ -8,9 +8,10 @@ export function normalizeRoundingMode(mode?: string): RoundingMode {
 
 /** Matches the backend's integer LBP cash-rounding rule. */
 export function roundLbpFromCents(cents: number, exchangeRate: number, mode?: string): number {
-  if (!Number.isFinite(cents) || cents < 0 || !Number.isFinite(exchangeRate) || exchangeRate <= 0)
+  if (!Number.isFinite(cents) || !Number.isFinite(exchangeRate) || exchangeRate <= 0)
     return 0;
-  const exactLbp = (cents * exchangeRate) / 100;
+  const sign = cents < 0 ? -1 : 1;
+  const exactLbp = (Math.abs(cents) * exchangeRate) / 100;
   const units = exactLbp / LBP_ROUNDING_UNIT;
   const roundingMode = normalizeRoundingMode(mode);
   const roundedUnits =
@@ -19,7 +20,7 @@ export function roundLbpFromCents(cents: number, exchangeRate: number, mode?: st
       : roundingMode === "up"
         ? Math.ceil(units - 1e-9)
         : Math.floor(units + 0.5);
-  return roundedUnits * LBP_ROUNDING_UNIT;
+  return roundedUnits === 0 ? 0 : sign * roundedUnits * LBP_ROUNDING_UNIT;
 }
 
 export function roundCents(value: number, mode?: string): number {

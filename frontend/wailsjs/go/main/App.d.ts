@@ -14,7 +14,7 @@ export function ChangeInvoiceSettlement(arg1:number,arg2:number):Promise<void>;
 
 export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 
-export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:string):Promise<Record<string, any>>;
+export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
 export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<Record<string, any>>;
 
@@ -120,9 +120,9 @@ export function OpenShift():Promise<Record<string, any>>;
 
 export function ReprintInvoice(arg1:number):Promise<void>;
 
-export function SetTaxRate(arg1:number):Promise<void>;
-
 export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
+
+export function SetTaxRate(arg1:number):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
 
@@ -134,9 +134,9 @@ export function UpdateAttendanceConfig(arg1:string,arg2:string,arg3:string,arg4:
 
 export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
 
-export function UpdateReceiptSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string,arg10:string,arg11:string,arg12:string,arg13:number,arg14:number,arg15:boolean):Promise<void>;
-
 export function UpdateProductDiscount(arg1:string,arg2:number):Promise<void>;
+
+export function UpdateReceiptSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string,arg10:string,arg11:string,arg12:string,arg13:number,arg14:number,arg15:boolean):Promise<void>;
 
 export function UpdateSalesperson(arg1:number,arg2:string):Promise<Record<string, any>>;
 
