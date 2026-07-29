@@ -21,11 +21,19 @@ WHERE name LIKE '%' || sqlc.arg(search) || '%'
 ORDER BY id
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
+-- name: ListProductsPageUnfiltered :many
+SELECT * FROM products
+ORDER BY id
+LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
+
 -- name: CountProducts :one
 SELECT COUNT(*) FROM products
 WHERE name LIKE '%' || sqlc.arg(search) || '%'
    OR code LIKE '%' || sqlc.arg(search) || '%'
    OR barcode LIKE '%' || sqlc.arg(search) || '%';
+
+-- name: CountAllProducts :one
+SELECT COUNT(*) FROM products;
 
 -- name: CreateProduct :one
 INSERT INTO products (barcode, code, name, description, is_active, price, discount)

@@ -10,6 +10,17 @@ import (
 	"database/sql"
 )
 
+const countAllProducts = `-- name: CountAllProducts :one
+SELECT COUNT(*) FROM products
+`
+
+func (q *Queries) CountAllProducts(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAllProducts)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countProducts = `-- name: CountProducts :one
 SELECT COUNT(*) FROM products
 WHERE name LIKE '%' || ?1 || '%'
@@ -369,6 +380,53 @@ type ListProductsPageParams struct {
 
 func (q *Queries) ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error) {
 	rows, err := q.db.QueryContext(ctx, listProductsPage, arg.Search, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductsPageUnfiltered = `-- name: ListProductsPageUnfiltered :many
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products
+ORDER BY id
+LIMIT ?2 OFFSET ?1
+`
+
+type ListProductsPageUnfilteredParams struct {
+	Offset int64 `json:"offset"`
+	Limit  int64 `json:"limit"`
+}
+
+func (q *Queries) ListProductsPageUnfiltered(ctx context.Context, arg ListProductsPageUnfilteredParams) ([]Product, error) {
+	rows, err := q.db.QueryContext(ctx, listProductsPageUnfiltered, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

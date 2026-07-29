@@ -38,7 +38,7 @@
         :items="serverItems"
         :items-length="totalItems"
         :loading="loading"
-        :search="search"
+        :search="debouncedSearch"
         hover
         return-object
         @click:row="selectProduct"
@@ -49,7 +49,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, inject, watch } from "vue";
+import { ref, inject, onBeforeUnmount, watch } from "vue";
 import { ListProductsPage } from "../../wailsjs/go/main/App";
 import PopupKeyboardMenu from "@/components/PopupKeyboardMenu.vue";
 
@@ -74,9 +74,20 @@ const activatorText = props.activatorText;
 const dialogOpen = inject<import("vue").Ref<boolean>>("dialogOpen", { value: false } as any);
 const dialog = ref(false);
 const search = ref("");
+const debouncedSearch = ref("");
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+let latestRequest = 0;
 
 watch(dialog, (v) => {
   dialogOpen.value = v;
+});
+
+watch(search, (value) => {
+  clearTimeout(searchTimer);
+  latestRequest++;
+  searchTimer = setTimeout(() => {
+    debouncedSearch.value = value.trim();
+  }, 250);
 });
 
 const headers = [
@@ -91,18 +102,27 @@ const serverItems = ref<any[]>([]);
 const totalItems = ref(0);
 const loading = ref(false);
 
-async function loadItems({ page, itemsPerPage: requestedItemsPerPage }: { page: number; itemsPerPage: number }) {
+async function loadItems({
+  page,
+  itemsPerPage: requestedItemsPerPage,
+}: {
+  page: number;
+  itemsPerPage: number;
+}) {
+  const request = ++latestRequest;
   loading.value = true;
   try {
-    const result = await ListProductsPage(page, requestedItemsPerPage, search.value);
+    const result = await ListProductsPage(page, requestedItemsPerPage, debouncedSearch.value);
+    if (request !== latestRequest) return;
     serverItems.value = result.items.map((p) => ({ ...p, qty: 1 }));
     totalItems.value = result.total;
   } catch (e) {
+    if (request !== latestRequest) return;
     console.error("ListProductsPage failed:", e);
     serverItems.value = [];
     totalItems.value = 0;
   } finally {
-    loading.value = false;
+    if (request === latestRequest) loading.value = false;
   }
 }
 
@@ -111,6 +131,11 @@ function selectProduct(_event: any, row: any) {
   dialog.value = false;
   search.value = "";
 }
+
+onBeforeUnmount(() => {
+  clearTimeout(searchTimer);
+  latestRequest++;
+});
 </script>
 
 <style scoped>

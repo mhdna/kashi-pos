@@ -87,16 +87,31 @@ func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (Produ
 		itemsPerPage = 100
 	}
 
+	search = strings.TrimSpace(search)
 	params := db.ListProductsPageParams{
 		Search: sql.NullString{String: search, Valid: true},
 		Limit:  int64(itemsPerPage),
 		Offset: int64(page-1) * int64(itemsPerPage),
 	}
-	products, err := a.store.ListProductsPage(a.ctx, params)
-	if err != nil {
-		return ProductPage{}, err
+
+	var (
+		products []db.Product
+		total    int64
+		err      error
+	)
+	if search == "" {
+		products, err = a.store.ListProductsPageUnfiltered(a.ctx, db.ListProductsPageUnfilteredParams{
+			Limit: params.Limit, Offset: params.Offset,
+		})
+		if err == nil {
+			total, err = a.store.CountAllProducts(a.ctx)
+		}
+	} else {
+		products, err = a.store.ListProductsPage(a.ctx, params)
+		if err == nil {
+			total, err = a.store.CountProducts(a.ctx, params.Search)
+		}
 	}
-	total, err := a.store.CountProducts(a.ctx, sql.NullString{String: search, Valid: true})
 	if err != nil {
 		return ProductPage{}, err
 	}
