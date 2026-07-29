@@ -48,7 +48,7 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
 .keypad-numbers {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
 }
 .keypad-actions {
   display: flex;

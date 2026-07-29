@@ -121,22 +121,29 @@ function appendDigit(digit: string) {
   if (!props.preserveString && Number(candidate) > props.max) return;
   draft.value = candidate;
   replaceOnInput.value = false;
+  emitDraft();
 }
 
 function clear() {
   draft.value = "";
   replaceOnInput.value = false;
+  emitDraft();
 }
 
 function backspace() {
   draft.value = draft.value.slice(0, -1);
   replaceOnInput.value = false;
+  emitDraft();
 }
 
 function normalizedValue() {
   if (props.preserveString) return draft.value;
   const numeric = Math.trunc(Number(draft.value) || 0);
   return Math.min(props.max, Math.max(props.min, numeric));
+}
+
+function emitDraft() {
+  emit("update:modelValue", normalizedValue());
 }
 
 function apply() {

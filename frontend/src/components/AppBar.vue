@@ -1,5 +1,5 @@
 <template>
-  <v-app-bar color="#4a352f" density="compact" elevation="4">
+  <v-app-bar density="compact" elevation="4">
     <template #prepend>
       <div class="d-flex flex-column align-last justify-center mx-2">
         <v-app-bar-title class="text-title-medium">Kashi Cloud</v-app-bar-title>
@@ -7,7 +7,10 @@
       </div>
       <div class="mx-8 me-0 text-title-small">{{ time }}</div>
       <v-tooltip v-if="attendanceUnreachable" text="Attendance machine is unreachable">
-        <template #activator="{ props }"><v-badge v-bind="props" color="error" dot inline class="ms-3"><v-icon icon="mdi-lan-disconnect" color="error" size="20" /></v-badge></template>
+        <template #activator="{ props }"
+          ><v-badge v-bind="props" color="error" dot inline class="ms-3"
+            ><v-icon icon="mdi-lan-disconnect" color="error" size="20" /></v-badge
+        ></template>
       </v-tooltip>
       <!-- <div class="mx-8 text-title-small text-green pa-1 px-3"> -->
       <!--   <v-icon icon="mdi-cloud-check-variant" size="18" class="me-1" /> -->
@@ -54,7 +57,10 @@ onMounted(async () => {
     attendanceCheckRunning = true;
     try {
       const config = await GetAppSettings();
-      if (!config?.attendance?.enabled) { attendanceUnreachable.value = false; return; }
+      if (!config?.attendance?.enabled) {
+        attendanceUnreachable.value = false;
+        return;
+      }
       const result = await SyncAttendance(new Date().toISOString().slice(0, 10));
       attendanceUnreachable.value = result?.configured === true && result?.reachable !== true;
     } catch {
@@ -65,7 +71,10 @@ onMounted(async () => {
   };
   await checkAttendance();
   clearInterval(interval);
-  interval = setInterval(async () => { updateTime(); await checkAttendance(); }, 3000);
+  interval = setInterval(async () => {
+    updateTime();
+    await checkAttendance();
+  }, 3000);
 });
 onUnmounted(() => clearInterval(interval));
 </script>

@@ -110,14 +110,21 @@ watch(open, (value) => {
 function append(character: string) {
   if (draft.value.length >= props.maxLength) return;
   draft.value += character === " " ? character : uppercase.value ? character : character.toLowerCase();
+  emitDraft();
 }
 
 function clear() {
   draft.value = "";
+  emitDraft();
 }
 
 function backspace() {
   draft.value = draft.value.slice(0, -1);
+  emitDraft();
+}
+
+function emitDraft() {
+  emit("update:modelValue", draft.value);
 }
 
 function apply() {
