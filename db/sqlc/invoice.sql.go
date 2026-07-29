@@ -215,10 +215,10 @@ func (q *Queries) DeleteSalesInvoice(ctx context.Context, invoiceID int64) error
 }
 
 const getDailyIncomeByMonth = `-- name: GetDailyIncomeByMonth :many
-SELECT date(created_at) as day, SUM(grand_total) as total
+SELECT date(created_at, 'localtime') as day, SUM(grand_total) as total
 FROM invoices
-WHERE strftime('%Y-%m', created_at) = ?
-GROUP BY date(created_at)
+WHERE strftime('%Y-%m', created_at, 'localtime') = ?
+GROUP BY date(created_at, 'localtime')
 ORDER BY day
 `
 
@@ -396,11 +396,22 @@ func (q *Queries) GetSalesInvoiceByID(ctx context.Context, id int64) (Invoice, e
 }
 
 const getTodayIncomeByAccount = `-- name: GetTodayIncomeByAccount :many
-SELECT ca.name, ca.currency_code, SUM(i.grand_total) as total
-FROM invoices i
-JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
-WHERE date(i.created_at) = date('now')
-GROUP BY i.cashbox_id
+WITH invoice_account_totals AS (
+    SELECT i.created_at, ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    UNION ALL
+    SELECT i.created_at, i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE NOT EXISTS (
+        SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id
+    )
+)
+SELECT ca.name, ca.currency_code, SUM(t.amount) as total
+FROM invoice_account_totals t
+JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
+WHERE date(t.created_at, 'localtime') = date('now', 'localtime')
+GROUP BY t.cashbox_id
 ORDER BY ca.name
 `
 

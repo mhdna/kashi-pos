@@ -15,7 +15,6 @@
         <template #title>{{ item.accountName }}</template>
         <template #append>
           <span class="font-weight-bold text-primary">
-            <v-icon v-if="(item.currencyCode ?? 'USD') !== 'LBP'" icon="mdi-currency-usd" size="16" class="me-1" />
             {{ formatBalance(item.total, item.currencyCode ?? "USD", exchangeRate) }}
           </span>
         </template>

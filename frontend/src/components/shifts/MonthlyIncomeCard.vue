@@ -46,7 +46,7 @@
               @click="$emit('toggle-day', item.day)"
             />
             <span>{{ item.day }}</span>
-            <span class="font-weight-bold">${{ (item.total / 100).toFixed(2) }}</span>
+            <span class="font-weight-bold">{{ formatBalance(item.total, "USD", exchangeRate) }}</span>
           </div>
           <div v-if="expandedDays.includes(item.day)" class="pa-0">
             <div v-if="!item.shifts.length" class="pa-3 text-caption text-medium-emphasis">
@@ -73,7 +73,9 @@
                     >→ {{ shift.closedAt }}</span
                   >
                   <v-spacer />
-                  <span class="font-weight-bold me-2">${{ (shift.total / 100).toFixed(2) }}</span>
+                  <span class="font-weight-bold me-2">{{
+                    formatBalance(shift.total, "USD", exchangeRate)
+                  }}</span>
                   <v-icon
                     :icon="shiftExpanded.has(shift.id) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
                     size="16"
@@ -106,7 +108,7 @@
     </v-virtual-scroll>
     <div class="monthly-income-total font-weight-bold">
       <span>Total</span>
-      <span><v-icon icon="mdi-currency-usd" size="18" />{{ (grandTotal / 100).toFixed(2) }}</span>
+      <span>{{ formatBalance(grandTotal, "USD", exchangeRate) }}</span>
     </div>
   </v-card>
 </template>

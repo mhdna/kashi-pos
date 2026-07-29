@@ -158,8 +158,8 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		discountTotal += discount
 		y, _ = c.itemRow(y, item.Name, fmt.Sprintf("$%.2f", lineTotal), 11)
 		y += 5
-		if item.Barcode != "" {
-			y, _ = c.indented(y, item.Barcode, 10)
+		if item.Code != "" {
+			y, _ = c.indented(y, "Code: "+item.Code, 10)
 			y += 3
 		}
 		qty := fmt.Sprintf("%.0f x $%.2f", item.Qty, item.Price)
@@ -202,7 +202,6 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y += 6
 
 	if len(c.data.Payments) > 0 {
-		y = c.rule(y) + 10
 		y, _ = c.center(y, "PAYMENT DETAILS", c.data.BodySize-1, true, false)
 		y += 8
 		for _, payment := range c.data.Payments {
@@ -220,7 +219,9 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		}
 	}
 
-	y = c.rule(y) + 10
+	if len(c.data.Payments) > 0 {
+		y = c.rule(y) + 10
+	}
 	y, _ = c.center(y, "RETURN & EXCHANGE POLICY", c.data.BodySize-1.5, true, false)
 	y += 8
 	policy := c.data.ReturnPolicy

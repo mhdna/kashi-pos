@@ -1,0 +1,115 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"path/filepath"
+	"testing"
+	"time"
+
+	db "kashi-pos/db/sqlc"
+
+	_ "modernc.org/sqlite"
+)
+
+func TestIncomeViewsUseLiveInvoicePaymentsAfterDeletion(t *testing.T) {
+	ctx := context.Background()
+	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "income.db")+"?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+
+	store := db.NewStore(database)
+	shift, err := store.CreateShift(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cashbox, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{
+		Name: "Cash", CurrencyCode: "USD",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := store.CreateInventory(ctx, "Sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	invoice, err := store.CreateInvoice(ctx, db.CreateInvoiceParams{
+		CashboxID: cashbox.ID, ShiftID: shift.ID, InvoiceCode: "SA/CN/2026/00001",
+		InvoiceIndex: 1, Year: 2026, ClientID: client.ID, InventoryID: inventory.ID,
+		GrandTotal: 1000, DiscountedTotal: 1000, Subtotal: 1000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateInvoicePayment(ctx, db.CreateInvoicePaymentParams{
+		InvoiceID: invoice.ID, CashboxID: cashbox.ID, Amount: 1000,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.AddCashboxAccountBalance(ctx, db.AddCashboxAccountBalanceParams{
+		AccountID: cashbox.ID, ShiftID: shift.ID, Balance: 9999,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{ctx: ctx, store: store}
+	assertIncomeTotals(t, app, shift.ID, 1000)
+
+	monthRows, err := app.GetDailyIncomeByMonth(time.Now().Format("2006-01"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(monthRows) != 1 || monthRows[0]["total"] != float64(1000) {
+		t.Fatalf("monthly income = %#v", monthRows)
+	}
+
+	if err := app.DeleteInvoice(invoice.ID); err != nil {
+		t.Fatal(err)
+	}
+	assertIncomeTotals(t, app, shift.ID, 0)
+}
+
+func assertIncomeTotals(t *testing.T, app *App, shiftID int64, want float64) {
+	t.Helper()
+
+	today, err := app.GetTodayIncomeByAccount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	balances, err := app.ListShiftBalances(shiftID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shifts, err := app.GetShiftTotals()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var todayTotal, balanceTotal, shiftTotal float64
+	for _, row := range today {
+		todayTotal += row["total"].(float64)
+	}
+	for _, row := range balances {
+		balanceTotal += float64(row["balance"].(int64))
+	}
+	for _, row := range shifts {
+		if row["id"] == shiftID {
+			shiftTotal = row["total"].(float64)
+		}
+	}
+	if todayTotal != want || balanceTotal != want || shiftTotal != want {
+		t.Fatalf(
+			"income totals: today=%.0f balances=%.0f shift=%.0f, want %.0f",
+			todayTotal, balanceTotal, shiftTotal, want,
+		)
+	}
+}

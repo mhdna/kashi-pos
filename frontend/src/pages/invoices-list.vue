@@ -203,6 +203,7 @@ import {
   ListSalespersons,
   ReprintInvoice,
 } from "../../wailsjs/go/main/App";
+import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { useAuthStore } from "../stores/auth";
 
 const items = ref<any[]>([]),
@@ -293,6 +294,7 @@ async function deleteSelected() {
   deleting.value = true;
   try {
     await DeleteInvoice(deleteInvoice.value.id);
+    notifyIncomeChanged();
     deleteOpen.value = false;
     notify("Invoice deleted");
     await refresh();
@@ -308,9 +310,10 @@ async function saveChange() {
   try {
     if (changeType.value === "client")
       await ChangeInvoiceClient(changeInvoice.value.id, changeValue.value || 0);
-    else if (changeType.value === "settlement")
+    else if (changeType.value === "settlement") {
       await ChangeInvoiceSettlement(changeInvoice.value.id, changeValue.value || 0);
-    else await ChangeInvoiceSalesperson(changeInvoice.value.id, changeValue.value || 0);
+      notifyIncomeChanged();
+    } else await ChangeInvoiceSalesperson(changeInvoice.value.id, changeValue.value || 0);
     await openInvoice(changeInvoice.value);
     changeOpen.value = false;
     await refresh();

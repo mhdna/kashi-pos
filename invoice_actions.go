@@ -647,8 +647,8 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		if it.Discount > 0 {
 			detail += fmt.Sprintf("  (-%.0f%%)", it.Discount)
 		}
-		if it.Barcode != "" {
-			detail = "Barcode: " + it.Barcode + "   " + detail
+		if it.Code != "" {
+			detail = "Code: " + it.Code + "   " + detail
 		}
 		pdf.SetXY(margin+2, pdf.GetY())
 		pdf.CellFormat(contentW-2, lh-0.6, detail, "", 0, "L", false, 0, "")
@@ -697,8 +697,6 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 
 	// ---- Payments -----------------------------------------------------
 	if len(data.Payments) > 0 {
-		dashedRule()
-		down(2.5)
 		center("PAYMENT DETAILS", bodySize-1)
 		down(lh)
 		for _, payment := range data.Payments {
@@ -719,8 +717,10 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	}
 
 	// ---- Policy ---------------------------------------------------------
-	dashedRule()
-	down(2.5)
+	if len(data.Payments) > 0 {
+		dashedRule()
+		down(2.5)
+	}
 	center("RETURN & EXCHANGE POLICY", bodySize-1.5)
 	down(lh)
 	policy := data.ReturnPolicy

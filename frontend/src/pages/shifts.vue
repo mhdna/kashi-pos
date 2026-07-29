@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import {
   CloseShiftByID,
   GetCurrentMonth,
@@ -49,6 +49,7 @@ import CloseShiftDialog from "@/components/shifts/CloseShiftDialog.vue";
 import MonthlyIncomeCard from "@/components/shifts/MonthlyIncomeCard.vue";
 import ShiftSummaryCard from "@/components/shifts/ShiftSummaryCard.vue";
 import TodayIncomeCard from "@/components/shifts/TodayIncomeCard.vue";
+import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
 import type { Balance, DayRow, IncomeRow, Shift } from "@/types/shifts";
 const exchangeRate = ref(90000);
 
@@ -187,11 +188,19 @@ async function refresh() {
     todayIncome.value = [];
   }
 
+  for (const shiftId of Object.keys(balanceCache)) delete balanceCache[Number(shiftId)];
+  await Promise.all([...shiftExpanded].map(loadBalances));
+
   loadingToday.value = false;
   loadingMonth.value = false;
 }
 
+function refreshIncome() {
+  void refresh();
+}
+
 onMounted(async () => {
+  window.addEventListener(INCOME_CHANGED_EVENT, refreshIncome);
   try {
     const settings = await GetAppSettings();
     const rate = Number(settings?.exchangeRate);
@@ -204,6 +213,10 @@ onMounted(async () => {
     expandedDays.value = [currentDay.value];
   }
   await refresh();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener(INCOME_CHANGED_EVENT, refreshIncome);
 });
 </script>
 
