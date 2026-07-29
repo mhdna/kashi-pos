@@ -192,11 +192,17 @@ func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) 
 
 	result := make([]map[string]any, len(invoices))
 	for i, inv := range invoices {
+		salespersonName := "Anonymous"
+		if inv.SalespersonID > 0 {
+			if salesperson, salespersonErr := a.store.GetSalespersonByID(a.ctx, inv.SalespersonID); salespersonErr == nil {
+				salespersonName = salesperson.FullName
+			}
+		}
 		result[i] = map[string]any{
 			"id": inv.ID, "cashboxId": inv.CashboxID, "invoiceCode": inv.InvoiceCode,
 			"clientId": inv.ClientID, "subtotal": inv.Subtotal,
 			"discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
-			"createdAt": inv.CreatedAt, "salespersonId": inv.SalespersonID,
+			"createdAt": inv.CreatedAt, "salespersonId": inv.SalespersonID, "salespersonName": salespersonName,
 		}
 	}
 	return InvoicePage{Items: result, Total: total}, nil

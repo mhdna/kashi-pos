@@ -119,7 +119,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 		{Code: returnedProduct.Code, Qty: -1},
 		{Code: replacementProduct.Code, Qty: 1},
 	})
-	if _, err := app.CheckoutExchangeInvoice(string(tooLowItems), "[]", sourceID, 0); err == nil {
+	if _, err := app.CheckoutExchangeInvoice(string(tooLowItems), "[]", sourceID, 0, ""); err == nil {
 		t.Fatal("expected a replacement total below the return value to fail")
 	}
 
@@ -129,7 +129,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 		{Code: secondReplacement.Code, Qty: 1},
 	})
 	exchangePayments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 200}})
-	exchangeResult, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0)
+	exchangeResult, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if _, err := app.GetExchangeInvoice(sale.InvoiceCode); err == nil {
 		t.Fatal("expected fully returned invoice to have no available items")
 	}
-	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0); err == nil {
+	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, ""); err == nil {
 		t.Fatal("expected duplicate exchange to fail")
 	}
 }

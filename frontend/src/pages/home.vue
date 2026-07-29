@@ -414,7 +414,7 @@ async function onCheckout() {
           paymentsJSON,
           exchangeState.value.originalInvoiceId,
           clientID,
-          [invoiceNotes.value],
+          invoiceNotes.value,
         )
       : await CheckoutInvoice(
           json,

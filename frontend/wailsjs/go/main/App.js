@@ -54,6 +54,10 @@ export function CreateUser(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateUser'](arg1, arg2, arg3);
 }
 
+export function DeleteClient(arg1) {
+  return window['go']['main']['App']['DeleteClient'](arg1);
+}
+
 export function DeleteHoldInvoice(arg1) {
   return window['go']['main']['App']['DeleteHoldInvoice'](arg1);
 }
@@ -256,6 +260,10 @@ export function SyncAttendance(arg1) {
 
 export function UpdateAttendanceConfig(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateAttendanceConfig'](arg1, arg2, arg3, arg4);
+}
+
+export function UpdateClient(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdateClient'](arg1, arg2, arg3);
 }
 
 export function UpdateReceiptSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15) {

@@ -204,14 +204,16 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 
 	socials := socialFooterItems(c.data.SocialPlatforms, c.data.SocialHandles)
 	if len(socials) > 0 {
-		y, _ = c.left(y, "Follow us on:", c.data.BodySize-1, true)
-		y += 10
-		for _, social := range socials {
-			if y, err = c.social(y, social); err != nil {
-				return 0, err
-			}
-			y += 6
+		var rowBottom int
+		if rowBottom, err = c.socialFooterRow(y, socials); err != nil {
+			return 0, err
 		}
+		y = rowBottom + 10
+		// Match the PDF receipt: show one centered handle beneath the icon row.
+		if y, err = c.center(y, socials[0].handle, c.data.BodySize-1.5, false, false); err != nil {
+			return 0, err
+		}
+		y += 8
 	}
 	y += 10
 	y, _ = c.center(y, "Thank you for shopping with us!", c.data.BodySize-1, true, false)
@@ -436,6 +438,48 @@ func (c *receiptCanvas) social(y int, item socialFooterItem) (int, error) {
 		textBottom = y + iconSize
 	}
 	return textBottom, nil
+}
+
+// socialFooterRow matches the PDF footer: the label and all platform icons
+// share one horizontal row. The first configured handle is rendered below it
+// by drawReceipt.
+func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, error) {
+	const (
+		iconSize = 32
+		gap      = 16
+	)
+
+	label := "Follow us on:"
+	labelWidth, err := c.measure(label, c.data.BodySize-1, true, false)
+	if err != nil {
+		return y, err
+	}
+	rowWidth := labelWidth + len(items)*iconSize + (len(items)-1)*gap
+	startX := c.margin + (c.contentW-rowWidth)/2
+	if startX < c.margin {
+		startX = c.margin
+	}
+	if _, err = c.text(startX, y, label, c.data.BodySize-1, true, false); err != nil {
+		return y, err
+	}
+
+	x := startX + labelWidth
+	rowBottom := y
+	for _, item := range items {
+		iconBytes := socialPlatformIconBytes(item.platform)
+		if len(iconBytes) > 0 {
+			icon, decodeErr := png.Decode(bytes.NewReader(iconBytes))
+			if decodeErr != nil {
+				return y, fmt.Errorf("decode %s icon: %w", item.platform, decodeErr)
+			}
+			xdraw.CatmullRom.Scale(c.img, image.Rect(x, y, x+iconSize, y+iconSize), icon, icon.Bounds(), xdraw.Over, nil)
+		}
+		x += iconSize + gap
+		if y+iconSize > rowBottom {
+			rowBottom = y + iconSize
+		}
+	}
+	return rowBottom, nil
 }
 
 func (c *receiptCanvas) barcode(y int, receiptNo string) int {

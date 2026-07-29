@@ -10,11 +10,7 @@ import (
 
 // CheckoutExchangeInvoice records one returned line and one or more
 // replacement lines. Only the positive difference is paid by the customer.
-func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, noteArgs ...string) (map[string]any, error) {
-	notes := ""
-	if len(noteArgs) > 0 {
-		notes = noteArgs[0]
-	}
+func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, notes string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}

@@ -14,7 +14,7 @@ export function ChangeInvoiceSettlement(arg1:number,arg2:number):Promise<void>;
 
 export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 
-export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:Array<string>):Promise<Record<string, any>>;
+export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:string):Promise<Record<string, any>>;
 
 export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<Record<string, any>>;
 
@@ -27,6 +27,8 @@ export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any
 export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
 
 export function CreateUser(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
+
+export function DeleteClient(arg1:number):Promise<void>;
 
 export function DeleteHoldInvoice(arg1:number):Promise<void>;
 
@@ -129,6 +131,8 @@ export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:string,ar
 export function SyncAttendance(arg1:string):Promise<Record<string, any>>;
 
 export function UpdateAttendanceConfig(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<void>;
+
+export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
 
 export function UpdateReceiptSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string,arg10:string,arg11:string,arg12:string,arg13:number,arg14:number,arg15:boolean):Promise<void>;
 

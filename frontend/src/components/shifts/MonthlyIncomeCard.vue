@@ -86,7 +86,13 @@
                     <v-list-item v-for="balance in balanceCache[shift.id]" :key="balance.accountId">
                       <template #title>{{ balance.accountName }}</template>
                       <template #append>
-                        <span class="font-weight-bold">{{ formatBalance(balance.balance, balance.currencyCode ?? "USD", exchangeRate) }}</span>
+                        <span class="font-weight-bold">{{
+                          formatBalance(
+                            balance.balance,
+                            balance.currencyCode ?? "USD",
+                            exchangeRate,
+                          )
+                        }}</span>
                       </template>
                     </v-list-item>
                   </v-list>
@@ -99,7 +105,7 @@
       </template>
     </v-virtual-scroll>
     <div class="monthly-income-total font-weight-bold">
-      <span><v-icon icon="mdi-sigma" size="18" class="me-1" />Total</span>
+      <span>Total</span>
       <span><v-icon icon="mdi-currency-usd" size="18" />{{ (grandTotal / 100).toFixed(2) }}</span>
     </div>
   </v-card>
@@ -157,11 +163,9 @@ async function centerCurrentDay() {
   });
 }
 
-watch(
-  () => [props.loading, props.rows.length, props.currentDay],
-  centerCurrentDay,
-  { immediate: true },
-);
+watch(() => [props.loading, props.rows.length, props.currentDay], centerCurrentDay, {
+  immediate: true,
+});
 
 defineEmits<{
   "toggle-all": [];

@@ -18,6 +18,11 @@
       <template #item.clientId="{ item }">
         {{ item.clientId ? `Client #${item.clientId}` : "Walk-in customer" }}
       </template>
+      <template #item.salespersonName="{ item }">
+        <v-chip size="small" variant="tonal" prepend-icon="mdi-account-tie">
+          {{ item.salespersonName || "Anonymous" }}
+        </v-chip>
+      </template>
       <template #item.createdAt="{ item }">{{ formatDate(item.createdAt) }}</template>
       <template #item.grandTotal="{ item }">
         <span class="font-weight-bold">${{ money(item.grandTotal) }}</span>
@@ -157,6 +162,8 @@
             :items="salespersons"
             item-title="fullName"
             item-value="id"
+            placeholder="Select a salesman"
+            clearable
             variant="outlined"
           /> </v-card-text
         ><v-card-actions
@@ -238,6 +245,7 @@ function formatDate(value?: string) {
 const headers = [
   { title: "Invoice", key: "invoiceCode" },
   { title: "Customer", key: "clientId" },
+  { title: "Salesman", key: "salespersonName" },
   { title: "Date", key: "createdAt" },
   { title: "Total", key: "grandTotal", align: "end" as const },
   { title: "", key: "actions", sortable: false, align: "end" as const },
@@ -272,7 +280,7 @@ async function startChange(type: "client" | "settlement" | "salesperson", item: 
     type === "client"
       ? item.clientId
       : type === "salesperson"
-        ? item.salespersonId || 0
+        ? item.salespersonId || null
         : item.cashboxId;
   changeOpen.value = true;
 }

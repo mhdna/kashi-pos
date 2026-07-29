@@ -2,7 +2,7 @@
 import AbstractBG from "@/components/AbstractBG.vue";
 import FloatingIcons from "@/components/FloatingIcons.vue";
 import LoginForm from "@/components/LoginForm.vue";
-import bg from "@/assets/bg.png";
+import bg from "@/assets/bg.webp";
 </script>
 
 <template>

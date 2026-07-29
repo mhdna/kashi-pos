@@ -17,11 +17,11 @@
       <span class="text-medium-emphasis">VAT ({{ (taxRate * 100).toFixed(0) }}%)</span>
       <span>{{ formatUsd(vat) }}</span>
     </div>
-    <v-divider class="my-1" />
-    <div class="d-flex justify-space-between text-body-2 font-weight-bold">
-      <span>Total</span>
-      <span>{{ formatUsd(total) }}</span>
-    </div>
+    <!-- <v-divider class="my-1" /> -->
+    <!-- <div class="d-flex justify-space-between text-body-2 font-weight-bold"> -->
+    <!--   <span>Total</span> -->
+    <!--   <span>{{ formatUsd(total) }}</span> -->
+    <!-- </div> -->
   </div>
 </template>
 

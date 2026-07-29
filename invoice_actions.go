@@ -171,6 +171,19 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 		"invoiceCode":    result.InvoiceCode,
 		"receiptPrinted": false,
 	}
+	// salesInvoiceTx creates the invoice before printing and leaves the
+	// salesperson unset. The app-bar selection must be persisted regardless of
+	// whether receipt printing is enabled.
+	if strings.TrimSpace(salesperson) != "" {
+		if people, peopleErr := a.store.ListSalespersons(a.ctx); peopleErr == nil {
+			for _, person := range people {
+				if person.FullName == salesperson {
+					_ = a.store.UpdateInvoiceSalesperson(a.ctx, db.UpdateInvoiceSalespersonParams{SalespersonID: person.ID, ID: result.InvoiceID})
+					break
+				}
+			}
+		}
+	}
 	settings, settingsErr := a.store.GetSettings(a.ctx)
 	if settingsErr == nil && settings.ReceiptEnabled != 0 {
 		marketName := settings.MarketName
@@ -180,16 +193,6 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 		customer := "Walk-in"
 		if client, err := a.store.GetClientByID(a.ctx, clientID); err == nil && client.Name != "" && !strings.Contains(strings.ToLower(client.Name), "walk-in") {
 			customer = client.Name
-		}
-		if salesperson != "" {
-			if people, err := a.store.ListSalespersons(a.ctx); err == nil {
-				for _, person := range people {
-					if person.FullName == salesperson {
-						_ = a.store.UpdateInvoiceSalesperson(a.ctx, db.UpdateInvoiceSalespersonParams{SalespersonID: person.ID, ID: result.InvoiceID})
-						break
-					}
-				}
-			}
 		}
 		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.Notes, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.Payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0); err != nil {
 			response["receiptError"] = err.Error()
@@ -563,8 +566,6 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 	}
 	down(1)
 
-	drawPDFBarcode(pdf, margin, pdf.GetY(), contentW, 7, data.ReceiptNo)
-	down(9)
 	twoCol("Inv# "+data.ReceiptNo, currentReceiptDate(), bodySize-1)
 	down(lh)
 
@@ -747,7 +748,12 @@ func buildReceiptPDF(data printReceiptData) *fpdf.Fpdf {
 		down(1)
 	}
 
+	down(9)
 	center("Thank you for shopping with us!", bodySize-1)
+	down(9)
+	drawPDFBarcode(pdf, margin, pdf.GetY(), contentW, 7, data.ReceiptNo)
+	down(9)
+
 	down(lh + 2)
 
 	return pdf

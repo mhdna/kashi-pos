@@ -98,11 +98,7 @@ const roundingToleranceCents = computed(() => {
 });
 const checkoutReady = computed(() => Math.abs(diffCents.value) <= roundingToleranceCents.value);
 const paymentStatus = computed(() =>
-  isPaidInFull.value
-    ? "Nothing remaining — paid in full"
-    : diffCents.value > 0
-      ? "Change to return"
-      : "Amount to pay",
+  isPaidInFull.value ? "Paid" : diffCents.value > 0 ? "Change to return" : "Amount to pay",
 );
 const statusColor = computed(() =>
   diff.value === 0
