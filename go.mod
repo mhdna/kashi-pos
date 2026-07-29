@@ -3,7 +3,6 @@ module kashi-pos
 go 1.25.0
 
 require (
-	github.com/go-pdf/fpdf v0.9.0
 	github.com/nyaruka/phonenumbers v1.8.1
 	github.com/wailsapp/wails/v2 v2.11.0
 	go.bug.st/serial v1.8.0

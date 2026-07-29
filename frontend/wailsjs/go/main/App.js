@@ -126,10 +126,6 @@ export function GetProductByCode(arg1) {
   return window['go']['main']['App']['GetProductByCode'](arg1);
 }
 
-export function GetReceiptPreview() {
-  return window['go']['main']['App']['GetReceiptPreview']();
-}
-
 export function GetShiftTotals() {
   return window['go']['main']['App']['GetShiftTotals']();
 }

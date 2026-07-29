@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -15,14 +14,6 @@ var assets embed.FS
 
 func main() {
 	loadDotEnv()
-
-	if len(os.Args) > 1 && os.Args[1] == "--receipt-preview" {
-		if err := runReceiptPreview(os.Args[2:]); err != nil {
-			println("Error generating receipt preview:", err.Error())
-			os.Exit(1)
-		}
-		return
-	}
 
 	if err := configureWebView(); err != nil {
 		println("Error configuring WebView:", err.Error())

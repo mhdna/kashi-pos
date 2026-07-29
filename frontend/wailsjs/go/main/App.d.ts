@@ -64,7 +64,6 @@ export function GetProductByBarcode(arg1:string):Promise<Record<string, any>>;
 
 export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
 
-export function GetReceiptPreview():Promise<string>;
 
 export function GetShiftTotals():Promise<Array<Record<string, any>>>;
 
