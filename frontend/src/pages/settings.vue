@@ -279,20 +279,64 @@
               <div>
                 <div class="text-subtitle-1 font-weight-bold">Custom item pricing</div>
                 <div class="text-caption text-medium-emphasis">
-                  Let cashiers set per-invoice prices and edit product discounts.
+                  Choose which item-level price and discount controls cashiers can use.
                 </div>
               </div>
             </v-card-title>
             <v-card-text>
               <v-switch
-                :model-value="form.customItemDiscountsEnabled"
-                :loading="discountSettingSaving"
+                :model-value="form.customItemPricesEnabled"
+                :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Enable custom prices and discounts"
+                label="Enable custom item prices"
+                @update:model-value="setCustomPricesEnabled"
+              />
+              <v-switch
+                :model-value="form.perUnitItemPricesEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Enable per-unit price and discount editing"
+                @update:model-value="setPerUnitPricesEnabled"
+              />
+              <v-switch
+                :model-value="form.customItemDiscountsEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Enable custom product discounts"
                 @update:model-value="setCustomDiscountsEnabled"
               />
             </v-card-text>
+          </v-card>
+
+          <v-card class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36">
+                <v-icon icon="mdi-lan-connect" size="20" />
+              </v-avatar>
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Remote admin access</div>
+                <div class="text-caption text-medium-emphasis">Allow the admin TUI to manage this POS remotely.</div>
+              </div>
+            </v-card-title>
+            <v-card-text>
+              <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="mb-3" />
+              <v-text-field v-model="form.adminListen" label="Listen address" hint="Use 0.0.0.0:8787 for LAN access." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-text-field
+                v-model="form.adminToken"
+                label="Admin token"
+                hint="Required when listening beyond localhost."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                :type="showAdminToken ? 'text' : 'password'"
+                :append-inner-icon="showAdminToken ? 'mdi-eye' : 'mdi-eye-off'"
+                @click:append-inner="showAdminToken = !showAdminToken"
+              />
+            </v-card-text>
+            <v-card-actions class="px-4 pb-4"><v-spacer /><v-btn color="primary" variant="flat" :loading="adminSettingsSaving" @click="saveAdminSettings"><v-icon start icon="mdi-content-save-outline" /> Save admin settings</v-btn></v-card-actions>
           </v-card>
 
           <v-form @submit.prevent="changePassword">
@@ -565,6 +609,11 @@ const form = reactive({
   receiptBodyFont: "Printer Font A",
   receiptCutoff: true,
   customItemDiscountsEnabled: false,
+  customItemPricesEnabled: false,
+  perUnitItemPricesEnabled: false,
+  adminEnabled: false,
+  adminListen: "127.0.0.1:8787",
+  adminToken: "",
   akuvoxIP: "",
   akuvoxUsername: "",
   akuvoxPassword: "",
@@ -593,8 +642,10 @@ function platformLabel(platform: string) {
 const serialPorts = ref<string[]>([]);
 const printers = ref<string[]>([]);
 const saving = ref(false);
-const discountSettingSaving = ref(false);
+const pricingSettingsSaving = ref(false);
+const adminSettingsSaving = ref(false);
 const showApiKey = ref(false);
+const showAdminToken = ref(false);
 const settingsLoading = ref(true);
 const settingsLoadError = ref(false);
 const passwordForm = reactive({ current: "", newPass: "", confirm: "" });
@@ -632,6 +683,8 @@ const deleteSalespersonDialog = ref(false);
 const deleteSalespersonTarget = ref<any>(null);
 
 const snackbar = reactive({ show: false, text: "", color: "success" });
+
+const adminBridge = () => (window as any).go?.main?.App;
 
 function notify(text: string, color = "success") {
   snackbar.text = text;
@@ -676,14 +729,34 @@ async function loadSettings() {
         receiptBodyFont: s.receiptBodyFont ?? "Printer Font A",
         receiptCutoff: s.receiptCutoff !== false,
         customItemDiscountsEnabled: Boolean(s.customItemDiscountsEnabled),
+        customItemPricesEnabled: Boolean(s.customItemPricesEnabled),
+        perUnitItemPricesEnabled: Boolean(s.perUnitItemPricesEnabled),
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
       });
+    const admin = await adminBridge()?.GetAdminConfig();
+    Object.assign(form, {
+      adminEnabled: Boolean(admin?.enabled),
+      adminListen: admin?.listen ?? "127.0.0.1:8787",
+      adminToken: admin?.token ?? "",
+    });
   } catch {
     settingsLoadError.value = true;
   } finally {
     settingsLoading.value = false;
+  }
+}
+
+async function saveAdminSettings() {
+  adminSettingsSaving.value = true;
+  try {
+    await adminBridge()?.UpdateAdminConfig(Boolean(form.adminEnabled), form.adminListen.trim(), form.adminToken);
+    notify(form.adminEnabled ? "Remote admin settings saved" : "Remote admin disabled");
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to save remote admin settings", "red");
+  } finally {
+    adminSettingsSaving.value = false;
   }
 }
 

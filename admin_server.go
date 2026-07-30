@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +21,12 @@ import (
 type adminServer struct {
 	server *http.Server
 	app    *App
+}
+
+type adminConfig struct {
+	Enabled bool   `json:"enabled"`
+	Listen  string `json:"listen"`
+	Token   string `json:"token"`
 }
 
 type adminProductInput struct {
@@ -35,15 +42,15 @@ type adminOverrideInput struct {
 }
 
 func (a *App) startAdminServer() {
-	if os.Getenv("KASHI_ADMIN_ENABLED") != "1" || a.conn == nil {
+	if a.conn == nil {
 		return
 	}
 
-	listen := os.Getenv("KASHI_ADMIN_LISTEN")
-	if listen == "" {
-		listen = "127.0.0.1:8787"
+	config := a.getAdminConfig()
+	if !config.Enabled {
+		return
 	}
-	token := os.Getenv("KASHI_ADMIN_TOKEN")
+	listen, token := config.Listen, config.Token
 	if token == "" && !strings.HasPrefix(listen, "127.0.0.1:") && !strings.HasPrefix(listen, "localhost:") && !strings.HasPrefix(listen, "[::1]:") {
 		log.Printf("admin API disabled: KASHI_ADMIN_TOKEN is required when listening on %s", listen)
 		return
@@ -63,6 +70,70 @@ func (a *App) startAdminServer() {
 			log.Printf("admin API stopped: %v", err)
 		}
 	}()
+}
+
+func (a *App) getAdminConfig() adminConfig {
+	config := adminConfig{Listen: "127.0.0.1:8787"}
+	if path, err := adminConfigPath(); err == nil {
+		if data, err := os.ReadFile(path); err == nil {
+			_ = json.Unmarshal(data, &config)
+		}
+	}
+	if value := os.Getenv("KASHI_ADMIN_ENABLED"); value != "" {
+		config.Enabled = value == "1" || strings.EqualFold(value, "true")
+	}
+	if value := os.Getenv("KASHI_ADMIN_LISTEN"); value != "" {
+		config.Listen = value
+	}
+	if value := os.Getenv("KASHI_ADMIN_TOKEN"); value != "" {
+		config.Token = value
+	}
+	if config.Listen == "" {
+		config.Listen = "127.0.0.1:8787"
+	}
+	return config
+}
+
+func (a *App) GetAdminConfig() (map[string]any, error) {
+	config := a.getAdminConfig()
+	return map[string]any{"enabled": config.Enabled, "listen": config.Listen, "token": config.Token}, nil
+}
+
+func (a *App) UpdateAdminConfig(enabled bool, listen, token string) error {
+	if listen == "" {
+		listen = "127.0.0.1:8787"
+	}
+	if token == "" && !strings.HasPrefix(listen, "127.0.0.1:") && !strings.HasPrefix(listen, "localhost:") && !strings.HasPrefix(listen, "[::1]:") {
+		return fmt.Errorf("an admin token is required for non-local listeners")
+	}
+	config := adminConfig{Enabled: enabled, Listen: listen, Token: token}
+	path, err := adminConfigPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return err
+	}
+	a.stopAdminServer(context.Background())
+	if enabled {
+		a.startAdminServer()
+	}
+	return nil
+}
+
+func adminConfigPath() (string, error) {
+	dataDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dataDir, "kashi-pos", "admin.json"), nil
 }
 
 func (a *App) stopAdminServer(ctx context.Context) {
