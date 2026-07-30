@@ -328,6 +328,98 @@ func (a *App) ChangeInvoiceSettlement(invoiceID, cashboxID int64) error {
 	})
 }
 
+// ChangeInvoiceSettlementAmount moves part of an invoice's settled accounting
+// value from one payment account to another. Amounts are always expressed in
+// the application's accounting currency (USD cents); account currencies only
+// affect how the frontend accepts and displays the amount.
+func (a *App) ChangeInvoiceSettlementAmount(invoiceID, fromCashboxID, toCashboxID, amountCents int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if fromCashboxID <= 0 || toCashboxID <= 0 || fromCashboxID == toCashboxID {
+		return fmt.Errorf("choose different settlement accounts")
+	}
+	if amountCents <= 0 {
+		return fmt.Errorf("enter a positive settlement amount")
+	}
+	if _, err := a.store.GetCashboxAccountByID(a.ctx, fromCashboxID); err != nil {
+		return fmt.Errorf("source settlement account not found")
+	}
+	if _, err := a.store.GetCashboxAccountByID(a.ctx, toCashboxID); err != nil {
+		return fmt.Errorf("destination settlement account not found")
+	}
+	inv, err := a.store.GetInvoiceByID(a.ctx, invoiceID)
+	if err != nil {
+		return err
+	}
+	oldPayments, err := a.store.ListInvoicePayments(a.ctx, invoiceID)
+	if err != nil {
+		return err
+	}
+
+	updatedPayments := make(map[int64]int64, len(oldPayments)+1)
+	for _, payment := range oldPayments {
+		updatedPayments[payment.CashboxID] = payment.Amount
+	}
+	sourceAmount := updatedPayments[fromCashboxID]
+	if sourceAmount <= 0 {
+		return fmt.Errorf("invoice has no positive settlement in the source account")
+	}
+	if amountCents > sourceAmount {
+		return fmt.Errorf("settlement amount exceeds the source payment")
+	}
+	destinationAmount := updatedPayments[toCashboxID]
+	if destinationAmount > math.MaxInt64-amountCents {
+		return fmt.Errorf("settlement amount is too large")
+	}
+	updatedPayments[fromCashboxID] = sourceAmount - amountCents
+	updatedPayments[toCashboxID] = destinationAmount + amountCents
+
+	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{
+			AccountID: fromCashboxID, ShiftID: inv.ShiftID, Balance: -amountCents,
+		}); err != nil {
+			return fmt.Errorf("reduce source settlement balance: %w", err)
+		}
+		if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{
+			AccountID: toCashboxID, ShiftID: inv.ShiftID, Balance: amountCents,
+		}); err != nil {
+			return fmt.Errorf("increase destination settlement balance: %w", err)
+		}
+		if err := q.DeleteInvoicePayments(a.ctx, invoiceID); err != nil {
+			return err
+		}
+		if err := q.DeleteInvoicePaymentEntries(a.ctx, invoiceID); err != nil {
+			return err
+		}
+		for accountID, amount := range updatedPayments {
+			if amount == 0 {
+				continue
+			}
+			if err := q.CreateInvoicePayment(a.ctx, db.CreateInvoicePaymentParams{
+				InvoiceID: invoiceID, CashboxID: accountID, Amount: amount,
+			}); err != nil {
+				return fmt.Errorf("record settlement: %w", err)
+			}
+			entryType := "payment"
+			if amount < 0 {
+				entryType = "change"
+			}
+			if err := q.CreateInvoicePaymentEntry(a.ctx, db.CreateInvoicePaymentEntryParams{
+				InvoiceID: invoiceID, CashboxID: accountID, Amount: amount, EntryType: entryType,
+			}); err != nil {
+				return fmt.Errorf("record settlement entry: %w", err)
+			}
+		}
+		if inv.CashboxID == fromCashboxID && updatedPayments[fromCashboxID] == 0 {
+			return q.UpdateInvoiceCashbox(a.ctx, db.UpdateInvoiceCashboxParams{
+				CashboxID: toCashboxID, ID: invoiceID,
+			})
+		}
+		return nil
+	})
+}
+
 func (a *App) ReprintInvoice(id int64) error {
 	return a.printInvoiceReceipt(id, nil)
 }

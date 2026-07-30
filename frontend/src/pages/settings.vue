@@ -279,7 +279,7 @@
               <div>
                 <div class="text-subtitle-1 font-weight-bold">Custom item pricing</div>
                 <div class="text-caption text-medium-emphasis">
-                  Let cashiers edit and save product prices and discounts from the invoice.
+                  Let cashiers set per-invoice prices and edit product discounts.
                 </div>
               </div>
             </v-card-title>

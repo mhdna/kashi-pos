@@ -31,7 +31,6 @@
         <span v-if="prefix" class="number-pad-display-affix">{{ prefix }}</span>
         <span>{{ draft || "0" }}</span>
         <span v-if="suffix" class="number-pad-display-affix">{{ suffix }}</span>
-        <span v-if="displayNote" class="number-pad-display-note">({{ displayNote }})</span>
       </div>
       <div class="number-pad-grid">
         <v-btn
@@ -87,7 +86,6 @@ const props = withDefaults(
     replaceOnOpen?: boolean;
     prefix?: string;
     suffix?: string;
-    displayNote?: string;
     ariaLabel?: string;
     disabled?: boolean;
     tone?: "default" | "error";
@@ -102,7 +100,6 @@ const props = withDefaults(
     replaceOnOpen: true,
     prefix: "",
     suffix: "",
-    displayNote: "",
     ariaLabel: "Open number pad",
     disabled: false,
     tone: "default",
@@ -245,13 +242,6 @@ defineExpose({ focus });
   font-weight: 600;
   margin: 0 2px;
   opacity: 0.7;
-}
-
-.number-pad-display-note {
-  color: rgb(var(--v-theme-error));
-  font-size: 0.58em;
-  font-weight: 600;
-  margin-inline-start: 5px;
 }
 
 .number-pad {

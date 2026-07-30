@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	db "kashi-pos/db/sqlc"
@@ -209,14 +210,47 @@ func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) 
 
 	result := make([]map[string]any, len(invoices))
 	for i, inv := range invoices {
+		payments, err := a.store.ListInvoicePayments(a.ctx, inv.ID)
+		if err != nil {
+			return InvoicePage{}, fmt.Errorf("invoice %s payments: %w", inv.InvoiceCode, err)
+		}
+		settlementAccounts := make([]string, 0, len(payments))
+		for _, payment := range payments {
+			if payment.Amount <= 0 {
+				continue
+			}
+			account, err := a.store.GetCashboxAccountByID(a.ctx, payment.CashboxID)
+			if err != nil {
+				return InvoicePage{}, fmt.Errorf("invoice %s settlement account: %w", inv.InvoiceCode, err)
+			}
+			settlementAccounts = append(settlementAccounts, settlementAccountLabel(account.Name, account.CurrencyCode))
+		}
+		if len(settlementAccounts) == 0 {
+			if account, accountErr := a.store.GetCashboxAccountByID(a.ctx, inv.CashboxID); accountErr == nil {
+				settlementAccounts = append(settlementAccounts, settlementAccountLabel(account.Name, account.CurrencyCode))
+			}
+		}
 		result[i] = map[string]any{
 			"id": inv.ID, "cashboxId": inv.CashboxID, "invoiceCode": inv.InvoiceCode,
 			"clientId": inv.ClientID, "subtotal": inv.Subtotal,
 			"discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
 			"createdAt": inv.CreatedAt, "salespersonId": inv.SalespersonID, "salespersonName": inv.SalespersonName,
+			"settlementAccounts": settlementAccounts,
 		}
 	}
 	return InvoicePage{Items: result, Total: total}, nil
+}
+
+func settlementAccountLabel(name, currencyCode string) string {
+	name = strings.TrimSpace(name)
+	currencyCode = strings.ToUpper(strings.TrimSpace(currencyCode))
+	if name == "" {
+		name = "Cash"
+	}
+	if currencyCode == "" || strings.Contains(strings.ToUpper(name), currencyCode) {
+		return name
+	}
+	return name + " " + currencyCode
 }
 
 func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) {

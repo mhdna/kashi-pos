@@ -22,6 +22,10 @@ export function ChangeInvoiceSettlement(arg1, arg2) {
   return window['go']['main']['App']['ChangeInvoiceSettlement'](arg1, arg2);
 }
 
+export function ChangeInvoiceSettlementAmount(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ChangeInvoiceSettlementAmount'](arg1, arg2, arg3, arg4);
+}
+
 export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }

@@ -55,21 +55,26 @@
               :max="999999.99"
               :max-length="9"
               prefix="$"
-              :display-note="priceDifferencePercent(item)"
               @update:model-value="(value) => setDraftPrice(item, value)"
             >
               <template #activator="{ props: activatorProps }">
-                <v-btn
+                <button
                   v-bind="activatorProps"
-                  icon="mdi-cash-edit"
+                  class="invoice-price-editor d-flex flex-column align-end"
+                  type="button"
                   aria-label="Set custom item price"
                   title="Set custom item price"
-                  size="small"
-                  variant="text"
-                />
+                >
+                  <span class="text-caption text-medium-emphasis">
+                    ${{ item.price.toFixed(2) }}
+                  </span>
+                  <span class="text-caption font-weight-bold">
+                    ${{ totalAfterDiscount(item).toFixed(2) }}
+                  </span>
+                </button>
               </template>
             </NumberPadMenu>
-            <div class="d-flex flex-column align-end" style="flex: 1 1 auto">
+            <div v-else class="d-flex flex-column align-end" style="flex: 1 1 auto">
               <span class="text-caption text-medium-emphasis">
                 ${{ item.price.toFixed(2) }}
               </span>
@@ -111,7 +116,6 @@ interface LineItem {
   size?: string;
   category: string;
   price: number;
-  originalPrice?: number;
   discount: number;
   qty: number;
 }
@@ -177,28 +181,16 @@ function addItem(item: LineItem) {
     const discount = savedDiscounts.get(item.code) ?? Number(item.discount || 0);
     savedDiscounts.set(item.code, discount);
     const price = Number(item.price);
-    items.value.push({
-      ...item,
-      discount,
-      price,
-      originalPrice: Number(item.originalPrice ?? price),
-    });
+    items.value.push({ ...item, discount, price });
   }
 }
 
 function addExchangeItems(returned: LineItem, replacements: LineItem[]) {
   items.value = [
-    {
-      ...returned,
-      price: Number(returned.price),
-      originalPrice: Number(returned.originalPrice ?? returned.price),
-      discount: 0,
-      qty: -1,
-    },
+    { ...returned, price: Number(returned.price), discount: 0, qty: -1 },
     ...replacements.map((item) => ({
       ...item,
       price: Number(item.price),
-      originalPrice: Number(item.originalPrice ?? item.price),
       qty: Number(item.qty || 1),
     })),
   ];
@@ -231,17 +223,6 @@ function setDraftPrice(item: LineItem, value: unknown) {
   item.price = Number.isFinite(numeric)
     ? Math.round(Math.min(999999.99, Math.max(0.01, numeric)) * 100) / 100
     : 0.01;
-}
-
-function priceDifferencePercent(item: LineItem): string {
-  const originalPrice = Number(item.originalPrice ?? item.price);
-  if (!Number.isFinite(originalPrice) || originalPrice <= 0) return "0%";
-
-  const difference = ((item.price - originalPrice) / originalPrice) * 100;
-  const rounded = Math.round(difference * 10) / 10;
-  const normalized = Object.is(rounded, -0) ? 0 : rounded;
-  const sign = normalized > 0 ? "+" : "";
-  return `${sign}${normalized.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
 }
 
 function persistDiscount(item: LineItem): Promise<boolean> {
@@ -323,5 +304,22 @@ defineExpose({
 <style scoped>
 .invoice-item-actions {
   min-width: 280px;
+}
+
+.invoice-price-editor {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  flex: 1 1 auto;
+  min-height: 36px;
+  padding: 2px 5px;
+}
+
+.invoice-price-editor:hover,
+.invoice-price-editor:focus-visible {
+  background: rgba(var(--v-theme-primary), 0.09);
+  outline: none;
 }
 </style>
