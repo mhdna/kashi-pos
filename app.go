@@ -27,6 +27,7 @@ type App struct {
 	ctx        context.Context
 	store      *db.Store
 	conn       *sql.DB
+	admin      *adminServer
 	startupErr error
 }
 
@@ -82,6 +83,7 @@ func (a *App) startup(ctx context.Context) {
 	if err := a.applyEnvironmentDefaults(); err != nil {
 		log.Println("apply environment setting defaults:", err)
 	}
+	a.startAdminServer()
 }
 
 func applicationDatabasePath() (string, error) {
@@ -115,6 +117,7 @@ func (a *App) GetStartupError() string {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	a.stopAdminServer(ctx)
 	if a.conn != nil {
 		a.conn.Close()
 	}

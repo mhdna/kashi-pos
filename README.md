@@ -17,3 +17,15 @@ to this in your browser, and you can call your Go code from devtools.
 ## Building
 
 To build a redistributable, production mode package, use `wails build`.
+
+## Embedded remote admin API
+
+The POS can optionally expose the admin API from the same process that owns the SQLite database. This avoids running a separate database agent on the POS device. Set these environment variables before launching the app:
+
+```sh
+export KASHI_ADMIN_ENABLED=1
+export KASHI_ADMIN_LISTEN=0.0.0.0:8787
+export KASHI_ADMIN_TOKEN='choose-a-secret'
+```
+
+Use `127.0.0.1:8787` (the default) for local-only access. A token is required for non-loopback listeners. The existing TUI client in `tools/kashi-admin` can connect with `--server` and `--token`. Its reload action emits an app event that refreshes the running frontend.
