@@ -8,14 +8,14 @@
       :total-summary="totalSummary"
     />
 
-    <v-card class="calculator-display pa-3 mb-3" variant="outlined" rounded="lg">
+    <v-card class="calculator-display pa-2 mb-3" variant="outlined" rounded="lg">
       <span class="text-h5 font-weight-bold">{{ displayValue }}</span>
     </v-card>
 
     <CalculatorKeypad @digit="appendDigit" @backspace="backspace" @clear="clearInput" />
     <CalculatorPaymentMethods
       :methods="paymentMethods"
-      :active-method="activeMethod"
+      :model-value="activeMethod"
       @select="selectMethodAndConfirm"
     />
     <CalculatorEntries
@@ -31,7 +31,11 @@
 import { computed, onMounted, ref } from "vue";
 import { GetAppSettings, ListCurrencies, ListPaymentMethods } from "../../wailsjs/go/main/App";
 import { formatUsd } from "@/lib/format";
-import { roundLbpFromCents } from "@/lib/money";
+import {
+  isCashRoundedEquivalent,
+  normalizeCashRoundedPayments,
+  roundLbpFromCents,
+} from "@/lib/money";
 import CalculatorEntries from "@/components/calculator/CalculatorEntries.vue";
 import CalculatorKeypad from "@/components/calculator/CalculatorKeypad.vue";
 import CalculatorPaymentMethods from "@/components/calculator/CalculatorPaymentMethods.vue";
@@ -61,6 +65,7 @@ const roundingMode = computed(() => props.roundingMode ?? "half_up");
 const paymentMethods = ref<PaymentMethod[]>([]);
 const currencies = ref<Currency[]>([]);
 const exchangeRate = ref(DEFAULT_EXCHANGE_RATE);
+const maxOverpaymentCents = ref(60);
 const activeMethod = ref("");
 const currentInput = ref("");
 const entries = ref<Entry[]>([]);
@@ -86,6 +91,7 @@ function currencySymbolFor(methodName: string) {
 const totalCents = computed(() => Math.round(props.total * 100));
 const paidCents = computed(() => entries.value.reduce((sum, entry) => sum + entry.amountCents, 0));
 const diffCents = computed(() => paidCents.value - totalCents.value);
+const overpaymentAllowed = computed(() => diffCents.value <= maxOverpaymentCents.value);
 const diff = computed(() => diffCents.value / 100);
 const isPaidInFull = computed(() => diffCents.value === 0);
 const roundedShortfallLbp = computed(() =>
@@ -93,13 +99,29 @@ const roundedShortfallLbp = computed(() =>
     ? roundLbpFromCents(-diffCents.value, exchangeRate.value, roundingMode.value)
     : 0,
 );
-const checkoutReady = computed(
-  () => diffCents.value >= 0 || roundedShortfallLbp.value === 0,
+const cashRoundedToTotal = computed(() =>
+  isCashRoundedEquivalent(
+    paidCents.value,
+    totalCents.value,
+    exchangeRate.value,
+    roundingMode.value,
+  ),
 );
-const showReadyState = computed(() => checkoutReady.value && diffCents.value <= 0);
+const checkoutReady = computed(
+  () =>
+    (diffCents.value >= 0 && (overpaymentAllowed.value || cashRoundedToTotal.value)) ||
+    (diffCents.value < 0 && roundedShortfallLbp.value === 0),
+);
+const showReadyState = computed(
+  () => checkoutReady.value && (diffCents.value <= 0 || cashRoundedToTotal.value),
+);
 const paymentStatus = computed(() =>
   isPaidInFull.value
     ? "Paid"
+    : diffCents.value > maxOverpaymentCents.value && !cashRoundedToTotal.value
+      ? "Overpayment exceeds limit"
+    : cashRoundedToTotal.value
+      ? "Paid (cash rounded)"
     : diffCents.value > 0
       ? "Overpayment accepted"
       : checkoutReady.value
@@ -145,6 +167,10 @@ onMounted(async () => {
     const settings = await GetAppSettings();
     const configuredRate = Number(settings?.exchangeRate);
     if (Number.isFinite(configuredRate) && configuredRate > 0) exchangeRate.value = configuredRate;
+    const configuredMaxOverpayment = Number(settings?.maxOverpaymentCents);
+    if (Number.isFinite(configuredMaxOverpayment) && configuredMaxOverpayment >= 0) {
+      maxOverpaymentCents.value = Math.round(configuredMaxOverpayment);
+    }
   } catch {
     /* keep default exchange rate */
   }
@@ -214,16 +240,16 @@ const paymentsJSON = computed(() => {
     amountCents: entry.amountCents,
     entryType: entry.amountCents < 0 ? "change" : "payment",
   }));
-  // Cash rounding can make a small USD-cent shortfall equal zero LBP.
-  // Normalize that accepted shortfall so backend totals and invoice totals
-  // remain equal; leave genuine overpayments unchanged.
-  if (checkoutReady.value && diffCents.value < 0) {
-    for (let i = payments.length - 1; i >= 0; i -= 1) {
-      if (payments[i]!.amountCents > 0) {
-        payments[i]!.amountCents -= diffCents.value;
-        break;
-      }
-    }
+  if (checkoutReady.value) {
+    const normalizedAmounts = normalizeCashRoundedPayments(
+      payments.map((payment) => payment.amountCents),
+      totalCents.value,
+      exchangeRate.value,
+      roundingMode.value,
+    );
+    payments.forEach((payment, index) => {
+      payment.amountCents = normalizedAmounts[index]!;
+    });
   }
   return JSON.stringify(payments);
 });
@@ -239,7 +265,7 @@ defineExpose({
 
 <style scoped>
 .calculator-display {
-  min-height: 56px;
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;

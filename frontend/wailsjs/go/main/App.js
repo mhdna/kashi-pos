@@ -42,8 +42,8 @@ export function ClearScreen(arg1) {
   return window['go']['main']['App']['ClearScreen'](arg1);
 }
 
-export function CloseShiftByID(arg1, arg2) {
-  return window['go']['main']['App']['CloseShiftByID'](arg1, arg2);
+export function CloseShiftByID(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CloseShiftByID'](arg1, arg2, arg3, arg4);
 }
 
 export function CreateClient(arg1, arg2) {
@@ -80,6 +80,10 @@ export function DeleteUser(arg1) {
 
 export function ExportAttendanceMonth(arg1) {
   return window['go']['main']['App']['ExportAttendanceMonth'](arg1);
+}
+
+export function GetAdminConfig() {
+  return window['go']['main']['App']['GetAdminConfig']();
 }
 
 export function GetAppSettings() {
@@ -238,6 +242,14 @@ export function OpenShift() {
   return window['go']['main']['App']['OpenShift']();
 }
 
+export function PrintClosedShiftReceipt(arg1) {
+  return window['go']['main']['App']['PrintClosedShiftReceipt'](arg1);
+}
+
+export function PrintCurrentCloseShiftSample() {
+  return window['go']['main']['App']['PrintCurrentCloseShiftSample']();
+}
+
 export function ReprintInvoice(arg1) {
   return window['go']['main']['App']['ReprintInvoice'](arg1);
 }
@@ -248,6 +260,14 @@ export function SearchClients(arg1, arg2) {
 
 export function SetCustomItemDiscountsEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemDiscountsEnabled'](arg1);
+}
+
+export function SetCustomItemPricesEnabled(arg1) {
+  return window['go']['main']['App']['SetCustomItemPricesEnabled'](arg1);
+}
+
+export function SetPerUnitItemPricesEnabled(arg1) {
+  return window['go']['main']['App']['SetPerUnitItemPricesEnabled'](arg1);
 }
 
 export function SetTaxRate(arg1) {
@@ -264,6 +284,10 @@ export function SubmitAttendanceComplaint(arg1, arg2, arg3, arg4) {
 
 export function SyncAttendance(arg1) {
   return window['go']['main']['App']['SyncAttendance'](arg1);
+}
+
+export function UpdateAdminConfig(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdateAdminConfig'](arg1, arg2, arg3);
 }
 
 export function UpdateAttendanceConfig(arg1, arg2, arg3, arg4) {
@@ -286,8 +310,8 @@ export function UpdateSalesperson(arg1, arg2) {
   return window['go']['main']['App']['UpdateSalesperson'](arg1, arg2);
 }
 
-export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14) {
-  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14);
+export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15) {
+  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
 }
 
 export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {

@@ -1,5 +1,5 @@
 <template>
-  <v-navigation-drawer permanent width="110">
+  <v-navigation-drawer permanent width="95">
     <v-list class="d-flex flex-column fill-height pa-0" nav>
       <v-list-item
         v-for="item in items"
@@ -24,7 +24,12 @@
         </div>
       </v-list-item>
 
-      <v-list-item class="nav-item" value="close_shift" @click="closeShiftDialog = true">
+      <v-list-item
+        class="nav-item"
+        :value="undefined"
+        :active="false"
+        @click="closeShiftDialog = true"
+      >
         <div class="nav-item-content">
           <v-icon icon="mdi-close-circle-outline" size="20" />
           <span class="text-caption text-center mt-1">Close Shift</span>
@@ -53,9 +58,9 @@ const items = computed(() => {
       value: "invoices-list",
       to: "/invoices-list",
       icon: "mdi-format-list-bulleted-square",
-      t: "Invoice List",
+      t: "Invoices",
     },
-    { value: "shifts", to: "/shifts", icon: "mdi-cash-fast", t: "Balance & Shifts" },
+    { value: "shifts", to: "/shifts", icon: "mdi-cash-fast", t: "Balance" },
     {
       value: "clients",
       to: "/clients",
@@ -76,6 +81,7 @@ const items = computed(() => {
       to: "/attendance",
       icon: "mdi-account-multiple",
       t: "Attendance",
+      locked: true,
     },
     { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
   ];
@@ -90,8 +96,8 @@ const items = computed(() => {
 }
 
 .nav-item.v-list-item--active {
-  background: rgba(var(--v-theme-primary), 0.14);
-  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-on-surface), 0.12);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .nav-item-content {

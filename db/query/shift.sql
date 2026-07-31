@@ -22,8 +22,15 @@ SELECT * FROM shifts WHERE is_closed = 0 LIMIT 1;
 -- name: CreateShift :one
 INSERT INTO shifts (is_closed, created_at) VALUES (?, datetime('now', 'localtime')) RETURNING *;
 
--- name: CloseShift :exec
-UPDATE shifts SET is_closed = 1, closed_at = ? WHERE id = ?;
+-- name: CloseShift :execrows
+UPDATE shifts
+SET is_closed = 1,
+    closed_at = ?,
+    closed_by_salesperson_id = ?,
+    counted_usd = ?,
+    counted_lbp = ?,
+    counted_usd_breakdown = ?
+WHERE id = ? AND is_closed = 0;
 
 -- name: CloseOpenShifts :exec
 UPDATE shifts SET is_closed = 1, closed_at = ? WHERE is_closed = 0;
@@ -51,8 +58,89 @@ RETURNING account_id, shift_id, balance;
 
 -- name: GetShiftTotals :many
 SELECT s.id, s.is_closed, s.created_at, s.closed_at,
-       COALESCE(SUM(i.grand_total), 0) as total
+       COALESCE(SUM(i.grand_total), 0) as total,
+       COALESCE((
+           SELECT SUM(MAX(p.price - ip.unit_price, 0) * ip.quantity)
+           FROM invoice_products ip
+           JOIN products p ON p.id = ip.product_id
+           JOIN invoices shift_i ON shift_i.id = ip.invoice_id
+           JOIN sales_invoices sales_i ON sales_i.invoice_id = shift_i.id
+           WHERE shift_i.shift_id = s.id
+       ), 0) AS price_deductions
 FROM shifts s
 LEFT JOIN invoices i ON i.shift_id = s.id
 GROUP BY s.id
 ORDER BY s.id DESC;
+
+-- name: GetShiftReportSummary :one
+SELECT
+    COALESCE((SELECT invoice_code FROM invoices AS first_i WHERE first_i.shift_id = sqlc.arg(report_shift_id) ORDER BY first_i.id LIMIT 1), '') AS first_invoice,
+    COALESCE((SELECT invoice_code FROM invoices AS last_i WHERE last_i.shift_id = sqlc.arg(report_shift_id) ORDER BY last_i.id DESC LIMIT 1), '') AS last_invoice,
+    (SELECT COUNT(*) FROM invoices AS transaction_i WHERE transaction_i.shift_id = sqlc.arg(report_shift_id)) AS transactions,
+    COALESCE((
+        SELECT SUM(CASE WHEN ip.quantity > 0 THEN ip.quantity ELSE 0 END)
+        FROM invoice_products ip
+        JOIN invoices i ON i.id = ip.invoice_id
+        WHERE i.shift_id = sqlc.arg(report_shift_id)
+    ), 0) AS items_sold,
+    (
+        SELECT COUNT(*)
+        FROM return_invoices r
+        JOIN invoices i ON i.id = r.invoice_id
+        WHERE i.shift_id = sqlc.arg(report_shift_id)
+    ) AS returns,
+    COALESCE((
+        SELECT SUM(i.subtotal)
+        FROM invoices i
+        JOIN sales_invoices s ON s.invoice_id = i.id
+        WHERE i.shift_id = sqlc.arg(report_shift_id)
+    ), 0) AS gross_sales,
+    COALESCE((
+        SELECT SUM(i.subtotal - i.discounted_total)
+        FROM invoices i
+        JOIN sales_invoices s ON s.invoice_id = i.id
+        WHERE i.shift_id = sqlc.arg(report_shift_id)
+    ), 0) AS discounts,
+    COALESCE((
+        SELECT SUM(MAX(p.price - ip.unit_price, 0) * ip.quantity)
+        FROM invoice_products ip
+        JOIN products p ON p.id = ip.product_id
+        JOIN invoices i ON i.id = ip.invoice_id
+        JOIN sales_invoices s ON s.invoice_id = i.id
+        WHERE i.shift_id = sqlc.arg(report_shift_id)
+    ), 0) AS price_deductions,
+    COALESCE((
+        SELECT -SUM(CASE WHEN ip.line_total < 0 THEN ip.line_total ELSE 0 END)
+        FROM invoice_products ip
+        JOIN invoices i ON i.id = ip.invoice_id
+        JOIN return_invoices r ON r.invoice_id = i.id
+        WHERE i.shift_id = sqlc.arg(report_shift_id)
+    ), 0) AS return_amount,
+    COALESCE((
+        SELECT SUM(i.grand_total - i.discounted_total)
+        FROM invoices i
+        JOIN sales_invoices s ON s.invoice_id = i.id
+        WHERE i.shift_id = sqlc.arg(report_shift_id)
+    ), 0) AS tax,
+    COALESCE((SELECT SUM(net_i.grand_total) FROM invoices AS net_i WHERE net_i.shift_id = sqlc.arg(report_shift_id)), 0) AS net_sales;
+
+-- name: ListShiftPaymentTotals :many
+WITH invoice_account_totals AS (
+    SELECT i.id AS invoice_id, ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = sqlc.arg(report_shift_id)
+    UNION ALL
+    SELECT i.id AS invoice_id, i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE i.shift_id = sqlc.arg(report_shift_id)
+      AND NOT EXISTS (
+          SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id
+      )
+)
+SELECT ca.id AS account_id, ca.name AS account_name, ca.currency_code,
+       COALESCE(SUM(t.amount), 0) AS total
+FROM invoice_account_totals t
+JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
+GROUP BY ca.id, ca.name, ca.currency_code
+ORDER BY ca.id;

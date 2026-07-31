@@ -37,9 +37,22 @@ function initials(name: string): string {
     .slice(0, 2);
 }
 
-function loyaltyTier(points: number): string {
+export function loyaltyTier(points: number): string {
   if (points >= 500) return "Gold";
   if (points >= 200) return "Silver";
   if (points >= 1) return "Bronze";
   return "None";
+}
+
+export function loyaltyTierColor(tier: string): string {
+  switch (tier) {
+    case "Gold": return "yellow-darken-2";
+    case "Silver": return "grey-lighten-1";
+    case "Bronze": return "brown";
+    default: return "grey";
+  }
+}
+
+export function formatLoyaltyPoints(points: number): string {
+  return Math.max(0, Number(points) || 0).toLocaleString();
 }

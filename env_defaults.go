@@ -128,36 +128,37 @@ func envSocialPlatforms() string {
 
 func defaultSettingsParams() db.UpsertSettingsParams {
 	return db.UpsertSettingsParams{
-		BranchName:        envString("KASHI_BRANCH_NAME", "Main"),
-		BranchCode:        envString("KASHI_BRANCH_CODE", "CN"),
-		ApiKey:            envString("KASHI_API_KEY", ""),
-		PrinterID:         envString("KASHI_PRINTER_ID", ""),
-		PrinterSize:       envString("KASHI_PRINTER_SIZE", ""),
-		ReceiptPrinter:    envString("KASHI_RECEIPT_PRINTER", ""),
-		ScreenPort:        envString("KASHI_SCREEN_PORT", ""),
-		ReceiptWidth:      envInt64("KASHI_RECEIPT_WIDTH", 80),
-		ReceiptHeight:     envInt64("KASHI_RECEIPT_HEIGHT", 297),
-		Theme:             envString("KASHI_THEME", "light"),
-		TaxRate:           envFloat64("KASHI_TAX_RATE", 0),
-		RoundingMode:      envString("KASHI_ROUNDING_MODE", "half_up"),
-		ReceiptEnabled:    boolInt(envBool("KASHI_RECEIPT_ENABLED", false)),
-		SalesInventoryID:  envInt64("KASHI_SALES_INVENTORY_ID", 0),
-		ExchangeRate:      envInt64("KASHI_EXCHANGE_RATE", 90000),
-		MarketName:        envString("KASHI_MARKET_NAME", "Main"),
-		MarketPhone:       envString("KASHI_MARKET_PHONE", ""),
-		MarketDescription: envString("KASHI_MARKET_DESCRIPTION", "Shop for all"),
-		ReturnPolicy:      envString("KASHI_RETURN_POLICY", ""),
-		Website:           envString("KASHI_WEBSITE", ""),
-		Instagram:         envString("KASHI_INSTAGRAM", ""),
-		SocialPlatforms:   envSocialPlatforms(),
-		SocialHandles:     envJSON("KASHI_SOCIAL_HANDLES", "{}"),
-		ReceiptFont:       envString("KASHI_RECEIPT_FONT", "Belleza"),
-		ReceiptTitleSize:  envFloat64("KASHI_RECEIPT_TITLE_SIZE", 21),
-		ReceiptBodySize:   envFloat64("KASHI_RECEIPT_BODY_SIZE", 11),
-		ReceiptCutoff:     boolInt(envBool("KASHI_RECEIPT_CUTOFF", true)),
-		ReceiptBodyFont:   envString("KASHI_RECEIPT_BODY_FONT", "Printer Font A"),
-		BranchPhone:       envString("KASHI_BRANCH_PHONE", ""),
-		CounterNumber:     envString("KASHI_COUNTER_NUMBER", ""),
+		BranchName:          envString("KASHI_BRANCH_NAME", "Main"),
+		BranchCode:          envString("KASHI_BRANCH_CODE", "CN"),
+		ApiKey:              envString("KASHI_API_KEY", ""),
+		PrinterID:           envString("KASHI_PRINTER_ID", ""),
+		PrinterSize:         envString("KASHI_PRINTER_SIZE", ""),
+		ReceiptPrinter:      envString("KASHI_RECEIPT_PRINTER", ""),
+		ScreenPort:          envString("KASHI_SCREEN_PORT", ""),
+		ReceiptWidth:        envInt64("KASHI_RECEIPT_WIDTH", 80),
+		ReceiptHeight:       envInt64("KASHI_RECEIPT_HEIGHT", 297),
+		Theme:               envString("KASHI_THEME", "light"),
+		TaxRate:             envFloat64("KASHI_TAX_RATE", 0),
+		RoundingMode:        envString("KASHI_ROUNDING_MODE", "half_up"),
+		ReceiptEnabled:      boolInt(envBool("KASHI_RECEIPT_ENABLED", false)),
+		SalesInventoryID:    envInt64("KASHI_SALES_INVENTORY_ID", 0),
+		ExchangeRate:        envInt64("KASHI_EXCHANGE_RATE", 90000),
+		MaxOverpaymentCents: envInt64("KASHI_MAX_OVERPAYMENT_CENTS", 60),
+		MarketName:          envString("KASHI_MARKET_NAME", "Main"),
+		MarketPhone:         envString("KASHI_MARKET_PHONE", ""),
+		MarketDescription:   envString("KASHI_MARKET_DESCRIPTION", "Shop for all"),
+		ReturnPolicy:        envString("KASHI_RETURN_POLICY", ""),
+		Website:             envString("KASHI_WEBSITE", ""),
+		Instagram:           envString("KASHI_INSTAGRAM", ""),
+		SocialPlatforms:     envSocialPlatforms(),
+		SocialHandles:       envJSON("KASHI_SOCIAL_HANDLES", "{}"),
+		ReceiptFont:         envString("KASHI_RECEIPT_FONT", "Belleza"),
+		ReceiptTitleSize:    envFloat64("KASHI_RECEIPT_TITLE_SIZE", 21),
+		ReceiptBodySize:     envFloat64("KASHI_RECEIPT_BODY_SIZE", 11),
+		ReceiptCutoff:       boolInt(envBool("KASHI_RECEIPT_CUTOFF", true)),
+		ReceiptBodyFont:     envString("KASHI_RECEIPT_BODY_FONT", "Printer Font A"),
+		BranchPhone:         envString("KASHI_BRANCH_PHONE", ""),
+		CounterNumber:       envString("KASHI_REGISTER_NAME", envString("KASHI_COUNTER_NUMBER", "POS-01")),
 	}
 }
 
@@ -171,7 +172,7 @@ func (a *App) applyEnvironmentDefaults() error {
 		PrinterSize: settings.PrinterSize, ReceiptPrinter: settings.ReceiptPrinter, ScreenPort: settings.ScreenPort,
 		ReceiptWidth: settings.ReceiptWidth, ReceiptHeight: settings.ReceiptHeight, Theme: settings.Theme, TaxRate: settings.TaxRate,
 		RoundingMode: settings.RoundingMode, ReceiptEnabled: settings.ReceiptEnabled, SalesInventoryID: settings.SalesInventoryID,
-		ExchangeRate: settings.ExchangeRate, MarketName: settings.MarketName, MarketPhone: settings.MarketPhone,
+		ExchangeRate: settings.ExchangeRate, MaxOverpaymentCents: settings.MaxOverpaymentCents, MarketName: settings.MarketName, MarketPhone: settings.MarketPhone,
 		MarketDescription: settings.MarketDescription, ReturnPolicy: settings.ReturnPolicy, Website: settings.Website,
 		Instagram: settings.Instagram, SocialPlatforms: settings.SocialPlatforms, SocialHandles: settings.SocialHandles,
 		ReceiptFont: settings.ReceiptFont, ReceiptTitleSize: settings.ReceiptTitleSize, ReceiptBodySize: settings.ReceiptBodySize,
@@ -209,6 +210,7 @@ func (a *App) applyEnvironmentDefaults() error {
 	setInt(&params.ReceiptEnabled, envOnlyBoolInt("KASHI_RECEIPT_ENABLED"))
 	setInt(&params.SalesInventoryID, envOnlyInt("KASHI_SALES_INVENTORY_ID"))
 	setInt(&params.ExchangeRate, envOnlyInt("KASHI_EXCHANGE_RATE"))
+	setInt(&params.MaxOverpaymentCents, envOnlyInt("KASHI_MAX_OVERPAYMENT_CENTS"))
 	setString(&params.MarketName, envOnlyString("KASHI_MARKET_NAME"))
 	setString(&params.MarketPhone, envOnlyString("KASHI_MARKET_PHONE"))
 	setString(&params.MarketDescription, envOnlyString("KASHI_MARKET_DESCRIPTION"))
@@ -223,7 +225,11 @@ func (a *App) applyEnvironmentDefaults() error {
 	setInt(&params.ReceiptCutoff, envOnlyBoolInt("KASHI_RECEIPT_CUTOFF"))
 	setString(&params.ReceiptBodyFont, envOnlyString("KASHI_RECEIPT_BODY_FONT"))
 	setString(&params.BranchPhone, envOnlyString("KASHI_BRANCH_PHONE"))
-	setString(&params.CounterNumber, envOnlyString("KASHI_COUNTER_NUMBER"))
+	registerName := envOnlyString("KASHI_REGISTER_NAME")
+	if registerName == "" {
+		registerName = envOnlyString("KASHI_COUNTER_NUMBER")
+	}
+	setString(&params.CounterNumber, registerName)
 	if !changed {
 		return nil
 	}

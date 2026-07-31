@@ -335,6 +335,32 @@ func (q *Queries) GetReturnedQuantityForProduct(ctx context.Context, arg GetRetu
 	return quantity, err
 }
 
+const getReturnedQuantityForProductPrice = `-- name: GetReturnedQuantityForProductPrice :one
+SELECT COALESCE(SUM(CASE WHEN ip.quantity < 0 THEN -ip.quantity ELSE 0 END), 0) AS quantity
+FROM return_invoices r
+JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
+WHERE r.sales_invoice_id = ? AND ip.product_id = ? AND ip.unit_price = ? AND ip.discount = ?
+`
+
+type GetReturnedQuantityForProductPriceParams struct {
+	SalesInvoiceID int64 `json:"salesInvoiceId"`
+	ProductID      int64 `json:"productId"`
+	UnitPrice      int64 `json:"unitPrice"`
+	Discount       int64 `json:"discount"`
+}
+
+func (q *Queries) GetReturnedQuantityForProductPrice(ctx context.Context, arg GetReturnedQuantityForProductPriceParams) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getReturnedQuantityForProductPrice,
+		arg.SalesInvoiceID,
+		arg.ProductID,
+		arg.UnitPrice,
+		arg.Discount,
+	)
+	var quantity interface{}
+	err := row.Scan(&quantity)
+	return quantity, err
+}
+
 const getSalesInvoiceByCode = `-- name: GetSalesInvoiceByCode :one
 SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes
 FROM invoices i

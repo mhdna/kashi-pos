@@ -41,6 +41,7 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
 
 <style scoped>
 .calculator-keypad {
+  container-type: inline-size;
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
   column-gap: 18px;
@@ -48,6 +49,9 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
 .keypad-numbers {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  max-width: 216px;
+  justify-self: end;
   gap: 8px;
 }
 .keypad-actions {
@@ -62,9 +66,18 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
 }
 .keypad-number {
   min-height: 40px;
+  min-width: 0;
+  padding-inline: 6px;
 }
 .keypad-action {
   min-height: 0;
   flex: 1;
+}
+
+@container (max-width: 420px) {
+  .calculator-keypad { column-gap: 8px; }
+  .keypad-numbers { gap: 5px; }
+  .keypad-actions { gap: 4px; }
+  .keypad-button { min-height: 36px; border-radius: 9px; }
 }
 </style>

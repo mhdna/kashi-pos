@@ -22,24 +22,22 @@
           width="100%"
           @click="openClientDialog"
         >
-          <InitialsAvatar :name="clientSelected ? client.name : '?'" color="primary" />
-          <div class="text-subtitle-1 font-weight-bold mt-2">
-            {{ clientSelected ? client.name : "Choose a client" }}
-          </div>
-          <div class="text-caption text-medium-emphasis mt-1">
-            {{ clientSelected ? client.phone || "Walk-in customer" : "Required before checkout" }}
-          </div>
+          <template v-if="clientSelected">
+            <InitialsAvatar :name="client.name" :color="tierColor" />
+            <div class="text-subtitle-1 font-weight-bold mt-2">{{ client.name }}</div>
+            <div class="text-caption text-medium-emphasis mt-1">
+              {{ client.phone || "Walk-in customer" }}
+            </div>
+          </template>
+          <template v-else>
+            <InitialsAvatar name="?" color="primary" />
+            <div class="text-subtitle-1 font-weight-bold mt-2">Select client</div>
+          </template>
         </v-card>
-        <div v-if="!isAnonymousClient" class="text-center">
-          <v-icon
-            :color="tierColor"
-            class="mb-4"
-            icon="mdi-cards-diamond"
-            size="44"
-            :title="tierLabel"
-          />
-          <div>Has: {{ client.totalLoyaltyPoints }} Points</div>
-          <div>Earns: {{ earns }} Points</div>
+        <div v-if="!isAnonymousClient" class="text-center mt-2">
+          <div>Lifetime: {{ formatLoyaltyPoints(client.totalLoyaltyPoints) }} pt</div>
+          <div>Available: {{ formatLoyaltyPoints(client.validLoyaltyPoints) }} pt</div>
+          <div>Earns: {{ formatLoyaltyPoints(earns) }} pt</div>
         </div>
       </v-card-text>
     </v-card>
@@ -113,7 +111,14 @@
 import { ref, reactive, computed } from "vue";
 import ClientDialog from "./ClientDialog.vue";
 import InitialsAvatar from "./InitialsAvatar.vue";
-import { anonymousClient, toClient, type Client } from "@/lib/client";
+import {
+  anonymousClient,
+  formatLoyaltyPoints,
+  loyaltyTier,
+  loyaltyTierColor,
+  toClient,
+  type Client,
+} from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
 
 const emit = defineEmits<{ hold: []; void: []; checkout: [] }>();
@@ -148,24 +153,12 @@ const isAnonymousClient = computed(
 
 const earns = computed(() => Math.floor(props.total));
 
+const tierLabel = computed(() => loyaltyTier(client.totalLoyaltyPoints));
+const tierColor = computed(() => loyaltyTierColor(tierLabel.value));
+
 function openClientDialog() {
   if (!props.exchangeMode) clientDialog.value = true;
 }
-
-const tierLabel = computed(() => {
-  const pts = client.totalLoyaltyPoints;
-  if (pts >= 500) return "Gold";
-  if (pts >= 200) return "Silver";
-  if (pts >= 1) return "Bronze";
-  return "None";
-});
-const tierColor = computed(() => {
-  const pts = client.totalLoyaltyPoints;
-  if (pts >= 500) return "yellow-darken-2";
-  if (pts >= 200) return "grey-lighten-1";
-  if (pts >= 1) return "brown";
-  return "grey";
-});
 
 function onClientSelect(selected: Client) {
   Object.assign(client, toClient(selected));

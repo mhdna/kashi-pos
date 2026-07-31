@@ -1,9 +1,14 @@
 <template>
-  <div class="shifts-page d-flex flex-column ga-4 pa-4 h-100">
+  <div class="shifts-page d-flex flex-column h-100">
     <!-- <ShiftSummaryCard :open-shift="openShift" @close="closeDialog = true" /> -->
 
-    <div class="shifts-cards d-flex ga-4">
-      <TodayIncomeCard :items="todayIncome" :loading="loadingToday" :exchange-rate="exchangeRate" />
+    <div class="shifts-cards d-flex">
+      <ShiftIncomeCard
+        :items="shiftIncome"
+        :shift-id="openShift?.id"
+        :loading="loadingShift"
+        :exchange-rate="exchangeRate"
+      />
       <MonthlyIncomeCard
         :month="currentMonth"
         :rows="dailyRows"
@@ -16,9 +21,12 @@
         :balance-loading="balanceLoading"
         :exchange-rate="exchangeRate"
         :current-day="currentDay"
+        :is-admin="auth.isAdmin"
+        :printing-shift-id="printingShiftId"
         @toggle-all="toggleAllDays"
         @toggle-day="toggleDay"
         @toggle-shift="toggleShift"
+        @print-shift="printClosedShift"
       />
     </div>
 
@@ -26,6 +34,7 @@
       v-model="closeDialog"
       :open-shift="openShift"
       :close-balances="closeBalances"
+      :salespersons="salespersons"
       :closing="closing"
       :exchange-rate="exchangeRate"
       @confirm="doCloseShift"
@@ -37,28 +46,34 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import {
   CloseShiftByID,
+  GetDailyIncomeByMonth,
   GetCurrentMonth,
   GetOpenShift,
   GetShiftTotals,
-  GetTodayIncomeByAccount,
   GetAppSettings,
   ListShiftBalances,
+  ListSalespersons,
   OpenShift,
+  PrintClosedShiftReceipt,
 } from "../../wailsjs/go/main/App";
 import CloseShiftDialog from "@/components/shifts/CloseShiftDialog.vue";
 import MonthlyIncomeCard from "@/components/shifts/MonthlyIncomeCard.vue";
 import ShiftSummaryCard from "@/components/shifts/ShiftSummaryCard.vue";
-import TodayIncomeCard from "@/components/shifts/TodayIncomeCard.vue";
+import ShiftIncomeCard from "@/components/shifts/ShiftIncomeCard.vue";
 import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
 import type { Balance, DayRow, IncomeRow, Shift } from "@/types/shifts";
+import { useAuthStore } from "@/stores/auth";
+const auth = useAuthStore();
 const exchangeRate = ref(90000);
+const salespersons = ref<Array<{ id: number; fullName: string }>>([]);
 
 const openShift = ref<Shift | null>(null);
-const todayIncome = ref<IncomeRow[]>([]);
 const allShifts = ref<Shift[]>([]);
 const currentMonth = ref("");
-const loadingToday = ref(true);
+const dailyIncomeByDay = ref<Record<string, number>>({});
+const loadingShift = ref(true);
 const loadingMonth = ref(true);
+const printingShiftId = ref<number | null>(null);
 
 const balanceCache = reactive<Record<number, Balance[]>>({});
 const balanceLoading = reactive<Record<number, boolean>>({});
@@ -68,13 +83,40 @@ const currentDay = computed(() => {
   const now = new Date();
   return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
 });
+const shiftIncome = computed<IncomeRow[]>(() =>
+  closeBalances.value.map((balance) => ({
+    accountName: balance.accountName,
+    currencyCode: balance.currencyCode,
+    total: Number(balance.balance) || 0,
+  })),
+);
 
 const dailyRows = computed<DayRow[]>(() => {
   const groups: Record<string, Shift[]> = {};
   for (const shift of allShifts.value) {
-    const day = shift.createdAt?.split(" ")[0] ?? "—";
+    const day = shiftDayKey(shift.isClosed && shift.closedAt ? shift.closedAt : shift.createdAt);
     groups[day] ??= [];
     groups[day].push(shift);
+  }
+
+  // An open shift can continue past midnight. Keep it visible under today,
+  // even when it was opened on the previous day and has no income yet.
+  const activeShift = openShift.value;
+  if (activeShift?.id) {
+    const activeShiftTotal = allShifts.value.find((shift) => shift.id === activeShift.id)?.total;
+    for (const shifts of Object.values(groups)) {
+      const index = shifts.findIndex((shift) => shift.id === activeShift.id);
+      if (index >= 0) shifts.splice(index, 1);
+    }
+    const todayShifts = (groups[currentDay.value] ??= []);
+    todayShifts.push({
+      ...activeShift,
+      total: Number.isFinite(Number(activeShiftTotal)) ? Number(activeShiftTotal) : 0,
+    });
+  }
+
+  for (const shifts of Object.values(groups)) {
+    shifts.sort((left, right) => right.id - left.id);
   }
 
   const [year, month] = currentMonth.value.split("-");
@@ -90,7 +132,8 @@ const dailyRows = computed<DayRow[]>(() => {
   return Array.from({ length: daysInMonth }, (_, index) => {
     const day = `${pad(index + 1)}/${month}/${year}`;
     const shifts = groups[day] ?? [];
-    return { day, total: dayTotal(shifts), shifts };
+    const isoDay = `${year}-${month}-${pad(index + 1)}`;
+    return { day, total: dailyIncomeByDay.value[isoDay] ?? 0, shifts };
   });
 });
 
@@ -101,12 +144,19 @@ const allDaysExpanded = computed(
     dailyRows.value.every((row) => expandedDays.value.includes(row.day)),
 );
 
+function dayTotal(shifts: Shift[]) {
+  return shifts.reduce((total, shift) => total + shift.total, 0);
+}
+
 function pad(value: number) {
   return value.toString().padStart(2, "0");
 }
 
-function dayTotal(shifts: Shift[]) {
-  return shifts.reduce((total, shift) => total + shift.total, 0);
+function shiftDayKey(value?: string) {
+  const date = value?.split(" ")[0] ?? "";
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+  return date || "—";
 }
 
 function toggleDay(day: string) {
@@ -129,6 +179,19 @@ async function toggleShift(shiftId: number) {
   if (!balanceCache[shiftId]) await loadBalances(shiftId);
 }
 
+async function printClosedShift(shiftId: number) {
+  if (!auth.isAdmin || printingShiftId.value !== null) return;
+  printingShiftId.value = shiftId;
+  try {
+    await PrintClosedShiftReceipt(shiftId);
+    window.alert("End-of-shift receipt sent to the printer");
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : String(error));
+  } finally {
+    printingShiftId.value = null;
+  }
+}
+
 async function loadBalances(shiftId: number) {
   balanceLoading[shiftId] = true;
   try {
@@ -144,12 +207,20 @@ const closeDialog = ref(false);
 const closeBalances = ref<Balance[]>([]);
 const closing = ref(false);
 
-async function doCloseShift() {
+async function doCloseShift(closingPersonId: number, countedLbp: number, usdBreakdownJson: string) {
   if (!openShift.value) return;
 
   closing.value = true;
   try {
-    await CloseShiftByID(openShift.value.id, closeBalances.value);
+    const result = await CloseShiftByID(
+      openShift.value.id,
+      closingPersonId,
+      countedLbp,
+      usdBreakdownJson,
+    );
+    if (result?.receiptError) {
+      window.alert(`Shift closed, but the receipt could not be printed: ${result.receiptError}`);
+    }
     await OpenShift();
     closeDialog.value = false;
     await refresh();
@@ -161,7 +232,7 @@ async function doCloseShift() {
 }
 
 async function refresh() {
-  loadingToday.value = true;
+  loadingShift.value = true;
   loadingMonth.value = true;
 
   try {
@@ -177,21 +248,32 @@ async function refresh() {
   }
 
   try {
-    allShifts.value = ((await GetShiftTotals()) as Shift[]) ?? [];
+    const shifts = ((await GetShiftTotals()) as Shift[]) ?? [];
+    allShifts.value = shifts.map((shift) => ({
+      ...shift,
+      total: Number.isFinite(Number(shift.total)) ? Number(shift.total) : 0,
+    }));
   } catch {
     allShifts.value = [];
   }
 
   try {
-    todayIncome.value = ((await GetTodayIncomeByAccount()) as IncomeRow[]) ?? [];
+    const rows =
+      ((await GetDailyIncomeByMonth(currentMonth.value)) as Array<{
+        day: string;
+        total: number;
+      }>) ?? [];
+    dailyIncomeByDay.value = Object.fromEntries(
+      rows.map((row) => [row.day, Number(row.total) || 0]),
+    );
   } catch {
-    todayIncome.value = [];
+    dailyIncomeByDay.value = {};
   }
 
   for (const shiftId of Object.keys(balanceCache)) delete balanceCache[Number(shiftId)];
   await Promise.all([...shiftExpanded].map(loadBalances));
 
-  loadingToday.value = false;
+  loadingShift.value = false;
   loadingMonth.value = false;
 }
 
@@ -206,6 +288,12 @@ onMounted(async () => {
     const rate = Number(settings?.exchangeRate);
     if (Number.isFinite(rate) && rate > 0) exchangeRate.value = rate;
   } catch {}
+  try {
+    salespersons.value =
+      ((await ListSalespersons()) as Array<{ id: number; fullName: string }>) ?? [];
+  } catch {
+    salespersons.value = [];
+  }
   try {
     currentMonth.value = await GetCurrentMonth();
   } catch {}

@@ -34,9 +34,11 @@ func (a *App) GetExchangeInvoice(code string) (map[string]any, error) {
 
 	items := make([]map[string]any, 0, len(lines))
 	for _, line := range lines {
-		returned, err := a.store.GetReturnedQuantityForProduct(a.ctx, db.GetReturnedQuantityForProductParams{
+		returned, err := a.store.GetReturnedQuantityForProductPrice(a.ctx, db.GetReturnedQuantityForProductPriceParams{
 			SalesInvoiceID: invoice.ID,
 			ProductID:      line.ProductID,
+			UnitPrice:      line.UnitPrice,
+			Discount:       line.Discount,
 		})
 		if err != nil {
 			return nil, err

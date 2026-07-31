@@ -17,13 +17,23 @@
             autocomplete="off"
           >
             <template #selection="{ item }">
-              <span class="country-flag">{{ item.flag }}</span>
+              <span
+                v-if="isLebanon(item.code)"
+                class="country-flag country-flag-lebanon"
+                aria-label="Lebanon"
+              />
+              <span v-else class="country-flag">{{ item.flag }}</span>
               <span>{{ item.displayName }}</span>
             </template>
             <template #item="{ props: itemProps, item }">
               <v-list-item v-bind="itemProps" :subtitle="`+${item.dialCode}`">
                 <template #title>
-                  <span class="country-flag">{{ item.flag }}</span>
+                  <span
+                    v-if="isLebanon(item.code)"
+                    class="country-flag country-flag-lebanon"
+                    aria-label="Lebanon"
+                  />
+                  <span v-else class="country-flag">{{ item.flag }}</span>
                   <span>{{ item.name }}</span>
                 </template>
               </v-list-item>
@@ -43,7 +53,7 @@
             class="w-100 mb-4"
             variant="elevated"
             color="primary"
-            :disabled="Boolean(phoneError) || !phone.trim()"
+            :disabled="!phone.trim()"
             @click="lookupPhone"
           >
             Continue
@@ -112,7 +122,12 @@
           readonly
         >
           <template #prepend>
-            <span class="country-flag">{{ selectedFlag }}</span>
+            <span
+              v-if="isLebanon(selectedCountry)"
+              class="country-flag country-flag-lebanon"
+              aria-label="Lebanon"
+            />
+            <span v-else class="country-flag">{{ selectedFlag }}</span>
             <span>+{{ selectedDialCode }}</span>
           </template>
         </v-text-field>
@@ -161,6 +176,7 @@ watch(dialog, (v) => {
 
 const step = ref<"phone" | "new">("phone");
 const phone = ref("");
+const phoneSubmitted = ref(false);
 const selectedCountry = ref<CountryCode>("LB");
 const newClient = reactive({ name: "", phone: "" });
 const phonePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -174,10 +190,22 @@ const countries = getCountries().map((code) => ({
 })).sort((a, b) => a.name.localeCompare(b.name));
 const selectedFlag = computed(() => flagForCountry(selectedCountry.value));
 const selectedDialCode = computed(() => getCountryCallingCode(selectedCountry.value));
-const phoneError = computed(() => phone.value.trim() && !normalizePhone(phone.value) ? "Enter a valid phone number" : "");
+const phoneError = computed(() =>
+  phoneSubmitted.value && phone.value.trim() && !normalizePhone(phone.value)
+    ? "Enter a valid phone number"
+    : "",
+);
+
+watch([phone, selectedCountry], () => {
+  phoneSubmitted.value = false;
+});
 
 function flagForCountry(code: string) {
   return code.toUpperCase().replace(/[A-Z]/g, (letter) => String.fromCodePoint(letter.charCodeAt(0) + 127397));
+}
+
+function isLebanon(code: string) {
+  return code.toUpperCase() === "LB";
 }
 
 function normalizePhone(value: string) {
@@ -188,17 +216,21 @@ function normalizePhone(value: string) {
 function appendPhoneDigit(digit: string) {
   if (phone.value.length >= 15) return;
   phone.value += digit;
+  phoneSubmitted.value = false;
 }
 
 function clearPhone() {
   phone.value = "";
+  phoneSubmitted.value = false;
 }
 
 function backspacePhone() {
   phone.value = phone.value.slice(0, -1);
+  phoneSubmitted.value = false;
 }
 
 async function lookupPhone() {
+  phoneSubmitted.value = true;
   const p = normalizePhone(phone.value);
   if (!p) return;
   try {
@@ -215,13 +247,17 @@ async function lookupPhone() {
 
 async function createClient() {
   try {
-    const c = await CreateClient(newClient.name.trim(), newClient.phone);
+    const c = await CreateClient(capitalizeName(newClient.name), newClient.phone);
     emit("select", toClient(c));
   } catch {
-    emit("select", toClient({ id: 0, name: newClient.name.trim(), phone: newClient.phone }));
+    emit("select", toClient({ id: 0, name: capitalizeName(newClient.name), phone: newClient.phone }));
   }
   dialog.value = false;
   reset();
+}
+
+function capitalizeName(value: string) {
+  return value.trim().replace(/(^|[\s'-])([\p{L}])/gu, (_, prefix: string, letter: string) => `${prefix}${letter.toUpperCase()}`);
 }
 
 function selectAnonymous() {
@@ -233,6 +269,7 @@ function selectAnonymous() {
 function reset() {
   step.value = "phone";
   phone.value = "";
+  phoneSubmitted.value = false;
   selectedCountry.value = "LB";
   newClient.name = "";
   newClient.phone = "";
@@ -244,6 +281,24 @@ function reset() {
   display: inline-block;
   margin-inline-end: 6px;
   line-height: 1;
+}
+
+.country-flag-lebanon {
+  position: relative;
+  width: 24px;
+  height: 16px;
+  vertical-align: -3px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, #ed1c24 0 25%, #fff 25% 75%, #ed1c24 75%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 12%);
+}
+
+.country-flag-lebanon::after {
+  content: "";
+  position: absolute;
+  inset: 3px 9px 3px 9px;
+  background: #16863d;
+  clip-path: polygon(50% 0, 62% 28%, 100% 18%, 72% 48%, 100% 72%, 62% 62%, 50% 100%, 38% 62%, 0 72%, 28% 48%, 0 18%, 38% 28%);
 }
 
 .client-phone-layout {

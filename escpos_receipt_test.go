@@ -9,6 +9,7 @@ func TestBuildESCPosReceiptContainsInvoiceAndAuthoritativeTotals(t *testing.T) {
 	payload := buildESCPosReceipt(printReceiptData{
 		StoreName:       "Kashi Store",
 		Branch:          "CN",
+		RegisterName:    "POS-01",
 		ReceiptNo:       "SA/CN/2026/00001",
 		Items:           []invoiceItem{{Name: "Shirt", Price: 10, Discount: 10, Qty: 2}},
 		GrandTotalCents: 1980,
@@ -16,7 +17,7 @@ func TestBuildESCPosReceiptContainsInvoiceAndAuthoritativeTotals(t *testing.T) {
 		ReceiptWidth:    80,
 	})
 
-	for _, want := range []string{"Kashi Store", "SA/CN/2026/00001", "Shirt", "$19.80", "TOTAL", "LBP TOTAL"} {
+	for _, want := range []string{"Kashi Store", "SA/CN/2026/00001", "Register:", "POS-01", "Shirt", "$19.80", "TOTAL", "LBP TOTAL"} {
 		if !bytes.Contains(payload, []byte(want)) {
 			t.Fatalf("payload does not contain %q: %q", want, payload)
 		}

@@ -92,7 +92,10 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 		if err := ensureReceiptBrandingColumns(ctx, conn); err != nil {
 			return err
 		}
-		return ensureAttendanceColumns(ctx, conn)
+		if err := ensureAttendanceColumns(ctx, conn); err != nil {
+			return err
+		}
+		return ensureShiftClosingColumns(ctx, conn)
 	}
 	for _, m := range migrations {
 		if m.version <= current {
@@ -111,6 +114,16 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 				continue
 			}
 		}
+		if m.version == 30 {
+			if err := ensureShiftClosingColumns(ctx, conn); err != nil {
+				return err
+			}
+			if _, err := conn.ExecContext(ctx, "INSERT INTO schema_migrations(version, name) VALUES (?, ?)", m.version, m.name); err != nil {
+				return fmt.Errorf("record shift-closing migration %d: %w", m.version, err)
+			}
+			log.Printf("database migration applied: version=%d name=%s", m.version, m.name)
+			continue
+		}
 		if err := applyOneMigration(ctx, conn, m); err != nil {
 			return fmt.Errorf("migration %s failed: %w", m.name, err)
 		}
@@ -119,7 +132,40 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 	if err := ensureReceiptBrandingColumns(ctx, conn); err != nil {
 		return err
 	}
-	return ensureAttendanceColumns(ctx, conn)
+	if err := ensureAttendanceColumns(ctx, conn); err != nil {
+		return err
+	}
+	return ensureShiftClosingColumns(ctx, conn)
+}
+
+func ensureShiftClosingColumns(ctx context.Context, conn *sql.DB) error {
+	columns := []struct {
+		name       string
+		definition string
+	}{
+		{"closed_by_salesperson_id", "bigint NOT NULL DEFAULT 0"},
+		{"counted_usd", "bigint NOT NULL DEFAULT 0"},
+		{"counted_lbp", "bigint NOT NULL DEFAULT 0"},
+		{"counted_usd_breakdown", "text NOT NULL DEFAULT '{}'"},
+	}
+	for _, column := range columns {
+		var count int
+		if err := conn.QueryRowContext(
+			ctx,
+			"SELECT count(*) FROM pragma_table_info('shifts') WHERE name = ?",
+			column.name,
+		).Scan(&count); err != nil {
+			return fmt.Errorf("inspect shift closing column %s: %w", column.name, err)
+		}
+		if count != 0 {
+			continue
+		}
+		statement := fmt.Sprintf("ALTER TABLE shifts ADD COLUMN %s %s", column.name, column.definition)
+		if _, err := conn.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("add shift closing column %s: %w", column.name, err)
+		}
+	}
+	return nil
 }
 
 func ensureAttendanceColumns(ctx context.Context, conn *sql.DB) error {

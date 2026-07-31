@@ -72,21 +72,27 @@
         />
         <v-btn
           v-if="!exchangeState"
-          icon
-          size="small"
           variant="text"
-          class="ms-1"
-          @click="onBarcodeEnter"
+          rounded
+          aria-label="Search products"
+          @click="productSearchDialog?.openDialog()"
         >
           <v-icon icon="mdi-magnify" size="20" />
         </v-btn>
-        <ProductSearchDialog v-if="!exchangeState" @select="onProductSelect" />
+        <ProductSearchDialog
+          ref="productSearchDialog"
+          v-if="!exchangeState"
+          :show-activator="false"
+          @select="onProductSelect"
+        />
       </div>
       <InvoiceItems
         ref="invoiceItems"
         :rounding-mode="roundingMode"
         :readonly="Boolean(exchangeState)"
         :custom-discounts-enabled="customItemDiscountsEnabled"
+        :custom-prices-enabled="customItemPricesEnabled"
+        :per-unit-prices-enabled="perUnitItemPricesEnabled"
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
       />
@@ -154,16 +160,7 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  computed,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  provide,
-  reactive,
-  ref,
-  watch,
-} from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from "vue";
 import {
   GetProductByBarcode,
   GetProductByCode,
@@ -201,6 +198,8 @@ const roundingMode = ref("half_up");
 const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
 const customItemDiscountsEnabled = ref(false);
+const customItemPricesEnabled = ref(false);
+const perUnitItemPricesEnabled = ref(false);
 const pulseClient = ref(false);
 let pulseClientTimer: ReturnType<typeof setTimeout> | undefined;
 const branchName = ref("Store");
@@ -213,6 +212,7 @@ const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
+const productSearchDialog = ref<InstanceType<typeof ProductSearchDialog> | null>(null);
 
 const invoiceTotal = computed(() => {
   const discountedCents = invoiceItems.value?.discountedSubtotalCents ?? 0;
@@ -232,6 +232,8 @@ const canCheckout = computed(
 const barcodeValue = ref("");
 const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
 const dialogOpen = ref(false);
+let overlayObserver: MutationObserver | undefined;
+let overlayFocusTimer: ReturnType<typeof setTimeout> | undefined;
 let restoringDraft = true;
 
 provide("dialogOpen", dialogOpen);
@@ -241,7 +243,7 @@ watch(hasItems, (val) => {
 });
 
 watch(dialogOpen, (v) => {
-  if (!v) focusBarcode();
+  if (!v) focusBarcodeWhenIdle();
 });
 
 watch(noteMenu, (open) => {
@@ -307,8 +309,44 @@ function saveNote() {
 function focusBarcode() {
   barcodeInput.value?.focus();
 }
+
+function hasBlockingUi() {
+  return (
+    dialogOpen.value ||
+    Boolean(
+      document.querySelector(
+        ".v-overlay--active, .v-menu__content, [role='dialog'], [role='menu']",
+      ),
+    )
+  );
+}
+
+function focusBarcodeWhenIdle(attempt = 0) {
+  if (hasBlockingUi()) {
+    if (attempt < 20) requestAnimationFrame(() => focusBarcodeWhenIdle(attempt + 1));
+    return;
+  }
+  focusBarcode();
+}
+
+function scheduleBarcodeFocus() {
+  clearTimeout(overlayFocusTimer);
+  overlayFocusTimer = setTimeout(() => focusBarcodeWhenIdle(), 50);
+}
+
 function onBlur() {
-  if (!dialogOpen.value) focusBarcode();
+  setTimeout(() => {
+    if (hasBlockingUi()) return;
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLElement &&
+      (active.matches("input, textarea, select, [contenteditable='true']") ||
+        Boolean(active.closest("[role='dialog'], [role='menu'], .v-overlay__content")))
+    ) {
+      return;
+    }
+    focusBarcode();
+  });
 }
 
 function onProductSelect(product: {
@@ -382,9 +420,23 @@ async function getFullItemsJSON(): Promise<string> {
       code: i.code,
       category: i.category,
       price: i.price,
-      customPriceCents: customItemDiscountsEnabled.value
+      customPriceCents: customItemPricesEnabled.value
         ? Math.round(Number(i.price) * 100)
         : undefined,
+      unitPricesCents:
+        (perUnitItemPricesEnabled.value || customItemPricesEnabled.value) && i.qty > 0
+          ? (i.unitPrices ?? Array(Math.trunc(i.qty)).fill(i.price)).map((price: number) =>
+              Math.round(Number(price) * 100),
+            )
+          : undefined,
+      unitDiscounts:
+        (perUnitItemPricesEnabled.value || customItemDiscountsEnabled.value) && i.qty > 0
+          ? (i.unitDiscounts ?? Array(Math.trunc(i.qty)).fill(i.discount)).map((discount: number) =>
+              Math.trunc(Number(discount)),
+            )
+          : undefined,
+      unitPriceCents: i.qty < 0 ? Math.round(Number(i.soldUnitPrice ?? i.price) * 100) : undefined,
+      unitDiscount: i.qty < 0 ? Math.trunc(Number(i.soldUnitDiscount ?? i.discount)) : undefined,
       discount: i.discount,
       qty: i.qty,
     })),
@@ -521,6 +573,13 @@ function onRestoreHold(id: number, items: any[]) {
 onMounted(async () => {
   await nextTick();
   if (!pageActive) return;
+  overlayObserver = new MutationObserver(scheduleBarcodeFocus);
+  overlayObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class", "style"],
+    childList: true,
+    subtree: true,
+  });
   restoreDraft();
   focusBarcode();
   try {
@@ -531,6 +590,8 @@ onMounted(async () => {
     receiptEnabled.value = Boolean(settings?.receiptEnabled);
     receiptPrinter.value = settings?.receiptPrinter ?? "";
     customItemDiscountsEnabled.value = Boolean(settings?.customItemDiscountsEnabled);
+    customItemPricesEnabled.value = Boolean(settings?.customItemPricesEnabled);
+    perUnitItemPricesEnabled.value = Boolean(settings?.perUnitItemPricesEnabled);
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
   } catch {}
@@ -551,6 +612,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   pageActive = false;
   clearTimeout(pulseClientTimer);
+  clearTimeout(overlayFocusTimer);
+  overlayObserver?.disconnect();
 });
 </script>
 

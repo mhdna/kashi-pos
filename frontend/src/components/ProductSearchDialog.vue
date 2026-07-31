@@ -1,12 +1,18 @@
 <template>
-  <v-dialog v-model="dialog" max-width="760" min-height="440">
-    <template #activator="{ props: activatorProps }">
-      <v-btn v-bind="activatorProps" variant="text" class="ms-1">
-        <v-icon icon="mdi-format-list-bulleted-square" size="20" class="me-1" />
-        {{ activatorText }}
+  <v-dialog v-model="dialog" max-width="760" width="calc(100% - 32px)" height="670">
+    <template v-if="showActivator" #activator="{ props: activatorProps }">
+      <v-btn
+        v-bind="activatorProps"
+        :icon="!activatorText"
+        :aria-label="activatorText || 'Add products'"
+        variant="text"
+        class="ms-1"
+      >
+        <v-icon :icon="activatorIcon" size="20" :class="{ 'me-1': Boolean(activatorText) }" />
+        <template v-if="activatorText">{{ activatorText }}</template>
       </v-btn>
     </template>
-    <v-card>
+    <v-card class="product-list-card">
       <v-card-title class="d-flex align-center">
         Products
         <v-spacer />
@@ -21,6 +27,7 @@
         />
       </v-card-title>
       <v-data-table-server
+        class="product-list-table"
         v-model:items-per-page="itemsPerPage"
         :headers="headers"
         :items="serverItems"
@@ -58,10 +65,21 @@ const emit = defineEmits<{
   ];
 }>();
 
-const props = withDefaults(defineProps<{ activatorText?: string }>(), {
-  activatorText: "Products List",
-});
+const props = withDefaults(
+  defineProps<{
+    activatorText?: string;
+    activatorIcon?: string;
+    showActivator?: boolean;
+  }>(),
+  {
+    activatorText: "Products List",
+    activatorIcon: "mdi-format-list-bulleted-square",
+    showActivator: true,
+  },
+);
 const activatorText = props.activatorText;
+const activatorIcon = props.activatorIcon;
+const showActivator = props.showActivator;
 
 const dialogOpen = inject<import("vue").Ref<boolean>>("dialogOpen", { value: false } as any);
 const dialog = ref(false);
@@ -128,6 +146,12 @@ onBeforeUnmount(() => {
   clearTimeout(searchTimer);
   latestRequest++;
 });
+
+function openDialog() {
+  dialog.value = true;
+}
+
+defineExpose({ openDialog });
 </script>
 
 <style scoped>
@@ -136,7 +160,24 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+.product-list-card {
+  height: 670px;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-list-table {
+  flex: 0 0 400px;
+  height: 400px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .product-inline-keyboard {
+  flex: 0 0 205px;
+  height: 205px;
+  display: flex;
+  align-items: center;
   margin-inline: auto;
   max-width: 600px;
   padding-block: 12px;

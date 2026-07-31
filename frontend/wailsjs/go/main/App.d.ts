@@ -22,7 +22,7 @@ export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,
 
 export function ClearScreen(arg1:string):Promise<void>;
 
-export function CloseShiftByID(arg1:number,arg2:Array<Record<string, any>>):Promise<void>;
+export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:string):Promise<Record<string, any>>;
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
@@ -41,6 +41,8 @@ export function DeleteSalesperson(arg1:number):Promise<void>;
 export function DeleteUser(arg1:number):Promise<void>;
 
 export function ExportAttendanceMonth(arg1:string):Promise<string>;
+
+export function GetAdminConfig():Promise<Record<string, any>>;
 
 export function GetAppSettings():Promise<Record<string, any>>;
 
@@ -120,11 +122,19 @@ export function ListUsers():Promise<Array<Record<string, any>>>;
 
 export function OpenShift():Promise<Record<string, any>>;
 
+export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>>;
+
+export function PrintCurrentCloseShiftSample():Promise<Record<string, any>>;
+
 export function ReprintInvoice(arg1:number):Promise<void>;
 
 export function SearchClients(arg1:string,arg2:number):Promise<Array<Record<string, any>>>;
 
 export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
+
+export function SetCustomItemPricesEnabled(arg1:boolean):Promise<void>;
+
+export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
 
 export function SetTaxRate(arg1:number):Promise<void>;
 
@@ -133,6 +143,8 @@ export function SetTheme(arg1:string):Promise<void>;
 export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:string,arg4:string):Promise<void>;
 
 export function SyncAttendance(arg1:string):Promise<Record<string, any>>;
+
+export function UpdateAdminConfig(arg1:boolean,arg2:string,arg3:string):Promise<void>;
 
 export function UpdateAttendanceConfig(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<void>;
 
@@ -144,7 +156,7 @@ export function UpdateReceiptSettings(arg1:string,arg2:string,arg3:string,arg4:s
 
 export function UpdateSalesperson(arg1:number,arg2:string):Promise<Record<string, any>>;
 
-export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:number,arg9:number,arg10:number,arg11:string,arg12:boolean,arg13:number,arg14:number):Promise<void>;
+export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:number,arg9:number,arg10:number,arg11:string,arg12:boolean,arg13:number,arg14:number,arg15:number):Promise<void>;
 
 export function UpdateUser(arg1:number,arg2:string,arg3:string,arg4:number,arg5:number):Promise<void>;
 

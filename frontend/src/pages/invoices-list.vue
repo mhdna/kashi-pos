@@ -16,7 +16,7 @@
         <span class="font-weight-bold">{{ item.invoiceCode || `Invoice #${item.id}` }}</span>
       </template>
       <template #item.clientId="{ item }">
-        {{ item.clientId ? `Client #${item.clientId}` : "Walk-in customer" }}
+        {{ item.clientName || "Walk-in customer" }}
       </template>
       <template #item.salespersonName="{ item }">
         <v-chip size="small" variant="tonal" prepend-icon="mdi-account-tie">

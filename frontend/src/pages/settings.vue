@@ -126,6 +126,18 @@
                 density="compact"
                 class="mb-2"
               />
+              <v-text-field
+                v-model.number="form.maxOverpayment"
+                label="Maximum overpayment (USD)"
+                hint="Maximum amount customers may pay above the invoice total."
+                persistent-hint
+                type="number"
+                min="0"
+                step="0.01"
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
               <v-select
                 v-model="form.roundingMode"
                 :items="roundingModes"
@@ -218,7 +230,16 @@
               <v-text-field v-model="form.marketPhone" label="Phone number" variant="outlined" density="compact" class="mb-2" />
               <v-text-field v-model="form.marketDescription" label="Description / tagline" variant="outlined" density="compact" class="mb-2" />
               <v-text-field v-model="form.branchPhone" label="Branch phone number" hint="Printed below the description." persistent-hint variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.counterNumber" label="Counter number" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field
+                v-model="form.registerName"
+                label="Register name"
+                placeholder="POS-01"
+                hint="Printed on sales, exchange, and end-of-shift receipts."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
               <v-textarea v-model="form.returnPolicy" label="Return policy" rows="3" variant="outlined" density="compact" class="mb-2" />
               <v-select
                 v-model="form.socialPlatforms"
@@ -263,7 +284,18 @@
               </v-row>
               <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details />
             </v-card-text>
-            <v-card-actions class="px-4 pb-4"><v-spacer /><v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings"><v-icon start icon="mdi-content-save-outline" /> Save changes</v-btn></v-card-actions>
+            <v-card-actions class="px-4 pb-4">
+              <v-btn
+                variant="tonal"
+                color="primary"
+                :loading="samplePrinting"
+                @click="printCloseShiftSample"
+              >
+                <v-icon start icon="mdi-printer-eye" /> Print current close-shift sample
+              </v-btn>
+              <v-spacer />
+              <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings"><v-icon start icon="mdi-content-save-outline" /> Save changes</v-btn>
+            </v-card-actions>
           </v-card>
 
         </div>
@@ -556,6 +588,8 @@ import {
   UpdateSettings,
   UpdateAttendanceConfig,
   SetCustomItemDiscountsEnabled,
+  SetCustomItemPricesEnabled,
+  SetPerUnitItemPricesEnabled,
   UpdateUserAttendanceID,
   UpdateReceiptSettings,
   ChangePassword,
@@ -566,6 +600,7 @@ import {
   ListRoles,
   ListSerialPorts,
   ListPrinters,
+  PrintCurrentCloseShiftSample,
     ListInventories,
   ListSalespersons,
   CreateSalesperson,
@@ -593,10 +628,11 @@ const form = reactive({
   receiptEnabled: false,
   salesInventoryId: 0,
   exchangeRate: 90000,
+  maxOverpayment: 1,
   marketName: "",
   marketPhone: "",
   branchPhone: "",
-  counterNumber: "1",
+  registerName: "POS-01",
   marketDescription: "Shop for all",
   returnPolicy: "Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt.",
   website: "yourwebsite.com",
@@ -644,6 +680,7 @@ const printers = ref<string[]>([]);
 const saving = ref(false);
 const pricingSettingsSaving = ref(false);
 const adminSettingsSaving = ref(false);
+const samplePrinting = ref(false);
 const showApiKey = ref(false);
 const showAdminToken = ref(false);
 const settingsLoading = ref(true);
@@ -713,10 +750,11 @@ async function loadSettings() {
         receiptEnabled: Boolean(s.receiptEnabled),
         salesInventoryId: Number(s.salesInventoryId ?? 0),
         exchangeRate: Number(s.exchangeRate ?? 90000),
+        maxOverpayment: Number(s.maxOverpaymentCents ?? 100) / 100,
         marketName: s.marketName ?? "",
         marketPhone: s.marketPhone ?? "",
         branchPhone: s.branchPhone ?? "",
-        counterNumber: s.counterNumber ?? "1",
+        registerName: s.registerName ?? s.counterNumber ?? "POS-01",
         marketDescription: s.marketDescription ?? "Shop for all",
         returnPolicy: s.returnPolicy ?? "",
         website: s.website ?? "yourwebsite.com",
@@ -764,15 +802,47 @@ async function setCustomDiscountsEnabled(value: boolean | null) {
   const enabled = Boolean(value);
   const previous = form.customItemDiscountsEnabled;
   form.customItemDiscountsEnabled = enabled;
-  discountSettingSaving.value = true;
+  pricingSettingsSaving.value = true;
   try {
     await SetCustomItemDiscountsEnabled(enabled);
-    notify(`Custom item pricing ${enabled ? "enabled" : "disabled"}`);
+    notify(`Custom product discounts ${enabled ? "enabled" : "disabled"}`);
   } catch {
     form.customItemDiscountsEnabled = previous;
-    notify("Failed to update custom item pricing", "red");
+    notify("Failed to update custom product discounts", "red");
   } finally {
-    discountSettingSaving.value = false;
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setCustomPricesEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.customItemPricesEnabled;
+  form.customItemPricesEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetCustomItemPricesEnabled(enabled);
+    notify(`Custom item prices ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.customItemPricesEnabled = previous;
+    notify("Failed to update custom item prices", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setPerUnitPricesEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.perUnitItemPricesEnabled;
+  form.perUnitItemPricesEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetPerUnitItemPricesEnabled(enabled);
+    notify(`Per-unit price and discount editing ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.perUnitItemPricesEnabled = previous;
+    notify("Failed to update per-unit price and discount editing", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
   }
 }
 
@@ -801,6 +871,7 @@ async function saveSettings() {
     const receiptHeight = Number(form.receiptHeight);
     const taxRate = Number(form.taxRate);
     const exchangeRate = Number(form.exchangeRate);
+    const maxOverpayment = Number(form.maxOverpayment);
     await UpdateSettings(
       form.branchName,
       form.branchCode.trim().toUpperCase(),
@@ -816,11 +887,12 @@ async function saveSettings() {
       Boolean(form.receiptEnabled),
       Number(form.salesInventoryId) > 0 ? Number(form.salesInventoryId) : 0,
       Number.isFinite(exchangeRate) && exchangeRate > 0 ? Math.round(exchangeRate) : 90000,
+      Number.isFinite(maxOverpayment) && maxOverpayment >= 0 ? Math.round(maxOverpayment * 100) : 100,
     );
     await UpdateReceiptSettings(
       form.marketName.trim(), form.marketPhone.trim(), form.branchPhone.trim(), form.marketDescription.trim(), form.returnPolicy.trim(),
       form.website.trim(), form.instagram.trim(), JSON.stringify(form.socialPlatforms ?? []), JSON.stringify(form.socialHandles ?? {}),
-      form.counterNumber.trim(), form.receiptFont, form.receiptBodyFont,
+      form.registerName.trim(), form.receiptFont, form.receiptBodyFont,
       Number(form.receiptTitleSize), Number(form.receiptBodySize),
       Boolean(form.receiptCutoff),
     );
@@ -830,6 +902,18 @@ async function saveSettings() {
     notify("Failed to save", "red");
   }
   saving.value = false;
+}
+
+async function printCloseShiftSample() {
+  samplePrinting.value = true;
+  try {
+    await PrintCurrentCloseShiftSample();
+    notify("Current close-shift sample sent to the printer");
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Could not print close-shift sample", "red");
+  } finally {
+    samplePrinting.value = false;
+  }
 }
 
 async function loadSalespersons() {

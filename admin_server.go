@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/big"
 	"net/http"
 	"os"
 	"os/exec"
@@ -23,6 +25,14 @@ type adminServer struct {
 	app    *App
 }
 
+func (a *adminServer) backup(ctx context.Context) (map[string]any, error) {
+	backupPath := fmt.Sprintf("%s.backup-%s", a.app.dbPath, time.Now().UTC().Format("20060102-150405.000"))
+	if _, err := a.app.conn.ExecContext(ctx, `VACUUM INTO ?`, backupPath); err != nil {
+		return nil, fmt.Errorf("create database backup: %w", err)
+	}
+	return map[string]any{"backup": backupPath}, nil
+}
+
 type adminConfig struct {
 	Enabled bool   `json:"enabled"`
 	Listen  string `json:"listen"`
@@ -30,8 +40,98 @@ type adminConfig struct {
 }
 
 type adminProductInput struct {
-	Barcode, Code, Name, Description string
-	IsActive, Price, Discount        int64
+	Barcode, Code, Name, Description, Color, Size, CurrencyCode string
+	IsActive, Price, Discount                                   int64
+	AddToInventory                                              bool
+	InventoryName                                               string
+	InventoryQuantity                                           int64
+}
+
+func adminBarcodeCheckDigit(base string) int {
+	sum := 0
+	for i, r := range base {
+		v := int(r - '0')
+		if i%2 == 1 {
+			sum += v * 3
+		} else {
+			sum += v
+		}
+	}
+	return (10 - sum%10) % 10
+}
+
+func (a *adminServer) newBarcode(ctx context.Context) (string, error) {
+	for attempt := 0; attempt < 100; attempt++ {
+		n, err := rand.Int(rand.Reader, big.NewInt(100000))
+		if err != nil {
+			return "", err
+		}
+		base := fmt.Sprintf("8000000%05d", n)
+		code := base + fmt.Sprint(adminBarcodeCheckDigit(base))
+		var exists int
+		err = a.app.conn.QueryRowContext(ctx, `SELECT 1 FROM products WHERE barcode=? LIMIT 1`, code).Scan(&exists)
+		if err == sql.ErrNoRows {
+			return code, nil
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("could not find an unused barcode")
+}
+
+func (a *adminServer) createProduct(ctx context.Context, input adminProductInput) (map[string]any, error) {
+	if input.Barcode == "" {
+		var err error
+		input.Barcode, err = a.newBarcode(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if input.CurrencyCode == "" {
+		input.CurrencyCode = "$"
+	}
+	tx, err := a.app.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	result, err := tx.ExecContext(ctx, `INSERT INTO products(barcode,code,name,description,is_active,price,discount,color,size,currency_code) VALUES(?,?,?,?,?,?,?,?,?,?)`, input.Barcode, input.Code, input.Name, input.Description, input.IsActive, input.Price, input.Discount, input.Color, input.Size, input.CurrencyCode)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if input.AddToInventory {
+		if input.InventoryQuantity < 1 {
+			tx.Rollback()
+			return nil, fmt.Errorf("inventory quantity must be at least 1")
+		}
+		name := input.InventoryName
+		if name == "" {
+			name = "Main Inventory"
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO inventories(name) VALUES(?) ON CONFLICT(name) DO NOTHING`, name); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+		var inventoryID int64
+		if err = tx.QueryRowContext(ctx, `SELECT id FROM inventories WHERE name=?`, name).Scan(&inventoryID); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO inventory_items(inventory_id,product_id,quantity) VALUES(?,?,?) ON CONFLICT(inventory_id,product_id) DO UPDATE SET quantity=inventory_items.quantity+excluded.quantity`, inventoryID, id, input.InventoryQuantity); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return map[string]any{"id": id, "barcode": input.Barcode}, nil
 }
 
 type adminOverrideInput struct {
@@ -163,6 +263,8 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.Method == http.MethodGet && path == "health":
 		value = map[string]any{"ok": true}
+	case r.Method == http.MethodPost && path == "backup":
+		value, err = a.backup(ctx)
 	case r.Method == http.MethodGet && path == "products":
 		value, err = a.products(ctx, r.URL.Query().Get("q"))
 	case r.Method == http.MethodGet && path == "invoices":
@@ -177,11 +279,7 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 		var input adminProductInput
 		err = decodeAdmin(r, &input)
 		if err == nil {
-			value, err = a.app.store.CreateProduct(ctx, db.CreateProductParams{
-				Barcode: input.Barcode, Code: input.Code, Name: input.Name,
-				Description: input.Description, IsActive: input.IsActive,
-				Price: input.Price, Discount: input.Discount,
-			})
+			value, err = a.createProduct(ctx, input)
 		}
 	case r.Method == http.MethodPatch && strings.HasPrefix(path, "products/"):
 		value, err = a.updateProduct(ctx, r, strings.TrimPrefix(path, "products/"))
@@ -280,11 +378,11 @@ func (a *adminServer) updateProduct(ctx context.Context, r *http.Request, rawID 
 	if err := decodeAdmin(r, &input); err != nil {
 		return db.Product{}, err
 	}
-	return a.app.store.UpdateProduct(ctx, db.UpdateProductParams{
-		ID: id, Barcode: input.Barcode, Code: input.Code, Name: input.Name,
-		Description: input.Description, IsActive: input.IsActive,
-		Price: input.Price, Discount: input.Discount,
-	})
+	_, err = a.app.conn.ExecContext(ctx, `UPDATE products SET barcode=?,code=?,name=?,description=?,is_active=?,price=?,discount=?,color=?,size=?,currency_code=? WHERE id=?`, input.Barcode, input.Code, input.Name, input.Description, input.IsActive, input.Price, input.Discount, input.Color, input.Size, input.CurrencyCode, id)
+	if err != nil {
+		return db.Product{}, err
+	}
+	return a.app.store.GetProductByID(ctx, id)
 }
 
 func (a *adminServer) updateSettings(ctx context.Context, input map[string]any) error {

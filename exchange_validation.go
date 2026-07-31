@@ -10,8 +10,10 @@ import (
 )
 
 type exchangeLine struct {
-	Code string `json:"code"`
-	Qty  int64  `json:"qty"`
+	Code           string `json:"code"`
+	Qty            int64  `json:"qty"`
+	UnitPriceCents *int64 `json:"unitPriceCents,omitempty"`
+	UnitDiscount   *int64 `json:"unitDiscount,omitempty"`
 }
 
 type exchangeRequest struct {
@@ -43,6 +45,12 @@ func parseExchangeRequest(raw string) (exchangeRequest, error) {
 		if line.Qty < 0 {
 			if line.Qty != -1 || request.returned.Code != "" {
 				return exchangeRequest{}, fmt.Errorf("an exchange supports exactly one returned item")
+			}
+			if line.UnitPriceCents != nil && *line.UnitPriceCents <= 0 {
+				return exchangeRequest{}, fmt.Errorf("invalid returned item price")
+			}
+			if line.UnitDiscount != nil && (*line.UnitDiscount < 0 || *line.UnitDiscount > 100) {
+				return exchangeRequest{}, fmt.Errorf("invalid returned item discount")
 			}
 			request.returned = line
 			continue
@@ -79,18 +87,35 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 	if err != nil {
 		return result, fmt.Errorf("returned product: %w", err)
 	}
-	originalLine, err := q.GetInvoiceProduct(a.ctx, db.GetInvoiceProductParams{
-		InvoiceID: sourceID,
-		ProductID: returnedProduct.ID,
-	})
+	sourceLines, err := q.ListInvoiceProducts(a.ctx, sourceID)
 	if err != nil {
 		return result, fmt.Errorf("returned product was not sold on invoice")
 	}
-	returnedQty, err := q.GetReturnedQuantityForProduct(a.ctx, db.GetReturnedQuantityForProductParams{
-		SalesInvoiceID: sourceID,
-		ProductID:      returnedProduct.ID,
-	})
-	if err != nil || databaseInt64(returnedQty)+1 > originalLine.Quantity {
+	var originalLine db.InvoiceProduct
+	foundAvailableLine := false
+	for _, line := range sourceLines {
+		if line.ProductID != returnedProduct.ID {
+			continue
+		}
+		if request.returned.UnitPriceCents != nil && line.UnitPrice != *request.returned.UnitPriceCents {
+			continue
+		}
+		if request.returned.UnitDiscount != nil && line.Discount != *request.returned.UnitDiscount {
+			continue
+		}
+		returnedQty, returnedErr := q.GetReturnedQuantityForProductPrice(a.ctx, db.GetReturnedQuantityForProductPriceParams{
+			SalesInvoiceID: sourceID,
+			ProductID:      returnedProduct.ID,
+			UnitPrice:      line.UnitPrice,
+			Discount:       line.Discount,
+		})
+		if returnedErr == nil && databaseInt64(returnedQty) < line.Quantity {
+			originalLine = line
+			foundAvailableLine = true
+			break
+		}
+	}
+	if !foundAvailableLine {
 		return result, fmt.Errorf("item has already been returned")
 	}
 

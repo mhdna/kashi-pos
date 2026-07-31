@@ -1,18 +1,19 @@
 <template>
-  <v-virtual-scroll
-    ref="invoiceScroll"
-    :items="items"
-    height="100%"
-    item-height="56"
-    class="ma-2"
-  >
-    <template #default="{ item, index }">
+  <v-list ref="invoiceScroll" class="invoice-items ma-2">
+    <div v-for="(item, index) in items" :key="item.barcode || item.code">
       <v-list-item>
-        <!-- <template #prepend> -->
-        <!--   <v-avatar size="32" class="me-3 bg-grey-lighten-2"> -->
-        <!--     <v-icon :icon="iconFor(item.category)" size="18" /> -->
-        <!--   </v-avatar> -->
-        <!-- </template> -->
+        <template v-if="canExpandUnitPrices(item)" #prepend>
+          <v-btn
+            :aria-expanded="isExpanded(item)"
+            :aria-label="isExpanded(item) ? 'Hide unit prices' : 'Show unit prices'"
+            :icon="isExpanded(item) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+            class="invoice-expand-button"
+            density="comfortable"
+            size="small"
+            variant="text"
+            @click.stop="toggleExpanded(item)"
+          />
+        </template>
         <template #title>
           <span class="text-caption font-weight-medium">{{ item.name }}</span>
         </template>
@@ -47,7 +48,7 @@
               @navigate="(direction) => saveAndMove(item, index, direction)"
             />
             <NumberPadMenu
-              v-if="customDiscountsEnabled && !readonly && item.qty > 0"
+              v-if="customPricesEnabled && !readonly && item.qty > 0"
               :model-value="item.price.toFixed(2)"
               allow-decimal
               aria-label="Set custom item price"
@@ -93,8 +94,47 @@
           </div>
         </template>
       </v-list-item>
-    </template>
-  </v-virtual-scroll>
+      <v-expand-transition>
+        <div v-if="isExpanded(item)" class="invoice-unit-lines">
+          <div
+            v-for="unitIndex in Math.trunc(item.qty)"
+            :key="unitIndex"
+            class="invoice-unit-line d-flex align-center ga-2"
+          >
+            <span class="text-caption text-medium-emphasis">Unit {{ unitIndex }}</span>
+            <v-spacer />
+            <NumberPadMenu
+              v-if="canEditUnitDiscount(item)"
+              :model-value="unitDiscount(item, unitIndex - 1)"
+              :aria-label="`Set discount for unit ${unitIndex}`"
+              :min="0"
+              :max="100"
+              suffix="%"
+              tone="error"
+              @update:model-value="(value) => setUnitDiscount(item, unitIndex - 1, value)"
+            />
+            <span v-else class="text-caption text-red me-3">
+              -{{ unitDiscount(item, unitIndex - 1) }}%
+            </span>
+            <NumberPadMenu
+              v-if="canEditUnitPrice(item)"
+              :model-value="unitPrice(item, unitIndex - 1).toFixed(2)"
+              allow-decimal
+              :aria-label="`Set price for unit ${unitIndex}`"
+              :min="0.01"
+              :max="999999.99"
+              :max-length="9"
+              prefix="$"
+              @update:model-value="(value) => setUnitPrice(item, unitIndex - 1, value)"
+            />
+            <span v-else class="text-body-2 font-weight-medium">
+              ${{ unitPrice(item, unitIndex - 1).toFixed(2) }}
+            </span>
+          </div>
+        </div>
+      </v-expand-transition>
+    </div>
+  </v-list>
 </template>
 
 <script lang="ts" setup>
@@ -116,6 +156,8 @@ interface LineItem {
   size?: string;
   category: string;
   price: number;
+  unitPrices?: number[];
+  unitDiscounts?: number[];
   discount: number;
   qty: number;
 }
@@ -128,16 +170,56 @@ const props = defineProps<{
   roundingMode?: string;
   readonly?: boolean;
   customDiscountsEnabled?: boolean;
+  customPricesEnabled?: boolean;
+  perUnitPricesEnabled?: boolean;
 }>();
 const readonly = computed(() => props.readonly ?? false);
 const customDiscountsEnabled = computed(() => props.customDiscountsEnabled ?? false);
+const customPricesEnabled = computed(() => props.customPricesEnabled ?? false);
+const perUnitPricesEnabled = computed(() => props.perUnitPricesEnabled ?? false);
 
 function discountAmount(item: LineItem): number {
-  return item.price * item.qty * (item.discount / 100);
+  return (itemGrossCents(item) - discountedItemCents(item)) / 100;
 }
 
 function totalAfterDiscount(item: LineItem): number {
-  return item.price * item.qty - discountAmount(item);
+  return discountedItemCents(item) / 100;
+}
+
+function itemGrossCents(item: LineItem): number {
+  const qty = Math.max(0, Math.trunc(item.qty));
+  if (item.qty < 0) return Math.round(item.price * 100) * Math.trunc(item.qty);
+  ensureUnitPrices(item);
+  return (item.unitPrices ?? []).slice(0, qty).reduce((sum, price) => sum + Math.round(price * 100), 0);
+}
+
+function itemGross(item: LineItem): number {
+  return itemGrossCents(item) / 100;
+}
+
+function discountedItemCents(item: LineItem): number {
+  if (item.qty < 0) {
+    const gross = itemGrossCents(item);
+    return gross - roundDiscount(gross, item.discount, props.roundingMode ?? "half_up");
+  }
+  ensureUnitPrices(item);
+  const groups = new Map<string, { gross: number; discount: number }>();
+  for (let index = 0; index < Math.trunc(item.qty); index++) {
+    const price = unitPrice(item, index);
+    const discount = unitDiscount(item, index);
+    const cents = Math.round(price * 100);
+    const key = `${cents}:${discount}`;
+    const group = groups.get(key) ?? { gross: 0, discount };
+    group.gross += cents;
+    groups.set(key, group);
+  }
+  let total = 0;
+  for (const group of groups.values()) {
+    total +=
+      group.gross -
+      roundDiscount(group.gross, group.discount, props.roundingMode ?? "half_up");
+  }
+  return total;
 }
 
 const categoryIcons = ref<Map<string, string>>(new Map());
@@ -151,6 +233,7 @@ const savedDiscounts = new Map<string, number>();
 const pendingDiscounts = new Map<string, Promise<boolean>>();
 const discountInputs = new Map<number, { focus: () => void }>();
 const invoiceScroll = ref<{ scrollToIndex?: (index: number) => void } | null>(null);
+const expandedItemKey = ref("");
 
 onMounted(async () => {
   try {
@@ -166,7 +249,14 @@ onMounted(async () => {
 });
 
 function setQuantity(item: LineItem, value: number) {
-  item.qty = Math.max(1, Math.trunc(value));
+  const qty = Math.max(1, Math.trunc(value));
+  ensureUnitPrices(item);
+  while ((item.unitPrices?.length ?? 0) < qty) item.unitPrices?.push(item.price);
+  while ((item.unitDiscounts?.length ?? 0) < qty) item.unitDiscounts?.push(item.discount);
+  item.unitPrices = item.unitPrices?.slice(0, qty);
+  item.unitDiscounts = item.unitDiscounts?.slice(0, qty);
+  item.qty = qty;
+  if (qty <= 1 && expandedItemKey.value === itemKey(item)) expandedItemKey.value = "";
 }
 
 function removeItem(item: LineItem) {
@@ -174,30 +264,111 @@ function removeItem(item: LineItem) {
 }
 
 function addItem(item: LineItem) {
-  const existing = items.value.find((i) => i.barcode === item.barcode);
+  const existing = items.value.find(
+    (i) => (item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code),
+  );
   if (existing) {
+    ensureUnitPrices(existing);
+    existing.unitPrices?.push(existing.price);
+    existing.unitDiscounts?.push(existing.discount);
     existing.qty++;
   } else {
     const discount = savedDiscounts.get(item.code) ?? Number(item.discount || 0);
     savedDiscounts.set(item.code, discount);
     const price = Number(item.price);
-    items.value.push({ ...item, discount, price });
+    const qty = Math.max(1, Math.trunc(Number(item.qty || 1)));
+    const unitPrices =
+      Array.isArray(item.unitPrices) && item.unitPrices.length === qty
+        ? item.unitPrices.map(Number)
+        : Array(qty).fill(price);
+    const unitDiscounts =
+      Array.isArray(item.unitDiscounts) && item.unitDiscounts.length === qty
+        ? item.unitDiscounts.map(Number)
+        : Array(qty).fill(discount);
+    items.value.push({ ...item, discount, price, qty, unitPrices, unitDiscounts });
   }
 }
 
 function addExchangeItems(returned: LineItem, replacements: LineItem[]) {
   items.value = [
-    { ...returned, price: Number(returned.price), discount: 0, qty: -1 },
+    {
+      ...returned,
+      price: Number(returned.price),
+      discount: 0,
+      qty: -1,
+      unitPrices: [],
+      unitDiscounts: [],
+    },
     ...replacements.map((item) => ({
       ...item,
       price: Number(item.price),
       qty: Number(item.qty || 1),
+      unitPrices: Array(Math.max(1, Math.trunc(Number(item.qty || 1)))).fill(Number(item.price)),
+      unitDiscounts: Array(Math.max(1, Math.trunc(Number(item.qty || 1)))).fill(
+        Number(item.discount || 0),
+      ),
     })),
   ];
 }
 
 function clearItems() {
   items.value = [];
+  expandedItemKey.value = "";
+}
+
+function itemKey(item: LineItem): string {
+  return item.barcode || item.code;
+}
+
+function canExpandUnitPrices(item: LineItem): boolean {
+  return item.qty > 1;
+}
+
+function canEditUnitPrice(item: LineItem): boolean {
+  return (
+    canExpandUnitPrices(item) &&
+    (perUnitPricesEnabled.value || customPricesEnabled.value) &&
+    !readonly.value
+  );
+}
+
+function canEditUnitDiscount(item: LineItem): boolean {
+  return (
+    canExpandUnitPrices(item) &&
+    (perUnitPricesEnabled.value || customDiscountsEnabled.value) &&
+    !readonly.value
+  );
+}
+
+function toggleExpanded(item: LineItem) {
+  if (!canExpandUnitPrices(item)) return;
+  const key = itemKey(item);
+  expandedItemKey.value = expandedItemKey.value === key ? "" : key;
+}
+
+function isExpanded(item: LineItem): boolean {
+  return canExpandUnitPrices(item) && expandedItemKey.value === itemKey(item);
+}
+
+function ensureUnitPrices(item: LineItem) {
+  if (item.qty < 0) return;
+  const qty = Math.max(1, Math.trunc(item.qty));
+  if (!Array.isArray(item.unitPrices)) item.unitPrices = [];
+  if (!Array.isArray(item.unitDiscounts)) item.unitDiscounts = [];
+  while (item.unitPrices.length < qty) item.unitPrices.push(item.price);
+  while (item.unitDiscounts.length < qty) item.unitDiscounts.push(item.discount);
+  if (item.unitPrices.length > qty) item.unitPrices = item.unitPrices.slice(0, qty);
+  if (item.unitDiscounts.length > qty) item.unitDiscounts = item.unitDiscounts.slice(0, qty);
+}
+
+function unitPrice(item: LineItem, index: number): number {
+  ensureUnitPrices(item);
+  return Number(item.unitPrices?.[index] ?? item.price);
+}
+
+function unitDiscount(item: LineItem, index: number): number {
+  ensureUnitPrices(item);
+  return Number(item.unitDiscounts?.[index] ?? item.discount);
 }
 
 function setDiscountInput(
@@ -216,6 +387,7 @@ function setDraftDiscount(item: LineItem, value: unknown) {
   item.discount = Number.isFinite(numeric)
     ? Math.min(100, Math.max(0, Math.trunc(numeric)))
     : 0;
+  if (item.qty > 0) item.unitDiscounts = Array(Math.trunc(item.qty)).fill(item.discount);
 }
 
 function setDraftPrice(item: LineItem, value: unknown) {
@@ -223,6 +395,25 @@ function setDraftPrice(item: LineItem, value: unknown) {
   item.price = Number.isFinite(numeric)
     ? Math.round(Math.min(999999.99, Math.max(0.01, numeric)) * 100) / 100
     : 0.01;
+  if (item.qty > 0) item.unitPrices = Array(Math.trunc(item.qty)).fill(item.price);
+}
+
+function setUnitPrice(item: LineItem, index: number, value: unknown) {
+  const numeric = Number(value);
+  const price = Number.isFinite(numeric)
+    ? Math.round(Math.min(999999.99, Math.max(0.01, numeric)) * 100) / 100
+    : 0.01;
+  ensureUnitPrices(item);
+  if (item.unitPrices) item.unitPrices[index] = price;
+}
+
+function setUnitDiscount(item: LineItem, index: number, value: unknown) {
+  const numeric = Number(value);
+  const discount = Number.isFinite(numeric)
+    ? Math.min(100, Math.max(0, Math.trunc(numeric)))
+    : 0;
+  ensureUnitPrices(item);
+  if (item.unitDiscounts) item.unitDiscounts[index] = discount;
 }
 
 function persistDiscount(item: LineItem): Promise<boolean> {
@@ -242,6 +433,7 @@ function persistDiscount(item: LineItem): Promise<boolean> {
     })
     .catch((error: unknown) => {
       item.discount = previous;
+      if (item.qty > 0) item.unitDiscounts = Array(Math.trunc(item.qty)).fill(previous);
       emit(
         "discount-error",
         error instanceof Error ? error.message : String(error || "Could not save discount."),
@@ -268,17 +460,13 @@ async function flushChanges(): Promise<boolean> {
   return discountResults.every(Boolean);
 }
 
-const subtotal = computed(() => items.value.reduce((sum, i) => sum + i.price * i.qty, 0));
+const subtotal = computed(() => items.value.reduce((sum, i) => sum + itemGross(i), 0));
 const totalDiscount = computed(() => items.value.reduce((sum, i) => sum + discountAmount(i), 0));
 const subtotalCents = computed(() =>
-  items.value.reduce((sum, i) => sum + Math.round(i.price * 100) * Math.trunc(i.qty), 0),
+  items.value.reduce((sum, i) => sum + itemGrossCents(i), 0),
 );
 const discountedSubtotalCents = computed(() =>
-  items.value.reduce((sum, i) => {
-    const gross = Math.round(i.price * 100) * Math.trunc(i.qty);
-    const discount = roundDiscount(gross, i.discount, props.roundingMode ?? "half_up");
-    return sum + gross - discount;
-  }, 0),
+  items.value.reduce((sum, i) => sum + discountedItemCents(i), 0),
 );
 
 function roundDiscount(gross: number, discount: number, mode: string): number {
@@ -304,6 +492,32 @@ defineExpose({
 <style scoped>
 .invoice-item-actions {
   min-width: 280px;
+}
+
+.invoice-items {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.invoice-expand-button {
+  color: rgb(var(--v-theme-primary));
+}
+
+.invoice-items :deep(.v-list-item__prepend) {
+  margin-inline-start: -16px;
+}
+
+.invoice-unit-lines {
+  background: rgba(var(--v-theme-on-surface), 0.035);
+  border-inline-start: 2px solid rgba(var(--v-theme-primary), 0.3);
+  margin: 0 16px 4px 40px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px 12px;
+}
+
+.invoice-unit-line {
+  min-height: 38px;
 }
 
 .invoice-price-editor {

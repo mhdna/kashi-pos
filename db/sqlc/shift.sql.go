@@ -38,18 +38,39 @@ func (q *Queries) CloseOpenShifts(ctx context.Context, closedAt string) error {
 	return err
 }
 
-const closeShift = `-- name: CloseShift :exec
-UPDATE shifts SET is_closed = 1, closed_at = ? WHERE id = ?
+const closeShift = `-- name: CloseShift :execrows
+UPDATE shifts
+SET is_closed = 1,
+    closed_at = ?,
+    closed_by_salesperson_id = ?,
+    counted_usd = ?,
+    counted_lbp = ?,
+    counted_usd_breakdown = ?
+WHERE id = ? AND is_closed = 0
 `
 
 type CloseShiftParams struct {
-	ClosedAt string `json:"closedAt"`
-	ID       int64  `json:"id"`
+	ClosedAt              string `json:"closedAt"`
+	ClosedBySalespersonID int64  `json:"closedBySalespersonId"`
+	CountedUsd            int64  `json:"countedUsd"`
+	CountedLbp            int64  `json:"countedLbp"`
+	CountedUsdBreakdown   string `json:"countedUsdBreakdown"`
+	ID                    int64  `json:"id"`
 }
 
-func (q *Queries) CloseShift(ctx context.Context, arg CloseShiftParams) error {
-	_, err := q.db.ExecContext(ctx, closeShift, arg.ClosedAt, arg.ID)
-	return err
+func (q *Queries) CloseShift(ctx context.Context, arg CloseShiftParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, closeShift,
+		arg.ClosedAt,
+		arg.ClosedBySalespersonID,
+		arg.CountedUsd,
+		arg.CountedLbp,
+		arg.CountedUsdBreakdown,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const createAccount = `-- name: CreateAccount :one
@@ -80,7 +101,7 @@ func (q *Queries) CreateCashboxAccount(ctx context.Context, arg CreateCashboxAcc
 }
 
 const createShift = `-- name: CreateShift :one
-INSERT INTO shifts (is_closed, created_at) VALUES (?, datetime('now', 'localtime')) RETURNING id, is_closed, created_at, closed_at
+INSERT INTO shifts (is_closed, created_at) VALUES (?, datetime('now', 'localtime')) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown
 `
 
 func (q *Queries) CreateShift(ctx context.Context, isClosed int64) (Shift, error) {
@@ -91,6 +112,10 @@ func (q *Queries) CreateShift(ctx context.Context, isClosed int64) (Shift, error
 		&i.IsClosed,
 		&i.CreatedAt,
 		&i.ClosedAt,
+		&i.ClosedBySalespersonID,
+		&i.CountedUsd,
+		&i.CountedLbp,
+		&i.CountedUsdBreakdown,
 	)
 	return i, err
 }
@@ -136,7 +161,7 @@ func (q *Queries) GetCashboxAccountByID(ctx context.Context, id int64) (CashboxA
 }
 
 const getOpenShift = `-- name: GetOpenShift :one
-SELECT id, is_closed, created_at, closed_at FROM shifts WHERE is_closed = 0 LIMIT 1
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown FROM shifts WHERE is_closed = 0 LIMIT 1
 `
 
 func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
@@ -147,6 +172,10 @@ func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
 		&i.IsClosed,
 		&i.CreatedAt,
 		&i.ClosedAt,
+		&i.ClosedBySalespersonID,
+		&i.CountedUsd,
+		&i.CountedLbp,
+		&i.CountedUsdBreakdown,
 	)
 	return i, err
 }
@@ -168,7 +197,7 @@ func (q *Queries) GetShiftAccountBalance(ctx context.Context, arg GetShiftAccoun
 }
 
 const getShiftByID = `-- name: GetShiftByID :one
-SELECT id, is_closed, created_at, closed_at FROM shifts WHERE id = ?
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown FROM shifts WHERE id = ?
 `
 
 func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
@@ -179,13 +208,111 @@ func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
 		&i.IsClosed,
 		&i.CreatedAt,
 		&i.ClosedAt,
+		&i.ClosedBySalespersonID,
+		&i.CountedUsd,
+		&i.CountedLbp,
+		&i.CountedUsdBreakdown,
+	)
+	return i, err
+}
+
+const getShiftReportSummary = `-- name: GetShiftReportSummary :one
+SELECT
+    COALESCE((SELECT invoice_code FROM invoices AS first_i WHERE first_i.shift_id = ?1 ORDER BY first_i.id LIMIT 1), '') AS first_invoice,
+    COALESCE((SELECT invoice_code FROM invoices AS last_i WHERE last_i.shift_id = ?1 ORDER BY last_i.id DESC LIMIT 1), '') AS last_invoice,
+    (SELECT COUNT(*) FROM invoices AS transaction_i WHERE transaction_i.shift_id = ?1) AS transactions,
+    COALESCE((
+        SELECT SUM(CASE WHEN ip.quantity > 0 THEN ip.quantity ELSE 0 END)
+        FROM invoice_products ip
+        JOIN invoices i ON i.id = ip.invoice_id
+        WHERE i.shift_id = ?1
+    ), 0) AS items_sold,
+    (
+        SELECT COUNT(*)
+        FROM return_invoices r
+        JOIN invoices i ON i.id = r.invoice_id
+        WHERE i.shift_id = ?1
+    ) AS returns,
+    COALESCE((
+        SELECT SUM(i.subtotal)
+        FROM invoices i
+        JOIN sales_invoices s ON s.invoice_id = i.id
+        WHERE i.shift_id = ?1
+    ), 0) AS gross_sales,
+    COALESCE((
+        SELECT SUM(i.subtotal - i.discounted_total)
+        FROM invoices i
+        JOIN sales_invoices s ON s.invoice_id = i.id
+        WHERE i.shift_id = ?1
+    ), 0) AS discounts,
+    COALESCE((
+        SELECT SUM(MAX(p.price - ip.unit_price, 0) * ip.quantity)
+        FROM invoice_products ip
+        JOIN products p ON p.id = ip.product_id
+        JOIN invoices i ON i.id = ip.invoice_id
+        JOIN sales_invoices s ON s.invoice_id = i.id
+        WHERE i.shift_id = ?1
+    ), 0) AS price_deductions,
+    COALESCE((
+        SELECT -SUM(CASE WHEN ip.line_total < 0 THEN ip.line_total ELSE 0 END)
+        FROM invoice_products ip
+        JOIN invoices i ON i.id = ip.invoice_id
+        JOIN return_invoices r ON r.invoice_id = i.id
+        WHERE i.shift_id = ?1
+    ), 0) AS return_amount,
+    COALESCE((
+        SELECT SUM(i.grand_total - i.discounted_total)
+        FROM invoices i
+        JOIN sales_invoices s ON s.invoice_id = i.id
+        WHERE i.shift_id = ?1
+    ), 0) AS tax,
+    COALESCE((SELECT SUM(net_i.grand_total) FROM invoices AS net_i WHERE net_i.shift_id = ?1), 0) AS net_sales
+`
+
+type GetShiftReportSummaryRow struct {
+	FirstInvoice    interface{} `json:"firstInvoice"`
+	LastInvoice     interface{} `json:"lastInvoice"`
+	Transactions    int64       `json:"transactions"`
+	ItemsSold       interface{} `json:"itemsSold"`
+	Returns         int64       `json:"returns"`
+	GrossSales      interface{} `json:"grossSales"`
+	Discounts       interface{} `json:"discounts"`
+	PriceDeductions interface{} `json:"priceDeductions"`
+	ReturnAmount    interface{} `json:"returnAmount"`
+	Tax             interface{} `json:"tax"`
+	NetSales        interface{} `json:"netSales"`
+}
+
+func (q *Queries) GetShiftReportSummary(ctx context.Context, reportShiftID int64) (GetShiftReportSummaryRow, error) {
+	row := q.db.QueryRowContext(ctx, getShiftReportSummary, reportShiftID)
+	var i GetShiftReportSummaryRow
+	err := row.Scan(
+		&i.FirstInvoice,
+		&i.LastInvoice,
+		&i.Transactions,
+		&i.ItemsSold,
+		&i.Returns,
+		&i.GrossSales,
+		&i.Discounts,
+		&i.PriceDeductions,
+		&i.ReturnAmount,
+		&i.Tax,
+		&i.NetSales,
 	)
 	return i, err
 }
 
 const getShiftTotals = `-- name: GetShiftTotals :many
 SELECT s.id, s.is_closed, s.created_at, s.closed_at,
-       COALESCE(SUM(i.grand_total), 0) as total
+       COALESCE(SUM(i.grand_total), 0) as total,
+       COALESCE((
+           SELECT SUM(MAX(p.price - ip.unit_price, 0) * ip.quantity)
+           FROM invoice_products ip
+           JOIN products p ON p.id = ip.product_id
+           JOIN invoices shift_i ON shift_i.id = ip.invoice_id
+           JOIN sales_invoices sales_i ON sales_i.invoice_id = shift_i.id
+           WHERE shift_i.shift_id = s.id
+       ), 0) AS price_deductions
 FROM shifts s
 LEFT JOIN invoices i ON i.shift_id = s.id
 GROUP BY s.id
@@ -193,11 +320,12 @@ ORDER BY s.id DESC
 `
 
 type GetShiftTotalsRow struct {
-	ID        int64       `json:"id"`
-	IsClosed  int64       `json:"isClosed"`
-	CreatedAt string      `json:"createdAt"`
-	ClosedAt  string      `json:"closedAt"`
-	Total     interface{} `json:"total"`
+	ID              int64       `json:"id"`
+	IsClosed        int64       `json:"isClosed"`
+	CreatedAt       string      `json:"createdAt"`
+	ClosedAt        string      `json:"closedAt"`
+	Total           interface{} `json:"total"`
+	PriceDeductions interface{} `json:"priceDeductions"`
 }
 
 func (q *Queries) GetShiftTotals(ctx context.Context) ([]GetShiftTotalsRow, error) {
@@ -215,6 +343,7 @@ func (q *Queries) GetShiftTotals(ctx context.Context) ([]GetShiftTotalsRow, erro
 			&i.CreatedAt,
 			&i.ClosedAt,
 			&i.Total,
+			&i.PriceDeductions,
 		); err != nil {
 			return nil, err
 		}
@@ -283,8 +412,65 @@ func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, er
 	return items, nil
 }
 
+const listShiftPaymentTotals = `-- name: ListShiftPaymentTotals :many
+WITH invoice_account_totals AS (
+    SELECT i.id AS invoice_id, ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = ?1
+    UNION ALL
+    SELECT i.id AS invoice_id, i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE i.shift_id = ?1
+      AND NOT EXISTS (
+          SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id
+      )
+)
+SELECT ca.id AS account_id, ca.name AS account_name, ca.currency_code,
+       COALESCE(SUM(t.amount), 0) AS total
+FROM invoice_account_totals t
+JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
+GROUP BY ca.id, ca.name, ca.currency_code
+ORDER BY ca.id
+`
+
+type ListShiftPaymentTotalsRow struct {
+	AccountID    int64       `json:"accountId"`
+	AccountName  string      `json:"accountName"`
+	CurrencyCode string      `json:"currencyCode"`
+	Total        interface{} `json:"total"`
+}
+
+func (q *Queries) ListShiftPaymentTotals(ctx context.Context, reportShiftID int64) ([]ListShiftPaymentTotalsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listShiftPaymentTotals, reportShiftID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListShiftPaymentTotalsRow{}
+	for rows.Next() {
+		var i ListShiftPaymentTotalsRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.AccountName,
+			&i.CurrencyCode,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listShifts = `-- name: ListShifts :many
-SELECT id, is_closed, created_at, closed_at FROM shifts ORDER BY id
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown FROM shifts ORDER BY id
 `
 
 func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
@@ -301,6 +487,10 @@ func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
 			&i.IsClosed,
 			&i.CreatedAt,
 			&i.ClosedAt,
+			&i.ClosedBySalespersonID,
+			&i.CountedUsd,
+			&i.CountedLbp,
+			&i.CountedUsdBreakdown,
 		); err != nil {
 			return nil, err
 		}

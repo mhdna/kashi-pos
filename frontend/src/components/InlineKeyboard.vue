@@ -13,13 +13,13 @@
         variant="tonal"
         @click="append(letter)"
       >
-        {{ uppercase ? letter : letter.toLowerCase() }}
+        {{ shift ? letter : letter.toLowerCase() }}
       </v-btn>
     </div>
     <div class="inline-keyboard-actions">
       <v-btn size="small" variant="text" @click="clear">C</v-btn>
-      <v-btn size="small" variant="text" @click="uppercase = !uppercase">
-        {{ uppercase ? "ABC" : "abc" }}
+      <v-btn size="small" variant="text" @click="shift = !shift">
+        {{ shift ? "⇧" : "abc" }}
       </v-btn>
       <v-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
         Space
@@ -59,17 +59,24 @@ const rows = [
 ];
 const numberRow = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
 const visibleRows = computed(() => (props.layout === "code" ? [numberRow, ...rows] : rows));
-const uppercase = ref(true);
+const shift = ref(false);
 
 function append(character: string) {
   if (props.modelValue.length >= props.maxLength) return;
+  const wordStart = !props.modelValue || /[\s'-]$/.test(props.modelValue);
   const value =
-    character === " " || uppercase.value ? character : character.toLowerCase();
+    character === " "
+      ? character
+      : wordStart || shift.value
+        ? character.toUpperCase()
+        : character.toLowerCase();
   emit("update:modelValue", props.modelValue + value);
+  if (character !== " ") shift.value = false;
 }
 
 function clear() {
   emit("update:modelValue", "");
+  shift.value = false;
 }
 
 function backspace() {

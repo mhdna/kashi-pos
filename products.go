@@ -8,7 +8,11 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-const customItemDiscountsFlag = "custom_item_discounts"
+const (
+	customItemDiscountsFlag = "custom_item_discounts"
+	customItemPricesFlag    = "custom_item_prices"
+	perUnitItemPricesFlag   = "per_unit_item_prices"
+)
 
 type ProductPage struct {
 	Items []map[string]any `json:"items"`

@@ -17,7 +17,7 @@ type Querier interface {
 	ApproveAttendanceComplaint(ctx context.Context, arg ApproveAttendanceComplaintParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
 	CloseOpenShifts(ctx context.Context, closedAt string) error
-	CloseShift(ctx context.Context, arg CloseShiftParams) error
+	CloseShift(ctx context.Context, arg CloseShiftParams) (int64, error)
 	CountAllProducts(ctx context.Context) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
 	CountProducts(ctx context.Context, search sql.NullString) (int64, error)
@@ -92,6 +92,7 @@ type Querier interface {
 	GetProductByCode(ctx context.Context, code string) (Product, error)
 	GetProductByID(ctx context.Context, id int64) (Product, error)
 	GetReturnedQuantityForProduct(ctx context.Context, arg GetReturnedQuantityForProductParams) (interface{}, error)
+	GetReturnedQuantityForProductPrice(ctx context.Context, arg GetReturnedQuantityForProductPriceParams) (interface{}, error)
 	GetRoleByID(ctx context.Context, id int64) (Role, error)
 	GetRoleByName(ctx context.Context, name string) (Role, error)
 	GetRolePermissionsByRoleID(ctx context.Context, roleID int64) ([]Permission, error)
@@ -101,6 +102,7 @@ type Querier interface {
 	GetSettings(ctx context.Context) (Setting, error)
 	GetShiftAccountBalance(ctx context.Context, arg GetShiftAccountBalanceParams) (ShiftsAccountsBalance, error)
 	GetShiftByID(ctx context.Context, id int64) (Shift, error)
+	GetShiftReportSummary(ctx context.Context, reportShiftID int64) (GetShiftReportSummaryRow, error)
 	GetShiftTotals(ctx context.Context) ([]GetShiftTotalsRow, error)
 	GetTodayIncomeByAccount(ctx context.Context) ([]GetTodayIncomeByAccountRow, error)
 	GetTransferByID(ctx context.Context, id int64) (Transfer, error)
@@ -138,6 +140,7 @@ type Querier interface {
 	ListProductsPageUnfiltered(ctx context.Context, arg ListProductsPageUnfilteredParams) ([]Product, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListSalespersons(ctx context.Context) ([]Salesperson, error)
+	ListShiftPaymentTotals(ctx context.Context, reportShiftID int64) ([]ListShiftPaymentTotalsRow, error)
 	ListShifts(ctx context.Context) ([]Shift, error)
 	ListTransferItems(ctx context.Context, transferID int64) ([]TransferItem, error)
 	ListTransfers(ctx context.Context) ([]Transfer, error)

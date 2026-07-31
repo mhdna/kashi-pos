@@ -168,13 +168,18 @@ func TestValidatePaymentsAllowsOverpaymentAndRejectsUnderpayment(t *testing.T) {
 
 	if err := validatePayments(ctx, store.Queries, []checkoutPayment{{
 		AccountID: cashbox.ID, AmountCents: 1800, EntryType: "payment",
-	}}, 1780); err != nil {
+	}}, 1780, 100); err != nil {
 		t.Fatalf("overpayment should be accepted: %v", err)
+	}
+	if err := validatePayments(ctx, store.Queries, []checkoutPayment{{
+		AccountID: cashbox.ID, AmountCents: 1881, EntryType: "payment",
+	}}, 1780, 100); err == nil {
+		t.Fatal("overpayment above the configured limit should be rejected")
 	}
 
 	err = validatePayments(ctx, store.Queries, []checkoutPayment{{
 		AccountID: cashbox.ID, AmountCents: 1779, EntryType: "payment",
-	}}, 1780)
+	}}, 1780, 100)
 	if err == nil || !strings.Contains(err.Error(), "less than invoice total") {
 		t.Fatalf("underpayment error = %v, want less-than-total error", err)
 	}

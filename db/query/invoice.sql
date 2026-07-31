@@ -37,6 +37,12 @@ FROM return_invoices r
 JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
 WHERE r.sales_invoice_id = ? AND ip.product_id = ?;
 
+-- name: GetReturnedQuantityForProductPrice :one
+SELECT COALESCE(SUM(CASE WHEN ip.quantity < 0 THEN -ip.quantity ELSE 0 END), 0) AS quantity
+FROM return_invoices r
+JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
+WHERE r.sales_invoice_id = ? AND ip.product_id = ? AND ip.unit_price = ? AND ip.discount = ?;
+
 -- name: ListInvoices :many
 SELECT * FROM invoices ORDER BY id;
 

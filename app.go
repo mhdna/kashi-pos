@@ -27,6 +27,7 @@ type App struct {
 	ctx        context.Context
 	store      *db.Store
 	conn       *sql.DB
+	dbPath     string
 	admin      *adminServer
 	startupErr error
 }
@@ -44,6 +45,7 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	log.Println("database path:", dbPath)
+	a.dbPath = dbPath
 
 	databaseExisted := false
 	if _, err := os.Stat(dbPath); err == nil {
@@ -304,40 +306,52 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		return nil, err
 	}
 	result := map[string]interface{}{
-		"branchName":        settings.BranchName,
-		"branchCode":        settings.BranchCode,
-		"apiKey":            settings.ApiKey,
-		"printerID":         settings.PrinterID,
-		"printerSize":       settings.PrinterSize,
-		"receiptPrinter":    settings.ReceiptPrinter,
-		"screenPort":        settings.ScreenPort,
-		"receiptWidth":      settings.ReceiptWidth,
-		"receiptHeight":     settings.ReceiptHeight,
-		"taxRate":           settings.TaxRate,
-		"roundingMode":      settings.RoundingMode,
-		"receiptEnabled":    settings.ReceiptEnabled != 0,
-		"salesInventoryId":  settings.SalesInventoryID,
-		"exchangeRate":      settings.ExchangeRate,
-		"marketName":        settings.MarketName,
-		"marketPhone":       settings.MarketPhone,
-		"branchPhone":       settings.BranchPhone,
-		"counterNumber":     settings.CounterNumber,
-		"marketDescription": settings.MarketDescription,
-		"returnPolicy":      settings.ReturnPolicy,
-		"website":           settings.Website,
-		"instagram":         settings.Instagram,
-		"socialPlatforms":   decodeSocialPlatforms(settings.SocialPlatforms),
-		"socialHandles":     decodeSocialHandles(settings.SocialHandles),
-		"receiptFont":       settings.ReceiptFont,
-		"receiptTitleSize":  settings.ReceiptTitleSize,
-		"receiptBodySize":   settings.ReceiptBodySize,
-		"receiptBodyFont":   settings.ReceiptBodyFont,
-		"receiptCutoff":     settings.ReceiptCutoff != 0,
+		"branchName":          settings.BranchName,
+		"branchCode":          settings.BranchCode,
+		"apiKey":              settings.ApiKey,
+		"printerID":           settings.PrinterID,
+		"printerSize":         settings.PrinterSize,
+		"receiptPrinter":      settings.ReceiptPrinter,
+		"screenPort":          settings.ScreenPort,
+		"receiptWidth":        settings.ReceiptWidth,
+		"receiptHeight":       settings.ReceiptHeight,
+		"taxRate":             settings.TaxRate,
+		"roundingMode":        settings.RoundingMode,
+		"receiptEnabled":      settings.ReceiptEnabled != 0,
+		"salesInventoryId":    settings.SalesInventoryID,
+		"exchangeRate":        settings.ExchangeRate,
+		"maxOverpaymentCents": settings.MaxOverpaymentCents,
+		"marketName":          settings.MarketName,
+		"marketPhone":         settings.MarketPhone,
+		"branchPhone":         settings.BranchPhone,
+		"counterNumber":       settings.CounterNumber,
+		"registerName":        settings.CounterNumber,
+		"marketDescription":   settings.MarketDescription,
+		"returnPolicy":        settings.ReturnPolicy,
+		"website":             settings.Website,
+		"instagram":           settings.Instagram,
+		"socialPlatforms":     decodeSocialPlatforms(settings.SocialPlatforms),
+		"socialHandles":       decodeSocialHandles(settings.SocialHandles),
+		"receiptFont":         settings.ReceiptFont,
+		"receiptTitleSize":    settings.ReceiptTitleSize,
+		"receiptBodySize":     settings.ReceiptBodySize,
+		"receiptBodyFont":     settings.ReceiptBodyFont,
+		"receiptCutoff":       settings.ReceiptCutoff != 0,
 	}
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
 		result["customItemDiscountsEnabled"] = enabled != 0
 	} else {
 		result["customItemDiscountsEnabled"] = false
+	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemPricesFlag); flagErr == nil {
+		result["customItemPricesEnabled"] = enabled != 0
+	} else {
+		result["customItemPricesEnabled"] = false
+	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, perUnitItemPricesFlag); flagErr == nil {
+		result["perUnitItemPricesEnabled"] = enabled != 0
+	} else {
+		result["perUnitItemPricesEnabled"] = false
 	}
 	if config, configErr := a.GetAttendanceConfig(); configErr == nil {
 		result["attendance"] = config
@@ -354,7 +368,25 @@ func (a *App) SetCustomItemDiscountsEnabled(enabled bool) error {
 	})
 }
 
-func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, marketDescription, returnPolicy, website, instagram, socialPlatformsJSON, socialHandlesJSON, counterNumber, receiptFont, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
+func (a *App) SetCustomItemPricesEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: customItemPricesFlag, Enabled: boolInt(enabled),
+	})
+}
+
+func (a *App) SetPerUnitItemPricesEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: perUnitItemPricesFlag, Enabled: boolInt(enabled),
+	})
+}
+
+func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, marketDescription, returnPolicy, website, instagram, socialPlatformsJSON, socialHandlesJSON, registerName, receiptFont, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -395,13 +427,13 @@ func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, market
 		PrinterSize: current.PrinterSize, ReceiptPrinter: current.ReceiptPrinter, ScreenPort: current.ScreenPort,
 		ReceiptWidth: current.ReceiptWidth, ReceiptHeight: current.ReceiptHeight, Theme: current.Theme, TaxRate: current.TaxRate,
 		RoundingMode: current.RoundingMode, ReceiptEnabled: current.ReceiptEnabled, SalesInventoryID: current.SalesInventoryID,
-		ExchangeRate: current.ExchangeRate, MarketName: marketName, MarketPhone: marketPhone, BranchPhone: branchPhone, MarketDescription: marketDescription,
+		ExchangeRate: current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents, MarketName: marketName, MarketPhone: marketPhone, BranchPhone: branchPhone, MarketDescription: marketDescription,
 		ReturnPolicy: returnPolicy, Website: website, Instagram: instagram, SocialPlatforms: socialPlatformsJSON, SocialHandles: socialHandlesJSON, ReceiptFont: receiptFont, ReceiptTitleSize: titleSize,
-		ReceiptBodySize: bodySize, ReceiptCutoff: boolInt(cutoff), ReceiptBodyFont: bodyFont, CounterNumber: counterNumber,
+		ReceiptBodySize: bodySize, ReceiptCutoff: boolInt(cutoff), ReceiptBodyFont: bodyFont, CounterNumber: strings.TrimSpace(registerName),
 	})
 }
 
-func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64, taxRate float64, roundingMode string, receiptEnabled bool, salesInventoryID, exchangeRate int64) error {
+func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64, taxRate float64, roundingMode string, receiptEnabled bool, salesInventoryID, exchangeRate, maxOverpaymentCents int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -417,6 +449,9 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 	}
 	if exchangeRate <= 0 {
 		return fmt.Errorf("exchange rate must be greater than zero")
+	}
+	if maxOverpaymentCents < 0 {
+		return fmt.Errorf("maximum overpayment cannot be negative")
 	}
 	if branchCode, err = normalizeBranchCode(branchCode); err != nil {
 		return err
@@ -441,8 +476,8 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		RoundingMode:     roundingMode,
 		ReceiptEnabled:   boolInt(receiptEnabled),
 		SalesInventoryID: salesInventoryID,
-		ExchangeRate:     exchangeRate,
-		MarketName:       current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
+		ExchangeRate:     exchangeRate, MaxOverpaymentCents: maxOverpaymentCents,
+		MarketName: current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
 		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, SocialPlatforms: current.SocialPlatforms, SocialHandles: current.SocialHandles, ReceiptFont: current.ReceiptFont,
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
 		ReceiptBodyFont: current.ReceiptBodyFont, BranchPhone: current.BranchPhone, CounterNumber: current.CounterNumber,
@@ -472,8 +507,8 @@ func (a *App) SetTaxRate(rate float64) error {
 		RoundingMode:     current.RoundingMode,
 		ReceiptEnabled:   current.ReceiptEnabled,
 		SalesInventoryID: current.SalesInventoryID,
-		ExchangeRate:     current.ExchangeRate,
-		MarketName:       current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
+		ExchangeRate:     current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents,
+		MarketName: current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
 		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, SocialPlatforms: current.SocialPlatforms, SocialHandles: current.SocialHandles, ReceiptFont: current.ReceiptFont,
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
 		ReceiptBodyFont: current.ReceiptBodyFont, BranchPhone: current.BranchPhone, CounterNumber: current.CounterNumber,

@@ -95,7 +95,7 @@ func rasterTestReceipt(width int64) printReceiptData {
 		Branch:          "Downtown Branch",
 		BranchPhone:     "+961 1 234 567",
 		Description:     "Everyday essentials",
-		CounterNumber:   "04",
+		RegisterName:    "POS-04",
 		Salesperson:     "Sarah Demo",
 		Customer:        "Walk-in",
 		ReturnPolicy:    "Exchanges accepted within 3 days.",

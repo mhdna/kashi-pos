@@ -4,15 +4,14 @@
       v-for="method in methods"
       :key="method.name"
       class="calculator-type-card"
-      :class="{ 'calculator-type-card--active': activeMethod === method.name }"
       role="button"
       tabindex="0"
       @click="$emit('select', method.name)"
       @keydown.enter="$emit('select', method.name)"
       @keydown.space.prevent="$emit('select', method.name)"
     >
-      <v-card-text class="text-center py-3 px-2">
-        <div class="text-subtitle-2 font-weight-bold">{{ method.displayName }}</div>
+      <v-card-text class="text-center py-2 px-1">
+        <div class="text-caption font-weight-bold">{{ method.displayName }}</div>
         <div class="text-caption text-medium-emphasis">{{ method.currencyCode }}</div>
       </v-card-text>
     </v-card>
@@ -22,7 +21,7 @@
 <script setup lang="ts">
 defineProps<{
   methods: { name: string; displayName: string; currencyCode: string }[];
-  activeMethod: string;
+  modelValue: string;
 }>();
 defineEmits<{ select: [methodName: string] }>();
 </script>
@@ -40,8 +39,7 @@ defineEmits<{ select: [methodName: string] }>();
     border-color 120ms ease,
     background-color 120ms ease;
 }
-.calculator-type-card:hover,
-.calculator-type-card--active {
+.calculator-type-card:hover {
   border-color: rgb(var(--v-theme-primary));
   background-color: rgba(var(--v-theme-primary), 0.08);
 }

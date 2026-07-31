@@ -37,6 +37,18 @@ type receiptCanvas struct {
 }
 
 func buildESCPOSRasterReceipt(data printReceiptData) ([]byte, error) {
+	cropped, err := renderReceiptRaster(data)
+	if err != nil {
+		return nil, err
+	}
+	payload := encodeRasterBands(cropped, data.Cutoff)
+	if err := validateRasterPayload(payload, cropped.Bounds().Dx()); err != nil {
+		return nil, fmt.Errorf("unsafe printer payload rejected: %w", err)
+	}
+	return payload, nil
+}
+
+func renderReceiptRaster(data printReceiptData) (*image.RGBA, error) {
 	if data.TitleSize <= 0 {
 		data.TitleSize = 21
 	}
@@ -48,8 +60,11 @@ func buildESCPOSRasterReceipt(data printReceiptData) ([]byte, error) {
 		width = raster58mmWidth
 	}
 	estimatedHeight := 1900 + len(data.Items)*110 + len(data.SocialPlatforms)*60 + len(data.ReturnPolicy)*2
+	if data.ShiftReport != nil {
+		estimatedHeight = 2400 + len(data.ShiftReport.Payments)*60
+	}
 	if estimatedHeight > rasterMaxHeight {
-		return nil, fmt.Errorf("receipt is too long to print safely")
+		return nil, fmt.Errorf("receipt is too long to render safely")
 	}
 
 	c := &receiptCanvas{
@@ -62,7 +77,13 @@ func buildESCPOSRasterReceipt(data printReceiptData) ([]byte, error) {
 	}
 	draw.Draw(c.img, c.img.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
 
-	y, err := c.drawReceipt()
+	var y int
+	var err error
+	if data.ShiftReport != nil {
+		y, err = c.drawShiftReport()
+	} else {
+		y, err = c.drawReceipt()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +94,7 @@ func buildESCPOSRasterReceipt(data printReceiptData) ([]byte, error) {
 	top := firstRasterInkRow(c.img, y)
 	cropped := image.NewRGBA(image.Rect(0, 0, width, y-top))
 	draw.Draw(cropped, cropped.Bounds(), c.img, image.Point{Y: top}, draw.Src)
-	payload := encodeRasterBands(cropped, data.Cutoff)
-	if err := validateRasterPayload(payload, width); err != nil {
-		return nil, fmt.Errorf("unsafe printer payload rejected: %w", err)
-	}
-	return payload, nil
+	return cropped, nil
 }
 
 func firstRasterInkRow(img *image.RGBA, height int) int {
@@ -134,6 +151,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	metadata := []string{
 		"Customer: " + fallbackReceiptValue(c.data.Customer, "Walk-in"),
 		"Salesperson: " + formatReceiptSalesperson(c.data.Salesperson),
+		"Register: " + fallbackReceiptValue(c.data.RegisterName, "Not specified"),
 		"Date: " + currentReceiptDate(),
 	}
 	for _, line := range metadata {

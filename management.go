@@ -210,6 +210,12 @@ func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) 
 
 	result := make([]map[string]any, len(invoices))
 	for i, inv := range invoices {
+		clientName := "Walk-in customer"
+		if inv.ClientID > 0 {
+			if client, clientErr := a.store.GetClientByID(a.ctx, inv.ClientID); clientErr == nil {
+				clientName = client.Name
+			}
+		}
 		payments, err := a.store.ListInvoicePayments(a.ctx, inv.ID)
 		if err != nil {
 			return InvoicePage{}, fmt.Errorf("invoice %s payments: %w", inv.InvoiceCode, err)
@@ -232,7 +238,7 @@ func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) 
 		}
 		result[i] = map[string]any{
 			"id": inv.ID, "cashboxId": inv.CashboxID, "invoiceCode": inv.InvoiceCode,
-			"clientId": inv.ClientID, "subtotal": inv.Subtotal,
+			"clientId": inv.ClientID, "clientName": clientName, "subtotal": inv.Subtotal,
 			"discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
 			"createdAt": inv.CreatedAt, "salespersonId": inv.SalespersonID, "salespersonName": inv.SalespersonName,
 			"settlementAccounts": settlementAccounts,
@@ -315,11 +321,12 @@ func (a *App) GetShiftTotals() ([]map[string]any, error) {
 			total = float64(t)
 		}
 		result[i] = map[string]any{
-			"id":        r.ID,
-			"isClosed":  r.IsClosed,
-			"createdAt": toLocalTime(r.CreatedAt),
-			"closedAt":  toLocalTime(r.ClosedAt),
-			"total":     total,
+			"id":             r.ID,
+			"isClosed":       r.IsClosed,
+			"createdAt":      toLocalTime(r.CreatedAt),
+			"closedAt":       toLocalTime(r.ClosedAt),
+			"total":          total,
+			"priceDeduction": databaseInt64(r.PriceDeductions),
 		}
 	}
 	return result, nil

@@ -9,7 +9,7 @@ type printReceiptData struct {
 	Phone           string
 	BranchPhone     string
 	Description     string
-	CounterNumber   string
+	RegisterName    string
 	Salesperson     string
 	Customer        string
 	Notes           string
@@ -31,6 +31,7 @@ type printReceiptData struct {
 	RoundingMode    string
 	ReceiptWidth    int64
 	ReceiptHeight   int64
+	ShiftReport     *shiftReportData
 }
 
 type receiptPayment struct {

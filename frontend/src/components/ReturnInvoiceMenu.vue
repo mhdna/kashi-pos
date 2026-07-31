@@ -60,8 +60,12 @@
             <v-list density="compact" class="py-0" style="max-height: 220px; overflow-y: auto">
               <v-list-item
                 v-for="item in invoice.items"
-                :key="item.code"
-                :active="returned?.code === item.code"
+                :key="`${item.code}-${item.price}-${item.discount}`"
+                :active="
+                  returned?.code === item.code &&
+                  (returned?.soldUnitPrice ?? returned?.price) === item.price &&
+                  (returned?.soldUnitDiscount ?? returned?.discount) === item.discount
+                "
                 active-color="primary"
                 :title="item.name"
                 :subtitle="`${item.code} · ${item.barcode} · ${item.available} available`"

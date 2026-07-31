@@ -1,6 +1,7 @@
 export interface Shift {
   id: number;
   total: number;
+  priceDeduction?: number;
   createdAt?: string;
   closedAt?: string;
   isClosed: boolean;

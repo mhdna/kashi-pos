@@ -16,6 +16,8 @@ type salesInvoiceItem struct {
 	Barcode          string  `json:"barcode"`
 	Qty              float64 `json:"qty"`
 	CustomPriceCents *int64  `json:"customPriceCents,omitempty"`
+	UnitPricesCents  []int64 `json:"unitPricesCents,omitempty"`
+	UnitDiscounts    []int64 `json:"unitDiscounts,omitempty"`
 }
 
 type checkoutPayment struct {
@@ -79,8 +81,20 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 	}
 	customPricingEnabled := false
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
+		customPricingEnabled = enabled != 0 // Compatibility with databases upgrading from the combined flag.
+	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemPricesFlag); flagErr == nil {
 		customPricingEnabled = enabled != 0
 	}
+	perUnitPricingEnabled := false
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, perUnitItemPricesFlag); flagErr == nil {
+		perUnitPricingEnabled = enabled != 0
+	}
+	customDiscountsEnabled := false
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
+		customDiscountsEnabled = enabled != 0
+	}
+	perUnitPricingEnabled = perUnitPricingEnabled || customPricingEnabled || customDiscountsEnabled
 
 	year := int64(time.Now().Year())
 	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
@@ -88,7 +102,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		if err != nil {
 			return fmt.Errorf("payment account: %w", err)
 		}
-		products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled)
+		products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled, perUnitPricingEnabled)
 		if err != nil {
 			return err
 		}
@@ -100,7 +114,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		if grandTotal < discountedSubtotal {
 			return fmt.Errorf("invoice total is too large")
 		}
-		if err := validatePayments(a.ctx, q, payments, grandTotal); err != nil {
+		if err := validatePayments(a.ctx, q, payments, grandTotal, settings.MaxOverpaymentCents); err != nil {
 			return err
 		}
 
@@ -197,6 +211,26 @@ func parseSalesItems(raw string) ([]salesInvoiceItem, error) {
 		if item.CustomPriceCents != nil && (*item.CustomPriceCents <= 0 || *item.CustomPriceCents > 99999999) {
 			return nil, fmt.Errorf("invalid custom price for item %q", item.Code)
 		}
+		if len(item.UnitPricesCents) > 0 {
+			if len(item.UnitPricesCents) != int(item.Qty) {
+				return nil, fmt.Errorf("unit prices do not match quantity for item %q", item.Code)
+			}
+			for _, price := range item.UnitPricesCents {
+				if price <= 0 || price > 99999999 {
+					return nil, fmt.Errorf("invalid unit price for item %q", item.Code)
+				}
+			}
+		}
+		if len(item.UnitDiscounts) > 0 {
+			if len(item.UnitDiscounts) != int(item.Qty) {
+				return nil, fmt.Errorf("unit discounts do not match quantity for item %q", item.Code)
+			}
+			for _, discount := range item.UnitDiscounts {
+				if discount < 0 || discount > 100 {
+					return nil, fmt.Errorf("invalid unit discount for item %q", item.Code)
+				}
+			}
+		}
 		seen[key] = true
 	}
 	return items, nil
@@ -222,7 +256,7 @@ func parsePayments(raw string) ([]checkoutPayment, error) {
 	return payments, nil
 }
 
-func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, total int64) error {
+func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, total, maxOverpaymentCents int64) error {
 	var paid int64
 	for _, payment := range payments {
 		if _, err := q.GetCashboxAccountByID(ctx, payment.AccountID); err != nil {
@@ -235,6 +269,9 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 	}
 	if paid < total {
 		return fmt.Errorf("payments total %d is less than invoice total %d", paid, total)
+	}
+	if paid-total > maxOverpaymentCents {
+		return fmt.Errorf("overpayment %d exceeds maximum allowed %d", paid-total, maxOverpaymentCents)
 	}
 	return nil
 }

@@ -1,0 +1,163 @@
+package main
+
+import (
+	"context"
+	"image/png"
+	"os"
+	"path/filepath"
+	"testing"
+
+	db "kashi-pos/db/sqlc"
+)
+
+func TestShiftReportFormattingAndCashAccountDetection(t *testing.T) {
+	if !isCashAccount("USD", "USD") || !isCashAccount("Cash LBP", "LBP") {
+		t.Fatal("cash accounts were not detected")
+	}
+	if isCashAccount("Visa", "USD") || isCashAccount("Whish", "USD") {
+		t.Fatal("electronic payment account was treated as cash")
+	}
+	if got := formatSignedShiftUSD(-200); got != "-$2.00" {
+		t.Fatalf("USD difference = %q, want -$2.00", got)
+	}
+	if got := formatSignedShiftLBP(100000); got != "+100,000 LBP" {
+		t.Fatalf("LBP difference = %q, want +100,000 LBP", got)
+	}
+}
+
+func TestShiftReportSeparatesNetSalesFromTotalPayments(t *testing.T) {
+	rows := []db.ListShiftPaymentTotalsRow{
+		{Total: int64(76500)},
+		{Total: int64(1000)}, // accepted overpayment
+	}
+	if got := sumShiftPaymentTotals(rows); got != 77500 {
+		t.Fatalf("total payments = %d, want 77500 while net sales remains 76500", got)
+	}
+}
+
+func TestBuildShiftReportRaster(t *testing.T) {
+	data := shiftReportPreviewData()
+	payload, err := buildESCPOSRasterReceipt(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateRasterPayload(payload, raster80mmWidth); err != nil {
+		t.Fatalf("invalid shift report payload: %v", err)
+	}
+}
+
+func TestWriteShiftReportPreview(t *testing.T) {
+	outputPath := os.Getenv("KASHI_SHIFT_REPORT_PREVIEW_PNG")
+	if outputPath == "" {
+		t.Skip("preview output path not requested")
+	}
+	preview, err := renderReceiptRaster(shiftReportPreviewData())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Create(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	if err := png.Encode(file, preview); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func shiftReportPreviewData() printReceiptData {
+	report := &shiftReportData{
+		ShiftID: 24, Cashier: "John", Register: "POS-01",
+		OpenedAt: "2026-07-30 08:00", ClosedAt: "2026-07-30 16:00",
+		FirstInvoice: "SA/CN/2026/01251", LastInvoice: "SA/CN/2026/01308",
+		Transactions: 58, ItemsSold: 143, Returns: 1,
+		GrossSales: 142000, Discounts: 4500, ReturnAmount: 2000,
+		Tax: 14850, NetSales: 150350, TotalPayments: 150350, Overpayment: 0,
+		Payments: []receiptPayment{
+			{AccountName: "USD", CurrencyCode: "USD", AmountCents: 65000},
+			{AccountName: "LBP", CurrencyCode: "LBP", AmountCents: 50000},
+			{AccountName: "Visa", CurrencyCode: "USD", AmountCents: 25350},
+			{AccountName: "Whish", CurrencyCode: "USD", AmountCents: 10000},
+		},
+		ExpectedUSD: 72000, CountedUSD: 71800,
+		USDBillCounts: []shiftDenominationCount{
+			{Denomination: 100, Count: 6},
+			{Denomination: 50, Count: 2},
+			{Denomination: 10, Count: 1},
+			{Denomination: 5, Count: 1},
+			{Denomination: 1, Count: 3},
+		},
+		ExpectedLBP: 45000000, CountedLBP: 45100000,
+		ExchangeRate: 90000, RoundingMode: roundingHalfUp,
+	}
+	return printReceiptData{
+		StoreName: "Kashi Market", Branch: "Downtown",
+		ReceiptWidth: 80, TitleSize: 21, BodySize: 11,
+		Font: "Belleza", BodyFont: "Printer Font A",
+		Cutoff: true, ShiftReport: report,
+	}
+}
+
+func TestCloseShiftStoresClosingPersonAndCounts(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t)
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`INSERT INTO settings (
+		branch_name, api_key, printer_id, printer_size, receipt_printer,
+		screen_port, receipt_width, receipt_height, theme, tax_rate,
+		rounding_mode, receipt_enabled, sales_inventory_id
+	) VALUES ('Test Branch', '', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0)`); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	shift, err := store.CreateShift(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	person, err := store.CreateSalesperson(ctx, "John")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := &App{ctx: ctx, store: store}
+	result, err := app.CloseShiftByID(
+		shift.ID,
+		person.ID,
+		45100000,
+		`{"100":6,"50":2,"20":0,"10":1,"5":1,"1":3}`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if printed, _ := result["receiptPrinted"].(bool); printed {
+		t.Fatal("receipt printed while receipt printing was disabled")
+	}
+	closed, err := store.GetShiftByID(ctx, shift.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if closed.IsClosed != 1 || closed.ClosedBySalespersonID != person.ID ||
+		closed.CountedUsd != 71800 || closed.CountedLbp != 45100000 ||
+		closed.CountedUsdBreakdown == "" {
+		t.Fatalf("stored close data = %#v", closed)
+	}
+}
+
+func TestParseUSDBillCounts(t *testing.T) {
+	breakdown, total, canonical, err := parseUSDBillCounts(
+		`{"100":6,"50":2,"20":0,"10":1,"5":1,"1":3}`,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 71800 || len(breakdown) != 5 || canonical == "" {
+		t.Fatalf("breakdown=%#v total=%d canonical=%q", breakdown, total, canonical)
+	}
+	if _, _, _, err := parseUSDBillCounts(`{"200":1}`); err == nil {
+		t.Fatal("unsupported denomination was accepted")
+	}
+}

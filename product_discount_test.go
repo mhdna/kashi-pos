@@ -52,3 +52,41 @@ func TestUpdateProductDiscountRequiresFeatureAndPersists(t *testing.T) {
 		t.Fatal("expected discount above 100 to fail")
 	}
 }
+
+func TestItemPricingSettingsAreIndependent(t *testing.T) {
+	ctx := context.Background()
+	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "pricing-settings.db")+"?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(
+		"INSERT INTO settings (branch_name, api_key, printer_id, printer_size) VALUES ('Store', '', '', '80mm')",
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{ctx: ctx, store: db.NewStore(database)}
+	if err := app.SetCustomItemPricesEnabled(true); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.SetPerUnitItemPricesEnabled(true); err != nil {
+		t.Fatal(err)
+	}
+	settings, err := app.GetAppSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["customItemPricesEnabled"] != true {
+		t.Fatalf("custom item prices = %#v, want true", settings["customItemPricesEnabled"])
+	}
+	if settings["perUnitItemPricesEnabled"] != true {
+		t.Fatalf("per-unit item prices = %#v, want true", settings["perUnitItemPricesEnabled"])
+	}
+	if settings["customItemDiscountsEnabled"] != false {
+		t.Fatalf("custom item discounts = %#v, want false", settings["customItemDiscountsEnabled"])
+	}
+}

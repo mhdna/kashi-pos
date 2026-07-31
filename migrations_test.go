@@ -14,7 +14,7 @@ func TestApplyMigrationsFreshDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("apply migrations: %v", err)
 	}
-	assertMigrationVersion(t, conn, 29)
+	assertMigrationVersion(t, conn, 32)
 	assertTableExists(t, conn, "settings")
 	assertTableExists(t, conn, "feature_flags")
 	assertTableExists(t, conn, "schema_migrations")
@@ -55,7 +55,7 @@ func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, databasePath, true); err != nil {
 		t.Fatalf("upgrade legacy database: %v", err)
 	}
-	assertMigrationVersion(t, conn, 29)
+	assertMigrationVersion(t, conn, 32)
 	assertTableExists(t, conn, "schema_migrations")
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
@@ -101,7 +101,7 @@ func TestInvoicePaymentEntriesMigrationRepairsMissingTable(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("repair missing payment-entry table: %v", err)
 	}
-	assertMigrationVersion(t, conn, 29)
+	assertMigrationVersion(t, conn, 32)
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")
@@ -209,6 +209,15 @@ func TestLookupIndexesAreRepairedForCurrentDatabase(t *testing.T) {
 	}
 	if _, err := conn.Exec("DELETE FROM schema_migrations WHERE version = 29"); err != nil {
 		t.Fatalf("rewind custom-discount migration metadata: %v", err)
+	}
+	if _, err := conn.Exec("DELETE FROM schema_migrations WHERE version = 30"); err != nil {
+		t.Fatalf("rewind shift-closing migration metadata: %v", err)
+	}
+	if _, err := conn.Exec("DELETE FROM schema_migrations WHERE version = 31"); err != nil {
+		t.Fatalf("rewind per-unit pricing migration metadata: %v", err)
+	}
+	if _, err := conn.Exec("DELETE FROM schema_migrations WHERE version = 32"); err != nil {
+		t.Fatalf("rewind per-unit discount migration metadata: %v", err)
 	}
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("repair lookup indexes: %v", err)

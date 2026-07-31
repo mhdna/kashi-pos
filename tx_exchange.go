@@ -68,7 +68,7 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 			return err
 		}
 		total := netDifference + taxCents
-		if err := validatePayments(a.ctx, q, payments, total); err != nil {
+		if err := validatePayments(a.ctx, q, payments, total, settings.MaxOverpaymentCents); err != nil {
 			return err
 		}
 		cashbox, err := exchangeCashbox(a, q, payments)

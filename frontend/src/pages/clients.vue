@@ -32,7 +32,15 @@
         />
       </template>
       <template #item.totalLoyaltyPoints="{ item }">
-        <span>{{ item.totalLoyaltyPoints }} pts</span>
+        <span>{{ formatLoyaltyPoints(item.totalLoyaltyPoints) }}</span>
+      </template>
+      <template #item.validLoyaltyPoints="{ item }">
+        <span>{{ formatLoyaltyPoints(item.validLoyaltyPoints) }}</span>
+      </template>
+      <template #item.tier="{ item }">
+        <v-chip :color="loyaltyTierColor(loyaltyTier(Number(item.totalLoyaltyPoints ?? 0)))" size="small" variant="tonal">
+          {{ loyaltyTier(Number(item.totalLoyaltyPoints ?? 0)) }}
+        </v-chip>
       </template>
       <template #item.actions="{ item }">
         <template v-if="auth.isAdmin">
@@ -78,6 +86,7 @@ import { ref, onMounted, watch, reactive } from "vue";
 import { DeleteClient, ListClients, UpdateClient } from "../../wailsjs/go/main/App";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
 import { useAuthStore } from "@/stores/auth";
+import { formatLoyaltyPoints, loyaltyTier, loyaltyTierColor } from "@/lib/client";
 
 const colors = ["yellow", "blue", "red", "purple", "pink", "green", "orange", "teal"];
 const auth = useAuthStore();
@@ -87,6 +96,7 @@ const headers = [
   { title: "Name", key: "name" },
   { title: "Phone", key: "phone" },
   { title: "Loyalty Points", key: "totalLoyaltyPoints" },
+  { title: "Tier", key: "tier" },
   { title: "Valid Points", key: "validLoyaltyPoints" },
   { title: "Created", key: "createdAt" },
   { title: "", key: "actions", sortable: false, width: 110 },

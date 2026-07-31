@@ -6,6 +6,8 @@ export interface ExchangeItem {
   name: string;
   category?: string;
   price: number;
+  soldUnitPrice?: number;
+  soldUnitDiscount?: number;
   discount: number;
   available?: number;
   qty?: number;

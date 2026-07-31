@@ -15,26 +15,21 @@
   </v-card>
 
   <section class="mb-4">
-    <div class="d-flex justify-space-between align-center mb-1">
-      <span class="text-caption font-weight-medium" :class="statusColor">{{ paymentStatus }}</span>
-      <span v-if="showReadyState" class="calculator-paid-state">
-        <v-icon icon="mdi-check-circle" size="18" />
-        <span>Ready to check out</span>
-      </span>
-    </div>
-
-    <div
-      class="calculator-amounts mb-2"
-      :class="{ 'calculator-amounts-hidden': showReadyState }"
-      :aria-hidden="showReadyState"
-    >
-      <div>
-        <strong :class="statusColor">{{ remainingAmount.usd }}</strong>
+    <div class="calculator-amounts mb-2">
+      <div v-if="showReadyState" class="calculator-accepted-state text-green-darken-2">
+        <v-icon icon="mdi-check-circle" color="green-darken-2" size="40" />
+        <span>{{ paymentStatus }}</span>
       </div>
-      <span class="calculator-amounts-plus" aria-hidden="true">+</span>
-      <div>
-        <strong :class="statusColor">{{ remainingAmount.lbp }}</strong>
-      </div>
+      <template v-else>
+        <span class="calculator-amounts-label" :class="statusColor">{{ paymentStatus }}</span>
+        <div class="calculator-amount calculator-amount-usd">
+          <strong :class="statusColor">{{ remainingAmount.usd }}</strong>
+        </div>
+        <span class="calculator-amounts-plus" aria-hidden="true">+</span>
+        <div class="calculator-amount calculator-amount-lbp">
+          <strong :class="statusColor">{{ remainingAmount.lbp }}</strong>
+        </div>
+      </template>
     </div>
   </section>
 </template>
@@ -50,36 +45,45 @@ defineProps<{
 </script>
 
 <style scoped>
-.calculator-paid-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: rgb(var(--v-theme-primary));
-  font-size: 0.78rem;
-  font-weight: 700;
-}
 .calculator-total-summary {
   border-color: rgba(var(--v-theme-on-surface), 0.18);
 }
 .calculator-amounts {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  min-height: 56px;
+  height: 56px;
   align-items: center;
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: 2px;
   padding: 8px 12px;
   border: 1px solid rgba(var(--v-border-color), 0.12);
   border-radius: 10px;
   font-size: 0.8rem;
 }
-.calculator-amounts-hidden {
-  visibility: hidden;
+.calculator-amounts-label {
+  grid-column: 1 / -1;
+  line-height: 1;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
-.calculator-amounts > div {
+.calculator-amount {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
+}
+.calculator-amount-usd { grid-column: 1; }
+.calculator-amount-lbp { grid-column: 3; }
+.calculator-accepted-state {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 .calculator-amounts strong {
   padding: 0;

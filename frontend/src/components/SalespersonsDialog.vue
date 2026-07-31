@@ -36,7 +36,7 @@ import InitialsAvatar from "./InitialsAvatar.vue";
 import { useSalesperson, type Salesperson } from "@/composables/useSalesperson";
 
 const menu = ref(false);
-const salespersonAvatarColor = "yellow-darken-2";
+const salespersonAvatarColor = "grey";
 
 const salespersons = ref<Salesperson[]>([]);
 const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperson();

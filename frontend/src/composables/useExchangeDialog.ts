@@ -86,6 +86,8 @@ export function useExchangeDialog(roundingMode: () => string) {
   function selectReturned(item: ExchangeItem) {
     returned.value = {
       ...item,
+      soldUnitPrice: Number(item.price),
+      soldUnitDiscount: Number(item.discount),
       price: effectiveExchangePrice(item, roundingMode()),
       discount: 0,
       qty: -1,

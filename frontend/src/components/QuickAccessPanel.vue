@@ -12,7 +12,12 @@
         <span v-show="!open" class="text-caption ms-1">Quick access</span>
       </v-card>
       <span v-if="open" class="text-caption font-weight-bold flex-grow-1">Quick access</span>
-      <ProductSearchDialog v-if="open" activator-text="Add products" @select="addPinnedItem" />
+      <ProductSearchDialog
+        v-if="open"
+        activator-text=""
+        activator-icon="mdi-plus"
+        @select="addPinnedItem"
+      />
     </div>
     <div v-if="open" class="quick-access__body">
       <div v-if="!items.length" class="text-caption text-medium-emphasis text-center pa-2">
@@ -30,7 +35,9 @@
         >
           <div class="quick-access__name text-caption text-truncate">{{ item.name }}</div>
           <div class="quick-access__code text-caption text-truncate">{{ item.code }}</div>
-          <div class="text-caption text-medium-emphasis">${{ Number(item.price).toFixed(2) }}</div>
+          <div class="quick-access__price text-caption text-medium-emphasis">
+            ${{ Number(item.price).toFixed(2) }}
+          </div>
           <v-btn
             icon
             size="x-small"
@@ -150,13 +157,13 @@ function confirmRemoval() {
 .quick-access__toolbar {
   align-items: center;
   display: flex;
-  min-height: 40px;
+  min-height: 30px;
 }
 .quick-access__toggle {
   align-items: center;
   cursor: pointer;
   display: flex;
-  min-height: 36px;
+  min-height: 28px;
   overflow: hidden;
   transition: none !important;
   width: 40px;
@@ -171,18 +178,25 @@ function confirmRemoval() {
 }
 .quick-access__items {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 6px;
+  margin-top: 4px;
 }
 .quick-access__item {
   cursor: pointer;
   min-width: 0;
-  min-height: 64px;
-  padding: 10px !important;
+  min-height: 50px;
+  padding: 6px !important;
   position: relative;
 }
+.quick-access__name,
+.quick-access__code,
+.quick-access__price {
+  font-size: 0.8rem !important;
+  line-height: 1.15;
+}
 .quick-access__remove {
+  background: rgb(var(--v-theme-background)) !important;
   height: 18px !important;
   position: absolute;
   right: 4px;

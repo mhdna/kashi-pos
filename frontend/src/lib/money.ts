@@ -29,3 +29,44 @@ export function roundCents(value: number, mode?: string): number {
   if (roundingMode === "up") return Math.ceil(value - 1e-9);
   return Math.floor(value + 0.5);
 }
+
+export function isCashRoundedEquivalent(
+  paidCents: number,
+  totalCents: number,
+  exchangeRate: number,
+  mode?: string,
+): boolean {
+  return (
+    paidCents !== totalCents &&
+    roundLbpFromCents(paidCents, exchangeRate, mode) ===
+      roundLbpFromCents(totalCents, exchangeRate, mode)
+  );
+}
+
+/**
+ * Makes an accepted cash-rounded payment match the invoice in accounting
+ * cents. Genuine overpayments are returned unchanged.
+ */
+export function normalizeCashRoundedPayments(
+  payments: number[],
+  totalCents: number,
+  exchangeRate: number,
+  mode?: string,
+): number[] {
+  const paidCents = payments.reduce((sum, amount) => sum + amount, 0);
+  const difference = paidCents - totalCents;
+  const accepted =
+    difference < 0
+      ? roundLbpFromCents(-difference, exchangeRate, mode) === 0
+      : isCashRoundedEquivalent(paidCents, totalCents, exchangeRate, mode);
+  if (!accepted) return payments;
+
+  const normalized = [...payments];
+  for (let i = normalized.length - 1; i >= 0; i -= 1) {
+    if (normalized[i]! > 0) {
+      normalized[i]! -= difference;
+      break;
+    }
+  }
+  return normalized;
+}
