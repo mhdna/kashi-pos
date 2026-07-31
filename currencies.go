@@ -1,6 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+
+	db "kashi-pos/db/sqlc"
+)
 
 func (a *App) ListCurrencies() ([]map[string]any, error) {
 	if a.store == nil {
@@ -45,10 +50,29 @@ func (a *App) ListPaymentMethods() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
+	// Older databases may have been created before the special methods were
+	// introduced. Ensure their payment cards exist even before a full restart
+	// or reseed has occurred.
+	for _, special := range []string{"On Account", "On Coupon"} {
+		if _, lookupErr := a.store.GetCashboxAccountByName(a.ctx, special); lookupErr != nil {
+			if _, createErr := a.store.CreateCashboxAccount(a.ctx, db.CreateCashboxAccountParams{Name: special, CurrencyCode: "USD"}); createErr != nil {
+				return nil, fmt.Errorf("create %s payment method: %w", special, createErr)
+			}
+		}
+	}
 	accounts, err := a.store.ListCashboxAccounts(a.ctx)
 	if err != nil {
 		return nil, err
 	}
+	// Keep the special cards directly after the normal configured methods,
+	// with On Account immediately followed by On Coupon.
+	sort.SliceStable(accounts, func(i, j int) bool {
+		iSpecial := accounts[i].Name == "On Account" || accounts[i].Name == "On Coupon"
+		jSpecial := accounts[j].Name == "On Account" || accounts[j].Name == "On Coupon"
+		if iSpecial != jSpecial { return !iSpecial }
+		if iSpecial && jSpecial { return accounts[i].Name == "On Account" }
+		return accounts[i].ID < accounts[j].ID
+	})
 	result := make([]map[string]any, len(accounts))
 	for i, acc := range accounts {
 		// Keep the database names stable while presenting the shared label

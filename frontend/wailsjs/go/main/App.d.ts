@@ -26,6 +26,10 @@ export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:string):
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
+export function CreateCoupon(arg1:string,arg2:number,arg3:number):Promise<Record<string, any>>;
+
+export function CreateCouponType(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
+
 export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
 
 export function CreateUser(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
@@ -85,6 +89,8 @@ export function ListAttendanceComplaints(arg1:string):Promise<Array<Record<strin
 export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
 
 export function ListClients():Promise<Array<Record<string, any>>>;
+
+export function ListCouponTypes():Promise<Array<Record<string, any>>>;
 
 export function ListCurrencies():Promise<Array<Record<string, any>>>;
 

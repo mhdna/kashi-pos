@@ -14,7 +14,7 @@
 
     <CalculatorKeypad @digit="appendDigit" @backspace="backspace" @clear="clearInput" />
     <CalculatorPaymentMethods
-      :methods="paymentMethods"
+      :methods="paymentMethods.filter((method) => !['on coupon', 'on account'].includes(method.name.toLowerCase()))"
       :model-value="activeMethod"
       @select="selectMethodAndConfirm"
     />
@@ -24,12 +24,25 @@
       :currency-symbol-for="currencySymbolFor"
       @remove="removeEntry"
     />
+    <v-dialog v-model="couponDialog" max-width="420">
+      <v-card title="Coupon payment">
+        <v-card-text>
+          <v-text-field v-model="couponCode" label="Coupon code" autofocus variant="outlined" />
+          <v-select v-model="couponTypeId" :items="couponTypes" item-title="name" item-value="id" label="Coupon type" variant="outlined" />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="couponDialog = false">Cancel</v-btn>
+          <v-btn color="primary" @click="confirmCoupon">Add coupon</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { GetAppSettings, ListCurrencies, ListPaymentMethods } from "../../wailsjs/go/main/App";
+import { GetAppSettings, ListCurrencies, ListCouponTypes, ListPaymentMethods } from "../../wailsjs/go/main/App";
 import { formatUsd } from "@/lib/format";
 import {
   isCashRoundedEquivalent,
@@ -60,7 +73,7 @@ interface Entry {
 
 const DEFAULT_EXCHANGE_RATE = 90000;
 const DEFAULT_USD_RATE = 100;
-const props = defineProps<{ total: number; roundingMode?: string }>();
+const props = defineProps<{ total: number; roundingMode?: string; clientId?: number }>();
 const roundingMode = computed(() => props.roundingMode ?? "half_up");
 const paymentMethods = ref<PaymentMethod[]>([]);
 const currencies = ref<Currency[]>([]);
@@ -69,6 +82,10 @@ const maxOverpaymentCents = ref(60);
 const activeMethod = ref("");
 const currentInput = ref("");
 const entries = ref<Entry[]>([]);
+const couponDialog = ref(false);
+const couponCode = ref("");
+const couponTypeId = ref<number | null>(null);
+const couponTypes = ref<any[]>([]);
 
 const activeCurrency = computed(
   () => paymentMethods.value.find((m) => m.name === activeMethod.value)?.currencyCode ?? "",
@@ -194,6 +211,7 @@ onMounted(async () => {
   } catch {
     /* leave currencies empty */
   }
+  try { couponTypes.value = (await ListCouponTypes()) as any[]; } catch { couponTypes.value = []; }
 });
 
 function appendDigit(value: string) {
@@ -223,7 +241,36 @@ function confirmEntry() {
 }
 function selectMethodAndConfirm(methodName: string) {
   activeMethod.value = methodName;
+  if (methodName.toLowerCase() === "on account" && !props.clientId) return;
   confirmEntry();
+}
+function addOnAccount() {
+  const method = paymentMethods.value.find((candidate) => candidate.name.toLowerCase() === "on account");
+  if (!method || !props.clientId) return;
+  const remainingCents = Math.max(totalCents.value - paidCents.value, 0);
+  if (remainingCents <= 0) return;
+  activeMethod.value = method.name;
+  currentInput.value = (remainingCents / 100).toFixed(2);
+  confirmEntry();
+}
+async function openCouponDialog() {
+  try { couponTypes.value = (await ListCouponTypes()) as any[]; } catch { couponTypes.value = []; }
+  couponCode.value = "";
+  couponTypeId.value = null;
+  couponDialog.value = true;
+}
+function confirmCoupon() {
+  const type = couponTypes.value.find((item) => item.id === couponTypeId.value);
+  if (!couponCode.value.trim() || !type) return;
+  addCoupon(couponCode.value, type);
+  couponDialog.value = false;
+}
+function addCoupon(code: string, type: any) {
+  const method = paymentMethods.value.find((m) => m.name.toLowerCase() === "on coupon");
+  if (!method || !type) return;
+  entries.value.push({ type: method.name, amount: Number(type.valueCents) / 100, amountCents: Number(type.valueCents), accountId: method.id });
+  (entries.value[entries.value.length - 1] as any).couponCode = code.trim();
+  (entries.value[entries.value.length - 1] as any).couponTypeId = type.id;
 }
 function removeEntry(index: number) {
   entries.value.splice(index, 1);
@@ -239,6 +286,7 @@ const paymentsJSON = computed(() => {
     accountId: entry.accountId,
     amountCents: entry.amountCents,
     entryType: entry.amountCents < 0 ? "change" : "payment",
+    ...(entry.type.toLowerCase() === "on coupon" ? { couponCode: (entry as any).couponCode, couponTypeId: (entry as any).couponTypeId } : {}),
   }));
   if (checkoutReady.value) {
     const normalizedAmounts = normalizeCashRoundedPayments(
@@ -260,6 +308,10 @@ defineExpose({
   clearAll,
   firstEntryAccountId,
   paymentsJSON,
+  addCoupon,
+  selectMethodAndConfirm,
+  addOnAccount,
+  openCouponDialog,
 });
 </script>
 
@@ -270,5 +322,10 @@ defineExpose({
   align-items: center;
   justify-content: center;
   border-color: rgba(var(--v-theme-on-surface), 0.18);
+}
+.calculator-special-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 </style>

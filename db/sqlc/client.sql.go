@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const addClientLoyaltyPoints = `-- name: AddClientLoyaltyPoints :exec
@@ -58,9 +59,33 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Cli
 	return i, err
 }
 
+const createClientAccountEntry = `-- name: CreateClientAccountEntry :one
+INSERT INTO client_account_entries (client_id, invoice_id, amount)
+VALUES (?, ?, ?) RETURNING id, client_id, invoice_id, amount, created_at
+`
+
+type CreateClientAccountEntryParams struct {
+	ClientID  int64 `json:"clientId"`
+	InvoiceID int64 `json:"invoiceId"`
+	Amount    int64 `json:"amount"`
+}
+
+func (q *Queries) CreateClientAccountEntry(ctx context.Context, arg CreateClientAccountEntryParams) (ClientAccountEntry, error) {
+	row := q.db.QueryRowContext(ctx, createClientAccountEntry, arg.ClientID, arg.InvoiceID, arg.Amount)
+	var i ClientAccountEntry
+	err := row.Scan(
+		&i.ID,
+		&i.ClientID,
+		&i.InvoiceID,
+		&i.Amount,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createCoupon = `-- name: CreateCoupon :one
 INSERT INTO coupons (code, status, discount_type, reason, client_id, valid_until)
-VALUES (?, ?, ?, ?, ?, ?) RETURNING code, status, discount_type, reason, client_id, valid_until, created_at
+VALUES (?, ?, ?, ?, ?, ?) RETURNING code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id
 `
 
 type CreateCouponParams struct {
@@ -90,6 +115,107 @@ func (q *Queries) CreateCoupon(ctx context.Context, arg CreateCouponParams) (Cou
 		&i.ClientID,
 		&i.ValidUntil,
 		&i.CreatedAt,
+		&i.TypeID,
+		&i.ValueCents,
+		&i.RedeemedInvoiceID,
+	)
+	return i, err
+}
+
+const createCouponType = `-- name: CreateCouponType :one
+INSERT INTO coupon_types (name, value_cents, currency_code, is_active)
+VALUES (?, ?, ?, ?) RETURNING id, name, value_cents, currency_code, is_active
+`
+
+type CreateCouponTypeParams struct {
+	Name         string `json:"name"`
+	ValueCents   int64  `json:"valueCents"`
+	CurrencyCode string `json:"currencyCode"`
+	IsActive     int64  `json:"isActive"`
+}
+
+func (q *Queries) CreateCouponType(ctx context.Context, arg CreateCouponTypeParams) (CouponType, error) {
+	row := q.db.QueryRowContext(ctx, createCouponType,
+		arg.Name,
+		arg.ValueCents,
+		arg.CurrencyCode,
+		arg.IsActive,
+	)
+	var i CouponType
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ValueCents,
+		&i.CurrencyCode,
+		&i.IsActive,
+	)
+	return i, err
+}
+
+const createInvoiceCouponPayment = `-- name: CreateInvoiceCouponPayment :one
+INSERT INTO invoice_coupon_payments (invoice_id, coupon_code, coupon_type_id, amount)
+VALUES (?, ?, ?, ?) RETURNING invoice_id, coupon_code, coupon_type_id, amount
+`
+
+type CreateInvoiceCouponPaymentParams struct {
+	InvoiceID    int64  `json:"invoiceId"`
+	CouponCode   string `json:"couponCode"`
+	CouponTypeID int64  `json:"couponTypeId"`
+	Amount       int64  `json:"amount"`
+}
+
+func (q *Queries) CreateInvoiceCouponPayment(ctx context.Context, arg CreateInvoiceCouponPaymentParams) (InvoiceCouponPayment, error) {
+	row := q.db.QueryRowContext(ctx, createInvoiceCouponPayment,
+		arg.InvoiceID,
+		arg.CouponCode,
+		arg.CouponTypeID,
+		arg.Amount,
+	)
+	var i InvoiceCouponPayment
+	err := row.Scan(
+		&i.InvoiceID,
+		&i.CouponCode,
+		&i.CouponTypeID,
+		&i.Amount,
+	)
+	return i, err
+}
+
+const createValueCoupon = `-- name: CreateValueCoupon :one
+INSERT INTO coupons (code, status, discount_type, reason, client_id, valid_until, type_id, value_cents)
+VALUES (?, 'active', 'fixed', ?, ?, ?, ?, ?) RETURNING code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id
+`
+
+type CreateValueCouponParams struct {
+	Code       string        `json:"code"`
+	Reason     string        `json:"reason"`
+	ClientID   int64         `json:"clientId"`
+	ValidUntil string        `json:"validUntil"`
+	TypeID     sql.NullInt64 `json:"typeId"`
+	ValueCents sql.NullInt64 `json:"valueCents"`
+}
+
+func (q *Queries) CreateValueCoupon(ctx context.Context, arg CreateValueCouponParams) (Coupon, error) {
+	row := q.db.QueryRowContext(ctx, createValueCoupon,
+		arg.Code,
+		arg.Reason,
+		arg.ClientID,
+		arg.ValidUntil,
+		arg.TypeID,
+		arg.ValueCents,
+	)
+	var i Coupon
+	err := row.Scan(
+		&i.Code,
+		&i.Status,
+		&i.DiscountType,
+		&i.Reason,
+		&i.ClientID,
+		&i.ValidUntil,
+		&i.CreatedAt,
+		&i.TypeID,
+		&i.ValueCents,
+		&i.RedeemedInvoiceID,
 	)
 	return i, err
 }
@@ -110,6 +236,40 @@ DELETE FROM coupons WHERE code = ?
 func (q *Queries) DeleteCoupon(ctx context.Context, code string) error {
 	_, err := q.db.ExecContext(ctx, deleteCoupon, code)
 	return err
+}
+
+const getActiveCouponByCode = `-- name: GetActiveCouponByCode :one
+SELECT code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id FROM coupons WHERE code = ? AND status = 'active' AND redeemed_invoice_id IS NULL
+`
+
+func (q *Queries) GetActiveCouponByCode(ctx context.Context, code string) (Coupon, error) {
+	row := q.db.QueryRowContext(ctx, getActiveCouponByCode, code)
+	var i Coupon
+	err := row.Scan(
+		&i.Code,
+		&i.Status,
+		&i.DiscountType,
+		&i.Reason,
+		&i.ClientID,
+		&i.ValidUntil,
+		&i.CreatedAt,
+		&i.TypeID,
+		&i.ValueCents,
+		&i.RedeemedInvoiceID,
+	)
+	return i, err
+}
+
+const getClientAccountBalance = `-- name: GetClientAccountBalance :one
+SELECT COALESCE(SUM(amount), 0) AS balance
+FROM client_account_entries WHERE client_id = ?
+`
+
+func (q *Queries) GetClientAccountBalance(ctx context.Context, clientID int64) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getClientAccountBalance, clientID)
+	var balance interface{}
+	err := row.Scan(&balance)
+	return balance, err
 }
 
 const getClientByID = `-- name: GetClientByID :one
@@ -149,7 +309,7 @@ func (q *Queries) GetClientByPhone(ctx context.Context, phone string) (Client, e
 }
 
 const getCouponByCode = `-- name: GetCouponByCode :one
-SELECT code, status, discount_type, reason, client_id, valid_until, created_at FROM coupons WHERE code = ?
+SELECT code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id FROM coupons WHERE code = ?
 `
 
 func (q *Queries) GetCouponByCode(ctx context.Context, code string) (Coupon, error) {
@@ -163,6 +323,26 @@ func (q *Queries) GetCouponByCode(ctx context.Context, code string) (Coupon, err
 		&i.ClientID,
 		&i.ValidUntil,
 		&i.CreatedAt,
+		&i.TypeID,
+		&i.ValueCents,
+		&i.RedeemedInvoiceID,
+	)
+	return i, err
+}
+
+const getCouponTypeByID = `-- name: GetCouponTypeByID :one
+SELECT id, name, value_cents, currency_code, is_active FROM coupon_types WHERE id = ?
+`
+
+func (q *Queries) GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error) {
+	row := q.db.QueryRowContext(ctx, getCouponTypeByID, id)
+	var i CouponType
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ValueCents,
+		&i.CurrencyCode,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -201,8 +381,41 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 	return items, nil
 }
 
+const listCouponTypes = `-- name: ListCouponTypes :many
+SELECT id, name, value_cents, currency_code, is_active FROM coupon_types ORDER BY name
+`
+
+func (q *Queries) ListCouponTypes(ctx context.Context) ([]CouponType, error) {
+	rows, err := q.db.QueryContext(ctx, listCouponTypes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CouponType{}
+	for rows.Next() {
+		var i CouponType
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.ValueCents,
+			&i.CurrencyCode,
+			&i.IsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCouponsByClientID = `-- name: ListCouponsByClientID :many
-SELECT code, status, discount_type, reason, client_id, valid_until, created_at FROM coupons WHERE client_id = ? ORDER BY created_at
+SELECT code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id FROM coupons WHERE client_id = ? ORDER BY created_at
 `
 
 func (q *Queries) ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error) {
@@ -222,6 +435,9 @@ func (q *Queries) ListCouponsByClientID(ctx context.Context, clientID int64) ([]
 			&i.ClientID,
 			&i.ValidUntil,
 			&i.CreatedAt,
+			&i.TypeID,
+			&i.ValueCents,
+			&i.RedeemedInvoiceID,
 		); err != nil {
 			return nil, err
 		}
@@ -234,6 +450,20 @@ func (q *Queries) ListCouponsByClientID(ctx context.Context, clientID int64) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const redeemCoupon = `-- name: RedeemCoupon :exec
+UPDATE coupons SET status = 'inactive', redeemed_invoice_id = ? WHERE code = ? AND status = 'active' AND redeemed_invoice_id IS NULL
+`
+
+type RedeemCouponParams struct {
+	RedeemedInvoiceID sql.NullInt64 `json:"redeemedInvoiceId"`
+	Code              string        `json:"code"`
+}
+
+func (q *Queries) RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error {
+	_, err := q.db.ExecContext(ctx, redeemCoupon, arg.RedeemedInvoiceID, arg.Code)
+	return err
 }
 
 const searchClients = `-- name: SearchClients :many

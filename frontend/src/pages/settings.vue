@@ -18,6 +18,7 @@
     <v-tabs v-model="tab" class="settings-tabs mb-5" color="primary" grow>
       <v-tab value="general" prepend-icon="mdi-printer-wireless">Printing &amp; Screen</v-tab>
       <v-tab value="receipt" prepend-icon="mdi-printer-outline">Receipt</v-tab>
+      <v-tab value="coupons" prepend-icon="mdi-sale-outline">Coupons</v-tab>
       <v-tab value="admin" prepend-icon="mdi-shield-account-outline">Passwords &amp; Users</v-tab>
     </v-tabs>
     <v-progress-linear v-if="settingsLoading" indeterminate color="primary" class="mb-4" />
@@ -299,6 +300,28 @@
           </v-card>
 
         </div>
+      </v-window-item>
+
+      <v-window-item value="coupons">
+        <v-card class="settings-card" max-width="720">
+          <v-card-title>Coupon types</v-card-title>
+          <v-card-text>
+            <div class="d-flex ga-2 align-start">
+              <v-text-field v-model="couponTypeForm.name" label="Type name" variant="outlined" density="compact" />
+              <v-text-field v-model.number="couponTypeForm.value" label="Value (USD)" type="number" min="0.01" step="0.01" variant="outlined" density="compact" />
+              <v-btn color="primary" :loading="couponTypeSaving" @click="addCouponType">Add</v-btn>
+            </div>
+            <div class="d-flex ga-2 align-start mb-2">
+              <v-text-field v-model="couponCodeForm" label="New coupon code" variant="outlined" density="compact" />
+              <v-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" label="Type" variant="outlined" density="compact" />
+              <v-btn color="secondary" :loading="couponIssuing" @click="issueCoupon">Issue</v-btn>
+            </div>
+            <v-list density="compact">
+              <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}`" />
+              <v-list-item v-if="!couponTypes.length" title="No coupon types configured" />
+            </v-list>
+          </v-card-text>
+        </v-card>
       </v-window-item>
 
       <v-window-item value="admin">
@@ -602,6 +625,9 @@ import {
   ListPrinters,
   PrintCurrentCloseShiftSample,
     ListInventories,
+  ListCouponTypes,
+  CreateCouponType,
+  CreateCoupon,
   ListSalespersons,
   CreateSalesperson,
   UpdateSalesperson,
@@ -678,6 +704,12 @@ function platformLabel(platform: string) {
 const serialPorts = ref<string[]>([]);
 const printers = ref<string[]>([]);
 const saving = ref(false);
+const couponTypes = ref<any[]>([]);
+const couponTypeForm = reactive({ name: "", value: 50 });
+const couponTypeSaving = ref(false);
+const couponCodeForm = ref("");
+const couponIssueTypeId = ref<number | null>(null);
+const couponIssuing = ref(false);
 const pricingSettingsSaving = ref(false);
 const adminSettingsSaving = ref(false);
 const samplePrinting = ref(false);
@@ -727,6 +759,33 @@ function notify(text: string, color = "success") {
   snackbar.text = text;
   snackbar.color = color;
   snackbar.show = true;
+}
+
+async function loadCouponTypes() {
+  try { couponTypes.value = (await ListCouponTypes()) as any[]; } catch { couponTypes.value = []; }
+}
+
+async function addCouponType() {
+  if (!couponTypeForm.name.trim() || Number(couponTypeForm.value) <= 0) return;
+  couponTypeSaving.value = true;
+  try {
+    await CreateCouponType(couponTypeForm.name.trim(), "USD", Math.round(Number(couponTypeForm.value) * 100));
+    couponTypeForm.name = "";
+    await loadCouponTypes();
+    notify("Coupon type added");
+  } catch (error) { notify(error instanceof Error ? error.message : "Failed to add coupon type", "red"); }
+  finally { couponTypeSaving.value = false; }
+}
+
+async function issueCoupon() {
+  if (!couponCodeForm.value.trim() || !couponIssueTypeId.value) return;
+  couponIssuing.value = true;
+  try {
+    await CreateCoupon(couponCodeForm.value.trim(), couponIssueTypeId.value, 0);
+    couponCodeForm.value = "";
+    notify("Coupon issued");
+  } catch (error) { notify(error instanceof Error ? error.message : "Failed to issue coupon", "red"); }
+  finally { couponIssuing.value = false; }
 }
 
 async function loadSettings() {
@@ -847,6 +906,7 @@ async function setPerUnitPricesEnabled(value: boolean | null) {
 }
 
 onMounted(async () => {
+  await loadCouponTypes();
   await loadSettings();
   try {
     serialPorts.value = await ListSerialPorts();

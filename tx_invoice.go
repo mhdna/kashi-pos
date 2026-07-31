@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -24,6 +25,8 @@ type checkoutPayment struct {
 	AccountID   int64  `json:"accountId"`
 	AmountCents int64  `json:"amountCents"`
 	EntryType   string `json:"entryType"`
+	CouponCode  string `json:"couponCode,omitempty"`
+	CouponTypeID int64 `json:"couponTypeId,omitempty"`
 }
 
 type SalesInvoiceParams struct {
@@ -162,6 +165,9 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				return fmt.Errorf("record payment entry: %w", err)
 			}
 		}
+		if err := recordSpecialPaymentMetadata(a, q, invoice.ID, clientID, payments); err != nil {
+			return err
+		}
 		for accountID, amount := range netByAccount {
 			if amount == 0 {
 				continue
@@ -262,6 +268,31 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 		if _, err := q.GetCashboxAccountByID(ctx, payment.AccountID); err != nil {
 			return fmt.Errorf("payment account %d: %w", payment.AccountID, err)
 		}
+		account, err := q.GetCashboxAccountByID(ctx, payment.AccountID)
+		if err != nil {
+			return fmt.Errorf("payment account %d: %w", payment.AccountID, err)
+		}
+		if strings.EqualFold(account.Name, "On Account") && payment.AmountCents < 0 {
+			return fmt.Errorf("on account cannot be used as change")
+		}
+		if strings.EqualFold(account.Name, "On Coupon") {
+			if payment.AmountCents < 0 || strings.TrimSpace(payment.CouponCode) == "" || payment.CouponTypeID <= 0 {
+				return fmt.Errorf("coupon code and type are required")
+			}
+			coupon, couponErr := q.GetActiveCouponByCode(ctx, strings.TrimSpace(payment.CouponCode))
+			if couponErr != nil {
+				return fmt.Errorf("coupon: %w", couponErr)
+			}
+			if coupon.TypeID.Int64 != payment.CouponTypeID || coupon.ValueCents.Int64 != payment.AmountCents {
+				return fmt.Errorf("coupon value or type does not match")
+			}
+			if coupon.ValidUntil != "" {
+				expires, parseErr := time.Parse("2006-01-02", coupon.ValidUntil)
+				if parseErr == nil && time.Now().After(expires.Add(24*time.Hour)) {
+					return fmt.Errorf("coupon has expired")
+				}
+			}
+		}
 		if payment.AmountCents > math.MaxInt64-paid {
 			return fmt.Errorf("payment total is too large")
 		}
@@ -272,6 +303,34 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 	}
 	if paid-total > maxOverpaymentCents {
 		return fmt.Errorf("overpayment %d exceeds maximum allowed %d", paid-total, maxOverpaymentCents)
+	}
+	return nil
+}
+
+func recordSpecialPaymentMetadata(a *App, q *db.Queries, invoiceID, clientID int64, payments []checkoutPayment) error {
+	for _, payment := range payments {
+		account, err := q.GetCashboxAccountByID(a.ctx, payment.AccountID)
+		if err != nil {
+			return fmt.Errorf("payment account: %w", err)
+		}
+		switch {
+		case strings.EqualFold(account.Name, "On Account"):
+			client, clientErr := q.GetClientByID(a.ctx, clientID)
+			if clientErr != nil || strings.Contains(strings.ToLower(client.Name), "walk-in") {
+				return fmt.Errorf("a named client is required for on account payments")
+			}
+			if _, err := q.CreateClientAccountEntry(a.ctx, db.CreateClientAccountEntryParams{ClientID: clientID, InvoiceID: invoiceID, Amount: payment.AmountCents}); err != nil {
+				return fmt.Errorf("save client account: %w", err)
+			}
+		case strings.EqualFold(account.Name, "On Coupon"):
+			code := strings.TrimSpace(payment.CouponCode)
+			if _, err := q.CreateInvoiceCouponPayment(a.ctx, db.CreateInvoiceCouponPaymentParams{InvoiceID: invoiceID, CouponCode: code, CouponTypeID: payment.CouponTypeID, Amount: payment.AmountCents}); err != nil {
+				return fmt.Errorf("save coupon payment: %w", err)
+			}
+			if err := q.RedeemCoupon(a.ctx, db.RedeemCouponParams{RedeemedInvoiceID: sql.NullInt64{Int64: invoiceID, Valid: true}, Code: code}); err != nil {
+				return fmt.Errorf("redeem coupon: %w", err)
+			}
+		}
 	}
 	return nil
 }

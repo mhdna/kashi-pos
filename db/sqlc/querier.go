@@ -26,11 +26,14 @@ type Querier interface {
 	CreateAttendanceComplaint(ctx context.Context, arg CreateAttendanceComplaintParams) (AttendanceComplaint, error)
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
+	CreateClientAccountEntry(ctx context.Context, arg CreateClientAccountEntryParams) (ClientAccountEntry, error)
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
+	CreateCouponType(ctx context.Context, arg CreateCouponTypeParams) (CouponType, error)
 	CreateDiscountOverride(ctx context.Context, arg CreateDiscountOverrideParams) (DiscountOverride, error)
 	CreateHoldInvoice(ctx context.Context) (HoldInvoice, error)
 	CreateInventory(ctx context.Context, name string) (Inventory, error)
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error)
+	CreateInvoiceCouponPayment(ctx context.Context, arg CreateInvoiceCouponPaymentParams) (InvoiceCouponPayment, error)
 	CreateInvoicePayment(ctx context.Context, arg CreateInvoicePaymentParams) error
 	CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoicePaymentEntryParams) error
 	CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error
@@ -45,6 +48,7 @@ type Querier interface {
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	CreateValueCoupon(ctx context.Context, arg CreateValueCouponParams) (Coupon, error)
 	CreateVoidInvoice(ctx context.Context, arg CreateVoidInvoiceParams) (VoidInvoice, error)
 	DecreaseInventoryProductQuantity(ctx context.Context, arg DecreaseInventoryProductQuantityParams) (sql.Result, error)
 	DeleteAccount(ctx context.Context, id int64) error
@@ -70,11 +74,15 @@ type Querier interface {
 	DeleteTransferItems(ctx context.Context, transferID int64) error
 	DeleteUser(ctx context.Context, id int64) error
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
+	GetActiveCouponByCode(ctx context.Context, code string) (Coupon, error)
 	GetAssetByID(ctx context.Context, id int64) (Asset, error)
 	GetCashboxAccountByID(ctx context.Context, id int64) (CashboxAccount, error)
+	GetCashboxAccountByName(ctx context.Context, name string) (CashboxAccount, error)
+	GetClientAccountBalance(ctx context.Context, clientID int64) (interface{}, error)
 	GetClientByID(ctx context.Context, id int64) (Client, error)
 	GetClientByPhone(ctx context.Context, phone string) (Client, error)
 	GetCouponByCode(ctx context.Context, code string) (Coupon, error)
+	GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error)
 	GetDailyIncomeByMonth(ctx context.Context, createdAt string) ([]GetDailyIncomeByMonthRow, error)
 	GetDefaultCurrency(ctx context.Context) (Currency, error)
 	GetDiscountOverride(ctx context.Context, id int64) (DiscountOverride, error)
@@ -121,6 +129,7 @@ type Querier interface {
 	ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
 	ListCategoryIcons(ctx context.Context) ([]CategoryIcon, error)
 	ListClients(ctx context.Context) ([]Client, error)
+	ListCouponTypes(ctx context.Context) ([]CouponType, error)
 	ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error)
 	ListCurrencies(ctx context.Context) ([]Currency, error)
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
@@ -145,6 +154,7 @@ type Querier interface {
 	ListTransferItems(ctx context.Context, transferID int64) ([]TransferItem, error)
 	ListTransfers(ctx context.Context) ([]Transfer, error)
 	ListUsers(ctx context.Context) ([]User, error)
+	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)

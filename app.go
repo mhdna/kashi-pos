@@ -251,15 +251,24 @@ func (a *App) seedSalespersons() {
 
 func (a *App) seedCashboxAccounts() {
 	existing, _ := a.store.ListCashboxAccounts(context.Background())
-	if len(existing) > 0 {
-		return
-	}
 	for _, acc := range []struct{ name, currency string }{
 		{"USD", "USD"},
 		{"LBP", "LBP"},
 		{"Visa", "USD"},
 		{"Whish", "USD"},
+		{"On Account", "USD"},
+		{"On Coupon", "USD"},
 	} {
+		found := false
+		for _, current := range existing {
+			if current.Name == acc.name {
+				found = true
+				break
+			}
+		}
+		if found {
+			continue
+		}
 		if _, err := a.store.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
 			Name:         acc.name,
 			CurrencyCode: acc.currency,

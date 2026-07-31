@@ -1,5 +1,5 @@
 <template>
-  <v-btn class="px-5" variant="tonal" @click="menu = true">
+  <v-btn v-if="!hideActivator" class="px-5" variant="tonal" @click="menu = true">
     <template #prepend>
       <v-icon icon="mdi-autorenew" size="20" class="me-2" />
     </template>
@@ -235,12 +235,14 @@ import { effectiveExchangePrice, exchangeLineTotal, type ExchangeSelection } fro
 const emit = defineEmits<{
   exchange: [payload: ExchangeSelection];
 }>();
-const props = defineProps<{ roundingMode?: string }>();
+const props = defineProps<{ roundingMode?: string; hideActivator?: boolean }>();
 const roundingMode = computed(() => props.roundingMode ?? "half_up");
 
 const dialogOpen = inject<Ref<boolean>>("dialogOpen");
 const menu = ref(false);
 const exchangePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+defineExpose({ open: () => { menu.value = true; }, close: () => { menu.value = false; } });
 const {
   loading,
   scanning,

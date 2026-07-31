@@ -52,3 +52,35 @@ UPDATE coupons SET status = ? WHERE code = ?;
 
 -- name: DeleteCoupon :exec
 DELETE FROM coupons WHERE code = ?;
+
+-- name: CreateClientAccountEntry :one
+INSERT INTO client_account_entries (client_id, invoice_id, amount)
+VALUES (?, ?, ?) RETURNING *;
+
+-- name: GetClientAccountBalance :one
+SELECT COALESCE(SUM(amount), 0) AS balance
+FROM client_account_entries WHERE client_id = ?;
+
+-- name: CreateCouponType :one
+INSERT INTO coupon_types (name, value_cents, currency_code, is_active)
+VALUES (?, ?, ?, ?) RETURNING *;
+
+-- name: ListCouponTypes :many
+SELECT * FROM coupon_types ORDER BY name;
+
+-- name: GetCouponTypeByID :one
+SELECT * FROM coupon_types WHERE id = ?;
+
+-- name: CreateValueCoupon :one
+INSERT INTO coupons (code, status, discount_type, reason, client_id, valid_until, type_id, value_cents)
+VALUES (?, 'active', 'fixed', ?, ?, ?, ?, ?) RETURNING *;
+
+-- name: GetActiveCouponByCode :one
+SELECT * FROM coupons WHERE code = ? AND status = 'active' AND redeemed_invoice_id IS NULL;
+
+-- name: RedeemCoupon :exec
+UPDATE coupons SET status = 'inactive', redeemed_invoice_id = ? WHERE code = ? AND status = 'active' AND redeemed_invoice_id IS NULL;
+
+-- name: CreateInvoiceCouponPayment :one
+INSERT INTO invoice_coupon_payments (invoice_id, coupon_code, coupon_type_id, amount)
+VALUES (?, ?, ?, ?) RETURNING *;

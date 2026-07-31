@@ -1,6 +1,9 @@
 -- name: GetCashboxAccountByID :one
 SELECT * FROM cashbox_accounts WHERE id = ?;
 
+-- name: GetCashboxAccountByName :one
+SELECT * FROM cashbox_accounts WHERE name = ?;
+
 -- name: ListCashboxAccounts :many
 SELECT * FROM cashbox_accounts ORDER BY id;
 

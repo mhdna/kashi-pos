@@ -6,8 +6,10 @@
         :key="item.value"
         class="nav-item"
         :disabled="item.locked"
-        :to="item.locked ? undefined : item.to"
-        :value="item.value"
+        :to="item.locked || item.action ? undefined : item.to"
+        :value="item.action ? undefined : item.value"
+        :active="item.action ? false : undefined"
+        @click="item.action?.()"
       >
         <div class="nav-item-content">
           <v-badge
@@ -20,7 +22,7 @@
           >
             <v-icon :icon="item.icon" size="20" />
           </v-badge>
-          <span class="text-caption text-center mt-1">{{ item.t }}</span>
+          <span class="nav-item-label text-center mt-1">{{ item.t }}</span>
         </div>
       </v-list-item>
 
@@ -32,7 +34,7 @@
       >
         <div class="nav-item-content">
           <v-icon icon="mdi-close-circle-outline" size="20" />
-          <span class="text-caption text-center mt-1">Close Shift</span>
+          <span class="nav-item-label text-center mt-1">Close Shift</span>
         </div>
       </v-list-item>
     </v-list>
@@ -45,15 +47,30 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { pendingNavAction } from "@/composables/useNavActions";
 import CloseShiftCard from "./CloseShiftCard.vue";
 
 const auth = useAuthStore();
+const router = useRouter();
 const closeShiftDialog = ref(false);
+
+function onHoldClick() {
+  pendingNavAction.value = "onhold";
+  router.push("/home");
+}
+
+function onExchangeClick() {
+  pendingNavAction.value = "exchange";
+  router.push("/home");
+}
 
 const items = computed(() => {
   const all = [
     { value: "invoice", to: "/home", icon: "mdi-cash-register", t: "Invoice" },
+    { value: "onhold", icon: "mdi-pause", t: "On Hold", action: onHoldClick },
+    { value: "exchange", icon: "mdi-autorenew", t: "Exchange", action: onExchangeClick },
     {
       value: "invoices-list",
       to: "/invoices-list",
@@ -113,5 +130,10 @@ const items = computed(() => {
 .nav-item :deep(.v-badge) {
   flex-shrink: 0;
   transform: translateZ(0);
+}
+
+.nav-item-label {
+  font-size: 0.8125rem;
+  line-height: 1.2;
 }
 </style>

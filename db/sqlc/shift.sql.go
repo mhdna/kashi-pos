@@ -160,6 +160,17 @@ func (q *Queries) GetCashboxAccountByID(ctx context.Context, id int64) (CashboxA
 	return i, err
 }
 
+const getCashboxAccountByName = `-- name: GetCashboxAccountByName :one
+SELECT id, name, currency_code FROM cashbox_accounts WHERE name = ?
+`
+
+func (q *Queries) GetCashboxAccountByName(ctx context.Context, name string) (CashboxAccount, error) {
+	row := q.db.QueryRowContext(ctx, getCashboxAccountByName, name)
+	var i CashboxAccount
+	err := row.Scan(&i.ID, &i.Name, &i.CurrencyCode)
+	return i, err
+}
+
 const getOpenShift = `-- name: GetOpenShift :one
 SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown FROM shifts WHERE is_closed = 0 LIMIT 1
 `

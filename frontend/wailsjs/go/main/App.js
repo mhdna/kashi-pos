@@ -50,6 +50,14 @@ export function CreateClient(arg1, arg2) {
   return window['go']['main']['App']['CreateClient'](arg1, arg2);
 }
 
+export function CreateCoupon(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateCoupon'](arg1, arg2, arg3);
+}
+
+export function CreateCouponType(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3);
+}
+
 export function CreateSalesperson(arg1) {
   return window['go']['main']['App']['CreateSalesperson'](arg1);
 }
@@ -168,6 +176,10 @@ export function ListCategoryIcons() {
 
 export function ListClients() {
   return window['go']['main']['App']['ListClients']();
+}
+
+export function ListCouponTypes() {
+  return window['go']['main']['App']['ListCouponTypes']();
 }
 
 export function ListCurrencies() {

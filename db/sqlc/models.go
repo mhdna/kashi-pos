@@ -72,14 +72,33 @@ type Client struct {
 	CreatedAt          string `json:"createdAt"`
 }
 
+type ClientAccountEntry struct {
+	ID        int64  `json:"id"`
+	ClientID  int64  `json:"clientId"`
+	InvoiceID int64  `json:"invoiceId"`
+	Amount    int64  `json:"amount"`
+	CreatedAt string `json:"createdAt"`
+}
+
 type Coupon struct {
-	Code         string `json:"code"`
-	Status       string `json:"status"`
-	DiscountType string `json:"discountType"`
-	Reason       string `json:"reason"`
-	ClientID     int64  `json:"clientId"`
-	ValidUntil   string `json:"validUntil"`
-	CreatedAt    string `json:"createdAt"`
+	Code              string        `json:"code"`
+	Status            string        `json:"status"`
+	DiscountType      string        `json:"discountType"`
+	Reason            string        `json:"reason"`
+	ClientID          int64         `json:"clientId"`
+	ValidUntil        string        `json:"validUntil"`
+	CreatedAt         string        `json:"createdAt"`
+	TypeID            sql.NullInt64 `json:"typeId"`
+	ValueCents        sql.NullInt64 `json:"valueCents"`
+	RedeemedInvoiceID sql.NullInt64 `json:"redeemedInvoiceId"`
+}
+
+type CouponType struct {
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	ValueCents   int64  `json:"valueCents"`
+	CurrencyCode string `json:"currencyCode"`
+	IsActive     int64  `json:"isActive"`
 }
 
 type Currency struct {
@@ -144,6 +163,13 @@ type Invoice struct {
 	CreatedAt       string `json:"createdAt"`
 	SalespersonID   int64  `json:"salespersonId"`
 	Notes           string `json:"notes"`
+}
+
+type InvoiceCouponPayment struct {
+	InvoiceID    int64  `json:"invoiceId"`
+	CouponCode   string `json:"couponCode"`
+	CouponTypeID int64  `json:"couponTypeId"`
+	Amount       int64  `json:"amount"`
 }
 
 type InvoiceIndex struct {

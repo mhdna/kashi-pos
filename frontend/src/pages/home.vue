@@ -36,11 +36,41 @@
                 </div>
               </v-card>
             </v-menu>
-            <div class="me-2">
-              <OnHoldMenu v-if="!exchangeState" @restore="onRestoreHold" />
-            </div>
+            <v-btn
+              v-if="!exchangeState"
+              class="px-3 me-1"
+              variant="tonal"
+              style="min-width: 120px"
+              :disabled="!hasItems"
+              @click="accountDialog = true"
+            >
+              <template #prepend>
+                <v-icon icon="mdi-account" size="18" class="me-1" />
+              </template>
+              On Account
+            </v-btn>
+            <v-btn
+              v-if="!exchangeState"
+              class="px-3"
+              variant="tonal"
+              style="min-width: 120px"
+              @click="calculator?.openCouponDialog()"
+            >
+              <template #prepend>
+                <v-icon icon="mdi-sale-outline" size="18" class="me-1" />
+              </template>
+              Apply Coupon
+            </v-btn>
+            <OnHoldMenu
+              v-if="!exchangeState"
+              ref="onHoldMenuRef"
+              hide-activator
+              @restore="onRestoreHold"
+            />
             <ReturnInvoiceMenu
               v-if="!exchangeState"
+              ref="returnInvoiceMenuRef"
+              hide-activator
               :rounding-mode="roundingMode"
               @exchange="onExchange"
             />
@@ -123,7 +153,7 @@
         </v-card>
       </div>
       <div class="mb-3 mt-1" style="flex: 3 3 0; min-width: 0">
-        <Calculator ref="calculator" :total="invoiceTotal" :rounding-mode="roundingMode" />
+        <Calculator ref="calculator" :total="invoiceTotal" :client-id="actionBar?.clientId" :rounding-mode="roundingMode" />
       </div>
       <div style="flex: 2 2 0; min-width: 0">
         <ActionBar
@@ -139,7 +169,10 @@
         />
       </div>
     </div>
+
   </div>
+
+  <AccountDialog v-model="accountDialog" @select="onAccountClientSelect" />
 
   <v-overlay v-model="printing" class="align-center justify-center" persistent>
     <v-card class="pa-8 text-center" width="300">
@@ -176,6 +209,7 @@ import {
   WriteToScreen,
 } from "../../wailsjs/go/main/App";
 import ActionBar from "@/components/ActionBar.vue";
+import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
 // import InvoiceSummary from "@/components/InvoiceSummary.vue";
@@ -187,6 +221,7 @@ import type { ExchangeSelection } from "@/lib/exchange";
 import { roundCents } from "@/lib/money";
 import type { Client } from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
+import { pendingNavAction } from "@/composables/useNavActions";
 
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
 type InvoiceDraft = { items: any[]; client: Client; notes?: string };
@@ -213,6 +248,9 @@ const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
 const productSearchDialog = ref<InstanceType<typeof ProductSearchDialog> | null>(null);
+const onHoldMenuRef = ref<InstanceType<typeof OnHoldMenu> | null>(null);
+const returnInvoiceMenuRef = ref<InstanceType<typeof ReturnInvoiceMenu> | null>(null);
+const accountDialog = ref(false);
 
 const invoiceTotal = computed(() => {
   const discountedCents = invoiceItems.value?.discountedSubtotalCents ?? 0;
@@ -229,6 +267,7 @@ const canCheckout = computed(
     clientSelected.value &&
     salespersonSelected.value,
 );
+
 const barcodeValue = ref("");
 const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
 const dialogOpen = ref(false);
@@ -248,6 +287,15 @@ watch(dialogOpen, (v) => {
 
 watch(noteMenu, (open) => {
   if (open) noteDraft.value = invoiceNotes.value;
+});
+
+watch(pendingNavAction, (action) => {
+  if (!action) return;
+  nextTick(() => {
+    if (action === "onhold") onHoldMenuRef.value?.open();
+    else if (action === "exchange") returnInvoiceMenuRef.value?.open();
+    pendingNavAction.value = null;
+  });
 });
 
 watch(
@@ -359,6 +407,11 @@ function onProductSelect(product: {
 }) {
   invoiceItems.value?.addItem(product);
   focusBarcode();
+}
+
+function onAccountClientSelect(client: Client) {
+  actionBar.value?.setClient(client);
+  nextTick(() => calculator.value?.addOnAccount());
 }
 
 async function onBarcodeEnter() {
