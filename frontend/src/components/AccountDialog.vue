@@ -39,7 +39,7 @@
       </v-card-text>
       <v-divider />
       <v-card-actions>
-        <v-btn prepend-icon="mdi-account-plus" color="primary" variant="tonal" @click="newClientDialog = true">
+        <v-btn prepend-icon="mdi-account-plus" color="primary" variant="tonal" @click="openNewClientDialog">
           New customer
         </v-btn>
         <v-spacer />
@@ -51,8 +51,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { ListClients } from "../../wailsjs/go/main/App";
+import { computed, nextTick, ref, watch } from "vue";
+import { SearchClients } from "../../wailsjs/go/main/App";
 import ClientDialog from "@/components/ClientDialog.vue";
 import { toClient, type Client } from "@/lib/client";
 
@@ -61,6 +61,8 @@ const dialog = defineModel<boolean>({ default: false });
 const newClientDialog = ref(false);
 const search = ref("");
 const clients = ref<Client[]>([]);
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+let latestRequest = 0;
 
 const filteredClients = computed(() => {
   const query = search.value.trim().toLowerCase();
@@ -70,17 +72,42 @@ const filteredClients = computed(() => {
   );
 });
 
-watch(dialog, async (open) => {
+watch(dialog, (open) => {
+  clearTimeout(searchTimer);
+  latestRequest++;
   if (!open) return;
   search.value = "";
+  void loadClients("");
+});
+
+watch(search, (value) => {
+  if (!dialog.value) return;
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => void loadClients(value), 200);
+});
+
+async function loadClients(query: string) {
+  const request = ++latestRequest;
   try {
-    clients.value = (await ListClients())
+    const result = await SearchClients(query.trim(), 0);
+    if (request !== latestRequest || !dialog.value) return;
+    clients.value = result
       .map((client: any) => toClient(client))
       .filter((client) => client.id > 0 && !/walk[\s-]?in|anonymous/i.test(client.name));
   } catch {
+    if (request !== latestRequest) return;
     clients.value = [];
   }
-});
+}
+
+function openNewClientDialog() {
+  // Do not stack two v-dialog focus traps. Render the child after the parent
+  // has closed so Vuetify only has one active modal overlay.
+  dialog.value = false;
+  void nextTick(() => {
+    newClientDialog.value = true;
+  });
+}
 
 function selectClient(client: Client) {
   emit("select", toClient(client));

@@ -91,6 +91,8 @@ func shiftReportPreviewData() printReceiptData {
 			{Denomination: 1, Count: 3},
 		},
 		ExpectedLBP: 45000000, CountedLBP: 45100000,
+		ExpectedVisa: 25350, CountedVisa: 25000,
+		ExpectedWhish: 10000, CountedWhish: 10000,
 		ExchangeRate: 90000, RoundingMode: roundingHalfUp,
 	}
 	return printReceiptData{
@@ -128,6 +130,8 @@ func TestCloseShiftStoresClosingPersonAndCounts(t *testing.T) {
 		shift.ID,
 		person.ID,
 		45100000,
+		12000,
+		8000,
 		`{"100":6,"50":2,"20":0,"10":1,"5":1,"1":3}`,
 	)
 	if err != nil {
@@ -142,6 +146,7 @@ func TestCloseShiftStoresClosingPersonAndCounts(t *testing.T) {
 	}
 	if closed.IsClosed != 1 || closed.ClosedBySalespersonID != person.ID ||
 		closed.CountedUsd != 71800 || closed.CountedLbp != 45100000 ||
+		closed.CountedVisa != 12000 || closed.CountedWhish != 8000 ||
 		closed.CountedUsdBreakdown == "" {
 		t.Fatalf("stored close data = %#v", closed)
 	}

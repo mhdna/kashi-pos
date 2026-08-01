@@ -124,8 +124,8 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stock.Quantity != 2 {
-		t.Fatalf("stock = %d, want 2", stock.Quantity)
+	if stock.Quantity != 5 {
+		t.Fatalf("stock = %d, want 5 while checkout inventory mutation is disabled", stock.Quantity)
 	}
 	if client, err := store.GetClientByID(ctx, client.ID); err != nil || client.TotalLoyaltyPoints != 3 {
 		t.Fatalf("loyalty points = %+v, err=%v", client, err)

@@ -32,6 +32,8 @@ SET is_closed = 1,
     closed_by_salesperson_id = ?,
     counted_usd = ?,
     counted_lbp = ?,
+    counted_visa = ?,
+    counted_whish = ?,
     counted_usd_breakdown = ?
 WHERE id = ? AND is_closed = 0;
 
@@ -61,7 +63,26 @@ RETURNING account_id, shift_id, balance;
 
 -- name: GetShiftTotals :many
 SELECT s.id, s.is_closed, s.created_at, s.closed_at,
-       COALESCE(SUM(i.grand_total), 0) as total,
+       COALESCE((
+           SELECT SUM(value) FROM (
+               SELECT ip.amount AS value
+               FROM invoices income_i
+               JOIN invoice_payments ip ON ip.invoice_id = income_i.id
+               JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
+               WHERE income_i.shift_id = s.id AND lower(trim(ca.name)) <> 'on account'
+               UNION ALL
+               SELECT income_i.grand_total AS value
+               FROM invoices income_i
+               JOIN cashbox_accounts ca ON ca.id = income_i.cashbox_id
+               WHERE income_i.shift_id = s.id
+                 AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = income_i.id)
+                 AND lower(trim(ca.name)) <> 'on account'
+               UNION ALL
+               SELECT cap.amount AS value
+               FROM client_account_payments cap
+               WHERE cap.shift_id = s.id
+           )
+       ), 0) as total,
        COALESCE((
            SELECT SUM(MAX(p.price - ip.unit_price, 0) * ip.quantity)
            FROM invoice_products ip
@@ -71,8 +92,6 @@ SELECT s.id, s.is_closed, s.created_at, s.closed_at,
            WHERE shift_i.shift_id = s.id
        ), 0) AS price_deductions
 FROM shifts s
-LEFT JOIN invoices i ON i.shift_id = s.id
-GROUP BY s.id
 ORDER BY s.id DESC;
 
 -- name: GetShiftReportSummary :one
@@ -140,6 +159,10 @@ WITH invoice_account_totals AS (
       AND NOT EXISTS (
           SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id
       )
+    UNION ALL
+    SELECT 0 AS invoice_id, cap.cashbox_id, cap.amount
+    FROM client_account_payments cap
+    WHERE cap.shift_id = sqlc.arg(report_shift_id)
 )
 SELECT ca.id AS account_id, ca.name AS account_name, ca.currency_code,
        COALESCE(SUM(t.amount), 0) AS total
@@ -147,3 +170,17 @@ FROM invoice_account_totals t
 JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
 GROUP BY ca.id, ca.name, ca.currency_code
 ORDER BY ca.id;
+
+-- name: GetShiftInvoicePaymentTotal :one
+WITH invoice_account_totals AS (
+    SELECT ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = sqlc.arg(report_shift_id)
+    UNION ALL
+    SELECT i.grand_total
+    FROM invoices i
+    WHERE i.shift_id = sqlc.arg(report_shift_id)
+      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+)
+SELECT COALESCE(SUM(amount), 0) FROM invoice_account_totals;

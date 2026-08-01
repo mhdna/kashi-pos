@@ -102,8 +102,12 @@
             }}</v-chip>
           </div>
           <v-list class="pa-0 mb-4" density="compact">
-            <v-list-item v-for="line in selected.items" :key="line.code">
-              <template #title>{{ line.name }}</template
+            <v-list-item v-for="line in selected.items" :key="`${line.barcode}-${line.price}-${line.discount}`">
+              <template #title>
+                {{ line.name }}
+                <v-chip v-if="line.color" size="x-small" variant="tonal" class="ms-2">{{ line.color }}</v-chip>
+                <v-chip v-if="line.size" size="x-small" variant="outlined" class="ms-1">{{ line.size }}</v-chip>
+              </template
               ><template #subtitle
                 >{{ line.qty }} × ${{ Number(line.price).toFixed(2)
                 }}<span v-if="line.discount"> · {{ line.discount }}% discount</span></template

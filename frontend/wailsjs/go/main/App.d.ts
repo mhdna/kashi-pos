@@ -22,7 +22,7 @@ export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,
 
 export function ClearScreen(arg1:string):Promise<void>;
 
-export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:string):Promise<Record<string, any>>;
+export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
@@ -51,6 +51,8 @@ export function GetAdminConfig():Promise<Record<string, any>>;
 export function GetAppSettings():Promise<Record<string, any>>;
 
 export function GetAttendanceConfig():Promise<Record<string, any>>;
+
+export function GetClientAccountDetails(arg1:number):Promise<Record<string, any>>;
 
 export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
 
@@ -127,6 +129,8 @@ export function ListTransfers():Promise<Array<Record<string, any>>>;
 export function ListUsers():Promise<Array<Record<string, any>>>;
 
 export function OpenShift():Promise<Record<string, any>>;
+
+export function PayClientAccount(arg1:number,arg2:number,arg3:number):Promise<Record<string, any>>;
 
 export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>>;
 

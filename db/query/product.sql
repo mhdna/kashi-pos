@@ -5,7 +5,7 @@ SELECT * FROM products WHERE id = ?;
 SELECT * FROM products WHERE barcode = ?;
 
 -- name: GetProductByCode :one
-SELECT * FROM products WHERE code = ?;
+SELECT * FROM products WHERE code = ? ORDER BY id LIMIT 1;
 
 -- name: ListProducts :many
 SELECT * FROM products ORDER BY id;
@@ -18,6 +18,8 @@ SELECT * FROM products
 WHERE name LIKE '%' || sqlc.arg(search) || '%'
    OR code LIKE '%' || sqlc.arg(search) || '%'
    OR barcode LIKE '%' || sqlc.arg(search) || '%'
+   OR color LIKE '%' || sqlc.arg(search) || '%'
+   OR size LIKE '%' || sqlc.arg(search) || '%'
 ORDER BY id
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
@@ -30,19 +32,22 @@ LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 SELECT COUNT(*) FROM products
 WHERE name LIKE '%' || sqlc.arg(search) || '%'
    OR code LIKE '%' || sqlc.arg(search) || '%'
-   OR barcode LIKE '%' || sqlc.arg(search) || '%';
+   OR barcode LIKE '%' || sqlc.arg(search) || '%'
+   OR color LIKE '%' || sqlc.arg(search) || '%'
+   OR size LIKE '%' || sqlc.arg(search) || '%';
 
 -- name: CountAllProducts :one
 SELECT COUNT(*) FROM products;
 
 -- name: CreateProduct :one
-INSERT INTO products (barcode, code, name, description, is_active, price, discount)
-VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *;
+INSERT INTO products (barcode, code, name, description, is_active, price, discount, color, size, currency_code, brand, family, kind, season, product_year)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *;
 
 -- name: UpdateProduct :one
 UPDATE products
 SET barcode = ?, code = ?, name = ?, description = ?,
-    is_active = ?, price = ?, discount = ?
+    is_active = ?, price = ?, discount = ?, color = ?, size = ?, currency_code = ?,
+    brand = ?, family = ?, kind = ?, season = ?, product_year = ?
 WHERE id = ? RETURNING *;
 
 -- name: DeleteProduct :exec

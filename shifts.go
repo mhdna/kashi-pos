@@ -38,6 +38,8 @@ func shiftToMap(s db.Shift) map[string]any {
 		"closedBySalespersonId": s.ClosedBySalespersonID,
 		"countedUsd":            s.CountedUsd,
 		"countedLbp":            s.CountedLbp,
+		"countedVisa":           s.CountedVisa,
+		"countedWhish":          s.CountedWhish,
 		"countedUsdBreakdown":   s.CountedUsdBreakdown,
 	}
 }
@@ -73,7 +75,7 @@ func (a *App) GetOpenShift() (map[string]any, error) {
 	return shiftToMap(shift), nil
 }
 
-func (a *App) CloseShiftByID(id, closingPersonID, countedLBP int64, usdBreakdownJSON string) (map[string]any, error) {
+func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, countedWhish int64, usdBreakdownJSON string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -86,6 +88,9 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP int64, usdBreakdown
 	if countedLBP < 0 {
 		return nil, fmt.Errorf("counted LBP cannot be negative")
 	}
+	if countedVisa < 0 || countedWhish < 0 {
+		return nil, fmt.Errorf("counted Visa and Whish cannot be negative")
+	}
 	usdBillCounts, countedUSD, canonicalBreakdown, err := parseUSDBillCounts(usdBreakdownJSON)
 	if err != nil {
 		return nil, err
@@ -93,7 +98,7 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP int64, usdBreakdown
 
 	closedAt := time.Now().Format("2006-01-02 15:04:05")
 	printData, receiptEnabled, err := a.buildShiftClosePrintData(
-		id, closingPersonID, countedUSD, countedLBP, usdBillCounts, closedAt,
+		id, closingPersonID, countedUSD, countedLBP, countedVisa, countedWhish, usdBillCounts, closedAt,
 		true,
 	)
 	if err != nil {
@@ -105,6 +110,8 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP int64, usdBreakdown
 		ClosedBySalespersonID: closingPersonID,
 		CountedUsd:            countedUSD,
 		CountedLbp:            countedLBP,
+		CountedVisa:           countedVisa,
+		CountedWhish:          countedWhish,
 		CountedUsdBreakdown:   canonicalBreakdown,
 		ID:                    id,
 	})
@@ -147,7 +154,7 @@ func (a *App) PrintCurrentCloseShiftSample() (map[string]any, error) {
 	}
 
 	printData, _, err := a.buildShiftClosePrintData(
-		shift.ID, salespersons[0].ID, 0, 0, nil,
+		shift.ID, salespersons[0].ID, 0, 0, 0, 0, nil,
 		time.Now().Format("2006-01-02 15:04:05"), true,
 	)
 	if err != nil {
@@ -184,7 +191,7 @@ func (a *App) PrintClosedShiftReceipt(shiftID int64) (map[string]any, error) {
 		return nil, err
 	}
 	printData, receiptEnabled, err := a.buildShiftClosePrintData(
-		shift.ID, shift.ClosedBySalespersonID, shift.CountedUsd, shift.CountedLbp,
+		shift.ID, shift.ClosedBySalespersonID, shift.CountedUsd, shift.CountedLbp, shift.CountedVisa, shift.CountedWhish,
 		usdBillCounts, shift.ClosedAt, false,
 	)
 	if err != nil {
@@ -200,7 +207,7 @@ func (a *App) PrintClosedShiftReceipt(shiftID int64) (map[string]any, error) {
 }
 
 func (a *App) buildShiftClosePrintData(
-	shiftID, closingPersonID, countedUSD, countedLBP int64,
+	shiftID, closingPersonID, countedUSD, countedLBP, countedVisa, countedWhish int64,
 	usdBillCounts []shiftDenominationCount,
 	closedAt string,
 	requireOpen bool,
@@ -232,12 +239,21 @@ func (a *App) buildShiftClosePrintData(
 	if err != nil {
 		return printReceiptData{}, false, fmt.Errorf("shift payment totals: %w", err)
 	}
+	invoicePaymentTotal, err := a.store.GetShiftInvoicePaymentTotal(a.ctx, shiftID)
+	if err != nil {
+		return printReceiptData{}, false, fmt.Errorf("shift invoice payment total: %w", err)
+	}
 
 	payments := make([]receiptPayment, 0, len(paymentRows))
-	totalPayments := sumShiftPaymentTotals(paymentRows)
-	var expectedUSD, expectedLBPCents int64
+	var totalPayments, onAccount int64
+	var expectedUSD, expectedLBPCents, expectedVisa, expectedWhish int64
 	for _, row := range paymentRows {
 		total := databaseInt64(row.Total)
+		if strings.EqualFold(strings.TrimSpace(row.AccountName), "On Account") {
+			onAccount += total
+		} else {
+			totalPayments += total
+		}
 		payments = append(payments, receiptPayment{
 			AccountID:    row.AccountID,
 			AccountName:  row.AccountName,
@@ -245,6 +261,15 @@ func (a *App) buildShiftClosePrintData(
 			AmountCents:  total,
 			EntryType:    "payment",
 		})
+		accountName := strings.TrimSpace(row.AccountName)
+		if strings.EqualFold(accountName, "Visa") && strings.EqualFold(row.CurrencyCode, "USD") {
+			expectedVisa += total
+			continue
+		}
+		if strings.EqualFold(accountName, "Whish") && strings.EqualFold(row.CurrencyCode, "USD") {
+			expectedWhish += total
+			continue
+		}
 		if !isCashAccount(row.AccountName, row.CurrencyCode) {
 			continue
 		}
@@ -263,11 +288,10 @@ func (a *App) buildShiftClosePrintData(
 	if roundErr != nil {
 		expectedLBP = expectedLBPCents * rate / 100
 	}
-	overpayment := totalPayments - databaseInt64(summary.NetSales)
+	overpayment := databaseInt64(invoicePaymentTotal) - databaseInt64(summary.NetSales)
 	if overpayment < 0 {
 		overpayment = 0
 	}
-
 	report := &shiftReportData{
 		ShiftID:         shift.ID,
 		Cashier:         closingPersonName,
@@ -286,6 +310,7 @@ func (a *App) buildShiftClosePrintData(
 		Tax:             databaseInt64(summary.Tax),
 		NetSales:        databaseInt64(summary.NetSales),
 		TotalPayments:   totalPayments,
+		OnAccount:       onAccount,
 		Overpayment:     overpayment,
 		Payments:        payments,
 		ExpectedUSD:     expectedUSD,
@@ -293,6 +318,10 @@ func (a *App) buildShiftClosePrintData(
 		USDBillCounts:   usdBillCounts,
 		ExpectedLBP:     expectedLBP,
 		CountedLBP:      countedLBP,
+		ExpectedVisa:    expectedVisa,
+		CountedVisa:     countedVisa,
+		ExpectedWhish:   expectedWhish,
+		CountedWhish:    countedWhish,
 		ExchangeRate:    rate,
 		RoundingMode:    settings.RoundingMode,
 	}

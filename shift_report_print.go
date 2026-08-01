@@ -23,6 +23,7 @@ type shiftReportData struct {
 	Tax             int64
 	NetSales        int64
 	TotalPayments   int64
+	OnAccount       int64
 	Overpayment     int64
 	Payments        []receiptPayment
 	ExpectedUSD     int64
@@ -30,6 +31,10 @@ type shiftReportData struct {
 	USDBillCounts   []shiftDenominationCount
 	ExpectedLBP     int64
 	CountedLBP      int64
+	ExpectedVisa    int64
+	CountedVisa     int64
+	ExpectedWhish   int64
+	CountedWhish    int64
 	ExchangeRate    int64
 	RoundingMode    string
 }
@@ -102,6 +107,9 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	y = c.reportSection(y, "PAYMENT DETAILS")
 	for _, payment := range report.Payments {
 		label := "Received - " + fallbackReceiptValue(payment.AccountName, "Cash")
+		if strings.EqualFold(strings.TrimSpace(payment.AccountName), "On Account") {
+			label = "ON ACCOUNT (NOT COLLECTED)"
+		}
 		y, _ = c.twoCol(y, label, formatReceiptPayment(payment, report.ExchangeRate, report.RoundingMode), 10, true)
 		y += 7
 	}
@@ -109,8 +117,12 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		y = c.reportRow(y, "No payments", "-", false)
 	}
 	y = c.rule(y+3) + 12
-	y, _ = c.twoCol(y, "TOTAL PAYMENTS", formatShiftUSD(report.TotalPayments), c.data.BodySize, true)
+	y, _ = c.twoCol(y, "COLLECTED INCOME", formatShiftUSD(report.TotalPayments), c.data.BodySize, true)
 	y += 8
+	if report.OnAccount > 0 {
+		y, _ = c.twoCol(y, "ON ACCOUNT", formatShiftUSD(report.OnAccount), c.data.BodySize, true)
+		y += 8
+	}
 	if report.Overpayment > 0 {
 		y, _ = c.twoCol(y, "OVERPAYMENT", formatShiftUSD(report.Overpayment), c.data.BodySize, true)
 		y += 8
@@ -136,6 +148,18 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	y = c.reportRow(y, "Expected", formatShiftLBP(report.ExpectedLBP), false)
 	y = c.reportRow(y, "Counted", formatShiftLBP(report.CountedLBP), false)
 	y = c.reportRow(y, "Difference", formatSignedShiftLBP(report.CountedLBP-report.ExpectedLBP), true)
+	y += 7
+	y, _ = c.left(y, "VISA", c.data.BodySize-1, true)
+	y += 7
+	y = c.reportRow(y, "Expected", formatShiftUSD(report.ExpectedVisa), false)
+	y = c.reportRow(y, "Counted", formatShiftUSD(report.CountedVisa), false)
+	y = c.reportRow(y, "Difference", formatSignedShiftUSD(report.CountedVisa-report.ExpectedVisa), true)
+	y += 7
+	y, _ = c.left(y, "WHISH", c.data.BodySize-1, true)
+	y += 7
+	y = c.reportRow(y, "Expected", formatShiftUSD(report.ExpectedWhish), false)
+	y = c.reportRow(y, "Counted", formatShiftUSD(report.CountedWhish), false)
+	y = c.reportRow(y, "Difference", formatSignedShiftUSD(report.CountedWhish-report.ExpectedWhish), true)
 
 	y = c.rule(y+9) + 10
 	y, _ = c.center(y, "SHIFT STATUS: CLOSED", c.data.BodySize-1, true, false)

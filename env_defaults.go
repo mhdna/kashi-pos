@@ -143,7 +143,7 @@ func defaultSettingsParams() db.UpsertSettingsParams {
 		ReceiptEnabled:      boolInt(envBool("KASHI_RECEIPT_ENABLED", false)),
 		SalesInventoryID:    envInt64("KASHI_SALES_INVENTORY_ID", 0),
 		ExchangeRate:        envInt64("KASHI_EXCHANGE_RATE", 90000),
-		MaxOverpaymentCents: envInt64("KASHI_MAX_OVERPAYMENT_CENTS", 60),
+		MaxOverpaymentCents: envInt64("KASHI_MAX_OVERPAYMENT_CENTS", 0),
 		MarketName:          envString("KASHI_MARKET_NAME", "Main"),
 		MarketPhone:         envString("KASHI_MARKET_PHONE", ""),
 		MarketDescription:   envString("KASHI_MARKET_DESCRIPTION", "Shop for all"),

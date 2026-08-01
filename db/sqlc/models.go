@@ -80,6 +80,15 @@ type ClientAccountEntry struct {
 	CreatedAt string `json:"createdAt"`
 }
 
+type ClientAccountPayment struct {
+	ID        int64  `json:"id"`
+	InvoiceID int64  `json:"invoiceId"`
+	CashboxID int64  `json:"cashboxId"`
+	ShiftID   int64  `json:"shiftId"`
+	Amount    int64  `json:"amount"`
+	CreatedAt string `json:"createdAt"`
+}
+
 type Coupon struct {
 	Code              string        `json:"code"`
 	Status            string        `json:"status"`
@@ -235,6 +244,11 @@ type Product struct {
 	Size         string `json:"size"`
 	CurrencyCode string `json:"currencyCode"`
 	CreatedAt    string `json:"createdAt"`
+	Brand        string `json:"brand"`
+	Family       string `json:"family"`
+	Kind         string `json:"kind"`
+	Season       string `json:"season"`
+	ProductYear  int64  `json:"productYear"`
 }
 
 type ReturnInvoice struct {
@@ -305,6 +319,8 @@ type Shift struct {
 	CountedUsd            int64  `json:"countedUsd"`
 	CountedLbp            int64  `json:"countedLbp"`
 	CountedUsdBreakdown   string `json:"countedUsdBreakdown"`
+	CountedVisa           int64  `json:"countedVisa"`
+	CountedWhish          int64  `json:"countedWhish"`
 }
 
 type ShiftsAccountsBalance struct {

@@ -166,11 +166,13 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 	}); err != nil {
 		return err
 	}
-	if err := q.AddInventoryProductQuantity(a.ctx, db.AddInventoryProductQuantityParams{
-		InventoryID: inventoryID, ProductID: priced.returnedProduct.ID, Quantity: 1,
-	}); err != nil {
-		return err
-	}
+	// Inventory mutation is temporarily disabled during checkout.
+	// Stock will be reconciled by the inventory workflow separately.
+	// if err := q.AddInventoryProductQuantity(a.ctx, db.AddInventoryProductQuantityParams{
+	// 	InventoryID: inventoryID, ProductID: priced.returnedProduct.ID, Quantity: 1,
+	// }); err != nil {
+	// 	return err
+	// }
 	for _, replacement := range priced.replacements {
 		if err := q.CreateInvoiceProduct(a.ctx, db.CreateInvoiceProductParams{
 			InvoiceID: invoiceID, ProductID: replacement.product.ID,

@@ -5,7 +5,7 @@
     <div class="shifts-cards d-flex">
       <ShiftIncomeCard
         :items="shiftIncome"
-        :shift-id="openShift?.id"
+        title="Today's Income"
         :loading="loadingShift"
         :exchange-rate="exchangeRate"
       />
@@ -50,6 +50,7 @@ import {
   GetCurrentMonth,
   GetOpenShift,
   GetShiftTotals,
+  GetTodayIncomeByAccount,
   GetAppSettings,
   ListShiftBalances,
   ListSalespersons,
@@ -84,10 +85,12 @@ const currentDay = computed(() => {
   return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
 });
 const shiftIncome = computed<IncomeRow[]>(() =>
-  closeBalances.value.map((balance) => ({
-    accountName: balance.accountName,
-    currencyCode: balance.currencyCode,
-    total: Number(balance.balance) || 0,
+  todayIncome.value.map((income) => ({
+    accountName: income.accountName,
+    currencyCode: income.currencyCode,
+    total: Number(income.total) || 0,
+    isOnAccount: income.isOnAccount,
+    isCollected: income.isCollected,
   })),
 );
 
@@ -205,9 +208,16 @@ async function loadBalances(shiftId: number) {
 
 const closeDialog = ref(false);
 const closeBalances = ref<Balance[]>([]);
+const todayIncome = ref<IncomeRow[]>([]);
 const closing = ref(false);
 
-async function doCloseShift(closingPersonId: number, countedLbp: number, usdBreakdownJson: string) {
+async function doCloseShift(
+  closingPersonId: number,
+  countedLbp: number,
+  countedVisa: number,
+  countedWhish: number,
+  usdBreakdownJson: string,
+) {
   if (!openShift.value) return;
 
   closing.value = true;
@@ -216,6 +226,8 @@ async function doCloseShift(closingPersonId: number, countedLbp: number, usdBrea
       openShift.value.id,
       closingPersonId,
       countedLbp,
+      countedVisa,
+      countedWhish,
       usdBreakdownJson,
     );
     if (result?.receiptError) {
@@ -245,6 +257,12 @@ async function refresh() {
   } catch {
     openShift.value = null;
     closeBalances.value = [];
+  }
+
+  try {
+    todayIncome.value = ((await GetTodayIncomeByAccount()) as IncomeRow[]) ?? [];
+  } catch {
+    todayIncome.value = [];
   }
 
   try {

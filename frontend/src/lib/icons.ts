@@ -1,8 +1,11 @@
 import {
   mdiAccount,
+  mdiAccountCreditCardOutline,
   mdiAccountEdit,
   mdiAccountGroupOutline,
   mdiAccountMultiple,
+  mdiAccountOutline,
+  mdiAccountPlus,
   mdiAccountTie,
   mdiAccountTieHat,
   mdiAccountTieWoman,
@@ -135,9 +138,12 @@ import { h } from "vue";
 
 const iconPaths: Record<string, string> = {
   "mdi-account": mdiAccount,
+  "mdi-account-credit-card-outline": mdiAccountCreditCardOutline,
   "mdi-account-edit": mdiAccountEdit,
   "mdi-account-group-outline": mdiAccountGroupOutline,
   "mdi-account-multiple": mdiAccountMultiple,
+  "mdi-account-outline": mdiAccountOutline,
+  "mdi-account-plus": mdiAccountPlus,
   "mdi-account-tie": mdiAccountTie,
   "mdi-account-tie-hat": mdiAccountTieHat,
   "mdi-account-tie-woman": mdiAccountTieWoman,

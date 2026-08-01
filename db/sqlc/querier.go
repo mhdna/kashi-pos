@@ -27,6 +27,7 @@ type Querier interface {
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
 	CreateClientAccountEntry(ctx context.Context, arg CreateClientAccountEntryParams) (ClientAccountEntry, error)
+	CreateClientAccountPayment(ctx context.Context, arg CreateClientAccountPaymentParams) (ClientAccountPayment, error)
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
 	CreateCouponType(ctx context.Context, arg CreateCouponTypeParams) (CouponType, error)
 	CreateDiscountOverride(ctx context.Context, arg CreateDiscountOverrideParams) (DiscountOverride, error)
@@ -79,11 +80,13 @@ type Querier interface {
 	GetCashboxAccountByID(ctx context.Context, id int64) (CashboxAccount, error)
 	GetCashboxAccountByName(ctx context.Context, name string) (CashboxAccount, error)
 	GetClientAccountBalance(ctx context.Context, clientID int64) (interface{}, error)
+	GetClientAccountEntryByInvoiceID(ctx context.Context, invoiceID int64) (ClientAccountEntry, error)
+	GetClientAccountPaidByInvoiceID(ctx context.Context, invoiceID int64) (interface{}, error)
 	GetClientByID(ctx context.Context, id int64) (Client, error)
 	GetClientByPhone(ctx context.Context, phone string) (Client, error)
 	GetCouponByCode(ctx context.Context, code string) (Coupon, error)
 	GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error)
-	GetDailyIncomeByMonth(ctx context.Context, createdAt string) ([]GetDailyIncomeByMonthRow, error)
+	GetDailyIncomeByMonth(ctx context.Context, yearMonth string) ([]GetDailyIncomeByMonthRow, error)
 	GetDefaultCurrency(ctx context.Context) (Currency, error)
 	GetDiscountOverride(ctx context.Context, id int64) (DiscountOverride, error)
 	GetFeatureFlag(ctx context.Context, key string) (int64, error)
@@ -110,6 +113,7 @@ type Querier interface {
 	GetSettings(ctx context.Context) (Setting, error)
 	GetShiftAccountBalance(ctx context.Context, arg GetShiftAccountBalanceParams) (ShiftsAccountsBalance, error)
 	GetShiftByID(ctx context.Context, id int64) (Shift, error)
+	GetShiftInvoicePaymentTotal(ctx context.Context, reportShiftID int64) (interface{}, error)
 	GetShiftReportSummary(ctx context.Context, reportShiftID int64) (GetShiftReportSummaryRow, error)
 	GetShiftTotals(ctx context.Context) ([]GetShiftTotalsRow, error)
 	GetTodayIncomeByAccount(ctx context.Context) ([]GetTodayIncomeByAccountRow, error)
@@ -128,6 +132,8 @@ type Querier interface {
 	ListAttendanceEventsByMonth(ctx context.Context, eventDate string) ([]AttendanceEvent, error)
 	ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
 	ListCategoryIcons(ctx context.Context) ([]CategoryIcon, error)
+	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
+	ListClientAccountPayments(ctx context.Context, clientID int64) ([]ListClientAccountPaymentsRow, error)
 	ListClients(ctx context.Context) ([]Client, error)
 	ListCouponTypes(ctx context.Context) ([]CouponType, error)
 	ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error)
@@ -161,6 +167,7 @@ type Querier interface {
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
+	UpdateClientAccountOwnerByInvoice(ctx context.Context, arg UpdateClientAccountOwnerByInvoiceParams) error
 	UpdateCouponStatus(ctx context.Context, arg UpdateCouponStatusParams) error
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) (Inventory, error)
 	UpdateInvoiceCashbox(ctx context.Context, arg UpdateInvoiceCashboxParams) error

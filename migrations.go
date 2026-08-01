@@ -95,7 +95,9 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 		if err := ensureAttendanceColumns(ctx, conn); err != nil {
 			return err
 		}
-		if err := ensureShiftClosingColumns(ctx, conn); err != nil { return err }
+		if err := ensureShiftClosingColumns(ctx, conn); err != nil {
+			return err
+		}
 		return ensureLookupIndexes(ctx, conn)
 	}
 	for _, m := range migrations {
@@ -136,7 +138,9 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 	if err := ensureAttendanceColumns(ctx, conn); err != nil {
 		return err
 	}
-	if err := ensureShiftClosingColumns(ctx, conn); err != nil { return err }
+	if err := ensureShiftClosingColumns(ctx, conn); err != nil {
+		return err
+	}
 	return ensureLookupIndexes(ctx, conn)
 }
 
@@ -145,7 +149,9 @@ func ensureLookupIndexes(ctx context.Context, conn *sql.DB) error {
 		"CREATE INDEX IF NOT EXISTS idx_clients_phone ON clients(phone)",
 		"CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)",
 	} {
-		if _, err := conn.ExecContext(ctx, statement); err != nil { return fmt.Errorf("ensure lookup index: %w", err) }
+		if _, err := conn.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("ensure lookup index: %w", err)
+		}
 	}
 	return nil
 }

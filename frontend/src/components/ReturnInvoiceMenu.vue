@@ -68,7 +68,7 @@
                 "
                 active-color="primary"
                 :title="item.name"
-                :subtitle="`${item.code} · ${item.barcode} · ${item.available} available`"
+                :subtitle="`${item.code} · ${item.barcode}${item.color ? ` · ${item.color}` : ''}${item.size ? ` · ${item.size}` : ''} · ${item.available} available`"
                 @click="selectReturned(item)"
               >
                 <template #prepend>

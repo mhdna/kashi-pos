@@ -36,6 +36,8 @@ type invoiceItem struct {
 	Code     string  `json:"code"`
 	Barcode  string  `json:"barcode"`
 	Category string  `json:"category"`
+	Color    string  `json:"color"`
+	Size     string  `json:"size"`
 	Price    float64 `json:"price"`
 	Discount float64 `json:"discount"`
 	Qty      float64 `json:"qty"`
@@ -216,6 +218,7 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 		}
 		items = append(items, map[string]any{
 			"name": product.Name, "code": product.Code, "barcode": product.Barcode, "category": product.Description,
+			"color": product.Color, "size": product.Size,
 			"price": float64(line.UnitPrice) / 100, "lineTotal": float64(line.LineTotal) / 100,
 			"discount": line.Discount, "qty": line.Quantity,
 		})
@@ -255,10 +258,22 @@ func (a *App) ChangeInvoiceClient(invoiceID, clientID int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	if _, err := a.store.GetClientByID(a.ctx, clientID); err != nil {
+	client, err := a.store.GetClientByID(a.ctx, clientID)
+	if err != nil {
 		return err
 	}
-	return a.store.UpdateInvoiceClient(a.ctx, db.UpdateInvoiceClientParams{ClientID: clientID, ID: invoiceID})
+	if _, accountErr := a.store.GetClientAccountEntryByInvoiceID(a.ctx, invoiceID); accountErr == nil &&
+		strings.Contains(strings.ToLower(client.Name), "walk-in") {
+		return fmt.Errorf("a named client is required for an on-account invoice")
+	}
+	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		if err := q.UpdateInvoiceClient(a.ctx, db.UpdateInvoiceClientParams{ClientID: clientID, ID: invoiceID}); err != nil {
+			return err
+		}
+		return q.UpdateClientAccountOwnerByInvoice(a.ctx, db.UpdateClientAccountOwnerByInvoiceParams{
+			ClientID: clientID, InvoiceID: invoiceID,
+		})
+	})
 }
 
 func (a *App) ChangeInvoiceSalesperson(invoiceID, salespersonID int64) error {
@@ -281,6 +296,9 @@ func (a *App) ChangeInvoiceSettlement(invoiceID, cashboxID int64) error {
 	if err != nil || account.ID == 0 {
 		return fmt.Errorf("settlement account not found")
 	}
+	if strings.EqualFold(strings.TrimSpace(account.Name), "On Account") {
+		return fmt.Errorf("use checkout to create on-account debt")
+	}
 	inv, err := a.store.GetInvoiceByID(a.ctx, invoiceID)
 	if err != nil {
 		return err
@@ -288,6 +306,12 @@ func (a *App) ChangeInvoiceSettlement(invoiceID, cashboxID int64) error {
 	oldPayments, err := a.store.ListInvoicePayments(a.ctx, invoiceID)
 	if err != nil {
 		return err
+	}
+	for _, payment := range oldPayments {
+		oldAccount, lookupErr := a.store.GetCashboxAccountByID(a.ctx, payment.CashboxID)
+		if lookupErr == nil && strings.EqualFold(strings.TrimSpace(oldAccount.Name), "On Account") {
+			return fmt.Errorf("use the client account screen to pay an on-account invoice")
+		}
 	}
 	settlementAmount := inv.GrandTotal
 	if len(oldPayments) > 0 {
@@ -345,8 +369,14 @@ func (a *App) ChangeInvoiceSettlementAmount(invoiceID, fromCashboxID, toCashboxI
 	if _, err := a.store.GetCashboxAccountByID(a.ctx, fromCashboxID); err != nil {
 		return fmt.Errorf("source settlement account not found")
 	}
-	if _, err := a.store.GetCashboxAccountByID(a.ctx, toCashboxID); err != nil {
+	fromAccount, _ := a.store.GetCashboxAccountByID(a.ctx, fromCashboxID)
+	toAccount, err := a.store.GetCashboxAccountByID(a.ctx, toCashboxID)
+	if err != nil {
 		return fmt.Errorf("destination settlement account not found")
+	}
+	if strings.EqualFold(strings.TrimSpace(fromAccount.Name), "On Account") ||
+		strings.EqualFold(strings.TrimSpace(toAccount.Name), "On Account") {
+		return fmt.Errorf("use the client account screen for on-account invoices")
 	}
 	inv, err := a.store.GetInvoiceByID(a.ctx, invoiceID)
 	if err != nil {
@@ -431,7 +461,7 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	}
 	items := make([]invoiceItem, 0)
 	for _, raw := range details["items"].([]map[string]any) {
-		items = append(items, invoiceItem{Name: raw["name"].(string), Code: raw["code"].(string), Barcode: raw["barcode"].(string), Category: raw["category"].(string), Price: raw["price"].(float64), Discount: float64(raw["discount"].(int64)), Qty: float64(raw["qty"].(int64))})
+		items = append(items, invoiceItem{Name: raw["name"].(string), Code: raw["code"].(string), Barcode: raw["barcode"].(string), Category: raw["category"].(string), Color: databaseString(raw["color"]), Size: databaseString(raw["size"]), Price: raw["price"].(float64), Discount: float64(raw["discount"].(int64)), Qty: float64(raw["qty"].(int64))})
 	}
 	settings, err := a.store.GetSettings(a.ctx)
 	if err != nil {

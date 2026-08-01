@@ -42,8 +42,8 @@ export function ClearScreen(arg1) {
   return window['go']['main']['App']['ClearScreen'](arg1);
 }
 
-export function CloseShiftByID(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['CloseShiftByID'](arg1, arg2, arg3, arg4);
+export function CloseShiftByID(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['CloseShiftByID'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function CreateClient(arg1, arg2) {
@@ -100,6 +100,10 @@ export function GetAppSettings() {
 
 export function GetAttendanceConfig() {
   return window['go']['main']['App']['GetAttendanceConfig']();
+}
+
+export function GetClientAccountDetails(arg1) {
+  return window['go']['main']['App']['GetClientAccountDetails'](arg1);
 }
 
 export function GetClientByPhone(arg1) {
@@ -252,6 +256,10 @@ export function ListUsers() {
 
 export function OpenShift() {
   return window['go']['main']['App']['OpenShift']();
+}
+
+export function PayClientAccount(arg1, arg2, arg3) {
+  return window['go']['main']['App']['PayClientAccount'](arg1, arg2, arg3);
 }
 
 export function PrintClosedShiftReceipt(arg1) {

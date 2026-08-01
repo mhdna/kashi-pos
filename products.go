@@ -34,6 +34,8 @@ func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
 		"name": product.Name, "category": product.Description,
 		"price": float64(product.Price) / 100, "discount": product.Discount,
 		"color": product.Color, "size": product.Size, "currency": product.CurrencyCode,
+		"brand": product.Brand, "family": product.Family, "kind": product.Kind,
+		"season": product.Season, "year": product.ProductYear,
 	}, nil
 }
 
@@ -52,6 +54,8 @@ func (a *App) GetProductByCode(code string) (map[string]any, error) {
 		"name": product.Name, "category": product.Description,
 		"price": float64(product.Price) / 100, "discount": product.Discount,
 		"color": product.Color, "size": product.Size, "currency": product.CurrencyCode,
+		"brand": product.Brand, "family": product.Family, "kind": product.Kind,
+		"season": product.Season, "year": product.ProductYear,
 	}, nil
 }
 
@@ -72,6 +76,8 @@ func (a *App) ListProducts() ([]map[string]any, error) {
 			"name": p.Name, "category": p.Description,
 			"price": float64(p.Price) / 100, "discount": p.Discount,
 			"color": p.Color, "size": p.Size, "currency": p.CurrencyCode,
+			"brand": p.Brand, "family": p.Family, "kind": p.Kind,
+			"season": p.Season, "year": p.ProductYear,
 		}
 	}
 	return result, nil
@@ -133,6 +139,8 @@ func productMap(p db.Product) map[string]any {
 		"name": p.Name, "category": p.Description,
 		"price": float64(p.Price) / 100, "discount": p.Discount,
 		"color": p.Color, "size": p.Size, "currency": p.CurrencyCode,
+		"brand": p.Brand, "family": p.Family, "kind": p.Kind,
+		"season": p.Season, "year": p.ProductYear,
 	}
 }
 
@@ -154,7 +162,9 @@ func (a *App) UpdateProductDiscount(code string, discount int64) error {
 	_, err = a.store.UpdateProduct(a.ctx, db.UpdateProductParams{
 		Barcode: product.Barcode, Code: product.Code, Name: product.Name,
 		Description: product.Description, IsActive: product.IsActive,
-		Price: product.Price, Discount: discount, ID: product.ID,
+		Price: product.Price, Discount: discount, Color: product.Color, Size: product.Size,
+		CurrencyCode: product.CurrencyCode, Brand: product.Brand, Family: product.Family,
+		Kind: product.Kind, Season: product.Season, ProductYear: product.ProductYear, ID: product.ID,
 	})
 	return err
 }

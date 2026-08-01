@@ -5,6 +5,8 @@ export interface ExchangeItem {
   barcode: string;
   name: string;
   category?: string;
+  color?: string;
+  size?: string;
   price: number;
   soldUnitPrice?: number;
   soldUnitDiscount?: number;

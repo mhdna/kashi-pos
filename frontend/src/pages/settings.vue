@@ -127,14 +127,24 @@
                 density="compact"
                 class="mb-2"
               />
+              <v-switch
+                v-model="form.allowOverpayment"
+                label="Allow overpayment"
+                hint="Disabled by default. Enable this to accept more than the invoice total."
+                persistent-hint
+                color="primary"
+                hide-details="auto"
+                class="mb-2"
+              />
               <v-text-field
                 v-model.number="form.maxOverpayment"
                 label="Maximum overpayment (USD)"
-                hint="Maximum amount customers may pay above the invoice total."
+                hint="Maximum amount above the invoice total. Enable overpayment first."
                 persistent-hint
                 type="number"
                 min="0"
                 step="0.01"
+                :disabled="!form.allowOverpayment"
                 variant="outlined"
                 density="compact"
                 class="mb-2"
@@ -655,6 +665,7 @@ const form = reactive({
   salesInventoryId: 0,
   exchangeRate: 90000,
   maxOverpayment: 1,
+  allowOverpayment: false,
   marketName: "",
   marketPhone: "",
   branchPhone: "",
@@ -809,7 +820,8 @@ async function loadSettings() {
         receiptEnabled: Boolean(s.receiptEnabled),
         salesInventoryId: Number(s.salesInventoryId ?? 0),
         exchangeRate: Number(s.exchangeRate ?? 90000),
-        maxOverpayment: Number(s.maxOverpaymentCents ?? 100) / 100,
+        maxOverpayment: Number(s.maxOverpaymentCents ?? 0) / 100,
+        allowOverpayment: Number(s.maxOverpaymentCents ?? 0) > 0,
         marketName: s.marketName ?? "",
         marketPhone: s.marketPhone ?? "",
         branchPhone: s.branchPhone ?? "",
@@ -932,6 +944,9 @@ async function saveSettings() {
     const taxRate = Number(form.taxRate);
     const exchangeRate = Number(form.exchangeRate);
     const maxOverpayment = Number(form.maxOverpayment);
+    const maxOverpaymentCents = form.allowOverpayment && Number.isFinite(maxOverpayment) && maxOverpayment >= 0
+      ? Math.round(maxOverpayment * 100)
+      : 0;
     await UpdateSettings(
       form.branchName,
       form.branchCode.trim().toUpperCase(),
@@ -947,7 +962,7 @@ async function saveSettings() {
       Boolean(form.receiptEnabled),
       Number(form.salesInventoryId) > 0 ? Number(form.salesInventoryId) : 0,
       Number.isFinite(exchangeRate) && exchangeRate > 0 ? Math.round(exchangeRate) : 90000,
-      Number.isFinite(maxOverpayment) && maxOverpayment >= 0 ? Math.round(maxOverpayment * 100) : 100,
+      maxOverpaymentCents,
     );
     await UpdateReceiptSettings(
       form.marketName.trim(), form.marketPhone.trim(), form.branchPhone.trim(), form.marketDescription.trim(), form.returnPolicy.trim(),

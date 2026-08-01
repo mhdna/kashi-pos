@@ -189,7 +189,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if returnedStock.Quantity != 5 || replacementStock.Quantity != 4 || secondReplacementStock.Quantity != 4 {
+	if returnedStock.Quantity != 5 || replacementStock.Quantity != 5 || secondReplacementStock.Quantity != 5 {
 		t.Fatalf(
 			"stock after exchange: returned=%d first=%d second=%d",
 			returnedStock.Quantity,

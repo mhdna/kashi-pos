@@ -100,7 +100,10 @@
                 <v-progress-linear v-if="balanceLoading[shift.id]" indeterminate />
                 <v-list v-else-if="balanceCache[shift.id]?.length" density="compact" class="pa-0">
                   <v-list-item v-for="balance in balanceCache[shift.id]" :key="balance.accountId">
-                    <template #title>{{ balance.accountName }}</template>
+                    <template #title>
+                      {{ balance.isOnAccount ? "(On Account)" : balance.accountName }}
+                      <small v-if="balance.isOnAccount" class="text-medium-emphasis"> — not collected</small>
+                    </template>
                     <template #append>
                       <span class="font-weight-bold">{{
                         formatBalance(balance.balance, balance.currencyCode ?? "USD", exchangeRate)

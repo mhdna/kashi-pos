@@ -83,6 +83,37 @@ func (q *Queries) CreateClientAccountEntry(ctx context.Context, arg CreateClient
 	return i, err
 }
 
+const createClientAccountPayment = `-- name: CreateClientAccountPayment :one
+INSERT INTO client_account_payments (invoice_id, cashbox_id, shift_id, amount)
+VALUES (?, ?, ?, ?) RETURNING id, invoice_id, cashbox_id, shift_id, amount, created_at
+`
+
+type CreateClientAccountPaymentParams struct {
+	InvoiceID int64 `json:"invoiceId"`
+	CashboxID int64 `json:"cashboxId"`
+	ShiftID   int64 `json:"shiftId"`
+	Amount    int64 `json:"amount"`
+}
+
+func (q *Queries) CreateClientAccountPayment(ctx context.Context, arg CreateClientAccountPaymentParams) (ClientAccountPayment, error) {
+	row := q.db.QueryRowContext(ctx, createClientAccountPayment,
+		arg.InvoiceID,
+		arg.CashboxID,
+		arg.ShiftID,
+		arg.Amount,
+	)
+	var i ClientAccountPayment
+	err := row.Scan(
+		&i.ID,
+		&i.InvoiceID,
+		&i.CashboxID,
+		&i.ShiftID,
+		&i.Amount,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createCoupon = `-- name: CreateCoupon :one
 INSERT INTO coupons (code, status, discount_type, reason, client_id, valid_until)
 VALUES (?, ?, ?, ?, ?, ?) RETURNING code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id
@@ -261,8 +292,14 @@ func (q *Queries) GetActiveCouponByCode(ctx context.Context, code string) (Coupo
 }
 
 const getClientAccountBalance = `-- name: GetClientAccountBalance :one
-SELECT COALESCE(SUM(amount), 0) AS balance
-FROM client_account_entries WHERE client_id = ?
+SELECT COALESCE(SUM(cae.amount - COALESCE(p.paid, 0)), 0) AS balance
+FROM client_account_entries cae
+LEFT JOIN (
+    SELECT invoice_id, SUM(amount) AS paid
+    FROM client_account_payments
+    GROUP BY invoice_id
+) p ON p.invoice_id = cae.invoice_id
+WHERE cae.client_id = ?
 `
 
 func (q *Queries) GetClientAccountBalance(ctx context.Context, clientID int64) (interface{}, error) {
@@ -270,6 +307,34 @@ func (q *Queries) GetClientAccountBalance(ctx context.Context, clientID int64) (
 	var balance interface{}
 	err := row.Scan(&balance)
 	return balance, err
+}
+
+const getClientAccountEntryByInvoiceID = `-- name: GetClientAccountEntryByInvoiceID :one
+SELECT id, client_id, invoice_id, amount, created_at FROM client_account_entries WHERE invoice_id = ?
+`
+
+func (q *Queries) GetClientAccountEntryByInvoiceID(ctx context.Context, invoiceID int64) (ClientAccountEntry, error) {
+	row := q.db.QueryRowContext(ctx, getClientAccountEntryByInvoiceID, invoiceID)
+	var i ClientAccountEntry
+	err := row.Scan(
+		&i.ID,
+		&i.ClientID,
+		&i.InvoiceID,
+		&i.Amount,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getClientAccountPaidByInvoiceID = `-- name: GetClientAccountPaidByInvoiceID :one
+SELECT COALESCE(SUM(amount), 0) FROM client_account_payments WHERE invoice_id = ?
+`
+
+func (q *Queries) GetClientAccountPaidByInvoiceID(ctx context.Context, invoiceID int64) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getClientAccountPaidByInvoiceID, invoiceID)
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
 }
 
 const getClientByID = `-- name: GetClientByID :one
@@ -345,6 +410,118 @@ func (q *Queries) GetCouponTypeByID(ctx context.Context, id int64) (CouponType, 
 		&i.IsActive,
 	)
 	return i, err
+}
+
+const listClientAccountEntries = `-- name: ListClientAccountEntries :many
+SELECT cae.id, cae.client_id, cae.invoice_id, i.invoice_code,
+       cae.amount, CAST(COALESCE(p.paid, 0) AS INTEGER) AS paid,
+       cae.amount - CAST(COALESCE(p.paid, 0) AS INTEGER) AS outstanding,
+       cae.created_at
+FROM client_account_entries cae
+JOIN invoices i ON i.id = cae.invoice_id
+LEFT JOIN (
+    SELECT invoice_id, SUM(amount) AS paid
+    FROM client_account_payments
+    GROUP BY invoice_id
+) p ON p.invoice_id = cae.invoice_id
+WHERE cae.client_id = ?
+ORDER BY cae.created_at DESC, cae.id DESC
+`
+
+type ListClientAccountEntriesRow struct {
+	ID          int64  `json:"id"`
+	ClientID    int64  `json:"clientId"`
+	InvoiceID   int64  `json:"invoiceId"`
+	InvoiceCode string `json:"invoiceCode"`
+	Amount      int64  `json:"amount"`
+	Paid        int64  `json:"paid"`
+	Outstanding int64  `json:"outstanding"`
+	CreatedAt   string `json:"createdAt"`
+}
+
+func (q *Queries) ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClientAccountEntries, clientID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListClientAccountEntriesRow{}
+	for rows.Next() {
+		var i ListClientAccountEntriesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientID,
+			&i.InvoiceID,
+			&i.InvoiceCode,
+			&i.Amount,
+			&i.Paid,
+			&i.Outstanding,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClientAccountPayments = `-- name: ListClientAccountPayments :many
+SELECT cap.id, cap.invoice_id, cap.cashbox_id, ca.name AS account_name,
+       ca.currency_code, cap.shift_id, cap.amount, cap.created_at
+FROM client_account_payments cap
+JOIN client_account_entries cae ON cae.invoice_id = cap.invoice_id
+JOIN cashbox_accounts ca ON ca.id = cap.cashbox_id
+WHERE cae.client_id = ?
+ORDER BY cap.created_at DESC, cap.id DESC
+`
+
+type ListClientAccountPaymentsRow struct {
+	ID           int64  `json:"id"`
+	InvoiceID    int64  `json:"invoiceId"`
+	CashboxID    int64  `json:"cashboxId"`
+	AccountName  string `json:"accountName"`
+	CurrencyCode string `json:"currencyCode"`
+	ShiftID      int64  `json:"shiftId"`
+	Amount       int64  `json:"amount"`
+	CreatedAt    string `json:"createdAt"`
+}
+
+func (q *Queries) ListClientAccountPayments(ctx context.Context, clientID int64) ([]ListClientAccountPaymentsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClientAccountPayments, clientID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListClientAccountPaymentsRow{}
+	for rows.Next() {
+		var i ListClientAccountPaymentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.InvoiceID,
+			&i.CashboxID,
+			&i.AccountName,
+			&i.CurrencyCode,
+			&i.ShiftID,
+			&i.Amount,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listClients = `-- name: ListClients :many
@@ -546,6 +723,20 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const updateClientAccountOwnerByInvoice = `-- name: UpdateClientAccountOwnerByInvoice :exec
+UPDATE client_account_entries SET client_id = ? WHERE invoice_id = ?
+`
+
+type UpdateClientAccountOwnerByInvoiceParams struct {
+	ClientID  int64 `json:"clientId"`
+	InvoiceID int64 `json:"invoiceId"`
+}
+
+func (q *Queries) UpdateClientAccountOwnerByInvoice(ctx context.Context, arg UpdateClientAccountOwnerByInvoiceParams) error {
+	_, err := q.db.ExecContext(ctx, updateClientAccountOwnerByInvoice, arg.ClientID, arg.InvoiceID)
+	return err
 }
 
 const updateCouponStatus = `-- name: UpdateCouponStatus :exec

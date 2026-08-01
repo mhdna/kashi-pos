@@ -145,6 +145,8 @@ async function doCloseShift() {
         shiftId,
         closingPersonId.value,
         Math.round(Number(countedLbp.value)),
+        0,
+        0,
         JSON.stringify(
           Object.fromEntries(
             usdDenominations.map((denomination) => [

@@ -58,8 +58,51 @@ INSERT INTO client_account_entries (client_id, invoice_id, amount)
 VALUES (?, ?, ?) RETURNING *;
 
 -- name: GetClientAccountBalance :one
-SELECT COALESCE(SUM(amount), 0) AS balance
-FROM client_account_entries WHERE client_id = ?;
+SELECT COALESCE(SUM(cae.amount - COALESCE(p.paid, 0)), 0) AS balance
+FROM client_account_entries cae
+LEFT JOIN (
+    SELECT invoice_id, SUM(amount) AS paid
+    FROM client_account_payments
+    GROUP BY invoice_id
+) p ON p.invoice_id = cae.invoice_id
+WHERE cae.client_id = ?;
+
+-- name: GetClientAccountEntryByInvoiceID :one
+SELECT * FROM client_account_entries WHERE invoice_id = ?;
+
+-- name: GetClientAccountPaidByInvoiceID :one
+SELECT COALESCE(SUM(amount), 0) FROM client_account_payments WHERE invoice_id = ?;
+
+-- name: ListClientAccountEntries :many
+SELECT cae.id, cae.client_id, cae.invoice_id, i.invoice_code,
+       cae.amount, CAST(COALESCE(p.paid, 0) AS INTEGER) AS paid,
+       cae.amount - CAST(COALESCE(p.paid, 0) AS INTEGER) AS outstanding,
+       cae.created_at
+FROM client_account_entries cae
+JOIN invoices i ON i.id = cae.invoice_id
+LEFT JOIN (
+    SELECT invoice_id, SUM(amount) AS paid
+    FROM client_account_payments
+    GROUP BY invoice_id
+) p ON p.invoice_id = cae.invoice_id
+WHERE cae.client_id = ?
+ORDER BY cae.created_at DESC, cae.id DESC;
+
+-- name: ListClientAccountPayments :many
+SELECT cap.id, cap.invoice_id, cap.cashbox_id, ca.name AS account_name,
+       ca.currency_code, cap.shift_id, cap.amount, cap.created_at
+FROM client_account_payments cap
+JOIN client_account_entries cae ON cae.invoice_id = cap.invoice_id
+JOIN cashbox_accounts ca ON ca.id = cap.cashbox_id
+WHERE cae.client_id = ?
+ORDER BY cap.created_at DESC, cap.id DESC;
+
+-- name: CreateClientAccountPayment :one
+INSERT INTO client_account_payments (invoice_id, cashbox_id, shift_id, amount)
+VALUES (?, ?, ?, ?) RETURNING *;
+
+-- name: UpdateClientAccountOwnerByInvoice :exec
+UPDATE client_account_entries SET client_id = ? WHERE invoice_id = ?;
 
 -- name: CreateCouponType :one
 INSERT INTO coupon_types (name, value_cents, currency_code, is_active)

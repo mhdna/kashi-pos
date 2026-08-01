@@ -78,6 +78,10 @@ func (a *App) ListClients() ([]map[string]any, error) {
 	}
 	result := make([]map[string]any, len(list))
 	for i, c := range list {
+		balanceValue, balanceErr := a.store.GetClientAccountBalance(a.ctx, c.ID)
+		if balanceErr != nil {
+			return nil, fmt.Errorf("client %s account balance: %w", c.Name, balanceErr)
+		}
 		result[i] = map[string]any{
 			"id":                 c.ID,
 			"name":               c.Name,
@@ -85,6 +89,7 @@ func (a *App) ListClients() ([]map[string]any, error) {
 			"totalLoyaltyPoints": c.TotalLoyaltyPoints,
 			"validLoyaltyPoints": c.ValidLoyaltyPoints,
 			"createdAt":          c.CreatedAt,
+			"accountBalance":     databaseInt64(balanceValue),
 		}
 	}
 	return result, nil
@@ -114,39 +119,17 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	invoices, err := a.store.ListInvoicesByShiftID(a.ctx, shiftID)
+	rows, err := a.store.ListShiftPaymentTotals(a.ctx, shiftID)
 	if err != nil {
 		return nil, err
 	}
-	totals := make(map[int64]int64)
-	for _, invoice := range invoices {
-		payments, err := a.store.ListInvoicePayments(a.ctx, invoice.ID)
-		if err != nil {
-			return nil, err
-		}
-		if len(payments) == 0 {
-			totals[invoice.CashboxID] += invoice.GrandTotal
-			continue
-		}
-		for _, payment := range payments {
-			totals[payment.CashboxID] += payment.Amount
-		}
-	}
-	accounts, err := a.store.ListCashboxAccounts(a.ctx)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]map[string]any, 0, len(totals))
-	for _, account := range accounts {
-		balance, exists := totals[account.ID]
-		if !exists {
-			continue
-		}
+	result := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		onAccount := strings.EqualFold(strings.TrimSpace(row.AccountName), "On Account")
 		result = append(result, map[string]any{
-			"accountId":    account.ID,
-			"accountName":  account.Name,
-			"balance":      balance,
-			"currencyCode": account.CurrencyCode,
+			"accountId": row.AccountID, "accountName": row.AccountName,
+			"balance": databaseInt64(row.Total), "currencyCode": row.CurrencyCode,
+			"isOnAccount": onAccount, "isCollected": !onAccount,
 		})
 	}
 	return result, nil
@@ -296,7 +279,11 @@ func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 		if r.Total.Valid {
 			total = r.Total.Float64
 		}
-		result[i] = map[string]any{"accountName": r.Name, "currencyCode": r.CurrencyCode, "total": total}
+		onAccount := strings.EqualFold(strings.TrimSpace(r.Name), "On Account")
+		result[i] = map[string]any{
+			"accountName": r.Name, "currencyCode": r.CurrencyCode, "total": total,
+			"isOnAccount": onAccount, "isCollected": !onAccount,
+		}
 	}
 	return result, nil
 }

@@ -12,12 +12,16 @@ export interface Balance {
   accountName: string;
   balance: number;
   currencyCode?: string;
+  isOnAccount?: boolean;
+  isCollected?: boolean;
 }
 
 export interface IncomeRow {
   accountName: string;
   total: number;
   currencyCode?: string;
+  isOnAccount?: boolean;
+  isCollected?: boolean;
 }
 
 export interface DayRow {

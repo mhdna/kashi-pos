@@ -78,7 +78,7 @@ const roundingMode = computed(() => props.roundingMode ?? "half_up");
 const paymentMethods = ref<PaymentMethod[]>([]);
 const currencies = ref<Currency[]>([]);
 const exchangeRate = ref(DEFAULT_EXCHANGE_RATE);
-const maxOverpaymentCents = ref(60);
+const maxOverpaymentCents = ref(0);
 const activeMethod = ref("");
 const currentInput = ref("");
 const entries = ref<Entry[]>([]);

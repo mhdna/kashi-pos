@@ -129,7 +129,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			subtotal += gross
 			discountedSubtotal += lineTotal
 			products = append(products, priced)
-			receiptItems = append(receiptItems, invoiceItem{Name: product.Name, Code: product.Code, Barcode: product.Barcode, Category: product.Description, Price: float64(pricing.price) / 100, Discount: float64(pricing.discount), Qty: float64(qty)})
+			receiptItems = append(receiptItems, invoiceItem{Name: product.Name, Code: product.Code, Barcode: product.Barcode, Category: product.Description, Color: product.Color, Size: product.Size, Price: float64(pricing.price) / 100, Discount: float64(pricing.discount), Qty: float64(qty)})
 		}
 	}
 	return products, subtotal, discountedSubtotal, receiptItems, nil

@@ -69,8 +69,6 @@ function onExchangeClick() {
 const items = computed(() => {
   const all = [
     { value: "invoice", to: "/home", icon: "mdi-cash-register", t: "Invoice" },
-    { value: "onhold", icon: "mdi-pause", t: "On Hold", action: onHoldClick },
-    { value: "exchange", icon: "mdi-autorenew", t: "Exchange", action: onExchangeClick },
     {
       value: "invoices-list",
       to: "/invoices-list",
@@ -78,6 +76,8 @@ const items = computed(() => {
       t: "Invoices",
     },
     { value: "shifts", to: "/shifts", icon: "mdi-cash-fast", t: "Balance" },
+    { value: "onhold", icon: "mdi-pause", t: "On Hold", action: onHoldClick },
+    { value: "exchange", icon: "mdi-autorenew", t: "Exchange", action: onExchangeClick },
     {
       value: "clients",
       to: "/clients",

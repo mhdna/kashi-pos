@@ -22,11 +22,11 @@ type salesInvoiceItem struct {
 }
 
 type checkoutPayment struct {
-	AccountID   int64  `json:"accountId"`
-	AmountCents int64  `json:"amountCents"`
-	EntryType   string `json:"entryType"`
-	CouponCode  string `json:"couponCode,omitempty"`
-	CouponTypeID int64 `json:"couponTypeId,omitempty"`
+	AccountID    int64  `json:"accountId"`
+	AmountCents  int64  `json:"amountCents"`
+	EntryType    string `json:"entryType"`
+	CouponCode   string `json:"couponCode,omitempty"`
+	CouponTypeID int64  `json:"couponTypeId,omitempty"`
 }
 
 type SalesInvoiceParams struct {
@@ -149,6 +149,8 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			}); err != nil {
 				return fmt.Errorf("add product %s: %w", product.product.Code, err)
 			}
+			// Inventory mutation is temporarily disabled during checkout.
+			// Stock will be reconciled by the inventory workflow separately.
 			// updated, err := q.DecreaseInventoryProductQuantity(a.ctx, db.DecreaseInventoryProductQuantityParams{
 			// 	Quantity: product.qty, InventoryID: inventoryID, ProductID: product.product.ID, Quantity_2: product.qty,
 			// })

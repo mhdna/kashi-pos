@@ -41,7 +41,8 @@ type adminConfig struct {
 
 type adminProductInput struct {
 	Barcode, Code, Name, Description, Color, Size, CurrencyCode string
-	IsActive, Price, Discount                                   int64
+	Brand, Family, Kind, Season                                 string
+	IsActive, Price, Discount, Year                             int64
 	AddToInventory                                              bool
 	InventoryName                                               string
 	InventoryQuantity                                           int64
@@ -95,7 +96,7 @@ func (a *adminServer) createProduct(ctx context.Context, input adminProductInput
 	if err != nil {
 		return nil, err
 	}
-	result, err := tx.ExecContext(ctx, `INSERT INTO products(barcode,code,name,description,is_active,price,discount,color,size,currency_code) VALUES(?,?,?,?,?,?,?,?,?,?)`, input.Barcode, input.Code, input.Name, input.Description, input.IsActive, input.Price, input.Discount, input.Color, input.Size, input.CurrencyCode)
+	result, err := tx.ExecContext(ctx, `INSERT INTO products(barcode,code,name,description,is_active,price,discount,color,size,currency_code,brand,family,kind,season,product_year) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, input.Barcode, input.Code, input.Name, input.Description, input.IsActive, input.Price, input.Discount, input.Color, input.Size, input.CurrencyCode, input.Brand, input.Family, input.Kind, input.Season, input.Year)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
@@ -378,7 +379,7 @@ func (a *adminServer) updateProduct(ctx context.Context, r *http.Request, rawID 
 	if err := decodeAdmin(r, &input); err != nil {
 		return db.Product{}, err
 	}
-	_, err = a.app.conn.ExecContext(ctx, `UPDATE products SET barcode=?,code=?,name=?,description=?,is_active=?,price=?,discount=?,color=?,size=?,currency_code=? WHERE id=?`, input.Barcode, input.Code, input.Name, input.Description, input.IsActive, input.Price, input.Discount, input.Color, input.Size, input.CurrencyCode, id)
+	_, err = a.app.conn.ExecContext(ctx, `UPDATE products SET barcode=?,code=?,name=?,description=?,is_active=?,price=?,discount=?,color=?,size=?,currency_code=?,brand=?,family=?,kind=?,season=?,product_year=? WHERE id=?`, input.Barcode, input.Code, input.Name, input.Description, input.IsActive, input.Price, input.Discount, input.Color, input.Size, input.CurrencyCode, input.Brand, input.Family, input.Kind, input.Season, input.Year, id)
 	if err != nil {
 		return db.Product{}, err
 	}

@@ -26,6 +26,8 @@ SELECT COUNT(*) FROM products
 WHERE name LIKE '%' || ?1 || '%'
    OR code LIKE '%' || ?1 || '%'
    OR barcode LIKE '%' || ?1 || '%'
+   OR color LIKE '%' || ?1 || '%'
+   OR size LIKE '%' || ?1 || '%'
 `
 
 func (q *Queries) CountProducts(ctx context.Context, search sql.NullString) (int64, error) {
@@ -82,18 +84,26 @@ func (q *Queries) CreatePriceOverride(ctx context.Context, arg CreatePriceOverri
 }
 
 const createProduct = `-- name: CreateProduct :one
-INSERT INTO products (barcode, code, name, description, is_active, price, discount)
-VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at
+INSERT INTO products (barcode, code, name, description, is_active, price, discount, color, size, currency_code, brand, family, kind, season, product_year)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year
 `
 
 type CreateProductParams struct {
-	Barcode     string `json:"barcode"`
-	Code        string `json:"code"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsActive    int64  `json:"isActive"`
-	Price       int64  `json:"price"`
-	Discount    int64  `json:"discount"`
+	Barcode      string `json:"barcode"`
+	Code         string `json:"code"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	IsActive     int64  `json:"isActive"`
+	Price        int64  `json:"price"`
+	Discount     int64  `json:"discount"`
+	Color        string `json:"color"`
+	Size         string `json:"size"`
+	CurrencyCode string `json:"currencyCode"`
+	Brand        string `json:"brand"`
+	Family       string `json:"family"`
+	Kind         string `json:"kind"`
+	Season       string `json:"season"`
+	ProductYear  int64  `json:"productYear"`
 }
 
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error) {
@@ -105,6 +115,14 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 		arg.IsActive,
 		arg.Price,
 		arg.Discount,
+		arg.Color,
+		arg.Size,
+		arg.CurrencyCode,
+		arg.Brand,
+		arg.Family,
+		arg.Kind,
+		arg.Season,
+		arg.ProductYear,
 	)
 	var i Product
 	err := row.Scan(
@@ -120,6 +138,11 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 		&i.Size,
 		&i.CurrencyCode,
 		&i.CreatedAt,
+		&i.Brand,
+		&i.Family,
+		&i.Kind,
+		&i.Season,
+		&i.ProductYear,
 	)
 	return i, err
 }
@@ -186,7 +209,7 @@ func (q *Queries) GetPriceOverride(ctx context.Context, id int64) (PriceOverride
 }
 
 const getProductByBarcode = `-- name: GetProductByBarcode :one
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products WHERE barcode = ?
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products WHERE barcode = ?
 `
 
 func (q *Queries) GetProductByBarcode(ctx context.Context, barcode string) (Product, error) {
@@ -205,12 +228,17 @@ func (q *Queries) GetProductByBarcode(ctx context.Context, barcode string) (Prod
 		&i.Size,
 		&i.CurrencyCode,
 		&i.CreatedAt,
+		&i.Brand,
+		&i.Family,
+		&i.Kind,
+		&i.Season,
+		&i.ProductYear,
 	)
 	return i, err
 }
 
 const getProductByCode = `-- name: GetProductByCode :one
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products WHERE code = ?
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products WHERE code = ? ORDER BY id LIMIT 1
 `
 
 func (q *Queries) GetProductByCode(ctx context.Context, code string) (Product, error) {
@@ -229,12 +257,17 @@ func (q *Queries) GetProductByCode(ctx context.Context, code string) (Product, e
 		&i.Size,
 		&i.CurrencyCode,
 		&i.CreatedAt,
+		&i.Brand,
+		&i.Family,
+		&i.Kind,
+		&i.Season,
+		&i.ProductYear,
 	)
 	return i, err
 }
 
 const getProductByID = `-- name: GetProductByID :one
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products WHERE id = ?
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products WHERE id = ?
 `
 
 func (q *Queries) GetProductByID(ctx context.Context, id int64) (Product, error) {
@@ -253,6 +286,11 @@ func (q *Queries) GetProductByID(ctx context.Context, id int64) (Product, error)
 		&i.Size,
 		&i.CurrencyCode,
 		&i.CreatedAt,
+		&i.Brand,
+		&i.Family,
+		&i.Kind,
+		&i.Season,
+		&i.ProductYear,
 	)
 	return i, err
 }
@@ -324,7 +362,7 @@ func (q *Queries) ListPriceOverridesByProduct(ctx context.Context, productID sql
 }
 
 const listProducts = `-- name: ListProducts :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products ORDER BY id
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products ORDER BY id
 `
 
 func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
@@ -349,6 +387,11 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 			&i.Size,
 			&i.CurrencyCode,
 			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
 		); err != nil {
 			return nil, err
 		}
@@ -364,10 +407,12 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 }
 
 const listProductsPage = `-- name: ListProductsPage :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products
 WHERE name LIKE '%' || ?1 || '%'
    OR code LIKE '%' || ?1 || '%'
    OR barcode LIKE '%' || ?1 || '%'
+   OR color LIKE '%' || ?1 || '%'
+   OR size LIKE '%' || ?1 || '%'
 ORDER BY id
 LIMIT ?3 OFFSET ?2
 `
@@ -400,6 +445,11 @@ func (q *Queries) ListProductsPage(ctx context.Context, arg ListProductsPagePara
 			&i.Size,
 			&i.CurrencyCode,
 			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
 		); err != nil {
 			return nil, err
 		}
@@ -415,7 +465,7 @@ func (q *Queries) ListProductsPage(ctx context.Context, arg ListProductsPagePara
 }
 
 const listProductsPageUnfiltered = `-- name: ListProductsPageUnfiltered :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products
 ORDER BY id
 LIMIT ?2 OFFSET ?1
 `
@@ -447,6 +497,11 @@ func (q *Queries) ListProductsPageUnfiltered(ctx context.Context, arg ListProduc
 			&i.Size,
 			&i.CurrencyCode,
 			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
 		); err != nil {
 			return nil, err
 		}
@@ -462,7 +517,7 @@ func (q *Queries) ListProductsPageUnfiltered(ctx context.Context, arg ListProduc
 }
 
 const searchProductsByName = `-- name: SearchProductsByName :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at FROM products WHERE name LIKE ? ORDER BY id
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products WHERE name LIKE ? ORDER BY id
 `
 
 func (q *Queries) SearchProductsByName(ctx context.Context, name string) ([]Product, error) {
@@ -487,6 +542,11 @@ func (q *Queries) SearchProductsByName(ctx context.Context, name string) ([]Prod
 			&i.Size,
 			&i.CurrencyCode,
 			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
 		); err != nil {
 			return nil, err
 		}
@@ -504,19 +564,28 @@ func (q *Queries) SearchProductsByName(ctx context.Context, name string) ([]Prod
 const updateProduct = `-- name: UpdateProduct :one
 UPDATE products
 SET barcode = ?, code = ?, name = ?, description = ?,
-    is_active = ?, price = ?, discount = ?
-WHERE id = ? RETURNING id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at
+    is_active = ?, price = ?, discount = ?, color = ?, size = ?, currency_code = ?,
+    brand = ?, family = ?, kind = ?, season = ?, product_year = ?
+WHERE id = ? RETURNING id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year
 `
 
 type UpdateProductParams struct {
-	Barcode     string `json:"barcode"`
-	Code        string `json:"code"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsActive    int64  `json:"isActive"`
-	Price       int64  `json:"price"`
-	Discount    int64  `json:"discount"`
-	ID          int64  `json:"id"`
+	Barcode      string `json:"barcode"`
+	Code         string `json:"code"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	IsActive     int64  `json:"isActive"`
+	Price        int64  `json:"price"`
+	Discount     int64  `json:"discount"`
+	Color        string `json:"color"`
+	Size         string `json:"size"`
+	CurrencyCode string `json:"currencyCode"`
+	Brand        string `json:"brand"`
+	Family       string `json:"family"`
+	Kind         string `json:"kind"`
+	Season       string `json:"season"`
+	ProductYear  int64  `json:"productYear"`
+	ID           int64  `json:"id"`
 }
 
 func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error) {
@@ -528,6 +597,14 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (P
 		arg.IsActive,
 		arg.Price,
 		arg.Discount,
+		arg.Color,
+		arg.Size,
+		arg.CurrencyCode,
+		arg.Brand,
+		arg.Family,
+		arg.Kind,
+		arg.Season,
+		arg.ProductYear,
 		arg.ID,
 	)
 	var i Product
@@ -544,6 +621,11 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (P
 		&i.Size,
 		&i.CurrencyCode,
 		&i.CreatedAt,
+		&i.Brand,
+		&i.Family,
+		&i.Kind,
+		&i.Season,
+		&i.ProductYear,
 	)
 	return i, err
 }

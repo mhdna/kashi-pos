@@ -61,6 +61,48 @@ func TestListProductsPageBoundsAndSearch(t *testing.T) {
 	}
 }
 
+func TestProductVariantsHaveDistinctBarcodesAndCatalogMetadata(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+
+	_, err := database.Exec(`
+		INSERT INTO products (
+			barcode, code, name, description, is_active, price, discount,
+			color, size, currency_code, brand, family, kind, season, product_year
+		) VALUES
+			('VAR-RED-S', 'SHIRT-1', 'Oxford Shirt', 'Shirts', 1, 4500, 0,
+			 'Red', 'S', 'USD', 'Kashi', 'Oxford', 'Shirt', 'Summer', 2026),
+			('VAR-BLUE-L', 'SHIRT-1', 'Oxford Shirt', 'Shirts', 1, 4500, 0,
+			 'Blue', 'L', 'USD', 'Kashi', 'Oxford', 'Shirt', 'Summer', 2026)
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	red, err := app.GetProductByBarcode("VAR-RED-S")
+	if err != nil {
+		t.Fatal(err)
+	}
+	blue, err := app.GetProductByBarcode("VAR-BLUE-L")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if red["code"] != blue["code"] || red["color"] != "Red" || red["size"] != "S" || blue["color"] != "Blue" || blue["size"] != "L" {
+		t.Fatalf("variants were not kept separate: red=%#v blue=%#v", red, blue)
+	}
+	if red["brand"] != "Kashi" || red["family"] != "Oxford" || red["kind"] != "Shirt" || red["season"] != "Summer" || red["year"] != int64(2026) {
+		t.Fatalf("catalog metadata missing from product: %#v", red)
+	}
+
+	page, err := app.ListProductsPage(1, 10, "Blue")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 1 || len(page.Items) != 1 || page.Items[0]["barcode"] != "VAR-BLUE-L" {
+		t.Fatalf("color search did not select the exact variant: %#v", page)
+	}
+}
+
 func BenchmarkListProductsPage(b *testing.B) {
 	app, database := newProductBenchmarkApp(b)
 	defer database.Close()

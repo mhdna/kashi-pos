@@ -215,10 +215,28 @@ func (q *Queries) DeleteSalesInvoice(ctx context.Context, invoiceID int64) error
 }
 
 const getDailyIncomeByMonth = `-- name: GetDailyIncomeByMonth :many
-SELECT date(created_at, 'localtime') as day, SUM(grand_total) as total
-FROM invoices
-WHERE strftime('%Y-%m', created_at, 'localtime') = ?
-GROUP BY date(created_at, 'localtime')
+WITH collected AS (
+    SELECT date(i.created_at, 'localtime') AS income_day, ip.amount AS collected_amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
+    WHERE lower(trim(ca.name)) <> 'on account'
+      AND strftime('%Y-%m', i.created_at, 'localtime') = ?1
+    UNION ALL
+    SELECT date(i.created_at, 'localtime') AS income_day, i.grand_total AS collected_amount
+    FROM invoices i
+    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
+    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+      AND lower(trim(ca.name)) <> 'on account'
+      AND strftime('%Y-%m', i.created_at, 'localtime') = ?1
+    UNION ALL
+    SELECT date(cap.created_at, 'localtime') AS income_day, cap.amount AS collected_amount
+    FROM client_account_payments cap
+    WHERE strftime('%Y-%m', cap.created_at, 'localtime') = ?1
+)
+SELECT income_day as day, SUM(collected_amount) as total
+FROM collected
+GROUP BY income_day
 ORDER BY day
 `
 
@@ -227,8 +245,8 @@ type GetDailyIncomeByMonthRow struct {
 	Total sql.NullFloat64 `json:"total"`
 }
 
-func (q *Queries) GetDailyIncomeByMonth(ctx context.Context, createdAt string) ([]GetDailyIncomeByMonthRow, error) {
-	rows, err := q.db.QueryContext(ctx, getDailyIncomeByMonth, createdAt)
+func (q *Queries) GetDailyIncomeByMonth(ctx context.Context, yearMonth string) ([]GetDailyIncomeByMonthRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDailyIncomeByMonth, yearMonth)
 	if err != nil {
 		return nil, err
 	}
@@ -432,6 +450,9 @@ WITH invoice_account_totals AS (
     WHERE NOT EXISTS (
         SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id
     )
+    UNION ALL
+    SELECT cap.created_at, cap.cashbox_id, cap.amount
+    FROM client_account_payments cap
 )
 SELECT ca.name, ca.currency_code, SUM(t.amount) as total
 FROM invoice_account_totals t

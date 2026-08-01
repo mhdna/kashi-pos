@@ -55,6 +55,8 @@ func (a *App) GetExchangeInvoice(code string) (map[string]any, error) {
 			"code":      product.Code,
 			"barcode":   product.Barcode,
 			"name":      product.Name,
+			"color":     product.Color,
+			"size":      product.Size,
 			"price":     float64(line.UnitPrice) / 100,
 			"discount":  line.Discount,
 			"available": available,
