@@ -444,15 +444,31 @@ WITH invoice_account_totals AS (
     SELECT i.created_at, ip.cashbox_id, ip.amount
     FROM invoices i
     JOIN invoice_payments ip ON ip.invoice_id = i.id
+    JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
+    WHERE lower(trim(ca.name)) <> 'on account'
     UNION ALL
     SELECT i.created_at, i.cashbox_id, i.grand_total
     FROM invoices i
+    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
     WHERE NOT EXISTS (
         SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id
     )
+      AND lower(trim(ca.name)) <> 'on account'
     UNION ALL
     SELECT cap.created_at, cap.cashbox_id, cap.amount
     FROM client_account_payments cap
+    UNION ALL
+    SELECT date('now', 'localtime'), i.cashbox_id,
+           cae.amount - COALESCE((SELECT SUM(cap.amount)
+                                  FROM client_account_payments cap
+                                  WHERE cap.invoice_id = cae.invoice_id), 0)
+    FROM client_account_entries cae
+    JOIN invoices i ON i.id = cae.invoice_id
+    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
+    WHERE lower(trim(ca.name)) = 'on account'
+      AND cae.amount > COALESCE((SELECT SUM(cap.amount)
+                                 FROM client_account_payments cap
+                                 WHERE cap.invoice_id = cae.invoice_id), 0)
 )
 SELECT ca.name, ca.currency_code, SUM(t.amount) as total
 FROM invoice_account_totals t

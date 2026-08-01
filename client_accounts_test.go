@@ -47,6 +47,9 @@ func TestClientAccountPaymentBecomesCollectedIncomeWhenReceived(t *testing.T) {
 	if _, err := store.CreateClientAccountEntry(ctx, db.CreateClientAccountEntryParams{ClientID: client.ID, InvoiceID: invoice.ID, Amount: 1000}); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := database.Exec(`UPDATE invoices SET created_at = datetime('now', '-4 days') WHERE id = ?`, invoice.ID); err != nil {
+		t.Fatal(err)
+	}
 
 	app := &App{ctx: ctx, store: store}
 	before, err := app.GetShiftTotals()
@@ -83,7 +86,7 @@ func TestClientAccountPaymentBecomesCollectedIncomeWhenReceived(t *testing.T) {
 	for _, row := range today {
 		todayTotals[row["accountName"].(string)] = row["total"].(float64)
 	}
-	if todayTotals["On Account"] != 1000 || todayTotals["Cash USD"] != 400 {
+	if todayTotals["On Account"] != 600 || todayTotals["Cash USD"] != 400 {
 		t.Fatalf("today income rows = %#v", today)
 	}
 	days, err := app.GetDailyIncomeByMonth(time.Now().Format("2006-01"))
