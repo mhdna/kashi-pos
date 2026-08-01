@@ -288,6 +288,17 @@ func (a *App) buildShiftClosePrintData(
 	if roundErr != nil {
 		expectedLBP = expectedLBPCents * rate / 100
 	}
+	countedTotal, err := reconcileShiftCountedTotal(
+		totalPayments,
+		expectedUSD, countedUSD,
+		expectedLBP, countedLBP,
+		expectedVisa, countedVisa,
+		expectedWhish, countedWhish,
+		rate, settings.RoundingMode,
+	)
+	if err != nil {
+		return printReceiptData{}, false, err
+	}
 	overpayment := databaseInt64(invoicePaymentTotal) - databaseInt64(summary.NetSales)
 	if overpayment < 0 {
 		overpayment = 0
@@ -310,6 +321,7 @@ func (a *App) buildShiftClosePrintData(
 		Tax:             databaseInt64(summary.Tax),
 		NetSales:        databaseInt64(summary.NetSales),
 		TotalPayments:   totalPayments,
+		CountedTotal:    countedTotal,
 		OnAccount:       onAccount,
 		Overpayment:     overpayment,
 		Payments:        payments,
@@ -353,6 +365,34 @@ func sumShiftPaymentTotals(rows []db.ListShiftPaymentTotalsRow) int64 {
 		total += databaseInt64(row.Total)
 	}
 	return total
+}
+
+func reconcileShiftCountedTotal(
+	paidTotal,
+	expectedUSD, countedUSD,
+	expectedLBP, countedLBP,
+	expectedVisa, countedVisa,
+	expectedWhish, countedWhish,
+	exchangeRate int64,
+	roundingMode string,
+) (int64, error) {
+	lbpDifference := countedLBP - expectedLBP
+	absLBPDifference := lbpDifference
+	if absLBPDifference < 0 {
+		absLBPDifference = -absLBPDifference
+	}
+	lbpDifferenceCents, err := roundCentsFromLBP(absLBPDifference, exchangeRate, roundingMode)
+	if err != nil {
+		return 0, fmt.Errorf("counted LBP difference: %w", err)
+	}
+	if lbpDifference < 0 {
+		lbpDifferenceCents = -lbpDifferenceCents
+	}
+	return paidTotal +
+		(countedUSD - expectedUSD) +
+		lbpDifferenceCents +
+		(countedVisa - expectedVisa) +
+		(countedWhish - expectedWhish), nil
 }
 
 var usdBillDenominations = []int64{100, 50, 20, 10, 5, 1}

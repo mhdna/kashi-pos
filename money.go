@@ -86,3 +86,26 @@ func roundLBPFromCents(cents, exchangeRate int64, mode string) (int64, error) {
 	}
 	return quotient.Int64(), nil
 }
+
+// roundCentsFromLBP converts a physically counted LBP amount back to the
+// accounting currency so mixed-currency shift totals can be reconciled.
+func roundCentsFromLBP(amount, exchangeRate int64, mode string) (int64, error) {
+	if amount < 0 || exchangeRate <= 0 {
+		return 0, fmt.Errorf("invalid LBP conversion")
+	}
+	normalizedMode, err := normalizeRoundingMode(mode)
+	if err != nil {
+		return 0, err
+	}
+	numerator := new(big.Int).Mul(big.NewInt(amount), big.NewInt(100))
+	denominator := big.NewInt(exchangeRate)
+	quotient, remainder := new(big.Int), new(big.Int)
+	quotient.QuoRem(numerator, denominator, remainder)
+	if normalizedMode == roundingUp || (normalizedMode == roundingHalfUp && new(big.Int).Mul(remainder, big.NewInt(2)).Cmp(denominator) >= 0) {
+		quotient.Add(quotient, big.NewInt(1))
+	}
+	if !quotient.IsInt64() {
+		return 0, fmt.Errorf("LBP value is too large")
+	}
+	return quotient.Int64(), nil
+}

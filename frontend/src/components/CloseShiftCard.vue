@@ -22,35 +22,106 @@
       />
       <div class="text-subtitle-2 mb-2">USD bill count</div>
       <div class="usd-bill-grid">
-        <v-text-field
+        <NumberPadMenu
           v-for="denomination in usdDenominations"
           :key="denomination"
-          v-model="usdBillCounts[denomination]"
-          :placeholder="`$${denomination} bills`"
-          type="number"
-          min="0"
-          step="1"
-          variant="outlined"
-          density="compact"
-        />
+          :model-value="usdBillCounts[denomination] || 0"
+          :aria-label="`Count $${denomination} bills`"
+          :min="0"
+          :max="999"
+          @update:model-value="(value) => (usdBillCounts[denomination] = String(value))"
+        >
+          <template #activator="{ props: activatorProps }">
+            <v-text-field
+              v-bind="activatorProps"
+              :model-value="usdBillCounts[denomination]"
+              :label="`$${denomination} bills`"
+              placeholder="0"
+              suffix="bills"
+              prepend-inner-icon="mdi-cash"
+              readonly
+              hide-details
+              variant="outlined"
+              density="compact"
+            />
+          </template>
+        </NumberPadMenu>
       </div>
       <div class="d-flex justify-space-between align-center mb-4 px-1">
         <span class="text-body-2">USD counted total</span>
         <span class="font-weight-bold">{{ formatUsd(countedUsdTotal / 100) }}</span>
       </div>
-      <v-text-field
+      <NumberPadMenu
         v-model="countedLbp"
-        placeholder="Total LBP counted"
+        aria-label="Total LBP counted"
+        :max="999999999999"
         suffix="LBP"
-        type="number"
-        min="0"
-        step="1000"
-        variant="outlined"
-        density="comfortable"
-      />
+      >
+        <template #activator="{ props: activatorProps }">
+          <v-text-field
+            v-bind="activatorProps"
+            :model-value="countedLbp"
+            label="Counted LBP"
+            placeholder="0"
+            suffix="LBP"
+            prepend-inner-icon="mdi-cash"
+            readonly
+            variant="outlined"
+            density="comfortable"
+          />
+        </template>
+      </NumberPadMenu>
       <div class="d-flex justify-space-between align-center mb-2 px-1">
         <span class="text-body-2">LBP counted total</span>
         <span class="font-weight-bold">{{ countedLbpTotal }}</span>
+      </div>
+      <div class="electronic-count-grid">
+        <NumberPadMenu
+          v-model="countedVisa"
+          aria-label="Counted Visa"
+          allow-decimal
+          :max="999999999.99"
+          prefix="$"
+        >
+          <template #activator="{ props: activatorProps }">
+            <v-text-field
+              v-bind="activatorProps"
+              :model-value="countedVisa"
+              label="Counted Visa"
+              placeholder="0.00"
+              prefix="$"
+              prepend-inner-icon="mdi-credit-card-outline"
+              readonly
+              variant="outlined"
+              density="comfortable"
+            />
+          </template>
+        </NumberPadMenu>
+        <NumberPadMenu
+          v-model="countedWhish"
+          aria-label="Counted Whish"
+          allow-decimal
+          :max="999999999.99"
+          prefix="$"
+        >
+          <template #activator="{ props: activatorProps }">
+            <v-text-field
+              v-bind="activatorProps"
+              :model-value="countedWhish"
+              label="Counted Whish"
+              placeholder="0.00"
+              prefix="$"
+              prepend-inner-icon="mdi-cellphone"
+              readonly
+              variant="outlined"
+              density="comfortable"
+            />
+          </template>
+        </NumberPadMenu>
+      </div>
+      <div class="d-flex justify-space-between align-center mb-2 px-1">
+        <span class="text-body-2">Electronic payments counted</span>
+        <span class="font-weight-bold">{{ formatUsd((countedVisaCents + countedWhishCents) / 100) }}</span>
       </div>
     </v-card-text>
     <v-card-actions class="pa-2 ga-2">
@@ -73,6 +144,7 @@ import { computed, ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { formatBalance, formatUsd } from "@/lib/format";
+import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import {
   GetAppSettings,
   GetOpenShift,
@@ -90,6 +162,8 @@ const balanceRows = ref<any[]>([]);
 const salespersons = ref<any[]>([]);
 const closingPersonId = ref<number | null>(null);
 const countedLbp = ref("");
+const countedVisa = ref("");
+const countedWhish = ref("");
 const usdDenominations = [100, 50, 20, 10, 5, 1] as const;
 const usdBillCounts = ref<Record<number, string>>(
   Object.fromEntries(usdDenominations.map((denomination) => [denomination, ""])),
@@ -106,6 +180,8 @@ const countedUsdTotal = computed(() =>
 const countedLbpTotal = computed(
   () => `${Math.round(Number(countedLbp.value || 0)).toLocaleString()} LBP`,
 );
+const countedVisaCents = computed(() => Math.round(Number(countedVisa.value || 0) * 100));
+const countedWhishCents = computed(() => Math.round(Number(countedWhish.value || 0) * 100));
 const formValid = computed(() => {
   const lbp = Number(countedLbp.value);
   return (
@@ -113,6 +189,10 @@ const formValid = computed(() => {
     countedLbp.value !== "" &&
     Number.isFinite(lbp) &&
     lbp >= 0 &&
+    Number.isFinite(countedVisaCents.value) &&
+    countedVisaCents.value >= 0 &&
+    Number.isFinite(countedWhishCents.value) &&
+    countedWhishCents.value >= 0 &&
     usdDenominations.every((denomination) => {
       const raw = usdBillCounts.value[denomination] ?? "";
       if (raw === "") return true;
@@ -145,8 +225,8 @@ async function doCloseShift() {
         shiftId,
         closingPersonId.value,
         Math.round(Number(countedLbp.value)),
-        0,
-        0,
+        countedVisaCents.value,
+        countedWhishCents.value,
         JSON.stringify(
           Object.fromEntries(
             usdDenominations.map((denomination) => [
@@ -175,7 +255,14 @@ async function doCloseShift() {
 .usd-bill-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.electronic-count-grid {
+  display: grid;
   gap: 0 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 </style>

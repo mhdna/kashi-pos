@@ -35,6 +35,45 @@ func TestShiftReportSeparatesNetSalesFromTotalPayments(t *testing.T) {
 	}
 }
 
+func TestShiftReportPaidVsCountedIncludesOverpaymentOnce(t *testing.T) {
+	const (
+		netSales    = int64(10000)
+		overpayment = int64(100)
+		paid        = netSales + overpayment
+	)
+	countedTotal, err := reconcileShiftCountedTotal(
+		paid,
+		5000, 5000,
+		4_500_000, 4_500_000,
+		5000, 5000,
+		100, 100,
+		90_000, roundingHalfUp,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countedTotal != paid {
+		t.Fatalf("counted total = %d, paid = %d; overpayment must be included exactly once", countedTotal, paid)
+	}
+}
+
+func TestShiftReportPaidVsCountedUsesDisplayedLBPDifference(t *testing.T) {
+	countedTotal, err := reconcileShiftCountedTotal(
+		10000,
+		5000, 5000,
+		4_510_000, 4_510_000,
+		2500, 2500,
+		2500, 2500,
+		90_000, roundingHalfUp,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countedTotal != 10000 {
+		t.Fatalf("counted total = %d, want 10000 when every displayed count matches", countedTotal)
+	}
+}
+
 func TestBuildShiftReportRaster(t *testing.T) {
 	data := shiftReportPreviewData()
 	payload, err := buildESCPOSRasterReceipt(data)
@@ -75,7 +114,7 @@ func shiftReportPreviewData() printReceiptData {
 		FirstInvoice: "SA/CN/2026/01251", LastInvoice: "SA/CN/2026/01308",
 		Transactions: 58, ItemsSold: 143, Returns: 1,
 		GrossSales: 142000, Discounts: 4500, ReturnAmount: 2000,
-		Tax: 14850, NetSales: 150350, TotalPayments: 150350, Overpayment: 0,
+		Tax: 14850, NetSales: 150350, TotalPayments: 150350, CountedTotal: 149911, Overpayment: 0,
 		Payments: []receiptPayment{
 			{AccountName: "USD", CurrencyCode: "USD", AmountCents: 65000},
 			{AccountName: "LBP", CurrencyCode: "LBP", AmountCents: 50000},

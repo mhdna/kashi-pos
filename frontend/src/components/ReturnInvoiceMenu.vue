@@ -96,20 +96,6 @@
               @keydown.enter.prevent="scanItem"
               @update:model-value="scanError = ''"
             />
-            <v-btn
-              height="40"
-              variant="text"
-              rounded
-              :aria-label="returned ? 'Search replacement products' : 'Search products being returned'"
-              @click="productSearchDialog?.openDialog()"
-            >
-              <v-icon icon="mdi-magnify" size="20" />
-            </v-btn>
-            <ProductSearchDialog
-              ref="productSearchDialog"
-              :show-activator="false"
-              @select="selectExchangeProduct"
-            />
           </div>
 
           <v-list v-if="returned" density="compact" class="pa-0">
@@ -245,7 +231,6 @@
 import { computed, inject, ref, watch, type Ref } from "vue";
 import { useExchangeDialog } from "@/composables/useExchangeDialog";
 import { effectiveExchangePrice, exchangeLineTotal, type ExchangeSelection } from "@/lib/exchange";
-import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 
 const emit = defineEmits<{
   exchange: [payload: ExchangeSelection];
@@ -255,7 +240,6 @@ const roundingMode = computed(() => props.roundingMode ?? "half_up");
 
 const dialogOpen = inject<Ref<boolean>>("dialogOpen");
 const menu = ref(false);
-const productSearchDialog = ref<InstanceType<typeof ProductSearchDialog> | null>(null);
 const exchangePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 defineExpose({ open: () => { menu.value = true; }, close: () => { menu.value = false; } });
@@ -279,7 +263,6 @@ const {
   loadInvoice,
   selectReturned,
   scanItem,
-  selectSearchedProduct,
   removeReplacement,
   changeInvoice,
   createSelection,
@@ -330,18 +313,6 @@ function backspaceExchangeInput() {
 function submitExchangeInput() {
   if (invoice.value) void scanItem();
   else void loadInvoice();
-}
-
-function selectExchangeProduct(product: {
-  name: string;
-  code: string;
-  barcode?: string;
-  category: string;
-  price: number;
-  discount: number;
-  qty: number;
-}) {
-  selectSearchedProduct({ ...product, barcode: product.barcode ?? "" });
 }
 
 function startExchange() {
