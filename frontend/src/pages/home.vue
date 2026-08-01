@@ -218,6 +218,7 @@ import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
+import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { roundCents } from "@/lib/money";
 import type { Client } from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
@@ -568,6 +569,7 @@ async function onCheckout() {
     snackbar.show = true;
     clearInvoice();
     exchangeState.value = null;
+    notifyIncomeChanged();
     await nextTick();
     queueScreenUpdate("");
     await refreshNextInvoiceCode("sales");
