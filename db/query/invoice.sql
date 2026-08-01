@@ -139,7 +139,25 @@ ON CONFLICT (year, type) DO UPDATE SET last_index = last_index + 1
 RETURNING last_index;
 
 -- name: GetTodayIncomeByAccount :many
-WITH invoice_account_totals AS (
+WITH on_account_invoices AS (
+    SELECT ip.invoice_id, MIN(ip.cashbox_id) AS cashbox_id
+    FROM invoice_payments ip
+    JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
+    WHERE lower(trim(ca.name)) = 'on account'
+    GROUP BY ip.invoice_id
+    UNION ALL
+    SELECT i.id, i.cashbox_id
+    FROM invoices i
+    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
+    WHERE lower(trim(ca.name)) = 'on account'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM invoice_payments ip
+          JOIN cashbox_accounts payment_ca ON payment_ca.id = ip.cashbox_id
+          WHERE ip.invoice_id = i.id
+            AND lower(trim(payment_ca.name)) = 'on account'
+      )
+), invoice_account_totals AS (
     SELECT i.created_at, ip.cashbox_id, ip.amount
     FROM invoices i
     JOIN invoice_payments ip ON ip.invoice_id = i.id
@@ -157,15 +175,13 @@ WITH invoice_account_totals AS (
     SELECT cap.created_at, cap.cashbox_id, cap.amount
     FROM client_account_payments cap
     UNION ALL
-    SELECT date('now', 'localtime'), i.cashbox_id,
+    SELECT date('now', 'localtime'), oai.cashbox_id,
            cae.amount - COALESCE((SELECT SUM(cap.amount)
                                   FROM client_account_payments cap
                                   WHERE cap.invoice_id = cae.invoice_id), 0)
     FROM client_account_entries cae
-    JOIN invoices i ON i.id = cae.invoice_id
-    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
-    WHERE lower(trim(ca.name)) = 'on account'
-      AND cae.amount > COALESCE((SELECT SUM(cap.amount)
+    JOIN on_account_invoices oai ON oai.invoice_id = cae.invoice_id
+    WHERE cae.amount > COALESCE((SELECT SUM(cap.amount)
                                  FROM client_account_payments cap
                                  WHERE cap.invoice_id = cae.invoice_id), 0)
 )

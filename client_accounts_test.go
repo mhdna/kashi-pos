@@ -106,3 +106,60 @@ func TestClientAccountPaymentBecomesCollectedIncomeWhenReceived(t *testing.T) {
 		t.Fatal("payment above the outstanding balance was accepted")
 	}
 }
+
+func TestTodayIncomeIncludesOnAccountPartOfSplitPayment(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t)
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	shift, err := store.CreateShift(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	onAccount, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "On Account", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cash, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash USD", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, _ := store.CreateInventory(ctx, "Sales")
+	client, _ := store.CreateClient(ctx, db.CreateClientParams{Name: "Split Customer", Phone: "+96172222222"})
+	invoice, err := store.CreateInvoice(ctx, db.CreateInvoiceParams{
+		CashboxID: cash.ID, ShiftID: shift.ID, InvoiceCode: "SA/CN/2026/00002",
+		InvoiceIndex: 2, Year: 2026, ClientID: client.ID, InventoryID: inventory.ID,
+		Subtotal: 1000, DiscountedTotal: 1000, GrandTotal: 1000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, payment := range []db.CreateInvoicePaymentParams{
+		{InvoiceID: invoice.ID, CashboxID: cash.ID, Amount: 400},
+		{InvoiceID: invoice.ID, CashboxID: onAccount.ID, Amount: 600},
+	} {
+		if err := store.CreateInvoicePayment(ctx, payment); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := store.CreateClientAccountEntry(ctx, db.CreateClientAccountEntryParams{
+		ClientID: client.ID, InvoiceID: invoice.ID, Amount: 600,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{ctx: ctx, store: store}
+	today, err := app.GetTodayIncomeByAccount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	totals := map[string]float64{}
+	for _, row := range today {
+		totals[row["accountName"].(string)] = row["total"].(float64)
+	}
+	if totals["Cash USD"] != 400 || totals["On Account"] != 600 {
+		t.Fatalf("today income rows = %#v", today)
+	}
+}

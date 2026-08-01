@@ -61,19 +61,6 @@
               </template>
               Apply Coupon
             </v-btn>
-            <OnHoldMenu
-              v-if="!exchangeState"
-              ref="onHoldMenuRef"
-              hide-activator
-              @restore="onRestoreHold"
-            />
-            <ReturnInvoiceMenu
-              v-if="!exchangeState"
-              ref="returnInvoiceMenuRef"
-              hide-activator
-              :rounding-mode="roundingMode"
-              @exchange="onExchange"
-            />
             <v-btn
               v-else
               color="red-darken-2"
@@ -213,16 +200,17 @@ import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
 // import InvoiceSummary from "@/components/InvoiceSummary.vue";
-import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
-import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { roundCents } from "@/lib/money";
 import type { Client } from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
-import { pendingNavAction } from "@/composables/useNavActions";
+import {
+  pendingExchangeSelection,
+  pendingHoldInvoice,
+} from "@/composables/useNavActions";
 
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
 type InvoiceDraft = { items: any[]; client: Client; notes?: string };
@@ -249,8 +237,6 @@ const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
 const productSearchDialog = ref<InstanceType<typeof ProductSearchDialog> | null>(null);
-const onHoldMenuRef = ref<InstanceType<typeof OnHoldMenu> | null>(null);
-const returnInvoiceMenuRef = ref<InstanceType<typeof ReturnInvoiceMenu> | null>(null);
 const accountDialog = ref(false);
 
 const invoiceTotal = computed(() => {
@@ -290,14 +276,8 @@ watch(noteMenu, (open) => {
   if (open) noteDraft.value = invoiceNotes.value;
 });
 
-watch(pendingNavAction, (action) => {
-  if (!action) return;
-  nextTick(() => {
-    if (action === "onhold") onHoldMenuRef.value?.open();
-    else if (action === "exchange") returnInvoiceMenuRef.value?.open();
-    pendingNavAction.value = null;
-  });
-});
+watch(pendingHoldInvoice, () => consumePendingHold());
+watch(pendingExchangeSelection, () => void consumePendingExchange());
 
 watch(
   [() => invoiceItems.value?.items, () => actionBar.value?.client, invoiceNotes],
@@ -625,6 +605,20 @@ function onRestoreHold(id: number, items: any[]) {
   DeleteHoldInvoice(id);
 }
 
+function consumePendingHold() {
+  const pending = pendingHoldInvoice.value;
+  if (!pending) return;
+  pendingHoldInvoice.value = null;
+  onRestoreHold(pending.id, pending.items);
+}
+
+async function consumePendingExchange() {
+  const pending = pendingExchangeSelection.value;
+  if (!pending) return;
+  pendingExchangeSelection.value = null;
+  await onExchange(pending);
+}
+
 onMounted(async () => {
   await nextTick();
   if (!pageActive) return;
@@ -636,6 +630,8 @@ onMounted(async () => {
     subtree: true,
   });
   restoreDraft();
+  consumePendingHold();
+  await consumePendingExchange();
   focusBarcode();
   try {
     const settings = await GetAppSettings();

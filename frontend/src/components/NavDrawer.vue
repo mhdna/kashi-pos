@@ -47,23 +47,19 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { pendingNavAction } from "@/composables/useNavActions";
 import CloseShiftCard from "./CloseShiftCard.vue";
 
 const auth = useAuthStore();
-const router = useRouter();
 const closeShiftDialog = ref(false);
 
 function onHoldClick() {
   pendingNavAction.value = "onhold";
-  router.push("/home");
 }
 
 function onExchangeClick() {
   pendingNavAction.value = "exchange";
-  router.push("/home");
 }
 
 const items = computed(() => {

@@ -123,22 +123,7 @@ export function useExchangeDialog(roundingMode: () => string) {
     scanning.value = true;
     try {
       const product = await findProduct(value);
-      if (normalizeExchangeCode(product.code) === normalizeExchangeCode(returned.value.code)) {
-        throw new Error("Choose a different product as the replacement.");
-      }
-      const existing = replacements.value.find(
-        (item) => normalizeExchangeCode(item.code) === normalizeExchangeCode(product.code),
-      );
-      if (existing) {
-        existing.qty = Number(existing.qty || 1) + 1;
-      } else {
-        replacements.value.push({
-          ...product,
-          price: Number(product.price),
-          discount: Number(product.discount),
-          qty: 1,
-        });
-      }
+      addReplacementProduct(product);
       scanValue.value = "";
     } catch (error: any) {
       scanValue.value = "";
@@ -147,6 +132,54 @@ export function useExchangeDialog(roundingMode: () => string) {
       scanning.value = false;
       focusScanInput();
     }
+  }
+
+  function addReplacementProduct(product: ExchangeItem) {
+    if (!returned.value) {
+      scanError.value = "Select the product being returned first.";
+      return false;
+    }
+    if (normalizeExchangeCode(product.code) === normalizeExchangeCode(returned.value.code)) {
+      scanError.value = "Choose a different product as the replacement.";
+      return false;
+    }
+    const existing = replacements.value.find(
+      (item) => normalizeExchangeCode(item.code) === normalizeExchangeCode(product.code),
+    );
+    if (existing) {
+      existing.qty = Number(existing.qty || 1) + 1;
+    } else {
+      replacements.value.push({
+        ...product,
+        price: Number(product.price),
+        discount: Number(product.discount),
+        qty: 1,
+      });
+    }
+    scanError.value = "";
+    scanValue.value = "";
+    focusScanInput();
+    return true;
+  }
+
+  function selectSearchedProduct(product: ExchangeItem) {
+    if (!returned.value) {
+      const searched = normalizeExchangeCode(product.code);
+      const item = invoice.value?.items.find(
+        (candidate) =>
+          normalizeExchangeCode(candidate.code) === searched ||
+          (Boolean(product.barcode) &&
+            normalizeExchangeCode(candidate.barcode || "") ===
+              normalizeExchangeCode(product.barcode || "")),
+      );
+      if (!item) {
+        scanError.value = "This product is not available to return on the loaded invoice.";
+        return false;
+      }
+      selectReturned(item);
+      return true;
+    }
+    return addReplacementProduct(product);
   }
 
   function removeReplacement(code: string) {
@@ -206,6 +239,8 @@ export function useExchangeDialog(roundingMode: () => string) {
     loadInvoice,
     selectReturned,
     scanItem,
+    addReplacementProduct,
+    selectSearchedProduct,
     removeReplacement,
     changeInvoice,
     createSelection,
