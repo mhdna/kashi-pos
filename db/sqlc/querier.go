@@ -14,6 +14,7 @@ type Querier interface {
 	AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyaltyPointsParams) error
 	AddHoldInvoiceItem(ctx context.Context, arg AddHoldInvoiceItemParams) error
 	AddInventoryProductQuantity(ctx context.Context, arg AddInventoryProductQuantityParams) error
+	AddQuickAccessProduct(ctx context.Context, productID int64) error
 	ApproveAttendanceComplaint(ctx context.Context, arg ApproveAttendanceComplaintParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
 	CloseOpenShifts(ctx context.Context, closedAt string) error
@@ -146,6 +147,7 @@ type Querier interface {
 	ListInvoicePayments(ctx context.Context, invoiceID int64) ([]InvoicePayment, error)
 	ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
 	ListInvoices(ctx context.Context) ([]Invoice, error)
+	ListInvoicesByDate(ctx context.Context, date string) ([]ListInvoicesByDateRow, error)
 	ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error)
 	ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]ListInvoicesPageRow, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
@@ -153,6 +155,7 @@ type Querier interface {
 	ListProducts(ctx context.Context) ([]Product, error)
 	ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error)
 	ListProductsPageUnfiltered(ctx context.Context, arg ListProductsPageUnfilteredParams) ([]Product, error)
+	ListQuickAccessProducts(ctx context.Context) ([]Product, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	ListSalespersons(ctx context.Context) ([]Salesperson, error)
 	ListShiftPaymentTotals(ctx context.Context, reportShiftID int64) ([]ListShiftPaymentTotalsRow, error)
@@ -162,6 +165,7 @@ type Querier interface {
 	ListUsers(ctx context.Context) ([]User, error)
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
+	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error

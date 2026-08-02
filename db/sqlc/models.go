@@ -251,6 +251,12 @@ type Product struct {
 	ProductYear  int64  `json:"productYear"`
 }
 
+type QuickAccessItem struct {
+	ProductID int64  `json:"productId"`
+	Position  int64  `json:"position"`
+	CreatedAt string `json:"createdAt"`
+}
+
 type ReturnInvoice struct {
 	InvoiceID      int64 `json:"invoiceId"`
 	SalesInvoiceID int64 `json:"salesInvoiceId"`

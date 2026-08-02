@@ -53,6 +53,20 @@ WHERE id = ? RETURNING *;
 -- name: DeleteProduct :exec
 DELETE FROM products WHERE id = ?;
 
+-- name: ListQuickAccessProducts :many
+SELECT p.*
+FROM quick_access_items q
+JOIN products p ON p.id = q.product_id
+ORDER BY q.position, q.created_at, q.product_id;
+
+-- name: AddQuickAccessProduct :exec
+INSERT INTO quick_access_items (product_id, position)
+VALUES (?, COALESCE((SELECT MAX(position) + 1 FROM quick_access_items), 0))
+ON CONFLICT (product_id) DO NOTHING;
+
+-- name: RemoveQuickAccessProduct :exec
+DELETE FROM quick_access_items WHERE product_id = ?;
+
 -- name: GetPriceOverride :one
 SELECT * FROM price_overrides WHERE id = ?;
 

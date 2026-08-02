@@ -10,6 +10,17 @@ import (
 	"database/sql"
 )
 
+const addQuickAccessProduct = `-- name: AddQuickAccessProduct :exec
+INSERT INTO quick_access_items (product_id, position)
+VALUES (?, COALESCE((SELECT MAX(position) + 1 FROM quick_access_items), 0))
+ON CONFLICT (product_id) DO NOTHING
+`
+
+func (q *Queries) AddQuickAccessProduct(ctx context.Context, productID int64) error {
+	_, err := q.db.ExecContext(ctx, addQuickAccessProduct, productID)
+	return err
+}
+
 const countAllProducts = `-- name: CountAllProducts :one
 SELECT COUNT(*) FROM products
 `
@@ -514,6 +525,63 @@ func (q *Queries) ListProductsPageUnfiltered(ctx context.Context, arg ListProduc
 		return nil, err
 	}
 	return items, nil
+}
+
+const listQuickAccessProducts = `-- name: ListQuickAccessProducts :many
+SELECT p.id, p.barcode, p.code, p.name, p.description, p.is_active, p.price, p.discount, p.color, p.size, p.currency_code, p.created_at, p.brand, p.family, p.kind, p.season, p.product_year
+FROM quick_access_items q
+JOIN products p ON p.id = q.product_id
+ORDER BY q.position, q.created_at, q.product_id
+`
+
+func (q *Queries) ListQuickAccessProducts(ctx context.Context) ([]Product, error) {
+	rows, err := q.db.QueryContext(ctx, listQuickAccessProducts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeQuickAccessProduct = `-- name: RemoveQuickAccessProduct :exec
+DELETE FROM quick_access_items WHERE product_id = ?
+`
+
+func (q *Queries) RemoveQuickAccessProduct(ctx context.Context, productID int64) error {
+	_, err := q.db.ExecContext(ctx, removeQuickAccessProduct, productID)
+	return err
 }
 
 const searchProductsByName = `-- name: SearchProductsByName :many

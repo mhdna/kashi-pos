@@ -53,6 +53,13 @@ LEFT JOIN salespersons s ON s.id = i.salesperson_id
 ORDER BY i.id DESC
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
+-- name: ListInvoicesByDate :many
+SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+FROM invoices i
+LEFT JOIN salespersons s ON s.id = i.salesperson_id
+WHERE date(i.created_at, 'localtime') = sqlc.arg(date)
+ORDER BY i.id DESC;
+
 -- name: CountInvoices :one
 SELECT COUNT(*) FROM invoices;
 

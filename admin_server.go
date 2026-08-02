@@ -347,18 +347,11 @@ func (a *adminServer) products(ctx context.Context, search string) ([]db.Product
 	return a.app.store.ListProductsPage(ctx, db.ListProductsPageParams{Search: sql.NullString{String: search, Valid: true}, Limit: 200, Offset: 0})
 }
 
-func (a *adminServer) invoices(ctx context.Context, day string) ([]db.ListInvoicesPageRow, error) {
-	items, err := a.app.store.ListInvoicesPage(ctx, db.ListInvoicesPageParams{Limit: 500, Offset: 0})
-	if err != nil || day == "" {
-		return items, err
+func (a *adminServer) invoices(ctx context.Context, day string) (any, error) {
+	if day != "" {
+		return a.app.store.ListInvoicesByDate(ctx, day)
 	}
-	filtered := make([]db.ListInvoicesPageRow, 0, len(items))
-	for _, item := range items {
-		if strings.HasPrefix(item.CreatedAt, day) {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered, nil
+	return a.app.store.ListInvoicesPage(ctx, db.ListInvoicesPageParams{Limit: 500, Offset: 0})
 }
 
 func (a *adminServer) dailySales(ctx context.Context, day string) (map[string]any, error) {

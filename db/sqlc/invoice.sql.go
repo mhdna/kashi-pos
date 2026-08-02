@@ -646,6 +646,73 @@ func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
 	return items, nil
 }
 
+const listInvoicesByDate = `-- name: ListInvoicesByDate :many
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+FROM invoices i
+LEFT JOIN salespersons s ON s.id = i.salesperson_id
+WHERE date(i.created_at, 'localtime') = ?1
+ORDER BY i.id DESC
+`
+
+type ListInvoicesByDateRow struct {
+	ID              int64  `json:"id"`
+	CashboxID       int64  `json:"cashboxId"`
+	ShiftID         int64  `json:"shiftId"`
+	InvoiceCode     string `json:"invoiceCode"`
+	InvoiceIndex    int64  `json:"invoiceIndex"`
+	Year            int64  `json:"year"`
+	ClientID        int64  `json:"clientId"`
+	InventoryID     int64  `json:"inventoryId"`
+	Discount        int64  `json:"discount"`
+	Subtotal        int64  `json:"subtotal"`
+	DiscountedTotal int64  `json:"discountedTotal"`
+	GrandTotal      int64  `json:"grandTotal"`
+	CreatedAt       string `json:"createdAt"`
+	SalespersonID   int64  `json:"salespersonId"`
+	Notes           string `json:"notes"`
+	SalespersonName string `json:"salespersonName"`
+}
+
+func (q *Queries) ListInvoicesByDate(ctx context.Context, date string) ([]ListInvoicesByDateRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoicesByDate, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInvoicesByDateRow{}
+	for rows.Next() {
+		var i ListInvoicesByDateRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CashboxID,
+			&i.ShiftID,
+			&i.InvoiceCode,
+			&i.InvoiceIndex,
+			&i.Year,
+			&i.ClientID,
+			&i.InventoryID,
+			&i.Discount,
+			&i.Subtotal,
+			&i.DiscountedTotal,
+			&i.GrandTotal,
+			&i.CreatedAt,
+			&i.SalespersonID,
+			&i.Notes,
+			&i.SalespersonName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listInvoicesByShiftID = `-- name: ListInvoicesByShiftID :many
 SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes FROM invoices WHERE shift_id = ? ORDER BY id
 `

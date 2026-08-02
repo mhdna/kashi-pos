@@ -6,6 +6,10 @@ export function AddClientLoyaltyPoints(arg1, arg2) {
   return window['go']['main']['App']['AddClientLoyaltyPoints'](arg1, arg2);
 }
 
+export function AddQuickAccessProduct(arg1) {
+  return window['go']['main']['App']['AddQuickAccessProduct'](arg1);
+}
+
 export function ApproveAttendanceComplaint(arg1, arg2) {
   return window['go']['main']['App']['ApproveAttendanceComplaint'](arg1, arg2);
 }
@@ -226,6 +230,10 @@ export function ListProductsPage(arg1, arg2, arg3) {
   return window['go']['main']['App']['ListProductsPage'](arg1, arg2, arg3);
 }
 
+export function ListQuickAccessProducts() {
+  return window['go']['main']['App']['ListQuickAccessProducts']();
+}
+
 export function ListRoles() {
   return window['go']['main']['App']['ListRoles']();
 }
@@ -268,6 +276,10 @@ export function PrintClosedShiftReceipt(arg1) {
 
 export function PrintCurrentCloseShiftSample() {
   return window['go']['main']['App']['PrintCurrentCloseShiftSample']();
+}
+
+export function RemoveQuickAccessProduct(arg1) {
+  return window['go']['main']['App']['RemoveQuickAccessProduct'](arg1);
 }
 
 export function ReprintInvoice(arg1) {

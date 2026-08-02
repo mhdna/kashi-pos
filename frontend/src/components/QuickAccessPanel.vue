@@ -69,11 +69,17 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from "vue";
+import { onMounted, ref, watch } from "vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
-import { GetProductByCode } from "../../wailsjs/go/main/App";
+import {
+  AddQuickAccessProduct,
+  GetProductByCode,
+  ListQuickAccessProducts,
+  RemoveQuickAccessProduct,
+} from "../../wailsjs/go/main/App";
 
 type QuickAccessItem = {
+  id?: number;
   name: string;
   code: string;
   category: string;
@@ -108,9 +114,31 @@ watch(
   { deep: true },
 );
 
-function addPinnedItem(item: QuickAccessItem) {
-  if (!items.value.some((existing) => existing.code === item.code))
-    items.value.push({ ...item, qty: 1 });
+onMounted(loadQuickAccess);
+
+async function loadQuickAccess() {
+  const legacyItems = [...items.value];
+  try {
+    let saved = ((await ListQuickAccessProducts()) as QuickAccessItem[]) ?? [];
+    if (!saved.length && legacyItems.length) {
+      for (const item of legacyItems) {
+        try {
+          const product = item.id ? item : ((await GetProductByCode(item.code)) as QuickAccessItem);
+          if (product.id) await AddQuickAccessProduct(product.id);
+        } catch {}
+      }
+      saved = ((await ListQuickAccessProducts()) as QuickAccessItem[]) ?? [];
+    }
+    items.value = saved.map((item) => ({ ...item, qty: 1 }));
+  } catch {
+    // Older backends still use the local copy until they are upgraded.
+  }
+}
+
+async function addPinnedItem(item: QuickAccessItem) {
+  if (items.value.some((existing) => existing.id === item.id || existing.code === item.code)) return;
+  if (item.id) await AddQuickAccessProduct(item.id);
+  items.value.push({ ...item, qty: 1 });
 }
 async function addToInvoice(item: QuickAccessItem) {
   try {
@@ -126,7 +154,9 @@ function removePinnedItem(code: string) {
   removalName.value = item.name;
   removeDialog.value = true;
 }
-function confirmRemoval() {
+async function confirmRemoval() {
+  const item = items.value.find((entry) => entry.code === removalCode.value);
+  if (item?.id) await RemoveQuickAccessProduct(item.id);
   items.value = items.value.filter((entry) => entry.code !== removalCode.value);
   removeDialog.value = false;
   removalCode.value = "";

@@ -83,6 +83,55 @@ func (a *App) ListProducts() ([]map[string]any, error) {
 	return result, nil
 }
 
+func productToMap(product db.Product) map[string]any {
+	return map[string]any{
+		"id": product.ID, "barcode": product.Barcode, "code": product.Code,
+		"name": product.Name, "category": product.Description,
+		"price": float64(product.Price) / 100, "discount": product.Discount,
+		"color": product.Color, "size": product.Size, "currency": product.CurrencyCode,
+		"brand": product.Brand, "family": product.Family, "kind": product.Kind,
+		"season": product.Season, "year": product.ProductYear,
+	}
+}
+
+func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	products, err := a.store.ListQuickAccessProducts(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list quick-access products: %w", err)
+	}
+	result := make([]map[string]any, len(products))
+	for i, product := range products {
+		result[i] = productToMap(product)
+	}
+	return result, nil
+}
+
+func (a *App) AddQuickAccessProduct(productID int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if productID <= 0 {
+		return fmt.Errorf("invalid product")
+	}
+	if _, err := a.store.GetProductByID(a.ctx, productID); err != nil {
+		return fmt.Errorf("product not found")
+	}
+	return a.store.AddQuickAccessProduct(a.ctx, productID)
+}
+
+func (a *App) RemoveQuickAccessProduct(productID int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if productID <= 0 {
+		return fmt.Errorf("invalid product")
+	}
+	return a.store.RemoveQuickAccessProduct(a.ctx, productID)
+}
+
 func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (ProductPage, error) {
 	if a.store == nil {
 		return ProductPage{}, fmt.Errorf("database not initialized")

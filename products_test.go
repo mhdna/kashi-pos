@@ -61,6 +61,38 @@ func TestListProductsPageBoundsAndSearch(t *testing.T) {
 	}
 }
 
+func TestQuickAccessProductsPersistInDatabase(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	insertTestProducts(t, database, 2)
+
+	product, err := app.store.GetProductByCode(app.ctx, "SKU-001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.AddQuickAccessProduct(product.ID); err != nil {
+		t.Fatal(err)
+	}
+	items, err := app.ListQuickAccessProducts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0]["code"] != "SKU-001" {
+		t.Fatalf("quick-access items = %#v", items)
+	}
+
+	if err := app.RemoveQuickAccessProduct(product.ID); err != nil {
+		t.Fatal(err)
+	}
+	items, err = app.ListQuickAccessProducts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("quick-access items after removal = %#v", items)
+	}
+}
+
 func TestProductVariantsHaveDistinctBarcodesAndCatalogMetadata(t *testing.T) {
 	app, database := newProductTestApp(t)
 	defer database.Close()

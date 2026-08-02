@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<string, any>>;
 
+export function AddQuickAccessProduct(arg1:number):Promise<void>;
+
 export function ApproveAttendanceComplaint(arg1:number,arg2:boolean):Promise<void>;
 
 export function ChangeInvoiceClient(arg1:number,arg2:number):Promise<void>;
@@ -114,6 +116,8 @@ export function ListProducts():Promise<Array<Record<string, any>>>;
 
 export function ListProductsPage(arg1:number,arg2:number,arg3:string):Promise<main.ProductPage>;
 
+export function ListQuickAccessProducts():Promise<Array<Record<string, any>>>;
+
 export function ListRoles():Promise<Array<Record<string, any>>>;
 
 export function ListSalespersons():Promise<Array<Record<string, any>>>;
@@ -135,6 +139,8 @@ export function PayClientAccount(arg1:number,arg2:number,arg3:number):Promise<Re
 export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>>;
 
 export function PrintCurrentCloseShiftSample():Promise<Record<string, any>>;
+
+export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
 
 export function ReprintInvoice(arg1:number):Promise<void>;
 

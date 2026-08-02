@@ -26,31 +26,25 @@
           autofocus
         />
       </v-card-title>
-      <v-infinite-scroll
-        :key="listKey"
-        class="product-list-scroll"
-        :height="400"
-        @load="loadItems"
+      <v-data-table-server
+        v-model:items-per-page="itemsPerPage"
+        class="product-list-table"
+        :headers="headers"
+        :items="serverItems"
+        :items-length="totalItems"
+        :loading="loading"
+        :search="debouncedSearch"
+        density="compact"
+        hover
+        return-object
+        @click:row="selectProduct"
+        @update:options="loadItems"
       >
-        <v-list v-if="serverItems.length" density="compact" class="pa-0">
-          <v-list-item
-            v-for="(item, index) in serverItems"
-            :key="item.id || `${item.barcode}-${index}`"
-            :class="index % 2 === 0 ? 'bg-grey-lighten-5' : undefined"
-            rounded="0"
-            @click="selectProduct(item)"
-          >
-            <template #title>
-              <span class="font-weight-medium">{{ item.name }}</span>
-              <v-chip v-if="item.color" size="x-small" variant="tonal" class="ms-2">{{ item.color }}</v-chip>
-              <v-chip v-if="item.size" size="x-small" variant="outlined" class="ms-1">{{ item.size }}</v-chip>
-            </template>
-            <template #subtitle>{{ item.code }} · {{ item.barcode }}</template>
-            <template #append>${{ Number(item.price || 0).toFixed(2) }}</template>
-          </v-list-item>
-        </v-list>
-        <div v-else-if="!loading" class="pa-6 text-center text-medium-emphasis">No products found.</div>
-      </v-infinite-scroll>
+        <template #item.name="{ item }">
+          <span class="font-weight-medium">{{ item.name }}</span>
+        </template>
+        <template #item.price="{ item }">${{ Number(item.price || 0).toFixed(2) }}</template>
+      </v-data-table-server>
       <v-divider />
       <v-card-text class="product-inline-keyboard">
         <InlineKeyboard v-model="search" :max-length="80" layout="code" />
@@ -112,49 +106,45 @@ watch(search, (value) => {
   }, 250);
 });
 
-const pageSize = 30;
-const serverItems = ref<any[]>([]);
-const loading = ref(false);
-const nextPage = ref(1);
-const listKey = ref(0);
-const hasMore = ref(true);
+const headers = [
+  { title: "Code", key: "code", align: "start" as const },
+  { title: "Name", key: "name", align: "start" as const },
+  { title: "Color", key: "color", align: "start" as const },
+  { title: "Size", key: "size", align: "start" as const },
+  { title: "Price", key: "price", align: "end" as const },
+];
 
-async function loadItems({ done }: { done: (status: "ok" | "empty" | "error") => void }) {
-  if (loading.value || !hasMore.value) {
-    done(hasMore.value ? "ok" : "empty");
-    return;
-  }
-  const request = latestRequest;
+const itemsPerPage = ref(5);
+const serverItems = ref<any[]>([]);
+const totalItems = ref(0);
+const loading = ref(false);
+
+async function loadItems({
+  page,
+  itemsPerPage: requestedItemsPerPage,
+}: {
+  page: number;
+  itemsPerPage: number;
+}) {
+  const request = ++latestRequest;
   loading.value = true;
   try {
-    const result = await ListProductsPage(nextPage.value, pageSize, debouncedSearch.value);
-    if (request !== latestRequest) {
-      done("ok");
-      return;
-    }
-    const pageItems = result.items.map((p) => ({ ...p, qty: 1 }));
-    serverItems.value.push(...pageItems);
-    nextPage.value += 1;
-    hasMore.value = serverItems.value.length < result.total && pageItems.length > 0;
-    done(hasMore.value ? "ok" : "empty");
+    const result = await ListProductsPage(page, requestedItemsPerPage, debouncedSearch.value);
+    if (request !== latestRequest) return;
+    serverItems.value = result.items.map((product) => ({ ...product, qty: 1 }));
+    totalItems.value = result.total;
   } catch (e) {
+    if (request !== latestRequest) return;
     console.error("ListProductsPage failed:", e);
-    done("error");
+    serverItems.value = [];
+    totalItems.value = 0;
   } finally {
-    loading.value = false;
+    if (request === latestRequest) loading.value = false;
   }
 }
 
-watch(debouncedSearch, () => {
-  latestRequest++;
-  serverItems.value = [];
-  nextPage.value = 1;
-  hasMore.value = true;
-  listKey.value += 1;
-});
-
-function selectProduct(item: any) {
-  emit("select", item);
+function selectProduct(_event: Event, row: { item: any }) {
+  emit("select", row.item);
   dialog.value = false;
   search.value = "";
 }
@@ -165,11 +155,6 @@ onBeforeUnmount(() => {
 });
 
 function openDialog() {
-  latestRequest++;
-  serverItems.value = [];
-  nextPage.value = 1;
-  hasMore.value = true;
-  listKey.value += 1;
   dialog.value = true;
 }
 
@@ -188,10 +173,11 @@ defineExpose({ openDialog });
   flex-direction: column;
 }
 
-.product-list-scroll {
+.product-list-table {
   flex: 0 0 400px;
   height: 400px;
   min-height: 0;
+  overflow-y: auto;
 }
 
 .product-inline-keyboard {
