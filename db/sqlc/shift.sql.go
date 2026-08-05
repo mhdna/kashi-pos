@@ -128,6 +128,28 @@ func (q *Queries) CreateShift(ctx context.Context, isClosed int64) (Shift, error
 	return i, err
 }
 
+const createShiftBalanceReplacement = `-- name: CreateShiftBalanceReplacement :exec
+INSERT INTO shift_balance_replacements (shift_id, from_cashbox_id, to_cashbox_id, amount)
+VALUES (?, ?, ?, ?)
+`
+
+type CreateShiftBalanceReplacementParams struct {
+	ShiftID       int64 `json:"shiftId"`
+	FromCashboxID int64 `json:"fromCashboxId"`
+	ToCashboxID   int64 `json:"toCashboxId"`
+	Amount        int64 `json:"amount"`
+}
+
+func (q *Queries) CreateShiftBalanceReplacement(ctx context.Context, arg CreateShiftBalanceReplacementParams) error {
+	_, err := q.db.ExecContext(ctx, createShiftBalanceReplacement,
+		arg.ShiftID,
+		arg.FromCashboxID,
+		arg.ToCashboxID,
+		arg.Amount,
+	)
+	return err
+}
+
 const deleteAccount = `-- name: DeleteAccount :exec
 DELETE FROM accounts WHERE id = ?
 `
@@ -491,6 +513,14 @@ WITH invoice_account_totals AS (
     SELECT 0 AS invoice_id, cap.cashbox_id, cap.amount
     FROM client_account_payments cap
     WHERE cap.shift_id = ?1
+    UNION ALL
+    SELECT 0 AS invoice_id, sbr.from_cashbox_id AS cashbox_id, -sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = ?1
+    UNION ALL
+    SELECT 0 AS invoice_id, sbr.to_cashbox_id AS cashbox_id, sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = ?1
 )
 SELECT ca.id AS account_id, ca.name AS account_name, ca.currency_code,
        COALESCE(SUM(t.amount), 0) AS total

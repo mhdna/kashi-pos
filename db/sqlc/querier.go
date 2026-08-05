@@ -47,6 +47,7 @@ type Querier interface {
 	CreateSalesInvoice(ctx context.Context, invoiceID int64) error
 	CreateSalesperson(ctx context.Context, fullName string) (Salesperson, error)
 	CreateShift(ctx context.Context, isClosed int64) (Shift, error)
+	CreateShiftBalanceReplacement(ctx context.Context, arg CreateShiftBalanceReplacementParams) error
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)

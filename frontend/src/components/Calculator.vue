@@ -27,7 +27,14 @@
     <v-dialog v-model="couponDialog" max-width="420">
       <v-card title="Coupon payment">
         <v-card-text>
-          <v-text-field v-model="couponCode" label="Coupon code" autofocus variant="outlined" />
+          <v-text-field
+            v-model="couponCode"
+            :label="selectedCouponType?.referenceOnly ? 'Reference number' : 'Coupon code'"
+            :hint="selectedCouponType?.referenceOnly ? 'Enter the reference number for this coupon.' : 'Enter the issued coupon code.'"
+            persistent-hint
+            autofocus
+            variant="outlined"
+          />
           <v-select v-model="couponTypeId" :items="couponTypes" item-title="name" item-value="id" label="Coupon type" variant="outlined" />
         </v-card-text>
         <v-card-actions>
@@ -86,6 +93,7 @@ const couponDialog = ref(false);
 const couponCode = ref("");
 const couponTypeId = ref<number | null>(null);
 const couponTypes = ref<any[]>([]);
+const selectedCouponType = computed(() => couponTypes.value.find((item) => item.id === couponTypeId.value));
 
 const activeCurrency = computed(
   () => paymentMethods.value.find((m) => m.name === activeMethod.value)?.currencyCode ?? "",

@@ -16,7 +16,15 @@ export interface Balance {
   isCollected?: boolean;
 }
 
+export interface PaymentMethod {
+  id: number;
+  name: string;
+  displayName?: string;
+  currencyCode?: string;
+}
+
 export interface IncomeRow {
+  accountId?: number;
   accountName: string;
   total: number;
   currencyCode?: string;

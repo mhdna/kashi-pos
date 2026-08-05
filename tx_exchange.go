@@ -8,9 +8,22 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
+type exchangePolicy struct {
+	allowLate       bool
+	allowLowerTotal bool
+	returnOnly      bool
+}
+
+var posExchangePolicy = exchangePolicy{}
+var adminReturnExchangePolicy = exchangePolicy{allowLate: true, allowLowerTotal: true}
+
 // CheckoutExchangeInvoice records one returned line and one or more
 // replacement lines. Only the positive difference is paid by the customer.
 func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, salespersonID int64, notes string) (map[string]any, error) {
+	return a.checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON, originalInvoiceID, salespersonID, notes, 0, posExchangePolicy)
+}
+
+func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, salespersonID int64, notes string, settlementAccountID int64, policy exchangePolicy) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -20,7 +33,7 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 	if _, err := a.store.GetSalespersonByID(a.ctx, salespersonID); err != nil {
 		return nil, fmt.Errorf("salesperson: %w", err)
 	}
-	request, err := parseExchangeRequest(itemsJSON)
+	request, err := parseExchangeRequest(itemsJSON, policy.returnOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -55,12 +68,17 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 		if err != nil {
 			return fmt.Errorf("source invoice: %w", err)
 		}
-		if err := validateExchangeWindow(source.CreatedAt, time.Now()); err != nil {
-			return err
+		if !policy.allowLate {
+			if err := validateExchangeWindow(source.CreatedAt, time.Now()); err != nil {
+				return err
+			}
 		}
 		priced, err := a.validateAndPriceExchange(q, source.ID, request, roundingMode)
 		if err != nil {
 			return err
+		}
+		if !policy.allowLowerTotal && priced.replacementTotal < priced.returnedTotal {
+			return fmt.Errorf("combined replacement total must equal or exceed the returned item")
 		}
 		netDifference := priced.replacementTotal - priced.returnedTotal
 		taxCents, err := roundFloatToCents(float64(netDifference)/100*settings.TaxRate, roundingMode)
@@ -68,6 +86,16 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 			return err
 		}
 		total := netDifference + taxCents
+		if policy.allowLate && strings.TrimSpace(paymentsJSON) == "" && total != 0 {
+			if settlementAccountID <= 0 {
+				return fmt.Errorf("settlement account is required for a non-zero admin adjustment")
+			}
+			entryType := "payment"
+			if total < 0 {
+				entryType = "change"
+			}
+			payments = []checkoutPayment{{AccountID: settlementAccountID, AmountCents: total, EntryType: entryType}}
+		}
 		if err := validatePayments(a.ctx, q, payments, total, settings.MaxOverpaymentCents); err != nil {
 			return err
 		}
@@ -76,7 +104,7 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 			return err
 		}
 		invoice, err := createExchangeInvoice(
-			a, q, cashbox, shift, source, inventoryID, salespersonID, total, settings.BranchCode, notes,
+			a, q, cashbox, shift, source, inventoryID, salespersonID, total, settings.BranchCode, notes, policy.returnOnly,
 		)
 		if err != nil {
 			return err
@@ -108,6 +136,17 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 	return result, err
 }
 
+// CheckoutAdminReturnInvoice is the privileged admin entry point. It uses the
+// same transaction and validation as POS exchanges, but intentionally bypasses
+// the customer-facing time and value restrictions.
+func (a *App) CheckoutAdminReturnInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, salespersonID int64, notes string) (map[string]any, error) {
+	return a.checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON, originalInvoiceID, salespersonID, notes, 0, exchangePolicy{allowLate: true, allowLowerTotal: true, returnOnly: true})
+}
+
+func (a *App) checkoutAdminReturnInvoice(itemsJSON string, originalInvoiceID, salespersonID, settlementAccountID int64, notes string) (map[string]any, error) {
+	return a.checkoutReturnExchangeInvoice(itemsJSON, "", originalInvoiceID, salespersonID, notes, settlementAccountID, exchangePolicy{allowLate: true, allowLowerTotal: true, returnOnly: true})
+}
+
 func optionalPayments(raw string) ([]checkoutPayment, error) {
 	if strings.TrimSpace(raw) == "" || strings.TrimSpace(raw) == "[]" {
 		return nil, nil
@@ -130,10 +169,11 @@ func exchangeCashbox(a *App, q *db.Queries, payments []checkoutPayment) (db.Cash
 	return accounts[0], nil
 }
 
-func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shift db.Shift, source db.Invoice, inventoryID, salespersonID, total int64, branchCode, notes string) (db.Invoice, error) {
+func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shift db.Shift, source db.Invoice, inventoryID, salespersonID, total int64, branchCode, notes string, returnOnlyFlag ...bool) (db.Invoice, error) {
+	returnOnly := len(returnOnlyFlag) > 0 && returnOnlyFlag[0]
 	year := int64(time.Now().Year())
 	invoiceCode, index, err := a.allocateInvoiceCode(
-		q, invoiceTypeExchange, branchCode, year,
+		q, invoiceTypeForAdjustment(returnOnly), branchCode, year,
 	)
 	if err != nil {
 		return db.Invoice{}, err
@@ -193,6 +233,13 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 		// }
 	}
 	return nil
+}
+
+func invoiceTypeForAdjustment(returnOnly bool) string {
+	if returnOnly {
+		return "return"
+	}
+	return "exchange"
 }
 
 func recordExchangePayments(a *App, q *db.Queries, invoiceID, shiftID int64, payments []checkoutPayment) error {

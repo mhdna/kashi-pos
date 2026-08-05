@@ -103,11 +103,12 @@ type Coupon struct {
 }
 
 type CouponType struct {
-	ID           int64  `json:"id"`
-	Name         string `json:"name"`
-	ValueCents   int64  `json:"valueCents"`
-	CurrencyCode string `json:"currencyCode"`
-	IsActive     int64  `json:"isActive"`
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	ValueCents    int64  `json:"valueCents"`
+	CurrencyCode  string `json:"currencyCode"`
+	IsActive      int64  `json:"isActive"`
+	ReferenceOnly int64  `json:"referenceOnly"`
 }
 
 type Currency struct {
@@ -327,6 +328,15 @@ type Shift struct {
 	CountedUsdBreakdown   string `json:"countedUsdBreakdown"`
 	CountedVisa           int64  `json:"countedVisa"`
 	CountedWhish          int64  `json:"countedWhish"`
+}
+
+type ShiftBalanceReplacement struct {
+	ID            int64  `json:"id"`
+	ShiftID       int64  `json:"shiftId"`
+	FromCashboxID int64  `json:"fromCashboxId"`
+	ToCashboxID   int64  `json:"toCashboxId"`
+	Amount        int64  `json:"amount"`
+	CreatedAt     string `json:"createdAt"`
 }
 
 type ShiftsAccountsBalance struct {

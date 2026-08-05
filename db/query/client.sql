@@ -105,8 +105,8 @@ VALUES (?, ?, ?, ?) RETURNING *;
 UPDATE client_account_entries SET client_id = ? WHERE invoice_id = ?;
 
 -- name: CreateCouponType :one
-INSERT INTO coupon_types (name, value_cents, currency_code, is_active)
-VALUES (?, ?, ?, ?) RETURNING *;
+INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only)
+VALUES (?, ?, ?, ?, ?) RETURNING *;
 
 -- name: ListCouponTypes :many
 SELECT * FROM coupon_types ORDER BY name;
@@ -119,7 +119,7 @@ INSERT INTO coupons (code, status, discount_type, reason, client_id, valid_until
 VALUES (?, 'active', 'fixed', ?, ?, ?, ?, ?) RETURNING *;
 
 -- name: GetActiveCouponByCode :one
-SELECT * FROM coupons WHERE code = ? AND status = 'active' AND redeemed_invoice_id IS NULL;
+SELECT * FROM coupons WHERE code = ? COLLATE NOCASE AND status = 'active' AND redeemed_invoice_id IS NULL;
 
 -- name: RedeemCoupon :exec
 UPDATE coupons SET status = 'inactive', redeemed_invoice_id = ? WHERE code = ? AND status = 'active' AND redeemed_invoice_id IS NULL;

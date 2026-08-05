@@ -192,7 +192,7 @@ WITH on_account_invoices AS (
                                  FROM client_account_payments cap
                                  WHERE cap.invoice_id = cae.invoice_id), 0)
 )
-SELECT ca.name, ca.currency_code, SUM(t.amount) as total
+SELECT ca.id, ca.name, ca.currency_code, SUM(t.amount) as total
 FROM invoice_account_totals t
 JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
 WHERE date(t.created_at, 'localtime') = date('now', 'localtime')

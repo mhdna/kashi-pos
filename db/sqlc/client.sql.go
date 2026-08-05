@@ -154,15 +154,16 @@ func (q *Queries) CreateCoupon(ctx context.Context, arg CreateCouponParams) (Cou
 }
 
 const createCouponType = `-- name: CreateCouponType :one
-INSERT INTO coupon_types (name, value_cents, currency_code, is_active)
-VALUES (?, ?, ?, ?) RETURNING id, name, value_cents, currency_code, is_active
+INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only)
+VALUES (?, ?, ?, ?, ?) RETURNING id, name, value_cents, currency_code, is_active, reference_only
 `
 
 type CreateCouponTypeParams struct {
-	Name         string `json:"name"`
-	ValueCents   int64  `json:"valueCents"`
-	CurrencyCode string `json:"currencyCode"`
-	IsActive     int64  `json:"isActive"`
+	Name          string `json:"name"`
+	ValueCents    int64  `json:"valueCents"`
+	CurrencyCode  string `json:"currencyCode"`
+	IsActive      int64  `json:"isActive"`
+	ReferenceOnly int64  `json:"referenceOnly"`
 }
 
 func (q *Queries) CreateCouponType(ctx context.Context, arg CreateCouponTypeParams) (CouponType, error) {
@@ -171,6 +172,7 @@ func (q *Queries) CreateCouponType(ctx context.Context, arg CreateCouponTypePara
 		arg.ValueCents,
 		arg.CurrencyCode,
 		arg.IsActive,
+		arg.ReferenceOnly,
 	)
 	var i CouponType
 	err := row.Scan(
@@ -179,6 +181,7 @@ func (q *Queries) CreateCouponType(ctx context.Context, arg CreateCouponTypePara
 		&i.ValueCents,
 		&i.CurrencyCode,
 		&i.IsActive,
+		&i.ReferenceOnly,
 	)
 	return i, err
 }
@@ -270,7 +273,7 @@ func (q *Queries) DeleteCoupon(ctx context.Context, code string) error {
 }
 
 const getActiveCouponByCode = `-- name: GetActiveCouponByCode :one
-SELECT code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id FROM coupons WHERE code = ? AND status = 'active' AND redeemed_invoice_id IS NULL
+SELECT code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id FROM coupons WHERE code = ? COLLATE NOCASE AND status = 'active' AND redeemed_invoice_id IS NULL
 `
 
 func (q *Queries) GetActiveCouponByCode(ctx context.Context, code string) (Coupon, error) {
@@ -396,7 +399,7 @@ func (q *Queries) GetCouponByCode(ctx context.Context, code string) (Coupon, err
 }
 
 const getCouponTypeByID = `-- name: GetCouponTypeByID :one
-SELECT id, name, value_cents, currency_code, is_active FROM coupon_types WHERE id = ?
+SELECT id, name, value_cents, currency_code, is_active, reference_only FROM coupon_types WHERE id = ?
 `
 
 func (q *Queries) GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error) {
@@ -408,6 +411,7 @@ func (q *Queries) GetCouponTypeByID(ctx context.Context, id int64) (CouponType, 
 		&i.ValueCents,
 		&i.CurrencyCode,
 		&i.IsActive,
+		&i.ReferenceOnly,
 	)
 	return i, err
 }
@@ -559,7 +563,7 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 }
 
 const listCouponTypes = `-- name: ListCouponTypes :many
-SELECT id, name, value_cents, currency_code, is_active FROM coupon_types ORDER BY name
+SELECT id, name, value_cents, currency_code, is_active, reference_only FROM coupon_types ORDER BY name
 `
 
 func (q *Queries) ListCouponTypes(ctx context.Context) ([]CouponType, error) {
@@ -577,6 +581,7 @@ func (q *Queries) ListCouponTypes(ctx context.Context) ([]CouponType, error) {
 			&i.ValueCents,
 			&i.CurrencyCode,
 			&i.IsActive,
+			&i.ReferenceOnly,
 		); err != nil {
 			return nil, err
 		}

@@ -486,7 +486,7 @@ WITH on_account_invoices AS (
                                  FROM client_account_payments cap
                                  WHERE cap.invoice_id = cae.invoice_id), 0)
 )
-SELECT ca.name, ca.currency_code, SUM(t.amount) as total
+SELECT ca.id, ca.name, ca.currency_code, SUM(t.amount) as total
 FROM invoice_account_totals t
 JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
 WHERE date(t.created_at, 'localtime') = date('now', 'localtime')
@@ -495,6 +495,7 @@ ORDER BY ca.name
 `
 
 type GetTodayIncomeByAccountRow struct {
+	ID           int64           `json:"id"`
 	Name         string          `json:"name"`
 	CurrencyCode string          `json:"currencyCode"`
 	Total        sql.NullFloat64 `json:"total"`
@@ -509,7 +510,12 @@ func (q *Queries) GetTodayIncomeByAccount(ctx context.Context) ([]GetTodayIncome
 	items := []GetTodayIncomeByAccountRow{}
 	for rows.Next() {
 		var i GetTodayIncomeByAccountRow
-		if err := rows.Scan(&i.Name, &i.CurrencyCode, &i.Total); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CurrencyCode,
+			&i.Total,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

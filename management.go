@@ -135,6 +135,56 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	return result, nil
 }
 
+// ReplaceShiftBalance moves part of a shift's recorded balance from one
+// cashbox to another without changing the original invoice payments.
+// amountCents is always in the accounting currency (USD cents), including
+// when the source or destination cashbox is denominated in LBP.
+func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCents int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if shiftID <= 0 || fromCashboxID <= 0 || toCashboxID <= 0 || fromCashboxID == toCashboxID {
+		return fmt.Errorf("choose different balance accounts")
+	}
+	if amountCents <= 0 {
+		return fmt.Errorf("enter a positive amount")
+	}
+	shift, err := a.store.GetShiftByID(a.ctx, shiftID)
+	if err != nil {
+		return fmt.Errorf("shift not found")
+	}
+	from, err := a.store.GetCashboxAccountByID(a.ctx, fromCashboxID)
+	if err != nil {
+		return fmt.Errorf("source balance account not found")
+	}
+	to, err := a.store.GetCashboxAccountByID(a.ctx, toCashboxID)
+	if err != nil {
+		return fmt.Errorf("destination balance account not found")
+	}
+	if strings.EqualFold(strings.TrimSpace(from.Name), "On Account") || strings.EqualFold(strings.TrimSpace(to.Name), "On Account") {
+		return fmt.Errorf("on-account balances cannot be replaced")
+	}
+	balances, err := a.store.ListShiftPaymentTotals(a.ctx, shiftID)
+	if err != nil {
+		return err
+	}
+	var sourceTotal int64
+	for _, balance := range balances {
+		if balance.AccountID == fromCashboxID {
+			sourceTotal = databaseInt64(balance.Total)
+			break
+		}
+	}
+	if amountCents > sourceTotal {
+		return fmt.Errorf("replacement amount exceeds the source balance")
+	}
+	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		return q.CreateShiftBalanceReplacement(a.ctx, db.CreateShiftBalanceReplacementParams{
+			ShiftID: shift.ID, FromCashboxID: fromCashboxID, ToCashboxID: toCashboxID, Amount: amountCents,
+		})
+	})
+}
+
 func (a *App) ListInvoices() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
@@ -281,7 +331,7 @@ func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 		}
 		onAccount := strings.EqualFold(strings.TrimSpace(r.Name), "On Account")
 		result[i] = map[string]any{
-			"accountName": r.Name, "currencyCode": r.CurrencyCode, "total": total,
+			"accountId": r.ID, "accountName": r.Name, "currencyCode": r.CurrencyCode, "total": total,
 			"isOnAccount": onAccount, "isCollected": !onAccount,
 		}
 	}

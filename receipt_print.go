@@ -86,5 +86,8 @@ func receiptInvoiceLabel(receiptNo string) string {
 	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(receiptNo)), "EX/") {
 		return "Exchange Invoice"
 	}
+	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(receiptNo)), "RS/") {
+		return "Return Invoice"
+	}
 	return "Sales Invoice"
 }

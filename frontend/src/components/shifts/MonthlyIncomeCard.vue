@@ -123,6 +123,7 @@
       <span>{{ formatBalance(grandTotal, "USD", exchangeRate) }}</span>
     </div>
   </v-sheet>
+
 </template>
 
 <script setup lang="ts">
@@ -175,7 +176,7 @@ watch(() => [props.loading, props.rows.length, props.currentDay], centerCurrentD
   immediate: true,
 });
 
-defineEmits<{
+const emit = defineEmits<{
   "toggle-all": [];
   "toggle-day": [day: string];
   "toggle-shift": [shiftId: number];

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -266,7 +267,8 @@ func parsePayments(raw string) ([]checkoutPayment, error) {
 
 func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, total, maxOverpaymentCents int64) error {
 	var paid int64
-	for _, payment := range payments {
+	for i := range payments {
+		payment := &payments[i]
 		if _, err := q.GetCashboxAccountByID(ctx, payment.AccountID); err != nil {
 			return fmt.Errorf("payment account %d: %w", payment.AccountID, err)
 		}
@@ -281,17 +283,34 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 			if payment.AmountCents < 0 || strings.TrimSpace(payment.CouponCode) == "" || payment.CouponTypeID <= 0 {
 				return fmt.Errorf("coupon code and type are required")
 			}
-			coupon, couponErr := q.GetActiveCouponByCode(ctx, strings.TrimSpace(payment.CouponCode))
-			if couponErr != nil {
-				return fmt.Errorf("coupon: %w", couponErr)
+			couponType, typeErr := q.GetCouponTypeByID(ctx, payment.CouponTypeID)
+			if typeErr != nil {
+				return fmt.Errorf("coupon type: %w", typeErr)
 			}
-			if coupon.TypeID.Int64 != payment.CouponTypeID || coupon.ValueCents.Int64 != payment.AmountCents {
+			if couponType.IsActive == 0 {
+				return fmt.Errorf("coupon type is inactive")
+			}
+			if couponType.ValueCents != payment.AmountCents {
 				return fmt.Errorf("coupon value or type does not match")
 			}
-			if coupon.ValidUntil != "" {
-				expires, parseErr := time.Parse("2006-01-02", coupon.ValidUntil)
-				if parseErr == nil && time.Now().After(expires.Add(24*time.Hour)) {
-					return fmt.Errorf("coupon has expired")
+			if couponType.ReferenceOnly == 0 {
+				coupon, couponErr := q.GetActiveCouponByCode(ctx, strings.TrimSpace(payment.CouponCode))
+				if couponErr != nil {
+					if errors.Is(couponErr, sql.ErrNoRows) {
+						return fmt.Errorf("coupon %q is invalid, expired, or already redeemed", strings.TrimSpace(payment.CouponCode))
+					}
+					return fmt.Errorf("coupon: %w", couponErr)
+				}
+				if coupon.TypeID.Int64 != payment.CouponTypeID || coupon.ValueCents.Int64 != payment.AmountCents {
+					return fmt.Errorf("coupon value or type does not match")
+				}
+				// Keep the database's canonical code for the payment foreign key and redemption update.
+				payments[i].CouponCode = coupon.Code
+				if coupon.ValidUntil != "" {
+					expires, parseErr := time.Parse("2006-01-02", coupon.ValidUntil)
+					if parseErr == nil && time.Now().After(expires.Add(24*time.Hour)) {
+						return fmt.Errorf("coupon has expired")
+					}
 				}
 			}
 		}
@@ -328,6 +347,13 @@ func recordSpecialPaymentMetadata(a *App, q *db.Queries, invoiceID, clientID int
 			code := strings.TrimSpace(payment.CouponCode)
 			if _, err := q.CreateInvoiceCouponPayment(a.ctx, db.CreateInvoiceCouponPaymentParams{InvoiceID: invoiceID, CouponCode: code, CouponTypeID: payment.CouponTypeID, Amount: payment.AmountCents}); err != nil {
 				return fmt.Errorf("save coupon payment: %w", err)
+			}
+			couponType, err := q.GetCouponTypeByID(a.ctx, payment.CouponTypeID)
+			if err != nil {
+				return fmt.Errorf("coupon type: %w", err)
+			}
+			if couponType.ReferenceOnly != 0 {
+				continue
 			}
 			if err := q.RedeemCoupon(a.ctx, db.RedeemCouponParams{RedeemedInvoiceID: sql.NullInt64{Int64: invoiceID, Valid: true}, Code: code}); err != nil {
 				return fmt.Errorf("redeem coupon: %w", err)

@@ -29,9 +29,13 @@ type pricedExchange struct {
 	replacementTotal int64
 }
 
-func parseExchangeRequest(raw string) (exchangeRequest, error) {
+func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, error) {
 	var lines []exchangeLine
-	if err := json.Unmarshal([]byte(raw), &lines); err != nil || len(lines) < 2 {
+	minimumLines := 2
+	if len(returnOnly) > 0 && returnOnly[0] {
+		minimumLines = 1
+	}
+	if err := json.Unmarshal([]byte(raw), &lines); err != nil || len(lines) < minimumLines {
 		return exchangeRequest{}, fmt.Errorf("an exchange needs one returned item and at least one replacement")
 	}
 
@@ -70,7 +74,7 @@ func parseExchangeRequest(raw string) (exchangeRequest, error) {
 		replacementIndex[normalizedCode] = len(request.replacements)
 		request.replacements = append(request.replacements, line)
 	}
-	if request.returned.Code == "" || len(request.replacements) == 0 {
+	if request.returned.Code == "" || (len(request.replacements) == 0 && (len(returnOnly) == 0 || !returnOnly[0])) {
 		return exchangeRequest{}, fmt.Errorf("an exchange needs one returned item and at least one replacement")
 	}
 	for _, replacement := range request.replacements {
@@ -139,9 +143,6 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		}
 		result.replacementTotal += priced.lineTotal
 		result.replacements = append(result.replacements, priced)
-	}
-	if result.replacementTotal < result.returnedTotal {
-		return result, fmt.Errorf("combined replacement total must equal or exceed the returned item")
 	}
 	return result, nil
 }

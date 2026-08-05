@@ -23,6 +23,16 @@
         </template>
         </v-list-item>
       </v-list>
+      <v-btn
+        v-if="shiftId && balanceSources.length > 0"
+        block
+        class="mt-3"
+        prepend-icon="mdi-swap-horizontal"
+        variant="tonal"
+        @click="replacementOpen = true"
+      >
+        Swap balance
+      </v-btn>
       <div class="d-flex justify-space-between px-4 pt-3 mt-2 border-t font-weight-bold">
         <span>Collected total</span>
         <span>{{ formatBalance(collectedTotal, "USD", exchangeRate) }}</span>
@@ -33,20 +43,28 @@
       {{ title === "Today's Income" ? "No income collected today." : shiftId ? "No income data found for this shift." : "No open shift found." }}
     </div>
   </v-sheet>
+  <BalanceReplacementDialog v-model="replacementOpen" :shift-id="shiftId" :sources="balanceSources" :payment-methods="paymentMethods" :exchange-rate="exchangeRate" @saved="emit('balance-replaced', $event)" />
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import type { IncomeRow } from "@/types/shifts";
+import { computed, ref } from "vue";
+import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance } from "@/lib/format";
+import BalanceReplacementDialog from "@/components/shifts/BalanceReplacementDialog.vue";
 
 const props = defineProps<{
   items: IncomeRow[];
   title?: string;
   shiftId?: number;
+  paymentMethods: PaymentMethod[];
   loading: boolean;
   exchangeRate: number;
 }>();
+const emit = defineEmits<{ "balance-replaced": [shiftId: number] }>();
+const replacementOpen = ref(false);
+const balanceSources = computed<Balance[]>(() => props.items
+  .filter((item) => !item.isOnAccount && item.accountId && Number(item.total) > 0)
+  .map((item) => ({ accountId: item.accountId!, accountName: item.accountName, balance: Number(item.total), currencyCode: item.currencyCode })));
 
 const collectedTotal = computed(() =>
   props.items.reduce((total, item) => total + (item.isOnAccount ? 0 : Number(item.total) || 0), 0),

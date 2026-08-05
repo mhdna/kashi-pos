@@ -147,6 +147,63 @@ func TestNetPaymentsByAccountAllowsNegativeAndSkipsZero(t *testing.T) {
 	}
 }
 
+func TestValidatePaymentsAcceptsCouponCodeCaseDifferences(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+
+	couponAccount, err := app.store.CreateCashboxAccount(app.ctx, db.CreateCashboxAccountParams{
+		Name: "On Coupon", CurrencyCode: "USD",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := app.store.CreateClient(app.ctx, db.CreateClientParams{Name: "Coupon Holder", Phone: "coupon-test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	couponType, err := app.store.CreateCouponType(app.ctx, db.CreateCouponTypeParams{
+		Name: "Fifty Dollars", ValueCents: 5000, CurrencyCode: "USD", IsActive: 1, ReferenceOnly: 0,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.store.CreateValueCoupon(app.ctx, db.CreateValueCouponParams{
+		Code: "SAVE-50", Reason: couponType.Name, ClientID: client.ID, ValidUntil: "2099-12-31",
+		TypeID: sql.NullInt64{Int64: couponType.ID, Valid: true}, ValueCents: sql.NullInt64{Int64: 5000, Valid: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	payments := []checkoutPayment{{
+		AccountID: couponAccount.ID, AmountCents: 5000, EntryType: "payment",
+		CouponCode: "save-50", CouponTypeID: couponType.ID,
+	}}
+	if err := app.store.ExecTx(app.ctx, func(q *db.Queries) error {
+		return validatePayments(app.ctx, q, payments, 5000, 0)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if payments[0].CouponCode != "SAVE-50" {
+		t.Fatalf("coupon code = %q, want canonical stored code", payments[0].CouponCode)
+	}
+
+	referenceType, err := app.store.CreateCouponType(app.ctx, db.CreateCouponTypeParams{
+		Name: "Manual Reference", ValueCents: 5000, CurrencyCode: "USD", IsActive: 1, ReferenceOnly: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	referencePayments := []checkoutPayment{{
+		AccountID: couponAccount.ID, AmountCents: 5000, EntryType: "payment",
+		CouponCode: "REF-12345", CouponTypeID: referenceType.ID,
+	}}
+	if err := app.store.ExecTx(app.ctx, func(q *db.Queries) error {
+		return validatePayments(app.ctx, q, referencePayments, 5000, 0)
+	}); err != nil {
+		t.Fatalf("reference-only coupon validation failed: %v", err)
+	}
+}
+
 func TestValidatePaymentsAllowsOverpaymentAndRejectsUnderpayment(t *testing.T) {
 	ctx := context.Background()
 	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "payments.db")+"?_pragma=foreign_keys(ON)")

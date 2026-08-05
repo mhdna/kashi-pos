@@ -68,6 +68,9 @@ func invoiceNumberingType(kind string) (invoiceType, prefix string, err error) {
 	case "sales", "sale", "sa":
 		return invoiceTypeSales, "SA", nil
 	case "exchange", "return", "ex":
+		if strings.ToLower(strings.TrimSpace(kind)) == "return" {
+			return invoiceTypeExchange, "RS", nil
+		}
 		return invoiceTypeExchange, "EX", nil
 	default:
 		return "", "", fmt.Errorf("invalid invoice type %q", kind)

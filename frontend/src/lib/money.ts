@@ -30,6 +30,14 @@ export function roundCents(value: number, mode?: string): number {
   return Math.floor(value + 0.5);
 }
 
+/** Convert a physical LBP amount to accounting cents using the app rate. */
+export function roundCentsFromLbp(amount: number, exchangeRate: number): number {
+  if (!Number.isFinite(amount) || !Number.isFinite(exchangeRate) || amount < 0 || exchangeRate <= 0) {
+    return 0;
+  }
+  return Math.floor((amount * 100) / exchangeRate + 0.5);
+}
+
 export function isCashRoundedEquivalent(
   paidCents: number,
   totalCents: number,

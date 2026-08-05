@@ -163,6 +163,14 @@ WITH invoice_account_totals AS (
     SELECT 0 AS invoice_id, cap.cashbox_id, cap.amount
     FROM client_account_payments cap
     WHERE cap.shift_id = sqlc.arg(report_shift_id)
+    UNION ALL
+    SELECT 0 AS invoice_id, sbr.from_cashbox_id AS cashbox_id, -sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = sqlc.arg(report_shift_id)
+    UNION ALL
+    SELECT 0 AS invoice_id, sbr.to_cashbox_id AS cashbox_id, sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = sqlc.arg(report_shift_id)
 )
 SELECT ca.id AS account_id, ca.name AS account_name, ca.currency_code,
        COALESCE(SUM(t.amount), 0) AS total
@@ -170,6 +178,10 @@ FROM invoice_account_totals t
 JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
 GROUP BY ca.id, ca.name, ca.currency_code
 ORDER BY ca.id;
+
+-- name: CreateShiftBalanceReplacement :exec
+INSERT INTO shift_balance_replacements (shift_id, from_cashbox_id, to_cashbox_id, amount)
+VALUES (?, ?, ?, ?);
 
 -- name: GetShiftInvoicePaymentTotal :one
 WITH invoice_account_totals AS (

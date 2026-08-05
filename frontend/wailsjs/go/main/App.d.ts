@@ -18,6 +18,8 @@ export function ChangeInvoiceSettlementAmount(arg1:number,arg2:number,arg3:numbe
 
 export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function CheckoutAdminReturnInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:string):Promise<Record<string, any>>;
+
 export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
 export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<Record<string, any>>;
@@ -30,7 +32,7 @@ export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any
 
 export function CreateCoupon(arg1:string,arg2:number,arg3:number):Promise<Record<string, any>>;
 
-export function CreateCouponType(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
+export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<Record<string, any>>;
 
 export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
 
@@ -141,6 +143,8 @@ export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>
 export function PrintCurrentCloseShiftSample():Promise<Record<string, any>>;
 
 export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
+
+export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
 
 export function ReprintInvoice(arg1:number):Promise<void>;
 

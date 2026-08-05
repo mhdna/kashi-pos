@@ -321,13 +321,20 @@
               <v-text-field v-model.number="couponTypeForm.value" label="Value (USD)" type="number" min="0.01" step="0.01" variant="outlined" density="compact" />
               <v-btn color="primary" :loading="couponTypeSaving" @click="addCouponType">Add</v-btn>
             </div>
+            <v-checkbox
+              v-model="couponTypeForm.referenceOnly"
+              class="mt-n3"
+              density="compact"
+              hide-details
+              label="Reference-only (do not validate against an issued coupon)"
+            />
             <div class="d-flex ga-2 align-start mb-2">
               <v-text-field v-model="couponCodeForm" label="New coupon code" variant="outlined" density="compact" />
               <v-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" label="Type" variant="outlined" density="compact" />
               <v-btn color="secondary" :loading="couponIssuing" @click="issueCoupon">Issue</v-btn>
             </div>
             <v-list density="compact">
-              <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}`" />
+              <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.referenceOnly ? ' · Reference-only' : ''}`" />
               <v-list-item v-if="!couponTypes.length" title="No coupon types configured" />
             </v-list>
           </v-card-text>
@@ -716,7 +723,7 @@ const serialPorts = ref<string[]>([]);
 const printers = ref<string[]>([]);
 const saving = ref(false);
 const couponTypes = ref<any[]>([]);
-const couponTypeForm = reactive({ name: "", value: 50 });
+const couponTypeForm = reactive({ name: "", value: 50, referenceOnly: false });
 const couponTypeSaving = ref(false);
 const couponCodeForm = ref("");
 const couponIssueTypeId = ref<number | null>(null);
@@ -780,8 +787,9 @@ async function addCouponType() {
   if (!couponTypeForm.name.trim() || Number(couponTypeForm.value) <= 0) return;
   couponTypeSaving.value = true;
   try {
-    await CreateCouponType(couponTypeForm.name.trim(), "USD", Math.round(Number(couponTypeForm.value) * 100));
+    await CreateCouponType(couponTypeForm.name.trim(), "USD", Math.round(Number(couponTypeForm.value) * 100), couponTypeForm.referenceOnly);
     couponTypeForm.name = "";
+    couponTypeForm.referenceOnly = false;
     await loadCouponTypes();
     notify("Coupon type added");
   } catch (error) { notify(error instanceof Error ? error.message : "Failed to add coupon type", "red"); }

@@ -6,8 +6,11 @@
       <ShiftIncomeCard
         :items="shiftIncome"
         title="Today's Income"
+        :shift-id="openShift?.id"
         :loading="loadingShift"
         :exchange-rate="exchangeRate"
+        :payment-methods="paymentMethods"
+        @balance-replaced="loadBalances"
       />
       <MonthlyIncomeCard
         :month="currentMonth"
@@ -53,6 +56,7 @@ import {
   GetTodayIncomeByAccount,
   GetAppSettings,
   ListShiftBalances,
+  ListPaymentMethods,
   ListSalespersons,
   OpenShift,
   PrintClosedShiftReceipt,
@@ -62,11 +66,12 @@ import MonthlyIncomeCard from "@/components/shifts/MonthlyIncomeCard.vue";
 import ShiftSummaryCard from "@/components/shifts/ShiftSummaryCard.vue";
 import ShiftIncomeCard from "@/components/shifts/ShiftIncomeCard.vue";
 import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
-import type { Balance, DayRow, IncomeRow, Shift } from "@/types/shifts";
+import type { Balance, DayRow, IncomeRow, PaymentMethod, Shift } from "@/types/shifts";
 import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
 const exchangeRate = ref(90000);
 const salespersons = ref<Array<{ id: number; fullName: string }>>([]);
+const paymentMethods = ref<PaymentMethod[]>([]);
 
 const openShift = ref<Shift | null>(null);
 const allShifts = ref<Shift[]>([]);
@@ -86,6 +91,7 @@ const currentDay = computed(() => {
 });
 const shiftIncome = computed<IncomeRow[]>(() =>
   todayIncome.value.map((income) => ({
+    accountId: Number(income.accountId) || 0,
     accountName: income.accountName,
     currencyCode: income.currencyCode,
     total: Number(income.total) || 0,
@@ -311,6 +317,13 @@ onMounted(async () => {
       ((await ListSalespersons()) as Array<{ id: number; fullName: string }>) ?? [];
   } catch {
     salespersons.value = [];
+  }
+  try {
+    paymentMethods.value = ((await ListPaymentMethods()) as PaymentMethod[]).filter(
+      (method) => !/^(on account|on coupon)$/i.test(method.name.trim()),
+    );
+  } catch {
+    paymentMethods.value = [];
   }
   try {
     currentMonth.value = await GetCurrentMonth();

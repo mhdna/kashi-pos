@@ -34,6 +34,10 @@ export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }
 
+export function CheckoutAdminReturnInvoice(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['CheckoutAdminReturnInvoice'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
@@ -58,8 +62,8 @@ export function CreateCoupon(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateCoupon'](arg1, arg2, arg3);
 }
 
-export function CreateCouponType(arg1, arg2, arg3) {
-  return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3);
+export function CreateCouponType(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3, arg4);
 }
 
 export function CreateSalesperson(arg1) {
@@ -280,6 +284,10 @@ export function PrintCurrentCloseShiftSample() {
 
 export function RemoveQuickAccessProduct(arg1) {
   return window['go']['main']['App']['RemoveQuickAccessProduct'](arg1);
+}
+
+export function ReplaceShiftBalance(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ReplaceShiftBalance'](arg1, arg2, arg3, arg4);
 }
 
 export function ReprintInvoice(arg1) {

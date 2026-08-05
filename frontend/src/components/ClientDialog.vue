@@ -58,9 +58,7 @@
           >
             Continue
           </v-btn>
-          <v-btn class="w-100" variant="tonal" @click="selectAnonymous">
-            Prefer not to say
-          </v-btn>
+          <v-btn class="w-100" variant="tonal" @click="selectAnonymous"> Prefer not to say </v-btn>
         </div>
 
         <div class="client-phone-numpad">
@@ -139,9 +137,9 @@
           maxlength="80"
           autofocus
         />
-        <div class="text-caption text-medium-emphasis mt-n1">
-          Please don't use rediculous names like "nonameeeeee", or "ali4738432".
-        </div>
+        <!-- <div class="text-caption text-medium-emphasis mt-n1"> -->
+        <!--   Please don't use rediculous names like "nonameeeeee", or "ali4738432". -->
+        <!-- </div> -->
         <InlineKeyboard v-model="newClient.name" class="client-name-keyboard mt-3" />
       </v-card-text>
       <v-card-actions class="pa-4">
@@ -161,7 +159,12 @@
 
 <script lang="ts" setup>
 import { ref, reactive, inject, watch, computed } from "vue";
-import { getCountries, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js/min";
+import {
+  getCountries,
+  getCountryCallingCode,
+  parsePhoneNumberFromString,
+  type CountryCode,
+} from "libphonenumber-js/min";
 import { GetClientByPhone, CreateClient } from "../../wailsjs/go/main/App";
 import { anonymousClient, toClient, type Client } from "@/lib/client";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
@@ -181,13 +184,15 @@ const selectedCountry = ref<CountryCode>("LB");
 const newClient = reactive({ name: "", phone: "" });
 const phonePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
-const countries = getCountries().map((code) => ({
-  code,
-  name: countryNames.of(code) || code,
-  displayName: `${countryNames.of(code) || code} (+${getCountryCallingCode(code)})`,
-  dialCode: getCountryCallingCode(code),
-  flag: flagForCountry(code),
-})).sort((a, b) => a.name.localeCompare(b.name));
+const countries = getCountries()
+  .map((code) => ({
+    code,
+    name: countryNames.of(code) || code,
+    displayName: `${countryNames.of(code) || code} (+${getCountryCallingCode(code)})`,
+    dialCode: getCountryCallingCode(code),
+    flag: flagForCountry(code),
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
 const selectedFlag = computed(() => flagForCountry(selectedCountry.value));
 const selectedDialCode = computed(() => getCountryCallingCode(selectedCountry.value));
 const phoneError = computed(() =>
@@ -201,7 +206,9 @@ watch([phone, selectedCountry], () => {
 });
 
 function flagForCountry(code: string) {
-  return code.toUpperCase().replace(/[A-Z]/g, (letter) => String.fromCodePoint(letter.charCodeAt(0) + 127397));
+  return code
+    .toUpperCase()
+    .replace(/[A-Z]/g, (letter) => String.fromCodePoint(letter.charCodeAt(0) + 127397));
 }
 
 function isLebanon(code: string) {
@@ -250,14 +257,22 @@ async function createClient() {
     const c = await CreateClient(capitalizeName(newClient.name), newClient.phone);
     emit("select", toClient(c));
   } catch {
-    emit("select", toClient({ id: 0, name: capitalizeName(newClient.name), phone: newClient.phone }));
+    emit(
+      "select",
+      toClient({ id: 0, name: capitalizeName(newClient.name), phone: newClient.phone }),
+    );
   }
   dialog.value = false;
   reset();
 }
 
 function capitalizeName(value: string) {
-  return value.trim().replace(/(^|[\s'-])([\p{L}])/gu, (_, prefix: string, letter: string) => `${prefix}${letter.toUpperCase()}`);
+  return value
+    .trim()
+    .replace(
+      /(^|[\s'-])([\p{L}])/gu,
+      (_, prefix: string, letter: string) => `${prefix}${letter.toUpperCase()}`,
+    );
 }
 
 function selectAnonymous() {
@@ -298,7 +313,20 @@ function reset() {
   position: absolute;
   inset: 3px 9px 3px 9px;
   background: #16863d;
-  clip-path: polygon(50% 0, 62% 28%, 100% 18%, 72% 48%, 100% 72%, 62% 62%, 50% 100%, 38% 62%, 0 72%, 28% 48%, 0 18%, 38% 28%);
+  clip-path: polygon(
+    50% 0,
+    62% 28%,
+    100% 18%,
+    72% 48%,
+    100% 72%,
+    62% 62%,
+    50% 100%,
+    38% 62%,
+    0 72%,
+    28% 48%,
+    0 18%,
+    38% 28%
+  );
 }
 
 .client-phone-layout {

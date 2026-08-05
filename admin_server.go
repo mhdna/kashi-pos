@@ -142,6 +142,16 @@ type adminOverrideInput struct {
 	Discount  int64  `json:"discount"`
 }
 
+type adminInvoiceAdjustmentInput struct {
+	OriginalInvoiceID   int64          `json:"originalInvoiceId"`
+	OriginalInvoiceCode string         `json:"originalInvoiceCode"`
+	Items               []exchangeLine `json:"items"`
+	SettlementAccountID int64          `json:"settlementAccountId"`
+	SalespersonID       int64          `json:"salespersonId"`
+	Notes               string         `json:"notes"`
+	ReturnOnly          bool           `json:"returnOnly"`
+}
+
 func (a *App) startAdminServer() {
 	if a.conn == nil {
 		return
@@ -274,8 +284,16 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 		value, err = a.dailySales(ctx, r.URL.Query().Get("date"))
 	case r.Method == http.MethodGet && path == "salespersons":
 		value, err = a.app.store.ListSalespersons(ctx)
+	case r.Method == http.MethodGet && path == "cashbox-accounts":
+		value, err = a.app.store.ListCashboxAccounts(ctx)
 	case r.Method == http.MethodGet && path == "settings":
 		value, err = a.app.store.GetSettings(ctx)
+	case r.Method == http.MethodPost && path == "invoice-adjustments":
+		var input adminInvoiceAdjustmentInput
+		err = decodeAdmin(r, &input)
+		if err == nil {
+			value, err = a.createInvoiceAdjustment(ctx, input)
+		}
 	case r.Method == http.MethodPost && path == "products":
 		var input adminProductInput
 		err = decodeAdmin(r, &input)
@@ -338,6 +356,33 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(value)
+}
+
+func (a *adminServer) createInvoiceAdjustment(ctx context.Context, input adminInvoiceAdjustmentInput) (map[string]any, error) {
+	if input.OriginalInvoiceID <= 0 && strings.TrimSpace(input.OriginalInvoiceCode) == "" {
+		return nil, fmt.Errorf("original invoice id or code is required")
+	}
+	if len(input.Items) == 0 {
+		return nil, fmt.Errorf("at least one returned or replacement item is required")
+	}
+	if input.SalespersonID <= 0 {
+		return nil, fmt.Errorf("salesperson is required")
+	}
+	originalID := input.OriginalInvoiceID
+	if originalID <= 0 {
+		invoice, err := a.app.store.GetSalesInvoiceByCode(ctx, strings.TrimSpace(input.OriginalInvoiceCode))
+		if err != nil {
+			return nil, fmt.Errorf("source invoice: %w", err)
+		}
+		originalID = invoice.ID
+	}
+	items, err := json.Marshal(input.Items)
+	if err != nil {
+		return nil, err
+	}
+	return a.app.checkoutReturnExchangeInvoice(string(items), "", originalID, input.SalespersonID, input.Notes, input.SettlementAccountID, exchangePolicy{
+		allowLate: true, allowLowerTotal: true, returnOnly: input.ReturnOnly,
+	})
 }
 
 func (a *adminServer) products(ctx context.Context, search string) ([]db.Product, error) {
