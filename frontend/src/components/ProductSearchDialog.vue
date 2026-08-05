@@ -27,6 +27,7 @@
         />
       </v-card-title>
       <v-data-table-server
+        v-model:page="page"
         v-model:items-per-page="itemsPerPage"
         class="product-list-table"
         :headers="headers"
@@ -35,6 +36,7 @@
         :loading="loading"
         :search="debouncedSearch"
         density="compact"
+        :items-per-page-options="[5, 10, 25, 50]"
         hover
         return-object
         @click:row="selectProduct"
@@ -106,6 +108,10 @@ watch(search, (value) => {
   }, 250);
 });
 
+watch(debouncedSearch, () => {
+  page.value = 1;
+});
+
 const headers = [
   { title: "Code", key: "code", align: "start" as const },
   { title: "Name", key: "name", align: "start" as const },
@@ -115,6 +121,7 @@ const headers = [
 ];
 
 const itemsPerPage = ref(5);
+const page = ref(1);
 const serverItems = ref<any[]>([]);
 const totalItems = ref(0);
 const loading = ref(false);

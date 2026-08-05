@@ -1,12 +1,14 @@
 <template>
   <div class="invoices-page">
     <v-data-table-server
+      v-model:page="currentPage"
       v-model:items-per-page="itemsPerPage"
       class="invoices-table"
       :headers="headers"
       :items="items"
       :items-length="totalItems"
       :loading="loading"
+      :items-per-page-options="[10, 25, 50, 100]"
       item-value="id"
       hover
       @update:options="loadInvoices"
@@ -285,7 +287,7 @@ import { useAuthStore } from "../stores/auth";
 
 const items = ref<any[]>([]),
   totalItems = ref(0),
-  itemsPerPage = ref(20),
+  itemsPerPage = ref(10),
   loading = ref(true),
   currentPage = ref(1);
 const auth = useAuthStore();

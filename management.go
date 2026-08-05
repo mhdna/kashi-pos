@@ -173,7 +173,7 @@ func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) 
 		page = 1
 	}
 	if itemsPerPage < 1 {
-		itemsPerPage = 20
+		itemsPerPage = 10
 	}
 	if itemsPerPage > 100 {
 		itemsPerPage = 100
