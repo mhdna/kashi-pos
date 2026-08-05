@@ -239,9 +239,26 @@ function confirmEntry() {
   });
   currentInput.value = "";
 }
+
+function fillRemainingInput() {
+  const remainingCents = totalCents.value - paidCents.value;
+  if (remainingCents <= 0 || activeRate.value <= 0 || usdRate.value <= 0) return;
+
+  if (activeCurrency.value === "LBP") {
+    currentInput.value = String(
+      roundLbpFromCents(remainingCents, exchangeRate.value, roundingMode.value),
+    );
+    return;
+  }
+
+  const remainingAmount = (remainingCents * activeRate.value) / (usdRate.value * 100);
+  currentInput.value = remainingAmount.toFixed(2).replace(/\.00$/, "");
+}
+
 function selectMethodAndConfirm(methodName: string) {
   activeMethod.value = methodName;
   if (methodName.toLowerCase() === "on account" && !props.clientId) return;
+  if (!currentInput.value) fillRemainingInput();
   confirmEntry();
 }
 function addOnAccount() {
