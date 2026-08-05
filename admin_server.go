@@ -288,6 +288,8 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 		value, err = a.app.store.ListCashboxAccounts(ctx)
 	case r.Method == http.MethodGet && path == "settings":
 		value, err = a.app.store.GetSettings(ctx)
+	case r.Method == http.MethodGet && path == "exchange-invoice":
+		value, err = a.app.getExchangeInvoice(r.URL.Query().Get("code"), false)
 	case r.Method == http.MethodPost && path == "invoice-adjustments":
 		var input adminInvoiceAdjustmentInput
 		err = decodeAdmin(r, &input)

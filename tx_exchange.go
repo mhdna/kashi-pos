@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -81,7 +82,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			return fmt.Errorf("combined replacement total must equal or exceed the returned item")
 		}
 		netDifference := priced.replacementTotal - priced.returnedTotal
-		taxCents, err := roundFloatToCents(float64(netDifference)/100*settings.TaxRate, roundingMode)
+		taxCents, err := signedAdjustmentTax(netDifference, settings.TaxRate, roundingMode)
 		if err != nil {
 			return err
 		}
@@ -134,6 +135,20 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 		}
 	}
 	return result, err
+}
+
+func signedAdjustmentTax(netDifference int64, taxRate float64, roundingMode string) (int64, error) {
+	if netDifference == 0 || taxRate == 0 {
+		return 0, nil
+	}
+	tax, err := roundFloatToCents(math.Abs(float64(netDifference))/100*taxRate, roundingMode)
+	if err != nil {
+		return 0, err
+	}
+	if netDifference < 0 {
+		return -tax, nil
+	}
+	return tax, nil
 }
 
 // CheckoutAdminReturnInvoice is the privileged admin entry point. It uses the

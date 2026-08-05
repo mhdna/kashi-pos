@@ -12,6 +12,10 @@ import (
 // GetExchangeInvoice loads a sales invoice and only the quantities that remain
 // eligible for return.
 func (a *App) GetExchangeInvoice(code string) (map[string]any, error) {
+	return a.getExchangeInvoice(code, true)
+}
+
+func (a *App) getExchangeInvoice(code string, enforceWindow bool) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -24,8 +28,10 @@ func (a *App) GetExchangeInvoice(code string) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sales invoice not found")
 	}
-	if err := validateExchangeWindow(invoice.CreatedAt, time.Now()); err != nil {
-		return nil, err
+	if enforceWindow {
+		if err := validateExchangeWindow(invoice.CreatedAt, time.Now()); err != nil {
+			return nil, err
+		}
 	}
 	lines, err := a.store.ListInvoiceProducts(a.ctx, invoice.ID)
 	if err != nil {
@@ -52,6 +58,7 @@ func (a *App) GetExchangeInvoice(code string) (map[string]any, error) {
 			return nil, err
 		}
 		items = append(items, map[string]any{
+			"productId": product.ID,
 			"code":      product.Code,
 			"barcode":   product.Barcode,
 			"name":      product.Name,

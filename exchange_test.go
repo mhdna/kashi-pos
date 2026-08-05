@@ -315,3 +315,35 @@ func TestParseExchangeRequestRejectsReturnedProductAsReplacement(t *testing.T) {
 		t.Fatal("expected returned product used as a replacement to fail")
 	}
 }
+
+func TestAdminReturnRequestAllowsReturnOnly(t *testing.T) {
+	request, err := parseExchangeRequest(`[{"code":"RETURN","qty":-1}]`, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.returned.Code != "RETURN" || len(request.replacements) != 0 {
+		t.Fatalf("return request = %#v", request)
+	}
+}
+
+func TestSignedAdjustmentTax(t *testing.T) {
+	positive, err := signedAdjustmentTax(1200, 0.1, roundingHalfUp)
+	if err != nil || positive != 120 {
+		t.Fatalf("positive tax=%d err=%v", positive, err)
+	}
+	negative, err := signedAdjustmentTax(-1200, 0.1, roundingHalfUp)
+	if err != nil || negative != -120 {
+		t.Fatalf("negative tax=%d err=%v", negative, err)
+	}
+}
+
+func TestReturnInvoiceUsesReturnPrefix(t *testing.T) {
+	typeName, prefix, prefixErr := invoiceNumberingType("return")
+	if prefixErr != nil || typeName != invoiceTypeExchange || prefix != "RS" {
+		t.Fatalf("return numbering type=%q prefix=%q err=%v", typeName, prefix, prefixErr)
+	}
+	_, prefix, prefixErr = invoiceNumberingType("exchange")
+	if prefixErr != nil || prefix != "EX" {
+		t.Fatalf("exchange prefix=%q err=%v", prefix, prefixErr)
+	}
+}
