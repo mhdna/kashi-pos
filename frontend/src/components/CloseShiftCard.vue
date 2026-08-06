@@ -2,11 +2,20 @@
   <v-card title="Shift Summary">
     <v-card-text>
       <template v-if="balanceRows.length">
-        <div v-for="b in balanceRows" :key="b.accountId" class="d-flex justify-space-between py-1">
-          <span>{{ b.accountName }}</span>
-          <span class="font-weight-bold">
-            {{ formatBalance(b.balance, b.currencyCode ?? "USD", exchangeRate) }}
-          </span>
+        <div class="balance-summary-grid">
+          <div
+            v-for="b in balanceRows"
+            :key="b.accountId"
+            class="d-flex justify-space-between py-1"
+          >
+            <span>
+              {{ b.accountName }}
+              <!-- <small v-if="b.isOnCoupon" class="text-medium-emphasis"> — automatically counted</small> -->
+            </span>
+            <span class="font-weight-bold">
+              {{ formatBalance(b.balance, b.currencyCode ?? "USD", exchangeRate) }}
+            </span>
+          </div>
         </div>
       </template>
       <div v-else class="text-center text-medium-emphasis py-4">No transactions this shift</div>
@@ -20,7 +29,7 @@
         density="comfortable"
         class="mt-4"
       />
-      <div class="text-subtitle-2 mb-2">USD bill count</div>
+      <!-- <div class="text-subtitle-2 mb-2">USD bill count</div> -->
       <div class="usd-bill-grid">
         <NumberPadMenu
           v-for="denomination in usdDenominations"
@@ -51,29 +60,31 @@
         <span class="text-body-2">USD counted total</span>
         <span class="font-weight-bold">{{ formatUsd(countedUsdTotal / 100) }}</span>
       </div>
-      <NumberPadMenu
-        v-model="countedLbp"
-        aria-label="Total LBP counted"
-        :max="999999999999"
-        suffix="LBP"
-      >
-        <template #activator="{ props: activatorProps }">
-          <v-text-field
-            v-bind="activatorProps"
-            :model-value="countedLbp"
-            label="Counted LBP"
-            placeholder="0"
-            suffix="LBP"
-            prepend-inner-icon="mdi-cash"
-            readonly
-            variant="outlined"
-            density="comfortable"
-          />
-        </template>
-      </NumberPadMenu>
-      <div class="d-flex justify-space-between align-center mb-2 px-1">
-        <span class="text-body-2">LBP counted total</span>
-        <span class="font-weight-bold">{{ countedLbpTotal }}</span>
+      <div class="counted-lbp-row">
+        <NumberPadMenu
+          v-model="countedLbp"
+          aria-label="Total LBP counted"
+          :max="999999999999"
+          suffix="LBP"
+        >
+          <template #activator="{ props: activatorProps }">
+            <v-text-field
+              v-bind="activatorProps"
+              :model-value="countedLbp"
+              label="Counted LBP"
+              placeholder="0"
+              suffix="LBP"
+              prepend-inner-icon="mdi-cash"
+              readonly
+              variant="outlined"
+              density="comfortable"
+            />
+          </template>
+        </NumberPadMenu>
+        <div class="d-flex justify-space-between align-center mb-2 px-1">
+          <span class="text-body-2">LBP counted total</span>
+          <span class="font-weight-bold">{{ countedLbpTotal }}</span>
+        </div>
       </div>
       <div class="electronic-count-grid">
         <NumberPadMenu
@@ -118,10 +129,22 @@
             />
           </template>
         </NumberPadMenu>
+        <v-text-field
+          :model-value="(countedCouponCents / 100).toFixed(2)"
+          label="Counted Coupon"
+          prefix="$"
+          prepend-inner-icon="mdi-ticket-percent-outline"
+          persistent-hint
+          readonly
+          variant="outlined"
+          density="comfortable"
+        />
       </div>
       <div class="d-flex justify-space-between align-center mb-2 px-1">
-        <span class="text-body-2">Electronic payments counted</span>
-        <span class="font-weight-bold">{{ formatUsd((countedVisaCents + countedWhishCents) / 100) }}</span>
+        <span class="text-body-2">Non-cash payments counted</span>
+        <span class="font-weight-bold">{{
+          formatUsd((countedVisaCents + countedWhishCents + countedCouponCents) / 100)
+        }}</span>
       </div>
     </v-card-text>
     <v-card-actions class="pa-2 ga-2">
@@ -182,6 +205,13 @@ const countedLbpTotal = computed(
 );
 const countedVisaCents = computed(() => Math.round(Number(countedVisa.value || 0) * 100));
 const countedWhishCents = computed(() => Math.round(Number(countedWhish.value || 0) * 100));
+const countedCouponCents = computed(() =>
+  balanceRows.value
+    .filter(
+      (balance) => balance.isOnCoupon || balance.accountName?.trim().toLowerCase() === "on coupon",
+    )
+    .reduce((total, balance) => total + Number(balance.balance || 0), 0),
+);
 const formValid = computed(() => {
   const lbp = Number(countedLbp.value);
   return (
@@ -248,21 +278,40 @@ async function doCloseShift() {
   auth.logout();
   router.push("/login");
 }
-
 </script>
 
 <style scoped>
 .usd-bill-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
+  margin-bottom: 12px;
+}
+
+.balance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
   margin-bottom: 12px;
 }
 
 .electronic-count-grid {
   display: grid;
   gap: 0 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+@media (max-width: 700px) {
+  .usd-bill-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .balance-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .electronic-count-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 </style>

@@ -40,6 +40,12 @@ WHERE id = ? AND is_closed = 0;
 -- name: CloseOpenShifts :exec
 UPDATE shifts SET is_closed = 1, closed_at = ? WHERE is_closed = 0;
 
+-- name: CloseStaleOpenShifts :exec
+UPDATE shifts
+SET is_closed = 1, closed_at = ?
+WHERE is_closed = 0
+  AND date(created_at) < date('now', 'localtime');
+
 -- name: GetAccountByID :one
 SELECT * FROM accounts WHERE id = ?;
 

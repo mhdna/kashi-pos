@@ -78,6 +78,14 @@ export function DeleteClient(arg1) {
   return window['go']['main']['App']['DeleteClient'](arg1);
 }
 
+export function DeleteCoupon(arg1) {
+  return window['go']['main']['App']['DeleteCoupon'](arg1);
+}
+
+export function DeleteCouponType(arg1) {
+  return window['go']['main']['App']['DeleteCouponType'](arg1);
+}
+
 export function DeleteHoldInvoice(arg1) {
   return window['go']['main']['App']['DeleteHoldInvoice'](arg1);
 }
@@ -194,6 +202,10 @@ export function ListCouponTypes() {
   return window['go']['main']['App']['ListCouponTypes']();
 }
 
+export function ListCoupons() {
+  return window['go']['main']['App']['ListCoupons']();
+}
+
 export function ListCurrencies() {
   return window['go']['main']['App']['ListCurrencies']();
 }
@@ -298,6 +310,10 @@ export function SearchClients(arg1, arg2) {
   return window['go']['main']['App']['SearchClients'](arg1, arg2);
 }
 
+export function SetAutoCloseStaleShiftsEnabled(arg1) {
+  return window['go']['main']['App']['SetAutoCloseStaleShiftsEnabled'](arg1);
+}
+
 export function SetCustomItemDiscountsEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemDiscountsEnabled'](arg1);
 }
@@ -336,6 +352,10 @@ export function UpdateAttendanceConfig(arg1, arg2, arg3, arg4) {
 
 export function UpdateClient(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateClient'](arg1, arg2, arg3);
+}
+
+export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['UpdateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function UpdateProductDiscount(arg1, arg2) {

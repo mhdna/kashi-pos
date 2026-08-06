@@ -85,6 +85,9 @@ func (a *App) startup(ctx context.Context) {
 	if err := a.applyEnvironmentDefaults(); err != nil {
 		log.Println("apply environment setting defaults:", err)
 	}
+	if err := a.closeStaleOpenShifts(); err != nil {
+		log.Println("close stale open shifts:", err)
+	}
 	a.startAdminServer()
 }
 
@@ -346,6 +349,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"receiptBodySize":     settings.ReceiptBodySize,
 		"receiptBodyFont":     settings.ReceiptBodyFont,
 		"receiptCutoff":       settings.ReceiptCutoff != 0,
+	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, autoCloseStaleShiftsFlag); flagErr == nil {
+		result["autoCloseStaleShiftsEnabled"] = enabled != 0
+	} else {
+		result["autoCloseStaleShiftsEnabled"] = false
 	}
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
 		result["customItemDiscountsEnabled"] = enabled != 0

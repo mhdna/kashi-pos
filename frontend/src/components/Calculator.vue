@@ -95,16 +95,8 @@ const couponTypeId = ref<number | null>(null);
 const couponTypes = ref<any[]>([]);
 const selectedCouponType = computed(() => couponTypes.value.find((item) => item.id === couponTypeId.value));
 
-const activeCurrency = computed(
-  () => paymentMethods.value.find((m) => m.name === activeMethod.value)?.currencyCode ?? "",
-);
 const usdRate = computed(
   () => currencies.value.find((c) => c.code === "USD")?.valueInDefaultCurrency ?? DEFAULT_USD_RATE,
-);
-const activeRate = computed(() =>
-  activeCurrency.value === "LBP"
-    ? exchangeRate.value * usdRate.value
-    : (currencies.value.find((c) => c.code === activeCurrency.value)?.valueInDefaultCurrency ?? 0),
 );
 
 function currencySymbolFor(methodName: string) {
@@ -143,22 +135,14 @@ const showReadyState = computed(
 const paymentStatus = computed(() =>
   isPaidInFull.value
     ? "Paid"
-    : diffCents.value > maxOverpaymentCents.value && !cashRoundedToTotal.value
-      ? "Overpayment exceeds limit"
     : cashRoundedToTotal.value
       ? "Paid (cash rounded)"
-    : diffCents.value > 0
-      ? "Overpayment accepted"
-      : checkoutReady.value
-        ? "Paid (cash rounded)"
+      : diffCents.value > 0
+        ? "Amount to return"
         : "Amount to pay",
 );
 const statusColor = computed(() =>
-  checkoutReady.value
-    ? diff.value > 0
-      ? "text-green-darken-1"
-      : "text-green-darken-2"
-    : "text-red-darken-2",
+  diff.value > 0 ? "text-red-darken-2" : "text-green-darken-2",
 );
 const remainingAmount = computed(() => {
   const amountCents = Math.abs(diffCents.value);
@@ -231,16 +215,27 @@ function backspace() {
 function clearInput() {
   currentInput.value = "";
 }
-function confirmEntry() {
+
+function paymentRate(methodName: string) {
+  const method = paymentMethods.value.find((candidate) => candidate.name === methodName);
+  const currencyCode = method?.currencyCode?.toUpperCase() ?? "";
+  return currencyCode === "LBP"
+    ? exchangeRate.value * usdRate.value
+    : (currencies.value.find((currency) => currency.code === currencyCode)
+        ?.valueInDefaultCurrency ?? 0);
+}
+
+function confirmEntry(methodName = activeMethod.value) {
   const amount = Number(currentInput.value);
-  if (!Number.isFinite(amount) || amount <= 0 || activeRate.value <= 0 || usdRate.value <= 0)
+  const method = paymentMethods.value.find((candidate) => candidate.name === methodName);
+  const methodRate = paymentRate(methodName);
+  if (!Number.isFinite(amount) || amount <= 0 || methodRate <= 0 || usdRate.value <= 0)
     return;
-  const method = paymentMethods.value.find((m) => m.name === activeMethod.value);
-  const amountCents = Math.round((amount * usdRate.value * 100) / activeRate.value);
+  const amountCents = Math.round((amount * usdRate.value * 100) / methodRate);
   if (amountCents <= 0) return;
   const isChange = diffCents.value > 0;
   entries.value.push({
-    type: activeMethod.value,
+    type: methodName,
     amount: isChange ? -amount : amount,
     amountCents: isChange ? -amountCents : amountCents,
     accountId: method?.id ?? 0,
@@ -248,26 +243,29 @@ function confirmEntry() {
   currentInput.value = "";
 }
 
-function fillRemainingInput() {
-  const remainingCents = totalCents.value - paidCents.value;
-  if (remainingCents <= 0 || activeRate.value <= 0 || usdRate.value <= 0) return;
+function fillRemainingInput(methodName = activeMethod.value) {
+  const settlementCents = Math.abs(totalCents.value - paidCents.value);
+  const method = paymentMethods.value.find((candidate) => candidate.name === methodName);
+  const currencyCode = method?.currencyCode?.toUpperCase() ?? "";
+  const methodRate = paymentRate(methodName);
+  if (settlementCents <= 0 || methodRate <= 0 || usdRate.value <= 0) return;
 
-  if (activeCurrency.value === "LBP") {
+  if (currencyCode === "LBP") {
     currentInput.value = String(
-      roundLbpFromCents(remainingCents, exchangeRate.value, roundingMode.value),
+      roundLbpFromCents(settlementCents, exchangeRate.value, roundingMode.value),
     );
     return;
   }
 
-  const remainingAmount = (remainingCents * activeRate.value) / (usdRate.value * 100);
-  currentInput.value = remainingAmount.toFixed(2).replace(/\.00$/, "");
+  const settlementAmount = (settlementCents * methodRate) / (usdRate.value * 100);
+  currentInput.value = settlementAmount.toFixed(2).replace(/\.00$/, "");
 }
 
 function selectMethodAndConfirm(methodName: string) {
   activeMethod.value = methodName;
   if (methodName.toLowerCase() === "on account" && !props.clientId) return;
-  if (!currentInput.value) fillRemainingInput();
-  confirmEntry();
+  if (!currentInput.value) fillRemainingInput(methodName);
+  confirmEntry(methodName);
 }
 function addOnAccount() {
   const method = paymentMethods.value.find((candidate) => candidate.name.toLowerCase() === "on account");
@@ -319,6 +317,9 @@ const paymentsJSON = computed(() => {
       totalCents.value,
       exchangeRate.value,
       roundingMode.value,
+      entries.value.map(
+        (entry) => !["on coupon", "on account"].includes(entry.type.toLowerCase()),
+      ),
     );
     payments.forEach((payment, index) => {
       payment.amountCents = normalizedAmounts[index]!;

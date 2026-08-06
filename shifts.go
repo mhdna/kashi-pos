@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -10,6 +11,8 @@ import (
 
 	db "kashi-pos/db/sqlc"
 )
+
+const autoCloseStaleShiftsFlag = "auto_close_stale_shifts"
 
 func toLocalTime(s string) string {
 	if s == "" {
@@ -73,6 +76,31 @@ func (a *App) GetOpenShift() (map[string]any, error) {
 	}
 
 	return shiftToMap(shift), nil
+}
+
+// closeStaleOpenShifts closes open shifts created on an earlier local calendar
+// day. Physical counts and closing person are unavailable during startup.
+func (a *App) closeStaleOpenShifts() error {
+	enabled, err := a.store.GetFeatureFlag(a.ctx, autoCloseStaleShiftsFlag)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if enabled == 0 {
+		return nil
+	}
+	return a.store.CloseStaleOpenShifts(a.ctx, time.Now().Format("2006-01-02 15:04:05"))
+}
+
+func (a *App) SetAutoCloseStaleShiftsEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: autoCloseStaleShiftsFlag, Enabled: boolInt(enabled),
+	})
 }
 
 func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, countedWhish int64, usdBreakdownJSON string) (map[string]any, error) {
@@ -245,7 +273,7 @@ func (a *App) buildShiftClosePrintData(
 	}
 
 	payments := make([]receiptPayment, 0, len(paymentRows))
-	var totalPayments, onAccount int64
+	var totalPayments, onAccount, countedCoupon int64
 	var expectedUSD, expectedLBPCents, expectedVisa, expectedWhish int64
 	for _, row := range paymentRows {
 		total := databaseInt64(row.Total)
@@ -253,6 +281,9 @@ func (a *App) buildShiftClosePrintData(
 			onAccount += total
 		} else {
 			totalPayments += total
+		}
+		if strings.EqualFold(strings.TrimSpace(row.AccountName), "On Coupon") {
+			countedCoupon += total
 		}
 		payments = append(payments, receiptPayment{
 			AccountID:    row.AccountID,
@@ -322,6 +353,7 @@ func (a *App) buildShiftClosePrintData(
 		NetSales:        databaseInt64(summary.NetSales),
 		TotalPayments:   totalPayments,
 		CountedTotal:    countedTotal,
+		CountedCoupon:   countedCoupon,
 		OnAccount:       onAccount,
 		Overpayment:     overpayment,
 		Payments:        payments,

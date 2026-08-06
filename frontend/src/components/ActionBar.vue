@@ -30,7 +30,7 @@
             </div>
           </template>
           <template v-else>
-            <InitialsAvatar name="?" color="primary" />
+            <InitialsAvatar name="?" color="grey" />
             <div class="text-subtitle-1 font-weight-bold mt-2">Select client</div>
           </template>
         </v-card>

@@ -15,7 +15,7 @@
         >.</v-btn
       >
       <v-btn class="keypad-button keypad-number text-h6" @click="$emit('digit', '0')">0</v-btn>
-      <v-btn class="keypad-button keypad-number text-h6" @click="$emit('digit', '00')">00</v-btn>
+      <v-btn class="keypad-button keypad-number text-h6" @click="$emit('digit', '000')">000</v-btn>
     </div>
     <div class="keypad-actions">
       <v-btn

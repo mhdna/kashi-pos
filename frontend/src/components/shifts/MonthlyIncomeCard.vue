@@ -72,13 +72,13 @@
                 <span class="font-weight-bold me-2">{{
                   formatBalance(shift.total, "USD", exchangeRate)
                 }}</span>
-                <span
-                  v-if="shift.isClosed && shift.priceDeduction"
-                  class="text-caption text-red-darken-2 me-2"
-                  title="Total reduction from custom prices"
-                >
-                  Price deductions: {{ formatBalance(-shift.priceDeduction, "USD", exchangeRate) }}
-                </span>
+                <!-- <span -->
+                <!--   v-if="shift.isClosed && shift.priceDeduction" -->
+                <!--   class="text-caption text-red-darken-2 me-2" -->
+                <!--   title="Total reduction from custom prices" -->
+                <!-- > -->
+                <!--   Price deductions: {{ formatBalance(-shift.priceDeduction, "USD", exchangeRate) }} -->
+                <!-- </span> -->
                 <v-btn
                   v-if="isAdmin && shift.isClosed"
                   icon="mdi-printer-outline"
@@ -102,7 +102,9 @@
                   <v-list-item v-for="balance in balanceCache[shift.id]" :key="balance.accountId">
                     <template #title>
                       {{ balance.isOnAccount ? "(On Account)" : balance.accountName }}
-                      <small v-if="balance.isOnAccount" class="text-medium-emphasis"> — not collected</small>
+                      <small v-if="balance.isOnAccount" class="text-medium-emphasis">
+                        — not collected</small
+                      >
                     </template>
                     <template #append>
                       <span class="font-weight-bold">{{
@@ -123,7 +125,6 @@
       <span>{{ formatBalance(grandTotal, "USD", exchangeRate) }}</span>
     </div>
   </v-sheet>
-
 </template>
 
 <script setup lang="ts">

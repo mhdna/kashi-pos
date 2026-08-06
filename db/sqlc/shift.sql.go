@@ -79,6 +79,18 @@ func (q *Queries) CloseShift(ctx context.Context, arg CloseShiftParams) (int64, 
 	return result.RowsAffected()
 }
 
+const closeStaleOpenShifts = `-- name: CloseStaleOpenShifts :exec
+UPDATE shifts
+SET is_closed = 1, closed_at = ?
+WHERE is_closed = 0
+  AND date(created_at) < date('now', 'localtime')
+`
+
+func (q *Queries) CloseStaleOpenShifts(ctx context.Context, closedAt string) error {
+	_, err := q.db.ExecContext(ctx, closeStaleOpenShifts, closedAt)
+	return err
+}
+
 const createAccount = `-- name: CreateAccount :one
 INSERT INTO accounts (name) VALUES (?) RETURNING id, name
 `

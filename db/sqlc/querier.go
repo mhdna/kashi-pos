@@ -19,7 +19,11 @@ type Querier interface {
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
 	CloseOpenShifts(ctx context.Context, closedAt string) error
 	CloseShift(ctx context.Context, arg CloseShiftParams) (int64, error)
+	CloseStaleOpenShifts(ctx context.Context, closedAt string) error
 	CountAllProducts(ctx context.Context) (int64, error)
+	CountCouponsByTypeID(ctx context.Context, typeID sql.NullInt64) (int64, error)
+	CountInvoiceCouponPaymentsByCode(ctx context.Context, couponCode string) (int64, error)
+	CountInvoiceCouponPaymentsByTypeID(ctx context.Context, couponTypeID int64) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
 	CountProducts(ctx context.Context, search sql.NullString) (int64, error)
 	CreateAccount(ctx context.Context, name string) (Account, error)
@@ -59,6 +63,7 @@ type Querier interface {
 	DeleteCashboxAccount(ctx context.Context, id int64) error
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteCoupon(ctx context.Context, code string) error
+	DeleteCouponType(ctx context.Context, id int64) error
 	DeleteDiscountOverride(ctx context.Context, id int64) error
 	DeleteHoldInvoice(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
@@ -138,6 +143,7 @@ type Querier interface {
 	ListClientAccountPayments(ctx context.Context, clientID int64) ([]ListClientAccountPaymentsRow, error)
 	ListClients(ctx context.Context) ([]Client, error)
 	ListCouponTypes(ctx context.Context) ([]CouponType, error)
+	ListCoupons(ctx context.Context) ([]Coupon, error)
 	ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error)
 	ListCurrencies(ctx context.Context) ([]Currency, error)
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
@@ -174,6 +180,7 @@ type Querier interface {
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
 	UpdateClientAccountOwnerByInvoice(ctx context.Context, arg UpdateClientAccountOwnerByInvoiceParams) error
 	UpdateCouponStatus(ctx context.Context, arg UpdateCouponStatusParams) error
+	UpdateCouponType(ctx context.Context, arg UpdateCouponTypeParams) error
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) (Inventory, error)
 	UpdateInvoiceCashbox(ctx context.Context, arg UpdateInvoiceCashboxParams) error
 	UpdateInvoiceClient(ctx context.Context, arg UpdateInvoiceClientParams) error

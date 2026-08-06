@@ -53,6 +53,21 @@ UPDATE coupons SET status = ? WHERE code = ?;
 -- name: DeleteCoupon :exec
 DELETE FROM coupons WHERE code = ?;
 
+-- name: ListCoupons :many
+SELECT * FROM coupons ORDER BY created_at DESC;
+
+-- name: CountCouponsByTypeID :one
+SELECT COUNT(*) FROM coupons WHERE type_id = ?;
+
+-- name: CountInvoiceCouponPaymentsByTypeID :one
+SELECT COUNT(*) FROM invoice_coupon_payments WHERE coupon_type_id = ?;
+
+-- name: CountInvoiceCouponPaymentsByCode :one
+SELECT COUNT(*) FROM invoice_coupon_payments WHERE coupon_code = ?;
+
+-- name: DeleteCouponType :exec
+DELETE FROM coupon_types WHERE id = ?;
+
 -- name: CreateClientAccountEntry :one
 INSERT INTO client_account_entries (client_id, invoice_id, amount)
 VALUES (?, ?, ?) RETURNING *;
@@ -107,6 +122,11 @@ UPDATE client_account_entries SET client_id = ? WHERE invoice_id = ?;
 -- name: CreateCouponType :one
 INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only)
 VALUES (?, ?, ?, ?, ?) RETURNING *;
+
+-- name: UpdateCouponType :exec
+UPDATE coupon_types
+SET name = ?, value_cents = ?, currency_code = ?, is_active = ?, reference_only = ?
+WHERE id = ?;
 
 -- name: ListCouponTypes :many
 SELECT * FROM coupon_types ORDER BY name;

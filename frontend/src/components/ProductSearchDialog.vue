@@ -120,7 +120,7 @@ const headers = [
   { title: "Price", key: "price", align: "end" as const },
 ];
 
-const itemsPerPage = ref(5);
+const itemsPerPage = ref(8);
 const page = ref(1);
 const serverItems = ref<any[]>([]);
 const totalItems = ref(0);

@@ -28,4 +28,10 @@ describe("cash rounding", () => {
       750,
     ]);
   });
+
+  it("preserves a coupon face value and adjusts its cash change", () => {
+    expect(
+      normalizeCashRoundedPayments([5_000, -33], 4_966, RATE, "half_up", [false, true]),
+    ).toEqual([5_000, -34]);
+  });
 });

@@ -1,25 +1,10 @@
 <template>
   <div class="settings-page">
-    <!-- <div class="settings-heading"> -->
-    <!--   <div> -->
-    <!--     <div class="text-overline text-primary font-weight-bold">Workspace configuration</div> -->
-    <!--     <h1 class="text-h4 font-weight-bold mb-1">Settings</h1> -->
-    <!--     <p class="text-body-2 text-medium-emphasis mb-0"> -->
-    <!--       Configure receipts, customer displays, security, and user access. -->
-    <!--     </p> -->
-    <!--   </div> -->
-    <!--   <v-icon icon="mdi-cog-outline" size="48" class="settings-heading-icon" /> -->
-    <!-- </div> -->
-
-    <!-- <v-alert v-if="settingsLoadError" type="warning" variant="tonal" class="mb-4"> -->
-    <!--   Settings could not be loaded from the database. The form is using safe defaults. -->
-    <!-- </v-alert> -->
-
     <v-tabs v-model="tab" class="settings-tabs mb-5" color="primary" grow>
-      <v-tab value="general" prepend-icon="mdi-printer-wireless">Printing &amp; Screen</v-tab>
-      <v-tab value="receipt" prepend-icon="mdi-printer-outline">Receipt</v-tab>
-      <v-tab value="coupons" prepend-icon="mdi-sale-outline">Coupons</v-tab>
-      <v-tab value="admin" prepend-icon="mdi-shield-account-outline">Passwords &amp; Users</v-tab>
+      <v-tab value="general">Printing &amp; Screen</v-tab>
+      <v-tab value="receipt">Receipt</v-tab>
+      <v-tab value="coupons">Coupons</v-tab>
+      <v-tab value="admin">Passwords &amp; Users</v-tab>
     </v-tabs>
     <v-progress-linear v-if="settingsLoading" indeterminate color="primary" class="mb-4" />
 
@@ -173,6 +158,15 @@
               />
               <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details />
               <v-switch
+                v-model="form.autoCloseStaleShiftsEnabled"
+                label="Automatically close previous-day shifts"
+                hint="When the app starts, close any open shift created before today."
+                persistent-hint
+                color="primary"
+                hide-details
+                class="mb-2"
+              />
+              <v-switch
                 :model-value="animationsEnabled"
                 label="Animations"
                 color="primary"
@@ -318,24 +312,35 @@
           <v-card-text>
             <div class="d-flex ga-2 align-start">
               <v-text-field v-model="couponTypeForm.name" label="Type name" variant="outlined" density="compact" />
-              <v-text-field v-model.number="couponTypeForm.value" label="Value (USD)" type="number" min="0.01" step="0.01" variant="outlined" density="compact" />
-              <v-btn color="primary" :loading="couponTypeSaving" @click="addCouponType">Add</v-btn>
+              <v-text-field v-model.number="couponTypeForm.value" label="Value" type="number" min="0.01" step="0.01" variant="outlined" density="compact" />
+              <v-text-field v-model="couponTypeForm.currency" label="Currency" maxlength="3" variant="outlined" density="compact" style="max-width: 110px" />
+              <v-btn color="primary" :loading="couponTypeSaving" @click="saveCouponType">{{ editingCouponTypeId ? "Save" : "Add" }}</v-btn>
+              <v-btn v-if="editingCouponTypeId" variant="text" @click="cancelCouponTypeEdit">Cancel</v-btn>
             </div>
-            <v-checkbox
-              v-model="couponTypeForm.referenceOnly"
-              class="mt-n3"
-              density="compact"
-              hide-details
-              label="Reference-only (do not validate against an issued coupon)"
-            />
+            <div class="d-flex align-center ga-4 mt-n3 mb-2">
+              <v-checkbox v-model="couponTypeForm.referenceOnly" density="compact" hide-details label="Reference-only" />
+              <v-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details label="Active" />
+            </div>
             <div class="d-flex ga-2 align-start mb-2">
               <v-text-field v-model="couponCodeForm" label="New coupon code" variant="outlined" density="compact" />
               <v-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" label="Type" variant="outlined" density="compact" />
               <v-btn color="secondary" :loading="couponIssuing" @click="issueCoupon">Issue</v-btn>
             </div>
             <v-list density="compact">
-              <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.referenceOnly ? ' · Reference-only' : ''}`" />
+              <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.referenceOnly ? ' · Reference-only' : ''}`">
+                <template #append>
+                  <v-btn icon="mdi-pencil-outline" variant="text" density="compact" title="Edit coupon type" @click="editCouponType(couponType)" />
+                  <v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon type" @click="removeCouponType(couponType)" />
+                </template>
+              </v-list-item>
               <v-list-item v-if="!couponTypes.length" title="No coupon types configured" />
+            </v-list>
+            <div class="text-subtitle-2 mt-4 mb-1">Issued coupons</div>
+            <v-list density="compact">
+              <v-list-item v-for="coupon in coupons" :key="coupon.code" :title="coupon.code" :subtitle="`${(Number(coupon.valueCents) / 100).toFixed(2)} · ${coupon.status}`">
+                <template #append><v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon" @click="removeCoupon(coupon)" /></template>
+              </v-list-item>
+              <v-list-item v-if="!coupons.length" title="No coupons issued" />
             </v-list>
           </v-card-text>
         </v-card>
@@ -630,6 +635,7 @@ import {
   SetCustomItemDiscountsEnabled,
   SetCustomItemPricesEnabled,
   SetPerUnitItemPricesEnabled,
+  SetAutoCloseStaleShiftsEnabled,
   UpdateUserAttendanceID,
   UpdateReceiptSettings,
   ChangePassword,
@@ -643,8 +649,12 @@ import {
   PrintCurrentCloseShiftSample,
     ListInventories,
   ListCouponTypes,
+  ListCoupons,
   CreateCouponType,
+  UpdateCouponType,
   CreateCoupon,
+  DeleteCoupon,
+  DeleteCouponType,
   ListSalespersons,
   CreateSalesperson,
   UpdateSalesperson,
@@ -669,6 +679,7 @@ const form = reactive({
   taxRate: 0,
   roundingMode: "half_up",
   receiptEnabled: false,
+  autoCloseStaleShiftsEnabled: false,
   salesInventoryId: 0,
   exchangeRate: 90000,
   maxOverpayment: 1,
@@ -723,7 +734,9 @@ const serialPorts = ref<string[]>([]);
 const printers = ref<string[]>([]);
 const saving = ref(false);
 const couponTypes = ref<any[]>([]);
-const couponTypeForm = reactive({ name: "", value: 50, referenceOnly: false });
+const coupons = ref<any[]>([]);
+const couponTypeForm = reactive({ name: "", value: 50, currency: "USD", referenceOnly: false, isActive: true });
+const editingCouponTypeId = ref<number | null>(null);
 const couponTypeSaving = ref(false);
 const couponCodeForm = ref("");
 const couponIssueTypeId = ref<number | null>(null);
@@ -781,17 +794,53 @@ function notify(text: string, color = "success") {
 
 async function loadCouponTypes() {
   try { couponTypes.value = (await ListCouponTypes()) as any[]; } catch { couponTypes.value = []; }
+  try { coupons.value = (await ListCoupons()) as any[]; } catch { coupons.value = []; }
 }
 
-async function addCouponType() {
+async function removeCoupon(coupon: any) {
+  if (!window.confirm(`Delete coupon ${coupon.code}?`)) return;
+  try { await DeleteCoupon(coupon.code); await loadCouponTypes(); notify("Coupon deleted"); }
+  catch (error) { notify(error instanceof Error ? error.message : "Failed to delete coupon", "red"); }
+}
+
+async function removeCouponType(couponType: any) {
+  if (!window.confirm(`Delete coupon type ${couponType.name}?`)) return;
+  try { await DeleteCouponType(Number(couponType.id)); await loadCouponTypes(); notify("Coupon type deleted"); }
+  catch (error) { notify(error instanceof Error ? error.message : "Failed to delete coupon type", "red"); }
+}
+
+function editCouponType(couponType: any) {
+  editingCouponTypeId.value = Number(couponType.id);
+  couponTypeForm.name = couponType.name;
+  couponTypeForm.value = Number(couponType.valueCents) / 100;
+  couponTypeForm.currency = couponType.currencyCode || "USD";
+  couponTypeForm.referenceOnly = Boolean(couponType.referenceOnly);
+  couponTypeForm.isActive = Number(couponType.isActive) !== 0;
+}
+
+function cancelCouponTypeEdit() {
+  editingCouponTypeId.value = null;
+  couponTypeForm.name = "";
+  couponTypeForm.value = 50;
+  couponTypeForm.currency = "USD";
+  couponTypeForm.referenceOnly = false;
+  couponTypeForm.isActive = true;
+}
+
+async function saveCouponType() {
   if (!couponTypeForm.name.trim() || Number(couponTypeForm.value) <= 0) return;
   couponTypeSaving.value = true;
   try {
-    await CreateCouponType(couponTypeForm.name.trim(), "USD", Math.round(Number(couponTypeForm.value) * 100), couponTypeForm.referenceOnly);
-    couponTypeForm.name = "";
-    couponTypeForm.referenceOnly = false;
+    const valueCents = Math.round(Number(couponTypeForm.value) * 100);
+    if (editingCouponTypeId.value) {
+      await UpdateCouponType(editingCouponTypeId.value, couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.isActive, couponTypeForm.referenceOnly);
+    } else {
+      await CreateCouponType(couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.referenceOnly);
+    }
+    const wasEditing = Boolean(editingCouponTypeId.value);
+    cancelCouponTypeEdit();
     await loadCouponTypes();
-    notify("Coupon type added");
+    notify(wasEditing ? "Coupon type updated" : "Coupon type added");
   } catch (error) { notify(error instanceof Error ? error.message : "Failed to add coupon type", "red"); }
   finally { couponTypeSaving.value = false; }
 }
@@ -826,6 +875,7 @@ async function loadSettings() {
         taxRate: Number(s.taxRate ?? 0),
         roundingMode: s.roundingMode ?? "half_up",
         receiptEnabled: Boolean(s.receiptEnabled),
+        autoCloseStaleShiftsEnabled: Boolean(s.autoCloseStaleShiftsEnabled),
         salesInventoryId: Number(s.salesInventoryId ?? 0),
         exchangeRate: Number(s.exchangeRate ?? 90000),
         maxOverpayment: Number(s.maxOverpaymentCents ?? 0) / 100,
@@ -972,6 +1022,7 @@ async function saveSettings() {
       Number.isFinite(exchangeRate) && exchangeRate > 0 ? Math.round(exchangeRate) : 90000,
       maxOverpaymentCents,
     );
+    await SetAutoCloseStaleShiftsEnabled(Boolean(form.autoCloseStaleShiftsEnabled));
     await UpdateReceiptSettings(
       form.marketName.trim(), form.marketPhone.trim(), form.branchPhone.trim(), form.marketDescription.trim(), form.returnPolicy.trim(),
       form.website.trim(), form.instagram.trim(), JSON.stringify(form.socialPlatforms ?? []), JSON.stringify(form.socialHandles ?? {}),
@@ -1133,7 +1184,7 @@ async function deleteUser() {
   box-sizing: border-box;
   height: 100%;
   overflow-y: auto;
-  padding: 24px;
+  padding: 28px 32px 40px;
 }
 
 .settings-heading {
@@ -1141,11 +1192,7 @@ async function deleteUser() {
   align-items: flex-start;
   justify-content: space-between;
   max-width: 1100px;
-  margin: 0 auto 24px;
-}
-
-.settings-heading-icon {
-  opacity: 0.16;
+  margin: 0 auto 20px;
 }
 
 .settings-tabs,
@@ -1156,6 +1203,14 @@ async function deleteUser() {
 
 .settings-tabs {
   border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  min-height: 44px;
+}
+
+.settings-tabs :deep(.v-tab) {
+  min-width: 0;
+  padding-inline: 18px;
+  text-transform: none;
+  font-weight: 600;
 }
 
 .settings-grid {
@@ -1172,15 +1227,34 @@ async function deleteUser() {
 .settings-card {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none !important;
+}
+
+.settings-card :deep(.v-card-title .v-avatar) {
+  display: none;
 }
 
 .settings-card :deep(.v-card-title) {
-  padding: 20px 20px 8px;
+  padding: 18px 20px 8px;
+  gap: 0 !important;
+  font-size: 0.95rem !important;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.settings-card :deep(.v-card-title .text-subtitle-1) {
+  font-size: inherit !important;
+  line-height: inherit;
+}
+
+.settings-card :deep(.v-card-title .text-caption) {
+  display: none;
 }
 
 .settings-card :deep(.v-card-text) {
-  padding: 16px 20px 4px;
+  padding: 14px 20px 6px;
 }
 
 .settings-card :deep(.v-data-table-footer) {

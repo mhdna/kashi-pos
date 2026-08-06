@@ -1,12 +1,12 @@
 <template>
   <v-dialog
     :model-value="modelValue"
-    max-width="520"
+    max-width="900"
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <v-card :title="`Close Shift #${openShift?.id}`">
       <v-card-text>
-        <div v-if="closeBalances.length" class="mb-4">
+        <div v-if="closeBalances.length" class="balance-summary-grid mb-4">
           <div
             v-for="balance in closeBalances"
             :key="balance.accountId"
@@ -14,9 +14,16 @@
           >
             <span>
               {{ balance.isOnAccount ? "(On Account)" : balance.accountName }}
-              <small v-if="balance.isOnAccount" class="text-medium-emphasis"> — not collected</small>
+              <small v-if="balance.isOnAccount" class="text-medium-emphasis">
+                — not collected</small
+              >
+              <small v-else-if="balance.isOnCoupon" class="text-medium-emphasis">
+                — automatically counted</small
+              >
             </span>
-            <span class="font-weight-bold">{{ formatBalance(balance.balance, balance.currencyCode ?? "USD", exchangeRate ?? 90000) }}</span>
+            <span class="font-weight-bold">{{
+              formatBalance(balance.balance, balance.currencyCode ?? "USD", exchangeRate ?? 90000)
+            }}</span>
           </div>
         </div>
         <div v-else class="text-center text-medium-emphasis mb-4">No transactions this shift</div>
@@ -48,21 +55,25 @@
         </div>
         <div class="d-flex justify-space-between align-center mb-4 px-1">
           <span class="text-body-2">USD counted total</span>
-          <span class="text-subtitle-1 font-weight-bold">{{ formatUsd(countedUsdTotal / 100) }}</span>
+          <span class="text-subtitle-1 font-weight-bold">{{
+            formatUsd(countedUsdTotal / 100)
+          }}</span>
         </div>
-        <v-text-field
-          :model-value="countedLbp"
-          placeholder="Total LBP counted"
-          prepend-inner-icon="mdi-cash"
-          suffix="LBP"
-          readonly
-          variant="outlined"
-          density="comfortable"
-          @click="openNumpad('lbp')"
-        />
-        <div class="d-flex justify-space-between align-center mb-2 px-1">
-          <span class="text-body-2">LBP counted total</span>
-          <span class="text-subtitle-1 font-weight-bold">{{ countedLbpTotal }}</span>
+        <div class="counted-lbp-row">
+          <v-text-field
+            :model-value="countedLbp"
+            placeholder="Total LBP counted"
+            prepend-inner-icon="mdi-cash"
+            suffix="LBP"
+            readonly
+            variant="outlined"
+            density="comfortable"
+            @click="openNumpad('lbp')"
+          />
+          <div class="d-flex justify-space-between align-center mb-2 px-1">
+            <span class="text-body-2">LBP counted total</span>
+            <span class="text-subtitle-1 font-weight-bold">{{ countedLbpTotal }}</span>
+          </div>
         </div>
         <div class="electronic-count-grid">
           <v-text-field
@@ -83,10 +94,22 @@
             density="comfortable"
             @click="openNumpad('whish')"
           />
+          <v-text-field
+            :model-value="(countedCouponCents / 100).toFixed(2)"
+            label="Counted Coupon"
+            prefix="$"
+            prepend-inner-icon="mdi-ticket-percent-outline"
+            persistent-hint
+            readonly
+            variant="outlined"
+            density="comfortable"
+          />
         </div>
         <div class="d-flex justify-space-between align-center mb-2 px-1">
-          <span class="text-body-2">Electronic payments counted</span>
-          <span class="text-subtitle-1 font-weight-bold">{{ formatUsd((countedVisaCents + countedWhishCents) / 100) }}</span>
+          <span class="text-body-2">Non-cash payments counted</span>
+          <span class="text-subtitle-1 font-weight-bold">{{
+            formatUsd((countedVisaCents + countedWhishCents + countedCouponCents) / 100)
+          }}</span>
         </div>
       </v-card-text>
       <v-card-actions class="pa-2 ga-2">
@@ -110,12 +133,26 @@
       <v-card-text>
         <v-text-field :model-value="numpadValue || '0'" readonly variant="outlined" class="mb-3" />
         <div class="numpad-grid">
-          <v-btn v-for="key in numpadKeys" :key="key" size="large" variant="tonal" @click="pressNumpad(key)">
+          <v-btn
+            v-for="key in numpadKeys"
+            :key="key"
+            size="large"
+            variant="tonal"
+            @click="pressNumpad(key)"
+          >
             {{ key }}
           </v-btn>
-          <v-btn size="large" variant="tonal" prepend-icon="mdi-backspace-outline" @click="backspaceNumpad">Delete</v-btn>
+          <v-btn
+            size="large"
+            variant="tonal"
+            prepend-icon="mdi-backspace-outline"
+            @click="backspaceNumpad"
+            >Delete</v-btn
+          >
           <v-btn size="large" variant="tonal" @click="pressNumpad('0')">0</v-btn>
-          <v-btn size="large" color="primary" variant="elevated" @click="numpadOpen = false">Done</v-btn>
+          <v-btn size="large" color="primary" variant="elevated" @click="numpadOpen = false"
+            >Done</v-btn
+          >
         </div>
       </v-card-text>
     </v-card>
@@ -138,7 +175,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:modelValue": [value: boolean];
-  confirm: [closingPersonId: number, countedLbp: number, countedVisa: number, countedWhish: number, usdBreakdownJson: string];
+  confirm: [
+    closingPersonId: number,
+    countedLbp: number,
+    countedVisa: number,
+    countedWhish: number,
+    usdBreakdownJson: string,
+  ];
 }>();
 
 const closingPersonId = ref<number | null>(null);
@@ -166,6 +209,13 @@ const numpadValue = computed(() => {
 });
 const countedVisaCents = computed(() => Math.round(Number(countedVisa.value || 0) * 100));
 const countedWhishCents = computed(() => Math.round(Number(countedWhish.value || 0) * 100));
+const countedCouponCents = computed(() =>
+  props.closeBalances
+    .filter(
+      (balance) => balance.isOnCoupon || balance.accountName.trim().toLowerCase() === "on coupon",
+    )
+    .reduce((total, balance) => total + Number(balance.balance || 0), 0),
+);
 
 const parsedLbp = computed(() => Number(countedLbp.value));
 const billCountsValid = computed(() =>
@@ -192,8 +242,10 @@ const formValid = computed(
     countedLbp.value !== "" &&
     Number.isFinite(parsedLbp.value) &&
     parsedLbp.value >= 0 &&
-    Number.isFinite(countedVisaCents.value) && countedVisaCents.value >= 0 &&
-    Number.isFinite(countedWhishCents.value) && countedWhishCents.value >= 0 &&
+    Number.isFinite(countedVisaCents.value) &&
+    countedVisaCents.value >= 0 &&
+    Number.isFinite(countedWhishCents.value) &&
+    countedWhishCents.value >= 0 &&
     billCountsValid.value,
 );
 
@@ -250,19 +302,24 @@ function pressNumpad(key: string) {
 function backspaceNumpad() {
   setNumpadValue(numpadValue.value.slice(0, -1));
 }
-
 </script>
 
 <style scoped>
 .usd-bill-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0 12px;
+}
+
+.balance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
 }
 
 .electronic-count-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0 12px;
 }
 
@@ -272,4 +329,17 @@ function backspaceNumpad() {
   gap: 8px;
 }
 
+@media (max-width: 700px) {
+  .usd-bill-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .balance-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .electronic-count-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 </style>

@@ -24,6 +24,7 @@ type shiftReportData struct {
 	NetSales        int64
 	TotalPayments   int64
 	CountedTotal    int64
+	CountedCoupon   int64
 	OnAccount       int64
 	Overpayment     int64
 	Payments        []receiptPayment
@@ -110,6 +111,8 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		label := "Received - " + fallbackReceiptValue(payment.AccountName, "Cash")
 		if strings.EqualFold(strings.TrimSpace(payment.AccountName), "On Account") {
 			label = "ON ACCOUNT (NOT COLLECTED)"
+		} else if strings.EqualFold(strings.TrimSpace(payment.AccountName), "On Coupon") {
+			label = "ON COUPON (AUTO-COUNTED)"
 		}
 		y, _ = c.twoCol(y, label, formatReceiptPayment(payment, report.ExchangeRate, report.RoundingMode), 10, true)
 		y += 7
@@ -122,6 +125,10 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	y += 8
 	y, _ = c.twoCol(y, "COUNTED TOTAL", formatShiftUSD(report.CountedTotal), c.data.BodySize, true)
 	y += 8
+	if report.CountedCoupon != 0 {
+		y, _ = c.twoCol(y, "COUPON (AUTO-COUNTED)", formatShiftUSD(report.CountedCoupon), c.data.BodySize, true)
+		y += 8
+	}
 	y, _ = c.twoCol(y, "DIFFERENCE", formatSignedShiftUSD(report.CountedTotal-report.TotalPayments), c.data.BodySize, true)
 	y += 8
 	if report.OnAccount > 0 {

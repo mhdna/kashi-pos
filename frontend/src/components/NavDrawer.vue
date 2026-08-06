@@ -6,10 +6,9 @@
         :key="item.value"
         class="nav-item"
         :disabled="item.locked"
-        :to="item.locked || item.action ? undefined : item.to"
         :value="item.action ? undefined : item.value"
         :active="item.action ? false : undefined"
-        @click="item.action?.()"
+        @click.prevent="handleItemClick(item)"
       >
         <div class="nav-item-content">
           <v-badge
@@ -40,19 +39,30 @@
     </v-list>
   </v-navigation-drawer>
 
-  <v-dialog v-model="closeShiftDialog" max-width="600">
+  <v-dialog v-model="closeShiftDialog" max-width="900">
     <close-shift-card @close="closeShiftDialog = false" />
   </v-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { pendingNavAction } from "@/composables/useNavActions";
 import CloseShiftCard from "./CloseShiftCard.vue";
 
 const auth = useAuthStore();
+const router = useRouter();
 const closeShiftDialog = ref(false);
+
+function handleItemClick(item: { locked?: boolean; action?: () => void; to?: string }) {
+  if (item.locked) return;
+  if (item.action) {
+    item.action();
+    return;
+  }
+  if (item.to) void router.push(item.to);
+}
 
 function onHoldClick() {
   pendingNavAction.value = "onhold";

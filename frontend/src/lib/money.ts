@@ -60,6 +60,7 @@ export function normalizeCashRoundedPayments(
   totalCents: number,
   exchangeRate: number,
   mode?: string,
+  adjustable?: boolean[],
 ): number[] {
   const paidCents = payments.reduce((sum, amount) => sum + amount, 0);
   const difference = paidCents - totalCents;
@@ -70,6 +71,15 @@ export function normalizeCashRoundedPayments(
   if (!accepted) return payments;
 
   const normalized = [...payments];
+  if (adjustable) {
+    for (let i = normalized.length - 1; i >= 0; i -= 1) {
+      if (adjustable[i]) {
+        normalized[i]! -= difference;
+        return normalized;
+      }
+    }
+    return payments;
+  }
   for (let i = normalized.length - 1; i >= 0; i -= 1) {
     if (normalized[i]! > 0) {
       normalized[i]! -= difference;

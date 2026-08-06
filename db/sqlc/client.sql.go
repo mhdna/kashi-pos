@@ -28,6 +28,39 @@ func (q *Queries) AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyal
 	return err
 }
 
+const countCouponsByTypeID = `-- name: CountCouponsByTypeID :one
+SELECT COUNT(*) FROM coupons WHERE type_id = ?
+`
+
+func (q *Queries) CountCouponsByTypeID(ctx context.Context, typeID sql.NullInt64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCouponsByTypeID, typeID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countInvoiceCouponPaymentsByCode = `-- name: CountInvoiceCouponPaymentsByCode :one
+SELECT COUNT(*) FROM invoice_coupon_payments WHERE coupon_code = ?
+`
+
+func (q *Queries) CountInvoiceCouponPaymentsByCode(ctx context.Context, couponCode string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countInvoiceCouponPaymentsByCode, couponCode)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countInvoiceCouponPaymentsByTypeID = `-- name: CountInvoiceCouponPaymentsByTypeID :one
+SELECT COUNT(*) FROM invoice_coupon_payments WHERE coupon_type_id = ?
+`
+
+func (q *Queries) CountInvoiceCouponPaymentsByTypeID(ctx context.Context, couponTypeID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countInvoiceCouponPaymentsByTypeID, couponTypeID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createClient = `-- name: CreateClient :one
 INSERT INTO clients (name, phone, total_loyalty_points, valid_loyalty_points)
 VALUES (?, ?, ?, ?) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at
@@ -269,6 +302,15 @@ DELETE FROM coupons WHERE code = ?
 
 func (q *Queries) DeleteCoupon(ctx context.Context, code string) error {
 	_, err := q.db.ExecContext(ctx, deleteCoupon, code)
+	return err
+}
+
+const deleteCouponType = `-- name: DeleteCouponType :exec
+DELETE FROM coupon_types WHERE id = ?
+`
+
+func (q *Queries) DeleteCouponType(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteCouponType, id)
 	return err
 }
 
@@ -596,6 +638,44 @@ func (q *Queries) ListCouponTypes(ctx context.Context) ([]CouponType, error) {
 	return items, nil
 }
 
+const listCoupons = `-- name: ListCoupons :many
+SELECT code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id FROM coupons ORDER BY created_at DESC
+`
+
+func (q *Queries) ListCoupons(ctx context.Context) ([]Coupon, error) {
+	rows, err := q.db.QueryContext(ctx, listCoupons)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Coupon{}
+	for rows.Next() {
+		var i Coupon
+		if err := rows.Scan(
+			&i.Code,
+			&i.Status,
+			&i.DiscountType,
+			&i.Reason,
+			&i.ClientID,
+			&i.ValidUntil,
+			&i.CreatedAt,
+			&i.TypeID,
+			&i.ValueCents,
+			&i.RedeemedInvoiceID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCouponsByClientID = `-- name: ListCouponsByClientID :many
 SELECT code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id FROM coupons WHERE client_id = ? ORDER BY created_at
 `
@@ -755,5 +835,32 @@ type UpdateCouponStatusParams struct {
 
 func (q *Queries) UpdateCouponStatus(ctx context.Context, arg UpdateCouponStatusParams) error {
 	_, err := q.db.ExecContext(ctx, updateCouponStatus, arg.Status, arg.Code)
+	return err
+}
+
+const updateCouponType = `-- name: UpdateCouponType :exec
+UPDATE coupon_types
+SET name = ?, value_cents = ?, currency_code = ?, is_active = ?, reference_only = ?
+WHERE id = ?
+`
+
+type UpdateCouponTypeParams struct {
+	Name          string `json:"name"`
+	ValueCents    int64  `json:"valueCents"`
+	CurrencyCode  string `json:"currencyCode"`
+	IsActive      int64  `json:"isActive"`
+	ReferenceOnly int64  `json:"referenceOnly"`
+	ID            int64  `json:"id"`
+}
+
+func (q *Queries) UpdateCouponType(ctx context.Context, arg UpdateCouponTypeParams) error {
+	_, err := q.db.ExecContext(ctx, updateCouponType,
+		arg.Name,
+		arg.ValueCents,
+		arg.CurrencyCode,
+		arg.IsActive,
+		arg.ReferenceOnly,
+		arg.ID,
+	)
 	return err
 }
