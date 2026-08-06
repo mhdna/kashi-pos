@@ -7,11 +7,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   name: string;
-  color: string;
+  color?: string;
   size?: number;
-}>();
+}>(), {
+  color: "grey-darken-1",
+});
 
 const avatarSize = computed(() => props.size ?? 36);
 

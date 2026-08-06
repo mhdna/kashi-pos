@@ -151,7 +151,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: var(--kashi-font-size-base);
   font-weight: 700;
   min-height: 32px;
   padding: 2px 8px;
@@ -164,7 +164,7 @@ onBeforeUnmount(() => {
 }
 
 .popup-keyboard-display {
-  font-size: 1.1rem;
+  font-size: var(--kashi-font-size-lg);
   font-weight: 600;
   min-height: 36px;
   overflow: hidden;
@@ -181,7 +181,7 @@ onBeforeUnmount(() => {
 }
 
 .popup-keyboard-key {
-  font-size: 0.9rem;
+  font-size: var(--kashi-font-size-base);
   height: 34px;
   min-width: 32px;
   padding: 0;

@@ -3,9 +3,9 @@
   <div class="d-flex flex-column w-100 h-100 px-4">
     <v-card
       class="ma-0 d-flex justify-center text-title-medium my-2 w-100 flex-column"
-      color="gray"
       rounded="lg"
-      style="flex: 0 0 300px; height: 300px; min-height: 300px"
+      variant="outlined"
+      style="flex: 0 0 300px; height: 300px; min-height: 300px; background-color: transparent !important; border-color: rgba(var(--v-theme-on-surface), 0.18) !important"
       title="Client"
     >
       <template #prepend>
@@ -23,10 +23,10 @@
           @click="openClientDialog"
         >
           <template v-if="clientSelected">
-            <InitialsAvatar :name="client.name" :color="tierColor" />
+            <InitialsAvatar :name="client.name" color="grey-darken-1" />
             <div class="text-subtitle-1 font-weight-bold mt-2">{{ client.name }}</div>
             <div class="text-caption text-medium-emphasis mt-1">
-              {{ client.phone || "Walk-in customer" }}
+              {{ formatLebanesePhone(client.phone) || "Walk-in customer" }}
             </div>
           </template>
           <template v-else>
@@ -45,7 +45,8 @@
       class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
       rounded="lg"
       text="Void"
-      variant="tonal"
+      variant="outlined"
+      style="color: rgba(var(--v-theme-on-surface), 0.7); border-color: rgba(var(--v-theme-on-surface), 0.18) !important"
       width="100%"
       @click="ask('void')"
       :disabled="!hasItems || exchangeMode"
@@ -58,7 +59,8 @@
       class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
       rounded="lg"
       text="Hold"
-      variant="tonal"
+      variant="outlined"
+      style="color: rgba(var(--v-theme-on-surface), 0.7); border-color: rgba(var(--v-theme-on-surface), 0.18) !important"
       width="100%"
       @click="ask('hold')"
       :disabled="!hasItems || exchangeMode"
@@ -69,10 +71,11 @@
     </v-btn>
     <v-btn
       class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
-      color="green-darken-2"
+      color="green-darken-3"
       rounded="lg"
       text="Check Out"
-      variant="tonal"
+      variant="outlined"
+      style="background-color: rgba(var(--v-theme-success), 0.24); border-color: rgba(var(--v-theme-success), 0.3) !important"
       width="100%"
       @click="$emit('checkout')"
       :disabled="!hasItems || !canCheckout"
@@ -114,12 +117,11 @@ import InitialsAvatar from "./InitialsAvatar.vue";
 import {
   anonymousClient,
   formatLoyaltyPoints,
-  loyaltyTier,
-  loyaltyTierColor,
   toClient,
   type Client,
 } from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
+import { formatLebanesePhone } from "@/lib/phone";
 
 const emit = defineEmits<{ hold: []; void: []; checkout: [] }>();
 const props = defineProps<{
@@ -152,9 +154,6 @@ const isAnonymousClient = computed(
 );
 
 const earns = computed(() => Math.floor(props.total));
-
-const tierLabel = computed(() => loyaltyTier(client.totalLoyaltyPoints));
-const tierColor = computed(() => loyaltyTierColor(tierLabel.value));
 
 function openClientDialog() {
   if (!props.exchangeMode) clientDialog.value = true;

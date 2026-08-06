@@ -3,14 +3,14 @@
     <template #activator="{ props }">
       <v-btn
         v-bind="props"
-        class="py-6 px-0 me-4"
-        min-width="200"
+        class="py-6 px-0 me-6"
+        min-width="150"
         :class="{ 'missing-selection-pulse': pulseMissingSalesperson }"
       >
         <v-list-item
           :subtitle="selected ? 'Salesperson' : undefined"
           :title="selectedName"
-          style="min-width: 180px"
+          style="min-width: 160px"
         >
           <template #prepend>
             <InitialsAvatar :name="selectedName ?? ''" :color="selectedColor ?? 'grey'" />
@@ -36,7 +36,7 @@ import InitialsAvatar from "./InitialsAvatar.vue";
 import { useSalesperson, type Salesperson } from "@/composables/useSalesperson";
 
 const menu = ref(false);
-const salespersonAvatarColor = "grey";
+const salespersonAvatarColor = "grey-darken-1";
 
 const salespersons = ref<Salesperson[]>([]);
 const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperson();

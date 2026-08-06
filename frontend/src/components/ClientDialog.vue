@@ -40,7 +40,7 @@
             </template>
           </v-autocomplete>
           <v-text-field
-            v-model="phone"
+            :model-value="formatLebanesePhone(phone)"
             :placeholder="`Phone Number (+${selectedDialCode})`"
             variant="outlined"
             density="compact"
@@ -48,6 +48,7 @@
             maxlength="15"
             :error-messages="phoneError"
             @keydown.enter="lookupPhone"
+            @update:model-value="phone = $event.replace(/\D/g, '')"
           />
           <v-btn
             class="w-100 mb-4"
@@ -64,7 +65,7 @@
         <div class="client-phone-numpad">
           <div class="client-phone-numpad-display">
             <span class="client-phone-numpad-prefix">+{{ selectedDialCode }}</span>
-            <span>{{ phone || "0" }}</span>
+            <span>{{ formatLebanesePhone(phone) || "0" }}</span>
           </div>
           <div class="client-phone-numpad-grid">
             <v-btn
@@ -112,12 +113,13 @@
       <v-card-title>New Client</v-card-title>
       <v-card-text>
         <v-text-field
-          v-model="newClient.phone"
+          :model-value="formatLebanesePhone(newClient.phone)"
           placeholder="Phone Number"
           variant="outlined"
           density="compact"
           class="mb-2"
           readonly
+          @update:model-value="newClient.phone = $event.replace(/\D/g, '')"
         >
           <template #prepend>
             <span
@@ -167,6 +169,7 @@ import {
 } from "libphonenumber-js/min";
 import { GetClientByPhone, CreateClient } from "../../wailsjs/go/main/App";
 import { anonymousClient, toClient, type Client } from "@/lib/client";
+import { formatLebanesePhone } from "@/lib/phone";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
 const emit = defineEmits<{ select: [client: Client] }>();
@@ -347,7 +350,7 @@ function reset() {
 .client-phone-numpad-display {
   align-items: baseline;
   display: flex;
-  font-size: 1.4rem;
+  font-size: var(--kashi-font-size-2xl);
   font-weight: 700;
   justify-content: center;
   min-height: 40px;
@@ -355,7 +358,7 @@ function reset() {
 }
 
 .client-phone-numpad-prefix {
-  font-size: 0.72em;
+  font-size: var(--kashi-font-size-xs);
   font-weight: 600;
   margin-inline-end: 4px;
   opacity: 0.7;
@@ -368,7 +371,7 @@ function reset() {
 }
 
 .client-phone-numpad-key {
-  font-size: 1rem;
+  font-size: var(--kashi-font-size-base);
   height: 36px;
   min-width: 0;
   padding: 0;

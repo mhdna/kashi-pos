@@ -33,7 +33,8 @@
           :items="salespersons"
           item-title="fullName"
           item-value="id"
-          placeholder="Closing person"
+          label="Closing person"
+          active
           variant="outlined"
           density="comfortable"
           class="mt-3"
@@ -45,7 +46,8 @@
             v-for="denomination in usdDenominations"
             :key="denomination"
             :model-value="usdBillCounts[denomination]"
-            :placeholder="`$${denomination} bills`"
+            :label="`$${denomination}`"
+            active
             readonly
             variant="outlined"
             density="compact"
@@ -62,7 +64,8 @@
         <div class="counted-lbp-row">
           <v-text-field
             :model-value="countedLbp"
-            placeholder="Total LBP counted"
+          label="LBP"
+          active
             prepend-inner-icon="mdi-cash"
             suffix="LBP"
             readonly
@@ -78,7 +81,8 @@
         <div class="electronic-count-grid">
           <v-text-field
             :model-value="countedVisa"
-            label="Counted Visa"
+            label="Visa"
+            active
             prefix="$"
             readonly
             variant="outlined"
@@ -87,7 +91,8 @@
           />
           <v-text-field
             :model-value="countedWhish"
-            label="Counted Whish"
+            label="Whish"
+            active
             prefix="$"
             readonly
             variant="outlined"
@@ -96,7 +101,8 @@
           />
           <v-text-field
             :model-value="(countedCouponCents / 100).toFixed(2)"
-            label="Counted Coupon"
+            label="Coupon"
+            active
             prefix="$"
             prepend-inner-icon="mdi-ticket-percent-outline"
             persistent-hint
@@ -131,7 +137,14 @@
     <v-card>
       <v-card-title>{{ numpadTitle }}</v-card-title>
       <v-card-text>
-        <v-text-field :model-value="numpadValue || '0'" readonly variant="outlined" class="mb-3" />
+        <v-text-field
+          :model-value="numpadValue || '0'"
+          label="Amount"
+          active
+          readonly
+          variant="outlined"
+          class="mb-3"
+        />
         <div class="numpad-grid">
           <v-btn
             v-for="key in numpadKeys"

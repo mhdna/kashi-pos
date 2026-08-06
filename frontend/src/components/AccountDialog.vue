@@ -15,7 +15,7 @@
           clearable
           density="compact"
           hide-details
-          label="Search customers"
+          placeholder="Search customers"
           prepend-inner-icon="mdi-magnify"
           variant="outlined"
         />
@@ -24,7 +24,7 @@
             v-for="client in filteredClients"
             :key="client.id"
             :title="client.name"
-            :subtitle="client.phone || 'No phone number'"
+            :subtitle="formatLebanesePhone(client.phone) || 'No phone number'"
             prepend-icon="mdi-account-outline"
             @click="selectClient(client)"
           >
@@ -55,6 +55,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import { SearchClients } from "../../wailsjs/go/main/App";
 import ClientDialog from "@/components/ClientDialog.vue";
 import { toClient, type Client } from "@/lib/client";
+import { formatLebanesePhone } from "@/lib/phone";
 
 const emit = defineEmits<{ select: [client: Client] }>();
 const dialog = defineModel<boolean>({ default: false });

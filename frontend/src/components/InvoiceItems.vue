@@ -1,5 +1,5 @@
 <template>
-  <v-list ref="invoiceScroll" class="invoice-items ma-2">
+  <div ref="invoiceScroll" class="invoice-items ma-2">
     <div v-for="(item, index) in items" :key="item.barcode || item.code">
       <v-list-item>
         <template v-if="canExpandUnitPrices(item)" #prepend>
@@ -134,7 +134,7 @@
         </div>
       </v-expand-transition>
     </div>
-  </v-list>
+  </div>
 </template>
 
 <script lang="ts" setup>
@@ -232,7 +232,7 @@ const items = ref<LineItem[]>([]);
 const savedDiscounts = new Map<string, number>();
 const pendingDiscounts = new Map<string, Promise<boolean>>();
 const discountInputs = new Map<number, { focus: () => void }>();
-const invoiceScroll = ref<{ scrollToIndex?: (index: number) => void } | null>(null);
+const invoiceScroll = ref<HTMLElement | null>(null);
 const expandedItemKey = ref("");
 
 onMounted(async () => {
@@ -450,7 +450,7 @@ async function saveAndMove(item: LineItem, index: number, direction: -1 | 1) {
   const target = index + direction;
   if (target < 0 || target >= items.value.length) return;
 
-  invoiceScroll.value?.scrollToIndex?.(target);
+  invoiceScroll.value?.children[target]?.scrollIntoView({ block: "nearest" });
   await nextTick();
   requestAnimationFrame(() => discountInputs.get(target)?.focus());
 }

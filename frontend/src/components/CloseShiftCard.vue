@@ -24,7 +24,8 @@
         :items="salespersons"
         item-title="fullName"
         item-value="id"
-        placeholder="Closing person"
+        label="Closing person"
+        active
         variant="outlined"
         density="comfortable"
         class="mt-4"
@@ -44,8 +45,8 @@
             <v-text-field
               v-bind="activatorProps"
               :model-value="usdBillCounts[denomination]"
-              :label="`$${denomination} bills`"
-              placeholder="0"
+              :label="`$${denomination}`"
+              active
               suffix="bills"
               prepend-inner-icon="mdi-cash"
               readonly
@@ -71,8 +72,8 @@
             <v-text-field
               v-bind="activatorProps"
               :model-value="countedLbp"
-              label="Counted LBP"
-              placeholder="0"
+              label="LBP"
+              active
               suffix="LBP"
               prepend-inner-icon="mdi-cash"
               readonly
@@ -98,8 +99,8 @@
             <v-text-field
               v-bind="activatorProps"
               :model-value="countedVisa"
-              label="Counted Visa"
-              placeholder="0.00"
+              label="Visa"
+              active
               prefix="$"
               prepend-inner-icon="mdi-credit-card-outline"
               readonly
@@ -119,8 +120,8 @@
             <v-text-field
               v-bind="activatorProps"
               :model-value="countedWhish"
-              label="Counted Whish"
-              placeholder="0.00"
+              label="Whish"
+              active
               prefix="$"
               prepend-inner-icon="mdi-cellphone"
               readonly
@@ -131,7 +132,8 @@
         </NumberPadMenu>
         <v-text-field
           :model-value="(countedCouponCents / 100).toFixed(2)"
-          label="Counted Coupon"
+          label="Coupon"
+          active
           prefix="$"
           prepend-inner-icon="mdi-ticket-percent-outline"
           persistent-hint

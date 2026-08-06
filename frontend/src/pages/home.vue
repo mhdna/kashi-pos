@@ -1,9 +1,15 @@
 <template>
-  <div class="d-flex h-100" style="width: 100%; overflow: hidden">
-    <div class="d-flex flex-column" style="flex: 5 5 0; min-width: 0; min-height: 0">
+  <div class="home-page d-flex h-100" style="width: 100%; overflow: hidden">
+    <div class="home-left-pane d-flex flex-column" style="flex: 5 5 0; min-width: 0; min-height: 0">
       <div>
-        <v-card-title class="d-flex justify-space-between">
-          <div>{{ exchangeState ? "Exchange" : "Invoice" }}</div>
+        <v-card-title
+          class="d-flex justify-space-between"
+          style="font-size: var(--kashi-font-size-2xl)"
+        >
+          <div class="d-flex flex-column">
+            <div>{{ exchangeState ? "Exchange" : "Invoice" }}</div>
+            <v-card-subtitle class="pa-0">{{ invoiceCode }}</v-card-subtitle>
+          </div>
           <div class="d-flex">
             <v-menu v-model="noteMenu" :close-on-content-click="false" location="bottom end">
               <template #activator="{ props }">
@@ -40,7 +46,7 @@
               v-if="!exchangeState"
               class="px-3 me-1"
               variant="tonal"
-              style="min-width: 120px"
+              style="min-width: 120px; --v-btn-size: var(--kashi-font-size-sm)"
               :disabled="!hasItems"
               @click="accountDialog = true"
             >
@@ -51,15 +57,14 @@
             </v-btn>
             <v-btn
               v-if="!exchangeState"
-              class="px-3"
               variant="tonal"
-              style="min-width: 120px"
+              style="min-width: 120px; --v-btn-size: var(--kashi-font-size-sm)"
               @click="calculator?.openCouponDialog()"
             >
               <template #prepend>
                 <v-icon icon="mdi-sale-outline" size="18" class="me-1" />
               </template>
-              Apply Coupon
+              Coupon
             </v-btn>
             <v-btn
               v-else
@@ -72,7 +77,6 @@
             </v-btn>
           </div>
         </v-card-title>
-        <v-card-subtitle>{{ invoiceCode }}</v-card-subtitle>
       </div>
       <div class="d-flex align-center mx-4 mt-4">
         <v-text-field
@@ -120,7 +124,7 @@
         :tax-rate="taxRate"
       /> -->
     </div>
-    <div class="d-flex position-relative" style="flex: 5 5 0; min-width: 0">
+    <div class="home-right-pane d-flex position-relative" style="flex: 5 5 0; min-width: 0">
       <div
         v-if="!hasItems"
         class="position-absolute d-flex align-center justify-center"
@@ -140,7 +144,12 @@
         </v-card>
       </div>
       <div class="mb-3 mt-1" style="flex: 3 3 0; min-width: 0">
-        <Calculator ref="calculator" :total="invoiceTotal" :client-id="actionBar?.clientId" :rounding-mode="roundingMode" />
+        <Calculator
+          ref="calculator"
+          :total="invoiceTotal"
+          :client-id="actionBar?.clientId"
+          :rounding-mode="roundingMode"
+        />
       </div>
       <div style="flex: 2 2 0; min-width: 0">
         <ActionBar
@@ -156,7 +165,6 @@
         />
       </div>
     </div>
-
   </div>
 
   <AccountDialog v-model="accountDialog" @select="onAccountClientSelect" />
@@ -207,10 +215,7 @@ import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { roundCents } from "@/lib/money";
 import type { Client } from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
-import {
-  pendingExchangeSelection,
-  pendingHoldInvoice,
-} from "@/composables/useNavActions";
+import { pendingExchangeSelection, pendingHoldInvoice } from "@/composables/useNavActions";
 
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
 type InvoiceDraft = { items: any[]; client: Client; notes?: string };
@@ -669,6 +674,19 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
+.home-right-pane {
+  background-color: var(--kashi-app-background);
+  border-left: 1px solid rgba(var(--v-border-color), 0.18);
+}
+
+.home-left-pane {
+  background-color: var(--kashi-app-background);
+}
+
+.home-page .bg-surface-light {
+  background-color: rgba(var(--v-theme-on-surface), 0.04) !important;
+}
+
 .app-snackbar .v-snackbar__wrapper {
   background: rgba(var(--v-theme-surface-variant), 0.72) !important;
   color: rgb(var(--v-theme-on-surface-variant)) !important;

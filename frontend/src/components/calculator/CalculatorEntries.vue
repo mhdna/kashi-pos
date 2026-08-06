@@ -65,7 +65,7 @@ watch(
   min-height: 36px;
 }
 .calculator-entry-text {
-  font-size: 0.85rem;
+  font-size: var(--kashi-font-size-sm);
   line-height: 1.1;
 }
 </style>

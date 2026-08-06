@@ -1,0 +1,29 @@
+/* Central typography controls. Change these values to resize the app globally. */
+:root {
+  --kashi-font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
+  --kashi-app-background: #f7f7f7;
+  --kashi-font-size-base: 0.95rem;
+  --kashi-font-size-sm: 0.8;
+  --kashi-font-size-xs: 0.7rem;
+  --kashi-font-size-xxs: 0.7;
+  --kashi-font-size-lg: 1rem;
+  --kashi-font-size-xl: 1.15rem;
+  --kashi-font-size-2xl: 1.4rem;
+  --kashi-font-size-3xl: 1.8rem;
+  --kashi-font-size-display: 2.85rem;
+  --kashi-font-size-brand: 32px;
+}
+
+.v-theme--dark {
+  --kashi-app-background: #1e1e1e;
+}
+
+html,
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--kashi-font-family);
+  font-size: var(--kashi-font-size-base);
+}

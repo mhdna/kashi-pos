@@ -213,7 +213,7 @@ defineExpose({ focus });
   cursor: pointer;
   display: inline-flex;
   font: inherit;
-  font-size: 1.15rem;
+  font-size: var(--kashi-font-size-xl);
   font-weight: 700;
   justify-content: center;
   line-height: 1;
@@ -238,7 +238,7 @@ defineExpose({ focus });
 
 .number-pad-affix,
 .number-pad-display-affix {
-  font-size: 0.72em;
+  font-size: var(--kashi-font-size-xs);
   font-weight: 600;
   margin: 0 2px;
   opacity: 0.7;
@@ -251,7 +251,7 @@ defineExpose({ focus });
 .number-pad-display {
   align-items: baseline;
   display: flex;
-  font-size: 1.4rem;
+  font-size: var(--kashi-font-size-2xl);
   font-weight: 700;
   justify-content: center;
   min-height: 34px;
@@ -268,7 +268,7 @@ defineExpose({ focus });
 }
 
 .number-pad-key {
-  font-size: 1rem;
+  font-size: var(--kashi-font-size-base);
   height: 36px;
   min-width: 0;
   padding: 0;

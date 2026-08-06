@@ -18,11 +18,20 @@ func (a *App) ListSalespersons() ([]map[string]any, error) {
 	result := make([]map[string]any, len(list))
 	for i, s := range list {
 		result[i] = map[string]any{
-			"id":       s.ID,
-			"fullName": s.FullName,
+			"id":               s.ID,
+			"fullName":         s.FullName,
+			"attendanceUserId": s.AttendanceUserID,
 		}
 	}
 	return result, nil
+}
+
+func (a *App) UpdateSalespersonAttendanceID(id int64, attendanceUserID string) error {
+	if a.conn == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	_, err := a.conn.ExecContext(a.ctx, `UPDATE salespersons SET attendance_user_id = ? WHERE id = ?`, strings.TrimSpace(attendanceUserID), id)
+	return err
 }
 
 func (a *App) CreateSalesperson(fullName string) (map[string]any, error) {

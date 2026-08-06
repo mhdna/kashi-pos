@@ -4,10 +4,26 @@
  * Configures SASS variables and Vuetify overwrites
  */
 
-// https://vuetifyjs.com/features/sass-variables/`
-// @use 'vuetify/settings' with (
-//   $color-pack: false
-// );
+@use "vuetify/settings" with (
+  $body-font-family: var(--kashi-font-family),
+  $typography: (
+    "display-large": ("size": var(--kashi-font-size-display)),
+    "display-medium": ("size": var(--kashi-font-size-3xl)),
+    "display-small": ("size": var(--kashi-font-size-2xl)),
+    "headline-large": ("size": var(--kashi-font-size-xl)),
+    "headline-medium": ("size": var(--kashi-font-size-xl)),
+    "headline-small": ("size": var(--kashi-font-size-lg)),
+    "title-large": ("size": var(--kashi-font-size-lg)),
+    "title-medium": ("size": var(--kashi-font-size-base)),
+    "title-small": ("size": var(--kashi-font-size-sm)),
+    "body-large": ("size": var(--kashi-font-size-base)),
+    "body-medium": ("size": var(--kashi-font-size-base)),
+    "body-small": ("size": var(--kashi-font-size-xs)),
+    "label-large": ("size": var(--kashi-font-size-base)),
+    "label-medium": ("size": var(--kashi-font-size-xs)),
+    "label-small": ("size": var(--kashi-font-size-xxs))
+  )
+);
 *,
 *::before,
 *::after {
@@ -21,4 +37,10 @@
 
 .v-ripple__container {
   display: none !important;
+}
+
+.v-application,
+.v-main,
+.v-navigation-drawer {
+  background-color: var(--kashi-app-background) !important;
 }

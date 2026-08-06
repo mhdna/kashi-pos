@@ -8,7 +8,7 @@
         clearable
         density="compact"
         hide-details
-        label="Search"
+        placeholder="Search"
         max-width="380"
         single-line
         variant="filled"

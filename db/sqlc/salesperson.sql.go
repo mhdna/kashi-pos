@@ -10,13 +10,13 @@ import (
 )
 
 const createSalesperson = `-- name: CreateSalesperson :one
-INSERT INTO salespersons (full_name) VALUES (?) RETURNING id, full_name
+INSERT INTO salespersons (full_name) VALUES (?) RETURNING id, full_name, attendance_user_id
 `
 
 func (q *Queries) CreateSalesperson(ctx context.Context, fullName string) (Salesperson, error) {
 	row := q.db.QueryRowContext(ctx, createSalesperson, fullName)
 	var i Salesperson
-	err := row.Scan(&i.ID, &i.FullName)
+	err := row.Scan(&i.ID, &i.FullName, &i.AttendanceUserID)
 	return i, err
 }
 
@@ -30,18 +30,18 @@ func (q *Queries) DeleteSalesperson(ctx context.Context, id int64) error {
 }
 
 const getSalespersonByID = `-- name: GetSalespersonByID :one
-SELECT id, full_name FROM salespersons WHERE id = ?
+SELECT id, full_name, attendance_user_id FROM salespersons WHERE id = ?
 `
 
 func (q *Queries) GetSalespersonByID(ctx context.Context, id int64) (Salesperson, error) {
 	row := q.db.QueryRowContext(ctx, getSalespersonByID, id)
 	var i Salesperson
-	err := row.Scan(&i.ID, &i.FullName)
+	err := row.Scan(&i.ID, &i.FullName, &i.AttendanceUserID)
 	return i, err
 }
 
 const listSalespersons = `-- name: ListSalespersons :many
-SELECT id, full_name FROM salespersons ORDER BY id
+SELECT id, full_name, attendance_user_id FROM salespersons ORDER BY id
 `
 
 func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
@@ -53,7 +53,7 @@ func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
 	items := []Salesperson{}
 	for rows.Next() {
 		var i Salesperson
-		if err := rows.Scan(&i.ID, &i.FullName); err != nil {
+		if err := rows.Scan(&i.ID, &i.FullName, &i.AttendanceUserID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -68,7 +68,7 @@ func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
 }
 
 const updateSalesperson = `-- name: UpdateSalesperson :one
-UPDATE salespersons SET full_name = ? WHERE id = ? RETURNING id, full_name
+UPDATE salespersons SET full_name = ? WHERE id = ? RETURNING id, full_name, attendance_user_id
 `
 
 type UpdateSalespersonParams struct {
@@ -79,6 +79,6 @@ type UpdateSalespersonParams struct {
 func (q *Queries) UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error) {
 	row := q.db.QueryRowContext(ctx, updateSalesperson, arg.FullName, arg.ID)
 	var i Salesperson
-	err := row.Scan(&i.ID, &i.FullName)
+	err := row.Scan(&i.ID, &i.FullName, &i.AttendanceUserID)
 	return i, err
 }

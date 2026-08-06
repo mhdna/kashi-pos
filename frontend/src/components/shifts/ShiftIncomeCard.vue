@@ -9,7 +9,7 @@
       <v-list density="compact" class="pa-0">
         <v-list-item v-for="item in items" :key="item.accountName">
         <template #prepend>
-          <v-avatar color="grey-darken-1" variant="tonal" size="32">
+          <v-avatar :color="incomeColor(item.accountName)" variant="tonal" size="32">
             <v-icon icon="mdi-wallet" size="18" />
           </v-avatar>
         </template>
@@ -50,6 +50,7 @@
 import { computed, ref } from "vue";
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance } from "@/lib/format";
+import { paymentColor } from "@/lib/paymentColor";
 import BalanceReplacementDialog from "@/components/shifts/BalanceReplacementDialog.vue";
 
 const props = defineProps<{
@@ -69,6 +70,10 @@ const balanceSources = computed<Balance[]>(() => props.balanceSources
 const collectedTotal = computed(() =>
   props.items.reduce((total, item) => total + (item.isOnAccount ? 0 : Number(item.total) || 0), 0),
 );
+
+function incomeColor(name: string): string {
+  return paymentColor(name);
+}
 </script>
 
 <style scoped>

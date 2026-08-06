@@ -160,9 +160,8 @@
         ><v-card-text>
           <v-autocomplete
             v-if="changeType === 'client'"
-            v-model="changeValue"
+            :model-value="changeValue"
             v-model:search="clientSearch"
-            label="Client"
             :items="clients"
             :item-title="clientOptionTitle"
             item-value="id"
@@ -170,6 +169,7 @@
             no-filter
             placeholder="Search by name or phone"
             variant="outlined"
+            @update:model-value="changeValue = $event"
             @update:search="scheduleClientSearch"
           />
           <template v-else-if="changeType === 'settlement'">
@@ -191,7 +191,7 @@
             </v-card>
             <v-select
               :model-value="sourceSettlementId"
-              label="Move from"
+              placeholder="Move from"
               :items="settlementSources"
               :item-title="settlementSourceTitle"
               item-value="accountId"
@@ -203,7 +203,7 @@
             <v-text-field
               v-model.number="settlementAmount"
               class="mt-2"
-              :label="`Amount to move (${settlementAmountUnit})`"
+              :placeholder="`Amount to move (${settlementAmountUnit})`"
               type="number"
               :min="settlementAmountUnit === 'LBP' ? 1 : 0.01"
               :step="settlementAmountUnit === 'LBP' ? 10000 : 0.01"
@@ -213,7 +213,7 @@
             <v-select
               v-model="changeValue"
               class="mt-2"
-              label="Move to"
+              placeholder="Move to"
               :items="destinationPaymentMethods"
               :item-title="settlementOptionTitle"
               item-value="id"
@@ -233,7 +233,6 @@
           <v-select
             v-else
             v-model="changeValue"
-            label="Salesman"
             :items="salespersons"
             item-title="fullName"
             item-value="id"
@@ -283,6 +282,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { formatBalance } from "@/lib/format";
+import { formatLebanesePhone } from "@/lib/phone";
 import { useAuthStore } from "../stores/auth";
 
 const items = ref<any[]>([]),
@@ -381,6 +381,9 @@ function settlementOptionTitle(method: any): string {
 }
 function settlementAccountName(payment: any): string {
   const name = String(payment.accountName || "Cash");
+  const normalizedName = name.trim().toLowerCase();
+  if (normalizedName.startsWith("on account")) return "On Account";
+  if (normalizedName.startsWith("on coupon")) return "On Coupon";
   const currency = String(payment.currencyCode || "USD").toUpperCase();
   return name.toUpperCase().includes(currency) ? name : `${name} ${currency}`;
 }
@@ -617,7 +620,7 @@ let clientSearchTimer: ReturnType<typeof setTimeout> | undefined;
 let clientSearchRequest = 0;
 
 function clientOptionTitle(client: any): string {
-  return client.phone ? `${client.name} · ${client.phone}` : client.name;
+  return client.phone ? `${client.name} · ${formatLebanesePhone(client.phone)}` : client.name;
 }
 
 async function loadClientOptions(search: string): Promise<void> {

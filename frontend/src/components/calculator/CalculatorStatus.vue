@@ -58,13 +58,13 @@ defineProps<{
   padding: 8px 12px;
   border: 1px solid rgba(var(--v-border-color), 0.12);
   border-radius: 10px;
-  font-size: 0.8rem;
+  font-size: var(--kashi-font-size-base);
 }
 .calculator-amounts-label {
   grid-column: 1 / -1;
   line-height: 1;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: var(--kashi-font-size-sm);
   font-weight: 500;
 }
 .calculator-amount {
@@ -82,19 +82,19 @@ defineProps<{
   flex-direction: row;
   justify-content: center;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: var(--kashi-font-size-base);
   font-weight: 700;
 }
 .calculator-amounts strong {
   padding: 0;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  font-size: 0.95rem;
+  font-size: var(--kashi-font-size-lg);
 }
 .calculator-amounts-plus {
   align-self: center;
   color: rgba(var(--v-theme-on-surface), 0.55);
-  font-size: 1.1rem;
+  font-size: var(--kashi-font-size-lg);
   font-weight: 700;
 }
 </style>

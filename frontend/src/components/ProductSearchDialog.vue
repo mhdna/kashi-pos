@@ -120,7 +120,7 @@ const headers = [
   { title: "Price", key: "price", align: "end" as const },
 ];
 
-const itemsPerPage = ref(8);
+const itemsPerPage = ref(7);
 const page = ref(1);
 const serverItems = ref<any[]>([]);
 const totalItems = ref(0);
@@ -181,8 +181,8 @@ defineExpose({ openDialog });
 }
 
 .product-list-table {
-  flex: 0 0 400px;
-  height: 400px;
+  flex: 0 0 370px;
+  height: 370px;
   min-height: 0;
   overflow-y: auto;
 }

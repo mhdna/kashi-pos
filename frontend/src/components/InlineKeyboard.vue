@@ -98,7 +98,7 @@ function backspace() {
 
 .inline-keyboard-key {
   flex: 1 1 0;
-  font-size: 0.9rem;
+  font-size: var(--kashi-font-size-base);
   height: 34px;
   max-width: 44px;
   min-width: 28px;

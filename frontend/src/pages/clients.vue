@@ -8,7 +8,7 @@
         clearable
         density="compact"
         hide-details
-        label="Search"
+        placeholder="Search"
         max-width="320"
         prepend-inner-icon="mdi-magnify"
         single-line
@@ -33,6 +33,9 @@
       </template>
       <template #item.totalLoyaltyPoints="{ item }">
         <span>{{ formatLoyaltyPoints(item.totalLoyaltyPoints) }}</span>
+      </template>
+      <template #item.phone="{ item }">
+        {{ formatLebanesePhone(item.phone) }}
       </template>
       <template #item.validLoyaltyPoints="{ item }">
         <span>{{ formatLoyaltyPoints(item.validLoyaltyPoints) }}</span>
@@ -102,14 +105,14 @@
                 :items="collectableMethods"
                 item-title="displayName"
                 item-value="id"
-                label="Payment method"
+                placeholder="Payment method"
                 variant="outlined"
                 density="compact"
                 style="flex: 1"
               />
               <v-text-field
                 v-model.number="paymentAmount"
-                :label="`Amount (${paymentCurrency})`"
+                :placeholder="`Amount (${paymentCurrency})`"
                 type="number"
                 min="0"
                 :step="paymentCurrency === 'LBP' ? 1000 : 0.01"
@@ -142,8 +145,8 @@
     <v-card>
       <v-card-title>Edit client</v-card-title>
       <v-card-text>
-        <v-text-field v-model="editForm.name" label="Name" variant="outlined" autofocus />
-        <v-text-field v-model="editForm.phone" label="Phone" variant="outlined" />
+        <v-text-field v-model="editForm.name" placeholder="Name" variant="outlined" autofocus />
+        <v-text-field v-model="editForm.phone" placeholder="Phone" variant="outlined" />
       </v-card-text>
       <v-card-actions>
         <v-spacer />
@@ -175,9 +178,10 @@ import InitialsAvatar from "@/components/InitialsAvatar.vue";
 import { useAuthStore } from "@/stores/auth";
 import { formatLoyaltyPoints, loyaltyTier, loyaltyTierColor } from "@/lib/client";
 import { formatUsd } from "@/lib/format";
+import { formatLebanesePhone } from "@/lib/phone";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 
-const colors = ["yellow", "blue", "red", "purple", "pink", "green", "orange", "teal"];
+const colors = ["grey-darken-1"];
 const auth = useAuthStore();
 
 const headers = [

@@ -4,6 +4,10 @@
       v-for="method in methods"
       :key="method.name"
       class="calculator-type-card"
+      :class="[
+        `calculator-type-card--${paymentTone(method.name)}`,
+        { 'calculator-type-card--active': modelValue === method.name },
+      ]"
       role="button"
       tabindex="0"
       @click="$emit('select', method.name)"
@@ -19,6 +23,8 @@
 </template>
 
 <script setup lang="ts">
+import { paymentTone } from "@/lib/paymentColor";
+
 defineProps<{
   methods: { name: string; displayName: string; currencyCode: string }[];
   modelValue: string;
@@ -40,7 +46,29 @@ defineEmits<{ select: [methodName: string] }>();
     background-color 120ms ease;
 }
 .calculator-type-card:hover {
-  border-color: rgb(var(--v-theme-primary));
-  background-color: rgba(var(--v-theme-primary), 0.08);
+  border-color: currentColor;
+}
+.calculator-type-card--active {
+  color: rgb(var(--v-theme-on-surface));
+}
+.calculator-type-card--active.calculator-type-card--green,
+.calculator-type-card--green:hover {
+  border-color: rgb(var(--v-theme-green-darken-2));
+  background-color: rgba(var(--v-theme-green-darken-2), 0.14);
+}
+.calculator-type-card--active.calculator-type-card--purple,
+.calculator-type-card--purple:hover {
+  border-color: rgb(var(--v-theme-purple-darken-2));
+  background-color: rgba(var(--v-theme-purple-darken-2), 0.14);
+}
+.calculator-type-card--active.calculator-type-card--blue,
+.calculator-type-card--blue:hover {
+  border-color: rgb(var(--v-theme-blue-darken-2));
+  background-color: rgba(var(--v-theme-blue-darken-2), 0.14);
+}
+.calculator-type-card--active.calculator-type-card--red,
+.calculator-type-card--red:hover {
+  border-color: rgb(var(--v-theme-red-darken-2));
+  background-color: rgba(var(--v-theme-red-darken-2), 0.14);
 }
 </style>

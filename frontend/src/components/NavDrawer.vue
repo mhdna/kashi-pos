@@ -7,7 +7,7 @@
         class="nav-item"
         :disabled="item.locked"
         :value="item.action ? undefined : item.value"
-        :active="item.action ? false : undefined"
+        :active="item.to ? route.path === item.to : item.action ? false : undefined"
         @click.prevent="handleItemClick(item)"
       >
         <div class="nav-item-content">
@@ -46,12 +46,13 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { pendingNavAction } from "@/composables/useNavActions";
 import CloseShiftCard from "./CloseShiftCard.vue";
 
 const auth = useAuthStore();
+const route = useRoute();
 const router = useRouter();
 const closeShiftDialog = ref(false);
 
@@ -104,7 +105,7 @@ const items = computed(() => {
       to: "/attendance",
       icon: "mdi-account-multiple",
       t: "Attendance",
-      locked: true,
+      // locked: true,
     },
     { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
   ];
@@ -139,7 +140,7 @@ const items = computed(() => {
 }
 
 .nav-item-label {
-  font-size: 0.8125rem;
+  font-size: var(--kashi-font-size-base);
   line-height: 1.2;
 }
 </style>

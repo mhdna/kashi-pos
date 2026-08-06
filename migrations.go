@@ -95,6 +95,9 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 		if err := ensureAttendanceColumns(ctx, conn); err != nil {
 			return err
 		}
+		if err := ensureSalespersonAttendanceColumns(ctx, conn); err != nil {
+			return err
+		}
 		if err := ensureShiftClosingColumns(ctx, conn); err != nil {
 			return err
 		}
@@ -138,10 +141,25 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 	if err := ensureAttendanceColumns(ctx, conn); err != nil {
 		return err
 	}
+	if err := ensureSalespersonAttendanceColumns(ctx, conn); err != nil {
+		return err
+	}
 	if err := ensureShiftClosingColumns(ctx, conn); err != nil {
 		return err
 	}
 	return ensureLookupIndexes(ctx, conn)
+}
+
+func ensureSalespersonAttendanceColumns(ctx context.Context, conn *sql.DB) error {
+	var count int
+	if err := conn.QueryRowContext(ctx, "SELECT count(*) FROM pragma_table_info('salespersons') WHERE name = 'attendance_user_id'").Scan(&count); err != nil {
+		return err
+	}
+	if count == 0 {
+		_, err := conn.ExecContext(ctx, "ALTER TABLE salespersons ADD COLUMN attendance_user_id TEXT NOT NULL DEFAULT ''")
+		return err
+	}
+	return nil
 }
 
 func ensureLookupIndexes(ctx context.Context, conn *sql.DB) error {

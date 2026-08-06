@@ -29,13 +29,13 @@
         <v-card-text>
           <v-text-field
             v-model="couponCode"
-            :label="selectedCouponType?.referenceOnly ? 'Reference number' : 'Coupon code'"
+            :placeholder="selectedCouponType?.referenceOnly ? 'Reference number' : 'Coupon code'"
             :hint="selectedCouponType?.referenceOnly ? 'Enter the reference number for this coupon.' : 'Enter the issued coupon code.'"
             persistent-hint
             autofocus
             variant="outlined"
           />
-          <v-select v-model="couponTypeId" :items="couponTypes" item-title="name" item-value="id" label="Coupon type" variant="outlined" />
+          <v-select v-model="couponTypeId" :items="couponTypes" item-title="name" item-value="id" placeholder="Coupon type" variant="outlined" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />

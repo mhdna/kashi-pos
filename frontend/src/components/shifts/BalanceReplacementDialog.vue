@@ -6,9 +6,9 @@
           Move value from <strong>{{ source?.accountName }}</strong>
           ({{ source?.currencyCode ?? "USD" }}) to another cash account.
         </div>
-        <v-select v-model="sourceId" :items="sources" item-title="accountName" item-value="accountId" label="From" variant="outlined" density="comfortable" class="mb-2" />
-        <v-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" label="Replace with" variant="outlined" density="comfortable" class="mb-2" />
-        <v-text-field v-model.number="amount" :label="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="source?.currencyCode === 'LBP' ? 1000 : 0.01" variant="outlined" density="comfortable" />
+        <v-select v-model="sourceId" :items="sources" item-title="accountName" item-value="accountId" placeholder="From" variant="outlined" density="comfortable" class="mb-2" />
+        <v-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" placeholder="Replace with" variant="outlined" density="comfortable" class="mb-2" />
+        <v-text-field v-model.number="amount" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="source?.currencyCode === 'LBP' ? 1000 : 0.01" variant="outlined" density="comfortable" />
         <div v-if="destination" class="text-caption text-medium-emphasis">
           Destination receives {{ formatBalance(destinationCents, destination.currencyCode ?? "USD", exchangeRate) }}
         </div>

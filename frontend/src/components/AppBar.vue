@@ -1,9 +1,16 @@
 <template>
-  <v-app-bar color="purple-darken-4" density="compact" elevation="4">
+  <v-app-bar color="blue-darken-4" density="compact" elevation="4">
     <template #prepend>
-      <div class="d-flex flex-column align-last justify-center mx-2">
-        <v-app-bar-title class="text-title-medium">Kashi Cloud</v-app-bar-title>
-        <div class="text-title-small">{{ branchName || "Branch" }}</div>
+      <div class="d-flex flex-column align-last justify-center ms-1 me-2">
+        <v-app-bar-title style="font-size: var(--kashi-font-size-xl); line-height: 1.1; margin: 0">
+          Kashi Cloud
+        </v-app-bar-title>
+        <div
+          class="text-title-small"
+          style="font-size: var(--kashi-font-size-base); line-height: 1.1; margin: 0"
+        >
+          {{ branchName || "Branch" }}
+        </div>
       </div>
       <!-- <div class="mx-8 me-0 text-title-small">{{ time }}</div> -->
       <v-tooltip v-if="attendanceUnreachable" text="Attendance machine is unreachable">

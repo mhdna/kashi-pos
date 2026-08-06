@@ -11,7 +11,7 @@
       class="text-center mb-6 text-white d-flex flex-column align-center"
       style="
         flex: 0 0 auto;
-        font-size: 32px;
+        font-size: var(--kashi-font-size-brand);
         font-weight: 900;
         font-family: Belleza, Arial, sans-serif;
       "

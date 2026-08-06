@@ -357,13 +357,13 @@ function startExchange() {
 }
 
 .exchange-inline-numpad-label {
-  font-size: 0.75rem;
+  font-size: var(--kashi-font-size-sm);
   opacity: 0.7;
   text-align: center;
 }
 
 .exchange-inline-numpad-display {
-  font-size: 1.15rem;
+  font-size: var(--kashi-font-size-xl);
   font-weight: 700;
   min-height: 40px;
   overflow: hidden;
@@ -380,7 +380,7 @@ function startExchange() {
 }
 
 .exchange-inline-numpad-key {
-  font-size: 1rem;
+  font-size: var(--kashi-font-size-base);
   height: 36px;
   min-width: 0;
   padding: 0;

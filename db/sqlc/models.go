@@ -19,6 +19,18 @@ type Asset struct {
 	Description string `json:"description"`
 }
 
+type AttendanceChangeRequest struct {
+	ID              int64  `json:"id"`
+	SalespersonID   int64  `json:"salespersonId"`
+	AttendanceDate  string `json:"attendanceDate"`
+	RequestedTime   string `json:"requestedTime"`
+	Note            string `json:"note"`
+	Status          string `json:"status"`
+	CreatedAt       string `json:"createdAt"`
+	ReviewedAt      string `json:"reviewedAt"`
+	OriginalEventID int64  `json:"originalEventId"`
+}
+
 type AttendanceComplaint struct {
 	ID             int64  `json:"id"`
 	EmployeeID     int64  `json:"employeeId"`
@@ -279,8 +291,23 @@ type SalesInvoice struct {
 }
 
 type Salesperson struct {
-	ID       int64  `json:"id"`
-	FullName string `json:"fullName"`
+	ID               int64  `json:"id"`
+	FullName         string `json:"fullName"`
+	AttendanceUserID string `json:"attendanceUserId"`
+}
+
+type SalespersonAttendanceEvent struct {
+	ID               int64  `json:"id"`
+	DeviceID         string `json:"deviceId"`
+	EventID          string `json:"eventId"`
+	SalespersonID    int64  `json:"salespersonId"`
+	AttendanceUserID string `json:"attendanceUserId"`
+	SalespersonName  string `json:"salespersonName"`
+	EventDate        string `json:"eventDate"`
+	EventTime        string `json:"eventTime"`
+	EventAt          string `json:"eventAt"`
+	Type             string `json:"type"`
+	Status           string `json:"status"`
 }
 
 type Setting struct {

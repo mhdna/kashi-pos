@@ -1,6 +1,6 @@
 /* Layout adjustments for the 1024x768 Windows build. */
 .kashi-compact {
-  font-size: 13px;
+  font-size: var(--kashi-font-size-base);
 
   .v-app-bar {
     height: 48px !important;

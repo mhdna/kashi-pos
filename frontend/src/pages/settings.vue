@@ -26,14 +26,14 @@
             <v-card-text>
               <v-text-field
                 v-model="form.branchName"
-                label="Branch Name"
+                placeholder="Branch Name"
                 variant="outlined"
                 density="compact"
                 class="mb-2"
               />
               <v-text-field
                 v-model="form.branchCode"
-                label="Branch Code"
+                placeholder="Branch Code"
                 hint="Used in invoice numbers, for example CN."
                 maxlength="8"
                 persistent-hint
@@ -44,7 +44,7 @@
               />
               <v-text-field
                 v-model="form.apiKey"
-                label="API Key"
+                placeholder="API Key"
                 variant="outlined"
                 density="compact"
                 class="mb-2"
@@ -55,7 +55,7 @@
               <v-select
                 v-model="form.receiptPrinter"
                 :items="printers"
-                label="Receipt Printer"
+                placeholder="Receipt Printer"
                 variant="outlined"
                 density="compact"
                 class="mb-2"
@@ -63,7 +63,7 @@
               <v-select
                 v-model="form.printerSize"
                 :items="['58mm', '80mm']"
-                label="Printing Size"
+                placeholder="Printing Size"
                 variant="outlined"
                 density="compact"
                 class="mb-2"
@@ -72,7 +72,7 @@
                 <v-col cols="6">
                   <v-text-field
                     v-model.number="form.receiptWidth"
-                    label="Width (mm)"
+                    placeholder="Width (mm)"
                     type="number"
                     variant="outlined"
                     density="compact"
@@ -81,7 +81,7 @@
                 <v-col cols="6">
                   <v-text-field
                     v-model.number="form.receiptHeight"
-                    label="Height (mm)"
+                    placeholder="Height (mm)"
                     type="number"
                     variant="outlined"
                     density="compact"
@@ -90,7 +90,7 @@
               </v-row>
               <v-text-field
                 v-model.number="form.taxRate"
-                label="VAT rate"
+                placeholder="VAT rate"
                 hint="Use 0.11 for 11%, or 0 to disable VAT."
                 persistent-hint
                 type="number"
@@ -102,7 +102,7 @@
               />
               <v-text-field
                 v-model.number="form.exchangeRate"
-                label="Exchange rate (LBP per USD)"
+                placeholder="Exchange rate (LBP per USD)"
                 hint="Used to show and accept change in Lebanese pounds."
                 persistent-hint
                 type="number"
@@ -123,7 +123,7 @@
               />
               <v-text-field
                 v-model.number="form.maxOverpayment"
-                label="Maximum overpayment (USD)"
+                placeholder="Maximum overpayment (USD)"
                 hint="Maximum amount above the invoice total. Enable overpayment first."
                 persistent-hint
                 type="number"
@@ -137,7 +137,7 @@
               <v-select
                 v-model="form.roundingMode"
                 :items="roundingModes"
-                label="Money rounding"
+                placeholder="Money rounding"
                 hint="Applied to discounts and VAT in cents."
                 persistent-hint
                 variant="outlined"
@@ -149,7 +149,7 @@
                 :items="inventories"
                 item-title="name"
                 item-value="id"
-                label="Sales inventory"
+                placeholder="Sales inventory"
                 hint="Stock is deducted from this inventory."
                 persistent-hint
                 variant="outlined"
@@ -177,10 +177,13 @@
               />
               <v-divider class="my-4" />
               <div class="text-subtitle-2 font-weight-bold mb-2">Attendance machine</div>
-              <v-text-field v-model="form.akuvoxIP" label="Akuvox IP address" placeholder="192.168.1.100" variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.akuvoxUsername" label="Device username (optional)" variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.akuvoxPassword" label="Device password (optional)" type="password" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.akuvoxIP" placeholder="Akuvox IP address" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.akuvoxUsername" placeholder="Device username (optional)" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.akuvoxPassword" placeholder="Device password (optional)" type="password" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.attendanceApproverPassword" placeholder="Manager password" type="password" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model.number="form.attendanceDuplicateIntervalSeconds" placeholder="Duplicate interval (seconds)" type="number" min="0" step="1" variant="outlined" density="compact" class="mb-2" hint="Ignore repeated scans closer together than this interval." persistent-hint />
               <v-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details />
+              <v-switch v-model="form.attendanceCashierHistory" label="Allow cashiers to browse previous attendance days" color="primary" hide-details class="mt-3" />
             </v-card-text>
             <v-card-actions class="px-4 pb-4">
               <v-spacer />
@@ -206,7 +209,7 @@
               <v-select
                 v-model="form.screenPort"
                 :items="serialPorts"
-                label="Serial Port"
+                placeholder="Serial Port"
                 hint="Leave empty if no customer display is connected."
                 persistent-hint
                 variant="outlined"
@@ -231,13 +234,12 @@
               <div><div class="text-subtitle-1 font-weight-bold">Receipt settings</div><div class="text-caption text-medium-emphasis">Customize the printed market identity and footer.</div></div>
             </v-card-title>
             <v-card-text>
-              <v-text-field v-model="form.marketName" label="Market name" hint="Printed large at the top, separately from the branch." persistent-hint variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.marketPhone" label="Phone number" variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.marketDescription" label="Description / tagline" variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.branchPhone" label="Branch phone number" hint="Printed below the description." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.marketName" placeholder="Market name" hint="Printed large at the top, separately from the branch." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.marketPhone" placeholder="Phone number" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.marketDescription" placeholder="Description / tagline" variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.branchPhone" placeholder="Branch phone number" hint="Printed below the description." persistent-hint variant="outlined" density="compact" class="mb-2" />
               <v-text-field
                 v-model="form.registerName"
-                label="Register name"
                 placeholder="POS-01"
                 hint="Printed on sales, exchange, and end-of-shift receipts."
                 persistent-hint
@@ -245,11 +247,11 @@
                 density="compact"
                 class="mb-2"
               />
-              <v-textarea v-model="form.returnPolicy" label="Return policy" rows="3" variant="outlined" density="compact" class="mb-2" />
+              <v-textarea v-model="form.returnPolicy" placeholder="Return policy" rows="3" variant="outlined" density="compact" class="mb-2" />
               <v-select
                 v-model="form.socialPlatforms"
                 :items="socialPlatformOptions"
-                label="Social platforms"
+                placeholder="Social platforms"
                 multiple
                 chips
                 closable-chips
@@ -272,20 +274,20 @@
               <div v-for="platform in form.socialPlatforms" :key="platform" class="mb-2">
                 <v-text-field
                   v-model="form.socialHandles[platform]"
-                  :label="`${platformLabel(platform)} handle`"
+                  :placeholder="`${platformLabel(platform)} handle`"
                   :prepend-inner-icon="platformIcon(platform)"
                   variant="outlined"
                   density="compact"
                 />
               </div>
               <v-row density="comfortable">
-                <v-col cols="12"><v-text-field v-model="form.website" label="Website" variant="outlined" density="compact" /></v-col>
+                <v-col cols="12"><v-text-field v-model="form.website" placeholder="Website" variant="outlined" density="compact" /></v-col>
               </v-row>
-              <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" label="Receipt font" hint="Belleza is bundled for offline printing." persistent-hint variant="outlined" density="compact" class="mb-2" />
-              <v-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" label="Body font" hint="Printer Font A uses the thermal printer's native font." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" placeholder="Receipt font" hint="Belleza is bundled for offline printing." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" placeholder="Body font" hint="Printer Font A uses the thermal printer's native font." persistent-hint variant="outlined" density="compact" class="mb-2" />
               <v-row density="comfortable">
-                <v-col cols="6"><v-text-field v-model.number="form.receiptTitleSize" label="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" /></v-col>
-                <v-col cols="6"><v-text-field v-model.number="form.receiptBodySize" label="Body size" type="number" min="6" max="24" variant="outlined" density="compact" /></v-col>
+                <v-col cols="6"><v-text-field v-model.number="form.receiptTitleSize" placeholder="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" /></v-col>
+                <v-col cols="6"><v-text-field v-model.number="form.receiptBodySize" placeholder="Body size" type="number" min="6" max="24" variant="outlined" density="compact" /></v-col>
               </v-row>
               <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details />
             </v-card-text>
@@ -311,9 +313,9 @@
           <v-card-title>Coupon types</v-card-title>
           <v-card-text>
             <div class="d-flex ga-2 align-start">
-              <v-text-field v-model="couponTypeForm.name" label="Type name" variant="outlined" density="compact" />
-              <v-text-field v-model.number="couponTypeForm.value" label="Value" type="number" min="0.01" step="0.01" variant="outlined" density="compact" />
-              <v-text-field v-model="couponTypeForm.currency" label="Currency" maxlength="3" variant="outlined" density="compact" style="max-width: 110px" />
+              <v-text-field v-model="couponTypeForm.name" placeholder="Type name" variant="outlined" density="compact" />
+              <v-text-field v-model.number="couponTypeForm.value" placeholder="Value" type="number" min="0.01" step="0.01" variant="outlined" density="compact" />
+              <v-text-field v-model="couponTypeForm.currency" placeholder="Currency" maxlength="3" variant="outlined" density="compact" style="max-width: 110px" />
               <v-btn color="primary" :loading="couponTypeSaving" @click="saveCouponType">{{ editingCouponTypeId ? "Save" : "Add" }}</v-btn>
               <v-btn v-if="editingCouponTypeId" variant="text" @click="cancelCouponTypeEdit">Cancel</v-btn>
             </div>
@@ -322,8 +324,8 @@
               <v-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details label="Active" />
             </div>
             <div class="d-flex ga-2 align-start mb-2">
-              <v-text-field v-model="couponCodeForm" label="New coupon code" variant="outlined" density="compact" />
-              <v-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" label="Type" variant="outlined" density="compact" />
+              <v-text-field v-model="couponCodeForm" placeholder="New coupon code" variant="outlined" density="compact" />
+              <v-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" placeholder="Type" variant="outlined" density="compact" />
               <v-btn color="secondary" :loading="couponIssuing" @click="issueCoupon">Issue</v-btn>
             </div>
             <v-list density="compact">
@@ -400,10 +402,10 @@
             </v-card-title>
             <v-card-text>
               <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="mb-3" />
-              <v-text-field v-model="form.adminListen" label="Listen address" hint="Use 0.0.0.0:8787 for LAN access." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-text-field v-model="form.adminListen" placeholder="Listen address" hint="Use 0.0.0.0:8787 for LAN access." persistent-hint variant="outlined" density="compact" class="mb-2" />
               <v-text-field
                 v-model="form.adminToken"
-                label="Admin token"
+                placeholder="Admin token"
                 hint="Required when listening beyond localhost."
                 persistent-hint
                 variant="outlined"
@@ -430,7 +432,7 @@
               <v-card-text>
                 <v-text-field
                   v-model="passwordForm.current"
-                  label="Current Password"
+                  placeholder="Current Password"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -440,7 +442,7 @@
                 />
                 <v-text-field
                   v-model="passwordForm.newPass"
-                  label="New Password"
+                  placeholder="New Password"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -448,7 +450,7 @@
                 />
                 <v-text-field
                   v-model="passwordForm.confirm"
-                  label="Confirm New Password"
+                  placeholder="Confirm New Password"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -539,33 +541,32 @@
         <v-card-text>
           <v-text-field
             v-model="userForm.username"
-            label="Username"
+            placeholder="Username"
             variant="outlined"
             density="compact"
             class="mb-2"
           />
           <v-text-field
             v-model="userForm.password"
-            label="Password"
             variant="outlined"
             density="compact"
             class="mb-2"
             :type="showUpw ? 'text' : 'password'"
             :append-inner-icon="showUpw ? 'mdi-eye' : 'mdi-eye-off'"
             @click:append-inner="showUpw = !showUpw"
-            :placeholder="editingUser ? 'Leave blank to keep current' : ''"
+            :placeholder="editingUser ? 'Leave blank to keep current' : 'Password'"
           />
           <v-select
             v-model="userForm.roleId"
             :items="roles"
             item-title="name"
             item-value="id"
-            label="Role"
+            placeholder="Role"
             variant="outlined"
             density="compact"
             class="mb-2"
           />
-          <v-text-field v-model="userForm.attendanceUserId" label="Akuvox UserID (leave blank for visitors)" variant="outlined" density="compact" />
+          <v-text-field v-model="userForm.attendanceUserId" placeholder="Akuvox UserID (leave blank for visitors)" variant="outlined" density="compact" />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="userDialog = false">Cancel</v-btn>
@@ -598,7 +599,8 @@
       <v-card>
         <v-card-title>{{ editingSalesperson ? "Edit Salesperson" : "New Salesperson" }}</v-card-title>
         <v-card-text>
-          <v-text-field v-model="salespersonName" label="Full name" variant="outlined" density="compact" autofocus />
+          <v-text-field v-model="salespersonName" placeholder="Full name" variant="outlined" density="compact" autofocus />
+          <v-text-field v-model="salespersonAttendanceUserId" placeholder="Akuvox attendance ID" variant="outlined" density="compact" />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="salespersonDialog = false">Cancel</v-btn>
@@ -632,11 +634,15 @@ import {
   GetAppSettings,
   UpdateSettings,
   UpdateAttendanceConfig,
+  UpdateAttendanceApproverPassword,
+  SetAttendanceDuplicateInterval,
   SetCustomItemDiscountsEnabled,
   SetCustomItemPricesEnabled,
   SetPerUnitItemPricesEnabled,
   SetAutoCloseStaleShiftsEnabled,
+  SetAttendanceCashierHistoryEnabled,
   UpdateUserAttendanceID,
+  UpdateSalespersonAttendanceID,
   UpdateReceiptSettings,
   ChangePassword,
   ListUsers,
@@ -709,6 +715,9 @@ const form = reactive({
   akuvoxUsername: "",
   akuvoxPassword: "",
   attendanceEnabled: false,
+  attendanceApproverPassword: "",
+  attendanceDuplicateIntervalSeconds: 30,
+  attendanceCashierHistory: false,
 });
 const roundingModes = [
   { title: "Half up (standard)", value: "half_up" },
@@ -773,11 +782,13 @@ const deleteTarget = ref<any>(null);
 const salespersons = ref<any[]>([]);
 const salespersonHeaders = [
   { title: "Name", key: "fullName" },
+  { title: "Attendance ID", key: "attendanceUserId" },
   { title: "", key: "actions", sortable: false, align: "end" as const },
 ];
 const salespersonDialog = ref(false);
 const editingSalesperson = ref<any>(null);
 const salespersonName = ref("");
+const salespersonAttendanceUserId = ref("");
 const savingSalesperson = ref(false);
 const deleteSalespersonDialog = ref(false);
 const deleteSalespersonTarget = ref<any>(null);
@@ -901,6 +912,9 @@ async function loadSettings() {
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
+        attendanceApproverPassword: "",
+        attendanceDuplicateIntervalSeconds: Number(s.attendance?.duplicateIntervalSeconds ?? 30),
+        attendanceCashierHistory: Boolean(s.attendance?.cashierHistory),
       });
     const admin = await adminBridge()?.GetAdminConfig();
     Object.assign(form, {
@@ -1031,6 +1045,9 @@ async function saveSettings() {
       Boolean(form.receiptCutoff),
     );
     await UpdateAttendanceConfig(form.akuvoxIP, form.akuvoxUsername, form.akuvoxPassword, Boolean(form.attendanceEnabled));
+    if (form.attendanceApproverPassword.trim()) await UpdateAttendanceApproverPassword(form.attendanceApproverPassword.trim());
+    await SetAttendanceDuplicateInterval(Math.max(0, Math.floor(Number(form.attendanceDuplicateIntervalSeconds) || 0)));
+    await SetAttendanceCashierHistoryEnabled(Boolean(form.attendanceCashierHistory));
     notify("Settings saved");
   } catch {
     notify("Failed to save", "red");
@@ -1059,6 +1076,7 @@ async function loadSalespersons() {
 function openSalespersonDialog(salesperson?: any) {
   editingSalesperson.value = salesperson ?? null;
   salespersonName.value = salesperson?.fullName ?? "";
+  salespersonAttendanceUserId.value = salesperson?.attendanceUserId ?? "";
   salespersonDialog.value = true;
 }
 
@@ -1068,8 +1086,10 @@ async function saveSalesperson() {
   try {
     if (editingSalesperson.value) {
       await UpdateSalesperson(editingSalesperson.value.id, salespersonName.value);
+      await UpdateSalespersonAttendanceID(editingSalesperson.value.id, salespersonAttendanceUserId.value);
     } else {
-      await CreateSalesperson(salespersonName.value);
+      const created = await CreateSalesperson(salespersonName.value);
+      await UpdateSalespersonAttendanceID(Number(created.id), salespersonAttendanceUserId.value);
     }
     salespersonDialog.value = false;
     notify(editingSalesperson.value ? "Salesperson updated" : "Salesperson created");
@@ -1239,7 +1259,7 @@ async function deleteUser() {
 .settings-card :deep(.v-card-title) {
   padding: 18px 20px 8px;
   gap: 0 !important;
-  font-size: 0.95rem !important;
+  font-size: var(--kashi-font-size-base) !important;
   line-height: 1.35;
   font-weight: 650;
 }

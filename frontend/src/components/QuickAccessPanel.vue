@@ -1,16 +1,13 @@
 <template>
   <section class="quick-access" :class="{ 'quick-access--open': open }">
     <div class="quick-access__toolbar">
-      <v-card
+      <div
         class="quick-access__toggle ps-2"
-        elevation="0"
-        rounded="lg"
-        :ripple="false"
         @click="open = !open"
       >
         <v-icon :icon="open ? 'mdi-arrow-down' : 'mdi-button-pointer'" size="18" />
         <span v-show="!open" class="text-caption ms-1">Quick access</span>
-      </v-card>
+      </div>
       <span v-if="open" class="text-caption font-weight-bold flex-grow-1">Quick access</span>
       <ProductSearchDialog
         v-if="open"
@@ -222,7 +219,7 @@ async function confirmRemoval() {
 .quick-access__name,
 .quick-access__code,
 .quick-access__price {
-  font-size: 0.8rem !important;
+  font-size: var(--kashi-font-size-base) !important;
   line-height: 1.15;
 }
 .quick-access__remove {

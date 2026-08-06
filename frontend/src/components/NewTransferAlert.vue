@@ -40,7 +40,7 @@
 }
 .m span {
   white-space: nowrap;
-  font-size: 15px;
+  font-size: var(--kashi-font-size-base);
   padding-right: 3rem;
 }
 @keyframes marquee {
