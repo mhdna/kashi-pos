@@ -126,10 +126,12 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	result := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
 		onAccount := strings.EqualFold(strings.TrimSpace(row.AccountName), "On Account")
+		onCoupon := strings.EqualFold(strings.TrimSpace(row.AccountName), "On Coupon")
 		result = append(result, map[string]any{
 			"accountId": row.AccountID, "accountName": row.AccountName,
 			"balance": databaseInt64(row.Total), "currencyCode": row.CurrencyCode,
-			"isOnAccount": onAccount, "isCollected": !onAccount,
+			"isOnAccount": onAccount, "isOnCoupon": onCoupon,
+			"isCollected": !onAccount, "isAutoCounted": onCoupon,
 		})
 	}
 	return result, nil
@@ -161,8 +163,8 @@ func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 	if err != nil {
 		return fmt.Errorf("destination balance account not found")
 	}
-	if strings.EqualFold(strings.TrimSpace(from.Name), "On Account") || strings.EqualFold(strings.TrimSpace(to.Name), "On Account") {
-		return fmt.Errorf("on-account balances cannot be replaced")
+	if isNonCashBalanceAccount(from.Name) || isNonCashBalanceAccount(to.Name) {
+		return fmt.Errorf("on-account and coupon balances cannot be replaced")
 	}
 	balances, err := a.store.ListShiftPaymentTotals(a.ctx, shiftID)
 	if err != nil {
@@ -175,14 +177,30 @@ func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 			break
 		}
 	}
-	if amountCents > sourceTotal {
+	sourceMagnitude := sourceTotal
+	if sourceMagnitude < 0 {
+		sourceMagnitude = -sourceMagnitude
+	}
+	if amountCents > sourceMagnitude {
 		return fmt.Errorf("replacement amount exceeds the source balance")
+	}
+	// A negative balance (for example, a return) must keep its sign when it is
+	// moved. The totals query subtracts this value from the source and adds it
+	// to the destination, so a signed amount clears the source in either case.
+	signedAmount := amountCents
+	if sourceTotal < 0 {
+		signedAmount = -signedAmount
 	}
 	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
 		return q.CreateShiftBalanceReplacement(a.ctx, db.CreateShiftBalanceReplacementParams{
-			ShiftID: shift.ID, FromCashboxID: fromCashboxID, ToCashboxID: toCashboxID, Amount: amountCents,
+			ShiftID: shift.ID, FromCashboxID: fromCashboxID, ToCashboxID: toCashboxID, Amount: signedAmount,
 		})
 	})
+}
+
+func isNonCashBalanceAccount(name string) bool {
+	name = strings.TrimSpace(name)
+	return strings.EqualFold(name, "On Account") || strings.EqualFold(name, "On Coupon")
 }
 
 func (a *App) ListInvoices() ([]map[string]any, error) {

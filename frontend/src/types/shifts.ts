@@ -13,7 +13,9 @@ export interface Balance {
   balance: number;
   currencyCode?: string;
   isOnAccount?: boolean;
+  isOnCoupon?: boolean;
   isCollected?: boolean;
+  isAutoCounted?: boolean;
 }
 
 export interface PaymentMethod {

@@ -10,7 +10,8 @@
         :loading="loadingShift"
         :exchange-rate="exchangeRate"
         :payment-methods="paymentMethods"
-        @balance-replaced="loadBalances"
+        :balance-sources="closeBalances"
+        @balance-replaced="refresh"
       />
       <MonthlyIncomeCard
         :month="currentMonth"

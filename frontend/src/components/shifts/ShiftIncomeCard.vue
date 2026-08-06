@@ -57,14 +57,14 @@ const props = defineProps<{
   title?: string;
   shiftId?: number;
   paymentMethods: PaymentMethod[];
+  balanceSources: Balance[];
   loading: boolean;
   exchangeRate: number;
 }>();
 const emit = defineEmits<{ "balance-replaced": [shiftId: number] }>();
 const replacementOpen = ref(false);
-const balanceSources = computed<Balance[]>(() => props.items
-  .filter((item) => !item.isOnAccount && item.accountId && Number(item.total) > 0)
-  .map((item) => ({ accountId: item.accountId!, accountName: item.accountName, balance: Number(item.total), currencyCode: item.currencyCode })));
+const balanceSources = computed<Balance[]>(() => props.balanceSources
+  .filter((item) => !item.isOnAccount && !item.isOnCoupon && item.accountId && Number(item.balance) !== 0));
 
 const collectedTotal = computed(() =>
   props.items.reduce((total, item) => total + (item.isOnAccount ? 0 : Number(item.total) || 0), 0),

@@ -10,7 +10,7 @@
         <v-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" label="Replace with" variant="outlined" density="comfortable" class="mb-2" />
         <v-text-field v-model.number="amount" :label="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="source?.currencyCode === 'LBP' ? 1000 : 0.01" variant="outlined" density="comfortable" />
         <div v-if="destination" class="text-caption text-medium-emphasis">
-          Destination receives {{ formatBalance(cents, destination.currencyCode ?? "USD", exchangeRate) }}
+          Destination receives {{ formatBalance(destinationCents, destination.currencyCode ?? "USD", exchangeRate) }}
         </div>
       </v-card-text>
       <v-card-actions>
@@ -49,23 +49,27 @@ const cents = computed(() => {
   if (!Number.isFinite(value) || value <= 0) return 0;
   return source.value?.currencyCode === "LBP" ? roundCentsFromLbp(value, props.exchangeRate) : Math.round(value * 100);
 });
-const valid = computed(() => !!props.shiftId && !!source.value && !!destination.value && cents.value > 0 && cents.value <= Number(source.value?.balance || 0));
+const destinationCents = computed(() => Number(source.value?.balance || 0) < 0 ? -cents.value : cents.value);
+const valid = computed(() => !!props.shiftId && !!source.value && !!destination.value && cents.value > 0 && cents.value <= Math.abs(Number(source.value?.balance || 0)));
+
+function sourceAmount(balance: Balance | null): number {
+  const value = Math.abs(Number(balance?.balance || 0));
+  return balance?.currencyCode === "LBP"
+    ? Math.round(value * props.exchangeRate / 100)
+    : value / 100;
+}
 
 watch(() => [props.modelValue, props.sources], ([open]) => {
   if (!open || !props.sources.length) return;
   const firstSource = props.sources[0];
   sourceId.value = props.sources.find((item) => item.currencyCode === "LBP")?.accountId ?? firstSource?.accountId ?? null;
   destinationId.value = destinations.value[0]?.id ?? null;
-  amount.value = source.value?.currencyCode === "LBP"
-    ? Math.round(Number(source.value.balance) * props.exchangeRate / 100)
-    : Number(source.value?.balance || 0) / 100;
+  amount.value = sourceAmount(source.value);
 });
 
 watch(sourceId, () => {
   destinationId.value = destinations.value[0]?.id ?? null;
-  amount.value = source.value?.currencyCode === "LBP"
-    ? Math.round(Number(source.value.balance) * props.exchangeRate / 100)
-    : Number(source.value?.balance || 0) / 100;
+  amount.value = sourceAmount(source.value);
 });
 
 async function save() {

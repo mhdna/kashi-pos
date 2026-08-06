@@ -182,6 +182,12 @@ WITH on_account_invoices AS (
     SELECT cap.created_at, cap.cashbox_id, cap.amount
     FROM client_account_payments cap
     UNION ALL
+    SELECT sbr.created_at, sbr.from_cashbox_id, -sbr.amount
+    FROM shift_balance_replacements sbr
+    UNION ALL
+    SELECT sbr.created_at, sbr.to_cashbox_id, sbr.amount
+    FROM shift_balance_replacements sbr
+    UNION ALL
     SELECT date('now', 'localtime'), oai.cashbox_id,
            cae.amount - COALESCE((SELECT SUM(cap.amount)
                                   FROM client_account_payments cap
