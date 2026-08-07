@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/big"
 	"net/http"
@@ -268,6 +269,10 @@ func (a *adminServer) auth(token string) http.Handler {
 func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	path := strings.Trim(r.URL.Path, "/")
+	if r.Method == http.MethodGet && path == "database-export" {
+		a.exportDatabase(w, ctx)
+		return
+	}
 	var value any
 	var err error
 
@@ -282,6 +287,8 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 		value, err = a.invoices(ctx, r.URL.Query().Get("date"))
 	case r.Method == http.MethodGet && path == "daily-sales":
 		value, err = a.dailySales(ctx, r.URL.Query().Get("date"))
+	case r.Method == http.MethodGet && path == "income-trace":
+		value, err = a.app.incomeTrace(ctx, r.URL.Query().Get("date"), r.URL.Query().Get("account"))
 	case r.Method == http.MethodGet && path == "salespersons":
 		value, err = a.app.store.ListSalespersons(ctx)
 	case r.Method == http.MethodGet && path == "cashbox-accounts":
@@ -358,6 +365,43 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(value)
+}
+
+func (a *adminServer) exportDatabase(w http.ResponseWriter, ctx context.Context) {
+	if a.app.conn == nil {
+		writeAdminError(w, http.StatusBadRequest, "database not initialized")
+		return
+	}
+	temporary, err := os.CreateTemp("", "kashi-pos-admin-export-*.db")
+	if err != nil {
+		writeAdminError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	temporaryPath := temporary.Name()
+	_ = temporary.Close()
+	_ = os.Remove(temporaryPath)
+	defer os.Remove(temporaryPath)
+	if _, err := a.app.conn.ExecContext(ctx, `VACUUM INTO ?`, temporaryPath); err != nil {
+		writeAdminError(w, http.StatusInternalServerError, fmt.Sprintf("export database: %v", err))
+		return
+	}
+	file, err := os.Open(temporaryPath)
+	if err != nil {
+		writeAdminError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		writeAdminError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", `attachment; filename="kashi-branch.db"`)
+	w.Header().Set("Content-Length", fmt.Sprint(info.Size()))
+	if _, err := io.Copy(w, file); err != nil {
+		log.Printf("stream database export: %v", err)
+	}
 }
 
 func (a *adminServer) createInvoiceAdjustment(ctx context.Context, input adminInvoiceAdjustmentInput) (map[string]any, error) {

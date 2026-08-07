@@ -78,6 +78,63 @@ func TestIncomeViewsUseLiveInvoicePaymentsAfterDeletion(t *testing.T) {
 	assertIncomeTotals(t, app, shift.ID, 0)
 }
 
+func TestIncomeTraceShowsSignedWhishChange(t *testing.T) {
+	ctx := context.Background()
+	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "income-trace.db")+"?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	shift, err := store.CreateShift(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	whish, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Whish", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := store.CreateInventory(ctx, "Trace Sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Trace Client", Phone: "00000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateInvoice(ctx, db.CreateInvoiceParams{
+		CashboxID: whish.ID, ShiftID: shift.ID, InvoiceCode: "SA/2026/TRACE", InvoiceIndex: 1,
+		Year: 2026, ClientID: client.ID, InventoryID: inventory.ID, GrandTotal: 1000, DiscountedTotal: 1000, Subtotal: 1000,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var invoiceID int64
+	if err := database.QueryRowContext(ctx, "SELECT id FROM invoices WHERE invoice_code = ?", "SA/2026/TRACE").Scan(&invoiceID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateInvoicePayment(ctx, db.CreateInvoicePaymentParams{InvoiceID: invoiceID, CashboxID: whish.ID, Amount: -4}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateInvoicePaymentEntry(ctx, db.CreateInvoicePaymentEntryParams{InvoiceID: invoiceID, CashboxID: whish.ID, Amount: -4, EntryType: "change"}); err != nil {
+		t.Fatal(err)
+	}
+
+	trace, err := (&App{ctx: ctx, store: store, conn: database}).incomeTrace(ctx, time.Now().Format("2006-01-02"), "Whish")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trace.TotalCents != -4 || len(trace.Contributions) != 1 {
+		t.Fatalf("trace = %#v, want one -4-cent contribution", trace)
+	}
+	item := trace.Contributions[0]
+	if item.EntryType != "change" || item.InvoiceCode != "SA/2026/TRACE" || item.AmountCents != -4 {
+		t.Fatalf("trace contribution = %#v", item)
+	}
+}
+
 func assertIncomeTotals(t *testing.T, app *App, shiftID int64, want float64) {
 	t.Helper()
 
