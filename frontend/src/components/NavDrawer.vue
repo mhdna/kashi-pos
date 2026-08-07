@@ -50,6 +50,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { pendingNavAction } from "@/composables/useNavActions";
 import CloseShiftCard from "./CloseShiftCard.vue";
+import { pageEnabled } from "@/lib/buildConfig";
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -97,8 +98,9 @@ const items = computed(() => {
       to: "/inventory",
       icon: "mdi-package-variant-closed",
       t: "Inventory",
-      locked: true,
+      locked: !auth.isAdmin,
     },
+    { value: "import-data", to: "/import-data", icon: "mdi-database-import-outline", t: "Import" },
     { value: "transfer", to: "/transfers", icon: "mdi-truck", t: "Transfers", locked: true },
     {
       value: "attendance",
@@ -109,7 +111,7 @@ const items = computed(() => {
     },
     { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
   ];
-  return all.filter((item) => item.value !== "settings" || auth.isAdmin);
+  return all.filter((item) => (item.value !== "settings" || auth.isAdmin) && pageEnabled(item.value));
 });
 </script>
 

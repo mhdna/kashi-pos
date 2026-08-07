@@ -4,6 +4,7 @@
  * Manual routes for ./src/pages/*.vue
  */
 import { createRouter, createWebHashHistory } from "vue-router";
+import { pageEnabled } from "@/lib/buildConfig";
 
 const loadInvoicesList = () => import("@/pages/invoices-list.vue");
 
@@ -33,7 +34,16 @@ const router = createRouter({
           path: "invoices-list",
           component: loadInvoicesList,
         },
-        { path: "inventory", component: () => import("@/pages/inventory.vue") },
+        {
+          path: "inventory",
+          component: () => import("@/pages/inventory.vue"),
+          meta: { buildPage: "inventory", requiresAdmin: true },
+        },
+        {
+          path: "import-data",
+          component: () => import("@/pages/import-data.vue"),
+          meta: { buildPage: "import-data" },
+        },
         { path: "transfers", component: () => import("@/pages/transfers.vue") },
         {
           path: "clients",
@@ -55,6 +65,8 @@ router.beforeEach(async (to) => {
     const auth = useAuthStore();
     const isLoginPage = to.path === "/login";
     const requiresAdmin = to.matched.some((route) => route.meta.requiresAdmin);
+    const buildPage = to.matched.find((route) => route.meta.buildPage)?.meta.buildPage;
+    if (typeof buildPage === "string" && !pageEnabled(buildPage)) return "/home";
 
     if (!auth.isLoggedIn && !isLoginPage) {
       return "/login";
