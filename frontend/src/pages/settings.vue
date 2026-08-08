@@ -2,7 +2,6 @@
   <div class="settings-page">
     <v-tabs v-model="tab" class="settings-tabs mb-5" color="primary" grow>
       <v-tab value="general">Printing &amp; Screen</v-tab>
-      <v-tab value="build">Build</v-tab>
       <v-tab value="receipt">Receipt</v-tab>
       <v-tab value="coupons">Coupons</v-tab>
       <v-tab value="admin">Passwords &amp; Users</v-tab>
@@ -225,28 +224,6 @@
             </v-card-actions>
           </v-card>
         </div>
-      </v-window-item>
-
-      <v-window-item value="build">
-        <v-card class="settings-card" max-width="720">
-          <v-card-title class="d-flex align-center ga-3">
-            <v-avatar :color="buildConfig.isCentral ? 'red' : 'primary'" variant="tonal" size="36">
-              <v-icon icon="mdi-source-branch" size="20" />
-            </v-avatar>
-            <div>
-              <div class="text-subtitle-1 font-weight-bold">Build configuration</div>
-              <div class="text-caption text-medium-emphasis">These capabilities are selected when the app is built.</div>
-            </div>
-          </v-card-title>
-          <v-card-text>
-            <v-switch :model-value="buildConfig.isCentral" label="Is central" color="red" readonly hide-details />
-            <div class="text-body-2 mt-2">Profile: <strong>{{ buildConfig.profile }}</strong></div>
-            <div class="text-body-2 mt-1">Default branch name: <strong>{{ buildConfig.branchNameDefault }}</strong></div>
-            <v-alert class="mt-4" :type="buildConfig.isCentral ? 'warning' : 'info'" variant="tonal">
-              {{ buildConfig.isCentral ? 'Central can manage products and prices.' : 'Branch builds cannot manage products or prices.' }}
-            </v-alert>
-          </v-card-text>
-        </v-card>
       </v-window-item>
 
       <v-window-item value="receipt">
@@ -691,13 +668,12 @@ import {
 } from "../../wailsjs/go/main/App";
 import { useAuthStore } from "@/stores/auth";
 import { animationsEnabled, setAnimationsEnabled } from "@/lib/display";
-import { buildConfig } from "@/lib/buildConfig";
 
 const auth = useAuthStore();
 const tab = ref("general");
 
 const form = reactive({
-  branchName: buildConfig.branchNameDefault,
+  branchName: "",
   branchCode: "CN",
   apiKey: "",
   printerID: "",

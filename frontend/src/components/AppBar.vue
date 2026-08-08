@@ -1,5 +1,5 @@
 <template>
-  <v-app-bar :color="buildConfig.isCentral ? 'red-darken-3' : 'blue-darken-4'" density="compact" elevation="4">
+  <v-app-bar color="blue-darken-4" density="compact" elevation="4">
     <template #prepend>
       <div class="d-flex flex-column align-last justify-center ms-1 me-2">
         <v-app-bar-title style="font-size: var(--kashi-font-size-xl); line-height: 1.1; margin: 0">
@@ -9,7 +9,7 @@
           class="text-title-small"
           style="font-size: var(--kashi-font-size-base); line-height: 1.1; margin: 0"
         >
-          {{ branchName || buildConfig.branchNameDefault }}
+          {{ branchName || "Branch" }}
         </div>
       </div>
       <!-- <div class="mx-8 me-0 text-title-small">{{ time }}</div> -->
@@ -39,7 +39,6 @@ import { SyncAttendance } from "../../wailsjs/go/main/App";
 import ToggleTheme from "./ToggleTheme.vue";
 import NewTransferAlert from "./NewTransferAlert.vue";
 import SalespersonsDialog from "./SalespersonsDialog.vue";
-import { buildConfig } from "@/lib/buildConfig";
 
 const time = ref("");
 const branchName = ref("");
@@ -58,7 +57,7 @@ onMounted(async () => {
   interval = setInterval(updateTime, 1000);
   try {
     const settings = await GetAppSettings();
-    branchName.value = settings?.branchName ?? buildConfig.branchNameDefault;
+    branchName.value = settings?.branchName ?? "";
   } catch {}
   const checkAttendance = async () => {
     if (attendanceCheckRunning) return;

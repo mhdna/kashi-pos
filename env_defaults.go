@@ -127,18 +127,10 @@ func envSocialPlatforms() string {
 }
 
 func defaultSettingsParams() db.UpsertSettingsParams {
-	branchName := "Main"
-	if isCentralBuild() {
-		branchName = "المركزي"
-	}
-	apiKey := envString("KASHI_API_KEY", "")
-	if key := centralPrivateKey(); key != "" {
-		apiKey = key
-	}
 	return db.UpsertSettingsParams{
-		BranchName:          envString("KASHI_BRANCH_NAME", branchName),
+		BranchName:          envString("KASHI_BRANCH_NAME", "Main"),
 		BranchCode:          envString("KASHI_BRANCH_CODE", "CN"),
-		ApiKey:              apiKey,
+		ApiKey:              envString("KASHI_API_KEY", ""),
 		PrinterID:           envString("KASHI_PRINTER_ID", ""),
 		PrinterSize:         envString("KASHI_PRINTER_SIZE", ""),
 		ReceiptPrinter:      envString("KASHI_RECEIPT_PRINTER", ""),
@@ -206,16 +198,6 @@ func (a *App) applyEnvironmentDefaults() error {
 	setString(&params.BranchName, envOnlyString("KASHI_BRANCH_NAME"))
 	setString(&params.BranchCode, envOnlyString("KASHI_BRANCH_CODE"))
 	setString(&params.ApiKey, envOnlyString("KASHI_API_KEY"))
-	if isCentralBuild() {
-		if params.BranchName == "" {
-			params.BranchName = "المركزي"
-			changed = true
-		}
-		if key := centralPrivateKey(); params.ApiKey == "" && key != "" {
-			params.ApiKey = key
-			changed = true
-		}
-	}
 	setString(&params.PrinterID, envOnlyString("KASHI_PRINTER_ID"))
 	setString(&params.PrinterSize, envOnlyString("KASHI_PRINTER_SIZE"))
 	setString(&params.ReceiptPrinter, envOnlyString("KASHI_RECEIPT_PRINTER"))
