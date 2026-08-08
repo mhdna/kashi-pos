@@ -53,7 +53,6 @@ import { GetAppSettings, ListCurrencies, ListCouponTypes, ListPaymentMethods } f
 import { formatUsd } from "@/lib/format";
 import {
   isCashRoundedEquivalent,
-  normalizeCashRoundedPayments,
   roundLbpFromCents,
 } from "@/lib/money";
 import CalculatorEntries from "@/components/calculator/CalculatorEntries.vue";
@@ -305,27 +304,12 @@ function clearAll() {
 }
 
 const paymentsJSON = computed(() => {
-  const payments = entries.value.map((entry) => ({
+  return JSON.stringify(entries.value.map((entry) => ({
     accountId: entry.accountId,
     amountCents: entry.amountCents,
     entryType: entry.amountCents < 0 ? "change" : "payment",
     ...(entry.type.toLowerCase() === "on coupon" ? { couponCode: (entry as any).couponCode, couponTypeId: (entry as any).couponTypeId } : {}),
-  }));
-  if (checkoutReady.value) {
-    const normalizedAmounts = normalizeCashRoundedPayments(
-      payments.map((payment) => payment.amountCents),
-      totalCents.value,
-      exchangeRate.value,
-      roundingMode.value,
-      entries.value.map(
-        (entry) => !["on coupon", "on account"].includes(entry.type.toLowerCase()),
-      ),
-    );
-    payments.forEach((payment, index) => {
-      payment.amountCents = normalizedAmounts[index]!;
-    });
-  }
-  return JSON.stringify(payments);
+  })));
 });
 const firstEntryAccountId = computed(() => entries.value[0]?.accountId ?? 0);
 defineExpose({

@@ -152,53 +152,6 @@ SELECT
     ), 0) AS tax,
     COALESCE((SELECT SUM(net_i.grand_total) FROM invoices AS net_i WHERE net_i.shift_id = sqlc.arg(report_shift_id)), 0) AS net_sales;
 
--- name: ListShiftPaymentTotals :many
-WITH invoice_account_totals AS (
-    SELECT i.id AS invoice_id, ip.cashbox_id, ip.amount
-    FROM invoices i
-    JOIN invoice_payments ip ON ip.invoice_id = i.id
-    WHERE i.shift_id = sqlc.arg(report_shift_id)
-    UNION ALL
-    SELECT i.id AS invoice_id, i.cashbox_id, i.grand_total
-    FROM invoices i
-    WHERE i.shift_id = sqlc.arg(report_shift_id)
-      AND NOT EXISTS (
-          SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id
-      )
-    UNION ALL
-    SELECT 0 AS invoice_id, cap.cashbox_id, cap.amount
-    FROM client_account_payments cap
-    WHERE cap.shift_id = sqlc.arg(report_shift_id)
-    UNION ALL
-    SELECT 0 AS invoice_id, sbr.from_cashbox_id AS cashbox_id, -sbr.amount
-    FROM shift_balance_replacements sbr
-    WHERE sbr.shift_id = sqlc.arg(report_shift_id)
-    UNION ALL
-    SELECT 0 AS invoice_id, sbr.to_cashbox_id AS cashbox_id, sbr.amount
-    FROM shift_balance_replacements sbr
-    WHERE sbr.shift_id = sqlc.arg(report_shift_id)
-)
-SELECT ca.id AS account_id, ca.name AS account_name, ca.currency_code,
-       COALESCE(SUM(t.amount), 0) AS total
-FROM invoice_account_totals t
-JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
-GROUP BY ca.id, ca.name, ca.currency_code
-ORDER BY ca.id;
-
 -- name: CreateShiftBalanceReplacement :exec
 INSERT INTO shift_balance_replacements (shift_id, from_cashbox_id, to_cashbox_id, amount)
 VALUES (?, ?, ?, ?);
-
--- name: GetShiftInvoicePaymentTotal :one
-WITH invoice_account_totals AS (
-    SELECT ip.amount
-    FROM invoices i
-    JOIN invoice_payments ip ON ip.invoice_id = i.id
-    WHERE i.shift_id = sqlc.arg(report_shift_id)
-    UNION ALL
-    SELECT i.grand_total
-    FROM invoices i
-    WHERE i.shift_id = sqlc.arg(report_shift_id)
-      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
-)
-SELECT COALESCE(SUM(amount), 0) FROM invoice_account_totals;

@@ -118,7 +118,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		if grandTotal < discountedSubtotal {
 			return fmt.Errorf("invoice total is too large")
 		}
-		if err := validatePayments(a.ctx, q, payments, grandTotal, settings.MaxOverpaymentCents); err != nil {
+		if err := validatePayments(a.ctx, q, payments, grandTotal, settings.MaxOverpaymentCents, settings.ExchangeRate, roundingMode); err != nil {
 			return err
 		}
 
@@ -265,8 +265,9 @@ func parsePayments(raw string) ([]checkoutPayment, error) {
 	return payments, nil
 }
 
-func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, total, maxOverpaymentCents int64) error {
+func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, total, maxOverpaymentCents, exchangeRate int64, roundingMode string) error {
 	var paid int64
+	hasLBPCash := false
 	for i := range payments {
 		payment := &payments[i]
 		if _, err := q.GetCashboxAccountByID(ctx, payment.AccountID); err != nil {
@@ -314,18 +315,37 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 				}
 			}
 		}
+		if strings.EqualFold(account.CurrencyCode, "LBP") && isCashAccount(account.Name, account.CurrencyCode) && payment.AmountCents > 0 {
+			hasLBPCash = true
+		}
 		if payment.AmountCents > math.MaxInt64-paid {
 			return fmt.Errorf("payment total is too large")
 		}
 		paid += payment.AmountCents
 	}
-	if paid < total {
+	roundedEquivalent := false
+	if hasLBPCash && paid != total {
+		if exchangeRate <= 0 {
+			exchangeRate = 90000
+		}
+		paidLBP, paidErr := roundLBPFromCents(absInt64(paid), exchangeRate, roundingMode)
+		totalLBP, totalErr := roundLBPFromCents(absInt64(total), exchangeRate, roundingMode)
+		roundedEquivalent = paidErr == nil && totalErr == nil && paidLBP == totalLBP
+	}
+	if paid < total && !roundedEquivalent {
 		return fmt.Errorf("payments total %d is less than invoice total %d", paid, total)
 	}
-	if paid-total > maxOverpaymentCents {
+	if paid > total && !roundedEquivalent && paid-total > maxOverpaymentCents {
 		return fmt.Errorf("overpayment %d exceeds maximum allowed %d", paid-total, maxOverpaymentCents)
 	}
 	return nil
+}
+
+func absInt64(value int64) int64 {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 func recordSpecialPaymentMetadata(a *App, q *db.Queries, invoiceID, clientID int64, payments []checkoutPayment) error {

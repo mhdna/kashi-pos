@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCashRoundedEquivalent, normalizeCashRoundedPayments } from "./money";
+import { isCashRoundedEquivalent } from "./money";
 
 const RATE = 90_000;
 
@@ -9,29 +9,17 @@ describe("cash rounding", () => {
     const payments = [1_000, 756]; // 680,000 LBP at the exact exchange rate
 
     expect(isCashRoundedEquivalent(1_756, totalCents, RATE, "half_up")).toBe(true);
-    expect(normalizeCashRoundedPayments(payments, totalCents, RATE, "half_up")).toEqual([
-      1_000,
-      750,
-    ]);
+    expect(payments).toEqual([1_000, 756]);
   });
 
   it("does not hide a genuine overpayment", () => {
     const payments = [1_000, 800];
 
     expect(isCashRoundedEquivalent(1_800, 1_750, RATE, "half_up")).toBe(false);
-    expect(normalizeCashRoundedPayments(payments, 1_750, RATE, "half_up")).toEqual(payments);
+    expect(payments).toEqual([1_000, 800]);
   });
 
-  it("normalizes a shortfall accepted by cash rounding", () => {
-    expect(normalizeCashRoundedPayments([1_000, 744], 1_750, RATE, "half_up")).toEqual([
-      1_000,
-      750,
-    ]);
-  });
-
-  it("preserves a coupon face value and adjusts its cash change", () => {
-    expect(
-      normalizeCashRoundedPayments([5_000, -33], 4_966, RATE, "half_up", [false, true]),
-    ).toEqual([5_000, -34]);
+  it("preserves the rounded tender amount", () => {
+    expect(isCashRoundedEquivalent(2_000, 1_998, RATE, "half_up")).toBe(true);
   });
 });

@@ -78,6 +78,130 @@ func TestIncomeViewsUseLiveInvoicePaymentsAfterDeletion(t *testing.T) {
 	assertIncomeTotals(t, app, shift.ID, 0)
 }
 
+func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t)
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
+		t.Fatal(err)
+	}
+	shift, err := store.CreateShift(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	usd, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "USD", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lbp, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "LBP", CurrencyCode: "LBP"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := store.CreateInventory(ctx, "Sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	salesperson, err := store.CreateSalesperson(ctx, "Cashier")
+	if err != nil {
+		t.Fatal(err)
+	}
+	invoice, err := store.CreateInvoice(ctx, db.CreateInvoiceParams{
+		CashboxID: usd.ID, ShiftID: shift.ID, InvoiceCode: "SA/CN/2026/MIXED",
+		InvoiceIndex: 1, Year: 2026, ClientID: client.ID, InventoryID: inventory.ID,
+		GrandTotal: 43498, DiscountedTotal: 43498, Subtotal: 43498, SalespersonID: salesperson.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, payment := range []db.CreateInvoicePaymentParams{
+		{InvoiceID: invoice.ID, CashboxID: usd.ID, Amount: 41498},
+		{InvoiceID: invoice.ID, CashboxID: lbp.ID, Amount: 2000},
+	} {
+		if err := store.CreateInvoicePayment(ctx, payment); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	app := &App{ctx: ctx, store: store, conn: database}
+	today, err := app.GetTodayIncomeByAccount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	todayByAccount := incomeRowsByAccount(today, "total")
+	if todayByAccount["USD"] != 41498 || todayByAccount["LBP"] != 2000 {
+		t.Fatalf("today account totals = %#v", todayByAccount)
+	}
+
+	balances, err := app.ListShiftBalances(shift.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shiftByAccount := incomeRowsByAccount(balances, "balance")
+	if shiftByAccount["USD"] != 41498 || shiftByAccount["LBP"] != 2000 {
+		t.Fatalf("shift account totals = %#v", shiftByAccount)
+	}
+
+	days, err := app.GetDailyIncomeByMonth(time.Now().Format("2006-01"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(days) != 1 || days[0]["total"] != float64(43498) {
+		t.Fatalf("monthly totals = %#v", days)
+	}
+
+	shifts, err := app.GetShiftTotals()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(shifts) != 1 || shifts[0]["total"] != float64(43498) {
+		t.Fatalf("shift grand total = %#v", shifts)
+	}
+
+	printData, _, err := app.buildShiftClosePrintData(
+		shift.ID, salesperson.ID, 0, 0, 0, 0, nil,
+		time.Now().Format("2006-01-02 15:04:05"), true,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := printData.ShiftReport
+	if report.ExpectedUSD != 41498 || report.ExpectedLBP != 1800000 || report.TotalPayments != 43498 {
+		t.Fatalf("receipt report totals = %#v", report)
+	}
+	receiptByAccount := incomeRowsByAccount(receiptPaymentsToRows(report.Payments), "total")
+	if receiptByAccount["USD"] != 41498 || receiptByAccount["LBP"] != 2000 {
+		t.Fatalf("receipt account totals = %#v", receiptByAccount)
+	}
+}
+
+func incomeRowsByAccount(rows []map[string]any, amountKey string) map[string]int64 {
+	result := make(map[string]int64, len(rows))
+	for _, row := range rows {
+		switch value := row[amountKey].(type) {
+		case float64:
+			result[row["accountName"].(string)] = int64(value)
+		default:
+			result[row["accountName"].(string)] = databaseInt64(value)
+		}
+	}
+	return result
+}
+
+func receiptPaymentsToRows(payments []receiptPayment) []map[string]any {
+	rows := make([]map[string]any, len(payments))
+	for i, payment := range payments {
+		rows[i] = map[string]any{"accountName": payment.AccountName, "total": payment.AmountCents}
+	}
+	return rows
+}
+
 func TestIncomeTraceShowsSignedWhishChange(t *testing.T) {
 	ctx := context.Background()
 	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "income-trace.db")+"?_pragma=foreign_keys(ON)")

@@ -1,5 +1,5 @@
 <template>
-  <AppBar />
+  <!-- <AppBar /> -->
   <NavDrawer />
   <v-main class="app-main">
     <router-view />

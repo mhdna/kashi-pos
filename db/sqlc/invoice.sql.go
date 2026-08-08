@@ -7,7 +7,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 )
 
 const countInvoices = `-- name: CountInvoices :one
@@ -214,60 +213,6 @@ func (q *Queries) DeleteSalesInvoice(ctx context.Context, invoiceID int64) error
 	return err
 }
 
-const getDailyIncomeByMonth = `-- name: GetDailyIncomeByMonth :many
-WITH collected AS (
-    SELECT date(i.created_at, 'localtime') AS income_day, ip.amount AS collected_amount
-    FROM invoices i
-    JOIN invoice_payments ip ON ip.invoice_id = i.id
-    JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
-    WHERE lower(trim(ca.name)) <> 'on account'
-      AND strftime('%Y-%m', i.created_at, 'localtime') = ?1
-    UNION ALL
-    SELECT date(i.created_at, 'localtime') AS income_day, i.grand_total AS collected_amount
-    FROM invoices i
-    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
-    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
-      AND lower(trim(ca.name)) <> 'on account'
-      AND strftime('%Y-%m', i.created_at, 'localtime') = ?1
-    UNION ALL
-    SELECT date(cap.created_at, 'localtime') AS income_day, cap.amount AS collected_amount
-    FROM client_account_payments cap
-    WHERE strftime('%Y-%m', cap.created_at, 'localtime') = ?1
-)
-SELECT income_day as day, SUM(collected_amount) as total
-FROM collected
-GROUP BY income_day
-ORDER BY day
-`
-
-type GetDailyIncomeByMonthRow struct {
-	Day   interface{}     `json:"day"`
-	Total sql.NullFloat64 `json:"total"`
-}
-
-func (q *Queries) GetDailyIncomeByMonth(ctx context.Context, yearMonth string) ([]GetDailyIncomeByMonthRow, error) {
-	rows, err := q.db.QueryContext(ctx, getDailyIncomeByMonth, yearMonth)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []GetDailyIncomeByMonthRow{}
-	for rows.Next() {
-		var i GetDailyIncomeByMonthRow
-		if err := rows.Scan(&i.Day, &i.Total); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getInvoiceByID = `-- name: GetInvoiceByID :one
 SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes FROM invoices WHERE id = ?
 `
@@ -439,102 +384,6 @@ func (q *Queries) GetSalesInvoiceByID(ctx context.Context, id int64) (Invoice, e
 	return i, err
 }
 
-const getTodayIncomeByAccount = `-- name: GetTodayIncomeByAccount :many
-WITH on_account_invoices AS (
-    SELECT ip.invoice_id, MIN(ip.cashbox_id) AS cashbox_id
-    FROM invoice_payments ip
-    JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
-    WHERE lower(trim(ca.name)) = 'on account'
-    GROUP BY ip.invoice_id
-    UNION ALL
-    SELECT i.id, i.cashbox_id
-    FROM invoices i
-    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
-    WHERE lower(trim(ca.name)) = 'on account'
-      AND NOT EXISTS (
-          SELECT 1
-          FROM invoice_payments ip
-          JOIN cashbox_accounts payment_ca ON payment_ca.id = ip.cashbox_id
-          WHERE ip.invoice_id = i.id
-            AND lower(trim(payment_ca.name)) = 'on account'
-      )
-), invoice_account_totals AS (
-    SELECT i.created_at, ip.cashbox_id, ip.amount
-    FROM invoices i
-    JOIN invoice_payments ip ON ip.invoice_id = i.id
-    JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
-    WHERE lower(trim(ca.name)) <> 'on account'
-    UNION ALL
-    SELECT i.created_at, i.cashbox_id, i.grand_total
-    FROM invoices i
-    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
-    WHERE NOT EXISTS (
-        SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id
-    )
-      AND lower(trim(ca.name)) <> 'on account'
-    UNION ALL
-    SELECT cap.created_at, cap.cashbox_id, cap.amount
-    FROM client_account_payments cap
-    UNION ALL
-    SELECT sbr.created_at, sbr.from_cashbox_id, -sbr.amount
-    FROM shift_balance_replacements sbr
-    UNION ALL
-    SELECT sbr.created_at, sbr.to_cashbox_id, sbr.amount
-    FROM shift_balance_replacements sbr
-    UNION ALL
-    SELECT date('now', 'localtime'), oai.cashbox_id,
-           cae.amount - COALESCE((SELECT SUM(cap.amount)
-                                  FROM client_account_payments cap
-                                  WHERE cap.invoice_id = cae.invoice_id), 0)
-    FROM client_account_entries cae
-    JOIN on_account_invoices oai ON oai.invoice_id = cae.invoice_id
-    WHERE cae.amount > COALESCE((SELECT SUM(cap.amount)
-                                 FROM client_account_payments cap
-                                 WHERE cap.invoice_id = cae.invoice_id), 0)
-)
-SELECT ca.id, ca.name, ca.currency_code, SUM(t.amount) as total
-FROM invoice_account_totals t
-JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
-WHERE date(t.created_at, 'localtime') = date('now', 'localtime')
-GROUP BY t.cashbox_id
-ORDER BY ca.name
-`
-
-type GetTodayIncomeByAccountRow struct {
-	ID           int64           `json:"id"`
-	Name         string          `json:"name"`
-	CurrencyCode string          `json:"currencyCode"`
-	Total        sql.NullFloat64 `json:"total"`
-}
-
-func (q *Queries) GetTodayIncomeByAccount(ctx context.Context) ([]GetTodayIncomeByAccountRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTodayIncomeByAccount)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []GetTodayIncomeByAccountRow{}
-	for rows.Next() {
-		var i GetTodayIncomeByAccountRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.CurrencyCode,
-			&i.Total,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const incrementInvoicesIndex = `-- name: IncrementInvoicesIndex :one
 INSERT INTO invoice_indexes (year, last_index, type)
 VALUES (?, 1, ?)
@@ -552,6 +401,88 @@ func (q *Queries) IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoi
 	var last_index int64
 	err := row.Scan(&last_index)
 	return last_index, err
+}
+
+const listIncomeAccountTotals = `-- name: ListIncomeAccountTotals :many
+WITH account_totals AS (
+    SELECT i.created_at, i.shift_id, ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    UNION ALL
+    SELECT i.created_at, i.shift_id, i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    UNION ALL
+    SELECT cap.created_at, cap.shift_id, cap.cashbox_id, cap.amount
+    FROM client_account_payments cap
+    UNION ALL
+    SELECT sbr.created_at, sbr.shift_id, sbr.from_cashbox_id, -sbr.amount
+    FROM shift_balance_replacements sbr
+    UNION ALL
+    SELECT sbr.created_at, sbr.shift_id, sbr.to_cashbox_id, sbr.amount
+    FROM shift_balance_replacements sbr
+    UNION ALL
+    SELECT datetime('now', 'localtime'), 0, i.cashbox_id,
+           cae.amount - COALESCE((SELECT SUM(cap.amount)
+                                  FROM client_account_payments cap
+                                  WHERE cap.invoice_id = cae.invoice_id), 0)
+    FROM client_account_entries cae
+    JOIN invoices i ON i.id = cae.invoice_id
+    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
+    WHERE lower(trim(ca.name)) = 'on account'
+      AND cae.amount > COALESCE((SELECT SUM(cap.amount)
+                                 FROM client_account_payments cap
+                                 WHERE cap.invoice_id = cae.invoice_id), 0)
+)
+SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(t.amount), 0) AS total
+FROM account_totals t
+JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
+WHERE (?1 = '' OR date(t.created_at, 'localtime') = ?1)
+  AND (?2 = '' OR strftime('%Y-%m', t.created_at, 'localtime') = ?2)
+  AND (?3 = 0 OR t.shift_id = ?3)
+GROUP BY ca.id, ca.name, ca.currency_code
+ORDER BY ca.name
+`
+
+type ListIncomeAccountTotalsParams struct {
+	IncomeDate    interface{} `json:"incomeDate"`
+	IncomeMonth   interface{} `json:"incomeMonth"`
+	IncomeShiftID interface{} `json:"incomeShiftId"`
+}
+
+type ListIncomeAccountTotalsRow struct {
+	ID           int64       `json:"id"`
+	Name         string      `json:"name"`
+	CurrencyCode string      `json:"currencyCode"`
+	Total        interface{} `json:"total"`
+}
+
+func (q *Queries) ListIncomeAccountTotals(ctx context.Context, arg ListIncomeAccountTotalsParams) ([]ListIncomeAccountTotalsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listIncomeAccountTotals, arg.IncomeDate, arg.IncomeMonth, arg.IncomeShiftID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListIncomeAccountTotalsRow{}
+	for rows.Next() {
+		var i ListIncomeAccountTotalsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CurrencyCode,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listInvoicePayments = `-- name: ListInvoicePayments :many

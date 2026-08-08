@@ -97,7 +97,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			}
 			payments = []checkoutPayment{{AccountID: settlementAccountID, AmountCents: total, EntryType: entryType}}
 		}
-		if err := validatePayments(a.ctx, q, payments, total, settings.MaxOverpaymentCents); err != nil {
+		if err := validatePayments(a.ctx, q, payments, total, settings.MaxOverpaymentCents, settings.ExchangeRate, roundingMode); err != nil {
 			return err
 		}
 		cashbox, err := exchangeCashbox(a, q, payments)

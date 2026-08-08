@@ -25,16 +25,6 @@ func TestShiftReportFormattingAndCashAccountDetection(t *testing.T) {
 	}
 }
 
-func TestShiftReportSeparatesNetSalesFromTotalPayments(t *testing.T) {
-	rows := []db.ListShiftPaymentTotalsRow{
-		{Total: int64(76500)},
-		{Total: int64(1000)}, // accepted overpayment
-	}
-	if got := sumShiftPaymentTotals(rows); got != 77500 {
-		t.Fatalf("total payments = %d, want 77500 while net sales remains 76500", got)
-	}
-}
-
 func TestShiftReportPaidVsCountedIncludesOverpaymentOnce(t *testing.T) {
 	const (
 		netSales    = int64(10000)
@@ -114,7 +104,7 @@ func shiftReportPreviewData() printReceiptData {
 		FirstInvoice: "SA/CN/2026/01251", LastInvoice: "SA/CN/2026/01308",
 		Transactions: 58, ItemsSold: 143, Returns: 1,
 		GrossSales: 142000, Discounts: 4500, ReturnAmount: 2000,
-		Tax: 14850, NetSales: 150350, TotalPayments: 150350, CountedTotal: 149911, Overpayment: 0,
+		Tax: 14850, NetSales: 150350, TotalPayments: 150350, CountedTotal: 149911,
 		Payments: []receiptPayment{
 			{AccountName: "USD", CurrencyCode: "USD", AmountCents: 65000},
 			{AccountName: "LBP", CurrencyCode: "LBP", AmountCents: 50000},

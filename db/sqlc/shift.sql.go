@@ -273,28 +273,6 @@ func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
 	return i, err
 }
 
-const getShiftInvoicePaymentTotal = `-- name: GetShiftInvoicePaymentTotal :one
-WITH invoice_account_totals AS (
-    SELECT ip.amount
-    FROM invoices i
-    JOIN invoice_payments ip ON ip.invoice_id = i.id
-    WHERE i.shift_id = ?1
-    UNION ALL
-    SELECT i.grand_total
-    FROM invoices i
-    WHERE i.shift_id = ?1
-      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
-)
-SELECT COALESCE(SUM(amount), 0) FROM invoice_account_totals
-`
-
-func (q *Queries) GetShiftInvoicePaymentTotal(ctx context.Context, reportShiftID int64) (interface{}, error) {
-	row := q.db.QueryRowContext(ctx, getShiftInvoicePaymentTotal, reportShiftID)
-	var coalesce interface{}
-	err := row.Scan(&coalesce)
-	return coalesce, err
-}
-
 const getShiftReportSummary = `-- name: GetShiftReportSummary :one
 SELECT
     COALESCE((SELECT invoice_code FROM invoices AS first_i WHERE first_i.shift_id = ?1 ORDER BY first_i.id LIMIT 1), '') AS first_invoice,
@@ -495,75 +473,6 @@ func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, er
 	for rows.Next() {
 		var i CashboxAccount
 		if err := rows.Scan(&i.ID, &i.Name, &i.CurrencyCode); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listShiftPaymentTotals = `-- name: ListShiftPaymentTotals :many
-WITH invoice_account_totals AS (
-    SELECT i.id AS invoice_id, ip.cashbox_id, ip.amount
-    FROM invoices i
-    JOIN invoice_payments ip ON ip.invoice_id = i.id
-    WHERE i.shift_id = ?1
-    UNION ALL
-    SELECT i.id AS invoice_id, i.cashbox_id, i.grand_total
-    FROM invoices i
-    WHERE i.shift_id = ?1
-      AND NOT EXISTS (
-          SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id
-      )
-    UNION ALL
-    SELECT 0 AS invoice_id, cap.cashbox_id, cap.amount
-    FROM client_account_payments cap
-    WHERE cap.shift_id = ?1
-    UNION ALL
-    SELECT 0 AS invoice_id, sbr.from_cashbox_id AS cashbox_id, -sbr.amount
-    FROM shift_balance_replacements sbr
-    WHERE sbr.shift_id = ?1
-    UNION ALL
-    SELECT 0 AS invoice_id, sbr.to_cashbox_id AS cashbox_id, sbr.amount
-    FROM shift_balance_replacements sbr
-    WHERE sbr.shift_id = ?1
-)
-SELECT ca.id AS account_id, ca.name AS account_name, ca.currency_code,
-       COALESCE(SUM(t.amount), 0) AS total
-FROM invoice_account_totals t
-JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
-GROUP BY ca.id, ca.name, ca.currency_code
-ORDER BY ca.id
-`
-
-type ListShiftPaymentTotalsRow struct {
-	AccountID    int64       `json:"accountId"`
-	AccountName  string      `json:"accountName"`
-	CurrencyCode string      `json:"currencyCode"`
-	Total        interface{} `json:"total"`
-}
-
-func (q *Queries) ListShiftPaymentTotals(ctx context.Context, reportShiftID int64) ([]ListShiftPaymentTotalsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listShiftPaymentTotals, reportShiftID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListShiftPaymentTotalsRow{}
-	for rows.Next() {
-		var i ListShiftPaymentTotalsRow
-		if err := rows.Scan(
-			&i.AccountID,
-			&i.AccountName,
-			&i.CurrencyCode,
-			&i.Total,
-		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

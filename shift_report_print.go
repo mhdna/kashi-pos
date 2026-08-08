@@ -26,7 +26,6 @@ type shiftReportData struct {
 	CountedTotal    int64
 	CountedCoupon   int64
 	OnAccount       int64
-	Overpayment     int64
 	Payments        []receiptPayment
 	ExpectedUSD     int64
 	CountedUSD      int64
@@ -135,11 +134,6 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		y, _ = c.twoCol(y, "ON ACCOUNT", formatShiftUSD(report.OnAccount), c.data.BodySize, true)
 		y += 8
 	}
-	if report.Overpayment > 0 {
-		y, _ = c.twoCol(y, "OVERPAYMENT (INCLUDED)", formatShiftUSD(report.Overpayment), c.data.BodySize, true)
-		y += 8
-	}
-
 	y = c.reportSection(y, "CASH COUNT")
 	y, _ = c.left(y, "USD", c.data.BodySize-1, true)
 	y += 7

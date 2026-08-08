@@ -119,16 +119,16 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.store.ListShiftPaymentTotals(a.ctx, shiftID)
+	rows, err := a.incomeAccountTotals("", "", shiftID)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		onAccount := strings.EqualFold(strings.TrimSpace(row.AccountName), "On Account")
-		onCoupon := strings.EqualFold(strings.TrimSpace(row.AccountName), "On Coupon")
+		onAccount := isNonCollectedIncomeAccount(row.Name)
+		onCoupon := strings.EqualFold(strings.TrimSpace(row.Name), "On Coupon")
 		result = append(result, map[string]any{
-			"accountId": row.AccountID, "accountName": row.AccountName,
+			"accountId": row.ID, "accountName": row.Name,
 			"balance": databaseInt64(row.Total), "currencyCode": row.CurrencyCode,
 			"isOnAccount": onAccount, "isOnCoupon": onCoupon,
 			"isCollected": !onAccount, "isAutoCounted": onCoupon,
@@ -166,13 +166,13 @@ func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 	if isNonCashBalanceAccount(from.Name) || isNonCashBalanceAccount(to.Name) {
 		return fmt.Errorf("on-account and coupon balances cannot be replaced")
 	}
-	balances, err := a.store.ListShiftPaymentTotals(a.ctx, shiftID)
+	balances, err := a.incomeAccountTotals("", "", shiftID)
 	if err != nil {
 		return err
 	}
 	var sourceTotal int64
 	for _, balance := range balances {
-		if balance.AccountID == fromCashboxID {
+		if balance.ID == fromCashboxID {
 			sourceTotal = databaseInt64(balance.Total)
 			break
 		}
@@ -314,21 +314,27 @@ func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) 
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.store.GetDailyIncomeByMonth(a.ctx, yearMonth)
-	if err != nil {
-		return nil, err
+	if _, err := time.Parse("2006-01", yearMonth); err != nil {
+		return nil, fmt.Errorf("invalid month %q; use YYYY-MM", yearMonth)
 	}
-	result := make([]map[string]any, len(rows))
-	for i, r := range rows {
-		day := ""
-		if d, ok := r.Day.(string); ok {
-			day = d
+	monthStart, _ := time.ParseInLocation("2006-01", yearMonth, time.Local)
+	days := monthStart.AddDate(0, 1, -1).Day()
+	result := make([]map[string]any, 0, days)
+	for day := 1; day <= days; day++ {
+		date := fmt.Sprintf("%s-%02d", yearMonth, day)
+		rows, err := a.incomeAccountTotals(date, "", 0)
+		if err != nil {
+			return nil, err
 		}
-		total := float64(0)
-		if r.Total.Valid {
-			total = r.Total.Float64
+		var total int64
+		for _, row := range rows {
+			if !isNonCollectedIncomeAccount(row.Name) {
+				total += databaseInt64(row.Total)
+			}
 		}
-		result[i] = map[string]any{"day": day, "total": total}
+		if total != 0 {
+			result = append(result, map[string]any{"day": date, "total": float64(total)})
+		}
 	}
 	return result, nil
 }
@@ -337,19 +343,15 @@ func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.store.GetTodayIncomeByAccount(a.ctx)
+	rows, err := a.incomeAccountTotals(time.Now().Format("2006-01-02"), "", 0)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]map[string]any, len(rows))
 	for i, r := range rows {
-		total := float64(0)
-		if r.Total.Valid {
-			total = r.Total.Float64
-		}
-		onAccount := strings.EqualFold(strings.TrimSpace(r.Name), "On Account")
+		onAccount := isNonCollectedIncomeAccount(r.Name)
 		result[i] = map[string]any{
-			"accountId": r.ID, "accountName": r.Name, "currencyCode": r.CurrencyCode, "total": total,
+			"accountId": r.ID, "accountName": r.Name, "currencyCode": r.CurrencyCode, "total": float64(databaseInt64(r.Total)),
 			"isOnAccount": onAccount, "isCollected": !onAccount,
 		}
 	}
@@ -371,18 +373,34 @@ func (a *App) GetShiftTotals() ([]map[string]any, error) {
 	}
 	result := make([]map[string]any, len(rows))
 	for i, r := range rows {
-		total := float64(0)
-		if t, ok := r.Total.(int64); ok {
-			total = float64(t)
+		balances, balanceErr := a.incomeAccountTotals("", "", r.ID)
+		if balanceErr != nil {
+			return nil, balanceErr
+		}
+		var total int64
+		for _, balance := range balances {
+			if !isNonCollectedIncomeAccount(balance.Name) {
+				total += databaseInt64(balance.Total)
+			}
 		}
 		result[i] = map[string]any{
 			"id":             r.ID,
 			"isClosed":       r.IsClosed,
 			"createdAt":      toLocalTime(r.CreatedAt),
 			"closedAt":       toLocalTime(r.ClosedAt),
-			"total":          total,
+			"total":          float64(total),
 			"priceDeduction": databaseInt64(r.PriceDeductions),
 		}
 	}
 	return result, nil
+}
+
+func (a *App) incomeAccountTotals(date, month string, shiftID int64) ([]db.ListIncomeAccountTotalsRow, error) {
+	return a.store.ListIncomeAccountTotals(a.ctx, db.ListIncomeAccountTotalsParams{
+		IncomeDate: date, IncomeMonth: month, IncomeShiftID: shiftID,
+	})
+}
+
+func isNonCollectedIncomeAccount(name string) bool {
+	return strings.EqualFold(strings.TrimSpace(name), "On Account")
 }

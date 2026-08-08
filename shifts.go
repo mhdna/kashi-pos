@@ -263,13 +263,9 @@ func (a *App) buildShiftClosePrintData(
 	if err != nil {
 		return printReceiptData{}, false, fmt.Errorf("shift report summary: %w", err)
 	}
-	paymentRows, err := a.store.ListShiftPaymentTotals(a.ctx, shiftID)
+	paymentRows, err := a.incomeAccountTotals("", "", shiftID)
 	if err != nil {
 		return printReceiptData{}, false, fmt.Errorf("shift payment totals: %w", err)
-	}
-	invoicePaymentTotal, err := a.store.GetShiftInvoicePaymentTotal(a.ctx, shiftID)
-	if err != nil {
-		return printReceiptData{}, false, fmt.Errorf("shift invoice payment total: %w", err)
 	}
 
 	payments := make([]receiptPayment, 0, len(paymentRows))
@@ -277,22 +273,22 @@ func (a *App) buildShiftClosePrintData(
 	var expectedUSD, expectedLBPCents, expectedVisa, expectedWhish int64
 	for _, row := range paymentRows {
 		total := databaseInt64(row.Total)
-		if strings.EqualFold(strings.TrimSpace(row.AccountName), "On Account") {
+		if isNonCollectedIncomeAccount(row.Name) {
 			onAccount += total
 		} else {
 			totalPayments += total
 		}
-		if strings.EqualFold(strings.TrimSpace(row.AccountName), "On Coupon") {
+		if strings.EqualFold(strings.TrimSpace(row.Name), "On Coupon") {
 			countedCoupon += total
 		}
 		payments = append(payments, receiptPayment{
-			AccountID:    row.AccountID,
-			AccountName:  row.AccountName,
+			AccountID:    row.ID,
+			AccountName:  row.Name,
 			CurrencyCode: strings.ToUpper(strings.TrimSpace(row.CurrencyCode)),
 			AmountCents:  total,
 			EntryType:    "payment",
 		})
-		accountName := strings.TrimSpace(row.AccountName)
+		accountName := strings.TrimSpace(row.Name)
 		if strings.EqualFold(accountName, "Visa") && strings.EqualFold(row.CurrencyCode, "USD") {
 			expectedVisa += total
 			continue
@@ -301,7 +297,7 @@ func (a *App) buildShiftClosePrintData(
 			expectedWhish += total
 			continue
 		}
-		if !isCashAccount(row.AccountName, row.CurrencyCode) {
+		if !isCashAccount(row.Name, row.CurrencyCode) {
 			continue
 		}
 		if strings.EqualFold(row.CurrencyCode, "LBP") {
@@ -330,10 +326,6 @@ func (a *App) buildShiftClosePrintData(
 	if err != nil {
 		return printReceiptData{}, false, err
 	}
-	overpayment := databaseInt64(invoicePaymentTotal) - databaseInt64(summary.NetSales)
-	if overpayment < 0 {
-		overpayment = 0
-	}
 	report := &shiftReportData{
 		ShiftID:         shift.ID,
 		Cashier:         closingPersonName,
@@ -355,7 +347,6 @@ func (a *App) buildShiftClosePrintData(
 		CountedTotal:    countedTotal,
 		CountedCoupon:   countedCoupon,
 		OnAccount:       onAccount,
-		Overpayment:     overpayment,
 		Payments:        payments,
 		ExpectedUSD:     expectedUSD,
 		CountedUSD:      countedUSD,
@@ -389,14 +380,6 @@ func (a *App) buildShiftClosePrintData(
 		ReceiptHeight: settings.ReceiptHeight,
 		ShiftReport:   report,
 	}, settings.ReceiptEnabled != 0, nil
-}
-
-func sumShiftPaymentTotals(rows []db.ListShiftPaymentTotalsRow) int64 {
-	var total int64
-	for _, row := range rows {
-		total += databaseInt64(row.Total)
-	}
-	return total
 }
 
 func reconcileShiftCountedTotal(

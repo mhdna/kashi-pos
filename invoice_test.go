@@ -179,7 +179,7 @@ func TestValidatePaymentsAcceptsCouponCodeCaseDifferences(t *testing.T) {
 		CouponCode: "save-50", CouponTypeID: couponType.ID,
 	}}
 	if err := app.store.ExecTx(app.ctx, func(q *db.Queries) error {
-		return validatePayments(app.ctx, q, payments, 5000, 0)
+		return validatePayments(app.ctx, q, payments, 5000, 0, 90000, roundingHalfUp)
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func TestValidatePaymentsAcceptsCouponCodeCaseDifferences(t *testing.T) {
 		CouponCode: "REF-12345", CouponTypeID: referenceType.ID,
 	}}
 	if err := app.store.ExecTx(app.ctx, func(q *db.Queries) error {
-		return validatePayments(app.ctx, q, referencePayments, 5000, 0)
+		return validatePayments(app.ctx, q, referencePayments, 5000, 0, 90000, roundingHalfUp)
 	}); err != nil {
 		t.Fatalf("reference-only coupon validation failed: %v", err)
 	}
@@ -225,19 +225,47 @@ func TestValidatePaymentsAllowsOverpaymentAndRejectsUnderpayment(t *testing.T) {
 
 	if err := validatePayments(ctx, store.Queries, []checkoutPayment{{
 		AccountID: cashbox.ID, AmountCents: 1800, EntryType: "payment",
-	}}, 1780, 100); err != nil {
+	}}, 1780, 100, 90000, roundingHalfUp); err != nil {
 		t.Fatalf("overpayment should be accepted: %v", err)
 	}
 	if err := validatePayments(ctx, store.Queries, []checkoutPayment{{
 		AccountID: cashbox.ID, AmountCents: 1881, EntryType: "payment",
-	}}, 1780, 100); err == nil {
+	}}, 1780, 100, 90000, roundingHalfUp); err == nil {
 		t.Fatal("overpayment above the configured limit should be rejected")
 	}
 
 	err = validatePayments(ctx, store.Queries, []checkoutPayment{{
 		AccountID: cashbox.ID, AmountCents: 1779, EntryType: "payment",
-	}}, 1780, 100)
+	}}, 1780, 100, 90000, roundingHalfUp)
 	if err == nil || !strings.Contains(err.Error(), "less than invoice total") {
 		t.Fatalf("underpayment error = %v, want less-than-total error", err)
+	}
+}
+
+func TestValidatePaymentsPreservesRoundedLBPCashWithoutAllowingUnrelatedOverpayment(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t)
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	lbp, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "LBP", CurrencyCode: "LBP"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validatePayments(ctx, store.Queries, []checkoutPayment{{
+		AccountID: lbp.ID, AmountCents: 2000, EntryType: "payment",
+	}}, 1998, 0, 90000, roundingHalfUp); err != nil {
+		t.Fatalf("rounded LBP payment was rejected: %v", err)
+	}
+
+	usd, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "USD", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validatePayments(ctx, store.Queries, []checkoutPayment{{
+		AccountID: usd.ID, AmountCents: 2000, EntryType: "payment",
+	}}, 1998, 0, 90000, roundingHalfUp); err == nil {
+		t.Fatal("unrelated USD overpayment was accepted")
 	}
 }
