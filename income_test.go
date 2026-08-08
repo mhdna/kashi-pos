@@ -135,7 +135,7 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 		t.Fatal(err)
 	}
 	todayByAccount := incomeRowsByAccount(today, "total")
-	if todayByAccount["USD"] != 41498 || todayByAccount["LBP"] != 2000 {
+	if todayByAccount["USD"] != 41500 || todayByAccount["LBP"] != 2000 {
 		t.Fatalf("today account totals = %#v", todayByAccount)
 	}
 
@@ -144,7 +144,7 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 		t.Fatal(err)
 	}
 	shiftByAccount := incomeRowsByAccount(balances, "balance")
-	if shiftByAccount["USD"] != 41498 || shiftByAccount["LBP"] != 2000 {
+	if shiftByAccount["USD"] != 41500 || shiftByAccount["LBP"] != 2000 {
 		t.Fatalf("shift account totals = %#v", shiftByAccount)
 	}
 
@@ -152,7 +152,7 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(days) != 1 || days[0]["total"] != float64(43498) {
+	if len(days) != 1 || days[0]["total"] != float64(43500) {
 		t.Fatalf("monthly totals = %#v", days)
 	}
 
@@ -160,7 +160,7 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(shifts) != 1 || shifts[0]["total"] != float64(43498) {
+	if len(shifts) != 1 || shifts[0]["total"] != float64(43500) {
 		t.Fatalf("shift grand total = %#v", shifts)
 	}
 

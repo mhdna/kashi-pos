@@ -123,13 +123,21 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
 		onAccount := isNonCollectedIncomeAccount(row.Name)
 		onCoupon := strings.EqualFold(strings.TrimSpace(row.Name), "On Coupon")
+		balance, roundErr := roundCentsByCurrency(databaseInt64(row.Total), settings.ExchangeRate, settings.RoundingCurrency, settings.RoundingMode)
+		if roundErr != nil {
+			return nil, roundErr
+		}
 		result = append(result, map[string]any{
 			"accountId": row.ID, "accountName": row.Name,
-			"balance": databaseInt64(row.Total), "currencyCode": row.CurrencyCode,
+			"balance": balance, "currencyCode": row.CurrencyCode,
 			"isOnAccount": onAccount, "isOnCoupon": onCoupon,
 			"isCollected": !onAccount, "isAutoCounted": onCoupon,
 		})
@@ -318,6 +326,10 @@ func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) 
 		return nil, fmt.Errorf("invalid month %q; use YYYY-MM", yearMonth)
 	}
 	monthStart, _ := time.ParseInLocation("2006-01", yearMonth, time.Local)
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return nil, err
+	}
 	days := monthStart.AddDate(0, 1, -1).Day()
 	result := make([]map[string]any, 0, days)
 	for day := 1; day <= days; day++ {
@@ -333,6 +345,10 @@ func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) 
 			}
 		}
 		if total != 0 {
+			total, err = roundCentsByCurrency(total, settings.ExchangeRate, settings.RoundingCurrency, settings.RoundingMode)
+			if err != nil {
+				return nil, err
+			}
 			result = append(result, map[string]any{"day": date, "total": float64(total)})
 		}
 	}
@@ -347,11 +363,19 @@ func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]map[string]any, len(rows))
 	for i, r := range rows {
 		onAccount := isNonCollectedIncomeAccount(r.Name)
+		total, roundErr := roundCentsByCurrency(databaseInt64(r.Total), settings.ExchangeRate, settings.RoundingCurrency, settings.RoundingMode)
+		if roundErr != nil {
+			return nil, roundErr
+		}
 		result[i] = map[string]any{
-			"accountId": r.ID, "accountName": r.Name, "currencyCode": r.CurrencyCode, "total": float64(databaseInt64(r.Total)),
+			"accountId": r.ID, "accountName": r.Name, "currencyCode": r.CurrencyCode, "total": float64(total),
 			"isOnAccount": onAccount, "isCollected": !onAccount,
 		}
 	}
@@ -371,6 +395,10 @@ func (a *App) GetShiftTotals() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]map[string]any, len(rows))
 	for i, r := range rows {
 		balances, balanceErr := a.incomeAccountTotals("", "", r.ID)
@@ -382,6 +410,10 @@ func (a *App) GetShiftTotals() ([]map[string]any, error) {
 			if !isNonCollectedIncomeAccount(balance.Name) {
 				total += databaseInt64(balance.Total)
 			}
+		}
+		total, roundErr := roundCentsByCurrency(total, settings.ExchangeRate, settings.RoundingCurrency, settings.RoundingMode)
+		if roundErr != nil {
+			return nil, roundErr
 		}
 		result[i] = map[string]any{
 			"id":             r.ID,
