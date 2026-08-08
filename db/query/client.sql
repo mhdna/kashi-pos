@@ -119,6 +119,9 @@ VALUES (?, ?, ?, ?) RETURNING *;
 -- name: UpdateClientAccountOwnerByInvoice :exec
 UPDATE client_account_entries SET client_id = ? WHERE invoice_id = ?;
 
+-- name: UpdateClientAccountEntryAmount :exec
+UPDATE client_account_entries SET amount = ? WHERE invoice_id = ?;
+
 -- name: CreateCouponType :one
 INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only)
 VALUES (?, ?, ?, ?, ?) RETURNING *;

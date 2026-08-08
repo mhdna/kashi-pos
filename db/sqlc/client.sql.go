@@ -810,6 +810,20 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 	return i, err
 }
 
+const updateClientAccountEntryAmount = `-- name: UpdateClientAccountEntryAmount :exec
+UPDATE client_account_entries SET amount = ? WHERE invoice_id = ?
+`
+
+type UpdateClientAccountEntryAmountParams struct {
+	Amount    int64 `json:"amount"`
+	InvoiceID int64 `json:"invoiceId"`
+}
+
+func (q *Queries) UpdateClientAccountEntryAmount(ctx context.Context, arg UpdateClientAccountEntryAmountParams) error {
+	_, err := q.db.ExecContext(ctx, updateClientAccountEntryAmount, arg.Amount, arg.InvoiceID)
+	return err
+}
+
 const updateClientAccountOwnerByInvoice = `-- name: UpdateClientAccountOwnerByInvoice :exec
 UPDATE client_account_entries SET client_id = ? WHERE invoice_id = ?
 `

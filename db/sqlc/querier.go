@@ -149,6 +149,7 @@ type Querier interface {
 	ListIncomeAccountTotals(ctx context.Context, arg ListIncomeAccountTotalsParams) ([]ListIncomeAccountTotalsRow, error)
 	ListInventories(ctx context.Context) ([]Inventory, error)
 	ListInventoryItems(ctx context.Context, inventoryID int64) ([]InventoryItem, error)
+	ListInvoicePaymentEntries(ctx context.Context, invoiceID int64) ([]InvoicePaymentEntry, error)
 	ListInvoicePayments(ctx context.Context, invoiceID int64) ([]InvoicePayment, error)
 	ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
 	ListInvoices(ctx context.Context) ([]Invoice, error)
@@ -175,12 +176,16 @@ type Querier interface {
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
+	UpdateClientAccountEntryAmount(ctx context.Context, arg UpdateClientAccountEntryAmountParams) error
 	UpdateClientAccountOwnerByInvoice(ctx context.Context, arg UpdateClientAccountOwnerByInvoiceParams) error
 	UpdateCouponStatus(ctx context.Context, arg UpdateCouponStatusParams) error
 	UpdateCouponType(ctx context.Context, arg UpdateCouponTypeParams) error
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) (Inventory, error)
 	UpdateInvoiceCashbox(ctx context.Context, arg UpdateInvoiceCashboxParams) error
 	UpdateInvoiceClient(ctx context.Context, arg UpdateInvoiceClientParams) error
+	UpdateInvoiceGrandTotal(ctx context.Context, arg UpdateInvoiceGrandTotalParams) error
+	UpdateInvoicePaymentAmount(ctx context.Context, arg UpdateInvoicePaymentAmountParams) error
+	UpdateInvoicePaymentEntryAmount(ctx context.Context, arg UpdateInvoicePaymentEntryAmountParams) error
 	UpdateInvoiceSalesperson(ctx context.Context, arg UpdateInvoiceSalespersonParams) error
 	UpdatePermission(ctx context.Context, arg UpdatePermissionParams) (Permission, error)
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)

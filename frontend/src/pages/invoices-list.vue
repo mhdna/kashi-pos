@@ -60,6 +60,7 @@
             <v-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
             <v-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startChange('salesperson', item)" />
             <v-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" @click.stop="startChange('settlement', item)" />
+            <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-cash-check" title="Fix Rounding" @click.stop="requestRounding(item)" />
             <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
           </v-list>
         </v-menu>
@@ -153,6 +154,20 @@
           ></v-card-actions
         ></v-card
       >
+    </v-dialog>
+    <v-dialog v-model="roundingOpen" max-width="420">
+      <v-card>
+        <v-card-title>Fix invoice rounding?</v-card-title>
+        <v-card-text>
+          This applies the current rounding settings to
+          {{ roundingInvoice?.invoiceCode || "this invoice" }} and updates its payments,
+          balances, income, and receipt total.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer /><v-btn variant="text" @click="roundingOpen = false">Cancel</v-btn>
+          <v-btn color="primary" :loading="rounding" @click="roundSelected">Fix rounding</v-btn>
+        </v-card-actions>
+      </v-card>
     </v-dialog>
     <v-dialog v-model="changeOpen" max-width="420">
       <v-card
@@ -272,6 +287,7 @@ import {
   ChangeInvoiceSalesperson,
   ChangeInvoiceSettlementAmount,
   DeleteInvoice,
+  RoundInvoice,
   GetAppSettings,
   GetInvoiceDetails,
   ListInvoicesPage,
@@ -300,6 +316,9 @@ const selected = ref<any>(null),
 const deleteOpen = ref(false),
   deleting = ref(false),
   deleteInvoice = ref<any>(null);
+const roundingOpen = ref(false),
+  rounding = ref(false),
+  roundingInvoice = ref<any>(null);
 const actionMenus = reactive<Record<number, boolean>>({});
 const changeType = ref<"client" | "settlement" | "salesperson">("client"),
   changeValue = ref<number | null>(null),
@@ -522,6 +541,26 @@ function requestDelete(item: any) {
   actionMenus[item.id] = false;
   deleteInvoice.value = item;
   deleteOpen.value = true;
+}
+function requestRounding(item: any) {
+  actionMenus[item.id] = false;
+  roundingInvoice.value = item;
+  roundingOpen.value = true;
+}
+async function roundSelected() {
+  if (!roundingInvoice.value || !auth.isAdmin) return;
+  rounding.value = true;
+  try {
+    await RoundInvoice(roundingInvoice.value.id);
+    notifyIncomeChanged();
+    roundingOpen.value = false;
+    notify("Invoice rounding fixed");
+    await refresh();
+  } catch (e: any) {
+    notify(e?.toString() || "Could not fix invoice rounding", "error");
+  } finally {
+    rounding.value = false;
+  }
 }
 async function deleteSelected() {
   if (!deleteInvoice.value || !auth.isAdmin) return;

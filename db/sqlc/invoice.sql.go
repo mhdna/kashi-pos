@@ -485,6 +485,40 @@ func (q *Queries) ListIncomeAccountTotals(ctx context.Context, arg ListIncomeAcc
 	return items, nil
 }
 
+const listInvoicePaymentEntries = `-- name: ListInvoicePaymentEntries :many
+SELECT id, invoice_id, cashbox_id, amount, entry_type, created_at FROM invoice_payment_entries WHERE invoice_id = ? ORDER BY id
+`
+
+func (q *Queries) ListInvoicePaymentEntries(ctx context.Context, invoiceID int64) ([]InvoicePaymentEntry, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoicePaymentEntries, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InvoicePaymentEntry{}
+	for rows.Next() {
+		var i InvoicePaymentEntry
+		if err := rows.Scan(
+			&i.ID,
+			&i.InvoiceID,
+			&i.CashboxID,
+			&i.Amount,
+			&i.EntryType,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listInvoicePayments = `-- name: ListInvoicePayments :many
 SELECT invoice_id, cashbox_id, amount FROM invoice_payments WHERE invoice_id = ? ORDER BY cashbox_id
 `
@@ -796,6 +830,49 @@ type UpdateInvoiceClientParams struct {
 
 func (q *Queries) UpdateInvoiceClient(ctx context.Context, arg UpdateInvoiceClientParams) error {
 	_, err := q.db.ExecContext(ctx, updateInvoiceClient, arg.ClientID, arg.ID)
+	return err
+}
+
+const updateInvoiceGrandTotal = `-- name: UpdateInvoiceGrandTotal :exec
+UPDATE invoices SET grand_total = ? WHERE id = ?
+`
+
+type UpdateInvoiceGrandTotalParams struct {
+	GrandTotal int64 `json:"grandTotal"`
+	ID         int64 `json:"id"`
+}
+
+func (q *Queries) UpdateInvoiceGrandTotal(ctx context.Context, arg UpdateInvoiceGrandTotalParams) error {
+	_, err := q.db.ExecContext(ctx, updateInvoiceGrandTotal, arg.GrandTotal, arg.ID)
+	return err
+}
+
+const updateInvoicePaymentAmount = `-- name: UpdateInvoicePaymentAmount :exec
+UPDATE invoice_payments SET amount = ? WHERE invoice_id = ? AND cashbox_id = ?
+`
+
+type UpdateInvoicePaymentAmountParams struct {
+	Amount    int64 `json:"amount"`
+	InvoiceID int64 `json:"invoiceId"`
+	CashboxID int64 `json:"cashboxId"`
+}
+
+func (q *Queries) UpdateInvoicePaymentAmount(ctx context.Context, arg UpdateInvoicePaymentAmountParams) error {
+	_, err := q.db.ExecContext(ctx, updateInvoicePaymentAmount, arg.Amount, arg.InvoiceID, arg.CashboxID)
+	return err
+}
+
+const updateInvoicePaymentEntryAmount = `-- name: UpdateInvoicePaymentEntryAmount :exec
+UPDATE invoice_payment_entries SET amount = ? WHERE id = ?
+`
+
+type UpdateInvoicePaymentEntryAmountParams struct {
+	Amount int64 `json:"amount"`
+	ID     int64 `json:"id"`
+}
+
+func (q *Queries) UpdateInvoicePaymentEntryAmount(ctx context.Context, arg UpdateInvoicePaymentEntryAmountParams) error {
+	_, err := q.db.ExecContext(ctx, updateInvoicePaymentEntryAmount, arg.Amount, arg.ID)
 	return err
 }
 

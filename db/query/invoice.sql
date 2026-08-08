@@ -4,6 +4,9 @@ SELECT * FROM invoices WHERE id = ?;
 -- name: ListInvoicePayments :many
 SELECT * FROM invoice_payments WHERE invoice_id = ? ORDER BY cashbox_id;
 
+-- name: ListInvoicePaymentEntries :many
+SELECT * FROM invoice_payment_entries WHERE invoice_id = ? ORDER BY id;
+
 -- name: DeleteInvoicePayments :exec
 DELETE FROM invoice_payments WHERE invoice_id = ?;
 
@@ -18,6 +21,15 @@ UPDATE invoices SET salesperson_id = ? WHERE id = ?;
 
 -- name: UpdateInvoiceCashbox :exec
 UPDATE invoices SET cashbox_id = ? WHERE id = ?;
+
+-- name: UpdateInvoiceGrandTotal :exec
+UPDATE invoices SET grand_total = ? WHERE id = ?;
+
+-- name: UpdateInvoicePaymentAmount :exec
+UPDATE invoice_payments SET amount = ? WHERE invoice_id = ? AND cashbox_id = ?;
+
+-- name: UpdateInvoicePaymentEntryAmount :exec
+UPDATE invoice_payment_entries SET amount = ? WHERE id = ?;
 
 -- name: GetSalesInvoiceByCode :one
 SELECT i.*
