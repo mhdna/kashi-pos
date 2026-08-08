@@ -14,6 +14,18 @@ const (
 	roundingUp     = "up"
 )
 
+const (
+	roundingCurrencyLBP = "LBP"
+	roundingCurrencyUSD = "USD"
+)
+
+func normalizedRoundingCurrency(currency string) string {
+	if currency == roundingCurrencyUSD {
+		return roundingCurrencyUSD
+	}
+	return roundingCurrencyLBP
+}
+
 func normalizeRoundingMode(mode string) (string, error) {
 	if mode == "" {
 		return roundingHalfUp, nil
@@ -108,4 +120,42 @@ func roundCentsFromLBP(amount, exchangeRate int64, mode string) (int64, error) {
 		return 0, fmt.Errorf("LBP value is too large")
 	}
 	return quotient.Int64(), nil
+}
+
+// roundCashEquivalentCents converts an accounting amount to its physical LBP
+// cash-rounded value and then back to accounting cents. This is the canonical
+// USD amount to store when an LBP cash payment is rounded at checkout.
+func roundCashEquivalentCents(cents, exchangeRate int64, mode string) (int64, error) {
+	if cents < 0 {
+		return 0, fmt.Errorf("invalid cash conversion")
+	}
+	roundedLBP, err := roundLBPFromCents(cents, exchangeRate, mode)
+	if err != nil {
+		return 0, err
+	}
+	return roundCentsFromLBP(roundedLBP, exchangeRate, mode)
+}
+
+// roundCentsByCurrency rounds the canonical accounting amount according to
+// the configured source currency, then returns the equivalent USD cents.
+func roundCentsByCurrency(cents, exchangeRate int64, currency, mode string) (int64, error) {
+	negative := cents < 0
+	amount := absInt64(cents)
+	var rounded int64
+	var err error
+	if normalizedRoundingCurrency(currency) == roundingCurrencyUSD {
+		rounded = roundRatio(amount, 100, mode) * 100
+	} else {
+		if exchangeRate <= 0 {
+			exchangeRate = 90000
+		}
+		rounded, err = roundCashEquivalentCents(amount, exchangeRate, mode)
+		if err != nil {
+			return 0, err
+		}
+	}
+	if negative {
+		return -rounded, nil
+	}
+	return rounded, nil
 }

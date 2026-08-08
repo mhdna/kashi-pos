@@ -329,6 +329,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"receiptHeight":       settings.ReceiptHeight,
 		"taxRate":             settings.TaxRate,
 		"roundingMode":        settings.RoundingMode,
+		"roundingCurrency":    normalizedRoundingCurrency(settings.RoundingCurrency),
 		"receiptEnabled":      settings.ReceiptEnabled != 0,
 		"salesInventoryId":    settings.SalesInventoryID,
 		"exchangeRate":        settings.ExchangeRate,
@@ -443,14 +444,14 @@ func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, market
 		BranchName: current.BranchName, BranchCode: current.BranchCode, ApiKey: current.ApiKey, PrinterID: current.PrinterID,
 		PrinterSize: current.PrinterSize, ReceiptPrinter: current.ReceiptPrinter, ScreenPort: current.ScreenPort,
 		ReceiptWidth: current.ReceiptWidth, ReceiptHeight: current.ReceiptHeight, Theme: current.Theme, TaxRate: current.TaxRate,
-		RoundingMode: current.RoundingMode, ReceiptEnabled: current.ReceiptEnabled, SalesInventoryID: current.SalesInventoryID,
+		RoundingMode: current.RoundingMode, RoundingCurrency: current.RoundingCurrency, ReceiptEnabled: current.ReceiptEnabled, SalesInventoryID: current.SalesInventoryID,
 		ExchangeRate: current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents, MarketName: marketName, MarketPhone: marketPhone, BranchPhone: branchPhone, MarketDescription: marketDescription,
 		ReturnPolicy: returnPolicy, Website: website, Instagram: instagram, SocialPlatforms: socialPlatformsJSON, SocialHandles: socialHandlesJSON, ReceiptFont: receiptFont, ReceiptTitleSize: titleSize,
 		ReceiptBodySize: bodySize, ReceiptCutoff: boolInt(cutoff), ReceiptBodyFont: bodyFont, CounterNumber: strings.TrimSpace(registerName),
 	})
 }
 
-func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64, taxRate float64, roundingMode string, receiptEnabled bool, salesInventoryID, exchangeRate, maxOverpaymentCents int64) error {
+func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerSize, receiptPrinter, screenPort string, receiptWidth, receiptHeight int64, taxRate float64, roundingMode, roundingCurrency string, receiptEnabled bool, salesInventoryID, exchangeRate, maxOverpaymentCents int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -464,6 +465,7 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 	if roundingMode, err = normalizeRoundingMode(roundingMode); err != nil {
 		return err
 	}
+	roundingCurrency = normalizedRoundingCurrency(roundingCurrency)
 	if exchangeRate <= 0 {
 		return fmt.Errorf("exchange rate must be greater than zero")
 	}
@@ -491,6 +493,7 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		Theme:            current.Theme,
 		TaxRate:          taxRate,
 		RoundingMode:     roundingMode,
+		RoundingCurrency: roundingCurrency,
 		ReceiptEnabled:   boolInt(receiptEnabled),
 		SalesInventoryID: salesInventoryID,
 		ExchangeRate:     exchangeRate, MaxOverpaymentCents: maxOverpaymentCents,
@@ -522,6 +525,7 @@ func (a *App) SetTaxRate(rate float64) error {
 		Theme:            current.Theme,
 		TaxRate:          rate,
 		RoundingMode:     current.RoundingMode,
+		RoundingCurrency: current.RoundingCurrency,
 		ReceiptEnabled:   current.ReceiptEnabled,
 		SalesInventoryID: current.SalesInventoryID,
 		ExchangeRate:     current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents,

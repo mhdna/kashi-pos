@@ -306,6 +306,10 @@ export function ReprintInvoice(arg1) {
   return window['go']['main']['App']['ReprintInvoice'](arg1);
 }
 
+export function RoundInvoice(arg1) {
+  return window['go']['main']['App']['RoundInvoice'](arg1);
+}
+
 export function SearchClients(arg1, arg2) {
   return window['go']['main']['App']['SearchClients'](arg1, arg2);
 }
@@ -386,8 +390,8 @@ export function UpdateSalespersonAttendanceID(arg1, arg2) {
   return window['go']['main']['App']['UpdateSalespersonAttendanceID'](arg1, arg2);
 }
 
-export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15) {
-  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15);
+export function UpdateSettings(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16) {
+  return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16);
 }
 
 export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {

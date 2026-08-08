@@ -145,6 +145,16 @@
                 class="mb-2"
               />
               <v-select
+                v-model="form.roundingCurrency"
+                :items="roundingCurrencies"
+                placeholder="Round by currency"
+                hint="Rounds the complete total, then converts it to the other currency."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
+              <v-select
                 v-model.number="form.salesInventoryId"
                 :items="inventories"
                 item-title="name"
@@ -684,6 +694,7 @@ const form = reactive({
   receiptHeight: 297,
   taxRate: 0,
   roundingMode: "half_up",
+  roundingCurrency: "LBP",
   receiptEnabled: false,
   autoCloseStaleShiftsEnabled: false,
   salesInventoryId: 0,
@@ -723,6 +734,10 @@ const roundingModes = [
   { title: "Half up (standard)", value: "half_up" },
   { title: "Always down", value: "down" },
   { title: "Always up", value: "up" },
+];
+const roundingCurrencies = [
+  { title: "LBP (nearest 10,000)", value: "LBP" },
+  { title: "USD (nearest $1)", value: "USD" },
 ];
 const inventories = ref<any[]>([]);
 const socialPlatformOptions = [
@@ -885,6 +900,7 @@ async function loadSettings() {
         receiptHeight: Number(s.receiptHeight ?? 297),
         taxRate: Number(s.taxRate ?? 0),
         roundingMode: s.roundingMode ?? "half_up",
+        roundingCurrency: s.roundingCurrency ?? "LBP",
         receiptEnabled: Boolean(s.receiptEnabled),
         autoCloseStaleShiftsEnabled: Boolean(s.autoCloseStaleShiftsEnabled),
         salesInventoryId: Number(s.salesInventoryId ?? 0),
@@ -1031,6 +1047,7 @@ async function saveSettings() {
       Number.isFinite(receiptHeight) && receiptHeight > 0 ? Math.round(receiptHeight) : 297,
       Number.isFinite(taxRate) ? Math.min(Math.max(taxRate, 0), 1) : 0,
       roundingModes.some((m) => m.value === form.roundingMode) ? form.roundingMode : "half_up",
+      roundingCurrencies.some((item) => item.value === form.roundingCurrency) ? form.roundingCurrency : "LBP",
       Boolean(form.receiptEnabled),
       Number(form.salesInventoryId) > 0 ? Number(form.salesInventoryId) : 0,
       Number.isFinite(exchangeRate) && exchangeRate > 0 ? Math.round(exchangeRate) : 90000,

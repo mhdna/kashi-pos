@@ -37,7 +37,7 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 		ApiKey: settings.ApiKey, PrinterID: settings.PrinterID,
 		PrinterSize: settings.PrinterSize, ReceiptPrinter: settings.ReceiptPrinter, ScreenPort: settings.ScreenPort,
 		ReceiptWidth: settings.ReceiptWidth, ReceiptHeight: settings.ReceiptHeight, Theme: settings.Theme,
-		TaxRate: settings.TaxRate, RoundingMode: settings.RoundingMode, ReceiptEnabled: 0,
+		TaxRate: settings.TaxRate, RoundingMode: settings.RoundingMode, RoundingCurrency: roundingCurrencyUSD, ReceiptEnabled: 0,
 		SalesInventoryID: settings.SalesInventoryID,
 	}); err != nil {
 		t.Fatal(err)
@@ -72,7 +72,7 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 		ApiKey: settings.ApiKey, PrinterID: settings.PrinterID,
 		PrinterSize: settings.PrinterSize, ReceiptPrinter: settings.ReceiptPrinter, ScreenPort: settings.ScreenPort,
 		ReceiptWidth: settings.ReceiptWidth, ReceiptHeight: settings.ReceiptHeight, Theme: settings.Theme,
-		TaxRate: settings.TaxRate, RoundingMode: settings.RoundingMode, ReceiptEnabled: 0,
+		TaxRate: settings.TaxRate, RoundingMode: settings.RoundingMode, RoundingCurrency: roundingCurrencyUSD, ReceiptEnabled: 0,
 		SalesInventoryID: inventory.ID,
 	}); err != nil {
 		t.Fatal(err)
@@ -88,7 +88,7 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 		t.Fatalf("next sales code = %q, want %q", nextCode, expected)
 	}
 	items, _ := json.Marshal([]map[string]any{{"code": "SKU-1", "qty": 3, "price": 9999, "discount": 100}})
-	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 369}})
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 400}})
 	result, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: string(items), PaymentsJSON: string(payments), ClientID: client.ID})
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +117,7 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if invoice.Subtotal != 369 || invoice.DiscountedTotal != 332 || invoice.GrandTotal != 369 {
+	if invoice.Subtotal != 369 || invoice.DiscountedTotal != 332 || invoice.GrandTotal != 400 {
 		t.Fatalf("totals = subtotal %d discounted %d grand %d", invoice.Subtotal, invoice.DiscountedTotal, invoice.GrandTotal)
 	}
 	stock, err := store.GetInventoryItem(ctx, db.GetInventoryItemParams{InventoryID: inventory.ID, ProductID: product.ID})
@@ -127,7 +127,7 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 	if stock.Quantity != 5 {
 		t.Fatalf("stock = %d, want 5 while checkout inventory mutation is disabled", stock.Quantity)
 	}
-	if client, err := store.GetClientByID(ctx, client.ID); err != nil || client.TotalLoyaltyPoints != 3 {
+	if client, err := store.GetClientByID(ctx, client.ID); err != nil || client.TotalLoyaltyPoints != 4 {
 		t.Fatalf("loyalty points = %+v, err=%v", client, err)
 	}
 	_ = shift

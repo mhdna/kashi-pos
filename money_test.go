@@ -65,6 +65,13 @@ func TestRoundLBPFromCents(t *testing.T) {
 	}
 }
 
+func TestRoundCashEquivalentCents(t *testing.T) {
+	got, err := roundCashEquivalentCents(996, 90000, roundingHalfUp)
+	if err != nil || got != 1000 {
+		t.Fatalf("roundCashEquivalentCents(996, 90000) = %d, %v; want 1000", got, err)
+	}
+}
+
 func TestParseSalesItemsRejectsUnsafeInput(t *testing.T) {
 	for _, raw := range []string{
 		`[]`,

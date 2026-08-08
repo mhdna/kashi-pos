@@ -29,6 +29,12 @@ type AttendanceChangeRequest struct {
 	CreatedAt       string `json:"createdAt"`
 	ReviewedAt      string `json:"reviewedAt"`
 	OriginalEventID int64  `json:"originalEventId"`
+	RequestedType   string `json:"requestedType"`
+	OriginalTime    string `json:"originalTime"`
+	ChangedFrom     string `json:"changedFrom"`
+	ChangedTo       string `json:"changedTo"`
+	ApprovedBy      string `json:"approvedBy"`
+	Action          string `json:"action"`
 }
 
 type AttendanceComplaint struct {
@@ -42,11 +48,13 @@ type AttendanceComplaint struct {
 }
 
 type AttendanceConfig struct {
-	ID                int64  `json:"id"`
-	AkuvoxIp          string `json:"akuvoxIp"`
-	AkuvoxUsername    string `json:"akuvoxUsername"`
-	AkuvoxPassword    string `json:"akuvoxPassword"`
-	AttendanceEnabled int64  `json:"attendanceEnabled"`
+	ID                       int64  `json:"id"`
+	AkuvoxIp                 string `json:"akuvoxIp"`
+	AkuvoxUsername           string `json:"akuvoxUsername"`
+	AkuvoxPassword           string `json:"akuvoxPassword"`
+	AttendanceEnabled        int64  `json:"attendanceEnabled"`
+	ApproverPasswordHash     string `json:"approverPasswordHash"`
+	DuplicateIntervalSeconds int64  `json:"duplicateIntervalSeconds"`
 }
 
 type AttendanceEvent struct {
@@ -61,6 +69,25 @@ type AttendanceEvent struct {
 	EventAt      string `json:"eventAt"`
 	Type         string `json:"type"`
 	Status       string `json:"status"`
+}
+
+type AttendanceEventAudit struct {
+	ID               int64  `json:"id"`
+	RequestID        int64  `json:"requestId"`
+	OriginalEventID  int64  `json:"originalEventId"`
+	DeviceID         string `json:"deviceId"`
+	EventID          string `json:"eventId"`
+	SalespersonID    int64  `json:"salespersonId"`
+	AttendanceUserID string `json:"attendanceUserId"`
+	SalespersonName  string `json:"salespersonName"`
+	EventDate        string `json:"eventDate"`
+	EventTime        string `json:"eventTime"`
+	EventAt          string `json:"eventAt"`
+	Type             string `json:"type"`
+	Status           string `json:"status"`
+	Action           string `json:"action"`
+	AuditedAt        string `json:"auditedAt"`
+	ApprovedBy       string `json:"approvedBy"`
 }
 
 type CashboxAccount struct {
@@ -342,6 +369,7 @@ type Setting struct {
 	BranchPhone         string  `json:"branchPhone"`
 	CounterNumber       string  `json:"counterNumber"`
 	MaxOverpaymentCents int64   `json:"maxOverpaymentCents"`
+	RoundingCurrency    string  `json:"roundingCurrency"`
 }
 
 type Shift struct {

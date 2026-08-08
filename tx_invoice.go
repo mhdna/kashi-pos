@@ -118,6 +118,13 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		if grandTotal < discountedSubtotal {
 			return fmt.Errorf("invoice total is too large")
 		}
+		grandTotal, err = roundCentsByCurrency(grandTotal, settings.ExchangeRate, settings.RoundingCurrency, roundingMode)
+		if err != nil {
+			return fmt.Errorf("round invoice total: %w", err)
+		}
+		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, settings.ExchangeRate, roundingMode); err != nil {
+			return err
+		}
 		if err := validatePayments(a.ctx, q, payments, grandTotal, settings.MaxOverpaymentCents, settings.ExchangeRate, roundingMode); err != nil {
 			return err
 		}
@@ -201,6 +208,40 @@ func netPaymentsByAccount(payments []checkoutPayment) map[int64]int64 {
 		netByAccount[payment.AccountID] += payment.AmountCents
 	}
 	return netByAccount
+}
+
+func normalizeCashRoundedPayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, exchangeRate int64, roundingMode string) (bool, error) {
+	if exchangeRate <= 0 {
+		exchangeRate = 90000
+	}
+	changed := false
+	for i := range payments {
+		payment := &payments[i]
+		if payment.AmountCents <= 0 {
+			continue
+		}
+		account, err := q.GetCashboxAccountByID(ctx, payment.AccountID)
+		if err != nil {
+			return false, fmt.Errorf("payment account %d: %w", payment.AccountID, err)
+		}
+		if !strings.EqualFold(account.CurrencyCode, "LBP") || !isCashAccount(account.Name, account.CurrencyCode) {
+			continue
+		}
+		negative := payment.AmountCents < 0
+		amount := absInt64(payment.AmountCents)
+		canonical, err := roundCashEquivalentCents(amount, exchangeRate, roundingMode)
+		if err != nil {
+			return false, fmt.Errorf("round LBP cash payment: %w", err)
+		}
+		if negative {
+			canonical = -canonical
+		}
+		if canonical != payment.AmountCents {
+			payment.AmountCents = canonical
+			changed = true
+		}
+	}
+	return changed, nil
 }
 
 func parseSalesItems(raw string) ([]salesInvoiceItem, error) {

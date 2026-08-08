@@ -21,7 +21,7 @@ func (q *Queries) GetFeatureFlag(ctx context.Context, key string) (int64, error)
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number, max_overpayment_cents FROM settings LIMIT 1
+SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number, max_overpayment_cents, rounding_currency FROM settings LIMIT 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -59,6 +59,7 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.BranchPhone,
 		&i.CounterNumber,
 		&i.MaxOverpaymentCents,
+		&i.RoundingCurrency,
 	)
 	return i, err
 }
@@ -82,7 +83,7 @@ const updateSettings = `-- name: UpdateSettings :exec
 UPDATE settings
 SET branch_name = ?, branch_code = ?, api_key = ?, printer_id = ?, printer_size = ?,
     receipt_printer = ?, screen_port = ?, receipt_width = ?, receipt_height = ?,
-    theme = ?, tax_rate = ?, rounding_mode = ?, receipt_enabled = ?, sales_inventory_id = ?, exchange_rate = ?, max_overpayment_cents = ?,
+    theme = ?, tax_rate = ?, rounding_mode = ?, rounding_currency = ?, receipt_enabled = ?, sales_inventory_id = ?, exchange_rate = ?, max_overpayment_cents = ?,
     market_name = ?, market_phone = ?, market_description = ?, return_policy = ?, website = ?, instagram = ?, social_platforms = ?, social_handles = ?,
     receipt_font = ?, receipt_title_size = ?, receipt_body_size = ?, receipt_cutoff = ?, receipt_body_font = ?, branch_phone = ?, counter_number = ?
 `
@@ -100,6 +101,7 @@ type UpdateSettingsParams struct {
 	Theme               string  `json:"theme"`
 	TaxRate             float64 `json:"taxRate"`
 	RoundingMode        string  `json:"roundingMode"`
+	RoundingCurrency    string  `json:"roundingCurrency"`
 	ReceiptEnabled      int64   `json:"receiptEnabled"`
 	SalesInventoryID    int64   `json:"salesInventoryId"`
 	ExchangeRate        int64   `json:"exchangeRate"`
@@ -135,6 +137,7 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.Theme,
 		arg.TaxRate,
 		arg.RoundingMode,
+		arg.RoundingCurrency,
 		arg.ReceiptEnabled,
 		arg.SalesInventoryID,
 		arg.ExchangeRate,
@@ -168,8 +171,8 @@ func (q *Queries) UpdateTheme(ctx context.Context, theme string) error {
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
-INSERT INTO settings (branch_name, branch_code, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, exchange_rate, max_overpayment_cents, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO settings (branch_name, branch_code, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, rounding_currency, receipt_enabled, sales_inventory_id, exchange_rate, max_overpayment_cents, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type UpsertSettingsParams struct {
@@ -185,6 +188,7 @@ type UpsertSettingsParams struct {
 	Theme               string  `json:"theme"`
 	TaxRate             float64 `json:"taxRate"`
 	RoundingMode        string  `json:"roundingMode"`
+	RoundingCurrency    string  `json:"roundingCurrency"`
 	ReceiptEnabled      int64   `json:"receiptEnabled"`
 	SalesInventoryID    int64   `json:"salesInventoryId"`
 	ExchangeRate        int64   `json:"exchangeRate"`
@@ -220,6 +224,7 @@ func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) 
 		arg.Theme,
 		arg.TaxRate,
 		arg.RoundingMode,
+		arg.RoundingCurrency,
 		arg.ReceiptEnabled,
 		arg.SalesInventoryID,
 		arg.ExchangeRate,

@@ -30,6 +30,13 @@ export function roundCents(value: number, mode?: string): number {
   return Math.floor(value + 0.5);
 }
 
+export function roundCentsByCurrency(cents: number, currency: string, exchangeRate: number, mode?: string): number {
+  const sign = cents < 0 ? -1 : 1;
+  const amount = Math.abs(cents);
+  if (currency.toUpperCase() === "USD") return sign * roundCents(amount / 100, mode) * 100;
+  return sign * roundCentsFromLbp(roundLbpFromCents(amount, exchangeRate, mode), exchangeRate);
+}
+
 /** Convert a physical LBP amount to accounting cents using the app rate. */
 export function roundCentsFromLbp(amount: number, exchangeRate: number): number {
   if (!Number.isFinite(amount) || !Number.isFinite(exchangeRate) || amount < 0 || exchangeRate <= 0) {

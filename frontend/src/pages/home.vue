@@ -149,6 +149,7 @@
           :total="invoiceTotal"
           :client-id="actionBar?.clientId"
           :rounding-mode="roundingMode"
+          :rounding-currency="roundingCurrency"
         />
       </div>
       <div style="flex: 2 2 0; min-width: 0">
@@ -212,7 +213,7 @@ import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
-import { roundCents } from "@/lib/money";
+import { roundCents, roundCentsByCurrency } from "@/lib/money";
 import type { Client } from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
 import { pendingExchangeSelection, pendingHoldInvoice } from "@/composables/useNavActions";
@@ -224,6 +225,8 @@ let pageActive = true;
 
 const taxRate = ref(0);
 const roundingMode = ref("half_up");
+const roundingCurrency = ref("LBP");
+const exchangeRate = ref(90000);
 const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
 const customItemDiscountsEnabled = ref(false);
@@ -247,7 +250,7 @@ const accountDialog = ref(false);
 const invoiceTotal = computed(() => {
   const discountedCents = invoiceItems.value?.discountedSubtotalCents ?? 0;
   const taxCents = roundCents((discountedCents / 100) * taxRate.value * 100, roundingMode.value);
-  return (discountedCents + taxCents) / 100;
+  return roundCentsByCurrency(discountedCents + taxCents, roundingCurrency.value, exchangeRate.value, roundingMode.value) / 100;
 });
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
 const clientSelected = computed(() => Boolean(actionBar.value?.clientSelected));
@@ -643,6 +646,8 @@ onMounted(async () => {
     if (!pageActive) return;
     taxRate.value = Number(settings?.taxRate ?? 0);
     roundingMode.value = settings?.roundingMode ?? "half_up";
+    roundingCurrency.value = settings?.roundingCurrency ?? "LBP";
+    exchangeRate.value = Number(settings?.exchangeRate) > 0 ? Number(settings.exchangeRate) : 90000;
     receiptEnabled.value = Boolean(settings?.receiptEnabled);
     receiptPrinter.value = settings?.receiptPrinter ?? "";
     customItemDiscountsEnabled.value = Boolean(settings?.customItemDiscountsEnabled);

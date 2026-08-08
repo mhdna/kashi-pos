@@ -54,6 +54,7 @@ import { formatUsd } from "@/lib/format";
 import {
   isCashRoundedEquivalent,
   roundLbpFromCents,
+  roundCentsByCurrency,
 } from "@/lib/money";
 import CalculatorEntries from "@/components/calculator/CalculatorEntries.vue";
 import CalculatorKeypad from "@/components/calculator/CalculatorKeypad.vue";
@@ -79,7 +80,7 @@ interface Entry {
 
 const DEFAULT_EXCHANGE_RATE = 90000;
 const DEFAULT_USD_RATE = 100;
-const props = defineProps<{ total: number; roundingMode?: string; clientId?: number }>();
+const props = defineProps<{ total: number; roundingMode?: string; roundingCurrency?: string; clientId?: number }>();
 const roundingMode = computed(() => props.roundingMode ?? "half_up");
 const paymentMethods = ref<PaymentMethod[]>([]);
 const currencies = ref<Currency[]>([]);
@@ -104,7 +105,9 @@ function currencySymbolFor(methodName: string) {
     : "$";
 }
 
-const totalCents = computed(() => Math.round(props.total * 100));
+const totalCents = computed(() => roundCentsByCurrency(
+  Math.round(props.total * 100), props.roundingCurrency ?? "LBP", exchangeRate.value, roundingMode.value,
+));
 const paidCents = computed(() => entries.value.reduce((sum, entry) => sum + entry.amountCents, 0));
 const diffCents = computed(() => paidCents.value - totalCents.value);
 const overpaymentAllowed = computed(() => diffCents.value <= maxOverpaymentCents.value);

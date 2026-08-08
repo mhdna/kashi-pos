@@ -97,6 +97,13 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			}
 			payments = []checkoutPayment{{AccountID: settlementAccountID, AmountCents: total, EntryType: entryType}}
 		}
+		total, err = roundCentsByCurrency(total, settings.ExchangeRate, settings.RoundingCurrency, roundingMode)
+		if err != nil {
+			return fmt.Errorf("round exchange total: %w", err)
+		}
+		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, settings.ExchangeRate, roundingMode); err != nil {
+			return err
+		}
 		if err := validatePayments(a.ctx, q, payments, total, settings.MaxOverpaymentCents, settings.ExchangeRate, roundingMode); err != nil {
 			return err
 		}
