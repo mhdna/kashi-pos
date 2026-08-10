@@ -170,7 +170,7 @@
               <v-switch
                 v-model="form.autoCloseStaleShiftsEnabled"
                 label="Automatically close previous-day shifts"
-                hint="When the app starts, close any open shift created before today."
+                hint="When the app starts or a user logs in, close any open shift created before today."
                 persistent-hint
                 color="primary"
                 hide-details

@@ -25,13 +25,13 @@ func (q *Queries) AddHoldInvoiceItem(ctx context.Context, arg AddHoldInvoiceItem
 }
 
 const createHoldInvoice = `-- name: CreateHoldInvoice :one
-INSERT INTO hold_invoices DEFAULT VALUES RETURNING id, created_at
+INSERT INTO hold_invoices (snapshot_json) VALUES (?) RETURNING id, created_at, snapshot_json
 `
 
-func (q *Queries) CreateHoldInvoice(ctx context.Context) (HoldInvoice, error) {
-	row := q.db.QueryRowContext(ctx, createHoldInvoice)
+func (q *Queries) CreateHoldInvoice(ctx context.Context, snapshotJson string) (HoldInvoice, error) {
+	row := q.db.QueryRowContext(ctx, createHoldInvoice, snapshotJson)
 	var i HoldInvoice
-	err := row.Scan(&i.ID, &i.CreatedAt)
+	err := row.Scan(&i.ID, &i.CreatedAt, &i.SnapshotJson)
 	return i, err
 }
 
@@ -125,7 +125,7 @@ func (q *Queries) ListHoldInvoiceItems(ctx context.Context, holdInvoiceID int64)
 }
 
 const listHoldInvoices = `-- name: ListHoldInvoices :many
-SELECT id, created_at FROM hold_invoices ORDER BY id DESC
+SELECT id, created_at, snapshot_json FROM hold_invoices ORDER BY id DESC
 `
 
 func (q *Queries) ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error) {
@@ -137,7 +137,7 @@ func (q *Queries) ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error) {
 	items := []HoldInvoice{}
 	for rows.Next() {
 		var i HoldInvoice
-		if err := rows.Scan(&i.ID, &i.CreatedAt); err != nil {
+		if err := rows.Scan(&i.ID, &i.CreatedAt, &i.SnapshotJson); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -5,8 +5,9 @@
     <div class="shifts-cards d-flex">
       <ShiftIncomeCard
         :items="shiftIncome"
-        title="Today's Income"
+        title="Current Shift Income"
         :shift-id="openShift?.id"
+        :income-total="currentShiftTotal"
         :loading="loadingShift"
         :exchange-rate="exchangeRate"
         :payment-methods="paymentMethods"
@@ -38,6 +39,7 @@
       v-model="closeDialog"
       :open-shift="openShift"
       :close-balances="closeBalances"
+      :shift-income-total="currentShiftTotal"
       :salespersons="salespersons"
       :closing="closing"
       :exchange-rate="exchangeRate"
@@ -50,11 +52,10 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import {
   CloseShiftByID,
-  GetDailyIncomeByMonth,
+  GetCurrentShiftIncomeByAccount,
   GetCurrentMonth,
   GetOpenShift,
   GetShiftTotals,
-  GetTodayIncomeByAccount,
   GetAppSettings,
   ListShiftBalances,
   ListPaymentMethods,
@@ -77,7 +78,6 @@ const paymentMethods = ref<PaymentMethod[]>([]);
 const openShift = ref<Shift | null>(null);
 const allShifts = ref<Shift[]>([]);
 const currentMonth = ref("");
-const dailyIncomeByDay = ref<Record<string, number>>({});
 const loadingShift = ref(true);
 const loadingMonth = ref(true);
 const printingShiftId = ref<number | null>(null);
@@ -104,25 +104,9 @@ const shiftIncome = computed<IncomeRow[]>(() =>
 const dailyRows = computed<DayRow[]>(() => {
   const groups: Record<string, Shift[]> = {};
   for (const shift of allShifts.value) {
-    const day = shiftDayKey(shift.isClosed && shift.closedAt ? shift.closedAt : shift.createdAt);
+    const day = shiftDayKey(shift.createdAt);
     groups[day] ??= [];
     groups[day].push(shift);
-  }
-
-  // An open shift can continue past midnight. Keep it visible under today,
-  // even when it was opened on the previous day and has no income yet.
-  const activeShift = openShift.value;
-  if (activeShift?.id) {
-    const activeShiftTotal = allShifts.value.find((shift) => shift.id === activeShift.id)?.total;
-    for (const shifts of Object.values(groups)) {
-      const index = shifts.findIndex((shift) => shift.id === activeShift.id);
-      if (index >= 0) shifts.splice(index, 1);
-    }
-    const todayShifts = (groups[currentDay.value] ??= []);
-    todayShifts.push({
-      ...activeShift,
-      total: Number.isFinite(Number(activeShiftTotal)) ? Number(activeShiftTotal) : 0,
-    });
   }
 
   for (const shifts of Object.values(groups)) {
@@ -142,12 +126,16 @@ const dailyRows = computed<DayRow[]>(() => {
   return Array.from({ length: daysInMonth }, (_, index) => {
     const day = `${pad(index + 1)}/${month}/${year}`;
     const shifts = groups[day] ?? [];
-    const isoDay = `${year}-${month}-${pad(index + 1)}`;
-    return { day, total: dailyIncomeByDay.value[isoDay] ?? 0, shifts };
+    return { day, total: dayTotal(shifts), shifts };
   });
 });
 
 const grandTotal = computed(() => dailyRows.value.reduce((total, row) => total + row.total, 0));
+const currentShiftTotal = computed(() => {
+  const shiftId = Number(openShift.value?.id) || 0;
+  if (!shiftId) return 0;
+  return Number(allShifts.value.find((shift) => shift.id === shiftId)?.total) || 0;
+});
 const allDaysExpanded = computed(
   () =>
     dailyRows.value.length > 0 &&
@@ -267,7 +255,7 @@ async function refresh() {
   }
 
   try {
-    todayIncome.value = ((await GetTodayIncomeByAccount()) as IncomeRow[]) ?? [];
+    todayIncome.value = ((await GetCurrentShiftIncomeByAccount()) as IncomeRow[]) ?? [];
   } catch {
     todayIncome.value = [];
   }
@@ -280,19 +268,6 @@ async function refresh() {
     }));
   } catch {
     allShifts.value = [];
-  }
-
-  try {
-    const rows =
-      ((await GetDailyIncomeByMonth(currentMonth.value)) as Array<{
-        day: string;
-        total: number;
-      }>) ?? [];
-    dailyIncomeByDay.value = Object.fromEntries(
-      rows.map((row) => [row.day, Number(row.total) || 0]),
-    );
-  } catch {
-    dailyIncomeByDay.value = {};
   }
 
   for (const shiftId of Object.keys(balanceCache)) delete balanceCache[Number(shiftId)];

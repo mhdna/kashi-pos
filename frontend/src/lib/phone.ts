@@ -3,7 +3,10 @@ export function formatLebanesePhone(value: unknown): string {
   if (!raw) return "";
 
   let digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("961")) digits = `0${digits.slice(3)}`;
+  if (digits.startsWith("961")) {
+    const nationalNumber = digits.slice(3);
+    digits = nationalNumber.length === 7 ? `0${nationalNumber}` : nationalNumber;
+  }
 
   if (digits.length <= 2) return `(${digits})`;
 

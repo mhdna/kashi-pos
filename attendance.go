@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -118,8 +119,26 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 		date = time.Now().Format("2006-01-02")
 	}
 	url := "http://" + strings.TrimRight(ip, "/") + "/api/doorlog/get"
-	req, _ := http.NewRequestWithContext(a.ctx, http.MethodGet, url, nil)
-	client := &http.Client{Timeout: 2 * time.Second}
+	requestBody, err := json.Marshal(map[string]any{
+		"target": "doorlog",
+		"action": "get",
+		"data": map[string]string{
+			"TimeStart": date + " 00:00:00",
+			"TimeEnd":   date + " 23:59:59",
+			"Status":    "Success",
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("encode attendance request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(a.ctx, http.MethodPost, url, bytes.NewReader(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("create attendance request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	// Akuvox returns the complete door-log history, which can be a large JSON
+	// response and may take more than a few seconds to transfer and decode.
+	client := &http.Client{Timeout: 15 * time.Second}
 	if username != "" {
 		req.SetBasicAuth(username, password)
 	}

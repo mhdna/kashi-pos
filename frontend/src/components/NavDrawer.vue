@@ -1,32 +1,23 @@
 <template>
-  <v-navigation-drawer permanent width="95">
+  <v-navigation-drawer permanent width="72" class="nav-drawer bg-blue-darken-4 rounded-e-xl border-0">
     <v-list class="d-flex flex-column fill-height pa-0" nav>
       <v-list-item
         v-for="item in items"
         :key="item.value"
-        class="nav-item"
+        :class="['nav-item', { 'py-2': item.value === 'invoice' }]"
         :disabled="item.locked"
         :value="item.action ? undefined : item.value"
         :active="item.to ? route.path === item.to : item.action ? false : undefined"
         @click.prevent="handleItemClick(item)"
       >
         <div class="nav-item-content">
-          <v-badge
-            :model-value="!!item.locked"
-            color="grey-darken-1"
-            :icon="'mdi-lock'"
-            location="bottom end"
-            offset-x="-20"
-            offset-y="4"
-          >
-            <v-icon :icon="item.icon" size="20" />
-          </v-badge>
+          <v-icon :icon="item.icon" size="20" />
           <span class="nav-item-label text-center mt-1">{{ item.t }}</span>
         </div>
       </v-list-item>
 
       <v-list-item
-        class="nav-item"
+        class="nav-item close-shift-item py-2"
         :value="undefined"
         :active="false"
         @click="closeShiftDialog = true"
@@ -104,8 +95,8 @@ const items = computed(() => {
       value: "attendance",
       to: "/attendance",
       icon: "mdi-account-multiple",
-      t: "Attendance",
-      // locked: true,
+      t: "Attend",
+      locked: true,
     },
     { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
   ];
@@ -114,14 +105,18 @@ const items = computed(() => {
 </script>
 
 <style scoped>
+.nav-drawer {
+  background-color: #082f68 !important;
+  border-radius: 0 40px 40px 0 !important;
+}
+
 .nav-item {
   flex: 1 1 0;
   min-height: 0;
 }
 
 .nav-item.v-list-item--active {
-  background: rgba(var(--v-theme-on-surface), 0.12);
-  color: rgb(var(--v-theme-on-surface));
+  background: rgba(var(--v-theme-blue-lighten-2), 0.8);
 }
 
 .nav-item-content {
@@ -140,7 +135,13 @@ const items = computed(() => {
 }
 
 .nav-item-label {
-  font-size: var(--kashi-font-size-base);
+  font-size: var(--kashi-font-size-xs);
   line-height: 1.2;
+}
+
+.close-shift-item {
+  background-color: rgb(var(--v-theme-error));
+  border-radius: 0 0 40px 0;
+  color: rgb(var(--v-theme-on-error));
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <v-dialog v-model="dialog" :max-width="step === 'phone' ? 640 : 620">
     <v-card v-if="step === 'phone'">
-      <v-card-title>Enter Phone Number</v-card-title>
+      <v-card-title class="font-weight-bold">Enter Phone Number</v-card-title>
       <v-card-text class="client-phone-layout">
         <div class="client-phone-form">
           <v-autocomplete

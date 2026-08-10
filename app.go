@@ -147,6 +147,9 @@ func (a *App) VerifyLogin(username, password string) (map[string]interface{}, er
 	if err != nil {
 		return nil, fmt.Errorf("role not found")
 	}
+	if err := a.closeStaleOpenShifts(); err != nil {
+		log.Printf("close stale open shifts after login: %v", err)
+	}
 
 	return map[string]interface{}{
 		"id":       user.ID,

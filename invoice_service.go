@@ -43,23 +43,28 @@ type invoiceItem struct {
 	Qty      float64 `json:"qty"`
 }
 
-func (a *App) HoldInvoice(itemsJSON string) (int64, error) {
+func (a *App) HoldInvoice(snapshotJSON string) (int64, error) {
 	if a.store == nil {
 		return 0, fmt.Errorf("database not initialized")
 	}
-	var items []struct {
-		Code    string  `json:"code"`
-		Barcode string  `json:"barcode"`
-		Qty     float64 `json:"qty"`
+	var snapshot struct {
+		Items []struct {
+			Code    string  `json:"code"`
+			Barcode string  `json:"barcode"`
+			Qty     float64 `json:"qty"`
+		} `json:"items"`
 	}
-	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
+	if err := json.Unmarshal([]byte(snapshotJSON), &snapshot); err != nil {
 		return 0, err
 	}
-	inv, err := a.store.CreateHoldInvoice(a.ctx)
+	if len(snapshot.Items) == 0 {
+		return 0, fmt.Errorf("cannot hold an empty invoice")
+	}
+	inv, err := a.store.CreateHoldInvoice(a.ctx, snapshotJSON)
 	if err != nil {
 		return 0, err
 	}
-	for _, it := range items {
+	for _, it := range snapshot.Items {
 		var product db.Product
 		if strings.TrimSpace(it.Barcode) != "" {
 			product, err = a.store.GetProductByBarcode(a.ctx, strings.TrimSpace(it.Barcode))
@@ -88,6 +93,18 @@ func (a *App) ListHoldInvoices() ([]map[string]any, error) {
 	}
 	result := make([]map[string]any, len(list))
 	for i, inv := range list {
+		if strings.TrimSpace(inv.SnapshotJson) != "" {
+			var snapshot map[string]any
+			if json.Unmarshal([]byte(inv.SnapshotJson), &snapshot) == nil {
+				snapshot["id"] = inv.ID
+				snapshot["createdAt"] = inv.CreatedAt
+				if items, ok := snapshot["items"].([]any); ok {
+					snapshot["itemCount"] = len(items)
+				}
+				result[i] = snapshot
+				continue
+			}
+		}
 		items, _ := a.store.ListHoldInvoiceItems(a.ctx, inv.ID)
 		itemCount := len(items)
 		var itemList []map[string]any

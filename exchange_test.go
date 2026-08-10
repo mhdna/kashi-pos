@@ -306,6 +306,20 @@ func TestParseExchangeRequestMergesDuplicateReplacementLines(t *testing.T) {
 	}
 }
 
+func TestParseExchangeRequestAllowsMultipleReturnedLines(t *testing.T) {
+	request, err := parseExchangeRequest(`[
+		{"code":"RETURN-1","qty":-1},
+		{"code":"RETURN-2","qty":-2},
+		{"code":"REPLACE","qty":3}
+	]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(request.returnedItems) != 2 || request.returnedItems[0].Qty != -1 || request.returnedItems[1].Qty != -2 {
+		t.Fatalf("returned items = %#v", request.returnedItems)
+	}
+}
+
 func TestParseExchangeRequestRejectsReturnedProductAsReplacement(t *testing.T) {
 	if _, err := parseExchangeRequest(`[
 		{"code":"PRD-2","qty":-1},

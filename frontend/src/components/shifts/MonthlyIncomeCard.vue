@@ -3,7 +3,7 @@
     <div class="monthly-income-title d-flex align-center">
       <v-icon icon="mdi-calendar-month-outline" color="grey-darken-1" class="me-2" />
       <v-card-title class="text-body-1 font-weight-bold px-0">
-        Monthly Income ({{ month }})
+        Monthly Shift Income ({{ month }})
       </v-card-title>
       <v-spacer />
       <v-btn

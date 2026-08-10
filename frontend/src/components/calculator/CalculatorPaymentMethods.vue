@@ -1,5 +1,5 @@
 <template>
-  <div class="calculator-types mt-3" role="list" aria-label="Payment methods">
+  <div class="calculator-types mt-0" role="list" aria-label="Payment methods">
     <v-card
       v-for="method in methods"
       :key="method.name"

@@ -34,13 +34,13 @@
         Swap balance
       </v-btn>
       <div class="d-flex justify-space-between px-4 pt-3 mt-2 border-t font-weight-bold">
-        <span>Collected total</span>
-        <span>{{ formatBalance(collectedTotal, "USD", exchangeRate) }}</span>
+        <span>Income total</span>
+        <span>{{ formatBalance(incomeTotal, "USD", exchangeRate) }}</span>
       </div>
     </template>
     <div v-else class="shift-income-empty pa-3 text-caption text-medium-emphasis">
       <v-icon icon="mdi-information-outline" size="18" class="me-1" />
-      {{ title === "Today's Income" ? "No income collected today." : shiftId ? "No income data found for this shift." : "No open shift found." }}
+      {{ shiftId ? "No income found for the current shift." : "No open shift found." }}
     </div>
   </v-sheet>
   <BalanceReplacementDialog v-model="replacementOpen" :shift-id="shiftId" :sources="balanceSources" :payment-methods="paymentMethods" :exchange-rate="exchangeRate" @saved="emit('balance-replaced', $event)" />
@@ -57,6 +57,7 @@ const props = defineProps<{
   items: IncomeRow[];
   title?: string;
   shiftId?: number;
+  incomeTotal?: number;
   paymentMethods: PaymentMethod[];
   balanceSources: Balance[];
   loading: boolean;
@@ -67,9 +68,7 @@ const replacementOpen = ref(false);
 const balanceSources = computed<Balance[]>(() => props.balanceSources
   .filter((item) => !item.isOnAccount && !item.isOnCoupon && item.accountId && Number(item.balance) !== 0));
 
-const collectedTotal = computed(() =>
-  props.items.reduce((total, item) => total + (item.isOnAccount ? 0 : Number(item.total) || 0), 0),
-);
+const incomeTotal = computed(() => Number(props.incomeTotal) || 0);
 
 function incomeColor(name: string): string {
   return paymentColor(name);

@@ -66,6 +66,8 @@ export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
 
 export function GetCurrentMonth():Promise<string>;
 
+export function GetCurrentShiftIncomeByAccount():Promise<Array<Record<string, any>>>;
+
 export function GetDailyIncomeByMonth(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function GetDefaultCurrency():Promise<Record<string, any>>;

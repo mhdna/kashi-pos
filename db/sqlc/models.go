@@ -173,8 +173,9 @@ type FeatureFlag struct {
 }
 
 type HoldInvoice struct {
-	ID        int64  `json:"id"`
-	CreatedAt string `json:"createdAt"`
+	ID           int64  `json:"id"`
+	CreatedAt    string `json:"createdAt"`
+	SnapshotJson string `json:"snapshotJson"`
 }
 
 type HoldInvoiceItem struct {

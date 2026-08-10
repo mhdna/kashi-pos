@@ -138,6 +138,17 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 	if todayByAccount["USD"] != 41500 || todayByAccount["LBP"] != 2000 {
 		t.Fatalf("today account totals = %#v", todayByAccount)
 	}
+	currentShiftIncome, err := app.GetCurrentShiftIncomeByAccount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var currentShiftIncomeTotal int64
+	for _, row := range currentShiftIncome {
+		currentShiftIncomeTotal += databaseInt64(row["total"])
+	}
+	if currentShiftIncomeTotal != 43498 {
+		t.Fatalf("current shift income total = %d, want 43498", currentShiftIncomeTotal)
+	}
 
 	balances, err := app.ListShiftBalances(shift.ID)
 	if err != nil {
@@ -152,7 +163,7 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(days) != 1 || days[0]["total"] != float64(43500) {
+	if len(days) != 1 || days[0]["total"] != float64(43498) {
 		t.Fatalf("monthly totals = %#v", days)
 	}
 
@@ -160,7 +171,7 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(shifts) != 1 || shifts[0]["total"] != float64(43500) {
+	if len(shifts) != 1 || shifts[0]["total"] != float64(43498) {
 		t.Fatalf("shift grand total = %#v", shifts)
 	}
 
@@ -172,7 +183,7 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 		t.Fatal(err)
 	}
 	report := printData.ShiftReport
-	if report.ExpectedUSD != 41498 || report.ExpectedLBP != 1800000 || report.TotalPayments != 43498 {
+	if report.ExpectedUSD != 41498 || report.ExpectedLBP != 1800000 || report.TotalPayments != 43498 || report.NetSales != 43498 {
 		t.Fatalf("receipt report totals = %#v", report)
 	}
 	receiptByAccount := incomeRowsByAccount(receiptPaymentsToRows(report.Payments), "total")

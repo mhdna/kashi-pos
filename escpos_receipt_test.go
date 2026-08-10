@@ -42,7 +42,7 @@ func TestBuildESCPosReceiptContainsTenderAndPolicy(t *testing.T) {
 			{AccountName: "Cash", CurrencyCode: "LBP", AmountCents: -1000, EntryType: "change"},
 		},
 	})
-	for _, want := range []string{"CASH RECEIVED Cash", "CHANGE RETURNED Cash", "PAYMENT DETAILS", "RETURN & EXCHANGE POLICY", "3 days"} {
+	for _, want := range []string{"CASH RECEIVED Cash", "CHANGE RETURNED Cash", "PAYMENT DETAILS", "EXCHANGE POLICY", "3 days"} {
 		if !bytes.Contains(payload, []byte(want)) {
 			t.Fatalf("payload does not contain %q: %q", want, payload)
 		}

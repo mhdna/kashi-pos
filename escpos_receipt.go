@@ -103,7 +103,7 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 		writeESCPosLine(&out, label, formatReceiptPayment(payment, rate, data.RoundingMode), columns)
 	}
 	out.WriteString(separator + "\n")
-	writeESCPosCentered(&out, "RETURN & EXCHANGE POLICY", columns, true)
+	writeESCPosCentered(&out, "EXCHANGE POLICY", columns, true)
 	policy := data.ReturnPolicy
 	if policy == "" {
 		policy = "Exchanges accepted within 3 days."

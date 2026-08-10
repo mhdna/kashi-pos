@@ -7,78 +7,36 @@
           style="font-size: var(--kashi-font-size-2xl)"
         >
           <div class="d-flex flex-column">
-            <div>{{ exchangeState ? "Exchange" : "Invoice" }}</div>
+            <div class="font-weight-bold">{{ exchangeState ? "Exchange" : "Invoice" }}</div>
             <v-card-subtitle class="pa-0">{{ invoiceCode }}</v-card-subtitle>
           </div>
-          <div class="d-flex">
-            <v-menu v-model="noteMenu" :close-on-content-click="false" location="bottom end">
-              <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon
-                  size="small"
-                  variant="text"
-                  :color="invoiceNotes ? 'primary' : undefined"
-                  class="me-1"
-                >
-                  <v-icon icon="mdi-note-text-outline" size="20" />
-                </v-btn>
-              </template>
-              <v-card class="pa-3" min-width="280">
-                <v-textarea
-                  v-model="noteDraft"
-                  auto-grow
-                  density="compact"
-                  hide-details
-                  placeholder="Add a note"
-                  rows="3"
-                  variant="outlined"
-                />
-                <div class="d-flex justify-end mt-2">
-                  <v-btn color="primary" variant="tonal" @click="saveNote">
-                    <v-icon icon="mdi-plus" size="18" class="me-1" />
-                    Add
+          <div class="d-flex flex-column align-end">
+            <div class="d-flex">
+              <v-menu v-model="noteMenu" :close-on-content-click="false" location="bottom end">
+                <template #activator="{ props }">
+                  <v-btn v-bind="props" icon size="small" variant="text" aria-label="Invoice note">
+                    <v-icon icon="mdi-note-text-outline" size="20" />
                   </v-btn>
-                </div>
-              </v-card>
-            </v-menu>
-            <v-btn
-              v-if="!exchangeState"
-              class="px-3 me-1"
-              variant="tonal"
-              style="min-width: 120px; --v-btn-size: var(--kashi-font-size-sm)"
-              :disabled="!hasItems"
-              @click="accountDialog = true"
-            >
-              <template #prepend>
-                <v-icon icon="mdi-account" size="18" class="me-1" />
-              </template>
-              On Account
-            </v-btn>
-            <v-btn
-              v-if="!exchangeState"
-              variant="tonal"
-              style="min-width: 120px; --v-btn-size: var(--kashi-font-size-sm)"
-              @click="calculator?.openCouponDialog()"
-            >
-              <template #prepend>
-                <v-icon icon="mdi-sale-outline" size="18" class="me-1" />
-              </template>
-              Coupon
-            </v-btn>
-            <v-btn
-              v-else
-              color="red-darken-2"
-              variant="tonal"
-              prepend-icon="mdi-close"
-              @click="cancelExchange"
-            >
-              Cancel exchange
-            </v-btn>
+                </template>
+                <v-card class="pa-3" min-width="280">
+                  <v-textarea v-model="noteDraft" auto-grow density="compact" hide-details placeholder="Add a note" rows="3" variant="outlined" />
+                  <div class="d-flex justify-end mt-2"><v-btn color="primary" variant="tonal" @click="saveNote">Add</v-btn></div>
+                </v-card>
+              </v-menu>
+              <v-btn
+                v-if="exchangeState"
+                color="red-darken-2"
+                variant="tonal"
+                prepend-icon="mdi-close"
+                @click="cancelExchange"
+              >
+                Cancel exchange
+              </v-btn>
+            </div>
           </div>
         </v-card-title>
       </div>
-      <div class="d-flex align-center mx-4 mt-4">
+      <div class="d-flex align-center ms-4 me-0 mt-4">
         <v-text-field
           ref="barcodeInput"
           v-model="barcodeValue"
@@ -150,8 +108,13 @@
           :client-id="actionBar?.clientId"
           :rounding-mode="roundingMode"
           :rounding-currency="roundingCurrency"
+          :has-items="hasItems"
+          :exchange-mode="Boolean(exchangeState)"
+          @account="accountDialog = true"
+          @coupon="calculator?.openCouponDialog()"
         />
       </div>
+      <v-divider vertical class="ms-4 me-0" />
       <div style="flex: 2 2 0; min-width: 0">
         <ActionBar
           ref="actionBar"
@@ -163,6 +126,8 @@
           @hold="onHold"
           @void="onVoid"
           @checkout="onCheckout"
+          @account="accountDialog = true"
+          @coupon="calculator?.openCouponDialog()"
         />
       </div>
     </div>
@@ -486,9 +451,17 @@ async function getFullItemsJSON(): Promise<string> {
 }
 
 async function onHold() {
-  const json = await getItemsJSON();
-  if (json === "[]") return;
-  await HoldInvoice(json);
+  if (invoiceItems.value && !(await invoiceItems.value.flushChanges())) return;
+  const items = invoiceItems.value?.items ?? [];
+  if (!items.length) return;
+  await HoldInvoice(JSON.stringify({
+    version: 1,
+    items,
+    client: actionBar.value?.client,
+    salesperson: selectedSalesperson.value,
+    calculator: calculator.value?.holdState(),
+    notes: invoiceNotes.value,
+  }));
   clearInvoice();
 }
 
@@ -572,7 +545,11 @@ async function onCheckout() {
 async function onExchange(payload: ExchangeSelection) {
   clearInvoice();
   invoiceItems.value?.addExchangeItems(
-    { ...payload.returned, category: payload.returned.category ?? "", qty: -1 },
+    payload.returned.map((item) => ({
+      ...item,
+      category: item.category ?? "",
+      qty: Number(item.qty || 1),
+    })),
     payload.replacements.map((item) => ({
       ...item,
       category: item.category ?? "",
@@ -604,20 +581,26 @@ async function refreshNextInvoiceCode(kind: "sales" | "exchange") {
   }
 }
 
-function onRestoreHold(id: number, items: any[]) {
+function onRestoreHold(hold: any) {
   if (!invoiceItems.value) return;
   invoiceItems.value.clearItems();
-  for (const item of items) {
+  for (const item of hold.items ?? []) {
     invoiceItems.value.addItem({ ...item, qty: item.qty || 1 });
   }
-  DeleteHoldInvoice(id);
+  if (hold.client?.id) actionBar.value?.setClient(hold.client);
+  else actionBar.value?.resetClient();
+  selectedSalesperson.value = hold.salesperson ?? null;
+  invoiceNotes.value = hold.notes ?? "";
+  noteDraft.value = invoiceNotes.value;
+  calculator.value?.restoreHoldState(hold.calculator);
+  void DeleteHoldInvoice(hold.id);
 }
 
 function consumePendingHold() {
   const pending = pendingHoldInvoice.value;
   if (!pending) return;
   pendingHoldInvoice.value = null;
-  onRestoreHold(pending.id, pending.items);
+  onRestoreHold(pending);
 }
 
 async function consumePendingExchange() {

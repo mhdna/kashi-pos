@@ -16,7 +16,7 @@
         font-family: Belleza, Arial, sans-serif;
       "
     >
-      <v-img :src="logo" width="190" :class="{ 'login-logo--dark': currentTheme === 'dark' }" />
+      <v-img :src="logo" width="150" :class="{ 'login-logo--dark': currentTheme === 'dark' }" />
       <!-- <div>KBS</div> -->
     </div>
     <!-- <div style="font-family: Belleza">Demo Store</div> -->

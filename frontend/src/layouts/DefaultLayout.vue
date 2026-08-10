@@ -42,8 +42,8 @@ watch(pendingNavAction, async (action) => {
   pendingNavAction.value = null;
 });
 
-function restoreHold(id: number, items: any[]) {
-  pendingHoldInvoice.value = { id, items };
+function restoreHold(hold: any) {
+  pendingHoldInvoice.value = hold;
   void router.push("/home");
 }
 

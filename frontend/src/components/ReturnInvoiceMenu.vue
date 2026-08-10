@@ -15,7 +15,7 @@
     <v-card class="d-flex flex-column">
       <v-card-title>Exchange Invoice</v-card-title>
       <v-card-subtitle>
-        Load the original sale, scan the returned item, then scan its replacement.
+            Load the original sale, select one or more returned items, then scan replacements.
       </v-card-subtitle>
 
       <v-card-text class="exchange-dialog-layout">
@@ -62,9 +62,9 @@
                 v-for="item in invoice.items"
                 :key="`${item.code}-${item.price}-${item.discount}`"
                 :active="
-                  returned?.code === item.code &&
-                  (returned?.soldUnitPrice ?? returned?.price) === item.price &&
-                  (returned?.soldUnitDiscount ?? returned?.discount) === item.discount
+                  returned.some((selected) => selected.code === item.code &&
+                    (selected.soldUnitPrice ?? selected.price) === item.price &&
+                    (selected.soldUnitDiscount ?? selected.discount) === item.discount)
                 "
                 active-color="primary"
                 :title="item.name"
@@ -88,7 +88,7 @@
               ref="scanInput"
               v-model="scanValue"
               density="compact"
-              :placeholder="returned ? 'Scan replacement product' : 'Scan product being returned'"
+              :placeholder="returned.length ? 'Scan replacement product' : 'Scan product being returned'"
               prepend-inner-icon="mdi-barcode"
               variant="outlined"
               :loading="scanning"
@@ -96,17 +96,33 @@
               @keydown.enter.prevent="scanItem"
               @update:model-value="scanError = ''"
             />
+            <ProductSearchDialog
+              v-if="returned.length"
+              :show-activator="true"
+              activator-text=""
+              activator-icon="mdi-magnify"
+              @select="selectReplacementProduct"
+            />
           </div>
 
-          <v-list v-if="returned" density="compact" class="pa-0">
+          <v-list v-if="returned.length" density="compact" class="pa-0">
             <v-list-item
+              v-for="item in returned"
+              :key="`return-${item.code}-${item.soldUnitPrice}-${item.soldUnitDiscount}`"
               title="Returning"
-              :subtitle="`${returned.name} · ${returned.code}`"
+              :subtitle="`${item.name} · ${item.code} · Qty ${item.qty}`"
             >
               <template #append>
                 <span class="text-red-darken-2 font-weight-medium">
-                  −${{ effectivePrice(returned).toFixed(2) }}
+                  −${{ exchangeLineTotal(item, roundingMode).toFixed(2) }}
                 </span>
+                <v-btn
+                  class="ms-2"
+                  icon="mdi-delete"
+                  size="x-small"
+                  variant="text"
+                  @click="removeReturned(item.code, item.soldUnitPrice ?? item.price, item.soldUnitDiscount ?? item.discount)"
+                />
               </template>
             </v-list-item>
             <v-list-item
@@ -217,7 +233,7 @@
         <v-btn
           class="flex-1-1"
           color="primary"
-          :disabled="!returned || !hasEnoughReplacementValue"
+          :disabled="!returned.length || !hasEnoughReplacementValue"
           @click="startExchange"
         >
           Start exchange
@@ -231,6 +247,7 @@
 import { computed, inject, ref, watch, type Ref } from "vue";
 import { useExchangeDialog } from "@/composables/useExchangeDialog";
 import { effectiveExchangePrice, exchangeLineTotal, type ExchangeSelection } from "@/lib/exchange";
+import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 
 const emit = defineEmits<{
   exchange: [payload: ExchangeSelection];
@@ -263,7 +280,9 @@ const {
   loadInvoice,
   selectReturned,
   scanItem,
+  selectReplacementProduct,
   removeReplacement,
+  removeReturned,
   changeInvoice,
   createSelection,
   clearForm,

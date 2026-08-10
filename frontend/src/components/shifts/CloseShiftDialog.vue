@@ -6,6 +6,12 @@
   >
     <v-card :title="`Close Shift #${openShift?.id}`">
       <v-card-text>
+        <div class="d-flex justify-space-between align-center mb-4 pa-3 rounded bg-surface-variant">
+          <span class="text-subtitle-1 font-weight-bold">Shift income total</span>
+          <span class="text-h6 font-weight-bold">{{
+            formatBalance(shiftIncomeTotal, "USD", exchangeRate ?? 90000)
+          }}</span>
+        </div>
         <div v-if="closeBalances.length" class="balance-summary-grid mb-4">
           <div
             v-for="balance in closeBalances"
@@ -181,6 +187,7 @@ const props = defineProps<{
   modelValue: boolean;
   openShift: Shift | null;
   closeBalances: Balance[];
+  shiftIncomeTotal: number;
   salespersons: Array<{ id: number; fullName: string }>;
   closing: boolean;
   exchangeRate?: number;

@@ -3,19 +3,18 @@
     <template #activator="{ props }">
       <v-btn
         v-bind="props"
-        class="py-6 px-0 me-6"
-        min-width="150"
+        class="salesperson-card py-0 px-2 mx-0 my-2 text-body-2"
+        color="surface-light"
+        elevation="0"
+        min-height="40px"
+        rounded="lg"
+        width="100%"
         :class="{ 'missing-selection-pulse': pulseMissingSalesperson }"
       >
-        <v-list-item
-          :subtitle="selected ? 'Salesperson' : undefined"
-          :title="selectedName"
-          style="min-width: 160px"
-        >
-          <template #prepend>
-            <InitialsAvatar :name="selectedName ?? ''" :color="selectedColor ?? 'grey'" />
-          </template>
-        </v-list-item>
+        <v-avatar class="salesperson-avatar" :color="selectedColor" size="24">
+          <v-icon icon="mdi-account-tie" size="16" />
+        </v-avatar>
+        <span class="salesperson-name">{{ selectedName }}</span>
       </v-btn>
     </template>
     <v-list density="compact" nav style="max-height: 400px; overflow-y: auto">
@@ -73,6 +72,33 @@ onMounted(async () => {
 .missing-selection-pulse {
   animation: missing-selection-pulse 700ms ease-in-out 2;
   border-radius: 12px;
+}
+
+.salesperson-card {
+  position: relative;
+  text-transform: none;
+  justify-content: flex-start !important;
+}
+
+.salesperson-avatar {
+  position: absolute;
+  inset-inline-start: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.salesperson-name {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-inline: 36px 6px;
 }
 
 @keyframes missing-selection-pulse {

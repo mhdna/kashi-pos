@@ -17,14 +17,25 @@ type exchangeLine struct {
 }
 
 type exchangeRequest struct {
-	returned     exchangeLine
-	replacements []exchangeLine
+	// returned is kept as the first returned line for compatibility with the
+	// existing validation/tests. returnedItems contains the complete request.
+	returned      exchangeLine
+	returnedItems []exchangeLine
+	replacements  []exchangeLine
+}
+
+type pricedReturnedProduct struct {
+	product   db.Product
+	line      db.InvoiceProduct
+	qty       int64
+	lineTotal int64
 }
 
 type pricedExchange struct {
 	returnedProduct  db.Product
 	returnedLine     db.InvoiceProduct
 	returnedTotal    int64
+	returned         []pricedReturnedProduct
 	replacements     []pricedInvoiceProduct
 	replacementTotal int64
 }
@@ -47,20 +58,36 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 			return exchangeRequest{}, fmt.Errorf("invalid exchange item")
 		}
 		if line.Qty < 0 {
-			if line.Qty != -1 || request.returned.Code != "" {
-				return exchangeRequest{}, fmt.Errorf("an exchange supports exactly one returned item")
-			}
 			if line.UnitPriceCents != nil && *line.UnitPriceCents <= 0 {
 				return exchangeRequest{}, fmt.Errorf("invalid returned item price")
 			}
 			if line.UnitDiscount != nil && (*line.UnitDiscount < 0 || *line.UnitDiscount > 100) {
 				return exchangeRequest{}, fmt.Errorf("invalid returned item discount")
 			}
-			request.returned = line
+			returnedIndex := -1
+			for index, returned := range request.returnedItems {
+				if strings.EqualFold(returned.Code, line.Code) &&
+					(returned.UnitPriceCents == nil || line.UnitPriceCents == nil || *returned.UnitPriceCents == *line.UnitPriceCents) &&
+					(returned.UnitDiscount == nil || line.UnitDiscount == nil || *returned.UnitDiscount == *line.UnitDiscount) {
+					returnedIndex = index
+					break
+				}
+			}
+			if returnedIndex >= 0 {
+				if line.Qty < -math.MaxInt64-request.returnedItems[returnedIndex].Qty {
+					return exchangeRequest{}, fmt.Errorf("returned quantity is too large")
+				}
+				request.returnedItems[returnedIndex].Qty += line.Qty
+			} else {
+				request.returnedItems = append(request.returnedItems, line)
+			}
+			if request.returned.Code == "" {
+				request.returned = line
+			}
 			continue
 		}
 		normalizedCode := strings.ToLower(line.Code)
-		if request.returned.Code != "" && strings.EqualFold(line.Code, request.returned.Code) {
+		if len(request.returnedItems) > 0 && anyReturnedCode(request.returnedItems, line.Code) {
 			return exchangeRequest{}, fmt.Errorf("choose different products as replacements")
 		}
 		if index, exists := replacementIndex[normalizedCode]; exists {
@@ -74,59 +101,69 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 		replacementIndex[normalizedCode] = len(request.replacements)
 		request.replacements = append(request.replacements, line)
 	}
-	if request.returned.Code == "" || (len(request.replacements) == 0 && (len(returnOnly) == 0 || !returnOnly[0])) {
+	if len(request.returnedItems) == 0 || (len(request.replacements) == 0 && (len(returnOnly) == 0 || !returnOnly[0])) {
 		return exchangeRequest{}, fmt.Errorf("an exchange needs one returned item and at least one replacement")
 	}
 	for _, replacement := range request.replacements {
-		if strings.EqualFold(replacement.Code, request.returned.Code) {
+		if anyReturnedCode(request.returnedItems, replacement.Code) {
 			return exchangeRequest{}, fmt.Errorf("choose different products as replacements")
 		}
 	}
 	return request, nil
 }
 
+func anyReturnedCode(returned []exchangeLine, code string) bool {
+	for _, line := range returned {
+		if strings.EqualFold(line.Code, code) {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request exchangeRequest, roundingMode string) (pricedExchange, error) {
 	var result pricedExchange
-	returnedProduct, err := q.GetProductByCode(a.ctx, request.returned.Code)
-	if err != nil {
-		return result, fmt.Errorf("returned product: %w", err)
-	}
 	sourceLines, err := q.ListInvoiceProducts(a.ctx, sourceID)
 	if err != nil {
 		return result, fmt.Errorf("returned product was not sold on invoice")
 	}
-	var originalLine db.InvoiceProduct
-	foundAvailableLine := false
-	for _, line := range sourceLines {
-		if line.ProductID != returnedProduct.ID {
-			continue
+	reserved := make(map[string]int64)
+	for _, requested := range request.returnedItems {
+		product, err := q.GetProductByCode(a.ctx, requested.Code)
+		if err != nil {
+			return result, fmt.Errorf("returned product: %w", err)
 		}
-		if request.returned.UnitPriceCents != nil && line.UnitPrice != *request.returned.UnitPriceCents {
-			continue
+		var originalLine db.InvoiceProduct
+		foundAvailableLine := false
+		requestedQty := -requested.Qty
+		for _, line := range sourceLines {
+			if line.ProductID != product.ID || (requested.UnitPriceCents != nil && line.UnitPrice != *requested.UnitPriceCents) || (requested.UnitDiscount != nil && line.Discount != *requested.UnitDiscount) {
+				continue
+			}
+			returnedQty, returnedErr := q.GetReturnedQuantityForProductPrice(a.ctx, db.GetReturnedQuantityForProductPriceParams{SalesInvoiceID: sourceID, ProductID: product.ID, UnitPrice: line.UnitPrice, Discount: line.Discount})
+			lineKey := fmt.Sprintf("%d:%d:%d", product.ID, line.UnitPrice, line.Discount)
+			if returnedErr == nil && requestedQty <= line.Quantity-databaseInt64(returnedQty)-reserved[lineKey] {
+				originalLine = line
+				foundAvailableLine = true
+				reserved[lineKey] += requestedQty
+				break
+			}
 		}
-		if request.returned.UnitDiscount != nil && line.Discount != *request.returned.UnitDiscount {
-			continue
+		if !foundAvailableLine {
+			return result, fmt.Errorf("item has already been returned")
 		}
-		returnedQty, returnedErr := q.GetReturnedQuantityForProductPrice(a.ctx, db.GetReturnedQuantityForProductPriceParams{
-			SalesInvoiceID: sourceID,
-			ProductID:      returnedProduct.ID,
-			UnitPrice:      line.UnitPrice,
-			Discount:       line.Discount,
-		})
-		if returnedErr == nil && databaseInt64(returnedQty) < line.Quantity {
-			originalLine = line
-			foundAvailableLine = true
-			break
+		unitTotal := originalLine.UnitPrice - roundRatio(originalLine.UnitPrice*originalLine.Discount, 100, roundingMode)
+		if requestedQty > math.MaxInt64/unitTotal {
+			return result, fmt.Errorf("returned total is too large")
 		}
+		priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: unitTotal * requestedQty}
+		result.returned = append(result.returned, priced)
+		result.returnedTotal += priced.lineTotal
 	}
-	if !foundAvailableLine {
-		return result, fmt.Errorf("item has already been returned")
+	if len(result.returned) > 0 {
+		result.returnedProduct = result.returned[0].product
+		result.returnedLine = result.returned[0].line
 	}
-
-	result.returnedProduct = returnedProduct
-	result.returnedLine = originalLine
-	result.returnedTotal = originalLine.UnitPrice -
-		roundRatio(originalLine.UnitPrice*originalLine.Discount, 100, roundingMode)
 	result.replacements = make([]pricedInvoiceProduct, 0, len(request.replacements))
 
 	for _, line := range request.replacements {

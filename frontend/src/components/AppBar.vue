@@ -1,5 +1,5 @@
 <template>
-  <v-app-bar color="blue-darken-4" density="compact" elevation="4">
+  <v-app-bar color="grey-darken-4" density="compact" elevation="4">
     <template #prepend>
       <div class="d-flex flex-column align-last justify-center ms-1 me-2">
         <v-app-bar-title style="font-size: var(--kashi-font-size-xl); line-height: 1.1; margin: 0">
@@ -27,7 +27,6 @@
     <template #append>
       <ToggleTheme />
       <!-- <new-transfer-alert /> -->
-      <salespersons-dialog />
     </template>
   </v-app-bar>
 </template>
@@ -38,7 +37,6 @@ import { GetAppSettings } from "../../wailsjs/go/main/App";
 import { SyncAttendance } from "../../wailsjs/go/main/App";
 import ToggleTheme from "./ToggleTheme.vue";
 import NewTransferAlert from "./NewTransferAlert.vue";
-import SalespersonsDialog from "./SalespersonsDialog.vue";
 
 const time = ref("");
 const branchName = ref("");
@@ -81,7 +79,7 @@ onMounted(async () => {
   interval = setInterval(async () => {
     updateTime();
     await checkAttendance();
-  }, 3000);
+  }, 60_000);
 });
 onUnmounted(() => clearInterval(interval));
 </script>

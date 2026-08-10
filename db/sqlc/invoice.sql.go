@@ -240,6 +240,19 @@ func (q *Queries) GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 	return i, err
 }
 
+const getInvoiceIncomeTotalByDate = `-- name: GetInvoiceIncomeTotalByDate :one
+SELECT COALESCE(SUM(grand_total), 0)
+FROM invoices i
+WHERE date(i.created_at, 'localtime') = ?
+`
+
+func (q *Queries) GetInvoiceIncomeTotalByDate(ctx context.Context, createdAt string) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getInvoiceIncomeTotalByDate, createdAt)
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
+}
+
 const getInvoiceIndex = `-- name: GetInvoiceIndex :one
 SELECT year, last_index, type FROM invoice_indexes WHERE year = ? AND type = ?
 `
@@ -421,25 +434,15 @@ WITH account_totals AS (
     UNION ALL
     SELECT sbr.created_at, sbr.shift_id, sbr.to_cashbox_id, sbr.amount
     FROM shift_balance_replacements sbr
-    UNION ALL
-    SELECT datetime('now', 'localtime'), 0, i.cashbox_id,
-           cae.amount - COALESCE((SELECT SUM(cap.amount)
-                                  FROM client_account_payments cap
-                                  WHERE cap.invoice_id = cae.invoice_id), 0)
-    FROM client_account_entries cae
-    JOIN invoices i ON i.id = cae.invoice_id
-    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
-    WHERE lower(trim(ca.name)) = 'on account'
-      AND cae.amount > COALESCE((SELECT SUM(cap.amount)
-                                 FROM client_account_payments cap
-                                 WHERE cap.invoice_id = cae.invoice_id), 0)
 )
 SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(t.amount), 0) AS total
 FROM account_totals t
 JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
+JOIN shifts s ON s.id = t.shift_id
 WHERE (?1 = '' OR date(t.created_at, 'localtime') = ?1)
   AND (?2 = '' OR strftime('%Y-%m', t.created_at, 'localtime') = ?2)
   AND (?3 = 0 OR t.shift_id = ?3)
+  AND (lower(trim(ca.name)) <> 'on account' OR date(t.created_at, 'localtime') = date(s.created_at, 'localtime'))
 GROUP BY ca.id, ca.name, ca.currency_code
 ORDER BY ca.name
 `
@@ -466,6 +469,122 @@ func (q *Queries) ListIncomeAccountTotals(ctx context.Context, arg ListIncomeAcc
 	items := []ListIncomeAccountTotalsRow{}
 	for rows.Next() {
 		var i ListIncomeAccountTotalsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CurrencyCode,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvoiceIncomeAccountTotalsByDate = `-- name: ListInvoiceIncomeAccountTotalsByDate :many
+WITH invoice_totals AS (
+    SELECT i.created_at AS income_date, ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE date(i.created_at, 'localtime') = ?1
+    UNION ALL
+    SELECT i.created_at AS income_date, i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+      AND date(i.created_at, 'localtime') = ?1
+)
+SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(invoice_totals.amount), 0) AS total
+FROM invoice_totals
+JOIN cashbox_accounts ca ON ca.id = invoice_totals.cashbox_id
+GROUP BY ca.id, ca.name, ca.currency_code
+ORDER BY ca.name
+`
+
+type ListInvoiceIncomeAccountTotalsByDateRow struct {
+	ID           int64       `json:"id"`
+	Name         string      `json:"name"`
+	CurrencyCode string      `json:"currencyCode"`
+	Total        interface{} `json:"total"`
+}
+
+func (q *Queries) ListInvoiceIncomeAccountTotalsByDate(ctx context.Context, invoiceIncomeDate string) ([]ListInvoiceIncomeAccountTotalsByDateRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoiceIncomeAccountTotalsByDate, invoiceIncomeDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInvoiceIncomeAccountTotalsByDateRow{}
+	for rows.Next() {
+		var i ListInvoiceIncomeAccountTotalsByDateRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CurrencyCode,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvoiceIncomeAccountTotalsByShift = `-- name: ListInvoiceIncomeAccountTotalsByShift :many
+WITH invoice_totals AS (
+    SELECT ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = ?1
+    UNION ALL
+    SELECT i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE i.shift_id = ?1
+      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    UNION ALL
+    SELECT sbr.from_cashbox_id, -sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = ?1
+    UNION ALL
+    SELECT sbr.to_cashbox_id, sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = ?1
+)
+SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(invoice_totals.amount), 0) AS total
+FROM invoice_totals
+JOIN cashbox_accounts ca ON ca.id = invoice_totals.cashbox_id
+GROUP BY ca.id, ca.name, ca.currency_code
+ORDER BY ca.name
+`
+
+type ListInvoiceIncomeAccountTotalsByShiftRow struct {
+	ID           int64       `json:"id"`
+	Name         string      `json:"name"`
+	CurrencyCode string      `json:"currencyCode"`
+	Total        interface{} `json:"total"`
+}
+
+func (q *Queries) ListInvoiceIncomeAccountTotalsByShift(ctx context.Context, invoiceIncomeShiftID int64) ([]ListInvoiceIncomeAccountTotalsByShiftRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoiceIncomeAccountTotalsByShift, invoiceIncomeShiftID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInvoiceIncomeAccountTotalsByShiftRow{}
+	for rows.Next() {
+		var i ListInvoiceIncomeAccountTotalsByShiftRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,

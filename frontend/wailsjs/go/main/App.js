@@ -130,6 +130,10 @@ export function GetCurrentMonth() {
   return window['go']['main']['App']['GetCurrentMonth']();
 }
 
+export function GetCurrentShiftIncomeByAccount() {
+  return window['go']['main']['App']['GetCurrentShiftIncomeByAccount']();
+}
+
 export function GetDailyIncomeByMonth(arg1) {
   return window['go']['main']['App']['GetDailyIncomeByMonth'](arg1);
 }

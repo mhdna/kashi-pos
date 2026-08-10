@@ -1,48 +1,35 @@
 <template>
   <ClientDialog v-model="clientDialog" @select="onClientSelect" />
   <div class="d-flex flex-column w-100 h-100 px-4">
+    <div class="text-caption text-medium-emphasis text-center mt-2">Salesperson</div>
+    <SalespersonsDialog />
+    <div class="text-caption text-medium-emphasis text-center mt-2">Client</div>
     <v-card
-      class="ma-0 d-flex justify-center text-title-medium my-2 w-100 flex-column"
+      class="client-card px-4 py-4 my-2 text-center"
+      :class="{ 'missing-selection-pulse': pulseClient }"
+      color="surface-light"
+      elevation="0"
+      min-height="100px"
       rounded="lg"
-      variant="outlined"
-      style="flex: 0 0 300px; height: 300px; min-height: 300px; background-color: transparent !important; border-color: rgba(var(--v-theme-on-surface), 0.18) !important"
-      title="Client"
+      width="100%"
+      @click="openClientDialog"
     >
-      <template #prepend>
-        <v-icon class="me-2" icon="mdi-account" />
-      </template>
-      <v-card-text class="d-flex flex-column align-center pa-3">
-        <v-card
-          class="client-card px-4 py-4 text-center"
-          :class="{ 'missing-selection-pulse': pulseClient }"
-          color="surface-light"
-          elevation="0"
-          min-height="100px"
-          rounded="lg"
-          width="100%"
-          @click="openClientDialog"
-        >
-          <template v-if="clientSelected">
-            <InitialsAvatar :name="client.name" color="grey-darken-1" />
-            <div class="text-subtitle-1 font-weight-bold mt-2">{{ client.name }}</div>
-            <div class="text-caption text-medium-emphasis mt-1">
-              {{ formatLebanesePhone(client.phone) || "Walk-in customer" }}
-            </div>
-          </template>
-          <template v-else>
-            <InitialsAvatar name="?" color="grey" />
-            <div class="text-subtitle-1 font-weight-bold mt-2">Select client</div>
-          </template>
-        </v-card>
-        <div v-if="!isAnonymousClient" class="text-center mt-2">
-          <div>Lifetime: {{ formatLoyaltyPoints(client.totalLoyaltyPoints) }} pt</div>
-          <div>Available: {{ formatLoyaltyPoints(client.validLoyaltyPoints) }} pt</div>
-          <div>Earns: {{ formatLoyaltyPoints(earns) }} pt</div>
+      <template v-if="clientSelected">
+        <InitialsAvatar :name="client.name" color="grey-darken-1" />
+        <div class="text-subtitle-1 font-weight-bold mt-2">{{ client.name }}</div>
+        <div class="text-caption text-medium-emphasis mt-1">
+          {{ formatLebanesePhone(client.phone) || "Walk-in customer" }}
         </div>
-      </v-card-text>
+      </template>
+      <template v-else>
+        <InitialsAvatar name="?" color="grey" />
+        <div class="text-subtitle-1 font-weight-bold mt-2">Select client</div>
+      </template>
     </v-card>
+    <div class="mt-auto pb-2">
     <v-btn
-      class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
+      class="d-flex justify-center align-center mb-2 font-weight-bold"
+      height="77"
       rounded="lg"
       text="Void"
       variant="outlined"
@@ -56,7 +43,8 @@
       </template>
     </v-btn>
     <v-btn
-      class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
+      class="d-flex justify-center align-center mb-2 font-weight-bold"
+      height="77"
       rounded="lg"
       text="Hold"
       variant="outlined"
@@ -70,7 +58,8 @@
       </template>
     </v-btn>
     <v-btn
-      class="d-flex justify-center align-center my-2 flex-grow-1 font-weight-bold"
+      class="d-flex justify-center align-center font-weight-bold"
+      height="96"
       color="green-darken-3"
       rounded="lg"
       text="Check Out"
@@ -84,6 +73,7 @@
         <v-icon icon="mdi-cash" size="25" class="me-2" />
       </template>
     </v-btn>
+    </div>
   </div>
 
   <v-dialog v-model="dialog" max-width="350">
@@ -114,16 +104,16 @@
 import { ref, reactive, computed } from "vue";
 import ClientDialog from "./ClientDialog.vue";
 import InitialsAvatar from "./InitialsAvatar.vue";
+import SalespersonsDialog from "./SalespersonsDialog.vue";
 import {
   anonymousClient,
   formatLoyaltyPoints,
   toClient,
   type Client,
 } from "@/lib/client";
-import { useSalesperson } from "@/composables/useSalesperson";
 import { formatLebanesePhone } from "@/lib/phone";
 
-const emit = defineEmits<{ hold: []; void: []; checkout: [] }>();
+const emit = defineEmits<{ hold: []; void: []; checkout: []; account: []; coupon: [] }>();
 const props = defineProps<{
   total: number;
   canCheckout: boolean;
@@ -148,13 +138,6 @@ function doConfirm() {
 const clientDialog = ref(false);
 const client = reactive<Client>(anonymousClient());
 const clientSelected = ref(false);
-const { selectedSalesperson } = useSalesperson();
-const isAnonymousClient = computed(
-  () => client.id === 0 || /anonymous|walk[\s-]?in/i.test(client.name.trim()),
-);
-
-const earns = computed(() => Math.floor(props.total));
-
 function openClientDialog() {
   if (!props.exchangeMode) clientDialog.value = true;
 }

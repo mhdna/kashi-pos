@@ -15,7 +15,7 @@
 
 <script setup>
 import { onMounted, ref } from "vue";
-import { GetStartupError, GetTheme } from "../wailsjs/go/main/App";
+import { GetStartupError } from "../wailsjs/go/main/App";
 import { useTheme } from "vuetify";
 import { animationsEnabled, isCompactBuild } from "@/lib/display";
 import { EventsOn } from "../wailsjs/runtime/runtime";
@@ -30,8 +30,7 @@ onMounted(async () => {
     startupError.value = await GetStartupError();
     if (startupError.value) return;
 
-    const saved = await GetTheme();
-    if (saved && saved !== "system") theme.change(saved);
+    theme.change("light");
   } catch (error) {
     startupError.value = error instanceof Error ? error.message : String(error);
   } finally {

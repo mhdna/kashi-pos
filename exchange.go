@@ -113,6 +113,8 @@ func databaseInt64(value any) int64 {
 		return n
 	case int:
 		return int64(n)
+	case float64:
+		return int64(n)
 	case []byte:
 		var parsed int64
 		_, _ = fmt.Sscan(string(n), &parsed)

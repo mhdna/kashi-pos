@@ -6,9 +6,7 @@
         @click="open = !open"
       >
         <v-icon :icon="open ? 'mdi-arrow-down' : 'mdi-button-pointer'" size="18" />
-        <span v-show="!open" class="text-caption ms-1">Quick access</span>
       </div>
-      <span v-if="open" class="text-caption font-weight-bold flex-grow-1">Quick access</span>
       <ProductSearchDialog
         v-if="open"
         activator-text=""
@@ -168,7 +166,7 @@ async function confirmRemoval() {
   display: flex;
   flex: 0 0 42px;
   flex-direction: column;
-  margin: 0 8px 8px 16px;
+  margin: 0 8px 8px 8px;
   overflow: hidden;
   transition: none !important;
 }
@@ -178,22 +176,28 @@ async function confirmRemoval() {
 .quick-access:not(.quick-access--open) {
   align-self: flex-start;
   border: 0;
-  margin-left: 16px;
+  margin-left: 8px;
   width: auto;
 }
 .quick-access__toolbar {
   align-items: center;
   display: flex;
-  min-height: 30px;
+  justify-content: space-between;
+  min-height: 24px;
 }
 .quick-access__toggle {
   align-items: center;
   cursor: pointer;
   display: flex;
-  min-height: 28px;
+  min-height: 24px;
   overflow: hidden;
   transition: none !important;
   width: 40px;
+}
+.quick-access__toolbar :deep(.v-btn) {
+  height: 28px !important;
+  min-width: 28px;
+  padding: 0 4px;
 }
 .quick-access:not(.quick-access--open) .quick-access__toggle {
   width: 128px;
@@ -201,13 +205,13 @@ async function confirmRemoval() {
 .quick-access__body {
   min-height: 0;
   overflow-y: auto;
-  padding: 0 8px 8px;
+  padding: 0 8px 4px;
 }
 .quick-access__items {
   display: grid;
   gap: 4px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .quick-access__item {
   cursor: pointer;

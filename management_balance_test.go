@@ -33,6 +33,9 @@ func newBalanceSwapFixture(t *testing.T, total int64) balanceSwapFixture {
 		t.Fatal(err)
 	}
 	store := db.NewStore(database)
+	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
+		t.Fatal(err)
+	}
 	shift, err := store.CreateShift(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -184,6 +187,9 @@ func TestReplaceShiftBalanceMovesNegativeBalanceWithItsSign(t *testing.T) {
 	}
 
 	store := db.NewStore(database)
+	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
+		t.Fatal(err)
+	}
 	shift, err := store.CreateShift(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -233,15 +239,15 @@ func TestReplaceShiftBalanceMovesNegativeBalanceWithItsSign(t *testing.T) {
 	if got[source.ID] != 0 || got[destination.ID] != -1000 {
 		t.Fatalf("balances after negative replacement = source %d, destination %d", got[source.ID], got[destination.ID])
 	}
-	today, err := app.GetTodayIncomeByAccount()
+	currentShift, err := app.GetCurrentShiftIncomeByAccount()
 	if err != nil {
 		t.Fatal(err)
 	}
 	todayBalances := map[int64]int64{}
-	for _, balance := range today {
+	for _, balance := range currentShift {
 		todayBalances[balance["accountId"].(int64)] = int64(balance["total"].(float64))
 	}
 	if todayBalances[source.ID] != 0 || todayBalances[destination.ID] != -1000 {
-		t.Fatalf("today balances after negative replacement = source %d, destination %d", todayBalances[source.ID], todayBalances[destination.ID])
+		t.Fatalf("current shift balances after negative replacement = source %d, destination %d", todayBalances[source.ID], todayBalances[destination.ID])
 	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -326,29 +327,16 @@ func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) 
 		return nil, fmt.Errorf("invalid month %q; use YYYY-MM", yearMonth)
 	}
 	monthStart, _ := time.ParseInLocation("2006-01", yearMonth, time.Local)
-	settings, err := a.store.GetSettings(a.ctx)
-	if err != nil {
-		return nil, err
-	}
 	days := monthStart.AddDate(0, 1, -1).Day()
 	result := make([]map[string]any, 0, days)
 	for day := 1; day <= days; day++ {
 		date := fmt.Sprintf("%s-%02d", yearMonth, day)
-		rows, err := a.incomeAccountTotals(date, "", 0)
+		invoiceTotal, err := a.store.GetInvoiceIncomeTotalByDate(a.ctx, date)
 		if err != nil {
 			return nil, err
 		}
-		var total int64
-		for _, row := range rows {
-			if !isNonCollectedIncomeAccount(row.Name) {
-				total += databaseInt64(row.Total)
-			}
-		}
+		total := databaseInt64(invoiceTotal)
 		if total != 0 {
-			total, err = roundCentsByCurrency(total, settings.ExchangeRate, settings.RoundingCurrency, settings.RoundingMode)
-			if err != nil {
-				return nil, err
-			}
 			result = append(result, map[string]any{"day": date, "total": float64(total)})
 		}
 	}
@@ -359,7 +347,7 @@ func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.incomeAccountTotals(time.Now().Format("2006-01-02"), "", 0)
+	rows, err := a.store.ListInvoiceIncomeAccountTotalsByDate(a.ctx, time.Now().Format("2006-01-02"))
 	if err != nil {
 		return nil, err
 	}
@@ -382,6 +370,32 @@ func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 	return result, nil
 }
 
+func (a *App) GetCurrentShiftIncomeByAccount() ([]map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	shift, err := a.store.GetOpenShift(a.ctx)
+	if err == sql.ErrNoRows {
+		return []map[string]any{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	rows, err := a.store.ListInvoiceIncomeAccountTotalsByShift(a.ctx, shift.ID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]any, len(rows))
+	for i, row := range rows {
+		onAccount := isNonCollectedIncomeAccount(row.Name)
+		result[i] = map[string]any{
+			"accountId": row.ID, "accountName": row.Name, "currencyCode": row.CurrencyCode, "total": float64(databaseInt64(row.Total)),
+			"isOnAccount": onAccount, "isCollected": !onAccount,
+		}
+	}
+	return result, nil
+}
+
 func (a *App) GetCurrentMonth() string {
 	now := time.Now()
 	return now.Format("2006-01")
@@ -395,26 +409,9 @@ func (a *App) GetShiftTotals() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	settings, err := a.store.GetSettings(a.ctx)
-	if err != nil {
-		return nil, err
-	}
 	result := make([]map[string]any, len(rows))
 	for i, r := range rows {
-		balances, balanceErr := a.incomeAccountTotals("", "", r.ID)
-		if balanceErr != nil {
-			return nil, balanceErr
-		}
-		var total int64
-		for _, balance := range balances {
-			if !isNonCollectedIncomeAccount(balance.Name) {
-				total += databaseInt64(balance.Total)
-			}
-		}
-		total, roundErr := roundCentsByCurrency(total, settings.ExchangeRate, settings.RoundingCurrency, settings.RoundingMode)
-		if roundErr != nil {
-			return nil, roundErr
-		}
+		total := databaseInt64(r.Total)
 		result[i] = map[string]any{
 			"id":             r.ID,
 			"isClosed":       r.IsClosed,

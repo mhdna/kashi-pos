@@ -150,24 +150,63 @@ WITH account_totals AS (
     UNION ALL
     SELECT sbr.created_at, sbr.shift_id, sbr.to_cashbox_id, sbr.amount
     FROM shift_balance_replacements sbr
-    UNION ALL
-    SELECT datetime('now', 'localtime'), 0, i.cashbox_id,
-           cae.amount - COALESCE((SELECT SUM(cap.amount)
-                                  FROM client_account_payments cap
-                                  WHERE cap.invoice_id = cae.invoice_id), 0)
-    FROM client_account_entries cae
-    JOIN invoices i ON i.id = cae.invoice_id
-    JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
-    WHERE lower(trim(ca.name)) = 'on account'
-      AND cae.amount > COALESCE((SELECT SUM(cap.amount)
-                                 FROM client_account_payments cap
-                                 WHERE cap.invoice_id = cae.invoice_id), 0)
 )
 SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(t.amount), 0) AS total
 FROM account_totals t
 JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
+JOIN shifts s ON s.id = t.shift_id
 WHERE (sqlc.arg(income_date) = '' OR date(t.created_at, 'localtime') = sqlc.arg(income_date))
   AND (sqlc.arg(income_month) = '' OR strftime('%Y-%m', t.created_at, 'localtime') = sqlc.arg(income_month))
   AND (sqlc.arg(income_shift_id) = 0 OR t.shift_id = sqlc.arg(income_shift_id))
+  AND (lower(trim(ca.name)) <> 'on account' OR date(t.created_at, 'localtime') = date(s.created_at, 'localtime'))
+GROUP BY ca.id, ca.name, ca.currency_code
+ORDER BY ca.name;
+
+-- name: ListInvoiceIncomeAccountTotalsByShift :many
+WITH invoice_totals AS (
+    SELECT ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = sqlc.arg(invoice_income_shift_id)
+    UNION ALL
+    SELECT i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE i.shift_id = sqlc.arg(invoice_income_shift_id)
+      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    UNION ALL
+    SELECT sbr.from_cashbox_id, -sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = sqlc.arg(invoice_income_shift_id)
+    UNION ALL
+    SELECT sbr.to_cashbox_id, sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = sqlc.arg(invoice_income_shift_id)
+)
+SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(invoice_totals.amount), 0) AS total
+FROM invoice_totals
+JOIN cashbox_accounts ca ON ca.id = invoice_totals.cashbox_id
+GROUP BY ca.id, ca.name, ca.currency_code
+ORDER BY ca.name;
+
+-- name: GetInvoiceIncomeTotalByDate :one
+SELECT COALESCE(SUM(grand_total), 0)
+FROM invoices i
+WHERE date(i.created_at, 'localtime') = ?;
+
+-- name: ListInvoiceIncomeAccountTotalsByDate :many
+WITH invoice_totals AS (
+    SELECT i.created_at AS income_date, ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE date(i.created_at, 'localtime') = sqlc.arg(invoice_income_date)
+    UNION ALL
+    SELECT i.created_at AS income_date, i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+      AND date(i.created_at, 'localtime') = sqlc.arg(invoice_income_date)
+)
+SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(invoice_totals.amount), 0) AS total
+FROM invoice_totals
+JOIN cashbox_accounts ca ON ca.id = invoice_totals.cashbox_id
 GROUP BY ca.id, ca.name, ca.currency_code
 ORDER BY ca.name;

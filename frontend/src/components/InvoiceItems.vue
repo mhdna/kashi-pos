@@ -1,5 +1,5 @@
 <template>
-  <div ref="invoiceScroll" class="invoice-items ma-2">
+  <div ref="invoiceScroll" class="invoice-items ms-2 mt-2 mb-2 me-0">
     <div v-for="(item, index) in items" :key="item.barcode || item.code">
       <v-list-item>
         <template v-if="canExpandUnitPrices(item)" #prepend>
@@ -24,29 +24,33 @@
           </span>
         </template>
         <template #append>
-          <div class="invoice-item-actions d-flex align-center ga-1">
-            <NumberPadMenu
-              :model-value="item.qty"
-              :disabled="readonly || item.qty < 0"
-              :min="1"
-              :max="999"
-              aria-label="Edit item quantity"
-              prefix="Qty"
-              @update:model-value="(value) => setQuantity(item, Number(value))"
-            />
-            <NumberPadMenu
-              v-if="customDiscountsEnabled && !readonly && item.qty > 0"
-              :ref="(element) => setDiscountInput(index, element)"
-              :model-value="item.discount"
-              aria-label="Item discount percentage"
-              :min="0"
-              :max="100"
-              suffix="%"
-              tone="error"
-              @update:model-value="(value) => setDraftDiscount(item, value)"
-              @commit="persistDiscount(item)"
-              @navigate="(direction) => saveAndMove(item, index, direction)"
-            />
+          <div class="invoice-item-actions d-flex align-center">
+            <div class="invoice-qty-control">
+              <NumberPadMenu
+                :model-value="item.qty"
+                :disabled="readonly || item.qty < 0"
+                :min="1"
+                :max="999"
+                aria-label="Edit item quantity"
+                prefix="Qty"
+                @update:model-value="(value) => setQuantity(item, Number(value))"
+              />
+            </div>
+            <div class="invoice-discount-control">
+              <NumberPadMenu
+                v-if="customDiscountsEnabled && !readonly && item.qty > 0"
+                :ref="(element) => setDiscountInput(index, element)"
+                :model-value="item.discount"
+                aria-label="Item discount percentage"
+                :min="0"
+                :max="100"
+                suffix="%"
+                tone="error"
+                @update:model-value="(value) => setDraftDiscount(item, value)"
+                @commit="persistDiscount(item)"
+                @navigate="(direction) => saveAndMove(item, index, direction)"
+              />
+            </div>
             <NumberPadMenu
               v-if="customPricesEnabled && !readonly && item.qty > 0"
               :model-value="item.price.toFixed(2)"
@@ -61,7 +65,7 @@
               <template #activator="{ props: activatorProps }">
                 <button
                   v-bind="activatorProps"
-                  class="invoice-price-editor d-flex flex-column align-end"
+                  class="invoice-price-editor invoice-price-control d-flex flex-column align-end"
                   type="button"
                   aria-label="Set custom item price"
                   title="Set custom item price"
@@ -75,7 +79,7 @@
                 </button>
               </template>
             </NumberPadMenu>
-            <div v-else class="d-flex flex-column align-end" style="flex: 1 1 auto">
+            <div v-else class="invoice-price-control d-flex flex-column align-end">
               <span class="text-caption text-medium-emphasis">
                 ${{ item.price.toFixed(2) }}
               </span>
@@ -88,9 +92,11 @@
                 >${{ totalAfterDiscount(item).toFixed(2) }}</span
               >
             </div>
-            <v-btn v-if="!readonly" variant="text" rounded size="small" @click="removeItem(item)">
-              <v-icon icon="mdi-delete" size="18" color="grey" />
-            </v-btn>
+            <div class="invoice-delete-control">
+              <v-btn v-if="!readonly" variant="text" rounded size="small" @click="removeItem(item)">
+                <v-icon icon="mdi-delete" size="18" color="grey" />
+              </v-btn>
+            </div>
           </div>
         </template>
       </v-list-item>
@@ -156,6 +162,8 @@ interface LineItem {
   size?: string;
   category: string;
   price: number;
+  soldUnitPrice?: number;
+  soldUnitDiscount?: number;
   unitPrices?: number[];
   unitDiscounts?: number[];
   discount: number;
@@ -289,16 +297,18 @@ function addItem(item: LineItem) {
   }
 }
 
-function addExchangeItems(returned: LineItem, replacements: LineItem[]) {
+function addExchangeItems(returned: LineItem[], replacements: LineItem[]) {
   items.value = [
-    {
-      ...returned,
-      price: Number(returned.price),
+    ...returned.map((item) => ({
+      ...item,
+      price: Number(item.price),
       discount: 0,
-      qty: -1,
+      qty: -Number(item.qty || 1),
+      soldUnitPrice: Number(item.soldUnitPrice ?? item.price),
+      soldUnitDiscount: Number(item.soldUnitDiscount ?? item.discount),
       unitPrices: [],
       unitDiscounts: [],
-    },
+    })),
     ...replacements.map((item) => ({
       ...item,
       price: Number(item.price),
@@ -491,7 +501,38 @@ defineExpose({
 
 <style scoped>
 .invoice-item-actions {
-  min-width: 280px;
+  justify-content: flex-end;
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+.invoice-qty-control,
+.invoice-discount-control,
+.invoice-delete-control {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+.invoice-qty-control {
+  width: 56px;
+}
+
+.invoice-discount-control {
+  width: 44px;
+}
+
+.invoice-delete-control {
+  width: 40px;
+}
+
+.invoice-items :deep(.v-list-item__content) {
+  min-width: 0;
+}
+
+.invoice-items :deep(.v-list-item__append) {
+  justify-content: flex-end;
+  margin-inline-start: auto;
 }
 
 .invoice-items {
@@ -529,6 +570,11 @@ defineExpose({
   flex: 1 1 auto;
   min-height: 36px;
   padding: 2px 5px;
+}
+
+.invoice-price-control {
+  flex: 0 0 72px;
+  width: 72px;
 }
 
 .invoice-price-editor:hover,

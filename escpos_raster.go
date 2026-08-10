@@ -240,7 +240,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if len(c.data.Payments) > 0 {
 		y = c.rule(y) + 10
 	}
-	y, _ = c.center(y, "RETURN & EXCHANGE POLICY", c.data.BodySize-1.5, true, false)
+	y, _ = c.center(y, "EXCHANGE POLICY", c.data.BodySize-1.5, true, false)
 	y += 8
 	policy := c.data.ReturnPolicy
 	if policy == "" {

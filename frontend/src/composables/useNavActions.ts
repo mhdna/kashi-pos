@@ -6,6 +6,10 @@ export const pendingNavAction = ref<"onhold" | "exchange" | null>(null);
 export interface PendingHoldInvoice {
   id: number;
   items: any[];
+  client?: any;
+  salesperson?: any;
+  calculator?: any;
+  notes?: string;
 }
 
 export const pendingHoldInvoice = ref<PendingHoldInvoice | null>(null);

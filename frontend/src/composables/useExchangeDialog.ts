@@ -20,7 +20,7 @@ export function useExchangeDialog(roundingMode: () => string) {
   const invoiceCode = ref("");
   const scanValue = ref("");
   const invoice = ref<ExchangeInvoice | null>(null);
-  const returned = ref<ExchangeItem | null>(null);
+  const returned = ref<ExchangeItem[]>([]);
   const replacements = ref<ExchangeItem[]>([]);
   const invoiceError = ref("");
   const scanError = ref("");
@@ -33,7 +33,7 @@ export function useExchangeDialog(roundingMode: () => string) {
     replacementTotal(replacements.value, roundingMode()),
   );
   const returnedTotal = computed(() =>
-    returned.value ? effectiveExchangePrice(returned.value, roundingMode()) : 0,
+    returned.value.reduce((total, item) => total + effectiveExchangePrice(item, roundingMode()), 0),
   );
   const exchangeDifference = computed(() =>
     Math.max(0, replacementsTotal.value - returnedTotal.value),
@@ -70,7 +70,7 @@ export function useExchangeDialog(roundingMode: () => string) {
           available: Number(item.available),
         })),
       };
-      returned.value = null;
+      returned.value = [];
       replacements.value = [];
       scanValue.value = "";
       focusScanInput();
@@ -84,15 +84,27 @@ export function useExchangeDialog(roundingMode: () => string) {
   }
 
   function selectReturned(item: ExchangeItem) {
-    returned.value = {
-      ...item,
-      soldUnitPrice: Number(item.price),
-      soldUnitDiscount: Number(item.discount),
-      price: effectiveExchangePrice(item, roundingMode()),
-      discount: 0,
-      qty: -1,
-    };
-    replacements.value = [];
+    const existing = returned.value.find(
+      (candidate) => normalizeExchangeCode(candidate.code) === normalizeExchangeCode(item.code)
+        && candidate.soldUnitPrice === Number(item.price) && candidate.soldUnitDiscount === Number(item.discount),
+    );
+    if (existing) {
+      if (Number(existing.qty || 1) >= Number(item.available || 1)) {
+        scanError.value = "All available units of this item are already selected.";
+        return;
+      }
+      existing.qty = Number(existing.qty || 1) + 1;
+    } else {
+      returned.value.push({
+        ...item,
+        soldUnitPrice: Number(item.price),
+        soldUnitDiscount: Number(item.discount),
+        price: effectiveExchangePrice(item, roundingMode()),
+        discount: 0,
+        qty: 1,
+      });
+    }
+    if (replacements.value.length === 0) replacements.value = [];
     scanError.value = "";
     scanValue.value = "";
     focusScanInput();
@@ -103,7 +115,7 @@ export function useExchangeDialog(roundingMode: () => string) {
     if (!value || scanning.value) return;
     scanError.value = "";
 
-    if (!returned.value) {
+    if (returned.value.length === 0) {
       const scanned = normalizeExchangeCode(value);
       const item = invoice.value?.items.find(
         (candidate) =>
@@ -136,8 +148,7 @@ export function useExchangeDialog(roundingMode: () => string) {
 
   function addReplacementProduct(product: ExchangeItem) {
     if (
-      returned.value &&
-      normalizeExchangeCode(product.code) === normalizeExchangeCode(returned.value.code)
+      returned.value.some((item) => normalizeExchangeCode(product.code) === normalizeExchangeCode(item.code))
     ) {
       scanError.value = "Choose a different product as the replacement.";
       return false;
@@ -161,14 +172,30 @@ export function useExchangeDialog(roundingMode: () => string) {
     return true;
   }
 
+  function selectReplacementProduct(product: Partial<ExchangeItem> & Pick<ExchangeItem, "code" | "name" | "price" | "discount">) {
+    return addReplacementProduct({
+      ...product,
+      barcode: product.barcode ?? "",
+      qty: 1,
+    });
+  }
+
   function removeReplacement(code: string) {
     replacements.value = replacements.value.filter((item) => item.code !== code);
     focusScanInput();
   }
 
+  function removeReturned(code: string, price: number, discount: number) {
+    returned.value = returned.value.filter(
+      (item) => !(normalizeExchangeCode(item.code) === normalizeExchangeCode(code)
+        && item.soldUnitPrice === price && item.soldUnitDiscount === discount),
+    );
+    focusScanInput();
+  }
+
   function changeInvoice() {
     invoice.value = null;
-    returned.value = null;
+    returned.value = [];
     replacements.value = [];
     scanValue.value = "";
     scanError.value = "";
@@ -177,11 +204,11 @@ export function useExchangeDialog(roundingMode: () => string) {
   }
 
   function createSelection(): ExchangeSelection | null {
-    if (!invoice.value || !returned.value || !hasEnoughReplacementValue.value) return null;
+    if (!invoice.value || returned.value.length === 0 || !hasEnoughReplacementValue.value) return null;
     return {
       originalInvoiceId: invoice.value.id,
       client: { ...invoice.value.client },
-      returned: { ...returned.value },
+      returned: returned.value.map((item) => ({ ...item })),
       replacements: replacements.value.map((item) => ({ ...item })),
     };
   }
@@ -189,7 +216,7 @@ export function useExchangeDialog(roundingMode: () => string) {
   function clearForm() {
     invoiceCode.value = "";
     invoice.value = null;
-    returned.value = null;
+    returned.value = [];
     replacements.value = [];
     scanValue.value = "";
     invoiceError.value = "";
@@ -218,7 +245,9 @@ export function useExchangeDialog(roundingMode: () => string) {
     loadInvoice,
     selectReturned,
     scanItem,
+    selectReplacementProduct,
     removeReplacement,
+    removeReturned,
     changeInvoice,
     createSelection,
     clearForm,

@@ -221,12 +221,14 @@ func createExchangeInvoice(a *App, q *db.Queries, cashbox db.CashboxAccount, shi
 }
 
 func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64, priced pricedExchange) error {
-	if err := q.CreateInvoiceProduct(a.ctx, db.CreateInvoiceProductParams{
-		InvoiceID: invoiceID, ProductID: priced.returnedProduct.ID,
-		UnitPrice: priced.returnedLine.UnitPrice, LineTotal: -priced.returnedTotal,
-		Discount: priced.returnedLine.Discount, Quantity: -1,
-	}); err != nil {
-		return err
+	for _, returned := range priced.returned {
+		if err := q.CreateInvoiceProduct(a.ctx, db.CreateInvoiceProductParams{
+			InvoiceID: invoiceID, ProductID: returned.product.ID,
+			UnitPrice: returned.line.UnitPrice, LineTotal: -returned.lineTotal,
+			Discount: returned.line.Discount, Quantity: -returned.qty,
+		}); err != nil {
+			return err
+		}
 	}
 	// Inventory mutation is temporarily disabled during checkout.
 	// Stock will be reconciled by the inventory workflow separately.

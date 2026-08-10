@@ -15,7 +15,7 @@
       @click:row="openInvoiceRow"
     >
       <template #item.invoiceCode="{ item }">
-        <span class="font-weight-bold">{{ item.invoiceCode || `Invoice #${item.id}` }}</span>
+        <span class="font-weight-bold">{{ shortInvoiceCode(item.invoiceCode, item.id) }}</span>
       </template>
       <template #item.clientId="{ item }">
         {{ item.clientName || "Walk-in customer" }}
@@ -464,6 +464,15 @@ function formatDate(value?: string) {
     `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
     `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`,
   ].join(" ");
+}
+function shortInvoiceCode(value?: string, id?: number) {
+  const parts = String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .split("/")
+    .filter(Boolean);
+  if (parts.length >= 2) return `${parts[0]}/${parts[parts.length - 1]}`;
+  return parts[0] || `Invoice #${id}`;
 }
 const headers = [
   { title: "Invoice", key: "invoiceCode" },

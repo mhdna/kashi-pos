@@ -70,24 +70,9 @@ RETURNING account_id, shift_id, balance;
 -- name: GetShiftTotals :many
 SELECT s.id, s.is_closed, s.created_at, s.closed_at,
        COALESCE((
-           SELECT SUM(value) FROM (
-               SELECT ip.amount AS value
-               FROM invoices income_i
-               JOIN invoice_payments ip ON ip.invoice_id = income_i.id
-               JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
-               WHERE income_i.shift_id = s.id AND lower(trim(ca.name)) <> 'on account'
-               UNION ALL
-               SELECT income_i.grand_total AS value
-               FROM invoices income_i
-               JOIN cashbox_accounts ca ON ca.id = income_i.cashbox_id
-               WHERE income_i.shift_id = s.id
-                 AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = income_i.id)
-                 AND lower(trim(ca.name)) <> 'on account'
-               UNION ALL
-               SELECT cap.amount AS value
-               FROM client_account_payments cap
-               WHERE cap.shift_id = s.id
-           )
+           SELECT SUM(i.grand_total)
+           FROM invoices i
+           WHERE i.shift_id = s.id
        ), 0) as total,
        COALESCE((
            SELECT SUM(MAX(p.price - ip.unit_price, 0) * ip.quantity)

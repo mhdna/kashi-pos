@@ -1,5 +1,5 @@
 -- name: CreateHoldInvoice :one
-INSERT INTO hold_invoices DEFAULT VALUES RETURNING *;
+INSERT INTO hold_invoices (snapshot_json) VALUES (?) RETURNING *;
 
 -- name: AddHoldInvoiceItem :exec
 INSERT INTO hold_invoice_items (hold_invoice_id, product_id, qty) VALUES (?, ?, ?);

@@ -13,6 +13,16 @@
     </v-card>
 
     <CalculatorKeypad @digit="appendDigit" @backspace="backspace" @clear="clearInput" />
+    <div class="d-flex ga-2 mt-3 mb-2">
+      <v-btn class="calculator-action-button py-0" variant="tonal" :disabled="!hasItems || exchangeMode" @click="emit('account')">
+        <v-icon icon="mdi-account" size="18" class="me-1" />
+        On Account
+      </v-btn>
+      <v-btn class="calculator-action-button py-0" variant="tonal" :disabled="exchangeMode" @click="emit('coupon')">
+        <v-icon icon="mdi-sale-outline" size="18" class="me-1" />
+        Coupon
+      </v-btn>
+    </div>
     <CalculatorPaymentMethods
       :methods="paymentMethods.filter((method) => !['on coupon', 'on account'].includes(method.name.toLowerCase()))"
       :model-value="activeMethod"
@@ -80,7 +90,10 @@ interface Entry {
 
 const DEFAULT_EXCHANGE_RATE = 90000;
 const DEFAULT_USD_RATE = 100;
-const props = defineProps<{ total: number; roundingMode?: string; roundingCurrency?: string; clientId?: number }>();
+const props = defineProps<{ total: number; roundingMode?: string; roundingCurrency?: string; clientId?: number; hasItems?: boolean; exchangeMode?: boolean }>();
+const emit = defineEmits<{ account: []; coupon: [] }>();
+const hasItems = computed(() => Boolean(props.hasItems));
+const exchangeMode = computed(() => Boolean(props.exchangeMode));
 const roundingMode = computed(() => props.roundingMode ?? "half_up");
 const paymentMethods = ref<PaymentMethod[]>([]);
 const currencies = ref<Currency[]>([]);
@@ -306,6 +319,27 @@ function clearAll() {
   activeMethod.value = paymentMethods.value.find((m) => m.currencyCode === "USD")?.name ?? "USD";
 }
 
+function holdState() {
+  return {
+    currentInput: currentInput.value,
+    activeMethod: activeMethod.value,
+    entries: entries.value.map((entry) => ({ ...entry })),
+  };
+}
+
+function restoreHoldState(state: any) {
+  currentInput.value = String(state?.currentInput ?? "");
+  activeMethod.value = String(state?.activeMethod ?? paymentMethods.value[0]?.name ?? "");
+  entries.value = Array.isArray(state?.entries)
+    ? state.entries.map((entry: any) => ({
+        ...entry,
+        amount: Number(entry.amount),
+        amountCents: Number(entry.amountCents),
+        accountId: Number(entry.accountId),
+      }))
+    : [];
+}
+
 const paymentsJSON = computed(() => {
   return JSON.stringify(entries.value.map((entry) => ({
     accountId: entry.accountId,
@@ -325,8 +359,17 @@ defineExpose({
   selectMethodAndConfirm,
   addOnAccount,
   openCouponDialog,
+  holdState,
+  restoreHoldState,
 });
 </script>
+
+<style scoped>
+.calculator-action-button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+</style>
 
 <style scoped>
 .calculator-display {

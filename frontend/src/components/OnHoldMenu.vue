@@ -8,10 +8,18 @@
 
   <v-dialog v-model="menu" max-width="500">
     <v-card class="d-flex flex-column text-center" min-height="200">
-      <v-card-title>Invoices On Hold</v-card-title>
+      <v-card-title class="d-flex justify-center pa-4">
+        <v-btn
+          aria-label="Invoices on hold"
+          color="primary"
+          icon="mdi-pause"
+          size="64"
+          variant="tonal"
+        />
+      </v-card-title>
       <v-card-text class="pa-0 flex-grow-1 overflow-y-auto">
         <v-list v-if="holds.length" max-height="300">
-          <v-list-item v-for="h in holds" :key="h.id" @click="restoreHold(h.id, h.items)">
+          <v-list-item v-for="h in holds" :key="h.id" @click="restoreHold(h)">
             <v-list-item-title>#{{ h.id }} — {{ h.itemCount }} items</v-list-item-title>
             <v-list-item-subtitle>{{ h.createdAt?.slice(0, 19) }}</v-list-item-subtitle>
             <template #append>
@@ -32,7 +40,7 @@ import { ref, watch } from "vue";
 import { ListHoldInvoices, DeleteHoldInvoice } from "../../wailsjs/go/main/App";
 
 defineProps<{ hideActivator?: boolean }>();
-const emit = defineEmits<{ restore: [id: number, items: any[]] }>();
+const emit = defineEmits<{ restore: [hold: any] }>();
 
 const menu = ref(false);
 const holds = ref<any[]>([]);
@@ -42,9 +50,9 @@ defineExpose({ open: () => { menu.value = true; }, close: () => { menu.value = f
 async function load() {
   holds.value = await ListHoldInvoices();
 }
-function restoreHold(id: number, items: any[]) {
-  emit("restore", id, items);
-  holds.value = holds.value.filter((h) => h.id !== id);
+function restoreHold(hold: any) {
+  emit("restore", hold);
+  holds.value = holds.value.filter((h) => h.id !== hold.id);
   if (!holds.value.length) menu.value = false;
 }
 async function removeHold(id: number) {
