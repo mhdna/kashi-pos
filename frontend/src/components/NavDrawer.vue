@@ -1,5 +1,9 @@
 <template>
-  <v-navigation-drawer permanent width="72" class="nav-drawer bg-blue-darken-4 rounded-e-xl border-0">
+  <v-navigation-drawer
+    permanent
+    width="72"
+    class="nav-drawer bg-blue-darken-4 rounded-e-xl border-0"
+  >
     <v-list class="d-flex flex-column fill-height pa-0" nav>
       <v-list-item
         v-for="item in items"
