@@ -34,7 +34,7 @@
     </v-list>
   </v-navigation-drawer>
 
-  <v-dialog v-model="closeShiftDialog" max-width="900">
+  <v-dialog v-model="closeShiftDialog" fullscreen>
     <close-shift-card @close="closeShiftDialog = false" />
   </v-dialog>
 </template>
@@ -110,7 +110,7 @@ const items = computed(() => {
 
 <style scoped>
 .nav-drawer {
-  background-color: #082f68 !important;
+  background-color: #36136b !important;
   border-radius: 0 40px 40px 0 !important;
 }
 
@@ -144,8 +144,6 @@ const items = computed(() => {
 }
 
 .close-shift-item {
-  background-color: rgb(var(--v-theme-error));
   border-radius: 0 0 40px 0;
-  color: rgb(var(--v-theme-on-error));
 }
 </style>

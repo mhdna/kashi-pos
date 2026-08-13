@@ -152,7 +152,7 @@
     <v-card-actions class="pa-2 ga-2">
       <v-btn variant="text" @click="emit('close')">Cancel</v-btn>
       <v-btn
-        color="red-darken-4"
+        color="primary"
         variant="elevated"
         :loading="closing"
         :disabled="!formValid"

@@ -1,8 +1,6 @@
 <template>
   <ClientDialog v-model="clientDialog" @select="onClientSelect" />
   <div class="d-flex flex-column w-100 h-100 px-4">
-    <div class="text-caption text-medium-emphasis text-center mt-2">Salesperson</div>
-    <SalespersonsDialog />
     <div class="text-caption text-medium-emphasis text-center mt-2">Client</div>
     <v-card
       class="client-card px-4 py-4 my-2 text-center"
@@ -104,7 +102,6 @@
 import { ref, reactive, computed } from "vue";
 import ClientDialog from "./ClientDialog.vue";
 import InitialsAvatar from "./InitialsAvatar.vue";
-import SalespersonsDialog from "./SalespersonsDialog.vue";
 import {
   anonymousClient,
   formatLoyaltyPoints,
