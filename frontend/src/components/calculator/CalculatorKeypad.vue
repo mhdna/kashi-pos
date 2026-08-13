@@ -50,7 +50,7 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   width: 100%;
-  max-width: 216px;
+  max-width: 280px;
   justify-self: end;
   gap: 8px;
 }
@@ -60,12 +60,13 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
   gap: 6px;
 }
 .keypad-button {
-  min-height: 44px;
+  min-height: 58px;
   border-radius: 12px;
   font-variant-numeric: tabular-nums;
+  font-size: 1.5rem !important;
 }
 .keypad-number {
-  min-height: 40px;
+  min-height: 54px;
   min-width: 0;
   padding-inline: 6px;
 }
@@ -78,6 +79,6 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
   .calculator-keypad { column-gap: 8px; }
   .keypad-numbers { gap: 5px; }
   .keypad-actions { gap: 4px; }
-  .keypad-button { min-height: 36px; border-radius: 9px; }
+  .keypad-button { min-height: 48px; border-radius: 9px; font-size: 1.3rem !important; }
 }
 </style>

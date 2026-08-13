@@ -12,7 +12,7 @@
         <div class="calculator-entry-row d-flex align-center justify-space-between px-1">
           <span class="calculator-entry-text text-caption">{{ item.type }}</span>
           <span
-            class="calculator-entry-text text-caption font-weight-bold mr-2"
+            class="calculator-entry-text calculator-entry-amount text-caption font-weight-bold mr-2"
             :class="item.amount >= 0 ? 'text-green-darken-3' : 'text-red-darken-4'"
           >
             {{ item.amount >= 0 ? "+" : "" }}{{ formatAmount(item.amount) }}
@@ -67,5 +67,8 @@ watch(
 .calculator-entry-text {
   font-size: var(--kashi-font-size-sm);
   line-height: 1.1;
+}
+.calculator-entry-amount {
+  font-size: 1.3rem;
 }
 </style>

@@ -1,12 +1,12 @@
 <template>
   <v-card class="calculator-total-summary pa-3 mb-3" variant="outlined" rounded="lg">
-    <div class="d-flex justify-space-between text-caption">
+    <div class="d-flex justify-space-between align-center text-body-2">
       <span class="text-medium-emphasis">Total USD:</span>
-      <span>{{ totalSummary.usd }}</span>
+      <strong class="calculator-total-value">{{ totalSummary.usd }}</strong>
     </div>
-    <div class="d-flex justify-space-between text-caption">
+    <div class="d-flex justify-space-between align-center text-body-2">
       <span class="text-medium-emphasis">Total LBP:</span>
-      <span>{{ totalSummary.lbp }}</span>
+      <strong class="calculator-total-value">{{ totalSummary.lbp }}</strong>
     </div>
     <!-- <div class="d-flex justify-space-between text-caption"> -->
     <!--   <span class="text-medium-emphasis">Split:</span> -->
@@ -48,10 +48,14 @@ defineProps<{
 .calculator-total-summary {
   border-color: rgba(var(--v-theme-on-surface), 0.18);
 }
+.calculator-total-value {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
 .calculator-amounts {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  height: 56px;
+  height: 72px;
   align-items: center;
   column-gap: 12px;
   row-gap: 2px;
@@ -64,8 +68,8 @@ defineProps<{
   grid-column: 1 / -1;
   line-height: 1;
   text-align: center;
-  font-size: var(--kashi-font-size-sm);
-  font-weight: 500;
+  font-size: 1.1rem;
+  font-weight: 600;
 }
 .calculator-amount {
   display: flex;
@@ -89,12 +93,12 @@ defineProps<{
   padding: 0;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  font-size: var(--kashi-font-size-lg);
+  font-size: 1.3rem;
 }
 .calculator-amounts-plus {
   align-self: center;
   color: rgba(var(--v-theme-on-surface), 0.55);
-  font-size: var(--kashi-font-size-lg);
+  font-size: 1.5rem;
   font-weight: 700;
 }
 </style>

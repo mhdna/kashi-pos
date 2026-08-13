@@ -1,40 +1,34 @@
 <template>
   <ClientDialog v-model="clientDialog" @select="onClientSelect" />
-  <div class="d-flex flex-column w-100 h-100 px-4">
-    <div class="text-caption text-medium-emphasis text-center mt-2">Salesperson</div>
-    <SalespersonsDialog />
-    <div class="text-caption text-medium-emphasis text-center mt-2">Client</div>
+  <div class="action-bar d-flex align-center ga-2 w-100 px-3 pb-3">
     <v-card
-      class="client-card px-4 py-4 my-2 text-center"
+      class="client-card px-3 py-2 text-center"
       :class="{ 'missing-selection-pulse': pulseClient }"
       color="surface-light"
       elevation="0"
-      min-height="100px"
+      height="88"
       rounded="lg"
-      width="100%"
       @click="openClientDialog"
     >
       <template v-if="clientSelected">
-        <InitialsAvatar :name="client.name" color="grey-darken-1" />
-        <div class="text-subtitle-1 font-weight-bold mt-2">{{ client.name }}</div>
-        <div class="text-caption text-medium-emphasis mt-1">
+        <InitialsAvatar :name="client.name" color="grey-darken-1" :size="30" />
+        <div class="text-body-2 font-weight-bold mt-1">{{ client.name }}</div>
+        <div class="text-caption text-medium-emphasis">
           {{ formatLebanesePhone(client.phone) || "Walk-in customer" }}
         </div>
       </template>
       <template v-else>
-        <InitialsAvatar name="?" color="grey" />
-        <div class="text-subtitle-1 font-weight-bold mt-2">Select client</div>
+        <InitialsAvatar name="?" color="grey" :size="30" />
+        <div class="text-body-2 font-weight-bold mt-1">Select client</div>
       </template>
     </v-card>
-    <div class="mt-auto pb-2">
     <v-btn
-      class="d-flex justify-center align-center mb-2 font-weight-bold"
-      height="77"
+      class="action-button d-flex justify-center align-center font-weight-bold"
+      height="88"
       rounded="lg"
       text="Void"
       variant="outlined"
       style="color: rgba(var(--v-theme-on-surface), 0.7); border-color: rgba(var(--v-theme-on-surface), 0.18) !important"
-      width="100%"
       @click="ask('void')"
       :disabled="!hasItems || exchangeMode"
     >
@@ -43,13 +37,12 @@
       </template>
     </v-btn>
     <v-btn
-      class="d-flex justify-center align-center mb-2 font-weight-bold"
-      height="77"
+      class="action-button d-flex justify-center align-center font-weight-bold"
+      height="88"
       rounded="lg"
       text="Hold"
       variant="outlined"
       style="color: rgba(var(--v-theme-on-surface), 0.7); border-color: rgba(var(--v-theme-on-surface), 0.18) !important"
-      width="100%"
       @click="ask('hold')"
       :disabled="!hasItems || exchangeMode"
     >
@@ -58,14 +51,13 @@
       </template>
     </v-btn>
     <v-btn
-      class="d-flex justify-center align-center font-weight-bold"
-      height="96"
+      class="action-button checkout-button d-flex justify-center align-center font-weight-bold"
+      height="88"
       color="green-darken-3"
       rounded="lg"
       text="Check Out"
       variant="outlined"
       style="background-color: rgba(var(--v-theme-success), 0.24); border-color: rgba(var(--v-theme-success), 0.3) !important"
-      width="100%"
       @click="$emit('checkout')"
       :disabled="!hasItems || !canCheckout"
     >
@@ -73,7 +65,6 @@
         <v-icon icon="mdi-cash" size="25" class="me-2" />
       </template>
     </v-btn>
-    </div>
   </div>
 
   <v-dialog v-model="dialog" max-width="350">
@@ -104,7 +95,6 @@
 import { ref, reactive, computed } from "vue";
 import ClientDialog from "./ClientDialog.vue";
 import InitialsAvatar from "./InitialsAvatar.vue";
-import SalespersonsDialog from "./SalespersonsDialog.vue";
 import {
   anonymousClient,
   formatLoyaltyPoints,
@@ -168,7 +158,10 @@ defineExpose({
 
 <style scoped>
 .client-card {
-  min-height: 96px;
+  flex: 1 1 0;
+  width: auto !important;
+  min-width: 100px;
+  height: 88px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -178,6 +171,15 @@ defineExpose({
   transition:
     background-color 120ms ease,
     border-color 120ms ease;
+}
+
+.action-button {
+  flex: 1 1 0;
+  min-width: 100px;
+}
+
+.checkout-button {
+  flex: 1 1 0;
 }
 
 .client-card:hover {
