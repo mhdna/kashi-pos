@@ -100,7 +100,7 @@ const items = computed(() => {
       to: "/attendance",
       icon: "mdi-account-multiple",
       t: "Attend",
-      // locked: true,
+      locked: true,
     },
     { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
   ];

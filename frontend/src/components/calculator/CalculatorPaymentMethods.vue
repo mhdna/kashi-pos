@@ -14,9 +14,9 @@
       @keydown.enter="$emit('select', method.name)"
       @keydown.space.prevent="$emit('select', method.name)"
     >
-      <v-card-text class="text-center py-3 px-2">
-        <div class="calculator-method-name font-weight-bold">{{ method.displayName }}</div>
-        <div class="calculator-method-currency text-medium-emphasis">{{ method.currencyCode }}</div>
+      <v-card-text class="text-center py-2 px-1">
+        <div class="text-caption font-weight-bold">{{ method.displayName }}</div>
+        <div class="text-caption text-medium-emphasis">{{ method.currencyCode }}</div>
       </v-card-text>
     </v-card>
   </div>
@@ -34,23 +34,16 @@ defineEmits<{ select: [methodName: string] }>();
 
 <style scoped>
 .calculator-types {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 8px;
 }
 .calculator-type-card {
-  min-height: 64px;
   cursor: pointer;
   border: 1px solid rgba(var(--v-border-color), 0.18);
   transition:
     border-color 120ms ease,
     background-color 120ms ease;
-}
-.calculator-method-name {
-  font-size: 1.3rem;
-}
-.calculator-method-currency {
-  font-size: 1rem;
 }
 .calculator-type-card:hover {
   border-color: currentColor;

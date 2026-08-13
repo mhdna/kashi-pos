@@ -11,8 +11,7 @@
             <v-card-subtitle class="pa-0">{{ invoiceCode }}</v-card-subtitle>
           </div>
           <div class="d-flex flex-column align-end">
-            <div class="invoice-header-actions d-flex align-center">
-              <SalespersonsDialog />
+            <div class="d-flex">
               <v-menu v-model="noteMenu" :close-on-content-click="false" location="bottom end">
                 <template #activator="{ props }">
                   <v-btn v-bind="props" icon size="small" variant="text" aria-label="Invoice note">
@@ -83,7 +82,7 @@
         :tax-rate="taxRate"
       /> -->
     </div>
-    <div class="home-right-pane d-flex flex-column position-relative" style="flex: 5 5 0; min-width: 0">
+    <div class="home-right-pane d-flex position-relative" style="flex: 5 5 0; min-width: 0">
       <div
         v-if="!hasItems"
         class="position-absolute d-flex align-center justify-center"
@@ -102,7 +101,7 @@
           <div class="text-body-2">Scan a barcode or add products to begin</div>
         </v-card>
       </div>
-      <div class="mb-1 mt-1" style="flex: 1 1 0; min-height: 0; min-width: 0">
+      <div class="mb-3 mt-1" style="flex: 3 3 0; min-width: 0">
         <Calculator
           ref="calculator"
           :total="invoiceTotal"
@@ -115,8 +114,8 @@
           @coupon="calculator?.openCouponDialog()"
         />
       </div>
-      <v-divider class="mx-3" />
-      <div style="flex: 0 0 auto; min-width: 0">
+      <v-divider vertical class="ms-4 me-0" />
+      <div style="flex: 2 2 0; min-width: 0">
         <ActionBar
           ref="actionBar"
           :total="invoiceTotal"
@@ -177,7 +176,6 @@ import InvoiceItems from "@/components/InvoiceItems.vue";
 // import InvoiceSummary from "@/components/InvoiceSummary.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
-import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { roundCents, roundCentsByCurrency } from "@/lib/money";
@@ -675,11 +673,6 @@ onBeforeUnmount(() => {
 
 .home-page .bg-surface-light {
   background-color: rgba(var(--v-theme-on-surface), 0.04) !important;
-}
-
-.invoice-header-actions .salesperson-card {
-  width: 150px !important;
-  margin: 0 4px !important;
 }
 
 .app-snackbar .v-snackbar__wrapper {

@@ -1,46 +1,39 @@
 <template>
   <div class="calculator-shell w-100 h-100 mx-2 px-2 py-2 rounded-xl my-1">
-    <div class="calculator-layout d-flex ga-3 h-100">
-      <div class="calculator-main">
-        <CalculatorStatus
-          :payment-status="paymentStatus"
-          :status-color="statusColor"
-          :show-ready-state="showReadyState"
-          :remaining-amount="remainingAmount"
-          :total-summary="totalSummary"
-        />
+    <CalculatorStatus
+      :payment-status="paymentStatus"
+      :status-color="statusColor"
+      :show-ready-state="showReadyState"
+      :remaining-amount="remainingAmount"
+      :total-summary="totalSummary"
+    />
 
-        <v-card class="calculator-display pa-2 mb-3" variant="outlined" rounded="lg">
-          <span class="text-h5 font-weight-bold">{{ displayValue }}</span>
-        </v-card>
+    <v-card class="calculator-display pa-2 mb-3" variant="outlined" rounded="lg">
+      <span class="text-h5 font-weight-bold">{{ displayValue }}</span>
+    </v-card>
 
-        <CalculatorKeypad @digit="appendDigit" @backspace="backspace" @clear="clearInput" />
-        <div class="d-flex ga-2 mt-3 mb-2">
-          <v-btn class="calculator-action-button py-0" variant="tonal" :disabled="!hasItems || exchangeMode" @click="emit('account')">
-            <v-icon icon="mdi-account" size="18" class="me-1" />
-            On Account
-          </v-btn>
-          <v-btn class="calculator-action-button py-0" variant="tonal" :disabled="exchangeMode" @click="emit('coupon')">
-            <v-icon icon="mdi-sale-outline" size="18" class="me-1" />
-            Coupon
-          </v-btn>
-        </div>
-      </div>
-      <div class="calculator-entries-panel">
-        <CalculatorEntries
-          :entries="entries"
-          :format-amount="formatEntryAmount"
-          :currency-symbol-for="currencySymbolFor"
-          @remove="removeEntry"
-        />
-        <CalculatorPaymentMethods
-          class="me-2"
-          :methods="paymentMethods.filter((method) => !['on coupon', 'on account'].includes(method.name.toLowerCase()))"
-          :model-value="activeMethod"
-          @select="selectMethodAndConfirm"
-        />
-      </div>
+    <CalculatorKeypad @digit="appendDigit" @backspace="backspace" @clear="clearInput" />
+    <div class="d-flex ga-2 mt-3 mb-2">
+      <v-btn class="calculator-action-button py-0" variant="tonal" :disabled="!hasItems || exchangeMode" @click="emit('account')">
+        <v-icon icon="mdi-account" size="18" class="me-1" />
+        On Account
+      </v-btn>
+      <v-btn class="calculator-action-button py-0" variant="tonal" :disabled="exchangeMode" @click="emit('coupon')">
+        <v-icon icon="mdi-sale-outline" size="18" class="me-1" />
+        Coupon
+      </v-btn>
     </div>
+    <CalculatorPaymentMethods
+      :methods="paymentMethods.filter((method) => !['on coupon', 'on account'].includes(method.name.toLowerCase()))"
+      :model-value="activeMethod"
+      @select="selectMethodAndConfirm"
+    />
+    <CalculatorEntries
+      :entries="entries"
+      :format-amount="formatEntryAmount"
+      :currency-symbol-for="currencySymbolFor"
+      @remove="removeEntry"
+    />
     <v-dialog v-model="couponDialog" max-width="420">
       <v-card title="Coupon payment">
         <v-card-text>
@@ -375,25 +368,6 @@ defineExpose({
 .calculator-action-button {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 52px;
-  font-size: 1.05rem;
-}
-
-.calculator-layout {
-  min-height: 0;
-}
-
-.calculator-main {
-  flex: 1 1 0;
-  min-width: 0;
-  overflow-y: auto;
-}
-
-.calculator-entries-panel {
-  flex: 0 0 min(34%, 240px);
-  min-width: 150px;
-  border-left: 1px solid rgba(var(--v-border-color), 0.14);
-  padding-left: 10px;
 }
 </style>
 
