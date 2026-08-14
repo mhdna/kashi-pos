@@ -1,6 +1,8 @@
 <template>
   <ClientDialog v-model="clientDialog" @select="onClientSelect" />
   <div class="d-flex flex-column w-100 h-100 px-4">
+    <div class="text-caption text-medium-emphasis text-center mt-2">Salesperson</div>
+    <SalespersonsDialog />
     <div class="text-caption text-medium-emphasis text-center mt-2">Client</div>
     <v-card
       class="client-card px-4 py-4 my-2 text-center"
@@ -65,7 +67,7 @@
       style="background-color: rgba(var(--v-theme-success), 0.24); border-color: rgba(var(--v-theme-success), 0.3) !important"
       width="100%"
       @click="$emit('checkout')"
-      :disabled="!hasItems || !canCheckout"
+      :disabled="!hasItems || exchangeMode"
     >
       <template #prepend>
         <v-icon icon="mdi-cash" size="25" class="me-2" />
@@ -102,6 +104,7 @@
 import { ref, reactive, computed } from "vue";
 import ClientDialog from "./ClientDialog.vue";
 import InitialsAvatar from "./InitialsAvatar.vue";
+import SalespersonsDialog from "./SalespersonsDialog.vue";
 import {
   anonymousClient,
   formatLoyaltyPoints,

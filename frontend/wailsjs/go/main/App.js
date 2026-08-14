@@ -202,6 +202,10 @@ export function ListClients() {
   return window['go']['main']['App']['ListClients']();
 }
 
+export function ListClientsPage(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['ListClientsPage'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function ListCouponTypes() {
   return window['go']['main']['App']['ListCouponTypes']();
 }

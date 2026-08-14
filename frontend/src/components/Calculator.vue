@@ -9,7 +9,7 @@
     />
 
     <v-card class="calculator-display pa-2 mb-3" variant="outlined" rounded="lg">
-      <span class="text-h5 font-weight-bold">{{ displayValue }}</span>
+      <span class="calculator-display-value text-h3 font-weight-bold">{{ displayValue }}</span>
     </v-card>
 
     <CalculatorKeypad @digit="appendDigit" @backspace="backspace" @clear="clearInput" />
@@ -363,6 +363,13 @@ defineExpose({
   restoreHoldState,
 });
 </script>
+
+<style scoped>
+.calculator-display-value {
+  font-size: 1.1rem !important;
+  line-height: 1.2;
+}
+</style>
 
 <style scoped>
 .calculator-action-button {

@@ -96,6 +96,83 @@ func (a *App) ListClients() ([]map[string]any, error) {
 	return result, nil
 }
 
+func (a *App) ListClientsPage(search string, page, perPage int64, sortKey, sortOrder string) (map[string]any, error) {
+	if a.store == nil || a.conn == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	search = strings.TrimSpace(search)
+	if len(search) > 80 {
+		search = search[:80]
+	}
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 {
+		perPage = 10
+	} else if perPage > 100 {
+		perPage = 100
+	}
+	sortColumns := map[string]string{
+		"name": "lower(c.name)", "phone": "c.phone",
+		"totalLoyaltyPoints": "c.total_loyalty_points",
+		"validLoyaltyPoints": "c.valid_loyalty_points",
+		"createdAt":          "c.id",
+	}
+	sortColumn, ok := sortColumns[sortKey]
+	if !ok {
+		sortColumn = "c.created_at"
+	}
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
+
+	var total int64
+	var err error
+	if search == "" {
+		total, err = a.store.CountClients(a.ctx)
+	} else {
+		total, err = a.store.CountClientsPage(a.ctx, search)
+	}
+	if err != nil {
+		return nil, err
+	}
+	query := `WITH selected_clients AS (
+		SELECT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at
+		FROM clients c
+		WHERE trim(?) = '' OR c.name LIKE '%' || ? || '%' COLLATE NOCASE OR c.phone LIKE '%' || ? || '%'
+		ORDER BY ` + sortColumn + ` ` + sortOrder + `, c.id DESC LIMIT ? OFFSET ?
+	)
+	SELECT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at,
+		CAST(COALESCE(SUM(cae.amount - COALESCE((
+			SELECT SUM(cap.amount) FROM client_account_payments cap WHERE cap.invoice_id = cae.invoice_id
+		), 0)), 0) AS INTEGER) AS account_balance
+	FROM selected_clients c
+	LEFT JOIN client_account_entries cae ON cae.client_id = c.id
+	GROUP BY c.id
+	ORDER BY ` + sortColumn + ` ` + sortOrder + `, c.id DESC`
+	rows, err := a.conn.QueryContext(a.ctx, query, search, search, search, perPage, (page-1)*perPage)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]map[string]any, 0, perPage)
+	for rows.Next() {
+		var id, totalPoints, validPoints, balance int64
+		var name, phone, createdAt string
+		if err := rows.Scan(&id, &name, &phone, &totalPoints, &validPoints, &createdAt, &balance); err != nil {
+			return nil, err
+		}
+		items = append(items, map[string]any{
+			"id": id, "name": name, "phone": phone, "totalLoyaltyPoints": totalPoints,
+			"validLoyaltyPoints": validPoints, "createdAt": createdAt, "accountBalance": balance,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return map[string]any{"items": items, "total": total}, nil
+}
+
 func (a *App) ListShifts() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")

@@ -110,13 +110,17 @@ const items = computed(() => {
 
 <style scoped>
 .nav-drawer {
-  background-color: #36136b !important;
+  background-color: #0d47a1 !important;
   border-radius: 0 40px 40px 0 !important;
 }
 
 .nav-item {
   flex: 1 1 0;
   min-height: 0;
+}
+
+.nav-item:first-child {
+  border-radius: 0 40px 0 0;
 }
 
 .nav-item.v-list-item--active {

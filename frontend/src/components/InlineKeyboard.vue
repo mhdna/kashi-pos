@@ -17,18 +17,12 @@
       </v-btn>
     </div>
     <div class="inline-keyboard-actions">
-      <v-btn size="small" variant="text" @click="clear">C</v-btn>
-      <v-btn size="small" variant="text" @click="shift = !shift">
-        {{ shift ? "⇧" : "abc" }}
-      </v-btn>
+      <v-btn size="small" variant="text" @click="append('-')">-</v-btn>
       <v-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
         Space
       </v-btn>
-      <v-btn v-if="layout === 'code'" size="small" variant="text" @click="append('/')">/</v-btn>
-      <v-btn v-if="layout === 'code'" size="small" variant="text" @click="append('.')">.</v-btn>
-      <v-btn size="small" variant="text" @click="append('-')">-</v-btn>
-      <v-btn size="small" variant="text" @click="append(`'`)">'</v-btn>
-      <v-btn size="small" variant="text" @click="backspace">⌫</v-btn>
+      <v-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace">⌫</v-btn>
+      <v-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</v-btn>
     </div>
   </div>
 </template>
@@ -88,6 +82,13 @@ function backspace() {
 .inline-keyboard {
   width: 100%;
 }
+.inline-keyboard-clear {
+  background-color: #c43f3f;
+  color: #fff;
+}
+.inline-keyboard-backspace {
+  background-color: rgba(var(--v-theme-on-surface), 0.1);
+}
 
 .inline-keyboard-row {
   display: flex;
@@ -97,11 +98,10 @@ function backspace() {
 }
 
 .inline-keyboard-key {
-  flex: 1 1 0;
-  font-size: var(--kashi-font-size-base);
-  height: 34px;
-  max-width: 44px;
-  min-width: 28px;
+  flex: 0 0 56px;
+  font-size: var(--kashi-font-size-lg);
+  height: 40px;
+  width: 56px;
   padding: 0;
 }
 
@@ -109,10 +109,16 @@ function backspace() {
   display: flex;
   gap: 4px;
   justify-content: center;
+  font-size: var(--kashi-font-size-lg);
+}
+
+.inline-keyboard-actions > .v-btn {
+  height: 40px;
+  min-height: 40px;
 }
 
 .inline-keyboard-space {
-  flex: 1 1 auto;
-  max-width: 180px;
+  flex: 3 1 auto;
+  max-width: 300px;
 }
 </style>

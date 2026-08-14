@@ -138,6 +138,7 @@
           density="compact"
           maxlength="80"
           autofocus
+          @keydown.enter="createClient"
         />
         <!-- <div class="text-caption text-medium-emphasis mt-n1"> -->
         <!--   Please don't use rediculous names like "nonameeeeee", or "ali4738432". -->
@@ -256,6 +257,7 @@ async function lookupPhone() {
 }
 
 async function createClient() {
+  if (!newClient.name.trim()) return;
   try {
     const c = await CreateClient(capitalizeName(newClient.name), newClient.phone);
     emit("select", toClient(c));

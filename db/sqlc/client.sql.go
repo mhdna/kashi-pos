@@ -28,6 +28,32 @@ func (q *Queries) AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyal
 	return err
 }
 
+const countClients = `-- name: CountClients :one
+SELECT COUNT(*) FROM clients
+`
+
+func (q *Queries) CountClients(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countClients)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countClientsPage = `-- name: CountClientsPage :one
+SELECT COUNT(*)
+FROM clients c
+WHERE trim(?1) = ''
+   OR c.name LIKE '%' || ?1 || '%' COLLATE NOCASE
+   OR c.phone LIKE '%' || ?1 || '%'
+`
+
+func (q *Queries) CountClientsPage(ctx context.Context, search string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countClientsPage, search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countCouponsByTypeID = `-- name: CountCouponsByTypeID :one
 SELECT COUNT(*) FROM coupons WHERE type_id = ?
 `

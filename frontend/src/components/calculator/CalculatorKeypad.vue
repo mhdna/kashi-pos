@@ -20,13 +20,14 @@
     <div class="keypad-actions">
       <v-btn
         class="keypad-button keypad-action text-h6"
+        variant="tonal"
         aria-label="Backspace"
         @click="$emit('backspace')"
         >⌫</v-btn
       >
       <v-btn
-        class="keypad-button keypad-action text-h6"
-        color="red-darken-4"
+        class="keypad-button keypad-action ca-button text-h6"
+        variant="tonal"
         @click="$emit('clear')"
         >CA</v-btn
       >
@@ -63,6 +64,7 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
   min-height: 44px;
   border-radius: 12px;
   font-variant-numeric: tabular-nums;
+  font-size: 1.25rem !important;
 }
 .keypad-number {
   min-height: 40px;
@@ -72,6 +74,9 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
 .keypad-action {
   min-height: 0;
   flex: 1;
+}
+.ca-button {
+  color: #c43f3f;
 }
 
 @container (max-width: 420px) {

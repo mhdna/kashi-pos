@@ -102,6 +102,8 @@ export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
 
 export function ListClients():Promise<Array<Record<string, any>>>;
 
+export function ListClientsPage(arg1:string,arg2:number,arg3:number,arg4:string,arg5:string):Promise<Record<string, any>>;
+
 export function ListCouponTypes():Promise<Array<Record<string, any>>>;
 
 export function ListCoupons():Promise<Array<Record<string, any>>>;

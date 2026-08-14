@@ -4,7 +4,8 @@
       <v-btn
         v-bind="props"
         class="salesperson-card py-0 px-2 mx-0 my-2 text-body-2"
-        color="surface-light"
+        color="primary"
+        variant="tonal"
         elevation="0"
         min-height="40px"
         rounded="lg"

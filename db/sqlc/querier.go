@@ -21,6 +21,8 @@ type Querier interface {
 	CloseShift(ctx context.Context, arg CloseShiftParams) (int64, error)
 	CloseStaleOpenShifts(ctx context.Context, closedAt string) error
 	CountAllProducts(ctx context.Context) (int64, error)
+	CountClients(ctx context.Context) (int64, error)
+	CountClientsPage(ctx context.Context, search string) (int64, error)
 	CountCouponsByTypeID(ctx context.Context, typeID sql.NullInt64) (int64, error)
 	CountInvoiceCouponPaymentsByCode(ctx context.Context, couponCode string) (int64, error)
 	CountInvoiceCouponPaymentsByTypeID(ctx context.Context, couponTypeID int64) (int64, error)

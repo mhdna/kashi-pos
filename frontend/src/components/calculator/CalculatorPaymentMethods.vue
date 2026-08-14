@@ -15,8 +15,8 @@
       @keydown.space.prevent="$emit('select', method.name)"
     >
       <v-card-text class="text-center py-2 px-1">
-        <div class="text-caption font-weight-bold">{{ method.displayName }}</div>
-        <div class="text-caption text-medium-emphasis">{{ method.currencyCode }}</div>
+        <div class="payment-method-name text-h6 font-weight-bold">{{ method.displayName }}</div>
+        <div class="payment-method-currency text-body-1 text-medium-emphasis">{{ method.currencyCode }}</div>
       </v-card-text>
     </v-card>
   </div>
@@ -44,6 +44,13 @@ defineEmits<{ select: [methodName: string] }>();
   transition:
     border-color 120ms ease,
     background-color 120ms ease;
+}
+.payment-method-name {
+  font-size: 1.1rem !important;
+  line-height: 1.25;
+}
+.payment-method-currency {
+  font-size: 0.9rem !important;
 }
 .calculator-type-card:hover {
   border-color: currentColor;

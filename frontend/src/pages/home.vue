@@ -12,9 +12,6 @@
           </div>
           <div class="d-flex flex-column align-end">
             <div class="d-flex">
-              <div style="width: 140px; margin-top: -8px">
-                <SalespersonsDialog />
-              </div>
               <v-menu v-model="noteMenu" :close-on-content-click="false" location="bottom end">
                 <template #activator="{ props }">
                   <v-btn v-bind="props" icon size="small" variant="text" aria-label="Invoice note">
@@ -179,7 +176,6 @@ import InvoiceItems from "@/components/InvoiceItems.vue";
 // import InvoiceSummary from "@/components/InvoiceSummary.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
-import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { roundCents, roundCentsByCurrency } from "@/lib/money";

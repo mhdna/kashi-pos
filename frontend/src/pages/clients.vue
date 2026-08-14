@@ -16,6 +16,7 @@
       />
     </v-card-title>
     <v-data-table-server
+      v-model:page="page"
       v-model:items-per-page="itemsPerPage"
       :headers="headers"
       :items="visibleItems"
@@ -172,8 +173,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch, reactive } from "vue";
-import { DeleteClient, GetAppSettings, GetClientAccountDetails, ListClients, ListPaymentMethods, PayClientAccount, UpdateClient } from "../../wailsjs/go/main/App";
+import { computed, ref, onBeforeUnmount, watch, reactive } from "vue";
+import { DeleteClient, GetAppSettings, GetClientAccountDetails, ListClientsPage, ListPaymentMethods, PayClientAccount, UpdateClient } from "../../wailsjs/go/main/App";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
 import { useAuthStore } from "@/stores/auth";
 import { formatLoyaltyPoints, loyaltyTier, loyaltyTierColor } from "@/lib/client";
@@ -189,15 +190,16 @@ const headers = [
   { title: "Name", key: "name" },
   { title: "Phone", key: "phone" },
   { title: "Loyalty Points", key: "totalLoyaltyPoints" },
-  { title: "Tier", key: "tier" },
+  { title: "Tier", key: "tier", sortable: false },
   { title: "Valid Points", key: "validLoyaltyPoints" },
-  { title: "On Account", key: "accountBalance" },
+  { title: "On Account", key: "accountBalance", sortable: false },
   { title: "Created", key: "createdAt" },
   { title: "", key: "actions", sortable: false, width: 150 },
 ];
 const items = ref<any[]>([]);
-const visibleItems = ref<any[]>([]);
+const visibleItems = items;
 const search = ref("");
+const page = ref(1);
 const itemsPerPage = ref(10);
 const totalItems = ref(0);
 const loading = ref(true);
@@ -219,6 +221,14 @@ const payTarget = ref<any>(null);
 const paymentMethodId = ref<number | null>(null);
 const paymentAmount = ref<number | null>(null);
 const paying = ref(false);
+type TableOptions = {
+  page: number;
+  itemsPerPage: number;
+  sortBy: { key: string; order: string }[];
+};
+let currentOptions: TableOptions = { page: 1, itemsPerPage: 10, sortBy: [] };
+let requestSequence = 0;
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 const collectableMethods = computed(() =>
   paymentMethods.value.filter((method) => !["on account", "on coupon"].includes(String(method.name).toLowerCase())),
@@ -275,7 +285,7 @@ async function submitPayment() {
   try {
     accountDetails.value = await PayClientAccount(payTarget.value.invoiceId, paymentMethodId.value, paymentCents.value);
     payTarget.value = null;
-    await loadClients();
+    await loadItems(currentOptions);
     notifyIncomeChanged();
     snackbar.text = "Account payment saved";
     snackbar.show = true;
@@ -305,7 +315,7 @@ async function saveEdit() {
   try {
     await UpdateClient(editTarget.value.id, editForm.name.trim(), editForm.phone.trim());
     editOpen.value = false;
-    await loadClients();
+    await loadItems(currentOptions);
     snackbar.text = "Client updated";
     snackbar.show = true;
   } catch (e: any) {
@@ -322,7 +332,8 @@ async function deleteSelected() {
   try {
     await DeleteClient(deleteTarget.value.id);
     deleteOpen.value = false;
-    await loadClients();
+    if (items.value.length === 1 && page.value > 1) page.value--;
+    await loadItems({ ...currentOptions, page: page.value });
     snackbar.text = "Client deleted";
     snackbar.show = true;
   } catch (e: any) {
@@ -333,49 +344,38 @@ async function deleteSelected() {
   }
 }
 
-async function loadClients() {
+async function loadItems(options: TableOptions) {
+  currentOptions = options;
+  const request = ++requestSequence;
   loading.value = true;
   try {
-    items.value = await ListClients();
+    const sort = options.sortBy[0];
+    const result = await ListClientsPage(
+      search.value.trim(),
+      options.page,
+      options.itemsPerPage,
+      sort?.key ?? "createdAt",
+      sort?.order ?? "desc",
+    ) as any;
+    if (request !== requestSequence) return;
+    items.value = Array.isArray(result?.items) ? result.items : [];
+    totalItems.value = Number(result?.total ?? 0);
   } catch {
+    if (request !== requestSequence) return;
     items.value = [];
+    totalItems.value = 0;
   } finally {
-    loading.value = false;
+    if (request === requestSequence) loading.value = false;
   }
 }
 
-function loadItems(options: {
-  page: number;
-  itemsPerPage: number;
-  sortBy: { key: string; order: string }[];
-}) {
-  let filtered = items.value;
-  const query = search.value.trim().toLowerCase();
-  if (query) {
-    filtered = filtered.filter((item) =>
-      [item.name, item.phone].some((value) =>
-        String(value ?? "")
-          .toLowerCase()
-          .includes(query),
-      ),
-    );
-  }
-  const sort = options.sortBy[0];
-  if (sort) {
-    filtered = [...filtered].sort((a, b) => {
-      const left = a[sort.key] ?? "";
-      const right = b[sort.key] ?? "";
-      return (left > right ? 1 : left < right ? -1 : 0) * (sort.order === "desc" ? -1 : 1);
-    });
-  }
-  totalItems.value = filtered.length;
-  const start = (options.page - 1) * options.itemsPerPage;
-  visibleItems.value = filtered.slice(start, start + options.itemsPerPage);
-}
-
-watch([items, search, itemsPerPage], () =>
-  loadItems({ page: 1, itemsPerPage: itemsPerPage.value, sortBy: [] }),
-);
+watch(search, () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    page.value = 1;
+    void loadItems({ ...currentOptions, page: 1 });
+  }, 250);
+});
 
 watch(paymentMethodId, () => {
   if (!payTarget.value) return;
@@ -384,5 +384,5 @@ watch(paymentMethodId, () => {
     : Number(payTarget.value.outstanding) / 100;
 });
 
-onMounted(loadClients);
+onBeforeUnmount(() => clearTimeout(searchTimer));
 </script>

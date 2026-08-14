@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="760" width="calc(100% - 32px)" height="670">
+  <v-dialog v-model="dialog" max-width="760" width="calc(100% - 32px)" height="590">
     <template v-if="showActivator" #activator="{ props: activatorProps }">
       <v-btn
         v-bind="activatorProps"
@@ -36,7 +36,7 @@
         :loading="loading"
         :search="debouncedSearch"
         density="compact"
-        :items-per-page-options="[5, 10, 25, 50]"
+        :items-per-page-options="[6, 10, 25, 50]"
         hover
         return-object
         @click:row="selectProduct"
@@ -120,7 +120,7 @@ const headers = [
   { title: "Price", key: "price", align: "end" as const },
 ];
 
-const itemsPerPage = ref(7);
+const itemsPerPage = ref(6);
 const page = ref(1);
 const serverItems = ref<any[]>([]);
 const totalItems = ref(0);
@@ -175,14 +175,14 @@ defineExpose({ openDialog });
 }
 
 .product-list-card {
-  height: 670px;
+  height: 590px;
   display: flex;
   flex-direction: column;
 }
 
 .product-list-table {
-  flex: 0 0 370px;
-  height: 370px;
+  flex: 0 0 320px;
+  height: 320px;
   min-height: 0;
   overflow-y: auto;
 }

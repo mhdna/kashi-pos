@@ -7,6 +7,16 @@ SELECT * FROM clients WHERE phone = ?;
 -- name: ListClients :many
 SELECT * FROM clients ORDER BY id;
 
+-- name: CountClientsPage :one
+SELECT COUNT(*)
+FROM clients c
+WHERE trim(sqlc.arg(search)) = ''
+   OR c.name LIKE '%' || sqlc.arg(search) || '%' COLLATE NOCASE
+   OR c.phone LIKE '%' || sqlc.arg(search) || '%';
+
+-- name: CountClients :one
+SELECT COUNT(*) FROM clients;
+
 -- name: SearchClients :many
 SELECT *
 FROM clients

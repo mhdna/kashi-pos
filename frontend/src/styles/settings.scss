@@ -35,11 +35,17 @@
   animation-delay: 0s !important;
 }
 
+.v-application,
+.v-main {
+  background-color: var(--kashi-app-background) !important;
+}
+
 .v-ripple__container {
   display: none !important;
 }
 
-.v-application,
-.v-main {
-  background-color: var(--kashi-app-background) !important;
+.v-btn:not(.v-btn--disabled):active,
+.quick-access__item:active {
+  background-color: rgba(var(--v-theme-primary), 0.18) !important;
+  color: rgb(var(--v-theme-primary)) !important;
 }
