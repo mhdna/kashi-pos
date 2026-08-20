@@ -46,6 +46,45 @@ type SalesInvoiceResult struct {
 	Notes       string
 }
 
+// invoiceTotals is the priced result of an item list before persistence.
+// salesInvoiceTx (mutating checkout) and QuoteInvoiceTotal (read-only
+// preview) both call priceInvoiceTotals so they can never diverge.
+type invoiceTotals struct {
+	Products           []pricedInvoiceProduct
+	Subtotal           int64
+	DiscountedSubtotal int64
+	TaxCents           int64
+	GrandTotal         int64
+	ReceiptItems       []invoiceItem
+}
+
+func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool) (invoiceTotals, error) {
+	var totals invoiceTotals
+	products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled, perUnitPricingEnabled)
+	if err != nil {
+		return totals, err
+	}
+	taxCents, err := roundFloatToCents(float64(discountedSubtotal)/100*settings.TaxRate, roundingMode)
+	if err != nil {
+		return totals, fmt.Errorf("tax: %w", err)
+	}
+	grandTotal := discountedSubtotal + taxCents
+	if grandTotal < discountedSubtotal {
+		return totals, fmt.Errorf("invoice total is too large")
+	}
+	grandTotal, err = roundCentsByCurrency(grandTotal, settings.ExchangeRate, settings.RoundingCurrency, roundingMode)
+	if err != nil {
+		return totals, fmt.Errorf("round invoice total: %w", err)
+	}
+	totals.Products = products
+	totals.Subtotal = subtotal
+	totals.DiscountedSubtotal = discountedSubtotal
+	totals.TaxCents = taxCents
+	totals.GrandTotal = grandTotal
+	totals.ReceiptItems = receiptItems
+	return totals, nil
+}
+
 func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, error) {
 	var result SalesInvoiceResult
 	if a.store == nil {
@@ -106,22 +145,11 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		if err != nil {
 			return fmt.Errorf("payment account: %w", err)
 		}
-		products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled, perUnitPricingEnabled)
+		totals, err := a.priceInvoiceTotals(q, inventoryID, items, settings, roundingMode, customPricingEnabled, perUnitPricingEnabled)
 		if err != nil {
 			return err
 		}
-		taxCents, err := roundFloatToCents(float64(discountedSubtotal)/100*settings.TaxRate, roundingMode)
-		if err != nil {
-			return fmt.Errorf("tax: %w", err)
-		}
-		grandTotal := discountedSubtotal + taxCents
-		if grandTotal < discountedSubtotal {
-			return fmt.Errorf("invoice total is too large")
-		}
-		grandTotal, err = roundCentsByCurrency(grandTotal, settings.ExchangeRate, settings.RoundingCurrency, roundingMode)
-		if err != nil {
-			return fmt.Errorf("round invoice total: %w", err)
-		}
+		products, subtotal, discountedSubtotal, receiptItems, grandTotal := totals.Products, totals.Subtotal, totals.DiscountedSubtotal, totals.ReceiptItems, totals.GrandTotal
 		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, settings.ExchangeRate, roundingMode); err != nil {
 			return err
 		}
@@ -224,7 +252,10 @@ func normalizeCashRoundedPayments(ctx context.Context, q *db.Queries, payments [
 		if err != nil {
 			return false, fmt.Errorf("payment account %d: %w", payment.AccountID, err)
 		}
-		if !strings.EqualFold(account.CurrencyCode, "LBP") || !isCashAccount(account.Name, account.CurrencyCode) {
+		// Any LBP-currency payment can land off a whole-cent boundary once
+		// converted through the 10,000 LBP cash-rounding rule, not just
+		// accounts named "cash" — normalize all of them.
+		if !strings.EqualFold(account.CurrencyCode, "LBP") {
 			continue
 		}
 		negative := payment.AmountCents < 0
@@ -308,7 +339,7 @@ func parsePayments(raw string) ([]checkoutPayment, error) {
 
 func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, total, maxOverpaymentCents, exchangeRate int64, roundingMode string) error {
 	var paid int64
-	hasLBPCash := false
+	hasLBPPayment := false
 	for i := range payments {
 		payment := &payments[i]
 		if _, err := q.GetCashboxAccountByID(ctx, payment.AccountID); err != nil {
@@ -356,16 +387,39 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 				}
 			}
 		}
-		if strings.EqualFold(account.CurrencyCode, "LBP") && isCashAccount(account.Name, account.CurrencyCode) && payment.AmountCents > 0 {
-			hasLBPCash = true
+		// Any LBP-currency payment, regardless of account name, cannot
+		// reliably hit exact-cents parity with a total that may itself be
+		// rounded to the nearest 10,000 LBP — give it rounding tolerance.
+		if strings.EqualFold(account.CurrencyCode, "LBP") && payment.AmountCents > 0 {
+			hasLBPPayment = true
 		}
 		if payment.AmountCents > math.MaxInt64-paid {
 			return fmt.Errorf("payment total is too large")
 		}
 		paid += payment.AmountCents
 	}
-	roundedEquivalent := false
-	if hasLBPCash && paid != total {
+	ok, _, err := evaluatePaymentSufficiency(paid, total, maxOverpaymentCents, exchangeRate, roundingMode, hasLBPPayment)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		if paid < total {
+			return fmt.Errorf("payments total %d is less than invoice total %d", paid, total)
+		}
+		return fmt.Errorf("overpayment %d exceeds maximum allowed %d", paid-total, maxOverpaymentCents)
+	}
+	return nil
+}
+
+// evaluatePaymentSufficiency decides whether a tendered amount satisfies an
+// invoice total, accounting for the fact that an LBP-currency payment may
+// legitimately never hit exact-cents parity with a total that was itself
+// rounded to the nearest 10,000 LBP. Used by both validatePayments (the
+// mutating checkout path) and QuotePaymentStatus (the read-only preview),
+// so the calculator's "ready to checkout" state can never diverge from
+// what checkout will actually accept.
+func evaluatePaymentSufficiency(paid, total, maxOverpaymentCents, exchangeRate int64, roundingMode string, hasLBPPayment bool) (ok bool, roundedEquivalent bool, err error) {
+	if hasLBPPayment && paid != total {
 		if exchangeRate <= 0 {
 			exchangeRate = 90000
 		}
@@ -374,12 +428,12 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 		roundedEquivalent = paidErr == nil && totalErr == nil && paidLBP == totalLBP
 	}
 	if paid < total && !roundedEquivalent {
-		return fmt.Errorf("payments total %d is less than invoice total %d", paid, total)
+		return false, roundedEquivalent, nil
 	}
 	if paid > total && !roundedEquivalent && paid-total > maxOverpaymentCents {
-		return fmt.Errorf("overpayment %d exceeds maximum allowed %d", paid-total, maxOverpaymentCents)
+		return false, roundedEquivalent, nil
 	}
-	return nil
+	return true, roundedEquivalent, nil
 }
 
 func absInt64(value int64) int64 {
