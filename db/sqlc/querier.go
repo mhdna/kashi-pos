@@ -152,11 +152,29 @@ type Querier interface {
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
 	ListHoldInvoiceItems(ctx context.Context, holdInvoiceID int64) ([]ListHoldInvoiceItemsRow, error)
 	ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error)
-	ListIncomeAccountTotals(ctx context.Context, arg ListIncomeAccountTotalsParams) ([]ListIncomeAccountTotalsRow, error)
+	// income_date/income_month filtering was never actually used by any caller
+	// (every call site passes shiftID only) - dropped in favor of the plain
+	// shift scoping this query actually needs. On-account staleness (only
+	// counting entries from "today") is applied in Go via
+	// StaleOnAccountTotalForShift below - sqlc's SQLite query analyzer cannot
+	// resolve the CTE column alias when a new bind parameter is compared
+	// against it from inside an OR/CASE branch in this particular 5-way-UNION
+	// CTE shape (confirmed not to be a real SQL syntax problem: every
+	// restructuring - CASE, nested OR, splitting into a UNION of two WHERE
+	// branches, an intermediate join-first CTE - hits the same
+	// 'table alias "t" does not exist' error from sqlc, not from SQLite
+	// itself), so the exclusion is computed in Go instead of fighting the
+	// tool further.
+	ListIncomeAccountTotals(ctx context.Context, incomeShiftID interface{}) ([]ListIncomeAccountTotalsRow, error)
 	ListInventories(ctx context.Context) ([]Inventory, error)
 	ListInventoryItems(ctx context.Context, inventoryID int64) ([]InventoryItem, error)
 	ListInvoiceIncomeAccountTotalsByDate(ctx context.Context, invoiceIncomeDate string) ([]ListInvoiceIncomeAccountTotalsByDateRow, error)
 	ListInvoiceIncomeAccountTotalsByShift(ctx context.Context, invoiceIncomeShiftID int64) ([]ListInvoiceIncomeAccountTotalsByShiftRow, error)
+	// Like ListInvoiceIncomeAccountTotalsByShift, but also scoped to a single
+	// calendar day - used for "current shift income" so a shift left open
+	// across midnight (or for days) doesn't drag in prior days' activity as if
+	// it were "today".
+	ListInvoiceIncomeAccountTotalsByShiftAndDate(ctx context.Context, arg ListInvoiceIncomeAccountTotalsByShiftAndDateParams) ([]ListInvoiceIncomeAccountTotalsByShiftAndDateRow, error)
 	ListInvoicePaymentEntries(ctx context.Context, invoiceID int64) ([]InvoicePaymentEntry, error)
 	ListInvoicePayments(ctx context.Context, invoiceID int64) ([]InvoicePayment, error)
 	ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
@@ -183,6 +201,14 @@ type Querier interface {
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
 	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
+	// The portion of a shift's "On Account" total that was NOT recorded today -
+	// subtracted in Go from ListIncomeAccountTotals's On Account row so a shift
+	// left open across a day boundary doesn't drag prior days' on-account
+	// activity into "today's" balance. On-account entries only ever originate
+	// from invoices (paid or unpaid-in-full) or client_account_payments -
+	// never from shift_balance_replacements (isNonCashBalanceAccount blocks
+	// On Account as a swap source/destination).
+	StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error)
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
 	UpdateClientAccountEntryAmount(ctx context.Context, arg UpdateClientAccountEntryAmountParams) error

@@ -14,7 +14,7 @@ func TestApplyMigrationsFreshDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("apply migrations: %v", err)
 	}
-	assertMigrationVersion(t, conn, 52)
+	assertMigrationVersion(t, conn, 53)
 	assertTableExists(t, conn, "settings")
 	assertTableExists(t, conn, "feature_flags")
 	assertTableExists(t, conn, "schema_migrations")
@@ -22,6 +22,7 @@ func TestApplyMigrationsFreshDatabase(t *testing.T) {
 	assertTableExists(t, conn, "quick_access_items")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")
+	assertFeatureFlagEnabled(t, conn, "auto_close_stale_shifts", true)
 }
 
 func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
@@ -56,12 +57,15 @@ func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, databasePath, true); err != nil {
 		t.Fatalf("upgrade legacy database: %v", err)
 	}
-	assertMigrationVersion(t, conn, 52)
+	assertMigrationVersion(t, conn, 53)
 	assertTableExists(t, conn, "schema_migrations")
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertTableExists(t, conn, "quick_access_items")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")
+	// An existing install upgrading through this migration must not have
+	// its shift auto-close behavior silently flipped on.
+	assertFeatureFlagAbsent(t, conn, "auto_close_stale_shifts")
 	backupMatches, err := filepath.Glob(databasePath + ".backup-*")
 	if err != nil || len(backupMatches) != 1 {
 		t.Fatalf("expected one database backup, found %v (err=%v)", backupMatches, err)
@@ -103,7 +107,7 @@ func TestInvoicePaymentEntriesMigrationRepairsMissingTable(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("repair missing payment-entry table: %v", err)
 	}
-	assertMigrationVersion(t, conn, 52)
+	assertMigrationVersion(t, conn, 53)
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")
@@ -189,6 +193,28 @@ func assertIndexExists(t *testing.T, conn *sql.DB, index, table string) {
 	}
 	if count != 1 {
 		t.Fatalf("index %q on table %q does not exist", index, table)
+	}
+}
+
+func assertFeatureFlagEnabled(t *testing.T, conn *sql.DB, key string, want bool) {
+	t.Helper()
+	var enabled int
+	if err := conn.QueryRow("SELECT enabled FROM feature_flags WHERE key = ?", key).Scan(&enabled); err != nil {
+		t.Fatalf("feature flag %q: %v", key, err)
+	}
+	if (enabled != 0) != want {
+		t.Fatalf("feature flag %q enabled = %d, want %v", key, enabled, want)
+	}
+}
+
+func assertFeatureFlagAbsent(t *testing.T, conn *sql.DB, key string) {
+	t.Helper()
+	var count int
+	if err := conn.QueryRow("SELECT count(*) FROM feature_flags WHERE key = ?", key).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("feature flag %q unexpectedly seeded on an upgraded database", key)
 	}
 }
 

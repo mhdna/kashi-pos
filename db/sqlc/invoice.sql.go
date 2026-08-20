@@ -435,23 +435,13 @@ WITH account_totals AS (
     SELECT sbr.created_at, sbr.shift_id, sbr.to_cashbox_id, sbr.amount
     FROM shift_balance_replacements sbr
 )
-SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(t.amount), 0) AS total
-FROM account_totals t
-JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
-JOIN shifts s ON s.id = t.shift_id
-WHERE (?1 = '' OR date(t.created_at, 'localtime') = ?1)
-  AND (?2 = '' OR strftime('%Y-%m', t.created_at, 'localtime') = ?2)
-  AND (?3 = 0 OR t.shift_id = ?3)
-  AND (lower(trim(ca.name)) <> 'on account' OR date(t.created_at, 'localtime') = date(s.created_at, 'localtime'))
+SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(at2.amount), 0) AS total
+FROM account_totals at2
+JOIN cashbox_accounts ca ON ca.id = at2.cashbox_id
+WHERE (?1 = 0 OR at2.shift_id = ?1)
 GROUP BY ca.id, ca.name, ca.currency_code
 ORDER BY ca.name
 `
-
-type ListIncomeAccountTotalsParams struct {
-	IncomeDate    interface{} `json:"incomeDate"`
-	IncomeMonth   interface{} `json:"incomeMonth"`
-	IncomeShiftID interface{} `json:"incomeShiftId"`
-}
 
 type ListIncomeAccountTotalsRow struct {
 	ID           int64       `json:"id"`
@@ -460,8 +450,21 @@ type ListIncomeAccountTotalsRow struct {
 	Total        interface{} `json:"total"`
 }
 
-func (q *Queries) ListIncomeAccountTotals(ctx context.Context, arg ListIncomeAccountTotalsParams) ([]ListIncomeAccountTotalsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listIncomeAccountTotals, arg.IncomeDate, arg.IncomeMonth, arg.IncomeShiftID)
+// income_date/income_month filtering was never actually used by any caller
+// (every call site passes shiftID only) - dropped in favor of the plain
+// shift scoping this query actually needs. On-account staleness (only
+// counting entries from "today") is applied in Go via
+// StaleOnAccountTotalForShift below - sqlc's SQLite query analyzer cannot
+// resolve the CTE column alias when a new bind parameter is compared
+// against it from inside an OR/CASE branch in this particular 5-way-UNION
+// CTE shape (confirmed not to be a real SQL syntax problem: every
+// restructuring - CASE, nested OR, splitting into a UNION of two WHERE
+// branches, an intermediate join-first CTE - hits the same
+// 'table alias "t" does not exist' error from sqlc, not from SQLite
+// itself), so the exclusion is computed in Go instead of fighting the
+// tool further.
+func (q *Queries) ListIncomeAccountTotals(ctx context.Context, incomeShiftID interface{}) ([]ListIncomeAccountTotalsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listIncomeAccountTotals, incomeShiftID)
 	if err != nil {
 		return nil, err
 	}
@@ -585,6 +588,81 @@ func (q *Queries) ListInvoiceIncomeAccountTotalsByShift(ctx context.Context, inv
 	items := []ListInvoiceIncomeAccountTotalsByShiftRow{}
 	for rows.Next() {
 		var i ListInvoiceIncomeAccountTotalsByShiftRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CurrencyCode,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvoiceIncomeAccountTotalsByShiftAndDate = `-- name: ListInvoiceIncomeAccountTotalsByShiftAndDate :many
+WITH invoice_totals AS (
+    SELECT ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = ?1
+      AND date(i.created_at, 'localtime') = ?2
+    UNION ALL
+    SELECT i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE i.shift_id = ?1
+      AND date(i.created_at, 'localtime') = ?2
+      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    UNION ALL
+    SELECT sbr.from_cashbox_id, -sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = ?1
+      AND date(sbr.created_at, 'localtime') = ?2
+    UNION ALL
+    SELECT sbr.to_cashbox_id, sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = ?1
+      AND date(sbr.created_at, 'localtime') = ?2
+)
+SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(invoice_totals.amount), 0) AS total
+FROM invoice_totals
+JOIN cashbox_accounts ca ON ca.id = invoice_totals.cashbox_id
+GROUP BY ca.id, ca.name, ca.currency_code
+ORDER BY ca.name
+`
+
+type ListInvoiceIncomeAccountTotalsByShiftAndDateParams struct {
+	InvoiceIncomeShiftID int64  `json:"invoiceIncomeShiftId"`
+	IncomeReferenceDate  string `json:"incomeReferenceDate"`
+}
+
+type ListInvoiceIncomeAccountTotalsByShiftAndDateRow struct {
+	ID           int64       `json:"id"`
+	Name         string      `json:"name"`
+	CurrencyCode string      `json:"currencyCode"`
+	Total        interface{} `json:"total"`
+}
+
+// Like ListInvoiceIncomeAccountTotalsByShift, but also scoped to a single
+// calendar day - used for "current shift income" so a shift left open
+// across midnight (or for days) doesn't drag in prior days' activity as if
+// it were "today".
+func (q *Queries) ListInvoiceIncomeAccountTotalsByShiftAndDate(ctx context.Context, arg ListInvoiceIncomeAccountTotalsByShiftAndDateParams) ([]ListInvoiceIncomeAccountTotalsByShiftAndDateRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoiceIncomeAccountTotalsByShiftAndDate, arg.InvoiceIncomeShiftID, arg.IncomeReferenceDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInvoiceIncomeAccountTotalsByShiftAndDateRow{}
+	for rows.Next() {
+		var i ListInvoiceIncomeAccountTotalsByShiftAndDateRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -922,6 +1000,46 @@ func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPagePara
 		return nil, err
 	}
 	return items, nil
+}
+
+const staleOnAccountTotalForShift = `-- name: StaleOnAccountTotalForShift :one
+WITH on_account_totals AS (
+    SELECT i.created_at, i.shift_id, ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    UNION ALL
+    SELECT i.created_at, i.shift_id, i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    UNION ALL
+    SELECT cap.created_at, cap.shift_id, cap.cashbox_id, cap.amount
+    FROM client_account_payments cap
+)
+SELECT COALESCE(SUM(oat.amount), 0) AS total
+FROM on_account_totals oat
+JOIN cashbox_accounts ca ON ca.id = oat.cashbox_id
+WHERE (?1 = 0 OR oat.shift_id = ?1)
+  AND lower(trim(ca.name)) = 'on account'
+  AND (?2 = '' OR date(oat.created_at, 'localtime') <> ?2)
+`
+
+type StaleOnAccountTotalForShiftParams struct {
+	StaleShiftID       interface{} `json:"staleShiftId"`
+	StaleReferenceDate interface{} `json:"staleReferenceDate"`
+}
+
+// The portion of a shift's "On Account" total that was NOT recorded today -
+// subtracted in Go from ListIncomeAccountTotals's On Account row so a shift
+// left open across a day boundary doesn't drag prior days' on-account
+// activity into "today's" balance. On-account entries only ever originate
+// from invoices (paid or unpaid-in-full) or client_account_payments -
+// never from shift_balance_replacements (isNonCashBalanceAccount blocks
+// On Account as a swap source/destination).
+func (q *Queries) StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, staleOnAccountTotalForShift, arg.StaleShiftID, arg.StaleReferenceDate)
+	var total interface{}
+	err := row.Scan(&total)
+	return total, err
 }
 
 const updateInvoiceCashbox = `-- name: UpdateInvoiceCashbox :exec

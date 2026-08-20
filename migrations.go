@@ -130,6 +130,20 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 			log.Printf("database migration applied: version=%d name=%s", m.version, m.name)
 			continue
 		}
+		if m.version == 53 {
+			// Only seed auto_close_stale_shifts=1 for a brand-new database -
+			// an existing install upgrading through this migration keeps
+			// whatever behavior it already had.
+			if !databaseExisted {
+				if err := applyOneMigration(ctx, conn, m); err != nil {
+					return fmt.Errorf("migration %s failed: %w", m.name, err)
+				}
+			} else if _, err := conn.ExecContext(ctx, "INSERT INTO schema_migrations(version, name) VALUES (?, ?)", m.version, m.name); err != nil {
+				return fmt.Errorf("record fresh-install-only migration %d: %w", m.version, err)
+			}
+			log.Printf("database migration applied: version=%d name=%s", m.version, m.name)
+			continue
+		}
 		if err := applyOneMigration(ctx, conn, m); err != nil {
 			return fmt.Errorf("migration %s failed: %w", m.name, err)
 		}

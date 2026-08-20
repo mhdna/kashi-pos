@@ -36,6 +36,13 @@ func TestCloseStaleOpenShiftsHonorsSettingAndKeepsTodayOpen(t *testing.T) {
 	}
 	app := &App{ctx: ctx, store: store}
 
+	// Explicitly disable first: fresh databases now default this flag to
+	// enabled (a secondary hygiene fix, seeded only for new installs) - this
+	// test is specifically about the disabled behavior, so don't rely on
+	// whatever the default happens to be.
+	if err := app.SetAutoCloseStaleShiftsEnabled(false); err != nil {
+		t.Fatal(err)
+	}
 	if err := app.closeStaleOpenShifts(); err != nil {
 		t.Fatal(err)
 	}

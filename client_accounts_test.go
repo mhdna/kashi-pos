@@ -86,8 +86,15 @@ func TestClientAccountPaymentBecomesCollectedIncomeWhenReceived(t *testing.T) {
 	for _, row := range today {
 		todayTotals[row["accountName"].(string)] = row["total"].(float64)
 	}
-	if todayTotals["On Account"] != 1000 || todayTotals["Cash USD"] != 0 {
-		t.Fatalf("current shift income rows = %#v", today)
+	// The invoice was backdated 4 days - "current shift income" is scoped to
+	// today, so a shift left open across day boundaries no longer drags an
+	// old on-account sale into what's displayed as "today's" balance. (The
+	// $400 client-account payment isn't reflected here either way: this
+	// endpoint only aggregates invoice/balance-replacement legs, not
+	// client_account_payments - see ListShiftBalances for the collected
+	// total.)
+	if todayTotals["On Account"] != 0 || todayTotals["Cash USD"] != 0 {
+		t.Fatalf("current shift income rows = %#v, want no stale on-account entry", today)
 	}
 	invoiceDay := time.Now().AddDate(0, 0, -4)
 	days, err := app.GetDailyIncomeByMonth(invoiceDay.Format("2006-01"))

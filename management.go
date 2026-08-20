@@ -197,26 +197,23 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.incomeAccountTotals("", "", shiftID)
+	rows, err := a.incomeAccountTotals(shiftID)
 	if err != nil {
 		return nil, err
 	}
-	settings, err := a.store.GetSettings(a.ctx)
-	if err != nil {
-		return nil, err
-	}
-	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
-	if err != nil {
-		return nil, fmt.Errorf("rounding currency: %w", err)
-	}
+	// Each invoice_payments/client_account_payments/shift_balance_replacements
+	// row summed here is already a canonical, exact-cents amount (LBP cash
+	// payments were normalized to their rounded-cash-equivalent at checkout
+	// time; every other row is validated checkout-exact cents). Summing
+	// already-canonical amounts needs no further currency rounding - doing
+	// so was redundant at best and, since rounding a sum of parts can land
+	// on a different multiple than summing the parts directly, a real
+	// source of "balance page total doesn't match invoice total" drift.
 	result := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
 		onAccount := isNonCollectedIncomeAccount(row.Name)
 		onCoupon := strings.EqualFold(strings.TrimSpace(row.Name), "On Coupon")
-		balance, roundErr := roundCentsByCurrency(databaseInt64(row.Total), roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, settings.RoundingMode)
-		if roundErr != nil {
-			return nil, roundErr
-		}
+		balance := databaseInt64(row.Total)
 		result = append(result, map[string]any{
 			"accountId": row.ID, "accountName": row.Name,
 			"balance": balance, "currencyCode": row.CurrencyCode,
@@ -256,7 +253,7 @@ func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 	if isNonCashBalanceAccount(from.Name) || isNonCashBalanceAccount(to.Name) {
 		return fmt.Errorf("on-account and coupon balances cannot be replaced")
 	}
-	balances, err := a.incomeAccountTotals("", "", shiftID)
+	balances, err := a.incomeAccountTotals(shiftID)
 	if err != nil {
 		return err
 	}
@@ -432,21 +429,13 @@ func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	settings, err := a.store.GetSettings(a.ctx)
-	if err != nil {
-		return nil, err
-	}
-	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
-	if err != nil {
-		return nil, fmt.Errorf("rounding currency: %w", err)
-	}
+	// See the comment in ListShiftBalances: these are already-canonical
+	// exact cents, summed - no re-rounding, to stay consistent with every
+	// other income aggregation endpoint.
 	result := make([]map[string]any, len(rows))
 	for i, r := range rows {
 		onAccount := isNonCollectedIncomeAccount(r.Name)
-		total, roundErr := roundCentsByCurrency(databaseInt64(r.Total), roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, settings.RoundingMode)
-		if roundErr != nil {
-			return nil, roundErr
-		}
+		total := databaseInt64(r.Total)
 		result[i] = map[string]any{
 			"accountId": r.ID, "accountName": r.Name, "currencyCode": r.CurrencyCode, "total": float64(total),
 			"isOnAccount": onAccount, "isCollected": !onAccount,
@@ -466,7 +455,12 @@ func (a *App) GetCurrentShiftIncomeByAccount() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := a.store.ListInvoiceIncomeAccountTotalsByShift(a.ctx, shift.ID)
+	// Date-scoped, not just shift-scoped: a shift left open across a day
+	// boundary (or for days) must not drag prior days' activity - including
+	// on-account entries - into what's displayed as "today's" balance.
+	rows, err := a.store.ListInvoiceIncomeAccountTotalsByShiftAndDate(a.ctx, db.ListInvoiceIncomeAccountTotalsByShiftAndDateParams{
+		InvoiceIncomeShiftID: shift.ID, IncomeReferenceDate: time.Now().Format("2006-01-02"),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -509,10 +503,33 @@ func (a *App) GetShiftTotals() ([]map[string]any, error) {
 	return result, nil
 }
 
-func (a *App) incomeAccountTotals(date, month string, shiftID int64) ([]db.ListIncomeAccountTotalsRow, error) {
-	return a.store.ListIncomeAccountTotals(a.ctx, db.ListIncomeAccountTotalsParams{
-		IncomeDate: date, IncomeMonth: month, IncomeShiftID: shiftID,
+// incomeAccountTotals returns each cashbox account's total for a shift,
+// with the "On Account" row's total already excluding any on-account
+// entry that wasn't recorded today - so a shift left open across a day
+// boundary (or for days) doesn't drag prior days' on-account activity into
+// what should be "today's" balance.
+func (a *App) incomeAccountTotals(shiftID int64) ([]db.ListIncomeAccountTotalsRow, error) {
+	rows, err := a.store.ListIncomeAccountTotals(a.ctx, shiftID)
+	if err != nil {
+		return nil, err
+	}
+	today := time.Now().Format("2006-01-02")
+	stale, err := a.store.StaleOnAccountTotalForShift(a.ctx, db.StaleOnAccountTotalForShiftParams{
+		StaleShiftID: shiftID, StaleReferenceDate: today,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("stale on-account total: %w", err)
+	}
+	staleCents := databaseInt64(stale)
+	if staleCents == 0 {
+		return rows, nil
+	}
+	for i := range rows {
+		if isNonCollectedIncomeAccount(rows[i].Name) {
+			rows[i].Total = databaseInt64(rows[i].Total) - staleCents
+		}
+	}
+	return rows, nil
 }
 
 func isNonCollectedIncomeAccount(name string) bool {

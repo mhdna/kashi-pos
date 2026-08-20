@@ -263,7 +263,7 @@ func (a *App) buildShiftClosePrintData(
 	if err != nil {
 		return printReceiptData{}, false, fmt.Errorf("shift report summary: %w", err)
 	}
-	paymentRows, err := a.incomeAccountTotals("", "", shiftID)
+	paymentRows, err := a.incomeAccountTotals(shiftID)
 	if err != nil {
 		return printReceiptData{}, false, fmt.Errorf("shift payment totals: %w", err)
 	}

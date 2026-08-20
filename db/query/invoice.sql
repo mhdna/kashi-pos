@@ -133,6 +133,19 @@ ON CONFLICT (year, type) DO UPDATE SET last_index = last_index + 1
 RETURNING last_index;
 
 -- name: ListIncomeAccountTotals :many
+-- income_date/income_month filtering was never actually used by any caller
+-- (every call site passes shiftID only) - dropped in favor of the plain
+-- shift scoping this query actually needs. On-account staleness (only
+-- counting entries from "today") is applied in Go via
+-- StaleOnAccountTotalForShift below - sqlc's SQLite query analyzer cannot
+-- resolve the CTE column alias when a new bind parameter is compared
+-- against it from inside an OR/CASE branch in this particular 5-way-UNION
+-- CTE shape (confirmed not to be a real SQL syntax problem: every
+-- restructuring - CASE, nested OR, splitting into a UNION of two WHERE
+-- branches, an intermediate join-first CTE - hits the same
+-- 'table alias "t" does not exist' error from sqlc, not from SQLite
+-- itself), so the exclusion is computed in Go instead of fighting the
+-- tool further.
 WITH account_totals AS (
     SELECT i.created_at, i.shift_id, ip.cashbox_id, ip.amount
     FROM invoices i
@@ -151,16 +164,39 @@ WITH account_totals AS (
     SELECT sbr.created_at, sbr.shift_id, sbr.to_cashbox_id, sbr.amount
     FROM shift_balance_replacements sbr
 )
-SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(t.amount), 0) AS total
-FROM account_totals t
-JOIN cashbox_accounts ca ON ca.id = t.cashbox_id
-JOIN shifts s ON s.id = t.shift_id
-WHERE (sqlc.arg(income_date) = '' OR date(t.created_at, 'localtime') = sqlc.arg(income_date))
-  AND (sqlc.arg(income_month) = '' OR strftime('%Y-%m', t.created_at, 'localtime') = sqlc.arg(income_month))
-  AND (sqlc.arg(income_shift_id) = 0 OR t.shift_id = sqlc.arg(income_shift_id))
-  AND (lower(trim(ca.name)) <> 'on account' OR date(t.created_at, 'localtime') = date(s.created_at, 'localtime'))
+SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(at2.amount), 0) AS total
+FROM account_totals at2
+JOIN cashbox_accounts ca ON ca.id = at2.cashbox_id
+WHERE (sqlc.arg(income_shift_id) = 0 OR at2.shift_id = sqlc.arg(income_shift_id))
 GROUP BY ca.id, ca.name, ca.currency_code
 ORDER BY ca.name;
+
+-- name: StaleOnAccountTotalForShift :one
+-- The portion of a shift's "On Account" total that was NOT recorded today -
+-- subtracted in Go from ListIncomeAccountTotals's On Account row so a shift
+-- left open across a day boundary doesn't drag prior days' on-account
+-- activity into "today's" balance. On-account entries only ever originate
+-- from invoices (paid or unpaid-in-full) or client_account_payments -
+-- never from shift_balance_replacements (isNonCashBalanceAccount blocks
+-- On Account as a swap source/destination).
+WITH on_account_totals AS (
+    SELECT i.created_at, i.shift_id, ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    UNION ALL
+    SELECT i.created_at, i.shift_id, i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    UNION ALL
+    SELECT cap.created_at, cap.shift_id, cap.cashbox_id, cap.amount
+    FROM client_account_payments cap
+)
+SELECT COALESCE(SUM(oat.amount), 0) AS total
+FROM on_account_totals oat
+JOIN cashbox_accounts ca ON ca.id = oat.cashbox_id
+WHERE (sqlc.arg(stale_shift_id) = 0 OR oat.shift_id = sqlc.arg(stale_shift_id))
+  AND lower(trim(ca.name)) = 'on account'
+  AND (sqlc.arg(stale_reference_date) = '' OR date(oat.created_at, 'localtime') <> sqlc.arg(stale_reference_date));
 
 -- name: ListInvoiceIncomeAccountTotalsByShift :many
 WITH invoice_totals AS (
@@ -181,6 +217,40 @@ WITH invoice_totals AS (
     SELECT sbr.to_cashbox_id, sbr.amount
     FROM shift_balance_replacements sbr
     WHERE sbr.shift_id = sqlc.arg(invoice_income_shift_id)
+)
+SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(invoice_totals.amount), 0) AS total
+FROM invoice_totals
+JOIN cashbox_accounts ca ON ca.id = invoice_totals.cashbox_id
+GROUP BY ca.id, ca.name, ca.currency_code
+ORDER BY ca.name;
+
+-- name: ListInvoiceIncomeAccountTotalsByShiftAndDate :many
+-- Like ListInvoiceIncomeAccountTotalsByShift, but also scoped to a single
+-- calendar day - used for "current shift income" so a shift left open
+-- across midnight (or for days) doesn't drag in prior days' activity as if
+-- it were "today".
+WITH invoice_totals AS (
+    SELECT ip.cashbox_id, ip.amount
+    FROM invoices i
+    JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = sqlc.arg(invoice_income_shift_id)
+      AND date(i.created_at, 'localtime') = sqlc.arg(income_reference_date)
+    UNION ALL
+    SELECT i.cashbox_id, i.grand_total
+    FROM invoices i
+    WHERE i.shift_id = sqlc.arg(invoice_income_shift_id)
+      AND date(i.created_at, 'localtime') = sqlc.arg(income_reference_date)
+      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    UNION ALL
+    SELECT sbr.from_cashbox_id, -sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = sqlc.arg(invoice_income_shift_id)
+      AND date(sbr.created_at, 'localtime') = sqlc.arg(income_reference_date)
+    UNION ALL
+    SELECT sbr.to_cashbox_id, sbr.amount
+    FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = sqlc.arg(invoice_income_shift_id)
+      AND date(sbr.created_at, 'localtime') = sqlc.arg(income_reference_date)
 )
 SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(invoice_totals.amount), 0) AS total
 FROM invoice_totals

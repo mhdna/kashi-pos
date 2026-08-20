@@ -135,7 +135,11 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 		t.Fatal(err)
 	}
 	todayByAccount := incomeRowsByAccount(today, "total")
-	if todayByAccount["USD"] != 41500 || todayByAccount["LBP"] != 2000 {
+	// 41498, not rounded to 41500: the summed payment amount is already an
+	// exact, checkout-validated cents value (matching the invoice's actual
+	// recorded total) - re-rounding the sum was redundant and could make
+	// this page disagree with the invoice it's summing.
+	if todayByAccount["USD"] != 41498 || todayByAccount["LBP"] != 2000 {
 		t.Fatalf("today account totals = %#v", todayByAccount)
 	}
 	currentShiftIncome, err := app.GetCurrentShiftIncomeByAccount()
@@ -155,7 +159,9 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 		t.Fatal(err)
 	}
 	shiftByAccount := incomeRowsByAccount(balances, "balance")
-	if shiftByAccount["USD"] != 41500 || shiftByAccount["LBP"] != 2000 {
+	// See the comment above on GetTodayIncomeByAccount: 41498, not
+	// re-rounded to 41500.
+	if shiftByAccount["USD"] != 41498 || shiftByAccount["LBP"] != 2000 {
 		t.Fatalf("shift account totals = %#v", shiftByAccount)
 	}
 
