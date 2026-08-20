@@ -3,35 +3,35 @@ package main
 import "strings"
 
 type printReceiptData struct {
-	Items           []invoiceItem
-	StoreName       string
-	Branch          string
-	Phone           string
-	BranchPhone     string
-	Description     string
-	RegisterName    string
-	Salesperson     string
-	Customer        string
-	Notes           string
-	ReturnPolicy    string
-	Website         string
-	Instagram       string
-	SocialPlatforms []string
-	SocialHandles   map[string]string
-	Font            string
-	TitleSize       float64
-	BodySize        float64
-	BodyFont        string
-	Cutoff          bool
-	ReceiptNo       string
-	PrinterName     string
-	GrandTotalCents int64
-	Payments        []receiptPayment
+	Items            []invoiceItem
+	StoreName        string
+	Branch           string
+	Phone            string
+	BranchPhone      string
+	Description      string
+	RegisterName     string
+	Salesperson      string
+	Customer         string
+	Notes            string
+	ReturnPolicy     string
+	Website          string
+	Instagram        string
+	SocialPlatforms  []string
+	SocialHandles    map[string]string
+	Font             string
+	TitleSize        float64
+	BodySize         float64
+	BodyFont         string
+	Cutoff           bool
+	ReceiptNo        string
+	PrinterName      string
+	GrandTotalCents  int64
+	Payments         []receiptPayment
 	RoundingCurrency receiptCurrency
-	RoundingMode    string
-	ReceiptWidth    int64
-	ReceiptHeight   int64
-	ShiftReport     *shiftReportData
+	RoundingMode     string
+	ReceiptWidth     int64
+	ReceiptHeight    int64
+	ShiftReport      *shiftReportData
 }
 
 // receiptCurrency carries the fields a receipt needs to display an amount

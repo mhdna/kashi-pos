@@ -220,8 +220,12 @@ func (a *App) ListPaymentMethods() ([]map[string]any, error) {
 	sort.SliceStable(accounts, func(i, j int) bool {
 		iSpecial := accounts[i].Name == "On Account" || accounts[i].Name == "On Coupon"
 		jSpecial := accounts[j].Name == "On Account" || accounts[j].Name == "On Coupon"
-		if iSpecial != jSpecial { return !iSpecial }
-		if iSpecial && jSpecial { return accounts[i].Name == "On Account" }
+		if iSpecial != jSpecial {
+			return !iSpecial
+		}
+		if iSpecial && jSpecial {
+			return accounts[i].Name == "On Account"
+		}
 		return accounts[i].ID < accounts[j].ID
 	})
 	result := make([]map[string]any, len(accounts))

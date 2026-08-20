@@ -7,10 +7,10 @@ import (
 
 func TestBuildESCPosReceiptContainsInvoiceAndAuthoritativeTotals(t *testing.T) {
 	payload := buildESCPosReceipt(printReceiptData{
-		StoreName:       "Kashi Store",
-		Branch:          "CN",
-		RegisterName:    "POS-01",
-		ReceiptNo:       "SA/CN/2026/00001",
+		StoreName:        "Kashi Store",
+		Branch:           "CN",
+		RegisterName:     "POS-01",
+		ReceiptNo:        "SA/CN/2026/00001",
 		Items:            []invoiceItem{{Name: "Shirt", Price: 10, Discount: 10, Qty: 2}},
 		GrandTotalCents:  1980,
 		RoundingCurrency: testLBPReceiptCurrency,
