@@ -54,6 +54,10 @@ export function CloseShiftByID(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CloseShiftByID'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
+export function CreateCashboxAccount(arg1, arg2) {
+  return window['go']['main']['App']['CreateCashboxAccount'](arg1, arg2);
+}
+
 export function CreateClient(arg1, arg2) {
   return window['go']['main']['App']['CreateClient'](arg1, arg2);
 }
@@ -64,6 +68,10 @@ export function CreateCoupon(arg1, arg2, arg3) {
 
 export function CreateCouponType(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3, arg4);
+}
+
+export function CreateCurrency(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['CreateCurrency'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function CreateSalesperson(arg1) {
@@ -334,6 +342,10 @@ export function SetAutoCloseStaleShiftsEnabled(arg1) {
   return window['go']['main']['App']['SetAutoCloseStaleShiftsEnabled'](arg1);
 }
 
+export function SetCurrencyActive(arg1, arg2) {
+  return window['go']['main']['App']['SetCurrencyActive'](arg1, arg2);
+}
+
 export function SetCustomItemDiscountsEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemDiscountsEnabled'](arg1);
 }
@@ -380,6 +392,10 @@ export function UpdateClient(arg1, arg2, arg3) {
 
 export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['UpdateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function UpdateCurrency(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['UpdateCurrency'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function UpdateProductDiscount(arg1, arg2) {

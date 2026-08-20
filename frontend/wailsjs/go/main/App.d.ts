@@ -28,11 +28,15 @@ export function ClearScreen(arg1:string):Promise<void>;
 
 export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
+export function CreateCashboxAccount(arg1:string,arg2:string):Promise<Record<string, any>>;
+
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function CreateCoupon(arg1:string,arg2:number,arg3:number):Promise<Record<string, any>>;
 
 export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<Record<string, any>>;
+
+export function CreateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
 
 export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
 
@@ -168,6 +172,8 @@ export function SetAttendanceDuplicateInterval(arg1:number):Promise<void>;
 
 export function SetAutoCloseStaleShiftsEnabled(arg1:boolean):Promise<void>;
 
+export function SetCurrencyActive(arg1:string,arg2:boolean):Promise<Record<string, any>>;
+
 export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
 
 export function SetCustomItemPricesEnabled(arg1:boolean):Promise<void>;
@@ -191,6 +197,8 @@ export function UpdateAttendanceConfig(arg1:string,arg2:string,arg3:string,arg4:
 export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
 
 export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean):Promise<void>;
+
+export function UpdateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
 
 export function UpdateProductDiscount(arg1:string,arg2:number):Promise<void>;
 
