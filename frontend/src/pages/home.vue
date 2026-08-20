@@ -294,8 +294,12 @@ async function refreshQuote() {
     const result = await QuoteInvoiceTotal(itemsJson);
     if (token !== quoteRequestToken) return;
     quote.value = { grandTotalCents: Number(result.grandTotalCents) };
-  } catch {
+  } catch (e) {
     if (token !== quoteRequestToken) return;
+    // Surfaced instead of silently showing $0 - if this fires, the console
+    // has the actual reason (a real pricing error, or QuoteInvoiceTotal not
+    // existing on window.go yet because the app needs a rebuild/restart).
+    console.error("QuoteInvoiceTotal failed:", e);
     quote.value = null;
   }
 }

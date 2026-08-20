@@ -166,8 +166,9 @@ async function refreshPaymentStatus() {
       isCashRounded: Boolean(result.isCashRounded),
       checkoutReady: Boolean(result.checkoutReady),
     };
-  } catch {
+  } catch (e) {
     if (token !== statusRequestToken) return;
+    console.error("QuotePaymentStatus failed:", e);
     backendStatus.value = null;
   }
 }
