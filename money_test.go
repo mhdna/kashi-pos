@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	db "kashi-pos/db/sqlc"
+)
 
 func TestRoundRatio(t *testing.T) {
 	tests := []struct {
@@ -42,8 +46,27 @@ func TestRoundFloatToCents(t *testing.T) {
 	}
 }
 
-func TestRoundLBPFromCents(t *testing.T) {
-	const rate = int64(90000)
+// lbpUnitsPerUsdMicros mirrors what the 000052 migration backfills for the
+// LBP currency row from the historical default exchange rate of 90000 LBP
+// per USD, scaled to the units_per_usd_micros fixed-point representation.
+const lbpUnitsPerUsdMicros = int64(90000) * unitsPerUsdMicroScale
+const lbpCashRoundingUnit = int64(10000)
+
+// testLBPReceiptCurrency is shared by receipt-printing tests that need a
+// resolved LBP currency without a live database.
+var testLBPReceiptCurrency = receiptCurrency{
+	Code: "LBP", Symbol: "L.L.",
+	UnitsPerUsdMicros: lbpUnitsPerUsdMicros, CashRoundingUnit: lbpCashRoundingUnit,
+}
+
+// testLBPCurrency is the db.Currency equivalent, for tests exercising
+// functions that take the raw sqlc model directly.
+var testLBPCurrency = db.Currency{
+	Code: "LBP", Symbol: "L.L.",
+	UnitsPerUsdMicros: lbpUnitsPerUsdMicros, CashRoundingUnit: lbpCashRoundingUnit,
+}
+
+func TestRoundCurrencyUnitsFromCents(t *testing.T) {
 	tests := []struct {
 		name  string
 		cents int64
@@ -57,18 +80,43 @@ func TestRoundLBPFromCents(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := roundLBPFromCents(tt.cents, rate, tt.mode)
+			got, err := roundCurrencyUnitsFromCents(tt.cents, lbpUnitsPerUsdMicros, lbpCashRoundingUnit, tt.mode)
 			if err != nil || got != tt.want {
-				t.Fatalf("roundLBPFromCents(%d, %d, %q) = %d, %v; want %d", tt.cents, rate, tt.mode, got, err, tt.want)
+				t.Fatalf("roundCurrencyUnitsFromCents(%d, ..., %q) = %d, %v; want %d", tt.cents, tt.mode, got, err, tt.want)
 			}
 		})
 	}
 }
 
 func TestRoundCashEquivalentCents(t *testing.T) {
-	got, err := roundCashEquivalentCents(996, 90000, roundingHalfUp)
+	got, err := roundCashEquivalentCents(996, lbpUnitsPerUsdMicros, lbpCashRoundingUnit, roundingHalfUp)
 	if err != nil || got != 1000 {
-		t.Fatalf("roundCashEquivalentCents(996, 90000) = %d, %v; want 1000", got, err)
+		t.Fatalf("roundCashEquivalentCents(996, ...) = %d, %v; want 1000", got, err)
+	}
+}
+
+func TestRoundCurrencyUnitsFromCentsReproducesWholeDollarUSDRounding(t *testing.T) {
+	// USD's own rate/rounding-unit (1,000,000 micros per USD, round to the
+	// nearest whole dollar) must reproduce exactly what the old hardcoded
+	// USD branch of roundCentsByCurrency did: round cents to the nearest
+	// 100-cent boundary.
+	const usdUnitsPerUsdMicros = unitsPerUsdMicroScale
+	const usdCashRoundingUnit = int64(1)
+	tests := []struct {
+		cents int64
+		mode  string
+		want  int64 // whole dollars
+	}{
+		{1049, roundingHalfUp, 10},
+		{1050, roundingHalfUp, 11},
+		{1099, roundingDown, 10},
+		{1001, roundingUp, 11},
+	}
+	for _, tt := range tests {
+		got, err := roundCurrencyUnitsFromCents(tt.cents, usdUnitsPerUsdMicros, usdCashRoundingUnit, tt.mode)
+		if err != nil || got != tt.want {
+			t.Fatalf("roundCurrencyUnitsFromCents(%d, USD, %q) = %d, %v; want %d", tt.cents, tt.mode, got, err, tt.want)
+		}
 	}
 }
 

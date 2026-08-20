@@ -72,7 +72,11 @@ func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []sales
 	if grandTotal < discountedSubtotal {
 		return totals, fmt.Errorf("invoice total is too large")
 	}
-	grandTotal, err = roundCentsByCurrency(grandTotal, settings.ExchangeRate, settings.RoundingCurrency, roundingMode)
+	roundingCurrency, err := resolveCurrency(a.ctx, q, settings.RoundingCurrency)
+	if err != nil {
+		return totals, fmt.Errorf("rounding currency: %w", err)
+	}
+	grandTotal, err = roundCentsByCurrency(grandTotal, roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, roundingMode)
 	if err != nil {
 		return totals, fmt.Errorf("round invoice total: %w", err)
 	}
@@ -150,10 +154,14 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			return err
 		}
 		products, subtotal, discountedSubtotal, receiptItems, grandTotal := totals.Products, totals.Subtotal, totals.DiscountedSubtotal, totals.ReceiptItems, totals.GrandTotal
-		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, settings.ExchangeRate, roundingMode); err != nil {
+		roundingCurrency, err := resolveCurrency(a.ctx, q, settings.RoundingCurrency)
+		if err != nil {
+			return fmt.Errorf("rounding currency: %w", err)
+		}
+		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, roundingMode); err != nil {
 			return err
 		}
-		if err := validatePayments(a.ctx, q, payments, grandTotal, settings.MaxOverpaymentCents, settings.ExchangeRate, roundingMode); err != nil {
+		if err := validatePayments(a.ctx, q, payments, grandTotal, settings.MaxOverpaymentCents, roundingCurrency, roundingMode); err != nil {
 			return err
 		}
 
@@ -238,10 +246,7 @@ func netPaymentsByAccount(payments []checkoutPayment) map[int64]int64 {
 	return netByAccount
 }
 
-func normalizeCashRoundedPayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, exchangeRate int64, roundingMode string) (bool, error) {
-	if exchangeRate <= 0 {
-		exchangeRate = 90000
-	}
+func normalizeCashRoundedPayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, roundingMode string) (bool, error) {
 	changed := false
 	for i := range payments {
 		payment := &payments[i]
@@ -252,17 +257,23 @@ func normalizeCashRoundedPayments(ctx context.Context, q *db.Queries, payments [
 		if err != nil {
 			return false, fmt.Errorf("payment account %d: %w", payment.AccountID, err)
 		}
-		// Any LBP-currency payment can land off a whole-cent boundary once
-		// converted through the 10,000 LBP cash-rounding rule, not just
-		// accounts named "cash" — normalize all of them.
-		if !strings.EqualFold(account.CurrencyCode, "LBP") {
+		currency, err := resolveCurrency(ctx, q, account.CurrencyCode)
+		if err != nil {
+			return false, fmt.Errorf("payment currency: %w", err)
+		}
+		// Only currencies configured with a cash-rounding unit coarser than
+		// 1 (e.g. LBP rounded to the nearest 10,000) physically lose
+		// precision when tendered - a currency whose minor unit already
+		// matches the accounting cent 1:1 (like USD) never needs this
+		// normalization, regardless of account name.
+		if currency.CashRoundingUnit <= 1 {
 			continue
 		}
 		negative := payment.AmountCents < 0
 		amount := absInt64(payment.AmountCents)
-		canonical, err := roundCashEquivalentCents(amount, exchangeRate, roundingMode)
+		canonical, err := roundCashEquivalentCents(amount, currency.UnitsPerUsdMicros, currency.CashRoundingUnit, roundingMode)
 		if err != nil {
-			return false, fmt.Errorf("round LBP cash payment: %w", err)
+			return false, fmt.Errorf("round cash payment: %w", err)
 		}
 		if negative {
 			canonical = -canonical
@@ -337,9 +348,9 @@ func parsePayments(raw string) ([]checkoutPayment, error) {
 	return payments, nil
 }
 
-func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, total, maxOverpaymentCents, exchangeRate int64, roundingMode string) error {
+func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, total, maxOverpaymentCents int64, roundingCurrency db.Currency, roundingMode string) error {
 	var paid int64
-	hasLBPPayment := false
+	hasForeignCashPayment := false
 	for i := range payments {
 		payment := &payments[i]
 		if _, err := q.GetCashboxAccountByID(ctx, payment.AccountID); err != nil {
@@ -387,18 +398,22 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 				}
 			}
 		}
-		// Any LBP-currency payment, regardless of account name, cannot
-		// reliably hit exact-cents parity with a total that may itself be
-		// rounded to the nearest 10,000 LBP — give it rounding tolerance.
-		if strings.EqualFold(account.CurrencyCode, "LBP") && payment.AmountCents > 0 {
-			hasLBPPayment = true
+		// Only a payment in a currency configured with a cash-rounding unit
+		// coarser than 1 (e.g. LBP rounded to the nearest 10,000) can fail
+		// to reliably hit exact-cents parity with a total that may itself
+		// be rounded to the invoice's configured rounding currency's cash
+		// unit — give those, and only those, rounding tolerance.
+		if payment.AmountCents > 0 {
+			if paymentCurrency, currErr := resolveCurrency(ctx, q, account.CurrencyCode); currErr == nil && paymentCurrency.CashRoundingUnit > 1 {
+				hasForeignCashPayment = true
+			}
 		}
 		if payment.AmountCents > math.MaxInt64-paid {
 			return fmt.Errorf("payment total is too large")
 		}
 		paid += payment.AmountCents
 	}
-	ok, _, err := evaluatePaymentSufficiency(paid, total, maxOverpaymentCents, exchangeRate, roundingMode, hasLBPPayment)
+	ok, _, err := evaluatePaymentSufficiency(paid, total, maxOverpaymentCents, roundingCurrency, roundingMode, hasForeignCashPayment)
 	if err != nil {
 		return err
 	}
@@ -412,20 +427,17 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 }
 
 // evaluatePaymentSufficiency decides whether a tendered amount satisfies an
-// invoice total, accounting for the fact that an LBP-currency payment may
-// legitimately never hit exact-cents parity with a total that was itself
-// rounded to the nearest 10,000 LBP. Used by both validatePayments (the
-// mutating checkout path) and QuotePaymentStatus (the read-only preview),
-// so the calculator's "ready to checkout" state can never diverge from
-// what checkout will actually accept.
-func evaluatePaymentSufficiency(paid, total, maxOverpaymentCents, exchangeRate int64, roundingMode string, hasLBPPayment bool) (ok bool, roundedEquivalent bool, err error) {
-	if hasLBPPayment && paid != total {
-		if exchangeRate <= 0 {
-			exchangeRate = 90000
-		}
-		paidLBP, paidErr := roundLBPFromCents(absInt64(paid), exchangeRate, roundingMode)
-		totalLBP, totalErr := roundLBPFromCents(absInt64(total), exchangeRate, roundingMode)
-		roundedEquivalent = paidErr == nil && totalErr == nil && paidLBP == totalLBP
+// invoice total, accounting for the fact that a payment in a non-default
+// currency may legitimately never hit exact-cents parity with a total that
+// was itself rounded to the invoice's configured rounding currency's cash
+// unit. Used by both validatePayments (the mutating checkout path) and
+// QuotePaymentStatus (the read-only preview), so the calculator's "ready to
+// checkout" state can never diverge from what checkout will actually accept.
+func evaluatePaymentSufficiency(paid, total, maxOverpaymentCents int64, roundingCurrency db.Currency, roundingMode string, hasForeignCashPayment bool) (ok bool, roundedEquivalent bool, err error) {
+	if hasForeignCashPayment && paid != total {
+		paidRounded, paidErr := roundCurrencyUnitsFromCents(absInt64(paid), roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, roundingMode)
+		totalRounded, totalErr := roundCurrencyUnitsFromCents(absInt64(total), roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, roundingMode)
+		roundedEquivalent = paidErr == nil && totalErr == nil && paidRounded == totalRounded
 	}
 	if paid < total && !roundedEquivalent {
 		return false, roundedEquivalent, nil

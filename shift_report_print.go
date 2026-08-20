@@ -113,7 +113,7 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		} else if strings.EqualFold(strings.TrimSpace(payment.AccountName), "On Coupon") {
 			label = "ON COUPON (AUTO-COUNTED)"
 		}
-		y, _ = c.twoCol(y, label, formatReceiptPayment(payment, report.ExchangeRate, report.RoundingMode), 10, true)
+		y, _ = c.twoCol(y, label, formatReceiptPayment(payment, report.RoundingMode), 10, true)
 		y += 7
 	}
 	if len(report.Payments) == 0 {

@@ -157,6 +157,8 @@ type Currency struct {
 	IsDefault              bool   `json:"isDefault"`
 	IsActive               bool   `json:"isActive"`
 	ValueInDefaultCurrency int64  `json:"valueInDefaultCurrency"`
+	UnitsPerUsdMicros      int64  `json:"unitsPerUsdMicros"`
+	CashRoundingUnit       int64  `json:"cashRoundingUnit"`
 }
 
 type DiscountOverride struct {

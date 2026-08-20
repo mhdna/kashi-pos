@@ -107,8 +107,8 @@ func rasterTestReceipt(width int64) printReceiptData {
 		},
 		Font: "Belleza", BodyFont: "Belleza", TitleSize: 21, BodySize: 11,
 		ReceiptNo: "INV-TEST-0001", GrandTotalCents: 7900,
-		Payments:     []receiptPayment{{AccountName: "Cash", CurrencyCode: "USD", AmountCents: 7900}},
-		ExchangeRate: 90000, RoundingMode: "nearest", ReceiptWidth: width, Cutoff: true,
+		Payments:         []receiptPayment{{AccountName: "Cash", CurrencyCode: "USD", AmountCents: 7900}},
+		RoundingCurrency: testLBPReceiptCurrency, RoundingMode: "nearest", ReceiptWidth: width, Cutoff: true,
 	}
 }
 

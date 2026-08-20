@@ -206,7 +206,12 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 		if client, err := a.store.GetClientByID(a.ctx, clientID); err == nil && client.Name != "" && !strings.Contains(strings.ToLower(client.Name), "walk-in") {
 			customer = client.Name
 		}
-		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.Notes, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.Payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0); err != nil {
+		roundingCurrency, currErr := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
+		if currErr != nil {
+			response["receiptError"] = currErr.Error()
+			return response, nil
+		}
+		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.Notes, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.Payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0); err != nil {
 			response["receiptError"] = err.Error()
 		} else {
 			response["receiptPrinted"] = true
@@ -484,7 +489,11 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	if err != nil {
 		return err
 	}
-	grandTotal, roundErr := roundCentsByCurrency(details["grandTotal"].(int64), settings.ExchangeRate, settings.RoundingCurrency, settings.RoundingMode)
+	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
+	if err != nil {
+		return fmt.Errorf("rounding currency: %w", err)
+	}
+	grandTotal, roundErr := roundCentsByCurrency(details["grandTotal"].(int64), roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, settings.RoundingMode)
 	if roundErr != nil {
 		return fmt.Errorf("round receipt total: %w", roundErr)
 	}
@@ -492,59 +501,68 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	if marketName == "" {
 		marketName = "Market"
 	}
-	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), details["clientName"].(string), details["notes"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, grandTotal, payments, settings.ExchangeRate, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0)
+	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), details["clientName"].(string), details["notes"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, grandTotal, payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0)
 }
 
-func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, registerName, salesperson, customer, notes, receiptNo, printerName string, grandTotalCents int64, payments []checkoutPayment, exchangeRate int64, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram string, socialPlatforms []string, socialHandles map[string]string, font, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
+func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, registerName, salesperson, customer, notes, receiptNo, printerName string, grandTotalCents int64, payments []checkoutPayment, roundingCurrency db.Currency, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram string, socialPlatforms []string, socialHandles map[string]string, font, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")
 	}
 	notes = strings.TrimSpace(notes)
 
+	currencyCache := make(map[string]receiptCurrency)
 	receiptPayments := make([]receiptPayment, 0, len(payments))
 	for _, payment := range payments {
 		account, err := a.store.GetCashboxAccountByID(a.ctx, payment.AccountID)
 		if err != nil {
 			return fmt.Errorf("receipt payment account: %w", err)
 		}
+		paymentCurrency, cached := currencyCache[account.CurrencyCode]
+		if !cached {
+			if resolved, currErr := resolveCurrency(a.ctx, a.store.Queries, account.CurrencyCode); currErr == nil {
+				paymentCurrency = toReceiptCurrency(resolved)
+			}
+			currencyCache[account.CurrencyCode] = paymentCurrency
+		}
 		receiptPayments = append(receiptPayments, receiptPayment{
 			AccountID:    account.ID,
 			AccountName:  account.Name,
 			CurrencyCode: account.CurrencyCode,
+			Currency:     paymentCurrency,
 			AmountCents:  payment.AmountCents,
 			EntryType:    payment.EntryType,
 		})
 	}
 	receiptPayments = aggregateReceiptPayments(receiptPayments)
 	return printReceiptToPrinter(printReceiptData{
-		Items:           items,
-		StoreName:       storeName,
-		Branch:          branch,
-		Phone:           phone,
-		BranchPhone:     branchPhone,
-		Description:     description,
-		RegisterName:    strings.TrimSpace(registerName),
-		Salesperson:     salesperson,
-		Customer:        customer,
-		Notes:           notes,
-		ReturnPolicy:    returnPolicy,
-		Website:         website,
-		Instagram:       instagram,
-		SocialPlatforms: socialPlatforms,
-		SocialHandles:   socialHandles,
-		Font:            font,
-		BodyFont:        bodyFont,
-		TitleSize:       titleSize,
-		BodySize:        bodySize,
-		Cutoff:          cutoff,
-		ReceiptNo:       receiptNo,
-		PrinterName:     printerName,
-		GrandTotalCents: grandTotalCents,
-		Payments:        receiptPayments,
-		ExchangeRate:    exchangeRate,
-		RoundingMode:    roundingMode,
-		ReceiptWidth:    receiptWidth,
-		ReceiptHeight:   receiptHeight,
+		Items:            items,
+		StoreName:        storeName,
+		Branch:           branch,
+		Phone:            phone,
+		BranchPhone:      branchPhone,
+		Description:      description,
+		RegisterName:     strings.TrimSpace(registerName),
+		Salesperson:      salesperson,
+		Customer:         customer,
+		Notes:            notes,
+		ReturnPolicy:     returnPolicy,
+		Website:          website,
+		Instagram:        instagram,
+		SocialPlatforms:  socialPlatforms,
+		SocialHandles:    socialHandles,
+		Font:             font,
+		BodyFont:         bodyFont,
+		TitleSize:        titleSize,
+		BodySize:         bodySize,
+		Cutoff:           cutoff,
+		ReceiptNo:        receiptNo,
+		PrinterName:      printerName,
+		GrandTotalCents:  grandTotalCents,
+		Payments:         receiptPayments,
+		RoundingCurrency: toReceiptCurrency(roundingCurrency),
+		RoundingMode:     roundingMode,
+		ReceiptWidth:     receiptWidth,
+		ReceiptHeight:    receiptHeight,
 	})
 }
 
@@ -561,16 +579,20 @@ func formatInt(value int64) string {
 	return sign + digits
 }
 
-func formatReceiptPayment(payment receiptPayment, exchangeRate int64, roundingMode string) string {
+func formatReceiptPayment(payment receiptPayment, roundingMode string) string {
 	amount := payment.AmountCents
 	if amount < 0 {
 		amount = -amount
 	}
-	if payment.CurrencyCode == "LBP" {
-		if rounded, err := roundLBPFromCents(amount, exchangeRate, roundingMode); err == nil {
-			return fmt.Sprintf("%s LBP", formatInt(rounded))
+	// A whole-major-unit rounding unit greater than 1 identifies a physical
+	// cash currency that should be displayed as a rounded integer amount
+	// (e.g. LBP); anything else (the default accounting currency, cards)
+	// displays as a decimal dollar amount.
+	if payment.Currency.CashRoundingUnit > 1 {
+		if rounded, err := roundCurrencyUnitsFromCents(amount, payment.Currency.UnitsPerUsdMicros, payment.Currency.CashRoundingUnit, roundingMode); err == nil {
+			return fmt.Sprintf("%s %s", formatInt(rounded), payment.Currency.Symbol)
 		}
-		return "0 LBP"
+		return "0 " + payment.Currency.Symbol
 	}
 	return fmt.Sprintf("$%.2f", float64(amount)/100)
 }

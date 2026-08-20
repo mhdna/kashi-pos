@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -26,7 +25,11 @@ func (a *App) RoundInvoice(invoiceID int64) error {
 	if err != nil {
 		return err
 	}
-	targetTotal, err := roundCentsByCurrency(invoice.GrandTotal, settings.ExchangeRate, settings.RoundingCurrency, settings.RoundingMode)
+	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
+	if err != nil {
+		return fmt.Errorf("rounding currency: %w", err)
+	}
+	targetTotal, err := roundCentsByCurrency(invoice.GrandTotal, roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, settings.RoundingMode)
 	if err != nil {
 		return fmt.Errorf("round invoice total: %w", err)
 	}
@@ -50,10 +53,16 @@ func (a *App) RoundInvoice(invoiceID int64) error {
 			if accountErr != nil {
 				return accountErr
 			}
-			if amount > 0 && strings.EqualFold(account.CurrencyCode, "LBP") && isCashAccount(account.Name, account.CurrencyCode) {
-				amount, err = roundCashEquivalentCents(amount, settings.ExchangeRate, settings.RoundingMode)
-				if err != nil {
-					return fmt.Errorf("round LBP payment: %w", err)
+			if amount > 0 {
+				paymentCurrency, currErr := resolveCurrency(a.ctx, q, account.CurrencyCode)
+				if currErr != nil {
+					return fmt.Errorf("payment currency: %w", currErr)
+				}
+				if paymentCurrency.CashRoundingUnit > 1 {
+					amount, err = roundCashEquivalentCents(amount, paymentCurrency.UnitsPerUsdMicros, paymentCurrency.CashRoundingUnit, settings.RoundingMode)
+					if err != nil {
+						return fmt.Errorf("round cash payment: %w", err)
+					}
 				}
 			}
 			newPayments[payment.CashboxID] = amount
@@ -92,10 +101,16 @@ func (a *App) RoundInvoice(invoiceID int64) error {
 			if accountErr != nil {
 				return accountErr
 			}
-			if amount > 0 && strings.EqualFold(account.CurrencyCode, "LBP") && isCashAccount(account.Name, account.CurrencyCode) {
-				amount, err = roundCashEquivalentCents(amount, settings.ExchangeRate, settings.RoundingMode)
-				if err != nil {
-					return fmt.Errorf("round LBP payment entry: %w", err)
+			if amount > 0 {
+				entryCurrency, currErr := resolveCurrency(a.ctx, q, account.CurrencyCode)
+				if currErr != nil {
+					return fmt.Errorf("payment entry currency: %w", currErr)
+				}
+				if entryCurrency.CashRoundingUnit > 1 {
+					amount, err = roundCashEquivalentCents(amount, entryCurrency.UnitsPerUsdMicros, entryCurrency.CashRoundingUnit, settings.RoundingMode)
+					if err != nil {
+						return fmt.Errorf("round cash payment entry: %w", err)
+					}
 				}
 			}
 			newEntries[i] = amount

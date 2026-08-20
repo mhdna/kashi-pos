@@ -6,25 +6,18 @@ import (
 	"math/big"
 )
 
-const lbpRoundingUnit int64 = 10000
-
 const (
 	roundingHalfUp = "half_up"
 	roundingDown   = "down"
 	roundingUp     = "up"
 )
 
-const (
-	roundingCurrencyLBP = "LBP"
-	roundingCurrencyUSD = "USD"
-)
-
-func normalizedRoundingCurrency(currency string) string {
-	if currency == roundingCurrencyUSD {
-		return roundingCurrencyUSD
-	}
-	return roundingCurrencyLBP
-}
+// unitsPerUsdMicroScale is the fixed-point scale used by
+// currencies.units_per_usd_micros: that column stores how many micro-units
+// (1/1,000,000) of a currency equal one USD, so both weaker and
+// stronger-than-USD currencies can be represented as a plain integer with
+// no floating point precision loss.
+const unitsPerUsdMicroScale = 1_000_000
 
 func normalizeRoundingMode(mode string) (string, error) {
 	if mode == "" {
@@ -74,85 +67,91 @@ func roundFloatToCents(value float64, mode string) (int64, error) {
 	}
 }
 
-// roundLBPFromCents converts an accounting amount to LBP and applies the
-// configured cash rounding rule. The conversion is integer-based so the
-// printed amount cannot drift from the amount used by checkout.
-func roundLBPFromCents(cents, exchangeRate int64, mode string) (int64, error) {
-	if cents < 0 || exchangeRate <= 0 {
-		return 0, fmt.Errorf("invalid LBP conversion")
+// applyRoundingRemainder bumps a big.Int quotient by one whenever the
+// configured mode calls for rounding away from zero: always for "up", or
+// for "half_up" when the remainder is at least half of the denominator.
+func applyRoundingRemainder(quotient, remainder, denominator *big.Int, mode string) {
+	if mode == roundingUp || (mode == roundingHalfUp && new(big.Int).Mul(remainder, big.NewInt(2)).Cmp(denominator) >= 0) {
+		quotient.Add(quotient, big.NewInt(1))
+	}
+}
+
+// roundCurrencyUnitsFromCents converts an accounting (USD cents) amount into
+// a currency's major units, rounded to that currency's configured cash
+// rounding unit. unitsPerUsdMicros and cashRoundingUnit come from a
+// currencies row (Currency.UnitsPerUsdMicros/CashRoundingUnit) - this
+// function is currency-agnostic: plugging in USD's own rate/unit
+// (1,000,000 / 1) reproduces "round to the nearest whole dollar", and any
+// other currency's own configured rate/unit works the same way. The
+// conversion is integer-based so the printed amount cannot drift from the
+// amount used by checkout.
+func roundCurrencyUnitsFromCents(cents, unitsPerUsdMicros, cashRoundingUnit int64, mode string) (int64, error) {
+	if cents < 0 || unitsPerUsdMicros <= 0 || cashRoundingUnit <= 0 {
+		return 0, fmt.Errorf("invalid currency conversion")
 	}
 	normalizedMode, err := normalizeRoundingMode(mode)
 	if err != nil {
 		return 0, err
 	}
-	numerator := new(big.Int).Mul(big.NewInt(cents), big.NewInt(exchangeRate))
-	denominator := big.NewInt(100 * lbpRoundingUnit)
+	numerator := new(big.Int).Mul(big.NewInt(cents), big.NewInt(unitsPerUsdMicros))
+	denominator := big.NewInt(100 * unitsPerUsdMicroScale * cashRoundingUnit)
 	quotient, remainder := new(big.Int), new(big.Int)
 	quotient.QuoRem(numerator, denominator, remainder)
-	if normalizedMode == roundingUp || (normalizedMode == roundingHalfUp && new(big.Int).Mul(remainder, big.NewInt(2)).Cmp(denominator) >= 0) {
-		quotient.Add(quotient, big.NewInt(1))
-	}
-	quotient.Mul(quotient, big.NewInt(lbpRoundingUnit))
+	applyRoundingRemainder(quotient, remainder, denominator, normalizedMode)
+	quotient.Mul(quotient, big.NewInt(cashRoundingUnit))
 	if !quotient.IsInt64() {
-		return 0, fmt.Errorf("LBP value is too large")
+		return 0, fmt.Errorf("currency value is too large")
 	}
 	return quotient.Int64(), nil
 }
 
-// roundCentsFromLBP converts a physically counted LBP amount back to the
-// accounting currency so mixed-currency shift totals can be reconciled.
-func roundCentsFromLBP(amount, exchangeRate int64, mode string) (int64, error) {
-	if amount < 0 || exchangeRate <= 0 {
-		return 0, fmt.Errorf("invalid LBP conversion")
+// roundCentsFromCurrencyUnits converts a physically counted amount in a
+// currency's major units back to the accounting currency, so mixed-currency
+// shift totals can be reconciled. This is the inverse of
+// roundCurrencyUnitsFromCents (without the cash-rounding-unit step).
+func roundCentsFromCurrencyUnits(units, unitsPerUsdMicros int64, mode string) (int64, error) {
+	if units < 0 || unitsPerUsdMicros <= 0 {
+		return 0, fmt.Errorf("invalid currency conversion")
 	}
 	normalizedMode, err := normalizeRoundingMode(mode)
 	if err != nil {
 		return 0, err
 	}
-	numerator := new(big.Int).Mul(big.NewInt(amount), big.NewInt(100))
-	denominator := big.NewInt(exchangeRate)
+	numerator := new(big.Int).Mul(big.NewInt(units), big.NewInt(100*unitsPerUsdMicroScale))
+	denominator := big.NewInt(unitsPerUsdMicros)
 	quotient, remainder := new(big.Int), new(big.Int)
 	quotient.QuoRem(numerator, denominator, remainder)
-	if normalizedMode == roundingUp || (normalizedMode == roundingHalfUp && new(big.Int).Mul(remainder, big.NewInt(2)).Cmp(denominator) >= 0) {
-		quotient.Add(quotient, big.NewInt(1))
-	}
+	applyRoundingRemainder(quotient, remainder, denominator, normalizedMode)
 	if !quotient.IsInt64() {
-		return 0, fmt.Errorf("LBP value is too large")
+		return 0, fmt.Errorf("currency value is too large")
 	}
 	return quotient.Int64(), nil
 }
 
-// roundCashEquivalentCents converts an accounting amount to its physical LBP
-// cash-rounded value and then back to accounting cents. This is the canonical
-// USD amount to store when an LBP cash payment is rounded at checkout.
-func roundCashEquivalentCents(cents, exchangeRate int64, mode string) (int64, error) {
+// roundCashEquivalentCents converts an accounting amount to its physical
+// cash-rounded value in the given currency and then back to accounting
+// cents. This is the canonical amount to store when a cash payment in that
+// currency is rounded at checkout.
+func roundCashEquivalentCents(cents, unitsPerUsdMicros, cashRoundingUnit int64, mode string) (int64, error) {
 	if cents < 0 {
 		return 0, fmt.Errorf("invalid cash conversion")
 	}
-	roundedLBP, err := roundLBPFromCents(cents, exchangeRate, mode)
+	roundedUnits, err := roundCurrencyUnitsFromCents(cents, unitsPerUsdMicros, cashRoundingUnit, mode)
 	if err != nil {
 		return 0, err
 	}
-	return roundCentsFromLBP(roundedLBP, exchangeRate, mode)
+	return roundCentsFromCurrencyUnits(roundedUnits, unitsPerUsdMicros, mode)
 }
 
-// roundCentsByCurrency rounds the canonical accounting amount according to
-// the configured source currency, then returns the equivalent USD cents.
-func roundCentsByCurrency(cents, exchangeRate int64, currency, mode string) (int64, error) {
+// roundCentsByCurrency rounds the canonical accounting amount to the given
+// currency's cash-rounding grid (e.g. nearest whole dollar for USD, nearest
+// 10,000 for LBP, or whatever a shop has configured for any currency it
+// adds), then returns the equivalent accounting cents.
+func roundCentsByCurrency(cents, unitsPerUsdMicros, cashRoundingUnit int64, mode string) (int64, error) {
 	negative := cents < 0
-	amount := absInt64(cents)
-	var rounded int64
-	var err error
-	if normalizedRoundingCurrency(currency) == roundingCurrencyUSD {
-		rounded = roundRatio(amount, 100, mode) * 100
-	} else {
-		if exchangeRate <= 0 {
-			exchangeRate = 90000
-		}
-		rounded, err = roundCashEquivalentCents(amount, exchangeRate, mode)
-		if err != nil {
-			return 0, err
-		}
+	rounded, err := roundCashEquivalentCents(absInt64(cents), unitsPerUsdMicros, cashRoundingUnit, mode)
+	if err != nil {
+		return 0, err
 	}
 	if negative {
 		return -rounded, nil

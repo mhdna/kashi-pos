@@ -332,7 +332,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"receiptHeight":       settings.ReceiptHeight,
 		"taxRate":             settings.TaxRate,
 		"roundingMode":        settings.RoundingMode,
-		"roundingCurrency":    normalizedRoundingCurrency(settings.RoundingCurrency),
+		"roundingCurrency":    a.effectiveRoundingCurrencyCode(settings.RoundingCurrency),
 		"receiptEnabled":      settings.ReceiptEnabled != 0,
 		"salesInventoryId":    settings.SalesInventoryID,
 		"exchangeRate":        settings.ExchangeRate,
@@ -468,7 +468,11 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 	if roundingMode, err = normalizeRoundingMode(roundingMode); err != nil {
 		return err
 	}
-	roundingCurrency = normalizedRoundingCurrency(roundingCurrency)
+	roundingCurrencyRow, err := resolveCurrency(a.ctx, a.store.Queries, roundingCurrency)
+	if err != nil || !roundingCurrencyRow.IsActive {
+		return fmt.Errorf("rounding currency %q is not a known, active currency", roundingCurrency)
+	}
+	roundingCurrency = roundingCurrencyRow.Code
 	if exchangeRate <= 0 {
 		return fmt.Errorf("exchange rate must be greater than zero")
 	}

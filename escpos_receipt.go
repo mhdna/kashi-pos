@@ -74,21 +74,17 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 
 	grandTotal := float64(data.GrandTotalCents) / 100
 	tax := grandTotal - (subtotal - totalDiscount)
-	rate := data.ExchangeRate
-	if rate <= 0 {
-		rate = 90000
-	}
 	out.WriteString(separator + "\n")
 	writeESCPosLine(&out, "Subtotal", fmt.Sprintf("$%.2f", subtotal), columns)
 	writeESCPosLine(&out, "Discount", fmt.Sprintf("-$%.2f", totalDiscount), columns)
 	writeESCPosLine(&out, "Tax", fmt.Sprintf("$%.2f", tax), columns)
 	out.WriteString(separator + "\n")
 	writeESCPosBoldLine(&out, "TOTAL", fmt.Sprintf("$%.2f", grandTotal), columns)
-	roundedLBP, err := roundLBPFromCents(data.GrandTotalCents, rate, data.RoundingMode)
-	if err != nil {
-		roundedLBP = int64(grandTotal * float64(rate))
+	if currency := data.RoundingCurrency; currency.UnitsPerUsdMicros > 0 {
+		if roundedUnits, err := roundCurrencyUnitsFromCents(data.GrandTotalCents, currency.UnitsPerUsdMicros, currency.CashRoundingUnit, data.RoundingMode); err == nil {
+			writeESCPosLine(&out, currency.Code+" TOTAL", fmt.Sprintf("%s %s", formatInt(roundedUnits), currency.Symbol), columns)
+		}
 	}
-	writeESCPosLine(&out, "LBP TOTAL", fmt.Sprintf("%s L.L.", formatInt(roundedLBP)), columns)
 	writeESCPosCentered(&out, "PAYMENT DETAILS", columns, true)
 	for _, payment := range data.Payments {
 		label := payment.AccountName
@@ -100,7 +96,7 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 		} else {
 			label = "CASH RECEIVED " + label
 		}
-		writeESCPosLine(&out, label, formatReceiptPayment(payment, rate, data.RoundingMode), columns)
+		writeESCPosLine(&out, label, formatReceiptPayment(payment, data.RoundingMode), columns)
 	}
 	out.WriteString(separator + "\n")
 	writeESCPosCentered(&out, "EXCHANGE POLICY", columns, true)

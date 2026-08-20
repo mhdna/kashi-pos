@@ -269,6 +269,7 @@ func (a *App) buildShiftClosePrintData(
 	}
 
 	payments := make([]receiptPayment, 0, len(paymentRows))
+	currencyCache := make(map[string]receiptCurrency)
 	var totalPayments, onAccount, countedCoupon int64
 	var expectedUSD, expectedLBPCents, expectedVisa, expectedWhish int64
 	for _, row := range paymentRows {
@@ -281,10 +282,18 @@ func (a *App) buildShiftClosePrintData(
 		if strings.EqualFold(strings.TrimSpace(row.Name), "On Coupon") {
 			countedCoupon += total
 		}
+		rowCurrency, cached := currencyCache[row.CurrencyCode]
+		if !cached {
+			if resolved, currErr := resolveCurrency(a.ctx, a.store.Queries, row.CurrencyCode); currErr == nil {
+				rowCurrency = toReceiptCurrency(resolved)
+			}
+			currencyCache[row.CurrencyCode] = rowCurrency
+		}
 		payments = append(payments, receiptPayment{
 			AccountID:    row.ID,
 			AccountName:  row.Name,
 			CurrencyCode: strings.ToUpper(strings.TrimSpace(row.CurrencyCode)),
+			Currency:     rowCurrency,
 			AmountCents:  total,
 			EntryType:    "payment",
 		})
@@ -307,13 +316,18 @@ func (a *App) buildShiftClosePrintData(
 		}
 	}
 
-	rate := settings.ExchangeRate
-	if rate <= 0 {
-		rate = 90000
+	// Close-shift reconciliation still buckets by the specific categories
+	// USD-cash/LBP/Visa/Whish rather than arbitrary currencies - this is a
+	// payment-method-category reconciliation report, not currency rounding,
+	// and is out of scope for the currency generalization.
+	lbpCurrency, err := resolveCurrency(a.ctx, a.store.Queries, "LBP")
+	if err != nil {
+		return printReceiptData{}, false, fmt.Errorf("LBP currency: %w", err)
 	}
-	expectedLBP, roundErr := roundLBPFromCents(expectedLBPCents, rate, settings.RoundingMode)
+	rate := lbpCurrency.UnitsPerUsdMicros / unitsPerUsdMicroScale
+	expectedLBP, roundErr := roundCurrencyUnitsFromCents(expectedLBPCents, lbpCurrency.UnitsPerUsdMicros, lbpCurrency.CashRoundingUnit, settings.RoundingMode)
 	if roundErr != nil {
-		expectedLBP = expectedLBPCents * rate / 100
+		return printReceiptData{}, false, fmt.Errorf("expected LBP: %w", roundErr)
 	}
 	countedTotal, err := reconcileShiftCountedTotal(
 		totalPayments,
@@ -321,7 +335,7 @@ func (a *App) buildShiftClosePrintData(
 		expectedLBP, countedLBP,
 		expectedVisa, countedVisa,
 		expectedWhish, countedWhish,
-		rate, settings.RoundingMode,
+		lbpCurrency, settings.RoundingMode,
 	)
 	if err != nil {
 		return printReceiptData{}, false, err
@@ -387,8 +401,8 @@ func reconcileShiftCountedTotal(
 	expectedUSD, countedUSD,
 	expectedLBP, countedLBP,
 	expectedVisa, countedVisa,
-	expectedWhish, countedWhish,
-	exchangeRate int64,
+	expectedWhish, countedWhish int64,
+	lbpCurrency db.Currency,
 	roundingMode string,
 ) (int64, error) {
 	lbpDifference := countedLBP - expectedLBP
@@ -396,7 +410,7 @@ func reconcileShiftCountedTotal(
 	if absLBPDifference < 0 {
 		absLBPDifference = -absLBPDifference
 	}
-	lbpDifferenceCents, err := roundCentsFromLBP(absLBPDifference, exchangeRate, roundingMode)
+	lbpDifferenceCents, err := roundCentsFromCurrencyUnits(absLBPDifference, lbpCurrency.UnitsPerUsdMicros, roundingMode)
 	if err != nil {
 		return 0, fmt.Errorf("counted LBP difference: %w", err)
 	}

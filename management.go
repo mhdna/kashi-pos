@@ -205,11 +205,15 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
+	if err != nil {
+		return nil, fmt.Errorf("rounding currency: %w", err)
+	}
 	result := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
 		onAccount := isNonCollectedIncomeAccount(row.Name)
 		onCoupon := strings.EqualFold(strings.TrimSpace(row.Name), "On Coupon")
-		balance, roundErr := roundCentsByCurrency(databaseInt64(row.Total), settings.ExchangeRate, settings.RoundingCurrency, settings.RoundingMode)
+		balance, roundErr := roundCentsByCurrency(databaseInt64(row.Total), roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, settings.RoundingMode)
 		if roundErr != nil {
 			return nil, roundErr
 		}
@@ -432,10 +436,14 @@ func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
+	if err != nil {
+		return nil, fmt.Errorf("rounding currency: %w", err)
+	}
 	result := make([]map[string]any, len(rows))
 	for i, r := range rows {
 		onAccount := isNonCollectedIncomeAccount(r.Name)
-		total, roundErr := roundCentsByCurrency(databaseInt64(r.Total), settings.ExchangeRate, settings.RoundingCurrency, settings.RoundingMode)
+		total, roundErr := roundCentsByCurrency(databaseInt64(r.Total), roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, settings.RoundingMode)
 		if roundErr != nil {
 			return nil, roundErr
 		}

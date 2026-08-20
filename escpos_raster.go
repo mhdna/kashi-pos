@@ -206,16 +206,12 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y = boxTop + 8
 	y, _ = c.twoCol(y, "TOTAL", fmt.Sprintf("$%.2f", grandTotal), 13, true)
 	y += 8
-	rate := c.data.ExchangeRate
-	if rate <= 0 {
-		rate = 90000
+	if currency := c.data.RoundingCurrency; currency.UnitsPerUsdMicros > 0 {
+		if rounded, err := roundCurrencyUnitsFromCents(c.data.GrandTotalCents, currency.UnitsPerUsdMicros, currency.CashRoundingUnit, c.data.RoundingMode); err == nil {
+			y, _ = c.twoCol(y, currency.Code+" TOTAL", formatInt(rounded)+" "+currency.Symbol, 11, true)
+			y += 8
+		}
 	}
-	lbp, roundErr := roundLBPFromCents(c.data.GrandTotalCents, rate, c.data.RoundingMode)
-	if roundErr != nil {
-		lbp = int64(grandTotal * float64(rate))
-	}
-	y, _ = c.twoCol(y, "LBP TOTAL", formatInt(lbp)+" L.L.", 11, true)
-	y += 8
 	c.dottedBox(boxTop, y-boxTop)
 	y += 6
 
@@ -232,7 +228,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 			} else {
 				label = "Received - " + label
 			}
-			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, rate, c.data.RoundingMode), 10, true)
+			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, c.data.RoundingMode), 10, true)
 			y += 7
 		}
 	}

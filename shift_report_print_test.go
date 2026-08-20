@@ -37,7 +37,7 @@ func TestShiftReportPaidVsCountedIncludesOverpaymentOnce(t *testing.T) {
 		4_500_000, 4_500_000,
 		5000, 5000,
 		100, 100,
-		90_000, roundingHalfUp,
+		testLBPCurrency, roundingHalfUp,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -54,7 +54,7 @@ func TestShiftReportPaidVsCountedUsesDisplayedLBPDifference(t *testing.T) {
 		4_510_000, 4_510_000,
 		2500, 2500,
 		2500, 2500,
-		90_000, roundingHalfUp,
+		testLBPCurrency, roundingHalfUp,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -122,7 +122,7 @@ func shiftReportPreviewData() printReceiptData {
 		ExpectedLBP: 45000000, CountedLBP: 45100000,
 		ExpectedVisa: 25350, CountedVisa: 25000,
 		ExpectedWhish: 10000, CountedWhish: 10000,
-		ExchangeRate: 90000, RoundingMode: roundingHalfUp,
+		RoundingMode: roundingHalfUp,
 	}
 	return printReceiptData{
 		StoreName: "Kashi Market", Branch: "Downtown",

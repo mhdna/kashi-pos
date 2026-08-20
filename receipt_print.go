@@ -27,17 +27,28 @@ type printReceiptData struct {
 	PrinterName     string
 	GrandTotalCents int64
 	Payments        []receiptPayment
-	ExchangeRate    int64
+	RoundingCurrency receiptCurrency
 	RoundingMode    string
 	ReceiptWidth    int64
 	ReceiptHeight   int64
 	ShiftReport     *shiftReportData
 }
 
+// receiptCurrency carries the fields a receipt needs to display an amount
+// in a given currency (resolved from the currencies table at build time),
+// so printing code never hardcodes a currency literal.
+type receiptCurrency struct {
+	Code              string
+	Symbol            string
+	UnitsPerUsdMicros int64
+	CashRoundingUnit  int64
+}
+
 type receiptPayment struct {
 	AccountID    int64
 	AccountName  string
 	CurrencyCode string
+	Currency     receiptCurrency
 	AmountCents  int64
 	EntryType    string
 }

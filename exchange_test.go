@@ -87,7 +87,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 		ApiKey: settings.ApiKey, PrinterID: settings.PrinterID,
 		PrinterSize: settings.PrinterSize, ReceiptPrinter: settings.ReceiptPrinter, ScreenPort: settings.ScreenPort,
 		ReceiptWidth: settings.ReceiptWidth, ReceiptHeight: settings.ReceiptHeight, Theme: settings.Theme,
-		TaxRate: settings.TaxRate, RoundingMode: settings.RoundingMode, RoundingCurrency: roundingCurrencyUSD, ReceiptEnabled: settings.ReceiptEnabled,
+		TaxRate: settings.TaxRate, RoundingMode: settings.RoundingMode, RoundingCurrency: "USD", ReceiptEnabled: settings.ReceiptEnabled,
 		SalesInventoryID: settings.SalesInventoryID,
 	}); err != nil {
 		t.Fatal(err)

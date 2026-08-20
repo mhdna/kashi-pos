@@ -21,6 +21,7 @@ type Querier interface {
 	CloseShift(ctx context.Context, arg CloseShiftParams) (int64, error)
 	CloseStaleOpenShifts(ctx context.Context, closedAt string) error
 	CountAllProducts(ctx context.Context) (int64, error)
+	CountCashboxAccountsByCurrency(ctx context.Context, currencyCode string) (int64, error)
 	CountClients(ctx context.Context) (int64, error)
 	CountClientsPage(ctx context.Context, search string) (int64, error)
 	CountCouponsByTypeID(ctx context.Context, typeID sql.NullInt64) (int64, error)
@@ -37,6 +38,7 @@ type Querier interface {
 	CreateClientAccountPayment(ctx context.Context, arg CreateClientAccountPaymentParams) (ClientAccountPayment, error)
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
 	CreateCouponType(ctx context.Context, arg CreateCouponTypeParams) (CouponType, error)
+	CreateCurrency(ctx context.Context, arg CreateCurrencyParams) (Currency, error)
 	CreateDiscountOverride(ctx context.Context, arg CreateDiscountOverrideParams) (DiscountOverride, error)
 	CreateHoldInvoice(ctx context.Context, snapshotJson string) (HoldInvoice, error)
 	CreateInventory(ctx context.Context, name string) (Inventory, error)
@@ -95,6 +97,7 @@ type Querier interface {
 	GetClientByPhone(ctx context.Context, phone string) (Client, error)
 	GetCouponByCode(ctx context.Context, code string) (Coupon, error)
 	GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error)
+	GetCurrencyByCode(ctx context.Context, code string) (Currency, error)
 	GetDefaultCurrency(ctx context.Context) (Currency, error)
 	GetDiscountOverride(ctx context.Context, id int64) (DiscountOverride, error)
 	GetFeatureFlag(ctx context.Context, key string) (int64, error)
@@ -178,6 +181,7 @@ type Querier interface {
 	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
+	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
@@ -185,6 +189,7 @@ type Querier interface {
 	UpdateClientAccountOwnerByInvoice(ctx context.Context, arg UpdateClientAccountOwnerByInvoiceParams) error
 	UpdateCouponStatus(ctx context.Context, arg UpdateCouponStatusParams) error
 	UpdateCouponType(ctx context.Context, arg UpdateCouponTypeParams) error
+	UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error)
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) (Inventory, error)
 	UpdateInvoiceCashbox(ctx context.Context, arg UpdateInvoiceCashboxParams) error
 	UpdateInvoiceClient(ctx context.Context, arg UpdateInvoiceClientParams) error

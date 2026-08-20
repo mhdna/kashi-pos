@@ -11,10 +11,10 @@ func TestBuildESCPosReceiptContainsInvoiceAndAuthoritativeTotals(t *testing.T) {
 		Branch:          "CN",
 		RegisterName:    "POS-01",
 		ReceiptNo:       "SA/CN/2026/00001",
-		Items:           []invoiceItem{{Name: "Shirt", Price: 10, Discount: 10, Qty: 2}},
-		GrandTotalCents: 1980,
-		ExchangeRate:    90000,
-		ReceiptWidth:    80,
+		Items:            []invoiceItem{{Name: "Shirt", Price: 10, Discount: 10, Qty: 2}},
+		GrandTotalCents:  1980,
+		RoundingCurrency: testLBPReceiptCurrency,
+		ReceiptWidth:     80,
 	})
 
 	for _, want := range []string{"Kashi Store", "SA/CN/2026/00001", "Register:", "POS-01", "Shirt", "$19.80", "TOTAL", "LBP TOTAL"} {
@@ -35,7 +35,6 @@ func TestBuildESCPosReceiptContainsTenderAndPolicy(t *testing.T) {
 		StoreName:       "Kashi Store",
 		ReceiptNo:       "INV-1",
 		GrandTotalCents: 1000,
-		ExchangeRate:    90000,
 		RoundingMode:    roundingHalfUp,
 		Payments: []receiptPayment{
 			{AccountName: "Cash", CurrencyCode: "USD", AmountCents: 2000, EntryType: "payment"},

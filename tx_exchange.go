@@ -97,14 +97,18 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			}
 			payments = []checkoutPayment{{AccountID: settlementAccountID, AmountCents: total, EntryType: entryType}}
 		}
-		total, err = roundCentsByCurrency(total, settings.ExchangeRate, settings.RoundingCurrency, roundingMode)
+		roundingCurrency, err := resolveCurrency(a.ctx, q, settings.RoundingCurrency)
+		if err != nil {
+			return fmt.Errorf("rounding currency: %w", err)
+		}
+		total, err = roundCentsByCurrency(total, roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, roundingMode)
 		if err != nil {
 			return fmt.Errorf("round exchange total: %w", err)
 		}
-		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, settings.ExchangeRate, roundingMode); err != nil {
+		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, roundingMode); err != nil {
 			return err
 		}
-		if err := validatePayments(a.ctx, q, payments, total, settings.MaxOverpaymentCents, settings.ExchangeRate, roundingMode); err != nil {
+		if err := validatePayments(a.ctx, q, payments, total, settings.MaxOverpaymentCents, roundingCurrency, roundingMode); err != nil {
 			return err
 		}
 		cashbox, err := exchangeCashbox(a, q, payments)

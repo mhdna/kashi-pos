@@ -9,8 +9,75 @@ import (
 	"context"
 )
 
+const countCashboxAccountsByCurrency = `-- name: CountCashboxAccountsByCurrency :one
+SELECT COUNT(*) FROM cashbox_accounts WHERE currency_code = ?
+`
+
+func (q *Queries) CountCashboxAccountsByCurrency(ctx context.Context, currencyCode string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCashboxAccountsByCurrency, currencyCode)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createCurrency = `-- name: CreateCurrency :one
+INSERT INTO currencies (code, name, symbol, units_per_usd_micros, cash_rounding_unit)
+VALUES (?, ?, ?, ?, ?)
+RETURNING code, name, symbol, is_default, is_active, value_in_default_currency, units_per_usd_micros, cash_rounding_unit
+`
+
+type CreateCurrencyParams struct {
+	Code              string `json:"code"`
+	Name              string `json:"name"`
+	Symbol            string `json:"symbol"`
+	UnitsPerUsdMicros int64  `json:"unitsPerUsdMicros"`
+	CashRoundingUnit  int64  `json:"cashRoundingUnit"`
+}
+
+func (q *Queries) CreateCurrency(ctx context.Context, arg CreateCurrencyParams) (Currency, error) {
+	row := q.db.QueryRowContext(ctx, createCurrency,
+		arg.Code,
+		arg.Name,
+		arg.Symbol,
+		arg.UnitsPerUsdMicros,
+		arg.CashRoundingUnit,
+	)
+	var i Currency
+	err := row.Scan(
+		&i.Code,
+		&i.Name,
+		&i.Symbol,
+		&i.IsDefault,
+		&i.IsActive,
+		&i.ValueInDefaultCurrency,
+		&i.UnitsPerUsdMicros,
+		&i.CashRoundingUnit,
+	)
+	return i, err
+}
+
+const getCurrencyByCode = `-- name: GetCurrencyByCode :one
+SELECT code, name, symbol, is_default, is_active, value_in_default_currency, units_per_usd_micros, cash_rounding_unit FROM currencies WHERE code = ?
+`
+
+func (q *Queries) GetCurrencyByCode(ctx context.Context, code string) (Currency, error) {
+	row := q.db.QueryRowContext(ctx, getCurrencyByCode, code)
+	var i Currency
+	err := row.Scan(
+		&i.Code,
+		&i.Name,
+		&i.Symbol,
+		&i.IsDefault,
+		&i.IsActive,
+		&i.ValueInDefaultCurrency,
+		&i.UnitsPerUsdMicros,
+		&i.CashRoundingUnit,
+	)
+	return i, err
+}
+
 const getDefaultCurrency = `-- name: GetDefaultCurrency :one
-SELECT code, name, symbol, is_default, is_active, value_in_default_currency FROM currencies WHERE is_default = true
+SELECT code, name, symbol, is_default, is_active, value_in_default_currency, units_per_usd_micros, cash_rounding_unit FROM currencies WHERE is_default = true
 `
 
 func (q *Queries) GetDefaultCurrency(ctx context.Context) (Currency, error) {
@@ -23,12 +90,14 @@ func (q *Queries) GetDefaultCurrency(ctx context.Context) (Currency, error) {
 		&i.IsDefault,
 		&i.IsActive,
 		&i.ValueInDefaultCurrency,
+		&i.UnitsPerUsdMicros,
+		&i.CashRoundingUnit,
 	)
 	return i, err
 }
 
 const listCurrencies = `-- name: ListCurrencies :many
-SELECT code, name, symbol, is_default, is_active, value_in_default_currency FROM currencies ORDER BY code
+SELECT code, name, symbol, is_default, is_active, value_in_default_currency, units_per_usd_micros, cash_rounding_unit FROM currencies ORDER BY code
 `
 
 func (q *Queries) ListCurrencies(ctx context.Context) ([]Currency, error) {
@@ -47,6 +116,8 @@ func (q *Queries) ListCurrencies(ctx context.Context) ([]Currency, error) {
 			&i.IsDefault,
 			&i.IsActive,
 			&i.ValueInDefaultCurrency,
+			&i.UnitsPerUsdMicros,
+			&i.CashRoundingUnit,
 		); err != nil {
 			return nil, err
 		}
@@ -59,4 +130,67 @@ func (q *Queries) ListCurrencies(ctx context.Context) ([]Currency, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setCurrencyActive = `-- name: SetCurrencyActive :one
+UPDATE currencies SET is_active = ? WHERE code = ? AND is_default = false
+RETURNING code, name, symbol, is_default, is_active, value_in_default_currency, units_per_usd_micros, cash_rounding_unit
+`
+
+type SetCurrencyActiveParams struct {
+	IsActive bool   `json:"isActive"`
+	Code     string `json:"code"`
+}
+
+func (q *Queries) SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error) {
+	row := q.db.QueryRowContext(ctx, setCurrencyActive, arg.IsActive, arg.Code)
+	var i Currency
+	err := row.Scan(
+		&i.Code,
+		&i.Name,
+		&i.Symbol,
+		&i.IsDefault,
+		&i.IsActive,
+		&i.ValueInDefaultCurrency,
+		&i.UnitsPerUsdMicros,
+		&i.CashRoundingUnit,
+	)
+	return i, err
+}
+
+const updateCurrency = `-- name: UpdateCurrency :one
+UPDATE currencies
+SET name = ?, symbol = ?, units_per_usd_micros = ?, cash_rounding_unit = ?
+WHERE code = ? AND is_default = false
+RETURNING code, name, symbol, is_default, is_active, value_in_default_currency, units_per_usd_micros, cash_rounding_unit
+`
+
+type UpdateCurrencyParams struct {
+	Name              string `json:"name"`
+	Symbol            string `json:"symbol"`
+	UnitsPerUsdMicros int64  `json:"unitsPerUsdMicros"`
+	CashRoundingUnit  int64  `json:"cashRoundingUnit"`
+	Code              string `json:"code"`
+}
+
+func (q *Queries) UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error) {
+	row := q.db.QueryRowContext(ctx, updateCurrency,
+		arg.Name,
+		arg.Symbol,
+		arg.UnitsPerUsdMicros,
+		arg.CashRoundingUnit,
+		arg.Code,
+	)
+	var i Currency
+	err := row.Scan(
+		&i.Code,
+		&i.Name,
+		&i.Symbol,
+		&i.IsDefault,
+		&i.IsActive,
+		&i.ValueInDefaultCurrency,
+		&i.UnitsPerUsdMicros,
+		&i.CashRoundingUnit,
+	)
+	return i, err
 }
