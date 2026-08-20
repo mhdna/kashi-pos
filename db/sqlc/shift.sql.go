@@ -47,7 +47,11 @@ SET is_closed = 1,
     counted_lbp = ?,
     counted_visa = ?,
     counted_whish = ?,
-    counted_usd_breakdown = ?
+    counted_usd_breakdown = ?,
+    expected_usd = ?,
+    expected_lbp = ?,
+    expected_visa = ?,
+    expected_whish = ?
 WHERE id = ? AND is_closed = 0
 `
 
@@ -59,6 +63,10 @@ type CloseShiftParams struct {
 	CountedVisa           int64  `json:"countedVisa"`
 	CountedWhish          int64  `json:"countedWhish"`
 	CountedUsdBreakdown   string `json:"countedUsdBreakdown"`
+	ExpectedUsd           int64  `json:"expectedUsd"`
+	ExpectedLbp           int64  `json:"expectedLbp"`
+	ExpectedVisa          int64  `json:"expectedVisa"`
+	ExpectedWhish         int64  `json:"expectedWhish"`
 	ID                    int64  `json:"id"`
 }
 
@@ -71,6 +79,10 @@ func (q *Queries) CloseShift(ctx context.Context, arg CloseShiftParams) (int64, 
 		arg.CountedVisa,
 		arg.CountedWhish,
 		arg.CountedUsdBreakdown,
+		arg.ExpectedUsd,
+		arg.ExpectedLbp,
+		arg.ExpectedVisa,
+		arg.ExpectedWhish,
 		arg.ID,
 	)
 	if err != nil {
@@ -119,7 +131,7 @@ func (q *Queries) CreateCashboxAccount(ctx context.Context, arg CreateCashboxAcc
 }
 
 const createShift = `-- name: CreateShift :one
-INSERT INTO shifts (is_closed, created_at) VALUES (?, datetime('now', 'localtime')) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish
+INSERT INTO shifts (is_closed, created_at) VALUES (?, datetime('now', 'localtime')) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish
 `
 
 func (q *Queries) CreateShift(ctx context.Context, isClosed int64) (Shift, error) {
@@ -136,6 +148,10 @@ func (q *Queries) CreateShift(ctx context.Context, isClosed int64) (Shift, error
 		&i.CountedUsdBreakdown,
 		&i.CountedVisa,
 		&i.CountedWhish,
+		&i.ExpectedUsd,
+		&i.ExpectedLbp,
+		&i.ExpectedVisa,
+		&i.ExpectedWhish,
 	)
 	return i, err
 }
@@ -214,7 +230,7 @@ func (q *Queries) GetCashboxAccountByName(ctx context.Context, name string) (Cas
 }
 
 const getOpenShift = `-- name: GetOpenShift :one
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish FROM shifts WHERE is_closed = 0 LIMIT 1
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish FROM shifts WHERE is_closed = 0 LIMIT 1
 `
 
 func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
@@ -231,6 +247,10 @@ func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
 		&i.CountedUsdBreakdown,
 		&i.CountedVisa,
 		&i.CountedWhish,
+		&i.ExpectedUsd,
+		&i.ExpectedLbp,
+		&i.ExpectedVisa,
+		&i.ExpectedWhish,
 	)
 	return i, err
 }
@@ -252,7 +272,7 @@ func (q *Queries) GetShiftAccountBalance(ctx context.Context, arg GetShiftAccoun
 }
 
 const getShiftByID = `-- name: GetShiftByID :one
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish FROM shifts WHERE id = ?
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish FROM shifts WHERE id = ?
 `
 
 func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
@@ -269,6 +289,10 @@ func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
 		&i.CountedUsdBreakdown,
 		&i.CountedVisa,
 		&i.CountedWhish,
+		&i.ExpectedUsd,
+		&i.ExpectedLbp,
+		&i.ExpectedVisa,
+		&i.ExpectedWhish,
 	)
 	return i, err
 }
@@ -373,18 +397,31 @@ SELECT s.id, s.is_closed, s.created_at, s.closed_at,
            JOIN invoices shift_i ON shift_i.id = ip.invoice_id
            JOIN sales_invoices sales_i ON sales_i.invoice_id = shift_i.id
            WHERE shift_i.shift_id = s.id
-       ), 0) AS price_deductions
+       ), 0) AS price_deductions,
+       s.counted_usd, s.counted_lbp, s.counted_visa, s.counted_whish,
+       s.expected_usd, s.expected_lbp, s.expected_visa, s.expected_whish,
+       COALESCE(sp.full_name, '') AS closed_by_salesperson_name
 FROM shifts s
+LEFT JOIN salespersons sp ON sp.id = s.closed_by_salesperson_id
 ORDER BY s.id DESC
 `
 
 type GetShiftTotalsRow struct {
-	ID              int64       `json:"id"`
-	IsClosed        int64       `json:"isClosed"`
-	CreatedAt       string      `json:"createdAt"`
-	ClosedAt        string      `json:"closedAt"`
-	Total           interface{} `json:"total"`
-	PriceDeductions interface{} `json:"priceDeductions"`
+	ID                      int64       `json:"id"`
+	IsClosed                int64       `json:"isClosed"`
+	CreatedAt               string      `json:"createdAt"`
+	ClosedAt                string      `json:"closedAt"`
+	Total                   interface{} `json:"total"`
+	PriceDeductions         interface{} `json:"priceDeductions"`
+	CountedUsd              int64       `json:"countedUsd"`
+	CountedLbp              int64       `json:"countedLbp"`
+	CountedVisa             int64       `json:"countedVisa"`
+	CountedWhish            int64       `json:"countedWhish"`
+	ExpectedUsd             int64       `json:"expectedUsd"`
+	ExpectedLbp             int64       `json:"expectedLbp"`
+	ExpectedVisa            int64       `json:"expectedVisa"`
+	ExpectedWhish           int64       `json:"expectedWhish"`
+	ClosedBySalespersonName string      `json:"closedBySalespersonName"`
 }
 
 func (q *Queries) GetShiftTotals(ctx context.Context) ([]GetShiftTotalsRow, error) {
@@ -403,6 +440,15 @@ func (q *Queries) GetShiftTotals(ctx context.Context) ([]GetShiftTotalsRow, erro
 			&i.ClosedAt,
 			&i.Total,
 			&i.PriceDeductions,
+			&i.CountedUsd,
+			&i.CountedLbp,
+			&i.CountedVisa,
+			&i.CountedWhish,
+			&i.ExpectedUsd,
+			&i.ExpectedLbp,
+			&i.ExpectedVisa,
+			&i.ExpectedWhish,
+			&i.ClosedBySalespersonName,
 		); err != nil {
 			return nil, err
 		}
@@ -472,7 +518,7 @@ func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, er
 }
 
 const listShifts = `-- name: ListShifts :many
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish FROM shifts ORDER BY id
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish FROM shifts ORDER BY id
 `
 
 func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
@@ -495,6 +541,10 @@ func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
 			&i.CountedUsdBreakdown,
 			&i.CountedVisa,
 			&i.CountedWhish,
+			&i.ExpectedUsd,
+			&i.ExpectedLbp,
+			&i.ExpectedVisa,
+			&i.ExpectedWhish,
 		); err != nil {
 			return nil, err
 		}

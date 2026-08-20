@@ -34,7 +34,11 @@ SET is_closed = 1,
     counted_lbp = ?,
     counted_visa = ?,
     counted_whish = ?,
-    counted_usd_breakdown = ?
+    counted_usd_breakdown = ?,
+    expected_usd = ?,
+    expected_lbp = ?,
+    expected_visa = ?,
+    expected_whish = ?
 WHERE id = ? AND is_closed = 0;
 
 -- name: CloseOpenShifts :exec
@@ -81,8 +85,12 @@ SELECT s.id, s.is_closed, s.created_at, s.closed_at,
            JOIN invoices shift_i ON shift_i.id = ip.invoice_id
            JOIN sales_invoices sales_i ON sales_i.invoice_id = shift_i.id
            WHERE shift_i.shift_id = s.id
-       ), 0) AS price_deductions
+       ), 0) AS price_deductions,
+       s.counted_usd, s.counted_lbp, s.counted_visa, s.counted_whish,
+       s.expected_usd, s.expected_lbp, s.expected_visa, s.expected_whish,
+       COALESCE(sp.full_name, '') AS closed_by_salesperson_name
 FROM shifts s
+LEFT JOIN salespersons sp ON sp.id = s.closed_by_salesperson_id
 ORDER BY s.id DESC;
 
 -- name: GetShiftReportSummary :one

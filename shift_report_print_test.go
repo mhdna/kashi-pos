@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -178,6 +179,122 @@ func TestCloseShiftStoresClosingPersonAndCounts(t *testing.T) {
 		closed.CountedVisa != 12000 || closed.CountedWhish != 8000 ||
 		closed.CountedUsdBreakdown == "" {
 		t.Fatalf("stored close data = %#v", closed)
+	}
+	// No invoices were rung up on this shift, so nothing was expected.
+	if closed.ExpectedUsd != 0 || closed.ExpectedLbp != 0 || closed.ExpectedVisa != 0 || closed.ExpectedWhish != 0 {
+		t.Fatalf("expected counts on an income-free shift = %#v", closed)
+	}
+}
+
+// TestCloseShiftPersistsAndExposesExpectedVsCountedVariance is the
+// regression guard for "we don't save the close-shift counted amount, and
+// can't see it later": the expected_* columns computed at close time
+// (mirroring what the close-shift receipt itself showed) must be
+// persisted, and GetShiftTotals - which feeds the monthly table - must
+// expose both counted_* and expected_* so a variance can be displayed.
+func TestCloseShiftPersistsAndExposesExpectedVsCountedVariance(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t)
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id) VALUES ('Test', '', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0)`); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	settings, err := store.GetSettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings.RoundingCurrency = "USD"
+	if err := store.UpdateSettings(ctx, settingsToUpdateParams(settings)); err != nil {
+		t.Fatal(err)
+	}
+	shift, err := store.CreateShift(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cashbox, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := store.CreateInventory(ctx, "Sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings.SalesInventoryID = inventory.ID
+	if err := store.UpdateSettings(ctx, settingsToUpdateParams(settings)); err != nil {
+		t.Fatal(err)
+	}
+	// A whole-dollar price so the expected total is exactly representable
+	// by physical USD bills at close time.
+	product, err := store.CreateProduct(ctx, db.CreateProductParams{
+		Barcode: "1", Code: "SKU-1", Name: "Test", IsActive: 1, Price: 2000, Discount: 0,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpsertInventoryItem(ctx, db.UpsertInventoryItemParams{InventoryID: inventory.ID, ProductID: product.ID, Quantity: 5}); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{ctx: ctx, store: store}
+	items := cartJSON(1)
+	quote, err := app.QuoteInvoiceTotal(items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quote.GrandTotalCents != 2000 {
+		t.Fatalf("quote grand total = %d, want 2000", quote.GrandTotalCents)
+	}
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: quote.GrandTotalCents}})
+	if _, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: items, PaymentsJSON: string(payments), ClientID: client.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	person, err := store.CreateSalesperson(ctx, "Jane")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Counted $1 short of the $20 expected, to prove the variance survives
+	// the round trip through storage, not just the in-memory close-shift
+	// report.
+	if _, err := app.CloseShiftByID(shift.ID, person.ID, 0, 0, 0, `{"100":0,"50":0,"20":0,"10":1,"5":1,"1":4}`); err != nil {
+		t.Fatal(err)
+	}
+
+	closed, err := store.GetShiftByID(ctx, shift.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if closed.ExpectedUsd != 2000 {
+		t.Fatalf("stored expected USD = %d, want 2000", closed.ExpectedUsd)
+	}
+	if closed.CountedUsd != 1900 {
+		t.Fatalf("stored counted USD = %d, want 1900", closed.CountedUsd)
+	}
+
+	totals, err := app.GetShiftTotals()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(totals) != 1 {
+		t.Fatalf("shift totals = %#v", totals)
+	}
+	row := totals[0]
+	if databaseInt64(row["expectedUsd"]) != 2000 {
+		t.Fatalf("GetShiftTotals expectedUsd = %v, want 2000", row["expectedUsd"])
+	}
+	if databaseInt64(row["countedUsd"]) != 1900 {
+		t.Fatalf("GetShiftTotals countedUsd = %v, want 1900", row["countedUsd"])
+	}
+	if row["closedBySalesperson"] != "Jane" {
+		t.Fatalf("GetShiftTotals closedBySalesperson = %v, want Jane", row["closedBySalesperson"])
 	}
 }
 

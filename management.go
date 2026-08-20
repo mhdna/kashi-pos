@@ -492,12 +492,21 @@ func (a *App) GetShiftTotals() ([]map[string]any, error) {
 	for i, r := range rows {
 		total := databaseInt64(r.Total)
 		result[i] = map[string]any{
-			"id":             r.ID,
-			"isClosed":       r.IsClosed,
-			"createdAt":      toLocalTime(r.CreatedAt),
-			"closedAt":       toLocalTime(r.ClosedAt),
-			"total":          float64(total),
-			"priceDeduction": databaseInt64(r.PriceDeductions),
+			"id":                  r.ID,
+			"isClosed":            r.IsClosed,
+			"createdAt":           toLocalTime(r.CreatedAt),
+			"closedAt":            toLocalTime(r.ClosedAt),
+			"total":               float64(total),
+			"priceDeduction":      databaseInt64(r.PriceDeductions),
+			"countedUsd":          r.CountedUsd,
+			"countedLbp":          r.CountedLbp,
+			"countedVisa":         r.CountedVisa,
+			"countedWhish":        r.CountedWhish,
+			"expectedUsd":         r.ExpectedUsd,
+			"expectedLbp":         r.ExpectedLbp,
+			"expectedVisa":        r.ExpectedVisa,
+			"expectedWhish":       r.ExpectedWhish,
+			"closedBySalesperson": r.ClosedBySalespersonName,
 		}
 	}
 	return result, nil

@@ -133,6 +133,13 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		return nil, err
 	}
 
+	var expectedUSD, expectedLBP, expectedVisa, expectedWhish int64
+	if printData.ShiftReport != nil {
+		expectedUSD = printData.ShiftReport.ExpectedUSD
+		expectedLBP = printData.ShiftReport.ExpectedLBP
+		expectedVisa = printData.ShiftReport.ExpectedVisa
+		expectedWhish = printData.ShiftReport.ExpectedWhish
+	}
 	updated, err := a.store.CloseShift(a.ctx, db.CloseShiftParams{
 		ClosedAt:              closedAt,
 		ClosedBySalespersonID: closingPersonID,
@@ -141,6 +148,10 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		CountedVisa:           countedVisa,
 		CountedWhish:          countedWhish,
 		CountedUsdBreakdown:   canonicalBreakdown,
+		ExpectedUsd:           expectedUSD,
+		ExpectedLbp:           expectedLBP,
+		ExpectedVisa:          expectedVisa,
+		ExpectedWhish:         expectedWhish,
 		ID:                    id,
 	})
 	if err != nil {

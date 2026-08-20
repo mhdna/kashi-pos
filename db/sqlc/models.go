@@ -386,6 +386,10 @@ type Shift struct {
 	CountedUsdBreakdown   string `json:"countedUsdBreakdown"`
 	CountedVisa           int64  `json:"countedVisa"`
 	CountedWhish          int64  `json:"countedWhish"`
+	ExpectedUsd           int64  `json:"expectedUsd"`
+	ExpectedLbp           int64  `json:"expectedLbp"`
+	ExpectedVisa          int64  `json:"expectedVisa"`
+	ExpectedWhish         int64  `json:"expectedWhish"`
 }
 
 type ShiftBalanceReplacement struct {
