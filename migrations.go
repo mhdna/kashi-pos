@@ -101,6 +101,12 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 		if err := ensureShiftClosingColumns(ctx, conn); err != nil {
 			return err
 		}
+		if err := ensureCurrencyRateColumns(ctx, conn); err != nil {
+			return err
+		}
+		if err := ensureShiftExpectedColumns(ctx, conn); err != nil {
+			return err
+		}
 		return ensureLookupIndexes(ctx, conn)
 	}
 	for _, m := range migrations {
@@ -161,6 +167,9 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 	if err := ensureShiftClosingColumns(ctx, conn); err != nil {
 		return err
 	}
+	if err := ensureCurrencyRateColumns(ctx, conn); err != nil {
+		return err
+	}
 	return ensureLookupIndexes(ctx, conn)
 }
 
@@ -185,6 +194,61 @@ func ensureLookupIndexes(ctx context.Context, conn *sql.DB) error {
 			return fmt.Errorf("ensure lookup index: %w", err)
 		}
 	}
+	return nil
+}
+
+// ensureCurrencyRateColumns self-heals databases where schema_migrations
+// already recorded version 52 (currency_rates) as applied but the columns
+// it adds are missing - this can happen if an earlier draft of that
+// migration's SQL was applied against a real database before the migration
+// content was finalized, since migrations are tracked by version number
+// only, not by content hash. Mirrors ensureShiftClosingColumns/
+// ensureReceiptBrandingColumns below, an established pattern in this file
+// for the same class of drift.
+// ensureShiftExpectedColumns is the same self-heal as
+// ensureCurrencyRateColumns above, for migration 54's expected_* columns.
+func ensureShiftExpectedColumns(ctx context.Context, conn *sql.DB) error {
+	columns := []string{"expected_usd", "expected_lbp", "expected_visa", "expected_whish"}
+	for _, column := range columns {
+		var count int
+		if err := conn.QueryRowContext(ctx, "SELECT count(*) FROM pragma_table_info('shifts') WHERE name = ?", column).Scan(&count); err != nil {
+			return fmt.Errorf("inspect shift expected column %s: %w", column, err)
+		}
+		if count != 0 {
+			continue
+		}
+		if _, err := conn.ExecContext(ctx, "ALTER TABLE shifts ADD COLUMN "+column+" bigint NOT NULL DEFAULT 0"); err != nil {
+			return fmt.Errorf("add shift expected column %s: %w", column, err)
+		}
+		log.Printf("database migration self-heal: added shifts.%s", column)
+	}
+	return nil
+}
+
+func ensureCurrencyRateColumns(ctx context.Context, conn *sql.DB) error {
+	var hasUnitsPerUsdMicros int
+	if err := conn.QueryRowContext(ctx, "SELECT count(*) FROM pragma_table_info('currencies') WHERE name = 'units_per_usd_micros'").Scan(&hasUnitsPerUsdMicros); err != nil {
+		return fmt.Errorf("inspect currencies schema: %w", err)
+	}
+	if hasUnitsPerUsdMicros != 0 {
+		return nil
+	}
+	if _, err := conn.ExecContext(ctx, "ALTER TABLE currencies ADD COLUMN units_per_usd_micros bigint NOT NULL DEFAULT 1000000 CHECK (units_per_usd_micros > 0)"); err != nil {
+		return fmt.Errorf("add currencies.units_per_usd_micros: %w", err)
+	}
+	if _, err := conn.ExecContext(ctx, "ALTER TABLE currencies ADD COLUMN cash_rounding_unit bigint NOT NULL DEFAULT 1 CHECK (cash_rounding_unit > 0)"); err != nil {
+		return fmt.Errorf("add currencies.cash_rounding_unit: %w", err)
+	}
+	if _, err := conn.ExecContext(ctx, "UPDATE currencies SET units_per_usd_micros = 100000000, cash_rounding_unit = 1 WHERE code = 'USC'"); err != nil {
+		return fmt.Errorf("backfill USC currency rate: %w", err)
+	}
+	if _, err := conn.ExecContext(ctx, "UPDATE currencies SET units_per_usd_micros = 1000000, cash_rounding_unit = 1 WHERE code = 'USD'"); err != nil {
+		return fmt.Errorf("backfill USD currency rate: %w", err)
+	}
+	if _, err := conn.ExecContext(ctx, "UPDATE currencies SET units_per_usd_micros = (SELECT COALESCE(MAX(exchange_rate), 90000) FROM settings) * 1000000, cash_rounding_unit = 10000 WHERE code = 'LBP'"); err != nil {
+		return fmt.Errorf("backfill LBP currency rate: %w", err)
+	}
+	log.Println("database migration self-heal: added currencies.units_per_usd_micros/cash_rounding_unit")
 	return nil
 }
 

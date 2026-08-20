@@ -254,6 +254,50 @@ func TestLookupIndexesAreRepairedForCurrentDatabase(t *testing.T) {
 	assertIndexExists(t, conn, "idx_products_barcode", "products")
 }
 
+// TestSelfHealsColumnsMissingDespiteRecordedMigrationVersion guards against
+// the exact bug reported in production: schema_migrations recorded versions
+// 52 (currency_rates) and 54 (shift_expected_counts) as applied - because an
+// earlier draft of that migration's SQL ran against this database before
+// the migration content was finalized, and migrations are tracked by
+// version number only, not by content hash - while the columns those
+// migrations are supposed to add were never actually present. Without a
+// self-heal, every currency lookup fails with "no such column:
+// units_per_usd_micros" forever, since applyMigrations sees current >=
+// latest and never retries version 52's SQL.
+func TestSelfHealsColumnsMissingDespiteRecordedMigrationVersion(t *testing.T) {
+	conn := openTestDatabase(t)
+	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
+	if _, err := conn.Exec("ALTER TABLE currencies DROP COLUMN units_per_usd_micros"); err != nil {
+		t.Fatalf("simulate missing currency column: %v", err)
+	}
+	if _, err := conn.Exec("ALTER TABLE currencies DROP COLUMN cash_rounding_unit"); err != nil {
+		t.Fatalf("simulate missing currency column: %v", err)
+	}
+	if _, err := conn.Exec("ALTER TABLE shifts DROP COLUMN expected_usd"); err != nil {
+		t.Fatalf("simulate missing shift column: %v", err)
+	}
+	// schema_migrations is untouched - versions 52/54 are still recorded as
+	// applied, exactly as they'd be if only their SQL was ever different.
+
+	if err := applyMigrations(context.Background(), conn, "", true); err != nil {
+		t.Fatalf("self-heal migration: %v", err)
+	}
+
+	var unitsPerUsdMicros int64
+	if err := conn.QueryRow("SELECT units_per_usd_micros FROM currencies WHERE code = 'LBP'").Scan(&unitsPerUsdMicros); err != nil {
+		t.Fatalf("currencies.units_per_usd_micros not restored: %v", err)
+	}
+	if unitsPerUsdMicros <= 0 {
+		t.Fatalf("currencies.units_per_usd_micros = %d, want > 0", unitsPerUsdMicros)
+	}
+	var expectedUsd int64
+	if err := conn.QueryRow("SELECT expected_usd FROM shifts LIMIT 1").Scan(&expectedUsd); err != nil && err != sql.ErrNoRows {
+		t.Fatalf("shifts.expected_usd not restored: %v", err)
+	}
+}
+
 func TestApplicationDatabasePathOverride(t *testing.T) {
 	configured := filepath.Join(t.TempDir(), "custom.db")
 	t.Setenv("KASHI_DB_PATH", configured)
