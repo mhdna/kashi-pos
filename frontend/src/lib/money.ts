@@ -37,6 +37,14 @@ export function roundCents(value: number, mode: RoundingMode): number {
   return roundHalfEvenSafe(value, mode);
 }
 
+/** Rounds a line-item discount (gross cents x discount percent / 100) the
+ * same way the backend's roundRatio does. Previously reimplemented
+ * separately (and identically) in InvoiceItems.vue and exchange.ts. */
+export function roundDiscountCents(grossCents: number, discountPercent: number, mode: RoundingMode): number {
+  const numerator = grossCents * Math.trunc(discountPercent);
+  return roundHalfEvenSafe(numerator / 100, mode);
+}
+
 /**
  * Converts an accounting-cents amount into a currency's major units,
  * rounded to that currency's configured cash-rounding unit. Mirrors the

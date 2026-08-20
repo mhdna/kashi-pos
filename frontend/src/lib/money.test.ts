@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCashRoundedEquivalent, roundCurrencyUnitsFromCents, type CurrencyRate } from "./money";
+import { isCashRoundedEquivalent, roundCurrencyUnitsFromCents, roundDiscountCents, type CurrencyRate } from "./money";
 
 const LBP: CurrencyRate = { code: "LBP", symbol: "L.L.", unitsPerUsd: 90_000, cashRoundingUnit: 10_000 };
 
@@ -27,5 +27,22 @@ describe("cash rounding", () => {
     const USD: CurrencyRate = { code: "USD", symbol: "$", unitsPerUsd: 1, cashRoundingUnit: 1 };
     expect(roundCurrencyUnitsFromCents(1050, USD, "half_up")).toBe(11);
     expect(roundCurrencyUnitsFromCents(1049, USD, "half_up")).toBe(10);
+  });
+});
+
+describe("roundDiscountCents (shared by InvoiceItems.vue and exchange.ts)", () => {
+  it("matches half_up/down/up for a 10% discount on a fractional gross", () => {
+    // 15.33 -> 1533 cents gross, 10% discount
+    expect(roundDiscountCents(1533, 10, "half_up")).toBe(153);
+    expect(roundDiscountCents(1533, 10, "down")).toBe(153);
+    expect(roundDiscountCents(1533, 10, "up")).toBe(154);
+  });
+
+  it("truncates a fractional discount percent like the backend's roundRatio does", () => {
+    expect(roundDiscountCents(10000, 33.9, "half_up")).toBe(roundDiscountCents(10000, 33, "half_up"));
+  });
+
+  it("never discounts a non-positive gross", () => {
+    expect(roundDiscountCents(0, 50, "half_up")).toBe(0);
   });
 });

@@ -152,6 +152,7 @@ import {
   type ComponentPublicInstance,
 } from "vue";
 import { ListCategoryIcons, UpdateProductDiscount } from "../../wailsjs/go/main/App";
+import { roundDiscountCents, normalizeRoundingMode } from "@/lib/money";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 
 interface LineItem {
@@ -208,7 +209,7 @@ function itemGross(item: LineItem): number {
 function discountedItemCents(item: LineItem): number {
   if (item.qty < 0) {
     const gross = itemGrossCents(item);
-    return gross - roundDiscount(gross, item.discount, props.roundingMode ?? "half_up");
+    return gross - roundDiscountCents(gross, item.discount, normalizeRoundingMode(props.roundingMode ?? ""));
   }
   ensureUnitPrices(item);
   const groups = new Map<string, { gross: number; discount: number }>();
@@ -225,7 +226,7 @@ function discountedItemCents(item: LineItem): number {
   for (const group of groups.values()) {
     total +=
       group.gross -
-      roundDiscount(group.gross, group.discount, props.roundingMode ?? "half_up");
+      roundDiscountCents(group.gross, group.discount, normalizeRoundingMode(props.roundingMode ?? ""));
   }
   return total;
 }
@@ -478,13 +479,6 @@ const subtotalCents = computed(() =>
 const discountedSubtotalCents = computed(() =>
   items.value.reduce((sum, i) => sum + discountedItemCents(i), 0),
 );
-
-function roundDiscount(gross: number, discount: number, mode: string): number {
-  const numerator = gross * Math.trunc(discount);
-  if (mode === "down") return Math.floor(numerator / 100);
-  if (mode === "up") return Math.ceil(numerator / 100);
-  return Math.floor(numerator / 100 + 0.5);
-}
 
 defineExpose({
   subtotal,

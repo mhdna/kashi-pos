@@ -58,14 +58,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { GetAppSettings, ListCurrencies, ListCouponTypes, ListPaymentMethods } from "../../wailsjs/go/main/App";
+import { computed, onMounted, ref, watch } from "vue";
+import {
+  ListCurrencies,
+  ListCouponTypes,
+  ListPaymentMethods,
+  QuotePaymentStatus,
+} from "../../wailsjs/go/main/App";
 import { formatUsd } from "@/lib/format";
 import {
-  isCashRoundedEquivalent,
   roundCurrencyUnitsFromCents,
   roundCentsFromCurrencyUnits,
-  roundCentsByCurrency,
   normalizeRoundingMode,
   type CurrencyRate,
 } from "@/lib/money";
@@ -88,14 +91,21 @@ interface Entry {
 }
 
 const FALLBACK_CURRENCY: CurrencyRate = { code: "USD", symbol: "$", unitsPerUsd: 1, cashRoundingUnit: 1 };
-const props = defineProps<{ total: number; roundingMode?: string; roundingCurrency?: string; clientId?: number; hasItems?: boolean; exchangeMode?: boolean }>();
+const props = defineProps<{
+  totalCents: number;
+  itemsJson?: string;
+  roundingMode?: string;
+  roundingCurrency?: string;
+  clientId?: number;
+  hasItems?: boolean;
+  exchangeMode?: boolean;
+}>();
 const emit = defineEmits<{ account: []; coupon: [] }>();
 const hasItems = computed(() => Boolean(props.hasItems));
 const exchangeMode = computed(() => Boolean(props.exchangeMode));
 const roundingMode = computed(() => normalizeRoundingMode(props.roundingMode ?? ""));
 const paymentMethods = ref<PaymentMethod[]>([]);
 const currencies = ref<CurrencyRate[]>([]);
-const maxOverpaymentCents = ref(0);
 const activeMethod = ref("");
 const currentInput = ref("");
 const entries = ref<Entry[]>([]);
@@ -122,32 +132,61 @@ function currencySymbolFor(methodName: string) {
   return currencyFor(methodName).symbol || "$";
 }
 
-const totalCents = computed(() => roundCentsByCurrency(
-  Math.round(props.total * 100), roundingCurrency.value, roundingMode.value,
-));
+// totalCents comes straight from the backend quote - no local re-rounding.
+const totalCents = computed(() => props.totalCents);
 const paidCents = computed(() => entries.value.reduce((sum, entry) => sum + entry.amountCents, 0));
-const diffCents = computed(() => paidCents.value - totalCents.value);
-const overpaymentAllowed = computed(() => diffCents.value <= maxOverpaymentCents.value);
+
+// checkoutReady/isPaidInFull/diffCents/cashRoundedToTotal are all derived
+// from ONE backend answer (QuotePaymentStatus), not recomputed locally, so
+// the displayed remainder can never disagree with whether checkout will
+// actually be accepted - that mismatch used to be able to show "$0 + LBP 0"
+// while still refusing checkout.
+interface BackendPaymentStatus {
+  diffCents: number;
+  isPaidInFull: boolean;
+  isCashRounded: boolean;
+  checkoutReady: boolean;
+}
+const backendStatus = ref<BackendPaymentStatus | null>(null);
+let statusRequestToken = 0;
+
+async function refreshPaymentStatus() {
+  const token = ++statusRequestToken;
+  const itemsJson = props.itemsJson;
+  if (!itemsJson || itemsJson === "[]") {
+    backendStatus.value = null;
+    return;
+  }
+  try {
+    const result = await QuotePaymentStatus(itemsJson, paymentsJSON.value);
+    if (token !== statusRequestToken) return; // a newer request already superseded this one
+    backendStatus.value = {
+      diffCents: Number(result.diffCents),
+      isPaidInFull: Boolean(result.isPaidInFull),
+      isCashRounded: Boolean(result.isCashRounded),
+      checkoutReady: Boolean(result.checkoutReady),
+    };
+  } catch {
+    if (token !== statusRequestToken) return;
+    backendStatus.value = null;
+  }
+}
+
+let statusDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+watch(
+  [entries, () => props.itemsJson],
+  () => {
+    clearTimeout(statusDebounceTimer);
+    statusDebounceTimer = setTimeout(refreshPaymentStatus, 120);
+  },
+  { deep: true, immediate: true },
+);
+
+const diffCents = computed(() => backendStatus.value?.diffCents ?? paidCents.value - totalCents.value);
 const diff = computed(() => diffCents.value / 100);
-const isPaidInFull = computed(() => diffCents.value === 0);
-const roundedShortfallUnits = computed(() =>
-  diffCents.value < 0
-    ? roundCurrencyUnitsFromCents(-diffCents.value, roundingCurrency.value, roundingMode.value)
-    : 0,
-);
-const cashRoundedToTotal = computed(() =>
-  isCashRoundedEquivalent(
-    paidCents.value,
-    totalCents.value,
-    roundingCurrency.value,
-    roundingMode.value,
-  ),
-);
-const checkoutReady = computed(
-  () =>
-    (diffCents.value >= 0 && (overpaymentAllowed.value || cashRoundedToTotal.value)) ||
-    (diffCents.value < 0 && roundedShortfallUnits.value === 0),
-);
+const isPaidInFull = computed(() => backendStatus.value?.isPaidInFull ?? false);
+const cashRoundedToTotal = computed(() => backendStatus.value?.isCashRounded ?? false);
+const checkoutReady = computed(() => backendStatus.value?.checkoutReady ?? false);
 const showReadyState = computed(
   () => checkoutReady.value && (diffCents.value <= 0 || cashRoundedToTotal.value),
 );
@@ -177,15 +216,16 @@ const remainingAmount = computed(() => {
   };
 });
 const totalSummary = computed(() => {
+  const totalDollars = totalCents.value / 100;
   if (roundingCurrency.value.cashRoundingUnit <= 1) {
-    const usd = formatUsd(props.total);
+    const usd = formatUsd(totalDollars);
     return { usd, lbp: "", split: usd };
   }
-  const wholeDollars = Math.floor(props.total / 10) * 10;
+  const wholeDollars = Math.floor(totalDollars / 10) * 10;
   const remainderCents = totalCents.value - wholeDollars * 100;
   const currencyLabel = `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(totalCents.value, roundingCurrency.value, roundingMode.value).toLocaleString()}`;
   return {
-    usd: formatUsd(props.total),
+    usd: formatUsd(totalDollars),
     lbp: currencyLabel,
     split: `${formatUsd(wholeDollars)} + ${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(remainderCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`,
   };
@@ -199,15 +239,6 @@ function formatEntryAmount(amount: number) {
 }
 
 onMounted(async () => {
-  try {
-    const settings = await GetAppSettings();
-    const configuredMaxOverpayment = Number(settings?.maxOverpaymentCents);
-    if (Number.isFinite(configuredMaxOverpayment) && configuredMaxOverpayment >= 0) {
-      maxOverpaymentCents.value = Math.round(configuredMaxOverpayment);
-    }
-  } catch {
-    /* keep default max overpayment */
-  }
   try {
     const methods = await ListPaymentMethods();
     paymentMethods.value = methods.map((method: any) => ({
@@ -261,7 +292,7 @@ function confirmEntry(methodName = activeMethod.value) {
 }
 
 function fillRemainingInput(methodName = activeMethod.value) {
-  const settlementCents = Math.abs(totalCents.value - paidCents.value);
+  const settlementCents = Math.abs(diffCents.value);
   const currency = currencyFor(methodName);
   if (settlementCents <= 0 || currency.unitsPerUsd <= 0) return;
 
@@ -285,7 +316,7 @@ function selectMethodAndConfirm(methodName: string) {
 function addOnAccount() {
   const method = paymentMethods.value.find((candidate) => candidate.name.toLowerCase() === "on account");
   if (!method || !props.clientId) return;
-  const remainingCents = Math.max(totalCents.value - paidCents.value, 0);
+  const remainingCents = Math.max(-diffCents.value, 0);
   if (remainingCents <= 0) return;
   activeMethod.value = method.name;
   currentInput.value = (remainingCents / 100).toFixed(2);

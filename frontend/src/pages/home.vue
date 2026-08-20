@@ -104,7 +104,8 @@
       <div class="mb-3 mt-1" style="flex: 3 3 0; min-width: 0">
         <Calculator
           ref="calculator"
-          :total="invoiceTotal"
+          :total-cents="quote?.grandTotalCents ?? 0"
+          :items-json="cartItemsJson"
           :client-id="actionBar?.clientId"
           :rounding-mode="roundingMode"
           :rounding-currency="roundingCurrency"
@@ -168,6 +169,7 @@ import {
   GetOpenShift,
   OpenShift,
   WriteToScreen,
+  QuoteInvoiceTotal,
 } from "../../wailsjs/go/main/App";
 import ActionBar from "@/components/ActionBar.vue";
 import AccountDialog from "@/components/AccountDialog.vue";
@@ -178,10 +180,9 @@ import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
-import { roundCents, roundCentsByCurrency, normalizeRoundingMode, type RoundingMode } from "@/lib/money";
+import { normalizeRoundingMode, type RoundingMode } from "@/lib/money";
 import type { Client } from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
-import { useCurrencies } from "@/composables/useCurrencies";
 import { pendingExchangeSelection, pendingHoldInvoice } from "@/composables/useNavActions";
 
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
@@ -189,7 +190,6 @@ type InvoiceDraft = { items: any[]; client: Client; notes?: string };
 const { selectedSalesperson, pulseSalesperson } = useSalesperson();
 let pageActive = true;
 
-const { currencies } = useCurrencies();
 const taxRate = ref(0);
 const roundingMode = ref<RoundingMode>("half_up");
 const roundingCurrency = ref("");
@@ -213,18 +213,16 @@ const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
 const productSearchDialog = ref<InstanceType<typeof ProductSearchDialog> | null>(null);
 const accountDialog = ref(false);
 
-const resolvedRoundingCurrency = computed(
-  () =>
-    currencies.value.find((c) => c.code === roundingCurrency.value) ??
-    currencies.value.find((c) => c.cashRoundingUnit > 1) ??
-    currencies.value[0] ??
-    { code: "USD", symbol: "$", unitsPerUsd: 1, cashRoundingUnit: 1 },
-);
-const invoiceTotal = computed(() => {
-  const discountedCents = invoiceItems.value?.discountedSubtotalCents ?? 0;
-  const taxCents = roundCents((discountedCents / 100) * taxRate.value * 100, roundingMode.value);
-  return roundCentsByCurrency(discountedCents + taxCents, resolvedRoundingCurrency.value, roundingMode.value) / 100;
-});
+// The backend quote is the single source of truth for the cart total - see
+// refreshQuote()/getFullItemsJSON() below. invoiceTotal/cartItemsJson are
+// kept in sync by the same debounced watcher so the calculator's total and
+// payment-status checks are always priced from the exact same cart JSON.
+interface InvoiceQuote {
+  grandTotalCents: number;
+}
+const quote = ref<InvoiceQuote | null>(null);
+const cartItemsJson = ref("");
+const invoiceTotal = computed(() => (quote.value?.grandTotalCents ?? 0) / 100);
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
 const clientSelected = computed(() => Boolean(actionBar.value?.clientSelected));
 const salespersonSelected = computed(() => Boolean(selectedSalesperson.value));
@@ -278,6 +276,45 @@ watch(
     );
   },
   { deep: true },
+);
+
+let quoteRequestToken = 0;
+let quoteDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+async function refreshQuote() {
+  const token = ++quoteRequestToken;
+  const itemsJson = await getFullItemsJSON();
+  if (token !== quoteRequestToken) return; // a newer request already superseded this one
+  cartItemsJson.value = itemsJson;
+  if (itemsJson === "[]") {
+    quote.value = null;
+    return;
+  }
+  try {
+    const result = await QuoteInvoiceTotal(itemsJson);
+    if (token !== quoteRequestToken) return;
+    quote.value = { grandTotalCents: Number(result.grandTotalCents) };
+  } catch {
+    if (token !== quoteRequestToken) return;
+    quote.value = null;
+  }
+}
+
+watch(
+  [
+    () => invoiceItems.value?.items,
+    roundingMode,
+    roundingCurrency,
+    taxRate,
+    customItemPricesEnabled,
+    perUnitItemPricesEnabled,
+    customItemDiscountsEnabled,
+  ],
+  () => {
+    clearTimeout(quoteDebounceTimer);
+    quoteDebounceTimer = setTimeout(refreshQuote, 120);
+  },
+  { deep: true, immediate: true },
 );
 
 function restoreDraft() {
