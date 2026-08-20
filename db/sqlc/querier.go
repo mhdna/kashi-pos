@@ -126,7 +126,10 @@ type Querier interface {
 	GetShiftAccountBalance(ctx context.Context, arg GetShiftAccountBalanceParams) (ShiftsAccountsBalance, error)
 	GetShiftByID(ctx context.Context, id int64) (Shift, error)
 	GetShiftReportSummary(ctx context.Context, reportShiftID int64) (GetShiftReportSummaryRow, error)
-	GetShiftTotals(ctx context.Context) ([]GetShiftTotalsRow, error)
+	// Bounded to a single calendar month (the monthly shift table only ever
+	// displays one month at a time) instead of loading every shift ever
+	// created - pass '' for the historical "everything" behavior.
+	GetShiftTotals(ctx context.Context, totalsMonth interface{}) ([]GetShiftTotalsRow, error)
 	GetTransferByID(ctx context.Context, id int64) (Transfer, error)
 	GetTransferItemByID(ctx context.Context, id int64) (TransferItem, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
@@ -144,6 +147,7 @@ type Querier interface {
 	ListCategoryIcons(ctx context.Context) ([]CategoryIcon, error)
 	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
 	ListClientAccountPayments(ctx context.Context, clientID int64) ([]ListClientAccountPaymentsRow, error)
+	ListClientNamesByIDs(ctx context.Context, ids []int64) ([]ListClientNamesByIDsRow, error)
 	ListClients(ctx context.Context) ([]Client, error)
 	ListCouponTypes(ctx context.Context) ([]CouponType, error)
 	ListCoupons(ctx context.Context) ([]Coupon, error)
@@ -177,6 +181,7 @@ type Querier interface {
 	ListInvoiceIncomeAccountTotalsByShiftAndDate(ctx context.Context, arg ListInvoiceIncomeAccountTotalsByShiftAndDateParams) ([]ListInvoiceIncomeAccountTotalsByShiftAndDateRow, error)
 	ListInvoicePaymentEntries(ctx context.Context, invoiceID int64) ([]InvoicePaymentEntry, error)
 	ListInvoicePayments(ctx context.Context, invoiceID int64) ([]InvoicePayment, error)
+	ListInvoicePaymentsByInvoiceIDs(ctx context.Context, ids []int64) ([]InvoicePayment, error)
 	ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
 	ListInvoices(ctx context.Context) ([]Invoice, error)
 	ListInvoicesByDate(ctx context.Context, date string) ([]ListInvoicesByDateRow, error)

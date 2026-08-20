@@ -72,6 +72,9 @@ ON CONFLICT (account_id, shift_id) DO UPDATE SET balance = shifts_accounts_balan
 RETURNING account_id, shift_id, balance;
 
 -- name: GetShiftTotals :many
+-- Bounded to a single calendar month (the monthly shift table only ever
+-- displays one month at a time) instead of loading every shift ever
+-- created - pass '' for the historical "everything" behavior.
 SELECT s.id, s.is_closed, s.created_at, s.closed_at,
        COALESCE((
            SELECT SUM(i.grand_total)
@@ -91,6 +94,7 @@ SELECT s.id, s.is_closed, s.created_at, s.closed_at,
        COALESCE(sp.full_name, '') AS closed_by_salesperson_name
 FROM shifts s
 LEFT JOIN salespersons sp ON sp.id = s.closed_by_salesperson_id
+WHERE (sqlc.arg(totals_month) = '' OR strftime('%Y-%m', s.created_at, 'localtime') = sqlc.arg(totals_month))
 ORDER BY s.id DESC;
 
 -- name: GetShiftReportSummary :one

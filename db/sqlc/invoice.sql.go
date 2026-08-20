@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"strings"
 )
 
 const countInvoices = `-- name: CountInvoices :one
@@ -416,6 +417,48 @@ func (q *Queries) IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoi
 	return last_index, err
 }
 
+const listClientNamesByIDs = `-- name: ListClientNamesByIDs :many
+SELECT id, name FROM clients WHERE id IN (/*SLICE:ids*/?)
+`
+
+type ListClientNamesByIDsRow struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+func (q *Queries) ListClientNamesByIDs(ctx context.Context, ids []int64) ([]ListClientNamesByIDsRow, error) {
+	query := listClientNamesByIDs
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListClientNamesByIDsRow{}
+	for rows.Next() {
+		var i ListClientNamesByIDsRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listIncomeAccountTotals = `-- name: ListIncomeAccountTotals :many
 WITH account_totals AS (
     SELECT i.created_at, i.shift_id, ip.cashbox_id, ip.amount
@@ -722,6 +765,43 @@ SELECT invoice_id, cashbox_id, amount FROM invoice_payments WHERE invoice_id = ?
 
 func (q *Queries) ListInvoicePayments(ctx context.Context, invoiceID int64) ([]InvoicePayment, error) {
 	rows, err := q.db.QueryContext(ctx, listInvoicePayments, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InvoicePayment{}
+	for rows.Next() {
+		var i InvoicePayment
+		if err := rows.Scan(&i.InvoiceID, &i.CashboxID, &i.Amount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvoicePaymentsByInvoiceIDs = `-- name: ListInvoicePaymentsByInvoiceIDs :many
+SELECT invoice_id, cashbox_id, amount FROM invoice_payments WHERE invoice_id IN (/*SLICE:ids*/?)
+`
+
+func (q *Queries) ListInvoicePaymentsByInvoiceIDs(ctx context.Context, ids []int64) ([]InvoicePayment, error) {
+	query := listInvoicePaymentsByInvoiceIDs
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}

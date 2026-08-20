@@ -1,4 +1,7 @@
-.PHONY: fmt lint test dev build-windows build-windows-compact
+.PHONY: fmt lint test dev generate build-windows build-windows-compact
+
+generate:
+	sqlc generate
 
 fmt:
 	cd frontend && pnpm run format

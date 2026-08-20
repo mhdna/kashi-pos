@@ -280,3 +280,9 @@ FROM invoice_totals
 JOIN cashbox_accounts ca ON ca.id = invoice_totals.cashbox_id
 GROUP BY ca.id, ca.name, ca.currency_code
 ORDER BY ca.name;
+
+-- name: ListClientNamesByIDs :many
+SELECT id, name FROM clients WHERE id IN (sqlc.slice('ids'));
+
+-- name: ListInvoicePaymentsByInvoiceIDs :many
+SELECT invoice_id, cashbox_id, amount FROM invoice_payments WHERE invoice_id IN (sqlc.slice('ids'));

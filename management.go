@@ -389,31 +389,70 @@ func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) 
 		return InvoicePage{}, err
 	}
 
+	// Batch-fetch everything the page needs in a handful of queries instead
+	// of a client lookup, a payments lookup, and a cashbox lookup per
+	// payment for every row - previously up to ~3x itemsPerPage round trips
+	// for one page load.
+	clientIDSet := make(map[int64]struct{}, len(invoices))
+	invoiceIDs := make([]int64, len(invoices))
+	for i, inv := range invoices {
+		invoiceIDs[i] = inv.ID
+		if inv.ClientID > 0 {
+			clientIDSet[inv.ClientID] = struct{}{}
+		}
+	}
+	clientIDs := make([]int64, 0, len(clientIDSet))
+	for id := range clientIDSet {
+		clientIDs = append(clientIDs, id)
+	}
+	clientNames := make(map[int64]string, len(clientIDs))
+	if len(clientIDs) > 0 {
+		clientRows, err := a.store.ListClientNamesByIDs(a.ctx, clientIDs)
+		if err != nil {
+			return InvoicePage{}, fmt.Errorf("invoice page clients: %w", err)
+		}
+		for _, row := range clientRows {
+			clientNames[row.ID] = row.Name
+		}
+	}
+	accounts, err := a.store.ListCashboxAccounts(a.ctx)
+	if err != nil {
+		return InvoicePage{}, fmt.Errorf("invoice page cashbox accounts: %w", err)
+	}
+	accountsByID := make(map[int64]db.CashboxAccount, len(accounts))
+	for _, account := range accounts {
+		accountsByID[account.ID] = account
+	}
+	paymentsByInvoice := make(map[int64][]db.InvoicePayment, len(invoices))
+	if len(invoiceIDs) > 0 {
+		payments, err := a.store.ListInvoicePaymentsByInvoiceIDs(a.ctx, invoiceIDs)
+		if err != nil {
+			return InvoicePage{}, fmt.Errorf("invoice page payments: %w", err)
+		}
+		for _, payment := range payments {
+			paymentsByInvoice[payment.InvoiceID] = append(paymentsByInvoice[payment.InvoiceID], payment)
+		}
+	}
+
 	result := make([]map[string]any, len(invoices))
 	for i, inv := range invoices {
 		clientName := "Walk-in customer"
 		if inv.ClientID > 0 {
-			if client, clientErr := a.store.GetClientByID(a.ctx, inv.ClientID); clientErr == nil {
-				clientName = client.Name
+			if name, ok := clientNames[inv.ClientID]; ok {
+				clientName = name
 			}
 		}
-		payments, err := a.store.ListInvoicePayments(a.ctx, inv.ID)
-		if err != nil {
-			return InvoicePage{}, fmt.Errorf("invoice %s payments: %w", inv.InvoiceCode, err)
-		}
-		settlementAccounts := make([]string, 0, len(payments))
-		for _, payment := range payments {
+		settlementAccounts := make([]string, 0, len(paymentsByInvoice[inv.ID]))
+		for _, payment := range paymentsByInvoice[inv.ID] {
 			if payment.Amount <= 0 {
 				continue
 			}
-			account, err := a.store.GetCashboxAccountByID(a.ctx, payment.CashboxID)
-			if err != nil {
-				return InvoicePage{}, fmt.Errorf("invoice %s settlement account: %w", inv.InvoiceCode, err)
+			if account, ok := accountsByID[payment.CashboxID]; ok {
+				settlementAccounts = append(settlementAccounts, settlementAccountLabel(account.Name, account.CurrencyCode))
 			}
-			settlementAccounts = append(settlementAccounts, settlementAccountLabel(account.Name, account.CurrencyCode))
 		}
 		if len(settlementAccounts) == 0 {
-			if account, accountErr := a.store.GetCashboxAccountByID(a.ctx, inv.CashboxID); accountErr == nil {
+			if account, ok := accountsByID[inv.CashboxID]; ok {
 				settlementAccounts = append(settlementAccounts, settlementAccountLabel(account.Name, account.CurrencyCode))
 			}
 		}
@@ -523,11 +562,15 @@ func (a *App) GetCurrentMonth() string {
 	return now.Format("2006-01")
 }
 
+// GetShiftTotals returns shifts and their totals for the current calendar
+// month only - the monthly shift table never displays more than one month
+// at a time, so there's no reason to load every shift the shop has ever
+// had (which used to grow unbounded as history accumulated).
 func (a *App) GetShiftTotals() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.store.GetShiftTotals(a.ctx)
+	rows, err := a.store.GetShiftTotals(a.ctx, time.Now().Format("2006-01"))
 	if err != nil {
 		return nil, err
 	}

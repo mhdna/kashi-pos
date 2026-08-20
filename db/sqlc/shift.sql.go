@@ -403,6 +403,7 @@ SELECT s.id, s.is_closed, s.created_at, s.closed_at,
        COALESCE(sp.full_name, '') AS closed_by_salesperson_name
 FROM shifts s
 LEFT JOIN salespersons sp ON sp.id = s.closed_by_salesperson_id
+WHERE (?1 = '' OR strftime('%Y-%m', s.created_at, 'localtime') = ?1)
 ORDER BY s.id DESC
 `
 
@@ -424,8 +425,11 @@ type GetShiftTotalsRow struct {
 	ClosedBySalespersonName string      `json:"closedBySalespersonName"`
 }
 
-func (q *Queries) GetShiftTotals(ctx context.Context) ([]GetShiftTotalsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getShiftTotals)
+// Bounded to a single calendar month (the monthly shift table only ever
+// displays one month at a time) instead of loading every shift ever
+// created - pass ” for the historical "everything" behavior.
+func (q *Queries) GetShiftTotals(ctx context.Context, totalsMonth interface{}) ([]GetShiftTotalsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getShiftTotals, totalsMonth)
 	if err != nil {
 		return nil, err
 	}
