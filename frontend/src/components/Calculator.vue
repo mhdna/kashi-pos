@@ -153,7 +153,9 @@ let statusRequestToken = 0;
 async function refreshPaymentStatus() {
   const token = ++statusRequestToken;
   const itemsJson = props.itemsJson;
-  if (!itemsJson || itemsJson === "[]") {
+  if (!itemsJson || itemsJson === "[]" || entries.value.length === 0) {
+    // No payments entered yet is a normal state, not a backend error -
+    // QuotePaymentStatus rejects an empty payments array outright.
     backendStatus.value = null;
     return;
   }
