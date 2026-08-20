@@ -89,42 +89,34 @@ func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []sales
 	return totals, nil
 }
 
-func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, error) {
-	var result SalesInvoiceResult
-	if a.store == nil {
-		return result, fmt.Errorf("database not initialized")
-	}
+// pricingContext bundles the settings/feature-flag state needed to price a
+// cart. salesInvoiceTx (checkout) and QuoteInvoiceTotal/QuotePaymentStatus
+// (read-only preview) all load it the same way so they can never disagree
+// about which rounding mode, sales inventory, or pricing flags are active.
+type pricingContext struct {
+	Settings              db.Setting
+	RoundingMode          string
+	InventoryID           int64
+	CustomPricingEnabled  bool
+	PerUnitPricingEnabled bool
+}
 
-	items, err := parseSalesItems(params.ItemsJSON)
-	if err != nil {
-		return result, err
-	}
-	payments, err := parsePayments(params.PaymentsJSON)
-	if err != nil {
-		return result, err
-	}
+func (a *App) loadPricingContext() (pricingContext, error) {
+	var pricing pricingContext
 	settings, err := a.store.GetSettings(a.ctx)
 	if err != nil {
-		return result, fmt.Errorf("settings: %w", err)
+		return pricing, fmt.Errorf("settings: %w", err)
 	}
 	if math.IsNaN(settings.TaxRate) || math.IsInf(settings.TaxRate, 0) || settings.TaxRate < 0 || settings.TaxRate > 1 {
-		return result, fmt.Errorf("invalid tax rate")
+		return pricing, fmt.Errorf("invalid tax rate")
 	}
 	roundingMode, err := normalizeRoundingMode(settings.RoundingMode)
 	if err != nil {
-		return result, err
-	}
-	shift, err := a.store.GetOpenShift(a.ctx)
-	if err != nil {
-		return result, fmt.Errorf("no open shift: %w", err)
+		return pricing, err
 	}
 	inventoryID, err := a.salesInventoryID(settings.SalesInventoryID)
 	if err != nil {
-		return result, err
-	}
-	clientID, err := a.resolveClientID(params.ClientID)
-	if err != nil {
-		return result, err
+		return pricing, err
 	}
 	customPricingEnabled := false
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
@@ -142,6 +134,43 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		customDiscountsEnabled = enabled != 0
 	}
 	perUnitPricingEnabled = perUnitPricingEnabled || customPricingEnabled || customDiscountsEnabled
+
+	pricing.Settings = settings
+	pricing.RoundingMode = roundingMode
+	pricing.InventoryID = inventoryID
+	pricing.CustomPricingEnabled = customPricingEnabled
+	pricing.PerUnitPricingEnabled = perUnitPricingEnabled
+	return pricing, nil
+}
+
+func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, error) {
+	var result SalesInvoiceResult
+	if a.store == nil {
+		return result, fmt.Errorf("database not initialized")
+	}
+
+	items, err := parseSalesItems(params.ItemsJSON)
+	if err != nil {
+		return result, err
+	}
+	payments, err := parsePayments(params.PaymentsJSON)
+	if err != nil {
+		return result, err
+	}
+	pricing, err := a.loadPricingContext()
+	if err != nil {
+		return result, err
+	}
+	settings, roundingMode, inventoryID, customPricingEnabled, perUnitPricingEnabled :=
+		pricing.Settings, pricing.RoundingMode, pricing.InventoryID, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled
+	shift, err := a.store.GetOpenShift(a.ctx)
+	if err != nil {
+		return result, fmt.Errorf("no open shift: %w", err)
+	}
+	clientID, err := a.resolveClientID(params.ClientID)
+	if err != nil {
+		return result, err
+	}
 
 	year := int64(time.Now().Year())
 	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {

@@ -493,10 +493,11 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	if err != nil {
 		return fmt.Errorf("rounding currency: %w", err)
 	}
-	grandTotal, roundErr := roundCentsByCurrency(details["grandTotal"].(int64), roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, settings.RoundingMode)
-	if roundErr != nil {
-		return fmt.Errorf("round receipt total: %w", roundErr)
-	}
+	// Use the already-persisted, already-rounded grand total as-is - never
+	// re-round it against *current* settings, or a reprint after a
+	// rounding-mode/rate/currency change would show a different total than
+	// what was actually charged at checkout.
+	grandTotal := details["grandTotal"].(int64)
 	marketName := settings.MarketName
 	if marketName == "" {
 		marketName = "Market"
