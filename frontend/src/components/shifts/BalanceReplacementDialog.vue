@@ -8,9 +8,9 @@
         </div>
         <v-select v-model="sourceId" :items="sources" item-title="accountName" item-value="accountId" placeholder="From" variant="outlined" density="comfortable" class="mb-2" />
         <v-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" placeholder="Replace with" variant="outlined" density="comfortable" class="mb-2" />
-        <v-text-field v-model.number="amount" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="source?.currencyCode === 'LBP' ? 1000 : 0.01" variant="outlined" density="comfortable" />
+        <v-text-field v-model.number="amount" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01" variant="outlined" density="comfortable" />
         <div v-if="destination" class="text-caption text-medium-emphasis">
-          Destination receives {{ formatBalance(destinationCents, destination.currencyCode ?? "USD", exchangeRate) }}
+          Destination receives {{ formatBalance(destinationCents, destination.currencyCode ?? "USD", currencies, roundingMode) }}
         </div>
       </v-card-text>
       <v-card-actions>
@@ -27,14 +27,16 @@ import { computed, ref, watch } from "vue";
 import { ReplaceShiftBalance } from "../../../wailsjs/go/main/App";
 import type { Balance, PaymentMethod } from "@/types/shifts";
 import { formatBalance } from "@/lib/format";
-import { roundCentsFromLbp } from "@/lib/money";
+import { roundCentsFromCurrencyUnits } from "@/lib/money";
+import { useCurrencies, findCurrency } from "@/composables/useCurrencies";
+
+const { currencies, roundingMode } = useCurrencies();
 
 const props = defineProps<{
   modelValue: boolean;
   shiftId?: number;
   sources: Balance[];
   paymentMethods: PaymentMethod[];
-  exchangeRate: number;
 }>();
 const emit = defineEmits<{ "update:modelValue": [value: boolean]; saved: [shiftId: number] }>();
 const destinationId = ref<number | null>(null);
@@ -42,27 +44,36 @@ const sourceId = ref<number | null>(null);
 const amount = ref<number | null>(null);
 const saving = ref(false);
 const source = computed(() => props.sources.find((item) => item.accountId === sourceId.value) ?? null);
+const sourceCurrency = computed(() => findCurrency(currencies.value, source.value?.currencyCode ?? "USD"));
 const destinations = computed(() => props.paymentMethods.filter((method) => method.id !== source.value?.accountId));
 const destination = computed(() => destinations.value.find((method) => method.id === destinationId.value));
 const cents = computed(() => {
   const value = Number(amount.value);
   if (!Number.isFinite(value) || value <= 0) return 0;
-  return source.value?.currencyCode === "LBP" ? roundCentsFromLbp(value, props.exchangeRate) : Math.round(value * 100);
+  return sourceCurrency.value && sourceCurrency.value.cashRoundingUnit > 1
+    ? roundCentsFromCurrencyUnits(value, sourceCurrency.value, roundingMode.value)
+    : Math.round(value * 100);
 });
 const destinationCents = computed(() => Number(source.value?.balance || 0) < 0 ? -cents.value : cents.value);
 const valid = computed(() => !!props.shiftId && !!source.value && !!destination.value && cents.value > 0 && cents.value <= Math.abs(Number(source.value?.balance || 0)));
 
 function sourceAmount(balance: Balance | null): number {
   const value = Math.abs(Number(balance?.balance || 0));
-  return balance?.currencyCode === "LBP"
-    ? Math.round(value * props.exchangeRate / 100)
-    : value / 100;
+  const currency = findCurrency(currencies.value, balance?.currencyCode ?? "USD");
+  if (currency && currency.cashRoundingUnit > 1) {
+    return Math.round((value * currency.unitsPerUsd) / 100 / currency.cashRoundingUnit) * currency.cashRoundingUnit;
+  }
+  return value / 100;
 }
 
 watch(() => [props.modelValue, props.sources], ([open]) => {
   if (!open || !props.sources.length) return;
   const firstSource = props.sources[0];
-  sourceId.value = props.sources.find((item) => item.currencyCode === "LBP")?.accountId ?? firstSource?.accountId ?? null;
+  const physicalCashSource = props.sources.find((item) => {
+    const currency = findCurrency(currencies.value, item.currencyCode ?? "USD");
+    return currency && currency.cashRoundingUnit > 1;
+  });
+  sourceId.value = physicalCashSource?.accountId ?? firstSource?.accountId ?? null;
   destinationId.value = destinations.value[0]?.id ?? null;
   amount.value = sourceAmount(source.value);
 });

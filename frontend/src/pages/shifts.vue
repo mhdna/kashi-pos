@@ -9,7 +9,6 @@
         :shift-id="openShift?.id"
         :income-total="currentShiftTotal"
         :loading="loadingShift"
-        :exchange-rate="exchangeRate"
         :payment-methods="paymentMethods"
         :balance-sources="closeBalances"
         @balance-replaced="refresh"
@@ -24,7 +23,6 @@
         :shift-expanded="shiftExpanded"
         :balance-cache="balanceCache"
         :balance-loading="balanceLoading"
-        :exchange-rate="exchangeRate"
         :current-day="currentDay"
         :is-admin="auth.isAdmin"
         :printing-shift-id="printingShiftId"
@@ -42,7 +40,6 @@
       :shift-income-total="currentShiftTotal"
       :salespersons="salespersons"
       :closing="closing"
-      :exchange-rate="exchangeRate"
       @confirm="doCloseShift"
     />
   </div>
@@ -56,7 +53,6 @@ import {
   GetCurrentMonth,
   GetOpenShift,
   GetShiftTotals,
-  GetAppSettings,
   ListShiftBalances,
   ListPaymentMethods,
   ListSalespersons,
@@ -71,7 +67,6 @@ import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
 import type { Balance, DayRow, IncomeRow, PaymentMethod, Shift } from "@/types/shifts";
 import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
-const exchangeRate = ref(90000);
 const salespersons = ref<Array<{ id: number; fullName: string }>>([]);
 const paymentMethods = ref<PaymentMethod[]>([]);
 
@@ -283,11 +278,6 @@ function refreshIncome() {
 
 onMounted(async () => {
   window.addEventListener(INCOME_CHANGED_EVENT, refreshIncome);
-  try {
-    const settings = await GetAppSettings();
-    const rate = Number(settings?.exchangeRate);
-    if (Number.isFinite(rate) && rate > 0) exchangeRate.value = rate;
-  } catch {}
   try {
     salespersons.value =
       ((await ListSalespersons()) as Array<{ id: number; fullName: string }>) ?? [];

@@ -44,7 +44,7 @@
             @click.stop="$emit('toggle-day', item.day)"
           />
           <span>{{ item.day }}</span>
-          <span class="font-weight-bold">{{ formatBalance(item.total, "USD", exchangeRate) }}</span>
+          <span class="font-weight-bold">{{ formatBalance(item.total, "USD", currencies, roundingMode) }}</span>
         </div>
         <div v-if="expandedDays.includes(item.day)" class="pa-0">
           <div v-if="!item.shifts.length" class="pa-3 text-caption text-medium-emphasis">
@@ -70,7 +70,7 @@
                 <span v-if="shift.closedAt" class="text-caption me-2">→ {{ shift.closedAt }}</span>
                 <v-spacer />
                 <span class="font-weight-bold me-2">{{
-                  formatBalance(shift.total, "USD", exchangeRate)
+                  formatBalance(shift.total, "USD", currencies, roundingMode)
                 }}</span>
                 <!-- <span -->
                 <!--   v-if="shift.isClosed && shift.priceDeduction" -->
@@ -108,7 +108,7 @@
                     </template>
                     <template #append>
                       <span class="font-weight-bold">{{
-                        formatBalance(balance.balance, balance.currencyCode ?? "USD", exchangeRate)
+                        formatBalance(balance.balance, balance.currencyCode ?? "USD", currencies, roundingMode)
                       }}</span>
                     </template>
                   </v-list-item>
@@ -122,7 +122,7 @@
     </div>
     <div class="monthly-income-total font-weight-bold">
       <span>Total</span>
-      <span>{{ formatBalance(grandTotal, "USD", exchangeRate) }}</span>
+      <span>{{ formatBalance(grandTotal, "USD", currencies, roundingMode) }}</span>
     </div>
   </v-sheet>
 </template>
@@ -131,6 +131,9 @@
 import { nextTick, ref, watch, type ComponentPublicInstance } from "vue";
 import type { Balance, DayRow } from "@/types/shifts";
 import { formatBalance } from "@/lib/format";
+import { useCurrencies } from "@/composables/useCurrencies";
+
+const { currencies, roundingMode } = useCurrencies();
 
 const props = defineProps<{
   month: string;
@@ -142,7 +145,6 @@ const props = defineProps<{
   shiftExpanded: Set<number>;
   balanceCache: Record<number, Balance[]>;
   balanceLoading: Record<number, boolean>;
-  exchangeRate: number;
   currentDay: string;
   isAdmin: boolean;
   printingShiftId: number | null;

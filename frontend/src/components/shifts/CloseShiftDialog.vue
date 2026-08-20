@@ -9,7 +9,7 @@
         <div class="d-flex justify-space-between align-center mb-4 pa-3 rounded bg-surface-variant">
           <span class="text-subtitle-1 font-weight-bold">Shift income total</span>
           <span class="text-h6 font-weight-bold">{{
-            formatBalance(shiftIncomeTotal, "USD", exchangeRate ?? 90000)
+            formatBalance(shiftIncomeTotal, "USD", currencies, roundingMode)
           }}</span>
         </div>
         <div v-if="closeBalances.length" class="balance-summary-grid mb-4">
@@ -28,7 +28,7 @@
               >
             </span>
             <span class="font-weight-bold">{{
-              formatBalance(balance.balance, balance.currencyCode ?? "USD", exchangeRate ?? 90000)
+              formatBalance(balance.balance, balance.currencyCode ?? "USD", currencies, roundingMode)
             }}</span>
           </div>
         </div>
@@ -182,6 +182,9 @@
 import { computed, ref, watch } from "vue";
 import type { Balance, Shift } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
+import { useCurrencies } from "@/composables/useCurrencies";
+
+const { currencies, roundingMode } = useCurrencies();
 
 const props = defineProps<{
   modelValue: boolean;
@@ -190,7 +193,6 @@ const props = defineProps<{
   shiftIncomeTotal: number;
   salespersons: Array<{ id: number; fullName: string }>;
   closing: boolean;
-  exchangeRate?: number;
 }>();
 
 const emit = defineEmits<{

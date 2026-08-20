@@ -288,7 +288,6 @@ import {
   ChangeInvoiceSettlementAmount,
   DeleteInvoice,
   RoundInvoice,
-  GetAppSettings,
   GetInvoiceDetails,
   ListInvoicesPage,
   ListPaymentMethods,
@@ -298,6 +297,8 @@ import {
 } from "../../wailsjs/go/main/App";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { formatBalance } from "@/lib/format";
+import { useCurrencies, findCurrency } from "@/composables/useCurrencies";
+import { roundCentsFromCurrencyUnits, roundCurrencyUnitsFromCents } from "@/lib/money";
 import { formatLebanesePhone } from "@/lib/phone";
 import { useAuthStore } from "../stores/auth";
 
@@ -328,9 +329,9 @@ const settlementAmount = ref<number | null>(null);
 const clients = ref<any[]>([]),
   paymentMethods = ref<any[]>([]),
   salespersons = ref<any[]>([]);
-const exchangeRate = ref(90000);
 const clientSearch = ref("");
 const snackbar = reactive({ show: false, text: "", color: "success" });
+const { currencies, roundingMode } = useCurrencies();
 const changeTitle = computed(() =>
   changeType.value === "client"
     ? "Change Client"
@@ -386,7 +387,8 @@ const sourceTransferLabel = computed(() =>
   formatBalance(
     transferCents.value,
     settlementAmountUnit.value,
-    exchangeRate.value,
+    currencies.value,
+    roundingMode.value,
   ),
 );
 function money(value: number | undefined) {
@@ -413,26 +415,30 @@ function settlementSourceAmountLabel(payment: any): string {
   return formatBalance(
     Number(payment.amount || 0),
     payment.currencyCode ?? "USD",
-    exchangeRate.value,
+    currencies.value,
+    roundingMode.value,
   );
 }
 function settlementAmountLabel(method: any): string {
   return formatBalance(
     transferCents.value,
     method.currencyCode ?? "USD",
-    exchangeRate.value,
+    currencies.value,
+    roundingMode.value,
   );
 }
 function nativeSettlementAmountToCents(value: number | null): number {
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount <= 0) return 0;
-  if (settlementAmountUnit.value === "LBP")
-    return Math.round((amount * 100) / exchangeRate.value);
+  const currency = findCurrency(currencies.value, settlementAmountUnit.value);
+  if (currency && currency.cashRoundingUnit > 1)
+    return roundCentsFromCurrencyUnits(amount, currency, roundingMode.value);
   return Math.round(amount * 100);
 }
 function nativeSettlementAmountFromCents(amountCents: number, currencyCode: string): number {
-  if (currencyCode === "LBP")
-    return Math.round((amountCents * exchangeRate.value) / 100);
+  const currency = findCurrency(currencies.value, currencyCode);
+  if (currency && currency.cashRoundingUnit > 1)
+    return roundCurrencyUnitsFromCents(amountCents, currency, roundingMode.value);
   return Math.round(amountCents) / 100;
 }
 function setSettlementSource(accountId: number | null) {
@@ -702,12 +708,9 @@ function ensureEditOptions(type: "client" | "settlement" | "salesperson"): Promi
 
   if (type === "settlement") {
     if (!paymentMethodOptionsPromise) {
-      paymentMethodOptionsPromise = Promise.all([ListPaymentMethods(), GetAppSettings()])
-        .then(([loadedPaymentMethods, settings]) => {
+      paymentMethodOptionsPromise = Promise.all([ListPaymentMethods()])
+        .then(([loadedPaymentMethods]) => {
           paymentMethods.value = loadedPaymentMethods;
-          const configuredRate = Number(settings?.exchangeRate);
-          if (Number.isFinite(configuredRate) && configuredRate > 0)
-            exchangeRate.value = configuredRate;
         })
         .catch((error) => {
           paymentMethodOptionsPromise = null;

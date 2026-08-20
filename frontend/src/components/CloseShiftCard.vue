@@ -13,7 +13,7 @@
               <!-- <small v-if="b.isOnCoupon" class="text-medium-emphasis"> — automatically counted</small> -->
             </span>
             <span class="font-weight-bold">
-              {{ formatBalance(b.balance, b.currencyCode ?? "USD", exchangeRate) }}
+              {{ formatBalance(b.balance, b.currencyCode ?? "USD", currencies, roundingMode) }}
             </span>
           </div>
         </div>
@@ -169,9 +169,9 @@ import { computed, ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { formatBalance, formatUsd } from "@/lib/format";
+import { useCurrencies } from "@/composables/useCurrencies";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import {
-  GetAppSettings,
   GetOpenShift,
   ListShiftBalances,
   ListSalespersons,
@@ -193,7 +193,7 @@ const usdDenominations = [100, 50, 20, 10, 5, 1] as const;
 const usdBillCounts = ref<Record<number, string>>(
   Object.fromEntries(usdDenominations.map((denomination) => [denomination, ""])),
 );
-const exchangeRate = ref(90000);
+const { currencies, roundingMode } = useCurrencies();
 let shiftId = 0;
 const countedUsdTotal = computed(() =>
   usdDenominations.reduce(
@@ -241,11 +241,6 @@ onMounted(async () => {
     const b = await ListShiftBalances(shiftId);
     balanceRows.value = (b as any[]) ?? [];
     salespersons.value = ((await ListSalespersons()) as any[]) ?? [];
-    const settings = await GetAppSettings();
-    const configuredRate = Number(settings?.exchangeRate);
-    if (Number.isFinite(configuredRate) && configuredRate > 0) {
-      exchangeRate.value = configuredRate;
-    }
   } catch {}
 });
 

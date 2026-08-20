@@ -178,9 +178,10 @@ import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
-import { roundCents, roundCentsByCurrency } from "@/lib/money";
+import { roundCents, roundCentsByCurrency, normalizeRoundingMode, type RoundingMode } from "@/lib/money";
 import type { Client } from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
+import { useCurrencies } from "@/composables/useCurrencies";
 import { pendingExchangeSelection, pendingHoldInvoice } from "@/composables/useNavActions";
 
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
@@ -188,10 +189,10 @@ type InvoiceDraft = { items: any[]; client: Client; notes?: string };
 const { selectedSalesperson, pulseSalesperson } = useSalesperson();
 let pageActive = true;
 
+const { currencies } = useCurrencies();
 const taxRate = ref(0);
-const roundingMode = ref("half_up");
-const roundingCurrency = ref("LBP");
-const exchangeRate = ref(90000);
+const roundingMode = ref<RoundingMode>("half_up");
+const roundingCurrency = ref("");
 const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
 const customItemDiscountsEnabled = ref(false);
@@ -212,10 +213,17 @@ const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
 const productSearchDialog = ref<InstanceType<typeof ProductSearchDialog> | null>(null);
 const accountDialog = ref(false);
 
+const resolvedRoundingCurrency = computed(
+  () =>
+    currencies.value.find((c) => c.code === roundingCurrency.value) ??
+    currencies.value.find((c) => c.cashRoundingUnit > 1) ??
+    currencies.value[0] ??
+    { code: "USD", symbol: "$", unitsPerUsd: 1, cashRoundingUnit: 1 },
+);
 const invoiceTotal = computed(() => {
   const discountedCents = invoiceItems.value?.discountedSubtotalCents ?? 0;
   const taxCents = roundCents((discountedCents / 100) * taxRate.value * 100, roundingMode.value);
-  return roundCentsByCurrency(discountedCents + taxCents, roundingCurrency.value, exchangeRate.value, roundingMode.value) / 100;
+  return roundCentsByCurrency(discountedCents + taxCents, resolvedRoundingCurrency.value, roundingMode.value) / 100;
 });
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
 const clientSelected = computed(() => Boolean(actionBar.value?.clientSelected));
@@ -628,9 +636,8 @@ onMounted(async () => {
     const settings = await GetAppSettings();
     if (!pageActive) return;
     taxRate.value = Number(settings?.taxRate ?? 0);
-    roundingMode.value = settings?.roundingMode ?? "half_up";
-    roundingCurrency.value = settings?.roundingCurrency ?? "LBP";
-    exchangeRate.value = Number(settings?.exchangeRate) > 0 ? Number(settings.exchangeRate) : 90000;
+    roundingMode.value = normalizeRoundingMode(settings?.roundingMode ?? "");
+    roundingCurrency.value = settings?.roundingCurrency ?? "";
     receiptEnabled.value = Boolean(settings?.receiptEnabled);
     receiptPrinter.value = settings?.receiptPrinter ?? "";
     customItemDiscountsEnabled.value = Boolean(settings?.customItemDiscountsEnabled);

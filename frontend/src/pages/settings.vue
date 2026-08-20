@@ -3,6 +3,7 @@
     <v-tabs v-model="tab" class="settings-tabs mb-5" color="primary" grow>
       <v-tab value="general">Printing &amp; Screen</v-tab>
       <v-tab value="receipt">Receipt</v-tab>
+      <v-tab value="currencies">Currencies</v-tab>
       <v-tab value="coupons">Coupons</v-tab>
       <v-tab value="admin">Passwords &amp; Users</v-tab>
     </v-tabs>
@@ -102,8 +103,8 @@
               />
               <v-text-field
                 v-model.number="form.exchangeRate"
-                placeholder="Exchange rate (LBP per USD)"
-                hint="Used to show and accept change in Lebanese pounds."
+                placeholder="Legacy exchange rate field"
+                hint="No longer used for rounding/checkout math - edit currency rates in the Currencies tab instead. Kept only for backward compatibility."
                 persistent-hint
                 type="number"
                 min="1"
@@ -315,6 +316,145 @@
             </v-card-actions>
           </v-card>
 
+        </div>
+      </v-window-item>
+
+      <v-window-item value="currencies">
+        <div class="settings-grid">
+          <v-card class="settings-card">
+            <v-card-title>Currencies</v-card-title>
+            <v-card-text>
+              <p class="text-caption text-medium-emphasis mb-3">
+                Add any currency this shop accepts cash in. The rate is how many major units of
+                the currency equal one USD (e.g. 90000 for LBP). The cash rounding unit is the
+                nearest whole amount physical cash in that currency rounds to when tendered or
+                used as the invoice's rounding currency (e.g. 10000 for LBP, 1 for a currency
+                with no physical rounding).
+              </p>
+              <v-table density="compact" class="mb-4">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Symbol</th>
+                    <th>Units per USD</th>
+                    <th>Cash rounding unit</th>
+                    <th>Active</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="currency in currencies" :key="currency.code">
+                    <td>{{ currency.code }}</td>
+                    <td>{{ currency.name }}</td>
+                    <td>{{ currency.symbol }}</td>
+                    <td>{{ currency.unitsPerUsd }}</td>
+                    <td>{{ currency.cashRoundingUnit }}</td>
+                    <td>
+                      <v-switch
+                        :model-value="currency.isActive"
+                        :disabled="currency.isDefault"
+                        hide-details
+                        density="compact"
+                        color="primary"
+                        @update:model-value="toggleCurrencyActive(currency)"
+                      />
+                    </td>
+                    <td>
+                      <v-btn
+                        v-if="!currency.isDefault"
+                        icon="mdi-pencil"
+                        variant="text"
+                        size="small"
+                        @click="editCurrency(currency)"
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+              <div class="text-subtitle-2 mb-2">
+                {{ editingCurrencyCode ? `Edit ${editingCurrencyCode}` : "Add a currency" }}
+              </div>
+              <div class="d-flex flex-wrap ga-2 align-start">
+                <v-text-field
+                  v-if="!editingCurrencyCode"
+                  v-model="currencyForm.code"
+                  placeholder="Code (e.g. EUR)"
+                  variant="outlined"
+                  density="compact"
+                  style="max-width: 140px"
+                />
+                <v-text-field v-model="currencyForm.name" placeholder="Name" variant="outlined" density="compact" style="max-width: 180px" />
+                <v-text-field v-model="currencyForm.symbol" placeholder="Symbol" variant="outlined" density="compact" style="max-width: 100px" />
+                <v-text-field
+                  v-model.number="currencyForm.unitsPerUsd"
+                  placeholder="Units per USD"
+                  type="number"
+                  min="0"
+                  step="0.0001"
+                  variant="outlined"
+                  density="compact"
+                  style="max-width: 160px"
+                />
+                <v-text-field
+                  v-model.number="currencyForm.cashRoundingUnit"
+                  placeholder="Cash rounding unit"
+                  type="number"
+                  min="1"
+                  step="1"
+                  variant="outlined"
+                  density="compact"
+                  style="max-width: 160px"
+                />
+                <v-btn color="primary" :loading="currencySaving" @click="saveCurrency">
+                  {{ editingCurrencyCode ? "Save" : "Add" }}
+                </v-btn>
+                <v-btn v-if="editingCurrencyCode" variant="text" @click="resetCurrencyForm">Cancel</v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <v-card class="settings-card">
+            <v-card-title>Payment methods</v-card-title>
+            <v-card-text>
+              <p class="text-caption text-medium-emphasis mb-3">
+                A payment method is a cashbox account denominated in one of the currencies above.
+              </p>
+              <v-table density="compact" class="mb-4">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Currency</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="method in paymentMethods" :key="method.id">
+                    <td>{{ method.name }}</td>
+                    <td>{{ method.currencyCode }}</td>
+                  </tr>
+                </tbody>
+              </v-table>
+              <div class="text-subtitle-2 mb-2">Add a payment method</div>
+              <div class="d-flex flex-wrap ga-2 align-start">
+                <v-text-field
+                  v-model="paymentMethodForm.name"
+                  placeholder="Name (e.g. Euro Cash)"
+                  variant="outlined"
+                  density="compact"
+                  style="max-width: 220px"
+                />
+                <v-select
+                  v-model="paymentMethodForm.currencyCode"
+                  :items="currencies.filter((c) => c.isActive).map((c) => ({ title: `${c.name} (${c.code})`, value: c.code }))"
+                  placeholder="Currency"
+                  variant="outlined"
+                  density="compact"
+                  style="max-width: 220px"
+                />
+                <v-btn color="primary" :loading="paymentMethodSaving" @click="savePaymentMethod">Add</v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
         </div>
       </v-window-item>
 
@@ -639,7 +779,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import {
   GetAppSettings,
   UpdateSettings,
@@ -675,6 +815,12 @@ import {
   CreateSalesperson,
   UpdateSalesperson,
   DeleteSalesperson,
+  ListCurrencies,
+  CreateCurrency,
+  UpdateCurrency,
+  SetCurrencyActive,
+  ListPaymentMethods,
+  CreateCashboxAccount,
 } from "../../wailsjs/go/main/App";
 import { useAuthStore } from "@/stores/auth";
 import { animationsEnabled, setAnimationsEnabled } from "@/lib/display";
@@ -735,10 +881,113 @@ const roundingModes = [
   { title: "Always down", value: "down" },
   { title: "Always up", value: "up" },
 ];
-const roundingCurrencies = [
-  { title: "LBP (nearest 10,000)", value: "LBP" },
-  { title: "USD (nearest $1)", value: "USD" },
-];
+const currencies = ref<any[]>([]);
+const roundingCurrencies = computed(() =>
+  currencies.value
+    .filter((c) => c.isActive)
+    .map((c) => ({
+      title: `${c.name} (${c.cashRoundingUnit > 1 ? `nearest ${c.cashRoundingUnit.toLocaleString()} ${c.code}` : `nearest ${c.symbol}1`})`,
+      value: c.code,
+    })),
+);
+const paymentMethods = ref<any[]>([]);
+const currencyForm = reactive({ code: "", name: "", symbol: "", unitsPerUsd: 1, cashRoundingUnit: 1 });
+const editingCurrencyCode = ref<string | null>(null);
+const currencySaving = ref(false);
+const paymentMethodForm = reactive({ name: "", currencyCode: "" });
+const paymentMethodSaving = ref(false);
+
+async function loadCurrencies() {
+  try {
+    currencies.value = (await ListCurrencies()) as any[];
+  } catch {
+    currencies.value = [];
+  }
+}
+
+async function loadPaymentMethodsList() {
+  try {
+    paymentMethods.value = (await ListPaymentMethods()) as any[];
+  } catch {
+    paymentMethods.value = [];
+  }
+}
+
+function editCurrency(currency: any) {
+  editingCurrencyCode.value = currency.code;
+  Object.assign(currencyForm, {
+    code: currency.code,
+    name: currency.name,
+    symbol: currency.symbol,
+    unitsPerUsd: currency.unitsPerUsd,
+    cashRoundingUnit: currency.cashRoundingUnit,
+  });
+}
+
+function resetCurrencyForm() {
+  editingCurrencyCode.value = null;
+  Object.assign(currencyForm, { code: "", name: "", symbol: "", unitsPerUsd: 1, cashRoundingUnit: 1 });
+}
+
+async function saveCurrency() {
+  const unitsPerUsd = Number(currencyForm.unitsPerUsd);
+  const cashRoundingUnit = Math.round(Number(currencyForm.cashRoundingUnit));
+  if (!currencyForm.name.trim() || !currencyForm.symbol.trim() || !Number.isFinite(unitsPerUsd) || unitsPerUsd <= 0) {
+    notify("Name, symbol, and a positive rate are required", "red");
+    return;
+  }
+  if (!Number.isFinite(cashRoundingUnit) || cashRoundingUnit <= 0) {
+    notify("Cash rounding unit must be a positive whole number", "red");
+    return;
+  }
+  currencySaving.value = true;
+  try {
+    if (editingCurrencyCode.value) {
+      await UpdateCurrency(editingCurrencyCode.value, currencyForm.name.trim(), currencyForm.symbol.trim(), unitsPerUsd, cashRoundingUnit);
+    } else {
+      if (!currencyForm.code.trim()) {
+        notify("Currency code is required", "red");
+        currencySaving.value = false;
+        return;
+      }
+      await CreateCurrency(currencyForm.code.trim(), currencyForm.name.trim(), currencyForm.symbol.trim(), unitsPerUsd, cashRoundingUnit);
+    }
+    await loadCurrencies();
+    resetCurrencyForm();
+    notify("Currency saved");
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to save currency", "red");
+  } finally {
+    currencySaving.value = false;
+  }
+}
+
+async function toggleCurrencyActive(currency: any) {
+  try {
+    await SetCurrencyActive(currency.code, !currency.isActive);
+    await loadCurrencies();
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to update currency", "red");
+  }
+}
+
+async function savePaymentMethod() {
+  if (!paymentMethodForm.name.trim() || !paymentMethodForm.currencyCode) {
+    notify("Name and currency are required", "red");
+    return;
+  }
+  paymentMethodSaving.value = true;
+  try {
+    await CreateCashboxAccount(paymentMethodForm.name.trim(), paymentMethodForm.currencyCode);
+    await loadPaymentMethodsList();
+    paymentMethodForm.name = "";
+    notify("Payment method added");
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to add payment method", "red");
+  } finally {
+    paymentMethodSaving.value = false;
+  }
+}
 const inventories = ref<any[]>([]);
 const socialPlatformOptions = [
   { title: "", value: "facebook", icon: "mdi-facebook", label: "Facebook" },
@@ -1008,6 +1257,8 @@ async function setPerUnitPricesEnabled(value: boolean | null) {
 onMounted(async () => {
   await loadCouponTypes();
   await loadSettings();
+  await loadCurrencies();
+  await loadPaymentMethodsList();
   try {
     serialPorts.value = await ListSerialPorts();
   } catch {}
@@ -1047,7 +1298,9 @@ async function saveSettings() {
       Number.isFinite(receiptHeight) && receiptHeight > 0 ? Math.round(receiptHeight) : 297,
       Number.isFinite(taxRate) ? Math.min(Math.max(taxRate, 0), 1) : 0,
       roundingModes.some((m) => m.value === form.roundingMode) ? form.roundingMode : "half_up",
-      roundingCurrencies.some((item) => item.value === form.roundingCurrency) ? form.roundingCurrency : "LBP",
+      roundingCurrencies.value.some((item) => item.value === form.roundingCurrency)
+        ? form.roundingCurrency
+        : (roundingCurrencies.value[0]?.value ?? form.roundingCurrency),
       Boolean(form.receiptEnabled),
       Number(form.salesInventoryId) > 0 ? Number(form.salesInventoryId) : 0,
       Number.isFinite(exchangeRate) && exchangeRate > 0 ? Math.round(exchangeRate) : 90000,

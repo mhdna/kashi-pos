@@ -18,7 +18,7 @@
         </template>
         <template #append>
           <span class="font-weight-bold text-medium-emphasis">
-            {{ formatBalance(item.total, item.currencyCode ?? "USD", exchangeRate) }}
+            {{ formatBalance(item.total, item.currencyCode ?? "USD", currencies, roundingMode) }}
           </span>
         </template>
         </v-list-item>
@@ -35,7 +35,7 @@
       </v-btn>
       <div class="d-flex justify-space-between px-4 pt-3 mt-2 border-t font-weight-bold">
         <span>Income total</span>
-        <span>{{ formatBalance(incomeTotal, "USD", exchangeRate) }}</span>
+        <span>{{ formatBalance(incomeTotal, "USD", currencies, roundingMode) }}</span>
       </div>
     </template>
     <div v-else class="shift-income-empty pa-3 text-caption text-medium-emphasis">
@@ -43,7 +43,7 @@
       {{ shiftId ? "No income found for the current shift." : "No open shift found." }}
     </div>
   </v-sheet>
-  <BalanceReplacementDialog v-model="replacementOpen" :shift-id="shiftId" :sources="balanceSources" :payment-methods="paymentMethods" :exchange-rate="exchangeRate" @saved="emit('balance-replaced', $event)" />
+  <BalanceReplacementDialog v-model="replacementOpen" :shift-id="shiftId" :sources="balanceSources" :payment-methods="paymentMethods" @saved="emit('balance-replaced', $event)" />
 </template>
 
 <script setup lang="ts">
@@ -51,7 +51,10 @@ import { computed, ref } from "vue";
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance } from "@/lib/format";
 import { paymentColor } from "@/lib/paymentColor";
+import { useCurrencies } from "@/composables/useCurrencies";
 import BalanceReplacementDialog from "@/components/shifts/BalanceReplacementDialog.vue";
+
+const { currencies, roundingMode } = useCurrencies();
 
 const props = defineProps<{
   items: IncomeRow[];
@@ -61,7 +64,6 @@ const props = defineProps<{
   paymentMethods: PaymentMethod[];
   balanceSources: Balance[];
   loading: boolean;
-  exchangeRate: number;
 }>();
 const emit = defineEmits<{ "balance-replaced": [shiftId: number] }>();
 const replacementOpen = ref(false);

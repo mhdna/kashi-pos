@@ -1,59 +1,85 @@
+// Display/preview-only helpers. These are NOT the source of truth for
+// checkout math - the backend (money.go, QuoteInvoiceTotal/QuotePaymentStatus)
+// computes and validates every amount that actually gets persisted. Use
+// these only for things like live keypad formatting where round-tripping to
+// the backend on every keystroke would be wasteful.
+//
+// Every function takes `mode` as a required parameter on purpose: the old
+// version let call sites omit it and silently fell back to half-up
+// regardless of the shop's configured rounding mode, which was a real bug.
+
 export type RoundingMode = "half_up" | "down" | "up";
 
-export const LBP_ROUNDING_UNIT = 10_000;
+/** A currency's rate/rounding config, as returned by ListCurrencies(). */
+export interface CurrencyRate {
+  code: string;
+  symbol: string;
+  /** Major units of this currency equal to one USD (e.g. 90000 for LBP). */
+  unitsPerUsd: number;
+  /** Physical cash in this currency rounds to the nearest multiple of this,
+   * in the currency's own major units (e.g. 10000 for LBP, 1 for USD). */
+  cashRoundingUnit: number;
+}
 
-export function normalizeRoundingMode(mode?: string): RoundingMode {
+export function normalizeRoundingMode(mode: string): RoundingMode {
   return mode === "down" || mode === "up" || mode === "half_up" ? mode : "half_up";
 }
 
-/** Matches the backend's integer LBP cash-rounding rule. */
-export function roundLbpFromCents(cents: number, exchangeRate: number, mode?: string): number {
-  if (!Number.isFinite(cents) || !Number.isFinite(exchangeRate) || exchangeRate <= 0)
-    return 0;
+function roundHalfEvenSafe(units: number, mode: RoundingMode): number {
+  if (mode === "down") return Math.floor(units + 1e-9);
+  if (mode === "up") return Math.ceil(units - 1e-9);
+  return Math.floor(units + 0.5);
+}
+
+/** Rounds a raw cents-like value (e.g. a tax computation on the fixed
+ * accounting currency) to the nearest integer cent - no currency involved. */
+export function roundCents(value: number, mode: RoundingMode): number {
+  return roundHalfEvenSafe(value, mode);
+}
+
+/**
+ * Converts an accounting-cents amount into a currency's major units,
+ * rounded to that currency's configured cash-rounding unit. Mirrors the
+ * backend's roundCurrencyUnitsFromCents (money.go) - plugging in a
+ * currency with cashRoundingUnit=1 reproduces "round to the nearest whole
+ * unit" for any currency, not just USD/LBP.
+ */
+export function roundCurrencyUnitsFromCents(cents: number, currency: CurrencyRate, mode: RoundingMode): number {
+  if (!Number.isFinite(cents) || currency.unitsPerUsd <= 0 || currency.cashRoundingUnit <= 0) return 0;
+  const exactUnits = (Math.abs(cents) * currency.unitsPerUsd) / 100 / currency.cashRoundingUnit;
+  const roundedUnits = roundHalfEvenSafe(exactUnits, mode);
   const sign = cents < 0 ? -1 : 1;
-  const exactLbp = (Math.abs(cents) * exchangeRate) / 100;
-  const units = exactLbp / LBP_ROUNDING_UNIT;
-  const roundingMode = normalizeRoundingMode(mode);
-  const roundedUnits =
-    roundingMode === "down"
-      ? Math.floor(units + 1e-9)
-      : roundingMode === "up"
-        ? Math.ceil(units - 1e-9)
-        : Math.floor(units + 0.5);
-  return roundedUnits === 0 ? 0 : sign * roundedUnits * LBP_ROUNDING_UNIT;
+  return roundedUnits === 0 ? 0 : sign * roundedUnits * currency.cashRoundingUnit;
 }
 
-export function roundCents(value: number, mode?: string): number {
-  const roundingMode = normalizeRoundingMode(mode);
-  if (roundingMode === "down") return Math.floor(value + 1e-9);
-  if (roundingMode === "up") return Math.ceil(value - 1e-9);
-  return Math.floor(value + 0.5);
+/** Inverse of roundCurrencyUnitsFromCents: a physically counted amount in a
+ * currency's major units back to accounting cents. */
+export function roundCentsFromCurrencyUnits(units: number, currency: CurrencyRate, mode: RoundingMode): number {
+  if (!Number.isFinite(units) || units < 0 || currency.unitsPerUsd <= 0) return 0;
+  return roundHalfEvenSafe((units * 100) / currency.unitsPerUsd, mode);
 }
 
-export function roundCentsByCurrency(cents: number, currency: string, exchangeRate: number, mode?: string): number {
+/** Round-trips cents -> currency units (rounded) -> cents: the canonical
+ * amount when a cash payment in this currency gets rounded at checkout. */
+export function roundCashEquivalentCents(cents: number, currency: CurrencyRate, mode: RoundingMode): number {
   const sign = cents < 0 ? -1 : 1;
-  const amount = Math.abs(cents);
-  if (currency.toUpperCase() === "USD") return sign * roundCents(amount / 100, mode) * 100;
-  return sign * roundCentsFromLbp(roundLbpFromCents(amount, exchangeRate, mode), exchangeRate);
+  const roundedUnits = roundCurrencyUnitsFromCents(Math.abs(cents), currency, mode);
+  return sign * roundCentsFromCurrencyUnits(roundedUnits, currency, mode);
 }
 
-/** Convert a physical LBP amount to accounting cents using the app rate. */
-export function roundCentsFromLbp(amount: number, exchangeRate: number): number {
-  if (!Number.isFinite(amount) || !Number.isFinite(exchangeRate) || amount < 0 || exchangeRate <= 0) {
-    return 0;
-  }
-  return Math.floor((amount * 100) / exchangeRate + 0.5);
+/** Rounds an accounting-cents amount to a currency's cash-rounding grid. */
+export function roundCentsByCurrency(cents: number, currency: CurrencyRate, mode: RoundingMode): number {
+  return roundCashEquivalentCents(cents, currency, mode);
 }
 
 export function isCashRoundedEquivalent(
   paidCents: number,
   totalCents: number,
-  exchangeRate: number,
-  mode?: string,
+  currency: CurrencyRate,
+  mode: RoundingMode,
 ): boolean {
   return (
     paidCents !== totalCents &&
-    roundLbpFromCents(paidCents, exchangeRate, mode) ===
-      roundLbpFromCents(totalCents, exchangeRate, mode)
+    roundCurrencyUnitsFromCents(paidCents, currency, mode) === roundCurrencyUnitsFromCents(totalCents, currency, mode)
   );
 }

@@ -63,8 +63,11 @@ import { GetAppSettings, ListCurrencies, ListCouponTypes, ListPaymentMethods } f
 import { formatUsd } from "@/lib/format";
 import {
   isCashRoundedEquivalent,
-  roundLbpFromCents,
+  roundCurrencyUnitsFromCents,
+  roundCentsFromCurrencyUnits,
   roundCentsByCurrency,
+  normalizeRoundingMode,
+  type CurrencyRate,
 } from "@/lib/money";
 import CalculatorEntries from "@/components/calculator/CalculatorEntries.vue";
 import CalculatorKeypad from "@/components/calculator/CalculatorKeypad.vue";
@@ -77,10 +80,6 @@ interface PaymentMethod {
   displayName: string;
   currencyCode: string;
 }
-interface Currency {
-  code: string;
-  valueInDefaultCurrency: number;
-}
 interface Entry {
   type: string;
   amount: number;
@@ -88,16 +87,14 @@ interface Entry {
   accountId: number;
 }
 
-const DEFAULT_EXCHANGE_RATE = 90000;
-const DEFAULT_USD_RATE = 100;
+const FALLBACK_CURRENCY: CurrencyRate = { code: "USD", symbol: "$", unitsPerUsd: 1, cashRoundingUnit: 1 };
 const props = defineProps<{ total: number; roundingMode?: string; roundingCurrency?: string; clientId?: number; hasItems?: boolean; exchangeMode?: boolean }>();
 const emit = defineEmits<{ account: []; coupon: [] }>();
 const hasItems = computed(() => Boolean(props.hasItems));
 const exchangeMode = computed(() => Boolean(props.exchangeMode));
-const roundingMode = computed(() => props.roundingMode ?? "half_up");
+const roundingMode = computed(() => normalizeRoundingMode(props.roundingMode ?? ""));
 const paymentMethods = ref<PaymentMethod[]>([]);
-const currencies = ref<Currency[]>([]);
-const exchangeRate = ref(DEFAULT_EXCHANGE_RATE);
+const currencies = ref<CurrencyRate[]>([]);
 const maxOverpaymentCents = ref(0);
 const activeMethod = ref("");
 const currentInput = ref("");
@@ -108,41 +105,48 @@ const couponTypeId = ref<number | null>(null);
 const couponTypes = ref<any[]>([]);
 const selectedCouponType = computed(() => couponTypes.value.find((item) => item.id === couponTypeId.value));
 
-const usdRate = computed(
-  () => currencies.value.find((c) => c.code === "USD")?.valueInDefaultCurrency ?? DEFAULT_USD_RATE,
+const roundingCurrency = computed<CurrencyRate>(
+  () =>
+    currencies.value.find((c) => c.code === props.roundingCurrency) ??
+    currencies.value.find((c) => c.cashRoundingUnit > 1) ??
+    currencies.value[0] ??
+    FALLBACK_CURRENCY,
 );
 
+function currencyFor(methodName: string): CurrencyRate {
+  const code = paymentMethods.value.find((m) => m.name === methodName)?.currencyCode;
+  return currencies.value.find((c) => c.code === code) ?? FALLBACK_CURRENCY;
+}
+
 function currencySymbolFor(methodName: string) {
-  return paymentMethods.value.find((m) => m.name === methodName)?.currencyCode === "LBP"
-    ? "LBP"
-    : "$";
+  return currencyFor(methodName).symbol || "$";
 }
 
 const totalCents = computed(() => roundCentsByCurrency(
-  Math.round(props.total * 100), props.roundingCurrency ?? "LBP", exchangeRate.value, roundingMode.value,
+  Math.round(props.total * 100), roundingCurrency.value, roundingMode.value,
 ));
 const paidCents = computed(() => entries.value.reduce((sum, entry) => sum + entry.amountCents, 0));
 const diffCents = computed(() => paidCents.value - totalCents.value);
 const overpaymentAllowed = computed(() => diffCents.value <= maxOverpaymentCents.value);
 const diff = computed(() => diffCents.value / 100);
 const isPaidInFull = computed(() => diffCents.value === 0);
-const roundedShortfallLbp = computed(() =>
+const roundedShortfallUnits = computed(() =>
   diffCents.value < 0
-    ? roundLbpFromCents(-diffCents.value, exchangeRate.value, roundingMode.value)
+    ? roundCurrencyUnitsFromCents(-diffCents.value, roundingCurrency.value, roundingMode.value)
     : 0,
 );
 const cashRoundedToTotal = computed(() =>
   isCashRoundedEquivalent(
     paidCents.value,
     totalCents.value,
-    exchangeRate.value,
+    roundingCurrency.value,
     roundingMode.value,
   ),
 );
 const checkoutReady = computed(
   () =>
     (diffCents.value >= 0 && (overpaymentAllowed.value || cashRoundedToTotal.value)) ||
-    (diffCents.value < 0 && roundedShortfallLbp.value === 0),
+    (diffCents.value < 0 && roundedShortfallUnits.value === 0),
 );
 const showReadyState = computed(
   () => checkoutReady.value && (diffCents.value <= 0 || cashRoundedToTotal.value),
@@ -161,21 +165,29 @@ const statusColor = computed(() =>
 );
 const remainingAmount = computed(() => {
   const amountCents = Math.abs(diffCents.value);
+  if (roundingCurrency.value.cashRoundingUnit <= 1) {
+    return { usd: formatUsd(amountCents / 100), lbp: "" };
+  }
   const dollarAmount = amountCents / 100;
   const wholeDollars = Math.floor(dollarAmount / 10) * 10;
   const remainderCents = amountCents - wholeDollars * 100;
   return {
     usd: `$${wholeDollars.toLocaleString()}`,
-    lbp: `L.L. ${roundLbpFromCents(remainderCents, exchangeRate.value, roundingMode.value).toLocaleString()}`,
+    lbp: `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(remainderCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`,
   };
 });
 const totalSummary = computed(() => {
+  if (roundingCurrency.value.cashRoundingUnit <= 1) {
+    const usd = formatUsd(props.total);
+    return { usd, lbp: "", split: usd };
+  }
   const wholeDollars = Math.floor(props.total / 10) * 10;
   const remainderCents = totalCents.value - wholeDollars * 100;
+  const currencyLabel = `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(totalCents.value, roundingCurrency.value, roundingMode.value).toLocaleString()}`;
   return {
     usd: formatUsd(props.total),
-    lbp: `L.L. ${roundLbpFromCents(totalCents.value, exchangeRate.value, roundingMode.value).toLocaleString()}`,
-    split: `${formatUsd(wholeDollars)} + L.L. ${roundLbpFromCents(remainderCents, exchangeRate.value, roundingMode.value).toLocaleString()}`,
+    lbp: currencyLabel,
+    split: `${formatUsd(wholeDollars)} + ${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(remainderCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`,
   };
 });
 const displayValue = computed(() =>
@@ -189,14 +201,12 @@ function formatEntryAmount(amount: number) {
 onMounted(async () => {
   try {
     const settings = await GetAppSettings();
-    const configuredRate = Number(settings?.exchangeRate);
-    if (Number.isFinite(configuredRate) && configuredRate > 0) exchangeRate.value = configuredRate;
     const configuredMaxOverpayment = Number(settings?.maxOverpaymentCents);
     if (Number.isFinite(configuredMaxOverpayment) && configuredMaxOverpayment >= 0) {
       maxOverpaymentCents.value = Math.round(configuredMaxOverpayment);
     }
   } catch {
-    /* keep default exchange rate */
+    /* keep default max overpayment */
   }
   try {
     const methods = await ListPaymentMethods();
@@ -213,7 +223,9 @@ onMounted(async () => {
   try {
     currencies.value = (await ListCurrencies()).map((currency: any) => ({
       code: currency.code,
-      valueInDefaultCurrency: Number(currency.valueInDefaultCurrency),
+      symbol: currency.symbol,
+      unitsPerUsd: Number(currency.unitsPerUsd),
+      cashRoundingUnit: Number(currency.cashRoundingUnit),
     }));
   } catch {
     /* leave currencies empty */
@@ -231,22 +243,12 @@ function clearInput() {
   currentInput.value = "";
 }
 
-function paymentRate(methodName: string) {
-  const method = paymentMethods.value.find((candidate) => candidate.name === methodName);
-  const currencyCode = method?.currencyCode?.toUpperCase() ?? "";
-  return currencyCode === "LBP"
-    ? exchangeRate.value * usdRate.value
-    : (currencies.value.find((currency) => currency.code === currencyCode)
-        ?.valueInDefaultCurrency ?? 0);
-}
-
 function confirmEntry(methodName = activeMethod.value) {
   const amount = Number(currentInput.value);
   const method = paymentMethods.value.find((candidate) => candidate.name === methodName);
-  const methodRate = paymentRate(methodName);
-  if (!Number.isFinite(amount) || amount <= 0 || methodRate <= 0 || usdRate.value <= 0)
-    return;
-  const amountCents = Math.round((amount * usdRate.value * 100) / methodRate);
+  const currency = currencyFor(methodName);
+  if (!Number.isFinite(amount) || amount <= 0 || currency.unitsPerUsd <= 0) return;
+  const amountCents = roundCentsFromCurrencyUnits(amount, currency, roundingMode.value);
   if (amountCents <= 0) return;
   const isChange = diffCents.value > 0;
   entries.value.push({
@@ -260,19 +262,17 @@ function confirmEntry(methodName = activeMethod.value) {
 
 function fillRemainingInput(methodName = activeMethod.value) {
   const settlementCents = Math.abs(totalCents.value - paidCents.value);
-  const method = paymentMethods.value.find((candidate) => candidate.name === methodName);
-  const currencyCode = method?.currencyCode?.toUpperCase() ?? "";
-  const methodRate = paymentRate(methodName);
-  if (settlementCents <= 0 || methodRate <= 0 || usdRate.value <= 0) return;
+  const currency = currencyFor(methodName);
+  if (settlementCents <= 0 || currency.unitsPerUsd <= 0) return;
 
-  if (currencyCode === "LBP") {
+  if (currency.cashRoundingUnit > 1) {
     currentInput.value = String(
-      roundLbpFromCents(settlementCents, exchangeRate.value, roundingMode.value),
+      roundCurrencyUnitsFromCents(settlementCents, currency, roundingMode.value),
     );
     return;
   }
 
-  const settlementAmount = (settlementCents * methodRate) / (usdRate.value * 100);
+  const settlementAmount = (settlementCents * currency.unitsPerUsd) / 100;
   currentInput.value = settlementAmount.toFixed(2).replace(/\.00$/, "");
 }
 
