@@ -28,6 +28,8 @@ export function ClearScreen(arg1:string):Promise<void>;
 
 export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
+export function ConvertCashEntryToCents(arg1:string,arg2:number):Promise<number>;
+
 export function CreateCashboxAccount(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
@@ -155,6 +157,10 @@ export function PayClientAccount(arg1:number,arg2:number,arg3:number):Promise<Re
 export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>>;
 
 export function PrintCurrentCloseShiftSample():Promise<Record<string, any>>;
+
+export function QuoteInvoiceTotal(arg1:string):Promise<main.InvoiceQuote>;
+
+export function QuotePaymentStatus(arg1:string,arg2:string):Promise<main.PaymentStatus>;
 
 export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
 

@@ -54,6 +54,10 @@ export function CloseShiftByID(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CloseShiftByID'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
+export function ConvertCashEntryToCents(arg1, arg2) {
+  return window['go']['main']['App']['ConvertCashEntryToCents'](arg1, arg2);
+}
+
 export function CreateCashboxAccount(arg1, arg2) {
   return window['go']['main']['App']['CreateCashboxAccount'](arg1, arg2);
 }
@@ -308,6 +312,14 @@ export function PrintClosedShiftReceipt(arg1) {
 
 export function PrintCurrentCloseShiftSample() {
   return window['go']['main']['App']['PrintCurrentCloseShiftSample']();
+}
+
+export function QuoteInvoiceTotal(arg1) {
+  return window['go']['main']['App']['QuoteInvoiceTotal'](arg1);
+}
+
+export function QuotePaymentStatus(arg1, arg2) {
+  return window['go']['main']['App']['QuotePaymentStatus'](arg1, arg2);
 }
 
 export function RemoveQuickAccessProduct(arg1) {
