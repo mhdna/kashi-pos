@@ -111,6 +111,24 @@ export namespace main {
 	        this.total = source["total"];
 	    }
 	}
+	export class ShiftBalanceReplacementPreview {
+	    valid: boolean;
+	    reason: string;
+	    sourceRemainingCents: number;
+	    destinationReceivesCents: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ShiftBalanceReplacementPreview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.valid = source["valid"];
+	        this.reason = source["reason"];
+	        this.sourceRemainingCents = source["sourceRemainingCents"];
+	        this.destinationReceivesCents = source["destinationReceivesCents"];
+	    }
+	}
 
 }
 

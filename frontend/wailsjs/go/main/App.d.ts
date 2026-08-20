@@ -154,6 +154,8 @@ export function OpenShift():Promise<Record<string, any>>;
 
 export function PayClientAccount(arg1:number,arg2:number,arg3:number):Promise<Record<string, any>>;
 
+export function PreviewShiftBalanceReplacement(arg1:number,arg2:number,arg3:number,arg4:number):Promise<main.ShiftBalanceReplacementPreview>;
+
 export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>>;
 
 export function PrintCurrentCloseShiftSample():Promise<Record<string, any>>;

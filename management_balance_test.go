@@ -251,3 +251,58 @@ func TestReplaceShiftBalanceMovesNegativeBalanceWithItsSign(t *testing.T) {
 		t.Fatalf("current shift balances after negative replacement = source %d, destination %d", todayBalances[source.ID], todayBalances[destination.ID])
 	}
 }
+
+// TestPreviewShiftBalanceReplacementNeverDivergesFromActualSubmit is the
+// regression guard for the swap-balance dialog: whatever
+// PreviewShiftBalanceReplacement predicts must be exactly what
+// ReplaceShiftBalance actually does, for a valid swap, an over-the-limit
+// swap, and a swap through a blocked (on-account) balance.
+func TestPreviewShiftBalanceReplacementNeverDivergesFromActualSubmit(t *testing.T) {
+	fixture := newBalanceSwapFixture(t, 5000)
+	defer fixture.database.Close()
+
+	// A valid partial swap: preview must match what actually happens.
+	preview, err := fixture.app.PreviewShiftBalanceReplacement(fixture.shiftID, fixture.sourceID, fixture.destinationID, 2000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !preview.Valid || preview.SourceRemainingCents != 3000 || preview.DestinationReceivesCents != 2000 {
+		t.Fatalf("preview = %#v, want valid with remaining 3000 and destination 2000", preview)
+	}
+	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 2000); err != nil {
+		t.Fatalf("submit rejected a swap the preview said was valid: %v", err)
+	}
+	balances := fixtureBalances(t, fixture)
+	if balances[fixture.sourceID] != preview.SourceRemainingCents {
+		t.Fatalf("actual source remaining = %d, preview said %d", balances[fixture.sourceID], preview.SourceRemainingCents)
+	}
+	if balances[fixture.destinationID] != preview.DestinationReceivesCents {
+		t.Fatalf("actual destination balance = %d, preview said %d", balances[fixture.destinationID], preview.DestinationReceivesCents)
+	}
+
+	// Over the remaining source balance (3000 left): preview must say
+	// invalid, and an actual submit must also be rejected.
+	overPreview, err := fixture.app.PreviewShiftBalanceReplacement(fixture.shiftID, fixture.sourceID, fixture.destinationID, 4000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if overPreview.Valid || overPreview.Reason == "" {
+		t.Fatalf("preview accepted a swap larger than the remaining source balance: %#v", overPreview)
+	}
+	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 4000); err == nil {
+		t.Fatal("submit accepted a swap the preview said was invalid")
+	}
+
+	// A blocked account (On Account): preview must say invalid, matching
+	// the actual submit's rejection.
+	blockedPreview, err := fixture.app.PreviewShiftBalanceReplacement(fixture.shiftID, fixture.onAccountID, fixture.destinationID, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blockedPreview.Valid {
+		t.Fatal("preview accepted a swap through a blocked On Account balance")
+	}
+	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.onAccountID, fixture.destinationID, 100); err == nil {
+		t.Fatal("submit accepted a swap through a blocked On Account balance")
+	}
+}

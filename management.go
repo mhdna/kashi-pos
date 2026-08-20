@@ -232,30 +232,77 @@ func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
+	check, err := a.checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents)
+	if err != nil {
+		return err
+	}
+	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		return q.CreateShiftBalanceReplacement(a.ctx, db.CreateShiftBalanceReplacementParams{
+			ShiftID: shiftID, FromCashboxID: fromCashboxID, ToCashboxID: toCashboxID, Amount: check.SignedAmount,
+		})
+	})
+}
+
+// ShiftBalanceReplacementPreview is what the balance-swap dialog shows
+// before the user confirms - computed with the exact same validation
+// ReplaceShiftBalance itself applies, so the preview can never diverge
+// from what a submit would actually do.
+type ShiftBalanceReplacementPreview struct {
+	Valid                    bool   `json:"valid"`
+	Reason                   string `json:"reason"`
+	SourceRemainingCents     int64  `json:"sourceRemainingCents"`
+	DestinationReceivesCents int64  `json:"destinationReceivesCents"`
+}
+
+// PreviewShiftBalanceReplacement validates a proposed balance swap without
+// applying it. A validation failure is returned as Valid=false with a
+// Reason, not a Go error, so the frontend can show it inline.
+func (a *App) PreviewShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents int64) (ShiftBalanceReplacementPreview, error) {
+	if a.store == nil {
+		return ShiftBalanceReplacementPreview{}, fmt.Errorf("database not initialized")
+	}
+	check, err := a.checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents)
+	if err != nil {
+		return ShiftBalanceReplacementPreview{Reason: err.Error()}, nil
+	}
+	return ShiftBalanceReplacementPreview{
+		Valid:                    true,
+		SourceRemainingCents:     check.SourceRemainingCents,
+		DestinationReceivesCents: check.DestinationReceivesCents,
+	}, nil
+}
+
+type shiftBalanceReplacementCheck struct {
+	SourceRemainingCents     int64
+	DestinationReceivesCents int64
+	SignedAmount             int64
+}
+
+func (a *App) checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents int64) (shiftBalanceReplacementCheck, error) {
+	var check shiftBalanceReplacementCheck
 	if shiftID <= 0 || fromCashboxID <= 0 || toCashboxID <= 0 || fromCashboxID == toCashboxID {
-		return fmt.Errorf("choose different balance accounts")
+		return check, fmt.Errorf("choose different balance accounts")
 	}
 	if amountCents <= 0 {
-		return fmt.Errorf("enter a positive amount")
+		return check, fmt.Errorf("enter a positive amount")
 	}
-	shift, err := a.store.GetShiftByID(a.ctx, shiftID)
-	if err != nil {
-		return fmt.Errorf("shift not found")
+	if _, err := a.store.GetShiftByID(a.ctx, shiftID); err != nil {
+		return check, fmt.Errorf("shift not found")
 	}
 	from, err := a.store.GetCashboxAccountByID(a.ctx, fromCashboxID)
 	if err != nil {
-		return fmt.Errorf("source balance account not found")
+		return check, fmt.Errorf("source balance account not found")
 	}
 	to, err := a.store.GetCashboxAccountByID(a.ctx, toCashboxID)
 	if err != nil {
-		return fmt.Errorf("destination balance account not found")
+		return check, fmt.Errorf("destination balance account not found")
 	}
 	if isNonCashBalanceAccount(from.Name) || isNonCashBalanceAccount(to.Name) {
-		return fmt.Errorf("on-account and coupon balances cannot be replaced")
+		return check, fmt.Errorf("on-account and coupon balances cannot be replaced")
 	}
 	balances, err := a.incomeAccountTotals(shiftID)
 	if err != nil {
-		return err
+		return check, err
 	}
 	var sourceTotal int64
 	for _, balance := range balances {
@@ -264,12 +311,9 @@ func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 			break
 		}
 	}
-	sourceMagnitude := sourceTotal
-	if sourceMagnitude < 0 {
-		sourceMagnitude = -sourceMagnitude
-	}
+	sourceMagnitude := absInt64(sourceTotal)
 	if amountCents > sourceMagnitude {
-		return fmt.Errorf("replacement amount exceeds the source balance")
+		return check, fmt.Errorf("replacement amount exceeds the source balance")
 	}
 	// A negative balance (for example, a return) must keep its sign when it is
 	// moved. The totals query subtracts this value from the source and adds it
@@ -278,11 +322,10 @@ func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 	if sourceTotal < 0 {
 		signedAmount = -signedAmount
 	}
-	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
-		return q.CreateShiftBalanceReplacement(a.ctx, db.CreateShiftBalanceReplacementParams{
-			ShiftID: shift.ID, FromCashboxID: fromCashboxID, ToCashboxID: toCashboxID, Amount: signedAmount,
-		})
-	})
+	check.SourceRemainingCents = sourceMagnitude - amountCents
+	check.DestinationReceivesCents = signedAmount
+	check.SignedAmount = signedAmount
+	return check, nil
 }
 
 func isNonCashBalanceAccount(name string) bool {

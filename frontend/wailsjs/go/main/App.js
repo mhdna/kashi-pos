@@ -306,6 +306,10 @@ export function PayClientAccount(arg1, arg2, arg3) {
   return window['go']['main']['App']['PayClientAccount'](arg1, arg2, arg3);
 }
 
+export function PreviewShiftBalanceReplacement(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['PreviewShiftBalanceReplacement'](arg1, arg2, arg3, arg4);
+}
+
 export function PrintClosedShiftReceipt(arg1) {
   return window['go']['main']['App']['PrintClosedShiftReceipt'](arg1);
 }
