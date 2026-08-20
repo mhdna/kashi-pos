@@ -68,6 +68,9 @@
                 <span class="text-caption me-2">#{{ shift.id }}</span>
                 <span class="text-caption me-2">{{ shift.createdAt }}</span>
                 <span v-if="shift.closedAt" class="text-caption me-2">→ {{ shift.closedAt }}</span>
+                <span v-if="shift.closedBySalesperson" class="text-caption text-medium-emphasis me-2">
+                  Closed by {{ shift.closedBySalesperson }}
+                </span>
                 <v-spacer />
                 <span class="font-weight-bold me-2">{{
                   formatBalance(shift.total, "USD", currencies, roundingMode)
@@ -96,6 +99,29 @@
                 />
               </div>
               <div v-if="shiftExpanded.has(shift.id)" class="pa-3">
+                <template v-if="shift.isClosed">
+                  <div class="text-caption font-weight-bold mb-1">Expected vs Counted</div>
+                  <v-table density="compact" class="mb-3">
+                    <thead>
+                      <tr>
+                        <th>Method</th>
+                        <th>Expected</th>
+                        <th>Counted</th>
+                        <th>Variance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in expectedVsCounted(shift)" :key="row.label">
+                        <td>{{ row.label }}</td>
+                        <td>{{ row.expected }}</td>
+                        <td>{{ row.counted }}</td>
+                        <td :class="row.varianceCents === 0 ? 'text-medium-emphasis' : row.varianceCents > 0 ? 'text-green-darken-2' : 'text-red-darken-2'">
+                          {{ row.variance }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </v-table>
+                </template>
                 <div class="text-caption font-weight-bold mb-1">Balances</div>
                 <v-progress-linear v-if="balanceLoading[shift.id]" indeterminate />
                 <v-list v-else-if="balanceCache[shift.id]?.length" density="compact" class="pa-0">
@@ -129,11 +155,44 @@
 
 <script setup lang="ts">
 import { nextTick, ref, watch, type ComponentPublicInstance } from "vue";
-import type { Balance, DayRow } from "@/types/shifts";
-import { formatBalance } from "@/lib/format";
+import type { Balance, DayRow, Shift } from "@/types/shifts";
+import { formatBalance, formatUsd } from "@/lib/format";
 import { useCurrencies } from "@/composables/useCurrencies";
 
 const { currencies, roundingMode } = useCurrencies();
+
+// LBP's own major-unit figures (already whole LBP, not accounting cents),
+// so they format differently from the USD-cents variance rows below.
+const lbpSymbol = () => currencies.value.find((c) => c.code === "LBP")?.symbol ?? "LBP";
+
+function usdVarianceRow(label: string, expectedCents: number, countedCents: number) {
+  const varianceCents = countedCents - expectedCents;
+  return {
+    label,
+    expected: formatUsd(expectedCents / 100),
+    counted: formatUsd(countedCents / 100),
+    variance: `${varianceCents >= 0 ? "+" : ""}${formatUsd(varianceCents / 100)}`,
+    varianceCents,
+  };
+}
+
+function expectedVsCounted(shift: Shift) {
+  const expectedLbp = shift.expectedLbp ?? 0;
+  const countedLbp = shift.countedLbp ?? 0;
+  const lbpVariance = countedLbp - expectedLbp;
+  return [
+    usdVarianceRow("USD Cash", shift.expectedUsd ?? 0, shift.countedUsd ?? 0),
+    {
+      label: "LBP Cash",
+      expected: `${lbpSymbol()} ${expectedLbp.toLocaleString()}`,
+      counted: `${lbpSymbol()} ${countedLbp.toLocaleString()}`,
+      variance: `${lbpVariance >= 0 ? "+" : ""}${lbpSymbol()} ${lbpVariance.toLocaleString()}`,
+      varianceCents: lbpVariance,
+    },
+    usdVarianceRow("Visa", shift.expectedVisa ?? 0, shift.countedVisa ?? 0),
+    usdVarianceRow("Whish", shift.expectedWhish ?? 0, shift.countedWhish ?? 0),
+  ];
+}
 
 const props = defineProps<{
   month: string;

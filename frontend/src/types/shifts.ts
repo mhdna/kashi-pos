@@ -5,6 +5,15 @@ export interface Shift {
   createdAt?: string;
   closedAt?: string;
   isClosed: boolean;
+  countedUsd?: number;
+  countedLbp?: number;
+  countedVisa?: number;
+  countedWhish?: number;
+  expectedUsd?: number;
+  expectedLbp?: number;
+  expectedVisa?: number;
+  expectedWhish?: number;
+  closedBySalesperson?: string;
 }
 
 export interface Balance {
