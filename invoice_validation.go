@@ -46,16 +46,11 @@ func (a *App) resolveClientID(id int64) (int64, error) {
 		}
 		return id, nil
 	}
-	clients, err := a.store.ListClients(a.ctx)
+	walkIn, err := a.store.GetClientByPhone(a.ctx, "00000000")
 	if err != nil {
-		return 0, fmt.Errorf("list clients: %w", err)
+		return 0, fmt.Errorf("walk-in client is not configured")
 	}
-	for _, client := range clients {
-		if client.Phone == "00000000" {
-			return client.ID, nil
-		}
-	}
-	return 0, fmt.Errorf("walk-in client is not configured")
+	return walkIn.ID, nil
 }
 
 func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool, perUnitPricingEnabled ...bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
