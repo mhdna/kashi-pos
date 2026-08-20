@@ -2,7 +2,7 @@
   <v-navigation-drawer
     permanent
     width="72"
-    class="nav-drawer bg-blue-darken-4 rounded-e-xl border-0"
+    class="nav-drawer rounded-e-xl border-0"
   >
     <v-list class="d-flex flex-column fill-height pa-0" nav>
       <v-list-item
@@ -110,13 +110,14 @@ const items = computed(() => {
 
 <style scoped>
 .nav-drawer {
-  background-color: #0d47a1 !important;
+  background-color: #4a148c !important;
   border-radius: 0 40px 40px 0 !important;
 }
 
 .nav-item {
   flex: 1 1 0;
   min-height: 0;
+  color: #ffffff;
 }
 
 .nav-item:first-child {
@@ -124,7 +125,8 @@ const items = computed(() => {
 }
 
 .nav-item.v-list-item--active {
-  background: rgba(var(--v-theme-blue-lighten-2), 0.8);
+  background: #fdd835;
+  color: #212121;
 }
 
 .nav-item-content {

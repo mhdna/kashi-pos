@@ -3,3 +3,17 @@ node_modules
 frontend/dist
 frontend2
 .env
+.DS_Store
+
+# kashi-admin working data (databases, generated reports, scratch exports)
+tools/kashi-admin/db*
+tools/kashi-admin/dbs/
+tools/kashi-admin/output/
+tools/kashi-admin/tmp/pdfs/barcode-qa/
+tools/kashi-admin/tmp/pdfs/rendered-db22/
+*.xlsx
+*.docx
+tools/kashi-admin/*.csv
+tools/kashi-admin/output/**/*.csv
+__pycache__/
+*.pyc
