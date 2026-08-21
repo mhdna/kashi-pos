@@ -21,7 +21,7 @@
         <v-list v-if="holds.length" max-height="300">
           <v-list-item v-for="h in holds" :key="h.id" @click="restoreHold(h)">
             <v-list-item-title>#{{ h.id }} — {{ h.itemCount }} items</v-list-item-title>
-            <v-list-item-subtitle>{{ h.createdAt?.slice(0, 19) }}</v-list-item-subtitle>
+            <v-list-item-subtitle>{{ formatServerDateTime(h.createdAt) }}</v-list-item-subtitle>
             <template #append>
               <v-btn icon size="small" variant="text" @click.stop="removeHold(h.id)">
                 <v-icon icon="mdi-close" size="16" />
@@ -38,6 +38,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { ListHoldInvoices, DeleteHoldInvoice } from "../../wailsjs/go/main/App";
+import { formatServerDateTime } from "@/lib/datetime";
 
 defineProps<{ hideActivator?: boolean }>();
 const emit = defineEmits<{ restore: [hold: any] }>();

@@ -107,7 +107,7 @@
           <tbody>
             <tr v-for="entry in accountDetails?.entries || []" :key="entry.id">
               <td>{{ entry.invoiceCode }}</td>
-              <td>{{ entry.createdAt }}</td>
+              <td>{{ formatServerDateTime(entry.createdAt) }}</td>
               <td class="text-end">{{ formatUsd(Number(entry.amount) / 100) }}</td>
               <td class="text-end">{{ formatUsd(Number(entry.paid) / 100) }}</td>
               <td class="text-end font-weight-bold">
@@ -177,7 +177,7 @@
               <template #title
                 >{{ payment.accountName }} · {{ formatUsd(Number(payment.amount) / 100) }}</template
               >
-              <template #subtitle>{{ payment.createdAt }} · Shift #{{ payment.shiftId }}</template>
+              <template #subtitle>{{ formatServerDateTime(payment.createdAt) }} · Shift #{{ payment.shiftId }}</template>
             </v-list-item>
           </v-list>
         </template>
@@ -263,6 +263,7 @@ import {
 import { formatUsd } from "@/lib/format";
 import { formatLebanesePhone } from "@/lib/phone";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
+import { formatServerDateTime } from "@/lib/datetime";
 
 const colors = ["grey-darken-1"];
 const auth = useAuthStore();

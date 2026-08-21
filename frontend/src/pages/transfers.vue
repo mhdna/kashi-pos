@@ -1,13 +1,16 @@
 <template>
   <v-card class="pa-4">
     <v-card-title>Transfers</v-card-title>
-    <v-data-table :headers="headers" :items="items" :loading="loading" density="compact" hover />
+    <v-data-table :headers="headers" :items="items" :loading="loading" density="compact" hover>
+      <template #item.createdAt="{ item }">{{ formatServerDateTime(item.createdAt) }}</template>
+    </v-data-table>
   </v-card>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ListTransfers } from "../../wailsjs/go/main/App";
+import { formatServerDateTime } from "@/lib/datetime";
 
 const headers = [
   { title: "ID", key: "id" },

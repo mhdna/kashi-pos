@@ -312,6 +312,7 @@ import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { pendingSettlementInvoice } from "@/composables/useNavActions";
 import { toClient } from "@/lib/client";
 import { formatLebanesePhone } from "@/lib/phone";
+import { formatServerDateTime } from "@/lib/datetime";
 import { useAuthStore } from "../stores/auth";
 
 const PAGE_SIZE = 20;
@@ -406,19 +407,7 @@ function settlementAccountName(payment: any): string {
   return name.toUpperCase().includes(currency) ? name : `${name} ${currency}`;
 }
 function formatDate(value?: string) {
-  if (!value) return "Date unavailable";
-
-  // SQLite stores invoice timestamps in UTC without a timezone suffix.
-  const normalized = value.includes("T") ? value : value.replace(" ", "T");
-  const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/i.test(normalized);
-  const date = new Date(hasTimezone ? normalized : `${normalized}Z`);
-  if (Number.isNaN(date.getTime())) return value.slice(0, 19);
-
-  const pad = (part: number) => String(part).padStart(2, "0");
-  return [
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
-    `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`,
-  ].join(" ");
+  return value ? formatServerDateTime(value) : "Date unavailable";
 }
 function settlementAccountsLabel(accounts?: string[]) {
   return accounts?.length ? accounts.join(", ") : "—";
