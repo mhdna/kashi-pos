@@ -466,6 +466,10 @@ export function SetPerUnitItemPricesEnabled(arg1) {
   return window['go']['main']['App']['SetPerUnitItemPricesEnabled'](arg1);
 }
 
+export function SetPriceChangeManualOverrideEnabled(arg1) {
+  return window['go']['main']['App']['SetPriceChangeManualOverrideEnabled'](arg1);
+}
+
 export function SetPriceListActive(arg1, arg2) {
   return window['go']['main']['App']['SetPriceListActive'](arg1, arg2);
 }

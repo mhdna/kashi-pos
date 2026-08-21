@@ -48,7 +48,9 @@
             </div>
             <NumberPadMenu
               v-if="customPricesEnabled && !readonly && !item.locked && item.qty > 0"
-              :model-value="item.price.toFixed(2)"
+              :model-value="
+                (priceChangeMode === 'discount' ? effectiveUnitPrice(item) : item.price).toFixed(2)
+              "
               allow-decimal
               aria-label="Set custom item price"
               :min="0.01"
@@ -65,46 +67,46 @@
                   aria-label="Set custom item price"
                   title="Set custom item price"
                 >
-                  <span class="text-caption text-medium-emphasis">
-                    ${{ item.price.toFixed(2) }}
+                  <span class="invoice-price-value">
                     <v-icon
                       v-if="item.priceListOverridden"
                       icon="mdi-star"
                       color="amber-darken-2"
-                      size="12"
+                      size="20"
                       :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
                     />
-                  </span>
-                  <span class="text-caption font-weight-bold">
-                    ${{ totalAfterDiscount(item).toFixed(2) }}
+                    <span class="invoice-price-values">
+                      <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
+                      <span class="text-caption font-weight-bold">${{ totalAfterDiscount(item).toFixed(2) }}</span>
+                    </span>
                   </span>
                 </button>
               </template>
             </NumberPadMenu>
             <div v-else class="invoice-price-control d-flex flex-column align-end">
-              <span class="text-caption text-medium-emphasis">
-                ${{ item.price.toFixed(2) }}
+              <span class="invoice-price-value">
                 <v-icon
                   v-if="item.priceListOverridden"
                   icon="mdi-star"
                   color="amber-darken-2"
-                  size="12"
+                  size="20"
                   :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
                 />
+                <span class="invoice-price-values">
+                  <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
+                  <span v-if="item.discount && !customDiscountsEnabled" class="text-caption text-red">
+                    -{{ item.discount }}%
+                    <v-icon
+                      v-if="item.discountListOverridden"
+                      icon="mdi-star"
+                      color="amber-darken-2"
+                      size="12"
+                      :title="item.discountListName ? `Discount from list: ${item.discountListName}` : 'List discount'"
+                    />
+                  </span>
+                  <span class="text-caption font-weight-bold">${{ totalAfterDiscount(item).toFixed(2) }}</span>
+                </span>
               </span>
-              <span v-if="item.discount && !customDiscountsEnabled" class="text-caption text-red">
-                -{{ item.discount }}%
-                <v-icon
-                  v-if="item.discountListOverridden"
-                  icon="mdi-star"
-                  color="amber-darken-2"
-                  size="12"
-                  :title="item.discountListName ? `Discount from list: ${item.discountListName}` : 'List discount'"
-                />
-              </span>
-              <span class="text-caption font-weight-bold"
-                >${{ totalAfterDiscount(item).toFixed(2) }}</span
-              >
             </div>
             <div class="invoice-delete-control">
               <v-btn v-if="!readonly && !item.locked" variant="text" rounded size="small" @click="removeItem(item)">
@@ -179,7 +181,12 @@
               </span>
               <NumberPadMenu
                 v-if="canEditUnitPrice(detailItem)"
-                :model-value="unitPrice(detailItem, unitIndex - 1).toFixed(2)"
+                :model-value="
+                  (priceChangeMode === 'discount'
+                    ? effectiveUnitPriceAt(detailItem, unitIndex - 1)
+                    : unitPrice(detailItem, unitIndex - 1)
+                  ).toFixed(2)
+                "
                 allow-decimal
                 :aria-label="`Set price for unit ${unitIndex}`"
                 :min="0.01"
@@ -189,7 +196,12 @@
                 @update:model-value="(value) => setUnitPrice(detailItem!, unitIndex - 1, value)"
               />
               <span v-else class="text-body-2 font-weight-medium">
-                ${{ unitPrice(detailItem, unitIndex - 1).toFixed(2) }}
+                ${{
+                  (priceChangeMode === "discount"
+                    ? effectiveUnitPriceAt(detailItem, unitIndex - 1)
+                    : unitPrice(detailItem, unitIndex - 1)
+                  ).toFixed(2)
+                }}
               </span>
             </div>
           </div>
@@ -244,6 +256,11 @@ interface LineItem {
   priceListName?: string;
   discountListOverridden?: boolean;
   discountListName?: string;
+  // The catalog/list price captured when the line was added, before any
+  // manual edit. Used as the fixed reference point in "discount" price
+  // change mode, where a price edit is expressed as a discount off this
+  // value rather than as a new base price.
+  originalPrice?: number;
   // Locks just this line, independent of the component-level `readonly`
   // prop - used by exchange mode, where returned (negative-qty) lines stay
   // locked while replacement lines scanned afterward are fully editable.
@@ -260,11 +277,27 @@ const props = defineProps<{
   customDiscountsEnabled?: boolean;
   customPricesEnabled?: boolean;
   perUnitPricesEnabled?: boolean;
+  // "discount" (default): editing price or discount recomputes the other
+  // from the line's original price, so a price change is always expressed
+  // as a discount. "override": price and discount are edited independently.
+  priceChangeMode?: "override" | "discount";
 }>();
 const readonly = computed(() => props.readonly ?? false);
 const customDiscountsEnabled = computed(() => props.customDiscountsEnabled ?? false);
 const customPricesEnabled = computed(() => props.customPricesEnabled ?? false);
 const perUnitPricesEnabled = computed(() => props.perUnitPricesEnabled ?? false);
+const priceChangeMode = computed(() => props.priceChangeMode ?? "discount");
+
+function effectiveUnitPrice(item: LineItem): number {
+  const discount = Math.min(100, Math.max(0, Number(item.discount) || 0));
+  return Math.round(item.price * (1 - discount / 100) * 100) / 100;
+}
+
+function effectiveUnitPriceAt(item: LineItem, index: number): number {
+  const price = unitPrice(item, index);
+  const discount = Math.min(100, Math.max(0, Number(unitDiscount(item, index)) || 0));
+  return Math.round(price * (1 - discount / 100) * 100) / 100;
+}
 
 function discountAmount(item: LineItem): number {
   return (itemGrossCents(item) - discountedItemCents(item)) / 100;
@@ -414,6 +447,7 @@ function addItem(item: LineItem) {
       note: item.note ?? "",
       unitPrices,
       unitDiscounts,
+      originalPrice: item.originalPrice ?? price,
     });
   }
 }
@@ -430,6 +464,7 @@ function addExchangeItems(returned: LineItem[], replacements: LineItem[]) {
       unitPrices: [],
       unitDiscounts: [],
       locked: true,
+      originalPrice: Number(item.originalPrice ?? item.price),
     })),
     ...replacements.map((item) => ({
       ...item,
@@ -440,6 +475,7 @@ function addExchangeItems(returned: LineItem[], replacements: LineItem[]) {
         Number(item.discount || 0),
       ),
       locked: false,
+      originalPrice: Number(item.originalPrice ?? item.price),
     })),
   ];
 }
@@ -513,28 +549,55 @@ function setDiscountInput(index: number, element: Element | ComponentPublicInsta
 function setDraftDiscount(item: LineItem, value: unknown) {
   const numeric = Number(value);
   item.discount = Number.isFinite(numeric) ? Math.min(100, Math.max(0, Math.trunc(numeric))) : 0;
-  if (item.qty > 0) item.unitDiscounts = Array(Math.trunc(item.qty)).fill(item.discount);
+  if (priceChangeMode.value === "discount") {
+    // Price and discount are the same lever - the base price never moves,
+    // only the discount taken off it does.
+    item.price = Math.round((item.originalPrice ?? item.price) * 100) / 100;
+  }
+  if (item.qty > 0) {
+    item.unitPrices = Array(Math.trunc(item.qty)).fill(item.price);
+    item.unitDiscounts = Array(Math.trunc(item.qty)).fill(item.discount);
+  }
   // A manual edit always wins over a discount-list default, so the star
   // (which means "this came from a list") no longer applies.
   item.discountListOverridden = false;
+  if (priceChangeMode.value === "discount") item.priceListOverridden = false;
 }
 
 function setDraftPrice(item: LineItem, value: unknown) {
   const numeric = Number(value);
-  item.price = Number.isFinite(numeric)
-    ? Math.round(Math.min(999999.99, Math.max(0.01, numeric)) * 100) / 100
-    : 0.01;
-  if (item.qty > 0) item.unitPrices = Array(Math.trunc(item.qty)).fill(item.price);
+  const clamped = Number.isFinite(numeric) ? Math.min(999999.99, Math.max(0.01, numeric)) : 0.01;
+  if (priceChangeMode.value === "discount") {
+    // The typed value is the price the cashier wants to charge; back it out
+    // into a discount off the line's original price rather than replacing
+    // the base price itself.
+    const base = item.originalPrice && item.originalPrice > 0 ? item.originalPrice : item.price;
+    const discount = base > 0 ? Math.min(100, Math.max(0, Math.round((1 - clamped / base) * 100))) : 0;
+    item.price = Math.round(base * 100) / 100;
+    item.discount = discount;
+    item.discountListOverridden = false;
+  } else {
+    item.price = Math.round(clamped * 100) / 100;
+  }
+  if (item.qty > 0) {
+    item.unitPrices = Array(Math.trunc(item.qty)).fill(item.price);
+    item.unitDiscounts = Array(Math.trunc(item.qty)).fill(item.discount);
+  }
   item.priceListOverridden = false;
 }
 
 function setUnitPrice(item: LineItem, index: number, value: unknown) {
   const numeric = Number(value);
-  const price = Number.isFinite(numeric)
-    ? Math.round(Math.min(999999.99, Math.max(0.01, numeric)) * 100) / 100
-    : 0.01;
+  const clamped = Number.isFinite(numeric) ? Math.min(999999.99, Math.max(0.01, numeric)) : 0.01;
   ensureUnitPrices(item);
-  if (item.unitPrices) item.unitPrices[index] = price;
+  if (priceChangeMode.value === "discount") {
+    const base = item.originalPrice && item.originalPrice > 0 ? item.originalPrice : item.price;
+    const discount = base > 0 ? Math.min(100, Math.max(0, Math.round((1 - clamped / base) * 100))) : 0;
+    if (item.unitPrices) item.unitPrices[index] = Math.round(base * 100) / 100;
+    if (item.unitDiscounts) item.unitDiscounts[index] = discount;
+  } else {
+    if (item.unitPrices) item.unitPrices[index] = Math.round(clamped * 100) / 100;
+  }
 }
 
 function setUnitDiscount(item: LineItem, index: number, value: unknown) {
@@ -542,6 +605,10 @@ function setUnitDiscount(item: LineItem, index: number, value: unknown) {
   const discount = Number.isFinite(numeric) ? Math.min(100, Math.max(0, Math.trunc(numeric))) : 0;
   ensureUnitPrices(item);
   if (item.unitDiscounts) item.unitDiscounts[index] = discount;
+  if (priceChangeMode.value === "discount") {
+    const base = item.originalPrice && item.originalPrice > 0 ? item.originalPrice : item.price;
+    if (item.unitPrices) item.unitPrices[index] = Math.round(base * 100) / 100;
+  }
 }
 
 function persistDiscount(item: LineItem): Promise<boolean> {
@@ -715,6 +782,19 @@ defineExpose({
 .invoice-price-control {
   flex: 0 0 72px;
   width: 72px;
+}
+
+.invoice-price-value {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.invoice-price-values {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
 }
 
 .invoice-price-editor:hover,

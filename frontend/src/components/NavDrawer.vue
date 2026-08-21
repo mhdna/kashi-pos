@@ -137,6 +137,10 @@ const items = computed(() => {
   color: #ffffff;
 }
 
+.nav-item:not(:last-child) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .nav-item:first-child {
   border-radius: 0 40px 0 0;
 }

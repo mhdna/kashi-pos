@@ -12,6 +12,9 @@
           </div>
           <div class="d-flex flex-column align-end">
             <div class="d-flex">
+              <div class="salesperson-header-button">
+                <SalespersonsDialog :disabled="pageMode === 'settlement'" />
+              </div>
               <v-btn icon size="small" variant="text" aria-label="Invoice note" @click="openNoteDialog">
                 <v-icon icon="mdi-note-text-outline" size="20" />
               </v-btn>
@@ -85,9 +88,10 @@
         ref="invoiceItems"
         :rounding-mode="roundingMode"
         :readonly="pageMode === 'settlement'"
-        :custom-discounts-enabled="customItemDiscountsEnabled"
-        :custom-prices-enabled="customItemPricesEnabled"
-        :per-unit-prices-enabled="perUnitItemPricesEnabled"
+        :custom-discounts-enabled="customItemDiscountsEnabled && canEditPricing"
+        :custom-prices-enabled="customItemPricesEnabled && canEditPricing"
+        :per-unit-prices-enabled="perUnitItemPricesEnabled && canEditPricing"
+        :price-change-mode="priceChangeMode"
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
       />
@@ -200,6 +204,7 @@ import InlineKeyboard from "@/components/InlineKeyboard.vue";
 // import InvoiceSummary from "@/components/InvoiceSummary.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
+import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { normalizeRoundingMode, type RoundingMode } from "@/lib/money";
@@ -210,6 +215,9 @@ import {
   pendingHoldInvoice,
   pendingSettlementInvoice,
 } from "@/composables/useNavActions";
+import { useAuthStore } from "@/stores/auth";
+
+const auth = useAuthStore();
 
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
 type InvoiceDraft = {
@@ -232,6 +240,13 @@ const receiptPrinter = ref("");
 const customItemDiscountsEnabled = ref(false);
 const customItemPricesEnabled = ref(false);
 const perUnitItemPricesEnabled = ref(false);
+const priceChangeManualOverrideEnabled = ref(false);
+const priceChangeMode = computed(() =>
+  priceChangeManualOverrideEnabled.value ? "override" : "discount",
+);
+// Manual price/discount edits at checkout are an admin-only capability -
+// cashiers can only use whatever the price list/discount list already set.
+const canEditPricing = computed(() => auth.isAdmin);
 const pulseClient = ref(false);
 let pulseClientTimer: ReturnType<typeof setTimeout> | undefined;
 const branchName = ref("Store");
@@ -861,6 +876,7 @@ onMounted(async () => {
     customItemDiscountsEnabled.value = Boolean(settings?.customItemDiscountsEnabled);
     customItemPricesEnabled.value = Boolean(settings?.customItemPricesEnabled);
     perUnitItemPricesEnabled.value = Boolean(settings?.perUnitItemPricesEnabled);
+    priceChangeManualOverrideEnabled.value = Boolean(settings?.priceChangeManualOverrideEnabled);
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
   } catch {}
@@ -901,6 +917,10 @@ onBeforeUnmount(() => {
 
 .home-page .bg-surface-light {
   background-color: rgba(var(--v-theme-on-surface), 0.04) !important;
+}
+
+.salesperson-header-button {
+  width: 150px;
 }
 
 .app-snackbar .v-snackbar__wrapper {

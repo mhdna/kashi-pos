@@ -234,6 +234,8 @@ export function SetExchangeWindowHours(arg1:number):Promise<void>;
 
 export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
 
+export function SetPriceChangeManualOverrideEnabled(arg1:boolean):Promise<void>;
+
 export function SetPriceListActive(arg1:number,arg2:boolean):Promise<Record<string, any>>;
 
 export function SetPriceListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;

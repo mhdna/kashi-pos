@@ -685,6 +685,37 @@
             </v-card-text>
           </v-card>
 
+          <v-card class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36">
+                <v-icon icon="mdi-tag-multiple-outline" size="20" />
+              </v-avatar>
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Price change mode</div>
+                <div class="text-caption text-medium-emphasis">
+                  Choose how a manual price edit relates to the item's discount.
+                </div>
+              </div>
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.priceChangeManualOverrideEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Treat price changes as manual overrides"
+                @update:model-value="setPriceChangeManualOverrideEnabled"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                {{
+                  form.priceChangeManualOverrideEnabled
+                    ? "Manual override: price and discount are edited independently, as separate fields."
+                    : "Discount (default): price and discount are the same lever — changing either one recalculates the other from the item's original price."
+                }}
+              </div>
+            </v-card-text>
+          </v-card>
+
           <v-form @submit.prevent="changePassword">
             <v-card class="settings-card">
               <v-card-title class="d-flex align-center ga-3">
@@ -957,6 +988,7 @@ import {
   SetCustomItemDiscountsEnabled,
   SetCustomItemPricesEnabled,
   SetPerUnitItemPricesEnabled,
+  SetPriceChangeManualOverrideEnabled,
   SetAutoCloseStaleShiftsEnabled,
   SetAttendanceCashierHistoryEnabled,
   UpdateUserAttendanceID,
@@ -1081,6 +1113,7 @@ const form = reactive({
   customItemDiscountsEnabled: false,
   customItemPricesEnabled: false,
   perUnitItemPricesEnabled: false,
+  priceChangeManualOverrideEnabled: false,
   adminEnabled: false,
   adminListen: "127.0.0.1:8787",
   adminToken: "",
@@ -1572,6 +1605,7 @@ async function loadSettings() {
         customItemDiscountsEnabled: Boolean(s.customItemDiscountsEnabled),
         customItemPricesEnabled: Boolean(s.customItemPricesEnabled),
         perUnitItemPricesEnabled: Boolean(s.perUnitItemPricesEnabled),
+        priceChangeManualOverrideEnabled: Boolean(s.priceChangeManualOverrideEnabled),
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
@@ -1671,6 +1705,22 @@ async function setPerUnitPricesEnabled(value: boolean | null) {
   } catch {
     form.perUnitItemPricesEnabled = previous;
     notify("Failed to update per-unit price and discount editing", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setPriceChangeManualOverrideEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.priceChangeManualOverrideEnabled;
+  form.priceChangeManualOverrideEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetPriceChangeManualOverrideEnabled(enabled);
+    notify(`Price changes now use ${enabled ? "manual override" : "discount"} mode`);
+  } catch {
+    form.priceChangeManualOverrideEnabled = previous;
+    notify("Failed to update price change mode", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }

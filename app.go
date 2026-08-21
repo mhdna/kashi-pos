@@ -588,6 +588,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["perUnitItemPricesEnabled"] = false
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, priceChangeManualOverrideFlag); flagErr == nil {
+		result["priceChangeManualOverrideEnabled"] = enabled != 0
+	} else {
+		result["priceChangeManualOverrideEnabled"] = false
+	}
 	if config, configErr := a.GetAttendanceConfig(); configErr == nil {
 		result["attendance"] = config
 	}
@@ -618,6 +623,21 @@ func (a *App) SetPerUnitItemPricesEnabled(enabled bool) error {
 	}
 	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: perUnitItemPricesFlag, Enabled: boolInt(enabled),
+	})
+}
+
+// SetPriceChangeManualOverrideEnabled toggles how manual item price/discount
+// edits behave. Disabled (the default) is "discount mode": editing a line's
+// price or discount recomputes the other from the item's original price, so
+// a price change is always expressed as a discount. Enabled is "manual
+// override mode": price and discount are edited independently, as they were
+// before this setting existed.
+func (a *App) SetPriceChangeManualOverrideEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: priceChangeManualOverrideFlag, Enabled: boolInt(enabled),
 	})
 }
 

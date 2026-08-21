@@ -4,7 +4,10 @@
     max-width="900"
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <v-card :title="`Close Shift #${openShift?.id}`">
+    <v-card title="Close Shift">
+      <v-card-subtitle class="pt-0">
+        Shift number: #{{ openShift?.id ?? "—" }}
+      </v-card-subtitle>
       <v-card-text>
         <div class="d-flex justify-space-between align-center mb-4 pa-3 rounded bg-surface-variant">
           <span class="text-subtitle-1 font-weight-bold">Shift income total</span>

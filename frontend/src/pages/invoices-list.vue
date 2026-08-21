@@ -7,8 +7,7 @@
       :items="items"
       :loading="loading"
       height="100%"
-      :item-height="48"
-      density="compact"
+      :item-height="52"
       fixed-header
       item-value="id"
       hover
@@ -133,92 +132,80 @@
       </template>
     </v-data-table-virtual>
 
-    <v-dialog v-model="detailOpen" max-width="620">
+    <v-dialog v-model="detailOpen" max-width="700">
       <v-card v-if="selected">
-        <v-card-title class="d-flex align-center"
-          ><div>
+        <v-card-title class="invoice-detail-header d-flex align-center">
+          <div>
             <div class="text-h6">{{ selected.invoiceCode }}</div>
             <div class="text-caption text-medium-emphasis">
               {{ formatDate(selected.createdAt) }}
             </div>
           </div>
-          <v-spacer /><v-btn
-            icon="mdi-printer-outline"
-            variant="text"
-            :loading="printingId === selected.id"
-            @click="reprint(selected)" /><v-btn
-            icon="mdi-close"
-            variant="text"
-            @click="detailOpen = false"
-        /></v-card-title>
-        <v-card-text>
-          <div class="d-flex flex-wrap ga-2 mb-4">
-            <v-chip size="small" variant="tonal" prepend-icon="mdi-account">{{
-              selected.clientName
-            }}</v-chip
-            ><v-chip size="small" variant="tonal" prepend-icon="mdi-account-tie">{{
-              selected.salespersonName
-            }}</v-chip
-            ><v-chip size="small" variant="tonal" prepend-icon="mdi-credit-card">{{
-              selected.payments?.map(settlementAccountName).join(", ") || "No settlement"
-            }}</v-chip>
+          <v-spacer />
+          <v-btn icon="mdi-printer-outline" variant="text" :loading="printingId === selected.id" title="Print receipt" @click="reprint(selected)" />
+          <v-btn icon="mdi-close" variant="text" aria-label="Close invoice details" @click="detailOpen = false" />
+        </v-card-title>
+        <v-card-text class="invoice-detail-content">
+          <div class="invoice-overview-grid mb-5">
+            <div class="invoice-overview-card">
+              <v-icon class="invoice-overview-icon" icon="mdi-account-outline" color="grey-darken-1" />
+              <div class="invoice-overview-copy">
+                <div class="invoice-overview-value">{{ selected.clientName || "Walk-in customer" }}</div>
+                <div class="invoice-overview-detail">{{ selected.clientPhone ? formatLebanesePhone(selected.clientPhone) : "No phone number" }}</div>
+              </div>
+            </div>
+            <div class="invoice-overview-card">
+              <v-icon class="invoice-overview-icon" icon="mdi-account-tie" color="primary" />
+              <div class="invoice-overview-copy">
+                <div class="invoice-overview-value">{{ selected.salespersonName || "Anonymous" }}</div>
+              </div>
+            </div>
+            <div class="invoice-overview-card">
+              <v-icon class="invoice-overview-icon" icon="mdi-star-four-points-outline" color="amber-darken-2" />
+              <div class="invoice-overview-copy">
+                <div class="invoice-overview-value">{{ Number(selected.loyaltyPointsEarned ?? Math.floor(Number(selected.grandTotal || 0) / 100)).toLocaleString() }} pts</div>
+              </div>
+            </div>
+            <div class="invoice-overview-card">
+              <v-icon class="invoice-overview-icon" :icon="selected.notes?.trim() ? 'mdi-note-text-outline' : 'mdi-note-off-outline'" color="secondary" />
+              <div class="invoice-overview-copy">
+                <div class="invoice-overview-value" :class="{ 'text-medium-emphasis': !selected.notes?.trim() }">{{ selected.notes?.trim() || "None" }}</div>
+              </div>
+            </div>
           </div>
-          <v-list class="pa-0 mb-4" density="compact">
-            <v-list-item v-for="line in selected.items" :key="`${line.barcode}-${line.price}-${line.discount}`">
-              <template #title>
-                {{ line.name }}
-                <v-chip v-if="line.color" size="x-small" variant="tonal" class="ms-2">{{ line.color }}</v-chip>
-                <v-chip v-if="line.size" size="x-small" variant="outlined" class="ms-1">{{ line.size }}</v-chip>
-              </template
-              ><template #subtitle
-                >{{ line.qty }} × ${{ Number(line.price).toFixed(2)
-                }}<v-icon
-                  v-if="line.isPriceOverridden"
-                  icon="mdi-star"
-                  color="amber-darken-2"
-                  size="12"
-                  :title="line.priceListName ? `Price from list: ${line.priceListName}` : 'List price'"
-                /><span v-if="line.discount"
-                  >&nbsp;· {{ line.discount }}% discount<v-icon
-                    v-if="line.isDiscountOverridden"
-                    icon="mdi-star"
-                    color="amber-darken-2"
-                    size="12"
-                    :title="line.discountListName ? `Discount from list: ${line.discountListName}` : 'List discount'"
-                  /></span
-                ><span v-if="line.salespersonName"> · Sold by {{ line.salespersonName }}</span></template
-              >
-              <template v-if="line.note" #append>
-                <div class="d-flex align-center ga-3">
-                  <v-tooltip :text="line.note" location="top">
-                    <template #activator="{ props: tooltipProps }">
-                      <v-icon v-bind="tooltipProps" icon="mdi-note-text-outline" size="18" color="primary" />
-                    </template>
-                  </v-tooltip>
+
+          <section class="invoice-detail-section mb-4">
+            <div class="section-label">Settlement</div>
+            <div v-if="selected.payments?.length" class="settlement-list">
+              <div v-for="payment in selected.payments" :key="`${payment.accountId}-${payment.amount}`" class="settlement-row">
+                <div class="d-flex align-center ga-2"><v-icon icon="mdi-credit-card-outline" size="19" color="primary" /><span>{{ settlementAccountName(payment) }}</span></div>
+                <span class="font-weight-bold">${{ cents(payment.amount) }}</span>
+              </div>
+              <div class="settlement-row settlement-total"><span>Total paid</span><span>${{ cents(selectedPaid) }}</span></div>
+            </div>
+            <div v-else class="text-body-2 text-medium-emphasis">No settlement recorded.</div>
+          </section>
+
+          <div class="invoice-detail-scroll">
+            <div class="section-label mb-2">Items</div>
+            <v-list class="invoice-items-list pa-0 mb-4" density="compact">
+              <v-list-item v-for="line in selected.items" :key="`${line.barcode}-${line.price}-${line.discount}`">
+                <template #title>
+                  {{ line.name }}
+                  <span v-if="line.color || line.size" class="text-caption text-medium-emphasis ms-2">{{ [line.color, line.size].filter(Boolean).join(" · ") }}</span>
+                </template>
+                <template #subtitle>{{ line.qty }} × ${{ Number(line.price).toFixed(2) }}<span v-if="line.discount"> · {{ line.discount }}% discount</span><span v-if="line.salespersonName"> · Sold by {{ line.salespersonName }}</span></template>
+                <template #append>
+                  <v-tooltip v-if="line.note" :text="line.note" location="top"><template #activator="{ props: tooltipProps }"><v-icon v-bind="tooltipProps" icon="mdi-note-text-outline" size="18" color="primary" class="me-3" /></template></v-tooltip>
                   <span class="font-weight-bold">${{ Number(line.lineTotal).toFixed(2) }}</span>
-                </div>
-              </template>
-              <template #append
-                v-else
-                ><span class="font-weight-bold"
-                  >${{ Number(line.lineTotal).toFixed(2) }}</span
-                ></template
-              >
-            </v-list-item>
-          </v-list>
-          <div class="totals">
-            <div>
-              <span>Subtotal</span><span>${{ cents(selected.subtotal) }}</span>
-            </div>
-            <div>
-              <span>Discount</span
-              ><span class="text-red"
-                >-${{ cents(Number(selected.subtotal) - Number(selected.discountedTotal)) }}</span
-              >
-            </div>
-            <v-divider class="my-2" />
-            <div class="text-body-1 font-weight-bold">
-              <span>Total</span><span>${{ cents(selected.grandTotal) }}</span>
+                </template>
+              </v-list-item>
+            </v-list>
+            <div class="totals invoice-totals">
+              <div><span>Subtotal</span><span>${{ cents(selected.subtotal) }}</span></div>
+              <div><span>Discount</span><span class="text-red">-${{ cents(Number(selected.subtotal) - Number(selected.discountedTotal)) }}</span></div>
+              <v-divider class="my-2" />
+              <div class="text-body-1 font-weight-bold"><span>Total</span><span>${{ cents(selected.grandTotal) }}</span></div>
             </div>
           </div>
         </v-card-text>
@@ -327,7 +314,7 @@ import { toClient } from "@/lib/client";
 import { formatLebanesePhone } from "@/lib/phone";
 import { useAuthStore } from "../stores/auth";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 const PRELOAD_DISTANCE_PX = 600;
 type InvoiceFilterKey = "invoiceCode" | "customer" | "salesperson" | "paidTo" | "date" | "total";
 type InvoiceFilterValues = Record<InvoiceFilterKey, string>;
@@ -396,6 +383,9 @@ const clientSearch = ref("");
 const snackbar = reactive({ show: false, text: "", color: "success" });
 const settlementLoading = ref(false);
 const changeTitle = computed(() => (changeType.value === "client" ? "Change Client" : "Change Salesman"));
+const selectedPaid = computed(() =>
+  (selected.value?.payments ?? []).reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0),
+);
 const changeSaveDisabled = computed(() => {
   if (optionsLoading.value) return true;
   if (changeType.value === "salesperson") return false;
@@ -783,5 +773,74 @@ onBeforeUnmount(() => {
   color: rgb(var(--v-theme-on-surface-variant)) !important;
   border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
+}
+.invoice-detail-header {
+  border-bottom: 1px solid rgba(var(--v-border-color), 0.08);
+}
+.invoice-detail-content {
+  display: flex;
+  flex-direction: column;
+  max-height: min(72vh, 760px);
+  min-height: 0;
+  overflow: hidden;
+}
+.invoice-detail-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  padding-inline: 2px;
+}
+.invoice-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.invoice-overview-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 50px;
+  padding: 12px;
+  border: 1px solid rgba(var(--v-border-color), 0.12);
+  border-radius: 12px;
+  background: rgba(var(--v-theme-on-surface), 0.025);
+}
+.invoice-overview-icon {
+  flex: 0 0 auto;
+  font-size: 30px !important;
+}
+.invoice-overview-copy { min-width: 0; }
+.invoice-overview-label,
+.section-label {
+  margin-bottom: 8px;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.invoice-overview-value,
+.invoice-overview-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.invoice-overview-value {
+  margin-bottom: 5px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.invoice-overview-detail {
+  color: rgba(var(--v-theme-on-surface), 0.62);
+  font-size: 0.72rem;
+}
+.settlement-list { border: 1px solid rgba(var(--v-border-color), 0.12); border-radius: 10px; overflow: hidden; }
+.settlement-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 13px; }
+.settlement-row + .settlement-row { border-top: 1px solid rgba(var(--v-border-color), 0.08); }
+.settlement-total { font-weight: 700; background: rgba(var(--v-theme-on-surface), 0.035); }
+.invoice-items-list { border-top: 1px solid rgba(var(--v-border-color), 0.1); border-bottom: 1px solid rgba(var(--v-border-color), 0.1); }
+.invoice-totals { max-width: 360px; margin-left: auto; }
+@media (max-width: 560px) {
+  .invoice-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

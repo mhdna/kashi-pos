@@ -35,8 +35,8 @@
           @drop="onDrop(index, $event)"
           @dragend="onDragEnd"
         >
-          <div class="quick-access__name text-caption text-truncate">{{ item.name }}</div>
           <div class="quick-access__code text-caption text-truncate">{{ item.code }}</div>
+          <div class="quick-access__name text-caption font-weight-medium text-truncate">{{ item.name }}</div>
           <div class="quick-access__price text-caption text-medium-emphasis">
             ${{ Number(item.price).toFixed(2) }}
           </div>
@@ -272,10 +272,12 @@ function onDragEnd() {
   outline: 2px solid rgb(var(--v-theme-primary));
   outline-offset: -2px;
 }
-.quick-access__name,
-.quick-access__code,
 .quick-access__price {
   font-size: var(--kashi-font-size-base) !important;
+  line-height: 1.15;
+}
+.quick-access__code {
+  font-size: 0.7rem !important;
   line-height: 1.15;
 }
 .quick-access__remove {

@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	customItemDiscountsFlag = "custom_item_discounts"
-	customItemPricesFlag    = "custom_item_prices"
-	perUnitItemPricesFlag   = "per_unit_item_prices"
+	customItemDiscountsFlag       = "custom_item_discounts"
+	customItemPricesFlag          = "custom_item_prices"
+	perUnitItemPricesFlag         = "per_unit_item_prices"
+	priceChangeManualOverrideFlag = "price_change_manual_override_mode"
 )
 
 type ProductPage struct {

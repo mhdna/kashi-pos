@@ -296,6 +296,7 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 		"id": inv.ID, "invoiceCode": inv.InvoiceCode, "clientId": inv.ClientID, "clientName": clientName, "clientPhone": clientPhone,
 		"salespersonId": inv.SalespersonID, "salespersonName": salespersonName, "cashboxId": inv.CashboxID,
 		"subtotal": inv.Subtotal, "discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
+		"loyaltyPointsEarned": inv.GrandTotal / 100,
 		"createdAt": inv.CreatedAt, "notes": inv.Notes, "items": items, "payments": paymentList,
 	}, nil
 }
