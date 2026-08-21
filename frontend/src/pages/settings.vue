@@ -218,7 +218,7 @@
               />
               <v-select
                 :model-value="calculatorTotalCurrency"
-                :items="roundingCurrencies"
+                :items="calculatorDisplayCurrencies"
                 label="Default calculator total currency"
                 hint="Currency shown first on the calculator's total. Can also be cycled with the flip icon on the calculator."
                 persistent-hint
@@ -991,6 +991,13 @@ const roundingCurrencies = computed(() =>
       title: `${c.name} (${c.cashRoundingUnit > 1 ? `nearest ${c.cashRoundingUnit.toLocaleString()} ${c.code}` : `nearest ${c.symbol}1`})`,
       value: c.code,
     })),
+);
+// The default currency (e.g. USC, the internal accounting cent) is a
+// bookkeeping unit, not a currency a cashier should ever see as a total.
+const calculatorDisplayCurrencies = computed(() =>
+  currencies.value
+    .filter((c) => c.isActive && !c.isDefault)
+    .map((c) => ({ title: c.name, value: c.code })),
 );
 const paymentMethods = ref<any[]>([]);
 const currencyForm = reactive({ code: "", name: "", symbol: "", unitsPerUsd: 1, cashRoundingUnit: 1 });

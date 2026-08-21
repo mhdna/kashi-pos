@@ -95,7 +95,7 @@ const hasItems = computed(() => Boolean(props.hasItems));
 const exchangeMode = computed(() => Boolean(props.exchangeMode));
 const roundingMode = computed(() => normalizeRoundingMode(props.roundingMode ?? ""));
 const paymentMethods = ref<PaymentMethod[]>([]);
-const currencies = ref<(CurrencyRate & { isActive: boolean })[]>([]);
+const currencies = ref<(CurrencyRate & { isActive: boolean; isDefault: boolean })[]>([]);
 const activeMethod = ref("");
 const currentInput = ref("");
 const entries = ref<Entry[]>([]);
@@ -207,7 +207,9 @@ const remainingAmount = computed(() => {
   const amountCents = Math.abs(diffCents.value);
   const fullUsd = formatUsd(amountCents / 100);
   const amountsByCurrency = currencies.value
-    .filter((c) => c.isActive)
+    // The default currency (e.g. USC, the internal accounting cent) is a
+    // bookkeeping unit, not something a cashier should ever see as a total.
+    .filter((c) => c.isActive && !c.isDefault)
     .map((c) => ({ code: c.code, text: formatAmountInCurrency(amountCents, c) }));
   if (roundingCurrency.value.cashRoundingUnit <= 1) {
     return { usd: fullUsd, lbp: "", fullUsd, fullLbp: "", amountsByCurrency };
@@ -267,6 +269,7 @@ onMounted(async () => {
       unitsPerUsd: Number(currency.unitsPerUsd),
       cashRoundingUnit: Number(currency.cashRoundingUnit),
       isActive: Boolean(currency.isActive),
+      isDefault: Boolean(currency.isDefault),
     }));
   } catch {
     /* leave currencies empty */
