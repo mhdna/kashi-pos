@@ -18,7 +18,7 @@ func TestClientAccountPaymentBecomesCollectedIncomeWhenReceived(t *testing.T) {
 	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
 		t.Fatal(err)
 	}
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestTodayIncomeIncludesOnAccountPartOfSplitPayment(t *testing.T) {
 	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
 		t.Fatal(err)
 	}
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}

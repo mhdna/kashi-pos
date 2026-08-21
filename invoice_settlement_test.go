@@ -25,7 +25,7 @@ func TestChangeInvoiceSettlementPreservesPaidValueAcrossCurrencies(t *testing.T)
 	}
 
 	store := db.NewStore(database)
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestChangeInvoiceSettlementPreservesOverpayment(t *testing.T) {
 	}
 
 	store := db.NewStore(database)
-	shift, _ := store.CreateShift(ctx, 0)
+	shift, _ := store.CreateShift(ctx, db.CreateShiftParams{})
 	oldAccount, _ := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Old", CurrencyCode: "LBP"})
 	newAccount, _ := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "New", CurrencyCode: "USD"})
 	inventory, _ := store.CreateInventory(ctx, "Sales")
@@ -165,7 +165,7 @@ func TestChangeInvoiceSettlementAmountMovesOnlyRequestedValue(t *testing.T) {
 	}
 
 	store := db.NewStore(database)
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +279,7 @@ func TestSettleInvoicePaymentsPreservesGrandTotalAcrossCurrencies(t *testing.T) 
 	}
 
 	store := db.NewStore(database)
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,7 +379,7 @@ func TestSettleInvoicePaymentsRejectsMismatchedTotal(t *testing.T) {
 	}
 
 	store := db.NewStore(database)
-	shift, _ := store.CreateShift(ctx, 0)
+	shift, _ := store.CreateShift(ctx, db.CreateShiftParams{})
 	usd, _ := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash USD", CurrencyCode: "USD"})
 	inventory, _ := store.CreateInventory(ctx, "Sales")
 	client, _ := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
@@ -432,7 +432,7 @@ func TestSettleInvoicePaymentsRejectsNonSalesInvoice(t *testing.T) {
 	}
 
 	store := db.NewStore(database)
-	shift, _ := store.CreateShift(ctx, 0)
+	shift, _ := store.CreateShift(ctx, db.CreateShiftParams{})
 	usd, _ := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash USD", CurrencyCode: "USD"})
 	inventory, _ := store.CreateInventory(ctx, "Sales")
 	client, _ := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
@@ -470,7 +470,7 @@ func TestSettleInvoicePaymentsSupportsOnAccount(t *testing.T) {
 	}
 
 	store := db.NewStore(database)
-	shift, _ := store.CreateShift(ctx, 0)
+	shift, _ := store.CreateShift(ctx, db.CreateShiftParams{})
 	usd, _ := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash USD", CurrencyCode: "USD"})
 	onAccount, _ := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "On Account", CurrencyCode: "USD"})
 	inventory, _ := store.CreateInventory(ctx, "Sales")

@@ -264,6 +264,30 @@ func (a *App) ListShifts() ([]map[string]any, error) {
 	return result, nil
 }
 
+// openingFloatCentsForShift converts a specific shift's own opening float
+// (frozen at whatever it was when that shift ran, never the current
+// settings default) into cents, for crediting the physical-cash row(s) in
+// a live or historical per-account balance listing.
+func (a *App) openingFloatCentsForShift(shift db.Shift) (usdCents, lbpCents int64, err error) {
+	usdCents = shift.OpeningFloatUsd
+	if shift.OpeningFloatLbp == 0 {
+		return usdCents, 0, nil
+	}
+	lbpCurrency, err := resolveCurrency(a.ctx, a.store.Queries, "LBP")
+	if err != nil {
+		return 0, 0, fmt.Errorf("LBP currency: %w", err)
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("settings: %w", err)
+	}
+	lbpCents, err = roundCentsFromCurrencyUnits(shift.OpeningFloatLbp, lbpCurrency.UnitsPerUsdMicros, settings.RoundingMode)
+	if err != nil {
+		return 0, 0, fmt.Errorf("opening float LBP: %w", err)
+	}
+	return usdCents, lbpCents, nil
+}
+
 func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
@@ -272,6 +296,23 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Credit the physical-cash row(s) with this specific shift's own opening
+	// float, so the live/expanded balance list matches what closing
+	// reconciliation will show (openingFloat + net transactions) instead of
+	// looking like a shortage all day. Reading shift.OpeningFloatUsd/Lbp
+	// (not the current settings default) keeps this correct for closed
+	// shifts too - each shift's float is frozen at whatever it was when
+	// that shift ran, never the current default.
+	shift, err := a.store.GetShiftByID(a.ctx, shiftID)
+	if err != nil {
+		return nil, fmt.Errorf("shift: %w", err)
+	}
+	usdFloatCents, lbpFloatCents, err := a.openingFloatCentsForShift(shift)
+	if err != nil {
+		return nil, err
+	}
+
 	// Each invoice_payments/client_account_payments/shift_balance_replacements
 	// row summed here is already a canonical, exact-cents amount (LBP cash
 	// payments were normalized to their rounded-cash-equivalent at checkout
@@ -280,11 +321,23 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 	// so was redundant at best and, since rounding a sum of parts can land
 	// on a different multiple than summing the parts directly, a real
 	// source of "balance page total doesn't match invoice total" drift.
+	usdFloatApplied := false
+	lbpFloatApplied := false
 	result := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
 		onAccount := isNonCollectedIncomeAccount(row.Name)
 		onCoupon := strings.EqualFold(strings.TrimSpace(row.Name), "On Coupon")
 		balance := databaseInt64(row.Total)
+		if !onAccount && isCashAccount(row.Name, row.CurrencyCode) {
+			switch {
+			case !usdFloatApplied && usdFloatCents != 0 && strings.EqualFold(row.CurrencyCode, "USD"):
+				balance += usdFloatCents
+				usdFloatApplied = true
+			case !lbpFloatApplied && lbpFloatCents != 0 && strings.EqualFold(row.CurrencyCode, "LBP"):
+				balance += lbpFloatCents
+				lbpFloatApplied = true
+			}
+		}
 		result = append(result, map[string]any{
 			"accountId": row.ID, "accountName": row.Name,
 			"balance": balance, "currencyCode": row.CurrencyCode,
@@ -705,11 +758,28 @@ func (a *App) GetCurrentShiftIncomeByAccount() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	usdFloatCents, lbpFloatCents, err := a.openingFloatCentsForShift(shift)
+	if err != nil {
+		return nil, err
+	}
+	usdFloatApplied := false
+	lbpFloatApplied := false
 	result := make([]map[string]any, len(rows))
 	for i, row := range rows {
 		onAccount := isNonCollectedIncomeAccount(row.Name)
+		total := databaseInt64(row.Total)
+		if !onAccount && isCashAccount(row.Name, row.CurrencyCode) {
+			switch {
+			case !usdFloatApplied && usdFloatCents != 0 && strings.EqualFold(row.CurrencyCode, "USD"):
+				total += usdFloatCents
+				usdFloatApplied = true
+			case !lbpFloatApplied && lbpFloatCents != 0 && strings.EqualFold(row.CurrencyCode, "LBP"):
+				total += lbpFloatCents
+				lbpFloatApplied = true
+			}
+		}
 		result[i] = map[string]any{
-			"accountId": row.ID, "accountName": row.Name, "currencyCode": row.CurrencyCode, "total": float64(databaseInt64(row.Total)),
+			"accountId": row.ID, "accountName": row.Name, "currencyCode": row.CurrencyCode, "total": float64(total),
 			"isOnAccount": onAccount, "isCollected": !onAccount,
 		}
 	}

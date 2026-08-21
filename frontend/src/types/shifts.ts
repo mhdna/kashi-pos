@@ -13,6 +13,8 @@ export interface Shift {
   expectedLbp?: number;
   expectedVisa?: number;
   expectedWhish?: number;
+  openingFloatUsd?: number;
+  openingFloatLbp?: number;
   closedBySalesperson?: string;
 }
 

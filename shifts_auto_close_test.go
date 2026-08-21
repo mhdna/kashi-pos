@@ -23,11 +23,11 @@ func TestCloseStaleOpenShiftsHonorsSettingAndKeepsTodayOpen(t *testing.T) {
 	}
 
 	store := db.NewStore(database)
-	stale, err := store.CreateShift(ctx, 0)
+	stale, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	today, err := store.CreateShift(ctx, 0)
+	today, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}

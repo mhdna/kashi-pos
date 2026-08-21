@@ -103,7 +103,7 @@ func TestCheckoutAcceptsExactPaymentThroughANewlyAddedCurrency(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	shift, err := app.store.CreateShift(app.ctx, 0)
+	shift, err := app.store.CreateShift(app.ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}

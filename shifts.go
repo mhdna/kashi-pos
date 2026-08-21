@@ -44,6 +44,8 @@ func shiftToMap(s db.Shift) map[string]any {
 		"countedVisa":           s.CountedVisa,
 		"countedWhish":          s.CountedWhish,
 		"countedUsdBreakdown":   s.CountedUsdBreakdown,
+		"openingFloatUsd":       s.OpeningFloatUsd,
+		"openingFloatLbp":       s.OpeningFloatLbp,
 	}
 }
 
@@ -57,11 +59,65 @@ func (a *App) OpenShift() (map[string]any, error) {
 		return nil, fmt.Errorf("close previous shift: %w", err)
 	}
 
-	shift, err := a.store.CreateShift(a.ctx, 0)
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("settings: %w", err)
+	}
+	shift, err := a.store.CreateShift(a.ctx, db.CreateShiftParams{
+		OpeningFloatUsd: settings.DefaultOpeningFloatUsd,
+		OpeningFloatLbp: settings.DefaultOpeningFloatLbp,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create shift: %w", err)
 	}
 
+	return shiftToMap(shift), nil
+}
+
+// UpdateDefaultOpeningFloat sets the opening cash float applied to every
+// shift opened from now on. It does not affect the currently open shift -
+// use ApplyOpeningFloatToCurrentShift for that.
+func (a *App) UpdateDefaultOpeningFloat(usdCents, lbpUnits int64, managerPassword string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if usdCents < 0 || lbpUnits < 0 {
+		return fmt.Errorf("opening float cannot be negative")
+	}
+	if err := a.verifyManagerPassword(managerPassword); err != nil {
+		return err
+	}
+	return a.store.UpdateDefaultOpeningFloat(a.ctx, db.UpdateDefaultOpeningFloatParams{
+		DefaultOpeningFloatUsd: usdCents,
+		DefaultOpeningFloatLbp: lbpUnits,
+	})
+}
+
+// ApplyOpeningFloatToCurrentShift updates the opening float on the shift
+// that's currently open, taking effect immediately rather than waiting for
+// the next OpenShift.
+func (a *App) ApplyOpeningFloatToCurrentShift(usdCents, lbpUnits int64, managerPassword string) (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	if usdCents < 0 || lbpUnits < 0 {
+		return nil, fmt.Errorf("opening float cannot be negative")
+	}
+	if err := a.verifyManagerPassword(managerPassword); err != nil {
+		return nil, err
+	}
+	openShift, err := a.store.GetOpenShift(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("no open shift: %w", err)
+	}
+	shift, err := a.store.UpdateShiftOpeningFloat(a.ctx, db.UpdateShiftOpeningFloatParams{
+		OpeningFloatUsd: usdCents,
+		OpeningFloatLbp: lbpUnits,
+		ID:              openShift.ID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("apply opening float: %w", err)
+	}
 	return shiftToMap(shift), nil
 }
 
@@ -245,6 +301,118 @@ func (a *App) PrintClosedShiftReceipt(shiftID int64) (map[string]any, error) {
 	return map[string]any{"receiptPrinted": true}, nil
 }
 
+// computeExpectedShiftTotals computes expected USD/LBP/Visa/Whish for a
+// shift - including its opening float - purely from live transaction data.
+// It doesn't require or depend on any counted values, so it's safe to call
+// before the cashier has counted anything (used by GetShiftExpectedTotals
+// to prefill the close-shift dialog) as well as from buildShiftClosePrintData.
+func (a *App) computeExpectedShiftTotals(shiftID int64) (expectedUSD, expectedLBP, expectedVisa, expectedWhish int64, err error) {
+	shift, err := a.store.GetShiftByID(a.ctx, shiftID)
+	if err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("shift: %w", err)
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("settings: %w", err)
+	}
+	paymentRows, err := a.incomeAccountTotals(shiftID)
+	if err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("shift payment totals: %w", err)
+	}
+
+	var expectedLBPCents int64
+	for _, row := range paymentRows {
+		total := databaseInt64(row.Total)
+		accountName := strings.TrimSpace(row.Name)
+		if strings.EqualFold(accountName, "Visa") && strings.EqualFold(row.CurrencyCode, "USD") {
+			expectedVisa += total
+			continue
+		}
+		if strings.EqualFold(accountName, "Whish") && strings.EqualFold(row.CurrencyCode, "USD") {
+			expectedWhish += total
+			continue
+		}
+		if !isCashAccount(row.Name, row.CurrencyCode) {
+			continue
+		}
+		if strings.EqualFold(row.CurrencyCode, "LBP") {
+			expectedLBPCents += total
+		} else if strings.EqualFold(row.CurrencyCode, "USD") {
+			expectedUSD += total
+		}
+	}
+
+	lbpCurrency, err := resolveCurrency(a.ctx, a.store.Queries, "LBP")
+	if err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("LBP currency: %w", err)
+	}
+
+	// The opening float is cash that was already in the drawer at shift
+	// start, not a transaction - fold it into expected so a shift that
+	// refunds more than it sold doesn't show a false overage just because
+	// counted cash can't go negative.
+	expectedUSD += shift.OpeningFloatUsd
+	openingFloatLBPCents, err := roundCentsFromCurrencyUnits(shift.OpeningFloatLbp, lbpCurrency.UnitsPerUsdMicros, settings.RoundingMode)
+	if err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("opening float LBP: %w", err)
+	}
+	expectedLBPCents += openingFloatLBPCents
+
+	expectedLBP, err = roundCurrencyUnitsFromCents(expectedLBPCents, lbpCurrency.UnitsPerUsdMicros, lbpCurrency.CashRoundingUnit, settings.RoundingMode)
+	if err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("expected LBP: %w", err)
+	}
+	return expectedUSD, expectedLBP, expectedVisa, expectedWhish, nil
+}
+
+// suggestUSDBillBreakdown greedily splits a USD cents amount into whole
+// bills across the denominations this app counts, largest first. It's only
+// a starting suggestion for the close-shift dialog - the actual drawer
+// might hold a different mix of bills for the same total, so the cashier
+// must still recount and can freely edit every denomination.
+func suggestUSDBillBreakdown(cents int64) []shiftDenominationCount {
+	dollars := cents / 100
+	if dollars <= 0 {
+		return nil
+	}
+	breakdown := make([]shiftDenominationCount, 0, len(usdBillDenominations))
+	remaining := dollars
+	for _, denom := range usdBillDenominations {
+		count := remaining / denom
+		if count <= 0 {
+			continue
+		}
+		breakdown = append(breakdown, shiftDenominationCount{Denomination: denom, Count: count})
+		remaining -= count * denom
+	}
+	return breakdown
+}
+
+// GetShiftExpectedTotals returns the shift's current expected totals and a
+// suggested USD bill breakdown, computed live from transactions recorded so
+// far - used to prefill the close-shift dialog before the cashier counts.
+func (a *App) GetShiftExpectedTotals(shiftID int64) (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	expectedUSD, expectedLBP, expectedVisa, expectedWhish, err := a.computeExpectedShiftTotals(shiftID)
+	if err != nil {
+		return nil, err
+	}
+	breakdown := suggestUSDBillBreakdown(expectedUSD)
+	usdBillCounts := make(map[string]int64, len(breakdown))
+	for _, bill := range breakdown {
+		usdBillCounts[strconv.FormatInt(bill.Denomination, 10)] = bill.Count
+	}
+	return map[string]any{
+		"expectedUsd":   expectedUSD,
+		"expectedLbp":   expectedLBP,
+		"expectedVisa":  expectedVisa,
+		"expectedWhish": expectedWhish,
+		"usdBillCounts": usdBillCounts,
+	}, nil
+}
+
 func (a *App) buildShiftClosePrintData(
 	shiftID, closingPersonID, countedUSD, countedLBP, countedVisa, countedWhish int64,
 	usdBillCounts []shiftDenominationCount,
@@ -282,7 +450,6 @@ func (a *App) buildShiftClosePrintData(
 	payments := make([]receiptPayment, 0, len(paymentRows))
 	currencyCache := make(map[string]receiptCurrency)
 	var totalPayments, onAccount, countedCoupon int64
-	var expectedUSD, expectedLBPCents, expectedVisa, expectedWhish int64
 	for _, row := range paymentRows {
 		total := databaseInt64(row.Total)
 		if isNonCollectedIncomeAccount(row.Name) {
@@ -308,23 +475,6 @@ func (a *App) buildShiftClosePrintData(
 			AmountCents:  total,
 			EntryType:    "payment",
 		})
-		accountName := strings.TrimSpace(row.Name)
-		if strings.EqualFold(accountName, "Visa") && strings.EqualFold(row.CurrencyCode, "USD") {
-			expectedVisa += total
-			continue
-		}
-		if strings.EqualFold(accountName, "Whish") && strings.EqualFold(row.CurrencyCode, "USD") {
-			expectedWhish += total
-			continue
-		}
-		if !isCashAccount(row.Name, row.CurrencyCode) {
-			continue
-		}
-		if strings.EqualFold(row.CurrencyCode, "LBP") {
-			expectedLBPCents += total
-		} else if strings.EqualFold(row.CurrencyCode, "USD") {
-			expectedUSD += total
-		}
 	}
 
 	// Close-shift reconciliation still buckets by the specific categories
@@ -336,9 +486,10 @@ func (a *App) buildShiftClosePrintData(
 		return printReceiptData{}, false, fmt.Errorf("LBP currency: %w", err)
 	}
 	rate := lbpCurrency.UnitsPerUsdMicros / unitsPerUsdMicroScale
-	expectedLBP, roundErr := roundCurrencyUnitsFromCents(expectedLBPCents, lbpCurrency.UnitsPerUsdMicros, lbpCurrency.CashRoundingUnit, settings.RoundingMode)
-	if roundErr != nil {
-		return printReceiptData{}, false, fmt.Errorf("expected LBP: %w", roundErr)
+
+	expectedUSD, expectedLBP, expectedVisa, expectedWhish, err := a.computeExpectedShiftTotals(shiftID)
+	if err != nil {
+		return printReceiptData{}, false, err
 	}
 	countedTotal, err := reconcileShiftCountedTotal(
 		totalPayments,
@@ -373,9 +524,11 @@ func (a *App) buildShiftClosePrintData(
 		CountedCoupon:   countedCoupon,
 		OnAccount:       onAccount,
 		Payments:        payments,
+		OpeningFloatUSD: shift.OpeningFloatUsd,
 		ExpectedUSD:     expectedUSD,
 		CountedUSD:      countedUSD,
 		USDBillCounts:   usdBillCounts,
+		OpeningFloatLBP: shift.OpeningFloatLbp,
 		ExpectedLBP:     expectedLBP,
 		CountedLBP:      countedLBP,
 		ExpectedVisa:    expectedVisa,

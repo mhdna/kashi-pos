@@ -33,6 +33,19 @@
       >
         Swap balance
       </v-btn>
+      <v-btn
+        v-if="shiftId"
+        block
+        class="mt-2"
+        prepend-icon="mdi-cash-plus"
+        variant="tonal"
+        @click="openingFloatOpen = true"
+      >
+        Set opening cash
+      </v-btn>
+      <div v-if="shiftId && (openingFloatUsd || openingFloatLbp)" class="text-caption text-medium-emphasis px-1 pt-1">
+        Opening float: {{ formatUsd((openingFloatUsd ?? 0) / 100) }} / {{ Math.round(openingFloatLbp ?? 0).toLocaleString() }} LBP
+      </div>
       <div class="d-flex justify-space-between px-4 pt-3 mt-2 border-t font-weight-bold">
         <span>Income total</span>
         <span>{{ formatBalance(incomeTotal, "USD", currencies, roundingMode) }}</span>
@@ -44,15 +57,23 @@
     </div>
   </v-sheet>
   <BalanceReplacementDialog v-model="replacementOpen" :shift-id="shiftId" :sources="balanceSources" :payment-methods="paymentMethods" @saved="emit('balance-replaced', $event)" />
+  <SetOpeningFloatDialog
+    v-model="openingFloatOpen"
+    :shift-id="shiftId"
+    :opening-float-usd-cents="openingFloatUsd"
+    :opening-float-lbp="openingFloatLbp"
+    @saved="emit('opening-float-set')"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
-import { formatBalance } from "@/lib/format";
+import { formatBalance, formatUsd } from "@/lib/format";
 import { paymentColor } from "@/lib/paymentColor";
 import { useCurrencies } from "@/composables/useCurrencies";
 import BalanceReplacementDialog from "@/components/shifts/BalanceReplacementDialog.vue";
+import SetOpeningFloatDialog from "@/components/shifts/SetOpeningFloatDialog.vue";
 
 const { currencies, roundingMode } = useCurrencies();
 
@@ -64,9 +85,12 @@ const props = defineProps<{
   paymentMethods: PaymentMethod[];
   balanceSources: Balance[];
   loading: boolean;
+  openingFloatUsd?: number;
+  openingFloatLbp?: number;
 }>();
-const emit = defineEmits<{ "balance-replaced": [shiftId: number] }>();
+const emit = defineEmits<{ "balance-replaced": [shiftId: number]; "opening-float-set": [] }>();
 const replacementOpen = ref(false);
+const openingFloatOpen = ref(false);
 const balanceSources = computed<Balance[]>(() => props.balanceSources
   .filter((item) => !item.isOnAccount && !item.isOnCoupon && item.accountId && Number(item.balance) !== 0));
 

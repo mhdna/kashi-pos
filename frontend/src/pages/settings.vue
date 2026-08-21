@@ -332,6 +332,43 @@
           </v-card>
 
           <v-card class="settings-card">
+            <v-card-title>Opening cash float</v-card-title>
+            <v-card-text>
+              <p class="text-caption text-medium-emphasis mb-3">
+                Cash assumed to already be in the drawer when a shift opens. Applied to every shift opened after
+                saving here — to change the currently open shift's float instead, use "Set opening cash" on the
+                Balance card.
+              </p>
+              <div class="text-caption text-medium-emphasis mb-1">Default opening float (USD)</div>
+              <v-text-field
+                v-model.number="form.defaultOpeningFloatUsd"
+                placeholder="0.00"
+                type="number"
+                min="0"
+                step="0.01"
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
+              <div class="text-caption text-medium-emphasis mb-1">Default opening float (LBP)</div>
+              <v-text-field
+                v-model.number="form.defaultOpeningFloatLbp"
+                placeholder="0"
+                type="number"
+                min="0"
+                step="1"
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
+              <v-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="mb-2">
+                Opening float cannot be negative — enter the actual cash amount in the drawer.
+              </v-alert>
+              <v-btn color="primary" variant="tonal" :disabled="openingFloatNegative" @click="openingFloatDialog = true">Save opening float</v-btn>
+            </v-card-text>
+          </v-card>
+
+          <v-card class="settings-card">
             <v-card-title>Exchange settings</v-card-title>
             <v-card-text>
               <p class="text-caption text-medium-emphasis mb-3">
@@ -968,6 +1005,33 @@
       </v-card>
     </v-dialog>
 
+    <v-dialog v-model="openingFloatDialog" max-width="380">
+      <v-card>
+        <v-card-title>Save opening float</v-card-title>
+        <v-card-text>
+          <div class="text-body-2 mb-3">
+            Applies to shifts opened after saving. Requires the manager password.
+          </div>
+          <div class="text-caption text-medium-emphasis mb-1">Manager password</div>
+          <v-text-field
+            v-model="openingFloatPassword"
+            placeholder="••••••••"
+            type="password"
+            variant="outlined"
+            density="compact"
+            autofocus
+            @keyup.enter="confirmOpeningFloatSave"
+          />
+          <v-alert v-if="openingFloatError" type="error" variant="tonal" density="compact">{{ openingFloatError }}</v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="openingFloatDialog = false">Cancel</v-btn>
+          <v-btn color="primary" :loading="openingFloatSaving" @click="confirmOpeningFloatSave">Save</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snackbar.show" class="app-snackbar" timeout="3500" location="top" variant="flat">
       {{ snackbar.text }}
     </v-snackbar>
@@ -989,6 +1053,7 @@ import {
   SetCustomItemPricesEnabled,
   SetPerUnitItemPricesEnabled,
   SetPriceChangeManualOverrideEnabled,
+  UpdateDefaultOpeningFloat,
   SetAutoCloseStaleShiftsEnabled,
   SetAttendanceCashierHistoryEnabled,
   UpdateUserAttendanceID,
@@ -1093,6 +1158,8 @@ const form = reactive({
   exchangeRate: 90000,
   maxOverpayment: 1,
   allowOverpayment: false,
+  defaultOpeningFloatUsd: 0,
+  defaultOpeningFloatLbp: 0,
   exchangeWindowDays: 3,
   exchangeWindowHours: 0,
   marketName: "",
@@ -1585,6 +1652,8 @@ async function loadSettings() {
         exchangeRate: Number(s.exchangeRate ?? 90000),
         maxOverpayment: Number(s.maxOverpaymentCents ?? 0) / 100,
         allowOverpayment: Number(s.maxOverpaymentCents ?? 0) > 0,
+        defaultOpeningFloatUsd: Number(s.defaultOpeningFloatUsd ?? 0) / 100,
+        defaultOpeningFloatLbp: Number(s.defaultOpeningFloatLbp ?? 0),
         exchangeWindowDays: Math.floor(Number(s.exchangeWindowHours ?? 72) / 24),
         exchangeWindowHours: Number(s.exchangeWindowHours ?? 72) % 24,
         marketName: s.marketName ?? "",
@@ -1802,6 +1871,35 @@ async function saveSettings() {
     notify("Failed to save", "red");
   }
   saving.value = false;
+}
+
+const openingFloatDialog = ref(false);
+const openingFloatPassword = ref("");
+const openingFloatError = ref("");
+const openingFloatSaving = ref(false);
+const openingFloatNegative = computed(
+  () => Number(form.defaultOpeningFloatUsd) < 0 || Number(form.defaultOpeningFloatLbp) < 0,
+);
+
+async function confirmOpeningFloatSave() {
+  openingFloatSaving.value = true;
+  openingFloatError.value = "";
+  try {
+    const usd = Number(form.defaultOpeningFloatUsd);
+    const lbp = Number(form.defaultOpeningFloatLbp);
+    await UpdateDefaultOpeningFloat(
+      Number.isFinite(usd) && usd > 0 ? Math.round(usd * 100) : 0,
+      Number.isFinite(lbp) && lbp > 0 ? Math.round(lbp) : 0,
+      openingFloatPassword.value,
+    );
+    openingFloatDialog.value = false;
+    openingFloatPassword.value = "";
+    notify("Default opening float saved");
+  } catch (error) {
+    openingFloatError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    openingFloatSaving.value = false;
+  }
 }
 
 async function printCloseShiftSample() {

@@ -33,7 +33,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	) VALUES ('Test', '', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreateShift(ctx, 0); err != nil {
+	if _, err := store.CreateShift(ctx, db.CreateShiftParams{}); err != nil {
 		t.Fatal(err)
 	}
 	cashbox, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash", CurrencyCode: "USD"})
@@ -235,7 +235,7 @@ func TestCreateExchangeInvoicePersistsSalesperson(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,7 +299,7 @@ func newExchangeReplacementPricingFixture(t *testing.T) (app *App, sourceID int6
 	if _, err := database.Exec(`INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, rounding_currency, receipt_enabled, sales_inventory_id) VALUES ('Test', '', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 'USD', 0, 0)`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreateShift(ctx, 0); err != nil {
+	if _, err := store.CreateShift(ctx, db.CreateShiftParams{}); err != nil {
 		t.Fatal(err)
 	}
 	cashbox, err = store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash", CurrencyCode: "USD"})

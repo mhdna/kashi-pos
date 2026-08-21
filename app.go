@@ -534,39 +534,41 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		return nil, err
 	}
 	result := map[string]interface{}{
-		"branchName":          settings.BranchName,
-		"branchCode":          settings.BranchCode,
-		"apiKey":              settings.ApiKey,
-		"printerID":           settings.PrinterID,
-		"printerSize":         settings.PrinterSize,
-		"receiptPrinter":      settings.ReceiptPrinter,
-		"screenPort":          settings.ScreenPort,
-		"receiptWidth":        settings.ReceiptWidth,
-		"receiptHeight":       settings.ReceiptHeight,
-		"taxRate":             settings.TaxRate,
-		"roundingMode":        settings.RoundingMode,
-		"roundingCurrency":    a.effectiveRoundingCurrencyCode(settings.RoundingCurrency),
-		"receiptEnabled":      settings.ReceiptEnabled != 0,
-		"salesInventoryId":    settings.SalesInventoryID,
-		"exchangeRate":        settings.ExchangeRate,
-		"maxOverpaymentCents": settings.MaxOverpaymentCents,
-		"exchangeWindowHours": settings.ExchangeWindowHours,
-		"marketName":          settings.MarketName,
-		"marketPhone":         settings.MarketPhone,
-		"branchPhone":         settings.BranchPhone,
-		"counterNumber":       settings.CounterNumber,
-		"registerName":        settings.CounterNumber,
-		"marketDescription":   settings.MarketDescription,
-		"returnPolicy":        settings.ReturnPolicy,
-		"website":             settings.Website,
-		"instagram":           settings.Instagram,
-		"socialPlatforms":     decodeSocialPlatforms(settings.SocialPlatforms),
-		"socialHandles":       decodeSocialHandles(settings.SocialHandles),
-		"receiptFont":         settings.ReceiptFont,
-		"receiptTitleSize":    settings.ReceiptTitleSize,
-		"receiptBodySize":     settings.ReceiptBodySize,
-		"receiptBodyFont":     settings.ReceiptBodyFont,
-		"receiptCutoff":       settings.ReceiptCutoff != 0,
+		"branchName":             settings.BranchName,
+		"branchCode":             settings.BranchCode,
+		"apiKey":                 settings.ApiKey,
+		"printerID":              settings.PrinterID,
+		"printerSize":            settings.PrinterSize,
+		"receiptPrinter":         settings.ReceiptPrinter,
+		"screenPort":             settings.ScreenPort,
+		"receiptWidth":           settings.ReceiptWidth,
+		"receiptHeight":          settings.ReceiptHeight,
+		"taxRate":                settings.TaxRate,
+		"roundingMode":           settings.RoundingMode,
+		"roundingCurrency":       a.effectiveRoundingCurrencyCode(settings.RoundingCurrency),
+		"receiptEnabled":         settings.ReceiptEnabled != 0,
+		"salesInventoryId":       settings.SalesInventoryID,
+		"exchangeRate":           settings.ExchangeRate,
+		"maxOverpaymentCents":    settings.MaxOverpaymentCents,
+		"exchangeWindowHours":    settings.ExchangeWindowHours,
+		"marketName":             settings.MarketName,
+		"marketPhone":            settings.MarketPhone,
+		"branchPhone":            settings.BranchPhone,
+		"counterNumber":          settings.CounterNumber,
+		"registerName":           settings.CounterNumber,
+		"marketDescription":      settings.MarketDescription,
+		"returnPolicy":           settings.ReturnPolicy,
+		"website":                settings.Website,
+		"instagram":              settings.Instagram,
+		"socialPlatforms":        decodeSocialPlatforms(settings.SocialPlatforms),
+		"socialHandles":          decodeSocialHandles(settings.SocialHandles),
+		"receiptFont":            settings.ReceiptFont,
+		"receiptTitleSize":       settings.ReceiptTitleSize,
+		"receiptBodySize":        settings.ReceiptBodySize,
+		"receiptBodyFont":        settings.ReceiptBodyFont,
+		"receiptCutoff":          settings.ReceiptCutoff != 0,
+		"defaultOpeningFloatUsd": settings.DefaultOpeningFloatUsd,
+		"defaultOpeningFloatLbp": settings.DefaultOpeningFloatLbp,
 	}
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, autoCloseStaleShiftsFlag); flagErr == nil {
 		result["autoCloseStaleShiftsEnabled"] = enabled != 0
@@ -898,7 +900,7 @@ func (a *App) seedDefaults2() {
 
 	shifts, _ := a.store.ListShifts(ctx)
 	if len(shifts) == 0 {
-		if _, err := a.store.CreateShift(ctx, 0); err != nil {
+		if _, err := a.store.CreateShift(ctx, db.CreateShiftParams{}); err != nil {
 			log.Println("seed shift:", err)
 		}
 		log.Println("seeded default shift")

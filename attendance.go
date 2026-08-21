@@ -369,13 +369,24 @@ func (a *App) ListAttendanceComplaints(month string) ([]map[string]any, error) {
 	return result, rows.Err()
 }
 
-func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password string) error {
+// verifyManagerPassword checks password against the manager/approver
+// password configured in attendance_config - the only manager-role password
+// this app has, reused for any action that needs manager sign-off (not just
+// attendance approvals).
+func (a *App) verifyManagerPassword(password string) error {
 	var approverPasswordHash string
 	if err := a.conn.QueryRowContext(a.ctx, `SELECT approver_password_hash FROM attendance_config WHERE id = 1`).Scan(&approverPasswordHash); err != nil {
 		return err
 	}
 	if approverPasswordHash == "" || hashPassword(password) != approverPasswordHash {
-		return fmt.Errorf("invalid attendance approver password")
+		return fmt.Errorf("invalid manager password")
+	}
+	return nil
+}
+
+func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password string) error {
+	if err := a.verifyManagerPassword(password); err != nil {
+		return err
 	}
 	status := "rejected"
 	if approved {

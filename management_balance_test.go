@@ -36,7 +36,7 @@ func newBalanceSwapFixture(t *testing.T, total int64) balanceSwapFixture {
 	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
 		t.Fatal(err)
 	}
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestReplaceShiftBalanceMovesNegativeBalanceWithItsSign(t *testing.T) {
 	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
 		t.Fatal(err)
 	}
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}

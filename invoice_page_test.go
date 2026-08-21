@@ -139,14 +139,14 @@ func TestGetShiftTotalsIsBoundedToTheCurrentMonth(t *testing.T) {
 	app, database := newProductTestApp(t)
 	defer database.Close()
 
-	shift, err := app.store.CreateShift(app.ctx, 0)
+	shift, err := app.store.CreateShift(app.ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := database.Exec(`UPDATE shifts SET created_at = datetime('now', 'localtime', '-2 months') WHERE id != ?`, shift.ID); err != nil {
 		t.Fatal(err)
 	}
-	oldShift, err := app.store.CreateShift(app.ctx, 0)
+	oldShift, err := app.store.CreateShift(app.ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}

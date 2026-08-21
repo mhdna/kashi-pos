@@ -23,7 +23,11 @@ SELECT * FROM shifts ORDER BY id;
 SELECT * FROM shifts WHERE is_closed = 0 LIMIT 1;
 
 -- name: CreateShift :one
-INSERT INTO shifts (is_closed, created_at) VALUES (?, datetime('now', 'localtime')) RETURNING *;
+INSERT INTO shifts (is_closed, created_at, opening_float_usd, opening_float_lbp)
+VALUES (?, datetime('now', 'localtime'), ?, ?) RETURNING *;
+
+-- name: UpdateShiftOpeningFloat :one
+UPDATE shifts SET opening_float_usd = ?, opening_float_lbp = ? WHERE id = ? AND is_closed = 0 RETURNING *;
 
 -- name: CloseShift :execrows
 UPDATE shifts

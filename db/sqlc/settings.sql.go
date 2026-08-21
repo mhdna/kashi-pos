@@ -21,7 +21,7 @@ func (q *Queries) GetFeatureFlag(ctx context.Context, key string) (int64, error)
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number, max_overpayment_cents, rounding_currency, exchange_window_hours FROM settings LIMIT 1
+SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number, max_overpayment_cents, rounding_currency, exchange_window_hours, default_opening_float_usd, default_opening_float_lbp FROM settings LIMIT 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -61,6 +61,8 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.MaxOverpaymentCents,
 		&i.RoundingCurrency,
 		&i.ExchangeWindowHours,
+		&i.DefaultOpeningFloatUsd,
+		&i.DefaultOpeningFloatLbp,
 	)
 	return i, err
 }
@@ -77,6 +79,20 @@ type SetFeatureFlagParams struct {
 
 func (q *Queries) SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error {
 	_, err := q.db.ExecContext(ctx, setFeatureFlag, arg.Key, arg.Enabled)
+	return err
+}
+
+const updateDefaultOpeningFloat = `-- name: UpdateDefaultOpeningFloat :exec
+UPDATE settings SET default_opening_float_usd = ?, default_opening_float_lbp = ?
+`
+
+type UpdateDefaultOpeningFloatParams struct {
+	DefaultOpeningFloatUsd int64 `json:"defaultOpeningFloatUsd"`
+	DefaultOpeningFloatLbp int64 `json:"defaultOpeningFloatLbp"`
+}
+
+func (q *Queries) UpdateDefaultOpeningFloat(ctx context.Context, arg UpdateDefaultOpeningFloatParams) error {
+	_, err := q.db.ExecContext(ctx, updateDefaultOpeningFloat, arg.DefaultOpeningFloatUsd, arg.DefaultOpeningFloatLbp)
 	return err
 }
 

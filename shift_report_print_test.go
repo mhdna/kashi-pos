@@ -147,7 +147,7 @@ func TestCloseShiftStoresClosingPersonAndCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := db.NewStore(database)
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +210,7 @@ func TestCloseShiftPersistsAndExposesExpectedVsCountedVariance(t *testing.T) {
 	if err := store.UpdateSettings(ctx, settingsToUpdateParams(settings)); err != nil {
 		t.Fatal(err)
 	}
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}

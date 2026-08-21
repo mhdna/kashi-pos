@@ -11,7 +11,10 @@
         :loading="loadingShift"
         :payment-methods="paymentMethods"
         :balance-sources="closeBalances"
+        :opening-float-usd="openShift?.openingFloatUsd"
+        :opening-float-lbp="openShift?.openingFloatLbp"
         @balance-replaced="refresh"
+        @opening-float-set="refresh"
       />
       <MonthlyIncomeCard
         :month="currentMonth"

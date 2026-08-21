@@ -25,7 +25,7 @@ func setupQuoteTestApp(t *testing.T, taxRate float64, roundingMode, roundingCurr
 		t.Fatal(err)
 	}
 
-	if _, err := app.store.CreateShift(app.ctx, 0); err != nil {
+	if _, err := app.store.CreateShift(app.ctx, db.CreateShiftParams{}); err != nil {
 		t.Fatal(err)
 	}
 	cashbox, err := app.store.CreateCashboxAccount(app.ctx, db.CreateCashboxAccountParams{Name: "Cash", CurrencyCode: "USD"})
@@ -163,7 +163,7 @@ func TestQuotePaymentStatusAcceptsLBPCashRoundedEquivalent(t *testing.T) {
 	if err := app.store.UpdateSettings(app.ctx, settingsToUpdateParams(settings)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.store.CreateShift(app.ctx, 0); err != nil {
+	if _, err := app.store.CreateShift(app.ctx, db.CreateShiftParams{}); err != nil {
 		t.Fatal(err)
 	}
 	lbpAccount, err := app.store.CreateCashboxAccount(app.ctx, db.CreateCashboxAccountParams{Name: "LBP Cash", CurrencyCode: "LBP"})

@@ -6,6 +6,8 @@ export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<s
 
 export function AddQuickAccessProduct(arg1:number):Promise<void>;
 
+export function ApplyOpeningFloatToCurrentShift(arg1:number,arg2:number,arg3:string):Promise<Record<string, any>>;
+
 export function ApproveAttendanceComplaint(arg1:number,arg2:boolean,arg3:string):Promise<void>;
 
 export function ChangeInvoiceClient(arg1:number,arg2:number):Promise<void>;
@@ -101,6 +103,8 @@ export function GetOpenShift():Promise<Record<string, any>>;
 export function GetProductByBarcode(arg1:string):Promise<Record<string, any>>;
 
 export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
+
+export function GetShiftExpectedTotals(arg1:number):Promise<Record<string, any>>;
 
 export function GetShiftTotals():Promise<Array<Record<string, any>>>;
 
@@ -261,6 +265,8 @@ export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record
 export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean):Promise<void>;
 
 export function UpdateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
+
+export function UpdateDefaultOpeningFloat(arg1:number,arg2:number,arg3:string):Promise<void>;
 
 export function UpdateDiscountList(arg1:number,arg2:string):Promise<Record<string, any>>;
 

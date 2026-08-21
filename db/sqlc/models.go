@@ -376,39 +376,41 @@ type SalespersonAttendanceEvent struct {
 }
 
 type Setting struct {
-	BranchName          string  `json:"branchName"`
-	ApiKey              string  `json:"apiKey"`
-	PrinterID           string  `json:"printerId"`
-	PrinterSize         string  `json:"printerSize"`
-	ReceiptPrinter      string  `json:"receiptPrinter"`
-	ScreenPort          string  `json:"screenPort"`
-	ReceiptWidth        int64   `json:"receiptWidth"`
-	ReceiptHeight       int64   `json:"receiptHeight"`
-	Theme               string  `json:"theme"`
-	TaxRate             float64 `json:"taxRate"`
-	RoundingMode        string  `json:"roundingMode"`
-	ReceiptEnabled      int64   `json:"receiptEnabled"`
-	SalesInventoryID    int64   `json:"salesInventoryId"`
-	BranchCode          string  `json:"branchCode"`
-	ExchangeRate        int64   `json:"exchangeRate"`
-	MarketName          string  `json:"marketName"`
-	MarketPhone         string  `json:"marketPhone"`
-	MarketDescription   string  `json:"marketDescription"`
-	ReturnPolicy        string  `json:"returnPolicy"`
-	Website             string  `json:"website"`
-	Instagram           string  `json:"instagram"`
-	SocialPlatforms     string  `json:"socialPlatforms"`
-	SocialHandles       string  `json:"socialHandles"`
-	ReceiptFont         string  `json:"receiptFont"`
-	ReceiptTitleSize    float64 `json:"receiptTitleSize"`
-	ReceiptBodySize     float64 `json:"receiptBodySize"`
-	ReceiptCutoff       int64   `json:"receiptCutoff"`
-	ReceiptBodyFont     string  `json:"receiptBodyFont"`
-	BranchPhone         string  `json:"branchPhone"`
-	CounterNumber       string  `json:"counterNumber"`
-	MaxOverpaymentCents int64   `json:"maxOverpaymentCents"`
-	RoundingCurrency    string  `json:"roundingCurrency"`
-	ExchangeWindowHours int64   `json:"exchangeWindowHours"`
+	BranchName             string  `json:"branchName"`
+	ApiKey                 string  `json:"apiKey"`
+	PrinterID              string  `json:"printerId"`
+	PrinterSize            string  `json:"printerSize"`
+	ReceiptPrinter         string  `json:"receiptPrinter"`
+	ScreenPort             string  `json:"screenPort"`
+	ReceiptWidth           int64   `json:"receiptWidth"`
+	ReceiptHeight          int64   `json:"receiptHeight"`
+	Theme                  string  `json:"theme"`
+	TaxRate                float64 `json:"taxRate"`
+	RoundingMode           string  `json:"roundingMode"`
+	ReceiptEnabled         int64   `json:"receiptEnabled"`
+	SalesInventoryID       int64   `json:"salesInventoryId"`
+	BranchCode             string  `json:"branchCode"`
+	ExchangeRate           int64   `json:"exchangeRate"`
+	MarketName             string  `json:"marketName"`
+	MarketPhone            string  `json:"marketPhone"`
+	MarketDescription      string  `json:"marketDescription"`
+	ReturnPolicy           string  `json:"returnPolicy"`
+	Website                string  `json:"website"`
+	Instagram              string  `json:"instagram"`
+	SocialPlatforms        string  `json:"socialPlatforms"`
+	SocialHandles          string  `json:"socialHandles"`
+	ReceiptFont            string  `json:"receiptFont"`
+	ReceiptTitleSize       float64 `json:"receiptTitleSize"`
+	ReceiptBodySize        float64 `json:"receiptBodySize"`
+	ReceiptCutoff          int64   `json:"receiptCutoff"`
+	ReceiptBodyFont        string  `json:"receiptBodyFont"`
+	BranchPhone            string  `json:"branchPhone"`
+	CounterNumber          string  `json:"counterNumber"`
+	MaxOverpaymentCents    int64   `json:"maxOverpaymentCents"`
+	RoundingCurrency       string  `json:"roundingCurrency"`
+	ExchangeWindowHours    int64   `json:"exchangeWindowHours"`
+	DefaultOpeningFloatUsd int64   `json:"defaultOpeningFloatUsd"`
+	DefaultOpeningFloatLbp int64   `json:"defaultOpeningFloatLbp"`
 }
 
 type Shift struct {
@@ -426,6 +428,8 @@ type Shift struct {
 	ExpectedLbp           int64  `json:"expectedLbp"`
 	ExpectedVisa          int64  `json:"expectedVisa"`
 	ExpectedWhish         int64  `json:"expectedWhish"`
+	OpeningFloatUsd       int64  `json:"openingFloatUsd"`
+	OpeningFloatLbp       int64  `json:"openingFloatLbp"`
 }
 
 type ShiftBalanceReplacement struct {

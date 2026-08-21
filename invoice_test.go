@@ -42,7 +42,7 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -27,9 +27,11 @@ type shiftReportData struct {
 	CountedCoupon   int64
 	OnAccount       int64
 	Payments        []receiptPayment
+	OpeningFloatUSD int64
 	ExpectedUSD     int64
 	CountedUSD      int64
 	USDBillCounts   []shiftDenominationCount
+	OpeningFloatLBP int64
 	ExpectedLBP     int64
 	CountedLBP      int64
 	ExpectedVisa    int64
@@ -145,12 +147,18 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	if len(report.USDBillCounts) > 0 {
 		y += 4
 	}
+	if report.OpeningFloatUSD != 0 {
+		y = c.reportRow(y, "Opening float", formatShiftUSD(report.OpeningFloatUSD), false)
+	}
 	y = c.reportRow(y, "Expected", formatShiftUSD(report.ExpectedUSD), false)
 	y = c.reportRow(y, "Counted", formatShiftUSD(report.CountedUSD), false)
 	y = c.reportRow(y, "Difference", formatSignedShiftUSD(report.CountedUSD-report.ExpectedUSD), true)
 	y += 7
 	y, _ = c.left(y, "LBP", c.data.BodySize-1, true)
 	y += 7
+	if report.OpeningFloatLBP != 0 {
+		y = c.reportRow(y, "Opening float", formatShiftLBP(report.OpeningFloatLBP), false)
+	}
 	y = c.reportRow(y, "Expected", formatShiftLBP(report.ExpectedLBP), false)
 	y = c.reportRow(y, "Counted", formatShiftLBP(report.CountedLBP), false)
 	y = c.reportRow(y, "Difference", formatSignedShiftLBP(report.CountedLBP-report.ExpectedLBP), true)

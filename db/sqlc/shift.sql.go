@@ -131,11 +131,18 @@ func (q *Queries) CreateCashboxAccount(ctx context.Context, arg CreateCashboxAcc
 }
 
 const createShift = `-- name: CreateShift :one
-INSERT INTO shifts (is_closed, created_at) VALUES (?, datetime('now', 'localtime')) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish
+INSERT INTO shifts (is_closed, created_at, opening_float_usd, opening_float_lbp)
+VALUES (?, datetime('now', 'localtime'), ?, ?) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp
 `
 
-func (q *Queries) CreateShift(ctx context.Context, isClosed int64) (Shift, error) {
-	row := q.db.QueryRowContext(ctx, createShift, isClosed)
+type CreateShiftParams struct {
+	IsClosed        int64 `json:"isClosed"`
+	OpeningFloatUsd int64 `json:"openingFloatUsd"`
+	OpeningFloatLbp int64 `json:"openingFloatLbp"`
+}
+
+func (q *Queries) CreateShift(ctx context.Context, arg CreateShiftParams) (Shift, error) {
+	row := q.db.QueryRowContext(ctx, createShift, arg.IsClosed, arg.OpeningFloatUsd, arg.OpeningFloatLbp)
 	var i Shift
 	err := row.Scan(
 		&i.ID,
@@ -152,6 +159,8 @@ func (q *Queries) CreateShift(ctx context.Context, isClosed int64) (Shift, error
 		&i.ExpectedLbp,
 		&i.ExpectedVisa,
 		&i.ExpectedWhish,
+		&i.OpeningFloatUsd,
+		&i.OpeningFloatLbp,
 	)
 	return i, err
 }
@@ -230,7 +239,7 @@ func (q *Queries) GetCashboxAccountByName(ctx context.Context, name string) (Cas
 }
 
 const getOpenShift = `-- name: GetOpenShift :one
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish FROM shifts WHERE is_closed = 0 LIMIT 1
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts WHERE is_closed = 0 LIMIT 1
 `
 
 func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
@@ -251,6 +260,8 @@ func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
 		&i.ExpectedLbp,
 		&i.ExpectedVisa,
 		&i.ExpectedWhish,
+		&i.OpeningFloatUsd,
+		&i.OpeningFloatLbp,
 	)
 	return i, err
 }
@@ -272,7 +283,7 @@ func (q *Queries) GetShiftAccountBalance(ctx context.Context, arg GetShiftAccoun
 }
 
 const getShiftByID = `-- name: GetShiftByID :one
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish FROM shifts WHERE id = ?
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts WHERE id = ?
 `
 
 func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
@@ -293,6 +304,8 @@ func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
 		&i.ExpectedLbp,
 		&i.ExpectedVisa,
 		&i.ExpectedWhish,
+		&i.OpeningFloatUsd,
+		&i.OpeningFloatLbp,
 	)
 	return i, err
 }
@@ -522,7 +535,7 @@ func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, er
 }
 
 const listShifts = `-- name: ListShifts :many
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish FROM shifts ORDER BY id
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts ORDER BY id
 `
 
 func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
@@ -549,6 +562,8 @@ func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
 			&i.ExpectedLbp,
 			&i.ExpectedVisa,
 			&i.ExpectedWhish,
+			&i.OpeningFloatUsd,
+			&i.OpeningFloatLbp,
 		); err != nil {
 			return nil, err
 		}
@@ -561,4 +576,38 @@ func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateShiftOpeningFloat = `-- name: UpdateShiftOpeningFloat :one
+UPDATE shifts SET opening_float_usd = ?, opening_float_lbp = ? WHERE id = ? AND is_closed = 0 RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp
+`
+
+type UpdateShiftOpeningFloatParams struct {
+	OpeningFloatUsd int64 `json:"openingFloatUsd"`
+	OpeningFloatLbp int64 `json:"openingFloatLbp"`
+	ID              int64 `json:"id"`
+}
+
+func (q *Queries) UpdateShiftOpeningFloat(ctx context.Context, arg UpdateShiftOpeningFloatParams) (Shift, error) {
+	row := q.db.QueryRowContext(ctx, updateShiftOpeningFloat, arg.OpeningFloatUsd, arg.OpeningFloatLbp, arg.ID)
+	var i Shift
+	err := row.Scan(
+		&i.ID,
+		&i.IsClosed,
+		&i.CreatedAt,
+		&i.ClosedAt,
+		&i.ClosedBySalespersonID,
+		&i.CountedUsd,
+		&i.CountedLbp,
+		&i.CountedUsdBreakdown,
+		&i.CountedVisa,
+		&i.CountedWhish,
+		&i.ExpectedUsd,
+		&i.ExpectedLbp,
+		&i.ExpectedVisa,
+		&i.ExpectedWhish,
+		&i.OpeningFloatUsd,
+		&i.OpeningFloatLbp,
+	)
+	return i, err
 }

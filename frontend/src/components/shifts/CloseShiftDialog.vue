@@ -49,7 +49,23 @@
           class="mt-3"
         />
 
-        <div class="text-subtitle-2 mb-2">USD bill count</div>
+        <div class="d-flex justify-space-between align-center mb-2">
+          <div>
+            <div class="text-subtitle-2">USD bill count</div>
+            <div class="text-caption text-medium-emphasis">
+              Prefilled from expected totals — recount and correct before closing.
+            </div>
+          </div>
+          <v-btn
+            size="small"
+            variant="tonal"
+            prepend-icon="mdi-autorenew"
+            :loading="autofilling"
+            @click="autofillFromExpected"
+          >
+            Autofill from expected
+          </v-btn>
+        </div>
         <div class="usd-bill-grid">
           <v-text-field
             v-for="denomination in usdDenominations"
@@ -186,6 +202,7 @@ import { computed, ref, watch } from "vue";
 import type { Balance, Shift } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { useCurrencies } from "@/composables/useCurrencies";
+import { GetShiftExpectedTotals } from "../../../wailsjs/go/main/App";
 
 const { currencies, roundingMode } = useCurrencies();
 
@@ -274,15 +291,49 @@ const formValid = computed(
     billCountsValid.value,
 );
 
+const autofilling = ref(false);
+
+function clearCounted() {
+  countedLbp.value = "";
+  countedVisa.value = "";
+  countedWhish.value = "";
+  for (const denomination of usdDenominations) usdBillCounts.value[denomination] = "";
+}
+
+// Prefills counted fields with the system's live expected totals (from
+// transactions recorded so far) as a starting point - every field stays
+// editable via the numpad, since this is only a suggestion, not a
+// substitute for actually counting the drawer.
+async function autofillFromExpected() {
+  if (!props.openShift?.id) return;
+  autofilling.value = true;
+  try {
+    const totals = await GetShiftExpectedTotals(props.openShift.id);
+    const expectedLbp = Math.round(Number(totals.expectedLbp) || 0);
+    const expectedVisaCents = Math.round(Number(totals.expectedVisa) || 0);
+    const expectedWhishCents = Math.round(Number(totals.expectedWhish) || 0);
+    countedLbp.value = expectedLbp > 0 ? String(expectedLbp) : "";
+    countedVisa.value = expectedVisaCents > 0 ? (expectedVisaCents / 100).toFixed(2) : "";
+    countedWhish.value = expectedWhishCents > 0 ? (expectedWhishCents / 100).toFixed(2) : "";
+    const suggestedBillCounts = (totals.usdBillCounts ?? {}) as Record<string, number>;
+    for (const denomination of usdDenominations) {
+      const count = Number(suggestedBillCounts[String(denomination)] ?? 0);
+      usdBillCounts.value[denomination] = count > 0 ? String(count) : "";
+    }
+  } catch {
+    clearCounted();
+  } finally {
+    autofilling.value = false;
+  }
+}
+
 watch(
   () => props.modelValue,
   (open) => {
     if (!open) return;
     closingPersonId.value = null;
-    countedLbp.value = "";
-    countedVisa.value = "";
-    countedWhish.value = "";
-    for (const denomination of usdDenominations) usdBillCounts.value[denomination] = "";
+    clearCounted();
+    void autofillFromExpected();
   },
 );
 

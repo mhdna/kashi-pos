@@ -24,7 +24,7 @@ func TestIncomeViewsUseLiveInvoicePaymentsAfterDeletion(t *testing.T) {
 	}
 
 	store := db.NewStore(database)
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
 		t.Fatal(err)
 	}
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,7 +230,7 @@ func TestIncomeTraceShowsSignedWhishChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := db.NewStore(database)
-	shift, err := store.CreateShift(ctx, 0)
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
 	if err != nil {
 		t.Fatal(err)
 	}

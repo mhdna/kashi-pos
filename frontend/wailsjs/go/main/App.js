@@ -10,6 +10,10 @@ export function AddQuickAccessProduct(arg1) {
   return window['go']['main']['App']['AddQuickAccessProduct'](arg1);
 }
 
+export function ApplyOpeningFloatToCurrentShift(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ApplyOpeningFloatToCurrentShift'](arg1, arg2, arg3);
+}
+
 export function ApproveAttendanceComplaint(arg1, arg2, arg3) {
   return window['go']['main']['App']['ApproveAttendanceComplaint'](arg1, arg2, arg3);
 }
@@ -200,6 +204,10 @@ export function GetProductByBarcode(arg1) {
 
 export function GetProductByCode(arg1) {
   return window['go']['main']['App']['GetProductByCode'](arg1);
+}
+
+export function GetShiftExpectedTotals(arg1) {
+  return window['go']['main']['App']['GetShiftExpectedTotals'](arg1);
 }
 
 export function GetShiftTotals() {
@@ -520,6 +528,10 @@ export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6) {
 
 export function UpdateCurrency(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['UpdateCurrency'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function UpdateDefaultOpeningFloat(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdateDefaultOpeningFloat'](arg1, arg2, arg3);
 }
 
 export function UpdateDiscountList(arg1, arg2) {

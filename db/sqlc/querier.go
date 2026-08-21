@@ -57,7 +57,7 @@ type Querier interface {
 	CreateRole(ctx context.Context, arg CreateRoleParams) (Role, error)
 	CreateSalesInvoice(ctx context.Context, invoiceID int64) error
 	CreateSalesperson(ctx context.Context, fullName string) (Salesperson, error)
-	CreateShift(ctx context.Context, isClosed int64) (Shift, error)
+	CreateShift(ctx context.Context, arg CreateShiftParams) (Shift, error)
 	CreateShiftBalanceReplacement(ctx context.Context, arg CreateShiftBalanceReplacementParams) error
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) error
@@ -244,6 +244,7 @@ type Querier interface {
 	UpdateCouponStatus(ctx context.Context, arg UpdateCouponStatusParams) error
 	UpdateCouponType(ctx context.Context, arg UpdateCouponTypeParams) error
 	UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error)
+	UpdateDefaultOpeningFloat(ctx context.Context, arg UpdateDefaultOpeningFloatParams) error
 	UpdateDiscountList(ctx context.Context, arg UpdateDiscountListParams) (DiscountList, error)
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) (Inventory, error)
 	UpdateInvoiceCashbox(ctx context.Context, arg UpdateInvoiceCashboxParams) error
@@ -258,6 +259,7 @@ type Querier interface {
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error)
 	UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error)
 	UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error
+	UpdateShiftOpeningFloat(ctx context.Context, arg UpdateShiftOpeningFloatParams) (Shift, error)
 	UpdateTheme(ctx context.Context, theme string) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserAttendanceID(ctx context.Context, arg UpdateUserAttendanceIDParams) error
