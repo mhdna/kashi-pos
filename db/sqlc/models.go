@@ -261,6 +261,7 @@ type InvoicePaymentEntry struct {
 }
 
 type InvoiceProduct struct {
+	ID             int64         `json:"id"`
 	InvoiceID      int64         `json:"invoiceId"`
 	ProductID      int64         `json:"productId"`
 	UnitPrice      int64         `json:"unitPrice"`

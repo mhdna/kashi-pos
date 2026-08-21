@@ -626,3 +626,47 @@ func TestQuoteExchangePaymentStatusReadyWithNoEntriesWhenNetZero(t *testing.T) {
 		t.Fatalf("net-zero exchange status = %#v, want grandTotal=0 paid=0 isPaidInFull=true checkoutReady=true", status)
 	}
 }
+
+func TestCheckoutExchangeInvoiceAllowsSameProductAsReplacement(t *testing.T) {
+	// Returning a product and replacing it with a fresh unit of the exact
+	// same product, at the same price/discount, must persist as two
+	// distinct invoice_products rows (one negative qty, one positive) - a
+	// composite (invoice_id, product_id, unit_price, discount) primary key
+	// would collide here, which is exactly why invoice_products now uses a
+	// surrogate id instead (see migration 000061).
+	app, sourceID, salesperson, _, _ := newExchangeReplacementPricingFixture(t)
+
+	items, _ := json.Marshal([]exchangeLine{
+		{Code: "RETURN-P", Qty: -1},
+		{Code: "RETURN-P", Qty: 1},
+	})
+	result, err := app.CheckoutExchangeInvoice(string(items), "[]", sourceID, 0, salesperson.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	invoiceCode, ok := result["invoiceCode"].(string)
+	if !ok || invoiceCode == "" {
+		t.Fatalf("exchange result = %#v, want an invoiceCode", result)
+	}
+	// The fixture's sale is invoice 1; this exchange is the second invoice
+	// created in the fresh database.
+	lines, err := app.store.ListInvoiceProducts(app.ctx, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lines) != 2 {
+		t.Fatalf("exchange lines = %d, want 2 (one returned, one replacement)", len(lines))
+	}
+	var sawReturned, sawReplacement bool
+	for _, line := range lines {
+		switch line.Quantity {
+		case -1:
+			sawReturned = true
+		case 1:
+			sawReplacement = true
+		}
+	}
+	if !sawReturned || !sawReplacement {
+		t.Fatalf("exchange lines = %#v, want one qty=-1 and one qty=1", lines)
+	}
+}
