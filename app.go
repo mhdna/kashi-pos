@@ -711,6 +711,51 @@ func (a *App) SetPriceChangeManualOverrideEnabled(enabled bool) error {
 	})
 }
 
+// lockablePages are the nav pages an admin can choose to unlock for
+// non-admin users. Every page here is locked for non-admins by default
+// (missing feature flag = locked); admins always see every page regardless
+// of these flags. Pages not in this list (home, invoices-list, shifts,
+// settings, etc.) are never gated by this mechanism.
+var lockablePages = []string{"clients", "inventory", "transfers", "attendance", "salespersons"}
+
+func pageUnlockFlag(page string) string {
+	return "page_unlock_" + page
+}
+
+// ListPageUnlocks reports, for each lockable page, whether it has been
+// unlocked for non-admin users. Missing/unset means locked.
+func (a *App) ListPageUnlocks() (map[string]bool, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	result := make(map[string]bool, len(lockablePages))
+	for _, page := range lockablePages {
+		enabled, err := a.store.GetFeatureFlag(a.ctx, pageUnlockFlag(page))
+		result[page] = err == nil && enabled != 0
+	}
+	return result, nil
+}
+
+// SetPageUnlocked unlocks or re-locks one page for non-admin users.
+func (a *App) SetPageUnlocked(page string, unlocked bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	found := false
+	for _, p := range lockablePages {
+		if p == page {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("unknown page %q", page)
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: pageUnlockFlag(page), Enabled: boolInt(unlocked),
+	})
+}
+
 func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, marketDescription, returnPolicy, website, instagram, socialPlatformsJSON, socialHandlesJSON, registerName, receiptFont, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")

@@ -56,12 +56,14 @@ import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { pendingNavAction } from "@/composables/useNavActions";
+import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import CloseShiftCard from "./CloseShiftCard.vue";
 
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const closeShiftDialog = ref(false);
+const { pageUnlocks } = usePageUnlocks();
 
 function handleItemClick(item: { locked?: boolean; action?: () => void; to?: string }) {
   if (item.locked) return;
@@ -102,23 +104,35 @@ const items = computed(() => {
       to: "/clients",
       icon: "mdi-account-multiple",
       t: "Clients",
-      locked: !auth.isAdmin,
+      locked: !auth.isAdmin && !pageUnlocks.value.clients,
     },
     {
       value: "inventory",
       to: "/inventory",
       icon: "mdi-package-variant-closed",
       t: "Inventory",
-      locked: true,
+      locked: !auth.isAdmin && !pageUnlocks.value.inventory,
     },
-    { value: "transfer", to: "/transfers", icon: "mdi-truck", t: "Transfers", locked: true },
-    { value: "salespersons", to: "/salespersons", icon: "mdi-chart-bar", t: "Sales" },
+    {
+      value: "transfer",
+      to: "/transfers",
+      icon: "mdi-truck",
+      t: "Transfers",
+      locked: !auth.isAdmin && !pageUnlocks.value.transfers,
+    },
+    {
+      value: "salespersons",
+      to: "/salespersons",
+      icon: "mdi-chart-bar",
+      t: "Sales",
+      locked: !auth.isAdmin && !pageUnlocks.value.salespersons,
+    },
     {
       value: "attendance",
       to: "/attendance",
       icon: "mdi-account-multiple",
       t: "Attend",
-      locked: true,
+      locked: !auth.isAdmin && !pageUnlocks.value.attendance,
     },
     { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
   ];

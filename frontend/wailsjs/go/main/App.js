@@ -278,6 +278,10 @@ export function ListInvoicesPage(arg1, arg2) {
   return window['go']['main']['App']['ListInvoicesPage'](arg1, arg2);
 }
 
+export function ListPageUnlocks() {
+  return window['go']['main']['App']['ListPageUnlocks']();
+}
+
 export function ListPaymentMethods() {
   return window['go']['main']['App']['ListPaymentMethods']();
 }
@@ -444,6 +448,10 @@ export function SetDiscountListItem(arg1, arg2, arg3) {
 
 export function SetExchangeWindowHours(arg1) {
   return window['go']['main']['App']['SetExchangeWindowHours'](arg1);
+}
+
+export function SetPageUnlocked(arg1, arg2) {
+  return window['go']['main']['App']['SetPageUnlocked'](arg1, arg2);
 }
 
 export function SetPerUnitItemPricesEnabled(arg1) {

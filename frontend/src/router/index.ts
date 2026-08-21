@@ -28,18 +28,31 @@ const router = createRouter({
         {
           path: "attendance",
           component: () => import("@/pages/attendance.vue"),
+          meta: { lockable: "attendance" },
         },
         {
           path: "invoices-list",
           component: loadInvoicesList,
         },
-        { path: "inventory", component: () => import("@/pages/inventory.vue") },
-        { path: "salespersons", component: () => import("@/pages/salespersons.vue") },
-        { path: "transfers", component: () => import("@/pages/transfers.vue") },
+        {
+          path: "inventory",
+          component: () => import("@/pages/inventory.vue"),
+          meta: { lockable: "inventory" },
+        },
+        {
+          path: "salespersons",
+          component: () => import("@/pages/salespersons.vue"),
+          meta: { lockable: "salespersons" },
+        },
+        {
+          path: "transfers",
+          component: () => import("@/pages/transfers.vue"),
+          meta: { lockable: "transfers" },
+        },
         {
           path: "clients",
           component: () => import("@/pages/clients.vue"),
-          meta: { requiresAdmin: true },
+          meta: { lockable: "clients" },
         },
         // { path: 'attendance', component: () => import('@/pages/attendance.vue') },
         { path: "shifts", component: () => import("@/pages/shifts.vue") },
@@ -56,6 +69,7 @@ router.beforeEach(async (to) => {
     const auth = useAuthStore();
     const isLoginPage = to.path === "/login";
     const requiresAdmin = to.matched.some((route) => route.meta.requiresAdmin);
+    const lockable = to.matched.map((route) => route.meta.lockable).find((page) => page);
 
     if (!auth.isLoggedIn && !isLoginPage) {
       return "/login";
@@ -65,6 +79,13 @@ router.beforeEach(async (to) => {
     }
     if (requiresAdmin && !auth.isAdmin) {
       return "/home";
+    }
+    if (lockable && !auth.isAdmin) {
+      const { usePageUnlocks } = await import("@/composables/usePageUnlocks");
+      const { pageUnlocks } = usePageUnlocks();
+      if (!pageUnlocks.value[String(lockable)]) {
+        return "/home";
+      }
     }
   } catch {
     // Allow navigation if auth module can't be loaded (e.g. Wails runtime not ready)

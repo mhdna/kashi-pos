@@ -140,6 +140,8 @@ export function ListInvoicesFilteredPage(arg1:number,arg2:number,arg3:string):Pr
 
 export function ListInvoicesPage(arg1:number,arg2:number):Promise<main.InvoicePage>;
 
+export function ListPageUnlocks():Promise<Record<string, boolean>>;
+
 export function ListPaymentMethods():Promise<Array<Record<string, any>>>;
 
 export function ListPriceListItems(arg1:number):Promise<Array<Record<string, any>>>;
@@ -223,6 +225,8 @@ export function SetDiscountListActive(arg1:number,arg2:boolean):Promise<Record<s
 export function SetDiscountListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
 
 export function SetExchangeWindowHours(arg1:number):Promise<void>;
+
+export function SetPageUnlocked(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
 

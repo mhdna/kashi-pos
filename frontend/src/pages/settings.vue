@@ -753,6 +753,33 @@
             </v-card-text>
           </v-card>
 
+          <v-card class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36">
+                <v-icon icon="mdi-lock-outline" size="20" />
+              </v-avatar>
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Page access</div>
+                <div class="text-caption text-medium-emphasis">
+                  Choose which pages non-admin users can open. Admins always see every page.
+                </div>
+              </div>
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                v-for="page in lockablePages"
+                :key="page"
+                :model-value="pageUnlocks[page] ?? false"
+                :loading="pageUnlockSaving"
+                color="primary"
+                hide-details
+                :label="pageUnlockLabels[page] ?? page"
+                class="mb-1"
+                @update:model-value="(value) => togglePageUnlock(page, value)"
+              />
+            </v-card-text>
+          </v-card>
+
           <v-form @submit.prevent="changePassword">
             <v-card class="settings-card">
               <v-card-title class="d-flex align-center ga-3">
@@ -1053,6 +1080,7 @@ import {
   SetCustomItemPricesEnabled,
   SetPerUnitItemPricesEnabled,
   SetPriceChangeManualOverrideEnabled,
+  SetPageUnlocked,
   UpdateDefaultOpeningFloat,
   SetAutoCloseStaleShiftsEnabled,
   SetAttendanceCashierHistoryEnabled,
@@ -1104,6 +1132,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import { useAuthStore } from "@/stores/auth";
+import { usePageUnlocks, lockablePages } from "@/composables/usePageUnlocks";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import {
   animationsEnabled,
@@ -1511,6 +1540,15 @@ const couponCodeForm = ref("");
 const couponIssueTypeId = ref<number | null>(null);
 const couponIssuing = ref(false);
 const pricingSettingsSaving = ref(false);
+const { pageUnlocks } = usePageUnlocks();
+const pageUnlockSaving = ref(false);
+const pageUnlockLabels: Record<string, string> = {
+  clients: "Clients",
+  inventory: "Inventory",
+  transfers: "Transfers",
+  attendance: "Attendance",
+  salespersons: "Salespersons",
+};
 const adminSettingsSaving = ref(false);
 const samplePrinting = ref(false);
 const showApiKey = ref(false);
@@ -1792,6 +1830,22 @@ async function setPriceChangeManualOverrideEnabled(value: boolean | null) {
     notify("Failed to update price change mode", "red");
   } finally {
     pricingSettingsSaving.value = false;
+  }
+}
+
+async function togglePageUnlock(page: string, value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = pageUnlocks.value[page];
+  pageUnlocks.value = { ...pageUnlocks.value, [page]: enabled };
+  pageUnlockSaving.value = true;
+  try {
+    await SetPageUnlocked(page, enabled);
+    notify(`${pageUnlockLabels[page] ?? page} ${enabled ? "unlocked" : "locked"} for non-admin users`);
+  } catch (error) {
+    pageUnlocks.value = { ...pageUnlocks.value, [page]: Boolean(previous) };
+    notify(error instanceof Error ? error.message : "Failed to update page access", "red");
+  } finally {
+    pageUnlockSaving.value = false;
   }
 }
 
