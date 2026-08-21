@@ -86,6 +86,9 @@ ON CONFLICT (product_id) DO NOTHING;
 -- name: RemoveQuickAccessProduct :exec
 DELETE FROM quick_access_items WHERE product_id = ?;
 
+-- name: SetQuickAccessPosition :exec
+UPDATE quick_access_items SET position = ? WHERE product_id = ?;
+
 -- name: GetPriceOverride :one
 SELECT * FROM price_overrides WHERE id = ?;
 

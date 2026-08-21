@@ -20,13 +20,20 @@
       </div>
       <div class="quick-access__items">
         <v-card
-          v-for="item in items"
+          v-for="(item, index) in items"
           :key="item.code"
           class="quick-access__item pa-2"
+          :class="{ 'quick-access__item--dragging': dragIndex === index, 'quick-access__item--over': dragOverIndex === index && dragIndex !== index }"
           elevation="1"
           rounded="lg"
           :aria-label="item.name"
+          draggable="true"
           @click="addToInvoice(item)"
+          @dragstart="onDragStart(index, $event)"
+          @dragover="onDragOver(index, $event)"
+          @dragleave="onDragLeave(index)"
+          @drop="onDrop(index, $event)"
+          @dragend="onDragEnd"
         >
           <div class="quick-access__name text-caption text-truncate">{{ item.name }}</div>
           <div class="quick-access__code text-caption text-truncate">{{ item.code }}</div>
@@ -71,6 +78,7 @@ import {
   GetProductByCode,
   ListQuickAccessProducts,
   RemoveQuickAccessProduct,
+  ReorderQuickAccessProducts,
 } from "../../wailsjs/go/main/App";
 
 type QuickAccessItem = {
@@ -91,6 +99,8 @@ const open = ref(true);
 const removeDialog = ref(false);
 const removalCode = ref("");
 const removalName = ref("");
+const dragIndex = ref<number | null>(null);
+const dragOverIndex = ref<number | null>(null);
 
 try {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") as {
@@ -157,6 +167,40 @@ async function confirmRemoval() {
   removalCode.value = "";
   removalName.value = "";
 }
+
+function onDragStart(index: number, event: DragEvent) {
+  dragIndex.value = index;
+  event.dataTransfer?.setData("text/plain", String(index));
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+}
+function onDragOver(index: number, event: DragEvent) {
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+  dragOverIndex.value = index;
+}
+function onDragLeave(index: number) {
+  if (dragOverIndex.value === index) dragOverIndex.value = null;
+}
+async function onDrop(index: number, event: DragEvent) {
+  event.preventDefault();
+  const from = dragIndex.value;
+  dragOverIndex.value = null;
+  dragIndex.value = null;
+  if (from === null || from === index) return;
+  const reordered = [...items.value];
+  const moved = reordered.splice(from, 1)[0];
+  if (!moved) return;
+  reordered.splice(index, 0, moved);
+  items.value = reordered;
+  try {
+    const ids = reordered.filter((item) => item.id).map((item) => item.id as number);
+    if (ids.length) await ReorderQuickAccessProducts(ids);
+  } catch {}
+}
+function onDragEnd() {
+  dragIndex.value = null;
+  dragOverIndex.value = null;
+}
 </script>
 
 <style scoped>
@@ -214,11 +258,19 @@ async function confirmRemoval() {
   margin-top: 2px;
 }
 .quick-access__item {
-  cursor: pointer;
+  cursor: grab;
   min-width: 0;
   min-height: 50px;
   padding: 6px !important;
   position: relative;
+  transition: opacity 0.15s, outline-color 0.15s;
+}
+.quick-access__item--dragging {
+  opacity: 0.4;
+}
+.quick-access__item--over {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -2px;
 }
 .quick-access__name,
 .quick-access__code,

@@ -123,6 +123,21 @@ func (a *App) RemoveQuickAccessProduct(productID int64) error {
 	return a.store.RemoveQuickAccessProduct(a.ctx, productID)
 }
 
+func (a *App) ReorderQuickAccessProducts(productIDs []int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	for i, id := range productIDs {
+		if err := a.store.SetQuickAccessPosition(a.ctx, db.SetQuickAccessPositionParams{
+			Position:  int64(i),
+			ProductID: id,
+		}); err != nil {
+			return fmt.Errorf("reorder quick-access products: %w", err)
+		}
+	}
+	return nil
+}
+
 func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (ProductPage, error) {
 	if a.store == nil {
 		return ProductPage{}, fmt.Errorf("database not initialized")

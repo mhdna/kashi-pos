@@ -228,6 +228,7 @@ type Querier interface {
 	SetDiscountListActive(ctx context.Context, arg SetDiscountListActiveParams) (DiscountList, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error)
+	SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error
 	// The portion of a shift's "On Account" total that was NOT recorded today -
 	// subtracted in Go from ListIncomeAccountTotals's On Account row so a shift
 	// left open across a day boundary doesn't drag prior days' on-account

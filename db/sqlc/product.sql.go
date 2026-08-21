@@ -743,6 +743,20 @@ func (q *Queries) SearchProductsByName(ctx context.Context, name string) ([]Prod
 	return items, nil
 }
 
+const setQuickAccessPosition = `-- name: SetQuickAccessPosition :exec
+UPDATE quick_access_items SET position = ? WHERE product_id = ?
+`
+
+type SetQuickAccessPositionParams struct {
+	Position  int64 `json:"position"`
+	ProductID int64 `json:"productId"`
+}
+
+func (q *Queries) SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error {
+	_, err := q.db.ExecContext(ctx, setQuickAccessPosition, arg.Position, arg.ProductID)
+	return err
+}
+
 const updateProduct = `-- name: UpdateProduct :one
 UPDATE products
 SET barcode = ?, code = ?, name = ?, description = ?,
