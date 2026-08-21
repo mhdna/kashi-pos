@@ -29,7 +29,7 @@
         density="comfortable"
         class="mt-4"
       />
-      <div class="d-flex justify-end align-center mb-2">
+      <div class="autofill-actions d-flex justify-end align-center">
         <v-btn
           size="small"
           variant="tonal"
@@ -49,6 +49,7 @@
           :key="denomination"
           :model-value="usdBillCounts[denomination] || 0"
           :aria-label="`Count $${denomination} bills`"
+          :transition="false"
           :min="0"
           :max="999"
           @update:model-value="
@@ -87,6 +88,7 @@
         <NumberPadMenu
           :model-value="countedLbp"
           aria-label="Total LBP counted"
+          :transition="false"
           :max="999999999999"
           suffix="LBP"
           @update:model-value="
@@ -121,6 +123,7 @@
         <NumberPadMenu
           :model-value="countedVisa"
           aria-label="Counted Visa"
+          :transition="false"
           allow-decimal
           :max="999999999.99"
           prefix="$"
@@ -150,6 +153,7 @@
         <NumberPadMenu
           :model-value="countedWhish"
           aria-label="Counted Whish"
+          :transition="false"
           allow-decimal
           :max="999999999.99"
           prefix="$"
@@ -401,6 +405,10 @@ async function doCloseShift() {
 
 .manually-edited-field :deep(.v-field) {
   background-color: rgba(76, 175, 80, 0.25);
+}
+
+.autofill-actions {
+  margin-bottom: 32px;
 }
 
 .usd-bill-grid {

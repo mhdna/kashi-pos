@@ -262,7 +262,8 @@ func (a *App) checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, 
 	if amountCents <= 0 {
 		return check, fmt.Errorf("enter a positive amount")
 	}
-	if _, err := a.store.GetShiftByID(a.ctx, shiftID); err != nil {
+	shift, err := a.store.GetShiftByID(a.ctx, shiftID)
+	if err != nil {
 		return check, fmt.Errorf("shift not found")
 	}
 	from, err := a.store.GetCashboxAccountByID(a.ctx, fromCashboxID)
@@ -285,6 +286,22 @@ func (a *App) checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, 
 		if balance.ID == fromCashboxID {
 			sourceTotal = databaseInt64(balance.Total)
 			break
+		}
+	}
+	// Credit the source with this shift's opening float when it's the
+	// physical-cash account for that float's currency, matching what
+	// ListShiftBalances/GetCurrentShiftIncomeByAccount display - otherwise
+	// the balance shown (and autofilled) on screen can exceed what this
+	// check allows swapping out.
+	if isCashAccount(from.Name, from.CurrencyCode) {
+		usdFloatCents, lbpFloatCents, floatErr := a.openingFloatCentsForShift(shift)
+		if floatErr != nil {
+			return check, floatErr
+		}
+		if strings.EqualFold(from.CurrencyCode, "USD") {
+			sourceTotal += usdFloatCents
+		} else if strings.EqualFold(from.CurrencyCode, "LBP") {
+			sourceTotal += lbpFloatCents
 		}
 	}
 	sourceMagnitude := absInt64(sourceTotal)

@@ -1,13 +1,13 @@
 <template>
   <v-dialog :model-value="modelValue" max-width="460" @update:model-value="$emit('update:modelValue', $event)">
-    <v-card title="Replace balance">
+    <v-card title="Swap balance">
       <v-card-text>
         <div class="text-body-2 mb-3">
           Move value from <strong>{{ source?.accountName }}</strong>
           ({{ source?.currencyCode ?? "USD" }}) to another cash account.
         </div>
         <v-select v-model="sourceId" :items="sources" item-title="accountName" item-value="accountId" placeholder="From" variant="outlined" density="comfortable" class="mb-2" />
-        <v-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" placeholder="Replace with" variant="outlined" density="comfortable" class="mb-2" />
+        <v-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" placeholder="Swap with" variant="outlined" density="comfortable" class="mb-2" />
         <v-text-field v-model.number="amount" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01" variant="outlined" density="comfortable" />
         <div v-if="destination && preview?.valid" class="text-caption text-medium-emphasis">
           Destination receives {{ formatBalance(preview.destinationReceivesCents, destination.currencyCode ?? "USD", currencies, roundingMode) }}
@@ -19,7 +19,7 @@
       <v-card-actions>
         <v-spacer />
         <v-btn variant="text" @click="$emit('update:modelValue', false)">Cancel</v-btn>
-        <v-btn color="primary" :loading="saving" :disabled="!valid" @click="save">Replace</v-btn>
+        <v-btn color="primary" :loading="saving" :disabled="!valid" @click="save">Swap</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

@@ -11,7 +11,6 @@
     <div class="pin-heading">
       <h1 id="pin-title">Enter PIN</h1>
       <p v-if="locked">Too many attempts. Try again in {{ lockSeconds }}s</p>
-      <p v-else-if="error" class="pin-error" role="alert">{{ error }}</p>
     </div>
 
     <div class="pin-dots" :class="{ 'pin-dots--error': error }" aria-label="PIN entry">
@@ -71,7 +70,8 @@
 
     <div class="pin-status" aria-live="polite">
       <v-progress-circular v-if="loading" indeterminate size="22" width="2" />
-      <span v-else-if="!locked && attempts > 0">
+      <span v-else-if="!locked && error" class="pin-error" role="alert">{{ error }}</span>
+      <span v-if="!locked && attempts > 0">
         {{ 3 - attempts }} {{ 3 - attempts === 1 ? "attempt" : "attempts" }} remaining
       </span>
     </div>
@@ -209,10 +209,6 @@ onBeforeUnmount(() => {
   font-size: 0.9rem;
 }
 
-.pin-heading .pin-error {
-  color: rgb(var(--v-theme-error));
-}
-
 .pin-dots {
   height: 24px;
   margin: 18px 0 28px;
@@ -283,10 +279,16 @@ onBeforeUnmount(() => {
 }
 
 .pin-status {
-  height: 24px;
+  min-height: 24px;
   margin-top: 18px;
   color: rgba(var(--v-theme-on-surface), 0.55);
   font-size: 0.8rem;
+}
+
+.pin-status .pin-error {
+  display: block;
+  margin-bottom: 4px;
+  color: rgb(var(--v-theme-error));
 }
 
 @media (max-width: 440px), (max-height: 700px) {
