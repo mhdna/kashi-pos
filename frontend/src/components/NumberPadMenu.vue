@@ -6,18 +6,32 @@
     offset="6"
   >
     <template #activator="{ props: activatorProps }">
-      <slot name="activator" :props="activatorProps" :open="open">
+      <slot
+        name="activator"
+        :props="keyboardMode ? {} : activatorProps"
+        :open="open"
+        :set-ref="setActivatorRef"
+        :on-keydown="onKeydown"
+        :on-focus="onFocus"
+        :on-blur="onBlur"
+        :on-click="onClick"
+        :keyboard-mode="keyboardMode"
+      >
         <button
-          ref="activator"
-          v-bind="activatorProps"
+          :ref="setActivatorRef"
+          v-bind="keyboardMode ? {} : activatorProps"
           :aria-label="ariaLabel"
-          :class="{ 'number-pad-activator--error': tone === 'error' }"
+          :class="{
+            'number-pad-activator--error': tone === 'error',
+            'number-pad-activator--keyboard': keyboardMode,
+          }"
           :disabled="disabled"
           class="number-pad-activator"
           type="button"
-          @keydown.enter.stop.prevent="open = true"
-          @keydown.up.stop.prevent="navigate(-1)"
-          @keydown.down.stop.prevent="navigate(1)"
+          @click="onClick"
+          @keydown="onKeydown"
+          @focus="onFocus"
+          @blur="onBlur"
         >
           <span v-if="prefix" class="number-pad-affix">{{ prefix }}</span>
           <span>{{ modelValue }}</span>
@@ -74,7 +88,14 @@
 </template>
 
 <script setup lang="ts">
-import { inject, onBeforeUnmount, ref, watch, type Ref } from "vue";
+import {
+  inject,
+  onBeforeUnmount,
+  ref,
+  watch,
+  type ComponentPublicInstance,
+  type Ref,
+} from "vue";
 
 const props = withDefaults(
   defineProps<{
@@ -91,6 +112,10 @@ const props = withDefaults(
     tone?: "default" | "error";
     allowDecimal?: boolean;
     decimalPlaces?: number;
+    // When true, the popup never opens - the activator just takes focus and
+    // digit/backspace/arrow keys edit the value directly, for the invoice
+    // list's keyboard mode.
+    keyboardMode?: boolean;
   }>(),
   {
     min: 0,
@@ -105,6 +130,7 @@ const props = withDefaults(
     tone: "default",
     allowDecimal: false,
     decimalPlaces: 2,
+    keyboardMode: false,
   },
 );
 
@@ -112,15 +138,20 @@ const emit = defineEmits<{
   "update:modelValue": [value: string | number];
   commit: [value: string | number];
   navigate: [direction: -1 | 1];
+  "navigate-h": [direction: -1 | 1];
 }>();
 
 const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const open = ref(false);
 const draft = ref("");
 const replaceOnInput = ref(true);
-const activator = ref<HTMLButtonElement | null>(null);
+const activatorEl = ref<HTMLElement | null>(null);
 const dialogOpen = inject<Ref<boolean> | null>("dialogOpen", null);
 let previousDialogState = false;
+
+function setActivatorRef(element: Element | ComponentPublicInstance | null) {
+  activatorEl.value = (element as HTMLElement | null) ?? null;
+}
 
 watch(open, (value) => {
   if (value) {
@@ -187,13 +218,103 @@ function apply() {
   open.value = false;
 }
 
+// WKWebView (the Wails webview on macOS) doesn't give a <button> keyboard
+// focus on mouse click the way other browsers do - only Tab does - so
+// keyboard mode has to focus it explicitly here.
+function onClick(event: MouseEvent) {
+  if (props.keyboardMode) (event.currentTarget as HTMLElement | null)?.focus();
+}
+
 function navigate(direction: -1 | 1) {
-  if (open.value) apply();
+  // In keyboard mode the popup never opens, so draft is seeded on focus
+  // instead - it's always safe to apply it here.
+  if (open.value || props.keyboardMode) apply();
   emit("navigate", direction);
 }
 
+function navigateHorizontal(direction: -1 | 1) {
+  if (open.value || props.keyboardMode) apply();
+  emit("navigate-h", direction);
+}
+
+function onFocus() {
+  if (!props.keyboardMode) return;
+  draft.value = String(props.modelValue);
+  replaceOnInput.value = true;
+}
+
+function onBlur() {
+  if (props.keyboardMode) apply();
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (props.keyboardMode) {
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      appendDigit(event.key);
+      return;
+    }
+    if (event.key === "." && props.allowDecimal) {
+      event.preventDefault();
+      appendDecimal();
+      return;
+    }
+    if (event.key === "Backspace") {
+      event.preventDefault();
+      backspace();
+      return;
+    }
+    if (event.key === "Delete") {
+      event.preventDefault();
+      clear();
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      apply();
+      return;
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      navigateHorizontal(-1);
+      return;
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      navigateHorizontal(1);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      navigate(-1);
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      navigate(1);
+      return;
+    }
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    open.value = true;
+    return;
+  }
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    navigate(-1);
+    return;
+  }
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    navigate(1);
+    return;
+  }
+}
+
 function focus() {
-  activator.value?.focus();
+  activatorEl.value?.focus();
 }
 
 onBeforeUnmount(() => {
@@ -234,6 +355,12 @@ defineExpose({ focus });
 
 .number-pad-activator--error {
   color: rgb(var(--v-theme-error));
+}
+
+.number-pad-activator--keyboard:focus {
+  background: rgba(var(--v-theme-primary), 0.14);
+  outline: 2px solid rgba(var(--v-theme-primary), 0.5);
+  outline-offset: 1px;
 }
 
 .number-pad-affix,

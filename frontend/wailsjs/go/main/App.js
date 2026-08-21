@@ -450,6 +450,10 @@ export function SetExchangeWindowHours(arg1) {
   return window['go']['main']['App']['SetExchangeWindowHours'](arg1);
 }
 
+export function SetInvoiceKeyboardModeEnabled(arg1) {
+  return window['go']['main']['App']['SetInvoiceKeyboardModeEnabled'](arg1);
+}
+
 export function SetPageUnlocked(arg1, arg2) {
   return window['go']['main']['App']['SetPageUnlocked'](arg1, arg2);
 }

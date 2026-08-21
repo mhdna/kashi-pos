@@ -226,6 +226,8 @@ export function SetDiscountListItem(arg1:number,arg2:string,arg3:number):Promise
 
 export function SetExchangeWindowHours(arg1:number):Promise<void>;
 
+export function SetInvoiceKeyboardModeEnabled(arg1:boolean):Promise<void>;
+
 export function SetPageUnlocked(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;

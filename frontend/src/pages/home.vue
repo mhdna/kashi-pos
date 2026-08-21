@@ -92,6 +92,7 @@
         :custom-prices-enabled="customItemPricesEnabled && canEditPricing"
         :per-unit-prices-enabled="perUnitItemPricesEnabled && canEditPricing"
         :price-change-mode="priceChangeMode"
+        :keyboard-mode="invoiceKeyboardModeEnabled"
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
       />
@@ -235,6 +236,7 @@ const customItemDiscountsEnabled = ref(false);
 const customItemPricesEnabled = ref(false);
 const perUnitItemPricesEnabled = ref(false);
 const priceChangeManualOverrideEnabled = ref(false);
+const invoiceKeyboardModeEnabled = ref(false);
 const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
 );
@@ -487,8 +489,17 @@ function hasBlockingUi() {
   );
 }
 
+// True while a keyboard-mode qty/discount/price field is focused - typing
+// into one mutates the DOM (the live value re-renders), which would
+// otherwise trigger the MutationObserver below and steal focus back to the
+// barcode field mid-keystroke.
+function keyboardFieldFocused() {
+  const active = document.activeElement;
+  return active instanceof HTMLElement && Boolean(active.closest(".invoice-items"));
+}
+
 function focusBarcodeWhenIdle(attempt = 0) {
-  if (hasBlockingUi()) {
+  if (hasBlockingUi() || keyboardFieldFocused()) {
     if (attempt < 20) requestAnimationFrame(() => focusBarcodeWhenIdle(attempt + 1));
     return;
   }
@@ -507,7 +518,11 @@ function onBlur() {
     if (
       active instanceof HTMLElement &&
       (active.matches("input, textarea, select, [contenteditable='true']") ||
-        Boolean(active.closest("[role='dialog'], [role='menu'], .v-overlay__content")))
+        Boolean(
+          active.closest(
+            "[role='dialog'], [role='menu'], .v-overlay__content, .invoice-items",
+          ),
+        ))
     ) {
       return;
     }
@@ -871,6 +886,7 @@ onMounted(async () => {
     customItemPricesEnabled.value = Boolean(settings?.customItemPricesEnabled);
     perUnitItemPricesEnabled.value = Boolean(settings?.perUnitItemPricesEnabled);
     priceChangeManualOverrideEnabled.value = Boolean(settings?.priceChangeManualOverrideEnabled);
+    invoiceKeyboardModeEnabled.value = Boolean(settings?.invoiceKeyboardModeEnabled);
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
   } catch {}

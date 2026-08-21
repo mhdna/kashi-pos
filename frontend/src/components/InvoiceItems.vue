@@ -22,32 +22,39 @@
           <div class="invoice-item-actions d-flex align-center">
             <div class="invoice-qty-control">
               <NumberPadMenu
+                :ref="(element) => setFieldRef(index, 'qty', element)"
                 :model-value="item.qty"
                 :disabled="readonly || item.locked || item.qty < 0"
                 :min="1"
                 :max="999"
                 aria-label="Edit item quantity"
                 prefix="Qty"
+                :keyboard-mode="keyboardMode"
                 @update:model-value="(value) => setQuantity(item, Number(value))"
+                @navigate="(direction) => moveVertical(index, 'qty', direction)"
+                @navigate-h="(direction) => moveHorizontal(index, 'qty', direction)"
               />
             </div>
             <div class="invoice-discount-control">
               <NumberPadMenu
                 v-if="customDiscountsEnabled && !readonly && !item.locked && item.qty > 0"
-                :ref="(element) => setDiscountInput(index, element)"
+                :ref="(element) => setFieldRef(index, 'discount', element)"
                 :model-value="item.discount"
                 aria-label="Item discount percentage"
                 :min="0"
                 :max="100"
                 suffix="%"
                 tone="error"
+                :keyboard-mode="keyboardMode"
                 @update:model-value="(value) => setDraftDiscount(item, value)"
                 @commit="persistDiscount(item)"
-                @navigate="(direction) => saveAndMove(item, index, direction)"
+                @navigate="(direction) => moveFromDiscount(item, index, direction)"
+                @navigate-h="(direction) => moveFromDiscountH(item, index, direction)"
               />
             </div>
             <NumberPadMenu
               v-if="customPricesEnabled && !readonly && !item.locked && item.qty > 0"
+              :ref="(element) => setFieldRef(index, 'price', element)"
               :model-value="
                 (priceChangeMode === 'discount' ? effectiveUnitPrice(item) : item.price).toFixed(2)
               "
@@ -57,15 +64,34 @@
               :max="999999.99"
               :max-length="9"
               prefix="$"
+              :keyboard-mode="keyboardMode"
               @update:model-value="(value) => setDraftPrice(item, value)"
+              @navigate="(direction) => moveVertical(index, 'price', direction)"
+              @navigate-h="(direction) => moveHorizontal(index, 'price', direction)"
             >
-              <template #activator="{ props: activatorProps }">
+              <template
+                #activator="{
+                  props: activatorProps,
+                  setRef,
+                  onKeydown,
+                  onFocus,
+                  onBlur,
+                  onClick,
+                  keyboardMode: fieldKeyboardMode,
+                }"
+              >
                 <button
                   v-bind="activatorProps"
+                  :ref="setRef"
                   class="invoice-price-editor invoice-price-control d-flex flex-column align-end"
+                  :class="{ 'invoice-price-editor--keyboard': fieldKeyboardMode }"
                   type="button"
                   aria-label="Set custom item price"
                   title="Set custom item price"
+                  @click="onClick"
+                  @keydown="onKeydown"
+                  @focus="onFocus"
+                  @blur="onBlur"
                 >
                   <span class="invoice-price-value">
                     <v-icon
@@ -281,12 +307,16 @@ const props = defineProps<{
   // from the line's original price, so a price change is always expressed
   // as a discount. "override": price and discount are edited independently.
   priceChangeMode?: "override" | "discount";
+  // When true, clicking a line's qty/discount/price focuses it instead of
+  // opening the number-pad popup, and arrow keys move focus between fields.
+  keyboardMode?: boolean;
 }>();
 const readonly = computed(() => props.readonly ?? false);
 const customDiscountsEnabled = computed(() => props.customDiscountsEnabled ?? false);
 const customPricesEnabled = computed(() => props.customPricesEnabled ?? false);
 const perUnitPricesEnabled = computed(() => props.perUnitPricesEnabled ?? false);
 const priceChangeMode = computed(() => props.priceChangeMode ?? "discount");
+const keyboardMode = computed(() => props.keyboardMode ?? false);
 
 function effectiveUnitPrice(item: LineItem): number {
   const discount = Math.min(100, Math.max(0, Number(item.discount) || 0));
@@ -366,7 +396,8 @@ function iconFor(category: string): string {
 const items = ref<LineItem[]>([]);
 const savedDiscounts = new Map<string, number>();
 const pendingDiscounts = new Map<string, Promise<boolean>>();
-const discountInputs = new Map<number, { focus: () => void }>();
+type FieldColumn = "qty" | "discount" | "price";
+const fieldRefs = new Map<string, { focus: () => void }>();
 const invoiceScroll = ref<HTMLElement | null>(null);
 const detailsDialog = ref(false);
 const detailItem = ref<LineItem | null>(null);
@@ -538,12 +569,31 @@ function unitDiscount(item: LineItem, index: number): number {
   return Number(item.unitDiscounts?.[index] ?? item.discount);
 }
 
-function setDiscountInput(index: number, element: Element | ComponentPublicInstance | null) {
+function setFieldRef(
+  index: number,
+  column: FieldColumn,
+  element: Element | ComponentPublicInstance | null,
+) {
+  const key = `${index}:${column}`;
   if (element && "focus" in element && typeof element.focus === "function") {
-    discountInputs.set(index, element as { focus: () => void });
+    fieldRefs.set(key, element as { focus: () => void });
   } else {
-    discountInputs.delete(index);
+    fieldRefs.delete(key);
   }
+}
+
+// Which of qty/discount/price are editable (and thus keyboard-navigable) on
+// a given line, in on-screen left-to-right order.
+function columnsForItem(item: LineItem): FieldColumn[] {
+  const columns: FieldColumn[] = [];
+  if (!readonly.value && !item.locked && item.qty >= 0) columns.push("qty");
+  if (customDiscountsEnabled.value && !readonly.value && !item.locked && item.qty > 0) {
+    columns.push("discount");
+  }
+  if (customPricesEnabled.value && !readonly.value && !item.locked && item.qty > 0) {
+    columns.push("price");
+  }
+  return columns;
 }
 
 function setDraftDiscount(item: LineItem, value: unknown) {
@@ -640,14 +690,44 @@ function persistDiscount(item: LineItem): Promise<boolean> {
   return request;
 }
 
-async function saveAndMove(item: LineItem, index: number, direction: -1 | 1) {
-  await persistDiscount(item);
-  const target = index + direction;
-  if (target < 0 || target >= items.value.length) return;
-
-  invoiceScroll.value?.children[target]?.scrollIntoView({ block: "nearest" });
+async function focusField(index: number, column: FieldColumn) {
+  invoiceScroll.value?.children[index]?.scrollIntoView({ block: "nearest" });
   await nextTick();
-  requestAnimationFrame(() => discountInputs.get(target)?.focus());
+  requestAnimationFrame(() => fieldRefs.get(`${index}:${column}`)?.focus());
+}
+
+function moveHorizontal(index: number, column: FieldColumn, direction: -1 | 1) {
+  const item = items.value[index];
+  if (!item) return;
+  const columns = columnsForItem(item);
+  const targetIndex = columns.indexOf(column) + direction;
+  const target = columns[targetIndex];
+  if (target === undefined) return;
+  focusField(index, target);
+}
+
+// Walks rows in `direction` until one has `column` editable - a locked or
+// zero-qty line simply has no discount/price field to land on.
+function moveVertical(index: number, column: FieldColumn, direction: -1 | 1) {
+  let target = index + direction;
+  while (target >= 0 && target < items.value.length) {
+    const item = items.value[target];
+    if (item && columnsForItem(item).includes(column)) {
+      focusField(target, column);
+      return;
+    }
+    target += direction;
+  }
+}
+
+async function moveFromDiscount(item: LineItem, index: number, direction: -1 | 1) {
+  await persistDiscount(item);
+  moveVertical(index, "discount", direction);
+}
+
+async function moveFromDiscountH(item: LineItem, index: number, direction: -1 | 1) {
+  await persistDiscount(item);
+  moveHorizontal(index, "discount", direction);
 }
 
 async function flushChanges(): Promise<boolean> {
@@ -801,5 +881,11 @@ defineExpose({
 .invoice-price-editor:focus-visible {
   background: rgba(var(--v-theme-primary), 0.09);
   outline: none;
+}
+
+.invoice-price-editor--keyboard:focus {
+  background: rgba(var(--v-theme-primary), 0.14);
+  outline: 2px solid rgba(var(--v-theme-primary), 0.5);
+  outline-offset: 1px;
 }
 </style>

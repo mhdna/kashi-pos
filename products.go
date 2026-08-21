@@ -13,6 +13,7 @@ const (
 	customItemPricesFlag          = "custom_item_prices"
 	perUnitItemPricesFlag         = "per_unit_item_prices"
 	priceChangeManualOverrideFlag = "price_change_manual_override_mode"
+	invoiceKeyboardModeFlag       = "invoice_keyboard_mode"
 )
 
 type ProductPage struct {

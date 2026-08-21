@@ -663,6 +663,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["priceChangeManualOverrideEnabled"] = false
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, invoiceKeyboardModeFlag); flagErr == nil {
+		result["invoiceKeyboardModeEnabled"] = enabled != 0
+	} else {
+		result["invoiceKeyboardModeEnabled"] = false
+	}
 	if config, configErr := a.GetAttendanceConfig(); configErr == nil {
 		result["attendance"] = config
 	}
@@ -708,6 +713,19 @@ func (a *App) SetPriceChangeManualOverrideEnabled(enabled bool) error {
 	}
 	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: priceChangeManualOverrideFlag, Enabled: boolInt(enabled),
+	})
+}
+
+// SetInvoiceKeyboardModeEnabled toggles keyboard mode for the current
+// invoice's item list. Enabled, clicking a line's qty/discount/price no
+// longer opens the number-pad popup - it just focuses the value so digits
+// can be typed directly, and arrow keys move focus between fields.
+func (a *App) SetInvoiceKeyboardModeEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: invoiceKeyboardModeFlag, Enabled: boolInt(enabled),
 	})
 }
 

@@ -756,6 +756,36 @@
           <v-card class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-avatar color="primary" variant="tonal" size="36">
+                <v-icon icon="mdi-keyboard" size="20" />
+              </v-avatar>
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Invoice keyboard mode</div>
+                <div class="text-caption text-medium-emphasis">
+                  Edit qty/discount/price on the invoice by clicking a value and typing digits,
+                  instead of opening the number pad.
+                </div>
+              </div>
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.invoiceKeyboardModeEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Enable keyboard mode"
+                @update:model-value="setInvoiceKeyboardModeEnabled"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                With keyboard mode on, clicking qty, discount, or price focuses it - type a
+                number to set it, then use the arrow keys to move to the next field. Click the
+                barcode field to return focus there.
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <v-card class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36">
                 <v-icon icon="mdi-lock-outline" size="20" />
               </v-avatar>
               <div>
@@ -1080,6 +1110,7 @@ import {
   SetCustomItemPricesEnabled,
   SetPerUnitItemPricesEnabled,
   SetPriceChangeManualOverrideEnabled,
+  SetInvoiceKeyboardModeEnabled,
   SetPageUnlocked,
   UpdateDefaultOpeningFloat,
   SetAutoCloseStaleShiftsEnabled,
@@ -1210,6 +1241,7 @@ const form = reactive({
   customItemPricesEnabled: false,
   perUnitItemPricesEnabled: false,
   priceChangeManualOverrideEnabled: false,
+  invoiceKeyboardModeEnabled: false,
   adminEnabled: false,
   adminListen: "127.0.0.1:8787",
   adminToken: "",
@@ -1713,6 +1745,7 @@ async function loadSettings() {
         customItemPricesEnabled: Boolean(s.customItemPricesEnabled),
         perUnitItemPricesEnabled: Boolean(s.perUnitItemPricesEnabled),
         priceChangeManualOverrideEnabled: Boolean(s.priceChangeManualOverrideEnabled),
+        invoiceKeyboardModeEnabled: Boolean(s.invoiceKeyboardModeEnabled),
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
@@ -1828,6 +1861,22 @@ async function setPriceChangeManualOverrideEnabled(value: boolean | null) {
   } catch {
     form.priceChangeManualOverrideEnabled = previous;
     notify("Failed to update price change mode", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setInvoiceKeyboardModeEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.invoiceKeyboardModeEnabled;
+  form.invoiceKeyboardModeEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetInvoiceKeyboardModeEnabled(enabled);
+    notify(`Invoice keyboard mode ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.invoiceKeyboardModeEnabled = previous;
+    notify("Failed to update invoice keyboard mode", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
