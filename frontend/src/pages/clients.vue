@@ -1,6 +1,6 @@
 <template>
   <div class="clients-page pa-4">
-    <v-card class="client-list-card">
+    <div class="client-list-layout">
       <div :key="listKey" class="client-list" @scroll.passive="handleScroll">
         <v-list density="compact">
           <v-list-item
@@ -75,10 +75,10 @@
           autofocus
         />
       </div>
-      <v-card-text class="client-inline-keyboard">
+      <div class="client-inline-keyboard">
         <InlineKeyboard v-model="search" :max-length="80" layout="code" />
-      </v-card-text>
-    </v-card>
+      </div>
+    </div>
   </div>
 
   <v-dialog v-model="accountOpen" max-width="820">
@@ -194,7 +194,14 @@
     <v-card>
       <v-card-title>Edit client</v-card-title>
       <v-card-text>
-        <v-text-field v-model="editForm.name" placeholder="Name" variant="outlined" autofocus />
+        <v-text-field
+          v-model="editForm.name"
+          placeholder="Name"
+          variant="outlined"
+          autofocus
+          @keydown="preventClientNameNumber"
+          @beforeinput="preventClientNameNumberInput"
+        />
         <v-text-field v-model="editForm.phone" placeholder="Phone" variant="outlined" />
       </v-card-text>
       <v-card-actions>
@@ -246,7 +253,13 @@ import {
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { useAuthStore } from "@/stores/auth";
-import { formatLoyaltyPoints, loyaltyTier, loyaltyTierColor } from "@/lib/client";
+import {
+  formatLoyaltyPoints,
+  loyaltyTier,
+  loyaltyTierColor,
+  preventClientNameNumber,
+  preventClientNameNumberInput,
+} from "@/lib/client";
 import { formatUsd } from "@/lib/format";
 import { formatLebanesePhone } from "@/lib/phone";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
@@ -495,7 +508,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .clients-page {
   display: flex;
-  justify-content: center;
+  width: 100%;
 }
 
 .client-search-control {
@@ -506,11 +519,10 @@ onBeforeUnmount(() => {
   padding: 12px 16px;
 }
 
-.client-list-card {
+.client-list-layout {
   display: flex;
   flex-direction: column;
   height: 620px;
-  max-width: 760px;
   width: 100%;
 }
 

@@ -28,6 +28,14 @@ export function anonymousClient(): Client {
   return toClient({ id: 0, name: "Anonymous", phone: "", tier: "None" });
 }
 
+export function preventClientNameNumber(event: KeyboardEvent): void {
+  if (/^\p{N}$/u.test(event.key)) event.preventDefault();
+}
+
+export function preventClientNameNumberInput(event: InputEvent): void {
+  if (event.data && /\p{N}/u.test(event.data)) event.preventDefault();
+}
+
 function initials(name: string): string {
   return name
     .split(" ")

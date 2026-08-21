@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 640 : 620">
+  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 320 : 620">
     <v-card v-if="step === 'phone'">
       <v-card-title class="font-weight-bold">Enter Phone Number</v-card-title>
       <v-card-text class="client-phone-layout">
@@ -39,33 +39,24 @@
               </v-list-item>
             </template>
           </v-autocomplete>
-          <v-text-field
-            :model-value="formatLebanesePhone(phone)"
-            :placeholder="`Phone Number (+${selectedDialCode})`"
-            variant="outlined"
-            density="compact"
-            autofocus
-            maxlength="15"
-            :error-messages="phoneError"
-            @keydown.enter="lookupPhone"
-            @update:model-value="phone = $event.replace(/\D/g, '')"
-          />
-          <v-btn
-            class="w-100 mb-4"
-            variant="elevated"
-            color="primary"
-            :disabled="!phone.trim()"
-            @click="lookupPhone"
-          >
-            Continue
-          </v-btn>
-          <v-btn class="w-100" variant="tonal" @click="selectAnonymous"> Prefer not to say </v-btn>
-        </div>
-
-        <div class="client-phone-numpad">
+          <div class="client-phone-numpad">
           <div class="client-phone-numpad-display">
-            <span class="client-phone-numpad-prefix">+{{ selectedDialCode }}</span>
-            <span>{{ formatLebanesePhone(phone) || "0" }}</span>
+            <input
+              ref="phoneInput"
+              class="client-phone-numpad-display-input"
+              :value="phone"
+              placeholder="0"
+              inputmode="tel"
+              maxlength="15"
+              autofocus
+              aria-label="Phone number"
+              @keydown.enter="lookupPhone"
+              @keydown="preventPhoneLength"
+              @beforeinput="preventPhoneLengthInput"
+              @keydown.backspace="removePhoneAtCursor"
+              @keydown.delete="removePhoneAtCursor($event, 'forward')"
+              @input="handlePhoneInput"
+            />
           </div>
           <div class="client-phone-numpad-grid">
             <v-btn
@@ -105,6 +96,18 @@
               ⌫
             </v-btn>
           </div>
+          </div>
+          <div v-if="phoneError" class="text-error text-caption text-center mt-2">{{ phoneError }}</div>
+          <v-btn
+            class="w-100 mt-4"
+            variant="elevated"
+            color="primary"
+            :disabled="!phone.trim()"
+            @click="lookupPhone"
+          >
+            Continue
+          </v-btn>
+          <v-btn class="w-100 mt-2" variant="tonal" @click="selectAnonymous"> Prefer not to say </v-btn>
         </div>
       </v-card-text>
     </v-card>
@@ -138,6 +141,8 @@
           density="compact"
           maxlength="80"
           autofocus
+          @keydown="preventClientNameNumber"
+          @beforeinput="preventClientNameNumberInput"
           @keydown.enter="createClient"
         />
         <!-- <div class="text-caption text-medium-emphasis mt-n1"> -->
@@ -161,7 +166,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, inject, watch, computed } from "vue";
+import { ref, reactive, inject, watch, computed, nextTick } from "vue";
 import {
   getCountries,
   getCountryCallingCode,
@@ -169,7 +174,13 @@ import {
   type CountryCode,
 } from "libphonenumber-js/min";
 import { GetClientByPhone, CreateClient } from "../../wailsjs/go/main/App";
-import { anonymousClient, toClient, type Client } from "@/lib/client";
+import {
+  anonymousClient,
+  preventClientNameNumber,
+  preventClientNameNumberInput,
+  toClient,
+  type Client,
+} from "@/lib/client";
 import { formatLebanesePhone } from "@/lib/phone";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
@@ -183,6 +194,7 @@ watch(dialog, (v) => {
 
 const step = ref<"phone" | "new">("phone");
 const phone = ref("");
+const phoneInput = ref<HTMLInputElement | null>(null);
 const phoneSubmitted = ref(false);
 const selectedCountry = ref<CountryCode>("LB");
 const newClient = reactive({ name: "", phone: "" });
@@ -199,11 +211,17 @@ const countries = getCountries()
   .sort((a, b) => a.name.localeCompare(b.name));
 const selectedFlag = computed(() => flagForCountry(selectedCountry.value));
 const selectedDialCode = computed(() => getCountryCallingCode(selectedCountry.value));
+const phoneDigitLimit = computed(() => (selectedCountry.value === "LB" ? 8 : 15));
 const phoneError = computed(() =>
   phoneSubmitted.value && phone.value.trim() && !normalizePhone(phone.value)
     ? "Enter a valid phone number"
     : "",
 );
+
+watch([dialog, step], ([open, currentStep]) => {
+  if (!open || currentStep !== "phone") return;
+  void nextTick(() => phoneInput.value?.focus());
+});
 
 watch([phone, selectedCountry], () => {
   phoneSubmitted.value = false;
@@ -225,9 +243,37 @@ function normalizePhone(value: string) {
 }
 
 function appendPhoneDigit(digit: string) {
-  if (phone.value.length >= 15) return;
-  phone.value += digit;
+  const input = phoneInput.value;
+  const rawPhone = phone.value.replace(/\D/g, "");
+  const start = input?.selectionStart ?? rawPhone.length;
+  const end = input?.selectionEnd ?? start;
+  if (rawPhone.length - (end - start) >= phoneDigitLimit.value) return;
+  phone.value = rawPhone.slice(0, start) + digit + rawPhone.slice(end);
   phoneSubmitted.value = false;
+  restorePhoneCaret(start + 1);
+}
+
+function preventPhoneLength(event: KeyboardEvent) {
+  if (!/^\p{N}$/u.test(event.key)) return;
+  const input = event.target as HTMLInputElement;
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? start;
+  const selectedDigits = (input.value.slice(start, end).match(/\d/g) || []).length;
+  const currentDigits = phone.value.replace(/\D/g, "").length;
+  if (currentDigits - selectedDigits >= phoneDigitLimit.value) event.preventDefault();
+}
+
+function preventPhoneLengthInput(event: InputEvent) {
+  if (!event.data || !/\p{N}/u.test(event.data)) return;
+  const input = event.target as HTMLInputElement;
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? start;
+  const selectedDigits = (input.value.slice(start, end).match(/\d/g) || []).length;
+  const insertedDigits = (event.data.match(/\d/g) || []).length;
+  const currentDigits = phone.value.replace(/\D/g, "").length;
+  if (currentDigits - selectedDigits + insertedDigits > phoneDigitLimit.value) {
+    event.preventDefault();
+  }
 }
 
 function clearPhone() {
@@ -236,8 +282,72 @@ function clearPhone() {
 }
 
 function backspacePhone() {
-  phone.value = phone.value.slice(0, -1);
+  const input = phoneInput.value;
+  if (!input) return;
+  removePhoneAtCursor({
+    target: input,
+    preventDefault() {},
+    stopPropagation() {},
+  } as unknown as KeyboardEvent);
+}
+
+function handlePhoneInput(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const caret = input.selectionStart ?? input.value.length;
+  const digitsBeforeCaret = (input.value.slice(0, caret).match(/\d/g) || []).length;
+  phone.value = input.value.replace(/\D/g, "");
   phoneSubmitted.value = false;
+  restorePhoneCaret(digitsBeforeCaret);
+}
+
+function removePhoneAtCursor(
+  event: KeyboardEvent,
+  direction: "backward" | "forward" = "backward",
+) {
+  event.preventDefault();
+  event.stopPropagation();
+  const input = event.target as HTMLInputElement;
+  const value = input.value;
+  const start = input.selectionStart ?? value.length;
+  const end = input.selectionEnd ?? start;
+  const digitsBeforeStart = (value.slice(0, start).match(/\d/g) || []).length;
+  const digitsBeforeEnd = (value.slice(0, end).match(/\d/g) || []).length;
+  const rawPhone = phone.value.replace(/\D/g, "");
+  let removeStart = digitsBeforeStart;
+  let removeEnd = digitsBeforeEnd;
+  let caretDigitIndex = digitsBeforeStart;
+
+  if (start === end) {
+    if (direction === "backward") {
+      if (digitsBeforeStart === 0) return;
+      removeStart = digitsBeforeStart - 1;
+      removeEnd = digitsBeforeStart;
+      caretDigitIndex = removeStart;
+    } else {
+      if (digitsBeforeStart >= rawPhone.length) return;
+      removeEnd = digitsBeforeStart + 1;
+    }
+  }
+
+  phone.value = rawPhone.slice(0, removeStart) + rawPhone.slice(removeEnd);
+  phoneSubmitted.value = false;
+  restorePhoneCaret(caretDigitIndex);
+}
+
+function restorePhoneCaret(digitIndex: number) {
+  void nextTick(() => {
+    const input = phoneInput.value;
+    if (!input) return;
+    input.focus();
+    const formatted = phone.value;
+    let position = 0;
+    let digitsSeen = 0;
+    while (position < formatted.length && digitsSeen < digitIndex) {
+      if (/\d/.test(formatted[position])) digitsSeen++;
+      position++;
+    }
+    input.setSelectionRange(position, position);
+  });
 }
 
 async function lookupPhone() {
@@ -335,18 +445,19 @@ function reset() {
 }
 
 .client-phone-layout {
-  display: grid;
-  gap: 20px;
-  grid-template-columns: minmax(0, 1fr) 176px;
+  display: flex;
+  justify-content: center;
 }
 
 .client-phone-form {
+  width: 100%;
   min-width: 0;
+  max-width: 280px;
 }
 
 .client-phone-numpad {
-  align-self: start;
-  width: 176px;
+  margin-top: 24px;
+  width: 100%;
 }
 
 .client-phone-numpad-display {
@@ -355,15 +466,27 @@ function reset() {
   font-size: var(--kashi-font-size-2xl);
   font-weight: 700;
   justify-content: center;
+  margin-bottom: 12px;
   min-height: 40px;
   overflow: hidden;
 }
 
-.client-phone-numpad-prefix {
-  font-size: var(--kashi-font-size-xs);
-  font-weight: 600;
-  margin-inline-end: 4px;
-  opacity: 0.7;
+.client-phone-numpad-display-input {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  flex: 0 1 auto;
+  font: inherit;
+  min-width: 0;
+  outline: 0;
+  padding: 0;
+  text-align: center;
+  width: 150px;
+}
+
+.client-phone-numpad-display-input::placeholder {
+  color: inherit;
+  opacity: 0.55;
 }
 
 .client-phone-numpad-grid {
@@ -373,7 +496,7 @@ function reset() {
 }
 
 .client-phone-numpad-key {
-  font-size: var(--kashi-font-size-base);
+  font-size: var(--kashi-font-size-xl);
   height: 36px;
   min-width: 0;
   padding: 0;
