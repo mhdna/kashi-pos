@@ -12,27 +12,33 @@
           </div>
           <div class="d-flex flex-column align-end">
             <div class="d-flex">
-              <v-menu v-model="noteMenu" :close-on-content-click="false" location="bottom end">
-                <template #activator="{ props }">
-                  <v-btn v-bind="props" icon size="small" variant="text" aria-label="Invoice note">
-                    <v-icon icon="mdi-note-text-outline" size="20" />
-                  </v-btn>
-                </template>
-                <v-card class="pa-3" min-width="280">
-                  <v-textarea
-                    v-model="noteDraft"
-                    auto-grow
-                    density="compact"
-                    hide-details
-                    placeholder="Add a note"
-                    rows="3"
-                    variant="outlined"
-                  />
-                  <div class="d-flex justify-end mt-2">
-                    <v-btn color="primary" variant="tonal" @click="saveNote">Add</v-btn>
-                  </div>
+              <v-btn icon size="small" variant="text" aria-label="Invoice note" @click="openNoteDialog">
+                <v-icon icon="mdi-note-text-outline" size="20" />
+              </v-btn>
+              <v-dialog v-model="noteDialog" max-width="620">
+                <v-card>
+                  <v-card-title>Add a note</v-card-title>
+                  <v-card-text>
+                    <v-textarea
+                      ref="noteInput"
+                      v-model="noteDraft"
+                      auto-grow
+                      autofocus
+                      hide-details
+                      placeholder="Add a note"
+                      rows="3"
+                      variant="outlined"
+                      @keydown.ctrl.enter="saveNote"
+                    />
+                    <InlineKeyboard v-model="noteDraft" :max-length="500" class="mt-3" />
+                  </v-card-text>
+                  <v-card-actions class="pa-4">
+                    <v-spacer />
+                    <v-btn variant="text" @click="noteDialog = false">Cancel</v-btn>
+                    <v-btn color="primary" variant="elevated" @click="saveNote">Add</v-btn>
+                  </v-card-actions>
                 </v-card>
-              </v-menu>
+              </v-dialog>
               <v-btn
                 v-if="pageMode !== 'sale'"
                 color="red-darken-2"
@@ -190,6 +196,7 @@ import ActionBar from "@/components/ActionBar.vue";
 import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
+import InlineKeyboard from "@/components/InlineKeyboard.vue";
 // import InvoiceSummary from "@/components/InvoiceSummary.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
@@ -205,7 +212,15 @@ import {
 } from "@/composables/useNavActions";
 
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
-type InvoiceDraft = { items: any[]; client: Client; notes?: string };
+type InvoiceDraft = {
+  items: any[];
+  client: Client;
+  notes?: string;
+  // Set only while an exchange is in progress, so an unfinished exchange
+  // (returned lines locked in, replacements maybe scanned) survives an app
+  // restart or logout/login instead of silently reverting to a normal sale.
+  exchangeOriginalInvoiceId?: number;
+};
 const { selectedSalesperson, pulseSalesperson } = useSalesperson();
 let pageActive = true;
 
@@ -223,7 +238,7 @@ const branchName = ref("Store");
 const screenPort = ref("");
 const invoiceCode = ref("Loading invoice code…");
 const invoiceNotes = ref("");
-const noteMenu = ref(false);
+const noteDialog = ref(false);
 const noteDraft = ref("");
 const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
 const settlementState = ref<{
@@ -278,6 +293,7 @@ const canCheckout = computed(() => {
 
 const barcodeValue = ref("");
 const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
+const noteInput = ref<InstanceType<typeof import("vuetify/components").VTextarea> | null>(null);
 const dialogOpen = ref(false);
 let overlayObserver: MutationObserver | undefined;
 let overlayFocusTimer: ReturnType<typeof setTimeout> | undefined;
@@ -293,8 +309,10 @@ watch(dialogOpen, (v) => {
   if (!v) focusBarcodeWhenIdle();
 });
 
-watch(noteMenu, (open) => {
-  if (open) noteDraft.value = invoiceNotes.value;
+watch(noteDialog, (open) => {
+  if (!open) return;
+  noteDraft.value = invoiceNotes.value;
+  void nextTick(() => noteInput.value?.focus());
 });
 
 watch(pendingHoldInvoice, () => consumePendingHold());
@@ -302,10 +320,12 @@ watch(pendingExchangeSelection, () => void consumePendingExchange());
 watch(pendingSettlementInvoice, () => void consumePendingSettlement());
 
 watch(
-  [() => invoiceItems.value?.items, () => actionBar.value?.client, invoiceNotes],
+  [() => invoiceItems.value?.items, () => actionBar.value?.client, invoiceNotes, exchangeState],
   ([items, client]) => {
-    if (restoringDraft || !client) return;
-    if (!items?.length && client.id === 0) {
+    // Settlement mode's cart is a frozen snapshot of one specific invoice,
+    // not a draft sale - it must never be persisted/restored as one.
+    if (restoringDraft || !client || settlementState.value) return;
+    if (!items?.length && client.id === 0 && !exchangeState.value) {
       localStorage.removeItem(INVOICE_DRAFT_KEY);
       return;
     }
@@ -315,6 +335,7 @@ watch(
         items: items ?? [],
         client,
         notes: invoiceNotes.value,
+        exchangeOriginalInvoiceId: exchangeState.value?.originalInvoiceId,
       } satisfies InvoiceDraft),
     );
   },
@@ -388,16 +409,26 @@ watch(
   { deep: true, immediate: true },
 );
 
-function restoreDraft() {
+async function restoreDraft() {
   try {
     const draft = JSON.parse(
       localStorage.getItem(INVOICE_DRAFT_KEY) || "null",
     ) as InvoiceDraft | null;
     if (!draft) return;
-    for (const item of draft.items ?? []) invoiceItems.value?.addItem({ ...item });
+    // Assigned directly (bypassing addItem's scan-one-unit-at-a-time merge,
+    // which clamps qty to a minimum of 1) so a locked, negative-qty returned
+    // line from an in-progress exchange restores exactly as it was, instead
+    // of being corrupted into a positive qty-1 line.
+    if (invoiceItems.value) {
+      invoiceItems.value.items = (draft.items ?? []).map((item) => ({ ...item }));
+    }
     if (draft.client?.id) actionBar.value?.setClient(draft.client);
     invoiceNotes.value = draft.notes ?? "";
     noteDraft.value = invoiceNotes.value;
+    if (draft.exchangeOriginalInvoiceId) {
+      exchangeState.value = { originalInvoiceId: draft.exchangeOriginalInvoiceId };
+      await refreshNextInvoiceCode("exchange");
+    }
   } catch {
     localStorage.removeItem(INVOICE_DRAFT_KEY);
   } finally {
@@ -416,15 +447,20 @@ function clearInvoice() {
   // invoice still replaces this below with the salesperson saved on that hold.
   invoiceNotes.value = "";
   noteDraft.value = "";
-  noteMenu.value = false;
+  noteDialog.value = false;
   clearDraft();
   actionBar.value?.resetClient();
 }
 
 function saveNote() {
   invoiceNotes.value = noteDraft.value.trim();
-  noteMenu.value = false;
+  noteDialog.value = false;
   focusBarcode();
+}
+
+function openNoteDialog() {
+  noteDraft.value = invoiceNotes.value;
+  noteDialog.value = true;
 }
 
 function focusBarcode() {
@@ -809,7 +845,7 @@ onMounted(async () => {
     childList: true,
     subtree: true,
   });
-  restoreDraft();
+  await restoreDraft();
   consumePendingHold();
   await consumePendingExchange();
   await consumePendingSettlement();
@@ -839,7 +875,10 @@ onMounted(async () => {
   }
   if (!pageActive) return;
   showCustomerTotal();
-  await refreshNextInvoiceCode("sales");
+  // A restored exchange draft (or a pending hold/exchange/settlement
+  // consumed above) already set the invoice code for its own mode - don't
+  // clobber it back to a plain "sales" code.
+  if (pageMode.value === "sale") await refreshNextInvoiceCode("sales");
 });
 
 onBeforeUnmount(() => {
