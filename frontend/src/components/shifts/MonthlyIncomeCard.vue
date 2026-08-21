@@ -79,13 +79,6 @@
                 <span class="font-weight-bold me-2">{{
                   formatBalance(shift.total, "USD", currencies, roundingMode)
                 }}</span>
-                <!-- <span -->
-                <!--   v-if="shift.isClosed && shift.priceDeduction" -->
-                <!--   class="text-caption text-red-darken-2 me-2" -->
-                <!--   title="Total reduction from custom prices" -->
-                <!-- > -->
-                <!--   Price deductions: {{ formatBalance(-shift.priceDeduction, "USD", exchangeRate) }} -->
-                <!-- </span> -->
                 <v-btn
                   v-if="isAdmin && shift.isClosed"
                   icon="mdi-printer-outline"

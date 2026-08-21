@@ -46,11 +46,3 @@ func (a *App) ClearScreen(port string) error {
 	_, _ = p.Write([]byte{0x1B, 0x40})
 	return nil
 }
-
-func (a *App) WriteAndClearScreen(port string, total string) error {
-	if err := a.WriteToScreen(port, total); err != nil {
-		return err
-	}
-	time.Sleep(time.Second)
-	return a.ClearScreen(port)
-}

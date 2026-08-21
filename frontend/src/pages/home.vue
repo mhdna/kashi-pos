@@ -96,11 +96,6 @@
         @discount-error="showDiscountError"
       />
       <QuickAccessPanel v-if="pageMode !== 'settlement'" @add="(item) => invoiceItems?.addItem(item)" />
-      <!-- <InvoiceSummary
-        :subtotal="invoiceItems?.subtotal ?? 0"
-        :total-discount="invoiceItems?.totalDiscount ?? 0"
-        :tax-rate="taxRate"
-      /> -->
     </div>
     <div class="home-right-pane d-flex position-relative" style="flex: 5 5 0; min-width: 0">
       <div
@@ -201,7 +196,6 @@ import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
-// import InvoiceSummary from "@/components/InvoiceSummary.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import SalespersonsDialog from "@/components/SalespersonsDialog.vue";

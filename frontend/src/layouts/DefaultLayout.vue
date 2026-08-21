@@ -1,5 +1,4 @@
 <template>
-  <!-- <AppBar /> -->
   <NavDrawer />
   <v-main class="app-main">
     <router-view />
@@ -18,7 +17,6 @@
 import { nextTick, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { GetAppSettings } from "../../wailsjs/go/main/App";
-import AppBar from "@/components/AppBar.vue";
 import NavDrawer from "@/components/NavDrawer.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";

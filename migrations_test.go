@@ -226,17 +226,6 @@ func assertFeatureFlagEnabled(t *testing.T, conn *sql.DB, key string, want bool)
 	}
 }
 
-func assertFeatureFlagAbsent(t *testing.T, conn *sql.DB, key string) {
-	t.Helper()
-	var count int
-	if err := conn.QueryRow("SELECT count(*) FROM feature_flags WHERE key = ?", key).Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-	if count != 0 {
-		t.Fatalf("feature flag %q unexpectedly seeded on an upgraded database", key)
-	}
-}
-
 func TestLookupIndexesAreRepairedForCurrentDatabase(t *testing.T) {
 	conn := openTestDatabase(t)
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {

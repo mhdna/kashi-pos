@@ -276,36 +276,6 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 }
 
-func (a *App) VerifyLogin(username, password string) (map[string]interface{}, error) {
-	if a.store == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	user, err := a.store.GetUserByUsername(a.ctx, username)
-	if err != nil {
-		return nil, fmt.Errorf("user not found")
-	}
-	if user.PasswordHash != hashPassword(password) {
-		return nil, fmt.Errorf("wrong password")
-	}
-	if user.Active == 0 {
-		return nil, fmt.Errorf("account disabled")
-	}
-
-	role, err := a.store.GetRoleByID(a.ctx, user.RoleID)
-	if err != nil {
-		return nil, fmt.Errorf("role not found")
-	}
-	if err := a.closeStaleOpenShifts(); err != nil {
-		log.Printf("close stale open shifts after login: %v", err)
-	}
-
-	return map[string]interface{}{
-		"id":       user.ID,
-		"username": user.Username,
-		"role":     role.Name,
-	}, nil
-}
-
 // VerifyPIN authenticates the temporary role PINs used by the touch login screen.
 // Keeping the PIN check here prevents the credentials from being shipped in the
 // frontend bundle. Replace this with per-user PIN storage when user PIN management
@@ -740,38 +710,6 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		ReceiptEnabled:   boolInt(receiptEnabled),
 		SalesInventoryID: salesInventoryID,
 		ExchangeRate:     exchangeRate, MaxOverpaymentCents: maxOverpaymentCents, ExchangeWindowHours: current.ExchangeWindowHours,
-		MarketName: current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
-		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, SocialPlatforms: current.SocialPlatforms, SocialHandles: current.SocialHandles, ReceiptFont: current.ReceiptFont,
-		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
-		ReceiptBodyFont: current.ReceiptBodyFont, BranchPhone: current.BranchPhone, CounterNumber: current.CounterNumber,
-	})
-}
-
-func (a *App) SetTaxRate(rate float64) error {
-	if a.store == nil {
-		return fmt.Errorf("database not initialized")
-	}
-	current, err := a.store.GetSettings(a.ctx)
-	if err != nil {
-		return err
-	}
-	return a.store.UpdateSettings(a.ctx, db.UpdateSettingsParams{
-		BranchName:       current.BranchName,
-		BranchCode:       current.BranchCode,
-		ApiKey:           current.ApiKey,
-		PrinterID:        current.PrinterID,
-		PrinterSize:      current.PrinterSize,
-		ReceiptPrinter:   current.ReceiptPrinter,
-		ScreenPort:       current.ScreenPort,
-		ReceiptWidth:     current.ReceiptWidth,
-		ReceiptHeight:    current.ReceiptHeight,
-		Theme:            current.Theme,
-		TaxRate:          rate,
-		RoundingMode:     current.RoundingMode,
-		RoundingCurrency: current.RoundingCurrency,
-		ReceiptEnabled:   current.ReceiptEnabled,
-		SalesInventoryID: current.SalesInventoryID,
-		ExchangeRate:     current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents, ExchangeWindowHours: current.ExchangeWindowHours,
 		MarketName: current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
 		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, SocialPlatforms: current.SocialPlatforms, SocialHandles: current.SocialHandles, ReceiptFont: current.ReceiptFont,
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,

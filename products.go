@@ -61,27 +61,6 @@ func (a *App) GetProductByCode(code string) (map[string]any, error) {
 	return productMap(product, overrides), nil
 }
 
-func (a *App) ListProducts() ([]map[string]any, error) {
-	if a.store == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-
-	products, err := a.store.ListProducts(a.ctx)
-	if err != nil {
-		return nil, err
-	}
-	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]map[string]any, len(products))
-	for i, p := range products {
-		result[i] = productMap(p, overrides)
-	}
-	return result, nil
-}
-
 func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")

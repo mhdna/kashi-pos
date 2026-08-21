@@ -38,10 +38,6 @@ export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }
 
-export function CheckoutAdminReturnInvoice(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['CheckoutAdminReturnInvoice'](arg1, arg2, arg3, arg4, arg5);
-}
-
 export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
@@ -174,10 +170,6 @@ export function GetDatabaseStatus() {
   return window['go']['main']['App']['GetDatabaseStatus']();
 }
 
-export function GetDefaultCurrency() {
-  return window['go']['main']['App']['GetDefaultCurrency']();
-}
-
 export function GetExchangeInvoice(arg1) {
   return window['go']['main']['App']['GetExchangeInvoice'](arg1);
 }
@@ -242,16 +234,8 @@ export function ListCategoryIcons() {
   return window['go']['main']['App']['ListCategoryIcons']();
 }
 
-export function ListClients() {
-  return window['go']['main']['App']['ListClients']();
-}
-
 export function ListClientsCursor(arg1, arg2, arg3) {
   return window['go']['main']['App']['ListClientsCursor'](arg1, arg2, arg3);
-}
-
-export function ListClientsPage(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['ListClientsPage'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function ListCouponTypes() {
@@ -282,14 +266,6 @@ export function ListInventories() {
   return window['go']['main']['App']['ListInventories']();
 }
 
-export function ListInventoryItems(arg1) {
-  return window['go']['main']['App']['ListInventoryItems'](arg1);
-}
-
-export function ListInvoices() {
-  return window['go']['main']['App']['ListInvoices']();
-}
-
 export function ListInvoicesFilteredPage(arg1, arg2, arg3) {
   return window['go']['main']['App']['ListInvoicesFilteredPage'](arg1, arg2, arg3);
 }
@@ -312,10 +288,6 @@ export function ListPriceLists() {
 
 export function ListPrinters() {
   return window['go']['main']['App']['ListPrinters']();
-}
-
-export function ListProducts() {
-  return window['go']['main']['App']['ListProducts']();
 }
 
 export function ListProductsCursor(arg1, arg2, arg3) {
@@ -348,10 +320,6 @@ export function ListSerialPorts() {
 
 export function ListShiftBalances(arg1) {
   return window['go']['main']['App']['ListShiftBalances'](arg1);
-}
-
-export function ListShifts() {
-  return window['go']['main']['App']['ListShifts']();
 }
 
 export function ListTransfers() {
@@ -486,10 +454,6 @@ export function SetPriceListItem(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetPriceListItem'](arg1, arg2, arg3);
 }
 
-export function SetTaxRate(arg1) {
-  return window['go']['main']['App']['SetTaxRate'](arg1);
-}
-
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
@@ -570,10 +534,6 @@ export function UpdateUserAttendanceID(arg1, arg2) {
   return window['go']['main']['App']['UpdateUserAttendanceID'](arg1, arg2);
 }
 
-export function VerifyLogin(arg1, arg2) {
-  return window['go']['main']['App']['VerifyLogin'](arg1, arg2);
-}
-
 export function VerifyPIN(arg1) {
   return window['go']['main']['App']['VerifyPIN'](arg1);
 }
@@ -584,10 +544,6 @@ export function VoidInvoice(arg1, arg2) {
 
 export function WaitUntilReady() {
   return window['go']['main']['App']['WaitUntilReady']();
-}
-
-export function WriteAndClearScreen(arg1, arg2) {
-  return window['go']['main']['App']['WriteAndClearScreen'](arg1, arg2);
 }
 
 export function WriteToScreen(arg1, arg2) {

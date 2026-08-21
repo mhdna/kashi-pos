@@ -25,30 +25,6 @@ func (a *App) ListInventories() ([]map[string]any, error) {
 	return result, nil
 }
 
-func (a *App) ListInventoryItems(inventoryID int64) ([]map[string]any, error) {
-	if a.store == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	items, err := a.store.ListInventoryItems(a.ctx, inventoryID)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]map[string]any, len(items))
-	for i, item := range items {
-		product, _ := a.store.GetProductByID(a.ctx, item.ProductID)
-		name := ""
-		if product.Name != "" {
-			name = product.Name
-		}
-		result[i] = map[string]any{
-			"productId":   item.ProductID,
-			"productName": name,
-			"quantity":    item.Quantity,
-		}
-	}
-	return result, nil
-}
-
 func (a *App) ListTransfers() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
@@ -68,110 +44,6 @@ func (a *App) ListTransfers() ([]map[string]any, error) {
 		}
 	}
 	return result, nil
-}
-
-func (a *App) ListClients() ([]map[string]any, error) {
-	if a.store == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	list, err := a.store.ListClients(a.ctx)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]map[string]any, len(list))
-	for i, c := range list {
-		balanceValue, balanceErr := a.store.GetClientAccountBalance(a.ctx, c.ID)
-		if balanceErr != nil {
-			return nil, fmt.Errorf("client %s account balance: %w", c.Name, balanceErr)
-		}
-		result[i] = map[string]any{
-			"id":                 c.ID,
-			"name":               c.Name,
-			"phone":              c.Phone,
-			"totalLoyaltyPoints": c.TotalLoyaltyPoints,
-			"validLoyaltyPoints": c.ValidLoyaltyPoints,
-			"createdAt":          c.CreatedAt,
-			"accountBalance":     databaseInt64(balanceValue),
-		}
-	}
-	return result, nil
-}
-
-func (a *App) ListClientsPage(search string, page, perPage int64, sortKey, sortOrder string) (map[string]any, error) {
-	if a.store == nil || a.conn == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	search = strings.TrimSpace(search)
-	if len(search) > 80 {
-		search = search[:80]
-	}
-	if page < 1 {
-		page = 1
-	}
-	if perPage < 1 {
-		perPage = 10
-	} else if perPage > 100 {
-		perPage = 100
-	}
-	sortColumns := map[string]string{
-		"name": "lower(c.name)", "phone": "c.phone",
-		"totalLoyaltyPoints": "c.total_loyalty_points",
-		"validLoyaltyPoints": "c.valid_loyalty_points",
-		"createdAt":          "c.id",
-	}
-	sortColumn, ok := sortColumns[sortKey]
-	if !ok {
-		sortColumn = "c.created_at"
-	}
-	if sortOrder != "asc" && sortOrder != "desc" {
-		sortOrder = "desc"
-	}
-
-	var total int64
-	var err error
-	if search == "" {
-		total, err = a.store.CountClients(a.ctx)
-	} else {
-		total, err = a.store.CountClientsPage(a.ctx, search)
-	}
-	if err != nil {
-		return nil, err
-	}
-	query := `WITH selected_clients AS (
-		SELECT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at
-		FROM clients c
-		WHERE trim(?) = '' OR c.name LIKE '%' || ? || '%' COLLATE NOCASE OR c.phone LIKE '%' || ? || '%'
-		ORDER BY ` + sortColumn + ` ` + sortOrder + `, c.id DESC LIMIT ? OFFSET ?
-	)
-	SELECT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at,
-		CAST(COALESCE(SUM(cae.amount - COALESCE((
-			SELECT SUM(cap.amount) FROM client_account_payments cap WHERE cap.invoice_id = cae.invoice_id
-		), 0)), 0) AS INTEGER) AS account_balance
-	FROM selected_clients c
-	LEFT JOIN client_account_entries cae ON cae.client_id = c.id
-	GROUP BY c.id
-	ORDER BY ` + sortColumn + ` ` + sortOrder + `, c.id DESC`
-	rows, err := a.conn.QueryContext(a.ctx, query, search, search, search, perPage, (page-1)*perPage)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := make([]map[string]any, 0, perPage)
-	for rows.Next() {
-		var id, totalPoints, validPoints, balance int64
-		var name, phone, createdAt string
-		if err := rows.Scan(&id, &name, &phone, &totalPoints, &validPoints, &createdAt, &balance); err != nil {
-			return nil, err
-		}
-		items = append(items, map[string]any{
-			"id": id, "name": name, "phone": phone, "totalLoyaltyPoints": totalPoints,
-			"validLoyaltyPoints": validPoints, "createdAt": createdAt, "accountBalance": balance,
-		})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return map[string]any{"items": items, "total": total}, nil
 }
 
 // ClientCursorPage is a count-free, keyset-paginated slice of clients. Fetching
@@ -242,26 +114,6 @@ func (a *App) ListClientsCursor(afterID int64, limit int, search string) (Client
 		nextCursor = rows[len(rows)-1].ID
 	}
 	return ClientCursorPage{Items: items, NextCursor: nextCursor, HasMore: hasMore}, nil
-}
-
-func (a *App) ListShifts() ([]map[string]any, error) {
-	if a.store == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	list, err := a.store.ListShifts(a.ctx)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]map[string]any, len(list))
-	for i, s := range list {
-		result[i] = map[string]any{
-			"id":        s.ID,
-			"isClosed":  s.IsClosed,
-			"createdAt": toLocalTime(s.CreatedAt),
-			"closedAt":  toLocalTime(s.ClosedAt),
-		}
-	}
-	return result, nil
 }
 
 // openingFloatCentsForShift converts a specific shift's own opening float
@@ -455,31 +307,6 @@ func (a *App) checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, 
 func isNonCashBalanceAccount(name string) bool {
 	name = strings.TrimSpace(name)
 	return strings.EqualFold(name, "On Account") || strings.EqualFold(name, "On Coupon")
-}
-
-func (a *App) ListInvoices() ([]map[string]any, error) {
-	if a.store == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	list, err := a.store.ListInvoices(a.ctx)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]map[string]any, len(list))
-	for i, inv := range list {
-		result[i] = map[string]any{
-			"id":              inv.ID,
-			"cashboxId":       inv.CashboxID,
-			"invoiceCode":     inv.InvoiceCode,
-			"clientId":        inv.ClientID,
-			"subtotal":        inv.Subtotal,
-			"discountedTotal": inv.DiscountedTotal,
-			"grandTotal":      inv.GrandTotal,
-			"createdAt":       inv.CreatedAt,
-			"salespersonId":   inv.SalespersonID,
-		}
-	}
-	return result, nil
 }
 
 type InvoicePage struct {

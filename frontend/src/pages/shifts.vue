@@ -1,7 +1,5 @@
 <template>
   <div class="shifts-page d-flex flex-column h-100">
-    <!-- <ShiftSummaryCard :open-shift="openShift" @close="closeDialog = true" /> -->
-
     <div class="shifts-cards d-flex">
       <ShiftIncomeCard
         :items="shiftIncome"
@@ -35,42 +33,26 @@
         @print-shift="printClosedShift"
       />
     </div>
-
-    <CloseShiftDialog
-      v-model="closeDialog"
-      :open-shift="openShift"
-      :close-balances="closeBalances"
-      :shift-income-total="currentShiftTotal"
-      :salespersons="salespersons"
-      :closing="closing"
-      @confirm="doCloseShift"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import {
-  CloseShiftByID,
   GetCurrentShiftIncomeByAccount,
   GetCurrentMonth,
   GetOpenShift,
   GetShiftTotals,
   ListShiftBalances,
   ListPaymentMethods,
-  ListSalespersons,
-  OpenShift,
   PrintClosedShiftReceipt,
 } from "../../wailsjs/go/main/App";
-import CloseShiftDialog from "@/components/shifts/CloseShiftDialog.vue";
 import MonthlyIncomeCard from "@/components/shifts/MonthlyIncomeCard.vue";
-import ShiftSummaryCard from "@/components/shifts/ShiftSummaryCard.vue";
 import ShiftIncomeCard from "@/components/shifts/ShiftIncomeCard.vue";
 import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
 import type { Balance, DayRow, IncomeRow, PaymentMethod, Shift } from "@/types/shifts";
 import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
-const salespersons = ref<Array<{ id: number; fullName: string }>>([]);
 const paymentMethods = ref<PaymentMethod[]>([]);
 
 const openShift = ref<Shift | null>(null);
@@ -199,42 +181,8 @@ async function loadBalances(shiftId: number) {
   }
 }
 
-const closeDialog = ref(false);
 const closeBalances = ref<Balance[]>([]);
 const todayIncome = ref<IncomeRow[]>([]);
-const closing = ref(false);
-
-async function doCloseShift(
-  closingPersonId: number,
-  countedLbp: number,
-  countedVisa: number,
-  countedWhish: number,
-  usdBreakdownJson: string,
-) {
-  if (!openShift.value) return;
-
-  closing.value = true;
-  try {
-    const result = await CloseShiftByID(
-      openShift.value.id,
-      closingPersonId,
-      countedLbp,
-      countedVisa,
-      countedWhish,
-      usdBreakdownJson,
-    );
-    if (result?.receiptError) {
-      window.alert(`Shift closed, but the receipt could not be printed: ${result.receiptError}`);
-    }
-    await OpenShift();
-    closeDialog.value = false;
-    await refresh();
-  } catch (error) {
-    console.error("close shift:", error);
-  } finally {
-    closing.value = false;
-  }
-}
 
 async function refresh() {
   loadingShift.value = true;
@@ -281,12 +229,6 @@ function refreshIncome() {
 
 onMounted(async () => {
   window.addEventListener(INCOME_CHANGED_EVENT, refreshIncome);
-  try {
-    salespersons.value =
-      ((await ListSalespersons()) as Array<{ id: number; fullName: string }>) ?? [];
-  } catch {
-    salespersons.value = [];
-  }
   try {
     paymentMethods.value = ((await ListPaymentMethods()) as PaymentMethod[]).filter(
       (method) => !/^(on account|on coupon)$/i.test(method.name.trim()),

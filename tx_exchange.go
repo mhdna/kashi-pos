@@ -163,13 +163,6 @@ func signedAdjustmentTax(netDifference int64, taxRate float64, roundingMode stri
 	return tax, nil
 }
 
-// CheckoutAdminReturnInvoice is the privileged admin entry point. It uses the
-// same transaction and validation as POS exchanges, but intentionally bypasses
-// the customer-facing time and value restrictions.
-func (a *App) CheckoutAdminReturnInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, salespersonID int64, notes string) (map[string]any, error) {
-	return a.checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON, originalInvoiceID, salespersonID, notes, 0, exchangePolicy{allowLate: true, allowLowerTotal: true, returnOnly: true})
-}
-
 func (a *App) checkoutAdminReturnInvoice(itemsJSON string, originalInvoiceID, salespersonID, settlementAccountID int64, notes string) (map[string]any, error) {
 	return a.checkoutReturnExchangeInvoice(itemsJSON, "", originalInvoiceID, salespersonID, notes, settlementAccountID, exchangePolicy{allowLate: true, allowLowerTotal: true, returnOnly: true})
 }

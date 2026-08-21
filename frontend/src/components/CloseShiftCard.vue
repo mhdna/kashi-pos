@@ -10,7 +10,6 @@
           >
             <span>
               {{ b.accountName }}
-              <!-- <small v-if="b.isOnCoupon" class="text-medium-emphasis"> — automatically counted</small> -->
             </span>
             <span class="font-weight-bold">
               {{ formatBalance(b.balance, b.currencyCode ?? "USD", currencies, roundingMode) }}
@@ -30,7 +29,20 @@
         density="comfortable"
         class="mt-4"
       />
-      <!-- <div class="text-subtitle-2 mb-2">USD bill count</div> -->
+      <div class="d-flex justify-end align-center mb-2">
+        <v-btn
+          size="small"
+          variant="tonal"
+          prepend-icon="mdi-autorenew"
+          :loading="autofilling"
+          @click="autofillFromExpected"
+        >
+          Autofill from expected
+        </v-btn>
+      </div>
+      <v-alert v-if="autofillError" type="error" variant="tonal" density="compact" class="mb-3">
+        Autofill failed: {{ autofillError }}
+      </v-alert>
       <div class="usd-bill-grid">
         <NumberPadMenu
           v-for="denomination in usdDenominations"
@@ -39,7 +51,13 @@
           :aria-label="`Count $${denomination} bills`"
           :min="0"
           :max="999"
-          @update:model-value="(value) => (usdBillCounts[denomination] = String(value))"
+          @update:model-value="
+            (value) => {
+              usdBillCounts[denomination] = String(value);
+              autofilledBills[denomination] = false;
+              editedBills[denomination] = true;
+            }
+          "
         >
           <template #activator="{ props: activatorProps }">
             <v-text-field
@@ -53,6 +71,10 @@
               hide-details
               variant="outlined"
               density="compact"
+              :class="{
+                'autofilled-field': autofilledBills[denomination],
+                'manually-edited-field': editedBills[denomination],
+              }"
             />
           </template>
         </NumberPadMenu>
@@ -63,10 +85,17 @@
       </div>
       <div class="counted-lbp-row">
         <NumberPadMenu
-          v-model="countedLbp"
+          :model-value="countedLbp"
           aria-label="Total LBP counted"
           :max="999999999999"
           suffix="LBP"
+          @update:model-value="
+            (value) => {
+              countedLbp = String(value);
+              autofilledLbp = false;
+              editedLbp = true;
+            }
+          "
         >
           <template #activator="{ props: activatorProps }">
             <v-text-field
@@ -79,6 +108,7 @@
               readonly
               variant="outlined"
               density="comfortable"
+              :class="{ 'autofilled-field': autofilledLbp, 'manually-edited-field': editedLbp }"
             />
           </template>
         </NumberPadMenu>
@@ -89,11 +119,18 @@
       </div>
       <div class="electronic-count-grid">
         <NumberPadMenu
-          v-model="countedVisa"
+          :model-value="countedVisa"
           aria-label="Counted Visa"
           allow-decimal
           :max="999999999.99"
           prefix="$"
+          @update:model-value="
+            (value) => {
+              countedVisa = String(value);
+              autofilledVisa = false;
+              editedVisa = true;
+            }
+          "
         >
           <template #activator="{ props: activatorProps }">
             <v-text-field
@@ -106,15 +143,23 @@
               readonly
               variant="outlined"
               density="comfortable"
+              :class="{ 'autofilled-field': autofilledVisa, 'manually-edited-field': editedVisa }"
             />
           </template>
         </NumberPadMenu>
         <NumberPadMenu
-          v-model="countedWhish"
+          :model-value="countedWhish"
           aria-label="Counted Whish"
           allow-decimal
           :max="999999999.99"
           prefix="$"
+          @update:model-value="
+            (value) => {
+              countedWhish = String(value);
+              autofilledWhish = false;
+              editedWhish = true;
+            }
+          "
         >
           <template #activator="{ props: activatorProps }">
             <v-text-field
@@ -127,6 +172,7 @@
               readonly
               variant="outlined"
               density="comfortable"
+              :class="{ 'autofilled-field': autofilledWhish, 'manually-edited-field': editedWhish }"
             />
           </template>
         </NumberPadMenu>
@@ -152,7 +198,7 @@
     <v-card-actions class="pa-2 ga-2">
       <v-btn variant="text" @click="emit('close')">Cancel</v-btn>
       <v-btn
-        color="primary"
+        color="error"
         variant="elevated"
         :loading="closing"
         :disabled="!formValid"
@@ -177,6 +223,7 @@ import {
   ListSalespersons,
   CloseShiftByID,
   OpenShift,
+  GetShiftExpectedTotals,
 } from "../../wailsjs/go/main/App";
 
 const emit = defineEmits(["close"]);
@@ -234,6 +281,75 @@ const formValid = computed(() => {
   );
 });
 
+const autofilling = ref(false);
+const autofillError = ref("");
+const autofilledLbp = ref(false);
+const autofilledVisa = ref(false);
+const autofilledWhish = ref(false);
+const autofilledBills = ref<Record<number, boolean>>(
+  Object.fromEntries(usdDenominations.map((denomination) => [denomination, false])),
+);
+const editedLbp = ref(false);
+const editedVisa = ref(false);
+const editedWhish = ref(false);
+const editedBills = ref<Record<number, boolean>>(
+  Object.fromEntries(usdDenominations.map((denomination) => [denomination, false])),
+);
+
+// Prefills counted fields with the system's live expected totals (from
+// transactions recorded so far) as a starting point - every field stays
+// editable via its NumberPadMenu, since this is only a suggestion, not a
+// substitute for actually counting the drawer.
+async function autofillFromExpected() {
+  if (!shiftId) return;
+  autofilling.value = true;
+  autofillError.value = "";
+  try {
+    const totals = await GetShiftExpectedTotals(shiftId);
+    // Expected can legitimately be negative (e.g. refunds exceeded sales in
+    // that currency this shift) - counted cash can't go negative, so clamp
+    // the suggestion at 0 rather than leaving the field blank, which would
+    // look like autofill did nothing.
+    const expectedLbp = Math.max(0, Math.round(Number(totals.expectedLbp) || 0));
+    const expectedVisaCents = Math.max(0, Math.round(Number(totals.expectedVisa) || 0));
+    const expectedWhishCents = Math.max(0, Math.round(Number(totals.expectedWhish) || 0));
+    countedLbp.value = String(expectedLbp);
+    autofilledLbp.value = true;
+    editedLbp.value = false;
+    countedVisa.value = (expectedVisaCents / 100).toFixed(2);
+    autofilledVisa.value = true;
+    editedVisa.value = false;
+    countedWhish.value = (expectedWhishCents / 100).toFixed(2);
+    autofilledWhish.value = true;
+    editedWhish.value = false;
+    const suggestedBillCounts = (totals.usdBillCounts ?? {}) as Record<string, number>;
+    for (const denomination of usdDenominations) {
+      const count = Number(suggestedBillCounts[String(denomination)] ?? 0);
+      usdBillCounts.value[denomination] = count > 0 ? String(count) : "";
+      autofilledBills.value[denomination] = count > 0;
+      editedBills.value[denomination] = false;
+    }
+  } catch (error) {
+    countedLbp.value = "";
+    autofilledLbp.value = false;
+    editedLbp.value = false;
+    countedVisa.value = "";
+    autofilledVisa.value = false;
+    editedVisa.value = false;
+    countedWhish.value = "";
+    autofilledWhish.value = false;
+    editedWhish.value = false;
+    for (const denomination of usdDenominations) {
+      usdBillCounts.value[denomination] = "";
+      autofilledBills.value[denomination] = false;
+      editedBills.value[denomination] = false;
+    }
+    autofillError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    autofilling.value = false;
+  }
+}
+
 onMounted(async () => {
   try {
     const shift = await GetOpenShift();
@@ -241,6 +357,7 @@ onMounted(async () => {
     const b = await ListShiftBalances(shiftId);
     balanceRows.value = (b as any[]) ?? [];
     salespersons.value = ((await ListSalespersons()) as any[]) ?? [];
+    await autofillFromExpected();
   } catch {}
 });
 
@@ -278,6 +395,14 @@ async function doCloseShift() {
 </script>
 
 <style scoped>
+.autofilled-field :deep(.v-field) {
+  background-color: rgba(255, 235, 59, 0.3);
+}
+
+.manually-edited-field :deep(.v-field) {
+  background-color: rgba(76, 175, 80, 0.25);
+}
+
 .usd-bill-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));

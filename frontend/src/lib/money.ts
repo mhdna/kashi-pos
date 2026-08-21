@@ -31,12 +31,6 @@ function roundHalfEvenSafe(units: number, mode: RoundingMode): number {
   return Math.floor(units + 0.5);
 }
 
-/** Rounds a raw cents-like value (e.g. a tax computation on the fixed
- * accounting currency) to the nearest integer cent - no currency involved. */
-export function roundCents(value: number, mode: RoundingMode): number {
-  return roundHalfEvenSafe(value, mode);
-}
-
 /** Rounds a line-item discount (gross cents x discount percent / 100) the
  * same way the backend's roundRatio does. Previously reimplemented
  * separately (and identically) in InvoiceItems.vue and exchange.ts. */
@@ -65,19 +59,6 @@ export function roundCurrencyUnitsFromCents(cents: number, currency: CurrencyRat
 export function roundCentsFromCurrencyUnits(units: number, currency: CurrencyRate, mode: RoundingMode): number {
   if (!Number.isFinite(units) || units < 0 || currency.unitsPerUsd <= 0) return 0;
   return roundHalfEvenSafe((units * 100) / currency.unitsPerUsd, mode);
-}
-
-/** Round-trips cents -> currency units (rounded) -> cents: the canonical
- * amount when a cash payment in this currency gets rounded at checkout. */
-export function roundCashEquivalentCents(cents: number, currency: CurrencyRate, mode: RoundingMode): number {
-  const sign = cents < 0 ? -1 : 1;
-  const roundedUnits = roundCurrencyUnitsFromCents(Math.abs(cents), currency, mode);
-  return sign * roundCentsFromCurrencyUnits(roundedUnits, currency, mode);
-}
-
-/** Rounds an accounting-cents amount to a currency's cash-rounding grid. */
-export function roundCentsByCurrency(cents: number, currency: CurrencyRate, mode: RoundingMode): number {
-  return roundCashEquivalentCents(cents, currency, mode);
 }
 
 export function isCashRoundedEquivalent(

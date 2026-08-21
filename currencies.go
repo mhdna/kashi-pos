@@ -78,17 +78,6 @@ func (a *App) ListCurrencies() ([]map[string]any, error) {
 	return result, nil
 }
 
-func (a *App) GetDefaultCurrency() (map[string]any, error) {
-	if a.store == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	c, err := a.store.GetDefaultCurrency(a.ctx)
-	if err != nil {
-		return nil, err
-	}
-	return currencyToMap(c), nil
-}
-
 // CreateCurrency adds a new currency a shop can use for cash payment
 // methods and rounding. unitsPerUsd is how many major units of the new
 // currency equal one USD (e.g. 90000 for LBP) - the friendly rate an admin

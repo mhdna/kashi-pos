@@ -145,9 +145,6 @@
           @beforeinput="preventClientNameNumberInput"
           @keydown.enter="createClient"
         />
-        <!-- <div class="text-caption text-medium-emphasis mt-n1"> -->
-        <!--   Please don't use rediculous names like "nonameeeeee", or "ali4738432". -->
-        <!-- </div> -->
         <InlineKeyboard v-model="newClient.name" class="client-name-keyboard mt-3" />
       </v-card-text>
       <v-card-actions class="pa-4">

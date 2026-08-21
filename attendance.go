@@ -288,17 +288,12 @@ func (a *App) collapseAttendanceDuplicates(intervalSeconds int64) (int, error) {
 	return len(remove), nil
 }
 
-func parseAttendanceTime(value string) time.Time { t, _ := time.Parse(time.RFC3339, value); return t }
 func absDuration(a, b time.Time) time.Duration {
 	d := a.Sub(b)
 	if d < 0 {
 		return -d
 	}
 	return d
-}
-
-func attendanceEventMap(e db.AttendanceEvent) map[string]any {
-	return map[string]any{"id": e.ID, "employeeId": e.EmployeeID, "employeeName": e.EmployeeName, "date": e.EventDate, "time": e.EventTime, "eventAt": e.EventAt, "type": e.Type}
 }
 
 func (a *App) ListAttendance(date string) ([]map[string]any, error) {

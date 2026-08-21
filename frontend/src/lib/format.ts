@@ -1,9 +1,5 @@
 import { roundCurrencyUnitsFromCents, type CurrencyRate, type RoundingMode } from "@/lib/money";
 
-export function formatNumber(value: number, maximumFractionDigits = 2): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits });
-}
-
 export function formatUsd(value: number): string {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
