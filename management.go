@@ -735,8 +735,8 @@ func (a *App) GetShiftTotals() ([]map[string]any, error) {
 		result[i] = map[string]any{
 			"id":                  r.ID,
 			"isClosed":            r.IsClosed,
-			"createdAt":           toLocalTime(r.CreatedAt),
-			"closedAt":            toLocalTime(r.ClosedAt),
+			"createdAt":           r.CreatedAt,
+			"closedAt":            r.ClosedAt,
 			"total":               float64(total),
 			"priceDeduction":      databaseInt64(r.PriceDeductions),
 			"countedUsd":          r.CountedUsd,

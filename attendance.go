@@ -339,7 +339,7 @@ func (a *App) SubmitAttendanceComplaint(employeeID int64, date string, originalE
 		changeNote = fmt.Sprintf("Delete %s", originalTime)
 	}
 	_, err := a.conn.ExecContext(a.ctx, `INSERT INTO attendance_change_requests (salesperson_id, attendance_date, original_event_id, original_time, requested_time, requested_type, action, note, status, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`, employeeID, date, originalEventID, originalTime, requestedTime, requestedType, action, changeNote, time.Now().Format(time.RFC3339))
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`, employeeID, date, originalEventID, originalTime, requestedTime, requestedType, action, changeNote, time.Now().UTC().Format("2006-01-02 15:04:05"))
 	return err
 }
 
@@ -406,7 +406,7 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 		}
 		if _, err := a.conn.ExecContext(a.ctx, `INSERT INTO attendance_event_audit
 			(request_id, original_event_id, device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status, action, audited_at, approved_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manager approval')`, id, originalEventID, originalEvent.deviceID, originalEvent.eventID, salespersonID, originalEvent.attendanceUserID, originalEvent.salespersonName, originalEvent.eventDate, originalEvent.eventTime, originalEvent.eventAt, originalEvent.eventType, originalEvent.status, action, time.Now().Format(time.RFC3339)); err != nil {
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manager approval')`, id, originalEventID, originalEvent.deviceID, originalEvent.eventID, salespersonID, originalEvent.attendanceUserID, originalEvent.salespersonName, originalEvent.eventDate, originalEvent.eventTime, originalEvent.eventAt, originalEvent.eventType, originalEvent.status, action, time.Now().UTC().Format("2006-01-02 15:04:05")); err != nil {
 			return err
 		}
 		if originalEventID > 0 {
@@ -437,7 +437,7 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 		if action == "delete" {
 			changedTo = "deleted"
 		}
-		if _, err := a.conn.ExecContext(a.ctx, `UPDATE attendance_change_requests SET changed_from = ?, changed_to = ?, approved_by = 'manager approval', note = ?, reviewed_at = ? WHERE id = ?`, changedFrom, changedTo, fmt.Sprintf("Changed from %s to %s by manager approval", changedFrom, changedTo), time.Now().Format(time.RFC3339), id); err != nil {
+		if _, err := a.conn.ExecContext(a.ctx, `UPDATE attendance_change_requests SET changed_from = ?, changed_to = ?, approved_by = 'manager approval', note = ?, reviewed_at = ? WHERE id = ?`, changedFrom, changedTo, fmt.Sprintf("Changed from %s to %s by manager approval", changedFrom, changedTo), time.Now().UTC().Format("2006-01-02 15:04:05"), id); err != nil {
 			return err
 		}
 	} else {
@@ -445,7 +445,7 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 			return err
 		}
 	}
-	_, err := a.conn.ExecContext(a.ctx, `UPDATE attendance_change_requests SET status = ?, reviewed_at = ? WHERE id = ?`, status, time.Now().Format(time.RFC3339), id)
+	_, err := a.conn.ExecContext(a.ctx, `UPDATE attendance_change_requests SET status = ?, reviewed_at = ? WHERE id = ?`, status, time.Now().UTC().Format("2006-01-02 15:04:05"), id)
 	return err
 }
 

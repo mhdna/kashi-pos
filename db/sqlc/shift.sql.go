@@ -95,7 +95,7 @@ const closeStaleOpenShifts = `-- name: CloseStaleOpenShifts :exec
 UPDATE shifts
 SET is_closed = 1, closed_at = ?
 WHERE is_closed = 0
-  AND date(created_at) < date('now', 'localtime')
+  AND date(created_at, 'localtime') < date('now', 'localtime')
 `
 
 func (q *Queries) CloseStaleOpenShifts(ctx context.Context, closedAt string) error {
@@ -132,7 +132,7 @@ func (q *Queries) CreateCashboxAccount(ctx context.Context, arg CreateCashboxAcc
 
 const createShift = `-- name: CreateShift :one
 INSERT INTO shifts (is_closed, created_at, opening_float_usd, opening_float_lbp)
-VALUES (?, datetime('now', 'localtime'), ?, ?) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp
+VALUES (?, datetime('now'), ?, ?) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp
 `
 
 type CreateShiftParams struct {
@@ -166,8 +166,8 @@ func (q *Queries) CreateShift(ctx context.Context, arg CreateShiftParams) (Shift
 }
 
 const createShiftBalanceReplacement = `-- name: CreateShiftBalanceReplacement :exec
-INSERT INTO shift_balance_replacements (shift_id, from_cashbox_id, to_cashbox_id, amount)
-VALUES (?, ?, ?, ?)
+INSERT INTO shift_balance_replacements (shift_id, from_cashbox_id, to_cashbox_id, amount, created_at)
+VALUES (?, ?, ?, ?, datetime('now'))
 `
 
 type CreateShiftBalanceReplacementParams struct {

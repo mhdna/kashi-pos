@@ -66,8 +66,8 @@
                   {{ shift.isClosed ? "Closed" : "Open" }}
                 </v-chip>
                 <span class="text-caption me-2">#{{ shift.id }}</span>
-                <span class="text-caption me-2">{{ shift.createdAt }}</span>
-                <span v-if="shift.closedAt" class="text-caption me-2">→ {{ shift.closedAt }}</span>
+                <span class="text-caption me-2">{{ formatServerDateTime(shift.createdAt) }}</span>
+                <span v-if="shift.closedAt" class="text-caption me-2">→ {{ formatServerDateTime(shift.closedAt) }}</span>
                 <InitialsAvatar
                   v-if="shift.closedBySalesperson"
                   :name="shift.closedBySalesperson"
@@ -157,6 +157,7 @@
 import { nextTick, ref, watch, type ComponentPublicInstance } from "vue";
 import type { Balance, DayRow, Shift } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
+import { formatServerDateTime } from "@/lib/datetime";
 import { useCurrencies } from "@/composables/useCurrencies";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
 

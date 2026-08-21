@@ -52,6 +52,7 @@ import ShiftIncomeCard from "@/components/shifts/ShiftIncomeCard.vue";
 import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
 import type { Balance, DayRow, IncomeRow, PaymentMethod, Shift } from "@/types/shifts";
 import { useAuthStore } from "@/stores/auth";
+import { serverDateLocalDayKey } from "@/lib/datetime";
 const auth = useAuthStore();
 const paymentMethods = ref<PaymentMethod[]>([]);
 
@@ -84,7 +85,7 @@ const shiftIncome = computed<IncomeRow[]>(() =>
 const dailyRows = computed<DayRow[]>(() => {
   const groups: Record<string, Shift[]> = {};
   for (const shift of allShifts.value) {
-    const day = shiftDayKey(shift.createdAt);
+    const day = serverDateLocalDayKey(shift.createdAt);
     groups[day] ??= [];
     groups[day].push(shift);
   }
@@ -130,12 +131,6 @@ function pad(value: number) {
   return value.toString().padStart(2, "0");
 }
 
-function shiftDayKey(value?: string) {
-  const date = value?.split(" ")[0] ?? "";
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
-  return date || "—";
-}
 
 function toggleDay(day: string) {
   expandedDays.value = expandedDays.value.includes(day)

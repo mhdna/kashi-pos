@@ -1,0 +1,10 @@
+UPDATE shifts SET created_at = datetime(created_at, 'localtime')
+    WHERE created_at IS NOT NULL AND created_at != '';
+UPDATE shifts SET closed_at = datetime(closed_at, 'localtime')
+    WHERE closed_at IS NOT NULL AND closed_at != '';
+UPDATE client_account_entries SET created_at = datetime(created_at, 'localtime')
+    WHERE created_at IS NOT NULL AND created_at != '';
+UPDATE client_account_payments SET created_at = datetime(created_at, 'localtime')
+    WHERE created_at IS NOT NULL AND created_at != '';
+UPDATE shift_balance_replacements SET created_at = datetime(created_at, 'localtime')
+    WHERE created_at IS NOT NULL AND created_at != '';

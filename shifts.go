@@ -14,30 +14,12 @@ import (
 
 const autoCloseStaleShiftsFlag = "auto_close_stale_shifts"
 
-func toLocalTime(s string) string {
-	if s == "" {
-		return ""
-	}
-	layouts := []string{
-		"2006-01-02 15:04:05",
-		"2006-01-02T15:04:05Z07:00",
-		time.RFC3339,
-	}
-	for _, layout := range layouts {
-		t, err := time.ParseInLocation(layout, s, time.Local)
-		if err == nil {
-			return t.Format("02/01/2006 15:04")
-		}
-	}
-	return s
-}
-
 func shiftToMap(s db.Shift) map[string]any {
 	return map[string]any{
 		"id":                    s.ID,
 		"isClosed":              s.IsClosed,
-		"createdAt":             toLocalTime(s.CreatedAt),
-		"closedAt":              toLocalTime(s.ClosedAt),
+		"createdAt":             s.CreatedAt,
+		"closedAt":              s.ClosedAt,
 		"closedBySalespersonId": s.ClosedBySalespersonID,
 		"countedUsd":            s.CountedUsd,
 		"countedLbp":            s.CountedLbp,
@@ -54,7 +36,7 @@ func (a *App) OpenShift() (map[string]any, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 	if err := a.store.CloseOpenShifts(a.ctx, now); err != nil {
 		return nil, fmt.Errorf("close previous shift: %w", err)
 	}
@@ -147,7 +129,7 @@ func (a *App) closeStaleOpenShifts() error {
 	if enabled == 0 {
 		return nil
 	}
-	return a.store.CloseStaleOpenShifts(a.ctx, time.Now().Format("2006-01-02 15:04:05"))
+	return a.store.CloseStaleOpenShifts(a.ctx, time.Now().UTC().Format("2006-01-02 15:04:05"))
 }
 
 func (a *App) SetAutoCloseStaleShiftsEnabled(enabled bool) error {
@@ -180,7 +162,7 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		return nil, err
 	}
 
-	closedAt := time.Now().Format("2006-01-02 15:04:05")
+	closedAt := time.Now().UTC().Format("2006-01-02 15:04:05")
 	printData, receiptEnabled, err := a.buildShiftClosePrintData(
 		id, closingPersonID, countedUSD, countedLBP, countedVisa, countedWhish, usdBillCounts, closedAt,
 		true,
@@ -250,7 +232,7 @@ func (a *App) PrintCurrentCloseShiftSample() (map[string]any, error) {
 
 	printData, _, err := a.buildShiftClosePrintData(
 		shift.ID, salespersons[0].ID, 0, 0, 0, 0, nil,
-		time.Now().Format("2006-01-02 15:04:05"), true,
+		time.Now().UTC().Format("2006-01-02 15:04:05"), true,
 	)
 	if err != nil {
 		return nil, err
@@ -656,11 +638,14 @@ func databaseString(value any) string {
 	}
 }
 
+// formatShiftReportTime renders a stored UTC timestamp in the local
+// timezone for the printed shift receipt - the only place shift times are
+// still shown pre-formatted rather than left for the frontend to convert.
 func formatShiftReportTime(value string) string {
 	value = strings.TrimSpace(value)
 	for _, layout := range []string{"2006-01-02 15:04:05", time.RFC3339Nano, time.RFC3339} {
-		if parsed, err := time.ParseInLocation(layout, value, time.Local); err == nil {
-			return parsed.Format("2006-01-02 15:04")
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed.In(time.Local).Format("2006-01-02 15:04")
 		}
 	}
 	return value

@@ -119,8 +119,8 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Cli
 }
 
 const createClientAccountEntry = `-- name: CreateClientAccountEntry :one
-INSERT INTO client_account_entries (client_id, invoice_id, amount)
-VALUES (?, ?, ?) RETURNING id, client_id, invoice_id, amount, created_at
+INSERT INTO client_account_entries (client_id, invoice_id, amount, created_at)
+VALUES (?, ?, ?, datetime('now')) RETURNING id, client_id, invoice_id, amount, created_at
 `
 
 type CreateClientAccountEntryParams struct {
@@ -143,8 +143,8 @@ func (q *Queries) CreateClientAccountEntry(ctx context.Context, arg CreateClient
 }
 
 const createClientAccountPayment = `-- name: CreateClientAccountPayment :one
-INSERT INTO client_account_payments (invoice_id, cashbox_id, shift_id, amount)
-VALUES (?, ?, ?, ?) RETURNING id, invoice_id, cashbox_id, shift_id, amount, created_at
+INSERT INTO client_account_payments (invoice_id, cashbox_id, shift_id, amount, created_at)
+VALUES (?, ?, ?, ?, datetime('now')) RETURNING id, invoice_id, cashbox_id, shift_id, amount, created_at
 `
 
 type CreateClientAccountPaymentParams struct {

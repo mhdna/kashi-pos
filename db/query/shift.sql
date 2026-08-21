@@ -24,7 +24,7 @@ SELECT * FROM shifts WHERE is_closed = 0 LIMIT 1;
 
 -- name: CreateShift :one
 INSERT INTO shifts (is_closed, created_at, opening_float_usd, opening_float_lbp)
-VALUES (?, datetime('now', 'localtime'), ?, ?) RETURNING *;
+VALUES (?, datetime('now'), ?, ?) RETURNING *;
 
 -- name: UpdateShiftOpeningFloat :one
 UPDATE shifts SET opening_float_usd = ?, opening_float_lbp = ? WHERE id = ? AND is_closed = 0 RETURNING *;
@@ -52,7 +52,7 @@ UPDATE shifts SET is_closed = 1, closed_at = ? WHERE is_closed = 0;
 UPDATE shifts
 SET is_closed = 1, closed_at = ?
 WHERE is_closed = 0
-  AND date(created_at) < date('now', 'localtime');
+  AND date(created_at, 'localtime') < date('now', 'localtime');
 
 -- name: GetAccountByID :one
 SELECT * FROM accounts WHERE id = ?;
@@ -154,5 +154,5 @@ SELECT
     COALESCE((SELECT SUM(net_i.grand_total) FROM invoices AS net_i WHERE net_i.shift_id = sqlc.arg(report_shift_id)), 0) AS net_sales;
 
 -- name: CreateShiftBalanceReplacement :exec
-INSERT INTO shift_balance_replacements (shift_id, from_cashbox_id, to_cashbox_id, amount)
-VALUES (?, ?, ?, ?);
+INSERT INTO shift_balance_replacements (shift_id, from_cashbox_id, to_cashbox_id, amount, created_at)
+VALUES (?, ?, ?, ?, datetime('now'));

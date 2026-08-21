@@ -19,7 +19,7 @@ LEFT JOIN clients c ON c.id = i.client_id
 WHERE (COALESCE(?1, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?1) || '%')
   AND (COALESCE(?2, '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(?2) || '%')
   AND (COALESCE(?3, '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(?3) || '%')
-  AND (COALESCE(?4, '') = '' OR lower(i.created_at) LIKE '%' || lower(?4) || '%')
+  AND (COALESCE(?4, '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(?4) || '%')
   AND (COALESCE(?5, '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(?5, '$', '')) || '%')
   AND (
     COALESCE(?6, '') = ''
@@ -1092,7 +1092,7 @@ LEFT JOIN clients c ON c.id = i.client_id
 WHERE (COALESCE(?1, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?1) || '%')
   AND (COALESCE(?2, '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(?2) || '%')
   AND (COALESCE(?3, '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(?3) || '%')
-  AND (COALESCE(?4, '') = '' OR lower(i.created_at) LIKE '%' || lower(?4) || '%')
+  AND (COALESCE(?4, '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(?4) || '%')
   AND (COALESCE(?5, '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(?5, '$', '')) || '%')
   AND (
     COALESCE(?6, '') = ''

@@ -125,8 +125,8 @@ SELECT COUNT(*) FROM invoice_coupon_payments WHERE coupon_code = ?;
 DELETE FROM coupon_types WHERE id = ?;
 
 -- name: CreateClientAccountEntry :one
-INSERT INTO client_account_entries (client_id, invoice_id, amount)
-VALUES (?, ?, ?) RETURNING *;
+INSERT INTO client_account_entries (client_id, invoice_id, amount, created_at)
+VALUES (?, ?, ?, datetime('now')) RETURNING *;
 
 -- name: GetClientAccountBalance :one
 SELECT COALESCE(SUM(cae.amount - COALESCE(p.paid, 0)), 0) AS balance
@@ -169,8 +169,8 @@ WHERE cae.client_id = ?
 ORDER BY cap.created_at DESC, cap.id DESC;
 
 -- name: CreateClientAccountPayment :one
-INSERT INTO client_account_payments (invoice_id, cashbox_id, shift_id, amount)
-VALUES (?, ?, ?, ?) RETURNING *;
+INSERT INTO client_account_payments (invoice_id, cashbox_id, shift_id, amount, created_at)
+VALUES (?, ?, ?, ?, datetime('now')) RETURNING *;
 
 -- name: UpdateClientAccountOwnerByInvoice :exec
 UPDATE client_account_entries SET client_id = ? WHERE invoice_id = ?;
