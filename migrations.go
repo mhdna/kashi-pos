@@ -107,6 +107,9 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 		if err := ensureShiftExpectedColumns(ctx, conn); err != nil {
 			return err
 		}
+		if err := ensureInvoiceProductSalespersonColumn(ctx, conn); err != nil {
+			return err
+		}
 		return ensureLookupIndexes(ctx, conn)
 	}
 	for _, m := range migrations {
@@ -170,7 +173,32 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 	if err := ensureCurrencyRateColumns(ctx, conn); err != nil {
 		return err
 	}
+	if err := ensureInvoiceProductSalespersonColumn(ctx, conn); err != nil {
+		return err
+	}
 	return ensureLookupIndexes(ctx, conn)
+}
+
+// ensureInvoiceProductSalespersonColumn repairs databases whose migration
+// metadata is current but whose invoice_products table is missing the
+// per-line salesperson column. Queries generated for migration 57 require
+// this column when an invoice is saved.
+func ensureInvoiceProductSalespersonColumn(ctx context.Context, conn *sql.DB) error {
+	var count int
+	if err := conn.QueryRowContext(
+		ctx,
+		"SELECT count(*) FROM pragma_table_info('invoice_products') WHERE name = 'salesperson_id'",
+	).Scan(&count); err != nil {
+		return fmt.Errorf("inspect invoice_products salesperson column: %w", err)
+	}
+	if count != 0 {
+		return nil
+	}
+	if _, err := conn.ExecContext(ctx, "ALTER TABLE invoice_products ADD COLUMN salesperson_id bigint NOT NULL DEFAULT 0"); err != nil {
+		return fmt.Errorf("add invoice_products salesperson_id: %w", err)
+	}
+	log.Println("database migration self-heal: added invoice_products.salesperson_id")
+	return nil
 }
 
 func ensureSalespersonAttendanceColumns(ctx context.Context, conn *sql.DB) error {

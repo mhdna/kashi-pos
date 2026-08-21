@@ -14,6 +14,7 @@ type exchangeLine struct {
 	Qty            int64  `json:"qty"`
 	UnitPriceCents *int64 `json:"unitPriceCents,omitempty"`
 	UnitDiscount   *int64 `json:"unitDiscount,omitempty"`
+	SalespersonID  int64  `json:"salespersonId,omitempty"`
 }
 
 type exchangeRequest struct {
@@ -167,6 +168,11 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 	result.replacements = make([]pricedInvoiceProduct, 0, len(request.replacements))
 
 	for _, line := range request.replacements {
+		if line.SalespersonID > 0 {
+			if _, err := q.GetSalespersonByID(a.ctx, line.SalespersonID); err != nil {
+				return result, fmt.Errorf("salesperson for replacement %s: %w", line.Code, err)
+			}
+		}
 		product, err := q.GetProductByCode(a.ctx, line.Code)
 		if err != nil || product.IsActive == 0 {
 			return result, fmt.Errorf("replacement product %s not found or inactive", line.Code)
@@ -175,6 +181,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		if err != nil {
 			return result, err
 		}
+		priced.salespersonID = line.SalespersonID
 		if result.replacementTotal > math.MaxInt64-priced.lineTotal {
 			return result, fmt.Errorf("replacement total is too large")
 		}

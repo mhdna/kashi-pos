@@ -28,6 +28,25 @@ SELECT * FROM products
 ORDER BY id
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
+-- name: ListProductsAfter :many
+SELECT * FROM products
+WHERE id > sqlc.arg(after_id)
+  AND (
+       name LIKE '%' || sqlc.arg(search) || '%'
+    OR code LIKE '%' || sqlc.arg(search) || '%'
+    OR barcode LIKE '%' || sqlc.arg(search) || '%'
+    OR color LIKE '%' || sqlc.arg(search) || '%'
+    OR size LIKE '%' || sqlc.arg(search) || '%'
+  )
+ORDER BY id
+LIMIT sqlc.arg(limit);
+
+-- name: ListProductsAfterUnfiltered :many
+SELECT * FROM products
+WHERE id > sqlc.arg(after_id)
+ORDER BY id
+LIMIT sqlc.arg(limit);
+
 -- name: CountProducts :one
 SELECT COUNT(*) FROM products
 WHERE name LIKE '%' || sqlc.arg(search) || '%'

@@ -57,16 +57,24 @@ func (a *App) getExchangeInvoice(code string, enforceWindow bool) (map[string]an
 		if err != nil {
 			return nil, err
 		}
+		lineSalespersonName := ""
+		if line.SalespersonID > 0 {
+			if person, personErr := a.store.GetSalespersonByID(a.ctx, line.SalespersonID); personErr == nil {
+				lineSalespersonName = person.FullName
+			}
+		}
 		items = append(items, map[string]any{
-			"productId": product.ID,
-			"code":      product.Code,
-			"barcode":   product.Barcode,
-			"name":      product.Name,
-			"color":     product.Color,
-			"size":      product.Size,
-			"price":     float64(line.UnitPrice) / 100,
-			"discount":  line.Discount,
-			"available": available,
+			"productId":       product.ID,
+			"code":            product.Code,
+			"barcode":         product.Barcode,
+			"name":            product.Name,
+			"color":           product.Color,
+			"size":            product.Size,
+			"price":           float64(line.UnitPrice) / 100,
+			"discount":        line.Discount,
+			"available":       available,
+			"salespersonId":   line.SalespersonID,
+			"salespersonName": lineSalespersonName,
 		})
 	}
 	if len(items) == 0 {

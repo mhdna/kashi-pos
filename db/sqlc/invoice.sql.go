@@ -121,17 +121,18 @@ func (q *Queries) CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoi
 }
 
 const createInvoiceProduct = `-- name: CreateInvoiceProduct :exec
-INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateInvoiceProductParams struct {
-	InvoiceID int64 `json:"invoiceId"`
-	ProductID int64 `json:"productId"`
-	UnitPrice int64 `json:"unitPrice"`
-	LineTotal int64 `json:"lineTotal"`
-	Discount  int64 `json:"discount"`
-	Quantity  int64 `json:"quantity"`
+	InvoiceID     int64 `json:"invoiceId"`
+	ProductID     int64 `json:"productId"`
+	UnitPrice     int64 `json:"unitPrice"`
+	LineTotal     int64 `json:"lineTotal"`
+	Discount      int64 `json:"discount"`
+	Quantity      int64 `json:"quantity"`
+	SalespersonID int64 `json:"salespersonId"`
 }
 
 func (q *Queries) CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error {
@@ -142,6 +143,7 @@ func (q *Queries) CreateInvoiceProduct(ctx context.Context, arg CreateInvoicePro
 		arg.LineTotal,
 		arg.Discount,
 		arg.Quantity,
+		arg.SalespersonID,
 	)
 	return err
 }
@@ -271,7 +273,7 @@ func (q *Queries) GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams
 }
 
 const getInvoiceProduct = `-- name: GetInvoiceProduct :one
-SELECT invoice_id, product_id, unit_price, line_total, discount, quantity FROM invoice_products WHERE invoice_id = ? AND product_id = ?
+SELECT invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id FROM invoice_products WHERE invoice_id = ? AND product_id = ?
 `
 
 type GetInvoiceProductParams struct {
@@ -289,6 +291,7 @@ func (q *Queries) GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductPa
 		&i.LineTotal,
 		&i.Discount,
 		&i.Quantity,
+		&i.SalespersonID,
 	)
 	return i, err
 }
@@ -824,7 +827,7 @@ func (q *Queries) ListInvoicePaymentsByInvoiceIDs(ctx context.Context, ids []int
 }
 
 const listInvoiceProducts = `-- name: ListInvoiceProducts :many
-SELECT invoice_id, product_id, unit_price, line_total, discount, quantity FROM invoice_products WHERE invoice_id = ?
+SELECT invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id FROM invoice_products WHERE invoice_id = ?
 `
 
 func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error) {
@@ -843,6 +846,7 @@ func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]I
 			&i.LineTotal,
 			&i.Discount,
 			&i.Quantity,
+			&i.SalespersonID,
 		); err != nil {
 			return nil, err
 		}
@@ -1068,6 +1072,77 @@ func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPagePara
 			&i.SalespersonID,
 			&i.Notes,
 			&i.SalespersonName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSalespersonProductSales = `-- name: ListSalespersonProductSales :many
+SELECT COALESCE(sp.id, 0) AS salesperson_id,
+       COALESCE(sp.full_name, 'Anonymous') AS salesperson_name,
+       p.id AS product_id, p.barcode, p.code, p.name, p.color, p.size, p.currency_code,
+       CAST(COALESCE(SUM(ip.quantity), 0) AS INTEGER) AS quantity,
+       CAST(COALESCE(SUM(ip.line_total), 0) AS INTEGER) AS revenue
+FROM sales_invoices si
+JOIN invoices i ON i.id = si.invoice_id
+JOIN invoice_products ip ON ip.invoice_id = i.id
+JOIN products p ON p.id = ip.product_id
+LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
+WHERE date(i.created_at, 'localtime') >= ?1
+  AND date(i.created_at, 'localtime') <= ?2
+GROUP BY sp.id, sp.full_name, p.id, p.barcode, p.code, p.name, p.color, p.size, p.currency_code
+ORDER BY sp.full_name, SUM(ip.quantity) DESC, p.name, p.id
+`
+
+type ListSalespersonProductSalesParams struct {
+	ReportFrom string `json:"reportFrom"`
+	ReportTo   string `json:"reportTo"`
+}
+
+type ListSalespersonProductSalesRow struct {
+	SalespersonID   int64  `json:"salespersonId"`
+	SalespersonName string `json:"salespersonName"`
+	ProductID       int64  `json:"productId"`
+	Barcode         string `json:"barcode"`
+	Code            string `json:"code"`
+	Name            string `json:"name"`
+	Color           string `json:"color"`
+	Size            string `json:"size"`
+	CurrencyCode    string `json:"currencyCode"`
+	Quantity        int64  `json:"quantity"`
+	Revenue         int64  `json:"revenue"`
+}
+
+func (q *Queries) ListSalespersonProductSales(ctx context.Context, arg ListSalespersonProductSalesParams) ([]ListSalespersonProductSalesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSalespersonProductSales, arg.ReportFrom, arg.ReportTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSalespersonProductSalesRow{}
+	for rows.Next() {
+		var i ListSalespersonProductSalesRow
+		if err := rows.Scan(
+			&i.SalespersonID,
+			&i.SalespersonName,
+			&i.ProductID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.Quantity,
+			&i.Revenue,
 		); err != nil {
 			return nil, err
 		}

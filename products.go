@@ -19,6 +19,15 @@ type ProductPage struct {
 	Total int64            `json:"total"`
 }
 
+// ProductCursorPage is a count-free, keyset-paginated slice of the catalog.
+// It is used by infinite-scroll clients so later batches do not become slower
+// as they would with increasingly large SQL OFFSET values.
+type ProductCursorPage struct {
+	Items      []map[string]any `json:"items"`
+	NextCursor int64            `json:"nextCursor"`
+	HasMore    bool             `json:"hasMore"`
+}
+
 func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
@@ -180,6 +189,59 @@ func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (Produ
 		result[i] = productMap(p)
 	}
 	return ProductPage{Items: result, Total: total}, nil
+}
+
+func (a *App) ListProductsCursor(afterID int64, limit int, search string) (ProductCursorPage, error) {
+	if a.store == nil {
+		return ProductCursorPage{}, fmt.Errorf("database not initialized")
+	}
+	if afterID < 0 {
+		afterID = 0
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	// Fetch one extra row to determine whether another batch exists. This
+	// avoids a full COUNT(*) query on every infinite-scroll request.
+	queryLimit := int64(limit + 1)
+	search = strings.TrimSpace(search)
+	var (
+		products []db.Product
+		err      error
+	)
+	if search == "" {
+		products, err = a.store.ListProductsAfterUnfiltered(a.ctx, db.ListProductsAfterUnfilteredParams{
+			AfterID: afterID,
+			Limit:   queryLimit,
+		})
+	} else {
+		products, err = a.store.ListProductsAfter(a.ctx, db.ListProductsAfterParams{
+			AfterID: afterID,
+			Search:  sql.NullString{String: search, Valid: true},
+			Limit:   queryLimit,
+		})
+	}
+	if err != nil {
+		return ProductCursorPage{}, err
+	}
+
+	hasMore := len(products) > limit
+	if hasMore {
+		products = products[:limit]
+	}
+	result := make([]map[string]any, len(products))
+	for i, product := range products {
+		result[i] = productMap(product)
+	}
+	nextCursor := afterID
+	if len(products) > 0 {
+		nextCursor = products[len(products)-1].ID
+	}
+	return ProductCursorPage{Items: result, NextCursor: nextCursor, HasMore: hasMore}, nil
 }
 
 func productMap(p db.Product) map[string]any {

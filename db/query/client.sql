@@ -17,6 +17,52 @@ WHERE trim(sqlc.arg(search)) = ''
 -- name: CountClients :one
 SELECT COUNT(*) FROM clients;
 
+-- name: ListClientsAfter :many
+WITH selected_clients AS (
+    SELECT c.id, c.name, c.phone, c.total_loyalty_points,
+           c.valid_loyalty_points, c.created_at
+    FROM clients c
+    WHERE c.id > sqlc.arg(after_id)
+      AND (
+           c.name LIKE '%' || sqlc.arg(search) || '%' COLLATE NOCASE
+        OR c.phone LIKE '%' || sqlc.arg(search) || '%'
+      )
+    ORDER BY c.id
+    LIMIT sqlc.arg(limit)
+)
+SELECT c.id, c.name, c.phone, c.total_loyalty_points,
+       c.valid_loyalty_points, c.created_at,
+       CAST(COALESCE(SUM(cae.amount - COALESCE((
+           SELECT SUM(cap.amount)
+           FROM client_account_payments cap
+           WHERE cap.invoice_id = cae.invoice_id
+       ), 0)), 0) AS INTEGER) AS account_balance
+FROM selected_clients c
+LEFT JOIN client_account_entries cae ON cae.client_id = c.id
+GROUP BY c.id
+ORDER BY c.id;
+
+-- name: ListClientsAfterUnfiltered :many
+WITH selected_clients AS (
+    SELECT c.id, c.name, c.phone, c.total_loyalty_points,
+           c.valid_loyalty_points, c.created_at
+    FROM clients c
+    WHERE c.id > sqlc.arg(after_id)
+    ORDER BY c.id
+    LIMIT sqlc.arg(limit)
+)
+SELECT c.id, c.name, c.phone, c.total_loyalty_points,
+       c.valid_loyalty_points, c.created_at,
+       CAST(COALESCE(SUM(cae.amount - COALESCE((
+           SELECT SUM(cap.amount)
+           FROM client_account_payments cap
+           WHERE cap.invoice_id = cae.invoice_id
+       ), 0)), 0) AS INTEGER) AS account_balance
+FROM selected_clients c
+LEFT JOIN client_account_entries cae ON cae.client_id = c.id
+GROUP BY c.id
+ORDER BY c.id;
+
 -- name: SearchClients :many
 SELECT *
 FROM clients

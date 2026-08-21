@@ -173,6 +173,76 @@ func (a *App) ListClientsPage(search string, page, perPage int64, sortKey, sortO
 	return map[string]any{"items": items, "total": total}, nil
 }
 
+// ClientCursorPage is a count-free, keyset-paginated slice of clients. Fetching
+// one extra record makes infinite scrolling independent of the table size.
+type ClientCursorPage struct {
+	Items      []map[string]any `json:"items"`
+	NextCursor int64            `json:"nextCursor"`
+	HasMore    bool             `json:"hasMore"`
+}
+
+func (a *App) ListClientsCursor(afterID int64, limit int, search string) (ClientCursorPage, error) {
+	if a.store == nil {
+		return ClientCursorPage{}, fmt.Errorf("database not initialized")
+	}
+	if afterID < 0 {
+		afterID = 0
+	}
+	if limit < 1 {
+		limit = 20
+	} else if limit > 100 {
+		limit = 100
+	}
+	search = strings.TrimSpace(search)
+	if len(search) > 80 {
+		search = search[:80]
+	}
+
+	queryLimit := int64(limit + 1)
+	var rows []db.ListClientsAfterRow
+	var err error
+	if search == "" {
+		unfiltered, queryErr := a.store.ListClientsAfterUnfiltered(a.ctx, db.ListClientsAfterUnfilteredParams{
+			AfterID: afterID,
+			Limit:   queryLimit,
+		})
+		err = queryErr
+		rows = make([]db.ListClientsAfterRow, len(unfiltered))
+		for i, row := range unfiltered {
+			rows[i] = db.ListClientsAfterRow(row)
+		}
+	} else {
+		rows, err = a.store.ListClientsAfter(a.ctx, db.ListClientsAfterParams{
+			AfterID: afterID,
+			Search:  sql.NullString{String: search, Valid: true},
+			Limit:   queryLimit,
+		})
+	}
+	if err != nil {
+		return ClientCursorPage{}, err
+	}
+
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
+	}
+	items := make([]map[string]any, len(rows))
+	for i, row := range rows {
+		items[i] = map[string]any{
+			"id": row.ID, "name": row.Name, "phone": row.Phone,
+			"totalLoyaltyPoints": row.TotalLoyaltyPoints,
+			"validLoyaltyPoints": row.ValidLoyaltyPoints,
+			"createdAt":          row.CreatedAt,
+			"accountBalance":     row.AccountBalance,
+		}
+	}
+	nextCursor := afterID
+	if len(rows) > 0 {
+		nextCursor = rows[len(rows)-1].ID
+	}
+	return ClientCursorPage{Items: items, NextCursor: nextCursor, HasMore: hasMore}, nil
+}
+
 func (a *App) ListShifts() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
@@ -361,6 +431,58 @@ func (a *App) ListInvoices() ([]map[string]any, error) {
 type InvoicePage struct {
 	Items []map[string]any `json:"items"`
 	Total int64            `json:"total"`
+}
+
+type SalespersonProductSale struct {
+	SalespersonID   int64  `json:"salespersonId"`
+	SalespersonName string `json:"salespersonName"`
+	ProductID       int64  `json:"productId"`
+	Barcode         string `json:"barcode"`
+	Code            string `json:"code"`
+	Name            string `json:"name"`
+	Color           string `json:"color"`
+	Size            string `json:"size"`
+	CurrencyCode    string `json:"currencyCode"`
+	Quantity        int64  `json:"quantity"`
+	Revenue         int64  `json:"revenue"`
+}
+
+// ListSalespersonProductSales attributes each sale line to its optional line
+// salesperson, falling back to the invoice salesperson when no override was
+// selected. Passing the first and last day of a month produces the month-end
+// salesperson/product report.
+func (a *App) ListSalespersonProductSales(from, to string) ([]SalespersonProductSale, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	fromDate, err := time.Parse("2006-01-02", strings.TrimSpace(from))
+	if err != nil {
+		return nil, fmt.Errorf("invalid from date %q; use YYYY-MM-DD", from)
+	}
+	toDate, err := time.Parse("2006-01-02", strings.TrimSpace(to))
+	if err != nil {
+		return nil, fmt.Errorf("invalid to date %q; use YYYY-MM-DD", to)
+	}
+	if fromDate.After(toDate) {
+		return nil, fmt.Errorf("from date must not be after to date")
+	}
+	rows, err := a.store.ListSalespersonProductSales(a.ctx, db.ListSalespersonProductSalesParams{
+		ReportFrom: fromDate.Format("2006-01-02"),
+		ReportTo:   toDate.Format("2006-01-02"),
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := make([]SalespersonProductSale, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, SalespersonProductSale{
+			SalespersonID: row.SalespersonID, SalespersonName: row.SalespersonName,
+			ProductID: row.ProductID, Barcode: row.Barcode, Code: row.Code, Name: row.Name,
+			Color: row.Color, Size: row.Size, CurrencyCode: row.CurrencyCode,
+			Quantity: row.Quantity, Revenue: row.Revenue,
+		})
+	}
+	return result, nil
 }
 
 func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) {

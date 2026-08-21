@@ -72,6 +72,22 @@ LEFT JOIN salespersons s ON s.id = i.salesperson_id
 WHERE date(i.created_at, 'localtime') = sqlc.arg(date)
 ORDER BY i.id DESC;
 
+-- name: ListSalespersonProductSales :many
+SELECT COALESCE(sp.id, 0) AS salesperson_id,
+       COALESCE(sp.full_name, 'Anonymous') AS salesperson_name,
+       p.id AS product_id, p.barcode, p.code, p.name, p.color, p.size, p.currency_code,
+       CAST(COALESCE(SUM(ip.quantity), 0) AS INTEGER) AS quantity,
+       CAST(COALESCE(SUM(ip.line_total), 0) AS INTEGER) AS revenue
+FROM sales_invoices si
+JOIN invoices i ON i.id = si.invoice_id
+JOIN invoice_products ip ON ip.invoice_id = i.id
+JOIN products p ON p.id = ip.product_id
+LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
+WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
+  AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+GROUP BY sp.id, sp.full_name, p.id, p.barcode, p.code, p.name, p.color, p.size, p.currency_code
+ORDER BY sp.full_name, SUM(ip.quantity) DESC, p.name, p.id;
+
 -- name: CountInvoices :one
 SELECT COUNT(*) FROM invoices;
 
@@ -92,8 +108,8 @@ SELECT * FROM invoice_products WHERE invoice_id = ? AND product_id = ?;
 SELECT * FROM invoice_products WHERE invoice_id = ?;
 
 -- name: CreateInvoiceProduct :exec
-INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: CreateInvoicePayment :exec
 INSERT INTO invoice_payments (invoice_id, cashbox_id, amount) VALUES (?, ?, ?)

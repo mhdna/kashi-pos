@@ -289,6 +289,8 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 		value, err = a.dailySales(ctx, r.URL.Query().Get("date"))
 	case r.Method == http.MethodGet && path == "income-trace":
 		value, err = a.app.incomeTrace(ctx, r.URL.Query().Get("date"), r.URL.Query().Get("account"))
+	case r.Method == http.MethodGet && path == "sold-products":
+		value, err = a.app.ListSalespersonProductSales(r.URL.Query().Get("from"), r.URL.Query().Get("to"))
 	case r.Method == http.MethodGet && path == "salespersons":
 		value, err = a.app.store.ListSalespersons(ctx)
 	case r.Method == http.MethodGet && path == "cashbox-accounts":

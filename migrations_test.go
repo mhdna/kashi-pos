@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -14,12 +15,13 @@ func TestApplyMigrationsFreshDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("apply migrations: %v", err)
 	}
-	assertMigrationVersion(t, conn, 56)
+	assertMigrationVersion(t, conn, 57)
 	assertTableExists(t, conn, "settings")
 	assertTableExists(t, conn, "feature_flags")
 	assertTableExists(t, conn, "schema_migrations")
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertTableExists(t, conn, "quick_access_items")
+	assertColumnExists(t, conn, "invoice_products", "salesperson_id")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")
 	assertFeatureFlagEnabled(t, conn, "auto_close_stale_shifts", true)
@@ -57,10 +59,11 @@ func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, databasePath, true); err != nil {
 		t.Fatalf("upgrade legacy database: %v", err)
 	}
-	assertMigrationVersion(t, conn, 56)
+	assertMigrationVersion(t, conn, 57)
 	assertTableExists(t, conn, "schema_migrations")
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertTableExists(t, conn, "quick_access_items")
+	assertColumnExists(t, conn, "invoice_products", "salesperson_id")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")
 	// Migration 53 (fresh installs only) must not flip auto-close on for an
@@ -109,7 +112,7 @@ func TestInvoicePaymentEntriesMigrationRepairsMissingTable(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("repair missing payment-entry table: %v", err)
 	}
-	assertMigrationVersion(t, conn, 56)
+	assertMigrationVersion(t, conn, 57)
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")
@@ -187,6 +190,18 @@ func assertTableExists(t *testing.T, conn *sql.DB, table string) {
 	}
 }
 
+func assertColumnExists(t *testing.T, conn *sql.DB, table, column string) {
+	t.Helper()
+	var count int
+	query := fmt.Sprintf("SELECT COUNT(*) FROM pragma_table_info('%s') WHERE name = ?", table)
+	if err := conn.QueryRow(query, column).Scan(&count); err != nil {
+		t.Fatalf("check column %s.%s: %v", table, column, err)
+	}
+	if count != 1 {
+		t.Fatalf("column %s.%s does not exist", table, column)
+	}
+}
+
 func assertIndexExists(t *testing.T, conn *sql.DB, index, table string) {
 	t.Helper()
 	var count int
@@ -258,7 +273,8 @@ func TestLookupIndexesAreRepairedForCurrentDatabase(t *testing.T) {
 
 // TestSelfHealsColumnsMissingDespiteRecordedMigrationVersion guards against
 // the exact bug reported in production: schema_migrations recorded versions
-// 52 (currency_rates) and 54 (shift_expected_counts) as applied - because an
+// 52 (currency_rates), 54 (shift_expected_counts), and 57 (line salesperson)
+// as applied - because an
 // earlier draft of that migration's SQL ran against this database before
 // the migration content was finalized, and migrations are tracked by
 // version number only, not by content hash - while the columns those
@@ -280,6 +296,9 @@ func TestSelfHealsColumnsMissingDespiteRecordedMigrationVersion(t *testing.T) {
 	if _, err := conn.Exec("ALTER TABLE shifts DROP COLUMN expected_usd"); err != nil {
 		t.Fatalf("simulate missing shift column: %v", err)
 	}
+	if _, err := conn.Exec("ALTER TABLE invoice_products DROP COLUMN salesperson_id"); err != nil {
+		t.Fatalf("simulate missing invoice product salesperson column: %v", err)
+	}
 	// schema_migrations is untouched - versions 52/54 are still recorded as
 	// applied, exactly as they'd be if only their SQL was ever different.
 
@@ -298,6 +317,7 @@ func TestSelfHealsColumnsMissingDespiteRecordedMigrationVersion(t *testing.T) {
 	if err := conn.QueryRow("SELECT expected_usd FROM shifts LIMIT 1").Scan(&expectedUsd); err != nil && err != sql.ErrNoRows {
 		t.Fatalf("shifts.expected_usd not restored: %v", err)
 	}
+	assertColumnExists(t, conn, "invoice_products", "salesperson_id")
 }
 
 func TestApplicationDatabasePathOverride(t *testing.T) {

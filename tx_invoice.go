@@ -20,6 +20,7 @@ type salesInvoiceItem struct {
 	CustomPriceCents *int64  `json:"customPriceCents,omitempty"`
 	UnitPricesCents  []int64 `json:"unitPricesCents,omitempty"`
 	UnitDiscounts    []int64 `json:"unitDiscounts,omitempty"`
+	SalespersonID    int64   `json:"salespersonId,omitempty"`
 }
 
 type checkoutPayment struct {
@@ -219,6 +220,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			if err := q.CreateInvoiceProduct(a.ctx, db.CreateInvoiceProductParams{
 				InvoiceID: invoice.ID, ProductID: product.product.ID, UnitPrice: product.unitPrice,
 				LineTotal: product.lineTotal, Discount: product.discount, Quantity: product.qty,
+				SalespersonID: product.salespersonID,
 			}); err != nil {
 				return fmt.Errorf("add product %s: %w", product.product.Code, err)
 			}
@@ -329,6 +331,9 @@ func parseSalesItems(raw string) ([]salesInvoiceItem, error) {
 		if (item.Code == "" && item.Barcode == "") || item.Qty <= 0 || math.Trunc(item.Qty) != item.Qty || item.Qty > math.MaxInt64 || seen[key] {
 			return nil, fmt.Errorf("invalid or duplicate item %q", item.Code)
 		}
+		if item.SalespersonID < 0 {
+			return nil, fmt.Errorf("invalid salesperson for item %q", item.Code)
+		}
 		if item.CustomPriceCents != nil && (*item.CustomPriceCents <= 0 || *item.CustomPriceCents > 99999999) {
 			return nil, fmt.Errorf("invalid custom price for item %q", item.Code)
 		}
@@ -427,12 +432,14 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 				}
 			}
 		}
-		// Only a payment in a currency configured with a cash-rounding unit
-		// coarser than 1 (e.g. LBP rounded to the nearest 10,000) can fail
-		// to reliably hit exact-cents parity with a total that may itself
-		// be rounded to the invoice's configured rounding currency's cash
-		// unit — give those, and only those, rounding tolerance.
-		if payment.AmountCents > 0 {
+		// Only a payment or change entry in a currency configured with a
+		// cash-rounding unit coarser than 1 (e.g. LBP rounded to the
+		// nearest 10,000) can fail to reliably hit exact-cents parity with
+		// a total that may itself be rounded to the invoice's configured
+		// rounding currency's cash unit — give those, and only those,
+		// rounding tolerance. Change (AmountCents < 0) is just as subject
+		// to that rounding grid as a payment, so it qualifies too.
+		if payment.AmountCents != 0 {
 			if paymentCurrency, currErr := resolveCurrency(ctx, q, account.CurrencyCode); currErr == nil && paymentCurrency.CashRoundingUnit > 1 {
 				hasForeignCashPayment = true
 			}

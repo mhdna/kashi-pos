@@ -230,6 +230,7 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 			InvoiceID: invoiceID, ProductID: returned.product.ID,
 			UnitPrice: returned.line.UnitPrice, LineTotal: -returned.lineTotal,
 			Discount: returned.line.Discount, Quantity: -returned.qty,
+			SalespersonID: returned.line.SalespersonID,
 		}); err != nil {
 			return err
 		}
@@ -246,6 +247,7 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 			InvoiceID: invoiceID, ProductID: replacement.product.ID,
 			UnitPrice: replacement.unitPrice, LineTotal: replacement.lineTotal,
 			Discount: replacement.discount, Quantity: replacement.qty,
+			SalespersonID: replacement.salespersonID,
 		}); err != nil {
 			return err
 		}

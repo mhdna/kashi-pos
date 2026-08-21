@@ -127,13 +127,16 @@ func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string) (PaymentStatus,
 			return status, fmt.Errorf("payment total is too large")
 		}
 		paid += payment.AmountCents
-		if payment.AmountCents <= 0 {
+		if payment.AmountCents == 0 {
 			continue
 		}
 		account, err := a.store.GetCashboxAccountByID(a.ctx, payment.AccountID)
 		if err != nil {
 			continue
 		}
+		// Change given back in a coarse-rounding currency (e.g. LBP) is just
+		// as subject to the cash-rounding grid as a payment received in it,
+		// so it must grant the same tolerance - not just positive amounts.
 		if currency, currErr := resolveCurrency(a.ctx, a.store.Queries, account.CurrencyCode); currErr == nil && currency.CashRoundingUnit > 1 {
 			hasForeignCashPayment = true
 		}

@@ -6,19 +6,25 @@ import (
 	"database/sql"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 	_ "modernc.org/sqlite"
 
 	db "kashi-pos/db/sqlc"
 )
 
 var supportedSocialPlatforms = []string{"facebook", "tiktok", "instagram", "threads", "youtube"}
+
+var errDatabaseMissing = errors.New("database not found")
 
 //go:embed db/kashi.db
 var embeddedDB []byte
@@ -30,13 +36,24 @@ type App struct {
 	dbPath     string
 	admin      *adminServer
 	startupErr error
+	ready      chan struct{}
+
+	pinMu             sync.Mutex
+	failedPINAttempts int
+	pinLockedUntil    time.Time
 }
 
+const (
+	maxPINAttempts = 3
+	pinLockout     = 30 * time.Second
+)
+
 func NewApp() *App {
-	return &App{}
+	return &App{ready: make(chan struct{})}
 }
 
 func (a *App) startup(ctx context.Context) {
+	defer close(a.ready)
 	a.ctx = ctx
 
 	dbPath, err := applicationDatabasePath()
@@ -47,40 +64,108 @@ func (a *App) startup(ctx context.Context) {
 	log.Println("database path:", dbPath)
 	a.dbPath = dbPath
 
-	databaseExisted := false
-	if _, err := os.Stat(dbPath); err == nil {
-		databaseExisted = true
-	} else if !os.IsNotExist(err) {
+	if _, err := os.Stat(dbPath); err != nil {
+		if os.IsNotExist(err) {
+			// An explicit KASHI_DB_PATH is an administrator-provided deployment
+			// path, so retain the existing headless/bootstrap behavior for it.
+			if os.Getenv("KASHI_DB_PATH") != "" {
+				if err := a.openDatabase(dbPath, true); err != nil {
+					a.failStartup("open database", err)
+				}
+				return
+			}
+			a.startupErr = fmt.Errorf("%w: %s", errDatabaseMissing, dbPath)
+			return
+		}
 		a.failStartup("inspect database", err)
 		return
 	}
-	if !databaseExisted {
-		if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
-			a.failStartup("create database directory", err)
-			return
-		}
-		if err := os.WriteFile(dbPath, embeddedDB, 0600); err != nil {
-			a.failStartup("create database", err)
-			return
-		}
-	}
-
-	a.conn, err = sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)")
-	if err != nil {
+	if err := a.openDatabase(dbPath, false); err != nil {
 		a.failStartup("open database", err)
-		return
 	}
-	if err := a.conn.PingContext(ctx); err != nil {
-		a.failStartup("ping database", err)
-		return
+}
+
+func applicationDatabasePath() (string, error) {
+	if configured := os.Getenv("KASHI_DB_PATH"); configured != "" {
+		return configured, nil
 	}
-	if err := applyMigrations(ctx, a.conn, dbPath, databaseExisted); err != nil {
-		a.failStartup("migrate database", err)
-		return
+	if path, err := storedDatabasePath(); err == nil && path != "" {
+		return path, nil
+	}
+	dataDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dataDir, "kashi-pos", "database"), nil
+}
+
+func storedDatabasePath() (string, error) {
+	path, err := databasePathConfigPath()
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
+func databasePathConfigPath() (string, error) {
+	dataDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dataDir, "kashi-pos", "database-path"), nil
+}
+
+func persistDatabasePath(path string) error {
+	configPath, err := databasePathConfigPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(configPath, []byte(path+"\n"), 0600)
+}
+
+func (a *App) openDatabase(path string, createIfMissing bool) error {
+	path = filepath.Clean(path)
+	databaseExisted := true
+	if _, err := os.Stat(path); err != nil {
+		if !createIfMissing || !os.IsNotExist(err) {
+			return err
+		}
+		databaseExisted = false
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			return fmt.Errorf("create database directory: %w", err)
+		}
+		if err := os.WriteFile(path, embeddedDB, 0600); err != nil {
+			return fmt.Errorf("create database: %w", err)
+		}
 	}
 
-	a.store = db.NewStore(a.conn)
+	conn, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)")
+	if err != nil {
+		return err
+	}
+	if err := conn.PingContext(a.ctx); err != nil {
+		_ = conn.Close()
+		return fmt.Errorf("ping database: %w", err)
+	}
+	if err := applyMigrations(a.ctx, conn, path, databaseExisted); err != nil {
+		_ = conn.Close()
+		return fmt.Errorf("migrate database: %w", err)
+	}
 
+	a.conn = conn
+	a.store = db.NewStore(conn)
+	a.dbPath = path
+	a.startupErr = nil
 	a.seedDefaults()
 	if err := a.applyEnvironmentDefaults(); err != nil {
 		log.Println("apply environment setting defaults:", err)
@@ -89,17 +174,80 @@ func (a *App) startup(ctx context.Context) {
 		log.Println("close stale open shifts:", err)
 	}
 	a.startAdminServer()
+	return nil
 }
 
-func applicationDatabasePath() (string, error) {
-	if configured := os.Getenv("KASHI_DB_PATH"); configured != "" {
-		return configured, nil
+// GetDatabaseStatus reports the active path and whether startup needs a database.
+func (a *App) GetDatabaseStatus() map[string]interface{} {
+	exists := false
+	if a.dbPath != "" {
+		_, err := os.Stat(a.dbPath)
+		exists = err == nil
 	}
-	dataDir, err := os.UserConfigDir()
-	if err != nil {
+	return map[string]interface{}{
+		"path":    a.dbPath,
+		"exists":  exists,
+		"missing": errors.Is(a.startupErr, errDatabaseMissing),
+	}
+}
+
+// ChooseDatabase opens an existing SQLite database selected by the user.
+func (a *App) ChooseDatabase() (string, error) {
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Choose Kashi database",
+		Filters: []runtime.FileFilter{{DisplayName: "SQLite database", Pattern: "*.db;database"}},
+	})
+	if err != nil || path == "" {
 		return "", err
 	}
-	return filepath.Join(dataDir, "kashi-pos", "database"), nil
+	if err := a.switchDatabase(path, false); err != nil {
+		return "", err
+	}
+	return a.dbPath, nil
+}
+
+// CreateDatabase asks for a folder and creates a fresh database there.
+func (a *App) CreateDatabase() (string, error) {
+	directory, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:                "Choose folder for the new Kashi database",
+		CanCreateDirectories: true,
+	})
+	if err != nil || directory == "" {
+		return "", err
+	}
+	path := filepath.Join(directory, "database")
+	if _, err := os.Stat(path); err == nil {
+		return "", fmt.Errorf("a database already exists in %s", directory)
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	if err := a.switchDatabase(path, true); err != nil {
+		return "", err
+	}
+	return a.dbPath, nil
+}
+
+func (a *App) switchDatabase(path string, createIfMissing bool) error {
+	path, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return err
+	}
+	if a.conn != nil {
+		a.stopAdminServer(context.Background())
+		_ = a.conn.Close()
+		a.conn = nil
+		a.store = nil
+	}
+	if err := a.openDatabase(path, createIfMissing); err != nil {
+		a.startupErr = err
+		return err
+	}
+	if os.Getenv("KASHI_DB_PATH") == "" {
+		if err := persistDatabasePath(path); err != nil {
+			return fmt.Errorf("save database path: %w", err)
+		}
+	}
+	return nil
 }
 
 func (a *App) failStartup(operation string, err error) {
@@ -155,6 +303,52 @@ func (a *App) VerifyLogin(username, password string) (map[string]interface{}, er
 		"id":       user.ID,
 		"username": user.Username,
 		"role":     role.Name,
+	}, nil
+}
+
+// VerifyPIN authenticates the temporary role PINs used by the touch login screen.
+// Keeping the PIN check here prevents the credentials from being shipped in the
+// frontend bundle. Replace this with per-user PIN storage when user PIN management
+// is introduced.
+func (a *App) VerifyPIN(pin string) (map[string]interface{}, error) {
+	a.pinMu.Lock()
+	defer a.pinMu.Unlock()
+
+	now := time.Now()
+	if now.Before(a.pinLockedUntil) {
+		remaining := a.pinLockedUntil.Sub(now)
+		seconds := int((remaining + time.Second - 1) / time.Second)
+		return nil, fmt.Errorf("locked:%d", seconds)
+	}
+
+	role := ""
+	switch pin {
+	case "0000":
+		role = "admin"
+	case "1234":
+		role = "cashier"
+	default:
+		a.failedPINAttempts++
+		if a.failedPINAttempts >= maxPINAttempts {
+			a.failedPINAttempts = 0
+			a.pinLockedUntil = now.Add(pinLockout)
+			return nil, fmt.Errorf("locked:%d", int(pinLockout/time.Second))
+		}
+		return nil, fmt.Errorf("invalid PIN")
+	}
+
+	a.failedPINAttempts = 0
+	a.pinLockedUntil = time.Time{}
+	if a.store != nil {
+		if err := a.closeStaleOpenShifts(); err != nil {
+			log.Printf("close stale open shifts after PIN login: %v", err)
+		}
+	}
+
+	return map[string]interface{}{
+		"id":       int64(0),
+		"username": role,
+		"role":     role,
 	}, nil
 }
 
@@ -288,6 +482,25 @@ func (a *App) seedCashboxAccounts() {
 func hashPassword(pw string) string {
 	h := sha256.Sum256([]byte(pw))
 	return fmt.Sprintf("%x", h)
+}
+
+// WaitUntilReady blocks until backend startup (database open, migrations,
+// default seeding) has finished, then returns the startup error (if any) and
+// the saved theme in a single round trip. The frontend must use this instead
+// of calling GetStartupError/GetTheme directly on mount - those read state
+// that startup() populates concurrently, so calling them before startup()
+// finishes can race and silently report "ready" with defaults.
+func (a *App) WaitUntilReady() map[string]interface{} {
+	<-a.ready
+	result := map[string]interface{}{
+		"error":           a.GetStartupError(),
+		"theme":           "light",
+		"databaseMissing": errors.Is(a.startupErr, errDatabaseMissing),
+	}
+	if theme, err := a.GetTheme(); err == nil {
+		result["theme"] = theme
+	}
+	return result
 }
 
 func (a *App) GetTheme() (string, error) {

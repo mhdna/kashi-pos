@@ -246,12 +246,13 @@ type InvoicePaymentEntry struct {
 }
 
 type InvoiceProduct struct {
-	InvoiceID int64 `json:"invoiceId"`
-	ProductID int64 `json:"productId"`
-	UnitPrice int64 `json:"unitPrice"`
-	LineTotal int64 `json:"lineTotal"`
-	Discount  int64 `json:"discount"`
-	Quantity  int64 `json:"quantity"`
+	InvoiceID     int64 `json:"invoiceId"`
+	ProductID     int64 `json:"productId"`
+	UnitPrice     int64 `json:"unitPrice"`
+	LineTotal     int64 `json:"lineTotal"`
+	Discount      int64 `json:"discount"`
+	Quantity      int64 `json:"quantity"`
+	SalespersonID int64 `json:"salespersonId"`
 }
 
 type PaymentMethod struct {

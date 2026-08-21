@@ -417,6 +417,120 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 	return items, nil
 }
 
+const listProductsAfter = `-- name: ListProductsAfter :many
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products
+WHERE id > ?1
+  AND (
+       name LIKE '%' || ?2 || '%'
+    OR code LIKE '%' || ?2 || '%'
+    OR barcode LIKE '%' || ?2 || '%'
+    OR color LIKE '%' || ?2 || '%'
+    OR size LIKE '%' || ?2 || '%'
+  )
+ORDER BY id
+LIMIT ?3
+`
+
+type ListProductsAfterParams struct {
+	AfterID int64          `json:"afterId"`
+	Search  sql.NullString `json:"search"`
+	Limit   int64          `json:"limit"`
+}
+
+func (q *Queries) ListProductsAfter(ctx context.Context, arg ListProductsAfterParams) ([]Product, error) {
+	rows, err := q.db.QueryContext(ctx, listProductsAfter, arg.AfterID, arg.Search, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductsAfterUnfiltered = `-- name: ListProductsAfterUnfiltered :many
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products
+WHERE id > ?1
+ORDER BY id
+LIMIT ?2
+`
+
+type ListProductsAfterUnfilteredParams struct {
+	AfterID int64 `json:"afterId"`
+	Limit   int64 `json:"limit"`
+}
+
+func (q *Queries) ListProductsAfterUnfiltered(ctx context.Context, arg ListProductsAfterUnfilteredParams) ([]Product, error) {
+	rows, err := q.db.QueryContext(ctx, listProductsAfterUnfiltered, arg.AfterID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProductsPage = `-- name: ListProductsPage :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products
 WHERE name LIKE '%' || ?1 || '%'

@@ -238,11 +238,18 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 		if productErr != nil {
 			continue
 		}
+		lineSalespersonName := ""
+		if line.SalespersonID > 0 {
+			if person, personErr := a.store.GetSalespersonByID(a.ctx, line.SalespersonID); personErr == nil {
+				lineSalespersonName = person.FullName
+			}
+		}
 		items = append(items, map[string]any{
 			"name": product.Name, "code": product.Code, "barcode": product.Barcode, "category": product.Description,
 			"color": product.Color, "size": product.Size,
 			"price": float64(line.UnitPrice) / 100, "lineTotal": float64(line.LineTotal) / 100,
 			"discount": line.Discount, "qty": line.Quantity,
+			"salespersonId": line.SalespersonID, "salespersonName": lineSalespersonName,
 		})
 	}
 	payments, err := a.store.ListInvoicePayments(a.ctx, id)

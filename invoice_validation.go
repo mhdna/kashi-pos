@@ -10,11 +10,12 @@ import (
 )
 
 type pricedInvoiceProduct struct {
-	product   db.Product
-	qty       int64
-	unitPrice int64
-	discount  int64
-	lineTotal int64
+	product       db.Product
+	qty           int64
+	unitPrice     int64
+	discount      int64
+	lineTotal     int64
+	salespersonID int64
 }
 
 type unitPricing struct {
@@ -58,6 +59,11 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 	receiptItems := make([]invoiceItem, 0, len(items))
 	var subtotal, discountedSubtotal int64
 	for _, item := range items {
+		if item.SalespersonID > 0 {
+			if _, err := q.GetSalespersonByID(a.ctx, item.SalespersonID); err != nil {
+				return nil, 0, 0, nil, fmt.Errorf("salesperson for item %s: %w", item.Code, err)
+			}
+		}
 		var product db.Product
 		var err error
 		if strings.TrimSpace(item.Barcode) != "" {
@@ -116,6 +122,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			if err != nil {
 				return nil, 0, 0, nil, err
 			}
+			priced.salespersonID = item.SalespersonID
 			gross := pricing.price * qty
 			lineTotal := priced.lineTotal
 			if subtotal > math.MaxInt64-gross || discountedSubtotal > math.MaxInt64-lineTotal {

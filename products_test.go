@@ -61,6 +61,47 @@ func TestListProductsPageBoundsAndSearch(t *testing.T) {
 	}
 }
 
+func TestListProductsCursorUsesStableBatches(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	insertTestProducts(t, database, 45)
+
+	first, err := app.ListProductsCursor(0, 20, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Items) != 20 || !first.HasMore || first.NextCursor <= 0 {
+		t.Fatalf("unexpected first cursor page: %#v", first)
+	}
+	if first.Items[0]["code"] != "SKU-000" || first.Items[19]["code"] != "SKU-019" {
+		t.Fatalf("unexpected first cursor items: %#v", first.Items)
+	}
+
+	second, err := app.ListProductsCursor(first.NextCursor, 20, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(second.Items) != 20 || !second.HasMore || second.Items[0]["code"] != "SKU-020" {
+		t.Fatalf("unexpected second cursor page: %#v", second)
+	}
+
+	last, err := app.ListProductsCursor(second.NextCursor, 20, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(last.Items) != 5 || last.HasMore || last.Items[0]["code"] != "SKU-040" {
+		t.Fatalf("unexpected final cursor page: %#v", last)
+	}
+
+	filtered, err := app.ListProductsCursor(0, 20, " SKU-011 ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filtered.Items) != 1 || filtered.HasMore || filtered.Items[0]["code"] != "SKU-011" {
+		t.Fatalf("unexpected filtered cursor page: %#v", filtered)
+	}
+}
+
 func TestQuickAccessProductsPersistInDatabase(t *testing.T) {
 	app, database := newProductTestApp(t)
 	defer database.Close()

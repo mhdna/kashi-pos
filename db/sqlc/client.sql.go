@@ -630,6 +630,147 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 	return items, nil
 }
 
+const listClientsAfter = `-- name: ListClientsAfter :many
+WITH selected_clients AS (
+    SELECT c.id, c.name, c.phone, c.total_loyalty_points,
+           c.valid_loyalty_points, c.created_at
+    FROM clients c
+    WHERE c.id > ?1
+      AND (
+           c.name LIKE '%' || ?2 || '%' COLLATE NOCASE
+        OR c.phone LIKE '%' || ?2 || '%'
+      )
+    ORDER BY c.id
+    LIMIT ?3
+)
+SELECT c.id, c.name, c.phone, c.total_loyalty_points,
+       c.valid_loyalty_points, c.created_at,
+       CAST(COALESCE(SUM(cae.amount - COALESCE((
+           SELECT SUM(cap.amount)
+           FROM client_account_payments cap
+           WHERE cap.invoice_id = cae.invoice_id
+       ), 0)), 0) AS INTEGER) AS account_balance
+FROM selected_clients c
+LEFT JOIN client_account_entries cae ON cae.client_id = c.id
+GROUP BY c.id
+ORDER BY c.id
+`
+
+type ListClientsAfterParams struct {
+	AfterID int64          `json:"afterId"`
+	Search  sql.NullString `json:"search"`
+	Limit   int64          `json:"limit"`
+}
+
+type ListClientsAfterRow struct {
+	ID                 int64  `json:"id"`
+	Name               string `json:"name"`
+	Phone              string `json:"phone"`
+	TotalLoyaltyPoints int64  `json:"totalLoyaltyPoints"`
+	ValidLoyaltyPoints int64  `json:"validLoyaltyPoints"`
+	CreatedAt          string `json:"createdAt"`
+	AccountBalance     int64  `json:"accountBalance"`
+}
+
+func (q *Queries) ListClientsAfter(ctx context.Context, arg ListClientsAfterParams) ([]ListClientsAfterRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClientsAfter, arg.AfterID, arg.Search, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListClientsAfterRow{}
+	for rows.Next() {
+		var i ListClientsAfterRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.TotalLoyaltyPoints,
+			&i.ValidLoyaltyPoints,
+			&i.CreatedAt,
+			&i.AccountBalance,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClientsAfterUnfiltered = `-- name: ListClientsAfterUnfiltered :many
+WITH selected_clients AS (
+    SELECT c.id, c.name, c.phone, c.total_loyalty_points,
+           c.valid_loyalty_points, c.created_at
+    FROM clients c
+    WHERE c.id > ?1
+    ORDER BY c.id
+    LIMIT ?2
+)
+SELECT c.id, c.name, c.phone, c.total_loyalty_points,
+       c.valid_loyalty_points, c.created_at,
+       CAST(COALESCE(SUM(cae.amount - COALESCE((
+           SELECT SUM(cap.amount)
+           FROM client_account_payments cap
+           WHERE cap.invoice_id = cae.invoice_id
+       ), 0)), 0) AS INTEGER) AS account_balance
+FROM selected_clients c
+LEFT JOIN client_account_entries cae ON cae.client_id = c.id
+GROUP BY c.id
+ORDER BY c.id
+`
+
+type ListClientsAfterUnfilteredParams struct {
+	AfterID int64 `json:"afterId"`
+	Limit   int64 `json:"limit"`
+}
+
+type ListClientsAfterUnfilteredRow struct {
+	ID                 int64  `json:"id"`
+	Name               string `json:"name"`
+	Phone              string `json:"phone"`
+	TotalLoyaltyPoints int64  `json:"totalLoyaltyPoints"`
+	ValidLoyaltyPoints int64  `json:"validLoyaltyPoints"`
+	CreatedAt          string `json:"createdAt"`
+	AccountBalance     int64  `json:"accountBalance"`
+}
+
+func (q *Queries) ListClientsAfterUnfiltered(ctx context.Context, arg ListClientsAfterUnfilteredParams) ([]ListClientsAfterUnfilteredRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClientsAfterUnfiltered, arg.AfterID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListClientsAfterUnfilteredRow{}
+	for rows.Next() {
+		var i ListClientsAfterUnfilteredRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.TotalLoyaltyPoints,
+			&i.ValidLoyaltyPoints,
+			&i.CreatedAt,
+			&i.AccountBalance,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCouponTypes = `-- name: ListCouponTypes :many
 SELECT id, name, value_cents, currency_code, is_active, reference_only FROM coupon_types ORDER BY name
 `
