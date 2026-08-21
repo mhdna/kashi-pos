@@ -41,12 +41,32 @@ type App struct {
 	pinMu             sync.Mutex
 	failedPINAttempts int
 	pinLockedUntil    time.Time
+	pinLockoutLevel   int
 }
 
 const (
-	maxPINAttempts = 3
-	pinLockout     = 30 * time.Second
+	maxPINAttempts    = 3
+	pinLockoutBase    = 30 * time.Second
+	pinLockoutMax     = 30 * time.Minute
+	pinLockoutMaxTier = 10
 )
+
+// pinLockoutDuration doubles the wait every time the 3-attempt threshold is
+// hit again, so restarting the app to dodge a single 30s wait just leads
+// into a longer one next time. level is 1-based (first lockout = level 1).
+func pinLockoutDuration(level int) time.Duration {
+	if level < 1 {
+		level = 1
+	}
+	if level > pinLockoutMaxTier {
+		level = pinLockoutMaxTier
+	}
+	duration := pinLockoutBase * time.Duration(1<<uint(level-1))
+	if duration > pinLockoutMax {
+		duration = pinLockoutMax
+	}
+	return duration
+}
 
 func NewApp() *App {
 	return &App{ready: make(chan struct{})}
@@ -166,6 +186,7 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 	a.store = db.NewStore(conn)
 	a.dbPath = path
 	a.startupErr = nil
+	a.loadPINLockoutState()
 	a.seedDefaults()
 	if err := a.applyEnvironmentDefaults(); err != nil {
 		log.Println("apply environment setting defaults:", err)
@@ -276,6 +297,77 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 }
 
+// loadPINLockoutState restores the PIN lockout counters from the database so
+// a locked-out login can't be reset by restarting the app.
+func (a *App) loadPINLockoutState() {
+	a.pinMu.Lock()
+	defer a.pinMu.Unlock()
+	a.failedPINAttempts = 0
+	a.pinLockedUntil = time.Time{}
+	a.pinLockoutLevel = 0
+	if a.conn == nil {
+		return
+	}
+	var failedAttempts, lockoutLevel int
+	var lockedUntil string
+	err := a.conn.QueryRow(`SELECT failed_attempts, lockout_level, locked_until FROM pin_lockout WHERE id = 1`).Scan(&failedAttempts, &lockoutLevel, &lockedUntil)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.Printf("load pin lockout state: %v", err)
+		}
+		return
+	}
+	a.failedPINAttempts = failedAttempts
+	a.pinLockoutLevel = lockoutLevel
+	if lockedUntil != "" {
+		if t, err := time.Parse(time.RFC3339, lockedUntil); err == nil {
+			a.pinLockedUntil = t
+		}
+	}
+}
+
+// savePINLockoutState persists the current lockout counters. Caller must
+// hold pinMu.
+func (a *App) savePINLockoutState() {
+	if a.conn == nil {
+		return
+	}
+	lockedUntil := ""
+	if !a.pinLockedUntil.IsZero() {
+		lockedUntil = a.pinLockedUntil.UTC().Format(time.RFC3339)
+	}
+	_, err := a.conn.Exec(`INSERT INTO pin_lockout(id, failed_attempts, lockout_level, locked_until) VALUES(1, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET failed_attempts=excluded.failed_attempts, lockout_level=excluded.lockout_level, locked_until=excluded.locked_until`,
+		a.failedPINAttempts, a.pinLockoutLevel, lockedUntil)
+	if err != nil {
+		log.Printf("save pin lockout state: %v", err)
+	}
+}
+
+// unlockPINLockout clears the lockout, for use by the remote admin API when
+// a manager needs to unlock a till without waiting. Caller must hold pinMu.
+func (a *App) unlockPINLockout() {
+	a.failedPINAttempts = 0
+	a.pinLockedUntil = time.Time{}
+	a.pinLockoutLevel = 0
+	a.savePINLockoutState()
+}
+
+// GetPINLockoutStatus reports whether the login PIN is currently locked out
+// and for how many more seconds, so the login screen can show the countdown
+// immediately on load instead of only after a rejected attempt - including
+// right after an app restart, since the lockout is persisted.
+func (a *App) GetPINLockoutStatus() map[string]interface{} {
+	a.pinMu.Lock()
+	defer a.pinMu.Unlock()
+	remaining := time.Until(a.pinLockedUntil)
+	if remaining <= 0 {
+		return map[string]interface{}{"locked": false, "retryAfter": 0}
+	}
+	seconds := int((remaining + time.Second - 1) / time.Second)
+	return map[string]interface{}{"locked": true, "retryAfter": seconds}
+}
+
 // VerifyPIN authenticates the temporary role PINs used by the touch login screen.
 // Keeping the PIN check here prevents the credentials from being shipped in the
 // frontend bundle. Replace this with per-user PIN storage when user PIN management
@@ -301,14 +393,20 @@ func (a *App) VerifyPIN(pin string) (map[string]interface{}, error) {
 		a.failedPINAttempts++
 		if a.failedPINAttempts >= maxPINAttempts {
 			a.failedPINAttempts = 0
-			a.pinLockedUntil = now.Add(pinLockout)
-			return nil, fmt.Errorf("locked:%d", int(pinLockout/time.Second))
+			a.pinLockoutLevel++
+			duration := pinLockoutDuration(a.pinLockoutLevel)
+			a.pinLockedUntil = now.Add(duration)
+			a.savePINLockoutState()
+			return nil, fmt.Errorf("locked:%d", int(duration/time.Second))
 		}
+		a.savePINLockoutState()
 		return nil, fmt.Errorf("invalid PIN")
 	}
 
 	a.failedPINAttempts = 0
 	a.pinLockedUntil = time.Time{}
+	a.pinLockoutLevel = 0
+	a.savePINLockoutState()
 	if a.store != nil {
 		if err := a.closeStaleOpenShifts(); err != nil {
 			log.Printf("close stale open shifts after PIN login: %v", err)

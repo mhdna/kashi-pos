@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { VerifyPIN, ChangePassword } from "../../wailsjs/go/main/App";
+import { VerifyPIN, ChangePassword, GetPINLockoutStatus } from "../../wailsjs/go/main/App";
 
 interface User {
   id: number;
@@ -24,6 +24,15 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
+  async function getPINLockoutStatus(): Promise<{ locked: boolean; retryAfter: number }> {
+    try {
+      const result = (await GetPINLockoutStatus()) as { locked: boolean; retryAfter: number };
+      return { locked: !!result.locked, retryAfter: Number(result.retryAfter) || 0 };
+    } catch {
+      return { locked: false, retryAfter: 0 };
+    }
+  }
+
   function logout() {
     currentUser.value = null;
   }
@@ -37,5 +46,5 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  return { currentUser, isLoggedIn, isAdmin, loginWithPIN, logout, changePassword };
+  return { currentUser, isLoggedIn, isAdmin, loginWithPIN, getPINLockoutStatus, logout, changePassword };
 });

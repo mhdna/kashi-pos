@@ -40,3 +40,59 @@ func TestVerifyPINLocksAfterThreeFailures(t *testing.T) {
 		t.Fatalf("correct PIN should work after lockout: %v", err)
 	}
 }
+
+func TestVerifyPINLockoutEscalates(t *testing.T) {
+	app := NewApp()
+
+	lockAndExpire := func(round int) time.Duration {
+		for attempt := 1; attempt <= 3; attempt++ {
+			_, err := app.VerifyPIN("9999")
+			if err == nil {
+				t.Fatalf("round %d attempt %d: expected an error", round, attempt)
+			}
+			if attempt < 3 && err.Error() != "invalid PIN" {
+				t.Fatalf("round %d attempt %d: expected invalid PIN, got %v", round, attempt, err)
+			}
+			if attempt == 3 && !strings.HasPrefix(err.Error(), "locked:") {
+				t.Fatalf("round %d attempt %d: expected lockout, got %v", round, attempt, err)
+			}
+		}
+		duration := time.Until(app.pinLockedUntil)
+		app.pinLockedUntil = time.Now().Add(-time.Second)
+		return duration
+	}
+
+	first := lockAndExpire(1)
+	second := lockAndExpire(2)
+	if second <= first {
+		t.Fatalf("second lockout (%v) should be longer than the first (%v)", second, first)
+	}
+
+	third := lockAndExpire(3)
+	if third <= second {
+		t.Fatalf("third lockout (%v) should be longer than the second (%v)", third, second)
+	}
+}
+
+func TestUnlockPINLockoutClearsState(t *testing.T) {
+	app := NewApp()
+	for attempt := 1; attempt <= 3; attempt++ {
+		if _, err := app.VerifyPIN("9999"); err == nil {
+			t.Fatalf("attempt %d: expected an error", attempt)
+		}
+	}
+	if !time.Now().Before(app.pinLockedUntil) {
+		t.Fatalf("expected app to be locked out")
+	}
+
+	app.pinMu.Lock()
+	app.unlockPINLockout()
+	app.pinMu.Unlock()
+
+	if _, err := app.VerifyPIN("0000"); err != nil {
+		t.Fatalf("correct PIN should work immediately after unlock: %v", err)
+	}
+	if app.pinLockoutLevel != 0 {
+		t.Fatalf("unlock should reset the escalation level, got %d", app.pinLockoutLevel)
+	}
+}

@@ -96,6 +96,8 @@ export function GetNextInvoiceCode(arg1:string):Promise<string>;
 
 export function GetOpenShift():Promise<Record<string, any>>;
 
+export function GetPINLockoutStatus():Promise<Record<string, any>>;
+
 export function GetProductByBarcode(arg1:string):Promise<Record<string, any>>;
 
 export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
@@ -155,6 +157,8 @@ export function ListQuickAccessProducts():Promise<Array<Record<string, any>>>;
 export function ListRoles():Promise<Array<Record<string, any>>>;
 
 export function ListSalespersonProductSales(arg1:string,arg2:string):Promise<Array<main.SalespersonProductSale>>;
+
+export function ListSalespersonSalesSummary(arg1:string,arg2:string):Promise<Array<main.SalespersonSalesSummary>>;
 
 export function ListSalespersons():Promise<Array<Record<string, any>>>;
 

@@ -356,6 +356,8 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPost && path == "reload":
 		runtime.EventsEmit(a.app.ctx, "admin:reload")
 		value = map[string]any{"reloaded": true, "method": "frontend-event"}
+	case r.Method == http.MethodPost && path == "pin-lockout/unlock":
+		value = a.unlockPINLockout()
 	default:
 		writeAdminError(w, http.StatusNotFound, "not found")
 		return
@@ -522,6 +524,15 @@ func writeAdminError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+// unlockPINLockout clears the PIN login lockout remotely, for a manager who
+// needs to get a till back into service without waiting out the timer.
+func (a *adminServer) unlockPINLockout() map[string]any {
+	a.app.pinMu.Lock()
+	defer a.app.pinMu.Unlock()
+	a.app.unlockPINLockout()
+	return map[string]any{"unlocked": true}
 }
 
 func (a *adminServer) reloadCommand() error {

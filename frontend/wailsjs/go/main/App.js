@@ -190,6 +190,10 @@ export function GetOpenShift() {
   return window['go']['main']['App']['GetOpenShift']();
 }
 
+export function GetPINLockoutStatus() {
+  return window['go']['main']['App']['GetPINLockoutStatus']();
+}
+
 export function GetProductByBarcode(arg1) {
   return window['go']['main']['App']['GetProductByBarcode'](arg1);
 }
@@ -308,6 +312,10 @@ export function ListRoles() {
 
 export function ListSalespersonProductSales(arg1, arg2) {
   return window['go']['main']['App']['ListSalespersonProductSales'](arg1, arg2);
+}
+
+export function ListSalespersonSalesSummary(arg1, arg2) {
+  return window['go']['main']['App']['ListSalespersonSalesSummary'](arg1, arg2);
 }
 
 export function ListSalespersons() {

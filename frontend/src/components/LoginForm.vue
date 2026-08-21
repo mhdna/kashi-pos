@@ -167,7 +167,11 @@ function handleKeydown(event: KeyboardEvent) {
   else if (event.key === "Escape" || event.key === "Delete") clearPIN();
 }
 
-onMounted(() => window.addEventListener("keydown", handleKeydown));
+onMounted(async () => {
+  window.addEventListener("keydown", handleKeydown);
+  const status = await auth.getPINLockoutStatus();
+  if (status.locked) startLockout(status.retryAfter);
+});
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", handleKeydown);
   if (lockTimer) clearInterval(lockTimer);
