@@ -182,6 +182,10 @@ export function GetInvoiceDetails(arg1) {
   return window['go']['main']['App']['GetInvoiceDetails'](arg1);
 }
 
+export function GetInvoiceForSettlementChange(arg1) {
+  return window['go']['main']['App']['GetInvoiceForSettlementChange'](arg1);
+}
+
 export function GetNextInvoiceCode(arg1) {
   return window['go']['main']['App']['GetNextInvoiceCode'](arg1);
 }
@@ -370,12 +374,24 @@ export function PrintCurrentCloseShiftSample() {
   return window['go']['main']['App']['PrintCurrentCloseShiftSample']();
 }
 
+export function QuoteExchangePaymentStatus(arg1, arg2, arg3) {
+  return window['go']['main']['App']['QuoteExchangePaymentStatus'](arg1, arg2, arg3);
+}
+
+export function QuoteExchangeTotal(arg1, arg2) {
+  return window['go']['main']['App']['QuoteExchangeTotal'](arg1, arg2);
+}
+
 export function QuoteInvoiceTotal(arg1) {
   return window['go']['main']['App']['QuoteInvoiceTotal'](arg1);
 }
 
 export function QuotePaymentStatus(arg1, arg2) {
   return window['go']['main']['App']['QuotePaymentStatus'](arg1, arg2);
+}
+
+export function QuoteSettlementPaymentStatus(arg1, arg2) {
+  return window['go']['main']['App']['QuoteSettlementPaymentStatus'](arg1, arg2);
 }
 
 export function RemoveDiscountListItem(arg1) {
@@ -388,6 +404,10 @@ export function RemovePriceListItem(arg1) {
 
 export function RemoveQuickAccessProduct(arg1) {
   return window['go']['main']['App']['RemoveQuickAccessProduct'](arg1);
+}
+
+export function ReorderQuickAccessProducts(arg1) {
+  return window['go']['main']['App']['ReorderQuickAccessProducts'](arg1);
 }
 
 export function ReplaceShiftBalance(arg1, arg2, arg3, arg4) {
@@ -438,6 +458,10 @@ export function SetDiscountListItem(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetDiscountListItem'](arg1, arg2, arg3);
 }
 
+export function SetExchangeWindowHours(arg1) {
+  return window['go']['main']['App']['SetExchangeWindowHours'](arg1);
+}
+
 export function SetPerUnitItemPricesEnabled(arg1) {
   return window['go']['main']['App']['SetPerUnitItemPricesEnabled'](arg1);
 }
@@ -456,6 +480,10 @@ export function SetTaxRate(arg1) {
 
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
+}
+
+export function SettleInvoicePayments(arg1, arg2) {
+  return window['go']['main']['App']['SettleInvoicePayments'](arg1, arg2);
 }
 
 export function SubmitAttendanceComplaint(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {

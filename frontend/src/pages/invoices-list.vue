@@ -118,7 +118,7 @@
           <v-list density="compact" min-width="190">
             <v-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
             <v-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startChange('salesperson', item)" />
-            <v-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" @click.stop="startChange('settlement', item)" />
+            <v-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" :disabled="settlementLoading" @click.stop="startSettlementChange(item)" />
             <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-cash-check" title="Fix Rounding" @click.stop="requestRounding(item)" />
             <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
           </v-list>
@@ -271,64 +271,6 @@
             @update:model-value="changeValue = $event"
             @update:search="scheduleClientSearch"
           />
-          <template v-else-if="changeType === 'settlement'">
-            <v-card
-              v-if="settlementSources.length"
-              class="mb-4 pa-3"
-              variant="tonal"
-              rounded="lg"
-            >
-              <div class="text-caption font-weight-bold mb-2">Current payments</div>
-              <div
-                v-for="payment in settlementSources"
-                :key="payment.accountId"
-                class="settlement-summary-row"
-              >
-                <span>{{ settlementAccountName(payment) }}</span>
-                <strong>{{ settlementSourceAmountLabel(payment) }}</strong>
-              </div>
-            </v-card>
-            <v-select
-              :model-value="sourceSettlementId"
-              placeholder="Move from"
-              :items="settlementSources"
-              :item-title="settlementSourceTitle"
-              item-value="accountId"
-              :loading="optionsLoading"
-              :disabled="optionsLoading"
-              variant="outlined"
-              @update:model-value="setSettlementSource"
-            />
-            <v-text-field
-              v-model.number="settlementAmount"
-              class="mt-2"
-              :placeholder="`Amount to move (${settlementAmountUnit})`"
-              type="number"
-              :min="settlementAmountUnit === 'LBP' ? 1 : 0.01"
-              :step="settlementAmountUnit === 'LBP' ? 10000 : 0.01"
-              :error-messages="settlementAmountError ? [settlementAmountError] : []"
-              variant="outlined"
-            />
-            <v-select
-              v-model="changeValue"
-              class="mt-2"
-              placeholder="Move to"
-              :items="destinationPaymentMethods"
-              :item-title="settlementOptionTitle"
-              item-value="id"
-              :loading="optionsLoading"
-              :disabled="optionsLoading"
-              variant="outlined"
-            />
-            <div
-              v-if="selectedSettlement && transferCents > 0"
-              class="text-body-2 text-medium-emphasis mt-2"
-            >
-              Move <strong>{{ sourceTransferLabel }}</strong> to
-              {{ selectedSettlement.displayName ?? selectedSettlement.name }} as
-              <strong>{{ settlementAmountLabel(selectedSettlement) }}</strong>.
-            </div>
-          </template>
           <v-select
             v-else
             v-model="changeValue"
@@ -366,23 +308,22 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from "vue";
+import { useRouter } from "vue-router";
 import {
   ChangeInvoiceClient,
   ChangeInvoiceSalesperson,
-  ChangeInvoiceSettlementAmount,
   DeleteInvoice,
   RoundInvoice,
   GetInvoiceDetails,
+  GetInvoiceForSettlementChange,
   ListInvoicesFilteredPage,
-  ListPaymentMethods,
   ListSalespersons,
   ReprintInvoice,
   SearchClients,
 } from "../../wailsjs/go/main/App";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
-import { formatBalance } from "@/lib/format";
-import { useCurrencies, findCurrency } from "@/composables/useCurrencies";
-import { roundCentsFromCurrencyUnits, roundCurrencyUnitsFromCents } from "@/lib/money";
+import { pendingSettlementInvoice } from "@/composables/useNavActions";
+import { toClient } from "@/lib/client";
 import { formatLebanesePhone } from "@/lib/phone";
 import { useAuthStore } from "../stores/auth";
 
@@ -432,6 +373,7 @@ const hasMore = computed(
 );
 const invoicesTable = ref<{ scrollToIndex: (index: number) => void } | null>(null);
 const auth = useAuthStore();
+const router = useRouter();
 const selected = ref<any>(null),
   detailOpen = ref(false),
   changeOpen = ref(false),
@@ -445,84 +387,25 @@ const roundingOpen = ref(false),
   rounding = ref(false),
   roundingInvoice = ref<any>(null);
 const actionMenus = reactive<Record<number, boolean>>({});
-const changeType = ref<"client" | "settlement" | "salesperson">("client"),
+const changeType = ref<"client" | "salesperson">("client"),
   changeValue = ref<number | null>(null),
   changeInvoice = ref<any>(null);
-const sourceSettlementId = ref<number | null>(null);
-const settlementAmount = ref<number | null>(null);
 const clients = ref<any[]>([]),
-  paymentMethods = ref<any[]>([]),
   salespersons = ref<any[]>([]);
 const clientSearch = ref("");
 const snackbar = reactive({ show: false, text: "", color: "success" });
-const { currencies, roundingMode } = useCurrencies();
-const changeTitle = computed(() =>
-  changeType.value === "client"
-    ? "Change Client"
-    : changeType.value === "settlement"
-      ? "Change Settlement"
-      : "Change Salesman",
-);
-const selectedSettlement = computed(() =>
-  paymentMethods.value.find((method) => method.id === changeValue.value),
-);
-const settlementSources = computed(() =>
-  Array.isArray(changeInvoice.value?.payments)
-    ? changeInvoice.value.payments.filter((payment: any) => Number(payment.amount) > 0)
-    : [],
-);
-const sourceSettlement = computed(() =>
-  settlementSources.value.find(
-    (payment: any) => Number(payment.accountId) === sourceSettlementId.value,
-  ),
-);
-const sourceSettlementMethod = computed(() =>
-  paymentMethods.value.find((method) => method.id === sourceSettlementId.value),
-);
-const destinationPaymentMethods = computed(() =>
-  paymentMethods.value.filter((method) => method.id !== sourceSettlementId.value),
-);
-const settlementAmountUnit = computed(
-  () => sourceSettlementMethod.value?.currencyCode ?? sourceSettlement.value?.currencyCode ?? "USD",
-);
-const transferCents = computed(() => nativeSettlementAmountToCents(settlementAmount.value));
-const settlementAmountError = computed(() => {
-  if (changeType.value !== "settlement" || optionsLoading.value) return "";
-  if (!sourceSettlement.value) return "Choose an existing settlement";
-  if (!Number.isFinite(Number(settlementAmount.value)) || transferCents.value <= 0)
-    return "Enter a positive amount";
-  if (transferCents.value > Number(sourceSettlement.value.amount))
-    return `Maximum: ${settlementSourceAmountLabel(sourceSettlement.value)}`;
-  return "";
-});
+const settlementLoading = ref(false);
+const changeTitle = computed(() => (changeType.value === "client" ? "Change Client" : "Change Salesman"));
 const changeSaveDisabled = computed(() => {
   if (optionsLoading.value) return true;
   if (changeType.value === "salesperson") return false;
-  if (changeType.value === "settlement")
-    return (
-      !sourceSettlementId.value ||
-      !changeValue.value ||
-      changeValue.value === sourceSettlementId.value ||
-      Boolean(settlementAmountError.value)
-    );
   return !changeValue.value;
 });
-const sourceTransferLabel = computed(() =>
-  formatBalance(
-    transferCents.value,
-    settlementAmountUnit.value,
-    currencies.value,
-    roundingMode.value,
-  ),
-);
 function money(value: number | undefined) {
   return ((Number(value) || 0) / 100).toFixed(2);
 }
 function cents(value: number | undefined) {
   return ((Number(value) || 0) / 100).toFixed(2);
-}
-function settlementOptionTitle(method: any): string {
-  return `${method.displayName ?? method.name} (${method.currencyCode})`;
 }
 function settlementAccountName(payment: any): string {
   const name = String(payment.accountName || "Cash");
@@ -531,54 +414,6 @@ function settlementAccountName(payment: any): string {
   if (normalizedName.startsWith("on coupon")) return "On Coupon";
   const currency = String(payment.currencyCode || "USD").toUpperCase();
   return name.toUpperCase().includes(currency) ? name : `${name} ${currency}`;
-}
-function settlementSourceTitle(payment: any): string {
-  return `${settlementAccountName(payment)} — ${settlementSourceAmountLabel(payment)}`;
-}
-function settlementSourceAmountLabel(payment: any): string {
-  return formatBalance(
-    Number(payment.amount || 0),
-    payment.currencyCode ?? "USD",
-    currencies.value,
-    roundingMode.value,
-  );
-}
-function settlementAmountLabel(method: any): string {
-  return formatBalance(
-    transferCents.value,
-    method.currencyCode ?? "USD",
-    currencies.value,
-    roundingMode.value,
-  );
-}
-function nativeSettlementAmountToCents(value: number | null): number {
-  const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return 0;
-  const currency = findCurrency(currencies.value, settlementAmountUnit.value);
-  if (currency && currency.cashRoundingUnit > 1)
-    return roundCentsFromCurrencyUnits(amount, currency, roundingMode.value);
-  return Math.round(amount * 100);
-}
-function nativeSettlementAmountFromCents(amountCents: number, currencyCode: string): number {
-  const currency = findCurrency(currencies.value, currencyCode);
-  if (currency && currency.cashRoundingUnit > 1)
-    return roundCurrencyUnitsFromCents(amountCents, currency, roundingMode.value);
-  return Math.round(amountCents) / 100;
-}
-function setSettlementSource(accountId: number | null) {
-  sourceSettlementId.value = accountId;
-  const source = settlementSources.value.find(
-    (payment: any) => Number(payment.accountId) === accountId,
-  );
-  const method = paymentMethods.value.find((candidate) => candidate.id === accountId);
-  settlementAmount.value = source
-    ? nativeSettlementAmountFromCents(
-        Number(source.amount),
-        method?.currencyCode ?? source.currencyCode ?? "USD",
-      )
-    : null;
-  if (changeValue.value === accountId)
-    changeValue.value = destinationPaymentMethods.value[0]?.id ?? null;
 }
 function formatDate(value?: string) {
   if (!value) return "Date unavailable";
@@ -635,45 +470,47 @@ async function reprint(item: any) {
     printingId.value = null;
   }
 }
-async function startChange(type: "client" | "settlement" | "salesperson", item: any) {
+async function startChange(type: "client" | "salesperson", item: any) {
   actionMenus[item.id] = false;
   changeType.value = type;
   changeInvoice.value = item;
-  changeValue.value =
-    type === "client"
-      ? item.clientId
-      : type === "salesperson"
-        ? item.salespersonId || null
-        : item.cashboxId;
+  changeValue.value = type === "client" ? item.clientId : item.salespersonId || null;
   changeOpen.value = true;
   if (type === "client") clientSearch.value = "";
-  if (type === "settlement") {
-    sourceSettlementId.value = null;
-    settlementAmount.value = null;
-    changeValue.value = null;
-  }
 
   optionsLoading.value = true;
   try {
-    const [, invoiceDetails] = await Promise.all([
-      ensureEditOptions(type),
-      type === "settlement" ? GetInvoiceDetails(item.id) : Promise.resolve(null),
-    ]);
-    if (invoiceDetails && changeInvoice.value?.id === item.id) {
-      changeInvoice.value = invoiceDetails;
-      const source =
-        invoiceDetails.payments?.find(
-          (payment: any) =>
-            Number(payment.accountId) === Number(invoiceDetails.cashboxId) &&
-            Number(payment.amount) > 0,
-        ) ?? invoiceDetails.payments?.find((payment: any) => Number(payment.amount) > 0);
-      setSettlementSource(source?.accountId ?? null);
-      changeValue.value = destinationPaymentMethods.value[0]?.id ?? null;
-    }
+    await ensureEditOptions(type);
   } catch (e: any) {
     notify(e?.toString() || "Could not load invoice edit options", "error");
   } finally {
     optionsLoading.value = false;
+  }
+}
+
+async function startSettlementChange(item: any) {
+  actionMenus[item.id] = false;
+  settlementLoading.value = true;
+  try {
+    const details = await GetInvoiceForSettlementChange(item.id);
+    pendingSettlementInvoice.value = {
+      id: details.id,
+      invoiceCode: details.invoiceCode,
+      items: details.items ?? [],
+      client: toClient({ id: details.clientId, name: details.clientName, phone: details.clientPhone }),
+      salesperson:
+        details.salespersonId > 0
+          ? { id: details.salespersonId, fullName: details.salespersonName }
+          : null,
+      notes: details.notes ?? "",
+      grandTotalCents: Number(details.grandTotal ?? 0),
+      entries: details.entries ?? [],
+    };
+    await router.push("/home");
+  } catch (e: any) {
+    notify(e?.toString() || "Could not load invoice for settlement change", "error");
+  } finally {
+    settlementLoading.value = false;
   }
 }
 function requestDelete(item: any) {
@@ -722,15 +559,7 @@ async function saveChange() {
   try {
     if (changeType.value === "client")
       await ChangeInvoiceClient(changeInvoice.value.id, changeValue.value || 0);
-    else if (changeType.value === "settlement") {
-      await ChangeInvoiceSettlementAmount(
-        changeInvoice.value.id,
-        sourceSettlementId.value || 0,
-        changeValue.value || 0,
-        transferCents.value,
-      );
-      notifyIncomeChanged();
-    } else await ChangeInvoiceSalesperson(changeInvoice.value.id, changeValue.value || 0);
+    else await ChangeInvoiceSalesperson(changeInvoice.value.id, changeValue.value || 0);
     changeOpen.value = false;
     notify("Invoice updated");
     await refresh();
@@ -825,7 +654,6 @@ function clearFilter(key: InvoiceFilterKey) {
   if (wasActive) void refresh();
 }
 
-let paymentMethodOptionsPromise: Promise<void> | null = null;
 let salespersonOptionsPromise: Promise<void> | null = null;
 let clientSearchTimer: ReturnType<typeof setTimeout> | undefined;
 let clientSearchRequest = 0;
@@ -858,23 +686,9 @@ function scheduleClientSearch(search: string | null) {
   }, 200);
 }
 
-function ensureEditOptions(type: "client" | "settlement" | "salesperson"): Promise<void> {
+function ensureEditOptions(type: "client" | "salesperson"): Promise<void> {
   if (type === "client") {
     return loadClientOptions(clientSearch.value);
-  }
-
-  if (type === "settlement") {
-    if (!paymentMethodOptionsPromise) {
-      paymentMethodOptionsPromise = Promise.all([ListPaymentMethods()])
-        .then(([loadedPaymentMethods]) => {
-          paymentMethods.value = loadedPaymentMethods;
-        })
-        .catch((error) => {
-          paymentMethodOptionsPromise = null;
-          throw error;
-        });
-    }
-    return paymentMethodOptionsPromise;
   }
 
   if (!salespersonOptionsPromise) {
@@ -963,12 +777,6 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   margin: 4px 0;
-}
-.settlement-summary-row {
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  margin-top: 4px;
 }
 .app-snackbar .v-snackbar__wrapper {
   background: rgba(var(--v-theme-surface-variant), 0.72) !important;

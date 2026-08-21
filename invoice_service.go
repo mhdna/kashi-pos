@@ -496,6 +496,180 @@ func (a *App) ChangeInvoiceSettlementAmount(invoiceID, fromCashboxID, toCashboxI
 	})
 }
 
+// GetInvoiceForSettlementChange loads a sales invoice for "change settlement"
+// mode: the full frozen cart (items/discounts/client/salesperson, exactly as
+// GetInvoiceDetails returns it) plus its existing payments reshaped into
+// Calculator entries, so the frontend can seed the calculator via
+// restoreHoldState and let the cashier edit only the settlement.
+func (a *App) GetInvoiceForSettlementChange(invoiceID int64) (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	// GetSalesInvoiceByID only matches invoices flagged as an original sale
+	// (joins sales_invoices) - this is what keeps settlement change from ever
+	// being opened against a hold, void, or exchange/return invoice.
+	if _, err := a.store.GetSalesInvoiceByID(a.ctx, invoiceID); err != nil {
+		return nil, fmt.Errorf("sales invoice not found")
+	}
+	details, err := a.GetInvoiceDetails(invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("settings: %w", err)
+	}
+	roundingMode, err := normalizeRoundingMode(settings.RoundingMode)
+	if err != nil {
+		return nil, err
+	}
+	payments, err := a.store.ListInvoicePayments(a.ctx, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]map[string]any, 0, len(payments))
+	for _, payment := range payments {
+		if payment.Amount == 0 {
+			continue
+		}
+		account, accountErr := a.store.GetCashboxAccountByID(a.ctx, payment.CashboxID)
+		if accountErr != nil {
+			continue
+		}
+		currency, currErr := resolveCurrency(a.ctx, a.store.Queries, account.CurrencyCode)
+		if currErr != nil {
+			continue
+		}
+		negative := payment.Amount < 0
+		nativeAmount := float64(absInt64(payment.Amount)) / 100
+		if currency.CashRoundingUnit > 1 {
+			if rounded, roundErr := roundCurrencyUnitsFromCents(absInt64(payment.Amount), currency.UnitsPerUsdMicros, currency.CashRoundingUnit, roundingMode); roundErr == nil {
+				nativeAmount = float64(rounded)
+			}
+		}
+		if negative {
+			nativeAmount = -nativeAmount
+		}
+		entryType := "payment"
+		if negative {
+			entryType = "change"
+		}
+		entries = append(entries, map[string]any{
+			"type": account.Name, "amount": nativeAmount, "amountCents": payment.Amount,
+			"accountId": account.ID, "entryType": entryType,
+		})
+	}
+	details["entries"] = entries
+	return details, nil
+}
+
+// SettleInvoicePayments replaces an existing sales invoice's payments in
+// place, without touching its items, discounts, client, or salesperson -
+// there is no items input to this function at all, which is what
+// structurally guarantees a "change settlement" checkout can never edit
+// anything besides the settlement. The new payments are validated against
+// the invoice's frozen GrandTotal (see QuoteSettlementPaymentStatus), the
+// old cashbox balance deltas are fully reversed, then the new ones applied,
+// mirroring ChangeInvoiceSettlementAmount's delete-and-recreate pattern but
+// generalized to an arbitrary new payment set (including On Account/On
+// Coupon, via recordSpecialPaymentMetadata).
+func (a *App) SettleInvoicePayments(invoiceID int64, paymentsJSON string) (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	invoice, err := a.store.GetSalesInvoiceByID(a.ctx, invoiceID)
+	if err != nil {
+		return nil, fmt.Errorf("sales invoice not found")
+	}
+	payments, err := parsePayments(paymentsJSON)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("settings: %w", err)
+	}
+	roundingMode, err := normalizeRoundingMode(settings.RoundingMode)
+	if err != nil {
+		return nil, err
+	}
+	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
+	if err != nil {
+		return nil, fmt.Errorf("rounding currency: %w", err)
+	}
+
+	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, roundingMode); err != nil {
+			return err
+		}
+		if err := validatePayments(a.ctx, q, payments, invoice.GrandTotal, settings.MaxOverpaymentCents, roundingCurrency, roundingMode); err != nil {
+			return err
+		}
+		oldPayments, err := q.ListInvoicePayments(a.ctx, invoiceID)
+		if err != nil {
+			return err
+		}
+		for _, old := range oldPayments {
+			if old.Amount == 0 {
+				continue
+			}
+			if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{
+				AccountID: old.CashboxID, ShiftID: invoice.ShiftID, Balance: -old.Amount,
+			}); err != nil {
+				return fmt.Errorf("reverse prior settlement: %w", err)
+			}
+		}
+		if err := q.DeleteInvoicePayments(a.ctx, invoiceID); err != nil {
+			return err
+		}
+		if err := q.DeleteInvoicePaymentEntries(a.ctx, invoiceID); err != nil {
+			return err
+		}
+		for _, payment := range payments {
+			if err := q.CreateInvoicePaymentEntry(a.ctx, db.CreateInvoicePaymentEntryParams{
+				InvoiceID: invoiceID, CashboxID: payment.AccountID, Amount: payment.AmountCents, EntryType: payment.EntryType,
+			}); err != nil {
+				return fmt.Errorf("record settlement entry: %w", err)
+			}
+		}
+		if err := recordSpecialPaymentMetadata(a, q, invoiceID, invoice.ClientID, payments); err != nil {
+			return err
+		}
+		netByAccount := netPaymentsByAccount(payments)
+		var primaryAccountID, primaryAmount int64
+		for accountID, amount := range netByAccount {
+			if amount == 0 {
+				continue
+			}
+			if err := q.CreateInvoicePayment(a.ctx, db.CreateInvoicePaymentParams{
+				InvoiceID: invoiceID, CashboxID: accountID, Amount: amount,
+			}); err != nil {
+				return fmt.Errorf("record settlement: %w", err)
+			}
+			if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{
+				AccountID: accountID, ShiftID: invoice.ShiftID, Balance: amount,
+			}); err != nil {
+				return fmt.Errorf("add cashbox balance: %w", err)
+			}
+			if amount > primaryAmount {
+				primaryAmount, primaryAccountID = amount, accountID
+			}
+		}
+		if primaryAccountID != 0 && primaryAccountID != invoice.CashboxID {
+			if err := q.UpdateInvoiceCashbox(a.ctx, db.UpdateInvoiceCashboxParams{
+				CashboxID: primaryAccountID, ID: invoiceID,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"invoiceCode": invoice.InvoiceCode}, nil
+}
+
 func (a *App) ReprintInvoice(id int64) error {
 	return a.printInvoiceReceipt(id, nil)
 }

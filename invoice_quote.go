@@ -103,7 +103,7 @@ func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string) (PaymentStatus,
 	if err != nil {
 		return status, err
 	}
-	payments, err := parsePayments(paymentsJSON)
+	payments, err := optionalPayments(paymentsJSON)
 	if err != nil {
 		return status, err
 	}
@@ -152,6 +152,212 @@ func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string) (PaymentStatus,
 		PaidCents:       paid,
 		DiffCents:       paid - totals.GrandTotal,
 		IsPaidInFull:    paid == totals.GrandTotal,
+		IsCashRounded:   roundedEquivalent,
+		CheckoutReady:   ok,
+	}
+	return status, nil
+}
+
+// ExchangeQuote is the read-only, authoritative preview of what an exchange
+// (returned lines + replacement lines) will net out to, reusing
+// validateAndPriceExchange - the exact function checkoutReturnExchangeInvoice
+// prices with - so the calculator's displayed total can never drift from
+// what checkout will actually charge. GrandTotalCents is floored at 0: if
+// the replacement value doesn't yet cover the returned value, there is
+// nothing to collect yet (see NeedsMoreReplacementValue) rather than a
+// negative amount.
+type ExchangeQuote struct {
+	ReturnedTotalCents        int64 `json:"returnedTotalCents"`
+	ReplacementTotalCents     int64 `json:"replacementTotalCents"`
+	TaxCents                  int64 `json:"taxCents"`
+	GrandTotalCents           int64 `json:"grandTotalCents"`
+	NeedsMoreReplacementValue bool  `json:"needsMoreReplacementValue"`
+}
+
+func (a *App) quoteExchange(itemsJSON string, originalInvoiceID int64) (ExchangeQuote, pricedExchange, error) {
+	var quote ExchangeQuote
+	if a.store == nil {
+		return quote, pricedExchange{}, fmt.Errorf("database not initialized")
+	}
+	// returnOnly relaxes "at least one replacement" while the cashier is
+	// still only picking returned items - this is a live preview, not a
+	// checkout, so a partially-built exchange must still quote cleanly.
+	request, err := parseExchangeRequest(itemsJSON, true)
+	if err != nil {
+		return quote, pricedExchange{}, err
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return quote, pricedExchange{}, fmt.Errorf("settings: %w", err)
+	}
+	roundingMode, err := normalizeRoundingMode(settings.RoundingMode)
+	if err != nil {
+		return quote, pricedExchange{}, err
+	}
+	customPricingEnabled, perUnitPricingEnabled := a.customPricingFlags()
+	priced, err := a.validateAndPriceExchange(a.store.Queries, originalInvoiceID, request, roundingMode, customPricingEnabled, perUnitPricingEnabled)
+	if err != nil {
+		return quote, pricedExchange{}, err
+	}
+	netDifference := priced.replacementTotal - priced.returnedTotal
+	taxCents, err := signedAdjustmentTax(netDifference, settings.TaxRate, roundingMode)
+	if err != nil {
+		return quote, pricedExchange{}, err
+	}
+	total := netDifference + taxCents
+	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
+	if err != nil {
+		return quote, pricedExchange{}, fmt.Errorf("rounding currency: %w", err)
+	}
+	total, err = roundCentsByCurrency(total, roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, roundingMode)
+	if err != nil {
+		return quote, pricedExchange{}, fmt.Errorf("round exchange total: %w", err)
+	}
+	needsMoreReplacementValue := priced.replacementTotal < priced.returnedTotal
+	if total < 0 {
+		total = 0
+	}
+	quote = ExchangeQuote{
+		ReturnedTotalCents:        priced.returnedTotal,
+		ReplacementTotalCents:     priced.replacementTotal,
+		TaxCents:                  taxCents,
+		GrandTotalCents:           total,
+		NeedsMoreReplacementValue: needsMoreReplacementValue,
+	}
+	return quote, priced, nil
+}
+
+// QuoteExchangeTotal prices an in-progress exchange cart exactly as checkout
+// would, without persisting anything.
+func (a *App) QuoteExchangeTotal(itemsJSON string, originalInvoiceID int64) (ExchangeQuote, error) {
+	quote, _, err := a.quoteExchange(itemsJSON, originalInvoiceID)
+	return quote, err
+}
+
+// QuoteExchangePaymentStatus prices the exchange (as QuoteExchangeTotal does)
+// and evaluates a proposed set of payments against it, using the same
+// sufficiency check checkout will apply. CheckoutReady additionally requires
+// the replacement value to already cover the returned value, since checkout
+// will reject an exchange that doesn't.
+func (a *App) QuoteExchangePaymentStatus(itemsJSON, paymentsJSON string, originalInvoiceID int64) (PaymentStatus, error) {
+	var status PaymentStatus
+	quote, _, err := a.quoteExchange(itemsJSON, originalInvoiceID)
+	if err != nil {
+		return status, err
+	}
+	payments, err := optionalPayments(paymentsJSON)
+	if err != nil {
+		return status, err
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return status, fmt.Errorf("settings: %w", err)
+	}
+	roundingMode, err := normalizeRoundingMode(settings.RoundingMode)
+	if err != nil {
+		return status, err
+	}
+	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
+	if err != nil {
+		return status, fmt.Errorf("rounding currency: %w", err)
+	}
+
+	var paid int64
+	hasForeignCashPayment := false
+	for _, payment := range payments {
+		if payment.AmountCents > math.MaxInt64-paid {
+			return status, fmt.Errorf("payment total is too large")
+		}
+		paid += payment.AmountCents
+		if payment.AmountCents == 0 {
+			continue
+		}
+		account, err := a.store.GetCashboxAccountByID(a.ctx, payment.AccountID)
+		if err != nil {
+			continue
+		}
+		if currency, currErr := resolveCurrency(a.ctx, a.store.Queries, account.CurrencyCode); currErr == nil && currency.CashRoundingUnit > 1 {
+			hasForeignCashPayment = true
+		}
+	}
+
+	ok, roundedEquivalent, err := evaluatePaymentSufficiency(paid, quote.GrandTotalCents, settings.MaxOverpaymentCents, roundingCurrency, roundingMode, hasForeignCashPayment)
+	if err != nil {
+		return status, err
+	}
+
+	status = PaymentStatus{
+		GrandTotalCents: quote.GrandTotalCents,
+		PaidCents:       paid,
+		DiffCents:       paid - quote.GrandTotalCents,
+		IsPaidInFull:    paid == quote.GrandTotalCents,
+		IsCashRounded:   roundedEquivalent,
+		CheckoutReady:   ok && !quote.NeedsMoreReplacementValue,
+	}
+	return status, nil
+}
+
+// QuoteSettlementPaymentStatus evaluates a proposed set of payments against
+// an *existing* invoice's already-persisted GrandTotal, instead of
+// re-pricing an items JSON. It backs "change settlement" mode, where the
+// items/discounts are frozen and only the payments may change - re-pricing
+// via QuotePaymentStatus would risk drifting from the original sale if tax
+// rate, rounding, or discount-list settings changed since checkout.
+func (a *App) QuoteSettlementPaymentStatus(invoiceID int64, paymentsJSON string) (PaymentStatus, error) {
+	var status PaymentStatus
+	if a.store == nil {
+		return status, fmt.Errorf("database not initialized")
+	}
+	invoice, err := a.store.GetSalesInvoiceByID(a.ctx, invoiceID)
+	if err != nil {
+		return status, fmt.Errorf("sales invoice not found")
+	}
+	payments, err := optionalPayments(paymentsJSON)
+	if err != nil {
+		return status, err
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return status, fmt.Errorf("settings: %w", err)
+	}
+	roundingMode, err := normalizeRoundingMode(settings.RoundingMode)
+	if err != nil {
+		return status, err
+	}
+	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
+	if err != nil {
+		return status, fmt.Errorf("rounding currency: %w", err)
+	}
+
+	var paid int64
+	hasForeignCashPayment := false
+	for _, payment := range payments {
+		if payment.AmountCents > math.MaxInt64-paid {
+			return status, fmt.Errorf("payment total is too large")
+		}
+		paid += payment.AmountCents
+		if payment.AmountCents == 0 {
+			continue
+		}
+		account, err := a.store.GetCashboxAccountByID(a.ctx, payment.AccountID)
+		if err != nil {
+			continue
+		}
+		if currency, currErr := resolveCurrency(a.ctx, a.store.Queries, account.CurrencyCode); currErr == nil && currency.CashRoundingUnit > 1 {
+			hasForeignCashPayment = true
+		}
+	}
+
+	ok, roundedEquivalent, err := evaluatePaymentSufficiency(paid, invoice.GrandTotal, settings.MaxOverpaymentCents, roundingCurrency, roundingMode, hasForeignCashPayment)
+	if err != nil {
+		return status, err
+	}
+
+	status = PaymentStatus{
+		GrandTotalCents: invoice.GrandTotal,
+		PaidCents:       paid,
+		DiffCents:       paid - invoice.GrandTotal,
+		IsPaidInFull:    paid == invoice.GrandTotal,
 		IsCashRounded:   roundedEquivalent,
 		CheckoutReady:   ok,
 	}

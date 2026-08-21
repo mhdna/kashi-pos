@@ -550,6 +550,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"salesInventoryId":    settings.SalesInventoryID,
 		"exchangeRate":        settings.ExchangeRate,
 		"maxOverpaymentCents": settings.MaxOverpaymentCents,
+		"exchangeWindowHours": settings.ExchangeWindowHours,
 		"marketName":          settings.MarketName,
 		"marketPhone":         settings.MarketPhone,
 		"branchPhone":         settings.BranchPhone,
@@ -661,7 +662,7 @@ func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, market
 		PrinterSize: current.PrinterSize, ReceiptPrinter: current.ReceiptPrinter, ScreenPort: current.ScreenPort,
 		ReceiptWidth: current.ReceiptWidth, ReceiptHeight: current.ReceiptHeight, Theme: current.Theme, TaxRate: current.TaxRate,
 		RoundingMode: current.RoundingMode, RoundingCurrency: current.RoundingCurrency, ReceiptEnabled: current.ReceiptEnabled, SalesInventoryID: current.SalesInventoryID,
-		ExchangeRate: current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents, MarketName: marketName, MarketPhone: marketPhone, BranchPhone: branchPhone, MarketDescription: marketDescription,
+		ExchangeRate: current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents, ExchangeWindowHours: current.ExchangeWindowHours, MarketName: marketName, MarketPhone: marketPhone, BranchPhone: branchPhone, MarketDescription: marketDescription,
 		ReturnPolicy: returnPolicy, Website: website, Instagram: instagram, SocialPlatforms: socialPlatformsJSON, SocialHandles: socialHandlesJSON, ReceiptFont: receiptFont, ReceiptTitleSize: titleSize,
 		ReceiptBodySize: bodySize, ReceiptCutoff: boolInt(cutoff), ReceiptBodyFont: bodyFont, CounterNumber: strings.TrimSpace(registerName),
 	})
@@ -716,7 +717,7 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		RoundingCurrency: roundingCurrency,
 		ReceiptEnabled:   boolInt(receiptEnabled),
 		SalesInventoryID: salesInventoryID,
-		ExchangeRate:     exchangeRate, MaxOverpaymentCents: maxOverpaymentCents,
+		ExchangeRate:     exchangeRate, MaxOverpaymentCents: maxOverpaymentCents, ExchangeWindowHours: current.ExchangeWindowHours,
 		MarketName: current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
 		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, SocialPlatforms: current.SocialPlatforms, SocialHandles: current.SocialHandles, ReceiptFont: current.ReceiptFont,
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
@@ -748,7 +749,42 @@ func (a *App) SetTaxRate(rate float64) error {
 		RoundingCurrency: current.RoundingCurrency,
 		ReceiptEnabled:   current.ReceiptEnabled,
 		SalesInventoryID: current.SalesInventoryID,
-		ExchangeRate:     current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents,
+		ExchangeRate:     current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents, ExchangeWindowHours: current.ExchangeWindowHours,
+		MarketName: current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
+		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, SocialPlatforms: current.SocialPlatforms, SocialHandles: current.SocialHandles, ReceiptFont: current.ReceiptFont,
+		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
+		ReceiptBodyFont: current.ReceiptBodyFont, BranchPhone: current.BranchPhone, CounterNumber: current.CounterNumber,
+	})
+}
+
+func (a *App) SetExchangeWindowHours(hours int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if hours < 0 {
+		return fmt.Errorf("exchange window cannot be negative")
+	}
+	current, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return err
+	}
+	return a.store.UpdateSettings(a.ctx, db.UpdateSettingsParams{
+		BranchName:       current.BranchName,
+		BranchCode:       current.BranchCode,
+		ApiKey:           current.ApiKey,
+		PrinterID:        current.PrinterID,
+		PrinterSize:      current.PrinterSize,
+		ReceiptPrinter:   current.ReceiptPrinter,
+		ScreenPort:       current.ScreenPort,
+		ReceiptWidth:     current.ReceiptWidth,
+		ReceiptHeight:    current.ReceiptHeight,
+		Theme:            current.Theme,
+		TaxRate:          current.TaxRate,
+		RoundingMode:     current.RoundingMode,
+		RoundingCurrency: current.RoundingCurrency,
+		ReceiptEnabled:   current.ReceiptEnabled,
+		SalesInventoryID: current.SalesInventoryID,
+		ExchangeRate:     current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents, ExchangeWindowHours: hours,
 		MarketName: current.MarketName, MarketPhone: current.MarketPhone, MarketDescription: current.MarketDescription,
 		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, SocialPlatforms: current.SocialPlatforms, SocialHandles: current.SocialHandles, ReceiptFont: current.ReceiptFont,
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,

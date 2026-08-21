@@ -343,7 +343,7 @@ function restorePhoneCaret(digitIndex: number) {
     let position = 0;
     let digitsSeen = 0;
     while (position < formatted.length && digitsSeen < digitIndex) {
-      if (/\d/.test(formatted[position])) digitsSeen++;
+      if (/\d/.test(formatted[position] ?? "")) digitsSeen++;
       position++;
     }
     input.setSelectionRange(position, position);

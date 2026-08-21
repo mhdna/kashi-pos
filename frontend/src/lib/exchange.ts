@@ -29,7 +29,6 @@ export interface ExchangeSelection {
   originalInvoiceId: number;
   client: Client;
   returned: ExchangeItem[];
-  replacements: ExchangeItem[];
 }
 
 export function normalizeExchangeCode(value: string): string {
@@ -45,8 +44,4 @@ export function exchangeLineTotal(item: ExchangeItem, roundingMode = "half_up"):
   const grossCents = Math.round(Number(item.price) * 100) * qty;
   const discountCents = roundDiscountCents(grossCents, Number(item.discount || 0), normalizeRoundingMode(roundingMode));
   return (grossCents - discountCents) / 100;
-}
-
-export function replacementTotal(items: ExchangeItem[], roundingMode = "half_up"): number {
-  return items.reduce((total, item) => total + exchangeLineTotal(item, roundingMode), 0);
 }

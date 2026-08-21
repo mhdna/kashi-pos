@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 
 	db "kashi-pos/db/sqlc"
@@ -16,6 +17,13 @@ type exchangeLine struct {
 	UnitDiscount   *int64 `json:"unitDiscount,omitempty"`
 	SalespersonID  int64  `json:"salespersonId,omitempty"`
 	Note           string `json:"note,omitempty"`
+	// The following only apply to replacement (positive-qty) lines - a
+	// returned line's price/discount always comes from the original sold
+	// line (UnitPriceCents/UnitDiscount above are only ever used to *match*
+	// which original line is being returned, never to reprice it).
+	CustomPriceCents *int64  `json:"customPriceCents,omitempty"`
+	UnitPricesCents  []int64 `json:"unitPricesCents,omitempty"`
+	UnitDiscounts    []int64 `json:"unitDiscounts,omitempty"`
 }
 
 type exchangeRequest struct {
@@ -94,11 +102,42 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 			}
 			continue
 		}
-		normalizedCode := strings.ToLower(line.Code)
-		if len(request.returnedItems) > 0 && anyReturnedCode(request.returnedItems, line.Code) {
-			return exchangeRequest{}, fmt.Errorf("choose different products as replacements")
+		if line.CustomPriceCents != nil && (*line.CustomPriceCents <= 0 || *line.CustomPriceCents > 99999999) {
+			return exchangeRequest{}, fmt.Errorf("invalid custom price for replacement %q", line.Code)
 		}
+		if len(line.UnitPricesCents) > 0 {
+			if int64(len(line.UnitPricesCents)) != line.Qty {
+				return exchangeRequest{}, fmt.Errorf("unit prices do not match quantity for replacement %q", line.Code)
+			}
+			for _, price := range line.UnitPricesCents {
+				if price <= 0 || price > 99999999 {
+					return exchangeRequest{}, fmt.Errorf("invalid unit price for replacement %q", line.Code)
+				}
+			}
+		}
+		if len(line.UnitDiscounts) > 0 {
+			if int64(len(line.UnitDiscounts)) != line.Qty {
+				return exchangeRequest{}, fmt.Errorf("unit discounts do not match quantity for replacement %q", line.Code)
+			}
+			for _, discount := range line.UnitDiscounts {
+				if discount < 0 || discount > 100 {
+					return exchangeRequest{}, fmt.Errorf("invalid unit discount for replacement %q", line.Code)
+				}
+			}
+		}
+		// A replacement is allowed to reuse the same product code as a
+		// returned line (e.g. swapping a defective unit for a fresh one of
+		// the same product) - it's kept as its own separate line rather than
+		// netted against the return, so the returned line stays negative and
+		// the replacement stays positive.
+		normalizedCode := strings.ToLower(line.Code)
+		hasCustomPricing := line.CustomPriceCents != nil || len(line.UnitPricesCents) > 0 || len(line.UnitDiscounts) > 0
 		if index, exists := replacementIndex[normalizedCode]; exists {
+			existing := request.replacements[index]
+			existingHasCustomPricing := existing.CustomPriceCents != nil || len(existing.UnitPricesCents) > 0 || len(existing.UnitDiscounts) > 0
+			if hasCustomPricing || existingHasCustomPricing {
+				return exchangeRequest{}, fmt.Errorf("send a custom-priced replacement %q as a single line", line.Code)
+			}
 			current := request.replacements[index].Qty
 			if line.Qty > math.MaxInt64-current {
 				return exchangeRequest{}, fmt.Errorf("replacement quantity is too large")
@@ -112,24 +151,10 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 	if len(request.returnedItems) == 0 || (len(request.replacements) == 0 && (len(returnOnly) == 0 || !returnOnly[0])) {
 		return exchangeRequest{}, fmt.Errorf("an exchange needs one returned item and at least one replacement")
 	}
-	for _, replacement := range request.replacements {
-		if anyReturnedCode(request.returnedItems, replacement.Code) {
-			return exchangeRequest{}, fmt.Errorf("choose different products as replacements")
-		}
-	}
 	return request, nil
 }
 
-func anyReturnedCode(returned []exchangeLine, code string) bool {
-	for _, line := range returned {
-		if strings.EqualFold(line.Code, code) {
-			return true
-		}
-	}
-	return false
-}
-
-func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request exchangeRequest, roundingMode string) (pricedExchange, error) {
+func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request exchangeRequest, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool) (pricedExchange, error) {
 	var result pricedExchange
 	sourceLines, err := q.ListInvoiceProducts(a.ctx, sourceID)
 	if err != nil {
@@ -189,17 +214,63 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		if err != nil || product.IsActive == 0 {
 			return result, fmt.Errorf("replacement product %s not found or inactive", line.Code)
 		}
-		priced, err := priceInvoiceProduct(product, line.Qty, roundingMode)
-		if err != nil {
-			return result, err
+		if line.CustomPriceCents != nil {
+			if !customPricingEnabled {
+				return result, fmt.Errorf("custom item pricing is disabled")
+			}
+			product.Price = *line.CustomPriceCents
 		}
-		priced.salespersonID = line.SalespersonID
-		priced.note = line.Note
-		if result.replacementTotal > math.MaxInt64-priced.lineTotal {
-			return result, fmt.Errorf("replacement total is too large")
+		// Mirrors validateAndPriceItems's per-unit bucketing: a replacement
+		// line with per-unit price/discount overrides is split into one
+		// priced sub-line per distinct (price, discount) pair, keeping unit
+		// pricing consistent between a normal sale and a replacement line.
+		priceQuantities := map[unitPricing]int64{
+			{price: product.Price, discount: product.Discount}: line.Qty,
 		}
-		result.replacementTotal += priced.lineTotal
-		result.replacements = append(result.replacements, priced)
+		if len(line.UnitPricesCents) > 0 || len(line.UnitDiscounts) > 0 {
+			if !perUnitPricingEnabled {
+				return result, fmt.Errorf("per-unit item pricing is disabled")
+			}
+			priceQuantities = make(map[unitPricing]int64)
+			for index := int64(0); index < line.Qty; index++ {
+				price := product.Price
+				if len(line.UnitPricesCents) > 0 {
+					price = line.UnitPricesCents[index]
+				}
+				discount := product.Discount
+				if len(line.UnitDiscounts) > 0 {
+					discount = line.UnitDiscounts[index]
+				}
+				priceQuantities[unitPricing{price: price, discount: discount}]++
+			}
+		}
+		prices := make([]unitPricing, 0, len(priceQuantities))
+		for pricing := range priceQuantities {
+			prices = append(prices, pricing)
+		}
+		sort.Slice(prices, func(i, j int) bool {
+			if prices[i].price == prices[j].price {
+				return prices[i].discount < prices[j].discount
+			}
+			return prices[i].price < prices[j].price
+		})
+		for _, pricing := range prices {
+			qty := priceQuantities[pricing]
+			pricedProduct := product
+			pricedProduct.Price = pricing.price
+			pricedProduct.Discount = pricing.discount
+			priced, err := priceInvoiceProduct(pricedProduct, qty, roundingMode)
+			if err != nil {
+				return result, err
+			}
+			priced.salespersonID = line.SalespersonID
+			priced.note = line.Note
+			if result.replacementTotal > math.MaxInt64-priced.lineTotal {
+				return result, fmt.Errorf("replacement total is too large")
+			}
+			result.replacementTotal += priced.lineTotal
+			result.replacements = append(result.replacements, priced)
+		}
 	}
 	return result, nil
 }

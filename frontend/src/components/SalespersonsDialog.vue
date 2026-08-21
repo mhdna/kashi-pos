@@ -10,6 +10,7 @@
         min-height="40px"
         rounded="lg"
         width="100%"
+        :disabled="disabled"
         :class="{ 'missing-selection-pulse': pulseMissingSalesperson }"
       >
         <v-avatar class="salesperson-avatar" :color="selectedColor" size="24">
@@ -35,6 +36,7 @@ import { ListSalespersons } from "../../wailsjs/go/main/App";
 import InitialsAvatar from "./InitialsAvatar.vue";
 import { useSalesperson, type Salesperson } from "@/composables/useSalesperson";
 
+defineProps<{ disabled?: boolean }>();
 const menu = ref(false);
 const salespersonAvatarColor = "grey-darken-1";
 

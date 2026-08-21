@@ -29,7 +29,11 @@ func (a *App) getExchangeInvoice(code string, enforceWindow bool) (map[string]an
 		return nil, fmt.Errorf("sales invoice not found")
 	}
 	if enforceWindow {
-		if err := validateExchangeWindow(invoice.CreatedAt, time.Now()); err != nil {
+		settings, err := a.store.GetSettings(a.ctx)
+		if err != nil {
+			return nil, err
+		}
+		if err := validateExchangeWindow(invoice.CreatedAt, time.Now(), exchangeWindowDuration(settings.ExchangeWindowHours)); err != nil {
 			return nil, err
 		}
 	}
@@ -92,17 +96,40 @@ func (a *App) getExchangeInvoice(code string, enforceWindow bool) (map[string]an
 	}, nil
 }
 
-const exchangeWindow = 3 * 24 * time.Hour
+func exchangeWindowDuration(hours int64) time.Duration {
+	return time.Duration(hours) * time.Hour
+}
 
-func validateExchangeWindow(createdAt string, now time.Time) error {
+// validateExchangeWindow rejects an exchange once window has elapsed since
+// createdAt. A zero or negative window (settings.exchange_window_hours <= 0)
+// means no time limit is enforced.
+func validateExchangeWindow(createdAt string, now time.Time, window time.Duration) error {
+	if window <= 0 {
+		return nil
+	}
 	invoiceTime, err := parseInvoiceTime(createdAt)
 	if err != nil {
 		return fmt.Errorf("invalid sales invoice date")
 	}
-	if now.UTC().After(invoiceTime.Add(exchangeWindow)) {
-		return fmt.Errorf("exchanges are not allowed more than 3 days after the sale")
+	if now.UTC().After(invoiceTime.Add(window)) {
+		return fmt.Errorf("exchanges are not allowed more than %s after the sale", formatExchangeWindow(window))
 	}
 	return nil
+}
+
+func formatExchangeWindow(window time.Duration) string {
+	hours := int64(window.Hours())
+	if hours%24 == 0 {
+		days := hours / 24
+		if days == 1 {
+			return "1 day"
+		}
+		return fmt.Sprintf("%d days", days)
+	}
+	if hours == 1 {
+		return "1 hour"
+	}
+	return fmt.Sprintf("%d hours", hours)
 }
 
 func parseInvoiceTime(value string) (time.Time, error) {

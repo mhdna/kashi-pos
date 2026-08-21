@@ -15,7 +15,8 @@
     <v-card class="d-flex flex-column">
       <v-card-title>Exchange Invoice</v-card-title>
       <v-card-subtitle>
-            Load the original sale, select one or more returned items, then scan replacements.
+        Load the original sale, select one or more items to return, then start the exchange -
+        replacements are scanned on the invoice screen.
       </v-card-subtitle>
 
       <v-card-text class="exchange-dialog-layout">
@@ -88,20 +89,12 @@
               ref="scanInput"
               v-model="scanValue"
               density="compact"
-              :placeholder="returned.length ? 'Scan replacement product' : 'Scan product being returned'"
+              placeholder="Scan or enter product being returned"
               prepend-inner-icon="mdi-barcode"
               variant="outlined"
-              :loading="scanning"
               :error-messages="scanError"
               @keydown.enter.prevent="scanItem"
               @update:model-value="scanError = ''"
-            />
-            <ProductSearchDialog
-              v-if="returned.length"
-              :show-activator="true"
-              activator-text=""
-              activator-icon="mdi-magnify"
-              @select="selectReplacementProduct"
             />
           </div>
 
@@ -125,42 +118,7 @@
                 />
               </template>
             </v-list-item>
-            <v-list-item
-              v-for="item in replacements"
-              :key="item.code"
-              title="Replacement"
-              :subtitle="`${item.name} · ${item.code} · Qty ${item.qty}`"
-            >
-              <template #append>
-                <span class="text-green-darken-2 font-weight-medium">
-                  +${{ exchangeLineTotal(item, roundingMode).toFixed(2) }}
-                </span>
-                <v-btn
-                  class="ms-2"
-                  icon="mdi-delete"
-                  size="x-small"
-                  variant="text"
-                  @click="removeReplacement(item.code)"
-                />
-              </template>
-            </v-list-item>
           </v-list>
-
-          <v-alert
-            v-if="replacements.length"
-            class="mt-2"
-            density="compact"
-            :type="hasEnoughReplacementValue ? 'success' : 'warning'"
-            variant="tonal"
-          >
-            <template v-if="hasEnoughReplacementValue">
-              Replacement total: ${{ replacementsTotal.toFixed(2) }}. Customer pays
-              ${{ exchangeDifference.toFixed(2) }} plus applicable tax at checkout.
-            </template>
-            <template v-else>
-              Add ${{ remainingReplacementValue.toFixed(2) }} more in replacement products.
-            </template>
-          </v-alert>
         </template>
         </div>
 
@@ -233,7 +191,7 @@
         <v-btn
           class="flex-1-1"
           color="primary"
-          :disabled="!returned.length || !hasEnoughReplacementValue"
+          :disabled="!returned.length"
           @click="startExchange"
         >
           Start exchange
@@ -247,7 +205,6 @@
 import { computed, inject, ref, watch, type Ref } from "vue";
 import { useExchangeDialog } from "@/composables/useExchangeDialog";
 import { effectiveExchangePrice, exchangeLineTotal, type ExchangeSelection } from "@/lib/exchange";
-import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 
 const emit = defineEmits<{
   exchange: [payload: ExchangeSelection];
@@ -262,33 +219,25 @@ const exchangePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 defineExpose({ open: () => { menu.value = true; }, close: () => { menu.value = false; } });
 const {
   loading,
-  scanning,
   invoiceCode,
   scanValue,
   invoice,
   returned,
-  replacements,
   invoiceError,
   scanError,
   invoiceInput,
   scanInput,
-  replacementsTotal,
-  exchangeDifference,
-  remainingReplacementValue,
-  hasEnoughReplacementValue,
   focusInvoiceInput,
   loadInvoice,
   selectReturned,
   scanItem,
-  selectReplacementProduct,
-  removeReplacement,
   removeReturned,
   changeInvoice,
   createSelection,
   clearForm,
 } = useExchangeDialog(() => props.roundingMode ?? "half_up");
 const activeExchangeInput = computed(() => invoice.value ? scanValue.value : invoiceCode.value);
-const exchangePadDisabled = computed(() => loading.value || scanning.value);
+const exchangePadDisabled = computed(() => loading.value);
 
 watch(menu, (open) => {
   if (dialogOpen) dialogOpen.value = open;
@@ -330,7 +279,7 @@ function backspaceExchangeInput() {
 }
 
 function submitExchangeInput() {
-  if (invoice.value) void scanItem();
+  if (invoice.value) scanItem();
   else void loadInvoice();
 }
 

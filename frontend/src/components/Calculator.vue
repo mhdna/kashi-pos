@@ -54,6 +54,8 @@ import {
   ListCouponTypes,
   ListPaymentMethods,
   QuotePaymentStatus,
+  QuoteSettlementPaymentStatus,
+  QuoteExchangePaymentStatus,
 } from "../../wailsjs/go/main/App";
 import { formatUsd } from "@/lib/format";
 import {
@@ -89,6 +91,15 @@ const props = defineProps<{
   clientId?: number;
   hasItems?: boolean;
   exchangeMode?: boolean;
+  // When set, this is "change settlement" mode: payment sufficiency is
+  // validated against this existing invoice's frozen GrandTotal
+  // (QuoteSettlementPaymentStatus) instead of re-pricing itemsJson.
+  settlementInvoiceId?: number;
+  // When set, this is exchange mode: itemsJson contains negative-qty
+  // returned lines that QuotePaymentStatus's normal item parsing rejects
+  // outright, so payment sufficiency is validated via
+  // QuoteExchangePaymentStatus against this original sale invoice instead.
+  exchangeOriginalInvoiceId?: number;
 }>();
 const emit = defineEmits<{ account: []; coupon: [] }>();
 const hasItems = computed(() => Boolean(props.hasItems));
@@ -145,17 +156,30 @@ let statusRequestToken = 0;
 
 async function refreshPaymentStatus() {
   const token = ++statusRequestToken;
-  const itemsJson = props.itemsJson;
-  if (!itemsJson || itemsJson === "[]" || entries.value.length === 0) {
-    // No payments entered yet is a normal state, not a backend error -
-    // QuotePaymentStatus rejects an empty payments array outright.
+  // With zero entries there's nothing to validate against a normal sale's
+  // itemsJson (still gated below), but settlement/exchange mode must still
+  // be asked - an exchange that already nets to $0 (or a settlement already
+  // balanced) is checkout-ready with no entries at all, and the backend
+  // quote endpoints accept an empty payments array (paid = 0) precisely for
+  // this case.
+  if (entries.value.length === 0 && !props.settlementInvoiceId && !props.exchangeOriginalInvoiceId) {
     backendStatus.value = null;
     return;
   }
   try {
-    const result = await QuotePaymentStatus(itemsJson, paymentsJSON.value);
+    const result = props.settlementInvoiceId
+      ? await QuoteSettlementPaymentStatus(props.settlementInvoiceId, paymentsJSON.value)
+      : props.exchangeOriginalInvoiceId
+        ? await QuoteExchangePaymentStatus(
+            props.itemsJson ?? "[]",
+            paymentsJSON.value,
+            props.exchangeOriginalInvoiceId,
+          )
+        : props.itemsJson && props.itemsJson !== "[]"
+          ? await QuotePaymentStatus(props.itemsJson, paymentsJSON.value)
+          : null;
     if (token !== statusRequestToken) return; // a newer request already superseded this one
-    backendStatus.value = {
+    backendStatus.value = result && {
       diffCents: Number(result.diffCents),
       isPaidInFull: Boolean(result.isPaidInFull),
       isCashRounded: Boolean(result.isCashRounded),
@@ -163,14 +187,14 @@ async function refreshPaymentStatus() {
     };
   } catch (e) {
     if (token !== statusRequestToken) return;
-    console.error("QuotePaymentStatus failed:", e);
+    console.error("Payment status quote failed:", e);
     backendStatus.value = null;
   }
 }
 
 let statusDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 watch(
-  [entries, () => props.itemsJson],
+  [entries, () => props.itemsJson, () => props.settlementInvoiceId, () => props.exchangeOriginalInvoiceId],
   () => {
     clearTimeout(statusDebounceTimer);
     statusDebounceTimer = setTimeout(refreshPaymentStatus, 120);

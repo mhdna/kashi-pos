@@ -7,7 +7,7 @@
           style="font-size: var(--kashi-font-size-2xl)"
         >
           <div class="d-flex flex-column">
-            <div class="font-weight-bold">{{ exchangeState ? "Exchange" : "Invoice" }}</div>
+            <div class="font-weight-bold">{{ pageModeTitle }}</div>
             <v-card-subtitle class="pa-0">{{ invoiceCode }}</v-card-subtitle>
           </div>
           <div class="d-flex flex-column align-end">
@@ -19,18 +19,28 @@
                   </v-btn>
                 </template>
                 <v-card class="pa-3" min-width="280">
-                  <v-textarea v-model="noteDraft" auto-grow density="compact" hide-details placeholder="Add a note" rows="3" variant="outlined" />
-                  <div class="d-flex justify-end mt-2"><v-btn color="primary" variant="tonal" @click="saveNote">Add</v-btn></div>
+                  <v-textarea
+                    v-model="noteDraft"
+                    auto-grow
+                    density="compact"
+                    hide-details
+                    placeholder="Add a note"
+                    rows="3"
+                    variant="outlined"
+                  />
+                  <div class="d-flex justify-end mt-2">
+                    <v-btn color="primary" variant="tonal" @click="saveNote">Add</v-btn>
+                  </div>
                 </v-card>
               </v-menu>
               <v-btn
-                v-if="exchangeState"
+                v-if="pageMode !== 'sale'"
                 color="red-darken-2"
                 variant="tonal"
                 prepend-icon="mdi-close"
-                @click="cancelExchange"
+                @click="cancelMode"
               >
-                Cancel exchange
+                Cancel {{ pageMode }}
               </v-btn>
             </div>
           </div>
@@ -44,13 +54,13 @@
           density="compact"
           hide-details="auto"
           placeholder="Scan or Enter Barcode"
-          :disabled="Boolean(exchangeState)"
+          :disabled="pageMode === 'settlement'"
           variant="outlined"
           @blur="onBlur"
           @keydown.enter="onBarcodeEnter"
         />
         <v-btn
-          v-if="!exchangeState"
+          v-if="pageMode !== 'settlement'"
           variant="text"
           rounded
           aria-label="Search products"
@@ -60,7 +70,7 @@
         </v-btn>
         <ProductSearchDialog
           ref="productSearchDialog"
-          v-if="!exchangeState"
+          v-if="pageMode !== 'settlement'"
           :show-activator="false"
           @select="onProductSelect"
         />
@@ -68,14 +78,14 @@
       <InvoiceItems
         ref="invoiceItems"
         :rounding-mode="roundingMode"
-        :readonly="Boolean(exchangeState)"
+        :readonly="pageMode === 'settlement'"
         :custom-discounts-enabled="customItemDiscountsEnabled"
         :custom-prices-enabled="customItemPricesEnabled"
         :per-unit-prices-enabled="perUnitItemPricesEnabled"
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
       />
-      <QuickAccessPanel v-if="!exchangeState" @add="(item) => invoiceItems?.addItem(item)" />
+      <QuickAccessPanel v-if="pageMode !== 'settlement'" @add="(item) => invoiceItems?.addItem(item)" />
       <!-- <InvoiceSummary
         :subtotal="invoiceItems?.subtotal ?? 0"
         :total-discount="invoiceItems?.totalDiscount ?? 0"
@@ -110,7 +120,9 @@
           :rounding-mode="roundingMode"
           :rounding-currency="roundingCurrency"
           :has-items="hasItems"
-          :exchange-mode="Boolean(exchangeState)"
+          :exchange-mode="pageMode === 'exchange'"
+          :exchange-original-invoice-id="exchangeState?.originalInvoiceId"
+          :settlement-invoice-id="settlementState?.invoiceId"
           @account="accountDialog = true"
           @coupon="calculator?.openCouponDialog()"
         />
@@ -124,7 +136,7 @@
           :can-checkout="canCheckout"
           :has-items="hasItems"
           :pulse-client="pulseClient"
-          :exchange-mode="Boolean(exchangeState)"
+          :mode="pageMode"
           @checkout="onCheckout"
           @hold="onHold"
           @void="onVoid"
@@ -164,6 +176,7 @@ import {
   VoidInvoice,
   CheckoutInvoice,
   CheckoutExchangeInvoice,
+  SettleInvoicePayments,
   GetNextInvoiceCode,
   GetAppSettings,
   DeleteHoldInvoice,
@@ -171,6 +184,7 @@ import {
   OpenShift,
   WriteToScreen,
   QuoteInvoiceTotal,
+  QuoteExchangeTotal,
 } from "../../wailsjs/go/main/App";
 import ActionBar from "@/components/ActionBar.vue";
 import AccountDialog from "@/components/AccountDialog.vue";
@@ -184,7 +198,11 @@ import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { normalizeRoundingMode, type RoundingMode } from "@/lib/money";
 import type { Client } from "@/lib/client";
 import { useSalesperson } from "@/composables/useSalesperson";
-import { pendingExchangeSelection, pendingHoldInvoice } from "@/composables/useNavActions";
+import {
+  pendingExchangeSelection,
+  pendingHoldInvoice,
+  pendingSettlementInvoice,
+} from "@/composables/useNavActions";
 
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
 type InvoiceDraft = { items: any[]; client: Client; notes?: string };
@@ -208,6 +226,25 @@ const invoiceNotes = ref("");
 const noteMenu = ref(false);
 const noteDraft = ref("");
 const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
+const settlementState = ref<{
+  invoiceId: number;
+  invoiceCode: string;
+  grandTotalCents: number;
+} | null>(null);
+// The single source of truth for which of the three home-screen modes is
+// active - everything else (locking items/client/salesperson, which
+// controls are visible, the checkout button's label/color) branches off
+// this instead of checking exchangeState/settlementState directly.
+const pageMode = computed<"sale" | "exchange" | "settlement">(() =>
+  settlementState.value ? "settlement" : exchangeState.value ? "exchange" : "sale",
+);
+const pageModeTitle = computed(() =>
+  pageMode.value === "settlement"
+    ? "Change Settlement"
+    : pageMode.value === "exchange"
+      ? "Exchange"
+      : "Invoice",
+);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
@@ -227,13 +264,17 @@ const invoiceTotal = computed(() => (quote.value?.grandTotalCents ?? 0) / 100);
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
 const clientSelected = computed(() => Boolean(actionBar.value?.clientSelected));
 const salespersonSelected = computed(() => Boolean(selectedSalesperson.value));
-const canCheckout = computed(
-  () =>
-    Boolean(calculator.value?.checkoutReady) &&
-    (exchangeState.value ? hasItems.value : invoiceTotal.value > 0) &&
+const canCheckout = computed(() => {
+  if (!calculator.value?.checkoutReady) return false;
+  // Settlement mode's client/salesperson/items are pre-set and frozen from
+  // the loaded invoice - only the payment balance gates checkout.
+  if (pageMode.value === "settlement") return true;
+  return (
+    (pageMode.value === "exchange" ? hasItems.value : invoiceTotal.value > 0) &&
     clientSelected.value &&
-    salespersonSelected.value,
-);
+    salespersonSelected.value
+  );
+});
 
 const barcodeValue = ref("");
 const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
@@ -258,6 +299,7 @@ watch(noteMenu, (open) => {
 
 watch(pendingHoldInvoice, () => consumePendingHold());
 watch(pendingExchangeSelection, () => void consumePendingExchange());
+watch(pendingSettlementInvoice, () => void consumePendingSettlement());
 
 watch(
   [() => invoiceItems.value?.items, () => actionBar.value?.client, invoiceNotes],
@@ -287,8 +329,32 @@ async function refreshQuote() {
   const itemsJson = await getFullItemsJSON();
   if (token !== quoteRequestToken) return; // a newer request already superseded this one
   cartItemsJson.value = itemsJson;
+  if (settlementState.value) {
+    // Settlement mode never re-prices - the total is the invoice's frozen
+    // GrandTotal, captured once when it was loaded. Re-running it through
+    // QuoteInvoiceTotal could drift from that total if pricing/tax/rounding
+    // settings changed since the original sale.
+    quote.value = { grandTotalCents: settlementState.value.grandTotalCents };
+    return;
+  }
   if (itemsJson === "[]") {
     quote.value = null;
+    return;
+  }
+  if (exchangeState.value) {
+    // A cart with negative-qty returned lines errors out of
+    // QuoteInvoiceTotal outright (it only ever accepts qty > 0), so exchange
+    // mode prices through the dedicated exchange quote instead - the same
+    // pricing checkoutReturnExchangeInvoice will actually apply.
+    try {
+      const result = await QuoteExchangeTotal(itemsJson, exchangeState.value.originalInvoiceId);
+      if (token !== quoteRequestToken) return;
+      quote.value = { grandTotalCents: Number(result.grandTotalCents) };
+    } catch (e) {
+      if (token !== quoteRequestToken) return;
+      console.error("QuoteExchangeTotal failed:", e);
+      quote.value = null;
+    }
     return;
   }
   try {
@@ -509,14 +575,16 @@ async function onHold() {
   if (invoiceItems.value && !(await invoiceItems.value.flushChanges())) return;
   const items = invoiceItems.value?.items ?? [];
   if (!items.length) return;
-  await HoldInvoice(JSON.stringify({
-    version: 1,
-    items,
-    client: actionBar.value?.client,
-    salesperson: selectedSalesperson.value,
-    calculator: calculator.value?.holdState(),
-    notes: invoiceNotes.value,
-  }));
+  await HoldInvoice(
+    JSON.stringify({
+      version: 1,
+      items,
+      client: actionBar.value?.client,
+      salesperson: selectedSalesperson.value,
+      calculator: calculator.value?.holdState(),
+      notes: invoiceNotes.value,
+    }),
+  );
   clearInvoice();
 }
 
@@ -527,7 +595,31 @@ async function onVoid() {
   clearInvoice();
 }
 
+async function onSettlementCheckout() {
+  if (!settlementState.value) return;
+  printing.value = false;
+  try {
+    const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
+    const result = await SettleInvoicePayments(settlementState.value.invoiceId, paymentsJSON);
+    snackbar.text = `Settlement updated — ${result?.invoiceCode ?? settlementState.value.invoiceCode}`;
+    snackbar.color = "success";
+    snackbar.show = true;
+    clearInvoice();
+    settlementState.value = null;
+    notifyIncomeChanged();
+    await refreshNextInvoiceCode("sales");
+  } catch (e: any) {
+    snackbar.text = e?.toString() || "Could not update settlement";
+    snackbar.color = "red-darken-4";
+    snackbar.show = true;
+  }
+}
+
 async function onCheckout() {
+  if (pageMode.value === "settlement") {
+    await onSettlementCheckout();
+    return;
+  }
   if (invoiceItems.value && !(await invoiceItems.value.flushChanges())) return;
   const json = await getFullItemsJSON();
   if (json === "[]") return;
@@ -605,25 +697,22 @@ async function onExchange(payload: ExchangeSelection) {
       category: item.category ?? "",
       qty: Number(item.qty || 1),
     })),
-    payload.replacements.map((item) => ({
-      ...item,
-      category: item.category ?? "",
-      qty: Number(item.qty || 1),
-    })),
+    [],
   );
   actionBar.value?.setClient(payload.client);
   exchangeState.value = { originalInvoiceId: payload.originalInvoiceId };
   await refreshNextInvoiceCode("exchange");
   calculator.value?.clearAll();
-  snackbar.text = "Exchange loaded. Collect the difference, if any, and check out.";
+  snackbar.text = "Exchange loaded. Scan or search replacement items, then check out.";
   snackbar.color = "info";
   snackbar.show = true;
 }
 
-async function cancelExchange() {
+async function cancelMode() {
   clearInvoice();
   calculator.value?.clearAll();
   exchangeState.value = null;
+  settlementState.value = null;
   actionBar.value?.resetClient();
   await refreshNextInvoiceCode("sales");
 }
@@ -665,6 +754,51 @@ async function consumePendingExchange() {
   await onExchange(pending);
 }
 
+async function consumePendingSettlement() {
+  const pending = pendingSettlementInvoice.value;
+  if (!pending || !invoiceItems.value) return;
+  pendingSettlementInvoice.value = null;
+  clearInvoice();
+  // Assigned directly (bypassing addItem's scan-one-unit-at-a-time merge
+  // logic) so each priced line from the invoice - including multiple
+  // buckets of the same product at different custom prices - loads exactly
+  // as it was, instead of being folded into one averaged line.
+  invoiceItems.value.items = pending.items.map((item: any) => {
+    const qty = Math.max(1, Math.trunc(Number(item.qty || 1)));
+    return {
+      name: item.name,
+      code: item.code,
+      barcode: item.barcode,
+      category: item.category ?? "",
+      color: item.color,
+      size: item.size,
+      price: Number(item.price),
+      discount: Number(item.discount || 0),
+      qty,
+      salespersonId: Number(item.salespersonId || 0),
+      note: item.note ?? "",
+      priceListOverridden: Boolean(item.isPriceOverridden),
+      priceListName: item.priceListName,
+      discountListOverridden: Boolean(item.isDiscountOverridden),
+      discountListName: item.discountListName,
+      unitPrices: Array(qty).fill(Number(item.price)),
+      unitDiscounts: Array(qty).fill(Number(item.discount || 0)),
+    };
+  });
+  if (pending.client?.id) actionBar.value?.setClient(pending.client);
+  selectedSalesperson.value = pending.salesperson ?? null;
+  invoiceNotes.value = pending.notes ?? "";
+  noteDraft.value = invoiceNotes.value;
+  settlementState.value = {
+    invoiceId: pending.id,
+    invoiceCode: pending.invoiceCode,
+    grandTotalCents: Number(pending.grandTotalCents || 0),
+  };
+  invoiceCode.value = pending.invoiceCode;
+  await nextTick();
+  calculator.value?.restoreHoldState({ entries: pending.entries ?? [] });
+}
+
 onMounted(async () => {
   await nextTick();
   if (!pageActive) return;
@@ -678,6 +812,7 @@ onMounted(async () => {
   restoreDraft();
   consumePendingHold();
   await consumePendingExchange();
+  await consumePendingSettlement();
   focusBarcode();
   try {
     const settings = await GetAppSettings();

@@ -1,6 +1,6 @@
 <template>
   <div ref="invoiceScroll" class="invoice-items ms-2 mt-2 mb-2 me-0">
-    <div v-for="(item, index) in items" :key="item.barcode || item.code">
+    <div v-for="(item, index) in items" :key="`${index}-${item.barcode || item.code}`">
       <v-list-item>
         <template #title>
           <button
@@ -23,7 +23,7 @@
             <div class="invoice-qty-control">
               <NumberPadMenu
                 :model-value="item.qty"
-                :disabled="readonly || item.qty < 0"
+                :disabled="readonly || item.locked || item.qty < 0"
                 :min="1"
                 :max="999"
                 aria-label="Edit item quantity"
@@ -33,7 +33,7 @@
             </div>
             <div class="invoice-discount-control">
               <NumberPadMenu
-                v-if="customDiscountsEnabled && !readonly && item.qty > 0"
+                v-if="customDiscountsEnabled && !readonly && !item.locked && item.qty > 0"
                 :ref="(element) => setDiscountInput(index, element)"
                 :model-value="item.discount"
                 aria-label="Item discount percentage"
@@ -47,7 +47,7 @@
               />
             </div>
             <NumberPadMenu
-              v-if="customPricesEnabled && !readonly && item.qty > 0"
+              v-if="customPricesEnabled && !readonly && !item.locked && item.qty > 0"
               :model-value="item.price.toFixed(2)"
               allow-decimal
               aria-label="Set custom item price"
@@ -107,7 +107,7 @@
               >
             </div>
             <div class="invoice-delete-control">
-              <v-btn v-if="!readonly" variant="text" rounded size="small" @click="removeItem(item)">
+              <v-btn v-if="!readonly && !item.locked" variant="text" rounded size="small" @click="removeItem(item)">
                 <v-icon icon="mdi-delete" size="18" color="grey" />
               </v-btn>
             </div>
@@ -244,6 +244,10 @@ interface LineItem {
   priceListName?: string;
   discountListOverridden?: boolean;
   discountListName?: string;
+  // Locks just this line, independent of the component-level `readonly`
+  // prop - used by exchange mode, where returned (negative-qty) lines stay
+  // locked while replacement lines scanned afterward are fully editable.
+  locked?: boolean;
 }
 
 const emit = defineEmits<{
@@ -368,12 +372,21 @@ function setQuantity(item: LineItem, value: number) {
 }
 
 function removeItem(item: LineItem) {
-  items.value = items.value.filter((i) => i.barcode !== item.barcode);
+  // Filter by object identity, not barcode/code - a locked returned line and
+  // an unlocked replacement line can share the same barcode in exchange
+  // mode, and removing "the" line by barcode would take out both.
+  items.value = items.value.filter((i) => i !== item);
 }
 
 function addItem(item: LineItem) {
+  // A locked line (e.g. a returned line in exchange mode) is never a merge
+  // target - scanning the same product as a replacement must add a
+  // separate, editable line rather than incrementing the locked line's qty
+  // (which would silently net a -1 return back toward 0).
   const existing = items.value.find(
-    (i) => (item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code),
+    (i) =>
+      !i.locked &&
+      ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)),
   );
   if (existing) {
     ensureUnitPrices(existing);
@@ -416,6 +429,7 @@ function addExchangeItems(returned: LineItem[], replacements: LineItem[]) {
       soldUnitDiscount: Number(item.soldUnitDiscount ?? item.discount),
       unitPrices: [],
       unitDiscounts: [],
+      locked: true,
     })),
     ...replacements.map((item) => ({
       ...item,
@@ -425,6 +439,7 @@ function addExchangeItems(returned: LineItem[], replacements: LineItem[]) {
       unitDiscounts: Array(Math.max(1, Math.trunc(Number(item.qty || 1)))).fill(
         Number(item.discount || 0),
       ),
+      locked: false,
     })),
   ];
 }
@@ -437,13 +452,19 @@ function clearItems() {
 
 function canEditUnitPrice(item: LineItem): boolean {
   return (
-    item.qty > 0 && (perUnitPricesEnabled.value || customPricesEnabled.value) && !readonly.value
+    item.qty > 0 &&
+    (perUnitPricesEnabled.value || customPricesEnabled.value) &&
+    !readonly.value &&
+    !item.locked
   );
 }
 
 function canEditUnitDiscount(item: LineItem): boolean {
   return (
-    item.qty > 0 && (perUnitPricesEnabled.value || customDiscountsEnabled.value) && !readonly.value
+    item.qty > 0 &&
+    (perUnitPricesEnabled.value || customDiscountsEnabled.value) &&
+    !readonly.value &&
+    !item.locked
   );
 }
 

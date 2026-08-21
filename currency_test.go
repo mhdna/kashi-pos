@@ -158,7 +158,7 @@ func settingsToUpdateParams(s db.Setting) db.UpdateSettingsParams {
 		PrinterSize: s.PrinterSize, ReceiptPrinter: s.ReceiptPrinter, ScreenPort: s.ScreenPort,
 		ReceiptWidth: s.ReceiptWidth, ReceiptHeight: s.ReceiptHeight, Theme: s.Theme, TaxRate: s.TaxRate,
 		RoundingMode: s.RoundingMode, RoundingCurrency: s.RoundingCurrency, ReceiptEnabled: s.ReceiptEnabled,
-		SalesInventoryID: s.SalesInventoryID, ExchangeRate: s.ExchangeRate, MaxOverpaymentCents: s.MaxOverpaymentCents,
+		SalesInventoryID: s.SalesInventoryID, ExchangeRate: s.ExchangeRate, MaxOverpaymentCents: s.MaxOverpaymentCents, ExchangeWindowHours: s.ExchangeWindowHours,
 		MarketName: s.MarketName, MarketPhone: s.MarketPhone, BranchPhone: s.BranchPhone, MarketDescription: s.MarketDescription,
 		ReturnPolicy: s.ReturnPolicy, Website: s.Website, Instagram: s.Instagram, SocialPlatforms: s.SocialPlatforms,
 		SocialHandles: s.SocialHandles, ReceiptFont: s.ReceiptFont, ReceiptTitleSize: s.ReceiptTitleSize,

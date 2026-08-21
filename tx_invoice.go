@@ -107,6 +107,28 @@ type pricingContext struct {
 	PerUnitPricingEnabled bool
 }
 
+// customPricingFlags reads the custom-price/per-unit-pricing feature flags
+// shared by normal checkout and exchange replacement pricing, so both paths
+// can never disagree about whether a cashier is allowed to override a line's
+// price/discount.
+func (a *App) customPricingFlags() (customPricingEnabled, perUnitPricingEnabled bool) {
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
+		customPricingEnabled = enabled != 0 // Compatibility with databases upgrading from the combined flag.
+	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemPricesFlag); flagErr == nil {
+		customPricingEnabled = enabled != 0
+	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, perUnitItemPricesFlag); flagErr == nil {
+		perUnitPricingEnabled = enabled != 0
+	}
+	customDiscountsEnabled := false
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
+		customDiscountsEnabled = enabled != 0
+	}
+	perUnitPricingEnabled = perUnitPricingEnabled || customPricingEnabled || customDiscountsEnabled
+	return customPricingEnabled, perUnitPricingEnabled
+}
+
 func (a *App) loadPricingContext() (pricingContext, error) {
 	var pricing pricingContext
 	settings, err := a.store.GetSettings(a.ctx)
@@ -124,22 +146,7 @@ func (a *App) loadPricingContext() (pricingContext, error) {
 	if err != nil {
 		return pricing, err
 	}
-	customPricingEnabled := false
-	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
-		customPricingEnabled = enabled != 0 // Compatibility with databases upgrading from the combined flag.
-	}
-	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemPricesFlag); flagErr == nil {
-		customPricingEnabled = enabled != 0
-	}
-	perUnitPricingEnabled := false
-	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, perUnitItemPricesFlag); flagErr == nil {
-		perUnitPricingEnabled = enabled != 0
-	}
-	customDiscountsEnabled := false
-	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
-		customDiscountsEnabled = enabled != 0
-	}
-	perUnitPricingEnabled = perUnitPricingEnabled || customPricingEnabled || customDiscountsEnabled
+	customPricingEnabled, perUnitPricingEnabled := a.customPricingFlags()
 
 	pricing.Settings = settings
 	pricing.RoundingMode = roundingMode

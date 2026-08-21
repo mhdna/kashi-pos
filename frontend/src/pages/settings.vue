@@ -332,6 +332,41 @@
           </v-card>
 
           <v-card class="settings-card">
+            <v-card-title>Exchange settings</v-card-title>
+            <v-card-text>
+              <p class="text-caption text-medium-emphasis mb-3">
+                How long after a sale a cashier may still exchange items against it.
+              </p>
+              <div class="d-flex ga-2 mb-2">
+                <v-text-field
+                  v-model.number="form.exchangeWindowDays"
+                  label="Days"
+                  type="number"
+                  min="0"
+                  step="1"
+                  variant="outlined"
+                  density="compact"
+                  hide-details="auto"
+                />
+                <v-text-field
+                  v-model.number="form.exchangeWindowHours"
+                  label="Hours"
+                  type="number"
+                  min="0"
+                  max="23"
+                  step="1"
+                  variant="outlined"
+                  density="compact"
+                  hide-details="auto"
+                />
+              </div>
+              <p class="text-caption text-medium-emphasis">
+                0 days and 0 hours means exchanges are always allowed, regardless of sale date.
+              </p>
+            </v-card-text>
+          </v-card>
+
+          <v-card class="settings-card">
             <v-card-title>Currencies &amp; rates</v-card-title>
             <v-card-text>
               <p class="text-caption text-medium-emphasis mb-3">
@@ -918,6 +953,7 @@ import {
   UpdateAttendanceConfig,
   UpdateAttendanceApproverPassword,
   SetAttendanceDuplicateInterval,
+  SetExchangeWindowHours,
   SetCustomItemDiscountsEnabled,
   SetCustomItemPricesEnabled,
   SetPerUnitItemPricesEnabled,
@@ -1025,6 +1061,8 @@ const form = reactive({
   exchangeRate: 90000,
   maxOverpayment: 1,
   allowOverpayment: false,
+  exchangeWindowDays: 3,
+  exchangeWindowHours: 0,
   marketName: "",
   marketPhone: "",
   branchPhone: "",
@@ -1514,6 +1552,8 @@ async function loadSettings() {
         exchangeRate: Number(s.exchangeRate ?? 90000),
         maxOverpayment: Number(s.maxOverpaymentCents ?? 0) / 100,
         allowOverpayment: Number(s.maxOverpaymentCents ?? 0) > 0,
+        exchangeWindowDays: Math.floor(Number(s.exchangeWindowHours ?? 72) / 24),
+        exchangeWindowHours: Number(s.exchangeWindowHours ?? 72) % 24,
         marketName: s.marketName ?? "",
         marketPhone: s.marketPhone ?? "",
         branchPhone: s.branchPhone ?? "",
@@ -1703,6 +1743,10 @@ async function saveSettings() {
     if (form.attendanceApproverPassword.trim()) await UpdateAttendanceApproverPassword(form.attendanceApproverPassword.trim());
     await SetAttendanceDuplicateInterval(Math.max(0, Math.floor(Number(form.attendanceDuplicateIntervalSeconds) || 0)));
     await SetAttendanceCashierHistoryEnabled(Boolean(form.attendanceCashierHistory));
+    const exchangeWindowHours =
+      Math.max(0, Math.floor(Number(form.exchangeWindowDays) || 0)) * 24 +
+      Math.max(0, Math.floor(Number(form.exchangeWindowHours) || 0));
+    await SetExchangeWindowHours(exchangeWindowHours);
     notify("Settings saved");
   } catch {
     notify("Failed to save", "red");

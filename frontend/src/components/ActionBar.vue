@@ -2,7 +2,7 @@
   <ClientDialog v-model="clientDialog" @select="onClientSelect" />
   <div class="d-flex flex-column w-100 h-100 px-4">
     <div class="text-caption text-medium-emphasis text-center mt-2">Salesperson</div>
-    <SalespersonsDialog />
+    <SalespersonsDialog :disabled="mode === 'settlement'" />
     <div class="text-caption text-medium-emphasis text-center mt-2">Client</div>
     <v-card
       class="client-card px-4 py-4 my-2 text-center"
@@ -28,11 +28,11 @@
     </v-card>
     <div class="mt-auto pb-2">
     <div class="d-flex flex-column ga-2 mb-2">
-      <v-btn class="checkout-action-button" variant="tonal" :disabled="!hasItems || exchangeMode" @click="emit('account')">
+      <v-btn class="checkout-action-button" variant="tonal" :disabled="!hasItems || restricted" @click="emit('account')">
         <v-icon icon="mdi-account" size="18" class="me-1" />
         On Account
       </v-btn>
-      <v-btn class="checkout-action-button" variant="tonal" :disabled="exchangeMode" @click="emit('coupon')">
+      <v-btn class="checkout-action-button" variant="tonal" :disabled="restricted" @click="emit('coupon')">
         <v-icon icon="mdi-sale-outline" size="18" class="me-1" />
         Apply Coupon
       </v-btn>
@@ -54,7 +54,7 @@
         height="42"
         rounded="lg"
         variant="tonal"
-        :disabled="!hasItems || exchangeMode"
+        :disabled="!hasItems || restricted"
         @click="ask('hold')"
       >
         <v-icon icon="mdi-pause" size="18" class="me-1" />
@@ -66,7 +66,7 @@
         height="42"
         rounded="lg"
         variant="tonal"
-        :disabled="!hasItems || exchangeMode"
+        :disabled="!hasItems || restricted"
         @click="ask('void')"
       >
         <v-icon icon="mdi-close-circle-outline" size="18" class="me-1" />
@@ -76,14 +76,14 @@
     <v-btn
       class="d-flex justify-center align-center font-weight-bold"
       height="96"
-      color="green-darken-3"
+      :color="checkoutColor"
       rounded="lg"
-      text="Check Out"
+      :text="checkoutLabel"
       variant="outlined"
-      style="background-color: rgba(var(--v-theme-success), 0.24); border-color: rgba(var(--v-theme-success), 0.3) !important"
+      :style="checkoutButtonStyle"
       width="100%"
       @click="$emit('checkout')"
-      :disabled="!hasItems || exchangeMode"
+      :disabled="!canCheckout"
     >
       <template #prepend>
         <v-icon icon="mdi-cash" size="25" class="me-2" />
@@ -136,8 +136,23 @@ const props = defineProps<{
   canCheckout: boolean;
   hasItems: boolean;
   pulseClient?: boolean;
-  exchangeMode?: boolean;
+  mode?: "sale" | "exchange" | "settlement";
 }>();
+
+const mode = computed(() => props.mode ?? "sale");
+// Both exchange and settlement mode lock the client and disable
+// on-account/coupon/hold/void - only the calculator and the mode-specific
+// checkout action are active.
+const restricted = computed(() => mode.value !== "sale");
+const checkoutLabel = computed(() =>
+  mode.value === "exchange" ? "Exchange" : mode.value === "settlement" ? "Change Settlement" : "Check Out",
+);
+const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "green-darken-3"));
+const checkoutButtonStyle = computed(() =>
+  mode.value === "exchange"
+    ? "background-color: rgba(255, 152, 0, 0.24); border-color: rgba(255, 152, 0, 0.5) !important"
+    : "background-color: rgba(var(--v-theme-success), 0.24); border-color: rgba(var(--v-theme-success), 0.3) !important",
+);
 
 const dialog = ref(false);
 const action = ref<"hold" | "void">("hold");
@@ -156,7 +171,7 @@ const clientDialog = ref(false);
 const client = reactive<Client>(anonymousClient());
 const clientSelected = ref(false);
 function openClientDialog() {
-  if (!props.exchangeMode) clientDialog.value = true;
+  if (!restricted.value) clientDialog.value = true;
 }
 
 function onClientSelect(selected: Client) {

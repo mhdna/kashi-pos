@@ -173,7 +173,7 @@ func (a *App) applyEnvironmentDefaults() error {
 		PrinterSize: settings.PrinterSize, ReceiptPrinter: settings.ReceiptPrinter, ScreenPort: settings.ScreenPort,
 		ReceiptWidth: settings.ReceiptWidth, ReceiptHeight: settings.ReceiptHeight, Theme: settings.Theme, TaxRate: settings.TaxRate,
 		RoundingMode: settings.RoundingMode, RoundingCurrency: settings.RoundingCurrency, ReceiptEnabled: settings.ReceiptEnabled, SalesInventoryID: settings.SalesInventoryID,
-		ExchangeRate: settings.ExchangeRate, MaxOverpaymentCents: settings.MaxOverpaymentCents, MarketName: settings.MarketName, MarketPhone: settings.MarketPhone,
+		ExchangeRate: settings.ExchangeRate, MaxOverpaymentCents: settings.MaxOverpaymentCents, ExchangeWindowHours: settings.ExchangeWindowHours, MarketName: settings.MarketName, MarketPhone: settings.MarketPhone,
 		MarketDescription: settings.MarketDescription, ReturnPolicy: settings.ReturnPolicy, Website: settings.Website,
 		Instagram: settings.Instagram, SocialPlatforms: settings.SocialPlatforms, SocialHandles: settings.SocialHandles,
 		ReceiptFont: settings.ReceiptFont, ReceiptTitleSize: settings.ReceiptTitleSize, ReceiptBodySize: settings.ReceiptBodySize,

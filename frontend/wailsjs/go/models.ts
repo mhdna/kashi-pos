@@ -16,6 +16,26 @@ export namespace main {
 	        this.hasMore = source["hasMore"];
 	    }
 	}
+	export class ExchangeQuote {
+	    returnedTotalCents: number;
+	    replacementTotalCents: number;
+	    taxCents: number;
+	    grandTotalCents: number;
+	    needsMoreReplacementValue: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExchangeQuote(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.returnedTotalCents = source["returnedTotalCents"];
+	        this.replacementTotalCents = source["replacementTotalCents"];
+	        this.taxCents = source["taxCents"];
+	        this.grandTotalCents = source["grandTotalCents"];
+	        this.needsMoreReplacementValue = source["needsMoreReplacementValue"];
+	    }
+	}
 	export class InvoicePage {
 	    items: any[];
 	    total: number;

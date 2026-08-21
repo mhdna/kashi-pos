@@ -61,6 +61,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 	if err != nil {
 		return nil, err
 	}
+	customPricingEnabled, perUnitPricingEnabled := a.customPricingFlags()
 
 	var result map[string]any
 	var exchangeInvoiceID int64
@@ -70,11 +71,11 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			return fmt.Errorf("source invoice: %w", err)
 		}
 		if !policy.allowLate {
-			if err := validateExchangeWindow(source.CreatedAt, time.Now()); err != nil {
+			if err := validateExchangeWindow(source.CreatedAt, time.Now(), exchangeWindowDuration(settings.ExchangeWindowHours)); err != nil {
 				return err
 			}
 		}
-		priced, err := a.validateAndPriceExchange(q, source.ID, request, roundingMode)
+		priced, err := a.validateAndPriceExchange(q, source.ID, request, roundingMode, customPricingEnabled, perUnitPricingEnabled)
 		if err != nil {
 			return err
 		}

@@ -92,6 +92,8 @@ export function GetExchangeInvoice(arg1:string):Promise<Record<string, any>>;
 
 export function GetInvoiceDetails(arg1:number):Promise<Record<string, any>>;
 
+export function GetInvoiceForSettlementChange(arg1:number):Promise<Record<string, any>>;
+
 export function GetNextInvoiceCode(arg1:string):Promise<string>;
 
 export function GetOpenShift():Promise<Record<string, any>>;
@@ -186,15 +188,23 @@ export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>
 
 export function PrintCurrentCloseShiftSample():Promise<Record<string, any>>;
 
+export function QuoteExchangePaymentStatus(arg1:string,arg2:string,arg3:number):Promise<main.PaymentStatus>;
+
+export function QuoteExchangeTotal(arg1:string,arg2:number):Promise<main.ExchangeQuote>;
+
 export function QuoteInvoiceTotal(arg1:string):Promise<main.InvoiceQuote>;
 
 export function QuotePaymentStatus(arg1:string,arg2:string):Promise<main.PaymentStatus>;
+
+export function QuoteSettlementPaymentStatus(arg1:number,arg2:string):Promise<main.PaymentStatus>;
 
 export function RemoveDiscountListItem(arg1:number):Promise<void>;
 
 export function RemovePriceListItem(arg1:number):Promise<void>;
 
 export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
+
+export function ReorderQuickAccessProducts(arg1:Array<number>):Promise<void>;
 
 export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
 
@@ -220,6 +230,8 @@ export function SetDiscountListActive(arg1:number,arg2:boolean):Promise<Record<s
 
 export function SetDiscountListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
 
+export function SetExchangeWindowHours(arg1:number):Promise<void>;
+
 export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
 
 export function SetPriceListActive(arg1:number,arg2:boolean):Promise<Record<string, any>>;
@@ -229,6 +241,8 @@ export function SetPriceListItem(arg1:number,arg2:string,arg3:number):Promise<Re
 export function SetTaxRate(arg1:number):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
+
+export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<string, any>>;
 
 export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string):Promise<void>;
 

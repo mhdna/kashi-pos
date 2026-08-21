@@ -407,6 +407,7 @@ type Setting struct {
 	CounterNumber       string  `json:"counterNumber"`
 	MaxOverpaymentCents int64   `json:"maxOverpaymentCents"`
 	RoundingCurrency    string  `json:"roundingCurrency"`
+	ExchangeWindowHours int64   `json:"exchangeWindowHours"`
 }
 
 type Shift struct {

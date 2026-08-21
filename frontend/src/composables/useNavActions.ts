@@ -14,3 +14,16 @@ export interface PendingHoldInvoice {
 
 export const pendingHoldInvoice = ref<PendingHoldInvoice | null>(null);
 export const pendingExchangeSelection = ref<ExchangeSelection | null>(null);
+
+export interface PendingSettlementInvoice {
+  id: number;
+  invoiceCode: string;
+  items: any[];
+  client: any;
+  salesperson: any;
+  notes: string;
+  grandTotalCents: number;
+  entries: any[];
+}
+
+export const pendingSettlementInvoice = ref<PendingSettlementInvoice | null>(null);
