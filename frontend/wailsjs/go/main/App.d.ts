@@ -24,6 +24,8 @@ export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4
 
 export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<Record<string, any>>;
 
+export function ChooseDatabase():Promise<string>;
+
 export function ClearScreen(arg1:string):Promise<void>;
 
 export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
@@ -39,6 +41,8 @@ export function CreateCoupon(arg1:string,arg2:number,arg3:number):Promise<Record
 export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<Record<string, any>>;
 
 export function CreateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
+
+export function CreateDatabase():Promise<string>;
 
 export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
 
@@ -76,6 +80,8 @@ export function GetCurrentShiftIncomeByAccount():Promise<Array<Record<string, an
 
 export function GetDailyIncomeByMonth(arg1:string):Promise<Array<Record<string, any>>>;
 
+export function GetDatabaseStatus():Promise<Record<string, any>>;
+
 export function GetDefaultCurrency():Promise<Record<string, any>>;
 
 export function GetExchangeInvoice(arg1:string):Promise<Record<string, any>>;
@@ -108,6 +114,8 @@ export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
 
 export function ListClients():Promise<Array<Record<string, any>>>;
 
+export function ListClientsCursor(arg1:number,arg2:number,arg3:string):Promise<main.ClientCursorPage>;
+
 export function ListClientsPage(arg1:string,arg2:number,arg3:number,arg4:string,arg5:string):Promise<Record<string, any>>;
 
 export function ListCouponTypes():Promise<Array<Record<string, any>>>;
@@ -132,11 +140,15 @@ export function ListPrinters():Promise<Array<string>>;
 
 export function ListProducts():Promise<Array<Record<string, any>>>;
 
+export function ListProductsCursor(arg1:number,arg2:number,arg3:string):Promise<main.ProductCursorPage>;
+
 export function ListProductsPage(arg1:number,arg2:number,arg3:string):Promise<main.ProductPage>;
 
 export function ListQuickAccessProducts():Promise<Array<Record<string, any>>>;
 
 export function ListRoles():Promise<Array<Record<string, any>>>;
+
+export function ListSalespersonProductSales(arg1:string,arg2:string):Promise<Array<main.SalespersonProductSale>>;
 
 export function ListSalespersons():Promise<Array<Record<string, any>>>;
 
@@ -224,7 +236,11 @@ export function UpdateUserAttendanceID(arg1:number,arg2:string):Promise<void>;
 
 export function VerifyLogin(arg1:string,arg2:string):Promise<Record<string, any>>;
 
+export function VerifyPIN(arg1:string):Promise<Record<string, any>>;
+
 export function VoidInvoice(arg1:string,arg2:string):Promise<void>;
+
+export function WaitUntilReady():Promise<Record<string, any>>;
 
 export function WriteAndClearScreen(arg1:string,arg2:string):Promise<void>;
 

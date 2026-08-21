@@ -255,7 +255,7 @@ const emit = defineEmits<{
 const props = defineProps<{ roundingMode?: string; hideActivator?: boolean }>();
 const roundingMode = computed(() => props.roundingMode ?? "half_up");
 
-const dialogOpen = inject<Ref<boolean>>("dialogOpen");
+const dialogOpen = inject<Ref<boolean> | null>("dialogOpen", null);
 const menu = ref(false);
 const exchangePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 

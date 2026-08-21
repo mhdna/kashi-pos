@@ -1,33 +1,29 @@
 <template>
-  <v-card class="calculator-total-summary pa-3 mb-3" variant="outlined" rounded="lg">
-    <div class="d-flex justify-space-between text-body-1">
-      <span class="text-medium-emphasis">Total USD:</span>
-      <span class="calculator-total-value">{{ totalSummary.usd }}</span>
-    </div>
-    <div class="d-flex justify-space-between text-body-1">
-      <span class="text-medium-emphasis">Total LBP:</span>
-      <span class="calculator-total-value">{{ totalSummary.lbp }}</span>
-    </div>
-    <!-- <div class="d-flex justify-space-between text-caption"> -->
-    <!--   <span class="text-medium-emphasis">Split:</span> -->
-    <!--   <span>{{ totalSummary.split }}</span> -->
-    <!-- </div> -->
-  </v-card>
-
   <section class="mb-4">
     <div class="calculator-amounts mb-2">
+      <v-btn
+        v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState"
+        class="calculator-amounts-flip"
+        icon="mdi-swap-vertical"
+        variant="text"
+        density="comfortable"
+        size="small"
+        title="Switch total currency"
+        @click="flipCurrency"
+      />
       <div v-if="showReadyState" class="calculator-accepted-state text-green-darken-2">
         <v-icon icon="mdi-check-circle" color="green-darken-2" size="40" />
         <span>{{ paymentStatus }}</span>
       </div>
       <template v-else>
         <span class="calculator-amounts-label" :class="statusColor">{{ paymentStatus }}</span>
-        <div class="calculator-amount calculator-amount-usd">
-          <strong :class="statusColor">{{ remainingAmount.usd }}</strong>
+        <div class="calculator-amount calculator-total-usd">
+          <strong :class="statusColor">{{ displayedTotal }}</strong>
         </div>
-        <span class="calculator-amounts-plus" aria-hidden="true">+</span>
-        <div class="calculator-amount calculator-amount-lbp">
-          <strong :class="statusColor">{{ remainingAmount.lbp }}</strong>
+        <div class="calculator-amounts-split">
+          <span :class="statusColor">{{ remainingAmount.usd }}</span>
+          <span v-if="remainingAmount.lbp" class="calculator-amounts-plus" aria-hidden="true">+</span>
+          <span v-if="remainingAmount.lbp" :class="statusColor">{{ remainingAmount.lbp }}</span>
         </div>
       </template>
     </div>
@@ -35,46 +31,64 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { computed } from "vue";
+import { calculatorTotalCurrency, setCalculatorTotalCurrency } from "@/lib/display";
+
+const props = defineProps<{
   paymentStatus: string;
   statusColor: string;
   showReadyState: boolean;
-  remainingAmount: { usd: string; lbp: string };
-  totalSummary: { usd: string; lbp: string; split: string };
+  remainingAmount: {
+    usd: string;
+    lbp: string;
+    fullUsd: string;
+    fullLbp: string;
+    amountsByCurrency: { code: string; text: string }[];
+  };
 }>();
+
+const currentIndex = computed(() => {
+  const index = props.remainingAmount.amountsByCurrency.findIndex(
+    (c) => c.code === calculatorTotalCurrency.value,
+  );
+  return index === -1 ? 0 : index;
+});
+
+const displayedTotal = computed(
+  () => props.remainingAmount.amountsByCurrency[currentIndex.value]?.text ?? props.remainingAmount.fullUsd,
+);
+
+function flipCurrency() {
+  const list = props.remainingAmount.amountsByCurrency;
+  if (list.length === 0) return;
+  const next = list[(currentIndex.value + 1) % list.length];
+  if (next) setCalculatorTotalCurrency(next.code);
+}
 </script>
 
 <style scoped>
-.calculator-total-summary {
-  border-color: rgba(var(--v-theme-on-surface), 0.18);
-  font-size: 1.1rem;
-}
-.calculator-total-summary .text-medium-emphasis {
-  font-size: 1.1rem !important;
-}
-.calculator-total-value {
-  color: #1a1a1a;
-  font-weight: 600;
-  font-size: 1.1rem;
-  line-height: 1.2;
-}
 .calculator-amounts {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  height: 56px;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  height: 100px;
   align-items: center;
-  column-gap: 12px;
-  row-gap: 2px;
   padding: 8px 12px;
   border: 1px solid rgba(var(--v-border-color), 0.12);
   border-radius: 10px;
   font-size: var(--kashi-font-size-base);
 }
+.calculator-amounts-flip {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+}
 .calculator-amounts-label {
-  grid-column: 1 / -1;
+  grid-row: 1;
   line-height: 1;
   text-align: center;
-  font-size: var(--kashi-font-size-sm);
+  font-size: var(--kashi-font-size-base);
   font-weight: 500;
 }
 .calculator-amount {
@@ -83,10 +97,10 @@ defineProps<{
   align-items: center;
   gap: 2px;
 }
-.calculator-amount-usd { grid-column: 1; }
-.calculator-amount-lbp { grid-column: 3; }
+.calculator-total-usd { grid-row: 2; }
+.calculator-total-lbp { grid-row: 3; }
 .calculator-accepted-state {
-  grid-column: 1 / -1;
+  grid-row: 1 / -1;
   display: flex;
   align-items: center;
   flex-direction: row;
@@ -99,12 +113,21 @@ defineProps<{
   padding: 0;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  font-size: 1.1rem;
+  font-size: var(--kashi-font-size-2xl);
 }
 .calculator-amounts-plus {
-  align-self: center;
   color: rgba(var(--v-theme-on-surface), 0.55);
-  font-size: var(--kashi-font-size-lg);
   font-weight: 700;
+}
+.calculator-amounts-split {
+  grid-row: 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--kashi-font-size-base);
+  font-weight: 600;
+  opacity: 1;
 }
 </style>

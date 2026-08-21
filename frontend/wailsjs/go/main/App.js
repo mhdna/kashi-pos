@@ -46,6 +46,10 @@ export function CheckoutInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, 
   return window['go']['main']['App']['CheckoutInvoice'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 }
 
+export function ChooseDatabase() {
+  return window['go']['main']['App']['ChooseDatabase']();
+}
+
 export function ClearScreen(arg1) {
   return window['go']['main']['App']['ClearScreen'](arg1);
 }
@@ -76,6 +80,10 @@ export function CreateCouponType(arg1, arg2, arg3, arg4) {
 
 export function CreateCurrency(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['CreateCurrency'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function CreateDatabase() {
+  return window['go']['main']['App']['CreateDatabase']();
 }
 
 export function CreateSalesperson(arg1) {
@@ -150,6 +158,10 @@ export function GetDailyIncomeByMonth(arg1) {
   return window['go']['main']['App']['GetDailyIncomeByMonth'](arg1);
 }
 
+export function GetDatabaseStatus() {
+  return window['go']['main']['App']['GetDatabaseStatus']();
+}
+
 export function GetDefaultCurrency() {
   return window['go']['main']['App']['GetDefaultCurrency']();
 }
@@ -214,6 +226,10 @@ export function ListClients() {
   return window['go']['main']['App']['ListClients']();
 }
 
+export function ListClientsCursor(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListClientsCursor'](arg1, arg2, arg3);
+}
+
 export function ListClientsPage(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['ListClientsPage'](arg1, arg2, arg3, arg4, arg5);
 }
@@ -262,6 +278,10 @@ export function ListProducts() {
   return window['go']['main']['App']['ListProducts']();
 }
 
+export function ListProductsCursor(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListProductsCursor'](arg1, arg2, arg3);
+}
+
 export function ListProductsPage(arg1, arg2, arg3) {
   return window['go']['main']['App']['ListProductsPage'](arg1, arg2, arg3);
 }
@@ -272,6 +292,10 @@ export function ListQuickAccessProducts() {
 
 export function ListRoles() {
   return window['go']['main']['App']['ListRoles']();
+}
+
+export function ListSalespersonProductSales(arg1, arg2) {
+  return window['go']['main']['App']['ListSalespersonProductSales'](arg1, arg2);
 }
 
 export function ListSalespersons() {
@@ -446,8 +470,16 @@ export function VerifyLogin(arg1, arg2) {
   return window['go']['main']['App']['VerifyLogin'](arg1, arg2);
 }
 
+export function VerifyPIN(arg1) {
+  return window['go']['main']['App']['VerifyPIN'](arg1);
+}
+
 export function VoidInvoice(arg1, arg2) {
   return window['go']['main']['App']['VoidInvoice'](arg1, arg2);
+}
+
+export function WaitUntilReady() {
+  return window['go']['main']['App']['WaitUntilReady']();
 }
 
 export function WriteAndClearScreen(arg1, arg2) {

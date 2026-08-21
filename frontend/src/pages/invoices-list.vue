@@ -113,7 +113,8 @@
               </template
               ><template #subtitle
                 >{{ line.qty }} × ${{ Number(line.price).toFixed(2)
-                }}<span v-if="line.discount"> · {{ line.discount }}% discount</span></template
+                }}<span v-if="line.discount"> · {{ line.discount }}% discount</span
+                ><span v-if="line.salespersonName"> · Sold by {{ line.salespersonName }}</span></template
               >
               <template #append
                 ><span class="font-weight-bold"

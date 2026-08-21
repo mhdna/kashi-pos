@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { VerifyLogin, ChangePassword } from "../../wailsjs/go/main/App";
+import { VerifyPIN, ChangePassword } from "../../wailsjs/go/main/App";
 
 interface User {
   id: number;
@@ -13,13 +13,14 @@ export const useAuthStore = defineStore("auth", () => {
   const isLoggedIn = computed(() => currentUser.value !== null);
   const isAdmin = computed(() => currentUser.value?.role === "admin");
 
-  async function login(username: string, password: string): Promise<boolean> {
+  async function loginWithPIN(pin: string): Promise<{ ok: boolean; retryAfter: number }> {
     try {
-      const result = await VerifyLogin(username, password);
+      const result = await VerifyPIN(pin);
       currentUser.value = result as User;
-      return true;
-    } catch {
-      return false;
+      return { ok: true, retryAfter: 0 };
+    } catch (error) {
+      const match = String(error).match(/locked:(\d+)/);
+      return { ok: false, retryAfter: match ? Number(match[1]) : 0 };
     }
   }
 
@@ -36,5 +37,5 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  return { currentUser, isLoggedIn, isAdmin, login, logout, changePassword };
+  return { currentUser, isLoggedIn, isAdmin, loginWithPIN, logout, changePassword };
 });

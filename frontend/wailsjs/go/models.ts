@@ -1,13 +1,29 @@
 export namespace main {
-	
+
+	export class ClientCursorPage {
+	    items: any[];
+	    nextCursor: number;
+	    hasMore: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new ClientCursorPage(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = source["items"];
+	        this.nextCursor = source["nextCursor"];
+	        this.hasMore = source["hasMore"];
+	    }
+	}
 	export class InvoicePage {
 	    items: any[];
 	    total: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new InvoicePage(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.items = source["items"];
@@ -19,7 +35,7 @@ export namespace main {
 	    barcode: string;
 	    lineTotalCents: number;
 	    discountCents: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new LineQuote(source);
 	    }
@@ -97,6 +113,22 @@ export namespace main {
 	        this.checkoutReady = source["checkoutReady"];
 	    }
 	}
+	export class ProductCursorPage {
+	    items: any[];
+	    nextCursor: number;
+	    hasMore: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new ProductCursorPage(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = source["items"];
+	        this.nextCursor = source["nextCursor"];
+	        this.hasMore = source["hasMore"];
+	    }
+	}
 	export class ProductPage {
 	    items: any[];
 	    total: number;
@@ -109,6 +141,38 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.items = source["items"];
 	        this.total = source["total"];
+	    }
+	}
+	export class SalespersonProductSale {
+	    salespersonId: number;
+	    salespersonName: string;
+	    productId: number;
+	    barcode: string;
+	    code: string;
+	    name: string;
+	    color: string;
+	    size: string;
+	    currencyCode: string;
+	    quantity: number;
+	    revenue: number;
+
+	    static createFrom(source: any = {}) {
+	        return new SalespersonProductSale(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.salespersonId = source["salespersonId"];
+	        this.salespersonName = source["salespersonName"];
+	        this.productId = source["productId"];
+	        this.barcode = source["barcode"];
+	        this.code = source["code"];
+	        this.name = source["name"];
+	        this.color = source["color"];
+	        this.size = source["size"];
+	        this.currencyCode = source["currencyCode"];
+	        this.quantity = source["quantity"];
+	        this.revenue = source["revenue"];
 	    }
 	}
 	export class ShiftBalanceReplacementPreview {
@@ -131,4 +195,3 @@ export namespace main {
 	}
 
 }
-

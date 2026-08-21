@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="760" width="calc(100% - 32px)" height="590">
+  <v-dialog v-model="dialog" max-width="760" width="calc(100% - 32px)" height="620">
     <template v-if="showActivator" #activator="{ props: activatorProps }">
       <v-btn
         v-bind="activatorProps"
@@ -13,41 +13,48 @@
       </v-btn>
     </template>
     <v-card class="product-list-card">
-      <v-card-title class="d-flex align-center">
-        Products
-        <v-spacer />
+      <div :key="listKey" class="product-list" @scroll.passive="handleScroll">
+        <v-list density="compact">
+          <v-list-item
+            v-for="product in products"
+            :key="product.id"
+            class="product-list-item"
+            link
+            @click="selectProduct(product)"
+          >
+            <template #title>
+              <div class="product-primary-row">
+                <span class="product-code text-medium-emphasis">{{ product.code }}</span>
+                <span class="font-weight-medium text-truncate">{{ product.name }}</span>
+                <span v-if="product.color" class="product-variant text-medium-emphasis">{{ product.color }}</span>
+                <span v-if="product.size" class="product-variant text-medium-emphasis">{{ product.size }}</span>
+                <span class="product-price">${{ Number(product.price || 0).toFixed(2) }}</span>
+              </div>
+            </template>
+          </v-list-item>
+        </v-list>
+        <div v-if="loading" class="product-list-status">
+          <v-progress-circular indeterminate color="primary" size="24" width="2" />
+        </div>
+        <div v-else-if="loadError" class="product-list-status">
+          <v-btn size="small" variant="text" @click="loadMore">Retry</v-btn>
+        </div>
+        <div v-else-if="!hasMore" class="product-list-status text-medium-emphasis">
+          {{ products.length ? "All products loaded" : "No products found" }}
+        </div>
+      </div>
+      <v-divider />
+      <div class="product-search-row">
         <v-text-field
           v-model="search"
-          class="product-search-control ms-4"
+          class="product-search-control"
           density="compact"
           hide-details
           placeholder="Search products..."
           variant="outlined"
           autofocus
         />
-      </v-card-title>
-      <v-data-table-server
-        v-model:page="page"
-        v-model:items-per-page="itemsPerPage"
-        class="product-list-table"
-        :headers="headers"
-        :items="serverItems"
-        :items-length="totalItems"
-        :loading="loading"
-        :search="debouncedSearch"
-        density="compact"
-        :items-per-page-options="[6, 10, 25, 50]"
-        hover
-        return-object
-        @click:row="selectProduct"
-        @update:options="loadItems"
-      >
-        <template #item.name="{ item }">
-          <span class="font-weight-medium">{{ item.name }}</span>
-        </template>
-        <template #item.price="{ item }">${{ Number(item.price || 0).toFixed(2) }}</template>
-      </v-data-table-server>
-      <v-divider />
+      </div>
       <v-card-text class="product-inline-keyboard">
         <InlineKeyboard v-model="search" :max-length="80" layout="code" />
       </v-card-text>
@@ -57,8 +64,20 @@
 
 <script lang="ts" setup>
 import { ref, inject, onBeforeUnmount, watch } from "vue";
-import { ListProductsPage } from "../../wailsjs/go/main/App";
+import { ListProductsCursor } from "../../wailsjs/go/main/App";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+
+type ProductItem = {
+  id: number;
+  name: string;
+  code: string;
+  category: string;
+  price: number;
+  discount: number;
+  color: string;
+  size: string;
+  qty: number;
+};
 
 const emit = defineEmits<{
   select: [
@@ -98,6 +117,7 @@ let latestRequest = 0;
 
 watch(dialog, (v) => {
   dialogOpen.value = v;
+  if (v) resetList();
 });
 
 watch(search, (value) => {
@@ -109,49 +129,54 @@ watch(search, (value) => {
 });
 
 watch(debouncedSearch, () => {
-  page.value = 1;
+  resetList();
 });
 
-const headers = [
-  { title: "Code", key: "code", align: "start" as const },
-  { title: "Name", key: "name", align: "start" as const },
-  { title: "Color", key: "color", align: "start" as const },
-  { title: "Size", key: "size", align: "start" as const },
-  { title: "Price", key: "price", align: "end" as const },
-];
-
-const itemsPerPage = ref(6);
-const page = ref(1);
-const serverItems = ref<any[]>([]);
-const totalItems = ref(0);
+const batchSize = 20;
+const products = ref<ProductItem[]>([]);
+const cursor = ref(0);
+const listKey = ref(0);
 const loading = ref(false);
+const hasMore = ref(true);
+const loadError = ref(false);
 
-async function loadItems({
-  page,
-  itemsPerPage: requestedItemsPerPage,
-}: {
-  page: number;
-  itemsPerPage: number;
-}) {
+function resetList() {
+  latestRequest++;
+  products.value = [];
+  cursor.value = 0;
+  hasMore.value = true;
+  loadError.value = false;
+  listKey.value++;
+  if (dialog.value) void loadMore();
+}
+
+async function loadMore() {
+  if (loading.value || !hasMore.value) return;
   const request = ++latestRequest;
   loading.value = true;
+  loadError.value = false;
   try {
-    const result = await ListProductsPage(page, requestedItemsPerPage, debouncedSearch.value);
+    const result = await ListProductsCursor(cursor.value, batchSize, debouncedSearch.value);
     if (request !== latestRequest) return;
-    serverItems.value = result.items.map((product) => ({ ...product, qty: 1 }));
-    totalItems.value = result.total;
+    products.value.push(...result.items.map((product) => ({ ...product, qty: 1 }) as ProductItem));
+    cursor.value = result.nextCursor;
+    hasMore.value = result.hasMore;
   } catch (e) {
     if (request !== latestRequest) return;
-    console.error("ListProductsPage failed:", e);
-    serverItems.value = [];
-    totalItems.value = 0;
+    console.error("ListProductsCursor failed:", e);
+    loadError.value = true;
   } finally {
     if (request === latestRequest) loading.value = false;
   }
 }
 
-function selectProduct(_event: Event, row: { item: any }) {
-  emit("select", row.item);
+function handleScroll(event: Event) {
+  const element = event.currentTarget as HTMLElement;
+  if (element.scrollHeight - element.scrollTop - element.clientHeight <= 120) void loadMore();
+}
+
+function selectProduct(product: ProductItem) {
+  emit("select", product);
   dialog.value = false;
   search.value = "";
 }
@@ -170,21 +195,69 @@ defineExpose({ openDialog });
 
 <style scoped>
 .product-search-control {
-  max-width: 320px;
   width: 100%;
 }
 
+.product-search-row {
+  padding: 12px 16px;
+}
+
 .product-list-card {
-  height: 590px;
+  height: 620px;
   display: flex;
   flex-direction: column;
 }
 
-.product-list-table {
+.product-list {
   flex: 0 0 320px;
   height: 320px;
   min-height: 0;
   overflow-y: auto;
+}
+
+.product-list :deep(.v-list) {
+  padding-block: 0;
+}
+
+.product-list-item {
+  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.product-primary-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.product-primary-row > :nth-child(2) {
+  flex: 1 1 auto;
+}
+
+.product-price {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.product-code,
+.product-variant {
+  font-size: 0.75rem;
+}
+
+.product-code {
+  flex: 0 0 96px;
+  width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-list-status {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
 }
 
 .product-inline-keyboard {
@@ -192,8 +265,10 @@ defineExpose({ openDialog });
   height: 205px;
   display: flex;
   align-items: center;
+  margin-bottom: 0;
   margin-inline: auto;
   max-width: 600px;
-  padding-block: 12px;
+  padding-top: 12px;
+  padding-bottom: 0;
 }
 </style>

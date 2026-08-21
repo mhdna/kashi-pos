@@ -25,6 +25,37 @@
         </template>
         <template #append>
           <div class="invoice-item-actions d-flex align-center">
+            <v-menu location="bottom end">
+              <template #activator="{ props: activatorProps }">
+                <button
+                  v-bind="activatorProps"
+                  class="invoice-line-salesperson"
+                  :class="{ 'invoice-line-salesperson--assigned': item.salespersonId }"
+                  type="button"
+                  :title="lineSalespersonName(item.salespersonId)"
+                  :aria-label="`Line salesperson: ${lineSalespersonName(item.salespersonId)}`"
+                  @click.stop
+                >
+                  <v-icon icon="mdi-account-tie" size="16" />
+                </button>
+              </template>
+              <v-list density="compact" min-width="210">
+                <v-list-item
+                  :active="!item.salespersonId"
+                  :prepend-icon="item.salespersonId ? 'mdi-close-circle-outline' : 'mdi-account-tie'"
+                  :title="item.salespersonId ? 'Clear line salesperson' : 'Invoice salesperson (default)'"
+                  subtitle="Uses the salesperson assigned to the invoice"
+                  @click="item.salespersonId = 0"
+                />
+                <v-list-item
+                  v-for="person in salespersons"
+                  :key="person.id"
+                  :active="item.salespersonId === person.id"
+                  :title="person.fullName"
+                  @click="item.salespersonId = person.id"
+                />
+              </v-list>
+            </v-menu>
             <div class="invoice-qty-control">
               <NumberPadMenu
                 :model-value="item.qty"
@@ -151,9 +182,10 @@ import {
   ref,
   type ComponentPublicInstance,
 } from "vue";
-import { ListCategoryIcons, UpdateProductDiscount } from "../../wailsjs/go/main/App";
+import { ListCategoryIcons, ListSalespersons, UpdateProductDiscount } from "../../wailsjs/go/main/App";
 import { roundDiscountCents, normalizeRoundingMode } from "@/lib/money";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
+import type { Salesperson } from "@/composables/useSalesperson";
 
 interface LineItem {
   name: string;
@@ -169,6 +201,7 @@ interface LineItem {
   unitDiscounts?: number[];
   discount: number;
   qty: number;
+  salespersonId?: number;
 }
 
 const emit = defineEmits<{
@@ -232,6 +265,7 @@ function discountedItemCents(item: LineItem): number {
 }
 
 const categoryIcons = ref<Map<string, string>>(new Map());
+const salespersons = ref<Salesperson[]>([]);
 
 function iconFor(category: string): string {
   return categoryIcons.value.get(category) || "mdi-cart-outline";
@@ -255,7 +289,17 @@ onMounted(async () => {
     }
     categoryIcons.value = map;
   } catch {}
+  try {
+    salespersons.value = ((await ListSalespersons()) as Salesperson[]).sort((a, b) =>
+      a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }),
+    );
+  } catch {}
 });
+
+function lineSalespersonName(id?: number): string {
+  if (!id) return "Invoice salesperson";
+  return salespersons.value.find((person) => person.id === id)?.fullName ?? "Unknown salesperson";
+}
 
 function setQuantity(item: LineItem, value: number) {
   const qty = Math.max(1, Math.trunc(value));
@@ -498,6 +542,32 @@ defineExpose({
   justify-content: flex-end;
   margin-inline-start: auto;
   white-space: nowrap;
+}
+
+.invoice-line-salesperson {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: rgba(var(--v-theme-on-surface), 0.62);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 34px;
+  justify-content: center;
+  width: 34px;
+  min-height: 34px;
+  padding: 2px;
+}
+
+.invoice-line-salesperson--assigned {
+  background: rgba(var(--v-theme-primary), 0.09);
+  color: rgb(var(--v-theme-primary));
+}
+
+.invoice-line-salesperson:hover,
+.invoice-line-salesperson:focus-visible {
+  background: rgba(var(--v-theme-primary), 0.13);
+  outline: none;
 }
 
 .invoice-qty-control,

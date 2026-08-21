@@ -5,7 +5,6 @@
       :status-color="statusColor"
       :show-ready-state="showReadyState"
       :remaining-amount="remainingAmount"
-      :total-summary="totalSummary"
     />
 
     <v-card class="calculator-display pa-2 mb-3" variant="outlined" rounded="lg">
@@ -13,17 +12,8 @@
     </v-card>
 
     <CalculatorKeypad @digit="appendDigit" @backspace="backspace" @clear="clearInput" />
-    <div class="d-flex ga-2 mt-3 mb-2">
-      <v-btn class="calculator-action-button py-0" variant="tonal" :disabled="!hasItems || exchangeMode" @click="emit('account')">
-        <v-icon icon="mdi-account" size="18" class="me-1" />
-        On Account
-      </v-btn>
-      <v-btn class="calculator-action-button py-0" variant="tonal" :disabled="exchangeMode" @click="emit('coupon')">
-        <v-icon icon="mdi-sale-outline" size="18" class="me-1" />
-        Coupon
-      </v-btn>
-    </div>
     <CalculatorPaymentMethods
+      class="mt-3"
       :methods="paymentMethods.filter((method) => !['on coupon', 'on account'].includes(method.name.toLowerCase()))"
       :model-value="activeMethod"
       @select="selectMethodAndConfirm"
@@ -105,7 +95,7 @@ const hasItems = computed(() => Boolean(props.hasItems));
 const exchangeMode = computed(() => Boolean(props.exchangeMode));
 const roundingMode = computed(() => normalizeRoundingMode(props.roundingMode ?? ""));
 const paymentMethods = ref<PaymentMethod[]>([]);
-const currencies = ref<CurrencyRate[]>([]);
+const currencies = ref<(CurrencyRate & { isActive: boolean })[]>([]);
 const activeMethod = ref("");
 const currentInput = ref("");
 const entries = ref<Entry[]>([]);
@@ -136,11 +126,14 @@ function currencySymbolFor(methodName: string) {
 const totalCents = computed(() => props.totalCents);
 const paidCents = computed(() => entries.value.reduce((sum, entry) => sum + entry.amountCents, 0));
 
-// checkoutReady/isPaidInFull/diffCents/cashRoundedToTotal are all derived
-// from ONE backend answer (QuotePaymentStatus), not recomputed locally, so
-// the displayed remainder can never disagree with whether checkout will
-// actually be accepted - that mismatch used to be able to show "$0 + LBP 0"
-// while still refusing checkout.
+// checkoutReady/cashRoundedToTotal require server-side logic (cash-rounding
+// grace, max-overpayment tolerance) and come from ONE backend answer
+// (QuotePaymentStatus). diffCents/isPaidInFull use the exact same formula
+// backend uses (paid - total) but are recomputed locally and synchronously
+// from `entries`, instead of waiting on the debounced backend round trip -
+// otherwise a fast sequence of entries (e.g. entering change in two
+// currencies back to back) decides each new entry's sign/auto-fill amount
+// against a stale diff from before the previous entry was accounted for.
 interface BackendPaymentStatus {
   diffCents: number;
   isPaidInFull: boolean;
@@ -185,9 +178,9 @@ watch(
   { deep: true, immediate: true },
 );
 
-const diffCents = computed(() => backendStatus.value?.diffCents ?? paidCents.value - totalCents.value);
+const diffCents = computed(() => paidCents.value - totalCents.value);
 const diff = computed(() => diffCents.value / 100);
-const isPaidInFull = computed(() => backendStatus.value?.isPaidInFull ?? false);
+const isPaidInFull = computed(() => diffCents.value === 0);
 const cashRoundedToTotal = computed(() => backendStatus.value?.isCashRounded ?? false);
 const checkoutReady = computed(() => backendStatus.value?.checkoutReady ?? false);
 const showReadyState = computed(
@@ -205,17 +198,30 @@ const paymentStatus = computed(() =>
 const statusColor = computed(() =>
   diff.value > 0 ? "text-red-darken-2" : "text-green-darken-2",
 );
+function formatAmountInCurrency(amountCents: number, currency: CurrencyRate): string {
+  if (currency.cashRoundingUnit <= 1) return formatUsd(amountCents / 100);
+  return `${currency.symbol} ${roundCurrencyUnitsFromCents(amountCents, currency, roundingMode.value).toLocaleString()}`;
+}
+
 const remainingAmount = computed(() => {
   const amountCents = Math.abs(diffCents.value);
+  const fullUsd = formatUsd(amountCents / 100);
+  const amountsByCurrency = currencies.value
+    .filter((c) => c.isActive)
+    .map((c) => ({ code: c.code, text: formatAmountInCurrency(amountCents, c) }));
   if (roundingCurrency.value.cashRoundingUnit <= 1) {
-    return { usd: formatUsd(amountCents / 100), lbp: "" };
+    return { usd: fullUsd, lbp: "", fullUsd, fullLbp: "", amountsByCurrency };
   }
   const dollarAmount = amountCents / 100;
   const wholeDollars = Math.floor(dollarAmount / 10) * 10;
   const remainderCents = amountCents - wholeDollars * 100;
+  const fullLbp = `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(amountCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`;
   return {
     usd: `$${wholeDollars.toLocaleString()}`,
     lbp: `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(remainderCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`,
+    fullUsd,
+    fullLbp,
+    amountsByCurrency,
   };
 });
 const totalSummary = computed(() => {
@@ -260,6 +266,7 @@ onMounted(async () => {
       symbol: currency.symbol,
       unitsPerUsd: Number(currency.unitsPerUsd),
       cashRoundingUnit: Number(currency.cashRoundingUnit),
+      isActive: Boolean(currency.isActive),
     }));
   } catch {
     /* leave currencies empty */
@@ -386,6 +393,7 @@ const firstEntryAccountId = computed(() => entries.value[0]?.accountId ?? 0);
 defineExpose({
   diff,
   checkoutReady,
+  totalSummary,
   clearAll,
   firstEntryAccountId,
   paymentsJSON,
@@ -403,6 +411,7 @@ defineExpose({
   font-size: 1.1rem !important;
   line-height: 1.2;
 }
+
 </style>
 
 <style scoped>

@@ -68,9 +68,13 @@
                 <span class="text-caption me-2">#{{ shift.id }}</span>
                 <span class="text-caption me-2">{{ shift.createdAt }}</span>
                 <span v-if="shift.closedAt" class="text-caption me-2">→ {{ shift.closedAt }}</span>
-                <span v-if="shift.closedBySalesperson" class="text-caption text-medium-emphasis me-2">
-                  Closed by {{ shift.closedBySalesperson }}
-                </span>
+                <InitialsAvatar
+                  v-if="shift.closedBySalesperson"
+                  :name="shift.closedBySalesperson"
+                  :size="24"
+                  class="me-2"
+                  :title="shift.closedBySalesperson"
+                />
                 <v-spacer />
                 <span class="font-weight-bold me-2">{{
                   formatBalance(shift.total, "USD", currencies, roundingMode)
@@ -99,6 +103,9 @@
                 />
               </div>
               <div v-if="shiftExpanded.has(shift.id)" class="pa-3">
+                <div v-if="shift.closedBySalesperson" class="d-flex align-center text-caption text-medium-emphasis mb-3">
+                  <span>Closed by: {{ shift.closedBySalesperson }}</span>
+                </div>
                 <template v-if="shift.isClosed">
                   <div class="text-caption font-weight-bold mb-1">Expected vs Counted</div>
                   <v-table density="compact" class="mb-3">
@@ -158,6 +165,7 @@ import { nextTick, ref, watch, type ComponentPublicInstance } from "vue";
 import type { Balance, DayRow, Shift } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { useCurrencies } from "@/composables/useCurrencies";
+import InitialsAvatar from "@/components/InitialsAvatar.vue";
 
 const { currencies, roundingMode } = useCurrencies();
 

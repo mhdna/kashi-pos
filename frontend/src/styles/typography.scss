@@ -27,3 +27,20 @@ select {
   font-family: var(--kashi-font-family);
   font-size: var(--kashi-font-size-base);
 }
+
+// The app is an interactive UI, so prevent accidental selection while clicking
+// and dragging. Text-entry controls keep their normal selection behavior.
+body,
+body * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"],
+[contenteditable=""] {
+  -webkit-user-select: text;
+  user-select: text;
+}

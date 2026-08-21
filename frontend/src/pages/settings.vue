@@ -15,6 +15,36 @@
           <v-card class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-avatar color="primary" variant="tonal" size="36">
+                <v-icon icon="mdi-database-outline" size="20" />
+              </v-avatar>
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Database</div>
+                <div class="text-caption text-medium-emphasis">
+                  Load a different Kashi database for this register.
+                </div>
+              </div>
+            </v-card-title>
+            <v-card-text>
+              <v-text-field
+                :model-value="databasePath"
+                label="Current database"
+                variant="outlined"
+                density="compact"
+                readonly
+                hide-details
+              />
+            </v-card-text>
+            <v-card-actions class="px-4 pb-4">
+              <v-spacer />
+              <v-btn color="primary" variant="flat" :loading="databaseSwitching" @click="chooseDatabase">
+                <v-icon start icon="mdi-folder-open-outline" /> Choose database
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+
+          <v-card class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36">
                 <v-icon icon="mdi-printer-outline" size="20" />
               </v-avatar>
               <div>
@@ -186,6 +216,18 @@
                 hide-details
                 @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
               />
+              <v-select
+                :model-value="calculatorTotalCurrency"
+                :items="roundingCurrencies"
+                label="Default calculator total currency"
+                hint="Currency shown first on the calculator's total. Can also be cycled with the flip icon on the calculator."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                hide-details="auto"
+                class="mb-2"
+                @update:model-value="(value) => setCalculatorTotalCurrency(value ?? 'USD')"
+              />
               <v-divider class="my-4" />
               <div class="text-subtitle-2 font-weight-bold mb-2">Attendance machine</div>
               <v-text-field v-model="form.akuvoxIP" placeholder="Akuvox IP address" variant="outlined" density="compact" class="mb-2" />
@@ -202,6 +244,33 @@
                 <v-icon start icon="mdi-content-save-outline" /> Save changes
               </v-btn>
             </v-card-actions>
+          </v-card>
+
+          <v-card class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-avatar color="primary" variant="tonal" size="36">
+                <v-icon :icon="darkThemeEnabled ? 'mdi-weather-night' : 'mdi-weather-sunny'" size="20" />
+              </v-avatar>
+              <div>
+                <div class="text-subtitle-1 font-weight-bold">Appearance</div>
+                <div class="text-caption text-medium-emphasis">
+                  Choose how the app looks on this register.
+                </div>
+              </div>
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="darkThemeEnabled"
+                :loading="themeSaving"
+                :disabled="themeSaving"
+                label="Dark theme"
+                hint="Your choice is saved and restored when the app starts."
+                persistent-hint
+                color="primary"
+                hide-details="auto"
+                @update:model-value="setDarkTheme"
+              />
+            </v-card-text>
           </v-card>
 
           <v-card class="settings-card">
@@ -782,6 +851,8 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import {
   GetAppSettings,
+  GetDatabaseStatus,
+  ChooseDatabase,
   UpdateSettings,
   UpdateAttendanceConfig,
   UpdateAttendanceApproverPassword,
@@ -821,12 +892,43 @@ import {
   SetCurrencyActive,
   ListPaymentMethods,
   CreateCashboxAccount,
+  SetTheme,
 } from "../../wailsjs/go/main/App";
+import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import { useAuthStore } from "@/stores/auth";
-import { animationsEnabled, setAnimationsEnabled } from "@/lib/display";
+import {
+  animationsEnabled,
+  setAnimationsEnabled,
+  calculatorTotalCurrency,
+  setCalculatorTotalCurrency,
+} from "@/lib/display";
+import { useTheme } from "vuetify";
 
 const auth = useAuthStore();
+const theme = useTheme();
 const tab = ref("general");
+const databasePath = ref("");
+const databaseSwitching = ref(false);
+const darkThemeEnabled = computed(() => theme.name.value === "dark");
+const themeSaving = ref(false);
+
+async function setDarkTheme(value: boolean | null) {
+  const previous = theme.name.value;
+  const next = value ? "dark" : "light";
+  if (next === previous || themeSaving.value) return;
+
+  theme.change(next);
+  themeSaving.value = true;
+  try {
+    await SetTheme(next);
+    notify(`${value ? "Dark" : "Light"} theme enabled`);
+  } catch (error) {
+    theme.change(previous);
+    notify(error instanceof Error ? error.message : "Failed to save theme", "red");
+  } finally {
+    themeSaving.value = false;
+  }
+}
 
 const form = reactive({
   branchName: "",
@@ -1194,6 +1296,25 @@ async function loadSettings() {
   }
 }
 
+async function loadDatabaseStatus() {
+  try {
+    const status = await GetDatabaseStatus();
+    databasePath.value = String(status?.path ?? "");
+  } catch {}
+}
+
+async function chooseDatabase() {
+  databaseSwitching.value = true;
+  try {
+    const path = await ChooseDatabase();
+    if (path) WindowReloadApp();
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to load database", "red");
+  } finally {
+    databaseSwitching.value = false;
+  }
+}
+
 async function saveAdminSettings() {
   adminSettingsSaving.value = true;
   try {
@@ -1255,6 +1376,7 @@ async function setPerUnitPricesEnabled(value: boolean | null) {
 }
 
 onMounted(async () => {
+  await loadDatabaseStatus();
   await loadCouponTypes();
   await loadSettings();
   await loadCurrencies();

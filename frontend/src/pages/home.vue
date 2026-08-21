@@ -12,6 +12,16 @@
           </div>
           <div class="d-flex flex-column align-end">
             <div class="d-flex">
+              <v-btn
+                icon
+                size="small"
+                variant="text"
+                aria-label="Hold invoice"
+                :disabled="!hasItems || Boolean(exchangeState)"
+                @click="onHold"
+              >
+                <v-icon icon="mdi-pause" size="20" />
+              </v-btn>
               <v-menu v-model="noteMenu" :close-on-content-click="false" location="bottom end">
                 <template #activator="{ props }">
                   <v-btn v-bind="props" icon size="small" variant="text" aria-label="Invoice note">
@@ -120,12 +130,11 @@
         <ActionBar
           ref="actionBar"
           :total="invoiceTotal"
+          :total-summary="calculator?.totalSummary ?? { usd: '$0.00', lbp: '' }"
           :can-checkout="canCheckout"
           :has-items="hasItems"
           :pulse-client="pulseClient"
           :exchange-mode="Boolean(exchangeState)"
-          @hold="onHold"
-          @void="onVoid"
           @checkout="onCheckout"
           @account="accountDialog = true"
           @coupon="calculator?.openCouponDialog()"
@@ -344,6 +353,8 @@ function clearDraft() {
 
 function clearInvoice() {
   invoiceItems.value?.clearItems();
+  calculator.value?.clearAll();
+  selectedSalesperson.value = null;
   invoiceNotes.value = "";
   noteDraft.value = "";
   noteMenu.value = false;
@@ -494,6 +505,7 @@ async function getFullItemsJSON(): Promise<string> {
       unitPriceCents: i.qty < 0 ? Math.round(Number(i.soldUnitPrice ?? i.price) * 100) : undefined,
       unitDiscount: i.qty < 0 ? Math.trunc(Number(i.soldUnitDiscount ?? i.discount)) : undefined,
       discount: i.discount,
+      salespersonId: Number(i.salespersonId || 0),
       qty: i.qty,
     })),
   );

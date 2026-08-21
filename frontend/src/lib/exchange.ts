@@ -14,6 +14,8 @@ export interface ExchangeItem {
   discount: number;
   available?: number;
   qty?: number;
+  salespersonId?: number;
+  salespersonName?: string;
 }
 
 export interface ExchangeInvoice {

@@ -27,6 +27,7 @@
       </template>
     </v-card>
     <div class="mt-auto pb-2">
+    <!--
     <v-btn
       class="d-flex justify-center align-center mb-2 font-weight-bold"
       height="77"
@@ -42,21 +43,27 @@
         <v-icon icon="mdi-circle" size="20" class="me-2" />
       </template>
     </v-btn>
-    <v-btn
-      class="d-flex justify-center align-center mb-2 font-weight-bold"
-      height="77"
-      rounded="lg"
-      text="Hold"
-      variant="outlined"
-      style="color: rgba(var(--v-theme-on-surface), 0.7); border-color: rgba(var(--v-theme-on-surface), 0.18) !important"
-      width="100%"
-      @click="ask('hold')"
-      :disabled="!hasItems || exchangeMode"
-    >
-      <template #prepend>
-        <v-icon icon="mdi-pause" size="25" class="me-2" />
-      </template>
-    </v-btn>
+    -->
+    <div class="d-flex flex-column ga-2 mb-2">
+      <v-btn class="checkout-action-button" variant="tonal" :disabled="!hasItems || exchangeMode" @click="emit('account')">
+        <v-icon icon="mdi-account" size="18" class="me-1" />
+        On Account
+      </v-btn>
+      <v-btn class="checkout-action-button" variant="tonal" :disabled="exchangeMode" @click="emit('coupon')">
+        <v-icon icon="mdi-sale-outline" size="18" class="me-1" />
+        Apply Coupon
+      </v-btn>
+    </div>
+    <v-card class="checkout-total-summary pa-3 mb-2" variant="outlined" rounded="lg">
+      <div class="checkout-total-line">
+        <span class="checkout-total-label text-medium-emphasis">Total USD</span>
+        <span class="checkout-total-value">{{ totalSummary.usd }}</span>
+      </div>
+      <div class="checkout-total-line mt-2">
+        <span class="checkout-total-label text-medium-emphasis">Total LBP</span>
+        <span class="checkout-total-value">{{ totalSummary.lbp }}</span>
+      </div>
+    </v-card>
     <v-btn
       class="d-flex justify-center align-center font-weight-bold"
       height="96"
@@ -116,6 +123,7 @@ import { formatLebanesePhone } from "@/lib/phone";
 const emit = defineEmits<{ hold: []; void: []; checkout: []; account: []; coupon: [] }>();
 const props = defineProps<{
   total: number;
+  totalSummary: { usd: string; lbp: string };
   canCheckout: boolean;
   hasItems: boolean;
   pulseClient?: boolean;
@@ -167,6 +175,33 @@ defineExpose({
 </script>
 
 <style scoped>
+.checkout-total-summary {
+  border-color: rgba(var(--v-theme-on-surface), 0.18);
+  font-size: 1rem;
+}
+
+.checkout-action-button {
+  width: 100%;
+}
+
+.checkout-total-line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+
+.checkout-total-label {
+  font-size: 0.85rem;
+}
+
+.checkout-total-value {
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
 .client-card {
   min-height: 96px;
   display: flex;
