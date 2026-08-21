@@ -195,6 +195,34 @@ export namespace main {
 	        this.revenue = source["revenue"];
 	    }
 	}
+	export class SalespersonSalesSummary {
+	    salespersonId: number;
+	    salespersonName: string;
+	    invoiceCount: number;
+	    itemsSold: number;
+	    grossAmount: number;
+	    returnAmount: number;
+	    netAmount: number;
+	    discountAmount: number;
+	    subtotalAmount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SalespersonSalesSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.salespersonId = source["salespersonId"];
+	        this.salespersonName = source["salespersonName"];
+	        this.invoiceCount = source["invoiceCount"];
+	        this.itemsSold = source["itemsSold"];
+	        this.grossAmount = source["grossAmount"];
+	        this.returnAmount = source["returnAmount"];
+	        this.netAmount = source["netAmount"];
+	        this.discountAmount = source["discountAmount"];
+	        this.subtotalAmount = source["subtotalAmount"];
+	    }
+	}
 	export class ShiftBalanceReplacementPreview {
 	    valid: boolean;
 	    reason: string;

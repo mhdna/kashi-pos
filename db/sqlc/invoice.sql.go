@@ -1197,6 +1197,56 @@ func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPagePara
 	return items, nil
 }
 
+const listSalespersonDiscountSummary = `-- name: ListSalespersonDiscountSummary :many
+SELECT COALESCE(sp.id, 0) AS salesperson_id,
+       CAST(COALESCE(SUM(i.subtotal - i.grand_total), 0) AS INTEGER) AS discount_amount,
+       CAST(COALESCE(SUM(i.subtotal), 0) AS INTEGER) AS subtotal_total
+FROM sales_invoices si
+JOIN invoices i ON i.id = si.invoice_id
+LEFT JOIN salespersons sp ON sp.id = NULLIF(i.salesperson_id, 0)
+WHERE date(i.created_at, 'localtime') >= ?1
+  AND date(i.created_at, 'localtime') <= ?2
+GROUP BY sp.id
+`
+
+type ListSalespersonDiscountSummaryParams struct {
+	ReportFrom string `json:"reportFrom"`
+	ReportTo   string `json:"reportTo"`
+}
+
+type ListSalespersonDiscountSummaryRow struct {
+	SalespersonID  int64 `json:"salespersonId"`
+	DiscountAmount int64 `json:"discountAmount"`
+	SubtotalTotal  int64 `json:"subtotalTotal"`
+}
+
+// Revenue-weighted discount total from original sale invoices, attributed at
+// the invoice level (discount is an invoice-wide concept, unlike line-level
+// item sales attribution). Exchange invoices are excluded since their
+// subtotal/grandTotal only ever reflect the net adjustment, not a discount.
+func (q *Queries) ListSalespersonDiscountSummary(ctx context.Context, arg ListSalespersonDiscountSummaryParams) ([]ListSalespersonDiscountSummaryRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSalespersonDiscountSummary, arg.ReportFrom, arg.ReportTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSalespersonDiscountSummaryRow{}
+	for rows.Next() {
+		var i ListSalespersonDiscountSummaryRow
+		if err := rows.Scan(&i.SalespersonID, &i.DiscountAmount, &i.SubtotalTotal); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSalespersonProductSales = `-- name: ListSalespersonProductSales :many
 SELECT COALESCE(sp.id, 0) AS salesperson_id,
        COALESCE(sp.full_name, 'Anonymous') AS salesperson_name,
@@ -1254,6 +1304,120 @@ func (q *Queries) ListSalespersonProductSales(ctx context.Context, arg ListSales
 			&i.CurrencyCode,
 			&i.Quantity,
 			&i.Revenue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSalespersonReturnSummary = `-- name: ListSalespersonReturnSummary :many
+SELECT COALESCE(sp.id, 0) AS salesperson_id,
+       CAST(COALESCE(SUM(ip.line_total), 0) AS INTEGER) AS adjustment_amount,
+       CAST(COALESCE(SUM(CASE WHEN ip.line_total < 0 THEN -ip.line_total ELSE 0 END), 0) AS INTEGER) AS return_amount
+FROM return_invoices ri
+JOIN invoices i ON i.id = ri.invoice_id
+JOIN invoice_products ip ON ip.invoice_id = i.id
+LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
+WHERE date(i.created_at, 'localtime') >= ?1
+  AND date(i.created_at, 'localtime') <= ?2
+GROUP BY sp.id
+`
+
+type ListSalespersonReturnSummaryParams struct {
+	ReportFrom string `json:"reportFrom"`
+	ReportTo   string `json:"reportTo"`
+}
+
+type ListSalespersonReturnSummaryRow struct {
+	SalespersonID    int64 `json:"salespersonId"`
+	AdjustmentAmount int64 `json:"adjustmentAmount"`
+	ReturnAmount     int64 `json:"returnAmount"`
+}
+
+// Per-salesperson totals from return/exchange invoices. adjustment_amount is
+// the signed net effect (negative returned lines + positive replacement
+// lines) to fold into net sales; return_amount is the unsigned magnitude of
+// only the returned lines, used for the return-rate performance penalty.
+func (q *Queries) ListSalespersonReturnSummary(ctx context.Context, arg ListSalespersonReturnSummaryParams) ([]ListSalespersonReturnSummaryRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSalespersonReturnSummary, arg.ReportFrom, arg.ReportTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSalespersonReturnSummaryRow{}
+	for rows.Next() {
+		var i ListSalespersonReturnSummaryRow
+		if err := rows.Scan(&i.SalespersonID, &i.AdjustmentAmount, &i.ReturnAmount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSalespersonSalesSummary = `-- name: ListSalespersonSalesSummary :many
+SELECT COALESCE(sp.id, 0) AS salesperson_id,
+       COALESCE(sp.full_name, 'Anonymous') AS salesperson_name,
+       CAST(COUNT(DISTINCT i.id) AS INTEGER) AS invoice_count,
+       CAST(COALESCE(SUM(ip.quantity), 0) AS INTEGER) AS items_sold,
+       CAST(COALESCE(SUM(ip.line_total), 0) AS INTEGER) AS gross_amount
+FROM sales_invoices si
+JOIN invoices i ON i.id = si.invoice_id
+JOIN invoice_products ip ON ip.invoice_id = i.id
+LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
+WHERE date(i.created_at, 'localtime') >= ?1
+  AND date(i.created_at, 'localtime') <= ?2
+GROUP BY sp.id, sp.full_name
+ORDER BY sp.full_name
+`
+
+type ListSalespersonSalesSummaryParams struct {
+	ReportFrom string `json:"reportFrom"`
+	ReportTo   string `json:"reportTo"`
+}
+
+type ListSalespersonSalesSummaryRow struct {
+	SalespersonID   int64  `json:"salespersonId"`
+	SalespersonName string `json:"salespersonName"`
+	InvoiceCount    int64  `json:"invoiceCount"`
+	ItemsSold       int64  `json:"itemsSold"`
+	GrossAmount     int64  `json:"grossAmount"`
+}
+
+// Per-salesperson totals from original sale invoices only (return/exchange
+// invoices are attributed separately by ListSalespersonReturnSummary, and
+// exchange invoices only ever carry a net difference so they don't belong
+// in gross/items counts here). Same line-then-invoice salesperson fallback
+// as ListSalespersonProductSales.
+func (q *Queries) ListSalespersonSalesSummary(ctx context.Context, arg ListSalespersonSalesSummaryParams) ([]ListSalespersonSalesSummaryRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSalespersonSalesSummary, arg.ReportFrom, arg.ReportTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSalespersonSalesSummaryRow{}
+	for rows.Next() {
+		var i ListSalespersonSalesSummaryRow
+		if err := rows.Scan(
+			&i.SalespersonID,
+			&i.SalespersonName,
+			&i.InvoiceCount,
+			&i.ItemsSold,
+			&i.GrossAmount,
 		); err != nil {
 			return nil, err
 		}

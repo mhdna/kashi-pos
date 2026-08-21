@@ -213,7 +213,23 @@ type Querier interface {
 	ListProductsPageUnfiltered(ctx context.Context, arg ListProductsPageUnfilteredParams) ([]Product, error)
 	ListQuickAccessProducts(ctx context.Context) ([]Product, error)
 	ListRoles(ctx context.Context) ([]Role, error)
+	// Revenue-weighted discount total from original sale invoices, attributed at
+	// the invoice level (discount is an invoice-wide concept, unlike line-level
+	// item sales attribution). Exchange invoices are excluded since their
+	// subtotal/grandTotal only ever reflect the net adjustment, not a discount.
+	ListSalespersonDiscountSummary(ctx context.Context, arg ListSalespersonDiscountSummaryParams) ([]ListSalespersonDiscountSummaryRow, error)
 	ListSalespersonProductSales(ctx context.Context, arg ListSalespersonProductSalesParams) ([]ListSalespersonProductSalesRow, error)
+	// Per-salesperson totals from return/exchange invoices. adjustment_amount is
+	// the signed net effect (negative returned lines + positive replacement
+	// lines) to fold into net sales; return_amount is the unsigned magnitude of
+	// only the returned lines, used for the return-rate performance penalty.
+	ListSalespersonReturnSummary(ctx context.Context, arg ListSalespersonReturnSummaryParams) ([]ListSalespersonReturnSummaryRow, error)
+	// Per-salesperson totals from original sale invoices only (return/exchange
+	// invoices are attributed separately by ListSalespersonReturnSummary, and
+	// exchange invoices only ever carry a net difference so they don't belong
+	// in gross/items counts here). Same line-then-invoice salesperson fallback
+	// as ListSalespersonProductSales.
+	ListSalespersonSalesSummary(ctx context.Context, arg ListSalespersonSalesSummaryParams) ([]ListSalespersonSalesSummaryRow, error)
 	ListSalespersons(ctx context.Context) ([]Salesperson, error)
 	ListShifts(ctx context.Context) ([]Shift, error)
 	ListTransferItems(ctx context.Context, transferID int64) ([]TransferItem, error)

@@ -34,6 +34,7 @@ const router = createRouter({
           component: loadInvoicesList,
         },
         { path: "inventory", component: () => import("@/pages/inventory.vue") },
+        { path: "salespersons", component: () => import("@/pages/salespersons.vue") },
         { path: "transfers", component: () => import("@/pages/transfers.vue") },
         {
           path: "clients",

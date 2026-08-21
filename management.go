@@ -392,6 +392,88 @@ func (a *App) ListSalespersonProductSales(from, to string) ([]SalespersonProduct
 	return result, nil
 }
 
+type SalespersonSalesSummary struct {
+	SalespersonID   int64  `json:"salespersonId"`
+	SalespersonName string `json:"salespersonName"`
+	InvoiceCount    int64  `json:"invoiceCount"`
+	ItemsSold       int64  `json:"itemsSold"`
+	GrossAmount     int64  `json:"grossAmount"`
+	ReturnAmount    int64  `json:"returnAmount"`
+	NetAmount       int64  `json:"netAmount"`
+	DiscountAmount  int64  `json:"discountAmount"`
+	SubtotalAmount  int64  `json:"subtotalAmount"`
+}
+
+// ListSalespersonSalesSummary reports each salesperson's performance for the
+// given date range: net sales after returns/exchanges, invoice count, items
+// sold, and the totals needed to compute a return rate and discount rate.
+// Attribution follows the same line-then-invoice salesperson fallback as
+// ListSalespersonProductSales.
+func (a *App) ListSalespersonSalesSummary(from, to string) ([]SalespersonSalesSummary, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	fromDate, err := time.Parse("2006-01-02", strings.TrimSpace(from))
+	if err != nil {
+		return nil, fmt.Errorf("invalid from date %q; use YYYY-MM-DD", from)
+	}
+	toDate, err := time.Parse("2006-01-02", strings.TrimSpace(to))
+	if err != nil {
+		return nil, fmt.Errorf("invalid to date %q; use YYYY-MM-DD", to)
+	}
+	if fromDate.After(toDate) {
+		return nil, fmt.Errorf("from date must not be after to date")
+	}
+	reportFrom := fromDate.Format("2006-01-02")
+	reportTo := toDate.Format("2006-01-02")
+
+	salesRows, err := a.store.ListSalespersonSalesSummary(a.ctx, db.ListSalespersonSalesSummaryParams{
+		ReportFrom: reportFrom, ReportTo: reportTo,
+	})
+	if err != nil {
+		return nil, err
+	}
+	returnRows, err := a.store.ListSalespersonReturnSummary(a.ctx, db.ListSalespersonReturnSummaryParams{
+		ReportFrom: reportFrom, ReportTo: reportTo,
+	})
+	if err != nil {
+		return nil, err
+	}
+	discountRows, err := a.store.ListSalespersonDiscountSummary(a.ctx, db.ListSalespersonDiscountSummaryParams{
+		ReportFrom: reportFrom, ReportTo: reportTo,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	returnBySalesperson := make(map[int64]db.ListSalespersonReturnSummaryRow, len(returnRows))
+	for _, row := range returnRows {
+		returnBySalesperson[row.SalespersonID] = row
+	}
+	discountBySalesperson := make(map[int64]db.ListSalespersonDiscountSummaryRow, len(discountRows))
+	for _, row := range discountRows {
+		discountBySalesperson[row.SalespersonID] = row
+	}
+
+	result := make([]SalespersonSalesSummary, 0, len(salesRows))
+	for _, row := range salesRows {
+		ret := returnBySalesperson[row.SalespersonID]
+		disc := discountBySalesperson[row.SalespersonID]
+		result = append(result, SalespersonSalesSummary{
+			SalespersonID:   row.SalespersonID,
+			SalespersonName: row.SalespersonName,
+			InvoiceCount:    row.InvoiceCount,
+			ItemsSold:       row.ItemsSold,
+			GrossAmount:     row.GrossAmount,
+			ReturnAmount:    ret.ReturnAmount,
+			NetAmount:       row.GrossAmount + ret.AdjustmentAmount,
+			DiscountAmount:  disc.DiscountAmount,
+			SubtotalAmount:  disc.SubtotalTotal,
+		})
+	}
+	return result, nil
+}
+
 func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) {
 	return a.listInvoicesPage(page, itemsPerPage, InvoiceFilters{})
 }

@@ -145,6 +145,57 @@ WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
 GROUP BY sp.id, sp.full_name, p.id, p.barcode, p.code, p.name, p.color, p.size, p.currency_code
 ORDER BY sp.full_name, SUM(ip.quantity) DESC, p.name, p.id;
 
+-- name: ListSalespersonSalesSummary :many
+-- Per-salesperson totals from original sale invoices only (return/exchange
+-- invoices are attributed separately by ListSalespersonReturnSummary, and
+-- exchange invoices only ever carry a net difference so they don't belong
+-- in gross/items counts here). Same line-then-invoice salesperson fallback
+-- as ListSalespersonProductSales.
+SELECT COALESCE(sp.id, 0) AS salesperson_id,
+       COALESCE(sp.full_name, 'Anonymous') AS salesperson_name,
+       CAST(COUNT(DISTINCT i.id) AS INTEGER) AS invoice_count,
+       CAST(COALESCE(SUM(ip.quantity), 0) AS INTEGER) AS items_sold,
+       CAST(COALESCE(SUM(ip.line_total), 0) AS INTEGER) AS gross_amount
+FROM sales_invoices si
+JOIN invoices i ON i.id = si.invoice_id
+JOIN invoice_products ip ON ip.invoice_id = i.id
+LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
+WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
+  AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+GROUP BY sp.id, sp.full_name
+ORDER BY sp.full_name;
+
+-- name: ListSalespersonReturnSummary :many
+-- Per-salesperson totals from return/exchange invoices. adjustment_amount is
+-- the signed net effect (negative returned lines + positive replacement
+-- lines) to fold into net sales; return_amount is the unsigned magnitude of
+-- only the returned lines, used for the return-rate performance penalty.
+SELECT COALESCE(sp.id, 0) AS salesperson_id,
+       CAST(COALESCE(SUM(ip.line_total), 0) AS INTEGER) AS adjustment_amount,
+       CAST(COALESCE(SUM(CASE WHEN ip.line_total < 0 THEN -ip.line_total ELSE 0 END), 0) AS INTEGER) AS return_amount
+FROM return_invoices ri
+JOIN invoices i ON i.id = ri.invoice_id
+JOIN invoice_products ip ON ip.invoice_id = i.id
+LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
+WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
+  AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+GROUP BY sp.id;
+
+-- name: ListSalespersonDiscountSummary :many
+-- Revenue-weighted discount total from original sale invoices, attributed at
+-- the invoice level (discount is an invoice-wide concept, unlike line-level
+-- item sales attribution). Exchange invoices are excluded since their
+-- subtotal/grandTotal only ever reflect the net adjustment, not a discount.
+SELECT COALESCE(sp.id, 0) AS salesperson_id,
+       CAST(COALESCE(SUM(i.subtotal - i.grand_total), 0) AS INTEGER) AS discount_amount,
+       CAST(COALESCE(SUM(i.subtotal), 0) AS INTEGER) AS subtotal_total
+FROM sales_invoices si
+JOIN invoices i ON i.id = si.invoice_id
+LEFT JOIN salespersons sp ON sp.id = NULLIF(i.salesperson_id, 0)
+WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
+  AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+GROUP BY sp.id;
+
 -- name: CountInvoices :one
 SELECT COUNT(*) FROM invoices;
 

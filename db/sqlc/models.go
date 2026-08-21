@@ -286,6 +286,13 @@ type Permission struct {
 	Description string `json:"description"`
 }
 
+type PinLockout struct {
+	ID             int64  `json:"id"`
+	FailedAttempts int64  `json:"failedAttempts"`
+	LockoutLevel   int64  `json:"lockoutLevel"`
+	LockedUntil    string `json:"lockedUntil"`
+}
+
 type PriceList struct {
 	ID        int64  `json:"id"`
 	Name      string `json:"name"`

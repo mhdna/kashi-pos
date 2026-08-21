@@ -112,6 +112,7 @@ const items = computed(() => {
       locked: true,
     },
     { value: "transfer", to: "/transfers", icon: "mdi-truck", t: "Transfers", locked: true },
+    { value: "salespersons", to: "/salespersons", icon: "mdi-chart-bar", t: "Sales" },
     {
       value: "attendance",
       to: "/attendance",
