@@ -346,7 +346,8 @@ function clearDraft() {
 function clearInvoice() {
   invoiceItems.value?.clearItems();
   calculator.value?.clearAll();
-  selectedSalesperson.value = null;
+  // Keep the salesperson selected for the next invoice. Restoring an on-hold
+  // invoice still replaces this below with the salesperson saved on that hold.
   invoiceNotes.value = "";
   noteDraft.value = "";
   noteMenu.value = false;
