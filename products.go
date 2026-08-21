@@ -37,15 +37,11 @@ func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("product not found")
 	}
-
-	return map[string]any{
-		"id": product.ID, "barcode": product.Barcode, "code": product.Code,
-		"name": product.Name, "category": product.Description,
-		"price": float64(product.Price) / 100, "discount": product.Discount,
-		"color": product.Color, "size": product.Size, "currency": product.CurrencyCode,
-		"brand": product.Brand, "family": product.Family, "kind": product.Kind,
-		"season": product.Season, "year": product.ProductYear,
-	}, nil
+	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, err
+	}
+	return productMap(product, overrides), nil
 }
 
 func (a *App) GetProductByCode(code string) (map[string]any, error) {
@@ -57,15 +53,11 @@ func (a *App) GetProductByCode(code string) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("product not found")
 	}
-
-	return map[string]any{
-		"id": product.ID, "barcode": product.Barcode, "code": product.Code,
-		"name": product.Name, "category": product.Description,
-		"price": float64(product.Price) / 100, "discount": product.Discount,
-		"color": product.Color, "size": product.Size, "currency": product.CurrencyCode,
-		"brand": product.Brand, "family": product.Family, "kind": product.Kind,
-		"season": product.Season, "year": product.ProductYear,
-	}, nil
+	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, err
+	}
+	return productMap(product, overrides), nil
 }
 
 func (a *App) ListProducts() ([]map[string]any, error) {
@@ -77,30 +69,16 @@ func (a *App) ListProducts() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, err
+	}
 
 	result := make([]map[string]any, len(products))
 	for i, p := range products {
-		result[i] = map[string]any{
-			"id": p.ID, "barcode": p.Barcode, "code": p.Code,
-			"name": p.Name, "category": p.Description,
-			"price": float64(p.Price) / 100, "discount": p.Discount,
-			"color": p.Color, "size": p.Size, "currency": p.CurrencyCode,
-			"brand": p.Brand, "family": p.Family, "kind": p.Kind,
-			"season": p.Season, "year": p.ProductYear,
-		}
+		result[i] = productMap(p, overrides)
 	}
 	return result, nil
-}
-
-func productToMap(product db.Product) map[string]any {
-	return map[string]any{
-		"id": product.ID, "barcode": product.Barcode, "code": product.Code,
-		"name": product.Name, "category": product.Description,
-		"price": float64(product.Price) / 100, "discount": product.Discount,
-		"color": product.Color, "size": product.Size, "currency": product.CurrencyCode,
-		"brand": product.Brand, "family": product.Family, "kind": product.Kind,
-		"season": product.Season, "year": product.ProductYear,
-	}
 }
 
 func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
@@ -111,9 +89,13 @@ func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list quick-access products: %w", err)
 	}
+	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]map[string]any, len(products))
 	for i, product := range products {
-		result[i] = productToMap(product)
+		result[i] = productMap(product, overrides)
 	}
 	return result, nil
 }
@@ -183,10 +165,14 @@ func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (Produ
 	if err != nil {
 		return ProductPage{}, err
 	}
+	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	if err != nil {
+		return ProductPage{}, err
+	}
 
 	result := make([]map[string]any, len(products))
 	for i, p := range products {
-		result[i] = productMap(p)
+		result[i] = productMap(p, overrides)
 	}
 	return ProductPage{Items: result, Total: total}, nil
 }
@@ -228,6 +214,10 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 	if err != nil {
 		return ProductCursorPage{}, err
 	}
+	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	if err != nil {
+		return ProductCursorPage{}, err
+	}
 
 	hasMore := len(products) > limit
 	if hasMore {
@@ -235,7 +225,7 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 	}
 	result := make([]map[string]any, len(products))
 	for i, product := range products {
-		result[i] = productMap(product)
+		result[i] = productMap(product, overrides)
 	}
 	nextCursor := afterID
 	if len(products) > 0 {
@@ -244,14 +234,34 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 	return ProductCursorPage{Items: result, NextCursor: nextCursor, HasMore: hasMore}, nil
 }
 
-func productMap(p db.Product) map[string]any {
+// productMap converts a product row to the shape the frontend consumes,
+// overlaying an active price-list/discount-list override (if any) onto the
+// price/discount so every product-lookup path (search, quick-access, cart
+// add, checkout) agrees on what a product currently sells for.
+func productMap(p db.Product, overrides activeOverrides) map[string]any {
+	price := p.Price
+	discount := p.Discount
+	priceOverridden, discountOverridden := false, false
+	priceListName, discountListName := "", ""
+	if override, ok := overrides.prices[p.Code]; ok {
+		price = override.cents
+		priceOverridden = true
+		priceListName = override.listName
+	}
+	if override, ok := overrides.discounts[p.Code]; ok {
+		discount = override.percent
+		discountOverridden = true
+		discountListName = override.listName
+	}
 	return map[string]any{
 		"id": p.ID, "barcode": p.Barcode, "code": p.Code,
 		"name": p.Name, "category": p.Description,
-		"price": float64(p.Price) / 100, "discount": p.Discount,
+		"price": float64(price) / 100, "discount": discount,
 		"color": p.Color, "size": p.Size, "currency": p.CurrencyCode,
 		"brand": p.Brand, "family": p.Family, "kind": p.Kind,
 		"season": p.Season, "year": p.ProductYear,
+		"priceListOverridden": priceOverridden, "priceListName": priceListName,
+		"discountListOverridden": discountOverridden, "discountListName": discountListName,
 	}
 }
 

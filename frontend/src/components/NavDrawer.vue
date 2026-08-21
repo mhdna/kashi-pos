@@ -21,6 +21,18 @@
       </v-list-item>
 
       <v-list-item
+        class="nav-item py-2"
+        :value="undefined"
+        :active="false"
+        @click="logout"
+      >
+        <div class="nav-item-content">
+          <v-icon icon="mdi-logout" size="20" />
+          <span class="nav-item-label text-center mt-1">Logout</span>
+        </div>
+      </v-list-item>
+
+      <v-list-item
         class="nav-item close-shift-item py-2"
         :value="undefined"
         :active="false"
@@ -66,6 +78,11 @@ function onHoldClick() {
 
 function onExchangeClick() {
   pendingNavAction.value = "exchange";
+}
+
+function logout() {
+  auth.logout();
+  void router.push("/login");
 }
 
 const items = computed(() => {

@@ -21,7 +21,7 @@ func TestInvoiceLineSalespersonPersistsAndOverridesReportAttribution(t *testing.
 
 	checkout := func(salespersonID int64) SalesInvoiceResult {
 		t.Helper()
-		items, _ := json.Marshal([]map[string]any{{"code": "SKU-1", "qty": 1, "salespersonId": salespersonID}})
+		items, _ := json.Marshal([]map[string]any{{"code": "SKU-1", "qty": 1, "salespersonId": salespersonID, "note": "  gift wrap this line  "}})
 		payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 1533, EntryType: "payment"}})
 		result, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: string(items), PaymentsJSON: string(payments), ClientID: client.ID})
 		if err != nil {
@@ -39,8 +39,16 @@ func TestInvoiceLineSalespersonPersistsAndOverridesReportAttribution(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(lines) != 1 || lines[0].SalespersonID != linePerson.ID {
+	if len(lines) != 1 || lines[0].SalespersonID != linePerson.ID || lines[0].Note != "gift wrap this line" {
 		t.Fatalf("persisted invoice lines = %#v", lines)
+	}
+	details, err := app.GetInvoiceDetails(assigned.InvoiceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	detailItems := details["items"].([]map[string]any)
+	if len(detailItems) != 1 || detailItems[0]["note"] != "gift wrap this line" {
+		t.Fatalf("invoice detail items = %#v", detailItems)
 	}
 
 	day := time.Now().Format("2006-01-02")

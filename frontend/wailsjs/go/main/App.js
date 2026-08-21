@@ -86,6 +86,14 @@ export function CreateDatabase() {
   return window['go']['main']['App']['CreateDatabase']();
 }
 
+export function CreateDiscountList(arg1) {
+  return window['go']['main']['App']['CreateDiscountList'](arg1);
+}
+
+export function CreatePriceList(arg1) {
+  return window['go']['main']['App']['CreatePriceList'](arg1);
+}
+
 export function CreateSalesperson(arg1) {
   return window['go']['main']['App']['CreateSalesperson'](arg1);
 }
@@ -246,6 +254,14 @@ export function ListCurrencies() {
   return window['go']['main']['App']['ListCurrencies']();
 }
 
+export function ListDiscountListItems(arg1) {
+  return window['go']['main']['App']['ListDiscountListItems'](arg1);
+}
+
+export function ListDiscountLists() {
+  return window['go']['main']['App']['ListDiscountLists']();
+}
+
 export function ListHoldInvoices() {
   return window['go']['main']['App']['ListHoldInvoices']();
 }
@@ -262,12 +278,24 @@ export function ListInvoices() {
   return window['go']['main']['App']['ListInvoices']();
 }
 
+export function ListInvoicesFilteredPage(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListInvoicesFilteredPage'](arg1, arg2, arg3);
+}
+
 export function ListInvoicesPage(arg1, arg2) {
   return window['go']['main']['App']['ListInvoicesPage'](arg1, arg2);
 }
 
 export function ListPaymentMethods() {
   return window['go']['main']['App']['ListPaymentMethods']();
+}
+
+export function ListPriceListItems(arg1) {
+  return window['go']['main']['App']['ListPriceListItems'](arg1);
+}
+
+export function ListPriceLists() {
+  return window['go']['main']['App']['ListPriceLists']();
 }
 
 export function ListPrinters() {
@@ -350,6 +378,14 @@ export function QuotePaymentStatus(arg1, arg2) {
   return window['go']['main']['App']['QuotePaymentStatus'](arg1, arg2);
 }
 
+export function RemoveDiscountListItem(arg1) {
+  return window['go']['main']['App']['RemoveDiscountListItem'](arg1);
+}
+
+export function RemovePriceListItem(arg1) {
+  return window['go']['main']['App']['RemovePriceListItem'](arg1);
+}
+
 export function RemoveQuickAccessProduct(arg1) {
   return window['go']['main']['App']['RemoveQuickAccessProduct'](arg1);
 }
@@ -394,8 +430,24 @@ export function SetCustomItemPricesEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemPricesEnabled'](arg1);
 }
 
+export function SetDiscountListActive(arg1, arg2) {
+  return window['go']['main']['App']['SetDiscountListActive'](arg1, arg2);
+}
+
+export function SetDiscountListItem(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetDiscountListItem'](arg1, arg2, arg3);
+}
+
 export function SetPerUnitItemPricesEnabled(arg1) {
   return window['go']['main']['App']['SetPerUnitItemPricesEnabled'](arg1);
+}
+
+export function SetPriceListActive(arg1, arg2) {
+  return window['go']['main']['App']['SetPriceListActive'](arg1, arg2);
+}
+
+export function SetPriceListItem(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetPriceListItem'](arg1, arg2, arg3);
 }
 
 export function SetTaxRate(arg1) {
@@ -436,6 +488,14 @@ export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6) {
 
 export function UpdateCurrency(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['UpdateCurrency'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function UpdateDiscountList(arg1, arg2) {
+  return window['go']['main']['App']['UpdateDiscountList'](arg1, arg2);
+}
+
+export function UpdatePriceList(arg1, arg2) {
+  return window['go']['main']['App']['UpdatePriceList'](arg1, arg2);
 }
 
 export function UpdateProductDiscount(arg1, arg2) {

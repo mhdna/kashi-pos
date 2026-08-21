@@ -1,9 +1,10 @@
 <template>
   <div class="settings-page">
     <v-tabs v-model="tab" class="settings-tabs mb-5" color="primary" grow>
-      <v-tab value="general">Printing &amp; Screen</v-tab>
-      <v-tab value="receipt">Receipt</v-tab>
-      <v-tab value="currencies">Currencies</v-tab>
+      <v-tab value="general">General Settings</v-tab>
+      <v-tab value="printing">Printing &amp; Receipt</v-tab>
+      <v-tab value="attendance">Attendance</v-tab>
+      <v-tab value="money">Money</v-tab>
       <v-tab value="coupons">Coupons</v-tab>
       <v-tab value="admin">Passwords &amp; Users</v-tab>
     </v-tabs>
@@ -11,225 +12,112 @@
 
     <v-window v-model="tab">
       <v-window-item value="general">
-        <div class="settings-grid">
-          <v-card class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-database-outline" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Database</div>
-                <div class="text-caption text-medium-emphasis">
-                  Load a different Kashi database for this register.
-                </div>
-              </div>
-            </v-card-title>
-            <v-card-text>
-              <v-text-field
-                :model-value="databasePath"
-                label="Current database"
-                variant="outlined"
-                density="compact"
-                readonly
-                hide-details
-              />
-            </v-card-text>
-            <v-card-actions class="px-4 pb-4">
-              <v-spacer />
-              <v-btn color="primary" variant="flat" :loading="databaseSwitching" @click="chooseDatabase">
+        <div class="settings-grid settings-grid--general">
+          <div class="settings-general-column">
+            <v-switch
+              :model-value="darkThemeEnabled"
+              :loading="themeSaving"
+              :disabled="themeSaving"
+              label="Dark theme"
+              color="primary"
+              hide-details
+              @update:model-value="setDarkTheme"
+            />
+            <v-switch
+              :model-value="animationsEnabled"
+              label="Animations"
+              color="primary"
+              hint="Turn off decorative motion for a simpler, faster display."
+              persistent-hint
+              hide-details
+              class="mt-5"
+              @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
+            />
+            <v-text-field
+              v-model="form.branchName"
+              placeholder="Branch name"
+              variant="outlined"
+              density="compact"
+              class="mt-5 mb-2"
+            />
+            <v-text-field
+              v-model="form.branchCode"
+              placeholder="Branch code"
+              hint="Used in invoice numbers, for example CN."
+              maxlength="8"
+              persistent-hint
+              variant="outlined"
+              density="compact"
+              @update:model-value="form.branchCode = form.branchCode.toUpperCase()"
+            />
+            <v-select
+              v-model.number="form.salesInventoryId"
+              :items="inventories"
+              item-title="name"
+              item-value="id"
+              placeholder="Sales inventory"
+              hint="Stock is deducted from this inventory."
+              persistent-hint
+              variant="outlined"
+              density="compact"
+              class="mt-5"
+            />
+          </div>
+
+          <div class="settings-general-column">
+            <v-text-field
+              :model-value="databasePath"
+              label="Current database"
+              variant="outlined"
+              density="compact"
+              readonly
+              hide-details
+            />
+            <div class="d-flex justify-end mt-2">
+              <v-btn variant="text" color="primary" :loading="databaseSwitching" @click="chooseDatabase">
                 <v-icon start icon="mdi-folder-open-outline" /> Choose database
               </v-btn>
-            </v-card-actions>
-          </v-card>
+            </div>
+            <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="mt-5 mb-3" />
+            <v-text-field v-model="form.adminListen" placeholder="Listen address" hint="Use 0.0.0.0:8787 for LAN access." persistent-hint variant="outlined" density="compact" class="mb-2" />
+            <v-text-field
+              v-model="form.adminToken"
+              placeholder="Admin token / HTTP password"
+              hint="Required when listening beyond localhost."
+              persistent-hint
+              variant="outlined"
+              density="compact"
+              class="mb-2"
+              :type="showAdminToken ? 'text' : 'password'"
+              :append-inner-icon="showAdminToken ? 'mdi-eye' : 'mdi-eye-off'"
+              @click:append-inner="showAdminToken = !showAdminToken"
+            />
+            <v-text-field
+              v-model="form.apiKey"
+              placeholder="API key"
+              variant="outlined"
+              density="compact"
+              class="mt-3"
+              :append-inner-icon="showApiKey ? 'mdi-eye' : 'mdi-eye-off'"
+              :type="showApiKey ? 'text' : 'password'"
+              @click:append-inner="showApiKey = !showApiKey"
+            />
+          </div>
 
+          <div class="settings-page-actions">
+            <v-btn color="primary" variant="flat" :loading="saving || adminSettingsSaving" @click="saveGeneralSettings">
+              <v-icon start icon="mdi-content-save-outline" /> Save general settings
+            </v-btn>
+          </div>
+
+        </div>
+      </v-window-item>
+
+      <v-window-item value="attendance">
+        <div class="settings-grid">
           <v-card class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-printer-outline" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Printing preferences</div>
-                <div class="text-caption text-medium-emphasis">
-                  Set up your receipt printer and layout.
-                </div>
-              </div>
-            </v-card-title>
+            <v-card-title>Attendance machine</v-card-title>
             <v-card-text>
-              <v-text-field
-                v-model="form.branchName"
-                placeholder="Branch Name"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-text-field
-                v-model="form.branchCode"
-                placeholder="Branch Code"
-                hint="Used in invoice numbers, for example CN."
-                maxlength="8"
-                persistent-hint
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-                @update:model-value="form.branchCode = form.branchCode.toUpperCase()"
-              />
-              <v-text-field
-                v-model="form.apiKey"
-                placeholder="API Key"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-                :append-inner-icon="showApiKey ? 'mdi-eye' : 'mdi-eye-off'"
-                :type="showApiKey ? 'text' : 'password'"
-                @click:append-inner="showApiKey = !showApiKey"
-              />
-              <v-select
-                v-model="form.receiptPrinter"
-                :items="printers"
-                placeholder="Receipt Printer"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-select
-                v-model="form.printerSize"
-                :items="['58mm', '80mm']"
-                placeholder="Printing Size"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-row density="comfortable">
-                <v-col cols="6">
-                  <v-text-field
-                    v-model.number="form.receiptWidth"
-                    placeholder="Width (mm)"
-                    type="number"
-                    variant="outlined"
-                    density="compact"
-                  />
-                </v-col>
-                <v-col cols="6">
-                  <v-text-field
-                    v-model.number="form.receiptHeight"
-                    placeholder="Height (mm)"
-                    type="number"
-                    variant="outlined"
-                    density="compact"
-                  />
-                </v-col>
-              </v-row>
-              <v-text-field
-                v-model.number="form.taxRate"
-                placeholder="VAT rate"
-                hint="Use 0.11 for 11%, or 0 to disable VAT."
-                persistent-hint
-                type="number"
-                step="0.01"
-                min="0"
-                max="1"
-                variant="outlined"
-                density="compact"
-              />
-              <v-text-field
-                v-model.number="form.exchangeRate"
-                placeholder="Legacy exchange rate field"
-                hint="No longer used for rounding/checkout math - edit currency rates in the Currencies tab instead. Kept only for backward compatibility."
-                persistent-hint
-                type="number"
-                min="1"
-                step="1"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-switch
-                v-model="form.allowOverpayment"
-                label="Allow overpayment"
-                hint="Disabled by default. Enable this to accept more than the invoice total."
-                persistent-hint
-                color="primary"
-                hide-details="auto"
-                class="mb-2"
-              />
-              <v-text-field
-                v-model.number="form.maxOverpayment"
-                placeholder="Maximum overpayment (USD)"
-                hint="Maximum amount above the invoice total. Enable overpayment first."
-                persistent-hint
-                type="number"
-                min="0"
-                step="0.01"
-                :disabled="!form.allowOverpayment"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-select
-                v-model="form.roundingMode"
-                :items="roundingModes"
-                placeholder="Money rounding"
-                hint="Applied to discounts and VAT in cents."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-select
-                v-model="form.roundingCurrency"
-                :items="roundingCurrencies"
-                placeholder="Round by currency"
-                hint="Rounds the complete total, then converts it to the other currency."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-select
-                v-model.number="form.salesInventoryId"
-                :items="inventories"
-                item-title="name"
-                item-value="id"
-                placeholder="Sales inventory"
-                hint="Stock is deducted from this inventory."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details />
-              <v-switch
-                v-model="form.autoCloseStaleShiftsEnabled"
-                label="Automatically close previous-day shifts"
-                hint="When the app starts or a user logs in, close any open shift created before today."
-                persistent-hint
-                color="primary"
-                hide-details
-                class="mb-2"
-              />
-              <v-switch
-                :model-value="animationsEnabled"
-                label="Animations"
-                color="primary"
-                hint="Turn off decorative motion for a simpler, faster display."
-                persistent-hint
-                hide-details
-                @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
-              />
-              <v-select
-                :model-value="calculatorTotalCurrency"
-                :items="calculatorDisplayCurrencies"
-                label="Default calculator total currency"
-                hint="Currency shown first on the calculator's total. Can also be cycled with the flip icon on the calculator."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-                hide-details="auto"
-                class="mb-2"
-                @update:model-value="(value) => setCalculatorTotalCurrency(value ?? 'USD')"
-              />
-              <v-divider class="my-4" />
-              <div class="text-subtitle-2 font-weight-bold mb-2">Attendance machine</div>
               <v-text-field v-model="form.akuvoxIP" placeholder="Akuvox IP address" variant="outlined" density="compact" class="mb-2" />
               <v-text-field v-model="form.akuvoxUsername" placeholder="Device username (optional)" variant="outlined" density="compact" class="mb-2" />
               <v-text-field v-model="form.akuvoxPassword" placeholder="Device password (optional)" type="password" variant="outlined" density="compact" class="mb-2" />
@@ -237,77 +125,43 @@
               <v-text-field v-model.number="form.attendanceDuplicateIntervalSeconds" placeholder="Duplicate interval (seconds)" type="number" min="0" step="1" variant="outlined" density="compact" class="mb-2" hint="Ignore repeated scans closer together than this interval." persistent-hint />
               <v-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details />
               <v-switch v-model="form.attendanceCashierHistory" label="Allow cashiers to browse previous attendance days" color="primary" hide-details class="mt-3" />
-            </v-card-text>
-            <v-card-actions class="px-4 pb-4">
-              <v-spacer />
-              <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-                <v-icon start icon="mdi-content-save-outline" /> Save changes
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-
-          <v-card class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon :icon="darkThemeEnabled ? 'mdi-weather-night' : 'mdi-weather-sunny'" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Appearance</div>
-                <div class="text-caption text-medium-emphasis">
-                  Choose how the app looks on this register.
-                </div>
-              </div>
-            </v-card-title>
-            <v-card-text>
               <v-switch
-                :model-value="darkThemeEnabled"
-                :loading="themeSaving"
-                :disabled="themeSaving"
-                label="Dark theme"
-                hint="Your choice is saved and restored when the app starts."
+                v-model="form.autoCloseStaleShiftsEnabled"
+                label="Automatically close previous-day shifts"
+                hint="When the app starts or a user logs in, close any open shift created before today."
                 persistent-hint
                 color="primary"
-                hide-details="auto"
-                @update:model-value="setDarkTheme"
+                hide-details
+                class="mt-3"
               />
             </v-card-text>
           </v-card>
-
-          <v-card class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-monitor-dashboard" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Customer screen</div>
-                <div class="text-caption text-medium-emphasis">
-                  Choose the display used at checkout.
-                </div>
-              </div>
-            </v-card-title>
-            <v-card-text>
-              <v-select
-                v-model="form.screenPort"
-                :items="serialPorts"
-                placeholder="Serial Port"
-                hint="Leave empty if no customer display is connected."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-              />
-            </v-card-text>
-            <v-card-actions class="px-4 pb-4">
-              <v-spacer />
-              <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-                <v-icon start icon="mdi-content-save-outline" /> Save changes
-              </v-btn>
-            </v-card-actions>
-          </v-card>
+        </div>
+        <div class="settings-page-actions">
+          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <v-icon start icon="mdi-content-save-outline" /> Save attendance settings
+          </v-btn>
         </div>
       </v-window-item>
 
-      <v-window-item value="receipt">
+      <v-window-item value="printing">
         <div class="settings-grid settings-grid--receipt">
+          <v-card class="settings-card">
+            <v-card-title>Printer &amp; customer screen</v-card-title>
+            <v-card-text>
+              <v-select v-model="form.receiptPrinter" :items="printers" placeholder="Receipt Printer" variant="outlined" density="compact" class="mb-2" />
+              <v-select v-model="form.printerSize" :items="['58mm', '80mm']" placeholder="Printing Size" variant="outlined" density="compact" class="mb-2" />
+              <v-row density="comfortable">
+                <v-col cols="6"><v-text-field v-model.number="form.receiptWidth" placeholder="Width (mm)" type="number" variant="outlined" density="compact" /></v-col>
+                <v-col cols="6"><v-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" /></v-col>
+              </v-row>
+              <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details />
+              <v-divider class="my-4" />
+              <div class="text-subtitle-2 font-weight-bold mb-2">Customer screen</div>
+              <v-select v-model="form.screenPort" :items="serialPorts" placeholder="Screen COM port" hint="Leave empty if no customer display is connected." persistent-hint variant="outlined" density="compact" />
+            </v-card-text>
+          </v-card>
+
           <v-card class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-avatar color="primary" variant="tonal" size="36"><v-icon icon="mdi-printer-outline" size="20" /></v-avatar>
@@ -380,18 +234,105 @@
               >
                 <v-icon start icon="mdi-printer-eye" /> Print current close-shift sample
               </v-btn>
-              <v-spacer />
-              <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings"><v-icon start icon="mdi-content-save-outline" /> Save changes</v-btn>
             </v-card-actions>
           </v-card>
 
         </div>
+        <div class="settings-page-actions">
+          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <v-icon start icon="mdi-content-save-outline" /> Save printing settings
+          </v-btn>
+        </div>
       </v-window-item>
 
-      <v-window-item value="currencies">
+      <v-window-item value="money">
         <div class="settings-grid">
           <v-card class="settings-card">
-            <v-card-title>Currencies</v-card-title>
+            <v-card-title>Money settings</v-card-title>
+            <v-card-text>
+              <v-text-field
+                v-model.number="form.taxRate"
+                placeholder="VAT rate"
+                hint="Use 0.11 for 11%, or 0 to disable VAT."
+                persistent-hint
+                type="number"
+                step="0.01"
+                min="0"
+                max="1"
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
+              <v-text-field
+                v-model.number="form.exchangeRate"
+                placeholder="Legacy exchange rate field"
+                hint="Kept for backward compatibility. Edit currency rates below for checkout math."
+                persistent-hint
+                type="number"
+                min="1"
+                step="1"
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
+              <v-switch
+                v-model="form.allowOverpayment"
+                label="Allow overpayment"
+                hint="Enable this to accept more than the invoice total."
+                persistent-hint
+                color="primary"
+                hide-details="auto"
+                class="mb-2"
+              />
+              <v-text-field
+                v-model.number="form.maxOverpayment"
+                placeholder="Maximum overpayment (USD)"
+                hint="Maximum amount above the invoice total."
+                persistent-hint
+                type="number"
+                min="0"
+                step="0.01"
+                :disabled="!form.allowOverpayment"
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
+              <v-select
+                v-model="form.roundingMode"
+                :items="roundingModes"
+                placeholder="Money rounding"
+                hint="Applied to discounts and VAT in cents."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
+              <v-select
+                v-model="form.roundingCurrency"
+                :items="roundingCurrencies"
+                placeholder="Round by currency"
+                hint="Rounds the complete total, then converts it to the other currency."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
+              <v-select
+                :model-value="calculatorTotalCurrency"
+                :items="calculatorDisplayCurrencies"
+                label="Default calculator total currency"
+                hint="Currency shown first on the calculator's total."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                hide-details="auto"
+                @update:model-value="(value) => setCalculatorTotalCurrency(value ?? 'USD')"
+              />
+            </v-card-text>
+          </v-card>
+
+          <v-card class="settings-card">
+            <v-card-title>Currencies &amp; rates</v-card-title>
             <v-card-text>
               <p class="text-caption text-medium-emphasis mb-3">
                 Add any currency this shop accepts cash in. The rate is how many major units of
@@ -524,6 +465,106 @@
               </div>
             </v-card-text>
           </v-card>
+
+          <v-card class="settings-card">
+            <v-card-title>Price lists</v-card-title>
+            <v-card-text>
+              <p class="text-caption text-medium-emphasis mb-3">
+                A price list overrides a product code's price for every color/size that shares it
+                (e.g. "Black Friday" -> lady pants $11). Enable a list to apply it at checkout; a
+                product code can only be overridden by one active price list at a time.
+              </p>
+              <v-table density="compact" class="mb-4">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Active</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="list in priceLists" :key="list.id">
+                    <td>{{ list.name }}</td>
+                    <td>
+                      <v-switch
+                        :model-value="list.isActive"
+                        hide-details
+                        density="compact"
+                        color="primary"
+                        @update:model-value="togglePriceListActive(list)"
+                      />
+                    </td>
+                    <td class="d-flex ga-1">
+                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="Manage items" @click="openManageList('price', list)" />
+                      <v-btn icon="mdi-pencil" variant="text" size="small" @click="editPriceList(list)" />
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+              <div class="text-subtitle-2 mb-2">
+                {{ editingPriceListId ? "Edit price list" : "Add a price list" }}
+              </div>
+              <div class="d-flex flex-wrap ga-2 align-start">
+                <v-text-field v-model="priceListForm.name" placeholder="Name (e.g. Black Friday)" variant="outlined" density="compact" style="max-width: 240px" />
+                <v-btn color="primary" :loading="priceListSaving" @click="savePriceList">
+                  {{ editingPriceListId ? "Save" : "Add" }}
+                </v-btn>
+                <v-btn v-if="editingPriceListId" variant="text" @click="resetPriceListForm">Cancel</v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <v-card class="settings-card">
+            <v-card-title>Discount lists</v-card-title>
+            <v-card-text>
+              <p class="text-caption text-medium-emphasis mb-3">
+                A discount list overrides a product code's discount %, independently of any price
+                list. A product code can only be overridden by one active discount list at a time.
+              </p>
+              <v-table density="compact" class="mb-4">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Active</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="list in discountLists" :key="list.id">
+                    <td>{{ list.name }}</td>
+                    <td>
+                      <v-switch
+                        :model-value="list.isActive"
+                        hide-details
+                        density="compact"
+                        color="primary"
+                        @update:model-value="toggleDiscountListActive(list)"
+                      />
+                    </td>
+                    <td class="d-flex ga-1">
+                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="Manage items" @click="openManageList('discount', list)" />
+                      <v-btn icon="mdi-pencil" variant="text" size="small" @click="editDiscountList(list)" />
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+              <div class="text-subtitle-2 mb-2">
+                {{ editingDiscountListId ? "Edit discount list" : "Add a discount list" }}
+              </div>
+              <div class="d-flex flex-wrap ga-2 align-start">
+                <v-text-field v-model="discountListForm.name" placeholder="Name" variant="outlined" density="compact" style="max-width: 240px" />
+                <v-btn color="primary" :loading="discountListSaving" @click="saveDiscountList">
+                  {{ editingDiscountListId ? "Save" : "Add" }}
+                </v-btn>
+                <v-btn v-if="editingDiscountListId" variant="text" @click="resetDiscountListForm">Cancel</v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
+        </div>
+        <div class="settings-page-actions">
+          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <v-icon start icon="mdi-content-save-outline" /> Save money settings
+          </v-btn>
         </div>
       </v-window-item>
 
@@ -607,34 +648,6 @@
                 @update:model-value="setCustomDiscountsEnabled"
               />
             </v-card-text>
-          </v-card>
-
-          <v-card class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-lan-connect" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Remote admin access</div>
-                <div class="text-caption text-medium-emphasis">Allow the admin TUI to manage this POS remotely.</div>
-              </div>
-            </v-card-title>
-            <v-card-text>
-              <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="mb-3" />
-              <v-text-field v-model="form.adminListen" placeholder="Listen address" hint="Use 0.0.0.0:8787 for LAN access." persistent-hint variant="outlined" density="compact" class="mb-2" />
-              <v-text-field
-                v-model="form.adminToken"
-                placeholder="Admin token"
-                hint="Required when listening beyond localhost."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-                :type="showAdminToken ? 'text' : 'password'"
-                :append-inner-icon="showAdminToken ? 'mdi-eye' : 'mdi-eye-off'"
-                @click:append-inner="showAdminToken = !showAdminToken"
-              />
-            </v-card-text>
-            <v-card-actions class="px-4 pb-4"><v-spacer /><v-btn color="primary" variant="flat" :loading="adminSettingsSaving" @click="saveAdminSettings"><v-icon start icon="mdi-content-save-outline" /> Save admin settings</v-btn></v-card-actions>
           </v-card>
 
           <v-form @submit.prevent="changePassword">
@@ -841,6 +854,54 @@
       </v-card>
     </v-dialog>
 
+    <v-dialog v-model="manageListDialog" max-width="520">
+      <v-card>
+        <v-card-title>{{ manageListName }} items</v-card-title>
+        <v-card-text>
+          <v-table density="compact" class="mb-4">
+            <thead>
+              <tr>
+                <th>Product code</th>
+                <th>{{ manageListType === "price" ? "Price" : "Discount" }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in manageListItems" :key="item.id">
+                <td>{{ item.productCode }}</td>
+                <td>{{ manageListType === "price" ? `$${Number(item.price).toFixed(2)}` : `${item.discount}%` }}</td>
+                <td>
+                  <v-btn icon="mdi-delete-outline" variant="text" size="small" @click="removeManageListItem(item)" />
+                </td>
+              </tr>
+              <tr v-if="!manageListItems.length">
+                <td colspan="3" class="text-medium-emphasis">No items yet.</td>
+              </tr>
+            </tbody>
+          </v-table>
+          <div class="d-flex flex-wrap ga-2 align-start">
+            <v-text-field v-model="manageItemCode" placeholder="Product code" variant="outlined" density="compact" style="max-width: 200px" />
+            <ProductSearchDialog activator-text="Pick product" activator-icon="mdi-magnify" @select="pickManageItemProduct" />
+            <v-text-field
+              v-model.number="manageItemValue"
+              :placeholder="manageListType === 'price' ? 'Price ($)' : 'Discount (%)'"
+              type="number"
+              min="0"
+              :step="manageListType === 'price' ? 0.01 : 1"
+              variant="outlined"
+              density="compact"
+              style="max-width: 160px"
+            />
+            <v-btn color="primary" :loading="manageItemSaving" @click="addManageListItem">Add / update</v-btn>
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="manageListDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snackbar.show" class="app-snackbar" timeout="3500" location="top" variant="flat">
       {{ snackbar.text }}
     </v-snackbar>
@@ -893,9 +954,24 @@ import {
   ListPaymentMethods,
   CreateCashboxAccount,
   SetTheme,
+  ListPriceLists,
+  CreatePriceList,
+  UpdatePriceList,
+  SetPriceListActive,
+  ListPriceListItems,
+  SetPriceListItem,
+  RemovePriceListItem,
+  ListDiscountLists,
+  CreateDiscountList,
+  UpdateDiscountList,
+  SetDiscountListActive,
+  ListDiscountListItems,
+  SetDiscountListItem,
+  RemoveDiscountListItem,
 } from "../../wailsjs/go/main/App";
 import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import { useAuthStore } from "@/stores/auth";
+import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import {
   animationsEnabled,
   setAnimationsEnabled,
@@ -1097,6 +1173,179 @@ async function savePaymentMethod() {
     paymentMethodSaving.value = false;
   }
 }
+const priceLists = ref<any[]>([]);
+const priceListForm = reactive({ name: "" });
+const priceListSaving = ref(false);
+const editingPriceListId = ref<number | null>(null);
+
+const discountLists = ref<any[]>([]);
+const discountListForm = reactive({ name: "" });
+const discountListSaving = ref(false);
+const editingDiscountListId = ref<number | null>(null);
+
+const manageListDialog = ref(false);
+const manageListType = ref<"price" | "discount">("price");
+const manageListId = ref<number | null>(null);
+const manageListName = ref("");
+const manageListItems = ref<any[]>([]);
+const manageItemCode = ref("");
+const manageItemValue = ref<number | null>(null);
+const manageItemSaving = ref(false);
+
+async function loadPriceLists() {
+  try {
+    priceLists.value = (await ListPriceLists()) as any[];
+  } catch {
+    priceLists.value = [];
+  }
+}
+
+function editPriceList(list: any) {
+  editingPriceListId.value = list.id;
+  priceListForm.name = list.name;
+}
+
+function resetPriceListForm() {
+  editingPriceListId.value = null;
+  priceListForm.name = "";
+}
+
+async function savePriceList() {
+  const name = priceListForm.name.trim();
+  if (!name) {
+    notify("Name is required", "red");
+    return;
+  }
+  priceListSaving.value = true;
+  try {
+    if (editingPriceListId.value) await UpdatePriceList(editingPriceListId.value, name);
+    else await CreatePriceList(name);
+    await loadPriceLists();
+    resetPriceListForm();
+    notify(editingPriceListId.value ? "Price list updated" : "Price list created");
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to save price list", "red");
+  } finally {
+    priceListSaving.value = false;
+  }
+}
+
+async function togglePriceListActive(list: any) {
+  try {
+    await SetPriceListActive(list.id, !list.isActive);
+    await loadPriceLists();
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to update price list", "red");
+  }
+}
+
+async function loadDiscountLists() {
+  try {
+    discountLists.value = (await ListDiscountLists()) as any[];
+  } catch {
+    discountLists.value = [];
+  }
+}
+
+function editDiscountList(list: any) {
+  editingDiscountListId.value = list.id;
+  discountListForm.name = list.name;
+}
+
+function resetDiscountListForm() {
+  editingDiscountListId.value = null;
+  discountListForm.name = "";
+}
+
+async function saveDiscountList() {
+  const name = discountListForm.name.trim();
+  if (!name) {
+    notify("Name is required", "red");
+    return;
+  }
+  discountListSaving.value = true;
+  try {
+    if (editingDiscountListId.value) await UpdateDiscountList(editingDiscountListId.value, name);
+    else await CreateDiscountList(name);
+    await loadDiscountLists();
+    resetDiscountListForm();
+    notify(editingDiscountListId.value ? "Discount list updated" : "Discount list created");
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to save discount list", "red");
+  } finally {
+    discountListSaving.value = false;
+  }
+}
+
+async function toggleDiscountListActive(list: any) {
+  try {
+    await SetDiscountListActive(list.id, !list.isActive);
+    await loadDiscountLists();
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to update discount list", "red");
+  }
+}
+
+async function loadManageListItems() {
+  if (!manageListId.value) return;
+  try {
+    manageListItems.value =
+      manageListType.value === "price"
+        ? ((await ListPriceListItems(manageListId.value)) as any[])
+        : ((await ListDiscountListItems(manageListId.value)) as any[]);
+  } catch {
+    manageListItems.value = [];
+  }
+}
+
+async function openManageList(type: "price" | "discount", list: any) {
+  manageListType.value = type;
+  manageListId.value = list.id;
+  manageListName.value = list.name;
+  manageItemCode.value = "";
+  manageItemValue.value = null;
+  manageListDialog.value = true;
+  await loadManageListItems();
+}
+
+function pickManageItemProduct(product: any) {
+  manageItemCode.value = product.code;
+}
+
+async function addManageListItem() {
+  if (!manageListId.value || !manageItemCode.value.trim() || manageItemValue.value === null) {
+    notify("Product code and a value are required", "red");
+    return;
+  }
+  manageItemSaving.value = true;
+  try {
+    if (manageListType.value === "price") {
+      await SetPriceListItem(manageListId.value, manageItemCode.value.trim(), Number(manageItemValue.value));
+    } else {
+      await SetDiscountListItem(manageListId.value, manageItemCode.value.trim(), Math.round(Number(manageItemValue.value)));
+    }
+    manageItemCode.value = "";
+    manageItemValue.value = null;
+    await loadManageListItems();
+    await (manageListType.value === "price" ? loadPriceLists() : loadDiscountLists());
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to save item", "red");
+  } finally {
+    manageItemSaving.value = false;
+  }
+}
+
+async function removeManageListItem(item: any) {
+  try {
+    if (manageListType.value === "price") await RemovePriceListItem(item.id);
+    else await RemoveDiscountListItem(item.id);
+    await loadManageListItems();
+    await (manageListType.value === "price" ? loadPriceLists() : loadDiscountLists());
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to remove item", "red");
+  }
+}
+
 const inventories = ref<any[]>([]);
 const socialPlatformOptions = [
   { title: "", value: "facebook", icon: "mdi-facebook", label: "Facebook" },
@@ -1334,6 +1583,11 @@ async function saveAdminSettings() {
   }
 }
 
+async function saveGeneralSettings() {
+  await saveSettings();
+  await saveAdminSettings();
+}
+
 async function setCustomDiscountsEnabled(value: boolean | null) {
   const enabled = Boolean(value);
   const previous = form.customItemDiscountsEnabled;
@@ -1388,6 +1642,8 @@ onMounted(async () => {
   await loadSettings();
   await loadCurrencies();
   await loadPaymentMethodsList();
+  await loadPriceLists();
+  await loadDiscountLists();
   try {
     serialPorts.value = await ListSerialPorts();
   } catch {}
@@ -1639,15 +1895,44 @@ async function deleteUser() {
   gap: 16px;
 }
 
+.settings-page-actions {
+  max-width: 1100px;
+  margin: 16px auto 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-grid--general,
+.settings-grid--receipt {
+  align-items: stretch;
+}
+
+.settings-general-column {
+  min-width: 0;
+  width: 100%;
+}
+
+.settings-page :deep(.v-text-field),
+.settings-page :deep(.v-select),
+.settings-page :deep(.v-textarea) {
+  --v-input-control-height: 40px;
+}
+
+.settings-grid--general .settings-page-actions {
+  grid-column: 1 / -1;
+  max-width: none;
+  margin: 0;
+}
+
 .settings-grid--admin {
   grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.6fr);
 }
 
 .settings-card {
   min-width: 0;
-  overflow: hidden;
+  background: transparent !important;
   border: 0;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: none !important;
 }
 

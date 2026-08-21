@@ -44,6 +44,10 @@ export function CreateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,a
 
 export function CreateDatabase():Promise<string>;
 
+export function CreateDiscountList(arg1:string):Promise<Record<string, any>>;
+
+export function CreatePriceList(arg1:string):Promise<Record<string, any>>;
+
 export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
 
 export function CreateUser(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
@@ -124,6 +128,10 @@ export function ListCoupons():Promise<Array<Record<string, any>>>;
 
 export function ListCurrencies():Promise<Array<Record<string, any>>>;
 
+export function ListDiscountListItems(arg1:number):Promise<Array<Record<string, any>>>;
+
+export function ListDiscountLists():Promise<Array<Record<string, any>>>;
+
 export function ListHoldInvoices():Promise<Array<Record<string, any>>>;
 
 export function ListInventories():Promise<Array<Record<string, any>>>;
@@ -132,9 +140,15 @@ export function ListInventoryItems(arg1:number):Promise<Array<Record<string, any
 
 export function ListInvoices():Promise<Array<Record<string, any>>>;
 
+export function ListInvoicesFilteredPage(arg1:number,arg2:number,arg3:string):Promise<main.InvoicePage>;
+
 export function ListInvoicesPage(arg1:number,arg2:number):Promise<main.InvoicePage>;
 
 export function ListPaymentMethods():Promise<Array<Record<string, any>>>;
+
+export function ListPriceListItems(arg1:number):Promise<Array<Record<string, any>>>;
+
+export function ListPriceLists():Promise<Array<Record<string, any>>>;
 
 export function ListPrinters():Promise<Array<string>>;
 
@@ -176,6 +190,10 @@ export function QuoteInvoiceTotal(arg1:string):Promise<main.InvoiceQuote>;
 
 export function QuotePaymentStatus(arg1:string,arg2:string):Promise<main.PaymentStatus>;
 
+export function RemoveDiscountListItem(arg1:number):Promise<void>;
+
+export function RemovePriceListItem(arg1:number):Promise<void>;
+
 export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
 
 export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
@@ -198,7 +216,15 @@ export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
 
 export function SetCustomItemPricesEnabled(arg1:boolean):Promise<void>;
 
+export function SetDiscountListActive(arg1:number,arg2:boolean):Promise<Record<string, any>>;
+
+export function SetDiscountListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
+
 export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
+
+export function SetPriceListActive(arg1:number,arg2:boolean):Promise<Record<string, any>>;
+
+export function SetPriceListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
 
 export function SetTaxRate(arg1:number):Promise<void>;
 
@@ -219,6 +245,10 @@ export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record
 export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean):Promise<void>;
 
 export function UpdateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
+
+export function UpdateDiscountList(arg1:number,arg2:string):Promise<Record<string, any>>;
+
+export function UpdatePriceList(arg1:number,arg2:string):Promise<Record<string, any>>;
 
 export function UpdateProductDiscount(arg1:string,arg2:number):Promise<void>;
 

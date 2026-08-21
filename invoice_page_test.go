@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	db "kashi-pos/db/sqlc"
@@ -102,6 +103,32 @@ func TestListInvoicesPageBatchesClientAndSettlementLookups(t *testing.T) {
 	settlementWalkIn, ok := walkIn["settlementAccounts"].([]string)
 	if !ok || len(settlementWalkIn) != 2 {
 		t.Fatalf("walk-in settlement accounts = %#v, want both cashboxes", walkIn["settlementAccounts"])
+	}
+
+	filterCases := []struct {
+		name    string
+		filters string
+		want    int
+	}{
+		{name: "customer", filters: `{"customer":"Second"}`, want: 1},
+		{name: "paid to", filters: `{"paidTo":"Visa"}`, want: 2},
+		{name: "combined", filters: `{"customer":"Second","paidTo":"Visa"}`, want: 1},
+		{name: "salesperson", filters: `{"salesperson":"Anonymous"}`, want: 3},
+		{name: "invoice code", filters: fmt.Sprintf(`{"invoiceCode":%q}`, rowA["invoiceCode"]), want: 1},
+		{name: "date", filters: fmt.Sprintf(`{"date":%q}`, rowA["createdAt"].(string)[:10]), want: 3},
+		{name: "total", filters: fmt.Sprintf(`{"total":%q}`, fmt.Sprintf("%.2f", float64(quote.GrandTotalCents)/100)), want: 3},
+		{name: "no match", filters: `{"customer":"does-not-exist"}`, want: 0},
+	}
+	for _, test := range filterCases {
+		t.Run("filter "+test.name, func(t *testing.T) {
+			filtered, err := app.ListInvoicesFilteredPage(1, 20, test.filters)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if int(filtered.Total) != test.want || len(filtered.Items) != test.want {
+				t.Fatalf("filtered page = %#v, want %d items", filtered, test.want)
+			}
+		})
 	}
 }
 

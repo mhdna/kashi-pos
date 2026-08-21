@@ -2,60 +2,24 @@
   <div ref="invoiceScroll" class="invoice-items ms-2 mt-2 mb-2 me-0">
     <div v-for="(item, index) in items" :key="item.barcode || item.code">
       <v-list-item>
-        <template v-if="canExpandUnitPrices(item)" #prepend>
-          <v-btn
-            :aria-expanded="isExpanded(item)"
-            :aria-label="isExpanded(item) ? 'Hide unit prices' : 'Show unit prices'"
-            :icon="isExpanded(item) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-            class="invoice-expand-button"
-            density="comfortable"
-            size="small"
-            variant="text"
-            @click.stop="toggleExpanded(item)"
-          />
-        </template>
         <template #title>
-          <span class="text-caption font-weight-medium">{{ item.name }}</span>
-        </template>
-        <template #subtitle>
-          <span class="text-overline text-medium-emphasis">{{ item.code }}</span>
-          <span v-if="item.color || item.size" class="text-caption text-medium-emphasis ms-2">
-            {{ [item.color, item.size].filter(Boolean).join(" / ") }}
-          </span>
+          <button
+            class="invoice-item-details-trigger"
+            type="button"
+            :aria-label="`Open details for ${item.name}`"
+            @click.stop="openDetails(item)"
+          >
+            <span class="invoice-item-name text-caption font-weight-medium">{{ item.name }}</span>
+            <span class="invoice-item-code text-overline text-medium-emphasis">
+              {{ item.code }}
+              <span v-if="item.color || item.size" class="text-caption text-medium-emphasis ms-2">
+                {{ [item.color, item.size].filter(Boolean).join(" / ") }}
+              </span>
+            </span>
+          </button>
         </template>
         <template #append>
           <div class="invoice-item-actions d-flex align-center">
-            <v-menu location="bottom end">
-              <template #activator="{ props: activatorProps }">
-                <button
-                  v-bind="activatorProps"
-                  class="invoice-line-salesperson"
-                  :class="{ 'invoice-line-salesperson--assigned': item.salespersonId }"
-                  type="button"
-                  :title="lineSalespersonName(item.salespersonId)"
-                  :aria-label="`Line salesperson: ${lineSalespersonName(item.salespersonId)}`"
-                  @click.stop
-                >
-                  <v-icon icon="mdi-account-tie" size="16" />
-                </button>
-              </template>
-              <v-list density="compact" min-width="210">
-                <v-list-item
-                  :active="!item.salespersonId"
-                  :prepend-icon="item.salespersonId ? 'mdi-close-circle-outline' : 'mdi-account-tie'"
-                  :title="item.salespersonId ? 'Clear line salesperson' : 'Invoice salesperson (default)'"
-                  subtitle="Uses the salesperson assigned to the invoice"
-                  @click="item.salespersonId = 0"
-                />
-                <v-list-item
-                  v-for="person in salespersons"
-                  :key="person.id"
-                  :active="item.salespersonId === person.id"
-                  :title="person.fullName"
-                  @click="item.salespersonId = person.id"
-                />
-              </v-list>
-            </v-menu>
             <div class="invoice-qty-control">
               <NumberPadMenu
                 :model-value="item.qty"
@@ -103,6 +67,13 @@
                 >
                   <span class="text-caption text-medium-emphasis">
                     ${{ item.price.toFixed(2) }}
+                    <v-icon
+                      v-if="item.priceListOverridden"
+                      icon="mdi-star"
+                      color="amber-darken-2"
+                      size="12"
+                      :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
+                    />
                   </span>
                   <span class="text-caption font-weight-bold">
                     ${{ totalAfterDiscount(item).toFixed(2) }}
@@ -113,12 +84,24 @@
             <div v-else class="invoice-price-control d-flex flex-column align-end">
               <span class="text-caption text-medium-emphasis">
                 ${{ item.price.toFixed(2) }}
+                <v-icon
+                  v-if="item.priceListOverridden"
+                  icon="mdi-star"
+                  color="amber-darken-2"
+                  size="12"
+                  :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
+                />
               </span>
-              <span
-                v-if="item.discount && !customDiscountsEnabled"
-                class="text-caption text-red"
-                >-{{ item.discount }}%</span
-              >
+              <span v-if="item.discount && !customDiscountsEnabled" class="text-caption text-red">
+                -{{ item.discount }}%
+                <v-icon
+                  v-if="item.discountListOverridden"
+                  icon="mdi-star"
+                  color="amber-darken-2"
+                  size="12"
+                  :title="item.discountListName ? `Discount from list: ${item.discountListName}` : 'List discount'"
+                />
+              </span>
               <span class="text-caption font-weight-bold"
                 >${{ totalAfterDiscount(item).toFixed(2) }}</span
               >
@@ -131,59 +114,113 @@
           </div>
         </template>
       </v-list-item>
-      <v-expand-transition>
-        <div v-if="isExpanded(item)" class="invoice-unit-lines">
-          <div
-            v-for="unitIndex in Math.trunc(item.qty)"
-            :key="unitIndex"
-            class="invoice-unit-line d-flex align-center ga-2"
-          >
-            <span class="text-caption text-medium-emphasis">Unit {{ unitIndex }}</span>
-            <v-spacer />
-            <NumberPadMenu
-              v-if="canEditUnitDiscount(item)"
-              :model-value="unitDiscount(item, unitIndex - 1)"
-              :aria-label="`Set discount for unit ${unitIndex}`"
-              :min="0"
-              :max="100"
-              suffix="%"
-              tone="error"
-              @update:model-value="(value) => setUnitDiscount(item, unitIndex - 1, value)"
-            />
-            <span v-else class="text-caption text-red me-3">
-              -{{ unitDiscount(item, unitIndex - 1) }}%
-            </span>
-            <NumberPadMenu
-              v-if="canEditUnitPrice(item)"
-              :model-value="unitPrice(item, unitIndex - 1).toFixed(2)"
-              allow-decimal
-              :aria-label="`Set price for unit ${unitIndex}`"
-              :min="0.01"
-              :max="999999.99"
-              :max-length="9"
-              prefix="$"
-              @update:model-value="(value) => setUnitPrice(item, unitIndex - 1, value)"
-            />
-            <span v-else class="text-body-2 font-weight-medium">
-              ${{ unitPrice(item, unitIndex - 1).toFixed(2) }}
-            </span>
-          </div>
-        </div>
-      </v-expand-transition>
     </div>
+
+    <v-dialog v-model="detailsDialog" width="600" height="500" @after-leave="detailItem = null">
+      <v-card v-if="detailItem">
+        <v-card-title class="d-flex align-center">
+          <div class="min-width-0">
+            <div class="text-subtitle-1 text-truncate">{{ detailItem.name }}</div>
+            <div class="text-caption text-medium-emphasis">{{ detailItem.code }}</div>
+          </div>
+          <v-spacer />
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            aria-label="Close item details"
+            @click="detailsDialog = false"
+          />
+        </v-card-title>
+        <v-card-text class="invoice-item-details-content">
+          <v-select
+            :model-value="detailItem.salespersonId || 0"
+            :items="salespersonOptions"
+            item-title="title"
+            item-value="value"
+            label="Salesperson for this line"
+            prepend-inner-icon="mdi-account-tie"
+            variant="outlined"
+            density="compact"
+            :menu-props="{ transition: animationsEnabled ? 'fade-transition' : false }"
+            @update:model-value="detailItem.salespersonId = Number($event || 0)"
+          />
+          <v-textarea
+            v-model="detailItem.note"
+            placeholder="Add a note about this item"
+            prepend-inner-icon="mdi-note-text-outline"
+            variant="outlined"
+            density="compact"
+            auto-grow
+            rows="2"
+            maxlength="2000"
+            counter
+          />
+          <div class="text-subtitle-2 mb-2">Units</div>
+          <div class="invoice-unit-lines">
+            <div
+              v-for="unitIndex in detailUnitCount(detailItem)"
+              :key="unitIndex"
+              class="invoice-unit-line d-flex align-center ga-2"
+            >
+              <span class="text-caption text-medium-emphasis">Unit {{ unitIndex }}</span>
+              <v-spacer />
+              <NumberPadMenu
+                v-if="canEditUnitDiscount(detailItem)"
+                :model-value="unitDiscount(detailItem, unitIndex - 1)"
+                :aria-label="`Set discount for unit ${unitIndex}`"
+                :min="0"
+                :max="100"
+                suffix="%"
+                tone="error"
+                @update:model-value="(value) => setUnitDiscount(detailItem!, unitIndex - 1, value)"
+              />
+              <span v-else class="text-caption text-red me-3">
+                -{{ unitDiscount(detailItem, unitIndex - 1) }}%
+              </span>
+              <NumberPadMenu
+                v-if="canEditUnitPrice(detailItem)"
+                :model-value="unitPrice(detailItem, unitIndex - 1).toFixed(2)"
+                allow-decimal
+                :aria-label="`Set price for unit ${unitIndex}`"
+                :min="0.01"
+                :max="999999.99"
+                :max-length="9"
+                prefix="$"
+                @update:model-value="(value) => setUnitPrice(detailItem!, unitIndex - 1, value)"
+              />
+              <span v-else class="text-body-2 font-weight-medium">
+                ${{ unitPrice(detailItem, unitIndex - 1).toFixed(2) }}
+              </span>
+            </div>
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn color="primary" variant="flat" @click="detailsDialog = false">Done</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script lang="ts" setup>
 import {
   computed,
+  inject,
   nextTick,
   onMounted,
   ref,
+  watch,
   type ComponentPublicInstance,
+  type Ref,
 } from "vue";
-import { ListCategoryIcons, ListSalespersons, UpdateProductDiscount } from "../../wailsjs/go/main/App";
+import {
+  ListCategoryIcons,
+  ListSalespersons,
+  UpdateProductDiscount,
+} from "../../wailsjs/go/main/App";
 import { roundDiscountCents, normalizeRoundingMode } from "@/lib/money";
+import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
 
@@ -202,6 +239,11 @@ interface LineItem {
   discount: number;
   qty: number;
   salespersonId?: number;
+  note?: string;
+  priceListOverridden?: boolean;
+  priceListName?: string;
+  discountListOverridden?: boolean;
+  discountListName?: string;
 }
 
 const emit = defineEmits<{
@@ -232,7 +274,9 @@ function itemGrossCents(item: LineItem): number {
   const qty = Math.max(0, Math.trunc(item.qty));
   if (item.qty < 0) return Math.round(item.price * 100) * Math.trunc(item.qty);
   ensureUnitPrices(item);
-  return (item.unitPrices ?? []).slice(0, qty).reduce((sum, price) => sum + Math.round(price * 100), 0);
+  return (item.unitPrices ?? [])
+    .slice(0, qty)
+    .reduce((sum, price) => sum + Math.round(price * 100), 0);
 }
 
 function itemGross(item: LineItem): number {
@@ -242,7 +286,10 @@ function itemGross(item: LineItem): number {
 function discountedItemCents(item: LineItem): number {
   if (item.qty < 0) {
     const gross = itemGrossCents(item);
-    return gross - roundDiscountCents(gross, item.discount, normalizeRoundingMode(props.roundingMode ?? ""));
+    return (
+      gross -
+      roundDiscountCents(gross, item.discount, normalizeRoundingMode(props.roundingMode ?? ""))
+    );
   }
   ensureUnitPrices(item);
   const groups = new Map<string, { gross: number; discount: number }>();
@@ -259,13 +306,21 @@ function discountedItemCents(item: LineItem): number {
   for (const group of groups.values()) {
     total +=
       group.gross -
-      roundDiscountCents(group.gross, group.discount, normalizeRoundingMode(props.roundingMode ?? ""));
+      roundDiscountCents(
+        group.gross,
+        group.discount,
+        normalizeRoundingMode(props.roundingMode ?? ""),
+      );
   }
   return total;
 }
 
 const categoryIcons = ref<Map<string, string>>(new Map());
 const salespersons = ref<Salesperson[]>([]);
+const salespersonOptions = computed(() => [
+  { title: "Invoice salesperson (default)", value: 0 },
+  ...salespersons.value.map((person) => ({ title: person.fullName, value: person.id })),
+]);
 
 function iconFor(category: string): string {
   return categoryIcons.value.get(category) || "mdi-cart-outline";
@@ -276,7 +331,13 @@ const savedDiscounts = new Map<string, number>();
 const pendingDiscounts = new Map<string, Promise<boolean>>();
 const discountInputs = new Map<number, { focus: () => void }>();
 const invoiceScroll = ref<HTMLElement | null>(null);
-const expandedItemKey = ref("");
+const detailsDialog = ref(false);
+const detailItem = ref<LineItem | null>(null);
+const dialogOpen = inject<Ref<boolean> | null>("dialogOpen", null);
+
+watch(detailsDialog, (open) => {
+  if (dialogOpen) dialogOpen.value = open;
+});
 
 onMounted(async () => {
   try {
@@ -296,11 +357,6 @@ onMounted(async () => {
   } catch {}
 });
 
-function lineSalespersonName(id?: number): string {
-  if (!id) return "Invoice salesperson";
-  return salespersons.value.find((person) => person.id === id)?.fullName ?? "Unknown salesperson";
-}
-
 function setQuantity(item: LineItem, value: number) {
   const qty = Math.max(1, Math.trunc(value));
   ensureUnitPrices(item);
@@ -309,7 +365,6 @@ function setQuantity(item: LineItem, value: number) {
   item.unitPrices = item.unitPrices?.slice(0, qty);
   item.unitDiscounts = item.unitDiscounts?.slice(0, qty);
   item.qty = qty;
-  if (qty <= 1 && expandedItemKey.value === itemKey(item)) expandedItemKey.value = "";
 }
 
 function removeItem(item: LineItem) {
@@ -338,7 +393,15 @@ function addItem(item: LineItem) {
       Array.isArray(item.unitDiscounts) && item.unitDiscounts.length === qty
         ? item.unitDiscounts.map(Number)
         : Array(qty).fill(discount);
-    items.value.push({ ...item, discount, price, qty, unitPrices, unitDiscounts });
+    items.value.push({
+      ...item,
+      discount,
+      price,
+      qty,
+      note: item.note ?? "",
+      unitPrices,
+      unitDiscounts,
+    });
   }
 }
 
@@ -368,41 +431,31 @@ function addExchangeItems(returned: LineItem[], replacements: LineItem[]) {
 
 function clearItems() {
   items.value = [];
-  expandedItemKey.value = "";
-}
-
-function itemKey(item: LineItem): string {
-  return item.barcode || item.code;
-}
-
-function canExpandUnitPrices(item: LineItem): boolean {
-  return item.qty > 1;
+  detailsDialog.value = false;
+  detailItem.value = null;
 }
 
 function canEditUnitPrice(item: LineItem): boolean {
   return (
-    canExpandUnitPrices(item) &&
-    (perUnitPricesEnabled.value || customPricesEnabled.value) &&
-    !readonly.value
+    item.qty > 0 && (perUnitPricesEnabled.value || customPricesEnabled.value) && !readonly.value
   );
 }
 
 function canEditUnitDiscount(item: LineItem): boolean {
   return (
-    canExpandUnitPrices(item) &&
-    (perUnitPricesEnabled.value || customDiscountsEnabled.value) &&
-    !readonly.value
+    item.qty > 0 && (perUnitPricesEnabled.value || customDiscountsEnabled.value) && !readonly.value
   );
 }
 
-function toggleExpanded(item: LineItem) {
-  if (!canExpandUnitPrices(item)) return;
-  const key = itemKey(item);
-  expandedItemKey.value = expandedItemKey.value === key ? "" : key;
+function openDetails(item: LineItem) {
+  ensureUnitPrices(item);
+  item.note ??= "";
+  detailItem.value = item;
+  detailsDialog.value = true;
 }
 
-function isExpanded(item: LineItem): boolean {
-  return canExpandUnitPrices(item) && expandedItemKey.value === itemKey(item);
+function detailUnitCount(item: LineItem): number {
+  return Math.max(1, Math.abs(Math.trunc(item.qty)));
 }
 
 function ensureUnitPrices(item: LineItem) {
@@ -417,19 +470,18 @@ function ensureUnitPrices(item: LineItem) {
 }
 
 function unitPrice(item: LineItem, index: number): number {
+  if (item.qty < 0) return Number(item.soldUnitPrice ?? item.price);
   ensureUnitPrices(item);
   return Number(item.unitPrices?.[index] ?? item.price);
 }
 
 function unitDiscount(item: LineItem, index: number): number {
+  if (item.qty < 0) return Number(item.soldUnitDiscount ?? item.discount);
   ensureUnitPrices(item);
   return Number(item.unitDiscounts?.[index] ?? item.discount);
 }
 
-function setDiscountInput(
-  index: number,
-  element: Element | ComponentPublicInstance | null,
-) {
+function setDiscountInput(index: number, element: Element | ComponentPublicInstance | null) {
   if (element && "focus" in element && typeof element.focus === "function") {
     discountInputs.set(index, element as { focus: () => void });
   } else {
@@ -439,10 +491,11 @@ function setDiscountInput(
 
 function setDraftDiscount(item: LineItem, value: unknown) {
   const numeric = Number(value);
-  item.discount = Number.isFinite(numeric)
-    ? Math.min(100, Math.max(0, Math.trunc(numeric)))
-    : 0;
+  item.discount = Number.isFinite(numeric) ? Math.min(100, Math.max(0, Math.trunc(numeric))) : 0;
   if (item.qty > 0) item.unitDiscounts = Array(Math.trunc(item.qty)).fill(item.discount);
+  // A manual edit always wins over a discount-list default, so the star
+  // (which means "this came from a list") no longer applies.
+  item.discountListOverridden = false;
 }
 
 function setDraftPrice(item: LineItem, value: unknown) {
@@ -451,6 +504,7 @@ function setDraftPrice(item: LineItem, value: unknown) {
     ? Math.round(Math.min(999999.99, Math.max(0.01, numeric)) * 100) / 100
     : 0.01;
   if (item.qty > 0) item.unitPrices = Array(Math.trunc(item.qty)).fill(item.price);
+  item.priceListOverridden = false;
 }
 
 function setUnitPrice(item: LineItem, index: number, value: unknown) {
@@ -464,9 +518,7 @@ function setUnitPrice(item: LineItem, index: number, value: unknown) {
 
 function setUnitDiscount(item: LineItem, index: number, value: unknown) {
   const numeric = Number(value);
-  const discount = Number.isFinite(numeric)
-    ? Math.min(100, Math.max(0, Math.trunc(numeric)))
-    : 0;
+  const discount = Number.isFinite(numeric) ? Math.min(100, Math.max(0, Math.trunc(numeric))) : 0;
   ensureUnitPrices(item);
   if (item.unitDiscounts) item.unitDiscounts[index] = discount;
 }
@@ -517,9 +569,7 @@ async function flushChanges(): Promise<boolean> {
 
 const subtotal = computed(() => items.value.reduce((sum, i) => sum + itemGross(i), 0));
 const totalDiscount = computed(() => items.value.reduce((sum, i) => sum + discountAmount(i), 0));
-const subtotalCents = computed(() =>
-  items.value.reduce((sum, i) => sum + itemGrossCents(i), 0),
-);
+const subtotalCents = computed(() => items.value.reduce((sum, i) => sum + itemGrossCents(i), 0));
 const discountedSubtotalCents = computed(() =>
   items.value.reduce((sum, i) => sum + discountedItemCents(i), 0),
 );
@@ -542,32 +592,6 @@ defineExpose({
   justify-content: flex-end;
   margin-inline-start: auto;
   white-space: nowrap;
-}
-
-.invoice-line-salesperson {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  color: rgba(var(--v-theme-on-surface), 0.62);
-  cursor: pointer;
-  display: inline-flex;
-  flex: 0 0 34px;
-  justify-content: center;
-  width: 34px;
-  min-height: 34px;
-  padding: 2px;
-}
-
-.invoice-line-salesperson--assigned {
-  background: rgba(var(--v-theme-primary), 0.09);
-  color: rgb(var(--v-theme-primary));
-}
-
-.invoice-line-salesperson:hover,
-.invoice-line-salesperson:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.13);
-  outline: none;
 }
 
 .invoice-qty-control,
@@ -604,25 +628,56 @@ defineExpose({
   overflow-y: auto;
 }
 
-.invoice-expand-button {
-  color: rgb(var(--v-theme-primary));
+.invoice-item-details-trigger {
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-inline-start: -6px;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 3px 6px;
+  text-align: start;
+  width: calc(100% + 6px);
 }
 
-.invoice-items :deep(.v-list-item__prepend) {
-  margin-inline-start: -16px;
+.invoice-item-name,
+.invoice-item-code {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invoice-item-details-trigger:hover,
+.invoice-item-details-trigger:focus-visible {
+  background: rgba(var(--v-theme-primary), 0.1);
+}
+
+.invoice-item-details-trigger:focus-visible {
+  outline: 2px solid rgba(var(--v-theme-primary), 0.45);
+  outline-offset: 1px;
 }
 
 .invoice-unit-lines {
   background: rgba(var(--v-theme-on-surface), 0.035);
   border-inline-start: 2px solid rgba(var(--v-theme-primary), 0.3);
-  margin: 0 16px 4px 40px;
   max-height: 280px;
   overflow-y: auto;
-  padding: 4px 12px;
+  padding: 6px 12px;
 }
 
 .invoice-unit-line {
   min-height: 38px;
+}
+
+.invoice-item-details-content {
+  overflow-y: auto;
 }
 
 .invoice-price-editor {

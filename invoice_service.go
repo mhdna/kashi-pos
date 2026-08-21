@@ -244,12 +244,29 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 				lineSalespersonName = person.FullName
 			}
 		}
+		priceListName := ""
+		if line.PriceListID.Valid {
+			if list, listErr := a.store.GetPriceListByID(a.ctx, line.PriceListID.Int64); listErr == nil {
+				priceListName = list.Name
+			}
+		}
+		discountListName := ""
+		if line.DiscountListID.Valid {
+			if list, listErr := a.store.GetDiscountListByID(a.ctx, line.DiscountListID.Int64); listErr == nil {
+				discountListName = list.Name
+			}
+		}
 		items = append(items, map[string]any{
 			"name": product.Name, "code": product.Code, "barcode": product.Barcode, "category": product.Description,
 			"color": product.Color, "size": product.Size,
 			"price": float64(line.UnitPrice) / 100, "lineTotal": float64(line.LineTotal) / 100,
 			"discount": line.Discount, "qty": line.Quantity,
 			"salespersonId": line.SalespersonID, "salespersonName": lineSalespersonName,
+			"note":                 line.Note,
+			"isPriceOverridden":    line.PriceListID.Valid,
+			"priceListName":        priceListName,
+			"isDiscountOverridden": line.DiscountListID.Valid,
+			"discountListName":     discountListName,
 		})
 	}
 	payments, err := a.store.ListInvoicePayments(a.ctx, id)

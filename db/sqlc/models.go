@@ -161,6 +161,21 @@ type Currency struct {
 	CashRoundingUnit       int64  `json:"cashRoundingUnit"`
 }
 
+type DiscountList struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	IsActive  int64  `json:"isActive"`
+	CreatedAt string `json:"createdAt"`
+}
+
+type DiscountListItem struct {
+	ID             int64  `json:"id"`
+	DiscountListID int64  `json:"discountListId"`
+	ProductCode    string `json:"productCode"`
+	Discount       int64  `json:"discount"`
+	CreatedAt      string `json:"createdAt"`
+}
+
 type DiscountOverride struct {
 	ID        int64         `json:"id"`
 	Name      string        `json:"name"`
@@ -246,13 +261,16 @@ type InvoicePaymentEntry struct {
 }
 
 type InvoiceProduct struct {
-	InvoiceID     int64 `json:"invoiceId"`
-	ProductID     int64 `json:"productId"`
-	UnitPrice     int64 `json:"unitPrice"`
-	LineTotal     int64 `json:"lineTotal"`
-	Discount      int64 `json:"discount"`
-	Quantity      int64 `json:"quantity"`
-	SalespersonID int64 `json:"salespersonId"`
+	InvoiceID      int64         `json:"invoiceId"`
+	ProductID      int64         `json:"productId"`
+	UnitPrice      int64         `json:"unitPrice"`
+	LineTotal      int64         `json:"lineTotal"`
+	Discount       int64         `json:"discount"`
+	Quantity       int64         `json:"quantity"`
+	SalespersonID  int64         `json:"salespersonId"`
+	Note           string        `json:"note"`
+	PriceListID    sql.NullInt64 `json:"priceListId"`
+	DiscountListID sql.NullInt64 `json:"discountListId"`
 }
 
 type PaymentMethod struct {
@@ -265,6 +283,21 @@ type Permission struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+}
+
+type PriceList struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	IsActive  int64  `json:"isActive"`
+	CreatedAt string `json:"createdAt"`
+}
+
+type PriceListItem struct {
+	ID          int64  `json:"id"`
+	PriceListID int64  `json:"priceListId"`
+	ProductCode string `json:"productCode"`
+	Price       int64  `json:"price"`
+	CreatedAt   string `json:"createdAt"`
 }
 
 type PriceOverride struct {

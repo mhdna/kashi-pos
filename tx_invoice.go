@@ -21,6 +21,7 @@ type salesInvoiceItem struct {
 	UnitPricesCents  []int64 `json:"unitPricesCents,omitempty"`
 	UnitDiscounts    []int64 `json:"unitDiscounts,omitempty"`
 	SalespersonID    int64   `json:"salespersonId,omitempty"`
+	Note             string  `json:"note,omitempty"`
 }
 
 type checkoutPayment struct {
@@ -61,7 +62,11 @@ type invoiceTotals struct {
 
 func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool) (invoiceTotals, error) {
 	var totals invoiceTotals
-	products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled, perUnitPricingEnabled)
+	overrides, err := loadActiveOverrides(a.ctx, q)
+	if err != nil {
+		return totals, fmt.Errorf("load active price/discount overrides: %w", err)
+	}
+	products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled, overrides, perUnitPricingEnabled)
 	if err != nil {
 		return totals, err
 	}
@@ -220,7 +225,9 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			if err := q.CreateInvoiceProduct(a.ctx, db.CreateInvoiceProductParams{
 				InvoiceID: invoice.ID, ProductID: product.product.ID, UnitPrice: product.unitPrice,
 				LineTotal: product.lineTotal, Discount: product.discount, Quantity: product.qty,
-				SalespersonID: product.salespersonID,
+				SalespersonID: product.salespersonID, Note: product.note,
+				PriceListID:    sql.NullInt64{Int64: product.priceListID, Valid: product.priceListID != 0},
+				DiscountListID: sql.NullInt64{Int64: product.discountListID, Valid: product.discountListID != 0},
 			}); err != nil {
 				return fmt.Errorf("add product %s: %w", product.product.Code, err)
 			}
@@ -333,6 +340,9 @@ func parseSalesItems(raw string) ([]salesInvoiceItem, error) {
 		}
 		if item.SalespersonID < 0 {
 			return nil, fmt.Errorf("invalid salesperson for item %q", item.Code)
+		}
+		if len([]rune(item.Note)) > 2000 {
+			return nil, fmt.Errorf("note is too long for item %q", item.Code)
 		}
 		if item.CustomPriceCents != nil && (*item.CustomPriceCents <= 0 || *item.CustomPriceCents > 99999999) {
 			return nil, fmt.Errorf("invalid custom price for item %q", item.Code)

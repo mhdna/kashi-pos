@@ -7,8 +7,64 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 )
+
+const countFilteredInvoices = `-- name: CountFilteredInvoices :one
+SELECT COUNT(*)
+FROM invoices i
+LEFT JOIN salespersons s ON s.id = i.salesperson_id
+LEFT JOIN clients c ON c.id = i.client_id
+WHERE (COALESCE(?1, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?1) || '%')
+  AND (COALESCE(?2, '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(?2) || '%')
+  AND (COALESCE(?3, '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(?3) || '%')
+  AND (COALESCE(?4, '') = '' OR lower(i.created_at) LIKE '%' || lower(?4) || '%')
+  AND (COALESCE(?5, '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(?5, '$', '')) || '%')
+  AND (
+    COALESCE(?6, '') = ''
+    OR EXISTS (
+      SELECT 1
+      FROM invoice_payments ip
+      JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
+      WHERE ip.invoice_id = i.id
+        AND ip.amount > 0
+        AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(?6) || '%'
+    )
+    OR (
+      NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id AND ip.amount > 0)
+      AND EXISTS (
+        SELECT 1
+        FROM cashbox_accounts ca
+        WHERE ca.id = i.cashbox_id
+          AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(?6) || '%'
+      )
+    )
+  )
+`
+
+type CountFilteredInvoicesParams struct {
+	InvoiceFilter     interface{} `json:"invoiceFilter"`
+	CustomerFilter    interface{} `json:"customerFilter"`
+	SalespersonFilter interface{} `json:"salespersonFilter"`
+	DateFilter        interface{} `json:"dateFilter"`
+	TotalFilter       interface{} `json:"totalFilter"`
+	PaidToFilter      interface{} `json:"paidToFilter"`
+}
+
+func (q *Queries) CountFilteredInvoices(ctx context.Context, arg CountFilteredInvoicesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countFilteredInvoices,
+		arg.InvoiceFilter,
+		arg.CustomerFilter,
+		arg.SalespersonFilter,
+		arg.DateFilter,
+		arg.TotalFilter,
+		arg.PaidToFilter,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const countInvoices = `-- name: CountInvoices :one
 SELECT COUNT(*) FROM invoices
@@ -121,18 +177,21 @@ func (q *Queries) CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoi
 }
 
 const createInvoiceProduct = `-- name: CreateInvoiceProduct :exec
-INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateInvoiceProductParams struct {
-	InvoiceID     int64 `json:"invoiceId"`
-	ProductID     int64 `json:"productId"`
-	UnitPrice     int64 `json:"unitPrice"`
-	LineTotal     int64 `json:"lineTotal"`
-	Discount      int64 `json:"discount"`
-	Quantity      int64 `json:"quantity"`
-	SalespersonID int64 `json:"salespersonId"`
+	InvoiceID      int64         `json:"invoiceId"`
+	ProductID      int64         `json:"productId"`
+	UnitPrice      int64         `json:"unitPrice"`
+	LineTotal      int64         `json:"lineTotal"`
+	Discount       int64         `json:"discount"`
+	Quantity       int64         `json:"quantity"`
+	SalespersonID  int64         `json:"salespersonId"`
+	Note           string        `json:"note"`
+	PriceListID    sql.NullInt64 `json:"priceListId"`
+	DiscountListID sql.NullInt64 `json:"discountListId"`
 }
 
 func (q *Queries) CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error {
@@ -144,6 +203,9 @@ func (q *Queries) CreateInvoiceProduct(ctx context.Context, arg CreateInvoicePro
 		arg.Discount,
 		arg.Quantity,
 		arg.SalespersonID,
+		arg.Note,
+		arg.PriceListID,
+		arg.DiscountListID,
 	)
 	return err
 }
@@ -273,7 +335,7 @@ func (q *Queries) GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams
 }
 
 const getInvoiceProduct = `-- name: GetInvoiceProduct :one
-SELECT invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id FROM invoice_products WHERE invoice_id = ? AND product_id = ?
+SELECT invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id FROM invoice_products WHERE invoice_id = ? AND product_id = ?
 `
 
 type GetInvoiceProductParams struct {
@@ -292,6 +354,9 @@ func (q *Queries) GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductPa
 		&i.Discount,
 		&i.Quantity,
 		&i.SalespersonID,
+		&i.Note,
+		&i.PriceListID,
+		&i.DiscountListID,
 	)
 	return i, err
 }
@@ -827,7 +892,7 @@ func (q *Queries) ListInvoicePaymentsByInvoiceIDs(ctx context.Context, ids []int
 }
 
 const listInvoiceProducts = `-- name: ListInvoiceProducts :many
-SELECT invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id FROM invoice_products WHERE invoice_id = ?
+SELECT invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id FROM invoice_products WHERE invoice_id = ?
 `
 
 func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error) {
@@ -847,6 +912,9 @@ func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]I
 			&i.Discount,
 			&i.Quantity,
 			&i.SalespersonID,
+			&i.Note,
+			&i.PriceListID,
+			&i.DiscountListID,
 		); err != nil {
 			return nil, err
 		}
@@ -1018,13 +1086,45 @@ const listInvoicesPage = `-- name: ListInvoicesPage :many
 SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
+LEFT JOIN clients c ON c.id = i.client_id
+WHERE (COALESCE(?1, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?1) || '%')
+  AND (COALESCE(?2, '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(?2) || '%')
+  AND (COALESCE(?3, '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(?3) || '%')
+  AND (COALESCE(?4, '') = '' OR lower(i.created_at) LIKE '%' || lower(?4) || '%')
+  AND (COALESCE(?5, '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(?5, '$', '')) || '%')
+  AND (
+    COALESCE(?6, '') = ''
+    OR EXISTS (
+      SELECT 1
+      FROM invoice_payments ip
+      JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
+      WHERE ip.invoice_id = i.id
+        AND ip.amount > 0
+        AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(?6) || '%'
+    )
+    OR (
+      NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id AND ip.amount > 0)
+      AND EXISTS (
+        SELECT 1
+        FROM cashbox_accounts ca
+        WHERE ca.id = i.cashbox_id
+          AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(?6) || '%'
+      )
+    )
+  )
 ORDER BY i.id DESC
-LIMIT ?2 OFFSET ?1
+LIMIT ?8 OFFSET ?7
 `
 
 type ListInvoicesPageParams struct {
-	Offset int64 `json:"offset"`
-	Limit  int64 `json:"limit"`
+	InvoiceFilter     interface{} `json:"invoiceFilter"`
+	CustomerFilter    interface{} `json:"customerFilter"`
+	SalespersonFilter interface{} `json:"salespersonFilter"`
+	DateFilter        interface{} `json:"dateFilter"`
+	TotalFilter       interface{} `json:"totalFilter"`
+	PaidToFilter      interface{} `json:"paidToFilter"`
+	Offset            int64       `json:"offset"`
+	Limit             int64       `json:"limit"`
 }
 
 type ListInvoicesPageRow struct {
@@ -1047,7 +1147,16 @@ type ListInvoicesPageRow struct {
 }
 
 func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]ListInvoicesPageRow, error) {
-	rows, err := q.db.QueryContext(ctx, listInvoicesPage, arg.Offset, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, listInvoicesPage,
+		arg.InvoiceFilter,
+		arg.CustomerFilter,
+		arg.SalespersonFilter,
+		arg.DateFilter,
+		arg.TotalFilter,
+		arg.PaidToFilter,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -10,12 +10,15 @@ import (
 )
 
 type pricedInvoiceProduct struct {
-	product       db.Product
-	qty           int64
-	unitPrice     int64
-	discount      int64
-	lineTotal     int64
-	salespersonID int64
+	product        db.Product
+	qty            int64
+	unitPrice      int64
+	discount       int64
+	lineTotal      int64
+	salespersonID  int64
+	note           string
+	priceListID    int64
+	discountListID int64
 }
 
 type unitPricing struct {
@@ -54,7 +57,7 @@ func (a *App) resolveClientID(id int64) (int64, error) {
 	return walkIn.ID, nil
 }
 
-func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool, perUnitPricingEnabled ...bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
+func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool, overrides activeOverrides, perUnitPricingEnabled ...bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
 	products := make([]pricedInvoiceProduct, 0, len(items))
 	receiptItems := make([]invoiceItem, 0, len(items))
 	var subtotal, discountedSubtotal int64
@@ -82,6 +85,24 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 				return nil, 0, 0, nil, fmt.Errorf("custom item pricing is disabled")
 			}
 			product.Price = *item.CustomPriceCents
+		}
+		// A manual override (a whole-line custom price, or a per-unit
+		// price/discount array) always wins over a price-list/discount-list
+		// default - list overrides only fill in where the cashier hasn't
+		// already specified something for that field.
+		var priceListID int64
+		if item.CustomPriceCents == nil && len(item.UnitPricesCents) == 0 {
+			if override, ok := overrides.prices[product.Code]; ok {
+				product.Price = override.cents
+				priceListID = override.listID
+			}
+		}
+		var discountListID int64
+		if len(item.UnitDiscounts) == 0 {
+			if override, ok := overrides.discounts[product.Code]; ok {
+				product.Discount = override.percent
+				discountListID = override.listID
+			}
 		}
 		priceQuantities := map[unitPricing]int64{
 			{price: product.Price, discount: product.Discount}: int64(item.Qty),
@@ -123,6 +144,13 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 				return nil, 0, 0, nil, err
 			}
 			priced.salespersonID = item.SalespersonID
+			priced.note = strings.TrimSpace(item.Note)
+			if pricing.price == product.Price {
+				priced.priceListID = priceListID
+			}
+			if pricing.discount == product.Discount {
+				priced.discountListID = discountListID
+			}
 			gross := pricing.price * qty
 			lineTotal := priced.lineTotal
 			if subtotal > math.MaxInt64-gross || discountedSubtotal > math.MaxInt64-lineTotal {

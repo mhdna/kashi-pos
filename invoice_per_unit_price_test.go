@@ -38,13 +38,13 @@ func TestPerUnitInvoicePricesRequireFeatureAndGroupPriceLines(t *testing.T) {
 	}}
 
 	if _, _, _, _, err := app.validateAndPriceItems(
-		store.Queries, 0, items, "half_up", false, false,
+		store.Queries, 0, items, "half_up", false, activeOverrides{}, false,
 	); err == nil {
 		t.Fatal("expected per-unit prices to require the feature")
 	}
 
 	priced, subtotal, discountedSubtotal, receiptItems, err := app.validateAndPriceItems(
-		store.Queries, 0, items, "half_up", false, true,
+		store.Queries, 0, items, "half_up", false, activeOverrides{}, true,
 	)
 	if err != nil {
 		t.Fatal(err)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -433,6 +434,15 @@ type InvoicePage struct {
 	Total int64            `json:"total"`
 }
 
+type InvoiceFilters struct {
+	InvoiceCode string `json:"invoiceCode"`
+	Customer    string `json:"customer"`
+	Salesperson string `json:"salesperson"`
+	PaidTo      string `json:"paidTo"`
+	Date        string `json:"date"`
+	Total       string `json:"total"`
+}
+
 type SalespersonProductSale struct {
 	SalespersonID   int64  `json:"salespersonId"`
 	SalespersonName string `json:"salespersonName"`
@@ -486,6 +496,20 @@ func (a *App) ListSalespersonProductSales(from, to string) ([]SalespersonProduct
 }
 
 func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) {
+	return a.listInvoicesPage(page, itemsPerPage, InvoiceFilters{})
+}
+
+func (a *App) ListInvoicesFilteredPage(page int, itemsPerPage int, filtersJSON string) (InvoicePage, error) {
+	filters := InvoiceFilters{}
+	if strings.TrimSpace(filtersJSON) != "" {
+		if err := json.Unmarshal([]byte(filtersJSON), &filters); err != nil {
+			return InvoicePage{}, fmt.Errorf("invalid invoice filters: %w", err)
+		}
+	}
+	return a.listInvoicesPage(page, itemsPerPage, filters)
+}
+
+func (a *App) listInvoicesPage(page int, itemsPerPage int, filters InvoiceFilters) (InvoicePage, error) {
 	if a.store == nil {
 		return InvoicePage{}, fmt.Errorf("database not initialized")
 	}
@@ -500,13 +524,26 @@ func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) 
 	}
 
 	invoices, err := a.store.ListInvoicesPage(a.ctx, db.ListInvoicesPageParams{
-		Limit:  int64(itemsPerPage),
-		Offset: int64(page-1) * int64(itemsPerPage),
+		InvoiceFilter:     strings.TrimSpace(filters.InvoiceCode),
+		CustomerFilter:    strings.TrimSpace(filters.Customer),
+		SalespersonFilter: strings.TrimSpace(filters.Salesperson),
+		PaidToFilter:      strings.TrimSpace(filters.PaidTo),
+		DateFilter:        strings.TrimSpace(filters.Date),
+		TotalFilter:       strings.TrimSpace(filters.Total),
+		Limit:             int64(itemsPerPage),
+		Offset:            int64(page-1) * int64(itemsPerPage),
 	})
 	if err != nil {
 		return InvoicePage{}, err
 	}
-	total, err := a.store.CountInvoices(a.ctx)
+	total, err := a.store.CountFilteredInvoices(a.ctx, db.CountFilteredInvoicesParams{
+		InvoiceFilter:     strings.TrimSpace(filters.InvoiceCode),
+		CustomerFilter:    strings.TrimSpace(filters.Customer),
+		SalespersonFilter: strings.TrimSpace(filters.Salesperson),
+		PaidToFilter:      strings.TrimSpace(filters.PaidTo),
+		DateFilter:        strings.TrimSpace(filters.Date),
+		TotalFilter:       strings.TrimSpace(filters.Total),
+	})
 	if err != nil {
 		return InvoicePage{}, err
 	}

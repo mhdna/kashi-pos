@@ -37,13 +37,13 @@ func TestCustomInvoicePriceDoesNotChangeProductPrice(t *testing.T) {
 	}}
 
 	if _, _, _, _, err := app.validateAndPriceItems(
-		store.Queries, 0, items, "half_up", false,
+		store.Queries, 0, items, "half_up", false, activeOverrides{},
 	); err == nil {
 		t.Fatal("expected custom price to require the pricing feature")
 	}
 
 	priced, subtotal, discountedSubtotal, receiptItems, err := app.validateAndPriceItems(
-		store.Queries, 0, items, "half_up", true,
+		store.Queries, 0, items, "half_up", true, activeOverrides{},
 	)
 	if err != nil {
 		t.Fatal(err)

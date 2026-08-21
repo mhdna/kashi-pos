@@ -25,6 +25,7 @@ type Querier interface {
 	CountClients(ctx context.Context) (int64, error)
 	CountClientsPage(ctx context.Context, search string) (int64, error)
 	CountCouponsByTypeID(ctx context.Context, typeID sql.NullInt64) (int64, error)
+	CountFilteredInvoices(ctx context.Context, arg CountFilteredInvoicesParams) (int64, error)
 	CountInvoiceCouponPaymentsByCode(ctx context.Context, couponCode string) (int64, error)
 	CountInvoiceCouponPaymentsByTypeID(ctx context.Context, couponTypeID int64) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
@@ -39,6 +40,7 @@ type Querier interface {
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
 	CreateCouponType(ctx context.Context, arg CreateCouponTypeParams) (CouponType, error)
 	CreateCurrency(ctx context.Context, arg CreateCurrencyParams) (Currency, error)
+	CreateDiscountList(ctx context.Context, name string) (DiscountList, error)
 	CreateDiscountOverride(ctx context.Context, arg CreateDiscountOverrideParams) (DiscountOverride, error)
 	CreateHoldInvoice(ctx context.Context, snapshotJson string) (HoldInvoice, error)
 	CreateInventory(ctx context.Context, name string) (Inventory, error)
@@ -48,6 +50,7 @@ type Querier interface {
 	CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoicePaymentEntryParams) error
 	CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) (Permission, error)
+	CreatePriceList(ctx context.Context, name string) (PriceList, error)
 	CreatePriceOverride(ctx context.Context, arg CreatePriceOverrideParams) (PriceOverride, error)
 	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
 	CreateReturnInvoice(ctx context.Context, arg CreateReturnInvoiceParams) error
@@ -68,6 +71,7 @@ type Querier interface {
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteCoupon(ctx context.Context, code string) error
 	DeleteCouponType(ctx context.Context, id int64) error
+	DeleteDiscountListItem(ctx context.Context, id int64) error
 	DeleteDiscountOverride(ctx context.Context, id int64) error
 	DeleteHoldInvoice(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
@@ -77,6 +81,7 @@ type Querier interface {
 	DeleteInvoicePayments(ctx context.Context, invoiceID int64) error
 	DeleteInvoiceProducts(ctx context.Context, invoiceID int64) error
 	DeletePermission(ctx context.Context, id int64) error
+	DeletePriceListItem(ctx context.Context, id int64) error
 	DeletePriceOverride(ctx context.Context, id int64) error
 	DeleteProduct(ctx context.Context, id int64) error
 	DeleteRole(ctx context.Context, id int64) error
@@ -85,6 +90,8 @@ type Querier interface {
 	DeleteSalesperson(ctx context.Context, id int64) error
 	DeleteTransferItems(ctx context.Context, transferID int64) error
 	DeleteUser(ctx context.Context, id int64) error
+	FindConflictingActiveDiscountListItem(ctx context.Context, arg FindConflictingActiveDiscountListItemParams) (FindConflictingActiveDiscountListItemRow, error)
+	FindConflictingActivePriceListItem(ctx context.Context, arg FindConflictingActivePriceListItemParams) (FindConflictingActivePriceListItemRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetActiveCouponByCode(ctx context.Context, code string) (Coupon, error)
 	GetAssetByID(ctx context.Context, id int64) (Asset, error)
@@ -99,6 +106,7 @@ type Querier interface {
 	GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error)
 	GetCurrencyByCode(ctx context.Context, code string) (Currency, error)
 	GetDefaultCurrency(ctx context.Context) (Currency, error)
+	GetDiscountListByID(ctx context.Context, id int64) (DiscountList, error)
 	GetDiscountOverride(ctx context.Context, id int64) (DiscountOverride, error)
 	GetFeatureFlag(ctx context.Context, key string) (int64, error)
 	GetInventoryByID(ctx context.Context, id int64) (Inventory, error)
@@ -110,6 +118,7 @@ type Querier interface {
 	GetOpenShift(ctx context.Context) (Shift, error)
 	GetPermissionByID(ctx context.Context, id int64) (Permission, error)
 	GetPermissionByName(ctx context.Context, name string) (Permission, error)
+	GetPriceListByID(ctx context.Context, id int64) (PriceList, error)
 	GetPriceOverride(ctx context.Context, id int64) (PriceOverride, error)
 	GetProductByBarcode(ctx context.Context, barcode string) (Product, error)
 	GetProductByCode(ctx context.Context, code string) (Product, error)
@@ -137,6 +146,8 @@ type Querier interface {
 	IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error)
 	InsertAttendanceEvent(ctx context.Context, arg InsertAttendanceEventParams) error
 	ListAccounts(ctx context.Context) ([]Account, error)
+	ListActiveDiscountListItems(ctx context.Context) ([]ListActiveDiscountListItemsRow, error)
+	ListActivePriceListItems(ctx context.Context) ([]ListActivePriceListItemsRow, error)
 	ListAssets(ctx context.Context) ([]Asset, error)
 	ListAttendanceComplaints(ctx context.Context, attendanceDate string) ([]AttendanceComplaint, error)
 	ListAttendanceComplaintsByDate(ctx context.Context, attendanceDate string) ([]AttendanceComplaint, error)
@@ -155,6 +166,8 @@ type Querier interface {
 	ListCoupons(ctx context.Context) ([]Coupon, error)
 	ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error)
 	ListCurrencies(ctx context.Context) ([]Currency, error)
+	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
+	ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
 	ListHoldInvoiceItems(ctx context.Context, holdInvoiceID int64) ([]ListHoldInvoiceItemsRow, error)
 	ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error)
@@ -190,6 +203,8 @@ type Querier interface {
 	ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error)
 	ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]ListInvoicesPageRow, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
+	ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error)
+	ListPriceLists(ctx context.Context) ([]PriceList, error)
 	ListPriceOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]PriceOverride, error)
 	ListProducts(ctx context.Context) ([]Product, error)
 	ListProductsAfter(ctx context.Context, arg ListProductsAfterParams) ([]Product, error)
@@ -210,7 +225,9 @@ type Querier interface {
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
 	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
+	SetDiscountListActive(ctx context.Context, arg SetDiscountListActiveParams) (DiscountList, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
+	SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error)
 	// The portion of a shift's "On Account" total that was NOT recorded today -
 	// subtracted in Go from ListIncomeAccountTotals's On Account row so a shift
 	// left open across a day boundary doesn't drag prior days' on-account
@@ -226,6 +243,7 @@ type Querier interface {
 	UpdateCouponStatus(ctx context.Context, arg UpdateCouponStatusParams) error
 	UpdateCouponType(ctx context.Context, arg UpdateCouponTypeParams) error
 	UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error)
+	UpdateDiscountList(ctx context.Context, arg UpdateDiscountListParams) (DiscountList, error)
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) (Inventory, error)
 	UpdateInvoiceCashbox(ctx context.Context, arg UpdateInvoiceCashboxParams) error
 	UpdateInvoiceClient(ctx context.Context, arg UpdateInvoiceClientParams) error
@@ -234,6 +252,7 @@ type Querier interface {
 	UpdateInvoicePaymentEntryAmount(ctx context.Context, arg UpdateInvoicePaymentEntryAmountParams) error
 	UpdateInvoiceSalesperson(ctx context.Context, arg UpdateInvoiceSalespersonParams) error
 	UpdatePermission(ctx context.Context, arg UpdatePermissionParams) (Permission, error)
+	UpdatePriceList(ctx context.Context, arg UpdatePriceListParams) (PriceList, error)
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error)
 	UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error)
@@ -241,8 +260,10 @@ type Querier interface {
 	UpdateTheme(ctx context.Context, theme string) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserAttendanceID(ctx context.Context, arg UpdateUserAttendanceIDParams) error
+	UpsertDiscountListItem(ctx context.Context, arg UpsertDiscountListItemParams) (DiscountListItem, error)
 	UpsertInventoryItem(ctx context.Context, arg UpsertInventoryItemParams) error
 	UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error
+	UpsertPriceListItem(ctx context.Context, arg UpsertPriceListItemParams) (PriceListItem, error)
 	UpsertSettings(ctx context.Context, arg UpsertSettingsParams) error
 }
 

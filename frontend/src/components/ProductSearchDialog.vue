@@ -28,7 +28,16 @@
                 <span class="font-weight-medium text-truncate">{{ product.name }}</span>
                 <span v-if="product.color" class="product-variant text-medium-emphasis">{{ product.color }}</span>
                 <span v-if="product.size" class="product-variant text-medium-emphasis">{{ product.size }}</span>
-                <span class="product-price">${{ Number(product.price || 0).toFixed(2) }}</span>
+                <span class="product-price">
+                  ${{ Number(product.price || 0).toFixed(2) }}
+                  <v-icon
+                    v-if="product.priceListOverridden"
+                    icon="mdi-star"
+                    color="amber-darken-2"
+                    size="12"
+                    :title="product.priceListName ? `Price from list: ${product.priceListName}` : 'List price'"
+                  />
+                </span>
               </div>
             </template>
           </v-list-item>
@@ -77,6 +86,10 @@ type ProductItem = {
   color: string;
   size: string;
   qty: number;
+  priceListOverridden?: boolean;
+  priceListName?: string;
+  discountListOverridden?: boolean;
+  discountListName?: string;
 };
 
 const emit = defineEmits<{

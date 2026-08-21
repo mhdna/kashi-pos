@@ -27,23 +27,6 @@
       </template>
     </v-card>
     <div class="mt-auto pb-2">
-    <!--
-    <v-btn
-      class="d-flex justify-center align-center mb-2 font-weight-bold"
-      height="77"
-      rounded="lg"
-      text="Void"
-      variant="outlined"
-      style="color: rgba(var(--v-theme-on-surface), 0.7); border-color: rgba(var(--v-theme-on-surface), 0.18) !important"
-      width="100%"
-      @click="ask('void')"
-      :disabled="!hasItems || exchangeMode"
-    >
-      <template #prepend>
-        <v-icon icon="mdi-circle" size="20" class="me-2" />
-      </template>
-    </v-btn>
-    -->
     <div class="d-flex flex-column ga-2 mb-2">
       <v-btn class="checkout-action-button" variant="tonal" :disabled="!hasItems || exchangeMode" @click="emit('account')">
         <v-icon icon="mdi-account" size="18" class="me-1" />
@@ -60,10 +43,36 @@
         <span class="checkout-total-value">{{ totalSummary.usd }}</span>
       </div>
       <div class="checkout-total-line mt-2">
-        <span class="checkout-total-label text-medium-emphasis">Total LBP</span>
+        <span class="checkout-total-label text-medium-emphasis">Equivalent LBP</span>
         <span class="checkout-total-value">{{ totalSummary.lbp }}</span>
       </div>
     </v-card>
+    <div class="d-flex ga-2 mb-2">
+      <v-btn
+        class="invoice-action-button"
+        color="blue-grey-darken-2"
+        height="42"
+        rounded="lg"
+        variant="tonal"
+        :disabled="!hasItems || exchangeMode"
+        @click="ask('hold')"
+      >
+        <v-icon icon="mdi-pause" size="18" class="me-1" />
+        Hold
+      </v-btn>
+      <v-btn
+        class="invoice-action-button"
+        color="brown-darken-2"
+        height="42"
+        rounded="lg"
+        variant="tonal"
+        :disabled="!hasItems || exchangeMode"
+        @click="ask('void')"
+      >
+        <v-icon icon="mdi-close-circle-outline" size="18" class="me-1" />
+        Void
+      </v-btn>
+    </div>
     <v-btn
       class="d-flex justify-center align-center font-weight-bold"
       height="96"
@@ -182,6 +191,11 @@ defineExpose({
 
 .checkout-action-button {
   width: 100%;
+}
+
+.invoice-action-button {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .checkout-total-line {

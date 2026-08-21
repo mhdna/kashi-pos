@@ -62,8 +62,65 @@ SELECT * FROM invoices ORDER BY id;
 SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
+LEFT JOIN clients c ON c.id = i.client_id
+WHERE (COALESCE(sqlc.arg(invoice_filter), '') = '' OR lower(i.invoice_code) LIKE '%' || lower(sqlc.arg(invoice_filter)) || '%')
+  AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
+  AND (COALESCE(sqlc.arg(salesperson_filter), '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(sqlc.arg(salesperson_filter)) || '%')
+  AND (COALESCE(sqlc.arg(date_filter), '') = '' OR lower(i.created_at) LIKE '%' || lower(sqlc.arg(date_filter)) || '%')
+  AND (COALESCE(sqlc.arg(total_filter), '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(sqlc.arg(total_filter), '$', '')) || '%')
+  AND (
+    COALESCE(sqlc.arg(paid_to_filter), '') = ''
+    OR EXISTS (
+      SELECT 1
+      FROM invoice_payments ip
+      JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
+      WHERE ip.invoice_id = i.id
+        AND ip.amount > 0
+        AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(sqlc.arg(paid_to_filter)) || '%'
+    )
+    OR (
+      NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id AND ip.amount > 0)
+      AND EXISTS (
+        SELECT 1
+        FROM cashbox_accounts ca
+        WHERE ca.id = i.cashbox_id
+          AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(sqlc.arg(paid_to_filter)) || '%'
+      )
+    )
+  )
 ORDER BY i.id DESC
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
+
+-- name: CountFilteredInvoices :one
+SELECT COUNT(*)
+FROM invoices i
+LEFT JOIN salespersons s ON s.id = i.salesperson_id
+LEFT JOIN clients c ON c.id = i.client_id
+WHERE (COALESCE(sqlc.arg(invoice_filter), '') = '' OR lower(i.invoice_code) LIKE '%' || lower(sqlc.arg(invoice_filter)) || '%')
+  AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
+  AND (COALESCE(sqlc.arg(salesperson_filter), '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(sqlc.arg(salesperson_filter)) || '%')
+  AND (COALESCE(sqlc.arg(date_filter), '') = '' OR lower(i.created_at) LIKE '%' || lower(sqlc.arg(date_filter)) || '%')
+  AND (COALESCE(sqlc.arg(total_filter), '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(sqlc.arg(total_filter), '$', '')) || '%')
+  AND (
+    COALESCE(sqlc.arg(paid_to_filter), '') = ''
+    OR EXISTS (
+      SELECT 1
+      FROM invoice_payments ip
+      JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
+      WHERE ip.invoice_id = i.id
+        AND ip.amount > 0
+        AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(sqlc.arg(paid_to_filter)) || '%'
+    )
+    OR (
+      NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id AND ip.amount > 0)
+      AND EXISTS (
+        SELECT 1
+        FROM cashbox_accounts ca
+        WHERE ca.id = i.cashbox_id
+          AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(sqlc.arg(paid_to_filter)) || '%'
+      )
+    )
+  );
 
 -- name: ListInvoicesByDate :many
 SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
@@ -108,8 +165,8 @@ SELECT * FROM invoice_products WHERE invoice_id = ? AND product_id = ?;
 SELECT * FROM invoice_products WHERE invoice_id = ?;
 
 -- name: CreateInvoiceProduct :exec
-INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: CreateInvoicePayment :exec
 INSERT INTO invoice_payments (invoice_id, cashbox_id, amount) VALUES (?, ?, ?)

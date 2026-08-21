@@ -1,43 +1,102 @@
 <template>
-  <div class="invoices-page">
-    <v-data-table-server
-      v-model:page="currentPage"
-      v-model:items-per-page="itemsPerPage"
+  <div class="invoices-page" @scroll.passive.capture="onTableScroll">
+    <v-data-table-virtual
+      ref="invoicesTable"
       class="invoices-table"
       :headers="headers"
       :items="items"
-      :items-length="totalItems"
       :loading="loading"
-      :items-per-page-options="[10, 25, 50, 100]"
+      height="100%"
+      :item-height="48"
+      density="compact"
+      fixed-header
       item-value="id"
       hover
-      @update:options="loadInvoices"
       @click:row="openInvoiceRow"
     >
+      <template
+        v-for="filterHeader in filterableHeaders"
+        :key="filterHeader.headerKey"
+        #[`header.${filterHeader.headerKey}`]="{ column }"
+      >
+        <v-menu
+          v-model="filterMenus[filterHeader.filterKey]"
+          :close-on-content-click="false"
+          location="bottom start"
+        >
+          <template #activator="{ props }">
+            <button
+              v-bind="props"
+              class="invoice-filter-button"
+              type="button"
+              @click.stop
+            >
+              <span>{{ column.title }}</span>
+              <v-icon
+                :icon="filters[filterHeader.filterKey] ? 'mdi-filter' : 'mdi-filter-outline'"
+                :color="filters[filterHeader.filterKey] ? 'primary' : undefined"
+                size="15"
+              />
+            </button>
+          </template>
+          <v-card class="invoice-filter-menu" width="250" @click.stop>
+            <v-card-text class="pa-3 pb-2">
+              <v-text-field
+                v-model="filterDrafts[filterHeader.filterKey]"
+                autofocus
+                clearable
+                density="compact"
+                hide-details
+                :placeholder="filterHeader.placeholder"
+                variant="outlined"
+                @keydown.enter="applyFilter(filterHeader.filterKey)"
+              />
+            </v-card-text>
+            <v-card-actions class="px-3 pt-0">
+              <v-btn
+                size="small"
+                variant="text"
+                :disabled="!filters[filterHeader.filterKey] && !filterDrafts[filterHeader.filterKey]"
+                @click="clearFilter(filterHeader.filterKey)"
+              >
+                Clear
+              </v-btn>
+              <v-spacer />
+              <v-btn size="small" color="primary" variant="flat" @click="applyFilter(filterHeader.filterKey)">
+                Apply
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-menu>
+      </template>
       <template #item.invoiceCode="{ item }">
-        <span class="font-weight-bold">{{ shortInvoiceCode(item.invoiceCode, item.id) }}</span>
+        <span class="font-weight-bold invoice-code">
+          {{ item.invoiceCode || `Invoice #${item.id}` }}
+        </span>
       </template>
       <template #item.clientId="{ item }">
-        {{ item.clientName || "Walk-in customer" }}
+        <span class="invoice-cell-truncate" :title="item.clientName || 'Walk-in customer'">
+          {{ item.clientName || "Walk-in customer" }}
+        </span>
       </template>
       <template #item.salespersonName="{ item }">
-        <v-chip size="small" variant="tonal" prepend-icon="mdi-account-tie">
+        <v-chip
+          size="small"
+          variant="tonal"
+          prepend-icon="mdi-account-tie"
+          :title="item.salespersonName || 'Anonymous'"
+        >
           {{ item.salespersonName || "Anonymous" }}
         </v-chip>
       </template>
       <template #item.settlementAccounts="{ item }">
-        <div class="d-flex flex-wrap ga-1 py-1">
-          <v-chip
-            v-for="account in item.settlementAccounts ?? []"
-            :key="account"
-            size="x-small"
-            variant="tonal"
-            prepend-icon="mdi-credit-card"
-          >
-            {{ account }}
-          </v-chip>
-          <span v-if="!item.settlementAccounts?.length" class="text-medium-emphasis">—</span>
-        </div>
+        <span
+          class="invoice-cell-truncate"
+          :class="{ 'text-medium-emphasis': !item.settlementAccounts?.length }"
+          :title="settlementAccountsLabel(item.settlementAccounts)"
+        >
+          {{ settlementAccountsLabel(item.settlementAccounts) }}
+        </span>
       </template>
       <template #item.createdAt="{ item }">{{ formatDate(item.createdAt) }}</template>
       <template #item.grandTotal="{ item }">
@@ -72,7 +131,7 @@
           <div class="text-body-2 text-medium-emphasis">Completed invoices will appear here.</div>
         </div>
       </template>
-    </v-data-table-server>
+    </v-data-table-virtual>
 
     <v-dialog v-model="detailOpen" max-width="620">
       <v-card v-if="selected">
@@ -113,10 +172,34 @@
               </template
               ><template #subtitle
                 >{{ line.qty }} × ${{ Number(line.price).toFixed(2)
-                }}<span v-if="line.discount"> · {{ line.discount }}% discount</span
+                }}<v-icon
+                  v-if="line.isPriceOverridden"
+                  icon="mdi-star"
+                  color="amber-darken-2"
+                  size="12"
+                  :title="line.priceListName ? `Price from list: ${line.priceListName}` : 'List price'"
+                /><span v-if="line.discount"
+                  >&nbsp;· {{ line.discount }}% discount<v-icon
+                    v-if="line.isDiscountOverridden"
+                    icon="mdi-star"
+                    color="amber-darken-2"
+                    size="12"
+                    :title="line.discountListName ? `Discount from list: ${line.discountListName}` : 'List discount'"
+                  /></span
                 ><span v-if="line.salespersonName"> · Sold by {{ line.salespersonName }}</span></template
               >
+              <template v-if="line.note" #append>
+                <div class="d-flex align-center ga-3">
+                  <v-tooltip :text="line.note" location="top">
+                    <template #activator="{ props: tooltipProps }">
+                      <v-icon v-bind="tooltipProps" icon="mdi-note-text-outline" size="18" color="primary" />
+                    </template>
+                  </v-tooltip>
+                  <span class="font-weight-bold">${{ Number(line.lineTotal).toFixed(2) }}</span>
+                </div>
+              </template>
               <template #append
+                v-else
                 ><span class="font-weight-bold"
                   >${{ Number(line.lineTotal).toFixed(2) }}</span
                 ></template
@@ -282,7 +365,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from "vue";
 import {
   ChangeInvoiceClient,
   ChangeInvoiceSalesperson,
@@ -290,7 +373,7 @@ import {
   DeleteInvoice,
   RoundInvoice,
   GetInvoiceDetails,
-  ListInvoicesPage,
+  ListInvoicesFilteredPage,
   ListPaymentMethods,
   ListSalespersons,
   ReprintInvoice,
@@ -303,11 +386,51 @@ import { roundCentsFromCurrencyUnits, roundCurrencyUnitsFromCents } from "@/lib/
 import { formatLebanesePhone } from "@/lib/phone";
 import { useAuthStore } from "../stores/auth";
 
-const items = ref<any[]>([]),
+const PAGE_SIZE = 25;
+const PRELOAD_DISTANCE_PX = 600;
+type InvoiceFilterKey = "invoiceCode" | "customer" | "salesperson" | "paidTo" | "date" | "total";
+type InvoiceFilterValues = Record<InvoiceFilterKey, string>;
+
+const emptyInvoiceFilters = (): InvoiceFilterValues => ({
+  invoiceCode: "",
+  customer: "",
+  salesperson: "",
+  paidTo: "",
+  date: "",
+  total: "",
+});
+const filters = reactive<InvoiceFilterValues>(emptyInvoiceFilters());
+const filterDrafts = reactive<InvoiceFilterValues>(emptyInvoiceFilters());
+const filterMenus = reactive<Record<InvoiceFilterKey, boolean>>({
+  invoiceCode: false,
+  customer: false,
+  salesperson: false,
+  paidTo: false,
+  date: false,
+  total: false,
+});
+const filterableHeaders: {
+  headerKey: string;
+  filterKey: InvoiceFilterKey;
+  placeholder: string;
+}[] = [
+  { headerKey: "invoiceCode", filterKey: "invoiceCode", placeholder: "Invoice code contains…" },
+  { headerKey: "clientId", filterKey: "customer", placeholder: "Customer contains…" },
+  { headerKey: "salespersonName", filterKey: "salesperson", placeholder: "Salesperson contains…" },
+  { headerKey: "settlementAccounts", filterKey: "paidTo", placeholder: "Payment account contains…" },
+  { headerKey: "createdAt", filterKey: "date", placeholder: "Date, e.g. 2026-08-21" },
+  { headerKey: "grandTotal", filterKey: "total", placeholder: "Amount, e.g. 25.00" },
+];
+let endReached = false;
+const loadedIds = new Set<number>();
+const items = shallowRef<any[]>([]),
   totalItems = ref(0),
-  itemsPerPage = ref(10),
-  loading = ref(true),
-  currentPage = ref(1);
+  loading = ref(false),
+  initialized = ref(false);
+const hasMore = computed(
+  () => !initialized.value || (!endReached && items.value.length < totalItems.value),
+);
+const invoicesTable = ref<{ scrollToIndex: (index: number) => void } | null>(null);
 const auth = useAuthStore();
 const selected = ref<any>(null),
   detailOpen = ref(false),
@@ -472,23 +595,23 @@ function formatDate(value?: string) {
     `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`,
   ].join(" ");
 }
-function shortInvoiceCode(value?: string, id?: number) {
-  const parts = String(value ?? "")
-    .trim()
-    .toUpperCase()
-    .split("/")
-    .filter(Boolean);
-  if (parts.length >= 2) return `${parts[0]}/${parts[parts.length - 1]}`;
-  return parts[0] || `Invoice #${id}`;
+function settlementAccountsLabel(accounts?: string[]) {
+  return accounts?.length ? accounts.join(", ") : "—";
 }
 const headers = [
-  { title: "Invoice", key: "invoiceCode" },
-  { title: "Customer", key: "clientId" },
-  { title: "Salesman", key: "salespersonName" },
-  { title: "Paid To", key: "settlementAccounts", sortable: false },
-  { title: "Date", key: "createdAt" },
-  { title: "Total", key: "grandTotal", align: "end" as const },
-  { title: "", key: "actions", sortable: false, align: "end" as const },
+  { title: "Invoice", key: "invoiceCode", width: "145px" },
+  { title: "Customer", key: "clientId", width: "145px" },
+  { title: "Salesperson", key: "salespersonName", width: "170px" },
+  { title: "Paid To", key: "settlementAccounts", sortable: false, width: "145px" },
+  { title: "Date", key: "createdAt", width: "170px" },
+  { title: "Total", key: "grandTotal", width: "80px", align: "end" as const },
+  {
+    title: "",
+    key: "actions",
+    sortable: false,
+    width: "90px",
+    align: "end" as const,
+  },
 ];
 async function openInvoice(item: any) {
   try {
@@ -622,51 +745,84 @@ function notify(text: string, color = "success") {
   snackbar.color = color;
   snackbar.show = true;
 }
-type InvoicePageOptions = { page: number; itemsPerPage: number };
-
 let pageActive = true;
-let queuedLoad: InvoicePageOptions | null = null;
+let nextPage = 1;
+let loadGeneration = 0;
 let activeLoad: Promise<void> | null = null;
+let scrollFrame: number | null = null;
 
-function loadInvoices(options: InvoicePageOptions): Promise<void> {
-  queuedLoad = { ...options };
-  if (!activeLoad) {
-    activeLoad = drainInvoiceLoads().finally(() => {
-      activeLoad = null;
-      if (pageActive && queuedLoad) void loadInvoices(queuedLoad);
-    });
-  }
+function loadMore(): Promise<void> {
+  if (!pageActive || activeLoad || !hasMore.value) return activeLoad ?? Promise.resolve();
+
+  const generation = loadGeneration;
+  const page = nextPage;
+  loading.value = true;
+  activeLoad = (async () => {
+    try {
+      const result = await ListInvoicesFilteredPage(page, PAGE_SIZE, JSON.stringify(filters));
+      if (!pageActive || generation !== loadGeneration) return;
+
+      const pageItems = result.items ?? [];
+      const newItems = pageItems.filter((item: any) => {
+        if (loadedIds.has(item.id)) return false;
+        loadedIds.add(item.id);
+        return true;
+      });
+      items.value = [...items.value, ...newItems];
+      totalItems.value = result.total ?? 0;
+      initialized.value = true;
+      endReached = pageItems.length < PAGE_SIZE;
+      nextPage = page + 1;
+    } catch (error: any) {
+      if (!pageActive || generation !== loadGeneration) return;
+      initialized.value = true;
+      notify(error?.toString() || "Could not load invoices", "error");
+    }
+  })().finally(() => {
+    if (generation === loadGeneration) loading.value = false;
+    activeLoad = null;
+  });
   return activeLoad;
 }
 
-async function drainInvoiceLoads() {
-  loading.value = true;
-  try {
-    while (pageActive && queuedLoad) {
-      const options = queuedLoad;
-      queuedLoad = null;
-      currentPage.value = options.page;
+function onTableScroll(event: Event) {
+  if (scrollFrame !== null || loading.value || !hasMore.value) return;
+  const target = event.target;
+  if (!(target instanceof HTMLElement) || !target.classList.contains("v-table__wrapper")) return;
 
-      try {
-        const result = await ListInvoicesPage(options.page, options.itemsPerPage);
-        if (!pageActive) return;
-        if (queuedLoad) continue;
-        items.value = result.items ?? [];
-        totalItems.value = result.total ?? 0;
-      } catch {
-        if (!pageActive) return;
-        if (queuedLoad) continue;
-        items.value = [];
-        totalItems.value = 0;
-      }
-    }
-  } finally {
-    if (pageActive) loading.value = false;
-  }
+  scrollFrame = requestAnimationFrame(() => {
+    scrollFrame = null;
+    const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
+    if (remaining <= PRELOAD_DISTANCE_PX) void loadMore();
+  });
 }
 
 async function refresh() {
-  await loadInvoices({ page: currentPage.value, itemsPerPage: itemsPerPage.value });
+  const previousLoad = activeLoad;
+  loadGeneration++;
+  items.value = [];
+  totalItems.value = 0;
+  initialized.value = false;
+  endReached = false;
+  loadedIds.clear();
+  nextPage = 1;
+  invoicesTable.value?.scrollToIndex(0);
+  if (previousLoad) await previousLoad;
+  if (pageActive) await loadMore();
+}
+
+function applyFilter(key: InvoiceFilterKey) {
+  filters[key] = filterDrafts[key].trim();
+  filterMenus[key] = false;
+  void refresh();
+}
+
+function clearFilter(key: InvoiceFilterKey) {
+  const wasActive = Boolean(filters[key]);
+  filterDrafts[key] = "";
+  filters[key] = "";
+  filterMenus[key] = false;
+  if (wasActive) void refresh();
 }
 
 let paymentMethodOptionsPromise: Promise<void> | null = null;
@@ -734,9 +890,12 @@ function ensureEditOptions(type: "client" | "settlement" | "salesperson"): Promi
   return salespersonOptionsPromise;
 }
 
+onMounted(() => void refresh());
+
 onBeforeUnmount(() => {
   pageActive = false;
-  queuedLoad = null;
+  loadGeneration++;
+  if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
   clearTimeout(clientSearchTimer);
   clientSearchRequest++;
 });
@@ -747,11 +906,45 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
   height: 100%;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
-.invoices-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
+.invoices-table {
+  height: 100%;
+}
+.invoices-table :deep(.v-table__wrapper > table) {
+  width: 945px !important;
+  min-width: 945px;
+  table-layout: fixed;
+}
+.invoices-table :deep(th),
+.invoices-table :deep(td) {
+  padding-inline: 8px !important;
+}
+.invoice-filter-button {
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  gap: 4px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: inherit;
+}
+.invoice-filter-menu {
+  overflow: visible;
+}
+.invoice-cell-truncate {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.invoice-code {
+  white-space: nowrap;
 }
 .invoice-item {
   border-bottom: 1px solid rgba(var(--v-border-color), 0.08);

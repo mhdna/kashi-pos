@@ -15,13 +15,14 @@ func TestApplyMigrationsFreshDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("apply migrations: %v", err)
 	}
-	assertMigrationVersion(t, conn, 57)
+	assertMigrationVersion(t, conn, 59)
 	assertTableExists(t, conn, "settings")
 	assertTableExists(t, conn, "feature_flags")
 	assertTableExists(t, conn, "schema_migrations")
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertTableExists(t, conn, "quick_access_items")
 	assertColumnExists(t, conn, "invoice_products", "salesperson_id")
+	assertColumnExists(t, conn, "invoice_products", "note")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")
 	assertFeatureFlagEnabled(t, conn, "auto_close_stale_shifts", true)
@@ -59,11 +60,12 @@ func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, databasePath, true); err != nil {
 		t.Fatalf("upgrade legacy database: %v", err)
 	}
-	assertMigrationVersion(t, conn, 57)
+	assertMigrationVersion(t, conn, 59)
 	assertTableExists(t, conn, "schema_migrations")
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertTableExists(t, conn, "quick_access_items")
 	assertColumnExists(t, conn, "invoice_products", "salesperson_id")
+	assertColumnExists(t, conn, "invoice_products", "note")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")
 	// Migration 53 (fresh installs only) must not flip auto-close on for an
@@ -112,7 +114,7 @@ func TestInvoicePaymentEntriesMigrationRepairsMissingTable(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("repair missing payment-entry table: %v", err)
 	}
-	assertMigrationVersion(t, conn, 57)
+	assertMigrationVersion(t, conn, 59)
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")

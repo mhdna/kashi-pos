@@ -15,6 +15,7 @@ type exchangeLine struct {
 	UnitPriceCents *int64 `json:"unitPriceCents,omitempty"`
 	UnitDiscount   *int64 `json:"unitDiscount,omitempty"`
 	SalespersonID  int64  `json:"salespersonId,omitempty"`
+	Note           string `json:"note,omitempty"`
 }
 
 type exchangeRequest struct {
@@ -26,10 +27,12 @@ type exchangeRequest struct {
 }
 
 type pricedReturnedProduct struct {
-	product   db.Product
-	line      db.InvoiceProduct
-	qty       int64
-	lineTotal int64
+	product       db.Product
+	line          db.InvoiceProduct
+	qty           int64
+	lineTotal     int64
+	note          string
+	salespersonID int64
 }
 
 type pricedExchange struct {
@@ -55,8 +58,12 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 	replacementIndex := make(map[string]int)
 	for _, line := range lines {
 		line.Code = strings.TrimSpace(line.Code)
+		line.Note = strings.TrimSpace(line.Note)
 		if line.Code == "" || line.Qty == 0 {
 			return exchangeRequest{}, fmt.Errorf("invalid exchange item")
+		}
+		if len([]rune(line.Note)) > 2000 {
+			return exchangeRequest{}, fmt.Errorf("note is too long for item %q", line.Code)
 		}
 		if line.Qty < 0 {
 			if line.UnitPriceCents != nil && *line.UnitPriceCents <= 0 {
@@ -130,6 +137,11 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 	}
 	reserved := make(map[string]int64)
 	for _, requested := range request.returnedItems {
+		if requested.SalespersonID > 0 {
+			if _, err := q.GetSalespersonByID(a.ctx, requested.SalespersonID); err != nil {
+				return result, fmt.Errorf("salesperson for returned item %s: %w", requested.Code, err)
+			}
+		}
 		product, err := q.GetProductByCode(a.ctx, requested.Code)
 		if err != nil {
 			return result, fmt.Errorf("returned product: %w", err)
@@ -157,7 +169,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		if requestedQty > math.MaxInt64/unitTotal {
 			return result, fmt.Errorf("returned total is too large")
 		}
-		priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: unitTotal * requestedQty}
+		priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: unitTotal * requestedQty, note: requested.Note, salespersonID: requested.SalespersonID}
 		result.returned = append(result.returned, priced)
 		result.returnedTotal += priced.lineTotal
 	}
@@ -182,6 +194,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 			return result, err
 		}
 		priced.salespersonID = line.SalespersonID
+		priced.note = line.Note
 		if result.replacementTotal > math.MaxInt64-priced.lineTotal {
 			return result, fmt.Errorf("replacement total is too large")
 		}

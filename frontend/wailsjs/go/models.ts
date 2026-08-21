@@ -1,14 +1,14 @@
 export namespace main {
-
+	
 	export class ClientCursorPage {
 	    items: any[];
 	    nextCursor: number;
 	    hasMore: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ClientCursorPage(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.items = source["items"];
@@ -19,11 +19,11 @@ export namespace main {
 	export class InvoicePage {
 	    items: any[];
 	    total: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new InvoicePage(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.items = source["items"];
@@ -35,7 +35,7 @@ export namespace main {
 	    barcode: string;
 	    lineTotalCents: number;
 	    discountCents: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LineQuote(source);
 	    }
@@ -117,11 +117,11 @@ export namespace main {
 	    items: any[];
 	    nextCursor: number;
 	    hasMore: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ProductCursorPage(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.items = source["items"];
@@ -155,11 +155,11 @@ export namespace main {
 	    currencyCode: string;
 	    quantity: number;
 	    revenue: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new SalespersonProductSale(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.salespersonId = source["salespersonId"];
@@ -195,3 +195,4 @@ export namespace main {
 	}
 
 }
+
