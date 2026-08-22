@@ -14,12 +14,9 @@
   >
     <v-card class="d-flex flex-column">
       <v-card-title>Exchange Invoice</v-card-title>
-      <v-card-subtitle>
-        Load the original sale, select one or more items to return, then start the exchange -
-        replacements are scanned on the invoice screen.
-      </v-card-subtitle>
+      <v-card-subtitle v-if="!invoice">Load the original sale to begin</v-card-subtitle>
 
-      <v-card-text class="exchange-dialog-layout">
+      <v-card-text class="exchange-dialog-layout" :class="{ 'exchange-dialog-layout--split': invoice }">
         <div class="exchange-dialog-content">
         <div class="exchange-input-row">
           <div class="exchange-input-control">
@@ -311,7 +308,11 @@ function startExchange() {
 
 .exchange-dialog-layout {
   display: grid;
-  gap: 20px;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.exchange-dialog-layout--split {
   grid-template-columns: minmax(0, 1fr) 176px;
 }
 
@@ -322,6 +323,11 @@ function startExchange() {
 .exchange-inline-numpad {
   align-self: start;
   width: 176px;
+  margin: 0 auto;
+}
+
+.exchange-dialog-layout--split .exchange-inline-numpad {
+  margin: 0;
 }
 
 .exchange-inline-numpad-label {
@@ -355,7 +361,7 @@ function startExchange() {
 }
 
 @media (max-width: 650px) {
-  .exchange-dialog-layout {
+  .exchange-dialog-layout--split {
     grid-template-columns: 1fr;
   }
 

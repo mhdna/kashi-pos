@@ -76,6 +76,7 @@ const shiftIncome = computed<IncomeRow[]>(() =>
     accountId: Number(income.accountId) || 0,
     accountName: income.accountName,
     currencyCode: income.currencyCode,
+    color: income.color,
     total: Number(income.total) || 0,
     isOnAccount: income.isOnAccount,
     isCollected: income.isCollected,

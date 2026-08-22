@@ -198,6 +198,8 @@ export function RemovePriceListItem(arg1:number):Promise<void>;
 
 export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
 
+export function ReorderCashboxAccounts(arg1:Array<number>):Promise<void>;
+
 export function ReorderQuickAccessProducts(arg1:Array<number>):Promise<void>;
 
 export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
@@ -212,6 +214,8 @@ export function SetAttendanceCashierHistoryEnabled(arg1:boolean):Promise<void>;
 
 export function SetAttendanceDuplicateInterval(arg1:number):Promise<void>;
 
+export function SetAutoAppendLbpZerosEnabled(arg1:boolean):Promise<void>;
+
 export function SetAutoCloseStaleShiftsEnabled(arg1:boolean):Promise<void>;
 
 export function SetCurrencyActive(arg1:string,arg2:boolean):Promise<Record<string, any>>;
@@ -225,6 +229,8 @@ export function SetDiscountListActive(arg1:number,arg2:boolean):Promise<Record<s
 export function SetDiscountListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
 
 export function SetExchangeWindowHours(arg1:number):Promise<void>;
+
+export function SetHidePaymentMethodCurrency(arg1:boolean):Promise<void>;
 
 export function SetInvoiceKeyboardModeEnabled(arg1:boolean):Promise<void>;
 
@@ -251,6 +257,8 @@ export function UpdateAdminConfig(arg1:boolean,arg2:string,arg3:string):Promise<
 export function UpdateAttendanceApproverPassword(arg1:string):Promise<void>;
 
 export function UpdateAttendanceConfig(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<void>;
+
+export function UpdateCashboxAccount(arg1:number,arg2:string,arg3:string,arg4:string):Promise<Record<string, any>>;
 
 export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
 

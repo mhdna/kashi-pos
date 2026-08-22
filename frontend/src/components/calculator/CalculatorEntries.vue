@@ -1,68 +1,52 @@
 <template>
   <template v-if="entries.length">
     <v-divider class="my-3" />
-    <v-virtual-scroll
-      ref="entryScroll"
-      :items="entries"
-      :height="listHeight"
-      :item-height="ENTRY_HEIGHT"
-      class="calculator-entry-scroll"
-    >
-      <template #default="{ item, index }">
-        <div class="calculator-entry-row d-flex align-center justify-space-between px-1">
-          <span class="calculator-entry-text text-caption">{{ item.type }}</span>
-          <span
-            class="calculator-entry-text text-caption font-weight-bold mr-2"
-            :class="item.amount >= 0 ? 'text-green-darken-3' : 'text-red-darken-4'"
-          >
-            {{ item.amount >= 0 ? "+" : "" }}{{ formatAmount(item.amount) }}
-            {{ currencySymbolFor(item.type) }}
-          </span>
-          <v-btn icon size="x-small" variant="text" @click="$emit('remove', index)"
-            ><v-icon icon="mdi-delete" size="16"
-          /></v-btn>
-        </div>
-      </template>
-    </v-virtual-scroll>
+    <div class="calculator-entry-grid">
+      <div
+        v-for="(item, index) in entries"
+        :key="index"
+        class="calculator-entry-chip d-flex align-center justify-space-between"
+      >
+        <span class="calculator-entry-text text-caption">{{ item.type }}</span>
+        <span
+          class="calculator-entry-text text-caption font-weight-bold mr-1"
+          :class="item.amount >= 0 ? 'text-green-darken-3' : 'text-red-darken-4'"
+        >
+          {{ item.amount >= 0 ? "+" : "" }}{{ formatAmount(item.amount) }}
+          {{ currencySymbolFor(item.type) }}
+        </span>
+        <v-btn icon size="x-small" variant="text" @click="$emit('remove', index)"
+          ><v-icon icon="mdi-delete" size="16"
+        /></v-btn>
+      </div>
+    </div>
   </template>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
-
-const ENTRY_HEIGHT = 36;
-const MAX_VISIBLE_ENTRIES = 4;
-
-const props = defineProps<{
+defineProps<{
   entries: { type: string; amount: number }[];
   formatAmount: (amount: number) => string;
   currencySymbolFor: (methodName: string) => string;
 }>();
 defineEmits<{ remove: [index: number] }>();
-
-const entryScroll = ref<{ scrollToIndex: (index: number) => void } | null>(null);
-const listHeight = computed(
-  () => Math.min(props.entries.length, MAX_VISIBLE_ENTRIES) * ENTRY_HEIGHT,
-);
-
-watch(
-  () => props.entries.length,
-  async (length) => {
-    if (!length) return;
-    await nextTick();
-    entryScroll.value?.scrollToIndex(length - 1);
-  },
-);
 </script>
 
 <style scoped>
-.calculator-entry-scroll {
-  flex: 0 0 auto;
+.calculator-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 168px;
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
-.calculator-entry-row {
+.calculator-entry-chip {
   min-height: 36px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  border: 1px solid rgba(var(--v-border-color), 0.16);
 }
 .calculator-entry-text {
   font-size: var(--kashi-font-size-sm);

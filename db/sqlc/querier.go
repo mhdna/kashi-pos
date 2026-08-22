@@ -33,6 +33,7 @@ type Querier interface {
 	CreateAccount(ctx context.Context, name string) (Account, error)
 	CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error)
 	CreateAttendanceComplaint(ctx context.Context, arg CreateAttendanceComplaintParams) (AttendanceComplaint, error)
+	// New accounts append to the end of the admin-defined order automatically.
 	CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error)
 	CreateClient(ctx context.Context, arg CreateClientParams) (Client, error)
 	CreateClientAccountEntry(ctx context.Context, arg CreateClientAccountEntryParams) (ClientAccountEntry, error)
@@ -240,6 +241,7 @@ type Querier interface {
 	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
+	SetCashboxAccountSortOrder(ctx context.Context, arg SetCashboxAccountSortOrderParams) error
 	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
 	SetDiscountListActive(ctx context.Context, arg SetDiscountListActiveParams) (DiscountList, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
@@ -254,6 +256,7 @@ type Querier interface {
 	// On Account as a swap source/destination).
 	StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error)
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)
+	UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAccountParams) (CashboxAccount, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
 	UpdateClientAccountEntryAmount(ctx context.Context, arg UpdateClientAccountEntryAmountParams) error
 	UpdateClientAccountOwnerByInvoice(ctx context.Context, arg UpdateClientAccountOwnerByInvoiceParams) error

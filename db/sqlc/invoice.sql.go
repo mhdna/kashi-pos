@@ -547,11 +547,11 @@ WITH account_totals AS (
     SELECT sbr.created_at, sbr.shift_id, sbr.to_cashbox_id, sbr.amount
     FROM shift_balance_replacements sbr
 )
-SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(at2.amount), 0) AS total
+SELECT ca.id, ca.name, ca.currency_code, ca.color, COALESCE(SUM(at2.amount), 0) AS total
 FROM account_totals at2
 JOIN cashbox_accounts ca ON ca.id = at2.cashbox_id
 WHERE (?1 = 0 OR at2.shift_id = ?1)
-GROUP BY ca.id, ca.name, ca.currency_code
+GROUP BY ca.id, ca.name, ca.currency_code, ca.color
 ORDER BY ca.name
 `
 
@@ -559,6 +559,7 @@ type ListIncomeAccountTotalsRow struct {
 	ID           int64       `json:"id"`
 	Name         string      `json:"name"`
 	CurrencyCode string      `json:"currencyCode"`
+	Color        string      `json:"color"`
 	Total        interface{} `json:"total"`
 }
 
@@ -588,6 +589,7 @@ func (q *Queries) ListIncomeAccountTotals(ctx context.Context, incomeShiftID int
 			&i.ID,
 			&i.Name,
 			&i.CurrencyCode,
+			&i.Color,
 			&i.Total,
 		); err != nil {
 			return nil, err
@@ -743,10 +745,10 @@ WITH invoice_totals AS (
     WHERE sbr.shift_id = ?1
       AND date(sbr.created_at, 'localtime') = ?2
 )
-SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(invoice_totals.amount), 0) AS total
+SELECT ca.id, ca.name, ca.currency_code, ca.color, COALESCE(SUM(invoice_totals.amount), 0) AS total
 FROM invoice_totals
 JOIN cashbox_accounts ca ON ca.id = invoice_totals.cashbox_id
-GROUP BY ca.id, ca.name, ca.currency_code
+GROUP BY ca.id, ca.name, ca.currency_code, ca.color
 ORDER BY ca.name
 `
 
@@ -759,6 +761,7 @@ type ListInvoiceIncomeAccountTotalsByShiftAndDateRow struct {
 	ID           int64       `json:"id"`
 	Name         string      `json:"name"`
 	CurrencyCode string      `json:"currencyCode"`
+	Color        string      `json:"color"`
 	Total        interface{} `json:"total"`
 }
 
@@ -779,6 +782,7 @@ func (q *Queries) ListInvoiceIncomeAccountTotalsByShiftAndDate(ctx context.Conte
 			&i.ID,
 			&i.Name,
 			&i.CurrencyCode,
+			&i.Color,
 			&i.Total,
 		); err != nil {
 			return nil, err

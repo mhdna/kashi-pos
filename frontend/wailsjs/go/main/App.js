@@ -394,6 +394,10 @@ export function RemoveQuickAccessProduct(arg1) {
   return window['go']['main']['App']['RemoveQuickAccessProduct'](arg1);
 }
 
+export function ReorderCashboxAccounts(arg1) {
+  return window['go']['main']['App']['ReorderCashboxAccounts'](arg1);
+}
+
 export function ReorderQuickAccessProducts(arg1) {
   return window['go']['main']['App']['ReorderQuickAccessProducts'](arg1);
 }
@@ -422,6 +426,10 @@ export function SetAttendanceDuplicateInterval(arg1) {
   return window['go']['main']['App']['SetAttendanceDuplicateInterval'](arg1);
 }
 
+export function SetAutoAppendLbpZerosEnabled(arg1) {
+  return window['go']['main']['App']['SetAutoAppendLbpZerosEnabled'](arg1);
+}
+
 export function SetAutoCloseStaleShiftsEnabled(arg1) {
   return window['go']['main']['App']['SetAutoCloseStaleShiftsEnabled'](arg1);
 }
@@ -448,6 +456,10 @@ export function SetDiscountListItem(arg1, arg2, arg3) {
 
 export function SetExchangeWindowHours(arg1) {
   return window['go']['main']['App']['SetExchangeWindowHours'](arg1);
+}
+
+export function SetHidePaymentMethodCurrency(arg1) {
+  return window['go']['main']['App']['SetHidePaymentMethodCurrency'](arg1);
 }
 
 export function SetInvoiceKeyboardModeEnabled(arg1) {
@@ -500,6 +512,10 @@ export function UpdateAttendanceApproverPassword(arg1) {
 
 export function UpdateAttendanceConfig(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateAttendanceConfig'](arg1, arg2, arg3, arg4);
+}
+
+export function UpdateCashboxAccount(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UpdateCashboxAccount'](arg1, arg2, arg3, arg4);
 }
 
 export function UpdateClient(arg1, arg2, arg3) {

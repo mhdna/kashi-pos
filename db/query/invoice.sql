@@ -288,11 +288,11 @@ WITH account_totals AS (
     SELECT sbr.created_at, sbr.shift_id, sbr.to_cashbox_id, sbr.amount
     FROM shift_balance_replacements sbr
 )
-SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(at2.amount), 0) AS total
+SELECT ca.id, ca.name, ca.currency_code, ca.color, COALESCE(SUM(at2.amount), 0) AS total
 FROM account_totals at2
 JOIN cashbox_accounts ca ON ca.id = at2.cashbox_id
 WHERE (sqlc.arg(income_shift_id) = 0 OR at2.shift_id = sqlc.arg(income_shift_id))
-GROUP BY ca.id, ca.name, ca.currency_code
+GROUP BY ca.id, ca.name, ca.currency_code, ca.color
 ORDER BY ca.name;
 
 -- name: StaleOnAccountTotalForShift :one
@@ -376,10 +376,10 @@ WITH invoice_totals AS (
     WHERE sbr.shift_id = sqlc.arg(invoice_income_shift_id)
       AND date(sbr.created_at, 'localtime') = sqlc.arg(income_reference_date)
 )
-SELECT ca.id, ca.name, ca.currency_code, COALESCE(SUM(invoice_totals.amount), 0) AS total
+SELECT ca.id, ca.name, ca.currency_code, ca.color, COALESCE(SUM(invoice_totals.amount), 0) AS total
 FROM invoice_totals
 JOIN cashbox_accounts ca ON ca.id = invoice_totals.cashbox_id
-GROUP BY ca.id, ca.name, ca.currency_code
+GROUP BY ca.id, ca.name, ca.currency_code, ca.color
 ORDER BY ca.name;
 
 -- name: GetInvoiceIncomeTotalByDate :one

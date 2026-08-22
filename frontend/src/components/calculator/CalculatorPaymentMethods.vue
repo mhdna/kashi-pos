@@ -1,34 +1,45 @@
 <template>
-  <div class="calculator-types mt-0" role="list" aria-label="Payment methods">
+  <div
+    class="calculator-types mt-0"
+    :class="{ 'calculator-types--vertical': vertical }"
+    role="list"
+    aria-label="Payment methods"
+  >
     <v-card
       v-for="method in methods"
       :key="method.name"
       class="calculator-type-card"
-      :class="[
-        `calculator-type-card--${paymentTone(method.name)}`,
-        { 'calculator-type-card--active': modelValue === method.name },
-      ]"
+      :class="{ 'calculator-type-card--active': modelValue === method.name }"
+      :style="{ '--payment-accent': paymentAccentColor(method) }"
+      elevation="0"
       role="button"
       tabindex="0"
       @click="$emit('select', method.name)"
       @keydown.enter="$emit('select', method.name)"
       @keydown.space.prevent="$emit('select', method.name)"
     >
-      <v-card-text class="text-center py-2 px-1">
+      <v-card-text class="calculator-type-card-text text-center py-2 px-1">
         <div class="payment-method-name text-h6 font-weight-bold">{{ method.displayName }}</div>
-        <div class="payment-method-currency text-body-1 text-medium-emphasis">{{ method.currencyCode }}</div>
+        <div v-if="props.showCurrency" class="payment-method-currency text-body-1 text-medium-emphasis">
+          {{ method.currencyCode }}
+        </div>
       </v-card-text>
     </v-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { paymentTone } from "@/lib/paymentColor";
+import { paymentAccentColor } from "@/lib/paymentColor";
 
-defineProps<{
-  methods: { name: string; displayName: string; currencyCode: string }[];
-  modelValue: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    methods: { name: string; displayName: string; currencyCode: string; color?: string }[];
+    modelValue: string;
+    vertical?: boolean;
+    showCurrency?: boolean;
+  }>(),
+  { showCurrency: true },
+);
 defineEmits<{ select: [methodName: string] }>();
 </script>
 
@@ -38,44 +49,39 @@ defineEmits<{ select: [methodName: string] }>();
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 8px;
 }
+.calculator-types--vertical {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .calculator-type-card {
   cursor: pointer;
+  background: transparent !important;
+  box-shadow: none !important;
   border: 1px solid rgba(var(--v-border-color), 0.18);
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease;
+  border-top: 10px solid var(--payment-accent);
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 120ms ease;
+}
+.calculator-type-card-text {
+  width: 100%;
+  flex: 0 0 auto;
 }
 .payment-method-name {
+  width: 100%;
   font-size: 1.1rem !important;
   line-height: 1.25;
+  color: rgb(var(--v-theme-on-surface));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .payment-method-currency {
   font-size: 0.9rem !important;
-}
-.calculator-type-card:hover {
-  border-color: currentColor;
+  min-height: 18px;
 }
 .calculator-type-card--active {
-  color: rgb(var(--v-theme-on-surface));
-}
-.calculator-type-card--active.calculator-type-card--green,
-.calculator-type-card--green:hover {
-  border-color: rgb(var(--v-theme-green-darken-2));
-  background-color: rgba(var(--v-theme-green-darken-2), 0.14);
-}
-.calculator-type-card--active.calculator-type-card--purple,
-.calculator-type-card--purple:hover {
-  border-color: rgb(var(--v-theme-purple-darken-2));
-  background-color: rgba(var(--v-theme-purple-darken-2), 0.14);
-}
-.calculator-type-card--active.calculator-type-card--blue,
-.calculator-type-card--blue:hover {
-  border-color: rgb(var(--v-theme-blue-darken-2));
-  background-color: rgba(var(--v-theme-blue-darken-2), 0.14);
-}
-.calculator-type-card--active.calculator-type-card--red,
-.calculator-type-card--red:hover {
-  border-color: rgb(var(--v-theme-red-darken-2));
-  background-color: rgba(var(--v-theme-red-darken-2), 0.14);
+  border-color: var(--payment-accent);
 }
 </style>

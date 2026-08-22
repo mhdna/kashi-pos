@@ -61,6 +61,18 @@ export function roundCentsFromCurrencyUnits(units: number, currency: CurrencyRat
   return roundHalfEvenSafe((units * 100) / currency.unitsPerUsd, mode);
 }
 
+/** True when displaying `cents` in `currency` actually changes the value -
+ * i.e. cash-rounding to the currency's cashRoundingUnit lost precision. USD
+ * (cashRoundingUnit=1) never rounds; LBP (cashRoundingUnit=10000) almost
+ * always does unless the amount happens to be an exact multiple. */
+export function isRoundedToUnit(cents: number, currency: CurrencyRate, mode: RoundingMode): boolean {
+  if (!Number.isFinite(cents) || currency.cashRoundingUnit <= 1) return false;
+  const absCents = Math.round(Math.abs(cents));
+  const roundedUnits = Math.abs(roundCurrencyUnitsFromCents(absCents, currency, mode));
+  const roundedCents = roundCentsFromCurrencyUnits(roundedUnits, currency, mode);
+  return roundedCents !== absCents;
+}
+
 export function isCashRoundedEquivalent(
   paidCents: number,
   totalCents: number,

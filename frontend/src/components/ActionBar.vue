@@ -1,41 +1,8 @@
 <template>
-  <ClientDialog v-model="clientDialog" @select="onClientSelect" />
-  <div class="d-flex flex-column w-100 h-100 px-4">
-    <div class="text-caption text-medium-emphasis text-center mt-2">Client</div>
-    <v-card
-      class="client-card px-4 py-4 my-2 text-center"
-      :class="{ 'missing-selection-pulse': pulseClient }"
-      color="surface-light"
-      elevation="0"
-      min-height="100px"
-      rounded="lg"
-      width="100%"
-      @click="openClientDialog"
-    >
-      <template v-if="clientSelected">
-        <InitialsAvatar :name="client.name" color="grey-darken-1" />
-        <div class="text-subtitle-1 font-weight-bold mt-2">{{ client.name }}</div>
-        <div class="text-caption text-medium-emphasis mt-1">
-          {{ formatLebanesePhone(client.phone) || "Walk-in customer" }}
-        </div>
-      </template>
-      <template v-else>
-        <InitialsAvatar name="?" color="grey" />
-        <div class="text-subtitle-1 font-weight-bold mt-2">Select client</div>
-      </template>
-    </v-card>
-    <div class="mt-auto pb-2">
-    <div class="d-flex flex-column ga-2 mb-2">
-      <v-btn class="checkout-action-button" variant="tonal" :disabled="!hasItems || restricted" @click="emit('account')">
-        <v-icon icon="mdi-account" size="18" class="me-1" />
-        On Account
-      </v-btn>
-      <v-btn class="checkout-action-button" variant="tonal" :disabled="restricted" @click="emit('coupon')">
-        <v-icon icon="mdi-sale-outline" size="18" class="me-1" />
-        Apply Coupon
-      </v-btn>
-    </div>
-    <v-card class="checkout-total-summary pa-3 mb-2" variant="outlined" rounded="lg">
+  <v-divider class="mx-4" />
+  <div class="d-flex align-end ga-5 w-100 px-4 py-3 action-bar-row">
+    <!--
+    <v-card class="checkout-total-summary pa-3" variant="outlined" rounded="lg">
       <div class="checkout-total-line">
         <span class="checkout-total-label text-medium-emphasis">Total USD</span>
         <span class="checkout-total-value">{{ totalSummary.usd }}</span>
@@ -45,60 +12,62 @@
         <span class="checkout-total-value">{{ totalSummary.lbp }}</span>
       </div>
     </v-card>
-    <div class="d-flex ga-2 mb-2">
+    -->
+    <div class="d-flex flex-row ga-2 hold-void-column">
       <v-btn
-        class="invoice-action-button"
-        color="blue-grey-darken-2"
-        height="42"
+        height="96"
         rounded="lg"
-        variant="tonal"
-        :disabled="!hasItems || restricted"
-        @click="ask('hold')"
-      >
-        <v-icon icon="mdi-pause" size="18" class="me-1" />
-        Hold
-      </v-btn>
-      <v-btn
-        class="invoice-action-button"
-        color="brown-darken-2"
-        height="42"
-        rounded="lg"
-        variant="tonal"
+        variant="text"
+        color="grey-darken-2"
         :disabled="!hasItems || restricted"
         @click="ask('void')"
       >
-        <v-icon icon="mdi-close-circle-outline" size="18" class="me-1" />
-        Void
+        <div class="d-flex flex-column align-center">
+          <v-icon icon="mdi-close-circle-outline" size="28" class="mb-1" />
+          Cancel
+        </div>
+      </v-btn>
+      <v-btn
+        height="96"
+        rounded="lg"
+        variant="text"
+        color="grey-darken-2"
+        :disabled="!hasItems || restricted"
+        @click="ask('hold')"
+      >
+        <div class="d-flex flex-column align-center">
+          <v-icon icon="mdi-pause" size="28" class="mb-1" />
+          Hold
+        </div>
       </v-btn>
     </div>
     <v-btn
-      class="d-flex justify-center align-center font-weight-bold"
+      class="checkout-button d-flex justify-center align-center font-weight-bold"
       height="96"
       :color="checkoutColor"
       rounded="lg"
-      :text="checkoutLabel"
       variant="outlined"
       :style="checkoutButtonStyle"
-      width="100%"
       @click="$emit('checkout')"
       :disabled="!canCheckout"
     >
-      <template #prepend>
-        <v-icon icon="mdi-cash" size="25" class="me-2" />
-      </template>
+      <div class="checkout-content d-flex flex-column align-center">
+        <v-icon icon="mdi-cash" size="34" class="mb-1" />
+        {{ checkoutLabel }}
+      </div>
     </v-btn>
-    </div>
   </div>
 
   <v-dialog v-model="dialog" max-width="350">
     <v-card>
-      <v-card-title>Confirm {{ action }}</v-card-title>
+      <v-card-title>Confirm {{ action === "hold" ? "hold" : "cancel" }}</v-card-title>
       <v-card-text>
-        {{
-          action === "hold"
-            ? "Save the current invoice to hold?"
-            : "Void the current invoice? This cannot be undone."
-        }}
+        <template v-if="action === 'hold'"> Save the current invoice to hold? </template>
+        <template v-else>
+          Cancel the current invoice?
+          <br />
+          <span class="text-red-darken-2 font-weight-bold">This cannot be undone.</span>
+        </template>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
@@ -115,40 +84,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
-import ClientDialog from "./ClientDialog.vue";
-import InitialsAvatar from "./InitialsAvatar.vue";
-import {
-  anonymousClient,
-  formatLoyaltyPoints,
-  toClient,
-  type Client,
-} from "@/lib/client";
-import { formatLebanesePhone } from "@/lib/phone";
+import { ref, computed } from "vue";
 
-const emit = defineEmits<{ hold: []; void: []; checkout: []; account: []; coupon: [] }>();
+const emit = defineEmits<{ hold: []; void: []; checkout: [] }>();
 const props = defineProps<{
   total: number;
   totalSummary: { usd: string; lbp: string };
   canCheckout: boolean;
   hasItems: boolean;
-  pulseClient?: boolean;
   mode?: "sale" | "exchange" | "settlement";
 }>();
 
 const mode = computed(() => props.mode ?? "sale");
 // Both exchange and settlement mode lock the client and disable
-// on-account/coupon/hold/void - only the calculator and the mode-specific
-// checkout action are active.
+// hold/void - only the calculator and the mode-specific checkout action
+// are active.
 const restricted = computed(() => mode.value !== "sale");
 const checkoutLabel = computed(() =>
   mode.value === "exchange" ? "Exchange" : mode.value === "settlement" ? "Change Settlement" : "Check Out",
 );
-const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "green-darken-3"));
+const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "#3e5523"));
 const checkoutButtonStyle = computed(() =>
   mode.value === "exchange"
     ? "background-color: rgba(255, 152, 0, 0.24); border-color: rgba(255, 152, 0, 0.5) !important"
-    : "background-color: rgba(var(--v-theme-success), 0.24); border-color: rgba(var(--v-theme-success), 0.3) !important",
+    : "background-color: rgba(62, 85, 35, 0.24); border-color: rgba(62, 85, 35, 0.5) !important",
 );
 
 const dialog = ref(false);
@@ -163,51 +122,37 @@ function doConfirm() {
   else emit("void");
   dialog.value = false;
 }
-
-const clientDialog = ref(false);
-const client = reactive<Client>(anonymousClient());
-const clientSelected = ref(false);
-function openClientDialog() {
-  if (!restricted.value) clientDialog.value = true;
-}
-
-function onClientSelect(selected: Client) {
-  Object.assign(client, toClient(selected));
-  clientSelected.value = true;
-}
-
-function setClient(selected: Client) {
-  Object.assign(client, toClient(selected));
-  clientSelected.value = true;
-}
-
-function resetClient() {
-  Object.assign(client, anonymousClient());
-  clientSelected.value = false;
-}
-
-defineExpose({
-  clientId: computed(() => client.id),
-  client: computed(() => toClient(client)),
-  clientSelected,
-  setClient,
-  resetClient,
-});
 </script>
 
 <style scoped>
+.action-bar-row {
+  flex-shrink: 0;
+}
+
+.hold-void-column {
+  flex: 0.8 1 0;
+  min-width: 0;
+}
+
+.hold-void-column > .v-btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .checkout-total-summary {
   border-color: rgba(var(--v-theme-on-surface), 0.18);
   font-size: 1rem;
-}
-
-.checkout-action-button {
-  width: 100%;
-}
-
-.invoice-action-button {
   flex: 1 1 0;
   min-width: 0;
+}
+
+.checkout-button {
+  flex: 1.4 1 0;
+  min-width: 0;
+}
+
+.checkout-content {
+  font-size: 1rem;
 }
 
 .checkout-total-line {
@@ -226,38 +171,5 @@ defineExpose({
   font-weight: 600;
   font-size: 1.05rem;
   line-height: 1.2;
-}
-
-.client-card {
-  min-height: 96px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(var(--v-border-color), 0.08);
-  cursor: pointer;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease;
-}
-
-.client-card:hover {
-  border-color: rgba(var(--v-theme-primary), 0.28);
-  background: rgba(var(--v-theme-primary), 0.04);
-}
-
-.missing-selection-pulse {
-  animation: missing-selection-pulse 700ms ease-in-out 2;
-  border-color: rgb(var(--v-theme-warning));
-}
-
-@keyframes missing-selection-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0);
-  }
-  50% {
-    box-shadow: 0 0 0 8px rgba(var(--v-theme-warning), 0.32);
-  }
 }
 </style>

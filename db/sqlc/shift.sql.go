@@ -115,7 +115,9 @@ func (q *Queries) CreateAccount(ctx context.Context, name string) (Account, erro
 }
 
 const createCashboxAccount = `-- name: CreateCashboxAccount :one
-INSERT INTO cashbox_accounts (name, currency_code) VALUES (?, ?) RETURNING id, name, currency_code
+INSERT INTO cashbox_accounts (name, currency_code, sort_order)
+VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM cashbox_accounts))
+RETURNING id, name, currency_code, sort_order, color
 `
 
 type CreateCashboxAccountParams struct {
@@ -123,10 +125,17 @@ type CreateCashboxAccountParams struct {
 	CurrencyCode string `json:"currencyCode"`
 }
 
+// New accounts append to the end of the admin-defined order automatically.
 func (q *Queries) CreateCashboxAccount(ctx context.Context, arg CreateCashboxAccountParams) (CashboxAccount, error) {
 	row := q.db.QueryRowContext(ctx, createCashboxAccount, arg.Name, arg.CurrencyCode)
 	var i CashboxAccount
-	err := row.Scan(&i.ID, &i.Name, &i.CurrencyCode)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CurrencyCode,
+		&i.SortOrder,
+		&i.Color,
+	)
 	return i, err
 }
 
@@ -217,24 +226,36 @@ func (q *Queries) GetAccountByID(ctx context.Context, id int64) (Account, error)
 }
 
 const getCashboxAccountByID = `-- name: GetCashboxAccountByID :one
-SELECT id, name, currency_code FROM cashbox_accounts WHERE id = ?
+SELECT id, name, currency_code, sort_order, color FROM cashbox_accounts WHERE id = ?
 `
 
 func (q *Queries) GetCashboxAccountByID(ctx context.Context, id int64) (CashboxAccount, error) {
 	row := q.db.QueryRowContext(ctx, getCashboxAccountByID, id)
 	var i CashboxAccount
-	err := row.Scan(&i.ID, &i.Name, &i.CurrencyCode)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CurrencyCode,
+		&i.SortOrder,
+		&i.Color,
+	)
 	return i, err
 }
 
 const getCashboxAccountByName = `-- name: GetCashboxAccountByName :one
-SELECT id, name, currency_code FROM cashbox_accounts WHERE name = ?
+SELECT id, name, currency_code, sort_order, color FROM cashbox_accounts WHERE name = ?
 `
 
 func (q *Queries) GetCashboxAccountByName(ctx context.Context, name string) (CashboxAccount, error) {
 	row := q.db.QueryRowContext(ctx, getCashboxAccountByName, name)
 	var i CashboxAccount
-	err := row.Scan(&i.ID, &i.Name, &i.CurrencyCode)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CurrencyCode,
+		&i.SortOrder,
+		&i.Color,
+	)
 	return i, err
 }
 
@@ -508,7 +529,7 @@ func (q *Queries) ListAccounts(ctx context.Context) ([]Account, error) {
 }
 
 const listCashboxAccounts = `-- name: ListCashboxAccounts :many
-SELECT id, name, currency_code FROM cashbox_accounts ORDER BY id
+SELECT id, name, currency_code, sort_order, color FROM cashbox_accounts ORDER BY sort_order, id
 `
 
 func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error) {
@@ -520,7 +541,13 @@ func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, er
 	items := []CashboxAccount{}
 	for rows.Next() {
 		var i CashboxAccount
-		if err := rows.Scan(&i.ID, &i.Name, &i.CurrencyCode); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CurrencyCode,
+			&i.SortOrder,
+			&i.Color,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -576,6 +603,49 @@ func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setCashboxAccountSortOrder = `-- name: SetCashboxAccountSortOrder :exec
+UPDATE cashbox_accounts SET sort_order = ? WHERE id = ?
+`
+
+type SetCashboxAccountSortOrderParams struct {
+	SortOrder int64 `json:"sortOrder"`
+	ID        int64 `json:"id"`
+}
+
+func (q *Queries) SetCashboxAccountSortOrder(ctx context.Context, arg SetCashboxAccountSortOrderParams) error {
+	_, err := q.db.ExecContext(ctx, setCashboxAccountSortOrder, arg.SortOrder, arg.ID)
+	return err
+}
+
+const updateCashboxAccount = `-- name: UpdateCashboxAccount :one
+UPDATE cashbox_accounts SET name = ?, currency_code = ?, color = ? WHERE id = ? RETURNING id, name, currency_code, sort_order, color
+`
+
+type UpdateCashboxAccountParams struct {
+	Name         string `json:"name"`
+	CurrencyCode string `json:"currencyCode"`
+	Color        string `json:"color"`
+	ID           int64  `json:"id"`
+}
+
+func (q *Queries) UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAccountParams) (CashboxAccount, error) {
+	row := q.db.QueryRowContext(ctx, updateCashboxAccount,
+		arg.Name,
+		arg.CurrencyCode,
+		arg.Color,
+		arg.ID,
+	)
+	var i CashboxAccount
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CurrencyCode,
+		&i.SortOrder,
+		&i.Color,
+	)
+	return i, err
 }
 
 const updateShiftOpeningFloat = `-- name: UpdateShiftOpeningFloat :one

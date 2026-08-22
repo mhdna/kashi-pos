@@ -1,23 +1,21 @@
 <template>
   <v-menu v-model="menu" :close-on-content-click="false" location="bottom end">
     <template #activator="{ props }">
-      <v-btn
-        v-bind="props"
-        class="salesperson-card py-0 px-2 mx-0 my-2 text-body-2"
-        color="primary"
-        variant="tonal"
-        elevation="0"
-        min-height="40px"
-        rounded="lg"
-        width="100%"
-        :disabled="disabled"
-        :class="{ 'missing-selection-pulse': pulseMissingSalesperson }"
-      >
-        <v-avatar class="salesperson-avatar" :color="selectedColor" size="24">
-          <v-icon icon="mdi-account-tie" size="16" />
-        </v-avatar>
-        <span class="salesperson-name">{{ selectedName }}</span>
-      </v-btn>
+      <div class="header-btn-wrap">
+        <div class="header-btn-subtitle">Salesperson</div>
+        <v-btn
+          v-bind="props"
+          size="small"
+          color="blue-grey-darken-1"
+          variant="tonal"
+          class="header-fixed-width-btn"
+          :disabled="disabled"
+          :class="{ 'missing-selection-pulse': pulseMissingSalesperson }"
+        >
+          <v-icon icon="mdi-account-tie" size="16" class="me-1 flex-shrink-0" />
+          <span class="header-fixed-width-btn-label">{{ selectedName }}</span>
+        </v-btn>
+      </div>
     </template>
     <v-list density="compact" nav style="max-height: 400px; overflow-y: auto">
       <v-list-item v-for="p in salespersons" :key="p.id" @click="selectSalesperson(p)">
@@ -43,17 +41,10 @@ const salespersonAvatarColor = "grey-darken-1";
 const salespersons = ref<Salesperson[]>([]);
 const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperson();
 
-const selectedName = computed(() => selected.value?.fullName ?? "Salesperson");
-const selectedColor = computed(() => salespersonAvatarColor);
+const selectedName = computed(() => selected.value?.fullName.split(" ")[0] ?? "Salesperson");
 
 function colorFor(id: number) {
   return salespersonAvatarColor;
-}
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("");
 }
 
 function selectSalesperson(p: Salesperson) {
@@ -72,36 +63,29 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.header-btn-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.header-btn-subtitle {
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  margin-bottom: 2px;
+}
+.header-fixed-width-btn {
+  width: 108px;
+}
+.header-fixed-width-btn-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .missing-selection-pulse {
   animation: missing-selection-pulse 700ms ease-in-out 2;
   border-radius: 12px;
-}
-
-.salesperson-card {
-  position: relative;
-  text-transform: none;
-  justify-content: flex-start !important;
-}
-
-.salesperson-avatar {
-  position: absolute;
-  inset-inline-start: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
-}
-
-.salesperson-name {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding-inline: 36px 6px;
 }
 
 @keyframes missing-selection-pulse {

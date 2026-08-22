@@ -6,14 +6,14 @@
         <div class="text-body-2 mb-3">
           Cash assumed to already be in the drawer for this shift. Requires the manager password.
         </div>
-        <div class="text-caption text-medium-emphasis mb-1">Opening float (USD)</div>
+        <div class="text-caption text-medium-emphasis mb-1">Opening amount (USD)</div>
         <v-text-field v-model.number="usd" placeholder="0.00" type="number" min="0" step="0.01" variant="outlined" density="compact" class="mb-2" />
-        <div class="text-caption text-medium-emphasis mb-1">Opening float (LBP)</div>
+        <div class="text-caption text-medium-emphasis mb-1">Opening amount (LBP)</div>
         <v-text-field v-model.number="lbp" placeholder="0" type="number" min="0" step="1" variant="outlined" density="compact" class="mb-2" />
         <div class="text-caption text-medium-emphasis mb-1">Manager password</div>
         <v-text-field v-model="password" placeholder="••••••••" type="password" variant="outlined" density="compact" @keyup.enter="save" />
         <v-alert v-if="negative" type="warning" variant="tonal" density="compact" class="mb-2">
-          Opening float cannot be negative — enter the actual cash amount in the drawer.
+          Opening amount cannot be negative — enter the actual cash amount in the drawer.
         </v-alert>
         <v-alert v-if="error" type="error" variant="tonal" density="compact">{{ error }}</v-alert>
       </v-card-text>

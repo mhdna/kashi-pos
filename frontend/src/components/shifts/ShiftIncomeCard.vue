@@ -9,7 +9,7 @@
       <v-list density="compact" class="pa-0">
         <v-list-item v-for="item in items" :key="item.accountName">
         <template #prepend>
-          <v-avatar :color="incomeColor(item.accountName)" variant="tonal" size="32">
+          <v-avatar :color="paymentAccentColor({ name: item.accountName, color: item.color })" variant="tonal" size="32">
             <v-icon icon="mdi-wallet" size="18" />
           </v-avatar>
         </template>
@@ -44,7 +44,7 @@
         Set opening cash
       </v-btn>
       <div v-if="shiftId && (openingFloatUsd || openingFloatLbp)" class="text-caption text-medium-emphasis px-1 pt-1">
-        Opening float: {{ formatUsd((openingFloatUsd ?? 0) / 100) }} / {{ Math.round(openingFloatLbp ?? 0).toLocaleString() }} LBP
+        Opening amount: {{ formatUsd((openingFloatUsd ?? 0) / 100) }} / {{ Math.round(openingFloatLbp ?? 0).toLocaleString() }} LBP
       </div>
       <div class="d-flex justify-space-between px-4 pt-3 mt-2 border-t font-weight-bold">
         <span>Income total</span>
@@ -70,7 +70,7 @@
 import { computed, ref } from "vue";
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
-import { paymentColor } from "@/lib/paymentColor";
+import { paymentAccentColor } from "@/lib/paymentColor";
 import { useCurrencies } from "@/composables/useCurrencies";
 import BalanceReplacementDialog from "@/components/shifts/BalanceReplacementDialog.vue";
 import SetOpeningFloatDialog from "@/components/shifts/SetOpeningFloatDialog.vue";
@@ -95,10 +95,6 @@ const balanceSources = computed<Balance[]>(() => props.balanceSources
   .filter((item) => !item.isOnAccount && !item.isOnCoupon && item.accountId && Number(item.balance) !== 0));
 
 const incomeTotal = computed(() => Number(props.incomeTotal) || 0);
-
-function incomeColor(name: string): string {
-  return paymentColor(name);
-}
 </script>
 
 <style scoped>

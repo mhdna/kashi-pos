@@ -94,6 +94,8 @@ type CashboxAccount struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
 	CurrencyCode string `json:"currencyCode"`
+	SortOrder    int64  `json:"sortOrder"`
+	Color        string `json:"color"`
 }
 
 type CategoryIcon struct {

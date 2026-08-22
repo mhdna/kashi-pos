@@ -520,8 +520,8 @@ func (a *App) seedSalespersons() {
 func (a *App) seedCashboxAccounts() {
 	existing, _ := a.store.ListCashboxAccounts(context.Background())
 	for _, acc := range []struct{ name, currency string }{
-		{"USD", "USD"},
-		{"LBP", "LBP"},
+		{"Cash USD", "USD"},
+		{"Cash LBP", "LBP"},
 		{"Visa", "USD"},
 		{"Whish", "USD"},
 		{"On Account", "USD"},
@@ -668,6 +668,21 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["invoiceKeyboardModeEnabled"] = false
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, hidePaymentMethodCurrencyFlag); flagErr == nil {
+		result["hidePaymentMethodCurrency"] = enabled != 0
+	} else {
+		result["hidePaymentMethodCurrency"] = false
+	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, autoAppendLbpZerosFlag); flagErr == nil {
+		result["autoAppendLbpZeros"] = enabled != 0
+	} else {
+		result["autoAppendLbpZeros"] = false
+	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, overchangeConfirmationFlag); flagErr == nil {
+		result["overchangeConfirmationEnabled"] = enabled != 0
+	} else {
+		result["overchangeConfirmationEnabled"] = true
+	}
 	if config, configErr := a.GetAttendanceConfig(); configErr == nil {
 		result["attendance"] = config
 	}
@@ -726,6 +741,31 @@ func (a *App) SetInvoiceKeyboardModeEnabled(enabled bool) error {
 	}
 	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: invoiceKeyboardModeFlag, Enabled: boolInt(enabled),
+	})
+}
+
+// SetHidePaymentMethodCurrency toggles whether each payment method's
+// currency code is shown as a second line under its name on the checkout
+// calculator's payment buttons.
+func (a *App) SetHidePaymentMethodCurrency(hide bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: hidePaymentMethodCurrencyFlag, Enabled: boolInt(hide),
+	})
+}
+
+// SetAutoAppendLbpZerosEnabled toggles whether the checkout calculator
+// automatically multiplies a typed amount by 1,000 when it's confirmed
+// against an LBP (cash-rounded) payment method, so cashiers can type "50"
+// instead of "50000".
+func (a *App) SetAutoAppendLbpZerosEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: autoAppendLbpZerosFlag, Enabled: boolInt(enabled),
 	})
 }
 

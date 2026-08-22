@@ -8,13 +8,28 @@
         >
           <div class="d-flex flex-column">
             <div class="font-weight-bold">{{ pageModeTitle }}</div>
-            <v-card-subtitle class="pa-0">{{ invoiceCode }}</v-card-subtitle>
+            <v-card-subtitle v-if="pageMode === 'sale'" class="pa-0">{{ invoiceCode }}</v-card-subtitle>
           </div>
           <div class="d-flex flex-column align-end">
-            <div class="d-flex">
-              <div class="salesperson-header-button">
-                <SalespersonsDialog :disabled="pageMode === 'settlement'" />
+            <div class="d-flex align-center ga-2">
+              <div
+                class="required-assignees d-flex align-center ga-2"
+                :class="{ 'required-assignees--missing': missingAssignmentFlash }"
+              >
+                <SalespersonsDialog v-if="pageMode !== 'settlement'" />
+                <ClientButton v-if="pageMode === 'sale'" />
               </div>
+              <v-btn
+                v-if="pageMode !== 'sale'"
+                class="mode-cancel-button"
+                color="red-darken-2"
+                height="42"
+                variant="tonal"
+                prepend-icon="mdi-close"
+                @click="cancelMode"
+              >
+                {{ cancelModeLabel }}
+              </v-btn>
               <v-btn icon size="small" variant="text" aria-label="Invoice note" @click="openNoteDialog">
                 <v-icon icon="mdi-note-text-outline" size="20" />
               </v-btn>
@@ -42,15 +57,6 @@
                   </v-card-actions>
                 </v-card>
               </v-dialog>
-              <v-btn
-                v-if="pageMode !== 'sale'"
-                color="red-darken-2"
-                variant="tonal"
-                prepend-icon="mdi-close"
-                @click="cancelMode"
-              >
-                Cancel {{ pageMode }}
-              </v-btn>
             </div>
           </div>
         </v-card-title>
@@ -60,6 +66,7 @@
           ref="barcodeInput"
           v-model="barcodeValue"
           class="flex-grow-1"
+          :class="barcodeFeedback ? `barcode-flash-${barcodeFeedback}` : ''"
           density="compact"
           hide-details="auto"
           placeholder="Scan or Enter Barcode"
@@ -98,7 +105,7 @@
       />
       <QuickAccessPanel v-if="pageMode !== 'settlement'" @add="(item) => invoiceItems?.addItem(item)" />
     </div>
-    <div class="home-right-pane d-flex position-relative" style="flex: 5 5 0; min-width: 0">
+    <div class="home-right-pane d-flex flex-column position-relative" style="flex: 5 5 0; min-width: 0">
       <div
         v-if="!hasItems"
         class="position-absolute d-flex align-center justify-center"
@@ -112,44 +119,42 @@
           z-index: 10;
         "
       >
-        <v-card class="pa-4 text-center" rounded="lg" width="240">
-          <v-icon icon="mdi-barcode" size="32" class="mb-2" />
-          <div class="text-body-2">Scan a barcode or add products to begin</div>
+        <v-card class="pa-6 text-center d-flex flex-column align-center" rounded="xl" width="220" elevation="4">
+          <v-avatar color="primary" variant="tonal" size="56" class="mb-3">
+            <v-icon icon="mdi-barcode-scan" size="28" />
+          </v-avatar>
+          <div class="text-subtitle-2 font-weight-medium">Cart is empty</div>
         </v-card>
       </div>
-      <div class="mb-3 mt-1" style="flex: 3 3 0; min-width: 0">
+      <div class="mb-3 mt-1" style="flex: 1 1 0; min-height: 0">
         <Calculator
           ref="calculator"
           :total-cents="quote?.grandTotalCents ?? 0"
           :items-json="cartItemsJson"
-          :client-id="actionBar?.clientId"
+          :client-id="client.id"
           :rounding-mode="roundingMode"
           :rounding-currency="roundingCurrency"
           :has-items="hasItems"
           :exchange-mode="pageMode === 'exchange'"
           :exchange-original-invoice-id="exchangeState?.originalInvoiceId"
           :settlement-invoice-id="settlementState?.invoiceId"
+          :hide-payment-method-currency="hidePaymentMethodCurrency"
+          :auto-append-lbp-zeros="autoAppendLbpZeros"
           @account="accountDialog = true"
           @coupon="calculator?.openCouponDialog()"
         />
       </div>
-      <v-divider vertical class="ms-4 me-0" />
-      <div style="flex: 2 2 0; min-width: 0">
-        <ActionBar
-          ref="actionBar"
-          :total="invoiceTotal"
-          :total-summary="calculator?.totalSummary ?? { usd: '$0.00', lbp: '' }"
-          :can-checkout="canCheckout"
-          :has-items="hasItems"
-          :pulse-client="pulseClient"
-          :mode="pageMode"
-          @checkout="onCheckout"
-          @hold="onHold"
-          @void="onVoid"
-          @account="accountDialog = true"
-          @coupon="calculator?.openCouponDialog()"
-        />
-      </div>
+      <ActionBar
+        ref="actionBar"
+        :total="invoiceTotal"
+        :total-summary="calculator?.totalSummary ?? { usd: '$0.00', lbp: '' }"
+        :can-checkout="canCheckout"
+        :has-items="hasItems"
+        :mode="pageMode"
+        @checkout="onCheckout"
+        @hold="onHold"
+        @void="onVoid"
+      />
     </div>
   </div>
 
@@ -195,6 +200,7 @@ import {
 import ActionBar from "@/components/ActionBar.vue";
 import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
+import ClientButton from "@/components/ClientButton.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
@@ -204,6 +210,7 @@ import type { ExchangeSelection } from "@/lib/exchange";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { normalizeRoundingMode, type RoundingMode } from "@/lib/money";
 import type { Client } from "@/lib/client";
+import { useClient } from "@/composables/useClient";
 import { useSalesperson } from "@/composables/useSalesperson";
 import {
   pendingExchangeSelection,
@@ -219,11 +226,17 @@ type InvoiceDraft = {
   items: any[];
   client: Client;
   notes?: string;
+  calculator?: {
+    currentInput?: string;
+    activeMethod?: string;
+    entries?: any[];
+  };
   // Set only while an exchange is in progress, so an unfinished exchange
   // (returned lines locked in, replacements maybe scanned) survives an app
   // restart or logout/login instead of silently reverting to a normal sale.
   exchangeOriginalInvoiceId?: number;
 };
+const { client, clientSelected, setClient, resetClient, pulseMissingClient } = useClient();
 const { selectedSalesperson, pulseSalesperson } = useSalesperson();
 let pageActive = true;
 
@@ -237,14 +250,14 @@ const customItemPricesEnabled = ref(false);
 const perUnitItemPricesEnabled = ref(false);
 const priceChangeManualOverrideEnabled = ref(false);
 const invoiceKeyboardModeEnabled = ref(false);
+const hidePaymentMethodCurrency = ref(false);
+const autoAppendLbpZeros = ref(false);
 const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
 );
 // Manual price/discount edits at checkout are an admin-only capability -
 // cashiers can only use whatever the price list/discount list already set.
 const canEditPricing = computed(() => auth.isAdmin);
-const pulseClient = ref(false);
-let pulseClientTimer: ReturnType<typeof setTimeout> | undefined;
 const branchName = ref("Store");
 const screenPort = ref("");
 const invoiceCode = ref("Loading invoice code…");
@@ -271,6 +284,9 @@ const pageModeTitle = computed(() =>
       ? "Exchange"
       : "Invoice",
 );
+const cancelModeLabel = computed(() =>
+  pageMode.value === "exchange" ? "Cancel Exchange" : "Cancel Settlement",
+);
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
@@ -288,8 +304,9 @@ const quote = ref<InvoiceQuote | null>(null);
 const cartItemsJson = ref("");
 const invoiceTotal = computed(() => (quote.value?.grandTotalCents ?? 0) / 100);
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
-const clientSelected = computed(() => Boolean(actionBar.value?.clientSelected));
 const salespersonSelected = computed(() => Boolean(selectedSalesperson.value));
+const missingAssignmentFlash = ref(false);
+let missingAssignmentFlashTimer: ReturnType<typeof setTimeout> | undefined;
 const canCheckout = computed(() => {
   if (!calculator.value?.checkoutReady) return false;
   // Settlement mode's client/salesperson/items are pre-set and frozen from
@@ -331,7 +348,13 @@ watch(pendingExchangeSelection, () => void consumePendingExchange());
 watch(pendingSettlementInvoice, () => void consumePendingSettlement());
 
 watch(
-  [() => invoiceItems.value?.items, () => actionBar.value?.client, invoiceNotes, exchangeState],
+  [
+    () => invoiceItems.value?.items,
+    () => client,
+    invoiceNotes,
+    exchangeState,
+    () => calculator.value?.holdState(),
+  ],
   ([items, client]) => {
     // Settlement mode's cart is a frozen snapshot of one specific invoice,
     // not a draft sale - it must never be persisted/restored as one.
@@ -346,6 +369,7 @@ watch(
         items: items ?? [],
         client,
         notes: invoiceNotes.value,
+        calculator: calculator.value?.holdState(),
         exchangeOriginalInvoiceId: exchangeState.value?.originalInvoiceId,
       } satisfies InvoiceDraft),
     );
@@ -433,9 +457,10 @@ async function restoreDraft() {
     if (invoiceItems.value) {
       invoiceItems.value.items = (draft.items ?? []).map((item) => ({ ...item }));
     }
-    if (draft.client?.id) actionBar.value?.setClient(draft.client);
+    if (draft.client?.id) setClient(draft.client);
     invoiceNotes.value = draft.notes ?? "";
     noteDraft.value = invoiceNotes.value;
+    calculator.value?.restoreHoldState(draft.calculator);
     if (draft.exchangeOriginalInvoiceId) {
       exchangeState.value = { originalInvoiceId: draft.exchangeOriginalInvoiceId };
       await refreshNextInvoiceCode("exchange");
@@ -460,7 +485,7 @@ function clearInvoice() {
   noteDraft.value = "";
   noteDialog.value = false;
   clearDraft();
-  actionBar.value?.resetClient();
+  resetClient();
 }
 
 function saveNote() {
@@ -543,8 +568,23 @@ function onProductSelect(product: {
 }
 
 function onAccountClientSelect(client: Client) {
-  actionBar.value?.setClient(client);
+  setClient(client);
   nextTick(() => calculator.value?.addOnAccount());
+}
+
+const barcodeFeedback = ref<"success" | "error" | null>(null);
+let barcodeFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flashBarcodeFeedback(kind: "success" | "error") {
+  if (barcodeFeedbackTimer) clearTimeout(barcodeFeedbackTimer);
+  barcodeFeedback.value = kind;
+  barcodeFeedbackTimer = setTimeout(
+    () => {
+      barcodeFeedback.value = null;
+      barcodeFeedbackTimer = null;
+    },
+    kind === "success" ? 450 : 1400,
+  );
 }
 
 async function onBarcodeEnter() {
@@ -560,6 +600,7 @@ async function onBarcodeEnter() {
       match = { ...p, qty: 1 };
     } catch {}
   }
+  flashBarcodeFeedback(match ? "success" : "error");
   if (match) invoiceItems.value?.addItem(match);
   barcodeValue.value = "";
   focusBarcode();
@@ -639,7 +680,7 @@ async function onHold() {
     JSON.stringify({
       version: 1,
       items,
-      client: actionBar.value?.client,
+      client,
       salesperson: selectedSalesperson.value,
       calculator: calculator.value?.holdState(),
       notes: invoiceNotes.value,
@@ -687,15 +728,13 @@ async function onCheckout() {
   const missingClient = !clientSelected.value;
   const missingSalesperson = !salespersonSelected.value;
   if (missingClient || missingSalesperson) {
-    pulseClient.value = false;
-    nextTick(() => {
-      pulseClient.value = missingClient;
-      clearTimeout(pulseClientTimer);
-      pulseClientTimer = setTimeout(() => {
-        pulseClient.value = false;
-      }, 1500);
-      if (missingSalesperson) pulseSalesperson();
-    });
+    missingAssignmentFlash.value = true;
+    clearTimeout(missingAssignmentFlashTimer);
+    missingAssignmentFlashTimer = setTimeout(() => {
+      missingAssignmentFlash.value = false;
+    }, 900);
+    if (missingClient) pulseMissingClient();
+    if (missingSalesperson) pulseSalesperson();
     snackbar.text = `Select ${[missingSalesperson && "a salesperson", missingClient && "a client"].filter(Boolean).join(" and ")} before checkout.`;
     snackbar.color = "warning";
     snackbar.show = true;
@@ -704,7 +743,7 @@ async function onCheckout() {
   printing.value = receiptEnabled.value;
   try {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
-    const clientID = actionBar.value?.clientId ?? 0;
+    const clientID = client.id;
     const salesperson = selectedSalesperson.value;
     const result = exchangeState.value
       ? await CheckoutExchangeInvoice(
@@ -759,7 +798,7 @@ async function onExchange(payload: ExchangeSelection) {
     })),
     [],
   );
-  actionBar.value?.setClient(payload.client);
+  setClient(payload.client);
   exchangeState.value = { originalInvoiceId: payload.originalInvoiceId };
   await refreshNextInvoiceCode("exchange");
   calculator.value?.clearAll();
@@ -773,7 +812,7 @@ async function cancelMode() {
   calculator.value?.clearAll();
   exchangeState.value = null;
   settlementState.value = null;
-  actionBar.value?.resetClient();
+  resetClient();
   await refreshNextInvoiceCode("sales");
 }
 
@@ -791,8 +830,8 @@ function onRestoreHold(hold: any) {
   for (const item of hold.items ?? []) {
     invoiceItems.value.addItem({ ...item, qty: item.qty || 1 });
   }
-  if (hold.client?.id) actionBar.value?.setClient(hold.client);
-  else actionBar.value?.resetClient();
+  if (hold.client?.id) setClient(hold.client);
+  else resetClient();
   selectedSalesperson.value = hold.salesperson ?? null;
   invoiceNotes.value = hold.notes ?? "";
   noteDraft.value = invoiceNotes.value;
@@ -845,7 +884,7 @@ async function consumePendingSettlement() {
       unitDiscounts: Array(qty).fill(Number(item.discount || 0)),
     };
   });
-  if (pending.client?.id) actionBar.value?.setClient(pending.client);
+  if (pending.client?.id) setClient(pending.client);
   selectedSalesperson.value = pending.salesperson ?? null;
   invoiceNotes.value = pending.notes ?? "";
   noteDraft.value = invoiceNotes.value;
@@ -887,6 +926,8 @@ onMounted(async () => {
     perUnitItemPricesEnabled.value = Boolean(settings?.perUnitItemPricesEnabled);
     priceChangeManualOverrideEnabled.value = Boolean(settings?.priceChangeManualOverrideEnabled);
     invoiceKeyboardModeEnabled.value = Boolean(settings?.invoiceKeyboardModeEnabled);
+    hidePaymentMethodCurrency.value = Boolean(settings?.hidePaymentMethodCurrency);
+    autoAppendLbpZeros.value = Boolean(settings?.autoAppendLbpZeros);
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
   } catch {}
@@ -909,8 +950,8 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   pageActive = false;
-  clearTimeout(pulseClientTimer);
   clearTimeout(overlayFocusTimer);
+  clearTimeout(missingAssignmentFlashTimer);
   overlayObserver?.disconnect();
 });
 </script>
@@ -929,9 +970,43 @@ onBeforeUnmount(() => {
   background-color: rgba(var(--v-theme-on-surface), 0.04) !important;
 }
 
-.salesperson-header-button {
-  width: 150px;
+.mode-cancel-button {
+  transform: translateY(2px);
 }
+
+.required-assignees {
+  border-radius: 12px;
+  padding: 2px;
+}
+
+.required-assignees--missing {
+  animation: required-assignees-flash 900ms ease-in-out;
+}
+
+@keyframes required-assignees-flash {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  35%,
+  70% {
+    background-color: rgba(255, 214, 0, 0.42);
+  }
+}
+
+/* Remove these three rules to disable the barcode scan success/error flash */
+.barcode-flash-success .v-field,
+.barcode-flash-error .v-field {
+  transition: background-color 150ms ease;
+  border-radius: 4px;
+}
+.barcode-flash-success .v-field {
+  background-color: rgba(255, 214, 0, 0.35);
+}
+.barcode-flash-error .v-field {
+  background-color: rgba(244, 67, 54, 0.28);
+}
+
 
 .app-snackbar .v-snackbar__wrapper {
   background: rgba(var(--v-theme-surface-variant), 0.72) !important;

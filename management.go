@@ -192,7 +192,7 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 		}
 		result = append(result, map[string]any{
 			"accountId": row.ID, "accountName": row.Name,
-			"balance": balance, "currencyCode": row.CurrencyCode,
+			"balance": balance, "currencyCode": row.CurrencyCode, "color": row.Color,
 			"isOnAccount": onAccount, "isOnCoupon": onCoupon,
 			"isCollected": !onAccount, "isAutoCounted": onCoupon,
 		})
@@ -705,7 +705,7 @@ func (a *App) GetCurrentShiftIncomeByAccount() ([]map[string]any, error) {
 			}
 		}
 		result[i] = map[string]any{
-			"accountId": row.ID, "accountName": row.Name, "currencyCode": row.CurrencyCode, "total": float64(total),
+			"accountId": row.ID, "accountName": row.Name, "currencyCode": row.CurrencyCode, "color": row.Color, "total": float64(total),
 			"isOnAccount": onAccount, "isCollected": !onAccount,
 		}
 	}

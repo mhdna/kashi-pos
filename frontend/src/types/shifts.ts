@@ -23,6 +23,7 @@ export interface Balance {
   accountName: string;
   balance: number;
   currencyCode?: string;
+  color?: string;
   isOnAccount?: boolean;
   isOnCoupon?: boolean;
   isCollected?: boolean;
@@ -41,6 +42,7 @@ export interface IncomeRow {
   accountName: string;
   total: number;
   currencyCode?: string;
+  color?: string;
   isOnAccount?: boolean;
   isCollected?: boolean;
 }

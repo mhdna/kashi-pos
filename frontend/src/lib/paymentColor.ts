@@ -13,3 +13,25 @@ export function paymentTone(name: unknown): "green" | "purple" | "blue" | "red" 
   if (color.startsWith("red")) return "red";
   return "green";
 }
+
+// Vuetify only generates CSS custom properties for a theme's own role
+// colors (primary, surface, error, ...) - not for arbitrary Material color
+// names like "green-darken-2", so `var(--v-theme-green-darken-2)` never
+// resolves to anything. These are the actual Material Design hex values for
+// the tokens paymentColor() returns, used directly instead.
+const DEFAULT_ACCENT_HEX = "#388E3C";
+const MATERIAL_COLOR_HEX: Record<string, string> = {
+  "purple-darken-2": "#7B1FA2",
+  "red-darken-2": "#D32F2F",
+  "blue-darken-2": "#1976D2",
+  "green-darken-2": DEFAULT_ACCENT_HEX,
+};
+
+// Resolves the accent color a payment method's card/button should use: an
+// admin-picked hex color when set on the cashbox account, otherwise the
+// existing name-based heuristic above.
+export function paymentAccentColor(method: { name?: unknown; color?: unknown }): string {
+  const custom = String(method.color ?? "").trim();
+  if (custom) return custom;
+  return MATERIAL_COLOR_HEX[paymentColor(method.name)] ?? DEFAULT_ACCENT_HEX;
+}

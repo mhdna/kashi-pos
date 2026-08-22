@@ -14,6 +14,17 @@ const (
 	perUnitItemPricesFlag         = "per_unit_item_prices"
 	priceChangeManualOverrideFlag = "price_change_manual_override_mode"
 	invoiceKeyboardModeFlag       = "invoice_keyboard_mode"
+	// Named as a "hide" flag (rather than "show") so a database that has
+	// never touched this flag - where GetFeatureFlag errors and the read
+	// side treats it as false - keeps the currency line visible, matching
+	// the calculator's behavior before this setting existed.
+	hidePaymentMethodCurrencyFlag = "hide_payment_method_currency"
+	autoAppendLbpZerosFlag        = "auto_append_lbp_zeros"
+	// Named as a "confirm" flag defaulting to true when unset, so a database
+	// that has never touched this flag keeps the checkout calculator's
+	// overchange confirmation dialog on - matching its behavior before this
+	// setting existed.
+	overchangeConfirmationFlag = "overchange_confirmation"
 )
 
 type ProductPage struct {

@@ -5,13 +5,22 @@ SELECT * FROM cashbox_accounts WHERE id = ?;
 SELECT * FROM cashbox_accounts WHERE name = ?;
 
 -- name: ListCashboxAccounts :many
-SELECT * FROM cashbox_accounts ORDER BY id;
+SELECT * FROM cashbox_accounts ORDER BY sort_order, id;
 
 -- name: CreateCashboxAccount :one
-INSERT INTO cashbox_accounts (name, currency_code) VALUES (?, ?) RETURNING *;
+-- New accounts append to the end of the admin-defined order automatically.
+INSERT INTO cashbox_accounts (name, currency_code, sort_order)
+VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM cashbox_accounts))
+RETURNING *;
+
+-- name: UpdateCashboxAccount :one
+UPDATE cashbox_accounts SET name = ?, currency_code = ?, color = ? WHERE id = ? RETURNING *;
 
 -- name: DeleteCashboxAccount :exec
 DELETE FROM cashbox_accounts WHERE id = ?;
+
+-- name: SetCashboxAccountSortOrder :exec
+UPDATE cashbox_accounts SET sort_order = ? WHERE id = ?;
 
 -- name: GetShiftByID :one
 SELECT * FROM shifts WHERE id = ?;

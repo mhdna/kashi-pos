@@ -1,5 +1,5 @@
 <template>
-  <div class="calculator-shell w-100 h-100 mx-2 px-2 py-2 rounded-xl my-1">
+  <div class="calculator-shell h-100 mx-2 px-2 py-2 rounded-xl my-1" style="overflow-y: auto">
     <CalculatorStatus
       :payment-status="paymentStatus"
       :status-color="statusColor"
@@ -7,23 +7,82 @@
       :remaining-amount="remainingAmount"
     />
 
-    <v-card class="calculator-display pa-2 mb-3" variant="outlined" rounded="lg">
+    <v-card class="calculator-display pa-2 mb-3 mt-2" variant="outlined" rounded="lg">
+      <v-btn
+        class="calculator-display-clear"
+        icon
+        variant="text"
+        size="small"
+        aria-label="Clear"
+        @click="clearInput"
+      >
+        <v-icon icon="mdi-close" size="20" />
+      </v-btn>
       <span class="calculator-display-value text-h3 font-weight-bold">{{ displayValue }}</span>
+      <v-btn
+        class="calculator-display-backspace"
+        icon
+        variant="text"
+        size="small"
+        aria-label="Backspace"
+        @click="backspace"
+      >
+        <v-icon icon="mdi-backspace-outline" size="20" />
+      </v-btn>
     </v-card>
 
-    <CalculatorKeypad @digit="appendDigit" @backspace="backspace" @clear="clearInput" />
-    <CalculatorPaymentMethods
-      class="mt-3"
-      :methods="paymentMethods.filter((method) => !['on coupon', 'on account'].includes(method.name.toLowerCase()))"
-      :model-value="activeMethod"
-      @select="selectMethodAndConfirm"
-    />
+    <div class="d-flex ga-3">
+      <div style="flex: 3 3 0; min-width: 0">
+        <CalculatorKeypad @digit="appendDigit" />
+      </div>
+      <div class="calculator-payment-methods-column d-flex flex-column ga-2">
+        <CalculatorPaymentMethods
+          vertical
+          :methods="paymentMethods.filter((method) => !isSpecialPaymentMethod(method.name))"
+          :model-value="activeMethod"
+          :show-currency="!props.hidePaymentMethodCurrency"
+          @select="selectMethodAndConfirm"
+        />
+        <div class="calculator-action-cards" role="list" aria-label="Other actions">
+          <v-card
+            class="calculator-type-card d-flex flex-column" style="--payment-accent: #757575"
+            :class="{ 'calculator-type-card--disabled': !hasItems || restricted }"
+            elevation="0"
+            role="button"
+            tabindex="0"
+            @click="!(!hasItems || restricted) && emit('account')"
+            @keydown.enter="!(!hasItems || restricted) && emit('account')"
+            @keydown.space.prevent="!(!hasItems || restricted) && emit('account')"
+          >
+            <v-card-text class="text-center py-2 px-1 flex-grow-1 d-flex align-center justify-center">
+              <span class="payment-method-name text-h6 font-weight-bold">On Account</span>
+            </v-card-text>
+          </v-card>
+          <v-card
+            class="calculator-type-card d-flex flex-column" style="--payment-accent: #757575"
+            :class="{ 'calculator-type-card--disabled': restricted }"
+            elevation="0"
+            role="button"
+            tabindex="0"
+            @click="!restricted && emit('coupon')"
+            @keydown.enter="!restricted && emit('coupon')"
+            @keydown.space.prevent="!restricted && emit('coupon')"
+          >
+            <v-card-text class="text-center py-2 px-1 flex-grow-1 d-flex align-center justify-center">
+              <span class="payment-method-name text-h6 font-weight-bold">Coupon</span>
+            </v-card-text>
+          </v-card>
+        </div>
+      </div>
+    </div>
+
     <CalculatorEntries
       :entries="entries"
       :format-amount="formatEntryAmount"
       :currency-symbol-for="currencySymbolFor"
       @remove="removeEntry"
     />
+
     <v-dialog v-model="couponDialog" max-width="420">
       <v-card title="Coupon payment">
         <v-card-text>
@@ -41,6 +100,20 @@
           <v-spacer />
           <v-btn @click="couponDialog = false">Cancel</v-btn>
           <v-btn color="primary" @click="confirmCoupon">Add coupon</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog :model-value="Boolean(pendingOverchange)" max-width="420" @update:model-value="(v) => !v && cancelOverchange()">
+      <v-card title="Confirm change amount" v-if="pendingOverchange">
+        <v-card-text>
+          Give {{ pendingOverchange.currencySymbol }} {{ pendingOverchange.amount.toLocaleString() }} in change?
+          This is more than what's owed.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="cancelOverchange">Cancel</v-btn>
+          <v-btn color="primary" @click="confirmOverchange">Confirm</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -62,18 +135,21 @@ import {
   roundCurrencyUnitsFromCents,
   roundCentsFromCurrencyUnits,
   normalizeRoundingMode,
+  isRoundedToUnit,
   type CurrencyRate,
 } from "@/lib/money";
 import CalculatorEntries from "@/components/calculator/CalculatorEntries.vue";
 import CalculatorKeypad from "@/components/calculator/CalculatorKeypad.vue";
 import CalculatorPaymentMethods from "@/components/calculator/CalculatorPaymentMethods.vue";
 import CalculatorStatus from "@/components/calculator/CalculatorStatus.vue";
+import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 
 interface PaymentMethod {
   id: number;
   name: string;
   displayName: string;
   currencyCode: string;
+  color: string;
 }
 interface Entry {
   type: string;
@@ -100,10 +176,19 @@ const props = defineProps<{
   // outright, so payment sufficiency is validated via
   // QuoteExchangePaymentStatus against this original sale invoice instead.
   exchangeOriginalInvoiceId?: number;
+  hidePaymentMethodCurrency?: boolean;
+  // When enabled, confirming an entry against an LBP-like (cash-rounded)
+  // payment method multiplies the typed amount by 1,000 - so a cashier can
+  // type "50" instead of "50000" or pressing the "00" key.
+  autoAppendLbpZeros?: boolean;
 }>();
 const emit = defineEmits<{ account: []; coupon: [] }>();
 const hasItems = computed(() => Boolean(props.hasItems));
 const exchangeMode = computed(() => Boolean(props.exchangeMode));
+// Both exchange and settlement mode lock the client and disable
+// on-account/coupon - only the calculator and the mode-specific checkout
+// action are active.
+const restricted = computed(() => exchangeMode.value || Boolean(props.settlementInvoiceId));
 const roundingMode = computed(() => normalizeRoundingMode(props.roundingMode ?? ""));
 const paymentMethods = ref<PaymentMethod[]>([]);
 const currencies = ref<(CurrencyRate & { isActive: boolean; isDefault: boolean })[]>([]);
@@ -115,6 +200,7 @@ const couponCode = ref("");
 const couponTypeId = ref<number | null>(null);
 const couponTypes = ref<any[]>([]);
 const selectedCouponType = computed(() => couponTypes.value.find((item) => item.id === couponTypeId.value));
+const pendingOverchange = ref<{ methodName: string; amount: number; amountCents: number; currencySymbol: string } | null>(null);
 
 const roundingCurrency = computed<CurrencyRate>(
   () =>
@@ -216,8 +302,8 @@ const paymentStatus = computed(() =>
     : cashRoundedToTotal.value
       ? "Paid (cash rounded)"
       : diffCents.value > 0
-        ? "Amount to return"
-        : "Amount to pay",
+        ? "Give"
+        : "Get",
 );
 const statusColor = computed(() =>
   diff.value > 0 ? "text-red-darken-2" : "text-green-darken-2",
@@ -234,9 +320,13 @@ const remainingAmount = computed(() => {
     // The default currency (e.g. USC, the internal accounting cent) is a
     // bookkeeping unit, not something a cashier should ever see as a total.
     .filter((c) => c.isActive && !c.isDefault)
-    .map((c) => ({ code: c.code, text: formatAmountInCurrency(amountCents, c) }));
+    .map((c) => ({
+      code: c.code,
+      text: formatAmountInCurrency(amountCents, c),
+      rounded: isRoundedToUnit(amountCents, c, roundingMode.value),
+    }));
   if (roundingCurrency.value.cashRoundingUnit <= 1) {
-    return { usd: fullUsd, lbp: "", fullUsd, fullLbp: "", amountsByCurrency };
+    return { usd: fullUsd, lbp: "", fullUsd, fullLbp: "", amountsByCurrency, lbpRounded: false };
   }
   const dollarAmount = amountCents / 100;
   const wholeDollars = Math.floor(dollarAmount / 10) * 10;
@@ -248,6 +338,7 @@ const remainingAmount = computed(() => {
     fullUsd,
     fullLbp,
     amountsByCurrency,
+    lbpRounded: isRoundedToUnit(remainderCents, roundingCurrency.value, roundingMode.value),
   };
 });
 const totalSummary = computed(() => {
@@ -281,6 +372,7 @@ onMounted(async () => {
       name: method.name,
       displayName: method.displayName ?? method.name,
       currencyCode: method.currencyCode,
+      color: method.color ?? "",
     }));
     activeMethod.value = paymentMethods.value[0]?.name ?? "";
   } catch {
@@ -301,31 +393,72 @@ onMounted(async () => {
   try { couponTypes.value = (await ListCouponTypes()) as any[]; } catch { couponTypes.value = []; }
 });
 
+// Tracks whether currentInput was populated by fillRemainingInput (an
+// already-final amount) rather than typed digit-by-digit - autoAppendLbpZeros
+// only multiplies manually typed amounts, never an auto-filled one.
+const inputWasAutoFilled = ref(false);
+
 function appendDigit(value: string) {
+  inputWasAutoFilled.value = false;
   if (value !== "." || !currentInput.value.includes(".")) currentInput.value += value;
 }
 function backspace() {
+  inputWasAutoFilled.value = false;
   currentInput.value = currentInput.value.slice(0, -1);
 }
 function clearInput() {
+  inputWasAutoFilled.value = false;
   currentInput.value = "";
 }
 
-function confirmEntry(methodName = activeMethod.value) {
-  const amount = Number(currentInput.value);
+function pushEntry(methodName: string, amount: number, amountCents: number, isChange: boolean) {
   const method = paymentMethods.value.find((candidate) => candidate.name === methodName);
-  const currency = currencyFor(methodName);
-  if (!Number.isFinite(amount) || amount <= 0 || currency.unitsPerUsd <= 0) return;
-  const amountCents = roundCentsFromCurrencyUnits(amount, currency, roundingMode.value);
-  if (amountCents <= 0) return;
-  const isChange = diffCents.value > 0;
   entries.value.push({
     type: methodName,
     amount: isChange ? -amount : amount,
     amountCents: isChange ? -amountCents : amountCents,
     accountId: method?.id ?? 0,
   });
+}
+
+function confirmEntry(methodName = activeMethod.value) {
+  const currency = currencyFor(methodName);
+  const shouldAppendZeros =
+    props.autoAppendLbpZeros &&
+    !inputWasAutoFilled.value &&
+    currency.cashRoundingUnit > 1 &&
+    !currentInput.value.includes(".");
+  const amount = Number(currentInput.value) * (shouldAppendZeros ? 1000 : 1);
+  if (!Number.isFinite(amount) || amount <= 0 || currency.unitsPerUsd <= 0) return;
+  const amountCents = roundCentsFromCurrencyUnits(amount, currency, roundingMode.value);
+  if (amountCents <= 0) return;
+  const isChange = diffCents.value > 0;
+  // Change larger than what's owed is a legitimate move (e.g. breaking a
+  // 100,000 LL note when only 50,000 is owed, with the customer handing
+  // back the 50,000 difference in smaller notes) - so it must never be
+  // blocked. But it's also exactly what a mistyped amount looks like, so
+  // ask for confirmation instead of silently accepting or silently
+  // rejecting it.
+  if (isChange && amountCents > diffCents.value) {
+    pendingOverchange.value = { methodName, amount, amountCents, currencySymbol: currency.symbol };
+    return;
+  }
+  pushEntry(methodName, amount, amountCents, isChange);
   currentInput.value = "";
+  inputWasAutoFilled.value = false;
+}
+
+function confirmOverchange() {
+  if (!pendingOverchange.value) return;
+  const { methodName, amount, amountCents } = pendingOverchange.value;
+  pushEntry(methodName, amount, amountCents, true);
+  pendingOverchange.value = null;
+  currentInput.value = "";
+  inputWasAutoFilled.value = false;
+}
+
+function cancelOverchange() {
+  pendingOverchange.value = null;
 }
 
 function fillRemainingInput(methodName = activeMethod.value) {
@@ -337,11 +470,13 @@ function fillRemainingInput(methodName = activeMethod.value) {
     currentInput.value = String(
       roundCurrencyUnitsFromCents(settlementCents, currency, roundingMode.value),
     );
+    inputWasAutoFilled.value = true;
     return;
   }
 
   const settlementAmount = (settlementCents * currency.unitsPerUsd) / 100;
   currentInput.value = settlementAmount.toFixed(2).replace(/\.00$/, "");
+  inputWasAutoFilled.value = true;
 }
 
 function selectMethodAndConfirm(methodName: string) {
@@ -349,6 +484,10 @@ function selectMethodAndConfirm(methodName: string) {
   if (methodName.toLowerCase() === "on account" && !props.clientId) return;
   if (!currentInput.value) fillRemainingInput(methodName);
   confirmEntry(methodName);
+  // Each card click adds one payment entry immediately (there's no separate
+  // "confirm" step) - clearing the selection right after keeps the card from
+  // looking permanently highlighted once its payment has already been added.
+  activeMethod.value = "";
 }
 function addOnAccount() {
   const method = paymentMethods.value.find((candidate) => candidate.name.toLowerCase() === "on account");
@@ -435,16 +574,41 @@ defineExpose({
 
 <style scoped>
 .calculator-display-value {
-  font-size: 1.1rem !important;
+  font-size: 1.6rem !important;
   line-height: 1.2;
+  flex: 1 1 0;
+  text-align: center;
+  color: rgba(var(--v-theme-on-surface), 0.7);
 }
-
 </style>
 
 <style scoped>
-.calculator-action-button {
-  flex: 1 1 0;
+.calculator-payment-methods-column {
+  flex: 2 2 0;
   min-width: 0;
+}
+
+.calculator-action-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.calculator-type-card {
+  cursor: pointer;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border-top: 10px solid var(--payment-accent);
+  transition: border-color 120ms ease;
+}
+.payment-method-name {
+  font-size: 1.1rem !important;
+  line-height: 1.25;
+  color: rgb(var(--v-theme-on-surface));
+}
+.calculator-type-card--disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 </style>
 

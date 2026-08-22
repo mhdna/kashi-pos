@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -157,6 +158,26 @@ func (a *App) SetCurrencyActive(code string, active bool) (map[string]any, error
 	return currencyToMap(c), nil
 }
 
+// validatePaymentMethodInput trims name and resolves+validates the active
+// currency shared by CreateCashboxAccount and UpdateCashboxAccount.
+func (a *App) validatePaymentMethodInput(name, currencyCode string) (string, db.Currency, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", db.Currency{}, fmt.Errorf("payment method name is required")
+	}
+	if name == "On Account" || name == "On Coupon" {
+		return "", db.Currency{}, fmt.Errorf("%q is a reserved payment method name", name)
+	}
+	currency, err := resolveCurrency(a.ctx, a.store.Queries, currencyCode)
+	if err != nil {
+		return "", db.Currency{}, fmt.Errorf("currency: %w", err)
+	}
+	if !currency.IsActive {
+		return "", db.Currency{}, fmt.Errorf("currency %q is not active", currency.Code)
+	}
+	return name, currency, nil
+}
+
 // CreateCashboxAccount adds a new payment method (cashbox account) under a
 // given currency. Previously the only accounts that could exist were a
 // hardcoded seed list created at first run.
@@ -164,16 +185,9 @@ func (a *App) CreateCashboxAccount(name, currencyCode string) (map[string]any, e
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil, fmt.Errorf("payment method name is required")
-	}
-	currency, err := resolveCurrency(a.ctx, a.store.Queries, currencyCode)
+	name, currency, err := a.validatePaymentMethodInput(name, currencyCode)
 	if err != nil {
-		return nil, fmt.Errorf("currency: %w", err)
-	}
-	if !currency.IsActive {
-		return nil, fmt.Errorf("currency %q is not active", currency.Code)
+		return nil, err
 	}
 	account, err := a.store.CreateCashboxAccount(a.ctx, db.CreateCashboxAccountParams{Name: name, CurrencyCode: currency.Code})
 	if err != nil {
@@ -183,6 +197,53 @@ func (a *App) CreateCashboxAccount(name, currencyCode string) (map[string]any, e
 		"id":           account.ID,
 		"name":         account.Name,
 		"currencyCode": account.CurrencyCode,
+	}, nil
+}
+
+// cashboxAccountColorPattern matches a 6-digit hex color ("#rrggbb"), the
+// only format the color picker in Settings ever sends. An empty string is
+// also valid and means "no custom color" - the frontend falls back to its
+// existing name-based heuristic.
+var cashboxAccountColorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// UpdateCashboxAccount renames a payment method, changes its currency,
+// and/or sets the accent color shown on its calculator button. The two
+// internal bookkeeping placeholders ("On Account"/"On Coupon") can't be
+// edited - backend logic elsewhere matches them by exact name, so renaming
+// one would silently break that.
+func (a *App) UpdateCashboxAccount(id int64, name, currencyCode, color string) (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	existing, err := a.store.GetCashboxAccountByID(a.ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("payment method %d: %w", id, err)
+	}
+	if existing.Name == "On Account" || existing.Name == "On Coupon" {
+		return nil, fmt.Errorf("%q is a reserved payment method and cannot be edited", existing.Name)
+	}
+	name, currency, err := a.validatePaymentMethodInput(name, currencyCode)
+	if err != nil {
+		return nil, err
+	}
+	color = strings.TrimSpace(color)
+	if color != "" && !cashboxAccountColorPattern.MatchString(color) {
+		return nil, fmt.Errorf("color must be a hex value like #2e7d32, got %q", color)
+	}
+	account, err := a.store.UpdateCashboxAccount(a.ctx, db.UpdateCashboxAccountParams{
+		Name:         name,
+		CurrencyCode: currency.Code,
+		Color:        color,
+		ID:           id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("update payment method: %w", err)
+	}
+	return map[string]any{
+		"id":           account.ID,
+		"name":         account.Name,
+		"currencyCode": account.CurrencyCode,
+		"color":        account.Color,
 	}, nil
 }
 
@@ -200,12 +261,16 @@ func (a *App) ListPaymentMethods() ([]map[string]any, error) {
 			}
 		}
 	}
+	// ListCashboxAccounts already returns rows in admin-defined sort_order.
+	// "On Account"/"On Coupon" are internal bookkeeping placeholders, not
+	// selectable tenders, so they're pinned after every real payment method
+	// (On Account before On Coupon) regardless of their own sort_order -
+	// this keeps them out of the way even on a DB that seeded them before
+	// any admin-added methods existed.
 	accounts, err := a.store.ListCashboxAccounts(a.ctx)
 	if err != nil {
 		return nil, err
 	}
-	// Keep the special cards directly after the normal configured methods,
-	// with On Account immediately followed by On Coupon.
 	sort.SliceStable(accounts, func(i, j int) bool {
 		iSpecial := accounts[i].Name == "On Account" || accounts[i].Name == "On Coupon"
 		jSpecial := accounts[j].Name == "On Account" || accounts[j].Name == "On Coupon"
@@ -215,22 +280,63 @@ func (a *App) ListPaymentMethods() ([]map[string]any, error) {
 		if iSpecial && jSpecial {
 			return accounts[i].Name == "On Account"
 		}
-		return accounts[i].ID < accounts[j].ID
+		return false
 	})
 	result := make([]map[string]any, len(accounts))
 	for i, acc := range accounts {
-		// Keep the database names stable while presenting the shared label
-		// used by the first two cash payment cards.
-		displayName := acc.Name
-		if i < 2 {
-			displayName = "Cash"
-		}
 		result[i] = map[string]any{
 			"id":           acc.ID,
 			"name":         acc.Name,
-			"displayName":  displayName,
+			"displayName":  acc.Name,
 			"currencyCode": acc.CurrencyCode,
+			"color":        acc.Color,
 		}
 	}
 	return result, nil
+}
+
+// ReorderCashboxAccounts sets the display order of payment methods from
+// Settings. orderedIDs must contain exactly the set of existing "real"
+// payment method IDs - every cashbox account except the internal
+// "On Account"/"On Coupon" placeholders, which are never shown as a
+// selectable tender and so aren't admin-reorderable.
+func (a *App) ReorderCashboxAccounts(orderedIDs []int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	accounts, err := a.store.ListCashboxAccounts(a.ctx)
+	if err != nil {
+		return fmt.Errorf("list payment methods: %w", err)
+	}
+	reorderable := make(map[int64]bool, len(accounts))
+	for _, acc := range accounts {
+		if acc.Name == "On Account" || acc.Name == "On Coupon" {
+			continue
+		}
+		reorderable[acc.ID] = true
+	}
+	if len(orderedIDs) != len(reorderable) {
+		return fmt.Errorf("reorder must include exactly the %d existing payment methods, got %d", len(reorderable), len(orderedIDs))
+	}
+	seen := make(map[int64]bool, len(orderedIDs))
+	for _, id := range orderedIDs {
+		if !reorderable[id] {
+			return fmt.Errorf("payment method %d is not reorderable or does not exist", id)
+		}
+		if seen[id] {
+			return fmt.Errorf("payment method %d listed more than once", id)
+		}
+		seen[id] = true
+	}
+	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		for i, id := range orderedIDs {
+			if err := q.SetCashboxAccountSortOrder(a.ctx, db.SetCashboxAccountSortOrderParams{
+				SortOrder: int64(i),
+				ID:        id,
+			}); err != nil {
+				return fmt.Errorf("reorder payment method %d: %w", id, err)
+			}
+		}
+		return nil
+	})
 }

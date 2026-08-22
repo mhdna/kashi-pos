@@ -16,7 +16,7 @@
         <span>{{ paymentStatus }}</span>
       </div>
       <template v-else>
-        <span class="calculator-amounts-label" :class="statusColor">{{ paymentStatus }}</span>
+        <!-- <span class="calculator-amounts-label" :class="statusColor">{{ paymentStatus }}</span> -->
         <div class="calculator-amount calculator-total-usd">
           <strong :class="statusColor">{{ displayedTotal }}</strong>
         </div>
@@ -25,6 +25,7 @@
           <span v-if="remainingAmount.lbp" class="calculator-amounts-plus" aria-hidden="true">+</span>
           <span v-if="remainingAmount.lbp" :class="statusColor">{{ remainingAmount.lbp }}</span>
         </div>
+        <span v-if="isRounded" class="calculator-amounts-rounded">Rounded</span>
       </template>
     </div>
   </section>
@@ -43,7 +44,8 @@ const props = defineProps<{
     lbp: string;
     fullUsd: string;
     fullLbp: string;
-    amountsByCurrency: { code: string; text: string }[];
+    lbpRounded: boolean;
+    amountsByCurrency: { code: string; text: string; rounded: boolean }[];
   };
 }>();
 
@@ -56,6 +58,9 @@ const currentIndex = computed(() => {
 
 const displayedTotal = computed(
   () => props.remainingAmount.amountsByCurrency[currentIndex.value]?.text ?? props.remainingAmount.fullUsd,
+);
+const isRounded = computed(
+  () => Boolean(props.remainingAmount.amountsByCurrency[currentIndex.value]?.rounded) || props.remainingAmount.lbpRounded,
 );
 
 function flipCurrency() {
@@ -70,8 +75,8 @@ function flipCurrency() {
 .calculator-amounts {
   position: relative;
   display: grid;
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-  height: 100px;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  height: 66px;
   align-items: center;
   padding: 8px 12px;
   border: 1px solid rgba(var(--v-border-color), 0.12);
@@ -83,6 +88,15 @@ function flipCurrency() {
   top: 4px;
   right: 4px;
   z-index: 1;
+}
+.calculator-amounts-rounded {
+  position: absolute;
+  bottom: 4px;
+  left: 8px;
+  font-size: var(--kashi-font-size-xs, 0.6875rem);
+  font-weight: 500;
+  opacity: 0.6;
+  line-height: 1;
 }
 .calculator-amounts-label {
   grid-row: 1;
@@ -97,8 +111,8 @@ function flipCurrency() {
   align-items: center;
   gap: 2px;
 }
-.calculator-total-usd { grid-row: 2; }
-.calculator-total-lbp { grid-row: 3; }
+.calculator-total-usd { grid-row: 1; }
+.calculator-total-lbp { grid-row: 2; }
 .calculator-accepted-state {
   grid-row: 1 / -1;
   display: flex;
@@ -120,7 +134,7 @@ function flipCurrency() {
   font-weight: 700;
 }
 .calculator-amounts-split {
-  grid-row: 3;
+  grid-row: 2;
   display: flex;
   justify-content: center;
   align-items: center;

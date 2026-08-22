@@ -1,31 +1,35 @@
 <template>
   <div class="settings-page">
-    <v-text-field
-      v-model="settingsSearch"
-      class="settings-search mb-4"
-      placeholder="Search settings…"
-      prepend-inner-icon="mdi-magnify"
-      variant="outlined"
-      density="compact"
-      clearable
-      hide-details
-    />
+    <div class="settings-header">
+      <v-text-field
+        v-model="settingsSearch"
+        class="settings-search mb-4"
+        placeholder="Search settings…"
+        prepend-inner-icon="mdi-magnify"
+        variant="outlined"
+        density="compact"
+        clearable
+        hide-details
+      />
 
-    <div v-if="normalizedSearch && !tabsWithMatches?.size" class="settings-empty">
-      No settings match "{{ settingsSearch }}".
+      <v-tabs v-model="tab" class="settings-tabs" color="primary" grow>
+        <v-tab value="general">General Settings</v-tab>
+        <v-tab value="printing">Printing &amp; Receipt</v-tab>
+        <v-tab value="attendance">Attendance</v-tab>
+        <v-tab value="money">Money</v-tab>
+        <v-tab value="coupons">Coupons</v-tab>
+        <v-tab value="behavior">POS Behavior</v-tab>
+        <v-tab value="admin">Users &amp; Security</v-tab>
+      </v-tabs>
+      <v-progress-linear v-if="settingsLoading" indeterminate color="primary" />
     </div>
 
-    <v-tabs v-model="tab" class="settings-tabs mb-5" color="primary" grow>
-      <v-tab value="general">General Settings</v-tab>
-      <v-tab value="printing">Printing &amp; Receipt</v-tab>
-      <v-tab value="attendance">Attendance</v-tab>
-      <v-tab value="money">Money</v-tab>
-      <v-tab value="coupons">Coupons</v-tab>
-      <v-tab value="admin">Passwords &amp; Users</v-tab>
-    </v-tabs>
-    <v-progress-linear v-if="settingsLoading" indeterminate color="primary" class="mb-4" />
+    <div class="settings-scroll">
+      <div v-if="normalizedSearch && !tabsWithMatches?.size" class="settings-empty">
+        No settings match "{{ settingsSearch }}".
+      </div>
 
-    <v-window v-model="tab">
+      <v-window v-model="tab">
       <v-window-item value="general">
         <div class="settings-grid">
           <v-card v-show="panelMatches('general-appearance')" class="settings-card">
@@ -44,10 +48,7 @@
                 :model-value="animationsEnabled"
                 label="Animations"
                 color="primary"
-                hint="Turn off decorative motion for a simpler, faster display."
-                persistent-hint
                 hide-details
-                class="mt-3"
                 @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
               />
             </v-card-text>
@@ -55,23 +56,15 @@
 
           <v-card v-show="panelMatches('general-branch')" class="settings-card">
             <v-card-title>Branch</v-card-title>
-            <v-card-text>
-              <v-text-field
-                v-model="form.branchName"
-                placeholder="Branch name"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
+            <v-card-text class="field-grid">
+              <v-text-field v-model="form.branchName" placeholder="Branch name" variant="outlined" density="compact" hide-details />
               <v-text-field
                 v-model="form.branchCode"
                 placeholder="Branch code"
-                hint="Used in invoice numbers, for example CN."
                 maxlength="8"
-                persistent-hint
                 variant="outlined"
                 density="compact"
-                class="mb-2"
+                hide-details
                 @update:model-value="form.branchCode = form.branchCode.toUpperCase()"
               />
               <v-select
@@ -80,10 +73,10 @@
                 item-title="name"
                 item-value="id"
                 placeholder="Sales inventory"
-                hint="Stock is deducted from this inventory."
-                persistent-hint
                 variant="outlined"
                 density="compact"
+                hide-details
+                class="field-full"
               />
             </v-card-text>
           </v-card>
@@ -109,17 +102,14 @@
 
           <v-card v-show="panelMatches('general-remote')" class="settings-card">
             <v-card-title>Remote admin &amp; API</v-card-title>
-            <v-card-text>
-              <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="mb-3" />
-              <v-text-field v-model="form.adminListen" placeholder="Listen address" hint="Use 0.0.0.0:8787 for LAN access." persistent-hint variant="outlined" density="compact" class="mb-2" />
+            <v-card-text class="field-grid">
+              <v-text-field v-model="form.adminListen" placeholder="Listen address" variant="outlined" density="compact" hide-details />
               <v-text-field
                 v-model="form.adminToken"
-                placeholder="Admin token / HTTP password"
-                hint="Required when listening beyond localhost."
-                persistent-hint
+                placeholder="Admin token"
                 variant="outlined"
                 density="compact"
-                class="mb-2"
+                hide-details
                 :type="showAdminToken ? 'text' : 'password'"
                 :append-inner-icon="showAdminToken ? 'mdi-eye' : 'mdi-eye-off'"
                 @click:append-inner="showAdminToken = !showAdminToken"
@@ -129,10 +119,12 @@
                 placeholder="API key"
                 variant="outlined"
                 density="compact"
+                hide-details
                 :append-inner-icon="showApiKey ? 'mdi-eye' : 'mdi-eye-off'"
                 :type="showApiKey ? 'text' : 'password'"
                 @click:append-inner="showApiKey = !showApiKey"
               />
+              <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="field-full" />
             </v-card-text>
           </v-card>
         </div>
@@ -291,6 +283,15 @@
                 hide-details
               />
               <v-switch v-model="form.allowOverpayment" label="Allow overpayment" color="primary" hide-details class="field-full" />
+              <v-switch
+                :model-value="form.autoAppendLbpZeros"
+                :loading="autoAppendLbpZerosSaving"
+                label="Auto-append 000 to LBP amounts"
+                color="primary"
+                hide-details
+                class="field-full"
+                @update:model-value="(value) => setAutoAppendLbpZeros(value)"
+              />
             </v-card-text>
           </v-card>
 
@@ -400,24 +401,55 @@
             </v-card-text>
           </v-card>
 
-          <v-card v-show="panelMatches('money-payment-methods')" class="settings-card">
+          <v-card v-show="panelMatches('money-payment-methods')" class="settings-card settings-card--wide">
             <v-card-title>Payment methods</v-card-title>
             <v-card-text>
               <v-table density="compact" class="mb-4">
                 <thead>
                   <tr>
+                    <th>Order</th>
                     <th>Name</th>
                     <th>Currency</th>
+                    <th>Color</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="method in paymentMethods" :key="method.id">
+                  <tr v-for="(method, index) in orderablePaymentMethods" :key="method.id">
+                    <td>{{ index + 1 }}</td>
                     <td>{{ method.name }}</td>
                     <td>{{ method.currencyCode }}</td>
+                    <td>
+                      <span
+                        class="payment-method-color-swatch"
+                        :style="{ background: paymentAccentColor(method) }"
+                      />
+                    </td>
+                    <td>
+                      <v-btn
+                        icon="mdi-arrow-up"
+                        size="x-small"
+                        variant="text"
+                        :disabled="index === 0"
+                        :loading="paymentMethodReordering"
+                        @click="movePaymentMethod(index, -1)"
+                      />
+                      <v-btn
+                        icon="mdi-arrow-down"
+                        size="x-small"
+                        variant="text"
+                        :disabled="index === orderablePaymentMethods.length - 1"
+                        :loading="paymentMethodReordering"
+                        @click="movePaymentMethod(index, 1)"
+                      />
+                      <v-btn icon="mdi-pencil" variant="text" size="small" @click="editPaymentMethod(method)" />
+                    </td>
                   </tr>
                 </tbody>
               </v-table>
-              <div class="text-subtitle-2 mb-2">Add a payment method</div>
+              <div class="text-subtitle-2 mb-2">
+                {{ editingPaymentMethodId ? "Edit payment method" : "Add a payment method" }}
+              </div>
               <div class="d-flex flex-wrap ga-2 align-start">
                 <v-text-field
                   v-model="paymentMethodForm.name"
@@ -434,19 +466,30 @@
                   density="compact"
                   style="max-width: 220px"
                 />
-                <v-btn color="primary" :loading="paymentMethodSaving" @click="savePaymentMethod">Add</v-btn>
+                <div v-if="editingPaymentMethodId" class="d-flex align-center ga-2">
+                  <input v-model="paymentMethodForm.color" type="color" class="payment-method-color-input" />
+                  <v-btn variant="text" size="small" @click="paymentMethodForm.color = ''">Use automatic color</v-btn>
+                </div>
+                <v-btn color="primary" :loading="paymentMethodSaving" @click="savePaymentMethod">
+                  {{ editingPaymentMethodId ? "Save" : "Add" }}
+                </v-btn>
+                <v-btn v-if="editingPaymentMethodId" variant="text" @click="resetPaymentMethodForm">Cancel</v-btn>
               </div>
+              <v-switch
+                :model-value="!form.hidePaymentMethodCurrency"
+                :loading="paymentMethodSaving"
+                color="primary"
+                hide-details
+                label="Show currency on payment method buttons"
+                class="mt-2"
+                @update:model-value="(value) => setHidePaymentMethodCurrency(!value)"
+              />
             </v-card-text>
           </v-card>
 
           <v-card v-show="panelMatches('money-price-lists')" class="settings-card">
             <v-card-title>Price lists</v-card-title>
             <v-card-text>
-              <p class="text-caption text-medium-emphasis mb-3">
-                A price list overrides a product code's price for every color/size that shares it
-                (e.g. "Black Friday" -> lady pants $11). Enable a list to apply it at checkout; a
-                product code can only be overridden by one active price list at a time.
-              </p>
               <v-table density="compact" class="mb-4">
                 <thead>
                   <tr>
@@ -490,10 +533,6 @@
           <v-card v-show="panelMatches('money-discount-lists')" class="settings-card">
             <v-card-title>Discount lists</v-card-title>
             <v-card-text>
-              <p class="text-caption text-medium-emphasis mb-3">
-                A discount list overrides a product code's discount %, independently of any price
-                list. A product code can only be overridden by one active discount list at a time.
-              </p>
               <v-table density="compact" class="mb-4">
                 <thead>
                   <tr>
@@ -542,58 +581,58 @@
       </v-window-item>
 
       <v-window-item value="coupons">
-        <v-card v-show="panelMatches('coupons-types')" class="settings-card" max-width="720">
-          <v-card-title>Coupon types</v-card-title>
-          <v-card-text>
-            <div class="d-flex ga-2 align-start">
-              <v-text-field v-model="couponTypeForm.name" placeholder="Type name" variant="outlined" density="compact" />
-              <v-text-field v-model.number="couponTypeForm.value" placeholder="Value" type="number" min="0.01" step="0.01" variant="outlined" density="compact" />
-              <v-text-field v-model="couponTypeForm.currency" placeholder="Currency" maxlength="3" variant="outlined" density="compact" style="max-width: 110px" />
-              <v-btn color="primary" :loading="couponTypeSaving" @click="saveCouponType">{{ editingCouponTypeId ? "Save" : "Add" }}</v-btn>
-              <v-btn v-if="editingCouponTypeId" variant="text" @click="cancelCouponTypeEdit">Cancel</v-btn>
-            </div>
-            <div class="d-flex align-center ga-4 mt-n3 mb-2">
-              <v-checkbox v-model="couponTypeForm.referenceOnly" density="compact" hide-details label="Reference-only" />
-              <v-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details label="Active" />
-            </div>
-            <div class="d-flex ga-2 align-start mb-2">
-              <v-text-field v-model="couponCodeForm" placeholder="New coupon code" variant="outlined" density="compact" />
-              <v-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" placeholder="Type" variant="outlined" density="compact" />
-              <v-btn color="secondary" :loading="couponIssuing" @click="issueCoupon">Issue</v-btn>
-            </div>
-            <v-list density="compact">
-              <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.referenceOnly ? ' · Reference-only' : ''}`">
-                <template #append>
-                  <v-btn icon="mdi-pencil-outline" variant="text" density="compact" title="Edit coupon type" @click="editCouponType(couponType)" />
-                  <v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon type" @click="removeCouponType(couponType)" />
-                </template>
-              </v-list-item>
-              <v-list-item v-if="!couponTypes.length" title="No coupon types configured" />
-            </v-list>
-            <div class="text-subtitle-2 mt-4 mb-1">Issued coupons</div>
-            <v-list density="compact">
-              <v-list-item v-for="coupon in coupons" :key="coupon.code" :title="coupon.code" :subtitle="`${(Number(coupon.valueCents) / 100).toFixed(2)} · ${coupon.status}`">
-                <template #append><v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon" @click="removeCoupon(coupon)" /></template>
-              </v-list-item>
-              <v-list-item v-if="!coupons.length" title="No coupons issued" />
-            </v-list>
-          </v-card-text>
-        </v-card>
+        <div class="settings-grid">
+          <v-card v-show="panelMatches('coupons-types')" class="settings-card">
+            <v-card-title>Coupon types</v-card-title>
+            <v-card-text>
+              <div class="d-flex flex-wrap ga-2 align-start">
+                <v-text-field v-model="couponTypeForm.name" placeholder="Type name" variant="outlined" density="compact" style="max-width: 160px" />
+                <v-text-field v-model.number="couponTypeForm.value" placeholder="Value" type="number" min="0.01" step="0.01" variant="outlined" density="compact" style="max-width: 110px" />
+                <v-text-field v-model="couponTypeForm.currency" placeholder="Currency" maxlength="3" variant="outlined" density="compact" style="max-width: 100px" />
+                <v-btn color="primary" :loading="couponTypeSaving" @click="saveCouponType">{{ editingCouponTypeId ? "Save" : "Add" }}</v-btn>
+                <v-btn v-if="editingCouponTypeId" variant="text" @click="cancelCouponTypeEdit">Cancel</v-btn>
+              </div>
+              <div class="d-flex align-center ga-4 mb-2">
+                <v-checkbox v-model="couponTypeForm.referenceOnly" density="compact" hide-details label="Reference-only" />
+                <v-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details label="Active" />
+              </div>
+              <v-list density="compact" bg-color="transparent">
+                <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.referenceOnly ? ' · Reference-only' : ''}`">
+                  <template #append>
+                    <v-btn icon="mdi-pencil-outline" variant="text" density="compact" title="Edit coupon type" @click="editCouponType(couponType)" />
+                    <v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon type" @click="removeCouponType(couponType)" />
+                  </template>
+                </v-list-item>
+                <v-list-item v-if="!couponTypes.length" title="No coupon types configured" />
+              </v-list>
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('coupons-issued')" class="settings-card">
+            <v-card-title>Issued coupons</v-card-title>
+            <v-card-text>
+              <div class="d-flex flex-wrap ga-2 align-start mb-2">
+                <v-text-field v-model="couponCodeForm" placeholder="New coupon code" variant="outlined" density="compact" />
+                <v-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" placeholder="Type" variant="outlined" density="compact" />
+                <v-btn color="secondary" :loading="couponIssuing" @click="issueCoupon">Issue</v-btn>
+              </div>
+              <v-list density="compact" bg-color="transparent">
+                <v-list-item v-for="coupon in coupons" :key="coupon.code" :title="coupon.code" :subtitle="`${(Number(coupon.valueCents) / 100).toFixed(2)} · ${coupon.status}`">
+                  <template #append><v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon" @click="removeCoupon(coupon)" /></template>
+                </v-list-item>
+                <v-list-item v-if="!coupons.length" title="No coupons issued" />
+              </v-list>
+            </v-card-text>
+          </v-card>
+        </div>
       </v-window-item>
 
-      <v-window-item value="admin">
+      <v-window-item value="behavior">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('admin-custom-pricing')" class="settings-card">
+          <v-card v-show="panelMatches('behavior-custom-pricing')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-sale-outline" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Custom item pricing</div>
-                <div class="text-caption text-medium-emphasis">
-                  Choose which item-level price and discount controls cashiers can use.
-                </div>
-              </div>
+              <v-icon icon="mdi-sale-outline" size="20" />
+              Custom item pricing
             </v-card-title>
             <v-card-text>
               <v-switch
@@ -601,7 +640,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Enable custom item prices"
+                label="Custom item prices"
                 @update:model-value="setCustomPricesEnabled"
               />
               <v-switch
@@ -609,7 +648,7 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Enable per-unit price and discount editing"
+                label="Per-unit price/discount editing"
                 @update:model-value="setPerUnitPricesEnabled"
               />
               <v-switch
@@ -617,23 +656,16 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Enable custom product discounts"
+                label="Custom product discounts"
                 @update:model-value="setCustomDiscountsEnabled"
               />
             </v-card-text>
           </v-card>
 
-          <v-card v-show="panelMatches('admin-price-change-mode')" class="settings-card">
+          <v-card v-show="panelMatches('behavior-price-change-mode')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-tag-multiple-outline" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Price change mode</div>
-                <div class="text-caption text-medium-emphasis">
-                  Choose how a manual price edit relates to the item's discount.
-                </div>
-              </div>
+              <v-icon icon="mdi-tag-multiple-outline" size="20" />
+              Price change mode
             </v-card-title>
             <v-card-text>
               <v-switch
@@ -641,31 +673,16 @@
                 :loading="pricingSettingsSaving"
                 color="primary"
                 hide-details
-                label="Treat price changes as manual overrides"
+                label="Manual override (independent price & discount)"
                 @update:model-value="setPriceChangeManualOverrideEnabled"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                {{
-                  form.priceChangeManualOverrideEnabled
-                    ? "Manual override: price and discount are edited independently, as separate fields."
-                    : "Discount (default): price and discount are the same lever — changing either one recalculates the other from the item's original price."
-                }}
-              </div>
             </v-card-text>
           </v-card>
 
-          <v-card v-show="panelMatches('admin-invoice-keyboard')" class="settings-card">
+          <v-card v-show="panelMatches('behavior-invoice-keyboard')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-keyboard" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Invoice keyboard mode</div>
-                <div class="text-caption text-medium-emphasis">
-                  Edit qty/discount/price on the invoice by clicking a value and typing digits,
-                  instead of opening the number pad.
-                </div>
-              </div>
+              <v-icon icon="mdi-keyboard" size="20" />
+              Invoice keyboard mode
             </v-card-title>
             <v-card-text>
               <v-switch
@@ -676,25 +693,18 @@
                 label="Enable keyboard mode"
                 @update:model-value="setInvoiceKeyboardModeEnabled"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                With keyboard mode on, clicking qty, discount, or price focuses it - type a
-                number to set it, then use the arrow keys to move to the next field. Click the
-                barcode field to return focus there.
-              </div>
             </v-card-text>
           </v-card>
 
+        </div>
+      </v-window-item>
+
+      <v-window-item value="admin">
+        <div class="settings-grid">
           <v-card v-show="panelMatches('admin-page-access')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-lock-outline" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Page access</div>
-                <div class="text-caption text-medium-emphasis">
-                  Choose which pages non-admin users can open. Admins always see every page.
-                </div>
-              </div>
+              <v-icon icon="mdi-lock-outline" size="20" />
+              Page access
             </v-card-title>
             <v-card-text>
               <v-switch
@@ -714,18 +724,13 @@
           <v-form v-show="panelMatches('admin-change-password')" class="settings-form-wrap" @submit.prevent="changePassword">
             <v-card class="settings-card">
               <v-card-title class="d-flex align-center ga-3">
-                <v-avatar color="primary" variant="tonal" size="36">
-                  <v-icon icon="mdi-lock-reset" size="20" />
-                </v-avatar>
-                <div>
-                  <div class="text-subtitle-1 font-weight-bold">Change password</div>
-                  <div class="text-caption text-medium-emphasis">Keep your account secure.</div>
-                </div>
+                <v-icon icon="mdi-lock-reset" size="20" />
+                Change password
               </v-card-title>
               <v-card-text>
                 <v-text-field
                   v-model="passwordForm.current"
-                  placeholder="Current Password"
+                  placeholder="Current password"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -735,7 +740,7 @@
                 />
                 <v-text-field
                   v-model="passwordForm.newPass"
-                  placeholder="New Password"
+                  placeholder="New password"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -743,10 +748,9 @@
                 />
                 <v-text-field
                   v-model="passwordForm.confirm"
-                  placeholder="Confirm New Password"
+                  placeholder="Confirm new password"
                   variant="outlined"
                   density="compact"
-                  class="mb-2"
                   :type="showPw ? 'text' : 'password'"
                   :rules="[(v) => v === passwordForm.newPass || 'Passwords do not match']"
                 />
@@ -754,7 +758,7 @@
               <v-card-actions>
                 <v-spacer />
                 <v-btn color="primary" variant="flat" type="submit" :loading="changingPassword">
-                  <v-icon start icon="mdi-lock-reset" /> Change Password
+                  <v-icon start icon="mdi-lock-reset" /> Change password
                 </v-btn>
               </v-card-actions>
             </v-card>
@@ -762,15 +766,8 @@
 
           <v-card v-show="panelMatches('admin-users')" class="settings-card settings-card--wide">
             <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-account-group-outline" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Users</div>
-                <div class="text-caption text-medium-emphasis">
-                  Manage who can access the point of sale.
-                </div>
-              </div>
+              <v-icon icon="mdi-account-group-outline" size="20" />
+              Users
               <v-spacer />
               <v-btn color="primary" size="small" @click="openUserDialog()">
                 <v-icon start icon="mdi-plus" /> Add user
@@ -802,13 +799,8 @@
 
           <v-card v-show="panelMatches('admin-salespersons')" class="settings-card settings-card--wide">
             <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36">
-                <v-icon icon="mdi-account-tie" size="20" />
-              </v-avatar>
-              <div>
-                <div class="text-subtitle-1 font-weight-bold">Salespersons</div>
-                <div class="text-caption text-medium-emphasis">Manage the people assigned to sales.</div>
-              </div>
+              <v-icon icon="mdi-account-tie" size="20" />
+              Salespersons
               <v-spacer />
               <v-btn color="primary" size="small" @click="openSalespersonDialog()">
                 <v-icon start icon="mdi-plus" /> Add salesperson
@@ -834,7 +826,8 @@
           </v-card>
         </div>
       </v-window-item>
-    </v-window>
+      </v-window>
+    </div>
 
     <v-dialog v-model="userDialog" max-width="400">
       <v-card>
@@ -1020,6 +1013,8 @@ import {
   SetPerUnitItemPricesEnabled,
   SetPriceChangeManualOverrideEnabled,
   SetInvoiceKeyboardModeEnabled,
+  SetHidePaymentMethodCurrency,
+  SetAutoAppendLbpZerosEnabled,
   SetPageUnlocked,
   UpdateDefaultOpeningFloat,
   SetAutoCloseStaleShiftsEnabled,
@@ -1054,6 +1049,8 @@ import {
   SetCurrencyActive,
   ListPaymentMethods,
   CreateCashboxAccount,
+  UpdateCashboxAccount,
+  ReorderCashboxAccounts,
   SetTheme,
   ListPriceLists,
   CreatePriceList,
@@ -1071,6 +1068,8 @@ import {
   RemoveDiscountListItem,
 } from "../../wailsjs/go/main/App";
 import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
+import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
+import { paymentAccentColor } from "@/lib/paymentColor";
 import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks, lockablePages } from "@/composables/usePageUnlocks";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
@@ -1097,18 +1096,19 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
   "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port" },
   "printing-receipt": { tab: "printing", title: "Receipt settings", keywords: "market name phone description branch phone register return policy social platforms instagram facebook website font body size title size cut paper sample" },
-  "money-general": { tab: "money", title: "Money settings", keywords: "vat tax rate exchange rate overpayment rounding mode currency calculator total currency" },
+  "money-general": { tab: "money", title: "Money settings", keywords: "vat tax rate exchange rate overpayment rounding mode currency calculator total currency auto append lbp zeros 000" },
   "money-float": { tab: "money", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift" },
   "money-exchange": { tab: "money", title: "Exchange settings", keywords: "exchange window days hours return" },
   "money-currencies": { tab: "money", title: "Currencies & rates", keywords: "currency code name symbol units per usd cash rounding unit active add currency" },
   "money-payment-methods": { tab: "money", title: "Payment methods", keywords: "payment method cashbox account currency" },
   "money-price-lists": { tab: "money", title: "Price lists", keywords: "price list override product code black friday active" },
   "money-discount-lists": { tab: "money", title: "Discount lists", keywords: "discount list override product code percent active" },
-  "coupons-types": { tab: "coupons", title: "Coupon types", keywords: "coupon type value currency reference only active issue code" },
-  "admin-custom-pricing": { tab: "admin", title: "Custom item pricing", keywords: "custom item price discount per unit editing" },
-  "admin-price-change-mode": { tab: "admin", title: "Price change mode", keywords: "price change manual override discount lever" },
-  "admin-invoice-keyboard": { tab: "admin", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
-  "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons" },
+  "coupons-types": { tab: "coupons", title: "Coupon types", keywords: "coupon type value currency reference only active" },
+  "coupons-issued": { tab: "coupons", title: "Issued coupons", keywords: "coupon issue code new" },
+  "behavior-custom-pricing": { tab: "behavior", title: "Custom item pricing", keywords: "custom item price discount per unit editing" },
+  "behavior-price-change-mode": { tab: "behavior", title: "Price change mode", keywords: "price change manual override discount lever" },
+  "behavior-invoice-keyboard": { tab: "behavior", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
+  "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
   "admin-change-password": { tab: "admin", title: "Change password", keywords: "change password current new confirm account security" },
   "admin-users": { tab: "admin", title: "Users", keywords: "users username role status add user edit delete akuvox userid" },
   "admin-salespersons": { tab: "admin", title: "Salespersons", keywords: "salespersons full name attendance id add edit delete" },
@@ -1128,7 +1128,7 @@ const tabsWithMatches = computed(() => {
   if (!normalizedSearch.value) return null;
   const set = new Set<string>();
   for (const key of Object.keys(panelMeta)) {
-    if (panelMatches(key)) set.add(panelMeta[key].tab);
+    if (panelMatches(key)) set.add(panelMeta[key]!.tab);
   }
   return set;
 });
@@ -1204,6 +1204,8 @@ const form = reactive({
   perUnitItemPricesEnabled: false,
   priceChangeManualOverrideEnabled: false,
   invoiceKeyboardModeEnabled: false,
+  hidePaymentMethodCurrency: false,
+  autoAppendLbpZeros: false,
   adminEnabled: false,
   adminListen: "127.0.0.1:8787",
   adminToken: "",
@@ -1237,11 +1239,19 @@ const calculatorDisplayCurrencies = computed(() =>
     .map((c) => ({ title: c.name, value: c.code })),
 );
 const paymentMethods = ref<any[]>([]);
+// "On Account"/"On Coupon" are internal bookkeeping placeholders, not
+// selectable tenders - hide them from the admin-facing list/reorder UI.
+const orderablePaymentMethods = computed(() =>
+  paymentMethods.value.filter((m) => !isSpecialPaymentMethod(m.name)),
+);
 const currencyForm = reactive({ code: "", name: "", symbol: "", unitsPerUsd: 1, cashRoundingUnit: 1 });
 const editingCurrencyCode = ref<string | null>(null);
 const currencySaving = ref(false);
-const paymentMethodForm = reactive({ name: "", currencyCode: "" });
+const autoAppendLbpZerosSaving = ref(false);
+const paymentMethodForm = reactive({ name: "", currencyCode: "", color: "" });
+const editingPaymentMethodId = ref<number | null>(null);
 const paymentMethodSaving = ref(false);
+const paymentMethodReordering = ref(false);
 
 async function loadCurrencies() {
   try {
@@ -1256,6 +1266,23 @@ async function loadPaymentMethodsList() {
     paymentMethods.value = (await ListPaymentMethods()) as any[];
   } catch {
     paymentMethods.value = [];
+  }
+}
+
+async function movePaymentMethod(index: number, offset: -1 | 1) {
+  const target = index + offset;
+  const ordered = orderablePaymentMethods.value;
+  if (target < 0 || target >= ordered.length) return;
+  const ids = ordered.map((m) => m.id);
+  [ids[index], ids[target]] = [ids[target], ids[index]];
+  paymentMethodReordering.value = true;
+  try {
+    await ReorderCashboxAccounts(ids);
+    await loadPaymentMethodsList();
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to reorder payment methods", "red");
+  } finally {
+    paymentMethodReordering.value = false;
   }
 }
 
@@ -1317,6 +1344,16 @@ async function toggleCurrencyActive(currency: any) {
   }
 }
 
+function editPaymentMethod(method: any) {
+  editingPaymentMethodId.value = method.id;
+  Object.assign(paymentMethodForm, { name: method.name, currencyCode: method.currencyCode, color: method.color || "" });
+}
+
+function resetPaymentMethodForm() {
+  editingPaymentMethodId.value = null;
+  Object.assign(paymentMethodForm, { name: "", currencyCode: "", color: "" });
+}
+
 async function savePaymentMethod() {
   if (!paymentMethodForm.name.trim() || !paymentMethodForm.currencyCode) {
     notify("Name and currency are required", "red");
@@ -1324,12 +1361,22 @@ async function savePaymentMethod() {
   }
   paymentMethodSaving.value = true;
   try {
-    await CreateCashboxAccount(paymentMethodForm.name.trim(), paymentMethodForm.currencyCode);
+    if (editingPaymentMethodId.value) {
+      await UpdateCashboxAccount(
+        editingPaymentMethodId.value,
+        paymentMethodForm.name.trim(),
+        paymentMethodForm.currencyCode,
+        paymentMethodForm.color,
+      );
+      notify("Payment method updated");
+    } else {
+      await CreateCashboxAccount(paymentMethodForm.name.trim(), paymentMethodForm.currencyCode);
+      notify("Payment method added");
+    }
     await loadPaymentMethodsList();
-    paymentMethodForm.name = "";
-    notify("Payment method added");
+    resetPaymentMethodForm();
   } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to add payment method", "red");
+    notify(error instanceof Error ? error.message : "Failed to save payment method", "red");
   } finally {
     paymentMethodSaving.value = false;
   }
@@ -1708,6 +1755,8 @@ async function loadSettings() {
         perUnitItemPricesEnabled: Boolean(s.perUnitItemPricesEnabled),
         priceChangeManualOverrideEnabled: Boolean(s.priceChangeManualOverrideEnabled),
         invoiceKeyboardModeEnabled: Boolean(s.invoiceKeyboardModeEnabled),
+        hidePaymentMethodCurrency: Boolean(s.hidePaymentMethodCurrency),
+        autoAppendLbpZeros: Boolean(s.autoAppendLbpZeros),
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
@@ -1841,6 +1890,38 @@ async function setInvoiceKeyboardModeEnabled(value: boolean | null) {
     notify("Failed to update invoice keyboard mode", "red");
   } finally {
     pricingSettingsSaving.value = false;
+  }
+}
+
+async function setHidePaymentMethodCurrency(value: boolean | null) {
+  const hide = Boolean(value);
+  const previous = form.hidePaymentMethodCurrency;
+  form.hidePaymentMethodCurrency = hide;
+  paymentMethodSaving.value = true;
+  try {
+    await SetHidePaymentMethodCurrency(hide);
+    notify(`Payment method currency ${hide ? "hidden" : "shown"}`);
+  } catch {
+    form.hidePaymentMethodCurrency = previous;
+    notify("Failed to update payment method currency visibility", "red");
+  } finally {
+    paymentMethodSaving.value = false;
+  }
+}
+
+async function setAutoAppendLbpZeros(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.autoAppendLbpZeros;
+  form.autoAppendLbpZeros = enabled;
+  autoAppendLbpZerosSaving.value = true;
+  try {
+    await SetAutoAppendLbpZerosEnabled(enabled);
+    notify(`Auto-append LBP zeros ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.autoAppendLbpZeros = previous;
+    notify("Failed to update auto-append LBP zeros", "red");
+  } finally {
+    autoAppendLbpZerosSaving.value = false;
   }
 }
 
@@ -2115,8 +2196,21 @@ async function deleteUser() {
 .settings-page {
   box-sizing: border-box;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settings-header {
+  flex: 0 0 auto;
+  padding: 28px 32px 0;
+}
+
+.settings-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  padding: 28px 32px 40px;
+  padding: 20px 32px 40px;
 }
 
 .settings-heading {
@@ -2148,6 +2242,7 @@ async function deleteUser() {
 .settings-tabs {
   border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   min-height: 44px;
+  margin-bottom: 4px;
 }
 
 .settings-tabs :deep(.v-tab) {
@@ -2188,6 +2283,23 @@ async function deleteUser() {
   grid-column: 1 / -1;
 }
 
+.payment-method-color-swatch {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+}
+
+.payment-method-color-input {
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
 .settings-card {
   min-width: 0;
   background: transparent !important;
@@ -2203,21 +2315,23 @@ async function deleteUser() {
   font-weight: 650;
 }
 
-.settings-card :deep(.v-card-title .text-subtitle-1) {
-  font-size: inherit !important;
-  line-height: inherit;
-}
-
-.settings-card :deep(.v-card-title .text-caption) {
-  font-weight: 400;
-}
-
 .settings-card :deep(.v-card-text) {
   padding: 12px 18px 16px;
 }
 
 .settings-card :deep(.v-table) {
   background: transparent;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px 16px;
+  align-items: start;
+}
+
+.field-grid > .field-full {
+  grid-column: 1 / -1;
 }
 
 .app-snackbar .v-snackbar__wrapper {
@@ -2232,8 +2346,12 @@ async function deleteUser() {
     grid-template-columns: 1fr;
   }
 
-  .settings-page {
-    padding: 16px;
+  .settings-header {
+    padding: 16px 16px 0;
+  }
+
+  .settings-scroll {
+    padding: 12px 16px 24px;
   }
 }
 </style>
