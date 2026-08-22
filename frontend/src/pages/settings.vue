@@ -1,5 +1,20 @@
 <template>
   <div class="settings-page">
+    <v-text-field
+      v-model="settingsSearch"
+      class="settings-search mb-4"
+      placeholder="Search settings…"
+      prepend-inner-icon="mdi-magnify"
+      variant="outlined"
+      density="compact"
+      clearable
+      hide-details
+    />
+
+    <div v-if="normalizedSearch && !tabsWithMatches?.size" class="settings-empty">
+      No settings match "{{ settingsSearch }}".
+    </div>
+
     <v-tabs v-model="tab" class="settings-tabs mb-5" color="primary" grow>
       <v-tab value="general">General Settings</v-tab>
       <v-tab value="printing">Printing &amp; Receipt</v-tab>
@@ -12,127 +27,140 @@
 
     <v-window v-model="tab">
       <v-window-item value="general">
-        <div class="settings-grid settings-grid--general">
-          <div class="settings-general-column">
-            <v-switch
-              :model-value="darkThemeEnabled"
-              :loading="themeSaving"
-              :disabled="themeSaving"
-              label="Dark theme"
-              color="primary"
-              hide-details
-              @update:model-value="setDarkTheme"
-            />
-            <v-switch
-              :model-value="animationsEnabled"
-              label="Animations"
-              color="primary"
-              hint="Turn off decorative motion for a simpler, faster display."
-              persistent-hint
-              hide-details
-              class="mt-5"
-              @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
-            />
-            <v-text-field
-              v-model="form.branchName"
-              placeholder="Branch name"
-              variant="outlined"
-              density="compact"
-              class="mt-5 mb-2"
-            />
-            <v-text-field
-              v-model="form.branchCode"
-              placeholder="Branch code"
-              hint="Used in invoice numbers, for example CN."
-              maxlength="8"
-              persistent-hint
-              variant="outlined"
-              density="compact"
-              @update:model-value="form.branchCode = form.branchCode.toUpperCase()"
-            />
-            <v-select
-              v-model.number="form.salesInventoryId"
-              :items="inventories"
-              item-title="name"
-              item-value="id"
-              placeholder="Sales inventory"
-              hint="Stock is deducted from this inventory."
-              persistent-hint
-              variant="outlined"
-              density="compact"
-              class="mt-5"
-            />
-          </div>
+        <div class="settings-grid">
+          <v-card v-show="panelMatches('general-appearance')" class="settings-card">
+            <v-card-title>Appearance</v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="darkThemeEnabled"
+                :loading="themeSaving"
+                :disabled="themeSaving"
+                label="Dark theme"
+                color="primary"
+                hide-details
+                @update:model-value="setDarkTheme"
+              />
+              <v-switch
+                :model-value="animationsEnabled"
+                label="Animations"
+                color="primary"
+                hint="Turn off decorative motion for a simpler, faster display."
+                persistent-hint
+                hide-details
+                class="mt-3"
+                @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
+              />
+            </v-card-text>
+          </v-card>
 
-          <div class="settings-general-column">
-            <v-text-field
-              :model-value="databasePath"
-              label="Current database"
-              variant="outlined"
-              density="compact"
-              readonly
-              hide-details
-            />
-            <div class="d-flex justify-end mt-2">
-              <v-btn variant="text" color="primary" :loading="databaseSwitching" @click="chooseDatabase">
-                <v-icon start icon="mdi-folder-open-outline" /> Choose database
-              </v-btn>
-            </div>
-            <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="mt-5 mb-3" />
-            <v-text-field v-model="form.adminListen" placeholder="Listen address" hint="Use 0.0.0.0:8787 for LAN access." persistent-hint variant="outlined" density="compact" class="mb-2" />
-            <v-text-field
-              v-model="form.adminToken"
-              placeholder="Admin token / HTTP password"
-              hint="Required when listening beyond localhost."
-              persistent-hint
-              variant="outlined"
-              density="compact"
-              class="mb-2"
-              :type="showAdminToken ? 'text' : 'password'"
-              :append-inner-icon="showAdminToken ? 'mdi-eye' : 'mdi-eye-off'"
-              @click:append-inner="showAdminToken = !showAdminToken"
-            />
-            <v-text-field
-              v-model="form.apiKey"
-              placeholder="API key"
-              variant="outlined"
-              density="compact"
-              class="mt-3"
-              :append-inner-icon="showApiKey ? 'mdi-eye' : 'mdi-eye-off'"
-              :type="showApiKey ? 'text' : 'password'"
-              @click:append-inner="showApiKey = !showApiKey"
-            />
-          </div>
+          <v-card v-show="panelMatches('general-branch')" class="settings-card">
+            <v-card-title>Branch</v-card-title>
+            <v-card-text>
+              <v-text-field
+                v-model="form.branchName"
+                placeholder="Branch name"
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="form.branchCode"
+                placeholder="Branch code"
+                hint="Used in invoice numbers, for example CN."
+                maxlength="8"
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+                @update:model-value="form.branchCode = form.branchCode.toUpperCase()"
+              />
+              <v-select
+                v-model.number="form.salesInventoryId"
+                :items="inventories"
+                item-title="name"
+                item-value="id"
+                placeholder="Sales inventory"
+                hint="Stock is deducted from this inventory."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+              />
+            </v-card-text>
+          </v-card>
 
-          <div class="settings-page-actions">
-            <v-btn color="primary" variant="flat" :loading="saving || adminSettingsSaving" @click="saveGeneralSettings">
-              <v-icon start icon="mdi-content-save-outline" /> Save general settings
-            </v-btn>
-          </div>
+          <v-card v-show="panelMatches('general-database')" class="settings-card">
+            <v-card-title>Database</v-card-title>
+            <v-card-text>
+              <v-text-field
+                :model-value="databasePath"
+                label="Current database"
+                variant="outlined"
+                density="compact"
+                readonly
+                hide-details
+              />
+              <div class="d-flex justify-end mt-2">
+                <v-btn variant="text" color="primary" :loading="databaseSwitching" @click="chooseDatabase">
+                  <v-icon start icon="mdi-folder-open-outline" /> Choose database
+                </v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
 
+          <v-card v-show="panelMatches('general-remote')" class="settings-card">
+            <v-card-title>Remote admin &amp; API</v-card-title>
+            <v-card-text>
+              <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="mb-3" />
+              <v-text-field v-model="form.adminListen" placeholder="Listen address" hint="Use 0.0.0.0:8787 for LAN access." persistent-hint variant="outlined" density="compact" class="mb-2" />
+              <v-text-field
+                v-model="form.adminToken"
+                placeholder="Admin token / HTTP password"
+                hint="Required when listening beyond localhost."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+                :type="showAdminToken ? 'text' : 'password'"
+                :append-inner-icon="showAdminToken ? 'mdi-eye' : 'mdi-eye-off'"
+                @click:append-inner="showAdminToken = !showAdminToken"
+              />
+              <v-text-field
+                v-model="form.apiKey"
+                placeholder="API key"
+                variant="outlined"
+                density="compact"
+                :append-inner-icon="showApiKey ? 'mdi-eye' : 'mdi-eye-off'"
+                :type="showApiKey ? 'text' : 'password'"
+                @click:append-inner="showApiKey = !showApiKey"
+              />
+            </v-card-text>
+          </v-card>
+        </div>
+        <div class="settings-page-actions">
+          <v-btn color="primary" variant="flat" :loading="saving || adminSettingsSaving" @click="saveGeneralSettings">
+            <v-icon start icon="mdi-content-save-outline" /> Save general settings
+          </v-btn>
         </div>
       </v-window-item>
 
       <v-window-item value="attendance">
         <div class="settings-grid">
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('attendance-machine')" class="settings-card">
             <v-card-title>Attendance machine</v-card-title>
-            <v-card-text>
-              <v-text-field v-model="form.akuvoxIP" placeholder="Akuvox IP address" variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.akuvoxUsername" placeholder="Device username (optional)" variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.akuvoxPassword" placeholder="Device password (optional)" type="password" variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.attendanceApproverPassword" placeholder="Manager password" type="password" variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model.number="form.attendanceDuplicateIntervalSeconds" placeholder="Duplicate interval (seconds)" type="number" min="0" step="1" variant="outlined" density="compact" class="mb-2" hint="Ignore repeated scans closer together than this interval." persistent-hint />
-              <v-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details />
-              <v-switch v-model="form.attendanceCashierHistory" label="Allow cashiers to browse previous attendance days" color="primary" hide-details class="mt-3" />
+            <v-card-text class="field-grid">
+              <v-text-field v-model="form.akuvoxIP" placeholder="Akuvox IP address" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.akuvoxUsername" placeholder="Device username" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.akuvoxPassword" placeholder="Device password" type="password" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.attendanceApproverPassword" placeholder="Manager password" type="password" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.attendanceDuplicateIntervalSeconds" placeholder="Duplicate interval (sec)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+              <v-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details class="field-full" />
+              <v-switch v-model="form.attendanceCashierHistory" label="Cashiers can browse previous days" color="primary" hide-details class="field-full" />
               <v-switch
                 v-model="form.autoCloseStaleShiftsEnabled"
-                label="Automatically close previous-day shifts"
-                hint="When the app starts or a user logs in, close any open shift created before today."
-                persistent-hint
+                label="Auto-close previous-day shifts"
                 color="primary"
                 hide-details
-                class="mt-3"
+                class="field-full"
               />
             </v-card-text>
           </v-card>
@@ -145,43 +173,38 @@
       </v-window-item>
 
       <v-window-item value="printing">
-        <div class="settings-grid settings-grid--receipt">
-          <v-card class="settings-card">
+        <div class="settings-grid">
+          <v-card v-show="panelMatches('printing-printer')" class="settings-card">
             <v-card-title>Printer &amp; customer screen</v-card-title>
-            <v-card-text>
-              <v-select v-model="form.receiptPrinter" :items="printers" placeholder="Receipt Printer" variant="outlined" density="compact" class="mb-2" />
-              <v-select v-model="form.printerSize" :items="['58mm', '80mm']" placeholder="Printing Size" variant="outlined" density="compact" class="mb-2" />
-              <v-row density="comfortable">
-                <v-col cols="6"><v-text-field v-model.number="form.receiptWidth" placeholder="Width (mm)" type="number" variant="outlined" density="compact" /></v-col>
-                <v-col cols="6"><v-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" /></v-col>
-              </v-row>
-              <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details />
-              <v-divider class="my-4" />
-              <div class="text-subtitle-2 font-weight-bold mb-2">Customer screen</div>
-              <v-select v-model="form.screenPort" :items="serialPorts" placeholder="Screen COM port" hint="Leave empty if no customer display is connected." persistent-hint variant="outlined" density="compact" />
+            <v-card-text class="field-grid">
+              <v-select v-model="form.receiptPrinter" :items="printers" placeholder="Receipt printer" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.printerSize" :items="['58mm', '80mm']" placeholder="Printing size" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.receiptWidth" placeholder="Width (mm)" type="number" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.screenPort" :items="serialPorts" placeholder="Customer screen COM port" variant="outlined" density="compact" hide-details />
+              <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
             </v-card-text>
           </v-card>
 
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('printing-receipt')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
-              <v-avatar color="primary" variant="tonal" size="36"><v-icon icon="mdi-printer-outline" size="20" /></v-avatar>
-              <div><div class="text-subtitle-1 font-weight-bold">Receipt settings</div><div class="text-caption text-medium-emphasis">Customize the printed market identity and footer.</div></div>
+              <v-icon icon="mdi-printer-outline" size="20" />
+              Receipt settings
             </v-card-title>
-            <v-card-text>
-              <v-text-field v-model="form.marketName" placeholder="Market name" hint="Printed large at the top, separately from the branch." persistent-hint variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.marketPhone" placeholder="Phone number" variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.marketDescription" placeholder="Description / tagline" variant="outlined" density="compact" class="mb-2" />
-              <v-text-field v-model="form.branchPhone" placeholder="Branch phone number" hint="Printed below the description." persistent-hint variant="outlined" density="compact" class="mb-2" />
-              <v-text-field
-                v-model="form.registerName"
-                placeholder="POS-01"
-                hint="Printed on sales, exchange, and end-of-shift receipts."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-textarea v-model="form.returnPolicy" placeholder="Return policy" rows="3" variant="outlined" density="compact" class="mb-2" />
+            <v-card-text class="field-grid">
+              <v-text-field v-model="form.marketName" placeholder="Market name" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.marketPhone" placeholder="Market phone" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.marketDescription" placeholder="Tagline" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.branchPhone" placeholder="Branch phone" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.registerName" placeholder="Register name (POS-01)" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.website" placeholder="Website" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" placeholder="Title font" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" placeholder="Body font" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.receiptTitleSize" placeholder="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.receiptBodySize" placeholder="Body size" type="number" min="6" max="24" variant="outlined" density="compact" hide-details />
+
+              <v-textarea v-model="form.returnPolicy" placeholder="Return policy" rows="2" variant="outlined" density="compact" hide-details class="field-full" />
+
               <v-select
                 v-model="form.socialPlatforms"
                 :items="socialPlatformOptions"
@@ -192,7 +215,8 @@
                 hide-selected
                 variant="outlined"
                 density="compact"
-                class="mb-2"
+                hide-details
+                class="field-full"
               >
                 <template #chip="{ props, item }">
                   <v-chip v-bind="props" :icon="platformIcon(String(item.value))" label variant="tonal" />
@@ -205,25 +229,18 @@
                   </v-list-item>
                 </template>
               </v-select>
-              <div v-for="platform in form.socialPlatforms" :key="platform" class="mb-2">
-                <v-text-field
-                  v-model="form.socialHandles[platform]"
-                  :placeholder="`${platformLabel(platform)} handle`"
-                  :prepend-inner-icon="platformIcon(platform)"
-                  variant="outlined"
-                  density="compact"
-                />
-              </div>
-              <v-row density="comfortable">
-                <v-col cols="12"><v-text-field v-model="form.website" placeholder="Website" variant="outlined" density="compact" /></v-col>
-              </v-row>
-              <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" placeholder="Receipt font" hint="Belleza is bundled for offline printing." persistent-hint variant="outlined" density="compact" class="mb-2" />
-              <v-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" placeholder="Body font" hint="Printer Font A uses the thermal printer's native font." persistent-hint variant="outlined" density="compact" class="mb-2" />
-              <v-row density="comfortable">
-                <v-col cols="6"><v-text-field v-model.number="form.receiptTitleSize" placeholder="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" /></v-col>
-                <v-col cols="6"><v-text-field v-model.number="form.receiptBodySize" placeholder="Body size" type="number" min="6" max="24" variant="outlined" density="compact" /></v-col>
-              </v-row>
-              <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details />
+              <v-text-field
+                v-for="platform in form.socialPlatforms"
+                :key="platform"
+                v-model="form.socialHandles[platform]"
+                :placeholder="`${platformLabel(platform)} handle`"
+                :prepend-inner-icon="platformIcon(platform)"
+                variant="outlined"
+                density="compact"
+                hide-details
+              />
+
+              <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details class="field-full" />
             </v-card-text>
             <v-card-actions class="px-4 pb-4">
               <v-btn
@@ -232,11 +249,10 @@
                 :loading="samplePrinting"
                 @click="printCloseShiftSample"
               >
-                <v-icon start icon="mdi-printer-eye" /> Print current close-shift sample
+                <v-icon start icon="mdi-printer-eye" /> Print sample
               </v-btn>
             </v-card-actions>
           </v-card>
-
         </div>
         <div class="settings-page-actions">
           <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
@@ -247,172 +263,60 @@
 
       <v-window-item value="money">
         <div class="settings-grid">
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('money-general')" class="settings-card">
             <v-card-title>Money settings</v-card-title>
-            <v-card-text>
-              <v-text-field
-                v-model.number="form.taxRate"
-                placeholder="VAT rate"
-                hint="Use 0.11 for 11%, or 0 to disable VAT."
-                persistent-hint
-                type="number"
-                step="0.01"
-                min="0"
-                max="1"
+            <v-card-text class="field-grid">
+              <v-text-field v-model.number="form.taxRate" placeholder="VAT rate" type="number" step="0.01" min="0" max="1" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.exchangeRate" placeholder="Legacy exchange rate" type="number" min="1" step="1" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.roundingMode" :items="roundingModes" placeholder="Money rounding" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.roundingCurrency" :items="roundingCurrencies" placeholder="Round by currency" variant="outlined" density="compact" hide-details />
+              <v-select
+                :model-value="calculatorTotalCurrency"
+                :items="calculatorDisplayCurrencies"
+                placeholder="Calculator total currency"
                 variant="outlined"
                 density="compact"
-                class="mb-2"
-              />
-              <v-text-field
-                v-model.number="form.exchangeRate"
-                placeholder="Legacy exchange rate field"
-                hint="Kept for backward compatibility. Edit currency rates below for checkout math."
-                persistent-hint
-                type="number"
-                min="1"
-                step="1"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-switch
-                v-model="form.allowOverpayment"
-                label="Allow overpayment"
-                hint="Enable this to accept more than the invoice total."
-                persistent-hint
-                color="primary"
-                hide-details="auto"
-                class="mb-2"
+                hide-details
+                @update:model-value="(value) => setCalculatorTotalCurrency(value ?? 'USD')"
               />
               <v-text-field
                 v-model.number="form.maxOverpayment"
-                placeholder="Maximum overpayment (USD)"
-                hint="Maximum amount above the invoice total."
-                persistent-hint
+                placeholder="Max overpayment (USD)"
                 type="number"
                 min="0"
                 step="0.01"
                 :disabled="!form.allowOverpayment"
                 variant="outlined"
                 density="compact"
-                class="mb-2"
+                hide-details
               />
-              <v-select
-                v-model="form.roundingMode"
-                :items="roundingModes"
-                placeholder="Money rounding"
-                hint="Applied to discounts and VAT in cents."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-select
-                v-model="form.roundingCurrency"
-                :items="roundingCurrencies"
-                placeholder="Round by currency"
-                hint="Rounds the complete total, then converts it to the other currency."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-select
-                :model-value="calculatorTotalCurrency"
-                :items="calculatorDisplayCurrencies"
-                label="Default calculator total currency"
-                hint="Currency shown first on the calculator's total."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-                hide-details="auto"
-                @update:model-value="(value) => setCalculatorTotalCurrency(value ?? 'USD')"
-              />
+              <v-switch v-model="form.allowOverpayment" label="Allow overpayment" color="primary" hide-details class="field-full" />
             </v-card-text>
           </v-card>
 
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('money-float')" class="settings-card">
             <v-card-title>Opening cash float</v-card-title>
-            <v-card-text>
-              <p class="text-caption text-medium-emphasis mb-3">
-                Cash assumed to already be in the drawer when a shift opens. Applied to every shift opened after
-                saving here — to change the currently open shift's float instead, use "Set opening cash" on the
-                Balance card.
-              </p>
-              <div class="text-caption text-medium-emphasis mb-1">Default opening float (USD)</div>
-              <v-text-field
-                v-model.number="form.defaultOpeningFloatUsd"
-                placeholder="0.00"
-                type="number"
-                min="0"
-                step="0.01"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <div class="text-caption text-medium-emphasis mb-1">Default opening float (LBP)</div>
-              <v-text-field
-                v-model.number="form.defaultOpeningFloatLbp"
-                placeholder="0"
-                type="number"
-                min="0"
-                step="1"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              />
-              <v-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="mb-2">
-                Opening float cannot be negative — enter the actual cash amount in the drawer.
+            <v-card-text class="field-grid">
+              <v-text-field v-model.number="form.defaultOpeningFloatUsd" placeholder="Opening float (USD)" type="number" min="0" step="0.01" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.defaultOpeningFloatLbp" placeholder="Opening float (LBP)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+              <v-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="field-full">
+                Opening float cannot be negative.
               </v-alert>
-              <v-btn color="primary" variant="tonal" :disabled="openingFloatNegative" @click="openingFloatDialog = true">Save opening float</v-btn>
+              <v-btn color="primary" variant="tonal" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</v-btn>
             </v-card-text>
           </v-card>
 
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('money-exchange')" class="settings-card">
             <v-card-title>Exchange settings</v-card-title>
-            <v-card-text>
-              <p class="text-caption text-medium-emphasis mb-3">
-                How long after a sale a cashier may still exchange items against it.
-              </p>
-              <div class="d-flex ga-2 mb-2">
-                <v-text-field
-                  v-model.number="form.exchangeWindowDays"
-                  label="Days"
-                  type="number"
-                  min="0"
-                  step="1"
-                  variant="outlined"
-                  density="compact"
-                  hide-details="auto"
-                />
-                <v-text-field
-                  v-model.number="form.exchangeWindowHours"
-                  label="Hours"
-                  type="number"
-                  min="0"
-                  max="23"
-                  step="1"
-                  variant="outlined"
-                  density="compact"
-                  hide-details="auto"
-                />
-              </div>
-              <p class="text-caption text-medium-emphasis">
-                0 days and 0 hours means exchanges are always allowed, regardless of sale date.
-              </p>
+            <v-card-text class="field-grid">
+              <v-text-field v-model.number="form.exchangeWindowDays" label="Days" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.exchangeWindowHours" label="Hours" type="number" min="0" max="23" step="1" variant="outlined" density="compact" hide-details />
             </v-card-text>
           </v-card>
 
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('money-currencies')" class="settings-card settings-card--wide">
             <v-card-title>Currencies &amp; rates</v-card-title>
             <v-card-text>
-              <p class="text-caption text-medium-emphasis mb-3">
-                Add any currency this shop accepts cash in. The rate is how many major units of
-                the currency equal one USD (e.g. 90000 for LBP). The cash rounding unit is the
-                nearest whole amount physical cash in that currency rounds to when tendered or
-                used as the invoice's rounding currency (e.g. 10000 for LBP, 1 for a currency
-                with no physical rounding).
-              </p>
               <v-table density="compact" class="mb-4">
                 <thead>
                   <tr>
@@ -496,12 +400,9 @@
             </v-card-text>
           </v-card>
 
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('money-payment-methods')" class="settings-card">
             <v-card-title>Payment methods</v-card-title>
             <v-card-text>
-              <p class="text-caption text-medium-emphasis mb-3">
-                A payment method is a cashbox account denominated in one of the currencies above.
-              </p>
               <v-table density="compact" class="mb-4">
                 <thead>
                   <tr>
@@ -538,7 +439,7 @@
             </v-card-text>
           </v-card>
 
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('money-price-lists')" class="settings-card">
             <v-card-title>Price lists</v-card-title>
             <v-card-text>
               <p class="text-caption text-medium-emphasis mb-3">
@@ -586,7 +487,7 @@
             </v-card-text>
           </v-card>
 
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('money-discount-lists')" class="settings-card">
             <v-card-title>Discount lists</v-card-title>
             <v-card-text>
               <p class="text-caption text-medium-emphasis mb-3">
@@ -641,7 +542,7 @@
       </v-window-item>
 
       <v-window-item value="coupons">
-        <v-card class="settings-card" max-width="720">
+        <v-card v-show="panelMatches('coupons-types')" class="settings-card" max-width="720">
           <v-card-title>Coupon types</v-card-title>
           <v-card-text>
             <div class="d-flex ga-2 align-start">
@@ -681,8 +582,8 @@
       </v-window-item>
 
       <v-window-item value="admin">
-        <div class="settings-grid settings-grid--admin">
-          <v-card class="settings-card">
+        <div class="settings-grid">
+          <v-card v-show="panelMatches('admin-custom-pricing')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-avatar color="primary" variant="tonal" size="36">
                 <v-icon icon="mdi-sale-outline" size="20" />
@@ -722,7 +623,7 @@
             </v-card-text>
           </v-card>
 
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('admin-price-change-mode')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-avatar color="primary" variant="tonal" size="36">
                 <v-icon icon="mdi-tag-multiple-outline" size="20" />
@@ -753,7 +654,7 @@
             </v-card-text>
           </v-card>
 
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('admin-invoice-keyboard')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-avatar color="primary" variant="tonal" size="36">
                 <v-icon icon="mdi-keyboard" size="20" />
@@ -783,7 +684,7 @@
             </v-card-text>
           </v-card>
 
-          <v-card class="settings-card">
+          <v-card v-show="panelMatches('admin-page-access')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-avatar color="primary" variant="tonal" size="36">
                 <v-icon icon="mdi-lock-outline" size="20" />
@@ -810,7 +711,7 @@
             </v-card-text>
           </v-card>
 
-          <v-form @submit.prevent="changePassword">
+          <v-form v-show="panelMatches('admin-change-password')" class="settings-form-wrap" @submit.prevent="changePassword">
             <v-card class="settings-card">
               <v-card-title class="d-flex align-center ga-3">
                 <v-avatar color="primary" variant="tonal" size="36">
@@ -859,7 +760,7 @@
             </v-card>
           </v-form>
 
-          <v-card class="settings-card settings-card--wide">
+          <v-card v-show="panelMatches('admin-users')" class="settings-card settings-card--wide">
             <v-card-title class="d-flex align-center ga-3">
               <v-avatar color="primary" variant="tonal" size="36">
                 <v-icon icon="mdi-account-group-outline" size="20" />
@@ -878,7 +779,8 @@
             <v-data-table
               :headers="userHeaders"
               :items="users"
-              :items-per-page="10"
+              items-per-page="-1"
+              hide-default-footer
               density="comfortable"
               hover
             >
@@ -898,7 +800,7 @@
             </v-data-table>
           </v-card>
 
-          <v-card class="settings-card settings-card--wide">
+          <v-card v-show="panelMatches('admin-salespersons')" class="settings-card settings-card--wide">
             <v-card-title class="d-flex align-center ga-3">
               <v-avatar color="primary" variant="tonal" size="36">
                 <v-icon icon="mdi-account-tie" size="20" />
@@ -912,7 +814,14 @@
                 <v-icon start icon="mdi-plus" /> Add salesperson
               </v-btn>
             </v-card-title>
-            <v-data-table :headers="salespersonHeaders" :items="salespersons" density="comfortable" hover>
+            <v-data-table
+              :headers="salespersonHeaders"
+              :items="salespersons"
+              items-per-page="-1"
+              hide-default-footer
+              density="comfortable"
+              hover
+            >
               <template #item.actions="{ item }">
                 <v-btn icon size="small" variant="text" @click="openSalespersonDialog(item)">
                   <v-icon icon="mdi-pencil-outline" size="18" />
@@ -1096,7 +1005,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import {
   GetAppSettings,
   GetDatabaseStatus,
@@ -1176,6 +1085,59 @@ import { useTheme } from "vuetify";
 const auth = useAuthStore();
 const theme = useTheme();
 const tab = ref("general");
+
+// Static index of every settings "panel" (its tab + searchable text) used by
+// the search box below. Keep in sync with the v-show="panelMatches(...)" on
+// each panel in the template.
+const panelMeta: Record<string, { tab: string; title: string; keywords: string }> = {
+  "general-appearance": { tab: "general", title: "Appearance", keywords: "dark theme animations mode display" },
+  "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
+  "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
+  "general-remote": { tab: "general", title: "Remote admin & API", keywords: "remote admin api listen address token key" },
+  "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
+  "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port" },
+  "printing-receipt": { tab: "printing", title: "Receipt settings", keywords: "market name phone description branch phone register return policy social platforms instagram facebook website font body size title size cut paper sample" },
+  "money-general": { tab: "money", title: "Money settings", keywords: "vat tax rate exchange rate overpayment rounding mode currency calculator total currency" },
+  "money-float": { tab: "money", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift" },
+  "money-exchange": { tab: "money", title: "Exchange settings", keywords: "exchange window days hours return" },
+  "money-currencies": { tab: "money", title: "Currencies & rates", keywords: "currency code name symbol units per usd cash rounding unit active add currency" },
+  "money-payment-methods": { tab: "money", title: "Payment methods", keywords: "payment method cashbox account currency" },
+  "money-price-lists": { tab: "money", title: "Price lists", keywords: "price list override product code black friday active" },
+  "money-discount-lists": { tab: "money", title: "Discount lists", keywords: "discount list override product code percent active" },
+  "coupons-types": { tab: "coupons", title: "Coupon types", keywords: "coupon type value currency reference only active issue code" },
+  "admin-custom-pricing": { tab: "admin", title: "Custom item pricing", keywords: "custom item price discount per unit editing" },
+  "admin-price-change-mode": { tab: "admin", title: "Price change mode", keywords: "price change manual override discount lever" },
+  "admin-invoice-keyboard": { tab: "admin", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
+  "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons" },
+  "admin-change-password": { tab: "admin", title: "Change password", keywords: "change password current new confirm account security" },
+  "admin-users": { tab: "admin", title: "Users", keywords: "users username role status add user edit delete akuvox userid" },
+  "admin-salespersons": { tab: "admin", title: "Salespersons", keywords: "salespersons full name attendance id add edit delete" },
+};
+
+const settingsSearch = ref("");
+const normalizedSearch = computed(() => settingsSearch.value.trim().toLowerCase());
+
+function panelMatches(key: string): boolean {
+  if (!normalizedSearch.value) return true;
+  const meta = panelMeta[key];
+  if (!meta) return true;
+  return `${meta.title} ${meta.keywords}`.toLowerCase().includes(normalizedSearch.value);
+}
+
+const tabsWithMatches = computed(() => {
+  if (!normalizedSearch.value) return null;
+  const set = new Set<string>();
+  for (const key of Object.keys(panelMeta)) {
+    if (panelMatches(key)) set.add(panelMeta[key].tab);
+  }
+  return set;
+});
+
+watch(normalizedSearch, () => {
+  const matches = tabsWithMatches.value;
+  if (!matches || matches.has(tab.value) || !matches.size) return;
+  tab.value = matches.values().next().value as string;
+});
 const databasePath = ref("");
 const databaseSwitching = ref(false);
 const darkThemeEnabled = computed(() => theme.name.value === "dark");
@@ -2161,14 +2123,26 @@ async function deleteUser() {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto 20px;
 }
 
+.settings-search,
 .settings-tabs,
-.settings-grid {
-  max-width: 1100px;
+.settings-grid,
+.settings-empty {
+  max-width: 1200px;
   margin-inline: auto;
+}
+
+.settings-search :deep(.v-field) {
+  border-radius: 10px;
+}
+
+.settings-empty {
+  padding: 32px 8px;
+  text-align: center;
+  color: rgb(var(--v-theme-on-surface), 0.6);
 }
 
 .settings-tabs {
@@ -2185,26 +2159,16 @@ async function deleteUser() {
 
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   align-items: start;
   gap: 16px;
 }
 
 .settings-page-actions {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 16px auto 0;
   display: flex;
   justify-content: flex-end;
-}
-
-.settings-grid--general,
-.settings-grid--receipt {
-  align-items: stretch;
-}
-
-.settings-general-column {
-  min-width: 0;
-  width: 100%;
 }
 
 .settings-page :deep(.v-text-field),
@@ -2213,31 +2177,27 @@ async function deleteUser() {
   --v-input-control-height: 40px;
 }
 
-.settings-grid--general .settings-page-actions {
-  grid-column: 1 / -1;
-  max-width: none;
-  margin: 0;
+/* The password card is wrapped in a <v-form> so the submit handler fires;
+   display:contents keeps the form out of the grid layout so its child
+   .settings-card is the actual grid item, sized like every other panel. */
+.settings-form-wrap {
+  display: contents;
 }
 
-.settings-grid--admin {
-  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.6fr);
+.settings-card--wide {
+  grid-column: 1 / -1;
 }
 
 .settings-card {
   min-width: 0;
   background: transparent !important;
-  border: 0;
-  border-radius: 0;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
   box-shadow: none !important;
 }
 
-.settings-card :deep(.v-card-title .v-avatar) {
-  display: none;
-}
-
 .settings-card :deep(.v-card-title) {
-  padding: 18px 20px 8px;
-  gap: 0 !important;
+  padding: 16px 18px 8px;
   font-size: var(--kashi-font-size-base) !important;
   line-height: 1.35;
   font-weight: 650;
@@ -2249,15 +2209,15 @@ async function deleteUser() {
 }
 
 .settings-card :deep(.v-card-title .text-caption) {
-  display: none;
+  font-weight: 400;
 }
 
 .settings-card :deep(.v-card-text) {
-  padding: 14px 20px 6px;
+  padding: 12px 18px 16px;
 }
 
-.settings-card :deep(.v-data-table-footer) {
-  padding-inline: 20px;
+.settings-card :deep(.v-table) {
+  background: transparent;
 }
 
 .app-snackbar .v-snackbar__wrapper {
@@ -2268,8 +2228,7 @@ async function deleteUser() {
 }
 
 @media (max-width: 900px) {
-  .settings-grid,
-  .settings-grid--admin {
+  .settings-grid {
     grid-template-columns: 1fr;
   }
 

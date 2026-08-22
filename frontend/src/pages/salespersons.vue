@@ -29,14 +29,14 @@
       <v-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh" />
     </div>
 
-    <v-card class="mb-4">
-      <v-card-title class="d-flex align-center">
-        Performance
+    <section class="mb-6">
+      <div class="d-flex align-center mb-2">
+        <span class="text-subtitle-1 font-weight-bold">Performance</span>
         <v-spacer />
         <span class="text-caption text-medium-emphasis">{{ rows.length }} salespersons</span>
-      </v-card-title>
-      <v-progress-linear v-if="loading" indeterminate color="primary" />
-      <v-list class="pa-2">
+      </div>
+      <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-2" />
+      <v-list class="pa-0" bg-color="transparent">
         <v-list-item v-for="row in rows" :key="row.salespersonId" class="performance-item mb-2" rounded="lg">
           <template #prepend>
             <InitialsAvatar :name="row.salespersonName" class="me-3" />
@@ -55,31 +55,29 @@
           No sales recorded for this range.
         </v-list-item>
       </v-list>
-    </v-card>
+    </section>
 
-    <v-card>
-      <v-table>
-        <thead>
-          <tr>
-            <th>Salesperson</th>
-            <th class="text-right">Amount Sold</th>
-            <th class="text-right">Invoices</th>
-            <th class="text-right">Items Sold</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.salespersonId">
-            <td>{{ row.salespersonName }}</td>
-            <td class="text-right">{{ money(row.netAmount) }}</td>
-            <td class="text-right">{{ row.invoiceCount }}</td>
-            <td class="text-right">{{ row.itemsSold }}</td>
-          </tr>
-          <tr v-if="!rows.length && !loading">
-            <td colspan="4" class="text-medium-emphasis">No sales recorded for this range.</td>
-          </tr>
-        </tbody>
-      </v-table>
-    </v-card>
+    <v-table class="salespersons-table">
+      <thead>
+        <tr>
+          <th>Salesperson</th>
+          <th class="text-right">Amount Sold</th>
+          <th class="text-right">Invoices</th>
+          <th class="text-right">Items Sold</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="row in rows" :key="row.salespersonId">
+          <td>{{ row.salespersonName }}</td>
+          <td class="text-right">{{ money(row.netAmount) }}</td>
+          <td class="text-right">{{ row.invoiceCount }}</td>
+          <td class="text-right">{{ row.itemsSold }}</td>
+        </tr>
+        <tr v-if="!rows.length && !loading">
+          <td colspan="4" class="text-medium-emphasis">No sales recorded for this range.</td>
+        </tr>
+      </tbody>
+    </v-table>
   </div>
 </template>
 
@@ -180,5 +178,8 @@ onMounted(refresh);
 }
 .performance-item__main {
   width: 100%;
+}
+.salespersons-table {
+  background: transparent !important;
 }
 </style>
