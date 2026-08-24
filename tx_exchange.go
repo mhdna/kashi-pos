@@ -128,6 +128,65 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 		if err := recordExchangePayments(a, q, invoice.ID, shift.ID, payments); err != nil {
 			return err
 		}
+
+		if settings.CentralApiUrl != "" {
+			clientRef, err := getOrCreateInvoiceClientRef(a.ctx, q, invoice.ID)
+			if err != nil {
+				return fmt.Errorf("resolve invoice client ref: %w", err)
+			}
+			relatedRef, err := getOrCreateInvoiceClientRef(a.ctx, q, source.ID)
+			if err != nil {
+				return fmt.Errorf("resolve original invoice client ref: %w", err)
+			}
+
+			// Signed exactly like recordExchangeProducts writes them locally:
+			// returned lines negative, replacement lines positive, on one
+			// invoice. kashi-pos doesn't distinguish "pure return" from
+			// "exchange" at the storage level either (both are a
+			// return_invoices row), so both map to kind "return" here.
+			payloadItems := make([]branchInvoicePayloadItem, 0, len(priced.returned)+len(priced.replacements))
+			for _, returned := range priced.returned {
+				payloadItems = append(payloadItems, branchInvoicePayloadItem{
+					BranchProductID: returned.product.ID,
+					UnitPrice:       returned.line.UnitPrice,
+					LineTotal:       -returned.lineTotal,
+					Discount:        int16(returned.line.Discount),
+					Quantity:        -returned.qty,
+				})
+			}
+			for _, replacement := range priced.replacements {
+				payloadItems = append(payloadItems, branchInvoicePayloadItem{
+					BranchProductID: replacement.product.ID,
+					UnitPrice:       replacement.unitPrice,
+					LineTotal:       replacement.lineTotal,
+					Discount:        int16(replacement.discount),
+					Quantity:        replacement.qty,
+				})
+			}
+
+			// checkoutReturnExchangeInvoice doesn't touch loyalty points at
+			// all today (unlike salesInvoiceTx) — report that faithfully as
+			// zero rather than inventing a delta kashi-pos doesn't actually
+			// apply.
+			if err := queueBranchInvoiceSync(a.ctx, q, settings.CentralApiUrl, "return_invoice", branchInvoicePayload{
+				ClientRef:              clientRef,
+				RelatedClientRef:       relatedRef,
+				BranchInvoiceCode:      invoice.InvoiceCode,
+				BranchCashboxAccountID: cashbox.ID,
+				BranchShiftID:          shift.ID,
+				BranchInventoryID:      inventoryID,
+				BranchClientID:         source.ClientID,
+				GrandTotal:             total,
+				Subtotal:               total,
+				DiscountedTotal:        total,
+				LoyaltyPointsDelta:     0,
+				OccurredAt:             time.Now().UTC(),
+				Items:                  payloadItems,
+			}); err != nil {
+				return fmt.Errorf("queue branch invoice sync: %w", err)
+			}
+		}
+
 		exchangeInvoiceID = invoice.ID
 		result = map[string]any{
 			"invoiceCode":    invoice.InvoiceCode,
@@ -138,6 +197,9 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 	})
 	if err != nil {
 		return nil, err
+	}
+	if settings.CentralApiUrl != "" {
+		a.kickSyncWorker()
 	}
 	if settings.ReceiptEnabled != 0 {
 		if err := a.printInvoiceReceipt(exchangeInvoiceID, payments); err != nil {

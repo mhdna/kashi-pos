@@ -42,6 +42,23 @@ type App struct {
 	failedPINAttempts int
 	pinLockedUntil    time.Time
 	pinLockoutLevel   int
+
+	syncWorkerStop chan struct{}
+	// syncWorkerKick lets a checkout wake the sync worker immediately after
+	// committing a new outbox entry, instead of waiting up to
+	// syncWorkerInterval for the next tick -- see kickSyncWorker in
+	// sync_worker.go. Buffered so a kick from the checkout path never blocks
+	// on the worker goroutine, and nil until startSyncWorker runs, which
+	// kickSyncWorker's nil-safe select handles the same way an unconfigured
+	// install already tolerates a no-op sync worker.
+	syncWorkerKick chan struct{}
+	wsClientStop   chan struct{}
+	// backgroundWG lets shutdown wait for the sync worker and WS client
+	// goroutines to actually exit, not just signal them to — otherwise a
+	// goroutine can still be mid-tick (touching the SQLite file, e.g.
+	// recreating -wal/-shm journal files) after shutdown returns, which
+	// raced with test cleanup deleting the database's temp directory.
+	backgroundWG sync.WaitGroup
 }
 
 const (
@@ -195,6 +212,8 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 		log.Println("close stale open shifts:", err)
 	}
 	a.startAdminServer()
+	a.startSyncWorker()
+	a.startWSClient()
 	return nil
 }
 
@@ -291,6 +310,14 @@ func (a *App) GetStartupError() string {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	a.stopWSClient()
+	a.stopSyncWorker()
+	// Both signaled to stop above; wait for them to actually finish before
+	// touching a.conn below — a goroutine still mid-tick when the
+	// connection closes underneath it would either error noisily or (worse,
+	// for tests) still be touching the SQLite file on disk after shutdown
+	// has returned.
+	a.backgroundWG.Wait()
 	a.stopAdminServer(ctx)
 	if a.conn != nil {
 		a.conn.Close()
@@ -605,6 +632,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"branchName":             settings.BranchName,
 		"branchCode":             settings.BranchCode,
 		"apiKey":                 settings.ApiKey,
+		"centralApiUrl":          settings.CentralApiUrl,
 		"printerID":              settings.PrinterID,
 		"printerSize":            settings.PrinterSize,
 		"receiptPrinter":         settings.ReceiptPrinter,
@@ -916,6 +944,17 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
 		ReceiptBodyFont: current.ReceiptBodyFont, BranchPhone: current.BranchPhone, CounterNumber: current.CounterNumber,
 	})
+}
+
+// UpdateCentralAPIURL sets the base URL of the kashi server this branch
+// syncs to (e.g. "http://localhost:8080"). Empty disables sync entirely —
+// the outbox worker and WebSocket client both check for this before
+// running (see sync_client.go's centralClient.enabled()).
+func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.UpdateCentralAPIURL(a.ctx, centralApiUrl)
 }
 
 func (a *App) SetExchangeWindowHours(hours int64) error {

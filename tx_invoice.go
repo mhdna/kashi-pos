@@ -272,14 +272,53 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				return fmt.Errorf("add cashbox balance: %w", err)
 			}
 		}
+		loyaltyPointsDelta := grandTotal / 100
 		if err := q.AddClientLoyaltyPoints(a.ctx, db.AddClientLoyaltyPointsParams{
-			TotalLoyaltyPoints: grandTotal / 100, ValidLoyaltyPoints: grandTotal / 100, ID: clientID,
+			TotalLoyaltyPoints: loyaltyPointsDelta, ValidLoyaltyPoints: loyaltyPointsDelta, ID: clientID,
 		}); err != nil {
 			return fmt.Errorf("add loyalty points: %w", err)
 		}
+
+		if settings.CentralApiUrl != "" {
+			clientRef, err := getOrCreateInvoiceClientRef(a.ctx, q, invoice.ID)
+			if err != nil {
+				return fmt.Errorf("resolve invoice client ref: %w", err)
+			}
+
+			payloadItems := make([]branchInvoicePayloadItem, 0, len(products))
+			for _, product := range products {
+				payloadItems = append(payloadItems, branchInvoicePayloadItem{
+					BranchProductID: product.product.ID,
+					UnitPrice:       product.unitPrice,
+					LineTotal:       product.lineTotal,
+					Discount:        int16(product.discount),
+					Quantity:        product.qty,
+				})
+			}
+			if err := queueBranchInvoiceSync(a.ctx, q, settings.CentralApiUrl, "sales_invoice", branchInvoicePayload{
+				ClientRef:              clientRef,
+				BranchInvoiceCode:      invoiceCode,
+				BranchCashboxAccountID: cashbox.ID,
+				BranchShiftID:          shift.ID,
+				BranchInventoryID:      inventoryID,
+				BranchClientID:         clientID,
+				GrandTotal:             grandTotal,
+				Subtotal:               subtotal,
+				DiscountedTotal:        discountedSubtotal,
+				LoyaltyPointsDelta:     loyaltyPointsDelta,
+				OccurredAt:             time.Now().UTC(),
+				Items:                  payloadItems,
+			}); err != nil {
+				return fmt.Errorf("queue branch invoice sync: %w", err)
+			}
+		}
+
 		result.InvoiceID, result.InvoiceCode, result.Items, result.GrandTotal, result.Payments, result.Notes = invoice.ID, invoiceCode, receiptItems, grandTotal, payments, strings.TrimSpace(params.Notes)
 		return nil
 	})
+	if err == nil && settings.CentralApiUrl != "" {
+		a.kickSyncWorker()
+	}
 	return result, err
 }
 
