@@ -29,7 +29,8 @@ type Querier interface {
 	CountInvoiceCouponPaymentsByCode(ctx context.Context, couponCode string) (int64, error)
 	CountInvoiceCouponPaymentsByTypeID(ctx context.Context, couponTypeID int64) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
-	CountProducts(ctx context.Context, search sql.NullString) (int64, error)
+	// search_pattern must already be wrapped in '%...%' by the caller.
+	CountProducts(ctx context.Context, searchPattern string) (int64, error)
 	CreateAccount(ctx context.Context, name string) (Account, error)
 	CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error)
 	CreateAttendanceComplaint(ctx context.Context, arg CreateAttendanceComplaintParams) (AttendanceComplaint, error)
@@ -208,8 +209,10 @@ type Querier interface {
 	ListPriceLists(ctx context.Context) ([]PriceList, error)
 	ListPriceOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]PriceOverride, error)
 	ListProducts(ctx context.Context) ([]Product, error)
+	// search_pattern must already be wrapped in '%...%' by the caller.
 	ListProductsAfter(ctx context.Context, arg ListProductsAfterParams) ([]Product, error)
 	ListProductsAfterUnfiltered(ctx context.Context, arg ListProductsAfterUnfilteredParams) ([]Product, error)
+	// search_pattern must already be wrapped in '%...%' by the caller.
 	ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error)
 	ListProductsPageUnfiltered(ctx context.Context, arg ListProductsPageUnfilteredParams) ([]Product, error)
 	ListQuickAccessProducts(ctx context.Context) ([]Product, error)

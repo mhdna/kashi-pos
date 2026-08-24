@@ -73,7 +73,7 @@
               aria-label="Clear phone number"
               class="client-phone-numpad-key"
               size="small"
-              variant="text"
+              variant="tonal"
               @click="clearPhone"
             >
               C
@@ -90,7 +90,7 @@
               aria-label="Delete last phone digit"
               class="client-phone-numpad-key"
               size="small"
-              variant="text"
+              variant="tonal"
               @click="backspacePhone"
             >
               ⌫
@@ -99,7 +99,7 @@
           </div>
           <div v-if="phoneError" class="text-error text-caption text-center mt-2">{{ phoneError }}</div>
           <v-btn
-            class="w-100 mt-4"
+            class="client-phone-action-button w-100 mt-4"
             variant="elevated"
             color="primary"
             :disabled="!phone.trim()"
@@ -107,7 +107,13 @@
           >
             Continue
           </v-btn>
-          <v-btn class="w-100 mt-2" variant="tonal" @click="selectAnonymous"> Prefer not to say </v-btn>
+          <v-btn
+            class="client-phone-action-button w-100 mt-2"
+            variant="tonal"
+            @click="selectAnonymous"
+          >
+            Prefer not to say
+          </v-btn>
         </div>
       </v-card-text>
     </v-card>
@@ -488,20 +494,35 @@ function reset() {
 
 .client-phone-numpad-grid {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 56px;
 }
 
 .client-phone-numpad-key {
-  font-size: var(--kashi-font-size-xl);
-  height: 36px;
+  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border-radius: 4px;
+  font-size: 2rem !important;
+  height: 100%;
   min-width: 0;
   padding: 0;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.client-phone-numpad-key:hover {
+  border-color: currentColor;
 }
 
 .client-name-keyboard {
   margin-inline: auto;
   max-width: 540px;
+}
+
+.client-phone-action-button {
+  font-size: 1rem;
+  min-height: 52px;
 }
 
 @media (max-width: 600px) {

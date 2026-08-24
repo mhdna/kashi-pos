@@ -169,7 +169,7 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 		}
 	}
 
-	conn, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)")
+	conn, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)&_pragma=busy_timeout(5000)")
 	if err != nil {
 		return err
 	}

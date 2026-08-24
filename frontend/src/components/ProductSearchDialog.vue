@@ -45,7 +45,8 @@
         <div v-if="loading" class="product-list-status">
           <v-progress-circular indeterminate color="primary" size="24" width="2" />
         </div>
-        <div v-else-if="loadError" class="product-list-status">
+        <div v-else-if="loadError" class="product-list-status product-list-status-error">
+          <span class="product-error-message text-error">{{ loadErrorMessage }}</span>
           <v-btn size="small" variant="text" @click="loadMore">Retry</v-btn>
         </div>
         <div v-else-if="!hasMore" class="product-list-status text-medium-emphasis">
@@ -152,6 +153,7 @@ const listKey = ref(0);
 const loading = ref(false);
 const hasMore = ref(true);
 const loadError = ref(false);
+const loadErrorMessage = ref("");
 
 function resetList() {
   latestRequest++;
@@ -159,6 +161,11 @@ function resetList() {
   cursor.value = 0;
   hasMore.value = true;
   loadError.value = false;
+  loadErrorMessage.value = "";
+  // A previous loadMore() may still be in flight and, once superseded, will
+  // never get to clear this itself (its finally only fires for the request
+  // it still owns) - clear it here so the guard below can't wedge shut.
+  loading.value = false;
   listKey.value++;
   if (dialog.value) void loadMore();
 }
@@ -168,6 +175,7 @@ async function loadMore() {
   const request = ++latestRequest;
   loading.value = true;
   loadError.value = false;
+  loadErrorMessage.value = "";
   try {
     const result = await ListProductsCursor(cursor.value, batchSize, debouncedSearch.value);
     if (request !== latestRequest) return;
@@ -178,6 +186,7 @@ async function loadMore() {
     if (request !== latestRequest) return;
     console.error("ListProductsCursor failed:", e);
     loadError.value = true;
+    loadErrorMessage.value = e instanceof Error ? e.message : String(e);
   } finally {
     if (request === latestRequest) loading.value = false;
   }
@@ -271,6 +280,18 @@ defineExpose({ openDialog });
   align-items: center;
   justify-content: center;
   font-size: 0.8125rem;
+}
+
+.product-list-status-error {
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 16px;
+}
+
+.product-error-message {
+  font-size: 0.75rem;
+  text-align: center;
+  word-break: break-word;
 }
 
 .product-inline-keyboard {

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 
 	db "kashi-pos/db/sqlc"
@@ -146,9 +146,9 @@ func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (Produ
 
 	search = strings.TrimSpace(search)
 	params := db.ListProductsPageParams{
-		Search: sql.NullString{String: search, Valid: true},
-		Limit:  int64(itemsPerPage),
-		Offset: int64(page-1) * int64(itemsPerPage),
+		SearchPattern: "%" + search + "%",
+		Limit:         int64(itemsPerPage),
+		Offset:        int64(page-1) * int64(itemsPerPage),
 	}
 
 	var (
@@ -166,15 +166,17 @@ func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (Produ
 	} else {
 		products, err = a.store.ListProductsPage(a.ctx, params)
 		if err == nil {
-			total, err = a.store.CountProducts(a.ctx, params.Search)
+			total, err = a.store.CountProducts(a.ctx, params.SearchPattern)
 		}
 	}
 	if err != nil {
-		return ProductPage{}, err
+		log.Printf("ListProductsPage: search products (search=%q): %v", search, err)
+		return ProductPage{}, fmt.Errorf("search products: %w", err)
 	}
 	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
 	if err != nil {
-		return ProductPage{}, err
+		log.Printf("ListProductsPage: load active overrides: %v", err)
+		return ProductPage{}, fmt.Errorf("load price/discount overrides: %w", err)
 	}
 
 	result := make([]map[string]any, len(products))
@@ -213,17 +215,19 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 		})
 	} else {
 		products, err = a.store.ListProductsAfter(a.ctx, db.ListProductsAfterParams{
-			AfterID: afterID,
-			Search:  sql.NullString{String: search, Valid: true},
-			Limit:   queryLimit,
+			AfterID:       afterID,
+			SearchPattern: "%" + search + "%",
+			Limit:         queryLimit,
 		})
 	}
 	if err != nil {
-		return ProductCursorPage{}, err
+		log.Printf("ListProductsCursor: search products (search=%q): %v", search, err)
+		return ProductCursorPage{}, fmt.Errorf("search products: %w", err)
 	}
 	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
 	if err != nil {
-		return ProductCursorPage{}, err
+		log.Printf("ListProductsCursor: load active overrides: %v", err)
+		return ProductCursorPage{}, fmt.Errorf("load price/discount overrides: %w", err)
 	}
 
 	hasMore := len(products) > limit

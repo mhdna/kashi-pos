@@ -14,12 +14,10 @@ SELECT * FROM products ORDER BY id;
 SELECT * FROM products WHERE name LIKE ? ORDER BY id;
 
 -- name: ListProductsPage :many
+-- search_pattern must already be wrapped in '%...%' by the caller.
 SELECT * FROM products
-WHERE name LIKE '%' || sqlc.arg(search) || '%'
-   OR code LIKE '%' || sqlc.arg(search) || '%'
-   OR barcode LIKE '%' || sqlc.arg(search) || '%'
-   OR color LIKE '%' || sqlc.arg(search) || '%'
-   OR size LIKE '%' || sqlc.arg(search) || '%'
+WHERE (name || ' ' || code || ' ' || barcode)
+      LIKE sqlc.arg(search_pattern)
 ORDER BY id
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
@@ -29,15 +27,11 @@ ORDER BY id
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
 -- name: ListProductsAfter :many
+-- search_pattern must already be wrapped in '%...%' by the caller.
 SELECT * FROM products
 WHERE id > sqlc.arg(after_id)
-  AND (
-       name LIKE '%' || sqlc.arg(search) || '%'
-    OR code LIKE '%' || sqlc.arg(search) || '%'
-    OR barcode LIKE '%' || sqlc.arg(search) || '%'
-    OR color LIKE '%' || sqlc.arg(search) || '%'
-    OR size LIKE '%' || sqlc.arg(search) || '%'
-  )
+  AND (name || ' ' || code || ' ' || barcode)
+      LIKE sqlc.arg(search_pattern)
 ORDER BY id
 LIMIT sqlc.arg(limit);
 
@@ -48,12 +42,10 @@ ORDER BY id
 LIMIT sqlc.arg(limit);
 
 -- name: CountProducts :one
+-- search_pattern must already be wrapped in '%...%' by the caller.
 SELECT COUNT(*) FROM products
-WHERE name LIKE '%' || sqlc.arg(search) || '%'
-   OR code LIKE '%' || sqlc.arg(search) || '%'
-   OR barcode LIKE '%' || sqlc.arg(search) || '%'
-   OR color LIKE '%' || sqlc.arg(search) || '%'
-   OR size LIKE '%' || sqlc.arg(search) || '%';
+WHERE (name || ' ' || code || ' ' || barcode)
+      LIKE sqlc.arg(search_pattern);
 
 -- name: CountAllProducts :one
 SELECT COUNT(*) FROM products;

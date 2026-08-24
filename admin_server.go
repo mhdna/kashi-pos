@@ -439,7 +439,7 @@ func (a *adminServer) products(ctx context.Context, search string) ([]db.Product
 	if search == "" {
 		return a.app.store.ListProducts(ctx)
 	}
-	return a.app.store.ListProductsPage(ctx, db.ListProductsPageParams{Search: sql.NullString{String: search, Valid: true}, Limit: 200, Offset: 0})
+	return a.app.store.ListProductsPage(ctx, db.ListProductsPageParams{SearchPattern: "%" + search + "%", Limit: 200, Offset: 0})
 }
 
 func (a *adminServer) invoices(ctx context.Context, day string) (any, error) {

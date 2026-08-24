@@ -34,15 +34,13 @@ func (q *Queries) CountAllProducts(ctx context.Context) (int64, error) {
 
 const countProducts = `-- name: CountProducts :one
 SELECT COUNT(*) FROM products
-WHERE name LIKE '%' || ?1 || '%'
-   OR code LIKE '%' || ?1 || '%'
-   OR barcode LIKE '%' || ?1 || '%'
-   OR color LIKE '%' || ?1 || '%'
-   OR size LIKE '%' || ?1 || '%'
+WHERE (name || ' ' || code || ' ' || barcode)
+      LIKE ?1
 `
 
-func (q *Queries) CountProducts(ctx context.Context, search sql.NullString) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countProducts, search)
+// search_pattern must already be wrapped in '%...%' by the caller.
+func (q *Queries) CountProducts(ctx context.Context, searchPattern string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProducts, searchPattern)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -420,25 +418,21 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 const listProductsAfter = `-- name: ListProductsAfter :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products
 WHERE id > ?1
-  AND (
-       name LIKE '%' || ?2 || '%'
-    OR code LIKE '%' || ?2 || '%'
-    OR barcode LIKE '%' || ?2 || '%'
-    OR color LIKE '%' || ?2 || '%'
-    OR size LIKE '%' || ?2 || '%'
-  )
+  AND (name || ' ' || code || ' ' || barcode)
+      LIKE ?2
 ORDER BY id
 LIMIT ?3
 `
 
 type ListProductsAfterParams struct {
-	AfterID int64          `json:"afterId"`
-	Search  sql.NullString `json:"search"`
-	Limit   int64          `json:"limit"`
+	AfterID       int64  `json:"afterId"`
+	SearchPattern string `json:"searchPattern"`
+	Limit         int64  `json:"limit"`
 }
 
+// search_pattern must already be wrapped in '%...%' by the caller.
 func (q *Queries) ListProductsAfter(ctx context.Context, arg ListProductsAfterParams) ([]Product, error) {
-	rows, err := q.db.QueryContext(ctx, listProductsAfter, arg.AfterID, arg.Search, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, listProductsAfter, arg.AfterID, arg.SearchPattern, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -533,23 +527,21 @@ func (q *Queries) ListProductsAfterUnfiltered(ctx context.Context, arg ListProdu
 
 const listProductsPage = `-- name: ListProductsPage :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products
-WHERE name LIKE '%' || ?1 || '%'
-   OR code LIKE '%' || ?1 || '%'
-   OR barcode LIKE '%' || ?1 || '%'
-   OR color LIKE '%' || ?1 || '%'
-   OR size LIKE '%' || ?1 || '%'
+WHERE (name || ' ' || code || ' ' || barcode)
+      LIKE ?1
 ORDER BY id
 LIMIT ?3 OFFSET ?2
 `
 
 type ListProductsPageParams struct {
-	Search sql.NullString `json:"search"`
-	Offset int64          `json:"offset"`
-	Limit  int64          `json:"limit"`
+	SearchPattern string `json:"searchPattern"`
+	Offset        int64  `json:"offset"`
+	Limit         int64  `json:"limit"`
 }
 
+// search_pattern must already be wrapped in '%...%' by the caller.
 func (q *Queries) ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error) {
-	rows, err := q.db.QueryContext(ctx, listProductsPage, arg.Search, arg.Offset, arg.Limit)
+	rows, err := q.db.QueryContext(ctx, listProductsPage, arg.SearchPattern, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

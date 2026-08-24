@@ -102,6 +102,67 @@ func TestListProductsCursorUsesStableBatches(t *testing.T) {
 	}
 }
 
+func TestProductSearchMatchesNameCodeAndBarcodeOnly(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	insertTestProducts(t, database, 5)
+
+	if _, err := app.store.CreateProduct(app.ctx, db.CreateProductParams{
+		Barcode: "BAR-VARIANT", Code: "SKU-VARIANT", Name: "Denim Jacket",
+		IsActive: 1, Price: 4599, Color: "Indigo", Size: "XL", CurrencyCode: "USD",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	matches := []struct {
+		name  string
+		query string
+	}{
+		{"name", "Denim"},
+		{"code", "SKU-VARIANT"},
+		{"barcode", "BAR-VARIANT"},
+	}
+	for _, tc := range matches {
+		t.Run(tc.name, func(t *testing.T) {
+			page, err := app.ListProductsPage(1, 10, tc.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(page.Items) != 1 || page.Items[0]["code"] != "SKU-VARIANT" {
+				t.Fatalf("search %q = %#v, want the Denim Jacket variant", tc.query, page.Items)
+			}
+
+			cursor, err := app.ListProductsCursor(0, 20, tc.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(cursor.Items) != 1 || cursor.Items[0]["code"] != "SKU-VARIANT" {
+				t.Fatalf("cursor search %q = %#v, want the Denim Jacket variant", tc.query, cursor.Items)
+			}
+		})
+	}
+
+	nonMatches := []struct {
+		name  string
+		query string
+	}{
+		{"color", "Indigo"},
+		{"size", "XL"},
+		{"price", "45.99"},
+	}
+	for _, tc := range nonMatches {
+		t.Run("no_match_"+tc.name, func(t *testing.T) {
+			page, err := app.ListProductsPage(1, 10, tc.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(page.Items) != 0 {
+				t.Fatalf("search %q = %#v, want no matches (color/size/price aren't searched)", tc.query, page.Items)
+			}
+		})
+	}
+}
+
 func TestQuickAccessProductsPersistInDatabase(t *testing.T) {
 	app, database := newProductTestApp(t)
 	defer database.Close()

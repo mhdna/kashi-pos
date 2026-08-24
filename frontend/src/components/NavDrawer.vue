@@ -142,7 +142,7 @@ const items = computed(() => {
 
 <style scoped>
 .nav-drawer {
-  background-color: #0d47a1 !important;
+  background-color: rgb(var(--v-theme-primary)) !important;
   border-radius: 0 40px 40px 0 !important;
 }
 
