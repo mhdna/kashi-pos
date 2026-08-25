@@ -67,11 +67,23 @@ func (a *App) CreateClient(name, phone string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := a.store.CreateClient(a.ctx, db.CreateClientParams{
-		Name:               name,
-		Phone:              phone,
-		TotalLoyaltyPoints: 0,
-		ValidLoyaltyPoints: 0,
+	var client db.Client
+	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		var err error
+		client, err = q.CreateClient(a.ctx, db.CreateClientParams{
+			Name:               name,
+			Phone:              phone,
+			TotalLoyaltyPoints: 0,
+			ValidLoyaltyPoints: 0,
+		})
+		if err != nil {
+			return err
+		}
+		settings, err := q.GetSettings(a.ctx)
+		if err != nil {
+			return err
+		}
+		return queueBranchClientSync(a.ctx, q, settings.CentralApiUrl, client.ID, client.Name, client.Phone)
 	})
 	if err != nil {
 		return nil, err
@@ -95,12 +107,24 @@ func (a *App) UpdateClient(clientID int64, name, phone string) (map[string]any, 
 	if err != nil {
 		return nil, fmt.Errorf("client not found")
 	}
-	updated, err := a.store.UpdateClient(a.ctx, db.UpdateClientParams{
-		Name:               name,
-		Phone:              normalizedPhone,
-		TotalLoyaltyPoints: client.TotalLoyaltyPoints,
-		ValidLoyaltyPoints: client.ValidLoyaltyPoints,
-		ID:                 clientID,
+	var updated db.Client
+	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		var err error
+		updated, err = q.UpdateClient(a.ctx, db.UpdateClientParams{
+			Name:               name,
+			Phone:              normalizedPhone,
+			TotalLoyaltyPoints: client.TotalLoyaltyPoints,
+			ValidLoyaltyPoints: client.ValidLoyaltyPoints,
+			ID:                 clientID,
+		})
+		if err != nil {
+			return err
+		}
+		settings, err := q.GetSettings(a.ctx)
+		if err != nil {
+			return err
+		}
+		return queueBranchClientSync(a.ctx, q, settings.CentralApiUrl, updated.ID, updated.Name, updated.Phone)
 	})
 	if err != nil {
 		return nil, err

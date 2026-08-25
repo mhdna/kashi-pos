@@ -100,8 +100,35 @@
             </v-card-text>
           </v-card>
 
-          <v-card v-show="panelMatches('general-remote')" class="settings-card">
-            <v-card-title>Remote admin &amp; API</v-card-title>
+          <v-card v-show="panelMatches('general-sync')" class="settings-card">
+            <v-card-title>Central sync (kashi)</v-card-title>
+            <v-card-text class="field-grid">
+              <v-text-field
+                v-model="form.apiKey"
+                placeholder="API key"
+                variant="outlined"
+                density="compact"
+                hide-details
+                :append-inner-icon="showApiKey ? 'mdi-eye' : 'mdi-eye-off'"
+                :type="showApiKey ? 'text' : 'password'"
+                @click:append-inner="showApiKey = !showApiKey"
+              />
+              <v-text-field
+                v-model="form.centralApiUrl"
+                placeholder="Central server URL (e.g. http://localhost:8080)"
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="field-full"
+              />
+            </v-card-text>
+          </v-card>
+
+          <!-- kashi-admin (legacy): the separate local CLI tool's own admin
+               API, unrelated to central sync above. Slated for removal once
+               kashi's remote-command channel covers everything it does. -->
+          <v-card v-show="panelMatches('general-admin-legacy')" class="settings-card">
+            <v-card-title>kashi-admin (legacy)</v-card-title>
             <v-card-text class="field-grid">
               <v-text-field v-model="form.adminListen" placeholder="Listen address" variant="outlined" density="compact" hide-details />
               <v-text-field
@@ -113,16 +140,6 @@
                 :type="showAdminToken ? 'text' : 'password'"
                 :append-inner-icon="showAdminToken ? 'mdi-eye' : 'mdi-eye-off'"
                 @click:append-inner="showAdminToken = !showAdminToken"
-              />
-              <v-text-field
-                v-model="form.apiKey"
-                placeholder="API key"
-                variant="outlined"
-                density="compact"
-                hide-details
-                :append-inner-icon="showApiKey ? 'mdi-eye' : 'mdi-eye-off'"
-                :type="showApiKey ? 'text' : 'password'"
-                @click:append-inner="showApiKey = !showApiKey"
               />
               <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="field-full" />
             </v-card-text>
@@ -696,6 +713,27 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('behavior-client-required')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-account-off-outline" size="20" />
+              Client on checkout
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.clientRequired"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Require selecting a client before checkout"
+                @update:model-value="setClientRequired"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                When off, invoices default to Anonymous automatically - cashiers can still
+                enter a phone number and name to attach a real client.
+              </div>
+            </v-card-text>
+          </v-card>
+
         </div>
       </v-window-item>
 
@@ -1004,6 +1042,7 @@ import {
   GetDatabaseStatus,
   ChooseDatabase,
   UpdateSettings,
+  UpdateCentralAPIURL,
   UpdateAttendanceConfig,
   UpdateAttendanceApproverPassword,
   SetAttendanceDuplicateInterval,
@@ -1013,6 +1052,7 @@ import {
   SetPerUnitItemPricesEnabled,
   SetPriceChangeManualOverrideEnabled,
   SetInvoiceKeyboardModeEnabled,
+  SetClientRequired,
   SetHidePaymentMethodCurrency,
   SetAutoAppendLbpZerosEnabled,
   SetPageUnlocked,
@@ -1071,6 +1111,7 @@ import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 import { paymentAccentColor } from "@/lib/paymentColor";
 import { useAuthStore } from "@/stores/auth";
+import { useClient } from "@/composables/useClient";
 import { usePageUnlocks, lockablePages } from "@/composables/usePageUnlocks";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import {
@@ -1082,6 +1123,7 @@ import {
 import { useTheme } from "vuetify";
 
 const auth = useAuthStore();
+const { setClientRequired: setClientRequiredState } = useClient();
 const theme = useTheme();
 const tab = ref("general");
 
@@ -1092,7 +1134,8 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "general-appearance": { tab: "general", title: "Appearance", keywords: "dark theme animations mode display" },
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
-  "general-remote": { tab: "general", title: "Remote admin & API", keywords: "remote admin api listen address token key" },
+  "general-sync": { tab: "general", title: "Central sync (kashi)", keywords: "central sync kashi server url branch code api key" },
+  "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
   "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
   "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port" },
   "printing-receipt": { tab: "printing", title: "Receipt settings", keywords: "market name phone description branch phone register return policy social platforms instagram facebook website font body size title size cut paper sample" },
@@ -1108,6 +1151,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-custom-pricing": { tab: "behavior", title: "Custom item pricing", keywords: "custom item price discount per unit editing" },
   "behavior-price-change-mode": { tab: "behavior", title: "Price change mode", keywords: "price change manual override discount lever" },
   "behavior-invoice-keyboard": { tab: "behavior", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
+  "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
   "admin-change-password": { tab: "admin", title: "Change password", keywords: "change password current new confirm account security" },
   "admin-users": { tab: "admin", title: "Users", keywords: "users username role status add user edit delete akuvox userid" },
@@ -1165,6 +1209,7 @@ const form = reactive({
   branchName: "",
   branchCode: "CN",
   apiKey: "",
+  centralApiUrl: "",
   printerID: "",
   printerSize: "80mm",
   receiptPrinter: "",
@@ -1204,6 +1249,7 @@ const form = reactive({
   perUnitItemPricesEnabled: false,
   priceChangeManualOverrideEnabled: false,
   invoiceKeyboardModeEnabled: false,
+  clientRequired: true,
   hidePaymentMethodCurrency: false,
   autoAppendLbpZeros: false,
   adminEnabled: false,
@@ -1716,6 +1762,7 @@ async function loadSettings() {
         branchName: s.branchName ?? "",
         branchCode: s.branchCode ?? "CN",
         apiKey: s.apiKey ?? "",
+        centralApiUrl: s.centralApiUrl ?? "",
         printerID: s.printerID ?? "",
         printerSize: s.printerSize ?? "80mm",
         receiptPrinter: s.receiptPrinter ?? "",
@@ -1755,6 +1802,7 @@ async function loadSettings() {
         perUnitItemPricesEnabled: Boolean(s.perUnitItemPricesEnabled),
         priceChangeManualOverrideEnabled: Boolean(s.priceChangeManualOverrideEnabled),
         invoiceKeyboardModeEnabled: Boolean(s.invoiceKeyboardModeEnabled),
+        clientRequired: s.clientRequired !== false,
         hidePaymentMethodCurrency: Boolean(s.hidePaymentMethodCurrency),
         autoAppendLbpZeros: Boolean(s.autoAppendLbpZeros),
         akuvoxIP: s.attendance?.ip ?? "",
@@ -1893,6 +1941,23 @@ async function setInvoiceKeyboardModeEnabled(value: boolean | null) {
   }
 }
 
+async function setClientRequired(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.clientRequired;
+  form.clientRequired = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetClientRequired(enabled);
+    setClientRequiredState(enabled);
+    notify(`Client on checkout is now ${enabled ? "required" : "optional"}`);
+  } catch {
+    form.clientRequired = previous;
+    notify("Failed to update client requirement", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
 async function setHidePaymentMethodCurrency(value: boolean | null) {
   const hide = Boolean(value);
   const previous = form.hidePaymentMethodCurrency;
@@ -1997,6 +2062,7 @@ async function saveSettings() {
       maxOverpaymentCents,
     );
     await SetAutoCloseStaleShiftsEnabled(Boolean(form.autoCloseStaleShiftsEnabled));
+    await UpdateCentralAPIURL(form.centralApiUrl.trim());
     await UpdateReceiptSettings(
       form.marketName.trim(), form.marketPhone.trim(), form.branchPhone.trim(), form.marketDescription.trim(), form.returnPolicy.trim(),
       form.website.trim(), form.instagram.trim(), JSON.stringify(form.socialPlatforms ?? []), JSON.stringify(form.socialHandles ?? {}),

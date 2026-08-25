@@ -29,6 +29,7 @@ type Querier interface {
 	CountInvoiceCouponPaymentsByCode(ctx context.Context, couponCode string) (int64, error)
 	CountInvoiceCouponPaymentsByTypeID(ctx context.Context, couponTypeID int64) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
+	CountPendingSyncOutbox(ctx context.Context) (int64, error)
 	// search_pattern must already be wrapped in '%...%' by the caller.
 	CountProducts(ctx context.Context, searchPattern string) (int64, error)
 	CreateAccount(ctx context.Context, name string) (Account, error)
@@ -44,13 +45,16 @@ type Querier interface {
 	CreateCurrency(ctx context.Context, arg CreateCurrencyParams) (Currency, error)
 	CreateDiscountList(ctx context.Context, name string) (DiscountList, error)
 	CreateDiscountOverride(ctx context.Context, arg CreateDiscountOverrideParams) (DiscountOverride, error)
+	CreateExpense(ctx context.Context, arg CreateExpenseParams) (Expense, error)
 	CreateHoldInvoice(ctx context.Context, snapshotJson string) (HoldInvoice, error)
 	CreateInventory(ctx context.Context, name string) (Inventory, error)
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error)
+	CreateInvoiceClientRef(ctx context.Context, arg CreateInvoiceClientRefParams) error
 	CreateInvoiceCouponPayment(ctx context.Context, arg CreateInvoiceCouponPaymentParams) (InvoiceCouponPayment, error)
 	CreateInvoicePayment(ctx context.Context, arg CreateInvoicePaymentParams) error
 	CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoicePaymentEntryParams) error
 	CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error
+	CreateLoan(ctx context.Context, arg CreateLoanParams) (Loan, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) (Permission, error)
 	CreatePriceList(ctx context.Context, name string) (PriceList, error)
 	CreatePriceOverride(ctx context.Context, arg CreatePriceOverrideParams) (PriceOverride, error)
@@ -61,6 +65,7 @@ type Querier interface {
 	CreateSalesperson(ctx context.Context, fullName string) (Salesperson, error)
 	CreateShift(ctx context.Context, arg CreateShiftParams) (Shift, error)
 	CreateShiftBalanceReplacement(ctx context.Context, arg CreateShiftBalanceReplacementParams) error
+	CreateSyncOutboxEntry(ctx context.Context, arg CreateSyncOutboxEntryParams) (SyncOutbox, error)
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
@@ -97,6 +102,7 @@ type Querier interface {
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetActiveCouponByCode(ctx context.Context, code string) (Coupon, error)
 	GetAssetByID(ctx context.Context, id int64) (Asset, error)
+	GetAttributeByName(ctx context.Context, name string) (Attribute, error)
 	GetCashboxAccountByID(ctx context.Context, id int64) (CashboxAccount, error)
 	GetCashboxAccountByName(ctx context.Context, name string) (CashboxAccount, error)
 	GetClientAccountBalance(ctx context.Context, clientID int64) (interface{}, error)
@@ -110,13 +116,16 @@ type Querier interface {
 	GetDefaultCurrency(ctx context.Context) (Currency, error)
 	GetDiscountListByID(ctx context.Context, id int64) (DiscountList, error)
 	GetDiscountOverride(ctx context.Context, id int64) (DiscountOverride, error)
+	GetExpense(ctx context.Context, id int64) (Expense, error)
 	GetFeatureFlag(ctx context.Context, key string) (int64, error)
 	GetInventoryByID(ctx context.Context, id int64) (Inventory, error)
 	GetInventoryItem(ctx context.Context, arg GetInventoryItemParams) (InventoryItem, error)
 	GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
+	GetInvoiceClientRef(ctx context.Context, invoiceID int64) (string, error)
 	GetInvoiceIncomeTotalByDate(ctx context.Context, createdAt string) (interface{}, error)
 	GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams) (InvoiceIndex, error)
 	GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductParams) (InvoiceProduct, error)
+	GetLoan(ctx context.Context, id int64) (Loan, error)
 	GetOpenShift(ctx context.Context) (Shift, error)
 	GetPermissionByID(ctx context.Context, id int64) (Permission, error)
 	GetPermissionByName(ctx context.Context, name string) (Permission, error)
@@ -141,6 +150,7 @@ type Querier interface {
 	// displays one month at a time) instead of loading every shift ever
 	// created - pass '' for the historical "everything" behavior.
 	GetShiftTotals(ctx context.Context, totalsMonth interface{}) ([]GetShiftTotalsRow, error)
+	GetSyncCursor(ctx context.Context, entity string) (string, error)
 	GetTransferByID(ctx context.Context, id int64) (Transfer, error)
 	GetTransferItemByID(ctx context.Context, id int64) (TransferItem, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
@@ -150,6 +160,11 @@ type Querier interface {
 	ListAccounts(ctx context.Context) ([]Account, error)
 	ListActiveDiscountListItems(ctx context.Context) ([]ListActiveDiscountListItemsRow, error)
 	ListActivePriceListItems(ctx context.Context) ([]ListActivePriceListItemsRow, error)
+	// Loads every product's attribute values in one query, same pattern as
+	// loadActiveOverrides (pricing_overrides.go): one query per request,
+	// regardless of how many products are in the result set, avoiding an N+1
+	// per-product lookup in productMap.
+	ListAllProductAttributeValues(ctx context.Context) ([]ListAllProductAttributeValuesRow, error)
 	ListAssets(ctx context.Context) ([]Asset, error)
 	ListAttendanceComplaints(ctx context.Context, attendanceDate string) ([]AttendanceComplaint, error)
 	ListAttendanceComplaintsByDate(ctx context.Context, attendanceDate string) ([]AttendanceComplaint, error)
@@ -171,6 +186,8 @@ type Querier interface {
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
 	ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
+	ListDueSyncOutboxEntries(ctx context.Context, limit int64) ([]SyncOutbox, error)
+	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)
 	ListHoldInvoiceItems(ctx context.Context, holdInvoiceID int64) ([]ListHoldInvoiceItemsRow, error)
 	ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error)
 	// income_date/income_month filtering was never actually used by any caller
@@ -204,10 +221,14 @@ type Querier interface {
 	ListInvoicesByDate(ctx context.Context, date string) ([]ListInvoicesByDateRow, error)
 	ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error)
 	ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]ListInvoicesPageRow, error)
+	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error)
 	ListPriceLists(ctx context.Context) ([]PriceList, error)
 	ListPriceOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]PriceOverride, error)
+	// For a single-product lookup, where scanning the whole catalog's
+	// attributes (as ListAllProductAttributeValues does) would be wasteful.
+	ListProductAttributeValues(ctx context.Context, productID int64) ([]ListProductAttributeValuesRow, error)
 	ListProducts(ctx context.Context) ([]Product, error)
 	// search_pattern must already be wrapped in '%...%' by the caller.
 	ListProductsAfter(ctx context.Context, arg ListProductsAfterParams) ([]Product, error)
@@ -216,6 +237,7 @@ type Querier interface {
 	ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error)
 	ListProductsPageUnfiltered(ctx context.Context, arg ListProductsPageUnfilteredParams) ([]Product, error)
 	ListQuickAccessProducts(ctx context.Context) ([]Product, error)
+	ListReturnInvoices(ctx context.Context) ([]ReturnInvoice, error)
 	ListRoles(ctx context.Context) ([]Role, error)
 	// Revenue-weighted discount total from original sale invoices, attributed at
 	// the invoice level (discount is an invoice-wide concept, unlike line-level
@@ -239,6 +261,8 @@ type Querier interface {
 	ListTransferItems(ctx context.Context, transferID int64) ([]TransferItem, error)
 	ListTransfers(ctx context.Context) ([]Transfer, error)
 	ListUsers(ctx context.Context) ([]User, error)
+	MarkSyncOutboxAttemptFailed(ctx context.Context, arg MarkSyncOutboxAttemptFailedParams) error
+	MarkSyncOutboxSynced(ctx context.Context, id int64) error
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
@@ -249,7 +273,9 @@ type Querier interface {
 	SetDiscountListActive(ctx context.Context, arg SetDiscountListActiveParams) (DiscountList, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error)
+	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
 	SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error
+	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
 	// The portion of a shift's "On Account" total that was NOT recorded today -
 	// subtracted in Go from ListIncomeAccountTotals's On Account row so a shift
 	// left open across a day boundary doesn't drag prior days' on-account
@@ -260,6 +286,7 @@ type Querier interface {
 	StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error)
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)
 	UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAccountParams) (CashboxAccount, error)
+	UpdateCentralAPIURL(ctx context.Context, centralApiUrl string) error
 	UpdateClient(ctx context.Context, arg UpdateClientParams) (Client, error)
 	UpdateClientAccountEntryAmount(ctx context.Context, arg UpdateClientAccountEntryAmountParams) error
 	UpdateClientAccountOwnerByInvoice(ctx context.Context, arg UpdateClientAccountOwnerByInvoiceParams) error
@@ -285,6 +312,7 @@ type Querier interface {
 	UpdateTheme(ctx context.Context, theme string) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserAttendanceID(ctx context.Context, arg UpdateUserAttendanceIDParams) error
+	UpsertAttributeValue(ctx context.Context, arg UpsertAttributeValueParams) (AttributesValue, error)
 	UpsertDiscountListItem(ctx context.Context, arg UpsertDiscountListItemParams) (DiscountListItem, error)
 	UpsertInventoryItem(ctx context.Context, arg UpsertInventoryItemParams) error
 	UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error

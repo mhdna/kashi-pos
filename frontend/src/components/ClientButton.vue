@@ -41,6 +41,7 @@ const { client, clientSelected, pulseClient, setClient } = useClient();
 }
 .header-fixed-width-btn {
   width: 108px;
+  height: 35px;
 }
 .header-fixed-width-btn-label {
   min-width: 0;

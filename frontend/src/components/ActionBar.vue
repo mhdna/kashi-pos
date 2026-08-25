@@ -19,7 +19,7 @@
         rounded="lg"
         variant="text"
         color="grey-darken-2"
-        :disabled="!hasItems || restricted"
+        :disabled="!hasItems"
         @click="ask('void')"
       >
         <div class="d-flex flex-column align-center">
@@ -64,7 +64,15 @@
       <v-card-text>
         <template v-if="action === 'hold'"> Save the current invoice to hold? </template>
         <template v-else>
-          Cancel the current invoice?
+          <template v-if="mode === 'exchange'">
+            Cancel the exchange?
+          </template>
+          <template v-else-if="mode === 'settlement'">
+            Cancel the settlement?
+          </template>
+          <template v-else>
+            Cancel the current invoice?
+          </template>
           <br />
           <span class="text-red-darken-2 font-weight-bold">This cannot be undone.</span>
         </template>
@@ -86,7 +94,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 
-const emit = defineEmits<{ hold: []; void: []; checkout: [] }>();
+const emit = defineEmits<{ hold: []; void: []; cancelMode: []; checkout: [] }>();
 const props = defineProps<{
   total: number;
   totalSummary: { usd: string; lbp: string };
@@ -97,8 +105,8 @@ const props = defineProps<{
 
 const mode = computed(() => props.mode ?? "sale");
 // Both exchange and settlement mode lock the client and disable
-// hold/void - only the calculator and the mode-specific checkout action
-// are active.
+// hold - only the calculator and the mode-specific checkout action
+// are active. Cancel is available in all modes.
 const restricted = computed(() => mode.value !== "sale");
 const checkoutLabel = computed(() =>
   mode.value === "exchange" ? "Exchange" : mode.value === "settlement" ? "Change Settlement" : "Check Out",
@@ -106,8 +114,8 @@ const checkoutLabel = computed(() =>
 const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "#3e5523"));
 const checkoutButtonStyle = computed(() =>
   mode.value === "exchange"
-    ? "background-color: rgba(255, 152, 0, 0.24); border-color: rgba(255, 152, 0, 0.5) !important"
-    : "background-color: rgba(62, 85, 35, 0.24); border-color: rgba(62, 85, 35, 0.5) !important",
+    ? "background-color: rgba(255, 152, 0, 0.08); border-color: rgba(255, 152, 0, 0.5) !important"
+    : "background-color: rgba(62, 85, 35, 0.08); border-color: rgba(62, 85, 35, 0.5) !important",
 );
 
 const dialog = ref(false);
@@ -119,6 +127,7 @@ function ask(act: "hold" | "void") {
 }
 function doConfirm() {
   if (action.value === "hold") emit("hold");
+  else if (mode.value !== "sale") emit("cancelMode");
   else emit("void");
   dialog.value = false;
 }

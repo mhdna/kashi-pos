@@ -1201,6 +1201,33 @@ func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPagePara
 	return items, nil
 }
 
+const listReturnInvoices = `-- name: ListReturnInvoices :many
+SELECT invoice_id, sales_invoice_id FROM return_invoices
+`
+
+func (q *Queries) ListReturnInvoices(ctx context.Context) ([]ReturnInvoice, error) {
+	rows, err := q.db.QueryContext(ctx, listReturnInvoices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReturnInvoice{}
+	for rows.Next() {
+		var i ReturnInvoice
+		if err := rows.Scan(&i.InvoiceID, &i.SalesInvoiceID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSalespersonDiscountSummary = `-- name: ListSalespersonDiscountSummary :many
 SELECT COALESCE(sp.id, 0) AS salesperson_id,
        CAST(COALESCE(SUM(i.subtotal - i.grand_total), 0) AS INTEGER) AS discount_amount,

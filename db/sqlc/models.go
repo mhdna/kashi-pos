@@ -90,6 +90,17 @@ type AttendanceEventAudit struct {
 	ApprovedBy       string `json:"approvedBy"`
 }
 
+type Attribute struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+type AttributesValue struct {
+	ID          int64  `json:"id"`
+	AttributeID int64  `json:"attributeId"`
+	Value       string `json:"value"`
+}
+
 type CashboxAccount struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
@@ -186,6 +197,19 @@ type DiscountOverride struct {
 	CreatedAt string        `json:"createdAt"`
 }
 
+type Expense struct {
+	ID               int64         `json:"id"`
+	ClientRef        string        `json:"clientRef"`
+	Description      string        `json:"description"`
+	Category         string        `json:"category"`
+	Amount           int64         `json:"amount"`
+	CurrencyCode     string        `json:"currencyCode"`
+	CashboxAccountID int64         `json:"cashboxAccountId"`
+	ShiftID          sql.NullInt64 `json:"shiftId"`
+	OccurredAt       string        `json:"occurredAt"`
+	CreatedAt        string        `json:"createdAt"`
+}
+
 type FeatureFlag struct {
 	Key     string `json:"key"`
 	Enabled int64  `json:"enabled"`
@@ -234,6 +258,11 @@ type Invoice struct {
 	Notes           string `json:"notes"`
 }
 
+type InvoiceClientRef struct {
+	InvoiceID int64  `json:"invoiceId"`
+	ClientRef string `json:"clientRef"`
+}
+
 type InvoiceCouponPayment struct {
 	InvoiceID    int64  `json:"invoiceId"`
 	CouponCode   string `json:"couponCode"`
@@ -274,6 +303,19 @@ type InvoiceProduct struct {
 	Note           string        `json:"note"`
 	PriceListID    sql.NullInt64 `json:"priceListId"`
 	DiscountListID sql.NullInt64 `json:"discountListId"`
+}
+
+type Loan struct {
+	ID               int64         `json:"id"`
+	ClientRef        string        `json:"clientRef"`
+	Description      string        `json:"description"`
+	Category         string        `json:"category"`
+	Amount           int64         `json:"amount"`
+	CurrencyCode     string        `json:"currencyCode"`
+	CashboxAccountID int64         `json:"cashboxAccountId"`
+	ShiftID          sql.NullInt64 `json:"shiftId"`
+	OccurredAt       string        `json:"occurredAt"`
+	CreatedAt        string        `json:"createdAt"`
 }
 
 type PaymentMethod struct {
@@ -336,6 +378,12 @@ type Product struct {
 	Kind         string `json:"kind"`
 	Season       string `json:"season"`
 	ProductYear  int64  `json:"productYear"`
+}
+
+type ProductsAttribute struct {
+	AttributeID      int64 `json:"attributeId"`
+	AttributeValueID int64 `json:"attributeValueId"`
+	ProductID        int64 `json:"productId"`
 }
 
 type QuickAccessItem struct {
@@ -420,6 +468,7 @@ type Setting struct {
 	ExchangeWindowHours    int64   `json:"exchangeWindowHours"`
 	DefaultOpeningFloatUsd int64   `json:"defaultOpeningFloatUsd"`
 	DefaultOpeningFloatLbp int64   `json:"defaultOpeningFloatLbp"`
+	CentralApiUrl          string  `json:"centralApiUrl"`
 }
 
 type Shift struct {
@@ -454,6 +503,24 @@ type ShiftsAccountsBalance struct {
 	AccountID int64 `json:"accountId"`
 	ShiftID   int64 `json:"shiftId"`
 	Balance   int64 `json:"balance"`
+}
+
+type SyncCursor struct {
+	Entity string `json:"entity"`
+	Cursor string `json:"cursor"`
+}
+
+type SyncOutbox struct {
+	ID            int64          `json:"id"`
+	EntityType    string         `json:"entityType"`
+	ClientRef     string         `json:"clientRef"`
+	PayloadJson   string         `json:"payloadJson"`
+	Status        string         `json:"status"`
+	AttemptCount  int64          `json:"attemptCount"`
+	LastError     string         `json:"lastError"`
+	NextAttemptAt string         `json:"nextAttemptAt"`
+	CreatedAt     string         `json:"createdAt"`
+	SyncedAt      sql.NullString `json:"syncedAt"`
 }
 
 type Transfer struct {

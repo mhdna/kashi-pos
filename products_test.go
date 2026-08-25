@@ -199,6 +199,12 @@ func TestProductVariantsHaveDistinctBarcodesAndCatalogMetadata(t *testing.T) {
 	app, database := newProductTestApp(t)
 	defer database.Close()
 
+	// brand/family/kind/season/product_year are still legacy columns here
+	// (admin_server.go and tools/kashi-admin still write them), but the
+	// main app now sources this metadata from the attribute system
+	// instead (see 000073_create_product_attributes.up.sql) — so a
+	// realistic test product needs matching products_attributes rows, not
+	// just the legacy columns, for GetProductByBarcode to surface them.
 	_, err := database.Exec(`
 		INSERT INTO products (
 			barcode, code, name, description, is_active, price, discount,
@@ -212,6 +218,28 @@ func TestProductVariantsHaveDistinctBarcodesAndCatalogMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, barcode := range []string{"VAR-RED-S", "VAR-BLUE-L"} {
+		_, err := database.Exec(`
+			INSERT INTO attributes_values (attribute_id, value)
+			SELECT 2, 'Kashi' WHERE NOT EXISTS (SELECT 1 FROM attributes_values WHERE attribute_id = 2 AND value = 'Kashi')
+			UNION ALL SELECT 1, 'Oxford' WHERE NOT EXISTS (SELECT 1 FROM attributes_values WHERE attribute_id = 1 AND value = 'Oxford')
+			UNION ALL SELECT 3, 'Shirt' WHERE NOT EXISTS (SELECT 1 FROM attributes_values WHERE attribute_id = 3 AND value = 'Shirt')
+			UNION ALL SELECT 7, 'Summer' WHERE NOT EXISTS (SELECT 1 FROM attributes_values WHERE attribute_id = 7 AND value = 'Summer')
+			UNION ALL SELECT 6, '2026' WHERE NOT EXISTS (SELECT 1 FROM attributes_values WHERE attribute_id = 6 AND value = '2026')
+		`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = database.Exec(`
+			INSERT INTO products_attributes (attribute_id, attribute_value_id, product_id)
+			SELECT av.attribute_id, av.id, (SELECT id FROM products WHERE barcode = ?)
+			FROM attributes_values av
+			WHERE (av.attribute_id, av.value) IN ((2,'Kashi'), (1,'Oxford'), (3,'Shirt'), (7,'Summer'), (6,'2026'))
+		`, barcode)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	red, err := app.GetProductByBarcode("VAR-RED-S")
 	if err != nil {
@@ -224,7 +252,10 @@ func TestProductVariantsHaveDistinctBarcodesAndCatalogMetadata(t *testing.T) {
 	if red["code"] != blue["code"] || red["color"] != "Red" || red["size"] != "S" || blue["color"] != "Blue" || blue["size"] != "L" {
 		t.Fatalf("variants were not kept separate: red=%#v blue=%#v", red, blue)
 	}
-	if red["brand"] != "Kashi" || red["family"] != "Oxford" || red["kind"] != "Shirt" || red["season"] != "Summer" || red["year"] != int64(2026) {
+	// year comes back as text now (attributes_values.value is always
+	// text, matching kashi's own attribute model), not the int64 the old
+	// product_year column held.
+	if red["brand"] != "Kashi" || red["family"] != "Oxford" || red["kind"] != "Shirt" || red["season"] != "Summer" || red["year"] != "2026" {
 		t.Fatalf("catalog metadata missing from product: %#v", red)
 	}
 

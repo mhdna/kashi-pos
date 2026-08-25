@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -14,6 +15,10 @@ const (
 	perUnitItemPricesFlag         = "per_unit_item_prices"
 	priceChangeManualOverrideFlag = "price_change_manual_override_mode"
 	invoiceKeyboardModeFlag       = "invoice_keyboard_mode"
+	// Named as a "required" flag defaulting to true when unset, so a
+	// database that has never touched this flag keeps requiring a client
+	// selection on checkout - matching behavior before this setting existed.
+	clientRequiredFlag = "client_required"
 	// Named as a "hide" flag (rather than "show") so a database that has
 	// never touched this flag - where GetFeatureFlag errors and the read
 	// side treats it as false - keeps the currency line visible, matching
@@ -54,7 +59,11 @@ func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return productMap(product, overrides), nil
+	attrs, err := loadOneProductAttributeValues(a.ctx, a.store.Queries, product.ID)
+	if err != nil {
+		return nil, err
+	}
+	return productMap(product, overrides, attrs), nil
 }
 
 func (a *App) GetProductByCode(code string) (map[string]any, error) {
@@ -70,7 +79,11 @@ func (a *App) GetProductByCode(code string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return productMap(product, overrides), nil
+	attrs, err := loadOneProductAttributeValues(a.ctx, a.store.Queries, product.ID)
+	if err != nil {
+		return nil, err
+	}
+	return productMap(product, overrides, attrs), nil
 }
 
 func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
@@ -85,9 +98,13 @@ func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	attrs, err := loadProductAttributeValues(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]map[string]any, len(products))
 	for i, product := range products {
-		result[i] = productMap(product, overrides)
+		result[i] = productMap(product, overrides, attrs[product.ID])
 	}
 	return result, nil
 }
@@ -178,10 +195,15 @@ func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (Produ
 		log.Printf("ListProductsPage: load active overrides: %v", err)
 		return ProductPage{}, fmt.Errorf("load price/discount overrides: %w", err)
 	}
+	attrs, err := loadProductAttributeValues(a.ctx, a.store.Queries)
+	if err != nil {
+		log.Printf("ListProductsPage: load product attributes: %v", err)
+		return ProductPage{}, fmt.Errorf("load product attributes: %w", err)
+	}
 
 	result := make([]map[string]any, len(products))
 	for i, p := range products {
-		result[i] = productMap(p, overrides)
+		result[i] = productMap(p, overrides, attrs[p.ID])
 	}
 	return ProductPage{Items: result, Total: total}, nil
 }
@@ -229,6 +251,11 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 		log.Printf("ListProductsCursor: load active overrides: %v", err)
 		return ProductCursorPage{}, fmt.Errorf("load price/discount overrides: %w", err)
 	}
+	attrs, err := loadProductAttributeValues(a.ctx, a.store.Queries)
+	if err != nil {
+		log.Printf("ListProductsCursor: load product attributes: %v", err)
+		return ProductCursorPage{}, fmt.Errorf("load product attributes: %w", err)
+	}
 
 	hasMore := len(products) > limit
 	if hasMore {
@@ -236,7 +263,7 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 	}
 	result := make([]map[string]any, len(products))
 	for i, product := range products {
-		result[i] = productMap(product, overrides)
+		result[i] = productMap(product, overrides, attrs[product.ID])
 	}
 	nextCursor := afterID
 	if len(products) > 0 {
@@ -245,11 +272,50 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 	return ProductCursorPage{Items: result, NextCursor: nextCursor, HasMore: hasMore}, nil
 }
 
+// loadProductAttributeValues loads every product's attribute values in one
+// query (same batching pattern as loadActiveOverrides below: one query per
+// request regardless of how many products are in the result set), keyed
+// by product id then attribute name — e.g. attrs[42]["brand"] == "Nike".
+//
+// This is the source of truth for brand/category/etc. going forward, not
+// products.brand/family/kind/season/product_year — those columns still
+// exist and are still written by admin_server.go and tools/kashi-admin
+// (which are being retired, not converted), but the main app no longer
+// reads them.
+func loadProductAttributeValues(ctx context.Context, q *db.Queries) (map[int64]map[string]string, error) {
+	rows, err := q.ListAllProductAttributeValues(ctx)
+	if err != nil {
+		return nil, err
+	}
+	attrs := make(map[int64]map[string]string)
+	for _, row := range rows {
+		if attrs[row.ProductID] == nil {
+			attrs[row.ProductID] = make(map[string]string)
+		}
+		attrs[row.ProductID][row.AttributeName] = row.Value
+	}
+	return attrs, nil
+}
+
+func loadOneProductAttributeValues(ctx context.Context, q *db.Queries, productID int64) (map[string]string, error) {
+	rows, err := q.ListProductAttributeValues(ctx, productID)
+	if err != nil {
+		return nil, err
+	}
+	attrs := make(map[string]string, len(rows))
+	for _, row := range rows {
+		attrs[row.AttributeName] = row.Value
+	}
+	return attrs, nil
+}
+
 // productMap converts a product row to the shape the frontend consumes,
 // overlaying an active price-list/discount-list override (if any) onto the
 // price/discount so every product-lookup path (search, quick-access, cart
-// add, checkout) agrees on what a product currently sells for.
-func productMap(p db.Product, overrides activeOverrides) map[string]any {
+// add, checkout) agrees on what a product currently sells for. attrs is
+// this one product's entry from loadProductAttributeValues (nil is fine —
+// a product with no attribute rows yet just reports empty strings).
+func productMap(p db.Product, overrides activeOverrides, attrs map[string]string) map[string]any {
 	price := p.Price
 	discount := p.Discount
 	priceOverridden, discountOverridden := false, false
@@ -269,8 +335,12 @@ func productMap(p db.Product, overrides activeOverrides) map[string]any {
 		"name": p.Name, "category": p.Description,
 		"price": float64(price) / 100, "discount": discount,
 		"color": p.Color, "size": p.Size, "currency": p.CurrencyCode,
-		"brand": p.Brand, "family": p.Family, "kind": p.Kind,
-		"season": p.Season, "year": p.ProductYear,
+		// "family" kept as the frontend-facing key for backward
+		// compatibility, sourced from the 'sub-category' attribute — see
+		// the migration comment in 000073_create_product_attributes.up.sql
+		// for why that's the mapping.
+		"brand": attrs["brand"], "family": attrs["sub-category"], "kind": attrs["kind"],
+		"season": attrs["season"], "year": attrs["year"],
 		"priceListOverridden": priceOverridden, "priceListName": priceListName,
 		"discountListOverridden": discountOverridden, "discountListName": discountListName,
 	}

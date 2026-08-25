@@ -46,6 +46,10 @@ export function CreateDatabase():Promise<string>;
 
 export function CreateDiscountList(arg1:string):Promise<Record<string, any>>;
 
+export function CreateExpense(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
+
+export function CreateLoan(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
+
 export function CreatePriceList(arg1:string):Promise<Record<string, any>>;
 
 export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
@@ -132,6 +136,8 @@ export function ListDiscountListItems(arg1:number):Promise<Array<Record<string, 
 
 export function ListDiscountLists():Promise<Array<Record<string, any>>>;
 
+export function ListExpenses(arg1:number,arg2:number):Promise<Array<Record<string, any>>>;
+
 export function ListHoldInvoices():Promise<Array<Record<string, any>>>;
 
 export function ListInventories():Promise<Array<Record<string, any>>>;
@@ -139,6 +145,8 @@ export function ListInventories():Promise<Array<Record<string, any>>>;
 export function ListInvoicesFilteredPage(arg1:number,arg2:number,arg3:string):Promise<main.InvoicePage>;
 
 export function ListInvoicesPage(arg1:number,arg2:number):Promise<main.InvoicePage>;
+
+export function ListLoans(arg1:number,arg2:number):Promise<Array<Record<string, any>>>;
 
 export function ListPageUnlocks():Promise<Record<string, boolean>>;
 
@@ -218,6 +226,8 @@ export function SetAutoAppendLbpZerosEnabled(arg1:boolean):Promise<void>;
 
 export function SetAutoCloseStaleShiftsEnabled(arg1:boolean):Promise<void>;
 
+export function SetClientRequired(arg1:boolean):Promise<void>;
+
 export function SetCurrencyActive(arg1:string,arg2:boolean):Promise<Record<string, any>>;
 
 export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
@@ -259,6 +269,8 @@ export function UpdateAttendanceApproverPassword(arg1:string):Promise<void>;
 export function UpdateAttendanceConfig(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<void>;
 
 export function UpdateCashboxAccount(arg1:number,arg2:string,arg3:string,arg4:string):Promise<Record<string, any>>;
+
+export function UpdateCentralAPIURL(arg1:string):Promise<void>;
 
 export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
 

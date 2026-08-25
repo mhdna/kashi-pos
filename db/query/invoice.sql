@@ -58,6 +58,9 @@ WHERE r.sales_invoice_id = ? AND ip.product_id = ? AND ip.unit_price = ? AND ip.
 -- name: ListInvoices :many
 SELECT * FROM invoices ORDER BY id;
 
+-- name: ListReturnInvoices :many
+SELECT invoice_id, sales_invoice_id FROM return_invoices;
+
 -- name: ListInvoicesPage :many
 SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
 FROM invoices i

@@ -2,20 +2,28 @@
   <v-dialog :model-value="modelValue" max-width="380" @update:model-value="$emit('update:modelValue', $event)">
     <v-card>
       <v-card-title>Set opening cash</v-card-title>
-      <v-card-text>
-        <div class="text-body-2 mb-3">
-          Cash assumed to already be in the drawer for this shift. Requires the manager password.
-        </div>
+      <v-card-text class="dialog-content">
         <div class="text-caption text-medium-emphasis mb-1">Opening amount (USD)</div>
         <v-text-field v-model.number="usd" placeholder="0.00" type="number" min="0" step="0.01" variant="outlined" density="compact" class="mb-2" />
         <div class="text-caption text-medium-emphasis mb-1">Opening amount (LBP)</div>
         <v-text-field v-model.number="lbp" placeholder="0" type="number" min="0" step="1" variant="outlined" density="compact" class="mb-2" />
         <div class="text-caption text-medium-emphasis mb-1">Manager password</div>
-        <v-text-field v-model="password" placeholder="••••••••" type="password" variant="outlined" density="compact" @keyup.enter="save" />
-        <v-alert v-if="negative" type="warning" variant="tonal" density="compact" class="mb-2">
-          Opening amount cannot be negative — enter the actual cash amount in the drawer.
-        </v-alert>
-        <v-alert v-if="error" type="error" variant="tonal" density="compact">{{ error }}</v-alert>
+        <v-text-field
+          v-model="password"
+          placeholder="••••••••"
+          :type="showPassword ? 'text' : 'password'"
+          variant="outlined"
+          density="compact"
+          :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+          @click:append-inner="showPassword = !showPassword"
+          @keyup.enter="save"
+        />
+        <div class="alert-container">
+          <v-alert v-if="negative" type="warning" variant="tonal" density="compact" class="mb-2">
+            Opening amount cannot be negative — enter the actual cash amount in the drawer.
+          </v-alert>
+          <v-alert v-if="error" type="error" variant="tonal" density="compact">{{ error }}</v-alert>
+        </div>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
@@ -43,6 +51,7 @@ const lbp = ref(0);
 const password = ref("");
 const error = ref("");
 const saving = ref(false);
+const showPassword = ref(false);
 const negative = computed(() => usd.value < 0 || lbp.value < 0);
 
 watch(
@@ -73,3 +82,17 @@ async function save() {
   }
 }
 </script>
+
+<style scoped>
+.dialog-content {
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.alert-container {
+  min-height: 60px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+</style>

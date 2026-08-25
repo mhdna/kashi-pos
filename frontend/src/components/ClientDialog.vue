@@ -108,7 +108,7 @@
             Continue
           </v-btn>
           <v-btn
-            class="client-phone-action-button w-100 mt-2"
+            class="client-phone-action-button w-100 mt-6"
             variant="tonal"
             @click="selectAnonymous"
           >

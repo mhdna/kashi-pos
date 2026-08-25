@@ -1,5 +1,5 @@
 <template>
-  <v-menu v-model="menu" :close-on-content-click="false" location="bottom end">
+  <v-menu v-model="menu" :close-on-content-click="false" location="bottom center">
     <template #activator="{ props }">
       <div class="header-btn-wrap">
         <div class="header-btn-subtitle">Salesperson</div>
@@ -17,14 +17,25 @@
         </v-btn>
       </div>
     </template>
-    <v-list density="compact" nav style="max-height: 400px; overflow-y: auto">
-      <v-list-item v-for="p in salespersons" :key="p.id" @click="selectSalesperson(p)">
-        <template #prepend>
-          <InitialsAvatar :name="p.fullName ?? ''" :color="colorFor(p.id) ?? 'grey'" :size="32" />
-        </template>
-        <v-list-item-title class="text-body-2">{{ p.fullName }}</v-list-item-title>
-      </v-list-item>
-    </v-list>
+    <v-card class="salespersons-grid" style="max-height: 450px; overflow-y: auto; width: 240px">
+      <v-row class="pa-2 ga-2 fill-height" no-gutters>
+        <v-col v-for="p in salespersons" :key="p.id" cols="6" style="display: flex">
+          <button
+            type="button"
+            class="salesperson-card d-flex flex-column align-center justify-center w-100"
+            @click="selectSalesperson(p)"
+          >
+            <InitialsAvatar
+              :name="p.fullName ?? ''"
+              :color="colorFor(p.id) ?? 'grey'"
+              :size="48"
+              class="mb-2 flex-shrink-0"
+            />
+            <span class="text-caption text-center text-truncate w-100">{{ p.fullName }}</span>
+          </button>
+        </v-col>
+      </v-row>
+    </v-card>
   </v-menu>
 </template>
 
@@ -76,6 +87,7 @@ onMounted(async () => {
 }
 .header-fixed-width-btn {
   width: 108px;
+  height: 35px;
 }
 .header-fixed-width-btn-label {
   min-width: 0;
@@ -96,5 +108,35 @@ onMounted(async () => {
   50% {
     box-shadow: 0 0 0 8px rgba(var(--v-theme-warning), 0.32);
   }
+}
+
+.salespersons-grid {
+  min-width: 300px;
+}
+
+.salesperson-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 120ms ease;
+  font-family: inherit;
+  font-size: inherit;
+  width: 100%;
+}
+
+.salesperson-card:hover {
+  background-color: rgba(var(--v-theme-on-surface), 0.08);
+  border-color: rgba(var(--v-border-color), 0.36);
+}
+
+.salesperson-card:active {
+  transform: scale(0.97);
 }
 </style>

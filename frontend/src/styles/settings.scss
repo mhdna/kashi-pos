@@ -40,6 +40,14 @@
   background-color: var(--kashi-app-background) !important;
 }
 
+.v-theme--dark .v-table,
+.v-theme--dark .v-data-table,
+.v-theme--dark .v-data-table-virtual,
+.v-theme--dark .v-table__wrapper,
+.v-theme--dark .v-table__wrapper > table {
+  background-color: #000000 !important;
+}
+
 .v-ripple__container {
   display: none !important;
 }

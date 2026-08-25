@@ -90,6 +90,14 @@ export function CreateDiscountList(arg1) {
   return window['go']['main']['App']['CreateDiscountList'](arg1);
 }
 
+export function CreateExpense(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['CreateExpense'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function CreateLoan(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['CreateLoan'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function CreatePriceList(arg1) {
   return window['go']['main']['App']['CreatePriceList'](arg1);
 }
@@ -262,6 +270,10 @@ export function ListDiscountLists() {
   return window['go']['main']['App']['ListDiscountLists']();
 }
 
+export function ListExpenses(arg1, arg2) {
+  return window['go']['main']['App']['ListExpenses'](arg1, arg2);
+}
+
 export function ListHoldInvoices() {
   return window['go']['main']['App']['ListHoldInvoices']();
 }
@@ -276,6 +288,10 @@ export function ListInvoicesFilteredPage(arg1, arg2, arg3) {
 
 export function ListInvoicesPage(arg1, arg2) {
   return window['go']['main']['App']['ListInvoicesPage'](arg1, arg2);
+}
+
+export function ListLoans(arg1, arg2) {
+  return window['go']['main']['App']['ListLoans'](arg1, arg2);
 }
 
 export function ListPageUnlocks() {
@@ -434,6 +450,10 @@ export function SetAutoCloseStaleShiftsEnabled(arg1) {
   return window['go']['main']['App']['SetAutoCloseStaleShiftsEnabled'](arg1);
 }
 
+export function SetClientRequired(arg1) {
+  return window['go']['main']['App']['SetClientRequired'](arg1);
+}
+
 export function SetCurrencyActive(arg1, arg2) {
   return window['go']['main']['App']['SetCurrencyActive'](arg1, arg2);
 }
@@ -516,6 +536,10 @@ export function UpdateAttendanceConfig(arg1, arg2, arg3, arg4) {
 
 export function UpdateCashboxAccount(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateCashboxAccount'](arg1, arg2, arg3, arg4);
+}
+
+export function UpdateCentralAPIURL(arg1) {
+  return window['go']['main']['App']['UpdateCentralAPIURL'](arg1);
 }
 
 export function UpdateClient(arg1, arg2, arg3) {

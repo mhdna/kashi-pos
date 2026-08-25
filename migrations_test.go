@@ -15,7 +15,11 @@ func TestApplyMigrationsFreshDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("apply migrations: %v", err)
 	}
-	assertMigrationVersion(t, conn, 68)
+	migrations, err := loadMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertMigrationVersion(t, conn, latestMigrationVersion(migrations))
 	assertTableExists(t, conn, "settings")
 	assertTableExists(t, conn, "feature_flags")
 	assertTableExists(t, conn, "schema_migrations")
@@ -60,7 +64,7 @@ func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, databasePath, true); err != nil {
 		t.Fatalf("upgrade legacy database: %v", err)
 	}
-	assertMigrationVersion(t, conn, 68)
+	assertMigrationVersion(t, conn, latestMigrationVersion(migrations))
 	assertTableExists(t, conn, "schema_migrations")
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertTableExists(t, conn, "quick_access_items")
@@ -77,6 +81,77 @@ func TestApplyMigrationsUpgradesLegacyDatabase(t *testing.T) {
 	if err != nil || len(backupMatches) != 1 {
 		t.Fatalf("expected one database backup, found %v (err=%v)", backupMatches, err)
 	}
+}
+
+func TestProductAttributesMigrationBackfillsExistingCatalogMetadata(t *testing.T) {
+	conn := openTestDatabase(t)
+	migrations, err := loadMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 37 is 000037_product_catalog_metadata.up.sql — the last migration
+	// before the one under test, so brand/family/kind/season/product_year
+	// exist as legacy columns to backfill from.
+	const cutoff = 37
+	for _, migration := range migrations {
+		if migration.version > cutoff {
+			break
+		}
+		if _, err := conn.Exec(migration.sql); err != nil {
+			t.Fatalf("apply migration %d: %v", migration.version, err)
+		}
+	}
+	if _, err := conn.Exec(`CREATE TABLE schema_migrations (
+		version INTEGER PRIMARY KEY,
+		name TEXT NOT NULL,
+		applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	for _, migration := range migrations {
+		if migration.version > cutoff {
+			break
+		}
+		if _, err := conn.Exec("INSERT INTO schema_migrations(version, name) VALUES (?, ?)", migration.version, migration.name); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := conn.Exec(
+		`INSERT INTO products (barcode, code, name, description, is_active, price, discount, color, size, currency_code, brand, family, kind, season, product_year)
+		 VALUES ('1', 'SKU-1', 'Test Shirt', '', 1, 1000, 0, '', '', 'USD', 'Nike', 'Outerwear', 'Casual', 'Summer', 2024)`,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
+		t.Fatalf("apply product attributes migration: %v", err)
+	}
+
+	assertTableExists(t, conn, "attributes")
+	assertTableExists(t, conn, "attributes_values")
+	assertTableExists(t, conn, "products_attributes")
+
+	checkAttribute := func(attributeID int, want string) {
+		t.Helper()
+		var got string
+		err := conn.QueryRow(`
+			SELECT av.value FROM products_attributes pa
+			JOIN attributes_values av ON av.id = pa.attribute_value_id
+			JOIN products p ON p.id = pa.product_id
+			WHERE p.code = 'SKU-1' AND pa.attribute_id = ?`, attributeID).Scan(&got)
+		if err != nil {
+			t.Fatalf("attribute_id=%d: %v", attributeID, err)
+		}
+		if got != want {
+			t.Fatalf("attribute_id=%d = %q, want %q", attributeID, got, want)
+		}
+	}
+	checkAttribute(2, "Nike")      // brand
+	checkAttribute(1, "Outerwear") // family -> sub-category
+	checkAttribute(3, "Casual")    // kind
+	checkAttribute(7, "Summer")    // season
+	checkAttribute(6, "2024")      // product_year -> year
 }
 
 func TestInvoicePaymentEntriesMigrationRepairsMissingTable(t *testing.T) {
@@ -114,7 +189,7 @@ func TestInvoicePaymentEntriesMigrationRepairsMissingTable(t *testing.T) {
 	if err := applyMigrations(context.Background(), conn, "", false); err != nil {
 		t.Fatalf("repair missing payment-entry table: %v", err)
 	}
-	assertMigrationVersion(t, conn, 68)
+	assertMigrationVersion(t, conn, latestMigrationVersion(migrations))
 	assertTableExists(t, conn, "invoice_payment_entries")
 	assertIndexExists(t, conn, "idx_clients_phone", "clients")
 	assertIndexExists(t, conn, "idx_products_barcode", "products")

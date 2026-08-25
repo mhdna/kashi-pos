@@ -696,6 +696,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["invoiceKeyboardModeEnabled"] = false
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, clientRequiredFlag); flagErr == nil {
+		result["clientRequired"] = enabled != 0
+	} else {
+		result["clientRequired"] = true
+	}
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, hidePaymentMethodCurrencyFlag); flagErr == nil {
 		result["hidePaymentMethodCurrency"] = enabled != 0
 	} else {
@@ -769,6 +774,20 @@ func (a *App) SetInvoiceKeyboardModeEnabled(enabled bool) error {
 	}
 	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: invoiceKeyboardModeFlag, Enabled: boolInt(enabled),
+	})
+}
+
+// SetClientRequired toggles whether a client must be explicitly selected
+// before checkout. Required (the default) is today's behavior - the
+// cashier must use "Prefer not to say" or enter a phone/name. Not required
+// lets invoices default to Anonymous automatically, though a phone and
+// name can still be entered at any time.
+func (a *App) SetClientRequired(required bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: clientRequiredFlag, Enabled: boolInt(required),
 	})
 }
 

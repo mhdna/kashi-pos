@@ -1,0 +1,264 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/gorilla/websocket"
+)
+
+// errCentralSyncDisabled means this install has no central_api_url/api_key
+// configured. Every centralClient method must check this first — sync is
+// opt-in per branch, and an install that hasn't opted in must behave
+// exactly as it does today, indefinitely, not just "until it's set up".
+var errCentralSyncDisabled = errors.New("central sync is not configured for this branch")
+
+// centralClient talks to the kashi central backend on behalf of this branch,
+// authenticating with the branch code/key pair from settings (branchAuthMiddleware
+// on the kashi side, not the PASETO user-token flow — see api/middleware.go
+// in the kashi repo for why a branch uses a separate, non-expiring credential).
+type centralClient struct {
+	baseURL    string
+	branchCode string
+	apiKey     string
+	httpClient *http.Client
+}
+
+func newCentralClient(baseURL, branchCode, apiKey string) *centralClient {
+	return &centralClient{
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		branchCode: branchCode,
+		apiKey:     apiKey,
+		httpClient: &http.Client{Timeout: 10 * time.Second},
+	}
+}
+
+func (c *centralClient) enabled() bool {
+	return c != nil && c.baseURL != "" && c.branchCode != "" && c.apiKey != ""
+}
+
+func (c *centralClient) newRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-Branch-Code", c.branchCode)
+	req.Header.Set("X-Branch-Key", c.apiKey)
+	return req, nil
+}
+
+type centralErrorBody struct {
+	Error string `json:"error"`
+}
+
+// Health confirms the configured branch code/key round-trips against kashi's
+// /branch/health. It does nothing else — no retry, no side effects — this is
+// purely for manually verifying a branch is wired up correctly.
+func (c *centralClient) Health(ctx context.Context) error {
+	if !c.enabled() {
+		return errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, http.MethodGet, "/branch/health", nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var body centralErrorBody
+		json.NewDecoder(resp.Body).Decode(&body)
+		return fmt.Errorf("central health check failed (status %d): %s", resp.StatusCode, body.Error)
+	}
+
+	return nil
+}
+
+// PostInvoice sends a raw, already-serialized branchInvoicePayload JSON body
+// to kashi. It's deliberately just []byte in, error out — the sync worker
+// stores the exact bytes it needs to send (sync_outbox.payload_json) and
+// has no reason to unmarshal/remarshal them, and the caller doesn't need
+// the response body since kashi's idempotency handling means any 2xx
+// (fresh create or "already have this one") is equally a success.
+func (c *centralClient) PostInvoice(ctx context.Context, path string, payloadJSON []byte) error {
+	return c.sendJSON(ctx, http.MethodPost, path, payloadJSON)
+}
+
+// PutSettings pushes this branch's current business-identity settings
+// snapshot to kashi. It's a plain upsert on kashi's side (see
+// putBranchSettings in api/branch_settings.go), so pushing the same
+// snapshot repeatedly is harmless -- unlike invoices, settings has no
+// client_ref/idempotency concept because there's nothing to deduplicate.
+func (c *centralClient) PutSettings(ctx context.Context, payloadJSON []byte) error {
+	return c.sendJSON(ctx, http.MethodPut, "/branch/settings", payloadJSON)
+}
+
+func (c *centralClient) sendJSON(ctx context.Context, method, path string, payloadJSON []byte) error {
+	if !c.enabled() {
+		return errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, method, path, bytes.NewReader(payloadJSON))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var body centralErrorBody
+		json.NewDecoder(resp.Body).Decode(&body)
+		return fmt.Errorf("%s %s failed (status %d): %s", method, path, resp.StatusCode, body.Error)
+	}
+
+	return nil
+}
+
+type branchSyncChangesResponse struct {
+	Entity     string          `json:"entity"`
+	Items      json.RawMessage `json:"items"`
+	ServerTime time.Time       `json:"server_time"`
+}
+
+// FetchChanges calls kashi's generalized catch-up endpoint for one entity.
+// since may be empty, meaning "everything" (a fresh install or one just
+// turning sync on) — that's not a special case on either side, just an
+// empty `since` query param. Items is left as raw JSON since each entity
+// unmarshals into a different local shape; the caller decodes it.
+func (c *centralClient) FetchChanges(ctx context.Context, entity, since string) (*branchSyncChangesResponse, error) {
+	if !c.enabled() {
+		return nil, errCentralSyncDisabled
+	}
+
+	path := "/branch/sync/changes?entity=" + url.QueryEscape(entity)
+	if since != "" {
+		path += "&since=" + url.QueryEscape(since)
+	}
+
+	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var body centralErrorBody
+		json.NewDecoder(resp.Body).Decode(&body)
+		return nil, fmt.Errorf("fetch changes for %s failed (status %d): %s", entity, resp.StatusCode, body.Error)
+	}
+
+	var out branchSyncChangesResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode changes response: %w", err)
+	}
+	return &out, nil
+}
+
+type branchCommand struct {
+	ID      int64           `json:"id"`
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload"`
+}
+
+type branchPendingCommandsResponse struct {
+	Commands []branchCommand `json:"commands"`
+}
+
+// FetchPendingCommands polls kashi for commands issued to this branch that
+// haven't been acked yet. Called every sync tick regardless of whether a
+// WebSocket "command" push was received (see sync_ws.go) -- the same
+// dual-path guarantee every other pushed entity gets, so a branch that was
+// offline when a command was issued still picks it up once it reconnects.
+func (c *centralClient) FetchPendingCommands(ctx context.Context) ([]branchCommand, error) {
+	if !c.enabled() {
+		return nil, errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, http.MethodGet, "/branch/commands/pending", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var body centralErrorBody
+		json.NewDecoder(resp.Body).Decode(&body)
+		return nil, fmt.Errorf("fetch pending commands failed (status %d): %s", resp.StatusCode, body.Error)
+	}
+
+	var out branchPendingCommandsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode pending commands response: %w", err)
+	}
+	return out.Commands, nil
+}
+
+// AckCommand reports the outcome of executing one command back to kashi --
+// the audit trail's completion record. status is "success" or "failed";
+// execErr, when non-nil, becomes the stored error text.
+func (c *centralClient) AckCommand(ctx context.Context, commandID int64, status string, execErr error) error {
+	body := struct {
+		Status string `json:"status"`
+		Error  string `json:"error,omitempty"`
+	}{Status: status}
+	if execErr != nil {
+		body.Error = execErr.Error()
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshal command ack: %w", err)
+	}
+	return c.sendJSON(ctx, http.MethodPost, fmt.Sprintf("/branch/commands/%d/ack", commandID), payload)
+}
+
+// DialWS connects to kashi's push channel. kashi-pos is a Go client
+// dialing directly (not a browser page), so — unlike a JS WebSocket — it
+// can set the same X-Branch-Code/X-Branch-Key headers used everywhere else
+// on the initial handshake request, no separate auth scheme needed for
+// this one connection type.
+func (c *centralClient) DialWS(ctx context.Context) (*websocket.Conn, error) {
+	if !c.enabled() {
+		return nil, errCentralSyncDisabled
+	}
+
+	wsURL := strings.Replace(c.baseURL, "http://", "ws://", 1)
+	wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
+
+	header := http.Header{}
+	header.Set("X-Branch-Code", c.branchCode)
+	header.Set("X-Branch-Key", c.apiKey)
+
+	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL+"/branch/ws", header)
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
+}

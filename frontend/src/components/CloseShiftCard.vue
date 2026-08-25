@@ -1,6 +1,7 @@
 <template>
-  <v-card title="Shift Summary">
-    <v-card-text>
+  <div class="close-shift-content">
+    <h1 class="text-h5 close-shift-title">Shift Summary</h1>
+    <div class="close-shift-body">
       <template v-if="balanceRows.length">
         <div class="balance-summary-grid">
           <div
@@ -29,7 +30,10 @@
         density="comfortable"
         class="mt-4"
       />
-      <div class="autofill-actions d-flex justify-end align-center">
+      <div class="autofill-actions d-flex justify-end align-end flex-column">
+        <div class="text-caption text-medium-emphasis autofill-hint text-right">
+          This is an estimate based on the shift's transactions.
+        </div>
         <v-btn
           size="small"
           variant="tonal"
@@ -198,8 +202,8 @@
           formatUsd((countedVisaCents + countedWhishCents + countedCouponCents) / 100)
         }}</span>
       </div>
-    </v-card-text>
-    <v-card-actions class="pa-2 ga-2">
+    </div>
+    <div class="close-shift-actions">
       <v-btn variant="text" @click="emit('close')">Cancel</v-btn>
       <v-btn
         color="error"
@@ -210,8 +214,8 @@
       >
         Close, Print & Logout
       </v-btn>
-    </v-card-actions>
-  </v-card>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -399,6 +403,25 @@ async function doCloseShift() {
 </script>
 
 <style scoped>
+.close-shift-content {
+  width: 100%;
+}
+
+.close-shift-title {
+  padding: 16px 16px 8px;
+}
+
+.close-shift-body {
+  padding: 0 16px 2px;
+}
+
+.close-shift-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 16px 16px;
+}
+
 .autofilled-field :deep(.v-field) {
   background-color: rgba(255, 235, 59, 0.3);
 }

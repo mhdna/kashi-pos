@@ -17,22 +17,12 @@
                 :class="{ 'required-assignees--missing': missingAssignmentFlash }"
               >
                 <SalespersonsDialog v-if="pageMode !== 'settlement'" />
-                <ClientButton v-if="pageMode === 'sale'" />
+                <ClientButton
+                  v-if="pageMode === 'sale'"
+                  :always-anonymous-available="alwaysAnonymousClientEnabled"
+                />
               </div>
-              <v-btn
-                v-if="pageMode !== 'sale'"
-                class="mode-cancel-button"
-                color="red-darken-2"
-                height="42"
-                variant="tonal"
-                prepend-icon="mdi-close"
-                @click="cancelMode"
-              >
-                {{ cancelModeLabel }}
-              </v-btn>
-              <v-btn icon size="small" variant="text" aria-label="Invoice note" @click="openNoteDialog">
-                <v-icon icon="mdi-note-text-outline" size="20" />
-              </v-btn>
+              <NoteButton :note="invoiceNotes" @openDialog="openNoteDialog" />
               <v-dialog v-model="noteDialog" max-width="620">
                 <v-card>
                   <v-card-title>Add a note</v-card-title>
@@ -51,6 +41,14 @@
                     <InlineKeyboard v-model="noteDraft" :max-length="500" class="mt-3" />
                   </v-card-text>
                   <v-card-actions class="pa-4">
+                    <v-btn
+                      v-if="invoiceNotes"
+                      variant="text"
+                      color="error"
+                      @click="removeNote"
+                    >
+                      Remove
+                    </v-btn>
                     <v-spacer />
                     <v-btn variant="text" @click="noteDialog = false">Cancel</v-btn>
                     <v-btn color="primary" variant="elevated" @click="saveNote">Add</v-btn>
@@ -120,7 +118,7 @@
         "
       >
         <v-card class="pa-6 text-center d-flex flex-column align-center" rounded="xl" width="220" elevation="4">
-          <v-avatar color="primary" variant="tonal" size="56" class="mb-3">
+          <v-avatar color="grey-darken-1" variant="tonal" size="56" class="mb-3">
             <v-icon icon="mdi-barcode-scan" size="28" />
           </v-avatar>
           <div class="text-subtitle-2 font-weight-medium">Cart is empty</div>
@@ -154,6 +152,7 @@
         @checkout="onCheckout"
         @hold="onHold"
         @void="onVoid"
+        @cancelMode="cancelMode"
       />
     </div>
   </div>
@@ -203,6 +202,7 @@ import Calculator from "@/components/Calculator.vue";
 import ClientButton from "@/components/ClientButton.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import NoteButton from "@/components/NoteButton.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
@@ -252,6 +252,7 @@ const priceChangeManualOverrideEnabled = ref(false);
 const invoiceKeyboardModeEnabled = ref(false);
 const hidePaymentMethodCurrency = ref(false);
 const autoAppendLbpZeros = ref(false);
+const alwaysAnonymousClientEnabled = ref(false);
 const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
 );
@@ -283,9 +284,6 @@ const pageModeTitle = computed(() =>
     : pageMode.value === "exchange"
       ? "Exchange"
       : "Invoice",
-);
-const cancelModeLabel = computed(() =>
-  pageMode.value === "exchange" ? "Cancel Exchange" : "Cancel Settlement",
 );
 const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
@@ -490,6 +488,13 @@ function clearInvoice() {
 
 function saveNote() {
   invoiceNotes.value = noteDraft.value.trim();
+  noteDialog.value = false;
+  focusBarcode();
+}
+
+function removeNote() {
+  invoiceNotes.value = "";
+  noteDraft.value = "";
   noteDialog.value = false;
   focusBarcode();
 }
@@ -928,6 +933,7 @@ onMounted(async () => {
     invoiceKeyboardModeEnabled.value = Boolean(settings?.invoiceKeyboardModeEnabled);
     hidePaymentMethodCurrency.value = Boolean(settings?.hidePaymentMethodCurrency);
     autoAppendLbpZeros.value = Boolean(settings?.autoAppendLbpZeros);
+    alwaysAnonymousClientEnabled.value = Boolean(settings?.alwaysAnonymousClientEnabled);
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
   } catch {}
@@ -968,10 +974,6 @@ onBeforeUnmount(() => {
 
 .home-page .bg-surface-light {
   background-color: rgba(var(--v-theme-on-surface), 0.04) !important;
-}
-
-.mode-cancel-button {
-  transform: translateY(2px);
 }
 
 .required-assignees {

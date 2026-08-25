@@ -36,33 +36,41 @@
         class="nav-item close-shift-item py-2"
         :value="undefined"
         :active="false"
-        @click="closeShiftDialog = true"
+        @click="openCloseShift"
       >
         <div class="nav-item-content">
           <v-icon icon="mdi-close-circle-outline" size="20" />
           <span class="nav-item-label text-center mt-1">Close Shift</span>
         </div>
       </v-list-item>
+
+      <v-list-item
+        class="nav-item app-close-item py-2"
+        :value="undefined"
+        :active="false"
+        @click="closeApp"
+      >
+        <div class="nav-item-content">
+          <v-icon icon="mdi-close" size="20" />
+          <span class="nav-item-label text-center mt-1">Close App</span>
+        </div>
+      </v-list-item>
     </v-list>
   </v-navigation-drawer>
 
-  <v-dialog v-model="closeShiftDialog" fullscreen>
-    <close-shift-card @close="closeShiftDialog = false" />
-  </v-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { pendingNavAction } from "@/composables/useNavActions";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
-import CloseShiftCard from "./CloseShiftCard.vue";
+import { Quit } from "../../wailsjs/runtime/runtime";
 
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
-const closeShiftDialog = ref(false);
 const { pageUnlocks } = usePageUnlocks();
 
 function handleItemClick(item: { locked?: boolean; action?: () => void; to?: string }) {
@@ -85,6 +93,16 @@ function onExchangeClick() {
 function logout() {
   auth.logout();
   void router.push("/login");
+}
+
+function closeApp() {
+  if (window.confirm("Are you sure you want to close the app?")) {
+    Quit();
+  }
+}
+
+function openCloseShift() {
+  void router.push("/close-shift");
 }
 
 const items = computed(() => {
@@ -121,6 +139,18 @@ const items = computed(() => {
       locked: !auth.isAdmin && !pageUnlocks.value.transfers,
     },
     {
+      value: "expenses",
+      to: "/expenses",
+      icon: "mdi-receipt-text-outline",
+      t: "Expenses",
+    },
+    {
+      value: "loans",
+      to: "/loans",
+      icon: "mdi-hand-coin-outline",
+      t: "Loans",
+    },
+    {
       value: "salespersons",
       to: "/salespersons",
       icon: "mdi-chart-bar",
@@ -152,10 +182,6 @@ const items = computed(() => {
   color: #ffffff;
 }
 
-.nav-item:not(:last-child) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
 .nav-item:first-child {
   border-radius: 0 40px 0 0;
 }
@@ -181,6 +207,12 @@ const items = computed(() => {
 }
 
 .close-shift-item {
+  border-radius: 0;
+}
+
+.app-close-item {
+  flex: 0 0 auto;
+  min-height: 64px;
   border-radius: 0 0 40px 0;
 }
 </style>

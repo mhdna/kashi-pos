@@ -51,6 +51,10 @@ defineEmits<{ select: [methodName: string] }>();
 }
 .calculator-types--vertical {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 62px;
+  max-height: calc(62px * 3 + 8px * 2);
+  overflow-y: auto;
+  padding-right: 2px;
 }
 .calculator-type-card {
   cursor: pointer;

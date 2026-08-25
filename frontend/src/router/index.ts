@@ -50,6 +50,14 @@ const router = createRouter({
           meta: { lockable: "transfers" },
         },
         {
+          path: "expenses",
+          component: () => import("@/pages/expenses.vue"),
+        },
+        {
+          path: "loans",
+          component: () => import("@/pages/loans.vue"),
+        },
+        {
           path: "clients",
           component: () => import("@/pages/clients.vue"),
           meta: { lockable: "clients" },
@@ -57,6 +65,10 @@ const router = createRouter({
         // { path: 'attendance', component: () => import('@/pages/attendance.vue') },
         { path: "shifts", component: () => import("@/pages/shifts.vue") },
       ],
+    },
+    {
+      path: "/close-shift",
+      component: () => import("@/pages/close-shift.vue"),
     },
   ],
 });
