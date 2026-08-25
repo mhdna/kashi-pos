@@ -47,6 +47,7 @@ type syncedBranchTarget struct {
 	DateTo       time.Time `json:"date_to"`
 	TargetAmount int64     `json:"target_amount"`
 	Color        string    `json:"color"`
+	IsActive     bool      `json:"is_active"`
 }
 
 // syncedProductVariant mirrors ListProductVariantsForSync's flattened row
@@ -162,6 +163,9 @@ func applySyncedCashboxAccount(ctx context.Context, q *db.Queries, a syncedCashb
 // are read-only display data here, so there's no local state to reconcile
 // beyond "match what kashi last reported".
 func applySyncedBranchTarget(ctx context.Context, q *db.Queries, t syncedBranchTarget) error {
+	if !t.IsActive {
+		return q.DeleteBranchTargetByRemoteID(ctx, t.ID)
+	}
 	return q.UpsertBranchTarget(ctx, db.UpsertBranchTargetParams{
 		RemoteID:          t.ID,
 		DateFrom:          t.DateFrom.Format("2006-01-02"),

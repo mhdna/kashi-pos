@@ -75,6 +75,11 @@ type Querier interface {
 	DecreaseInventoryProductQuantity(ctx context.Context, arg DecreaseInventoryProductQuantityParams) (sql.Result, error)
 	DeleteAccount(ctx context.Context, id int64) error
 	DeleteAsset(ctx context.Context, id int64) error
+	// Fires when kashi reports a target as no longer active (see
+	// applySyncedBranchTarget in sync_pull.go) -- this is just a read-only
+	// mirror of kashi's roster, so removing the local row outright is fine,
+	// unlike synced entities with local-only fields to preserve.
+	DeleteBranchTargetByRemoteID(ctx context.Context, remoteID int64) error
 	DeleteCashboxAccount(ctx context.Context, id int64) error
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteCoupon(ctx context.Context, code string) error

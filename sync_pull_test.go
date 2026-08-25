@@ -124,6 +124,50 @@ func TestSyncPullAppliesSalespersonWithoutTouchingLocalAttendanceID(t *testing.T
 	}
 }
 
+func TestSyncPullRemovesBranchTargetWhenKashiMarksItInactive(t *testing.T) {
+	active := true
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Query().Get("entity") {
+		case "branch_targets":
+			fmt.Fprintf(w, `{"entity":"branch_targets","items":[{"id":9,"date_from":"2026-08-01T00:00:00Z","date_to":"2026-08-31T00:00:00Z","target_amount":500000,"color":"#4C6EF5","is_active":%v}],"server_time":"2026-08-24T00:00:00Z"}`, active)
+		default:
+			fmt.Fprint(w, `{"entity":"noop","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		}
+	}))
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
+	client := newCentralClient(server.URL, "TEST01", "test-key")
+
+	if err := app.pullEntityOnce(app.ctx, client, "branch_targets"); err != nil {
+		t.Fatal(err)
+	}
+	targets, err := store.ListBranchTargets(app.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 1 {
+		t.Fatalf("expected 1 target after initial sync, got %d", len(targets))
+	}
+
+	// Deleting a target in kashi is a soft delete (is_active flips to
+	// false) precisely so this branch can see the change and remove its
+	// local copy -- a hard delete on kashi's side would just vanish from
+	// the "changed since" query with no way for this branch to notice.
+	active = false
+	if err := app.pullEntityOnce(app.ctx, client, "branch_targets"); err != nil {
+		t.Fatal(err)
+	}
+	targets, err = store.ListBranchTargets(app.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 0 {
+		t.Fatalf("expected target removed after kashi marked it inactive, got %d", len(targets))
+	}
+}
+
 func TestSyncPullProtectsLocalDefaultCurrency(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
