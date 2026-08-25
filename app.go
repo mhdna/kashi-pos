@@ -546,13 +546,13 @@ func (a *App) seedSalespersons() {
 
 func (a *App) seedCashboxAccounts() {
 	existing, _ := a.store.ListCashboxAccounts(context.Background())
-	for _, acc := range []struct{ name, currency string }{
-		{"Cash USD", "USD"},
-		{"Cash LBP", "LBP"},
-		{"Visa", "USD"},
-		{"Whish", "USD"},
-		{"On Account", "USD"},
-		{"On Coupon", "USD"},
+	for _, acc := range []struct{ name, currency, color string }{
+		{"Cash $$", "USD", "#2E7D32"},
+		{"Cash LBP", "LBP", "#1565C0"},
+		{"Visa", "USD", "#7B1FA2"},
+		{"Whish", "USD", "#D32F2F"},
+		{"On Account", "USD", ""},
+		{"On Coupon", "USD", ""},
 	} {
 		found := false
 		for _, current := range existing {
@@ -564,11 +564,20 @@ func (a *App) seedCashboxAccounts() {
 		if found {
 			continue
 		}
-		if _, err := a.store.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
+		created, err := a.store.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
 			Name:         acc.name,
 			CurrencyCode: acc.currency,
-		}); err != nil {
+		})
+		if err != nil {
 			log.Println("seed cashbox account:", err)
+			continue
+		}
+		if acc.color != "" {
+			if _, err := a.store.UpdateCashboxAccount(context.Background(), db.UpdateCashboxAccountParams{
+				ID: created.ID, Name: created.Name, CurrencyCode: created.CurrencyCode, Color: acc.color,
+			}); err != nil {
+				log.Println("seed cashbox account color:", err)
+			}
 		}
 	}
 	log.Println("seeded cashbox accounts")

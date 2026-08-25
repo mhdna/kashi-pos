@@ -150,6 +150,7 @@
       <span>Total</span>
       <span>{{ formatBalance(grandTotal, "USD", currencies, roundingMode) }}</span>
     </div>
+    <TargetsProgressCard :targets="targets" class="mt-3" />
   </v-sheet>
 </template>
 
@@ -160,6 +161,7 @@ import { formatBalance, formatUsd } from "@/lib/format";
 import { formatServerDateTime } from "@/lib/datetime";
 import { useCurrencies } from "@/composables/useCurrencies";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
+import TargetsProgressCard, { type BranchTarget } from "@/components/shifts/TargetsProgressCard.vue";
 
 const { currencies, roundingMode } = useCurrencies();
 
@@ -209,6 +211,7 @@ const props = defineProps<{
   currentDay: string;
   isAdmin: boolean;
   printingShiftId: number | null;
+  targets: BranchTarget[];
 }>();
 
 const monthlyIncomeScroll = ref<HTMLElement | null>(null);

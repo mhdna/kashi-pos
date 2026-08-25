@@ -390,6 +390,16 @@ SELECT COALESCE(SUM(grand_total), 0)
 FROM invoices i
 WHERE date(i.created_at, 'localtime') = ?;
 
+-- name: GetInvoiceIncomeTotalByDateRange :one
+-- Same net-of-returns convention as GetInvoiceIncomeTotalByDate (a return's
+-- grand_total is already the signed net cash effect), just over an
+-- arbitrary [from, to] range instead of a single day -- used for target
+-- progress, where the window is admin-set rather than always a month/day.
+SELECT COALESCE(SUM(grand_total), 0)
+FROM invoices i
+WHERE date(i.created_at, 'localtime') >= sqlc.arg(date_from)
+  AND date(i.created_at, 'localtime') <= sqlc.arg(date_to);
+
 -- name: ListInvoiceIncomeAccountTotalsByDate :many
 WITH invoice_totals AS (
     SELECT i.created_at AS income_date, ip.cashbox_id, ip.amount

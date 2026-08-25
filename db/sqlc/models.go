@@ -101,6 +101,16 @@ type AttributesValue struct {
 	Value       string `json:"value"`
 }
 
+type BranchTarget struct {
+	ID                int64  `json:"id"`
+	RemoteID          int64  `json:"remoteId"`
+	DateFrom          string `json:"dateFrom"`
+	DateTo            string `json:"dateTo"`
+	TargetAmountCents int64  `json:"targetAmountCents"`
+	Color             string `json:"color"`
+	CreatedAt         string `json:"createdAt"`
+}
+
 type CashboxAccount struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
@@ -413,9 +423,11 @@ type SalesInvoice struct {
 }
 
 type Salesperson struct {
-	ID               int64  `json:"id"`
-	FullName         string `json:"fullName"`
-	AttendanceUserID string `json:"attendanceUserId"`
+	ID               int64         `json:"id"`
+	FullName         string        `json:"fullName"`
+	AttendanceUserID string        `json:"attendanceUserId"`
+	RemoteID         sql.NullInt64 `json:"remoteId"`
+	IsActive         int64         `json:"isActive"`
 }
 
 type SalespersonAttendanceEvent struct {

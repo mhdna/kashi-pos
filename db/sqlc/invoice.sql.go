@@ -318,6 +318,29 @@ func (q *Queries) GetInvoiceIncomeTotalByDate(ctx context.Context, createdAt str
 	return coalesce, err
 }
 
+const getInvoiceIncomeTotalByDateRange = `-- name: GetInvoiceIncomeTotalByDateRange :one
+SELECT COALESCE(SUM(grand_total), 0)
+FROM invoices i
+WHERE date(i.created_at, 'localtime') >= ?1
+  AND date(i.created_at, 'localtime') <= ?2
+`
+
+type GetInvoiceIncomeTotalByDateRangeParams struct {
+	DateFrom string `json:"dateFrom"`
+	DateTo   string `json:"dateTo"`
+}
+
+// Same net-of-returns convention as GetInvoiceIncomeTotalByDate (a return's
+// grand_total is already the signed net cash effect), just over an
+// arbitrary [from, to] range instead of a single day -- used for target
+// progress, where the window is admin-set rather than always a month/day.
+func (q *Queries) GetInvoiceIncomeTotalByDateRange(ctx context.Context, arg GetInvoiceIncomeTotalByDateRangeParams) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getInvoiceIncomeTotalByDateRange, arg.DateFrom, arg.DateTo)
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
+}
+
 const getInvoiceIndex = `-- name: GetInvoiceIndex :one
 SELECT year, last_index, type FROM invoice_indexes WHERE year = ? AND type = ?
 `

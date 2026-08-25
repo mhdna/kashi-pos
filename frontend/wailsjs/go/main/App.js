@@ -242,6 +242,10 @@ export function ListAttendanceComplaints(arg1) {
   return window['go']['main']['App']['ListAttendanceComplaints'](arg1);
 }
 
+export function ListBranchTargetsWithProgress() {
+  return window['go']['main']['App']['ListBranchTargetsWithProgress']();
+}
+
 export function ListCategoryIcons() {
   return window['go']['main']['App']['ListCategoryIcons']();
 }

@@ -21,50 +21,111 @@
       </v-list-item>
 
       <v-list-item
-        class="nav-item py-2"
+        class="nav-item options-item py-2"
         :value="undefined"
         :active="false"
-        @click="logout"
+        @click="optionsOpen = true"
       >
         <div class="nav-item-content">
           <v-icon icon="mdi-logout" size="20" />
-          <span class="nav-item-label text-center mt-1">Logout</span>
-        </div>
-      </v-list-item>
-
-      <v-list-item
-        class="nav-item close-shift-item py-2"
-        :value="undefined"
-        :active="false"
-        @click="openCloseShift"
-      >
-        <div class="nav-item-content">
-          <v-icon icon="mdi-close-circle-outline" size="20" />
-          <span class="nav-item-label text-center mt-1">Close Shift</span>
-        </div>
-      </v-list-item>
-
-      <v-list-item
-        class="nav-item app-close-item py-2"
-        :value="undefined"
-        :active="false"
-        @click="closeApp"
-      >
-        <div class="nav-item-content">
-          <v-icon icon="mdi-close" size="20" />
-          <span class="nav-item-label text-center mt-1">Close App</span>
+          <span class="nav-item-label text-center mt-1">Out</span>
         </div>
       </v-list-item>
     </v-list>
   </v-navigation-drawer>
 
+  <v-dialog v-model="optionsOpen" max-width="520">
+    <v-card class="options-dialog-card" rounded="xl">
+      <v-card-title class="d-flex align-center justify-space-between px-6 pt-5">
+        <span>Out</span>
+        <v-btn icon="mdi-close" variant="text" aria-label="Close out menu" @click="optionsOpen = false" />
+      </v-card-title>
+
+      <v-card-text class="options-grid options-grid--three px-6 pb-6">
+        <v-card class="option-card" rounded="lg" variant="tonal" @click="logout">
+          <v-icon icon="mdi-logout" size="32" />
+          <span>Logout</span>
+        </v-card>
+        <v-card class="option-card" rounded="lg" variant="tonal" @click="openCloseShift">
+          <v-icon icon="mdi-close-circle-outline" size="32" />
+          <span>Close Shift</span>
+        </v-card>
+        <v-card class="option-card" rounded="lg" variant="tonal" @click="closeApp">
+          <v-icon icon="mdi-close" size="32" />
+          <span>Close App</span>
+        </v-card>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
+
+  <v-dialog v-model="moneyOpen" max-width="520">
+    <v-card rounded="xl">
+      <v-card-title class="d-flex align-center justify-space-between px-6 pt-5">
+        <span>Money</span>
+        <v-btn icon="mdi-close" variant="text" aria-label="Close money menu" @click="moneyOpen = false" />
+      </v-card-title>
+
+      <v-card-text class="options-grid px-6 pb-6">
+        <v-card class="option-card" rounded="lg" variant="tonal" @click="openExpenses">
+          <v-icon icon="mdi-receipt-text-outline" size="32" />
+          <span>Expenses</span>
+        </v-card>
+        <v-card class="option-card" rounded="lg" variant="tonal" @click="openLoans">
+          <v-icon icon="mdi-hand-coin-outline" size="32" />
+          <span>Loans</span>
+        </v-card>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
+
+  <v-dialog v-model="inventoryOpen" max-width="640">
+    <v-card rounded="xl">
+      <v-card-title class="d-flex align-center justify-space-between px-6 pt-5">
+        <span>Inventory</span>
+        <v-btn icon="mdi-close" variant="text" aria-label="Close inventory menu" @click="inventoryOpen = false" />
+      </v-card-title>
+
+      <v-card-text class="options-grid options-grid--three px-6 pb-6">
+        <v-card
+          class="option-card"
+          :disabled="!auth.isAdmin && !pageUnlocks.inventory"
+          rounded="lg"
+          variant="tonal"
+          @click="openInventoryPage"
+        >
+          <v-icon icon="mdi-package-variant-closed" size="32" />
+          <span>Inventory</span>
+        </v-card>
+        <v-card
+          class="option-card"
+          :disabled="!auth.isAdmin && !pageUnlocks.transfers"
+          rounded="lg"
+          variant="tonal"
+          @click="openTransfers"
+        >
+          <v-icon icon="mdi-truck" size="32" />
+          <span>Transfers</span>
+        </v-card>
+        <v-card
+          class="option-card"
+          :disabled="!auth.isAdmin && !pageUnlocks.salespersons"
+          rounded="lg"
+          variant="tonal"
+          @click="openSalespersons"
+        >
+          <v-icon icon="mdi-chart-bar" size="32" />
+          <span>Sales</span>
+        </v-card>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
+
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { pendingNavAction } from "@/composables/useNavActions";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { Quit } from "../../wailsjs/runtime/runtime";
 
@@ -72,6 +133,9 @@ const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const { pageUnlocks } = usePageUnlocks();
+const optionsOpen = ref(false);
+const moneyOpen = ref(false);
+const inventoryOpen = ref(false);
 
 function handleItemClick(item: { locked?: boolean; action?: () => void; to?: string }) {
   if (item.locked) return;
@@ -82,27 +146,58 @@ function handleItemClick(item: { locked?: boolean; action?: () => void; to?: str
   if (item.to) void router.push(item.to);
 }
 
-function onHoldClick() {
-  pendingNavAction.value = "onhold";
-}
-
-function onExchangeClick() {
-  pendingNavAction.value = "exchange";
-}
-
 function logout() {
+  optionsOpen.value = false;
   auth.logout();
   void router.push("/login");
 }
 
 function closeApp() {
+  optionsOpen.value = false;
   if (window.confirm("Are you sure you want to close the app?")) {
     Quit();
   }
 }
 
 function openCloseShift() {
+  optionsOpen.value = false;
   void router.push("/close-shift");
+}
+
+function openMoney() {
+  moneyOpen.value = true;
+}
+
+function openExpenses() {
+  moneyOpen.value = false;
+  void router.push("/expenses");
+}
+
+function openLoans() {
+  moneyOpen.value = false;
+  void router.push("/loans");
+}
+
+function openInventory() {
+  inventoryOpen.value = true;
+}
+
+function openInventoryPage() {
+  if (!auth.isAdmin && !pageUnlocks.value.inventory) return;
+  inventoryOpen.value = false;
+  void router.push("/inventory");
+}
+
+function openTransfers() {
+  if (!auth.isAdmin && !pageUnlocks.value.transfers) return;
+  inventoryOpen.value = false;
+  void router.push("/transfers");
+}
+
+function openSalespersons() {
+  if (!auth.isAdmin && !pageUnlocks.value.salespersons) return;
+  inventoryOpen.value = false;
+  void router.push("/salespersons");
 }
 
 const items = computed(() => {
@@ -115,8 +210,7 @@ const items = computed(() => {
       t: "Invoices",
     },
     { value: "shifts", to: "/shifts", icon: "mdi-cash-fast", t: "Balance" },
-    { value: "onhold", icon: "mdi-pause", t: "On Hold", action: onHoldClick },
-    { value: "exchange", icon: "mdi-autorenew", t: "Exchange", action: onExchangeClick },
+    { value: "money", icon: "mdi-cash-multiple", t: "Money", action: openMoney },
     {
       value: "clients",
       to: "/clients",
@@ -126,36 +220,14 @@ const items = computed(() => {
     },
     {
       value: "inventory",
-      to: "/inventory",
       icon: "mdi-package-variant-closed",
       t: "Inventory",
-      locked: !auth.isAdmin && !pageUnlocks.value.inventory,
-    },
-    {
-      value: "transfer",
-      to: "/transfers",
-      icon: "mdi-truck",
-      t: "Transfers",
-      locked: !auth.isAdmin && !pageUnlocks.value.transfers,
-    },
-    {
-      value: "expenses",
-      to: "/expenses",
-      icon: "mdi-receipt-text-outline",
-      t: "Expenses",
-    },
-    {
-      value: "loans",
-      to: "/loans",
-      icon: "mdi-hand-coin-outline",
-      t: "Loans",
-    },
-    {
-      value: "salespersons",
-      to: "/salespersons",
-      icon: "mdi-chart-bar",
-      t: "Sales",
-      locked: !auth.isAdmin && !pageUnlocks.value.salespersons,
+      action: openInventory,
+      locked:
+        !auth.isAdmin &&
+        !pageUnlocks.value.inventory &&
+        !pageUnlocks.value.transfers &&
+        !pageUnlocks.value.salespersons,
     },
     {
       value: "attendance",
@@ -206,13 +278,34 @@ const items = computed(() => {
   line-height: 1.2;
 }
 
-.close-shift-item {
-  border-radius: 0;
-}
-
-.app-close-item {
+.options-item {
   flex: 0 0 auto;
   min-height: 64px;
   border-radius: 0 0 40px 0;
+}
+
+.options-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.options-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.option-card {
+  align-items: center;
+  aspect-ratio: 1;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+
+.option-card:hover {
+  transform: translateY(-2px);
 }
 </style>

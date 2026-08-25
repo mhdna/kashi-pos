@@ -52,8 +52,23 @@
       </div>
     </template>
     <div v-else class="shift-income-empty pa-3 text-caption text-medium-emphasis">
-      <v-icon icon="mdi-information-outline" size="18" class="me-1" />
-      {{ shiftId ? "No income found for the current shift." : "No open shift found." }}
+      <div class="shift-income-empty-message d-flex align-center justify-center">
+        <v-icon icon="mdi-information-outline" size="18" class="me-1" />
+        {{ shiftId ? "No income found for the current shift." : "No open shift found." }}
+      </div>
+      <v-btn
+        v-if="shiftId"
+        block
+        class="mt-3"
+        prepend-icon="mdi-cash-plus"
+        variant="tonal"
+        @click="openingFloatOpen = true"
+      >
+        Set opening cash
+      </v-btn>
+      <div v-if="shiftId && (openingFloatUsd || openingFloatLbp)" class="text-caption text-medium-emphasis px-1 pt-1">
+        Opening amount: {{ formatUsd((openingFloatUsd ?? 0) / 100) }} / {{ Math.round(openingFloatLbp ?? 0).toLocaleString() }} LBP
+      </div>
     </div>
   </v-sheet>
   <BalanceReplacementDialog v-model="replacementOpen" :shift-id="shiftId" :sources="balanceSources" :payment-methods="paymentMethods" @saved="emit('balance-replaced', $event)" />
@@ -112,5 +127,10 @@ const incomeTotal = computed(() => Number(props.incomeTotal) || 0);
 .shift-income-empty {
   display: flex;
   align-items: center;
+  flex-direction: column;
+}
+
+.shift-income-empty-message {
+  width: 100%;
 }
 </style>

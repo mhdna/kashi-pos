@@ -66,6 +66,7 @@ type Querier interface {
 	CreateShift(ctx context.Context, arg CreateShiftParams) (Shift, error)
 	CreateShiftBalanceReplacement(ctx context.Context, arg CreateShiftBalanceReplacementParams) error
 	CreateSyncOutboxEntry(ctx context.Context, arg CreateSyncOutboxEntryParams) (SyncOutbox, error)
+	CreateSyncedSalesperson(ctx context.Context, arg CreateSyncedSalespersonParams) (Salesperson, error)
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
@@ -123,6 +124,11 @@ type Querier interface {
 	GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 	GetInvoiceClientRef(ctx context.Context, invoiceID int64) (string, error)
 	GetInvoiceIncomeTotalByDate(ctx context.Context, createdAt string) (interface{}, error)
+	// Same net-of-returns convention as GetInvoiceIncomeTotalByDate (a return's
+	// grand_total is already the signed net cash effect), just over an
+	// arbitrary [from, to] range instead of a single day -- used for target
+	// progress, where the window is admin-set rather than always a month/day.
+	GetInvoiceIncomeTotalByDateRange(ctx context.Context, arg GetInvoiceIncomeTotalByDateRangeParams) (interface{}, error)
 	GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams) (InvoiceIndex, error)
 	GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductParams) (InvoiceProduct, error)
 	GetLoan(ctx context.Context, id int64) (Loan, error)
@@ -142,6 +148,7 @@ type Querier interface {
 	GetSalesInvoiceByCode(ctx context.Context, lower string) (Invoice, error)
 	GetSalesInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 	GetSalespersonByID(ctx context.Context, id int64) (Salesperson, error)
+	GetSalespersonByRemoteID(ctx context.Context, remoteID sql.NullInt64) (Salesperson, error)
 	GetSettings(ctx context.Context) (Setting, error)
 	GetShiftAccountBalance(ctx context.Context, arg GetShiftAccountBalanceParams) (ShiftsAccountsBalance, error)
 	GetShiftByID(ctx context.Context, id int64) (Shift, error)
@@ -171,6 +178,7 @@ type Querier interface {
 	ListAttendanceEvents(ctx context.Context, eventDate string) ([]AttendanceEvent, error)
 	ListAttendanceEventsByEmployeeDate(ctx context.Context, arg ListAttendanceEventsByEmployeeDateParams) ([]AttendanceEvent, error)
 	ListAttendanceEventsByMonth(ctx context.Context, eventDate string) ([]AttendanceEvent, error)
+	ListBranchTargets(ctx context.Context) ([]BranchTarget, error)
 	ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
 	ListCategoryIcons(ctx context.Context) ([]CategoryIcon, error)
 	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
@@ -307,12 +315,17 @@ type Querier interface {
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error)
 	UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error)
+	UpdateSalespersonAttendanceID(ctx context.Context, arg UpdateSalespersonAttendanceIDParams) error
 	UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error
 	UpdateShiftOpeningFloat(ctx context.Context, arg UpdateShiftOpeningFloatParams) (Shift, error)
+	// attendance_user_id is deliberately not touched here -- it's local-only
+	// device pairing, never sent by kashi (see sync_pull.go).
+	UpdateSyncedSalesperson(ctx context.Context, arg UpdateSyncedSalespersonParams) (Salesperson, error)
 	UpdateTheme(ctx context.Context, theme string) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserAttendanceID(ctx context.Context, arg UpdateUserAttendanceIDParams) error
 	UpsertAttributeValue(ctx context.Context, arg UpsertAttributeValueParams) (AttributesValue, error)
+	UpsertBranchTarget(ctx context.Context, arg UpsertBranchTargetParams) error
 	UpsertDiscountListItem(ctx context.Context, arg UpsertDiscountListItemParams) (DiscountListItem, error)
 	UpsertInventoryItem(ctx context.Context, arg UpsertInventoryItemParams) error
 	UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error

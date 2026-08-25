@@ -7,16 +7,46 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createSalesperson = `-- name: CreateSalesperson :one
-INSERT INTO salespersons (full_name) VALUES (?) RETURNING id, full_name, attendance_user_id
+INSERT INTO salespersons (full_name) VALUES (?) RETURNING id, full_name, attendance_user_id, remote_id, is_active
 `
 
 func (q *Queries) CreateSalesperson(ctx context.Context, fullName string) (Salesperson, error) {
 	row := q.db.QueryRowContext(ctx, createSalesperson, fullName)
 	var i Salesperson
-	err := row.Scan(&i.ID, &i.FullName, &i.AttendanceUserID)
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.AttendanceUserID,
+		&i.RemoteID,
+		&i.IsActive,
+	)
+	return i, err
+}
+
+const createSyncedSalesperson = `-- name: CreateSyncedSalesperson :one
+INSERT INTO salespersons (full_name, remote_id, is_active) VALUES (?, ?, ?) RETURNING id, full_name, attendance_user_id, remote_id, is_active
+`
+
+type CreateSyncedSalespersonParams struct {
+	FullName string        `json:"fullName"`
+	RemoteID sql.NullInt64 `json:"remoteId"`
+	IsActive int64         `json:"isActive"`
+}
+
+func (q *Queries) CreateSyncedSalesperson(ctx context.Context, arg CreateSyncedSalespersonParams) (Salesperson, error) {
+	row := q.db.QueryRowContext(ctx, createSyncedSalesperson, arg.FullName, arg.RemoteID, arg.IsActive)
+	var i Salesperson
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.AttendanceUserID,
+		&i.RemoteID,
+		&i.IsActive,
+	)
 	return i, err
 }
 
@@ -30,18 +60,41 @@ func (q *Queries) DeleteSalesperson(ctx context.Context, id int64) error {
 }
 
 const getSalespersonByID = `-- name: GetSalespersonByID :one
-SELECT id, full_name, attendance_user_id FROM salespersons WHERE id = ?
+SELECT id, full_name, attendance_user_id, remote_id, is_active FROM salespersons WHERE id = ?
 `
 
 func (q *Queries) GetSalespersonByID(ctx context.Context, id int64) (Salesperson, error) {
 	row := q.db.QueryRowContext(ctx, getSalespersonByID, id)
 	var i Salesperson
-	err := row.Scan(&i.ID, &i.FullName, &i.AttendanceUserID)
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.AttendanceUserID,
+		&i.RemoteID,
+		&i.IsActive,
+	)
+	return i, err
+}
+
+const getSalespersonByRemoteID = `-- name: GetSalespersonByRemoteID :one
+SELECT id, full_name, attendance_user_id, remote_id, is_active FROM salespersons WHERE remote_id = ?
+`
+
+func (q *Queries) GetSalespersonByRemoteID(ctx context.Context, remoteID sql.NullInt64) (Salesperson, error) {
+	row := q.db.QueryRowContext(ctx, getSalespersonByRemoteID, remoteID)
+	var i Salesperson
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.AttendanceUserID,
+		&i.RemoteID,
+		&i.IsActive,
+	)
 	return i, err
 }
 
 const listSalespersons = `-- name: ListSalespersons :many
-SELECT id, full_name, attendance_user_id FROM salespersons ORDER BY id
+SELECT id, full_name, attendance_user_id, remote_id, is_active FROM salespersons ORDER BY id
 `
 
 func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
@@ -53,7 +106,13 @@ func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
 	items := []Salesperson{}
 	for rows.Next() {
 		var i Salesperson
-		if err := rows.Scan(&i.ID, &i.FullName, &i.AttendanceUserID); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.FullName,
+			&i.AttendanceUserID,
+			&i.RemoteID,
+			&i.IsActive,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -68,7 +127,7 @@ func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
 }
 
 const updateSalesperson = `-- name: UpdateSalesperson :one
-UPDATE salespersons SET full_name = ? WHERE id = ? RETURNING id, full_name, attendance_user_id
+UPDATE salespersons SET full_name = ? WHERE id = ? RETURNING id, full_name, attendance_user_id, remote_id, is_active
 `
 
 type UpdateSalespersonParams struct {
@@ -79,6 +138,51 @@ type UpdateSalespersonParams struct {
 func (q *Queries) UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error) {
 	row := q.db.QueryRowContext(ctx, updateSalesperson, arg.FullName, arg.ID)
 	var i Salesperson
-	err := row.Scan(&i.ID, &i.FullName, &i.AttendanceUserID)
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.AttendanceUserID,
+		&i.RemoteID,
+		&i.IsActive,
+	)
+	return i, err
+}
+
+const updateSalespersonAttendanceID = `-- name: UpdateSalespersonAttendanceID :exec
+UPDATE salespersons SET attendance_user_id = ? WHERE id = ?
+`
+
+type UpdateSalespersonAttendanceIDParams struct {
+	AttendanceUserID string `json:"attendanceUserId"`
+	ID               int64  `json:"id"`
+}
+
+func (q *Queries) UpdateSalespersonAttendanceID(ctx context.Context, arg UpdateSalespersonAttendanceIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateSalespersonAttendanceID, arg.AttendanceUserID, arg.ID)
+	return err
+}
+
+const updateSyncedSalesperson = `-- name: UpdateSyncedSalesperson :one
+UPDATE salespersons SET full_name = ?, is_active = ? WHERE remote_id = ? RETURNING id, full_name, attendance_user_id, remote_id, is_active
+`
+
+type UpdateSyncedSalespersonParams struct {
+	FullName string        `json:"fullName"`
+	IsActive int64         `json:"isActive"`
+	RemoteID sql.NullInt64 `json:"remoteId"`
+}
+
+// attendance_user_id is deliberately not touched here -- it's local-only
+// device pairing, never sent by kashi (see sync_pull.go).
+func (q *Queries) UpdateSyncedSalesperson(ctx context.Context, arg UpdateSyncedSalespersonParams) (Salesperson, error) {
+	row := q.db.QueryRowContext(ctx, updateSyncedSalesperson, arg.FullName, arg.IsActive, arg.RemoteID)
+	var i Salesperson
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.AttendanceUserID,
+		&i.RemoteID,
+		&i.IsActive,
+	)
 	return i, err
 }

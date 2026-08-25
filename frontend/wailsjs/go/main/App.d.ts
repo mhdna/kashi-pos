@@ -122,6 +122,8 @@ export function ListAttendance(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function ListAttendanceComplaints(arg1:string):Promise<Array<Record<string, any>>>;
 
+export function ListBranchTargetsWithProgress():Promise<Array<Record<string, any>>>;
+
 export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
 
 export function ListClientsCursor(arg1:number,arg2:number,arg3:string):Promise<main.ClientCursorPage>;

@@ -35,6 +35,20 @@ type syncedCashboxAccount struct {
 	Color        string `json:"color"`
 }
 
+// syncedBranchTarget mirrors branch_targets rows kashi's admin sets for
+// this branch (see db/sqlc/models.go's BranchTarget in the kashi repo).
+// Matched by remote id (kashi's own id) rather than a natural key --
+// unlike currencies/cashbox accounts, targets have no other stable key,
+// and there's no local editing to preserve since this branch never writes
+// to them itself.
+type syncedBranchTarget struct {
+	ID           int64     `json:"id"`
+	DateFrom     time.Time `json:"date_from"`
+	DateTo       time.Time `json:"date_to"`
+	TargetAmount int64     `json:"target_amount"`
+	Color        string    `json:"color"`
+}
+
 // syncedProductVariant mirrors ListProductVariantsForSync's flattened row
 // shape (kashi has separate products/product_variants tables; kashi-pos
 // has one flat product row, so kashi flattens on its side rather than
@@ -142,6 +156,59 @@ func applySyncedCashboxAccount(ctx context.Context, q *db.Queries, a syncedCashb
 		}
 	}
 	return nil
+}
+
+// applySyncedBranchTarget is a plain upsert keyed by remote_id -- targets
+// are read-only display data here, so there's no local state to reconcile
+// beyond "match what kashi last reported".
+func applySyncedBranchTarget(ctx context.Context, q *db.Queries, t syncedBranchTarget) error {
+	return q.UpsertBranchTarget(ctx, db.UpsertBranchTargetParams{
+		RemoteID:          t.ID,
+		DateFrom:          t.DateFrom.Format("2006-01-02"),
+		DateTo:            t.DateTo.Format("2006-01-02"),
+		TargetAmountCents: t.TargetAmount,
+		Color:             t.Color,
+	})
+}
+
+// syncedSalesperson mirrors kashi's branch-scoped salespersons roster (see
+// db/sqlc/models.go's Salesperson in the kashi repo). Matched by remote id
+// like syncedBranchTarget -- names can be edited centrally, so there's no
+// stable natural key to match on instead.
+type syncedSalesperson struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	IsActive bool   `json:"is_active"`
+}
+
+// applySyncedSalesperson upserts by remote_id and deliberately never
+// touches attendance_user_id -- that's the local Akuvox device pairing for
+// this salesperson at this branch, which kashi has no opinion on (see the
+// comment on UpdateSyncedSalesperson in db/query/salesperson.sql).
+func applySyncedSalesperson(ctx context.Context, q *db.Queries, s syncedSalesperson) error {
+	isActive := int64(0)
+	if s.IsActive {
+		isActive = 1
+	}
+	remoteID := sql.NullInt64{Int64: s.ID, Valid: true}
+
+	if _, err := q.GetSalespersonByRemoteID(ctx, remoteID); err == sql.ErrNoRows {
+		_, err := q.CreateSyncedSalesperson(ctx, db.CreateSyncedSalespersonParams{
+			FullName: s.Name,
+			RemoteID: remoteID,
+			IsActive: isActive,
+		})
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	_, err := q.UpdateSyncedSalesperson(ctx, db.UpdateSyncedSalespersonParams{
+		FullName: s.Name,
+		IsActive: isActive,
+		RemoteID: remoteID,
+	})
+	return err
 }
 
 // applySyncedProductVariant creates or updates a local product to match
@@ -256,7 +323,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 // pullEntities lists what gets pulled from kashi on each tick. Adding a
 // new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
-var pullEntities = []string{"currencies", "cashbox_accounts", "products", "clients"}
+var pullEntities = []string{"currencies", "cashbox_accounts", "products", "clients", "branch_targets", "salespersons"}
 
 // runSyncPullOnce catches this branch up on every entity in pullEntities,
 // one at a time. Each entity's cursor advances independently — a decode
@@ -322,6 +389,26 @@ func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity 
 			for _, item := range items {
 				if err := applySyncedClient(ctx, q, item); err != nil {
 					return fmt.Errorf("apply client %s: %w", item.Phone, err)
+				}
+			}
+		case "branch_targets":
+			var items []syncedBranchTarget
+			if err := json.Unmarshal(changes.Items, &items); err != nil {
+				return fmt.Errorf("decode items: %w", err)
+			}
+			for _, item := range items {
+				if err := applySyncedBranchTarget(ctx, q, item); err != nil {
+					return fmt.Errorf("apply branch target %d: %w", item.ID, err)
+				}
+			}
+		case "salespersons":
+			var items []syncedSalesperson
+			if err := json.Unmarshal(changes.Items, &items); err != nil {
+				return fmt.Errorf("decode items: %w", err)
+			}
+			for _, item := range items {
+				if err := applySyncedSalesperson(ctx, q, item); err != nil {
+					return fmt.Errorf("apply salesperson %d: %w", item.ID, err)
 				}
 			}
 		}

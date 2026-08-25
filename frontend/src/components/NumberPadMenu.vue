@@ -80,7 +80,7 @@
           ⌫
         </v-btn>
       </div>
-      <v-btn block class="mt-2" color="primary" size="small" variant="flat" @click="apply">
+      <v-btn block class="number-pad-done mt-2" color="primary" size="small" variant="flat" @click="apply">
         Done
       </v-btn>
     </v-card>
@@ -378,7 +378,7 @@ defineExpose({ focus });
 .number-pad-display {
   align-items: baseline;
   display: flex;
-  font-size: var(--kashi-font-size-2xl);
+  font-size: var(--kashi-font-size-3xl);
   font-weight: 700;
   justify-content: center;
   min-height: 34px;
@@ -395,9 +395,13 @@ defineExpose({ focus });
 }
 
 .number-pad-key {
-  font-size: var(--kashi-font-size-base);
-  height: 36px;
+  font-size: var(--kashi-font-size-xl);
+  height: 42px;
   min-width: 0;
   padding: 0;
+}
+
+.number-pad-done {
+  height: 42px !important;
 }
 </style>

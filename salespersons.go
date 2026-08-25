@@ -21,17 +21,21 @@ func (a *App) ListSalespersons() ([]map[string]any, error) {
 			"id":               s.ID,
 			"fullName":         s.FullName,
 			"attendanceUserId": s.AttendanceUserID,
+			"isActive":         s.IsActive != 0,
+			"isSynced":         s.RemoteID.Valid,
 		}
 	}
 	return result, nil
 }
 
 func (a *App) UpdateSalespersonAttendanceID(id int64, attendanceUserID string) error {
-	if a.conn == nil {
+	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	_, err := a.conn.ExecContext(a.ctx, `UPDATE salespersons SET attendance_user_id = ? WHERE id = ?`, strings.TrimSpace(attendanceUserID), id)
-	return err
+	return a.store.UpdateSalespersonAttendanceID(a.ctx, db.UpdateSalespersonAttendanceIDParams{
+		AttendanceUserID: strings.TrimSpace(attendanceUserID),
+		ID:               id,
+	})
 }
 
 func (a *App) CreateSalesperson(fullName string) (map[string]any, error) {

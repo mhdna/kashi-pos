@@ -1,6 +1,10 @@
 <template>
   <div class="close-shift-content">
-    <h1 class="text-h5 close-shift-title">Shift Summary</h1>
+    <h1 class="text-h5 close-shift-title">Shift Summary{{ shiftId ? ` (#${shiftId})` : "" }}</h1>
+    <div v-if="shiftCreatedAt" class="shift-times text-caption text-medium-emphasis">
+      <span>Opened: {{ formatServerDateTime(shiftCreatedAt) }}</span>
+      <span>Closing: {{ closingTime }}</span>
+    </div>
     <div class="close-shift-body">
       <template v-if="balanceRows.length">
         <div class="balance-summary-grid">
@@ -26,6 +30,7 @@
         item-value="id"
         label="Closing person"
         active
+        :menu-props="{ transition: false }"
         variant="outlined"
         density="comfortable"
         class="mt-4"
@@ -219,10 +224,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from "vue";
+import { computed, onBeforeUnmount, ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { formatBalance, formatUsd } from "@/lib/format";
+import { formatServerDateTime } from "@/lib/datetime";
 import { useCurrencies } from "@/composables/useCurrencies";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import {
@@ -249,7 +255,10 @@ const usdBillCounts = ref<Record<number, string>>(
   Object.fromEntries(usdDenominations.map((denomination) => [denomination, ""])),
 );
 const { currencies, roundingMode } = useCurrencies();
-let shiftId = 0;
+const shiftId = ref(0);
+const shiftCreatedAt = ref<string | null>(null);
+const closingTime = ref(formatServerDateTime(new Date().toISOString()));
+let closingClockTimer: ReturnType<typeof setInterval> | undefined;
 const countedUsdTotal = computed(() =>
   usdDenominations.reduce(
     (total, denomination) =>
@@ -309,11 +318,11 @@ const editedBills = ref<Record<number, boolean>>(
 // editable via its NumberPadMenu, since this is only a suggestion, not a
 // substitute for actually counting the drawer.
 async function autofillFromExpected() {
-  if (!shiftId) return;
+  if (!shiftId.value) return;
   autofilling.value = true;
   autofillError.value = "";
   try {
-    const totals = await GetShiftExpectedTotals(shiftId);
+    const totals = await GetShiftExpectedTotals(shiftId.value);
     // Expected can legitimately be negative (e.g. refunds exceeded sales in
     // that currency this shift) - counted cash can't go negative, so clamp
     // the suggestion at 0 rather than leaving the field blank, which would
@@ -361,20 +370,31 @@ async function autofillFromExpected() {
 onMounted(async () => {
   try {
     const shift = await GetOpenShift();
-    shiftId = shift.id as number;
-    const b = await ListShiftBalances(shiftId);
+    shiftId.value = shift.id as number;
+    shiftCreatedAt.value = shift.createdAt ?? null;
+    const b = await ListShiftBalances(shiftId.value);
     balanceRows.value = (b as any[]) ?? [];
     salespersons.value = ((await ListSalespersons()) as any[]) ?? [];
     await autofillFromExpected();
   } catch {}
 });
 
+onMounted(() => {
+  closingClockTimer = setInterval(() => {
+    closingTime.value = formatServerDateTime(new Date().toISOString());
+  }, 1000);
+});
+
+onBeforeUnmount(() => {
+  if (closingClockTimer) clearInterval(closingClockTimer);
+});
+
 async function doCloseShift() {
   closing.value = true;
   try {
-    if (shiftId && closingPersonId.value) {
+    if (shiftId.value && closingPersonId.value) {
       const result = await CloseShiftByID(
-        shiftId,
+        shiftId.value,
         closingPersonId.value,
         Math.round(Number(countedLbp.value)),
         countedVisaCents.value,
@@ -409,6 +429,13 @@ async function doCloseShift() {
 
 .close-shift-title {
   padding: 16px 16px 8px;
+}
+
+.shift-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 0 16px 8px;
 }
 
 .close-shift-body {

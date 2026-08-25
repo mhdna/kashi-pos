@@ -110,6 +110,9 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 		if err := ensureInvoiceProductSalespersonColumn(ctx, conn); err != nil {
 			return err
 		}
+		if err := ensureBranchTargetColorColumn(ctx, conn); err != nil {
+			return err
+		}
 		return ensureLookupIndexes(ctx, conn)
 	}
 	for _, m := range migrations {
@@ -174,6 +177,9 @@ func applyMigrations(ctx context.Context, conn *sql.DB, databasePath string, dat
 		return err
 	}
 	if err := ensureInvoiceProductSalespersonColumn(ctx, conn); err != nil {
+		return err
+	}
+	if err := ensureBranchTargetColorColumn(ctx, conn); err != nil {
 		return err
 	}
 	return ensureLookupIndexes(ctx, conn)
@@ -277,6 +283,26 @@ func ensureCurrencyRateColumns(ctx context.Context, conn *sql.DB) error {
 		return fmt.Errorf("backfill LBP currency rate: %w", err)
 	}
 	log.Println("database migration self-heal: added currencies.units_per_usd_micros/cash_rounding_unit")
+	return nil
+}
+
+// ensureBranchTargetColorColumn self-heals databases where schema_migrations
+// already recorded version 76 (create_branch_targets) as applied but the
+// color column it adds is missing -- the same class of drift documented on
+// ensureCurrencyRateColumns above: this migration's file gained the color
+// column after it had already run against a real database.
+func ensureBranchTargetColorColumn(ctx context.Context, conn *sql.DB) error {
+	var count int
+	if err := conn.QueryRowContext(ctx, "SELECT count(*) FROM pragma_table_info('branch_targets') WHERE name = 'color'").Scan(&count); err != nil {
+		return fmt.Errorf("inspect branch_targets schema: %w", err)
+	}
+	if count != 0 {
+		return nil
+	}
+	if _, err := conn.ExecContext(ctx, "ALTER TABLE branch_targets ADD COLUMN color text NOT NULL DEFAULT ''"); err != nil {
+		return fmt.Errorf("add branch_targets.color: %w", err)
+	}
+	log.Println("database migration self-heal: added branch_targets.color")
 	return nil
 }
 

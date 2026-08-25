@@ -28,6 +28,7 @@ var wsMessageEntity = map[string]string{
 	"cashbox_account_updated": "cashbox_accounts",
 	"products_updated":        "products",
 	"client_updated":          "clients",
+	"salesperson_updated":     "salespersons",
 }
 
 // startWSClient runs the reconnect loop for kashi's push channel. It's a

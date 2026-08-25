@@ -75,6 +75,24 @@
         />
         <v-btn
           v-if="pageMode !== 'settlement'"
+          icon
+          variant="text"
+          aria-label="Invoices on hold"
+          @click="onHoldMenu?.open()"
+        >
+          <v-icon icon="mdi-pause" size="20" />
+        </v-btn>
+        <v-btn
+          v-if="pageMode !== 'settlement'"
+          icon
+          variant="text"
+          aria-label="Exchange invoice"
+          @click="returnInvoiceMenu?.open()"
+        >
+          <v-icon icon="mdi-autorenew" size="20" />
+        </v-btn>
+        <v-btn
+          v-if="pageMode !== 'settlement'"
           variant="text"
           rounded
           aria-label="Search products"
@@ -82,6 +100,13 @@
         >
           <v-icon icon="mdi-magnify" size="20" />
         </v-btn>
+        <OnHoldMenu ref="onHoldMenu" hide-activator @restore="onRestoreHold" />
+        <ReturnInvoiceMenu
+          ref="returnInvoiceMenu"
+          hide-activator
+          :rounding-mode="roundingMode"
+          @exchange="onExchange"
+        />
         <ProductSearchDialog
           ref="productSearchDialog"
           v-if="pageMode !== 'settlement'"
@@ -118,9 +143,7 @@
         "
       >
         <v-card class="pa-6 text-center d-flex flex-column align-center" rounded="xl" width="220" elevation="4">
-          <v-avatar color="grey-darken-1" variant="tonal" size="56" class="mb-3">
-            <v-icon icon="mdi-barcode-scan" size="28" />
-          </v-avatar>
+          <v-icon icon="mdi-barcode-scan" size="40" class="mb-3" />
           <div class="text-subtitle-2 font-weight-medium">Cart is empty</div>
         </v-card>
       </div>
@@ -203,8 +226,10 @@ import ClientButton from "@/components/ClientButton.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import NoteButton from "@/components/NoteButton.vue";
+import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
+import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
@@ -289,6 +314,8 @@ const invoiceItems = ref<InstanceType<typeof InvoiceItems> | null>(null);
 const calculator = ref<InstanceType<typeof Calculator> | null>(null);
 const actionBar = ref<InstanceType<typeof ActionBar> | null>(null);
 const productSearchDialog = ref<InstanceType<typeof ProductSearchDialog> | null>(null);
+const onHoldMenu = ref<InstanceType<typeof OnHoldMenu> | null>(null);
+const returnInvoiceMenu = ref<InstanceType<typeof ReturnInvoiceMenu> | null>(null);
 const accountDialog = ref(false);
 
 // The backend quote is the single source of truth for the cart total - see

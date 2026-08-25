@@ -1,10 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	db "kashi-pos/db/sqlc"
 )
 
 func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing.T) {
@@ -13,7 +16,7 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 		calls++
 		entity := r.URL.Query().Get("entity")
 		since := r.URL.Query().Get("since")
-		if calls <= 4 && since != "" {
+		if calls <= 6 && since != "" {
 			t.Fatalf("expected first pull for %s to have no since, got %q", entity, since)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -26,6 +29,10 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 			fmt.Fprint(w, `{"entity":"products","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "clients":
 			fmt.Fprint(w, `{"entity":"clients","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "branch_targets":
+			fmt.Fprint(w, `{"entity":"branch_targets","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "salespersons":
+			fmt.Fprint(w, `{"entity":"salespersons","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		default:
 			t.Fatalf("unexpected entity %q", entity)
 		}
@@ -64,8 +71,56 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 	// Second pull should send the saved cursor as `since`, not fetch
 	// everything all over again.
 	app.runSyncPullOnce(app.ctx, client)
-	if calls != 8 {
-		t.Fatalf("expected 8 total calls (4 entities x 2 ticks), got %d", calls)
+	if calls != 12 {
+		t.Fatalf("expected 12 total calls (6 entities x 2 ticks), got %d", calls)
+	}
+}
+
+func TestSyncPullAppliesSalespersonWithoutTouchingLocalAttendanceID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Query().Get("entity") {
+		case "salespersons":
+			fmt.Fprint(w, `{"entity":"salespersons","items":[{"id":7,"name":"Sarah M","is_active":true}],"server_time":"2026-08-24T00:00:00Z"}`)
+		default:
+			fmt.Fprint(w, `{"entity":"noop","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		}
+	}))
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
+	client := newCentralClient(server.URL, "TEST01", "test-key")
+
+	if err := app.pullEntityOnce(app.ctx, client, "salespersons"); err != nil {
+		t.Fatal(err)
+	}
+
+	created, err := store.GetSalespersonByRemoteID(app.ctx, sql.NullInt64{Int64: 7, Valid: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.FullName != "Sarah M" || created.IsActive != 1 {
+		t.Fatalf("salesperson not synced correctly: %+v", created)
+	}
+
+	if err := store.UpdateSalespersonAttendanceID(app.ctx, db.UpdateSalespersonAttendanceIDParams{
+		AttendanceUserID: "DEVICE-42",
+		ID:               created.ID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// A second pull with the same name/active state must not clobber the
+	// attendance id set locally in between.
+	if err := app.pullEntityOnce(app.ctx, client, "salespersons"); err != nil {
+		t.Fatal(err)
+	}
+	after, err := store.GetSalespersonByRemoteID(app.ctx, sql.NullInt64{Int64: 7, Valid: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.AttendanceUserID != "DEVICE-42" {
+		t.Fatalf("attendance_user_id was overwritten by sync: got %q", after.AttendanceUserID)
 	}
 }
 

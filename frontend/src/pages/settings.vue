@@ -124,6 +124,30 @@
             </v-card-text>
           </v-card>
 
+          <!-- Read-only: targets are set in kashi's admin UI only, this
+               just confirms what's synced down for this branch. -->
+          <v-card v-show="panelMatches('general-targets')" class="settings-card">
+            <v-card-title>Targets</v-card-title>
+            <v-card-text>
+              <div v-if="!branchTargets.length" class="text-caption text-medium-emphasis">
+                No targets set for this branch.
+              </div>
+              <v-table v-else density="compact">
+                <thead>
+                  <tr><th /><th>From</th><th>To</th><th>Progress</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="target in branchTargets" :key="target.id">
+                    <td><span class="target-color-swatch" :style="{ background: target.color }" /></td>
+                    <td>{{ new Date(target.dateFrom).toLocaleDateString() }}</td>
+                    <td>{{ new Date(target.dateTo).toLocaleDateString() }}</td>
+                    <td>{{ formatUsd(target.achievedCents / 100) }} / {{ formatUsd(target.targetAmountCents / 100) }}</td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-card-text>
+          </v-card>
+
           <!-- kashi-admin (legacy): the separate local CLI tool's own admin
                API, unrelated to central sync above. Slated for removal once
                kashi's remote-command channel covers everything it does. -->
@@ -839,11 +863,11 @@
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-account-tie" size="20" />
               Salespersons
-              <v-spacer />
-              <v-btn color="primary" size="small" @click="openSalespersonDialog()">
-                <v-icon start icon="mdi-plus" /> Add salesperson
-              </v-btn>
             </v-card-title>
+            <div class="text-caption text-medium-emphasis px-4 pb-2">
+              The roster (name, active state) is managed from kashi and synced here read-only.
+              Only the attendance device ID can be set locally.
+            </div>
             <v-data-table
               :headers="salespersonHeaders"
               :items="salespersons"
@@ -852,11 +876,23 @@
               density="comfortable"
               hover
             >
+              <template #item.isActive="{ item }">
+                <v-chip v-if="item.isSynced" :color="item.isActive ? 'green' : 'red'" size="small" variant="tonal">
+                  {{ item.isActive ? "Active" : "Inactive" }}
+                </v-chip>
+                <span v-else class="text-caption text-medium-emphasis">Not synced</span>
+              </template>
               <template #item.actions="{ item }">
                 <v-btn icon size="small" variant="text" @click="openSalespersonDialog(item)">
                   <v-icon icon="mdi-pencil-outline" size="18" />
                 </v-btn>
-                <v-btn icon size="small" variant="text" @click="deleteSalespersonConfirm(item)">
+                <v-btn
+                  v-if="!item.isSynced"
+                  icon
+                  size="small"
+                  variant="text"
+                  @click="deleteSalespersonConfirm(item)"
+                >
                   <v-icon icon="mdi-delete-outline" size="18" color="red" />
                 </v-btn>
               </template>
@@ -929,15 +965,32 @@
 
     <v-dialog v-model="salespersonDialog" max-width="400">
       <v-card>
-        <v-card-title>{{ editingSalesperson ? "Edit Salesperson" : "New Salesperson" }}</v-card-title>
+        <v-card-title>{{ editingSalesperson?.isSynced ? "Attendance ID" : "Edit Salesperson" }}</v-card-title>
         <v-card-text>
-          <v-text-field v-model="salespersonName" placeholder="Full name" variant="outlined" density="compact" autofocus />
+          <v-text-field
+            v-if="!editingSalesperson?.isSynced"
+            v-model="salespersonName"
+            placeholder="Full name"
+            variant="outlined"
+            density="compact"
+            autofocus
+          />
+          <div v-else class="text-body-2 text-medium-emphasis mb-3">
+            {{ editingSalesperson?.fullName }} -- name and active state are managed from kashi.
+          </div>
           <v-text-field v-model="salespersonAttendanceUserId" placeholder="Akuvox attendance ID" variant="outlined" density="compact" />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="salespersonDialog = false">Cancel</v-btn>
           <v-spacer />
-          <v-btn color="primary" variant="flat" :disabled="!salespersonName.trim()" :loading="savingSalesperson" @click="saveSalesperson">Save</v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            :disabled="!editingSalesperson?.isSynced && !salespersonName.trim()"
+            :loading="savingSalesperson"
+            @click="saveSalesperson"
+            >Save</v-btn
+          >
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -1041,6 +1094,7 @@ import {
   GetAppSettings,
   GetDatabaseStatus,
   ChooseDatabase,
+  ListBranchTargetsWithProgress,
   UpdateSettings,
   UpdateCentralAPIURL,
   UpdateAttendanceConfig,
@@ -1080,7 +1134,6 @@ import {
   DeleteCoupon,
   DeleteCouponType,
   ListSalespersons,
-  CreateSalesperson,
   UpdateSalesperson,
   DeleteSalesperson,
   ListCurrencies,
@@ -1108,6 +1161,7 @@ import {
   RemoveDiscountListItem,
 } from "../../wailsjs/go/main/App";
 import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
+import { formatUsd } from "@/lib/format";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 import { paymentAccentColor } from "@/lib/paymentColor";
 import { useAuthStore } from "@/stores/auth";
@@ -1135,6 +1189,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
   "general-sync": { tab: "general", title: "Central sync (kashi)", keywords: "central sync kashi server url branch code api key" },
+  "general-targets": { tab: "general", title: "Targets", keywords: "targets revenue goal progress date range" },
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
   "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
   "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port" },
@@ -1617,6 +1672,12 @@ function platformLabel(platform: string) {
 }
 const serialPorts = ref<string[]>([]);
 const printers = ref<string[]>([]);
+// Read-only mirror of what kashi's admin has set for this branch (see
+// sync_pull.go) -- there is no create/edit here, targets are managed
+// centrally only.
+const branchTargets = ref<
+  { id: number; dateFrom: string; dateTo: string; targetAmountCents: number; achievedCents: number; color: string }[]
+>([]);
 const saving = ref(false);
 const couponTypes = ref<any[]>([]);
 const coupons = ref<any[]>([]);
@@ -1668,6 +1729,7 @@ const salespersons = ref<any[]>([]);
 const salespersonHeaders = [
   { title: "Name", key: "fullName" },
   { title: "Attendance ID", key: "attendanceUserId" },
+  { title: "Status", key: "isActive", sortable: false },
   { title: "", key: "actions", sortable: false, align: "end" as const },
 ];
 const salespersonDialog = ref(false);
@@ -2028,6 +2090,9 @@ onMounted(async () => {
   try {
     roles.value = await ListRoles();
   } catch {}
+  try {
+    branchTargets.value = ((await ListBranchTargetsWithProgress()) ?? []) as typeof branchTargets.value;
+  } catch {}
 });
 
 async function saveSettings() {
@@ -2140,18 +2205,19 @@ function openSalespersonDialog(salesperson?: any) {
 }
 
 async function saveSalesperson() {
-  if (!salespersonName.value.trim()) return;
+  if (!editingSalesperson.value) return;
+  if (!editingSalesperson.value.isSynced && !salespersonName.value.trim()) return;
   savingSalesperson.value = true;
   try {
-    if (editingSalesperson.value) {
+    // Renaming only applies to salespersons created locally before this
+    // branch's roster started syncing from kashi -- once synced, the name
+    // is kashi-owned (see the settings.vue admin-salespersons panel note).
+    if (!editingSalesperson.value.isSynced) {
       await UpdateSalesperson(editingSalesperson.value.id, salespersonName.value);
-      await UpdateSalespersonAttendanceID(editingSalesperson.value.id, salespersonAttendanceUserId.value);
-    } else {
-      const created = await CreateSalesperson(salespersonName.value);
-      await UpdateSalespersonAttendanceID(Number(created.id), salespersonAttendanceUserId.value);
     }
+    await UpdateSalespersonAttendanceID(editingSalesperson.value.id, salespersonAttendanceUserId.value);
     salespersonDialog.value = false;
-    notify(editingSalesperson.value ? "Salesperson updated" : "Salesperson created");
+    notify("Salesperson updated");
     await loadSalespersons();
   } catch {
     notify("Failed to save salesperson", "red");
@@ -2259,6 +2325,14 @@ async function deleteUser() {
 </script>
 
 <style scoped>
+.target-color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.2);
+}
+
 .settings-page {
   box-sizing: border-box;
   height: 100%;

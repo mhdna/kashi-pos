@@ -27,6 +27,7 @@
         :current-day="currentDay"
         :is-admin="auth.isAdmin"
         :printing-shift-id="printingShiftId"
+        :targets="branchTargets"
         @toggle-all="toggleAllDays"
         @toggle-day="toggleDay"
         @toggle-shift="toggleShift"
@@ -43,6 +44,7 @@ import {
   GetCurrentMonth,
   GetOpenShift,
   GetShiftTotals,
+  ListBranchTargetsWithProgress,
   ListShiftBalances,
   ListPaymentMethods,
   PrintClosedShiftReceipt,
@@ -179,6 +181,9 @@ async function loadBalances(shiftId: number) {
 
 const closeBalances = ref<Balance[]>([]);
 const todayIncome = ref<IncomeRow[]>([]);
+const branchTargets = ref<
+  { id: number; dateFrom: string; dateTo: string; targetAmountCents: number; achievedCents: number; color: string }[]
+>([]);
 
 async function refresh() {
   loadingShift.value = true;
@@ -214,6 +219,12 @@ async function refresh() {
 
   for (const shiftId of Object.keys(balanceCache)) delete balanceCache[Number(shiftId)];
   await Promise.all([...shiftExpanded].map(loadBalances));
+
+  try {
+    branchTargets.value = ((await ListBranchTargetsWithProgress()) ?? []) as typeof branchTargets.value;
+  } catch {
+    branchTargets.value = [];
+  }
 
   loadingShift.value = false;
   loadingMonth.value = false;
