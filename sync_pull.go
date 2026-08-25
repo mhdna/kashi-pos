@@ -9,6 +9,8 @@ import (
 	"time"
 
 	db "kashi-pos/db/sqlc"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // syncedCurrency/syncedCashboxAccount mirror the JSON shapes kashi's
@@ -353,6 +355,11 @@ func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity 
 		return fmt.Errorf("fetch changes: %w", err)
 	}
 
+	var rawItems []json.RawMessage
+	if err := json.Unmarshal(changes.Items, &rawItems); err != nil {
+		return fmt.Errorf("count items: %w", err)
+	}
+
 	if err := a.store.ExecTx(ctx, func(q *db.Queries) error {
 		switch entity {
 		case "currencies":
@@ -424,5 +431,30 @@ func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity 
 		return err
 	}
 
+	// Tell the frontend to re-fetch, mirroring the WS push's "go re-fetch
+	// this" contract (see wsMessageEntity in sync_ws.go) -- without this,
+	// a page that already loaded before this pull ran has no way to know
+	// its data just went stale, and only picks up the change on its next
+	// mount (navigating away and back). Skipped on an empty poll tick so
+	// this doesn't fire every 15s for nothing.
+	if len(rawItems) > 0 {
+		a.emitSyncApplied(entity)
+	}
+
 	return nil
+}
+
+// emitSyncApplied is a Wails-lifecycle-safe wrapper around
+// runtime.EventsEmit: calling it before a.ctx is the real context handed
+// to App.startup (e.g. in tests, which construct an App directly with a
+// plain context.Background()) crashes the process outright rather than
+// erroring, so this only emits once a.ready has closed -- a nil (never
+// closed) ready channel, as in tests, makes the select fall through to
+// default immediately, every time.
+func (a *App) emitSyncApplied(entity string) {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "sync_applied:"+entity)
+	default:
+	}
 }

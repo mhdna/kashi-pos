@@ -49,6 +49,7 @@ import {
   ListPaymentMethods,
   PrintClosedShiftReceipt,
 } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import MonthlyIncomeCard from "@/components/shifts/MonthlyIncomeCard.vue";
 import ShiftIncomeCard from "@/components/shifts/ShiftIncomeCard.vue";
 import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
@@ -234,8 +235,20 @@ function refreshIncome() {
   void refresh();
 }
 
+// Backend sync (poll or WS push) applies changes straight to the local
+// DB with no way for an already-open page to know its data went stale --
+// this reuses that same signal to trigger a reload, same as a local
+// mutation firing INCOME_CHANGED_EVENT does. See sync_applied:<entity> in
+// kashi-pos's sync_pull.go.
+let stopSyncListeners: (() => void)[] = [];
+
 onMounted(async () => {
   window.addEventListener(INCOME_CHANGED_EVENT, refreshIncome);
+  stopSyncListeners = [
+    EventsOn("sync_applied:branch_targets", refreshIncome),
+    EventsOn("sync_applied:currencies", refreshIncome),
+    EventsOn("sync_applied:cashbox_accounts", refreshIncome),
+  ];
   try {
     paymentMethods.value = ((await ListPaymentMethods()) as PaymentMethod[]).filter(
       (method) => !/^(on account|on coupon)$/i.test(method.name.trim()),
@@ -254,6 +267,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener(INCOME_CHANGED_EVENT, refreshIncome);
+  stopSyncListeners.forEach((stop) => stop());
 });
 </script>
 
