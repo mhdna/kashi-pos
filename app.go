@@ -881,7 +881,11 @@ func (a *App) ListPageUnlocks() (map[string]bool, error) {
 	return result, nil
 }
 
-// SetPageUnlocked unlocks or re-locks one page for non-admin users.
+// SetPageUnlocked unlocks or re-locks one page for non-admin users. Called
+// both by the local Settings page and by executeUpdateSettingsCommand when
+// kashi pushes the change, so it emits "settings_changed" either way -- an
+// open nav drawer / router re-reads the locks live rather than only on the
+// next app start (usePageUnlocks.ts listens for it).
 func (a *App) SetPageUnlocked(page string, unlocked bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
@@ -896,9 +900,13 @@ func (a *App) SetPageUnlocked(page string, unlocked bool) error {
 	if !found {
 		return fmt.Errorf("unknown page %q", page)
 	}
-	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+	if err := a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: pageUnlockFlag(page), Enabled: boolInt(unlocked),
-	})
+	}); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
 }
 
 func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, marketDescription, returnPolicy, website, instagram, socialPlatformsJSON, socialHandlesJSON, registerName, receiptFont, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
