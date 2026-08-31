@@ -17,14 +17,18 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/png"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -52,6 +56,9 @@ var (
 	pLoadCursorW      = user32.NewProc("LoadCursorW")
 	pSetTimer         = user32.NewProc("SetTimer")
 	pDrawTextW        = user32.NewProc("DrawTextW")
+	pShowWindow       = user32.NewProc("ShowWindow")
+	pUpdateWindow     = user32.NewProc("UpdateWindow")
+	pSetWindowPos     = user32.NewProc("SetWindowPos")
 
 	pCreateSolidBrush  = gdi32.NewProc("CreateSolidBrush")
 	pDeleteObject      = gdi32.NewProc("DeleteObject")
@@ -92,10 +99,19 @@ const (
 	dtVCenter    = 0x0004
 	dtSingleLine = 0x0020
 
+	swShow        = 5
+	swpNoSize     = 0x0001
+	swpNoMove     = 0x0002
+	swpShowWindow = 0x0040
+
 	fwSemibold        = 600
 	defaultCharset    = 1
 	clearTypeQuality  = 5
 	splashAutoCloseMs = 12000
+
+	// Keep the splash up at least this long so a warm-cache launch still
+	// registers as visible feedback rather than a sub-frame flash.
+	splashMinVisible = 900 * time.Millisecond
 
 	// COLORREF is 0x00BBGGRR.
 	splashBgColorRef   = 0x0036261B // #1B2636, matches main.go BackgroundColour
@@ -165,14 +181,30 @@ type bitmapInfo struct {
 
 var (
 	splashOnce      sync.Once
-	splashHWND      uintptr // atomic
-	splashWantClose int32   // atomic
+	splashHWND      uintptr      // atomic
+	splashWantClose int32        // atomic
+	splashShownAt   atomic.Int64 // unix nanos, 0 until the window exists
 	splashFont      uintptr
 
 	splashImgBits []byte // BGRA, top-down, opaque
 	splashImgW    int32
 	splashImgH    int32
 )
+
+// splashLog appends a line to %TEMP%\kashicloud-splash.log. Best-effort and
+// silent on failure; this is a GUI process with no console, so it is the only
+// way to see what the splash path did on a client machine.
+func splashLog(format string, args ...any) {
+	f, err := os.OpenFile(
+		filepath.Join(os.TempDir(), "kashicloud-splash.log"),
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644,
+	)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s "+format+"\n", append([]any{time.Now().Format("15:04:05.000")}, args...)...)
+}
 
 // i32 packs a signed 32-bit value into a uintptr for Win32 "int" parameters
 // without sign-extending into the high half.
@@ -190,8 +222,10 @@ func utf16Ptr(s string) *uint16 {
 // dedicated OS thread. Safe to call once; subsequent calls are ignored.
 func showSplash() {
 	splashOnce.Do(func() {
+		splashLog("showSplash: entry, logo %d bytes", len(splashLogoPNG))
 		img, err := png.Decode(bytes.NewReader(splashLogoPNG))
 		if err != nil {
+			splashLog("showSplash: png.Decode failed: %v", err)
 			return
 		}
 		b := img.Bounds()
@@ -210,16 +244,31 @@ func showSplash() {
 		splashImgBits = bits
 		splashImgW = int32(w)
 		splashImgH = int32(h)
+		splashLog("showSplash: decoded %dx%d, starting thread", w, h)
 
 		go splashThread()
 	})
 }
 
-// hideSplash asks the splash window to close. Idempotent and safe to call
-// before the window has finished being created.
+// hideSplash asks the splash window to close, but not before it has been
+// visible for splashMinVisible. Idempotent and safe to call before the window
+// has finished being created.
 func hideSplash() {
 	atomic.StoreInt32(&splashWantClose, 1)
-	if h := atomic.LoadUintptr(&splashHWND); h != 0 {
+	if shown := splashShownAt.Load(); shown != 0 {
+		if d := splashMinVisible - time.Since(time.Unix(0, shown)); d > 0 {
+			splashLog("hideSplash: deferring close by %v", d)
+			time.AfterFunc(d, closeSplashNow)
+			return
+		}
+	}
+	closeSplashNow()
+}
+
+func closeSplashNow() {
+	h := atomic.LoadUintptr(&splashHWND)
+	splashLog("closeSplashNow: hwnd=%#x", h)
+	if h != 0 {
 		pPostMessageW.Call(h, uintptr(wmClose), 0, 0)
 	}
 }
@@ -228,6 +277,7 @@ func splashThread() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
+	splashLog("splashThread: entry")
 	hInst, _, _ := pGetModuleHandleW.Call(0)
 	className := utf16Ptr("KashiSplashWindow")
 	if className == nil {
@@ -243,7 +293,8 @@ func splashThread() {
 		lpszClassName: className,
 	}
 	wc.cbSize = uint32(unsafe.Sizeof(wc))
-	if ret, _, _ := pRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc))); ret == 0 {
+	if ret, _, err := pRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc))); ret == 0 {
+		splashLog("splashThread: RegisterClassExW failed: %v", err)
 		return
 	}
 
@@ -252,7 +303,7 @@ func splashThread() {
 	x := (int32(cx) - splashWinW) / 2
 	y := (int32(cy) - splashWinH) / 2
 
-	hwnd, _, _ := pCreateWindowExW.Call(
+	hwnd, _, err := pCreateWindowExW.Call(
 		wsExTopmost|wsExToolWindow,
 		uintptr(unsafe.Pointer(className)),
 		uintptr(unsafe.Pointer(utf16Ptr("Kashi Cloud"))),
@@ -261,9 +312,12 @@ func splashThread() {
 		0, 0, hInst, 0,
 	)
 	if hwnd == 0 {
+		splashLog("splashThread: CreateWindowExW failed: %v", err)
 		return
 	}
 	atomic.StoreUintptr(&splashHWND, hwnd)
+	splashShownAt.Store(time.Now().UnixNano())
+	splashLog("splashThread: window %#x at %d,%d (%dx%d screen)", hwnd, x, y, int32(cx), int32(cy))
 
 	if face := utf16Ptr("Segoe UI"); face != nil {
 		splashFont, _, _ = pCreateFontW.Call(
@@ -274,11 +328,17 @@ func splashThread() {
 		)
 	}
 
+	// Force it visible and above the Wails window, which also starts topmost.
+	pShowWindow.Call(hwnd, swShow)
+	pSetWindowPos.Call(hwnd, ^uintptr(0), 0, 0, 0, 0, swpNoMove|swpNoSize|swpShowWindow)
+	pUpdateWindow.Call(hwnd)
+
 	pSetTimer.Call(hwnd, 1, splashAutoCloseMs, 0)
 
-	// hideSplash may have been called during window creation.
+	// hideSplash may have been called during window creation; re-run now that
+	// the handle and shown-at timestamp are set so the min-visible delay applies.
 	if atomic.LoadInt32(&splashWantClose) == 1 {
-		pDestroyWindow.Call(hwnd)
+		go hideSplash()
 	}
 
 	var m msgW
@@ -291,6 +351,7 @@ func splashThread() {
 		pDispatchMessageW.Call(uintptr(unsafe.Pointer(&m)))
 	}
 
+	splashLog("splashThread: message loop exited")
 	atomic.StoreUintptr(&splashHWND, 0)
 	if splashFont != 0 {
 		pDeleteObject.Call(splashFont)

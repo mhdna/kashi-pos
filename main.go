@@ -8,6 +8,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:embed all:frontend/dist
@@ -38,13 +39,19 @@ func main() {
 		Fullscreen:       true,
 		WindowStartState: options.Normal,
 		DisableResize:    true,
+		// Keep the real window hidden until the frontend can paint, so the
+		// only thing on screen during WebView2 boot is the native splash.
+		StartHidden: true,
 		AssetServer:      &assetserver.Options{Assets: assets},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 255},
 		Windows: &windows.Options{
 			WebviewGpuIsDisabled: true,
 		},
-		OnStartup:  app.startup,
-		OnDomReady: func(_ context.Context) { hideSplash() },
+		OnStartup: app.startup,
+		OnDomReady: func(ctx context.Context) {
+			wailsruntime.WindowShow(ctx)
+			hideSplash()
+		},
 		OnShutdown: app.shutdown,
 		Bind: []interface{}{
 			app,
