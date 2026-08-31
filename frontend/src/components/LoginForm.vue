@@ -24,7 +24,6 @@
         type="button"
         class="pin-key"
         variant="tonal"
-        rounded="0"
         elevation="0"
         :disabled="loading || locked"
         :aria-label="`Enter ${digit}`"
@@ -36,7 +35,6 @@
         type="button"
         class="pin-key pin-key--action"
         variant="text"
-        rounded="0"
         :disabled="loading || locked || pin.length === 0"
         aria-label="Clear PIN"
         @click="clearPIN"
@@ -47,7 +45,6 @@
         type="button"
         class="pin-key"
         variant="tonal"
-        rounded="0"
         elevation="0"
         :disabled="loading || locked"
         aria-label="Enter 0"
@@ -59,7 +56,6 @@
         type="button"
         class="pin-key pin-key--action"
         variant="text"
-        rounded="0"
         :disabled="loading || locked || pin.length === 0"
         aria-label="Delete last digit"
         @click="removeDigit"
@@ -239,34 +235,41 @@ onBeforeUnmount(() => {
   border-color: rgb(var(--v-theme-error));
 }
 
+/* Phone-dialer style: big round keys, generous spacing. */
 .pin-keypad {
   display: grid;
-  grid-template-columns: repeat(3, 64px);
-  gap: 10px;
+  grid-template-columns: repeat(3, 78px);
+  gap: 18px 22px;
 }
 
 .pin-key {
-  width: 64px;
-  height: 52px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  border-radius: 0 !important;
+  width: 78px;
+  height: 78px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50% !important;
+  background: rgba(var(--v-theme-on-surface), 0.08);
   color: rgb(var(--v-theme-on-surface));
   font: inherit;
-  font-size: 1.45rem;
-  font-weight: 600;
+  font-size: 1.9rem;
+  font-weight: 500;
   cursor: pointer;
   touch-action: manipulation;
+  transition:
+    background-color 120ms ease,
+    transform 80ms ease;
 }
 
 .pin-key:hover:not(:disabled),
 .pin-key:focus-visible {
-  border-color: rgba(var(--v-theme-on-surface), 0.25);
-  background: rgba(var(--v-theme-on-surface), 0.1);
+  background: rgba(var(--v-theme-on-surface), 0.16);
   outline: none;
 }
 
 .pin-key:active:not(:disabled) {
-  transform: scale(0.97);
+  transform: scale(0.94);
+  background: rgba(var(--v-theme-on-surface), 0.22);
 }
 
 .pin-key:disabled {
@@ -275,11 +278,16 @@ onBeforeUnmount(() => {
 }
 
 .pin-key--action {
-  border-color: transparent !important;
-  font-size: 0.78rem;
+  background: transparent !important;
+  font-size: 0.82rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.pin-key--action:hover:not(:disabled),
+.pin-key--action:focus-visible {
+  background: rgba(var(--v-theme-on-surface), 0.1) !important;
 }
 
 .pin-status {
@@ -311,13 +319,14 @@ onBeforeUnmount(() => {
   }
 
   .pin-keypad {
-    grid-template-columns: repeat(3, 58px);
-    gap: 8px;
+    grid-template-columns: repeat(3, 66px);
+    gap: 14px 18px;
   }
 
   .pin-key {
-    width: 58px;
-    height: 46px;
+    width: 66px;
+    height: 66px;
+    font-size: 1.7rem;
   }
 }
 </style>
