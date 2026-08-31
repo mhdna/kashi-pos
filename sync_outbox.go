@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,21 @@ import (
 
 	db "kashi-pos/db/sqlc"
 )
+
+// syncCentralAPIURL returns this install's configured central sync URL, or
+// "" when there's no settings row yet (a bare test fixture, or a
+// freshly-initialised database) — the same "sync is off" outcome as an
+// empty central_api_url, so callers can branch on the string alone.
+func (a *App) syncCentralAPIURL() (string, error) {
+	settings, err := a.store.GetSettings(a.ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return settings.CentralApiUrl, nil
+}
 
 // getOrCreateInvoiceClientRef returns the stable client_ref for a local
 // invoice id, generating and persisting one on first use. A return/exchange
@@ -57,18 +73,62 @@ type branchInvoicePayload struct {
 	// Whatever this install already computed and applied locally (see
 	// AddClientLoyaltyPoints in tx_invoice.go) — kashi records this as
 	// reported, it must never be re-derived from GrandTotal centrally.
-	LoyaltyPointsDelta int64                      `json:"loyalty_points_delta"`
-	OccurredAt         time.Time                  `json:"occurred_at"`
-	Items              []branchInvoicePayloadItem `json:"items"`
-	RelatedClientRef   string                     `json:"related_client_ref,omitempty"`
+	LoyaltyPointsDelta int64     `json:"loyalty_points_delta"`
+	OccurredAt         time.Time `json:"occurred_at"`
+	// Best-effort display name, not an id -- salespersons aren't a synced/
+	// shared entity across the branch boundary the way products are, so
+	// there's no branch-scoped id for kashi to store a foreign key against.
+	// Empty when no salesperson was recorded for this invoice.
+	SalespersonName  string                        `json:"salesperson_name,omitempty"`
+	Payments         []branchInvoicePaymentPayload `json:"payments"`
+	Items            []branchInvoicePayloadItem    `json:"items"`
+	RelatedClientRef string                        `json:"related_client_ref,omitempty"`
 }
 
 type branchInvoicePayloadItem struct {
 	BranchProductID int64 `json:"branch_product_id"`
-	UnitPrice       int64 `json:"unit_price"`
-	LineTotal       int64 `json:"line_total"`
-	Discount        int16 `json:"discount"`
-	Quantity        int64 `json:"quantity"`
+	// Barcode is this line's SKU barcode -- the identifier kashi uses to
+	// resolve the line to a central product_variants row and decrement the
+	// branch's central store inventory. BranchProductID stays for
+	// traceability but doesn't resolve to anything central.
+	Barcode   string `json:"barcode"`
+	UnitPrice int64  `json:"unit_price"`
+	LineTotal int64  `json:"line_total"`
+	Discount  int16  `json:"discount"`
+	Quantity  int64  `json:"quantity"`
+}
+
+// branchInvoicePaymentPayload is one settlement line -- net amount paid
+// through one payment account for this invoice (see invoice_payments,
+// already computed at checkout: one row per account, payment minus change
+// merged). AccountName is a display name, same "not a synced entity, so no
+// id to send" reasoning as SalespersonName above.
+type branchInvoicePaymentPayload struct {
+	AccountName string `json:"account_name"`
+	Amount      int64  `json:"amount"`
+}
+
+// buildBranchInvoicePayments reads this invoice's already-persisted
+// per-account settlement (see invoice_payments, written by
+// recordExchangePayments/salesInvoiceTx) and resolves each account id to
+// its display name for the sync payload.
+func buildBranchInvoicePayments(ctx context.Context, q *db.Queries, invoiceID int64) ([]branchInvoicePaymentPayload, error) {
+	rows, err := q.ListInvoicePayments(ctx, invoiceID)
+	if err != nil {
+		return nil, fmt.Errorf("load invoice payments: %w", err)
+	}
+	payments := make([]branchInvoicePaymentPayload, 0, len(rows))
+	for _, row := range rows {
+		account, err := q.GetCashboxAccountByID(ctx, row.CashboxID)
+		if err != nil {
+			return nil, fmt.Errorf("load cashbox account %d: %w", row.CashboxID, err)
+		}
+		payments = append(payments, branchInvoicePaymentPayload{
+			AccountName: account.Name,
+			Amount:      row.Amount,
+		})
+	}
+	return payments, nil
 }
 
 // branchExpensePayload is the exact JSON body POSTed to kashi's
@@ -173,5 +233,187 @@ func queueBranchInvoiceSync(ctx context.Context, q *db.Queries, centralAPIURL, e
 		ClientRef:   payload.ClientRef,
 		PayloadJson: string(body),
 	})
+	return err
+}
+
+// branchSettlementPayload is the exact JSON body POSTed to kashi's
+// /branch/invoice_settlements (see api/branch_invoice_settlement.go in the
+// kashi repo — branchSettlementRequest there must stay in sync with this
+// shape). A "change settlement" edit (ChangeInvoiceSettlement,
+// ChangeInvoiceSettlementAmount, SettleInvoicePayments) rewrites an
+// already-synced sale's per-account payment split; kashi replays that onto
+// its branch_invoices copy so the admin view of who-paid-with-what never
+// goes stale.
+//
+// SettlementRef is a fresh uuid per edit — each change is its own event,
+// deduplicated on retry via (branch_id, client_ref), NOT collapsed with the
+// previous settlement of the same sale. SaleClientRef is the sale's stable
+// invoice_client_ref (see getOrCreateInvoiceClientRef), the key kashi uses
+// to find the branch invoice to update.
+type branchSettlementPayload struct {
+	SettlementRef string                        `json:"settlement_ref"`
+	SaleClientRef string                        `json:"sale_client_ref"`
+	GrandTotal    int64                         `json:"grand_total"`
+	Payments      []branchInvoicePaymentPayload `json:"payments"`
+	OccurredAt    time.Time                     `json:"occurred_at"`
+}
+
+// queueBranchSettlementSync is queueBranchInvoiceSync's counterpart for a
+// settlement change — same opt-in-if-configured, same-transaction-as-the-
+// write behavior. Unlike an invoice's client_ref, SettlementRef is minted
+// here when the caller left it blank: every settlement edit is a distinct
+// event, so there's no "same edit must reuse the same ref" case to honor.
+func queueBranchSettlementSync(ctx context.Context, q *db.Queries, centralAPIURL string, payload branchSettlementPayload) error {
+	if centralAPIURL == "" {
+		return nil
+	}
+	if payload.SettlementRef == "" {
+		payload.SettlementRef = uuid.NewString()
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal sync outbox payload: %w", err)
+	}
+
+	_, err = q.CreateSyncOutboxEntry(ctx, db.CreateSyncOutboxEntryParams{
+		EntityType:  "invoice_settlement",
+		ClientRef:   payload.SettlementRef,
+		PayloadJson: string(body),
+	})
+	return err
+}
+
+// queueSettlementChange resolves a sale's stable client_ref and its current
+// per-account payment split (as just rewritten by the caller) and queues a
+// settlement-change sync for it. It's a no-op when sync isn't configured, so
+// all three "change settlement" entry points (ChangeInvoiceSettlement,
+// ChangeInvoiceSettlementAmount, SettleInvoicePayments) can call it
+// unconditionally from the tail of their write transaction.
+func queueSettlementChange(ctx context.Context, q *db.Queries, centralAPIURL string, invoiceID, grandTotal int64) error {
+	if centralAPIURL == "" {
+		return nil
+	}
+	saleRef, err := getOrCreateInvoiceClientRef(ctx, q, invoiceID)
+	if err != nil {
+		return fmt.Errorf("resolve invoice client ref: %w", err)
+	}
+	payments, err := buildBranchInvoicePayments(ctx, q, invoiceID)
+	if err != nil {
+		return err
+	}
+	return queueBranchSettlementSync(ctx, q, centralAPIURL, branchSettlementPayload{
+		SaleClientRef: saleRef,
+		GrandTotal:    grandTotal,
+		Payments:      payments,
+		OccurredAt:    time.Now().UTC(),
+	})
+}
+
+// branchShiftClosePayload is the exact JSON body POSTed to kashi's
+// /branch/shift_closes (see api/branch_shift.go in the kashi repo —
+// branchShiftCloseRequest there must stay in sync with this shape).
+// BranchShiftID is this install's own local shifts.id, meaningless to
+// kashi's schema — stored as opaque traceability data, not a foreign key,
+// same reasoning as branchInvoicePayload. Expected/counted amounts are the
+// exact values printed on the close-shift receipt; kashi derives each
+// variance itself (counted − expected) rather than trusting a reported one.
+type branchShiftClosePayload struct {
+	ShiftRef          string    `json:"shift_ref"`
+	BranchShiftID     int64     `json:"branch_shift_id"`
+	OpenedAt          time.Time `json:"opened_at"`
+	ClosedAt          time.Time `json:"closed_at"`
+	ClosingPersonName string    `json:"closing_person_name"`
+	OpeningFloatUsd   int64     `json:"opening_float_usd"`
+	OpeningFloatLbp   int64     `json:"opening_float_lbp"`
+	ExpectedUsd       int64     `json:"expected_usd"`
+	ExpectedLbp       int64     `json:"expected_lbp"`
+	ExpectedVisa      int64     `json:"expected_visa"`
+	ExpectedWhish     int64     `json:"expected_whish"`
+	CountedUsd        int64     `json:"counted_usd"`
+	CountedLbp        int64     `json:"counted_lbp"`
+	CountedVisa       int64     `json:"counted_visa"`
+	CountedWhish      int64     `json:"counted_whish"`
+	OccurredAt        time.Time `json:"occurred_at"`
+}
+
+// queueBranchShiftCloseSync is queueBranchInvoiceSync's counterpart for a
+// shift close. ShiftRef is derived from the local shift id by the caller
+// ("shift-<id>"): a shift closes exactly once, so that stable ref is all
+// the idempotency kashi needs.
+func queueBranchShiftCloseSync(ctx context.Context, q *db.Queries, centralAPIURL string, payload branchShiftClosePayload) error {
+	if centralAPIURL == "" {
+		return nil
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal sync outbox payload: %w", err)
+	}
+
+	_, err = q.CreateSyncOutboxEntry(ctx, db.CreateSyncOutboxEntryParams{
+		EntityType:  "shift_close",
+		ClientRef:   payload.ShiftRef,
+		PayloadJson: string(body),
+	})
+	return err
+}
+
+// branchAttendanceEvent is one row of a branchAttendanceEventsPayload
+// batch. Ref is "<device_id>|<event_id>" — already unique per branch, so
+// no separate ref column is needed on salesperson_attendance_events.
+type branchAttendanceEvent struct {
+	Ref              string `json:"ref"`
+	SalespersonName  string `json:"salesperson_name"`
+	AttendanceUserID string `json:"attendance_user_id"`
+	EventDate        string `json:"event_date"`
+	EventTime        string `json:"event_time"`
+	EventAt          string `json:"event_at"`
+	Type             string `json:"type"`
+	Status           string `json:"status"`
+}
+
+// branchAttendanceEventsPayload is the exact JSON body POSTed to kashi's
+// /branch/attendance_events (see api/branch_attendance.go). A single sync
+// run's newly-imported punches are batched into one payload — one outbox
+// row, one POST — so a first-time backfill of a busy device can't flood the
+// outbox. kashi upserts each row on (branch_id, ref), so replaying the
+// whole batch is still row-level idempotent.
+type branchAttendanceEventsPayload struct {
+	Events []branchAttendanceEvent `json:"events"`
+}
+
+// branchAttendanceChangePayload is the exact JSON body POSTed to kashi's
+// /branch/attendance_changes (see api/branch_attendance.go). It covers both
+// a cashier-filed change request ("complaint") and a manager's review of
+// one ("approval", carrying the approved/rejected Status and the resulting
+// before/after times). Ref is derived from the local
+// attendance_change_requests.id by the caller ("acr-<id>-complaint" /
+// "acr-<id>-review").
+type branchAttendanceChangePayload struct {
+	Ref             string    `json:"ref"`
+	Kind            string    `json:"kind"`
+	SalespersonName string    `json:"salesperson_name"`
+	AttendanceDate  string    `json:"attendance_date"`
+	OriginalTime    string    `json:"original_time,omitempty"`
+	RequestedTime   string    `json:"requested_time,omitempty"`
+	RequestedType   string    `json:"requested_type,omitempty"`
+	Action          string    `json:"action"`
+	Status          string    `json:"status"`
+	Note            string    `json:"note,omitempty"`
+	Actor           string    `json:"actor,omitempty"`
+	OccurredAt      time.Time `json:"occurred_at"`
+}
+
+// queueSyncOutboxRaw inserts a sync_outbox row on an arbitrary *sql.Tx —
+// the escape hatch for code paths that write via raw database/sql rather
+// than sqlc's *db.Queries (attendance.go predates the store layer and talks
+// to a.conn directly). The atomicity guarantee is the same as
+// queueBranchInvoiceSync's: the outbox row commits with the write that
+// produced it, or neither does.
+func queueSyncOutboxRaw(ctx context.Context, tx *sql.Tx, entityType, clientRef, payloadJSON string) error {
+	_, err := tx.ExecContext(ctx,
+		`INSERT INTO sync_outbox (entity_type, client_ref, payload_json) VALUES (?, ?, ?)`,
+		entityType, clientRef, payloadJSON)
 	return err
 }

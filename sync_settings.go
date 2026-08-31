@@ -28,6 +28,12 @@ type branchSettingsPayload struct {
 	Instagram           string          `json:"instagram"`
 	SocialPlatforms     json.RawMessage `json:"social_platforms"`
 	SocialHandles       json.RawMessage `json:"social_handles"`
+	// SearchButtonEnabled is the one field here kashi is allowed to write
+	// back (via an update_settings command) as well as read -- see
+	// productSearchEnabledFlag in products.go. It's stored locally as a
+	// feature flag, not a settings column, so it's passed in separately
+	// rather than read off db.Setting.
+	SearchButtonEnabled bool `json:"search_button_enabled"`
 }
 
 // pushSettings is called every sync tick (see runSyncTick in
@@ -35,7 +41,7 @@ type branchSettingsPayload struct {
 // current settings even if a push was missed while offline -- there's no
 // outbox/idempotency tracking needed since it's a plain upsert, not an
 // event to deduplicate.
-func pushSettings(ctx context.Context, client *centralClient, s db.Setting) error {
+func pushSettings(ctx context.Context, client *centralClient, s db.Setting, searchButtonEnabled bool) error {
 	socialPlatforms := json.RawMessage(s.SocialPlatforms)
 	if len(socialPlatforms) == 0 {
 		socialPlatforms = json.RawMessage("[]")
@@ -60,6 +66,7 @@ func pushSettings(ctx context.Context, client *centralClient, s db.Setting) erro
 		Instagram:           s.Instagram,
 		SocialPlatforms:     socialPlatforms,
 		SocialHandles:       socialHandles,
+		SearchButtonEnabled: searchButtonEnabled,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal settings payload: %w", err)

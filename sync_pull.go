@@ -74,6 +74,26 @@ type syncedProductVariant struct {
 	Year        sql.NullString `json:"year"`
 }
 
+// syncedExpenseCategory / syncedLoanCategory mirror the raw row kashi
+// returns for scope='branch' expense_categories / loan_categories (see
+// api/branch_catchup.go). Matched by name -- see the package-level note on
+// syncedCurrency for why matching is never done by numeric id. icon/color
+// are carried straight through so a category renders identically here and
+// in kashi.
+type syncedExpenseCategory struct {
+	Name     string `json:"name"`
+	IsActive bool   `json:"is_active"`
+	Icon     string `json:"icon"`
+	Color    string `json:"color"`
+}
+
+type syncedLoanCategory struct {
+	Name     string `json:"name"`
+	IsActive bool   `json:"is_active"`
+	Icon     string `json:"icon"`
+	Color    string `json:"color"`
+}
+
 // applySyncedCurrency creates or updates a local currency to match what
 // kashi reports. The local default currency (the fixed USC accounting
 // anchor) is intentionally left alone even if kashi reports changes for
@@ -159,6 +179,64 @@ func applySyncedCashboxAccount(ctx context.Context, q *db.Queries, a syncedCashb
 		}
 	}
 	return nil
+}
+
+func boolToInt64(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// applySyncedExpenseCategory / applySyncedLoanCategory upsert a local
+// category row by name, mirroring applySyncedCashboxAccount's
+// get-by-natural-key then create-or-update shape.
+func applySyncedExpenseCategory(ctx context.Context, q *db.Queries, c syncedExpenseCategory) error {
+	existing, err := q.GetExpenseCategoryByName(ctx, c.Name)
+	if err == sql.ErrNoRows {
+		_, err := q.CreateExpenseCategory(ctx, db.CreateExpenseCategoryParams{
+			Name:     c.Name,
+			IsActive: boolToInt64(c.IsActive),
+			Icon:     c.Icon,
+			Color:    c.Color,
+		})
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	_, err = q.UpdateExpenseCategory(ctx, db.UpdateExpenseCategoryParams{
+		ID:       existing.ID,
+		Name:     c.Name,
+		IsActive: boolToInt64(c.IsActive),
+		Icon:     c.Icon,
+		Color:    c.Color,
+	})
+	return err
+}
+
+func applySyncedLoanCategory(ctx context.Context, q *db.Queries, c syncedLoanCategory) error {
+	existing, err := q.GetLoanCategoryByName(ctx, c.Name)
+	if err == sql.ErrNoRows {
+		_, err := q.CreateLoanCategory(ctx, db.CreateLoanCategoryParams{
+			Name:     c.Name,
+			IsActive: boolToInt64(c.IsActive),
+			Icon:     c.Icon,
+			Color:    c.Color,
+		})
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	_, err = q.UpdateLoanCategory(ctx, db.UpdateLoanCategoryParams{
+		ID:       existing.ID,
+		Name:     c.Name,
+		IsActive: boolToInt64(c.IsActive),
+		Icon:     c.Icon,
+		Color:    c.Color,
+	})
+	return err
 }
 
 // applySyncedBranchTarget is a plain upsert keyed by remote_id -- targets
@@ -329,7 +407,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 // pullEntities lists what gets pulled from kashi on each tick. Adding a
 // new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
-var pullEntities = []string{"currencies", "cashbox_accounts", "products", "clients", "branch_targets", "salespersons"}
+var pullEntities = []string{"currencies", "cashbox_accounts", "products", "clients", "branch_targets", "salespersons", "expense_categories", "loan_categories"}
 
 // runSyncPullOnce catches this branch up on every entity in pullEntities,
 // one at a time. Each entity's cursor advances independently — a decode
@@ -337,14 +415,32 @@ var pullEntities = []string{"currencies", "cashbox_accounts", "products", "clien
 // tick's since is still whatever cursor was last successfully saved (never
 // advanced past changes that failed to apply).
 func (a *App) runSyncPullOnce(ctx context.Context, client *centralClient) {
+	// A full pass is the same work whether the tick or the WS catch-up runs
+	// it, so if another pull already holds the lock there's nothing to wait
+	// for -- skip and let the holder finish. The 15s tick is the backstop if
+	// a WS-triggered pull was the one skipped.
+	if !a.syncPullMu.TryLock() {
+		return
+	}
+	defer a.syncPullMu.Unlock()
 	for _, entity := range pullEntities {
-		if err := a.pullEntityOnce(ctx, client, entity); err != nil {
+		if err := a.pullEntityLocked(ctx, client, entity); err != nil {
 			log.Printf("sync pull %s: %v", entity, err)
 		}
 	}
 }
 
+// pullEntityOnce is the entry point for a single WS delta ("go re-fetch this
+// entity"). Unlike the full pass it blocks for the lock rather than skipping:
+// a delta names a specific change that must land, and once it does hold the
+// lock FetchChanges is cheap if an overlapping full pull already applied it.
 func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity string) error {
+	a.syncPullMu.Lock()
+	defer a.syncPullMu.Unlock()
+	return a.pullEntityLocked(ctx, client, entity)
+}
+
+func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entity string) error {
 	cursor, err := a.store.GetSyncCursor(ctx, entity)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("load cursor: %w", err)
@@ -422,6 +518,26 @@ func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity 
 					return fmt.Errorf("apply salesperson %d: %w", item.ID, err)
 				}
 			}
+		case "expense_categories":
+			var items []syncedExpenseCategory
+			if err := json.Unmarshal(changes.Items, &items); err != nil {
+				return fmt.Errorf("decode items: %w", err)
+			}
+			for _, item := range items {
+				if err := applySyncedExpenseCategory(ctx, q, item); err != nil {
+					return fmt.Errorf("apply expense category %s: %w", item.Name, err)
+				}
+			}
+		case "loan_categories":
+			var items []syncedLoanCategory
+			if err := json.Unmarshal(changes.Items, &items); err != nil {
+				return fmt.Errorf("decode items: %w", err)
+			}
+			for _, item := range items {
+				if err := applySyncedLoanCategory(ctx, q, item); err != nil {
+					return fmt.Errorf("apply loan category %s: %w", item.Name, err)
+				}
+			}
 		}
 		return q.SetSyncCursor(ctx, db.SetSyncCursorParams{
 			Entity: entity,
@@ -455,6 +571,40 @@ func (a *App) emitSyncApplied(entity string) {
 	select {
 	case <-a.ready:
 		runtime.EventsEmit(a.ctx, "sync_applied:"+entity)
+	default:
+	}
+}
+
+// emitSettingsChanged tells the frontend a feature flag / settings value
+// changed out from under it -- e.g. the product-search button was toggled
+// remotely from kashi, or on another page of this app. Same ready-channel
+// guard as emitSyncApplied, for the same reason.
+func (a *App) emitSettingsChanged() {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "settings_changed")
+	default:
+	}
+}
+
+// emitExpenseUploadReady tells the frontend the one-time receipt-upload QR
+// link for a just-synced expense is ready, carrying the full URL as event
+// data. Same ready-channel guard as emitSyncApplied, for the same reason.
+func (a *App) emitExpenseUploadReady(clientRef, uploadURL string) {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "expense_upload_ready:"+clientRef, uploadURL)
+	default:
+	}
+}
+
+// emitExpenseImagesUploaded tells the frontend a phone finished uploading
+// receipt photos for a given expense (pushed from kashi over the branch WS
+// -- see sync_ws.go), so the open QR dialog can flip to its success state.
+func (a *App) emitExpenseImagesUploaded(clientRef string) {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "expense_images_uploaded:"+clientRef)
 	default:
 	}
 }

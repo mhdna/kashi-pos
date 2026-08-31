@@ -18,22 +18,22 @@
       <div v-if="!items.length" class="text-caption text-medium-emphasis text-center pa-2">
         Add frequently used items here.
       </div>
-      <div class="quick-access__items">
+      <div class="quick-access__items" :class="{ 'quick-access__items--dragging': dragIndex !== null }">
         <v-card
           v-for="(item, index) in items"
           :key="item.code"
           class="quick-access__item pa-2"
-          :class="{ 'quick-access__item--dragging': dragIndex === index, 'quick-access__item--over': dragOverIndex === index && dragIndex !== index }"
+          :class="{
+            'quick-access__item--dragging': dragIndex === index,
+            'quick-access__item--over': dragOverIndex === index && dragIndex !== index,
+            'quick-access__item--active': activeCode === item.code,
+          }"
+          :data-index="index"
           elevation="1"
           rounded="lg"
           :aria-label="item.name"
-          draggable="true"
-          @click="addToInvoice(item)"
-          @dragstart="onDragStart(index, $event)"
-          @dragover="onDragOver(index, $event)"
-          @dragleave="onDragLeave(index)"
-          @drop="onDrop(index, $event)"
-          @dragend="onDragEnd"
+          @pointerdown="onPointerDown(index, $event)"
+          @click="onCardClick(item, $event)"
         >
           <div class="quick-access__code text-caption text-truncate">{{ item.code }}</div>
           <div class="quick-access__name text-caption font-weight-medium text-truncate">{{ item.name }}</div>
@@ -101,6 +101,8 @@ const removalCode = ref("");
 const removalName = ref("");
 const dragIndex = ref<number | null>(null);
 const dragOverIndex = ref<number | null>(null);
+const activeCode = ref<string | null>(null);
+let activeTimer: ReturnType<typeof setTimeout> | undefined;
 
 try {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") as {
@@ -168,38 +170,118 @@ async function confirmRemoval() {
   removalName.value = "";
 }
 
-function onDragStart(index: number, event: DragEvent) {
+// HTML5 drag-and-drop never fires from touch input in the webview, so reorder
+// with Pointer Events: press-and-hold a card briefly to pick it up, then drag.
+// A plain tap still adds to the invoice, and a moving finger still scrolls the
+// panel because we only take over once the finger has been held still.
+const HOLD_MS = 250;
+const MOVE_CANCEL = 10; // px of travel before the hold completes => it's a scroll/tap
+
+let dragPointerId: number | null = null;
+let holdTimer: ReturnType<typeof setTimeout> | undefined;
+let startX = 0;
+let startY = 0;
+let dragging = false;
+let suppressClick = false;
+let sourceEl: HTMLElement | null = null;
+
+function onPointerDown(index: number, event: PointerEvent) {
+  if ((event.target as HTMLElement).closest(".quick-access__remove")) return;
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+
+  suppressClick = false;
+  dragPointerId = event.pointerId;
+  startX = event.clientX;
+  startY = event.clientY;
+  dragging = false;
+  sourceEl = event.currentTarget as HTMLElement;
+
+  clearTimeout(holdTimer);
+  holdTimer = setTimeout(() => beginDrag(index), HOLD_MS);
+
+  window.addEventListener("pointermove", onPointerMove, { passive: false });
+  window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerUp);
+}
+
+function beginDrag(index: number) {
+  dragging = true;
+  suppressClick = true;
   dragIndex.value = index;
-  event.dataTransfer?.setData("text/plain", String(index));
-  if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-}
-function onDragOver(index: number, event: DragEvent) {
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
   dragOverIndex.value = index;
+  try {
+    if (dragPointerId !== null) sourceEl?.setPointerCapture(dragPointerId);
+  } catch {}
+  if (typeof navigator.vibrate === "function") navigator.vibrate(10);
 }
-function onDragLeave(index: number) {
-  if (dragOverIndex.value === index) dragOverIndex.value = null;
-}
-async function onDrop(index: number, event: DragEvent) {
+
+function onPointerMove(event: PointerEvent) {
+  if (event.pointerId !== dragPointerId) return;
+
+  if (!dragging) {
+    if (
+      Math.abs(event.clientX - startX) > MOVE_CANCEL ||
+      Math.abs(event.clientY - startY) > MOVE_CANCEL
+    ) {
+      clearTimeout(holdTimer);
+      teardown();
+    }
+    return;
+  }
+
   event.preventDefault();
-  const from = dragIndex.value;
-  dragOverIndex.value = null;
+  const under = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+  const card = under?.closest<HTMLElement>(".quick-access__item[data-index]");
+  if (card?.dataset.index !== undefined) dragOverIndex.value = Number(card.dataset.index);
+}
+
+function onPointerUp(event: PointerEvent) {
+  if (dragPointerId !== null && event.pointerId !== dragPointerId) return;
+  clearTimeout(holdTimer);
+  if (dragging) void commitReorder(dragIndex.value, dragOverIndex.value);
+  teardown();
+}
+
+function teardown() {
+  window.removeEventListener("pointermove", onPointerMove);
+  window.removeEventListener("pointerup", onPointerUp);
+  window.removeEventListener("pointercancel", onPointerUp);
+  try {
+    if (sourceEl && dragPointerId !== null) sourceEl.releasePointerCapture(dragPointerId);
+  } catch {}
+  dragPointerId = null;
+  sourceEl = null;
+  dragging = false;
   dragIndex.value = null;
-  if (from === null || from === index) return;
+  dragOverIndex.value = null;
+}
+
+async function commitReorder(from: number | null, to: number | null) {
+  if (from === null || to === null || from === to) return;
   const reordered = [...items.value];
   const moved = reordered.splice(from, 1)[0];
   if (!moved) return;
-  reordered.splice(index, 0, moved);
+  reordered.splice(to, 0, moved);
   items.value = reordered;
   try {
     const ids = reordered.filter((item) => item.id).map((item) => item.id as number);
     if (ids.length) await ReorderQuickAccessProducts(ids);
   } catch {}
 }
-function onDragEnd() {
-  dragIndex.value = null;
-  dragOverIndex.value = null;
+
+function onCardClick(item: QuickAccessItem, event: MouseEvent) {
+  if (suppressClick) {
+    suppressClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  activeCode.value = item.code;
+  clearTimeout(activeTimer);
+  activeTimer = setTimeout(() => {
+    activeCode.value = null;
+  }, 200);
+  void addToInvoice(item);
 }
 </script>
 
@@ -265,10 +347,15 @@ function onDragEnd() {
   position: relative;
   transition: opacity 0.15s, outline-color 0.15s;
 }
+.quick-access__items--dragging .quick-access__item {
+  touch-action: none;
+  user-select: none;
+}
 .quick-access__item--dragging {
   opacity: 0.4;
 }
-.quick-access__item--over {
+.quick-access__item--over,
+.quick-access__item--active {
   outline: 2px solid rgb(var(--v-theme-primary));
   outline-offset: -2px;
 }

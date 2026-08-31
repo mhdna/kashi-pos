@@ -174,7 +174,7 @@ func (a *App) VoidInvoice(itemsJSON string, reason string) error {
 }
 
 func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes string) (map[string]any, error) {
-	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes})
+	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson)})
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}
@@ -297,7 +297,7 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 		"salespersonId": inv.SalespersonID, "salespersonName": salespersonName, "cashboxId": inv.CashboxID,
 		"subtotal": inv.Subtotal, "discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
 		"loyaltyPointsEarned": inv.GrandTotal / 100,
-		"createdAt": inv.CreatedAt, "notes": inv.Notes, "items": items, "payments": paymentList,
+		"createdAt":           inv.CreatedAt, "notes": inv.Notes, "items": items, "payments": paymentList,
 	}, nil
 }
 
@@ -374,7 +374,11 @@ func (a *App) ChangeInvoiceSettlement(invoiceID, cashboxID int64) error {
 	if settlementAmount <= 0 {
 		return fmt.Errorf("invoice has no positive settlement")
 	}
-	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+	centralURL, err := a.syncCentralAPIURL()
+	if err != nil {
+		return fmt.Errorf("settings: %w", err)
+	}
+	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
 		for _, payment := range oldPayments {
 			if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{AccountID: payment.CashboxID, ShiftID: inv.ShiftID, Balance: -payment.Amount}); err != nil {
 				return err
@@ -395,8 +399,18 @@ func (a *App) ChangeInvoiceSettlement(invoiceID, cashboxID int64) error {
 		if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{AccountID: cashboxID, ShiftID: inv.ShiftID, Balance: settlementAmount}); err != nil {
 			return err
 		}
-		return q.UpdateInvoiceCashbox(a.ctx, db.UpdateInvoiceCashboxParams{CashboxID: cashboxID, ID: invoiceID})
+		if err := q.UpdateInvoiceCashbox(a.ctx, db.UpdateInvoiceCashboxParams{CashboxID: cashboxID, ID: invoiceID}); err != nil {
+			return err
+		}
+		return queueSettlementChange(a.ctx, q, centralURL, invoiceID, inv.GrandTotal)
 	})
+	if err != nil {
+		return err
+	}
+	if centralURL != "" {
+		a.kickSyncWorker()
+	}
+	return nil
 }
 
 // ChangeInvoiceSettlementAmount moves part of an invoice's settled accounting
@@ -452,7 +466,11 @@ func (a *App) ChangeInvoiceSettlementAmount(invoiceID, fromCashboxID, toCashboxI
 	updatedPayments[fromCashboxID] = sourceAmount - amountCents
 	updatedPayments[toCashboxID] = destinationAmount + amountCents
 
-	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+	centralURL, err := a.syncCentralAPIURL()
+	if err != nil {
+		return fmt.Errorf("settings: %w", err)
+	}
+	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
 		if _, err := q.AddCashboxAccountBalance(a.ctx, db.AddCashboxAccountBalanceParams{
 			AccountID: fromCashboxID, ShiftID: inv.ShiftID, Balance: -amountCents,
 		}); err != nil {
@@ -489,12 +507,21 @@ func (a *App) ChangeInvoiceSettlementAmount(invoiceID, fromCashboxID, toCashboxI
 			}
 		}
 		if inv.CashboxID == fromCashboxID && updatedPayments[fromCashboxID] == 0 {
-			return q.UpdateInvoiceCashbox(a.ctx, db.UpdateInvoiceCashboxParams{
+			if err := q.UpdateInvoiceCashbox(a.ctx, db.UpdateInvoiceCashboxParams{
 				CashboxID: toCashboxID, ID: invoiceID,
-			})
+			}); err != nil {
+				return err
+			}
 		}
-		return nil
+		return queueSettlementChange(a.ctx, q, centralURL, invoiceID, inv.GrandTotal)
 	})
+	if err != nil {
+		return err
+	}
+	if centralURL != "" {
+		a.kickSyncWorker()
+	}
+	return nil
 }
 
 // GetInvoiceForSettlementChange loads a sales invoice for "change settlement"
@@ -663,10 +690,13 @@ func (a *App) SettleInvoicePayments(invoiceID int64, paymentsJSON string) (map[s
 				return err
 			}
 		}
-		return nil
+		return queueSettlementChange(a.ctx, q, settings.CentralApiUrl, invoiceID, invoice.GrandTotal)
 	})
 	if err != nil {
 		return nil, err
+	}
+	if settings.CentralApiUrl != "" {
+		a.kickSyncWorker()
 	}
 	return map[string]any{"invoiceCode": invoice.InvoiceCode}, nil
 }

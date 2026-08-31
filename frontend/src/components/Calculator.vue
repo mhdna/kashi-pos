@@ -306,7 +306,7 @@ const paymentStatus = computed(() =>
         : "Get",
 );
 const statusColor = computed(() =>
-  diff.value > 0 ? "text-red-darken-2" : "text-green-darken-2",
+  diff.value > 0 ? "text-red-darken-2" : "calculator-green",
 );
 function formatAmountInCurrency(amountCents: number, currency: CurrencyRate): string {
   if (currency.cashRoundingUnit <= 1) return formatUsd(amountCents / 100);

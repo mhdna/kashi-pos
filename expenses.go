@@ -79,7 +79,34 @@ func (a *App) CreateExpense(description, category string, amount int64, currency
 		a.kickSyncWorker()
 	}
 
-	return expenseMap(expense), nil
+	result := expenseMap(expense)
+	// syncConfigured tells the frontend whether it's even worth waiting
+	// for an "expense_upload_ready:" event -- an unconfigured install
+	// never queues the expense for sync, so that event would never come.
+	result["syncConfigured"] = syncConfigured
+	return result, nil
+}
+
+// CheckExpenseUploadStatus is the poll-based fallback for kashi-pos's QR
+// upload dialog, used alongside (not instead of) the "expense_images_uploaded"
+// WS push -- see emitExpenseImagesUploaded's doc comment in sync_pull.go for
+// why a push alone isn't enough. Frontend calls this every few seconds while
+// the dialog is open in its "ready" (QR shown) state.
+func (a *App) CheckExpenseUploadStatus(clientRef string) (bool, error) {
+	if a.store == nil {
+		return false, fmt.Errorf("database not initialized")
+	}
+
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return false, fmt.Errorf("load settings: %w", err)
+	}
+	if settings.CentralApiUrl == "" {
+		return false, errCentralSyncDisabled
+	}
+
+	client := newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
+	return client.ExpenseUploadStatus(a.ctx, clientRef)
 }
 
 func (a *App) ListExpenses(pageSize, pageID int32) ([]map[string]any, error) {

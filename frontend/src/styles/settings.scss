@@ -40,20 +40,11 @@
   background-color: var(--kashi-app-background) !important;
 }
 
-.v-theme--dark .v-table,
-.v-theme--dark .v-data-table,
-.v-theme--dark .v-data-table-virtual,
-.v-theme--dark .v-table__wrapper,
-.v-theme--dark .v-table__wrapper > table {
-  background-color: #000000 !important;
-}
-
 .v-ripple__container {
   display: none !important;
 }
 
-.v-btn:not(.v-btn--disabled):active,
-.quick-access__item:active {
+.v-btn:not(.v-btn--disabled):active {
   background-color: rgba(var(--v-theme-primary), 0.18) !important;
   color: rgb(var(--v-theme-primary)) !important;
 }

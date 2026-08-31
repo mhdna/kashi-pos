@@ -18,9 +18,10 @@ function goBack() {
 <style scoped>
 .close-shift-page {
   box-sizing: border-box;
-  min-height: 100vh;
-  overflow-y: auto;
-  padding: 24px;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 24px 12px;
 }
 
 </style>

@@ -82,7 +82,11 @@ func (a *App) runSyncTick(ctx context.Context) {
 	if err := a.runSyncOutboxOnce(ctx, client); err != nil {
 		log.Printf("sync outbox: %v", err)
 	}
-	if err := pushSettings(ctx, client, settings); err != nil {
+	searchButtonEnabled := true
+	if v, ferr := a.store.GetFeatureFlag(ctx, productSearchEnabledFlag); ferr == nil {
+		searchButtonEnabled = v != 0
+	}
+	if err := pushSettings(ctx, client, settings, searchButtonEnabled); err != nil {
 		log.Printf("sync settings: %v", err)
 	}
 	a.runPendingCommandsOnce(ctx, client)
@@ -118,7 +122,20 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 			continue
 		}
 
-		if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
+		// Expenses need kashi's response body (the one-time receipt-upload
+		// token) -- every other entity's response is discarded, since
+		// kashi's idempotency handling already makes any 2xx equally a
+		// success for them.
+		if entry.EntityType == "expense" {
+			resp, err := client.PostExpense(ctx, path, []byte(entry.PayloadJson))
+			if err != nil {
+				a.markSyncOutboxRetry(ctx, entry, err)
+				continue
+			}
+			if resp.UploadToken != "" {
+				a.emitExpenseUploadReady(entry.ClientRef, client.UploadURL(resp.UploadToken))
+			}
+		} else if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
 			a.markSyncOutboxRetry(ctx, entry, err)
 			continue
 		}
@@ -143,6 +160,14 @@ func branchInvoicePath(entityType string) (string, bool) {
 		return "/branch/expenses", true
 	case "loan":
 		return "/branch/loans", true
+	case "invoice_settlement":
+		return "/branch/invoice_settlements", true
+	case "shift_close":
+		return "/branch/shift_closes", true
+	case "attendance_events":
+		return "/branch/attendance_events", true
+	case "attendance_change":
+		return "/branch/attendance_changes", true
 	default:
 		return "", false
 	}

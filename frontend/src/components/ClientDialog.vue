@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 320 : 620">
+  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 320 : 760">
     <v-card v-if="step === 'phone'">
       <v-card-title class="font-weight-bold">Enter Phone Number</v-card-title>
       <v-card-text class="client-phone-layout">
@@ -517,7 +517,7 @@ function reset() {
 
 .client-name-keyboard {
   margin-inline: auto;
-  max-width: 540px;
+  max-width: 700px;
 }
 
 .client-phone-action-button {

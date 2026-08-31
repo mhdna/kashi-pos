@@ -1,6 +1,6 @@
 <template>
   <section class="mb-4">
-    <div class="calculator-amounts mb-2">
+    <div class="calculator-amounts mb-2" :class="statusColor">
       <v-btn
         v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState"
         class="calculator-amounts-flip"
@@ -11,8 +11,8 @@
         title="Switch total currency"
         @click="flipCurrency"
       />
-      <div v-if="showReadyState" class="calculator-accepted-state text-green-darken-2">
-        <v-icon icon="mdi-check-circle" color="green-darken-2" size="40" />
+      <div v-if="showReadyState" class="calculator-accepted-state calculator-green">
+        <v-icon icon="mdi-check-circle" color="#617557" size="40" />
         <span>{{ paymentStatus }}</span>
       </div>
       <template v-else>
@@ -82,6 +82,18 @@ function flipCurrency() {
   border: 1px solid rgba(var(--v-border-color), 0.12);
   border-radius: 10px;
   font-size: var(--kashi-font-size-base);
+}
+.calculator-amounts.calculator-green {
+  color: #617557;
+  border-color: rgba(97, 117, 87, 0.5);
+  background-color: rgba(97, 117, 87, 0.08);
+}
+.calculator-green {
+  color: #617557;
+}
+.calculator-amounts.text-red-darken-2 {
+  border-color: rgba(244, 67, 54, 0.5);
+  background-color: rgba(244, 67, 54, 0.08);
 }
 .calculator-amounts-flip {
   position: absolute;

@@ -15,7 +15,19 @@
         <v-card-text>
           <v-form ref="formRef" v-model="formValid">
             <v-text-field v-model="form.description" label="Description" :rules="[required]" />
-            <v-combobox v-model="form.category" :items="['Owner', 'External']" label="Category" :rules="[required]" />
+            <v-combobox
+              v-model="form.category"
+              :items="loanCategories"
+              item-title="name"
+              item-value="name"
+              :return-object="false"
+              label="Category"
+              :rules="[required]"
+            >
+              <template #item="{ props: itemProps, item }">
+                <v-list-item v-bind="itemProps" :prepend-icon="item.raw.icon || 'mdi-tag-outline'" />
+              </template>
+            </v-combobox>
             <v-text-field v-model.number="form.amount" label="Amount" type="number" :rules="[required]" />
             <v-select
               v-model="form.cashboxAccountId"
@@ -38,8 +50,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { CreateLoan, ListLoans, ListPaymentMethods } from "../../wailsjs/go/main/App";
+import { ref, onMounted, onBeforeUnmount } from "vue";
+import { CreateLoan, ListLoans, ListLoanCategories, ListPaymentMethods } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { formatServerDateTime } from "@/lib/datetime";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 
@@ -53,6 +66,7 @@ const headers = [
 const items = ref<any[]>([]);
 const loading = ref(true);
 const paymentMethods = ref<any[]>([]);
+const loanCategories = ref<any[]>([]);
 
 const dialog = ref(false);
 const saving = ref(false);
@@ -85,6 +99,14 @@ async function loadPaymentMethods() {
   }
 }
 
+async function loadLoanCategories() {
+  try {
+    loanCategories.value = (await ListLoanCategories()) as any[];
+  } catch {
+    loanCategories.value = [];
+  }
+}
+
 async function submit() {
   const valid = await formRef.value?.validate();
   if (!valid?.valid) return;
@@ -107,7 +129,14 @@ async function submit() {
   }
 }
 
+let categorySyncUnsub: (() => void) | null = null;
+
 onMounted(async () => {
-  await Promise.all([loadLoans(), loadPaymentMethods()]);
+  await Promise.all([loadLoans(), loadPaymentMethods(), loadLoanCategories()]);
+  categorySyncUnsub = EventsOn("sync_applied:loan_categories", loadLoanCategories);
+});
+
+onBeforeUnmount(() => {
+  categorySyncUnsub?.();
 });
 </script>

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	db "kashi-pos/db/sqlc"
 )
 
@@ -222,7 +224,22 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 	if err := rows.Close(); err != nil {
 		return nil, err
 	}
+	centralURL, err := a.syncCentralAPIURL()
+	if err != nil {
+		return nil, fmt.Errorf("load settings: %w", err)
+	}
+	syncConfigured := centralURL != ""
+
+	// One transaction for the whole import so the batched sync_outbox row
+	// below commits atomically with the events it describes.
+	tx, err := a.conn.BeginTx(a.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
 	imported := 0
+	newEvents := make([]branchAttendanceEvent, 0)
 	for _, candidate := range candidates {
 		key := fmt.Sprintf("%d|%s", candidate.salespersonID, candidate.item.Date)
 		duplicate := false
@@ -235,15 +252,44 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 		if duplicate {
 			continue
 		}
-		_, err = a.conn.ExecContext(a.ctx, `INSERT OR IGNORE INTO salesperson_attendance_events
+		eventAtRFC := candidate.eventAt.Format(time.RFC3339)
+		if _, err = tx.ExecContext(a.ctx, `INSERT OR IGNORE INTO salesperson_attendance_events
 			(device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, ip, candidate.item.ID, candidate.salespersonID, candidate.userID,
-			candidate.name, candidate.item.Date, candidate.item.Time, candidate.eventAt.Format(time.RFC3339), candidate.item.Type, candidate.item.Status)
-		if err != nil {
+			candidate.name, candidate.item.Date, candidate.item.Time, eventAtRFC, candidate.item.Type, candidate.item.Status); err != nil {
 			return nil, err
 		}
 		existing[key] = append(existing[key], candidate.eventAt)
 		imported++
+		if syncConfigured {
+			newEvents = append(newEvents, branchAttendanceEvent{
+				Ref:              ip + "|" + candidate.item.ID,
+				SalespersonName:  candidate.name,
+				AttendanceUserID: candidate.userID,
+				EventDate:        candidate.item.Date,
+				EventTime:        candidate.item.Time,
+				EventAt:          eventAtRFC,
+				Type:             candidate.item.Type,
+				Status:           candidate.item.Status,
+			})
+		}
+	}
+
+	if len(newEvents) > 0 {
+		body, err := json.Marshal(branchAttendanceEventsPayload{Events: newEvents})
+		if err != nil {
+			return nil, fmt.Errorf("marshal attendance events sync: %w", err)
+		}
+		if err := queueSyncOutboxRaw(a.ctx, tx, "attendance_events", uuid.NewString(), string(body)); err != nil {
+			return nil, fmt.Errorf("queue attendance events sync: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	if syncConfigured {
+		a.kickSyncWorker()
 	}
 	return map[string]any{"reachable": true, "configured": true, "message": "Connected", "events": imported}, nil
 }
@@ -327,7 +373,8 @@ func (a *App) SubmitAttendanceComplaint(employeeID int64, date string, originalE
 	if action == "replace" && requestedType != "IN" && requestedType != "OUT" {
 		return fmt.Errorf("attendance type must be IN or OUT")
 	}
-	if _, err := a.store.GetSalespersonByID(a.ctx, employeeID); err != nil {
+	salesperson, err := a.store.GetSalespersonByID(a.ctx, employeeID)
+	if err != nil {
 		return err
 	}
 	var originalTime string
@@ -338,9 +385,58 @@ func (a *App) SubmitAttendanceComplaint(employeeID int64, date string, originalE
 	if action == "delete" {
 		changeNote = fmt.Sprintf("Delete %s", originalTime)
 	}
-	_, err := a.conn.ExecContext(a.ctx, `INSERT INTO attendance_change_requests (salesperson_id, attendance_date, original_event_id, original_time, requested_time, requested_type, action, note, status, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`, employeeID, date, originalEventID, originalTime, requestedTime, requestedType, action, changeNote, time.Now().UTC().Format("2006-01-02 15:04:05"))
-	return err
+	centralURL, err := a.syncCentralAPIURL()
+	if err != nil {
+		return fmt.Errorf("load settings: %w", err)
+	}
+
+	tx, err := a.conn.BeginTx(a.ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	occurredAt := time.Now().UTC()
+	res, err := tx.ExecContext(a.ctx, `INSERT INTO attendance_change_requests (salesperson_id, attendance_date, original_event_id, original_time, requested_time, requested_type, action, note, status, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`, employeeID, date, originalEventID, originalTime, requestedTime, requestedType, action, changeNote, occurredAt.Format("2006-01-02 15:04:05"))
+	if err != nil {
+		return err
+	}
+
+	if centralURL != "" {
+		requestID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		ref := fmt.Sprintf("acr-%d-complaint", requestID)
+		body, err := json.Marshal(branchAttendanceChangePayload{
+			Ref:             ref,
+			Kind:            "complaint",
+			SalespersonName: salesperson.FullName,
+			AttendanceDate:  date,
+			OriginalTime:    originalTime,
+			RequestedTime:   requestedTime,
+			RequestedType:   requestedType,
+			Action:          action,
+			Status:          "pending",
+			Note:            changeNote,
+			OccurredAt:      occurredAt,
+		})
+		if err != nil {
+			return fmt.Errorf("marshal attendance complaint sync: %w", err)
+		}
+		if err := queueSyncOutboxRaw(a.ctx, tx, "attendance_change", ref, string(body)); err != nil {
+			return fmt.Errorf("queue attendance complaint sync: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if centralURL != "" {
+		a.kickSyncWorker()
+	}
+	return nil
 }
 
 func (a *App) ListAttendanceComplaints(month string) ([]map[string]any, error) {
@@ -383,14 +479,40 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 	if err := a.verifyManagerPassword(password); err != nil {
 		return err
 	}
+	centralURL, err := a.syncCentralAPIURL()
+	if err != nil {
+		return fmt.Errorf("load settings: %w", err)
+	}
+
+	// The whole review — audit row, event delete/insert, request status —
+	// runs in one transaction so the sync_outbox row queued at the end
+	// commits atomically with it, the same guarantee every sqlc-based sync
+	// call site gets (see queueBranchInvoiceSync's doc comment).
+	tx, err := a.conn.BeginTx(a.ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	status := "rejected"
 	if approved {
 		status = "approved"
 	}
+
+	// Pulled up so both branches, and the sync payload, share the request's
+	// identity.
+	var reqName, reqDate, reqRequestedTime, reqRequestedType, reqAction, reqOriginalTime string
+	if err := tx.QueryRowContext(a.ctx, `SELECT s.full_name, r.attendance_date, r.requested_time, r.requested_type, r.action, r.original_time
+		FROM attendance_change_requests r JOIN salespersons s ON s.id = r.salesperson_id WHERE r.id = ?`, id).
+		Scan(&reqName, &reqDate, &reqRequestedTime, &reqRequestedType, &reqAction, &reqOriginalTime); err != nil {
+		return err
+	}
+
+	var changedFrom, changedTo string
 	if approved {
 		var salespersonID, originalEventID int64
 		var date, requestedTime, requestedType, action, name, attendanceUserID string
-		err := a.conn.QueryRowContext(a.ctx, `SELECT r.salesperson_id, r.original_event_id, r.attendance_date, r.requested_time, r.requested_type, r.action, s.full_name, s.attendance_user_id
+		err := tx.QueryRowContext(a.ctx, `SELECT r.salesperson_id, r.original_event_id, r.attendance_date, r.requested_time, r.requested_type, r.action, s.full_name, s.attendance_user_id
 			FROM attendance_change_requests r JOIN salespersons s ON s.id = r.salesperson_id WHERE r.id = ?`, id).
 			Scan(&salespersonID, &originalEventID, &date, &requestedTime, &requestedType, &action, &name, &attendanceUserID)
 		if err != nil {
@@ -399,18 +521,18 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 		var originalEvent struct {
 			deviceID, eventID, attendanceUserID, salespersonName, eventDate, eventTime, eventAt, eventType, status string
 		}
-		if err := a.conn.QueryRowContext(a.ctx, `SELECT device_id, event_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status
+		if err := tx.QueryRowContext(a.ctx, `SELECT device_id, event_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status
 			FROM salesperson_attendance_events WHERE id = ? AND salesperson_id = ?`, originalEventID, salespersonID).Scan(
 			&originalEvent.deviceID, &originalEvent.eventID, &originalEvent.attendanceUserID, &originalEvent.salespersonName, &originalEvent.eventDate, &originalEvent.eventTime, &originalEvent.eventAt, &originalEvent.eventType, &originalEvent.status); err != nil {
 			return err
 		}
-		if _, err := a.conn.ExecContext(a.ctx, `INSERT INTO attendance_event_audit
+		if _, err := tx.ExecContext(a.ctx, `INSERT INTO attendance_event_audit
 			(request_id, original_event_id, device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status, action, audited_at, approved_by)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manager approval')`, id, originalEventID, originalEvent.deviceID, originalEvent.eventID, salespersonID, originalEvent.attendanceUserID, originalEvent.salespersonName, originalEvent.eventDate, originalEvent.eventTime, originalEvent.eventAt, originalEvent.eventType, originalEvent.status, action, time.Now().UTC().Format("2006-01-02 15:04:05")); err != nil {
 			return err
 		}
 		if originalEventID > 0 {
-			if _, err := a.conn.ExecContext(a.ctx, `DELETE FROM salesperson_attendance_events WHERE id = ? AND salesperson_id = ? AND event_date = ?`, originalEventID, salespersonID, date); err != nil {
+			if _, err := tx.ExecContext(a.ctx, `DELETE FROM salesperson_attendance_events WHERE id = ? AND salesperson_id = ? AND event_date = ?`, originalEventID, salespersonID, date); err != nil {
 				return err
 			}
 		}
@@ -419,34 +541,71 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 			if err != nil {
 				return fmt.Errorf("invalid requested attendance time: %w", err)
 			}
-			if _, err := a.conn.ExecContext(a.ctx, `INSERT OR IGNORE INTO salesperson_attendance_events
+			if _, err := tx.ExecContext(a.ctx, `INSERT OR IGNORE INTO salesperson_attendance_events
 			(device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status)
 			VALUES ('manual', ?, ?, ?, ?, ?, ?, ?, ?, 'Approved')`, fmt.Sprintf("change-request-%d", id), salespersonID, attendanceUserID, name, date, requestedTime, eventAt.Format(time.RFC3339), requestedType); err != nil {
 				return err
 			}
 		}
-		changedFrom := fmt.Sprintf("%s", requestedTime)
+		changedFrom = requestedTime
 		if originalEventID > 0 {
 			var originalTime string
-			_ = a.conn.QueryRowContext(a.ctx, `SELECT original_time FROM attendance_change_requests WHERE id = ?`, id).Scan(&originalTime)
+			_ = tx.QueryRowContext(a.ctx, `SELECT original_time FROM attendance_change_requests WHERE id = ?`, id).Scan(&originalTime)
 			if originalTime != "" {
 				changedFrom = originalTime
 			}
 		}
-		changedTo := fmt.Sprintf("%s %s", requestedType, requestedTime)
+		changedTo = fmt.Sprintf("%s %s", requestedType, requestedTime)
 		if action == "delete" {
 			changedTo = "deleted"
 		}
-		if _, err := a.conn.ExecContext(a.ctx, `UPDATE attendance_change_requests SET changed_from = ?, changed_to = ?, approved_by = 'manager approval', note = ?, reviewed_at = ? WHERE id = ?`, changedFrom, changedTo, fmt.Sprintf("Changed from %s to %s by manager approval", changedFrom, changedTo), time.Now().UTC().Format("2006-01-02 15:04:05"), id); err != nil {
+		if _, err := tx.ExecContext(a.ctx, `UPDATE attendance_change_requests SET changed_from = ?, changed_to = ?, approved_by = 'manager approval', note = ?, reviewed_at = ? WHERE id = ?`, changedFrom, changedTo, fmt.Sprintf("Changed from %s to %s by manager approval", changedFrom, changedTo), time.Now().UTC().Format("2006-01-02 15:04:05"), id); err != nil {
 			return err
 		}
 	} else {
-		if _, err := a.conn.ExecContext(a.ctx, `DELETE FROM salesperson_attendance_events WHERE device_id = 'manual' AND event_id = ?`, fmt.Sprintf("change-request-%d", id)); err != nil {
+		if _, err := tx.ExecContext(a.ctx, `DELETE FROM salesperson_attendance_events WHERE device_id = 'manual' AND event_id = ?`, fmt.Sprintf("change-request-%d", id)); err != nil {
 			return err
 		}
 	}
-	_, err := a.conn.ExecContext(a.ctx, `UPDATE attendance_change_requests SET status = ?, reviewed_at = ? WHERE id = ?`, status, time.Now().UTC().Format("2006-01-02 15:04:05"), id)
-	return err
+	if _, err := tx.ExecContext(a.ctx, `UPDATE attendance_change_requests SET status = ?, reviewed_at = ? WHERE id = ?`, status, time.Now().UTC().Format("2006-01-02 15:04:05"), id); err != nil {
+		return err
+	}
+
+	if centralURL != "" {
+		ref := fmt.Sprintf("acr-%d-review", id)
+		note := "rejected"
+		if approved {
+			note = strings.TrimSpace(fmt.Sprintf("%s -> %s", changedFrom, changedTo))
+		}
+		body, err := json.Marshal(branchAttendanceChangePayload{
+			Ref:             ref,
+			Kind:            "approval",
+			SalespersonName: reqName,
+			AttendanceDate:  reqDate,
+			OriginalTime:    reqOriginalTime,
+			RequestedTime:   reqRequestedTime,
+			RequestedType:   reqRequestedType,
+			Action:          reqAction,
+			Status:          status,
+			Note:            note,
+			Actor:           "manager approval",
+			OccurredAt:      time.Now().UTC(),
+		})
+		if err != nil {
+			return fmt.Errorf("marshal attendance change sync: %w", err)
+		}
+		if err := queueSyncOutboxRaw(a.ctx, tx, "attendance_change", ref, string(body)); err != nil {
+			return fmt.Errorf("queue attendance change sync: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if centralURL != "" {
+		a.kickSyncWorker()
+	}
+	return nil
 }
 
 func (a *App) ExportAttendanceMonth(month string) (string, error) {

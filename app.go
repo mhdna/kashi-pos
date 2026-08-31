@@ -53,6 +53,14 @@ type App struct {
 	// install already tolerates a no-op sync worker.
 	syncWorkerKick chan struct{}
 	wsClientStop   chan struct{}
+	// syncPullMu serializes the pull pass so the 15s tick (sync_worker.go)
+	// and the WebSocket's connect-time catch-up / per-delta fetches
+	// (sync_ws.go) can't run their apply transactions concurrently and
+	// stack up SQLite write-lock contention against foreground reads (the
+	// Settings page load being the visible victim). Nothing is lost by
+	// serializing: cursors are per-entity and monotonic, so whichever pull
+	// runs first advances them and the other finds nothing new to fetch.
+	syncPullMu sync.Mutex
 	// backgroundWG lets shutdown wait for the sync worker and WS client
 	// goroutines to actually exit, not just signal them to — otherwise a
 	// goroutine can still be mid-tick (touching the SQLite file, e.g.
@@ -725,6 +733,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["overchangeConfirmationEnabled"] = true
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, productSearchEnabledFlag); flagErr == nil {
+		result["productSearchEnabled"] = enabled != 0
+	} else {
+		result["productSearchEnabled"] = true
+	}
 	if config, configErr := a.GetAttendanceConfig(); configErr == nil {
 		result["attendance"] = config
 	}
@@ -823,6 +836,24 @@ func (a *App) SetAutoAppendLbpZerosEnabled(enabled bool) error {
 	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: autoAppendLbpZerosFlag, Enabled: boolInt(enabled),
 	})
+}
+
+// SetProductSearchEnabled toggles the product-search (magnifier) button on
+// the sale screen. Called both by the local Settings page and by
+// executeUpdateSettingsCommand when kashi pushes the change, so it emits a
+// "settings_changed" event either way -- an open sale screen picks the new
+// state up live rather than only on its next mount.
+func (a *App) SetProductSearchEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: productSearchEnabledFlag, Enabled: boolInt(enabled),
+	}); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
 }
 
 // lockablePages are the nav pages an admin can choose to unlock for

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -13,6 +14,12 @@ import (
 )
 
 const autoCloseStaleShiftsFlag = "auto_close_stale_shifts"
+
+// errShiftAlreadyClosed is returned from inside CloseShiftByID's write
+// transaction when CloseShift updates zero rows, so the outbox insert is
+// rolled back with it rather than committing a sync for a close that never
+// happened.
+var errShiftAlreadyClosed = errors.New("shift already closed or missing")
 
 func shiftToMap(s db.Shift) map[string]any {
 	return map[string]any{
@@ -178,25 +185,78 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		expectedVisa = printData.ShiftReport.ExpectedVisa
 		expectedWhish = printData.ShiftReport.ExpectedWhish
 	}
-	updated, err := a.store.CloseShift(a.ctx, db.CloseShiftParams{
-		ClosedAt:              closedAt,
-		ClosedBySalespersonID: closingPersonID,
-		CountedUsd:            countedUSD,
-		CountedLbp:            countedLBP,
-		CountedVisa:           countedVisa,
-		CountedWhish:          countedWhish,
-		CountedUsdBreakdown:   canonicalBreakdown,
-		ExpectedUsd:           expectedUSD,
-		ExpectedLbp:           expectedLBP,
-		ExpectedVisa:          expectedVisa,
-		ExpectedWhish:         expectedWhish,
-		ID:                    id,
+	centralURL, err := a.syncCentralAPIURL()
+	if err != nil {
+		return nil, fmt.Errorf("settings: %w", err)
+	}
+
+	// Snapshot the still-open shift and closing person for the sync payload
+	// before the close runs — CreatedAt and the opening floats don't change
+	// on close, and reading them here keeps the transaction below to just
+	// the close plus the outbox insert.
+	var openedAt time.Time
+	var openingFloatUsd, openingFloatLbp int64
+	var closingPersonName string
+	if centralURL != "" {
+		shift, shiftErr := a.store.GetShiftByID(a.ctx, id)
+		if shiftErr != nil {
+			return nil, fmt.Errorf("load shift for sync: %w", shiftErr)
+		}
+		openedAt = parseShiftTimestamp(shift.CreatedAt)
+		openingFloatUsd, openingFloatLbp = shift.OpeningFloatUsd, shift.OpeningFloatLbp
+		if cp, cpErr := a.store.GetSalespersonByID(a.ctx, closingPersonID); cpErr == nil {
+			closingPersonName = cp.FullName
+		}
+	}
+
+	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		updated, err := q.CloseShift(a.ctx, db.CloseShiftParams{
+			ClosedAt:              closedAt,
+			ClosedBySalespersonID: closingPersonID,
+			CountedUsd:            countedUSD,
+			CountedLbp:            countedLBP,
+			CountedVisa:           countedVisa,
+			CountedWhish:          countedWhish,
+			CountedUsdBreakdown:   canonicalBreakdown,
+			ExpectedUsd:           expectedUSD,
+			ExpectedLbp:           expectedLBP,
+			ExpectedVisa:          expectedVisa,
+			ExpectedWhish:         expectedWhish,
+			ID:                    id,
+		})
+		if err != nil {
+			return fmt.Errorf("close shift: %w", err)
+		}
+		if updated != 1 {
+			return errShiftAlreadyClosed
+		}
+		return queueBranchShiftCloseSync(a.ctx, q, centralURL, branchShiftClosePayload{
+			ShiftRef:          fmt.Sprintf("shift-%d", id),
+			BranchShiftID:     id,
+			OpenedAt:          openedAt,
+			ClosedAt:          parseShiftTimestamp(closedAt),
+			ClosingPersonName: closingPersonName,
+			OpeningFloatUsd:   openingFloatUsd,
+			OpeningFloatLbp:   openingFloatLbp,
+			ExpectedUsd:       expectedUSD,
+			ExpectedLbp:       expectedLBP,
+			ExpectedVisa:      expectedVisa,
+			ExpectedWhish:     expectedWhish,
+			CountedUsd:        countedUSD,
+			CountedLbp:        countedLBP,
+			CountedVisa:       countedVisa,
+			CountedWhish:      countedWhish,
+			OccurredAt:        time.Now().UTC(),
+		})
 	})
 	if err != nil {
-		return nil, fmt.Errorf("close shift: %w", err)
+		if errors.Is(err, errShiftAlreadyClosed) {
+			return nil, fmt.Errorf("shift is already closed or does not exist")
+		}
+		return nil, err
 	}
-	if updated != 1 {
-		return nil, fmt.Errorf("shift is already closed or does not exist")
+	if centralURL != "" {
+		a.kickSyncWorker()
 	}
 
 	result := map[string]any{"receiptPrinted": false}
@@ -649,4 +709,18 @@ func formatShiftReportTime(value string) string {
 		}
 	}
 	return value
+}
+
+// parseShiftTimestamp reads one of kashi-pos's stored timestamp string
+// formats (all UTC — see migration 000066) into a time.Time for the sync
+// payload. A value it can't parse yields the zero time, which kashi treats
+// as "unknown" rather than rejecting the close.
+func parseShiftTimestamp(value string) time.Time {
+	value = strings.TrimSpace(value)
+	for _, layout := range []string{"2006-01-02 15:04:05", time.RFC3339Nano, time.RFC3339} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed.UTC()
+		}
+	}
+	return time.Time{}
 }

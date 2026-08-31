@@ -38,6 +38,10 @@ export function ChangePassword(arg1, arg2, arg3) {
   return window['go']['main']['App']['ChangePassword'](arg1, arg2, arg3);
 }
 
+export function CheckExpenseUploadStatus(arg1) {
+  return window['go']['main']['App']['CheckExpenseUploadStatus'](arg1);
+}
+
 export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
@@ -274,6 +278,10 @@ export function ListDiscountLists() {
   return window['go']['main']['App']['ListDiscountLists']();
 }
 
+export function ListExpenseCategories() {
+  return window['go']['main']['App']['ListExpenseCategories']();
+}
+
 export function ListExpenses(arg1, arg2) {
   return window['go']['main']['App']['ListExpenses'](arg1, arg2);
 }
@@ -292,6 +300,10 @@ export function ListInvoicesFilteredPage(arg1, arg2, arg3) {
 
 export function ListInvoicesPage(arg1, arg2) {
   return window['go']['main']['App']['ListInvoicesPage'](arg1, arg2);
+}
+
+export function ListLoanCategories() {
+  return window['go']['main']['App']['ListLoanCategories']();
 }
 
 export function ListLoans(arg1, arg2) {
@@ -508,6 +520,10 @@ export function SetPriceListActive(arg1, arg2) {
 
 export function SetPriceListItem(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetPriceListItem'](arg1, arg2, arg3);
+}
+
+export function SetProductSearchEnabled(arg1) {
+  return window['go']['main']['App']['SetProductSearchEnabled'](arg1);
 }
 
 export function SetTheme(arg1) {

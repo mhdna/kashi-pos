@@ -83,11 +83,32 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			return fmt.Errorf("combined replacement total must equal or exceed the returned item")
 		}
 		netDifference := priced.replacementTotal - priced.returnedTotal
-		taxCents, err := signedAdjustmentTax(netDifference, settings.TaxRate, roundingMode)
-		if err != nil {
-			return err
+
+		var total int64
+		if priced.replacementTotal == 0 && priced.returnedTotal == source.DiscountedTotal {
+			// Returning every line of the invoice at full quantity, with
+			// nothing bought in replacement: refund exactly what was
+			// charged (source.GrandTotal) instead of recomputing tax from
+			// scratch. Recomputing at settings.TaxRate would only
+			// coincidentally match the tax actually charged at sale time
+			// (the rate may have changed since, or rounding may differ),
+			// which previously produced a refund a few cents off the
+			// original total and failed validatePayments whenever
+			// max_overpayment_cents left no tolerance for that drift.
+			total = -source.GrandTotal
+		} else {
+			// Partial return, or an exchange with a replacement: no single
+			// original total to fall back to, so the adjustment's tax is
+			// still computed at the currently configured rate. This can
+			// still drift by a few cents from what the original line's
+			// share of tax actually was -- raise max_overpayment_cents if
+			// that's a problem in practice.
+			taxCents, err := signedAdjustmentTax(netDifference, settings.TaxRate, roundingMode)
+			if err != nil {
+				return err
+			}
+			total = netDifference + taxCents
 		}
-		total := netDifference + taxCents
 		if policy.allowLate && strings.TrimSpace(paymentsJSON) == "" && total != 0 {
 			if settlementAccountID <= 0 {
 				return fmt.Errorf("settlement account is required for a non-zero admin adjustment")
@@ -148,6 +169,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			for _, returned := range priced.returned {
 				payloadItems = append(payloadItems, branchInvoicePayloadItem{
 					BranchProductID: returned.product.ID,
+					Barcode:         returned.product.Barcode,
 					UnitPrice:       returned.line.UnitPrice,
 					LineTotal:       -returned.lineTotal,
 					Discount:        int16(returned.line.Discount),
@@ -157,11 +179,21 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			for _, replacement := range priced.replacements {
 				payloadItems = append(payloadItems, branchInvoicePayloadItem{
 					BranchProductID: replacement.product.ID,
+					Barcode:         replacement.product.Barcode,
 					UnitPrice:       replacement.unitPrice,
 					LineTotal:       replacement.lineTotal,
 					Discount:        int16(replacement.discount),
 					Quantity:        replacement.qty,
 				})
+			}
+
+			var salespersonName string
+			if person, err := q.GetSalespersonByID(a.ctx, salespersonID); err == nil {
+				salespersonName = person.FullName
+			}
+			payloadPayments, err := buildBranchInvoicePayments(a.ctx, q, invoice.ID)
+			if err != nil {
+				return err
 			}
 
 			// checkoutReturnExchangeInvoice doesn't touch loyalty points at
@@ -181,6 +213,8 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				DiscountedTotal:        total,
 				LoyaltyPointsDelta:     0,
 				OccurredAt:             time.Now().UTC(),
+				SalespersonName:        salespersonName,
+				Payments:               payloadPayments,
 				Items:                  payloadItems,
 			}); err != nil {
 				return fmt.Errorf("queue branch invoice sync: %w", err)

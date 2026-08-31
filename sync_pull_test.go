@@ -16,7 +16,7 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 		calls++
 		entity := r.URL.Query().Get("entity")
 		since := r.URL.Query().Get("since")
-		if calls <= 6 && since != "" {
+		if calls <= 8 && since != "" {
 			t.Fatalf("expected first pull for %s to have no since, got %q", entity, since)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -33,6 +33,10 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 			fmt.Fprint(w, `{"entity":"branch_targets","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "salespersons":
 			fmt.Fprint(w, `{"entity":"salespersons","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "expense_categories":
+			fmt.Fprint(w, `{"entity":"expense_categories","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "loan_categories":
+			fmt.Fprint(w, `{"entity":"loan_categories","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		default:
 			t.Fatalf("unexpected entity %q", entity)
 		}
@@ -71,8 +75,8 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 	// Second pull should send the saved cursor as `since`, not fetch
 	// everything all over again.
 	app.runSyncPullOnce(app.ctx, client)
-	if calls != 12 {
-		t.Fatalf("expected 12 total calls (6 entities x 2 ticks), got %d", calls)
+	if calls != 16 {
+		t.Fatalf("expected 16 total calls (8 entities x 2 ticks), got %d", calls)
 	}
 }
 

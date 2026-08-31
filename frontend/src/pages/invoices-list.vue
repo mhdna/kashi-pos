@@ -413,7 +413,7 @@ function settlementAccountsLabel(accounts?: string[]) {
   return accounts?.length ? accounts.join(", ") : "—";
 }
 const headers = [
-  { title: "Invoice", key: "invoiceCode", width: "145px" },
+  { title: "Invoice", key: "invoiceCode", width: "165px" },
   { title: "Customer", key: "clientId", width: "145px" },
   { title: "Salesperson", key: "salespersonName", width: "170px" },
   { title: "Paid To", key: "settlementAccounts", sortable: false, width: "145px" },
@@ -705,8 +705,8 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 .invoices-table :deep(.v-table__wrapper > table) {
-  width: 945px !important;
-  min-width: 945px;
+  width: 100% !important;
+  min-width: 965px;
   table-layout: fixed;
 }
 .invoices-table :deep(th),

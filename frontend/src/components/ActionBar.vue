@@ -111,11 +111,11 @@ const restricted = computed(() => mode.value !== "sale");
 const checkoutLabel = computed(() =>
   mode.value === "exchange" ? "Exchange" : mode.value === "settlement" ? "Change Settlement" : "Check Out",
 );
-const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "#3e5523"));
+const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "#1f6059"));
 const checkoutButtonStyle = computed(() =>
   mode.value === "exchange"
-    ? "background-color: rgba(255, 152, 0, 0.08); border-color: rgba(255, 152, 0, 0.5) !important"
-    : "background-color: rgba(62, 85, 35, 0.08); border-color: rgba(62, 85, 35, 0.5) !important",
+    ? "background-color: transparent !important; border-color: rgba(255, 152, 0, 0.5) !important"
+    : "background-color: transparent !important; border-color: #1f6059 !important; border-width: 2px !important; border-top-width: 10px !important; border-bottom-width: 10px !important",
 );
 
 const dialog = ref(false);

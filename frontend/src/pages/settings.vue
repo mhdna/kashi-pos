@@ -13,13 +13,10 @@
       />
 
       <v-tabs v-model="tab" class="settings-tabs" color="primary" grow>
-        <v-tab value="general">General Settings</v-tab>
-        <v-tab value="printing">Printing &amp; Receipt</v-tab>
-        <v-tab value="attendance">Attendance</v-tab>
-        <v-tab value="money">Money</v-tab>
-        <v-tab value="coupons">Coupons</v-tab>
-        <v-tab value="behavior">POS Behavior</v-tab>
-        <v-tab value="admin">Users &amp; Security</v-tab>
+        <v-tab v-for="t in settingsTabs" :key="t.value" :value="t.value" class="settings-tab">
+          <v-icon :icon="t.icon" size="20" class="settings-tab__icon" />
+          <span class="settings-tab__label">{{ t.label }}</span>
+        </v-tab>
       </v-tabs>
       <v-progress-linear v-if="settingsLoading" indeterminate color="primary" />
     </div>
@@ -737,6 +734,27 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('behavior-product-search')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-magnify" size="20" />
+              Product search button
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.productSearchEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Show the product search button on the sale screen"
+                @update:model-value="setProductSearchEnabled"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                When off, the magnifier button in the sale screen toolbar is disabled.
+                This can also be changed remotely from kashi.
+              </div>
+            </v-card-text>
+          </v-card>
+
           <v-card v-show="panelMatches('behavior-client-required')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-account-off-outline" size="20" />
@@ -1106,6 +1124,7 @@ import {
   SetPerUnitItemPricesEnabled,
   SetPriceChangeManualOverrideEnabled,
   SetInvoiceKeyboardModeEnabled,
+  SetProductSearchEnabled,
   SetClientRequired,
   SetHidePaymentMethodCurrency,
   SetAutoAppendLbpZerosEnabled,
@@ -1181,6 +1200,16 @@ const { setClientRequired: setClientRequiredState } = useClient();
 const theme = useTheme();
 const tab = ref("general");
 
+const settingsTabs = [
+  { value: "general", label: "General", icon: "mdi-cog-outline" },
+  { value: "printing", label: "Printing", icon: "mdi-printer-outline" },
+  { value: "attendance", label: "Attendance", icon: "mdi-clipboard-check-outline" },
+  { value: "money", label: "Money", icon: "mdi-cash-multiple" },
+  { value: "coupons", label: "Coupons", icon: "mdi-ticket-percent-outline" },
+  { value: "behavior", label: "Behavior", icon: "mdi-button-pointer" },
+  { value: "admin", label: "Security", icon: "mdi-shield-account-outline" },
+] as const;
+
 // Static index of every settings "panel" (its tab + searchable text) used by
 // the search box below. Keep in sync with the v-show="panelMatches(...)" on
 // each panel in the template.
@@ -1206,6 +1235,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-custom-pricing": { tab: "behavior", title: "Custom item pricing", keywords: "custom item price discount per unit editing" },
   "behavior-price-change-mode": { tab: "behavior", title: "Price change mode", keywords: "price change manual override discount lever" },
   "behavior-invoice-keyboard": { tab: "behavior", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
+  "behavior-product-search": { tab: "behavior", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
   "admin-change-password": { tab: "admin", title: "Change password", keywords: "change password current new confirm account security" },
@@ -1304,6 +1334,7 @@ const form = reactive({
   perUnitItemPricesEnabled: false,
   priceChangeManualOverrideEnabled: false,
   invoiceKeyboardModeEnabled: false,
+  productSearchEnabled: true,
   clientRequired: true,
   hidePaymentMethodCurrency: false,
   autoAppendLbpZeros: false,
@@ -1864,6 +1895,7 @@ async function loadSettings() {
         perUnitItemPricesEnabled: Boolean(s.perUnitItemPricesEnabled),
         priceChangeManualOverrideEnabled: Boolean(s.priceChangeManualOverrideEnabled),
         invoiceKeyboardModeEnabled: Boolean(s.invoiceKeyboardModeEnabled),
+        productSearchEnabled: s.productSearchEnabled !== false,
         clientRequired: s.clientRequired !== false,
         hidePaymentMethodCurrency: Boolean(s.hidePaymentMethodCurrency),
         autoAppendLbpZeros: Boolean(s.autoAppendLbpZeros),
@@ -2003,6 +2035,22 @@ async function setInvoiceKeyboardModeEnabled(value: boolean | null) {
   }
 }
 
+async function setProductSearchEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.productSearchEnabled;
+  form.productSearchEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetProductSearchEnabled(enabled);
+    notify(`Product search button ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.productSearchEnabled = previous;
+    notify("Failed to update product search button", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
 async function setClientRequired(value: boolean | null) {
   const enabled = Boolean(value);
   const previous = form.clientRequired;
@@ -2068,31 +2116,44 @@ async function togglePageUnlock(page: string, value: boolean | null) {
   }
 }
 
-onMounted(async () => {
-  await loadDatabaseStatus();
-  await loadCouponTypes();
-  await loadSettings();
-  await loadCurrencies();
-  await loadPaymentMethodsList();
-  await loadPriceLists();
-  await loadDiscountLists();
-  try {
-    serialPorts.value = await ListSerialPorts();
-  } catch {}
-  try {
-    printers.value = await ListPrinters();
-  } catch {}
-  try {
-    inventories.value = await ListInventories();
-  } catch {}
-  await loadUsers();
-  await loadSalespersons();
-  try {
-    roles.value = await ListRoles();
-  } catch {}
-  try {
-    branchTargets.value = ((await ListBranchTargetsWithProgress()) ?? []) as typeof branchTargets.value;
-  } catch {}
+onMounted(() => {
+  // Fire every load concurrently rather than in a 14-deep await chain: they
+  // have no ordering dependency, each already swallows its own errors (the
+  // inline List* calls are wrapped below to match), and the slow OS
+  // enumerations (ListPrinters especially) no longer sit in series in front
+  // of the DB reads. settingsLoading is still driven by loadSettings, so the
+  // progress bar clears as soon as the form data is in.
+  const wrap = async (fn: () => Promise<unknown>) => {
+    try {
+      await fn();
+    } catch {}
+  };
+  void Promise.all([
+    loadDatabaseStatus(),
+    loadCouponTypes(),
+    loadSettings(),
+    loadCurrencies(),
+    loadPaymentMethodsList(),
+    loadPriceLists(),
+    loadDiscountLists(),
+    loadUsers(),
+    loadSalespersons(),
+    wrap(async () => {
+      serialPorts.value = await ListSerialPorts();
+    }),
+    wrap(async () => {
+      printers.value = await ListPrinters();
+    }),
+    wrap(async () => {
+      inventories.value = await ListInventories();
+    }),
+    wrap(async () => {
+      roles.value = await ListRoles();
+    }),
+    wrap(async () => {
+      branchTargets.value = ((await ListBranchTargetsWithProgress()) ?? []) as typeof branchTargets.value;
+    }),
+  ]);
 });
 
 async function saveSettings() {
@@ -2387,9 +2448,26 @@ async function deleteUser() {
 
 .settings-tabs :deep(.v-tab) {
   min-width: 0;
-  padding-inline: 18px;
+  padding-inline: 12px;
   text-transform: none;
   font-weight: 600;
+  letter-spacing: 0;
+}
+
+.settings-tabs :deep(.v-tab .v-btn__content) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.settings-tab__icon {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+.settings-tab__label {
+  line-height: 1;
 }
 
 .settings-grid {

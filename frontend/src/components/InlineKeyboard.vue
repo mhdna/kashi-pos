@@ -21,8 +21,8 @@
       <v-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
         Space
       </v-btn>
-      <v-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace">⌫</v-btn>
       <v-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</v-btn>
+      <v-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace">⌫</v-btn>
     </div>
   </div>
 </template>
@@ -92,16 +92,16 @@ function backspace() {
 
 .inline-keyboard-row {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   justify-content: center;
   margin-bottom: 4px;
 }
 
 .inline-keyboard-key {
-  flex: 0 0 56px;
-  font-size: var(--kashi-font-size-lg);
-  height: 40px;
-  width: 56px;
+  flex: 0 0 66px;
+  font-size: var(--kashi-font-size-2xl);
+  height: 48px;
+  width: 66px;
   padding: 0;
 }
 
@@ -113,12 +113,17 @@ function backspace() {
 }
 
 .inline-keyboard-actions > .v-btn {
-  height: 40px;
-  min-height: 40px;
+  height: 48px;
+  min-height: 48px;
+  font-size: var(--kashi-font-size-2xl);
 }
 
 .inline-keyboard-space {
   flex: 3 1 auto;
   max-width: 300px;
+}
+
+.inline-keyboard-backspace {
+  min-width: 90px;
 }
 </style>

@@ -21,6 +21,10 @@ const (
 type wsMessage struct {
 	Type      string `json:"type"`
 	CommandID int64  `json:"command_id,omitempty"`
+	// ClientRef is only set for "expense_images_uploaded" -- unlike every
+	// other pushed message, that one needs to say *which* expense, not
+	// just "go re-fetch this kind of thing".
+	ClientRef string `json:"client_ref,omitempty"`
 }
 
 var wsMessageEntity = map[string]string{
@@ -28,8 +32,10 @@ var wsMessageEntity = map[string]string{
 	"cashbox_account_updated": "cashbox_accounts",
 	"products_updated":        "products",
 	"client_updated":          "clients",
-	"salesperson_updated":     "salespersons",
-	"target_updated":          "branch_targets",
+	"salesperson_updated":       "salespersons",
+	"target_updated":            "branch_targets",
+	"expense_categories_updated": "expense_categories",
+	"loan_categories_updated":    "loan_categories",
 }
 
 // startWSClient runs the reconnect loop for kashi's push channel. It's a
@@ -171,6 +177,10 @@ func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 			// means an extra fetch, never a correctness problem, and it
 			// naturally sweeps up anything else still pending.
 			a.runPendingCommandsOnce(a.ctx, client)
+			continue
+		}
+		if msg.Type == "expense_images_uploaded" {
+			a.emitExpenseImagesUploaded(msg.ClientRef)
 			continue
 		}
 		entity, ok := wsMessageEntity[msg.Type]

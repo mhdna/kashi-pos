@@ -220,6 +220,15 @@ type Expense struct {
 	CreatedAt        string        `json:"createdAt"`
 }
 
+type ExpenseCategory struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	IsActive  int64  `json:"isActive"`
+	Icon      string `json:"icon"`
+	Color     string `json:"color"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
 type FeatureFlag struct {
 	Key     string `json:"key"`
 	Enabled int64  `json:"enabled"`
@@ -326,6 +335,15 @@ type Loan struct {
 	ShiftID          sql.NullInt64 `json:"shiftId"`
 	OccurredAt       string        `json:"occurredAt"`
 	CreatedAt        string        `json:"createdAt"`
+}
+
+type LoanCategory struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	IsActive  int64  `json:"isActive"`
+	Icon      string `json:"icon"`
+	Color     string `json:"color"`
+	UpdatedAt string `json:"updatedAt"`
 }
 
 type PaymentMethod struct {

@@ -1,9 +1,5 @@
 <template>
-  <v-navigation-drawer
-    permanent
-    width="72"
-    class="nav-drawer rounded-e-xl border-0"
-  >
+  <v-navigation-drawer permanent width="72" class="nav-drawer border-0">
     <v-list class="d-flex flex-column fill-height pa-0" nav>
       <v-list-item
         v-for="item in items"
@@ -15,7 +11,7 @@
         @click.prevent="handleItemClick(item)"
       >
         <div class="nav-item-content">
-          <v-icon :icon="item.icon" size="20" />
+          <v-icon :icon="item.icon" size="24" />
           <span class="nav-item-label text-center mt-1">{{ item.t }}</span>
         </div>
       </v-list-item>
@@ -27,7 +23,7 @@
         @click="optionsOpen = true"
       >
         <div class="nav-item-content">
-          <v-icon icon="mdi-logout" size="20" />
+          <v-icon icon="mdi-logout" size="24" />
           <span class="nav-item-label text-center mt-1">Out</span>
         </div>
       </v-list-item>
@@ -36,22 +32,26 @@
 
   <v-dialog v-model="optionsOpen" max-width="520">
     <v-card class="options-dialog-card" rounded="xl">
-      <v-card-title class="d-flex align-center justify-space-between px-6 pt-5">
-        <span>Out</span>
-        <v-btn icon="mdi-close" variant="text" aria-label="Close out menu" @click="optionsOpen = false" />
-      </v-card-title>
+      <div class="dialog-close-row px-4 pt-0">
+        <v-btn
+          icon="mdi-close"
+          variant="text"
+          aria-label="Close out menu"
+          @click="optionsOpen = false"
+        />
+      </div>
 
-      <v-card-text class="options-grid options-grid--three px-6 pb-6">
+      <v-card-text class="options-grid options-grid--three px-4 pt-0 pb-4">
         <v-card class="option-card" rounded="lg" variant="tonal" @click="logout">
-          <v-icon icon="mdi-logout" size="32" />
+          <v-icon icon="mdi-logout" size="44" />
           <span>Logout</span>
         </v-card>
         <v-card class="option-card" rounded="lg" variant="tonal" @click="openCloseShift">
-          <v-icon icon="mdi-close-circle-outline" size="32" />
+          <v-icon icon="mdi-close-circle-outline" size="44" />
           <span>Close Shift</span>
         </v-card>
         <v-card class="option-card" rounded="lg" variant="tonal" @click="closeApp">
-          <v-icon icon="mdi-close" size="32" />
+          <v-icon icon="mdi-close" size="44" />
           <span>Close App</span>
         </v-card>
       </v-card-text>
@@ -60,18 +60,22 @@
 
   <v-dialog v-model="moneyOpen" max-width="520">
     <v-card rounded="xl">
-      <v-card-title class="d-flex align-center justify-space-between px-6 pt-5">
-        <span>Money</span>
-        <v-btn icon="mdi-close" variant="text" aria-label="Close money menu" @click="moneyOpen = false" />
-      </v-card-title>
+      <div class="dialog-close-row px-4 pt-0">
+        <v-btn
+          icon="mdi-close"
+          variant="text"
+          aria-label="Close money menu"
+          @click="moneyOpen = false"
+        />
+      </div>
 
-      <v-card-text class="options-grid px-6 pb-6">
+      <v-card-text class="options-grid px-4 pt-0 pb-4">
         <v-card class="option-card" rounded="lg" variant="tonal" @click="openExpenses">
-          <v-icon icon="mdi-receipt-text-outline" size="32" />
+          <v-icon icon="mdi-receipt-text-outline" size="44" />
           <span>Expenses</span>
         </v-card>
         <v-card class="option-card" rounded="lg" variant="tonal" @click="openLoans">
-          <v-icon icon="mdi-hand-coin-outline" size="32" />
+          <v-icon icon="mdi-hand-coin-outline" size="44" />
           <span>Loans</span>
         </v-card>
       </v-card-text>
@@ -80,12 +84,16 @@
 
   <v-dialog v-model="inventoryOpen" max-width="640">
     <v-card rounded="xl">
-      <v-card-title class="d-flex align-center justify-space-between px-6 pt-5">
-        <span>Inventory</span>
-        <v-btn icon="mdi-close" variant="text" aria-label="Close inventory menu" @click="inventoryOpen = false" />
-      </v-card-title>
+      <div class="dialog-close-row px-4 pt-0">
+        <v-btn
+          icon="mdi-close"
+          variant="text"
+          aria-label="Close inventory menu"
+          @click="inventoryOpen = false"
+        />
+      </div>
 
-      <v-card-text class="options-grid options-grid--three px-6 pb-6">
+      <v-card-text class="options-grid options-grid--three px-4 pt-0 pb-4">
         <v-card
           class="option-card"
           :disabled="!auth.isAdmin && !pageUnlocks.inventory"
@@ -93,7 +101,7 @@
           variant="tonal"
           @click="openInventoryPage"
         >
-          <v-icon icon="mdi-package-variant-closed" size="32" />
+          <v-icon icon="mdi-package-variant-closed" size="44" />
           <span>Inventory</span>
         </v-card>
         <v-card
@@ -103,7 +111,7 @@
           variant="tonal"
           @click="openTransfers"
         >
-          <v-icon icon="mdi-truck" size="32" />
+          <v-icon icon="mdi-truck" size="44" />
           <span>Transfers</span>
         </v-card>
         <v-card
@@ -113,13 +121,12 @@
           variant="tonal"
           @click="openSalespersons"
         >
-          <v-icon icon="mdi-chart-bar" size="32" />
+          <v-icon icon="mdi-chart-bar" size="44" />
           <span>Sales</span>
         </v-card>
       </v-card-text>
     </v-card>
   </v-dialog>
-
 </template>
 
 <script setup lang="ts">
@@ -244,18 +251,15 @@ const items = computed(() => {
 
 <style scoped>
 .nav-drawer {
-  background-color: rgb(var(--v-theme-primary)) !important;
-  border-radius: 0 40px 40px 0 !important;
+  background-color: #1f6059;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .nav-item {
   flex: 1 1 0;
   min-height: 0;
   color: #ffffff;
-}
-
-.nav-item:first-child {
-  border-radius: 0 40px 0 0;
 }
 
 .nav-item-content {
@@ -274,20 +278,25 @@ const items = computed(() => {
 }
 
 .nav-item-label {
-  font-size: var(--kashi-font-size-xs);
+  font-size: 0.8rem;
+  font-weight: 700;
   line-height: 1.2;
 }
 
 .options-item {
   flex: 0 0 auto;
   min-height: 64px;
-  border-radius: 0 0 40px 0;
 }
 
 .options-grid {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dialog-close-row {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .options-grid--three {
@@ -296,16 +305,20 @@ const items = computed(() => {
 
 .option-card {
   align-items: center;
-  aspect-ratio: 1;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   justify-content: center;
-  transition: transform 0.15s ease;
+  min-height: 144px;
+  padding: 18px 12px;
+  text-align: center;
+  font-size: var(--kashi-font-size-lg);
+  font-weight: 600;
+  transition: background-color 0.15s ease;
 }
 
 .option-card:hover {
-  transform: translateY(-2px);
+  background-color: rgba(var(--v-theme-primary), 0.12);
 }
 </style>

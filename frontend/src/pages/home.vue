@@ -8,7 +8,7 @@
         >
           <div class="d-flex flex-column">
             <div class="font-weight-bold">{{ pageModeTitle }}</div>
-            <v-card-subtitle v-if="pageMode === 'sale'" class="pa-0">{{ invoiceCode }}</v-card-subtitle>
+            <v-card-subtitle v-if="pageMode === 'sale' || pageMode === 'exchange'" class="pa-0">{{ invoiceCode }}</v-card-subtitle>
           </div>
           <div class="d-flex flex-column align-end">
             <div class="d-flex align-center ga-2">
@@ -23,7 +23,7 @@
                 />
               </div>
               <NoteButton :note="invoiceNotes" @openDialog="openNoteDialog" />
-              <v-dialog v-model="noteDialog" max-width="620">
+              <v-dialog v-model="noteDialog" max-width="760">
                 <v-card>
                   <v-card-title>Add a note</v-card-title>
                   <v-card-text>
@@ -80,7 +80,7 @@
           aria-label="Invoices on hold"
           @click="onHoldMenu?.open()"
         >
-          <v-icon icon="mdi-pause" size="20" />
+          <v-icon icon="mdi-pause" size="22" />
         </v-btn>
         <v-btn
           v-if="pageMode !== 'settlement'"
@@ -89,16 +89,17 @@
           aria-label="Exchange invoice"
           @click="returnInvoiceMenu?.open()"
         >
-          <v-icon icon="mdi-autorenew" size="20" />
+          <v-icon icon="mdi-autorenew" size="22" />
         </v-btn>
         <v-btn
           v-if="pageMode !== 'settlement'"
           variant="text"
           rounded
           aria-label="Search products"
+          :disabled="!productSearchEnabled"
           @click="productSearchDialog?.openDialog()"
         >
-          <v-icon icon="mdi-magnify" size="20" />
+          <v-icon icon="mdi-magnify" size="22" />
         </v-btn>
         <OnHoldMenu ref="onHoldMenu" hide-activator @restore="onRestoreHold" />
         <ReturnInvoiceMenu
@@ -142,9 +143,17 @@
           z-index: 10;
         "
       >
-        <v-card class="pa-6 text-center d-flex flex-column align-center" rounded="xl" width="220" elevation="4">
-          <v-icon icon="mdi-barcode-scan" size="40" class="mb-3" />
-          <div class="text-subtitle-2 font-weight-medium">Cart is empty</div>
+        <v-card
+          class="empty-cart-card pa-0 text-center d-flex flex-column align-center justify-center"
+          rounded="lg"
+          width="180"
+          height="110"
+          elevation="4"
+        >
+          <v-icon icon="mdi-barcode-scan" size="42" class="mb-2" />
+          <div class="empty-cart-label text-subtitle-2 font-weight-bold">
+            Scan a barcode<br />to add a product
+          </div>
         </v-card>
       </div>
       <div class="mb-3 mt-1" style="flex: 1 1 0; min-height: 0">
@@ -184,7 +193,7 @@
 
   <v-overlay v-model="printing" class="align-center justify-center" persistent>
     <v-card class="pa-8 text-center" width="300">
-      <v-progress-circular indeterminate color="primary" size="64" class="mb-4" />
+      <div class="print-spinner mb-4" aria-hidden="true"></div>
       <div class="text-h6">Printing receipt...</div>
     </v-card>
   </v-overlay>
@@ -219,6 +228,7 @@ import {
   QuoteInvoiceTotal,
   QuoteExchangeTotal,
 } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import ActionBar from "@/components/ActionBar.vue";
 import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
@@ -278,6 +288,10 @@ const invoiceKeyboardModeEnabled = ref(false);
 const hidePaymentMethodCurrency = ref(false);
 const autoAppendLbpZeros = ref(false);
 const alwaysAnonymousClientEnabled = ref(false);
+// Gates the product-search button in the toolbar below. Toggleable from the
+// local Settings page and remotely from kashi; a "settings_changed" event
+// (see loadAppSettings) reflects either change here without a reload.
+const productSearchEnabled = ref(true);
 const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
 );
@@ -350,6 +364,7 @@ const noteInput = ref<InstanceType<typeof import("vuetify/components").VTextarea
 const dialogOpen = ref(false);
 let overlayObserver: MutationObserver | undefined;
 let overlayFocusTimer: ReturnType<typeof setTimeout> | undefined;
+let unsubscribeSettingsChanged: (() => void) | undefined;
 let restoringDraft = true;
 
 provide("dialogOpen", dialogOpen);
@@ -930,21 +945,7 @@ async function consumePendingSettlement() {
   calculator.value?.restoreHoldState({ entries: pending.entries ?? [] });
 }
 
-onMounted(async () => {
-  await nextTick();
-  if (!pageActive) return;
-  overlayObserver = new MutationObserver(scheduleBarcodeFocus);
-  overlayObserver.observe(document.body, {
-    attributes: true,
-    attributeFilter: ["class", "style"],
-    childList: true,
-    subtree: true,
-  });
-  await restoreDraft();
-  consumePendingHold();
-  await consumePendingExchange();
-  await consumePendingSettlement();
-  focusBarcode();
+async function loadAppSettings() {
   try {
     const settings = await GetAppSettings();
     if (!pageActive) return;
@@ -961,9 +962,32 @@ onMounted(async () => {
     hidePaymentMethodCurrency.value = Boolean(settings?.hidePaymentMethodCurrency);
     autoAppendLbpZeros.value = Boolean(settings?.autoAppendLbpZeros);
     alwaysAnonymousClientEnabled.value = Boolean(settings?.alwaysAnonymousClientEnabled);
+    // Absent (older backend) means "available" - only an explicit false disables it.
+    productSearchEnabled.value = settings?.productSearchEnabled !== false;
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
   } catch {}
+}
+
+onMounted(async () => {
+  await nextTick();
+  if (!pageActive) return;
+  unsubscribeSettingsChanged = EventsOn("settings_changed", () => {
+    void loadAppSettings();
+  });
+  overlayObserver = new MutationObserver(scheduleBarcodeFocus);
+  overlayObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class", "style"],
+    childList: true,
+    subtree: true,
+  });
+  await restoreDraft();
+  consumePendingHold();
+  await consumePendingExchange();
+  await consumePendingSettlement();
+  focusBarcode();
+  await loadAppSettings();
   if (!pageActive) return;
   try {
     await GetOpenShift();
@@ -983,13 +1007,50 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   pageActive = false;
+  unsubscribeSettingsChanged?.();
   clearTimeout(overlayFocusTimer);
   clearTimeout(missingAssignmentFlashTimer);
   overlayObserver?.disconnect();
 });
 </script>
 
+<style scoped>
+.empty-cart-card {
+  background-color: rgb(var(--v-theme-surface)) !important;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  gap: 0 !important;
+  padding: 0 !important;
+}
+
+.empty-cart-card :deep(.v-icon) {
+  color: rgb(var(--v-theme-primary));
+}
+
+.empty-cart-label {
+  letter-spacing: 0.01em;
+}
+
+</style>
+
 <style>
+.print-spinner {
+  display: block;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  margin-inline: auto;
+  border: 5px solid rgba(0, 150, 136, 0.25);
+  border-top-color: #009688;
+  border-radius: 50%;
+  animation: print-spin 0.8s linear infinite !important;
+}
+
+@keyframes print-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .home-right-pane {
   background-color: var(--kashi-app-background);
   border-left: 1px solid rgba(var(--v-border-color), 0.18);

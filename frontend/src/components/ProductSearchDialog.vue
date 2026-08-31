@@ -1,5 +1,10 @@
 <template>
-  <v-dialog v-model="dialog" max-width="760" width="calc(100% - 32px)" height="620">
+  <v-dialog
+    v-model="dialog"
+    class="product-search-dialog"
+    max-width="none"
+    width="auto"
+  >
     <template v-if="showActivator" #activator="{ props: activatorProps }">
       <v-btn
         v-bind="activatorProps"
@@ -13,35 +18,43 @@
       </v-btn>
     </template>
     <v-card class="product-list-card">
-      <div :key="listKey" class="product-list" @scroll.passive="handleScroll">
-        <v-list density="compact">
-          <v-list-item
-            v-for="product in products"
-            :key="product.id"
-            class="product-list-item"
-            link
-            @click="selectProduct(product)"
-          >
-            <template #title>
-              <div class="product-primary-row">
-                <span class="product-code text-medium-emphasis">{{ product.code }}</span>
-                <span class="font-weight-medium text-truncate">{{ product.name }}</span>
-                <span v-if="product.color" class="product-variant text-medium-emphasis">{{ product.color }}</span>
-                <span v-if="product.size" class="product-variant text-medium-emphasis">{{ product.size }}</span>
-                <span class="product-price">
-                  ${{ Number(product.price || 0).toFixed(2) }}
-                  <v-icon
-                    v-if="product.priceListOverridden"
-                    icon="mdi-star"
-                    color="amber-darken-2"
-                    size="12"
-                    :title="product.priceListName ? `Price from list: ${product.priceListName}` : 'List price'"
-                  />
-                </span>
-              </div>
-            </template>
-          </v-list-item>
-        </v-list>
+      <div :key="listKey" class="product-list">
+        <v-virtual-scroll
+          class="product-virtual-scroll"
+          :items="products"
+          :item-height="44"
+          height="360"
+          @scroll.passive="handleScroll"
+        >
+          <template #default="{ item: product }">
+            <v-list-item
+              :key="product.id"
+              class="product-list-item"
+              density="compact"
+              link
+              @click="selectProduct(product)"
+            >
+              <template #title>
+                <div class="product-primary-row">
+                  <span class="product-code text-medium-emphasis">{{ product.code }}</span>
+                  <span class="font-weight-medium text-truncate">{{ product.name }}</span>
+                  <span v-if="product.color" class="product-variant text-medium-emphasis">{{ product.color }}</span>
+                  <span v-if="product.size" class="product-variant text-medium-emphasis">{{ product.size }}</span>
+                  <span class="product-price">
+                    ${{ Number(product.price || 0).toFixed(2) }}
+                    <v-icon
+                      v-if="product.priceListOverridden"
+                      icon="mdi-star"
+                      color="amber-darken-2"
+                      size="12"
+                      :title="product.priceListName ? `Price from list: ${product.priceListName}` : 'List price'"
+                    />
+                  </span>
+                </div>
+              </template>
+            </v-list-item>
+          </template>
+        </v-virtual-scroll>
         <div v-if="loading" class="product-list-status">
           <v-progress-circular indeterminate color="primary" size="24" width="2" />
         </div>
@@ -68,6 +81,16 @@
       <v-card-text class="product-inline-keyboard">
         <InlineKeyboard v-model="search" :max-length="80" layout="code" />
       </v-card-text>
+      <v-btn
+        class="product-dialog-close"
+        color="error"
+        variant="tonal"
+        aria-label="Close product search"
+        @click="dialog = false"
+      >
+        <v-icon icon="mdi-close" size="28" class="me-1" />
+        Close
+      </v-btn>
     </v-card>
   </v-dialog>
 </template>
@@ -146,7 +169,7 @@ watch(debouncedSearch, () => {
   resetList();
 });
 
-const batchSize = 20;
+const batchSize = 50;
 const products = ref<ProductItem[]>([]);
 const cursor = ref(0);
 const listKey = ref(0);
@@ -225,20 +248,19 @@ defineExpose({ openDialog });
 }
 
 .product-list-card {
-  height: 620px;
+  height: 100%;
+  position: relative;
   display: flex;
   flex-direction: column;
 }
 
 .product-list {
-  flex: 0 0 320px;
-  height: 320px;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow-y: auto;
 }
 
-.product-list :deep(.v-list) {
-  padding-block: 0;
+.product-virtual-scroll {
+  height: 360px;
 }
 
 .product-list-item {
@@ -299,10 +321,37 @@ defineExpose({ openDialog });
   height: 205px;
   display: flex;
   align-items: center;
-  margin-bottom: 0;
+  margin-top: auto;
+  margin-bottom: 48px;
   margin-inline: auto;
   max-width: 600px;
   padding-top: 12px;
   padding-bottom: 0;
+}
+
+.product-dialog-close {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  height: 48px;
+  z-index: 1;
+}
+
+:global(.product-search-dialog .v-overlay__content) {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 72px;
+  width: auto !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0;
+}
+
+:global(.kashi-compact .product-search-dialog .v-overlay__content) {
+  left: 80px;
 }
 </style>

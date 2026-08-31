@@ -8,62 +8,46 @@
 
   <v-dialog
     v-model="menu"
-    max-width="780"
+    :max-width="invoice ? 780 : 360"
     @after-enter="focusInvoiceInput"
     @after-leave="clearForm"
   >
-    <v-card class="d-flex flex-column">
+    <v-card class="exchange-dialog-card d-flex flex-column">
       <v-card-title>Exchange Invoice</v-card-title>
       <v-card-subtitle v-if="!invoice">Load the original sale to begin</v-card-subtitle>
 
-      <v-card-text class="exchange-dialog-layout" :class="{ 'exchange-dialog-layout--split': invoice }">
-        <div class="exchange-dialog-content">
-        <div class="exchange-input-row">
-          <div class="exchange-input-control">
-            <v-text-field
-              ref="invoiceInput"
-              v-model="invoiceCode"
-              autofocus
-              density="compact"
-              placeholder="Sales invoice code or barcode"
-              prepend-inner-icon="mdi-barcode"
-              variant="outlined"
-              :disabled="Boolean(invoice)"
-              :error-messages="invoiceError"
-              @keydown.enter.prevent="loadInvoice"
-              @update:model-value="invoiceError = ''"
-            />
+      <v-card-text
+        class="exchange-dialog-layout"
+        :class="{ 'exchange-dialog-layout--entry': !invoice }"
+      >
+        <div v-if="invoice" class="exchange-dialog-content">
+          <div class="exchange-input-row">
+            <div class="exchange-input-control">
+              <v-text-field
+                v-model="invoiceCode"
+                density="compact"
+                placeholder="Sales invoice code or barcode"
+                prepend-inner-icon="mdi-barcode"
+                variant="outlined"
+                disabled
+              />
+            </div>
+            <v-btn height="40" variant="text" @click="changeInvoice">Change</v-btn>
           </div>
-          <v-btn
-            v-if="!invoice"
-            color="primary"
-            height="40"
-            variant="tonal"
-            :loading="loading"
-            @click="loadInvoice"
-          >
-            Load
-          </v-btn>
-          <v-btn v-else height="40" variant="text" @click="changeInvoice">Change</v-btn>
-        </div>
 
-        <template v-if="invoice">
           <v-alert class="mb-3" density="compact" type="success" variant="tonal">
-            {{ invoice.invoiceCode }} · {{ invoice.client.name }} — {{ invoice.items.length }} available
+            {{ invoice.invoiceCode }} · {{ invoice.client.name }} —
+            {{ invoice.items.length }} available
             {{ invoice.items.length === 1 ? "item" : "items" }}
           </v-alert>
 
           <v-card class="mb-3" variant="outlined">
             <v-list-subheader>Items available to return</v-list-subheader>
-            <v-list density="compact" class="py-0" style="max-height: 220px; overflow-y: auto">
+            <v-list density="compact" class="exchange-available-items py-0">
               <v-list-item
                 v-for="item in invoice.items"
                 :key="`${item.code}-${item.price}-${item.discount}`"
-                :active="
-                  returned.some((selected) => selected.code === item.code &&
-                    (selected.soldUnitPrice ?? selected.price) === item.price &&
-                    (selected.soldUnitDiscount ?? selected.discount) === item.discount)
-                "
+                :active="Boolean(selectedReturn(item))"
                 active-color="primary"
                 :title="item.name"
                 :subtitle="`${item.code} · ${item.barcode}${item.color ? ` · ${item.color}` : ''}${item.size ? ` · ${item.size}` : ''} · ${item.available} available`"
@@ -73,9 +57,25 @@
                   <v-icon icon="mdi-barcode" class="me-3" />
                 </template>
                 <template #append>
-                  <span class="text-body-2 font-weight-medium">
-                    ${{ effectivePrice(item).toFixed(2) }}
-                  </span>
+                  <div class="exchange-item-selection">
+                    <span
+                      v-if="selectedReturn(item)"
+                      class="text-primary text-caption font-weight-medium"
+                    >
+                      Selected ×{{ selectedReturn(item)?.qty ?? 1 }}
+                    </span>
+                    <span class="text-body-2 font-weight-medium">
+                      ${{ effectivePrice(item).toFixed(2) }}
+                    </span>
+                    <v-btn
+                      v-if="selectedReturn(item)"
+                      aria-label="Remove returned item"
+                      icon="mdi-delete"
+                      size="x-small"
+                      variant="text"
+                      @click.stop="removeReturned(item.code, item.price, item.discount)"
+                    />
+                  </div>
                 </template>
               </v-list-item>
             </v-list>
@@ -94,37 +94,26 @@
               @update:model-value="scanError = ''"
             />
           </div>
-
-          <v-list v-if="returned.length" density="compact" class="pa-0">
-            <v-list-item
-              v-for="item in returned"
-              :key="`return-${item.code}-${item.soldUnitPrice}-${item.soldUnitDiscount}`"
-              title="Returning"
-              :subtitle="`${item.name} · ${item.code} · Qty ${item.qty}`"
-            >
-              <template #append>
-                <span class="text-red-darken-2 font-weight-medium">
-                  −${{ exchangeLineTotal(item, roundingMode).toFixed(2) }}
-                </span>
-                <v-btn
-                  class="ms-2"
-                  icon="mdi-delete"
-                  size="x-small"
-                  variant="text"
-                  @click="removeReturned(item.code, item.soldUnitPrice ?? item.price, item.soldUnitDiscount ?? item.discount)"
-                />
-              </template>
-            </v-list-item>
-          </v-list>
-        </template>
         </div>
 
-        <div class="exchange-inline-numpad">
-          <div class="exchange-inline-numpad-label">
-            {{ invoice ? "Product barcode" : "Invoice code" }}
-          </div>
+        <div v-if="!invoice" class="exchange-inline-numpad">
+          <div class="exchange-inline-numpad-label">Invoice code</div>
           <div class="exchange-inline-numpad-display">
-            {{ activeExchangeInput || "0" }}
+            <v-text-field
+              ref="invoiceInput"
+              v-model="invoiceCode"
+              autofocus
+              class="exchange-inline-numpad-display-input"
+              hide-details
+              inputmode="numeric"
+              placeholder="0"
+              variant="plain"
+              @keydown.enter.prevent="loadInvoice"
+              @update:model-value="invoiceError = ''"
+            />
+          </div>
+          <div v-if="invoiceError" class="exchange-inline-numpad-error text-error">
+            {{ invoiceError }}
           </div>
           <div class="exchange-inline-numpad-grid">
             <v-btn
@@ -170,27 +159,23 @@
           </div>
           <v-btn
             block
-            class="mt-2"
+            class="exchange-load-button mt-2"
             color="primary"
+            height="48"
             size="small"
             variant="flat"
             :disabled="exchangePadDisabled || !activeExchangeInput.trim()"
             :loading="exchangePadDisabled"
             @click="submitExchangeInput"
           >
-            {{ invoice ? "Scan" : "Load" }}
+            Load
           </v-btn>
         </div>
       </v-card-text>
 
       <v-card-actions class="pa-3">
         <v-btn class="flex-1-1" variant="text" @click="menu = false">Cancel</v-btn>
-        <v-btn
-          class="flex-1-1"
-          color="primary"
-          :disabled="!returned.length"
-          @click="startExchange"
-        >
+        <v-btn class="flex-1-1" color="primary" :disabled="!returned.length" @click="startExchange">
           Start exchange
         </v-btn>
       </v-card-actions>
@@ -201,7 +186,7 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch, type Ref } from "vue";
 import { useExchangeDialog } from "@/composables/useExchangeDialog";
-import { effectiveExchangePrice, exchangeLineTotal, type ExchangeSelection } from "@/lib/exchange";
+import { effectiveExchangePrice, type ExchangeSelection } from "@/lib/exchange";
 
 const emit = defineEmits<{
   exchange: [payload: ExchangeSelection];
@@ -213,7 +198,14 @@ const dialogOpen = inject<Ref<boolean> | null>("dialogOpen", null);
 const menu = ref(false);
 const exchangePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
-defineExpose({ open: () => { menu.value = true; }, close: () => { menu.value = false; } });
+defineExpose({
+  open: () => {
+    menu.value = true;
+  },
+  close: () => {
+    menu.value = false;
+  },
+});
 const {
   loading,
   invoiceCode,
@@ -233,7 +225,7 @@ const {
   createSelection,
   clearForm,
 } = useExchangeDialog(() => props.roundingMode ?? "half_up");
-const activeExchangeInput = computed(() => invoice.value ? scanValue.value : invoiceCode.value);
+const activeExchangeInput = computed(() => invoiceCode.value);
 const exchangePadDisabled = computed(() => loading.value);
 
 watch(menu, (open) => {
@@ -242,6 +234,15 @@ watch(menu, (open) => {
 
 function effectivePrice(item: Parameters<typeof effectiveExchangePrice>[0]): number {
   return effectiveExchangePrice(item, props.roundingMode ?? "half_up");
+}
+
+function selectedReturn(item: Parameters<typeof effectiveExchangePrice>[0]) {
+  return returned.value.find(
+    (selected) =>
+      selected.code === item.code &&
+      (selected.soldUnitPrice ?? selected.price) === item.price &&
+      (selected.soldUnitDiscount ?? selected.discount) === item.discount,
+  );
 }
 
 function appendExchangeDigit(digit: string) {
@@ -306,28 +307,44 @@ function startExchange() {
   min-width: 0;
 }
 
-.exchange-dialog-layout {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(0, 1fr);
+.exchange-dialog-card {
+  height: min(640px, calc(100dvh - 32px));
 }
 
-.exchange-dialog-layout--split {
-  grid-template-columns: minmax(0, 1fr) 176px;
+.exchange-dialog-layout {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.exchange-dialog-layout--entry {
+  place-items: center;
 }
 
 .exchange-dialog-content {
   min-width: 0;
 }
 
-.exchange-inline-numpad {
-  align-self: start;
-  width: 176px;
-  margin: 0 auto;
+.exchange-item-selection {
+  align-items: center;
+  display: flex;
+  gap: 8px;
 }
 
-.exchange-dialog-layout--split .exchange-inline-numpad {
-  margin: 0;
+.exchange-available-items {
+  height: 192px;
+  overflow-y: auto;
+}
+
+.exchange-available-items :deep(.v-list-item) {
+  min-height: 64px;
+}
+
+.exchange-inline-numpad {
+  width: min(100%, 280px);
 }
 
 .exchange-inline-numpad-label {
@@ -337,36 +354,45 @@ function startExchange() {
 }
 
 .exchange-inline-numpad-display {
-  font-size: var(--kashi-font-size-xl);
+  min-height: 52px;
+}
+
+.exchange-inline-numpad-display-input :deep(input) {
+  font-size: var(--kashi-font-size-2xl);
   font-weight: 700;
-  min-height: 40px;
-  overflow: hidden;
-  padding: 6px 4px;
   text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.exchange-inline-numpad-error {
+  font-size: var(--kashi-font-size-sm);
+  margin-bottom: 8px;
+  text-align: center;
 }
 
 .exchange-inline-numpad-grid {
   display: grid;
-  gap: 4px;
+  gap: 6px;
+  grid-auto-rows: 56px;
   grid-template-columns: repeat(3, 1fr);
 }
 
 .exchange-inline-numpad-key {
-  font-size: var(--kashi-font-size-base);
-  height: 36px;
+  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border-radius: 4px;
+  font-size: 2rem !important;
+  height: 100%;
   min-width: 0;
   padding: 0;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
 
-@media (max-width: 650px) {
-  .exchange-dialog-layout--split {
-    grid-template-columns: 1fr;
-  }
+.exchange-inline-numpad-key:hover {
+  border-color: currentColor;
+}
 
-  .exchange-inline-numpad {
-    justify-self: center;
-  }
+.exchange-load-button {
+  font-size: var(--kashi-font-size-lg) !important;
 }
 </style>

@@ -30,6 +30,12 @@ const (
 	// overchange confirmation dialog on - matching its behavior before this
 	// setting existed.
 	overchangeConfirmationFlag = "overchange_confirmation"
+	// Gates the product-search (magnifier) button on the sale screen.
+	// Toggleable both from the local Settings page and remotely from kashi
+	// (via an update_settings branch command). Defaults to true when unset,
+	// so a database that has never touched this flag keeps the search button
+	// available - matching behavior before this setting existed.
+	productSearchEnabledFlag = "product_search_enabled"
 )
 
 type ProductPage struct {

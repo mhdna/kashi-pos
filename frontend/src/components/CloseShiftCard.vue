@@ -425,20 +425,27 @@ async function doCloseShift() {
 <style scoped>
 .close-shift-content {
   width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .close-shift-title {
-  padding: 16px 16px 8px;
+  padding: 4px 16px 4px;
 }
 
 .shift-times {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 16px;
-  padding: 0 16px 8px;
+  padding: 0 16px 4px;
 }
 
 .close-shift-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   padding: 0 16px 2px;
 }
 
@@ -446,7 +453,8 @@ async function doCloseShift() {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding: 8px 16px 16px;
+  flex: 0 0 auto;
+  padding: 8px 16px 8px;
 }
 
 .autofilled-field :deep(.v-field) {

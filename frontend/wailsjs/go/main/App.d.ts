@@ -20,6 +20,8 @@ export function ChangeInvoiceSettlementAmount(arg1:number,arg2:number,arg3:numbe
 
 export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function CheckExpenseUploadStatus(arg1:string):Promise<boolean>;
+
 export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
 export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<Record<string, any>>;
@@ -138,6 +140,8 @@ export function ListDiscountListItems(arg1:number):Promise<Array<Record<string, 
 
 export function ListDiscountLists():Promise<Array<Record<string, any>>>;
 
+export function ListExpenseCategories():Promise<Array<Record<string, any>>>;
+
 export function ListExpenses(arg1:number,arg2:number):Promise<Array<Record<string, any>>>;
 
 export function ListHoldInvoices():Promise<Array<Record<string, any>>>;
@@ -147,6 +151,8 @@ export function ListInventories():Promise<Array<Record<string, any>>>;
 export function ListInvoicesFilteredPage(arg1:number,arg2:number,arg3:string):Promise<main.InvoicePage>;
 
 export function ListInvoicesPage(arg1:number,arg2:number):Promise<main.InvoicePage>;
+
+export function ListLoanCategories():Promise<Array<Record<string, any>>>;
 
 export function ListLoans(arg1:number,arg2:number):Promise<Array<Record<string, any>>>;
 
@@ -255,6 +261,8 @@ export function SetPriceChangeManualOverrideEnabled(arg1:boolean):Promise<void>;
 export function SetPriceListActive(arg1:number,arg2:boolean):Promise<Record<string, any>>;
 
 export function SetPriceListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
+
+export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
 

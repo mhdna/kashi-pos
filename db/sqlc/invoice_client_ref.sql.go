@@ -33,3 +33,14 @@ func (q *Queries) GetInvoiceClientRef(ctx context.Context, invoiceID int64) (str
 	err := row.Scan(&client_ref)
 	return client_ref, err
 }
+
+const getInvoiceIDByClientRef = `-- name: GetInvoiceIDByClientRef :one
+SELECT invoice_id FROM invoice_client_refs WHERE client_ref = ?
+`
+
+func (q *Queries) GetInvoiceIDByClientRef(ctx context.Context, clientRef string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getInvoiceIDByClientRef, clientRef)
+	var invoice_id int64
+	err := row.Scan(&invoice_id)
+	return invoice_id, err
+}

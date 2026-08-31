@@ -15,5 +15,16 @@ tools/kashi-admin/tmp/pdfs/rendered-db22/
 *.docx
 tools/kashi-admin/*.csv
 tools/kashi-admin/output/**/*.csv
+tools/kashi-admin/test/
+tools/kashi-admin/tmp/
+tools/kashi-admin/to-import/
+tools/kashi-admin/barcodes/
 __pycache__/
 *.pyc
+
+# Compiled binaries and local scratch databases (regenerable, kept out of review bundles)
+build/database
+build/*.exe
+cmd/temporary-shift-receipt/temporary-shift-receipt
+/db-beirut
+dbdd/*.backup-*

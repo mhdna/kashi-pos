@@ -37,6 +37,13 @@ type SalesInvoiceParams struct {
 	PaymentsJSON string `json:"paymentsJson"`
 	ClientID     int64  `json:"clientId"`
 	Notes        string `json:"notes"`
+	// The invoice header's salesperson_id isn't set until after this tx
+	// commits (see CheckoutInvoice's post-checkout UpdateInvoiceSalesperson
+	// backfill), so the sync payload built inside this tx can't read it
+	// back from the invoice row -- the caller already has the name
+	// (selected once per invoice at the till), so it's threaded straight
+	// through instead.
+	Salesperson string `json:"salesperson"`
 }
 
 type SalesInvoiceResult struct {
@@ -289,11 +296,16 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			for _, product := range products {
 				payloadItems = append(payloadItems, branchInvoicePayloadItem{
 					BranchProductID: product.product.ID,
+					Barcode:         product.product.Barcode,
 					UnitPrice:       product.unitPrice,
 					LineTotal:       product.lineTotal,
 					Discount:        int16(product.discount),
 					Quantity:        product.qty,
 				})
+			}
+			payloadPayments, err := buildBranchInvoicePayments(a.ctx, q, invoice.ID)
+			if err != nil {
+				return err
 			}
 			if err := queueBranchInvoiceSync(a.ctx, q, settings.CentralApiUrl, "sales_invoice", branchInvoicePayload{
 				ClientRef:              clientRef,
@@ -307,6 +319,8 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				DiscountedTotal:        discountedSubtotal,
 				LoyaltyPointsDelta:     loyaltyPointsDelta,
 				OccurredAt:             time.Now().UTC(),
+				SalespersonName:        params.Salesperson,
+				Payments:               payloadPayments,
 				Items:                  payloadItems,
 			}); err != nil {
 				return fmt.Errorf("queue branch invoice sync: %w", err)

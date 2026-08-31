@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "kashicloud",
-  "outputfilename": "Kashi Cloud",
+  "name": "gbccloudd",
+  "outputfilename": "GB CCloudd",
   "frontend:install": "pnpm install",
   "frontend:build": "pnpm run build",
   "frontend:dev:watcher": "pnpm run dev",

@@ -97,6 +97,92 @@ func (c *centralClient) PostInvoice(ctx context.Context, path string, payloadJSO
 	return c.sendJSON(ctx, http.MethodPost, path, payloadJSON)
 }
 
+// postExpenseResponse is kashi's response body to POST /branch/expenses --
+// see createBranchExpense's envelope in the kashi repo's api/branch_expense.go.
+// UploadToken is empty on the idempotent "already exists" path (kashi only
+// mints one on a fresh insert), which the caller treats as "no QR dialog
+// this time" rather than an error.
+type postExpenseResponse struct {
+	UploadToken string `json:"upload_token"`
+}
+
+// PostExpense is PostInvoice's counterpart for expenses specifically: unlike
+// every other synced entity, an expense's response body carries a one-time
+// receipt-upload token the caller needs, so this can't reuse PostInvoice's
+// discard-the-body shape.
+func (c *centralClient) PostExpense(ctx context.Context, path string, payloadJSON []byte) (*postExpenseResponse, error) {
+	if !c.enabled() {
+		return nil, errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, http.MethodPost, path, bytes.NewReader(payloadJSON))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var body centralErrorBody
+		json.NewDecoder(resp.Body).Decode(&body)
+		return nil, fmt.Errorf("POST %s failed (status %d): %s", path, resp.StatusCode, body.Error)
+	}
+
+	var out postExpenseResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode expense response: %w", err)
+	}
+	return &out, nil
+}
+
+// ExpenseUploadStatus polls kashi for whether receipt images have landed on
+// a given expense yet -- the poll-based companion to the
+// "expense_images_uploaded" WS push, used by kashi-pos's QR dialog while
+// it's waiting.
+func (c *centralClient) ExpenseUploadStatus(ctx context.Context, clientRef string) (bool, error) {
+	if !c.enabled() {
+		return false, errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, http.MethodGet, "/branch/expenses/upload_status?client_ref="+url.QueryEscape(clientRef), nil)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var body centralErrorBody
+		json.NewDecoder(resp.Body).Decode(&body)
+		return false, fmt.Errorf("upload status check failed (status %d): %s", resp.StatusCode, body.Error)
+	}
+
+	var out struct {
+		ImagesUploaded bool `json:"images_uploaded"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return false, fmt.Errorf("decode upload status response: %w", err)
+	}
+	return out.ImagesUploaded, nil
+}
+
+// UploadURL builds the full one-time receipt-upload link a phone scans via
+// QR code, from this branch's own configured central_api_url -- kashi never
+// needs to know its own public address, kashi-pos already does (it's the
+// same host this client talks to for everything else).
+func (c *centralClient) UploadURL(token string) string {
+	return c.baseURL + "/expense_uploads/" + token
+}
+
 // PutSettings pushes this branch's current business-identity settings
 // snapshot to kashi. It's a plain upsert on kashi's side (see
 // putBranchSettings in api/branch_settings.go), so pushing the same

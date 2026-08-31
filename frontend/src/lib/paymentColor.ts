@@ -19,7 +19,7 @@ export function paymentTone(name: unknown): "green" | "purple" | "blue" | "red" 
 // names like "green-darken-2", so `var(--v-theme-green-darken-2)` never
 // resolves to anything. These are the actual Material Design hex values for
 // the tokens paymentColor() returns, used directly instead.
-const DEFAULT_ACCENT_HEX = "#388E3C";
+const DEFAULT_ACCENT_HEX = "#617557";
 const MATERIAL_COLOR_HEX: Record<string, string> = {
   "purple-darken-2": "#7B1FA2",
   "red-darken-2": "#D32F2F",

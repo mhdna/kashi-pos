@@ -589,6 +589,7 @@ onBeforeUnmount(() => {
   height: 205px;
   margin-bottom: 0;
   margin-inline: auto;
+  margin-top: 32px;
   max-width: 600px;
   padding-bottom: 0;
   padding-top: 12px;

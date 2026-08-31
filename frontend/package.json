@@ -21,6 +21,7 @@
     "@mdi/js": "^7.4.47",
     "libphonenumber-js": "^1.13.9",
     "pinia": "^3.0.4",
+    "qrcode": "^1.5.4",
     "vue": "^3.5.26",
     "vue-router": "^4.6.4",
     "vuetify": "^4.0.0"
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@tsconfig/node22": "^22.0.5",
     "@types/node": "^22.0.5",
+    "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-vue": "^6.0.3",
     "@vue/tsconfig": "^0.8.1",
     "eslint": "^9.39.2",
