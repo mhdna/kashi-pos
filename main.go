@@ -24,12 +24,12 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "Kashi Cloud",
-		Width:  1024,
-		Height: 700,
+		Title: "Kashi Cloud",
+		// Width:  1024,
+		// Height: 700,
 		// MinWidth:         appMinWindowWidth,
 		// MinHeight:        appMinWindowHeight,
-		Fullscreen:       false,
+		Fullscreen:       true,
 		WindowStartState: options.Normal,
 		DisableResize:    true,
 		AssetServer:      &assetserver.Options{Assets: assets},

@@ -1,11 +1,10 @@
 <template>
   <div class="pin-login" aria-labelledby="pin-title">
-    <v-img
-      :src="logo"
-      width="132"
+    <div
       class="pin-logo"
-      :class="{ 'pin-logo--dark': currentTheme === 'dark' }"
-      alt="Kashi"
+      :style="{ '--pin-logo-image': `url(${logo})` }"
+      role="img"
+      aria-label="K"
     />
 
     <div class="pin-heading">
@@ -23,8 +22,8 @@
         :key="digit"
         type="button"
         class="pin-key"
+        size="small"
         variant="tonal"
-        elevation="0"
         :disabled="loading || locked"
         :aria-label="`Enter ${digit}`"
         @click="enterDigit(digit)"
@@ -33,19 +32,20 @@
       </v-btn>
       <v-btn
         type="button"
-        class="pin-key pin-key--action"
-        variant="text"
+        class="pin-key"
+        size="small"
+        variant="tonal"
         :disabled="loading || locked || pin.length === 0"
         aria-label="Clear PIN"
         @click="clearPIN"
       >
-        Clear
+        C
       </v-btn>
       <v-btn
         type="button"
         class="pin-key"
+        size="small"
         variant="tonal"
-        elevation="0"
         :disabled="loading || locked"
         aria-label="Enter 0"
         @click="enterDigit('0')"
@@ -54,20 +54,21 @@
       </v-btn>
       <v-btn
         type="button"
-        class="pin-key pin-key--action"
-        variant="text"
+        class="pin-key"
+        size="small"
+        variant="tonal"
         :disabled="loading || locked || pin.length === 0"
         aria-label="Delete last digit"
         @click="removeDigit"
       >
-        <v-icon icon="mdi-backspace-outline" size="24" />
+        ⌫
       </v-btn>
     </div>
 
     <div class="pin-status" aria-live="polite">
       <v-progress-circular v-if="loading" indeterminate size="22" width="2" />
       <span v-else-if="!locked && error" class="pin-error" role="alert">{{ error }}</span>
-      <span v-if="!locked && attempts > 0">
+      <span v-if="!locked && attempts > 0" class="pin-attempts text-subtitle-1">
         {{ 3 - attempts }} {{ 3 - attempts === 1 ? "attempt" : "attempts" }} remaining
       </span>
     </div>
@@ -77,8 +78,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { useTheme } from "vuetify";
-import logo from "@/assets/appicon.webp";
+import logo from "@/assets/app-logo.png";
 import { useAuthStore } from "@/stores/auth";
 
 const LOCKOUT_SECONDS = 30;
@@ -86,9 +86,6 @@ const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 const router = useRouter();
 const auth = useAuthStore();
-const theme = useTheme();
-const currentTheme = theme.name;
-
 const pin = ref("");
 const error = ref("");
 const loading = ref(false);
@@ -177,18 +174,19 @@ onBeforeUnmount(() => {
 <style scoped>
 .pin-login {
   width: min(100%, 380px);
-  padding: 32px 34px 26px;
+  padding: 32px 34px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .pin-logo {
-  margin-bottom: 24px;
-}
-
-.pin-logo--dark {
-  filter: invert(1);
+  aspect-ratio: 1;
+  width: clamp(105px, 14vw, 190px);
+  background-color: rgba(var(--v-theme-on-surface), 0.38);
+  mask: var(--pin-logo-image) center / contain no-repeat;
+  -webkit-mask: var(--pin-logo-image) center / contain no-repeat;
+  margin-bottom: 0;
 }
 
 .pin-heading {
@@ -235,41 +233,34 @@ onBeforeUnmount(() => {
   border-color: rgb(var(--v-theme-error));
 }
 
-/* Phone-dialer style: big round keys, generous spacing. */
 .pin-keypad {
+  width: 280px;
   display: grid;
-  grid-template-columns: repeat(3, 78px);
-  gap: 18px 22px;
+  grid-auto-rows: 56px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
 }
 
 .pin-key {
-  width: 78px;
-  height: 78px;
+  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border-radius: 4px;
+  height: 100%;
   min-width: 0;
   padding: 0;
-  border: none;
-  border-radius: 50% !important;
-  background: rgba(var(--v-theme-on-surface), 0.08);
-  color: rgb(var(--v-theme-on-surface));
   font: inherit;
-  font-size: 1.9rem;
-  font-weight: 500;
+  font-size: 2rem !important;
   cursor: pointer;
   touch-action: manipulation;
-  transition:
-    background-color 120ms ease,
-    transform 80ms ease;
 }
 
 .pin-key:hover:not(:disabled),
 .pin-key:focus-visible {
-  background: rgba(var(--v-theme-on-surface), 0.16);
+  border-color: currentColor;
   outline: none;
 }
 
 .pin-key:active:not(:disabled) {
-  transform: scale(0.94);
-  background: rgba(var(--v-theme-on-surface), 0.22);
+  transform: scale(0.97);
 }
 
 .pin-key:disabled {
@@ -277,22 +268,13 @@ onBeforeUnmount(() => {
   opacity: 0.42;
 }
 
-.pin-key--action {
-  background: transparent !important;
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.pin-key--action:hover:not(:disabled),
-.pin-key--action:focus-visible {
-  background: rgba(var(--v-theme-on-surface), 0.1) !important;
-}
-
 .pin-status {
-  min-height: 24px;
+  height: 44px;
   margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
   color: rgba(var(--v-theme-on-surface), 0.55);
   font-size: 0.8rem;
 }
@@ -301,17 +283,19 @@ onBeforeUnmount(() => {
   display: block;
   margin-bottom: 4px;
   color: rgb(var(--v-theme-error));
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 @media (max-width: 440px), (max-height: 700px) {
   .pin-login {
     width: 100%;
-    padding: 22px 24px 16px;
+    padding: 22px 24px;
   }
 
   .pin-logo {
-    width: 108px !important;
-    margin-bottom: 14px;
+    width: clamp(105px, 14vw, 190px) !important;
+    margin-bottom: 0;
   }
 
   .pin-dots {
@@ -319,14 +303,8 @@ onBeforeUnmount(() => {
   }
 
   .pin-keypad {
-    grid-template-columns: repeat(3, 66px);
-    gap: 14px 18px;
-  }
-
-  .pin-key {
-    width: 66px;
-    height: 66px;
-    font-size: 1.7rem;
+    width: 100%;
+    max-width: 280px;
   }
 }
 </style>

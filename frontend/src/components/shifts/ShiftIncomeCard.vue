@@ -70,7 +70,42 @@
         Opening amount: {{ formatUsd((openingFloatUsd ?? 0) / 100) }} / {{ Math.round(openingFloatLbp ?? 0).toLocaleString() }} LBP
       </div>
     </div>
+    <v-btn
+      v-if="shiftId"
+      block
+      class="spend-button mt-auto"
+      color="primary"
+      height="72"
+      prepend-icon="mdi-cash-minus"
+      size="large"
+      variant="elevated"
+      @click="spendOpen = true"
+    >
+      Spend
+    </v-btn>
   </v-sheet>
+  <v-dialog v-model="spendOpen" max-width="520">
+    <v-card rounded="xl">
+      <div class="dialog-close-row px-4 pt-0">
+        <v-btn
+          icon="mdi-close"
+          variant="text"
+          aria-label="Close spend menu"
+          @click="spendOpen = false"
+        />
+      </div>
+      <v-card-text class="spend-options px-4 pt-0 pb-4">
+        <v-card class="spend-option" rounded="lg" variant="tonal" @click="openExpenses">
+          <v-icon icon="mdi-receipt-text-outline" size="44" />
+          <span>Expenses</span>
+        </v-card>
+        <v-card class="spend-option" rounded="lg" variant="tonal" @click="openLoans">
+          <v-icon icon="mdi-hand-coin-outline" size="44" />
+          <span>Loans</span>
+        </v-card>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
   <BalanceReplacementDialog v-model="replacementOpen" :shift-id="shiftId" :sources="balanceSources" :payment-methods="paymentMethods" @saved="emit('balance-replaced', $event)" />
   <SetOpeningFloatDialog
     v-model="openingFloatOpen"
@@ -83,6 +118,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { paymentAccentColor } from "@/lib/paymentColor";
@@ -91,6 +127,7 @@ import BalanceReplacementDialog from "@/components/shifts/BalanceReplacementDial
 import SetOpeningFloatDialog from "@/components/shifts/SetOpeningFloatDialog.vue";
 
 const { currencies, roundingMode } = useCurrencies();
+const router = useRouter();
 
 const props = defineProps<{
   items: IncomeRow[];
@@ -103,19 +140,38 @@ const props = defineProps<{
   openingFloatUsd?: number;
   openingFloatLbp?: number;
 }>();
-const emit = defineEmits<{ "balance-replaced": [shiftId: number]; "opening-float-set": [] }>();
+const emit = defineEmits<{
+  "balance-replaced": [shiftId: number];
+  "opening-float-set": [];
+}>();
 const replacementOpen = ref(false);
 const openingFloatOpen = ref(false);
+const spendOpen = ref(false);
 const balanceSources = computed<Balance[]>(() => props.balanceSources
   .filter((item) => !item.isOnAccount && !item.isOnCoupon && item.accountId && Number(item.balance) !== 0));
 
 const incomeTotal = computed(() => Number(props.incomeTotal) || 0);
+
+function openExpenses() {
+  spendOpen.value = false;
+  void router.push("/expenses");
+}
+
+function openLoans() {
+  spendOpen.value = false;
+  void router.push("/loans");
+}
 </script>
 
 <style scoped>
 .shifts-card {
   height: 100%;
   min-height: 0;
+}
+
+.shift-income-card {
+  display: flex;
+  flex-direction: column;
 }
 
 .shift-income-title {
@@ -132,5 +188,44 @@ const incomeTotal = computed(() => Number(props.incomeTotal) || 0);
 
 .shift-income-empty-message {
   width: 100%;
+}
+
+.spend-button {
+  flex: 0 0 72px;
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  max-height: 72px;
+  min-height: 72px;
+}
+
+.dialog-close-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.spend-options {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.spend-option {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--kashi-font-size-lg);
+  font-weight: 600;
+  gap: 12px;
+  justify-content: center;
+  min-height: 144px;
+  padding: 18px 12px;
+  text-align: center;
+  transition: background-color 0.15s ease;
+}
+
+.spend-option:hover {
+  background-color: rgba(var(--v-theme-primary), 0.12);
 }
 </style>

@@ -22,7 +22,7 @@
         <v-virtual-scroll
           class="product-virtual-scroll"
           :items="products"
-          :item-height="44"
+          :item-height="48"
           height="360"
           @scroll.passive="handleScroll"
         >
@@ -30,7 +30,7 @@
             <v-list-item
               :key="product.id"
               class="product-list-item"
-              density="compact"
+              density="comfortable"
               link
               @click="selectProduct(product)"
             >

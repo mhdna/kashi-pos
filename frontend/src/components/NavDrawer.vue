@@ -42,41 +42,23 @@
       </div>
 
       <v-card-text class="options-grid options-grid--three px-4 pt-0 pb-4">
-        <v-card class="option-card" rounded="lg" variant="tonal" @click="logout">
-          <v-icon icon="mdi-logout" size="44" />
-          <span>Logout</span>
-        </v-card>
-        <v-card class="option-card" rounded="lg" variant="tonal" @click="openCloseShift">
+        <v-card
+          class="option-card"
+          color="#b5d8d5"
+          rounded="lg"
+          variant="flat"
+          @click="openCloseShift"
+        >
           <v-icon icon="mdi-close-circle-outline" size="44" />
           <span>Close Shift</span>
         </v-card>
-        <v-card class="option-card" rounded="lg" variant="tonal" @click="closeApp">
+        <v-card class="option-card" color="#e2dcb9" rounded="lg" variant="flat" @click="logout">
+          <v-icon icon="mdi-logout" size="44" />
+          <span>Logout</span>
+        </v-card>
+        <v-card class="option-card" color="#e8caca" rounded="lg" variant="flat" @click="closeApp">
           <v-icon icon="mdi-close" size="44" />
           <span>Close App</span>
-        </v-card>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
-
-  <v-dialog v-model="moneyOpen" max-width="520">
-    <v-card rounded="xl">
-      <div class="dialog-close-row px-4 pt-0">
-        <v-btn
-          icon="mdi-close"
-          variant="text"
-          aria-label="Close money menu"
-          @click="moneyOpen = false"
-        />
-      </div>
-
-      <v-card-text class="options-grid px-4 pt-0 pb-4">
-        <v-card class="option-card" rounded="lg" variant="tonal" @click="openExpenses">
-          <v-icon icon="mdi-receipt-text-outline" size="44" />
-          <span>Expenses</span>
-        </v-card>
-        <v-card class="option-card" rounded="lg" variant="tonal" @click="openLoans">
-          <v-icon icon="mdi-hand-coin-outline" size="44" />
-          <span>Loans</span>
         </v-card>
       </v-card-text>
     </v-card>
@@ -141,7 +123,6 @@ const route = useRoute();
 const router = useRouter();
 const { pageUnlocks } = usePageUnlocks();
 const optionsOpen = ref(false);
-const moneyOpen = ref(false);
 const inventoryOpen = ref(false);
 
 function handleItemClick(item: { locked?: boolean; action?: () => void; to?: string }) {
@@ -169,20 +150,6 @@ function closeApp() {
 function openCloseShift() {
   optionsOpen.value = false;
   void router.push("/close-shift");
-}
-
-function openMoney() {
-  moneyOpen.value = true;
-}
-
-function openExpenses() {
-  moneyOpen.value = false;
-  void router.push("/expenses");
-}
-
-function openLoans() {
-  moneyOpen.value = false;
-  void router.push("/loans");
 }
 
 function openInventory() {
@@ -217,7 +184,6 @@ const items = computed(() => {
       t: "Invoices",
     },
     { value: "shifts", to: "/shifts", icon: "mdi-cash-fast", t: "Balance" },
-    { value: "money", icon: "mdi-cash-multiple", t: "Money", action: openMoney },
     {
       value: "clients",
       to: "/clients",
@@ -251,7 +217,7 @@ const items = computed(() => {
 
 <style scoped>
 .nav-drawer {
-  background-color: #1f6059;
+  background-color: #000000;
   border: 0 !important;
   box-shadow: none !important;
 }

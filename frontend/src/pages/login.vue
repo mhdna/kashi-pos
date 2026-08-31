@@ -13,7 +13,7 @@ import LoginForm from "@/components/LoginForm.vue";
 <style scoped>
 .login-page {
   position: relative;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: transparent;
 }
@@ -22,6 +22,7 @@ import LoginForm from "@/components/LoginForm.vue";
   position: relative;
   z-index: 1;
   height: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;

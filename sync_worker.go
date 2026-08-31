@@ -82,11 +82,7 @@ func (a *App) runSyncTick(ctx context.Context) {
 	if err := a.runSyncOutboxOnce(ctx, client); err != nil {
 		log.Printf("sync outbox: %v", err)
 	}
-	searchButtonEnabled := true
-	if v, ferr := a.store.GetFeatureFlag(ctx, productSearchEnabledFlag); ferr == nil {
-		searchButtonEnabled = v != 0
-	}
-	if err := pushSettings(ctx, client, settings, searchButtonEnabled); err != nil {
+	if err := a.pushSettings(ctx, client); err != nil {
 		log.Printf("sync settings: %v", err)
 	}
 	a.runPendingCommandsOnce(ctx, client)

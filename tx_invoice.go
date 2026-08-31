@@ -279,11 +279,19 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				return fmt.Errorf("add cashbox balance: %w", err)
 			}
 		}
+		// Anonymous sales are booked against the "Walk-in" pseudo-client, which
+		// is not a real customer: it earns no loyalty points, and the branch
+		// reports a zero delta to central so it is never credited there either.
 		loyaltyPointsDelta := grandTotal / 100
-		if err := q.AddClientLoyaltyPoints(a.ctx, db.AddClientLoyaltyPointsParams{
-			TotalLoyaltyPoints: loyaltyPointsDelta, ValidLoyaltyPoints: loyaltyPointsDelta, ID: clientID,
-		}); err != nil {
-			return fmt.Errorf("add loyalty points: %w", err)
+		if client, err := q.GetClientByID(a.ctx, clientID); err == nil && isWalkInClient(client) {
+			loyaltyPointsDelta = 0
+		}
+		if loyaltyPointsDelta != 0 {
+			if err := q.AddClientLoyaltyPoints(a.ctx, db.AddClientLoyaltyPointsParams{
+				TotalLoyaltyPoints: loyaltyPointsDelta, ValidLoyaltyPoints: loyaltyPointsDelta, ID: clientID,
+			}); err != nil {
+				return fmt.Errorf("add loyalty points: %w", err)
+			}
 		}
 
 		if settings.CentralApiUrl != "" {
@@ -570,7 +578,7 @@ func recordSpecialPaymentMetadata(a *App, q *db.Queries, invoiceID, clientID int
 		switch {
 		case strings.EqualFold(account.Name, "On Account"):
 			client, clientErr := q.GetClientByID(a.ctx, clientID)
-			if clientErr != nil || strings.Contains(strings.ToLower(client.Name), "walk-in") {
+			if clientErr != nil || isWalkInClient(client) {
 				return fmt.Errorf("a named client is required for on account payments")
 			}
 			if _, err := q.CreateClientAccountEntry(a.ctx, db.CreateClientAccountEntryParams{ClientID: clientID, InvoiceID: invoiceID, Amount: payment.AmountCents}); err != nil {

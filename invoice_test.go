@@ -54,7 +54,7 @@ func TestSalesInvoiceTransactionUsesAuthoritativeTotalsAndStock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Test Customer", Phone: "+96170123456"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -51,13 +51,15 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 }
 
 // updateSettingsCommandPayload mirrors branchSettingsPayload in
-// sync_settings.go / branchSettingsRequest in kashi's api/branch_settings.go
-// -- the same business-identity field set used for the read side, now used
-// to build a write. Fields kashi has no opinion on (branch_code, api_key,
-// printer/screen/theme config, receipt font/size, counter number) are left
-// exactly as this install already has them -- a remote settings edit can
-// never touch local-only/hardware fields, whether or not the sender even
-// knows they exist.
+// sync_settings.go / branchSettingsRequest in kashi's api/branch_settings.go.
+// The original business-identity fields are always present (kashi's UI
+// always sends them); everything added later is a pointer so an absent
+// field -- an older queued command, a group the admin handed back to the
+// branch (managed_locally), or any sender that predates the field -- leaves
+// the local value exactly as it is rather than zeroing it.
+//
+// Still never carried, so never touched: branch_code, api_key, theme,
+// counter number, and the POS admin login password.
 type updateSettingsCommandPayload struct {
 	BranchName          string          `json:"branch_name"`
 	TaxRate             float64         `json:"tax_rate"`
@@ -73,21 +75,63 @@ type updateSettingsCommandPayload struct {
 	Instagram           string          `json:"instagram"`
 	SocialPlatforms     json.RawMessage `json:"social_platforms"`
 	SocialHandles       json.RawMessage `json:"social_handles"`
-	// SearchButtonEnabled gates the sale screen's product-search button. A
-	// pointer so an absent field (an older queued command, or any other
-	// sender that doesn't know about it) leaves the local flag untouched
-	// rather than forcing it false.
-	SearchButtonEnabled *bool `json:"search_button_enabled"`
+	SearchButtonEnabled *bool           `json:"search_button_enabled"`
+
+	// behaviour feature flags
+	CustomItemDiscountsEnabled    *bool `json:"custom_item_discounts_enabled"`
+	CustomItemPricesEnabled       *bool `json:"custom_item_prices_enabled"`
+	PerUnitItemPricesEnabled      *bool `json:"per_unit_item_prices_enabled"`
+	PriceChangeManualOverrideMode *bool `json:"price_change_manual_override_mode"`
+	InvoiceKeyboardMode           *bool `json:"invoice_keyboard_mode"`
+	ClientRequired                *bool `json:"client_required"`
+
+	// non-admin page-access locks
+	PageUnlockClients      *bool `json:"page_unlock_clients"`
+	PageUnlockInventory    *bool `json:"page_unlock_inventory"`
+	PageUnlockTransfers    *bool `json:"page_unlock_transfers"`
+	PageUnlockAttendance   *bool `json:"page_unlock_attendance"`
+	PageUnlockSalespersons *bool `json:"page_unlock_salespersons"`
+
+	// printing
+	PrinterSize      *string  `json:"printer_size"`
+	ReceiptWidth     *int64   `json:"receipt_width"`
+	ReceiptHeight    *int64   `json:"receipt_height"`
+	ReceiptEnabled   *bool    `json:"receipt_enabled"`
+	ReceiptFont      *string  `json:"receipt_font"`
+	ReceiptBodyFont  *string  `json:"receipt_body_font"`
+	ReceiptTitleSize *float64 `json:"receipt_title_size"`
+	ReceiptBodySize  *float64 `json:"receipt_body_size"`
+	ReceiptCutoff    *bool    `json:"receipt_cutoff"`
+
+	// per-machine device identifiers
+	PrinterID      *string `json:"printer_id"`
+	ReceiptPrinter *string `json:"receipt_printer"`
+	ScreenPort     *string `json:"screen_port"`
+
+	// attendance device config
+	AkuvoxIP                           *string `json:"akuvox_ip"`
+	AkuvoxUsername                     *string `json:"akuvox_username"`
+	AkuvoxPassword                     *string `json:"akuvox_password"`
+	AttendanceApproverPassword         *string `json:"attendance_approver_password"`
+	AttendanceEnabled                  *bool   `json:"attendance_enabled"`
+	AttendanceDuplicateIntervalSeconds *int64  `json:"attendance_duplicate_interval_seconds"`
+	AttendanceCashierHistory           *bool   `json:"attendance_cashier_history"`
+}
+
+func deref[T any](p *T, fallback T) T {
+	if p == nil {
+		return fallback
+	}
+	return *p
 }
 
 // executeUpdateSettingsCommand applies a remote settings edit by calling
 // the exact same App methods the local Settings page's "Save" button calls
-// -- UpdateSettings and UpdateReceiptSettings -- so the same validation
-// (tax rate bounds, known/active rounding currency, positive exchange
-// rate, branch code normalization) applies whether the edit came from the
-// till or from kashi. Both methods take the *entire* settings row as
-// positional args, so every field this command doesn't carry is read from
-// the current row first and passed through unchanged.
+// -- so the same validation (tax rate bounds, known/active rounding
+// currency, positive exchange rate, branch code normalization, etc.)
+// applies whether the edit came from the till or from kashi. Anything the
+// payload doesn't carry is read from the current row first and passed
+// through unchanged.
 func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.RawMessage) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
@@ -107,12 +151,16 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		p.BranchName,
 		current.BranchCode, // identity/routing, never remotely editable
 		current.ApiKey,     // credential, never remotely editable
-		current.PrinterID, current.PrinterSize, current.ReceiptPrinter, current.ScreenPort,
-		current.ReceiptWidth, current.ReceiptHeight,
+		deref(p.PrinterID, current.PrinterID),
+		deref(p.PrinterSize, current.PrinterSize),
+		deref(p.ReceiptPrinter, current.ReceiptPrinter),
+		deref(p.ScreenPort, current.ScreenPort),
+		deref(p.ReceiptWidth, current.ReceiptWidth),
+		deref(p.ReceiptHeight, current.ReceiptHeight),
 		p.TaxRate,
 		p.RoundingMode,
 		p.RoundingCurrency,
-		current.ReceiptEnabled != 0,
+		deref(p.ReceiptEnabled, current.ReceiptEnabled != 0),
 		current.SalesInventoryID,
 		p.ExchangeRate,
 		current.MaxOverpaymentCents,
@@ -132,8 +180,12 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 	if err := a.UpdateReceiptSettings(
 		p.MarketName, p.MarketPhone, current.BranchPhone, p.MarketDescription, p.ReturnPolicy,
 		p.Website, p.Instagram, socialPlatforms, socialHandles,
-		current.CounterNumber, current.ReceiptFont, current.ReceiptBodyFont,
-		current.ReceiptTitleSize, current.ReceiptBodySize, current.ReceiptCutoff != 0,
+		current.CounterNumber,
+		deref(p.ReceiptFont, current.ReceiptFont),
+		deref(p.ReceiptBodyFont, current.ReceiptBodyFont),
+		deref(p.ReceiptTitleSize, current.ReceiptTitleSize),
+		deref(p.ReceiptBodySize, current.ReceiptBodySize),
+		deref(p.ReceiptCutoff, current.ReceiptCutoff != 0),
 	); err != nil {
 		return fmt.Errorf("update receipt/market settings: %w", err)
 	}
@@ -142,9 +194,57 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		return fmt.Errorf("update exchange window: %w", err)
 	}
 
-	if p.SearchButtonEnabled != nil {
-		if err := a.SetProductSearchEnabled(*p.SearchButtonEnabled); err != nil {
-			return fmt.Errorf("update search button: %w", err)
+	// --- feature flags: only touch a flag the command actually carries ---
+	flagUpdates := []struct {
+		v  *bool
+		fn func(bool) error
+	}{
+		{p.SearchButtonEnabled, a.SetProductSearchEnabled},
+		{p.CustomItemDiscountsEnabled, func(b bool) error { return a.setFeatureFlagBool(ctx, customItemDiscountsFlag, b) }},
+		{p.CustomItemPricesEnabled, func(b bool) error { return a.setFeatureFlagBool(ctx, customItemPricesFlag, b) }},
+		{p.PerUnitItemPricesEnabled, func(b bool) error { return a.setFeatureFlagBool(ctx, perUnitItemPricesFlag, b) }},
+		{p.PriceChangeManualOverrideMode, func(b bool) error { return a.setFeatureFlagBool(ctx, priceChangeManualOverrideFlag, b) }},
+		{p.InvoiceKeyboardMode, func(b bool) error { return a.setFeatureFlagBool(ctx, invoiceKeyboardModeFlag, b) }},
+		{p.ClientRequired, func(b bool) error { return a.setFeatureFlagBool(ctx, clientRequiredFlag, b) }},
+		{p.PageUnlockClients, func(b bool) error { return a.SetPageUnlocked("clients", b) }},
+		{p.PageUnlockInventory, func(b bool) error { return a.SetPageUnlocked("inventory", b) }},
+		{p.PageUnlockTransfers, func(b bool) error { return a.SetPageUnlocked("transfers", b) }},
+		{p.PageUnlockAttendance, func(b bool) error { return a.SetPageUnlocked("attendance", b) }},
+		{p.PageUnlockSalespersons, func(b bool) error { return a.SetPageUnlocked("salespersons", b) }},
+		{p.AttendanceCashierHistory, a.SetAttendanceCashierHistoryEnabled},
+	}
+	for _, u := range flagUpdates {
+		if u.v == nil {
+			continue
+		}
+		if err := u.fn(*u.v); err != nil {
+			return fmt.Errorf("update feature flag: %w", err)
+		}
+	}
+
+	// --- attendance device config ---
+	if p.AkuvoxIP != nil || p.AkuvoxUsername != nil || p.AkuvoxPassword != nil || p.AttendanceEnabled != nil {
+		curIP, curUser, _, curEnabled, _, acErr := a.attendanceConfig()
+		if acErr != nil {
+			curIP, curUser, curEnabled = "", "", false
+		}
+		if err := a.UpdateAttendanceConfig(
+			deref(p.AkuvoxIP, curIP),
+			deref(p.AkuvoxUsername, curUser),
+			deref(p.AkuvoxPassword, ""), // "" tells UpdateAttendanceConfig to keep the current password
+			deref(p.AttendanceEnabled, curEnabled),
+		); err != nil {
+			return fmt.Errorf("update attendance config: %w", err)
+		}
+	}
+	if p.AttendanceDuplicateIntervalSeconds != nil {
+		if err := a.SetAttendanceDuplicateInterval(*p.AttendanceDuplicateIntervalSeconds); err != nil {
+			return fmt.Errorf("update attendance duplicate interval: %w", err)
+		}
+	}
+	if p.AttendanceApproverPassword != nil && *p.AttendanceApproverPassword != "" {
+		if err := a.UpdateAttendanceApproverPassword(*p.AttendanceApproverPassword); err != nil {
+			return fmt.Errorf("update attendance approver password: %w", err)
 		}
 	}
 

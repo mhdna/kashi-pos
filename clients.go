@@ -46,6 +46,9 @@ func (a *App) SearchClients(search string, selectedID int64) ([]map[string]any, 
 	result := make([]map[string]any, 0, 25)
 	selectedIncluded := false
 	for _, client := range clients {
+		if isWalkInClient(client) {
+			continue
+		}
 		if client.ID == selectedID {
 			selectedIncluded = true
 		}
@@ -107,6 +110,9 @@ func (a *App) UpdateClient(clientID int64, name, phone string) (map[string]any, 
 	if err != nil {
 		return nil, fmt.Errorf("client not found")
 	}
+	if isWalkInClient(client) {
+		return nil, fmt.Errorf("the walk-in customer cannot be edited")
+	}
 	var updated db.Client
 	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
 		var err error
@@ -139,15 +145,29 @@ func (a *App) DeleteClient(clientID int64) error {
 	if clientID <= 0 {
 		return fmt.Errorf("invalid client")
 	}
-	if _, err := a.store.GetClientByID(a.ctx, clientID); err != nil {
+	existing, err := a.store.GetClientByID(a.ctx, clientID)
+	if err != nil {
 		return fmt.Errorf("client not found")
+	}
+	if isWalkInClient(existing) {
+		return fmt.Errorf("the walk-in customer cannot be deleted")
 	}
 	return a.store.DeleteClient(a.ctx, clientID)
 }
 
+// walkInClientPhone is the sentinel phone of the seeded "Walk-in" pseudo-client
+// that anonymous counter sales are booked against (see resolveClientID). It is
+// not a real customer: it must never earn or redeem loyalty points, carry an
+// account balance, or show up in the customer list.
+const walkInClientPhone = "00000000"
+
+func isWalkInPhone(phone string) bool { return phone == walkInClientPhone }
+
+func isWalkInClient(c db.Client) bool { return isWalkInPhone(c.Phone) }
+
 func normalizeClientPhone(phone string) (string, error) {
 	phone = strings.TrimSpace(phone)
-	if phone == "00000000" {
+	if phone == walkInClientPhone {
 		return phone, nil
 	}
 	parsed, err := phonenumbers.Parse(phone, "LB")
@@ -164,6 +184,9 @@ func (a *App) AddClientLoyaltyPoints(clientID int64, points int64) (map[string]a
 	client, err := a.store.GetClientByID(a.ctx, clientID)
 	if err != nil {
 		return nil, fmt.Errorf("client not found")
+	}
+	if isWalkInClient(client) {
+		return nil, fmt.Errorf("the walk-in customer cannot hold loyalty points")
 	}
 	updated, err := a.store.UpdateClient(a.ctx, db.UpdateClientParams{
 		Name:               client.Name,

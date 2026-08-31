@@ -1,3 +1,7 @@
+- Loaded N items in search products.
+- search bar taller.
+- Fix error on dialog phone numba & exchange. Fix height.
+
 - [X] ps-2Printing exchange fails and hangs the app
 - [X] Not cutting
 - [X] title too long overflows price

@@ -203,7 +203,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 			marketName = "Market"
 		}
 		customer := "Walk-in"
-		if client, err := a.store.GetClientByID(a.ctx, clientID); err == nil && client.Name != "" && !strings.Contains(strings.ToLower(client.Name), "walk-in") {
+		if client, err := a.store.GetClientByID(a.ctx, clientID); err == nil && client.Name != "" && !isWalkInClient(client) {
 			customer = client.Name
 		}
 		roundingCurrency, currErr := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
@@ -283,8 +283,14 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 	}
 	clientName := "Walk-in"
 	clientPhone := ""
+	invoiceIsWalkIn := true
 	if client, clientErr := a.store.GetClientByID(a.ctx, inv.ClientID); clientErr == nil {
 		clientName, clientPhone = client.Name, client.Phone
+		invoiceIsWalkIn = isWalkInClient(client)
+	}
+	loyaltyPointsEarned := inv.GrandTotal / 100
+	if invoiceIsWalkIn {
+		loyaltyPointsEarned = 0
 	}
 	salespersonName := "Anonymous"
 	if inv.SalespersonID > 0 {
@@ -296,7 +302,7 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 		"id": inv.ID, "invoiceCode": inv.InvoiceCode, "clientId": inv.ClientID, "clientName": clientName, "clientPhone": clientPhone,
 		"salespersonId": inv.SalespersonID, "salespersonName": salespersonName, "cashboxId": inv.CashboxID,
 		"subtotal": inv.Subtotal, "discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
-		"loyaltyPointsEarned": inv.GrandTotal / 100,
+		"loyaltyPointsEarned": loyaltyPointsEarned,
 		"createdAt":           inv.CreatedAt, "notes": inv.Notes, "items": items, "payments": paymentList,
 	}, nil
 }
@@ -310,7 +316,7 @@ func (a *App) ChangeInvoiceClient(invoiceID, clientID int64) error {
 		return err
 	}
 	if _, accountErr := a.store.GetClientAccountEntryByInvoiceID(a.ctx, invoiceID); accountErr == nil &&
-		strings.Contains(strings.ToLower(client.Name), "walk-in") {
+		isWalkInClient(client) {
 		return fmt.Errorf("a named client is required for an on-account invoice")
 	}
 	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {

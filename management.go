@@ -95,6 +95,17 @@ func (a *App) ListClientsCursor(afterID int64, limit int, search string) (Client
 		return ClientCursorPage{}, err
 	}
 
+	// The seeded "Walk-in" pseudo-client backs anonymous sales; it is not a real
+	// customer and must never surface in the customer list.
+	filtered := rows[:0]
+	for _, row := range rows {
+		if isWalkInPhone(row.Phone) {
+			continue
+		}
+		filtered = append(filtered, row)
+	}
+	rows = filtered
+
 	hasMore := len(rows) > limit
 	if hasMore {
 		rows = rows[:limit]
