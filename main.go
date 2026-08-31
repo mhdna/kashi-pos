@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 
 	"github.com/wailsapp/wails/v2"
@@ -13,6 +14,11 @@ import (
 var assets embed.FS
 
 func main() {
+	// Paint a native splash immediately, before the WebView2 runtime boots.
+	// hideSplash also runs on OnDomReady; the defer covers early-exit paths.
+	showSplash()
+	defer hideSplash()
+
 	loadDotEnv()
 
 	if err := configureWebView(); err != nil {
@@ -38,6 +44,7 @@ func main() {
 			WebviewGpuIsDisabled: true,
 		},
 		OnStartup:  app.startup,
+		OnDomReady: func(_ context.Context) { hideSplash() },
 		OnShutdown: app.shutdown,
 		Bind: []interface{}{
 			app,
