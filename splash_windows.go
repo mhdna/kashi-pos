@@ -31,6 +31,7 @@ import (
 	"time"
 	"unsafe"
 
+	xdraw "golang.org/x/image/draw"
 	"golang.org/x/sys/windows"
 )
 
@@ -92,7 +93,7 @@ const (
 	srcCopy      = 0x00CC0020
 	biRGB        = 0
 	dibRGBColors = 0
-	halftone     = 4
+	colorOnColor = 3
 	transparent  = 1
 
 	dtCenter     = 0x0001
@@ -113,17 +114,17 @@ const (
 	// registers as visible feedback rather than a sub-frame flash.
 	splashMinVisible = 900 * time.Millisecond
 
-	// COLORREF is 0x00BBGGRR.
-	splashBgColorRef   = 0x0036261B // #1B2636, matches main.go BackgroundColour
-	splashTextColorRef = 0x00FFF0E3 // #E3F0FF
+	// COLORREF is 0x00BBGGRR. White ground so the black "K" mark reads.
+	splashBgColorRef   = 0x00FFFFFF // #FFFFFF
+	splashTextColorRef = 0x00D27619 // #1976D2
 
-	splashWinW  = 420
-	splashWinH  = 300
-	splashLogoS = 150
-	splashLogoY = 40
+	splashWinW  = 460
+	splashWinH  = 360
+	splashLogoS = 200 // logo is pre-scaled to this in showSplash, drawn 1:1
+	splashLogoY = 48
 )
 
-var splashBgColor = color.RGBA{R: 0x1B, G: 0x26, B: 0x36, A: 0xFF}
+var splashBgColor = color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}
 
 type wndClassExW struct {
 	cbSize        uint32
@@ -228,11 +229,13 @@ func showSplash() {
 			splashLog("showSplash: png.Decode failed: %v", err)
 			return
 		}
-		b := img.Bounds()
-		w, h := b.Dx(), b.Dy()
-		rgba := image.NewRGBA(image.Rect(0, 0, w, h))
+		// Scale down to the on-screen size in Go (high quality, and it keeps
+		// the GDI blit a plain 1:1 copy) then flatten onto the splash ground
+		// so a 32bpp opaque DIB looks right.
+		const px = splashLogoS
+		rgba := image.NewRGBA(image.Rect(0, 0, px, px))
 		draw.Draw(rgba, rgba.Bounds(), &image.Uniform{C: splashBgColor}, image.Point{}, draw.Src)
-		draw.Draw(rgba, rgba.Bounds(), img, b.Min, draw.Over)
+		xdraw.CatmullRom.Scale(rgba, rgba.Bounds(), img, img.Bounds(), xdraw.Over, nil)
 
 		bits := make([]byte, len(rgba.Pix))
 		for i := 0; i+3 < len(rgba.Pix); i += 4 {
@@ -242,9 +245,9 @@ func showSplash() {
 			bits[i+3] = 0xFF
 		}
 		splashImgBits = bits
-		splashImgW = int32(w)
-		splashImgH = int32(h)
-		splashLog("showSplash: decoded %dx%d, starting thread", w, h)
+		splashImgW = px
+		splashImgH = px
+		splashLog("showSplash: prepared %dx%d logo, starting thread", px, px)
 
 		go splashThread()
 	})
@@ -399,8 +402,8 @@ func paintSplash(hdc, hwnd uintptr) {
 			biBitCount:    32,
 			biCompression: biRGB,
 		}}
-		pSetStretchBltMode.Call(hdc, halftone)
-		pStretchDIBits.Call(
+		pSetStretchBltMode.Call(hdc, colorOnColor)
+		ret, _, err := pStretchDIBits.Call(
 			hdc,
 			i32(logoX), i32(splashLogoY), splashLogoS, splashLogoS,
 			0, 0, uintptr(splashImgW), uintptr(splashImgH),
@@ -408,6 +411,7 @@ func paintSplash(hdc, hwnd uintptr) {
 			uintptr(unsafe.Pointer(&bi)),
 			dibRGBColors, srcCopy,
 		)
+		splashLog("paintSplash: StretchDIBits -> %d (err %v), logoX=%d", int32(ret), err, logoX)
 	}
 
 	caption := utf16Ptr("Loading...")

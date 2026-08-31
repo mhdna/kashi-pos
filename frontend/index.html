@@ -11,18 +11,17 @@
       #app {
         min-height: 100%;
         margin: 0;
-        /* Match the native window BackgroundColour (main.go) and the win32
-           splash so there is no colour flash between hand-offs:
-           native splash -> blank window -> this loader -> app. */
-        background: #1b2636;
+        /* White, matching the native win32 splash, so the hand-off
+           native splash -> this loader -> app has no colour flash. */
+        background: #ffffff;
       }
 
       #startup-loader {
         min-height: 100vh;
         display: grid;
         place-items: center;
-        background: #1b2636;
-        color: #e3f0ff;
+        background: #ffffff;
+        color: #1976d2;
         font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
       }
 
@@ -41,7 +40,7 @@
       .startup-spinner {
         width: 36px;
         height: 36px;
-        border: 4px solid rgba(227, 240, 255, 0.25);
+        border: 4px solid rgba(25, 118, 210, 0.2);
         border-top-color: currentColor;
         border-radius: 50%;
         animation: startup-spin 0.8s linear infinite !important;

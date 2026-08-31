@@ -43,7 +43,7 @@ func main() {
 		// only thing on screen during WebView2 boot is the native splash.
 		StartHidden: true,
 		AssetServer:      &assetserver.Options{Assets: assets},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 255},
+		BackgroundColour: &options.RGBA{R: 255, G: 255, B: 255, A: 255},
 		Windows: &windows.Options{
 			WebviewGpuIsDisabled: true,
 		},
