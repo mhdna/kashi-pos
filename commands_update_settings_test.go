@@ -37,6 +37,16 @@ func TestExecuteUpdateSettingsCommand_WidenedFields(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	role, err := store.CreateRole(ctx, db.CreateRoleParams{Name: "admin", Description: "Administrator"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateUser(ctx, db.CreateUserParams{
+		Username: "admin", PasswordHash: hashPassword("admin"), RoleID: role.ID, Active: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
 	app := &App{ctx: ctx, store: store, conn: database}
 
 	apply := func(p updateSettingsCommandPayload) {
@@ -100,6 +110,15 @@ func TestExecuteUpdateSettingsCommand_WidenedFields(t *testing.T) {
 	}
 	if err := app.verifyManagerPassword("manager-pw"); err != nil {
 		t.Errorf("approver password not set: %v", err)
+	}
+
+	// admin_password force-sets the admin sign-in password (no old password).
+	apply(updateSettingsCommandPayload{
+		BranchName: "Test", RoundingMode: "half_up", RoundingCurrency: "USD", ExchangeRate: 1,
+		AdminPassword: strp("new-admin-pw"),
+	})
+	if app.adminPasswordHash() != hashPassword("new-admin-pw") {
+		t.Error("admin password was not force-set")
 	}
 
 	// 2. A payload that omits them must not disturb the applied values.

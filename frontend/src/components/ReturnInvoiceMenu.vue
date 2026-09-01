@@ -14,7 +14,6 @@
   >
     <v-card class="exchange-dialog-card d-flex flex-column">
       <v-card-title>Exchange Invoice</v-card-title>
-      <v-card-subtitle v-if="!invoice">Load the original sale to begin</v-card-subtitle>
 
       <v-card-text
         class="exchange-dialog-layout"
@@ -112,7 +111,10 @@
               @update:model-value="invoiceError = ''"
             />
           </div>
-          <div v-if="invoiceError" class="exchange-inline-numpad-error text-error">
+          <div
+            class="exchange-inline-numpad-error text-error"
+            :class="{ 'exchange-inline-numpad-error--hidden': !invoiceError }"
+          >
             {{ invoiceError }}
           </div>
           <div class="exchange-inline-numpad-grid">
@@ -184,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, ref, watch, type Ref } from "vue";
+import { computed, inject, nextTick, ref, watch, type Ref } from "vue";
 import { useExchangeDialog } from "@/composables/useExchangeDialog";
 import { effectiveExchangePrice, type ExchangeSelection } from "@/lib/exchange";
 
@@ -245,15 +247,44 @@ function selectedReturn(item: Parameters<typeof effectiveExchangePrice>[0]) {
   );
 }
 
-function appendExchangeDigit(digit: string) {
+// The on-screen pad edits at the text caret (matching the client phone
+// numpad), so inserting/deleting in the middle of the value works instead
+// of always hitting the end. Reads the caret straight off the <input>
+// inside whichever v-text-field is active.
+function activeExchangeInputEl(): HTMLInputElement | null {
+  const field = invoice.value ? scanInput.value : invoiceInput.value;
+  const root = (field as { $el?: HTMLElement } | null)?.$el;
+  return root?.querySelector("input") ?? null;
+}
+
+function editActiveExchangeInput(
+  mutate: (value: string, start: number, end: number) => { value: string; caret: number },
+) {
   if (exchangePadDisabled.value) return;
-  if (invoice.value) {
-    if (scanValue.value.length < 80) scanValue.value += digit;
-    scanError.value = "";
-  } else {
-    if (invoiceCode.value.length < 64) invoiceCode.value += digit;
-    invoiceError.value = "";
-  }
+  const target = invoice.value ? scanValue : invoiceCode;
+  const maxLength = invoice.value ? 80 : 64;
+  const el = activeExchangeInputEl();
+  const current = target.value;
+  const start = el?.selectionStart ?? current.length;
+  const end = el?.selectionEnd ?? start;
+  const next = mutate(current, start, end);
+  if (next.value.length > maxLength) return;
+  target.value = next.value;
+  if (invoice.value) scanError.value = "";
+  else invoiceError.value = "";
+  void nextTick(() => {
+    const input = activeExchangeInputEl();
+    if (!input) return;
+    input.focus();
+    input.setSelectionRange(next.caret, next.caret);
+  });
+}
+
+function appendExchangeDigit(digit: string) {
+  editActiveExchangeInput((value, start, end) => ({
+    value: value.slice(0, start) + digit + value.slice(end),
+    caret: start + digit.length,
+  }));
 }
 
 function clearExchangeInput() {
@@ -267,13 +298,11 @@ function clearExchangeInput() {
 }
 
 function backspaceExchangeInput() {
-  if (invoice.value) {
-    scanValue.value = scanValue.value.slice(0, -1);
-    scanError.value = "";
-  } else {
-    invoiceCode.value = invoiceCode.value.slice(0, -1);
-    invoiceError.value = "";
-  }
+  editActiveExchangeInput((value, start, end) => {
+    if (start !== end) return { value: value.slice(0, start) + value.slice(end), caret: start };
+    if (start === 0) return { value, caret: 0 };
+    return { value: value.slice(0, start - 1) + value.slice(start), caret: start - 1 };
+  });
 }
 
 function submitExchangeInput() {
@@ -366,7 +395,12 @@ function startExchange() {
 .exchange-inline-numpad-error {
   font-size: var(--kashi-font-size-sm);
   margin-bottom: 8px;
+  min-height: 20px;
   text-align: center;
+}
+
+.exchange-inline-numpad-error--hidden {
+  visibility: hidden;
 }
 
 .exchange-inline-numpad-grid {

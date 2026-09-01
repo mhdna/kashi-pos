@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"math/big"
 	"net/http"
 	"os"
@@ -446,7 +447,7 @@ func (a *adminServer) invoices(ctx context.Context, day string) (any, error) {
 	if day != "" {
 		return a.app.store.ListInvoicesByDate(ctx, day)
 	}
-	return a.app.store.ListInvoicesPage(ctx, db.ListInvoicesPageParams{Limit: 500, Offset: 0})
+	return a.app.store.ListInvoicesPage(ctx, db.ListInvoicesPageParams{Cursor: math.MaxInt64, Limit: 500})
 }
 
 func (a *adminServer) dailySales(ctx context.Context, day string) (map[string]any, error) {

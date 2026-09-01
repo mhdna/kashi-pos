@@ -50,6 +50,15 @@ func TestInvoiceLineSalespersonPersistsAndOverridesReportAttribution(t *testing.
 	if len(detailItems) != 1 || detailItems[0]["note"] != "gift wrap this line" {
 		t.Fatalf("invoice detail items = %#v", detailItems)
 	}
+	// The batched GetInvoiceDetails must still resolve the per-line
+	// salesperson name (line-level person), while the invoice header shows
+	// the invoice-level person.
+	if detailItems[0]["salespersonName"] != "Line Person" {
+		t.Fatalf("line salespersonName = %v, want %q", detailItems[0]["salespersonName"], "Line Person")
+	}
+	if details["salespersonName"] != "Invoice Person" {
+		t.Fatalf("invoice salespersonName = %v, want %q", details["salespersonName"], "Invoice Person")
+	}
 
 	day := time.Now().Format("2006-01-02")
 	report, err := app.ListSalespersonProductSales(day, day)

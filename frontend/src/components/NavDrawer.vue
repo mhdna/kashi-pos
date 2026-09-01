@@ -16,6 +16,30 @@
         </div>
       </v-list-item>
 
+      <div v-if="visitorCounterEnabled" class="visitor-counter" aria-label="People visits today">
+        <v-btn
+          class="visitor-counter-btn"
+          icon
+          variant="flat"
+          rounded="lg"
+          aria-label="Increase visitor count"
+          @click="adjustVisitors(1)"
+        >
+          <v-icon icon="mdi-chevron-up" size="32" />
+        </v-btn>
+        <span class="visitor-count">{{ visitorCount }}</span>
+        <v-btn
+          class="visitor-counter-btn"
+          icon
+          variant="flat"
+          rounded="lg"
+          aria-label="Decrease visitor count"
+          @click="adjustVisitors(-1)"
+        >
+          <v-icon icon="mdi-chevron-down" size="32" />
+        </v-btn>
+      </div>
+
       <v-list-item
         class="nav-item options-item py-2"
         :value="undefined"
@@ -42,21 +66,15 @@
       </div>
 
       <v-card-text class="options-grid options-grid--three px-4 pt-0 pb-4">
-        <v-card
-          class="option-card"
-          color="#b5d8d5"
-          rounded="lg"
-          variant="flat"
-          @click="openCloseShift"
-        >
+        <v-card class="option-card" rounded="lg" variant="tonal" @click="openCloseShift">
           <v-icon icon="mdi-close-circle-outline" size="44" />
           <span>Close Shift</span>
         </v-card>
-        <v-card class="option-card" color="#e2dcb9" rounded="lg" variant="flat" @click="logout">
+        <v-card class="option-card" rounded="lg" variant="tonal" @click="logout">
           <v-icon icon="mdi-logout" size="44" />
           <span>Logout</span>
         </v-card>
-        <v-card class="option-card" color="#e8caca" rounded="lg" variant="flat" @click="closeApp">
+        <v-card class="option-card" rounded="lg" variant="tonal" @click="closeApp">
           <v-icon icon="mdi-close" size="44" />
           <span>Close App</span>
         </v-card>
@@ -116,12 +134,18 @@ import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
+import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import { Quit } from "../../wailsjs/runtime/runtime";
 
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const { pageUnlocks } = usePageUnlocks();
+const {
+  enabled: visitorCounterEnabled,
+  count: visitorCount,
+  adjust: adjustVisitors,
+} = useVisitorCounter();
 const optionsOpen = ref(false);
 const inventoryOpen = ref(false);
 
@@ -205,7 +229,7 @@ const items = computed(() => {
     {
       value: "attendance",
       to: "/attendance",
-      icon: "mdi-account-multiple",
+      icon: "mdi-account-clock",
       t: "Attend",
       locked: !auth.isAdmin && !pageUnlocks.value.attendance,
     },
@@ -217,7 +241,7 @@ const items = computed(() => {
 
 <style scoped>
 .nav-drawer {
-  background-color: #000000;
+  background-color: #0b2e6b;
   border: 0 !important;
   box-shadow: none !important;
 }
@@ -252,6 +276,38 @@ const items = computed(() => {
 .options-item {
   flex: 0 0 auto;
   min-height: 64px;
+}
+
+.visitor-counter {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 8px;
+  padding: 8px 0;
+  border-radius: 12px;
+  background-color: #f57c00;
+  color: #ffffff;
+}
+
+.visitor-counter-btn {
+  width: 40px;
+  height: 40px;
+  background-color: #d95d00 !important;
+  color: #ffffff !important;
+}
+
+.visitor-counter-btn :deep(.v-icon) {
+  font-size: 32px;
+}
+
+.visitor-count {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+  min-width: 1.5rem;
+  text-align: center;
 }
 
 .options-grid {

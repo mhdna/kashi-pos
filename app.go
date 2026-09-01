@@ -194,7 +194,23 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 		}
 	}
 
-	conn, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)&_pragma=busy_timeout(5000)")
+	// synchronous(NORMAL) is the standard pairing with WAL: the database can
+	// never corrupt, but an OS crash or power loss in the instant after a
+	// commit can roll that one transaction back. In exchange every commit
+	// (i.e. every sale) stops doing a full fsync. cache_size is 64 MB of
+	// page cache (negative = KiB), temp_store(MEMORY) keeps the GROUP BY /
+	// ORDER BY scratch b-trees off disk, and mmap_size lets reads page the
+	// file in directly.
+	dsn := path + "?" + strings.Join([]string{
+		"_pragma=journal_mode(WAL)",
+		"_pragma=foreign_keys(ON)",
+		"_pragma=busy_timeout(5000)",
+		"_pragma=synchronous(NORMAL)",
+		"_pragma=cache_size(-65536)",
+		"_pragma=temp_store(MEMORY)",
+		"_pragma=mmap_size(268435456)",
+	}, "&")
+	conn, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return err
 	}
@@ -205,6 +221,11 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 	if err := applyMigrations(a.ctx, conn, path, databaseExisted); err != nil {
 		_ = conn.Close()
 		return fmt.Errorf("migrate database: %w", err)
+	}
+	// Refresh the query planner's statistics after any schema change the
+	// migrations just made. Safe and cheap; recommended by SQLite.
+	if _, err := conn.ExecContext(a.ctx, "PRAGMA optimize"); err != nil {
+		log.Printf("PRAGMA optimize failed (non-fatal): %v", err)
 	}
 
 	a.conn = conn
@@ -403,55 +424,93 @@ func (a *App) GetPINLockoutStatus() map[string]interface{} {
 	return map[string]interface{}{"locked": true, "retryAfter": seconds}
 }
 
-// VerifyPIN authenticates the temporary role PINs used by the touch login screen.
-// Keeping the PIN check here prevents the credentials from being shipped in the
-// frontend bundle. Replace this with per-user PIN storage when user PIN management
-// is introduced.
-func (a *App) VerifyPIN(pin string) (map[string]interface{}, error) {
-	a.pinMu.Lock()
-	defer a.pinMu.Unlock()
-
-	now := time.Now()
+// loginLockRemaining returns a "locked:<seconds>" error while the shared
+// login lockout is in effect, or nil. Caller must hold pinMu.
+func (a *App) loginLockRemaining(now time.Time) error {
 	if now.Before(a.pinLockedUntil) {
 		remaining := a.pinLockedUntil.Sub(now)
 		seconds := int((remaining + time.Second - 1) / time.Second)
-		return nil, fmt.Errorf("locked:%d", seconds)
+		return fmt.Errorf("locked:%d", seconds)
 	}
+	return nil
+}
 
-	role := ""
-	switch pin {
-	case "0000":
-		role = "admin"
-	case "1234":
-		role = "cashier"
-	default:
-		a.failedPINAttempts++
-		if a.failedPINAttempts >= maxPINAttempts {
-			a.failedPINAttempts = 0
-			a.pinLockoutLevel++
-			duration := pinLockoutDuration(a.pinLockoutLevel)
-			a.pinLockedUntil = now.Add(duration)
-			a.savePINLockoutState()
-			return nil, fmt.Errorf("locked:%d", int(duration/time.Second))
-		}
+// registerFailedLogin records one failed login attempt against the shared
+// lockout and returns the error to hand back: "locked:<seconds>" if this
+// attempt tripped the lockout, otherwise failMsg. Caller must hold pinMu.
+func (a *App) registerFailedLogin(now time.Time, failMsg string) error {
+	a.failedPINAttempts++
+	if a.failedPINAttempts >= maxPINAttempts {
+		a.failedPINAttempts = 0
+		a.pinLockoutLevel++
+		duration := pinLockoutDuration(a.pinLockoutLevel)
+		a.pinLockedUntil = now.Add(duration)
 		a.savePINLockoutState()
-		return nil, fmt.Errorf("invalid PIN")
+		return fmt.Errorf("locked:%d", int(duration/time.Second))
 	}
+	a.savePINLockoutState()
+	return fmt.Errorf("%s", failMsg)
+}
 
+// registerSuccessfulLogin clears the lockout counters and closes any stale
+// open shift. Caller must hold pinMu.
+func (a *App) registerSuccessfulLogin() {
 	a.failedPINAttempts = 0
 	a.pinLockedUntil = time.Time{}
 	a.pinLockoutLevel = 0
 	a.savePINLockoutState()
 	if a.store != nil {
 		if err := a.closeStaleOpenShifts(); err != nil {
-			log.Printf("close stale open shifts after PIN login: %v", err)
+			log.Printf("close stale open shifts after login: %v", err)
 		}
 	}
+}
 
+// VerifyPIN authenticates the shared cashier PIN used by the touch login
+// screen (see auth_credentials). Admins sign in with a password via
+// VerifyAdminPassword instead.
+func (a *App) VerifyPIN(pin string) (map[string]interface{}, error) {
+	a.pinMu.Lock()
+	defer a.pinMu.Unlock()
+
+	now := time.Now()
+	if err := a.loginLockRemaining(now); err != nil {
+		return nil, err
+	}
+
+	if pin != a.cashierPIN() {
+		return nil, a.registerFailedLogin(now, "invalid PIN")
+	}
+
+	a.registerSuccessfulLogin()
 	return map[string]interface{}{
 		"id":       int64(0),
-		"username": role,
-		"role":     role,
+		"username": "cashier",
+		"role":     "cashier",
+	}, nil
+}
+
+// VerifyAdminPassword authenticates the admin sign-in password. Shares the
+// touch login screen's lockout with VerifyPIN so failed attempts across both
+// count together.
+func (a *App) VerifyAdminPassword(password string) (map[string]interface{}, error) {
+	a.pinMu.Lock()
+	defer a.pinMu.Unlock()
+
+	now := time.Now()
+	if err := a.loginLockRemaining(now); err != nil {
+		return nil, err
+	}
+
+	if hashPassword(password) != a.adminPasswordHash() {
+		return nil, a.registerFailedLogin(now, "wrong password")
+	}
+
+	a.registerSuccessfulLogin()
+	return map[string]interface{}{
+		"id":       int64(0),
+		"username": "admin",
+		"role":     "admin",
 	}, nil
 }
 
@@ -688,6 +747,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["autoCloseStaleShiftsEnabled"] = false
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, openingFloatEnabledFlag); flagErr == nil {
+		result["openingFloatEnabled"] = enabled != 0
+	} else {
+		result["openingFloatEnabled"] = true
+	}
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, countOpeningCashOnCloseFlag); flagErr == nil {
 		result["countOpeningCashOnClose"] = enabled != 0
 	} else {
@@ -742,6 +806,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		result["productSearchEnabled"] = enabled != 0
 	} else {
 		result["productSearchEnabled"] = true
+	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, visitorCounterFlag); flagErr == nil {
+		result["visitorCounterEnabled"] = enabled != 0
+	} else {
+		result["visitorCounterEnabled"] = false
 	}
 	if config, configErr := a.GetAttendanceConfig(); configErr == nil {
 		result["attendance"] = config
@@ -841,6 +910,23 @@ func (a *App) SetAutoAppendLbpZerosEnabled(enabled bool) error {
 	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: autoAppendLbpZerosFlag, Enabled: boolInt(enabled),
 	})
+}
+
+// SetOverchangeConfirmationEnabled toggles the checkout calculator's
+// "Confirm change amount" dialog, shown when the cashier enters change/refund
+// larger than what's owed back. Emits "settings_changed" so an open sale
+// screen picks the new state up live.
+func (a *App) SetOverchangeConfirmationEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: overchangeConfirmationFlag, Enabled: boolInt(enabled),
+	}); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
 }
 
 // SetProductSearchEnabled toggles the product-search (magnifier) button on

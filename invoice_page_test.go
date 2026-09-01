@@ -56,7 +56,7 @@ func TestListInvoicesPageBatchesClientAndSettlementLookups(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	page, err := app.ListInvoicesPage(1, 10)
+	page, err := app.ListInvoicesPage(0, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestListInvoicesPageBatchesClientAndSettlementLookups(t *testing.T) {
 	}
 	for _, test := range filterCases {
 		t.Run("filter "+test.name, func(t *testing.T) {
-			filtered, err := app.ListInvoicesFilteredPage(1, 20, test.filters)
+			filtered, err := app.ListInvoicesFilteredPage(0, 20, test.filters)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -129,6 +129,65 @@ func TestListInvoicesPageBatchesClientAndSettlementLookups(t *testing.T) {
 				t.Fatalf("filtered page = %#v, want %d items", filtered, test.want)
 			}
 		})
+	}
+}
+
+// TestListInvoicesPageKeysetPaginationWalksEveryRowOnce proves the keyset
+// ("seek") pagination contract: passing the previous page's last id as the
+// cursor walks the whole history in strict id-descending order with no
+// gaps or repeats, and COUNT(*) is only computed for the first page
+// (Total = -1 thereafter).
+func TestListInvoicesPageKeysetPaginationWalksEveryRowOnce(t *testing.T) {
+	app, cashboxA, _, database := setupQuoteTestApp(t, 0, "half_up", "USD")
+	defer database.Close()
+
+	items := cartJSON(1)
+	quote, err := app.QuoteInvoiceTotal(items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashboxA.ID, AmountCents: quote.GrandTotalCents}})
+	const invoiceCount = 7
+	for i := 0; i < invoiceCount; i++ {
+		if _, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: items, PaymentsJSON: string(payments)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	const pageSize = 2
+	var seen []int64
+	cursor := int64(0)
+	for page := 0; ; page++ {
+		result, err := app.ListInvoicesPage(cursor, pageSize)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page == 0 && result.Total != invoiceCount {
+			t.Fatalf("first page Total = %d, want %d", result.Total, invoiceCount)
+		}
+		if page > 0 && result.Total != -1 {
+			t.Fatalf("page %d Total = %d, want -1 (count only runs on the first page)", page, result.Total)
+		}
+		if len(result.Items) == 0 {
+			break
+		}
+		for _, item := range result.Items {
+			id := item["id"].(int64)
+			if len(seen) > 0 && id >= seen[len(seen)-1] {
+				t.Fatalf("ids not strictly descending: %d after %d", id, seen[len(seen)-1])
+			}
+			seen = append(seen, id)
+		}
+		cursor = result.Items[len(result.Items)-1]["id"].(int64)
+		if len(result.Items) < pageSize {
+			break
+		}
+		if page > invoiceCount {
+			t.Fatal("pagination did not terminate")
+		}
+	}
+	if len(seen) != invoiceCount {
+		t.Fatalf("walked %d invoices across all pages, want %d", len(seen), invoiceCount)
 	}
 }
 

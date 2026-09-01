@@ -23,29 +23,6 @@
         </template>
         </v-list-item>
       </v-list>
-      <v-btn
-        v-if="shiftId && balanceSources.length > 0"
-        block
-        class="mt-3"
-        prepend-icon="mdi-swap-horizontal"
-        variant="tonal"
-        @click="replacementOpen = true"
-      >
-        Swap balance
-      </v-btn>
-      <v-btn
-        v-if="shiftId"
-        block
-        class="mt-2"
-        prepend-icon="mdi-cash-plus"
-        variant="tonal"
-        @click="openingFloatOpen = true"
-      >
-        Set opening cash
-      </v-btn>
-      <div v-if="shiftId && (openingFloatUsd || openingFloatLbp)" class="text-caption text-medium-emphasis px-1 pt-1">
-        Opening amount: {{ formatUsd((openingFloatUsd ?? 0) / 100) }} / {{ Math.round(openingFloatLbp ?? 0).toLocaleString() }} LBP
-      </div>
       <div class="d-flex justify-space-between px-4 pt-3 mt-2 border-t font-weight-bold">
         <span>Income total</span>
         <span>{{ formatBalance(incomeTotal, "USD", currencies, roundingMode) }}</span>
@@ -56,33 +33,42 @@
         <v-icon icon="mdi-information-outline" size="18" class="me-1" />
         {{ shiftId ? "No income found for the current shift." : "No open shift found." }}
       </div>
+    </div>
+    <div v-if="shiftId" class="shift-income-actions mt-auto">
       <v-btn
-        v-if="shiftId"
+        v-if="balanceSources.length > 0"
         block
-        class="mt-3"
+        prepend-icon="mdi-swap-horizontal"
+        variant="tonal"
+        @click="replacementOpen = true"
+      >
+        Swap balance
+      </v-btn>
+      <v-btn
+        v-if="openingFloatEnabled"
+        block
         prepend-icon="mdi-cash-plus"
         variant="tonal"
         @click="openingFloatOpen = true"
       >
         Set opening cash
       </v-btn>
-      <div v-if="shiftId && (openingFloatUsd || openingFloatLbp)" class="text-caption text-medium-emphasis px-1 pt-1">
+      <div
+        v-if="openingFloatEnabled && (openingFloatUsd || openingFloatLbp)"
+        class="shift-income-opening text-caption text-medium-emphasis px-1"
+      >
         Opening amount: {{ formatUsd((openingFloatUsd ?? 0) / 100) }} / {{ Math.round(openingFloatLbp ?? 0).toLocaleString() }} LBP
       </div>
+      <v-btn
+        block
+        color="primary"
+        prepend-icon="mdi-cash-minus"
+        variant="tonal"
+        @click="spendOpen = true"
+      >
+        Spend
+      </v-btn>
     </div>
-    <v-btn
-      v-if="shiftId"
-      block
-      class="spend-button mt-auto"
-      color="primary"
-      height="72"
-      prepend-icon="mdi-cash-minus"
-      size="large"
-      variant="elevated"
-      @click="spendOpen = true"
-    >
-      Spend
-    </v-btn>
   </v-sheet>
   <v-dialog v-model="spendOpen" max-width="520">
     <v-card rounded="xl">
@@ -108,6 +94,7 @@
   </v-dialog>
   <BalanceReplacementDialog v-model="replacementOpen" :shift-id="shiftId" :sources="balanceSources" :payment-methods="paymentMethods" @saved="emit('balance-replaced', $event)" />
   <SetOpeningFloatDialog
+    v-if="openingFloatEnabled"
     v-model="openingFloatOpen"
     :shift-id="shiftId"
     :opening-float-usd-cents="openingFloatUsd"
@@ -139,6 +126,7 @@ const props = defineProps<{
   loading: boolean;
   openingFloatUsd?: number;
   openingFloatLbp?: number;
+  openingFloatEnabled?: boolean;
 }>();
 const emit = defineEmits<{
   "balance-replaced": [shiftId: number];
@@ -190,13 +178,21 @@ function openLoans() {
   width: 100%;
 }
 
-.spend-button {
-  flex: 0 0 72px;
+.shift-income-actions {
+  display: flex;
+  flex-direction: column;
   flex-shrink: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-  max-height: 72px;
-  min-height: 72px;
+  gap: 8px;
+}
+
+/* Vuetify gives .v-btn--block `flex: 1 0 auto`; stop the buttons stretching
+   to fill the card's free space so the action group stays compact. */
+.shift-income-actions > .v-btn {
+  flex: 0 0 auto;
+}
+
+.shift-income-opening {
+  margin-top: -2px;
 }
 
 .dialog-close-row {

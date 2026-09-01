@@ -45,6 +45,8 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 		return a.executeUpdateSettingsCommand(ctx, cmd.Payload)
 	case "remote_return_invoice":
 		return a.executeRemoteReturnInvoiceCommand(ctx, cmd.Payload)
+	case "set_branch_user_pin":
+		return a.executeSetBranchUserPinCommand(ctx, cmd.Payload)
 	default:
 		return fmt.Errorf("unknown command type %q", cmd.Type)
 	}
@@ -84,7 +86,9 @@ type updateSettingsCommandPayload struct {
 	PriceChangeManualOverrideMode *bool `json:"price_change_manual_override_mode"`
 	InvoiceKeyboardMode           *bool `json:"invoice_keyboard_mode"`
 	ClientRequired                *bool `json:"client_required"`
+	OpeningFloatEnabled           *bool `json:"opening_float_enabled"`
 	CountOpeningCashOnClose        *bool `json:"count_opening_cash_on_close"`
+	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
 
 	// non-admin page-access locks
 	PageUnlockClients      *bool `json:"page_unlock_clients"`
@@ -117,6 +121,10 @@ type updateSettingsCommandPayload struct {
 	AttendanceEnabled                  *bool   `json:"attendance_enabled"`
 	AttendanceDuplicateIntervalSeconds *int64  `json:"attendance_duplicate_interval_seconds"`
 	AttendanceCashierHistory           *bool   `json:"attendance_cashier_history"`
+
+	// AdminPassword force-sets the local "admin" account's password (plaintext
+	// -- kashi's bcrypt hash is unusable here). Absent/empty = leave it alone.
+	AdminPassword *string `json:"admin_password"`
 }
 
 func deref[T any](p *T, fallback T) T {
@@ -207,7 +215,9 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.PriceChangeManualOverrideMode, func(b bool) error { return a.setFeatureFlagBool(ctx, priceChangeManualOverrideFlag, b) }},
 		{p.InvoiceKeyboardMode, func(b bool) error { return a.setFeatureFlagBool(ctx, invoiceKeyboardModeFlag, b) }},
 		{p.ClientRequired, func(b bool) error { return a.setFeatureFlagBool(ctx, clientRequiredFlag, b) }},
+		{p.OpeningFloatEnabled, func(b bool) error { return a.setFeatureFlagBool(ctx, openingFloatEnabledFlag, b) }},
 		{p.CountOpeningCashOnClose, func(b bool) error { return a.setFeatureFlagBool(ctx, countOpeningCashOnCloseFlag, b) }},
+		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},
 		{p.PageUnlockClients, func(b bool) error { return a.SetPageUnlocked("clients", b) }},
 		{p.PageUnlockInventory, func(b bool) error { return a.SetPageUnlocked("inventory", b) }},
 		{p.PageUnlockTransfers, func(b bool) error { return a.SetPageUnlocked("transfers", b) }},
@@ -250,7 +260,61 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}
 	}
 
+	if p.AdminPassword != nil && *p.AdminPassword != "" {
+		if err := a.ForceSetAdminPassword(*p.AdminPassword); err != nil {
+			return fmt.Errorf("update admin password: %w", err)
+		}
+	}
+
 	return nil
+}
+
+type setBranchUserPinPayload struct {
+	Username string `json:"username"`
+	Pin      string `json:"pin"`
+}
+
+// executeSetBranchUserPinCommand sets a synced POS user's PIN. kashi never
+// sends the PIN in the roster feed (see applySyncedBranchUser) -- it comes
+// here as plaintext over the authenticated command channel and is hashed
+// locally. If the roster pull hasn't created the user yet, create it now
+// with a cashier role; the next pull adopts it by username and fills in the
+// real role / remote_id.
+func (a *App) executeSetBranchUserPinCommand(ctx context.Context, payload json.RawMessage) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	var p setBranchUserPinPayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return fmt.Errorf("decode set_branch_user_pin payload: %w", err)
+	}
+	p.Username = strings.TrimSpace(p.Username)
+	if p.Username == "" || strings.TrimSpace(p.Pin) == "" {
+		return fmt.Errorf("username and pin are required")
+	}
+
+	rows, err := a.store.SetUserPasswordHashByUsername(ctx, db.SetUserPasswordHashByUsernameParams{
+		PasswordHash: hashPassword(p.Pin),
+		Username:     p.Username,
+	})
+	if err != nil {
+		return fmt.Errorf("set pin: %w", err)
+	}
+	if rows > 0 {
+		return nil
+	}
+
+	role, err := a.store.GetRoleByName(ctx, "cashier")
+	if err != nil {
+		return fmt.Errorf("resolve cashier role for new synced user: %w", err)
+	}
+	_, err = a.store.CreateUser(ctx, db.CreateUserParams{
+		Username:     p.Username,
+		PasswordHash: hashPassword(p.Pin),
+		RoleID:       role.ID,
+		Active:       1,
+	})
+	return err
 }
 
 // remoteReturnInvoiceCommandPayload mirrors the payload kashi's

@@ -17,9 +17,9 @@
         </v-btn>
       </div>
     </template>
-    <v-card class="salespersons-grid" style="max-height: 450px; overflow-y: auto; width: 240px">
+    <v-card class="salespersons-grid">
       <v-row class="pa-2 ga-2 fill-height" no-gutters>
-        <v-col v-for="p in salespersons" :key="p.id" cols="6" style="display: flex">
+        <v-col v-for="p in salespersons" :key="p.id" cols="4" style="display: flex">
           <button
             type="button"
             class="salesperson-card d-flex flex-column align-center justify-center w-100"
@@ -47,7 +47,8 @@ import { useSalesperson, type Salesperson } from "@/composables/useSalesperson";
 
 defineProps<{ disabled?: boolean }>();
 const menu = ref(false);
-const salespersonAvatarColor = "grey-darken-1";
+// Matches the people-counter background in NavDrawer (.visitor-counter).
+const salespersonAvatarColor = "#f57c00";
 
 const salespersons = ref<Salesperson[]>([]);
 const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperson();
@@ -111,7 +112,9 @@ onMounted(async () => {
 }
 
 .salespersons-grid {
-  min-width: 300px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .salesperson-card {
@@ -119,7 +122,7 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100px;
+  min-height: 112px;
   padding: 12px;
   background: transparent;
   border: 1px solid rgba(var(--v-border-color), 0.18);

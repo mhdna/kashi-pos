@@ -154,3 +154,145 @@ func TestCloseShiftOpeningFloatCountToggle(t *testing.T) {
 		t.Fatalf("flag-off GetCurrentShiftIncomeByAccount USD = %d, want 10000 (float excluded)", got)
 	}
 }
+
+// A shift that refunds more LBP than it takes in leaves expected LBP
+// negative. computeExpectedShiftTotals must return that negative value (not
+// error on the currency conversion), and closing the shift must still build
+// its receipt. The counted-LBP suggestion is clamped to 0 on the frontend -
+// physical cash can't go negative - so the variance simply shows the shortage.
+func TestCloseShiftNegativeExpectedLBP(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t)
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
+		t.Fatal(err)
+	}
+
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "USD", CurrencyCode: "USD"}); err != nil {
+		t.Fatal(err)
+	}
+	lbp, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "LBP", CurrencyCode: "LBP"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := store.CreateInventory(ctx, "Sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	salesperson, err := store.CreateSalesperson(ctx, "Cashier")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A single LBP refund and no offsetting LBP sales this shift.
+	refund, err := store.CreateInvoice(ctx, db.CreateInvoiceParams{
+		CashboxID: lbp.ID, ShiftID: shift.ID, InvoiceCode: "SA/RT/2026/NEGLBP",
+		InvoiceIndex: 1, Year: 2026, ClientID: client.ID, InventoryID: inventory.ID,
+		GrandTotal: -30000, DiscountedTotal: -30000, Subtotal: -30000, SalespersonID: salesperson.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateInvoicePayment(ctx, db.CreateInvoicePaymentParams{
+		InvoiceID: refund.ID, CashboxID: lbp.ID, Amount: -30000,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{ctx: ctx, store: store, conn: database}
+	closedAt := time.Now().Format("2006-01-02 15:04:05")
+
+	_, expectedLBP, _, _, err := app.computeExpectedShiftTotals(shift.ID)
+	if err != nil {
+		t.Fatalf("computeExpectedShiftTotals with negative LBP: %v", err)
+	}
+	if expectedLBP >= 0 {
+		t.Fatalf("expected LBP = %d, want a negative value", expectedLBP)
+	}
+
+	printData, _, err := app.buildShiftClosePrintData(shift.ID, salesperson.ID, 0, 0, 0, 0, nil, closedAt, true)
+	if err != nil {
+		t.Fatalf("buildShiftClosePrintData with negative expected LBP: %v", err)
+	}
+	if printData.ShiftReport.ExpectedLBP != expectedLBP {
+		t.Fatalf("receipt expectedLBP = %d, want %d", printData.ShiftReport.ExpectedLBP, expectedLBP)
+	}
+}
+
+// The master opening_float_enabled switch turns the whole feature off: new
+// shifts capture no float regardless of the configured default, the manual
+// "set opening cash" endpoints refuse, and countOpeningCashOnClose is forced
+// false so every total/receipt/balance already keyed off it ignores the float.
+func TestOpeningFloatFeatureDisabled(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t)
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpdateDefaultOpeningFloat(ctx, db.UpdateDefaultOpeningFloatParams{
+		DefaultOpeningFloatUsd: 7000,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "USD", CurrencyCode: "USD"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "LBP", CurrencyCode: "LBP"}); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{ctx: ctx, store: store, conn: database}
+
+	// Feature on (default): a fresh shift picks up the configured default.
+	on, err := app.OpenShift()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if on["openingFloatUsd"].(int64) != 7000 {
+		t.Fatalf("feature-on OpenShift float = %v, want 7000", on["openingFloatUsd"])
+	}
+
+	// Turn the whole feature off.
+	if err := app.SetOpeningFloatEnabled(false); err != nil {
+		t.Fatal(err)
+	}
+	if app.openingFloatEnabled() {
+		t.Fatal("openingFloatEnabled() still true after SetOpeningFloatEnabled(false)")
+	}
+	if app.countOpeningCashOnClose() {
+		t.Fatal("countOpeningCashOnClose() must be forced false while the feature is off")
+	}
+
+	// A new shift now starts with no float even though the default is 7000.
+	off, err := app.OpenShift()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if off["openingFloatUsd"].(int64) != 0 || off["openingFloatLbp"].(int64) != 0 {
+		t.Fatalf("feature-off OpenShift float = %v/%v, want 0/0",
+			off["openingFloatUsd"], off["openingFloatLbp"])
+	}
+
+	// The manual endpoints refuse while the feature is off.
+	if _, err := app.ApplyOpeningFloatToCurrentShift(5000, 0, ""); err == nil {
+		t.Fatal("ApplyOpeningFloatToCurrentShift should fail while the feature is off")
+	}
+	if err := app.UpdateDefaultOpeningFloat(5000, 0, ""); err == nil {
+		t.Fatal("UpdateDefaultOpeningFloat should fail while the feature is off")
+	}
+}

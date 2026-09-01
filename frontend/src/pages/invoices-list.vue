@@ -85,7 +85,7 @@
           prepend-icon="mdi-account-tie"
           :title="item.salespersonName || 'Anonymous'"
         >
-          {{ item.salespersonName || "Anonymous" }}
+          {{ salespersonFirstName(item.salespersonName) }}
         </v-chip>
       </template>
       <template #item.settlementAccounts="{ item }">
@@ -412,11 +412,15 @@ function formatDate(value?: string) {
 function settlementAccountsLabel(accounts?: string[]) {
   return accounts?.length ? accounts.join(", ") : "—";
 }
+function salespersonFirstName(name?: string) {
+  const trimmed = name?.trim();
+  return trimmed ? trimmed.split(/\s+/)[0] : "Anonymous";
+}
 const headers = [
   { title: "Invoice", key: "invoiceCode", width: "165px" },
-  { title: "Customer", key: "clientId", width: "145px" },
-  { title: "Salesperson", key: "salespersonName", width: "170px" },
-  { title: "Paid To", key: "settlementAccounts", sortable: false, width: "145px" },
+  { title: "Customer", key: "clientId", width: "120px" },
+  { title: "Salesperson", key: "salespersonName", width: "120px" },
+  { title: "Paid To", key: "settlementAccounts", sortable: false, width: "120px" },
   { title: "Date", key: "createdAt", width: "170px" },
   { title: "Total", key: "grandTotal", width: "80px", align: "end" as const },
   {
@@ -554,7 +558,10 @@ function notify(text: string, color = "success") {
   snackbar.show = true;
 }
 let pageActive = true;
-let nextPage = 1;
+// Keyset cursor: id of the last invoice we've loaded. 0 asks for the first
+// page. Each fetch is an indexed `id < cursor` seek, so scrolling deep
+// stays as cheap as the first page (no OFFSET re-scan).
+let nextCursor = 0;
 let loadGeneration = 0;
 let activeLoad: Promise<void> | null = null;
 let scrollFrame: number | null = null;
@@ -563,11 +570,11 @@ function loadMore(): Promise<void> {
   if (!pageActive || activeLoad || !hasMore.value) return activeLoad ?? Promise.resolve();
 
   const generation = loadGeneration;
-  const page = nextPage;
+  const cursor = nextCursor;
   loading.value = true;
   activeLoad = (async () => {
     try {
-      const result = await ListInvoicesFilteredPage(page, PAGE_SIZE, JSON.stringify(filters));
+      const result = await ListInvoicesFilteredPage(cursor, PAGE_SIZE, JSON.stringify(filters));
       if (!pageActive || generation !== loadGeneration) return;
 
       const pageItems = result.items ?? [];
@@ -577,10 +584,13 @@ function loadMore(): Promise<void> {
         return true;
       });
       items.value = [...items.value, ...newItems];
-      totalItems.value = result.total ?? 0;
+      // The backend only counts on the first page (cursor 0) and returns
+      // total = -1 ("unchanged") thereafter, so infinite scroll never
+      // re-runs COUNT(*) over the whole filtered set.
+      if (typeof result.total === "number" && result.total >= 0) totalItems.value = result.total;
       initialized.value = true;
       endReached = pageItems.length < PAGE_SIZE;
-      nextPage = page + 1;
+      if (pageItems.length > 0) nextCursor = pageItems[pageItems.length - 1].id;
     } catch (error: any) {
       if (!pageActive || generation !== loadGeneration) return;
       initialized.value = true;
@@ -613,7 +623,7 @@ async function refresh() {
   initialized.value = false;
   endReached = false;
   loadedIds.clear();
-  nextPage = 1;
+  nextCursor = 0;
   invoicesTable.value?.scrollToIndex(0);
   if (previousLoad) await previousLoad;
   if (pageActive) await loadMore();
@@ -704,9 +714,11 @@ onBeforeUnmount(() => {
 .invoices-table {
   height: 100%;
 }
+.invoices-table :deep(.v-table__wrapper) {
+  overflow-x: hidden;
+}
 .invoices-table :deep(.v-table__wrapper > table) {
   width: 100% !important;
-  min-width: 965px;
   table-layout: fixed;
 }
 .invoices-table :deep(th),
@@ -737,6 +749,9 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 .invoice-code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .invoice-item {

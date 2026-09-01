@@ -250,7 +250,7 @@ func TestChangeInvoiceSettlementAmountMovesOnlyRequestedValue(t *testing.T) {
 	if updatedInvoice.CashboxID != usd.ID {
 		t.Fatalf("primary cashbox changed during partial move: got %d, want %d", updatedInvoice.CashboxID, usd.ID)
 	}
-	page, err := app.ListInvoicesPage(1, 20)
+	page, err := app.ListInvoicesPage(0, 20)
 	if err != nil {
 		t.Fatal(err)
 	}

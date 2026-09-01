@@ -15,6 +15,15 @@ import (
 
 const autoCloseStaleShiftsFlag = "auto_close_stale_shifts"
 
+// openingFloatEnabledFlag is the master switch for the opening cash float
+// feature. Default (missing row or 1) = enabled, the historical behaviour.
+// Set to 0 and there is no opening float anywhere: new shifts capture none,
+// the Shifts page hides the "Set opening cash" controls, and every
+// downstream total, receipt and balance ignores it (countOpeningCashOnClose
+// forces false, which the close reconciliation and openingFloatCentsForShift
+// already key off).
+const openingFloatEnabledFlag = "opening_float_enabled"
+
 // countOpeningCashOnCloseFlag controls whether the physical cash counted at
 // close-shift is expected to include the opening float. Default (missing row
 // or 1) keeps the historical behaviour: the cashier counts the whole drawer,
@@ -24,10 +33,22 @@ const autoCloseStaleShiftsFlag = "auto_close_stale_shifts"
 // up.
 const countOpeningCashOnCloseFlag = "count_opening_cash_on_close"
 
+// openingFloatEnabled reports whether the opening cash float feature is
+// switched on at all, defaulting to true when the flag has never been set.
+func (a *App) openingFloatEnabled() bool {
+	if v, err := a.store.GetFeatureFlag(a.ctx, openingFloatEnabledFlag); err == nil {
+		return v != 0
+	}
+	return true
+}
+
 // countOpeningCashOnClose reports the effective value of
 // countOpeningCashOnCloseFlag, defaulting to true when the flag has never
-// been set.
+// been set. Always false when the opening float feature is disabled entirely.
 func (a *App) countOpeningCashOnClose() bool {
+	if !a.openingFloatEnabled() {
+		return false
+	}
 	if v, err := a.store.GetFeatureFlag(a.ctx, countOpeningCashOnCloseFlag); err == nil {
 		return v != 0
 	}
@@ -71,9 +92,13 @@ func (a *App) OpenShift() (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("settings: %w", err)
 	}
+	openingFloatUsd, openingFloatLbp := settings.DefaultOpeningFloatUsd, settings.DefaultOpeningFloatLbp
+	if !a.openingFloatEnabled() {
+		openingFloatUsd, openingFloatLbp = 0, 0
+	}
 	shift, err := a.store.CreateShift(a.ctx, db.CreateShiftParams{
-		OpeningFloatUsd: settings.DefaultOpeningFloatUsd,
-		OpeningFloatLbp: settings.DefaultOpeningFloatLbp,
+		OpeningFloatUsd: openingFloatUsd,
+		OpeningFloatLbp: openingFloatLbp,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create shift: %w", err)
@@ -88,6 +113,9 @@ func (a *App) OpenShift() (map[string]any, error) {
 func (a *App) UpdateDefaultOpeningFloat(usdCents, lbpUnits int64, managerPassword string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
+	}
+	if !a.openingFloatEnabled() {
+		return fmt.Errorf("opening cash float is disabled")
 	}
 	if usdCents < 0 || lbpUnits < 0 {
 		return fmt.Errorf("opening float cannot be negative")
@@ -107,6 +135,9 @@ func (a *App) UpdateDefaultOpeningFloat(usdCents, lbpUnits int64, managerPasswor
 func (a *App) ApplyOpeningFloatToCurrentShift(usdCents, lbpUnits int64, managerPassword string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
+	}
+	if !a.openingFloatEnabled() {
+		return nil, fmt.Errorf("opening cash float is disabled")
 	}
 	if usdCents < 0 || lbpUnits < 0 {
 		return nil, fmt.Errorf("opening float cannot be negative")
@@ -164,6 +195,17 @@ func (a *App) SetAutoCloseStaleShiftsEnabled(enabled bool) error {
 	}
 	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: autoCloseStaleShiftsFlag, Enabled: boolInt(enabled),
+	})
+}
+
+// SetOpeningFloatEnabled is the master on/off switch for the opening cash
+// float feature (see openingFloatEnabledFlag).
+func (a *App) SetOpeningFloatEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: openingFloatEnabledFlag, Enabled: boolInt(enabled),
 	})
 }
 
@@ -435,10 +477,20 @@ func (a *App) computeExpectedShiftTotals(shiftID int64) (expectedUSD, expectedLB
 		expectedLBPCents += openingFloatLBPCents
 	}
 
-	expectedLBP, err = roundCurrencyUnitsFromCents(expectedLBPCents, lbpCurrency.UnitsPerUsdMicros, lbpCurrency.CashRoundingUnit, settings.RoundingMode)
+	// expectedLBPCents can be negative when this shift refunded more LBP than
+	// it took in (and the opening float isn't folded in). roundCurrencyUnitsFromCents
+	// only accepts a non-negative amount, so round the magnitude and re-apply
+	// the sign - the reconciliation math downstream already handles a negative
+	// expected LBP.
+	lbpSign, lbpCents := int64(1), expectedLBPCents
+	if lbpCents < 0 {
+		lbpSign, lbpCents = -1, -lbpCents
+	}
+	expectedLBP, err = roundCurrencyUnitsFromCents(lbpCents, lbpCurrency.UnitsPerUsdMicros, lbpCurrency.CashRoundingUnit, settings.RoundingMode)
 	if err != nil {
 		return 0, 0, 0, 0, fmt.Errorf("expected LBP: %w", err)
 	}
+	expectedLBP *= lbpSign
 	return expectedUSD, expectedLBP, expectedVisa, expectedWhish, nil
 }
 

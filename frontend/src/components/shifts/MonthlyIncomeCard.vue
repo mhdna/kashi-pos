@@ -43,7 +43,19 @@
             :aria-label="`${expandedDays.includes(item.day) ? 'Collapse' : 'Expand'} ${item.day}`"
             @click.stop="$emit('toggle-day', item.day)"
           />
-          <span>{{ item.day }}</span>
+          <span class="d-flex align-center ga-2">
+            {{ item.day }}
+            <v-chip
+              v-if="visitorCounterEnabled && visitorCounts[item.day] != null"
+              color="orange"
+              size="x-small"
+              variant="flat"
+              :title="`${visitorCounts[item.day]} people visited`"
+            >
+              <v-icon start icon="mdi-account-group-outline" size="12" />
+              {{ visitorCounts[item.day] }}
+            </v-chip>
+          </span>
           <span class="font-weight-bold">{{ formatBalance(item.total, "USD", currencies, roundingMode) }}</span>
         </div>
         <div v-if="expandedDays.includes(item.day)" class="pa-0">
@@ -212,6 +224,8 @@ const props = defineProps<{
   isAdmin: boolean;
   printingShiftId: number | null;
   targets: BranchTarget[];
+  visitorCounts: Record<string, number>;
+  visitorCounterEnabled: boolean;
 }>();
 
 const monthlyIncomeScroll = ref<HTMLElement | null>(null);

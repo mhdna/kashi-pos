@@ -7,7 +7,84 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
+
+const adoptUserAsSynced = `-- name: AdoptUserAsSynced :one
+UPDATE users
+SET role_id = ?, active = ?, attendance_user_id = ?, remote_id = ?
+WHERE username = ?
+RETURNING id, username, password_hash, role_id, active, attendance_user_id, remote_id
+`
+
+type AdoptUserAsSyncedParams struct {
+	RoleID           int64         `json:"roleId"`
+	Active           int64         `json:"active"`
+	AttendanceUserID string        `json:"attendanceUserId"`
+	RemoteID         sql.NullInt64 `json:"remoteId"`
+	Username         string        `json:"username"`
+}
+
+// A user the till already created locally (e.g. a set_branch_user_pin
+// command landed before the first roster pull) is matched by username and
+// linked to its kashi row. password_hash is left as-is.
+func (q *Queries) AdoptUserAsSynced(ctx context.Context, arg AdoptUserAsSyncedParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, adoptUserAsSynced,
+		arg.RoleID,
+		arg.Active,
+		arg.AttendanceUserID,
+		arg.RemoteID,
+		arg.Username,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.RoleID,
+		&i.Active,
+		&i.AttendanceUserID,
+		&i.RemoteID,
+	)
+	return i, err
+}
+
+const createSyncedUser = `-- name: CreateSyncedUser :one
+INSERT INTO users (username, password_hash, role_id, active, attendance_user_id, remote_id)
+VALUES (?, ?, ?, ?, ?, ?)
+RETURNING id, username, password_hash, role_id, active, attendance_user_id, remote_id
+`
+
+type CreateSyncedUserParams struct {
+	Username         string        `json:"username"`
+	PasswordHash     string        `json:"passwordHash"`
+	RoleID           int64         `json:"roleId"`
+	Active           int64         `json:"active"`
+	AttendanceUserID string        `json:"attendanceUserId"`
+	RemoteID         sql.NullInt64 `json:"remoteId"`
+}
+
+func (q *Queries) CreateSyncedUser(ctx context.Context, arg CreateSyncedUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createSyncedUser,
+		arg.Username,
+		arg.PasswordHash,
+		arg.RoleID,
+		arg.Active,
+		arg.AttendanceUserID,
+		arg.RemoteID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.RoleID,
+		&i.Active,
+		&i.AttendanceUserID,
+		&i.RemoteID,
+	)
+	return i, err
+}
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
@@ -17,7 +94,7 @@ INSERT INTO users (
     active
 )
 VALUES (?, ?, ?, ?)
-RETURNING id, username, password_hash, role_id, active, attendance_user_id
+RETURNING id, username, password_hash, role_id, active, attendance_user_id, remote_id
 `
 
 type CreateUserParams struct {
@@ -42,6 +119,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.RoleID,
 		&i.Active,
 		&i.AttendanceUserID,
+		&i.RemoteID,
 	)
 	return i, err
 }
@@ -57,7 +135,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password_hash, role_id, active, attendance_user_id
+SELECT id, username, password_hash, role_id, active, attendance_user_id, remote_id
 FROM users
 WHERE id = ?
 `
@@ -72,12 +150,32 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.RoleID,
 		&i.Active,
 		&i.AttendanceUserID,
+		&i.RemoteID,
+	)
+	return i, err
+}
+
+const getUserByRemoteID = `-- name: GetUserByRemoteID :one
+SELECT id, username, password_hash, role_id, active, attendance_user_id, remote_id FROM users WHERE remote_id = ?
+`
+
+func (q *Queries) GetUserByRemoteID(ctx context.Context, remoteID sql.NullInt64) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByRemoteID, remoteID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.RoleID,
+		&i.Active,
+		&i.AttendanceUserID,
+		&i.RemoteID,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash, role_id, active, attendance_user_id
+SELECT id, username, password_hash, role_id, active, attendance_user_id, remote_id
 FROM users
 WHERE username = ?
 `
@@ -92,12 +190,13 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.RoleID,
 		&i.Active,
 		&i.AttendanceUserID,
+		&i.RemoteID,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, password_hash, role_id, active, attendance_user_id
+SELECT id, username, password_hash, role_id, active, attendance_user_id, remote_id
 FROM users
 ORDER BY id
 `
@@ -118,6 +217,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.RoleID,
 			&i.Active,
 			&i.AttendanceUserID,
+			&i.RemoteID,
 		); err != nil {
 			return nil, err
 		}
@@ -132,6 +232,61 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const setUserPasswordHashByUsername = `-- name: SetUserPasswordHashByUsername :execrows
+UPDATE users SET password_hash = ? WHERE username = ?
+`
+
+type SetUserPasswordHashByUsernameParams struct {
+	PasswordHash string `json:"passwordHash"`
+	Username     string `json:"username"`
+}
+
+func (q *Queries) SetUserPasswordHashByUsername(ctx context.Context, arg SetUserPasswordHashByUsernameParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setUserPasswordHashByUsername, arg.PasswordHash, arg.Username)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateSyncedUser = `-- name: UpdateSyncedUser :one
+UPDATE users
+SET username = ?, role_id = ?, active = ?, attendance_user_id = ?
+WHERE remote_id = ?
+RETURNING id, username, password_hash, role_id, active, attendance_user_id, remote_id
+`
+
+type UpdateSyncedUserParams struct {
+	Username         string        `json:"username"`
+	RoleID           int64         `json:"roleId"`
+	Active           int64         `json:"active"`
+	AttendanceUserID string        `json:"attendanceUserId"`
+	RemoteID         sql.NullInt64 `json:"remoteId"`
+}
+
+// password_hash is deliberately not touched -- set only via
+// set_branch_user_pin or a local admin reset.
+func (q *Queries) UpdateSyncedUser(ctx context.Context, arg UpdateSyncedUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateSyncedUser,
+		arg.Username,
+		arg.RoleID,
+		arg.Active,
+		arg.AttendanceUserID,
+		arg.RemoteID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.RoleID,
+		&i.Active,
+		&i.AttendanceUserID,
+		&i.RemoteID,
+	)
+	return i, err
+}
+
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET username = ?,
@@ -139,7 +294,7 @@ SET username = ?,
     role_id = ?,
     active = ?
 WHERE id = ?
-RETURNING id, username, password_hash, role_id, active, attendance_user_id
+RETURNING id, username, password_hash, role_id, active, attendance_user_id, remote_id
 `
 
 type UpdateUserParams struct {
@@ -166,6 +321,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.RoleID,
 		&i.Active,
 		&i.AttendanceUserID,
+		&i.RemoteID,
 	)
 	return i, err
 }

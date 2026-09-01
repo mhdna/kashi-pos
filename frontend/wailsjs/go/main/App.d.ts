@@ -6,9 +6,13 @@ export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<s
 
 export function AddQuickAccessProduct(arg1:number):Promise<void>;
 
+export function AdjustVisitorCountToday(arg1:number):Promise<number>;
+
 export function ApplyOpeningFloatToCurrentShift(arg1:number,arg2:number,arg3:string):Promise<Record<string, any>>;
 
 export function ApproveAttendanceComplaint(arg1:number,arg2:boolean,arg3:string):Promise<void>;
+
+export function ChangeAdminPassword(arg1:string,arg2:string):Promise<void>;
 
 export function ChangeInvoiceClient(arg1:number,arg2:number):Promise<void>;
 
@@ -74,11 +78,15 @@ export function DeleteUser(arg1:number):Promise<void>;
 
 export function ExportAttendanceMonth(arg1:string):Promise<string>;
 
+export function ForceSetAdminPassword(arg1:string):Promise<void>;
+
 export function GetAdminConfig():Promise<Record<string, any>>;
 
 export function GetAppSettings():Promise<Record<string, any>>;
 
 export function GetAttendanceConfig():Promise<Record<string, any>>;
+
+export function GetCashierPIN():Promise<string>;
 
 export function GetClientAccountDetails(arg1:number):Promise<Record<string, any>>;
 
@@ -117,6 +125,12 @@ export function GetStartupError():Promise<string>;
 export function GetTheme():Promise<string>;
 
 export function GetTodayIncomeByAccount():Promise<Array<Record<string, any>>>;
+
+export function GetVisitorCountToday():Promise<number>;
+
+export function GetVisitorCounterEnabled():Promise<boolean>;
+
+export function GetVisitorCountsForMonth(arg1:string):Promise<Record<string, number>>;
 
 export function HoldInvoice(arg1:string):Promise<number>;
 
@@ -234,6 +248,8 @@ export function SetAutoAppendLbpZerosEnabled(arg1:boolean):Promise<void>;
 
 export function SetAutoCloseStaleShiftsEnabled(arg1:boolean):Promise<void>;
 
+export function SetCashierPIN(arg1:string):Promise<void>;
+
 export function SetClientRequired(arg1:boolean):Promise<void>;
 
 export function SetCountOpeningCashOnCloseEnabled(arg1:boolean):Promise<void>;
@@ -254,6 +270,10 @@ export function SetHidePaymentMethodCurrency(arg1:boolean):Promise<void>;
 
 export function SetInvoiceKeyboardModeEnabled(arg1:boolean):Promise<void>;
 
+export function SetOpeningFloatEnabled(arg1:boolean):Promise<void>;
+
+export function SetOverchangeConfirmationEnabled(arg1:boolean):Promise<void>;
+
 export function SetPageUnlocked(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
@@ -267,6 +287,8 @@ export function SetPriceListItem(arg1:number,arg2:string,arg3:number):Promise<Re
 export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
+
+export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
 
 export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<string, any>>;
 
@@ -309,6 +331,8 @@ export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,a
 export function UpdateUser(arg1:number,arg2:string,arg3:string,arg4:number,arg5:number):Promise<void>;
 
 export function UpdateUserAttendanceID(arg1:number,arg2:string):Promise<void>;
+
+export function VerifyAdminPassword(arg1:string):Promise<Record<string, any>>;
 
 export function VerifyPIN(arg1:string):Promise<Record<string, any>>;
 

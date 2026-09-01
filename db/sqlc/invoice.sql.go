@@ -551,29 +551,74 @@ func (q *Queries) ListClientNamesByIDs(ctx context.Context, ids []int64) ([]List
 	return items, nil
 }
 
+const listDailyInvoiceIncomeByMonth = `-- name: ListDailyInvoiceIncomeByMonth :many
+SELECT date(i.created_at, 'localtime') AS day,
+       COALESCE(SUM(i.grand_total), 0) AS total
+FROM invoices i
+WHERE strftime('%Y-%m', i.created_at, 'localtime') = ?1
+GROUP BY day
+ORDER BY day
+`
+
+type ListDailyInvoiceIncomeByMonthRow struct {
+	Day   interface{} `json:"day"`
+	Total interface{} `json:"total"`
+}
+
+// One pass over the month's invoices, grouped by local calendar day -
+// replaces calling GetInvoiceIncomeTotalByDate once per day (28-31 full
+// scans) to build the monthly income chart. Same net-of-returns convention
+// as GetInvoiceIncomeTotalByDate.
+func (q *Queries) ListDailyInvoiceIncomeByMonth(ctx context.Context, yearMonth string) ([]ListDailyInvoiceIncomeByMonthRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDailyInvoiceIncomeByMonth, yearMonth)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDailyInvoiceIncomeByMonthRow{}
+	for rows.Next() {
+		var i ListDailyInvoiceIncomeByMonthRow
+		if err := rows.Scan(&i.Day, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listIncomeAccountTotals = `-- name: ListIncomeAccountTotals :many
 WITH account_totals AS (
-    SELECT i.created_at, i.shift_id, ip.cashbox_id, ip.amount
+    SELECT ip.cashbox_id, ip.amount
     FROM invoices i
     JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = ?1
     UNION ALL
-    SELECT i.created_at, i.shift_id, i.cashbox_id, i.grand_total
+    SELECT i.cashbox_id, i.grand_total
     FROM invoices i
-    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    WHERE i.shift_id = ?1
+      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
     UNION ALL
-    SELECT cap.created_at, cap.shift_id, cap.cashbox_id, cap.amount
+    SELECT cap.cashbox_id, cap.amount
     FROM client_account_payments cap
+    WHERE cap.shift_id = ?1
     UNION ALL
-    SELECT sbr.created_at, sbr.shift_id, sbr.from_cashbox_id, -sbr.amount
+    SELECT sbr.from_cashbox_id, -sbr.amount
     FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = ?1
     UNION ALL
-    SELECT sbr.created_at, sbr.shift_id, sbr.to_cashbox_id, sbr.amount
+    SELECT sbr.to_cashbox_id, sbr.amount
     FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = ?1
 )
 SELECT ca.id, ca.name, ca.currency_code, ca.color, COALESCE(SUM(at2.amount), 0) AS total
 FROM account_totals at2
 JOIN cashbox_accounts ca ON ca.id = at2.cashbox_id
-WHERE (?1 = 0 OR at2.shift_id = ?1)
 GROUP BY ca.id, ca.name, ca.currency_code, ca.color
 ORDER BY ca.name
 `
@@ -586,20 +631,19 @@ type ListIncomeAccountTotalsRow struct {
 	Total        interface{} `json:"total"`
 }
 
-// income_date/income_month filtering was never actually used by any caller
-// (every call site passes shiftID only) - dropped in favor of the plain
-// shift scoping this query actually needs. On-account staleness (only
-// counting entries from "today") is applied in Go via
-// StaleOnAccountTotalForShift below - sqlc's SQLite query analyzer cannot
-// resolve the CTE column alias when a new bind parameter is compared
-// against it from inside an OR/CASE branch in this particular 5-way-UNION
-// CTE shape (confirmed not to be a real SQL syntax problem: every
-// restructuring - CASE, nested OR, splitting into a UNION of two WHERE
-// branches, an intermediate join-first CTE - hits the same
-// 'table alias "t" does not exist' error from sqlc, not from SQLite
-// itself), so the exclusion is computed in Go instead of fighting the
-// tool further.
-func (q *Queries) ListIncomeAccountTotals(ctx context.Context, incomeShiftID interface{}) ([]ListIncomeAccountTotalsRow, error) {
+// Every cashbox account's running total for a single shift: invoice
+// payments, unpaid-in-full invoices booked to their own cashbox,
+// client-account payments, and both legs of any balance replacement.
+// The shift filter is pushed into each UNION branch (not applied after the
+// CTE) so every branch is an index seek - idx_invoices_shift_id,
+// idx_client_account_payments_shift, idx_shift_balance_replacements_shift -
+// instead of a full scan of the whole payment history on every call.
+// On-account staleness (only counting entries from "today") is applied in
+// Go via StaleOnAccountTotalForShift below: sqlc's SQLite query analyzer
+// cannot resolve the CTE column alias when a new bind parameter is compared
+// against it from inside an OR/CASE branch in this UNION CTE shape, so the
+// exclusion is computed in Go instead of fighting the tool further.
+func (q *Queries) ListIncomeAccountTotals(ctx context.Context, incomeShiftID int64) ([]ListIncomeAccountTotalsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listIncomeAccountTotals, incomeShiftID)
 	if err != nil {
 		return nil, err
@@ -1116,20 +1160,21 @@ SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, 
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
-WHERE (COALESCE(?1, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?1) || '%')
-  AND (COALESCE(?2, '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(?2) || '%')
-  AND (COALESCE(?3, '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(?3) || '%')
-  AND (COALESCE(?4, '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(?4) || '%')
-  AND (COALESCE(?5, '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(?5, '$', '')) || '%')
+WHERE i.id < ?1
+  AND (COALESCE(?2, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?2) || '%')
+  AND (COALESCE(?3, '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(?3) || '%')
+  AND (COALESCE(?4, '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(?4) || '%')
+  AND (COALESCE(?5, '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(?5) || '%')
+  AND (COALESCE(?6, '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(?6, '$', '')) || '%')
   AND (
-    COALESCE(?6, '') = ''
+    COALESCE(?7, '') = ''
     OR EXISTS (
       SELECT 1
       FROM invoice_payments ip
       JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
       WHERE ip.invoice_id = i.id
         AND ip.amount > 0
-        AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(?6) || '%'
+        AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(?7) || '%'
     )
     OR (
       NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id AND ip.amount > 0)
@@ -1137,22 +1182,22 @@ WHERE (COALESCE(?1, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?1) || '
         SELECT 1
         FROM cashbox_accounts ca
         WHERE ca.id = i.cashbox_id
-          AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(?6) || '%'
+          AND lower(ca.name || ' ' || ca.currency_code) LIKE '%' || lower(?7) || '%'
       )
     )
   )
 ORDER BY i.id DESC
-LIMIT ?8 OFFSET ?7
+LIMIT ?8
 `
 
 type ListInvoicesPageParams struct {
+	Cursor            int64       `json:"cursor"`
 	InvoiceFilter     interface{} `json:"invoiceFilter"`
 	CustomerFilter    interface{} `json:"customerFilter"`
 	SalespersonFilter interface{} `json:"salespersonFilter"`
 	DateFilter        interface{} `json:"dateFilter"`
 	TotalFilter       interface{} `json:"totalFilter"`
 	PaidToFilter      interface{} `json:"paidToFilter"`
-	Offset            int64       `json:"offset"`
 	Limit             int64       `json:"limit"`
 }
 
@@ -1175,15 +1220,21 @@ type ListInvoicesPageRow struct {
 	SalespersonName string `json:"salespersonName"`
 }
 
+// Keyset ("seek") pagination: callers pass the id of the last row they've
+// already seen as sqlc.arg(cursor) (the first page passes the max int64
+// sentinel), so every page is an INTEGER PRIMARY KEY range seek of at most
+// sqlc.arg(limit) rows instead of an OFFSET scan that re-walks and discards
+// everything above it. Ordering is a stable id DESC so the cursor is
+// unambiguous.
 func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]ListInvoicesPageRow, error) {
 	rows, err := q.db.QueryContext(ctx, listInvoicesPage,
+		arg.Cursor,
 		arg.InvoiceFilter,
 		arg.CustomerFilter,
 		arg.SalespersonFilter,
 		arg.DateFilter,
 		arg.TotalFilter,
 		arg.PaidToFilter,
-		arg.Offset,
 		arg.Limit,
 	)
 	if err != nil {
@@ -1488,28 +1539,30 @@ func (q *Queries) ListSalespersonSalesSummary(ctx context.Context, arg ListSales
 
 const staleOnAccountTotalForShift = `-- name: StaleOnAccountTotalForShift :one
 WITH on_account_totals AS (
-    SELECT i.created_at, i.shift_id, ip.cashbox_id, ip.amount
+    SELECT i.created_at, ip.cashbox_id, ip.amount
     FROM invoices i
     JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = ?2
     UNION ALL
-    SELECT i.created_at, i.shift_id, i.cashbox_id, i.grand_total
+    SELECT i.created_at, i.cashbox_id, i.grand_total
     FROM invoices i
-    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    WHERE i.shift_id = ?2
+      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
     UNION ALL
-    SELECT cap.created_at, cap.shift_id, cap.cashbox_id, cap.amount
+    SELECT cap.created_at, cap.cashbox_id, cap.amount
     FROM client_account_payments cap
+    WHERE cap.shift_id = ?2
 )
 SELECT COALESCE(SUM(oat.amount), 0) AS total
 FROM on_account_totals oat
 JOIN cashbox_accounts ca ON ca.id = oat.cashbox_id
-WHERE (?1 = 0 OR oat.shift_id = ?1)
-  AND lower(trim(ca.name)) = 'on account'
-  AND (?2 = '' OR date(oat.created_at, 'localtime') <> ?2)
+WHERE lower(trim(ca.name)) = 'on account'
+  AND (?1 = '' OR date(oat.created_at, 'localtime') <> ?1)
 `
 
 type StaleOnAccountTotalForShiftParams struct {
-	StaleShiftID       interface{} `json:"staleShiftId"`
 	StaleReferenceDate interface{} `json:"staleReferenceDate"`
+	StaleShiftID       int64       `json:"staleShiftId"`
 }
 
 // The portion of a shift's "On Account" total that was NOT recorded today -
@@ -1519,8 +1572,10 @@ type StaleOnAccountTotalForShiftParams struct {
 // from invoices (paid or unpaid-in-full) or client_account_payments -
 // never from shift_balance_replacements (isNonCashBalanceAccount blocks
 // On Account as a swap source/destination).
+// The shift filter is pushed into every branch so each is an index seek,
+// matching ListIncomeAccountTotals above.
 func (q *Queries) StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error) {
-	row := q.db.QueryRowContext(ctx, staleOnAccountTotalForShift, arg.StaleShiftID, arg.StaleReferenceDate)
+	row := q.db.QueryRowContext(ctx, staleOnAccountTotalForShift, arg.StaleReferenceDate, arg.StaleShiftID)
 	var total interface{}
 	err := row.Scan(&total)
 	return total, err

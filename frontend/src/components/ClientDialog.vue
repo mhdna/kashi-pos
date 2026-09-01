@@ -97,7 +97,12 @@
             </v-btn>
           </div>
           </div>
-          <div v-if="phoneError" class="text-error text-caption text-center mt-2">{{ phoneError }}</div>
+          <div
+            class="client-phone-error text-error text-caption text-center mt-2"
+            :class="{ 'client-phone-error--hidden': !phoneError }"
+          >
+            {{ phoneError || " " }}
+          </div>
           <v-btn
             class="client-phone-action-button w-100 mt-4"
             variant="elevated"
@@ -523,6 +528,14 @@ function reset() {
 .client-phone-action-button {
   font-size: 1rem;
   min-height: 52px;
+}
+
+.client-phone-error {
+  min-height: 18px;
+}
+
+.client-phone-error--hidden {
+  visibility: hidden;
 }
 
 @media (max-width: 600px) {

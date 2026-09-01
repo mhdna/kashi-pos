@@ -59,7 +59,7 @@
           </div>
         </v-card-title>
       </div>
-      <div class="d-flex align-center ms-4 me-0 mt-4">
+      <div class="d-flex align-center ms-4 mt-4" :class="pageMode === 'settlement' ? 'me-4' : 'me-0'">
         <v-text-field
           ref="barcodeInput"
           v-model="barcodeValue"
@@ -119,9 +119,9 @@
         ref="invoiceItems"
         :rounding-mode="roundingMode"
         :readonly="pageMode === 'settlement'"
-        :custom-discounts-enabled="customItemDiscountsEnabled && canEditPricing"
-        :custom-prices-enabled="customItemPricesEnabled && canEditPricing"
-        :per-unit-prices-enabled="perUnitItemPricesEnabled && canEditPricing"
+        :custom-discounts-enabled="customItemDiscountsEnabled"
+        :custom-prices-enabled="customItemPricesEnabled"
+        :per-unit-prices-enabled="perUnitItemPricesEnabled"
         :price-change-mode="priceChangeMode"
         :keyboard-mode="invoiceKeyboardModeEnabled"
         style="flex: 1 1 0; min-height: 0"
@@ -151,11 +151,25 @@
           elevation="4"
         >
           <v-icon icon="mdi-barcode-scan" size="42" class="mb-2" />
-          <div class="empty-cart-label text-subtitle-2 font-weight-bold">
+          <div class="empty-cart-label text-subtitle-2">
             Scan a barcode<br />to add a product
           </div>
         </v-card>
       </div>
+      <!--
+      <div class="invoice-total-summary d-flex flex-column align-center mx-2 mt-1 px-1">
+        <span class="invoice-total-summary__label text-medium-emphasis">Total</span>
+        <div class="d-flex align-baseline justify-center ga-3">
+          <span class="invoice-total-summary__usd">{{ calculator?.totalSummary?.usd ?? "$0.00" }}</span>
+          <span
+            v-if="calculator?.totalSummary?.lbp"
+            class="invoice-total-summary__lbp text-medium-emphasis"
+          >
+            ≈ {{ calculator.totalSummary.lbp }}
+          </span>
+        </div>
+      </div>
+      -->
       <div class="mb-3 mt-1" style="flex: 1 1 0; min-height: 0">
         <Calculator
           ref="calculator"
@@ -170,6 +184,7 @@
           :settlement-invoice-id="settlementState?.invoiceId"
           :hide-payment-method-currency="hidePaymentMethodCurrency"
           :auto-append-lbp-zeros="autoAppendLbpZeros"
+          :overchange-confirmation-enabled="overchangeConfirmationEnabled"
           @account="accountDialog = true"
           @coupon="calculator?.openCouponDialog()"
         />
@@ -252,10 +267,6 @@ import {
   pendingHoldInvoice,
   pendingSettlementInvoice,
 } from "@/composables/useNavActions";
-import { useAuthStore } from "@/stores/auth";
-
-const auth = useAuthStore();
-
 const INVOICE_DRAFT_KEY = "kashi-pos.invoice-draft";
 type InvoiceDraft = {
   items: any[];
@@ -287,6 +298,7 @@ const priceChangeManualOverrideEnabled = ref(false);
 const invoiceKeyboardModeEnabled = ref(false);
 const hidePaymentMethodCurrency = ref(false);
 const autoAppendLbpZeros = ref(false);
+const overchangeConfirmationEnabled = ref(true);
 const alwaysAnonymousClientEnabled = ref(false);
 // Gates the product-search button in the toolbar below. Toggleable from the
 // local Settings page and remotely from kashi; a "settings_changed" event
@@ -295,9 +307,9 @@ const productSearchEnabled = ref(true);
 const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
 );
-// Manual price/discount edits at checkout are an admin-only capability -
-// cashiers can only use whatever the price list/discount list already set.
-const canEditPricing = computed(() => auth.isAdmin);
+// Manual price/discount edits at checkout are gated entirely by the custom
+// pricing feature flags above (toggled from Settings / remotely from kashi).
+// When an admin turns them on they apply to every operator, cashiers included.
 const branchName = ref("Store");
 const screenPort = ref("");
 const invoiceCode = ref("Loading invoice code…");
@@ -964,6 +976,7 @@ async function loadAppSettings() {
     alwaysAnonymousClientEnabled.value = Boolean(settings?.alwaysAnonymousClientEnabled);
     // Absent (older backend) means "available" - only an explicit false disables it.
     productSearchEnabled.value = settings?.productSearchEnabled !== false;
+    overchangeConfirmationEnabled.value = settings?.overchangeConfirmationEnabled !== false;
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
   } catch {}
@@ -1022,12 +1035,30 @@ onBeforeUnmount(() => {
   padding: 0 !important;
 }
 
-.empty-cart-card :deep(.v-icon) {
-  color: rgb(var(--v-theme-primary));
-}
-
 .empty-cart-label {
   letter-spacing: 0.01em;
+}
+
+.invoice-total-summary {
+  flex: 0 0 auto;
+}
+
+.invoice-total-summary__label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.invoice-total-summary__usd {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.invoice-total-summary__lbp {
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
 </style>
@@ -1039,8 +1070,8 @@ onBeforeUnmount(() => {
   width: 48px;
   height: 48px;
   margin-inline: auto;
-  border: 5px solid rgba(0, 150, 136, 0.25);
-  border-top-color: #009688;
+  border: 5px solid rgba(var(--v-theme-primary), 0.25);
+  border-top-color: rgb(var(--v-theme-primary));
   border-radius: 50%;
   animation: print-spin 0.8s linear infinite !important;
 }

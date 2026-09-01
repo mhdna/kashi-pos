@@ -137,6 +137,7 @@ export namespace main {
 	    items: any[];
 	    nextCursor: number;
 	    hasMore: boolean;
+	    total: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProductCursorPage(source);
@@ -147,6 +148,7 @@ export namespace main {
 	        this.items = source["items"];
 	        this.nextCursor = source["nextCursor"];
 	        this.hasMore = source["hasMore"];
+	        this.total = source["total"];
 	    }
 	}
 	export class ProductPage {

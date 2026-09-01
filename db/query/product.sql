@@ -1,6 +1,9 @@
 -- name: GetProductByID :one
 SELECT * FROM products WHERE id = ?;
 
+-- name: ListProductsByIDs :many
+SELECT * FROM products WHERE id IN (sqlc.slice('ids'));
+
 -- name: GetProductByBarcode :one
 SELECT * FROM products WHERE barcode = ?;
 

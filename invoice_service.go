@@ -232,29 +232,75 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	payments, err := a.store.ListInvoicePayments(a.ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Batch every per-line and per-payment lookup into one query each,
+	// instead of up to four product/salesperson/price-list/discount-list
+	// round trips per line plus a cashbox lookup per payment.
+	productIDSet := make(map[int64]struct{}, len(products))
+	for _, line := range products {
+		productIDSet[line.ProductID] = struct{}{}
+	}
+	productIDs := make([]int64, 0, len(productIDSet))
+	for productID := range productIDSet {
+		productIDs = append(productIDs, productID)
+	}
+	productByID := make(map[int64]db.Product, len(productIDs))
+	if len(productIDs) > 0 {
+		productRows, productErr := a.store.ListProductsByIDs(a.ctx, productIDs)
+		if productErr != nil {
+			return nil, productErr
+		}
+		for _, product := range productRows {
+			productByID[product.ID] = product
+		}
+	}
+
+	salespersonNameByID := make(map[int64]string)
+	if salespeople, listErr := a.store.ListSalespersons(a.ctx); listErr == nil {
+		for _, person := range salespeople {
+			salespersonNameByID[person.ID] = person.FullName
+		}
+	}
+	priceListNameByID := make(map[int64]string)
+	if lists, listErr := a.store.ListPriceLists(a.ctx); listErr == nil {
+		for _, list := range lists {
+			priceListNameByID[list.ID] = list.Name
+		}
+	}
+	discountListNameByID := make(map[int64]string)
+	if lists, listErr := a.store.ListDiscountLists(a.ctx); listErr == nil {
+		for _, list := range lists {
+			discountListNameByID[list.ID] = list.Name
+		}
+	}
+	accountByID := make(map[int64]db.CashboxAccount)
+	if accounts, listErr := a.store.ListCashboxAccounts(a.ctx); listErr == nil {
+		for _, account := range accounts {
+			accountByID[account.ID] = account
+		}
+	}
+
 	items := make([]map[string]any, 0, len(products))
 	for _, line := range products {
-		product, productErr := a.store.GetProductByID(a.ctx, line.ProductID)
-		if productErr != nil {
+		product, ok := productByID[line.ProductID]
+		if !ok {
 			continue
 		}
 		lineSalespersonName := ""
 		if line.SalespersonID > 0 {
-			if person, personErr := a.store.GetSalespersonByID(a.ctx, line.SalespersonID); personErr == nil {
-				lineSalespersonName = person.FullName
-			}
+			lineSalespersonName = salespersonNameByID[line.SalespersonID]
 		}
 		priceListName := ""
 		if line.PriceListID.Valid {
-			if list, listErr := a.store.GetPriceListByID(a.ctx, line.PriceListID.Int64); listErr == nil {
-				priceListName = list.Name
-			}
+			priceListName = priceListNameByID[line.PriceListID.Int64]
 		}
 		discountListName := ""
 		if line.DiscountListID.Valid {
-			if list, listErr := a.store.GetDiscountListByID(a.ctx, line.DiscountListID.Int64); listErr == nil {
-				discountListName = list.Name
-			}
+			discountListName = discountListNameByID[line.DiscountListID.Int64]
 		}
 		items = append(items, map[string]any{
 			"name": product.Name, "code": product.Code, "barcode": product.Barcode, "category": product.Description,
@@ -269,13 +315,9 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			"discountListName":     discountListName,
 		})
 	}
-	payments, err := a.store.ListInvoicePayments(a.ctx, id)
-	if err != nil {
-		return nil, err
-	}
 	paymentList := make([]map[string]any, 0, len(payments))
 	for _, payment := range payments {
-		account, _ := a.store.GetCashboxAccountByID(a.ctx, payment.CashboxID)
+		account := accountByID[payment.CashboxID]
 		paymentList = append(paymentList, map[string]any{
 			"accountId": payment.CashboxID, "accountName": account.Name,
 			"currencyCode": account.CurrencyCode, "amount": payment.Amount,

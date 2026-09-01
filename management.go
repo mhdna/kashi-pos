@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -493,26 +494,28 @@ func (a *App) ListSalespersonSalesSummary(from, to string) ([]SalespersonSalesSu
 	return result, nil
 }
 
-func (a *App) ListInvoicesPage(page int, itemsPerPage int) (InvoicePage, error) {
-	return a.listInvoicesPage(page, itemsPerPage, InvoiceFilters{})
+// ListInvoicesPage returns one keyset page of invoices. cursorID is the id
+// of the last row the caller already has; pass 0 (or a negative value) for
+// the first page. Total is only computed for the first page - subsequent
+// pages return Total = -1 ("unchanged") so infinite scroll never re-runs
+// COUNT(*) over the whole filtered set on every fetch.
+func (a *App) ListInvoicesPage(cursorID int64, itemsPerPage int) (InvoicePage, error) {
+	return a.listInvoicesPage(cursorID, itemsPerPage, InvoiceFilters{})
 }
 
-func (a *App) ListInvoicesFilteredPage(page int, itemsPerPage int, filtersJSON string) (InvoicePage, error) {
+func (a *App) ListInvoicesFilteredPage(cursorID int64, itemsPerPage int, filtersJSON string) (InvoicePage, error) {
 	filters := InvoiceFilters{}
 	if strings.TrimSpace(filtersJSON) != "" {
 		if err := json.Unmarshal([]byte(filtersJSON), &filters); err != nil {
 			return InvoicePage{}, fmt.Errorf("invalid invoice filters: %w", err)
 		}
 	}
-	return a.listInvoicesPage(page, itemsPerPage, filters)
+	return a.listInvoicesPage(cursorID, itemsPerPage, filters)
 }
 
-func (a *App) listInvoicesPage(page int, itemsPerPage int, filters InvoiceFilters) (InvoicePage, error) {
+func (a *App) listInvoicesPage(cursorID int64, itemsPerPage int, filters InvoiceFilters) (InvoicePage, error) {
 	if a.store == nil {
 		return InvoicePage{}, fmt.Errorf("database not initialized")
-	}
-	if page < 1 {
-		page = 1
 	}
 	if itemsPerPage < 1 {
 		itemsPerPage = 10
@@ -520,8 +523,14 @@ func (a *App) listInvoicesPage(page int, itemsPerPage int, filters InvoiceFilter
 	if itemsPerPage > 100 {
 		itemsPerPage = 100
 	}
+	firstPage := cursorID <= 0
+	cursor := cursorID
+	if firstPage {
+		cursor = math.MaxInt64
+	}
 
 	invoices, err := a.store.ListInvoicesPage(a.ctx, db.ListInvoicesPageParams{
+		Cursor:            cursor,
 		InvoiceFilter:     strings.TrimSpace(filters.InvoiceCode),
 		CustomerFilter:    strings.TrimSpace(filters.Customer),
 		SalespersonFilter: strings.TrimSpace(filters.Salesperson),
@@ -529,21 +538,23 @@ func (a *App) listInvoicesPage(page int, itemsPerPage int, filters InvoiceFilter
 		DateFilter:        strings.TrimSpace(filters.Date),
 		TotalFilter:       strings.TrimSpace(filters.Total),
 		Limit:             int64(itemsPerPage),
-		Offset:            int64(page-1) * int64(itemsPerPage),
 	})
 	if err != nil {
 		return InvoicePage{}, err
 	}
-	total, err := a.store.CountFilteredInvoices(a.ctx, db.CountFilteredInvoicesParams{
-		InvoiceFilter:     strings.TrimSpace(filters.InvoiceCode),
-		CustomerFilter:    strings.TrimSpace(filters.Customer),
-		SalespersonFilter: strings.TrimSpace(filters.Salesperson),
-		PaidToFilter:      strings.TrimSpace(filters.PaidTo),
-		DateFilter:        strings.TrimSpace(filters.Date),
-		TotalFilter:       strings.TrimSpace(filters.Total),
-	})
-	if err != nil {
-		return InvoicePage{}, err
+	total := int64(-1)
+	if firstPage {
+		total, err = a.store.CountFilteredInvoices(a.ctx, db.CountFilteredInvoicesParams{
+			InvoiceFilter:     strings.TrimSpace(filters.InvoiceCode),
+			CustomerFilter:    strings.TrimSpace(filters.Customer),
+			SalespersonFilter: strings.TrimSpace(filters.Salesperson),
+			PaidToFilter:      strings.TrimSpace(filters.PaidTo),
+			DateFilter:        strings.TrimSpace(filters.Date),
+			TotalFilter:       strings.TrimSpace(filters.Total),
+		})
+		if err != nil {
+			return InvoicePage{}, err
+		}
 	}
 
 	// Batch-fetch everything the page needs in a handful of queries instead
@@ -643,19 +654,17 @@ func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) 
 	if _, err := time.Parse("2006-01", yearMonth); err != nil {
 		return nil, fmt.Errorf("invalid month %q; use YYYY-MM", yearMonth)
 	}
-	monthStart, _ := time.ParseInLocation("2006-01", yearMonth, time.Local)
-	days := monthStart.AddDate(0, 1, -1).Day()
-	result := make([]map[string]any, 0, days)
-	for day := 1; day <= days; day++ {
-		date := fmt.Sprintf("%s-%02d", yearMonth, day)
-		invoiceTotal, err := a.store.GetInvoiceIncomeTotalByDate(a.ctx, date)
-		if err != nil {
-			return nil, err
+	rows, err := a.store.ListDailyInvoiceIncomeByMonth(a.ctx, yearMonth)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		total := databaseInt64(row.Total)
+		if total == 0 {
+			continue
 		}
-		total := databaseInt64(invoiceTotal)
-		if total != 0 {
-			result = append(result, map[string]any{"day": date, "total": float64(total)})
-		}
+		result = append(result, map[string]any{"day": databaseString(row.Day), "total": float64(total)})
 	}
 	return result, nil
 }

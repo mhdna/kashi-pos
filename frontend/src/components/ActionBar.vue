@@ -73,8 +73,6 @@
           <template v-else>
             Cancel the current invoice?
           </template>
-          <br />
-          <span class="text-red-darken-2 font-weight-bold">This cannot be undone.</span>
         </template>
       </v-card-text>
       <v-card-actions>
@@ -111,11 +109,11 @@ const restricted = computed(() => mode.value !== "sale");
 const checkoutLabel = computed(() =>
   mode.value === "exchange" ? "Exchange" : mode.value === "settlement" ? "Change Settlement" : "Check Out",
 );
-const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "#1f6059"));
+const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "green-darken-3"));
 const checkoutButtonStyle = computed(() =>
   mode.value === "exchange"
     ? "background-color: transparent !important; border-color: rgba(255, 152, 0, 0.5) !important"
-    : "background-color: transparent !important; border-color: #1f6059 !important; border-width: 2px !important; border-top-width: 10px !important; border-bottom-width: 10px !important",
+    : "background-color: transparent !important; border-color: #2e7d32 !important; border-width: 2px !important",
 );
 
 const dialog = ref(false);
