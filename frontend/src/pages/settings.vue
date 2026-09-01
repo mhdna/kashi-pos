@@ -330,18 +330,62 @@
                 class="field-full"
                 @update:model-value="(value) => setAutoAppendLbpZeros(value)"
               />
+              <v-switch
+                :model-value="form.overchangeConfirmationEnabled"
+                :loading="overchangeConfirmationSaving"
+                label="Confirm when giving more change than owed"
+                color="primary"
+                hide-details
+                class="field-full"
+                @update:model-value="(value) => setOverchangeConfirmationEnabled(value)"
+              />
+              <div class="text-caption text-medium-emphasis field-full">
+                Shows a "Confirm change amount" prompt in the checkout calculator when the
+                cashier enters change or a refund larger than what's owed back. Turn off to
+                accept it straight away.
+              </div>
             </v-card-text>
           </v-card>
 
           <v-card v-show="panelMatches('money-float')" class="settings-card">
             <v-card-title>Opening cash float</v-card-title>
             <v-card-text class="field-grid">
-              <v-text-field v-model.number="form.defaultOpeningFloatUsd" placeholder="Opening float (USD)" type="number" min="0" step="0.01" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.defaultOpeningFloatLbp" placeholder="Opening float (LBP)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
-              <v-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="field-full">
-                Opening float cannot be negative.
-              </v-alert>
-              <v-btn color="primary" variant="tonal" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</v-btn>
+              <v-switch
+                :model-value="form.openingFloatEnabled"
+                :loading="openingFloatEnabledSaving"
+                label="Enable opening cash float"
+                color="primary"
+                hide-details
+                class="field-full"
+                @update:model-value="(value) => setOpeningFloatEnabled(value)"
+              />
+              <div class="text-caption text-medium-emphasis field-full">
+                When off, shifts start with no opening float, the "Set opening cash" controls
+                on the Shifts page are hidden, and the opening amount is left out of every
+                balance, income total and close-shift receipt.
+              </div>
+              <template v-if="form.openingFloatEnabled">
+                <v-text-field v-model.number="form.defaultOpeningFloatUsd" placeholder="Opening float (USD)" type="number" min="0" step="0.01" variant="outlined" density="compact" hide-details />
+                <v-text-field v-model.number="form.defaultOpeningFloatLbp" placeholder="Opening float (LBP)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+                <v-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="field-full">
+                  Opening float cannot be negative.
+                </v-alert>
+                <v-btn color="primary" variant="tonal" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</v-btn>
+                <v-switch
+                  :model-value="form.countOpeningCashOnClose"
+                  :loading="countOpeningCashOnCloseSaving"
+                  label="Count opening float in close-shift cash count"
+                  color="primary"
+                  hide-details
+                  class="field-full"
+                  @update:model-value="(value) => setCountOpeningCashOnClose(value)"
+                />
+                <div class="text-caption text-medium-emphasis field-full">
+                  When off, the cashier enters only the cash taken in during the shift; the
+                  opening float is left out of the expected total and the printed close-shift
+                  reconciliation.
+                </div>
+              </template>
             </v-card-text>
           </v-card>
 
@@ -776,6 +820,29 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('behavior-visitor-counter')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-account-group-outline" size="20" />
+              People visits counter
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.visitorCounterEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Show the visits counter in the side menu"
+                @update:model-value="setVisitorCounterEnabled"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                Adds an up / down counter to the side menu for tallying how many people
+                visit each day. The daily total also shows as an orange chip in the
+                monthly shift income table. Turning this off only hides those - recorded
+                counts are kept.
+              </div>
+            </v-card-text>
+          </v-card>
+
         </div>
       </v-window-item>
 
@@ -805,12 +872,15 @@
             <v-card class="settings-card">
               <v-card-title class="d-flex align-center ga-3">
                 <v-icon icon="mdi-lock-reset" size="20" />
-                Change password
+                Change admin password
               </v-card-title>
+              <div class="text-caption text-medium-emphasis px-4 pb-2">
+                The password entered on the login screen's admin sign-in.
+              </div>
               <v-card-text>
                 <v-text-field
                   v-model="passwordForm.current"
-                  placeholder="Current password"
+                  placeholder="Current admin password"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -844,6 +914,56 @@
             </v-card>
           </v-form>
 
+          <v-form v-show="panelMatches('admin-cashier-pin')" class="settings-form-wrap" @submit.prevent="saveCashierPin">
+            <v-card class="settings-card">
+              <v-card-title class="d-flex align-center ga-3">
+                <v-icon icon="mdi-dialpad" size="20" />
+                Cashier login PIN
+              </v-card-title>
+              <div class="text-caption text-medium-emphasis px-4 pb-2">
+                The shared 4-digit PIN cashiers enter on the login keypad.
+              </div>
+              <v-card-text>
+                <v-text-field
+                  v-model="cashierPinForm.newPin"
+                  placeholder="New 4-digit PIN"
+                  variant="outlined"
+                  density="compact"
+                  class="mb-2"
+                  inputmode="numeric"
+                  maxlength="4"
+                  :type="showCashierPin ? 'text' : 'password'"
+                  :append-inner-icon="showCashierPin ? 'mdi-eye' : 'mdi-eye-off'"
+                  :hint="cashierPinCurrent ? `Current: ${cashierPinCurrent}` : ''"
+                  persistent-hint
+                  @click:append-inner="showCashierPin = !showCashierPin"
+                />
+                <v-text-field
+                  v-model="cashierPinForm.confirm"
+                  placeholder="Confirm PIN"
+                  variant="outlined"
+                  density="compact"
+                  inputmode="numeric"
+                  maxlength="4"
+                  :type="showCashierPin ? 'text' : 'password'"
+                  :rules="[(v) => v === cashierPinForm.newPin || 'PINs do not match']"
+                />
+              </v-card-text>
+              <v-card-actions>
+                <v-spacer />
+                <v-btn
+                  color="primary"
+                  variant="flat"
+                  type="submit"
+                  :loading="savingCashierPin"
+                  :disabled="!/^\d{4}$/.test(cashierPinForm.newPin) || cashierPinForm.newPin !== cashierPinForm.confirm"
+                >
+                  <v-icon start icon="mdi-dialpad" /> Update PIN
+                </v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-form>
+
           <v-card v-show="panelMatches('admin-users')" class="settings-card settings-card--wide">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-account-group-outline" size="20" />
@@ -853,6 +973,10 @@
                 <v-icon start icon="mdi-plus" /> Add user
               </v-btn>
             </v-card-title>
+            <div class="text-caption text-medium-emphasis px-4 pb-2">
+              Users synced from kashi are managed there. Locally you can only reset a
+              forgotten PIN for them.
+            </div>
             <v-data-table
               :headers="userHeaders"
               :items="users"
@@ -861,18 +985,42 @@
               density="comfortable"
               hover
             >
+              <template #item.username="{ item }">
+                {{ item.username }}
+                <v-chip
+                  v-if="item.isSynced"
+                  class="ml-2"
+                  color="primary"
+                  size="x-small"
+                  variant="tonal"
+                >
+                  kashi
+                </v-chip>
+              </template>
               <template #item.active="{ item }">
                 <v-chip :color="item.active ? 'green' : 'red'" size="small" variant="tonal">
                   {{ item.active ? "Active" : "Disabled" }}
                 </v-chip>
               </template>
               <template #item.actions="{ item }">
-                <v-btn icon size="small" variant="text" @click="openUserDialog(item)">
-                  <v-icon icon="mdi-pencil-outline" size="18" />
+                <v-btn
+                  v-if="item.isSynced"
+                  icon
+                  size="small"
+                  variant="text"
+                  title="Reset PIN"
+                  @click="openUserDialog(item)"
+                >
+                  <v-icon icon="mdi-key-outline" size="18" />
                 </v-btn>
-                <v-btn icon size="small" variant="text" @click="deleteUserConfirm(item)">
-                  <v-icon icon="mdi-delete-outline" size="18" color="red" />
-                </v-btn>
+                <template v-else>
+                  <v-btn icon size="small" variant="text" @click="openUserDialog(item)">
+                    <v-icon icon="mdi-pencil-outline" size="18" />
+                  </v-btn>
+                  <v-btn icon size="small" variant="text" @click="deleteUserConfirm(item)">
+                    <v-icon icon="mdi-delete-outline" size="18" color="red" />
+                  </v-btn>
+                </template>
               </template>
             </v-data-table>
           </v-card>
@@ -881,10 +1029,24 @@
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-account-tie" size="20" />
               Salespersons
+              <v-spacer />
+              <v-btn
+                v-if="!salespersonsSyncManaged"
+                color="primary"
+                size="small"
+                @click="openSalespersonDialog()"
+              >
+                <v-icon start icon="mdi-plus" /> Add salesperson
+              </v-btn>
             </v-card-title>
             <div class="text-caption text-medium-emphasis px-4 pb-2">
-              The roster (name, active state) is managed from kashi and synced here read-only.
-              Only the attendance device ID can be set locally.
+              <template v-if="salespersonsSyncManaged">
+                The roster (name, active state) is managed from kashi and synced here read-only.
+                Only the attendance device ID can be set locally.
+              </template>
+              <template v-else>
+                Salespersons are managed locally on this register.
+              </template>
             </div>
             <v-data-table
               :headers="salespersonHeaders"
@@ -923,9 +1085,15 @@
 
     <v-dialog v-model="userDialog" max-width="400">
       <v-card>
-        <v-card-title>{{ editingUser ? "Edit User" : "New User" }}</v-card-title>
+        <v-card-title>
+          {{ editingSyncedUser ? "Reset PIN" : editingUser ? "Edit User" : "New User" }}
+        </v-card-title>
         <v-card-text>
+          <div v-if="editingSyncedUser" class="text-body-2 text-medium-emphasis mb-3">
+            {{ editingUser.username }} is managed from kashi. Only the PIN can be reset here.
+          </div>
           <v-text-field
+            v-if="!editingSyncedUser"
             v-model="userForm.username"
             placeholder="Username"
             variant="outlined"
@@ -940,9 +1108,10 @@
             :type="showUpw ? 'text' : 'password'"
             :append-inner-icon="showUpw ? 'mdi-eye' : 'mdi-eye-off'"
             @click:append-inner="showUpw = !showUpw"
-            :placeholder="editingUser ? 'Leave blank to keep current' : 'Password'"
+            :placeholder="editingSyncedUser ? 'New PIN' : editingUser ? 'Leave blank to keep current' : 'Password'"
           />
           <v-select
+            v-if="!editingSyncedUser"
             v-model="userForm.roleId"
             :items="roles"
             item-title="name"
@@ -952,7 +1121,13 @@
             density="compact"
             class="mb-2"
           />
-          <v-text-field v-model="userForm.attendanceUserId" placeholder="Akuvox UserID (leave blank for visitors)" variant="outlined" density="compact" />
+          <v-text-field
+            v-if="!editingSyncedUser"
+            v-model="userForm.attendanceUserId"
+            placeholder="Akuvox UserID (leave blank for visitors)"
+            variant="outlined"
+            density="compact"
+          />
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="userDialog = false">Cancel</v-btn>
@@ -960,7 +1135,7 @@
           <v-btn
             color="primary"
             variant="flat"
-            :disabled="!userForm.username"
+            :disabled="editingSyncedUser ? !userForm.password : !userForm.username"
             :loading="savingUser"
             @click="saveUser"
             >Save</v-btn
@@ -983,7 +1158,15 @@
 
     <v-dialog v-model="salespersonDialog" max-width="400">
       <v-card>
-        <v-card-title>{{ editingSalesperson?.isSynced ? "Attendance ID" : "Edit Salesperson" }}</v-card-title>
+        <v-card-title>
+          {{
+            editingSalesperson?.isSynced
+              ? "Attendance ID"
+              : editingSalesperson
+                ? "Edit Salesperson"
+                : "New Salesperson"
+          }}
+        </v-card-title>
         <v-card-text>
           <v-text-field
             v-if="!editingSalesperson?.isSynced"
@@ -1125,9 +1308,13 @@ import {
   SetPriceChangeManualOverrideEnabled,
   SetInvoiceKeyboardModeEnabled,
   SetProductSearchEnabled,
+  SetVisitorCounterEnabled,
   SetClientRequired,
   SetHidePaymentMethodCurrency,
   SetAutoAppendLbpZerosEnabled,
+  SetOverchangeConfirmationEnabled,
+  SetOpeningFloatEnabled,
+  SetCountOpeningCashOnCloseEnabled,
   SetPageUnlocked,
   UpdateDefaultOpeningFloat,
   SetAutoCloseStaleShiftsEnabled,
@@ -1135,7 +1322,9 @@ import {
   UpdateUserAttendanceID,
   UpdateSalespersonAttendanceID,
   UpdateReceiptSettings,
-  ChangePassword,
+  ChangeAdminPassword,
+  GetCashierPIN,
+  SetCashierPIN,
   ListUsers,
   CreateUser,
   UpdateUser,
@@ -1153,6 +1342,7 @@ import {
   DeleteCoupon,
   DeleteCouponType,
   ListSalespersons,
+  CreateSalesperson,
   UpdateSalesperson,
   DeleteSalesperson,
   ListCurrencies,
@@ -1186,6 +1376,7 @@ import { paymentAccentColor } from "@/lib/paymentColor";
 import { useAuthStore } from "@/stores/auth";
 import { useClient } from "@/composables/useClient";
 import { usePageUnlocks, lockablePages } from "@/composables/usePageUnlocks";
+import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import {
   animationsEnabled,
@@ -1197,6 +1388,7 @@ import { useTheme } from "vuetify";
 
 const auth = useAuthStore();
 const { setClientRequired: setClientRequiredState } = useClient();
+const { refresh: refreshVisitorCounter } = useVisitorCounter();
 const theme = useTheme();
 const tab = ref("general");
 
@@ -1223,8 +1415,8 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
   "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port" },
   "printing-receipt": { tab: "printing", title: "Receipt settings", keywords: "market name phone description branch phone register return policy social platforms instagram facebook website font body size title size cut paper sample" },
-  "money-general": { tab: "money", title: "Money settings", keywords: "vat tax rate exchange rate overpayment rounding mode currency calculator total currency auto append lbp zeros 000" },
-  "money-float": { tab: "money", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift" },
+  "money-general": { tab: "money", title: "Money settings", keywords: "vat tax rate exchange rate overpayment rounding mode currency calculator total currency auto append lbp zeros 000 confirm change overchange refund more than owed" },
+  "money-float": { tab: "money", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift close count reconciliation expected enable disable feature toggle balance" },
   "money-exchange": { tab: "money", title: "Exchange settings", keywords: "exchange window days hours return" },
   "money-currencies": { tab: "money", title: "Currencies & rates", keywords: "currency code name symbol units per usd cash rounding unit active add currency" },
   "money-payment-methods": { tab: "money", title: "Payment methods", keywords: "payment method cashbox account currency" },
@@ -1237,8 +1429,10 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-invoice-keyboard": { tab: "behavior", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
   "behavior-product-search": { tab: "behavior", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
+  "behavior-visitor-counter": { tab: "behavior", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
   "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
-  "admin-change-password": { tab: "admin", title: "Change password", keywords: "change password current new confirm account security" },
+  "admin-change-password": { tab: "admin", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
+  "admin-cashier-pin": { tab: "admin", title: "Cashier login PIN", keywords: "cashier pin code login keypad 4 digit change shared" },
   "admin-users": { tab: "admin", title: "Users", keywords: "users username role status add user edit delete akuvox userid" },
   "admin-salespersons": { tab: "admin", title: "Salespersons", keywords: "salespersons full name attendance id add edit delete" },
 };
@@ -1335,9 +1529,13 @@ const form = reactive({
   priceChangeManualOverrideEnabled: false,
   invoiceKeyboardModeEnabled: false,
   productSearchEnabled: true,
+  visitorCounterEnabled: false,
   clientRequired: true,
   hidePaymentMethodCurrency: false,
   autoAppendLbpZeros: false,
+  overchangeConfirmationEnabled: true,
+  openingFloatEnabled: true,
+  countOpeningCashOnClose: true,
   adminEnabled: false,
   adminListen: "127.0.0.1:8787",
   adminToken: "",
@@ -1380,6 +1578,9 @@ const currencyForm = reactive({ code: "", name: "", symbol: "", unitsPerUsd: 1, 
 const editingCurrencyCode = ref<string | null>(null);
 const currencySaving = ref(false);
 const autoAppendLbpZerosSaving = ref(false);
+const overchangeConfirmationSaving = ref(false);
+const openingFloatEnabledSaving = ref(false);
+const countOpeningCashOnCloseSaving = ref(false);
 const paymentMethodForm = reactive({ name: "", currencyCode: "", color: "" });
 const editingPaymentMethodId = ref<number | null>(null);
 const paymentMethodSaving = ref(false);
@@ -1737,6 +1938,10 @@ const settingsLoadError = ref(false);
 const passwordForm = reactive({ current: "", newPass: "", confirm: "" });
 const showPw = ref(false);
 const changingPassword = ref(false);
+const cashierPinForm = reactive({ newPin: "", confirm: "" });
+const cashierPinCurrent = ref("");
+const showCashierPin = ref(false);
+const savingCashierPin = ref(false);
 
 const users = ref<any[]>([]);
 const roles = ref<any[]>([]);
@@ -1749,6 +1954,7 @@ const userHeaders = [
 
 const userDialog = ref(false);
 const editingUser = ref<any>(null);
+const editingSyncedUser = computed(() => !!editingUser.value?.isSynced);
 const userForm = reactive({ username: "", password: "", roleId: 1, attendanceUserId: "" });
 const showUpw = ref(false);
 const savingUser = ref(false);
@@ -1763,6 +1969,10 @@ const salespersonHeaders = [
   { title: "Status", key: "isActive", sortable: false },
   { title: "", key: "actions", sortable: false, align: "end" as const },
 ];
+// When central sync (kashi) is configured this branch's salesperson roster is
+// owned upstream and only the local attendance ID is editable. With no central
+// server set, salespersons are managed entirely locally (add/rename/delete).
+const salespersonsSyncManaged = computed(() => !!form.centralApiUrl?.trim());
 const salespersonDialog = ref(false);
 const editingSalesperson = ref<any>(null);
 const salespersonName = ref("");
@@ -1896,9 +2106,13 @@ async function loadSettings() {
         priceChangeManualOverrideEnabled: Boolean(s.priceChangeManualOverrideEnabled),
         invoiceKeyboardModeEnabled: Boolean(s.invoiceKeyboardModeEnabled),
         productSearchEnabled: s.productSearchEnabled !== false,
+        visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
         hidePaymentMethodCurrency: Boolean(s.hidePaymentMethodCurrency),
         autoAppendLbpZeros: Boolean(s.autoAppendLbpZeros),
+        overchangeConfirmationEnabled: s.overchangeConfirmationEnabled !== false,
+        openingFloatEnabled: s.openingFloatEnabled !== false,
+        countOpeningCashOnClose: s.countOpeningCashOnClose !== false,
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
@@ -2051,6 +2265,23 @@ async function setProductSearchEnabled(value: boolean | null) {
   }
 }
 
+async function setVisitorCounterEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.visitorCounterEnabled;
+  form.visitorCounterEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetVisitorCounterEnabled(enabled);
+    await refreshVisitorCounter();
+    notify(`People visits counter ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.visitorCounterEnabled = previous;
+    notify("Failed to update people visits counter", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
 async function setClientRequired(value: boolean | null) {
   const enabled = Boolean(value);
   const previous = form.clientRequired;
@@ -2100,6 +2331,58 @@ async function setAutoAppendLbpZeros(value: boolean | null) {
   }
 }
 
+async function setOverchangeConfirmationEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.overchangeConfirmationEnabled;
+  form.overchangeConfirmationEnabled = enabled;
+  overchangeConfirmationSaving.value = true;
+  try {
+    await SetOverchangeConfirmationEnabled(enabled);
+    notify(`Over-change confirmation ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.overchangeConfirmationEnabled = previous;
+    notify("Failed to update over-change confirmation", "red");
+  } finally {
+    overchangeConfirmationSaving.value = false;
+  }
+}
+
+async function setOpeningFloatEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.openingFloatEnabled;
+  form.openingFloatEnabled = enabled;
+  openingFloatEnabledSaving.value = true;
+  try {
+    await SetOpeningFloatEnabled(enabled);
+    notify(`Opening cash float ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.openingFloatEnabled = previous;
+    notify("Failed to update opening cash float setting", "red");
+  } finally {
+    openingFloatEnabledSaving.value = false;
+  }
+}
+
+async function setCountOpeningCashOnClose(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.countOpeningCashOnClose;
+  form.countOpeningCashOnClose = enabled;
+  countOpeningCashOnCloseSaving.value = true;
+  try {
+    await SetCountOpeningCashOnCloseEnabled(enabled);
+    notify(
+      enabled
+        ? "Close-shift count now includes the opening float"
+        : "Close-shift count now excludes the opening float",
+    );
+  } catch {
+    form.countOpeningCashOnClose = previous;
+    notify("Failed to update close-shift opening float setting", "red");
+  } finally {
+    countOpeningCashOnCloseSaving.value = false;
+  }
+}
+
 async function togglePageUnlock(page: string, value: boolean | null) {
   const enabled = Boolean(value);
   const previous = pageUnlocks.value[page];
@@ -2138,6 +2421,7 @@ onMounted(() => {
     loadDiscountLists(),
     loadUsers(),
     loadSalespersons(),
+    loadCashierPin(),
     wrap(async () => {
       serialPorts.value = await ListSerialPorts();
     }),
@@ -2266,19 +2550,28 @@ function openSalespersonDialog(salesperson?: any) {
 }
 
 async function saveSalesperson() {
-  if (!editingSalesperson.value) return;
-  if (!editingSalesperson.value.isSynced && !salespersonName.value.trim()) return;
+  const editing = editingSalesperson.value;
+  if ((!editing || !editing.isSynced) && !salespersonName.value.trim()) return;
   savingSalesperson.value = true;
   try {
-    // Renaming only applies to salespersons created locally before this
-    // branch's roster started syncing from kashi -- once synced, the name
-    // is kashi-owned (see the settings.vue admin-salespersons panel note).
-    if (!editingSalesperson.value.isSynced) {
-      await UpdateSalesperson(editingSalesperson.value.id, salespersonName.value);
+    // No editing target => creating a new local salesperson. Only possible
+    // when central sync is off; with kashi sync on the roster is upstream-owned
+    // and the Add button is hidden (see salespersonsSyncManaged).
+    let id: number;
+    if (!editing) {
+      const created = await CreateSalesperson(salespersonName.value);
+      id = Number(created.id);
+    } else {
+      id = editing.id;
+      // Renaming only applies to salespersons not synced from kashi -- once
+      // synced, the name is kashi-owned (see the admin-salespersons panel note).
+      if (!editing.isSynced) {
+        await UpdateSalesperson(id, salespersonName.value);
+      }
     }
-    await UpdateSalespersonAttendanceID(editingSalesperson.value.id, salespersonAttendanceUserId.value);
+    await UpdateSalespersonAttendanceID(id, salespersonAttendanceUserId.value);
     salespersonDialog.value = false;
-    notify("Salesperson updated");
+    notify(editing ? "Salesperson updated" : "Salesperson created");
     await loadSalespersons();
   } catch {
     notify("Failed to save salesperson", "red");
@@ -2310,15 +2603,45 @@ async function changePassword() {
   }
   changingPassword.value = true;
   try {
-    await ChangePassword(auth.currentUser!.username, passwordForm.current, passwordForm.newPass);
-    notify("Password changed");
+    await ChangeAdminPassword(passwordForm.current, passwordForm.newPass);
+    notify("Admin password changed");
     passwordForm.current = "";
     passwordForm.newPass = "";
     passwordForm.confirm = "";
-  } catch {
-    notify("Failed to change password", "red");
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to change password", "red");
   }
   changingPassword.value = false;
+}
+
+async function loadCashierPin() {
+  try {
+    cashierPinCurrent.value = await GetCashierPIN();
+  } catch {
+    cashierPinCurrent.value = "";
+  }
+}
+
+async function saveCashierPin() {
+  if (!/^\d{4}$/.test(cashierPinForm.newPin)) {
+    notify("PIN must be exactly 4 digits", "red");
+    return;
+  }
+  if (cashierPinForm.newPin !== cashierPinForm.confirm) {
+    notify("PINs do not match", "red");
+    return;
+  }
+  savingCashierPin.value = true;
+  try {
+    await SetCashierPIN(cashierPinForm.newPin);
+    cashierPinCurrent.value = cashierPinForm.newPin;
+    cashierPinForm.newPin = "";
+    cashierPinForm.confirm = "";
+    notify("Cashier PIN updated");
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Failed to update PIN", "red");
+  }
+  savingCashierPin.value = false;
 }
 
 async function loadUsers() {
@@ -2346,7 +2669,16 @@ function openUserDialog(user?: any) {
 async function saveUser() {
   savingUser.value = true;
   try {
-    if (editingUser.value) {
+    if (editingSyncedUser.value) {
+      // Roster is kashi-owned -- keep every field as synced, change only the PIN.
+      await UpdateUser(
+        editingUser.value.id,
+        editingUser.value.username,
+        userForm.password,
+        editingUser.value.roleId,
+        editingUser.value.active ? 1 : 0,
+      );
+    } else if (editingUser.value) {
       await UpdateUser(
         editingUser.value.id,
         userForm.username,

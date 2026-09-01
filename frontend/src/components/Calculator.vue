@@ -181,6 +181,10 @@ const props = defineProps<{
   // payment method multiplies the typed amount by 1,000 - so a cashier can
   // type "50" instead of "50000" or pressing the "00" key.
   autoAppendLbpZeros?: boolean;
+  // Defaults to true. When false, entering change/refund larger than what's
+  // owed back is accepted straight away instead of prompting "Confirm change
+  // amount".
+  overchangeConfirmationEnabled?: boolean;
 }>();
 const emit = defineEmits<{ account: []; coupon: [] }>();
 const hasItems = computed(() => Boolean(props.hasItems));
@@ -439,7 +443,7 @@ function confirmEntry(methodName = activeMethod.value) {
   // blocked. But it's also exactly what a mistyped amount looks like, so
   // ask for confirmation instead of silently accepting or silently
   // rejecting it.
-  if (isChange && amountCents > diffCents.value) {
+  if (isChange && amountCents > diffCents.value && props.overchangeConfirmationEnabled !== false) {
     pendingOverchange.value = { methodName, amount, amountCents, currencySymbol: currency.symbol };
     return;
   }

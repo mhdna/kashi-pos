@@ -9,14 +9,20 @@ import (
 func TestVerifyPINRoles(t *testing.T) {
 	app := NewApp()
 
-	admin, err := app.VerifyPIN("0000")
-	if err != nil || admin["role"] != "admin" {
-		t.Fatalf("admin PIN returned role %v, error %v", admin["role"], err)
-	}
-
-	cashier, err := app.VerifyPIN("1234")
+	cashier, err := app.VerifyPIN("1478")
 	if err != nil || cashier["role"] != "cashier" {
 		t.Fatalf("cashier PIN returned role %v, error %v", cashier["role"], err)
+	}
+
+	admin, err := app.VerifyAdminPassword("1963")
+	if err != nil || admin["role"] != "admin" {
+		t.Fatalf("admin password returned role %v, error %v", admin["role"], err)
+	}
+
+	// The admin password is no longer a PIN and the old admin PIN is now just
+	// another wrong PIN.
+	if _, err := app.VerifyPIN("1963"); err == nil {
+		t.Fatal("old admin PIN 1963 should no longer authenticate via VerifyPIN")
 	}
 }
 
@@ -31,12 +37,12 @@ func TestVerifyPINLocksAfterThreeFailures(t *testing.T) {
 	if _, err := app.VerifyPIN("9999"); err == nil || !strings.HasPrefix(err.Error(), "locked:") {
 		t.Fatalf("third attempt should lock login, got %v", err)
 	}
-	if _, err := app.VerifyPIN("0000"); err == nil || !strings.HasPrefix(err.Error(), "locked:") {
+	if _, err := app.VerifyPIN("1478"); err == nil || !strings.HasPrefix(err.Error(), "locked:") {
 		t.Fatalf("correct PIN should be rejected during lockout, got %v", err)
 	}
 
 	app.pinLockedUntil = time.Now().Add(-time.Second)
-	if _, err := app.VerifyPIN("0000"); err != nil {
+	if _, err := app.VerifyPIN("1478"); err != nil {
 		t.Fatalf("correct PIN should work after lockout: %v", err)
 	}
 }
@@ -89,7 +95,7 @@ func TestUnlockPINLockoutClearsState(t *testing.T) {
 	app.unlockPINLockout()
 	app.pinMu.Unlock()
 
-	if _, err := app.VerifyPIN("0000"); err != nil {
+	if _, err := app.VerifyPIN("1478"); err != nil {
 		t.Fatalf("correct PIN should work immediately after unlock: %v", err)
 	}
 	if app.pinLockoutLevel != 0 {

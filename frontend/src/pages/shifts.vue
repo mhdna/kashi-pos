@@ -11,6 +11,7 @@
         :balance-sources="closeBalances"
         :opening-float-usd="openShift?.openingFloatUsd"
         :opening-float-lbp="openShift?.openingFloatLbp"
+        :opening-float-enabled="openingFloatEnabled"
         @balance-replaced="refresh"
         @opening-float-set="refresh"
       />
@@ -28,6 +29,8 @@
         :is-admin="auth.isAdmin"
         :printing-shift-id="printingShiftId"
         :targets="branchTargets"
+        :visitor-counts="visitorCounts"
+        :visitor-counter-enabled="visitorCounterEnabled"
         @toggle-all="toggleAllDays"
         @toggle-day="toggleDay"
         @toggle-shift="toggleShift"
@@ -38,8 +41,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import {
+  GetAppSettings,
   GetCurrentShiftIncomeByAccount,
   GetCurrentMonth,
   GetOpenShift,
@@ -48,16 +52,22 @@ import {
   ListShiftBalances,
   ListPaymentMethods,
   PrintClosedShiftReceipt,
+  GetVisitorCountsForMonth,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import MonthlyIncomeCard from "@/components/shifts/MonthlyIncomeCard.vue";
 import ShiftIncomeCard from "@/components/shifts/ShiftIncomeCard.vue";
 import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
 import type { Balance, DayRow, IncomeRow, PaymentMethod, Shift } from "@/types/shifts";
+import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import { useAuthStore } from "@/stores/auth";
 import { serverDateLocalDayKey } from "@/lib/datetime";
 const auth = useAuthStore();
+const { enabled: visitorCounterEnabled, count: visitorCounterToday } = useVisitorCounter();
 const paymentMethods = ref<PaymentMethod[]>([]);
+const openingFloatEnabled = ref(true);
+// Keyed "DD/MM/YYYY" to match the day keys MonthlyIncomeCard renders.
+const visitorCounts = ref<Record<string, number>>({});
 
 const openShift = ref<Shift | null>(null);
 const allShifts = ref<Shift[]>([]);
@@ -73,6 +83,12 @@ const expandedDays = ref<string[]>([]);
 const currentDay = computed(() => {
   const now = new Date();
   return `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+});
+
+// Reflect nav-drawer up/down clicks straight into today's chip without a
+// full page reload - the composable's `count` is the shared source of truth.
+watch(visitorCounterToday, (today) => {
+  visitorCounts.value = { ...visitorCounts.value, [currentDay.value]: today };
 });
 const shiftIncome = computed<IncomeRow[]>(() =>
   todayIncome.value.map((income) => ({
@@ -227,6 +243,18 @@ async function refresh() {
     branchTargets.value = [];
   }
 
+  try {
+    const byIsoDay = ((await GetVisitorCountsForMonth(currentMonth.value)) ?? {}) as Record<string, number>;
+    const remapped: Record<string, number> = {};
+    for (const [isoDay, value] of Object.entries(byIsoDay)) {
+      const [year, month, day] = isoDay.split("-");
+      if (year && month && day) remapped[`${day}/${month}/${year}`] = value;
+    }
+    visitorCounts.value = remapped;
+  } catch {
+    visitorCounts.value = {};
+  }
+
   loadingShift.value = false;
   loadingMonth.value = false;
 }
@@ -256,6 +284,10 @@ onMounted(async () => {
   } catch {
     paymentMethods.value = [];
   }
+  try {
+    const settings = await GetAppSettings();
+    openingFloatEnabled.value = settings?.openingFloatEnabled !== false;
+  } catch {}
   try {
     currentMonth.value = await GetCurrentMonth();
   } catch {}

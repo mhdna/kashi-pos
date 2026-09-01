@@ -36,9 +36,6 @@
         class="mt-4"
       />
       <div class="autofill-actions d-flex justify-end align-end flex-column">
-        <div class="text-caption text-medium-emphasis autofill-hint text-right">
-          This is an estimate based on the shift's transactions.
-        </div>
         <v-btn
           size="small"
           variant="tonal"
@@ -46,7 +43,7 @@
           :loading="autofilling"
           @click="autofillFromExpected"
         >
-          Autofill from expected
+          Autofill (Estimated Amount)
         </v-btn>
       </div>
       <v-alert v-if="autofillError" type="error" variant="tonal" density="compact" class="mb-3">
@@ -217,7 +214,7 @@
         :disabled="!formValid"
         @click="doCloseShift"
       >
-        Close, Print & Logout
+        Close Shift
       </v-btn>
     </div>
   </div>

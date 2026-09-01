@@ -295,6 +295,88 @@ func applySyncedSalesperson(ctx context.Context, q *db.Queries, s syncedSalesper
 	return err
 }
 
+// syncedBranchUser mirrors kashi's branch_users roster row (see
+// api/branch_user.go in the kashi repo). The PIN is never in this feed --
+// password_hash is set only by a set_branch_user_pin command or a local
+// admin reset, and applySyncedBranchUser never touches it.
+type syncedBranchUser struct {
+	ID           int64  `json:"id"`
+	Username     string `json:"username"`
+	Role         string `json:"role"`
+	AkuvoxUserID string `json:"akuvox_user_id"`
+	IsActive     bool   `json:"is_active"`
+}
+
+// applySyncedBranchUser upserts a POS user to match kashi's roster. Matched
+// first by remote_id; a username-only match (a user the till created
+// locally before its first roster pull -- see the set_branch_user_pin
+// command) is adopted rather than duplicated.
+func applySyncedBranchUser(ctx context.Context, q *db.Queries, u syncedBranchUser) error {
+	roleID, err := roleIDForName(ctx, q, u.Role)
+	if err != nil {
+		return err
+	}
+	active := int64(0)
+	if u.IsActive {
+		active = 1
+	}
+	remoteID := sql.NullInt64{Int64: u.ID, Valid: true}
+
+	if _, err := q.GetUserByRemoteID(ctx, remoteID); err == nil {
+		_, err := q.UpdateSyncedUser(ctx, db.UpdateSyncedUserParams{
+			Username:         u.Username,
+			RoleID:           roleID,
+			Active:           active,
+			AttendanceUserID: u.AkuvoxUserID,
+			RemoteID:         remoteID,
+		})
+		return err
+	} else if err != sql.ErrNoRows {
+		return err
+	}
+
+	if _, err := q.GetUserByUsername(ctx, u.Username); err == nil {
+		_, err := q.AdoptUserAsSynced(ctx, db.AdoptUserAsSyncedParams{
+			RoleID:           roleID,
+			Active:           active,
+			AttendanceUserID: u.AkuvoxUserID,
+			RemoteID:         remoteID,
+			Username:         u.Username,
+		})
+		return err
+	} else if err != sql.ErrNoRows {
+		return err
+	}
+
+	// A synced user with no PIN yet can't log in until a set_branch_user_pin
+	// command lands -- password_hash is a placeholder until then.
+	_, err = q.CreateSyncedUser(ctx, db.CreateSyncedUserParams{
+		Username:         u.Username,
+		PasswordHash:     "",
+		RoleID:           roleID,
+		Active:           active,
+		AttendanceUserID: u.AkuvoxUserID,
+		RemoteID:         remoteID,
+	})
+	return err
+}
+
+// roleIDForName resolves a kashi role name ("admin"/"cashier") to this
+// install's local roles.id, falling back to "cashier" for anything
+// unexpected so a synced user is never left role-less.
+func roleIDForName(ctx context.Context, q *db.Queries, name string) (int64, error) {
+	if r, err := q.GetRoleByName(ctx, name); err == nil {
+		return r.ID, nil
+	} else if err != sql.ErrNoRows {
+		return 0, err
+	}
+	r, err := q.GetRoleByName(ctx, "cashier")
+	if err != nil {
+		return 0, fmt.Errorf("no local role %q and no cashier fallback: %w", name, err)
+	}
+	return r.ID, nil
+}
+
 // applySyncedProductVariant creates or updates a local product to match
 // what kashi reports for one variant. Fields kashi doesn't model at all
 // today (discount, currency_code, brand/family/kind/season/product_year)
@@ -407,7 +489,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 // pullEntities lists what gets pulled from kashi on each tick. Adding a
 // new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
-var pullEntities = []string{"currencies", "cashbox_accounts", "products", "clients", "branch_targets", "salespersons", "expense_categories", "loan_categories"}
+var pullEntities = []string{"currencies", "cashbox_accounts", "products", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories"}
 
 // runSyncPullOnce catches this branch up on every entity in pullEntities,
 // one at a time. Each entity's cursor advances independently — a decode
@@ -516,6 +598,16 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 			for _, item := range items {
 				if err := applySyncedSalesperson(ctx, q, item); err != nil {
 					return fmt.Errorf("apply salesperson %d: %w", item.ID, err)
+				}
+			}
+		case "branch_users":
+			var items []syncedBranchUser
+			if err := json.Unmarshal(changes.Items, &items); err != nil {
+				return fmt.Errorf("decode items: %w", err)
+			}
+			for _, item := range items {
+				if err := applySyncedBranchUser(ctx, q, item); err != nil {
+					return fmt.Errorf("apply branch user %d: %w", item.ID, err)
 				}
 			}
 		case "expense_categories":

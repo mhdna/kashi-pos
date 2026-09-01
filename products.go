@@ -38,6 +38,16 @@ const (
 	productSearchEnabledFlag = "product_search_enabled"
 )
 
+// overchangeConfirmationEnabled reports whether the checkout calculator's
+// "Confirm change amount" dialog is on, defaulting to true when the flag has
+// never been set.
+func (a *App) overchangeConfirmationEnabled() bool {
+	if v, err := a.store.GetFeatureFlag(a.ctx, overchangeConfirmationFlag); err == nil {
+		return v != 0
+	}
+	return true
+}
+
 type ProductPage struct {
 	Items []map[string]any `json:"items"`
 	Total int64            `json:"total"`
@@ -50,6 +60,11 @@ type ProductCursorPage struct {
 	Items      []map[string]any `json:"items"`
 	NextCursor int64            `json:"nextCursor"`
 	HasMore    bool             `json:"hasMore"`
+	// Total is the full count matching the current search. It is only
+	// computed for the first batch (afterID == 0) so infinite scroll stays
+	// count-free; later batches leave it -1 and the client keeps the
+	// value it already has.
+	Total int64 `json:"total"`
 }
 
 func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
@@ -275,7 +290,20 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 	if len(products) > 0 {
 		nextCursor = products[len(products)-1].ID
 	}
-	return ProductCursorPage{Items: result, NextCursor: nextCursor, HasMore: hasMore}, nil
+
+	total := int64(-1)
+	if afterID == 0 {
+		if search == "" {
+			total, err = a.store.CountAllProducts(a.ctx)
+		} else {
+			total, err = a.store.CountProducts(a.ctx, "%"+search+"%")
+		}
+		if err != nil {
+			log.Printf("ListProductsCursor: count products (search=%q): %v", search, err)
+			return ProductCursorPage{}, fmt.Errorf("count products: %w", err)
+		}
+	}
+	return ProductCursorPage{Items: result, NextCursor: nextCursor, HasMore: hasMore, Total: total}, nil
 }
 
 // loadProductAttributeValues loads every product's attribute values in one

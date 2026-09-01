@@ -15,6 +15,10 @@ type Querier interface {
 	AddHoldInvoiceItem(ctx context.Context, arg AddHoldInvoiceItemParams) error
 	AddInventoryProductQuantity(ctx context.Context, arg AddInventoryProductQuantityParams) error
 	AddQuickAccessProduct(ctx context.Context, productID int64) error
+	// A user the till already created locally (e.g. a set_branch_user_pin
+	// command landed before the first roster pull) is matched by username and
+	// linked to its kashi row. password_hash is left as-is.
+	AdoptUserAsSynced(ctx context.Context, arg AdoptUserAsSyncedParams) (User, error)
 	ApproveAttendanceComplaint(ctx context.Context, arg ApproveAttendanceComplaintParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
 	CloseOpenShifts(ctx context.Context, closedAt string) error
@@ -69,6 +73,7 @@ type Querier interface {
 	CreateShiftBalanceReplacement(ctx context.Context, arg CreateShiftBalanceReplacementParams) error
 	CreateSyncOutboxEntry(ctx context.Context, arg CreateSyncOutboxEntryParams) (SyncOutbox, error)
 	CreateSyncedSalesperson(ctx context.Context, arg CreateSyncedSalespersonParams) (Salesperson, error)
+	CreateSyncedUser(ctx context.Context, arg CreateSyncedUserParams) (User, error)
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
@@ -171,7 +176,9 @@ type Querier interface {
 	GetTransferByID(ctx context.Context, id int64) (Transfer, error)
 	GetTransferItemByID(ctx context.Context, id int64) (TransferItem, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
+	GetUserByRemoteID(ctx context.Context, remoteID sql.NullInt64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
+	GetVisitorCount(ctx context.Context, day string) (int64, error)
 	IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error)
 	InsertAttendanceEvent(ctx context.Context, arg InsertAttendanceEventParams) error
 	ListAccounts(ctx context.Context) ([]Account, error)
@@ -203,6 +210,11 @@ type Querier interface {
 	ListCoupons(ctx context.Context) ([]Coupon, error)
 	ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error)
 	ListCurrencies(ctx context.Context) ([]Currency, error)
+	// One pass over the month's invoices, grouped by local calendar day -
+	// replaces calling GetInvoiceIncomeTotalByDate once per day (28-31 full
+	// scans) to build the monthly income chart. Same net-of-returns convention
+	// as GetInvoiceIncomeTotalByDate.
+	ListDailyInvoiceIncomeByMonth(ctx context.Context, yearMonth string) ([]ListDailyInvoiceIncomeByMonthRow, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
 	ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
@@ -211,20 +223,19 @@ type Querier interface {
 	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)
 	ListHoldInvoiceItems(ctx context.Context, holdInvoiceID int64) ([]ListHoldInvoiceItemsRow, error)
 	ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error)
-	// income_date/income_month filtering was never actually used by any caller
-	// (every call site passes shiftID only) - dropped in favor of the plain
-	// shift scoping this query actually needs. On-account staleness (only
-	// counting entries from "today") is applied in Go via
-	// StaleOnAccountTotalForShift below - sqlc's SQLite query analyzer cannot
-	// resolve the CTE column alias when a new bind parameter is compared
-	// against it from inside an OR/CASE branch in this particular 5-way-UNION
-	// CTE shape (confirmed not to be a real SQL syntax problem: every
-	// restructuring - CASE, nested OR, splitting into a UNION of two WHERE
-	// branches, an intermediate join-first CTE - hits the same
-	// 'table alias "t" does not exist' error from sqlc, not from SQLite
-	// itself), so the exclusion is computed in Go instead of fighting the
-	// tool further.
-	ListIncomeAccountTotals(ctx context.Context, incomeShiftID interface{}) ([]ListIncomeAccountTotalsRow, error)
+	// Every cashbox account's running total for a single shift: invoice
+	// payments, unpaid-in-full invoices booked to their own cashbox,
+	// client-account payments, and both legs of any balance replacement.
+	// The shift filter is pushed into each UNION branch (not applied after the
+	// CTE) so every branch is an index seek - idx_invoices_shift_id,
+	// idx_client_account_payments_shift, idx_shift_balance_replacements_shift -
+	// instead of a full scan of the whole payment history on every call.
+	// On-account staleness (only counting entries from "today") is applied in
+	// Go via StaleOnAccountTotalForShift below: sqlc's SQLite query analyzer
+	// cannot resolve the CTE column alias when a new bind parameter is compared
+	// against it from inside an OR/CASE branch in this UNION CTE shape, so the
+	// exclusion is computed in Go instead of fighting the tool further.
+	ListIncomeAccountTotals(ctx context.Context, incomeShiftID int64) ([]ListIncomeAccountTotalsRow, error)
 	ListInventories(ctx context.Context) ([]Inventory, error)
 	ListInventoryItems(ctx context.Context, inventoryID int64) ([]InventoryItem, error)
 	ListInvoiceIncomeAccountTotalsByDate(ctx context.Context, invoiceIncomeDate string) ([]ListInvoiceIncomeAccountTotalsByDateRow, error)
@@ -241,6 +252,12 @@ type Querier interface {
 	ListInvoices(ctx context.Context) ([]Invoice, error)
 	ListInvoicesByDate(ctx context.Context, date string) ([]ListInvoicesByDateRow, error)
 	ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error)
+	// Keyset ("seek") pagination: callers pass the id of the last row they've
+	// already seen as sqlc.arg(cursor) (the first page passes the max int64
+	// sentinel), so every page is an INTEGER PRIMARY KEY range seek of at most
+	// sqlc.arg(limit) rows instead of an OFFSET scan that re-walks and discards
+	// everything above it. Ordering is a stable id DESC so the cursor is
+	// unambiguous.
 	ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]ListInvoicesPageRow, error)
 	ListLoanCategories(ctx context.Context) ([]LoanCategory, error)
 	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
@@ -255,6 +272,7 @@ type Querier interface {
 	// search_pattern must already be wrapped in '%...%' by the caller.
 	ListProductsAfter(ctx context.Context, arg ListProductsAfterParams) ([]Product, error)
 	ListProductsAfterUnfiltered(ctx context.Context, arg ListProductsAfterUnfilteredParams) ([]Product, error)
+	ListProductsByIDs(ctx context.Context, ids []int64) ([]Product, error)
 	// search_pattern must already be wrapped in '%...%' by the caller.
 	ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error)
 	ListProductsPageUnfiltered(ctx context.Context, arg ListProductsPageUnfilteredParams) ([]Product, error)
@@ -283,6 +301,7 @@ type Querier interface {
 	ListTransferItems(ctx context.Context, transferID int64) ([]TransferItem, error)
 	ListTransfers(ctx context.Context) ([]Transfer, error)
 	ListUsers(ctx context.Context) ([]User, error)
+	ListVisitorCountsForMonth(ctx context.Context, monthPrefix string) ([]ListVisitorCountsForMonthRow, error)
 	MarkSyncOutboxAttemptFailed(ctx context.Context, arg MarkSyncOutboxAttemptFailedParams) error
 	MarkSyncOutboxSynced(ctx context.Context, id int64) error
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
@@ -298,6 +317,8 @@ type Querier interface {
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
 	SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
+	SetUserPasswordHashByUsername(ctx context.Context, arg SetUserPasswordHashByUsernameParams) (int64, error)
+	SetVisitorCount(ctx context.Context, arg SetVisitorCountParams) error
 	// The portion of a shift's "On Account" total that was NOT recorded today -
 	// subtracted in Go from ListIncomeAccountTotals's On Account row so a shift
 	// left open across a day boundary doesn't drag prior days' on-account
@@ -305,6 +326,8 @@ type Querier interface {
 	// from invoices (paid or unpaid-in-full) or client_account_payments -
 	// never from shift_balance_replacements (isNonCashBalanceAccount blocks
 	// On Account as a swap source/destination).
+	// The shift filter is pushed into every branch so each is an index seek,
+	// matching ListIncomeAccountTotals above.
 	StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error)
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)
 	UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAccountParams) (CashboxAccount, error)
@@ -337,6 +360,9 @@ type Querier interface {
 	// attendance_user_id is deliberately not touched here -- it's local-only
 	// device pairing, never sent by kashi (see sync_pull.go).
 	UpdateSyncedSalesperson(ctx context.Context, arg UpdateSyncedSalespersonParams) (Salesperson, error)
+	// password_hash is deliberately not touched -- set only via
+	// set_branch_user_pin or a local admin reset.
+	UpdateSyncedUser(ctx context.Context, arg UpdateSyncedUserParams) (User, error)
 	UpdateTheme(ctx context.Context, theme string) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserAttendanceID(ctx context.Context, arg UpdateUserAttendanceIDParams) error

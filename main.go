@@ -41,7 +41,7 @@ func main() {
 		DisableResize:    true,
 		// Keep the real window hidden until the frontend can paint, so the
 		// only thing on screen during WebView2 boot is the native splash.
-		StartHidden: true,
+		StartHidden:      true,
 		AssetServer:      &assetserver.Options{Assets: assets},
 		BackgroundColour: &options.RGBA{R: 255, G: 255, B: 255, A: 255},
 		Windows: &windows.Options{

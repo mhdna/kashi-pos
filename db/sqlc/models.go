@@ -570,12 +570,19 @@ type TransferItem struct {
 }
 
 type User struct {
-	ID               int64  `json:"id"`
-	Username         string `json:"username"`
-	PasswordHash     string `json:"passwordHash"`
-	RoleID           int64  `json:"roleId"`
-	Active           int64  `json:"active"`
-	AttendanceUserID string `json:"attendanceUserId"`
+	ID               int64         `json:"id"`
+	Username         string        `json:"username"`
+	PasswordHash     string        `json:"passwordHash"`
+	RoleID           int64         `json:"roleId"`
+	Active           int64         `json:"active"`
+	AttendanceUserID string        `json:"attendanceUserId"`
+	RemoteID         sql.NullInt64 `json:"remoteId"`
+}
+
+type VisitorCount struct {
+	Day       string `json:"day"`
+	Count     int64  `json:"count"`
+	UpdatedAt string `json:"updatedAt"`
 }
 
 type VoidInvoice struct {

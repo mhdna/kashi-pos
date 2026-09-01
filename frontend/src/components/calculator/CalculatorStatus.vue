@@ -12,7 +12,7 @@
         @click="flipCurrency"
       />
       <div v-if="showReadyState" class="calculator-accepted-state calculator-green">
-        <v-icon icon="mdi-check-circle" color="#617557" size="40" />
+        <v-icon icon="mdi-check-circle" color="green-darken-3" size="40" />
         <span>{{ paymentStatus }}</span>
       </div>
       <template v-else>
@@ -84,16 +84,14 @@ function flipCurrency() {
   font-size: var(--kashi-font-size-base);
 }
 .calculator-amounts.calculator-green {
-  color: #617557;
-  border-color: rgba(97, 117, 87, 0.5);
-  background-color: rgba(97, 117, 87, 0.08);
+  color: #2e7d32;
+  border-color: rgba(46, 125, 50, 0.5);
 }
 .calculator-green {
-  color: #617557;
+  color: #2e7d32;
 }
 .calculator-amounts.text-red-darken-2 {
   border-color: rgba(244, 67, 54, 0.5);
-  background-color: rgba(244, 67, 54, 0.08);
 }
 .calculator-amounts-flip {
   position: absolute;

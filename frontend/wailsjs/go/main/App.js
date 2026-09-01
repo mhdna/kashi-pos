@@ -10,12 +10,20 @@ export function AddQuickAccessProduct(arg1) {
   return window['go']['main']['App']['AddQuickAccessProduct'](arg1);
 }
 
+export function AdjustVisitorCountToday(arg1) {
+  return window['go']['main']['App']['AdjustVisitorCountToday'](arg1);
+}
+
 export function ApplyOpeningFloatToCurrentShift(arg1, arg2, arg3) {
   return window['go']['main']['App']['ApplyOpeningFloatToCurrentShift'](arg1, arg2, arg3);
 }
 
 export function ApproveAttendanceComplaint(arg1, arg2, arg3) {
   return window['go']['main']['App']['ApproveAttendanceComplaint'](arg1, arg2, arg3);
+}
+
+export function ChangeAdminPassword(arg1, arg2) {
+  return window['go']['main']['App']['ChangeAdminPassword'](arg1, arg2);
 }
 
 export function ChangeInvoiceClient(arg1, arg2) {
@@ -146,6 +154,10 @@ export function ExportAttendanceMonth(arg1) {
   return window['go']['main']['App']['ExportAttendanceMonth'](arg1);
 }
 
+export function ForceSetAdminPassword(arg1) {
+  return window['go']['main']['App']['ForceSetAdminPassword'](arg1);
+}
+
 export function GetAdminConfig() {
   return window['go']['main']['App']['GetAdminConfig']();
 }
@@ -156,6 +168,10 @@ export function GetAppSettings() {
 
 export function GetAttendanceConfig() {
   return window['go']['main']['App']['GetAttendanceConfig']();
+}
+
+export function GetCashierPIN() {
+  return window['go']['main']['App']['GetCashierPIN']();
 }
 
 export function GetClientAccountDetails(arg1) {
@@ -232,6 +248,18 @@ export function GetTheme() {
 
 export function GetTodayIncomeByAccount() {
   return window['go']['main']['App']['GetTodayIncomeByAccount']();
+}
+
+export function GetVisitorCountToday() {
+  return window['go']['main']['App']['GetVisitorCountToday']();
+}
+
+export function GetVisitorCounterEnabled() {
+  return window['go']['main']['App']['GetVisitorCounterEnabled']();
+}
+
+export function GetVisitorCountsForMonth(arg1) {
+  return window['go']['main']['App']['GetVisitorCountsForMonth'](arg1);
 }
 
 export function HoldInvoice(arg1) {
@@ -466,8 +494,16 @@ export function SetAutoCloseStaleShiftsEnabled(arg1) {
   return window['go']['main']['App']['SetAutoCloseStaleShiftsEnabled'](arg1);
 }
 
+export function SetCashierPIN(arg1) {
+  return window['go']['main']['App']['SetCashierPIN'](arg1);
+}
+
 export function SetClientRequired(arg1) {
   return window['go']['main']['App']['SetClientRequired'](arg1);
+}
+
+export function SetCountOpeningCashOnCloseEnabled(arg1) {
+  return window['go']['main']['App']['SetCountOpeningCashOnCloseEnabled'](arg1);
 }
 
 export function SetCurrencyActive(arg1, arg2) {
@@ -502,6 +538,14 @@ export function SetInvoiceKeyboardModeEnabled(arg1) {
   return window['go']['main']['App']['SetInvoiceKeyboardModeEnabled'](arg1);
 }
 
+export function SetOpeningFloatEnabled(arg1) {
+  return window['go']['main']['App']['SetOpeningFloatEnabled'](arg1);
+}
+
+export function SetOverchangeConfirmationEnabled(arg1) {
+  return window['go']['main']['App']['SetOverchangeConfirmationEnabled'](arg1);
+}
+
 export function SetPageUnlocked(arg1, arg2) {
   return window['go']['main']['App']['SetPageUnlocked'](arg1, arg2);
 }
@@ -528,6 +572,10 @@ export function SetProductSearchEnabled(arg1) {
 
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
+}
+
+export function SetVisitorCounterEnabled(arg1) {
+  return window['go']['main']['App']['SetVisitorCounterEnabled'](arg1);
 }
 
 export function SettleInvoicePayments(arg1, arg2) {
@@ -612,6 +660,10 @@ export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {
 
 export function UpdateUserAttendanceID(arg1, arg2) {
   return window['go']['main']['App']['UpdateUserAttendanceID'](arg1, arg2);
+}
+
+export function VerifyAdminPassword(arg1) {
+  return window['go']['main']['App']['VerifyAdminPassword'](arg1);
 }
 
 export function VerifyPIN(arg1) {

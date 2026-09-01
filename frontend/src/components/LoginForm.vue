@@ -1,74 +1,112 @@
 <template>
   <div class="pin-login" aria-labelledby="pin-title">
-    <div
-      class="pin-logo"
-      :style="{ '--pin-logo-image': `url(${logo})` }"
-      role="img"
-      aria-label="K"
-    />
+    <div class="pin-logo-wrap">
+      <div
+        class="pin-logo"
+        :style="{ '--pin-logo-image': `url(${logo})` }"
+        role="img"
+        aria-label="K"
+      />
+      <v-btn
+        class="pin-admin-toggle"
+        :icon="mode === 'admin' ? 'mdi-keyboard-outline' : 'mdi-shield-key-outline'"
+        size="small"
+        variant="text"
+        :aria-label="mode === 'admin' ? 'Back to cashier PIN' : 'Admin sign-in'"
+        :title="mode === 'admin' ? 'Back to cashier PIN' : 'Admin sign-in'"
+        @click="toggleMode"
+      />
+    </div>
 
     <div class="pin-heading">
-      <h1 id="pin-title">Enter PIN</h1>
+      <h1 id="pin-title">{{ mode === "admin" ? "Admin sign-in" : "Enter PIN" }}</h1>
       <p v-if="locked">Too many attempts. Try again in {{ lockSeconds }}s</p>
     </div>
 
-    <div class="pin-dots" :class="{ 'pin-dots--error': error }" aria-label="PIN entry">
-      <span v-for="index in 4" :key="index" :class="{ filled: index <= pin.length }" />
-    </div>
+    <template v-if="mode === 'pin'">
+      <div class="pin-dots" :class="{ 'pin-dots--error': error }" aria-label="PIN entry">
+        <span v-for="index in 4" :key="index" :class="{ filled: index <= pin.length }" />
+      </div>
 
-    <div class="pin-keypad" :aria-disabled="loading || locked">
-      <v-btn
-        v-for="digit in digits"
-        :key="digit"
-        type="button"
-        class="pin-key"
-        size="small"
-        variant="tonal"
+      <div class="pin-keypad" :aria-disabled="loading || locked">
+        <v-btn
+          v-for="digit in digits"
+          :key="digit"
+          type="button"
+          class="pin-key"
+          size="small"
+          variant="tonal"
+          :disabled="loading || locked"
+          :aria-label="`Enter ${digit}`"
+          @click="enterDigit(digit)"
+        >
+          {{ digit }}
+        </v-btn>
+        <v-btn
+          type="button"
+          class="pin-key"
+          size="small"
+          variant="tonal"
+          :disabled="loading || locked || pin.length === 0"
+          aria-label="Clear PIN"
+          @click="clearPIN"
+        >
+          C
+        </v-btn>
+        <v-btn
+          type="button"
+          class="pin-key"
+          size="small"
+          variant="tonal"
+          :disabled="loading || locked"
+          aria-label="Enter 0"
+          @click="enterDigit('0')"
+        >
+          0
+        </v-btn>
+        <v-btn
+          type="button"
+          class="pin-key"
+          size="small"
+          variant="tonal"
+          :disabled="loading || locked || pin.length === 0"
+          aria-label="Delete last digit"
+          @click="removeDigit"
+        >
+          ⌫
+        </v-btn>
+      </div>
+    </template>
+
+    <form v-else class="pin-admin-form" @submit.prevent="submitAdmin">
+      <v-text-field
+        v-model="adminPassword"
+        autofocus
+        type="password"
+        placeholder="Admin password"
+        variant="outlined"
+        density="comfortable"
+        hide-details
         :disabled="loading || locked"
-        :aria-label="`Enter ${digit}`"
-        @click="enterDigit(digit)"
-      >
-        {{ digit }}
-      </v-btn>
+        :class="{ 'pin-admin-field--error': error }"
+      />
       <v-btn
-        type="button"
-        class="pin-key"
-        size="small"
-        variant="tonal"
-        :disabled="loading || locked || pin.length === 0"
-        aria-label="Clear PIN"
-        @click="clearPIN"
+        type="submit"
+        block
+        color="primary"
+        size="large"
+        class="mt-3"
+        :loading="loading"
+        :disabled="locked || adminPassword.length === 0"
       >
-        C
+        Sign in
       </v-btn>
-      <v-btn
-        type="button"
-        class="pin-key"
-        size="small"
-        variant="tonal"
-        :disabled="loading || locked"
-        aria-label="Enter 0"
-        @click="enterDigit('0')"
-      >
-        0
-      </v-btn>
-      <v-btn
-        type="button"
-        class="pin-key"
-        size="small"
-        variant="tonal"
-        :disabled="loading || locked || pin.length === 0"
-        aria-label="Delete last digit"
-        @click="removeDigit"
-      >
-        ⌫
-      </v-btn>
-    </div>
+    </form>
 
     <div class="pin-status" aria-live="polite">
       <v-progress-circular v-if="loading" indeterminate size="22" width="2" />
       <span v-else-if="!locked && error" class="pin-error" role="alert">{{ error }}</span>
-      <span v-if="!locked && attempts > 0" class="pin-attempts text-subtitle-1">
+      <span v-if="mode === 'pin' && !locked && attempts > 0" class="pin-attempts text-subtitle-1">
         {{ 3 - attempts }} {{ 3 - attempts === 1 ? "attempt" : "attempts" }} remaining
       </span>
     </div>
@@ -86,13 +124,23 @@ const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 const router = useRouter();
 const auth = useAuthStore();
+const mode = ref<"pin" | "admin">("pin");
 const pin = ref("");
+const adminPassword = ref("");
 const error = ref("");
 const loading = ref(false);
 const attempts = ref(0);
 const lockSeconds = ref(0);
 const locked = computed(() => lockSeconds.value > 0);
 let lockTimer: ReturnType<typeof setInterval> | undefined;
+
+function toggleMode() {
+  if (loading.value) return;
+  mode.value = mode.value === "pin" ? "admin" : "pin";
+  error.value = "";
+  pin.value = "";
+  adminPassword.value = "";
+}
 
 function enterDigit(digit: string) {
   if (loading.value || locked.value || pin.value.length >= 4) return;
@@ -130,9 +178,8 @@ function startLockout(seconds = LOCKOUT_SECONDS) {
 async function submitPIN() {
   if (loading.value || locked.value || pin.value.length !== 4) return;
   loading.value = true;
-  const enteredPIN = pin.value;
   try {
-    const result = await auth.loginWithPIN(enteredPIN);
+    const result = await auth.loginWithPIN(pin.value);
     if (result.ok) {
       attempts.value = 0;
       await router.replace("/home");
@@ -154,7 +201,31 @@ async function submitPIN() {
   }
 }
 
+async function submitAdmin() {
+  if (loading.value || locked.value || adminPassword.value.length === 0) return;
+  loading.value = true;
+  try {
+    const result = await auth.loginWithAdminPassword(adminPassword.value);
+    if (result.ok) {
+      adminPassword.value = "";
+      await router.replace("/home");
+      return;
+    }
+
+    adminPassword.value = "";
+    if (result.retryAfter > 0) {
+      error.value = "";
+      startLockout(result.retryAfter);
+      return;
+    }
+    error.value = "Incorrect password";
+  } finally {
+    loading.value = false;
+  }
+}
+
 function handleKeydown(event: KeyboardEvent) {
+  if (mode.value !== "pin") return;
   if (/^\d$/.test(event.key)) enterDigit(event.key);
   else if (event.key === "Backspace") removeDigit();
   else if (event.key === "Escape" || event.key === "Delete") clearPIN();
@@ -180,13 +251,31 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
+.pin-logo-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
 .pin-logo {
   aspect-ratio: 1;
   width: clamp(105px, 14vw, 190px);
-  background-color: rgba(var(--v-theme-on-surface), 0.38);
+  background-color: rgb(var(--v-theme-on-surface));
   mask: var(--pin-logo-image) center / contain no-repeat;
   -webkit-mask: var(--pin-logo-image) center / contain no-repeat;
   margin-bottom: 0;
+}
+
+.pin-admin-toggle {
+  position: absolute;
+  right: -8px;
+  bottom: -4px;
+  opacity: 0.55;
+}
+
+.pin-admin-toggle:hover,
+.pin-admin-toggle:focus-visible {
+  opacity: 1;
 }
 
 .pin-heading {
@@ -268,6 +357,15 @@ onBeforeUnmount(() => {
   opacity: 0.42;
 }
 
+.pin-admin-form {
+  width: 280px;
+  margin: 18px 0 4px;
+}
+
+.pin-admin-field--error :deep(.v-field) {
+  border-color: rgb(var(--v-theme-error));
+}
+
 .pin-status {
   height: 44px;
   margin-top: 18px;
@@ -303,6 +401,11 @@ onBeforeUnmount(() => {
   }
 
   .pin-keypad {
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .pin-admin-form {
     width: 100%;
     max-width: 280px;
   }

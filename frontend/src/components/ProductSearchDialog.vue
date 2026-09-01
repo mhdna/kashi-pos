@@ -23,7 +23,7 @@
           class="product-virtual-scroll"
           :items="products"
           :item-height="48"
-          height="360"
+          height="100%"
           @scroll.passive="handleScroll"
         >
           <template #default="{ item: product }">
@@ -55,15 +55,20 @@
             </v-list-item>
           </template>
         </v-virtual-scroll>
-        <div v-if="loading" class="product-list-status">
-          <v-progress-circular indeterminate color="primary" size="24" width="2" />
-        </div>
-        <div v-else-if="loadError" class="product-list-status product-list-status-error">
+        <div v-if="loadError" class="product-list-status product-list-status-error">
           <span class="product-error-message text-error">{{ loadErrorMessage }}</span>
           <v-btn size="small" variant="text" @click="loadMore">Retry</v-btn>
         </div>
-        <div v-else-if="!hasMore" class="product-list-status text-medium-emphasis">
-          {{ products.length ? "All products loaded" : "No products found" }}
+        <div v-else class="product-list-status text-medium-emphasis">
+          <v-progress-circular
+            v-if="loading"
+            indeterminate
+            color="primary"
+            size="16"
+            width="2"
+            class="me-2"
+          />
+          <span>{{ countLabel }}</span>
         </div>
       </div>
       <v-divider />
@@ -96,7 +101,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, inject, onBeforeUnmount, watch } from "vue";
+import { computed, ref, inject, onBeforeUnmount, watch } from "vue";
 import { ListProductsCursor } from "../../wailsjs/go/main/App";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
@@ -154,12 +159,18 @@ let latestRequest = 0;
 
 watch(dialog, (v) => {
   dialogOpen.value = v;
-  if (v) resetList();
+  if (v) {
+    resetList();
+  } else {
+    // Don't let the previous query (and its results) linger for the next open.
+    clearTimeout(searchTimer);
+    search.value = "";
+    debouncedSearch.value = "";
+  }
 });
 
 watch(search, (value) => {
   clearTimeout(searchTimer);
-  latestRequest++;
   searchTimer = setTimeout(() => {
     debouncedSearch.value = value.trim();
   }, 250);
@@ -177,12 +188,24 @@ const loading = ref(false);
 const hasMore = ref(true);
 const loadError = ref(false);
 const loadErrorMessage = ref("");
+// Full match count for the current search. -1 until the first batch reports
+// it; later batches don't recompute it (keeps infinite scroll count-free).
+const total = ref(-1);
+
+const countLabel = computed(() => {
+  if (total.value === 0) return "No products found";
+  if (total.value < 0) return loading.value ? "Loading…" : "";
+  const noun = total.value === 1 ? "result" : "results";
+  if (!hasMore.value) return `${total.value} ${noun} · all loaded`;
+  return `${total.value} ${noun} · ${products.value.length} loaded`;
+});
 
 function resetList() {
   latestRequest++;
   products.value = [];
   cursor.value = 0;
   hasMore.value = true;
+  total.value = -1;
   loadError.value = false;
   loadErrorMessage.value = "";
   // A previous loadMore() may still be in flight and, once superseded, will
@@ -205,6 +228,7 @@ async function loadMore() {
     products.value.push(...result.items.map((product) => ({ ...product, qty: 1 }) as ProductItem));
     cursor.value = result.nextCursor;
     hasMore.value = result.hasMore;
+    if (typeof result.total === "number" && result.total >= 0) total.value = result.total;
   } catch (e) {
     if (request !== latestRequest) return;
     console.error("ListProductsCursor failed:", e);
@@ -244,7 +268,8 @@ defineExpose({ openDialog });
 }
 
 .product-search-row {
-  padding: 12px 16px;
+  flex: 0 0 auto;
+  padding: 8px 16px 6px;
 }
 
 .product-list-card {
@@ -254,13 +279,18 @@ defineExpose({ openDialog });
   flex-direction: column;
 }
 
+/* Fills the space left above the search bar + keyboard so the search bar
+   stays anchored and never shifts as the result count changes. */
 .product-list {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .product-virtual-scroll {
-  height: 360px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .product-list-item {
@@ -297,6 +327,7 @@ defineExpose({ openDialog });
 }
 
 .product-list-status {
+  flex: 0 0 auto;
   min-height: 48px;
   display: flex;
   align-items: center;
@@ -316,16 +347,25 @@ defineExpose({ openDialog });
   word-break: break-word;
 }
 
+/* Must be tall enough for the full "code" layout keyboard (number row + 3
+   letter rows + actions row = ~264px). If this is shorter the keyboard
+   overflows upward and covers the search bar above it. */
 .product-inline-keyboard {
-  flex: 0 0 205px;
-  height: 205px;
+  flex: 0 0 264px;
+  height: 264px;
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  margin-top: auto;
+  flex-direction: column;
+  justify-content: flex-start;
   margin-bottom: 48px;
   margin-inline: auto;
-  max-width: 600px;
-  padding-top: 12px;
+  /* The keys flex to share whatever width this element ends up with, so they
+     can't overflow; this cap just stops them looking oversized on a wide
+     screen. overflow: hidden above only guards against vertical spill. */
+  width: 100%;
+  max-width: 748px;
+  padding-inline: 8px;
+  padding-top: 4px;
   padding-bottom: 0;
 }
 

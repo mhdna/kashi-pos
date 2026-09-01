@@ -94,15 +94,22 @@ function backspace() {
   display: flex;
   gap: 6px;
   justify-content: center;
+  flex-wrap: nowrap;
   margin-bottom: 4px;
 }
 
 .inline-keyboard-key {
-  flex: 0 0 66px;
+  /* Every key in a row shares the width equally, so a row always fits its
+     container exactly - it can never overflow and get clipped, and on a wide
+     container the max-width keeps the keys from ballooning. The !important
+     rules beat Vuetify's own .v-btn sizing (min-width / horizontal padding),
+     which otherwise forces the keys wider than their slot. */
+  flex: 1 1 0;
+  min-width: 0 !important;
+  max-width: 72px;
   font-size: var(--kashi-font-size-2xl);
   height: 48px;
-  width: 66px;
-  padding: 0;
+  padding: 0 !important;
 }
 
 .inline-keyboard-actions {

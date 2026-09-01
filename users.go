@@ -28,6 +28,10 @@ func (a *App) ListUsers() ([]map[string]any, error) {
 			"role":             roleName,
 			"active":           u.Active,
 			"attendanceUserId": u.AttendanceUserID,
+			// A synced user's roster (username/role/active/akuvox id) is
+			// kashi-owned and read-only here; only its PIN can be reset
+			// locally.
+			"isSynced": u.RemoteID.Valid,
 		}
 	}
 	return result, nil

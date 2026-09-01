@@ -35,6 +35,45 @@
   animation-delay: 0s !important;
 }
 
+/* Exception to the blanket kill above: loading spinners must still spin.
+   Re-enable only the keyframe animations Vuetify's progress components need
+   (indeterminate circular + linear). No transitions, no other motion.
+   Vuetify's own rules aren't !important, so a class selector + !important
+   here wins over the `*` reset without any specificity gymnastics. */
+.v-progress-circular--indeterminate > svg {
+  animation: progress-circular-rotate 1.4s linear infinite !important;
+}
+
+.v-progress-circular--indeterminate .v-progress-circular__overlay {
+  animation:
+    progress-circular-dash 1.4s ease-in-out infinite,
+    progress-circular-rotate 1.4s linear infinite !important;
+}
+
+.v-progress-circular--indeterminate.v-progress-circular--disable-shrink > svg {
+  animation: progress-circular-rotate 0.7s linear infinite !important;
+}
+
+.v-progress-linear__indeterminate .long {
+  animation: indeterminate-ltr 2.2s infinite !important;
+}
+
+.v-progress-linear__indeterminate .short {
+  animation: indeterminate-short-ltr 2.2s infinite !important;
+}
+
+.v-progress-linear--reverse .v-progress-linear__indeterminate .long {
+  animation: indeterminate-rtl 2.2s infinite !important;
+}
+
+.v-progress-linear--reverse .v-progress-linear__indeterminate .short {
+  animation: indeterminate-short-rtl 2.2s infinite !important;
+}
+
+.v-progress-linear__stream {
+  animation: stream 0.25s linear infinite !important;
+}
+
 .v-application,
 .v-main {
   background-color: var(--kashi-app-background) !important;
@@ -47,4 +86,32 @@
 .v-btn:not(.v-btn--disabled):active {
   background-color: rgba(var(--v-theme-primary), 0.18) !important;
   color: rgb(var(--v-theme-primary)) !important;
+}
+
+/* Thin scrollbars everywhere. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--v-theme-on-surface), 0.28) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--v-theme-on-surface), 0.28);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--v-theme-on-surface), 0.45);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }

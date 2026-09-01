@@ -194,19 +194,24 @@
               <v-spacer />
               <NumberPadMenu
                 v-if="canEditUnitDiscount(detailItem)"
+                :ref="(element) => setUnitFieldRef(unitIndex - 1, 'discount', element)"
                 :model-value="unitDiscount(detailItem, unitIndex - 1)"
                 :aria-label="`Set discount for unit ${unitIndex}`"
                 :min="0"
                 :max="100"
                 suffix="%"
                 tone="error"
+                :keyboard-mode="keyboardMode"
                 @update:model-value="(value) => setUnitDiscount(detailItem!, unitIndex - 1, value)"
+                @navigate="(direction) => moveUnit(unitIndex - 1, 'discount', direction)"
+                @navigate-h="(direction) => moveUnitH(unitIndex - 1, 'discount', direction)"
               />
               <span v-else class="text-caption text-red me-3">
                 -{{ unitDiscount(detailItem, unitIndex - 1) }}%
               </span>
               <NumberPadMenu
                 v-if="canEditUnitPrice(detailItem)"
+                :ref="(element) => setUnitFieldRef(unitIndex - 1, 'price', element)"
                 :model-value="
                   (priceChangeMode === 'discount'
                     ? effectiveUnitPriceAt(detailItem, unitIndex - 1)
@@ -219,7 +224,10 @@
                 :max="999999.99"
                 :max-length="9"
                 prefix="$"
+                :keyboard-mode="keyboardMode"
                 @update:model-value="(value) => setUnitPrice(detailItem!, unitIndex - 1, value)"
+                @navigate="(direction) => moveUnit(unitIndex - 1, 'price', direction)"
+                @navigate-h="(direction) => moveUnitH(unitIndex - 1, 'price', direction)"
               />
               <span v-else class="text-body-2 font-weight-medium">
                 ${{
@@ -728,6 +736,49 @@ async function moveFromDiscount(item: LineItem, index: number, direction: -1 | 1
 async function moveFromDiscountH(item: LineItem, index: number, direction: -1 | 1) {
   await persistDiscount(item);
   moveHorizontal(index, "discount", direction);
+}
+
+// --- Item details dialog: keyboard mode for the per-unit discount/price grid.
+// Same shape as the main list's navigation, but rows are unit indexes on the
+// one open line rather than invoice lines.
+type UnitColumn = "discount" | "price";
+const unitFieldRefs = new Map<string, { focus: () => void }>();
+
+function setUnitFieldRef(
+  unitIndex: number,
+  column: UnitColumn,
+  element: Element | ComponentPublicInstance | null,
+) {
+  const key = `${unitIndex}:${column}`;
+  if (element && "focus" in element && typeof element.focus === "function") {
+    unitFieldRefs.set(key, element as { focus: () => void });
+  } else {
+    unitFieldRefs.delete(key);
+  }
+}
+
+function unitColumns(): UnitColumn[] {
+  const item = detailItem.value;
+  if (!item) return [];
+  const columns: UnitColumn[] = [];
+  if (canEditUnitDiscount(item)) columns.push("discount");
+  if (canEditUnitPrice(item)) columns.push("price");
+  return columns;
+}
+
+function moveUnit(unitIndex: number, column: UnitColumn, direction: -1 | 1) {
+  const item = detailItem.value;
+  if (!item) return;
+  const target = unitIndex + direction;
+  if (target < 0 || target >= detailUnitCount(item)) return;
+  requestAnimationFrame(() => unitFieldRefs.get(`${target}:${column}`)?.focus());
+}
+
+function moveUnitH(unitIndex: number, column: UnitColumn, direction: -1 | 1) {
+  const columns = unitColumns();
+  const target = columns[columns.indexOf(column) + direction];
+  if (target === undefined) return;
+  requestAnimationFrame(() => unitFieldRefs.get(`${unitIndex}:${target}`)?.focus());
 }
 
 async function flushChanges(): Promise<boolean> {

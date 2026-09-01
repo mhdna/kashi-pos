@@ -28,12 +28,13 @@ type wsMessage struct {
 }
 
 var wsMessageEntity = map[string]string{
-	"currency_updated":        "currencies",
-	"cashbox_account_updated": "cashbox_accounts",
-	"products_updated":        "products",
-	"client_updated":          "clients",
-	"salesperson_updated":       "salespersons",
-	"target_updated":            "branch_targets",
+	"currency_updated":           "currencies",
+	"cashbox_account_updated":    "cashbox_accounts",
+	"products_updated":           "products",
+	"client_updated":             "clients",
+	"salesperson_updated":        "salespersons",
+	"branch_user_updated":        "branch_users",
+	"target_updated":             "branch_targets",
 	"expense_categories_updated": "expense_categories",
 	"loan_categories_updated":    "loan_categories",
 }

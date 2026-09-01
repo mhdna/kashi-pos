@@ -18,12 +18,12 @@ export default createVuetify({
     themes: {
       light: {
         colors: {
-          primary: "#009688",
+          primary: "#0D47A1",
         },
       },
       dark: {
         colors: {
-          primary: "#009688",
+          primary: "#0D47A1",
         },
       },
     },

@@ -62,11 +62,18 @@ SELECT * FROM invoices ORDER BY id;
 SELECT invoice_id, sales_invoice_id FROM return_invoices;
 
 -- name: ListInvoicesPage :many
+-- Keyset ("seek") pagination: callers pass the id of the last row they've
+-- already seen as sqlc.arg(cursor) (the first page passes the max int64
+-- sentinel), so every page is an INTEGER PRIMARY KEY range seek of at most
+-- sqlc.arg(limit) rows instead of an OFFSET scan that re-walks and discards
+-- everything above it. Ordering is a stable id DESC so the cursor is
+-- unambiguous.
 SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
-WHERE (COALESCE(sqlc.arg(invoice_filter), '') = '' OR lower(i.invoice_code) LIKE '%' || lower(sqlc.arg(invoice_filter)) || '%')
+WHERE i.id < sqlc.arg(cursor)
+  AND (COALESCE(sqlc.arg(invoice_filter), '') = '' OR lower(i.invoice_code) LIKE '%' || lower(sqlc.arg(invoice_filter)) || '%')
   AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
   AND (COALESCE(sqlc.arg(salesperson_filter), '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(sqlc.arg(salesperson_filter)) || '%')
   AND (COALESCE(sqlc.arg(date_filter), '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(sqlc.arg(date_filter)) || '%')
@@ -92,7 +99,7 @@ WHERE (COALESCE(sqlc.arg(invoice_filter), '') = '' OR lower(i.invoice_code) LIKE
     )
   )
 ORDER BY i.id DESC
-LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
+LIMIT sqlc.arg(limit);
 
 -- name: CountFilteredInvoices :one
 SELECT COUNT(*)
@@ -260,41 +267,44 @@ ON CONFLICT (year, type) DO UPDATE SET last_index = last_index + 1
 RETURNING last_index;
 
 -- name: ListIncomeAccountTotals :many
--- income_date/income_month filtering was never actually used by any caller
--- (every call site passes shiftID only) - dropped in favor of the plain
--- shift scoping this query actually needs. On-account staleness (only
--- counting entries from "today") is applied in Go via
--- StaleOnAccountTotalForShift below - sqlc's SQLite query analyzer cannot
--- resolve the CTE column alias when a new bind parameter is compared
--- against it from inside an OR/CASE branch in this particular 5-way-UNION
--- CTE shape (confirmed not to be a real SQL syntax problem: every
--- restructuring - CASE, nested OR, splitting into a UNION of two WHERE
--- branches, an intermediate join-first CTE - hits the same
--- 'table alias "t" does not exist' error from sqlc, not from SQLite
--- itself), so the exclusion is computed in Go instead of fighting the
--- tool further.
+-- Every cashbox account's running total for a single shift: invoice
+-- payments, unpaid-in-full invoices booked to their own cashbox,
+-- client-account payments, and both legs of any balance replacement.
+-- The shift filter is pushed into each UNION branch (not applied after the
+-- CTE) so every branch is an index seek - idx_invoices_shift_id,
+-- idx_client_account_payments_shift, idx_shift_balance_replacements_shift -
+-- instead of a full scan of the whole payment history on every call.
+-- On-account staleness (only counting entries from "today") is applied in
+-- Go via StaleOnAccountTotalForShift below: sqlc's SQLite query analyzer
+-- cannot resolve the CTE column alias when a new bind parameter is compared
+-- against it from inside an OR/CASE branch in this UNION CTE shape, so the
+-- exclusion is computed in Go instead of fighting the tool further.
 WITH account_totals AS (
-    SELECT i.created_at, i.shift_id, ip.cashbox_id, ip.amount
+    SELECT ip.cashbox_id, ip.amount
     FROM invoices i
     JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = sqlc.arg(income_shift_id)
     UNION ALL
-    SELECT i.created_at, i.shift_id, i.cashbox_id, i.grand_total
+    SELECT i.cashbox_id, i.grand_total
     FROM invoices i
-    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    WHERE i.shift_id = sqlc.arg(income_shift_id)
+      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
     UNION ALL
-    SELECT cap.created_at, cap.shift_id, cap.cashbox_id, cap.amount
+    SELECT cap.cashbox_id, cap.amount
     FROM client_account_payments cap
+    WHERE cap.shift_id = sqlc.arg(income_shift_id)
     UNION ALL
-    SELECT sbr.created_at, sbr.shift_id, sbr.from_cashbox_id, -sbr.amount
+    SELECT sbr.from_cashbox_id, -sbr.amount
     FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = sqlc.arg(income_shift_id)
     UNION ALL
-    SELECT sbr.created_at, sbr.shift_id, sbr.to_cashbox_id, sbr.amount
+    SELECT sbr.to_cashbox_id, sbr.amount
     FROM shift_balance_replacements sbr
+    WHERE sbr.shift_id = sqlc.arg(income_shift_id)
 )
 SELECT ca.id, ca.name, ca.currency_code, ca.color, COALESCE(SUM(at2.amount), 0) AS total
 FROM account_totals at2
 JOIN cashbox_accounts ca ON ca.id = at2.cashbox_id
-WHERE (sqlc.arg(income_shift_id) = 0 OR at2.shift_id = sqlc.arg(income_shift_id))
 GROUP BY ca.id, ca.name, ca.currency_code, ca.color
 ORDER BY ca.name;
 
@@ -306,23 +316,27 @@ ORDER BY ca.name;
 -- from invoices (paid or unpaid-in-full) or client_account_payments -
 -- never from shift_balance_replacements (isNonCashBalanceAccount blocks
 -- On Account as a swap source/destination).
+-- The shift filter is pushed into every branch so each is an index seek,
+-- matching ListIncomeAccountTotals above.
 WITH on_account_totals AS (
-    SELECT i.created_at, i.shift_id, ip.cashbox_id, ip.amount
+    SELECT i.created_at, ip.cashbox_id, ip.amount
     FROM invoices i
     JOIN invoice_payments ip ON ip.invoice_id = i.id
+    WHERE i.shift_id = sqlc.arg(stale_shift_id)
     UNION ALL
-    SELECT i.created_at, i.shift_id, i.cashbox_id, i.grand_total
+    SELECT i.created_at, i.cashbox_id, i.grand_total
     FROM invoices i
-    WHERE NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    WHERE i.shift_id = sqlc.arg(stale_shift_id)
+      AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
     UNION ALL
-    SELECT cap.created_at, cap.shift_id, cap.cashbox_id, cap.amount
+    SELECT cap.created_at, cap.cashbox_id, cap.amount
     FROM client_account_payments cap
+    WHERE cap.shift_id = sqlc.arg(stale_shift_id)
 )
 SELECT COALESCE(SUM(oat.amount), 0) AS total
 FROM on_account_totals oat
 JOIN cashbox_accounts ca ON ca.id = oat.cashbox_id
-WHERE (sqlc.arg(stale_shift_id) = 0 OR oat.shift_id = sqlc.arg(stale_shift_id))
-  AND lower(trim(ca.name)) = 'on account'
+WHERE lower(trim(ca.name)) = 'on account'
   AND (sqlc.arg(stale_reference_date) = '' OR date(oat.created_at, 'localtime') <> sqlc.arg(stale_reference_date));
 
 -- name: ListInvoiceIncomeAccountTotalsByShift :many
@@ -389,6 +403,18 @@ ORDER BY ca.name;
 SELECT COALESCE(SUM(grand_total), 0)
 FROM invoices i
 WHERE date(i.created_at, 'localtime') = ?;
+
+-- name: ListDailyInvoiceIncomeByMonth :many
+-- One pass over the month's invoices, grouped by local calendar day -
+-- replaces calling GetInvoiceIncomeTotalByDate once per day (28-31 full
+-- scans) to build the monthly income chart. Same net-of-returns convention
+-- as GetInvoiceIncomeTotalByDate.
+SELECT date(i.created_at, 'localtime') AS day,
+       COALESCE(SUM(i.grand_total), 0) AS total
+FROM invoices i
+WHERE strftime('%Y-%m', i.created_at, 'localtime') = sqlc.arg(year_month)
+GROUP BY day
+ORDER BY day;
 
 -- name: GetInvoiceIncomeTotalByDateRange :one
 -- Same net-of-returns convention as GetInvoiceIncomeTotalByDate (a return's

@@ -280,7 +280,7 @@ function onCardClick(item: QuickAccessItem, event: MouseEvent) {
   clearTimeout(activeTimer);
   activeTimer = setTimeout(() => {
     activeCode.value = null;
-  }, 200);
+  }, 100);
   void addToInvoice(item);
 }
 </script>
@@ -345,7 +345,7 @@ function onCardClick(item: QuickAccessItem, event: MouseEvent) {
   min-height: 50px;
   padding: 6px !important;
   position: relative;
-  transition: opacity 0.15s, outline-color 0.15s;
+  transition: opacity 0.08s, outline-color 0.08s;
 }
 .quick-access__items--dragging .quick-access__item {
   touch-action: none;

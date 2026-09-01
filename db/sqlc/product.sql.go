@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
 
 const addQuickAccessProduct = `-- name: AddQuickAccessProduct :exec
@@ -486,6 +487,61 @@ type ListProductsAfterUnfilteredParams struct {
 
 func (q *Queries) ListProductsAfterUnfiltered(ctx context.Context, arg ListProductsAfterUnfilteredParams) ([]Product, error) {
 	rows, err := q.db.QueryContext(ctx, listProductsAfterUnfiltered, arg.AfterID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductsByIDs = `-- name: ListProductsByIDs :many
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products WHERE id IN (/*SLICE:ids*/?)
+`
+
+func (q *Queries) ListProductsByIDs(ctx context.Context, ids []int64) ([]Product, error) {
+	query := listProductsByIDs
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
 		return nil, err
 	}
