@@ -15,6 +15,25 @@ import (
 
 const autoCloseStaleShiftsFlag = "auto_close_stale_shifts"
 
+// countOpeningCashOnCloseFlag controls whether the physical cash counted at
+// close-shift is expected to include the opening float. Default (missing row
+// or 1) keeps the historical behaviour: the cashier counts the whole drawer,
+// opening float included. Set to 0 to have the cashier enter only the cash
+// taken in during the shift - the opening float is then left out of both the
+// expected total and the printed reconciliation so the variance still lines
+// up.
+const countOpeningCashOnCloseFlag = "count_opening_cash_on_close"
+
+// countOpeningCashOnClose reports the effective value of
+// countOpeningCashOnCloseFlag, defaulting to true when the flag has never
+// been set.
+func (a *App) countOpeningCashOnClose() bool {
+	if v, err := a.store.GetFeatureFlag(a.ctx, countOpeningCashOnCloseFlag); err == nil {
+		return v != 0
+	}
+	return true
+}
+
 // errShiftAlreadyClosed is returned from inside CloseShiftByID's write
 // transaction when CloseShift updates zero rows, so the outbox insert is
 // rolled back with it rather than committing a sync for a close that never
@@ -145,6 +164,18 @@ func (a *App) SetAutoCloseStaleShiftsEnabled(enabled bool) error {
 	}
 	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: autoCloseStaleShiftsFlag, Enabled: boolInt(enabled),
+	})
+}
+
+// SetCountOpeningCashOnCloseEnabled toggles whether the close-shift cash
+// count is expected to include the opening float (see
+// countOpeningCashOnCloseFlag).
+func (a *App) SetCountOpeningCashOnCloseEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: countOpeningCashOnCloseFlag, Enabled: boolInt(enabled),
 	})
 }
 
@@ -392,13 +423,17 @@ func (a *App) computeExpectedShiftTotals(shiftID int64) (expectedUSD, expectedLB
 	// The opening float is cash that was already in the drawer at shift
 	// start, not a transaction - fold it into expected so a shift that
 	// refunds more than it sold doesn't show a false overage just because
-	// counted cash can't go negative.
-	expectedUSD += shift.OpeningFloatUsd
+	// counted cash can't go negative. When countOpeningCashOnCloseFlag is
+	// off the cashier counts only the shift's own cash, so the float is
+	// left out of expected to match.
 	openingFloatLBPCents, err := roundCentsFromCurrencyUnits(shift.OpeningFloatLbp, lbpCurrency.UnitsPerUsdMicros, settings.RoundingMode)
 	if err != nil {
 		return 0, 0, 0, 0, fmt.Errorf("opening float LBP: %w", err)
 	}
-	expectedLBPCents += openingFloatLBPCents
+	if a.countOpeningCashOnClose() {
+		expectedUSD += shift.OpeningFloatUsd
+		expectedLBPCents += openingFloatLBPCents
+	}
 
 	expectedLBP, err = roundCurrencyUnitsFromCents(expectedLBPCents, lbpCurrency.UnitsPerUsdMicros, lbpCurrency.CashRoundingUnit, settings.RoundingMode)
 	if err != nil {
@@ -544,6 +579,15 @@ func (a *App) buildShiftClosePrintData(
 	if err != nil {
 		return printReceiptData{}, false, err
 	}
+	// When the opening float isn't counted at close, keep it off the printed
+	// reconciliation too - the expected totals already exclude it (see
+	// computeExpectedShiftTotals), so showing the float row would just make
+	// the arithmetic on the receipt look inconsistent.
+	reportOpeningFloatUSD, reportOpeningFloatLBP := shift.OpeningFloatUsd, shift.OpeningFloatLbp
+	if !a.countOpeningCashOnClose() {
+		reportOpeningFloatUSD, reportOpeningFloatLBP = 0, 0
+	}
+
 	report := &shiftReportData{
 		ShiftID:         shift.ID,
 		Cashier:         closingPersonName,
@@ -566,11 +610,11 @@ func (a *App) buildShiftClosePrintData(
 		CountedCoupon:   countedCoupon,
 		OnAccount:       onAccount,
 		Payments:        payments,
-		OpeningFloatUSD: shift.OpeningFloatUsd,
+		OpeningFloatUSD: reportOpeningFloatUSD,
 		ExpectedUSD:     expectedUSD,
 		CountedUSD:      countedUSD,
 		USDBillCounts:   usdBillCounts,
-		OpeningFloatLBP: shift.OpeningFloatLbp,
+		OpeningFloatLBP: reportOpeningFloatLBP,
 		ExpectedLBP:     expectedLBP,
 		CountedLBP:      countedLBP,
 		ExpectedVisa:    expectedVisa,

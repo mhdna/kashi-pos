@@ -342,6 +342,20 @@
                 Opening float cannot be negative.
               </v-alert>
               <v-btn color="primary" variant="tonal" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</v-btn>
+              <v-switch
+                :model-value="form.countOpeningCashOnClose"
+                :loading="countOpeningCashOnCloseSaving"
+                label="Count opening float in close-shift cash count"
+                color="primary"
+                hide-details
+                class="field-full"
+                @update:model-value="(value) => setCountOpeningCashOnClose(value)"
+              />
+              <div class="text-caption text-medium-emphasis field-full">
+                When off, the cashier enters only the cash taken in during the shift; the
+                opening float is left out of the expected total and the printed close-shift
+                reconciliation.
+              </div>
             </v-card-text>
           </v-card>
 
@@ -1128,6 +1142,7 @@ import {
   SetClientRequired,
   SetHidePaymentMethodCurrency,
   SetAutoAppendLbpZerosEnabled,
+  SetCountOpeningCashOnCloseEnabled,
   SetPageUnlocked,
   UpdateDefaultOpeningFloat,
   SetAutoCloseStaleShiftsEnabled,
@@ -1224,7 +1239,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port" },
   "printing-receipt": { tab: "printing", title: "Receipt settings", keywords: "market name phone description branch phone register return policy social platforms instagram facebook website font body size title size cut paper sample" },
   "money-general": { tab: "money", title: "Money settings", keywords: "vat tax rate exchange rate overpayment rounding mode currency calculator total currency auto append lbp zeros 000" },
-  "money-float": { tab: "money", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift" },
+  "money-float": { tab: "money", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift close count reconciliation expected" },
   "money-exchange": { tab: "money", title: "Exchange settings", keywords: "exchange window days hours return" },
   "money-currencies": { tab: "money", title: "Currencies & rates", keywords: "currency code name symbol units per usd cash rounding unit active add currency" },
   "money-payment-methods": { tab: "money", title: "Payment methods", keywords: "payment method cashbox account currency" },
@@ -1338,6 +1353,7 @@ const form = reactive({
   clientRequired: true,
   hidePaymentMethodCurrency: false,
   autoAppendLbpZeros: false,
+  countOpeningCashOnClose: true,
   adminEnabled: false,
   adminListen: "127.0.0.1:8787",
   adminToken: "",
@@ -1380,6 +1396,7 @@ const currencyForm = reactive({ code: "", name: "", symbol: "", unitsPerUsd: 1, 
 const editingCurrencyCode = ref<string | null>(null);
 const currencySaving = ref(false);
 const autoAppendLbpZerosSaving = ref(false);
+const countOpeningCashOnCloseSaving = ref(false);
 const paymentMethodForm = reactive({ name: "", currencyCode: "", color: "" });
 const editingPaymentMethodId = ref<number | null>(null);
 const paymentMethodSaving = ref(false);
@@ -1899,6 +1916,7 @@ async function loadSettings() {
         clientRequired: s.clientRequired !== false,
         hidePaymentMethodCurrency: Boolean(s.hidePaymentMethodCurrency),
         autoAppendLbpZeros: Boolean(s.autoAppendLbpZeros),
+        countOpeningCashOnClose: s.countOpeningCashOnClose !== false,
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
@@ -2097,6 +2115,26 @@ async function setAutoAppendLbpZeros(value: boolean | null) {
     notify("Failed to update auto-append LBP zeros", "red");
   } finally {
     autoAppendLbpZerosSaving.value = false;
+  }
+}
+
+async function setCountOpeningCashOnClose(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.countOpeningCashOnClose;
+  form.countOpeningCashOnClose = enabled;
+  countOpeningCashOnCloseSaving.value = true;
+  try {
+    await SetCountOpeningCashOnCloseEnabled(enabled);
+    notify(
+      enabled
+        ? "Close-shift count now includes the opening float"
+        : "Close-shift count now excludes the opening float",
+    );
+  } catch {
+    form.countOpeningCashOnClose = previous;
+    notify("Failed to update close-shift opening float setting", "red");
+  } finally {
+    countOpeningCashOnCloseSaving.value = false;
   }
 }
 

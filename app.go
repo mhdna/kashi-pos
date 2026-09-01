@@ -688,6 +688,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["autoCloseStaleShiftsEnabled"] = false
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, countOpeningCashOnCloseFlag); flagErr == nil {
+		result["countOpeningCashOnClose"] = enabled != 0
+	} else {
+		result["countOpeningCashOnClose"] = true
+	}
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, customItemDiscountsFlag); flagErr == nil {
 		result["customItemDiscountsEnabled"] = enabled != 0
 	} else {

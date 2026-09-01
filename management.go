@@ -131,7 +131,15 @@ func (a *App) ListClientsCursor(afterID int64, limit int, search string) (Client
 // (frozen at whatever it was when that shift ran, never the current
 // settings default) into cents, for crediting the physical-cash row(s) in
 // a live or historical per-account balance listing.
+//
+// Returns 0/0 when count_opening_cash_on_close is off: the cashier then
+// counts only the shift's own cash, so the float must stay out of the live
+// balance / current-shift-income displays exactly as it stays out of the
+// close-shift reconciliation (see computeExpectedShiftTotals).
 func (a *App) openingFloatCentsForShift(shift db.Shift) (usdCents, lbpCents int64, err error) {
+	if !a.countOpeningCashOnClose() {
+		return 0, 0, nil
+	}
 	usdCents = shift.OpeningFloatUsd
 	if shift.OpeningFloatLbp == 0 {
 		return usdCents, 0, nil

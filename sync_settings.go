@@ -45,6 +45,7 @@ type branchSettingsPayload struct {
 	PriceChangeManualOverrideMode bool `json:"price_change_manual_override_mode"`
 	InvoiceKeyboardMode           bool `json:"invoice_keyboard_mode"`
 	ClientRequired                bool `json:"client_required"`
+	CountOpeningCashOnClose        bool `json:"count_opening_cash_on_close"`
 
 	// non-admin page-access locks (page_unlock_* flags)
 	PageUnlockClients      bool `json:"page_unlock_clients"`
@@ -144,6 +145,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		PriceChangeManualOverrideMode: a.flagEnabled(ctx, priceChangeManualOverrideFlag),
 		InvoiceKeyboardMode:           a.flagEnabled(ctx, invoiceKeyboardModeFlag),
 		ClientRequired:                a.flagEnabled(ctx, clientRequiredFlag),
+		CountOpeningCashOnClose:       a.countOpeningCashOnClose(),
 
 		PageUnlockClients:      a.flagEnabled(ctx, pageUnlockFlag("clients")),
 		PageUnlockInventory:    a.flagEnabled(ctx, pageUnlockFlag("inventory")),

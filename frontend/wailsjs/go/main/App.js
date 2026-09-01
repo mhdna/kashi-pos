@@ -470,6 +470,10 @@ export function SetClientRequired(arg1) {
   return window['go']['main']['App']['SetClientRequired'](arg1);
 }
 
+export function SetCountOpeningCashOnCloseEnabled(arg1) {
+  return window['go']['main']['App']['SetCountOpeningCashOnCloseEnabled'](arg1);
+}
+
 export function SetCurrencyActive(arg1, arg2) {
   return window['go']['main']['App']['SetCurrencyActive'](arg1, arg2);
 }

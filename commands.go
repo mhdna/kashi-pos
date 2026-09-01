@@ -84,6 +84,7 @@ type updateSettingsCommandPayload struct {
 	PriceChangeManualOverrideMode *bool `json:"price_change_manual_override_mode"`
 	InvoiceKeyboardMode           *bool `json:"invoice_keyboard_mode"`
 	ClientRequired                *bool `json:"client_required"`
+	CountOpeningCashOnClose        *bool `json:"count_opening_cash_on_close"`
 
 	// non-admin page-access locks
 	PageUnlockClients      *bool `json:"page_unlock_clients"`
@@ -206,6 +207,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.PriceChangeManualOverrideMode, func(b bool) error { return a.setFeatureFlagBool(ctx, priceChangeManualOverrideFlag, b) }},
 		{p.InvoiceKeyboardMode, func(b bool) error { return a.setFeatureFlagBool(ctx, invoiceKeyboardModeFlag, b) }},
 		{p.ClientRequired, func(b bool) error { return a.setFeatureFlagBool(ctx, clientRequiredFlag, b) }},
+		{p.CountOpeningCashOnClose, func(b bool) error { return a.setFeatureFlagBool(ctx, countOpeningCashOnCloseFlag, b) }},
 		{p.PageUnlockClients, func(b bool) error { return a.SetPageUnlocked("clients", b) }},
 		{p.PageUnlockInventory, func(b bool) error { return a.SetPageUnlocked("inventory", b) }},
 		{p.PageUnlockTransfers, func(b bool) error { return a.SetPageUnlocked("transfers", b) }},

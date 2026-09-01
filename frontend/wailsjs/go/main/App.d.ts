@@ -236,6 +236,8 @@ export function SetAutoCloseStaleShiftsEnabled(arg1:boolean):Promise<void>;
 
 export function SetClientRequired(arg1:boolean):Promise<void>;
 
+export function SetCountOpeningCashOnCloseEnabled(arg1:boolean):Promise<void>;
+
 export function SetCurrencyActive(arg1:string,arg2:boolean):Promise<Record<string, any>>;
 
 export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
