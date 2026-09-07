@@ -53,6 +53,12 @@ type App struct {
 	// install already tolerates a no-op sync worker.
 	syncWorkerKick chan struct{}
 	wsClientStop   chan struct{}
+	// wsClientKick ends a live push session whose central URL/code/key just
+	// changed, so runWSClientLoop redials the new target now instead of
+	// staying bound to the old server until it drops or the process
+	// restarts. Same buffered, nil-safe, coalescing contract as
+	// syncWorkerKick -- see kickWSClient in sync_ws.go.
+	wsClientKick chan struct{}
 	// syncPullMu serializes the pull pass so the 15s tick (sync_worker.go)
 	// and the WebSocket's connect-time catch-up / per-delta fetches
 	// (sync_ws.go) can't run their apply transactions concurrently and
@@ -1080,7 +1086,7 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 			return fmt.Errorf("sales inventory: %w", err)
 		}
 	}
-	return a.store.UpdateSettings(a.ctx, db.UpdateSettingsParams{
+	if err := a.store.UpdateSettings(a.ctx, db.UpdateSettingsParams{
 		BranchName:       branchName,
 		BranchCode:       branchCode,
 		ApiKey:           apiKey,
@@ -1101,7 +1107,19 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		ReturnPolicy: current.ReturnPolicy, Website: current.Website, Instagram: current.Instagram, SocialPlatforms: current.SocialPlatforms, SocialHandles: current.SocialHandles, ReceiptFont: current.ReceiptFont,
 		ReceiptTitleSize: current.ReceiptTitleSize, ReceiptBodySize: current.ReceiptBodySize, ReceiptCutoff: current.ReceiptCutoff,
 		ReceiptBodyFont: current.ReceiptBodyFont, BranchPhone: current.BranchPhone, CounterNumber: current.CounterNumber,
-	})
+	}); err != nil {
+		return err
+	}
+
+	// The branch code / key are half the central credential (the URL is the
+	// other half, set via UpdateCentralAPIURL). If either just changed, a
+	// live push session is authenticating as the wrong branch -- drop it and
+	// switch the poll worker over now instead of on their next tick.
+	if current.BranchCode != branchCode || current.ApiKey != apiKey {
+		a.kickSyncWorker()
+		a.kickWSClient()
+	}
+	return nil
 }
 
 // UpdateCentralAPIURL sets the base URL of the kashi server this branch
@@ -1112,7 +1130,21 @@ func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return a.store.UpdateCentralAPIURL(a.ctx, centralApiUrl)
+	// GetSettings may legitimately have no row yet on a fresh install; the
+	// zero value's empty CentralApiUrl still gives the right "changed?"
+	// answer against a non-empty new URL.
+	previous, _ := a.store.GetSettings(a.ctx)
+	if err := a.store.UpdateCentralAPIURL(a.ctx, centralApiUrl); err != nil {
+		return err
+	}
+	if previous.CentralApiUrl != centralApiUrl {
+		// Move both sync paths onto the new target now, rather than waiting
+		// for the worker's next 15s tick and the push socket's config
+		// recheck.
+		a.kickSyncWorker()
+		a.kickWSClient()
+	}
+	return nil
 }
 
 func (a *App) SetExchangeWindowHours(hours int64) error {
