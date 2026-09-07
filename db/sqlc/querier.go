@@ -78,6 +78,7 @@ type Querier interface {
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateValueCoupon(ctx context.Context, arg CreateValueCouponParams) (Coupon, error)
+	CreateVisitorEvent(ctx context.Context, arg CreateVisitorEventParams) error
 	CreateVoidInvoice(ctx context.Context, arg CreateVoidInvoiceParams) (VoidInvoice, error)
 	DecreaseInventoryProductQuantity(ctx context.Context, arg DecreaseInventoryProductQuantityParams) (sql.Result, error)
 	DeleteAccount(ctx context.Context, id int64) error
@@ -302,6 +303,7 @@ type Querier interface {
 	ListTransfers(ctx context.Context) ([]Transfer, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	ListVisitorCountsForMonth(ctx context.Context, monthPrefix string) ([]ListVisitorCountsForMonthRow, error)
+	ListVisitorEventsForDay(ctx context.Context, day string) ([]ListVisitorEventsForDayRow, error)
 	MarkSyncOutboxAttemptFailed(ctx context.Context, arg MarkSyncOutboxAttemptFailedParams) error
 	MarkSyncOutboxSynced(ctx context.Context, id int64) error
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error

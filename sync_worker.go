@@ -160,6 +160,8 @@ func branchInvoicePath(entityType string) (string, bool) {
 		return "/branch/invoice_settlements", true
 	case "shift_close":
 		return "/branch/shift_closes", true
+	case "visitor_event":
+		return "/branch/visitor_events", true
 	case "attendance_events":
 		return "/branch/attendance_events", true
 	case "attendance_change":

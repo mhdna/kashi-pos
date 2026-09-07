@@ -101,6 +101,12 @@ type AttributesValue struct {
 	Value       string `json:"value"`
 }
 
+type AuthCredential struct {
+	ID                int64  `json:"id"`
+	AdminPasswordHash string `json:"adminPasswordHash"`
+	CashierPin        string `json:"cashierPin"`
+}
+
 type BranchTarget struct {
 	ID                int64  `json:"id"`
 	RemoteID          int64  `json:"remoteId"`
@@ -583,6 +589,15 @@ type VisitorCount struct {
 	Day       string `json:"day"`
 	Count     int64  `json:"count"`
 	UpdatedAt string `json:"updatedAt"`
+}
+
+type VisitorEvent struct {
+	ID         int64  `json:"id"`
+	ClientRef  string `json:"clientRef"`
+	Day        string `json:"day"`
+	Direction  string `json:"direction"`
+	OccurredAt string `json:"occurredAt"`
+	CreatedAt  string `json:"createdAt"`
 }
 
 type VoidInvoice struct {

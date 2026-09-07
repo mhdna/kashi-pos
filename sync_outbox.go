@@ -359,6 +359,44 @@ func queueBranchShiftCloseSync(ctx context.Context, q *db.Queries, centralAPIURL
 	return err
 }
 
+// branchVisitorEventPayload is the exact JSON body POSTed to kashi's
+// /branch/visitor_events (see api/branch_visitor.go in the kashi repo --
+// branchVisitorEventRequest there must stay in sync with this shape). One
+// press of the nav-drawer counter = one payload = one outbox row. Ref is
+// the visitor_events.client_ref uuid; kashi dedupes on (branch_id, ref).
+// Direction is "in" (▲) or "out" (▼). Day is the local "YYYY-MM-DD" the
+// press was bucketed under, sent so kashi's per-day rollup matches the
+// till's own without re-deriving it from a timezone-shifted occurred_at.
+type branchVisitorEventPayload struct {
+	Ref        string    `json:"ref"`
+	Day        string    `json:"day"`
+	Direction  string    `json:"direction"`
+	OccurredAt time.Time `json:"occurred_at"`
+}
+
+// queueBranchVisitorEventSync is queueBranchShiftCloseSync's counterpart
+// for a single visitor-counter press -- same opt-in-if-configured,
+// same-transaction-as-the-write behavior. The caller (AdjustVisitorCountToday)
+// only enqueues when the press actually moved the clamped tally, so a
+// no-op "out" against a zero count never produces an outbox row.
+func queueBranchVisitorEventSync(ctx context.Context, q *db.Queries, centralAPIURL string, payload branchVisitorEventPayload) error {
+	if centralAPIURL == "" {
+		return nil
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal sync outbox payload: %w", err)
+	}
+
+	_, err = q.CreateSyncOutboxEntry(ctx, db.CreateSyncOutboxEntryParams{
+		EntityType:  "visitor_event",
+		ClientRef:   payload.Ref,
+		PayloadJson: string(body),
+	})
+	return err
+}
+
 // branchAttendanceEvent is one row of a branchAttendanceEventsPayload
 // batch. Ref is "<device_id>|<event_id>" — already unique per branch, so
 // no separate ref column is needed on salesperson_attendance_events.
