@@ -57,6 +57,53 @@ func (q *Queries) ListBranchTargets(ctx context.Context) ([]BranchTarget, error)
 	return items, nil
 }
 
+const listBranchTargetsOverlapping = `-- name: ListBranchTargetsOverlapping :many
+SELECT id, remote_id, date_from, date_to, target_amount_cents, color, created_at FROM branch_targets
+WHERE date_to >= ?1 AND date_from <= ?2
+ORDER BY target_amount_cents ASC
+`
+
+type ListBranchTargetsOverlappingParams struct {
+	RangeFrom string `json:"rangeFrom"`
+	RangeTo   string `json:"rangeTo"`
+}
+
+// Targets whose [date_from, date_to] range intersects [range_from,
+// range_to]. kashi-pos only ever shows the current calendar month, so
+// callers pass this month's first and last day (both "YYYY-MM-DD", which
+// sorts correctly as text). A quarter- or year-long target set centrally
+// still shows while the current month falls inside it.
+func (q *Queries) ListBranchTargetsOverlapping(ctx context.Context, arg ListBranchTargetsOverlappingParams) ([]BranchTarget, error) {
+	rows, err := q.db.QueryContext(ctx, listBranchTargetsOverlapping, arg.RangeFrom, arg.RangeTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BranchTarget{}
+	for rows.Next() {
+		var i BranchTarget
+		if err := rows.Scan(
+			&i.ID,
+			&i.RemoteID,
+			&i.DateFrom,
+			&i.DateTo,
+			&i.TargetAmountCents,
+			&i.Color,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertBranchTarget = `-- name: UpsertBranchTarget :exec
 INSERT INTO branch_targets (remote_id, date_from, date_to, target_amount_cents, color)
 VALUES (?, ?, ?, ?, ?)

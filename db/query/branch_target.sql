@@ -10,6 +10,16 @@ ON CONFLICT (remote_id) DO UPDATE SET
 -- name: ListBranchTargets :many
 SELECT * FROM branch_targets ORDER BY target_amount_cents ASC;
 
+-- name: ListBranchTargetsOverlapping :many
+-- Targets whose [date_from, date_to] range intersects [range_from,
+-- range_to]. kashi-pos only ever shows the current calendar month, so
+-- callers pass this month's first and last day (both "YYYY-MM-DD", which
+-- sorts correctly as text). A quarter- or year-long target set centrally
+-- still shows while the current month falls inside it.
+SELECT * FROM branch_targets
+WHERE date_to >= sqlc.arg(range_from) AND date_from <= sqlc.arg(range_to)
+ORDER BY target_amount_cents ASC;
+
 -- name: DeleteBranchTargetByRemoteID :exec
 -- Fires when kashi reports a target as no longer active (see
 -- applySyncedBranchTarget in sync_pull.go) -- this is just a read-only

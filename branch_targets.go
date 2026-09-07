@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -12,12 +13,24 @@ import (
 // is computed here, live, from local invoices, the same as kashi computes
 // it centrally from branch_invoices, rather than being synced down as a
 // stored number that could go stale between sync ticks.
+//
+// Only targets overlapping the current calendar month are returned: the
+// till's shift / settings screens are a "how are we doing this month"
+// view, not a target archive. Older monthly targets stay in the local
+// mirror until kashi drops them; they're just not shown.
 func (a *App) ListBranchTargetsWithProgress() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	targets, err := a.store.ListBranchTargets(a.ctx)
+	now := time.Now()
+	firstOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	lastOfMonth := firstOfMonth.AddDate(0, 1, -1)
+
+	targets, err := a.store.ListBranchTargetsOverlapping(a.ctx, db.ListBranchTargetsOverlappingParams{
+		RangeFrom: firstOfMonth.Format("2006-01-02"),
+		RangeTo:   lastOfMonth.Format("2006-01-02"),
+	})
 	if err != nil {
 		return nil, err
 	}
