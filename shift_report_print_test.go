@@ -279,7 +279,7 @@ func TestCloseShiftPersistsAndExposesExpectedVsCountedVariance(t *testing.T) {
 		t.Fatalf("stored counted USD = %d, want 1900", closed.CountedUsd)
 	}
 
-	totals, err := app.GetShiftTotals()
+	totals, err := app.GetShiftTotals("")
 	if err != nil {
 		t.Fatal(err)
 	}

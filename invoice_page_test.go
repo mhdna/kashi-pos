@@ -213,7 +213,7 @@ func TestGetShiftTotalsIsBoundedToTheCurrentMonth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	totals, err := app.GetShiftTotals()
+	totals, err := app.GetShiftTotals("")
 	if err != nil {
 		t.Fatal(err)
 	}

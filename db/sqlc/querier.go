@@ -237,6 +237,11 @@ type Querier interface {
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
 	ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
+	// Priority order, not plain FIFO: a "sync everything" run can dump tens of
+	// thousands of client/product rows into this table, and a live sale queued
+	// afterwards must not wait behind all of them. Invoices/settlements drain
+	// first, then the other transactional entities, then the bulk catch-up
+	// rows; id breaks ties within a tier so it's still FIFO per priority.
 	ListDueSyncOutboxEntries(ctx context.Context, limit int64) ([]SyncOutbox, error)
 	ListExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)

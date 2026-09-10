@@ -52,7 +52,7 @@ func TestClientAccountPaymentBecomesCollectedIncomeWhenReceived(t *testing.T) {
 	}
 
 	app := &App{ctx: ctx, store: store}
-	before, err := app.GetShiftTotals()
+	before, err := app.GetShiftTotals("")
 	if err != nil || len(before) != 1 || databaseInt64(before[0]["total"]) != 1000 {
 		t.Fatalf("shift income before payment = %#v, err=%v", before, err)
 	}
@@ -63,7 +63,7 @@ func TestClientAccountPaymentBecomesCollectedIncomeWhenReceived(t *testing.T) {
 	if err != nil || databaseInt64(details["balance"]) != 600 {
 		t.Fatalf("account details after payment = %#v, err=%v", details, err)
 	}
-	after, err := app.GetShiftTotals()
+	after, err := app.GetShiftTotals("")
 	if err != nil || after[0]["total"].(float64) != 1000 {
 		t.Fatalf("shift income after payment = %#v, err=%v", after, err)
 	}

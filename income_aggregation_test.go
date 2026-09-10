@@ -132,7 +132,7 @@ func TestBalanceAggregationAgreesWithInvoiceTotalsAcrossMixedPayments(t *testing
 		t.Fatalf("GetTodayIncomeByAccount sum = %d, want %d", todaySum, invoiceTotalSum)
 	}
 
-	shiftTotals, err := app.GetShiftTotals()
+	shiftTotals, err := app.GetShiftTotals("")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -109,10 +109,28 @@ func (q *Queries) LatestSyncOutboxSyncedAt(ctx context.Context) (string, error) 
 const listDueSyncOutboxEntries = `-- name: ListDueSyncOutboxEntries :many
 SELECT id, entity_type, client_ref, payload_json, status, attempt_count, last_error, next_attempt_at, created_at, synced_at, synced_to FROM sync_outbox
 WHERE status = 'pending' AND next_attempt_at <= datetime('now')
-ORDER BY id
+ORDER BY
+  CASE entity_type
+    WHEN 'sales_invoice'      THEN 0
+    WHEN 'return_invoice'     THEN 0
+    WHEN 'invoice_settlement' THEN 0
+    WHEN 'shift_close'        THEN 1
+    WHEN 'expense'            THEN 1
+    WHEN 'loan'               THEN 1
+    WHEN 'visitor_event'      THEN 1
+    WHEN 'attendance_events'  THEN 1
+    WHEN 'attendance_change'  THEN 1
+    ELSE 2
+  END,
+  id
 LIMIT ?
 `
 
+// Priority order, not plain FIFO: a "sync everything" run can dump tens of
+// thousands of client/product rows into this table, and a live sale queued
+// afterwards must not wait behind all of them. Invoices/settlements drain
+// first, then the other transactional entities, then the bulk catch-up
+// rows; id breaks ties within a tier so it's still FIFO per priority.
 func (q *Queries) ListDueSyncOutboxEntries(ctx context.Context, limit int64) ([]SyncOutbox, error) {
 	rows, err := q.db.QueryContext(ctx, listDueSyncOutboxEntries, limit)
 	if err != nil {

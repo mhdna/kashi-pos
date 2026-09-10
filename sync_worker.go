@@ -11,7 +11,7 @@ import (
 
 const (
 	syncWorkerInterval  = 15 * time.Second
-	syncWorkerBatchSize = 20
+	syncWorkerBatchSize = 200
 	syncBackoffBase     = 5 * time.Second
 	syncBackoffMax      = time.Hour
 )

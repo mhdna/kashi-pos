@@ -173,7 +173,7 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 		t.Fatalf("monthly totals = %#v", days)
 	}
 
-	shifts, err := app.GetShiftTotals()
+	shifts, err := app.GetShiftTotals("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func assertIncomeTotals(t *testing.T, app *App, shiftID int64, want float64) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	shifts, err := app.GetShiftTotals()
+	shifts, err := app.GetShiftTotals("")
 	if err != nil {
 		t.Fatal(err)
 	}
