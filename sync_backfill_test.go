@@ -22,13 +22,14 @@ type fakeCentral struct {
 	clientRefs     map[string]int
 	expenseRefs    map[string]int
 	loanRefs       map[string]int
+	visitorRefs    map[string]int
 	productReports int
 }
 
 func newFakeCentral() *fakeCentral {
 	return &fakeCentral{
 		invoiceRefs: map[string]int{}, clientRefs: map[string]int{},
-		expenseRefs: map[string]int{}, loanRefs: map[string]int{},
+		expenseRefs: map[string]int{}, loanRefs: map[string]int{}, visitorRefs: map[string]int{},
 	}
 }
 
@@ -66,6 +67,13 @@ func (f *fakeCentral) handler() http.Handler {
 				f.loanRefs[ref]++
 			}
 			w.Write([]byte(`{}`))
+		case r.URL.Path == "/branch/visitor_events":
+			var p map[string]any
+			json.Unmarshal(body, &p)
+			if ref, _ := p["ref"].(string); ref != "" {
+				f.visitorRefs[ref]++
+			}
+			w.Write([]byte(`{}`))
 		case r.URL.Path == "/branch/sync/reconcile":
 			var req struct {
 				Entity string   `json:"entity"`
@@ -80,6 +88,8 @@ func (f *fakeCentral) handler() http.Handler {
 				seen = f.expenseRefs
 			case "loans":
 				seen = f.loanRefs
+			case "visitor_events":
+				seen = f.visitorRefs
 			}
 			missing := []string{}
 			for _, ref := range req.Refs {
@@ -319,5 +329,33 @@ func TestResyncAllBackfillsExpensesAndLoans(t *testing.T) {
 		if (e.Entity == "expenses" || e.Entity == "loans") && (e.Missing != 1 || e.Queued != 1) {
 			t.Fatalf("%s report = %+v, want Missing=1 Queued=1", e.Entity, e)
 		}
+	}
+}
+
+func TestResyncAllBackfillsVisitorEvents(t *testing.T) {
+	fc := newFakeCentral()
+	server := httptest.NewServer(fc.handler())
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, "")
+	if err := store.CreateVisitorEvent(app.ctx, db.CreateVisitorEventParams{
+		ClientRef: "vis-old-1", Day: "2026-09-01", Direction: "in",
+		OccurredAt: "2026-09-01 10:00:00",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpdateCentralAPIURL(app.ctx, server.URL); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := app.ResyncAll(ResyncOptions{}); err != nil {
+		t.Fatalf("ResyncAll: %v", err)
+	}
+	cc := newCentralClient(server.URL, "TEST01", "test-key")
+	for i := 0; i < 3; i++ {
+		app.runSyncOutboxOnce(app.ctx, cc)
+	}
+	if fc.visitorRefs["vis-old-1"] != 1 {
+		t.Fatalf("visitor event pushed %d times, want 1", fc.visitorRefs["vis-old-1"])
 	}
 }

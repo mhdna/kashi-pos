@@ -193,6 +193,7 @@ type Querier interface {
 	ListActiveExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListActiveLoanCategories(ctx context.Context) ([]LoanCategory, error)
 	ListActivePriceListItems(ctx context.Context) ([]ListActivePriceListItemsRow, error)
+	ListAllAttendanceChangeRequests(ctx context.Context) ([]AttendanceChangeRequest, error)
 	ListAllExpenses(ctx context.Context) ([]Expense, error)
 	ListAllLoans(ctx context.Context) ([]Loan, error)
 	// Loads every product's attribute values in one query, same pattern as
@@ -200,6 +201,8 @@ type Querier interface {
 	// regardless of how many products are in the result set, avoiding an N+1
 	// per-product lookup in productMap.
 	ListAllProductAttributeValues(ctx context.Context) ([]ListAllProductAttributeValuesRow, error)
+	ListAllSalespersonAttendanceEvents(ctx context.Context) ([]SalespersonAttendanceEvent, error)
+	ListAllVisitorEvents(ctx context.Context) ([]ListAllVisitorEventsRow, error)
 	ListAssets(ctx context.Context) ([]Asset, error)
 	ListAttendanceComplaints(ctx context.Context, attendanceDate string) ([]AttendanceComplaint, error)
 	ListAttendanceComplaintsByDate(ctx context.Context, attendanceDate string) ([]AttendanceComplaint, error)
@@ -221,6 +224,7 @@ type Querier interface {
 	ListClients(ctx context.Context) ([]Client, error)
 	ListClientsAfter(ctx context.Context, arg ListClientsAfterParams) ([]ListClientsAfterRow, error)
 	ListClientsAfterUnfiltered(ctx context.Context, arg ListClientsAfterUnfilteredParams) ([]ListClientsAfterUnfilteredRow, error)
+	ListClosedShifts(ctx context.Context) ([]Shift, error)
 	ListCouponTypes(ctx context.Context) ([]CouponType, error)
 	ListCoupons(ctx context.Context) ([]Coupon, error)
 	ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error)

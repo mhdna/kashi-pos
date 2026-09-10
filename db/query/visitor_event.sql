@@ -7,3 +7,6 @@ SELECT client_ref, day, direction, occurred_at
 FROM visitor_events
 WHERE day = sqlc.arg(day)
 ORDER BY occurred_at, id;
+
+-- name: ListAllVisitorEvents :many
+SELECT client_ref, day, direction, occurred_at FROM visitor_events ORDER BY id;

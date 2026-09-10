@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -129,6 +130,18 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 		return report, fmt.Errorf("resync loans: %w", err)
 	}
 	report.Entities = append(report.Entities, loanRep)
+
+	// 4c. Shift closes, visitor events, attendance -- all keyed by an
+	//     on-row / derivable client_ref, all covered by reconcile.
+	for _, fn := range []func(context.Context, *centralClient, ResyncOptions) (ResyncEntityReport, error){
+		a.resyncShiftCloses, a.resyncVisitorEvents, a.resyncAttendanceEvents, a.resyncAttendanceChanges,
+	} {
+		rep, err := fn(ctx, client, opts)
+		if err != nil {
+			return report, fmt.Errorf("resync %s: %w", rep.Entity, err)
+		}
+		report.Entities = append(report.Entities, rep)
+	}
 
 	// 5. Everything else already in the outbox: re-arm rows a previous
 	//    server confirmed (or that hard-failed) so they re-push to this one.
@@ -527,6 +540,259 @@ func (a *App) resyncLoans(ctx context.Context, client *centralClient, opts Resyn
 		}
 		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
 			EntityType: "loan", ClientRef: r.ClientRef, PayloadJson: string(body),
+		}); err != nil {
+			return rep, err
+		}
+		rep.Queued++
+	}
+	return rep, nil
+}
+
+func (a *App) resyncShiftCloses(ctx context.Context, client *centralClient, opts ResyncOptions) (ResyncEntityReport, error) {
+	rep := ResyncEntityReport{Entity: "shift_closes"}
+	shifts, err := a.store.ListClosedShifts(ctx)
+	if err != nil {
+		return rep, err
+	}
+	rep.Local = len(shifts)
+	byRef := make(map[string]db.Shift, len(shifts))
+	refs := make([]string, 0, len(shifts))
+	for _, sh := range shifts {
+		ref := fmt.Sprintf("shift-%d", sh.ID)
+		byRef[ref] = sh
+		refs = append(refs, ref)
+	}
+
+	missing, err := a.reconcileEntity(ctx, client, "shift_closes", refs)
+	if err != nil {
+		return rep, err
+	}
+	rep.Missing = len(missing)
+	rep.Central = rep.Local - rep.Missing
+	a.emitResyncProgress("shift_closes", rep.Central, rep.Local)
+	if opts.DryRun {
+		return rep, nil
+	}
+
+	for _, ref := range missing {
+		sh := byRef[ref]
+		name := ""
+		if sh.ClosedBySalespersonID != 0 {
+			if sp, err := a.store.GetSalespersonByID(ctx, sh.ClosedBySalespersonID); err == nil {
+				name = sp.FullName
+			}
+		}
+		body, err := json.Marshal(branchShiftClosePayload{
+			ShiftRef:          ref,
+			BranchShiftID:     sh.ID,
+			OpenedAt:          parseLocalTime(sh.CreatedAt),
+			ClosedAt:          parseLocalTime(sh.ClosedAt),
+			ClosingPersonName: name,
+			OpeningFloatUsd:   sh.OpeningFloatUsd,
+			OpeningFloatLbp:   sh.OpeningFloatLbp,
+			ExpectedUsd:       sh.ExpectedUsd,
+			ExpectedLbp:       sh.ExpectedLbp,
+			ExpectedVisa:      sh.ExpectedVisa,
+			ExpectedWhish:     sh.ExpectedWhish,
+			CountedUsd:        sh.CountedUsd,
+			CountedLbp:        sh.CountedLbp,
+			CountedVisa:       sh.CountedVisa,
+			CountedWhish:      sh.CountedWhish,
+			OccurredAt:        parseLocalTime(sh.ClosedAt),
+		})
+		if err != nil {
+			return rep, err
+		}
+		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+			EntityType: "shift_close", ClientRef: ref, PayloadJson: string(body),
+		}); err != nil {
+			return rep, err
+		}
+		rep.Queued++
+	}
+	return rep, nil
+}
+
+func (a *App) resyncVisitorEvents(ctx context.Context, client *centralClient, opts ResyncOptions) (ResyncEntityReport, error) {
+	rep := ResyncEntityReport{Entity: "visitor_events"}
+	rows, err := a.store.ListAllVisitorEvents(ctx)
+	if err != nil {
+		return rep, err
+	}
+	rep.Local = len(rows)
+	byRef := make(map[string]db.ListAllVisitorEventsRow, len(rows))
+	refs := make([]string, 0, len(rows))
+	for _, r := range rows {
+		byRef[r.ClientRef] = r
+		refs = append(refs, r.ClientRef)
+	}
+
+	missing, err := a.reconcileEntity(ctx, client, "visitor_events", refs)
+	if err != nil {
+		return rep, err
+	}
+	rep.Missing = len(missing)
+	rep.Central = rep.Local - rep.Missing
+	a.emitResyncProgress("visitor_events", rep.Central, rep.Local)
+	if opts.DryRun {
+		return rep, nil
+	}
+
+	for _, ref := range missing {
+		r := byRef[ref]
+		body, err := json.Marshal(branchVisitorEventPayload{
+			Ref: r.ClientRef, Day: r.Day, Direction: r.Direction,
+			OccurredAt: parseLocalTime(r.OccurredAt),
+		})
+		if err != nil {
+			return rep, err
+		}
+		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+			EntityType: "visitor_event", ClientRef: r.ClientRef, PayloadJson: string(body),
+		}); err != nil {
+			return rep, err
+		}
+		rep.Queued++
+	}
+	return rep, nil
+}
+
+func (a *App) resyncAttendanceEvents(ctx context.Context, client *centralClient, opts ResyncOptions) (ResyncEntityReport, error) {
+	rep := ResyncEntityReport{Entity: "attendance_events"}
+	rows, err := a.store.ListAllSalespersonAttendanceEvents(ctx)
+	if err != nil {
+		return rep, err
+	}
+	rep.Local = len(rows)
+	byRef := make(map[string]db.SalespersonAttendanceEvent, len(rows))
+	refs := make([]string, 0, len(rows))
+	for _, e := range rows {
+		ref := e.DeviceID + "|" + e.EventID
+		byRef[ref] = e
+		refs = append(refs, ref)
+	}
+
+	missing, err := a.reconcileEntity(ctx, client, "attendance_events", refs)
+	if err != nil {
+		return rep, err
+	}
+	rep.Missing = len(missing)
+	rep.Central = rep.Local - rep.Missing
+	a.emitResyncProgress("attendance_events", rep.Central, rep.Local)
+	if opts.DryRun || len(missing) == 0 {
+		return rep, nil
+	}
+
+	// One batch payload / one outbox row for all missing punches, same as
+	// the live device-import path; kashi upserts each row on (branch_id, ref).
+	events := make([]branchAttendanceEvent, 0, len(missing))
+	for _, ref := range missing {
+		e := byRef[ref]
+		events = append(events, branchAttendanceEvent{
+			Ref:              ref,
+			SalespersonName:  e.SalespersonName,
+			AttendanceUserID: e.AttendanceUserID,
+			EventDate:        e.EventDate,
+			EventTime:        e.EventTime,
+			EventAt:          e.EventAt,
+			Type:             e.Type,
+			Status:           e.Status,
+		})
+	}
+	body, err := json.Marshal(branchAttendanceEventsPayload{Events: events})
+	if err != nil {
+		return rep, err
+	}
+	if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+		EntityType: "attendance_events", ClientRef: "attendance-events-resync", PayloadJson: string(body),
+	}); err != nil {
+		return rep, err
+	}
+	rep.Queued = len(events)
+	return rep, nil
+}
+
+func (a *App) resyncAttendanceChanges(ctx context.Context, client *centralClient, opts ResyncOptions) (ResyncEntityReport, error) {
+	rep := ResyncEntityReport{Entity: "attendance_changes"}
+	rows, err := a.store.ListAllAttendanceChangeRequests(ctx)
+	if err != nil {
+		return rep, err
+	}
+
+	// Each request produces a "complaint" event, plus a "review" event once
+	// a manager has acted (reviewed_at set). Build both refs and their
+	// payloads, then reconcile the whole set.
+	type pending struct {
+		ref  string
+		body []byte
+	}
+	var candidates []pending
+	nameFor := func(id int64) string {
+		if id == 0 {
+			return ""
+		}
+		if sp, err := a.store.GetSalespersonByID(ctx, id); err == nil {
+			return sp.FullName
+		}
+		return ""
+	}
+	for _, r := range rows {
+		name := nameFor(r.SalespersonID)
+		complaintRef := fmt.Sprintf("acr-%d-complaint", r.ID)
+		cb, err := json.Marshal(branchAttendanceChangePayload{
+			Ref: complaintRef, Kind: "complaint", SalespersonName: name,
+			AttendanceDate: r.AttendanceDate, OriginalTime: r.OriginalTime,
+			RequestedTime: r.RequestedTime, RequestedType: r.RequestedType,
+			Action: r.Action, Status: "pending", Note: r.Note,
+			OccurredAt: parseLocalTime(r.CreatedAt),
+		})
+		if err != nil {
+			return rep, err
+		}
+		candidates = append(candidates, pending{complaintRef, cb})
+
+		if strings.TrimSpace(r.ReviewedAt) != "" {
+			reviewRef := fmt.Sprintf("acr-%d-review", r.ID)
+			note := "rejected"
+			if r.Status == "approved" {
+				note = strings.TrimSpace(fmt.Sprintf("%s -> %s", r.ChangedFrom, r.ChangedTo))
+			}
+			rb, err := json.Marshal(branchAttendanceChangePayload{
+				Ref: reviewRef, Kind: "approval", SalespersonName: name,
+				AttendanceDate: r.AttendanceDate, OriginalTime: r.OriginalTime,
+				RequestedTime: r.RequestedTime, RequestedType: r.RequestedType,
+				Action: r.Action, Status: r.Status, Note: note, Actor: "manager approval",
+				OccurredAt: parseLocalTime(r.ReviewedAt),
+			})
+			if err != nil {
+				return rep, err
+			}
+			candidates = append(candidates, pending{reviewRef, rb})
+		}
+	}
+	rep.Local = len(candidates)
+
+	byRef := make(map[string][]byte, len(candidates))
+	refs := make([]string, 0, len(candidates))
+	for _, c := range candidates {
+		byRef[c.ref] = c.body
+		refs = append(refs, c.ref)
+	}
+
+	missing, err := a.reconcileEntity(ctx, client, "attendance_changes", refs)
+	if err != nil {
+		return rep, err
+	}
+	rep.Missing = len(missing)
+	rep.Central = rep.Local - rep.Missing
+	a.emitResyncProgress("attendance_changes", rep.Central, rep.Local)
+	if opts.DryRun {
+		return rep, nil
+	}
+
+	for _, ref := range missing {
+		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+			EntityType: "attendance_change", ClientRef: ref, PayloadJson: string(byRef[ref]),
 		}); err != nil {
 			return rep, err
 		}

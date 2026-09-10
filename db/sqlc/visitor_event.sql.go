@@ -31,6 +31,45 @@ func (q *Queries) CreateVisitorEvent(ctx context.Context, arg CreateVisitorEvent
 	return err
 }
 
+const listAllVisitorEvents = `-- name: ListAllVisitorEvents :many
+SELECT client_ref, day, direction, occurred_at FROM visitor_events ORDER BY id
+`
+
+type ListAllVisitorEventsRow struct {
+	ClientRef  string `json:"clientRef"`
+	Day        string `json:"day"`
+	Direction  string `json:"direction"`
+	OccurredAt string `json:"occurredAt"`
+}
+
+func (q *Queries) ListAllVisitorEvents(ctx context.Context) ([]ListAllVisitorEventsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAllVisitorEvents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllVisitorEventsRow{}
+	for rows.Next() {
+		var i ListAllVisitorEventsRow
+		if err := rows.Scan(
+			&i.ClientRef,
+			&i.Day,
+			&i.Direction,
+			&i.OccurredAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVisitorEventsForDay = `-- name: ListVisitorEventsForDay :many
 SELECT client_ref, day, direction, occurred_at
 FROM visitor_events

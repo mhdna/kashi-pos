@@ -26,3 +26,9 @@ UPDATE attendance_complaints SET approved = ? WHERE id = ?;
 
 -- name: UpdateUserAttendanceID :exec
 UPDATE users SET attendance_user_id = ? WHERE id = ?;
+
+-- name: ListAllSalespersonAttendanceEvents :many
+SELECT * FROM salesperson_attendance_events ORDER BY id;
+
+-- name: ListAllAttendanceChangeRequests :many
+SELECT * FROM attendance_change_requests ORDER BY id;

@@ -165,3 +165,6 @@ SELECT
 -- name: CreateShiftBalanceReplacement :exec
 INSERT INTO shift_balance_replacements (shift_id, from_cashbox_id, to_cashbox_id, amount, created_at)
 VALUES (?, ?, ?, ?, datetime('now'));
+
+-- name: ListClosedShifts :many
+SELECT * FROM shifts WHERE is_closed = 1 ORDER BY id;

@@ -561,6 +561,50 @@ func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, er
 	return items, nil
 }
 
+const listClosedShifts = `-- name: ListClosedShifts :many
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts WHERE is_closed = 1 ORDER BY id
+`
+
+func (q *Queries) ListClosedShifts(ctx context.Context) ([]Shift, error) {
+	rows, err := q.db.QueryContext(ctx, listClosedShifts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Shift{}
+	for rows.Next() {
+		var i Shift
+		if err := rows.Scan(
+			&i.ID,
+			&i.IsClosed,
+			&i.CreatedAt,
+			&i.ClosedAt,
+			&i.ClosedBySalespersonID,
+			&i.CountedUsd,
+			&i.CountedLbp,
+			&i.CountedUsdBreakdown,
+			&i.CountedVisa,
+			&i.CountedWhish,
+			&i.ExpectedUsd,
+			&i.ExpectedLbp,
+			&i.ExpectedVisa,
+			&i.ExpectedWhish,
+			&i.OpeningFloatUsd,
+			&i.OpeningFloatLbp,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listShifts = `-- name: ListShifts :many
 SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts ORDER BY id
 `

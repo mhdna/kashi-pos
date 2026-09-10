@@ -91,6 +91,88 @@ func (q *Queries) InsertAttendanceEvent(ctx context.Context, arg InsertAttendanc
 	return err
 }
 
+const listAllAttendanceChangeRequests = `-- name: ListAllAttendanceChangeRequests :many
+SELECT id, salesperson_id, attendance_date, requested_time, note, status, created_at, reviewed_at, original_event_id, requested_type, original_time, changed_from, changed_to, approved_by, "action" FROM attendance_change_requests ORDER BY id
+`
+
+func (q *Queries) ListAllAttendanceChangeRequests(ctx context.Context) ([]AttendanceChangeRequest, error) {
+	rows, err := q.db.QueryContext(ctx, listAllAttendanceChangeRequests)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AttendanceChangeRequest{}
+	for rows.Next() {
+		var i AttendanceChangeRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.SalespersonID,
+			&i.AttendanceDate,
+			&i.RequestedTime,
+			&i.Note,
+			&i.Status,
+			&i.CreatedAt,
+			&i.ReviewedAt,
+			&i.OriginalEventID,
+			&i.RequestedType,
+			&i.OriginalTime,
+			&i.ChangedFrom,
+			&i.ChangedTo,
+			&i.ApprovedBy,
+			&i.Action,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllSalespersonAttendanceEvents = `-- name: ListAllSalespersonAttendanceEvents :many
+SELECT id, device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status FROM salesperson_attendance_events ORDER BY id
+`
+
+func (q *Queries) ListAllSalespersonAttendanceEvents(ctx context.Context) ([]SalespersonAttendanceEvent, error) {
+	rows, err := q.db.QueryContext(ctx, listAllSalespersonAttendanceEvents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SalespersonAttendanceEvent{}
+	for rows.Next() {
+		var i SalespersonAttendanceEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeviceID,
+			&i.EventID,
+			&i.SalespersonID,
+			&i.AttendanceUserID,
+			&i.SalespersonName,
+			&i.EventDate,
+			&i.EventTime,
+			&i.EventAt,
+			&i.Type,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAttendanceComplaints = `-- name: ListAttendanceComplaints :many
 SELECT id, employee_id, attendance_date, requested_time, note, approved, created_at FROM attendance_complaints WHERE attendance_date LIKE ? ORDER BY attendance_date DESC, created_at DESC
 `
