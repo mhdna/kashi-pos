@@ -104,7 +104,7 @@
     </form>
 
     <div class="pin-status" aria-live="polite">
-      <v-progress-circular v-if="loading" indeterminate size="22" width="2" />
+      <v-progress-circular v-if="loading && mode === 'pin'" indeterminate size="22" width="2" />
       <span v-else-if="!locked && error" class="pin-error" role="alert">{{ error }}</span>
       <span v-if="mode === 'pin' && !locked && attempts > 0" class="pin-attempts text-subtitle-1">
         {{ 3 - attempts }} {{ 3 - attempts === 1 ? "attempt" : "attempts" }} remaining

@@ -28,7 +28,7 @@
         :current-day="currentDay"
         :is-admin="auth.isAdmin"
         :printing-shift-id="printingShiftId"
-        :targets="branchTargets"
+        :targets="visibleTargets"
         :visitor-counts="visitorCounts"
         :visitor-counter-enabled="visitorCounterEnabled"
         @toggle-all="toggleAllDays"
@@ -215,6 +215,20 @@ const todayIncome = ref<IncomeRow[]>([]);
 const branchTargets = ref<
   { id: number; dateFrom: string; dateTo: string; targetAmountCents: number; achievedCents: number; color: string }[]
 >([]);
+
+// Only surface targets that cover the selected month — either they sit
+// entirely within it, or their date range spills across it.
+const visibleTargets = computed(() => {
+  const [year, month] = currentMonth.value.split("-").map(Number);
+  if (!year || !month) return [];
+  const monthStart = new Date(year, month - 1, 1);
+  const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+  return branchTargets.value.filter((t) => {
+    const from = new Date(t.dateFrom);
+    const to = new Date(t.dateTo);
+    return from <= monthEnd && to >= monthStart;
+  });
+});
 
 async function refresh() {
   loadingShift.value = true;
