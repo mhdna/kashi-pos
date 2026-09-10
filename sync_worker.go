@@ -68,6 +68,11 @@ func (a *App) kickSyncWorker() {
 // on/off, or changing the branch key, takes effect on the next tick
 // without a restart.
 func (a *App) runSyncTick(ctx context.Context) {
+	// A "sync everything" run owns the database while it's going; the tick
+	// would only contend for the single SQLite write slot and trip 517.
+	if a.resyncActive.Load() {
+		return
+	}
 	settings, err := a.store.GetSettings(ctx)
 	if err != nil {
 		log.Printf("sync tick: load settings: %v", err)

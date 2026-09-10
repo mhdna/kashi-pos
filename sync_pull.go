@@ -505,6 +505,14 @@ func (a *App) runSyncPullOnce(ctx context.Context, client *centralClient) {
 		return
 	}
 	defer a.syncPullMu.Unlock()
+	a.runSyncPullLocked(ctx, client)
+}
+
+// runSyncPullLocked is the pull pass itself, with the caller already holding
+// a.syncPullMu -- so ResyncAll can hold that lock across its whole run
+// (blocking the tick's and the WS client's pulls) and still drive one pull
+// itself.
+func (a *App) runSyncPullLocked(ctx context.Context, client *centralClient) {
 	for _, entity := range pullEntities {
 		if err := a.pullEntityLocked(ctx, client, entity); err != nil {
 			log.Printf("sync pull %s: %v", entity, err)

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -71,6 +72,12 @@ type App struct {
 	// overlap (each one clears cursors and re-arms outbox rows -- running two
 	// at once would double-queue and thrash).
 	resyncMu sync.Mutex
+	// resyncActive tells the 15s sync tick to stand down while ResyncAll is
+	// running: SQLite allows one writer, and the tick's outbox drain / pull
+	// apply racing ResyncAll's hundreds of small write transactions is what
+	// produces "database is locked (517)". ResyncAll additionally holds
+	// syncPullMu for its whole run, which blocks the WS client's pulls too.
+	resyncActive atomic.Bool
 	// backgroundWG lets shutdown wait for the sync worker and WS client
 	// goroutines to actually exit, not just signal them to — otherwise a
 	// goroutine can still be mid-tick (touching the SQLite file, e.g.

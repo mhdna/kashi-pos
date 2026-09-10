@@ -66,6 +66,15 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	}
 	defer a.resyncMu.Unlock()
 
+	// Own the database for the duration: tell the 15s tick to stand down,
+	// and hold syncPullMu so the WS client's catch-up pulls can't run
+	// either. SQLite has one writer; without this, the tick's outbox drain
+	// racing this run's writes is what trips "database is locked (517)".
+	a.resyncActive.Store(true)
+	defer a.resyncActive.Store(false)
+	a.syncPullMu.Lock()
+	defer a.syncPullMu.Unlock()
+
 	ctx := a.ctx
 	settings, err := a.store.GetSettings(ctx)
 	if err != nil {
@@ -89,11 +98,11 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	//    row already means "everything", so clearing them and running one
 	//    pull pass is the whole "brand-new till catches up" story.
 	if !opts.DryRun {
-		if err := a.store.ClearSyncCursors(ctx); err != nil {
+		if err := retryBusy(func() error { return a.store.ClearSyncCursors(ctx) }); err != nil {
 			return report, fmt.Errorf("clear sync cursors: %w", err)
 		}
 		a.emitResyncProgress("pull", 0, 0)
-		a.runSyncPullOnce(ctx, client)
+		a.runSyncPullLocked(ctx, client)
 	}
 
 	// 2. Clients up.
@@ -147,7 +156,12 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	//    server confirmed (or that hard-failed) so they re-push to this one.
 	rearmed := 0
 	if !opts.DryRun {
-		n, err := a.store.RequeueSyncOutboxConfirmedElsewhere(ctx, client.baseURL)
+		var n int64
+		err := retryBusy(func() error {
+			var e error
+			n, e = a.store.RequeueSyncOutboxConfirmedElsewhere(ctx, client.baseURL)
+			return e
+		})
 		if err != nil {
 			return report, fmt.Errorf("re-arm outbox: %w", err)
 		}
@@ -220,7 +234,7 @@ func (a *App) resyncClients(ctx context.Context, client *centralClient, opts Res
 		// rather than colliding on the table-wide UNIQUE(client_ref); it
 		// deliberately can't clash with the live path's
 		// "client-<id>-<nanos>" throwaway refs.
-		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+		if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
 			EntityType:  "client",
 			ClientRef:   "client-resync-" + ref,
 			PayloadJson: string(body),
@@ -282,7 +296,7 @@ func (a *App) resyncInvoices(ctx context.Context, client *centralClient, opts Re
 
 	// Mint a stable ref for every invoice that lacks one, so the whole set
 	// can be reconciled by ref in one shot.
-	if err := a.store.ExecTx(ctx, func(q *db.Queries) error {
+	if err := a.resyncTx(ctx, func(q *db.Queries) error {
 		for _, inv := range invoices {
 			if _, ok := refByInvoice[inv.ID]; ok {
 				continue
@@ -317,7 +331,7 @@ func (a *App) resyncInvoices(ctx context.Context, client *centralClient, opts Re
 	for i, ref := range missing {
 		inv := invByRef[ref]
 		salesID, isReturn := salesIDByReturnID[inv.ID]
-		if err := a.store.ExecTx(ctx, func(q *db.Queries) error {
+		if err := a.resyncTx(ctx, func(q *db.Queries) error {
 			payload, err := buildBranchInvoicePayloadFromDB(ctx, q, inv, isReturn, salesID, !opts.ApplyStock)
 			if err != nil {
 				return err
@@ -484,7 +498,7 @@ func (a *App) resyncExpenses(ctx context.Context, client *centralClient, opts Re
 		if err != nil {
 			return rep, err
 		}
-		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+		if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
 			EntityType: "expense", ClientRef: r.ClientRef, PayloadJson: string(body),
 		}); err != nil {
 			return rep, err
@@ -538,7 +552,7 @@ func (a *App) resyncLoans(ctx context.Context, client *centralClient, opts Resyn
 		if err != nil {
 			return rep, err
 		}
-		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+		if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
 			EntityType: "loan", ClientRef: r.ClientRef, PayloadJson: string(body),
 		}); err != nil {
 			return rep, err
@@ -603,7 +617,7 @@ func (a *App) resyncShiftCloses(ctx context.Context, client *centralClient, opts
 		if err != nil {
 			return rep, err
 		}
-		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+		if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
 			EntityType: "shift_close", ClientRef: ref, PayloadJson: string(body),
 		}); err != nil {
 			return rep, err
@@ -647,7 +661,7 @@ func (a *App) resyncVisitorEvents(ctx context.Context, client *centralClient, op
 		if err != nil {
 			return rep, err
 		}
-		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+		if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
 			EntityType: "visitor_event", ClientRef: r.ClientRef, PayloadJson: string(body),
 		}); err != nil {
 			return rep, err
@@ -703,7 +717,7 @@ func (a *App) resyncAttendanceEvents(ctx context.Context, client *centralClient,
 	if err != nil {
 		return rep, err
 	}
-	if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+	if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
 		EntityType: "attendance_events", ClientRef: "attendance-events-resync", PayloadJson: string(body),
 	}); err != nil {
 		return rep, err
@@ -791,7 +805,7 @@ func (a *App) resyncAttendanceChanges(ctx context.Context, client *centralClient
 	}
 
 	for _, ref := range missing {
-		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+		if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
 			EntityType: "attendance_change", ClientRef: ref, PayloadJson: string(byRef[ref]),
 		}); err != nil {
 			return rep, err
@@ -799,6 +813,45 @@ func (a *App) resyncAttendanceChanges(ctx context.Context, client *centralClient
 		rep.Queued++
 	}
 	return rep, nil
+}
+
+// isDatabaseBusy reports whether err is a transient SQLite lock/busy
+// condition worth retrying. modernc's driver surfaces these as text; the
+// codes are SQLITE_BUSY (5), SQLITE_LOCKED (6) and SQLITE_BUSY_SNAPSHOT
+// (517, which busy_timeout does NOT wait out on its own).
+func isDatabaseBusy(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "database is locked") ||
+		strings.Contains(msg, "database table is locked") ||
+		strings.Contains(msg, "(517)") || strings.Contains(msg, "(5)") ||
+		strings.Contains(msg, "SQLITE_BUSY") || strings.Contains(msg, "SQLITE_LOCKED")
+}
+
+// retryBusy runs fn, retrying a handful of times with a short backoff while
+// it fails with a transient lock. ResyncAll already tells the sync tick to
+// stand down, but a foreground sale rung up mid-run is still a second
+// writer, and one connection losing a WAL snapshot race must not abort a
+// whole "sync everything".
+func retryBusy(fn func() error) error {
+	var err error
+	for attempt := 0; attempt < 8; attempt++ {
+		if err = fn(); !isDatabaseBusy(err) {
+			return err
+		}
+		time.Sleep(time.Duration(50*(attempt+1)) * time.Millisecond)
+	}
+	return err
+}
+
+func (a *App) resyncTx(ctx context.Context, fn func(*db.Queries) error) error {
+	return retryBusy(func() error { return a.store.ExecTx(ctx, fn) })
+}
+
+func (a *App) upsertOutbox(ctx context.Context, params db.UpsertSyncOutboxEntryParams) error {
+	return retryBusy(func() error { return a.store.UpsertSyncOutboxEntry(ctx, params) })
 }
 
 // emitResyncProgress feeds the settings-page progress line. done/total are
