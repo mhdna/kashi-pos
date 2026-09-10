@@ -34,7 +34,10 @@
         @toggle-all="toggleAllDays"
         @toggle-day="toggleDay"
         @toggle-shift="toggleShift"
+        :at-current-month="currentMonth === thisMonthKey"
         @print-shift="printClosedShift"
+        @prev-month="() => stepMonth(-1)"
+        @next-month="() => stepMonth(1)"
       />
     </div>
   </div>
@@ -72,6 +75,17 @@ const visitorCounts = ref<Record<string, number>>({});
 const openShift = ref<Shift | null>(null);
 const allShifts = ref<Shift[]>([]);
 const currentMonth = ref("");
+const thisMonthKey = `${new Date().getFullYear()}-${pad(new Date().getMonth() + 1)}`;
+
+function stepMonth(delta: number) {
+  const [y, m] = currentMonth.value.split("-").map(Number);
+  if (!y || !m) return;
+  const d = new Date(y, m - 1 + delta, 1);
+  const next = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+  if (next > thisMonthKey) return; // don't page into the future
+  currentMonth.value = next;
+  void refresh();
+}
 const loadingShift = ref(true);
 const loadingMonth = ref(true);
 const printingShiftId = ref<number | null>(null);

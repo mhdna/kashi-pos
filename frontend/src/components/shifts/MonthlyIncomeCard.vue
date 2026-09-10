@@ -5,6 +5,25 @@
       <v-card-title class="text-body-1 font-weight-bold px-0">
         Monthly Shift Income ({{ month }})
       </v-card-title>
+      <v-btn
+        icon="mdi-chevron-left"
+        variant="text"
+        density="compact"
+        size="small"
+        class="ms-1"
+        :disabled="loading"
+        aria-label="Previous month"
+        @click="$emit('prev-month')"
+      />
+      <v-btn
+        icon="mdi-chevron-right"
+        variant="text"
+        density="compact"
+        size="small"
+        :disabled="loading || atCurrentMonth"
+        aria-label="Next month"
+        @click="$emit('next-month')"
+      />
       <v-spacer />
       <v-btn
         variant="tonal"
@@ -226,6 +245,7 @@ const props = defineProps<{
   targets: BranchTarget[];
   visitorCounts: Record<string, number>;
   visitorCounterEnabled: boolean;
+  atCurrentMonth: boolean;
 }>();
 
 const monthlyIncomeScroll = ref<HTMLElement | null>(null);
@@ -259,6 +279,8 @@ watch(() => [props.loading, props.rows.length, props.currentDay], centerCurrentD
 
 const emit = defineEmits<{
   "toggle-all": [];
+  "prev-month": [];
+  "next-month": [];
   "toggle-day": [day: string];
   "toggle-shift": [shiftId: number];
   "print-shift": [shiftId: number];
