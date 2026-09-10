@@ -76,6 +76,7 @@ type Querier interface {
 	CreateSalesperson(ctx context.Context, fullName string) (Salesperson, error)
 	CreateShift(ctx context.Context, arg CreateShiftParams) (Shift, error)
 	CreateShiftBalanceReplacement(ctx context.Context, arg CreateShiftBalanceReplacementParams) error
+	CreateShiftReceiptUpload(ctx context.Context, arg CreateShiftReceiptUploadParams) (ShiftReceiptUpload, error)
 	CreateSyncOutboxEntry(ctx context.Context, arg CreateSyncOutboxEntryParams) (SyncOutbox, error)
 	CreateSyncedSalesperson(ctx context.Context, arg CreateSyncedSalespersonParams) (Salesperson, error)
 	CreateSyncedUser(ctx context.Context, arg CreateSyncedUserParams) (User, error)
@@ -173,6 +174,7 @@ type Querier interface {
 	GetSettings(ctx context.Context) (Setting, error)
 	GetShiftAccountBalance(ctx context.Context, arg GetShiftAccountBalanceParams) (ShiftsAccountsBalance, error)
 	GetShiftByID(ctx context.Context, id int64) (Shift, error)
+	GetShiftReceiptUploadByToken(ctx context.Context, token string) (ShiftReceiptUpload, error)
 	GetShiftReportSummary(ctx context.Context, reportShiftID int64) (GetShiftReportSummaryRow, error)
 	// Bounded to a single calendar month (the monthly shift table only ever
 	// displays one month at a time) instead of loading every shift ever
@@ -242,6 +244,11 @@ type Querier interface {
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
 	ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
+	// Captured on the POS but not yet confirmed by kashi, and off backoff. Only
+	// 'local' rows are ever forwarded from here: a 'central' row's photo went
+	// straight to kashi, so there's nothing to push. Deliberately no 'failed'
+	// filter -- this table never gives up.
+	ListDueShiftReceiptUploads(ctx context.Context, limit int64) ([]ShiftReceiptUpload, error)
 	// Priority order, not plain FIFO: a "sync everything" run can dump tens of
 	// thousands of client/product rows into this table, and a live sale queued
 	// afterwards must not wait behind all of them. Invoices/settlements drain
@@ -333,12 +340,18 @@ type Querier interface {
 	ListUsers(ctx context.Context) ([]User, error)
 	ListVisitorCountsForMonth(ctx context.Context, monthPrefix string) ([]ListVisitorCountsForMonthRow, error)
 	ListVisitorEventsForDay(ctx context.Context, day string) ([]ListVisitorEventsForDayRow, error)
+	MarkShiftReceiptCaptured(ctx context.Context, arg MarkShiftReceiptCapturedParams) error
+	MarkShiftReceiptSynced(ctx context.Context, id int64) error
+	MarkShiftReceiptUploadAttemptFailed(ctx context.Context, arg MarkShiftReceiptUploadAttemptFailedParams) error
 	MarkSyncOutboxAttemptFailed(ctx context.Context, arg MarkSyncOutboxAttemptFailedParams) error
 	// Terminal state for a row kashi rejected outright (a 4xx, or an entity_type
 	// it has no route for). It stays out of the drain batch until an explicit
 	// resync re-arms it.
 	MarkSyncOutboxFailed(ctx context.Context, arg MarkSyncOutboxFailedParams) error
 	MarkSyncOutboxSynced(ctx context.Context, arg MarkSyncOutboxSyncedParams) error
+	// Used by the hybrid close path: when the POS pushes a shift close directly
+	// (to get an upload token back) the queued outbox row is now redundant.
+	MarkSyncOutboxSyncedByClientRef(ctx context.Context, arg MarkSyncOutboxSyncedByClientRefParams) error
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
@@ -357,10 +370,16 @@ type Querier interface {
 	SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error)
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
 	SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error
+	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
 	SetSyncTarget(ctx context.Context, currentTarget string) error
 	SetUserPasswordHashByUsername(ctx context.Context, arg SetUserPasswordHashByUsernameParams) (int64, error)
 	SetVisitorCount(ctx context.Context, arg SetVisitorCountParams) error
+	// Guard for the uploader: kashi only has a branch_shifts row to attach the
+	// photo to once the shift's own close has synced (entity_type 'shift_close',
+	// client_ref 'shift-<id>').
+	ShiftCloseSyncedForRef(ctx context.Context, clientRef string) (int64, error)
+	SkipShiftReceiptUpload(ctx context.Context, arg SkipShiftReceiptUploadParams) error
 	// The portion of a shift's "On Account" total that was NOT recorded today -
 	// subtracted in Go from ListIncomeAccountTotals's On Account row so a shift
 	// left open across a day boundary doesn't drag prior days' on-account
@@ -371,6 +390,7 @@ type Querier interface {
 	// The shift filter is pushed into every branch so each is an index seek,
 	// matching ListIncomeAccountTotals above.
 	StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error)
+	SwitchShiftReceiptUploadRoute(ctx context.Context, arg SwitchShiftReceiptUploadRouteParams) error
 	// Per-invoice sync dot source: joins each invoice to its stable client_ref
 	// and whatever outbox row carries it. status/synced_to are NULL when the
 	// invoice was never queued (sync was off when it was rung up).

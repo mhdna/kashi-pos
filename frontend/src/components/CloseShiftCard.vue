@@ -217,6 +217,83 @@
         Close Shift
       </v-btn>
     </div>
+
+    <v-dialog v-model="receiptDialog" max-width="420" persistent>
+      <v-card class="text-center pa-4">
+        <template v-if="receiptState === 'scan'">
+          <v-card-title>Upload the shift receipt</v-card-title>
+          <v-card-text>
+            <div class="text-body-2 mb-3">
+              Scan with a phone and upload one photo of the printed close-shift receipt.
+            </div>
+            <img
+              v-if="receiptQr"
+              :src="receiptQr"
+              alt="Upload QR code"
+              style="width: 240px; height: 240px"
+            />
+            <div class="text-caption text-medium-emphasis mt-3" style="word-break: break-all">
+              {{ receiptUrl }}
+            </div>
+            <div class="d-flex align-center justify-center ga-2 mt-4 text-medium-emphasis">
+              <v-progress-circular indeterminate size="18" width="2" />
+              <span class="text-caption">Waiting for the photo…</span>
+            </div>
+          </v-card-text>
+          <v-card-actions class="flex-column ga-2">
+            <v-btn
+              v-if="!showSkip && receiptMode === 'central'"
+              :loading="switchingLocal"
+              size="small"
+              variant="text"
+              @click="switchToLocalUpload"
+            >
+              Phone can't reach the server? Use local Wi-Fi
+            </v-btn>
+            <v-btn v-if="!showSkip" size="small" variant="text" @click="showSkip = true">
+              Can't upload now
+            </v-btn>
+            <template v-else>
+              <v-text-field
+                v-model="skipReason"
+                density="compact"
+                hide-details
+                label="Reason"
+                variant="outlined"
+              />
+              <v-text-field
+                v-model="adminPassword"
+                density="compact"
+                hide-details
+                label="Admin password"
+                type="password"
+                variant="outlined"
+              />
+              <div v-if="skipError" class="text-caption text-error">{{ skipError }}</div>
+              <div class="d-flex ga-2">
+                <v-btn size="small" variant="text" @click="showSkip = false">Back</v-btn>
+                <v-btn color="error" :loading="skipping" size="small" @click="submitSkip">
+                  Skip &amp; finish
+                </v-btn>
+              </div>
+            </template>
+          </v-card-actions>
+        </template>
+
+        <template v-else>
+          <v-card-text>
+            <v-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
+            <div class="text-h6">Receipt photo received</div>
+            <div class="text-caption text-medium-emphasis mt-1">
+              It will sync to the office automatically.
+            </div>
+          </v-card-text>
+          <v-card-actions class="justify-center">
+            <v-btn color="primary" variant="elevated" @click="finishReceipt">Finish</v-btn>
+          </v-card-actions>
+        </template>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -228,6 +305,7 @@ import { formatBalance, formatUsd } from "@/lib/format";
 import { formatServerDateTime } from "@/lib/datetime";
 import { useCurrencies } from "@/composables/useCurrencies";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
+import QRCode from "qrcode";
 import {
   GetOpenShift,
   ListShiftBalances,
@@ -235,7 +313,11 @@ import {
   CloseShiftByID,
   OpenShift,
   GetShiftExpectedTotals,
+  CheckShiftReceiptCaptured,
+  SkipShiftReceiptUpload,
+  SwitchShiftReceiptToLocal,
 } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 const emit = defineEmits(["close"]);
 const auth = useAuthStore();
@@ -386,8 +468,11 @@ onBeforeUnmount(() => {
   if (closingClockTimer) clearInterval(closingClockTimer);
 });
 
+type ReceiptUpload = { token: string; url: string; required: boolean; mode?: string };
+
 async function doCloseShift() {
   closing.value = true;
+  let receiptUpload: ReceiptUpload | null = null;
   try {
     if (shiftId.value && closingPersonId.value) {
       const result = await CloseShiftByID(
@@ -408,15 +493,127 @@ async function doCloseShift() {
       if (result?.receiptError) {
         window.alert(`Shift closed, but the receipt could not be printed: ${result.receiptError}`);
       }
+      receiptUpload = (result?.receiptUpload ?? null) as ReceiptUpload | null;
     }
     await OpenShift();
   } catch (e) {
     console.error("close shift:", e);
   }
   closing.value = false;
+
+  // The shift is closed. If a printed receipt exists, block the return to
+  // login until the cashier uploads one photo of it (or a manager overrides).
+  // The photo is buffered on this machine and forwarded to the office in the
+  // background, so this step works with no internet.
+  if (receiptUpload?.required) {
+    openReceiptDialog(receiptUpload);
+    return;
+  }
   auth.logout();
   router.push("/login");
 }
+
+// ----------------------- Close-shift receipt photo -----------------------
+
+const receiptDialog = ref(false);
+const receiptState = ref<"scan" | "done">("scan");
+const receiptUrl = ref("");
+const receiptQr = ref("");
+const receiptMode = ref<"central" | "local">("local");
+const switchingLocal = ref(false);
+const showSkip = ref(false);
+const skipping = ref(false);
+const adminPassword = ref("");
+const skipReason = ref("");
+const skipError = ref("");
+let receiptToken = "";
+let receiptPoll: ReturnType<typeof setInterval> | null = null;
+let receiptUnsub: (() => void) | null = null;
+
+async function renderReceiptQr(url: string) {
+  try {
+    receiptQr.value = await QRCode.toDataURL(url, { width: 240, margin: 1 });
+  } catch {
+    receiptQr.value = "";
+  }
+}
+
+function stopReceiptWatchers() {
+  if (receiptPoll !== null) {
+    clearInterval(receiptPoll);
+    receiptPoll = null;
+  }
+  receiptUnsub?.();
+  receiptUnsub = null;
+}
+
+function markReceiptCaptured() {
+  receiptState.value = "done";
+  stopReceiptWatchers();
+}
+
+async function openReceiptDialog(upload: { token: string; url: string; mode?: string }) {
+  stopReceiptWatchers();
+  receiptToken = upload.token;
+  receiptUrl.value = upload.url;
+  receiptMode.value = upload.mode === "central" ? "central" : "local";
+  receiptState.value = "scan";
+  showSkip.value = false;
+  adminPassword.value = "";
+  skipReason.value = "";
+  skipError.value = "";
+  receiptDialog.value = true;
+
+  await renderReceiptQr(upload.url);
+
+  receiptUnsub = EventsOn(`shift_receipt_captured:${receiptToken}`, markReceiptCaptured);
+  receiptPoll = setInterval(async () => {
+    try {
+      if (await CheckShiftReceiptCaptured(receiptToken)) markReceiptCaptured();
+    } catch {
+      // Offline / transient -- keep polling; the event or a later tick gets there.
+    }
+  }, 4000);
+}
+
+function finishReceipt() {
+  stopReceiptWatchers();
+  receiptDialog.value = false;
+  auth.logout();
+  router.push("/login");
+}
+
+// Fallback for when the phone can't reach the central server (shop internet
+// dropped after close): re-point the QR at this POS's own upload server.
+async function switchToLocalUpload() {
+  switchingLocal.value = true;
+  try {
+    const res = await SwitchShiftReceiptToLocal(receiptToken);
+    receiptToken = (res?.token as string) ?? receiptToken;
+    receiptUrl.value = (res?.url as string) ?? receiptUrl.value;
+    receiptMode.value = "local";
+    await renderReceiptQr(receiptUrl.value);
+  } catch (e) {
+    console.error("switch to local upload:", e);
+  } finally {
+    switchingLocal.value = false;
+  }
+}
+
+async function submitSkip() {
+  skipError.value = "";
+  skipping.value = true;
+  try {
+    await SkipShiftReceiptUpload(receiptToken, adminPassword.value, skipReason.value);
+    finishReceipt();
+  } catch (e: any) {
+    skipError.value = e?.message ?? String(e);
+  } finally {
+    skipping.value = false;
+  }
+}
+
+onBeforeUnmount(stopReceiptWatchers);
 </script>
 
 <style scoped>

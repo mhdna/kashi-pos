@@ -120,6 +120,8 @@ export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
 
 export function GetShiftExpectedTotals(arg1:number):Promise<Record<string, any>>;
 
+export function GetShiftReceiptUploadMode():Promise<number>;
+
 export function GetShiftTotals(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function GetStartupError():Promise<string>;
@@ -294,6 +296,8 @@ export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
 
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
 
+export function SetShiftReceiptUploadMode(arg1:number):Promise<void>;
+
 export function SetTheme(arg1:string):Promise<void>;
 
 export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
@@ -303,6 +307,8 @@ export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<st
 export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string):Promise<void>;
+
+export function SwitchShiftReceiptToLocal(arg1:string):Promise<Record<string, any>>;
 
 export function SyncAttendance(arg1:string):Promise<Record<string, any>>;
 

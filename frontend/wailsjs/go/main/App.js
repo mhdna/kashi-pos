@@ -238,6 +238,10 @@ export function GetShiftExpectedTotals(arg1) {
   return window['go']['main']['App']['GetShiftExpectedTotals'](arg1);
 }
 
+export function GetShiftReceiptUploadMode() {
+  return window['go']['main']['App']['GetShiftReceiptUploadMode']();
+}
+
 export function GetShiftTotals(arg1) {
   return window['go']['main']['App']['GetShiftTotals'](arg1);
 }
@@ -586,6 +590,10 @@ export function SetSalespersonPerInvoiceRequired(arg1) {
   return window['go']['main']['App']['SetSalespersonPerInvoiceRequired'](arg1);
 }
 
+export function SetShiftReceiptUploadMode(arg1) {
+  return window['go']['main']['App']['SetShiftReceiptUploadMode'](arg1);
+}
+
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
@@ -604,6 +612,10 @@ export function SkipShiftReceiptUpload(arg1, arg2, arg3) {
 
 export function SubmitAttendanceComplaint(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
   return window['go']['main']['App']['SubmitAttendanceComplaint'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+}
+
+export function SwitchShiftReceiptToLocal(arg1) {
+  return window['go']['main']['App']['SwitchShiftReceiptToLocal'](arg1);
 }
 
 export function SyncAttendance(arg1) {

@@ -283,6 +283,24 @@
               <v-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" hide-details />
               <v-select v-model="form.screenPort" :items="serialPorts" placeholder="Customer screen COM port" variant="outlined" density="compact" hide-details />
               <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
+              <v-select
+                :model-value="form.shiftReceiptUploadMode"
+                :items="shiftReceiptUploadModes"
+                :loading="shiftReceiptUploadModeSaving"
+                label="Close-shift receipt photo"
+                class="field-full"
+                variant="outlined"
+                density="compact"
+                hide-details
+                @update:model-value="(value) => setShiftReceiptUploadMode(value)"
+              />
+              <div class="text-caption text-medium-emphasis field-full">
+                After a shift closes, the cashier is shown a QR code to upload one photo of the
+                printed receipt. <b>Hybrid</b> sends it to the office when there's a connection
+                and buffers it on this machine otherwise; <b>Local</b> always uploads over the
+                shop Wi-Fi to this machine; <b>Central</b> always goes straight to the office;
+                <b>Off</b> skips the photo.
+              </div>
             </v-card-text>
           </v-card>
 
@@ -1408,6 +1426,7 @@ import {
   SetOverchangeConfirmationEnabled,
   SetOpeningFloatEnabled,
   SetCountOpeningCashOnCloseEnabled,
+  SetShiftReceiptUploadMode,
   SetPageUnlocked,
   UpdateDefaultOpeningFloat,
   SetAutoCloseStaleShiftsEnabled,
@@ -1680,6 +1699,7 @@ const form = reactive({
   overchangeConfirmationEnabled: true,
   openingFloatEnabled: true,
   countOpeningCashOnClose: true,
+  shiftReceiptUploadMode: 2,
   adminEnabled: false,
   adminListen: "127.0.0.1:8787",
   adminToken: "",
@@ -1724,6 +1744,13 @@ const currencySaving = ref(false);
 const autoAppendLbpZerosSaving = ref(false);
 const overchangeConfirmationSaving = ref(false);
 const openingFloatEnabledSaving = ref(false);
+const shiftReceiptUploadModeSaving = ref(false);
+const shiftReceiptUploadModes = [
+  { title: "Hybrid (office when online, else this machine)", value: 2 },
+  { title: "Local only (this machine, over shop Wi-Fi)", value: 3 },
+  { title: "Central only (straight to the office)", value: 1 },
+  { title: "Off (no photo)", value: 0 },
+];
 const countOpeningCashOnCloseSaving = ref(false);
 const paymentMethodForm = reactive({ name: "", currencyCode: "", color: "" });
 const editingPaymentMethodId = ref<number | null>(null);
@@ -2258,6 +2285,7 @@ async function loadSettings() {
         overchangeConfirmationEnabled: s.overchangeConfirmationEnabled !== false,
         openingFloatEnabled: s.openingFloatEnabled !== false,
         countOpeningCashOnClose: s.countOpeningCashOnClose !== false,
+        shiftReceiptUploadMode: Number(s.shiftReceiptUploadMode ?? 2),
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
@@ -2510,6 +2538,22 @@ async function setOverchangeConfirmationEnabled(value: boolean | null) {
     notify("Failed to update over-change confirmation", "red");
   } finally {
     overchangeConfirmationSaving.value = false;
+  }
+}
+
+async function setShiftReceiptUploadMode(value: number | null) {
+  const mode = Number(value ?? 2);
+  const previous = form.shiftReceiptUploadMode;
+  form.shiftReceiptUploadMode = mode;
+  shiftReceiptUploadModeSaving.value = true;
+  try {
+    await SetShiftReceiptUploadMode(mode);
+    notify("Close-shift receipt photo setting updated");
+  } catch {
+    form.shiftReceiptUploadMode = previous;
+    notify("Failed to update close-shift receipt photo setting", "red");
+  } finally {
+    shiftReceiptUploadModeSaving.value = false;
   }
 }
 

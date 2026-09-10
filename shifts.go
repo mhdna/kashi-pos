@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -14,6 +16,46 @@ import (
 )
 
 const autoCloseStaleShiftsFlag = "auto_close_stale_shifts"
+
+// How the close-shift receipt photo is collected -- stored in
+// settings.shift_receipt_upload_mode (an enum, so it can't live in
+// feature_flags). kashi can push this per branch via the update_settings
+// command (see executeUpdateSettingsCommand).
+const (
+	shiftUploadModeOff     int64 = 0 // no photo asked for
+	shiftUploadModeCentral int64 = 1 // QR -> kashi directly; needs a connection at close
+	shiftUploadModeHybrid  int64 = 2 // QR -> kashi when reachable, else this POS's local server
+	shiftUploadModeLocal   int64 = 3 // QR -> this POS's local server, always
+)
+
+// shiftReceiptUploadMode returns the configured mode, defaulting to hybrid.
+func (a *App) shiftReceiptUploadMode() int64 {
+	if settings, err := a.store.GetSettings(a.ctx); err == nil {
+		if settings.ShiftReceiptUploadMode >= shiftUploadModeOff && settings.ShiftReceiptUploadMode <= shiftUploadModeLocal {
+			return settings.ShiftReceiptUploadMode
+		}
+	}
+	return shiftUploadModeHybrid
+}
+
+// GetShiftReceiptUploadMode / SetShiftReceiptUploadMode back the Settings
+// screen dropdown.
+func (a *App) GetShiftReceiptUploadMode() (int64, error) {
+	if a.store == nil {
+		return shiftUploadModeHybrid, fmt.Errorf("database not initialized")
+	}
+	return a.shiftReceiptUploadMode(), nil
+}
+
+func (a *App) SetShiftReceiptUploadMode(mode int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if mode < shiftUploadModeOff || mode > shiftUploadModeLocal {
+		return fmt.Errorf("invalid shift receipt upload mode %d", mode)
+	}
+	return a.store.SetShiftReceiptUploadMode(a.ctx, mode)
+}
 
 // openingFloatEnabledFlag is the master switch for the opening cash float
 // feature. Default (missing row or 1) = enabled, the historical behaviour.
@@ -282,6 +324,26 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		}
 	}
 
+	shiftRef := fmt.Sprintf("shift-%d", id)
+	shiftClosePayload := branchShiftClosePayload{
+		ShiftRef:          shiftRef,
+		BranchShiftID:     id,
+		OpenedAt:          openedAt,
+		ClosedAt:          parseShiftTimestamp(closedAt),
+		ClosingPersonName: closingPersonName,
+		OpeningFloatUsd:   openingFloatUsd,
+		OpeningFloatLbp:   openingFloatLbp,
+		ExpectedUsd:       expectedUSD,
+		ExpectedLbp:       expectedLBP,
+		ExpectedVisa:      expectedVisa,
+		ExpectedWhish:     expectedWhish,
+		CountedUsd:        countedUSD,
+		CountedLbp:        countedLBP,
+		CountedVisa:       countedVisa,
+		CountedWhish:      countedWhish,
+		OccurredAt:        time.Now().UTC(),
+	}
+
 	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
 		updated, err := q.CloseShift(a.ctx, db.CloseShiftParams{
 			ClosedAt:              closedAt,
@@ -303,24 +365,7 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		if updated != 1 {
 			return errShiftAlreadyClosed
 		}
-		return queueBranchShiftCloseSync(a.ctx, q, centralURL, branchShiftClosePayload{
-			ShiftRef:          fmt.Sprintf("shift-%d", id),
-			BranchShiftID:     id,
-			OpenedAt:          openedAt,
-			ClosedAt:          parseShiftTimestamp(closedAt),
-			ClosingPersonName: closingPersonName,
-			OpeningFloatUsd:   openingFloatUsd,
-			OpeningFloatLbp:   openingFloatLbp,
-			ExpectedUsd:       expectedUSD,
-			ExpectedLbp:       expectedLBP,
-			ExpectedVisa:      expectedVisa,
-			ExpectedWhish:     expectedWhish,
-			CountedUsd:        countedUSD,
-			CountedLbp:        countedLBP,
-			CountedVisa:       countedVisa,
-			CountedWhish:      countedWhish,
-			OccurredAt:        time.Now().UTC(),
-		})
+		return queueBranchShiftCloseSync(a.ctx, q, centralURL, shiftClosePayload)
 	})
 	if err != nil {
 		if errors.Is(err, errShiftAlreadyClosed) {
@@ -333,15 +378,210 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 	}
 
 	result := map[string]any{"receiptPrinted": false}
+
+	// mintReceiptUpload resolves where the receipt photo should go (kashi
+	// directly, or this POS's local server) per the configured mode and
+	// attaches the QR link to the result so the close-shift screen blocks
+	// on the upload -- see resolveShiftReceiptUpload.
+	mintReceiptUpload := func() {
+		if upload := a.resolveShiftReceiptUpload(id, shiftRef, shiftClosePayload, centralURL); upload != nil {
+			result["receiptUpload"] = upload
+		}
+	}
+
 	if !receiptEnabled {
+		// No receipt printer configured. In production there's no printed
+		// receipt to photograph, so skip; under `wails dev` (typically no
+		// printer attached) mint it anyway so the flow stays testable.
+		if isDevMode {
+			mintReceiptUpload()
+		}
 		return result, nil
 	}
 	if err := printReceiptToPrinter(printData); err != nil {
 		result["receiptError"] = err.Error()
+		if isDevMode {
+			mintReceiptUpload()
+		}
 		return result, nil
 	}
 	result["receiptPrinted"] = true
+
+	mintReceiptUpload()
 	return result, nil
+}
+
+// resolveShiftReceiptUpload decides where the close-shift receipt photo
+// should be uploaded, records a shift_receipt_uploads row for it, and
+// returns the {token,url,mode,required} map the close-shift screen needs
+// (nil when the feature is off or minting failed).
+//
+//	central: POST the close to kashi now, get a one-time token back, point
+//	         the QR at kashi. On any failure, fall back to local -- unless
+//	         the mode is strictly "central".
+//	local:   mint a local token, point the QR at this POS's own server; the
+//	         photo is forwarded to kashi later by sync_shift_receipts.go.
+func (a *App) resolveShiftReceiptUpload(shiftID int64, shiftRef string, payload branchShiftClosePayload, centralURL string) map[string]any {
+	mode := a.shiftReceiptUploadMode()
+	if mode == shiftUploadModeOff {
+		return nil
+	}
+
+	if (mode == shiftUploadModeCentral || mode == shiftUploadModeHybrid) && centralURL != "" {
+		if upload, err := a.mintCentralShiftReceiptUpload(shiftID, shiftRef, payload); err != nil {
+			log.Printf("close shift %d: central receipt upload: %v", shiftID, err)
+			if mode == shiftUploadModeCentral {
+				return nil // strict central: no local fallback
+			}
+		} else {
+			return upload
+		}
+	} else if mode == shiftUploadModeCentral {
+		log.Printf("close shift %d: central receipt upload wanted but sync isn't configured", shiftID)
+		return nil
+	}
+
+	upload, err := a.mintLocalShiftReceiptUpload(shiftID)
+	if err != nil {
+		log.Printf("close shift %d: local receipt upload: %v", shiftID, err)
+		return nil
+	}
+	return upload
+}
+
+func (a *App) mintCentralShiftReceiptUpload(shiftID int64, shiftRef string, payload branchShiftClosePayload) (map[string]any, error) {
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	client := newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 4*time.Second)
+	defer cancel()
+	resp, err := client.PostShiftClose(ctx, body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.UploadToken == "" {
+		return nil, fmt.Errorf("kashi returned no upload token")
+	}
+
+	// The close is on kashi now; the queued outbox row is redundant.
+	if err := a.store.MarkSyncOutboxSyncedByClientRef(a.ctx, db.MarkSyncOutboxSyncedByClientRefParams{
+		SyncedTo:  client.baseURL,
+		ClientRef: shiftRef,
+	}); err != nil {
+		log.Printf("close shift %d: mark outbox synced: %v", shiftID, err)
+	}
+
+	url := client.ShiftUploadURL(resp.UploadToken)
+	return a.insertShiftReceiptUpload(shiftID, resp.UploadToken, "central", url)
+}
+
+func (a *App) mintLocalShiftReceiptUpload(shiftID int64) (map[string]any, error) {
+	token, err := newShiftUploadToken()
+	if err != nil {
+		return nil, err
+	}
+	return a.insertShiftReceiptUpload(shiftID, token, "local", a.shiftUploadURL(token))
+}
+
+func (a *App) insertShiftReceiptUpload(shiftID int64, token, mode, url string) (map[string]any, error) {
+	if _, err := a.store.CreateShiftReceiptUpload(a.ctx, db.CreateShiftReceiptUploadParams{
+		ShiftID:   shiftID,
+		Token:     token,
+		ExpiresAt: time.Now().UTC().Add(shiftUploadTokenTTL).Format("2006-01-02 15:04:05"),
+		Mode:      mode,
+		UploadUrl: url,
+	}); err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"token":    token,
+		"url":      url,
+		"mode":     mode,
+		"required": true,
+	}, nil
+}
+
+// CheckShiftReceiptCaptured is the poll for the close-shift QR dialog. For a
+// local-mode upload it watches this POS's own row; for central mode it asks
+// kashi (the phone uploaded straight there). Alongside it runs the
+// "shift_receipt_captured:" Wails event for the local path.
+func (a *App) CheckShiftReceiptCaptured(token string) (bool, error) {
+	if a.store == nil {
+		return false, fmt.Errorf("database not initialized")
+	}
+	row, err := a.store.GetShiftReceiptUploadByToken(a.ctx, token)
+	if err != nil {
+		return false, err
+	}
+	if row.SkippedReason != "" || row.CapturedAt.Valid || row.SyncedAt.Valid {
+		return true, nil
+	}
+	if row.Mode == "central" {
+		settings, err := a.store.GetSettings(a.ctx)
+		if err != nil || settings.CentralApiUrl == "" {
+			return false, nil
+		}
+		client := newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
+		ok, statusErr := client.ShiftReceiptUploadStatus(a.ctx, fmt.Sprintf("shift-%d", row.ShiftID))
+		if statusErr != nil {
+			return false, nil // transient -- keep polling
+		}
+		if ok {
+			_ = a.store.MarkShiftReceiptSynced(a.ctx, row.ID)
+		}
+		return ok, nil
+	}
+	return false, nil
+}
+
+// SwitchShiftReceiptToLocal flips a still-pending central-mode upload to the
+// local path -- the escape hatch when the phone can't reach kashi (the
+// shop's connection dropped after the shift closed). Returns the new
+// {token,url} for the QR.
+func (a *App) SwitchShiftReceiptToLocal(token string) (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	row, err := a.store.GetShiftReceiptUploadByToken(a.ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	url := a.shiftUploadURL(row.Token)
+	if err := a.store.SwitchShiftReceiptUploadRoute(a.ctx, db.SwitchShiftReceiptUploadRouteParams{
+		Mode:      "local",
+		UploadUrl: url,
+		Token:     row.Token,
+	}); err != nil {
+		return nil, err
+	}
+	return map[string]any{"token": row.Token, "url": url, "mode": "local"}, nil
+}
+
+// SkipShiftReceiptUpload is the manager override for when the photo genuinely
+// can't be taken (no phone, printer jam, etc.). It needs the admin password
+// and records the reason; the shift is already closed, so this only releases
+// the close-shift screen.
+func (a *App) SkipShiftReceiptUpload(token, adminPassword, reason string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if strings.TrimSpace(reason) == "" {
+		return fmt.Errorf("a reason is required to skip the receipt photo")
+	}
+	if hashPassword(adminPassword) != a.adminPasswordHash() {
+		return fmt.Errorf("wrong admin password")
+	}
+	return a.store.SkipShiftReceiptUpload(a.ctx, db.SkipShiftReceiptUploadParams{
+		SkippedReason: strings.TrimSpace(reason),
+		Token:         token,
+	})
 }
 
 // PrintCurrentCloseShiftSample prints the current open shift's report without

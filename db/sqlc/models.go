@@ -505,6 +505,7 @@ type Setting struct {
 	DefaultOpeningFloatUsd int64   `json:"defaultOpeningFloatUsd"`
 	DefaultOpeningFloatLbp int64   `json:"defaultOpeningFloatLbp"`
 	CentralApiUrl          string  `json:"centralApiUrl"`
+	ShiftReceiptUploadMode int64   `json:"shiftReceiptUploadMode"`
 }
 
 type Shift struct {
@@ -533,6 +534,24 @@ type ShiftBalanceReplacement struct {
 	ToCashboxID   int64  `json:"toCashboxId"`
 	Amount        int64  `json:"amount"`
 	CreatedAt     string `json:"createdAt"`
+}
+
+type ShiftReceiptUpload struct {
+	ID            int64          `json:"id"`
+	ShiftID       int64          `json:"shiftId"`
+	Token         string         `json:"token"`
+	ExpiresAt     string         `json:"expiresAt"`
+	FilePath      string         `json:"filePath"`
+	ContentType   string         `json:"contentType"`
+	SizeBytes     int64          `json:"sizeBytes"`
+	CapturedAt    sql.NullString `json:"capturedAt"`
+	SyncedAt      sql.NullString `json:"syncedAt"`
+	AttemptCount  int64          `json:"attemptCount"`
+	NextAttemptAt string         `json:"nextAttemptAt"`
+	SkippedReason string         `json:"skippedReason"`
+	CreatedAt     string         `json:"createdAt"`
+	Mode          string         `json:"mode"`
+	UploadUrl     string         `json:"uploadUrl"`
 }
 
 type ShiftsAccountsBalance struct {

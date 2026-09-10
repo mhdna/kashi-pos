@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Upload close-shift receipt</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --text: #1a1a1a;
+    --text-muted: #6b6b6b;
+    --border: #e0e0e0;
+    --primary: #1565c0;
+    --error: #b3261e;
+    --success: #2e7d32;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --surface: #000000;
+      --text: #f2f2f2;
+      --text-muted: #9a9a9a;
+      --border: #2a2a2a;
+      --primary: #42a5f5;
+      --error: #f2b8b5;
+      --success: #6fbf73;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 20px;
+  }
+  h1 { font-size: 1.05rem; font-weight: 600; margin: 0 0 2px; }
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin: 0 0 20px; }
+  .field { margin-bottom: 16px; }
+  label { display: block; font-size: 0.85rem; margin-bottom: 8px; color: var(--text-muted); }
+  input[type=file] {
+    width: 100%;
+    padding: 10px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+  }
+  .preview { margin-top: 12px; }
+  .preview img { width: 100%; border-radius: 6px; border: 1px solid var(--border); }
+  button {
+    width: 100%;
+    padding: 12px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  button:disabled { opacity: 0.6; }
+  .error { color: var(--error); font-size: 0.85rem; margin-top: 12px; }
+  .center { text-align: center; }
+  .checkmark { font-size: 3rem; color: var(--success); line-height: 1; }
+  .alert-icon {
+    font-size: 2rem; font-weight: 700; color: var(--error);
+    border: 2px solid var(--error); border-radius: 50%;
+    width: 56px; height: 56px; line-height: 52px; margin: 0 auto 12px;
+  }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <p class="meta">Loading…</p>
+</div>
+
+<script>
+(function () {
+  var parts = location.pathname.split('/').filter(Boolean);
+  var token = parts[parts.length - 1];
+  var card = document.getElementById('card');
+
+  function escapeHtml (s) {
+    var div = document.createElement('div');
+    div.textContent = s == null ? '' : s;
+    return div.innerHTML;
+  }
+
+  function renderInvalid (message) {
+    card.innerHTML =
+      '<div class="center">' +
+      '<div class="alert-icon">!</div>' +
+      '<h1>Link not available</h1>' +
+      '<p class="meta">' + escapeHtml(message) + '</p>' +
+      '</div>';
+  }
+
+  function renderSuccess () {
+    card.innerHTML =
+      '<div class="center">' +
+      '<div class="checkmark">&#10003;</div>' +
+      '<h1>Uploaded</h1>' +
+      '<p class="meta">You can close this page now.</p>' +
+      '</div>';
+  }
+
+  function renderForm (info) {
+    card.innerHTML =
+      '<h1>Close-shift receipt</h1>' +
+      '<p class="meta">' + escapeHtml(info.subtitle || '') + '</p>' +
+      '<form id="form">' +
+        '<div class="field">' +
+        '<label>Take one photo of the printed receipt</label>' +
+        '<input type="file" id="file" accept="image/*" capture="environment">' +
+        '<div class="preview" id="preview"></div>' +
+        '</div>' +
+        '<button type="submit" id="submit">Upload</button>' +
+        '<div class="error" id="error" style="display:none"></div>' +
+      '</form>';
+
+    var fileInput = document.getElementById('file');
+    var preview = document.getElementById('preview');
+    var errorBox = document.getElementById('error');
+    var submitBtn = document.getElementById('submit');
+
+    fileInput.addEventListener('change', function () {
+      preview.innerHTML = '';
+      errorBox.style.display = 'none';
+      var file = fileInput.files[0];
+      if (file) {
+        var img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        preview.appendChild(img);
+      }
+    });
+
+    document.getElementById('form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var file = fileInput.files[0];
+      if (!file) {
+        errorBox.textContent = 'Choose a photo first.';
+        errorBox.style.display = 'block';
+        return;
+      }
+      errorBox.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Uploading…';
+
+      var formData = new FormData();
+      formData.append('image', file);
+
+      fetch('/shift_uploads/' + token + '/images', { method: 'POST', body: formData })
+        .then(function (resp) {
+          if (!resp.ok) {
+            return resp.json().then(function (body) {
+              throw new Error(body.error || 'Upload failed');
+            });
+          }
+          renderSuccess();
+        })
+        .catch(function (err) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Upload';
+          errorBox.textContent = err.message;
+          errorBox.style.display = 'block';
+        });
+    });
+  }
+
+  fetch('/shift_uploads/' + token + '/status')
+    .then(function (resp) {
+      if (!resp.ok) {
+        return resp.json().then(function (body) {
+          throw new Error(body.error || 'This link is no longer valid.');
+        });
+      }
+      return resp.json();
+    })
+    .then(function (info) {
+      if (info.used) {
+        renderSuccess();
+      } else {
+        renderForm(info);
+      }
+    })
+    .catch(function (err) {
+      renderInvalid(err.message);
+    });
+})();
+</script>
+</body>
+</html>

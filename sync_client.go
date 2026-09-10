@@ -7,8 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -175,6 +179,85 @@ func (c *centralClient) PostExpense(ctx context.Context, path string, payloadJSO
 	return &out, nil
 }
 
+// postShiftCloseResponse is kashi's body for POST /branch/shift_closes.
+// UploadToken is empty on the idempotent "already exists" path; the caller
+// then falls back to its own local upload server.
+type postShiftCloseResponse struct {
+	UploadToken string `json:"upload_token"`
+}
+
+// PostShiftClose sends the shift-close payload synchronously (unlike the
+// normal outbox drain, which fires and forgets) so the hybrid close path
+// can read back the one-time upload token and point its QR straight at
+// kashi. The normal outbox row for this close is marked synced by the
+// caller afterwards so the worker doesn't re-send it.
+func (c *centralClient) PostShiftClose(ctx context.Context, payloadJSON []byte) (*postShiftCloseResponse, error) {
+	if !c.enabled() {
+		return nil, errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, http.MethodPost, "/branch/shift_closes", bytes.NewReader(payloadJSON))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, responseError(http.MethodPost, "/branch/shift_closes", resp)
+	}
+
+	var out postShiftCloseResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode shift close response: %w", err)
+	}
+	return &out, nil
+}
+
+// ShiftReceiptUploadStatus polls kashi for whether the close-shift receipt
+// photo has landed -- the "central" mode counterpart to watching the local
+// shift_receipt_uploads row, used by the QR dialog while it waits.
+func (c *centralClient) ShiftReceiptUploadStatus(ctx context.Context, shiftRef string) (bool, error) {
+	if !c.enabled() {
+		return false, errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, http.MethodGet, "/branch/shift_closes/upload_status?shift_ref="+url.QueryEscape(shiftRef), nil)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var body centralErrorBody
+		json.NewDecoder(resp.Body).Decode(&body)
+		return false, fmt.Errorf("shift upload status check failed (status %d): %s", resp.StatusCode, body.Error)
+	}
+
+	var out struct {
+		ImagesUploaded bool `json:"images_uploaded"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return false, fmt.Errorf("decode shift upload status response: %w", err)
+	}
+	return out.ImagesUploaded, nil
+}
+
+// ShiftUploadURL builds the central QR link a phone scans in "central" mode.
+func (c *centralClient) ShiftUploadURL(token string) string {
+	return c.baseURL + "/shift_uploads/" + token
+}
+
 // ExpenseUploadStatus polls kashi for whether receipt images have landed on
 // a given expense yet -- the poll-based companion to the
 // "expense_images_uploaded" WS push, used by kashi-pos's QR dialog while
@@ -216,6 +299,70 @@ func (c *centralClient) ExpenseUploadStatus(ctx context.Context, clientRef strin
 // same host this client talks to for everything else).
 func (c *centralClient) UploadURL(token string) string {
 	return c.baseURL + "/expense_uploads/" + token
+}
+
+// errShiftNotReceivedYet is kashi's 409 on POST /branch/shift_receipt_images
+// when the branch_shifts row the photo attaches to hasn't synced yet. It's
+// retryable (the shift-close outbox entry just hasn't drained), so the
+// uploader treats it as a plain transient error, not a permanent one.
+var errShiftNotReceivedYet = errors.New("kashi has not received this shift close yet")
+
+// PostShiftReceiptImage uploads the single close-shift receipt photo to
+// kashi, keyed by shift_ref (shift-<localID>) for idempotency -- kashi
+// no-ops a second upload for a shift that already has one. Multipart rather
+// than JSON because the body is an image file; this is the shift-side
+// counterpart to a phone hitting kashi's public /expense_uploads endpoint.
+func (c *centralClient) PostShiftReceiptImage(ctx context.Context, shiftRef, filePath, contentType string) error {
+	if !c.enabled() {
+		return errCentralSyncDisabled
+	}
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	if err := mw.WriteField("shift_ref", shiftRef); err != nil {
+		return err
+	}
+	partHeader := textproto.MIMEHeader{}
+	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="image"; filename="%s"`, filepath.Base(filePath)))
+	if contentType != "" {
+		partHeader.Set("Content-Type", contentType)
+	}
+	part, err := mw.CreatePart(partHeader)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(part, f); err != nil {
+		return err
+	}
+	if err := mw.Close(); err != nil {
+		return err
+	}
+
+	req, err := c.newRequest(ctx, http.MethodPost, "/branch/shift_receipt_images", &body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusConflict {
+		return errShiftNotReceivedYet
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return responseError(http.MethodPost, "/branch/shift_receipt_images", resp)
+	}
+	return nil
 }
 
 // PutSettings pushes this branch's current business-identity settings

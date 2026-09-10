@@ -88,8 +88,12 @@ type updateSettingsCommandPayload struct {
 	ClientRequired                *bool `json:"client_required"`
 	SalespersonPerInvoiceRequired *bool `json:"salesperson_per_invoice_required"`
 	OpeningFloatEnabled           *bool `json:"opening_float_enabled"`
-	CountOpeningCashOnClose        *bool `json:"count_opening_cash_on_close"`
+	CountOpeningCashOnClose       *bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
+
+	// ShiftReceiptUploadMode is an enum, not a flag: 0=off, 1=central,
+	// 2=hybrid, 3=local (see shiftUploadMode* in shifts.go).
+	ShiftReceiptUploadMode *int64 `json:"shift_receipt_upload_mode"`
 
 	// non-admin page-access locks
 	PageUnlockClients      *bool `json:"page_unlock_clients"`
@@ -235,6 +239,12 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}
 		if err := u.fn(*u.v); err != nil {
 			return fmt.Errorf("update feature flag: %w", err)
+		}
+	}
+
+	if p.ShiftReceiptUploadMode != nil {
+		if err := a.SetShiftReceiptUploadMode(*p.ShiftReceiptUploadMode); err != nil {
+			return fmt.Errorf("update shift receipt upload mode: %w", err)
 		}
 	}
 
