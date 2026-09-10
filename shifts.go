@@ -565,15 +565,12 @@ func (a *App) SwitchShiftReceiptToLocal(token string) (map[string]any, error) {
 }
 
 // SkipShiftReceiptUpload is the manager override for when the photo genuinely
-// can't be taken (no phone, printer jam, etc.). It needs the admin password
-// and records the reason; the shift is already closed, so this only releases
+// can't be taken (no phone, printer jam, etc.). It needs the admin password;
+// a reason is optional. The shift is already closed, so this only releases
 // the close-shift screen.
 func (a *App) SkipShiftReceiptUpload(token, adminPassword, reason string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
-	}
-	if strings.TrimSpace(reason) == "" {
-		return fmt.Errorf("a reason is required to skip the receipt photo")
 	}
 	if hashPassword(adminPassword) != a.adminPasswordHash() {
 		return fmt.Errorf("wrong admin password")

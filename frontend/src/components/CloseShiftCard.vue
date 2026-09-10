@@ -218,11 +218,11 @@
       </v-btn>
     </div>
 
-    <v-dialog v-model="receiptDialog" max-width="420" persistent>
-      <v-card class="text-center pa-4">
+    <v-dialog v-model="receiptDialog" max-width="420" persistent scrollable>
+      <v-card class="text-center">
         <template v-if="receiptState === 'scan'">
-          <v-card-title>Upload the shift receipt</v-card-title>
-          <v-card-text>
+          <v-card-title class="pt-4">Upload the shift receipt</v-card-title>
+          <v-card-text class="pb-4">
             <div class="text-body-2 mb-3">
               Scan with a phone and upload one photo of the printed close-shift receipt.
             </div>
@@ -239,45 +239,57 @@
               <v-progress-circular indeterminate size="18" width="2" />
               <span class="text-caption">Waiting for the photo…</span>
             </div>
-          </v-card-text>
-          <v-card-actions class="flex-column ga-2">
-            <v-btn
-              v-if="!showSkip && receiptMode === 'central'"
-              :loading="switchingLocal"
-              size="small"
-              variant="text"
-              @click="switchToLocalUpload"
-            >
-              Phone can't reach the server? Use local Wi-Fi
-            </v-btn>
-            <v-btn v-if="!showSkip" size="small" variant="text" @click="showSkip = true">
-              Can't upload now
-            </v-btn>
-            <template v-else>
-              <v-text-field
-                v-model="skipReason"
-                density="compact"
-                hide-details
-                label="Reason"
-                variant="outlined"
-              />
+
+            <template v-if="!showSkip">
+              <v-btn
+                v-if="receiptMode === 'central'"
+                block
+                class="mt-4"
+                :loading="switchingLocal"
+                size="small"
+                variant="text"
+                @click="switchToLocalUpload"
+              >
+                Phone can't reach the server? Use local Wi-Fi
+              </v-btn>
+              <v-btn block class="mt-2" size="small" variant="text" @click="showSkip = true">
+                Can't upload now
+              </v-btn>
+            </template>
+
+            <div v-else class="d-flex flex-column ga-3 mt-4 text-left">
               <v-text-field
                 v-model="adminPassword"
+                autofocus
                 density="compact"
-                hide-details
+                hide-details="auto"
                 label="Admin password"
                 type="password"
                 variant="outlined"
+                @update:model-value="skipError = ''"
+              />
+              <v-text-field
+                v-model="skipReason"
+                density="compact"
+                hide-details="auto"
+                label="Reason (optional)"
+                variant="outlined"
               />
               <div v-if="skipError" class="text-caption text-error">{{ skipError }}</div>
-              <div class="d-flex ga-2">
+              <div class="d-flex ga-2 justify-space-between">
                 <v-btn size="small" variant="text" @click="showSkip = false">Back</v-btn>
-                <v-btn color="error" :loading="skipping" size="small" @click="submitSkip">
+                <v-btn
+                  color="error"
+                  :disabled="!adminPassword"
+                  :loading="skipping"
+                  size="small"
+                  @click="submitSkip"
+                >
                   Skip &amp; finish
                 </v-btn>
               </div>
-            </template>
-          </v-card-actions>
+            </div>
+          </v-card-text>
         </template>
 
         <template v-else>
