@@ -68,11 +68,6 @@ func (a *App) kickSyncWorker() {
 // on/off, or changing the branch key, takes effect on the next tick
 // without a restart.
 func (a *App) runSyncTick(ctx context.Context) {
-	// A "sync everything" run owns the database while it's going; the tick
-	// would only contend for the single SQLite write slot and trip 517.
-	if a.resyncActive.Load() {
-		return
-	}
 	settings, err := a.store.GetSettings(ctx)
 	if err != nil {
 		log.Printf("sync tick: load settings: %v", err)
@@ -84,6 +79,11 @@ func (a *App) runSyncTick(ctx context.Context) {
 
 	client := newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
 
+	// The outbox drain keeps running even during a "sync everything" pass so
+	// a live sale still reaches kashi within a tick; its writes ride the
+	// same retryBusy path the resync uses. Only the pull stands down --
+	// ResyncAll holds syncPullMu for its whole run anyway, so a tick pull
+	// would just block.
 	if err := a.runSyncOutboxOnce(ctx, client); err != nil {
 		log.Printf("sync outbox: %v", err)
 	}
@@ -91,7 +91,9 @@ func (a *App) runSyncTick(ctx context.Context) {
 		log.Printf("sync settings: %v", err)
 	}
 	a.runPendingCommandsOnce(ctx, client)
-	a.runSyncPullOnce(ctx, client)
+	if !a.resyncActive.Load() {
+		a.runSyncPullOnce(ctx, client)
+	}
 }
 
 // stopSyncWorker closes the stop channel but deliberately never nils the
@@ -157,9 +159,11 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 			continue
 		}
 
-		if err := a.store.MarkSyncOutboxSynced(ctx, db.MarkSyncOutboxSyncedParams{
-			SyncedTo: client.baseURL,
-			ID:       entry.ID,
+		if err := retryBusy(func() error {
+			return a.store.MarkSyncOutboxSynced(ctx, db.MarkSyncOutboxSyncedParams{
+				SyncedTo: client.baseURL,
+				ID:       entry.ID,
+			})
 		}); err != nil {
 			log.Printf("sync outbox entry %d: mark synced: %v", entry.ID, err)
 		}
