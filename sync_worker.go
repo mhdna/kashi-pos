@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -10,24 +11,50 @@ import (
 )
 
 const (
-	syncWorkerInterval  = 15 * time.Second
-	syncWorkerBatchSize = 200
-	syncBackoffBase     = 5 * time.Second
-	syncBackoffMax      = time.Hour
+	syncWorkerInterval       = 15 * time.Second
+	syncPushBackstopInterval = 5 * time.Second
+	syncWorkerBatchSize      = 200
+	syncBackoffBase          = 5 * time.Second
+	syncBackoffMax           = time.Hour
 )
 
-// startSyncWorker launches the background goroutine that both drains
-// sync_outbox into kashi (push) and pulls master-data changes from kashi
-// (see sync_pull.go). It's always started — the per-tick check for an
-// empty central_api_url is what actually makes sync opt-in; an
-// unconfigured install just finds nothing to do and does nothing, cheaply,
-// on every tick.
+// startSyncWorker launches two background goroutines: a push loop that
+// drains sync_outbox into kashi and a pull loop that pulls master-data
+// changes from kashi (see sync_pull.go). They're split so an outgoing
+// write never waits on an incoming catch-up pass -- a kick wakes only the
+// push loop, and a press reaches kashi in one outbox drain rather than one
+// full tick (outbox + settings + commands + a 9-entity sequential pull).
+// Both are always started -- the per-pass check for an empty
+// central_api_url is what actually makes sync opt-in; an unconfigured
+// install just finds nothing to do and does nothing, cheaply.
 func (a *App) startSyncWorker() {
 	if a.store == nil {
 		return
 	}
 	a.syncWorkerStop = make(chan struct{})
 	a.syncWorkerKick = make(chan struct{}, 1)
+
+	// Push loop (latency path): kick-driven, with a short ticker only as a
+	// backstop for a kick that was lost to the buffer-of-1 while a drain
+	// was already running.
+	a.backgroundWG.Add(1)
+	go func() {
+		defer a.backgroundWG.Done()
+		ticker := time.NewTicker(syncPushBackstopInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-a.syncWorkerStop:
+				return
+			case <-ticker.C:
+				a.runPushTick(a.ctx)
+			case <-a.syncWorkerKick:
+				a.runPushTick(a.ctx)
+			}
+		}
+	}()
+
+	// Pull loop (no latency requirement): the 15s ticker alone.
 	a.backgroundWG.Add(1)
 	go func() {
 		defer a.backgroundWG.Done()
@@ -38,9 +65,7 @@ func (a *App) startSyncWorker() {
 			case <-a.syncWorkerStop:
 				return
 			case <-ticker.C:
-				a.runSyncTick(a.ctx)
-			case <-a.syncWorkerKick:
-				a.runSyncTick(a.ctx)
+				a.runPullTick(a.ctx)
 			}
 		}
 	}()
@@ -62,35 +87,60 @@ func (a *App) kickSyncWorker() {
 	}
 }
 
-// runSyncTick reads settings once per tick and, if sync is configured,
-// runs the push and pull passes against the one resulting client. Reading
-// settings fresh every tick (not cached at startup) means turning sync
-// on/off, or changing the branch key, takes effect on the next tick
-// without a restart.
-func (a *App) runSyncTick(ctx context.Context) {
+// syncClient reads settings fresh (not cached at startup, so turning sync
+// on/off or changing the branch key takes effect on the next pass without
+// a restart) and builds the central client. It returns nil when sync isn't
+// configured, which every caller treats as "nothing to do".
+func (a *App) syncClient(ctx context.Context, what string) *centralClient {
 	settings, err := a.store.GetSettings(ctx)
 	if err != nil {
-		log.Printf("sync tick: load settings: %v", err)
-		return
+		log.Printf("sync %s: load settings: %v", what, err)
+		return nil
 	}
 	if settings.CentralApiUrl == "" {
+		return nil
+	}
+	return newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
+}
+
+// runPushTick is the latency path: drain sync_outbox into kashi and nothing
+// else. It keeps running even during a "sync everything" pass so a live
+// sale still reaches kashi promptly; its writes ride the same retryBusy
+// path the resync uses.
+func (a *App) runPushTick(ctx context.Context) {
+	client := a.syncClient(ctx, "push")
+	if client == nil {
 		return
 	}
-
-	client := newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
-
-	// The outbox drain keeps running even during a "sync everything" pass so
-	// a live sale still reaches kashi within a tick; its writes ride the
-	// same retryBusy path the resync uses. Only the pull stands down --
-	// ResyncAll holds syncPullMu for its whole run anyway, so a tick pull
-	// would just block.
 	if err := a.runSyncOutboxOnce(ctx, client); err != nil {
 		log.Printf("sync outbox: %v", err)
+	}
+}
+
+// runSyncTick runs a push pass then a pull pass back to back. The live
+// worker no longer calls this -- the push and pull loops run
+// independently -- but it stays as the one-shot "do a full sync now"
+// entry point for tests and for any caller that wants both passes in
+// sequence.
+func (a *App) runSyncTick(ctx context.Context) {
+	a.runPushTick(ctx)
+	a.runPullTick(ctx)
+}
+
+// runPullTick is everything with no latency requirement: push settings, run
+// pending commands, and pull master-data changes. The pull stands down
+// during a resync -- ResyncAll holds syncPullMu for its whole run anyway,
+// so a tick pull would just block.
+func (a *App) runPullTick(ctx context.Context) {
+	client := a.syncClient(ctx, "pull")
+	if client == nil {
+		return
 	}
 	if err := a.pushSettings(ctx, client); err != nil {
 		log.Printf("sync settings: %v", err)
 	}
 	a.runPendingCommandsOnce(ctx, client)
+	a.runShiftReceiptUploadsOnce(ctx, client)
 	if !a.resyncActive.Load() {
 		a.runSyncPullOnce(ctx, client)
 	}
@@ -127,7 +177,25 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 		}
 	}()
 
+	// Coalesce all due visitor-counter presses into a single batched POST.
+	// The write path queues one row per press so the local log stays exact;
+	// draining them one HTTP call each turns a rapid ▲▲▲▲▲ into a serial
+	// chain of round trips (and, mid-burst, makes every press after the
+	// first wait out the previous one). Grouping here also merges presses
+	// that arrived as separate AdjustVisitorCountToday calls.
+	var visitorEntries, rest []db.SyncOutbox
 	for _, entry := range entries {
+		if entry.EntityType == "visitor_event" {
+			visitorEntries = append(visitorEntries, entry)
+		} else {
+			rest = append(rest, entry)
+		}
+	}
+	if a.drainVisitorEventBatch(ctx, client, visitorEntries) {
+		changed = true
+	}
+
+	for _, entry := range rest {
 		path, ok := branchInvoicePath(entry.EntityType)
 		if !ok {
 			// A payload shape kashi has no route for is never going to start
@@ -173,6 +241,71 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 	return nil
 }
 
+// drainVisitorEventBatch POSTs every due visitor_event row as one
+// /branch/visitor_events_batch call. kashi dedupes each element on
+// (branch_id, ref), so replaying the whole batch (a retried drain) is
+// idempotent row by row. It returns whether anything changed state, so the
+// caller can fold that into its sync_state_changed emit. A row whose stored
+// payload won't unmarshal is parked in 'failed' and left out of the POST --
+// retrying identical bad bytes is pointless.
+func (a *App) drainVisitorEventBatch(ctx context.Context, client *centralClient, entries []db.SyncOutbox) bool {
+	if len(entries) == 0 {
+		return false
+	}
+
+	path, ok := branchInvoicePath("visitor_events")
+	if !ok {
+		return false
+	}
+
+	changed := false
+	var send []db.SyncOutbox
+	payload := branchVisitorEventsPayload{}
+	for _, entry := range entries {
+		var ev branchVisitorEventPayload
+		if err := json.Unmarshal([]byte(entry.PayloadJson), &ev); err != nil {
+			log.Printf("sync outbox entry %d: bad visitor_event payload, marking failed: %v", entry.ID, err)
+			a.markSyncOutboxFailed(ctx, entry, err)
+			changed = true
+			continue
+		}
+		payload.Events = append(payload.Events, ev)
+		send = append(send, entry)
+	}
+	if len(send) == 0 {
+		return changed
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		// A marshal failure here is a programming error, not a transient
+		// one; back every row off rather than losing them.
+		for _, entry := range send {
+			a.recordSyncOutboxError(ctx, entry, err)
+		}
+		return true
+	}
+
+	if err := client.PostInvoice(ctx, path, body); err != nil {
+		for _, entry := range send {
+			a.recordSyncOutboxError(ctx, entry, err)
+		}
+		return true
+	}
+
+	for _, entry := range send {
+		if err := retryBusy(func() error {
+			return a.store.MarkSyncOutboxSynced(ctx, db.MarkSyncOutboxSyncedParams{
+				SyncedTo: client.baseURL,
+				ID:       entry.ID,
+			})
+		}); err != nil {
+			log.Printf("sync outbox entry %d: mark synced: %v", entry.ID, err)
+		}
+	}
+	return true
+}
+
 // recordSyncOutboxError routes a failed push to the right terminal state: a
 // permanent rejection (4xx bar 408/429, see isPermanentSyncError) goes
 // straight to 'failed'; anything else -- offline, timeout, 5xx -- goes back
@@ -215,6 +348,11 @@ func branchInvoicePath(entityType string) (string, bool) {
 		return "/branch/shift_closes", true
 	case "visitor_event":
 		return "/branch/visitor_events", true
+	case "visitor_events":
+		// The batched route. No outbox row is stored with this entity_type;
+		// the sync worker coalesces the singular "visitor_event" rows and
+		// posts them here (see drainVisitorEventBatch).
+		return "/branch/visitor_events_batch", true
 	case "attendance_events":
 		return "/branch/attendance_events", true
 	case "attendance_change":

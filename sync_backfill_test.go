@@ -74,6 +74,17 @@ func (f *fakeCentral) handler() http.Handler {
 				f.visitorRefs[ref]++
 			}
 			w.Write([]byte(`{}`))
+		case r.URL.Path == "/branch/visitor_events_batch":
+			var p struct {
+				Events []map[string]any `json:"events"`
+			}
+			json.Unmarshal(body, &p)
+			for _, ev := range p.Events {
+				if ref, _ := ev["ref"].(string); ref != "" {
+					f.visitorRefs[ref]++
+				}
+			}
+			w.Write([]byte(`{"inserted":0}`))
 		case r.URL.Path == "/branch/sync/reconcile":
 			var req struct {
 				Entity string   `json:"entity"`

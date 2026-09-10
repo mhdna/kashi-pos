@@ -378,6 +378,17 @@ type branchVisitorEventPayload struct {
 	OccurredAt time.Time `json:"occurred_at"`
 }
 
+// branchVisitorEventsPayload is the batched body POSTed to kashi's
+// /branch/visitor_events_batch. The write path still queues one
+// visitor_event outbox row per press (so the local log stays exact); the
+// sync worker coalesces whatever visitor_event rows are due in one drain
+// into a single payload of this shape, so a burst of counter presses is
+// one HTTP round trip instead of one per press. kashi dedupes each element
+// on (branch_id, ref), so replaying the whole batch is row-level idempotent.
+type branchVisitorEventsPayload struct {
+	Events []branchVisitorEventPayload `json:"events"`
+}
+
 // queueBranchVisitorEventSync is queueBranchShiftCloseSync's counterpart
 // for a single visitor-counter press -- same opt-in-if-configured,
 // same-transaction-as-the-write behavior. The caller (AdjustVisitorCountToday)
