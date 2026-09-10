@@ -194,6 +194,7 @@ type Querier interface {
 	ListActiveLoanCategories(ctx context.Context) ([]LoanCategory, error)
 	ListActivePriceListItems(ctx context.Context) ([]ListActivePriceListItemsRow, error)
 	ListAllExpenses(ctx context.Context) ([]Expense, error)
+	ListAllLoans(ctx context.Context) ([]Loan, error)
 	// Loads every product's attribute values in one query, same pattern as
 	// loadActiveOverrides (pricing_overrides.go): one query per request,
 	// regardless of how many products are in the result set, avoiding an N+1

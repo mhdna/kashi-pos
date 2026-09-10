@@ -82,6 +82,44 @@ func (q *Queries) GetLoan(ctx context.Context, id int64) (Loan, error) {
 	return i, err
 }
 
+const listAllLoans = `-- name: ListAllLoans :many
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at FROM loans ORDER BY id
+`
+
+func (q *Queries) ListAllLoans(ctx context.Context) ([]Loan, error) {
+	rows, err := q.db.QueryContext(ctx, listAllLoans)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Loan{}
+	for rows.Next() {
+		var i Loan
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientRef,
+			&i.Description,
+			&i.Category,
+			&i.Amount,
+			&i.CurrencyCode,
+			&i.CashboxAccountID,
+			&i.ShiftID,
+			&i.OccurredAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listLoans = `-- name: ListLoans :many
 SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at FROM loans ORDER BY id DESC LIMIT ? OFFSET ?
 `

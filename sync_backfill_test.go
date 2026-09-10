@@ -20,11 +20,16 @@ type fakeCentral struct {
 	mu             sync.Mutex
 	invoiceRefs    map[string]int
 	clientRefs     map[string]int
+	expenseRefs    map[string]int
+	loanRefs       map[string]int
 	productReports int
 }
 
 func newFakeCentral() *fakeCentral {
-	return &fakeCentral{invoiceRefs: map[string]int{}, clientRefs: map[string]int{}}
+	return &fakeCentral{
+		invoiceRefs: map[string]int{}, clientRefs: map[string]int{},
+		expenseRefs: map[string]int{}, loanRefs: map[string]int{},
+	}
 }
 
 func (f *fakeCentral) handler() http.Handler {
@@ -47,6 +52,20 @@ func (f *fakeCentral) handler() http.Handler {
 				f.clientRefs[strconv.FormatInt(int64(id), 10)]++
 			}
 			w.Write([]byte(`{"client":{}}`))
+		case r.URL.Path == "/branch/expenses":
+			var p map[string]any
+			json.Unmarshal(body, &p)
+			if ref, _ := p["client_ref"].(string); ref != "" {
+				f.expenseRefs[ref]++
+			}
+			w.Write([]byte(`{"upload_token":""}`))
+		case r.URL.Path == "/branch/loans":
+			var p map[string]any
+			json.Unmarshal(body, &p)
+			if ref, _ := p["client_ref"].(string); ref != "" {
+				f.loanRefs[ref]++
+			}
+			w.Write([]byte(`{}`))
 		case r.URL.Path == "/branch/sync/reconcile":
 			var req struct {
 				Entity string   `json:"entity"`
@@ -54,8 +73,13 @@ func (f *fakeCentral) handler() http.Handler {
 			}
 			json.Unmarshal(body, &req)
 			seen := f.invoiceRefs
-			if req.Entity == "clients" {
+			switch req.Entity {
+			case "clients":
 				seen = f.clientRefs
+			case "expenses":
+				seen = f.expenseRefs
+			case "loans":
+				seen = f.loanRefs
 			}
 			missing := []string{}
 			for _, ref := range req.Refs {
@@ -246,5 +270,54 @@ func TestUnknownEntityTypeMarkedFailedNotSpinning(t *testing.T) {
 	}
 	if n, _ := store.CountSyncOutboxByStatus(app.ctx, "failed"); n != 1 {
 		t.Fatalf("unknown entity_type should be marked failed, got %d failed", n)
+	}
+}
+
+func TestResyncAllBackfillsExpensesAndLoans(t *testing.T) {
+	fc := newFakeCentral()
+	server := httptest.NewServer(fc.handler())
+	defer server.Close()
+
+	app, store, cashbox, _ := setUpTestInvoiceApp(t, "")
+
+	// Seed a pre-sync expense and loan directly (sync was off).
+	if _, err := store.CreateExpense(app.ctx, db.CreateExpenseParams{
+		ClientRef: "exp-old-1", Description: "Rent", Category: "Overhead",
+		Amount: 5000, CurrencyCode: "USD", CashboxAccountID: cashbox.ID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateLoan(app.ctx, db.CreateLoanParams{
+		ClientRef: "loan-old-1", Description: "Owner top-up", Category: "Owner",
+		Amount: 20000, CurrencyCode: "USD", CashboxAccountID: cashbox.ID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.UpdateCentralAPIURL(app.ctx, server.URL); err != nil {
+		t.Fatal(err)
+	}
+	rep, err := app.ResyncAll(ResyncOptions{})
+	if err != nil {
+		t.Fatalf("ResyncAll: %v", err)
+	}
+
+	cc := newCentralClient(server.URL, "TEST01", "test-key")
+	for i := 0; i < 4; i++ {
+		if err := app.runSyncOutboxOnce(app.ctx, cc); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if fc.expenseRefs["exp-old-1"] != 1 {
+		t.Fatalf("expense pushed %d times, want 1", fc.expenseRefs["exp-old-1"])
+	}
+	if fc.loanRefs["loan-old-1"] != 1 {
+		t.Fatalf("loan pushed %d times, want 1", fc.loanRefs["loan-old-1"])
+	}
+	for _, e := range rep.Entities {
+		if (e.Entity == "expenses" || e.Entity == "loans") && (e.Missing != 1 || e.Queued != 1) {
+			t.Fatalf("%s report = %+v, want Missing=1 Queued=1", e.Entity, e)
+		}
 	}
 }

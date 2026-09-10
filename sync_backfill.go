@@ -116,6 +116,20 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	}
 	report.Entities = append(report.Entities, prodRep)
 
+	// 4b. Expenses and loans up -- both carry an on-row client_ref, so
+	//     reconstructing a pre-sync one is a straight column map.
+	expRep, err := a.resyncExpenses(ctx, client, opts)
+	if err != nil {
+		return report, fmt.Errorf("resync expenses: %w", err)
+	}
+	report.Entities = append(report.Entities, expRep)
+
+	loanRep, err := a.resyncLoans(ctx, client, opts)
+	if err != nil {
+		return report, fmt.Errorf("resync loans: %w", err)
+	}
+	report.Entities = append(report.Entities, loanRep)
+
 	// 5. Everything else already in the outbox: re-arm rows a previous
 	//    server confirmed (or that hard-failed) so they re-push to this one.
 	rearmed := 0
@@ -402,6 +416,123 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 		payload.RelatedClientRef = relatedRef
 	}
 	return payload, nil
+}
+
+func parseLocalTime(v string) time.Time {
+	for _, layout := range []string{"2006-01-02 15:04:05", time.RFC3339} {
+		if t, err := time.Parse(layout, v); err == nil {
+			return t.UTC()
+		}
+	}
+	return time.Now().UTC()
+}
+
+func (a *App) resyncExpenses(ctx context.Context, client *centralClient, opts ResyncOptions) (ResyncEntityReport, error) {
+	rep := ResyncEntityReport{Entity: "expenses"}
+	rows, err := a.store.ListAllExpenses(ctx)
+	if err != nil {
+		return rep, err
+	}
+	rep.Local = len(rows)
+	byRef := make(map[string]db.Expense, len(rows))
+	refs := make([]string, 0, len(rows))
+	for _, r := range rows {
+		byRef[r.ClientRef] = r
+		refs = append(refs, r.ClientRef)
+	}
+
+	missing, err := a.reconcileEntity(ctx, client, "expenses", refs)
+	if err != nil {
+		return rep, err
+	}
+	rep.Missing = len(missing)
+	rep.Central = rep.Local - rep.Missing
+	a.emitResyncProgress("expenses", rep.Central, rep.Local)
+	if opts.DryRun {
+		return rep, nil
+	}
+
+	for _, ref := range missing {
+		r := byRef[ref]
+		var shiftID *int64
+		if r.ShiftID.Valid {
+			shiftID = &r.ShiftID.Int64
+		}
+		body, err := json.Marshal(branchExpensePayload{
+			ClientRef:              r.ClientRef,
+			Description:            r.Description,
+			Category:               r.Category,
+			Amount:                 r.Amount,
+			CurrencyCode:           r.CurrencyCode,
+			BranchCashboxAccountID: r.CashboxAccountID,
+			BranchShiftID:          shiftID,
+			OccurredAt:             parseLocalTime(r.OccurredAt),
+		})
+		if err != nil {
+			return rep, err
+		}
+		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+			EntityType: "expense", ClientRef: r.ClientRef, PayloadJson: string(body),
+		}); err != nil {
+			return rep, err
+		}
+		rep.Queued++
+	}
+	return rep, nil
+}
+
+func (a *App) resyncLoans(ctx context.Context, client *centralClient, opts ResyncOptions) (ResyncEntityReport, error) {
+	rep := ResyncEntityReport{Entity: "loans"}
+	rows, err := a.store.ListAllLoans(ctx)
+	if err != nil {
+		return rep, err
+	}
+	rep.Local = len(rows)
+	byRef := make(map[string]db.Loan, len(rows))
+	refs := make([]string, 0, len(rows))
+	for _, r := range rows {
+		byRef[r.ClientRef] = r
+		refs = append(refs, r.ClientRef)
+	}
+
+	missing, err := a.reconcileEntity(ctx, client, "loans", refs)
+	if err != nil {
+		return rep, err
+	}
+	rep.Missing = len(missing)
+	rep.Central = rep.Local - rep.Missing
+	a.emitResyncProgress("loans", rep.Central, rep.Local)
+	if opts.DryRun {
+		return rep, nil
+	}
+
+	for _, ref := range missing {
+		r := byRef[ref]
+		var shiftID *int64
+		if r.ShiftID.Valid {
+			shiftID = &r.ShiftID.Int64
+		}
+		body, err := json.Marshal(branchLoanPayload{
+			ClientRef:              r.ClientRef,
+			Description:            r.Description,
+			CategoryName:           r.Category,
+			Amount:                 r.Amount,
+			CurrencyCode:           r.CurrencyCode,
+			BranchCashboxAccountID: r.CashboxAccountID,
+			BranchShiftID:          shiftID,
+			OccurredAt:             parseLocalTime(r.OccurredAt),
+		})
+		if err != nil {
+			return rep, err
+		}
+		if err := a.store.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
+			EntityType: "loan", ClientRef: r.ClientRef, PayloadJson: string(body),
+		}); err != nil {
+			return rep, err
+		}
+		rep.Queued++
+	}
+	return rep, nil
 }
 
 // emitResyncProgress feeds the settings-page progress line. done/total are

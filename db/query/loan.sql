@@ -16,3 +16,6 @@ SELECT * FROM loans WHERE id = ?;
 
 -- name: ListLoans :many
 SELECT * FROM loans ORDER BY id DESC LIMIT ? OFFSET ?;
+
+-- name: ListAllLoans :many
+SELECT * FROM loans ORDER BY id;
