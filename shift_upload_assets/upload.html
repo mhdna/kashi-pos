@@ -154,7 +154,35 @@
       }
     });
 
-    document.getElementById('form').addEventListener('submit', function (e) {
+    // Downscale a large camera photo before upload -- a 3-5MB original is
+  // needless for a receipt and makes the admin Storage grid crawl. Falls
+  // back to the untouched file for formats a <canvas> can't take (HEIC), or
+  // when re-encoding wouldn't actually be smaller.
+  function downscale (file, maxDim, quality) {
+    return new Promise(function (resolve) {
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { resolve(file); return; }
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) { resolve(file); return; }
+        var scale = Math.min(1, maxDim / Math.max(w, h));
+        var cw = Math.max(1, Math.round(w * scale));
+        var ch = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = cw; canvas.height = ch;
+        canvas.getContext('2d').drawImage(img, 0, 0, cw, ch);
+        canvas.toBlob(function (blob) {
+          resolve(blob && blob.size < file.size ? blob : file);
+        }, 'image/jpeg', quality);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
+  document.getElementById('form').addEventListener('submit', function (e) {
       e.preventDefault();
       var file = fileInput.files[0];
       if (!file) {
@@ -166,10 +194,12 @@
       submitBtn.disabled = true;
       submitBtn.textContent = 'Uploading…';
 
-      var formData = new FormData();
-      formData.append('image', file);
-
-      fetch(base + '/images', { method: 'POST', body: formData })
+      downscale(file, 1600, 0.85).then(function (payload) {
+        var formData = new FormData();
+        var name = payload === file ? (file.name || 'receipt') : 'receipt.jpg';
+        formData.append('image', payload, name);
+        return fetch(base + '/images', { method: 'POST', body: formData });
+      })
         .then(function (resp) {
           if (!resp.ok) {
             return resp.json().then(function (body) {
