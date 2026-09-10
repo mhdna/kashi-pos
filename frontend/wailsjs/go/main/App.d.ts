@@ -118,7 +118,7 @@ export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
 
 export function GetShiftExpectedTotals(arg1:number):Promise<Record<string, any>>;
 
-export function GetShiftTotals():Promise<Array<Record<string, any>>>;
+export function GetShiftTotals(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function GetStartupError():Promise<string>;
 

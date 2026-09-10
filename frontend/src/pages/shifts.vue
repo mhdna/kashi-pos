@@ -239,7 +239,7 @@ async function refresh() {
   }
 
   try {
-    const shifts = ((await GetShiftTotals()) as Shift[]) ?? [];
+    const shifts = ((await GetShiftTotals(currentMonth.value)) as Shift[]) ?? [];
     allShifts.value = shifts.map((shift) => ({
       ...shift,
       total: Number.isFinite(Number(shift.total)) ? Number(shift.total) : 0,

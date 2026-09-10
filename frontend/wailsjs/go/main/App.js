@@ -234,8 +234,8 @@ export function GetShiftExpectedTotals(arg1) {
   return window['go']['main']['App']['GetShiftExpectedTotals'](arg1);
 }
 
-export function GetShiftTotals() {
-  return window['go']['main']['App']['GetShiftTotals']();
+export function GetShiftTotals(arg1) {
+  return window['go']['main']['App']['GetShiftTotals'](arg1);
 }
 
 export function GetStartupError() {

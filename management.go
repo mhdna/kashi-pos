@@ -817,11 +817,14 @@ func (a *App) GetCurrentMonth() string {
 // month only - the monthly shift table never displays more than one month
 // at a time, so there's no reason to load every shift the shop has ever
 // had (which used to grow unbounded as history accumulated).
-func (a *App) GetShiftTotals() ([]map[string]any, error) {
+func (a *App) GetShiftTotals(yearMonth string) ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.store.GetShiftTotals(a.ctx, time.Now().Format("2006-01"))
+	if yearMonth == "" {
+		yearMonth = time.Now().Format("2006-01")
+	}
+	rows, err := a.store.GetShiftTotals(a.ctx, yearMonth)
 	if err != nil {
 		return nil, err
 	}
