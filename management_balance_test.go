@@ -252,6 +252,100 @@ func TestReplaceShiftBalanceMovesNegativeBalanceWithItsSign(t *testing.T) {
 	}
 }
 
+// TestReplaceShiftBalanceEmptiesRoundedCashSourceDespiteConversionOvershoot
+// covers the swap dialog's autofill path: it rounds a physically-rounded cash
+// balance (LBP) up to the nearest cash unit and converts that back to cents,
+// which can exceed the exact source magnitude by up to one cash unit. Moving
+// the whole balance of such an account - here a return, so a negative balance
+// swapped into USD - must be accepted and clamped, not rejected.
+func TestReplaceShiftBalanceEmptiesRoundedCashSourceDespiteConversionOvershoot(t *testing.T) {
+	ctx := context.Background()
+	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "lbp-swap.db")+"?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
+		t.Fatal(err)
+	}
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash LBP", CurrencyCode: "LBP"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	destination, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash $$", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := store.CreateInventory(ctx, "Sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A return booked to the LBP cash account: -2220 accounting cents, whose
+	// magnitude (2220) sits just below the 2,000,000 LBP the dialog autofills.
+	const sourceCents = -2220
+	invoice, err := store.CreateInvoice(ctx, db.CreateInvoiceParams{
+		CashboxID: source.ID, ShiftID: shift.ID, InvoiceCode: "RS/CN/2026/00002",
+		InvoiceIndex: 1, Year: 2026, ClientID: client.ID, InventoryID: inventory.ID,
+		GrandTotal: sourceCents, DiscountedTotal: sourceCents, Subtotal: sourceCents,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateInvoicePayment(ctx, db.CreateInvoicePaymentParams{
+		InvoiceID: invoice.ID, CashboxID: source.ID, Amount: sourceCents,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{ctx: ctx, store: store}
+	// What the dialog sends: 2,000,000 LBP (autofilled from the -2220c
+	// balance) converted back to cents = 2222, two cents over the magnitude.
+	entryCents, err := app.ConvertCashEntryToCents("LBP", 2_000_000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entryCents <= 2220 {
+		t.Fatalf("expected conversion to overshoot the source magnitude, got %d", entryCents)
+	}
+
+	preview, err := app.PreviewShiftBalanceReplacement(shift.ID, source.ID, destination.ID, entryCents)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !preview.Valid {
+		t.Fatalf("preview rejected emptying a rounded cash source: %q", preview.Reason)
+	}
+	if preview.SourceRemainingCents != 0 || preview.DestinationReceivesCents != sourceCents {
+		t.Fatalf("preview = %#v, want remaining 0 and destination %d", preview, sourceCents)
+	}
+	if err := app.ReplaceShiftBalance(shift.ID, source.ID, destination.ID, entryCents); err != nil {
+		t.Fatalf("submit rejected a swap the preview accepted: %v", err)
+	}
+	balances, err := app.ListShiftBalances(shift.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[int64]int64{}
+	for _, balance := range balances {
+		got[balance["accountId"].(int64)] = databaseInt64(balance["balance"])
+	}
+	if got[source.ID] != 0 || got[destination.ID] != sourceCents {
+		t.Fatalf("balances after swap = source %d, destination %d; want 0 and %d", got[source.ID], got[destination.ID], sourceCents)
+	}
+}
+
 // TestPreviewShiftBalanceReplacementNeverDivergesFromActualSubmit is the
 // regression guard for the swap-balance dialog: whatever
 // PreviewShiftBalanceReplacement predicts must be exactly what

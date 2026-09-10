@@ -10,10 +10,12 @@ import (
 
 func TestSyncWorkerDrainsOutboxOnSuccess(t *testing.T) {
 	var posts int32
-	var gotPath string
+	var sawInvoicePath atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt32(&posts, 1)
-		gotPath = r.URL.Path
+		if r.URL.Path == "/branch/sales_invoices" {
+			sawInvoicePath.Store(true)
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"invoice":{}}`))
 	}))
@@ -34,11 +36,12 @@ func TestSyncWorkerDrainsOutboxOnSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if posts != 1 {
-		t.Fatalf("expected exactly 1 POST to kashi, got %d", posts)
+	// invoice + its client both drain
+	if posts != 2 {
+		t.Fatalf("expected 2 POSTs to kashi (invoice + client), got %d", posts)
 	}
-	if gotPath != "/branch/sales_invoices" {
-		t.Fatalf("posted to %q, want /branch/sales_invoices", gotPath)
+	if !sawInvoicePath.Load() {
+		t.Fatal("never POSTed to /branch/sales_invoices")
 	}
 
 	count, err := store.CountPendingSyncOutbox(app.ctx)
@@ -83,8 +86,8 @@ func TestSyncWorkerRetriesWithBackoffOnFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count != 1 {
-		t.Fatalf("expected the entry to still be pending (never given up on), got %d", count)
+	if count != 2 {
+		t.Fatalf("expected both entries (invoice + client) still pending, got %d", count)
 	}
 }
 

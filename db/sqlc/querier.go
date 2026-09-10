@@ -22,6 +22,7 @@ type Querier interface {
 	ApproveAttendanceComplaint(ctx context.Context, arg ApproveAttendanceComplaintParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
 	ClearSyncCursors(ctx context.Context) error
+	ClientHasInvoice(ctx context.Context, clientID int64) (int64, error)
 	CloseOpenShifts(ctx context.Context, closedAt string) error
 	CloseShift(ctx context.Context, arg CloseShiftParams) (int64, error)
 	CloseStaleOpenShifts(ctx context.Context, closedAt string) error
@@ -224,6 +225,10 @@ type Querier interface {
 	ListClients(ctx context.Context) ([]Client, error)
 	ListClientsAfter(ctx context.Context, arg ListClientsAfterParams) ([]ListClientsAfterRow, error)
 	ListClientsAfterUnfiltered(ctx context.Context, arg ListClientsAfterUnfilteredParams) ([]ListClientsAfterUnfilteredRow, error)
+	// Clients that have at least one invoice -- the only ones the branch pushes
+	// up. Everyone else is created locally but stays local until they buy
+	// something; kashi remains the source of truth for the shared roster.
+	ListClientsWithInvoices(ctx context.Context) ([]Client, error)
 	ListClosedShifts(ctx context.Context) ([]Shift, error)
 	ListCouponTypes(ctx context.Context) ([]CouponType, error)
 	ListCoupons(ctx context.Context) ([]Coupon, error)

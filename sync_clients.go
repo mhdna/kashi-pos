@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -64,10 +63,15 @@ type branchClientPayload struct {
 	Phone          string `json:"phone"`
 }
 
-// queueBranchClientSync inserts a sync_outbox row for a client create/edit,
-// using the same *db.Queries (and therefore the same transaction) as the
-// write that produced it -- see queueBranchInvoiceSync in sync_outbox.go
-// for why that matters. No-op if this install isn't configured to sync.
+// queueBranchClientSync upserts the single sync_outbox row for one client,
+// in the same transaction as the write that produced it (see
+// queueBranchInvoiceSync in sync_outbox.go for why that matters). No-op if
+// this install isn't configured to sync.
+//
+// The ref is stable ("client-<id>"): a client that buys and gets edited
+// many times keeps re-arming one row rather than piling up an
+// unbounded history of throwaway rows -- kashi's putBranchClient upserts
+// by (branch_id, branch_client_id) regardless, so the latest payload wins.
 func queueBranchClientSync(ctx context.Context, q *db.Queries, centralAPIURL string, clientID int64, name, phone string) error {
 	if centralAPIURL == "" {
 		return nil
@@ -82,14 +86,29 @@ func queueBranchClientSync(ctx context.Context, q *db.Queries, centralAPIURL str
 		return fmt.Errorf("marshal client sync payload: %w", err)
 	}
 
-	// client_ref must be unique per sync_outbox row but has no natural
-	// idempotency meaning for a client edit the way it does for an
-	// invoice (a client can legitimately be edited many times) -- a
-	// fresh id per edit is correct here, not a bug.
-	_, err = q.CreateSyncOutboxEntry(ctx, db.CreateSyncOutboxEntryParams{
+	return q.UpsertSyncOutboxEntry(ctx, db.UpsertSyncOutboxEntryParams{
 		EntityType:  "client",
-		ClientRef:   fmt.Sprintf("client-%d-%d", clientID, time.Now().UnixNano()),
+		ClientRef:   fmt.Sprintf("client-%d", clientID),
 		PayloadJson: string(body),
 	})
-	return err
+}
+
+// queueBranchClientSyncForPurchase pushes a client up because they've just
+// bought something -- the branch's rule is "only sync clients who actually
+// transact". No-op for the walk-in pseudo-client, an unset client, or an
+// unconfigured install. Called from the checkout paths right before the
+// invoice is queued, so the client row lands first and kashi can attribute
+// the invoice immediately.
+func queueBranchClientSyncForPurchase(ctx context.Context, q *db.Queries, centralAPIURL string, clientID int64) error {
+	if centralAPIURL == "" || clientID <= 0 {
+		return nil
+	}
+	client, err := q.GetClientByID(ctx, clientID)
+	if err != nil {
+		return fmt.Errorf("load client for sync: %w", err)
+	}
+	if isWalkInClient(client) {
+		return nil
+	}
+	return queueBranchClientSync(ctx, q, centralAPIURL, client.ID, client.Name, client.Phone)
 }

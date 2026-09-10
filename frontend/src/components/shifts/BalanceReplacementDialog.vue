@@ -8,7 +8,7 @@
         </div>
         <v-select v-model="sourceId" :items="sources" item-title="accountName" item-value="accountId" placeholder="From" variant="outlined" density="comfortable" class="mb-2" />
         <v-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" placeholder="Swap with" variant="outlined" density="comfortable" class="mb-2" />
-        <v-text-field v-model.number="amount" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01" variant="outlined" density="comfortable" />
+        <v-text-field v-model.number="amount" :prefix="sourceIsNegative ? '−' : undefined" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01" variant="outlined" density="comfortable" />
         <div v-if="destination && preview?.valid" class="text-caption text-medium-emphasis">
           Destination receives {{ formatBalance(preview.destinationReceivesCents, destination.currencyCode ?? "USD", currencies, roundingMode) }}
         </div>
@@ -47,6 +47,7 @@ const amount = ref<number | null>(null);
 const saving = ref(false);
 const source = computed(() => props.sources.find((item) => item.accountId === sourceId.value) ?? null);
 const sourceCurrency = computed(() => findCurrency(currencies.value, source.value?.currencyCode ?? "USD"));
+const sourceIsNegative = computed(() => Number(source.value?.balance ?? 0) < 0);
 const destinations = computed(() => props.paymentMethods.filter((method) => method.id !== source.value?.accountId));
 const destination = computed(() => destinations.value.find((method) => method.id === destinationId.value));
 

@@ -82,19 +82,15 @@ func (a *App) CreateClient(name, phone string) (map[string]any, error) {
 		if err != nil {
 			return err
 		}
-		settings, err := q.GetSettings(a.ctx)
-		if err != nil {
-			return err
-		}
-		return queueBranchClientSync(a.ctx, q, settings.CentralApiUrl, client.ID, client.Name, client.Phone)
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	// Push the just-queued client edit to kashi now rather than letting it
-	// wait out the worker's 15s tick -- every other queue site kicks, these
-	// two were the only ones that didn't.
-	a.kickSyncWorker()
+	// Deliberately not queued for sync: kashi owns the shared client roster,
+	// and a branch only pushes a client up once they've actually bought
+	// something (see the checkout paths). A never-purchasing local client
+	// stays local.
 	return clientResponse(client), nil
 }
 
@@ -133,6 +129,15 @@ func (a *App) UpdateClient(clientID int64, name, phone string) (map[string]any, 
 		settings, err := q.GetSettings(a.ctx)
 		if err != nil {
 			return err
+		}
+		// Only propagate the edit if this client is one we've pushed --
+		// i.e. they have a purchase. Otherwise it's a local-only record.
+		hasInvoice, err := q.ClientHasInvoice(a.ctx, clientID)
+		if err != nil {
+			return err
+		}
+		if hasInvoice == 0 {
+			return nil
 		}
 		return queueBranchClientSync(a.ctx, q, settings.CentralApiUrl, updated.ID, updated.Name, updated.Phone)
 	})

@@ -295,6 +295,9 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		}
 
 		if settings.CentralApiUrl != "" {
+			if err := queueBranchClientSyncForPurchase(a.ctx, q, settings.CentralApiUrl, clientID); err != nil {
+				return fmt.Errorf("queue client sync: %w", err)
+			}
 			clientRef, err := getOrCreateInvoiceClientRef(a.ctx, q, invoice.ID)
 			if err != nil {
 				return fmt.Errorf("resolve invoice client ref: %w", err)

@@ -206,3 +206,14 @@ UPDATE coupons SET status = 'inactive', redeemed_invoice_id = ? WHERE code = ? A
 -- name: CreateInvoiceCouponPayment :one
 INSERT INTO invoice_coupon_payments (invoice_id, coupon_code, coupon_type_id, amount)
 VALUES (?, ?, ?, ?) RETURNING *;
+
+-- name: ListClientsWithInvoices :many
+-- Clients that have at least one invoice -- the only ones the branch pushes
+-- up. Everyone else is created locally but stays local until they buy
+-- something; kashi remains the source of truth for the shared roster.
+SELECT DISTINCT c.* FROM clients c
+JOIN invoices i ON i.client_id = c.id
+ORDER BY c.id;
+
+-- name: ClientHasInvoice :one
+SELECT EXISTS(SELECT 1 FROM invoices WHERE client_id = ?);

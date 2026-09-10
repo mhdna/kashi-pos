@@ -28,6 +28,17 @@ func (q *Queries) AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyal
 	return err
 }
 
+const clientHasInvoice = `-- name: ClientHasInvoice :one
+SELECT EXISTS(SELECT 1 FROM invoices WHERE client_id = ?)
+`
+
+func (q *Queries) ClientHasInvoice(ctx context.Context, clientID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, clientHasInvoice, clientID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countClients = `-- name: CountClients :one
 SELECT COUNT(*) FROM clients
 `
@@ -757,6 +768,45 @@ func (q *Queries) ListClientsAfterUnfiltered(ctx context.Context, arg ListClient
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
 			&i.AccountBalance,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClientsWithInvoices = `-- name: ListClientsWithInvoices :many
+SELECT DISTINCT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at FROM clients c
+JOIN invoices i ON i.client_id = c.id
+ORDER BY c.id
+`
+
+// Clients that have at least one invoice -- the only ones the branch pushes
+// up. Everyone else is created locally but stays local until they buy
+// something; kashi remains the source of truth for the shared roster.
+func (q *Queries) ListClientsWithInvoices(ctx context.Context) ([]Client, error) {
+	rows, err := q.db.QueryContext(ctx, listClientsWithInvoices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Client{}
+	for rows.Next() {
+		var i Client
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.TotalLoyaltyPoints,
+			&i.ValidLoyaltyPoints,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

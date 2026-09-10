@@ -106,8 +106,10 @@ func TestSalesInvoiceQueuesBranchInvoiceSyncWithReportedLoyaltyDelta(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 1 {
-		t.Fatalf("expected exactly 1 outbox entry, got %d", len(entries))
+	// A sale for a real client now also queues that client (priority order
+	// puts the invoice first); the invoice is entries[0].
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 outbox entries (invoice + client), got %d", len(entries))
 	}
 	if entries[0].EntityType != "sales_invoice" {
 		t.Fatalf("entity_type = %q, want sales_invoice", entries[0].EntityType)
@@ -168,8 +170,8 @@ func TestReturnInvoiceQueuesSyncLinkedToOriginalSale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(beforeReturn) != 1 {
-		t.Fatalf("expected 1 outbox entry after the sale, got %d", len(beforeReturn))
+	if len(beforeReturn) != 2 {
+		t.Fatalf("expected 2 outbox entries after the sale (invoice + client), got %d", len(beforeReturn))
 	}
 	var salePayload branchInvoicePayload
 	if err := json.Unmarshal([]byte(beforeReturn[0].PayloadJson), &salePayload); err != nil {
@@ -188,8 +190,8 @@ func TestReturnInvoiceQueuesSyncLinkedToOriginalSale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 2 {
-		t.Fatalf("expected 2 outbox entries (sale + return), got %d", len(entries))
+	if len(entries) != 3 {
+		t.Fatalf("expected 3 outbox entries (sale + return + client), got %d", len(entries))
 	}
 	var returnPayload branchInvoicePayload
 	if err := json.Unmarshal([]byte(entries[1].PayloadJson), &returnPayload); err != nil {

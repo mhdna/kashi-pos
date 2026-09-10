@@ -251,8 +251,8 @@ func TestPermanentRejectionMovesOutboxRowToFailed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if n, _ := store.CountSyncOutboxByStatus(app.ctx, "failed"); n != 1 {
-		t.Fatalf("expected 1 failed row after a 400, got %d", n)
+	if n, _ := store.CountSyncOutboxByStatus(app.ctx, "failed"); n != 2 {
+		t.Fatalf("expected 2 failed rows after a 400 (invoice + client), got %d", n)
 	}
 	if n, _ := store.CountPendingSyncOutbox(app.ctx); n != 0 {
 		t.Fatalf("expected 0 pending after a 400 (row parked), got %d", n)

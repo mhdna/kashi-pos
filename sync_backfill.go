@@ -119,12 +119,9 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	}
 	report.Entities = append(report.Entities, invRep)
 
-	// 4. Products up -- staged for review in kashi (filled by Phase 4).
-	prodRep, err := a.resyncProducts(ctx, client, opts)
-	if err != nil {
-		return report, fmt.Errorf("resync products: %w", err)
-	}
-	report.Entities = append(report.Entities, prodRep)
+	// Products are never pushed up -- kashi owns the catalog and the branch
+	// only ever pulls it down (step 1 above). No product up-sync, no
+	// unknown-product conflicts.
 
 	// 4b. Expenses and loans up -- both carry an on-row client_ref, so
 	//     reconstructing a pre-sync one is a straight column map.
@@ -230,13 +227,11 @@ func (a *App) resyncClients(ctx context.Context, client *centralClient, opts Res
 		if err != nil {
 			return rep, err
 		}
-		// A stable, resync-scoped ref so a re-run upserts the same row
-		// rather than colliding on the table-wide UNIQUE(client_ref); it
-		// deliberately can't clash with the live path's
-		// "client-<id>-<nanos>" throwaway refs.
+		// Same stable "client-<id>" ref the live checkout/edit path uses, so
+		// a resync and a subsequent edit converge on the one row per client.
 		if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
 			EntityType:  "client",
-			ClientRef:   "client-resync-" + ref,
+			ClientRef:   "client-" + ref,
 			PayloadJson: string(body),
 		}); err != nil {
 			return rep, err
