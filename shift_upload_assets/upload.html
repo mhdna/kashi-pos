@@ -94,6 +94,10 @@
 (function () {
   var parts = location.pathname.split('/').filter(Boolean);
   var token = parts[parts.length - 1];
+  // Sibling endpoints, resolved relative to however this page was reached:
+  // '/shift_uploads/<token>' on the POS local server, '/api/shift_uploads/<token>'
+  // behind Caddy on the central server.
+  var base = location.pathname.replace(/\/+$/, '');
   var card = document.getElementById('card');
 
   function escapeHtml (s) {
@@ -165,7 +169,7 @@
       var formData = new FormData();
       formData.append('image', file);
 
-      fetch('/shift_uploads/' + token + '/images', { method: 'POST', body: formData })
+      fetch(base + '/images', { method: 'POST', body: formData })
         .then(function (resp) {
           if (!resp.ok) {
             return resp.json().then(function (body) {
@@ -183,7 +187,7 @@
     });
   }
 
-  fetch('/shift_uploads/' + token + '/status')
+  fetch(base + '/status')
     .then(function (resp) {
       if (!resp.ok) {
         return resp.json().then(function (body) {
