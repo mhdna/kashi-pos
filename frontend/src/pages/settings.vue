@@ -973,10 +973,12 @@
               <v-textarea v-model="form.whatsappMessage" placeholder="Message template" rows="3" variant="outlined" density="compact" hide-details class="field-full" />
               <div class="text-caption text-medium-emphasis field-full">
                 Sent over an <b>open-wa</b> (<code>@open-wa/wa-automate</code>) EASY API server to the
-                invoice client's phone number. Walk-in / anonymous sales are skipped. Placeholders:
-                <code>{name}</code>, <code>{market}</code>, <code>{branch}</code>,
-                <code>{invoice}</code>, <code>{total}</code>, <code>{link}</code> (dropped when the
-                review link is blank).
+                invoice client's phone number, as an image whose picture is a <b>QR code of the
+                invoice number</b> with this text as the caption. Walk-in / anonymous sales are
+                skipped. Placeholders: <code>{name}</code>, <code>{market}</code>,
+                <code>{branch}</code>, <code>{invoice}</code>, <code>{total}</code>,
+                <code>{items}</code> (bullet list of the products bought), <code>{link}</code>.
+                <code>{items}</code> and <code>{link}</code> collapse when empty.
               </div>
             </v-card-text>
             <v-card-actions>
