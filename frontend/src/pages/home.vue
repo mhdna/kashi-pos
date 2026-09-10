@@ -282,8 +282,9 @@ type InvoiceDraft = {
   // restart or logout/login instead of silently reverting to a normal sale.
   exchangeOriginalInvoiceId?: number;
 };
-const { client, clientSelected, setClient, resetClient, pulseMissingClient } = useClient();
-const { selectedSalesperson, pulseSalesperson } = useSalesperson();
+const { client, clientSelected, setClient, resetClient, pulseMissingClient, setClientRequired } = useClient();
+const { selectedSalesperson, pulseSalesperson, salespersonPerInvoiceRequired, setSalespersonPerInvoiceRequired } =
+  useSalesperson();
 let pageActive = true;
 
 const taxRate = ref(0);
@@ -531,8 +532,13 @@ function clearDraft() {
 function clearInvoice() {
   invoiceItems.value?.clearItems();
   calculator.value?.clearAll();
-  // Keep the salesperson selected for the next invoice. Restoring an on-hold
-  // invoice still replaces this below with the salesperson saved on that hold.
+  // Keep the salesperson selected for the next invoice, unless the branch
+  // requires picking one per invoice - then clear it so the cashier must
+  // choose again. Restoring an on-hold invoice still replaces this below with
+  // the salesperson saved on that hold.
+  if (salespersonPerInvoiceRequired.value) {
+    selectedSalesperson.value = null;
+  }
   invoiceNotes.value = "";
   noteDraft.value = "";
   noteDialog.value = false;
@@ -974,6 +980,12 @@ async function loadAppSettings() {
     hidePaymentMethodCurrency.value = Boolean(settings?.hidePaymentMethodCurrency);
     autoAppendLbpZeros.value = Boolean(settings?.autoAppendLbpZeros);
     alwaysAnonymousClientEnabled.value = Boolean(settings?.alwaysAnonymousClientEnabled);
+    // Keep the shared client/salesperson composables in sync with the saved
+    // settings on every load and every settings_changed event - not just when
+    // the Settings page toggle runs - so a fresh launch or a remote change
+    // takes effect without having to re-toggle it.
+    setClientRequired(settings?.clientRequired !== false);
+    setSalespersonPerInvoiceRequired(Boolean(settings?.salespersonPerInvoiceRequired));
     // Absent (older backend) means "available" - only an explicit false disables it.
     productSearchEnabled.value = settings?.productSearchEnabled !== false;
     overchangeConfirmationEnabled.value = settings?.overchangeConfirmationEnabled !== false;

@@ -7,6 +7,11 @@ export interface Salesperson {
 
 const selectedSalesperson = ref<Salesperson | null>(null);
 const pulseMissingSalesperson = ref(false);
+// When on, the salesperson selection is cleared for every new invoice so
+// the cashier must pick one each time. Off (the default) carries the
+// previous invoice's salesperson forward. Loaded from GetAppSettings via
+// setSalespersonPerInvoiceRequired.
+const salespersonPerInvoiceRequired = ref(false);
 
 let pulseTimer: ReturnType<typeof setTimeout> | undefined;
 function pulseSalesperson() {
@@ -20,6 +25,16 @@ function pulseSalesperson() {
   });
 }
 
+function setSalespersonPerInvoiceRequired(required: boolean) {
+  salespersonPerInvoiceRequired.value = required;
+}
+
 export function useSalesperson() {
-  return { selectedSalesperson, pulseMissingSalesperson, pulseSalesperson };
+  return {
+    selectedSalesperson,
+    pulseMissingSalesperson,
+    pulseSalesperson,
+    salespersonPerInvoiceRequired,
+    setSalespersonPerInvoiceRequired,
+  };
 }

@@ -890,6 +890,28 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('behavior-salesperson-per-invoice')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-account-tie-outline" size="20" />
+              Salesperson per invoice
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.salespersonPerInvoiceRequired"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Require picking a salesperson on every invoice"
+                @update:model-value="setSalespersonPerInvoiceRequired"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                When on, the salesperson selection is cleared for each new invoice so
+                the cashier must choose again. When off, the previous invoice's
+                salesperson carries forward. This can also be changed remotely from kashi.
+              </div>
+            </v-card-text>
+          </v-card>
+
           <v-card v-show="panelMatches('behavior-visitor-counter')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-account-group-outline" size="20" />
@@ -1380,6 +1402,7 @@ import {
   SetProductSearchEnabled,
   SetVisitorCounterEnabled,
   SetClientRequired,
+  SetSalespersonPerInvoiceRequired,
   SetHidePaymentMethodCurrency,
   SetAutoAppendLbpZerosEnabled,
   SetOverchangeConfirmationEnabled,
@@ -1447,6 +1470,7 @@ import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 import { paymentAccentColor } from "@/lib/paymentColor";
 import { useAuthStore } from "@/stores/auth";
 import { useClient } from "@/composables/useClient";
+import { useSalesperson } from "@/composables/useSalesperson";
 import { usePageUnlocks, lockablePages } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
@@ -1460,6 +1484,7 @@ import { useTheme } from "vuetify";
 
 const auth = useAuthStore();
 const { setClientRequired: setClientRequiredState } = useClient();
+const { setSalespersonPerInvoiceRequired: setSalespersonPerInvoiceRequiredState } = useSalesperson();
 const { refresh: refreshVisitorCounter } = useVisitorCounter();
 const theme = useTheme();
 const tab = ref("general");
@@ -1546,6 +1571,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-invoice-keyboard": { tab: "behavior", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
   "behavior-product-search": { tab: "behavior", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
+  "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
   "behavior-visitor-counter": { tab: "behavior", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
   "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
   "admin-change-password": { tab: "admin", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
@@ -1648,6 +1674,7 @@ const form = reactive({
   productSearchEnabled: true,
   visitorCounterEnabled: false,
   clientRequired: true,
+  salespersonPerInvoiceRequired: false,
   hidePaymentMethodCurrency: false,
   autoAppendLbpZeros: false,
   overchangeConfirmationEnabled: true,
@@ -2225,6 +2252,7 @@ async function loadSettings() {
         productSearchEnabled: s.productSearchEnabled !== false,
         visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
+        salespersonPerInvoiceRequired: Boolean(s.salespersonPerInvoiceRequired),
         hidePaymentMethodCurrency: Boolean(s.hidePaymentMethodCurrency),
         autoAppendLbpZeros: Boolean(s.autoAppendLbpZeros),
         overchangeConfirmationEnabled: s.overchangeConfirmationEnabled !== false,
@@ -2411,6 +2439,27 @@ async function setClientRequired(value: boolean | null) {
   } catch {
     form.clientRequired = previous;
     notify("Failed to update client requirement", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setSalespersonPerInvoiceRequired(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.salespersonPerInvoiceRequired;
+  form.salespersonPerInvoiceRequired = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetSalespersonPerInvoiceRequired(enabled);
+    setSalespersonPerInvoiceRequiredState(enabled);
+    notify(
+      enabled
+        ? "Salesperson must now be picked on every invoice"
+        : "Salesperson now carries forward between invoices",
+    );
+  } catch {
+    form.salespersonPerInvoiceRequired = previous;
+    notify("Failed to update salesperson requirement", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }

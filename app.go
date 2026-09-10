@@ -31,13 +31,14 @@ var errDatabaseMissing = errors.New("database not found")
 var embeddedDB []byte
 
 type App struct {
-	ctx        context.Context
-	store      *db.Store
-	conn       *sql.DB
-	dbPath     string
-	admin      *adminServer
-	startupErr error
-	ready      chan struct{}
+	ctx         context.Context
+	store       *db.Store
+	conn        *sql.DB
+	dbPath      string
+	admin       *adminServer
+	shiftUpload *shiftUploadServer
+	startupErr  error
+	ready       chan struct{}
 
 	pinMu             sync.Mutex
 	failedPINAttempts int
@@ -258,6 +259,7 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 		log.Println("close stale open shifts:", err)
 	}
 	a.startAdminServer()
+	a.startShiftUploadServer()
 	a.startSyncWorker()
 	a.startWSClient()
 	return nil
@@ -365,6 +367,7 @@ func (a *App) shutdown(ctx context.Context) {
 	// has returned.
 	a.backgroundWG.Wait()
 	a.stopAdminServer(ctx)
+	a.stopShiftUploadServer(ctx)
 	if a.conn != nil {
 		a.conn.Close()
 	}
@@ -804,6 +807,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["clientRequired"] = true
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, salespersonPerInvoiceRequiredFlag); flagErr == nil {
+		result["salespersonPerInvoiceRequired"] = enabled != 0
+	} else {
+		result["salespersonPerInvoiceRequired"] = false
+	}
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, hidePaymentMethodCurrencyFlag); flagErr == nil {
 		result["hidePaymentMethodCurrency"] = enabled != 0
 	} else {
@@ -901,6 +909,19 @@ func (a *App) SetClientRequired(required bool) error {
 	}
 	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: clientRequiredFlag, Enabled: boolInt(required),
+	})
+}
+
+// SetSalespersonPerInvoiceRequired toggles whether the salesperson
+// selection is cleared for every new invoice. Off (the default) carries the
+// previous invoice's salesperson forward; on forces the cashier to pick one
+// each time.
+func (a *App) SetSalespersonPerInvoiceRequired(required bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: salespersonPerInvoiceRequiredFlag, Enabled: boolInt(required),
 	})
 }
 

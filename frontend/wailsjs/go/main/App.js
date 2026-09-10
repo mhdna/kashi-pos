@@ -50,6 +50,10 @@ export function CheckExpenseUploadStatus(arg1) {
   return window['go']['main']['App']['CheckExpenseUploadStatus'](arg1);
 }
 
+export function CheckShiftReceiptCaptured(arg1) {
+  return window['go']['main']['App']['CheckShiftReceiptCaptured'](arg1);
+}
+
 export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
@@ -578,6 +582,10 @@ export function SetProductSearchEnabled(arg1) {
   return window['go']['main']['App']['SetProductSearchEnabled'](arg1);
 }
 
+export function SetSalespersonPerInvoiceRequired(arg1) {
+  return window['go']['main']['App']['SetSalespersonPerInvoiceRequired'](arg1);
+}
+
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
@@ -588,6 +596,10 @@ export function SetVisitorCounterEnabled(arg1) {
 
 export function SettleInvoicePayments(arg1, arg2) {
   return window['go']['main']['App']['SettleInvoicePayments'](arg1, arg2);
+}
+
+export function SkipShiftReceiptUpload(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SkipShiftReceiptUpload'](arg1, arg2, arg3);
 }
 
 export function SubmitAttendanceComplaint(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {

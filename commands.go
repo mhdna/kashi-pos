@@ -86,6 +86,7 @@ type updateSettingsCommandPayload struct {
 	PriceChangeManualOverrideMode *bool `json:"price_change_manual_override_mode"`
 	InvoiceKeyboardMode           *bool `json:"invoice_keyboard_mode"`
 	ClientRequired                *bool `json:"client_required"`
+	SalespersonPerInvoiceRequired *bool `json:"salesperson_per_invoice_required"`
 	OpeningFloatEnabled           *bool `json:"opening_float_enabled"`
 	CountOpeningCashOnClose        *bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
@@ -215,6 +216,9 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.PriceChangeManualOverrideMode, func(b bool) error { return a.setFeatureFlagBool(ctx, priceChangeManualOverrideFlag, b) }},
 		{p.InvoiceKeyboardMode, func(b bool) error { return a.setFeatureFlagBool(ctx, invoiceKeyboardModeFlag, b) }},
 		{p.ClientRequired, func(b bool) error { return a.setFeatureFlagBool(ctx, clientRequiredFlag, b) }},
+		{p.SalespersonPerInvoiceRequired, func(b bool) error {
+			return a.setFeatureFlagBool(ctx, salespersonPerInvoiceRequiredFlag, b)
+		}},
 		{p.OpeningFloatEnabled, func(b bool) error { return a.setFeatureFlagBool(ctx, openingFloatEnabledFlag, b) }},
 		{p.CountOpeningCashOnClose, func(b bool) error { return a.setFeatureFlagBool(ctx, countOpeningCashOnCloseFlag, b) }},
 		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},

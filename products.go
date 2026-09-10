@@ -36,6 +36,12 @@ const (
 	// so a database that has never touched this flag keeps the search button
 	// available - matching behavior before this setting existed.
 	productSearchEnabledFlag = "product_search_enabled"
+	// When on, the salesperson selection is cleared for every new invoice so
+	// the cashier must pick one each time. Defaults to false when unset, so a
+	// database that has never touched this flag keeps carrying the previous
+	// invoice's salesperson forward - matching behavior before this setting
+	// existed.
+	salespersonPerInvoiceRequiredFlag = "salesperson_per_invoice_required"
 )
 
 // overchangeConfirmationEnabled reports whether the checkout calculator's

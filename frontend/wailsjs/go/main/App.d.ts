@@ -26,6 +26,8 @@ export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void
 
 export function CheckExpenseUploadStatus(arg1:string):Promise<boolean>;
 
+export function CheckShiftReceiptCaptured(arg1:string):Promise<boolean>;
+
 export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
 export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<Record<string, any>>;
@@ -290,11 +292,15 @@ export function SetPriceListItem(arg1:number,arg2:string,arg3:number):Promise<Re
 
 export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
 
+export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
+
 export function SetTheme(arg1:string):Promise<void>;
 
 export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
 
 export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<string, any>>;
+
+export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string):Promise<void>;
 
