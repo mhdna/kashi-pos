@@ -953,6 +953,39 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('behavior-whatsapp')" class="settings-card settings-card--wide">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-whatsapp" size="20" />
+              WhatsApp thank-you message
+            </v-card-title>
+            <v-card-text class="field-grid">
+              <v-switch
+                v-model="form.whatsappEnabled"
+                label="Send a thank-you WhatsApp after each sale"
+                color="primary"
+                hide-details
+                class="field-full"
+              />
+              <v-text-field v-model="form.whatsappApiUrl" placeholder="open-wa API URL (http://localhost:8002)" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.whatsappSession" placeholder="Session name (session)" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.whatsappApiKey" placeholder="API key" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.whatsappReviewUrl" placeholder="Review / rating link (optional)" variant="outlined" density="compact" hide-details />
+              <v-textarea v-model="form.whatsappMessage" placeholder="Message template" rows="3" variant="outlined" density="compact" hide-details class="field-full" />
+              <div class="text-caption text-medium-emphasis field-full">
+                Sent over an <b>open-wa</b> (<code>@open-wa/wa-automate</code>) EASY API server to the
+                invoice client's phone number. Walk-in / anonymous sales are skipped. Placeholders:
+                <code>{name}</code>, <code>{market}</code>, <code>{branch}</code>,
+                <code>{invoice}</code>, <code>{total}</code>, <code>{link}</code> (dropped when the
+                review link is blank).
+              </div>
+            </v-card-text>
+            <v-card-actions>
+              <v-btn color="primary" variant="flat" :loading="whatsappSaving" @click="saveWhatsAppSettings">
+                <v-icon start icon="mdi-content-save-outline" /> Save WhatsApp settings
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+
         </div>
       </v-window-item>
 
@@ -1427,6 +1460,7 @@ import {
   SetOpeningFloatEnabled,
   SetCountOpeningCashOnCloseEnabled,
   SetShiftReceiptUploadMode,
+  SetWhatsAppSettings,
   SetPageUnlocked,
   UpdateDefaultOpeningFloat,
   SetAutoCloseStaleShiftsEnabled,
@@ -1592,6 +1626,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
   "behavior-visitor-counter": { tab: "behavior", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
+  "behavior-whatsapp": { tab: "behavior", title: "WhatsApp thank-you message", keywords: "whatsapp thank you rate review feedback open-wa wa-automate easy api message template after sale checkout client phone" },
   "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
   "admin-change-password": { tab: "admin", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
   "admin-cashier-pin": { tab: "admin", title: "Cashier login PIN", keywords: "cashier pin code login keypad 4 digit change shared" },
@@ -1710,6 +1745,12 @@ const form = reactive({
   attendanceApproverPassword: "",
   attendanceDuplicateIntervalSeconds: 30,
   attendanceCashierHistory: false,
+  whatsappEnabled: false,
+  whatsappApiUrl: "",
+  whatsappApiKey: "",
+  whatsappSession: "",
+  whatsappMessage: "",
+  whatsappReviewUrl: "",
 });
 const roundingModes = [
   { title: "Half up (standard)", value: "half_up" },
@@ -2286,6 +2327,12 @@ async function loadSettings() {
         openingFloatEnabled: s.openingFloatEnabled !== false,
         countOpeningCashOnClose: s.countOpeningCashOnClose !== false,
         shiftReceiptUploadMode: Number(s.shiftReceiptUploadMode ?? 2),
+        whatsappEnabled: Boolean(s.whatsappEnabled),
+        whatsappApiUrl: s.whatsappApiUrl ?? "",
+        whatsappApiKey: s.whatsappApiKey ?? "",
+        whatsappSession: s.whatsappSession ?? "",
+        whatsappMessage: s.whatsappMessage ?? "",
+        whatsappReviewUrl: s.whatsappReviewUrl ?? "",
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
@@ -2554,6 +2601,26 @@ async function setShiftReceiptUploadMode(value: number | null) {
     notify("Failed to update close-shift receipt photo setting", "red");
   } finally {
     shiftReceiptUploadModeSaving.value = false;
+  }
+}
+
+const whatsappSaving = ref(false);
+async function saveWhatsAppSettings() {
+  whatsappSaving.value = true;
+  try {
+    await SetWhatsAppSettings(
+      form.whatsappEnabled,
+      form.whatsappApiUrl.trim(),
+      form.whatsappApiKey.trim(),
+      form.whatsappSession.trim(),
+      form.whatsappMessage.trim(),
+      form.whatsappReviewUrl.trim(),
+    );
+    notify("WhatsApp thank-you settings saved");
+  } catch {
+    notify("Failed to save WhatsApp settings", "red");
+  } finally {
+    whatsappSaving.value = false;
   }
 }
 

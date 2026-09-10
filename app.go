@@ -761,6 +761,12 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"receiptCutoff":          settings.ReceiptCutoff != 0,
 		"defaultOpeningFloatUsd": settings.DefaultOpeningFloatUsd,
 		"defaultOpeningFloatLbp": settings.DefaultOpeningFloatLbp,
+		"whatsappEnabled":        settings.WhatsappEnabled != 0,
+		"whatsappApiUrl":         settings.WhatsappApiUrl,
+		"whatsappApiKey":         settings.WhatsappApiKey,
+		"whatsappSession":        settings.WhatsappSession,
+		"whatsappMessage":        settings.WhatsappMessage,
+		"whatsappReviewUrl":      settings.WhatsappReviewUrl,
 	}
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, autoCloseStaleShiftsFlag); flagErr == nil {
 		result["autoCloseStaleShiftsEnabled"] = enabled != 0
@@ -1082,6 +1088,23 @@ func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, market
 		ExchangeRate: current.ExchangeRate, MaxOverpaymentCents: current.MaxOverpaymentCents, ExchangeWindowHours: current.ExchangeWindowHours, MarketName: marketName, MarketPhone: marketPhone, BranchPhone: branchPhone, MarketDescription: marketDescription,
 		ReturnPolicy: returnPolicy, Website: website, Instagram: instagram, SocialPlatforms: socialPlatformsJSON, SocialHandles: socialHandlesJSON, ReceiptFont: receiptFont, ReceiptTitleSize: titleSize,
 		ReceiptBodySize: bodySize, ReceiptCutoff: boolInt(cutoff), ReceiptBodyFont: bodyFont, CounterNumber: strings.TrimSpace(registerName),
+	})
+}
+
+// SetWhatsAppSettings persists the post-sale WhatsApp thank-you config. Blank
+// api_url / message are allowed (they just make the feature a no-op) so the
+// settings page can save a half-filled form without friction.
+func (a *App) SetWhatsAppSettings(enabled bool, apiURL, apiKey, session, message, reviewURL string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetWhatsAppSettings(a.ctx, db.SetWhatsAppSettingsParams{
+		WhatsappEnabled:   boolInt(enabled),
+		WhatsappApiUrl:    strings.TrimSpace(apiURL),
+		WhatsappApiKey:    strings.TrimSpace(apiKey),
+		WhatsappSession:   strings.TrimSpace(session),
+		WhatsappMessage:   strings.TrimSpace(message),
+		WhatsappReviewUrl: strings.TrimSpace(reviewURL),
 	})
 }
 

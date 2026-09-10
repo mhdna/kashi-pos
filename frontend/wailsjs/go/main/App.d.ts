@@ -302,6 +302,8 @@ export function SetTheme(arg1:string):Promise<void>;
 
 export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
 
+export function SetWhatsAppSettings(arg1:boolean,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string):Promise<void>;
+
 export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<string, any>>;
 
 export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Promise<void>;

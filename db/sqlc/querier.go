@@ -375,6 +375,7 @@ type Querier interface {
 	SetSyncTarget(ctx context.Context, currentTarget string) error
 	SetUserPasswordHashByUsername(ctx context.Context, arg SetUserPasswordHashByUsernameParams) (int64, error)
 	SetVisitorCount(ctx context.Context, arg SetVisitorCountParams) error
+	SetWhatsAppSettings(ctx context.Context, arg SetWhatsAppSettingsParams) error
 	// Guard for the uploader: kashi only has a branch_shifts row to attach the
 	// photo to once the shift's own close has synced (entity_type 'shift_close',
 	// client_ref 'shift-<id>').

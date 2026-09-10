@@ -95,6 +95,14 @@ type updateSettingsCommandPayload struct {
 	// 2=hybrid, 3=local (see shiftUploadMode* in shifts.go).
 	ShiftReceiptUploadMode *int64 `json:"shift_receipt_upload_mode"`
 
+	// post-sale WhatsApp thank-you (see whatsapp.go / SetWhatsAppSettings)
+	WhatsAppEnabled   *bool   `json:"whatsapp_enabled"`
+	WhatsAppApiURL    *string `json:"whatsapp_api_url"`
+	WhatsAppApiKey    *string `json:"whatsapp_api_key"`
+	WhatsAppSession   *string `json:"whatsapp_session"`
+	WhatsAppMessage   *string `json:"whatsapp_message"`
+	WhatsAppReviewURL *string `json:"whatsapp_review_url"`
+
 	// non-admin page-access locks
 	PageUnlockClients      *bool `json:"page_unlock_clients"`
 	PageUnlockInventory    *bool `json:"page_unlock_inventory"`
@@ -245,6 +253,20 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 	if p.ShiftReceiptUploadMode != nil {
 		if err := a.SetShiftReceiptUploadMode(*p.ShiftReceiptUploadMode); err != nil {
 			return fmt.Errorf("update shift receipt upload mode: %w", err)
+		}
+	}
+
+	if p.WhatsAppEnabled != nil || p.WhatsAppApiURL != nil || p.WhatsAppApiKey != nil ||
+		p.WhatsAppSession != nil || p.WhatsAppMessage != nil || p.WhatsAppReviewURL != nil {
+		if err := a.SetWhatsAppSettings(
+			deref(p.WhatsAppEnabled, current.WhatsappEnabled != 0),
+			deref(p.WhatsAppApiURL, current.WhatsappApiUrl),
+			deref(p.WhatsAppApiKey, current.WhatsappApiKey),
+			deref(p.WhatsAppSession, current.WhatsappSession),
+			deref(p.WhatsAppMessage, current.WhatsappMessage),
+			deref(p.WhatsAppReviewURL, current.WhatsappReviewUrl),
+		); err != nil {
+			return fmt.Errorf("update whatsapp settings: %w", err)
 		}
 	}
 

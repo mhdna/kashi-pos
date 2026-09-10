@@ -506,6 +506,12 @@ type Setting struct {
 	DefaultOpeningFloatLbp int64   `json:"defaultOpeningFloatLbp"`
 	CentralApiUrl          string  `json:"centralApiUrl"`
 	ShiftReceiptUploadMode int64   `json:"shiftReceiptUploadMode"`
+	WhatsappEnabled        int64   `json:"whatsappEnabled"`
+	WhatsappApiUrl         string  `json:"whatsappApiUrl"`
+	WhatsappApiKey         string  `json:"whatsappApiKey"`
+	WhatsappSession        string  `json:"whatsappSession"`
+	WhatsappMessage        string  `json:"whatsappMessage"`
+	WhatsappReviewUrl      string  `json:"whatsappReviewUrl"`
 }
 
 type Shift struct {

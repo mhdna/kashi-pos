@@ -21,7 +21,7 @@ func (q *Queries) GetFeatureFlag(ctx context.Context, key string) (int64, error)
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number, max_overpayment_cents, rounding_currency, exchange_window_hours, default_opening_float_usd, default_opening_float_lbp, central_api_url, shift_receipt_upload_mode FROM settings LIMIT 1
+SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number, max_overpayment_cents, rounding_currency, exchange_window_hours, default_opening_float_usd, default_opening_float_lbp, central_api_url, shift_receipt_upload_mode, whatsapp_enabled, whatsapp_api_url, whatsapp_api_key, whatsapp_session, whatsapp_message, whatsapp_review_url FROM settings LIMIT 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -65,6 +65,12 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.DefaultOpeningFloatLbp,
 		&i.CentralApiUrl,
 		&i.ShiftReceiptUploadMode,
+		&i.WhatsappEnabled,
+		&i.WhatsappApiUrl,
+		&i.WhatsappApiKey,
+		&i.WhatsappSession,
+		&i.WhatsappMessage,
+		&i.WhatsappReviewUrl,
 	)
 	return i, err
 }
@@ -90,6 +96,37 @@ UPDATE settings SET shift_receipt_upload_mode = ?
 
 func (q *Queries) SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error {
 	_, err := q.db.ExecContext(ctx, setShiftReceiptUploadMode, shiftReceiptUploadMode)
+	return err
+}
+
+const setWhatsAppSettings = `-- name: SetWhatsAppSettings :exec
+UPDATE settings SET
+    whatsapp_enabled = ?,
+    whatsapp_api_url = ?,
+    whatsapp_api_key = ?,
+    whatsapp_session = ?,
+    whatsapp_message = ?,
+    whatsapp_review_url = ?
+`
+
+type SetWhatsAppSettingsParams struct {
+	WhatsappEnabled   int64  `json:"whatsappEnabled"`
+	WhatsappApiUrl    string `json:"whatsappApiUrl"`
+	WhatsappApiKey    string `json:"whatsappApiKey"`
+	WhatsappSession   string `json:"whatsappSession"`
+	WhatsappMessage   string `json:"whatsappMessage"`
+	WhatsappReviewUrl string `json:"whatsappReviewUrl"`
+}
+
+func (q *Queries) SetWhatsAppSettings(ctx context.Context, arg SetWhatsAppSettingsParams) error {
+	_, err := q.db.ExecContext(ctx, setWhatsAppSettings,
+		arg.WhatsappEnabled,
+		arg.WhatsappApiUrl,
+		arg.WhatsappApiKey,
+		arg.WhatsappSession,
+		arg.WhatsappMessage,
+		arg.WhatsappReviewUrl,
+	)
 	return err
 }
 

@@ -602,6 +602,10 @@ export function SetVisitorCounterEnabled(arg1) {
   return window['go']['main']['App']['SetVisitorCounterEnabled'](arg1);
 }
 
+export function SetWhatsAppSettings(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['SetWhatsAppSettings'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
 export function SettleInvoicePayments(arg1, arg2) {
   return window['go']['main']['App']['SettleInvoicePayments'](arg1, arg2);
 }
