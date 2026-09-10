@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,6 +58,42 @@ func (c *centralClient) newRequest(ctx context.Context, method, path string, bod
 
 type centralErrorBody struct {
 	Error string `json:"error"`
+}
+
+// permanentError marks a central response the branch must not keep retrying:
+// a 4xx means kashi understood the request and rejected it (bad payload,
+// unknown branch, a validation failure), and replaying the identical body on
+// a 15s loop forever will never change that. 408 and 429 are the two 4xx
+// codes that *are* transient, so they're deliberately excluded. Network
+// errors and 5xx are not permanent — the branch may just be offline or kashi
+// mid-deploy — and stay on the normal exponential-backoff retry path.
+type permanentError struct {
+	status int
+	msg    string
+}
+
+func (e *permanentError) Error() string { return e.msg }
+
+// isPermanentSyncError reports whether err (from any centralClient push
+// method) is a permanentError, so the outbox worker can move the row to
+// 'failed' instead of scheduling another attempt.
+func isPermanentSyncError(err error) bool {
+	var pe *permanentError
+	return errors.As(err, &pe)
+}
+
+// responseError turns a non-2xx central response into an error, classifying
+// 4xx (except 408/429) as permanent.
+func responseError(method, path string, resp *http.Response) error {
+	var body centralErrorBody
+	json.NewDecoder(resp.Body).Decode(&body)
+	msg := fmt.Sprintf("%s %s failed (status %d): %s", method, path, resp.StatusCode, body.Error)
+	if resp.StatusCode >= 400 && resp.StatusCode < 500 &&
+		resp.StatusCode != http.StatusRequestTimeout &&
+		resp.StatusCode != http.StatusTooManyRequests {
+		return &permanentError{status: resp.StatusCode, msg: msg}
+	}
+	return errors.New(msg)
 }
 
 // Health confirms the configured branch code/key round-trips against kashi's
@@ -128,9 +165,7 @@ func (c *centralClient) PostExpense(ctx context.Context, path string, payloadJSO
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		var body centralErrorBody
-		json.NewDecoder(resp.Body).Decode(&body)
-		return nil, fmt.Errorf("POST %s failed (status %d): %s", path, resp.StatusCode, body.Error)
+		return nil, responseError(http.MethodPost, path, resp)
 	}
 
 	var out postExpenseResponse
@@ -210,9 +245,7 @@ func (c *centralClient) sendJSON(ctx context.Context, method, path string, paylo
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		var body centralErrorBody
-		json.NewDecoder(resp.Body).Decode(&body)
-		return fmt.Errorf("%s %s failed (status %d): %s", method, path, resp.StatusCode, body.Error)
+		return responseError(method, path, resp)
 	}
 
 	return nil
@@ -222,6 +255,22 @@ type branchSyncChangesResponse struct {
 	Entity     string          `json:"entity"`
 	Items      json.RawMessage `json:"items"`
 	ServerTime time.Time       `json:"server_time"`
+	// NextCursor is non-empty only when kashi truncated the response to
+	// `limit` rows and there are more; the branch feeds it back as `cursor`
+	// to fetch the next page (see api/branch_catchup.go). Empty for every
+	// non-paged entity and for the last page of a paged one.
+	NextCursor string `json:"next_cursor"`
+}
+
+// fetchChangesParams is the argument bag for FetchChanges. Since is the
+// entity's stored watermark (empty = "from the beginning"); Cursor, when
+// set, is a next_cursor from a previous page and supersedes Since; Limit
+// caps a paged entity's rows (ignored by kashi for the small entities).
+type fetchChangesParams struct {
+	Entity string
+	Since  string
+	Cursor string
+	Limit  int
 }
 
 // FetchChanges calls kashi's generalized catch-up endpoint for one entity.
@@ -229,14 +278,20 @@ type branchSyncChangesResponse struct {
 // turning sync on) — that's not a special case on either side, just an
 // empty `since` query param. Items is left as raw JSON since each entity
 // unmarshals into a different local shape; the caller decodes it.
-func (c *centralClient) FetchChanges(ctx context.Context, entity, since string) (*branchSyncChangesResponse, error) {
+func (c *centralClient) FetchChanges(ctx context.Context, p fetchChangesParams) (*branchSyncChangesResponse, error) {
 	if !c.enabled() {
 		return nil, errCentralSyncDisabled
 	}
 
-	path := "/branch/sync/changes?entity=" + url.QueryEscape(entity)
-	if since != "" {
-		path += "&since=" + url.QueryEscape(since)
+	path := "/branch/sync/changes?entity=" + url.QueryEscape(p.Entity)
+	if p.Since != "" {
+		path += "&since=" + url.QueryEscape(p.Since)
+	}
+	if p.Cursor != "" {
+		path += "&cursor=" + url.QueryEscape(p.Cursor)
+	}
+	if p.Limit > 0 {
+		path += "&limit=" + strconv.Itoa(p.Limit)
 	}
 
 	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
@@ -253,7 +308,7 @@ func (c *centralClient) FetchChanges(ctx context.Context, entity, since string) 
 	if resp.StatusCode != http.StatusOK {
 		var body centralErrorBody
 		json.NewDecoder(resp.Body).Decode(&body)
-		return nil, fmt.Errorf("fetch changes for %s failed (status %d): %s", entity, resp.StatusCode, body.Error)
+		return nil, fmt.Errorf("fetch changes for %s failed (status %d): %s", p.Entity, resp.StatusCode, body.Error)
 	}
 
 	var out branchSyncChangesResponse

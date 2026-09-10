@@ -325,8 +325,24 @@ func (a *App) checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, 
 		}
 	}
 	sourceMagnitude := absInt64(sourceTotal)
+	// The swap dialog autofills the amount by rounding the source balance to
+	// the source currency's physical cash unit (e.g. nearest 10,000 LBP) and
+	// converting that back to cents, which can land one cash step above the
+	// exact source magnitude. Treat an overshoot within a single cash-rounding
+	// unit as "move the whole balance" and clamp it, so emptying a rounded
+	// cash account - common when it only holds a return, i.e. a negative
+	// balance - isn't rejected outright. Anything past that slack is a real
+	// overdraw. Currencies with no physical rounding (USD) get zero slack, so
+	// the strict check is unchanged for them.
 	if amountCents > sourceMagnitude {
-		return check, fmt.Errorf("replacement amount exceeds the source balance")
+		tolerance, tolErr := a.sourceCashRoundingToleranceCents(from.CurrencyCode)
+		if tolErr != nil {
+			return check, tolErr
+		}
+		if amountCents-sourceMagnitude > tolerance {
+			return check, fmt.Errorf("replacement amount exceeds the source balance")
+		}
+		amountCents = sourceMagnitude
 	}
 	// A negative balance (for example, a return) must keep its sign when it is
 	// moved. The totals query subtracts this value from the source and adds it
@@ -339,6 +355,26 @@ func (a *App) checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, 
 	check.DestinationReceivesCents = signedAmount
 	check.SignedAmount = signedAmount
 	return check, nil
+}
+
+// sourceCashRoundingToleranceCents is one physical cash-rounding unit of the
+// given currency expressed in accounting cents (0 for currencies with no
+// physical rounding, such as USD). It's the slack
+// checkShiftBalanceReplacement allows when an entered amount slightly exceeds
+// the source balance purely because the dialog rounded it to that cash unit.
+func (a *App) sourceCashRoundingToleranceCents(currencyCode string) (int64, error) {
+	currency, err := resolveCurrency(a.ctx, a.store.Queries, currencyCode)
+	if err != nil {
+		return 0, fmt.Errorf("source currency: %w", err)
+	}
+	if currency.CashRoundingUnit <= 1 {
+		return 0, nil
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil {
+		return 0, fmt.Errorf("settings: %w", err)
+	}
+	return roundCentsFromCurrencyUnits(currency.CashRoundingUnit, currency.UnitsPerUsdMicros, settings.RoundingMode)
 }
 
 func isNonCashBalanceAccount(name string) bool {
@@ -602,6 +638,37 @@ func (a *App) listInvoicesPage(cursorID int64, itemsPerPage int, filters Invoice
 		}
 	}
 
+	// Per-invoice sync dot (admin-only in the UI): "synced" only when the
+	// current central server confirmed it; "pending" while queued, retrying,
+	// or confirmed by a *different* server we're no longer pointed at;
+	// "failed" when kashi rejected it outright; "" when it was never queued.
+	syncByInvoice := make(map[int64]string, len(invoices))
+	if len(invoiceIDs) > 0 {
+		settings, _ := a.store.GetSettings(a.ctx)
+		target := strings.TrimRight(settings.CentralApiUrl, "/")
+		syncRows, err := a.store.SyncStateForInvoices(a.ctx, invoiceIDs)
+		if err != nil {
+			return InvoicePage{}, fmt.Errorf("invoice page sync state: %w", err)
+		}
+		for _, r := range syncRows {
+			if !r.Status.Valid {
+				continue
+			}
+			switch r.Status.String {
+			case "synced":
+				if target != "" && r.SyncedTo.Valid && strings.TrimRight(r.SyncedTo.String, "/") == target {
+					syncByInvoice[r.InvoiceID] = "synced"
+				} else {
+					syncByInvoice[r.InvoiceID] = "pending"
+				}
+			case "failed":
+				syncByInvoice[r.InvoiceID] = "failed"
+			case "pending":
+				syncByInvoice[r.InvoiceID] = "pending"
+			}
+		}
+	}
+
 	result := make([]map[string]any, len(invoices))
 	for i, inv := range invoices {
 		clientName := "Walk-in customer"
@@ -630,6 +697,7 @@ func (a *App) listInvoicesPage(cursorID int64, itemsPerPage int, filters Invoice
 			"discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
 			"createdAt": inv.CreatedAt, "salespersonId": inv.SalespersonID, "salespersonName": inv.SalespersonName,
 			"settlementAccounts": settlementAccounts,
+			"syncState":          syncByInvoice[inv.ID],
 		}
 	}
 	return InvoicePage{Items: result, Total: total}, nil

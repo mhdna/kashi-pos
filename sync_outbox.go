@@ -83,6 +83,10 @@ type branchInvoicePayload struct {
 	Payments         []branchInvoicePaymentPayload `json:"payments"`
 	Items            []branchInvoicePayloadItem    `json:"items"`
 	RelatedClientRef string                        `json:"related_client_ref,omitempty"`
+	// Historical marks a one-time backfill of a pre-sync sale: kashi records
+	// it in full but moves no central stock (see api/branch_sync.go). Never
+	// set on a live checkout, so it stays omitted from those payloads.
+	Historical bool `json:"historical,omitempty"`
 }
 
 type branchInvoicePayloadItem struct {

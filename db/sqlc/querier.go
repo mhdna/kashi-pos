@@ -21,6 +21,7 @@ type Querier interface {
 	AdoptUserAsSynced(ctx context.Context, arg AdoptUserAsSyncedParams) (User, error)
 	ApproveAttendanceComplaint(ctx context.Context, arg ApproveAttendanceComplaintParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
+	ClearSyncCursors(ctx context.Context) error
 	CloseOpenShifts(ctx context.Context, closedAt string) error
 	CloseShift(ctx context.Context, arg CloseShiftParams) (int64, error)
 	CloseStaleOpenShifts(ctx context.Context, closedAt string) error
@@ -36,6 +37,9 @@ type Querier interface {
 	CountPendingSyncOutbox(ctx context.Context) (int64, error)
 	// search_pattern must already be wrapped in '%...%' by the caller.
 	CountProducts(ctx context.Context, searchPattern string) (int64, error)
+	CountSyncOutboxByStatus(ctx context.Context, status string) (int64, error)
+	CountSyncOutboxConfirmedElsewhere(ctx context.Context, syncedTo string) (int64, error)
+	CountSyncOutboxConfirmedOnTarget(ctx context.Context, syncedTo string) (int64, error)
 	CreateAccount(ctx context.Context, name string) (Account, error)
 	CreateAsset(ctx context.Context, arg CreateAssetParams) (Asset, error)
 	CreateAttendanceComplaint(ctx context.Context, arg CreateAttendanceComplaintParams) (AttendanceComplaint, error)
@@ -174,6 +178,7 @@ type Querier interface {
 	// created - pass '' for the historical "everything" behavior.
 	GetShiftTotals(ctx context.Context, totalsMonth interface{}) ([]GetShiftTotalsRow, error)
 	GetSyncCursor(ctx context.Context, entity string) (string, error)
+	GetSyncState(ctx context.Context) (SyncState, error)
 	GetTransferByID(ctx context.Context, id int64) (Transfer, error)
 	GetTransferItemByID(ctx context.Context, id int64) (TransferItem, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
@@ -182,11 +187,13 @@ type Querier interface {
 	GetVisitorCount(ctx context.Context, day string) (int64, error)
 	IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error)
 	InsertAttendanceEvent(ctx context.Context, arg InsertAttendanceEventParams) error
+	LatestSyncOutboxSyncedAt(ctx context.Context) (string, error)
 	ListAccounts(ctx context.Context) ([]Account, error)
 	ListActiveDiscountListItems(ctx context.Context) ([]ListActiveDiscountListItemsRow, error)
 	ListActiveExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListActiveLoanCategories(ctx context.Context) ([]LoanCategory, error)
 	ListActivePriceListItems(ctx context.Context) ([]ListActivePriceListItemsRow, error)
+	ListAllExpenses(ctx context.Context) ([]Expense, error)
 	// Loads every product's attribute values in one query, same pattern as
 	// loadActiveOverrides (pricing_overrides.go): one query per request,
 	// regardless of how many products are in the result set, avoiding an N+1
@@ -199,6 +206,12 @@ type Querier interface {
 	ListAttendanceEventsByEmployeeDate(ctx context.Context, arg ListAttendanceEventsByEmployeeDateParams) ([]AttendanceEvent, error)
 	ListAttendanceEventsByMonth(ctx context.Context, eventDate string) ([]AttendanceEvent, error)
 	ListBranchTargets(ctx context.Context) ([]BranchTarget, error)
+	// Targets whose [date_from, date_to] range intersects [range_from,
+	// range_to]. kashi-pos only ever shows the current calendar month, so
+	// callers pass this month's first and last day (both "YYYY-MM-DD", which
+	// sorts correctly as text). A quarter- or year-long target set centrally
+	// still shows while the current month falls inside it.
+	ListBranchTargetsOverlapping(ctx context.Context, arg ListBranchTargetsOverlappingParams) ([]BranchTarget, error)
 	ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
 	ListCategoryIcons(ctx context.Context) ([]CategoryIcon, error)
 	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
@@ -239,6 +252,7 @@ type Querier interface {
 	ListIncomeAccountTotals(ctx context.Context, incomeShiftID int64) ([]ListIncomeAccountTotalsRow, error)
 	ListInventories(ctx context.Context) ([]Inventory, error)
 	ListInventoryItems(ctx context.Context, inventoryID int64) ([]InventoryItem, error)
+	ListInvoiceClientRefsMap(ctx context.Context) ([]InvoiceClientRef, error)
 	ListInvoiceIncomeAccountTotalsByDate(ctx context.Context, invoiceIncomeDate string) ([]ListInvoiceIncomeAccountTotalsByDateRow, error)
 	ListInvoiceIncomeAccountTotalsByShift(ctx context.Context, invoiceIncomeShiftID int64) ([]ListInvoiceIncomeAccountTotalsByShiftRow, error)
 	// Like ListInvoiceIncomeAccountTotalsByShift, but also scoped to a single
@@ -305,20 +319,31 @@ type Querier interface {
 	ListVisitorCountsForMonth(ctx context.Context, monthPrefix string) ([]ListVisitorCountsForMonthRow, error)
 	ListVisitorEventsForDay(ctx context.Context, day string) ([]ListVisitorEventsForDayRow, error)
 	MarkSyncOutboxAttemptFailed(ctx context.Context, arg MarkSyncOutboxAttemptFailedParams) error
-	MarkSyncOutboxSynced(ctx context.Context, id int64) error
+	// Terminal state for a row kashi rejected outright (a 4xx, or an entity_type
+	// it has no route for). It stays out of the drain batch until an explicit
+	// resync re-arms it.
+	MarkSyncOutboxFailed(ctx context.Context, arg MarkSyncOutboxFailedParams) error
+	MarkSyncOutboxSynced(ctx context.Context, arg MarkSyncOutboxSyncedParams) error
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
+	// Re-arms rows that a previous central server accepted (or that hard-failed)
+	// so a "sync everything" against a newly-pointed server re-pushes them.
+	// Live 'pending' rows and rows already confirmed on the current target are
+	// left alone.
+	RequeueSyncOutboxConfirmedElsewhere(ctx context.Context, currentTarget string) (int64, error)
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
 	SetCashboxAccountSortOrder(ctx context.Context, arg SetCashboxAccountSortOrderParams) error
 	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
 	SetDiscountListActive(ctx context.Context, arg SetDiscountListActiveParams) (DiscountList, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
+	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
 	SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error)
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
 	SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
+	SetSyncTarget(ctx context.Context, currentTarget string) error
 	SetUserPasswordHashByUsername(ctx context.Context, arg SetUserPasswordHashByUsernameParams) (int64, error)
 	SetVisitorCount(ctx context.Context, arg SetVisitorCountParams) error
 	// The portion of a shift's "On Account" total that was NOT recorded today -
@@ -331,6 +356,10 @@ type Querier interface {
 	// The shift filter is pushed into every branch so each is an index seek,
 	// matching ListIncomeAccountTotals above.
 	StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error)
+	// Per-invoice sync dot source: joins each invoice to its stable client_ref
+	// and whatever outbox row carries it. status/synced_to are NULL when the
+	// invoice was never queued (sync was off when it was rung up).
+	SyncStateForInvoices(ctx context.Context, invoiceIds []int64) ([]SyncStateForInvoicesRow, error)
 	UpdateAsset(ctx context.Context, arg UpdateAssetParams) (Asset, error)
 	UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAccountParams) (CashboxAccount, error)
 	UpdateCentralAPIURL(ctx context.Context, centralApiUrl string) error
@@ -375,6 +404,11 @@ type Querier interface {
 	UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error
 	UpsertPriceListItem(ctx context.Context, arg UpsertPriceListItemParams) (PriceListItem, error)
 	UpsertSettings(ctx context.Context, arg UpsertSettingsParams) error
+	// Used by the "sync everything" / reconcile flow: a row for this client_ref
+	// may already exist (e.g. synced to a previous central server, or marked
+	// failed). Re-arm it as pending with a fresh payload rather than colliding
+	// on the table-wide UNIQUE(client_ref).
+	UpsertSyncOutboxEntry(ctx context.Context, arg UpsertSyncOutboxEntryParams) error
 }
 
 var _ Querier = (*Queries)(nil)

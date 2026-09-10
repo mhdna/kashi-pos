@@ -122,6 +122,8 @@ export function GetShiftTotals():Promise<Array<Record<string, any>>>;
 
 export function GetStartupError():Promise<string>;
 
+export function GetSyncStatus():Promise<main.SyncStatusResult>;
+
 export function GetTheme():Promise<string>;
 
 export function GetTodayIncomeByAccount():Promise<Array<Record<string, any>>>;
@@ -235,6 +237,8 @@ export function ReorderQuickAccessProducts(arg1:Array<number>):Promise<void>;
 export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
 
 export function ReprintInvoice(arg1:number):Promise<void>;
+
+export function ResyncAll(arg1:main.ResyncOptions):Promise<main.ResyncReport>;
 
 export function RoundInvoice(arg1:number):Promise<void>;
 

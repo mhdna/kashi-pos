@@ -16,3 +16,6 @@ SELECT * FROM expenses WHERE id = ?;
 
 -- name: ListExpenses :many
 SELECT * FROM expenses ORDER BY id DESC LIMIT ? OFFSET ?;
+
+-- name: ListAllExpenses :many
+SELECT * FROM expenses ORDER BY id;

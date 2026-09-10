@@ -118,6 +118,76 @@
                 hide-details
                 class="field-full"
               />
+
+              <div class="field-full sync-everything">
+                <div class="text-caption text-medium-emphasis mb-1">
+                  Push every local client and invoice this server is missing, and
+                  pull its catalog down. Safe to run again, and after changing the
+                  server URL above.
+                </div>
+                <v-checkbox
+                  v-model="resyncApplyStock"
+                  density="compact"
+                  hide-details
+                  label="Also apply stock movements to kashi's inventory (only if kashi's stock was set up before these sales)"
+                />
+                <div class="d-flex align-center ga-2 mt-2">
+                  <v-btn
+                    color="primary"
+                    variant="flat"
+                    :loading="resyncRunning"
+                    @click="runResync(false)"
+                  >
+                    Sync everything now
+                  </v-btn>
+                  <v-btn
+                    variant="text"
+                    :disabled="resyncRunning"
+                    @click="runResync(true)"
+                  >
+                    Preview
+                  </v-btn>
+                  <span v-if="resyncProgress" class="text-caption text-medium-emphasis">
+                    {{ resyncProgress }}
+                  </span>
+                </div>
+
+                <v-alert
+                  v-if="resyncError"
+                  type="error"
+                  density="compact"
+                  variant="tonal"
+                  class="mt-2"
+                >
+                  {{ resyncError }}
+                </v-alert>
+
+                <v-table v-if="resyncReport" density="compact" class="mt-3">
+                  <thead>
+                    <tr>
+                      <th>Entity</th><th class="text-right">Local</th>
+                      <th class="text-right">On kashi</th><th class="text-right">Missing</th>
+                      <th class="text-right">{{ resyncReport.dryRun ? "Would queue" : "Queued" }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in resyncReport.entities" :key="row.entity">
+                      <td>{{ row.entity }}</td>
+                      <td class="text-right">{{ row.local }}</td>
+                      <td class="text-right">{{ row.central }}</td>
+                      <td class="text-right">{{ row.missing }}</td>
+                      <td class="text-right">{{ row.queued }}</td>
+                    </tr>
+                  </tbody>
+                </v-table>
+                <div
+                  v-if="resyncReport && productConflictNote"
+                  class="text-caption mt-1"
+                  :class="productConflictNote.includes('need') ? 'text-warning' : 'text-medium-emphasis'"
+                >
+                  {{ productConflictNote }}
+                </div>
+              </div>
             </v-card-text>
           </v-card>
 
@@ -1368,8 +1438,10 @@ import {
   ListDiscountListItems,
   SetDiscountListItem,
   RemoveDiscountListItem,
+  ResyncAll,
+  GetSyncStatus,
 } from "../../wailsjs/go/main/App";
-import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
+import { WindowReloadApp, EventsOn } from "../../wailsjs/runtime/runtime";
 import { formatUsd } from "@/lib/format";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 import { paymentAccentColor } from "@/lib/paymentColor";
@@ -1405,6 +1477,51 @@ const settingsTabs = [
 // Static index of every settings "panel" (its tab + searchable text) used by
 // the search box below. Keep in sync with the v-show="panelMatches(...)" on
 // each panel in the template.
+const resyncRunning = ref(false);
+const resyncApplyStock = ref(false);
+const resyncProgress = ref("");
+const resyncError = ref("");
+const resyncReport = ref<any>(null);
+
+const productConflictNote = computed(() => {
+  const rep = resyncReport.value;
+  if (!rep) return "";
+  const products = rep.entities?.find((e: any) => e.entity === "products");
+  if (!products || products.queued === 0) return "";
+  return `${products.queued} product(s) need resolving in kashi before they can sync.`;
+});
+
+EventsOn("resync_progress", (p: { stage: string; done: number; total: number }) => {
+  if (!p || p.stage === "done") {
+    resyncProgress.value = "";
+    return;
+  }
+  if (p.stage === "pull") {
+    resyncProgress.value = "Pulling catalog down…";
+  } else if (p.total > 0) {
+    resyncProgress.value = `${p.stage}: ${p.done} / ${p.total}`;
+  } else {
+    resyncProgress.value = `${p.stage}…`;
+  }
+});
+
+async function runResync(dryRun: boolean) {
+  resyncRunning.value = true;
+  resyncError.value = "";
+  resyncReport.value = null;
+  try {
+    resyncReport.value = await ResyncAll({
+      applyStock: resyncApplyStock.value,
+      dryRun,
+    });
+  } catch (error: any) {
+    resyncError.value = String(error?.message || error);
+  } finally {
+    resyncRunning.value = false;
+    resyncProgress.value = "";
+  }
+}
+
 const panelMeta: Record<string, { tab: string; title: string; keywords: string }> = {
   "general-appearance": { tab: "general", title: "Appearance", keywords: "dark theme animations mode display" },
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },

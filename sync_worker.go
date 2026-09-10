@@ -102,19 +102,33 @@ func (a *App) stopSyncWorker() {
 }
 
 // runSyncOutboxOnce drains up to syncWorkerBatchSize due entries in one pass.
+// A row ends a pass in exactly one of three states: 'synced' (kashi 2xx'd
+// it, stamped with which server), still 'pending' (a transient failure, on
+// backoff), or 'failed' (kashi rejected it outright, or it names an entity
+// kashi has no route for -- either way retrying the identical bytes forever
+// is pointless). Any transition emits sync_state_changed so the UI refetches.
 func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) error {
 	entries, err := a.store.ListDueSyncOutboxEntries(ctx, syncWorkerBatchSize)
 	if err != nil {
 		return fmt.Errorf("list due outbox entries: %w", err)
 	}
 
+	changed := false
+	defer func() {
+		if changed {
+			a.emitSyncStateChanged()
+		}
+	}()
+
 	for _, entry := range entries {
 		path, ok := branchInvoicePath(entry.EntityType)
 		if !ok {
-			// A payload shape kashi doesn't have a route for isn't going to
-			// start working on retry — record it and move on rather than
-			// spin on it forever.
-			log.Printf("sync outbox entry %d: unknown entity_type %q, skipping", entry.ID, entry.EntityType)
+			// A payload shape kashi has no route for is never going to start
+			// working on retry. Park it in 'failed' so it stops being
+			// re-selected every tick and occupying a drain-batch slot.
+			log.Printf("sync outbox entry %d: unknown entity_type %q, marking failed", entry.ID, entry.EntityType)
+			a.markSyncOutboxFailed(ctx, entry, fmt.Errorf("unknown entity_type %q", entry.EntityType))
+			changed = true
 			continue
 		}
 
@@ -125,23 +139,53 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 		if entry.EntityType == "expense" {
 			resp, err := client.PostExpense(ctx, path, []byte(entry.PayloadJson))
 			if err != nil {
-				a.markSyncOutboxRetry(ctx, entry, err)
+				a.recordSyncOutboxError(ctx, entry, err)
+				changed = true
 				continue
 			}
 			if resp.UploadToken != "" {
 				a.emitExpenseUploadReady(entry.ClientRef, client.UploadURL(resp.UploadToken))
 			}
 		} else if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
-			a.markSyncOutboxRetry(ctx, entry, err)
+			a.recordSyncOutboxError(ctx, entry, err)
+			changed = true
 			continue
 		}
 
-		if err := a.store.MarkSyncOutboxSynced(ctx, entry.ID); err != nil {
+		if err := a.store.MarkSyncOutboxSynced(ctx, db.MarkSyncOutboxSyncedParams{
+			SyncedTo: client.baseURL,
+			ID:       entry.ID,
+		}); err != nil {
 			log.Printf("sync outbox entry %d: mark synced: %v", entry.ID, err)
 		}
+		changed = true
 	}
 
 	return nil
+}
+
+// recordSyncOutboxError routes a failed push to the right terminal state: a
+// permanent rejection (4xx bar 408/429, see isPermanentSyncError) goes
+// straight to 'failed'; anything else -- offline, timeout, 5xx -- goes back
+// on the exponential-backoff retry path.
+func (a *App) recordSyncOutboxError(ctx context.Context, entry db.SyncOutbox, postErr error) {
+	if isPermanentSyncError(postErr) {
+		log.Printf("sync outbox entry %d: %v (permanent, marking failed)", entry.ID, postErr)
+		a.markSyncOutboxFailed(ctx, entry, postErr)
+		return
+	}
+	a.markSyncOutboxRetry(ctx, entry, postErr)
+}
+
+// markSyncOutboxFailed parks a row in the terminal 'failed' state. Only an
+// explicit resync (see sync_backfill.go) re-arms it.
+func (a *App) markSyncOutboxFailed(ctx context.Context, entry db.SyncOutbox, cause error) {
+	if err := a.store.MarkSyncOutboxFailed(ctx, db.MarkSyncOutboxFailedParams{
+		LastError: cause.Error(),
+		ID:        entry.ID,
+	}); err != nil {
+		log.Printf("sync outbox entry %d: mark failed: %v", entry.ID, err)
+	}
 }
 
 func branchInvoicePath(entityType string) (string, bool) {

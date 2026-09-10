@@ -7,7 +7,18 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"strings"
 )
+
+const clearSyncCursors = `-- name: ClearSyncCursors :exec
+DELETE FROM sync_cursors
+`
+
+func (q *Queries) ClearSyncCursors(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, clearSyncCursors)
+	return err
+}
 
 const countPendingSyncOutbox = `-- name: CountPendingSyncOutbox :one
 SELECT COUNT(*) FROM sync_outbox WHERE status = 'pending'
@@ -20,10 +31,43 @@ func (q *Queries) CountPendingSyncOutbox(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countSyncOutboxByStatus = `-- name: CountSyncOutboxByStatus :one
+SELECT COUNT(*) FROM sync_outbox WHERE status = ?
+`
+
+func (q *Queries) CountSyncOutboxByStatus(ctx context.Context, status string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSyncOutboxByStatus, status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countSyncOutboxConfirmedElsewhere = `-- name: CountSyncOutboxConfirmedElsewhere :one
+SELECT COUNT(*) FROM sync_outbox WHERE status = 'synced' AND synced_to <> ?
+`
+
+func (q *Queries) CountSyncOutboxConfirmedElsewhere(ctx context.Context, syncedTo string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSyncOutboxConfirmedElsewhere, syncedTo)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countSyncOutboxConfirmedOnTarget = `-- name: CountSyncOutboxConfirmedOnTarget :one
+SELECT COUNT(*) FROM sync_outbox WHERE status = 'synced' AND synced_to = ?
+`
+
+func (q *Queries) CountSyncOutboxConfirmedOnTarget(ctx context.Context, syncedTo string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSyncOutboxConfirmedOnTarget, syncedTo)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createSyncOutboxEntry = `-- name: CreateSyncOutboxEntry :one
 INSERT INTO sync_outbox (entity_type, client_ref, payload_json)
 VALUES (?, ?, ?)
-RETURNING id, entity_type, client_ref, payload_json, status, attempt_count, last_error, next_attempt_at, created_at, synced_at
+RETURNING id, entity_type, client_ref, payload_json, status, attempt_count, last_error, next_attempt_at, created_at, synced_at, synced_to
 `
 
 type CreateSyncOutboxEntryParams struct {
@@ -46,12 +90,24 @@ func (q *Queries) CreateSyncOutboxEntry(ctx context.Context, arg CreateSyncOutbo
 		&i.NextAttemptAt,
 		&i.CreatedAt,
 		&i.SyncedAt,
+		&i.SyncedTo,
 	)
 	return i, err
 }
 
+const latestSyncOutboxSyncedAt = `-- name: LatestSyncOutboxSyncedAt :one
+SELECT CAST(COALESCE(MAX(synced_at), '') AS text) FROM sync_outbox WHERE status = 'synced'
+`
+
+func (q *Queries) LatestSyncOutboxSyncedAt(ctx context.Context) (string, error) {
+	row := q.db.QueryRowContext(ctx, latestSyncOutboxSyncedAt)
+	var column_1 string
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const listDueSyncOutboxEntries = `-- name: ListDueSyncOutboxEntries :many
-SELECT id, entity_type, client_ref, payload_json, status, attempt_count, last_error, next_attempt_at, created_at, synced_at FROM sync_outbox
+SELECT id, entity_type, client_ref, payload_json, status, attempt_count, last_error, next_attempt_at, created_at, synced_at, synced_to FROM sync_outbox
 WHERE status = 'pending' AND next_attempt_at <= datetime('now')
 ORDER BY id
 LIMIT ?
@@ -77,7 +133,35 @@ func (q *Queries) ListDueSyncOutboxEntries(ctx context.Context, limit int64) ([]
 			&i.NextAttemptAt,
 			&i.CreatedAt,
 			&i.SyncedAt,
+			&i.SyncedTo,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvoiceClientRefsMap = `-- name: ListInvoiceClientRefsMap :many
+SELECT invoice_id, client_ref FROM invoice_client_refs
+`
+
+func (q *Queries) ListInvoiceClientRefsMap(ctx context.Context) ([]InvoiceClientRef, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoiceClientRefsMap)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InvoiceClientRef{}
+	for rows.Next() {
+		var i InvoiceClientRef
+		if err := rows.Scan(&i.InvoiceID, &i.ClientRef); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -108,13 +192,137 @@ func (q *Queries) MarkSyncOutboxAttemptFailed(ctx context.Context, arg MarkSyncO
 	return err
 }
 
-const markSyncOutboxSynced = `-- name: MarkSyncOutboxSynced :exec
+const markSyncOutboxFailed = `-- name: MarkSyncOutboxFailed :exec
 UPDATE sync_outbox
-SET status = 'synced', synced_at = datetime('now')
+SET status = 'failed', attempt_count = attempt_count + 1, last_error = ?
 WHERE id = ?
 `
 
-func (q *Queries) MarkSyncOutboxSynced(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, markSyncOutboxSynced, id)
+type MarkSyncOutboxFailedParams struct {
+	LastError string `json:"lastError"`
+	ID        int64  `json:"id"`
+}
+
+// Terminal state for a row kashi rejected outright (a 4xx, or an entity_type
+// it has no route for). It stays out of the drain batch until an explicit
+// resync re-arms it.
+func (q *Queries) MarkSyncOutboxFailed(ctx context.Context, arg MarkSyncOutboxFailedParams) error {
+	_, err := q.db.ExecContext(ctx, markSyncOutboxFailed, arg.LastError, arg.ID)
+	return err
+}
+
+const markSyncOutboxSynced = `-- name: MarkSyncOutboxSynced :exec
+UPDATE sync_outbox
+SET status = 'synced', synced_at = datetime('now'), synced_to = ?
+WHERE id = ?
+`
+
+type MarkSyncOutboxSyncedParams struct {
+	SyncedTo string `json:"syncedTo"`
+	ID       int64  `json:"id"`
+}
+
+func (q *Queries) MarkSyncOutboxSynced(ctx context.Context, arg MarkSyncOutboxSyncedParams) error {
+	_, err := q.db.ExecContext(ctx, markSyncOutboxSynced, arg.SyncedTo, arg.ID)
+	return err
+}
+
+const requeueSyncOutboxConfirmedElsewhere = `-- name: RequeueSyncOutboxConfirmedElsewhere :execrows
+UPDATE sync_outbox
+SET status = 'pending', attempt_count = 0, last_error = '',
+    next_attempt_at = datetime('now'), synced_to = ''
+WHERE (status = 'synced' AND synced_to <> ?1)
+   OR status = 'failed'
+`
+
+// Re-arms rows that a previous central server accepted (or that hard-failed)
+// so a "sync everything" against a newly-pointed server re-pushes them.
+// Live 'pending' rows and rows already confirmed on the current target are
+// left alone.
+func (q *Queries) RequeueSyncOutboxConfirmedElsewhere(ctx context.Context, currentTarget string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, requeueSyncOutboxConfirmedElsewhere, currentTarget)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const syncStateForInvoices = `-- name: SyncStateForInvoices :many
+SELECT
+    icr.invoice_id   AS invoice_id,
+    so.status        AS status,
+    so.synced_to     AS synced_to
+FROM invoice_client_refs icr
+LEFT JOIN sync_outbox so ON so.client_ref = icr.client_ref
+WHERE icr.invoice_id IN (/*SLICE:invoice_ids*/?)
+`
+
+type SyncStateForInvoicesRow struct {
+	InvoiceID int64          `json:"invoiceId"`
+	Status    sql.NullString `json:"status"`
+	SyncedTo  sql.NullString `json:"syncedTo"`
+}
+
+// Per-invoice sync dot source: joins each invoice to its stable client_ref
+// and whatever outbox row carries it. status/synced_to are NULL when the
+// invoice was never queued (sync was off when it was rung up).
+func (q *Queries) SyncStateForInvoices(ctx context.Context, invoiceIds []int64) ([]SyncStateForInvoicesRow, error) {
+	query := syncStateForInvoices
+	var queryParams []interface{}
+	if len(invoiceIds) > 0 {
+		for _, v := range invoiceIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:invoice_ids*/?", strings.Repeat(",?", len(invoiceIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:invoice_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SyncStateForInvoicesRow{}
+	for rows.Next() {
+		var i SyncStateForInvoicesRow
+		if err := rows.Scan(&i.InvoiceID, &i.Status, &i.SyncedTo); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const upsertSyncOutboxEntry = `-- name: UpsertSyncOutboxEntry :exec
+INSERT INTO sync_outbox (entity_type, client_ref, payload_json)
+VALUES (?, ?, ?)
+ON CONFLICT (client_ref) DO UPDATE SET
+    entity_type = excluded.entity_type,
+    payload_json = excluded.payload_json,
+    status = 'pending',
+    attempt_count = 0,
+    last_error = '',
+    next_attempt_at = datetime('now'),
+    synced_to = ''
+`
+
+type UpsertSyncOutboxEntryParams struct {
+	EntityType  string `json:"entityType"`
+	ClientRef   string `json:"clientRef"`
+	PayloadJson string `json:"payloadJson"`
+}
+
+// Used by the "sync everything" / reconcile flow: a row for this client_ref
+// may already exist (e.g. synced to a previous central server, or marked
+// failed). Re-arm it as pending with a fresh payload rather than colliding
+// on the table-wide UNIQUE(client_ref).
+func (q *Queries) UpsertSyncOutboxEntry(ctx context.Context, arg UpsertSyncOutboxEntryParams) error {
+	_, err := q.db.ExecContext(ctx, upsertSyncOutboxEntry, arg.EntityType, arg.ClientRef, arg.PayloadJson)
 	return err
 }

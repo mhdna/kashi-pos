@@ -242,6 +242,10 @@ export function GetStartupError() {
   return window['go']['main']['App']['GetStartupError']();
 }
 
+export function GetSyncStatus() {
+  return window['go']['main']['App']['GetSyncStatus']();
+}
+
 export function GetTheme() {
   return window['go']['main']['App']['GetTheme']();
 }
@@ -468,6 +472,10 @@ export function ReplaceShiftBalance(arg1, arg2, arg3, arg4) {
 
 export function ReprintInvoice(arg1) {
   return window['go']['main']['App']['ReprintInvoice'](arg1);
+}
+
+export function ResyncAll(arg1) {
+  return window['go']['main']['App']['ResyncAll'](arg1);
 }
 
 export function RoundInvoice(arg1) {

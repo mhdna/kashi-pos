@@ -522,133 +522,172 @@ func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity 
 	return a.pullEntityLocked(ctx, client, entity)
 }
 
+// syncPullPageLimit is the page size the branch asks kashi for on the two
+// unbounded catch-up entities (products, clients). kashi caps it at 1000;
+// the small entities ignore it and answer in one shot.
+const syncPullPageLimit = 500
+
 func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entity string) error {
-	cursor, err := a.store.GetSyncCursor(ctx, entity)
+	since, err := a.store.GetSyncCursor(ctx, entity)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("load cursor: %w", err)
 	}
 
-	changes, err := client.FetchChanges(ctx, entity, cursor)
-	if err != nil {
-		return fmt.Errorf("fetch changes: %w", err)
-	}
-
-	var rawItems []json.RawMessage
-	if err := json.Unmarshal(changes.Items, &rawItems); err != nil {
-		return fmt.Errorf("count items: %w", err)
-	}
-
-	if err := a.store.ExecTx(ctx, func(q *db.Queries) error {
-		switch entity {
-		case "currencies":
-			var items []syncedCurrency
-			if err := json.Unmarshal(changes.Items, &items); err != nil {
-				return fmt.Errorf("decode items: %w", err)
-			}
-			for _, item := range items {
-				if err := applySyncedCurrency(ctx, q, item); err != nil {
-					return fmt.Errorf("apply currency %s: %w", item.Code, err)
-				}
-			}
-		case "cashbox_accounts":
-			var items []syncedCashboxAccount
-			if err := json.Unmarshal(changes.Items, &items); err != nil {
-				return fmt.Errorf("decode items: %w", err)
-			}
-			for _, item := range items {
-				if err := applySyncedCashboxAccount(ctx, q, item); err != nil {
-					return fmt.Errorf("apply cashbox account %s: %w", item.Name, err)
-				}
-			}
-		case "products":
-			var items []syncedProductVariant
-			if err := json.Unmarshal(changes.Items, &items); err != nil {
-				return fmt.Errorf("decode items: %w", err)
-			}
-			for _, item := range items {
-				if err := applySyncedProductVariant(ctx, q, item); err != nil {
-					return fmt.Errorf("apply product variant %s: %w", item.Barcode, err)
-				}
-			}
-		case "clients":
-			var items []syncedClient
-			if err := json.Unmarshal(changes.Items, &items); err != nil {
-				return fmt.Errorf("decode items: %w", err)
-			}
-			for _, item := range items {
-				if err := applySyncedClient(ctx, q, item); err != nil {
-					return fmt.Errorf("apply client %s: %w", item.Phone, err)
-				}
-			}
-		case "branch_targets":
-			var items []syncedBranchTarget
-			if err := json.Unmarshal(changes.Items, &items); err != nil {
-				return fmt.Errorf("decode items: %w", err)
-			}
-			for _, item := range items {
-				if err := applySyncedBranchTarget(ctx, q, item); err != nil {
-					return fmt.Errorf("apply branch target %d: %w", item.ID, err)
-				}
-			}
-		case "salespersons":
-			var items []syncedSalesperson
-			if err := json.Unmarshal(changes.Items, &items); err != nil {
-				return fmt.Errorf("decode items: %w", err)
-			}
-			for _, item := range items {
-				if err := applySyncedSalesperson(ctx, q, item); err != nil {
-					return fmt.Errorf("apply salesperson %d: %w", item.ID, err)
-				}
-			}
-		case "branch_users":
-			var items []syncedBranchUser
-			if err := json.Unmarshal(changes.Items, &items); err != nil {
-				return fmt.Errorf("decode items: %w", err)
-			}
-			for _, item := range items {
-				if err := applySyncedBranchUser(ctx, q, item); err != nil {
-					return fmt.Errorf("apply branch user %d: %w", item.ID, err)
-				}
-			}
-		case "expense_categories":
-			var items []syncedExpenseCategory
-			if err := json.Unmarshal(changes.Items, &items); err != nil {
-				return fmt.Errorf("decode items: %w", err)
-			}
-			for _, item := range items {
-				if err := applySyncedExpenseCategory(ctx, q, item); err != nil {
-					return fmt.Errorf("apply expense category %s: %w", item.Name, err)
-				}
-			}
-		case "loan_categories":
-			var items []syncedLoanCategory
-			if err := json.Unmarshal(changes.Items, &items); err != nil {
-				return fmt.Errorf("decode items: %w", err)
-			}
-			for _, item := range items {
-				if err := applySyncedLoanCategory(ctx, q, item); err != nil {
-					return fmt.Errorf("apply loan category %s: %w", item.Name, err)
-				}
-			}
-		}
-		return q.SetSyncCursor(ctx, db.SetSyncCursorParams{
+	// Walk pages until kashi stops handing back a next_cursor. Each page is
+	// applied in its own transaction so a first-ever pull of a big catalog
+	// isn't one multi-minute write lock; the entity's stored cursor is only
+	// advanced (to server_time) inside the final page's transaction, so a
+	// mid-walk failure just means the next tick re-pulls from the last
+	// confirmed point -- every apply is an idempotent upsert, so replaying
+	// an already-applied page is harmless.
+	pageCursor := ""
+	totalApplied := 0
+	for {
+		changes, err := client.FetchChanges(ctx, fetchChangesParams{
 			Entity: entity,
-			Cursor: changes.ServerTime.Format(time.RFC3339),
+			Since:  since,
+			Cursor: pageCursor,
+			Limit:  syncPullPageLimit,
 		})
-	}); err != nil {
-		return err
+		if err != nil {
+			return fmt.Errorf("fetch changes: %w", err)
+		}
+
+		var rawItems []json.RawMessage
+		if err := json.Unmarshal(changes.Items, &rawItems); err != nil {
+			return fmt.Errorf("count items: %w", err)
+		}
+		totalApplied += len(rawItems)
+		isLastPage := changes.NextCursor == ""
+
+		if err := a.store.ExecTx(ctx, func(q *db.Queries) error {
+			if err := applySyncedEntityBatch(ctx, q, entity, changes.Items); err != nil {
+				return err
+			}
+			if isLastPage {
+				return q.SetSyncCursor(ctx, db.SetSyncCursorParams{
+					Entity: entity,
+					Cursor: changes.ServerTime.Format(time.RFC3339),
+				})
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+
+		if isLastPage {
+			break
+		}
+		pageCursor = changes.NextCursor
 	}
 
 	// Tell the frontend to re-fetch, mirroring the WS push's "go re-fetch
-	// this" contract (see wsMessageEntity in sync_ws.go) -- without this,
-	// a page that already loaded before this pull ran has no way to know
-	// its data just went stale, and only picks up the change on its next
-	// mount (navigating away and back). Skipped on an empty poll tick so
-	// this doesn't fire every 15s for nothing.
-	if len(rawItems) > 0 {
+	// this" contract (see wsMessageEntity in sync_ws.go). Skipped when the
+	// whole walk applied nothing, so it doesn't fire every 15s for nothing.
+	if totalApplied > 0 {
 		a.emitSyncApplied(entity)
 	}
 
+	return nil
+}
+
+// applySyncedEntityBatch decodes one page of a catch-up response for
+// `entity` and upserts every row. Split out of pullEntityLocked so the
+// page-walk loop stays readable; the switch is the same one that lived
+// inline before pagination.
+func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, raw json.RawMessage) error {
+	switch entity {
+	case "currencies":
+		var items []syncedCurrency
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedCurrency(ctx, q, item); err != nil {
+				return fmt.Errorf("apply currency %s: %w", item.Code, err)
+			}
+		}
+	case "cashbox_accounts":
+		var items []syncedCashboxAccount
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedCashboxAccount(ctx, q, item); err != nil {
+				return fmt.Errorf("apply cashbox account %s: %w", item.Name, err)
+			}
+		}
+	case "products":
+		var items []syncedProductVariant
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedProductVariant(ctx, q, item); err != nil {
+				return fmt.Errorf("apply product variant %s: %w", item.Barcode, err)
+			}
+		}
+	case "clients":
+		var items []syncedClient
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedClient(ctx, q, item); err != nil {
+				return fmt.Errorf("apply client %s: %w", item.Phone, err)
+			}
+		}
+	case "branch_targets":
+		var items []syncedBranchTarget
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedBranchTarget(ctx, q, item); err != nil {
+				return fmt.Errorf("apply branch target %d: %w", item.ID, err)
+			}
+		}
+	case "salespersons":
+		var items []syncedSalesperson
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedSalesperson(ctx, q, item); err != nil {
+				return fmt.Errorf("apply salesperson %d: %w", item.ID, err)
+			}
+		}
+	case "branch_users":
+		var items []syncedBranchUser
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedBranchUser(ctx, q, item); err != nil {
+				return fmt.Errorf("apply branch user %d: %w", item.ID, err)
+			}
+		}
+	case "expense_categories":
+		var items []syncedExpenseCategory
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedExpenseCategory(ctx, q, item); err != nil {
+				return fmt.Errorf("apply expense category %s: %w", item.Name, err)
+			}
+		}
+	case "loan_categories":
+		var items []syncedLoanCategory
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedLoanCategory(ctx, q, item); err != nil {
+				return fmt.Errorf("apply loan category %s: %w", item.Name, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -697,6 +736,21 @@ func (a *App) emitExpenseImagesUploaded(clientRef string) {
 	select {
 	case <-a.ready:
 		runtime.EventsEmit(a.ctx, "expense_images_uploaded:"+clientRef)
+	default:
+	}
+}
+
+// emitSyncStateChanged tells the frontend the push side of sync advanced --
+// a row was accepted by kashi, moved to failed, or re-armed by a resync --
+// so any open sync-status indicator (the nav-rail dot, the per-invoice
+// dots, the settings page) can refetch. Payload-free, same pull-not-push
+// discipline as the branch WS: the frontend reacts by calling GetSyncStatus
+// / reloading the invoice page, never by trusting event data. Same
+// ready-channel guard as emitSyncApplied.
+func (a *App) emitSyncStateChanged() {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "sync_state_changed")
 	default:
 	}
 }

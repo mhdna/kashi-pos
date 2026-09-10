@@ -40,6 +40,17 @@
         </v-btn>
       </div>
 
+      <div
+        v-if="auth.isAdmin"
+        class="sync-dot-wrap"
+        :title="syncDot.title"
+        role="button"
+        aria-label="Sync status"
+        @click="openSyncSettings"
+      >
+        <v-icon icon="mdi-circle" size="12" :color="syncDot.color" />
+      </div>
+
       <v-list-item
         class="nav-item options-item py-2"
         :value="undefined"
@@ -135,6 +146,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
+import { useSyncStatus } from "@/composables/useSyncStatus";
 import { Quit } from "../../wailsjs/runtime/runtime";
 
 const auth = useAuthStore();
@@ -146,6 +158,19 @@ const {
   count: visitorCount,
   adjust: adjustVisitors,
 } = useVisitorCounter();
+
+const { status: syncStatus } = useSyncStatus();
+const syncDot = computed(() => {
+  const st = syncStatus.value;
+  if (!st || !st.configured) return { color: 'grey', title: 'Sync not set up' };
+  if (st.failed > 0) return { color: 'error', title: `${st.failed} record(s) rejected by kashi` };
+  if (st.pending > 0 || st.confirmedElsewhere > 0)
+    return { color: 'warning', title: `${st.pending + st.confirmedElsewhere} record(s) not yet confirmed here` };
+  return { color: 'success', title: 'Fully synced with kashi' };
+});
+function openSyncSettings() {
+  router.push({ path: '/settings', query: { panel: 'general-sync' } });
+}
 const optionsOpen = ref(false);
 const inventoryOpen = ref(false);
 
@@ -240,6 +265,13 @@ const items = computed(() => {
 </script>
 
 <style scoped>
+.sync-dot-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+  cursor: pointer;
+}
 .nav-drawer {
   background-color: #0b2e6b;
   border: 0 !important;

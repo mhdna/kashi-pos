@@ -91,6 +91,10 @@ func (a *App) CreateClient(name, phone string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Push the just-queued client edit to kashi now rather than letting it
+	// wait out the worker's 15s tick -- every other queue site kicks, these
+	// two were the only ones that didn't.
+	a.kickSyncWorker()
 	return clientResponse(client), nil
 }
 
@@ -135,6 +139,7 @@ func (a *App) UpdateClient(clientID int64, name, phone string) (map[string]any, 
 	if err != nil {
 		return nil, err
 	}
+	a.kickSyncWorker()
 	return clientResponse(updated), nil
 }
 

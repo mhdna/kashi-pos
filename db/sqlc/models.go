@@ -557,6 +557,14 @@ type SyncOutbox struct {
 	NextAttemptAt string         `json:"nextAttemptAt"`
 	CreatedAt     string         `json:"createdAt"`
 	SyncedAt      sql.NullString `json:"syncedAt"`
+	SyncedTo      string         `json:"syncedTo"`
+}
+
+type SyncState struct {
+	ID                int64          `json:"id"`
+	CurrentTarget     string         `json:"currentTarget"`
+	LastReconcileAt   sql.NullString `json:"lastReconcileAt"`
+	LastReconcileJson string         `json:"lastReconcileJson"`
 }
 
 type Transfer struct {

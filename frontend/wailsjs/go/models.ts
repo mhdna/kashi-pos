@@ -165,6 +165,82 @@ export namespace main {
 	        this.total = source["total"];
 	    }
 	}
+	export class ResyncEntityReport {
+	    entity: string;
+	    local: number;
+	    central: number;
+	    missing: number;
+	    queued: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResyncEntityReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entity = source["entity"];
+	        this.local = source["local"];
+	        this.central = source["central"];
+	        this.missing = source["missing"];
+	        this.queued = source["queued"];
+	    }
+	}
+	export class ResyncOptions {
+	    applyStock: boolean;
+	    dryRun: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResyncOptions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.applyStock = source["applyStock"];
+	        this.dryRun = source["dryRun"];
+	    }
+	}
+	export class ResyncReport {
+	    target: string;
+	    dryRun: boolean;
+	    entities: ResyncEntityReport[];
+	    conflicts: number;
+	    // Go type: time
+	    startedAt: any;
+	    // Go type: time
+	    finishedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResyncReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.target = source["target"];
+	        this.dryRun = source["dryRun"];
+	        this.entities = this.convertValues(source["entities"], ResyncEntityReport);
+	        this.conflicts = source["conflicts"];
+	        this.startedAt = this.convertValues(source["startedAt"], null);
+	        this.finishedAt = this.convertValues(source["finishedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SalespersonProductSale {
 	    salespersonId: number;
 	    salespersonName: string;
@@ -241,6 +317,34 @@ export namespace main {
 	        this.reason = source["reason"];
 	        this.sourceRemainingCents = source["sourceRemainingCents"];
 	        this.destinationReceivesCents = source["destinationReceivesCents"];
+	    }
+	}
+	export class SyncStatusResult {
+	    configured: boolean;
+	    target: string;
+	    pending: number;
+	    failed: number;
+	    confirmedOnTarget: number;
+	    confirmedElsewhere: number;
+	    lastSyncedAt: string;
+	    lastReconcileAt: string;
+	    fullySynced: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SyncStatusResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.configured = source["configured"];
+	        this.target = source["target"];
+	        this.pending = source["pending"];
+	        this.failed = source["failed"];
+	        this.confirmedOnTarget = source["confirmedOnTarget"];
+	        this.confirmedElsewhere = source["confirmedElsewhere"];
+	        this.lastSyncedAt = source["lastSyncedAt"];
+	        this.lastReconcileAt = source["lastReconcileAt"];
+	        this.fullySynced = source["fullySynced"];
 	    }
 	}
 

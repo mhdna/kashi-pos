@@ -68,6 +68,14 @@
           </v-card>
         </v-menu>
       </template>
+      <template #item.syncState="{ item }">
+        <v-icon
+          icon="mdi-circle"
+          size="10"
+          :color="syncDotColor(item.syncState)"
+          :title="syncDotTitle(item.syncState)"
+        />
+      </template>
       <template #item.invoiceCode="{ item }">
         <span class="font-weight-bold invoice-code">
           {{ item.invoiceCode || `Invoice #${item.id}` }}
@@ -416,7 +424,8 @@ function salespersonFirstName(name?: string) {
   const trimmed = name?.trim();
   return trimmed ? trimmed.split(/\s+/)[0] : "Anonymous";
 }
-const headers = [
+const baseHeaders = [
+  { title: "", key: "syncState", sortable: false, width: "28px" },
   { title: "Invoice", key: "invoiceCode", width: "165px" },
   { title: "Customer", key: "clientId", width: "120px" },
   { title: "Salesperson", key: "salespersonName", width: "120px" },
@@ -431,6 +440,22 @@ const headers = [
     align: "end" as const,
   },
 ];
+// The sync dot is an admin-only detail; non-admin cashiers don't see it.
+const headers = computed(() =>
+  auth.isAdmin ? baseHeaders : baseHeaders.filter((h) => h.key !== "syncState"),
+);
+function syncDotColor(state?: string) {
+  if (state === "synced") return "success";
+  if (state === "failed") return "error";
+  if (state === "pending") return "warning";
+  return "grey-lighten-1";
+}
+function syncDotTitle(state?: string) {
+  if (state === "synced") return "Confirmed on kashi";
+  if (state === "failed") return "Rejected by kashi";
+  if (state === "pending") return "Waiting to sync";
+  return "Not synced";
+}
 async function openInvoice(item: any) {
   try {
     selected.value = await GetInvoiceDetails(item.id);

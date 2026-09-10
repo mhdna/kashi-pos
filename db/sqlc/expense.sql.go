@@ -82,6 +82,44 @@ func (q *Queries) GetExpense(ctx context.Context, id int64) (Expense, error) {
 	return i, err
 }
 
+const listAllExpenses = `-- name: ListAllExpenses :many
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at FROM expenses ORDER BY id
+`
+
+func (q *Queries) ListAllExpenses(ctx context.Context) ([]Expense, error) {
+	rows, err := q.db.QueryContext(ctx, listAllExpenses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Expense{}
+	for rows.Next() {
+		var i Expense
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientRef,
+			&i.Description,
+			&i.Category,
+			&i.Amount,
+			&i.CurrencyCode,
+			&i.CashboxAccountID,
+			&i.ShiftID,
+			&i.OccurredAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listExpenses = `-- name: ListExpenses :many
 SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at FROM expenses ORDER BY id DESC LIMIT ? OFFSET ?
 `
