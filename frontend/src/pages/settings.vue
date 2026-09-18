@@ -966,19 +966,19 @@
                 hide-details
                 class="field-full"
               />
-              <v-text-field v-model="form.whatsappApiUrl" placeholder="open-wa API URL (http://localhost:8002)" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.whatsappSession" placeholder="Session name (session)" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.whatsappApiKey" placeholder="API key" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.whatsappReviewUrl" placeholder="Review / rating link (optional)" variant="outlined" density="compact" hide-details />
-              <v-textarea v-model="form.whatsappMessage" placeholder="Message template" rows="3" variant="outlined" density="compact" hide-details class="field-full" />
+              <v-text-field v-model="form.whatsappPhoneNumberId" placeholder="Phone Number ID" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.whatsappAccessToken" placeholder="Access token" variant="outlined" density="compact" hide-details type="password" />
+              <v-text-field v-model="form.whatsappTemplateName" placeholder="Template name (e.g. order_confirmation)" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.whatsappTemplateLang" placeholder="Template language (e.g. en_US)" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.whatsappTemplateParams" placeholder="Body params, in order (e.g. name,invoice,total)" variant="outlined" density="compact" hide-details class="field-full" />
               <div class="text-caption text-medium-emphasis field-full">
-                Sent over an <b>open-wa</b> (<code>@open-wa/wa-automate</code>) EASY API server to the
-                invoice client's phone number, as an image whose picture is a <b>QR code of the
-                invoice number</b> with this text as the caption. Walk-in / anonymous sales are
-                skipped. Placeholders: <code>{name}</code>, <code>{market}</code>,
-                <code>{branch}</code>, <code>{invoice}</code>, <code>{total}</code>,
-                <code>{items}</code> (bullet list of the products bought), <code>{link}</code>.
-                <code>{items}</code> and <code>{link}</code> collapse when empty.
+                Sent through Meta's <b>WhatsApp Business Platform (Cloud API)</b> to the invoice
+                client's phone number, using an approved message template (Cloud API requires a
+                pre-approved template for business-initiated messages). Walk-in / anonymous sales
+                are skipped. <b>Body params</b> is a comma-separated list naming, in order, which
+                value fills the template's <code>{{1}}</code>, <code>{{2}}</code>, ... body
+                placeholders. Supported names: <code>name</code>, <code>market</code>,
+                <code>branch</code>, <code>invoice</code>, <code>total</code>.
               </div>
             </v-card-text>
             <v-card-actions>
@@ -1628,7 +1628,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
   "behavior-visitor-counter": { tab: "behavior", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
-  "behavior-whatsapp": { tab: "behavior", title: "WhatsApp thank-you message", keywords: "whatsapp thank you rate review feedback open-wa wa-automate easy api message template after sale checkout client phone" },
+  "behavior-whatsapp": { tab: "behavior", title: "WhatsApp thank-you message", keywords: "whatsapp thank you rate review feedback cloud api meta business platform message template after sale checkout client phone" },
   "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
   "admin-change-password": { tab: "admin", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
   "admin-cashier-pin": { tab: "admin", title: "Cashier login PIN", keywords: "cashier pin code login keypad 4 digit change shared" },
@@ -1748,11 +1748,11 @@ const form = reactive({
   attendanceDuplicateIntervalSeconds: 30,
   attendanceCashierHistory: false,
   whatsappEnabled: false,
-  whatsappApiUrl: "",
-  whatsappApiKey: "",
-  whatsappSession: "",
-  whatsappMessage: "",
-  whatsappReviewUrl: "",
+  whatsappPhoneNumberId: "",
+  whatsappAccessToken: "",
+  whatsappTemplateName: "",
+  whatsappTemplateLang: "en_US",
+  whatsappTemplateParams: "name,invoice,total",
 });
 const roundingModes = [
   { title: "Half up (standard)", value: "half_up" },
@@ -2330,11 +2330,11 @@ async function loadSettings() {
         countOpeningCashOnClose: s.countOpeningCashOnClose !== false,
         shiftReceiptUploadMode: Number(s.shiftReceiptUploadMode ?? 2),
         whatsappEnabled: Boolean(s.whatsappEnabled),
-        whatsappApiUrl: s.whatsappApiUrl ?? "",
-        whatsappApiKey: s.whatsappApiKey ?? "",
-        whatsappSession: s.whatsappSession ?? "",
-        whatsappMessage: s.whatsappMessage ?? "",
-        whatsappReviewUrl: s.whatsappReviewUrl ?? "",
+        whatsappPhoneNumberId: s.whatsappPhoneNumberId ?? "",
+        whatsappAccessToken: s.whatsappAccessToken ?? "",
+        whatsappTemplateName: s.whatsappTemplateName ?? "",
+        whatsappTemplateLang: s.whatsappTemplateLang ?? "en_US",
+        whatsappTemplateParams: s.whatsappTemplateParams ?? "name,invoice,total",
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
@@ -2612,11 +2612,11 @@ async function saveWhatsAppSettings() {
   try {
     await SetWhatsAppSettings(
       form.whatsappEnabled,
-      form.whatsappApiUrl.trim(),
-      form.whatsappApiKey.trim(),
-      form.whatsappSession.trim(),
-      form.whatsappMessage.trim(),
-      form.whatsappReviewUrl.trim(),
+      form.whatsappPhoneNumberId.trim(),
+      form.whatsappAccessToken.trim(),
+      form.whatsappTemplateName.trim(),
+      form.whatsappTemplateLang.trim(),
+      form.whatsappTemplateParams.trim(),
     );
     notify("WhatsApp thank-you settings saved");
   } catch {

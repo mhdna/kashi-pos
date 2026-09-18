@@ -96,12 +96,12 @@ type updateSettingsCommandPayload struct {
 	ShiftReceiptUploadMode *int64 `json:"shift_receipt_upload_mode"`
 
 	// post-sale WhatsApp thank-you (see whatsapp.go / SetWhatsAppSettings)
-	WhatsAppEnabled   *bool   `json:"whatsapp_enabled"`
-	WhatsAppApiURL    *string `json:"whatsapp_api_url"`
-	WhatsAppApiKey    *string `json:"whatsapp_api_key"`
-	WhatsAppSession   *string `json:"whatsapp_session"`
-	WhatsAppMessage   *string `json:"whatsapp_message"`
-	WhatsAppReviewURL *string `json:"whatsapp_review_url"`
+	WhatsAppEnabled        *bool   `json:"whatsapp_enabled"`
+	WhatsAppPhoneNumberID  *string `json:"whatsapp_phone_number_id"`
+	WhatsAppAccessToken    *string `json:"whatsapp_access_token"`
+	WhatsAppTemplateName   *string `json:"whatsapp_template_name"`
+	WhatsAppTemplateLang   *string `json:"whatsapp_template_lang"`
+	WhatsAppTemplateParams *string `json:"whatsapp_template_params"`
 
 	// non-admin page-access locks
 	PageUnlockClients      *bool `json:"page_unlock_clients"`
@@ -256,15 +256,15 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}
 	}
 
-	if p.WhatsAppEnabled != nil || p.WhatsAppApiURL != nil || p.WhatsAppApiKey != nil ||
-		p.WhatsAppSession != nil || p.WhatsAppMessage != nil || p.WhatsAppReviewURL != nil {
+	if p.WhatsAppEnabled != nil || p.WhatsAppPhoneNumberID != nil || p.WhatsAppAccessToken != nil ||
+		p.WhatsAppTemplateName != nil || p.WhatsAppTemplateLang != nil || p.WhatsAppTemplateParams != nil {
 		if err := a.SetWhatsAppSettings(
 			deref(p.WhatsAppEnabled, current.WhatsappEnabled != 0),
-			deref(p.WhatsAppApiURL, current.WhatsappApiUrl),
-			deref(p.WhatsAppApiKey, current.WhatsappApiKey),
-			deref(p.WhatsAppSession, current.WhatsappSession),
-			deref(p.WhatsAppMessage, current.WhatsappMessage),
-			deref(p.WhatsAppReviewURL, current.WhatsappReviewUrl),
+			deref(p.WhatsAppPhoneNumberID, current.WhatsappPhoneNumberID),
+			deref(p.WhatsAppAccessToken, current.WhatsappAccessToken),
+			deref(p.WhatsAppTemplateName, current.WhatsappTemplateName),
+			deref(p.WhatsAppTemplateLang, current.WhatsappTemplateLang),
+			deref(p.WhatsAppTemplateParams, current.WhatsappTemplateParams),
 		); err != nil {
 			return fmt.Errorf("update whatsapp settings: %w", err)
 		}

@@ -31,11 +31,11 @@ SELECT enabled FROM feature_flags WHERE key = ?;
 -- name: SetWhatsAppSettings :exec
 UPDATE settings SET
     whatsapp_enabled = ?,
-    whatsapp_api_url = ?,
-    whatsapp_api_key = ?,
-    whatsapp_session = ?,
-    whatsapp_message = ?,
-    whatsapp_review_url = ?;
+    whatsapp_phone_number_id = ?,
+    whatsapp_access_token = ?,
+    whatsapp_template_name = ?,
+    whatsapp_template_lang = ?,
+    whatsapp_template_params = ?;
 
 -- name: SetFeatureFlag :exec
 INSERT INTO feature_flags (key, enabled) VALUES (?, ?)

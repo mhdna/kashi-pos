@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,24 +11,23 @@ import (
 	"time"
 
 	db "kashi-pos/db/sqlc"
-
-	qrcode "github.com/skip2/go-qrcode"
 )
 
 // whatsAppThankYou fires a post-sale "thank you / please rate us" WhatsApp
-// message to the invoice's client. It talks to an open-wa
-// (@open-wa/wa-automate) EASY API server.
+// message to the invoice's client via Meta's WhatsApp Business Platform
+// (Cloud API):
 //
-// When a QR of the invoice number can be rendered, the message goes out as an
-// image (open-wa /sendImage) with the item list + copy as the caption:
+//	POST https://graph.facebook.com/v22.0/{phone_number_id}/messages
+//	Authorization: Bearer {access_token}
+//	body: {"messaging_product": "whatsapp", "to": "<digits>", "type": "template",
+//	       "template": {"name": "...", "language": {"code": "..."},
+//	                    "components": [{"type": "body", "parameters": [...]}]}}
 //
-//	POST {api_url}/{session}/sendImage
-//	body: {"args": {"to": "<digits>@c.us",
-//	                "base64": "data:image/png;base64,<png>",
-//	                "filename": "<invoice>.png",
-//	                "caption": "<text>"}}
-//
-// Otherwise it falls back to a plain /sendText with the same text.
+// Cloud API only allows business-initiated messages through a pre-approved
+// template, so the outgoing message is built from whatsapp_template_name /
+// whatsapp_template_lang plus an ordered whatsapp_template_params list
+// (comma-separated placeholder names: name, market, branch, invoice, total)
+// that fill the template's {{1}}, {{2}}, ... body parameters in order.
 //
 // Everything is best-effort and off the checkout path: a bad config, an
 // unreachable API, or a walk-in/anonymous client just means no message. The
@@ -49,47 +47,43 @@ func (a *App) whatsAppThankYou(invoiceCode string, grandTotalCents int64, client
 	if isWalkInClient(client) || strings.TrimSpace(client.Phone) == "" {
 		return
 	}
-	apiURL := strings.TrimRight(strings.TrimSpace(settings.WhatsappApiUrl), "/")
-	if apiURL == "" {
-		log.Printf("whatsapp thank-you: enabled but whatsapp_api_url is blank")
+
+	phoneNumberID := strings.TrimSpace(settings.WhatsappPhoneNumberID)
+	token := strings.TrimSpace(settings.WhatsappAccessToken)
+	templateName := strings.TrimSpace(settings.WhatsappTemplateName)
+	if phoneNumberID == "" || token == "" || templateName == "" {
+		log.Printf("whatsapp thank-you: enabled but phone_number_id/access_token/template_name are incomplete")
 		return
 	}
 
-	chatID := whatsAppChatID(client.Phone)
-	if chatID == "" {
+	to := whatsAppDigits(client.Phone)
+	if to == "" {
 		log.Printf("whatsapp thank-you: client %d has an unusable phone %q", client.ID, client.Phone)
 		return
 	}
 
-	message := renderWhatsAppMessage(settings, invoiceCode, grandTotalCents, client, items)
-	if strings.TrimSpace(message) == "" {
-		return
+	templateLang := strings.TrimSpace(settings.WhatsappTemplateLang)
+	if templateLang == "" {
+		templateLang = "en_US"
 	}
 
-	session := strings.TrimSpace(settings.WhatsappSession)
-	if session == "" {
-		session = "session"
+	params := whatsAppTemplateParams(settings, invoiceCode, grandTotalCents, client)
+
+	endpoint := fmt.Sprintf("https://graph.facebook.com/v22.0/%s/messages", phoneNumberID)
+	body := map[string]any{
+		"messaging_product": "whatsapp",
+		"to":                to,
+		"type":              "template",
+		"template": map[string]any{
+			"name":     templateName,
+			"language": map[string]any{"code": templateLang},
+			"components": []map[string]any{
+				{"type": "body", "parameters": params},
+			},
+		},
 	}
 
-	var (
-		endpoint string
-		args     map[string]any
-	)
-	if png, qrErr := qrcode.Encode(invoiceCode, qrcode.Medium, 512); qrErr == nil {
-		endpoint = fmt.Sprintf("%s/%s/sendImage", apiURL, session)
-		args = map[string]any{
-			"to":       chatID,
-			"base64":   "data:image/png;base64," + base64.StdEncoding.EncodeToString(png),
-			"filename": sanitizeFilename(invoiceCode) + ".png",
-			"caption":  message,
-		}
-	} else {
-		log.Printf("whatsapp thank-you: QR encode for %q failed (%v), sending text only", invoiceCode, qrErr)
-		endpoint = fmt.Sprintf("%s/%s/sendText", apiURL, session)
-		args = map[string]any{"to": chatID, "content": message}
-	}
-
-	payload, err := json.Marshal(map[string]any{"args": args})
+	payload, err := json.Marshal(body)
 	if err != nil {
 		log.Printf("whatsapp thank-you: encode payload: %v", err)
 		return
@@ -103,9 +97,7 @@ func (a *App) whatsAppThankYou(invoiceCode string, grandTotalCents int64, client
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if key := strings.TrimSpace(settings.WhatsappApiKey); key != "" {
-		req.Header.Set("api_key", key)
-	}
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -117,12 +109,45 @@ func (a *App) whatsAppThankYou(invoiceCode string, grandTotalCents int64, client
 		log.Printf("whatsapp thank-you: %s -> HTTP %d", endpoint, resp.StatusCode)
 		return
 	}
-	log.Printf("whatsapp thank-you: sent for invoice %s to %s", invoiceCode, chatID)
+	log.Printf("whatsapp thank-you: sent for invoice %s to %s", invoiceCode, to)
 }
 
-// whatsAppChatID turns an E.164 phone ("+96170123456") into an open-wa chat id
-// ("96170123456@c.us"). Returns "" when nothing dial-able is left.
-func whatsAppChatID(phone string) string {
+// whatsAppTemplateParams builds the template's body parameters in the order
+// given by settings.WhatsappTemplateParams (comma-separated placeholder
+// names). Unknown placeholder names are skipped.
+func whatsAppTemplateParams(settings db.Setting, invoiceCode string, grandTotalCents int64, client db.Client) []map[string]any {
+	market := strings.TrimSpace(settings.MarketName)
+	if market == "" {
+		market = "us"
+	}
+	name := strings.TrimSpace(client.Name)
+	if name == "" {
+		name = "there"
+	}
+	values := map[string]string{
+		"name":    name,
+		"market":  market,
+		"branch":  strings.TrimSpace(settings.BranchName),
+		"invoice": invoiceCode,
+		"total":   fmt.Sprintf("$%.2f", float64(grandTotalCents)/100),
+	}
+
+	var params []map[string]any
+	for _, key := range strings.Split(settings.WhatsappTemplateParams, ",") {
+		key = strings.TrimSpace(key)
+		v, ok := values[key]
+		if !ok {
+			continue
+		}
+		params = append(params, map[string]any{"type": "text", "text": v})
+	}
+	return params
+}
+
+// whatsAppDigits turns an E.164 phone ("+96170123456") into the digits-only
+// form the Cloud API expects ("96170123456"). Returns "" when nothing
+// dial-able is left.
+func whatsAppDigits(phone string) string {
 	var b strings.Builder
 	for _, r := range phone {
 		if r >= '0' && r <= '9' {
@@ -133,97 +158,5 @@ func whatsAppChatID(phone string) string {
 	if len(digits) < 8 {
 		return ""
 	}
-	return digits + "@c.us"
-}
-
-// sanitizeFilename keeps the invoice code usable as a file name.
-func sanitizeFilename(s string) string {
-	s = strings.Map(func(r rune) rune {
-		switch {
-		case r >= '0' && r <= '9', r >= 'A' && r <= 'Z', r >= 'a' && r <= 'z', r == '-', r == '_':
-			return r
-		default:
-			return '-'
-		}
-	}, s)
-	if s == "" {
-		return "invoice"
-	}
-	return s
-}
-
-// whatsAppItemLines renders the purchased products as bullet lines, e.g.
-//
-//   - 2 x Blue Shirt - $30.00
-func whatsAppItemLines(items []invoiceItem) string {
-	var b strings.Builder
-	for _, it := range items {
-		name := strings.TrimSpace(it.Name)
-		if name == "" {
-			name = strings.TrimSpace(it.Code)
-		}
-		if name == "" {
-			continue
-		}
-		lineTotal := it.Qty * it.Price * (1 - it.Discount/100)
-		fmt.Fprintf(&b, "• %s x %s - $%.2f\n", trimQty(it.Qty), name, lineTotal)
-	}
-	return strings.TrimRight(b.String(), "\n")
-}
-
-// trimQty prints 2 rather than 2.00 for whole quantities.
-func trimQty(q float64) string {
-	if q == float64(int64(q)) {
-		return fmt.Sprintf("%d", int64(q))
-	}
-	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.3f", q), "0"), ".")
-}
-
-// renderWhatsAppMessage substitutes the template placeholders:
-//
-//	{name} {market} {branch} {invoice} {total} {items} {link}
-//
-// A blank review URL drops "{link}" (and a preceding space/newline) so the
-// text still reads cleanly; likewise "{items}" collapses when there are none.
-func renderWhatsAppMessage(settings db.Setting, invoiceCode string, grandTotalCents int64, client db.Client, items []invoiceItem) string {
-	tmpl := strings.TrimSpace(settings.WhatsappMessage)
-	if tmpl == "" {
-		return ""
-	}
-	market := strings.TrimSpace(settings.MarketName)
-	if market == "" {
-		market = "us"
-	}
-	name := strings.TrimSpace(client.Name)
-	if name == "" {
-		name = "there"
-	}
-	link := strings.TrimSpace(settings.WhatsappReviewUrl)
-	itemLines := whatsAppItemLines(items)
-
-	out := tmpl
-	if link == "" {
-		out = collapsePlaceholder(out, "{link}")
-	}
-	if itemLines == "" {
-		out = collapsePlaceholder(out, "{items}")
-	}
-	replacer := strings.NewReplacer(
-		"{name}", name,
-		"{market}", market,
-		"{branch}", strings.TrimSpace(settings.BranchName),
-		"{invoice}", invoiceCode,
-		"{total}", fmt.Sprintf("$%.2f", float64(grandTotalCents)/100),
-		"{items}", itemLines,
-		"{link}", link,
-	)
-	return strings.TrimSpace(replacer.Replace(out))
-}
-
-// collapsePlaceholder removes an empty placeholder along with one leading
-// space or newline, so "total {total}\n{link}" doesn't leave a dangling line.
-func collapsePlaceholder(s, ph string) string {
-	s = strings.ReplaceAll(s, "\n"+ph, "")
-	s = strings.ReplaceAll(s, " "+ph, "")
-	return strings.ReplaceAll(s, ph, "")
+	return digits
 }

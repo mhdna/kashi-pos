@@ -512,6 +512,11 @@ type Setting struct {
 	WhatsappSession        string  `json:"whatsappSession"`
 	WhatsappMessage        string  `json:"whatsappMessage"`
 	WhatsappReviewUrl      string  `json:"whatsappReviewUrl"`
+	WhatsappPhoneNumberID  string  `json:"whatsappPhoneNumberId"`
+	WhatsappAccessToken    string  `json:"whatsappAccessToken"`
+	WhatsappTemplateName   string  `json:"whatsappTemplateName"`
+	WhatsappTemplateLang   string  `json:"whatsappTemplateLang"`
+	WhatsappTemplateParams string  `json:"whatsappTemplateParams"`
 }
 
 type Shift struct {

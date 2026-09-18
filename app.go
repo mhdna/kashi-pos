@@ -762,11 +762,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"defaultOpeningFloatUsd": settings.DefaultOpeningFloatUsd,
 		"defaultOpeningFloatLbp": settings.DefaultOpeningFloatLbp,
 		"whatsappEnabled":        settings.WhatsappEnabled != 0,
-		"whatsappApiUrl":         settings.WhatsappApiUrl,
-		"whatsappApiKey":         settings.WhatsappApiKey,
-		"whatsappSession":        settings.WhatsappSession,
-		"whatsappMessage":        settings.WhatsappMessage,
-		"whatsappReviewUrl":      settings.WhatsappReviewUrl,
+		"whatsappPhoneNumberId":  settings.WhatsappPhoneNumberID,
+		"whatsappAccessToken":    settings.WhatsappAccessToken,
+		"whatsappTemplateName":   settings.WhatsappTemplateName,
+		"whatsappTemplateLang":   settings.WhatsappTemplateLang,
+		"whatsappTemplateParams": settings.WhatsappTemplateParams,
 	}
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, autoCloseStaleShiftsFlag); flagErr == nil {
 		result["autoCloseStaleShiftsEnabled"] = enabled != 0
@@ -1091,20 +1091,21 @@ func (a *App) UpdateReceiptSettings(marketName, marketPhone, branchPhone, market
 	})
 }
 
-// SetWhatsAppSettings persists the post-sale WhatsApp thank-you config. Blank
-// api_url / message are allowed (they just make the feature a no-op) so the
-// settings page can save a half-filled form without friction.
-func (a *App) SetWhatsAppSettings(enabled bool, apiURL, apiKey, session, message, reviewURL string) error {
+// SetWhatsAppSettings persists the post-sale WhatsApp thank-you config
+// (Meta's WhatsApp Business Cloud API). Blank fields are allowed (they just
+// make the feature a no-op) so the settings page can save a half-filled form
+// without friction.
+func (a *App) SetWhatsAppSettings(enabled bool, phoneNumberID, accessToken, templateName, templateLang, templateParams string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
 	return a.store.SetWhatsAppSettings(a.ctx, db.SetWhatsAppSettingsParams{
-		WhatsappEnabled:   boolInt(enabled),
-		WhatsappApiUrl:    strings.TrimSpace(apiURL),
-		WhatsappApiKey:    strings.TrimSpace(apiKey),
-		WhatsappSession:   strings.TrimSpace(session),
-		WhatsappMessage:   strings.TrimSpace(message),
-		WhatsappReviewUrl: strings.TrimSpace(reviewURL),
+		WhatsappEnabled:        boolInt(enabled),
+		WhatsappPhoneNumberID:  strings.TrimSpace(phoneNumberID),
+		WhatsappAccessToken:    strings.TrimSpace(accessToken),
+		WhatsappTemplateName:   strings.TrimSpace(templateName),
+		WhatsappTemplateLang:   strings.TrimSpace(templateLang),
+		WhatsappTemplateParams: strings.TrimSpace(templateParams),
 	})
 }
 
