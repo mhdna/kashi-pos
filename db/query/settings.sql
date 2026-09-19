@@ -28,15 +28,6 @@ UPDATE settings SET shift_receipt_upload_mode = ?;
 -- name: GetFeatureFlag :one
 SELECT enabled FROM feature_flags WHERE key = ?;
 
--- name: SetWhatsAppSettings :exec
-UPDATE settings SET
-    whatsapp_enabled = ?,
-    whatsapp_phone_number_id = ?,
-    whatsapp_access_token = ?,
-    whatsapp_template_name = ?,
-    whatsapp_template_lang = ?,
-    whatsapp_template_params = ?;
-
 -- name: SetFeatureFlag :exec
 INSERT INTO feature_flags (key, enabled) VALUES (?, ?)
 ON CONFLICT (key) DO UPDATE SET enabled = excluded.enabled;

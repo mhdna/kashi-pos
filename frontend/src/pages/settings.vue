@@ -953,41 +953,6 @@
             </v-card-text>
           </v-card>
 
-          <v-card v-show="panelMatches('behavior-whatsapp')" class="settings-card settings-card--wide">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-whatsapp" size="20" />
-              WhatsApp thank-you message
-            </v-card-title>
-            <v-card-text class="field-grid">
-              <v-switch
-                v-model="form.whatsappEnabled"
-                label="Send a thank-you WhatsApp after each sale"
-                color="primary"
-                hide-details
-                class="field-full"
-              />
-              <v-text-field v-model="form.whatsappPhoneNumberId" placeholder="Phone Number ID" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.whatsappAccessToken" placeholder="Access token" variant="outlined" density="compact" hide-details type="password" />
-              <v-text-field v-model="form.whatsappTemplateName" placeholder="Template name (e.g. order_confirmation)" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.whatsappTemplateLang" placeholder="Template language (e.g. en_US)" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.whatsappTemplateParams" placeholder="Body params, in order (e.g. name,invoice,total)" variant="outlined" density="compact" hide-details class="field-full" />
-              <div class="text-caption text-medium-emphasis field-full">
-                Sent through Meta's <b>WhatsApp Business Platform (Cloud API)</b> to the invoice
-                client's phone number, using an approved message template (Cloud API requires a
-                pre-approved template for business-initiated messages). Walk-in / anonymous sales
-                are skipped. <b>Body params</b> is a comma-separated list naming, in order, which
-                value fills the template's <code>{{1}}</code>, <code>{{2}}</code>, ... body
-                placeholders. Supported names: <code>name</code>, <code>market</code>,
-                <code>branch</code>, <code>invoice</code>, <code>total</code>.
-              </div>
-            </v-card-text>
-            <v-card-actions>
-              <v-btn color="primary" variant="flat" :loading="whatsappSaving" @click="saveWhatsAppSettings">
-                <v-icon start icon="mdi-content-save-outline" /> Save WhatsApp settings
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-
         </div>
       </v-window-item>
 
@@ -1462,7 +1427,6 @@ import {
   SetOpeningFloatEnabled,
   SetCountOpeningCashOnCloseEnabled,
   SetShiftReceiptUploadMode,
-  SetWhatsAppSettings,
   SetPageUnlocked,
   UpdateDefaultOpeningFloat,
   SetAutoCloseStaleShiftsEnabled,
@@ -1628,7 +1592,6 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
   "behavior-visitor-counter": { tab: "behavior", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
-  "behavior-whatsapp": { tab: "behavior", title: "WhatsApp thank-you message", keywords: "whatsapp thank you rate review feedback cloud api meta business platform message template after sale checkout client phone" },
   "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
   "admin-change-password": { tab: "admin", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
   "admin-cashier-pin": { tab: "admin", title: "Cashier login PIN", keywords: "cashier pin code login keypad 4 digit change shared" },
@@ -1747,12 +1710,6 @@ const form = reactive({
   attendanceApproverPassword: "",
   attendanceDuplicateIntervalSeconds: 30,
   attendanceCashierHistory: false,
-  whatsappEnabled: false,
-  whatsappPhoneNumberId: "",
-  whatsappAccessToken: "",
-  whatsappTemplateName: "",
-  whatsappTemplateLang: "en_US",
-  whatsappTemplateParams: "name,invoice,total",
 });
 const roundingModes = [
   { title: "Half up (standard)", value: "half_up" },
@@ -2329,12 +2286,6 @@ async function loadSettings() {
         openingFloatEnabled: s.openingFloatEnabled !== false,
         countOpeningCashOnClose: s.countOpeningCashOnClose !== false,
         shiftReceiptUploadMode: Number(s.shiftReceiptUploadMode ?? 2),
-        whatsappEnabled: Boolean(s.whatsappEnabled),
-        whatsappPhoneNumberId: s.whatsappPhoneNumberId ?? "",
-        whatsappAccessToken: s.whatsappAccessToken ?? "",
-        whatsappTemplateName: s.whatsappTemplateName ?? "",
-        whatsappTemplateLang: s.whatsappTemplateLang ?? "en_US",
-        whatsappTemplateParams: s.whatsappTemplateParams ?? "name,invoice,total",
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
         attendanceEnabled: Boolean(s.attendance?.enabled),
@@ -2603,26 +2554,6 @@ async function setShiftReceiptUploadMode(value: number | null) {
     notify("Failed to update close-shift receipt photo setting", "red");
   } finally {
     shiftReceiptUploadModeSaving.value = false;
-  }
-}
-
-const whatsappSaving = ref(false);
-async function saveWhatsAppSettings() {
-  whatsappSaving.value = true;
-  try {
-    await SetWhatsAppSettings(
-      form.whatsappEnabled,
-      form.whatsappPhoneNumberId.trim(),
-      form.whatsappAccessToken.trim(),
-      form.whatsappTemplateName.trim(),
-      form.whatsappTemplateLang.trim(),
-      form.whatsappTemplateParams.trim(),
-    );
-    notify("WhatsApp thank-you settings saved");
-  } catch {
-    notify("Failed to save WhatsApp settings", "red");
-  } finally {
-    whatsappSaving.value = false;
   }
 }
 

@@ -95,14 +95,6 @@ type updateSettingsCommandPayload struct {
 	// 2=hybrid, 3=local (see shiftUploadMode* in shifts.go).
 	ShiftReceiptUploadMode *int64 `json:"shift_receipt_upload_mode"`
 
-	// post-sale WhatsApp thank-you (see whatsapp.go / SetWhatsAppSettings)
-	WhatsAppEnabled        *bool   `json:"whatsapp_enabled"`
-	WhatsAppPhoneNumberID  *string `json:"whatsapp_phone_number_id"`
-	WhatsAppAccessToken    *string `json:"whatsapp_access_token"`
-	WhatsAppTemplateName   *string `json:"whatsapp_template_name"`
-	WhatsAppTemplateLang   *string `json:"whatsapp_template_lang"`
-	WhatsAppTemplateParams *string `json:"whatsapp_template_params"`
-
 	// non-admin page-access locks
 	PageUnlockClients      *bool `json:"page_unlock_clients"`
 	PageUnlockInventory    *bool `json:"page_unlock_inventory"`
@@ -253,20 +245,6 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 	if p.ShiftReceiptUploadMode != nil {
 		if err := a.SetShiftReceiptUploadMode(*p.ShiftReceiptUploadMode); err != nil {
 			return fmt.Errorf("update shift receipt upload mode: %w", err)
-		}
-	}
-
-	if p.WhatsAppEnabled != nil || p.WhatsAppPhoneNumberID != nil || p.WhatsAppAccessToken != nil ||
-		p.WhatsAppTemplateName != nil || p.WhatsAppTemplateLang != nil || p.WhatsAppTemplateParams != nil {
-		if err := a.SetWhatsAppSettings(
-			deref(p.WhatsAppEnabled, current.WhatsappEnabled != 0),
-			deref(p.WhatsAppPhoneNumberID, current.WhatsappPhoneNumberID),
-			deref(p.WhatsAppAccessToken, current.WhatsappAccessToken),
-			deref(p.WhatsAppTemplateName, current.WhatsappTemplateName),
-			deref(p.WhatsAppTemplateLang, current.WhatsappTemplateLang),
-			deref(p.WhatsAppTemplateParams, current.WhatsappTemplateParams),
-		); err != nil {
-			return fmt.Errorf("update whatsapp settings: %w", err)
 		}
 	}
 

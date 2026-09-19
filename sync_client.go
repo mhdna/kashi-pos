@@ -374,6 +374,47 @@ func (c *centralClient) PutSettings(ctx context.Context, payloadJSON []byte) err
 	return c.sendJSON(ctx, http.MethodPut, "/branch/settings", payloadJSON)
 }
 
+// whatsAppThankYouResponse is kashi's body for POST /branch/whatsapp/thank_you.
+// Sent is false (not an error) whenever WhatsApp is disabled/misconfigured
+// on kashi's side, the phone was unusable, or the Cloud API call itself
+// failed -- kashi owns all of that and reports back why rather than kashi-pos
+// guessing at it.
+type whatsAppThankYouResponse struct {
+	Sent   bool   `json:"sent"`
+	Reason string `json:"reason"`
+}
+
+// PostWhatsAppThankYou asks kashi to send the post-sale WhatsApp thank-you
+// message. All WhatsApp/Meta config lives centrally on kashi now (see
+// api/whatsapp.go in that repo) -- kashi-pos just reports the sale.
+func (c *centralClient) PostWhatsAppThankYou(ctx context.Context, payloadJSON []byte) (*whatsAppThankYouResponse, error) {
+	if !c.enabled() {
+		return nil, errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, http.MethodPost, "/branch/whatsapp/thank_you", bytes.NewReader(payloadJSON))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, responseError(http.MethodPost, "/branch/whatsapp/thank_you", resp)
+	}
+
+	var out whatsAppThankYouResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode whatsapp thank-you response: %w", err)
+	}
+	return &out, nil
+}
+
 func (c *centralClient) sendJSON(ctx context.Context, method, path string, payloadJSON []byte) error {
 	if !c.enabled() {
 		return errCentralSyncDisabled
