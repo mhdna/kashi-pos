@@ -93,6 +93,18 @@
     </v-card>
   </v-dialog>
 
+  <v-dialog v-model="closeAppConfirmOpen" max-width="360">
+    <v-card rounded="xl">
+      <v-card-title>Close app</v-card-title>
+      <v-card-text>Are you sure you want to close the app?</v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn variant="text" @click="closeAppConfirmOpen = false">Cancel</v-btn>
+        <v-btn color="error" variant="flat" @click="confirmCloseApp">Close App</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <v-dialog v-model="inventoryOpen" max-width="640">
     <v-card rounded="xl">
       <div class="dialog-close-row px-4 pt-0">
@@ -173,6 +185,7 @@ function openSyncSettings() {
 }
 const optionsOpen = ref(false);
 const inventoryOpen = ref(false);
+const closeAppConfirmOpen = ref(false);
 
 function handleItemClick(item: { locked?: boolean; action?: () => void; to?: string }) {
   if (item.locked) return;
@@ -191,9 +204,12 @@ function logout() {
 
 function closeApp() {
   optionsOpen.value = false;
-  if (window.confirm("Are you sure you want to close the app?")) {
-    Quit();
-  }
+  closeAppConfirmOpen.value = true;
+}
+
+function confirmCloseApp() {
+  closeAppConfirmOpen.value = false;
+  Quit();
 }
 
 function openCloseShift() {
