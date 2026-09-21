@@ -5,6 +5,8 @@
       :status-color="statusColor"
       :show-ready-state="showReadyState"
       :remaining-amount="remainingAmount"
+      :quote-error="quoteError"
+      :exchange-shortfall-cents="exchangeShortfallCents"
     />
 
     <v-card class="calculator-display pa-2 mb-3 mt-2" variant="outlined" rounded="lg">
@@ -161,6 +163,15 @@ interface Entry {
 const FALLBACK_CURRENCY: CurrencyRate = { code: "USD", symbol: "$", unitsPerUsd: 1, cashRoundingUnit: 1 };
 const props = defineProps<{
   totalCents: number;
+  // Set when the backend quote failed. totalCents is meaningless (0) in that
+  // case, so the total is replaced by this message and checkout is blocked -
+  // otherwise diffCents === 0 makes a pricing failure read as "Paid".
+  quoteError?: string | null;
+  // Exchange mode only: how much more replacement value is still needed to
+  // cover the returned items. Exchanges never pay cash back to the
+  // customer, so while this is > 0 checkoutReady stays false and the status
+  // bar shows this instead of a paid/remaining amount.
+  exchangeShortfallCents?: number;
   itemsJson?: string;
   roundingMode?: string;
   roundingCurrency?: string;
@@ -292,16 +303,25 @@ watch(
   { deep: true, immediate: true },
 );
 
+const quoteFailed = computed(() => Boolean(props.quoteError));
+const exchangeShortfallCents = computed(() => props.exchangeShortfallCents ?? 0);
 const diffCents = computed(() => paidCents.value - totalCents.value);
 const diff = computed(() => diffCents.value / 100);
-const isPaidInFull = computed(() => diffCents.value === 0);
+const isPaidInFull = computed(() => !quoteFailed.value && diffCents.value === 0);
 const cashRoundedToTotal = computed(() => backendStatus.value?.isCashRounded ?? false);
-const checkoutReady = computed(() => backendStatus.value?.checkoutReady ?? false);
+const checkoutReady = computed(
+  () =>
+    !quoteFailed.value &&
+    exchangeShortfallCents.value <= 0 &&
+    (backendStatus.value?.checkoutReady ?? false),
+);
 const showReadyState = computed(
   () => checkoutReady.value && (diffCents.value <= 0 || cashRoundedToTotal.value),
 );
 const paymentStatus = computed(() =>
-  isPaidInFull.value
+  quoteFailed.value
+    ? "Pricing failed"
+    : isPaidInFull.value
     ? "Paid"
     : cashRoundedToTotal.value
       ? "Paid (cash rounded)"

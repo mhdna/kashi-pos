@@ -2,7 +2,7 @@
   <section class="mb-4">
     <div class="calculator-amounts mb-2" :class="statusColor">
       <v-btn
-        v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState"
+        v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState && !quoteError"
         class="calculator-amounts-flip"
         icon="mdi-swap-vertical"
         variant="text"
@@ -11,7 +11,17 @@
         title="Switch total currency"
         @click="flipCurrency"
       />
-      <div v-if="showReadyState" class="calculator-accepted-state calculator-green">
+      <!-- A failed quote has no total to show. Rendering $0.00 here would
+           read as a legitimate, fully-paid zero-value sale. -->
+      <div v-if="quoteError" class="calculator-error-state">
+        <v-icon icon="mdi-alert-circle" color="red-darken-2" size="28" />
+        <span class="calculator-error-text" :title="quoteError">{{ quoteError }}</span>
+      </div>
+      <div v-else-if="exchangeShortfallText" class="calculator-error-state">
+        <v-icon icon="mdi-alert-circle" color="red-darken-2" size="28" />
+        <span class="calculator-error-text">Add {{ exchangeShortfallText }} more in replacement items — exchanges can't return cash</span>
+      </div>
+      <div v-else-if="showReadyState" class="calculator-accepted-state calculator-green">
         <v-icon icon="mdi-check-circle" color="green-darken-3" size="40" />
         <span>{{ paymentStatus }}</span>
       </div>
@@ -39,6 +49,12 @@ const props = defineProps<{
   paymentStatus: string;
   statusColor: string;
   showReadyState: boolean;
+  quoteError?: string | null;
+  // Exchange mode only: cents of replacement value still needed to cover
+  // the returned items (0/undefined otherwise). Exchanges must never pay
+  // cash back to the customer, so this replaces the normal total/remaining
+  // display with an explicit "add more" message instead of showing $0.00.
+  exchangeShortfallCents?: number;
   remainingAmount: {
     usd: string;
     lbp: string;
@@ -48,6 +64,12 @@ const props = defineProps<{
     amountsByCurrency: { code: string; text: string; rounded: boolean }[];
   };
 }>();
+
+const exchangeShortfallText = computed(() => {
+  const cents = props.exchangeShortfallCents ?? 0;
+  if (cents <= 0) return "";
+  return `$${(cents / 100).toFixed(2)}`;
+});
 
 const currentIndex = computed(() => {
   const index = props.remainingAmount.amountsByCurrency.findIndex(
@@ -123,6 +145,25 @@ function flipCurrency() {
 }
 .calculator-total-usd { grid-row: 1; }
 .calculator-total-lbp { grid-row: 2; }
+.calculator-error-state {
+  grid-row: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  color: #c62828;
+  font-size: var(--kashi-font-size-base);
+  font-weight: 600;
+}
+.calculator-error-text {
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.2;
+}
 .calculator-accepted-state {
   grid-row: 1 / -1;
   display: flex;
