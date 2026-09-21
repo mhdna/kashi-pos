@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -26,20 +28,54 @@ type unitPricing struct {
 	discount int64
 }
 
+// salesInventoryID picks the inventory to stamp on invoices.inventory_id.
+//
+// Nothing about a sale depends on this beyond the FK: stock is neither
+// checked nor decremented at checkout (see the disabled block in
+// salesInvoiceTx) and validateAndPriceItems ignores the id entirely. So an
+// unset setting, an unknown id, or an empty inventory must never stop a
+// cashier from selling - the worst case is an invoice labelled with the
+// wrong inventory, which the separate stock-reconciliation workflow can
+// correct. Only a database with no inventories at all is unrecoverable
+// here, because the FK has nothing to point at.
+//
+// If stock deduction is ever re-enabled in salesInvoiceTx, revisit this:
+// silently guessing an inventory is fine for a label, but not for deciding
+// which shelf to take units off.
 func (a *App) salesInventoryID(configuredID int64) (int64, error) {
-	if configuredID > 0 {
-		if _, err := a.store.GetInventoryByID(a.ctx, configuredID); err != nil {
-			return 0, fmt.Errorf("sales inventory: %w", err)
-		}
-		return configuredID, nil
-	}
 	inventories, err := a.store.ListInventories(a.ctx)
 	if err != nil {
 		return 0, fmt.Errorf("list inventories: %w", err)
 	}
-	if len(inventories) != 1 {
-		return 0, fmt.Errorf("choose a sales inventory in settings")
+	if len(inventories) == 0 {
+		return 0, fmt.Errorf("no inventory exists to record the sale against")
 	}
+	// Configured and real - the normal path.
+	for _, inventory := range inventories {
+		if inventory.ID == configuredID {
+			return inventory.ID, nil
+		}
+	}
+	if len(inventories) == 1 {
+		return inventories[0].ID, nil
+	}
+	// Unset, or pointing at an inventory that no longer exists. Prefer the
+	// one this branch has actually been selling from; a second inventory can
+	// appear at any time as a side effect of a stock import (admin_server.go
+	// does INSERT INTO inventories ... ON CONFLICT DO NOTHING).
+	lastUsed, err := a.store.GetLastInvoiceInventoryID(a.ctx)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("last sales inventory: %w", err)
+	}
+	if err == nil {
+		for _, inventory := range inventories {
+			if inventory.ID == lastUsed {
+				return inventory.ID, nil
+			}
+		}
+	}
+	// No history to learn from. ListInventories is ordered by id, so this is
+	// the oldest - the "Default" seeded at first run.
 	return inventories[0].ID, nil
 }
 

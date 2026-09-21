@@ -152,6 +152,7 @@ type Querier interface {
 	GetInvoiceIncomeTotalByDateRange(ctx context.Context, arg GetInvoiceIncomeTotalByDateRangeParams) (interface{}, error)
 	GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams) (InvoiceIndex, error)
 	GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductParams) (InvoiceProduct, error)
+	GetLastInvoiceInventoryID(ctx context.Context) (int64, error)
 	GetLoan(ctx context.Context, id int64) (Loan, error)
 	GetLoanCategoryByName(ctx context.Context, name string) (LoanCategory, error)
 	GetOpenShift(ctx context.Context) (Shift, error)

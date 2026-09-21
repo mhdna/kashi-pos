@@ -101,6 +101,13 @@ type syncedLoanCategory struct {
 // default currency's rate for the same reason, and this respects that
 // same invariant rather than working around it.
 func applySyncedCurrency(ctx context.Context, q *db.Queries, c syncedCurrency) error {
+	// The hand-entry path validates these (currencies.go), and the table's
+	// own CHECK constraints require both to be > 0 - so a bad pulled value
+	// would either abort the whole pull or, on a rounding currency, make
+	// every invoice total fail to price. Reject the row, not the sync.
+	if c.UnitsPerUsdMicros <= 0 || c.CashRoundingUnit <= 0 {
+		return fmt.Errorf("currency %s: invalid rate %d or rounding unit %d", c.Code, c.UnitsPerUsdMicros, c.CashRoundingUnit)
+	}
 	existing, err := q.GetCurrencyByCode(ctx, c.Code)
 	if err == sql.ErrNoRows {
 		_, err := q.CreateCurrency(ctx, db.CreateCurrencyParams{
@@ -402,6 +409,13 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 
 	var productID int64
 	existing, err := q.GetProductByBarcode(ctx, v.Barcode)
+	// A product priced at 0 is unsellable - priceInvoiceProduct rejects it
+	// and every quote containing it fails, which surfaces at the till as a
+	// total that will not price. An absent price in the pull payload means
+	// "central didn't say", not "free", so keep what we already have.
+	if err == nil && !v.Price.Valid {
+		price = existing.Price
+	}
 	if err == sql.ErrNoRows {
 		created, err := q.CreateProduct(ctx, db.CreateProductParams{
 			Barcode:      v.Barcode,
