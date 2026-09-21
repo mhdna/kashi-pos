@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -73,11 +74,21 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	}
 
 	grandTotal := float64(data.GrandTotalCents) / 100
-	tax := grandTotal - (subtotal - totalDiscount)
+	tax := float64(data.TaxCents) / 100
+	// grandTotal - (subtotal - totalDiscount) is tax PLUS the cash-grid snap
+	// checkout applies to the total, so it can't stand in for tax: at a 0%
+	// rate it printed a stray "Tax" of a few cents. Tax is passed in, and
+	// whatever is left over is the rounding.
+	rounding := grandTotal - (subtotal - totalDiscount) - tax
 	out.WriteString(separator + "\n")
 	writeESCPosLine(&out, "Subtotal", fmt.Sprintf("$%.2f", subtotal), columns)
 	writeESCPosLine(&out, "Discount", fmt.Sprintf("-$%.2f", totalDiscount), columns)
-	writeESCPosLine(&out, "Tax", fmt.Sprintf("$%.2f", tax), columns)
+	if math.Abs(tax) > 0.005 {
+		writeESCPosLine(&out, "Tax", fmt.Sprintf("$%.2f", tax), columns)
+	}
+	if math.Abs(rounding) > 0.005 {
+		writeESCPosLine(&out, "Rounding", fmt.Sprintf("$%.2f", rounding), columns)
+	}
 	out.WriteString(separator + "\n")
 	writeESCPosBoldLine(&out, "TOTAL", fmt.Sprintf("$%.2f", grandTotal), columns)
 	if currency := data.RoundingCurrency; currency.UnitsPerUsdMicros > 0 {

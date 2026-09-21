@@ -190,13 +190,20 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 
 	y = c.rule(y) + 10
 	grandTotal := float64(c.data.GrandTotalCents) / 100
-	tax := grandTotal - (subtotal - discountTotal)
+	// See buildESCPosReceipt: the grand total already carries the cash-grid
+	// snap, so tax has to come from the invoice rather than be inferred from
+	// the difference, and the leftover prints as rounding.
+	tax := float64(c.data.TaxCents) / 100
+	rounding := grandTotal - (subtotal - discountTotal) - tax
 	rows := [][2]string{{"Subtotal", fmt.Sprintf("$%.2f", subtotal)}}
 	if discountTotal > 0 {
 		rows = append(rows, [2]string{"Discount", fmt.Sprintf("-$%.2f", discountTotal)})
 	}
 	if math.Abs(tax) > 0.005 {
 		rows = append(rows, [2]string{"Tax", fmt.Sprintf("$%.2f", tax)})
+	}
+	if math.Abs(rounding) > 0.005 {
+		rows = append(rows, [2]string{"Rounding", fmt.Sprintf("$%.2f", rounding)})
 	}
 	for _, row := range rows {
 		y, _ = c.twoCol(y, row[0], row[1], 11, true)

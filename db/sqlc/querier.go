@@ -176,6 +176,12 @@ type Querier interface {
 	GetShiftAccountBalance(ctx context.Context, arg GetShiftAccountBalanceParams) (ShiftsAccountsBalance, error)
 	GetShiftByID(ctx context.Context, id int64) (Shift, error)
 	GetShiftReceiptUploadByToken(ctx context.Context, token string) (ShiftReceiptUpload, error)
+	// shift_tax recomputes the tax charged per invoice exactly the way checkout
+	// does (priceInvoiceTotals -> roundFloatToCents): round(discounted_total *
+	// tax_rate) under the configured rounding mode. Invoices don't store their
+	// own tax, so a shift printed after the rate changes is priced at the
+	// current rate; cash_rounding below absorbs any difference, so the report
+	// balances either way.
 	GetShiftReportSummary(ctx context.Context, reportShiftID int64) (GetShiftReportSummaryRow, error)
 	// Bounded to a single calendar month (the monthly shift table only ever
 	// displays one month at a time) instead of loading every shift ever

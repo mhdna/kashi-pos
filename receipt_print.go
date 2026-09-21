@@ -26,6 +26,7 @@ type printReceiptData struct {
 	ReceiptNo        string
 	PrinterName      string
 	GrandTotalCents  int64
+	TaxCents         int64
 	Payments         []receiptPayment
 	RoundingCurrency receiptCurrency
 	RoundingMode     string

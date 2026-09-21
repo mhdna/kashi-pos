@@ -51,6 +51,7 @@ type SalesInvoiceResult struct {
 	InvoiceCode string
 	Items       []invoiceItem
 	GrandTotal  int64
+	TaxCents    int64
 	Payments    []checkoutPayment
 	Notes       string
 }
@@ -339,6 +340,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		}
 
 		result.InvoiceID, result.InvoiceCode, result.Items, result.GrandTotal, result.Payments, result.Notes = invoice.ID, invoiceCode, receiptItems, grandTotal, payments, strings.TrimSpace(params.Notes)
+		result.TaxCents = totals.TaxCents
 		return nil
 	})
 	if err == nil && settings.CentralApiUrl != "" {
