@@ -154,6 +154,12 @@ type adminInvoiceAdjustmentInput struct {
 	ReturnOnly          bool           `json:"returnOnly"`
 }
 
+type adminAttendanceEventInput struct {
+	SalespersonID int64  `json:"salespersonId"`
+	EventAt       string `json:"eventAt"`
+	Type          string `json:"type"`
+}
+
 func (a *App) startAdminServer() {
 	if a.conn == nil {
 		return
@@ -285,7 +291,7 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodGet && path == "products":
 		value, err = a.products(ctx, r.URL.Query().Get("q"))
 	case r.Method == http.MethodGet && path == "invoices":
-		value, err = a.invoices(ctx, r.URL.Query().Get("date"))
+		value, err = a.invoices(ctx, r.URL.Query().Get("date"), r.URL.Query().Get("from"), r.URL.Query().Get("to"))
 	case r.Method == http.MethodGet && path == "daily-sales":
 		value, err = a.dailySales(ctx, r.URL.Query().Get("date"))
 	case r.Method == http.MethodGet && path == "income-trace":
@@ -305,6 +311,12 @@ func (a *adminServer) handle(w http.ResponseWriter, r *http.Request) {
 		err = decodeAdmin(r, &input)
 		if err == nil {
 			value, err = a.createInvoiceAdjustment(ctx, input)
+		}
+	case r.Method == http.MethodPost && path == "attendance-events":
+		var input adminAttendanceEventInput
+		err = decodeAdmin(r, &input)
+		if err == nil {
+			value, err = a.app.CreateManualAttendanceEvent(input.SalespersonID, input.EventAt, input.Type)
 		}
 	case r.Method == http.MethodPost && path == "products":
 		var input adminProductInput

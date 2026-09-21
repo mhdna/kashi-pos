@@ -364,6 +364,95 @@ func (a *App) ListAttendance(date string) ([]map[string]any, error) {
 	return result, rows.Err()
 }
 
+// CreateManualAttendanceEvent lets an admin (e.g. kashi-admin) record an
+// attendance event directly - device_id 'admin-manual' distinguishes it from
+// device-synced rows (which use the Akuvox IP) and manager-approved requests
+// (which use 'manual'). It syncs to central the same way device events do.
+func (a *App) CreateManualAttendanceEvent(salespersonID int64, eventAt, eventType string) (map[string]any, error) {
+	if a.conn == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	if salespersonID <= 0 {
+		return nil, fmt.Errorf("salesperson is required")
+	}
+	eventType = strings.ToUpper(strings.TrimSpace(eventType))
+	if eventType != "IN" && eventType != "OUT" {
+		return nil, fmt.Errorf("type must be IN or OUT")
+	}
+	parsedAt, err := parseAttendanceTimestamp(eventAt)
+	if err != nil {
+		return nil, err
+	}
+	var name, attendanceUserID string
+	if err := a.conn.QueryRowContext(a.ctx, `SELECT full_name, attendance_user_id FROM salespersons WHERE id = ?`, salespersonID).Scan(&name, &attendanceUserID); err != nil {
+		return nil, fmt.Errorf("salesperson not found: %w", err)
+	}
+	centralURL, err := a.syncCentralAPIURL()
+	if err != nil {
+		return nil, fmt.Errorf("load settings: %w", err)
+	}
+
+	tx, err := a.conn.BeginTx(a.ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	eventID := uuid.NewString()
+	eventDate := parsedAt.Format("2006-01-02")
+	eventTime := parsedAt.Format("15:04:05")
+	eventAtRFC := parsedAt.Format(time.RFC3339)
+	if _, err := tx.ExecContext(a.ctx, `INSERT INTO salesperson_attendance_events
+		(device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status)
+		VALUES ('admin-manual', ?, ?, ?, ?, ?, ?, ?, ?, 'Approved')`,
+		eventID, salespersonID, attendanceUserID, name, eventDate, eventTime, eventAtRFC, eventType); err != nil {
+		return nil, err
+	}
+
+	if centralURL != "" {
+		body, err := json.Marshal(branchAttendanceEventsPayload{Events: []branchAttendanceEvent{{
+			Ref:              "admin-manual|" + eventID,
+			SalespersonName:  name,
+			AttendanceUserID: attendanceUserID,
+			EventDate:        eventDate,
+			EventTime:        eventTime,
+			EventAt:          eventAtRFC,
+			Type:             eventType,
+			Status:           "Approved",
+		}}})
+		if err != nil {
+			return nil, fmt.Errorf("marshal attendance event sync: %w", err)
+		}
+		if err := queueSyncOutboxRaw(a.ctx, tx, "attendance_events", uuid.NewString(), string(body)); err != nil {
+			return nil, fmt.Errorf("queue attendance event sync: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	if centralURL != "" {
+		a.kickSyncWorker()
+	}
+	return map[string]any{"id": eventID, "salespersonId": salespersonID, "employeeName": name, "eventAt": eventAtRFC, "type": eventType}, nil
+}
+
+func parseAttendanceTimestamp(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, fmt.Errorf("timestamp is required")
+	}
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		return parsed, nil
+	}
+	for _, layout := range []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05", "2006-01-02 15:04", "2006-01-02T15:04"} {
+		if parsed, err := time.ParseInLocation(layout, value, time.Local); err == nil {
+			return parsed, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("invalid timestamp %q; use YYYY-MM-DD HH:MM[:SS]", value)
+}
+
 func (a *App) SubmitAttendanceComplaint(employeeID int64, date string, originalEventID int64, requestedTime, requestedType, action, note string) error {
 	action = strings.ToLower(strings.TrimSpace(action))
 	if action != "replace" && action != "delete" {
