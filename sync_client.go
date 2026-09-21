@@ -179,6 +179,71 @@ func (c *centralClient) PostExpense(ctx context.Context, path string, payloadJSO
 	return &out, nil
 }
 
+// branchClientsBatchPayload is the body of POST /branch/clients_batch: the
+// same per-client objects as the single /branch/clients route, wrapped.
+type branchClientsBatchPayload struct {
+	Clients []branchClientPayload `json:"clients"`
+}
+
+// branchClientBatchResult is kashi's verdict on one client of a batch (see
+// branchClientBatchResult in kashi's api/branch_client_batch.go). Status is
+// "ok" (stored/linked, possibly with a staged conflict), "invalid" (kashi
+// will never accept these bytes) or "error" (server-side failure, retry).
+type branchClientBatchResult struct {
+	BranchClientID int64  `json:"branch_client_id"`
+	Status         string `json:"status"`
+	ConflictKind   string `json:"conflict_kind"`
+	Error          string `json:"error"`
+}
+
+// clientsBatchTimeout is longer than the shared 10s client timeout: kashi
+// resolves each client in the batch with a few queries, so a full chunk
+// legitimately takes longer than a single-row POST.
+const clientsBatchTimeout = 60 * time.Second
+
+// PostClientsBatch sends many clients in one round trip and returns kashi's
+// per-client results. A non-nil error means the whole call failed (network,
+// 5xx, or a 4xx such as 404 from a kashi that predates the route) and no
+// client was necessarily stored; the caller decides whether to fall back to
+// per-client POSTs. The batch is idempotent per client, so replaying it after
+// an ambiguous failure is safe.
+func (c *centralClient) PostClientsBatch(ctx context.Context, payload branchClientsBatchPayload) ([]branchClientBatchResult, error) {
+	if !c.enabled() {
+		return nil, errCentralSyncDisabled
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	const path = "/branch/clients_batch"
+	req, err := c.newRequest(ctx, http.MethodPost, path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	httpClient := *c.httpClient
+	httpClient.Timeout = clientsBatchTimeout
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, responseError(http.MethodPost, path, resp)
+	}
+
+	var out struct {
+		Results []branchClientBatchResult `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode clients batch response: %w", err)
+	}
+	return out.Results, nil
+}
+
 // postShiftCloseResponse is kashi's body for POST /branch/shift_closes.
 // UploadToken is empty on the idempotent "already exists" path; the caller
 // then falls back to its own local upload server.

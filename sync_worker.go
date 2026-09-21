@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	db "kashi-pos/db/sqlc"
@@ -183,11 +185,14 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 	// chain of round trips (and, mid-burst, makes every press after the
 	// first wait out the previous one). Grouping here also merges presses
 	// that arrived as separate AdjustVisitorCountToday calls.
-	var visitorEntries, rest []db.SyncOutbox
+	var visitorEntries, clientEntries, rest []db.SyncOutbox
 	for _, entry := range entries {
-		if entry.EntityType == "visitor_event" {
+		switch entry.EntityType {
+		case "visitor_event":
 			visitorEntries = append(visitorEntries, entry)
-		} else {
+		case "client":
+			clientEntries = append(clientEntries, entry)
+		default:
 			rest = append(rest, entry)
 		}
 	}
@@ -195,7 +200,28 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 		changed = true
 	}
 
+	// A lone client row is the live checkout path (a buyer queued right
+	// before their invoice): send it the plain per-row way. Two or more is
+	// a bulk backfill -- one POST for the lot instead of a serial round
+	// trip each (see drainClientBatch). They sort last (priority 2), so
+	// appending keeps the drain order.
+	batchClients := len(clientEntries) >= 2
+	if !batchClients {
+		rest = append(rest, clientEntries...)
+	}
+
+	sent := 0
 	for _, entry := range rest {
+		// A row queued after this pass fetched its list (a fresh sale)
+		// can't be in `rest`; without this a long pass makes it wait out
+		// every remaining row. Bail so the pending kick starts a new
+		// pass, whose fetch puts it first. Always finish one row so a
+		// stale kick can't stall the drain.
+		if sent > 0 && a.pushPreempted() {
+			return nil
+		}
+		sent++
+
 		path, ok := branchInvoicePath(entry.EntityType)
 		if !ok {
 			// A payload shape kashi has no route for is never going to start
@@ -238,7 +264,119 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 		changed = true
 	}
 
+	if batchClients && !(sent > 0 && a.pushPreempted()) {
+		if a.drainClientBatch(ctx, client, clientEntries) {
+			changed = true
+		}
+	}
+
+	// A full page means there is probably more queued behind it (a bulk
+	// backfill); keep draining without waiting for the 5s backstop tick.
+	// The next pass re-fetches from the top, so a sale queued meanwhile
+	// still goes first.
+	if len(entries) == syncWorkerBatchSize && changed {
+		a.kickSyncWorker()
+	}
+
 	return nil
+}
+
+// pushPreempted reports whether a kick is waiting: something was queued
+// after the running push pass began. It only peeks -- the push loop
+// consumes the kick when it starts the next pass. len of a nil channel is 0,
+// so this is false before startSyncWorker has run.
+func (a *App) pushPreempted() bool {
+	return len(a.syncWorkerKick) > 0
+}
+
+// drainClientBatch POSTs the due client rows as one /branch/clients_batch
+// call and settles each row from kashi's per-client result: ok -> synced,
+// invalid -> failed (identical bytes never get accepted), error or no
+// result -> back on the backoff path. It returns whether any row changed
+// state. If kashi has no such route (an older deployment) the rows fall
+// back to the one-at-a-time POST so a mixed rollout never strands them.
+func (a *App) drainClientBatch(ctx context.Context, client *centralClient, entries []db.SyncOutbox) bool {
+	changed := false
+	payload := branchClientsBatchPayload{}
+	send := make([]db.SyncOutbox, 0, len(entries))
+	for _, entry := range entries {
+		var c branchClientPayload
+		if err := json.Unmarshal([]byte(entry.PayloadJson), &c); err != nil {
+			log.Printf("sync outbox entry %d: bad client payload, marking failed: %v", entry.ID, err)
+			a.markSyncOutboxFailed(ctx, entry, err)
+			changed = true
+			continue
+		}
+		payload.Clients = append(payload.Clients, c)
+		send = append(send, entry)
+	}
+	if len(send) == 0 {
+		return changed
+	}
+
+	results, err := client.PostClientsBatch(ctx, payload)
+	if err != nil {
+		var perm *permanentError
+		if errors.As(err, &perm) && (perm.status == http.StatusNotFound || perm.status == http.StatusMethodNotAllowed) {
+			log.Printf("sync clients batch: kashi has no clients_batch route (%v), sending one by one", err)
+			return a.drainClientsOneByOne(ctx, client, send) || changed
+		}
+		for _, entry := range send {
+			// A 4xx on the whole envelope must not park every row as
+			// 'failed': the fault is the batch, not each client. Retry.
+			a.markSyncOutboxRetry(ctx, entry, err)
+		}
+		return true
+	}
+
+	byID := make(map[int64]branchClientBatchResult, len(results))
+	for _, r := range results {
+		byID[r.BranchClientID] = r
+	}
+	for i, entry := range send {
+		res, ok := byID[payload.Clients[i].BranchClientID]
+		switch {
+		case !ok:
+			a.markSyncOutboxRetry(ctx, entry, fmt.Errorf("clients batch: no result for client %d", payload.Clients[i].BranchClientID))
+		case res.Status == "ok":
+			a.markOutboxSynced(ctx, client, entry)
+		case res.Status == "invalid":
+			log.Printf("sync outbox entry %d: kashi rejected client (permanent, marking failed): %s", entry.ID, res.Error)
+			a.markSyncOutboxFailed(ctx, entry, errors.New(res.Error))
+		default:
+			a.markSyncOutboxRetry(ctx, entry, fmt.Errorf("clients batch: %s", res.Error))
+		}
+	}
+	return true
+}
+
+// drainClientsOneByOne is the pre-batch path for client rows, kept as the
+// fallback for a kashi without /branch/clients_batch.
+func (a *App) drainClientsOneByOne(ctx context.Context, client *centralClient, entries []db.SyncOutbox) bool {
+	path, _ := branchInvoicePath("client")
+	for i, entry := range entries {
+		if i > 0 && a.pushPreempted() {
+			break
+		}
+		if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
+			a.recordSyncOutboxError(ctx, entry, err)
+			continue
+		}
+		a.markOutboxSynced(ctx, client, entry)
+	}
+	return true
+}
+
+// markOutboxSynced stamps a row synced against the server it went to.
+func (a *App) markOutboxSynced(ctx context.Context, client *centralClient, entry db.SyncOutbox) {
+	if err := retryBusy(func() error {
+		return a.store.MarkSyncOutboxSynced(ctx, db.MarkSyncOutboxSyncedParams{
+			SyncedTo: client.baseURL,
+			ID:       entry.ID,
+		})
+	}); err != nil {
+		log.Printf("sync outbox entry %d: mark synced: %v", entry.ID, err)
+	}
 }
 
 // drainVisitorEventBatch POSTs every due visitor_event row as one

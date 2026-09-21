@@ -24,6 +24,10 @@ type fakeCentral struct {
 	loanRefs       map[string]int
 	visitorRefs    map[string]int
 	productReports int
+	// clientBatchCalls counts /branch/clients_batch requests; clientBatchGone
+	// makes that route 404 like a kashi that predates it.
+	clientBatchCalls int
+	clientBatchGone  bool
 }
 
 func newFakeCentral() *fakeCentral {
@@ -53,6 +57,25 @@ func (f *fakeCentral) handler() http.Handler {
 				f.clientRefs[strconv.FormatInt(int64(id), 10)]++
 			}
 			w.Write([]byte(`{"client":{}}`))
+		case r.URL.Path == "/branch/clients_batch":
+			if f.clientBatchGone {
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`{"error":"not found"}`))
+				return
+			}
+			f.clientBatchCalls++
+			var req struct {
+				Clients []struct {
+					BranchClientID int64 `json:"branch_client_id"`
+				} `json:"clients"`
+			}
+			json.Unmarshal(body, &req)
+			results := make([]map[string]any, 0, len(req.Clients))
+			for _, c := range req.Clients {
+				f.clientRefs[strconv.FormatInt(c.BranchClientID, 10)]++
+				results = append(results, map[string]any{"branch_client_id": c.BranchClientID, "status": "ok"})
+			}
+			json.NewEncoder(w).Encode(map[string]any{"results": results})
 		case r.URL.Path == "/branch/expenses":
 			var p map[string]any
 			json.Unmarshal(body, &p)
