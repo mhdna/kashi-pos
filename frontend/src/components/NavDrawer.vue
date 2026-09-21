@@ -4,7 +4,7 @@
       <v-list-item
         v-for="item in items"
         :key="item.value"
-        :class="['nav-item', { 'py-2': item.value === 'invoice' }]"
+        :class="['nav-item', { 'py-2': item.value === 'invoice', 'nav-item-alert': item.alert }]"
         :disabled="item.locked"
         :value="item.action ? undefined : item.value"
         :active="item.to ? route.path === item.to : item.action ? false : undefined"
@@ -159,6 +159,7 @@ import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import { useSyncStatus } from "@/composables/useSyncStatus";
+import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { Quit } from "../../wailsjs/runtime/runtime";
 
 const auth = useAuthStore();
@@ -180,6 +181,8 @@ const syncDot = computed(() => {
     return { color: 'warning', title: `${st.pending + st.confirmedElsewhere} record(s) not yet confirmed here` };
   return { color: 'success', title: 'Fully synced with kashi' };
 });
+const { status: attendanceStatus } = useAttendanceStatus();
+
 function openSyncSettings() {
   router.push({ path: '/settings', query: { panel: 'general-sync' } });
 }
@@ -273,6 +276,7 @@ const items = computed(() => {
       icon: "mdi-account-clock",
       t: "Attend",
       locked: !auth.isAdmin && !pageUnlocks.value.attendance,
+      alert: !attendanceStatus.value.reachable,
     },
     { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
   ];
@@ -313,6 +317,10 @@ const items = computed(() => {
 .nav-item :deep(.v-badge) {
   flex-shrink: 0;
   transform: translateZ(0);
+}
+
+.nav-item-alert {
+  background-color: #c62828;
 }
 
 .nav-item-label {
