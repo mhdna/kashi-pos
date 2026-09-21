@@ -198,6 +198,67 @@ func TestIncomeViewsUseIdenticalMixedCurrencyAccountTotals(t *testing.T) {
 	}
 }
 
+// A "calculate on checkout" coupon type is settled later by whoever issued
+// it (e.g. a supplier reimbursement), not collected by the branch when the
+// coupon is redeemed - so its payment amount must not inflate the shift's
+// net sales even though it's part of the invoice's grand_total.
+func TestNetSalesExcludesCalculateOnCheckoutCouponPayments(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t)
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
+		t.Fatal(err)
+	}
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cashbox, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := store.CreateInventory(ctx, "Sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deferredType, err := store.CreateCouponType(ctx, db.CreateCouponTypeParams{
+		Name: "Supplier Reimbursed", ValueCents: 2000, CurrencyCode: "USD", IsActive: 1, CalculateOnCheckout: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	invoice, err := store.CreateInvoice(ctx, db.CreateInvoiceParams{
+		CashboxID: cashbox.ID, ShiftID: shift.ID, InvoiceCode: "SA/CN/2026/00099",
+		InvoiceIndex: 1, Year: 2026, ClientID: client.ID, InventoryID: inventory.ID,
+		GrandTotal: 5000, DiscountedTotal: 5000, Subtotal: 5000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateInvoiceCouponPayment(ctx, db.CreateInvoiceCouponPaymentParams{
+		InvoiceID: invoice.ID, CouponCode: "SUP-20", CouponTypeID: deferredType.ID, Amount: 2000,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	summary, err := store.GetShiftReportSummary(ctx, shift.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.NetSales != 3000 {
+		t.Fatalf("net sales = %d, want 5000 grand total minus 2000 deferred coupon = 3000", summary.NetSales)
+	}
+}
+
 func incomeRowsByAccount(rows []map[string]any, amountKey string) map[string]int64 {
 	result := make(map[string]int64, len(rows))
 	for _, row := range rows {

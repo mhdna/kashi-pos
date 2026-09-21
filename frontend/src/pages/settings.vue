@@ -765,9 +765,16 @@
               <div class="d-flex align-center ga-4 mb-2">
                 <v-checkbox v-model="couponTypeForm.referenceOnly" density="compact" hide-details label="Reference-only" />
                 <v-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details label="Active" />
+                <v-checkbox
+                  v-model="couponTypeForm.calculateOnCheckout"
+                  density="compact"
+                  hide-details
+                  label="Calculate on checkout"
+                  title="Excludes this coupon type's payments from the shift's net sales - use when the coupon is settled later (e.g. reimbursed by the issuer) instead of collected by the branch now"
+                />
               </div>
               <v-list density="compact" bg-color="transparent">
-                <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.referenceOnly ? ' · Reference-only' : ''}`">
+                <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.referenceOnly ? ' · Reference-only' : ''}${couponType.calculateOnCheckout ? ' · Calculate on checkout' : ''}`">
                   <template #append>
                     <v-btn icon="mdi-pencil-outline" variant="text" density="compact" title="Edit coupon type" @click="editCouponType(couponType)" />
                     <v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon type" @click="removeCouponType(couponType)" />
@@ -2084,7 +2091,7 @@ const branchTargets = ref<
 const saving = ref(false);
 const couponTypes = ref<any[]>([]);
 const coupons = ref<any[]>([]);
-const couponTypeForm = reactive({ name: "", value: 50, currency: "USD", referenceOnly: false, isActive: true });
+const couponTypeForm = reactive({ name: "", value: 50, currency: "USD", referenceOnly: false, isActive: true, calculateOnCheckout: false });
 const editingCouponTypeId = ref<number | null>(null);
 const couponTypeSaving = ref(false);
 const couponCodeForm = ref("");
@@ -2186,6 +2193,7 @@ function editCouponType(couponType: any) {
   couponTypeForm.currency = couponType.currencyCode || "USD";
   couponTypeForm.referenceOnly = Boolean(couponType.referenceOnly);
   couponTypeForm.isActive = Number(couponType.isActive) !== 0;
+  couponTypeForm.calculateOnCheckout = Boolean(couponType.calculateOnCheckout);
 }
 
 function cancelCouponTypeEdit() {
@@ -2195,6 +2203,7 @@ function cancelCouponTypeEdit() {
   couponTypeForm.currency = "USD";
   couponTypeForm.referenceOnly = false;
   couponTypeForm.isActive = true;
+  couponTypeForm.calculateOnCheckout = false;
 }
 
 async function saveCouponType() {
@@ -2203,9 +2212,9 @@ async function saveCouponType() {
   try {
     const valueCents = Math.round(Number(couponTypeForm.value) * 100);
     if (editingCouponTypeId.value) {
-      await UpdateCouponType(editingCouponTypeId.value, couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.isActive, couponTypeForm.referenceOnly);
+      await UpdateCouponType(editingCouponTypeId.value, couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.isActive, couponTypeForm.referenceOnly, couponTypeForm.calculateOnCheckout);
     } else {
-      await CreateCouponType(couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.referenceOnly);
+      await CreateCouponType(couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.referenceOnly, couponTypeForm.calculateOnCheckout);
     }
     const wasEditing = Boolean(editingCouponTypeId.value);
     cancelCouponTypeEdit();

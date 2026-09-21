@@ -46,7 +46,7 @@ export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any
 
 export function CreateCoupon(arg1:string,arg2:number,arg3:number):Promise<Record<string, any>>;
 
-export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<Record<string, any>>;
+export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolean,arg5:boolean):Promise<Record<string, any>>;
 
 export function CreateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
 
@@ -324,7 +324,7 @@ export function UpdateCentralAPIURL(arg1:string):Promise<void>;
 
 export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
 
-export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean):Promise<void>;
+export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean,arg7:boolean):Promise<void>;
 
 export function UpdateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
 

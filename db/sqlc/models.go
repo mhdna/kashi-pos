@@ -171,12 +171,13 @@ type Coupon struct {
 }
 
 type CouponType struct {
-	ID            int64  `json:"id"`
-	Name          string `json:"name"`
-	ValueCents    int64  `json:"valueCents"`
-	CurrencyCode  string `json:"currencyCode"`
-	IsActive      int64  `json:"isActive"`
-	ReferenceOnly int64  `json:"referenceOnly"`
+	ID                  int64  `json:"id"`
+	Name                string `json:"name"`
+	ValueCents          int64  `json:"valueCents"`
+	CurrencyCode        string `json:"currencyCode"`
+	IsActive            int64  `json:"isActive"`
+	ReferenceOnly       int64  `json:"referenceOnly"`
+	CalculateOnCheckout int64  `json:"calculateOnCheckout"`
 }
 
 type Currency struct {

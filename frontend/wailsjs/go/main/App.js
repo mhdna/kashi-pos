@@ -90,8 +90,8 @@ export function CreateCoupon(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateCoupon'](arg1, arg2, arg3);
 }
 
-export function CreateCouponType(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3, arg4);
+export function CreateCouponType(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function CreateCurrency(arg1, arg2, arg3, arg4, arg5) {
@@ -646,8 +646,8 @@ export function UpdateClient(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateClient'](arg1, arg2, arg3);
 }
 
-export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6) {
-  return window['go']['main']['App']['UpdateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6);
+export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['UpdateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
 export function UpdateCurrency(arg1, arg2, arg3, arg4, arg5) {

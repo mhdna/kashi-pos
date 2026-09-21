@@ -179,12 +179,12 @@ UPDATE client_account_entries SET client_id = ? WHERE invoice_id = ?;
 UPDATE client_account_entries SET amount = ? WHERE invoice_id = ?;
 
 -- name: CreateCouponType :one
-INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only)
-VALUES (?, ?, ?, ?, ?) RETURNING *;
+INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout)
+VALUES (?, ?, ?, ?, ?, ?) RETURNING *;
 
 -- name: UpdateCouponType :exec
 UPDATE coupon_types
-SET name = ?, value_cents = ?, currency_code = ?, is_active = ?, reference_only = ?
+SET name = ?, value_cents = ?, currency_code = ?, is_active = ?, reference_only = ?, calculate_on_checkout = ?
 WHERE id = ?;
 
 -- name: ListCouponTypes :many
