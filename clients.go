@@ -151,21 +151,40 @@ func (a *App) UpdateClient(clientID int64, name, phone string) (map[string]any, 
 	return clientResponse(updated), nil
 }
 
-func (a *App) DeleteClient(clientID int64) error {
-	if a.store == nil {
-		return fmt.Errorf("database not initialized")
+// DeleteClient removes a client in standalone mode -- or deactivates it
+// when any invoice, coupon or account entry refers to it -- and returns
+// "deleted" or "deactivated". While connected to kashi, clients are
+// deactivated centrally and this is refused (see standalone.go).
+func (a *App) DeleteClient(clientID int64) (string, error) {
+	if err := a.requireStandalone(); err != nil {
+		return "", err
 	}
 	if clientID <= 0 {
-		return fmt.Errorf("invalid client")
+		return "", fmt.Errorf("invalid client")
 	}
 	existing, err := a.store.GetClientByID(a.ctx, clientID)
 	if err != nil {
-		return fmt.Errorf("client not found")
+		return "", fmt.Errorf("client not found")
 	}
 	if isWalkInClient(existing) {
-		return fmt.Errorf("the walk-in customer cannot be deleted")
+		return "", fmt.Errorf("the walk-in customer cannot be deleted")
 	}
-	return a.store.DeleteClient(a.ctx, clientID)
+	outcome := "deleted"
+	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		referenced, err := q.ClientIsReferenced(a.ctx, clientID)
+		if err != nil {
+			return err
+		}
+		if referenced != 0 {
+			outcome = "deactivated"
+			return q.SetClientActive(a.ctx, db.SetClientActiveParams{IsActive: 0, ID: clientID})
+		}
+		return q.DeleteClient(a.ctx, clientID)
+	})
+	if err != nil {
+		return "", err
+	}
+	return outcome, nil
 }
 
 // walkInClientPhone is the sentinel phone of the seeded "Walk-in" pseudo-client
@@ -244,5 +263,6 @@ func clientResponse(client db.Client) map[string]any {
 		"phone":              client.Phone,
 		"totalLoyaltyPoints": client.TotalLoyaltyPoints,
 		"validLoyaltyPoints": client.ValidLoyaltyPoints,
+		"isActive":           client.IsActive != 0,
 	}
 }

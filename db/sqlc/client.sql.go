@@ -39,6 +39,23 @@ func (q *Queries) ClientHasInvoice(ctx context.Context, clientID int64) (int64, 
 	return column_1, err
 }
 
+const clientIsReferenced = `-- name: ClientIsReferenced :one
+SELECT CAST(EXISTS (
+    SELECT 1 FROM invoices i WHERE i.client_id = ?1
+    UNION ALL SELECT 1 FROM coupons co WHERE co.client_id = ?1
+    UNION ALL SELECT 1 FROM client_account_entries cae WHERE cae.client_id = ?1
+) AS INTEGER) AS referenced
+`
+
+// Anything that makes a client part of history: invoices, coupons, account
+// entries. Such a client is deactivated, never deleted.
+func (q *Queries) ClientIsReferenced(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, clientIsReferenced, id)
+	var referenced int64
+	err := row.Scan(&referenced)
+	return referenced, err
+}
+
 const countClients = `-- name: CountClients :one
 SELECT COUNT(*) FROM clients
 `
@@ -757,7 +774,7 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 const listClientsAfter = `-- name: ListClientsAfter :many
 WITH selected_clients AS (
     SELECT c.id, c.name, c.phone, c.total_loyalty_points,
-           c.valid_loyalty_points, c.created_at
+           c.valid_loyalty_points, c.created_at, c.is_active
     FROM clients c
     WHERE c.id > ?1
       AND (
@@ -768,7 +785,7 @@ WITH selected_clients AS (
     LIMIT ?3
 )
 SELECT c.id, c.name, c.phone, c.total_loyalty_points,
-       c.valid_loyalty_points, c.created_at,
+       c.valid_loyalty_points, c.created_at, c.is_active,
        CAST(COALESCE(SUM(cae.amount - COALESCE((
            SELECT SUM(cap.amount)
            FROM client_account_payments cap
@@ -793,6 +810,7 @@ type ListClientsAfterRow struct {
 	TotalLoyaltyPoints int64  `json:"totalLoyaltyPoints"`
 	ValidLoyaltyPoints int64  `json:"validLoyaltyPoints"`
 	CreatedAt          string `json:"createdAt"`
+	IsActive           int64  `json:"isActive"`
 	AccountBalance     int64  `json:"accountBalance"`
 }
 
@@ -812,6 +830,7 @@ func (q *Queries) ListClientsAfter(ctx context.Context, arg ListClientsAfterPara
 			&i.TotalLoyaltyPoints,
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
+			&i.IsActive,
 			&i.AccountBalance,
 		); err != nil {
 			return nil, err
@@ -830,14 +849,14 @@ func (q *Queries) ListClientsAfter(ctx context.Context, arg ListClientsAfterPara
 const listClientsAfterUnfiltered = `-- name: ListClientsAfterUnfiltered :many
 WITH selected_clients AS (
     SELECT c.id, c.name, c.phone, c.total_loyalty_points,
-           c.valid_loyalty_points, c.created_at
+           c.valid_loyalty_points, c.created_at, c.is_active
     FROM clients c
     WHERE c.id > ?1
     ORDER BY c.id
     LIMIT ?2
 )
 SELECT c.id, c.name, c.phone, c.total_loyalty_points,
-       c.valid_loyalty_points, c.created_at,
+       c.valid_loyalty_points, c.created_at, c.is_active,
        CAST(COALESCE(SUM(cae.amount - COALESCE((
            SELECT SUM(cap.amount)
            FROM client_account_payments cap
@@ -861,6 +880,7 @@ type ListClientsAfterUnfilteredRow struct {
 	TotalLoyaltyPoints int64  `json:"totalLoyaltyPoints"`
 	ValidLoyaltyPoints int64  `json:"validLoyaltyPoints"`
 	CreatedAt          string `json:"createdAt"`
+	IsActive           int64  `json:"isActive"`
 	AccountBalance     int64  `json:"accountBalance"`
 }
 
@@ -880,6 +900,7 @@ func (q *Queries) ListClientsAfterUnfiltered(ctx context.Context, arg ListClient
 			&i.TotalLoyaltyPoints,
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
+			&i.IsActive,
 			&i.AccountBalance,
 		); err != nil {
 			return nil, err

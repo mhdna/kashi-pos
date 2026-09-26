@@ -119,6 +119,7 @@ func (a *App) ListClientsCursor(afterID int64, limit int, search string) (Client
 			"validLoyaltyPoints": row.ValidLoyaltyPoints,
 			"createdAt":          row.CreatedAt,
 			"accountBalance":     row.AccountBalance,
+			"isActive":           row.IsActive != 0,
 		}
 	}
 	nextCursor := afterID

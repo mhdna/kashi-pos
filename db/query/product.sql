@@ -135,3 +135,41 @@ SELECT id, uid, remote_updated_at, is_active FROM products WHERE uid IS NOT NULL
 
 -- name: DeactivateProductsByIDs :exec
 UPDATE products SET is_active = 0 WHERE id IN (sqlc.slice('ids'));
+
+-- name: ProductIsReferenced :one
+-- History that must keep resolving to this product: sold/returned lines,
+-- held invoices, transfers, or stock on hand. Such a product is deactivated,
+-- never deleted.
+SELECT CAST(EXISTS (
+    SELECT 1 FROM invoice_products ip WHERE ip.product_id = sqlc.arg(id)
+    UNION ALL SELECT 1 FROM hold_invoice_items hi WHERE hi.product_id = sqlc.arg(id)
+    UNION ALL SELECT 1 FROM transfer_items ti WHERE ti.product_id = sqlc.arg(id)
+    UNION ALL SELECT 1 FROM inventory_items ii WHERE ii.product_id = sqlc.arg(id) AND ii.quantity != 0
+) AS INTEGER) AS referenced;
+
+-- name: DeleteProductOwnedRows :exec
+-- Rows that only describe the product (not history), removed with it.
+DELETE FROM products_attributes WHERE product_id = sqlc.arg(id);
+
+-- name: DeleteProductInventoryRows :exec
+DELETE FROM inventory_items WHERE product_id = sqlc.arg(id) AND quantity = 0;
+
+-- name: DeleteProductQuickAccess :exec
+DELETE FROM quick_access_items WHERE product_id = sqlc.arg(id);
+
+-- name: DeleteProductOverrides :exec
+DELETE FROM price_overrides WHERE product_id = sqlc.arg(id);
+
+-- name: DeleteProductDiscountOverrides :exec
+DELETE FROM discount_overrides WHERE product_id = sqlc.arg(id);
+
+-- name: SetProductActive :exec
+UPDATE products SET is_active = ? WHERE id = ?;
+
+-- name: ListProductsForManagement :many
+-- Standalone product screen: every product, active or not, paged by id.
+SELECT * FROM products
+WHERE id > sqlc.arg(after_id)
+  AND (sqlc.arg(search) = '' OR (name || ' ' || code || ' ' || barcode) LIKE '%' || sqlc.arg(search) || '%')
+ORDER BY id
+LIMIT sqlc.arg(limit);

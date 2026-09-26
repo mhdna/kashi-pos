@@ -116,7 +116,7 @@
         />
       </div>
 
-      <v-card-text class="options-grid options-grid--three px-4 pt-0 pb-4">
+      <v-card-text class="options-grid px-4 pt-0 pb-4">
         <v-card
           class="option-card"
           :disabled="!auth.isAdmin && !pageUnlocks.inventory"
@@ -126,6 +126,16 @@
         >
           <v-icon icon="mdi-package-variant-closed" size="44" />
           <span>Inventory</span>
+        </v-card>
+        <v-card
+          class="option-card"
+          :disabled="!auth.isAdmin && !pageUnlocks.inventory"
+          rounded="lg"
+          variant="tonal"
+          @click="openProducts"
+        >
+          <v-icon icon="mdi-tag-multiple-outline" size="44" />
+          <span>Products</span>
         </v-card>
         <v-card
           class="option-card"
@@ -228,6 +238,12 @@ function openInventoryPage() {
   if (!auth.isAdmin && !pageUnlocks.value.inventory) return;
   inventoryOpen.value = false;
   void router.push("/inventory");
+}
+
+function openProducts() {
+  if (!auth.isAdmin && !pageUnlocks.value.inventory) return;
+  inventoryOpen.value = false;
+  void router.push("/products");
 }
 
 function openTransfers() {

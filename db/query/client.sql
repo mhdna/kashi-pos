@@ -23,7 +23,7 @@ SELECT COUNT(*) FROM clients;
 -- name: ListClientsAfter :many
 WITH selected_clients AS (
     SELECT c.id, c.name, c.phone, c.total_loyalty_points,
-           c.valid_loyalty_points, c.created_at
+           c.valid_loyalty_points, c.created_at, c.is_active
     FROM clients c
     WHERE c.id > sqlc.arg(after_id)
       AND (
@@ -34,7 +34,7 @@ WITH selected_clients AS (
     LIMIT sqlc.arg(limit)
 )
 SELECT c.id, c.name, c.phone, c.total_loyalty_points,
-       c.valid_loyalty_points, c.created_at,
+       c.valid_loyalty_points, c.created_at, c.is_active,
        CAST(COALESCE(SUM(cae.amount - COALESCE((
            SELECT SUM(cap.amount)
            FROM client_account_payments cap
@@ -48,14 +48,14 @@ ORDER BY c.id;
 -- name: ListClientsAfterUnfiltered :many
 WITH selected_clients AS (
     SELECT c.id, c.name, c.phone, c.total_loyalty_points,
-           c.valid_loyalty_points, c.created_at
+           c.valid_loyalty_points, c.created_at, c.is_active
     FROM clients c
     WHERE c.id > sqlc.arg(after_id)
     ORDER BY c.id
     LIMIT sqlc.arg(limit)
 )
 SELECT c.id, c.name, c.phone, c.total_loyalty_points,
-       c.valid_loyalty_points, c.created_at,
+       c.valid_loyalty_points, c.created_at, c.is_active,
        CAST(COALESCE(SUM(cae.amount - COALESCE((
            SELECT SUM(cap.amount)
            FROM client_account_payments cap
@@ -251,3 +251,12 @@ UPDATE clients SET remote_updated_at = ? WHERE id = ?;
 -- Completeness check: every local client's uid and the kashi version last
 -- applied to it.
 SELECT id, uid, remote_updated_at FROM clients WHERE uid IS NOT NULL;
+
+-- name: ClientIsReferenced :one
+-- Anything that makes a client part of history: invoices, coupons, account
+-- entries. Such a client is deactivated, never deleted.
+SELECT CAST(EXISTS (
+    SELECT 1 FROM invoices i WHERE i.client_id = sqlc.arg(id)
+    UNION ALL SELECT 1 FROM coupons co WHERE co.client_id = sqlc.arg(id)
+    UNION ALL SELECT 1 FROM client_account_entries cae WHERE cae.client_id = sqlc.arg(id)
+) AS INTEGER) AS referenced;

@@ -23,6 +23,9 @@ type Querier interface {
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
 	ClearSyncCursors(ctx context.Context) error
 	ClientHasInvoice(ctx context.Context, clientID int64) (int64, error)
+	// Anything that makes a client part of history: invoices, coupons, account
+	// entries. Such a client is deactivated, never deleted.
+	ClientIsReferenced(ctx context.Context, id int64) (int64, error)
 	CloseOpenShifts(ctx context.Context, closedAt string) error
 	CloseShift(ctx context.Context, arg CloseShiftParams) (int64, error)
 	CloseStaleOpenShifts(ctx context.Context, closedAt string) error
@@ -113,6 +116,12 @@ type Querier interface {
 	DeletePriceListItem(ctx context.Context, id int64) error
 	DeletePriceOverride(ctx context.Context, id int64) error
 	DeleteProduct(ctx context.Context, id int64) error
+	DeleteProductDiscountOverrides(ctx context.Context, id sql.NullInt64) error
+	DeleteProductInventoryRows(ctx context.Context, id int64) error
+	DeleteProductOverrides(ctx context.Context, id sql.NullInt64) error
+	// Rows that only describe the product (not history), removed with it.
+	DeleteProductOwnedRows(ctx context.Context, id int64) error
+	DeleteProductQuickAccess(ctx context.Context, id int64) error
 	DeleteRole(ctx context.Context, id int64) error
 	DeleteRolePermissions(ctx context.Context, roleID int64) error
 	DeleteSalesInvoice(ctx context.Context, invoiceID int64) error
@@ -342,6 +351,8 @@ type Querier interface {
 	ListProductsAfter(ctx context.Context, arg ListProductsAfterParams) ([]Product, error)
 	ListProductsAfterUnfiltered(ctx context.Context, arg ListProductsAfterUnfilteredParams) ([]Product, error)
 	ListProductsByIDs(ctx context.Context, ids []int64) ([]Product, error)
+	// Standalone product screen: every product, active or not, paged by id.
+	ListProductsForManagement(ctx context.Context, arg ListProductsForManagementParams) ([]Product, error)
 	// search_pattern must already be wrapped in '%...%' by the caller.
 	ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error)
 	ListProductsPageUnfiltered(ctx context.Context, arg ListProductsPageUnfilteredParams) ([]Product, error)
@@ -384,6 +395,10 @@ type Querier interface {
 	// Used by the hybrid close path: when the POS pushes a shift close directly
 	// (to get an upload token back) the queued outbox row is now redundant.
 	MarkSyncOutboxSyncedByClientRef(ctx context.Context, arg MarkSyncOutboxSyncedByClientRefParams) error
+	// History that must keep resolving to this product: sold/returned lines,
+	// held invoices, transfers, or stock on hand. Such a product is deactivated,
+	// never deleted.
+	ProductIsReferenced(ctx context.Context, id int64) (int64, error)
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
@@ -414,6 +429,7 @@ type Querier interface {
 	SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
 	SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error)
+	SetProductActive(ctx context.Context, arg SetProductActiveParams) error
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
 	// Frees a barcode held by a stale local-only product so kashi's product
 	// with that barcode can take it; the stale row keeps its history.

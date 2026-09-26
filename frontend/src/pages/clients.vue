@@ -32,6 +32,9 @@
                 >
                   {{ loyaltyTier(Number(client.totalLoyaltyPoints ?? 0)) }}
                 </v-chip>
+                <v-chip v-if="client.isActive === false" size="x-small" variant="tonal">
+                  Inactive
+                </v-chip>
                 <v-chip
                   v-if="Number(client.accountBalance) > 0"
                   color="orange-darken-2"
@@ -205,8 +208,19 @@
         <v-text-field v-model="editForm.phone" placeholder="Phone" variant="outlined" />
       </v-card-text>
       <v-card-actions>
-        <v-btn v-if="auth.isAdmin" color="error" variant="text" @click="openDeleteFromEdit"
+        <v-btn
+          v-if="auth.isAdmin && standalone && editTarget?.isActive !== false"
+          color="error"
+          variant="text"
+          @click="openDeleteFromEdit"
           >Delete</v-btn
+        >
+        <v-btn
+          v-if="auth.isAdmin && standalone && editTarget?.isActive === false"
+          variant="text"
+          :loading="reactivating"
+          @click="reactivateSelected"
+          >Reactivate</v-btn
         >
         <v-spacer />
         <v-btn variant="text" @click="editOpen = false">Cancel</v-btn>
@@ -225,8 +239,9 @@
     <v-card>
       <v-card-title>Delete client?</v-card-title>
       <v-card-text
-        >This will delete {{ deleteTarget?.name || "this client" }}. Clients linked to invoices
-        cannot be deleted.</v-card-text
+        >This will delete {{ deleteTarget?.name || "this client" }}. A client with invoices,
+        coupons or an account balance is deactivated instead, so their history stays
+        intact.</v-card-text
       >
       <v-card-actions>
         <v-spacer />
@@ -244,6 +259,8 @@ import { computed, ref, onBeforeUnmount, onMounted, watch, reactive } from "vue"
 import {
   DeleteClient,
   GetAppSettings,
+  IsStandaloneMode,
+  SetClientActive,
   GetClientAccountDetails,
   ListClientsCursor,
   ListPaymentMethods,
@@ -276,6 +293,7 @@ type ClientItem = {
   validLoyaltyPoints: number;
   createdAt: string;
   accountBalance: number;
+  isActive?: boolean;
 };
 
 const batchSize = 20;
@@ -291,6 +309,13 @@ const editOpen = ref(false);
 const deleteOpen = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
+const reactivating = ref(false);
+// Client removal/reactivation is only possible in standalone mode; while
+// connected, kashi owns it (see standalone.go).
+const standalone = ref(false);
+IsStandaloneMode()
+  .then((value) => (standalone.value = value))
+  .catch(() => (standalone.value = false));
 const editTarget = ref<any>(null);
 const deleteTarget = ref<any>(null);
 const editForm = reactive({ name: "", phone: "" });
@@ -431,17 +456,41 @@ async function deleteSelected() {
   if (!auth.isAdmin || !deleteTarget.value) return;
   deleting.value = true;
   try {
-    await DeleteClient(deleteTarget.value.id);
+    const outcome = await DeleteClient(deleteTarget.value.id);
     deleteOpen.value = false;
-    clients.value = clients.value.filter((client) => client.id !== deleteTarget.value.id);
-    if (hasMore.value) void loadMore();
-    snackbar.text = "Client deleted";
+    if (outcome === "deactivated") {
+      const loadedClient = clients.value.find((client) => client.id === deleteTarget.value.id);
+      if (loadedClient) loadedClient.isActive = false;
+      snackbar.text = "Client has history, so it was deactivated instead";
+    } else {
+      clients.value = clients.value.filter((client) => client.id !== deleteTarget.value.id);
+      if (hasMore.value) void loadMore();
+      snackbar.text = "Client deleted";
+    }
     snackbar.show = true;
   } catch (e: any) {
     snackbar.text = e?.toString() || "Could not delete client";
     snackbar.show = true;
   } finally {
     deleting.value = false;
+  }
+}
+
+async function reactivateSelected() {
+  if (!auth.isAdmin || !editTarget.value) return;
+  reactivating.value = true;
+  try {
+    await SetClientActive(editTarget.value.id, true);
+    const loadedClient = clients.value.find((client) => client.id === editTarget.value.id);
+    if (loadedClient) loadedClient.isActive = true;
+    editTarget.value.isActive = true;
+    snackbar.text = "Client reactivated";
+    snackbar.show = true;
+  } catch (e: any) {
+    snackbar.text = e?.toString() || "Could not reactivate client";
+    snackbar.show = true;
+  } finally {
+    reactivating.value = false;
   }
 }
 

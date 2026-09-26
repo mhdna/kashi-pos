@@ -167,6 +167,22 @@ export namespace main {
 		}
 	}
 	
+	export class ManagedProductPage {
+	    items: any[];
+	    nextCursor: number;
+	    hasMore: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ManagedProductPage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = source["items"];
+	        this.nextCursor = source["nextCursor"];
+	        this.hasMore = source["hasMore"];
+	    }
+	}
 	export class PaymentStatus {
 	    grandTotalCents: number;
 	    paidCents: number;
@@ -219,6 +235,34 @@ export namespace main {
 	        this.nextCursor = source["nextCursor"];
 	        this.hasMore = source["hasMore"];
 	        this.total = source["total"];
+	    }
+	}
+	export class ProductInput {
+	    barcode: string;
+	    code: string;
+	    name: string;
+	    description: string;
+	    priceCents: number;
+	    discount: number;
+	    color: string;
+	    size: string;
+	    isActive: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProductInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.barcode = source["barcode"];
+	        this.code = source["code"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.priceCents = source["priceCents"];
+	        this.discount = source["discount"];
+	        this.color = source["color"];
+	        this.size = source["size"];
+	        this.isActive = source["isActive"];
 	    }
 	}
 	export class ProductPage {

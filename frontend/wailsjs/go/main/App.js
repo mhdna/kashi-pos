@@ -122,6 +122,10 @@ export function CreatePriceList(arg1) {
   return window['go']['main']['App']['CreatePriceList'](arg1);
 }
 
+export function CreateProduct(arg1) {
+  return window['go']['main']['App']['CreateProduct'](arg1);
+}
+
 export function CreateSalesperson(arg1) {
   return window['go']['main']['App']['CreateSalesperson'](arg1);
 }
@@ -148,6 +152,10 @@ export function DeleteHoldInvoice(arg1) {
 
 export function DeleteInvoice(arg1) {
   return window['go']['main']['App']['DeleteInvoice'](arg1);
+}
+
+export function DeleteProduct(arg1) {
+  return window['go']['main']['App']['DeleteProduct'](arg1);
 }
 
 export function DeleteSalesperson(arg1) {
@@ -294,6 +302,10 @@ export function HoldInvoice(arg1) {
   return window['go']['main']['App']['HoldInvoice'](arg1);
 }
 
+export function IsStandaloneMode() {
+  return window['go']['main']['App']['IsStandaloneMode']();
+}
+
 export function ListAttendance(arg1) {
   return window['go']['main']['App']['ListAttendance'](arg1);
 }
@@ -364,6 +376,10 @@ export function ListLoanCategories() {
 
 export function ListLoans(arg1, arg2) {
   return window['go']['main']['App']['ListLoans'](arg1, arg2);
+}
+
+export function ListManagedProducts(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListManagedProducts'](arg1, arg2, arg3);
 }
 
 export function ListPageUnlocks() {
@@ -530,6 +546,10 @@ export function SetCashierPIN(arg1) {
   return window['go']['main']['App']['SetCashierPIN'](arg1);
 }
 
+export function SetClientActive(arg1, arg2) {
+  return window['go']['main']['App']['SetClientActive'](arg1, arg2);
+}
+
 export function SetClientRequired(arg1) {
   return window['go']['main']['App']['SetClientRequired'](arg1);
 }
@@ -600,6 +620,10 @@ export function SetPriceListActive(arg1, arg2) {
 
 export function SetPriceListItem(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetPriceListItem'](arg1, arg2, arg3);
+}
+
+export function SetProductActive(arg1, arg2) {
+  return window['go']['main']['App']['SetProductActive'](arg1, arg2);
 }
 
 export function SetProductSearchEnabled(arg1) {
@@ -684,6 +708,10 @@ export function UpdateDiscountList(arg1, arg2) {
 
 export function UpdatePriceList(arg1, arg2) {
   return window['go']['main']['App']['UpdatePriceList'](arg1, arg2);
+}
+
+export function UpdateProduct(arg1, arg2) {
+  return window['go']['main']['App']['UpdateProduct'](arg1, arg2);
 }
 
 export function UpdateProductDiscount(arg1, arg2) {

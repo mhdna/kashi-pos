@@ -224,6 +224,52 @@ func (q *Queries) DeleteProduct(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteProductDiscountOverrides = `-- name: DeleteProductDiscountOverrides :exec
+DELETE FROM discount_overrides WHERE product_id = ?1
+`
+
+func (q *Queries) DeleteProductDiscountOverrides(ctx context.Context, id sql.NullInt64) error {
+	_, err := q.db.ExecContext(ctx, deleteProductDiscountOverrides, id)
+	return err
+}
+
+const deleteProductInventoryRows = `-- name: DeleteProductInventoryRows :exec
+DELETE FROM inventory_items WHERE product_id = ?1 AND quantity = 0
+`
+
+func (q *Queries) DeleteProductInventoryRows(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteProductInventoryRows, id)
+	return err
+}
+
+const deleteProductOverrides = `-- name: DeleteProductOverrides :exec
+DELETE FROM price_overrides WHERE product_id = ?1
+`
+
+func (q *Queries) DeleteProductOverrides(ctx context.Context, id sql.NullInt64) error {
+	_, err := q.db.ExecContext(ctx, deleteProductOverrides, id)
+	return err
+}
+
+const deleteProductOwnedRows = `-- name: DeleteProductOwnedRows :exec
+DELETE FROM products_attributes WHERE product_id = ?1
+`
+
+// Rows that only describe the product (not history), removed with it.
+func (q *Queries) DeleteProductOwnedRows(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteProductOwnedRows, id)
+	return err
+}
+
+const deleteProductQuickAccess = `-- name: DeleteProductQuickAccess :exec
+DELETE FROM quick_access_items WHERE product_id = ?1
+`
+
+func (q *Queries) DeleteProductQuickAccess(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteProductQuickAccess, id)
+	return err
+}
+
 const getDiscountOverride = `-- name: GetDiscountOverride :one
 SELECT id, name, product_id, discount, created_at FROM discount_overrides WHERE id = ?
 `
@@ -754,6 +800,64 @@ func (q *Queries) ListProductsByIDs(ctx context.Context, ids []int64) ([]Product
 	return items, nil
 }
 
+const listProductsForManagement = `-- name: ListProductsForManagement :many
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
+WHERE id > ?1
+  AND (?2 = '' OR (name || ' ' || code || ' ' || barcode) LIKE '%' || ?2 || '%')
+ORDER BY id
+LIMIT ?3
+`
+
+type ListProductsForManagementParams struct {
+	AfterID int64       `json:"afterId"`
+	Search  interface{} `json:"search"`
+	Limit   int64       `json:"limit"`
+}
+
+// Standalone product screen: every product, active or not, paged by id.
+func (q *Queries) ListProductsForManagement(ctx context.Context, arg ListProductsForManagementParams) ([]Product, error) {
+	rows, err := q.db.QueryContext(ctx, listProductsForManagement, arg.AfterID, arg.Search, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
+			&i.Uid,
+			&i.RemoteUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProductsPage = `-- name: ListProductsPage :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
 WHERE (name || ' ' || code || ' ' || barcode)
@@ -916,6 +1020,25 @@ func (q *Queries) ListQuickAccessProducts(ctx context.Context) ([]Product, error
 	return items, nil
 }
 
+const productIsReferenced = `-- name: ProductIsReferenced :one
+SELECT CAST(EXISTS (
+    SELECT 1 FROM invoice_products ip WHERE ip.product_id = ?1
+    UNION ALL SELECT 1 FROM hold_invoice_items hi WHERE hi.product_id = ?1
+    UNION ALL SELECT 1 FROM transfer_items ti WHERE ti.product_id = ?1
+    UNION ALL SELECT 1 FROM inventory_items ii WHERE ii.product_id = ?1 AND ii.quantity != 0
+) AS INTEGER) AS referenced
+`
+
+// History that must keep resolving to this product: sold/returned lines,
+// held invoices, transfers, or stock on hand. Such a product is deactivated,
+// never deleted.
+func (q *Queries) ProductIsReferenced(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, productIsReferenced, id)
+	var referenced int64
+	err := row.Scan(&referenced)
+	return referenced, err
+}
+
 const removeQuickAccessProduct = `-- name: RemoveQuickAccessProduct :exec
 DELETE FROM quick_access_items WHERE product_id = ?
 `
@@ -970,6 +1093,20 @@ func (q *Queries) SearchProductsByName(ctx context.Context, name string) ([]Prod
 		return nil, err
 	}
 	return items, nil
+}
+
+const setProductActive = `-- name: SetProductActive :exec
+UPDATE products SET is_active = ? WHERE id = ?
+`
+
+type SetProductActiveParams struct {
+	IsActive int64 `json:"isActive"`
+	ID       int64 `json:"id"`
+}
+
+func (q *Queries) SetProductActive(ctx context.Context, arg SetProductActiveParams) error {
+	_, err := q.db.ExecContext(ctx, setProductActive, arg.IsActive, arg.ID)
+	return err
 }
 
 const setProductBarcodeInactive = `-- name: SetProductBarcodeInactive :exec

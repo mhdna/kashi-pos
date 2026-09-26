@@ -62,11 +62,13 @@ export function CreateManualAttendanceEvent(arg1:number,arg2:string,arg3:string)
 
 export function CreatePriceList(arg1:string):Promise<Record<string, any>>;
 
+export function CreateProduct(arg1:main.ProductInput):Promise<Record<string, any>>;
+
 export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
 
 export function CreateUser(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
 
-export function DeleteClient(arg1:number):Promise<void>;
+export function DeleteClient(arg1:number):Promise<string>;
 
 export function DeleteCoupon(arg1:string):Promise<void>;
 
@@ -75,6 +77,8 @@ export function DeleteCouponType(arg1:number):Promise<void>;
 export function DeleteHoldInvoice(arg1:number):Promise<void>;
 
 export function DeleteInvoice(arg1:number):Promise<void>;
+
+export function DeleteProduct(arg1:number):Promise<string>;
 
 export function DeleteSalesperson(arg1:number):Promise<void>;
 
@@ -148,6 +152,8 @@ export function GetVisitorCountsForMonth(arg1:string):Promise<Record<string, num
 
 export function HoldInvoice(arg1:string):Promise<number>;
 
+export function IsStandaloneMode():Promise<boolean>;
+
 export function ListAttendance(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function ListAttendanceComplaints(arg1:string):Promise<Array<Record<string, any>>>;
@@ -183,6 +189,8 @@ export function ListInvoicesPage(arg1:number,arg2:number):Promise<main.InvoicePa
 export function ListLoanCategories():Promise<Array<Record<string, any>>>;
 
 export function ListLoans(arg1:number,arg2:number):Promise<Array<Record<string, any>>>;
+
+export function ListManagedProducts(arg1:number,arg2:number,arg3:string):Promise<main.ManagedProductPage>;
 
 export function ListPageUnlocks():Promise<Record<string, boolean>>;
 
@@ -266,6 +274,8 @@ export function SetAutoCloseStaleShiftsEnabled(arg1:boolean):Promise<void>;
 
 export function SetCashierPIN(arg1:string):Promise<void>;
 
+export function SetClientActive(arg1:number,arg2:boolean):Promise<void>;
+
 export function SetClientRequired(arg1:boolean):Promise<void>;
 
 export function SetCountOpeningCashOnCloseEnabled(arg1:boolean):Promise<void>;
@@ -301,6 +311,8 @@ export function SetPriceChangeManualOverrideEnabled(arg1:boolean):Promise<void>;
 export function SetPriceListActive(arg1:number,arg2:boolean):Promise<Record<string, any>>;
 
 export function SetPriceListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
+
+export function SetProductActive(arg1:number,arg2:boolean):Promise<void>;
 
 export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
 
@@ -343,6 +355,8 @@ export function UpdateDefaultOpeningFloat(arg1:number,arg2:number,arg3:string):P
 export function UpdateDiscountList(arg1:number,arg2:string):Promise<Record<string, any>>;
 
 export function UpdatePriceList(arg1:number,arg2:string):Promise<Record<string, any>>;
+
+export function UpdateProduct(arg1:number,arg2:main.ProductInput):Promise<Record<string, any>>;
 
 export function UpdateProductDiscount(arg1:string,arg2:number):Promise<void>;
 
