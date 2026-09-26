@@ -132,13 +132,14 @@ type CategoryIcon struct {
 }
 
 type Client struct {
-	ID                 int64  `json:"id"`
-	Name               string `json:"name"`
-	Phone              string `json:"phone"`
-	TotalLoyaltyPoints int64  `json:"totalLoyaltyPoints"`
-	ValidLoyaltyPoints int64  `json:"validLoyaltyPoints"`
-	CreatedAt          string `json:"createdAt"`
-	IsActive           int64  `json:"isActive"`
+	ID                 int64          `json:"id"`
+	Name               string         `json:"name"`
+	Phone              string         `json:"phone"`
+	TotalLoyaltyPoints int64          `json:"totalLoyaltyPoints"`
+	ValidLoyaltyPoints int64          `json:"validLoyaltyPoints"`
+	CreatedAt          string         `json:"createdAt"`
+	IsActive           int64          `json:"isActive"`
+	Uid                sql.NullString `json:"uid"`
 }
 
 type ClientAccountEntry struct {
@@ -398,23 +399,24 @@ type PriceOverride struct {
 }
 
 type Product struct {
-	ID           int64  `json:"id"`
-	Barcode      string `json:"barcode"`
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	IsActive     int64  `json:"isActive"`
-	Price        int64  `json:"price"`
-	Discount     int64  `json:"discount"`
-	Color        string `json:"color"`
-	Size         string `json:"size"`
-	CurrencyCode string `json:"currencyCode"`
-	CreatedAt    string `json:"createdAt"`
-	Brand        string `json:"brand"`
-	Family       string `json:"family"`
-	Kind         string `json:"kind"`
-	Season       string `json:"season"`
-	ProductYear  int64  `json:"productYear"`
+	ID           int64          `json:"id"`
+	Barcode      string         `json:"barcode"`
+	Code         string         `json:"code"`
+	Name         string         `json:"name"`
+	Description  string         `json:"description"`
+	IsActive     int64          `json:"isActive"`
+	Price        int64          `json:"price"`
+	Discount     int64          `json:"discount"`
+	Color        string         `json:"color"`
+	Size         string         `json:"size"`
+	CurrencyCode string         `json:"currencyCode"`
+	CreatedAt    string         `json:"createdAt"`
+	Brand        string         `json:"brand"`
+	Family       string         `json:"family"`
+	Kind         string         `json:"kind"`
+	Season       string         `json:"season"`
+	ProductYear  int64          `json:"productYear"`
+	Uid          sql.NullString `json:"uid"`
 }
 
 type ProductsAttribute struct {

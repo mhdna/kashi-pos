@@ -173,6 +173,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				payloadItems = append(payloadItems, branchInvoicePayloadItem{
 					BranchProductID: returned.product.ID,
 					Barcode:         returned.product.Barcode,
+					ProductUID:      returned.product.Uid.String,
 					UnitPrice:       returned.line.UnitPrice,
 					LineTotal:       -returned.lineTotal,
 					Discount:        int16(returned.line.Discount),
@@ -183,6 +184,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				payloadItems = append(payloadItems, branchInvoicePayloadItem{
 					BranchProductID: replacement.product.ID,
 					Barcode:         replacement.product.Barcode,
+					ProductUID:      replacement.product.Uid.String,
 					UnitPrice:       replacement.unitPrice,
 					LineTotal:       replacement.lineTotal,
 					Discount:        int16(replacement.discount),
@@ -211,6 +213,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				BranchShiftID:          shift.ID,
 				BranchInventoryID:      inventoryID,
 				BranchClientID:         source.ClientID,
+				ClientUID:              clientUIDForSync(a.ctx, q, source.ClientID),
 				GrandTotal:             total,
 				Subtotal:               total,
 				DiscountedTotal:        total,

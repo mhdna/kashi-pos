@@ -204,7 +204,8 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 	// before their invoice): send it the plain per-row way. Two or more is
 	// a bulk backfill -- one POST for the lot instead of a serial round
 	// trip each (see drainClientBatch). They sort last (priority 2), so
-	// appending keeps the drain order.
+	// appending keeps the drain order. Both routes answer with the
+	// canonical uid kashi maps the client to (see adoptCanonicalClientUID).
 	batchClients := len(clientEntries) >= 2
 	if !batchClients {
 		rest = append(rest, clientEntries...)
@@ -246,6 +247,12 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 			}
 			if resp.UploadToken != "" {
 				a.emitExpenseUploadReady(entry.ClientRef, client.UploadURL(resp.UploadToken))
+			}
+		} else if entry.EntityType == "client" {
+			if err := a.pushOneClient(ctx, client, path, entry); err != nil {
+				a.recordSyncOutboxError(ctx, entry, err)
+				changed = true
+				continue
 			}
 		} else if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
 			a.recordSyncOutboxError(ctx, entry, err)
@@ -339,6 +346,7 @@ func (a *App) drainClientBatch(ctx context.Context, client *centralClient, entri
 		case !ok:
 			a.markSyncOutboxRetry(ctx, entry, fmt.Errorf("clients batch: no result for client %d", payload.Clients[i].BranchClientID))
 		case res.Status == "ok":
+			a.adoptPushedClientUID(ctx, entry, res.UID)
 			a.markOutboxSynced(ctx, client, entry)
 		case res.Status == "invalid":
 			log.Printf("sync outbox entry %d: kashi rejected client (permanent, marking failed): %s", entry.ID, res.Error)
@@ -358,13 +366,42 @@ func (a *App) drainClientsOneByOne(ctx context.Context, client *centralClient, e
 		if i > 0 && a.pushPreempted() {
 			break
 		}
-		if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
+		if err := a.pushOneClient(ctx, client, path, entry); err != nil {
 			a.recordSyncOutboxError(ctx, entry, err)
 			continue
 		}
 		a.markOutboxSynced(ctx, client, entry)
 	}
 	return true
+}
+
+// pushOneClient POSTs one client outbox row and applies the canonical uid
+// kashi answers with.
+func (a *App) pushOneClient(ctx context.Context, client *centralClient, path string, entry db.SyncOutbox) error {
+	uid, err := client.PostClient(ctx, path, []byte(entry.PayloadJson))
+	if err != nil {
+		return err
+	}
+	a.adoptPushedClientUID(ctx, entry, uid)
+	return nil
+}
+
+// adoptPushedClientUID applies kashi's canonical uid for a pushed client
+// row. A failure here is logged, not retried: the push itself landed, and
+// the next pull or push converges the uid anyway.
+func (a *App) adoptPushedClientUID(ctx context.Context, entry db.SyncOutbox, uid string) {
+	if uid == "" {
+		return
+	}
+	var p branchClientPayload
+	if err := json.Unmarshal([]byte(entry.PayloadJson), &p); err != nil {
+		return
+	}
+	if err := a.resyncTx(ctx, func(q *db.Queries) error {
+		return adoptCanonicalClientUID(ctx, q, p.BranchClientID, uid)
+	}); err != nil {
+		log.Printf("sync outbox entry %d: adopt canonical client uid: %v", entry.ID, err)
+	}
 }
 
 // markOutboxSynced stamps a row synced against the server it went to.
@@ -460,9 +497,11 @@ func (a *App) recordSyncOutboxError(ctx context.Context, entry db.SyncOutbox, po
 // markSyncOutboxFailed parks a row in the terminal 'failed' state. Only an
 // explicit resync (see sync_backfill.go) re-arms it.
 func (a *App) markSyncOutboxFailed(ctx context.Context, entry db.SyncOutbox, cause error) {
-	if err := a.store.MarkSyncOutboxFailed(ctx, db.MarkSyncOutboxFailedParams{
-		LastError: cause.Error(),
-		ID:        entry.ID,
+	if err := retryBusy(func() error {
+		return a.store.MarkSyncOutboxFailed(ctx, db.MarkSyncOutboxFailedParams{
+			LastError: cause.Error(),
+			ID:        entry.ID,
+		})
 	}); err != nil {
 		log.Printf("sync outbox entry %d: mark failed: %v", entry.ID, err)
 	}
@@ -511,10 +550,12 @@ func (a *App) markSyncOutboxRetry(ctx context.Context, entry db.SyncOutbox, post
 	nextAttemptAt := time.Now().UTC().Add(delay).Format("2006-01-02 15:04:05")
 
 	log.Printf("sync outbox entry %d: %v (retrying at %s)", entry.ID, postErr, nextAttemptAt)
-	if err := a.store.MarkSyncOutboxAttemptFailed(ctx, db.MarkSyncOutboxAttemptFailedParams{
-		LastError:     postErr.Error(),
-		NextAttemptAt: nextAttemptAt,
-		ID:            entry.ID,
+	if err := retryBusy(func() error {
+		return a.store.MarkSyncOutboxAttemptFailed(ctx, db.MarkSyncOutboxAttemptFailedParams{
+			LastError:     postErr.Error(),
+			NextAttemptAt: nextAttemptAt,
+			ID:            entry.ID,
+		})
 	}); err != nil {
 		log.Printf("sync outbox entry %d: mark retry: %v", entry.ID, err)
 	}

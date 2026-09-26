@@ -10,12 +10,6 @@ SELECT * FROM clients ORDER BY id;
 -- name: ListActiveClients :many
 SELECT * FROM clients WHERE is_active = 1 ORDER BY id;
 
--- name: DeactivateClientsByPhone :exec
-UPDATE clients SET is_active = 0 WHERE phone IN (sqlc.slice('phones'));
-
--- name: ActivateClientByPhone :exec
-UPDATE clients SET is_active = 1 WHERE phone = ?;
-
 -- name: CountClientsPage :one
 SELECT COUNT(*)
 FROM clients c
@@ -226,3 +220,26 @@ ORDER BY c.id;
 
 -- name: ClientHasInvoice :one
 SELECT EXISTS(SELECT 1 FROM invoices WHERE client_id = ?);
+
+-- name: GetClientByUID :one
+SELECT * FROM clients WHERE uid = ?;
+
+-- name: SetClientUID :exec
+-- Adopt kashi's uid for a local client (pull match, or kashi answering a
+-- push with the canonical uid of an existing client with the same phone).
+UPDATE clients SET uid = ? WHERE id = ?;
+
+-- name: SetClientActive :exec
+UPDATE clients SET is_active = ? WHERE id = ?;
+
+-- name: RepointInvoicesClient :exec
+-- mergeLocalClient: move every reference from a duplicate client onto the
+-- one being kept, so the duplicate can then be removed with nothing
+-- pointing at it.
+UPDATE invoices SET client_id = sqlc.arg(keep_id) WHERE client_id = sqlc.arg(drop_id);
+
+-- name: RepointCouponsClient :exec
+UPDATE coupons SET client_id = sqlc.arg(keep_id) WHERE client_id = sqlc.arg(drop_id);
+
+-- name: RepointClientAccountEntriesClient :exec
+UPDATE client_account_entries SET client_id = sqlc.arg(keep_id) WHERE client_id = sqlc.arg(drop_id);

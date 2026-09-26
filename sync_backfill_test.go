@@ -449,8 +449,7 @@ func TestResyncAllFirstDeactivationRequiresConfirmation(t *testing.T) {
 		t.Fatal("expected RequiresConfirmation on first run with deactivation candidates")
 	}
 	if rep.PendingDeactivation == nil ||
-		len(rep.PendingDeactivation.ProductBarcodes) != 1 || rep.PendingDeactivation.ProductBarcodes[0] != "1" ||
-		len(rep.PendingDeactivation.ClientPhones) != 1 || rep.PendingDeactivation.ClientPhones[0] != client.Phone {
+		len(rep.PendingDeactivation.ProductBarcodes) != 1 || rep.PendingDeactivation.ProductBarcodes[0] != "1" {
 		t.Fatalf("unexpected PendingDeactivation: %+v", rep.PendingDeactivation)
 	}
 
@@ -509,8 +508,10 @@ func TestResyncAllConfirmedDeactivationWritesAndSetsFlag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reloadedClient.IsActive != 0 {
-		t.Fatal("expected client deactivated after confirmation")
+	// A linked client whose phone kashi doesn't have is a phone mismatch
+	// (trimmed/synthetic/edited centrally), not a deletion: never deactivated.
+	if reloadedClient.IsActive != 1 {
+		t.Fatal("Sync All must never deactivate a client by phone")
 	}
 	settings, err := store.GetSettings(app.ctx)
 	if err != nil {
@@ -581,20 +582,17 @@ func TestResyncAllDryRunNeverDeactivatesOrConfirms(t *testing.T) {
 		t.Fatal("a dry run must never require confirmation")
 	}
 
-	var productsDeactivated, clientsDeactivated *ResyncEntityReport
+	var productsDeactivated *ResyncEntityReport
 	for i := range rep.Entities {
 		switch rep.Entities[i].Entity {
 		case "products_deactivated":
 			productsDeactivated = &rep.Entities[i]
 		case "clients_deactivated":
-			clientsDeactivated = &rep.Entities[i]
+			t.Fatalf("clients are never deactivated by Sync All, got %+v", rep.Entities[i])
 		}
 	}
 	if productsDeactivated == nil || productsDeactivated.Missing != 1 {
 		t.Fatalf("expected products_deactivated.missing=1, got %+v", productsDeactivated)
-	}
-	if clientsDeactivated == nil || clientsDeactivated.Missing != 1 {
-		t.Fatalf("expected clients_deactivated.missing=1, got %+v", clientsDeactivated)
 	}
 
 	product, err := store.GetProductByBarcode(app.ctx, "1")

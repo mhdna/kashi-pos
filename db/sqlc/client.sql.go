@@ -8,17 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
-	"strings"
 )
-
-const activateClientByPhone = `-- name: ActivateClientByPhone :exec
-UPDATE clients SET is_active = 1 WHERE phone = ?
-`
-
-func (q *Queries) ActivateClientByPhone(ctx context.Context, phone string) error {
-	_, err := q.db.ExecContext(ctx, activateClientByPhone, phone)
-	return err
-}
 
 const addClientLoyaltyPoints = `-- name: AddClientLoyaltyPoints :exec
 UPDATE clients
@@ -110,7 +100,7 @@ func (q *Queries) CountInvoiceCouponPaymentsByTypeID(ctx context.Context, coupon
 
 const createClient = `-- name: CreateClient :one
 INSERT INTO clients (name, phone, total_loyalty_points, valid_loyalty_points)
-VALUES (?, ?, ?, ?) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active
+VALUES (?, ?, ?, ?) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid
 `
 
 type CreateClientParams struct {
@@ -136,6 +126,7 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Cli
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
 		&i.IsActive,
+		&i.Uid,
 	)
 	return i, err
 }
@@ -341,25 +332,6 @@ func (q *Queries) CreateValueCoupon(ctx context.Context, arg CreateValueCouponPa
 	return i, err
 }
 
-const deactivateClientsByPhone = `-- name: DeactivateClientsByPhone :exec
-UPDATE clients SET is_active = 0 WHERE phone IN (/*SLICE:phones*/?)
-`
-
-func (q *Queries) DeactivateClientsByPhone(ctx context.Context, phones []string) error {
-	query := deactivateClientsByPhone
-	var queryParams []interface{}
-	if len(phones) > 0 {
-		for _, v := range phones {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:phones*/?", strings.Repeat(",?", len(phones))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:phones*/?", "NULL", 1)
-	}
-	_, err := q.db.ExecContext(ctx, query, queryParams...)
-	return err
-}
-
 const deleteClient = `-- name: DeleteClient :exec
 DELETE FROM clients WHERE id = ?
 `
@@ -456,7 +428,7 @@ func (q *Queries) GetClientAccountPaidByInvoiceID(ctx context.Context, invoiceID
 }
 
 const getClientByID = `-- name: GetClientByID :one
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active FROM clients WHERE id = ?
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid FROM clients WHERE id = ?
 `
 
 func (q *Queries) GetClientByID(ctx context.Context, id int64) (Client, error) {
@@ -470,12 +442,13 @@ func (q *Queries) GetClientByID(ctx context.Context, id int64) (Client, error) {
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
 		&i.IsActive,
+		&i.Uid,
 	)
 	return i, err
 }
 
 const getClientByPhone = `-- name: GetClientByPhone :one
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active FROM clients WHERE phone = ?
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid FROM clients WHERE phone = ?
 `
 
 func (q *Queries) GetClientByPhone(ctx context.Context, phone string) (Client, error) {
@@ -489,6 +462,27 @@ func (q *Queries) GetClientByPhone(ctx context.Context, phone string) (Client, e
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
 		&i.IsActive,
+		&i.Uid,
+	)
+	return i, err
+}
+
+const getClientByUID = `-- name: GetClientByUID :one
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid FROM clients WHERE uid = ?
+`
+
+func (q *Queries) GetClientByUID(ctx context.Context, uid sql.NullString) (Client, error) {
+	row := q.db.QueryRowContext(ctx, getClientByUID, uid)
+	var i Client
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Phone,
+		&i.TotalLoyaltyPoints,
+		&i.ValidLoyaltyPoints,
+		&i.CreatedAt,
+		&i.IsActive,
+		&i.Uid,
 	)
 	return i, err
 }
@@ -536,7 +530,7 @@ func (q *Queries) GetCouponTypeByID(ctx context.Context, id int64) (CouponType, 
 }
 
 const listActiveClients = `-- name: ListActiveClients :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active FROM clients WHERE is_active = 1 ORDER BY id
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid FROM clients WHERE is_active = 1 ORDER BY id
 `
 
 func (q *Queries) ListActiveClients(ctx context.Context) ([]Client, error) {
@@ -556,6 +550,7 @@ func (q *Queries) ListActiveClients(ctx context.Context) ([]Client, error) {
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
 			&i.IsActive,
+			&i.Uid,
 		); err != nil {
 			return nil, err
 		}
@@ -683,7 +678,7 @@ func (q *Queries) ListClientAccountPayments(ctx context.Context, clientID int64)
 }
 
 const listClients = `-- name: ListClients :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active FROM clients ORDER BY id
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid FROM clients ORDER BY id
 `
 
 func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
@@ -703,6 +698,7 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
 			&i.IsActive,
+			&i.Uid,
 		); err != nil {
 			return nil, err
 		}
@@ -859,7 +855,7 @@ func (q *Queries) ListClientsAfterUnfiltered(ctx context.Context, arg ListClient
 }
 
 const listClientsWithInvoices = `-- name: ListClientsWithInvoices :many
-SELECT DISTINCT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at, c.is_active FROM clients c
+SELECT DISTINCT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at, c.is_active, c.uid FROM clients c
 JOIN invoices i ON i.client_id = c.id
 ORDER BY c.id
 `
@@ -884,6 +880,7 @@ func (q *Queries) ListClientsWithInvoices(ctx context.Context) ([]Client, error)
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
 			&i.IsActive,
+			&i.Uid,
 		); err != nil {
 			return nil, err
 		}
@@ -1024,8 +1021,53 @@ func (q *Queries) RedeemCoupon(ctx context.Context, arg RedeemCouponParams) erro
 	return err
 }
 
+const repointClientAccountEntriesClient = `-- name: RepointClientAccountEntriesClient :exec
+UPDATE client_account_entries SET client_id = ?1 WHERE client_id = ?2
+`
+
+type RepointClientAccountEntriesClientParams struct {
+	KeepID int64 `json:"keepId"`
+	DropID int64 `json:"dropId"`
+}
+
+func (q *Queries) RepointClientAccountEntriesClient(ctx context.Context, arg RepointClientAccountEntriesClientParams) error {
+	_, err := q.db.ExecContext(ctx, repointClientAccountEntriesClient, arg.KeepID, arg.DropID)
+	return err
+}
+
+const repointCouponsClient = `-- name: RepointCouponsClient :exec
+UPDATE coupons SET client_id = ?1 WHERE client_id = ?2
+`
+
+type RepointCouponsClientParams struct {
+	KeepID int64 `json:"keepId"`
+	DropID int64 `json:"dropId"`
+}
+
+func (q *Queries) RepointCouponsClient(ctx context.Context, arg RepointCouponsClientParams) error {
+	_, err := q.db.ExecContext(ctx, repointCouponsClient, arg.KeepID, arg.DropID)
+	return err
+}
+
+const repointInvoicesClient = `-- name: RepointInvoicesClient :exec
+UPDATE invoices SET client_id = ?1 WHERE client_id = ?2
+`
+
+type RepointInvoicesClientParams struct {
+	KeepID int64 `json:"keepId"`
+	DropID int64 `json:"dropId"`
+}
+
+// mergeLocalClient: move every reference from a duplicate client onto the
+// one being kept, so the duplicate can then be removed with nothing
+// pointing at it.
+func (q *Queries) RepointInvoicesClient(ctx context.Context, arg RepointInvoicesClientParams) error {
+	_, err := q.db.ExecContext(ctx, repointInvoicesClient, arg.KeepID, arg.DropID)
+	return err
+}
+
 const searchClients = `-- name: SearchClients :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid
 FROM clients
 WHERE trim(?1) = ''
    OR name LIKE '%' || ?1 || '%' COLLATE NOCASE
@@ -1056,6 +1098,7 @@ func (q *Queries) SearchClients(ctx context.Context, arg SearchClientsParams) ([
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
 			&i.IsActive,
+			&i.Uid,
 		); err != nil {
 			return nil, err
 		}
@@ -1070,13 +1113,43 @@ func (q *Queries) SearchClients(ctx context.Context, arg SearchClientsParams) ([
 	return items, nil
 }
 
+const setClientActive = `-- name: SetClientActive :exec
+UPDATE clients SET is_active = ? WHERE id = ?
+`
+
+type SetClientActiveParams struct {
+	IsActive int64 `json:"isActive"`
+	ID       int64 `json:"id"`
+}
+
+func (q *Queries) SetClientActive(ctx context.Context, arg SetClientActiveParams) error {
+	_, err := q.db.ExecContext(ctx, setClientActive, arg.IsActive, arg.ID)
+	return err
+}
+
+const setClientUID = `-- name: SetClientUID :exec
+UPDATE clients SET uid = ? WHERE id = ?
+`
+
+type SetClientUIDParams struct {
+	Uid sql.NullString `json:"uid"`
+	ID  int64          `json:"id"`
+}
+
+// Adopt kashi's uid for a local client (pull match, or kashi answering a
+// push with the canonical uid of an existing client with the same phone).
+func (q *Queries) SetClientUID(ctx context.Context, arg SetClientUIDParams) error {
+	_, err := q.db.ExecContext(ctx, setClientUID, arg.Uid, arg.ID)
+	return err
+}
+
 const updateClient = `-- name: UpdateClient :one
 UPDATE clients
 SET name = ?,
     phone = ?,
     total_loyalty_points = ?,
     valid_loyalty_points = ?
-WHERE id = ? RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active
+WHERE id = ? RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid
 `
 
 type UpdateClientParams struct {
@@ -1104,6 +1177,7 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
 		&i.IsActive,
+		&i.Uid,
 	)
 	return i, err
 }

@@ -115,3 +115,14 @@ INSERT INTO discount_overrides (name, product_id, discount) VALUES (?, ?, ?) RET
 
 -- name: DeleteDiscountOverride :exec
 DELETE FROM discount_overrides WHERE id = ?;
+
+-- name: GetProductByUID :one
+SELECT * FROM products WHERE uid = ?;
+
+-- name: SetProductUID :exec
+UPDATE products SET uid = ? WHERE id = ?;
+
+-- name: SetProductBarcodeInactive :exec
+-- Frees a barcode held by a stale local-only product so kashi's product
+-- with that barcode can take it; the stale row keeps its history.
+UPDATE products SET barcode = ?, is_active = 0 WHERE id = ?;

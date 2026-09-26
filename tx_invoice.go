@@ -309,6 +309,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				payloadItems = append(payloadItems, branchInvoicePayloadItem{
 					BranchProductID: product.product.ID,
 					Barcode:         product.product.Barcode,
+					ProductUID:      product.product.Uid.String,
 					UnitPrice:       product.unitPrice,
 					LineTotal:       product.lineTotal,
 					Discount:        int16(product.discount),
@@ -326,6 +327,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				BranchShiftID:          shift.ID,
 				BranchInventoryID:      inventoryID,
 				BranchClientID:         clientID,
+				ClientUID:              clientUIDForSync(a.ctx, q, clientID),
 				GrandTotal:             grandTotal,
 				Subtotal:               subtotal,
 				DiscountedTotal:        discountedSubtotal,

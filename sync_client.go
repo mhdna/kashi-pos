@@ -138,6 +138,42 @@ func (c *centralClient) PostInvoice(ctx context.Context, path string, payloadJSO
 	return c.sendJSON(ctx, http.MethodPost, path, payloadJSON)
 }
 
+// PostClient sends one client to kashi's per-client route and returns the
+// canonical uid kashi now maps it to (kashi answers {"client": {...}}). The
+// uid is "" from a kashi that predates uid sync, or when the body can't be
+// read -- the push itself still succeeded, so that is never an error.
+func (c *centralClient) PostClient(ctx context.Context, path string, payloadJSON []byte) (string, error) {
+	if !c.enabled() {
+		return "", errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, http.MethodPost, path, bytes.NewReader(payloadJSON))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", responseError(http.MethodPost, path, resp)
+	}
+
+	var out struct {
+		Client struct {
+			UID string `json:"uid"`
+		} `json:"client"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", nil
+	}
+	return out.Client.UID, nil
+}
+
 // postExpenseResponse is kashi's response body to POST /branch/expenses --
 // see createBranchExpense's envelope in the kashi repo's api/branch_expense.go.
 // UploadToken is empty on the idempotent "already exists" path (kashi only
@@ -193,7 +229,10 @@ type branchClientBatchResult struct {
 	BranchClientID int64  `json:"branch_client_id"`
 	Status         string `json:"status"`
 	ConflictKind   string `json:"conflict_kind"`
-	Error          string `json:"error"`
+	// UID is the canonical uid kashi maps this client to (empty from a
+	// kashi that predates uid sync).
+	UID   string `json:"uid"`
+	Error string `json:"error"`
 }
 
 // clientsBatchTimeout is longer than the shared 10s client timeout: kashi

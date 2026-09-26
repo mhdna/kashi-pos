@@ -6,8 +6,6 @@ import { EventsOn } from "../../wailsjs/runtime/runtime";
 interface PendingDeactivation {
   productBarcodes: string[];
   productNames: string[];
-  clientPhones: string[];
-  clientNames: string[];
 }
 
 // Module-level (store-owned, not component-owned) so a "Sync everything

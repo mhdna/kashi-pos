@@ -1284,7 +1284,7 @@
 
     <v-dialog :model-value="showDeactivationConfirm" max-width="480" persistent>
       <v-card v-if="pendingDeactivation">
-        <v-card-title>Deactivate items no longer on kashi?</v-card-title>
+        <v-card-title>Deactivate products no longer on kashi?</v-card-title>
         <v-card-text>
           <div class="mb-2">
             kashi no longer has the following. This will deactivate them here
@@ -1302,19 +1302,6 @@
               </li>
               <li v-if="pendingDeactivation.productBarcodes.length > 10" class="text-medium-emphasis">
                 …and {{ pendingDeactivation.productBarcodes.length - 10 }} more
-              </li>
-            </ul>
-          </div>
-          <div v-if="pendingDeactivation.clientPhones.length">
-            <div class="text-caption text-medium-emphasis">
-              {{ pendingDeactivation.clientPhones.length }} client(s)
-            </div>
-            <ul class="text-body-2">
-              <li v-for="(name, i) in pendingDeactivation.clientNames.slice(0, 10)" :key="pendingDeactivation.clientPhones[i]">
-                {{ name || pendingDeactivation.clientPhones[i] }}
-              </li>
-              <li v-if="pendingDeactivation.clientPhones.length > 10" class="text-medium-emphasis">
-                …and {{ pendingDeactivation.clientPhones.length - 10 }} more
               </li>
             </ul>
           </div>

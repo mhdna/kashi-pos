@@ -104,3 +104,8 @@ WHERE (status = 'synced' AND synced_to <> sqlc.arg(current_target))
 
 -- name: ListInvoiceClientRefsMap :many
 SELECT invoice_id, client_ref FROM invoice_client_refs;
+
+-- name: DeleteUnsyncedSyncOutboxEntry :exec
+-- Drops a not-yet-synced row whose subject no longer exists (a client
+-- merged into another). Synced rows are history and are kept.
+DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced';

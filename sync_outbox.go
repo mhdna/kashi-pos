@@ -66,10 +66,12 @@ type branchInvoicePayload struct {
 	BranchShiftID          int64  `json:"branch_shift_id"`
 	BranchInventoryID      int64  `json:"branch_inventory_id"`
 	BranchClientID         int64  `json:"branch_client_id"`
-	Discount               int16  `json:"discount"`
-	GrandTotal             int64  `json:"grand_total"`
-	Subtotal               int64  `json:"sub_total"`
-	DiscountedTotal        int64  `json:"discounted_total"`
+	// ClientUID is the buyer's shared identity; empty for a walk-in sale.
+	ClientUID       string `json:"client_uid,omitempty"`
+	Discount        int16  `json:"discount"`
+	GrandTotal      int64  `json:"grand_total"`
+	Subtotal        int64  `json:"sub_total"`
+	DiscountedTotal int64  `json:"discounted_total"`
 	// Whatever this install already computed and applied locally (see
 	// AddClientLoyaltyPoints in tx_invoice.go) — kashi records this as
 	// reported, it must never be re-derived from GrandTotal centrally.
@@ -95,11 +97,24 @@ type branchInvoicePayloadItem struct {
 	// resolve the line to a central product_variants row and decrement the
 	// branch's central store inventory. BranchProductID stays for
 	// traceability but doesn't resolve to anything central.
-	Barcode   string `json:"barcode"`
-	UnitPrice int64  `json:"unit_price"`
-	LineTotal int64  `json:"line_total"`
-	Discount  int16  `json:"discount"`
-	Quantity  int64  `json:"quantity"`
+	Barcode string `json:"barcode"`
+	// ProductUID is the line's shared variant identity; kashi prefers it
+	// over Barcode and falls back to Barcode when it doesn't resolve.
+	ProductUID string `json:"product_uid,omitempty"`
+	UnitPrice  int64  `json:"unit_price"`
+	LineTotal  int64  `json:"line_total"`
+	Discount   int16  `json:"discount"`
+	Quantity   int64  `json:"quantity"`
+}
+
+// clientUIDForSync returns the uid to report as an invoice's buyer: empty
+// for the walk-in pseudo-client (never synced) or an unknown id.
+func clientUIDForSync(ctx context.Context, q *db.Queries, clientID int64) string {
+	c, err := q.GetClientByID(ctx, clientID)
+	if err != nil || isWalkInClient(c) {
+		return ""
+	}
+	return c.Uid.String
 }
 
 // branchInvoicePaymentPayload is one settlement line -- net amount paid

@@ -136,8 +136,6 @@ export namespace main {
 	export class PendingDeactivation {
 	    productBarcodes: string[];
 	    productNames: string[];
-	    clientPhones: string[];
-	    clientNames: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new PendingDeactivation(source);
@@ -147,8 +145,6 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.productBarcodes = source["productBarcodes"];
 	        this.productNames = source["productNames"];
-	        this.clientPhones = source["clientPhones"];
-	        this.clientNames = source["clientNames"];
 	    }
 	}
 	export class ProductCursorPage {

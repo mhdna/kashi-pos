@@ -10,7 +10,6 @@ import (
 )
 
 type Querier interface {
-	ActivateClientByPhone(ctx context.Context, phone string) error
 	AddCashboxAccountBalance(ctx context.Context, arg AddCashboxAccountBalanceParams) (ShiftsAccountsBalance, error)
 	AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyaltyPointsParams) error
 	AddHoldInvoiceItem(ctx context.Context, arg AddHoldInvoiceItemParams) error
@@ -87,7 +86,6 @@ type Querier interface {
 	CreateValueCoupon(ctx context.Context, arg CreateValueCouponParams) (Coupon, error)
 	CreateVisitorEvent(ctx context.Context, arg CreateVisitorEventParams) error
 	CreateVoidInvoice(ctx context.Context, arg CreateVoidInvoiceParams) (VoidInvoice, error)
-	DeactivateClientsByPhone(ctx context.Context, phones []string) error
 	DeactivateProductsByBarcode(ctx context.Context, barcodes []string) error
 	DecreaseInventoryProductQuantity(ctx context.Context, arg DecreaseInventoryProductQuantityParams) (sql.Result, error)
 	DeleteAccount(ctx context.Context, id int64) error
@@ -119,6 +117,9 @@ type Querier interface {
 	DeleteSalesInvoice(ctx context.Context, invoiceID int64) error
 	DeleteSalesperson(ctx context.Context, id int64) error
 	DeleteTransferItems(ctx context.Context, transferID int64) error
+	// Drops a not-yet-synced row whose subject no longer exists (a client
+	// merged into another). Synced rows are history and are kept.
+	DeleteUnsyncedSyncOutboxEntry(ctx context.Context, clientRef string) error
 	DeleteUser(ctx context.Context, id int64) error
 	FindConflictingActiveDiscountListItem(ctx context.Context, arg FindConflictingActiveDiscountListItemParams) (FindConflictingActiveDiscountListItemRow, error)
 	FindConflictingActivePriceListItem(ctx context.Context, arg FindConflictingActivePriceListItemParams) (FindConflictingActivePriceListItemRow, error)
@@ -133,6 +134,7 @@ type Querier interface {
 	GetClientAccountPaidByInvoiceID(ctx context.Context, invoiceID int64) (interface{}, error)
 	GetClientByID(ctx context.Context, id int64) (Client, error)
 	GetClientByPhone(ctx context.Context, phone string) (Client, error)
+	GetClientByUID(ctx context.Context, uid sql.NullString) (Client, error)
 	GetCouponByCode(ctx context.Context, code string) (Coupon, error)
 	GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error)
 	GetCurrencyByCode(ctx context.Context, code string) (Currency, error)
@@ -177,6 +179,7 @@ type Querier interface {
 	GetProductByBarcode(ctx context.Context, barcode string) (Product, error)
 	GetProductByCode(ctx context.Context, code string) (Product, error)
 	GetProductByID(ctx context.Context, id int64) (Product, error)
+	GetProductByUID(ctx context.Context, uid sql.NullString) (Product, error)
 	GetReturnedQuantityForProduct(ctx context.Context, arg GetReturnedQuantityForProductParams) (interface{}, error)
 	GetReturnedQuantityForProductPrice(ctx context.Context, arg GetReturnedQuantityForProductPriceParams) (interface{}, error)
 	GetRoleByID(ctx context.Context, id int64) (Role, error)
@@ -379,6 +382,12 @@ type Querier interface {
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
+	RepointClientAccountEntriesClient(ctx context.Context, arg RepointClientAccountEntriesClientParams) error
+	RepointCouponsClient(ctx context.Context, arg RepointCouponsClientParams) error
+	// mergeLocalClient: move every reference from a duplicate client onto the
+	// one being kept, so the duplicate can then be removed with nothing
+	// pointing at it.
+	RepointInvoicesClient(ctx context.Context, arg RepointInvoicesClientParams) error
 	// Re-arms rows that a previous central server accepted (or that hard-failed)
 	// so a "sync everything" against a newly-pointed server re-pushes them.
 	// Live 'pending' rows and rows already confirmed on the current target are
@@ -387,6 +396,10 @@ type Querier interface {
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
 	SetCashboxAccountSortOrder(ctx context.Context, arg SetCashboxAccountSortOrderParams) error
+	SetClientActive(ctx context.Context, arg SetClientActiveParams) error
+	// Adopt kashi's uid for a local client (pull match, or kashi answering a
+	// push with the canonical uid of an existing client with the same phone).
+	SetClientUID(ctx context.Context, arg SetClientUIDParams) error
 	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
 	SetDiscountListActive(ctx context.Context, arg SetDiscountListActiveParams) (DiscountList, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
@@ -394,6 +407,10 @@ type Querier interface {
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
 	SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error)
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
+	// Frees a barcode held by a stale local-only product so kashi's product
+	// with that barcode can take it; the stale row keeps its history.
+	SetProductBarcodeInactive(ctx context.Context, arg SetProductBarcodeInactiveParams) error
+	SetProductUID(ctx context.Context, arg SetProductUIDParams) error
 	SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error
 	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error

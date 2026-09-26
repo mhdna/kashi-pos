@@ -95,6 +95,17 @@ func (q *Queries) CreateSyncOutboxEntry(ctx context.Context, arg CreateSyncOutbo
 	return i, err
 }
 
+const deleteUnsyncedSyncOutboxEntry = `-- name: DeleteUnsyncedSyncOutboxEntry :exec
+DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced'
+`
+
+// Drops a not-yet-synced row whose subject no longer exists (a client
+// merged into another). Synced rows are history and are kept.
+func (q *Queries) DeleteUnsyncedSyncOutboxEntry(ctx context.Context, clientRef string) error {
+	_, err := q.db.ExecContext(ctx, deleteUnsyncedSyncOutboxEntry, clientRef)
+	return err
+}
+
 const latestSyncOutboxSyncedAt = `-- name: LatestSyncOutboxSyncedAt :one
 SELECT CAST(COALESCE(MAX(synced_at), '') AS text) FROM sync_outbox WHERE status = 'synced'
 `

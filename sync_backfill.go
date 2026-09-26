@@ -44,15 +44,18 @@ type ResyncEntityReport struct {
 	Queued  int    `json:"queued"`
 }
 
-// PendingDeactivation lists the local-only products/clients a run found --
-// present here, no longer known to kashi -- that would be deactivated. Sent
-// back instead of being acted on when this is the first time a run has found
-// any and the operator hasn't yet confirmed full-mirror mode.
+// PendingDeactivation lists the local-only products a run found -- present
+// here, no longer known to kashi -- that would be deactivated. Sent back
+// instead of being acted on when this is the first time a run has found any
+// and the operator hasn't yet confirmed full-mirror mode.
+//
+// Clients are deliberately not here: kashi can't delete a client a branch is
+// linked to, so "kashi doesn't have this phone" only ever meant the phone
+// differed (trimmed, synthetic, or edited centrally). Clients now converge by
+// uid through the pull instead, including their active flag.
 type PendingDeactivation struct {
 	ProductBarcodes []string `json:"productBarcodes"`
 	ProductNames    []string `json:"productNames"`
-	ClientPhones    []string `json:"clientPhones"`
-	ClientNames     []string `json:"clientNames"`
 }
 
 type ResyncReport struct {
@@ -142,19 +145,18 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	if err != nil {
 		return report, fmt.Errorf("compute deactivation candidates: %w", err)
 	}
-	hasPending := len(pending.ProductBarcodes) > 0 || len(pending.ClientPhones) > 0
+	hasPending := len(pending.ProductBarcodes) > 0
 	switch {
 	case opts.DryRun:
 		report.Entities = append(report.Entities,
 			ResyncEntityReport{Entity: "products_deactivated", Missing: len(pending.ProductBarcodes)},
-			ResyncEntityReport{Entity: "clients_deactivated", Missing: len(pending.ClientPhones)},
 		)
 	case hasPending && !settings.FullMirrorConfirmedAt.Valid && !opts.ConfirmDeactivation:
 		// First time this branch has anything to deactivate, and the
 		// operator hasn't confirmed full-mirror mode yet: report what
-		// would happen and stop here -- nothing else in this run (the
-		// push-up steps below) has written anything yet either, so it's
-		// safe to just return.
+		// would happen and stop here. The pull above has already applied
+		// kashi's data (idempotent, harmless to repeat); none of the
+		// push-up steps below have run yet.
 		report.RequiresConfirmation = true
 		report.PendingDeactivation = &pending
 		report.FinishedAt = time.Now().UTC()
@@ -173,7 +175,6 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 		}
 		report.Entities = append(report.Entities,
 			ResyncEntityReport{Entity: "products_deactivated", Queued: len(pending.ProductBarcodes)},
-			ResyncEntityReport{Entity: "clients_deactivated", Queued: len(pending.ClientPhones)},
 		)
 	}
 
@@ -295,6 +296,7 @@ func (a *App) resyncClients(ctx context.Context, client *centralClient, opts Res
 			BranchClientID: c.ID,
 			Name:           c.Name,
 			Phone:          c.Phone,
+			UID:            c.Uid.String,
 		})
 		if err != nil {
 			return rep, err
@@ -313,14 +315,12 @@ func (a *App) resyncClients(ctx context.Context, client *centralClient, opts Res
 	return rep, nil
 }
 
-// computeDeactivationCandidates asks kashi, by barcode and by phone, which
-// currently-active local products and clients it no longer has. Barcode and
-// phone are each globally unique in kashi, so a "missing" result really does
-// mean the record is gone centrally, not merely unlinked from this branch --
-// see branchReconcile's "products"/"client_phones" cases in kashi's
-// api/branch_catchup.go. Already-deactivated rows are excluded from the
-// query (ListActiveProducts/ListActiveClients) so a settled catalog doesn't
-// keep re-asking about the same barcodes every run.
+// computeDeactivationCandidates asks kashi, by barcode, which currently-active
+// local products it no longer has. Barcode is globally unique in kashi, so a
+// "missing" result really does mean the product is gone centrally -- see
+// branchReconcile's "products" case in kashi's api/branch_catchup.go.
+// Already-deactivated rows are excluded (ListActiveProducts) so a settled
+// catalog doesn't keep re-asking about the same barcodes every run.
 func (a *App) computeDeactivationCandidates(ctx context.Context, client *centralClient) (PendingDeactivation, error) {
 	var pending PendingDeactivation
 
@@ -346,79 +346,11 @@ func (a *App) computeDeactivationCandidates(ctx context.Context, client *central
 		pending.ProductNames = append(pending.ProductNames, productNameByBarcode[bc])
 	}
 
-	// Clients, unlike products, can still be created locally (a walk-in's
-	// phone entered at checkout) and only reach kashi later via the async
-	// outbox -- so "kashi doesn't have this phone" is ambiguous for a
-	// brand-new/not-yet-pushed client. linkedActiveClients narrows to
-	// clients this branch has *previously* linked to a central client (per
-	// kashi's client_links), which is the only group for which "kashi no
-	// longer has this phone" unambiguously means "deleted centrally".
-	clients, err := a.linkedActiveClients(ctx, client)
-	if err != nil {
-		return pending, err
-	}
-	phones := make([]string, 0, len(clients))
-	clientNameByPhone := make(map[string]string, len(clients))
-	for _, c := range clients {
-		if isWalkInClient(c) {
-			continue
-		}
-		phones = append(phones, c.Phone)
-		clientNameByPhone[c.Phone] = c.Name
-	}
-	missingPhones, err := a.reconcileEntity(ctx, client, "client_phones", phones)
-	if err != nil {
-		return pending, fmt.Errorf("reconcile client phones: %w", err)
-	}
-	for _, ph := range missingPhones {
-		pending.ClientPhones = append(pending.ClientPhones, ph)
-		pending.ClientNames = append(pending.ClientNames, clientNameByPhone[ph])
-	}
-
 	return pending, nil
 }
 
-// linkedActiveClients returns local active (non-walk-in) clients this branch
-// has previously linked to a central client, per kashi's client_links table
-// (checked the same way resyncClients checks it: the "clients" reconcile
-// entity, keyed by this branch's local client id). A client absent from
-// client_links is either brand new or was queued by a prior run whose
-// outbox entry hasn't drained yet -- never a deactivation candidate, since
-// "kashi doesn't have it" would just mean "not pushed yet", not "deleted".
-func (a *App) linkedActiveClients(ctx context.Context, client *centralClient) ([]db.Client, error) {
-	clients, err := a.store.ListActiveClients(ctx)
-	if err != nil {
-		return nil, err
-	}
-	refs := make([]string, 0, len(clients))
-	byRef := make(map[string]db.Client, len(clients))
-	for _, c := range clients {
-		if isWalkInClient(c) {
-			continue
-		}
-		ref := strconv.FormatInt(c.ID, 10)
-		refs = append(refs, ref)
-		byRef[ref] = c
-	}
-	unlinked, err := a.reconcileEntity(ctx, client, "clients", refs)
-	if err != nil {
-		return nil, fmt.Errorf("reconcile linked clients: %w", err)
-	}
-	unlinkedSet := make(map[string]bool, len(unlinked))
-	for _, ref := range unlinked {
-		unlinkedSet[ref] = true
-	}
-	linked := make([]db.Client, 0, len(clients))
-	for _, ref := range refs {
-		if !unlinkedSet[ref] {
-			linked = append(linked, byRef[ref])
-		}
-	}
-	return linked, nil
-}
-
-// applyDeactivations soft-deletes the given local-only products/clients
-// (is_active = 0). Never a hard delete: both rows may be referenced by past
+// applyDeactivations soft-deletes the given local-only products
+// (is_active = 0). Never a hard delete: they may be referenced by past
 // invoices/shift reports, which resolve by id, not by is_active.
 func (a *App) applyDeactivations(ctx context.Context, pending PendingDeactivation) error {
 	if len(pending.ProductBarcodes) > 0 {
@@ -426,13 +358,6 @@ func (a *App) applyDeactivations(ctx context.Context, pending PendingDeactivatio
 			return a.store.DeactivateProductsByBarcode(ctx, pending.ProductBarcodes)
 		}); err != nil {
 			return fmt.Errorf("deactivate products: %w", err)
-		}
-	}
-	if len(pending.ClientPhones) > 0 {
-		if err := retryBusy(func() error {
-			return a.store.DeactivateClientsByPhone(ctx, pending.ClientPhones)
-		}); err != nil {
-			return fmt.Errorf("deactivate clients: %w", err)
 		}
 	}
 	return nil
@@ -570,13 +495,14 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 	}
 	items := make([]branchInvoicePayloadItem, 0, len(lines))
 	for _, line := range lines {
-		barcode := ""
+		barcode, productUID := "", ""
 		if prod, err := q.GetProductByID(ctx, line.ProductID); err == nil {
-			barcode = prod.Barcode
+			barcode, productUID = prod.Barcode, prod.Uid.String
 		}
 		items = append(items, branchInvoicePayloadItem{
 			BranchProductID: line.ProductID,
 			Barcode:         barcode,
+			ProductUID:      productUID,
 			UnitPrice:       line.UnitPrice,
 			LineTotal:       line.LineTotal,
 			Discount:        int16(line.Discount),
@@ -616,6 +542,7 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 		BranchShiftID:          inv.ShiftID,
 		BranchInventoryID:      inv.InventoryID,
 		BranchClientID:         inv.ClientID,
+		ClientUID:              clientUIDForSync(ctx, q, inv.ClientID),
 		Discount:               int16(inv.Discount),
 		GrandTotal:             inv.GrandTotal,
 		Subtotal:               inv.Subtotal,
@@ -967,7 +894,7 @@ func (a *App) resyncAttendanceChanges(ctx context.Context, client *centralClient
 				Ref: reviewRef, Kind: "approval", SalespersonName: name,
 				AttendanceDate: r.AttendanceDate, OriginalTime: r.OriginalTime,
 				RequestedTime: r.RequestedTime, RequestedType: r.RequestedType,
-				Action: r.Action, Status: r.Status, Note: note, Actor: "manager approval",
+				Action: r.Action, Status: r.Status, Note: note, Actor: "reviewer",
 				OccurredAt: parseLocalTime(r.ReviewedAt),
 			})
 			if err != nil {

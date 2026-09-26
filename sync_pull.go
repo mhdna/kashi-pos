@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -59,6 +60,8 @@ type syncedBranchTarget struct {
 // SizeName are plain text, matched by name — see the package-level note
 // on syncedCurrency for why matching is never done by numeric id.
 type syncedProductVariant struct {
+	// UID is the variant's shared identity; empty from an older kashi.
+	UID         string         `json:"uid"`
 	Barcode     string         `json:"barcode"`
 	Price       sql.NullInt64  `json:"price"`
 	IsActive    bool           `json:"is_active"`
@@ -408,7 +411,7 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 	}
 
 	var productID int64
-	existing, err := q.GetProductByBarcode(ctx, v.Barcode)
+	existing, err := findSyncedProduct(ctx, q, v)
 	// A product priced at 0 is unsellable - priceInvoiceProduct rejects it
 	// and every quote containing it fails, which surfaces at the till as a
 	// total that will not price. An absent price in the pull payload means
@@ -432,9 +435,19 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 			return err
 		}
 		productID = created.ID
+		if v.UID != "" {
+			if err := q.SetProductUID(ctx, db.SetProductUIDParams{Uid: sql.NullString{String: v.UID, Valid: true}, ID: productID}); err != nil {
+				return err
+			}
+		}
 	} else if err != nil {
 		return err
 	} else {
+		if existing.Barcode != v.Barcode {
+			if err := freeProductBarcode(ctx, q, v.Barcode, existing.ID); err != nil {
+				return err
+			}
+		}
 		if _, err := q.UpdateProduct(ctx, db.UpdateProductParams{
 			ID:           existing.ID,
 			Barcode:      v.Barcode,
@@ -459,6 +472,51 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 	}
 
 	return applySyncedProductAttributes(ctx, q, productID, v)
+}
+
+// findSyncedProduct finds the local copy of a kashi variant: by uid, else by
+// barcode -- in which case the row adopts kashi's uid on the spot, so every
+// later update matches by uid (and a barcode change in kashi updates the
+// same row instead of creating a new one). sql.ErrNoRows means "no local
+// copy yet".
+func findSyncedProduct(ctx context.Context, q *db.Queries, v syncedProductVariant) (db.Product, error) {
+	if v.UID != "" {
+		p, err := q.GetProductByUID(ctx, sql.NullString{String: v.UID, Valid: true})
+		if err == nil || !errors.Is(err, sql.ErrNoRows) {
+			return p, err
+		}
+	}
+	p, err := q.GetProductByBarcode(ctx, v.Barcode)
+	if err != nil {
+		return p, err
+	}
+	if v.UID != "" {
+		if err := q.SetProductUID(ctx, db.SetProductUIDParams{Uid: sql.NullString{String: v.UID, Valid: true}, ID: p.ID}); err != nil {
+			return p, err
+		}
+	}
+	return p, nil
+}
+
+// freeProductBarcode makes barcode available to product keepID. Barcodes are
+// globally unique in kashi and pulls apply in updated_at order, so a
+// different local row still holding it is a stale local-only product: it is
+// deactivated and its barcode suffixed, keeping its invoice history intact.
+func freeProductBarcode(ctx context.Context, q *db.Queries, barcode string, keepID int64) error {
+	other, err := q.GetProductByBarcode(ctx, barcode)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if other.ID == keepID {
+		return nil
+	}
+	return q.SetProductBarcodeInactive(ctx, db.SetProductBarcodeInactiveParams{
+		Barcode: fmt.Sprintf("%s#stale-%d", barcode, other.ID),
+		ID:      other.ID,
+	})
 }
 
 // applySyncedProductAttributes writes brand/sub-category/kind/season/year
