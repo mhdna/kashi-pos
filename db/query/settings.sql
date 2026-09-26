@@ -25,6 +25,9 @@ UPDATE settings SET central_api_url = ?;
 -- name: SetShiftReceiptUploadMode :exec
 UPDATE settings SET shift_receipt_upload_mode = ?;
 
+-- name: SetFullMirrorConfirmedAt :exec
+UPDATE settings SET full_mirror_confirmed_at = ?;
+
 -- name: GetFeatureFlag :one
 SELECT enabled FROM feature_flags WHERE key = ?;
 

@@ -31,6 +31,7 @@
       {{ startupError }}
     </v-alert>
     <router-view v-else />
+    <AttendanceToast />
   </v-app>
 </template>
 
@@ -40,6 +41,7 @@ import { CreateDatabase, ChooseDatabase, WaitUntilReady } from "../wailsjs/go/ma
 import { useTheme } from "vuetify";
 import { animationsEnabled, isCompactBuild } from "@/lib/display";
 import { EventsOn } from "../wailsjs/runtime/runtime";
+import AttendanceToast from "@/components/AttendanceToast.vue";
 
 const theme = useTheme();
 const startupLoading = ref(true);

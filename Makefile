@@ -19,8 +19,10 @@ test:
 dev:
 	wails dev
 
+APP_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+
 build-windows:
-	wails build -platform windows/amd64 -clean
+	wails build -platform windows/amd64 -nsis -clean -ldflags "-X main.appVersion=$(APP_VERSION)"
 
 build-windows-compact:
-	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -clean -o "Kashi Cloud Compact.exe"
+	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -nsis -clean -o "Kashi Cloud Compact.exe" -ldflags "-X main.appVersion=$(APP_VERSION)"

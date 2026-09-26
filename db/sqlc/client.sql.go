@@ -8,7 +8,17 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
+
+const activateClientByPhone = `-- name: ActivateClientByPhone :exec
+UPDATE clients SET is_active = 1 WHERE phone = ?
+`
+
+func (q *Queries) ActivateClientByPhone(ctx context.Context, phone string) error {
+	_, err := q.db.ExecContext(ctx, activateClientByPhone, phone)
+	return err
+}
 
 const addClientLoyaltyPoints = `-- name: AddClientLoyaltyPoints :exec
 UPDATE clients
@@ -100,7 +110,7 @@ func (q *Queries) CountInvoiceCouponPaymentsByTypeID(ctx context.Context, coupon
 
 const createClient = `-- name: CreateClient :one
 INSERT INTO clients (name, phone, total_loyalty_points, valid_loyalty_points)
-VALUES (?, ?, ?, ?) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at
+VALUES (?, ?, ?, ?) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active
 `
 
 type CreateClientParams struct {
@@ -125,6 +135,7 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Cli
 		&i.TotalLoyaltyPoints,
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -224,8 +235,8 @@ func (q *Queries) CreateCoupon(ctx context.Context, arg CreateCouponParams) (Cou
 }
 
 const createCouponType = `-- name: CreateCouponType :one
-INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout)
-VALUES (?, ?, ?, ?, ?, ?) RETURNING id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout
+INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional)
+VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional
 `
 
 type CreateCouponTypeParams struct {
@@ -235,6 +246,7 @@ type CreateCouponTypeParams struct {
 	IsActive            int64  `json:"isActive"`
 	ReferenceOnly       int64  `json:"referenceOnly"`
 	CalculateOnCheckout int64  `json:"calculateOnCheckout"`
+	CodeOptional        int64  `json:"codeOptional"`
 }
 
 func (q *Queries) CreateCouponType(ctx context.Context, arg CreateCouponTypeParams) (CouponType, error) {
@@ -245,6 +257,7 @@ func (q *Queries) CreateCouponType(ctx context.Context, arg CreateCouponTypePara
 		arg.IsActive,
 		arg.ReferenceOnly,
 		arg.CalculateOnCheckout,
+		arg.CodeOptional,
 	)
 	var i CouponType
 	err := row.Scan(
@@ -255,6 +268,7 @@ func (q *Queries) CreateCouponType(ctx context.Context, arg CreateCouponTypePara
 		&i.IsActive,
 		&i.ReferenceOnly,
 		&i.CalculateOnCheckout,
+		&i.CodeOptional,
 	)
 	return i, err
 }
@@ -325,6 +339,25 @@ func (q *Queries) CreateValueCoupon(ctx context.Context, arg CreateValueCouponPa
 		&i.RedeemedInvoiceID,
 	)
 	return i, err
+}
+
+const deactivateClientsByPhone = `-- name: DeactivateClientsByPhone :exec
+UPDATE clients SET is_active = 0 WHERE phone IN (/*SLICE:phones*/?)
+`
+
+func (q *Queries) DeactivateClientsByPhone(ctx context.Context, phones []string) error {
+	query := deactivateClientsByPhone
+	var queryParams []interface{}
+	if len(phones) > 0 {
+		for _, v := range phones {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:phones*/?", strings.Repeat(",?", len(phones))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:phones*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
 }
 
 const deleteClient = `-- name: DeleteClient :exec
@@ -423,7 +456,7 @@ func (q *Queries) GetClientAccountPaidByInvoiceID(ctx context.Context, invoiceID
 }
 
 const getClientByID = `-- name: GetClientByID :one
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at FROM clients WHERE id = ?
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active FROM clients WHERE id = ?
 `
 
 func (q *Queries) GetClientByID(ctx context.Context, id int64) (Client, error) {
@@ -436,12 +469,13 @@ func (q *Queries) GetClientByID(ctx context.Context, id int64) (Client, error) {
 		&i.TotalLoyaltyPoints,
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
+		&i.IsActive,
 	)
 	return i, err
 }
 
 const getClientByPhone = `-- name: GetClientByPhone :one
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at FROM clients WHERE phone = ?
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active FROM clients WHERE phone = ?
 `
 
 func (q *Queries) GetClientByPhone(ctx context.Context, phone string) (Client, error) {
@@ -454,6 +488,7 @@ func (q *Queries) GetClientByPhone(ctx context.Context, phone string) (Client, e
 		&i.TotalLoyaltyPoints,
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -481,7 +516,7 @@ func (q *Queries) GetCouponByCode(ctx context.Context, code string) (Coupon, err
 }
 
 const getCouponTypeByID = `-- name: GetCouponTypeByID :one
-SELECT id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout FROM coupon_types WHERE id = ?
+SELECT id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional FROM coupon_types WHERE id = ?
 `
 
 func (q *Queries) GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error) {
@@ -495,8 +530,44 @@ func (q *Queries) GetCouponTypeByID(ctx context.Context, id int64) (CouponType, 
 		&i.IsActive,
 		&i.ReferenceOnly,
 		&i.CalculateOnCheckout,
+		&i.CodeOptional,
 	)
 	return i, err
+}
+
+const listActiveClients = `-- name: ListActiveClients :many
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active FROM clients WHERE is_active = 1 ORDER BY id
+`
+
+func (q *Queries) ListActiveClients(ctx context.Context) ([]Client, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveClients)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Client{}
+	for rows.Next() {
+		var i Client
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.TotalLoyaltyPoints,
+			&i.ValidLoyaltyPoints,
+			&i.CreatedAt,
+			&i.IsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listClientAccountEntries = `-- name: ListClientAccountEntries :many
@@ -612,7 +683,7 @@ func (q *Queries) ListClientAccountPayments(ctx context.Context, clientID int64)
 }
 
 const listClients = `-- name: ListClients :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at FROM clients ORDER BY id
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active FROM clients ORDER BY id
 `
 
 func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
@@ -631,6 +702,7 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 			&i.TotalLoyaltyPoints,
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
+			&i.IsActive,
 		); err != nil {
 			return nil, err
 		}
@@ -787,7 +859,7 @@ func (q *Queries) ListClientsAfterUnfiltered(ctx context.Context, arg ListClient
 }
 
 const listClientsWithInvoices = `-- name: ListClientsWithInvoices :many
-SELECT DISTINCT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at FROM clients c
+SELECT DISTINCT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at, c.is_active FROM clients c
 JOIN invoices i ON i.client_id = c.id
 ORDER BY c.id
 `
@@ -811,6 +883,7 @@ func (q *Queries) ListClientsWithInvoices(ctx context.Context) ([]Client, error)
 			&i.TotalLoyaltyPoints,
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
+			&i.IsActive,
 		); err != nil {
 			return nil, err
 		}
@@ -826,7 +899,7 @@ func (q *Queries) ListClientsWithInvoices(ctx context.Context) ([]Client, error)
 }
 
 const listCouponTypes = `-- name: ListCouponTypes :many
-SELECT id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout FROM coupon_types ORDER BY name
+SELECT id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional FROM coupon_types ORDER BY name
 `
 
 func (q *Queries) ListCouponTypes(ctx context.Context) ([]CouponType, error) {
@@ -846,6 +919,7 @@ func (q *Queries) ListCouponTypes(ctx context.Context) ([]CouponType, error) {
 			&i.IsActive,
 			&i.ReferenceOnly,
 			&i.CalculateOnCheckout,
+			&i.CodeOptional,
 		); err != nil {
 			return nil, err
 		}
@@ -951,7 +1025,7 @@ func (q *Queries) RedeemCoupon(ctx context.Context, arg RedeemCouponParams) erro
 }
 
 const searchClients = `-- name: SearchClients :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active
 FROM clients
 WHERE trim(?1) = ''
    OR name LIKE '%' || ?1 || '%' COLLATE NOCASE
@@ -981,6 +1055,7 @@ func (q *Queries) SearchClients(ctx context.Context, arg SearchClientsParams) ([
 			&i.TotalLoyaltyPoints,
 			&i.ValidLoyaltyPoints,
 			&i.CreatedAt,
+			&i.IsActive,
 		); err != nil {
 			return nil, err
 		}
@@ -1001,7 +1076,7 @@ SET name = ?,
     phone = ?,
     total_loyalty_points = ?,
     valid_loyalty_points = ?
-WHERE id = ? RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at
+WHERE id = ? RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active
 `
 
 type UpdateClientParams struct {
@@ -1028,6 +1103,7 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 		&i.TotalLoyaltyPoints,
 		&i.ValidLoyaltyPoints,
 		&i.CreatedAt,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -1076,7 +1152,7 @@ func (q *Queries) UpdateCouponStatus(ctx context.Context, arg UpdateCouponStatus
 
 const updateCouponType = `-- name: UpdateCouponType :exec
 UPDATE coupon_types
-SET name = ?, value_cents = ?, currency_code = ?, is_active = ?, reference_only = ?, calculate_on_checkout = ?
+SET name = ?, value_cents = ?, currency_code = ?, is_active = ?, reference_only = ?, calculate_on_checkout = ?, code_optional = ?
 WHERE id = ?
 `
 
@@ -1087,6 +1163,7 @@ type UpdateCouponTypeParams struct {
 	IsActive            int64  `json:"isActive"`
 	ReferenceOnly       int64  `json:"referenceOnly"`
 	CalculateOnCheckout int64  `json:"calculateOnCheckout"`
+	CodeOptional        int64  `json:"codeOptional"`
 	ID                  int64  `json:"id"`
 }
 
@@ -1098,6 +1175,7 @@ func (q *Queries) UpdateCouponType(ctx context.Context, arg UpdateCouponTypePara
 		arg.IsActive,
 		arg.ReferenceOnly,
 		arg.CalculateOnCheckout,
+		arg.CodeOptional,
 		arg.ID,
 	)
 	return err

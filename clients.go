@@ -49,6 +49,9 @@ func (a *App) SearchClients(search string, selectedID int64) ([]map[string]any, 
 		if isWalkInClient(client) {
 			continue
 		}
+		if client.IsActive == 0 && client.ID != selectedID {
+			continue
+		}
 		if client.ID == selectedID {
 			selectedIncluded = true
 		}
@@ -181,8 +184,31 @@ func normalizeClientPhone(phone string) (string, error) {
 		return phone, nil
 	}
 	parsed, err := phonenumbers.Parse(phone, "LB")
-	if err != nil || !phonenumbers.IsValidNumber(parsed) {
+	if err != nil {
 		return "", fmt.Errorf("invalid phone number")
+	}
+	// Numbers with no explicit country code (or an explicit +961) are
+	// Lebanese, since "LB" is always the default region: give those a
+	// Lebanon-specific message instead of the generic one.
+	isLebanese := phonenumbers.GetRegionCodeForNumber(parsed) == "LB"
+	if !phonenumbers.IsValidNumber(parsed) {
+		if isLebanese {
+			return "", fmt.Errorf("enter a valid Lebanese phone number")
+		}
+		return "", fmt.Errorf("invalid phone number")
+	}
+	// Only mobile numbers are accepted: clients are contacted over SMS for
+	// loyalty/receipts, and a landline/voicemail/premium-rate number can't
+	// receive those. This also rejects mistyped numbers that happen to be
+	// "valid" for some other Lebanese line type (e.g. the 80xxxxxx
+	// voicemail range or 9xxxxxxx premium-rate range).
+	switch phonenumbers.GetNumberType(parsed) {
+	case phonenumbers.MOBILE, phonenumbers.FIXED_LINE_OR_MOBILE:
+	default:
+		if isLebanese {
+			return "", fmt.Errorf("enter a valid Lebanese phone number")
+		}
+		return "", fmt.Errorf("enter a valid mobile phone number")
 	}
 	return phonenumbers.Format(parsed, phonenumbers.E164), nil
 }

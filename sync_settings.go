@@ -46,6 +46,7 @@ type branchSettingsPayload struct {
 	InvoiceKeyboardMode           bool `json:"invoice_keyboard_mode"`
 	ClientRequired                bool `json:"client_required"`
 	SalespersonPerInvoiceRequired bool `json:"salesperson_per_invoice_required"`
+	NonAdminMonthNavEnabled       bool `json:"non_admin_month_nav_enabled"`
 	OpeningFloatEnabled           bool `json:"opening_float_enabled"`
 	CountOpeningCashOnClose        bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        bool `json:"overchange_confirmation"`
@@ -149,6 +150,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		InvoiceKeyboardMode:           a.flagEnabled(ctx, invoiceKeyboardModeFlag),
 		ClientRequired:                a.flagEnabled(ctx, clientRequiredFlag),
 		SalespersonPerInvoiceRequired: a.flagEnabled(ctx, salespersonPerInvoiceRequiredFlag),
+		NonAdminMonthNavEnabled:       a.flagEnabled(ctx, nonAdminMonthNavEnabledFlag),
 		OpeningFloatEnabled:           a.openingFloatEnabled(),
 		CountOpeningCashOnClose:       a.countOpeningCashOnClose(),
 		OverchangeConfirmation:        a.overchangeConfirmationEnabled(),

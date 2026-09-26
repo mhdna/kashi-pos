@@ -38,7 +38,16 @@ type App struct {
 	admin       *adminServer
 	shiftUpload *shiftUploadServer
 	startupErr  error
-	ready       chan struct{}
+
+	attendanceProbe     attendanceProbe
+	attendanceProbeStop chan struct{}
+	attendancePush      *attendancePushServer
+	attendancePushStop  chan struct{}
+	attendanceKick      chan struct{}
+	// attendanceSyncMu serializes SyncAttendance: the attendance page, the
+	// fallback poll and the device's push can all trigger one at once.
+	attendanceSyncMu sync.Mutex
+	ready            chan struct{}
 
 	pinMu             sync.Mutex
 	failedPINAttempts int
@@ -262,6 +271,8 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 	a.startShiftUploadServer()
 	a.startSyncWorker()
 	a.startWSClient()
+	a.startAttendanceProbe()
+	a.startAttendancePushServer()
 	return nil
 }
 
@@ -360,6 +371,8 @@ func (a *App) GetStartupError() string {
 func (a *App) shutdown(ctx context.Context) {
 	a.stopWSClient()
 	a.stopSyncWorker()
+	a.stopAttendanceProbe()
+	a.stopAttendancePushServer(ctx)
 	// Both signaled to stop above; wait for them to actually finish before
 	// touching a.conn below — a goroutine still mid-tick when the
 	// connection closes underneath it would either error noisily or (worse,
@@ -694,6 +707,12 @@ func (a *App) WaitUntilReady() map[string]interface{} {
 	return result
 }
 
+// GetAppVersion returns the build-time version string (see appVersion in
+// main.go), shown as a small caption under the PIN pad on the login screen.
+func (a *App) GetAppVersion() string {
+	return appVersion
+}
+
 func (a *App) GetTheme() (string, error) {
 	if a.store == nil {
 		return "light", nil
@@ -837,6 +856,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["visitorCounterEnabled"] = false
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, nonAdminMonthNavEnabledFlag); flagErr == nil {
+		result["nonAdminMonthNavEnabled"] = enabled != 0
+	} else {
+		result["nonAdminMonthNavEnabled"] = false
+	}
 	if config, configErr := a.GetAttendanceConfig(); configErr == nil {
 		result["attendance"] = config
 	}
@@ -922,6 +946,18 @@ func (a *App) SetSalespersonPerInvoiceRequired(required bool) error {
 	}
 	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
 		Key: salespersonPerInvoiceRequiredFlag, Enabled: boolInt(required),
+	})
+}
+
+// SetNonAdminMonthNavEnabled toggles whether non-admins can page the
+// monthly income chart to a different month. Off (the default) restricts
+// that navigation to admins; on lets any cashier browse other months too.
+func (a *App) SetNonAdminMonthNavEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: nonAdminMonthNavEnabledFlag, Enabled: boolInt(enabled),
 	})
 }
 

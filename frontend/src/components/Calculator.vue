@@ -89,6 +89,7 @@
       <v-card title="Coupon payment">
         <v-card-text>
           <v-text-field
+            v-if="selectedCouponType?.codeRequired !== false"
             v-model="couponCode"
             :placeholder="selectedCouponType?.referenceOnly ? 'Reference number' : 'Coupon code'"
             :hint="selectedCouponType?.referenceOnly ? 'Enter the reference number for this coupon.' : 'Enter the issued coupon code.'"
@@ -530,7 +531,7 @@ async function openCouponDialog() {
 }
 function confirmCoupon() {
   const type = couponTypes.value.find((item) => item.id === couponTypeId.value);
-  if (!couponCode.value.trim() || !type) return;
+  if (!type || (type.codeRequired !== false && !couponCode.value.trim())) return;
   addCoupon(couponCode.value, type);
   couponDialog.value = false;
 }

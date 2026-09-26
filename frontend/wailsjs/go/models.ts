@@ -133,6 +133,24 @@ export namespace main {
 	        this.checkoutReady = source["checkoutReady"];
 	    }
 	}
+	export class PendingDeactivation {
+	    productBarcodes: string[];
+	    productNames: string[];
+	    clientPhones: string[];
+	    clientNames: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PendingDeactivation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.productBarcodes = source["productBarcodes"];
+	        this.productNames = source["productNames"];
+	        this.clientPhones = source["clientPhones"];
+	        this.clientNames = source["clientNames"];
+	    }
+	}
 	export class ProductCursorPage {
 	    items: any[];
 	    nextCursor: number;
@@ -188,6 +206,7 @@ export namespace main {
 	export class ResyncOptions {
 	    applyStock: boolean;
 	    dryRun: boolean;
+	    confirmDeactivation: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ResyncOptions(source);
@@ -197,6 +216,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.applyStock = source["applyStock"];
 	        this.dryRun = source["dryRun"];
+	        this.confirmDeactivation = source["confirmDeactivation"];
 	    }
 	}
 	export class ResyncReport {
@@ -208,6 +228,8 @@ export namespace main {
 	    startedAt: any;
 	    // Go type: time
 	    finishedAt: any;
+	    requiresConfirmation: boolean;
+	    pendingDeactivation?: PendingDeactivation;
 	
 	    static createFrom(source: any = {}) {
 	        return new ResyncReport(source);
@@ -221,6 +243,8 @@ export namespace main {
 	        this.conflicts = source["conflicts"];
 	        this.startedAt = this.convertValues(source["startedAt"], null);
 	        this.finishedAt = this.convertValues(source["finishedAt"], null);
+	        this.requiresConfirmation = source["requiresConfirmation"];
+	        this.pendingDeactivation = this.convertValues(source["pendingDeactivation"], PendingDeactivation);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

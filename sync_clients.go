@@ -41,14 +41,19 @@ func applySyncedClient(ctx context.Context, q *db.Queries, c syncedClient) error
 		return err
 	}
 
-	_, err = q.UpdateClient(ctx, db.UpdateClientParams{
+	if _, err := q.UpdateClient(ctx, db.UpdateClientParams{
 		ID:                 existing.ID,
 		Name:               c.Name,
 		Phone:              c.Phone,
 		TotalLoyaltyPoints: existing.TotalLoyaltyPoints,
 		ValidLoyaltyPoints: existing.ValidLoyaltyPoints,
-	})
-	return err
+	}); err != nil {
+		return err
+	}
+	// A client reappearing in a cloud pull is, by definition, still known to
+	// kashi -- reactivate it if a previous full-mirror sync had deactivated
+	// it locally.
+	return q.ActivateClientByPhone(ctx, c.Phone)
 }
 
 // branchClientPayload is the exact JSON body PUT to kashi's /branch/clients

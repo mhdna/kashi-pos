@@ -481,8 +481,8 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 			return fmt.Errorf("on account cannot be used as change")
 		}
 		if strings.EqualFold(account.Name, "On Coupon") {
-			if payment.AmountCents < 0 || strings.TrimSpace(payment.CouponCode) == "" || payment.CouponTypeID <= 0 {
-				return fmt.Errorf("coupon code and type are required")
+			if payment.AmountCents < 0 || payment.CouponTypeID <= 0 {
+				return fmt.Errorf("coupon type is required")
 			}
 			couponType, typeErr := q.GetCouponTypeByID(ctx, payment.CouponTypeID)
 			if typeErr != nil {
@@ -494,7 +494,10 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 			if couponType.ValueCents != payment.AmountCents {
 				return fmt.Errorf("coupon value or type does not match")
 			}
-			if couponType.ReferenceOnly == 0 {
+			if couponType.CodeOptional == 0 && strings.TrimSpace(payment.CouponCode) == "" {
+				return fmt.Errorf("coupon code is required")
+			}
+			if couponType.CodeOptional == 0 && couponType.ReferenceOnly == 0 {
 				coupon, couponErr := q.GetActiveCouponByCode(ctx, strings.TrimSpace(payment.CouponCode))
 				if couponErr != nil {
 					if errors.Is(couponErr, sql.ErrNoRows) {
@@ -598,7 +601,7 @@ func recordSpecialPaymentMetadata(a *App, q *db.Queries, invoiceID, clientID int
 			if err != nil {
 				return fmt.Errorf("coupon type: %w", err)
 			}
-			if couponType.ReferenceOnly != 0 {
+			if couponType.ReferenceOnly != 0 || couponType.CodeOptional != 0 {
 				continue
 			}
 			if err := q.RedeemCoupon(a.ctx, db.RedeemCouponParams{RedeemedInvoiceID: sql.NullInt64{Int64: invoiceID, Valid: true}, Code: code}); err != nil {

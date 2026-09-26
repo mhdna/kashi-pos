@@ -19,7 +19,7 @@ func (a *App) ListCouponTypes() ([]map[string]any, error) {
 	}
 	result := make([]map[string]any, len(types))
 	for i, couponType := range types {
-		result[i] = map[string]any{"id": couponType.ID, "name": couponType.Name, "valueCents": couponType.ValueCents, "currencyCode": couponType.CurrencyCode, "isActive": couponType.IsActive != 0, "referenceOnly": couponType.ReferenceOnly != 0, "calculateOnCheckout": couponType.CalculateOnCheckout != 0}
+		result[i] = map[string]any{"id": couponType.ID, "name": couponType.Name, "valueCents": couponType.ValueCents, "currencyCode": couponType.CurrencyCode, "isActive": couponType.IsActive != 0, "referenceOnly": couponType.ReferenceOnly != 0, "calculateOnCheckout": couponType.CalculateOnCheckout != 0, "codeRequired": couponType.CodeOptional == 0}
 	}
 	return result, nil
 }
@@ -108,7 +108,7 @@ func (a *App) CreateCoupon(code string, couponTypeID, clientID int64) (map[strin
 	return map[string]any{"code": coupon.Code, "typeId": coupon.TypeID.Int64, "valueCents": coupon.ValueCents.Int64, "status": coupon.Status}, nil
 }
 
-func (a *App) CreateCouponType(name, currencyCode string, valueCents int64, referenceOnly, calculateOnCheckout bool) (map[string]any, error) {
+func (a *App) CreateCouponType(name, currencyCode string, valueCents int64, referenceOnly, calculateOnCheckout, codeRequired bool) (map[string]any, error) {
 	name = strings.TrimSpace(name)
 	currencyCode = strings.ToUpper(strings.TrimSpace(currencyCode))
 	if name == "" || valueCents <= 0 {
@@ -125,14 +125,18 @@ func (a *App) CreateCouponType(name, currencyCode string, valueCents int64, refe
 	if calculateOnCheckout {
 		calculateOnCheckoutValue = 1
 	}
-	couponType, err := a.store.CreateCouponType(a.ctx, db.CreateCouponTypeParams{Name: name, ValueCents: valueCents, CurrencyCode: currencyCode, IsActive: 1, ReferenceOnly: referenceOnlyValue, CalculateOnCheckout: calculateOnCheckoutValue})
+	codeOptionalValue := int64(0)
+	if !codeRequired {
+		codeOptionalValue = 1
+	}
+	couponType, err := a.store.CreateCouponType(a.ctx, db.CreateCouponTypeParams{Name: name, ValueCents: valueCents, CurrencyCode: currencyCode, IsActive: 1, ReferenceOnly: referenceOnlyValue, CalculateOnCheckout: calculateOnCheckoutValue, CodeOptional: codeOptionalValue})
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"id": couponType.ID, "name": couponType.Name, "valueCents": couponType.ValueCents, "currencyCode": couponType.CurrencyCode, "isActive": true, "referenceOnly": couponType.ReferenceOnly != 0, "calculateOnCheckout": couponType.CalculateOnCheckout != 0}, nil
+	return map[string]any{"id": couponType.ID, "name": couponType.Name, "valueCents": couponType.ValueCents, "currencyCode": couponType.CurrencyCode, "isActive": true, "referenceOnly": couponType.ReferenceOnly != 0, "calculateOnCheckout": couponType.CalculateOnCheckout != 0, "codeRequired": couponType.CodeOptional == 0}, nil
 }
 
-func (a *App) UpdateCouponType(id int64, name, currencyCode string, valueCents int64, isActive, referenceOnly, calculateOnCheckout bool) error {
+func (a *App) UpdateCouponType(id int64, name, currencyCode string, valueCents int64, isActive, referenceOnly, calculateOnCheckout, codeRequired bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -156,8 +160,12 @@ func (a *App) UpdateCouponType(id int64, name, currencyCode string, valueCents i
 	if calculateOnCheckout {
 		calculateOnCheckoutValue = 1
 	}
+	codeOptionalValue := int64(0)
+	if !codeRequired {
+		codeOptionalValue = 1
+	}
 	return a.store.UpdateCouponType(a.ctx, db.UpdateCouponTypeParams{
 		Name: name, ValueCents: valueCents, CurrencyCode: currencyCode,
-		IsActive: active, ReferenceOnly: reference, CalculateOnCheckout: calculateOnCheckoutValue, ID: id,
+		IsActive: active, ReferenceOnly: reference, CalculateOnCheckout: calculateOnCheckoutValue, CodeOptional: codeOptionalValue, ID: id,
 	})
 }

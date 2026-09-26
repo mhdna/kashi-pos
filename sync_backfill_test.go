@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -28,12 +29,19 @@ type fakeCentral struct {
 	// makes that route 404 like a kashi that predates it.
 	clientBatchCalls int
 	clientBatchGone  bool
+	// productBarcodesGone/clientPhonesGone are opt-in: a test marks a
+	// barcode/phone here to make it a deactivation candidate. Anything not
+	// listed is reported present, matching a real branch whose existing
+	// catalog/roster kashi already knows about.
+	productBarcodesGone map[string]bool
+	clientPhonesGone    map[string]bool
 }
 
 func newFakeCentral() *fakeCentral {
 	return &fakeCentral{
 		invoiceRefs: map[string]int{}, clientRefs: map[string]int{},
 		expenseRefs: map[string]int{}, loanRefs: map[string]int{}, visitorRefs: map[string]int{},
+		productBarcodesGone: map[string]bool{}, clientPhonesGone: map[string]bool{},
 	}
 }
 
@@ -114,21 +122,43 @@ func (f *fakeCentral) handler() http.Handler {
 				Refs   []string `json:"refs"`
 			}
 			json.Unmarshal(body, &req)
-			seen := f.invoiceRefs
-			switch req.Entity {
-			case "clients":
-				seen = f.clientRefs
-			case "expenses":
-				seen = f.expenseRefs
-			case "loans":
-				seen = f.loanRefs
-			case "visitor_events":
-				seen = f.visitorRefs
-			}
 			missing := []string{}
-			for _, ref := range req.Refs {
-				if req.Entity == "products" || seen[ref] == 0 {
-					missing = append(missing, ref)
+			switch req.Entity {
+			case "products":
+				// Unlike the other entities, kashi already knows this
+				// branch's whole catalog by default (products only ever
+				// flow kashi -> branch) -- a ref is "missing" (a
+				// deactivation candidate) only if a test explicitly marks
+				// it gone via f.productBarcodesGone.
+				for _, ref := range req.Refs {
+					if f.productBarcodesGone[ref] {
+						missing = append(missing, ref)
+					}
+				}
+			case "client_phones":
+				// Same idea: a phone is only a deactivation candidate if
+				// a test explicitly marks it gone.
+				for _, ref := range req.Refs {
+					if f.clientPhonesGone[ref] {
+						missing = append(missing, ref)
+					}
+				}
+			default:
+				seen := f.invoiceRefs
+				switch req.Entity {
+				case "clients":
+					seen = f.clientRefs
+				case "expenses":
+					seen = f.expenseRefs
+				case "loans":
+					seen = f.loanRefs
+				case "visitor_events":
+					seen = f.visitorRefs
+				}
+				for _, ref := range req.Refs {
+					if seen[ref] == 0 {
+						missing = append(missing, ref)
+					}
 				}
 			}
 			json.NewEncoder(w).Encode(map[string]any{"missing": missing})
@@ -391,5 +421,201 @@ func TestResyncAllBackfillsVisitorEvents(t *testing.T) {
 	}
 	if fc.visitorRefs["vis-old-1"] != 1 {
 		t.Fatalf("visitor event pushed %d times, want 1", fc.visitorRefs["vis-old-1"])
+	}
+}
+
+// TestResyncAllFirstDeactivationRequiresConfirmation covers the one-time
+// gate: the first run that finds something to deactivate must report it and
+// write nothing, rather than silently soft-deleting a product or client the
+// operator hasn't confirmed full-mirror mode for yet.
+func TestResyncAllFirstDeactivationRequiresConfirmation(t *testing.T) {
+	fc := newFakeCentral()
+	server := httptest.NewServer(fc.handler())
+	defer server.Close()
+
+	app, store, _, client := setUpTestInvoiceApp(t, server.URL)
+	// Simulate a barcode kashi no longer has, and a client this branch had
+	// previously linked (so it's eligible for deactivation) whose phone
+	// kashi no longer has.
+	fc.productBarcodesGone["1"] = true
+	fc.clientRefs[strconv.FormatInt(client.ID, 10)] = 1
+	fc.clientPhonesGone[client.Phone] = true
+
+	rep, err := app.ResyncAll(ResyncOptions{})
+	if err != nil {
+		t.Fatalf("ResyncAll: %v", err)
+	}
+	if !rep.RequiresConfirmation {
+		t.Fatal("expected RequiresConfirmation on first run with deactivation candidates")
+	}
+	if rep.PendingDeactivation == nil ||
+		len(rep.PendingDeactivation.ProductBarcodes) != 1 || rep.PendingDeactivation.ProductBarcodes[0] != "1" ||
+		len(rep.PendingDeactivation.ClientPhones) != 1 || rep.PendingDeactivation.ClientPhones[0] != client.Phone {
+		t.Fatalf("unexpected PendingDeactivation: %+v", rep.PendingDeactivation)
+	}
+
+	product, err := store.GetProductByBarcode(app.ctx, "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if product.IsActive != 1 {
+		t.Fatal("product must not be deactivated before confirmation")
+	}
+	reloadedClient, err := store.GetClientByID(app.ctx, client.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloadedClient.IsActive != 1 {
+		t.Fatal("client must not be deactivated before confirmation")
+	}
+	settings, err := store.GetSettings(app.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.FullMirrorConfirmedAt.Valid {
+		t.Fatal("full_mirror_confirmed_at must not be set before confirmation")
+	}
+}
+
+// TestResyncAllConfirmedDeactivationWritesAndSetsFlag covers the confirm
+// path: ConfirmDeactivation:true actually deactivates and records the
+// confirmation.
+func TestResyncAllConfirmedDeactivationWritesAndSetsFlag(t *testing.T) {
+	fc := newFakeCentral()
+	server := httptest.NewServer(fc.handler())
+	defer server.Close()
+
+	app, store, _, client := setUpTestInvoiceApp(t, server.URL)
+	fc.productBarcodesGone["1"] = true
+	fc.clientRefs[strconv.FormatInt(client.ID, 10)] = 1
+	fc.clientPhonesGone[client.Phone] = true
+
+	rep, err := app.ResyncAll(ResyncOptions{ConfirmDeactivation: true})
+	if err != nil {
+		t.Fatalf("ResyncAll: %v", err)
+	}
+	if rep.RequiresConfirmation {
+		t.Fatal("must not require confirmation again once ConfirmDeactivation is set")
+	}
+
+	product, err := store.GetProductByBarcode(app.ctx, "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if product.IsActive != 0 {
+		t.Fatal("expected product deactivated after confirmation")
+	}
+	reloadedClient, err := store.GetClientByID(app.ctx, client.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloadedClient.IsActive != 0 {
+		t.Fatal("expected client deactivated after confirmation")
+	}
+	settings, err := store.GetSettings(app.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !settings.FullMirrorConfirmedAt.Valid {
+		t.Fatal("expected full_mirror_confirmed_at set after confirmation")
+	}
+}
+
+// TestResyncAllDeactivatesSilentlyOnceConfirmed covers continuous
+// mirroring: once full_mirror_confirmed_at is already set, a later run with
+// new deactivation candidates must deactivate them without requiring
+// ConfirmDeactivation again.
+func TestResyncAllDeactivatesSilentlyOnceConfirmed(t *testing.T) {
+	fc := newFakeCentral()
+	server := httptest.NewServer(fc.handler())
+	defer server.Close()
+
+	app, store, _, client := setUpTestInvoiceApp(t, server.URL)
+
+	// First run: nothing gone yet, but it still marks confirmation as
+	// settled implicitly only when it finds something -- so seed the flag
+	// directly, as a prior confirmed run would have left it.
+	if err := store.SetFullMirrorConfirmedAt(app.ctx, sql.NullString{String: "2026-01-01T00:00:00Z", Valid: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	fc.productBarcodesGone["1"] = true
+	fc.clientRefs[strconv.FormatInt(client.ID, 10)] = 1
+	fc.clientPhonesGone[client.Phone] = true
+
+	rep, err := app.ResyncAll(ResyncOptions{})
+	if err != nil {
+		t.Fatalf("ResyncAll: %v", err)
+	}
+	if rep.RequiresConfirmation {
+		t.Fatal("must not require confirmation once already confirmed")
+	}
+
+	product, err := store.GetProductByBarcode(app.ctx, "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if product.IsActive != 0 {
+		t.Fatal("expected product deactivated silently once full-mirror mode is confirmed")
+	}
+}
+
+// TestResyncAllDryRunNeverDeactivatesOrConfirms covers preview safety: a
+// DryRun must report would-be deactivations without writing anything or
+// setting the confirmation flag.
+func TestResyncAllDryRunNeverDeactivatesOrConfirms(t *testing.T) {
+	fc := newFakeCentral()
+	server := httptest.NewServer(fc.handler())
+	defer server.Close()
+
+	app, store, _, client := setUpTestInvoiceApp(t, server.URL)
+	fc.productBarcodesGone["1"] = true
+	fc.clientRefs[strconv.FormatInt(client.ID, 10)] = 1
+	fc.clientPhonesGone[client.Phone] = true
+
+	rep, err := app.ResyncAll(ResyncOptions{DryRun: true})
+	if err != nil {
+		t.Fatalf("ResyncAll: %v", err)
+	}
+	if rep.RequiresConfirmation {
+		t.Fatal("a dry run must never require confirmation")
+	}
+
+	var productsDeactivated, clientsDeactivated *ResyncEntityReport
+	for i := range rep.Entities {
+		switch rep.Entities[i].Entity {
+		case "products_deactivated":
+			productsDeactivated = &rep.Entities[i]
+		case "clients_deactivated":
+			clientsDeactivated = &rep.Entities[i]
+		}
+	}
+	if productsDeactivated == nil || productsDeactivated.Missing != 1 {
+		t.Fatalf("expected products_deactivated.missing=1, got %+v", productsDeactivated)
+	}
+	if clientsDeactivated == nil || clientsDeactivated.Missing != 1 {
+		t.Fatalf("expected clients_deactivated.missing=1, got %+v", clientsDeactivated)
+	}
+
+	product, err := store.GetProductByBarcode(app.ctx, "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if product.IsActive != 1 {
+		t.Fatal("dry run must not deactivate the product")
+	}
+	reloadedClient, err := store.GetClientByID(app.ctx, client.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloadedClient.IsActive != 1 {
+		t.Fatal("dry run must not deactivate the client")
+	}
+	settings, err := store.GetSettings(app.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.FullMirrorConfirmedAt.Valid {
+		t.Fatal("dry run must not set full_mirror_confirmed_at")
 	}
 }

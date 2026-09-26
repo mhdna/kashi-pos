@@ -10,6 +10,7 @@ import (
 )
 
 type Querier interface {
+	ActivateClientByPhone(ctx context.Context, phone string) error
 	AddCashboxAccountBalance(ctx context.Context, arg AddCashboxAccountBalanceParams) (ShiftsAccountsBalance, error)
 	AddClientLoyaltyPoints(ctx context.Context, arg AddClientLoyaltyPointsParams) error
 	AddHoldInvoiceItem(ctx context.Context, arg AddHoldInvoiceItemParams) error
@@ -86,6 +87,8 @@ type Querier interface {
 	CreateValueCoupon(ctx context.Context, arg CreateValueCouponParams) (Coupon, error)
 	CreateVisitorEvent(ctx context.Context, arg CreateVisitorEventParams) error
 	CreateVoidInvoice(ctx context.Context, arg CreateVoidInvoiceParams) (VoidInvoice, error)
+	DeactivateClientsByPhone(ctx context.Context, phones []string) error
+	DeactivateProductsByBarcode(ctx context.Context, barcodes []string) error
 	DecreaseInventoryProductQuantity(ctx context.Context, arg DecreaseInventoryProductQuantityParams) (sql.Result, error)
 	DeleteAccount(ctx context.Context, id int64) error
 	DeleteAsset(ctx context.Context, id int64) error
@@ -134,6 +137,12 @@ type Querier interface {
 	GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error)
 	GetCurrencyByCode(ctx context.Context, code string) (Currency, error)
 	GetDefaultCurrency(ctx context.Context) (Currency, error)
+	// The total "calculate on checkout" coupon amount excluded from this same
+	// month's GetShiftTotals figures, surfaced separately so the balance page
+	// can tell the cashier why the total is lower than a raw sum of invoices
+	// instead of the number just changing silently. Same month-scoping
+	// convention as GetShiftTotals (pass '' for all time).
+	GetDeferredCouponTotalByMonth(ctx context.Context, totalsMonth interface{}) (interface{}, error)
 	GetDiscountListByID(ctx context.Context, id int64) (DiscountList, error)
 	GetDiscountOverride(ctx context.Context, id int64) (DiscountOverride, error)
 	GetExpense(ctx context.Context, id int64) (Expense, error)
@@ -144,12 +153,17 @@ type Querier interface {
 	GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 	GetInvoiceClientRef(ctx context.Context, invoiceID int64) (string, error)
 	GetInvoiceIDByClientRef(ctx context.Context, clientRef string) (int64, error)
-	GetInvoiceIncomeTotalByDate(ctx context.Context, createdAt string) (interface{}, error)
-	// Same net-of-returns convention as GetInvoiceIncomeTotalByDate (a return's
-	// grand_total is already the signed net cash effect), just over an
-	// arbitrary [from, to] range instead of a single day -- used for target
-	// progress, where the window is admin-set rather than always a month/day.
-	GetInvoiceIncomeTotalByDateRange(ctx context.Context, arg GetInvoiceIncomeTotalByDateRangeParams) (interface{}, error)
+	// "Calculate on checkout" coupon types are settled later (e.g. by the
+	// coupon issuer) rather than collected by the branch now, so their payment
+	// amount is carried by the invoice's grand_total but must not count as
+	// income here -- same convention as GetShiftReportSummary's net_sales.
+	GetInvoiceIncomeTotalByDate(ctx context.Context, arg GetInvoiceIncomeTotalByDateParams) (int64, error)
+	// Same net-of-returns and deferred-coupon-exclusion convention as
+	// GetInvoiceIncomeTotalByDate (a return's grand_total is already the signed
+	// net cash effect), just over an arbitrary [from, to] range instead of a
+	// single day -- used for target progress, where the window is admin-set
+	// rather than always a month/day.
+	GetInvoiceIncomeTotalByDateRange(ctx context.Context, arg GetInvoiceIncomeTotalByDateRangeParams) (int64, error)
 	GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams) (InvoiceIndex, error)
 	GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductParams) (InvoiceProduct, error)
 	GetLastInvoiceInventoryID(ctx context.Context) (int64, error)
@@ -199,10 +213,12 @@ type Querier interface {
 	InsertAttendanceEvent(ctx context.Context, arg InsertAttendanceEventParams) error
 	LatestSyncOutboxSyncedAt(ctx context.Context) (string, error)
 	ListAccounts(ctx context.Context) ([]Account, error)
+	ListActiveClients(ctx context.Context) ([]Client, error)
 	ListActiveDiscountListItems(ctx context.Context) ([]ListActiveDiscountListItemsRow, error)
 	ListActiveExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListActiveLoanCategories(ctx context.Context) ([]LoanCategory, error)
 	ListActivePriceListItems(ctx context.Context) ([]ListActivePriceListItemsRow, error)
+	ListActiveProducts(ctx context.Context) ([]Product, error)
 	ListAllAttendanceChangeRequests(ctx context.Context) ([]AttendanceChangeRequest, error)
 	ListAllExpenses(ctx context.Context) ([]Expense, error)
 	ListAllLoans(ctx context.Context) ([]Loan, error)
@@ -245,8 +261,8 @@ type Querier interface {
 	ListCurrencies(ctx context.Context) ([]Currency, error)
 	// One pass over the month's invoices, grouped by local calendar day -
 	// replaces calling GetInvoiceIncomeTotalByDate once per day (28-31 full
-	// scans) to build the monthly income chart. Same net-of-returns convention
-	// as GetInvoiceIncomeTotalByDate.
+	// scans) to build the monthly income chart. Same net-of-returns and
+	// deferred-coupon-exclusion convention as GetInvoiceIncomeTotalByDate.
 	ListDailyInvoiceIncomeByMonth(ctx context.Context, yearMonth string) ([]ListDailyInvoiceIncomeByMonthRow, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
 	ListDiscountLists(ctx context.Context) ([]DiscountList, error)
@@ -295,6 +311,7 @@ type Querier interface {
 	ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
 	ListInvoices(ctx context.Context) ([]Invoice, error)
 	ListInvoicesByDate(ctx context.Context, date string) ([]ListInvoicesByDateRow, error)
+	ListInvoicesByDateRange(ctx context.Context, arg ListInvoicesByDateRangeParams) ([]ListInvoicesByDateRangeRow, error)
 	ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error)
 	// Keyset ("seek") pagination: callers pass the id of the last row they've
 	// already seen as sqlc.arg(cursor) (the first page passes the max int64
@@ -373,6 +390,7 @@ type Querier interface {
 	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
 	SetDiscountListActive(ctx context.Context, arg SetDiscountListActiveParams) (DiscountList, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
+	SetFullMirrorConfirmedAt(ctx context.Context, fullMirrorConfirmedAt sql.NullString) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
 	SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error)
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error

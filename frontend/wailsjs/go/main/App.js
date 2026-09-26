@@ -90,8 +90,8 @@ export function CreateCoupon(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateCoupon'](arg1, arg2, arg3);
 }
 
-export function CreateCouponType(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3, arg4, arg5);
+export function CreateCouponType(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function CreateCurrency(arg1, arg2, arg3, arg4, arg5) {
@@ -112,6 +112,10 @@ export function CreateExpense(arg1, arg2, arg3, arg4, arg5) {
 
 export function CreateLoan(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['CreateLoan'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function CreateManualAttendanceEvent(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateManualAttendanceEvent'](arg1, arg2, arg3);
 }
 
 export function CreatePriceList(arg1) {
@@ -170,8 +174,16 @@ export function GetAppSettings() {
   return window['go']['main']['App']['GetAppSettings']();
 }
 
+export function GetAppVersion() {
+  return window['go']['main']['App']['GetAppVersion']();
+}
+
 export function GetAttendanceConfig() {
   return window['go']['main']['App']['GetAttendanceConfig']();
+}
+
+export function GetAttendanceStatus() {
+  return window['go']['main']['App']['GetAttendanceStatus']();
 }
 
 export function GetCashierPIN() {
@@ -200,6 +212,10 @@ export function GetDailyIncomeByMonth(arg1) {
 
 export function GetDatabaseStatus() {
   return window['go']['main']['App']['GetDatabaseStatus']();
+}
+
+export function GetDeferredCouponTotalByMonth(arg1) {
+  return window['go']['main']['App']['GetDeferredCouponTotalByMonth'](arg1);
 }
 
 export function GetExchangeInvoice(arg1) {
@@ -554,6 +570,10 @@ export function SetInvoiceKeyboardModeEnabled(arg1) {
   return window['go']['main']['App']['SetInvoiceKeyboardModeEnabled'](arg1);
 }
 
+export function SetNonAdminMonthNavEnabled(arg1) {
+  return window['go']['main']['App']['SetNonAdminMonthNavEnabled'](arg1);
+}
+
 export function SetOpeningFloatEnabled(arg1) {
   return window['go']['main']['App']['SetOpeningFloatEnabled'](arg1);
 }
@@ -646,8 +666,8 @@ export function UpdateClient(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateClient'](arg1, arg2, arg3);
 }
 
-export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
-  return window['go']['main']['App']['UpdateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+  return window['go']['main']['App']['UpdateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 }
 
 export function UpdateCurrency(arg1, arg2, arg3, arg4, arg5) {

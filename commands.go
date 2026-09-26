@@ -87,6 +87,7 @@ type updateSettingsCommandPayload struct {
 	InvoiceKeyboardMode           *bool `json:"invoice_keyboard_mode"`
 	ClientRequired                *bool `json:"client_required"`
 	SalespersonPerInvoiceRequired *bool `json:"salesperson_per_invoice_required"`
+	NonAdminMonthNavEnabled       *bool `json:"non_admin_month_nav_enabled"`
 	OpeningFloatEnabled           *bool `json:"opening_float_enabled"`
 	CountOpeningCashOnClose       *bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
@@ -222,6 +223,9 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.ClientRequired, func(b bool) error { return a.setFeatureFlagBool(ctx, clientRequiredFlag, b) }},
 		{p.SalespersonPerInvoiceRequired, func(b bool) error {
 			return a.setFeatureFlagBool(ctx, salespersonPerInvoiceRequiredFlag, b)
+		}},
+		{p.NonAdminMonthNavEnabled, func(b bool) error {
+			return a.setFeatureFlagBool(ctx, nonAdminMonthNavEnabledFlag, b)
 		}},
 		{p.OpeningFloatEnabled, func(b bool) error { return a.setFeatureFlagBool(ctx, openingFloatEnabledFlag, b) }},
 		{p.CountOpeningCashOnClose, func(b bool) error { return a.setFeatureFlagBool(ctx, countOpeningCashOnCloseFlag, b) }},

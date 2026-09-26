@@ -42,6 +42,11 @@ const (
 	// invoice's salesperson forward - matching behavior before this setting
 	// existed.
 	salespersonPerInvoiceRequiredFlag = "salesperson_per_invoice_required"
+	// Gates the monthly income chart's prev/next month navigation for
+	// non-admins. Defaults to false when unset, so a database that has never
+	// touched this flag keeps that navigation admin-only - matching behavior
+	// before this setting existed.
+	nonAdminMonthNavEnabledFlag = "non_admin_month_nav_enabled"
 )
 
 // overchangeConfirmationEnabled reports whether the checkout calculator's

@@ -93,6 +93,16 @@ SELECT s.id, s.is_closed, s.created_at, s.closed_at,
            SELECT SUM(i.grand_total)
            FROM invoices i
            WHERE i.shift_id = s.id
+       ), 0) - COALESCE((
+           -- Same deferred-coupon exclusion as GetShiftReportSummary's
+           -- net_sales: a "calculate on checkout" coupon is settled later
+           -- by whoever issued it, not collected by the branch now, so it
+           -- must not inflate this shift's displayed total either.
+           SELECT SUM(icp.amount)
+           FROM invoice_coupon_payments icp
+           JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+           JOIN invoices i ON i.id = icp.invoice_id
+           WHERE i.shift_id = s.id AND ct.calculate_on_checkout = 1
        ), 0) as total,
        COALESCE((
            SELECT SUM(MAX(p.price - ip.unit_price, 0) * ip.quantity)
@@ -109,6 +119,20 @@ FROM shifts s
 LEFT JOIN salespersons sp ON sp.id = s.closed_by_salesperson_id
 WHERE (sqlc.arg(totals_month) = '' OR strftime('%Y-%m', s.created_at, 'localtime') = sqlc.arg(totals_month))
 ORDER BY s.id DESC;
+
+-- name: GetDeferredCouponTotalByMonth :one
+-- The total "calculate on checkout" coupon amount excluded from this same
+-- month's GetShiftTotals figures, surfaced separately so the balance page
+-- can tell the cashier why the total is lower than a raw sum of invoices
+-- instead of the number just changing silently. Same month-scoping
+-- convention as GetShiftTotals (pass '' for all time).
+SELECT COALESCE(SUM(icp.amount), 0)
+FROM invoice_coupon_payments icp
+JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+JOIN invoices i ON i.id = icp.invoice_id
+JOIN shifts s ON s.id = i.shift_id
+WHERE (sqlc.arg(totals_month) = '' OR strftime('%Y-%m', s.created_at, 'localtime') = sqlc.arg(totals_month))
+  AND ct.calculate_on_checkout = 1;
 
 -- name: GetShiftReportSummary :one
 -- shift_tax recomputes the tax charged per invoice exactly the way checkout

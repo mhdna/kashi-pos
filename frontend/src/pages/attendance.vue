@@ -17,7 +17,7 @@
         density="compact"
         hide-details
         style="max-width: 190px"
-        @change="refresh"
+        @change="refresh()"
       /><v-text-field
         v-if="auth.isAdmin"
         v-model="selectedMonth"
@@ -52,7 +52,7 @@
         prepend-icon="mdi-download"
         @click="exportMonth"
         >Export month</v-btn
-      ><v-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh" />
+      ><v-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh()" />
     </div>
     <v-card>
       <v-card-title class="d-flex align-center">
@@ -179,6 +179,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { useAuthStore } from "@/stores/auth";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 const auth = useAuthStore();
 const today = new Date().toISOString().slice(0, 10);
 const selectedDate = ref(today);
@@ -206,10 +207,13 @@ const complaintEventOptions = computed(() =>
 );
 const pendingComplaints = computed(() => complaints.value.filter((item: any) => item.status === "pending"));
 let timer: ReturnType<typeof setInterval>;
-async function refresh() {
+let offSynced: (() => void) | undefined;
+// syncDevice=false just reloads what's already imported -- used when the Go
+// side has already synced, so we don't pull the door-log again.
+async function refresh(syncDevice = true) {
   loading.value = true;
   try {
-    status.value = await SyncAttendance(selectedDate.value);
+    if (syncDevice) status.value = await SyncAttendance(selectedDate.value);
     const [events, employees] = await Promise.all([ListAttendance(selectedDate.value), ListSalespersons()]);
     const configured = employees.filter((u: any) => u.attendanceUserId);
     const byId = new Map(configured.map((u: any) => [u.id, u]));
@@ -329,9 +333,17 @@ async function exportMonth() {
 onMounted(() => {
   loadAttendanceOptions();
   refresh();
-  timer = setInterval(refresh, 60_000);
+  timer = setInterval(() => refresh(), 60_000);
+  // Rows imported outside this page (the device's push, the fallback poll):
+  // reload what's stored, without pulling the door-log again.
+  offSynced = EventsOn("attendance_recorded", () => {
+    if (!loading.value) void refresh(false);
+  });
 });
-onUnmounted(() => clearInterval(timer));
+onUnmounted(() => {
+  clearInterval(timer);
+  offSynced?.();
+});
 </script>
 <style scoped>
 .attendance-page {

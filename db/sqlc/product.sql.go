@@ -157,6 +157,25 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 	return i, err
 }
 
+const deactivateProductsByBarcode = `-- name: DeactivateProductsByBarcode :exec
+UPDATE products SET is_active = 0 WHERE barcode IN (/*SLICE:barcodes*/?)
+`
+
+func (q *Queries) DeactivateProductsByBarcode(ctx context.Context, barcodes []string) error {
+	query := deactivateProductsByBarcode
+	var queryParams []interface{}
+	if len(barcodes) > 0 {
+		for _, v := range barcodes {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:barcodes*/?", strings.Repeat(",?", len(barcodes))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:barcodes*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
 const deleteDiscountOverride = `-- name: DeleteDiscountOverride :exec
 DELETE FROM discount_overrides WHERE id = ?
 `
@@ -305,6 +324,51 @@ func (q *Queries) GetProductByID(ctx context.Context, id int64) (Product, error)
 	return i, err
 }
 
+const listActiveProducts = `-- name: ListActiveProducts :many
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products WHERE is_active = 1 ORDER BY id
+`
+
+func (q *Queries) ListActiveProducts(ctx context.Context) ([]Product, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveProducts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDiscountOverridesByProduct = `-- name: ListDiscountOverridesByProduct :many
 SELECT id, name, product_id, discount, created_at FROM discount_overrides WHERE product_id = ?
 `
@@ -419,6 +483,7 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 const listProductsAfter = `-- name: ListProductsAfter :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products
 WHERE id > ?1
+  AND is_active = 1
   AND (name || ' ' || code || ' ' || barcode)
       LIKE ?2
 ORDER BY id
@@ -476,6 +541,7 @@ func (q *Queries) ListProductsAfter(ctx context.Context, arg ListProductsAfterPa
 const listProductsAfterUnfiltered = `-- name: ListProductsAfterUnfiltered :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year FROM products
 WHERE id > ?1
+  AND is_active = 1
 ORDER BY id
 LIMIT ?2
 `

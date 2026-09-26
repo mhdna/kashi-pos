@@ -139,6 +139,14 @@ LEFT JOIN salespersons s ON s.id = i.salesperson_id
 WHERE date(i.created_at, 'localtime') = sqlc.arg(date)
 ORDER BY i.id DESC;
 
+-- name: ListInvoicesByDateRange :many
+SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+FROM invoices i
+LEFT JOIN salespersons s ON s.id = i.salesperson_id
+WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
+  AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+ORDER BY i.id DESC;
+
 -- name: ListSalespersonProductSales :many
 SELECT COALESCE(sp.id, 0) AS salesperson_id,
        COALESCE(sp.full_name, 'Anonymous') AS salesperson_name,
@@ -400,28 +408,49 @@ GROUP BY ca.id, ca.name, ca.currency_code, ca.color
 ORDER BY ca.name;
 
 -- name: GetInvoiceIncomeTotalByDate :one
-SELECT COALESCE(SUM(grand_total), 0)
+-- "Calculate on checkout" coupon types are settled later (e.g. by the
+-- coupon issuer) rather than collected by the branch now, so their payment
+-- amount is carried by the invoice's grand_total but must not count as
+-- income here -- same convention as GetShiftReportSummary's net_sales.
+SELECT COALESCE(SUM(grand_total), 0) - COALESCE((
+    SELECT SUM(icp.amount)
+    FROM invoice_coupon_payments icp
+    JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+    JOIN invoices ci ON ci.id = icp.invoice_id
+    WHERE date(ci.created_at, 'localtime') = ? AND ct.calculate_on_checkout = 1
+), 0)
 FROM invoices i
 WHERE date(i.created_at, 'localtime') = ?;
 
 -- name: ListDailyInvoiceIncomeByMonth :many
 -- One pass over the month's invoices, grouped by local calendar day -
 -- replaces calling GetInvoiceIncomeTotalByDate once per day (28-31 full
--- scans) to build the monthly income chart. Same net-of-returns convention
--- as GetInvoiceIncomeTotalByDate.
+-- scans) to build the monthly income chart. Same net-of-returns and
+-- deferred-coupon-exclusion convention as GetInvoiceIncomeTotalByDate.
 SELECT date(i.created_at, 'localtime') AS day,
-       COALESCE(SUM(i.grand_total), 0) AS total
+       COALESCE(SUM(i.grand_total), 0) - COALESCE(SUM(CASE WHEN ct.calculate_on_checkout = 1 THEN icp.amount ELSE 0 END), 0) AS total
 FROM invoices i
+LEFT JOIN invoice_coupon_payments icp ON icp.invoice_id = i.id
+LEFT JOIN coupon_types ct ON ct.id = icp.coupon_type_id
 WHERE strftime('%Y-%m', i.created_at, 'localtime') = sqlc.arg(year_month)
 GROUP BY day
 ORDER BY day;
 
 -- name: GetInvoiceIncomeTotalByDateRange :one
--- Same net-of-returns convention as GetInvoiceIncomeTotalByDate (a return's
--- grand_total is already the signed net cash effect), just over an
--- arbitrary [from, to] range instead of a single day -- used for target
--- progress, where the window is admin-set rather than always a month/day.
-SELECT COALESCE(SUM(grand_total), 0)
+-- Same net-of-returns and deferred-coupon-exclusion convention as
+-- GetInvoiceIncomeTotalByDate (a return's grand_total is already the signed
+-- net cash effect), just over an arbitrary [from, to] range instead of a
+-- single day -- used for target progress, where the window is admin-set
+-- rather than always a month/day.
+SELECT COALESCE(SUM(grand_total), 0) - COALESCE((
+    SELECT SUM(icp.amount)
+    FROM invoice_coupon_payments icp
+    JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+    JOIN invoices ci ON ci.id = icp.invoice_id
+    WHERE date(ci.created_at, 'localtime') >= sqlc.arg(date_from)
+      AND date(ci.created_at, 'localtime') <= sqlc.arg(date_to)
+      AND ct.calculate_on_checkout = 1
+), 0)
 FROM invoices i
 WHERE date(i.created_at, 'localtime') >= sqlc.arg(date_from)
   AND date(i.created_at, 'localtime') <= sqlc.arg(date_to);

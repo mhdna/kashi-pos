@@ -46,7 +46,7 @@ export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any
 
 export function CreateCoupon(arg1:string,arg2:number,arg3:number):Promise<Record<string, any>>;
 
-export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolean,arg5:boolean):Promise<Record<string, any>>;
+export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolean,arg5:boolean,arg6:boolean):Promise<Record<string, any>>;
 
 export function CreateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
 
@@ -57,6 +57,8 @@ export function CreateDiscountList(arg1:string):Promise<Record<string, any>>;
 export function CreateExpense(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
 
 export function CreateLoan(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
+
+export function CreateManualAttendanceEvent(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
 
 export function CreatePriceList(arg1:string):Promise<Record<string, any>>;
 
@@ -86,7 +88,11 @@ export function GetAdminConfig():Promise<Record<string, any>>;
 
 export function GetAppSettings():Promise<Record<string, any>>;
 
+export function GetAppVersion():Promise<string>;
+
 export function GetAttendanceConfig():Promise<Record<string, any>>;
+
+export function GetAttendanceStatus():Promise<Record<string, any>>;
 
 export function GetCashierPIN():Promise<string>;
 
@@ -101,6 +107,8 @@ export function GetCurrentShiftIncomeByAccount():Promise<Array<Record<string, an
 export function GetDailyIncomeByMonth(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function GetDatabaseStatus():Promise<Record<string, any>>;
+
+export function GetDeferredCouponTotalByMonth(arg1:string):Promise<number>;
 
 export function GetExchangeInvoice(arg1:string):Promise<Record<string, any>>;
 
@@ -278,6 +286,8 @@ export function SetHidePaymentMethodCurrency(arg1:boolean):Promise<void>;
 
 export function SetInvoiceKeyboardModeEnabled(arg1:boolean):Promise<void>;
 
+export function SetNonAdminMonthNavEnabled(arg1:boolean):Promise<void>;
+
 export function SetOpeningFloatEnabled(arg1:boolean):Promise<void>;
 
 export function SetOverchangeConfirmationEnabled(arg1:boolean):Promise<void>;
@@ -324,7 +334,7 @@ export function UpdateCentralAPIURL(arg1:string):Promise<void>;
 
 export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
 
-export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean,arg7:boolean):Promise<void>;
+export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean,arg7:boolean,arg8:boolean):Promise<void>;
 
 export function UpdateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
 

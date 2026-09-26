@@ -180,13 +180,6 @@
                     </tr>
                   </tbody>
                 </v-table>
-                <div
-                  v-if="resyncReport && productConflictNote"
-                  class="text-caption mt-1"
-                  :class="productConflictNote.includes('need') ? 'text-warning' : 'text-medium-emphasis'"
-                >
-                  {{ productConflictNote }}
-                </div>
               </div>
             </v-card-text>
           </v-card>
@@ -763,18 +756,25 @@
                 <v-btn v-if="editingCouponTypeId" variant="text" @click="cancelCouponTypeEdit">Cancel</v-btn>
               </div>
               <div class="d-flex align-center ga-4 mb-2">
-                <v-checkbox v-model="couponTypeForm.referenceOnly" density="compact" hide-details label="Reference-only" />
+                <v-checkbox
+                  v-model="couponTypeForm.codeRequired"
+                  density="compact"
+                  hide-details
+                  label="Code required"
+                  title="Uncheck for coupon types that need no code or reference number at all - they're added directly at checkout"
+                />
+                <v-checkbox v-model="couponTypeForm.referenceOnly" :disabled="!couponTypeForm.codeRequired" density="compact" hide-details label="Reference-only" />
                 <v-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details label="Active" />
                 <v-checkbox
                   v-model="couponTypeForm.calculateOnCheckout"
                   density="compact"
                   hide-details
-                  label="Calculate on checkout"
-                  title="Excludes this coupon type's payments from the shift's net sales - use when the coupon is settled later (e.g. reimbursed by the issuer) instead of collected by the branch now"
+                  label="Don't count in totals (settled later)"
+                  title="Tick when the coupon is settled later (e.g. reimbursed by the issuer) instead of collected by the branch now. Its payments are left out of the shift's total and net sales."
                 />
               </div>
               <v-list density="compact" bg-color="transparent">
-                <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.referenceOnly ? ' · Reference-only' : ''}${couponType.calculateOnCheckout ? ' · Calculate on checkout' : ''}`">
+                <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.codeRequired === false ? ' · No code required' : couponType.referenceOnly ? ' · Reference-only' : ''}${couponType.calculateOnCheckout ? ' · Not counted in totals' : ''}`">
                   <template #append>
                     <v-btn icon="mdi-pencil-outline" variant="text" density="compact" title="Edit coupon type" @click="editCouponType(couponType)" />
                     <v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon type" @click="removeCouponType(couponType)" />
@@ -933,6 +933,27 @@
                 When on, the salesperson selection is cleared for each new invoice so
                 the cashier must choose again. When off, the previous invoice's
                 salesperson carries forward. This can also be changed remotely from kashi.
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('behavior-non-admin-month-nav')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-calendar-month-outline" size="20" />
+              Income chart month navigation
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.nonAdminMonthNavEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Let non-admins browse other months on the income chart"
+                @update:model-value="setNonAdminMonthNavEnabled"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                When off, only admins can use the back/forward buttons on the monthly
+                income chart - non-admins only see the current month.
               </div>
             </v-card-text>
           </v-card>
@@ -1261,6 +1282,53 @@
       </v-card>
     </v-dialog>
 
+    <v-dialog :model-value="showDeactivationConfirm" max-width="480" persistent>
+      <v-card v-if="pendingDeactivation">
+        <v-card-title>Deactivate items no longer on kashi?</v-card-title>
+        <v-card-text>
+          <div class="mb-2">
+            kashi no longer has the following. This will deactivate them here
+            too (hidden from checkout, not deleted -- past invoices and shift
+            reports still show them). This confirmation only appears once;
+            future syncs will do this automatically.
+          </div>
+          <div v-if="pendingDeactivation.productBarcodes.length" class="mb-2">
+            <div class="text-caption text-medium-emphasis">
+              {{ pendingDeactivation.productBarcodes.length }} product(s)
+            </div>
+            <ul class="text-body-2">
+              <li v-for="(name, i) in pendingDeactivation.productNames.slice(0, 10)" :key="pendingDeactivation.productBarcodes[i]">
+                {{ name || pendingDeactivation.productBarcodes[i] }}
+              </li>
+              <li v-if="pendingDeactivation.productBarcodes.length > 10" class="text-medium-emphasis">
+                …and {{ pendingDeactivation.productBarcodes.length - 10 }} more
+              </li>
+            </ul>
+          </div>
+          <div v-if="pendingDeactivation.clientPhones.length">
+            <div class="text-caption text-medium-emphasis">
+              {{ pendingDeactivation.clientPhones.length }} client(s)
+            </div>
+            <ul class="text-body-2">
+              <li v-for="(name, i) in pendingDeactivation.clientNames.slice(0, 10)" :key="pendingDeactivation.clientPhones[i]">
+                {{ name || pendingDeactivation.clientPhones[i] }}
+              </li>
+              <li v-if="pendingDeactivation.clientPhones.length > 10" class="text-medium-emphasis">
+                …and {{ pendingDeactivation.clientPhones.length - 10 }} more
+              </li>
+            </ul>
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" :disabled="deactivationConfirming" @click="cancelDeactivation">Cancel</v-btn>
+          <v-spacer />
+          <v-btn color="primary" variant="flat" :loading="deactivationConfirming" @click="confirmDeactivationAndResync">
+            Deactivate and sync
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-dialog v-model="deleteDialog" max-width="400">
       <v-card>
         <v-card-title>Delete User</v-card-title>
@@ -1428,6 +1496,7 @@ import {
   SetVisitorCounterEnabled,
   SetClientRequired,
   SetSalespersonPerInvoiceRequired,
+  SetNonAdminMonthNavEnabled,
   SetHidePaymentMethodCurrency,
   SetAutoAppendLbpZerosEnabled,
   SetOverchangeConfirmationEnabled,
@@ -1487,14 +1556,14 @@ import {
   ListDiscountListItems,
   SetDiscountListItem,
   RemoveDiscountListItem,
-  ResyncAll,
   GetSyncStatus,
 } from "../../wailsjs/go/main/App";
-import { WindowReloadApp, EventsOn } from "../../wailsjs/runtime/runtime";
+import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import { formatUsd } from "@/lib/format";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 import { paymentAccentColor } from "@/lib/paymentColor";
 import { useAuthStore } from "@/stores/auth";
+import { useResyncStore } from "@/stores/resync";
 import { useClient } from "@/composables/useClient";
 import { useSalesperson } from "@/composables/useSalesperson";
 import { usePageUnlocks, lockablePages } from "@/composables/usePageUnlocks";
@@ -1528,49 +1597,33 @@ const settingsTabs = [
 // Static index of every settings "panel" (its tab + searchable text) used by
 // the search box below. Keep in sync with the v-show="panelMatches(...)" on
 // each panel in the template.
-const resyncRunning = ref(false);
-const resyncApplyStock = ref(false);
-const resyncProgress = ref("");
-const resyncError = ref("");
-const resyncReport = ref<any>(null);
-
-const productConflictNote = computed(() => {
-  const rep = resyncReport.value;
-  if (!rep) return "";
-  const products = rep.entities?.find((e: any) => e.entity === "products");
-  if (!products || products.queued === 0) return "";
-  return `${products.queued} product(s) need resolving in kashi before they can sync.`;
+// Backed by the resync store (src/stores/resync.ts), not local refs: a
+// sync keeps running on the Go side regardless of what page is open, and a
+// requiresConfirmation response must not get lost if the operator
+// navigates away from Settings before it lands. The store persists for the
+// app's lifetime; this page just reads/drives it.
+const resync = useResyncStore();
+resync.attachProgressListener();
+const resyncRunning = computed(() => resync.running);
+const resyncApplyStock = computed({
+  get: () => resync.applyStock,
+  set: (v: boolean) => { resync.applyStock = v; },
 });
+const resyncProgress = computed(() => resync.progress);
+const resyncError = computed(() => resync.error);
+const resyncReport = computed(() => resync.report);
+const pendingDeactivation = computed(() => resync.pendingDeactivation);
+const showDeactivationConfirm = computed(() => resync.showDeactivationConfirm);
+const deactivationConfirming = computed(() => resync.deactivationConfirming);
 
-EventsOn("resync_progress", (p: { stage: string; done: number; total: number }) => {
-  if (!p || p.stage === "done") {
-    resyncProgress.value = "";
-    return;
-  }
-  if (p.stage === "pull") {
-    resyncProgress.value = "Pulling catalog down…";
-  } else if (p.total > 0) {
-    resyncProgress.value = `${p.stage}: ${p.done} / ${p.total}`;
-  } else {
-    resyncProgress.value = `${p.stage}…`;
-  }
-});
-
-async function runResync(dryRun: boolean) {
-  resyncRunning.value = true;
-  resyncError.value = "";
-  resyncReport.value = null;
-  try {
-    resyncReport.value = await ResyncAll({
-      applyStock: resyncApplyStock.value,
-      dryRun,
-    });
-  } catch (error: any) {
-    resyncError.value = String(error?.message || error);
-  } finally {
-    resyncRunning.value = false;
-    resyncProgress.value = "";
-  }
+function runResync(dryRun: boolean, confirmDeactivation = false) {
+  return resync.run(dryRun, confirmDeactivation);
+}
+function confirmDeactivationAndResync() {
+  return resync.confirmDeactivationAndRun();
+}
+function cancelDeactivation() {
+  resync.cancelDeactivation();
 }
 
 const panelMeta: Record<string, { tab: string; title: string; keywords: string }> = {
@@ -1598,6 +1651,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-product-search": { tab: "behavior", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
+  "behavior-non-admin-month-nav": { tab: "behavior", title: "Income chart month navigation", keywords: "monthly income chart non-admin cashier back forward prev next month browse lock admin only" },
   "behavior-visitor-counter": { tab: "behavior", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
   "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
   "admin-change-password": { tab: "admin", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
@@ -1701,6 +1755,7 @@ const form = reactive({
   visitorCounterEnabled: false,
   clientRequired: true,
   salespersonPerInvoiceRequired: false,
+  nonAdminMonthNavEnabled: false,
   hidePaymentMethodCurrency: false,
   autoAppendLbpZeros: false,
   overchangeConfirmationEnabled: true,
@@ -2091,7 +2146,7 @@ const branchTargets = ref<
 const saving = ref(false);
 const couponTypes = ref<any[]>([]);
 const coupons = ref<any[]>([]);
-const couponTypeForm = reactive({ name: "", value: 50, currency: "USD", referenceOnly: false, isActive: true, calculateOnCheckout: false });
+const couponTypeForm = reactive({ name: "", value: 50, currency: "USD", referenceOnly: false, isActive: true, calculateOnCheckout: false, codeRequired: true });
 const editingCouponTypeId = ref<number | null>(null);
 const couponTypeSaving = ref(false);
 const couponCodeForm = ref("");
@@ -2194,6 +2249,7 @@ function editCouponType(couponType: any) {
   couponTypeForm.referenceOnly = Boolean(couponType.referenceOnly);
   couponTypeForm.isActive = Number(couponType.isActive) !== 0;
   couponTypeForm.calculateOnCheckout = Boolean(couponType.calculateOnCheckout);
+  couponTypeForm.codeRequired = couponType.codeRequired !== false;
 }
 
 function cancelCouponTypeEdit() {
@@ -2204,6 +2260,7 @@ function cancelCouponTypeEdit() {
   couponTypeForm.referenceOnly = false;
   couponTypeForm.isActive = true;
   couponTypeForm.calculateOnCheckout = false;
+  couponTypeForm.codeRequired = true;
 }
 
 async function saveCouponType() {
@@ -2211,10 +2268,11 @@ async function saveCouponType() {
   couponTypeSaving.value = true;
   try {
     const valueCents = Math.round(Number(couponTypeForm.value) * 100);
+    const referenceOnly = couponTypeForm.codeRequired && couponTypeForm.referenceOnly;
     if (editingCouponTypeId.value) {
-      await UpdateCouponType(editingCouponTypeId.value, couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.isActive, couponTypeForm.referenceOnly, couponTypeForm.calculateOnCheckout);
+      await UpdateCouponType(editingCouponTypeId.value, couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.isActive, referenceOnly, couponTypeForm.calculateOnCheckout, couponTypeForm.codeRequired);
     } else {
-      await CreateCouponType(couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.referenceOnly, couponTypeForm.calculateOnCheckout);
+      await CreateCouponType(couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, referenceOnly, couponTypeForm.calculateOnCheckout, couponTypeForm.codeRequired);
     }
     const wasEditing = Boolean(editingCouponTypeId.value);
     cancelCouponTypeEdit();
@@ -2289,6 +2347,7 @@ async function loadSettings() {
         visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
         salespersonPerInvoiceRequired: Boolean(s.salespersonPerInvoiceRequired),
+        nonAdminMonthNavEnabled: Boolean(s.nonAdminMonthNavEnabled),
         hidePaymentMethodCurrency: Boolean(s.hidePaymentMethodCurrency),
         autoAppendLbpZeros: Boolean(s.autoAppendLbpZeros),
         overchangeConfirmationEnabled: s.overchangeConfirmationEnabled !== false,
@@ -2497,6 +2556,26 @@ async function setSalespersonPerInvoiceRequired(value: boolean | null) {
   } catch {
     form.salespersonPerInvoiceRequired = previous;
     notify("Failed to update salesperson requirement", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setNonAdminMonthNavEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.nonAdminMonthNavEnabled;
+  form.nonAdminMonthNavEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetNonAdminMonthNavEnabled(enabled);
+    notify(
+      enabled
+        ? "Non-admins can now browse other months on the income chart"
+        : "Income chart month navigation is now admin-only",
+    );
+  } catch {
+    form.nonAdminMonthNavEnabled = previous;
+    notify("Failed to update income chart month navigation setting", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }

@@ -7,6 +7,15 @@ SELECT * FROM clients WHERE phone = ?;
 -- name: ListClients :many
 SELECT * FROM clients ORDER BY id;
 
+-- name: ListActiveClients :many
+SELECT * FROM clients WHERE is_active = 1 ORDER BY id;
+
+-- name: DeactivateClientsByPhone :exec
+UPDATE clients SET is_active = 0 WHERE phone IN (sqlc.slice('phones'));
+
+-- name: ActivateClientByPhone :exec
+UPDATE clients SET is_active = 1 WHERE phone = ?;
+
 -- name: CountClientsPage :one
 SELECT COUNT(*)
 FROM clients c
@@ -179,12 +188,12 @@ UPDATE client_account_entries SET client_id = ? WHERE invoice_id = ?;
 UPDATE client_account_entries SET amount = ? WHERE invoice_id = ?;
 
 -- name: CreateCouponType :one
-INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout)
-VALUES (?, ?, ?, ?, ?, ?) RETURNING *;
+INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional)
+VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *;
 
 -- name: UpdateCouponType :exec
 UPDATE coupon_types
-SET name = ?, value_cents = ?, currency_code = ?, is_active = ?, reference_only = ?, calculate_on_checkout = ?
+SET name = ?, value_cents = ?, currency_code = ?, is_active = ?, reference_only = ?, calculate_on_checkout = ?, code_optional = ?
 WHERE id = ?;
 
 -- name: ListCouponTypes :many

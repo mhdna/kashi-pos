@@ -13,6 +13,9 @@ SELECT * FROM products WHERE code = ? ORDER BY id LIMIT 1;
 -- name: ListProducts :many
 SELECT * FROM products ORDER BY id;
 
+-- name: ListActiveProducts :many
+SELECT * FROM products WHERE is_active = 1 ORDER BY id;
+
 -- name: SearchProductsByName :many
 SELECT * FROM products WHERE name LIKE ? ORDER BY id;
 
@@ -33,6 +36,7 @@ LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 -- search_pattern must already be wrapped in '%...%' by the caller.
 SELECT * FROM products
 WHERE id > sqlc.arg(after_id)
+  AND is_active = 1
   AND (name || ' ' || code || ' ' || barcode)
       LIKE sqlc.arg(search_pattern)
 ORDER BY id
@@ -41,6 +45,7 @@ LIMIT sqlc.arg(limit);
 -- name: ListProductsAfterUnfiltered :many
 SELECT * FROM products
 WHERE id > sqlc.arg(after_id)
+  AND is_active = 1
 ORDER BY id
 LIMIT sqlc.arg(limit);
 
@@ -66,6 +71,9 @@ WHERE id = ? RETURNING *;
 
 -- name: DeleteProduct :exec
 DELETE FROM products WHERE id = ?;
+
+-- name: DeactivateProductsByBarcode :exec
+UPDATE products SET is_active = 0 WHERE barcode IN (sqlc.slice('barcodes'));
 
 -- name: ListQuickAccessProducts :many
 SELECT p.*

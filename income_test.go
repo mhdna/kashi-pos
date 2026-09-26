@@ -259,6 +259,111 @@ func TestNetSalesExcludesCalculateOnCheckoutCouponPayments(t *testing.T) {
 	}
 }
 
+// The balance page's "total income" figures (monthly income chart and
+// branch-target progress) must exclude deferred (calculate-on-checkout)
+// coupon payments too, the same way the shift report's net sales does -
+// otherwise a branch could look like it hit its revenue target purely off
+// supplier-reimbursed vouchers it hasn't actually been paid for yet.
+func TestBalancePageIncomeExcludesCalculateOnCheckoutCouponPayments(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t)
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
+		t.Fatal(err)
+	}
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cashbox, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := store.CreateInventory(ctx, "Sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deferredType, err := store.CreateCouponType(ctx, db.CreateCouponTypeParams{
+		Name: "Supplier Reimbursed", ValueCents: 2000, CurrencyCode: "USD", IsActive: 1, CalculateOnCheckout: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	invoice, err := store.CreateInvoice(ctx, db.CreateInvoiceParams{
+		CashboxID: cashbox.ID, ShiftID: shift.ID, InvoiceCode: "SA/CN/2026/00100",
+		InvoiceIndex: 1, Year: 2026, ClientID: client.ID, InventoryID: inventory.ID,
+		GrandTotal: 5000, DiscountedTotal: 5000, Subtotal: 5000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateInvoiceCouponPayment(ctx, db.CreateInvoiceCouponPaymentParams{
+		InvoiceID: invoice.ID, CouponCode: "SUP-20", CouponTypeID: deferredType.ID, Amount: 2000,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	today := time.Now().Format("2006-01-02")
+	total, err := store.GetInvoiceIncomeTotalByDate(ctx, db.GetInvoiceIncomeTotalByDateParams{
+		CreatedAt: today, CreatedAt_2: today,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 3000 {
+		t.Fatalf("GetInvoiceIncomeTotalByDate = %d, want 5000 grand total minus 2000 deferred coupon = 3000", total)
+	}
+
+	rangeTotal, err := store.GetInvoiceIncomeTotalByDateRange(ctx, db.GetInvoiceIncomeTotalByDateRangeParams{
+		DateFrom: today, DateTo: today,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rangeTotal != 3000 {
+		t.Fatalf("GetInvoiceIncomeTotalByDateRange = %d, want 3000", rangeTotal)
+	}
+
+	monthRows, err := store.ListDailyInvoiceIncomeByMonth(ctx, time.Now().Format("2006-01"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(monthRows) != 1 || monthRows[0].Total != 3000 {
+		t.Fatalf("ListDailyInvoiceIncomeByMonth = %#v, want a single day totalling 3000", monthRows)
+	}
+
+	// The shift list's "total" column (shown on the same balance page as the
+	// income chart above) must agree with it, or the page shows two
+	// different numbers for the same day's income.
+	shiftRows, err := store.GetShiftTotals(ctx, time.Now().Format("2006-01"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(shiftRows) != 1 || shiftRows[0].Total != 3000 {
+		t.Fatalf("GetShiftTotals = %#v, want a single shift totalling 3000", shiftRows)
+	}
+
+	// The balance page surfaces the excluded amount separately (a caption
+	// under the total) instead of just silently showing a lower number.
+	app := &App{ctx: ctx, store: store}
+	excluded, err := app.GetDeferredCouponTotalByMonth(time.Now().Format("2006-01"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if excluded != 2000 {
+		t.Fatalf("GetDeferredCouponTotalByMonth = %v, want 2000", excluded)
+	}
+}
+
 func incomeRowsByAccount(rows []map[string]any, amountKey string) map[string]int64 {
 	result := make(map[string]int64, len(rows))
 	for _, row := range rows {

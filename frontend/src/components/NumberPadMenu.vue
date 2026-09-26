@@ -26,6 +26,7 @@
             'number-pad-activator--keyboard': keyboardMode,
           }"
           :disabled="disabled"
+          :style="{ minWidth: activatorMinWidthCh + 'ch' }"
           class="number-pad-activator"
           type="button"
           @click="onClick"
@@ -89,6 +90,7 @@
 
 <script setup lang="ts">
 import {
+  computed,
   inject,
   onBeforeUnmount,
   ref,
@@ -152,6 +154,20 @@ let previousDialogState = false;
 function setActivatorRef(element: Element | ComponentPublicInstance | null) {
   activatorEl.value = (element as HTMLElement | null) ?? null;
 }
+
+// The default activator button sizes to its own text content, so v-menu
+// (anchored with no fixed `origin`) re-anchors horizontally on every
+// keystroke as the digit count changes - visibly shifting the popup left
+// and right while typing. Reserving width up front for the longest value
+// this field can hold keeps the button's box (and the menu anchored to it)
+// stationary regardless of how many digits are currently typed.
+const activatorMinWidthCh = computed(() => {
+  const wholeDigits = String(Math.trunc(Math.abs(props.max))).length;
+  const decimalChars = props.allowDecimal ? props.decimalPlaces + 1 : 0;
+  const digits = Math.min(props.maxLength, wholeDigits + decimalChars);
+  const affixChars = (props.prefix.length || 0) + (props.suffix.length || 0);
+  return digits + affixChars + (affixChars ? affixChars * 0.5 : 0);
+});
 
 watch(open, (value) => {
   if (value) {
@@ -335,6 +351,7 @@ defineExpose({ focus });
   display: inline-flex;
   font: inherit;
   font-size: var(--kashi-font-size-xl);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
   justify-content: center;
   line-height: 1;

@@ -306,20 +306,43 @@ func (q *Queries) GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 }
 
 const getInvoiceIncomeTotalByDate = `-- name: GetInvoiceIncomeTotalByDate :one
-SELECT COALESCE(SUM(grand_total), 0)
+SELECT COALESCE(SUM(grand_total), 0) - COALESCE((
+    SELECT SUM(icp.amount)
+    FROM invoice_coupon_payments icp
+    JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+    JOIN invoices ci ON ci.id = icp.invoice_id
+    WHERE date(ci.created_at, 'localtime') = ? AND ct.calculate_on_checkout = 1
+), 0)
 FROM invoices i
 WHERE date(i.created_at, 'localtime') = ?
 `
 
-func (q *Queries) GetInvoiceIncomeTotalByDate(ctx context.Context, createdAt string) (interface{}, error) {
-	row := q.db.QueryRowContext(ctx, getInvoiceIncomeTotalByDate, createdAt)
-	var coalesce interface{}
-	err := row.Scan(&coalesce)
-	return coalesce, err
+type GetInvoiceIncomeTotalByDateParams struct {
+	CreatedAt   string `json:"createdAt"`
+	CreatedAt_2 string `json:"createdAt2"`
+}
+
+// "Calculate on checkout" coupon types are settled later (e.g. by the
+// coupon issuer) rather than collected by the branch now, so their payment
+// amount is carried by the invoice's grand_total but must not count as
+// income here -- same convention as GetShiftReportSummary's net_sales.
+func (q *Queries) GetInvoiceIncomeTotalByDate(ctx context.Context, arg GetInvoiceIncomeTotalByDateParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getInvoiceIncomeTotalByDate, arg.CreatedAt, arg.CreatedAt_2)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const getInvoiceIncomeTotalByDateRange = `-- name: GetInvoiceIncomeTotalByDateRange :one
-SELECT COALESCE(SUM(grand_total), 0)
+SELECT COALESCE(SUM(grand_total), 0) - COALESCE((
+    SELECT SUM(icp.amount)
+    FROM invoice_coupon_payments icp
+    JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+    JOIN invoices ci ON ci.id = icp.invoice_id
+    WHERE date(ci.created_at, 'localtime') >= ?1
+      AND date(ci.created_at, 'localtime') <= ?2
+      AND ct.calculate_on_checkout = 1
+), 0)
 FROM invoices i
 WHERE date(i.created_at, 'localtime') >= ?1
   AND date(i.created_at, 'localtime') <= ?2
@@ -330,15 +353,16 @@ type GetInvoiceIncomeTotalByDateRangeParams struct {
 	DateTo   string `json:"dateTo"`
 }
 
-// Same net-of-returns convention as GetInvoiceIncomeTotalByDate (a return's
-// grand_total is already the signed net cash effect), just over an
-// arbitrary [from, to] range instead of a single day -- used for target
-// progress, where the window is admin-set rather than always a month/day.
-func (q *Queries) GetInvoiceIncomeTotalByDateRange(ctx context.Context, arg GetInvoiceIncomeTotalByDateRangeParams) (interface{}, error) {
+// Same net-of-returns and deferred-coupon-exclusion convention as
+// GetInvoiceIncomeTotalByDate (a return's grand_total is already the signed
+// net cash effect), just over an arbitrary [from, to] range instead of a
+// single day -- used for target progress, where the window is admin-set
+// rather than always a month/day.
+func (q *Queries) GetInvoiceIncomeTotalByDateRange(ctx context.Context, arg GetInvoiceIncomeTotalByDateRangeParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getInvoiceIncomeTotalByDateRange, arg.DateFrom, arg.DateTo)
-	var coalesce interface{}
-	err := row.Scan(&coalesce)
-	return coalesce, err
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const getInvoiceIndex = `-- name: GetInvoiceIndex :one
@@ -553,8 +577,10 @@ func (q *Queries) ListClientNamesByIDs(ctx context.Context, ids []int64) ([]List
 
 const listDailyInvoiceIncomeByMonth = `-- name: ListDailyInvoiceIncomeByMonth :many
 SELECT date(i.created_at, 'localtime') AS day,
-       COALESCE(SUM(i.grand_total), 0) AS total
+       COALESCE(SUM(i.grand_total), 0) - COALESCE(SUM(CASE WHEN ct.calculate_on_checkout = 1 THEN icp.amount ELSE 0 END), 0) AS total
 FROM invoices i
+LEFT JOIN invoice_coupon_payments icp ON icp.invoice_id = i.id
+LEFT JOIN coupon_types ct ON ct.id = icp.coupon_type_id
 WHERE strftime('%Y-%m', i.created_at, 'localtime') = ?1
 GROUP BY day
 ORDER BY day
@@ -562,13 +588,13 @@ ORDER BY day
 
 type ListDailyInvoiceIncomeByMonthRow struct {
 	Day   interface{} `json:"day"`
-	Total interface{} `json:"total"`
+	Total int64       `json:"total"`
 }
 
 // One pass over the month's invoices, grouped by local calendar day -
 // replaces calling GetInvoiceIncomeTotalByDate once per day (28-31 full
-// scans) to build the monthly income chart. Same net-of-returns convention
-// as GetInvoiceIncomeTotalByDate.
+// scans) to build the monthly income chart. Same net-of-returns and
+// deferred-coupon-exclusion convention as GetInvoiceIncomeTotalByDate.
 func (q *Queries) ListDailyInvoiceIncomeByMonth(ctx context.Context, yearMonth string) ([]ListDailyInvoiceIncomeByMonthRow, error) {
 	rows, err := q.db.QueryContext(ctx, listDailyInvoiceIncomeByMonth, yearMonth)
 	if err != nil {
@@ -1081,6 +1107,79 @@ func (q *Queries) ListInvoicesByDate(ctx context.Context, date string) ([]ListIn
 	items := []ListInvoicesByDateRow{}
 	for rows.Next() {
 		var i ListInvoicesByDateRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CashboxID,
+			&i.ShiftID,
+			&i.InvoiceCode,
+			&i.InvoiceIndex,
+			&i.Year,
+			&i.ClientID,
+			&i.InventoryID,
+			&i.Discount,
+			&i.Subtotal,
+			&i.DiscountedTotal,
+			&i.GrandTotal,
+			&i.CreatedAt,
+			&i.SalespersonID,
+			&i.Notes,
+			&i.SalespersonName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvoicesByDateRange = `-- name: ListInvoicesByDateRange :many
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+FROM invoices i
+LEFT JOIN salespersons s ON s.id = i.salesperson_id
+WHERE date(i.created_at, 'localtime') >= ?1
+  AND date(i.created_at, 'localtime') <= ?2
+ORDER BY i.id DESC
+`
+
+type ListInvoicesByDateRangeParams struct {
+	ReportFrom string `json:"reportFrom"`
+	ReportTo   string `json:"reportTo"`
+}
+
+type ListInvoicesByDateRangeRow struct {
+	ID              int64  `json:"id"`
+	CashboxID       int64  `json:"cashboxId"`
+	ShiftID         int64  `json:"shiftId"`
+	InvoiceCode     string `json:"invoiceCode"`
+	InvoiceIndex    int64  `json:"invoiceIndex"`
+	Year            int64  `json:"year"`
+	ClientID        int64  `json:"clientId"`
+	InventoryID     int64  `json:"inventoryId"`
+	Discount        int64  `json:"discount"`
+	Subtotal        int64  `json:"subtotal"`
+	DiscountedTotal int64  `json:"discountedTotal"`
+	GrandTotal      int64  `json:"grandTotal"`
+	CreatedAt       string `json:"createdAt"`
+	SalespersonID   int64  `json:"salespersonId"`
+	Notes           string `json:"notes"`
+	SalespersonName string `json:"salespersonName"`
+}
+
+func (q *Queries) ListInvoicesByDateRange(ctx context.Context, arg ListInvoicesByDateRangeParams) ([]ListInvoicesByDateRangeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoicesByDateRange, arg.ReportFrom, arg.ReportTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInvoicesByDateRangeRow{}
+	for rows.Next() {
+		var i ListInvoicesByDateRangeRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.CashboxID,

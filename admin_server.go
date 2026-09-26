@@ -455,7 +455,16 @@ func (a *adminServer) products(ctx context.Context, search string) ([]db.Product
 	return a.app.store.ListProductsPage(ctx, db.ListProductsPageParams{SearchPattern: "%" + search + "%", Limit: 200, Offset: 0})
 }
 
-func (a *adminServer) invoices(ctx context.Context, day string) (any, error) {
+func (a *adminServer) invoices(ctx context.Context, day, from, to string) (any, error) {
+	if from != "" || to != "" {
+		if from == "" {
+			from = to
+		}
+		if to == "" {
+			to = from
+		}
+		return a.app.store.ListInvoicesByDateRange(ctx, db.ListInvoicesByDateRangeParams{ReportFrom: from, ReportTo: to})
+	}
 	if day != "" {
 		return a.app.store.ListInvoicesByDate(ctx, day)
 	}

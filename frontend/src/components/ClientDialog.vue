@@ -180,7 +180,7 @@ import {
   getCountryCallingCode,
   parsePhoneNumberFromString,
   type CountryCode,
-} from "libphonenumber-js/min";
+} from "libphonenumber-js/mobile";
 import { GetClientByPhone, CreateClient } from "../../wailsjs/go/main/App";
 import {
   anonymousClient,
@@ -222,7 +222,9 @@ const selectedDialCode = computed(() => getCountryCallingCode(selectedCountry.va
 const phoneDigitLimit = computed(() => (selectedCountry.value === "LB" ? 8 : 15));
 const phoneError = computed(() =>
   phoneSubmitted.value && phone.value.trim() && !normalizePhone(phone.value)
-    ? "Enter a valid phone number"
+    ? isLebanon(selectedCountry.value)
+      ? "Enter a valid Lebanese phone number"
+      : "Enter a valid mobile phone number"
     : "",
 );
 

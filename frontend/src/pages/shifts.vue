@@ -19,6 +19,7 @@
         :month="currentMonth"
         :rows="dailyRows"
         :grand-total="grandTotal"
+        :deferred-coupon-total="deferredCouponTotal"
         :loading="loadingMonth"
         :expanded-days="expandedDays"
         :all-days-expanded="allDaysExpanded"
@@ -27,6 +28,7 @@
         :balance-loading="balanceLoading"
         :current-day="currentDay"
         :is-admin="auth.isAdmin"
+        :can-change-month="canChangeMonth"
         :printing-shift-id="printingShiftId"
         :targets="visibleTargets"
         :visitor-counts="visitorCounts"
@@ -49,6 +51,7 @@ import {
   GetAppSettings,
   GetCurrentShiftIncomeByAccount,
   GetCurrentMonth,
+  GetDeferredCouponTotalByMonth,
   GetOpenShift,
   GetShiftTotals,
   ListBranchTargetsWithProgress,
@@ -69,6 +72,9 @@ const auth = useAuthStore();
 const { enabled: visitorCounterEnabled, count: visitorCounterToday } = useVisitorCounter();
 const paymentMethods = ref<PaymentMethod[]>([]);
 const openingFloatEnabled = ref(true);
+const deferredCouponTotal = ref(0);
+const nonAdminMonthNavEnabled = ref(false);
+const canChangeMonth = computed(() => auth.isAdmin || nonAdminMonthNavEnabled.value);
 // Keyed "DD/MM/YYYY" to match the day keys MonthlyIncomeCard renders.
 const visitorCounts = ref<Record<string, number>>({});
 
@@ -78,6 +84,7 @@ const currentMonth = ref("");
 const thisMonthKey = `${new Date().getFullYear()}-${pad(new Date().getMonth() + 1)}`;
 
 function stepMonth(delta: number) {
+  if (!canChangeMonth.value) return;
   const [y, m] = currentMonth.value.split("-").map(Number);
   if (!y || !m) return;
   const d = new Date(y, m - 1 + delta, 1);
@@ -262,6 +269,13 @@ async function refresh() {
     allShifts.value = [];
   }
 
+  try {
+    const excluded = await GetDeferredCouponTotalByMonth(currentMonth.value);
+    deferredCouponTotal.value = Number.isFinite(Number(excluded)) ? Number(excluded) : 0;
+  } catch {
+    deferredCouponTotal.value = 0;
+  }
+
   for (const shiftId of Object.keys(balanceCache)) delete balanceCache[Number(shiftId)];
   await Promise.all([...shiftExpanded].map(loadBalances));
 
@@ -315,6 +329,7 @@ onMounted(async () => {
   try {
     const settings = await GetAppSettings();
     openingFloatEnabled.value = settings?.openingFloatEnabled !== false;
+    nonAdminMonthNavEnabled.value = Boolean(settings?.nonAdminMonthNavEnabled);
   } catch {}
   try {
     currentMonth.value = await GetCurrentMonth();

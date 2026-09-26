@@ -105,6 +105,8 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
+	a.attendanceSyncMu.Lock()
+	defer a.attendanceSyncMu.Unlock()
 	ip, username, password, enabled, duplicateInterval, err := a.attendanceConfig()
 	if err != nil {
 		return nil, err
@@ -176,6 +178,7 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 		salespersonID int64
 		userID        string
 		name          string
+		fullName      string
 		item          struct {
 			ID, Date, Time, Type, Status string
 		}
@@ -194,7 +197,7 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 		if err != nil {
 			continue
 		}
-		candidates = append(candidates, candidate{salespersonID: salesperson.ID, userID: item.UserID, name: strings.TrimSpace(item.Name), item: struct {
+		candidates = append(candidates, candidate{salespersonID: salesperson.ID, userID: item.UserID, name: strings.TrimSpace(item.Name), fullName: salesperson.FullName, item: struct {
 			ID, Date, Time, Type, Status string
 		}{item.ID, item.Date, item.Time, item.Type, item.Status}, eventAt: eventAt})
 	}
@@ -240,6 +243,7 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 
 	imported := 0
 	newEvents := make([]branchAttendanceEvent, 0)
+	recorded := make([]recordedAttendance, 0)
 	for _, candidate := range candidates {
 		key := fmt.Sprintf("%d|%s", candidate.salespersonID, candidate.item.Date)
 		duplicate := false
@@ -261,6 +265,15 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 		}
 		existing[key] = append(existing[key], candidate.eventAt)
 		imported++
+		recorded = append(recorded, recordedAttendance{
+			salespersonID: candidate.salespersonID,
+			name:          candidate.fullName,
+			date:          candidate.item.Date,
+			time:          candidate.item.Time,
+			eventAt:       candidate.eventAt,
+			eventAtRFC:    eventAtRFC,
+			deviceType:    candidate.item.Type,
+		})
 		if syncConfigured {
 			newEvents = append(newEvents, branchAttendanceEvent{
 				Ref:              ip + "|" + candidate.item.ID,
@@ -291,6 +304,7 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 	if syncConfigured {
 		a.kickSyncWorker()
 	}
+	a.announceRecordedAttendance(recorded)
 	return map[string]any{"reachable": true, "configured": true, "message": "Connected", "events": imported}, nil
 }
 

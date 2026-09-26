@@ -151,7 +151,6 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	metadata := []string{
 		"Customer: " + fallbackReceiptValue(c.data.Customer, "Walk-in"),
 		"Salesperson: " + formatReceiptSalesperson(c.data.Salesperson),
-		"Register: " + fallbackReceiptValue(c.data.RegisterName, "Not specified"),
 		"Date: " + currentReceiptDate(),
 	}
 	for _, line := range metadata {

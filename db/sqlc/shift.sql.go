@@ -259,6 +259,28 @@ func (q *Queries) GetCashboxAccountByName(ctx context.Context, name string) (Cas
 	return i, err
 }
 
+const getDeferredCouponTotalByMonth = `-- name: GetDeferredCouponTotalByMonth :one
+SELECT COALESCE(SUM(icp.amount), 0)
+FROM invoice_coupon_payments icp
+JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+JOIN invoices i ON i.id = icp.invoice_id
+JOIN shifts s ON s.id = i.shift_id
+WHERE (?1 = '' OR strftime('%Y-%m', s.created_at, 'localtime') = ?1)
+  AND ct.calculate_on_checkout = 1
+`
+
+// The total "calculate on checkout" coupon amount excluded from this same
+// month's GetShiftTotals figures, surfaced separately so the balance page
+// can tell the cashier why the total is lower than a raw sum of invoices
+// instead of the number just changing silently. Same month-scoping
+// convention as GetShiftTotals (pass ” for all time).
+func (q *Queries) GetDeferredCouponTotalByMonth(ctx context.Context, totalsMonth interface{}) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getDeferredCouponTotalByMonth, totalsMonth)
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
+}
+
 const getOpenShift = `-- name: GetOpenShift :one
 SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts WHERE is_closed = 0 LIMIT 1
 `
@@ -466,6 +488,16 @@ SELECT s.id, s.is_closed, s.created_at, s.closed_at,
            SELECT SUM(i.grand_total)
            FROM invoices i
            WHERE i.shift_id = s.id
+       ), 0) - COALESCE((
+           -- Same deferred-coupon exclusion as GetShiftReportSummary's
+           -- net_sales: a "calculate on checkout" coupon is settled later
+           -- by whoever issued it, not collected by the branch now, so it
+           -- must not inflate this shift's displayed total either.
+           SELECT SUM(icp.amount)
+           FROM invoice_coupon_payments icp
+           JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+           JOIN invoices i ON i.id = icp.invoice_id
+           WHERE i.shift_id = s.id AND ct.calculate_on_checkout = 1
        ), 0) as total,
        COALESCE((
            SELECT SUM(MAX(p.price - ip.unit_price, 0) * ip.quantity)
@@ -489,7 +521,7 @@ type GetShiftTotalsRow struct {
 	IsClosed                int64       `json:"isClosed"`
 	CreatedAt               string      `json:"createdAt"`
 	ClosedAt                string      `json:"closedAt"`
-	Total                   interface{} `json:"total"`
+	Total                   int64       `json:"total"`
 	PriceDeductions         interface{} `json:"priceDeductions"`
 	CountedUsd              int64       `json:"countedUsd"`
 	CountedLbp              int64       `json:"countedLbp"`
