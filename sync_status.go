@@ -14,7 +14,10 @@ type SyncStatusResult struct {
 	ConfirmedElsewhere int64  `json:"confirmedElsewhere"`
 	LastSyncedAt       string `json:"lastSyncedAt"`
 	LastReconcileAt    string `json:"lastReconcileAt"`
-	FullySynced        bool   `json:"fullySynced"`
+	// LastFullCheckAt is when the completeness check last finished (see
+	// sync_full_check.go); empty if it never has.
+	LastFullCheckAt string `json:"lastFullCheckAt"`
+	FullySynced     bool   `json:"fullySynced"`
 }
 
 // GetSyncStatus is the Wails binding behind the sync indicator. Cheap
@@ -51,8 +54,13 @@ func (a *App) GetSyncStatus() (SyncStatusResult, error) {
 	if res.LastSyncedAt, err = a.store.LatestSyncOutboxSyncedAt(ctx); err != nil {
 		return res, err
 	}
-	if st, err := a.store.GetSyncState(ctx); err == nil && st.LastReconcileAt.Valid {
-		res.LastReconcileAt = st.LastReconcileAt.String
+	if st, err := a.store.GetSyncState(ctx); err == nil {
+		if st.LastReconcileAt.Valid {
+			res.LastReconcileAt = st.LastReconcileAt.String
+		}
+		if st.LastFullCheckAt.Valid {
+			res.LastFullCheckAt = st.LastFullCheckAt.String
+		}
 	}
 
 	res.FullySynced = res.Configured &&

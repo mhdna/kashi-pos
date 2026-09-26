@@ -36,6 +36,62 @@ export namespace main {
 	        this.needsMoreReplacementValue = source["needsMoreReplacementValue"];
 	    }
 	}
+	export class FullCheckEntityReport {
+	    entity: string;
+	    central: number;
+	    fetched: number;
+	    deactivated: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FullCheckEntityReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entity = source["entity"];
+	        this.central = source["central"];
+	        this.fetched = source["fetched"];
+	        this.deactivated = source["deactivated"];
+	    }
+	}
+	export class FullCheckReport {
+	    adoptedClientUids: number;
+	    entities: FullCheckEntityReport[];
+	    // Go type: time
+	    startedAt: any;
+	    // Go type: time
+	    finishedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new FullCheckReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.adoptedClientUids = source["adoptedClientUids"];
+	        this.entities = this.convertValues(source["entities"], FullCheckEntityReport);
+	        this.startedAt = this.convertValues(source["startedAt"], null);
+	        this.finishedAt = this.convertValues(source["finishedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class InvoicePage {
 	    items: any[];
 	    total: number;
@@ -226,6 +282,7 @@ export namespace main {
 	    finishedAt: any;
 	    requiresConfirmation: boolean;
 	    pendingDeactivation?: PendingDeactivation;
+	    fullCheck?: FullCheckReport;
 	
 	    static createFrom(source: any = {}) {
 	        return new ResyncReport(source);
@@ -241,6 +298,7 @@ export namespace main {
 	        this.finishedAt = this.convertValues(source["finishedAt"], null);
 	        this.requiresConfirmation = source["requiresConfirmation"];
 	        this.pendingDeactivation = this.convertValues(source["pendingDeactivation"], PendingDeactivation);
+	        this.fullCheck = this.convertValues(source["fullCheck"], FullCheckReport);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -348,6 +406,7 @@ export namespace main {
 	    confirmedElsewhere: number;
 	    lastSyncedAt: string;
 	    lastReconcileAt: string;
+	    lastFullCheckAt: string;
 	    fullySynced: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -364,6 +423,7 @@ export namespace main {
 	        this.confirmedElsewhere = source["confirmedElsewhere"];
 	        this.lastSyncedAt = source["lastSyncedAt"];
 	        this.lastReconcileAt = source["lastReconcileAt"];
+	        this.lastFullCheckAt = source["lastFullCheckAt"];
 	        this.fullySynced = source["fullySynced"];
 	    }
 	}

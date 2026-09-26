@@ -100,7 +100,7 @@ func (q *Queries) CountInvoiceCouponPaymentsByTypeID(ctx context.Context, coupon
 
 const createClient = `-- name: CreateClient :one
 INSERT INTO clients (name, phone, total_loyalty_points, valid_loyalty_points)
-VALUES (?, ?, ?, ?) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid
+VALUES (?, ?, ?, ?) RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid, remote_updated_at
 `
 
 type CreateClientParams struct {
@@ -127,6 +127,7 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) (Cli
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }
@@ -428,7 +429,7 @@ func (q *Queries) GetClientAccountPaidByInvoiceID(ctx context.Context, invoiceID
 }
 
 const getClientByID = `-- name: GetClientByID :one
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid FROM clients WHERE id = ?
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid, remote_updated_at FROM clients WHERE id = ?
 `
 
 func (q *Queries) GetClientByID(ctx context.Context, id int64) (Client, error) {
@@ -443,12 +444,13 @@ func (q *Queries) GetClientByID(ctx context.Context, id int64) (Client, error) {
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }
 
 const getClientByPhone = `-- name: GetClientByPhone :one
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid FROM clients WHERE phone = ?
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid, remote_updated_at FROM clients WHERE phone = ?
 `
 
 func (q *Queries) GetClientByPhone(ctx context.Context, phone string) (Client, error) {
@@ -463,12 +465,13 @@ func (q *Queries) GetClientByPhone(ctx context.Context, phone string) (Client, e
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }
 
 const getClientByUID = `-- name: GetClientByUID :one
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid FROM clients WHERE uid = ?
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid, remote_updated_at FROM clients WHERE uid = ?
 `
 
 func (q *Queries) GetClientByUID(ctx context.Context, uid sql.NullString) (Client, error) {
@@ -483,6 +486,7 @@ func (q *Queries) GetClientByUID(ctx context.Context, uid sql.NullString) (Clien
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }
@@ -530,7 +534,7 @@ func (q *Queries) GetCouponTypeByID(ctx context.Context, id int64) (CouponType, 
 }
 
 const listActiveClients = `-- name: ListActiveClients :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid FROM clients WHERE is_active = 1 ORDER BY id
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid, remote_updated_at FROM clients WHERE is_active = 1 ORDER BY id
 `
 
 func (q *Queries) ListActiveClients(ctx context.Context) ([]Client, error) {
@@ -551,6 +555,7 @@ func (q *Queries) ListActiveClients(ctx context.Context) ([]Client, error) {
 			&i.CreatedAt,
 			&i.IsActive,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -677,8 +682,43 @@ func (q *Queries) ListClientAccountPayments(ctx context.Context, clientID int64)
 	return items, nil
 }
 
+const listClientSyncVersions = `-- name: ListClientSyncVersions :many
+SELECT id, uid, remote_updated_at FROM clients WHERE uid IS NOT NULL
+`
+
+type ListClientSyncVersionsRow struct {
+	ID              int64          `json:"id"`
+	Uid             sql.NullString `json:"uid"`
+	RemoteUpdatedAt sql.NullString `json:"remoteUpdatedAt"`
+}
+
+// Completeness check: every local client's uid and the kashi version last
+// applied to it.
+func (q *Queries) ListClientSyncVersions(ctx context.Context) ([]ListClientSyncVersionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClientSyncVersions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListClientSyncVersionsRow{}
+	for rows.Next() {
+		var i ListClientSyncVersionsRow
+		if err := rows.Scan(&i.ID, &i.Uid, &i.RemoteUpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listClients = `-- name: ListClients :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid FROM clients ORDER BY id
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid, remote_updated_at FROM clients ORDER BY id
 `
 
 func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
@@ -699,6 +739,7 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 			&i.CreatedAt,
 			&i.IsActive,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -855,7 +896,7 @@ func (q *Queries) ListClientsAfterUnfiltered(ctx context.Context, arg ListClient
 }
 
 const listClientsWithInvoices = `-- name: ListClientsWithInvoices :many
-SELECT DISTINCT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at, c.is_active, c.uid FROM clients c
+SELECT DISTINCT c.id, c.name, c.phone, c.total_loyalty_points, c.valid_loyalty_points, c.created_at, c.is_active, c.uid, c.remote_updated_at FROM clients c
 JOIN invoices i ON i.client_id = c.id
 ORDER BY c.id
 `
@@ -881,6 +922,7 @@ func (q *Queries) ListClientsWithInvoices(ctx context.Context) ([]Client, error)
 			&i.CreatedAt,
 			&i.IsActive,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1067,7 +1109,7 @@ func (q *Queries) RepointInvoicesClient(ctx context.Context, arg RepointInvoices
 }
 
 const searchClients = `-- name: SearchClients :many
-SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid
+SELECT id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid, remote_updated_at
 FROM clients
 WHERE trim(?1) = ''
    OR name LIKE '%' || ?1 || '%' COLLATE NOCASE
@@ -1099,6 +1141,7 @@ func (q *Queries) SearchClients(ctx context.Context, arg SearchClientsParams) ([
 			&i.CreatedAt,
 			&i.IsActive,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1127,6 +1170,20 @@ func (q *Queries) SetClientActive(ctx context.Context, arg SetClientActiveParams
 	return err
 }
 
+const setClientRemoteUpdatedAt = `-- name: SetClientRemoteUpdatedAt :exec
+UPDATE clients SET remote_updated_at = ? WHERE id = ?
+`
+
+type SetClientRemoteUpdatedAtParams struct {
+	RemoteUpdatedAt sql.NullString `json:"remoteUpdatedAt"`
+	ID              int64          `json:"id"`
+}
+
+func (q *Queries) SetClientRemoteUpdatedAt(ctx context.Context, arg SetClientRemoteUpdatedAtParams) error {
+	_, err := q.db.ExecContext(ctx, setClientRemoteUpdatedAt, arg.RemoteUpdatedAt, arg.ID)
+	return err
+}
+
 const setClientUID = `-- name: SetClientUID :exec
 UPDATE clients SET uid = ? WHERE id = ?
 `
@@ -1149,7 +1206,7 @@ SET name = ?,
     phone = ?,
     total_loyalty_points = ?,
     valid_loyalty_points = ?
-WHERE id = ? RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid
+WHERE id = ? RETURNING id, name, phone, total_loyalty_points, valid_loyalty_points, created_at, is_active, uid, remote_updated_at
 `
 
 type UpdateClientParams struct {
@@ -1178,6 +1235,7 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) (Cli
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }

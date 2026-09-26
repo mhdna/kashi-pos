@@ -180,6 +180,23 @@
                     </tr>
                   </tbody>
                 </v-table>
+
+                <v-table v-if="resyncReport?.fullCheck" density="compact" class="mt-3">
+                  <thead>
+                    <tr>
+                      <th>Full check</th><th class="text-right">On kashi</th>
+                      <th class="text-right">Fetched</th><th class="text-right">Deactivated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in resyncReport.fullCheck.entities" :key="row.entity">
+                      <td>{{ row.entity }}</td>
+                      <td class="text-right">{{ row.central }}</td>
+                      <td class="text-right">{{ row.fetched }}</td>
+                      <td class="text-right">{{ row.deactivated }}</td>
+                    </tr>
+                  </tbody>
+                </v-table>
               </div>
             </v-card-text>
           </v-card>

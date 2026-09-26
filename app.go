@@ -78,6 +78,10 @@ type App struct {
 	// serializing: cursors are per-entity and monotonic, so whichever pull
 	// runs first advances them and the other finds nothing new to fetch.
 	syncPullMu sync.Mutex
+	// fullCheckAttemptAt is when the completeness check last started
+	// (sync_full_check.go), successful or not -- guarded by syncPullMu. It
+	// keeps a check that keeps failing from rerunning every pull tick.
+	fullCheckAttemptAt time.Time
 	// resyncMu guards ResyncAll so two full "sync everything" passes can't
 	// overlap (each one clears cursors and re-arms outbox rows -- running two
 	// at once would double-queue and thrash).

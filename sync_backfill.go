@@ -71,6 +71,9 @@ type ResyncReport struct {
 	// a confirmed re-run (ConfirmDeactivation: true) would deactivate.
 	RequiresConfirmation bool                 `json:"requiresConfirmation"`
 	PendingDeactivation  *PendingDeactivation `json:"pendingDeactivation,omitempty"`
+	// FullCheck is the completeness check run at the end (nil on a dry run
+	// or when it couldn't run).
+	FullCheck *FullCheckReport `json:"fullCheck,omitempty"`
 }
 
 // ResyncAll brings this branch to full parity with the central server it's
@@ -129,6 +132,12 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	//    row already means "everything", so clearing them and running one
 	//    pull pass is the whole "brand-new till catches up" story.
 	if !opts.DryRun {
+		// 0. Adopt kashi's uid for every client this branch had linked, so
+		//    the pull below matches them by uid, not by a phone that may
+		//    differ. A kashi without the route (older deploy) just skips it.
+		if _, err := a.adoptBranchClientUIDs(ctx, client); err != nil {
+			log.Printf("resync: adopt client uids: %v", err)
+		}
 		if err := retryBusy(func() error { return a.store.ClearSyncCursors(ctx) }); err != nil {
 			return report, fmt.Errorf("clear sync cursors: %w", err)
 		}
@@ -240,6 +249,19 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	report.Entities = append(report.Entities, ResyncEntityReport{
 		Entity: "other_outbox_rows", Queued: rearmed,
 	})
+
+	// 5b. Completeness check: fetch anything the cursor pull missed and,
+	//     now that full-mirror mode may just have been confirmed, deactivate
+	//     local products kashi doesn't have. Best-effort -- an older kashi
+	//     without the routes must not fail the whole run.
+	if !opts.DryRun {
+		fc, err := a.runFullCheckLocked(ctx, client)
+		if err != nil {
+			log.Printf("resync: full check: %v", err)
+		} else {
+			report.FullCheck = &fc
+		}
+	}
 
 	// 6. Stamp state + kick the worker to start draining.
 	if !opts.DryRun {

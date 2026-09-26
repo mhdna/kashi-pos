@@ -145,6 +145,7 @@ func (a *App) runPullTick(ctx context.Context) {
 	a.runShiftReceiptUploadsOnce(ctx, client)
 	if !a.resyncActive.Load() {
 		a.runSyncPullOnce(ctx, client)
+		a.maybeRunFullCheck(ctx, client)
 	}
 }
 

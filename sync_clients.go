@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -17,10 +18,11 @@ import (
 // kashi's uid yet, or for an older kashi that doesn't send one. IsActive is
 // nil from an older kashi (treated as active).
 type syncedClient struct {
-	UID      string `json:"uid"`
-	Name     string `json:"name"`
-	Phone    string `json:"phone"`
-	IsActive *bool  `json:"is_active"`
+	UID       string `json:"uid"`
+	Name      string `json:"name"`
+	Phone     string `json:"phone"`
+	IsActive  *bool  `json:"is_active"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 // applySyncedClient makes the local copy of one kashi client match kashi:
@@ -35,6 +37,18 @@ type syncedClient struct {
 // order, so a genuine phone swap between two clients is already applied by
 // now) -- it is merged into the matched row rather than duplicated.
 func applySyncedClient(ctx context.Context, q *db.Queries, c syncedClient) error {
+	id, err := applySyncedClientRow(ctx, q, c)
+	if err != nil {
+		return err
+	}
+	return stampRemoteVersion(ctx, c.UpdatedAt, func(v string) error {
+		return q.SetClientRemoteUpdatedAt(ctx, db.SetClientRemoteUpdatedAtParams{RemoteUpdatedAt: sql.NullString{String: v, Valid: true}, ID: id})
+	})
+}
+
+// applySyncedClientRow is applySyncedClient minus the version stamp; it
+// returns the local id of the row it wrote.
+func applySyncedClientRow(ctx context.Context, q *db.Queries, c syncedClient) (int64, error) {
 	active := int64(1)
 	if c.IsActive != nil && !*c.IsActive {
 		active = 0
@@ -48,7 +62,7 @@ func applySyncedClient(ctx context.Context, q *db.Queries, c syncedClient) error
 		case err == nil:
 			target, found = byUID, true
 		case !errors.Is(err, sql.ErrNoRows):
-			return err
+			return 0, err
 		}
 	}
 	if !found {
@@ -58,22 +72,22 @@ func applySyncedClient(ctx context.Context, q *db.Queries, c syncedClient) error
 			target, found = byPhone, true
 			if c.UID != "" {
 				if err := q.SetClientUID(ctx, db.SetClientUIDParams{Uid: sql.NullString{String: c.UID, Valid: true}, ID: byPhone.ID}); err != nil {
-					return err
+					return 0, err
 				}
 			}
 		case errors.Is(err, sql.ErrNoRows):
 			created, err := q.CreateClient(ctx, db.CreateClientParams{Name: c.Name, Phone: c.Phone})
 			if err != nil {
-				return err
+				return 0, err
 			}
 			if c.UID != "" {
 				if err := q.SetClientUID(ctx, db.SetClientUIDParams{Uid: sql.NullString{String: c.UID, Valid: true}, ID: created.ID}); err != nil {
-					return err
+					return 0, err
 				}
 			}
-			return q.SetClientActive(ctx, db.SetClientActiveParams{IsActive: active, ID: created.ID})
+			return created.ID, q.SetClientActive(ctx, db.SetClientActiveParams{IsActive: active, ID: created.ID})
 		default:
-			return err
+			return 0, err
 		}
 	}
 
@@ -82,17 +96,17 @@ func applySyncedClient(ctx context.Context, q *db.Queries, c syncedClient) error
 		switch {
 		case err == nil && other.ID != target.ID:
 			if err := mergeLocalClient(ctx, q, target.ID, other.ID); err != nil {
-				return fmt.Errorf("merge local client %d into %d: %w", other.ID, target.ID, err)
+				return 0, fmt.Errorf("merge local client %d into %d: %w", other.ID, target.ID, err)
 			}
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
-			return err
+			return 0, err
 		}
 	}
 
 	// Re-read: a merge above may have moved loyalty points onto the row.
 	current, err := q.GetClientByID(ctx, target.ID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if _, err := q.UpdateClient(ctx, db.UpdateClientParams{
 		ID:                 current.ID,
@@ -101,9 +115,9 @@ func applySyncedClient(ctx context.Context, q *db.Queries, c syncedClient) error
 		TotalLoyaltyPoints: current.TotalLoyaltyPoints,
 		ValidLoyaltyPoints: current.ValidLoyaltyPoints,
 	}); err != nil {
-		return err
+		return 0, err
 	}
-	return q.SetClientActive(ctx, db.SetClientActiveParams{IsActive: active, ID: current.ID})
+	return current.ID, q.SetClientActive(ctx, db.SetClientActiveParams{IsActive: active, ID: current.ID})
 }
 
 // mergeLocalClient folds the duplicate local client dropID into keepID:
@@ -244,4 +258,18 @@ func adoptCanonicalClientUID(ctx context.Context, q *db.Queries, localID int64, 
 	default:
 		return err
 	}
+}
+
+// stampRemoteVersion normalises kashi's updated_at for a row just applied
+// and records it via set, so the completeness check can compare versions.
+// An empty or unparseable value (an older kashi) records nothing.
+func stampRemoteVersion(ctx context.Context, updatedAt string, set func(string) error) error {
+	if updatedAt == "" {
+		return nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, updatedAt)
+	if err != nil {
+		return nil
+	}
+	return set(t.UTC().Format(time.RFC3339Nano))
 }

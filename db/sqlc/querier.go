@@ -87,6 +87,7 @@ type Querier interface {
 	CreateVisitorEvent(ctx context.Context, arg CreateVisitorEventParams) error
 	CreateVoidInvoice(ctx context.Context, arg CreateVoidInvoiceParams) (VoidInvoice, error)
 	DeactivateProductsByBarcode(ctx context.Context, barcodes []string) error
+	DeactivateProductsByIDs(ctx context.Context, ids []int64) error
 	DecreaseInventoryProductQuantity(ctx context.Context, arg DecreaseInventoryProductQuantityParams) (sql.Result, error)
 	DeleteAccount(ctx context.Context, id int64) error
 	DeleteAsset(ctx context.Context, id int64) error
@@ -250,6 +251,9 @@ type Querier interface {
 	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
 	ListClientAccountPayments(ctx context.Context, clientID int64) ([]ListClientAccountPaymentsRow, error)
 	ListClientNamesByIDs(ctx context.Context, ids []int64) ([]ListClientNamesByIDsRow, error)
+	// Completeness check: every local client's uid and the kashi version last
+	// applied to it.
+	ListClientSyncVersions(ctx context.Context) ([]ListClientSyncVersionsRow, error)
 	ListClients(ctx context.Context) ([]Client, error)
 	ListClientsAfter(ctx context.Context, arg ListClientsAfterParams) ([]ListClientsAfterRow, error)
 	ListClientsAfterUnfiltered(ctx context.Context, arg ListClientsAfterUnfilteredParams) ([]ListClientsAfterUnfilteredRow, error)
@@ -332,6 +336,7 @@ type Querier interface {
 	// For a single-product lookup, where scanning the whole catalog's
 	// attributes (as ListAllProductAttributeValues does) would be wasteful.
 	ListProductAttributeValues(ctx context.Context, productID int64) ([]ListProductAttributeValuesRow, error)
+	ListProductSyncVersions(ctx context.Context) ([]ListProductSyncVersionsRow, error)
 	ListProducts(ctx context.Context) ([]Product, error)
 	// search_pattern must already be wrapped in '%...%' by the caller.
 	ListProductsAfter(ctx context.Context, arg ListProductsAfterParams) ([]Product, error)
@@ -397,6 +402,7 @@ type Querier interface {
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
 	SetCashboxAccountSortOrder(ctx context.Context, arg SetCashboxAccountSortOrderParams) error
 	SetClientActive(ctx context.Context, arg SetClientActiveParams) error
+	SetClientRemoteUpdatedAt(ctx context.Context, arg SetClientRemoteUpdatedAtParams) error
 	// Adopt kashi's uid for a local client (pull match, or kashi answering a
 	// push with the canonical uid of an existing client with the same phone).
 	SetClientUID(ctx context.Context, arg SetClientUIDParams) error
@@ -404,12 +410,15 @@ type Querier interface {
 	SetDiscountListActive(ctx context.Context, arg SetDiscountListActiveParams) (DiscountList, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	SetFullMirrorConfirmedAt(ctx context.Context, fullMirrorConfirmedAt sql.NullString) error
+	SetIdentityAdoptedAt(ctx context.Context, identityAdoptedAt sql.NullString) error
+	SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
 	SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error)
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
 	// Frees a barcode held by a stale local-only product so kashi's product
 	// with that barcode can take it; the stale row keeps its history.
 	SetProductBarcodeInactive(ctx context.Context, arg SetProductBarcodeInactiveParams) error
+	SetProductRemoteUpdatedAt(ctx context.Context, arg SetProductRemoteUpdatedAtParams) error
 	SetProductUID(ctx context.Context, arg SetProductUIDParams) error
 	SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error
 	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error

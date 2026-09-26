@@ -62,6 +62,7 @@ type syncedBranchTarget struct {
 type syncedProductVariant struct {
 	// UID is the variant's shared identity; empty from an older kashi.
 	UID         string         `json:"uid"`
+	UpdatedAt   string         `json:"updated_at"`
 	Barcode     string         `json:"barcode"`
 	Price       sql.NullInt64  `json:"price"`
 	IsActive    bool           `json:"is_active"`
@@ -471,7 +472,12 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 		productID = existing.ID
 	}
 
-	return applySyncedProductAttributes(ctx, q, productID, v)
+	if err := applySyncedProductAttributes(ctx, q, productID, v); err != nil {
+		return err
+	}
+	return stampRemoteVersion(ctx, v.UpdatedAt, func(ver string) error {
+		return q.SetProductRemoteUpdatedAt(ctx, db.SetProductRemoteUpdatedAtParams{RemoteUpdatedAt: sql.NullString{String: ver, Valid: true}, ID: productID})
+	})
 }
 
 // findSyncedProduct finds the local copy of a kashi variant: by uid, else by

@@ -95,7 +95,7 @@ func (q *Queries) CreatePriceOverride(ctx context.Context, arg CreatePriceOverri
 
 const createProduct = `-- name: CreateProduct :one
 INSERT INTO products (barcode, code, name, description, is_active, price, discount, color, size, currency_code, brand, family, kind, season, product_year)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at
 `
 
 type CreateProductParams struct {
@@ -154,6 +154,7 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 		&i.Season,
 		&i.ProductYear,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }
@@ -172,6 +173,25 @@ func (q *Queries) DeactivateProductsByBarcode(ctx context.Context, barcodes []st
 		query = strings.Replace(query, "/*SLICE:barcodes*/?", strings.Repeat(",?", len(barcodes))[1:], 1)
 	} else {
 		query = strings.Replace(query, "/*SLICE:barcodes*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
+const deactivateProductsByIDs = `-- name: DeactivateProductsByIDs :exec
+UPDATE products SET is_active = 0 WHERE id IN (/*SLICE:ids*/?)
+`
+
+func (q *Queries) DeactivateProductsByIDs(ctx context.Context, ids []int64) error {
+	query := deactivateProductsByIDs
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
 	_, err := q.db.ExecContext(ctx, query, queryParams...)
 	return err
@@ -239,7 +259,7 @@ func (q *Queries) GetPriceOverride(ctx context.Context, id int64) (PriceOverride
 }
 
 const getProductByBarcode = `-- name: GetProductByBarcode :one
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products WHERE barcode = ?
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products WHERE barcode = ?
 `
 
 func (q *Queries) GetProductByBarcode(ctx context.Context, barcode string) (Product, error) {
@@ -264,12 +284,13 @@ func (q *Queries) GetProductByBarcode(ctx context.Context, barcode string) (Prod
 		&i.Season,
 		&i.ProductYear,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }
 
 const getProductByCode = `-- name: GetProductByCode :one
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products WHERE code = ? ORDER BY id LIMIT 1
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products WHERE code = ? ORDER BY id LIMIT 1
 `
 
 func (q *Queries) GetProductByCode(ctx context.Context, code string) (Product, error) {
@@ -294,12 +315,13 @@ func (q *Queries) GetProductByCode(ctx context.Context, code string) (Product, e
 		&i.Season,
 		&i.ProductYear,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }
 
 const getProductByID = `-- name: GetProductByID :one
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products WHERE id = ?
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products WHERE id = ?
 `
 
 func (q *Queries) GetProductByID(ctx context.Context, id int64) (Product, error) {
@@ -324,12 +346,13 @@ func (q *Queries) GetProductByID(ctx context.Context, id int64) (Product, error)
 		&i.Season,
 		&i.ProductYear,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }
 
 const getProductByUID = `-- name: GetProductByUID :one
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products WHERE uid = ?
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products WHERE uid = ?
 `
 
 func (q *Queries) GetProductByUID(ctx context.Context, uid sql.NullString) (Product, error) {
@@ -354,12 +377,13 @@ func (q *Queries) GetProductByUID(ctx context.Context, uid sql.NullString) (Prod
 		&i.Season,
 		&i.ProductYear,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }
 
 const listActiveProducts = `-- name: ListActiveProducts :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products WHERE is_active = 1 ORDER BY id
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products WHERE is_active = 1 ORDER BY id
 `
 
 func (q *Queries) ListActiveProducts(ctx context.Context) ([]Product, error) {
@@ -390,6 +414,7 @@ func (q *Queries) ListActiveProducts(ctx context.Context) ([]Product, error) {
 			&i.Season,
 			&i.ProductYear,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -470,8 +495,47 @@ func (q *Queries) ListPriceOverridesByProduct(ctx context.Context, productID sql
 	return items, nil
 }
 
+const listProductSyncVersions = `-- name: ListProductSyncVersions :many
+SELECT id, uid, remote_updated_at, is_active FROM products WHERE uid IS NOT NULL
+`
+
+type ListProductSyncVersionsRow struct {
+	ID              int64          `json:"id"`
+	Uid             sql.NullString `json:"uid"`
+	RemoteUpdatedAt sql.NullString `json:"remoteUpdatedAt"`
+	IsActive        int64          `json:"isActive"`
+}
+
+func (q *Queries) ListProductSyncVersions(ctx context.Context) ([]ListProductSyncVersionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProductSyncVersions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProductSyncVersionsRow{}
+	for rows.Next() {
+		var i ListProductSyncVersionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uid,
+			&i.RemoteUpdatedAt,
+			&i.IsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProducts = `-- name: ListProducts :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products ORDER BY id
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products ORDER BY id
 `
 
 func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
@@ -502,6 +566,7 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 			&i.Season,
 			&i.ProductYear,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -517,7 +582,7 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 }
 
 const listProductsAfter = `-- name: ListProductsAfter :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
 WHERE id > ?1
   AND is_active = 1
   AND (name || ' ' || code || ' ' || barcode)
@@ -561,6 +626,7 @@ func (q *Queries) ListProductsAfter(ctx context.Context, arg ListProductsAfterPa
 			&i.Season,
 			&i.ProductYear,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -576,7 +642,7 @@ func (q *Queries) ListProductsAfter(ctx context.Context, arg ListProductsAfterPa
 }
 
 const listProductsAfterUnfiltered = `-- name: ListProductsAfterUnfiltered :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
 WHERE id > ?1
   AND is_active = 1
 ORDER BY id
@@ -616,6 +682,7 @@ func (q *Queries) ListProductsAfterUnfiltered(ctx context.Context, arg ListProdu
 			&i.Season,
 			&i.ProductYear,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -631,7 +698,7 @@ func (q *Queries) ListProductsAfterUnfiltered(ctx context.Context, arg ListProdu
 }
 
 const listProductsByIDs = `-- name: ListProductsByIDs :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products WHERE id IN (/*SLICE:ids*/?)
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products WHERE id IN (/*SLICE:ids*/?)
 `
 
 func (q *Queries) ListProductsByIDs(ctx context.Context, ids []int64) ([]Product, error) {
@@ -672,6 +739,7 @@ func (q *Queries) ListProductsByIDs(ctx context.Context, ids []int64) ([]Product
 			&i.Season,
 			&i.ProductYear,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -687,7 +755,7 @@ func (q *Queries) ListProductsByIDs(ctx context.Context, ids []int64) ([]Product
 }
 
 const listProductsPage = `-- name: ListProductsPage :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
 WHERE (name || ' ' || code || ' ' || barcode)
       LIKE ?1
 ORDER BY id
@@ -729,6 +797,7 @@ func (q *Queries) ListProductsPage(ctx context.Context, arg ListProductsPagePara
 			&i.Season,
 			&i.ProductYear,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -744,7 +813,7 @@ func (q *Queries) ListProductsPage(ctx context.Context, arg ListProductsPagePara
 }
 
 const listProductsPageUnfiltered = `-- name: ListProductsPageUnfiltered :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
 ORDER BY id
 LIMIT ?2 OFFSET ?1
 `
@@ -782,6 +851,7 @@ func (q *Queries) ListProductsPageUnfiltered(ctx context.Context, arg ListProduc
 			&i.Season,
 			&i.ProductYear,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -797,7 +867,7 @@ func (q *Queries) ListProductsPageUnfiltered(ctx context.Context, arg ListProduc
 }
 
 const listQuickAccessProducts = `-- name: ListQuickAccessProducts :many
-SELECT p.id, p.barcode, p.code, p.name, p.description, p.is_active, p.price, p.discount, p.color, p.size, p.currency_code, p.created_at, p.brand, p.family, p.kind, p.season, p.product_year, p.uid
+SELECT p.id, p.barcode, p.code, p.name, p.description, p.is_active, p.price, p.discount, p.color, p.size, p.currency_code, p.created_at, p.brand, p.family, p.kind, p.season, p.product_year, p.uid, p.remote_updated_at
 FROM quick_access_items q
 JOIN products p ON p.id = q.product_id
 ORDER BY q.position, q.created_at, q.product_id
@@ -831,6 +901,7 @@ func (q *Queries) ListQuickAccessProducts(ctx context.Context) ([]Product, error
 			&i.Season,
 			&i.ProductYear,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -855,7 +926,7 @@ func (q *Queries) RemoveQuickAccessProduct(ctx context.Context, productID int64)
 }
 
 const searchProductsByName = `-- name: SearchProductsByName :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid FROM products WHERE name LIKE ? ORDER BY id
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products WHERE name LIKE ? ORDER BY id
 `
 
 func (q *Queries) SearchProductsByName(ctx context.Context, name string) ([]Product, error) {
@@ -886,6 +957,7 @@ func (q *Queries) SearchProductsByName(ctx context.Context, name string) ([]Prod
 			&i.Season,
 			&i.ProductYear,
 			&i.Uid,
+			&i.RemoteUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -913,6 +985,20 @@ type SetProductBarcodeInactiveParams struct {
 // with that barcode can take it; the stale row keeps its history.
 func (q *Queries) SetProductBarcodeInactive(ctx context.Context, arg SetProductBarcodeInactiveParams) error {
 	_, err := q.db.ExecContext(ctx, setProductBarcodeInactive, arg.Barcode, arg.ID)
+	return err
+}
+
+const setProductRemoteUpdatedAt = `-- name: SetProductRemoteUpdatedAt :exec
+UPDATE products SET remote_updated_at = ? WHERE id = ?
+`
+
+type SetProductRemoteUpdatedAtParams struct {
+	RemoteUpdatedAt sql.NullString `json:"remoteUpdatedAt"`
+	ID              int64          `json:"id"`
+}
+
+func (q *Queries) SetProductRemoteUpdatedAt(ctx context.Context, arg SetProductRemoteUpdatedAtParams) error {
+	_, err := q.db.ExecContext(ctx, setProductRemoteUpdatedAt, arg.RemoteUpdatedAt, arg.ID)
 	return err
 }
 
@@ -949,7 +1035,7 @@ UPDATE products
 SET barcode = ?, code = ?, name = ?, description = ?,
     is_active = ?, price = ?, discount = ?, color = ?, size = ?, currency_code = ?,
     brand = ?, family = ?, kind = ?, season = ?, product_year = ?
-WHERE id = ? RETURNING id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid
+WHERE id = ? RETURNING id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at
 `
 
 type UpdateProductParams struct {
@@ -1010,6 +1096,7 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (P
 		&i.Season,
 		&i.ProductYear,
 		&i.Uid,
+		&i.RemoteUpdatedAt,
 	)
 	return i, err
 }

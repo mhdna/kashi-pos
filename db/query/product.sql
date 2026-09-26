@@ -126,3 +126,12 @@ UPDATE products SET uid = ? WHERE id = ?;
 -- Frees a barcode held by a stale local-only product so kashi's product
 -- with that barcode can take it; the stale row keeps its history.
 UPDATE products SET barcode = ?, is_active = 0 WHERE id = ?;
+
+-- name: SetProductRemoteUpdatedAt :exec
+UPDATE products SET remote_updated_at = ? WHERE id = ?;
+
+-- name: ListProductSyncVersions :many
+SELECT id, uid, remote_updated_at, is_active FROM products WHERE uid IS NOT NULL;
+
+-- name: DeactivateProductsByIDs :exec
+UPDATE products SET is_active = 0 WHERE id IN (sqlc.slice('ids'));

@@ -140,6 +140,7 @@ type Client struct {
 	CreatedAt          string         `json:"createdAt"`
 	IsActive           int64          `json:"isActive"`
 	Uid                sql.NullString `json:"uid"`
+	RemoteUpdatedAt    sql.NullString `json:"remoteUpdatedAt"`
 }
 
 type ClientAccountEntry struct {
@@ -399,24 +400,25 @@ type PriceOverride struct {
 }
 
 type Product struct {
-	ID           int64          `json:"id"`
-	Barcode      string         `json:"barcode"`
-	Code         string         `json:"code"`
-	Name         string         `json:"name"`
-	Description  string         `json:"description"`
-	IsActive     int64          `json:"isActive"`
-	Price        int64          `json:"price"`
-	Discount     int64          `json:"discount"`
-	Color        string         `json:"color"`
-	Size         string         `json:"size"`
-	CurrencyCode string         `json:"currencyCode"`
-	CreatedAt    string         `json:"createdAt"`
-	Brand        string         `json:"brand"`
-	Family       string         `json:"family"`
-	Kind         string         `json:"kind"`
-	Season       string         `json:"season"`
-	ProductYear  int64          `json:"productYear"`
-	Uid          sql.NullString `json:"uid"`
+	ID              int64          `json:"id"`
+	Barcode         string         `json:"barcode"`
+	Code            string         `json:"code"`
+	Name            string         `json:"name"`
+	Description     string         `json:"description"`
+	IsActive        int64          `json:"isActive"`
+	Price           int64          `json:"price"`
+	Discount        int64          `json:"discount"`
+	Color           string         `json:"color"`
+	Size            string         `json:"size"`
+	CurrencyCode    string         `json:"currencyCode"`
+	CreatedAt       string         `json:"createdAt"`
+	Brand           string         `json:"brand"`
+	Family          string         `json:"family"`
+	Kind            string         `json:"kind"`
+	Season          string         `json:"season"`
+	ProductYear     int64          `json:"productYear"`
+	Uid             sql.NullString `json:"uid"`
+	RemoteUpdatedAt sql.NullString `json:"remoteUpdatedAt"`
 }
 
 type ProductsAttribute struct {
@@ -590,6 +592,9 @@ type SyncState struct {
 	CurrentTarget     string         `json:"currentTarget"`
 	LastReconcileAt   sql.NullString `json:"lastReconcileAt"`
 	LastReconcileJson string         `json:"lastReconcileJson"`
+	IdentityAdoptedAt sql.NullString `json:"identityAdoptedAt"`
+	LastFullCheckAt   sql.NullString `json:"lastFullCheckAt"`
+	LastFullCheckJson string         `json:"lastFullCheckJson"`
 }
 
 type Transfer struct {

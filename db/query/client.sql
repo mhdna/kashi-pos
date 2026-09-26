@@ -243,3 +243,11 @@ UPDATE coupons SET client_id = sqlc.arg(keep_id) WHERE client_id = sqlc.arg(drop
 
 -- name: RepointClientAccountEntriesClient :exec
 UPDATE client_account_entries SET client_id = sqlc.arg(keep_id) WHERE client_id = sqlc.arg(drop_id);
+
+-- name: SetClientRemoteUpdatedAt :exec
+UPDATE clients SET remote_updated_at = ? WHERE id = ?;
+
+-- name: ListClientSyncVersions :many
+-- Completeness check: every local client's uid and the kashi version last
+-- applied to it.
+SELECT id, uid, remote_updated_at FROM clients WHERE uid IS NOT NULL;
