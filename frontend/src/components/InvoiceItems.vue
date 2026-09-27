@@ -1,6 +1,9 @@
 <template>
   <div ref="invoiceScroll" class="invoice-items ms-2 mt-2 mb-2 me-0">
-    <div v-for="(item, index) in items" :key="`${index}-${item.barcode || item.code}`">
+    <div
+      v-for="(item, index) in displayItems"
+      :key="`${items.length - 1 - index}-${item.barcode || item.code}`"
+    >
       <v-list-item>
         <template #title>
           <button
@@ -402,6 +405,10 @@ function iconFor(category: string): string {
 }
 
 const items = ref<LineItem[]>([]);
+// Newest line on top. `items` itself stays in scan order (that's what the
+// receipt, holds and the backend see); only the on-screen list is reversed,
+// so row indexes in the template and keyboard navigation are display indexes.
+const displayItems = computed(() => [...items.value].reverse());
 const savedDiscounts = new Map<string, number>();
 const pendingDiscounts = new Map<string, Promise<boolean>>();
 type FieldColumn = "qty" | "discount" | "price";
@@ -705,7 +712,7 @@ async function focusField(index: number, column: FieldColumn) {
 }
 
 function moveHorizontal(index: number, column: FieldColumn, direction: -1 | 1) {
-  const item = items.value[index];
+  const item = displayItems.value[index];
   if (!item) return;
   const columns = columnsForItem(item);
   const targetIndex = columns.indexOf(column) + direction;
@@ -718,8 +725,8 @@ function moveHorizontal(index: number, column: FieldColumn, direction: -1 | 1) {
 // zero-qty line simply has no discount/price field to land on.
 function moveVertical(index: number, column: FieldColumn, direction: -1 | 1) {
   let target = index + direction;
-  while (target >= 0 && target < items.value.length) {
-    const item = items.value[target];
+  while (target >= 0 && target < displayItems.value.length) {
+    const item = displayItems.value[target];
     if (item && columnsForItem(item).includes(column)) {
       focusField(target, column);
       return;

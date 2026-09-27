@@ -34,9 +34,10 @@ Unicode true
 
 !include "wails_tools.nsh"
 
-# The version information for this two must consist of 4 parts
-VIProductVersion "${INFO_PRODUCTVERSION}.0"
-VIFileVersion    "${INFO_PRODUCTVERSION}.0"
+# The version information for this two must consist of 4 parts. The
+# Makefile's set-version stamps wails.json with a 4-part version already.
+VIProductVersion "${INFO_PRODUCTVERSION}"
+VIFileVersion    "${INFO_PRODUCTVERSION}"
 
 VIAddVersionKey "CompanyName"     "${INFO_COMPANYNAME}"
 VIAddVersionKey "FileDescription" "${INFO_PRODUCTNAME} Installer"

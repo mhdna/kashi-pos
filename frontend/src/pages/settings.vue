@@ -293,23 +293,36 @@
               <v-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" hide-details />
               <v-select v-model="form.screenPort" :items="serialPorts" placeholder="Customer screen COM port" variant="outlined" density="compact" hide-details />
               <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
-              <v-select
-                :model-value="form.shiftReceiptUploadMode"
-                :items="shiftReceiptUploadModes"
+              <v-switch
+                :model-value="form.shiftReceiptUploadMode !== 0"
                 :loading="shiftReceiptUploadModeSaving"
-                label="Close-shift receipt photo"
-                class="field-full"
-                variant="outlined"
-                density="compact"
+                label="Show receipt-photo QR code after closing a shift"
+                color="primary"
                 hide-details
-                @update:model-value="(value) => setShiftReceiptUploadMode(value)"
+                class="field-full"
+                @update:model-value="(value) => setShiftReceiptUploadMode(value ? 2 : 0)"
               />
-              <div class="text-caption text-medium-emphasis field-full">
-                After a shift closes, the cashier is shown a QR code to upload one photo of the
-                printed receipt. <b>Hybrid</b> sends it to the office when there's a connection
-                and buffers it on this machine otherwise; <b>Local</b> always uploads over the
-                shop Wi-Fi to this machine; <b>Central</b> always goes straight to the office;
-                <b>Off</b> skips the photo.
+              <template v-if="form.shiftReceiptUploadMode !== 0">
+                <v-select
+                  :model-value="form.shiftReceiptUploadMode"
+                  :items="shiftReceiptUploadModes"
+                  :loading="shiftReceiptUploadModeSaving"
+                  label="Close-shift receipt photo"
+                  class="field-full"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  @update:model-value="(value) => setShiftReceiptUploadMode(value)"
+                />
+                <div class="text-caption text-medium-emphasis field-full">
+                  After a shift closes, the cashier is shown a QR code to upload one photo of the
+                  printed receipt. <b>Hybrid</b> sends it to the office when there's a connection
+                  and buffers it on this machine otherwise; <b>Local</b> always uploads over the
+                  shop Wi-Fi to this machine; <b>Central</b> always goes straight to the office.
+                </div>
+              </template>
+              <div v-else class="text-caption text-medium-emphasis field-full">
+                When off, closing a shift logs straight out without asking for a receipt photo.
               </div>
             </v-card-text>
           </v-card>
@@ -1638,7 +1651,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "general-targets": { tab: "general", title: "Targets", keywords: "targets revenue goal progress date range" },
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
   "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
-  "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port" },
+  "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port qr code close shift photo upload" },
   "printing-receipt": { tab: "printing", title: "Receipt settings", keywords: "market name phone description branch phone register return policy social platforms instagram facebook website font body size title size cut paper sample" },
   "money-general": { tab: "money", title: "Money settings", keywords: "vat tax rate exchange rate overpayment rounding mode currency calculator total currency auto append lbp zeros 000 confirm change overchange refund more than owed" },
   "money-float": { tab: "money", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift close count reconciliation expected enable disable feature toggle balance" },
@@ -1815,7 +1828,6 @@ const shiftReceiptUploadModes = [
   { title: "Hybrid (office when online, else this machine)", value: 2 },
   { title: "Local only (this machine, over shop Wi-Fi)", value: 3 },
   { title: "Central only (straight to the office)", value: 1 },
-  { title: "Off (no photo)", value: 0 },
 ];
 const countOpeningCashOnCloseSaving = ref(false);
 const paymentMethodForm = reactive({ name: "", currencyCode: "", color: "" });

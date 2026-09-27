@@ -109,6 +109,16 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			}
 			total = netDifference + taxCents
 		}
+		roundingCurrency, err := resolveCurrency(a.ctx, q, settings.RoundingCurrency)
+		if err != nil {
+			return fmt.Errorf("rounding currency: %w", err)
+		}
+		total, err = roundCentsByCurrency(total, roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, roundingMode)
+		if err != nil {
+			return fmt.Errorf("round exchange total: %w", err)
+		}
+		// Build the admin settlement from the rounded total so it matches
+		// what validatePayments checks against.
 		if policy.allowLate && strings.TrimSpace(paymentsJSON) == "" && total != 0 {
 			if settlementAccountID <= 0 {
 				return fmt.Errorf("settlement account is required for a non-zero admin adjustment")
@@ -118,14 +128,6 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				entryType = "change"
 			}
 			payments = []checkoutPayment{{AccountID: settlementAccountID, AmountCents: total, EntryType: entryType}}
-		}
-		roundingCurrency, err := resolveCurrency(a.ctx, q, settings.RoundingCurrency)
-		if err != nil {
-			return fmt.Errorf("rounding currency: %w", err)
-		}
-		total, err = roundCentsByCurrency(total, roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, roundingMode)
-		if err != nil {
-			return fmt.Errorf("round exchange total: %w", err)
 		}
 		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, roundingMode); err != nil {
 			return err
