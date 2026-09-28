@@ -39,7 +39,9 @@ type Querier interface {
 	CountInvoiceCouponPaymentsByTypeID(ctx context.Context, couponTypeID int64) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
 	CountPendingSyncOutbox(ctx context.Context) (int64, error)
-	// search_pattern must already be wrapped in '%...%' by the caller.
+	// search_pattern must already be wrapped in '%...%' by the caller. Counts the
+	// same rows ListProductsPage returns, so the total under a paged search never
+	// promises more results than the pages can show.
 	CountProducts(ctx context.Context, searchPattern string) (int64, error)
 	CountSyncOutboxByStatus(ctx context.Context, status string) (int64, error)
 	CountSyncOutboxConfirmedElsewhere(ctx context.Context, syncedTo string) (int64, error)
@@ -373,8 +375,15 @@ type Querier interface {
 	// Standalone product screen: every product, active or not, paged by id.
 	ListProductsForManagement(ctx context.Context, arg ListProductsForManagementParams) ([]Product, error)
 	// search_pattern must already be wrapped in '%...%' by the caller.
+	//
+	// Inactive products are excluded, matching ListProductsAfter below: a product
+	// is deactivated because kashi retired it (DeactivateProductsByBarcode, driven
+	// by the full-mirror check), so offering it in a search only lets a cashier
+	// put something unsellable in the cart.
 	ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error)
 	ListProductsPageUnfiltered(ctx context.Context, arg ListProductsPageUnfilteredParams) ([]Product, error)
+	// A pinned product that has since been deactivated centrally drops off the
+	// quick-access grid rather than sitting there unsellable.
 	ListQuickAccessProducts(ctx context.Context) ([]Product, error)
 	ListReturnInvoices(ctx context.Context) ([]ReturnInvoice, error)
 	ListRoles(ctx context.Context) ([]Role, error)
