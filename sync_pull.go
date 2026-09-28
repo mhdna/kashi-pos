@@ -693,6 +693,12 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 				return fmt.Errorf("apply currency %s: %w", item.Code, err)
 			}
 		}
+		// kashi sends its whole set for this entity, so anything absent is
+		// something kashi does not have -- deactivate it rather than leaving
+		// a currency on the till that central knows nothing about.
+		if err := reconcileCurrencies(ctx, q, items); err != nil {
+			return fmt.Errorf("reconcile currencies: %w", err)
+		}
 	case "cashbox_accounts":
 		var items []syncedCashboxAccount
 		if err := json.Unmarshal(raw, &items); err != nil {
@@ -702,6 +708,9 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 			if err := applySyncedCashboxAccount(ctx, q, item); err != nil {
 				return fmt.Errorf("apply cashbox account %s: %w", item.Name, err)
 			}
+		}
+		if err := reconcileCashboxAccounts(ctx, q, items); err != nil {
+			return fmt.Errorf("reconcile payment methods: %w", err)
 		}
 	case "products":
 		var items []syncedProductVariant

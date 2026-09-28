@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"strings"
 )
 
 const countCashboxAccountsByCurrency = `-- name: CountCashboxAccountsByCurrency :one
@@ -54,6 +55,33 @@ func (q *Queries) CreateCurrency(ctx context.Context, arg CreateCurrencyParams) 
 		&i.CashRoundingUnit,
 	)
 	return i, err
+}
+
+const deactivateCurrenciesNotIn = `-- name: DeactivateCurrenciesNotIn :exec
+UPDATE currencies
+SET is_active = false
+WHERE code NOT IN (/*SLICE:codes*/?)
+  AND is_default = false
+`
+
+// The reconcile half of the currency sync: a currency kashi no longer has
+// stops being offered. is_default = false guards the local USD anchor, which
+// is how every amount in this database is stored -- it is structural, not a
+// currency kashi gets an opinion about, and the same guard is already on
+// UpdateCurrency and SetCurrencyActive above.
+func (q *Queries) DeactivateCurrenciesNotIn(ctx context.Context, codes []string) error {
+	query := deactivateCurrenciesNotIn
+	var queryParams []interface{}
+	if len(codes) > 0 {
+		for _, v := range codes {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:codes*/?", strings.Repeat(",?", len(codes))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:codes*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
 }
 
 const getCurrencyByCode = `-- name: GetCurrencyByCode :one

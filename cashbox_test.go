@@ -1,6 +1,26 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	db "kashi-pos/db/sqlc"
+)
+
+// addPaymentMethod puts a payment method in the database the way the sync
+// does. Tests used to call App.CreateCashboxAccount for this, but a till has
+// no such method any more -- payment methods come from kashi.
+func addPaymentMethod(t *testing.T, app *App, name, currencyCode string) db.CashboxAccount {
+	t.Helper()
+	account, err := app.store.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
+		Name:         name,
+		CurrencyCode: currencyCode,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return account
+}
 
 // paymentMethodNames extracts the "name" field, in order, from a
 // ListPaymentMethods result for easy comparison in assertions.
@@ -33,15 +53,9 @@ func TestListPaymentMethodsOrdersBySortOrderWithSpecialsPinnedLast(t *testing.T)
 	app, database := newProductTestApp(t)
 	defer database.Close()
 
-	if _, err := app.CreateCashboxAccount("Cash USD", "USD"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := app.CreateCashboxAccount("Visa", "USD"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := app.CreateCashboxAccount("Whish", "USD"); err != nil {
-		t.Fatal(err)
-	}
+	addPaymentMethod(t, app, "Cash USD", "USD")
+	addPaymentMethod(t, app, "Visa", "USD")
+	addPaymentMethod(t, app, "Whish", "USD")
 
 	methods, err := app.ListPaymentMethods()
 	if err != nil {
@@ -59,12 +73,8 @@ func TestListPaymentMethodsShowsTheStoredNameWithNoPositionalOverride(t *testing
 	app, database := newProductTestApp(t)
 	defer database.Close()
 
-	if _, err := app.CreateCashboxAccount("Cash USD", "USD"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := app.CreateCashboxAccount("Cash LBP", "LBP"); err != nil {
-		t.Fatal(err)
-	}
+	addPaymentMethod(t, app, "Cash USD", "USD")
+	addPaymentMethod(t, app, "Cash LBP", "LBP")
 
 	methods, err := app.ListPaymentMethods()
 	if err != nil {
@@ -75,254 +85,6 @@ func TestListPaymentMethodsShowsTheStoredNameWithNoPositionalOverride(t *testing
 			if m["displayName"] != m["name"] {
 				t.Fatalf("displayName = %v, want it to match the stored name %v", m["displayName"], m["name"])
 			}
-		}
-	}
-}
-
-func TestCreateCashboxAccountAppendsToTheEndOfTheOrder(t *testing.T) {
-	app, database := newProductTestApp(t)
-	defer database.Close()
-
-	if _, err := app.CreateCashboxAccount("Cash USD", "USD"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := app.CreateCashboxAccount("Visa", "USD"); err != nil {
-		t.Fatal(err)
-	}
-
-	methods, err := app.ListPaymentMethods()
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertNamesEqual(t, paymentMethodNames(t, methods), []string{"Cash USD", "Visa", "On Account", "On Coupon"})
-
-	if _, err := app.CreateCashboxAccount("Whish", "USD"); err != nil {
-		t.Fatal(err)
-	}
-	methods, err = app.ListPaymentMethods()
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertNamesEqual(t, paymentMethodNames(t, methods), []string{"Cash USD", "Visa", "Whish", "On Account", "On Coupon"})
-}
-
-func TestReorderCashboxAccountsAppliesTheNewOrderAndPersists(t *testing.T) {
-	app, database := newProductTestApp(t)
-	defer database.Close()
-
-	usd, err := app.CreateCashboxAccount("Cash USD", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	visa, err := app.CreateCashboxAccount("Visa", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	lbp, err := app.CreateCashboxAccount("Cash LBP", "LBP")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Move Cash LBP to the front.
-	newOrder := []int64{lbp["id"].(int64), usd["id"].(int64), visa["id"].(int64)}
-	if err := app.ReorderCashboxAccounts(newOrder); err != nil {
-		t.Fatal(err)
-	}
-
-	methods, err := app.ListPaymentMethods()
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertNamesEqual(t, paymentMethodNames(t, methods), []string{"Cash LBP", "Cash USD", "Visa", "On Account", "On Coupon"})
-}
-
-func TestReorderCashboxAccountsRejectsAMismatchedSet(t *testing.T) {
-	app, database := newProductTestApp(t)
-	defer database.Close()
-
-	usd, err := app.CreateCashboxAccount("Cash USD", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	visa, err := app.CreateCashboxAccount("Visa", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Force On Account/On Coupon to exist so they can be tested as rejected.
-	methods, err := app.ListPaymentMethods()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var onAccountID int64
-	for _, m := range methods {
-		if m["name"] == "On Account" {
-			onAccountID = m["id"].(int64)
-		}
-	}
-
-	cases := map[string][]int64{
-		"too few":            {usd["id"].(int64)},
-		"unknown id":         {usd["id"].(int64), visa["id"].(int64) + 1000},
-		"duplicate id":       {usd["id"].(int64), usd["id"].(int64)},
-		"includes a special": {usd["id"].(int64), onAccountID},
-	}
-	for name, ids := range cases {
-		t.Run(name, func(t *testing.T) {
-			if err := app.ReorderCashboxAccounts(ids); err == nil {
-				t.Fatalf("expected an error for %s (%v)", name, ids)
-			}
-		})
-	}
-
-	// Confirm a rejected reorder made no partial changes.
-	methods, err = app.ListPaymentMethods()
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertNamesEqual(t, paymentMethodNames(t, methods), []string{"Cash USD", "Visa", "On Account", "On Coupon"})
-}
-
-func TestUpdateCashboxAccountRenamesAndChangesCurrency(t *testing.T) {
-	app, database := newProductTestApp(t)
-	defer database.Close()
-
-	if _, err := app.CreateCurrency("EUR", "Euro", "€", 0.92, 1); err != nil {
-		t.Fatal(err)
-	}
-	account, err := app.CreateCashboxAccount("Cash USD", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	updated, err := app.UpdateCashboxAccount(account["id"].(int64), "Euro Cash", "EUR", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if updated["name"] != "Euro Cash" || updated["currencyCode"] != "EUR" {
-		t.Fatalf("updated account = %#v, want name Euro Cash, currency EUR", updated)
-	}
-
-	methods, err := app.ListPaymentMethods()
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertNamesEqual(t, paymentMethodNames(t, methods), []string{"Euro Cash", "On Account", "On Coupon"})
-}
-
-func TestUpdateCashboxAccountRejectsUnknownOrInactiveCurrency(t *testing.T) {
-	app, database := newProductTestApp(t)
-	defer database.Close()
-
-	account, err := app.CreateCashboxAccount("Cash USD", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := app.UpdateCashboxAccount(account["id"].(int64), "Cash USD", "EUR", ""); err == nil {
-		t.Fatal("expected error for a currency that does not exist")
-	}
-	if _, err := app.CreateCurrency("EUR", "Euro", "€", 0.92, 1); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := app.SetCurrencyActive("EUR", false); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := app.UpdateCashboxAccount(account["id"].(int64), "Cash USD", "EUR", ""); err == nil {
-		t.Fatal("expected error updating to a deactivated currency")
-	}
-}
-
-func TestUpdateCashboxAccountRejectsEditingReservedAccounts(t *testing.T) {
-	app, database := newProductTestApp(t)
-	defer database.Close()
-
-	methods, err := app.ListPaymentMethods()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var onAccountID int64
-	for _, m := range methods {
-		if m["name"] == "On Account" {
-			onAccountID = m["id"].(int64)
-		}
-	}
-	if onAccountID == 0 {
-		t.Fatal("expected On Account to have been self-healed by ListPaymentMethods")
-	}
-
-	if _, err := app.UpdateCashboxAccount(onAccountID, "Renamed", "USD", ""); err == nil {
-		t.Fatal("expected error editing the reserved On Account payment method")
-	}
-
-	account, err := app.CreateCashboxAccount("Cash USD", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := app.UpdateCashboxAccount(account["id"].(int64), "On Coupon", "USD", ""); err == nil {
-		t.Fatal("expected error renaming a normal payment method to a reserved name")
-	}
-}
-
-func TestUpdateCashboxAccountSetsAndClearsColor(t *testing.T) {
-	app, database := newProductTestApp(t)
-	defer database.Close()
-
-	account, err := app.CreateCashboxAccount("Cash USD", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if account["color"] != nil && account["color"] != "" {
-		t.Fatalf("newly created account color = %v, want empty", account["color"])
-	}
-
-	updated, err := app.UpdateCashboxAccount(account["id"].(int64), "Cash USD", "USD", "#2E7D32")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if updated["color"] != "#2E7D32" {
-		t.Fatalf("updated color = %v, want #2E7D32", updated["color"])
-	}
-
-	methods, err := app.ListPaymentMethods()
-	if err != nil {
-		t.Fatal(err)
-	}
-	found := false
-	for _, m := range methods {
-		if m["name"] == "Cash USD" {
-			found = true
-			if m["color"] != "#2E7D32" {
-				t.Fatalf("ListPaymentMethods color = %v, want #2E7D32", m["color"])
-			}
-		}
-	}
-	if !found {
-		t.Fatal("Cash USD not found in ListPaymentMethods")
-	}
-
-	// Clearing the color back to "" is valid - it means "use the automatic
-	// name-based color" rather than being rejected as invalid input.
-	cleared, err := app.UpdateCashboxAccount(account["id"].(int64), "Cash USD", "USD", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cleared["color"] != "" {
-		t.Fatalf("cleared color = %v, want empty", cleared["color"])
-	}
-}
-
-func TestUpdateCashboxAccountRejectsMalformedColor(t *testing.T) {
-	app, database := newProductTestApp(t)
-	defer database.Close()
-
-	account, err := app.CreateCashboxAccount("Cash USD", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, bad := range []string{"green", "#fff", "#gggggg", "2E7D32", "#2E7D3"} {
-		if _, err := app.UpdateCashboxAccount(account["id"].(int64), "Cash USD", "USD", bad); err == nil {
-			t.Fatalf("expected error for malformed color %q", bad)
 		}
 	}
 }
@@ -366,20 +128,23 @@ func TestHidePaymentMethodCurrencyDefaultsToVisibleAndPersistsWhenToggled(t *tes
 	}
 }
 
-// TestPaymentMethodColorFlowsIntoShiftBalancesAndIncome confirms an admin's
-// custom color for a payment method (settable in Settings) reaches the same
-// per-account balance breakdowns the shift closing/report screens show, not
-// just the checkout calculator - both ListShiftBalances and
-// GetCurrentShiftIncomeByAccount select through cashbox_accounts.color now.
+// TestPaymentMethodColorFlowsIntoShiftBalancesAndIncome confirms a payment
+// method's color reaches the same per-account balance breakdowns the shift
+// closing/report screens show, not just the checkout calculator - both
+// ListShiftBalances and GetCurrentShiftIncomeByAccount select through
+// cashbox_accounts.color. The color is kashi's now and arrives via
+// applySyncedCashboxAccount, so the sync's own write is what is exercised.
 func TestPaymentMethodColorFlowsIntoShiftBalancesAndIncome(t *testing.T) {
 	fixture := newBalanceSwapFixture(t, 1000)
 
-	updated, err := fixture.app.UpdateCashboxAccount(fixture.sourceID, "Cash", "USD", "#2E7D32")
+	updated, err := fixture.app.store.UpdateCashboxAccount(context.Background(), db.UpdateCashboxAccountParams{
+		ID: fixture.sourceID, Name: "Cash", CurrencyCode: "USD", Color: "#2E7D32",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated["color"] != "#2E7D32" {
-		t.Fatalf("UpdateCashboxAccount color = %v, want #2E7D32", updated["color"])
+	if updated.Color != "#2E7D32" {
+		t.Fatalf("UpdateCashboxAccount color = %v, want #2E7D32", updated.Color)
 	}
 
 	balances, err := fixture.app.ListShiftBalances(fixture.shiftID)

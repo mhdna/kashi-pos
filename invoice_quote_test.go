@@ -238,13 +238,8 @@ func TestQuotePaymentStatusAcceptsLBPCashRoundedEquivalent(t *testing.T) {
 func TestQuoteAndConvertCashEntryAgreeForANewlyAddedCurrency(t *testing.T) {
 	app, cashbox, client, _ := setupQuoteTestApp(t, 0.11, "half_up", "USD")
 	_ = cashbox
-	if _, err := app.CreateCurrency("EUR", "Euro", "€", 0.92, 5); err != nil {
-		t.Fatal(err)
-	}
-	eurAccount, err := app.CreateCashboxAccount("Euro Cash", "EUR")
-	if err != nil {
-		t.Fatal(err)
-	}
+	syncCurrency(t, app, "EUR", "Euro", "€", 920000, 5)
+	eurAccount := syncPaymentMethod(t, app, "Euro Cash", "EUR")
 	settings, err := app.store.GetSettings(app.ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -274,7 +269,7 @@ func TestQuoteAndConvertCashEntryAgreeForANewlyAddedCurrency(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payments, _ := json.Marshal([]checkoutPayment{{AccountID: eurAccount["id"].(int64), AmountCents: amountCents}})
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: eurAccount.ID, AmountCents: amountCents}})
 	status, err := app.QuotePaymentStatus(items, string(payments))
 	if err != nil {
 		t.Fatal(err)

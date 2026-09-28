@@ -630,7 +630,11 @@ func (a *App) seedDefaults() {
 			log.Println("upsert settings:", err)
 		}
 	}
-	a.seedCashboxAccounts()
+	// The two internal bookkeeping placeholders are seeded; real payment
+	// methods are not. They come from kashi, and a till that has never synced
+	// has none -- which is the point: this till does not get to invent a way
+	// of taking money that central knows nothing about.
+	a.seedPlaceholderCashboxAccounts()
 	a.seedSalespersons()
 	a.seedDefaults2()
 }
@@ -648,19 +652,21 @@ func (a *App) seedSalespersons() {
 	log.Println("seeded salespersons")
 }
 
-func (a *App) seedCashboxAccounts() {
+// seedPlaceholderCashboxAccounts creates only the two internal bookkeeping
+// placeholders. They are not payment methods -- the client-account and coupon
+// settlement paths resolve them by exact name (shifts.go, currencies.go) --
+// so kashi has no concept of them and never sends them, and a till cannot
+// function without them.
+//
+// The real payment methods this used to seed (Cash $$, Cash LBP, Visa, Whish)
+// are gone: they now arrive from kashi like everything else, and a till that
+// has not synced yet deliberately has none.
+func (a *App) seedPlaceholderCashboxAccounts() {
 	existing, _ := a.store.ListCashboxAccounts(context.Background())
-	for _, acc := range []struct{ name, currency, color string }{
-		{"Cash $$", "USD", "#2E7D32"},
-		{"Cash LBP", "LBP", "#1565C0"},
-		{"Visa", "USD", "#7B1FA2"},
-		{"Whish", "USD", "#D32F2F"},
-		{"On Account", "USD", ""},
-		{"On Coupon", "USD", ""},
-	} {
+	for _, name := range []string{"On Account", "On Coupon"} {
 		found := false
 		for _, current := range existing {
-			if current.Name == acc.name {
+			if current.Name == name {
 				found = true
 				break
 			}
@@ -668,23 +674,14 @@ func (a *App) seedCashboxAccounts() {
 		if found {
 			continue
 		}
-		created, err := a.store.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
-			Name:         acc.name,
-			CurrencyCode: acc.currency,
-		})
-		if err != nil {
-			log.Println("seed cashbox account:", err)
-			continue
-		}
-		if acc.color != "" {
-			if _, err := a.store.UpdateCashboxAccount(context.Background(), db.UpdateCashboxAccountParams{
-				ID: created.ID, Name: created.Name, CurrencyCode: created.CurrencyCode, Color: acc.color,
-			}); err != nil {
-				log.Println("seed cashbox account color:", err)
-			}
+		if _, err := a.store.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
+			Name:         name,
+			CurrencyCode: "USD",
+		}); err != nil {
+			log.Println("seed placeholder cashbox account:", err)
 		}
 	}
-	log.Println("seeded cashbox accounts")
+	log.Println("seeded placeholder cashbox accounts")
 }
 
 func hashPassword(pw string) string {

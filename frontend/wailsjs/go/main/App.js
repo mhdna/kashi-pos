@@ -78,10 +78,6 @@ export function ConvertCashEntryToCents(arg1, arg2) {
   return window['go']['main']['App']['ConvertCashEntryToCents'](arg1, arg2);
 }
 
-export function CreateCashboxAccount(arg1, arg2) {
-  return window['go']['main']['App']['CreateCashboxAccount'](arg1, arg2);
-}
-
 export function CreateClient(arg1, arg2) {
   return window['go']['main']['App']['CreateClient'](arg1, arg2);
 }
@@ -92,10 +88,6 @@ export function CreateCoupon(arg1, arg2, arg3) {
 
 export function CreateCouponType(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6);
-}
-
-export function CreateCurrency(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['CreateCurrency'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function CreateDatabase() {
@@ -482,10 +474,6 @@ export function RemoveQuickAccessProduct(arg1) {
   return window['go']['main']['App']['RemoveQuickAccessProduct'](arg1);
 }
 
-export function ReorderCashboxAccounts(arg1) {
-  return window['go']['main']['App']['ReorderCashboxAccounts'](arg1);
-}
-
 export function ReorderQuickAccessProducts(arg1) {
   return window['go']['main']['App']['ReorderQuickAccessProducts'](arg1);
 }
@@ -540,10 +528,6 @@ export function SetClientRequired(arg1) {
 
 export function SetCountOpeningCashOnCloseEnabled(arg1) {
   return window['go']['main']['App']['SetCountOpeningCashOnCloseEnabled'](arg1);
-}
-
-export function SetCurrencyActive(arg1, arg2) {
-  return window['go']['main']['App']['SetCurrencyActive'](arg1, arg2);
 }
 
 export function SetCustomItemDiscountsEnabled(arg1) {
@@ -646,10 +630,6 @@ export function UpdateAttendanceConfig(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateAttendanceConfig'](arg1, arg2, arg3, arg4);
 }
 
-export function UpdateCashboxAccount(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['UpdateCashboxAccount'](arg1, arg2, arg3, arg4);
-}
-
 export function UpdateCentralAPIURL(arg1) {
   return window['go']['main']['App']['UpdateCentralAPIURL'](arg1);
 }
@@ -660,10 +640,6 @@ export function UpdateClient(arg1, arg2, arg3) {
 
 export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
   return window['go']['main']['App']['UpdateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-}
-
-export function UpdateCurrency(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['UpdateCurrency'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function UpdateDefaultOpeningFloat(arg1, arg2, arg3) {

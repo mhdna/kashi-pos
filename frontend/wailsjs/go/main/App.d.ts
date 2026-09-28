@@ -40,15 +40,11 @@ export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:number,a
 
 export function ConvertCashEntryToCents(arg1:string,arg2:number):Promise<number>;
 
-export function CreateCashboxAccount(arg1:string,arg2:string):Promise<Record<string, any>>;
-
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function CreateCoupon(arg1:string,arg2:number,arg3:number):Promise<Record<string, any>>;
 
 export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolean,arg5:boolean,arg6:boolean):Promise<Record<string, any>>;
-
-export function CreateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
 
 export function CreateDatabase():Promise<string>;
 
@@ -242,8 +238,6 @@ export function QuoteSettlementPaymentStatus(arg1:number,arg2:string):Promise<ma
 
 export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
 
-export function ReorderCashboxAccounts(arg1:Array<number>):Promise<void>;
-
 export function ReorderQuickAccessProducts(arg1:Array<number>):Promise<void>;
 
 export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
@@ -271,8 +265,6 @@ export function SetClientActive(arg1:number,arg2:boolean):Promise<void>;
 export function SetClientRequired(arg1:boolean):Promise<void>;
 
 export function SetCountOpeningCashOnCloseEnabled(arg1:boolean):Promise<void>;
-
-export function SetCurrencyActive(arg1:string,arg2:boolean):Promise<Record<string, any>>;
 
 export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
 
@@ -324,15 +316,11 @@ export function UpdateAttendanceApproverPassword(arg1:string):Promise<void>;
 
 export function UpdateAttendanceConfig(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<void>;
 
-export function UpdateCashboxAccount(arg1:number,arg2:string,arg3:string,arg4:string):Promise<Record<string, any>>;
-
 export function UpdateCentralAPIURL(arg1:string):Promise<void>;
 
 export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
 
 export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean,arg7:boolean,arg8:boolean):Promise<void>;
-
-export function UpdateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
 
 export function UpdateDefaultOpeningFloat(arg1:number,arg2:number,arg3:string):Promise<void>;
 

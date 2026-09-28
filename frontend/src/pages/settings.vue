@@ -511,7 +511,10 @@
           <v-card v-show="panelMatches('money-currencies')" class="settings-card settings-card--wide">
             <v-card-title>Currencies &amp; rates</v-card-title>
             <v-card-text>
-              <v-table density="compact" class="mb-4">
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Currencies and their rates are set in kashi and sync down here.
+              </v-alert>
+              <v-table density="compact">
                 <thead>
                   <tr>
                     <th>Code</th>
@@ -520,7 +523,6 @@
                     <th>Units per USD</th>
                     <th>Cash rounding unit</th>
                     <th>Active</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -530,81 +532,28 @@
                     <td>{{ currency.symbol }}</td>
                     <td>{{ currency.unitsPerUsd }}</td>
                     <td>{{ currency.cashRoundingUnit }}</td>
-                    <td>
-                      <v-switch
-                        :model-value="currency.isActive"
-                        :disabled="currency.isDefault"
-                        hide-details
-                        density="compact"
-                        color="primary"
-                        @update:model-value="toggleCurrencyActive(currency)"
-                      />
-                    </td>
-                    <td>
-                      <v-btn
-                        v-if="!currency.isDefault"
-                        icon="mdi-pencil"
-                        variant="text"
-                        size="small"
-                        @click="editCurrency(currency)"
-                      />
-                    </td>
+                    <td>{{ currency.isActive ? "Yes" : "No" }}</td>
                   </tr>
                 </tbody>
               </v-table>
-              <div class="text-subtitle-2 mb-2">
-                {{ editingCurrencyCode ? `Edit ${editingCurrencyCode}` : "Add a currency" }}
-              </div>
-              <div class="d-flex flex-wrap ga-2 align-start">
-                <v-text-field
-                  v-if="!editingCurrencyCode"
-                  v-model="currencyForm.code"
-                  placeholder="Code (e.g. EUR)"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 140px"
-                />
-                <v-text-field v-model="currencyForm.name" placeholder="Name" variant="outlined" density="compact" style="max-width: 180px" />
-                <v-text-field v-model="currencyForm.symbol" placeholder="Symbol" variant="outlined" density="compact" style="max-width: 100px" />
-                <v-text-field
-                  v-model.number="currencyForm.unitsPerUsd"
-                  placeholder="Units per USD"
-                  type="number"
-                  min="0"
-                  step="0.0001"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 160px"
-                />
-                <v-text-field
-                  v-model.number="currencyForm.cashRoundingUnit"
-                  placeholder="Cash rounding unit"
-                  type="number"
-                  min="1"
-                  step="1"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 160px"
-                />
-                <v-btn color="primary" :loading="currencySaving" @click="saveCurrency">
-                  {{ editingCurrencyCode ? "Save" : "Add" }}
-                </v-btn>
-                <v-btn v-if="editingCurrencyCode" variant="text" @click="resetCurrencyForm">Cancel</v-btn>
-              </div>
             </v-card-text>
           </v-card>
 
           <v-card v-show="panelMatches('money-payment-methods')" class="settings-card settings-card--wide">
             <v-card-title>Payment methods</v-card-title>
             <v-card-text>
-              <v-table density="compact" class="mb-4">
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Payment methods are set in kashi and sync down here. One kashi
+                no longer has stops being offered at checkout; past invoices
+                that used it still open.
+              </v-alert>
+              <v-table density="compact">
                 <thead>
                   <tr>
                     <th>Order</th>
                     <th>Name</th>
                     <th>Currency</th>
                     <th>Color</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -618,56 +567,14 @@
                         :style="{ background: paymentAccentColor(method) }"
                       />
                     </td>
-                    <td>
-                      <v-btn
-                        icon="mdi-arrow-up"
-                        size="x-small"
-                        variant="text"
-                        :disabled="index === 0"
-                        :loading="paymentMethodReordering"
-                        @click="movePaymentMethod(index, -1)"
-                      />
-                      <v-btn
-                        icon="mdi-arrow-down"
-                        size="x-small"
-                        variant="text"
-                        :disabled="index === orderablePaymentMethods.length - 1"
-                        :loading="paymentMethodReordering"
-                        @click="movePaymentMethod(index, 1)"
-                      />
-                      <v-btn icon="mdi-pencil" variant="text" size="small" @click="editPaymentMethod(method)" />
+                  </tr>
+                  <tr v-if="!orderablePaymentMethods.length">
+                    <td colspan="4" class="text-medium-emphasis">
+                      No payment methods have synced yet.
                     </td>
                   </tr>
                 </tbody>
               </v-table>
-              <div class="text-subtitle-2 mb-2">
-                {{ editingPaymentMethodId ? "Edit payment method" : "Add a payment method" }}
-              </div>
-              <div class="d-flex flex-wrap ga-2 align-start">
-                <v-text-field
-                  v-model="paymentMethodForm.name"
-                  placeholder="Name (e.g. Euro Cash)"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 220px"
-                />
-                <v-select
-                  v-model="paymentMethodForm.currencyCode"
-                  :items="currencies.filter((c) => c.isActive).map((c) => ({ title: `${c.name} (${c.code})`, value: c.code }))"
-                  placeholder="Currency"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 220px"
-                />
-                <div v-if="editingPaymentMethodId" class="d-flex align-center ga-2">
-                  <input v-model="paymentMethodForm.color" type="color" class="payment-method-color-input" />
-                  <v-btn variant="text" size="small" @click="paymentMethodForm.color = ''">Use automatic color</v-btn>
-                </div>
-                <v-btn color="primary" :loading="paymentMethodSaving" @click="savePaymentMethod">
-                  {{ editingPaymentMethodId ? "Save" : "Add" }}
-                </v-btn>
-                <v-btn v-if="editingPaymentMethodId" variant="text" @click="resetPaymentMethodForm">Cancel</v-btn>
-              </div>
               <v-switch
                 :model-value="!form.hidePaymentMethodCurrency"
                 :loading="paymentMethodSaving"
@@ -1513,13 +1420,7 @@ import {
   UpdateSalesperson,
   DeleteSalesperson,
   ListCurrencies,
-  CreateCurrency,
-  UpdateCurrency,
-  SetCurrencyActive,
   ListPaymentMethods,
-  CreateCashboxAccount,
-  UpdateCashboxAccount,
-  ReorderCashboxAccounts,
   SetTheme,
   ListPriceLists,
   ListPriceListItems,
@@ -1769,7 +1670,6 @@ const paymentMethods = ref<any[]>([]);
 const orderablePaymentMethods = computed(() =>
   paymentMethods.value.filter((m) => !isSpecialPaymentMethod(m.name)),
 );
-const currencyForm = reactive({ code: "", name: "", symbol: "", unitsPerUsd: 1, cashRoundingUnit: 1 });
 const editingCurrencyCode = ref<string | null>(null);
 const currencySaving = ref(false);
 const autoAppendLbpZerosSaving = ref(false);
@@ -1782,10 +1682,8 @@ const shiftReceiptUploadModes = [
   { title: "Central only (straight to the office)", value: 1 },
 ];
 const countOpeningCashOnCloseSaving = ref(false);
-const paymentMethodForm = reactive({ name: "", currencyCode: "", color: "" });
 const editingPaymentMethodId = ref<number | null>(null);
 const paymentMethodSaving = ref(false);
-const paymentMethodReordering = ref(false);
 
 async function loadCurrencies() {
   try {
@@ -1803,118 +1701,6 @@ async function loadPaymentMethodsList() {
   }
 }
 
-async function movePaymentMethod(index: number, offset: -1 | 1) {
-  const target = index + offset;
-  const ordered = orderablePaymentMethods.value;
-  if (target < 0 || target >= ordered.length) return;
-  const ids = ordered.map((m) => m.id);
-  [ids[index], ids[target]] = [ids[target], ids[index]];
-  paymentMethodReordering.value = true;
-  try {
-    await ReorderCashboxAccounts(ids);
-    await loadPaymentMethodsList();
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to reorder payment methods", "red");
-  } finally {
-    paymentMethodReordering.value = false;
-  }
-}
-
-function editCurrency(currency: any) {
-  editingCurrencyCode.value = currency.code;
-  Object.assign(currencyForm, {
-    code: currency.code,
-    name: currency.name,
-    symbol: currency.symbol,
-    unitsPerUsd: currency.unitsPerUsd,
-    cashRoundingUnit: currency.cashRoundingUnit,
-  });
-}
-
-function resetCurrencyForm() {
-  editingCurrencyCode.value = null;
-  Object.assign(currencyForm, { code: "", name: "", symbol: "", unitsPerUsd: 1, cashRoundingUnit: 1 });
-}
-
-async function saveCurrency() {
-  const unitsPerUsd = Number(currencyForm.unitsPerUsd);
-  const cashRoundingUnit = Math.round(Number(currencyForm.cashRoundingUnit));
-  if (!currencyForm.name.trim() || !currencyForm.symbol.trim() || !Number.isFinite(unitsPerUsd) || unitsPerUsd <= 0) {
-    notify("Name, symbol, and a positive rate are required", "red");
-    return;
-  }
-  if (!Number.isFinite(cashRoundingUnit) || cashRoundingUnit <= 0) {
-    notify("Cash rounding unit must be a positive whole number", "red");
-    return;
-  }
-  currencySaving.value = true;
-  try {
-    if (editingCurrencyCode.value) {
-      await UpdateCurrency(editingCurrencyCode.value, currencyForm.name.trim(), currencyForm.symbol.trim(), unitsPerUsd, cashRoundingUnit);
-    } else {
-      if (!currencyForm.code.trim()) {
-        notify("Currency code is required", "red");
-        currencySaving.value = false;
-        return;
-      }
-      await CreateCurrency(currencyForm.code.trim(), currencyForm.name.trim(), currencyForm.symbol.trim(), unitsPerUsd, cashRoundingUnit);
-    }
-    await loadCurrencies();
-    resetCurrencyForm();
-    notify("Currency saved");
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save currency", "red");
-  } finally {
-    currencySaving.value = false;
-  }
-}
-
-async function toggleCurrencyActive(currency: any) {
-  try {
-    await SetCurrencyActive(currency.code, !currency.isActive);
-    await loadCurrencies();
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to update currency", "red");
-  }
-}
-
-function editPaymentMethod(method: any) {
-  editingPaymentMethodId.value = method.id;
-  Object.assign(paymentMethodForm, { name: method.name, currencyCode: method.currencyCode, color: method.color || "" });
-}
-
-function resetPaymentMethodForm() {
-  editingPaymentMethodId.value = null;
-  Object.assign(paymentMethodForm, { name: "", currencyCode: "", color: "" });
-}
-
-async function savePaymentMethod() {
-  if (!paymentMethodForm.name.trim() || !paymentMethodForm.currencyCode) {
-    notify("Name and currency are required", "red");
-    return;
-  }
-  paymentMethodSaving.value = true;
-  try {
-    if (editingPaymentMethodId.value) {
-      await UpdateCashboxAccount(
-        editingPaymentMethodId.value,
-        paymentMethodForm.name.trim(),
-        paymentMethodForm.currencyCode,
-        paymentMethodForm.color,
-      );
-      notify("Payment method updated");
-    } else {
-      await CreateCashboxAccount(paymentMethodForm.name.trim(), paymentMethodForm.currencyCode);
-      notify("Payment method added");
-    }
-    await loadPaymentMethodsList();
-    resetPaymentMethodForm();
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save payment method", "red");
-  } finally {
-    paymentMethodSaving.value = false;
-  }
-}
 const priceLists = ref<any[]>([]);
 
 const discountLists = ref<any[]>([]);

@@ -1,33 +1,59 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
 	db "kashi-pos/db/sqlc"
 )
 
-func TestCreateCurrencyRoundTripsRateAndIsUsableForCashRounding(t *testing.T) {
-	app, database := newProductTestApp(t)
-	defer database.Close()
+// syncCurrency / syncPaymentMethod put a currency or a payment method on the
+// till the only way one can arrive now: from kashi, through the sync. The
+// App methods these tests used to call are gone.
+func syncCurrency(t *testing.T, app *App, code, name, symbol string, unitsPerUsdMicros, roundingUnit int64) {
+	t.Helper()
+	if err := applySyncedCurrency(context.Background(), app.store.Queries, syncedCurrency{
+		Code: code, Name: name, Symbol: symbol, IsActive: true,
+		UnitsPerUsdMicros: unitsPerUsdMicros, CashRoundingUnit: roundingUnit,
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
 
-	created, err := app.CreateCurrency("EUR", "Euro", "€", 0.92, 5)
+func syncPaymentMethod(t *testing.T, app *App, name, currencyCode string) db.CashboxAccount {
+	t.Helper()
+	if err := applySyncedCashboxAccount(context.Background(), app.store.Queries, syncedCashboxAccount{
+		Name: name, CurrencyCode: currencyCode,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	account, err := app.store.GetCashboxAccountByName(context.Background(), name)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created["code"] != "EUR" || created["symbol"] != "€" {
-		t.Fatalf("created currency = %#v, want code EUR symbol €", created)
-	}
-	if rate, ok := created["unitsPerUsd"].(float64); !ok || rate < 0.9199 || rate > 0.9201 {
-		t.Fatalf("stored rate round-trips to %v, want ~0.92", created["unitsPerUsd"])
-	}
+	return account
+}
+
+// A currency kashi sends must round-trip its rate and be immediately usable
+// for cash rounding -- it is a first-class currency, not a hardcoded
+// LBP/USD special case.
+func TestSyncedCurrencyRoundTripsRateAndIsUsableForCashRounding(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+
+	// 0.92 EUR/USD expressed the way kashi sends it, in micros.
+	syncCurrency(t, app, "EUR", "Euro", "\u20ac", 920000, 5)
 
 	currency, err := app.store.GetCurrencyByCode(app.ctx, "EUR")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if currency.Symbol != "\u20ac" || currency.UnitsPerUsdMicros != 920000 {
+		t.Fatalf("synced currency = %#v, want symbol \u20ac and 920000 micros", currency)
+	}
 	if !currency.IsActive || currency.IsDefault {
-		t.Fatalf("new currency state = %#v, want active, non-default", currency)
+		t.Fatalf("synced currency state = %#v, want active, non-default", currency)
 	}
 
 	// $10.00 (1000 cents) at 0.92 EUR/USD, rounded to the nearest 5 EUR:
@@ -42,35 +68,9 @@ func TestCreateCurrencyRoundTripsRateAndIsUsableForCashRounding(t *testing.T) {
 	}
 }
 
-func TestCreateCashboxAccountRejectsUnknownOrInactiveCurrency(t *testing.T) {
-	app, database := newProductTestApp(t)
-	defer database.Close()
-
-	if _, err := app.CreateCashboxAccount("Euro Cash", "EUR"); err == nil {
-		t.Fatal("expected error for a currency that does not exist yet")
-	}
-	if _, err := app.CreateCurrency("EUR", "Euro", "€", 0.92, 1); err != nil {
-		t.Fatal(err)
-	}
-	account, err := app.CreateCashboxAccount("Euro Cash", "EUR")
-	if err != nil {
-		t.Fatalf("expected active currency to be usable: %v", err)
-	}
-	if account["currencyCode"] != "EUR" {
-		t.Fatalf("account currency = %v, want EUR", account["currencyCode"])
-	}
-
-	if _, err := app.SetCurrencyActive("EUR", false); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := app.CreateCashboxAccount("Another Euro Cash", "EUR"); err == nil {
-		t.Fatal("expected error creating a payment method under a deactivated currency")
-	}
-}
-
 // TestCheckoutAcceptsExactPaymentThroughANewlyAddedCurrency exercises the
-// full generalized rounding path end to end: create a currency the app has
-// never seen before, configure it as the rounding currency, and confirm
+// full generalized rounding path end to end: sync down a currency the till
+// has never seen, configure it as the rounding currency, and confirm
 // checkout accepts a payment computed with the same money.go functions the
 // backend itself uses - i.e. the new currency is a first-class citizen, not
 // a hardcoded LBP/USD special case.
@@ -82,13 +82,8 @@ func TestCheckoutAcceptsExactPaymentThroughANewlyAddedCurrency(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := app.CreateCurrency("EUR", "Euro", "€", 0.92, 5); err != nil {
-		t.Fatal(err)
-	}
-	eurAccount, err := app.CreateCashboxAccount("Euro Cash", "EUR")
-	if err != nil {
-		t.Fatal(err)
-	}
+	syncCurrency(t, app, "EUR", "Euro", "€", 920000, 5)
+	eurAccount := syncPaymentMethod(t, app, "Euro Cash", "EUR")
 	eurCurrency, err := app.store.GetCurrencyByCode(app.ctx, "EUR")
 	if err != nil {
 		t.Fatal(err)
@@ -143,7 +138,7 @@ func TestCheckoutAcceptsExactPaymentThroughANewlyAddedCurrency(t *testing.T) {
 	}
 
 	items, _ := json.Marshal([]map[string]any{{"code": "SKU-1", "qty": 1}})
-	payments, _ := json.Marshal([]checkoutPayment{{AccountID: eurAccount["id"].(int64), AmountCents: amountCents}})
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: eurAccount.ID, AmountCents: amountCents}})
 	result, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: string(items), PaymentsJSON: string(payments), ClientID: client.ID})
 	if err != nil {
 		t.Fatalf("checkout rejected an exact EUR payment: %v", err)

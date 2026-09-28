@@ -123,6 +123,7 @@ type CashboxAccount struct {
 	CurrencyCode string `json:"currencyCode"`
 	SortOrder    int64  `json:"sortOrder"`
 	Color        string `json:"color"`
+	IsActive     int64  `json:"isActive"`
 }
 
 type CategoryIcon struct {

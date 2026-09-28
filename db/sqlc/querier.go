@@ -89,6 +89,17 @@ type Querier interface {
 	CreateValueCoupon(ctx context.Context, arg CreateValueCouponParams) (Coupon, error)
 	CreateVisitorEvent(ctx context.Context, arg CreateVisitorEventParams) error
 	CreateVoidInvoice(ctx context.Context, arg CreateVoidInvoiceParams) (VoidInvoice, error)
+	// The reconcile half of the payment-method sync: anything kashi did not send
+	// stops being offered. The two internal placeholders are exempt -- kashi has
+	// no concept of them and the coupon/account settlement paths look them up by
+	// exact name.
+	DeactivateCashboxAccountsNotIn(ctx context.Context, names []string) error
+	// The reconcile half of the currency sync: a currency kashi no longer has
+	// stops being offered. is_default = false guards the local USD anchor, which
+	// is how every amount in this database is stored -- it is structural, not a
+	// currency kashi gets an opinion about, and the same guard is already on
+	// UpdateCurrency and SetCurrencyActive above.
+	DeactivateCurrenciesNotIn(ctx context.Context, codes []string) error
 	DeactivateProductsByBarcode(ctx context.Context, barcodes []string) error
 	DeactivateProductsByIDs(ctx context.Context, ids []int64) error
 	DecreaseInventoryProductQuantity(ctx context.Context, arg DecreaseInventoryProductQuantityParams) (sql.Result, error)
@@ -233,6 +244,10 @@ type Querier interface {
 	InsertPriceListItem(ctx context.Context, arg InsertPriceListItemParams) error
 	LatestSyncOutboxSyncedAt(ctx context.Context) (string, error)
 	ListAccounts(ctx context.Context) ([]Account, error)
+	// What a cashier may actually take payment with. A method kashi has retired
+	// is deactivated rather than deleted, so this is the list the checkout
+	// calculator and the settings screen read.
+	ListActiveCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
 	ListActiveClients(ctx context.Context) ([]Client, error)
 	// See ListActivePriceListItems for why this is ordered by is_default DESC.
 	ListActiveDiscountListItems(ctx context.Context) ([]ListActiveDiscountListItemsRow, error)
@@ -270,6 +285,8 @@ type Querier interface {
 	// sorts correctly as text). A quarter- or year-long target set centrally
 	// still shows while the current month falls inside it.
 	ListBranchTargetsOverlapping(ctx context.Context, arg ListBranchTargetsOverlappingParams) ([]BranchTarget, error)
+	// Every account, active or not. Used where history has to resolve (shift
+	// reports, invoice detail) -- a retired method still has to have a name.
 	ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
 	ListCategoryIcons(ctx context.Context) ([]CategoryIcon, error)
 	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
@@ -443,6 +460,7 @@ type Querier interface {
 	RequeueSyncOutboxConfirmedElsewhere(ctx context.Context, currentTarget string) (int64, error)
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
+	SetCashboxAccountActive(ctx context.Context, arg SetCashboxAccountActiveParams) error
 	SetCashboxAccountSortOrder(ctx context.Context, arg SetCashboxAccountSortOrderParams) error
 	SetClientActive(ctx context.Context, arg SetClientActiveParams) error
 	SetClientRemoteUpdatedAt(ctx context.Context, arg SetClientRemoteUpdatedAtParams) error

@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"strings"
 )
 
 const addCashboxAccountBalance = `-- name: AddCashboxAccountBalance :one
@@ -117,7 +118,7 @@ func (q *Queries) CreateAccount(ctx context.Context, name string) (Account, erro
 const createCashboxAccount = `-- name: CreateCashboxAccount :one
 INSERT INTO cashbox_accounts (name, currency_code, sort_order)
 VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM cashbox_accounts))
-RETURNING id, name, currency_code, sort_order, color
+RETURNING id, name, currency_code, sort_order, color, is_active
 `
 
 type CreateCashboxAccountParams struct {
@@ -135,6 +136,7 @@ func (q *Queries) CreateCashboxAccount(ctx context.Context, arg CreateCashboxAcc
 		&i.CurrencyCode,
 		&i.SortOrder,
 		&i.Color,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -196,6 +198,32 @@ func (q *Queries) CreateShiftBalanceReplacement(ctx context.Context, arg CreateS
 	return err
 }
 
+const deactivateCashboxAccountsNotIn = `-- name: DeactivateCashboxAccountsNotIn :exec
+UPDATE cashbox_accounts
+SET is_active = 0
+WHERE name NOT IN (/*SLICE:names*/?)
+  AND name NOT IN ('On Account', 'On Coupon')
+`
+
+// The reconcile half of the payment-method sync: anything kashi did not send
+// stops being offered. The two internal placeholders are exempt -- kashi has
+// no concept of them and the coupon/account settlement paths look them up by
+// exact name.
+func (q *Queries) DeactivateCashboxAccountsNotIn(ctx context.Context, names []string) error {
+	query := deactivateCashboxAccountsNotIn
+	var queryParams []interface{}
+	if len(names) > 0 {
+		for _, v := range names {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:names*/?", strings.Repeat(",?", len(names))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:names*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
 const deleteAccount = `-- name: DeleteAccount :exec
 DELETE FROM accounts WHERE id = ?
 `
@@ -226,7 +254,7 @@ func (q *Queries) GetAccountByID(ctx context.Context, id int64) (Account, error)
 }
 
 const getCashboxAccountByID = `-- name: GetCashboxAccountByID :one
-SELECT id, name, currency_code, sort_order, color FROM cashbox_accounts WHERE id = ?
+SELECT id, name, currency_code, sort_order, color, is_active FROM cashbox_accounts WHERE id = ?
 `
 
 func (q *Queries) GetCashboxAccountByID(ctx context.Context, id int64) (CashboxAccount, error) {
@@ -238,12 +266,13 @@ func (q *Queries) GetCashboxAccountByID(ctx context.Context, id int64) (CashboxA
 		&i.CurrencyCode,
 		&i.SortOrder,
 		&i.Color,
+		&i.IsActive,
 	)
 	return i, err
 }
 
 const getCashboxAccountByName = `-- name: GetCashboxAccountByName :one
-SELECT id, name, currency_code, sort_order, color FROM cashbox_accounts WHERE name = ?
+SELECT id, name, currency_code, sort_order, color, is_active FROM cashbox_accounts WHERE name = ?
 `
 
 func (q *Queries) GetCashboxAccountByName(ctx context.Context, name string) (CashboxAccount, error) {
@@ -255,6 +284,7 @@ func (q *Queries) GetCashboxAccountByName(ctx context.Context, name string) (Cas
 		&i.CurrencyCode,
 		&i.SortOrder,
 		&i.Color,
+		&i.IsActive,
 	)
 	return i, err
 }
@@ -603,10 +633,49 @@ func (q *Queries) ListAccounts(ctx context.Context) ([]Account, error) {
 	return items, nil
 }
 
-const listCashboxAccounts = `-- name: ListCashboxAccounts :many
-SELECT id, name, currency_code, sort_order, color FROM cashbox_accounts ORDER BY sort_order, id
+const listActiveCashboxAccounts = `-- name: ListActiveCashboxAccounts :many
+SELECT id, name, currency_code, sort_order, color, is_active FROM cashbox_accounts WHERE is_active = 1 ORDER BY sort_order, id
 `
 
+// What a cashier may actually take payment with. A method kashi has retired
+// is deactivated rather than deleted, so this is the list the checkout
+// calculator and the settings screen read.
+func (q *Queries) ListActiveCashboxAccounts(ctx context.Context) ([]CashboxAccount, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveCashboxAccounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CashboxAccount{}
+	for rows.Next() {
+		var i CashboxAccount
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CurrencyCode,
+			&i.SortOrder,
+			&i.Color,
+			&i.IsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCashboxAccounts = `-- name: ListCashboxAccounts :many
+SELECT id, name, currency_code, sort_order, color, is_active FROM cashbox_accounts ORDER BY sort_order, id
+`
+
+// Every account, active or not. Used where history has to resolve (shift
+// reports, invoice detail) -- a retired method still has to have a name.
 func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error) {
 	rows, err := q.db.QueryContext(ctx, listCashboxAccounts)
 	if err != nil {
@@ -622,6 +691,7 @@ func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, er
 			&i.CurrencyCode,
 			&i.SortOrder,
 			&i.Color,
+			&i.IsActive,
 		); err != nil {
 			return nil, err
 		}
@@ -724,6 +794,20 @@ func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
 	return items, nil
 }
 
+const setCashboxAccountActive = `-- name: SetCashboxAccountActive :exec
+UPDATE cashbox_accounts SET is_active = ? WHERE id = ?
+`
+
+type SetCashboxAccountActiveParams struct {
+	IsActive int64 `json:"isActive"`
+	ID       int64 `json:"id"`
+}
+
+func (q *Queries) SetCashboxAccountActive(ctx context.Context, arg SetCashboxAccountActiveParams) error {
+	_, err := q.db.ExecContext(ctx, setCashboxAccountActive, arg.IsActive, arg.ID)
+	return err
+}
+
 const setCashboxAccountSortOrder = `-- name: SetCashboxAccountSortOrder :exec
 UPDATE cashbox_accounts SET sort_order = ? WHERE id = ?
 `
@@ -739,7 +823,7 @@ func (q *Queries) SetCashboxAccountSortOrder(ctx context.Context, arg SetCashbox
 }
 
 const updateCashboxAccount = `-- name: UpdateCashboxAccount :one
-UPDATE cashbox_accounts SET name = ?, currency_code = ?, color = ? WHERE id = ? RETURNING id, name, currency_code, sort_order, color
+UPDATE cashbox_accounts SET name = ?, currency_code = ?, color = ? WHERE id = ? RETURNING id, name, currency_code, sort_order, color, is_active
 `
 
 type UpdateCashboxAccountParams struct {
@@ -763,6 +847,7 @@ func (q *Queries) UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAcc
 		&i.CurrencyCode,
 		&i.SortOrder,
 		&i.Color,
+		&i.IsActive,
 	)
 	return i, err
 }

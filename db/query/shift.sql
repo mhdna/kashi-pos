@@ -5,7 +5,28 @@ SELECT * FROM cashbox_accounts WHERE id = ?;
 SELECT * FROM cashbox_accounts WHERE name = ?;
 
 -- name: ListCashboxAccounts :many
+-- Every account, active or not. Used where history has to resolve (shift
+-- reports, invoice detail) -- a retired method still has to have a name.
 SELECT * FROM cashbox_accounts ORDER BY sort_order, id;
+
+-- name: ListActiveCashboxAccounts :many
+-- What a cashier may actually take payment with. A method kashi has retired
+-- is deactivated rather than deleted, so this is the list the checkout
+-- calculator and the settings screen read.
+SELECT * FROM cashbox_accounts WHERE is_active = 1 ORDER BY sort_order, id;
+
+-- name: SetCashboxAccountActive :exec
+UPDATE cashbox_accounts SET is_active = ? WHERE id = ?;
+
+-- name: DeactivateCashboxAccountsNotIn :exec
+-- The reconcile half of the payment-method sync: anything kashi did not send
+-- stops being offered. The two internal placeholders are exempt -- kashi has
+-- no concept of them and the coupon/account settlement paths look them up by
+-- exact name.
+UPDATE cashbox_accounts
+SET is_active = 0
+WHERE name NOT IN (sqlc.slice('names'))
+  AND name NOT IN ('On Account', 'On Coupon');
 
 -- name: CreateCashboxAccount :one
 -- New accounts append to the end of the admin-defined order automatically.
