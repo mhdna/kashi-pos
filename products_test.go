@@ -359,3 +359,58 @@ func insertProducts(database *sql.DB, count int) error {
 	}
 	return tx.Commit()
 }
+
+// A product kashi has retired (is_active = 0) must not surface in a search.
+// The cursor-paged path has always filtered it out; the offset-paged path did
+// not, so the same query returned different catalogs depending on which one
+// the screen happened to use, and a cashier could add an unsellable product
+// to the cart from the search dialog.
+func TestProductSearchExcludesInactiveProducts(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+
+	if _, err := app.store.CreateProduct(app.ctx, db.CreateProductParams{
+		Barcode: "BAR-LIVE", Code: "SKU-LIVE", Name: "Denim Jacket",
+		IsActive: 1, Price: 4599, CurrencyCode: "USD",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.store.CreateProduct(app.ctx, db.CreateProductParams{
+		Barcode: "BAR-DEAD", Code: "SKU-DEAD", Name: "Denim Jacket Retired",
+		IsActive: 0, Price: 4599, CurrencyCode: "USD",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	priceProductsFromRows(t, app.store.Queries)
+
+	page, err := app.ListProductsPage(1, 50, "Denim")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range page.Items {
+		if item["code"] == "SKU-DEAD" {
+			t.Fatalf("inactive product appeared in search results: %#v", item)
+		}
+	}
+	if len(page.Items) != 1 || page.Items[0]["code"] != "SKU-LIVE" {
+		t.Fatalf("expected only the active product, got %#v", page.Items)
+	}
+	// The count drives the pager, so it has to agree with the rows.
+	if page.Total != 1 {
+		t.Fatalf("total = %d, want 1 -- the count must match the rows returned", page.Total)
+	}
+
+	// And the unfiltered listing (no search term) too.
+	all, err := app.ListProductsPage(1, 50, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range all.Items {
+		if item["code"] == "SKU-DEAD" {
+			t.Fatalf("inactive product appeared in the unfiltered listing: %#v", item)
+		}
+	}
+	if all.Total != 1 {
+		t.Fatalf("unfiltered total = %d, want 1", all.Total)
+	}
+}

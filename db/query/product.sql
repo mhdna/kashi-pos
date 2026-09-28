@@ -21,14 +21,21 @@ SELECT * FROM products WHERE name LIKE ? ORDER BY id;
 
 -- name: ListProductsPage :many
 -- search_pattern must already be wrapped in '%...%' by the caller.
+--
+-- Inactive products are excluded, matching ListProductsAfter below: a product
+-- is deactivated because kashi retired it (DeactivateProductsByBarcode, driven
+-- by the full-mirror check), so offering it in a search only lets a cashier
+-- put something unsellable in the cart.
 SELECT * FROM products
-WHERE (name || ' ' || code || ' ' || barcode)
+WHERE is_active = 1
+  AND (name || ' ' || code || ' ' || barcode)
       LIKE sqlc.arg(search_pattern)
 ORDER BY id
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
 -- name: ListProductsPageUnfiltered :many
 SELECT * FROM products
+WHERE is_active = 1
 ORDER BY id
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
@@ -50,13 +57,16 @@ ORDER BY id
 LIMIT sqlc.arg(limit);
 
 -- name: CountProducts :one
--- search_pattern must already be wrapped in '%...%' by the caller.
+-- search_pattern must already be wrapped in '%...%' by the caller. Counts the
+-- same rows ListProductsPage returns, so the total under a paged search never
+-- promises more results than the pages can show.
 SELECT COUNT(*) FROM products
-WHERE (name || ' ' || code || ' ' || barcode)
+WHERE is_active = 1
+  AND (name || ' ' || code || ' ' || barcode)
       LIKE sqlc.arg(search_pattern);
 
 -- name: CountAllProducts :one
-SELECT COUNT(*) FROM products;
+SELECT COUNT(*) FROM products WHERE is_active = 1;
 
 -- name: CreateProduct :one
 INSERT INTO products (barcode, code, name, description, is_active, price, discount, color, size, currency_code, brand, family, kind, season, product_year)
@@ -76,9 +86,12 @@ DELETE FROM products WHERE id = ?;
 UPDATE products SET is_active = 0 WHERE barcode IN (sqlc.slice('barcodes'));
 
 -- name: ListQuickAccessProducts :many
+-- A pinned product that has since been deactivated centrally drops off the
+-- quick-access grid rather than sitting there unsellable.
 SELECT p.*
 FROM quick_access_items q
 JOIN products p ON p.id = q.product_id
+WHERE p.is_active = 1
 ORDER BY q.position, q.created_at, q.product_id;
 
 -- name: AddQuickAccessProduct :exec

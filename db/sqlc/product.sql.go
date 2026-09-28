@@ -23,7 +23,7 @@ func (q *Queries) AddQuickAccessProduct(ctx context.Context, productID int64) er
 }
 
 const countAllProducts = `-- name: CountAllProducts :one
-SELECT COUNT(*) FROM products
+SELECT COUNT(*) FROM products WHERE is_active = 1
 `
 
 func (q *Queries) CountAllProducts(ctx context.Context) (int64, error) {
@@ -35,11 +35,14 @@ func (q *Queries) CountAllProducts(ctx context.Context) (int64, error) {
 
 const countProducts = `-- name: CountProducts :one
 SELECT COUNT(*) FROM products
-WHERE (name || ' ' || code || ' ' || barcode)
+WHERE is_active = 1
+  AND (name || ' ' || code || ' ' || barcode)
       LIKE ?1
 `
 
-// search_pattern must already be wrapped in '%...%' by the caller.
+// search_pattern must already be wrapped in '%...%' by the caller. Counts the
+// same rows ListProductsPage returns, so the total under a paged search never
+// promises more results than the pages can show.
 func (q *Queries) CountProducts(ctx context.Context, searchPattern string) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countProducts, searchPattern)
 	var count int64
@@ -860,7 +863,8 @@ func (q *Queries) ListProductsForManagement(ctx context.Context, arg ListProduct
 
 const listProductsPage = `-- name: ListProductsPage :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
-WHERE (name || ' ' || code || ' ' || barcode)
+WHERE is_active = 1
+  AND (name || ' ' || code || ' ' || barcode)
       LIKE ?1
 ORDER BY id
 LIMIT ?3 OFFSET ?2
@@ -873,6 +877,11 @@ type ListProductsPageParams struct {
 }
 
 // search_pattern must already be wrapped in '%...%' by the caller.
+//
+// Inactive products are excluded, matching ListProductsAfter below: a product
+// is deactivated because kashi retired it (DeactivateProductsByBarcode, driven
+// by the full-mirror check), so offering it in a search only lets a cashier
+// put something unsellable in the cart.
 func (q *Queries) ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error) {
 	rows, err := q.db.QueryContext(ctx, listProductsPage, arg.SearchPattern, arg.Offset, arg.Limit)
 	if err != nil {
@@ -918,6 +927,7 @@ func (q *Queries) ListProductsPage(ctx context.Context, arg ListProductsPagePara
 
 const listProductsPageUnfiltered = `-- name: ListProductsPageUnfiltered :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
+WHERE is_active = 1
 ORDER BY id
 LIMIT ?2 OFFSET ?1
 `
@@ -974,9 +984,12 @@ const listQuickAccessProducts = `-- name: ListQuickAccessProducts :many
 SELECT p.id, p.barcode, p.code, p.name, p.description, p.is_active, p.price, p.discount, p.color, p.size, p.currency_code, p.created_at, p.brand, p.family, p.kind, p.season, p.product_year, p.uid, p.remote_updated_at
 FROM quick_access_items q
 JOIN products p ON p.id = q.product_id
+WHERE p.is_active = 1
 ORDER BY q.position, q.created_at, q.product_id
 `
 
+// A pinned product that has since been deactivated centrally drops off the
+// quick-access grid rather than sitting there unsellable.
 func (q *Queries) ListQuickAccessProducts(ctx context.Context) ([]Product, error) {
 	rows, err := q.db.QueryContext(ctx, listQuickAccessProducts)
 	if err != nil {
