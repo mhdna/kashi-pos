@@ -52,15 +52,11 @@ export function CreateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,a
 
 export function CreateDatabase():Promise<string>;
 
-export function CreateDiscountList(arg1:string):Promise<Record<string, any>>;
-
 export function CreateExpense(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
 
 export function CreateLoan(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
 
 export function CreateManualAttendanceEvent(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
-
-export function CreatePriceList(arg1:string):Promise<Record<string, any>>;
 
 export function CreateProduct(arg1:main.ProductInput):Promise<Record<string, any>>;
 
@@ -244,10 +240,6 @@ export function QuotePaymentStatus(arg1:string,arg2:string):Promise<main.Payment
 
 export function QuoteSettlementPaymentStatus(arg1:number,arg2:string):Promise<main.PaymentStatus>;
 
-export function RemoveDiscountListItem(arg1:number):Promise<void>;
-
-export function RemovePriceListItem(arg1:number):Promise<void>;
-
 export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
 
 export function ReorderCashboxAccounts(arg1:Array<number>):Promise<void>;
@@ -286,10 +278,6 @@ export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
 
 export function SetCustomItemPricesEnabled(arg1:boolean):Promise<void>;
 
-export function SetDiscountListActive(arg1:number,arg2:boolean):Promise<Record<string, any>>;
-
-export function SetDiscountListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
-
 export function SetExchangeWindowHours(arg1:number):Promise<void>;
 
 export function SetHidePaymentMethodCurrency(arg1:boolean):Promise<void>;
@@ -307,10 +295,6 @@ export function SetPageUnlocked(arg1:string,arg2:boolean):Promise<void>;
 export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
 
 export function SetPriceChangeManualOverrideEnabled(arg1:boolean):Promise<void>;
-
-export function SetPriceListActive(arg1:number,arg2:boolean):Promise<Record<string, any>>;
-
-export function SetPriceListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
 
 export function SetProductActive(arg1:number,arg2:boolean):Promise<void>;
 
@@ -351,10 +335,6 @@ export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number
 export function UpdateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
 
 export function UpdateDefaultOpeningFloat(arg1:number,arg2:number,arg3:string):Promise<void>;
-
-export function UpdateDiscountList(arg1:number,arg2:string):Promise<Record<string, any>>;
-
-export function UpdatePriceList(arg1:number,arg2:string):Promise<Record<string, any>>;
 
 export function UpdateProduct(arg1:number,arg2:main.ProductInput):Promise<Record<string, any>>;
 

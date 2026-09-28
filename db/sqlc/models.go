@@ -196,16 +196,18 @@ type Currency struct {
 }
 
 type DiscountList struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	IsActive  int64  `json:"isActive"`
-	CreatedAt string `json:"createdAt"`
+	ID        int64          `json:"id"`
+	Name      string         `json:"name"`
+	IsActive  int64          `json:"isActive"`
+	CreatedAt string         `json:"createdAt"`
+	Uid       sql.NullString `json:"uid"`
+	IsDefault int64          `json:"isDefault"`
 }
 
 type DiscountListItem struct {
 	ID             int64  `json:"id"`
 	DiscountListID int64  `json:"discountListId"`
-	ProductCode    string `json:"productCode"`
+	ProductUid     string `json:"productUid"`
 	Discount       int64  `json:"discount"`
 	CreatedAt      string `json:"createdAt"`
 }
@@ -377,16 +379,18 @@ type PinLockout struct {
 }
 
 type PriceList struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	IsActive  int64  `json:"isActive"`
-	CreatedAt string `json:"createdAt"`
+	ID        int64          `json:"id"`
+	Name      string         `json:"name"`
+	IsActive  int64          `json:"isActive"`
+	CreatedAt string         `json:"createdAt"`
+	Uid       sql.NullString `json:"uid"`
+	IsDefault int64          `json:"isDefault"`
 }
 
 type PriceListItem struct {
 	ID          int64  `json:"id"`
 	PriceListID int64  `json:"priceListId"`
-	ProductCode string `json:"productCode"`
+	ProductUid  string `json:"productUid"`
 	Price       int64  `json:"price"`
 	CreatedAt   string `json:"createdAt"`
 }

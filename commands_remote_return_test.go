@@ -56,6 +56,7 @@ func TestExecuteRemoteReturnInvoiceCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, store.Queries)
 	if err := store.UpsertInventoryItem(ctx, db.UpsertInventoryItemParams{
 		InventoryID: inventory.ID, ProductID: product.ID, Quantity: 5,
 	}); err != nil {

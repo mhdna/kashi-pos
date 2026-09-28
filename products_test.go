@@ -113,6 +113,7 @@ func TestProductSearchMatchesNameCodeAndBarcodeOnly(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, app.store.Queries)
 
 	matches := []struct {
 		name  string

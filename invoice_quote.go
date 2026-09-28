@@ -195,7 +195,11 @@ func (a *App) quoteExchange(itemsJSON string, originalInvoiceID int64) (Exchange
 		return quote, pricedExchange{}, err
 	}
 	customPricingEnabled, perUnitPricingEnabled := a.customPricingFlags()
-	priced, err := a.validateAndPriceExchange(a.store.Queries, originalInvoiceID, request, roundingMode, customPricingEnabled, perUnitPricingEnabled)
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
+	if err != nil {
+		return quote, pricedExchange{}, fmt.Errorf("load active price/discount lists: %w", err)
+	}
+	priced, err := a.validateAndPriceExchange(a.store.Queries, originalInvoiceID, request, roundingMode, customPricingEnabled, perUnitPricingEnabled, listPricing)
 	if err != nil {
 		return quote, pricedExchange{}, err
 	}

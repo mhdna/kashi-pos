@@ -55,7 +55,6 @@ type Querier interface {
 	CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error)
 	CreateCouponType(ctx context.Context, arg CreateCouponTypeParams) (CouponType, error)
 	CreateCurrency(ctx context.Context, arg CreateCurrencyParams) (Currency, error)
-	CreateDiscountList(ctx context.Context, name string) (DiscountList, error)
 	CreateDiscountOverride(ctx context.Context, arg CreateDiscountOverrideParams) (DiscountOverride, error)
 	CreateExpense(ctx context.Context, arg CreateExpenseParams) (Expense, error)
 	CreateExpenseCategory(ctx context.Context, arg CreateExpenseCategoryParams) (ExpenseCategory, error)
@@ -70,7 +69,6 @@ type Querier interface {
 	CreateLoan(ctx context.Context, arg CreateLoanParams) (Loan, error)
 	CreateLoanCategory(ctx context.Context, arg CreateLoanCategoryParams) (LoanCategory, error)
 	CreatePermission(ctx context.Context, arg CreatePermissionParams) (Permission, error)
-	CreatePriceList(ctx context.Context, name string) (PriceList, error)
 	CreatePriceOverride(ctx context.Context, arg CreatePriceOverrideParams) (PriceOverride, error)
 	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
 	CreateReturnInvoice(ctx context.Context, arg CreateReturnInvoiceParams) error
@@ -103,7 +101,8 @@ type Querier interface {
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteCoupon(ctx context.Context, code string) error
 	DeleteCouponType(ctx context.Context, id int64) error
-	DeleteDiscountListItem(ctx context.Context, id int64) error
+	DeleteDiscountListByUID(ctx context.Context, uid sql.NullString) error
+	DeleteDiscountListItemsForList(ctx context.Context, discountListID int64) error
 	DeleteDiscountOverride(ctx context.Context, id int64) error
 	DeleteHoldInvoice(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
@@ -113,7 +112,11 @@ type Querier interface {
 	DeleteInvoicePayments(ctx context.Context, invoiceID int64) error
 	DeleteInvoiceProducts(ctx context.Context, invoiceID int64) error
 	DeletePermission(ctx context.Context, id int64) error
-	DeletePriceListItem(ctx context.Context, id int64) error
+	DeletePriceListByUID(ctx context.Context, uid sql.NullString) error
+	// Half of the replace-on-apply: kashi has no way to tell a till "this one
+	// item is gone", so an applied list is cleared and refilled and a removal is
+	// expressed by the item simply not being in the payload.
+	DeletePriceListItemsForList(ctx context.Context, priceListID int64) error
 	DeletePriceOverride(ctx context.Context, id int64) error
 	DeleteProduct(ctx context.Context, id int64) error
 	DeleteProductDiscountOverrides(ctx context.Context, id sql.NullInt64) error
@@ -131,8 +134,6 @@ type Querier interface {
 	// merged into another). Synced rows are history and are kept.
 	DeleteUnsyncedSyncOutboxEntry(ctx context.Context, clientRef string) error
 	DeleteUser(ctx context.Context, id int64) error
-	FindConflictingActiveDiscountListItem(ctx context.Context, arg FindConflictingActiveDiscountListItemParams) (FindConflictingActiveDiscountListItemRow, error)
-	FindConflictingActivePriceListItem(ctx context.Context, arg FindConflictingActivePriceListItemParams) (FindConflictingActivePriceListItemRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetActiveCouponByCode(ctx context.Context, code string) (Coupon, error)
 	GetAssetByID(ctx context.Context, id int64) (Asset, error)
@@ -156,6 +157,7 @@ type Querier interface {
 	// convention as GetShiftTotals (pass '' for all time).
 	GetDeferredCouponTotalByMonth(ctx context.Context, totalsMonth interface{}) (interface{}, error)
 	GetDiscountListByID(ctx context.Context, id int64) (DiscountList, error)
+	GetDiscountListByUID(ctx context.Context, uid sql.NullString) (DiscountList, error)
 	GetDiscountOverride(ctx context.Context, id int64) (DiscountOverride, error)
 	GetExpense(ctx context.Context, id int64) (Expense, error)
 	GetExpenseCategoryByName(ctx context.Context, name string) (ExpenseCategory, error)
@@ -185,6 +187,7 @@ type Querier interface {
 	GetPermissionByID(ctx context.Context, id int64) (Permission, error)
 	GetPermissionByName(ctx context.Context, name string) (Permission, error)
 	GetPriceListByID(ctx context.Context, id int64) (PriceList, error)
+	GetPriceListByUID(ctx context.Context, uid sql.NullString) (PriceList, error)
 	GetPriceOverride(ctx context.Context, id int64) (PriceOverride, error)
 	GetProductByBarcode(ctx context.Context, barcode string) (Product, error)
 	GetProductByCode(ctx context.Context, code string) (Product, error)
@@ -224,12 +227,22 @@ type Querier interface {
 	GetVisitorCount(ctx context.Context, day string) (int64, error)
 	IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error)
 	InsertAttendanceEvent(ctx context.Context, arg InsertAttendanceEventParams) error
+	InsertDiscountListItem(ctx context.Context, arg InsertDiscountListItemParams) error
+	InsertPriceListItem(ctx context.Context, arg InsertPriceListItemParams) error
 	LatestSyncOutboxSyncedAt(ctx context.Context) (string, error)
 	ListAccounts(ctx context.Context) ([]Account, error)
 	ListActiveClients(ctx context.Context) ([]Client, error)
+	// See ListActivePriceListItems for why this is ordered by is_default DESC.
 	ListActiveDiscountListItems(ctx context.Context) ([]ListActiveDiscountListItemsRow, error)
 	ListActiveExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListActiveLoanCategories(ctx context.Context) ([]LoanCategory, error)
+	// Every price in force: the default list, plus this branch's own list if
+	// kashi assigned it one.
+	//
+	// Ordered is_default DESC so the default list's row for a product is read
+	// first and a branch list's row for the same product overwrites it --
+	// loadActiveOverrides builds a map keyed by product uid, so last write wins.
+	// A product only the default list mentions keeps the default price.
 	ListActivePriceListItems(ctx context.Context) ([]ListActivePriceListItemsRow, error)
 	ListActiveProducts(ctx context.Context) ([]Product, error)
 	ListAllAttendanceChangeRequests(ctx context.Context) ([]AttendanceChangeRequest, error)
@@ -281,6 +294,8 @@ type Querier interface {
 	// deferred-coupon-exclusion convention as GetInvoiceIncomeTotalByDate.
 	ListDailyInvoiceIncomeByMonth(ctx context.Context, yearMonth string) ([]ListDailyInvoiceIncomeByMonthRow, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
+	// Read-only mirror of kashi's discount lists -- see pricelist.sql, which this
+	// file mirrors exactly.
 	ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 	ListDiscountOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]DiscountOverride, error)
 	// Captured on the POS but not yet confirmed by kashi, and off backoff. Only
@@ -340,6 +355,10 @@ type Querier interface {
 	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error)
+	// Price lists are a read-only mirror of kashi's since 000097. There are no
+	// create/update/activate queries any more: the only writer is the sync, and
+	// it writes a whole list at a time, because kashi sends a list complete with
+	// its items.
 	ListPriceLists(ctx context.Context) ([]PriceList, error)
 	ListPriceOverridesByProduct(ctx context.Context, productID sql.NullInt64) ([]PriceOverride, error)
 	// For a single-product lookup, where scanning the whole catalog's
@@ -422,13 +441,11 @@ type Querier interface {
 	// push with the canonical uid of an existing client with the same phone).
 	SetClientUID(ctx context.Context, arg SetClientUIDParams) error
 	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
-	SetDiscountListActive(ctx context.Context, arg SetDiscountListActiveParams) (DiscountList, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	SetFullMirrorConfirmedAt(ctx context.Context, fullMirrorConfirmedAt sql.NullString) error
 	SetIdentityAdoptedAt(ctx context.Context, identityAdoptedAt sql.NullString) error
 	SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
-	SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error)
 	SetProductActive(ctx context.Context, arg SetProductActiveParams) error
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
 	// Frees a barcode held by a stale local-only product so kashi's product
@@ -472,7 +489,6 @@ type Querier interface {
 	UpdateCouponType(ctx context.Context, arg UpdateCouponTypeParams) error
 	UpdateCurrency(ctx context.Context, arg UpdateCurrencyParams) (Currency, error)
 	UpdateDefaultOpeningFloat(ctx context.Context, arg UpdateDefaultOpeningFloatParams) error
-	UpdateDiscountList(ctx context.Context, arg UpdateDiscountListParams) (DiscountList, error)
 	UpdateExpenseCategory(ctx context.Context, arg UpdateExpenseCategoryParams) (ExpenseCategory, error)
 	UpdateInventory(ctx context.Context, arg UpdateInventoryParams) (Inventory, error)
 	UpdateInvoiceCashbox(ctx context.Context, arg UpdateInvoiceCashboxParams) error
@@ -483,7 +499,6 @@ type Querier interface {
 	UpdateInvoiceSalesperson(ctx context.Context, arg UpdateInvoiceSalespersonParams) error
 	UpdateLoanCategory(ctx context.Context, arg UpdateLoanCategoryParams) (LoanCategory, error)
 	UpdatePermission(ctx context.Context, arg UpdatePermissionParams) (Permission, error)
-	UpdatePriceList(ctx context.Context, arg UpdatePriceListParams) (PriceList, error)
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error)
 	UpdateSalesperson(ctx context.Context, arg UpdateSalespersonParams) (Salesperson, error)
@@ -501,10 +516,12 @@ type Querier interface {
 	UpdateUserAttendanceID(ctx context.Context, arg UpdateUserAttendanceIDParams) error
 	UpsertAttributeValue(ctx context.Context, arg UpsertAttributeValueParams) (AttributesValue, error)
 	UpsertBranchTarget(ctx context.Context, arg UpsertBranchTargetParams) error
-	UpsertDiscountListItem(ctx context.Context, arg UpsertDiscountListItemParams) (DiscountListItem, error)
+	UpsertDiscountListByUID(ctx context.Context, arg UpsertDiscountListByUIDParams) (DiscountList, error)
 	UpsertInventoryItem(ctx context.Context, arg UpsertInventoryItemParams) error
 	UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error
-	UpsertPriceListItem(ctx context.Context, arg UpsertPriceListItemParams) (PriceListItem, error)
+	// Matched by uid, never by name or id -- a till's ids are its own, and a list
+	// renamed centrally must stay the same list here.
+	UpsertPriceListByUID(ctx context.Context, arg UpsertPriceListByUIDParams) (PriceList, error)
 	UpsertSettings(ctx context.Context, arg UpsertSettingsParams) error
 	// Used by the "sync everything" / reconcile flow: a row for this client_ref
 	// may already exist (e.g. synced to a previous central server, or marked

@@ -93,7 +93,7 @@ func (a *App) resolveClientID(id int64) (int64, error) {
 	return walkIn.ID, nil
 }
 
-func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool, overrides activeOverrides, perUnitPricingEnabled ...bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
+func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool, listPricing activePricing, perUnitPricingEnabled ...bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
 	products := make([]pricedInvoiceProduct, 0, len(items))
 	receiptItems := make([]invoiceItem, 0, len(items))
 	var subtotal, discountedSubtotal int64
@@ -116,29 +116,40 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		if product.IsActive == 0 {
 			return nil, 0, 0, nil, fmt.Errorf("product %s is inactive", item.Code)
 		}
+		// The product row's price/discount columns are frozen (000097): the
+		// sellable price comes from the active lists, keyed by the shared uid.
+		// They're zeroed first so a stale row value can never be charged -- a
+		// product in no list ends up at 0 and is rejected by
+		// priceInvoiceProduct below, which is what "kashi never priced this,
+		// so it can't be sold" looks like at the till.
+		product.Price = 0
+		product.Discount = 0
+		var priceListID, discountListID int64
+		if listed, ok := listPricing.priceFor(product.Uid.String); ok {
+			product.Price = listed.cents
+			priceListID = listed.listID
+		}
+		if listed, ok := listPricing.discountFor(product.Uid.String); ok {
+			product.Discount = listed.percent
+			discountListID = listed.listID
+		}
+
+		// A manual override still wins over the list price -- the cashier is
+		// deliberately overriding a price they can see, not inventing one for
+		// a product central never priced. The line stops being attributed to
+		// the list once it no longer carries the list's value.
 		if item.CustomPriceCents != nil {
 			if !customPricingEnabled {
 				return nil, 0, 0, nil, fmt.Errorf("custom item pricing is disabled")
 			}
 			product.Price = *item.CustomPriceCents
+			priceListID = 0
 		}
-		// A manual override (a whole-line custom price, or a per-unit
-		// price/discount array) always wins over a price-list/discount-list
-		// default - list overrides only fill in where the cashier hasn't
-		// already specified something for that field.
-		var priceListID int64
-		if item.CustomPriceCents == nil && len(item.UnitPricesCents) == 0 {
-			if override, ok := overrides.prices[product.Code]; ok {
-				product.Price = override.cents
-				priceListID = override.listID
-			}
+		if len(item.UnitPricesCents) > 0 {
+			priceListID = 0
 		}
-		var discountListID int64
-		if len(item.UnitDiscounts) == 0 {
-			if override, ok := overrides.discounts[product.Code]; ok {
-				product.Discount = override.percent
-				discountListID = override.listID
-			}
+		if len(item.UnitDiscounts) > 0 {
+			discountListID = 0
 		}
 		priceQuantities := map[unitPricing]int64{
 			{price: product.Price, discount: product.Discount}: int64(item.Qty),

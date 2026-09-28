@@ -75,7 +75,11 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				return err
 			}
 		}
-		priced, err := a.validateAndPriceExchange(q, source.ID, request, roundingMode, customPricingEnabled, perUnitPricingEnabled)
+		listPricing, err := loadActivePricing(a.ctx, q)
+		if err != nil {
+			return fmt.Errorf("load active price/discount lists: %w", err)
+		}
+		priced, err := a.validateAndPriceExchange(q, source.ID, request, roundingMode, customPricingEnabled, perUnitPricingEnabled, listPricing)
 		if err != nil {
 			return err
 		}

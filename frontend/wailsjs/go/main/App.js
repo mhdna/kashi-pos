@@ -102,10 +102,6 @@ export function CreateDatabase() {
   return window['go']['main']['App']['CreateDatabase']();
 }
 
-export function CreateDiscountList(arg1) {
-  return window['go']['main']['App']['CreateDiscountList'](arg1);
-}
-
 export function CreateExpense(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['CreateExpense'](arg1, arg2, arg3, arg4, arg5);
 }
@@ -116,10 +112,6 @@ export function CreateLoan(arg1, arg2, arg3, arg4, arg5) {
 
 export function CreateManualAttendanceEvent(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateManualAttendanceEvent'](arg1, arg2, arg3);
-}
-
-export function CreatePriceList(arg1) {
-  return window['go']['main']['App']['CreatePriceList'](arg1);
 }
 
 export function CreateProduct(arg1) {
@@ -486,14 +478,6 @@ export function QuoteSettlementPaymentStatus(arg1, arg2) {
   return window['go']['main']['App']['QuoteSettlementPaymentStatus'](arg1, arg2);
 }
 
-export function RemoveDiscountListItem(arg1) {
-  return window['go']['main']['App']['RemoveDiscountListItem'](arg1);
-}
-
-export function RemovePriceListItem(arg1) {
-  return window['go']['main']['App']['RemovePriceListItem'](arg1);
-}
-
 export function RemoveQuickAccessProduct(arg1) {
   return window['go']['main']['App']['RemoveQuickAccessProduct'](arg1);
 }
@@ -570,14 +554,6 @@ export function SetCustomItemPricesEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemPricesEnabled'](arg1);
 }
 
-export function SetDiscountListActive(arg1, arg2) {
-  return window['go']['main']['App']['SetDiscountListActive'](arg1, arg2);
-}
-
-export function SetDiscountListItem(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SetDiscountListItem'](arg1, arg2, arg3);
-}
-
 export function SetExchangeWindowHours(arg1) {
   return window['go']['main']['App']['SetExchangeWindowHours'](arg1);
 }
@@ -612,14 +588,6 @@ export function SetPerUnitItemPricesEnabled(arg1) {
 
 export function SetPriceChangeManualOverrideEnabled(arg1) {
   return window['go']['main']['App']['SetPriceChangeManualOverrideEnabled'](arg1);
-}
-
-export function SetPriceListActive(arg1, arg2) {
-  return window['go']['main']['App']['SetPriceListActive'](arg1, arg2);
-}
-
-export function SetPriceListItem(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SetPriceListItem'](arg1, arg2, arg3);
 }
 
 export function SetProductActive(arg1, arg2) {
@@ -700,14 +668,6 @@ export function UpdateCurrency(arg1, arg2, arg3, arg4, arg5) {
 
 export function UpdateDefaultOpeningFloat(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateDefaultOpeningFloat'](arg1, arg2, arg3);
-}
-
-export function UpdateDiscountList(arg1, arg2) {
-  return window['go']['main']['App']['UpdateDiscountList'](arg1, arg2);
-}
-
-export function UpdatePriceList(arg1, arg2) {
-  return window['go']['main']['App']['UpdatePriceList'](arg1, arg2);
 }
 
 export function UpdateProduct(arg1, arg2) {

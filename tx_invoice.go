@@ -70,11 +70,11 @@ type invoiceTotals struct {
 
 func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool) (invoiceTotals, error) {
 	var totals invoiceTotals
-	overrides, err := loadActiveOverrides(a.ctx, q)
+	listPricing, err := loadActivePricing(a.ctx, q)
 	if err != nil {
-		return totals, fmt.Errorf("load active price/discount overrides: %w", err)
+		return totals, fmt.Errorf("load active price/discount lists: %w", err)
 	}
-	products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled, overrides, perUnitPricingEnabled)
+	products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled, listPricing, perUnitPricingEnabled)
 	if err != nil {
 		return totals, err
 	}

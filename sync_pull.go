@@ -567,7 +567,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 // pullEntities lists what gets pulled from kashi on each tick. Adding a
 // new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
-var pullEntities = []string{"currencies", "cashbox_accounts", "products", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories"}
+var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories"}
 
 // runSyncPullOnce catches this branch up on every entity in pullEntities,
 // one at a time. Each entity's cursor advances independently — a decode
@@ -711,6 +711,26 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 		for _, item := range items {
 			if err := applySyncedProductVariant(ctx, q, item); err != nil {
 				return fmt.Errorf("apply product variant %s: %w", item.Barcode, err)
+			}
+		}
+	case "price_lists":
+		var items []syncedPriceList
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedPriceList(ctx, q, item); err != nil {
+				return fmt.Errorf("apply price list %s: %w", item.Name, err)
+			}
+		}
+	case "discount_lists":
+		var items []syncedDiscountList
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedDiscountList(ctx, q, item); err != nil {
+				return fmt.Errorf("apply discount list %s: %w", item.Name, err)
 			}
 		}
 	case "clients":

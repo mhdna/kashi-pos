@@ -122,6 +122,7 @@ func TestCheckoutAcceptsExactPaymentThroughANewlyAddedCurrency(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, app.store.Queries)
 	if err := app.store.UpsertInventoryItem(app.ctx, db.UpsertInventoryItemParams{InventoryID: inventory.ID, ProductID: product.ID, Quantity: 5}); err != nil {
 		t.Fatal(err)
 	}

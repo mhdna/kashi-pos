@@ -54,6 +54,7 @@ func setupQuoteTestApp(t *testing.T, taxRate float64, roundingMode, roundingCurr
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, app.store.Queries)
 	if err := app.store.UpsertInventoryItem(app.ctx, db.UpsertInventoryItemParams{InventoryID: inventory.ID, ProductID: product.ID, Quantity: 100}); err != nil {
 		t.Fatal(err)
 	}
@@ -192,6 +193,7 @@ func TestQuotePaymentStatusAcceptsLBPCashRoundedEquivalent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, app.store.Queries)
 	if err := app.store.UpsertInventoryItem(app.ctx, db.UpsertInventoryItemParams{InventoryID: inventory.ID, ProductID: product.ID, Quantity: 100}); err != nil {
 		t.Fatal(err)
 	}
@@ -375,10 +377,28 @@ func TestSalesInventoryNeverBlocksASale(t *testing.T) {
 
 // TestQuoteRejectsZeroPricedProduct locks in that an unsellable product
 // produces a named error rather than a zero total the UI could render as a
-// paid sale.
+// paid sale. The price now lives in the list, so that is where it is zeroed.
 func TestQuoteRejectsZeroPricedProduct(t *testing.T) {
 	app, _, _, database := setupQuoteTestApp(t, 0, "half_up", "LBP")
-	if _, err := database.Exec(`UPDATE products SET price = 0 WHERE code = 'SKU-1'`); err != nil {
+	if _, err := database.Exec(`UPDATE price_list_items SET price = 0`); err != nil {
+		t.Fatal(err)
+	}
+	quote, err := app.QuoteInvoiceTotal(cartJSON(1))
+	if err == nil {
+		t.Fatalf("expected an error, got a quote with grandTotalCents=%d", quote.GrandTotalCents)
+	}
+	if quote.GrandTotalCents != 0 {
+		t.Fatalf("a failed quote must not carry a total, got %d", quote.GrandTotalCents)
+	}
+}
+
+// The stronger form of the same rule: a product that no active list mentions
+// at all has no price and must be refused, not sold for nothing. This is the
+// state every product is in until kashi prices it, so it is the single most
+// important behaviour of the whole list-dictated pricing change.
+func TestQuoteRejectsProductMissingFromEveryList(t *testing.T) {
+	app, _, _, database := setupQuoteTestApp(t, 0, "half_up", "LBP")
+	if _, err := database.Exec(`DELETE FROM price_list_items`); err != nil {
 		t.Fatal(err)
 	}
 	quote, err := app.QuoteInvoiceTotal(cartJSON(1))

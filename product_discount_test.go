@@ -30,6 +30,7 @@ func TestUpdateProductDiscountRequiresFeatureAndPersists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, store.Queries)
 	app := &App{ctx: ctx, store: store}
 
 	if err := app.UpdateProductDiscount(product.Code, 25); err == nil {

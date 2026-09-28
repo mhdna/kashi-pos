@@ -27,6 +27,10 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 			fmt.Fprint(w, `{"entity":"cashbox_accounts","items":[{"name":"Wire Transfer","currency_code":"USD","sort_order":9,"color":"#00ff00"}],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "products":
 			fmt.Fprint(w, `{"entity":"products","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "price_lists":
+			fmt.Fprint(w, `{"entity":"price_lists","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "discount_lists":
+			fmt.Fprint(w, `{"entity":"discount_lists","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "clients":
 			fmt.Fprint(w, `{"entity":"clients","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "branch_targets":
@@ -77,8 +81,8 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 	// Second pull should send the saved cursor as `since`, not fetch
 	// everything all over again.
 	app.runSyncPullOnce(app.ctx, client)
-	if calls != 18 {
-		t.Fatalf("expected 18 total calls (9 entities x 2 ticks), got %d", calls)
+	if calls != 22 {
+		t.Fatalf("expected 22 total calls (11 entities x 2 ticks), got %d", calls)
 	}
 }
 

@@ -683,7 +683,11 @@
           <v-card v-show="panelMatches('money-price-lists')" class="settings-card">
             <v-card-title>Price lists</v-card-title>
             <v-card-text>
-              <v-table density="compact" class="mb-4">
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Prices are set in kashi and sync down here. A product that no
+                active list prices cannot be sold.
+              </v-alert>
+              <v-table density="compact">
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -693,40 +697,30 @@
                 </thead>
                 <tbody>
                   <tr v-for="list in priceLists" :key="list.id">
-                    <td>{{ list.name }}</td>
                     <td>
-                      <v-switch
-                        :model-value="list.isActive"
-                        hide-details
-                        density="compact"
-                        color="primary"
-                        @update:model-value="togglePriceListActive(list)"
-                      />
+                      {{ list.name }}
+                      <v-chip v-if="list.isDefault" size="x-small" class="ml-2">default</v-chip>
                     </td>
-                    <td class="d-flex ga-1">
-                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="Manage items" @click="openManageList('price', list)" />
-                      <v-btn icon="mdi-pencil" variant="text" size="small" @click="editPriceList(list)" />
+                    <td>{{ list.isActive ? "Yes" : "No" }}</td>
+                    <td>
+                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('price', list)" />
                     </td>
+                  </tr>
+                  <tr v-if="!priceLists.length">
+                    <td colspan="3" class="text-medium-emphasis">No price lists have synced yet.</td>
                   </tr>
                 </tbody>
               </v-table>
-              <div class="text-subtitle-2 mb-2">
-                {{ editingPriceListId ? "Edit price list" : "Add a price list" }}
-              </div>
-              <div class="d-flex flex-wrap ga-2 align-start">
-                <v-text-field v-model="priceListForm.name" placeholder="Name (e.g. Black Friday)" variant="outlined" density="compact" style="max-width: 240px" />
-                <v-btn color="primary" :loading="priceListSaving" @click="savePriceList">
-                  {{ editingPriceListId ? "Save" : "Add" }}
-                </v-btn>
-                <v-btn v-if="editingPriceListId" variant="text" @click="resetPriceListForm">Cancel</v-btn>
-              </div>
             </v-card-text>
           </v-card>
 
           <v-card v-show="panelMatches('money-discount-lists')" class="settings-card">
             <v-card-title>Discount lists</v-card-title>
             <v-card-text>
-              <v-table density="compact" class="mb-4">
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Discounts are set in kashi and sync down here.
+              </v-alert>
+              <v-table density="compact">
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -736,33 +730,20 @@
                 </thead>
                 <tbody>
                   <tr v-for="list in discountLists" :key="list.id">
-                    <td>{{ list.name }}</td>
                     <td>
-                      <v-switch
-                        :model-value="list.isActive"
-                        hide-details
-                        density="compact"
-                        color="primary"
-                        @update:model-value="toggleDiscountListActive(list)"
-                      />
+                      {{ list.name }}
+                      <v-chip v-if="list.isDefault" size="x-small" class="ml-2">default</v-chip>
                     </td>
-                    <td class="d-flex ga-1">
-                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="Manage items" @click="openManageList('discount', list)" />
-                      <v-btn icon="mdi-pencil" variant="text" size="small" @click="editDiscountList(list)" />
+                    <td>{{ list.isActive ? "Yes" : "No" }}</td>
+                    <td>
+                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('discount', list)" />
                     </td>
+                  </tr>
+                  <tr v-if="!discountLists.length">
+                    <td colspan="3" class="text-medium-emphasis">No discount lists have synced yet.</td>
                   </tr>
                 </tbody>
               </v-table>
-              <div class="text-subtitle-2 mb-2">
-                {{ editingDiscountListId ? "Edit discount list" : "Add a discount list" }}
-              </div>
-              <div class="d-flex flex-wrap ga-2 align-start">
-                <v-text-field v-model="discountListForm.name" placeholder="Name" variant="outlined" density="compact" style="max-width: 240px" />
-                <v-btn color="primary" :loading="discountListSaving" @click="saveDiscountList">
-                  {{ editingDiscountListId ? "Save" : "Add" }}
-                </v-btn>
-                <v-btn v-if="editingDiscountListId" variant="text" @click="resetDiscountListForm">Cancel</v-btn>
-              </div>
             </v-card-text>
           </v-card>
         </div>
@@ -1414,42 +1395,23 @@
       <v-card>
         <v-card-title>{{ manageListName }} items</v-card-title>
         <v-card-text>
-          <v-table density="compact" class="mb-4">
+          <v-table density="compact">
             <thead>
               <tr>
-                <th>Product code</th>
+                <th>Product</th>
                 <th>{{ manageListType === "price" ? "Price" : "Discount" }}</th>
-                <th></th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="item in manageListItems" :key="item.id">
-                <td>{{ item.productCode }}</td>
+                <td>{{ item.productUid }}</td>
                 <td>{{ manageListType === "price" ? `$${Number(item.price).toFixed(2)}` : `${item.discount}%` }}</td>
-                <td>
-                  <v-btn icon="mdi-delete-outline" variant="text" size="small" @click="removeManageListItem(item)" />
-                </td>
               </tr>
               <tr v-if="!manageListItems.length">
-                <td colspan="3" class="text-medium-emphasis">No items yet.</td>
+                <td colspan="2" class="text-medium-emphasis">No items yet.</td>
               </tr>
             </tbody>
           </v-table>
-          <div class="d-flex flex-wrap ga-2 align-start">
-            <v-text-field v-model="manageItemCode" placeholder="Product code" variant="outlined" density="compact" style="max-width: 200px" />
-            <ProductSearchDialog activator-text="Pick product" activator-icon="mdi-magnify" @select="pickManageItemProduct" />
-            <v-text-field
-              v-model.number="manageItemValue"
-              :placeholder="manageListType === 'price' ? 'Price ($)' : 'Discount (%)'"
-              type="number"
-              min="0"
-              :step="manageListType === 'price' ? 0.01 : 1"
-              variant="outlined"
-              density="compact"
-              style="max-width: 160px"
-            />
-            <v-btn color="primary" :loading="manageItemSaving" @click="addManageListItem">Add / update</v-btn>
-          </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -1560,19 +1522,9 @@ import {
   ReorderCashboxAccounts,
   SetTheme,
   ListPriceLists,
-  CreatePriceList,
-  UpdatePriceList,
-  SetPriceListActive,
   ListPriceListItems,
-  SetPriceListItem,
-  RemovePriceListItem,
   ListDiscountLists,
-  CreateDiscountList,
-  UpdateDiscountList,
-  SetDiscountListActive,
   ListDiscountListItems,
-  SetDiscountListItem,
-  RemoveDiscountListItem,
   GetSyncStatus,
 } from "../../wailsjs/go/main/App";
 import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
@@ -1964,23 +1916,14 @@ async function savePaymentMethod() {
   }
 }
 const priceLists = ref<any[]>([]);
-const priceListForm = reactive({ name: "" });
-const priceListSaving = ref(false);
-const editingPriceListId = ref<number | null>(null);
 
 const discountLists = ref<any[]>([]);
-const discountListForm = reactive({ name: "" });
-const discountListSaving = ref(false);
-const editingDiscountListId = ref<number | null>(null);
 
 const manageListDialog = ref(false);
 const manageListType = ref<"price" | "discount">("price");
 const manageListId = ref<number | null>(null);
 const manageListName = ref("");
 const manageListItems = ref<any[]>([]);
-const manageItemCode = ref("");
-const manageItemValue = ref<number | null>(null);
-const manageItemSaving = ref(false);
 
 async function loadPriceLists() {
   try {
@@ -1990,89 +1933,11 @@ async function loadPriceLists() {
   }
 }
 
-function editPriceList(list: any) {
-  editingPriceListId.value = list.id;
-  priceListForm.name = list.name;
-}
-
-function resetPriceListForm() {
-  editingPriceListId.value = null;
-  priceListForm.name = "";
-}
-
-async function savePriceList() {
-  const name = priceListForm.name.trim();
-  if (!name) {
-    notify("Name is required", "red");
-    return;
-  }
-  priceListSaving.value = true;
-  try {
-    if (editingPriceListId.value) await UpdatePriceList(editingPriceListId.value, name);
-    else await CreatePriceList(name);
-    await loadPriceLists();
-    resetPriceListForm();
-    notify(editingPriceListId.value ? "Price list updated" : "Price list created");
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save price list", "red");
-  } finally {
-    priceListSaving.value = false;
-  }
-}
-
-async function togglePriceListActive(list: any) {
-  try {
-    await SetPriceListActive(list.id, !list.isActive);
-    await loadPriceLists();
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to update price list", "red");
-  }
-}
-
 async function loadDiscountLists() {
   try {
     discountLists.value = (await ListDiscountLists()) as any[];
   } catch {
     discountLists.value = [];
-  }
-}
-
-function editDiscountList(list: any) {
-  editingDiscountListId.value = list.id;
-  discountListForm.name = list.name;
-}
-
-function resetDiscountListForm() {
-  editingDiscountListId.value = null;
-  discountListForm.name = "";
-}
-
-async function saveDiscountList() {
-  const name = discountListForm.name.trim();
-  if (!name) {
-    notify("Name is required", "red");
-    return;
-  }
-  discountListSaving.value = true;
-  try {
-    if (editingDiscountListId.value) await UpdateDiscountList(editingDiscountListId.value, name);
-    else await CreateDiscountList(name);
-    await loadDiscountLists();
-    resetDiscountListForm();
-    notify(editingDiscountListId.value ? "Discount list updated" : "Discount list created");
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save discount list", "red");
-  } finally {
-    discountListSaving.value = false;
-  }
-}
-
-async function toggleDiscountListActive(list: any) {
-  try {
-    await SetDiscountListActive(list.id, !list.isActive);
-    await loadDiscountLists();
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to update discount list", "red");
   }
 }
 
@@ -2092,48 +1957,8 @@ async function openManageList(type: "price" | "discount", list: any) {
   manageListType.value = type;
   manageListId.value = list.id;
   manageListName.value = list.name;
-  manageItemCode.value = "";
-  manageItemValue.value = null;
   manageListDialog.value = true;
   await loadManageListItems();
-}
-
-function pickManageItemProduct(product: any) {
-  manageItemCode.value = product.code;
-}
-
-async function addManageListItem() {
-  if (!manageListId.value || !manageItemCode.value.trim() || manageItemValue.value === null) {
-    notify("Product code and a value are required", "red");
-    return;
-  }
-  manageItemSaving.value = true;
-  try {
-    if (manageListType.value === "price") {
-      await SetPriceListItem(manageListId.value, manageItemCode.value.trim(), Number(manageItemValue.value));
-    } else {
-      await SetDiscountListItem(manageListId.value, manageItemCode.value.trim(), Math.round(Number(manageItemValue.value)));
-    }
-    manageItemCode.value = "";
-    manageItemValue.value = null;
-    await loadManageListItems();
-    await (manageListType.value === "price" ? loadPriceLists() : loadDiscountLists());
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save item", "red");
-  } finally {
-    manageItemSaving.value = false;
-  }
-}
-
-async function removeManageListItem(item: any) {
-  try {
-    if (manageListType.value === "price") await RemovePriceListItem(item.id);
-    else await RemoveDiscountListItem(item.id);
-    await loadManageListItems();
-    await (manageListType.value === "price" ? loadPriceLists() : loadDiscountLists());
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to remove item", "red");
-  }
 }
 
 const inventories = ref<any[]>([]);
