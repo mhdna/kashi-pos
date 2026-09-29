@@ -162,27 +162,28 @@ type ClientAccountPayment struct {
 }
 
 type Coupon struct {
-	Code              string        `json:"code"`
-	Status            string        `json:"status"`
-	DiscountType      string        `json:"discountType"`
-	Reason            string        `json:"reason"`
-	ClientID          int64         `json:"clientId"`
-	ValidUntil        string        `json:"validUntil"`
-	CreatedAt         string        `json:"createdAt"`
-	TypeID            sql.NullInt64 `json:"typeId"`
-	ValueCents        sql.NullInt64 `json:"valueCents"`
-	RedeemedInvoiceID sql.NullInt64 `json:"redeemedInvoiceId"`
+	Code              string         `json:"code"`
+	Status            string         `json:"status"`
+	DiscountType      sql.NullString `json:"discountType"`
+	Reason            sql.NullString `json:"reason"`
+	ClientID          sql.NullInt64  `json:"clientId"`
+	ValidUntil        sql.NullString `json:"validUntil"`
+	CreatedAt         string         `json:"createdAt"`
+	TypeID            sql.NullInt64  `json:"typeId"`
+	ValueCents        sql.NullInt64  `json:"valueCents"`
+	RedeemedInvoiceID sql.NullInt64  `json:"redeemedInvoiceId"`
 }
 
 type CouponType struct {
-	ID                  int64  `json:"id"`
-	Name                string `json:"name"`
-	ValueCents          int64  `json:"valueCents"`
-	CurrencyCode        string `json:"currencyCode"`
-	IsActive            int64  `json:"isActive"`
-	ReferenceOnly       int64  `json:"referenceOnly"`
-	CalculateOnCheckout int64  `json:"calculateOnCheckout"`
-	CodeOptional        int64  `json:"codeOptional"`
+	ID                  int64         `json:"id"`
+	Name                string        `json:"name"`
+	ValueCents          int64         `json:"valueCents"`
+	CurrencyCode        string        `json:"currencyCode"`
+	IsActive            int64         `json:"isActive"`
+	ReferenceOnly       int64         `json:"referenceOnly"`
+	CalculateOnCheckout int64         `json:"calculateOnCheckout"`
+	CodeOptional        int64         `json:"codeOptional"`
+	CentralID           sql.NullInt64 `json:"centralId"`
 }
 
 type Currency struct {
@@ -605,6 +606,12 @@ type SyncState struct {
 	LastFullCheckJson string         `json:"lastFullCheckJson"`
 }
 
+type SyncedBranch struct {
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+	IsActive int64  `json:"isActive"`
+}
+
 type Transfer struct {
 	ID              int64  `json:"id"`
 	FromInventoryID int64  `json:"fromInventoryId"`
@@ -619,6 +626,24 @@ type TransferItem struct {
 	ProductID  sql.NullInt64 `json:"productId"`
 	AssetID    sql.NullInt64 `json:"assetId"`
 	Quantity   int64         `json:"quantity"`
+}
+
+type TransferRequest struct {
+	ID           int64  `json:"id"`
+	ClientRef    string `json:"clientRef"`
+	ToBranchCode string `json:"toBranchCode"`
+	Note         string `json:"note"`
+	Status       string `json:"status"`
+	CreatedAt    string `json:"createdAt"`
+	UpdatedAt    string `json:"updatedAt"`
+}
+
+type TransferRequestItem struct {
+	ID                int64  `json:"id"`
+	TransferRequestID int64  `json:"transferRequestId"`
+	Barcode           string `json:"barcode"`
+	ProductUid        string `json:"productUid"`
+	Quantity          int64  `json:"quantity"`
 }
 
 type User struct {

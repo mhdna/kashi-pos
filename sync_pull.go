@@ -567,7 +567,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 // pullEntities lists what gets pulled from kashi on each tick. Adding a
 // new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
-var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories"}
+var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories", "coupon_types", "coupons", "branches", "transfer_requests"}
 
 // runSyncPullOnce catches this branch up on every entity in pullEntities,
 // one at a time. Each entity's cursor advances independently — a decode
@@ -802,6 +802,46 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 				return fmt.Errorf("apply loan category %s: %w", item.Name, err)
 			}
 		}
+	case "coupon_types":
+		var items []syncedCouponType
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedCouponType(ctx, q, item); err != nil {
+				return fmt.Errorf("apply coupon type %s: %w", item.Name, err)
+			}
+		}
+	case "coupons":
+		var items []syncedCoupon
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedCoupon(ctx, q, item); err != nil {
+				return fmt.Errorf("apply coupon %s: %w", item.Code, err)
+			}
+		}
+	case "branches":
+		var items []syncedBranch
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedBranch(ctx, q, item); err != nil {
+				return fmt.Errorf("apply branch %s: %w", item.Code, err)
+			}
+		}
+	case "transfer_requests":
+		var items []syncedTransferRequest
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedTransferRequest(ctx, q, item); err != nil {
+				return fmt.Errorf("apply transfer request %d: %w", item.ID, err)
+			}
+		}
 	}
 	return nil
 }
@@ -840,6 +880,16 @@ func (a *App) emitExpenseUploadReady(clientRef, uploadURL string) {
 	select {
 	case <-a.ready:
 		runtime.EventsEmit(a.ctx, "expense_upload_ready:"+clientRef, uploadURL)
+	default:
+	}
+}
+
+// emitTransferUploadReady is emitExpenseUploadReady's counterpart for a
+// transfer request's one-time photo-upload QR link.
+func (a *App) emitTransferUploadReady(clientRef, uploadURL string) {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "transfer_upload_ready:"+clientRef, uploadURL)
 	default:
 	}
 }

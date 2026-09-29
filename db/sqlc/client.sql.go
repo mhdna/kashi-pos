@@ -210,12 +210,12 @@ VALUES (?, ?, ?, ?, ?, ?) RETURNING code, status, discount_type, reason, client_
 `
 
 type CreateCouponParams struct {
-	Code         string `json:"code"`
-	Status       string `json:"status"`
-	DiscountType string `json:"discountType"`
-	Reason       string `json:"reason"`
-	ClientID     int64  `json:"clientId"`
-	ValidUntil   string `json:"validUntil"`
+	Code         string         `json:"code"`
+	Status       string         `json:"status"`
+	DiscountType sql.NullString `json:"discountType"`
+	Reason       sql.NullString `json:"reason"`
+	ClientID     sql.NullInt64  `json:"clientId"`
+	ValidUntil   sql.NullString `json:"validUntil"`
 }
 
 func (q *Queries) CreateCoupon(ctx context.Context, arg CreateCouponParams) (Coupon, error) {
@@ -245,7 +245,7 @@ func (q *Queries) CreateCoupon(ctx context.Context, arg CreateCouponParams) (Cou
 
 const createCouponType = `-- name: CreateCouponType :one
 INSERT INTO coupon_types (name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional)
-VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional
+VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional, central_id
 `
 
 type CreateCouponTypeParams struct {
@@ -278,6 +278,7 @@ func (q *Queries) CreateCouponType(ctx context.Context, arg CreateCouponTypePara
 		&i.ReferenceOnly,
 		&i.CalculateOnCheckout,
 		&i.CodeOptional,
+		&i.CentralID,
 	)
 	return i, err
 }
@@ -317,12 +318,12 @@ VALUES (?, 'active', 'fixed', ?, ?, ?, ?, ?) RETURNING code, status, discount_ty
 `
 
 type CreateValueCouponParams struct {
-	Code       string        `json:"code"`
-	Reason     string        `json:"reason"`
-	ClientID   int64         `json:"clientId"`
-	ValidUntil string        `json:"validUntil"`
-	TypeID     sql.NullInt64 `json:"typeId"`
-	ValueCents sql.NullInt64 `json:"valueCents"`
+	Code       string         `json:"code"`
+	Reason     sql.NullString `json:"reason"`
+	ClientID   sql.NullInt64  `json:"clientId"`
+	ValidUntil sql.NullString `json:"validUntil"`
+	TypeID     sql.NullInt64  `json:"typeId"`
+	ValueCents sql.NullInt64  `json:"valueCents"`
 }
 
 func (q *Queries) CreateValueCoupon(ctx context.Context, arg CreateValueCouponParams) (Coupon, error) {
@@ -531,7 +532,7 @@ func (q *Queries) GetCouponByCode(ctx context.Context, code string) (Coupon, err
 }
 
 const getCouponTypeByID = `-- name: GetCouponTypeByID :one
-SELECT id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional FROM coupon_types WHERE id = ?
+SELECT id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional, central_id FROM coupon_types WHERE id = ?
 `
 
 func (q *Queries) GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error) {
@@ -546,6 +547,23 @@ func (q *Queries) GetCouponTypeByID(ctx context.Context, id int64) (CouponType, 
 		&i.ReferenceOnly,
 		&i.CalculateOnCheckout,
 		&i.CodeOptional,
+		&i.CentralID,
+	)
+	return i, err
+}
+
+const getInvoiceCouponPaymentByInvoiceID = `-- name: GetInvoiceCouponPaymentByInvoiceID :one
+SELECT invoice_id, coupon_code, coupon_type_id, amount FROM invoice_coupon_payments WHERE invoice_id = ?
+`
+
+func (q *Queries) GetInvoiceCouponPaymentByInvoiceID(ctx context.Context, invoiceID int64) (InvoiceCouponPayment, error) {
+	row := q.db.QueryRowContext(ctx, getInvoiceCouponPaymentByInvoiceID, invoiceID)
+	var i InvoiceCouponPayment
+	err := row.Scan(
+		&i.InvoiceID,
+		&i.CouponCode,
+		&i.CouponTypeID,
+		&i.Amount,
 	)
 	return i, err
 }
@@ -959,7 +977,7 @@ func (q *Queries) ListClientsWithInvoices(ctx context.Context) ([]Client, error)
 }
 
 const listCouponTypes = `-- name: ListCouponTypes :many
-SELECT id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional FROM coupon_types ORDER BY name
+SELECT id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional, central_id FROM coupon_types ORDER BY name
 `
 
 func (q *Queries) ListCouponTypes(ctx context.Context) ([]CouponType, error) {
@@ -980,6 +998,7 @@ func (q *Queries) ListCouponTypes(ctx context.Context) ([]CouponType, error) {
 			&i.ReferenceOnly,
 			&i.CalculateOnCheckout,
 			&i.CodeOptional,
+			&i.CentralID,
 		); err != nil {
 			return nil, err
 		}
@@ -1036,7 +1055,7 @@ const listCouponsByClientID = `-- name: ListCouponsByClientID :many
 SELECT code, status, discount_type, reason, client_id, valid_until, created_at, type_id, value_cents, redeemed_invoice_id FROM coupons WHERE client_id = ? ORDER BY created_at
 `
 
-func (q *Queries) ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error) {
+func (q *Queries) ListCouponsByClientID(ctx context.Context, clientID sql.NullInt64) ([]Coupon, error) {
 	rows, err := q.db.QueryContext(ctx, listCouponsByClientID, clientID)
 	if err != nil {
 		return nil, err
@@ -1103,8 +1122,8 @@ UPDATE coupons SET client_id = ?1 WHERE client_id = ?2
 `
 
 type RepointCouponsClientParams struct {
-	KeepID int64 `json:"keepId"`
-	DropID int64 `json:"dropId"`
+	KeepID sql.NullInt64 `json:"keepId"`
+	DropID sql.NullInt64 `json:"dropId"`
 }
 
 func (q *Queries) RepointCouponsClient(ctx context.Context, arg RepointCouponsClientParams) error {

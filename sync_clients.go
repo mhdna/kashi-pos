@@ -141,7 +141,10 @@ func mergeLocalClient(ctx context.Context, q *db.Queries, keepID, dropID int64) 
 	if err := q.RepointInvoicesClient(ctx, ids); err != nil {
 		return err
 	}
-	if err := q.RepointCouponsClient(ctx, db.RepointCouponsClientParams(ids)); err != nil {
+	if err := q.RepointCouponsClient(ctx, db.RepointCouponsClientParams{
+		KeepID: sql.NullInt64{Int64: keepID, Valid: true},
+		DropID: sql.NullInt64{Int64: dropID, Valid: true},
+	}); err != nil {
 		return err
 	}
 	if err := q.RepointClientAccountEntriesClient(ctx, db.RepointClientAccountEntriesClientParams(ids)); err != nil {

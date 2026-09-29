@@ -169,8 +169,12 @@ func TestValidatePaymentsAcceptsCouponCodeCaseDifferences(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := app.store.CreateValueCoupon(app.ctx, db.CreateValueCouponParams{
-		Code: "SAVE-50", Reason: couponType.Name, ClientID: client.ID, ValidUntil: "2099-12-31",
-		TypeID: sql.NullInt64{Int64: couponType.ID, Valid: true}, ValueCents: sql.NullInt64{Int64: 5000, Valid: true},
+		Code:       "SAVE-50",
+		Reason:     sql.NullString{String: couponType.Name, Valid: true},
+		ClientID:   sql.NullInt64{Int64: client.ID, Valid: true},
+		ValidUntil: sql.NullString{String: "2099-12-31", Valid: true},
+		TypeID:     sql.NullInt64{Int64: couponType.ID, Valid: true},
+		ValueCents: sql.NullInt64{Int64: 5000, Valid: true},
 	}); err != nil {
 		t.Fatal(err)
 	}

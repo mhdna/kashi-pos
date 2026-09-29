@@ -206,6 +206,9 @@ SELECT * FROM coupons WHERE code = ? COLLATE NOCASE AND status = 'active' AND re
 -- name: RedeemCoupon :exec
 UPDATE coupons SET status = 'inactive', redeemed_invoice_id = ? WHERE code = ? AND status = 'active' AND redeemed_invoice_id IS NULL;
 
+-- name: GetInvoiceCouponPaymentByInvoiceID :one
+SELECT * FROM invoice_coupon_payments WHERE invoice_id = ?;
+
 -- name: CreateInvoiceCouponPayment :one
 INSERT INTO invoice_coupon_payments (invoice_id, coupon_code, coupon_type_id, amount)
 VALUES (?, ?, ?, ?) RETURNING *;

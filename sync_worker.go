@@ -249,6 +249,18 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 			if resp.UploadToken != "" {
 				a.emitExpenseUploadReady(entry.ClientRef, client.UploadURL(resp.UploadToken))
 			}
+		} else if entry.EntityType == "transfer_request" {
+			// Same shape as "expense" above: the response body carries the
+			// one-time photo-upload token this transfer's QR points at.
+			resp, err := client.PostTransferRequest(ctx, path, []byte(entry.PayloadJson))
+			if err != nil {
+				a.recordSyncOutboxError(ctx, entry, err)
+				changed = true
+				continue
+			}
+			if resp.UploadToken != "" {
+				a.emitTransferUploadReady(entry.ClientRef, client.TransferUploadURL(resp.UploadToken))
+			}
 		} else if entry.EntityType == "client" {
 			if err := a.pushOneClient(ctx, client, path, entry); err != nil {
 				a.recordSyncOutboxError(ctx, entry, err)
@@ -535,6 +547,8 @@ func branchInvoicePath(entityType string) (string, bool) {
 		return "/branch/attendance_events", true
 	case "attendance_change":
 		return "/branch/attendance_changes", true
+	case "transfer_request":
+		return "/branch/transfer_requests", true
 	default:
 		return "", false
 	}

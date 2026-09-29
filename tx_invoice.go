@@ -512,8 +512,8 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 				}
 				// Keep the database's canonical code for the payment foreign key and redemption update.
 				payments[i].CouponCode = coupon.Code
-				if coupon.ValidUntil != "" {
-					expires, parseErr := time.Parse("2006-01-02", coupon.ValidUntil)
+				if coupon.ValidUntil.Valid && coupon.ValidUntil.String != "" {
+					expires, parseErr := time.Parse("2006-01-02", coupon.ValidUntil.String)
 					if parseErr == nil && time.Now().After(expires.Add(24*time.Hour)) {
 						return fmt.Errorf("coupon has expired")
 					}

@@ -215,6 +215,45 @@ func (c *centralClient) PostExpense(ctx context.Context, path string, payloadJSO
 	return &out, nil
 }
 
+// postTransferRequestResponse is kashi's response body to POST
+// /branch/transfer_requests -- see createBranchTransferRequest's envelope
+// in the kashi repo's api/branch_transfer.go. UploadToken is empty on the
+// idempotent "already exists" path (kashi only mints one on a fresh
+// insert), same as postExpenseResponse.
+type postTransferRequestResponse struct {
+	UploadToken string `json:"upload_token"`
+}
+
+// PostTransferRequest is PostExpense's counterpart for transfer requests --
+// its response body also carries a one-time photo-upload token.
+func (c *centralClient) PostTransferRequest(ctx context.Context, path string, payloadJSON []byte) (*postTransferRequestResponse, error) {
+	if !c.enabled() {
+		return nil, errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, http.MethodPost, path, bytes.NewReader(payloadJSON))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, responseError(http.MethodPost, path, resp)
+	}
+
+	var out postTransferRequestResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode transfer request response: %w", err)
+	}
+	return &out, nil
+}
+
 // branchClientsBatchPayload is the body of POST /branch/clients_batch: the
 // same per-client objects as the single /branch/clients route, wrapped.
 type branchClientsBatchPayload struct {
@@ -357,6 +396,42 @@ func (c *centralClient) ShiftReceiptUploadStatus(ctx context.Context, shiftRef s
 	return out.ImagesUploaded, nil
 }
 
+// TransferUploadStatus is ExpenseUploadStatus's counterpart for a transfer
+// request's photo -- the poll-based companion kashi-pos's QR dialog uses
+// while it's waiting (there's no WS push for this one, unlike expenses:
+// notifyBranchTransferDecision only fires on approve/reject, not on the
+// photo landing, so the dialog polls this the whole time it's open).
+func (c *centralClient) TransferUploadStatus(ctx context.Context, clientRef string) (bool, error) {
+	if !c.enabled() {
+		return false, errCentralSyncDisabled
+	}
+
+	req, err := c.newRequest(ctx, http.MethodGet, "/branch/transfer_requests/upload_status?client_ref="+url.QueryEscape(clientRef), nil)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var body centralErrorBody
+		json.NewDecoder(resp.Body).Decode(&body)
+		return false, fmt.Errorf("upload status check failed (status %d): %s", resp.StatusCode, body.Error)
+	}
+
+	var out struct {
+		ImageUploaded bool `json:"image_uploaded"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return false, fmt.Errorf("decode upload status response: %w", err)
+	}
+	return out.ImageUploaded, nil
+}
+
 // ShiftUploadURL builds the central QR link a phone scans in "central" mode.
 func (c *centralClient) ShiftUploadURL(token string) string {
 	return c.baseURL + "/shift_uploads/" + token
@@ -403,6 +478,12 @@ func (c *centralClient) ExpenseUploadStatus(ctx context.Context, clientRef strin
 // same host this client talks to for everything else).
 func (c *centralClient) UploadURL(token string) string {
 	return c.baseURL + "/expense_uploads/" + token
+}
+
+// TransferUploadURL is UploadURL's counterpart for a transfer request's
+// photo -- see transfer_upload.go in the kashi repo.
+func (c *centralClient) TransferUploadURL(token string) string {
+	return c.baseURL + "/transfer_uploads/" + token
 }
 
 // errShiftNotReceivedYet is kashi's 409 on POST /branch/shift_receipt_images

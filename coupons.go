@@ -99,8 +99,12 @@ func (a *App) CreateCoupon(code string, couponTypeID, clientID int64) (map[strin
 		return nil, err
 	}
 	coupon, err := a.store.CreateValueCoupon(a.ctx, db.CreateValueCouponParams{
-		Code: code, Reason: couponType.Name, ClientID: clientID,
-		ValidUntil: time.Now().AddDate(10, 0, 0).Format("2006-01-02"), TypeID: sql.NullInt64{Int64: couponTypeID, Valid: true}, ValueCents: sql.NullInt64{Int64: couponType.ValueCents, Valid: true},
+		Code:       code,
+		Reason:     sql.NullString{String: couponType.Name, Valid: true},
+		ClientID:   sql.NullInt64{Int64: clientID, Valid: true},
+		ValidUntil: sql.NullString{String: time.Now().AddDate(10, 0, 0).Format("2006-01-02"), Valid: true},
+		TypeID:     sql.NullInt64{Int64: couponTypeID, Valid: true},
+		ValueCents: sql.NullInt64{Int64: couponType.ValueCents, Valid: true},
 	})
 	if err != nil {
 		return nil, err

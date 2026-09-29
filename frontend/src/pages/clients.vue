@@ -8,7 +8,7 @@
             :key="client.id"
             class="client-list-item"
             link
-            @click="openEdit(client)"
+            @click="openProfile(client)"
           >
             <template #prepend>
               <InitialsAvatar
@@ -46,6 +46,13 @@
               </div>
             </template>
             <template #append>
+              <v-btn
+                icon="mdi-account-edit"
+                variant="text"
+                density="comfortable"
+                title="Edit client"
+                @click.stop="openEdit(client)"
+              />
               <v-btn
                 icon="mdi-wallet"
                 variant="text"
@@ -252,6 +259,8 @@
   </v-dialog>
 
   <v-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</v-snackbar>
+
+  <ClientProfileDialog v-model="profileOpen" :client-id="profileClientId" />
 </template>
 
 <script setup lang="ts">
@@ -269,6 +278,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import ClientProfileDialog from "@/components/ClientProfileDialog.vue";
 import { useAuthStore } from "@/stores/auth";
 import {
   formatLoyaltyPoints,
@@ -320,6 +330,8 @@ const editTarget = ref<any>(null);
 const deleteTarget = ref<any>(null);
 const editForm = reactive({ name: "", phone: "" });
 const snackbar = reactive({ show: false, text: "" });
+const profileOpen = ref(false);
+const profileClientId = ref<number | null>(null);
 const accountOpen = ref(false);
 const accountLoading = ref(false);
 const accountTarget = ref<any>(null);
@@ -356,6 +368,11 @@ const paymentError = computed(() => {
     return "Payment exceeds the amount due";
   return "";
 });
+
+function openProfile(item: any) {
+  profileClientId.value = item.id;
+  profileOpen.value = true;
+}
 
 async function openAccount(item: any) {
   accountTarget.value = item;

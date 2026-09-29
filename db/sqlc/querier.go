@@ -85,6 +85,8 @@ type Querier interface {
 	CreateSyncedUser(ctx context.Context, arg CreateSyncedUserParams) (User, error)
 	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
 	CreateTransferItem(ctx context.Context, arg CreateTransferItemParams) error
+	CreateTransferRequest(ctx context.Context, arg CreateTransferRequestParams) (TransferRequest, error)
+	CreateTransferRequestItem(ctx context.Context, arg CreateTransferRequestItemParams) (TransferRequestItem, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateValueCoupon(ctx context.Context, arg CreateValueCouponParams) (Coupon, error)
 	CreateVisitorEvent(ctx context.Context, arg CreateVisitorEventParams) error
@@ -160,6 +162,7 @@ type Querier interface {
 	GetClientByPhone(ctx context.Context, phone string) (Client, error)
 	GetClientByUID(ctx context.Context, uid sql.NullString) (Client, error)
 	GetCouponByCode(ctx context.Context, code string) (Coupon, error)
+	GetCouponTypeByCentralID(ctx context.Context, centralID sql.NullInt64) (CouponType, error)
 	GetCouponTypeByID(ctx context.Context, id int64) (CouponType, error)
 	GetCurrencyByCode(ctx context.Context, code string) (Currency, error)
 	GetDefaultCurrency(ctx context.Context) (Currency, error)
@@ -179,6 +182,7 @@ type Querier interface {
 	GetInventoryItem(ctx context.Context, arg GetInventoryItemParams) (InventoryItem, error)
 	GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 	GetInvoiceClientRef(ctx context.Context, invoiceID int64) (string, error)
+	GetInvoiceCouponPaymentByInvoiceID(ctx context.Context, invoiceID int64) (InvoiceCouponPayment, error)
 	GetInvoiceIDByClientRef(ctx context.Context, clientRef string) (int64, error)
 	// "Calculate on checkout" coupon types are settled later (e.g. by the
 	// coupon issuer) rather than collected by the branch now, so their payment
@@ -234,6 +238,7 @@ type Querier interface {
 	GetSyncState(ctx context.Context) (SyncState, error)
 	GetTransferByID(ctx context.Context, id int64) (Transfer, error)
 	GetTransferItemByID(ctx context.Context, id int64) (TransferItem, error)
+	GetTransferRequestByClientRef(ctx context.Context, clientRef string) (TransferRequest, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByRemoteID(ctx context.Context, remoteID sql.NullInt64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
@@ -305,7 +310,7 @@ type Querier interface {
 	ListClosedShifts(ctx context.Context) ([]Shift, error)
 	ListCouponTypes(ctx context.Context) ([]CouponType, error)
 	ListCoupons(ctx context.Context) ([]Coupon, error)
-	ListCouponsByClientID(ctx context.Context, clientID int64) ([]Coupon, error)
+	ListCouponsByClientID(ctx context.Context, clientID sql.NullInt64) ([]Coupon, error)
 	ListCurrencies(ctx context.Context) ([]Currency, error)
 	// One pass over the month's invoices, grouped by local calendar day -
 	// replaces calling GetInvoiceIncomeTotalByDate once per day (28-31 full
@@ -423,7 +428,10 @@ type Querier interface {
 	ListSalespersonSalesSummary(ctx context.Context, arg ListSalespersonSalesSummaryParams) ([]ListSalespersonSalesSummaryRow, error)
 	ListSalespersons(ctx context.Context) ([]Salesperson, error)
 	ListShifts(ctx context.Context) ([]Shift, error)
+	ListSyncedBranches(ctx context.Context) ([]SyncedBranch, error)
 	ListTransferItems(ctx context.Context, transferID int64) ([]TransferItem, error)
+	ListTransferRequestItems(ctx context.Context, transferRequestID int64) ([]TransferRequestItem, error)
+	ListTransferRequests(ctx context.Context) ([]TransferRequest, error)
 	ListTransfers(ctx context.Context) ([]Transfer, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	ListVisitorCountsForMonth(ctx context.Context, monthPrefix string) ([]ListVisitorCountsForMonthRow, error)
@@ -484,6 +492,10 @@ type Querier interface {
 	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
 	SetSyncTarget(ctx context.Context, currentTarget string) error
+	// Applied from the transfer_requests down-sync: kashi's status is
+	// authoritative the moment it's synced (see approveTransfer/
+	// notifyBranchTransferDecision in the kashi repo).
+	SetTransferRequestStatus(ctx context.Context, arg SetTransferRequestStatusParams) error
 	SetUserPasswordHashByUsername(ctx context.Context, arg SetUserPasswordHashByUsernameParams) (int64, error)
 	SetVisitorCount(ctx context.Context, arg SetVisitorCountParams) error
 	// Guard for the uploader: kashi only has a branch_shifts row to attach the
@@ -549,6 +561,7 @@ type Querier interface {
 	UpdateUserAttendanceID(ctx context.Context, arg UpdateUserAttendanceIDParams) error
 	UpsertAttributeValue(ctx context.Context, arg UpsertAttributeValueParams) (AttributesValue, error)
 	UpsertBranchTarget(ctx context.Context, arg UpsertBranchTargetParams) error
+	UpsertCouponTypeByCentralID(ctx context.Context, arg UpsertCouponTypeByCentralIDParams) (CouponType, error)
 	UpsertDiscountListByUID(ctx context.Context, arg UpsertDiscountListByUIDParams) (DiscountList, error)
 	UpsertInventoryItem(ctx context.Context, arg UpsertInventoryItemParams) error
 	UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error
@@ -561,6 +574,13 @@ type Querier interface {
 	// failed). Re-arm it as pending with a fresh payload rather than colliding
 	// on the table-wide UNIQUE(client_ref).
 	UpsertSyncOutboxEntry(ctx context.Context, arg UpsertSyncOutboxEntryParams) error
+	UpsertSyncedBranch(ctx context.Context, arg UpsertSyncedBranchParams) error
+	// The caller (applySyncedCoupon) checks redeemed_invoice_id first and
+	// skips calling this at all for a coupon this till already redeemed
+	// itself -- nothing kashi reports should walk that back. discount_type/
+	// reason are left NULL on a fresh insert, same as any other
+	// centrally-authored coupon (see the coupons table's own comment).
+	UpsertSyncedCoupon(ctx context.Context, arg UpsertSyncedCouponParams) error
 }
 
 var _ Querier = (*Queries)(nil)
