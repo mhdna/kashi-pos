@@ -34,15 +34,18 @@ type Querier interface {
 	CountClients(ctx context.Context) (int64, error)
 	CountClientsPage(ctx context.Context, search string) (int64, error)
 	CountCouponsByTypeID(ctx context.Context, typeID sql.NullInt64) (int64, error)
+	CountExpensesAll(ctx context.Context) (int64, error)
 	CountFilteredInvoices(ctx context.Context, arg CountFilteredInvoicesParams) (int64, error)
 	CountInvoiceCouponPaymentsByCode(ctx context.Context, couponCode string) (int64, error)
 	CountInvoiceCouponPaymentsByTypeID(ctx context.Context, couponTypeID int64) (int64, error)
 	CountInvoices(ctx context.Context) (int64, error)
+	CountLoansAll(ctx context.Context) (int64, error)
 	CountPendingSyncOutbox(ctx context.Context) (int64, error)
 	// search_pattern must already be wrapped in '%...%' by the caller. Counts the
 	// same rows ListProductsPage returns, so the total under a paged search never
 	// promises more results than the pages can show.
 	CountProducts(ctx context.Context, searchPattern string) (int64, error)
+	CountShiftsAll(ctx context.Context) (int64, error)
 	CountSyncOutboxByStatus(ctx context.Context, status string) (int64, error)
 	CountSyncOutboxConfirmedElsewhere(ctx context.Context, syncedTo string) (int64, error)
 	CountSyncOutboxConfirmedOnTarget(ctx context.Context, syncedTo string) (int64, error)
@@ -60,6 +63,20 @@ type Querier interface {
 	CreateDiscountOverride(ctx context.Context, arg CreateDiscountOverrideParams) (DiscountOverride, error)
 	CreateExpense(ctx context.Context, arg CreateExpenseParams) (Expense, error)
 	CreateExpenseCategory(ctx context.Context, arg CreateExpenseCategoryParams) (ExpenseCategory, error)
+	CreateHistoricalExpense(ctx context.Context, arg CreateHistoricalExpenseParams) (Expense, error)
+	CreateHistoricalInvoice(ctx context.Context, arg CreateHistoricalInvoiceParams) (Invoice, error)
+	CreateHistoricalLoan(ctx context.Context, arg CreateHistoricalLoanParams) (Loan, error)
+	// ---------------------------------------------------------------------------
+	// Historical-import variants of the ordinary write path (CreateShift,
+	// CreateInvoice, CreateExpense, CreateLoan). Those hardcode/default their
+	// timestamp to "now" because a live write always happens now; pulling a
+	// record back down from kashi needs to set it to when the thing actually
+	// happened, which may be years in the past. See sync_branch_history.go.
+	// Deliberately separate queries rather than adding an optional timestamp
+	// param to the live ones, so the live checkout/expense/loan/shift-close
+	// paths can't accidentally be called with the wrong timestamp.
+	// ---------------------------------------------------------------------------
+	CreateHistoricalShift(ctx context.Context, arg CreateHistoricalShiftParams) (Shift, error)
 	CreateHoldInvoice(ctx context.Context, snapshotJson string) (HoldInvoice, error)
 	CreateInventory(ctx context.Context, name string) (Inventory, error)
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error)
@@ -222,6 +239,7 @@ type Querier interface {
 	GetSalespersonByRemoteID(ctx context.Context, remoteID sql.NullInt64) (Salesperson, error)
 	GetSettings(ctx context.Context) (Setting, error)
 	GetShiftAccountBalance(ctx context.Context, arg GetShiftAccountBalanceParams) (ShiftsAccountsBalance, error)
+	GetShiftByClientRef(ctx context.Context, clientRef sql.NullString) (Shift, error)
 	GetShiftByID(ctx context.Context, id int64) (Shift, error)
 	GetShiftReceiptUploadByToken(ctx context.Context, token string) (ShiftReceiptUpload, error)
 	// shift_tax recomputes the tax charged per invoice exactly the way checkout

@@ -174,6 +174,35 @@
               <v-alert v-if="branchActionError" type="error" density="compact" class="mt-3">
                 {{ branchActionError }}
               </v-alert>
+
+              <v-divider class="my-4" />
+              <div class="text-subtitle-2 mb-2">Import branch history from kashi</div>
+              <div class="text-caption text-medium-emphasis mb-2">
+                If this branch already has real invoices, expenses, loans and closed shifts on
+                kashi (e.g. this is a re-provisioned till), pull them down. Only runs on a branch
+                with no local invoices, expenses, loans or shifts yet -- best-effort: line items
+                or payment accounts kashi can no longer match exactly are reconstructed with a
+                placeholder, not silently dropped.
+              </div>
+              <v-btn
+                variant="outlined"
+                :loading="importingHistory"
+                @click="importBranchHistory"
+              >
+                Import branch history
+              </v-btn>
+              <v-alert v-if="historyImportResult" type="success" density="compact" class="mt-3">
+                Imported {{ historyImportResult.invoices }} invoice(s),
+                {{ historyImportResult.expenses }} expense(s), {{ historyImportResult.loans }}
+                loan(s) and {{ historyImportResult.shiftCloses }} shift close(s).
+                <span v-if="historyImportResult.unresolvedItems">
+                  {{ historyImportResult.unresolvedItems }} line item(s) used a placeholder
+                  product.
+                </span>
+              </v-alert>
+              <v-alert v-if="historyImportError" type="error" density="compact" class="mt-3">
+                {{ historyImportError }}
+              </v-alert>
             </v-card-text>
           </v-card>
 
@@ -1462,6 +1491,7 @@ import {
   CreateBranch,
   SwitchBranch,
   SetDefaultBranch,
+  PullBranchHistory,
   ListBranchTargetsWithProgress,
   UpdateSettings,
   UpdateCentralAPIURL,
@@ -1664,6 +1694,9 @@ const creatingBranch = ref(false);
 const settingDefaultBranch = ref(false);
 const branchActionError = ref("");
 const newBranch = reactive({ name: "", code: "", apiKey: "", centralApiUrl: "" });
+const importingHistory = ref(false);
+const historyImportResult = ref<Record<string, number> | null>(null);
+const historyImportError = ref("");
 const darkThemeEnabled = computed(() => theme.name.value === "dark");
 const themeSaving = ref(false);
 
@@ -2191,6 +2224,20 @@ async function createBranch() {
     branchActionError.value = error instanceof Error ? error.message : String(error);
   } finally {
     creatingBranch.value = false;
+  }
+}
+
+async function importBranchHistory() {
+  importingHistory.value = true;
+  historyImportError.value = "";
+  historyImportResult.value = null;
+  try {
+    const result = await PullBranchHistory();
+    historyImportResult.value = result as Record<string, number>;
+  } catch (error) {
+    historyImportError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    importingHistory.value = false;
   }
 }
 

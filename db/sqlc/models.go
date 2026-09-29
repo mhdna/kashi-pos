@@ -535,22 +535,23 @@ type Setting struct {
 }
 
 type Shift struct {
-	ID                    int64  `json:"id"`
-	IsClosed              int64  `json:"isClosed"`
-	CreatedAt             string `json:"createdAt"`
-	ClosedAt              string `json:"closedAt"`
-	ClosedBySalespersonID int64  `json:"closedBySalespersonId"`
-	CountedUsd            int64  `json:"countedUsd"`
-	CountedLbp            int64  `json:"countedLbp"`
-	CountedUsdBreakdown   string `json:"countedUsdBreakdown"`
-	CountedVisa           int64  `json:"countedVisa"`
-	CountedWhish          int64  `json:"countedWhish"`
-	ExpectedUsd           int64  `json:"expectedUsd"`
-	ExpectedLbp           int64  `json:"expectedLbp"`
-	ExpectedVisa          int64  `json:"expectedVisa"`
-	ExpectedWhish         int64  `json:"expectedWhish"`
-	OpeningFloatUsd       int64  `json:"openingFloatUsd"`
-	OpeningFloatLbp       int64  `json:"openingFloatLbp"`
+	ID                    int64          `json:"id"`
+	IsClosed              int64          `json:"isClosed"`
+	CreatedAt             string         `json:"createdAt"`
+	ClosedAt              string         `json:"closedAt"`
+	ClosedBySalespersonID int64          `json:"closedBySalespersonId"`
+	CountedUsd            int64          `json:"countedUsd"`
+	CountedLbp            int64          `json:"countedLbp"`
+	CountedUsdBreakdown   string         `json:"countedUsdBreakdown"`
+	CountedVisa           int64          `json:"countedVisa"`
+	CountedWhish          int64          `json:"countedWhish"`
+	ExpectedUsd           int64          `json:"expectedUsd"`
+	ExpectedLbp           int64          `json:"expectedLbp"`
+	ExpectedVisa          int64          `json:"expectedVisa"`
+	ExpectedWhish         int64          `json:"expectedWhish"`
+	OpeningFloatUsd       int64          `json:"openingFloatUsd"`
+	OpeningFloatLbp       int64          `json:"openingFloatLbp"`
+	ClientRef             sql.NullString `json:"clientRef"`
 }
 
 type ShiftBalanceReplacement struct {

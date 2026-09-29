@@ -246,6 +246,8 @@ export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>
 
 export function PrintCurrentCloseShiftSample():Promise<Record<string, any>>;
 
+export function PullBranchHistory():Promise<Record<string, any>>;
+
 export function QuoteExchangePaymentStatus(arg1:string,arg2:string,arg3:number):Promise<main.PaymentStatus>;
 
 export function QuoteExchangeTotal(arg1:string,arg2:number):Promise<main.ExchangeQuote>;

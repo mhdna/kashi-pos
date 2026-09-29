@@ -490,6 +490,10 @@ export function PrintCurrentCloseShiftSample() {
   return window['go']['main']['App']['PrintCurrentCloseShiftSample']();
 }
 
+export function PullBranchHistory() {
+  return window['go']['main']['App']['PullBranchHistory']();
+}
+
 export function QuoteExchangePaymentStatus(arg1, arg2, arg3) {
   return window['go']['main']['App']['QuoteExchangePaymentStatus'](arg1, arg2, arg3);
 }

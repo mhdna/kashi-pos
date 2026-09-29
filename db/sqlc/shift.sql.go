@@ -143,7 +143,7 @@ func (q *Queries) CreateCashboxAccount(ctx context.Context, arg CreateCashboxAcc
 
 const createShift = `-- name: CreateShift :one
 INSERT INTO shifts (is_closed, created_at, opening_float_usd, opening_float_lbp)
-VALUES (?, datetime('now'), ?, ?) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp
+VALUES (?, datetime('now'), ?, ?) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref
 `
 
 type CreateShiftParams struct {
@@ -172,6 +172,7 @@ func (q *Queries) CreateShift(ctx context.Context, arg CreateShiftParams) (Shift
 		&i.ExpectedWhish,
 		&i.OpeningFloatUsd,
 		&i.OpeningFloatLbp,
+		&i.ClientRef,
 	)
 	return i, err
 }
@@ -312,7 +313,7 @@ func (q *Queries) GetDeferredCouponTotalByMonth(ctx context.Context, totalsMonth
 }
 
 const getOpenShift = `-- name: GetOpenShift :one
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts WHERE is_closed = 0 LIMIT 1
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref FROM shifts WHERE is_closed = 0 LIMIT 1
 `
 
 func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
@@ -335,6 +336,7 @@ func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
 		&i.ExpectedWhish,
 		&i.OpeningFloatUsd,
 		&i.OpeningFloatLbp,
+		&i.ClientRef,
 	)
 	return i, err
 }
@@ -356,7 +358,7 @@ func (q *Queries) GetShiftAccountBalance(ctx context.Context, arg GetShiftAccoun
 }
 
 const getShiftByID = `-- name: GetShiftByID :one
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts WHERE id = ?
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref FROM shifts WHERE id = ?
 `
 
 func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
@@ -379,6 +381,7 @@ func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
 		&i.ExpectedWhish,
 		&i.OpeningFloatUsd,
 		&i.OpeningFloatLbp,
+		&i.ClientRef,
 	)
 	return i, err
 }
@@ -707,7 +710,7 @@ func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, er
 }
 
 const listClosedShifts = `-- name: ListClosedShifts :many
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts WHERE is_closed = 1 ORDER BY id
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref FROM shifts WHERE is_closed = 1 ORDER BY id
 `
 
 func (q *Queries) ListClosedShifts(ctx context.Context) ([]Shift, error) {
@@ -736,6 +739,7 @@ func (q *Queries) ListClosedShifts(ctx context.Context) ([]Shift, error) {
 			&i.ExpectedWhish,
 			&i.OpeningFloatUsd,
 			&i.OpeningFloatLbp,
+			&i.ClientRef,
 		); err != nil {
 			return nil, err
 		}
@@ -751,7 +755,7 @@ func (q *Queries) ListClosedShifts(ctx context.Context) ([]Shift, error) {
 }
 
 const listShifts = `-- name: ListShifts :many
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts ORDER BY id
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref FROM shifts ORDER BY id
 `
 
 func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
@@ -780,6 +784,7 @@ func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
 			&i.ExpectedWhish,
 			&i.OpeningFloatUsd,
 			&i.OpeningFloatLbp,
+			&i.ClientRef,
 		); err != nil {
 			return nil, err
 		}
@@ -853,7 +858,7 @@ func (q *Queries) UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAcc
 }
 
 const updateShiftOpeningFloat = `-- name: UpdateShiftOpeningFloat :one
-UPDATE shifts SET opening_float_usd = ?, opening_float_lbp = ? WHERE id = ? AND is_closed = 0 RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp
+UPDATE shifts SET opening_float_usd = ?, opening_float_lbp = ? WHERE id = ? AND is_closed = 0 RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref
 `
 
 type UpdateShiftOpeningFloatParams struct {
@@ -882,6 +887,7 @@ func (q *Queries) UpdateShiftOpeningFloat(ctx context.Context, arg UpdateShiftOp
 		&i.ExpectedWhish,
 		&i.OpeningFloatUsd,
 		&i.OpeningFloatLbp,
+		&i.ClientRef,
 	)
 	return i, err
 }
