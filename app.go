@@ -745,19 +745,19 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		return nil, err
 	}
 	result := map[string]interface{}{
-		"branchName":             settings.BranchName,
-		"branchCode":             settings.BranchCode,
-		"apiKey":                 settings.ApiKey,
-		"centralApiUrl":          settings.CentralApiUrl,
-		"printerID":              settings.PrinterID,
-		"printerSize":            settings.PrinterSize,
-		"receiptPrinter":         settings.ReceiptPrinter,
-		"screenPort":             settings.ScreenPort,
-		"receiptWidth":           settings.ReceiptWidth,
-		"receiptHeight":          settings.ReceiptHeight,
-		"taxRate":                settings.TaxRate,
-		"roundingMode":           settings.RoundingMode,
-		"roundingCurrency":       a.effectiveRoundingCurrencyCode(settings.RoundingCurrency),
+		"branchName":       settings.BranchName,
+		"branchCode":       settings.BranchCode,
+		"apiKey":           settings.ApiKey,
+		"centralApiUrl":    settings.CentralApiUrl,
+		"printerID":        settings.PrinterID,
+		"printerSize":      settings.PrinterSize,
+		"receiptPrinter":   settings.ReceiptPrinter,
+		"screenPort":       settings.ScreenPort,
+		"receiptWidth":     settings.ReceiptWidth,
+		"receiptHeight":    settings.ReceiptHeight,
+		"taxRate":          settings.TaxRate,
+		"roundingMode":     settings.RoundingMode,
+		"roundingCurrency": a.effectiveRoundingCurrencyCode(settings.RoundingCurrency),
 		// Raw, unlike roundingCurrency above: that one falls back to the
 		// default currency, which here would be USC -- the accounting cent,
 		// never something a cashier should see as a total. An unset value
@@ -765,6 +765,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		// to before this was configurable.
 		"splitPrimaryCurrency":   settings.SplitPrimaryCurrency,
 		"splitPrimaryFirst":      settings.SplitPrimaryFirst != 0,
+		"splitPrimaryStep":       settings.SplitPrimaryStep,
 		"receiptEnabled":         settings.ReceiptEnabled != 0,
 		"salesInventoryId":       settings.SalesInventoryID,
 		"exchangeRate":           settings.ExchangeRate,
@@ -1227,14 +1228,24 @@ func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
 // leads it and whether it is shown first. An empty code means "unset", which
 // the Calculator reads as USD -- what the primary half was hardcoded to
 // before this became configurable.
-func (a *App) SetSplitDisplay(primaryCurrency string, primaryFirst bool) error {
+// primaryStep is the split's own denomination -- 0 falls back to
+// primaryCurrency's cash_rounding_unit, same as before this existed.
+func (a *App) SetSplitDisplay(primaryCurrency string, primaryFirst bool, primaryStep int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return a.store.UpdateSplitDisplay(a.ctx, db.UpdateSplitDisplayParams{
+	if primaryStep < 0 {
+		return fmt.Errorf("split primary step cannot be negative")
+	}
+	if err := a.store.UpdateSplitDisplay(a.ctx, db.UpdateSplitDisplayParams{
 		SplitPrimaryCurrency: primaryCurrency,
 		SplitPrimaryFirst:    boolToInt64(primaryFirst),
-	})
+		SplitPrimaryStep:     primaryStep,
+	}); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
 }
 
 func (a *App) SetExchangeWindowHours(hours int64) error {

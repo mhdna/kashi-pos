@@ -183,6 +183,12 @@ const props = defineProps<{
   splitPrimaryCurrency?: string;
   // False shows the rounding currency first. Defaults to true.
   splitPrimaryFirst?: boolean;
+  // The split's own denomination, independent of the primary currency's
+  // cash_rounding_unit -- that field also drives the headline total's own
+  // rounding when that currency is picked on its own (formatAmountInCurrency
+  // below), which is a different concern. Unset/0 falls back to
+  // cash_rounding_unit, matching the split's original behaviour.
+  splitPrimaryStep?: number;
   clientId?: number;
   hasItems?: boolean;
   exchangeMode?: boolean;
@@ -370,7 +376,7 @@ function unitsLabel(currency: CurrencyRate, units: number): string {
 function splitAmount(amountCents: number) {
   const primary = splitPrimary.value;
   const secondary = roundingCurrency.value;
-  const step = Math.max(1, primary.cashRoundingUnit);
+  const step = Math.max(1, props.splitPrimaryStep || primary.cashRoundingUnit);
 
   const primaryUnits = (amountCents / 100) * primary.unitsPerUsd;
   const wholePrimary = Math.floor(primaryUnits / step) * step;

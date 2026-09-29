@@ -182,6 +182,7 @@
           :rounding-currency="roundingCurrency"
           :split-primary-currency="splitPrimaryCurrency"
           :split-primary-first="splitPrimaryFirst"
+          :split-primary-step="splitPrimaryStep"
           :has-items="hasItems"
           :exchange-mode="pageMode === 'exchange'"
           :exchange-original-invoice-id="exchangeState?.originalInvoiceId"
@@ -298,6 +299,8 @@ const roundingCurrency = ref("");
 // fallback. splitPrimaryFirst controls which half is shown first.
 const splitPrimaryCurrency = ref("");
 const splitPrimaryFirst = ref(true);
+// 0 = fall back to the primary currency's own cash_rounding_unit.
+const splitPrimaryStep = ref(0);
 const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
 const customItemDiscountsEnabled = ref(false);
@@ -1016,6 +1019,7 @@ async function loadAppSettings() {
     roundingCurrency.value = settings?.roundingCurrency ?? "";
     splitPrimaryCurrency.value = settings?.splitPrimaryCurrency ?? "";
     splitPrimaryFirst.value = settings?.splitPrimaryFirst !== false;
+    splitPrimaryStep.value = Number(settings?.splitPrimaryStep) || 0;
     receiptEnabled.value = Boolean(settings?.receiptEnabled);
     receiptPrinter.value = settings?.receiptPrinter ?? "";
     customItemDiscountsEnabled.value = Boolean(settings?.customItemDiscountsEnabled);

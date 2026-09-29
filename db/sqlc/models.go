@@ -521,6 +521,7 @@ type Setting struct {
 	FullMirrorConfirmedAt  sql.NullString `json:"fullMirrorConfirmedAt"`
 	SplitPrimaryCurrency   string         `json:"splitPrimaryCurrency"`
 	SplitPrimaryFirst      int64          `json:"splitPrimaryFirst"`
+	SplitPrimaryStep       int64          `json:"splitPrimaryStep"`
 }
 
 type Shift struct {

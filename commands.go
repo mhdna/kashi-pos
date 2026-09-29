@@ -70,19 +70,23 @@ type updateSettingsCommandPayload struct {
 	// Pointers: added after the first version, so an older queued command
 	// that predates them must leave the local split alone rather than blank
 	// the primary currency and force the order back to default.
-	SplitPrimaryCurrency *string         `json:"split_primary_currency"`
-	SplitPrimaryFirst    *bool           `json:"split_primary_first"`
-	ExchangeRate         int64           `json:"exchange_rate"`
-	ExchangeWindowHours  int64           `json:"exchange_window_hours"`
-	MarketName           string          `json:"market_name"`
-	MarketPhone          string          `json:"market_phone"`
-	MarketDescription    string          `json:"market_description"`
-	ReturnPolicy         string          `json:"return_policy"`
-	Website              string          `json:"website"`
-	Instagram            string          `json:"instagram"`
-	SocialPlatforms      json.RawMessage `json:"social_platforms"`
-	SocialHandles        json.RawMessage `json:"social_handles"`
-	SearchButtonEnabled  *bool           `json:"search_button_enabled"`
+	SplitPrimaryCurrency *string `json:"split_primary_currency"`
+	SplitPrimaryFirst    *bool   `json:"split_primary_first"`
+	// The split's own denomination, independent of the primary currency's
+	// cash_rounding_unit (see 000100). Nil leaves it as it is; 0 means "fall
+	// back to cash_rounding_unit" and is a valid, explicit value.
+	SplitPrimaryStep    *int64          `json:"split_primary_step"`
+	ExchangeRate        int64           `json:"exchange_rate"`
+	ExchangeWindowHours int64           `json:"exchange_window_hours"`
+	MarketName          string          `json:"market_name"`
+	MarketPhone         string          `json:"market_phone"`
+	MarketDescription   string          `json:"market_description"`
+	ReturnPolicy        string          `json:"return_policy"`
+	Website             string          `json:"website"`
+	Instagram           string          `json:"instagram"`
+	SocialPlatforms     json.RawMessage `json:"social_platforms"`
+	SocialHandles       json.RawMessage `json:"social_handles"`
+	SearchButtonEnabled *bool           `json:"search_button_enabled"`
 
 	// behaviour feature flags
 	CustomItemDiscountsEnabled    *bool `json:"custom_item_discounts_enabled"`
@@ -215,13 +219,14 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		return fmt.Errorf("update exchange window: %w", err)
 	}
 
-	// Both halves move together or not at all: the query writes both columns,
-	// so a command naming only one still has to carry the other through
-	// unchanged rather than resetting it.
-	if p.SplitPrimaryCurrency != nil || p.SplitPrimaryFirst != nil {
+	// All three move together or not at all: the query writes all three
+	// columns, so a command naming only some still has to carry the rest
+	// through unchanged rather than resetting them.
+	if p.SplitPrimaryCurrency != nil || p.SplitPrimaryFirst != nil || p.SplitPrimaryStep != nil {
 		if err := a.SetSplitDisplay(
 			deref(p.SplitPrimaryCurrency, current.SplitPrimaryCurrency),
 			deref(p.SplitPrimaryFirst, current.SplitPrimaryFirst != 0),
+			deref(p.SplitPrimaryStep, current.SplitPrimaryStep),
 		); err != nil {
 			return fmt.Errorf("update split display: %w", err)
 		}

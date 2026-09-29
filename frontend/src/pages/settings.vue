@@ -413,6 +413,16 @@
               <v-select v-model="form.roundingCurrency" :items="roundingCurrencies" placeholder="Round by currency" variant="outlined" density="compact" hide-details />
               <v-select v-model="form.splitPrimaryCurrency" :items="roundingCurrencies" placeholder="Split primary currency" variant="outlined" density="compact" hide-details />
               <v-switch v-model="form.splitPrimaryFirst" color="primary" density="compact" hide-details :label="form.splitPrimaryFirst ? 'Primary currency first' : 'Rounding currency first'" />
+              <v-text-field
+                v-model.number="form.splitPrimaryStep"
+                placeholder="Split step (0 = use currency's cash rounding)"
+                type="number"
+                min="0"
+                step="1"
+                variant="outlined"
+                density="compact"
+                hide-details
+              />
               <v-select
                 :model-value="calculatorTotalCurrency"
                 :items="calculatorDisplayCurrencies"
@@ -1597,6 +1607,8 @@ const form = reactive({
   // First half of the split total; the rounding currency is the second.
   splitPrimaryCurrency: "USD",
   splitPrimaryFirst: true,
+  // 0 = fall back to the primary currency's own cash_rounding_unit.
+  splitPrimaryStep: 0,
   receiptEnabled: false,
   autoCloseStaleShiftsEnabled: false,
   salesInventoryId: 0,
@@ -1949,6 +1961,7 @@ async function loadSettings() {
         roundingCurrency: s.roundingCurrency ?? "LBP",
         splitPrimaryCurrency: s.splitPrimaryCurrency || "USD",
         splitPrimaryFirst: s.splitPrimaryFirst !== false,
+        splitPrimaryStep: Number(s.splitPrimaryStep) || 0,
         receiptEnabled: Boolean(s.receiptEnabled),
         autoCloseStaleShiftsEnabled: Boolean(s.autoCloseStaleShiftsEnabled),
         salesInventoryId: Number(s.salesInventoryId ?? 0),
@@ -2422,7 +2435,7 @@ async function saveSettings() {
       Math.max(0, Math.floor(Number(form.exchangeWindowDays) || 0)) * 24 +
       Math.max(0, Math.floor(Number(form.exchangeWindowHours) || 0));
     await SetExchangeWindowHours(exchangeWindowHours);
-    await SetSplitDisplay(form.splitPrimaryCurrency, Boolean(form.splitPrimaryFirst));
+    await SetSplitDisplay(form.splitPrimaryCurrency, Boolean(form.splitPrimaryFirst), Math.max(0, Math.floor(Number(form.splitPrimaryStep) || 0)));
     notify("Settings saved");
   } catch {
     notify("Failed to save", "red");

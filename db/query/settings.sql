@@ -36,7 +36,9 @@ INSERT INTO feature_flags (key, enabled) VALUES (?, ?)
 ON CONFLICT (key) DO UPDATE SET enabled = excluded.enabled;
 
 -- name: UpdateSplitDisplay :exec
--- Which currency leads the till's split total, and in which order. Narrow
--- like UpdateTheme rather than folded into UpdateSettings: the admin command
--- and the settings page both set these two on their own.
-UPDATE settings SET split_primary_currency = ?, split_primary_first = ?;
+-- Which currency leads the till's split total, in which order, and at what
+-- denomination the primary is split (0 = fall back to that currency's own
+-- cash_rounding_unit -- see 000100). Narrow like UpdateTheme rather than
+-- folded into UpdateSettings: the admin command and the settings page both
+-- set these on their own.
+UPDATE settings SET split_primary_currency = ?, split_primary_first = ?, split_primary_step = ?;
