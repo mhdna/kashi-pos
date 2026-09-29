@@ -53,6 +53,12 @@ type App struct {
 	failedPINAttempts int
 	pinLockedUntil    time.Time
 	pinLockoutLevel   int
+	// currentRole is the role of whoever last signed in on the login screen
+	// ("admin" or "cashier"), guarded by pinMu. This is a single-session
+	// desktop till, so one role at a time is enough; it backs
+	// currentUserIsAdmin for server-side gating of admin-only actions
+	// (branch management) that previously relied on the frontend alone.
+	currentRole string
 
 	syncWorkerStop chan struct{}
 	// syncWorkerKick lets a checkout wake the sync worker immediately after
@@ -161,54 +167,6 @@ func (a *App) startup(ctx context.Context) {
 	}
 }
 
-func applicationDatabasePath() (string, error) {
-	if configured := os.Getenv("KASHI_DB_PATH"); configured != "" {
-		return configured, nil
-	}
-	if path, err := storedDatabasePath(); err == nil && path != "" {
-		return path, nil
-	}
-	dataDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataDir, "kashi-pos", "database"), nil
-}
-
-func storedDatabasePath() (string, error) {
-	path, err := databasePathConfigPath()
-	if err != nil {
-		return "", err
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", err
-	}
-	return strings.TrimSpace(string(data)), nil
-}
-
-func databasePathConfigPath() (string, error) {
-	dataDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataDir, "kashi-pos", "database-path"), nil
-}
-
-func persistDatabasePath(path string) error {
-	configPath, err := databasePathConfigPath()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
-		return err
-	}
-	return os.WriteFile(configPath, []byte(path+"\n"), 0600)
-}
-
 func (a *App) openDatabase(path string, createIfMissing bool) error {
 	path = filepath.Clean(path)
 	databaseExisted := true
@@ -306,6 +264,7 @@ func (a *App) ChooseDatabase() (string, error) {
 	if err := a.switchDatabase(path, false); err != nil {
 		return "", err
 	}
+	a.registerOpenDatabaseAsBranch()
 	return a.dbPath, nil
 }
 
@@ -327,7 +286,24 @@ func (a *App) CreateDatabase() (string, error) {
 	if err := a.switchDatabase(path, true); err != nil {
 		return "", err
 	}
+	a.registerOpenDatabaseAsBranch()
 	return a.dbPath, nil
+}
+
+// registerOpenDatabaseAsBranch is the compatibility bridge for the manual
+// "Choose/Create database" escape hatch: it makes sure a database opened
+// that way still lands in the branch registry (keyed by its own settings'
+// branch code, if any), so it isn't silently abandoned in favor of the
+// registry's active/default branch on the next launch.
+func (a *App) registerOpenDatabaseAsBranch() {
+	if a.store == nil {
+		return
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil || strings.TrimSpace(settings.BranchCode) == "" {
+		return
+	}
+	a.syncBranchRegistryEntry(settings.BranchName, settings.BranchCode)
 }
 
 func (a *App) switchDatabase(path string, createIfMissing bool) error {
@@ -344,11 +320,6 @@ func (a *App) switchDatabase(path string, createIfMissing bool) error {
 	if err := a.openDatabase(path, createIfMissing); err != nil {
 		a.startupErr = err
 		return err
-	}
-	if os.Getenv("KASHI_DB_PATH") == "" {
-		if err := persistDatabasePath(path); err != nil {
-			return fmt.Errorf("save database path: %w", err)
-		}
 	}
 	return nil
 }
@@ -520,6 +491,7 @@ func (a *App) VerifyPIN(pin string) (map[string]interface{}, error) {
 	}
 
 	a.registerSuccessfulLogin()
+	a.currentRole = "cashier"
 	return map[string]interface{}{
 		"id":       int64(0),
 		"username": "cashier",
@@ -544,11 +516,22 @@ func (a *App) VerifyAdminPassword(password string) (map[string]interface{}, erro
 	}
 
 	a.registerSuccessfulLogin()
+	a.currentRole = "admin"
 	return map[string]interface{}{
 		"id":       int64(0),
 		"username": "admin",
 		"role":     "admin",
 	}, nil
+}
+
+// currentUserIsAdmin reports whether the last successful login on this
+// till's login screen was the admin. Guards branch-management actions
+// (CreateBranch, SwitchBranch, SetDefaultBranch) server-side, since those
+// were previously gated only by the frontend router.
+func (a *App) currentUserIsAdmin() bool {
+	a.pinMu.Lock()
+	defer a.pinMu.Unlock()
+	return a.currentRole == "admin"
 }
 
 func (a *App) ChangePassword(username, oldPassword, newPassword string) error {
@@ -1196,6 +1179,7 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		a.kickSyncWorker()
 		a.kickWSClient()
 	}
+	a.syncBranchRegistryEntry(branchName, branchCode)
 	return nil
 }
 

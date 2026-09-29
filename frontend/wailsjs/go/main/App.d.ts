@@ -44,6 +44,8 @@ export function ConfirmTransferRequest(arg1:number,arg2:Array<main.confirmTransf
 
 export function ConvertCashEntryToCents(arg1:string,arg2:number):Promise<number>;
 
+export function CreateBranch(arg1:string,arg2:string,arg3:string,arg4:string):Promise<Record<string, any>>;
+
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function CreateCoupon(arg1:string,arg2:number,arg3:number):Promise<Record<string, any>>;
@@ -161,6 +163,8 @@ export function ListAttendanceComplaints(arg1:string):Promise<Array<Record<strin
 export function ListBranchStock(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function ListBranchTargetsWithProgress():Promise<Array<Record<string, any>>>;
+
+export function ListBranches():Promise<Record<string, any>>;
 
 export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
 
@@ -286,6 +290,8 @@ export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
 
 export function SetCustomItemPricesEnabled(arg1:boolean):Promise<void>;
 
+export function SetDefaultBranch(arg1:string):Promise<void>;
+
 export function SetExchangeWindowHours(arg1:number):Promise<void>;
 
 export function SetHidePaymentMethodCurrency(arg1:boolean):Promise<void>;
@@ -323,6 +329,8 @@ export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<st
 export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string):Promise<void>;
+
+export function SwitchBranch(arg1:string):Promise<void>;
 
 export function SwitchShiftReceiptToLocal(arg1:string):Promise<Record<string, any>>;
 

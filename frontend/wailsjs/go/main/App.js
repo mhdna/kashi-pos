@@ -86,6 +86,10 @@ export function ConvertCashEntryToCents(arg1, arg2) {
   return window['go']['main']['App']['ConvertCashEntryToCents'](arg1, arg2);
 }
 
+export function CreateBranch(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CreateBranch'](arg1, arg2, arg3, arg4);
+}
+
 export function CreateClient(arg1, arg2) {
   return window['go']['main']['App']['CreateClient'](arg1, arg2);
 }
@@ -320,6 +324,10 @@ export function ListBranchStock(arg1) {
 
 export function ListBranchTargetsWithProgress() {
   return window['go']['main']['App']['ListBranchTargetsWithProgress']();
+}
+
+export function ListBranches() {
+  return window['go']['main']['App']['ListBranches']();
 }
 
 export function ListCategoryIcons() {
@@ -570,6 +578,10 @@ export function SetCustomItemPricesEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemPricesEnabled'](arg1);
 }
 
+export function SetDefaultBranch(arg1) {
+  return window['go']['main']['App']['SetDefaultBranch'](arg1);
+}
+
 export function SetExchangeWindowHours(arg1) {
   return window['go']['main']['App']['SetExchangeWindowHours'](arg1);
 }
@@ -644,6 +656,10 @@ export function SkipShiftReceiptUpload(arg1, arg2, arg3) {
 
 export function SubmitAttendanceComplaint(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
   return window['go']['main']['App']['SubmitAttendanceComplaint'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+}
+
+export function SwitchBranch(arg1) {
+  return window['go']['main']['App']['SwitchBranch'](arg1);
 }
 
 export function SwitchShiftReceiptToLocal(arg1) {

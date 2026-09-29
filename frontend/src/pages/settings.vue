@@ -97,6 +97,86 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('general-branches')" class="settings-card">
+            <v-card-title>Branches</v-card-title>
+            <v-card-text>
+              <div class="text-caption text-medium-emphasis mb-3">
+                Every branch set up on this machine has its own local database. Switching applies
+                immediately, without restarting the app.
+              </div>
+              <v-select
+                v-model="selectedBranchCode"
+                :items="branchOptions"
+                item-title="title"
+                item-value="code"
+                label="Active branch"
+                variant="outlined"
+                density="compact"
+                hide-details
+                :loading="branchSwitching"
+                @update:model-value="switchBranch"
+              />
+              <div class="d-flex align-center justify-space-between mt-2">
+                <span class="text-caption text-medium-emphasis">
+                  Default at next launch: {{ defaultBranchCode || "—" }}
+                </span>
+                <v-btn
+                  variant="text"
+                  size="small"
+                  :disabled="!activeBranchCode || activeBranchCode === defaultBranchCode"
+                  :loading="settingDefaultBranch"
+                  @click="setDefaultBranch(activeBranchCode)"
+                >
+                  Make active branch default
+                </v-btn>
+              </div>
+              <v-divider class="my-4" />
+              <div class="text-subtitle-2 mb-2">Add another branch</div>
+              <v-text-field
+                v-model="newBranch.name"
+                label="Branch name"
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="newBranch.code"
+                label="Branch code"
+                hint="Letters and numbers only"
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+                @update:model-value="newBranch.code = newBranch.code.toUpperCase()"
+              />
+              <v-text-field
+                v-model="newBranch.apiKey"
+                label="Central API key"
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="newBranch.centralApiUrl"
+                label="Central server URL"
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="mb-2"
+              />
+              <div class="d-flex justify-end">
+                <v-btn color="primary" variant="flat" :loading="creatingBranch" @click="createBranch">
+                  Create branch
+                </v-btn>
+              </div>
+              <v-alert v-if="branchActionError" type="error" density="compact" class="mt-3">
+                {{ branchActionError }}
+              </v-alert>
+            </v-card-text>
+          </v-card>
+
           <v-card v-show="panelMatches('general-sync')" class="settings-card">
             <v-card-title>Central sync (kashi)</v-card-title>
             <v-card-text class="field-grid">
@@ -1378,6 +1458,10 @@ import {
   GetAppSettings,
   GetDatabaseStatus,
   ChooseDatabase,
+  ListBranches,
+  CreateBranch,
+  SwitchBranch,
+  SetDefaultBranch,
   ListBranchTargetsWithProgress,
   UpdateSettings,
   UpdateCentralAPIURL,
@@ -1513,6 +1597,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "general-appearance": { tab: "general", title: "Appearance", keywords: "dark theme animations mode display" },
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
+  "general-branches": { tab: "general", title: "Branches", keywords: "branches switch default active add branch multiple instances" },
   "general-sync": { tab: "general", title: "Central sync (kashi)", keywords: "central sync kashi server url branch code api key" },
   "general-targets": { tab: "general", title: "Targets", keywords: "targets revenue goal progress date range" },
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
@@ -1569,6 +1654,16 @@ watch(normalizedSearch, () => {
 });
 const databasePath = ref("");
 const databaseSwitching = ref(false);
+
+const branchOptions = ref<{ code: string; title: string }[]>([]);
+const selectedBranchCode = ref("");
+const activeBranchCode = ref("");
+const defaultBranchCode = ref("");
+const branchSwitching = ref(false);
+const creatingBranch = ref(false);
+const settingDefaultBranch = ref(false);
+const branchActionError = ref("");
+const newBranch = reactive({ name: "", code: "", apiKey: "", centralApiUrl: "" });
 const darkThemeEnabled = computed(() => theme.name.value === "dark");
 const themeSaving = ref(false);
 
@@ -2042,6 +2137,63 @@ async function chooseDatabase() {
   }
 }
 
+async function loadBranches() {
+  try {
+    const result = await ListBranches();
+    const branches = Array.isArray(result?.branches) ? result.branches : [];
+    branchOptions.value = branches.map((b: { code: string; name: string }) => ({
+      code: b.code,
+      title: `${b.name} (${b.code})`,
+    }));
+    activeBranchCode.value = String(result?.active ?? "");
+    defaultBranchCode.value = String(result?.default ?? "");
+    selectedBranchCode.value = activeBranchCode.value;
+  } catch {}
+}
+
+async function switchBranch(code: string) {
+  if (!code || code === activeBranchCode.value) return;
+  branchSwitching.value = true;
+  branchActionError.value = "";
+  try {
+    await SwitchBranch(code);
+    WindowReloadApp();
+  } catch (error) {
+    branchActionError.value = error instanceof Error ? error.message : String(error);
+    selectedBranchCode.value = activeBranchCode.value;
+  } finally {
+    branchSwitching.value = false;
+  }
+}
+
+async function setDefaultBranch(code: string) {
+  if (!code) return;
+  settingDefaultBranch.value = true;
+  branchActionError.value = "";
+  try {
+    await SetDefaultBranch(code);
+    defaultBranchCode.value = code;
+    notify("Default branch updated");
+  } catch (error) {
+    branchActionError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    settingDefaultBranch.value = false;
+  }
+}
+
+async function createBranch() {
+  creatingBranch.value = true;
+  branchActionError.value = "";
+  try {
+    await CreateBranch(newBranch.name, newBranch.code, newBranch.apiKey, newBranch.centralApiUrl);
+    WindowReloadApp();
+  } catch (error) {
+    branchActionError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    creatingBranch.value = false;
+  }
+}
+
 async function saveAdminSettings() {
   adminSettingsSaving.value = true;
   try {
@@ -2360,6 +2512,7 @@ onMounted(() => {
   };
   void Promise.all([
     loadDatabaseStatus(),
+    loadBranches(),
     loadCouponTypes(),
     loadSettings(),
     loadCurrencies(),
