@@ -411,6 +411,8 @@
               <v-text-field v-model.number="form.exchangeRate" placeholder="Legacy exchange rate" type="number" min="1" step="1" variant="outlined" density="compact" hide-details />
               <v-select v-model="form.roundingMode" :items="roundingModes" placeholder="Money rounding" variant="outlined" density="compact" hide-details />
               <v-select v-model="form.roundingCurrency" :items="roundingCurrencies" placeholder="Round by currency" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.splitPrimaryCurrency" :items="roundingCurrencies" placeholder="Split primary currency" variant="outlined" density="compact" hide-details />
+              <v-switch v-model="form.splitPrimaryFirst" color="primary" density="compact" hide-details :label="form.splitPrimaryFirst ? 'Primary currency first' : 'Rounding currency first'" />
               <v-select
                 :model-value="calculatorTotalCurrency"
                 :items="calculatorDisplayCurrencies"
@@ -1373,6 +1375,7 @@ import {
   UpdateAttendanceApproverPassword,
   SetAttendanceDuplicateInterval,
   SetExchangeWindowHours,
+  SetSplitDisplay,
   SetCustomItemDiscountsEnabled,
   SetCustomItemPricesEnabled,
   SetPerUnitItemPricesEnabled,
@@ -1591,6 +1594,9 @@ const form = reactive({
   taxRate: 0,
   roundingMode: "half_up",
   roundingCurrency: "LBP",
+  // First half of the split total; the rounding currency is the second.
+  splitPrimaryCurrency: "USD",
+  splitPrimaryFirst: true,
   receiptEnabled: false,
   autoCloseStaleShiftsEnabled: false,
   salesInventoryId: 0,
@@ -1941,6 +1947,8 @@ async function loadSettings() {
         taxRate: Number(s.taxRate ?? 0),
         roundingMode: s.roundingMode ?? "half_up",
         roundingCurrency: s.roundingCurrency ?? "LBP",
+        splitPrimaryCurrency: s.splitPrimaryCurrency || "USD",
+        splitPrimaryFirst: s.splitPrimaryFirst !== false,
         receiptEnabled: Boolean(s.receiptEnabled),
         autoCloseStaleShiftsEnabled: Boolean(s.autoCloseStaleShiftsEnabled),
         salesInventoryId: Number(s.salesInventoryId ?? 0),
@@ -2414,6 +2422,7 @@ async function saveSettings() {
       Math.max(0, Math.floor(Number(form.exchangeWindowDays) || 0)) * 24 +
       Math.max(0, Math.floor(Number(form.exchangeWindowHours) || 0));
     await SetExchangeWindowHours(exchangeWindowHours);
+    await SetSplitDisplay(form.splitPrimaryCurrency, Boolean(form.splitPrimaryFirst));
     notify("Settings saved");
   } catch {
     notify("Failed to save", "red");

@@ -758,6 +758,13 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		"taxRate":                settings.TaxRate,
 		"roundingMode":           settings.RoundingMode,
 		"roundingCurrency":       a.effectiveRoundingCurrencyCode(settings.RoundingCurrency),
+		// Raw, unlike roundingCurrency above: that one falls back to the
+		// default currency, which here would be USC -- the accounting cent,
+		// never something a cashier should see as a total. An unset value
+		// falls back in the Calculator instead, to the USD it was hardcoded
+		// to before this was configurable.
+		"splitPrimaryCurrency":   settings.SplitPrimaryCurrency,
+		"splitPrimaryFirst":      settings.SplitPrimaryFirst != 0,
 		"receiptEnabled":         settings.ReceiptEnabled != 0,
 		"salesInventoryId":       settings.SalesInventoryID,
 		"exchangeRate":           settings.ExchangeRate,
@@ -1214,6 +1221,20 @@ func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
 		a.kickWSClient()
 	}
 	return nil
+}
+
+// SetSplitDisplay configures the till's two-currency total: which currency
+// leads it and whether it is shown first. An empty code means "unset", which
+// the Calculator reads as USD -- what the primary half was hardcoded to
+// before this became configurable.
+func (a *App) SetSplitDisplay(primaryCurrency string, primaryFirst bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.UpdateSplitDisplay(a.ctx, db.UpdateSplitDisplayParams{
+		SplitPrimaryCurrency: primaryCurrency,
+		SplitPrimaryFirst:    boolToInt64(primaryFirst),
+	})
 }
 
 func (a *App) SetExchangeWindowHours(hours int64) error {

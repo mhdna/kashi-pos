@@ -34,3 +34,9 @@ SELECT enabled FROM feature_flags WHERE key = ?;
 -- name: SetFeatureFlag :exec
 INSERT INTO feature_flags (key, enabled) VALUES (?, ?)
 ON CONFLICT (key) DO UPDATE SET enabled = excluded.enabled;
+
+-- name: UpdateSplitDisplay :exec
+-- Which currency leads the till's split total, and in which order. Narrow
+-- like UpdateTheme rather than folded into UpdateSettings: the admin command
+-- and the settings page both set these two on their own.
+UPDATE settings SET split_primary_currency = ?, split_primary_first = ?;

@@ -20,20 +20,24 @@ import (
 // kashi has no column for them and an update_settings command can't touch
 // what it can't name.
 type branchSettingsPayload struct {
-	BranchName          string          `json:"branch_name"`
-	TaxRate             float64         `json:"tax_rate"`
-	RoundingMode        string          `json:"rounding_mode"`
-	RoundingCurrency    string          `json:"rounding_currency"`
-	ExchangeRate        int64           `json:"exchange_rate"`
-	ExchangeWindowHours int64           `json:"exchange_window_hours"`
-	MarketName          string          `json:"market_name"`
-	MarketPhone         string          `json:"market_phone"`
-	MarketDescription   string          `json:"market_description"`
-	ReturnPolicy        string          `json:"return_policy"`
-	Website             string          `json:"website"`
-	Instagram           string          `json:"instagram"`
-	SocialPlatforms     json.RawMessage `json:"social_platforms"`
-	SocialHandles       json.RawMessage `json:"social_handles"`
+	BranchName       string  `json:"branch_name"`
+	TaxRate          float64 `json:"tax_rate"`
+	RoundingMode     string  `json:"rounding_mode"`
+	RoundingCurrency string  `json:"rounding_currency"`
+	// The two halves of the till's split total: SplitPrimaryCurrency leads,
+	// RoundingCurrency follows, unless SplitPrimaryFirst says otherwise.
+	SplitPrimaryCurrency string          `json:"split_primary_currency"`
+	SplitPrimaryFirst    bool            `json:"split_primary_first"`
+	ExchangeRate         int64           `json:"exchange_rate"`
+	ExchangeWindowHours  int64           `json:"exchange_window_hours"`
+	MarketName           string          `json:"market_name"`
+	MarketPhone          string          `json:"market_phone"`
+	MarketDescription    string          `json:"market_description"`
+	ReturnPolicy         string          `json:"return_policy"`
+	Website              string          `json:"website"`
+	Instagram            string          `json:"instagram"`
+	SocialPlatforms      json.RawMessage `json:"social_platforms"`
+	SocialHandles        json.RawMessage `json:"social_handles"`
 	// SearchButtonEnabled is the one original field kashi is allowed to
 	// write back as well as read (productSearchEnabledFlag in products.go).
 	SearchButtonEnabled bool `json:"search_button_enabled"`
@@ -48,7 +52,7 @@ type branchSettingsPayload struct {
 	SalespersonPerInvoiceRequired bool `json:"salesperson_per_invoice_required"`
 	NonAdminMonthNavEnabled       bool `json:"non_admin_month_nav_enabled"`
 	OpeningFloatEnabled           bool `json:"opening_float_enabled"`
-	CountOpeningCashOnClose        bool `json:"count_opening_cash_on_close"`
+	CountOpeningCashOnClose       bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        bool `json:"overchange_confirmation"`
 
 	// non-admin page-access locks (page_unlock_* flags)
@@ -128,21 +132,23 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 	}
 
 	payload := branchSettingsPayload{
-		BranchName:          s.BranchName,
-		TaxRate:             s.TaxRate,
-		RoundingMode:        s.RoundingMode,
-		RoundingCurrency:    s.RoundingCurrency,
-		ExchangeRate:        s.ExchangeRate,
-		ExchangeWindowHours: s.ExchangeWindowHours,
-		MarketName:          s.MarketName,
-		MarketPhone:         s.MarketPhone,
-		MarketDescription:   s.MarketDescription,
-		ReturnPolicy:        s.ReturnPolicy,
-		Website:             s.Website,
-		Instagram:           s.Instagram,
-		SocialPlatforms:     socialPlatforms,
-		SocialHandles:       socialHandles,
-		SearchButtonEnabled: a.flagEnabled(ctx, productSearchEnabledFlag),
+		BranchName:           s.BranchName,
+		TaxRate:              s.TaxRate,
+		RoundingMode:         s.RoundingMode,
+		RoundingCurrency:     s.RoundingCurrency,
+		SplitPrimaryCurrency: s.SplitPrimaryCurrency,
+		SplitPrimaryFirst:    s.SplitPrimaryFirst != 0,
+		ExchangeRate:         s.ExchangeRate,
+		ExchangeWindowHours:  s.ExchangeWindowHours,
+		MarketName:           s.MarketName,
+		MarketPhone:          s.MarketPhone,
+		MarketDescription:    s.MarketDescription,
+		ReturnPolicy:         s.ReturnPolicy,
+		Website:              s.Website,
+		Instagram:            s.Instagram,
+		SocialPlatforms:      socialPlatforms,
+		SocialHandles:        socialHandles,
+		SearchButtonEnabled:  a.flagEnabled(ctx, productSearchEnabledFlag),
 
 		CustomItemDiscountsEnabled:    a.flagEnabled(ctx, customItemDiscountsFlag),
 		CustomItemPricesEnabled:       a.flagEnabled(ctx, customItemPricesFlag),

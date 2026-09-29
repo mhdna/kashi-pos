@@ -160,12 +160,12 @@
       <div class="invoice-total-summary d-flex flex-column align-center mx-2 mt-1 px-1">
         <span class="invoice-total-summary__label text-medium-emphasis">Total</span>
         <div class="d-flex align-baseline justify-center ga-3">
-          <span class="invoice-total-summary__usd">{{ calculator?.totalSummary?.usd ?? "$0.00" }}</span>
+          <span class="invoice-total-summary__usd">{{ calculator?.totalSummary?.first ?? "$0.00" }}</span>
           <span
-            v-if="calculator?.totalSummary?.lbp"
+            v-if="calculator?.totalSummary?.second"
             class="invoice-total-summary__lbp text-medium-emphasis"
           >
-            ≈ {{ calculator.totalSummary.lbp }}
+            ≈ {{ calculator.totalSummary.second }}
           </span>
         </div>
       </div>
@@ -180,6 +180,8 @@
           :client-id="client.id"
           :rounding-mode="roundingMode"
           :rounding-currency="roundingCurrency"
+          :split-primary-currency="splitPrimaryCurrency"
+          :split-primary-first="splitPrimaryFirst"
           :has-items="hasItems"
           :exchange-mode="pageMode === 'exchange'"
           :exchange-original-invoice-id="exchangeState?.originalInvoiceId"
@@ -194,7 +196,7 @@
       <ActionBar
         ref="actionBar"
         :total="invoiceTotal"
-        :total-summary="calculator?.totalSummary ?? { usd: '$0.00', lbp: '' }"
+        :total-summary="calculator?.totalSummary ?? { first: '$0.00', second: '' }"
         :can-checkout="canCheckout"
         :has-items="hasItems"
         :mode="pageMode"
@@ -292,6 +294,10 @@ let pageActive = true;
 const taxRate = ref(0);
 const roundingMode = ref<RoundingMode>("half_up");
 const roundingCurrency = ref("");
+// The split total's first half; empty leaves the Calculator on its USD
+// fallback. splitPrimaryFirst controls which half is shown first.
+const splitPrimaryCurrency = ref("");
+const splitPrimaryFirst = ref(true);
 const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
 const customItemDiscountsEnabled = ref(false);
@@ -1008,6 +1014,8 @@ async function loadAppSettings() {
     taxRate.value = Number(settings?.taxRate ?? 0);
     roundingMode.value = normalizeRoundingMode(settings?.roundingMode ?? "");
     roundingCurrency.value = settings?.roundingCurrency ?? "";
+    splitPrimaryCurrency.value = settings?.splitPrimaryCurrency ?? "";
+    splitPrimaryFirst.value = settings?.splitPrimaryFirst !== false;
     receiptEnabled.value = Boolean(settings?.receiptEnabled);
     receiptPrinter.value = settings?.receiptPrinter ?? "";
     customItemDiscountsEnabled.value = Boolean(settings?.customItemDiscountsEnabled);

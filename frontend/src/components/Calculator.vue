@@ -177,6 +177,12 @@ const props = defineProps<{
   itemsJson?: string;
   roundingMode?: string;
   roundingCurrency?: string;
+  // The first half of the split total. Empty falls back to FALLBACK_CURRENCY
+  // (USD), which is what this half was hardcoded to before it was per-branch
+  // config. The second half is roundingCurrency.
+  splitPrimaryCurrency?: string;
+  // False shows the rounding currency first. Defaults to true.
+  splitPrimaryFirst?: boolean;
   clientId?: number;
   hasItems?: boolean;
   exchangeMode?: boolean;
@@ -339,6 +345,51 @@ function formatAmountInCurrency(amountCents: number, currency: CurrencyRate): st
   return `${currency.symbol} ${roundCurrencyUnitsFromCents(amountCents, currency, roundingMode.value).toLocaleString()}`;
 }
 
+// The first half of the split. Falls back to USD rather than to the default
+// currency, which would be the accounting cent -- never a total a cashier
+// should read.
+const splitPrimary = computed<CurrencyRate>(() => {
+  const found = currencies.value.find((c) => c.code === props.splitPrimaryCurrency);
+  return found && found.unitsPerUsd > 0 ? found : FALLBACK_CURRENCY;
+});
+
+// A one-character symbol sits flush against its number ("$40"); a word-like
+// one gets a space ("LL 439,000"). Matches how each was written when the two
+// halves were hardcoded.
+function unitsLabel(currency: CurrencyRate, units: number): string {
+  const sep = currency.symbol.length === 1 ? "" : " ";
+  return `${currency.symbol}${sep}${units.toLocaleString()}`;
+}
+
+// Splits an amount into whole units of the primary currency plus whatever is
+// left over, expressed in the secondary.
+//
+// The primary half truncates to that currency's own cash_rounding_unit -- the
+// largest denomination its cash actually rounds to. That replaces a hardcoded
+// 10 ("whole tens of dollars"), which was this same idea with USD assumed.
+function splitAmount(amountCents: number) {
+  const primary = splitPrimary.value;
+  const secondary = roundingCurrency.value;
+  const step = Math.max(1, primary.cashRoundingUnit);
+
+  const primaryUnits = (amountCents / 100) * primary.unitsPerUsd;
+  const wholePrimary = Math.floor(primaryUnits / step) * step;
+  const remainderCents = amountCents - (wholePrimary / primary.unitsPerUsd) * 100;
+
+  const primaryText = unitsLabel(primary, wholePrimary);
+  const secondaryText = unitsLabel(
+    secondary,
+    roundCurrencyUnitsFromCents(remainderCents, secondary, roundingMode.value),
+  );
+  // The order is display-only: the arithmetic above is always primary-first.
+  const primaryFirst = props.splitPrimaryFirst !== false;
+  return {
+    first: primaryFirst ? primaryText : secondaryText,
+    second: primaryFirst ? secondaryText : primaryText,
+    remainderCents,
+  };
+}
+
 const remainingAmount = computed(() => {
   const amountCents = Math.abs(diffCents.value);
   const fullUsd = formatUsd(amountCents / 100);
@@ -351,35 +402,38 @@ const remainingAmount = computed(() => {
       text: formatAmountInCurrency(amountCents, c),
       rounded: isRoundedToUnit(amountCents, c, roundingMode.value),
     }));
+  // A secondary currency that rounds to 1 has no denomination to split at, so
+  // there is no meaningful "whole units + remainder" to show -- one line only.
   if (roundingCurrency.value.cashRoundingUnit <= 1) {
-    return { usd: fullUsd, lbp: "", fullUsd, fullLbp: "", amountsByCurrency, lbpRounded: false };
+    return { first: fullUsd, second: "", fullPrimary: fullUsd, fullSecondary: "", amountsByCurrency, secondaryRounded: false };
   }
-  const dollarAmount = amountCents / 100;
-  const wholeDollars = Math.floor(dollarAmount / 10) * 10;
-  const remainderCents = amountCents - wholeDollars * 100;
-  const fullLbp = `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(amountCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`;
+  const { first, second, remainderCents } = splitAmount(amountCents);
   return {
-    usd: `$${wholeDollars.toLocaleString()}`,
-    lbp: `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(remainderCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`,
-    fullUsd,
-    fullLbp,
+    first,
+    second,
+    fullPrimary: fullUsd,
+    fullSecondary: unitsLabel(
+      roundingCurrency.value,
+      roundCurrencyUnitsFromCents(amountCents, roundingCurrency.value, roundingMode.value),
+    ),
     amountsByCurrency,
-    lbpRounded: isRoundedToUnit(remainderCents, roundingCurrency.value, roundingMode.value),
+    secondaryRounded: isRoundedToUnit(remainderCents, roundingCurrency.value, roundingMode.value),
   };
 });
 const totalSummary = computed(() => {
   const totalDollars = totalCents.value / 100;
   if (roundingCurrency.value.cashRoundingUnit <= 1) {
     const usd = formatUsd(totalDollars);
-    return { usd, lbp: "", split: usd };
+    return { first: usd, second: "", split: usd };
   }
-  const wholeDollars = Math.floor(totalDollars / 10) * 10;
-  const remainderCents = totalCents.value - wholeDollars * 100;
-  const currencyLabel = `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(totalCents.value, roundingCurrency.value, roundingMode.value).toLocaleString()}`;
+  const { first, second } = splitAmount(totalCents.value);
   return {
-    usd: formatUsd(totalDollars),
-    lbp: currencyLabel,
-    split: `${formatUsd(wholeDollars)} + ${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(remainderCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`,
+    first: formatUsd(totalDollars),
+    second: unitsLabel(
+      roundingCurrency.value,
+      roundCurrencyUnitsFromCents(totalCents.value, roundingCurrency.value, roundingMode.value),
+    ),
+    split: `${first} + ${second}`,
   };
 });
 const displayValue = computed(() =>

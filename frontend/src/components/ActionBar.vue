@@ -5,11 +5,11 @@
     <v-card class="checkout-total-summary pa-3" variant="outlined" rounded="lg">
       <div class="checkout-total-line">
         <span class="checkout-total-label text-medium-emphasis">Total USD</span>
-        <span class="checkout-total-value">{{ totalSummary.usd }}</span>
+        <span class="checkout-total-value">{{ totalSummary.first }}</span>
       </div>
       <div class="checkout-total-line mt-2">
         <span class="checkout-total-label text-medium-emphasis">Equivalent LBP</span>
-        <span class="checkout-total-value">{{ totalSummary.lbp }}</span>
+        <span class="checkout-total-value">{{ totalSummary.second }}</span>
       </div>
     </v-card>
     -->
@@ -95,7 +95,7 @@ import { ref, computed } from "vue";
 const emit = defineEmits<{ hold: []; void: []; cancelMode: []; checkout: [] }>();
 const props = defineProps<{
   total: number;
-  totalSummary: { usd: string; lbp: string };
+  totalSummary: { first: string; second: string };
   canCheckout: boolean;
   hasItems: boolean;
   mode?: "sale" | "exchange" | "settlement";

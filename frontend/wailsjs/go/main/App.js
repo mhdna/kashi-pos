@@ -190,6 +190,10 @@ export function GetClientByPhone(arg1) {
   return window['go']['main']['App']['GetClientByPhone'](arg1);
 }
 
+export function GetClientProfile(arg1) {
+  return window['go']['main']['App']['GetClientProfile'](arg1);
+}
+
 export function GetCurrentMonth() {
   return window['go']['main']['App']['GetCurrentMonth']();
 }
@@ -588,6 +592,10 @@ export function SetSalespersonPerInvoiceRequired(arg1) {
 
 export function SetShiftReceiptUploadMode(arg1) {
   return window['go']['main']['App']['SetShiftReceiptUploadMode'](arg1);
+}
+
+export function SetSplitDisplay(arg1, arg2) {
+  return window['go']['main']['App']['SetSplitDisplay'](arg1, arg2);
 }
 
 export function SetTheme(arg1) {

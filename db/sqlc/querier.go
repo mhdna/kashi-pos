@@ -532,6 +532,10 @@ type Querier interface {
 	UpdateSalespersonAttendanceID(ctx context.Context, arg UpdateSalespersonAttendanceIDParams) error
 	UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error
 	UpdateShiftOpeningFloat(ctx context.Context, arg UpdateShiftOpeningFloatParams) (Shift, error)
+	// Which currency leads the till's split total, and in which order. Narrow
+	// like UpdateTheme rather than folded into UpdateSettings: the admin command
+	// and the settings page both set these two on their own.
+	UpdateSplitDisplay(ctx context.Context, arg UpdateSplitDisplayParams) error
 	// attendance_user_id is deliberately not touched here -- it's local-only
 	// device pairing, never sent by kashi (see sync_pull.go).
 	UpdateSyncedSalesperson(ctx context.Context, arg UpdateSyncedSalespersonParams) (Salesperson, error)

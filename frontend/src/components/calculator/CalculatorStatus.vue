@@ -31,9 +31,9 @@
           <strong :class="statusColor">{{ displayedTotal }}</strong>
         </div>
         <div class="calculator-amounts-split">
-          <span :class="statusColor">{{ remainingAmount.usd }}</span>
-          <span v-if="remainingAmount.lbp" class="calculator-amounts-plus" aria-hidden="true">+</span>
-          <span v-if="remainingAmount.lbp" :class="statusColor">{{ remainingAmount.lbp }}</span>
+          <span :class="statusColor">{{ remainingAmount.first }}</span>
+          <span v-if="remainingAmount.second" class="calculator-amounts-plus" aria-hidden="true">+</span>
+          <span v-if="remainingAmount.second" :class="statusColor">{{ remainingAmount.second }}</span>
         </div>
         <span v-if="isRounded" class="calculator-amounts-rounded">Rounded</span>
       </template>
@@ -56,11 +56,13 @@ const props = defineProps<{
   // display with an explicit "add more" message instead of showing $0.00.
   exchangeShortfallCents?: number;
   remainingAmount: {
-    usd: string;
-    lbp: string;
-    fullUsd: string;
-    fullLbp: string;
-    lbpRounded: boolean;
+    // The two halves of the split, in display order -- which currency each
+    // holds is per-branch config (see splitAmount in Calculator.vue).
+    first: string;
+    second: string;
+    fullPrimary: string;
+    fullSecondary: string;
+    secondaryRounded: boolean;
     amountsByCurrency: { code: string; text: string; rounded: boolean }[];
   };
 }>();
@@ -79,10 +81,10 @@ const currentIndex = computed(() => {
 });
 
 const displayedTotal = computed(
-  () => props.remainingAmount.amountsByCurrency[currentIndex.value]?.text ?? props.remainingAmount.fullUsd,
+  () => props.remainingAmount.amountsByCurrency[currentIndex.value]?.text ?? props.remainingAmount.fullPrimary,
 );
 const isRounded = computed(
-  () => Boolean(props.remainingAmount.amountsByCurrency[currentIndex.value]?.rounded) || props.remainingAmount.lbpRounded,
+  () => Boolean(props.remainingAmount.amountsByCurrency[currentIndex.value]?.rounded) || props.remainingAmount.secondaryRounded,
 );
 
 function flipCurrency() {

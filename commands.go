@@ -63,21 +63,26 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 // Still never carried, so never touched: branch_code, api_key, theme,
 // counter number, and the POS admin login password.
 type updateSettingsCommandPayload struct {
-	BranchName          string          `json:"branch_name"`
-	TaxRate             float64         `json:"tax_rate"`
-	RoundingMode        string          `json:"rounding_mode"`
-	RoundingCurrency    string          `json:"rounding_currency"`
-	ExchangeRate        int64           `json:"exchange_rate"`
-	ExchangeWindowHours int64           `json:"exchange_window_hours"`
-	MarketName          string          `json:"market_name"`
-	MarketPhone         string          `json:"market_phone"`
-	MarketDescription   string          `json:"market_description"`
-	ReturnPolicy        string          `json:"return_policy"`
-	Website             string          `json:"website"`
-	Instagram           string          `json:"instagram"`
-	SocialPlatforms     json.RawMessage `json:"social_platforms"`
-	SocialHandles       json.RawMessage `json:"social_handles"`
-	SearchButtonEnabled *bool           `json:"search_button_enabled"`
+	BranchName       string  `json:"branch_name"`
+	TaxRate          float64 `json:"tax_rate"`
+	RoundingMode     string  `json:"rounding_mode"`
+	RoundingCurrency string  `json:"rounding_currency"`
+	// Pointers: added after the first version, so an older queued command
+	// that predates them must leave the local split alone rather than blank
+	// the primary currency and force the order back to default.
+	SplitPrimaryCurrency *string         `json:"split_primary_currency"`
+	SplitPrimaryFirst    *bool           `json:"split_primary_first"`
+	ExchangeRate         int64           `json:"exchange_rate"`
+	ExchangeWindowHours  int64           `json:"exchange_window_hours"`
+	MarketName           string          `json:"market_name"`
+	MarketPhone          string          `json:"market_phone"`
+	MarketDescription    string          `json:"market_description"`
+	ReturnPolicy         string          `json:"return_policy"`
+	Website              string          `json:"website"`
+	Instagram            string          `json:"instagram"`
+	SocialPlatforms      json.RawMessage `json:"social_platforms"`
+	SocialHandles        json.RawMessage `json:"social_handles"`
+	SearchButtonEnabled  *bool           `json:"search_button_enabled"`
 
 	// behaviour feature flags
 	CustomItemDiscountsEnabled    *bool `json:"custom_item_discounts_enabled"`
@@ -208,6 +213,18 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 
 	if err := a.SetExchangeWindowHours(p.ExchangeWindowHours); err != nil {
 		return fmt.Errorf("update exchange window: %w", err)
+	}
+
+	// Both halves move together or not at all: the query writes both columns,
+	// so a command naming only one still has to carry the other through
+	// unchanged rather than resetting it.
+	if p.SplitPrimaryCurrency != nil || p.SplitPrimaryFirst != nil {
+		if err := a.SetSplitDisplay(
+			deref(p.SplitPrimaryCurrency, current.SplitPrimaryCurrency),
+			deref(p.SplitPrimaryFirst, current.SplitPrimaryFirst != 0),
+		); err != nil {
+			return fmt.Errorf("update split display: %w", err)
+		}
 	}
 
 	// --- feature flags: only touch a flag the command actually carries ---

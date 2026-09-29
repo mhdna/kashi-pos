@@ -519,6 +519,8 @@ type Setting struct {
 	CentralApiUrl          string         `json:"centralApiUrl"`
 	ShiftReceiptUploadMode int64          `json:"shiftReceiptUploadMode"`
 	FullMirrorConfirmedAt  sql.NullString `json:"fullMirrorConfirmedAt"`
+	SplitPrimaryCurrency   string         `json:"splitPrimaryCurrency"`
+	SplitPrimaryFirst      int64          `json:"splitPrimaryFirst"`
 }
 
 type Shift struct {

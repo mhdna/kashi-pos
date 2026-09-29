@@ -96,6 +96,8 @@ export function GetClientAccountDetails(arg1:number):Promise<Record<string, any>
 
 export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
 
+export function GetClientProfile(arg1:number):Promise<Record<string, any>>;
+
 export function GetCurrentMonth():Promise<string>;
 
 export function GetCurrentShiftIncomeByAccount():Promise<Array<Record<string, any>>>;
@@ -295,6 +297,8 @@ export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
 
 export function SetShiftReceiptUploadMode(arg1:number):Promise<void>;
+
+export function SetSplitDisplay(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
 
