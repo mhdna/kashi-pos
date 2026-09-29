@@ -28,6 +28,8 @@ export function CheckExpenseUploadStatus(arg1:string):Promise<boolean>;
 
 export function CheckShiftReceiptCaptured(arg1:string):Promise<boolean>;
 
+export function CheckTransferUploadStatus(arg1:string):Promise<boolean>;
+
 export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
 export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<Record<string, any>>;
@@ -57,6 +59,8 @@ export function CreateManualAttendanceEvent(arg1:number,arg2:string,arg3:string)
 export function CreateProduct(arg1:main.ProductInput):Promise<Record<string, any>>;
 
 export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
+
+export function CreateTransferRequest(arg1:string,arg2:string,arg3:Array<main.transferRequestItemInput>):Promise<Record<string, any>>;
 
 export function CreateUser(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
 
@@ -164,6 +168,8 @@ export function ListCoupons():Promise<Array<Record<string, any>>>;
 
 export function ListCurrencies():Promise<Array<Record<string, any>>>;
 
+export function ListDestinationBranches():Promise<Array<Record<string, any>>>;
+
 export function ListDiscountListItems(arg1:number):Promise<Array<Record<string, any>>>;
 
 export function ListDiscountLists():Promise<Array<Record<string, any>>>;
@@ -213,6 +219,8 @@ export function ListSalespersons():Promise<Array<Record<string, any>>>;
 export function ListSerialPorts():Promise<Array<string>>;
 
 export function ListShiftBalances(arg1:number):Promise<Array<Record<string, any>>>;
+
+export function ListTransferRequests():Promise<Array<Record<string, any>>>;
 
 export function ListTransfers():Promise<Array<Record<string, any>>>;
 

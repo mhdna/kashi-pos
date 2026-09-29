@@ -54,6 +54,10 @@ export function CheckShiftReceiptCaptured(arg1) {
   return window['go']['main']['App']['CheckShiftReceiptCaptured'](arg1);
 }
 
+export function CheckTransferUploadStatus(arg1) {
+  return window['go']['main']['App']['CheckTransferUploadStatus'](arg1);
+}
+
 export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
@@ -112,6 +116,10 @@ export function CreateProduct(arg1) {
 
 export function CreateSalesperson(arg1) {
   return window['go']['main']['App']['CreateSalesperson'](arg1);
+}
+
+export function CreateTransferRequest(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateTransferRequest'](arg1, arg2, arg3);
 }
 
 export function CreateUser(arg1, arg2, arg3) {
@@ -326,6 +334,10 @@ export function ListCurrencies() {
   return window['go']['main']['App']['ListCurrencies']();
 }
 
+export function ListDestinationBranches() {
+  return window['go']['main']['App']['ListDestinationBranches']();
+}
+
 export function ListDiscountListItems(arg1) {
   return window['go']['main']['App']['ListDiscountListItems'](arg1);
 }
@@ -424,6 +436,10 @@ export function ListSerialPorts() {
 
 export function ListShiftBalances(arg1) {
   return window['go']['main']['App']['ListShiftBalances'](arg1);
+}
+
+export function ListTransferRequests() {
+  return window['go']['main']['App']['ListTransferRequests']();
 }
 
 export function ListTransfers() {

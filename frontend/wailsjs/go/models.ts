@@ -471,6 +471,20 @@ export namespace main {
 	        this.fullySynced = source["fullySynced"];
 	    }
 	}
+	export class transferRequestItemInput {
+	    Barcode: string;
+	    Quantity: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new transferRequestItemInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Barcode = source["Barcode"];
+	        this.Quantity = source["Quantity"];
+	    }
+	}
 
 }
 
