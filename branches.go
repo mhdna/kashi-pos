@@ -318,6 +318,27 @@ func (a *App) CreateBranch(name, code, apiKey, centralApiUrl string) (map[string
 		return nil, err
 	}
 
+	// This branch's local database is brand new (empty). If it's already
+	// wired up to a central server, immediately backfill master data
+	// (products/clients/price lists/payment methods) rather than leaving the
+	// till empty until the periodic sync tick trickles it in. Safe to run
+	// unconditionally: harmless (and near-instant) for a branch kashi has
+	// never seen either, since there's nothing local yet to push and nothing
+	// central yet to pull.
+	//
+	// This runs synchronously (the frontend shows a spinner for the whole
+	// CreateBranch call) rather than in a background goroutine deliberately:
+	// ResyncAll reads/writes through a.store, and a.store is swapped out from
+	// under any in-flight goroutine the instant an admin switches branches
+	// (see switchDatabase). A detached backfill still running when that
+	// happens would keep writing kashi's data for *this* branch into
+	// whichever branch's database is active by the time it gets there.
+	if strings.TrimSpace(centralApiUrl) != "" && strings.TrimSpace(apiKey) != "" {
+		if _, err := a.ResyncAll(ResyncOptions{}); err != nil {
+			log.Printf("initial backfill for new branch %s: %v", code, err)
+		}
+	}
+
 	return map[string]interface{}{"code": code, "name": name}, nil
 }
 
