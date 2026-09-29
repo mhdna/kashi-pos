@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -133,5 +134,104 @@ func applySyncedTransferRequest(ctx context.Context, q *db.Queries, t syncedTran
 	return q.SetTransferRequestStatus(ctx, db.SetTransferRequestStatusParams{
 		Status:    t.Status,
 		ClientRef: t.ClientRef,
+	})
+}
+
+type syncedIncomingTransferItem struct {
+	Barcode          string `json:"barcode"`
+	ProductUID       string `json:"product_uid"`
+	Quantity         int64  `json:"quantity"`
+	ReceivedQuantity int64  `json:"received_quantity"`
+}
+
+type syncedIncomingTransfer struct {
+	ID             int64                        `json:"id"`
+	FromBranchName string                       `json:"from_branch_name"`
+	Note           string                       `json:"note"`
+	Status         string                       `json:"status"`
+	Items          []syncedIncomingTransferItem `json:"items"`
+}
+
+// applySyncedIncomingTransfer mirrors one transfer addressed to this
+// branch, whole -- same replace-in-transaction shape as
+// applySyncedPriceList: the row is upserted by central_id, its items are
+// dropped and reinserted from the payload. This branch's own counted
+// received_quantity (set locally via ConfirmTransferRequest, not synced
+// down) would be wiped by that replace, so it's re-applied from the local
+// row's own items afterward rather than trusting the central payload's
+// received_quantity for lines this till has already counted itself.
+func applySyncedIncomingTransfer(ctx context.Context, q *db.Queries, t syncedIncomingTransfer) error {
+	existing, err := q.GetTransferRequestByCentralID(ctx, sql.NullInt64{Int64: t.ID, Valid: true})
+	hadExisting := err == nil
+	var priorCounts map[string]int64
+	if hadExisting {
+		priorItems, err := q.ListTransferRequestItems(ctx, existing.ID)
+		if err != nil {
+			return fmt.Errorf("load existing items: %w", err)
+		}
+		priorCounts = make(map[string]int64, len(priorItems))
+		for _, it := range priorItems {
+			if it.ReceivedQuantity.Valid {
+				priorCounts[it.Barcode] = it.ReceivedQuantity.Int64
+			}
+		}
+	} else if err != sql.ErrNoRows {
+		return fmt.Errorf("load existing transfer request: %w", err)
+	}
+
+	transfer, err := q.UpsertIncomingTransferRequest(ctx, db.UpsertIncomingTransferRequestParams{
+		CentralID:        sql.NullInt64{Int64: t.ID, Valid: true},
+		Note:             t.Note,
+		Status:           t.Status,
+		SenderBranchName: t.FromBranchName,
+	})
+	if err != nil {
+		return fmt.Errorf("upsert transfer request: %w", err)
+	}
+
+	if err := q.DeleteTransferRequestItems(ctx, transfer.ID); err != nil {
+		return fmt.Errorf("clear items: %w", err)
+	}
+	for _, item := range t.Items {
+		if item.Barcode == "" {
+			continue
+		}
+		created, err := q.CreateTransferRequestItem(ctx, db.CreateTransferRequestItemParams{
+			TransferRequestID: transfer.ID,
+			Barcode:           item.Barcode,
+			ProductUid:        item.ProductUID,
+			Quantity:          item.Quantity,
+		})
+		if err != nil {
+			return fmt.Errorf("create item: %w", err)
+		}
+		if count, ok := priorCounts[item.Barcode]; ok {
+			if err := q.SetTransferRequestItemReceivedQuantity(ctx, db.SetTransferRequestItemReceivedQuantityParams{
+				ID:               created.ID,
+				ReceivedQuantity: sql.NullInt64{Int64: count, Valid: true},
+			}); err != nil {
+				return fmt.Errorf("restore counted quantity: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+type syncedBranchStock struct {
+	BranchCode string `json:"branch_code"`
+	VariantUID string `json:"variant_uid"`
+	Barcode    string `json:"barcode"`
+	Quantity   int64  `json:"quantity"`
+	Price      int64  `json:"price"`
+}
+
+func applySyncedBranchStock(ctx context.Context, q *db.Queries, s syncedBranchStock) error {
+	return q.UpsertBranchStock(ctx, db.UpsertBranchStockParams{
+		BranchCode: s.BranchCode,
+		VariantUid: s.VariantUID,
+		Barcode:    s.Barcode,
+		Quantity:   s.Quantity,
+		PriceCents: s.Price,
+		UpdatedAt:  time.Now().UTC().Format("2006-01-02 15:04:05"),
 	})
 }

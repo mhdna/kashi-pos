@@ -12,7 +12,7 @@ import (
 
 const createTransferRequest = `-- name: CreateTransferRequest :one
 INSERT INTO transfer_requests (client_ref, to_branch_code, note)
-VALUES (?, ?, ?) RETURNING id, client_ref, to_branch_code, note, status, created_at, updated_at
+VALUES (?, ?, ?) RETURNING id, client_ref, to_branch_code, note, status, created_at, updated_at, direction, central_id, sender_branch_name
 `
 
 type CreateTransferRequestParams struct {
@@ -32,13 +32,16 @@ func (q *Queries) CreateTransferRequest(ctx context.Context, arg CreateTransferR
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Direction,
+		&i.CentralID,
+		&i.SenderBranchName,
 	)
 	return i, err
 }
 
 const createTransferRequestItem = `-- name: CreateTransferRequestItem :one
 INSERT INTO transfer_request_items (transfer_request_id, barcode, product_uid, quantity)
-VALUES (?, ?, ?, ?) RETURNING id, transfer_request_id, barcode, product_uid, quantity
+VALUES (?, ?, ?, ?) RETURNING id, transfer_request_id, barcode, product_uid, quantity, received_quantity
 `
 
 type CreateTransferRequestItemParams struct {
@@ -62,8 +65,18 @@ func (q *Queries) CreateTransferRequestItem(ctx context.Context, arg CreateTrans
 		&i.Barcode,
 		&i.ProductUid,
 		&i.Quantity,
+		&i.ReceivedQuantity,
 	)
 	return i, err
+}
+
+const deleteTransferRequestItems = `-- name: DeleteTransferRequestItems :exec
+DELETE FROM transfer_request_items WHERE transfer_request_id = ?
+`
+
+func (q *Queries) DeleteTransferRequestItems(ctx context.Context, transferRequestID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteTransferRequestItems, transferRequestID)
+	return err
 }
 
 const getCouponTypeByCentralID = `-- name: GetCouponTypeByCentralID :one
@@ -87,8 +100,30 @@ func (q *Queries) GetCouponTypeByCentralID(ctx context.Context, centralID sql.Nu
 	return i, err
 }
 
+const getTransferRequestByCentralID = `-- name: GetTransferRequestByCentralID :one
+SELECT id, client_ref, to_branch_code, note, status, created_at, updated_at, direction, central_id, sender_branch_name FROM transfer_requests WHERE central_id = ?
+`
+
+func (q *Queries) GetTransferRequestByCentralID(ctx context.Context, centralID sql.NullInt64) (TransferRequest, error) {
+	row := q.db.QueryRowContext(ctx, getTransferRequestByCentralID, centralID)
+	var i TransferRequest
+	err := row.Scan(
+		&i.ID,
+		&i.ClientRef,
+		&i.ToBranchCode,
+		&i.Note,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Direction,
+		&i.CentralID,
+		&i.SenderBranchName,
+	)
+	return i, err
+}
+
 const getTransferRequestByClientRef = `-- name: GetTransferRequestByClientRef :one
-SELECT id, client_ref, to_branch_code, note, status, created_at, updated_at FROM transfer_requests WHERE client_ref = ?
+SELECT id, client_ref, to_branch_code, note, status, created_at, updated_at, direction, central_id, sender_branch_name FROM transfer_requests WHERE client_ref = ?
 `
 
 func (q *Queries) GetTransferRequestByClientRef(ctx context.Context, clientRef string) (TransferRequest, error) {
@@ -102,8 +137,87 @@ func (q *Queries) GetTransferRequestByClientRef(ctx context.Context, clientRef s
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Direction,
+		&i.CentralID,
+		&i.SenderBranchName,
 	)
 	return i, err
+}
+
+const listIncomingTransferRequests = `-- name: ListIncomingTransferRequests :many
+SELECT id, client_ref, to_branch_code, note, status, created_at, updated_at, direction, central_id, sender_branch_name FROM transfer_requests WHERE direction = 'incoming' ORDER BY created_at DESC
+`
+
+func (q *Queries) ListIncomingTransferRequests(ctx context.Context) ([]TransferRequest, error) {
+	rows, err := q.db.QueryContext(ctx, listIncomingTransferRequests)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TransferRequest{}
+	for rows.Next() {
+		var i TransferRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientRef,
+			&i.ToBranchCode,
+			&i.Note,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Direction,
+			&i.CentralID,
+			&i.SenderBranchName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOutgoingTransferRequests = `-- name: ListOutgoingTransferRequests :many
+SELECT id, client_ref, to_branch_code, note, status, created_at, updated_at, direction, central_id, sender_branch_name FROM transfer_requests WHERE direction = 'outgoing' ORDER BY created_at DESC
+`
+
+func (q *Queries) ListOutgoingTransferRequests(ctx context.Context) ([]TransferRequest, error) {
+	rows, err := q.db.QueryContext(ctx, listOutgoingTransferRequests)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TransferRequest{}
+	for rows.Next() {
+		var i TransferRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientRef,
+			&i.ToBranchCode,
+			&i.Note,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Direction,
+			&i.CentralID,
+			&i.SenderBranchName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listSyncedBranches = `-- name: ListSyncedBranches :many
@@ -134,7 +248,7 @@ func (q *Queries) ListSyncedBranches(ctx context.Context) ([]SyncedBranch, error
 }
 
 const listTransferRequestItems = `-- name: ListTransferRequestItems :many
-SELECT id, transfer_request_id, barcode, product_uid, quantity FROM transfer_request_items WHERE transfer_request_id = ?
+SELECT id, transfer_request_id, barcode, product_uid, quantity, received_quantity FROM transfer_request_items WHERE transfer_request_id = ?
 `
 
 func (q *Queries) ListTransferRequestItems(ctx context.Context, transferRequestID int64) ([]TransferRequestItem, error) {
@@ -152,6 +266,7 @@ func (q *Queries) ListTransferRequestItems(ctx context.Context, transferRequestI
 			&i.Barcode,
 			&i.ProductUid,
 			&i.Quantity,
+			&i.ReceivedQuantity,
 		); err != nil {
 			return nil, err
 		}
@@ -166,27 +281,48 @@ func (q *Queries) ListTransferRequestItems(ctx context.Context, transferRequestI
 	return items, nil
 }
 
-const listTransferRequests = `-- name: ListTransferRequests :many
-SELECT id, client_ref, to_branch_code, note, status, created_at, updated_at FROM transfer_requests ORDER BY created_at DESC
+const searchBranchStock = `-- name: SearchBranchStock :many
+SELECT
+    bs.branch_code, bs.variant_uid, bs.barcode, bs.quantity, bs.price_cents,
+    COALESCE(p.name, '') AS product_name,
+    COALESCE(p.code, '') AS product_code
+FROM branch_stock bs
+LEFT JOIN products p ON p.uid = bs.variant_uid
+WHERE trim(?1) = ''
+   OR bs.barcode LIKE '%' || ?1 || '%'
+   OR p.name LIKE '%' || ?1 || '%' COLLATE NOCASE
+   OR p.code LIKE '%' || ?1 || '%' COLLATE NOCASE
+ORDER BY p.name, bs.barcode
+LIMIT 200
 `
 
-func (q *Queries) ListTransferRequests(ctx context.Context) ([]TransferRequest, error) {
-	rows, err := q.db.QueryContext(ctx, listTransferRequests)
+type SearchBranchStockRow struct {
+	BranchCode  string `json:"branchCode"`
+	VariantUid  string `json:"variantUid"`
+	Barcode     string `json:"barcode"`
+	Quantity    int64  `json:"quantity"`
+	PriceCents  int64  `json:"priceCents"`
+	ProductName string `json:"productName"`
+	ProductCode string `json:"productCode"`
+}
+
+func (q *Queries) SearchBranchStock(ctx context.Context, search string) ([]SearchBranchStockRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchBranchStock, search)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []TransferRequest{}
+	items := []SearchBranchStockRow{}
 	for rows.Next() {
-		var i TransferRequest
+		var i SearchBranchStockRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.ClientRef,
-			&i.ToBranchCode,
-			&i.Note,
-			&i.Status,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.BranchCode,
+			&i.VariantUid,
+			&i.Barcode,
+			&i.Quantity,
+			&i.PriceCents,
+			&i.ProductName,
+			&i.ProductCode,
 		); err != nil {
 			return nil, err
 		}
@@ -199,6 +335,20 @@ func (q *Queries) ListTransferRequests(ctx context.Context) ([]TransferRequest, 
 		return nil, err
 	}
 	return items, nil
+}
+
+const setTransferRequestItemReceivedQuantity = `-- name: SetTransferRequestItemReceivedQuantity :exec
+UPDATE transfer_request_items SET received_quantity = ? WHERE id = ?
+`
+
+type SetTransferRequestItemReceivedQuantityParams struct {
+	ReceivedQuantity sql.NullInt64 `json:"receivedQuantity"`
+	ID               int64         `json:"id"`
+}
+
+func (q *Queries) SetTransferRequestItemReceivedQuantity(ctx context.Context, arg SetTransferRequestItemReceivedQuantityParams) error {
+	_, err := q.db.ExecContext(ctx, setTransferRequestItemReceivedQuantity, arg.ReceivedQuantity, arg.ID)
+	return err
 }
 
 const setTransferRequestStatus = `-- name: SetTransferRequestStatus :exec
@@ -215,6 +365,45 @@ type SetTransferRequestStatusParams struct {
 // notifyBranchTransferDecision in the kashi repo).
 func (q *Queries) SetTransferRequestStatus(ctx context.Context, arg SetTransferRequestStatusParams) error {
 	_, err := q.db.ExecContext(ctx, setTransferRequestStatus, arg.Status, arg.ClientRef)
+	return err
+}
+
+const upsertBranchStock = `-- name: UpsertBranchStock :exec
+
+INSERT INTO branch_stock (branch_code, variant_uid, barcode, quantity, price_cents, updated_at)
+VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(branch_code, variant_uid) DO UPDATE SET
+    barcode = excluded.barcode,
+    quantity = excluded.quantity,
+    price_cents = excluded.price_cents,
+    updated_at = excluded.updated_at
+`
+
+type UpsertBranchStockParams struct {
+	BranchCode string `json:"branchCode"`
+	VariantUid string `json:"variantUid"`
+	Barcode    string `json:"barcode"`
+	Quantity   int64  `json:"quantity"`
+	PriceCents int64  `json:"priceCents"`
+	UpdatedAt  string `json:"updatedAt"`
+}
+
+// ---------------------------------------------------------------------------
+// Cross-branch stock visibility -- a pure mirror, upserted whole by
+// (branch_code, variant_uid) from kashi's branch_stock feed. Search joins
+// against the local products table (matched by uid) for a display name;
+// a stock row for a variant this till hasn't itself pulled down yet still
+// shows (barcode only) rather than being hidden.
+// ---------------------------------------------------------------------------
+func (q *Queries) UpsertBranchStock(ctx context.Context, arg UpsertBranchStockParams) error {
+	_, err := q.db.ExecContext(ctx, upsertBranchStock,
+		arg.BranchCode,
+		arg.VariantUid,
+		arg.Barcode,
+		arg.Quantity,
+		arg.PriceCents,
+		arg.UpdatedAt,
+	)
 	return err
 }
 
@@ -265,6 +454,54 @@ func (q *Queries) UpsertCouponTypeByCentralID(ctx context.Context, arg UpsertCou
 		&i.CalculateOnCheckout,
 		&i.CodeOptional,
 		&i.CentralID,
+	)
+	return i, err
+}
+
+const upsertIncomingTransferRequest = `-- name: UpsertIncomingTransferRequest :one
+INSERT INTO transfer_requests (client_ref, to_branch_code, note, status, direction, central_id, sender_branch_name)
+VALUES ('incoming-' || ?, '', ?, ?, 'incoming', ?, ?)
+ON CONFLICT(central_id) DO UPDATE SET
+    note = excluded.note,
+    status = excluded.status,
+    sender_branch_name = excluded.sender_branch_name,
+    updated_at = datetime('now')
+RETURNING id, client_ref, to_branch_code, note, status, created_at, updated_at, direction, central_id, sender_branch_name
+`
+
+type UpsertIncomingTransferRequestParams struct {
+	Column1          sql.NullString `json:"column1"`
+	Note             string         `json:"note"`
+	Status           string         `json:"status"`
+	CentralID        sql.NullInt64  `json:"centralId"`
+	SenderBranchName string         `json:"senderBranchName"`
+}
+
+// Incoming transfers sync whole, like a price list -- see
+// applySyncedIncomingTransfer. client_ref has no meaning for a transfer
+// this till never created; a synthetic placeholder just satisfies the
+// column's NOT NULL UNIQUE (it's never read back by ref for these rows,
+// only by central_id).
+func (q *Queries) UpsertIncomingTransferRequest(ctx context.Context, arg UpsertIncomingTransferRequestParams) (TransferRequest, error) {
+	row := q.db.QueryRowContext(ctx, upsertIncomingTransferRequest,
+		arg.Column1,
+		arg.Note,
+		arg.Status,
+		arg.CentralID,
+		arg.SenderBranchName,
+	)
+	var i TransferRequest
+	err := row.Scan(
+		&i.ID,
+		&i.ClientRef,
+		&i.ToBranchCode,
+		&i.Note,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Direction,
+		&i.CentralID,
+		&i.SenderBranchName,
 	)
 	return i, err
 }

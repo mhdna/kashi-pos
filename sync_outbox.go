@@ -251,6 +251,44 @@ func queueBranchTransferRequestSync(ctx context.Context, q *db.Queries, centralA
 	return err
 }
 
+type branchTransferConfirmItemPayload struct {
+	Barcode          string `json:"barcode"`
+	ProductUID       string `json:"product_uid"`
+	ReceivedQuantity int64  `json:"received_quantity"`
+}
+
+// branchTransferConfirmPayload is the exact JSON body POSTed to kashi's
+// /branch/transfer_requests/:id/confirm (see api/branch_transfer.go in the
+// kashi repo) -- the destination branch's own leg of a transfer, reporting
+// what it actually counted. Unlike every other outbox payload, there's no
+// natural client_ref (this branch never created the transfer); the outbox
+// row's own client_ref is synthesized purely for its own idempotent-retry
+// bookkeeping, never sent to kashi or read back.
+type branchTransferConfirmPayload struct {
+	Items []branchTransferConfirmItemPayload `json:"items"`
+	Note  string                             `json:"note"`
+}
+
+// queueBranchTransferConfirmSync is queueBranchTransferRequestSync's
+// counterpart for the confirm leg.
+func queueBranchTransferConfirmSync(ctx context.Context, q *db.Queries, centralAPIURL string, centralID int64, payload branchTransferConfirmPayload) error {
+	if centralAPIURL == "" {
+		return nil
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal sync outbox payload: %w", err)
+	}
+
+	_, err = q.CreateSyncOutboxEntry(ctx, db.CreateSyncOutboxEntryParams{
+		EntityType:  "transfer_confirm",
+		ClientRef:   fmt.Sprintf("transfer-confirm-%d", centralID),
+		PayloadJson: string(body),
+	})
+	return err
+}
+
 // branchLoanPayload is the exact JSON body POSTed to kashi's /branch/loans
 // (see api/branch_loan.go in the kashi repo — branchLoanRequest there must
 // stay in sync with this shape). BranchCashboxAccountID/BranchShiftID are

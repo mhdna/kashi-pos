@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	db "kashi-pos/db/sqlc"
@@ -223,6 +225,35 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 			return nil
 		}
 		sent++
+
+		// transfer_confirm has no fixed path -- it targets one specific
+		// central transfer id, parsed back out of the outbox row's own
+		// synthesized client_ref (see queueBranchTransferConfirmSync).
+		if entry.EntityType == "transfer_confirm" {
+			centralID, parseErr := parseTransferConfirmClientRef(entry.ClientRef)
+			if parseErr != nil {
+				log.Printf("sync outbox entry %d: %v, marking failed", entry.ID, parseErr)
+				a.markSyncOutboxFailed(ctx, entry, parseErr)
+				changed = true
+				continue
+			}
+			path := fmt.Sprintf("/branch/transfer_requests/%d/confirm", centralID)
+			if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
+				a.recordSyncOutboxError(ctx, entry, err)
+				changed = true
+				continue
+			}
+			if err := retryBusy(func() error {
+				return a.store.MarkSyncOutboxSynced(ctx, db.MarkSyncOutboxSyncedParams{
+					SyncedTo: client.baseURL,
+					ID:       entry.ID,
+				})
+			}); err != nil {
+				log.Printf("sync outbox entry %d: mark synced: %v", entry.ID, err)
+			}
+			changed = true
+			continue
+		}
 
 		path, ok := branchInvoicePath(entry.EntityType)
 		if !ok {
@@ -518,6 +549,21 @@ func (a *App) markSyncOutboxFailed(ctx context.Context, entry db.SyncOutbox, cau
 	}); err != nil {
 		log.Printf("sync outbox entry %d: mark failed: %v", entry.ID, err)
 	}
+}
+
+// parseTransferConfirmClientRef recovers the central transfer id a
+// "transfer_confirm" outbox row targets from its own synthesized
+// client_ref -- see queueBranchTransferConfirmSync.
+func parseTransferConfirmClientRef(clientRef string) (int64, error) {
+	const prefix = "transfer-confirm-"
+	if !strings.HasPrefix(clientRef, prefix) {
+		return 0, fmt.Errorf("malformed transfer_confirm client_ref %q", clientRef)
+	}
+	id, err := strconv.ParseInt(strings.TrimPrefix(clientRef, prefix), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("malformed transfer_confirm client_ref %q: %w", clientRef, err)
+	}
+	return id, nil
 }
 
 func branchInvoicePath(entityType string) (string, bool) {

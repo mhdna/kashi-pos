@@ -107,6 +107,15 @@ type AuthCredential struct {
 	CashierPin        string `json:"cashierPin"`
 }
 
+type BranchStock struct {
+	BranchCode string `json:"branchCode"`
+	VariantUid string `json:"variantUid"`
+	Barcode    string `json:"barcode"`
+	Quantity   int64  `json:"quantity"`
+	PriceCents int64  `json:"priceCents"`
+	UpdatedAt  string `json:"updatedAt"`
+}
+
 type BranchTarget struct {
 	ID                int64  `json:"id"`
 	RemoteID          int64  `json:"remoteId"`
@@ -629,21 +638,25 @@ type TransferItem struct {
 }
 
 type TransferRequest struct {
-	ID           int64  `json:"id"`
-	ClientRef    string `json:"clientRef"`
-	ToBranchCode string `json:"toBranchCode"`
-	Note         string `json:"note"`
-	Status       string `json:"status"`
-	CreatedAt    string `json:"createdAt"`
-	UpdatedAt    string `json:"updatedAt"`
+	ID               int64         `json:"id"`
+	ClientRef        string        `json:"clientRef"`
+	ToBranchCode     string        `json:"toBranchCode"`
+	Note             string        `json:"note"`
+	Status           string        `json:"status"`
+	CreatedAt        string        `json:"createdAt"`
+	UpdatedAt        string        `json:"updatedAt"`
+	Direction        string        `json:"direction"`
+	CentralID        sql.NullInt64 `json:"centralId"`
+	SenderBranchName string        `json:"senderBranchName"`
 }
 
 type TransferRequestItem struct {
-	ID                int64  `json:"id"`
-	TransferRequestID int64  `json:"transferRequestId"`
-	Barcode           string `json:"barcode"`
-	ProductUid        string `json:"productUid"`
-	Quantity          int64  `json:"quantity"`
+	ID                int64         `json:"id"`
+	TransferRequestID int64         `json:"transferRequestId"`
+	Barcode           string        `json:"barcode"`
+	ProductUid        string        `json:"productUid"`
+	Quantity          int64         `json:"quantity"`
+	ReceivedQuantity  sql.NullInt64 `json:"receivedQuantity"`
 }
 
 type User struct {

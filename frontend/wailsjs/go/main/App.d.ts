@@ -40,6 +40,8 @@ export function ClearScreen(arg1:string):Promise<void>;
 
 export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
+export function ConfirmTransferRequest(arg1:number,arg2:Array<main.confirmTransferItemInput>,arg3:string):Promise<void>;
+
 export function ConvertCashEntryToCents(arg1:string,arg2:number):Promise<number>;
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
@@ -156,6 +158,8 @@ export function ListAttendance(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function ListAttendanceComplaints(arg1:string):Promise<Array<Record<string, any>>>;
 
+export function ListBranchStock(arg1:string):Promise<Array<Record<string, any>>>;
+
 export function ListBranchTargetsWithProgress():Promise<Array<Record<string, any>>>;
 
 export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
@@ -179,6 +183,8 @@ export function ListExpenseCategories():Promise<Array<Record<string, any>>>;
 export function ListExpenses(arg1:number,arg2:number):Promise<Array<Record<string, any>>>;
 
 export function ListHoldInvoices():Promise<Array<Record<string, any>>>;
+
+export function ListIncomingTransferRequests():Promise<Array<Record<string, any>>>;
 
 export function ListInventories():Promise<Array<Record<string, any>>>;
 

@@ -78,6 +78,10 @@ export function CloseShiftByID(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CloseShiftByID'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
+export function ConfirmTransferRequest(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ConfirmTransferRequest'](arg1, arg2, arg3);
+}
+
 export function ConvertCashEntryToCents(arg1, arg2) {
   return window['go']['main']['App']['ConvertCashEntryToCents'](arg1, arg2);
 }
@@ -310,6 +314,10 @@ export function ListAttendanceComplaints(arg1) {
   return window['go']['main']['App']['ListAttendanceComplaints'](arg1);
 }
 
+export function ListBranchStock(arg1) {
+  return window['go']['main']['App']['ListBranchStock'](arg1);
+}
+
 export function ListBranchTargetsWithProgress() {
   return window['go']['main']['App']['ListBranchTargetsWithProgress']();
 }
@@ -356,6 +364,10 @@ export function ListExpenses(arg1, arg2) {
 
 export function ListHoldInvoices() {
   return window['go']['main']['App']['ListHoldInvoices']();
+}
+
+export function ListIncomingTransferRequests() {
+  return window['go']['main']['App']['ListIncomingTransferRequests']();
 }
 
 export function ListInventories() {

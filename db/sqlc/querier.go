@@ -145,6 +145,7 @@ type Querier interface {
 	DeleteSalesInvoice(ctx context.Context, invoiceID int64) error
 	DeleteSalesperson(ctx context.Context, id int64) error
 	DeleteTransferItems(ctx context.Context, transferID int64) error
+	DeleteTransferRequestItems(ctx context.Context, transferRequestID int64) error
 	// Drops a not-yet-synced row whose subject no longer exists (a client
 	// merged into another). Synced rows are history and are kept.
 	DeleteUnsyncedSyncOutboxEntry(ctx context.Context, clientRef string) error
@@ -238,6 +239,7 @@ type Querier interface {
 	GetSyncState(ctx context.Context) (SyncState, error)
 	GetTransferByID(ctx context.Context, id int64) (Transfer, error)
 	GetTransferItemByID(ctx context.Context, id int64) (TransferItem, error)
+	GetTransferRequestByCentralID(ctx context.Context, centralID sql.NullInt64) (TransferRequest, error)
 	GetTransferRequestByClientRef(ctx context.Context, clientRef string) (TransferRequest, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByRemoteID(ctx context.Context, remoteID sql.NullInt64) (User, error)
@@ -350,6 +352,7 @@ type Querier interface {
 	// against it from inside an OR/CASE branch in this UNION CTE shape, so the
 	// exclusion is computed in Go instead of fighting the tool further.
 	ListIncomeAccountTotals(ctx context.Context, incomeShiftID int64) ([]ListIncomeAccountTotalsRow, error)
+	ListIncomingTransferRequests(ctx context.Context) ([]TransferRequest, error)
 	ListInventories(ctx context.Context) ([]Inventory, error)
 	ListInventoryItems(ctx context.Context, inventoryID int64) ([]InventoryItem, error)
 	ListInvoiceClientRefsMap(ctx context.Context) ([]InvoiceClientRef, error)
@@ -377,6 +380,7 @@ type Querier interface {
 	ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]ListInvoicesPageRow, error)
 	ListLoanCategories(ctx context.Context) ([]LoanCategory, error)
 	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
+	ListOutgoingTransferRequests(ctx context.Context) ([]TransferRequest, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error)
 	// Price lists are a read-only mirror of kashi's since 000097. There are no
@@ -431,7 +435,6 @@ type Querier interface {
 	ListSyncedBranches(ctx context.Context) ([]SyncedBranch, error)
 	ListTransferItems(ctx context.Context, transferID int64) ([]TransferItem, error)
 	ListTransferRequestItems(ctx context.Context, transferRequestID int64) ([]TransferRequestItem, error)
-	ListTransferRequests(ctx context.Context) ([]TransferRequest, error)
 	ListTransfers(ctx context.Context) ([]Transfer, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	ListVisitorCountsForMonth(ctx context.Context, monthPrefix string) ([]ListVisitorCountsForMonthRow, error)
@@ -466,6 +469,7 @@ type Querier interface {
 	// Live 'pending' rows and rows already confirmed on the current target are
 	// left alone.
 	RequeueSyncOutboxConfirmedElsewhere(ctx context.Context, currentTarget string) (int64, error)
+	SearchBranchStock(ctx context.Context, search string) ([]SearchBranchStockRow, error)
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
 	SetCashboxAccountActive(ctx context.Context, arg SetCashboxAccountActiveParams) error
@@ -492,6 +496,7 @@ type Querier interface {
 	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
 	SetSyncTarget(ctx context.Context, currentTarget string) error
+	SetTransferRequestItemReceivedQuantity(ctx context.Context, arg SetTransferRequestItemReceivedQuantityParams) error
 	// Applied from the transfer_requests down-sync: kashi's status is
 	// authoritative the moment it's synced (see approveTransfer/
 	// notifyBranchTransferDecision in the kashi repo).
@@ -560,9 +565,23 @@ type Querier interface {
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
 	UpdateUserAttendanceID(ctx context.Context, arg UpdateUserAttendanceIDParams) error
 	UpsertAttributeValue(ctx context.Context, arg UpsertAttributeValueParams) (AttributesValue, error)
+	// ---------------------------------------------------------------------------
+	// Cross-branch stock visibility -- a pure mirror, upserted whole by
+	// (branch_code, variant_uid) from kashi's branch_stock feed. Search joins
+	// against the local products table (matched by uid) for a display name;
+	// a stock row for a variant this till hasn't itself pulled down yet still
+	// shows (barcode only) rather than being hidden.
+	// ---------------------------------------------------------------------------
+	UpsertBranchStock(ctx context.Context, arg UpsertBranchStockParams) error
 	UpsertBranchTarget(ctx context.Context, arg UpsertBranchTargetParams) error
 	UpsertCouponTypeByCentralID(ctx context.Context, arg UpsertCouponTypeByCentralIDParams) (CouponType, error)
 	UpsertDiscountListByUID(ctx context.Context, arg UpsertDiscountListByUIDParams) (DiscountList, error)
+	// Incoming transfers sync whole, like a price list -- see
+	// applySyncedIncomingTransfer. client_ref has no meaning for a transfer
+	// this till never created; a synthetic placeholder just satisfies the
+	// column's NOT NULL UNIQUE (it's never read back by ref for these rows,
+	// only by central_id).
+	UpsertIncomingTransferRequest(ctx context.Context, arg UpsertIncomingTransferRequestParams) (TransferRequest, error)
 	UpsertInventoryItem(ctx context.Context, arg UpsertInventoryItemParams) error
 	UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error
 	// Matched by uid, never by name or id -- a till's ids are its own, and a list

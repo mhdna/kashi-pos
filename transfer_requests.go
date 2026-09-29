@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -105,12 +106,14 @@ func (a *App) CreateTransferRequest(toBranchCode, note string, items []transferR
 }
 
 // ListTransferRequests feeds this till's own "my transfer requests" screen
-// -- newest first, whatever status kashi last reported.
+// -- outgoing proposals only, newest first, whatever status kashi last
+// reported. See ListIncomingTransferRequests for transfers addressed to
+// this branch instead.
 func (a *App) ListTransferRequests() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.store.ListTransferRequests(a.ctx)
+	rows, err := a.store.ListOutgoingTransferRequests(a.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -122,6 +125,103 @@ func (a *App) ListTransferRequests() ([]map[string]any, error) {
 		}
 	}
 	return result, nil
+}
+
+// ListIncomingTransferRequests feeds this branch's "incoming" screen --
+// transfers other branches have sent here, whoever sent them, with their
+// items so the till can show what to count and confirm.
+func (a *App) ListIncomingTransferRequests() ([]map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	rows, err := a.store.ListIncomingTransferRequests(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]any, len(rows))
+	for i, r := range rows {
+		items, err := a.store.ListTransferRequestItems(a.ctx, r.ID)
+		if err != nil {
+			return nil, err
+		}
+		itemRows := make([]map[string]any, len(items))
+		for j, it := range items {
+			row := map[string]any{
+				"id": it.ID, "barcode": it.Barcode, "productUid": it.ProductUid, "quantity": it.Quantity,
+			}
+			if it.ReceivedQuantity.Valid {
+				row["receivedQuantity"] = it.ReceivedQuantity.Int64
+			}
+			itemRows[j] = row
+		}
+		result[i] = map[string]any{
+			"id": r.CentralID.Int64, "senderBranchName": r.SenderBranchName,
+			"note": r.Note, "status": r.Status, "createdAt": r.CreatedAt, "items": itemRows,
+		}
+	}
+	return result, nil
+}
+
+type confirmTransferItemInput struct {
+	Barcode          string
+	ProductUID       string
+	ReceivedQuantity int64
+}
+
+// ConfirmTransferRequest is this branch reporting what it actually
+// counted for an incoming transfer -- it records the counted quantities
+// locally (so applySyncedIncomingTransfer's replace-on-sync doesn't lose
+// them, see its own comment) and queues the confirmation for push to
+// kashi via the same sync_outbox worker every other entity uses.
+func (a *App) ConfirmTransferRequest(centralID int64, items []confirmTransferItemInput, note string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		transfer, err := q.GetTransferRequestByCentralID(a.ctx, sql.NullInt64{Int64: centralID, Valid: true})
+		if err != nil {
+			return fmt.Errorf("load transfer request: %w", err)
+		}
+
+		localItems, err := q.ListTransferRequestItems(a.ctx, transfer.ID)
+		if err != nil {
+			return fmt.Errorf("load transfer request items: %w", err)
+		}
+		byBarcode := make(map[string]int64, len(localItems))
+		for _, it := range localItems {
+			byBarcode[it.Barcode] = it.ID
+		}
+
+		settings, err := q.GetSettings(a.ctx)
+		if err != nil {
+			return fmt.Errorf("load settings: %w", err)
+		}
+
+		payloadItems := make([]branchTransferConfirmItemPayload, 0, len(items))
+		for _, item := range items {
+			id, ok := byBarcode[item.Barcode]
+			if !ok {
+				continue
+			}
+			if err := q.SetTransferRequestItemReceivedQuantity(a.ctx, db.SetTransferRequestItemReceivedQuantityParams{
+				ID:               id,
+				ReceivedQuantity: sql.NullInt64{Int64: item.ReceivedQuantity, Valid: true},
+			}); err != nil {
+				return fmt.Errorf("set counted quantity: %w", err)
+			}
+			payloadItems = append(payloadItems, branchTransferConfirmItemPayload{
+				Barcode: item.Barcode, ProductUID: item.ProductUID, ReceivedQuantity: item.ReceivedQuantity,
+			})
+		}
+
+		if settings.CentralApiUrl == "" {
+			return nil
+		}
+		return queueBranchTransferConfirmSync(a.ctx, q, settings.CentralApiUrl, centralID, branchTransferConfirmPayload{
+			Items: payloadItems,
+			Note:  note,
+		})
+	})
 }
 
 // ListDestinationBranches feeds the destination picker on the transfer
