@@ -43,15 +43,17 @@ type wsMessage struct {
 }
 
 var wsMessageEntity = map[string]string{
-	"currency_updated":           "currencies",
-	"cashbox_account_updated":    "cashbox_accounts",
-	"products_updated":           "products",
-	"client_updated":             "clients",
-	"salesperson_updated":        "salespersons",
-	"branch_user_updated":        "branch_users",
-	"target_updated":             "branch_targets",
-	"expense_categories_updated": "expense_categories",
-	"loan_categories_updated":    "loan_categories",
+	"currency_updated":                   "currencies",
+	"cashbox_account_updated":            "cashbox_accounts",
+	"products_updated":                   "products",
+	"client_updated":                     "clients",
+	"salesperson_updated":                "salespersons",
+	"branch_user_updated":                "branch_users",
+	"target_updated":                     "branch_targets",
+	"expense_categories_updated":         "expense_categories",
+	"loan_categories_updated":            "loan_categories",
+	"incoming_transfer_requests_updated": "incoming_transfer_requests",
+	"transfer_requests_updated":          "transfer_requests",
 }
 
 // startWSClient runs the reconnect loop for kashi's push channel. It's a

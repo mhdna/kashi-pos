@@ -137,16 +137,6 @@
           <span>Products</span>
         </v-card>
         <v-card
-          v-if="auth.isAdmin || pageUnlocks.transfers"
-          class="option-card"
-          rounded="lg"
-          variant="tonal"
-          @click="openTransfers"
-        >
-          <v-icon icon="mdi-truck" size="44" />
-          <span>Transfers</span>
-        </v-card>
-        <v-card
           v-if="auth.isAdmin || pageUnlocks.salespersons"
           class="option-card"
           rounded="lg"
@@ -245,12 +235,6 @@ function openProducts() {
   void router.push("/products");
 }
 
-function openTransfers() {
-  if (!auth.isAdmin && !pageUnlocks.value.transfers) return;
-  inventoryOpen.value = false;
-  void router.push("/transfers");
-}
-
 function openSalespersons() {
   if (!auth.isAdmin && !pageUnlocks.value.salespersons) return;
   inventoryOpen.value = false;
@@ -283,8 +267,14 @@ const items = computed(() => {
         !auth.isAdmin &&
         !pageUnlocks.value.inventory &&
         !pageUnlocks.value.products &&
-        !pageUnlocks.value.transfers &&
         !pageUnlocks.value.salespersons,
+    },
+    {
+      value: "transfers",
+      to: "/transfers",
+      icon: "mdi-truck",
+      t: "Transfers",
+      locked: !auth.isAdmin && !pageUnlocks.value.transfers,
     },
     {
       value: "attendance",
