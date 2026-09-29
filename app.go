@@ -312,7 +312,20 @@ func (a *App) switchDatabase(path string, createIfMissing bool) error {
 		return err
 	}
 	if a.conn != nil {
+		// Same shutdown-before-close ordering as App.shutdown: the sync
+		// worker, WS client and attendance goroutines all read a.store on
+		// every tick with no nil guard (it's only ever nil for the instant
+		// between here and openDatabase reassigning it below), so they must
+		// be stopped -- and actually finished via backgroundWG.Wait -- before
+		// a.store is cleared, or a tick landing in that window panics on a
+		// nil pointer dereference.
+		a.stopWSClient()
+		a.stopSyncWorker()
+		a.stopAttendanceProbe()
+		a.stopAttendancePushServer(context.Background())
+		a.backgroundWG.Wait()
 		a.stopAdminServer(context.Background())
+		a.stopShiftUploadServer(context.Background())
 		_ = a.conn.Close()
 		a.conn = nil
 		a.store = nil
