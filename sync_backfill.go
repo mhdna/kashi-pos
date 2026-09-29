@@ -626,6 +626,10 @@ func (a *App) resyncExpenses(ctx context.Context, client *centralClient, opts Re
 		if r.ShiftID.Valid {
 			shiftID = &r.ShiftID.Int64
 		}
+		accountName := ""
+		if account, err := a.store.GetCashboxAccountByID(ctx, r.CashboxAccountID); err == nil {
+			accountName = account.Name
+		}
 		body, err := json.Marshal(branchExpensePayload{
 			ClientRef:              r.ClientRef,
 			Description:            r.Description,
@@ -633,6 +637,7 @@ func (a *App) resyncExpenses(ctx context.Context, client *centralClient, opts Re
 			Amount:                 r.Amount,
 			CurrencyCode:           r.CurrencyCode,
 			BranchCashboxAccountID: r.CashboxAccountID,
+			AccountName:            accountName,
 			BranchShiftID:          shiftID,
 			OccurredAt:             parseLocalTime(r.OccurredAt),
 		})
@@ -680,6 +685,10 @@ func (a *App) resyncLoans(ctx context.Context, client *centralClient, opts Resyn
 		if r.ShiftID.Valid {
 			shiftID = &r.ShiftID.Int64
 		}
+		accountName := ""
+		if account, err := a.store.GetCashboxAccountByID(ctx, r.CashboxAccountID); err == nil {
+			accountName = account.Name
+		}
 		body, err := json.Marshal(branchLoanPayload{
 			ClientRef:              r.ClientRef,
 			Description:            r.Description,
@@ -687,6 +696,7 @@ func (a *App) resyncLoans(ctx context.Context, client *centralClient, opts Resyn
 			Amount:                 r.Amount,
 			CurrencyCode:           r.CurrencyCode,
 			BranchCashboxAccountID: r.CashboxAccountID,
+			AccountName:            accountName,
 			BranchShiftID:          shiftID,
 			OccurredAt:             parseLocalTime(r.OccurredAt),
 		})

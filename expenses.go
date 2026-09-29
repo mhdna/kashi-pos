@@ -61,6 +61,10 @@ func (a *App) CreateExpense(description, category string, amount int64, currency
 		if shiftID.Valid {
 			branchShiftID = &shiftID.Int64
 		}
+		accountName := ""
+		if account, err := q.GetCashboxAccountByID(a.ctx, cashboxAccountID); err == nil {
+			accountName = account.Name
+		}
 		return queueBranchExpenseSync(a.ctx, q, settings.CentralApiUrl, branchExpensePayload{
 			ClientRef:              clientRef,
 			Description:            description,
@@ -68,6 +72,7 @@ func (a *App) CreateExpense(description, category string, amount int64, currency
 			Amount:                 amount,
 			CurrencyCode:           currencyCode,
 			BranchCashboxAccountID: cashboxAccountID,
+			AccountName:            accountName,
 			BranchShiftID:          branchShiftID,
 			OccurredAt:             time.Now().UTC(),
 		})

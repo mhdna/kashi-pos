@@ -185,8 +185,14 @@ type branchExpensePayload struct {
 	Amount                 int64     `json:"amount"`
 	CurrencyCode           string    `json:"currency_code"`
 	BranchCashboxAccountID int64     `json:"branch_cashbox_account_id"`
-	BranchShiftID          *int64    `json:"branch_shift_id,omitempty"`
-	OccurredAt             time.Time `json:"occurred_at"`
+	// AccountName is the payment account's display name, same reasoning as
+	// branchInvoicePaymentPayload.AccountName: unlike an id, it survives a
+	// branch's local database being wiped and reprovisioned, which is what
+	// lets a pulled-down historical expense be matched back to a real local
+	// account by name instead of an opaque, no-longer-meaningful integer.
+	AccountName   string    `json:"account_name"`
+	BranchShiftID *int64    `json:"branch_shift_id,omitempty"`
+	OccurredAt    time.Time `json:"occurred_at"`
 }
 
 // queueBranchExpenseSync is queueBranchInvoiceSync's counterpart for
@@ -297,14 +303,16 @@ func queueBranchTransferConfirmSync(ctx context.Context, q *db.Queries, centralA
 // name (e.g. "Owner"/"External") -- kashi resolves it to its own
 // loan_categories row, this install never fetches or caches that list.
 type branchLoanPayload struct {
-	ClientRef              string    `json:"client_ref"`
-	Description            string    `json:"description"`
-	CategoryName           string    `json:"category_name"`
-	Amount                 int64     `json:"amount"`
-	CurrencyCode           string    `json:"currency_code"`
-	BranchCashboxAccountID int64     `json:"branch_cashbox_account_id"`
-	BranchShiftID          *int64    `json:"branch_shift_id,omitempty"`
-	OccurredAt             time.Time `json:"occurred_at"`
+	ClientRef              string `json:"client_ref"`
+	Description            string `json:"description"`
+	CategoryName           string `json:"category_name"`
+	Amount                 int64  `json:"amount"`
+	CurrencyCode           string `json:"currency_code"`
+	BranchCashboxAccountID int64  `json:"branch_cashbox_account_id"`
+	// AccountName -- see branchExpensePayload.AccountName.
+	AccountName   string    `json:"account_name"`
+	BranchShiftID *int64    `json:"branch_shift_id,omitempty"`
+	OccurredAt    time.Time `json:"occurred_at"`
 }
 
 // queueBranchLoanSync is queueBranchExpenseSync's counterpart for loans --
