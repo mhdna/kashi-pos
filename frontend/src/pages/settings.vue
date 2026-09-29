@@ -1785,6 +1785,7 @@ const pageUnlockSaving = ref(false);
 const pageUnlockLabels: Record<string, string> = {
   clients: "Clients",
   inventory: "Inventory",
+  products: "Products",
   transfers: "Transfers",
   attendance: "Attendance",
   salespersons: "Salespersons",

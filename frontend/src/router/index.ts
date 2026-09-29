@@ -42,7 +42,7 @@ const router = createRouter({
         {
           path: "products",
           component: () => import("@/pages/products.vue"),
-          meta: { lockable: "inventory" },
+          meta: { lockable: "products" },
         },
         {
           path: "salespersons",

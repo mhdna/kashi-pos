@@ -124,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import {
   ListCurrencies,
   ListCouponTypes,
@@ -133,6 +133,7 @@ import {
   QuoteSettlementPaymentStatus,
   QuoteExchangePaymentStatus,
 } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { formatUsd } from "@/lib/format";
 import {
   roundCurrencyUnitsFromCents,
@@ -389,7 +390,7 @@ function formatEntryAmount(amount: number) {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-onMounted(async () => {
+async function loadPaymentMethods() {
   try {
     const methods = await ListPaymentMethods();
     paymentMethods.value = methods.map((method: any) => ({
@@ -399,10 +400,15 @@ onMounted(async () => {
       currencyCode: method.currencyCode,
       color: method.color ?? "",
     }));
-    activeMethod.value = paymentMethods.value[0]?.name ?? "";
+    if (!paymentMethods.value.some((m) => m.name === activeMethod.value)) {
+      activeMethod.value = paymentMethods.value[0]?.name ?? "";
+    }
   } catch {
-    /* leave payment methods empty */
+    /* leave payment methods as-is */
   }
+}
+
+async function loadCurrencies() {
   try {
     currencies.value = (await ListCurrencies()).map((currency: any) => ({
       code: currency.code,
@@ -413,9 +419,28 @@ onMounted(async () => {
       isDefault: Boolean(currency.isDefault),
     }));
   } catch {
-    /* leave currencies empty */
+    /* leave currencies as-is */
   }
+}
+
+// Backend sync (poll or WS push) applies payment-method/currency changes
+// straight to the local DB with no way for an already-open Calculator to
+// know its data went stale - reload on the same sync_applied:<entity>
+// signal shifts.vue uses. See sync_pull.go.
+let stopSyncListeners: (() => void)[] = [];
+
+onMounted(async () => {
+  stopSyncListeners = [
+    EventsOn("sync_applied:cashbox_accounts", loadPaymentMethods),
+    EventsOn("sync_applied:currencies", loadCurrencies),
+  ];
+  await loadPaymentMethods();
+  await loadCurrencies();
   try { couponTypes.value = (await ListCouponTypes()) as any[]; } catch { couponTypes.value = []; }
+});
+
+onBeforeUnmount(() => {
+  stopSyncListeners.forEach((stop) => stop());
 });
 
 // Tracks whether currentInput was populated by fillRemainingInput (an

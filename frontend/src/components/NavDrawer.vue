@@ -5,7 +5,6 @@
         v-for="item in items"
         :key="item.value"
         :class="['nav-item', { 'py-2': item.value === 'invoice', 'nav-item-alert': item.alert }]"
-        :disabled="item.locked"
         :value="item.action ? undefined : item.value"
         :active="item.to ? route.path === item.to : item.action ? false : undefined"
         @click.prevent="handleItemClick(item)"
@@ -118,8 +117,8 @@
 
       <v-card-text class="options-grid px-4 pt-0 pb-4">
         <v-card
+          v-if="auth.isAdmin || pageUnlocks.inventory"
           class="option-card"
-          :disabled="!auth.isAdmin && !pageUnlocks.inventory"
           rounded="lg"
           variant="tonal"
           @click="openInventoryPage"
@@ -128,8 +127,8 @@
           <span>Inventory</span>
         </v-card>
         <v-card
+          v-if="auth.isAdmin || pageUnlocks.products"
           class="option-card"
-          :disabled="!auth.isAdmin && !pageUnlocks.inventory"
           rounded="lg"
           variant="tonal"
           @click="openProducts"
@@ -138,8 +137,8 @@
           <span>Products</span>
         </v-card>
         <v-card
+          v-if="auth.isAdmin || pageUnlocks.transfers"
           class="option-card"
-          :disabled="!auth.isAdmin && !pageUnlocks.transfers"
           rounded="lg"
           variant="tonal"
           @click="openTransfers"
@@ -148,8 +147,8 @@
           <span>Transfers</span>
         </v-card>
         <v-card
+          v-if="auth.isAdmin || pageUnlocks.salespersons"
           class="option-card"
-          :disabled="!auth.isAdmin && !pageUnlocks.salespersons"
           rounded="lg"
           variant="tonal"
           @click="openSalespersons"
@@ -241,7 +240,7 @@ function openInventoryPage() {
 }
 
 function openProducts() {
-  if (!auth.isAdmin && !pageUnlocks.value.inventory) return;
+  if (!auth.isAdmin && !pageUnlocks.value.products) return;
   inventoryOpen.value = false;
   void router.push("/products");
 }
@@ -283,6 +282,7 @@ const items = computed(() => {
       locked:
         !auth.isAdmin &&
         !pageUnlocks.value.inventory &&
+        !pageUnlocks.value.products &&
         !pageUnlocks.value.transfers &&
         !pageUnlocks.value.salespersons,
     },
@@ -296,7 +296,7 @@ const items = computed(() => {
     },
     { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
   ];
-  return all.filter((item) => item.value !== "settings" || auth.isAdmin);
+  return all.filter((item) => (item.value !== "settings" || auth.isAdmin) && !item.locked);
 });
 </script>
 

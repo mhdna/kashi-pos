@@ -54,6 +54,7 @@ type branchSettingsPayload struct {
 	// non-admin page-access locks (page_unlock_* flags)
 	PageUnlockClients      bool `json:"page_unlock_clients"`
 	PageUnlockInventory    bool `json:"page_unlock_inventory"`
+	PageUnlockProducts     bool `json:"page_unlock_products"`
 	PageUnlockTransfers    bool `json:"page_unlock_transfers"`
 	PageUnlockAttendance   bool `json:"page_unlock_attendance"`
 	PageUnlockSalespersons bool `json:"page_unlock_salespersons"`
@@ -157,6 +158,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 
 		PageUnlockClients:      a.flagEnabled(ctx, pageUnlockFlag("clients")),
 		PageUnlockInventory:    a.flagEnabled(ctx, pageUnlockFlag("inventory")),
+		PageUnlockProducts:     a.flagEnabled(ctx, pageUnlockFlag("products")),
 		PageUnlockTransfers:    a.flagEnabled(ctx, pageUnlockFlag("transfers")),
 		PageUnlockAttendance:   a.flagEnabled(ctx, pageUnlockFlag("attendance")),
 		PageUnlockSalespersons: a.flagEnabled(ctx, pageUnlockFlag("salespersons")),

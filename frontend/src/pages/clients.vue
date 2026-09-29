@@ -572,7 +572,7 @@ onBeforeUnmount(() => {
 .client-list-layout {
   display: flex;
   flex-direction: column;
-  height: 620px;
+  height: 695px;
   width: 100%;
 }
 
@@ -634,14 +634,25 @@ onBeforeUnmount(() => {
 .client-inline-keyboard {
   align-items: center;
   display: flex;
-  flex: 0 0 205px;
-  height: 205px;
+  flex: 0 0 280px;
+  height: 280px;
   margin-bottom: 0;
   margin-inline: auto;
   margin-top: 32px;
-  max-width: 600px;
+  width: 100%;
+  max-width: 820px;
   padding-bottom: 0;
   padding-top: 12px;
+}
+
+.client-inline-keyboard :deep(.inline-keyboard-key) {
+  max-width: 100px;
+  height: 64px;
+}
+
+.client-inline-keyboard :deep(.inline-keyboard-actions > .v-btn) {
+  height: 64px;
+  min-height: 64px;
 }
 
 @media (max-width: 700px) {

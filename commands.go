@@ -99,6 +99,7 @@ type updateSettingsCommandPayload struct {
 	// non-admin page-access locks
 	PageUnlockClients      *bool `json:"page_unlock_clients"`
 	PageUnlockInventory    *bool `json:"page_unlock_inventory"`
+	PageUnlockProducts     *bool `json:"page_unlock_products"`
 	PageUnlockTransfers    *bool `json:"page_unlock_transfers"`
 	PageUnlockAttendance   *bool `json:"page_unlock_attendance"`
 	PageUnlockSalespersons *bool `json:"page_unlock_salespersons"`
@@ -232,6 +233,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},
 		{p.PageUnlockClients, func(b bool) error { return a.SetPageUnlocked("clients", b) }},
 		{p.PageUnlockInventory, func(b bool) error { return a.SetPageUnlocked("inventory", b) }},
+		{p.PageUnlockProducts, func(b bool) error { return a.SetPageUnlocked("products", b) }},
 		{p.PageUnlockTransfers, func(b bool) error { return a.SetPageUnlocked("transfers", b) }},
 		{p.PageUnlockAttendance, func(b bool) error { return a.SetPageUnlocked("attendance", b) }},
 		{p.PageUnlockSalespersons, func(b bool) error { return a.SetPageUnlocked("salespersons", b) }},

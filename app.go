@@ -1027,7 +1027,7 @@ func (a *App) SetProductSearchEnabled(enabled bool) error {
 // (missing feature flag = locked); admins always see every page regardless
 // of these flags. Pages not in this list (home, invoices-list, shifts,
 // settings, etc.) are never gated by this mechanism.
-var lockablePages = []string{"clients", "inventory", "transfers", "attendance", "salespersons"}
+var lockablePages = []string{"clients", "inventory", "products", "transfers", "attendance", "salespersons"}
 
 func pageUnlockFlag(page string) string {
 	return "page_unlock_" + page
