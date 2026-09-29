@@ -38,12 +38,27 @@ type App struct {
 	admin       *adminServer
 	shiftUpload *shiftUploadServer
 	startupErr  error
-	ready       chan struct{}
+
+	attendanceProbe     attendanceProbe
+	attendanceProbeStop chan struct{}
+	attendancePush      *attendancePushServer
+	attendancePushStop  chan struct{}
+	attendanceKick      chan struct{}
+	// attendanceSyncMu serializes SyncAttendance: the attendance page, the
+	// fallback poll and the device's push can all trigger one at once.
+	attendanceSyncMu sync.Mutex
+	ready            chan struct{}
 
 	pinMu             sync.Mutex
 	failedPINAttempts int
 	pinLockedUntil    time.Time
 	pinLockoutLevel   int
+	// currentRole is the role of whoever last signed in on the login screen
+	// ("admin" or "cashier"), guarded by pinMu. This is a single-session
+	// desktop till, so one role at a time is enough; it backs
+	// currentUserIsAdmin for server-side gating of admin-only actions
+	// (branch management) that previously relied on the frontend alone.
+	currentRole string
 
 	syncWorkerStop chan struct{}
 	// syncWorkerKick lets a checkout wake the sync worker immediately after
@@ -69,6 +84,10 @@ type App struct {
 	// serializing: cursors are per-entity and monotonic, so whichever pull
 	// runs first advances them and the other finds nothing new to fetch.
 	syncPullMu sync.Mutex
+	// fullCheckAttemptAt is when the completeness check last started
+	// (sync_full_check.go), successful or not -- guarded by syncPullMu. It
+	// keeps a check that keeps failing from rerunning every pull tick.
+	fullCheckAttemptAt time.Time
 	// resyncMu guards ResyncAll so two full "sync everything" passes can't
 	// overlap (each one clears cursors and re-arms outbox rows -- running two
 	// at once would double-queue and thrash).
@@ -148,54 +167,6 @@ func (a *App) startup(ctx context.Context) {
 	}
 }
 
-func applicationDatabasePath() (string, error) {
-	if configured := os.Getenv("KASHI_DB_PATH"); configured != "" {
-		return configured, nil
-	}
-	if path, err := storedDatabasePath(); err == nil && path != "" {
-		return path, nil
-	}
-	dataDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataDir, "kashi-pos", "database"), nil
-}
-
-func storedDatabasePath() (string, error) {
-	path, err := databasePathConfigPath()
-	if err != nil {
-		return "", err
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", err
-	}
-	return strings.TrimSpace(string(data)), nil
-}
-
-func databasePathConfigPath() (string, error) {
-	dataDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dataDir, "kashi-pos", "database-path"), nil
-}
-
-func persistDatabasePath(path string) error {
-	configPath, err := databasePathConfigPath()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
-		return err
-	}
-	return os.WriteFile(configPath, []byte(path+"\n"), 0600)
-}
-
 func (a *App) openDatabase(path string, createIfMissing bool) error {
 	path = filepath.Clean(path)
 	databaseExisted := true
@@ -262,6 +233,8 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 	a.startShiftUploadServer()
 	a.startSyncWorker()
 	a.startWSClient()
+	a.startAttendanceProbe()
+	a.startAttendancePushServer()
 	return nil
 }
 
@@ -291,6 +264,7 @@ func (a *App) ChooseDatabase() (string, error) {
 	if err := a.switchDatabase(path, false); err != nil {
 		return "", err
 	}
+	a.registerOpenDatabaseAsBranch()
 	return a.dbPath, nil
 }
 
@@ -312,7 +286,24 @@ func (a *App) CreateDatabase() (string, error) {
 	if err := a.switchDatabase(path, true); err != nil {
 		return "", err
 	}
+	a.registerOpenDatabaseAsBranch()
 	return a.dbPath, nil
+}
+
+// registerOpenDatabaseAsBranch is the compatibility bridge for the manual
+// "Choose/Create database" escape hatch: it makes sure a database opened
+// that way still lands in the branch registry (keyed by its own settings'
+// branch code, if any), so it isn't silently abandoned in favor of the
+// registry's active/default branch on the next launch.
+func (a *App) registerOpenDatabaseAsBranch() {
+	if a.store == nil {
+		return
+	}
+	settings, err := a.store.GetSettings(a.ctx)
+	if err != nil || strings.TrimSpace(settings.BranchCode) == "" {
+		return
+	}
+	a.syncBranchRegistryEntry(settings.BranchName, settings.BranchCode)
 }
 
 func (a *App) switchDatabase(path string, createIfMissing bool) error {
@@ -321,7 +312,20 @@ func (a *App) switchDatabase(path string, createIfMissing bool) error {
 		return err
 	}
 	if a.conn != nil {
+		// Same shutdown-before-close ordering as App.shutdown: the sync
+		// worker, WS client and attendance goroutines all read a.store on
+		// every tick with no nil guard (it's only ever nil for the instant
+		// between here and openDatabase reassigning it below), so they must
+		// be stopped -- and actually finished via backgroundWG.Wait -- before
+		// a.store is cleared, or a tick landing in that window panics on a
+		// nil pointer dereference.
+		a.stopWSClient()
+		a.stopSyncWorker()
+		a.stopAttendanceProbe()
+		a.stopAttendancePushServer(context.Background())
+		a.backgroundWG.Wait()
 		a.stopAdminServer(context.Background())
+		a.stopShiftUploadServer(context.Background())
 		_ = a.conn.Close()
 		a.conn = nil
 		a.store = nil
@@ -329,11 +333,6 @@ func (a *App) switchDatabase(path string, createIfMissing bool) error {
 	if err := a.openDatabase(path, createIfMissing); err != nil {
 		a.startupErr = err
 		return err
-	}
-	if os.Getenv("KASHI_DB_PATH") == "" {
-		if err := persistDatabasePath(path); err != nil {
-			return fmt.Errorf("save database path: %w", err)
-		}
 	}
 	return nil
 }
@@ -360,6 +359,8 @@ func (a *App) GetStartupError() string {
 func (a *App) shutdown(ctx context.Context) {
 	a.stopWSClient()
 	a.stopSyncWorker()
+	a.stopAttendanceProbe()
+	a.stopAttendancePushServer(ctx)
 	// Both signaled to stop above; wait for them to actually finish before
 	// touching a.conn below — a goroutine still mid-tick when the
 	// connection closes underneath it would either error noisily or (worse,
@@ -503,6 +504,7 @@ func (a *App) VerifyPIN(pin string) (map[string]interface{}, error) {
 	}
 
 	a.registerSuccessfulLogin()
+	a.currentRole = "cashier"
 	return map[string]interface{}{
 		"id":       int64(0),
 		"username": "cashier",
@@ -527,11 +529,22 @@ func (a *App) VerifyAdminPassword(password string) (map[string]interface{}, erro
 	}
 
 	a.registerSuccessfulLogin()
+	a.currentRole = "admin"
 	return map[string]interface{}{
 		"id":       int64(0),
 		"username": "admin",
 		"role":     "admin",
 	}, nil
+}
+
+// currentUserIsAdmin reports whether the last successful login on this
+// till's login screen was the admin. Guards branch-management actions
+// (CreateBranch, SwitchBranch, SetDefaultBranch) server-side, since those
+// were previously gated only by the frontend router.
+func (a *App) currentUserIsAdmin() bool {
+	a.pinMu.Lock()
+	defer a.pinMu.Unlock()
+	return a.currentRole == "admin"
 }
 
 func (a *App) ChangePassword(username, oldPassword, newPassword string) error {
@@ -613,7 +626,11 @@ func (a *App) seedDefaults() {
 			log.Println("upsert settings:", err)
 		}
 	}
-	a.seedCashboxAccounts()
+	// The two internal bookkeeping placeholders are seeded; real payment
+	// methods are not. They come from kashi, and a till that has never synced
+	// has none -- which is the point: this till does not get to invent a way
+	// of taking money that central knows nothing about.
+	a.seedPlaceholderCashboxAccounts()
 	a.seedSalespersons()
 	a.seedDefaults2()
 }
@@ -631,19 +648,21 @@ func (a *App) seedSalespersons() {
 	log.Println("seeded salespersons")
 }
 
-func (a *App) seedCashboxAccounts() {
+// seedPlaceholderCashboxAccounts creates only the two internal bookkeeping
+// placeholders. They are not payment methods -- the client-account and coupon
+// settlement paths resolve them by exact name (shifts.go, currencies.go) --
+// so kashi has no concept of them and never sends them, and a till cannot
+// function without them.
+//
+// The real payment methods this used to seed (Cash $$, Cash LBP, Visa, Whish)
+// are gone: they now arrive from kashi like everything else, and a till that
+// has not synced yet deliberately has none.
+func (a *App) seedPlaceholderCashboxAccounts() {
 	existing, _ := a.store.ListCashboxAccounts(context.Background())
-	for _, acc := range []struct{ name, currency, color string }{
-		{"Cash $$", "USD", "#2E7D32"},
-		{"Cash LBP", "LBP", "#1565C0"},
-		{"Visa", "USD", "#7B1FA2"},
-		{"Whish", "USD", "#D32F2F"},
-		{"On Account", "USD", ""},
-		{"On Coupon", "USD", ""},
-	} {
+	for _, name := range []string{"On Account", "On Coupon"} {
 		found := false
 		for _, current := range existing {
-			if current.Name == acc.name {
+			if current.Name == name {
 				found = true
 				break
 			}
@@ -651,23 +670,14 @@ func (a *App) seedCashboxAccounts() {
 		if found {
 			continue
 		}
-		created, err := a.store.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
-			Name:         acc.name,
-			CurrencyCode: acc.currency,
-		})
-		if err != nil {
-			log.Println("seed cashbox account:", err)
-			continue
-		}
-		if acc.color != "" {
-			if _, err := a.store.UpdateCashboxAccount(context.Background(), db.UpdateCashboxAccountParams{
-				ID: created.ID, Name: created.Name, CurrencyCode: created.CurrencyCode, Color: acc.color,
-			}); err != nil {
-				log.Println("seed cashbox account color:", err)
-			}
+		if _, err := a.store.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
+			Name:         name,
+			CurrencyCode: "USD",
+		}); err != nil {
+			log.Println("seed placeholder cashbox account:", err)
 		}
 	}
-	log.Println("seeded cashbox accounts")
+	log.Println("seeded placeholder cashbox accounts")
 }
 
 func hashPassword(pw string) string {
@@ -692,6 +702,12 @@ func (a *App) WaitUntilReady() map[string]interface{} {
 		result["theme"] = theme
 	}
 	return result
+}
+
+// GetAppVersion returns the build-time version string (see appVersion in
+// main.go), shown as a small caption under the PIN pad on the login screen.
+func (a *App) GetAppVersion() string {
+	return appVersion
 }
 
 func (a *App) GetTheme() (string, error) {
@@ -725,19 +741,27 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		return nil, err
 	}
 	result := map[string]interface{}{
-		"branchName":             settings.BranchName,
-		"branchCode":             settings.BranchCode,
-		"apiKey":                 settings.ApiKey,
-		"centralApiUrl":          settings.CentralApiUrl,
-		"printerID":              settings.PrinterID,
-		"printerSize":            settings.PrinterSize,
-		"receiptPrinter":         settings.ReceiptPrinter,
-		"screenPort":             settings.ScreenPort,
-		"receiptWidth":           settings.ReceiptWidth,
-		"receiptHeight":          settings.ReceiptHeight,
-		"taxRate":                settings.TaxRate,
-		"roundingMode":           settings.RoundingMode,
-		"roundingCurrency":       a.effectiveRoundingCurrencyCode(settings.RoundingCurrency),
+		"branchName":       settings.BranchName,
+		"branchCode":       settings.BranchCode,
+		"apiKey":           settings.ApiKey,
+		"centralApiUrl":    settings.CentralApiUrl,
+		"printerID":        settings.PrinterID,
+		"printerSize":      settings.PrinterSize,
+		"receiptPrinter":   settings.ReceiptPrinter,
+		"screenPort":       settings.ScreenPort,
+		"receiptWidth":     settings.ReceiptWidth,
+		"receiptHeight":    settings.ReceiptHeight,
+		"taxRate":          settings.TaxRate,
+		"roundingMode":     settings.RoundingMode,
+		"roundingCurrency": a.effectiveRoundingCurrencyCode(settings.RoundingCurrency),
+		// Raw, unlike roundingCurrency above: that one falls back to the
+		// default currency, which here would be USC -- the accounting cent,
+		// never something a cashier should see as a total. An unset value
+		// falls back in the Calculator instead, to the USD it was hardcoded
+		// to before this was configurable.
+		"splitPrimaryCurrency":   settings.SplitPrimaryCurrency,
+		"splitPrimaryFirst":      settings.SplitPrimaryFirst != 0,
+		"splitPrimaryStep":       settings.SplitPrimaryStep,
 		"receiptEnabled":         settings.ReceiptEnabled != 0,
 		"salesInventoryId":       settings.SalesInventoryID,
 		"exchangeRate":           settings.ExchangeRate,
@@ -837,6 +861,11 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["visitorCounterEnabled"] = false
 	}
+	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, nonAdminMonthNavEnabledFlag); flagErr == nil {
+		result["nonAdminMonthNavEnabled"] = enabled != 0
+	} else {
+		result["nonAdminMonthNavEnabled"] = false
+	}
 	if config, configErr := a.GetAttendanceConfig(); configErr == nil {
 		result["attendance"] = config
 	}
@@ -925,6 +954,18 @@ func (a *App) SetSalespersonPerInvoiceRequired(required bool) error {
 	})
 }
 
+// SetNonAdminMonthNavEnabled toggles whether non-admins can page the
+// monthly income chart to a different month. Off (the default) restricts
+// that navigation to admins; on lets any cashier browse other months too.
+func (a *App) SetNonAdminMonthNavEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: nonAdminMonthNavEnabledFlag, Enabled: boolInt(enabled),
+	})
+}
+
 // SetHidePaymentMethodCurrency toggles whether each payment method's
 // currency code is shown as a second line under its name on the checkout
 // calculator's payment buttons.
@@ -990,7 +1031,7 @@ func (a *App) SetProductSearchEnabled(enabled bool) error {
 // (missing feature flag = locked); admins always see every page regardless
 // of these flags. Pages not in this list (home, invoices-list, shifts,
 // settings, etc.) are never gated by this mechanism.
-var lockablePages = []string{"clients", "inventory", "transfers", "attendance", "salespersons"}
+var lockablePages = []string{"clients", "inventory", "products", "transfers", "attendance", "salespersons"}
 
 func pageUnlockFlag(page string) string {
 	return "page_unlock_" + page
@@ -1151,6 +1192,7 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 		a.kickSyncWorker()
 		a.kickWSClient()
 	}
+	a.syncBranchRegistryEntry(branchName, branchCode)
 	return nil
 }
 
@@ -1176,6 +1218,30 @@ func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
 		a.kickSyncWorker()
 		a.kickWSClient()
 	}
+	return nil
+}
+
+// SetSplitDisplay configures the till's two-currency total: which currency
+// leads it and whether it is shown first. An empty code means "unset", which
+// the Calculator reads as USD -- what the primary half was hardcoded to
+// before this became configurable.
+// primaryStep is the split's own denomination -- 0 falls back to
+// primaryCurrency's cash_rounding_unit, same as before this existed.
+func (a *App) SetSplitDisplay(primaryCurrency string, primaryFirst bool, primaryStep int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if primaryStep < 0 {
+		return fmt.Errorf("split primary step cannot be negative")
+	}
+	if err := a.store.UpdateSplitDisplay(a.ctx, db.UpdateSplitDisplayParams{
+		SplitPrimaryCurrency: primaryCurrency,
+		SplitPrimaryFirst:    boolToInt64(primaryFirst),
+		SplitPrimaryStep:     primaryStep,
+	}); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
 	return nil
 }
 

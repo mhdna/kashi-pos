@@ -160,12 +160,12 @@
       <div class="invoice-total-summary d-flex flex-column align-center mx-2 mt-1 px-1">
         <span class="invoice-total-summary__label text-medium-emphasis">Total</span>
         <div class="d-flex align-baseline justify-center ga-3">
-          <span class="invoice-total-summary__usd">{{ calculator?.totalSummary?.usd ?? "$0.00" }}</span>
+          <span class="invoice-total-summary__usd">{{ calculator?.totalSummary?.first ?? "$0.00" }}</span>
           <span
-            v-if="calculator?.totalSummary?.lbp"
+            v-if="calculator?.totalSummary?.second"
             class="invoice-total-summary__lbp text-medium-emphasis"
           >
-            ≈ {{ calculator.totalSummary.lbp }}
+            ≈ {{ calculator.totalSummary.second }}
           </span>
         </div>
       </div>
@@ -174,10 +174,15 @@
         <Calculator
           ref="calculator"
           :total-cents="quote?.grandTotalCents ?? 0"
+          :exchange-shortfall-cents="quote?.exchangeShortfallCents ?? 0"
+          :quote-error="quoteError"
           :items-json="cartItemsJson"
           :client-id="client.id"
           :rounding-mode="roundingMode"
           :rounding-currency="roundingCurrency"
+          :split-primary-currency="splitPrimaryCurrency"
+          :split-primary-first="splitPrimaryFirst"
+          :split-primary-step="splitPrimaryStep"
           :has-items="hasItems"
           :exchange-mode="pageMode === 'exchange'"
           :exchange-original-invoice-id="exchangeState?.originalInvoiceId"
@@ -192,7 +197,7 @@
       <ActionBar
         ref="actionBar"
         :total="invoiceTotal"
-        :total-summary="calculator?.totalSummary ?? { usd: '$0.00', lbp: '' }"
+        :total-summary="calculator?.totalSummary ?? { first: '$0.00', second: '' }"
         :can-checkout="canCheckout"
         :has-items="hasItems"
         :mode="pageMode"
@@ -290,6 +295,12 @@ let pageActive = true;
 const taxRate = ref(0);
 const roundingMode = ref<RoundingMode>("half_up");
 const roundingCurrency = ref("");
+// The split total's first half; empty leaves the Calculator on its USD
+// fallback. splitPrimaryFirst controls which half is shown first.
+const splitPrimaryCurrency = ref("");
+const splitPrimaryFirst = ref(true);
+// 0 = fall back to the primary currency's own cash_rounding_unit.
+const splitPrimaryStep = ref(0);
 const receiptEnabled = ref(false);
 const receiptPrinter = ref("");
 const customItemDiscountsEnabled = ref(false);
@@ -351,8 +362,20 @@ const accountDialog = ref(false);
 // payment-status checks are always priced from the exact same cart JSON.
 interface InvoiceQuote {
   grandTotalCents: number;
+  // Only set in exchange mode: how much more replacement value is still
+  // needed before the exchange can be checked out. Exchanges can never pay
+  // cash back to the customer, so while returned value exceeds replacement
+  // value the backend floors the total at 0 and checkout stays blocked -
+  // this is what lets the UI explain why instead of just showing $0.00.
+  exchangeShortfallCents?: number;
 }
 const quote = ref<InvoiceQuote | null>(null);
+// A failed quote must never render as $0.00 - with a zero total the
+// calculator computes diffCents === 0 and reports "Paid", so a pricing
+// error would look like a fully-settled zero-value sale. Whenever this is
+// set the calculator shows the reason instead of a total and refuses
+// checkout.
+const quoteError = ref<string | null>(null);
 const cartItemsJson = ref("");
 const invoiceTotal = computed(() => (quote.value?.grandTotalCents ?? 0) / 100);
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
@@ -360,7 +383,14 @@ const salespersonSelected = computed(() => Boolean(selectedSalesperson.value));
 const missingAssignmentFlash = ref(false);
 let missingAssignmentFlashTimer: ReturnType<typeof setTimeout> | undefined;
 const canCheckout = computed(() => {
+  // No priced cart, no checkout - settlement/exchange skip the
+  // invoiceTotal > 0 test below, so this has to be its own gate.
+  if (quoteError.value) return false;
   if (!calculator.value?.checkoutReady) return false;
+  // Belt-and-suspenders: an exchange must never hand cash back to the
+  // customer, so checkout stays blocked while the returned value hasn't
+  // been fully covered by replacement items yet.
+  if ((quote.value?.exchangeShortfallCents ?? 0) > 0) return false;
   // Settlement mode's client/salesperson/items are pre-set and frozen from
   // the loaded invoice - only the payment balance gates checkout.
   if (pageMode.value === "settlement") return true;
@@ -438,6 +468,7 @@ async function refreshQuote() {
   const itemsJson = await getFullItemsJSON();
   if (token !== quoteRequestToken) return; // a newer request already superseded this one
   cartItemsJson.value = itemsJson;
+  quoteError.value = null;
   if (settlementState.value) {
     // Settlement mode never re-prices - the total is the invoice's frozen
     // GrandTotal, captured once when it was loaded. Re-running it through
@@ -458,11 +489,17 @@ async function refreshQuote() {
     try {
       const result = await QuoteExchangeTotal(itemsJson, exchangeState.value.originalInvoiceId);
       if (token !== quoteRequestToken) return;
-      quote.value = { grandTotalCents: Number(result.grandTotalCents) };
+      quote.value = {
+        grandTotalCents: Number(result.grandTotalCents),
+        exchangeShortfallCents: result.needsMoreReplacementValue
+          ? Number(result.returnedTotalCents) - Number(result.replacementTotalCents)
+          : 0,
+      };
     } catch (e) {
       if (token !== quoteRequestToken) return;
       console.error("QuoteExchangeTotal failed:", e);
       quote.value = null;
+      quoteError.value = quoteErrorMessage(e);
     }
     return;
   }
@@ -472,12 +509,22 @@ async function refreshQuote() {
     quote.value = { grandTotalCents: Number(result.grandTotalCents) };
   } catch (e) {
     if (token !== quoteRequestToken) return;
-    // Surfaced instead of silently showing $0 - if this fires, the console
-    // has the actual reason (a real pricing error, or QuoteInvoiceTotal not
-    // existing on window.go yet because the app needs a rebuild/restart).
+    // Surfaced on screen as well as in the console - the reason is either a
+    // real pricing error (an unset sales inventory, a zero-priced product, a
+    // broken rounding currency) or QuoteInvoiceTotal not existing on
+    // window.go yet because the app needs a rebuild/restart.
     console.error("QuoteInvoiceTotal failed:", e);
     quote.value = null;
+    quoteError.value = quoteErrorMessage(e);
   }
+}
+
+// Wails rejects with a plain string for a Go error, but a real Error for a
+// missing binding or a transport failure - normalise both into something a
+// cashier can read out over the phone.
+function quoteErrorMessage(e: unknown): string {
+  const message = typeof e === "string" ? e : e instanceof Error ? e.message : String(e);
+  return message.trim() || "pricing failed";
 }
 
 watch(
@@ -970,6 +1017,9 @@ async function loadAppSettings() {
     taxRate.value = Number(settings?.taxRate ?? 0);
     roundingMode.value = normalizeRoundingMode(settings?.roundingMode ?? "");
     roundingCurrency.value = settings?.roundingCurrency ?? "";
+    splitPrimaryCurrency.value = settings?.splitPrimaryCurrency ?? "";
+    splitPrimaryFirst.value = settings?.splitPrimaryFirst !== false;
+    splitPrimaryStep.value = Number(settings?.splitPrimaryStep) || 0;
     receiptEnabled.value = Boolean(settings?.receiptEnabled);
     receiptPrinter.value = settings?.receiptPrinter ?? "";
     customItemDiscountsEnabled.value = Boolean(settings?.customItemDiscountsEnabled);

@@ -893,6 +893,7 @@ func (a *App) buildShiftClosePrintData(
 		PriceDeductions: databaseInt64(summary.PriceDeductions),
 		ReturnAmount:    databaseInt64(summary.ReturnAmount),
 		Tax:             databaseInt64(summary.Tax),
+		CashRounding:    summary.CashRounding,
 		NetSales:        databaseInt64(summary.NetSales),
 		TotalPayments:   totalPayments,
 		CountedTotal:    countedTotal,

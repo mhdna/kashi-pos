@@ -75,7 +75,11 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				return err
 			}
 		}
-		priced, err := a.validateAndPriceExchange(q, source.ID, request, roundingMode, customPricingEnabled, perUnitPricingEnabled)
+		listPricing, err := loadActivePricing(a.ctx, q)
+		if err != nil {
+			return fmt.Errorf("load active price/discount lists: %w", err)
+		}
+		priced, err := a.validateAndPriceExchange(q, source.ID, request, roundingMode, customPricingEnabled, perUnitPricingEnabled, listPricing)
 		if err != nil {
 			return err
 		}
@@ -109,6 +113,16 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			}
 			total = netDifference + taxCents
 		}
+		roundingCurrency, err := resolveCurrency(a.ctx, q, settings.RoundingCurrency)
+		if err != nil {
+			return fmt.Errorf("rounding currency: %w", err)
+		}
+		total, err = roundCentsByCurrency(total, roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, roundingMode)
+		if err != nil {
+			return fmt.Errorf("round exchange total: %w", err)
+		}
+		// Build the admin settlement from the rounded total so it matches
+		// what validatePayments checks against.
 		if policy.allowLate && strings.TrimSpace(paymentsJSON) == "" && total != 0 {
 			if settlementAccountID <= 0 {
 				return fmt.Errorf("settlement account is required for a non-zero admin adjustment")
@@ -118,14 +132,6 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				entryType = "change"
 			}
 			payments = []checkoutPayment{{AccountID: settlementAccountID, AmountCents: total, EntryType: entryType}}
-		}
-		roundingCurrency, err := resolveCurrency(a.ctx, q, settings.RoundingCurrency)
-		if err != nil {
-			return fmt.Errorf("rounding currency: %w", err)
-		}
-		total, err = roundCentsByCurrency(total, roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, roundingMode)
-		if err != nil {
-			return fmt.Errorf("round exchange total: %w", err)
 		}
 		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, roundingMode); err != nil {
 			return err
@@ -173,6 +179,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				payloadItems = append(payloadItems, branchInvoicePayloadItem{
 					BranchProductID: returned.product.ID,
 					Barcode:         returned.product.Barcode,
+					ProductUID:      returned.product.Uid.String,
 					UnitPrice:       returned.line.UnitPrice,
 					LineTotal:       -returned.lineTotal,
 					Discount:        int16(returned.line.Discount),
@@ -183,6 +190,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				payloadItems = append(payloadItems, branchInvoicePayloadItem{
 					BranchProductID: replacement.product.ID,
 					Barcode:         replacement.product.Barcode,
+					ProductUID:      replacement.product.Uid.String,
 					UnitPrice:       replacement.unitPrice,
 					LineTotal:       replacement.lineTotal,
 					Discount:        int16(replacement.discount),
@@ -211,6 +219,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				BranchShiftID:          shift.ID,
 				BranchInventoryID:      inventoryID,
 				BranchClientID:         source.ClientID,
+				ClientUID:              clientUIDForSync(a.ctx, q, source.ClientID),
 				GrandTotal:             total,
 				Subtotal:               total,
 				DiscountedTotal:        total,

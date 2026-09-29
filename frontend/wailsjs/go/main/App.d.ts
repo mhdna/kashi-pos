@@ -28,6 +28,8 @@ export function CheckExpenseUploadStatus(arg1:string):Promise<boolean>;
 
 export function CheckShiftReceiptCaptured(arg1:string):Promise<boolean>;
 
+export function CheckTransferUploadStatus(arg1:string):Promise<boolean>;
+
 export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
 export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<Record<string, any>>;
@@ -38,33 +40,35 @@ export function ClearScreen(arg1:string):Promise<void>;
 
 export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
 
+export function ConfirmTransferRequest(arg1:number,arg2:Array<main.confirmTransferItemInput>,arg3:string):Promise<void>;
+
 export function ConvertCashEntryToCents(arg1:string,arg2:number):Promise<number>;
 
-export function CreateCashboxAccount(arg1:string,arg2:string):Promise<Record<string, any>>;
+export function CreateBranch(arg1:string,arg2:string,arg3:string,arg4:string):Promise<Record<string, any>>;
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function CreateCoupon(arg1:string,arg2:number,arg3:number):Promise<Record<string, any>>;
 
-export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<Record<string, any>>;
-
-export function CreateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
+export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolean,arg5:boolean,arg6:boolean):Promise<Record<string, any>>;
 
 export function CreateDatabase():Promise<string>;
-
-export function CreateDiscountList(arg1:string):Promise<Record<string, any>>;
 
 export function CreateExpense(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
 
 export function CreateLoan(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
 
-export function CreatePriceList(arg1:string):Promise<Record<string, any>>;
+export function CreateManualAttendanceEvent(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
+
+export function CreateProduct(arg1:main.ProductInput):Promise<Record<string, any>>;
 
 export function CreateSalesperson(arg1:string):Promise<Record<string, any>>;
 
+export function CreateTransferRequest(arg1:string,arg2:string,arg3:Array<main.transferRequestItemInput>):Promise<Record<string, any>>;
+
 export function CreateUser(arg1:string,arg2:string,arg3:number):Promise<Record<string, any>>;
 
-export function DeleteClient(arg1:number):Promise<void>;
+export function DeleteClient(arg1:number):Promise<string>;
 
 export function DeleteCoupon(arg1:string):Promise<void>;
 
@@ -73,6 +77,8 @@ export function DeleteCouponType(arg1:number):Promise<void>;
 export function DeleteHoldInvoice(arg1:number):Promise<void>;
 
 export function DeleteInvoice(arg1:number):Promise<void>;
+
+export function DeleteProduct(arg1:number):Promise<string>;
 
 export function DeleteSalesperson(arg1:number):Promise<void>;
 
@@ -86,13 +92,19 @@ export function GetAdminConfig():Promise<Record<string, any>>;
 
 export function GetAppSettings():Promise<Record<string, any>>;
 
+export function GetAppVersion():Promise<string>;
+
 export function GetAttendanceConfig():Promise<Record<string, any>>;
+
+export function GetAttendanceStatus():Promise<Record<string, any>>;
 
 export function GetCashierPIN():Promise<string>;
 
 export function GetClientAccountDetails(arg1:number):Promise<Record<string, any>>;
 
 export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
+
+export function GetClientProfile(arg1:number):Promise<Record<string, any>>;
 
 export function GetCurrentMonth():Promise<string>;
 
@@ -101,6 +113,8 @@ export function GetCurrentShiftIncomeByAccount():Promise<Array<Record<string, an
 export function GetDailyIncomeByMonth(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function GetDatabaseStatus():Promise<Record<string, any>>;
+
+export function GetDeferredCouponTotalByMonth(arg1:string):Promise<number>;
 
 export function GetExchangeInvoice(arg1:string):Promise<Record<string, any>>;
 
@@ -140,11 +154,17 @@ export function GetVisitorCountsForMonth(arg1:string):Promise<Record<string, num
 
 export function HoldInvoice(arg1:string):Promise<number>;
 
+export function IsStandaloneMode():Promise<boolean>;
+
 export function ListAttendance(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function ListAttendanceComplaints(arg1:string):Promise<Array<Record<string, any>>>;
 
+export function ListBranchStock(arg1:string):Promise<Array<Record<string, any>>>;
+
 export function ListBranchTargetsWithProgress():Promise<Array<Record<string, any>>>;
+
+export function ListBranches():Promise<Record<string, any>>;
 
 export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
 
@@ -156,6 +176,8 @@ export function ListCoupons():Promise<Array<Record<string, any>>>;
 
 export function ListCurrencies():Promise<Array<Record<string, any>>>;
 
+export function ListDestinationBranches():Promise<Array<Record<string, any>>>;
+
 export function ListDiscountListItems(arg1:number):Promise<Array<Record<string, any>>>;
 
 export function ListDiscountLists():Promise<Array<Record<string, any>>>;
@@ -166,6 +188,8 @@ export function ListExpenses(arg1:number,arg2:number):Promise<Array<Record<strin
 
 export function ListHoldInvoices():Promise<Array<Record<string, any>>>;
 
+export function ListIncomingTransferRequests():Promise<Array<Record<string, any>>>;
+
 export function ListInventories():Promise<Array<Record<string, any>>>;
 
 export function ListInvoicesFilteredPage(arg1:number,arg2:number,arg3:string):Promise<main.InvoicePage>;
@@ -175,6 +199,8 @@ export function ListInvoicesPage(arg1:number,arg2:number):Promise<main.InvoicePa
 export function ListLoanCategories():Promise<Array<Record<string, any>>>;
 
 export function ListLoans(arg1:number,arg2:number):Promise<Array<Record<string, any>>>;
+
+export function ListManagedProducts(arg1:number,arg2:number,arg3:string):Promise<main.ManagedProductPage>;
 
 export function ListPageUnlocks():Promise<Record<string, boolean>>;
 
@@ -204,6 +230,8 @@ export function ListSerialPorts():Promise<Array<string>>;
 
 export function ListShiftBalances(arg1:number):Promise<Array<Record<string, any>>>;
 
+export function ListTransferRequests():Promise<Array<Record<string, any>>>;
+
 export function ListTransfers():Promise<Array<Record<string, any>>>;
 
 export function ListUsers():Promise<Array<Record<string, any>>>;
@@ -218,6 +246,8 @@ export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>
 
 export function PrintCurrentCloseShiftSample():Promise<Record<string, any>>;
 
+export function PullBranchHistory():Promise<Record<string, any>>;
+
 export function QuoteExchangePaymentStatus(arg1:string,arg2:string,arg3:number):Promise<main.PaymentStatus>;
 
 export function QuoteExchangeTotal(arg1:string,arg2:number):Promise<main.ExchangeQuote>;
@@ -228,13 +258,7 @@ export function QuotePaymentStatus(arg1:string,arg2:string):Promise<main.Payment
 
 export function QuoteSettlementPaymentStatus(arg1:number,arg2:string):Promise<main.PaymentStatus>;
 
-export function RemoveDiscountListItem(arg1:number):Promise<void>;
-
-export function RemovePriceListItem(arg1:number):Promise<void>;
-
 export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
-
-export function ReorderCashboxAccounts(arg1:Array<number>):Promise<void>;
 
 export function ReorderQuickAccessProducts(arg1:Array<number>):Promise<void>;
 
@@ -258,25 +282,25 @@ export function SetAutoCloseStaleShiftsEnabled(arg1:boolean):Promise<void>;
 
 export function SetCashierPIN(arg1:string):Promise<void>;
 
+export function SetClientActive(arg1:number,arg2:boolean):Promise<void>;
+
 export function SetClientRequired(arg1:boolean):Promise<void>;
 
 export function SetCountOpeningCashOnCloseEnabled(arg1:boolean):Promise<void>;
-
-export function SetCurrencyActive(arg1:string,arg2:boolean):Promise<Record<string, any>>;
 
 export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
 
 export function SetCustomItemPricesEnabled(arg1:boolean):Promise<void>;
 
-export function SetDiscountListActive(arg1:number,arg2:boolean):Promise<Record<string, any>>;
-
-export function SetDiscountListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
+export function SetDefaultBranch(arg1:string):Promise<void>;
 
 export function SetExchangeWindowHours(arg1:number):Promise<void>;
 
 export function SetHidePaymentMethodCurrency(arg1:boolean):Promise<void>;
 
 export function SetInvoiceKeyboardModeEnabled(arg1:boolean):Promise<void>;
+
+export function SetNonAdminMonthNavEnabled(arg1:boolean):Promise<void>;
 
 export function SetOpeningFloatEnabled(arg1:boolean):Promise<void>;
 
@@ -288,15 +312,15 @@ export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
 
 export function SetPriceChangeManualOverrideEnabled(arg1:boolean):Promise<void>;
 
-export function SetPriceListActive(arg1:number,arg2:boolean):Promise<Record<string, any>>;
-
-export function SetPriceListItem(arg1:number,arg2:string,arg3:number):Promise<Record<string, any>>;
+export function SetProductActive(arg1:number,arg2:boolean):Promise<void>;
 
 export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
 
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
 
 export function SetShiftReceiptUploadMode(arg1:number):Promise<void>;
+
+export function SetSplitDisplay(arg1:string,arg2:boolean,arg3:number):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
 
@@ -308,6 +332,8 @@ export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Prom
 
 export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string):Promise<void>;
 
+export function SwitchBranch(arg1:string):Promise<void>;
+
 export function SwitchShiftReceiptToLocal(arg1:string):Promise<Record<string, any>>;
 
 export function SyncAttendance(arg1:string):Promise<Record<string, any>>;
@@ -318,21 +344,15 @@ export function UpdateAttendanceApproverPassword(arg1:string):Promise<void>;
 
 export function UpdateAttendanceConfig(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<void>;
 
-export function UpdateCashboxAccount(arg1:number,arg2:string,arg3:string,arg4:string):Promise<Record<string, any>>;
-
 export function UpdateCentralAPIURL(arg1:string):Promise<void>;
 
 export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record<string, any>>;
 
-export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean):Promise<void>;
-
-export function UpdateCurrency(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<Record<string, any>>;
+export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean,arg7:boolean,arg8:boolean):Promise<void>;
 
 export function UpdateDefaultOpeningFloat(arg1:number,arg2:number,arg3:string):Promise<void>;
 
-export function UpdateDiscountList(arg1:number,arg2:string):Promise<Record<string, any>>;
-
-export function UpdatePriceList(arg1:number,arg2:string):Promise<Record<string, any>>;
+export function UpdateProduct(arg1:number,arg2:main.ProductInput):Promise<Record<string, any>>;
 
 export function UpdateProductDiscount(arg1:string,arg2:number):Promise<void>;
 

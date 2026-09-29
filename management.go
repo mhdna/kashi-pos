@@ -119,6 +119,7 @@ func (a *App) ListClientsCursor(afterID int64, limit int, search string) (Client
 			"validLoyaltyPoints": row.ValidLoyaltyPoints,
 			"createdAt":          row.CreatedAt,
 			"accountBalance":     row.AccountBalance,
+			"isActive":           row.IsActive != 0,
 		}
 	}
 	nextCursor := afterID
@@ -850,6 +851,24 @@ func (a *App) GetShiftTotals(yearMonth string) ([]map[string]any, error) {
 		}
 	}
 	return result, nil
+}
+
+// GetDeferredCouponTotalByMonth returns the total "calculate on checkout"
+// coupon amount excluded from GetShiftTotals for the given month, so the
+// balance page can show the cashier why the total is lower than a raw sum
+// of invoices instead of the number just changing silently.
+func (a *App) GetDeferredCouponTotalByMonth(yearMonth string) (float64, error) {
+	if a.store == nil {
+		return 0, fmt.Errorf("database not initialized")
+	}
+	if yearMonth == "" {
+		yearMonth = time.Now().Format("2006-01")
+	}
+	total, err := a.store.GetDeferredCouponTotalByMonth(a.ctx, yearMonth)
+	if err != nil {
+		return 0, err
+	}
+	return float64(databaseInt64(total)), nil
 }
 
 // incomeAccountTotals returns each cashbox account's total for a shift,

@@ -3,7 +3,7 @@ import { ListPageUnlocks } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 /** Kept in sync with the `lockablePages` list in app.go. */
-export const lockablePages = ["clients", "inventory", "transfers", "attendance", "salespersons"] as const;
+export const lockablePages = ["clients", "inventory", "products", "transfers", "attendance", "salespersons"] as const;
 
 const pageUnlocks = ref<Record<string, boolean>>({});
 let loaded = false;

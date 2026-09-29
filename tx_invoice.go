@@ -51,6 +51,7 @@ type SalesInvoiceResult struct {
 	InvoiceCode string
 	Items       []invoiceItem
 	GrandTotal  int64
+	TaxCents    int64
 	Payments    []checkoutPayment
 	Notes       string
 }
@@ -69,11 +70,11 @@ type invoiceTotals struct {
 
 func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool) (invoiceTotals, error) {
 	var totals invoiceTotals
-	overrides, err := loadActiveOverrides(a.ctx, q)
+	listPricing, err := loadActivePricing(a.ctx, q)
 	if err != nil {
-		return totals, fmt.Errorf("load active price/discount overrides: %w", err)
+		return totals, fmt.Errorf("load active price/discount lists: %w", err)
 	}
-	products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled, overrides, perUnitPricingEnabled)
+	products, subtotal, discountedSubtotal, receiptItems, err := a.validateAndPriceItems(q, inventoryID, items, roundingMode, customPricingEnabled, listPricing, perUnitPricingEnabled)
 	if err != nil {
 		return totals, err
 	}
@@ -308,6 +309,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				payloadItems = append(payloadItems, branchInvoicePayloadItem{
 					BranchProductID: product.product.ID,
 					Barcode:         product.product.Barcode,
+					ProductUID:      product.product.Uid.String,
 					UnitPrice:       product.unitPrice,
 					LineTotal:       product.lineTotal,
 					Discount:        int16(product.discount),
@@ -325,6 +327,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				BranchShiftID:          shift.ID,
 				BranchInventoryID:      inventoryID,
 				BranchClientID:         clientID,
+				ClientUID:              clientUIDForSync(a.ctx, q, clientID),
 				GrandTotal:             grandTotal,
 				Subtotal:               subtotal,
 				DiscountedTotal:        discountedSubtotal,
@@ -339,6 +342,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		}
 
 		result.InvoiceID, result.InvoiceCode, result.Items, result.GrandTotal, result.Payments, result.Notes = invoice.ID, invoiceCode, receiptItems, grandTotal, payments, strings.TrimSpace(params.Notes)
+		result.TaxCents = totals.TaxCents
 		return nil
 	})
 	if err == nil && settings.CentralApiUrl != "" {
@@ -479,8 +483,8 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 			return fmt.Errorf("on account cannot be used as change")
 		}
 		if strings.EqualFold(account.Name, "On Coupon") {
-			if payment.AmountCents < 0 || strings.TrimSpace(payment.CouponCode) == "" || payment.CouponTypeID <= 0 {
-				return fmt.Errorf("coupon code and type are required")
+			if payment.AmountCents < 0 || payment.CouponTypeID <= 0 {
+				return fmt.Errorf("coupon type is required")
 			}
 			couponType, typeErr := q.GetCouponTypeByID(ctx, payment.CouponTypeID)
 			if typeErr != nil {
@@ -492,7 +496,10 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 			if couponType.ValueCents != payment.AmountCents {
 				return fmt.Errorf("coupon value or type does not match")
 			}
-			if couponType.ReferenceOnly == 0 {
+			if couponType.CodeOptional == 0 && strings.TrimSpace(payment.CouponCode) == "" {
+				return fmt.Errorf("coupon code is required")
+			}
+			if couponType.CodeOptional == 0 && couponType.ReferenceOnly == 0 {
 				coupon, couponErr := q.GetActiveCouponByCode(ctx, strings.TrimSpace(payment.CouponCode))
 				if couponErr != nil {
 					if errors.Is(couponErr, sql.ErrNoRows) {
@@ -505,8 +512,8 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 				}
 				// Keep the database's canonical code for the payment foreign key and redemption update.
 				payments[i].CouponCode = coupon.Code
-				if coupon.ValidUntil != "" {
-					expires, parseErr := time.Parse("2006-01-02", coupon.ValidUntil)
+				if coupon.ValidUntil.Valid && coupon.ValidUntil.String != "" {
+					expires, parseErr := time.Parse("2006-01-02", coupon.ValidUntil.String)
 					if parseErr == nil && time.Now().After(expires.Add(24*time.Hour)) {
 						return fmt.Errorf("coupon has expired")
 					}
@@ -596,7 +603,7 @@ func recordSpecialPaymentMetadata(a *App, q *db.Queries, invoiceID, clientID int
 			if err != nil {
 				return fmt.Errorf("coupon type: %w", err)
 			}
-			if couponType.ReferenceOnly != 0 {
+			if couponType.ReferenceOnly != 0 || couponType.CodeOptional != 0 {
 				continue
 			}
 			if err := q.RedeemCoupon(a.ctx, db.RedeemCouponParams{RedeemedInvoiceID: sql.NullInt64{Int64: invoiceID, Valid: true}, Code: code}); err != nil {

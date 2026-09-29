@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -59,6 +60,9 @@ type syncedBranchTarget struct {
 // SizeName are plain text, matched by name — see the package-level note
 // on syncedCurrency for why matching is never done by numeric id.
 type syncedProductVariant struct {
+	// UID is the variant's shared identity; empty from an older kashi.
+	UID         string         `json:"uid"`
+	UpdatedAt   string         `json:"updated_at"`
 	Barcode     string         `json:"barcode"`
 	Price       sql.NullInt64  `json:"price"`
 	IsActive    bool           `json:"is_active"`
@@ -101,6 +105,13 @@ type syncedLoanCategory struct {
 // default currency's rate for the same reason, and this respects that
 // same invariant rather than working around it.
 func applySyncedCurrency(ctx context.Context, q *db.Queries, c syncedCurrency) error {
+	// The hand-entry path validates these (currencies.go), and the table's
+	// own CHECK constraints require both to be > 0 - so a bad pulled value
+	// would either abort the whole pull or, on a rounding currency, make
+	// every invoice total fail to price. Reject the row, not the sync.
+	if c.UnitsPerUsdMicros <= 0 || c.CashRoundingUnit <= 0 {
+		return fmt.Errorf("currency %s: invalid rate %d or rounding unit %d", c.Code, c.UnitsPerUsdMicros, c.CashRoundingUnit)
+	}
 	existing, err := q.GetCurrencyByCode(ctx, c.Code)
 	if err == sql.ErrNoRows {
 		_, err := q.CreateCurrency(ctx, db.CreateCurrencyParams{
@@ -401,7 +412,14 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 	}
 
 	var productID int64
-	existing, err := q.GetProductByBarcode(ctx, v.Barcode)
+	existing, err := findSyncedProduct(ctx, q, v)
+	// A product priced at 0 is unsellable - priceInvoiceProduct rejects it
+	// and every quote containing it fails, which surfaces at the till as a
+	// total that will not price. An absent price in the pull payload means
+	// "central didn't say", not "free", so keep what we already have.
+	if err == nil && !v.Price.Valid {
+		price = existing.Price
+	}
 	if err == sql.ErrNoRows {
 		created, err := q.CreateProduct(ctx, db.CreateProductParams{
 			Barcode:      v.Barcode,
@@ -418,9 +436,19 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 			return err
 		}
 		productID = created.ID
+		if v.UID != "" {
+			if err := q.SetProductUID(ctx, db.SetProductUIDParams{Uid: sql.NullString{String: v.UID, Valid: true}, ID: productID}); err != nil {
+				return err
+			}
+		}
 	} else if err != nil {
 		return err
 	} else {
+		if existing.Barcode != v.Barcode {
+			if err := freeProductBarcode(ctx, q, v.Barcode, existing.ID); err != nil {
+				return err
+			}
+		}
 		if _, err := q.UpdateProduct(ctx, db.UpdateProductParams{
 			ID:           existing.ID,
 			Barcode:      v.Barcode,
@@ -444,7 +472,57 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 		productID = existing.ID
 	}
 
-	return applySyncedProductAttributes(ctx, q, productID, v)
+	if err := applySyncedProductAttributes(ctx, q, productID, v); err != nil {
+		return err
+	}
+	return stampRemoteVersion(ctx, v.UpdatedAt, func(ver string) error {
+		return q.SetProductRemoteUpdatedAt(ctx, db.SetProductRemoteUpdatedAtParams{RemoteUpdatedAt: sql.NullString{String: ver, Valid: true}, ID: productID})
+	})
+}
+
+// findSyncedProduct finds the local copy of a kashi variant: by uid, else by
+// barcode -- in which case the row adopts kashi's uid on the spot, so every
+// later update matches by uid (and a barcode change in kashi updates the
+// same row instead of creating a new one). sql.ErrNoRows means "no local
+// copy yet".
+func findSyncedProduct(ctx context.Context, q *db.Queries, v syncedProductVariant) (db.Product, error) {
+	if v.UID != "" {
+		p, err := q.GetProductByUID(ctx, sql.NullString{String: v.UID, Valid: true})
+		if err == nil || !errors.Is(err, sql.ErrNoRows) {
+			return p, err
+		}
+	}
+	p, err := q.GetProductByBarcode(ctx, v.Barcode)
+	if err != nil {
+		return p, err
+	}
+	if v.UID != "" {
+		if err := q.SetProductUID(ctx, db.SetProductUIDParams{Uid: sql.NullString{String: v.UID, Valid: true}, ID: p.ID}); err != nil {
+			return p, err
+		}
+	}
+	return p, nil
+}
+
+// freeProductBarcode makes barcode available to product keepID. Barcodes are
+// globally unique in kashi and pulls apply in updated_at order, so a
+// different local row still holding it is a stale local-only product: it is
+// deactivated and its barcode suffixed, keeping its invoice history intact.
+func freeProductBarcode(ctx context.Context, q *db.Queries, barcode string, keepID int64) error {
+	other, err := q.GetProductByBarcode(ctx, barcode)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if other.ID == keepID {
+		return nil
+	}
+	return q.SetProductBarcodeInactive(ctx, db.SetProductBarcodeInactiveParams{
+		Barcode: fmt.Sprintf("%s#stale-%d", barcode, other.ID),
+		ID:      other.ID,
+	})
 }
 
 // applySyncedProductAttributes writes brand/sub-category/kind/season/year
@@ -489,7 +567,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 // pullEntities lists what gets pulled from kashi on each tick. Adding a
 // new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
-var pullEntities = []string{"currencies", "cashbox_accounts", "products", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories"}
+var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories", "coupon_types", "coupons", "branches", "transfer_requests", "incoming_transfer_requests", "branch_stock"}
 
 // runSyncPullOnce catches this branch up on every entity in pullEntities,
 // one at a time. Each entity's cursor advances independently — a decode
@@ -615,6 +693,12 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 				return fmt.Errorf("apply currency %s: %w", item.Code, err)
 			}
 		}
+		// kashi sends its whole set for this entity, so anything absent is
+		// something kashi does not have -- deactivate it rather than leaving
+		// a currency on the till that central knows nothing about.
+		if err := reconcileCurrencies(ctx, q, items); err != nil {
+			return fmt.Errorf("reconcile currencies: %w", err)
+		}
 	case "cashbox_accounts":
 		var items []syncedCashboxAccount
 		if err := json.Unmarshal(raw, &items); err != nil {
@@ -625,6 +709,9 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 				return fmt.Errorf("apply cashbox account %s: %w", item.Name, err)
 			}
 		}
+		if err := reconcileCashboxAccounts(ctx, q, items); err != nil {
+			return fmt.Errorf("reconcile payment methods: %w", err)
+		}
 	case "products":
 		var items []syncedProductVariant
 		if err := json.Unmarshal(raw, &items); err != nil {
@@ -633,6 +720,26 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 		for _, item := range items {
 			if err := applySyncedProductVariant(ctx, q, item); err != nil {
 				return fmt.Errorf("apply product variant %s: %w", item.Barcode, err)
+			}
+		}
+	case "price_lists":
+		var items []syncedPriceList
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedPriceList(ctx, q, item); err != nil {
+				return fmt.Errorf("apply price list %s: %w", item.Name, err)
+			}
+		}
+	case "discount_lists":
+		var items []syncedDiscountList
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedDiscountList(ctx, q, item); err != nil {
+				return fmt.Errorf("apply discount list %s: %w", item.Name, err)
 			}
 		}
 	case "clients":
@@ -695,6 +802,66 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 				return fmt.Errorf("apply loan category %s: %w", item.Name, err)
 			}
 		}
+	case "coupon_types":
+		var items []syncedCouponType
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedCouponType(ctx, q, item); err != nil {
+				return fmt.Errorf("apply coupon type %s: %w", item.Name, err)
+			}
+		}
+	case "coupons":
+		var items []syncedCoupon
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedCoupon(ctx, q, item); err != nil {
+				return fmt.Errorf("apply coupon %s: %w", item.Code, err)
+			}
+		}
+	case "branches":
+		var items []syncedBranch
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedBranch(ctx, q, item); err != nil {
+				return fmt.Errorf("apply branch %s: %w", item.Code, err)
+			}
+		}
+	case "transfer_requests":
+		var items []syncedTransferRequest
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedTransferRequest(ctx, q, item); err != nil {
+				return fmt.Errorf("apply transfer request %d: %w", item.ID, err)
+			}
+		}
+	case "incoming_transfer_requests":
+		var items []syncedIncomingTransfer
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedIncomingTransfer(ctx, q, item); err != nil {
+				return fmt.Errorf("apply incoming transfer %d: %w", item.ID, err)
+			}
+		}
+	case "branch_stock":
+		var items []syncedBranchStock
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedBranchStock(ctx, q, item); err != nil {
+				return fmt.Errorf("apply branch stock %s/%s: %w", item.BranchCode, item.Barcode, err)
+			}
+		}
 	}
 	return nil
 }
@@ -733,6 +900,16 @@ func (a *App) emitExpenseUploadReady(clientRef, uploadURL string) {
 	select {
 	case <-a.ready:
 		runtime.EventsEmit(a.ctx, "expense_upload_ready:"+clientRef, uploadURL)
+	default:
+	}
+}
+
+// emitTransferUploadReady is emitExpenseUploadReady's counterpart for a
+// transfer request's one-time photo-upload QR link.
+func (a *App) emitTransferUploadReady(clientRef, uploadURL string) {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "transfer_upload_ready:"+clientRef, uploadURL)
 	default:
 	}
 }

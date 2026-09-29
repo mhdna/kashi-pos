@@ -1,0 +1,1 @@
+ALTER TABLE coupon_types ADD COLUMN code_optional INTEGER NOT NULL DEFAULT 0;

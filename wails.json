@@ -9,5 +9,11 @@
   "author": {
     "name": "Alex",
     "email": "admin@example.com"
+  },
+  "info": {
+    "companyName": "Kashi",
+    "productName": "Kashi Cloud",
+    "productVersion": "1.0.6.4",
+    "copyright": "Copyright © Kashi"
   }
 }

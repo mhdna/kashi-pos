@@ -17,7 +17,7 @@
         density="compact"
         hide-details
         style="max-width: 190px"
-        @change="refresh"
+        @change="refresh()"
       /><v-text-field
         v-if="auth.isAdmin"
         v-model="selectedMonth"
@@ -41,7 +41,6 @@
             <v-list-item v-for="item in pendingComplaints" :key="item.id">
               <v-list-item-title>{{ item.employeeName }} · {{ item.date }}</v-list-item-title>
               <v-list-item-subtitle>{{ item.action === "delete" ? `Delete ${item.originalTime}` : `Replace ${item.originalTime} with ${item.requestedType} ${item.requestedTime}` }}</v-list-item-subtitle>
-              <template #append><v-btn size="small" color="primary" variant="flat" @click="openApproval(item)">Approve</v-btn></template>
             </v-list-item>
           </v-list>
           <v-card-text v-else class="text-medium-emphasis">No pending attendance requests.</v-card-text>
@@ -53,7 +52,7 @@
         prepend-icon="mdi-download"
         @click="exportMonth"
         >Export month</v-btn
-      ><v-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh" />
+      ><v-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh()" />
     </div>
     <v-card>
       <v-card-title class="d-flex align-center">
@@ -111,17 +110,6 @@
         </v-list-item>
       </v-list>
     </v-card>
-    <v-dialog v-model="approvalDialog" max-width="380">
-      <v-card>
-        <v-card-title>Approve attendance request</v-card-title>
-        <v-card-text>
-          <div class="text-body-2 mb-3">{{ approvalTarget?.employeeName }} · {{ approvalTarget?.date }} · {{ approvalTarget?.action === "delete" ? `Delete ${approvalTarget?.originalTime}` : `Replace ${approvalTarget?.originalTime} with ${approvalTarget?.requestedType} ${approvalTarget?.requestedTime}` }}</div>
-          <v-text-field v-model="approvalPassword" placeholder="Manager password" type="password" variant="outlined" density="compact" autofocus @keyup.enter="confirmApproval" />
-          <v-alert v-if="approvalError" type="error" variant="tonal" density="compact">{{ approvalError }}</v-alert>
-        </v-card-text>
-        <v-card-actions><v-btn variant="text" @click="approvalDialog = false">Cancel</v-btn><v-spacer /><v-btn color="primary" :loading="approvalSaving" @click="confirmApproval">Approve</v-btn></v-card-actions>
-      </v-card>
-    </v-dialog>
     <v-dialog v-model="complaintDialog" max-width="440"
       ><v-card
         ><v-card-title>Request attendance change</v-card-title
@@ -181,7 +169,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import {
-  ApproveAttendanceComplaint,
   ExportAttendanceMonth,
   ListAttendanceComplaints,
   ListAttendance,
@@ -192,6 +179,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { useAuthStore } from "@/stores/auth";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 const auth = useAuthStore();
 const today = new Date().toISOString().slice(0, 10);
 const selectedDate = ref(today);
@@ -208,11 +196,6 @@ const complaintEventId = ref<number | null>(null);
 const complaintType = ref("IN");
 const complaintAction = ref("replace");
 const savingComplaint = ref(false);
-const approvalDialog = ref(false);
-const approvalPassword = ref("");
-const approvalTarget = ref<any>(null);
-const approvalSaving = ref(false);
-const approvalError = ref("");
 const status = ref<any>({ reachable: true, message: "" });
 const cashierHistory = ref(false);
 const canBrowseHistory = computed(() => auth.isAdmin || cashierHistory.value);
@@ -224,10 +207,13 @@ const complaintEventOptions = computed(() =>
 );
 const pendingComplaints = computed(() => complaints.value.filter((item: any) => item.status === "pending"));
 let timer: ReturnType<typeof setInterval>;
-async function refresh() {
+let offSynced: (() => void) | undefined;
+// syncDevice=false just reloads what's already imported -- used when the Go
+// side has already synced, so we don't pull the door-log again.
+async function refresh(syncDevice = true) {
   loading.value = true;
   try {
-    status.value = await SyncAttendance(selectedDate.value);
+    if (syncDevice) status.value = await SyncAttendance(selectedDate.value);
     const [events, employees] = await Promise.all([ListAttendance(selectedDate.value), ListSalespersons()]);
     const configured = employees.filter((u: any) => u.attendanceUserId);
     const byId = new Map(configured.map((u: any) => [u.id, u]));
@@ -325,27 +311,6 @@ async function submitComplaint() {
     savingComplaint.value = false;
   }
 }
-function openApproval(item: any) {
-  approvalTarget.value = item;
-  approvalPassword.value = "";
-  approvalError.value = "";
-  approvalDialog.value = true;
-}
-async function confirmApproval() {
-  if (!approvalTarget.value || !approvalPassword.value.trim()) return;
-  approvalSaving.value = true;
-  approvalError.value = "";
-  try {
-    await ApproveAttendanceComplaint(approvalTarget.value.id, true, approvalPassword.value);
-    approvalDialog.value = false;
-    await loadHistory();
-    await refresh();
-  } catch (error) {
-    approvalError.value = error instanceof Error ? error.message : "Approval failed";
-  } finally {
-    approvalSaving.value = false;
-  }
-}
 async function exportMonth() {
   try {
     const content = await ExportAttendanceMonth(selectedMonth.value);
@@ -368,9 +333,17 @@ async function exportMonth() {
 onMounted(() => {
   loadAttendanceOptions();
   refresh();
-  timer = setInterval(refresh, 60_000);
+  timer = setInterval(() => refresh(), 60_000);
+  // Rows imported outside this page (the device's push, the fallback poll):
+  // reload what's stored, without pulling the door-log again.
+  offSynced = EventsOn("attendance_recorded", () => {
+    if (!loading.value) void refresh(false);
+  });
 });
-onUnmounted(() => clearInterval(timer));
+onUnmounted(() => {
+  clearInterval(timer);
+  offSynced?.();
+});
 </script>
 <style scoped>
 .attendance-page {

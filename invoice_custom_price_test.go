@@ -30,6 +30,7 @@ func TestCustomInvoicePriceDoesNotChangeProductPrice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, store.Queries)
 	app := &App{ctx: ctx, store: store}
 	customPrice := int64(1999)
 	items := []salesInvoiceItem{{
@@ -37,13 +38,13 @@ func TestCustomInvoicePriceDoesNotChangeProductPrice(t *testing.T) {
 	}}
 
 	if _, _, _, _, err := app.validateAndPriceItems(
-		store.Queries, 0, items, "half_up", false, activeOverrides{},
+		store.Queries, 0, items, "half_up", false, activePricing{},
 	); err == nil {
 		t.Fatal("expected custom price to require the pricing feature")
 	}
 
 	priced, subtotal, discountedSubtotal, receiptItems, err := app.validateAndPriceItems(
-		store.Queries, 0, items, "half_up", true, activeOverrides{},
+		store.Queries, 0, items, "half_up", true, activePricing{},
 	)
 	if err != nil {
 		t.Fatal(err)

@@ -6,6 +6,7 @@
         Monthly Shift Income ({{ month }})
       </v-card-title>
       <v-btn
+        v-if="canChangeMonth"
         icon="mdi-chevron-left"
         variant="text"
         density="compact"
@@ -16,6 +17,7 @@
         @click="$emit('prev-month')"
       />
       <v-btn
+        v-if="canChangeMonth"
         icon="mdi-chevron-right"
         variant="text"
         density="compact"
@@ -181,6 +183,10 @@
       <span>Total</span>
       <span>{{ formatBalance(grandTotal, "USD", currencies, roundingMode) }}</span>
     </div>
+    <div v-if="deferredCouponTotal > 0" class="text-caption text-medium-emphasis text-end">
+      Excludes {{ formatBalance(deferredCouponTotal, "USD", currencies, roundingMode) }} in coupons
+      not yet collected
+    </div>
     <TargetsProgressCard :targets="targets" class="mt-3" />
   </v-sheet>
 </template>
@@ -233,6 +239,7 @@ const props = defineProps<{
   month: string;
   rows: DayRow[];
   grandTotal: number;
+  deferredCouponTotal: number;
   loading: boolean;
   expandedDays: string[];
   allDaysExpanded: boolean;
@@ -241,6 +248,7 @@ const props = defineProps<{
   balanceLoading: Record<number, boolean>;
   currentDay: string;
   isAdmin: boolean;
+  canChangeMonth: boolean;
   printingShiftId: number | null;
   targets: BranchTarget[];
   visitorCounts: Record<string, number>;
@@ -370,5 +378,10 @@ const emit = defineEmits<{
   padding: 0 12px;
   border-top: 1px solid rgba(128, 128, 128, 0.35);
   color: rgb(var(--v-theme-on-surface));
+}
+
+.monthly-income-total + .text-caption {
+  padding: 0 12px;
+  margin-top: -4px;
 }
 </style>

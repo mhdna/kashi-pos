@@ -54,6 +54,10 @@ export function CheckShiftReceiptCaptured(arg1) {
   return window['go']['main']['App']['CheckShiftReceiptCaptured'](arg1);
 }
 
+export function CheckTransferUploadStatus(arg1) {
+  return window['go']['main']['App']['CheckTransferUploadStatus'](arg1);
+}
+
 export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
@@ -74,12 +78,16 @@ export function CloseShiftByID(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CloseShiftByID'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
+export function ConfirmTransferRequest(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ConfirmTransferRequest'](arg1, arg2, arg3);
+}
+
 export function ConvertCashEntryToCents(arg1, arg2) {
   return window['go']['main']['App']['ConvertCashEntryToCents'](arg1, arg2);
 }
 
-export function CreateCashboxAccount(arg1, arg2) {
-  return window['go']['main']['App']['CreateCashboxAccount'](arg1, arg2);
+export function CreateBranch(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CreateBranch'](arg1, arg2, arg3, arg4);
 }
 
 export function CreateClient(arg1, arg2) {
@@ -90,20 +98,12 @@ export function CreateCoupon(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateCoupon'](arg1, arg2, arg3);
 }
 
-export function CreateCouponType(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3, arg4);
-}
-
-export function CreateCurrency(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['CreateCurrency'](arg1, arg2, arg3, arg4, arg5);
+export function CreateCouponType(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['CreateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function CreateDatabase() {
   return window['go']['main']['App']['CreateDatabase']();
-}
-
-export function CreateDiscountList(arg1) {
-  return window['go']['main']['App']['CreateDiscountList'](arg1);
 }
 
 export function CreateExpense(arg1, arg2, arg3, arg4, arg5) {
@@ -114,12 +114,20 @@ export function CreateLoan(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['CreateLoan'](arg1, arg2, arg3, arg4, arg5);
 }
 
-export function CreatePriceList(arg1) {
-  return window['go']['main']['App']['CreatePriceList'](arg1);
+export function CreateManualAttendanceEvent(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateManualAttendanceEvent'](arg1, arg2, arg3);
+}
+
+export function CreateProduct(arg1) {
+  return window['go']['main']['App']['CreateProduct'](arg1);
 }
 
 export function CreateSalesperson(arg1) {
   return window['go']['main']['App']['CreateSalesperson'](arg1);
+}
+
+export function CreateTransferRequest(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateTransferRequest'](arg1, arg2, arg3);
 }
 
 export function CreateUser(arg1, arg2, arg3) {
@@ -146,6 +154,10 @@ export function DeleteInvoice(arg1) {
   return window['go']['main']['App']['DeleteInvoice'](arg1);
 }
 
+export function DeleteProduct(arg1) {
+  return window['go']['main']['App']['DeleteProduct'](arg1);
+}
+
 export function DeleteSalesperson(arg1) {
   return window['go']['main']['App']['DeleteSalesperson'](arg1);
 }
@@ -170,8 +182,16 @@ export function GetAppSettings() {
   return window['go']['main']['App']['GetAppSettings']();
 }
 
+export function GetAppVersion() {
+  return window['go']['main']['App']['GetAppVersion']();
+}
+
 export function GetAttendanceConfig() {
   return window['go']['main']['App']['GetAttendanceConfig']();
+}
+
+export function GetAttendanceStatus() {
+  return window['go']['main']['App']['GetAttendanceStatus']();
 }
 
 export function GetCashierPIN() {
@@ -184,6 +204,10 @@ export function GetClientAccountDetails(arg1) {
 
 export function GetClientByPhone(arg1) {
   return window['go']['main']['App']['GetClientByPhone'](arg1);
+}
+
+export function GetClientProfile(arg1) {
+  return window['go']['main']['App']['GetClientProfile'](arg1);
 }
 
 export function GetCurrentMonth() {
@@ -200,6 +224,10 @@ export function GetDailyIncomeByMonth(arg1) {
 
 export function GetDatabaseStatus() {
   return window['go']['main']['App']['GetDatabaseStatus']();
+}
+
+export function GetDeferredCouponTotalByMonth(arg1) {
+  return window['go']['main']['App']['GetDeferredCouponTotalByMonth'](arg1);
 }
 
 export function GetExchangeInvoice(arg1) {
@@ -278,6 +306,10 @@ export function HoldInvoice(arg1) {
   return window['go']['main']['App']['HoldInvoice'](arg1);
 }
 
+export function IsStandaloneMode() {
+  return window['go']['main']['App']['IsStandaloneMode']();
+}
+
 export function ListAttendance(arg1) {
   return window['go']['main']['App']['ListAttendance'](arg1);
 }
@@ -286,8 +318,16 @@ export function ListAttendanceComplaints(arg1) {
   return window['go']['main']['App']['ListAttendanceComplaints'](arg1);
 }
 
+export function ListBranchStock(arg1) {
+  return window['go']['main']['App']['ListBranchStock'](arg1);
+}
+
 export function ListBranchTargetsWithProgress() {
   return window['go']['main']['App']['ListBranchTargetsWithProgress']();
+}
+
+export function ListBranches() {
+  return window['go']['main']['App']['ListBranches']();
 }
 
 export function ListCategoryIcons() {
@@ -310,6 +350,10 @@ export function ListCurrencies() {
   return window['go']['main']['App']['ListCurrencies']();
 }
 
+export function ListDestinationBranches() {
+  return window['go']['main']['App']['ListDestinationBranches']();
+}
+
 export function ListDiscountListItems(arg1) {
   return window['go']['main']['App']['ListDiscountListItems'](arg1);
 }
@@ -330,6 +374,10 @@ export function ListHoldInvoices() {
   return window['go']['main']['App']['ListHoldInvoices']();
 }
 
+export function ListIncomingTransferRequests() {
+  return window['go']['main']['App']['ListIncomingTransferRequests']();
+}
+
 export function ListInventories() {
   return window['go']['main']['App']['ListInventories']();
 }
@@ -348,6 +396,10 @@ export function ListLoanCategories() {
 
 export function ListLoans(arg1, arg2) {
   return window['go']['main']['App']['ListLoans'](arg1, arg2);
+}
+
+export function ListManagedProducts(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListManagedProducts'](arg1, arg2, arg3);
 }
 
 export function ListPageUnlocks() {
@@ -406,6 +458,10 @@ export function ListShiftBalances(arg1) {
   return window['go']['main']['App']['ListShiftBalances'](arg1);
 }
 
+export function ListTransferRequests() {
+  return window['go']['main']['App']['ListTransferRequests']();
+}
+
 export function ListTransfers() {
   return window['go']['main']['App']['ListTransfers']();
 }
@@ -434,6 +490,10 @@ export function PrintCurrentCloseShiftSample() {
   return window['go']['main']['App']['PrintCurrentCloseShiftSample']();
 }
 
+export function PullBranchHistory() {
+  return window['go']['main']['App']['PullBranchHistory']();
+}
+
 export function QuoteExchangePaymentStatus(arg1, arg2, arg3) {
   return window['go']['main']['App']['QuoteExchangePaymentStatus'](arg1, arg2, arg3);
 }
@@ -454,20 +514,8 @@ export function QuoteSettlementPaymentStatus(arg1, arg2) {
   return window['go']['main']['App']['QuoteSettlementPaymentStatus'](arg1, arg2);
 }
 
-export function RemoveDiscountListItem(arg1) {
-  return window['go']['main']['App']['RemoveDiscountListItem'](arg1);
-}
-
-export function RemovePriceListItem(arg1) {
-  return window['go']['main']['App']['RemovePriceListItem'](arg1);
-}
-
 export function RemoveQuickAccessProduct(arg1) {
   return window['go']['main']['App']['RemoveQuickAccessProduct'](arg1);
-}
-
-export function ReorderCashboxAccounts(arg1) {
-  return window['go']['main']['App']['ReorderCashboxAccounts'](arg1);
 }
 
 export function ReorderQuickAccessProducts(arg1) {
@@ -514,16 +562,16 @@ export function SetCashierPIN(arg1) {
   return window['go']['main']['App']['SetCashierPIN'](arg1);
 }
 
+export function SetClientActive(arg1, arg2) {
+  return window['go']['main']['App']['SetClientActive'](arg1, arg2);
+}
+
 export function SetClientRequired(arg1) {
   return window['go']['main']['App']['SetClientRequired'](arg1);
 }
 
 export function SetCountOpeningCashOnCloseEnabled(arg1) {
   return window['go']['main']['App']['SetCountOpeningCashOnCloseEnabled'](arg1);
-}
-
-export function SetCurrencyActive(arg1, arg2) {
-  return window['go']['main']['App']['SetCurrencyActive'](arg1, arg2);
 }
 
 export function SetCustomItemDiscountsEnabled(arg1) {
@@ -534,12 +582,8 @@ export function SetCustomItemPricesEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemPricesEnabled'](arg1);
 }
 
-export function SetDiscountListActive(arg1, arg2) {
-  return window['go']['main']['App']['SetDiscountListActive'](arg1, arg2);
-}
-
-export function SetDiscountListItem(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SetDiscountListItem'](arg1, arg2, arg3);
+export function SetDefaultBranch(arg1) {
+  return window['go']['main']['App']['SetDefaultBranch'](arg1);
 }
 
 export function SetExchangeWindowHours(arg1) {
@@ -552,6 +596,10 @@ export function SetHidePaymentMethodCurrency(arg1) {
 
 export function SetInvoiceKeyboardModeEnabled(arg1) {
   return window['go']['main']['App']['SetInvoiceKeyboardModeEnabled'](arg1);
+}
+
+export function SetNonAdminMonthNavEnabled(arg1) {
+  return window['go']['main']['App']['SetNonAdminMonthNavEnabled'](arg1);
 }
 
 export function SetOpeningFloatEnabled(arg1) {
@@ -574,12 +622,8 @@ export function SetPriceChangeManualOverrideEnabled(arg1) {
   return window['go']['main']['App']['SetPriceChangeManualOverrideEnabled'](arg1);
 }
 
-export function SetPriceListActive(arg1, arg2) {
-  return window['go']['main']['App']['SetPriceListActive'](arg1, arg2);
-}
-
-export function SetPriceListItem(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SetPriceListItem'](arg1, arg2, arg3);
+export function SetProductActive(arg1, arg2) {
+  return window['go']['main']['App']['SetProductActive'](arg1, arg2);
 }
 
 export function SetProductSearchEnabled(arg1) {
@@ -592,6 +636,10 @@ export function SetSalespersonPerInvoiceRequired(arg1) {
 
 export function SetShiftReceiptUploadMode(arg1) {
   return window['go']['main']['App']['SetShiftReceiptUploadMode'](arg1);
+}
+
+export function SetSplitDisplay(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetSplitDisplay'](arg1, arg2, arg3);
 }
 
 export function SetTheme(arg1) {
@@ -614,6 +662,10 @@ export function SubmitAttendanceComplaint(arg1, arg2, arg3, arg4, arg5, arg6, ar
   return window['go']['main']['App']['SubmitAttendanceComplaint'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
+export function SwitchBranch(arg1) {
+  return window['go']['main']['App']['SwitchBranch'](arg1);
+}
+
 export function SwitchShiftReceiptToLocal(arg1) {
   return window['go']['main']['App']['SwitchShiftReceiptToLocal'](arg1);
 }
@@ -634,10 +686,6 @@ export function UpdateAttendanceConfig(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['UpdateAttendanceConfig'](arg1, arg2, arg3, arg4);
 }
 
-export function UpdateCashboxAccount(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['UpdateCashboxAccount'](arg1, arg2, arg3, arg4);
-}
-
 export function UpdateCentralAPIURL(arg1) {
   return window['go']['main']['App']['UpdateCentralAPIURL'](arg1);
 }
@@ -646,24 +694,16 @@ export function UpdateClient(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateClient'](arg1, arg2, arg3);
 }
 
-export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6) {
-  return window['go']['main']['App']['UpdateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6);
-}
-
-export function UpdateCurrency(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['UpdateCurrency'](arg1, arg2, arg3, arg4, arg5);
+export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+  return window['go']['main']['App']['UpdateCouponType'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 }
 
 export function UpdateDefaultOpeningFloat(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateDefaultOpeningFloat'](arg1, arg2, arg3);
 }
 
-export function UpdateDiscountList(arg1, arg2) {
-  return window['go']['main']['App']['UpdateDiscountList'](arg1, arg2);
-}
-
-export function UpdatePriceList(arg1, arg2) {
-  return window['go']['main']['App']['UpdatePriceList'](arg1, arg2);
+export function UpdateProduct(arg1, arg2) {
+  return window['go']['main']['App']['UpdateProduct'](arg1, arg2);
 }
 
 export function UpdateProductDiscount(arg1, arg2) {

@@ -25,9 +25,20 @@ UPDATE settings SET central_api_url = ?;
 -- name: SetShiftReceiptUploadMode :exec
 UPDATE settings SET shift_receipt_upload_mode = ?;
 
+-- name: SetFullMirrorConfirmedAt :exec
+UPDATE settings SET full_mirror_confirmed_at = ?;
+
 -- name: GetFeatureFlag :one
 SELECT enabled FROM feature_flags WHERE key = ?;
 
 -- name: SetFeatureFlag :exec
 INSERT INTO feature_flags (key, enabled) VALUES (?, ?)
 ON CONFLICT (key) DO UPDATE SET enabled = excluded.enabled;
+
+-- name: UpdateSplitDisplay :exec
+-- Which currency leads the till's split total, in which order, and at what
+-- denomination the primary is split (0 = fall back to that currency's own
+-- cash_rounding_unit -- see 000100). Narrow like UpdateTheme rather than
+-- folded into UpdateSettings: the admin command and the settings page both
+-- set these on their own.
+UPDATE settings SET split_primary_currency = ?, split_primary_first = ?, split_primary_step = ?;

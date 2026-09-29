@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -26,20 +28,54 @@ type unitPricing struct {
 	discount int64
 }
 
+// salesInventoryID picks the inventory to stamp on invoices.inventory_id.
+//
+// Nothing about a sale depends on this beyond the FK: stock is neither
+// checked nor decremented at checkout (see the disabled block in
+// salesInvoiceTx) and validateAndPriceItems ignores the id entirely. So an
+// unset setting, an unknown id, or an empty inventory must never stop a
+// cashier from selling - the worst case is an invoice labelled with the
+// wrong inventory, which the separate stock-reconciliation workflow can
+// correct. Only a database with no inventories at all is unrecoverable
+// here, because the FK has nothing to point at.
+//
+// If stock deduction is ever re-enabled in salesInvoiceTx, revisit this:
+// silently guessing an inventory is fine for a label, but not for deciding
+// which shelf to take units off.
 func (a *App) salesInventoryID(configuredID int64) (int64, error) {
-	if configuredID > 0 {
-		if _, err := a.store.GetInventoryByID(a.ctx, configuredID); err != nil {
-			return 0, fmt.Errorf("sales inventory: %w", err)
-		}
-		return configuredID, nil
-	}
 	inventories, err := a.store.ListInventories(a.ctx)
 	if err != nil {
 		return 0, fmt.Errorf("list inventories: %w", err)
 	}
-	if len(inventories) != 1 {
-		return 0, fmt.Errorf("choose a sales inventory in settings")
+	if len(inventories) == 0 {
+		return 0, fmt.Errorf("no inventory exists to record the sale against")
 	}
+	// Configured and real - the normal path.
+	for _, inventory := range inventories {
+		if inventory.ID == configuredID {
+			return inventory.ID, nil
+		}
+	}
+	if len(inventories) == 1 {
+		return inventories[0].ID, nil
+	}
+	// Unset, or pointing at an inventory that no longer exists. Prefer the
+	// one this branch has actually been selling from; a second inventory can
+	// appear at any time as a side effect of a stock import (admin_server.go
+	// does INSERT INTO inventories ... ON CONFLICT DO NOTHING).
+	lastUsed, err := a.store.GetLastInvoiceInventoryID(a.ctx)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("last sales inventory: %w", err)
+	}
+	if err == nil {
+		for _, inventory := range inventories {
+			if inventory.ID == lastUsed {
+				return inventory.ID, nil
+			}
+		}
+	}
+	// No history to learn from. ListInventories is ordered by id, so this is
+	// the oldest - the "Default" seeded at first run.
 	return inventories[0].ID, nil
 }
 
@@ -57,7 +93,7 @@ func (a *App) resolveClientID(id int64) (int64, error) {
 	return walkIn.ID, nil
 }
 
-func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool, overrides activeOverrides, perUnitPricingEnabled ...bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
+func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool, listPricing activePricing, perUnitPricingEnabled ...bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
 	products := make([]pricedInvoiceProduct, 0, len(items))
 	receiptItems := make([]invoiceItem, 0, len(items))
 	var subtotal, discountedSubtotal int64
@@ -80,29 +116,40 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		if product.IsActive == 0 {
 			return nil, 0, 0, nil, fmt.Errorf("product %s is inactive", item.Code)
 		}
+		// The product row's price/discount columns are frozen (000097): the
+		// sellable price comes from the active lists, keyed by the shared uid.
+		// They're zeroed first so a stale row value can never be charged -- a
+		// product in no list ends up at 0 and is rejected by
+		// priceInvoiceProduct below, which is what "kashi never priced this,
+		// so it can't be sold" looks like at the till.
+		product.Price = 0
+		product.Discount = 0
+		var priceListID, discountListID int64
+		if listed, ok := listPricing.priceFor(product.Uid.String); ok {
+			product.Price = listed.cents
+			priceListID = listed.listID
+		}
+		if listed, ok := listPricing.discountFor(product.Uid.String); ok {
+			product.Discount = listed.percent
+			discountListID = listed.listID
+		}
+
+		// A manual override still wins over the list price -- the cashier is
+		// deliberately overriding a price they can see, not inventing one for
+		// a product central never priced. The line stops being attributed to
+		// the list once it no longer carries the list's value.
 		if item.CustomPriceCents != nil {
 			if !customPricingEnabled {
 				return nil, 0, 0, nil, fmt.Errorf("custom item pricing is disabled")
 			}
 			product.Price = *item.CustomPriceCents
+			priceListID = 0
 		}
-		// A manual override (a whole-line custom price, or a per-unit
-		// price/discount array) always wins over a price-list/discount-list
-		// default - list overrides only fill in where the cashier hasn't
-		// already specified something for that field.
-		var priceListID int64
-		if item.CustomPriceCents == nil && len(item.UnitPricesCents) == 0 {
-			if override, ok := overrides.prices[product.Code]; ok {
-				product.Price = override.cents
-				priceListID = override.listID
-			}
+		if len(item.UnitPricesCents) > 0 {
+			priceListID = 0
 		}
-		var discountListID int64
-		if len(item.UnitDiscounts) == 0 {
-			if override, ok := overrides.discounts[product.Code]; ok {
-				product.Discount = override.percent
-				discountListID = override.listID
-			}
+		if len(item.UnitDiscounts) > 0 {
+			discountListID = 0
 		}
 		priceQuantities := map[unitPricing]int64{
 			{price: product.Price, discount: product.Discount}: int64(item.Qty),

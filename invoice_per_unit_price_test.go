@@ -30,6 +30,7 @@ func TestPerUnitInvoicePricesRequireFeatureAndGroupPriceLines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, store.Queries)
 	app := &App{ctx: ctx, store: store}
 	items := []salesInvoiceItem{{
 		Code: product.Code, Qty: 5,
@@ -38,13 +39,13 @@ func TestPerUnitInvoicePricesRequireFeatureAndGroupPriceLines(t *testing.T) {
 	}}
 
 	if _, _, _, _, err := app.validateAndPriceItems(
-		store.Queries, 0, items, "half_up", false, activeOverrides{}, false,
+		store.Queries, 0, items, "half_up", false, activePricing{}, false,
 	); err == nil {
 		t.Fatal("expected per-unit prices to require the feature")
 	}
 
 	priced, subtotal, discountedSubtotal, receiptItems, err := app.validateAndPriceItems(
-		store.Queries, 0, items, "half_up", false, activeOverrides{}, true,
+		store.Queries, 0, items, "half_up", false, activePricing{}, true,
 	)
 	if err != nil {
 		t.Fatal(err)

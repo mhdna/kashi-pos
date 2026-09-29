@@ -16,7 +16,7 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 		calls++
 		entity := r.URL.Query().Get("entity")
 		since := r.URL.Query().Get("since")
-		if calls <= 9 && since != "" {
+		if calls <= 17 && since != "" {
 			t.Fatalf("expected first pull for %s to have no since, got %q", entity, since)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -27,6 +27,10 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 			fmt.Fprint(w, `{"entity":"cashbox_accounts","items":[{"name":"Wire Transfer","currency_code":"USD","sort_order":9,"color":"#00ff00"}],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "products":
 			fmt.Fprint(w, `{"entity":"products","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "price_lists":
+			fmt.Fprint(w, `{"entity":"price_lists","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "discount_lists":
+			fmt.Fprint(w, `{"entity":"discount_lists","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "clients":
 			fmt.Fprint(w, `{"entity":"clients","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "branch_targets":
@@ -39,6 +43,18 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 			fmt.Fprint(w, `{"entity":"expense_categories","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "loan_categories":
 			fmt.Fprint(w, `{"entity":"loan_categories","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "coupon_types":
+			fmt.Fprint(w, `{"entity":"coupon_types","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "coupons":
+			fmt.Fprint(w, `{"entity":"coupons","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "branches":
+			fmt.Fprint(w, `{"entity":"branches","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "transfer_requests":
+			fmt.Fprint(w, `{"entity":"transfer_requests","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "incoming_transfer_requests":
+			fmt.Fprint(w, `{"entity":"incoming_transfer_requests","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "branch_stock":
+			fmt.Fprint(w, `{"entity":"branch_stock","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		default:
 			t.Fatalf("unexpected entity %q", entity)
 		}
@@ -77,8 +93,8 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 	// Second pull should send the saved cursor as `since`, not fetch
 	// everything all over again.
 	app.runSyncPullOnce(app.ctx, client)
-	if calls != 18 {
-		t.Fatalf("expected 18 total calls (9 entities x 2 ticks), got %d", calls)
+	if calls != 34 {
+		t.Fatalf("expected 34 total calls (17 entities x 2 ticks), got %d", calls)
 	}
 }
 

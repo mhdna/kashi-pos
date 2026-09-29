@@ -107,6 +107,15 @@ type AuthCredential struct {
 	CashierPin        string `json:"cashierPin"`
 }
 
+type BranchStock struct {
+	BranchCode string `json:"branchCode"`
+	VariantUid string `json:"variantUid"`
+	Barcode    string `json:"barcode"`
+	Quantity   int64  `json:"quantity"`
+	PriceCents int64  `json:"priceCents"`
+	UpdatedAt  string `json:"updatedAt"`
+}
+
 type BranchTarget struct {
 	ID                int64  `json:"id"`
 	RemoteID          int64  `json:"remoteId"`
@@ -123,6 +132,7 @@ type CashboxAccount struct {
 	CurrencyCode string `json:"currencyCode"`
 	SortOrder    int64  `json:"sortOrder"`
 	Color        string `json:"color"`
+	IsActive     int64  `json:"isActive"`
 }
 
 type CategoryIcon struct {
@@ -132,12 +142,15 @@ type CategoryIcon struct {
 }
 
 type Client struct {
-	ID                 int64  `json:"id"`
-	Name               string `json:"name"`
-	Phone              string `json:"phone"`
-	TotalLoyaltyPoints int64  `json:"totalLoyaltyPoints"`
-	ValidLoyaltyPoints int64  `json:"validLoyaltyPoints"`
-	CreatedAt          string `json:"createdAt"`
+	ID                 int64          `json:"id"`
+	Name               string         `json:"name"`
+	Phone              string         `json:"phone"`
+	TotalLoyaltyPoints int64          `json:"totalLoyaltyPoints"`
+	ValidLoyaltyPoints int64          `json:"validLoyaltyPoints"`
+	CreatedAt          string         `json:"createdAt"`
+	IsActive           int64          `json:"isActive"`
+	Uid                sql.NullString `json:"uid"`
+	RemoteUpdatedAt    sql.NullString `json:"remoteUpdatedAt"`
 }
 
 type ClientAccountEntry struct {
@@ -158,25 +171,28 @@ type ClientAccountPayment struct {
 }
 
 type Coupon struct {
-	Code              string        `json:"code"`
-	Status            string        `json:"status"`
-	DiscountType      string        `json:"discountType"`
-	Reason            string        `json:"reason"`
-	ClientID          int64         `json:"clientId"`
-	ValidUntil        string        `json:"validUntil"`
-	CreatedAt         string        `json:"createdAt"`
-	TypeID            sql.NullInt64 `json:"typeId"`
-	ValueCents        sql.NullInt64 `json:"valueCents"`
-	RedeemedInvoiceID sql.NullInt64 `json:"redeemedInvoiceId"`
+	Code              string         `json:"code"`
+	Status            string         `json:"status"`
+	DiscountType      sql.NullString `json:"discountType"`
+	Reason            sql.NullString `json:"reason"`
+	ClientID          sql.NullInt64  `json:"clientId"`
+	ValidUntil        sql.NullString `json:"validUntil"`
+	CreatedAt         string         `json:"createdAt"`
+	TypeID            sql.NullInt64  `json:"typeId"`
+	ValueCents        sql.NullInt64  `json:"valueCents"`
+	RedeemedInvoiceID sql.NullInt64  `json:"redeemedInvoiceId"`
 }
 
 type CouponType struct {
-	ID            int64  `json:"id"`
-	Name          string `json:"name"`
-	ValueCents    int64  `json:"valueCents"`
-	CurrencyCode  string `json:"currencyCode"`
-	IsActive      int64  `json:"isActive"`
-	ReferenceOnly int64  `json:"referenceOnly"`
+	ID                  int64         `json:"id"`
+	Name                string        `json:"name"`
+	ValueCents          int64         `json:"valueCents"`
+	CurrencyCode        string        `json:"currencyCode"`
+	IsActive            int64         `json:"isActive"`
+	ReferenceOnly       int64         `json:"referenceOnly"`
+	CalculateOnCheckout int64         `json:"calculateOnCheckout"`
+	CodeOptional        int64         `json:"codeOptional"`
+	CentralID           sql.NullInt64 `json:"centralId"`
 }
 
 type Currency struct {
@@ -191,16 +207,18 @@ type Currency struct {
 }
 
 type DiscountList struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	IsActive  int64  `json:"isActive"`
-	CreatedAt string `json:"createdAt"`
+	ID        int64          `json:"id"`
+	Name      string         `json:"name"`
+	IsActive  int64          `json:"isActive"`
+	CreatedAt string         `json:"createdAt"`
+	Uid       sql.NullString `json:"uid"`
+	IsDefault int64          `json:"isDefault"`
 }
 
 type DiscountListItem struct {
 	ID             int64  `json:"id"`
 	DiscountListID int64  `json:"discountListId"`
-	ProductCode    string `json:"productCode"`
+	ProductUid     string `json:"productUid"`
 	Discount       int64  `json:"discount"`
 	CreatedAt      string `json:"createdAt"`
 }
@@ -372,16 +390,18 @@ type PinLockout struct {
 }
 
 type PriceList struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	IsActive  int64  `json:"isActive"`
-	CreatedAt string `json:"createdAt"`
+	ID        int64          `json:"id"`
+	Name      string         `json:"name"`
+	IsActive  int64          `json:"isActive"`
+	CreatedAt string         `json:"createdAt"`
+	Uid       sql.NullString `json:"uid"`
+	IsDefault int64          `json:"isDefault"`
 }
 
 type PriceListItem struct {
 	ID          int64  `json:"id"`
 	PriceListID int64  `json:"priceListId"`
-	ProductCode string `json:"productCode"`
+	ProductUid  string `json:"productUid"`
 	Price       int64  `json:"price"`
 	CreatedAt   string `json:"createdAt"`
 }
@@ -395,23 +415,25 @@ type PriceOverride struct {
 }
 
 type Product struct {
-	ID           int64  `json:"id"`
-	Barcode      string `json:"barcode"`
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	IsActive     int64  `json:"isActive"`
-	Price        int64  `json:"price"`
-	Discount     int64  `json:"discount"`
-	Color        string `json:"color"`
-	Size         string `json:"size"`
-	CurrencyCode string `json:"currencyCode"`
-	CreatedAt    string `json:"createdAt"`
-	Brand        string `json:"brand"`
-	Family       string `json:"family"`
-	Kind         string `json:"kind"`
-	Season       string `json:"season"`
-	ProductYear  int64  `json:"productYear"`
+	ID              int64          `json:"id"`
+	Barcode         string         `json:"barcode"`
+	Code            string         `json:"code"`
+	Name            string         `json:"name"`
+	Description     string         `json:"description"`
+	IsActive        int64          `json:"isActive"`
+	Price           int64          `json:"price"`
+	Discount        int64          `json:"discount"`
+	Color           string         `json:"color"`
+	Size            string         `json:"size"`
+	CurrencyCode    string         `json:"currencyCode"`
+	CreatedAt       string         `json:"createdAt"`
+	Brand           string         `json:"brand"`
+	Family          string         `json:"family"`
+	Kind            string         `json:"kind"`
+	Season          string         `json:"season"`
+	ProductYear     int64          `json:"productYear"`
+	Uid             sql.NullString `json:"uid"`
+	RemoteUpdatedAt sql.NullString `json:"remoteUpdatedAt"`
 }
 
 type ProductsAttribute struct {
@@ -469,62 +491,67 @@ type SalespersonAttendanceEvent struct {
 }
 
 type Setting struct {
-	BranchName             string  `json:"branchName"`
-	ApiKey                 string  `json:"apiKey"`
-	PrinterID              string  `json:"printerId"`
-	PrinterSize            string  `json:"printerSize"`
-	ReceiptPrinter         string  `json:"receiptPrinter"`
-	ScreenPort             string  `json:"screenPort"`
-	ReceiptWidth           int64   `json:"receiptWidth"`
-	ReceiptHeight          int64   `json:"receiptHeight"`
-	Theme                  string  `json:"theme"`
-	TaxRate                float64 `json:"taxRate"`
-	RoundingMode           string  `json:"roundingMode"`
-	ReceiptEnabled         int64   `json:"receiptEnabled"`
-	SalesInventoryID       int64   `json:"salesInventoryId"`
-	BranchCode             string  `json:"branchCode"`
-	ExchangeRate           int64   `json:"exchangeRate"`
-	MarketName             string  `json:"marketName"`
-	MarketPhone            string  `json:"marketPhone"`
-	MarketDescription      string  `json:"marketDescription"`
-	ReturnPolicy           string  `json:"returnPolicy"`
-	Website                string  `json:"website"`
-	Instagram              string  `json:"instagram"`
-	SocialPlatforms        string  `json:"socialPlatforms"`
-	SocialHandles          string  `json:"socialHandles"`
-	ReceiptFont            string  `json:"receiptFont"`
-	ReceiptTitleSize       float64 `json:"receiptTitleSize"`
-	ReceiptBodySize        float64 `json:"receiptBodySize"`
-	ReceiptCutoff          int64   `json:"receiptCutoff"`
-	ReceiptBodyFont        string  `json:"receiptBodyFont"`
-	BranchPhone            string  `json:"branchPhone"`
-	CounterNumber          string  `json:"counterNumber"`
-	MaxOverpaymentCents    int64   `json:"maxOverpaymentCents"`
-	RoundingCurrency       string  `json:"roundingCurrency"`
-	ExchangeWindowHours    int64   `json:"exchangeWindowHours"`
-	DefaultOpeningFloatUsd int64   `json:"defaultOpeningFloatUsd"`
-	DefaultOpeningFloatLbp int64   `json:"defaultOpeningFloatLbp"`
-	CentralApiUrl          string  `json:"centralApiUrl"`
-	ShiftReceiptUploadMode int64   `json:"shiftReceiptUploadMode"`
+	BranchName             string         `json:"branchName"`
+	ApiKey                 string         `json:"apiKey"`
+	PrinterID              string         `json:"printerId"`
+	PrinterSize            string         `json:"printerSize"`
+	ReceiptPrinter         string         `json:"receiptPrinter"`
+	ScreenPort             string         `json:"screenPort"`
+	ReceiptWidth           int64          `json:"receiptWidth"`
+	ReceiptHeight          int64          `json:"receiptHeight"`
+	Theme                  string         `json:"theme"`
+	TaxRate                float64        `json:"taxRate"`
+	RoundingMode           string         `json:"roundingMode"`
+	ReceiptEnabled         int64          `json:"receiptEnabled"`
+	SalesInventoryID       int64          `json:"salesInventoryId"`
+	BranchCode             string         `json:"branchCode"`
+	ExchangeRate           int64          `json:"exchangeRate"`
+	MarketName             string         `json:"marketName"`
+	MarketPhone            string         `json:"marketPhone"`
+	MarketDescription      string         `json:"marketDescription"`
+	ReturnPolicy           string         `json:"returnPolicy"`
+	Website                string         `json:"website"`
+	Instagram              string         `json:"instagram"`
+	SocialPlatforms        string         `json:"socialPlatforms"`
+	SocialHandles          string         `json:"socialHandles"`
+	ReceiptFont            string         `json:"receiptFont"`
+	ReceiptTitleSize       float64        `json:"receiptTitleSize"`
+	ReceiptBodySize        float64        `json:"receiptBodySize"`
+	ReceiptCutoff          int64          `json:"receiptCutoff"`
+	ReceiptBodyFont        string         `json:"receiptBodyFont"`
+	BranchPhone            string         `json:"branchPhone"`
+	CounterNumber          string         `json:"counterNumber"`
+	MaxOverpaymentCents    int64          `json:"maxOverpaymentCents"`
+	RoundingCurrency       string         `json:"roundingCurrency"`
+	ExchangeWindowHours    int64          `json:"exchangeWindowHours"`
+	DefaultOpeningFloatUsd int64          `json:"defaultOpeningFloatUsd"`
+	DefaultOpeningFloatLbp int64          `json:"defaultOpeningFloatLbp"`
+	CentralApiUrl          string         `json:"centralApiUrl"`
+	ShiftReceiptUploadMode int64          `json:"shiftReceiptUploadMode"`
+	FullMirrorConfirmedAt  sql.NullString `json:"fullMirrorConfirmedAt"`
+	SplitPrimaryCurrency   string         `json:"splitPrimaryCurrency"`
+	SplitPrimaryFirst      int64          `json:"splitPrimaryFirst"`
+	SplitPrimaryStep       int64          `json:"splitPrimaryStep"`
 }
 
 type Shift struct {
-	ID                    int64  `json:"id"`
-	IsClosed              int64  `json:"isClosed"`
-	CreatedAt             string `json:"createdAt"`
-	ClosedAt              string `json:"closedAt"`
-	ClosedBySalespersonID int64  `json:"closedBySalespersonId"`
-	CountedUsd            int64  `json:"countedUsd"`
-	CountedLbp            int64  `json:"countedLbp"`
-	CountedUsdBreakdown   string `json:"countedUsdBreakdown"`
-	CountedVisa           int64  `json:"countedVisa"`
-	CountedWhish          int64  `json:"countedWhish"`
-	ExpectedUsd           int64  `json:"expectedUsd"`
-	ExpectedLbp           int64  `json:"expectedLbp"`
-	ExpectedVisa          int64  `json:"expectedVisa"`
-	ExpectedWhish         int64  `json:"expectedWhish"`
-	OpeningFloatUsd       int64  `json:"openingFloatUsd"`
-	OpeningFloatLbp       int64  `json:"openingFloatLbp"`
+	ID                    int64          `json:"id"`
+	IsClosed              int64          `json:"isClosed"`
+	CreatedAt             string         `json:"createdAt"`
+	ClosedAt              string         `json:"closedAt"`
+	ClosedBySalespersonID int64          `json:"closedBySalespersonId"`
+	CountedUsd            int64          `json:"countedUsd"`
+	CountedLbp            int64          `json:"countedLbp"`
+	CountedUsdBreakdown   string         `json:"countedUsdBreakdown"`
+	CountedVisa           int64          `json:"countedVisa"`
+	CountedWhish          int64          `json:"countedWhish"`
+	ExpectedUsd           int64          `json:"expectedUsd"`
+	ExpectedLbp           int64          `json:"expectedLbp"`
+	ExpectedVisa          int64          `json:"expectedVisa"`
+	ExpectedWhish         int64          `json:"expectedWhish"`
+	OpeningFloatUsd       int64          `json:"openingFloatUsd"`
+	OpeningFloatLbp       int64          `json:"openingFloatLbp"`
+	ClientRef             sql.NullString `json:"clientRef"`
 }
 
 type ShiftBalanceReplacement struct {
@@ -584,6 +611,15 @@ type SyncState struct {
 	CurrentTarget     string         `json:"currentTarget"`
 	LastReconcileAt   sql.NullString `json:"lastReconcileAt"`
 	LastReconcileJson string         `json:"lastReconcileJson"`
+	IdentityAdoptedAt sql.NullString `json:"identityAdoptedAt"`
+	LastFullCheckAt   sql.NullString `json:"lastFullCheckAt"`
+	LastFullCheckJson string         `json:"lastFullCheckJson"`
+}
+
+type SyncedBranch struct {
+	Code     string `json:"code"`
+	Name     string `json:"name"`
+	IsActive int64  `json:"isActive"`
 }
 
 type Transfer struct {
@@ -600,6 +636,28 @@ type TransferItem struct {
 	ProductID  sql.NullInt64 `json:"productId"`
 	AssetID    sql.NullInt64 `json:"assetId"`
 	Quantity   int64         `json:"quantity"`
+}
+
+type TransferRequest struct {
+	ID               int64         `json:"id"`
+	ClientRef        string        `json:"clientRef"`
+	ToBranchCode     string        `json:"toBranchCode"`
+	Note             string        `json:"note"`
+	Status           string        `json:"status"`
+	CreatedAt        string        `json:"createdAt"`
+	UpdatedAt        string        `json:"updatedAt"`
+	Direction        string        `json:"direction"`
+	CentralID        sql.NullInt64 `json:"centralId"`
+	SenderBranchName string        `json:"senderBranchName"`
+}
+
+type TransferRequestItem struct {
+	ID                int64         `json:"id"`
+	TransferRequestID int64         `json:"transferRequestId"`
+	Barcode           string        `json:"barcode"`
+	ProductUid        string        `json:"productUid"`
+	Quantity          int64         `json:"quantity"`
+	ReceivedQuantity  sql.NullInt64 `json:"receivedQuantity"`
 }
 
 type User struct {

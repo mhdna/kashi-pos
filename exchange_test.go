@@ -58,6 +58,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, store.Queries)
 	replacementProduct, err := store.CreateProduct(ctx, db.CreateProductParams{
 		Barcode: "222", Code: "REPLACE-1", Name: "First replacement", IsActive: 1, Price: 600,
 	})
@@ -70,6 +71,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, store.Queries)
 	for _, product := range []db.Product{returnedProduct, replacementProduct, secondReplacement} {
 		if err := store.UpsertInventoryItem(ctx, db.UpsertInventoryItemParams{
 			InventoryID: inventory.ID, ProductID: product.ID, Quantity: 5,
@@ -330,6 +332,7 @@ func newExchangeReplacementPricingFixture(t *testing.T) (app *App, sourceID int6
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, store.Queries)
 	for _, product := range []db.Product{returnedProduct, replacementProduct} {
 		if err := store.UpsertInventoryItem(ctx, db.UpsertInventoryItemParams{
 			InventoryID: inventory.ID, ProductID: product.ID, Quantity: 5,
@@ -668,5 +671,32 @@ func TestCheckoutExchangeInvoiceAllowsSameProductAsReplacement(t *testing.T) {
 	}
 	if !sawReturned || !sawReplacement {
 		t.Fatalf("exchange lines = %#v, want one qty=-1 and one qty=1", lines)
+	}
+}
+
+// Before pricing became list-dictated, validateAndPriceExchange read
+// product.Price straight off the row and never consulted a price or discount
+// list -- so taking an exchange was the one way to sell at a price central
+// had not set. This locks the hole shut: a replacement for a product no
+// active list mentions must fail to price, exactly as a normal sale line does.
+func TestExchangeReplacementIsPricedFromListsNotTheProductRow(t *testing.T) {
+	app, sourceID, _, replacementProduct, _ := newExchangeReplacementPricingFixture(t)
+
+	lists, err := app.store.ListPriceLists(app.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, list := range lists {
+		if err := app.store.DeletePriceListItemsForList(app.ctx, list.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	items, _ := json.Marshal([]exchangeLine{
+		{Code: "RETURN-P", Qty: -1},
+		{Code: replacementProduct.Code, Qty: 3},
+	})
+	if _, err := app.QuoteExchangeTotal(string(items), sourceID); err == nil {
+		t.Fatal("an unpriced replacement must be refused, not sold off the frozen product row")
 	}
 }

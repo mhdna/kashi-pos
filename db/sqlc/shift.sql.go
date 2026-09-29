@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"strings"
 )
 
 const addCashboxAccountBalance = `-- name: AddCashboxAccountBalance :one
@@ -117,7 +118,7 @@ func (q *Queries) CreateAccount(ctx context.Context, name string) (Account, erro
 const createCashboxAccount = `-- name: CreateCashboxAccount :one
 INSERT INTO cashbox_accounts (name, currency_code, sort_order)
 VALUES (?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM cashbox_accounts))
-RETURNING id, name, currency_code, sort_order, color
+RETURNING id, name, currency_code, sort_order, color, is_active
 `
 
 type CreateCashboxAccountParams struct {
@@ -135,13 +136,14 @@ func (q *Queries) CreateCashboxAccount(ctx context.Context, arg CreateCashboxAcc
 		&i.CurrencyCode,
 		&i.SortOrder,
 		&i.Color,
+		&i.IsActive,
 	)
 	return i, err
 }
 
 const createShift = `-- name: CreateShift :one
 INSERT INTO shifts (is_closed, created_at, opening_float_usd, opening_float_lbp)
-VALUES (?, datetime('now'), ?, ?) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp
+VALUES (?, datetime('now'), ?, ?) RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref
 `
 
 type CreateShiftParams struct {
@@ -170,6 +172,7 @@ func (q *Queries) CreateShift(ctx context.Context, arg CreateShiftParams) (Shift
 		&i.ExpectedWhish,
 		&i.OpeningFloatUsd,
 		&i.OpeningFloatLbp,
+		&i.ClientRef,
 	)
 	return i, err
 }
@@ -193,6 +196,32 @@ func (q *Queries) CreateShiftBalanceReplacement(ctx context.Context, arg CreateS
 		arg.ToCashboxID,
 		arg.Amount,
 	)
+	return err
+}
+
+const deactivateCashboxAccountsNotIn = `-- name: DeactivateCashboxAccountsNotIn :exec
+UPDATE cashbox_accounts
+SET is_active = 0
+WHERE name NOT IN (/*SLICE:names*/?)
+  AND name NOT IN ('On Account', 'On Coupon')
+`
+
+// The reconcile half of the payment-method sync: anything kashi did not send
+// stops being offered. The two internal placeholders are exempt -- kashi has
+// no concept of them and the coupon/account settlement paths look them up by
+// exact name.
+func (q *Queries) DeactivateCashboxAccountsNotIn(ctx context.Context, names []string) error {
+	query := deactivateCashboxAccountsNotIn
+	var queryParams []interface{}
+	if len(names) > 0 {
+		for _, v := range names {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:names*/?", strings.Repeat(",?", len(names))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:names*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
 	return err
 }
 
@@ -226,7 +255,7 @@ func (q *Queries) GetAccountByID(ctx context.Context, id int64) (Account, error)
 }
 
 const getCashboxAccountByID = `-- name: GetCashboxAccountByID :one
-SELECT id, name, currency_code, sort_order, color FROM cashbox_accounts WHERE id = ?
+SELECT id, name, currency_code, sort_order, color, is_active FROM cashbox_accounts WHERE id = ?
 `
 
 func (q *Queries) GetCashboxAccountByID(ctx context.Context, id int64) (CashboxAccount, error) {
@@ -238,12 +267,13 @@ func (q *Queries) GetCashboxAccountByID(ctx context.Context, id int64) (CashboxA
 		&i.CurrencyCode,
 		&i.SortOrder,
 		&i.Color,
+		&i.IsActive,
 	)
 	return i, err
 }
 
 const getCashboxAccountByName = `-- name: GetCashboxAccountByName :one
-SELECT id, name, currency_code, sort_order, color FROM cashbox_accounts WHERE name = ?
+SELECT id, name, currency_code, sort_order, color, is_active FROM cashbox_accounts WHERE name = ?
 `
 
 func (q *Queries) GetCashboxAccountByName(ctx context.Context, name string) (CashboxAccount, error) {
@@ -255,12 +285,35 @@ func (q *Queries) GetCashboxAccountByName(ctx context.Context, name string) (Cas
 		&i.CurrencyCode,
 		&i.SortOrder,
 		&i.Color,
+		&i.IsActive,
 	)
 	return i, err
 }
 
+const getDeferredCouponTotalByMonth = `-- name: GetDeferredCouponTotalByMonth :one
+SELECT COALESCE(SUM(icp.amount), 0)
+FROM invoice_coupon_payments icp
+JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+JOIN invoices i ON i.id = icp.invoice_id
+JOIN shifts s ON s.id = i.shift_id
+WHERE (?1 = '' OR strftime('%Y-%m', s.created_at, 'localtime') = ?1)
+  AND ct.calculate_on_checkout = 1
+`
+
+// The total "calculate on checkout" coupon amount excluded from this same
+// month's GetShiftTotals figures, surfaced separately so the balance page
+// can tell the cashier why the total is lower than a raw sum of invoices
+// instead of the number just changing silently. Same month-scoping
+// convention as GetShiftTotals (pass ” for all time).
+func (q *Queries) GetDeferredCouponTotalByMonth(ctx context.Context, totalsMonth interface{}) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getDeferredCouponTotalByMonth, totalsMonth)
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
+}
+
 const getOpenShift = `-- name: GetOpenShift :one
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts WHERE is_closed = 0 LIMIT 1
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref FROM shifts WHERE is_closed = 0 LIMIT 1
 `
 
 func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
@@ -283,6 +336,7 @@ func (q *Queries) GetOpenShift(ctx context.Context) (Shift, error) {
 		&i.ExpectedWhish,
 		&i.OpeningFloatUsd,
 		&i.OpeningFloatLbp,
+		&i.ClientRef,
 	)
 	return i, err
 }
@@ -304,7 +358,7 @@ func (q *Queries) GetShiftAccountBalance(ctx context.Context, arg GetShiftAccoun
 }
 
 const getShiftByID = `-- name: GetShiftByID :one
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts WHERE id = ?
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref FROM shifts WHERE id = ?
 `
 
 func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
@@ -327,11 +381,30 @@ func (q *Queries) GetShiftByID(ctx context.Context, id int64) (Shift, error) {
 		&i.ExpectedWhish,
 		&i.OpeningFloatUsd,
 		&i.OpeningFloatLbp,
+		&i.ClientRef,
 	)
 	return i, err
 }
 
 const getShiftReportSummary = `-- name: GetShiftReportSummary :one
+WITH shift_tax AS (
+    -- The /100.0 ... *100.0 detour looks redundant but is not: it reproduces
+    -- roundFloatToCents' float64 arithmetic bit for bit, so exact .5 ties
+    -- land on the same side here as they did at checkout.
+    SELECT SUM(
+        CASE cfg.rounding_mode
+            WHEN 'down' THEN CAST(i.discounted_total / 100.0 * cfg.tax_rate * 100.0 + 0.000000001 AS INTEGER)
+            WHEN 'up' THEN CAST(i.discounted_total / 100.0 * cfg.tax_rate * 100.0 - 0.000000001 AS INTEGER)
+                + (i.discounted_total / 100.0 * cfg.tax_rate * 100.0 - 0.000000001
+                    > CAST(i.discounted_total / 100.0 * cfg.tax_rate * 100.0 - 0.000000001 AS INTEGER))
+            ELSE CAST(i.discounted_total / 100.0 * cfg.tax_rate * 100.0 + 0.5 AS INTEGER)
+        END
+    ) AS tax
+    FROM invoices i
+    JOIN sales_invoices s ON s.invoice_id = i.id
+    CROSS JOIN (SELECT tax_rate, rounding_mode FROM settings LIMIT 1) cfg
+    WHERE i.shift_id = ?1
+)
 SELECT
     COALESCE((SELECT invoice_code FROM invoices AS first_i WHERE first_i.shift_id = ?1 ORDER BY first_i.id LIMIT 1), '') AS first_invoice,
     COALESCE((SELECT invoice_code FROM invoices AS last_i WHERE last_i.shift_id = ?1 ORDER BY last_i.id DESC LIMIT 1), '') AS last_invoice,
@@ -375,13 +448,30 @@ SELECT
         JOIN return_invoices r ON r.invoice_id = i.id
         WHERE i.shift_id = ?1
     ), 0) AS return_amount,
+    COALESCE((SELECT tax FROM shift_tax), 0) AS tax,
+    -- Cash-rounding adjustment: checkout snaps the grand total to the
+    -- rounding currency's cash grid, so grand_total - discounted_total is
+    -- tax PLUS that snap. Reporting the whole difference as "tax" made the
+    -- line drift every shift (and go negative) even at a 0% rate, so the
+    -- snap gets its own line.
     COALESCE((
         SELECT SUM(i.grand_total - i.discounted_total)
         FROM invoices i
         JOIN sales_invoices s ON s.invoice_id = i.id
         WHERE i.shift_id = ?1
-    ), 0) AS tax,
-    COALESCE((SELECT SUM(net_i.grand_total) FROM invoices AS net_i WHERE net_i.shift_id = ?1), 0) AS net_sales
+    ), 0) - COALESCE((SELECT tax FROM shift_tax), 0) AS cash_rounding,
+    COALESCE((SELECT SUM(net_i.grand_total) FROM invoices AS net_i WHERE net_i.shift_id = ?1), 0)
+    -- "Calculate on checkout" coupon types are settled later (e.g. by the
+    -- coupon issuer) rather than collected by the branch now, so their
+    -- payment amount is carried by the invoice's grand_total but must not
+    -- count as net sales for this shift.
+    - COALESCE((
+        SELECT SUM(icp.amount)
+        FROM invoice_coupon_payments icp
+        JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+        JOIN invoices i ON i.id = icp.invoice_id
+        WHERE i.shift_id = ?1 AND ct.calculate_on_checkout = 1
+    ), 0) AS net_sales
 `
 
 type GetShiftReportSummaryRow struct {
@@ -395,9 +485,16 @@ type GetShiftReportSummaryRow struct {
 	PriceDeductions interface{} `json:"priceDeductions"`
 	ReturnAmount    interface{} `json:"returnAmount"`
 	Tax             interface{} `json:"tax"`
-	NetSales        interface{} `json:"netSales"`
+	CashRounding    int64       `json:"cashRounding"`
+	NetSales        int64       `json:"netSales"`
 }
 
+// shift_tax recomputes the tax charged per invoice exactly the way checkout
+// does (priceInvoiceTotals -> roundFloatToCents): round(discounted_total *
+// tax_rate) under the configured rounding mode. Invoices don't store their
+// own tax, so a shift printed after the rate changes is priced at the
+// current rate; cash_rounding below absorbs any difference, so the report
+// balances either way.
 func (q *Queries) GetShiftReportSummary(ctx context.Context, reportShiftID int64) (GetShiftReportSummaryRow, error) {
 	row := q.db.QueryRowContext(ctx, getShiftReportSummary, reportShiftID)
 	var i GetShiftReportSummaryRow
@@ -412,6 +509,7 @@ func (q *Queries) GetShiftReportSummary(ctx context.Context, reportShiftID int64
 		&i.PriceDeductions,
 		&i.ReturnAmount,
 		&i.Tax,
+		&i.CashRounding,
 		&i.NetSales,
 	)
 	return i, err
@@ -423,6 +521,16 @@ SELECT s.id, s.is_closed, s.created_at, s.closed_at,
            SELECT SUM(i.grand_total)
            FROM invoices i
            WHERE i.shift_id = s.id
+       ), 0) - COALESCE((
+           -- Same deferred-coupon exclusion as GetShiftReportSummary's
+           -- net_sales: a "calculate on checkout" coupon is settled later
+           -- by whoever issued it, not collected by the branch now, so it
+           -- must not inflate this shift's displayed total either.
+           SELECT SUM(icp.amount)
+           FROM invoice_coupon_payments icp
+           JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+           JOIN invoices i ON i.id = icp.invoice_id
+           WHERE i.shift_id = s.id AND ct.calculate_on_checkout = 1
        ), 0) as total,
        COALESCE((
            SELECT SUM(MAX(p.price - ip.unit_price, 0) * ip.quantity)
@@ -446,7 +554,7 @@ type GetShiftTotalsRow struct {
 	IsClosed                int64       `json:"isClosed"`
 	CreatedAt               string      `json:"createdAt"`
 	ClosedAt                string      `json:"closedAt"`
-	Total                   interface{} `json:"total"`
+	Total                   int64       `json:"total"`
 	PriceDeductions         interface{} `json:"priceDeductions"`
 	CountedUsd              int64       `json:"countedUsd"`
 	CountedLbp              int64       `json:"countedLbp"`
@@ -528,10 +636,49 @@ func (q *Queries) ListAccounts(ctx context.Context) ([]Account, error) {
 	return items, nil
 }
 
-const listCashboxAccounts = `-- name: ListCashboxAccounts :many
-SELECT id, name, currency_code, sort_order, color FROM cashbox_accounts ORDER BY sort_order, id
+const listActiveCashboxAccounts = `-- name: ListActiveCashboxAccounts :many
+SELECT id, name, currency_code, sort_order, color, is_active FROM cashbox_accounts WHERE is_active = 1 ORDER BY sort_order, id
 `
 
+// What a cashier may actually take payment with. A method kashi has retired
+// is deactivated rather than deleted, so this is the list the checkout
+// calculator and the settings screen read.
+func (q *Queries) ListActiveCashboxAccounts(ctx context.Context) ([]CashboxAccount, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveCashboxAccounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CashboxAccount{}
+	for rows.Next() {
+		var i CashboxAccount
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CurrencyCode,
+			&i.SortOrder,
+			&i.Color,
+			&i.IsActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCashboxAccounts = `-- name: ListCashboxAccounts :many
+SELECT id, name, currency_code, sort_order, color, is_active FROM cashbox_accounts ORDER BY sort_order, id
+`
+
+// Every account, active or not. Used where history has to resolve (shift
+// reports, invoice detail) -- a retired method still has to have a name.
 func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error) {
 	rows, err := q.db.QueryContext(ctx, listCashboxAccounts)
 	if err != nil {
@@ -547,6 +694,7 @@ func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, er
 			&i.CurrencyCode,
 			&i.SortOrder,
 			&i.Color,
+			&i.IsActive,
 		); err != nil {
 			return nil, err
 		}
@@ -562,7 +710,7 @@ func (q *Queries) ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, er
 }
 
 const listClosedShifts = `-- name: ListClosedShifts :many
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts WHERE is_closed = 1 ORDER BY id
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref FROM shifts WHERE is_closed = 1 ORDER BY id
 `
 
 func (q *Queries) ListClosedShifts(ctx context.Context) ([]Shift, error) {
@@ -591,6 +739,7 @@ func (q *Queries) ListClosedShifts(ctx context.Context) ([]Shift, error) {
 			&i.ExpectedWhish,
 			&i.OpeningFloatUsd,
 			&i.OpeningFloatLbp,
+			&i.ClientRef,
 		); err != nil {
 			return nil, err
 		}
@@ -606,7 +755,7 @@ func (q *Queries) ListClosedShifts(ctx context.Context) ([]Shift, error) {
 }
 
 const listShifts = `-- name: ListShifts :many
-SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp FROM shifts ORDER BY id
+SELECT id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref FROM shifts ORDER BY id
 `
 
 func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
@@ -635,6 +784,7 @@ func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
 			&i.ExpectedWhish,
 			&i.OpeningFloatUsd,
 			&i.OpeningFloatLbp,
+			&i.ClientRef,
 		); err != nil {
 			return nil, err
 		}
@@ -647,6 +797,20 @@ func (q *Queries) ListShifts(ctx context.Context) ([]Shift, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setCashboxAccountActive = `-- name: SetCashboxAccountActive :exec
+UPDATE cashbox_accounts SET is_active = ? WHERE id = ?
+`
+
+type SetCashboxAccountActiveParams struct {
+	IsActive int64 `json:"isActive"`
+	ID       int64 `json:"id"`
+}
+
+func (q *Queries) SetCashboxAccountActive(ctx context.Context, arg SetCashboxAccountActiveParams) error {
+	_, err := q.db.ExecContext(ctx, setCashboxAccountActive, arg.IsActive, arg.ID)
+	return err
 }
 
 const setCashboxAccountSortOrder = `-- name: SetCashboxAccountSortOrder :exec
@@ -664,7 +828,7 @@ func (q *Queries) SetCashboxAccountSortOrder(ctx context.Context, arg SetCashbox
 }
 
 const updateCashboxAccount = `-- name: UpdateCashboxAccount :one
-UPDATE cashbox_accounts SET name = ?, currency_code = ?, color = ? WHERE id = ? RETURNING id, name, currency_code, sort_order, color
+UPDATE cashbox_accounts SET name = ?, currency_code = ?, color = ? WHERE id = ? RETURNING id, name, currency_code, sort_order, color, is_active
 `
 
 type UpdateCashboxAccountParams struct {
@@ -688,12 +852,13 @@ func (q *Queries) UpdateCashboxAccount(ctx context.Context, arg UpdateCashboxAcc
 		&i.CurrencyCode,
 		&i.SortOrder,
 		&i.Color,
+		&i.IsActive,
 	)
 	return i, err
 }
 
 const updateShiftOpeningFloat = `-- name: UpdateShiftOpeningFloat :one
-UPDATE shifts SET opening_float_usd = ?, opening_float_lbp = ? WHERE id = ? AND is_closed = 0 RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp
+UPDATE shifts SET opening_float_usd = ?, opening_float_lbp = ? WHERE id = ? AND is_closed = 0 RETURNING id, is_closed, created_at, closed_at, closed_by_salesperson_id, counted_usd, counted_lbp, counted_usd_breakdown, counted_visa, counted_whish, expected_usd, expected_lbp, expected_visa, expected_whish, opening_float_usd, opening_float_lbp, client_ref
 `
 
 type UpdateShiftOpeningFloatParams struct {
@@ -722,6 +887,7 @@ func (q *Queries) UpdateShiftOpeningFloat(ctx context.Context, arg UpdateShiftOp
 		&i.ExpectedWhish,
 		&i.OpeningFloatUsd,
 		&i.OpeningFloatLbp,
+		&i.ClientRef,
 	)
 	return i, err
 }

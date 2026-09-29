@@ -54,6 +54,7 @@ func setUpTestInvoiceApp(t *testing.T, centralAPIURL string) (*App, *db.Store, d
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, store.Queries)
 	if err := store.UpsertInventoryItem(ctx, db.UpsertInventoryItemParams{InventoryID: inventory.ID, ProductID: product.ID, Quantity: 5}); err != nil {
 		t.Fatal(err)
 	}
@@ -149,6 +150,7 @@ func TestReturnInvoiceQueuesSyncLinkedToOriginalSale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, store.Queries)
 	settings, err := store.GetSettings(app.ctx)
 	if err != nil {
 		t.Fatal(err)

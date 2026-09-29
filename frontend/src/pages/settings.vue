@@ -97,6 +97,115 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('general-branches')" class="settings-card">
+            <v-card-title>Branches</v-card-title>
+            <v-card-text>
+              <div class="text-caption text-medium-emphasis mb-3">
+                Every branch set up on this machine has its own local database. Switching applies
+                immediately, without restarting the app.
+              </div>
+              <v-select
+                v-model="selectedBranchCode"
+                :items="branchOptions"
+                item-title="title"
+                item-value="code"
+                label="Active branch"
+                variant="outlined"
+                density="compact"
+                hide-details
+                :loading="branchSwitching"
+                @update:model-value="switchBranch"
+              />
+              <div class="d-flex align-center justify-space-between mt-2">
+                <span class="text-caption text-medium-emphasis">
+                  Default at next launch: {{ defaultBranchCode || "—" }}
+                </span>
+                <v-btn
+                  variant="text"
+                  size="small"
+                  :disabled="!activeBranchCode || activeBranchCode === defaultBranchCode"
+                  :loading="settingDefaultBranch"
+                  @click="setDefaultBranch(activeBranchCode)"
+                >
+                  Make active branch default
+                </v-btn>
+              </div>
+              <v-divider class="my-4" />
+              <div class="text-subtitle-2 mb-2">Add another branch</div>
+              <v-text-field
+                v-model="newBranch.name"
+                label="Branch name"
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="newBranch.code"
+                label="Branch code"
+                hint="Letters and numbers only"
+                persistent-hint
+                variant="outlined"
+                density="compact"
+                class="mb-2"
+                @update:model-value="newBranch.code = newBranch.code.toUpperCase()"
+              />
+              <v-text-field
+                v-model="newBranch.apiKey"
+                label="Central API key"
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="newBranch.centralApiUrl"
+                label="Central server URL"
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="mb-2"
+              />
+              <div class="d-flex justify-end">
+                <v-btn color="primary" variant="flat" :loading="creatingBranch" @click="createBranch">
+                  Create branch
+                </v-btn>
+              </div>
+              <v-alert v-if="branchActionError" type="error" density="compact" class="mt-3">
+                {{ branchActionError }}
+              </v-alert>
+
+              <v-divider class="my-4" />
+              <div class="text-subtitle-2 mb-2">Import branch history from kashi</div>
+              <div class="text-caption text-medium-emphasis mb-2">
+                If this branch already has real invoices, expenses, loans and closed shifts on
+                kashi (e.g. this is a re-provisioned till), pull them down. Only runs on a branch
+                with no local invoices, expenses, loans or shifts yet -- best-effort: line items
+                or payment accounts kashi can no longer match exactly are reconstructed with a
+                placeholder, not silently dropped.
+              </div>
+              <v-btn
+                variant="outlined"
+                :loading="importingHistory"
+                @click="importBranchHistory"
+              >
+                Import branch history
+              </v-btn>
+              <v-alert v-if="historyImportResult" type="success" density="compact" class="mt-3">
+                Imported {{ historyImportResult.invoices }} invoice(s),
+                {{ historyImportResult.expenses }} expense(s), {{ historyImportResult.loans }}
+                loan(s) and {{ historyImportResult.shiftCloses }} shift close(s).
+                <span v-if="historyImportResult.unresolvedItems">
+                  {{ historyImportResult.unresolvedItems }} line item(s) used a placeholder
+                  product.
+                </span>
+              </v-alert>
+              <v-alert v-if="historyImportError" type="error" density="compact" class="mt-3">
+                {{ historyImportError }}
+              </v-alert>
+            </v-card-text>
+          </v-card>
+
           <v-card v-show="panelMatches('general-sync')" class="settings-card">
             <v-card-title>Central sync (kashi)</v-card-title>
             <v-card-text class="field-grid">
@@ -180,13 +289,23 @@
                     </tr>
                   </tbody>
                 </v-table>
-                <div
-                  v-if="resyncReport && productConflictNote"
-                  class="text-caption mt-1"
-                  :class="productConflictNote.includes('need') ? 'text-warning' : 'text-medium-emphasis'"
-                >
-                  {{ productConflictNote }}
-                </div>
+
+                <v-table v-if="resyncReport?.fullCheck" density="compact" class="mt-3">
+                  <thead>
+                    <tr>
+                      <th>Full check</th><th class="text-right">On kashi</th>
+                      <th class="text-right">Fetched</th><th class="text-right">Deactivated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in resyncReport.fullCheck.entities" :key="row.entity">
+                      <td>{{ row.entity }}</td>
+                      <td class="text-right">{{ row.central }}</td>
+                      <td class="text-right">{{ row.fetched }}</td>
+                      <td class="text-right">{{ row.deactivated }}</td>
+                    </tr>
+                  </tbody>
+                </v-table>
               </div>
             </v-card-text>
           </v-card>
@@ -283,23 +402,36 @@
               <v-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" hide-details />
               <v-select v-model="form.screenPort" :items="serialPorts" placeholder="Customer screen COM port" variant="outlined" density="compact" hide-details />
               <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
-              <v-select
-                :model-value="form.shiftReceiptUploadMode"
-                :items="shiftReceiptUploadModes"
+              <v-switch
+                :model-value="form.shiftReceiptUploadMode !== 0"
                 :loading="shiftReceiptUploadModeSaving"
-                label="Close-shift receipt photo"
-                class="field-full"
-                variant="outlined"
-                density="compact"
+                label="Show receipt-photo QR code after closing a shift"
+                color="primary"
                 hide-details
-                @update:model-value="(value) => setShiftReceiptUploadMode(value)"
+                class="field-full"
+                @update:model-value="(value) => setShiftReceiptUploadMode(value ? 2 : 0)"
               />
-              <div class="text-caption text-medium-emphasis field-full">
-                After a shift closes, the cashier is shown a QR code to upload one photo of the
-                printed receipt. <b>Hybrid</b> sends it to the office when there's a connection
-                and buffers it on this machine otherwise; <b>Local</b> always uploads over the
-                shop Wi-Fi to this machine; <b>Central</b> always goes straight to the office;
-                <b>Off</b> skips the photo.
+              <template v-if="form.shiftReceiptUploadMode !== 0">
+                <v-select
+                  :model-value="form.shiftReceiptUploadMode"
+                  :items="shiftReceiptUploadModes"
+                  :loading="shiftReceiptUploadModeSaving"
+                  label="Close-shift receipt photo"
+                  class="field-full"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  @update:model-value="(value) => setShiftReceiptUploadMode(value)"
+                />
+                <div class="text-caption text-medium-emphasis field-full">
+                  After a shift closes, the cashier is shown a QR code to upload one photo of the
+                  printed receipt. <b>Hybrid</b> sends it to the office when there's a connection
+                  and buffers it on this machine otherwise; <b>Local</b> always uploads over the
+                  shop Wi-Fi to this machine; <b>Central</b> always goes straight to the office.
+                </div>
+              </template>
+              <div v-else class="text-caption text-medium-emphasis field-full">
+                When off, closing a shift logs straight out without asking for a receipt photo.
               </div>
             </v-card-text>
           </v-card>
@@ -388,6 +520,18 @@
               <v-text-field v-model.number="form.exchangeRate" placeholder="Legacy exchange rate" type="number" min="1" step="1" variant="outlined" density="compact" hide-details />
               <v-select v-model="form.roundingMode" :items="roundingModes" placeholder="Money rounding" variant="outlined" density="compact" hide-details />
               <v-select v-model="form.roundingCurrency" :items="roundingCurrencies" placeholder="Round by currency" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.splitPrimaryCurrency" :items="roundingCurrencies" placeholder="Split primary currency" variant="outlined" density="compact" hide-details />
+              <v-switch v-model="form.splitPrimaryFirst" color="primary" density="compact" hide-details :label="form.splitPrimaryFirst ? 'Primary currency first' : 'Rounding currency first'" />
+              <v-text-field
+                v-model.number="form.splitPrimaryStep"
+                placeholder="Split step (0 = use currency's cash rounding)"
+                type="number"
+                min="0"
+                step="1"
+                variant="outlined"
+                density="compact"
+                hide-details
+              />
               <v-select
                 :model-value="calculatorTotalCurrency"
                 :items="calculatorDisplayCurrencies"
@@ -488,7 +632,10 @@
           <v-card v-show="panelMatches('money-currencies')" class="settings-card settings-card--wide">
             <v-card-title>Currencies &amp; rates</v-card-title>
             <v-card-text>
-              <v-table density="compact" class="mb-4">
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Currencies and their rates are set in kashi and sync down here.
+              </v-alert>
+              <v-table density="compact">
                 <thead>
                   <tr>
                     <th>Code</th>
@@ -497,7 +644,6 @@
                     <th>Units per USD</th>
                     <th>Cash rounding unit</th>
                     <th>Active</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -507,81 +653,28 @@
                     <td>{{ currency.symbol }}</td>
                     <td>{{ currency.unitsPerUsd }}</td>
                     <td>{{ currency.cashRoundingUnit }}</td>
-                    <td>
-                      <v-switch
-                        :model-value="currency.isActive"
-                        :disabled="currency.isDefault"
-                        hide-details
-                        density="compact"
-                        color="primary"
-                        @update:model-value="toggleCurrencyActive(currency)"
-                      />
-                    </td>
-                    <td>
-                      <v-btn
-                        v-if="!currency.isDefault"
-                        icon="mdi-pencil"
-                        variant="text"
-                        size="small"
-                        @click="editCurrency(currency)"
-                      />
-                    </td>
+                    <td>{{ currency.isActive ? "Yes" : "No" }}</td>
                   </tr>
                 </tbody>
               </v-table>
-              <div class="text-subtitle-2 mb-2">
-                {{ editingCurrencyCode ? `Edit ${editingCurrencyCode}` : "Add a currency" }}
-              </div>
-              <div class="d-flex flex-wrap ga-2 align-start">
-                <v-text-field
-                  v-if="!editingCurrencyCode"
-                  v-model="currencyForm.code"
-                  placeholder="Code (e.g. EUR)"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 140px"
-                />
-                <v-text-field v-model="currencyForm.name" placeholder="Name" variant="outlined" density="compact" style="max-width: 180px" />
-                <v-text-field v-model="currencyForm.symbol" placeholder="Symbol" variant="outlined" density="compact" style="max-width: 100px" />
-                <v-text-field
-                  v-model.number="currencyForm.unitsPerUsd"
-                  placeholder="Units per USD"
-                  type="number"
-                  min="0"
-                  step="0.0001"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 160px"
-                />
-                <v-text-field
-                  v-model.number="currencyForm.cashRoundingUnit"
-                  placeholder="Cash rounding unit"
-                  type="number"
-                  min="1"
-                  step="1"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 160px"
-                />
-                <v-btn color="primary" :loading="currencySaving" @click="saveCurrency">
-                  {{ editingCurrencyCode ? "Save" : "Add" }}
-                </v-btn>
-                <v-btn v-if="editingCurrencyCode" variant="text" @click="resetCurrencyForm">Cancel</v-btn>
-              </div>
             </v-card-text>
           </v-card>
 
           <v-card v-show="panelMatches('money-payment-methods')" class="settings-card settings-card--wide">
             <v-card-title>Payment methods</v-card-title>
             <v-card-text>
-              <v-table density="compact" class="mb-4">
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Payment methods are set in kashi and sync down here. One kashi
+                no longer has stops being offered at checkout; past invoices
+                that used it still open.
+              </v-alert>
+              <v-table density="compact">
                 <thead>
                   <tr>
                     <th>Order</th>
                     <th>Name</th>
                     <th>Currency</th>
                     <th>Color</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -595,56 +688,14 @@
                         :style="{ background: paymentAccentColor(method) }"
                       />
                     </td>
-                    <td>
-                      <v-btn
-                        icon="mdi-arrow-up"
-                        size="x-small"
-                        variant="text"
-                        :disabled="index === 0"
-                        :loading="paymentMethodReordering"
-                        @click="movePaymentMethod(index, -1)"
-                      />
-                      <v-btn
-                        icon="mdi-arrow-down"
-                        size="x-small"
-                        variant="text"
-                        :disabled="index === orderablePaymentMethods.length - 1"
-                        :loading="paymentMethodReordering"
-                        @click="movePaymentMethod(index, 1)"
-                      />
-                      <v-btn icon="mdi-pencil" variant="text" size="small" @click="editPaymentMethod(method)" />
+                  </tr>
+                  <tr v-if="!orderablePaymentMethods.length">
+                    <td colspan="4" class="text-medium-emphasis">
+                      No payment methods have synced yet.
                     </td>
                   </tr>
                 </tbody>
               </v-table>
-              <div class="text-subtitle-2 mb-2">
-                {{ editingPaymentMethodId ? "Edit payment method" : "Add a payment method" }}
-              </div>
-              <div class="d-flex flex-wrap ga-2 align-start">
-                <v-text-field
-                  v-model="paymentMethodForm.name"
-                  placeholder="Name (e.g. Euro Cash)"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 220px"
-                />
-                <v-select
-                  v-model="paymentMethodForm.currencyCode"
-                  :items="currencies.filter((c) => c.isActive).map((c) => ({ title: `${c.name} (${c.code})`, value: c.code }))"
-                  placeholder="Currency"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 220px"
-                />
-                <div v-if="editingPaymentMethodId" class="d-flex align-center ga-2">
-                  <input v-model="paymentMethodForm.color" type="color" class="payment-method-color-input" />
-                  <v-btn variant="text" size="small" @click="paymentMethodForm.color = ''">Use automatic color</v-btn>
-                </div>
-                <v-btn color="primary" :loading="paymentMethodSaving" @click="savePaymentMethod">
-                  {{ editingPaymentMethodId ? "Save" : "Add" }}
-                </v-btn>
-                <v-btn v-if="editingPaymentMethodId" variant="text" @click="resetPaymentMethodForm">Cancel</v-btn>
-              </div>
               <v-switch
                 :model-value="!form.hidePaymentMethodCurrency"
                 :loading="paymentMethodSaving"
@@ -660,7 +711,11 @@
           <v-card v-show="panelMatches('money-price-lists')" class="settings-card">
             <v-card-title>Price lists</v-card-title>
             <v-card-text>
-              <v-table density="compact" class="mb-4">
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Prices are set in kashi and sync down here. A product that no
+                active list prices cannot be sold.
+              </v-alert>
+              <v-table density="compact">
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -670,40 +725,30 @@
                 </thead>
                 <tbody>
                   <tr v-for="list in priceLists" :key="list.id">
-                    <td>{{ list.name }}</td>
                     <td>
-                      <v-switch
-                        :model-value="list.isActive"
-                        hide-details
-                        density="compact"
-                        color="primary"
-                        @update:model-value="togglePriceListActive(list)"
-                      />
+                      {{ list.name }}
+                      <v-chip v-if="list.isDefault" size="x-small" class="ml-2">default</v-chip>
                     </td>
-                    <td class="d-flex ga-1">
-                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="Manage items" @click="openManageList('price', list)" />
-                      <v-btn icon="mdi-pencil" variant="text" size="small" @click="editPriceList(list)" />
+                    <td>{{ list.isActive ? "Yes" : "No" }}</td>
+                    <td>
+                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('price', list)" />
                     </td>
+                  </tr>
+                  <tr v-if="!priceLists.length">
+                    <td colspan="3" class="text-medium-emphasis">No price lists have synced yet.</td>
                   </tr>
                 </tbody>
               </v-table>
-              <div class="text-subtitle-2 mb-2">
-                {{ editingPriceListId ? "Edit price list" : "Add a price list" }}
-              </div>
-              <div class="d-flex flex-wrap ga-2 align-start">
-                <v-text-field v-model="priceListForm.name" placeholder="Name (e.g. Black Friday)" variant="outlined" density="compact" style="max-width: 240px" />
-                <v-btn color="primary" :loading="priceListSaving" @click="savePriceList">
-                  {{ editingPriceListId ? "Save" : "Add" }}
-                </v-btn>
-                <v-btn v-if="editingPriceListId" variant="text" @click="resetPriceListForm">Cancel</v-btn>
-              </div>
             </v-card-text>
           </v-card>
 
           <v-card v-show="panelMatches('money-discount-lists')" class="settings-card">
             <v-card-title>Discount lists</v-card-title>
             <v-card-text>
-              <v-table density="compact" class="mb-4">
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Discounts are set in kashi and sync down here.
+              </v-alert>
+              <v-table density="compact">
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -713,33 +758,20 @@
                 </thead>
                 <tbody>
                   <tr v-for="list in discountLists" :key="list.id">
-                    <td>{{ list.name }}</td>
                     <td>
-                      <v-switch
-                        :model-value="list.isActive"
-                        hide-details
-                        density="compact"
-                        color="primary"
-                        @update:model-value="toggleDiscountListActive(list)"
-                      />
+                      {{ list.name }}
+                      <v-chip v-if="list.isDefault" size="x-small" class="ml-2">default</v-chip>
                     </td>
-                    <td class="d-flex ga-1">
-                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="Manage items" @click="openManageList('discount', list)" />
-                      <v-btn icon="mdi-pencil" variant="text" size="small" @click="editDiscountList(list)" />
+                    <td>{{ list.isActive ? "Yes" : "No" }}</td>
+                    <td>
+                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('discount', list)" />
                     </td>
+                  </tr>
+                  <tr v-if="!discountLists.length">
+                    <td colspan="3" class="text-medium-emphasis">No discount lists have synced yet.</td>
                   </tr>
                 </tbody>
               </v-table>
-              <div class="text-subtitle-2 mb-2">
-                {{ editingDiscountListId ? "Edit discount list" : "Add a discount list" }}
-              </div>
-              <div class="d-flex flex-wrap ga-2 align-start">
-                <v-text-field v-model="discountListForm.name" placeholder="Name" variant="outlined" density="compact" style="max-width: 240px" />
-                <v-btn color="primary" :loading="discountListSaving" @click="saveDiscountList">
-                  {{ editingDiscountListId ? "Save" : "Add" }}
-                </v-btn>
-                <v-btn v-if="editingDiscountListId" variant="text" @click="resetDiscountListForm">Cancel</v-btn>
-              </div>
             </v-card-text>
           </v-card>
         </div>
@@ -763,11 +795,25 @@
                 <v-btn v-if="editingCouponTypeId" variant="text" @click="cancelCouponTypeEdit">Cancel</v-btn>
               </div>
               <div class="d-flex align-center ga-4 mb-2">
-                <v-checkbox v-model="couponTypeForm.referenceOnly" density="compact" hide-details label="Reference-only" />
+                <v-checkbox
+                  v-model="couponTypeForm.codeRequired"
+                  density="compact"
+                  hide-details
+                  label="Code required"
+                  title="Uncheck for coupon types that need no code or reference number at all - they're added directly at checkout"
+                />
+                <v-checkbox v-model="couponTypeForm.referenceOnly" :disabled="!couponTypeForm.codeRequired" density="compact" hide-details label="Reference-only" />
                 <v-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details label="Active" />
+                <v-checkbox
+                  v-model="couponTypeForm.calculateOnCheckout"
+                  density="compact"
+                  hide-details
+                  label="Don't count in totals (settled later)"
+                  title="Tick when the coupon is settled later (e.g. reimbursed by the issuer) instead of collected by the branch now. Its payments are left out of the shift's total and net sales."
+                />
               </div>
               <v-list density="compact" bg-color="transparent">
-                <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.referenceOnly ? ' · Reference-only' : ''}`">
+                <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.codeRequired === false ? ' · No code required' : couponType.referenceOnly ? ' · Reference-only' : ''}${couponType.calculateOnCheckout ? ' · Not counted in totals' : ''}`">
                   <template #append>
                     <v-btn icon="mdi-pencil-outline" variant="text" density="compact" title="Edit coupon type" @click="editCouponType(couponType)" />
                     <v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon type" @click="removeCouponType(couponType)" />
@@ -926,6 +972,27 @@
                 When on, the salesperson selection is cleared for each new invoice so
                 the cashier must choose again. When off, the previous invoice's
                 salesperson carries forward. This can also be changed remotely from kashi.
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('behavior-non-admin-month-nav')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-calendar-month-outline" size="20" />
+              Income chart month navigation
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.nonAdminMonthNavEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Let non-admins browse other months on the income chart"
+                @update:model-value="setNonAdminMonthNavEnabled"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                When off, only admins can use the back/forward buttons on the monthly
+                income chart - non-admins only see the current month.
               </div>
             </v-card-text>
           </v-card>
@@ -1254,6 +1321,40 @@
       </v-card>
     </v-dialog>
 
+    <v-dialog :model-value="showDeactivationConfirm" max-width="480" persistent>
+      <v-card v-if="pendingDeactivation">
+        <v-card-title>Deactivate products no longer on kashi?</v-card-title>
+        <v-card-text>
+          <div class="mb-2">
+            kashi no longer has the following. This will deactivate them here
+            too (hidden from checkout, not deleted -- past invoices and shift
+            reports still show them). This confirmation only appears once;
+            future syncs will do this automatically.
+          </div>
+          <div v-if="pendingDeactivation.productBarcodes.length" class="mb-2">
+            <div class="text-caption text-medium-emphasis">
+              {{ pendingDeactivation.productBarcodes.length }} product(s)
+            </div>
+            <ul class="text-body-2">
+              <li v-for="(name, i) in pendingDeactivation.productNames.slice(0, 10)" :key="pendingDeactivation.productBarcodes[i]">
+                {{ name || pendingDeactivation.productBarcodes[i] }}
+              </li>
+              <li v-if="pendingDeactivation.productBarcodes.length > 10" class="text-medium-emphasis">
+                …and {{ pendingDeactivation.productBarcodes.length - 10 }} more
+              </li>
+            </ul>
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" :disabled="deactivationConfirming" @click="cancelDeactivation">Cancel</v-btn>
+          <v-spacer />
+          <v-btn color="primary" variant="flat" :loading="deactivationConfirming" @click="confirmDeactivationAndResync">
+            Deactivate and sync
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-dialog v-model="deleteDialog" max-width="400">
       <v-card>
         <v-card-title>Delete User</v-card-title>
@@ -1322,42 +1423,23 @@
       <v-card>
         <v-card-title>{{ manageListName }} items</v-card-title>
         <v-card-text>
-          <v-table density="compact" class="mb-4">
+          <v-table density="compact">
             <thead>
               <tr>
-                <th>Product code</th>
+                <th>Product</th>
                 <th>{{ manageListType === "price" ? "Price" : "Discount" }}</th>
-                <th></th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="item in manageListItems" :key="item.id">
-                <td>{{ item.productCode }}</td>
+                <td>{{ item.productUid }}</td>
                 <td>{{ manageListType === "price" ? `$${Number(item.price).toFixed(2)}` : `${item.discount}%` }}</td>
-                <td>
-                  <v-btn icon="mdi-delete-outline" variant="text" size="small" @click="removeManageListItem(item)" />
-                </td>
               </tr>
               <tr v-if="!manageListItems.length">
-                <td colspan="3" class="text-medium-emphasis">No items yet.</td>
+                <td colspan="2" class="text-medium-emphasis">No items yet.</td>
               </tr>
             </tbody>
           </v-table>
-          <div class="d-flex flex-wrap ga-2 align-start">
-            <v-text-field v-model="manageItemCode" placeholder="Product code" variant="outlined" density="compact" style="max-width: 200px" />
-            <ProductSearchDialog activator-text="Pick product" activator-icon="mdi-magnify" @select="pickManageItemProduct" />
-            <v-text-field
-              v-model.number="manageItemValue"
-              :placeholder="manageListType === 'price' ? 'Price ($)' : 'Discount (%)'"
-              type="number"
-              min="0"
-              :step="manageListType === 'price' ? 0.01 : 1"
-              variant="outlined"
-              density="compact"
-              style="max-width: 160px"
-            />
-            <v-btn color="primary" :loading="manageItemSaving" @click="addManageListItem">Add / update</v-btn>
-          </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -1405,6 +1487,11 @@ import {
   GetAppSettings,
   GetDatabaseStatus,
   ChooseDatabase,
+  ListBranches,
+  CreateBranch,
+  SwitchBranch,
+  SetDefaultBranch,
+  PullBranchHistory,
   ListBranchTargetsWithProgress,
   UpdateSettings,
   UpdateCentralAPIURL,
@@ -1412,6 +1499,7 @@ import {
   UpdateAttendanceApproverPassword,
   SetAttendanceDuplicateInterval,
   SetExchangeWindowHours,
+  SetSplitDisplay,
   SetCustomItemDiscountsEnabled,
   SetCustomItemPricesEnabled,
   SetPerUnitItemPricesEnabled,
@@ -1421,6 +1509,7 @@ import {
   SetVisitorCounterEnabled,
   SetClientRequired,
   SetSalespersonPerInvoiceRequired,
+  SetNonAdminMonthNavEnabled,
   SetHidePaymentMethodCurrency,
   SetAutoAppendLbpZerosEnabled,
   SetOverchangeConfirmationEnabled,
@@ -1458,36 +1547,20 @@ import {
   UpdateSalesperson,
   DeleteSalesperson,
   ListCurrencies,
-  CreateCurrency,
-  UpdateCurrency,
-  SetCurrencyActive,
   ListPaymentMethods,
-  CreateCashboxAccount,
-  UpdateCashboxAccount,
-  ReorderCashboxAccounts,
   SetTheme,
   ListPriceLists,
-  CreatePriceList,
-  UpdatePriceList,
-  SetPriceListActive,
   ListPriceListItems,
-  SetPriceListItem,
-  RemovePriceListItem,
   ListDiscountLists,
-  CreateDiscountList,
-  UpdateDiscountList,
-  SetDiscountListActive,
   ListDiscountListItems,
-  SetDiscountListItem,
-  RemoveDiscountListItem,
-  ResyncAll,
   GetSyncStatus,
 } from "../../wailsjs/go/main/App";
-import { WindowReloadApp, EventsOn } from "../../wailsjs/runtime/runtime";
+import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import { formatUsd } from "@/lib/format";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 import { paymentAccentColor } from "@/lib/paymentColor";
 import { useAuthStore } from "@/stores/auth";
+import { useResyncStore } from "@/stores/resync";
 import { useClient } from "@/composables/useClient";
 import { useSalesperson } from "@/composables/useSalesperson";
 import { usePageUnlocks, lockablePages } from "@/composables/usePageUnlocks";
@@ -1521,60 +1594,45 @@ const settingsTabs = [
 // Static index of every settings "panel" (its tab + searchable text) used by
 // the search box below. Keep in sync with the v-show="panelMatches(...)" on
 // each panel in the template.
-const resyncRunning = ref(false);
-const resyncApplyStock = ref(false);
-const resyncProgress = ref("");
-const resyncError = ref("");
-const resyncReport = ref<any>(null);
-
-const productConflictNote = computed(() => {
-  const rep = resyncReport.value;
-  if (!rep) return "";
-  const products = rep.entities?.find((e: any) => e.entity === "products");
-  if (!products || products.queued === 0) return "";
-  return `${products.queued} product(s) need resolving in kashi before they can sync.`;
+// Backed by the resync store (src/stores/resync.ts), not local refs: a
+// sync keeps running on the Go side regardless of what page is open, and a
+// requiresConfirmation response must not get lost if the operator
+// navigates away from Settings before it lands. The store persists for the
+// app's lifetime; this page just reads/drives it.
+const resync = useResyncStore();
+resync.attachProgressListener();
+const resyncRunning = computed(() => resync.running);
+const resyncApplyStock = computed({
+  get: () => resync.applyStock,
+  set: (v: boolean) => { resync.applyStock = v; },
 });
+const resyncProgress = computed(() => resync.progress);
+const resyncError = computed(() => resync.error);
+const resyncReport = computed(() => resync.report);
+const pendingDeactivation = computed(() => resync.pendingDeactivation);
+const showDeactivationConfirm = computed(() => resync.showDeactivationConfirm);
+const deactivationConfirming = computed(() => resync.deactivationConfirming);
 
-EventsOn("resync_progress", (p: { stage: string; done: number; total: number }) => {
-  if (!p || p.stage === "done") {
-    resyncProgress.value = "";
-    return;
-  }
-  if (p.stage === "pull") {
-    resyncProgress.value = "Pulling catalog down…";
-  } else if (p.total > 0) {
-    resyncProgress.value = `${p.stage}: ${p.done} / ${p.total}`;
-  } else {
-    resyncProgress.value = `${p.stage}…`;
-  }
-});
-
-async function runResync(dryRun: boolean) {
-  resyncRunning.value = true;
-  resyncError.value = "";
-  resyncReport.value = null;
-  try {
-    resyncReport.value = await ResyncAll({
-      applyStock: resyncApplyStock.value,
-      dryRun,
-    });
-  } catch (error: any) {
-    resyncError.value = String(error?.message || error);
-  } finally {
-    resyncRunning.value = false;
-    resyncProgress.value = "";
-  }
+function runResync(dryRun: boolean, confirmDeactivation = false) {
+  return resync.run(dryRun, confirmDeactivation);
+}
+function confirmDeactivationAndResync() {
+  return resync.confirmDeactivationAndRun();
+}
+function cancelDeactivation() {
+  resync.cancelDeactivation();
 }
 
 const panelMeta: Record<string, { tab: string; title: string; keywords: string }> = {
   "general-appearance": { tab: "general", title: "Appearance", keywords: "dark theme animations mode display" },
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
+  "general-branches": { tab: "general", title: "Branches", keywords: "branches switch default active add branch multiple instances" },
   "general-sync": { tab: "general", title: "Central sync (kashi)", keywords: "central sync kashi server url branch code api key" },
   "general-targets": { tab: "general", title: "Targets", keywords: "targets revenue goal progress date range" },
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
   "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
-  "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port" },
+  "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port qr code close shift photo upload" },
   "printing-receipt": { tab: "printing", title: "Receipt settings", keywords: "market name phone description branch phone register return policy social platforms instagram facebook website font body size title size cut paper sample" },
   "money-general": { tab: "money", title: "Money settings", keywords: "vat tax rate exchange rate overpayment rounding mode currency calculator total currency auto append lbp zeros 000 confirm change overchange refund more than owed" },
   "money-float": { tab: "money", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift close count reconciliation expected enable disable feature toggle balance" },
@@ -1591,6 +1649,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-product-search": { tab: "behavior", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
+  "behavior-non-admin-month-nav": { tab: "behavior", title: "Income chart month navigation", keywords: "monthly income chart non-admin cashier back forward prev next month browse lock admin only" },
   "behavior-visitor-counter": { tab: "behavior", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
   "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
   "admin-change-password": { tab: "admin", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
@@ -1625,6 +1684,19 @@ watch(normalizedSearch, () => {
 });
 const databasePath = ref("");
 const databaseSwitching = ref(false);
+
+const branchOptions = ref<{ code: string; title: string }[]>([]);
+const selectedBranchCode = ref("");
+const activeBranchCode = ref("");
+const defaultBranchCode = ref("");
+const branchSwitching = ref(false);
+const creatingBranch = ref(false);
+const settingDefaultBranch = ref(false);
+const branchActionError = ref("");
+const newBranch = reactive({ name: "", code: "", apiKey: "", centralApiUrl: "" });
+const importingHistory = ref(false);
+const historyImportResult = ref<Record<string, number> | null>(null);
+const historyImportError = ref("");
 const darkThemeEnabled = computed(() => theme.name.value === "dark");
 const themeSaving = ref(false);
 
@@ -1660,6 +1732,11 @@ const form = reactive({
   taxRate: 0,
   roundingMode: "half_up",
   roundingCurrency: "LBP",
+  // First half of the split total; the rounding currency is the second.
+  splitPrimaryCurrency: "USD",
+  splitPrimaryFirst: true,
+  // 0 = fall back to the primary currency's own cash_rounding_unit.
+  splitPrimaryStep: 0,
   receiptEnabled: false,
   autoCloseStaleShiftsEnabled: false,
   salesInventoryId: 0,
@@ -1694,6 +1771,7 @@ const form = reactive({
   visitorCounterEnabled: false,
   clientRequired: true,
   salespersonPerInvoiceRequired: false,
+  nonAdminMonthNavEnabled: false,
   hidePaymentMethodCurrency: false,
   autoAppendLbpZeros: false,
   overchangeConfirmationEnabled: true,
@@ -1738,7 +1816,6 @@ const paymentMethods = ref<any[]>([]);
 const orderablePaymentMethods = computed(() =>
   paymentMethods.value.filter((m) => !isSpecialPaymentMethod(m.name)),
 );
-const currencyForm = reactive({ code: "", name: "", symbol: "", unitsPerUsd: 1, cashRoundingUnit: 1 });
 const editingCurrencyCode = ref<string | null>(null);
 const currencySaving = ref(false);
 const autoAppendLbpZerosSaving = ref(false);
@@ -1749,13 +1826,10 @@ const shiftReceiptUploadModes = [
   { title: "Hybrid (office when online, else this machine)", value: 2 },
   { title: "Local only (this machine, over shop Wi-Fi)", value: 3 },
   { title: "Central only (straight to the office)", value: 1 },
-  { title: "Off (no photo)", value: 0 },
 ];
 const countOpeningCashOnCloseSaving = ref(false);
-const paymentMethodForm = reactive({ name: "", currencyCode: "", color: "" });
 const editingPaymentMethodId = ref<number | null>(null);
 const paymentMethodSaving = ref(false);
-const paymentMethodReordering = ref(false);
 
 async function loadCurrencies() {
   try {
@@ -1773,136 +1847,15 @@ async function loadPaymentMethodsList() {
   }
 }
 
-async function movePaymentMethod(index: number, offset: -1 | 1) {
-  const target = index + offset;
-  const ordered = orderablePaymentMethods.value;
-  if (target < 0 || target >= ordered.length) return;
-  const ids = ordered.map((m) => m.id);
-  [ids[index], ids[target]] = [ids[target], ids[index]];
-  paymentMethodReordering.value = true;
-  try {
-    await ReorderCashboxAccounts(ids);
-    await loadPaymentMethodsList();
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to reorder payment methods", "red");
-  } finally {
-    paymentMethodReordering.value = false;
-  }
-}
-
-function editCurrency(currency: any) {
-  editingCurrencyCode.value = currency.code;
-  Object.assign(currencyForm, {
-    code: currency.code,
-    name: currency.name,
-    symbol: currency.symbol,
-    unitsPerUsd: currency.unitsPerUsd,
-    cashRoundingUnit: currency.cashRoundingUnit,
-  });
-}
-
-function resetCurrencyForm() {
-  editingCurrencyCode.value = null;
-  Object.assign(currencyForm, { code: "", name: "", symbol: "", unitsPerUsd: 1, cashRoundingUnit: 1 });
-}
-
-async function saveCurrency() {
-  const unitsPerUsd = Number(currencyForm.unitsPerUsd);
-  const cashRoundingUnit = Math.round(Number(currencyForm.cashRoundingUnit));
-  if (!currencyForm.name.trim() || !currencyForm.symbol.trim() || !Number.isFinite(unitsPerUsd) || unitsPerUsd <= 0) {
-    notify("Name, symbol, and a positive rate are required", "red");
-    return;
-  }
-  if (!Number.isFinite(cashRoundingUnit) || cashRoundingUnit <= 0) {
-    notify("Cash rounding unit must be a positive whole number", "red");
-    return;
-  }
-  currencySaving.value = true;
-  try {
-    if (editingCurrencyCode.value) {
-      await UpdateCurrency(editingCurrencyCode.value, currencyForm.name.trim(), currencyForm.symbol.trim(), unitsPerUsd, cashRoundingUnit);
-    } else {
-      if (!currencyForm.code.trim()) {
-        notify("Currency code is required", "red");
-        currencySaving.value = false;
-        return;
-      }
-      await CreateCurrency(currencyForm.code.trim(), currencyForm.name.trim(), currencyForm.symbol.trim(), unitsPerUsd, cashRoundingUnit);
-    }
-    await loadCurrencies();
-    resetCurrencyForm();
-    notify("Currency saved");
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save currency", "red");
-  } finally {
-    currencySaving.value = false;
-  }
-}
-
-async function toggleCurrencyActive(currency: any) {
-  try {
-    await SetCurrencyActive(currency.code, !currency.isActive);
-    await loadCurrencies();
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to update currency", "red");
-  }
-}
-
-function editPaymentMethod(method: any) {
-  editingPaymentMethodId.value = method.id;
-  Object.assign(paymentMethodForm, { name: method.name, currencyCode: method.currencyCode, color: method.color || "" });
-}
-
-function resetPaymentMethodForm() {
-  editingPaymentMethodId.value = null;
-  Object.assign(paymentMethodForm, { name: "", currencyCode: "", color: "" });
-}
-
-async function savePaymentMethod() {
-  if (!paymentMethodForm.name.trim() || !paymentMethodForm.currencyCode) {
-    notify("Name and currency are required", "red");
-    return;
-  }
-  paymentMethodSaving.value = true;
-  try {
-    if (editingPaymentMethodId.value) {
-      await UpdateCashboxAccount(
-        editingPaymentMethodId.value,
-        paymentMethodForm.name.trim(),
-        paymentMethodForm.currencyCode,
-        paymentMethodForm.color,
-      );
-      notify("Payment method updated");
-    } else {
-      await CreateCashboxAccount(paymentMethodForm.name.trim(), paymentMethodForm.currencyCode);
-      notify("Payment method added");
-    }
-    await loadPaymentMethodsList();
-    resetPaymentMethodForm();
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save payment method", "red");
-  } finally {
-    paymentMethodSaving.value = false;
-  }
-}
 const priceLists = ref<any[]>([]);
-const priceListForm = reactive({ name: "" });
-const priceListSaving = ref(false);
-const editingPriceListId = ref<number | null>(null);
 
 const discountLists = ref<any[]>([]);
-const discountListForm = reactive({ name: "" });
-const discountListSaving = ref(false);
-const editingDiscountListId = ref<number | null>(null);
 
 const manageListDialog = ref(false);
 const manageListType = ref<"price" | "discount">("price");
 const manageListId = ref<number | null>(null);
 const manageListName = ref("");
 const manageListItems = ref<any[]>([]);
-const manageItemCode = ref("");
-const manageItemValue = ref<number | null>(null);
-const manageItemSaving = ref(false);
 
 async function loadPriceLists() {
   try {
@@ -1912,89 +1865,11 @@ async function loadPriceLists() {
   }
 }
 
-function editPriceList(list: any) {
-  editingPriceListId.value = list.id;
-  priceListForm.name = list.name;
-}
-
-function resetPriceListForm() {
-  editingPriceListId.value = null;
-  priceListForm.name = "";
-}
-
-async function savePriceList() {
-  const name = priceListForm.name.trim();
-  if (!name) {
-    notify("Name is required", "red");
-    return;
-  }
-  priceListSaving.value = true;
-  try {
-    if (editingPriceListId.value) await UpdatePriceList(editingPriceListId.value, name);
-    else await CreatePriceList(name);
-    await loadPriceLists();
-    resetPriceListForm();
-    notify(editingPriceListId.value ? "Price list updated" : "Price list created");
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save price list", "red");
-  } finally {
-    priceListSaving.value = false;
-  }
-}
-
-async function togglePriceListActive(list: any) {
-  try {
-    await SetPriceListActive(list.id, !list.isActive);
-    await loadPriceLists();
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to update price list", "red");
-  }
-}
-
 async function loadDiscountLists() {
   try {
     discountLists.value = (await ListDiscountLists()) as any[];
   } catch {
     discountLists.value = [];
-  }
-}
-
-function editDiscountList(list: any) {
-  editingDiscountListId.value = list.id;
-  discountListForm.name = list.name;
-}
-
-function resetDiscountListForm() {
-  editingDiscountListId.value = null;
-  discountListForm.name = "";
-}
-
-async function saveDiscountList() {
-  const name = discountListForm.name.trim();
-  if (!name) {
-    notify("Name is required", "red");
-    return;
-  }
-  discountListSaving.value = true;
-  try {
-    if (editingDiscountListId.value) await UpdateDiscountList(editingDiscountListId.value, name);
-    else await CreateDiscountList(name);
-    await loadDiscountLists();
-    resetDiscountListForm();
-    notify(editingDiscountListId.value ? "Discount list updated" : "Discount list created");
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save discount list", "red");
-  } finally {
-    discountListSaving.value = false;
-  }
-}
-
-async function toggleDiscountListActive(list: any) {
-  try {
-    await SetDiscountListActive(list.id, !list.isActive);
-    await loadDiscountLists();
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to update discount list", "red");
   }
 }
 
@@ -2014,48 +1889,8 @@ async function openManageList(type: "price" | "discount", list: any) {
   manageListType.value = type;
   manageListId.value = list.id;
   manageListName.value = list.name;
-  manageItemCode.value = "";
-  manageItemValue.value = null;
   manageListDialog.value = true;
   await loadManageListItems();
-}
-
-function pickManageItemProduct(product: any) {
-  manageItemCode.value = product.code;
-}
-
-async function addManageListItem() {
-  if (!manageListId.value || !manageItemCode.value.trim() || manageItemValue.value === null) {
-    notify("Product code and a value are required", "red");
-    return;
-  }
-  manageItemSaving.value = true;
-  try {
-    if (manageListType.value === "price") {
-      await SetPriceListItem(manageListId.value, manageItemCode.value.trim(), Number(manageItemValue.value));
-    } else {
-      await SetDiscountListItem(manageListId.value, manageItemCode.value.trim(), Math.round(Number(manageItemValue.value)));
-    }
-    manageItemCode.value = "";
-    manageItemValue.value = null;
-    await loadManageListItems();
-    await (manageListType.value === "price" ? loadPriceLists() : loadDiscountLists());
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to save item", "red");
-  } finally {
-    manageItemSaving.value = false;
-  }
-}
-
-async function removeManageListItem(item: any) {
-  try {
-    if (manageListType.value === "price") await RemovePriceListItem(item.id);
-    else await RemoveDiscountListItem(item.id);
-    await loadManageListItems();
-    await (manageListType.value === "price" ? loadPriceLists() : loadDiscountLists());
-  } catch (error) {
-    notify(error instanceof Error ? error.message : "Failed to remove item", "red");
-  }
 }
 
 const inventories = ref<any[]>([]);
@@ -2084,7 +1919,7 @@ const branchTargets = ref<
 const saving = ref(false);
 const couponTypes = ref<any[]>([]);
 const coupons = ref<any[]>([]);
-const couponTypeForm = reactive({ name: "", value: 50, currency: "USD", referenceOnly: false, isActive: true });
+const couponTypeForm = reactive({ name: "", value: 50, currency: "USD", referenceOnly: false, isActive: true, calculateOnCheckout: false, codeRequired: true });
 const editingCouponTypeId = ref<number | null>(null);
 const couponTypeSaving = ref(false);
 const couponCodeForm = ref("");
@@ -2096,6 +1931,7 @@ const pageUnlockSaving = ref(false);
 const pageUnlockLabels: Record<string, string> = {
   clients: "Clients",
   inventory: "Inventory",
+  products: "Products",
   transfers: "Transfers",
   attendance: "Attendance",
   salespersons: "Salespersons",
@@ -2186,6 +2022,8 @@ function editCouponType(couponType: any) {
   couponTypeForm.currency = couponType.currencyCode || "USD";
   couponTypeForm.referenceOnly = Boolean(couponType.referenceOnly);
   couponTypeForm.isActive = Number(couponType.isActive) !== 0;
+  couponTypeForm.calculateOnCheckout = Boolean(couponType.calculateOnCheckout);
+  couponTypeForm.codeRequired = couponType.codeRequired !== false;
 }
 
 function cancelCouponTypeEdit() {
@@ -2195,6 +2033,8 @@ function cancelCouponTypeEdit() {
   couponTypeForm.currency = "USD";
   couponTypeForm.referenceOnly = false;
   couponTypeForm.isActive = true;
+  couponTypeForm.calculateOnCheckout = false;
+  couponTypeForm.codeRequired = true;
 }
 
 async function saveCouponType() {
@@ -2202,10 +2042,11 @@ async function saveCouponType() {
   couponTypeSaving.value = true;
   try {
     const valueCents = Math.round(Number(couponTypeForm.value) * 100);
+    const referenceOnly = couponTypeForm.codeRequired && couponTypeForm.referenceOnly;
     if (editingCouponTypeId.value) {
-      await UpdateCouponType(editingCouponTypeId.value, couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.isActive, couponTypeForm.referenceOnly);
+      await UpdateCouponType(editingCouponTypeId.value, couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.isActive, referenceOnly, couponTypeForm.calculateOnCheckout, couponTypeForm.codeRequired);
     } else {
-      await CreateCouponType(couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, couponTypeForm.referenceOnly);
+      await CreateCouponType(couponTypeForm.name.trim(), couponTypeForm.currency, valueCents, referenceOnly, couponTypeForm.calculateOnCheckout, couponTypeForm.codeRequired);
     }
     const wasEditing = Boolean(editingCouponTypeId.value);
     cancelCouponTypeEdit();
@@ -2246,6 +2087,9 @@ async function loadSettings() {
         taxRate: Number(s.taxRate ?? 0),
         roundingMode: s.roundingMode ?? "half_up",
         roundingCurrency: s.roundingCurrency ?? "LBP",
+        splitPrimaryCurrency: s.splitPrimaryCurrency || "USD",
+        splitPrimaryFirst: s.splitPrimaryFirst !== false,
+        splitPrimaryStep: Number(s.splitPrimaryStep) || 0,
         receiptEnabled: Boolean(s.receiptEnabled),
         autoCloseStaleShiftsEnabled: Boolean(s.autoCloseStaleShiftsEnabled),
         salesInventoryId: Number(s.salesInventoryId ?? 0),
@@ -2280,6 +2124,7 @@ async function loadSettings() {
         visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
         salespersonPerInvoiceRequired: Boolean(s.salespersonPerInvoiceRequired),
+        nonAdminMonthNavEnabled: Boolean(s.nonAdminMonthNavEnabled),
         hidePaymentMethodCurrency: Boolean(s.hidePaymentMethodCurrency),
         autoAppendLbpZeros: Boolean(s.autoAppendLbpZeros),
         overchangeConfirmationEnabled: s.overchangeConfirmationEnabled !== false,
@@ -2322,6 +2167,77 @@ async function chooseDatabase() {
     notify(error instanceof Error ? error.message : "Failed to load database", "red");
   } finally {
     databaseSwitching.value = false;
+  }
+}
+
+async function loadBranches() {
+  try {
+    const result = await ListBranches();
+    const branches = Array.isArray(result?.branches) ? result.branches : [];
+    branchOptions.value = branches.map((b: { code: string; name: string }) => ({
+      code: b.code,
+      title: `${b.name} (${b.code})`,
+    }));
+    activeBranchCode.value = String(result?.active ?? "");
+    defaultBranchCode.value = String(result?.default ?? "");
+    selectedBranchCode.value = activeBranchCode.value;
+  } catch {}
+}
+
+async function switchBranch(code: string) {
+  if (!code || code === activeBranchCode.value) return;
+  branchSwitching.value = true;
+  branchActionError.value = "";
+  try {
+    await SwitchBranch(code);
+    WindowReloadApp();
+  } catch (error) {
+    branchActionError.value = error instanceof Error ? error.message : String(error);
+    selectedBranchCode.value = activeBranchCode.value;
+  } finally {
+    branchSwitching.value = false;
+  }
+}
+
+async function setDefaultBranch(code: string) {
+  if (!code) return;
+  settingDefaultBranch.value = true;
+  branchActionError.value = "";
+  try {
+    await SetDefaultBranch(code);
+    defaultBranchCode.value = code;
+    notify("Default branch updated");
+  } catch (error) {
+    branchActionError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    settingDefaultBranch.value = false;
+  }
+}
+
+async function createBranch() {
+  creatingBranch.value = true;
+  branchActionError.value = "";
+  try {
+    await CreateBranch(newBranch.name, newBranch.code, newBranch.apiKey, newBranch.centralApiUrl);
+    WindowReloadApp();
+  } catch (error) {
+    branchActionError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    creatingBranch.value = false;
+  }
+}
+
+async function importBranchHistory() {
+  importingHistory.value = true;
+  historyImportError.value = "";
+  historyImportResult.value = null;
+  try {
+    const result = await PullBranchHistory();
+    historyImportResult.value = result as Record<string, number>;
+  } catch (error) {
+    historyImportError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    importingHistory.value = false;
   }
 }
 
@@ -2493,6 +2409,26 @@ async function setSalespersonPerInvoiceRequired(value: boolean | null) {
   }
 }
 
+async function setNonAdminMonthNavEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.nonAdminMonthNavEnabled;
+  form.nonAdminMonthNavEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetNonAdminMonthNavEnabled(enabled);
+    notify(
+      enabled
+        ? "Non-admins can now browse other months on the income chart"
+        : "Income chart month navigation is now admin-only",
+    );
+  } catch {
+    form.nonAdminMonthNavEnabled = previous;
+    notify("Failed to update income chart month navigation setting", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
 async function setHidePaymentMethodCurrency(value: boolean | null) {
   const hide = Boolean(value);
   const previous = form.hidePaymentMethodCurrency;
@@ -2623,6 +2559,7 @@ onMounted(() => {
   };
   void Promise.all([
     loadDatabaseStatus(),
+    loadBranches(),
     loadCouponTypes(),
     loadSettings(),
     loadCurrencies(),
@@ -2698,6 +2635,7 @@ async function saveSettings() {
       Math.max(0, Math.floor(Number(form.exchangeWindowDays) || 0)) * 24 +
       Math.max(0, Math.floor(Number(form.exchangeWindowHours) || 0));
     await SetExchangeWindowHours(exchangeWindowHours);
+    await SetSplitDisplay(form.splitPrimaryCurrency, Boolean(form.splitPrimaryFirst), Math.max(0, Math.floor(Number(form.splitPrimaryStep) || 0)));
     notify("Settings saved");
   } catch {
     notify("Failed to save", "red");

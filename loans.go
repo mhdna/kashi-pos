@@ -60,6 +60,10 @@ func (a *App) CreateLoan(description, category string, amount int64, currencyCod
 		if shiftID.Valid {
 			branchShiftID = &shiftID.Int64
 		}
+		accountName := ""
+		if account, err := q.GetCashboxAccountByID(a.ctx, cashboxAccountID); err == nil {
+			accountName = account.Name
+		}
 		return queueBranchLoanSync(a.ctx, q, settings.CentralApiUrl, branchLoanPayload{
 			ClientRef:              clientRef,
 			Description:            description,
@@ -67,6 +71,7 @@ func (a *App) CreateLoan(description, category string, amount int64, currencyCod
 			Amount:                 amount,
 			CurrencyCode:           currencyCode,
 			BranchCashboxAccountID: cashboxAccountID,
+			AccountName:            accountName,
 			BranchShiftID:          branchShiftID,
 			OccurredAt:             time.Now().UTC(),
 		})

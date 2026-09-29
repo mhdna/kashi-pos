@@ -128,9 +128,13 @@ func envSocialPlatforms() string {
 
 func defaultSettingsParams() db.UpsertSettingsParams {
 	return db.UpsertSettingsParams{
-		BranchName:          envString("KASHI_BRANCH_NAME", "Main"),
-		BranchCode:          envString("KASHI_BRANCH_CODE", "CN"),
-		ApiKey:              envString("KASHI_API_KEY", ""),
+		// Branch identity (name/code/API key) is no longer read from .env --
+		// it's set by CreateBranch (first-run setup / admin "add branch") and
+		// tracked in the local branch registry (see branches.go). A brand new
+		// database starts with an empty branch code until that happens.
+		BranchName:          "",
+		BranchCode:          "",
+		ApiKey:              "",
 		PrinterID:           envString("KASHI_PRINTER_ID", ""),
 		PrinterSize:         envString("KASHI_PRINTER_SIZE", ""),
 		ReceiptPrinter:      envString("KASHI_RECEIPT_PRINTER", ""),
@@ -196,9 +200,6 @@ func (a *App) applyEnvironmentDefaults() error {
 			*target, changed = value, true
 		}
 	}
-	setString(&params.BranchName, envOnlyString("KASHI_BRANCH_NAME"))
-	setString(&params.BranchCode, envOnlyString("KASHI_BRANCH_CODE"))
-	setString(&params.ApiKey, envOnlyString("KASHI_API_KEY"))
 	setString(&params.PrinterID, envOnlyString("KASHI_PRINTER_ID"))
 	setString(&params.PrinterSize, envOnlyString("KASHI_PRINTER_SIZE"))
 	setString(&params.ReceiptPrinter, envOnlyString("KASHI_RECEIPT_PRINTER"))

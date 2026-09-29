@@ -21,6 +21,7 @@ type shiftReportData struct {
 	PriceDeductions int64
 	ReturnAmount    int64
 	Tax             int64
+	CashRounding    int64
 	NetSales        int64
 	TotalPayments   int64
 	CountedTotal    int64
@@ -100,6 +101,9 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		y = c.reportRow(y, "Return Value", formatShiftUSD(-report.ReturnAmount), false)
 	}
 	y = c.reportRow(y, "Tax", formatShiftUSD(report.Tax), false)
+	if report.CashRounding != 0 {
+		y = c.reportRow(y, "Rounding", formatShiftUSD(report.CashRounding), false)
+	}
 	boxTop := c.rule(y) + 12
 	y = boxTop + 8
 	y, _ = c.twoCol(y, "NET SALES", formatShiftUSD(report.NetSales), c.data.BodySize+2, true)

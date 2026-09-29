@@ -54,6 +54,7 @@ func setupQuoteTestApp(t *testing.T, taxRate float64, roundingMode, roundingCurr
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, app.store.Queries)
 	if err := app.store.UpsertInventoryItem(app.ctx, db.UpsertInventoryItemParams{InventoryID: inventory.ID, ProductID: product.ID, Quantity: 100}); err != nil {
 		t.Fatal(err)
 	}
@@ -192,6 +193,7 @@ func TestQuotePaymentStatusAcceptsLBPCashRoundedEquivalent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	priceProductsFromRows(t, app.store.Queries)
 	if err := app.store.UpsertInventoryItem(app.ctx, db.UpsertInventoryItemParams{InventoryID: inventory.ID, ProductID: product.ID, Quantity: 100}); err != nil {
 		t.Fatal(err)
 	}
@@ -236,13 +238,8 @@ func TestQuotePaymentStatusAcceptsLBPCashRoundedEquivalent(t *testing.T) {
 func TestQuoteAndConvertCashEntryAgreeForANewlyAddedCurrency(t *testing.T) {
 	app, cashbox, client, _ := setupQuoteTestApp(t, 0.11, "half_up", "USD")
 	_ = cashbox
-	if _, err := app.CreateCurrency("EUR", "Euro", "€", 0.92, 5); err != nil {
-		t.Fatal(err)
-	}
-	eurAccount, err := app.CreateCashboxAccount("Euro Cash", "EUR")
-	if err != nil {
-		t.Fatal(err)
-	}
+	syncCurrency(t, app, "EUR", "Euro", "€", 920000, 5)
+	eurAccount := syncPaymentMethod(t, app, "Euro Cash", "EUR")
 	settings, err := app.store.GetSettings(app.ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -272,7 +269,7 @@ func TestQuoteAndConvertCashEntryAgreeForANewlyAddedCurrency(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payments, _ := json.Marshal([]checkoutPayment{{AccountID: eurAccount["id"].(int64), AmountCents: amountCents}})
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: eurAccount.ID, AmountCents: amountCents}})
 	status, err := app.QuotePaymentStatus(items, string(payments))
 	if err != nil {
 		t.Fatal(err)
@@ -282,5 +279,128 @@ func TestQuoteAndConvertCashEntryAgreeForANewlyAddedCurrency(t *testing.T) {
 	}
 	if _, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: items, PaymentsJSON: string(payments), ClientID: client.ID}); err != nil {
 		t.Fatalf("checkout rejected the exact displayed EUR amount: %v", err)
+	}
+}
+
+// TestQuoteSurvivesSecondInventory pins the Main regression: with
+// sales_inventory_id unset, salesInventoryID used to demand exactly one
+// inventory, so a stock import creating a second one silently killed every
+// quote ("choose a sales inventory in settings") and the calculator showed
+// $0.00. The till must keep pricing against the inventory it has always
+// sold from.
+func TestQuoteSurvivesSecondInventory(t *testing.T) {
+	app, cashbox, client, database := setupQuoteTestApp(t, 0, "half_up", "LBP")
+	items := cartJSON(1)
+
+	// Establish history: one sale against the configured inventory.
+	first, err := app.QuoteInvoiceTotal(items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: first.GrandTotalCents}})
+	if _, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: items, PaymentsJSON: string(payments), ClientID: client.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	// A stock import adds an inventory and settings still say "unset".
+	if _, err := app.store.CreateInventory(app.ctx, "Main Inventory"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`UPDATE settings SET sales_inventory_id = 0`); err != nil {
+		t.Fatal(err)
+	}
+
+	quote, err := app.QuoteInvoiceTotal(items)
+	if err != nil {
+		t.Fatalf("quote failed after a second inventory appeared: %v", err)
+	}
+	if quote.GrandTotalCents != first.GrandTotalCents {
+		t.Fatalf("grand total = %d, want %d", quote.GrandTotalCents, first.GrandTotalCents)
+	}
+	if quote.GrandTotalCents == 0 {
+		t.Fatal("grand total is 0 - this is the bug that rendered as $0.00")
+	}
+}
+
+// TestSalesInventoryNeverBlocksASale pins the contract that resolving the
+// inventory is a labelling concern, not a gate: invoices.inventory_id needs
+// some valid row, but stock is neither checked nor decremented at checkout,
+// so no configuration of the setting may stop a cashier selling as long as
+// an inventory exists.
+func TestSalesInventoryNeverBlocksASale(t *testing.T) {
+	app, _, _, database := setupQuoteTestApp(t, 0, "half_up", "LBP")
+	configured, err := app.store.GetSettings(app.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := app.store.CreateInventory(app.ctx, "Main Inventory")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name       string
+		settingsID int64
+	}{
+		{"unset, no invoice history", 0},
+		{"pointing at a deleted inventory", 99999},
+		{"explicitly set to the second inventory", second.ID},
+		{"explicitly set to the configured one", configured.SalesInventoryID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := database.Exec(`UPDATE settings SET sales_inventory_id = ?`, tc.settingsID); err != nil {
+				t.Fatal(err)
+			}
+			quote, err := app.QuoteInvoiceTotal(cartJSON(1))
+			if err != nil {
+				t.Fatalf("sale blocked by inventory resolution: %v", err)
+			}
+			if quote.GrandTotalCents == 0 {
+				t.Fatal("grand total is 0")
+			}
+		})
+	}
+
+	// An empty inventory (no stock rows at all) must price normally too.
+	if _, err := database.Exec(`DELETE FROM inventory_items`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.QuoteInvoiceTotal(cartJSON(1)); err != nil {
+		t.Fatalf("sale blocked by an empty inventory: %v", err)
+	}
+}
+
+// TestQuoteRejectsZeroPricedProduct locks in that an unsellable product
+// produces a named error rather than a zero total the UI could render as a
+// paid sale. The price now lives in the list, so that is where it is zeroed.
+func TestQuoteRejectsZeroPricedProduct(t *testing.T) {
+	app, _, _, database := setupQuoteTestApp(t, 0, "half_up", "LBP")
+	if _, err := database.Exec(`UPDATE price_list_items SET price = 0`); err != nil {
+		t.Fatal(err)
+	}
+	quote, err := app.QuoteInvoiceTotal(cartJSON(1))
+	if err == nil {
+		t.Fatalf("expected an error, got a quote with grandTotalCents=%d", quote.GrandTotalCents)
+	}
+	if quote.GrandTotalCents != 0 {
+		t.Fatalf("a failed quote must not carry a total, got %d", quote.GrandTotalCents)
+	}
+}
+
+// The stronger form of the same rule: a product that no active list mentions
+// at all has no price and must be refused, not sold for nothing. This is the
+// state every product is in until kashi prices it, so it is the single most
+// important behaviour of the whole list-dictated pricing change.
+func TestQuoteRejectsProductMissingFromEveryList(t *testing.T) {
+	app, _, _, database := setupQuoteTestApp(t, 0, "half_up", "LBP")
+	if _, err := database.Exec(`DELETE FROM price_list_items`); err != nil {
+		t.Fatal(err)
+	}
+	quote, err := app.QuoteInvoiceTotal(cartJSON(1))
+	if err == nil {
+		t.Fatalf("expected an error, got a quote with grandTotalCents=%d", quote.GrandTotalCents)
+	}
+	if quote.GrandTotalCents != 0 {
+		t.Fatalf("a failed quote must not carry a total, got %d", quote.GrandTotalCents)
 	}
 }

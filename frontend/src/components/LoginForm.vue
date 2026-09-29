@@ -110,6 +110,7 @@
         {{ 3 - attempts }} {{ 3 - attempts === 1 ? "attempt" : "attempts" }} remaining
       </span>
     </div>
+    <div v-if="appVersion" class="pin-version">{{ appVersion }}</div>
   </div>
 </template>
 
@@ -118,6 +119,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import logo from "@/assets/app-logo.png";
 import { useAuthStore } from "@/stores/auth";
+import { GetAppVersion } from "../../wailsjs/go/main/App";
 
 const LOCKOUT_SECONDS = 30;
 const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -132,6 +134,7 @@ const loading = ref(false);
 const attempts = ref(0);
 const lockSeconds = ref(0);
 const locked = computed(() => lockSeconds.value > 0);
+const appVersion = ref("");
 let lockTimer: ReturnType<typeof setInterval> | undefined;
 
 function toggleMode() {
@@ -235,6 +238,11 @@ onMounted(async () => {
   window.addEventListener("keydown", handleKeydown);
   const status = await auth.getPINLockoutStatus();
   if (status.locked) startLockout(status.retryAfter);
+  try {
+    appVersion.value = await GetAppVersion();
+  } catch {
+    appVersion.value = "";
+  }
 });
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", handleKeydown);
@@ -383,6 +391,13 @@ onBeforeUnmount(() => {
   color: rgb(var(--v-theme-error));
   font-size: 1rem;
   font-weight: 600;
+}
+
+.pin-version {
+  margin-top: 4px;
+  color: rgba(var(--v-theme-on-surface), 0.4);
+  font-size: 0.7rem;
+  text-align: center;
 }
 
 @media (max-width: 440px), (max-height: 700px) {

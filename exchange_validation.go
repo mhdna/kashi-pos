@@ -154,7 +154,7 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 	return request, nil
 }
 
-func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request exchangeRequest, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool) (pricedExchange, error) {
+func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request exchangeRequest, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool, listPricing activePricing) (pricedExchange, error) {
 	var result pricedExchange
 	sourceLines, err := q.ListInvoiceProducts(a.ctx, sourceID)
 	if err != nil {
@@ -213,6 +213,21 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		product, err := q.GetProductByCode(a.ctx, line.Code)
 		if err != nil || product.IsActive == 0 {
 			return result, fmt.Errorf("replacement product %s not found or inactive", line.Code)
+		}
+		// A replacement is a sale, so it is priced from the active lists
+		// exactly as validateAndPriceItems prices a normal line. Before the
+		// lists became authoritative this path read product.Price straight
+		// off the row and so escaped price/discount lists entirely -- taking
+		// a replacement was the one way to sell at a price central had not
+		// set. A replacement for a product in no list now fails to price,
+		// like any other unsellable line.
+		product.Price = 0
+		product.Discount = 0
+		if listed, ok := listPricing.priceFor(product.Uid.String); ok {
+			product.Price = listed.cents
+		}
+		if listed, ok := listPricing.discountFor(product.Uid.String); ok {
+			product.Discount = listed.percent
 		}
 		if line.CustomPriceCents != nil {
 			if !customPricingEnabled {

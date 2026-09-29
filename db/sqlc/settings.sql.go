@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const getFeatureFlag = `-- name: GetFeatureFlag :one
@@ -21,7 +22,7 @@ func (q *Queries) GetFeatureFlag(ctx context.Context, key string) (int64, error)
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number, max_overpayment_cents, rounding_currency, exchange_window_hours, default_opening_float_usd, default_opening_float_lbp, central_api_url, shift_receipt_upload_mode FROM settings LIMIT 1
+SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number, max_overpayment_cents, rounding_currency, exchange_window_hours, default_opening_float_usd, default_opening_float_lbp, central_api_url, shift_receipt_upload_mode, full_mirror_confirmed_at, split_primary_currency, split_primary_first, split_primary_step FROM settings LIMIT 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -65,6 +66,10 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.DefaultOpeningFloatLbp,
 		&i.CentralApiUrl,
 		&i.ShiftReceiptUploadMode,
+		&i.FullMirrorConfirmedAt,
+		&i.SplitPrimaryCurrency,
+		&i.SplitPrimaryFirst,
+		&i.SplitPrimaryStep,
 	)
 	return i, err
 }
@@ -81,6 +86,15 @@ type SetFeatureFlagParams struct {
 
 func (q *Queries) SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error {
 	_, err := q.db.ExecContext(ctx, setFeatureFlag, arg.Key, arg.Enabled)
+	return err
+}
+
+const setFullMirrorConfirmedAt = `-- name: SetFullMirrorConfirmedAt :exec
+UPDATE settings SET full_mirror_confirmed_at = ?
+`
+
+func (q *Queries) SetFullMirrorConfirmedAt(ctx context.Context, fullMirrorConfirmedAt sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, setFullMirrorConfirmedAt, fullMirrorConfirmedAt)
 	return err
 }
 
@@ -197,6 +211,26 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.BranchPhone,
 		arg.CounterNumber,
 	)
+	return err
+}
+
+const updateSplitDisplay = `-- name: UpdateSplitDisplay :exec
+UPDATE settings SET split_primary_currency = ?, split_primary_first = ?, split_primary_step = ?
+`
+
+type UpdateSplitDisplayParams struct {
+	SplitPrimaryCurrency string `json:"splitPrimaryCurrency"`
+	SplitPrimaryFirst    int64  `json:"splitPrimaryFirst"`
+	SplitPrimaryStep     int64  `json:"splitPrimaryStep"`
+}
+
+// Which currency leads the till's split total, in which order, and at what
+// denomination the primary is split (0 = fall back to that currency's own
+// cash_rounding_unit -- see 000100). Narrow like UpdateTheme rather than
+// folded into UpdateSettings: the admin command and the settings page both
+// set these on their own.
+func (q *Queries) UpdateSplitDisplay(ctx context.Context, arg UpdateSplitDisplayParams) error {
+	_, err := q.db.ExecContext(ctx, updateSplitDisplay, arg.SplitPrimaryCurrency, arg.SplitPrimaryFirst, arg.SplitPrimaryStep)
 	return err
 }
 

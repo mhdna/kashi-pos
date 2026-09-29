@@ -63,10 +63,19 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 // Still never carried, so never touched: branch_code, api_key, theme,
 // counter number, and the POS admin login password.
 type updateSettingsCommandPayload struct {
-	BranchName          string          `json:"branch_name"`
-	TaxRate             float64         `json:"tax_rate"`
-	RoundingMode        string          `json:"rounding_mode"`
-	RoundingCurrency    string          `json:"rounding_currency"`
+	BranchName       string  `json:"branch_name"`
+	TaxRate          float64 `json:"tax_rate"`
+	RoundingMode     string  `json:"rounding_mode"`
+	RoundingCurrency string  `json:"rounding_currency"`
+	// Pointers: added after the first version, so an older queued command
+	// that predates them must leave the local split alone rather than blank
+	// the primary currency and force the order back to default.
+	SplitPrimaryCurrency *string `json:"split_primary_currency"`
+	SplitPrimaryFirst    *bool   `json:"split_primary_first"`
+	// The split's own denomination, independent of the primary currency's
+	// cash_rounding_unit (see 000100). Nil leaves it as it is; 0 means "fall
+	// back to cash_rounding_unit" and is a valid, explicit value.
+	SplitPrimaryStep    *int64          `json:"split_primary_step"`
 	ExchangeRate        int64           `json:"exchange_rate"`
 	ExchangeWindowHours int64           `json:"exchange_window_hours"`
 	MarketName          string          `json:"market_name"`
@@ -87,6 +96,7 @@ type updateSettingsCommandPayload struct {
 	InvoiceKeyboardMode           *bool `json:"invoice_keyboard_mode"`
 	ClientRequired                *bool `json:"client_required"`
 	SalespersonPerInvoiceRequired *bool `json:"salesperson_per_invoice_required"`
+	NonAdminMonthNavEnabled       *bool `json:"non_admin_month_nav_enabled"`
 	OpeningFloatEnabled           *bool `json:"opening_float_enabled"`
 	CountOpeningCashOnClose       *bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
@@ -98,6 +108,7 @@ type updateSettingsCommandPayload struct {
 	// non-admin page-access locks
 	PageUnlockClients      *bool `json:"page_unlock_clients"`
 	PageUnlockInventory    *bool `json:"page_unlock_inventory"`
+	PageUnlockProducts     *bool `json:"page_unlock_products"`
 	PageUnlockTransfers    *bool `json:"page_unlock_transfers"`
 	PageUnlockAttendance   *bool `json:"page_unlock_attendance"`
 	PageUnlockSalespersons *bool `json:"page_unlock_salespersons"`
@@ -208,6 +219,19 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		return fmt.Errorf("update exchange window: %w", err)
 	}
 
+	// All three move together or not at all: the query writes all three
+	// columns, so a command naming only some still has to carry the rest
+	// through unchanged rather than resetting them.
+	if p.SplitPrimaryCurrency != nil || p.SplitPrimaryFirst != nil || p.SplitPrimaryStep != nil {
+		if err := a.SetSplitDisplay(
+			deref(p.SplitPrimaryCurrency, current.SplitPrimaryCurrency),
+			deref(p.SplitPrimaryFirst, current.SplitPrimaryFirst != 0),
+			deref(p.SplitPrimaryStep, current.SplitPrimaryStep),
+		); err != nil {
+			return fmt.Errorf("update split display: %w", err)
+		}
+	}
+
 	// --- feature flags: only touch a flag the command actually carries ---
 	flagUpdates := []struct {
 		v  *bool
@@ -223,11 +247,15 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.SalespersonPerInvoiceRequired, func(b bool) error {
 			return a.setFeatureFlagBool(ctx, salespersonPerInvoiceRequiredFlag, b)
 		}},
+		{p.NonAdminMonthNavEnabled, func(b bool) error {
+			return a.setFeatureFlagBool(ctx, nonAdminMonthNavEnabledFlag, b)
+		}},
 		{p.OpeningFloatEnabled, func(b bool) error { return a.setFeatureFlagBool(ctx, openingFloatEnabledFlag, b) }},
 		{p.CountOpeningCashOnClose, func(b bool) error { return a.setFeatureFlagBool(ctx, countOpeningCashOnCloseFlag, b) }},
 		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},
 		{p.PageUnlockClients, func(b bool) error { return a.SetPageUnlocked("clients", b) }},
 		{p.PageUnlockInventory, func(b bool) error { return a.SetPageUnlocked("inventory", b) }},
+		{p.PageUnlockProducts, func(b bool) error { return a.SetPageUnlocked("products", b) }},
 		{p.PageUnlockTransfers, func(b bool) error { return a.SetPageUnlocked("transfers", b) }},
 		{p.PageUnlockAttendance, func(b bool) error { return a.SetPageUnlocked("attendance", b) }},
 		{p.PageUnlockSalespersons, func(b bool) error { return a.SetPageUnlocked("salespersons", b) }},

@@ -42,6 +42,11 @@ const (
 	// invoice's salesperson forward - matching behavior before this setting
 	// existed.
 	salespersonPerInvoiceRequiredFlag = "salesperson_per_invoice_required"
+	// Gates the monthly income chart's prev/next month navigation for
+	// non-admins. Defaults to false when unset, so a database that has never
+	// touched this flag keeps that navigation admin-only - matching behavior
+	// before this setting existed.
+	nonAdminMonthNavEnabledFlag = "non_admin_month_nav_enabled"
 )
 
 // overchangeConfirmationEnabled reports whether the checkout calculator's
@@ -82,7 +87,7 @@ func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("product not found")
 	}
-	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +95,7 @@ func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return productMap(product, overrides, attrs), nil
+	return productMap(product, listPricing, attrs), nil
 }
 
 func (a *App) GetProductByCode(code string) (map[string]any, error) {
@@ -102,7 +107,7 @@ func (a *App) GetProductByCode(code string) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("product not found")
 	}
-	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +115,7 @@ func (a *App) GetProductByCode(code string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return productMap(product, overrides, attrs), nil
+	return productMap(product, listPricing, attrs), nil
 }
 
 func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
@@ -121,7 +126,7 @@ func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list quick-access products: %w", err)
 	}
-	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +136,7 @@ func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
 	}
 	result := make([]map[string]any, len(products))
 	for i, product := range products {
-		result[i] = productMap(product, overrides, attrs[product.ID])
+		result[i] = productMap(product, listPricing, attrs[product.ID])
 	}
 	return result, nil
 }
@@ -217,10 +222,10 @@ func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (Produ
 		log.Printf("ListProductsPage: search products (search=%q): %v", search, err)
 		return ProductPage{}, fmt.Errorf("search products: %w", err)
 	}
-	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
 	if err != nil {
-		log.Printf("ListProductsPage: load active overrides: %v", err)
-		return ProductPage{}, fmt.Errorf("load price/discount overrides: %w", err)
+		log.Printf("ListProductsPage: load active pricing: %v", err)
+		return ProductPage{}, fmt.Errorf("load price/discount lists: %w", err)
 	}
 	attrs, err := loadProductAttributeValues(a.ctx, a.store.Queries)
 	if err != nil {
@@ -230,7 +235,7 @@ func (a *App) ListProductsPage(page int, itemsPerPage int, search string) (Produ
 
 	result := make([]map[string]any, len(products))
 	for i, p := range products {
-		result[i] = productMap(p, overrides, attrs[p.ID])
+		result[i] = productMap(p, listPricing, attrs[p.ID])
 	}
 	return ProductPage{Items: result, Total: total}, nil
 }
@@ -273,10 +278,10 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 		log.Printf("ListProductsCursor: search products (search=%q): %v", search, err)
 		return ProductCursorPage{}, fmt.Errorf("search products: %w", err)
 	}
-	overrides, err := loadActiveOverrides(a.ctx, a.store.Queries)
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
 	if err != nil {
-		log.Printf("ListProductsCursor: load active overrides: %v", err)
-		return ProductCursorPage{}, fmt.Errorf("load price/discount overrides: %w", err)
+		log.Printf("ListProductsCursor: load active pricing: %v", err)
+		return ProductCursorPage{}, fmt.Errorf("load price/discount lists: %w", err)
 	}
 	attrs, err := loadProductAttributeValues(a.ctx, a.store.Queries)
 	if err != nil {
@@ -290,7 +295,7 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 	}
 	result := make([]map[string]any, len(products))
 	for i, product := range products {
-		result[i] = productMap(product, overrides, attrs[product.ID])
+		result[i] = productMap(product, listPricing, attrs[product.ID])
 	}
 	nextCursor := afterID
 	if len(products) > 0 {
@@ -350,39 +355,42 @@ func loadOneProductAttributeValues(ctx context.Context, q *db.Queries, productID
 }
 
 // productMap converts a product row to the shape the frontend consumes,
-// overlaying an active price-list/discount-list override (if any) onto the
-// price/discount so every product-lookup path (search, quick-access, cart
-// add, checkout) agrees on what a product currently sells for. attrs is
-// this one product's entry from loadProductAttributeValues (nil is fine —
-// a product with no attribute rows yet just reports empty strings).
-func productMap(p db.Product, overrides activeOverrides, attrs map[string]string) map[string]any {
-	price := p.Price
-	discount := p.Discount
-	priceOverridden, discountOverridden := false, false
+// pricing it from the active lists so every product-lookup path (search,
+// quick-access, cart add, checkout) agrees on what a product currently sells
+// for. attrs is this one product's entry from loadProductAttributeValues (nil
+// is fine — a product with no attribute rows yet just reports empty strings).
+//
+// A product in no active list reports price 0 and priced:false. The frontend
+// uses that to mark it unsellable up front, rather than letting a cashier
+// scan it and only discover at checkout that the quote won't total.
+func productMap(p db.Product, listPricing activePricing, attrs map[string]string) map[string]any {
+	var price, discount int64
+	priced, discounted := false, false
 	priceListName, discountListName := "", ""
-	if override, ok := overrides.prices[p.Code]; ok {
-		price = override.cents
-		priceOverridden = true
-		priceListName = override.listName
+	if listed, ok := listPricing.priceFor(p.Uid.String); ok {
+		price = listed.cents
+		priced = true
+		priceListName = listed.listName
 	}
-	if override, ok := overrides.discounts[p.Code]; ok {
-		discount = override.percent
-		discountOverridden = true
-		discountListName = override.listName
+	if listed, ok := listPricing.discountFor(p.Uid.String); ok {
+		discount = listed.percent
+		discounted = true
+		discountListName = listed.listName
 	}
 	return map[string]any{
 		"id": p.ID, "barcode": p.Barcode, "code": p.Code,
 		"name": p.Name, "category": p.Description,
 		"price": float64(price) / 100, "discount": discount,
-		"color": p.Color, "size": p.Size, "currency": p.CurrencyCode,
+		"priced": priced,
+		"color":  p.Color, "size": p.Size, "currency": p.CurrencyCode,
 		// "family" kept as the frontend-facing key for backward
 		// compatibility, sourced from the 'sub-category' attribute — see
 		// the migration comment in 000073_create_product_attributes.up.sql
 		// for why that's the mapping.
 		"brand": attrs["brand"], "family": attrs["sub-category"], "kind": attrs["kind"],
 		"season": attrs["season"], "year": attrs["year"],
-		"priceListOverridden": priceOverridden, "priceListName": priceListName,
-		"discountListOverridden": discountOverridden, "discountListName": discountListName,
+		"priceListOverridden": priced, "priceListName": priceListName,
+		"discountListOverridden": discounted, "discountListName": discountListName,
 	}
 }
 

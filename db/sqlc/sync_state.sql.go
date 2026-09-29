@@ -7,10 +7,11 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const getSyncState = `-- name: GetSyncState :one
-SELECT id, current_target, last_reconcile_at, last_reconcile_json FROM sync_state WHERE id = 1
+SELECT id, current_target, last_reconcile_at, last_reconcile_json, identity_adopted_at, last_full_check_at, last_full_check_json FROM sync_state WHERE id = 1
 `
 
 func (q *Queries) GetSyncState(ctx context.Context) (SyncState, error) {
@@ -21,8 +22,34 @@ func (q *Queries) GetSyncState(ctx context.Context) (SyncState, error) {
 		&i.CurrentTarget,
 		&i.LastReconcileAt,
 		&i.LastReconcileJson,
+		&i.IdentityAdoptedAt,
+		&i.LastFullCheckAt,
+		&i.LastFullCheckJson,
 	)
 	return i, err
+}
+
+const setIdentityAdoptedAt = `-- name: SetIdentityAdoptedAt :exec
+UPDATE sync_state SET identity_adopted_at = ? WHERE id = 1
+`
+
+func (q *Queries) SetIdentityAdoptedAt(ctx context.Context, identityAdoptedAt sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, setIdentityAdoptedAt, identityAdoptedAt)
+	return err
+}
+
+const setLastFullCheck = `-- name: SetLastFullCheck :exec
+UPDATE sync_state SET last_full_check_at = ?, last_full_check_json = ? WHERE id = 1
+`
+
+type SetLastFullCheckParams struct {
+	LastFullCheckAt   sql.NullString `json:"lastFullCheckAt"`
+	LastFullCheckJson string         `json:"lastFullCheckJson"`
+}
+
+func (q *Queries) SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error {
+	_, err := q.db.ExecContext(ctx, setLastFullCheck, arg.LastFullCheckAt, arg.LastFullCheckJson)
+	return err
 }
 
 const setLastReconcile = `-- name: SetLastReconcile :exec

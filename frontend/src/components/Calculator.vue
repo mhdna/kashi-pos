@@ -5,6 +5,8 @@
       :status-color="statusColor"
       :show-ready-state="showReadyState"
       :remaining-amount="remainingAmount"
+      :quote-error="quoteError"
+      :exchange-shortfall-cents="exchangeShortfallCents"
     />
 
     <v-card class="calculator-display pa-2 mb-3 mt-2" variant="outlined" rounded="lg">
@@ -87,6 +89,7 @@
       <v-card title="Coupon payment">
         <v-card-text>
           <v-text-field
+            v-if="selectedCouponType?.codeRequired !== false"
             v-model="couponCode"
             :placeholder="selectedCouponType?.referenceOnly ? 'Reference number' : 'Coupon code'"
             :hint="selectedCouponType?.referenceOnly ? 'Enter the reference number for this coupon.' : 'Enter the issued coupon code.'"
@@ -121,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import {
   ListCurrencies,
   ListCouponTypes,
@@ -130,6 +133,7 @@ import {
   QuoteSettlementPaymentStatus,
   QuoteExchangePaymentStatus,
 } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { formatUsd } from "@/lib/format";
 import {
   roundCurrencyUnitsFromCents,
@@ -161,9 +165,30 @@ interface Entry {
 const FALLBACK_CURRENCY: CurrencyRate = { code: "USD", symbol: "$", unitsPerUsd: 1, cashRoundingUnit: 1 };
 const props = defineProps<{
   totalCents: number;
+  // Set when the backend quote failed. totalCents is meaningless (0) in that
+  // case, so the total is replaced by this message and checkout is blocked -
+  // otherwise diffCents === 0 makes a pricing failure read as "Paid".
+  quoteError?: string | null;
+  // Exchange mode only: how much more replacement value is still needed to
+  // cover the returned items. Exchanges never pay cash back to the
+  // customer, so while this is > 0 checkoutReady stays false and the status
+  // bar shows this instead of a paid/remaining amount.
+  exchangeShortfallCents?: number;
   itemsJson?: string;
   roundingMode?: string;
   roundingCurrency?: string;
+  // The first half of the split total. Empty falls back to FALLBACK_CURRENCY
+  // (USD), which is what this half was hardcoded to before it was per-branch
+  // config. The second half is roundingCurrency.
+  splitPrimaryCurrency?: string;
+  // False shows the rounding currency first. Defaults to true.
+  splitPrimaryFirst?: boolean;
+  // The split's own denomination, independent of the primary currency's
+  // cash_rounding_unit -- that field also drives the headline total's own
+  // rounding when that currency is picked on its own (formatAmountInCurrency
+  // below), which is a different concern. Unset/0 falls back to
+  // cash_rounding_unit, matching the split's original behaviour.
+  splitPrimaryStep?: number;
   clientId?: number;
   hasItems?: boolean;
   exchangeMode?: boolean;
@@ -292,16 +317,25 @@ watch(
   { deep: true, immediate: true },
 );
 
+const quoteFailed = computed(() => Boolean(props.quoteError));
+const exchangeShortfallCents = computed(() => props.exchangeShortfallCents ?? 0);
 const diffCents = computed(() => paidCents.value - totalCents.value);
 const diff = computed(() => diffCents.value / 100);
-const isPaidInFull = computed(() => diffCents.value === 0);
+const isPaidInFull = computed(() => !quoteFailed.value && diffCents.value === 0);
 const cashRoundedToTotal = computed(() => backendStatus.value?.isCashRounded ?? false);
-const checkoutReady = computed(() => backendStatus.value?.checkoutReady ?? false);
+const checkoutReady = computed(
+  () =>
+    !quoteFailed.value &&
+    exchangeShortfallCents.value <= 0 &&
+    (backendStatus.value?.checkoutReady ?? false),
+);
 const showReadyState = computed(
   () => checkoutReady.value && (diffCents.value <= 0 || cashRoundedToTotal.value),
 );
 const paymentStatus = computed(() =>
-  isPaidInFull.value
+  quoteFailed.value
+    ? "Pricing failed"
+    : isPaidInFull.value
     ? "Paid"
     : cashRoundedToTotal.value
       ? "Paid (cash rounded)"
@@ -317,6 +351,51 @@ function formatAmountInCurrency(amountCents: number, currency: CurrencyRate): st
   return `${currency.symbol} ${roundCurrencyUnitsFromCents(amountCents, currency, roundingMode.value).toLocaleString()}`;
 }
 
+// The first half of the split. Falls back to USD rather than to the default
+// currency, which would be the accounting cent -- never a total a cashier
+// should read.
+const splitPrimary = computed<CurrencyRate>(() => {
+  const found = currencies.value.find((c) => c.code === props.splitPrimaryCurrency);
+  return found && found.unitsPerUsd > 0 ? found : FALLBACK_CURRENCY;
+});
+
+// A one-character symbol sits flush against its number ("$40"); a word-like
+// one gets a space ("LL 439,000"). Matches how each was written when the two
+// halves were hardcoded.
+function unitsLabel(currency: CurrencyRate, units: number): string {
+  const sep = currency.symbol.length === 1 ? "" : " ";
+  return `${currency.symbol}${sep}${units.toLocaleString()}`;
+}
+
+// Splits an amount into whole units of the primary currency plus whatever is
+// left over, expressed in the secondary.
+//
+// The primary half truncates to that currency's own cash_rounding_unit -- the
+// largest denomination its cash actually rounds to. That replaces a hardcoded
+// 10 ("whole tens of dollars"), which was this same idea with USD assumed.
+function splitAmount(amountCents: number) {
+  const primary = splitPrimary.value;
+  const secondary = roundingCurrency.value;
+  const step = Math.max(1, props.splitPrimaryStep || primary.cashRoundingUnit);
+
+  const primaryUnits = (amountCents / 100) * primary.unitsPerUsd;
+  const wholePrimary = Math.floor(primaryUnits / step) * step;
+  const remainderCents = amountCents - (wholePrimary / primary.unitsPerUsd) * 100;
+
+  const primaryText = unitsLabel(primary, wholePrimary);
+  const secondaryText = unitsLabel(
+    secondary,
+    roundCurrencyUnitsFromCents(remainderCents, secondary, roundingMode.value),
+  );
+  // The order is display-only: the arithmetic above is always primary-first.
+  const primaryFirst = props.splitPrimaryFirst !== false;
+  return {
+    first: primaryFirst ? primaryText : secondaryText,
+    second: primaryFirst ? secondaryText : primaryText,
+    remainderCents,
+  };
+}
+
 const remainingAmount = computed(() => {
   const amountCents = Math.abs(diffCents.value);
   const fullUsd = formatUsd(amountCents / 100);
@@ -329,35 +408,38 @@ const remainingAmount = computed(() => {
       text: formatAmountInCurrency(amountCents, c),
       rounded: isRoundedToUnit(amountCents, c, roundingMode.value),
     }));
+  // A secondary currency that rounds to 1 has no denomination to split at, so
+  // there is no meaningful "whole units + remainder" to show -- one line only.
   if (roundingCurrency.value.cashRoundingUnit <= 1) {
-    return { usd: fullUsd, lbp: "", fullUsd, fullLbp: "", amountsByCurrency, lbpRounded: false };
+    return { first: fullUsd, second: "", fullPrimary: fullUsd, fullSecondary: "", amountsByCurrency, secondaryRounded: false };
   }
-  const dollarAmount = amountCents / 100;
-  const wholeDollars = Math.floor(dollarAmount / 10) * 10;
-  const remainderCents = amountCents - wholeDollars * 100;
-  const fullLbp = `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(amountCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`;
+  const { first, second, remainderCents } = splitAmount(amountCents);
   return {
-    usd: `$${wholeDollars.toLocaleString()}`,
-    lbp: `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(remainderCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`,
-    fullUsd,
-    fullLbp,
+    first,
+    second,
+    fullPrimary: fullUsd,
+    fullSecondary: unitsLabel(
+      roundingCurrency.value,
+      roundCurrencyUnitsFromCents(amountCents, roundingCurrency.value, roundingMode.value),
+    ),
     amountsByCurrency,
-    lbpRounded: isRoundedToUnit(remainderCents, roundingCurrency.value, roundingMode.value),
+    secondaryRounded: isRoundedToUnit(remainderCents, roundingCurrency.value, roundingMode.value),
   };
 });
 const totalSummary = computed(() => {
   const totalDollars = totalCents.value / 100;
   if (roundingCurrency.value.cashRoundingUnit <= 1) {
     const usd = formatUsd(totalDollars);
-    return { usd, lbp: "", split: usd };
+    return { first: usd, second: "", split: usd };
   }
-  const wholeDollars = Math.floor(totalDollars / 10) * 10;
-  const remainderCents = totalCents.value - wholeDollars * 100;
-  const currencyLabel = `${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(totalCents.value, roundingCurrency.value, roundingMode.value).toLocaleString()}`;
+  const { first, second } = splitAmount(totalCents.value);
   return {
-    usd: formatUsd(totalDollars),
-    lbp: currencyLabel,
-    split: `${formatUsd(wholeDollars)} + ${roundingCurrency.value.symbol} ${roundCurrencyUnitsFromCents(remainderCents, roundingCurrency.value, roundingMode.value).toLocaleString()}`,
+    first: formatUsd(totalDollars),
+    second: unitsLabel(
+      roundingCurrency.value,
+      roundCurrencyUnitsFromCents(totalCents.value, roundingCurrency.value, roundingMode.value),
+    ),
+    split: `${first} + ${second}`,
   };
 });
 const displayValue = computed(() =>
@@ -368,7 +450,7 @@ function formatEntryAmount(amount: number) {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-onMounted(async () => {
+async function loadPaymentMethods() {
   try {
     const methods = await ListPaymentMethods();
     paymentMethods.value = methods.map((method: any) => ({
@@ -378,10 +460,15 @@ onMounted(async () => {
       currencyCode: method.currencyCode,
       color: method.color ?? "",
     }));
-    activeMethod.value = paymentMethods.value[0]?.name ?? "";
+    if (!paymentMethods.value.some((m) => m.name === activeMethod.value)) {
+      activeMethod.value = paymentMethods.value[0]?.name ?? "";
+    }
   } catch {
-    /* leave payment methods empty */
+    /* leave payment methods as-is */
   }
+}
+
+async function loadCurrencies() {
   try {
     currencies.value = (await ListCurrencies()).map((currency: any) => ({
       code: currency.code,
@@ -392,9 +479,28 @@ onMounted(async () => {
       isDefault: Boolean(currency.isDefault),
     }));
   } catch {
-    /* leave currencies empty */
+    /* leave currencies as-is */
   }
+}
+
+// Backend sync (poll or WS push) applies payment-method/currency changes
+// straight to the local DB with no way for an already-open Calculator to
+// know its data went stale - reload on the same sync_applied:<entity>
+// signal shifts.vue uses. See sync_pull.go.
+let stopSyncListeners: (() => void)[] = [];
+
+onMounted(async () => {
+  stopSyncListeners = [
+    EventsOn("sync_applied:cashbox_accounts", loadPaymentMethods),
+    EventsOn("sync_applied:currencies", loadCurrencies),
+  ];
+  await loadPaymentMethods();
+  await loadCurrencies();
   try { couponTypes.value = (await ListCouponTypes()) as any[]; } catch { couponTypes.value = []; }
+});
+
+onBeforeUnmount(() => {
+  stopSyncListeners.forEach((stop) => stop());
 });
 
 // Tracks whether currentInput was populated by fillRemainingInput (an
@@ -510,7 +616,7 @@ async function openCouponDialog() {
 }
 function confirmCoupon() {
   const type = couponTypes.value.find((item) => item.id === couponTypeId.value);
-  if (!couponCode.value.trim() || !type) return;
+  if (!type || (type.codeRequired !== false && !couponCode.value.trim())) return;
   addCoupon(couponCode.value, type);
   couponDialog.value = false;
 }

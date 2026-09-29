@@ -38,6 +38,7 @@
                 <div class="product-primary-row">
                   <span class="product-code text-medium-emphasis">{{ product.code }}</span>
                   <span class="font-weight-medium text-truncate">{{ product.name }}</span>
+                  <span v-if="product.brand" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
                   <span v-if="product.color" class="product-variant text-medium-emphasis">{{ product.color }}</span>
                   <span v-if="product.size" class="product-variant text-medium-emphasis">{{ product.size }}</span>
                   <span class="product-price">
@@ -110,6 +111,7 @@ type ProductItem = {
   name: string;
   code: string;
   category: string;
+  brand?: string;
   price: number;
   discount: number;
   color: string;
@@ -314,11 +316,20 @@ defineExpose({ openDialog });
 }
 
 .product-code,
+.product-brand,
 .product-variant {
   font-size: 0.75rem;
 }
 
 .product-code {
+  flex: 0 0 96px;
+  width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-brand {
   flex: 0 0 96px;
   width: 96px;
   overflow: hidden;

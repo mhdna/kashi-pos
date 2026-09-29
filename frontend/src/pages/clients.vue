@@ -8,7 +8,7 @@
             :key="client.id"
             class="client-list-item"
             link
-            @click="openEdit(client)"
+            @click="openProfile(client)"
           >
             <template #prepend>
               <InitialsAvatar
@@ -32,6 +32,9 @@
                 >
                   {{ loyaltyTier(Number(client.totalLoyaltyPoints ?? 0)) }}
                 </v-chip>
+                <v-chip v-if="client.isActive === false" size="x-small" variant="tonal">
+                  Inactive
+                </v-chip>
                 <v-chip
                   v-if="Number(client.accountBalance) > 0"
                   color="orange-darken-2"
@@ -43,6 +46,13 @@
               </div>
             </template>
             <template #append>
+              <v-btn
+                icon="mdi-account-edit"
+                variant="text"
+                density="comfortable"
+                title="Edit client"
+                @click.stop="openEdit(client)"
+              />
               <v-btn
                 icon="mdi-wallet"
                 variant="text"
@@ -205,8 +215,19 @@
         <v-text-field v-model="editForm.phone" placeholder="Phone" variant="outlined" />
       </v-card-text>
       <v-card-actions>
-        <v-btn v-if="auth.isAdmin" color="error" variant="text" @click="openDeleteFromEdit"
+        <v-btn
+          v-if="auth.isAdmin && standalone && editTarget?.isActive !== false"
+          color="error"
+          variant="text"
+          @click="openDeleteFromEdit"
           >Delete</v-btn
+        >
+        <v-btn
+          v-if="auth.isAdmin && standalone && editTarget?.isActive === false"
+          variant="text"
+          :loading="reactivating"
+          @click="reactivateSelected"
+          >Reactivate</v-btn
         >
         <v-spacer />
         <v-btn variant="text" @click="editOpen = false">Cancel</v-btn>
@@ -225,8 +246,9 @@
     <v-card>
       <v-card-title>Delete client?</v-card-title>
       <v-card-text
-        >This will delete {{ deleteTarget?.name || "this client" }}. Clients linked to invoices
-        cannot be deleted.</v-card-text
+        >This will delete {{ deleteTarget?.name || "this client" }}. A client with invoices,
+        coupons or an account balance is deactivated instead, so their history stays
+        intact.</v-card-text
       >
       <v-card-actions>
         <v-spacer />
@@ -237,6 +259,8 @@
   </v-dialog>
 
   <v-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</v-snackbar>
+
+  <ClientProfileDialog v-model="profileOpen" :client-id="profileClientId" />
 </template>
 
 <script setup lang="ts">
@@ -244,6 +268,8 @@ import { computed, ref, onBeforeUnmount, onMounted, watch, reactive } from "vue"
 import {
   DeleteClient,
   GetAppSettings,
+  IsStandaloneMode,
+  SetClientActive,
   GetClientAccountDetails,
   ListClientsCursor,
   ListPaymentMethods,
@@ -252,6 +278,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import ClientProfileDialog from "@/components/ClientProfileDialog.vue";
 import { useAuthStore } from "@/stores/auth";
 import {
   formatLoyaltyPoints,
@@ -276,6 +303,7 @@ type ClientItem = {
   validLoyaltyPoints: number;
   createdAt: string;
   accountBalance: number;
+  isActive?: boolean;
 };
 
 const batchSize = 20;
@@ -291,10 +319,19 @@ const editOpen = ref(false);
 const deleteOpen = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
+const reactivating = ref(false);
+// Client removal/reactivation is only possible in standalone mode; while
+// connected, kashi owns it (see standalone.go).
+const standalone = ref(false);
+IsStandaloneMode()
+  .then((value) => (standalone.value = value))
+  .catch(() => (standalone.value = false));
 const editTarget = ref<any>(null);
 const deleteTarget = ref<any>(null);
 const editForm = reactive({ name: "", phone: "" });
 const snackbar = reactive({ show: false, text: "" });
+const profileOpen = ref(false);
+const profileClientId = ref<number | null>(null);
 const accountOpen = ref(false);
 const accountLoading = ref(false);
 const accountTarget = ref<any>(null);
@@ -331,6 +368,11 @@ const paymentError = computed(() => {
     return "Payment exceeds the amount due";
   return "";
 });
+
+function openProfile(item: any) {
+  profileClientId.value = item.id;
+  profileOpen.value = true;
+}
 
 async function openAccount(item: any) {
   accountTarget.value = item;
@@ -431,17 +473,41 @@ async function deleteSelected() {
   if (!auth.isAdmin || !deleteTarget.value) return;
   deleting.value = true;
   try {
-    await DeleteClient(deleteTarget.value.id);
+    const outcome = await DeleteClient(deleteTarget.value.id);
     deleteOpen.value = false;
-    clients.value = clients.value.filter((client) => client.id !== deleteTarget.value.id);
-    if (hasMore.value) void loadMore();
-    snackbar.text = "Client deleted";
+    if (outcome === "deactivated") {
+      const loadedClient = clients.value.find((client) => client.id === deleteTarget.value.id);
+      if (loadedClient) loadedClient.isActive = false;
+      snackbar.text = "Client has history, so it was deactivated instead";
+    } else {
+      clients.value = clients.value.filter((client) => client.id !== deleteTarget.value.id);
+      if (hasMore.value) void loadMore();
+      snackbar.text = "Client deleted";
+    }
     snackbar.show = true;
   } catch (e: any) {
     snackbar.text = e?.toString() || "Could not delete client";
     snackbar.show = true;
   } finally {
     deleting.value = false;
+  }
+}
+
+async function reactivateSelected() {
+  if (!auth.isAdmin || !editTarget.value) return;
+  reactivating.value = true;
+  try {
+    await SetClientActive(editTarget.value.id, true);
+    const loadedClient = clients.value.find((client) => client.id === editTarget.value.id);
+    if (loadedClient) loadedClient.isActive = true;
+    editTarget.value.isActive = true;
+    snackbar.text = "Client reactivated";
+    snackbar.show = true;
+  } catch (e: any) {
+    snackbar.text = e?.toString() || "Could not reactivate client";
+    snackbar.show = true;
+  } finally {
+    reactivating.value = false;
   }
 }
 
@@ -523,7 +589,7 @@ onBeforeUnmount(() => {
 .client-list-layout {
   display: flex;
   flex-direction: column;
-  height: 620px;
+  height: 695px;
   width: 100%;
 }
 
@@ -585,14 +651,25 @@ onBeforeUnmount(() => {
 .client-inline-keyboard {
   align-items: center;
   display: flex;
-  flex: 0 0 205px;
-  height: 205px;
+  flex: 0 0 280px;
+  height: 280px;
   margin-bottom: 0;
   margin-inline: auto;
   margin-top: 32px;
-  max-width: 600px;
+  width: 100%;
+  max-width: 820px;
   padding-bottom: 0;
   padding-top: 12px;
+}
+
+.client-inline-keyboard :deep(.inline-keyboard-key) {
+  max-width: 100px;
+  height: 64px;
+}
+
+.client-inline-keyboard :deep(.inline-keyboard-actions > .v-btn) {
+  height: 64px;
+  min-height: 64px;
 }
 
 @media (max-width: 700px) {

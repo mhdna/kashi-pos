@@ -14,6 +14,11 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// appVersion is set at build time via -ldflags "-X main.appVersion=...".
+// Left as "dev" for local `wails dev`/unflagged `go build` runs, where no
+// release version applies.
+var appVersion = "dev"
+
 func main() {
 	// Paint a native splash immediately, before the WebView2 runtime boots.
 	// hideSplash also runs on OnDomReady; the defer covers early-exit paths.

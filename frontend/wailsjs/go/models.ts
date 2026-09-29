@@ -36,6 +36,62 @@ export namespace main {
 	        this.needsMoreReplacementValue = source["needsMoreReplacementValue"];
 	    }
 	}
+	export class FullCheckEntityReport {
+	    entity: string;
+	    central: number;
+	    fetched: number;
+	    deactivated: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FullCheckEntityReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entity = source["entity"];
+	        this.central = source["central"];
+	        this.fetched = source["fetched"];
+	        this.deactivated = source["deactivated"];
+	    }
+	}
+	export class FullCheckReport {
+	    adoptedClientUids: number;
+	    entities: FullCheckEntityReport[];
+	    // Go type: time
+	    startedAt: any;
+	    // Go type: time
+	    finishedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new FullCheckReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.adoptedClientUids = source["adoptedClientUids"];
+	        this.entities = this.convertValues(source["entities"], FullCheckEntityReport);
+	        this.startedAt = this.convertValues(source["startedAt"], null);
+	        this.finishedAt = this.convertValues(source["finishedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class InvoicePage {
 	    items: any[];
 	    total: number;
@@ -111,6 +167,22 @@ export namespace main {
 		}
 	}
 	
+	export class ManagedProductPage {
+	    items: any[];
+	    nextCursor: number;
+	    hasMore: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ManagedProductPage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = source["items"];
+	        this.nextCursor = source["nextCursor"];
+	        this.hasMore = source["hasMore"];
+	    }
+	}
 	export class PaymentStatus {
 	    grandTotalCents: number;
 	    paidCents: number;
@@ -133,6 +205,20 @@ export namespace main {
 	        this.checkoutReady = source["checkoutReady"];
 	    }
 	}
+	export class PendingDeactivation {
+	    productBarcodes: string[];
+	    productNames: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PendingDeactivation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.productBarcodes = source["productBarcodes"];
+	        this.productNames = source["productNames"];
+	    }
+	}
 	export class ProductCursorPage {
 	    items: any[];
 	    nextCursor: number;
@@ -149,6 +235,34 @@ export namespace main {
 	        this.nextCursor = source["nextCursor"];
 	        this.hasMore = source["hasMore"];
 	        this.total = source["total"];
+	    }
+	}
+	export class ProductInput {
+	    barcode: string;
+	    code: string;
+	    name: string;
+	    description: string;
+	    priceCents: number;
+	    discount: number;
+	    color: string;
+	    size: string;
+	    isActive: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProductInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.barcode = source["barcode"];
+	        this.code = source["code"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.priceCents = source["priceCents"];
+	        this.discount = source["discount"];
+	        this.color = source["color"];
+	        this.size = source["size"];
+	        this.isActive = source["isActive"];
 	    }
 	}
 	export class ProductPage {
@@ -188,6 +302,7 @@ export namespace main {
 	export class ResyncOptions {
 	    applyStock: boolean;
 	    dryRun: boolean;
+	    confirmDeactivation: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ResyncOptions(source);
@@ -197,6 +312,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.applyStock = source["applyStock"];
 	        this.dryRun = source["dryRun"];
+	        this.confirmDeactivation = source["confirmDeactivation"];
 	    }
 	}
 	export class ResyncReport {
@@ -208,6 +324,9 @@ export namespace main {
 	    startedAt: any;
 	    // Go type: time
 	    finishedAt: any;
+	    requiresConfirmation: boolean;
+	    pendingDeactivation?: PendingDeactivation;
+	    fullCheck?: FullCheckReport;
 	
 	    static createFrom(source: any = {}) {
 	        return new ResyncReport(source);
@@ -221,6 +340,9 @@ export namespace main {
 	        this.conflicts = source["conflicts"];
 	        this.startedAt = this.convertValues(source["startedAt"], null);
 	        this.finishedAt = this.convertValues(source["finishedAt"], null);
+	        this.requiresConfirmation = source["requiresConfirmation"];
+	        this.pendingDeactivation = this.convertValues(source["pendingDeactivation"], PendingDeactivation);
+	        this.fullCheck = this.convertValues(source["fullCheck"], FullCheckReport);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -328,6 +450,7 @@ export namespace main {
 	    confirmedElsewhere: number;
 	    lastSyncedAt: string;
 	    lastReconcileAt: string;
+	    lastFullCheckAt: string;
 	    fullySynced: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -344,7 +467,38 @@ export namespace main {
 	        this.confirmedElsewhere = source["confirmedElsewhere"];
 	        this.lastSyncedAt = source["lastSyncedAt"];
 	        this.lastReconcileAt = source["lastReconcileAt"];
+	        this.lastFullCheckAt = source["lastFullCheckAt"];
 	        this.fullySynced = source["fullySynced"];
+	    }
+	}
+	export class confirmTransferItemInput {
+	    Barcode: string;
+	    ProductUID: string;
+	    ReceivedQuantity: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new confirmTransferItemInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Barcode = source["Barcode"];
+	        this.ProductUID = source["ProductUID"];
+	        this.ReceivedQuantity = source["ReceivedQuantity"];
+	    }
+	}
+	export class transferRequestItemInput {
+	    Barcode: string;
+	    Quantity: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new transferRequestItemInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Barcode = source["Barcode"];
+	        this.Quantity = source["Quantity"];
 	    }
 	}
 

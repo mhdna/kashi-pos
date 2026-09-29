@@ -31,7 +31,14 @@ func TestCloseStaleOpenShiftsHonorsSettingAndKeepsTodayOpen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := database.Exec(`UPDATE shifts SET created_at = datetime('now', 'localtime', '-1 day') WHERE id = ?`, stale.ID); err != nil {
+	// created_at is stored in UTC (CreateShift's default is datetime('now'),
+	// which SQLite returns in UTC) -- CloseStaleOpenShifts' own query then
+	// applies 'localtime' once to convert it for comparison. Seeding this
+	// with an extra 'localtime' shift here double-converts it, which can
+	// land back on "today" instead of "yesterday" depending on what wall-
+	// clock time the test happens to run at (it did, intermittently). Match
+	// the real column convention instead: UTC minus a day.
+	if _, err := database.Exec(`UPDATE shifts SET created_at = datetime('now', '-1 day') WHERE id = ?`, stale.ID); err != nil {
 		t.Fatal(err)
 	}
 	app := &App{ctx: ctx, store: store}

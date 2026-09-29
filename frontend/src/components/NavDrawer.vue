@@ -4,8 +4,7 @@
       <v-list-item
         v-for="item in items"
         :key="item.value"
-        :class="['nav-item', { 'py-2': item.value === 'invoice' }]"
-        :disabled="item.locked"
+        :class="['nav-item', { 'py-2': item.value === 'invoice', 'nav-item-alert': item.alert }]"
         :value="item.action ? undefined : item.value"
         :active="item.to ? route.path === item.to : item.action ? false : undefined"
         @click.prevent="handleItemClick(item)"
@@ -93,6 +92,18 @@
     </v-card>
   </v-dialog>
 
+  <v-dialog v-model="closeAppConfirmOpen" max-width="360">
+    <v-card rounded="xl">
+      <v-card-title>Close app</v-card-title>
+      <v-card-text>Are you sure you want to close the app?</v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn variant="text" @click="closeAppConfirmOpen = false">Cancel</v-btn>
+        <v-btn color="error" variant="flat" @click="confirmCloseApp">Close App</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <v-dialog v-model="inventoryOpen" max-width="640">
     <v-card rounded="xl">
       <div class="dialog-close-row px-4 pt-0">
@@ -104,10 +115,10 @@
         />
       </div>
 
-      <v-card-text class="options-grid options-grid--three px-4 pt-0 pb-4">
+      <v-card-text class="options-grid px-4 pt-0 pb-4">
         <v-card
+          v-if="auth.isAdmin || pageUnlocks.inventory"
           class="option-card"
-          :disabled="!auth.isAdmin && !pageUnlocks.inventory"
           rounded="lg"
           variant="tonal"
           @click="openInventoryPage"
@@ -116,18 +127,18 @@
           <span>Inventory</span>
         </v-card>
         <v-card
+          v-if="auth.isAdmin || pageUnlocks.products"
           class="option-card"
-          :disabled="!auth.isAdmin && !pageUnlocks.transfers"
           rounded="lg"
           variant="tonal"
-          @click="openTransfers"
+          @click="openProducts"
         >
-          <v-icon icon="mdi-truck" size="44" />
-          <span>Transfers</span>
+          <v-icon icon="mdi-tag-multiple-outline" size="44" />
+          <span>Products</span>
         </v-card>
         <v-card
+          v-if="auth.isAdmin || pageUnlocks.salespersons"
           class="option-card"
-          :disabled="!auth.isAdmin && !pageUnlocks.salespersons"
           rounded="lg"
           variant="tonal"
           @click="openSalespersons"
@@ -147,6 +158,7 @@ import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import { useSyncStatus } from "@/composables/useSyncStatus";
+import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { Quit } from "../../wailsjs/runtime/runtime";
 
 const auth = useAuthStore();
@@ -168,11 +180,14 @@ const syncDot = computed(() => {
     return { color: 'warning', title: `${st.pending + st.confirmedElsewhere} record(s) not yet confirmed here` };
   return { color: 'success', title: 'Fully synced with kashi' };
 });
+const { status: attendanceStatus } = useAttendanceStatus();
+
 function openSyncSettings() {
   router.push({ path: '/settings', query: { panel: 'general-sync' } });
 }
 const optionsOpen = ref(false);
 const inventoryOpen = ref(false);
+const closeAppConfirmOpen = ref(false);
 
 function handleItemClick(item: { locked?: boolean; action?: () => void; to?: string }) {
   if (item.locked) return;
@@ -191,9 +206,12 @@ function logout() {
 
 function closeApp() {
   optionsOpen.value = false;
-  if (window.confirm("Are you sure you want to close the app?")) {
-    Quit();
-  }
+  closeAppConfirmOpen.value = true;
+}
+
+function confirmCloseApp() {
+  closeAppConfirmOpen.value = false;
+  Quit();
 }
 
 function openCloseShift() {
@@ -211,10 +229,10 @@ function openInventoryPage() {
   void router.push("/inventory");
 }
 
-function openTransfers() {
-  if (!auth.isAdmin && !pageUnlocks.value.transfers) return;
+function openProducts() {
+  if (!auth.isAdmin && !pageUnlocks.value.products) return;
   inventoryOpen.value = false;
-  void router.push("/transfers");
+  void router.push("/products");
 }
 
 function openSalespersons() {
@@ -248,8 +266,15 @@ const items = computed(() => {
       locked:
         !auth.isAdmin &&
         !pageUnlocks.value.inventory &&
-        !pageUnlocks.value.transfers &&
+        !pageUnlocks.value.products &&
         !pageUnlocks.value.salespersons,
+    },
+    {
+      value: "transfers",
+      to: "/transfers",
+      icon: "mdi-truck",
+      t: "Transfers",
+      locked: !auth.isAdmin && !pageUnlocks.value.transfers,
     },
     {
       value: "attendance",
@@ -257,10 +282,11 @@ const items = computed(() => {
       icon: "mdi-account-clock",
       t: "Attend",
       locked: !auth.isAdmin && !pageUnlocks.value.attendance,
+      alert: !attendanceStatus.value.reachable,
     },
     { value: "settings", to: "/settings", icon: "mdi-cog", t: "Settings" },
   ];
-  return all.filter((item) => item.value !== "settings" || auth.isAdmin);
+  return all.filter((item) => (item.value !== "settings" || auth.isAdmin) && !item.locked);
 });
 </script>
 
@@ -297,6 +323,10 @@ const items = computed(() => {
 .nav-item :deep(.v-badge) {
   flex-shrink: 0;
   transform: translateZ(0);
+}
+
+.nav-item-alert {
+  background-color: #c62828;
 }
 
 .nav-item-label {

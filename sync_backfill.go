@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -21,21 +22,40 @@ type ResyncOptions struct {
 	// correct when kashi's inventory was seeded before the oldest local
 	// sale -- off by default.
 	ApplyStock bool `json:"applyStock"`
-	// DryRun reports what would be queued without writing anything.
+	// DryRun reports what would be queued/deactivated without writing
+	// anything.
 	DryRun bool `json:"dryRun"`
+	// ConfirmDeactivation must be true to actually deactivate local-only
+	// products/clients the first time a run finds any -- see
+	// PendingDeactivation. Ignored once the operator has confirmed once
+	// (settings.full_mirror_confirmed_at is set): every later run
+	// deactivates silently without needing this flag.
+	ConfirmDeactivation bool `json:"confirmDeactivation"`
 }
 
 // ResyncEntityReport is one row of a ResyncReport: how many of this entity
 // exist locally, how many kashi already had, how many were missing, and how
-// many this run queued (0 on a dry run). Local vs Central diverging by more
-// than Missing after a clean run is the tell that rows were deleted on one
-// side -- there is no delete propagation.
+// many this run queued (0 on a dry run).
 type ResyncEntityReport struct {
 	Entity  string `json:"entity"`
 	Local   int    `json:"local"`
 	Central int    `json:"central"`
 	Missing int    `json:"missing"`
 	Queued  int    `json:"queued"`
+}
+
+// PendingDeactivation lists the local-only products a run found -- present
+// here, no longer known to kashi -- that would be deactivated. Sent back
+// instead of being acted on when this is the first time a run has found any
+// and the operator hasn't yet confirmed full-mirror mode.
+//
+// Clients are deliberately not here: kashi can't delete a client a branch is
+// linked to, so "kashi doesn't have this phone" only ever meant the phone
+// differed (trimmed, synthetic, or edited centrally). Clients now converge by
+// uid through the pull instead, including their active flag.
+type PendingDeactivation struct {
+	ProductBarcodes []string `json:"productBarcodes"`
+	ProductNames    []string `json:"productNames"`
 }
 
 type ResyncReport struct {
@@ -45,18 +65,32 @@ type ResyncReport struct {
 	Conflicts  int                  `json:"conflicts"`
 	StartedAt  time.Time            `json:"startedAt"`
 	FinishedAt time.Time            `json:"finishedAt"`
+	// RequiresConfirmation is true when this run found local-only
+	// products/clients to deactivate but full-mirror mode hasn't been
+	// confirmed yet -- nothing was written, PendingDeactivation lists what
+	// a confirmed re-run (ConfirmDeactivation: true) would deactivate.
+	RequiresConfirmation bool                 `json:"requiresConfirmation"`
+	PendingDeactivation  *PendingDeactivation `json:"pendingDeactivation,omitempty"`
+	// FullCheck is the completeness check run at the end (nil on a dry run
+	// or when it couldn't run).
+	FullCheck *FullCheckReport `json:"fullCheck,omitempty"`
 }
 
-// ResyncAll brings this branch's data to parity with the central server it's
-// currently pointed at: it pulls master data down from scratch, then pushes
-// up every local client and invoice the server is missing (asking it first,
-// via reconcile, rather than blindly re-sending), and re-arms any other
-// outbox rows that a *previous* central server had accepted. Safe to re-run
-// and safe to run right after changing the central URL -- that's its point.
+// ResyncAll brings this branch to full parity with the central server it's
+// currently pointed at, in both directions: it pulls master data down from
+// scratch (products/clients/etc, matched and merged by barcode/phone -- see
+// applySyncedProductVariant and applySyncedClient), deactivates any local
+// product or client kashi no longer has (see the deactivation step below),
+// then pushes up every local client and invoice the server is missing
+// (asking it first, via reconcile, rather than blindly re-sending), and
+// re-arms any other outbox rows that a *previous* central server had
+// accepted. Safe to re-run and safe to run right after changing the central
+// URL -- that's its point.
 //
-// Products flow up through the conflict-review path (unknown_product), not
-// here: a central product carries colours/sizes/categories the flat POS row
-// can't fully supply, so an operator resolves each one in kashi.
+// Products are never pushed up: kashi is the sole source of product data
+// now (a central product carries colours/sizes/categories the flat POS row
+// can't fully supply), so a product only ever flows kashi -> branch, never
+// the other way.
 func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	if a.store == nil {
 		return ResyncReport{}, fmt.Errorf("database not initialized")
@@ -98,11 +132,59 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	//    row already means "everything", so clearing them and running one
 	//    pull pass is the whole "brand-new till catches up" story.
 	if !opts.DryRun {
+		// 0. Adopt kashi's uid for every client this branch had linked, so
+		//    the pull below matches them by uid, not by a phone that may
+		//    differ. A kashi without the route (older deploy) just skips it.
+		if _, err := a.adoptBranchClientUIDs(ctx, client); err != nil {
+			log.Printf("resync: adopt client uids: %v", err)
+		}
 		if err := retryBusy(func() error { return a.store.ClearSyncCursors(ctx) }); err != nil {
 			return report, fmt.Errorf("clear sync cursors: %w", err)
 		}
 		a.emitResyncProgress("pull", 0, 0)
 		a.runSyncPullLocked(ctx, client)
+	}
+
+	// 1.5 Deactivation: anything left over locally that kashi no longer has.
+	//     Products are cloud-only-creation now, so a local-only barcode is
+	//     stale by definition; a client, once known to kashi, is expected to
+	//     stay known there. Soft-deletes (is_active = 0), never a hard
+	//     delete, so historical invoices/shift reports keep resolving.
+	pending, err := a.computeDeactivationCandidates(ctx, client)
+	if err != nil {
+		return report, fmt.Errorf("compute deactivation candidates: %w", err)
+	}
+	hasPending := len(pending.ProductBarcodes) > 0
+	switch {
+	case opts.DryRun:
+		report.Entities = append(report.Entities,
+			ResyncEntityReport{Entity: "products_deactivated", Missing: len(pending.ProductBarcodes)},
+		)
+	case hasPending && !settings.FullMirrorConfirmedAt.Valid && !opts.ConfirmDeactivation:
+		// First time this branch has anything to deactivate, and the
+		// operator hasn't confirmed full-mirror mode yet: report what
+		// would happen and stop here. The pull above has already applied
+		// kashi's data (idempotent, harmless to repeat); none of the
+		// push-up steps below have run yet.
+		report.RequiresConfirmation = true
+		report.PendingDeactivation = &pending
+		report.FinishedAt = time.Now().UTC()
+		return report, nil
+	case hasPending:
+		if err := a.applyDeactivations(ctx, pending); err != nil {
+			return report, fmt.Errorf("apply deactivations: %w", err)
+		}
+		if !settings.FullMirrorConfirmedAt.Valid {
+			now := time.Now().UTC().Format(time.RFC3339)
+			if err := retryBusy(func() error {
+				return a.store.SetFullMirrorConfirmedAt(ctx, sql.NullString{String: now, Valid: true})
+			}); err != nil {
+				return report, fmt.Errorf("record full-mirror confirmation: %w", err)
+			}
+		}
+		report.Entities = append(report.Entities,
+			ResyncEntityReport{Entity: "products_deactivated", Queued: len(pending.ProductBarcodes)},
+		)
 	}
 
 	// 2. Clients up.
@@ -168,6 +250,19 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 		Entity: "other_outbox_rows", Queued: rearmed,
 	})
 
+	// 5b. Completeness check: fetch anything the cursor pull missed and,
+	//     now that full-mirror mode may just have been confirmed, deactivate
+	//     local products kashi doesn't have. Best-effort -- an older kashi
+	//     without the routes must not fail the whole run.
+	if !opts.DryRun {
+		fc, err := a.runFullCheckLocked(ctx, client)
+		if err != nil {
+			log.Printf("resync: full check: %v", err)
+		} else {
+			report.FullCheck = &fc
+		}
+	}
+
 	// 6. Stamp state + kick the worker to start draining.
 	if !opts.DryRun {
 		if err := a.store.SetSyncTarget(ctx, client.baseURL); err != nil {
@@ -223,6 +318,7 @@ func (a *App) resyncClients(ctx context.Context, client *centralClient, opts Res
 			BranchClientID: c.ID,
 			Name:           c.Name,
 			Phone:          c.Phone,
+			UID:            c.Uid.String,
 		})
 		if err != nil {
 			return rep, err
@@ -239,6 +335,54 @@ func (a *App) resyncClients(ctx context.Context, client *centralClient, opts Res
 		rep.Queued++
 	}
 	return rep, nil
+}
+
+// computeDeactivationCandidates asks kashi, by barcode, which currently-active
+// local products it no longer has. Barcode is globally unique in kashi, so a
+// "missing" result really does mean the product is gone centrally -- see
+// branchReconcile's "products" case in kashi's api/branch_catchup.go.
+// Already-deactivated rows are excluded (ListActiveProducts) so a settled
+// catalog doesn't keep re-asking about the same barcodes every run.
+func (a *App) computeDeactivationCandidates(ctx context.Context, client *centralClient) (PendingDeactivation, error) {
+	var pending PendingDeactivation
+
+	products, err := a.store.ListActiveProducts(ctx)
+	if err != nil {
+		return pending, err
+	}
+	barcodes := make([]string, 0, len(products))
+	productNameByBarcode := make(map[string]string, len(products))
+	for _, p := range products {
+		if strings.TrimSpace(p.Barcode) == "" {
+			continue
+		}
+		barcodes = append(barcodes, p.Barcode)
+		productNameByBarcode[p.Barcode] = p.Name
+	}
+	missingBarcodes, err := a.reconcileEntity(ctx, client, "products", barcodes)
+	if err != nil {
+		return pending, fmt.Errorf("reconcile products: %w", err)
+	}
+	for _, bc := range missingBarcodes {
+		pending.ProductBarcodes = append(pending.ProductBarcodes, bc)
+		pending.ProductNames = append(pending.ProductNames, productNameByBarcode[bc])
+	}
+
+	return pending, nil
+}
+
+// applyDeactivations soft-deletes the given local-only products
+// (is_active = 0). Never a hard delete: they may be referenced by past
+// invoices/shift reports, which resolve by id, not by is_active.
+func (a *App) applyDeactivations(ctx context.Context, pending PendingDeactivation) error {
+	if len(pending.ProductBarcodes) > 0 {
+		if err := retryBusy(func() error {
+			return a.store.DeactivateProductsByBarcode(ctx, pending.ProductBarcodes)
+		}); err != nil {
+			return fmt.Errorf("deactivate products: %w", err)
+		}
+	}
+	return nil
 }
 
 func (a *App) resyncInvoices(ctx context.Context, client *centralClient, opts ResyncOptions) (ResyncEntityReport, error) {
@@ -373,13 +517,14 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 	}
 	items := make([]branchInvoicePayloadItem, 0, len(lines))
 	for _, line := range lines {
-		barcode := ""
+		barcode, productUID := "", ""
 		if prod, err := q.GetProductByID(ctx, line.ProductID); err == nil {
-			barcode = prod.Barcode
+			barcode, productUID = prod.Barcode, prod.Uid.String
 		}
 		items = append(items, branchInvoicePayloadItem{
 			BranchProductID: line.ProductID,
 			Barcode:         barcode,
+			ProductUID:      productUID,
 			UnitPrice:       line.UnitPrice,
 			LineTotal:       line.LineTotal,
 			Discount:        int16(line.Discount),
@@ -419,6 +564,7 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 		BranchShiftID:          inv.ShiftID,
 		BranchInventoryID:      inv.InventoryID,
 		BranchClientID:         inv.ClientID,
+		ClientUID:              clientUIDForSync(ctx, q, inv.ClientID),
 		Discount:               int16(inv.Discount),
 		GrandTotal:             inv.GrandTotal,
 		Subtotal:               inv.Subtotal,
@@ -480,6 +626,10 @@ func (a *App) resyncExpenses(ctx context.Context, client *centralClient, opts Re
 		if r.ShiftID.Valid {
 			shiftID = &r.ShiftID.Int64
 		}
+		accountName := ""
+		if account, err := a.store.GetCashboxAccountByID(ctx, r.CashboxAccountID); err == nil {
+			accountName = account.Name
+		}
 		body, err := json.Marshal(branchExpensePayload{
 			ClientRef:              r.ClientRef,
 			Description:            r.Description,
@@ -487,6 +637,7 @@ func (a *App) resyncExpenses(ctx context.Context, client *centralClient, opts Re
 			Amount:                 r.Amount,
 			CurrencyCode:           r.CurrencyCode,
 			BranchCashboxAccountID: r.CashboxAccountID,
+			AccountName:            accountName,
 			BranchShiftID:          shiftID,
 			OccurredAt:             parseLocalTime(r.OccurredAt),
 		})
@@ -534,6 +685,10 @@ func (a *App) resyncLoans(ctx context.Context, client *centralClient, opts Resyn
 		if r.ShiftID.Valid {
 			shiftID = &r.ShiftID.Int64
 		}
+		accountName := ""
+		if account, err := a.store.GetCashboxAccountByID(ctx, r.CashboxAccountID); err == nil {
+			accountName = account.Name
+		}
 		body, err := json.Marshal(branchLoanPayload{
 			ClientRef:              r.ClientRef,
 			Description:            r.Description,
@@ -541,6 +696,7 @@ func (a *App) resyncLoans(ctx context.Context, client *centralClient, opts Resyn
 			Amount:                 r.Amount,
 			CurrencyCode:           r.CurrencyCode,
 			BranchCashboxAccountID: r.CashboxAccountID,
+			AccountName:            accountName,
 			BranchShiftID:          shiftID,
 			OccurredAt:             parseLocalTime(r.OccurredAt),
 		})
@@ -770,7 +926,7 @@ func (a *App) resyncAttendanceChanges(ctx context.Context, client *centralClient
 				Ref: reviewRef, Kind: "approval", SalespersonName: name,
 				AttendanceDate: r.AttendanceDate, OriginalTime: r.OriginalTime,
 				RequestedTime: r.RequestedTime, RequestedType: r.RequestedType,
-				Action: r.Action, Status: r.Status, Note: note, Actor: "manager approval",
+				Action: r.Action, Status: r.Status, Note: note, Actor: "reviewer",
 				OccurredAt: parseLocalTime(r.ReviewedAt),
 			})
 			if err != nil {

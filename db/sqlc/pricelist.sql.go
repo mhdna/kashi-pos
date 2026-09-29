@@ -7,60 +7,32 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
-const createPriceList = `-- name: CreatePriceList :one
-INSERT INTO price_lists (name) VALUES (?) RETURNING id, name, is_active, created_at
+const deletePriceListByUID = `-- name: DeletePriceListByUID :exec
+DELETE FROM price_lists WHERE uid = ?
 `
 
-func (q *Queries) CreatePriceList(ctx context.Context, name string) (PriceList, error) {
-	row := q.db.QueryRowContext(ctx, createPriceList, name)
-	var i PriceList
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.IsActive,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const deletePriceListItem = `-- name: DeletePriceListItem :exec
-DELETE FROM price_list_items WHERE id = ?
-`
-
-func (q *Queries) DeletePriceListItem(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deletePriceListItem, id)
+func (q *Queries) DeletePriceListByUID(ctx context.Context, uid sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, deletePriceListByUID, uid)
 	return err
 }
 
-const findConflictingActivePriceListItem = `-- name: FindConflictingActivePriceListItem :one
-SELECT pl.id AS list_id, pl.name AS list_name
-FROM price_list_items pli
-JOIN price_lists pl ON pl.id = pli.price_list_id
-WHERE pl.is_active = 1 AND pl.id != ? AND pli.product_code = ?
-LIMIT 1
+const deletePriceListItemsForList = `-- name: DeletePriceListItemsForList :exec
+DELETE FROM price_list_items WHERE price_list_id = ?
 `
 
-type FindConflictingActivePriceListItemParams struct {
-	ID          int64  `json:"id"`
-	ProductCode string `json:"productCode"`
-}
-
-type FindConflictingActivePriceListItemRow struct {
-	ListID   int64  `json:"listId"`
-	ListName string `json:"listName"`
-}
-
-func (q *Queries) FindConflictingActivePriceListItem(ctx context.Context, arg FindConflictingActivePriceListItemParams) (FindConflictingActivePriceListItemRow, error) {
-	row := q.db.QueryRowContext(ctx, findConflictingActivePriceListItem, arg.ID, arg.ProductCode)
-	var i FindConflictingActivePriceListItemRow
-	err := row.Scan(&i.ListID, &i.ListName)
-	return i, err
+// Half of the replace-on-apply: kashi has no way to tell a till "this one
+// item is gone", so an applied list is cleared and refilled and a removal is
+// expressed by the item simply not being in the payload.
+func (q *Queries) DeletePriceListItemsForList(ctx context.Context, priceListID int64) error {
+	_, err := q.db.ExecContext(ctx, deletePriceListItemsForList, priceListID)
+	return err
 }
 
 const getPriceListByID = `-- name: GetPriceListByID :one
-SELECT id, name, is_active, created_at FROM price_lists WHERE id = ?
+SELECT id, name, is_active, created_at, uid, is_default FROM price_lists WHERE id = ?
 `
 
 func (q *Queries) GetPriceListByID(ctx context.Context, id int64) (PriceList, error) {
@@ -71,24 +43,69 @@ func (q *Queries) GetPriceListByID(ctx context.Context, id int64) (PriceList, er
 		&i.Name,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.Uid,
+		&i.IsDefault,
 	)
 	return i, err
 }
 
+const getPriceListByUID = `-- name: GetPriceListByUID :one
+SELECT id, name, is_active, created_at, uid, is_default FROM price_lists WHERE uid = ?
+`
+
+func (q *Queries) GetPriceListByUID(ctx context.Context, uid sql.NullString) (PriceList, error) {
+	row := q.db.QueryRowContext(ctx, getPriceListByUID, uid)
+	var i PriceList
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.Uid,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
+const insertPriceListItem = `-- name: InsertPriceListItem :exec
+INSERT INTO price_list_items (price_list_id, product_uid, price)
+VALUES (?, ?, ?)
+ON CONFLICT (price_list_id, product_uid) DO UPDATE SET price = excluded.price
+`
+
+type InsertPriceListItemParams struct {
+	PriceListID int64  `json:"priceListId"`
+	ProductUid  string `json:"productUid"`
+	Price       int64  `json:"price"`
+}
+
+func (q *Queries) InsertPriceListItem(ctx context.Context, arg InsertPriceListItemParams) error {
+	_, err := q.db.ExecContext(ctx, insertPriceListItem, arg.PriceListID, arg.ProductUid, arg.Price)
+	return err
+}
+
 const listActivePriceListItems = `-- name: ListActivePriceListItems :many
-SELECT pli.product_code, pli.price, pl.id AS list_id, pl.name AS list_name
+SELECT pli.product_uid, pli.price, pl.id AS list_id, pl.name AS list_name
 FROM price_list_items pli
 JOIN price_lists pl ON pl.id = pli.price_list_id
 WHERE pl.is_active = 1
+ORDER BY pli.product_uid, pl.is_default DESC
 `
 
 type ListActivePriceListItemsRow struct {
-	ProductCode string `json:"productCode"`
-	Price       int64  `json:"price"`
-	ListID      int64  `json:"listId"`
-	ListName    string `json:"listName"`
+	ProductUid string `json:"productUid"`
+	Price      int64  `json:"price"`
+	ListID     int64  `json:"listId"`
+	ListName   string `json:"listName"`
 }
 
+// Every price in force: the default list, plus this branch's own list if
+// kashi assigned it one.
+//
+// Ordered is_default DESC so the default list's row for a product is read
+// first and a branch list's row for the same product overwrites it --
+// loadActiveOverrides builds a map keyed by product uid, so last write wins.
+// A product only the default list mentions keeps the default price.
 func (q *Queries) ListActivePriceListItems(ctx context.Context) ([]ListActivePriceListItemsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listActivePriceListItems)
 	if err != nil {
@@ -99,7 +116,7 @@ func (q *Queries) ListActivePriceListItems(ctx context.Context) ([]ListActivePri
 	for rows.Next() {
 		var i ListActivePriceListItemsRow
 		if err := rows.Scan(
-			&i.ProductCode,
+			&i.ProductUid,
 			&i.Price,
 			&i.ListID,
 			&i.ListName,
@@ -118,7 +135,7 @@ func (q *Queries) ListActivePriceListItems(ctx context.Context) ([]ListActivePri
 }
 
 const listPriceListItems = `-- name: ListPriceListItems :many
-SELECT id, price_list_id, product_code, price, created_at FROM price_list_items WHERE price_list_id = ? ORDER BY product_code
+SELECT id, price_list_id, product_uid, price, created_at FROM price_list_items WHERE price_list_id = ? ORDER BY product_uid
 `
 
 func (q *Queries) ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error) {
@@ -133,7 +150,7 @@ func (q *Queries) ListPriceListItems(ctx context.Context, priceListID int64) ([]
 		if err := rows.Scan(
 			&i.ID,
 			&i.PriceListID,
-			&i.ProductCode,
+			&i.ProductUid,
 			&i.Price,
 			&i.CreatedAt,
 		); err != nil {
@@ -151,9 +168,14 @@ func (q *Queries) ListPriceListItems(ctx context.Context, priceListID int64) ([]
 }
 
 const listPriceLists = `-- name: ListPriceLists :many
-SELECT id, name, is_active, created_at FROM price_lists ORDER BY name
+
+SELECT id, name, is_active, created_at, uid, is_default FROM price_lists ORDER BY name
 `
 
+// Price lists are a read-only mirror of kashi's since 000097. There are no
+// create/update/activate queries any more: the only writer is the sync, and
+// it writes a whole list at a time, because kashi sends a list complete with
+// its items.
 func (q *Queries) ListPriceLists(ctx context.Context) ([]PriceList, error) {
 	rows, err := q.db.QueryContext(ctx, listPriceLists)
 	if err != nil {
@@ -168,6 +190,8 @@ func (q *Queries) ListPriceLists(ctx context.Context) ([]PriceList, error) {
 			&i.Name,
 			&i.IsActive,
 			&i.CreatedAt,
+			&i.Uid,
+			&i.IsDefault,
 		); err != nil {
 			return nil, err
 		}
@@ -182,70 +206,40 @@ func (q *Queries) ListPriceLists(ctx context.Context) ([]PriceList, error) {
 	return items, nil
 }
 
-const setPriceListActive = `-- name: SetPriceListActive :one
-UPDATE price_lists SET is_active = ? WHERE id = ? RETURNING id, name, is_active, created_at
+const upsertPriceListByUID = `-- name: UpsertPriceListByUID :one
+INSERT INTO price_lists (uid, name, is_active, is_default)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (uid) DO UPDATE SET
+    name = excluded.name,
+    is_active = excluded.is_active,
+    is_default = excluded.is_default
+RETURNING id, name, is_active, created_at, uid, is_default
 `
 
-type SetPriceListActiveParams struct {
-	IsActive int64 `json:"isActive"`
-	ID       int64 `json:"id"`
+type UpsertPriceListByUIDParams struct {
+	Uid       sql.NullString `json:"uid"`
+	Name      string         `json:"name"`
+	IsActive  int64          `json:"isActive"`
+	IsDefault int64          `json:"isDefault"`
 }
 
-func (q *Queries) SetPriceListActive(ctx context.Context, arg SetPriceListActiveParams) (PriceList, error) {
-	row := q.db.QueryRowContext(ctx, setPriceListActive, arg.IsActive, arg.ID)
+// Matched by uid, never by name or id -- a till's ids are its own, and a list
+// renamed centrally must stay the same list here.
+func (q *Queries) UpsertPriceListByUID(ctx context.Context, arg UpsertPriceListByUIDParams) (PriceList, error) {
+	row := q.db.QueryRowContext(ctx, upsertPriceListByUID,
+		arg.Uid,
+		arg.Name,
+		arg.IsActive,
+		arg.IsDefault,
+	)
 	var i PriceList
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.IsActive,
 		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const updatePriceList = `-- name: UpdatePriceList :one
-UPDATE price_lists SET name = ? WHERE id = ? RETURNING id, name, is_active, created_at
-`
-
-type UpdatePriceListParams struct {
-	Name string `json:"name"`
-	ID   int64  `json:"id"`
-}
-
-func (q *Queries) UpdatePriceList(ctx context.Context, arg UpdatePriceListParams) (PriceList, error) {
-	row := q.db.QueryRowContext(ctx, updatePriceList, arg.Name, arg.ID)
-	var i PriceList
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.IsActive,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const upsertPriceListItem = `-- name: UpsertPriceListItem :one
-INSERT INTO price_list_items (price_list_id, product_code, price)
-VALUES (?, ?, ?)
-ON CONFLICT (price_list_id, product_code) DO UPDATE SET price = excluded.price
-RETURNING id, price_list_id, product_code, price, created_at
-`
-
-type UpsertPriceListItemParams struct {
-	PriceListID int64  `json:"priceListId"`
-	ProductCode string `json:"productCode"`
-	Price       int64  `json:"price"`
-}
-
-func (q *Queries) UpsertPriceListItem(ctx context.Context, arg UpsertPriceListItemParams) (PriceListItem, error) {
-	row := q.db.QueryRowContext(ctx, upsertPriceListItem, arg.PriceListID, arg.ProductCode, arg.Price)
-	var i PriceListItem
-	err := row.Scan(
-		&i.ID,
-		&i.PriceListID,
-		&i.ProductCode,
-		&i.Price,
-		&i.CreatedAt,
+		&i.Uid,
+		&i.IsDefault,
 	)
 	return i, err
 }

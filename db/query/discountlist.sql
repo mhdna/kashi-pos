@@ -1,39 +1,42 @@
+-- Read-only mirror of kashi's discount lists -- see pricelist.sql, which this
+-- file mirrors exactly.
+
 -- name: ListDiscountLists :many
 SELECT * FROM discount_lists ORDER BY name;
 
 -- name: GetDiscountListByID :one
 SELECT * FROM discount_lists WHERE id = ?;
 
--- name: CreateDiscountList :one
-INSERT INTO discount_lists (name) VALUES (?) RETURNING *;
-
--- name: UpdateDiscountList :one
-UPDATE discount_lists SET name = ? WHERE id = ? RETURNING *;
-
--- name: SetDiscountListActive :one
-UPDATE discount_lists SET is_active = ? WHERE id = ? RETURNING *;
+-- name: GetDiscountListByUID :one
+SELECT * FROM discount_lists WHERE uid = ?;
 
 -- name: ListDiscountListItems :many
-SELECT * FROM discount_list_items WHERE discount_list_id = ? ORDER BY product_code;
+SELECT * FROM discount_list_items WHERE discount_list_id = ? ORDER BY product_uid;
 
--- name: UpsertDiscountListItem :one
-INSERT INTO discount_list_items (discount_list_id, product_code, discount)
-VALUES (?, ?, ?)
-ON CONFLICT (discount_list_id, product_code) DO UPDATE SET discount = excluded.discount
+-- name: UpsertDiscountListByUID :one
+INSERT INTO discount_lists (uid, name, is_active, is_default)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (uid) DO UPDATE SET
+    name = excluded.name,
+    is_active = excluded.is_active,
+    is_default = excluded.is_default
 RETURNING *;
 
--- name: DeleteDiscountListItem :exec
-DELETE FROM discount_list_items WHERE id = ?;
+-- name: DeleteDiscountListItemsForList :exec
+DELETE FROM discount_list_items WHERE discount_list_id = ?;
 
--- name: FindConflictingActiveDiscountListItem :one
-SELECT dl.id AS list_id, dl.name AS list_name
-FROM discount_list_items dli
-JOIN discount_lists dl ON dl.id = dli.discount_list_id
-WHERE dl.is_active = 1 AND dl.id != ? AND dli.product_code = ?
-LIMIT 1;
+-- name: InsertDiscountListItem :exec
+INSERT INTO discount_list_items (discount_list_id, product_uid, discount)
+VALUES (?, ?, ?)
+ON CONFLICT (discount_list_id, product_uid) DO UPDATE SET discount = excluded.discount;
+
+-- name: DeleteDiscountListByUID :exec
+DELETE FROM discount_lists WHERE uid = ?;
 
 -- name: ListActiveDiscountListItems :many
-SELECT dli.product_code, dli.discount, dl.id AS list_id, dl.name AS list_name
+-- See ListActivePriceListItems for why this is ordered by is_default DESC.
+SELECT dli.product_uid, dli.discount, dl.id AS list_id, dl.name AS list_name
 FROM discount_list_items dli
 JOIN discount_lists dl ON dl.id = dli.discount_list_id
-WHERE dl.is_active = 1;
+WHERE dl.is_active = 1
+ORDER BY dli.product_uid, dl.is_default DESC;

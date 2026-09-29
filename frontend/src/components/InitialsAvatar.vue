@@ -26,5 +26,5 @@ const initials = computed(() =>
     .toUpperCase(),
 );
 
-const fontSize = computed(() => `${Math.round(avatarSize.value * 0.4)}px`);
+const fontSize = computed(() => `${Math.round(avatarSize.value * 0.45)}px`);
 </script>

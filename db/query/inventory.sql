@@ -36,3 +36,6 @@ WHERE inventory_id = ? AND product_id = ? AND quantity >= ?;
 
 -- name: DeleteInventoryItem :exec
 DELETE FROM inventory_items WHERE inventory_id = ? AND product_id = ?;
+
+-- name: GetLastInvoiceInventoryID :one
+SELECT inventory_id FROM invoices ORDER BY id DESC LIMIT 1;

@@ -7,60 +7,29 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
-const createDiscountList = `-- name: CreateDiscountList :one
-INSERT INTO discount_lists (name) VALUES (?) RETURNING id, name, is_active, created_at
+const deleteDiscountListByUID = `-- name: DeleteDiscountListByUID :exec
+DELETE FROM discount_lists WHERE uid = ?
 `
 
-func (q *Queries) CreateDiscountList(ctx context.Context, name string) (DiscountList, error) {
-	row := q.db.QueryRowContext(ctx, createDiscountList, name)
-	var i DiscountList
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.IsActive,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const deleteDiscountListItem = `-- name: DeleteDiscountListItem :exec
-DELETE FROM discount_list_items WHERE id = ?
-`
-
-func (q *Queries) DeleteDiscountListItem(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteDiscountListItem, id)
+func (q *Queries) DeleteDiscountListByUID(ctx context.Context, uid sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, deleteDiscountListByUID, uid)
 	return err
 }
 
-const findConflictingActiveDiscountListItem = `-- name: FindConflictingActiveDiscountListItem :one
-SELECT dl.id AS list_id, dl.name AS list_name
-FROM discount_list_items dli
-JOIN discount_lists dl ON dl.id = dli.discount_list_id
-WHERE dl.is_active = 1 AND dl.id != ? AND dli.product_code = ?
-LIMIT 1
+const deleteDiscountListItemsForList = `-- name: DeleteDiscountListItemsForList :exec
+DELETE FROM discount_list_items WHERE discount_list_id = ?
 `
 
-type FindConflictingActiveDiscountListItemParams struct {
-	ID          int64  `json:"id"`
-	ProductCode string `json:"productCode"`
-}
-
-type FindConflictingActiveDiscountListItemRow struct {
-	ListID   int64  `json:"listId"`
-	ListName string `json:"listName"`
-}
-
-func (q *Queries) FindConflictingActiveDiscountListItem(ctx context.Context, arg FindConflictingActiveDiscountListItemParams) (FindConflictingActiveDiscountListItemRow, error) {
-	row := q.db.QueryRowContext(ctx, findConflictingActiveDiscountListItem, arg.ID, arg.ProductCode)
-	var i FindConflictingActiveDiscountListItemRow
-	err := row.Scan(&i.ListID, &i.ListName)
-	return i, err
+func (q *Queries) DeleteDiscountListItemsForList(ctx context.Context, discountListID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteDiscountListItemsForList, discountListID)
+	return err
 }
 
 const getDiscountListByID = `-- name: GetDiscountListByID :one
-SELECT id, name, is_active, created_at FROM discount_lists WHERE id = ?
+SELECT id, name, is_active, created_at, uid, is_default FROM discount_lists WHERE id = ?
 `
 
 func (q *Queries) GetDiscountListByID(ctx context.Context, id int64) (DiscountList, error) {
@@ -71,24 +40,63 @@ func (q *Queries) GetDiscountListByID(ctx context.Context, id int64) (DiscountLi
 		&i.Name,
 		&i.IsActive,
 		&i.CreatedAt,
+		&i.Uid,
+		&i.IsDefault,
 	)
 	return i, err
 }
 
+const getDiscountListByUID = `-- name: GetDiscountListByUID :one
+SELECT id, name, is_active, created_at, uid, is_default FROM discount_lists WHERE uid = ?
+`
+
+func (q *Queries) GetDiscountListByUID(ctx context.Context, uid sql.NullString) (DiscountList, error) {
+	row := q.db.QueryRowContext(ctx, getDiscountListByUID, uid)
+	var i DiscountList
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.Uid,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
+const insertDiscountListItem = `-- name: InsertDiscountListItem :exec
+INSERT INTO discount_list_items (discount_list_id, product_uid, discount)
+VALUES (?, ?, ?)
+ON CONFLICT (discount_list_id, product_uid) DO UPDATE SET discount = excluded.discount
+`
+
+type InsertDiscountListItemParams struct {
+	DiscountListID int64  `json:"discountListId"`
+	ProductUid     string `json:"productUid"`
+	Discount       int64  `json:"discount"`
+}
+
+func (q *Queries) InsertDiscountListItem(ctx context.Context, arg InsertDiscountListItemParams) error {
+	_, err := q.db.ExecContext(ctx, insertDiscountListItem, arg.DiscountListID, arg.ProductUid, arg.Discount)
+	return err
+}
+
 const listActiveDiscountListItems = `-- name: ListActiveDiscountListItems :many
-SELECT dli.product_code, dli.discount, dl.id AS list_id, dl.name AS list_name
+SELECT dli.product_uid, dli.discount, dl.id AS list_id, dl.name AS list_name
 FROM discount_list_items dli
 JOIN discount_lists dl ON dl.id = dli.discount_list_id
 WHERE dl.is_active = 1
+ORDER BY dli.product_uid, dl.is_default DESC
 `
 
 type ListActiveDiscountListItemsRow struct {
-	ProductCode string `json:"productCode"`
-	Discount    int64  `json:"discount"`
-	ListID      int64  `json:"listId"`
-	ListName    string `json:"listName"`
+	ProductUid string `json:"productUid"`
+	Discount   int64  `json:"discount"`
+	ListID     int64  `json:"listId"`
+	ListName   string `json:"listName"`
 }
 
+// See ListActivePriceListItems for why this is ordered by is_default DESC.
 func (q *Queries) ListActiveDiscountListItems(ctx context.Context) ([]ListActiveDiscountListItemsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listActiveDiscountListItems)
 	if err != nil {
@@ -99,7 +107,7 @@ func (q *Queries) ListActiveDiscountListItems(ctx context.Context) ([]ListActive
 	for rows.Next() {
 		var i ListActiveDiscountListItemsRow
 		if err := rows.Scan(
-			&i.ProductCode,
+			&i.ProductUid,
 			&i.Discount,
 			&i.ListID,
 			&i.ListName,
@@ -118,7 +126,7 @@ func (q *Queries) ListActiveDiscountListItems(ctx context.Context) ([]ListActive
 }
 
 const listDiscountListItems = `-- name: ListDiscountListItems :many
-SELECT id, discount_list_id, product_code, discount, created_at FROM discount_list_items WHERE discount_list_id = ? ORDER BY product_code
+SELECT id, discount_list_id, product_uid, discount, created_at FROM discount_list_items WHERE discount_list_id = ? ORDER BY product_uid
 `
 
 func (q *Queries) ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error) {
@@ -133,7 +141,7 @@ func (q *Queries) ListDiscountListItems(ctx context.Context, discountListID int6
 		if err := rows.Scan(
 			&i.ID,
 			&i.DiscountListID,
-			&i.ProductCode,
+			&i.ProductUid,
 			&i.Discount,
 			&i.CreatedAt,
 		); err != nil {
@@ -151,9 +159,12 @@ func (q *Queries) ListDiscountListItems(ctx context.Context, discountListID int6
 }
 
 const listDiscountLists = `-- name: ListDiscountLists :many
-SELECT id, name, is_active, created_at FROM discount_lists ORDER BY name
+
+SELECT id, name, is_active, created_at, uid, is_default FROM discount_lists ORDER BY name
 `
 
+// Read-only mirror of kashi's discount lists -- see pricelist.sql, which this
+// file mirrors exactly.
 func (q *Queries) ListDiscountLists(ctx context.Context) ([]DiscountList, error) {
 	rows, err := q.db.QueryContext(ctx, listDiscountLists)
 	if err != nil {
@@ -168,6 +179,8 @@ func (q *Queries) ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 			&i.Name,
 			&i.IsActive,
 			&i.CreatedAt,
+			&i.Uid,
+			&i.IsDefault,
 		); err != nil {
 			return nil, err
 		}
@@ -182,70 +195,38 @@ func (q *Queries) ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 	return items, nil
 }
 
-const setDiscountListActive = `-- name: SetDiscountListActive :one
-UPDATE discount_lists SET is_active = ? WHERE id = ? RETURNING id, name, is_active, created_at
+const upsertDiscountListByUID = `-- name: UpsertDiscountListByUID :one
+INSERT INTO discount_lists (uid, name, is_active, is_default)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (uid) DO UPDATE SET
+    name = excluded.name,
+    is_active = excluded.is_active,
+    is_default = excluded.is_default
+RETURNING id, name, is_active, created_at, uid, is_default
 `
 
-type SetDiscountListActiveParams struct {
-	IsActive int64 `json:"isActive"`
-	ID       int64 `json:"id"`
+type UpsertDiscountListByUIDParams struct {
+	Uid       sql.NullString `json:"uid"`
+	Name      string         `json:"name"`
+	IsActive  int64          `json:"isActive"`
+	IsDefault int64          `json:"isDefault"`
 }
 
-func (q *Queries) SetDiscountListActive(ctx context.Context, arg SetDiscountListActiveParams) (DiscountList, error) {
-	row := q.db.QueryRowContext(ctx, setDiscountListActive, arg.IsActive, arg.ID)
+func (q *Queries) UpsertDiscountListByUID(ctx context.Context, arg UpsertDiscountListByUIDParams) (DiscountList, error) {
+	row := q.db.QueryRowContext(ctx, upsertDiscountListByUID,
+		arg.Uid,
+		arg.Name,
+		arg.IsActive,
+		arg.IsDefault,
+	)
 	var i DiscountList
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.IsActive,
 		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const updateDiscountList = `-- name: UpdateDiscountList :one
-UPDATE discount_lists SET name = ? WHERE id = ? RETURNING id, name, is_active, created_at
-`
-
-type UpdateDiscountListParams struct {
-	Name string `json:"name"`
-	ID   int64  `json:"id"`
-}
-
-func (q *Queries) UpdateDiscountList(ctx context.Context, arg UpdateDiscountListParams) (DiscountList, error) {
-	row := q.db.QueryRowContext(ctx, updateDiscountList, arg.Name, arg.ID)
-	var i DiscountList
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.IsActive,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const upsertDiscountListItem = `-- name: UpsertDiscountListItem :one
-INSERT INTO discount_list_items (discount_list_id, product_code, discount)
-VALUES (?, ?, ?)
-ON CONFLICT (discount_list_id, product_code) DO UPDATE SET discount = excluded.discount
-RETURNING id, discount_list_id, product_code, discount, created_at
-`
-
-type UpsertDiscountListItemParams struct {
-	DiscountListID int64  `json:"discountListId"`
-	ProductCode    string `json:"productCode"`
-	Discount       int64  `json:"discount"`
-}
-
-func (q *Queries) UpsertDiscountListItem(ctx context.Context, arg UpsertDiscountListItemParams) (DiscountListItem, error) {
-	row := q.db.QueryRowContext(ctx, upsertDiscountListItem, arg.DiscountListID, arg.ProductCode, arg.Discount)
-	var i DiscountListItem
-	err := row.Scan(
-		&i.ID,
-		&i.DiscountListID,
-		&i.ProductCode,
-		&i.Discount,
-		&i.CreatedAt,
+		&i.Uid,
+		&i.IsDefault,
 	)
 	return i, err
 }

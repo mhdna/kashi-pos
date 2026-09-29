@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -66,10 +67,12 @@ type branchInvoicePayload struct {
 	BranchShiftID          int64  `json:"branch_shift_id"`
 	BranchInventoryID      int64  `json:"branch_inventory_id"`
 	BranchClientID         int64  `json:"branch_client_id"`
-	Discount               int16  `json:"discount"`
-	GrandTotal             int64  `json:"grand_total"`
-	Subtotal               int64  `json:"sub_total"`
-	DiscountedTotal        int64  `json:"discounted_total"`
+	// ClientUID is the buyer's shared identity; empty for a walk-in sale.
+	ClientUID       string `json:"client_uid,omitempty"`
+	Discount        int16  `json:"discount"`
+	GrandTotal      int64  `json:"grand_total"`
+	Subtotal        int64  `json:"sub_total"`
+	DiscountedTotal int64  `json:"discounted_total"`
 	// Whatever this install already computed and applied locally (see
 	// AddClientLoyaltyPoints in tx_invoice.go) — kashi records this as
 	// reported, it must never be re-derived from GrandTotal centrally.
@@ -95,11 +98,24 @@ type branchInvoicePayloadItem struct {
 	// resolve the line to a central product_variants row and decrement the
 	// branch's central store inventory. BranchProductID stays for
 	// traceability but doesn't resolve to anything central.
-	Barcode   string `json:"barcode"`
-	UnitPrice int64  `json:"unit_price"`
-	LineTotal int64  `json:"line_total"`
-	Discount  int16  `json:"discount"`
-	Quantity  int64  `json:"quantity"`
+	Barcode string `json:"barcode"`
+	// ProductUID is the line's shared variant identity; kashi prefers it
+	// over Barcode and falls back to Barcode when it doesn't resolve.
+	ProductUID string `json:"product_uid,omitempty"`
+	UnitPrice  int64  `json:"unit_price"`
+	LineTotal  int64  `json:"line_total"`
+	Discount   int16  `json:"discount"`
+	Quantity   int64  `json:"quantity"`
+}
+
+// clientUIDForSync returns the uid to report as an invoice's buyer: empty
+// for the walk-in pseudo-client (never synced) or an unknown id.
+func clientUIDForSync(ctx context.Context, q *db.Queries, clientID int64) string {
+	c, err := q.GetClientByID(ctx, clientID)
+	if err != nil || isWalkInClient(c) {
+		return ""
+	}
+	return c.Uid.String
 }
 
 // branchInvoicePaymentPayload is one settlement line -- net amount paid
@@ -110,6 +126,12 @@ type branchInvoicePayloadItem struct {
 type branchInvoicePaymentPayload struct {
 	AccountName string `json:"account_name"`
 	Amount      int64  `json:"amount"`
+	// CouponCode is set only on the one payment line that redeemed a
+	// coupon -- see GetInvoiceCouponPaymentByInvoiceID below. kashi uses
+	// it to mark that code redeemed centrally (RedeemCoupon in its
+	// tx_branch_invoice.go), which is what stops the same code being
+	// redeemed again at a different branch.
+	CouponCode string `json:"coupon_code,omitempty"`
 }
 
 // buildBranchInvoicePayments reads this invoice's already-persisted
@@ -121,16 +143,31 @@ func buildBranchInvoicePayments(ctx context.Context, q *db.Queries, invoiceID in
 	if err != nil {
 		return nil, fmt.Errorf("load invoice payments: %w", err)
 	}
+
+	// At most one coupon payment per invoice (invoice_coupon_payments.
+	// invoice_id is that table's own primary key) -- "not found" just
+	// means this invoice didn't pay with a coupon at all.
+	var couponCode string
+	if couponPayment, err := q.GetInvoiceCouponPaymentByInvoiceID(ctx, invoiceID); err == nil {
+		couponCode = couponPayment.CouponCode
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("load invoice coupon payment: %w", err)
+	}
+
 	payments := make([]branchInvoicePaymentPayload, 0, len(rows))
 	for _, row := range rows {
 		account, err := q.GetCashboxAccountByID(ctx, row.CashboxID)
 		if err != nil {
 			return nil, fmt.Errorf("load cashbox account %d: %w", row.CashboxID, err)
 		}
-		payments = append(payments, branchInvoicePaymentPayload{
+		payment := branchInvoicePaymentPayload{
 			AccountName: account.Name,
 			Amount:      row.Amount,
-		})
+		}
+		if strings.EqualFold(account.Name, "On Coupon") {
+			payment.CouponCode = couponCode
+		}
+		payments = append(payments, payment)
 	}
 	return payments, nil
 }
@@ -148,8 +185,14 @@ type branchExpensePayload struct {
 	Amount                 int64     `json:"amount"`
 	CurrencyCode           string    `json:"currency_code"`
 	BranchCashboxAccountID int64     `json:"branch_cashbox_account_id"`
-	BranchShiftID          *int64    `json:"branch_shift_id,omitempty"`
-	OccurredAt             time.Time `json:"occurred_at"`
+	// AccountName is the payment account's display name, same reasoning as
+	// branchInvoicePaymentPayload.AccountName: unlike an id, it survives a
+	// branch's local database being wiped and reprovisioned, which is what
+	// lets a pulled-down historical expense be matched back to a real local
+	// account by name instead of an opaque, no-longer-meaningful integer.
+	AccountName   string    `json:"account_name"`
+	BranchShiftID *int64    `json:"branch_shift_id,omitempty"`
+	OccurredAt    time.Time `json:"occurred_at"`
 }
 
 // queueBranchExpenseSync is queueBranchInvoiceSync's counterpart for
@@ -173,6 +216,85 @@ func queueBranchExpenseSync(ctx context.Context, q *db.Queries, centralAPIURL st
 	return err
 }
 
+// branchTransferRequestItemPayload is one line of stock this till proposes
+// moving out of its own store inventory. ProductUID wins over Barcode when
+// present, same preference order as branchInvoiceItemPayload's fields.
+type branchTransferRequestItemPayload struct {
+	Barcode    string `json:"barcode"`
+	ProductUID string `json:"product_uid"`
+	Quantity   int64  `json:"quantity"`
+}
+
+// branchTransferRequestPayload is the exact JSON body POSTed to kashi's
+// /branch/transfer_requests (see api/branch_transfer.go in the kashi repo).
+// ToBranchRef is another branch's code, as this install last pulled it
+// down via the branches sync feed (see synced_branches, sync_pull_coupons.go).
+type branchTransferRequestPayload struct {
+	ClientRef   string                             `json:"client_ref"`
+	ToBranchRef string                             `json:"to_branch_ref"`
+	Note        string                             `json:"note"`
+	Items       []branchTransferRequestItemPayload `json:"items"`
+}
+
+// queueBranchTransferRequestSync is queueBranchExpenseSync's counterpart
+// for transfer requests -- same opt-in-if-configured, same-transaction-
+// as-the-write behavior.
+func queueBranchTransferRequestSync(ctx context.Context, q *db.Queries, centralAPIURL string, payload branchTransferRequestPayload) error {
+	if centralAPIURL == "" {
+		return nil
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal sync outbox payload: %w", err)
+	}
+
+	_, err = q.CreateSyncOutboxEntry(ctx, db.CreateSyncOutboxEntryParams{
+		EntityType:  "transfer_request",
+		ClientRef:   payload.ClientRef,
+		PayloadJson: string(body),
+	})
+	return err
+}
+
+type branchTransferConfirmItemPayload struct {
+	Barcode          string `json:"barcode"`
+	ProductUID       string `json:"product_uid"`
+	ReceivedQuantity int64  `json:"received_quantity"`
+}
+
+// branchTransferConfirmPayload is the exact JSON body POSTed to kashi's
+// /branch/transfer_requests/:id/confirm (see api/branch_transfer.go in the
+// kashi repo) -- the destination branch's own leg of a transfer, reporting
+// what it actually counted. Unlike every other outbox payload, there's no
+// natural client_ref (this branch never created the transfer); the outbox
+// row's own client_ref is synthesized purely for its own idempotent-retry
+// bookkeeping, never sent to kashi or read back.
+type branchTransferConfirmPayload struct {
+	Items []branchTransferConfirmItemPayload `json:"items"`
+	Note  string                             `json:"note"`
+}
+
+// queueBranchTransferConfirmSync is queueBranchTransferRequestSync's
+// counterpart for the confirm leg.
+func queueBranchTransferConfirmSync(ctx context.Context, q *db.Queries, centralAPIURL string, centralID int64, payload branchTransferConfirmPayload) error {
+	if centralAPIURL == "" {
+		return nil
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal sync outbox payload: %w", err)
+	}
+
+	_, err = q.CreateSyncOutboxEntry(ctx, db.CreateSyncOutboxEntryParams{
+		EntityType:  "transfer_confirm",
+		ClientRef:   fmt.Sprintf("transfer-confirm-%d", centralID),
+		PayloadJson: string(body),
+	})
+	return err
+}
+
 // branchLoanPayload is the exact JSON body POSTed to kashi's /branch/loans
 // (see api/branch_loan.go in the kashi repo — branchLoanRequest there must
 // stay in sync with this shape). BranchCashboxAccountID/BranchShiftID are
@@ -181,14 +303,16 @@ func queueBranchExpenseSync(ctx context.Context, q *db.Queries, centralAPIURL st
 // name (e.g. "Owner"/"External") -- kashi resolves it to its own
 // loan_categories row, this install never fetches or caches that list.
 type branchLoanPayload struct {
-	ClientRef              string    `json:"client_ref"`
-	Description            string    `json:"description"`
-	CategoryName           string    `json:"category_name"`
-	Amount                 int64     `json:"amount"`
-	CurrencyCode           string    `json:"currency_code"`
-	BranchCashboxAccountID int64     `json:"branch_cashbox_account_id"`
-	BranchShiftID          *int64    `json:"branch_shift_id,omitempty"`
-	OccurredAt             time.Time `json:"occurred_at"`
+	ClientRef              string `json:"client_ref"`
+	Description            string `json:"description"`
+	CategoryName           string `json:"category_name"`
+	Amount                 int64  `json:"amount"`
+	CurrencyCode           string `json:"currency_code"`
+	BranchCashboxAccountID int64  `json:"branch_cashbox_account_id"`
+	// AccountName -- see branchExpensePayload.AccountName.
+	AccountName   string    `json:"account_name"`
+	BranchShiftID *int64    `json:"branch_shift_id,omitempty"`
+	OccurredAt    time.Time `json:"occurred_at"`
 }
 
 // queueBranchLoanSync is queueBranchExpenseSync's counterpart for loans --

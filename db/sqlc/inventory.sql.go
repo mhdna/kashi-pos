@@ -115,6 +115,17 @@ func (q *Queries) GetInventoryItem(ctx context.Context, arg GetInventoryItemPara
 	return i, err
 }
 
+const getLastInvoiceInventoryID = `-- name: GetLastInvoiceInventoryID :one
+SELECT inventory_id FROM invoices ORDER BY id DESC LIMIT 1
+`
+
+func (q *Queries) GetLastInvoiceInventoryID(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getLastInvoiceInventoryID)
+	var inventory_id int64
+	err := row.Scan(&inventory_id)
+	return inventory_id, err
+}
+
 const listInventories = `-- name: ListInventories :many
 SELECT id, name FROM inventories ORDER BY id
 `
