@@ -27,22 +27,24 @@
                   >{{ tier }} Tier</v-chip>
                 </div>
                 <table class="profile-meta-table">
-                  <tr v-if="profile.client.uid">
-                    <td class="text-medium-emphasis text-caption pr-4">Client ID</td>
-                    <td class="text-body-2">{{ profile.client.uid }}</td>
-                  </tr>
-                  <tr>
-                    <td class="text-medium-emphasis text-caption pr-4">Phone</td>
-                    <td class="text-body-2">{{ formatLebanesePhone(profile.client.phone) }}</td>
-                  </tr>
-                  <tr v-if="profile.homeBranch">
-                    <td class="text-medium-emphasis text-caption pr-4">Home branch</td>
-                    <td class="text-body-2">{{ profile.homeBranch }}</td>
-                  </tr>
-                  <tr v-if="profile.firstPurchaseAt">
-                    <td class="text-medium-emphasis text-caption pr-4">First purchase</td>
-                    <td class="text-body-2">{{ formatDateMedium(profile.firstPurchaseAt) }}</td>
-                  </tr>
+                  <tbody>
+                    <tr v-if="profile.client.uid">
+                      <td class="text-medium-emphasis text-caption pr-4">Client ID</td>
+                      <td class="text-body-2">{{ profile.client.uid }}</td>
+                    </tr>
+                    <tr>
+                      <td class="text-medium-emphasis text-caption pr-4">Phone</td>
+                      <td class="text-body-2">{{ formatLebanesePhone(profile.client.phone) }}</td>
+                    </tr>
+                    <tr v-if="profile.homeBranch">
+                      <td class="text-medium-emphasis text-caption pr-4">Home branch</td>
+                      <td class="text-body-2">{{ profile.homeBranch }}</td>
+                    </tr>
+                    <tr v-if="profile.firstPurchaseAt">
+                      <td class="text-medium-emphasis text-caption pr-4">First purchase</td>
+                      <td class="text-body-2">{{ formatDateMedium(profile.firstPurchaseAt) }}</td>
+                    </tr>
+                  </tbody>
                 </table>
               </div>
             </div>
