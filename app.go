@@ -1204,6 +1204,7 @@ func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
+	centralApiUrl = normalizeCentralAPIURL(centralApiUrl)
 	// GetSettings may legitimately have no row yet on a fresh install; the
 	// zero value's empty CentralApiUrl still gives the right "changed?"
 	// answer against a non-empty new URL.
@@ -1219,6 +1220,24 @@ func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
 		a.kickWSClient()
 	}
 	return nil
+}
+
+// normalizeCentralAPIURL defaults a bare host (e.g. "cloud.example.com",
+// typed without a scheme) to https://. Every central request is built as
+// baseURL+path with no scheme fallback of its own (see centralClient in
+// sync_client.go) -- a missing scheme doesn't error loudly, it just makes
+// every single central call fail, which looks like "sync does nothing" with
+// no obvious cause. Leaves an explicit http:// (e.g. a local dev server)
+// alone.
+func normalizeCentralAPIURL(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return trimmed
+	}
+	if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
+		return trimmed
+	}
+	return "https://" + trimmed
 }
 
 // SetSplitDisplay configures the till's two-currency total: which currency

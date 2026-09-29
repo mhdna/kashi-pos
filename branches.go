@@ -304,7 +304,7 @@ func (a *App) CreateBranch(name, code, apiKey, centralApiUrl string) (map[string
 		return nil, err
 	}
 	if strings.TrimSpace(centralApiUrl) != "" {
-		if err := a.store.UpdateCentralAPIURL(a.ctx, strings.TrimSpace(centralApiUrl)); err != nil {
+		if err := a.store.UpdateCentralAPIURL(a.ctx, normalizeCentralAPIURL(centralApiUrl)); err != nil {
 			return nil, err
 		}
 	}
