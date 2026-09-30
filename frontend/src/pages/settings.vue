@@ -268,7 +268,11 @@
                   variant="tonal"
                   class="mt-2"
                 >
-                  {{ resyncError }}
+                  {{ resyncErrorFriendly || resyncError }}
+                  <details v-if="resyncErrorFriendly && resyncErrorFriendly !== resyncError" class="mt-1">
+                    <summary class="text-caption" style="cursor: pointer">Technical details</summary>
+                    <div class="text-caption">{{ resyncError }}</div>
+                  </details>
                 </v-alert>
 
                 <v-table v-if="resyncReport" density="compact" class="mt-3">
@@ -1558,6 +1562,7 @@ import {
 import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import { formatUsd } from "@/lib/format";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
+import { friendlySyncErrorReason } from "@/lib/syncErrors";
 import { paymentAccentColor } from "@/lib/paymentColor";
 import { useAuthStore } from "@/stores/auth";
 import { useResyncStore } from "@/stores/resync";
@@ -1608,6 +1613,11 @@ const resyncApplyStock = computed({
 });
 const resyncProgress = computed(() => resync.progress);
 const resyncError = computed(() => resync.error);
+// The raw error is the full Go wrap chain (useful for support/logs); the
+// operator-facing alert leads with a plain-language reason when one is
+// recognized (see friendlySyncErrorReason) and only falls back to showing
+// that raw chain when it isn't.
+const resyncErrorFriendly = computed(() => resyncError.value ? friendlySyncErrorReason(resyncError.value) : null);
 const resyncReport = computed(() => resync.report);
 const pendingDeactivation = computed(() => resync.pendingDeactivation);
 const showDeactivationConfirm = computed(() => resync.showDeactivationConfirm);
