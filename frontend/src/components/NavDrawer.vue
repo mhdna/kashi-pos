@@ -5,8 +5,8 @@
         v-for="item in items"
         :key="item.value"
         :class="['nav-item', { 'py-2': item.value === 'invoice', 'nav-item-alert': item.alert }]"
-        :value="item.action ? undefined : item.value"
-        :active="item.to ? route.path === item.to : item.action ? false : undefined"
+        :value="item.value"
+        :active="route.path === item.to"
         @click.prevent="handleItemClick(item)"
       >
         <div class="nav-item-content">
@@ -104,51 +104,6 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="inventoryOpen" max-width="640">
-    <v-card rounded="xl">
-      <div class="dialog-close-row px-4 pt-0">
-        <v-btn
-          icon="mdi-close"
-          variant="text"
-          aria-label="Close inventory menu"
-          @click="inventoryOpen = false"
-        />
-      </div>
-
-      <v-card-text class="options-grid px-4 pt-0 pb-4">
-        <v-card
-          v-if="auth.isAdmin || pageUnlocks.inventory"
-          class="option-card"
-          rounded="lg"
-          variant="tonal"
-          @click="openInventoryPage"
-        >
-          <v-icon icon="mdi-package-variant-closed" size="44" />
-          <span>Inventory</span>
-        </v-card>
-        <v-card
-          v-if="auth.isAdmin || pageUnlocks.products"
-          class="option-card"
-          rounded="lg"
-          variant="tonal"
-          @click="openProducts"
-        >
-          <v-icon icon="mdi-tag-multiple-outline" size="44" />
-          <span>Products</span>
-        </v-card>
-        <v-card
-          v-if="auth.isAdmin || pageUnlocks.salespersons"
-          class="option-card"
-          rounded="lg"
-          variant="tonal"
-          @click="openSalespersons"
-        >
-          <v-icon icon="mdi-chart-bar" size="44" />
-          <span>Sales</span>
-        </v-card>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -186,16 +141,11 @@ function openSyncSettings() {
   router.push({ path: '/settings', query: { panel: 'general-sync' } });
 }
 const optionsOpen = ref(false);
-const inventoryOpen = ref(false);
 const closeAppConfirmOpen = ref(false);
 
-function handleItemClick(item: { locked?: boolean; action?: () => void; to?: string }) {
+function handleItemClick(item: { locked?: boolean; to: string }) {
   if (item.locked) return;
-  if (item.action) {
-    item.action();
-    return;
-  }
-  if (item.to) void router.push(item.to);
+  void router.push(item.to);
 }
 
 function logout() {
@@ -219,28 +169,6 @@ function openCloseShift() {
   void router.push("/close-shift");
 }
 
-function openInventory() {
-  inventoryOpen.value = true;
-}
-
-function openInventoryPage() {
-  if (!auth.isAdmin && !pageUnlocks.value.inventory) return;
-  inventoryOpen.value = false;
-  void router.push("/inventory");
-}
-
-function openProducts() {
-  if (!auth.isAdmin && !pageUnlocks.value.products) return;
-  inventoryOpen.value = false;
-  void router.push("/products");
-}
-
-function openSalespersons() {
-  if (!auth.isAdmin && !pageUnlocks.value.salespersons) return;
-  inventoryOpen.value = false;
-  void router.push("/salespersons");
-}
-
 const items = computed(() => {
   const all = [
     { value: "invoice", to: "/home", icon: "mdi-cash-register", t: "Invoice" },
@@ -260,14 +188,24 @@ const items = computed(() => {
     },
     {
       value: "inventory",
+      to: "/inventory",
       icon: "mdi-package-variant-closed",
       t: "Inventory",
-      action: openInventory,
-      locked:
-        !auth.isAdmin &&
-        !pageUnlocks.value.inventory &&
-        !pageUnlocks.value.products &&
-        !pageUnlocks.value.salespersons,
+      locked: !auth.isAdmin && !pageUnlocks.value.inventory,
+    },
+    {
+      value: "products",
+      to: "/products",
+      icon: "mdi-tag-multiple-outline",
+      t: "Products",
+      locked: !auth.isAdmin && !pageUnlocks.value.products,
+    },
+    {
+      value: "salespersons",
+      to: "/salespersons",
+      icon: "mdi-chart-bar",
+      t: "Sales",
+      locked: !auth.isAdmin && !pageUnlocks.value.salespersons,
     },
     {
       value: "transfers",
