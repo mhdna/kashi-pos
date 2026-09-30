@@ -14,6 +14,19 @@ const (
 	wsBackoffMax  = 60 * time.Second
 )
 
+// wsPingInterval/wsPongWait/wsWriteWait mirror kashi's own heartbeat
+// (api/ws_conn.go) -- ping the server well inside how long we'll wait for a
+// pong, so a connection that's actually dead (kashi restarted, or something
+// in between silently dropped the TCP connection) is detected within
+// roughly wsPongWait instead of only surfacing whenever the OS eventually
+// reaps it. This channel is push-only from kashi's side and can otherwise
+// sit idle a long time between real messages.
+const (
+	wsPingInterval = 30 * time.Second
+	wsPongWait     = 60 * time.Second
+	wsWriteWait    = 10 * time.Second
+)
+
 // wsConfigRecheckInterval is how often a live session re-reads settings to
 // notice the central URL / branch code / key changing under it. A
 // kickWSClient() from the save path makes the common case instant; this
@@ -186,6 +199,12 @@ func (a *App) sleepOrStop(d time.Duration) bool {
 func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 	defer conn.Close()
 
+	conn.SetReadDeadline(time.Now().Add(wsPongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(wsPongWait))
+		return nil
+	})
+
 	a.runSyncPullOnce(a.ctx, client)
 
 	// The central config this session is bound to. If the URL / branch code
@@ -231,12 +250,19 @@ func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 	recheck := time.NewTicker(wsConfigRecheckInterval)
 	defer recheck.Stop()
 
+	ping := time.NewTicker(wsPingInterval)
+	defer ping.Stop()
+
 	for {
 		select {
 		case <-a.wsClientStop:
 			return teardown(nil)
 		case <-a.wsClientKick:
 			return teardown(errWSReconnect)
+		case <-ping.C:
+			if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(wsWriteWait)); err != nil {
+				return teardown(err)
+			}
 		case <-recheck.C:
 			s, err := a.store.GetSettings(a.ctx)
 			if err != nil {
