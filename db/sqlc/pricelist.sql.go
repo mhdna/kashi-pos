@@ -32,7 +32,7 @@ func (q *Queries) DeletePriceListItemsForList(ctx context.Context, priceListID i
 }
 
 const getPriceListByID = `-- name: GetPriceListByID :one
-SELECT id, name, is_active, created_at, uid, is_default FROM price_lists WHERE id = ?
+SELECT id, name, is_active, created_at, uid, is_default, is_special FROM price_lists WHERE id = ?
 `
 
 func (q *Queries) GetPriceListByID(ctx context.Context, id int64) (PriceList, error) {
@@ -45,12 +45,13 @@ func (q *Queries) GetPriceListByID(ctx context.Context, id int64) (PriceList, er
 		&i.CreatedAt,
 		&i.Uid,
 		&i.IsDefault,
+		&i.IsSpecial,
 	)
 	return i, err
 }
 
 const getPriceListByUID = `-- name: GetPriceListByUID :one
-SELECT id, name, is_active, created_at, uid, is_default FROM price_lists WHERE uid = ?
+SELECT id, name, is_active, created_at, uid, is_default, is_special FROM price_lists WHERE uid = ?
 `
 
 func (q *Queries) GetPriceListByUID(ctx context.Context, uid sql.NullString) (PriceList, error) {
@@ -63,6 +64,7 @@ func (q *Queries) GetPriceListByUID(ctx context.Context, uid sql.NullString) (Pr
 		&i.CreatedAt,
 		&i.Uid,
 		&i.IsDefault,
+		&i.IsSpecial,
 	)
 	return i, err
 }
@@ -85,7 +87,7 @@ func (q *Queries) InsertPriceListItem(ctx context.Context, arg InsertPriceListIt
 }
 
 const listActivePriceListItems = `-- name: ListActivePriceListItems :many
-SELECT pli.product_uid, pli.price, pl.id AS list_id, pl.name AS list_name
+SELECT pli.product_uid, pli.price, pl.id AS list_id, pl.name AS list_name, pl.is_special
 FROM price_list_items pli
 JOIN price_lists pl ON pl.id = pli.price_list_id
 WHERE pl.is_active = 1
@@ -97,6 +99,7 @@ type ListActivePriceListItemsRow struct {
 	Price      int64  `json:"price"`
 	ListID     int64  `json:"listId"`
 	ListName   string `json:"listName"`
+	IsSpecial  int64  `json:"isSpecial"`
 }
 
 // Every price in force: the default list, plus this branch's own list if
@@ -120,6 +123,7 @@ func (q *Queries) ListActivePriceListItems(ctx context.Context) ([]ListActivePri
 			&i.Price,
 			&i.ListID,
 			&i.ListName,
+			&i.IsSpecial,
 		); err != nil {
 			return nil, err
 		}
@@ -169,7 +173,7 @@ func (q *Queries) ListPriceListItems(ctx context.Context, priceListID int64) ([]
 
 const listPriceLists = `-- name: ListPriceLists :many
 
-SELECT id, name, is_active, created_at, uid, is_default FROM price_lists ORDER BY name
+SELECT id, name, is_active, created_at, uid, is_default, is_special FROM price_lists ORDER BY name
 `
 
 // Price lists are a read-only mirror of kashi's since 000097. There are no
@@ -192,6 +196,7 @@ func (q *Queries) ListPriceLists(ctx context.Context) ([]PriceList, error) {
 			&i.CreatedAt,
 			&i.Uid,
 			&i.IsDefault,
+			&i.IsSpecial,
 		); err != nil {
 			return nil, err
 		}
@@ -207,13 +212,14 @@ func (q *Queries) ListPriceLists(ctx context.Context) ([]PriceList, error) {
 }
 
 const upsertPriceListByUID = `-- name: UpsertPriceListByUID :one
-INSERT INTO price_lists (uid, name, is_active, is_default)
-VALUES (?, ?, ?, ?)
+INSERT INTO price_lists (uid, name, is_active, is_default, is_special)
+VALUES (?, ?, ?, ?, ?)
 ON CONFLICT (uid) DO UPDATE SET
     name = excluded.name,
     is_active = excluded.is_active,
-    is_default = excluded.is_default
-RETURNING id, name, is_active, created_at, uid, is_default
+    is_default = excluded.is_default,
+    is_special = excluded.is_special
+RETURNING id, name, is_active, created_at, uid, is_default, is_special
 `
 
 type UpsertPriceListByUIDParams struct {
@@ -221,6 +227,7 @@ type UpsertPriceListByUIDParams struct {
 	Name      string         `json:"name"`
 	IsActive  int64          `json:"isActive"`
 	IsDefault int64          `json:"isDefault"`
+	IsSpecial int64          `json:"isSpecial"`
 }
 
 // Matched by uid, never by name or id -- a till's ids are its own, and a list
@@ -231,6 +238,7 @@ func (q *Queries) UpsertPriceListByUID(ctx context.Context, arg UpsertPriceListB
 		arg.Name,
 		arg.IsActive,
 		arg.IsDefault,
+		arg.IsSpecial,
 	)
 	var i PriceList
 	err := row.Scan(
@@ -240,6 +248,7 @@ func (q *Queries) UpsertPriceListByUID(ctx context.Context, arg UpsertPriceListB
 		&i.CreatedAt,
 		&i.Uid,
 		&i.IsDefault,
+		&i.IsSpecial,
 	)
 	return i, err
 }

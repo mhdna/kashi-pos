@@ -213,6 +213,7 @@ type DiscountList struct {
 	CreatedAt string         `json:"createdAt"`
 	Uid       sql.NullString `json:"uid"`
 	IsDefault int64          `json:"isDefault"`
+	IsSpecial int64          `json:"isSpecial"`
 }
 
 type DiscountListItem struct {
@@ -396,6 +397,7 @@ type PriceList struct {
 	CreatedAt string         `json:"createdAt"`
 	Uid       sql.NullString `json:"uid"`
 	IsDefault int64          `json:"isDefault"`
+	IsSpecial int64          `json:"isSpecial"`
 }
 
 type PriceListItem struct {

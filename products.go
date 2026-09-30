@@ -365,17 +365,19 @@ func loadOneProductAttributeValues(ctx context.Context, q *db.Queries, productID
 // scan it and only discover at checkout that the quote won't total.
 func productMap(p db.Product, listPricing activePricing, attrs map[string]string) map[string]any {
 	var price, discount int64
-	priced, discounted := false, false
+	priced := false
 	priceListName, discountListName := "", ""
+	priceSpecial, discountSpecial := false, false
 	if listed, ok := listPricing.priceFor(p.Uid.String); ok {
 		price = listed.cents
 		priced = true
 		priceListName = listed.listName
+		priceSpecial = listed.isSpecial
 	}
 	if listed, ok := listPricing.discountFor(p.Uid.String); ok {
 		discount = listed.percent
-		discounted = true
 		discountListName = listed.listName
+		discountSpecial = listed.isSpecial
 	}
 	return map[string]any{
 		"id": p.ID, "barcode": p.Barcode, "code": p.Code,
@@ -389,8 +391,8 @@ func productMap(p db.Product, listPricing activePricing, attrs map[string]string
 		// for why that's the mapping.
 		"brand": attrs["brand"], "family": attrs["sub-category"], "kind": attrs["kind"],
 		"season": attrs["season"], "year": attrs["year"],
-		"priceListOverridden": priced, "priceListName": priceListName,
-		"discountListOverridden": discounted, "discountListName": discountListName,
+		"priceListOverridden": priceSpecial, "priceListName": priceListName,
+		"discountListOverridden": discountSpecial, "discountListName": discountListName,
 	}
 }
 

@@ -30,6 +30,7 @@ type syncedPriceList struct {
 	Name      string                `json:"name"`
 	IsActive  bool                  `json:"is_active"`
 	IsDefault bool                  `json:"is_default"`
+	IsSpecial bool                  `json:"is_special"`
 	Items     []syncedPriceListItem `json:"items"`
 }
 
@@ -43,6 +44,7 @@ type syncedDiscountList struct {
 	Name      string                   `json:"name"`
 	IsActive  bool                     `json:"is_active"`
 	IsDefault bool                     `json:"is_default"`
+	IsSpecial bool                     `json:"is_special"`
 	Items     []syncedDiscountListItem `json:"items"`
 }
 
@@ -63,6 +65,7 @@ func applySyncedPriceList(ctx context.Context, q *db.Queries, l syncedPriceList)
 		Name:      l.Name,
 		IsActive:  boolToInt64(l.IsActive),
 		IsDefault: boolToInt64(l.IsDefault),
+		IsSpecial: boolToInt64(l.IsSpecial),
 	})
 	if err != nil {
 		return err
@@ -103,6 +106,7 @@ func applySyncedDiscountList(ctx context.Context, q *db.Queries, l syncedDiscoun
 		Name:      l.Name,
 		IsActive:  boolToInt64(l.IsActive),
 		IsDefault: boolToInt64(l.IsDefault),
+		IsSpecial: boolToInt64(l.IsSpecial),
 	})
 	if err != nil {
 		return err
