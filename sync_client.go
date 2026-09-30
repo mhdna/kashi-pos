@@ -128,6 +128,40 @@ func (c *centralClient) Health(ctx context.Context) error {
 	return nil
 }
 
+// FullSyncStart/End bracket a "Sync everything" run so the admin UI can show
+// this branch as syncing for as long as the run actually takes. Both are
+// best-effort from the caller's side (ResyncAll logs and carries on if
+// either fails) -- an older kashi deploy without the route, or a network
+// blip on the notify call, shouldn't block or fail the sync itself.
+func (c *centralClient) FullSyncStart(ctx context.Context) error {
+	return c.postNoBody(ctx, "/branch/sync/full_sync/start")
+}
+
+func (c *centralClient) FullSyncEnd(ctx context.Context) error {
+	return c.postNoBody(ctx, "/branch/sync/full_sync/end")
+}
+
+func (c *centralClient) postNoBody(ctx context.Context, path string) error {
+	if !c.enabled() {
+		return errCentralSyncDisabled
+	}
+	req, err := c.newRequest(ctx, http.MethodPost, path, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		var body centralErrorBody
+		json.NewDecoder(resp.Body).Decode(&body)
+		return fmt.Errorf("%s failed (status %d): %s", path, resp.StatusCode, body.Error)
+	}
+	return nil
+}
+
 // PostInvoice sends a raw, already-serialized branchInvoicePayload JSON body
 // to kashi. It's deliberately just []byte in, error out — the sync worker
 // stores the exact bytes it needs to send (sync_outbox.payload_json) and

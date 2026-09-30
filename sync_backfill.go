@@ -122,6 +122,17 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 		return ResyncReport{}, fmt.Errorf("central sync is not fully configured (URL, branch code and API key are all required)")
 	}
 
+	if !opts.DryRun {
+		if err := client.FullSyncStart(ctx); err != nil {
+			log.Printf("resync: notify sync start: %v", err)
+		}
+		defer func() {
+			if err := client.FullSyncEnd(ctx); err != nil {
+				log.Printf("resync: notify sync end: %v", err)
+			}
+		}()
+	}
+
 	report := ResyncReport{
 		Target:    client.baseURL,
 		DryRun:    opts.DryRun,
