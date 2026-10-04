@@ -221,11 +221,14 @@
   <v-snackbar
     v-model="snackbar.show"
     class="app-snackbar"
-    timeout="3500"
-    location="top"
+    :timeout="snackbar.icon ? 1500 : 3500"
+    :location="snackbar.icon ? 'center' : 'top'"
     variant="flat"
   >
-    {{ snackbar.text }}
+    <div class="d-flex align-center ga-3">
+      <v-icon v-if="snackbar.icon" :icon="snackbar.icon" size="44" />
+      <span :class="{ 'checkout-blocked-text': snackbar.icon }">{{ snackbar.text }}</span>
+    </div>
   </v-snackbar>
 
   <!-- "warn" oversell mode: the branch would go below zero on these
@@ -744,11 +747,12 @@ async function onBarcodeEnter() {
 function showDiscountError(message: string) {
   snackbar.text = message || "Could not save discount.";
   snackbar.color = "red-darken-4";
+  snackbar.icon = "";
   snackbar.show = true;
 }
 
 const printing = ref(false);
-const snackbar = reactive({ show: false, text: "", color: "success" });
+const snackbar = reactive({ show: false, text: "", color: "success", icon: "" });
 
 let screenQueue = Promise.resolve();
 function queueScreenUpdate(message: string) {
@@ -839,6 +843,7 @@ async function onSettlementCheckout() {
     const result = await SettleInvoicePayments(settlementState.value.invoiceId, paymentsJSON);
     snackbar.text = `Settlement updated — ${result?.invoiceCode ?? settlementState.value.invoiceCode}`;
     snackbar.color = "success";
+    snackbar.icon = "";
     snackbar.show = true;
     clearInvoice();
     settlementState.value = null;
@@ -847,6 +852,7 @@ async function onSettlementCheckout() {
   } catch (e: any) {
     snackbar.text = e?.toString() || "Could not update settlement";
     snackbar.color = "red-darken-4";
+    snackbar.icon = "";
     snackbar.show = true;
   }
 }
@@ -878,7 +884,52 @@ async function confirmOversellIfNeeded(itemsJSON: string): Promise<boolean> {
   });
 }
 
+function notifyCheckoutBlocked(text: string, icon: string) {
+  snackbar.text = text;
+  snackbar.color = "warning";
+  snackbar.icon = icon;
+  snackbar.show = true;
+}
+
+// Flashes/pulses the missing client/salesperson pickers and says which one is
+// missing. Returns true when something was missing.
+function flagMissingAssignment(): boolean {
+  const missingClient = !clientSelected.value;
+  const missingSalesperson = !salespersonSelected.value;
+  if (!missingClient && !missingSalesperson) return false;
+  missingAssignmentFlash.value = true;
+  clearTimeout(missingAssignmentFlashTimer);
+  missingAssignmentFlashTimer = setTimeout(() => {
+    missingAssignmentFlash.value = false;
+  }, 900);
+  if (missingClient) pulseMissingClient();
+  if (missingSalesperson) pulseSalesperson();
+  notifyCheckoutBlocked(
+    [missingSalesperson && "Pick salesperson", missingClient && "Pick client"].filter(Boolean).join(" · "),
+    "mdi-account-alert",
+  );
+  return true;
+}
+
+// The checkout button stays clickable while blocked; explain why, in the same
+// order canCheckout checks things, with the cashier-fixable items first.
+function explainBlockedCheckout() {
+  if (quoteError.value) return notifyCheckoutBlocked("Price error", "mdi-alert-circle");
+  if (pageMode.value !== "settlement") {
+    const hasSale = pageMode.value === "exchange" ? hasItems.value : invoiceTotal.value > 0;
+    if (!hasSale) return notifyCheckoutBlocked("Add items", "mdi-cart-outline");
+    if (flagMissingAssignment()) return;
+  }
+  if ((quote.value?.exchangeShortfallCents ?? 0) > 0)
+    return notifyCheckoutBlocked("Add more items", "mdi-swap-horizontal");
+  notifyCheckoutBlocked("Not fully paid", "mdi-cash-remove");
+}
+
 async function onCheckout() {
+  if (!canCheckout.value) {
+    explainBlockedCheckout();
+    return;
+  }
   if (pageMode.value === "settlement") {
     await onSettlementCheckout();
     return;
@@ -887,21 +938,7 @@ async function onCheckout() {
   const json = await getFullItemsJSON();
   if (json === "[]") return;
   const isExchange = Boolean(exchangeState.value);
-  const missingClient = !clientSelected.value;
-  const missingSalesperson = !salespersonSelected.value;
-  if (missingClient || missingSalesperson) {
-    missingAssignmentFlash.value = true;
-    clearTimeout(missingAssignmentFlashTimer);
-    missingAssignmentFlashTimer = setTimeout(() => {
-      missingAssignmentFlash.value = false;
-    }, 900);
-    if (missingClient) pulseMissingClient();
-    if (missingSalesperson) pulseSalesperson();
-    snackbar.text = `Select ${[missingSalesperson && "a salesperson", missingClient && "a client"].filter(Boolean).join(" and ")} before checkout.`;
-    snackbar.color = "warning";
-    snackbar.show = true;
-    return;
-  }
+  if (flagMissingAssignment()) return;
   if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
   printing.value = receiptEnabled.value;
   try {
@@ -936,6 +973,7 @@ async function onCheckout() {
           ? `Receipt printed — ${result?.invoiceCode ?? ""}`
           : `Invoice created — ${result?.invoiceCode ?? ""}`;
     snackbar.color = "success";
+    snackbar.icon = "";
     snackbar.show = true;
     clearInvoice();
     exchangeState.value = null;
@@ -946,6 +984,7 @@ async function onCheckout() {
   } catch (e: any) {
     snackbar.text = e?.toString() || "Checkout failed";
     snackbar.color = "red-darken-4";
+    snackbar.icon = "";
     snackbar.show = true;
   }
   printing.value = false;
@@ -967,6 +1006,7 @@ async function onExchange(payload: ExchangeSelection) {
   calculator.value?.clearAll();
   snackbar.text = "Exchange loaded. Scan or search replacement items, then check out.";
   snackbar.color = "info";
+  snackbar.icon = "";
   snackbar.show = true;
 }
 
@@ -1247,5 +1287,9 @@ onBeforeUnmount(() => {
   color: rgb(var(--v-theme-on-surface-variant)) !important;
   border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
+}
+.checkout-blocked-text {
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 </style>

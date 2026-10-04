@@ -48,8 +48,8 @@
       rounded="lg"
       variant="outlined"
       :style="checkoutButtonStyle"
+      :class="{ 'checkout-button--blocked': !canCheckout }"
       @click="$emit('checkout')"
-      :disabled="!canCheckout"
     >
       <div class="checkout-content d-flex flex-column align-center">
         <v-icon icon="mdi-cash" size="34" class="mb-1" />
@@ -178,5 +178,9 @@ function doConfirm() {
   font-weight: 600;
   font-size: 1.05rem;
   line-height: 1.2;
+}
+/* Not disabled: a click while blocked tells the cashier what's missing. */
+.checkout-button--blocked {
+  opacity: 0.45;
 }
 </style>
