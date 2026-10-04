@@ -204,6 +204,23 @@ func (q *Queries) ListInvoiceClientRefsMap(ctx context.Context) ([]InvoiceClient
 	return items, nil
 }
 
+const makePendingSyncOutboxDueNow = `-- name: MakePendingSyncOutboxDueNow :execrows
+UPDATE sync_outbox
+SET next_attempt_at = datetime('now')
+WHERE status = 'pending' AND next_attempt_at > datetime('now')
+`
+
+// Run when kashi becomes reachable again: rows that were backed off while
+// the connection was down (or by a pre-pushLink build, up to an hour) go
+// out on the very next pass instead of each waiting out its own timer.
+func (q *Queries) MakePendingSyncOutboxDueNow(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, makePendingSyncOutboxDueNow)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const markSyncOutboxAttemptFailed = `-- name: MarkSyncOutboxAttemptFailed :exec
 UPDATE sync_outbox
 SET attempt_count = attempt_count + 1, last_error = ?, next_attempt_at = ?
@@ -256,6 +273,23 @@ func (q *Queries) MarkSyncOutboxSynced(ctx context.Context, arg MarkSyncOutboxSy
 	return err
 }
 
+const recordSyncOutboxNetworkError = `-- name: RecordSyncOutboxNetworkError :exec
+UPDATE sync_outbox SET last_error = ? WHERE id = ?
+`
+
+type RecordSyncOutboxNetworkErrorParams struct {
+	LastError string `json:"lastError"`
+	ID        int64  `json:"id"`
+}
+
+// A push that never got an answer from kashi (offline, DNS, timeout) says
+// nothing about the row itself, so it keeps its attempt count and stays due:
+// the worker backs off the connection as a whole instead (see pushLink).
+func (q *Queries) RecordSyncOutboxNetworkError(ctx context.Context, arg RecordSyncOutboxNetworkErrorParams) error {
+	_, err := q.db.ExecContext(ctx, recordSyncOutboxNetworkError, arg.LastError, arg.ID)
+	return err
+}
+
 const requeueSyncOutboxConfirmedElsewhere = `-- name: RequeueSyncOutboxConfirmedElsewhere :execrows
 UPDATE sync_outbox
 SET status = 'pending', attempt_count = 0, last_error = '',
@@ -280,7 +314,8 @@ const syncStateForInvoices = `-- name: SyncStateForInvoices :many
 SELECT
     icr.invoice_id   AS invoice_id,
     so.status        AS status,
-    so.synced_to     AS synced_to
+    so.synced_to     AS synced_to,
+    so.last_error    AS last_error
 FROM invoice_client_refs icr
 LEFT JOIN sync_outbox so ON so.client_ref = icr.client_ref
 WHERE icr.invoice_id IN (/*SLICE:invoice_ids*/?)
@@ -290,6 +325,7 @@ type SyncStateForInvoicesRow struct {
 	InvoiceID int64          `json:"invoiceId"`
 	Status    sql.NullString `json:"status"`
 	SyncedTo  sql.NullString `json:"syncedTo"`
+	LastError sql.NullString `json:"lastError"`
 }
 
 // Per-invoice sync dot source: joins each invoice to its stable client_ref
@@ -314,7 +350,12 @@ func (q *Queries) SyncStateForInvoices(ctx context.Context, invoiceIds []int64) 
 	items := []SyncStateForInvoicesRow{}
 	for rows.Next() {
 		var i SyncStateForInvoicesRow
-		if err := rows.Scan(&i.InvoiceID, &i.Status, &i.SyncedTo); err != nil {
+		if err := rows.Scan(
+			&i.InvoiceID,
+			&i.Status,
+			&i.SyncedTo,
+			&i.LastError,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

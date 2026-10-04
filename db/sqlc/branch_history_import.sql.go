@@ -10,6 +10,28 @@ import (
 	"database/sql"
 )
 
+const countActiveShiftsAll = `-- name: CountActiveShiftsAll :one
+SELECT COUNT(*) FROM shifts
+WHERE closed_by_salesperson_id != 0
+   OR counted_usd != 0 OR counted_lbp != 0 OR counted_visa != 0 OR counted_whish != 0
+   OR expected_usd != 0 OR expected_lbp != 0 OR expected_visa != 0 OR expected_whish != 0
+   OR opening_float_usd != 0 OR opening_float_lbp != 0
+`
+
+// An empty shift (opened and possibly closed, but with no counted money,
+// opening float, or closing salesperson, and -- implied by this check
+// running after CountInvoices/CountExpensesAll/CountLoansAll have all come
+// back zero -- no invoices/expenses/loans against it either) isn't "real"
+// local history: it's what every freshly created branch already has before
+// anyone has actually used it. Only a shift with real activity should block
+// the import.
+func (q *Queries) CountActiveShiftsAll(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActiveShiftsAll)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countExpensesAll = `-- name: CountExpensesAll :one
 SELECT COUNT(*) FROM expenses
 `
@@ -27,17 +49,6 @@ SELECT COUNT(*) FROM loans
 
 func (q *Queries) CountLoansAll(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countLoansAll)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countShiftsAll = `-- name: CountShiftsAll :one
-SELECT COUNT(*) FROM shifts
-`
-
-func (q *Queries) CountShiftsAll(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countShiftsAll)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -282,6 +293,48 @@ func (q *Queries) CreateHistoricalShift(ctx context.Context, arg CreateHistorica
 		&i.ClientRef,
 	)
 	return i, err
+}
+
+const deleteAllShiftBalanceReplacements = `-- name: DeleteAllShiftBalanceReplacements :exec
+DELETE FROM shift_balance_replacements
+`
+
+func (q *Queries) DeleteAllShiftBalanceReplacements(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteAllShiftBalanceReplacements)
+	return err
+}
+
+const deleteAllShiftReceiptUploads = `-- name: DeleteAllShiftReceiptUploads :exec
+DELETE FROM shift_receipt_uploads
+`
+
+// PullBranchHistory only reaches these once CountActiveShiftsAll above has
+// already come back zero, i.e. every local shift row left over on this
+// freshly created branch is inert (no counted money, float, invoices,
+// expenses or loans). Clear them out before importing kashi's real shift
+// history so the branch doesn't end up with placeholder rows sitting next
+// to the imported ones.
+func (q *Queries) DeleteAllShiftReceiptUploads(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteAllShiftReceiptUploads)
+	return err
+}
+
+const deleteAllShifts = `-- name: DeleteAllShifts :exec
+DELETE FROM shifts
+`
+
+func (q *Queries) DeleteAllShifts(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteAllShifts)
+	return err
+}
+
+const deleteAllShiftsAccountsBalances = `-- name: DeleteAllShiftsAccountsBalances :exec
+DELETE FROM shifts_accounts_balances
+`
+
+func (q *Queries) DeleteAllShiftsAccountsBalances(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteAllShiftsAccountsBalances)
+	return err
 }
 
 const getShiftByClientRef = `-- name: GetShiftByClientRef :one

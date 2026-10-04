@@ -22,6 +22,42 @@ func (q *Queries) DeleteBranchTargetByRemoteID(ctx context.Context, remoteID int
 	return err
 }
 
+const deleteBranchTargetProgress = `-- name: DeleteBranchTargetProgress :exec
+DELETE FROM branch_target_progress
+`
+
+func (q *Queries) DeleteBranchTargetProgress(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteBranchTargetProgress)
+	return err
+}
+
+const getBranchTargetProgress = `-- name: GetBranchTargetProgress :one
+SELECT target_id, achieved_cents, fetched_at FROM branch_target_progress WHERE target_id = ?
+`
+
+func (q *Queries) GetBranchTargetProgress(ctx context.Context, targetID int64) (BranchTargetProgress, error) {
+	row := q.db.QueryRowContext(ctx, getBranchTargetProgress, targetID)
+	var i BranchTargetProgress
+	err := row.Scan(&i.TargetID, &i.AchievedCents, &i.FetchedAt)
+	return i, err
+}
+
+const insertBranchTargetProgress = `-- name: InsertBranchTargetProgress :exec
+INSERT INTO branch_target_progress (target_id, achieved_cents, fetched_at)
+VALUES (?, ?, ?)
+`
+
+type InsertBranchTargetProgressParams struct {
+	TargetID      int64  `json:"targetId"`
+	AchievedCents int64  `json:"achievedCents"`
+	FetchedAt     string `json:"fetchedAt"`
+}
+
+func (q *Queries) InsertBranchTargetProgress(ctx context.Context, arg InsertBranchTargetProgressParams) error {
+	_, err := q.db.ExecContext(ctx, insertBranchTargetProgress, arg.TargetID, arg.AchievedCents, arg.FetchedAt)
+	return err
+}
+
 const listBranchTargets = `-- name: ListBranchTargets :many
 SELECT id, remote_id, date_from, date_to, target_amount_cents, color, created_at FROM branch_targets ORDER BY target_amount_cents ASC
 `

@@ -50,6 +50,10 @@ export function CheckExpenseUploadStatus(arg1) {
   return window['go']['main']['App']['CheckExpenseUploadStatus'](arg1);
 }
 
+export function CheckOversell(arg1) {
+  return window['go']['main']['App']['CheckOversell'](arg1);
+}
+
 export function CheckShiftReceiptCaptured(arg1) {
   return window['go']['main']['App']['CheckShiftReceiptCaptured'](arg1);
 }
@@ -170,6 +174,14 @@ export function ExportAttendanceMonth(arg1) {
   return window['go']['main']['App']['ExportAttendanceMonth'](arg1);
 }
 
+export function ExportProductsCSV() {
+  return window['go']['main']['App']['ExportProductsCSV']();
+}
+
+export function ExportQuickAccessCSV() {
+  return window['go']['main']['App']['ExportQuickAccessCSV']();
+}
+
 export function ForceSetAdminPassword(arg1) {
   return window['go']['main']['App']['ForceSetAdminPassword'](arg1);
 }
@@ -242,6 +254,10 @@ export function GetInvoiceForSettlementChange(arg1) {
   return window['go']['main']['App']['GetInvoiceForSettlementChange'](arg1);
 }
 
+export function GetInvoiceSyncStates(arg1) {
+  return window['go']['main']['App']['GetInvoiceSyncStates'](arg1);
+}
+
 export function GetNextInvoiceCode(arg1) {
   return window['go']['main']['App']['GetNextInvoiceCode'](arg1);
 }
@@ -260,6 +276,10 @@ export function GetProductByBarcode(arg1) {
 
 export function GetProductByCode(arg1) {
   return window['go']['main']['App']['GetProductByCode'](arg1);
+}
+
+export function GetQuickAccessSource() {
+  return window['go']['main']['App']['GetQuickAccessSource']();
 }
 
 export function GetShiftExpectedTotals(arg1) {
@@ -304,6 +324,10 @@ export function GetVisitorCountsForMonth(arg1) {
 
 export function HoldInvoice(arg1) {
   return window['go']['main']['App']['HoldInvoice'](arg1);
+}
+
+export function ImportPendingProductsCSV() {
+  return window['go']['main']['App']['ImportPendingProductsCSV']();
 }
 
 export function IsStandaloneMode() {
@@ -478,6 +502,10 @@ export function PayClientAccount(arg1, arg2, arg3) {
   return window['go']['main']['App']['PayClientAccount'](arg1, arg2, arg3);
 }
 
+export function PreviewProductsCSV() {
+  return window['go']['main']['App']['PreviewProductsCSV']();
+}
+
 export function PreviewShiftBalanceReplacement(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['PreviewShiftBalanceReplacement'](arg1, arg2, arg3, arg4);
 }
@@ -610,6 +638,10 @@ export function SetOverchangeConfirmationEnabled(arg1) {
   return window['go']['main']['App']['SetOverchangeConfirmationEnabled'](arg1);
 }
 
+export function SetOversellMode(arg1) {
+  return window['go']['main']['App']['SetOversellMode'](arg1);
+}
+
 export function SetPageUnlocked(arg1, arg2) {
   return window['go']['main']['App']['SetPageUnlocked'](arg1, arg2);
 }
@@ -628,6 +660,14 @@ export function SetProductActive(arg1, arg2) {
 
 export function SetProductSearchEnabled(arg1) {
   return window['go']['main']['App']['SetProductSearchEnabled'](arg1);
+}
+
+export function SetQuickAccessColor(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetQuickAccessColor'](arg1, arg2, arg3);
+}
+
+export function SetQuickAccessMode(arg1) {
+  return window['go']['main']['App']['SetQuickAccessMode'](arg1);
 }
 
 export function SetSalespersonPerInvoiceRequired(arg1) {

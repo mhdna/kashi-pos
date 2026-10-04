@@ -22,6 +22,11 @@ type Querier interface {
 	ApproveAttendanceComplaint(ctx context.Context, arg ApproveAttendanceComplaintParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
 	ClearSyncCursors(ctx context.Context) error
+	// "Sync everything" against the server this till already syncs with:
+	// re-pull the small entities from scratch, but keep the big ones' cursors
+	// (clients, products) -- the completeness check covers those by comparing
+	// ids and versions instead of re-downloading the whole catalog.
+	ClearSyncCursorsExcept(ctx context.Context, keep []string) error
 	ClientHasInvoice(ctx context.Context, clientID int64) (int64, error)
 	// Anything that makes a client part of history: invoices, coupons, account
 	// entries. Such a client is deactivated, never deleted.
@@ -29,7 +34,16 @@ type Querier interface {
 	CloseOpenShifts(ctx context.Context, closedAt string) error
 	CloseShift(ctx context.Context, arg CloseShiftParams) (int64, error)
 	CloseStaleOpenShifts(ctx context.Context, closedAt string) error
+	// An empty shift (opened and possibly closed, but with no counted money,
+	// opening float, or closing salesperson, and -- implied by this check
+	// running after CountInvoices/CountExpensesAll/CountLoansAll have all come
+	// back zero -- no invoices/expenses/loans against it either) isn't "real"
+	// local history: it's what every freshly created branch already has before
+	// anyone has actually used it. Only a shift with real activity should block
+	// the import.
+	CountActiveShiftsAll(ctx context.Context) (int64, error)
 	CountAllProducts(ctx context.Context) (int64, error)
+	CountBranchStockRows(ctx context.Context, branchCode string) (int64, error)
 	CountCashboxAccountsByCurrency(ctx context.Context, currencyCode string) (int64, error)
 	CountClients(ctx context.Context) (int64, error)
 	CountClientsPage(ctx context.Context, search string) (int64, error)
@@ -45,7 +59,6 @@ type Querier interface {
 	// same rows ListProductsPage returns, so the total under a paged search never
 	// promises more results than the pages can show.
 	CountProducts(ctx context.Context, searchPattern string) (int64, error)
-	CountShiftsAll(ctx context.Context) (int64, error)
 	CountSyncOutboxByStatus(ctx context.Context, status string) (int64, error)
 	CountSyncOutboxConfirmedElsewhere(ctx context.Context, syncedTo string) (int64, error)
 	CountSyncOutboxConfirmedOnTarget(ctx context.Context, syncedTo string) (int64, error)
@@ -123,13 +136,25 @@ type Querier interface {
 	DeactivateProductsByIDs(ctx context.Context, ids []int64) error
 	DecreaseInventoryProductQuantity(ctx context.Context, arg DecreaseInventoryProductQuantityParams) (sql.Result, error)
 	DeleteAccount(ctx context.Context, id int64) error
+	DeleteAllShiftBalanceReplacements(ctx context.Context) error
+	// PullBranchHistory only reaches these once CountActiveShiftsAll above has
+	// already come back zero, i.e. every local shift row left over on this
+	// freshly created branch is inert (no counted money, float, invoices,
+	// expenses or loans). Clear them out before importing kashi's real shift
+	// history so the branch doesn't end up with placeholder rows sitting next
+	// to the imported ones.
+	DeleteAllShiftReceiptUploads(ctx context.Context) error
+	DeleteAllShifts(ctx context.Context) error
+	DeleteAllShiftsAccountsBalances(ctx context.Context) error
 	DeleteAsset(ctx context.Context, id int64) error
 	// Fires when kashi reports a target as no longer active (see
 	// applySyncedBranchTarget in sync_pull.go) -- this is just a read-only
 	// mirror of kashi's roster, so removing the local row outright is fine,
 	// unlike synced entities with local-only fields to preserve.
 	DeleteBranchTargetByRemoteID(ctx context.Context, remoteID int64) error
+	DeleteBranchTargetProgress(ctx context.Context) error
 	DeleteCashboxAccount(ctx context.Context, id int64) error
+	DeleteCentralQuickAccessItems(ctx context.Context) error
 	DeleteClient(ctx context.Context, id int64) error
 	DeleteCoupon(ctx context.Context, code string) error
 	DeleteCouponType(ctx context.Context, id int64) error
@@ -171,6 +196,8 @@ type Querier interface {
 	GetActiveCouponByCode(ctx context.Context, code string) (Coupon, error)
 	GetAssetByID(ctx context.Context, id int64) (Asset, error)
 	GetAttributeByName(ctx context.Context, name string) (Attribute, error)
+	GetBranchStockRow(ctx context.Context, arg GetBranchStockRowParams) (BranchStock, error)
+	GetBranchTargetProgress(ctx context.Context, targetID int64) (BranchTargetProgress, error)
 	GetCashboxAccountByID(ctx context.Context, id int64) (CashboxAccount, error)
 	GetCashboxAccountByName(ctx context.Context, name string) (CashboxAccount, error)
 	GetClientAccountBalance(ctx context.Context, clientID int64) (interface{}, error)
@@ -265,6 +292,8 @@ type Querier interface {
 	GetVisitorCount(ctx context.Context, day string) (int64, error)
 	IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoicesIndexParams) (int64, error)
 	InsertAttendanceEvent(ctx context.Context, arg InsertAttendanceEventParams) error
+	InsertBranchTargetProgress(ctx context.Context, arg InsertBranchTargetProgressParams) error
+	InsertCentralQuickAccessItem(ctx context.Context, arg InsertCentralQuickAccessItemParams) error
 	InsertDiscountListItem(ctx context.Context, arg InsertDiscountListItemParams) error
 	InsertPriceListItem(ctx context.Context, arg InsertPriceListItemParams) error
 	LatestSyncOutboxSyncedAt(ctx context.Context) (string, error)
@@ -314,6 +343,11 @@ type Querier interface {
 	// reports, invoice detail) -- a retired method still has to have a name.
 	ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
 	ListCategoryIcons(ctx context.Context) ([]CategoryIcon, error)
+	ListCentralQuickAccessItems(ctx context.Context) ([]CentralQuickAccessItem, error)
+	// kashi's branch list, resolved to this till's products by uid. A card for
+	// a product this till doesn't have (yet) or that was deactivated is skipped,
+	// same as ListQuickAccessProducts does for the till's own list.
+	ListCentralQuickAccessProducts(ctx context.Context) ([]ListCentralQuickAccessProductsRow, error)
 	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
 	ListClientAccountPayments(ctx context.Context, clientID int64) ([]ListClientAccountPaymentsRow, error)
 	ListClientNamesByIDs(ctx context.Context, ids []int64) ([]ListClientNamesByIDsRow, error)
@@ -426,6 +460,9 @@ type Querier interface {
 	// put something unsellable in the cart.
 	ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error)
 	ListProductsPageUnfiltered(ctx context.Context, arg ListProductsPageUnfilteredParams) ([]Product, error)
+	ListQuickAccessColors(ctx context.Context) ([]ListQuickAccessColorsRow, error)
+	// This till's own list, in card order, as kashi identifies products.
+	ListQuickAccessForReport(ctx context.Context) ([]ListQuickAccessForReportRow, error)
 	// A pinned product that has since been deactivated centrally drops off the
 	// quick-access grid rather than sitting there unsellable.
 	ListQuickAccessProducts(ctx context.Context) ([]Product, error)
@@ -457,6 +494,10 @@ type Querier interface {
 	ListUsers(ctx context.Context) ([]User, error)
 	ListVisitorCountsForMonth(ctx context.Context, monthPrefix string) ([]ListVisitorCountsForMonthRow, error)
 	ListVisitorEventsForDay(ctx context.Context, day string) ([]ListVisitorEventsForDayRow, error)
+	// Run when kashi becomes reachable again: rows that were backed off while
+	// the connection was down (or by a pre-pushLink build, up to an hour) go
+	// out on the very next pass instead of each waiting out its own timer.
+	MakePendingSyncOutboxDueNow(ctx context.Context) (int64, error)
 	MarkShiftReceiptCaptured(ctx context.Context, arg MarkShiftReceiptCapturedParams) error
 	MarkShiftReceiptSynced(ctx context.Context, id int64) error
 	MarkShiftReceiptUploadAttemptFailed(ctx context.Context, arg MarkShiftReceiptUploadAttemptFailedParams) error
@@ -473,6 +514,10 @@ type Querier interface {
 	// held invoices, transfers, or stock on hand. Such a product is deactivated,
 	// never deleted.
 	ProductIsReferenced(ctx context.Context, id int64) (int64, error)
+	// A push that never got an answer from kashi (offline, DNS, timeout) says
+	// nothing about the row itself, so it keeps its attempt count and stays due:
+	// the worker backs off the connection as a whole instead (see pushLink).
+	RecordSyncOutboxNetworkError(ctx context.Context, arg RecordSyncOutboxNetworkErrorParams) error
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
@@ -500,9 +545,11 @@ type Querier interface {
 	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	SetFullMirrorConfirmedAt(ctx context.Context, fullMirrorConfirmedAt sql.NullString) error
+	SetHomeBranchCode(ctx context.Context, homeBranchCode string) error
 	SetIdentityAdoptedAt(ctx context.Context, identityAdoptedAt sql.NullString) error
 	SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
+	SetOversellMode(ctx context.Context, oversellMode string) error
 	SetProductActive(ctx context.Context, arg SetProductActiveParams) error
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
 	// Frees a barcode held by a stale local-only product so kashi's product
@@ -510,7 +557,10 @@ type Querier interface {
 	SetProductBarcodeInactive(ctx context.Context, arg SetProductBarcodeInactiveParams) error
 	SetProductRemoteUpdatedAt(ctx context.Context, arg SetProductRemoteUpdatedAtParams) error
 	SetProductUID(ctx context.Context, arg SetProductUIDParams) error
+	SetQuickAccessColor(ctx context.Context, arg SetQuickAccessColorParams) error
+	SetQuickAccessMode(ctx context.Context, arg SetQuickAccessModeParams) error
 	SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error
+	SetQuickAccessReported(ctx context.Context) error
 	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
 	SetSyncTarget(ctx context.Context, currentTarget string) error
@@ -536,6 +586,18 @@ type Querier interface {
 	// The shift filter is pushed into every branch so each is an index seek,
 	// matching ListIncomeAccountTotals above.
 	StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error)
+	// This till's invoices in [date_from, date_to] that kashi hadn't received as
+	// of `as_of` (UTC, sqlite datetime format): still queued or rejected, or
+	// delivered after as_of. Added to kashi's branch-wide target progress
+	// fetched at as_of. Invoices with no outbox row are left out: those are
+	// either history restored from kashi (already in its figure) or sales from
+	// before this till synced. Plain SUM(grand_total) to match kashi's own
+	// figure (SumBranchRevenueForRange there).
+	SumInvoiceTotalNotOnCentralByDateRange(ctx context.Context, arg SumInvoiceTotalNotOnCentralByDateRangeParams) (interface{}, error)
+	// Units of one product this till sold that kashi's stock figure (fetched
+	// as of `as_of`) doesn't reflect yet: sales still queued, rejected, or
+	// delivered after as_of.
+	SumProductSoldNotOnCentral(ctx context.Context, arg SumProductSoldNotOnCentralParams) (interface{}, error)
 	SwitchShiftReceiptUploadRoute(ctx context.Context, arg SwitchShiftReceiptUploadRouteParams) error
 	// Per-invoice sync dot source: joins each invoice to its stable client_ref
 	// and whatever outbox row carries it. status/synced_to are NULL when the

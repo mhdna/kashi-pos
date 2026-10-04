@@ -53,6 +53,20 @@ UPDATE sync_outbox
 SET attempt_count = attempt_count + 1, last_error = ?, next_attempt_at = ?
 WHERE id = ?;
 
+-- name: RecordSyncOutboxNetworkError :exec
+-- A push that never got an answer from kashi (offline, DNS, timeout) says
+-- nothing about the row itself, so it keeps its attempt count and stays due:
+-- the worker backs off the connection as a whole instead (see pushLink).
+UPDATE sync_outbox SET last_error = ? WHERE id = ?;
+
+-- name: MakePendingSyncOutboxDueNow :execrows
+-- Run when kashi becomes reachable again: rows that were backed off while
+-- the connection was down (or by a pre-pushLink build, up to an hour) go
+-- out on the very next pass instead of each waiting out its own timer.
+UPDATE sync_outbox
+SET next_attempt_at = datetime('now')
+WHERE status = 'pending' AND next_attempt_at > datetime('now');
+
 -- name: MarkSyncOutboxFailed :exec
 -- Terminal state for a row kashi rejected outright (a 4xx, or an entity_type
 -- it has no route for). It stays out of the drain batch until an explicit
@@ -83,7 +97,8 @@ SELECT CAST(COALESCE(MAX(synced_at), '') AS text) FROM sync_outbox WHERE status 
 SELECT
     icr.invoice_id   AS invoice_id,
     so.status        AS status,
-    so.synced_to     AS synced_to
+    so.synced_to     AS synced_to,
+    so.last_error    AS last_error
 FROM invoice_client_refs icr
 LEFT JOIN sync_outbox so ON so.client_ref = icr.client_ref
 WHERE icr.invoice_id IN (sqlc.slice('invoice_ids'));

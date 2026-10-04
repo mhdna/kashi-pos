@@ -18,6 +18,23 @@
       />
     </div>
 
+    <v-select
+      v-if="branches.length > 1"
+      class="pin-branch-select"
+      :model-value="activeBranchCode"
+      density="compact"
+      hide-details
+      item-title="name"
+      item-value="code"
+      :items="branches"
+      :loading="switchingBranch"
+      :disabled="switchingBranch"
+      prepend-inner-icon="mdi-store-outline"
+      variant="outlined"
+      @update:model-value="switchBranch"
+    />
+    <span v-if="branchError" class="pin-branch-error" role="alert">{{ branchError }}</span>
+
     <div class="pin-heading">
       <h1 id="pin-title">{{ mode === "admin" ? "Admin sign-in" : "Enter PIN" }}</h1>
       <p v-if="locked">Too many attempts. Try again in {{ lockSeconds }}s</p>
@@ -119,7 +136,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import logo from "@/assets/app-logo.png";
 import { useAuthStore } from "@/stores/auth";
-import { GetAppVersion } from "../../wailsjs/go/main/App";
+import { GetAppVersion, ListBranches, SwitchBranch } from "../../wailsjs/go/main/App";
+import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
 
 const LOCKOUT_SECONDS = 30;
 const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
@@ -136,6 +154,29 @@ const lockSeconds = ref(0);
 const locked = computed(() => lockSeconds.value > 0);
 const appVersion = ref("");
 let lockTimer: ReturnType<typeof setInterval> | undefined;
+
+const branches = ref<{ code: string; name: string }[]>([]);
+const activeBranchCode = ref("");
+const switchingBranch = ref(false);
+const branchError = ref("");
+
+async function switchBranch(code: string) {
+  if (!code || code === activeBranchCode.value || switchingBranch.value) return;
+  switchingBranch.value = true;
+  branchError.value = "";
+  try {
+    await SwitchBranch(code);
+    // The active branch's database is now a different one than this window
+    // booted with (settings, users, PIN/admin password all live in it), so
+    // a full reload -- not just re-fetching state -- is required; see
+    // SwitchBranch's own doc comment and App.vue's admin switcher, which
+    // does the same.
+    WindowReloadApp();
+  } catch (error) {
+    branchError.value = error instanceof Error ? error.message : String(error);
+    switchingBranch.value = false;
+  }
+}
 
 function toggleMode() {
   if (loading.value) return;
@@ -243,6 +284,13 @@ onMounted(async () => {
   } catch {
     appVersion.value = "";
   }
+  try {
+    const result = await ListBranches();
+    branches.value = Array.isArray(result?.branches) ? result.branches : [];
+    activeBranchCode.value = result?.active ?? "";
+  } catch {
+    branches.value = [];
+  }
 });
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", handleKeydown);
@@ -284,6 +332,17 @@ onBeforeUnmount(() => {
 .pin-admin-toggle:hover,
 .pin-admin-toggle:focus-visible {
   opacity: 1;
+}
+
+.pin-branch-select {
+  width: 280px;
+  margin-top: 18px;
+}
+
+.pin-branch-error {
+  margin-top: 4px;
+  color: rgb(var(--v-theme-error));
+  font-size: 0.8rem;
 }
 
 .pin-heading {

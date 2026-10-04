@@ -166,6 +166,22 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class InvoiceSyncState {
+	    invoiceId: number;
+	    state: string;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new InvoiceSyncState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.invoiceId = source["invoiceId"];
+	        this.state = source["state"];
+	        this.error = source["error"];
+	    }
+	}
 	
 	export class ManagedProductPage {
 	    items: any[];
@@ -183,6 +199,57 @@ export namespace main {
 	        this.hasMore = source["hasMore"];
 	    }
 	}
+	export class OversellLine {
+	    code: string;
+	    name: string;
+	    requested: number;
+	    available: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new OversellLine(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.code = source["code"];
+	        this.name = source["name"];
+	        this.requested = source["requested"];
+	        this.available = source["available"];
+	    }
+	}
+	export class OversellCheck {
+	    mode: string;
+	    lines: OversellLine[];
+	
+	    static createFrom(source: any = {}) {
+	        return new OversellCheck(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.lines = this.convertValues(source["lines"], OversellLine);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class PaymentStatus {
 	    grandTotalCents: number;
 	    paidCents: number;
@@ -219,6 +286,97 @@ export namespace main {
 	        this.productNames = source["productNames"];
 	    }
 	}
+	export class ProductCSVProblem {
+	    line: number;
+	    barcode: string;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProductCSVProblem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.line = source["line"];
+	        this.barcode = source["barcode"];
+	        this.message = source["message"];
+	    }
+	}
+	export class ProductCSVImportResult {
+	    imported: number;
+	    failed: number;
+	    problems: ProductCSVProblem[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ProductCSVImportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.imported = source["imported"];
+	        this.failed = source["failed"];
+	        this.problems = this.convertValues(source["problems"], ProductCSVProblem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ProductCSVPreview {
+	    file: string;
+	    total: number;
+	    new: number;
+	    existing: number;
+	    invalid: number;
+	    problems: ProductCSVProblem[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ProductCSVPreview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.file = source["file"];
+	        this.total = source["total"];
+	        this.new = source["new"];
+	        this.existing = source["existing"];
+	        this.invalid = source["invalid"];
+	        this.problems = this.convertValues(source["problems"], ProductCSVProblem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class ProductCursorPage {
 	    items: any[];
 	    nextCursor: number;
@@ -277,6 +435,20 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.items = source["items"];
 	        this.total = source["total"];
+	    }
+	}
+	export class QuickAccessSource {
+	    mode: string;
+	    kashiAvailable: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new QuickAccessSource(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.kashiAvailable = source["kashiAvailable"];
 	    }
 	}
 	export class ResyncEntityReport {

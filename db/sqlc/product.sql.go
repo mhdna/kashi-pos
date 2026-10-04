@@ -980,6 +980,39 @@ func (q *Queries) ListProductsPageUnfiltered(ctx context.Context, arg ListProduc
 	return items, nil
 }
 
+const listQuickAccessColors = `-- name: ListQuickAccessColors :many
+SELECT product_id, color, text_color FROM quick_access_items WHERE color <> '' OR text_color <> ''
+`
+
+type ListQuickAccessColorsRow struct {
+	ProductID int64  `json:"productId"`
+	Color     string `json:"color"`
+	TextColor string `json:"textColor"`
+}
+
+func (q *Queries) ListQuickAccessColors(ctx context.Context) ([]ListQuickAccessColorsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listQuickAccessColors)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListQuickAccessColorsRow{}
+	for rows.Next() {
+		var i ListQuickAccessColorsRow
+		if err := rows.Scan(&i.ProductID, &i.Color, &i.TextColor); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listQuickAccessProducts = `-- name: ListQuickAccessProducts :many
 SELECT p.id, p.barcode, p.code, p.name, p.description, p.is_active, p.price, p.discount, p.color, p.size, p.currency_code, p.created_at, p.brand, p.family, p.kind, p.season, p.product_year, p.uid, p.remote_updated_at
 FROM quick_access_items q
@@ -1163,6 +1196,21 @@ type SetProductUIDParams struct {
 
 func (q *Queries) SetProductUID(ctx context.Context, arg SetProductUIDParams) error {
 	_, err := q.db.ExecContext(ctx, setProductUID, arg.Uid, arg.ID)
+	return err
+}
+
+const setQuickAccessColor = `-- name: SetQuickAccessColor :exec
+UPDATE quick_access_items SET color = ?, text_color = ? WHERE product_id = ?
+`
+
+type SetQuickAccessColorParams struct {
+	Color     string `json:"color"`
+	TextColor string `json:"textColor"`
+	ProductID int64  `json:"productId"`
+}
+
+func (q *Queries) SetQuickAccessColor(ctx context.Context, arg SetQuickAccessColorParams) error {
+	_, err := q.db.ExecContext(ctx, setQuickAccessColor, arg.Color, arg.TextColor, arg.ProductID)
 	return err
 }
 

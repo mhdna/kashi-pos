@@ -54,19 +54,18 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 
 // updateSettingsCommandPayload mirrors branchSettingsPayload in
 // sync_settings.go / branchSettingsRequest in kashi's api/branch_settings.go.
-// The original business-identity fields are always present (kashi's UI
-// always sends them); everything added later is a pointer so an absent
-// field -- an older queued command, a group the admin handed back to the
-// branch (managed_locally), or any sender that predates the field -- leaves
-// the local value exactly as it is rather than zeroing it.
+// Every field is a pointer so an absent one leaves the local value exactly
+// as it is rather than zeroing it: kashi sends partial payloads (a
+// register's own printer fields, the "apply defaults" subset), and older
+// queued commands predate later fields.
 //
 // Still never carried, so never touched: branch_code, api_key, theme,
 // counter number, and the POS admin login password.
 type updateSettingsCommandPayload struct {
-	BranchName       string  `json:"branch_name"`
-	TaxRate          float64 `json:"tax_rate"`
-	RoundingMode     string  `json:"rounding_mode"`
-	RoundingCurrency string  `json:"rounding_currency"`
+	BranchName       *string  `json:"branch_name"`
+	TaxRate          *float64 `json:"tax_rate"`
+	RoundingMode     *string  `json:"rounding_mode"`
+	RoundingCurrency *string  `json:"rounding_currency"`
 	// Pointers: added after the first version, so an older queued command
 	// that predates them must leave the local split alone rather than blank
 	// the primary currency and force the order back to default.
@@ -76,14 +75,14 @@ type updateSettingsCommandPayload struct {
 	// cash_rounding_unit (see 000100). Nil leaves it as it is; 0 means "fall
 	// back to cash_rounding_unit" and is a valid, explicit value.
 	SplitPrimaryStep    *int64          `json:"split_primary_step"`
-	ExchangeRate        int64           `json:"exchange_rate"`
-	ExchangeWindowHours int64           `json:"exchange_window_hours"`
-	MarketName          string          `json:"market_name"`
-	MarketPhone         string          `json:"market_phone"`
-	MarketDescription   string          `json:"market_description"`
-	ReturnPolicy        string          `json:"return_policy"`
-	Website             string          `json:"website"`
-	Instagram           string          `json:"instagram"`
+	ExchangeRate        *int64          `json:"exchange_rate"`
+	ExchangeWindowHours *int64          `json:"exchange_window_hours"`
+	MarketName          *string         `json:"market_name"`
+	MarketPhone         *string         `json:"market_phone"`
+	MarketDescription   *string         `json:"market_description"`
+	ReturnPolicy        *string         `json:"return_policy"`
+	Website             *string         `json:"website"`
+	Instagram           *string         `json:"instagram"`
 	SocialPlatforms     json.RawMessage `json:"social_platforms"`
 	SocialHandles       json.RawMessage `json:"social_handles"`
 	SearchButtonEnabled *bool           `json:"search_button_enabled"`
@@ -100,6 +99,9 @@ type updateSettingsCommandPayload struct {
 	OpeningFloatEnabled           *bool `json:"opening_float_enabled"`
 	CountOpeningCashOnClose       *bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
+
+	// OversellMode: "allow" | "warn" | "block" (see checkOversell).
+	OversellMode *string `json:"oversell_mode"`
 
 	// ShiftReceiptUploadMode is an enum, not a flag: 0=off, 1=central,
 	// 2=hybrid, 3=local (see shiftUploadMode* in shifts.go).
@@ -173,7 +175,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 	}
 
 	if err := a.UpdateSettings(
-		p.BranchName,
+		deref(p.BranchName, current.BranchName),
 		current.BranchCode, // identity/routing, never remotely editable
 		current.ApiKey,     // credential, never remotely editable
 		deref(p.PrinterID, current.PrinterID),
@@ -182,12 +184,12 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		deref(p.ScreenPort, current.ScreenPort),
 		deref(p.ReceiptWidth, current.ReceiptWidth),
 		deref(p.ReceiptHeight, current.ReceiptHeight),
-		p.TaxRate,
-		p.RoundingMode,
-		p.RoundingCurrency,
+		deref(p.TaxRate, current.TaxRate),
+		deref(p.RoundingMode, current.RoundingMode),
+		deref(p.RoundingCurrency, current.RoundingCurrency),
 		deref(p.ReceiptEnabled, current.ReceiptEnabled != 0),
 		current.SalesInventoryID,
-		p.ExchangeRate,
+		deref(p.ExchangeRate, current.ExchangeRate),
 		current.MaxOverpaymentCents,
 	); err != nil {
 		return fmt.Errorf("update settings: %w", err)
@@ -203,8 +205,14 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 	}
 
 	if err := a.UpdateReceiptSettings(
-		p.MarketName, p.MarketPhone, current.BranchPhone, p.MarketDescription, p.ReturnPolicy,
-		p.Website, p.Instagram, socialPlatforms, socialHandles,
+		deref(p.MarketName, current.MarketName),
+		deref(p.MarketPhone, current.MarketPhone),
+		current.BranchPhone,
+		deref(p.MarketDescription, current.MarketDescription),
+		deref(p.ReturnPolicy, current.ReturnPolicy),
+		deref(p.Website, current.Website),
+		deref(p.Instagram, current.Instagram),
+		socialPlatforms, socialHandles,
 		current.CounterNumber,
 		deref(p.ReceiptFont, current.ReceiptFont),
 		deref(p.ReceiptBodyFont, current.ReceiptBodyFont),
@@ -215,8 +223,10 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		return fmt.Errorf("update receipt/market settings: %w", err)
 	}
 
-	if err := a.SetExchangeWindowHours(p.ExchangeWindowHours); err != nil {
-		return fmt.Errorf("update exchange window: %w", err)
+	if p.ExchangeWindowHours != nil {
+		if err := a.SetExchangeWindowHours(*p.ExchangeWindowHours); err != nil {
+			return fmt.Errorf("update exchange window: %w", err)
+		}
 	}
 
 	// All three move together or not at all: the query writes all three
@@ -267,6 +277,12 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}
 		if err := u.fn(*u.v); err != nil {
 			return fmt.Errorf("update feature flag: %w", err)
+		}
+	}
+
+	if p.OversellMode != nil {
+		if err := a.SetOversellMode(*p.OversellMode); err != nil {
+			return fmt.Errorf("update oversell mode: %w", err)
 		}
 	}
 

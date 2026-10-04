@@ -347,10 +347,12 @@ func (a *App) CreateBranch(name, code, apiKey, centralApiUrl string) (map[string
 // successful call with runtime.WindowReloadApp so the UI re-reads the newly
 // active branch's state.
 func (a *App) SwitchBranch(code string) error {
-	// See CreateBranch's comment: a.store == nil means nobody could have
-	// logged in yet (no database open this session), so this is the initial
-	// branch-picker screen, not a live admin-triggered switch.
-	if a.store != nil && !a.currentUserIsAdmin() {
+	// Before anyone has signed in this run, switching branches is just
+	// picking which branch's login screen to use -- the PIN/admin password
+	// entered right after is the actual proof of identity, scoped to
+	// whichever branch this lands on. Once someone has signed in, only an
+	// admin may switch branches out from under that session.
+	if a.anyoneSignedInThisSession() && !a.currentUserIsAdmin() {
 		return fmt.Errorf("only an admin can switch branches")
 	}
 	code, err := normalizeRegistryBranchCode(code)

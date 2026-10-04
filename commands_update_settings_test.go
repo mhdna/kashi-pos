@@ -62,7 +62,7 @@ func TestExecuteUpdateSettingsCommand_WidenedFields(t *testing.T) {
 
 	// 1. Carry a spread of the new fields.
 	apply(updateSettingsCommandPayload{
-		BranchName: "Test", RoundingMode: "half_up", RoundingCurrency: "USD", ExchangeRate: 1,
+		BranchName: strp("Test"), RoundingMode: strp("half_up"), RoundingCurrency: strp("USD"), ExchangeRate: i64p(1),
 
 		InvoiceKeyboardMode: boolp(true),
 		PageUnlockInventory: boolp(true),
@@ -114,7 +114,7 @@ func TestExecuteUpdateSettingsCommand_WidenedFields(t *testing.T) {
 
 	// admin_password force-sets the admin sign-in password (no old password).
 	apply(updateSettingsCommandPayload{
-		BranchName: "Test", RoundingMode: "half_up", RoundingCurrency: "USD", ExchangeRate: 1,
+		BranchName: strp("Test"), RoundingMode: strp("half_up"), RoundingCurrency: strp("USD"), ExchangeRate: i64p(1),
 		AdminPassword: strp("new-admin-pw"),
 	})
 	if app.adminPasswordHash() != hashPassword("new-admin-pw") {
@@ -123,7 +123,7 @@ func TestExecuteUpdateSettingsCommand_WidenedFields(t *testing.T) {
 
 	// 2. A payload that omits them must not disturb the applied values.
 	apply(updateSettingsCommandPayload{
-		BranchName: "Test", RoundingMode: "half_up", RoundingCurrency: "USD", ExchangeRate: 1,
+		BranchName: strp("Test"), RoundingMode: strp("half_up"), RoundingCurrency: strp("USD"), ExchangeRate: i64p(1),
 	})
 
 	if !app.flagEnabled(ctx, invoiceKeyboardModeFlag) {
@@ -144,5 +144,42 @@ func TestExecuteUpdateSettingsCommand_WidenedFields(t *testing.T) {
 	}
 	if _, _, pw, _, dup, _ := app.attendanceConfig(); pw != "s3cret" || dup != 45 {
 		t.Errorf("omitted attendance fields changed: pw=%q dup=%d", pw, dup)
+	}
+
+	// 3. kashi's per-register printer push carries nothing else: every
+	// branch-wide value must survive it.
+	applyRaw := func(raw string) error {
+		t.Helper()
+		return app.executeUpdateSettingsCommand(ctx, json.RawMessage(raw))
+	}
+	before, err := store.GetSettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := applyRaw(`{"printer_id":"EPSON-B","receipt_printer":"EPSON-B","screen_port":"COM9"}`); err != nil {
+		t.Fatalf("device-only payload: %v", err)
+	}
+	got, err = store.GetSettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PrinterID != "EPSON-B" || got.ScreenPort != "COM9" {
+		t.Errorf("device fields not applied: printer=%q port=%q", got.PrinterID, got.ScreenPort)
+	}
+	if got.BranchName != before.BranchName || got.TaxRate != before.TaxRate ||
+		got.RoundingCurrency != before.RoundingCurrency || got.ExchangeRate != before.ExchangeRate ||
+		got.MarketName != before.MarketName {
+		t.Errorf("device-only payload disturbed branch-wide settings: before=%+v after=%+v", before, got)
+	}
+
+	// 4. oversell_mode.
+	if err := applyRaw(`{"oversell_mode":"warn"}`); err != nil {
+		t.Fatalf("oversell payload: %v", err)
+	}
+	if got, _ := store.GetSettings(ctx); got.OversellMode != "warn" {
+		t.Errorf("oversell_mode = %q, want warn", got.OversellMode)
+	}
+	if err := applyRaw(`{"oversell_mode":"maybe"}`); err == nil {
+		t.Error("an unknown oversell_mode should be rejected")
 	}
 }

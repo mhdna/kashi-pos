@@ -414,3 +414,36 @@ func TestProductSearchExcludesInactiveProducts(t *testing.T) {
 		t.Fatalf("unfiltered total = %d, want 1", all.Total)
 	}
 }
+
+// The Products page shows what a sale would charge -- the active price
+// list's price -- and "No price" (priced:false) for a product no list prices
+// yet, not the product row's frozen price column (usually 0 for a product
+// synced from kashi, which is how a priced product used to show 0.00).
+func TestListManagedProductsShowsListPrice(t *testing.T) {
+	app, store, _, _ := setUpTestInvoiceApp(t, "")
+	// SKU-1 is priced at 100 cents by setUpTestInvoiceApp's price list; give
+	// its row a different, stale value to prove the list wins.
+	if _, err := app.conn.Exec(`UPDATE products SET price = 999 WHERE code = 'SKU-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateProduct(app.ctx, db.CreateProductParams{
+		Barcode: "2", Code: "SKU-2", Name: "Unpriced", IsActive: 1, Price: 0, CurrencyCode: "USD",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	page, err := app.ListManagedProducts(0, 50, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byCode := map[string]map[string]any{}
+	for _, item := range page.Items {
+		byCode[item["code"].(string)] = item
+	}
+	if p := byCode["SKU-1"]; p["priced"] != true || p["priceCents"] != int64(100) {
+		t.Fatalf("SKU-1: priced=%v priceCents=%v, want true and 100 (the list price)", p["priced"], p["priceCents"])
+	}
+	if p := byCode["SKU-2"]; p["priced"] != false {
+		t.Fatalf("SKU-2 has no list price but priced=%v", p["priced"])
+	}
+}

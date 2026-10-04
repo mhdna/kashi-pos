@@ -10,6 +10,17 @@ import (
 	"database/sql"
 )
 
+const countBranchStockRows = `-- name: CountBranchStockRows :one
+SELECT COUNT(*) FROM branch_stock WHERE branch_code = ?
+`
+
+func (q *Queries) CountBranchStockRows(ctx context.Context, branchCode string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countBranchStockRows, branchCode)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createTransferRequest = `-- name: CreateTransferRequest :one
 INSERT INTO transfer_requests (client_ref, to_branch_code, note)
 VALUES (?, ?, ?) RETURNING id, client_ref, to_branch_code, note, status, created_at, updated_at, direction, central_id, sender_branch_name
@@ -77,6 +88,29 @@ DELETE FROM transfer_request_items WHERE transfer_request_id = ?
 func (q *Queries) DeleteTransferRequestItems(ctx context.Context, transferRequestID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteTransferRequestItems, transferRequestID)
 	return err
+}
+
+const getBranchStockRow = `-- name: GetBranchStockRow :one
+SELECT branch_code, variant_uid, barcode, quantity, price_cents, updated_at FROM branch_stock WHERE branch_code = ? AND variant_uid = ?
+`
+
+type GetBranchStockRowParams struct {
+	BranchCode string `json:"branchCode"`
+	VariantUid string `json:"variantUid"`
+}
+
+func (q *Queries) GetBranchStockRow(ctx context.Context, arg GetBranchStockRowParams) (BranchStock, error) {
+	row := q.db.QueryRowContext(ctx, getBranchStockRow, arg.BranchCode, arg.VariantUid)
+	var i BranchStock
+	err := row.Scan(
+		&i.BranchCode,
+		&i.VariantUid,
+		&i.Barcode,
+		&i.Quantity,
+		&i.PriceCents,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getCouponTypeByCentralID = `-- name: GetCouponTypeByCentralID :one
@@ -368,6 +402,31 @@ func (q *Queries) SetTransferRequestStatus(ctx context.Context, arg SetTransferR
 	return err
 }
 
+const sumProductSoldNotOnCentral = `-- name: SumProductSoldNotOnCentral :one
+SELECT COALESCE(SUM(ip.quantity), 0)
+FROM invoice_products ip
+JOIN sales_invoices s ON s.invoice_id = ip.invoice_id
+JOIN invoice_client_refs r ON r.invoice_id = ip.invoice_id
+JOIN sync_outbox o ON o.client_ref = r.client_ref
+WHERE ip.product_id = ?1
+  AND (o.status != 'synced' OR o.synced_at > ?2)
+`
+
+type SumProductSoldNotOnCentralParams struct {
+	ProductID int64          `json:"productId"`
+	AsOf      sql.NullString `json:"asOf"`
+}
+
+// Units of one product this till sold that kashi's stock figure (fetched
+// as of `as_of`) doesn't reflect yet: sales still queued, rejected, or
+// delivered after as_of.
+func (q *Queries) SumProductSoldNotOnCentral(ctx context.Context, arg SumProductSoldNotOnCentralParams) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, sumProductSoldNotOnCentral, arg.ProductID, arg.AsOf)
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
+}
+
 const upsertBranchStock = `-- name: UpsertBranchStock :exec
 
 INSERT INTO branch_stock (branch_code, variant_uid, barcode, quantity, price_cents, updated_at)
@@ -410,7 +469,7 @@ func (q *Queries) UpsertBranchStock(ctx context.Context, arg UpsertBranchStockPa
 const upsertCouponTypeByCentralID = `-- name: UpsertCouponTypeByCentralID :one
 INSERT INTO coupon_types (central_id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(central_id) DO UPDATE SET
+ON CONFLICT(central_id) WHERE central_id IS NOT NULL DO UPDATE SET
     name = excluded.name,
     value_cents = excluded.value_cents,
     currency_code = excluded.currency_code,
@@ -460,8 +519,11 @@ func (q *Queries) UpsertCouponTypeByCentralID(ctx context.Context, arg UpsertCou
 
 const upsertIncomingTransferRequest = `-- name: UpsertIncomingTransferRequest :one
 INSERT INTO transfer_requests (client_ref, to_branch_code, note, status, direction, central_id, sender_branch_name)
-VALUES ('incoming-' || ?, '', ?, ?, 'incoming', ?, ?)
-ON CONFLICT(central_id) DO UPDATE SET
+VALUES (
+    'incoming-' || ?1, '', ?2, ?3, 'incoming',
+    ?1, ?4
+)
+ON CONFLICT(central_id) WHERE central_id IS NOT NULL DO UPDATE SET
     note = excluded.note,
     status = excluded.status,
     sender_branch_name = excluded.sender_branch_name,
@@ -470,11 +532,10 @@ RETURNING id, client_ref, to_branch_code, note, status, created_at, updated_at, 
 `
 
 type UpsertIncomingTransferRequestParams struct {
-	Column1          sql.NullString `json:"column1"`
-	Note             string         `json:"note"`
-	Status           string         `json:"status"`
-	CentralID        sql.NullInt64  `json:"centralId"`
-	SenderBranchName string         `json:"senderBranchName"`
+	CentralID        sql.NullInt64 `json:"centralId"`
+	Note             string        `json:"note"`
+	Status           string        `json:"status"`
+	SenderBranchName string        `json:"senderBranchName"`
 }
 
 // Incoming transfers sync whole, like a price list -- see
@@ -484,10 +545,9 @@ type UpsertIncomingTransferRequestParams struct {
 // only by central_id).
 func (q *Queries) UpsertIncomingTransferRequest(ctx context.Context, arg UpsertIncomingTransferRequestParams) (TransferRequest, error) {
 	row := q.db.QueryRowContext(ctx, upsertIncomingTransferRequest,
-		arg.Column1,
+		arg.CentralID,
 		arg.Note,
 		arg.Status,
-		arg.CentralID,
 		arg.SenderBranchName,
 	)
 	var i TransferRequest

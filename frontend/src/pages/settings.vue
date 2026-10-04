@@ -48,6 +48,165 @@
                 hide-details
                 @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
               />
+              <div class="text-body-2 mt-4">
+                Quick access rows:
+                <strong>{{ quickAccessRows === 0 ? "Hidden" : quickAccessRows }}</strong>
+              </div>
+              <v-slider
+                :model-value="quickAccessRows"
+                :min="0"
+                :max="QUICK_ACCESS_MAX_ROWS"
+                :step="1"
+                color="primary"
+                show-ticks="always"
+                hint="Rows shown on the sale screen before it scrolls. 0 hides the panel."
+                persistent-hint
+                @update:model-value="setQuickAccessRows"
+              />
+              <div class="text-body-2 mt-4">
+                Quick access text size: <strong>{{ quickAccessFontScale }}%</strong>
+              </div>
+              <v-slider
+                :model-value="quickAccessFontScale"
+                :min="QUICK_ACCESS_FONT_MIN"
+                :max="QUICK_ACCESS_FONT_MAX"
+                :step="10"
+                color="primary"
+                show-ticks="always"
+                hide-details
+                @update:model-value="setQuickAccessFontScale"
+              >
+                <template #append>
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    :disabled="quickAccessFontScale === 100"
+                    @click="setQuickAccessFontScale(100)"
+                  >
+                    Reset
+                  </v-btn>
+                </template>
+              </v-slider>
+              <v-switch
+                :model-value="quickAccessShowCode"
+                label="Show code on quick access cards"
+                color="primary"
+                hide-details
+                @update:model-value="(value) => setQuickAccessShowCode(value ?? false)"
+              />
+              <v-switch
+                :model-value="quickAccessShowName"
+                label="Show name on quick access cards"
+                color="primary"
+                hide-details
+                @update:model-value="(value) => setQuickAccessShowName(value ?? false)"
+              />
+              <v-switch
+                :model-value="quickAccessShowRemove"
+                label="Show remove (X) button on quick access cards"
+                color="primary"
+                hide-details
+                @update:model-value="(value) => setQuickAccessShowRemove(value ?? false)"
+              />
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('general-quick-access-colors')" class="settings-card settings-card--wide">
+            <v-card-title class="d-flex align-center">
+              Quick access colors
+              <v-spacer />
+              <v-btn
+                variant="tonal"
+                size="small"
+                prepend-icon="mdi-download"
+                :loading="exportingQuickAccess"
+                :disabled="!quickAccessItems.length"
+                @click="exportQuickAccessCsv"
+              >
+                Export CSV
+              </v-btn>
+            </v-card-title>
+            <v-card-text>
+              <div class="d-flex align-center flex-wrap ga-3 mb-4">
+                <span class="text-body-2">Cards come from</span>
+                <v-btn-toggle
+                  :model-value="quickAccessMode"
+                  mandatory
+                  density="compact"
+                  variant="outlined"
+                  color="primary"
+                  :disabled="!auth.isAdmin || changingQuickAccessMode"
+                  @update:model-value="changeQuickAccessMode"
+                >
+                  <v-btn size="small" value="till">This till</v-btn>
+                  <v-btn size="small" value="kashi">kashi</v-btn>
+                </v-btn-toggle>
+                <span v-if="quickAccessMode === 'kashi'" class="text-caption text-medium-emphasis">
+                  This register shows its branch's list from kashi. Edit cards and colours there (Branch settings →
+                  Quick access).
+                </span>
+                <span v-else-if="!quickAccessKashiAvailable" class="text-caption text-medium-emphasis">
+                  kashi isn't connected, or doesn't manage Quick Access yet.
+                </span>
+              </div>
+              <div v-if="!quickAccessItems.length" class="text-body-2 text-medium-emphasis">
+                {{
+                  quickAccessMode === "kashi"
+                    ? "No Quick Access cards set in kashi for this branch yet."
+                    : "No quick access items yet. Pin products from the sale screen first."
+                }}
+              </div>
+              <div v-for="item in quickAccessItems" :key="item.id" class="qa-color-row">
+                <div class="qa-color-row__preview text-caption" :style="quickAccessCardStyle(item)">
+                  <div class="text-truncate">{{ item.code }}</div>
+                  <div class="text-truncate font-weight-medium">{{ item.name }}</div>
+                  <div class="qa-color-row__price">${{ Number(item.price).toFixed(2) }}</div>
+                </div>
+                <div v-if="quickAccessMode !== 'kashi'" class="qa-color-row__pickers">
+                  <div class="qa-color-row__swatches">
+                    <span class="qa-color-row__label text-caption">Card</span>
+                    <button
+                      type="button"
+                      class="qa-swatch qa-swatch--none"
+                      :class="{ 'qa-swatch--selected': !item.quickAccessColor }"
+                      title="No color"
+                      @click="setQuickAccessItemColor(item, { quickAccessColor: '' })"
+                    />
+                    <button
+                      v-for="color in QUICK_ACCESS_COLORS"
+                      :key="color"
+                      type="button"
+                      class="qa-swatch"
+                      :class="{ 'qa-swatch--selected': item.quickAccessColor === color }"
+                      :style="{ backgroundColor: color }"
+                      :title="color"
+                      @click="setQuickAccessItemColor(item, { quickAccessColor: color })"
+                    />
+                  </div>
+                  <div class="qa-color-row__swatches">
+                    <span class="qa-color-row__label text-caption">Text</span>
+                    <button
+                      type="button"
+                      class="qa-swatch qa-swatch--auto text-caption"
+                      :class="{ 'qa-swatch--selected': !item.quickAccessTextColor }"
+                      title="Automatic"
+                      @click="setQuickAccessItemColor(item, { quickAccessTextColor: '' })"
+                    >
+                      A
+                    </button>
+                    <button
+                      v-for="color in QUICK_ACCESS_TEXT_COLORS"
+                      :key="color"
+                      type="button"
+                      class="qa-swatch"
+                      :class="{ 'qa-swatch--selected': item.quickAccessTextColor === color }"
+                      :style="{ backgroundColor: color }"
+                      :title="color"
+                      @click="setQuickAccessItemColor(item, { quickAccessTextColor: color })"
+                    />
+                  </div>
+                </div>
+              </div>
             </v-card-text>
           </v-card>
 
@@ -1486,7 +1645,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed, onMounted, watch } from "vue";
+import { ref, reactive, computed, onBeforeUnmount, onMounted, watch } from "vue";
 import {
   GetAppSettings,
   GetDatabaseStatus,
@@ -1558,8 +1717,13 @@ import {
   ListDiscountLists,
   ListDiscountListItems,
   GetSyncStatus,
+  ListQuickAccessProducts,
+  GetQuickAccessSource,
+  SetQuickAccessMode,
+  SetQuickAccessColor,
+  ExportQuickAccessCSV,
 } from "../../wailsjs/go/main/App";
-import { WindowReloadApp } from "../../wailsjs/runtime/runtime";
+import { EventsOn, WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import { formatUsd } from "@/lib/format";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 import { friendlySyncErrorReason } from "@/lib/syncErrors";
@@ -1576,6 +1740,22 @@ import {
   setAnimationsEnabled,
   calculatorTotalCurrency,
   setCalculatorTotalCurrency,
+  quickAccessRows,
+  setQuickAccessRows,
+  QUICK_ACCESS_MAX_ROWS,
+  quickAccessShowCode,
+  setQuickAccessShowCode,
+  quickAccessShowName,
+  setQuickAccessShowName,
+  quickAccessShowRemove,
+  setQuickAccessShowRemove,
+  QUICK_ACCESS_COLORS,
+  QUICK_ACCESS_TEXT_COLORS,
+  quickAccessFontScale,
+  setQuickAccessFontScale,
+  QUICK_ACCESS_FONT_MIN,
+  QUICK_ACCESS_FONT_MAX,
+  quickAccessCardStyle,
 } from "@/lib/display";
 import { useTheme } from "vuetify";
 
@@ -1634,7 +1814,8 @@ function cancelDeactivation() {
 }
 
 const panelMeta: Record<string, { tab: string; title: string; keywords: string }> = {
-  "general-appearance": { tab: "general", title: "Appearance", keywords: "dark theme animations mode display" },
+  "general-quick-access-colors": { tab: "general", title: "Quick access colors", keywords: "quick access card color colour background text font source kashi central managed till" },
+  "general-appearance": { tab: "general", title: "Appearance", keywords: "dark theme animations mode display quick access rows panel hide code name card remove x button text font size bigger smaller" },
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
   "general-branches": { tab: "general", title: "Branches", keywords: "branches switch default active add branch multiple instances" },
@@ -2001,6 +2182,73 @@ const deleteSalespersonTarget = ref<any>(null);
 const snackbar = reactive({ show: false, text: "", color: "success" });
 
 const adminBridge = () => (window as any).go?.main?.App;
+
+type QuickAccessColorItem = {
+  id: number;
+  code: string;
+  name: string;
+  price: number;
+  quickAccessColor: string;
+  quickAccessTextColor: string;
+};
+const quickAccessItems = ref<QuickAccessColorItem[]>([]);
+
+async function loadQuickAccessItems() {
+  try {
+    const source = await GetQuickAccessSource();
+    quickAccessMode.value = source.mode;
+    quickAccessKashiAvailable.value = source.kashiAvailable;
+    quickAccessItems.value = ((await ListQuickAccessProducts()) ?? []) as QuickAccessColorItem[];
+  } catch {}
+}
+
+// Where this register's Quick Access cards come from: its own list ("till")
+// or its branch's list in kashi ("kashi"). Flipping here reaches kashi
+// through the sync outbox; kashi can flip it too, and the later flip wins.
+const quickAccessMode = ref("till");
+const quickAccessKashiAvailable = ref(false);
+const changingQuickAccessMode = ref(false);
+
+async function changeQuickAccessMode(mode: string) {
+  if (!mode || mode === quickAccessMode.value) return;
+  changingQuickAccessMode.value = true;
+  try {
+    await SetQuickAccessMode(mode);
+    await loadQuickAccessItems();
+  } catch (error) {
+    notify(`Could not change where Quick Access comes from: ${error}`, "error");
+  } finally {
+    changingQuickAccessMode.value = false;
+  }
+}
+
+async function setQuickAccessItemColor(
+  item: QuickAccessColorItem,
+  change: Partial<Pick<QuickAccessColorItem, "quickAccessColor" | "quickAccessTextColor">>,
+) {
+  const previous = { quickAccessColor: item.quickAccessColor, quickAccessTextColor: item.quickAccessTextColor };
+  Object.assign(item, change);
+  try {
+    await SetQuickAccessColor(item.id, item.quickAccessColor ?? "", item.quickAccessTextColor ?? "");
+  } catch (error) {
+    Object.assign(item, previous);
+    notify(`Could not save color: ${error}`, "error");
+  }
+}
+
+const exportingQuickAccess = ref(false);
+
+async function exportQuickAccessCsv() {
+  exportingQuickAccess.value = true;
+  try {
+    const path = await ExportQuickAccessCSV();
+    if (path) notify(`Quick access exported to ${path}`);
+  } catch (e: any) {
+    notify(e?.toString() || "Could not export quick access", "error");
+  } finally {
+    exportingQuickAccess.value = false;
+  }
+}
 
 function notify(text: string, color = "success") {
   snackbar.text = text;
@@ -2555,6 +2803,11 @@ async function togglePageUnlock(page: string, value: boolean | null) {
   }
 }
 
+// kashi can flip this register's Quick Access source, or change its list,
+// while this page is open.
+const stopQuickAccessListener = EventsOn("sync_applied:quick_access", () => void loadQuickAccessItems());
+onBeforeUnmount(stopQuickAccessListener);
+
 onMounted(() => {
   // Fire every load concurrently rather than in a 14-deep await chain: they
   // have no ordering dependency, each already swallows its own errors (the
@@ -2579,6 +2832,7 @@ onMounted(() => {
     loadUsers(),
     loadSalespersons(),
     loadCashierPin(),
+    loadQuickAccessItems(),
     wrap(async () => {
       serialPorts.value = await ListSerialPorts();
     }),
@@ -2876,6 +3130,68 @@ async function deleteUser() {
 </script>
 
 <style scoped>
+.qa-color-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  padding: 6px 0;
+}
+.qa-color-row + .qa-color-row {
+  border-top: 1px solid rgba(var(--v-border-color), 0.12);
+}
+.qa-color-row__preview {
+  border: 1px solid rgba(var(--v-border-color), 0.12);
+  border-radius: 8px;
+  flex: 0 0 160px;
+  line-height: 1.2;
+  min-width: 0;
+  padding: 6px 8px;
+}
+.qa-color-row__price {
+  opacity: var(--v-medium-emphasis-opacity);
+}
+.qa-color-row__pickers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.qa-color-row__label {
+  align-self: center;
+  width: 36px;
+}
+.qa-swatch--auto {
+  align-items: center;
+  display: inline-flex;
+  font-weight: 600;
+  justify-content: center;
+}
+.qa-color-row__swatches {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.qa-swatch {
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  height: 28px;
+  width: 28px;
+}
+.qa-swatch--none {
+  background: linear-gradient(
+    to top right,
+    transparent calc(50% - 1px),
+    rgb(var(--v-theme-error)) calc(50% - 1px),
+    rgb(var(--v-theme-error)) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+.qa-swatch--selected {
+  outline: 3px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}
 .target-color-swatch {
   display: inline-block;
   width: 14px;

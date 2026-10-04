@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"slices"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -53,6 +54,11 @@ type wsMessage struct {
 	// other pushed message, that one needs to say *which* expense, not
 	// just "go re-fetch this kind of thing".
 	ClientRef string `json:"client_ref,omitempty"`
+	// Entities is set on "sync_changed": the pull entities kashi's
+	// database reported changes to (kashi's api/sync_notify.go).
+	Entities []string `json:"entities,omitempty"`
+	// Features is set on "hello", kashi's first message of a session.
+	Features []string `json:"features,omitempty"`
 }
 
 var wsMessageEntity = map[string]string{
@@ -198,6 +204,11 @@ func (a *App) sleepOrStop(d time.Duration) bool {
 // fires.
 func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 	defer conn.Close()
+	// Without a live session nothing is being pushed: back to full polling.
+	defer a.wsPushesAll.Store(false)
+	defer a.kashiQuickAccess.Store(false)
+	// kashi may have restarted while we were away; report settings afresh.
+	a.settingsReport.forget()
 
 	conn.SetReadDeadline(time.Now().Add(wsPongWait))
 	conn.SetPongHandler(func(string) error {
@@ -298,6 +309,31 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 	}
 	if msg.Type == "expense_images_uploaded" {
 		a.emitExpenseImagesUploaded(msg.ClientRef)
+		return
+	}
+	if msg.Type == "hello" {
+		// A kashi that pushes every change lets the pull loop slow down to a
+		// backstop. An older kashi sends no hello, and its tills keep the
+		// 15s poll. runWSSession clears this when the session ends.
+		a.wsPushesAll.Store(slices.Contains(msg.Features, "sync_changed"))
+		a.kashiQuickAccess.Store(slices.Contains(msg.Features, "quick_access"))
+		return
+	}
+	if msg.Type == "pull_all" {
+		// kashi's change feed had a gap; catch up on everything.
+		a.runSyncPullOnce(a.ctx, client)
+		return
+	}
+	if msg.Type == "sync_changed" {
+		for _, entity := range msg.Entities {
+			// A newer kashi may name an entity this build doesn't pull yet.
+			if !slices.Contains(pullEntities, entity) {
+				continue
+			}
+			if err := a.pullEntityOnce(a.ctx, client, entity); err != nil {
+				log.Printf("ws client: apply %s: %v", entity, err)
+			}
+		}
 		return
 	}
 	entity, ok := wsMessageEntity[msg.Type]

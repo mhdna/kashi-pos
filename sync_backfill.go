@@ -15,6 +15,10 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
+// fullSyncHeartbeatInterval is how often ResyncAll renews kashi's
+// "this branch is syncing" lease, well inside kashi's 2-minute TTL.
+const fullSyncHeartbeatInterval = 30 * time.Second
+
 // ResyncOptions controls one "sync everything now" run.
 type ResyncOptions struct {
 	// ApplyStock pushes backfilled invoices as normal sales that move
@@ -123,11 +127,34 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	}
 
 	if !opts.DryRun {
+		// kashi treats start as a 2-minute lease (so a run that dies without
+		// sending end stops showing as syncing on its own); re-sending start
+		// every 30s keeps a long run marked for as long as it lasts.
 		if err := client.FullSyncStart(ctx); err != nil {
 			log.Printf("resync: notify sync start: %v", err)
 		}
+		stopHeartbeat := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(fullSyncHeartbeatInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-stopHeartbeat:
+					return
+				case <-ticker.C:
+					if err := client.FullSyncStart(ctx); err != nil {
+						log.Printf("resync: sync heartbeat: %v", err)
+					}
+				}
+			}
+		}()
 		defer func() {
-			if err := client.FullSyncEnd(ctx); err != nil {
+			close(stopHeartbeat)
+			// Its own context: end must still go out when the run failed
+			// because ctx was cancelled (e.g. the app shutting down).
+			endCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := client.FullSyncEnd(endCtx); err != nil {
 				log.Printf("resync: notify sync end: %v", err)
 			}
 		}()
@@ -139,9 +166,16 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 		StartedAt: time.Now().UTC(),
 	}
 
-	// 1. Pull master data down from the beginning. A missing sync_cursors
-	//    row already means "everything", so clearing them and running one
-	//    pull pass is the whole "brand-new till catches up" story.
+	// 1. Pull master data down. Against the server this till last fully
+	//    synced with, clients and products pull incrementally: re-downloading
+	//    them (65k clients is ~130 requests) bought nothing, since the
+	//    completeness check at step 5b already fetches any of them missing
+	//    or stale by comparing ids and versions. Every other entity is small
+	//    and has no such check, so its cursor is still cleared and it is
+	//    re-pulled whole. A different (or never-synced) server gets all
+	//    cursors cleared -- a "since" from another server means nothing --
+	//    and a missing sync_cursors row means "everything", which is the
+	//    brand-new-till story.
 	if !opts.DryRun {
 		// 0. Adopt kashi's uid for every client this branch had linked, so
 		//    the pull below matches them by uid, not by a phone that may
@@ -149,7 +183,14 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 		if _, err := a.adoptBranchClientUIDs(ctx, client); err != nil {
 			log.Printf("resync: adopt client uids: %v", err)
 		}
-		if err := retryBusy(func() error { return a.store.ClearSyncCursors(ctx) }); err != nil {
+		st, err := a.store.GetSyncState(ctx)
+		sameServer := err == nil && st.CurrentTarget != "" && st.CurrentTarget == client.baseURL
+		if err := retryBusy(func() error {
+			if sameServer {
+				return a.store.ClearSyncCursorsExcept(ctx, fullCheckEntities)
+			}
+			return a.store.ClearSyncCursors(ctx)
+		}); err != nil {
 			return report, fmt.Errorf("clear sync cursors: %w", err)
 		}
 		a.emitResyncProgress("pull", 0, 0)

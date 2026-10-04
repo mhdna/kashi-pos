@@ -42,3 +42,9 @@ ON CONFLICT (key) DO UPDATE SET enabled = excluded.enabled;
 -- folded into UpdateSettings: the admin command and the settings page both
 -- set these on their own.
 UPDATE settings SET split_primary_currency = ?, split_primary_first = ?, split_primary_step = ?;
+
+-- name: SetHomeBranchCode :exec
+UPDATE settings SET home_branch_code = ?;
+
+-- name: SetOversellMode :exec
+UPDATE settings SET oversell_mode = ?;

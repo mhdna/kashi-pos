@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"time"
 
 	db "kashi-pos/db/sqlc"
@@ -567,7 +568,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 // pullEntities lists what gets pulled from kashi on each tick. Adding a
 // new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
-var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories", "coupon_types", "coupons", "branches", "transfer_requests", "incoming_transfer_requests", "branch_stock"}
+var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories", "coupon_types", "coupons", "branches", "transfer_requests", "incoming_transfer_requests", "branch_stock", "quick_access"}
 
 // runSyncPullOnce catches this branch up on every entity in pullEntities,
 // one at a time. Each entity's cursor advances independently — a decode
@@ -592,7 +593,11 @@ func (a *App) runSyncPullOnce(ctx context.Context, client *centralClient) {
 // itself.
 func (a *App) runSyncPullLocked(ctx context.Context, client *centralClient) {
 	for _, entity := range pullEntities {
-		if err := a.pullEntityLocked(ctx, client, entity); err != nil {
+		// An older kashi answers an entity it doesn't know with an error.
+		if entity == "quick_access" && !a.kashiQuickAccess.Load() {
+			continue
+		}
+		if _, err := a.pullEntityLocked(ctx, client, entity); err != nil {
 			log.Printf("sync pull %s: %v", entity, err)
 		}
 	}
@@ -605,7 +610,8 @@ func (a *App) runSyncPullLocked(ctx context.Context, client *centralClient) {
 func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity string) error {
 	a.syncPullMu.Lock()
 	defer a.syncPullMu.Unlock()
-	return a.pullEntityLocked(ctx, client, entity)
+	_, err := a.pullEntityLocked(ctx, client, entity)
+	return err
 }
 
 // syncPullPageLimit is the page size the branch asks kashi for on the two
@@ -613,10 +619,12 @@ func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity 
 // the small entities ignore it and answer in one shot.
 const syncPullPageLimit = 500
 
-func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entity string) error {
+// pullEntityLocked reports whether the pull changed anything locally -- the
+// same condition that fires sync_applied:<entity> to the frontend.
+func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entity string) (bool, error) {
 	since, err := a.store.GetSyncCursor(ctx, entity)
 	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("load cursor: %w", err)
+		return false, fmt.Errorf("load cursor: %w", err)
 	}
 
 	// Walk pages until kashi stops handing back a next_cursor. Each page is
@@ -628,6 +636,7 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 	// an already-applied page is harmless.
 	pageCursor := ""
 	totalApplied := 0
+	wholeSetChanged := false
 	for {
 		changes, err := client.FetchChanges(ctx, fetchChangesParams{
 			Entity: entity,
@@ -636,19 +645,32 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 			Limit:  syncPullPageLimit,
 		})
 		if err != nil {
-			return fmt.Errorf("fetch changes: %w", err)
+			return false, fmt.Errorf("fetch changes: %w", err)
 		}
 
 		var rawItems []json.RawMessage
 		if err := json.Unmarshal(changes.Items, &rawItems); err != nil {
-			return fmt.Errorf("count items: %w", err)
+			return false, fmt.Errorf("count items: %w", err)
 		}
 		totalApplied += len(rawItems)
 		isLastPage := changes.NextCursor == ""
 
 		if err := a.store.ExecTx(ctx, func(q *db.Queries) error {
+			before, isWholeSet, err := wholeSetSnapshot(ctx, q, entity)
+			if err != nil {
+				return fmt.Errorf("snapshot before apply: %w", err)
+			}
 			if err := applySyncedEntityBatch(ctx, q, entity, changes.Items); err != nil {
 				return err
+			}
+			if isWholeSet {
+				after, _, err := wholeSetSnapshot(ctx, q, entity)
+				if err != nil {
+					return fmt.Errorf("snapshot after apply: %w", err)
+				}
+				if !reflect.DeepEqual(before, after) {
+					wholeSetChanged = true
+				}
 			}
 			if isLastPage {
 				return q.SetSyncCursor(ctx, db.SetSyncCursorParams{
@@ -658,7 +680,7 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 			}
 			return nil
 		}); err != nil {
-			return err
+			return false, err
 		}
 
 		if isLastPage {
@@ -670,11 +692,55 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 	// Tell the frontend to re-fetch, mirroring the WS push's "go re-fetch
 	// this" contract (see wsMessageEntity in sync_ws.go). Skipped when the
 	// whole walk applied nothing, so it doesn't fire every 15s for nothing.
-	if totalApplied > 0 {
+	// A whole-set entity always "applies" something (kashi resends the full
+	// set every pass), so for those only a real difference in the local
+	// table counts -- otherwise every open page listening for it (the
+	// Balance page, for one) reloads every 15s.
+	changed := totalApplied > 0
+	if _, isWholeSet := wholeSetEntities[entity]; isWholeSet {
+		changed = wholeSetChanged
+	}
+	if changed {
 		a.emitSyncApplied(entity)
 	}
 
-	return nil
+	return changed, nil
+}
+
+// wholeSetEntities are the entities kashi answers with its complete set on
+// every pull, ignoring `since` (see kashi's branch_catchup.go), so an
+// item count says nothing about whether anything changed.
+var wholeSetEntities = map[string]struct{}{
+	"currencies":       {},
+	"cashbox_accounts": {},
+	"branches":         {},
+	"quick_access":     {},
+}
+
+// wholeSetSnapshot reads the local table a whole-set entity is applied to,
+// so pullEntityLocked can compare it before and after the apply. All three
+// tables are tiny, and none has an updated_at column the apply would bump,
+// so the rows compare equal exactly when nothing changed. ok is false for
+// any other entity.
+func wholeSetSnapshot(ctx context.Context, q *db.Queries, entity string) (snapshot any, ok bool, err error) {
+	switch entity {
+	case "currencies":
+		snapshot, err = q.ListCurrencies(ctx)
+	case "cashbox_accounts":
+		snapshot, err = q.ListCashboxAccounts(ctx)
+	case "branches":
+		snapshot, err = q.ListSyncedBranches(ctx)
+	case "quick_access":
+		settings, sErr := q.GetSettings(ctx)
+		if sErr != nil {
+			return nil, true, sErr
+		}
+		items, iErr := q.ListCentralQuickAccessItems(ctx)
+		snapshot, err = []any{settings.QuickAccessMode, settings.QuickAccessModeChangedAt, items}, iErr
+	default:
+		return nil, false, nil
+	}
+	return snapshot, true, err
 }
 
 // applySyncedEntityBatch decodes one page of a catch-up response for
@@ -830,6 +896,16 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 		for _, item := range items {
 			if err := applySyncedBranch(ctx, q, item); err != nil {
 				return fmt.Errorf("apply branch %s: %w", item.Code, err)
+			}
+		}
+	case "quick_access":
+		var items []syncedQuickAccess
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedQuickAccess(ctx, q, item); err != nil {
+				return fmt.Errorf("apply quick access: %w", err)
 			}
 		}
 	case "transfer_requests":

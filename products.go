@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 
 	db "kashi-pos/db/sqlc"
@@ -122,6 +123,9 @@ func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
+	if a.quickAccessManagedInKashi() {
+		return a.listCentralQuickAccessProducts()
+	}
 	products, err := a.store.ListQuickAccessProducts(a.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list quick-access products: %w", err)
@@ -134,16 +138,83 @@ func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	colorRows, err := a.store.ListQuickAccessColors(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list quick-access colors: %w", err)
+	}
+	colors := make(map[int64]db.ListQuickAccessColorsRow, len(colorRows))
+	for _, row := range colorRows {
+		colors[row.ProductID] = row
+	}
 	result := make([]map[string]any, len(products))
 	for i, product := range products {
 		result[i] = productMap(product, listPricing, attrs[product.ID])
+		result[i]["quickAccessColor"] = colors[product.ID].Color
+		result[i]["quickAccessTextColor"] = colors[product.ID].TextColor
 	}
 	return result, nil
+}
+
+// listCentralQuickAccessProducts is ListQuickAccessProducts in 'kashi'
+// mode: kashi's branch list, same card shape.
+func (a *App) listCentralQuickAccessProducts() ([]map[string]any, error) {
+	rows, err := a.store.ListCentralQuickAccessProducts(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list central quick-access products: %w", err)
+	}
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, err
+	}
+	attrs, err := loadProductAttributeValues(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]any, len(rows))
+	for i, row := range rows {
+		result[i] = productMap(row.Product, listPricing, attrs[row.Product.ID])
+		result[i]["quickAccessColor"] = row.QaColor
+		result[i]["quickAccessTextColor"] = row.QaTextColor
+	}
+	return result, nil
+}
+
+var quickAccessColorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// SetQuickAccessColor sets the background and text colours of one
+// quick-access card ("" = default background / automatic text colour). Only
+// reachable from Settings, so it's admin-only.
+func (a *App) SetQuickAccessColor(productID int64, color string, textColor string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if a.quickAccessManagedInKashi() {
+		return errQuickAccessManagedInKashi
+	}
+	if !a.currentUserIsAdmin() {
+		return fmt.Errorf("only an admin can change quick-access colors")
+	}
+	if productID <= 0 {
+		return fmt.Errorf("invalid product")
+	}
+	for _, c := range []string{color, textColor} {
+		if c != "" && !quickAccessColorPattern.MatchString(c) {
+			return fmt.Errorf("invalid color %q", c)
+		}
+	}
+	return a.store.SetQuickAccessColor(a.ctx, db.SetQuickAccessColorParams{
+		Color:     strings.ToLower(color),
+		TextColor: strings.ToLower(textColor),
+		ProductID: productID,
+	})
 }
 
 func (a *App) AddQuickAccessProduct(productID int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
+	}
+	if a.quickAccessManagedInKashi() {
+		return errQuickAccessManagedInKashi
 	}
 	if productID <= 0 {
 		return fmt.Errorf("invalid product")
@@ -158,6 +229,9 @@ func (a *App) RemoveQuickAccessProduct(productID int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
+	if a.quickAccessManagedInKashi() {
+		return errQuickAccessManagedInKashi
+	}
 	if productID <= 0 {
 		return fmt.Errorf("invalid product")
 	}
@@ -167,6 +241,9 @@ func (a *App) RemoveQuickAccessProduct(productID int64) error {
 func (a *App) ReorderQuickAccessProducts(productIDs []int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
+	}
+	if a.quickAccessManagedInKashi() {
+		return errQuickAccessManagedInKashi
 	}
 	for i, id := range productIDs {
 		if err := a.store.SetQuickAccessPosition(a.ctx, db.SetQuickAccessPositionParams{

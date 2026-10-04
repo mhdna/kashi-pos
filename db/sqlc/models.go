@@ -126,6 +126,12 @@ type BranchTarget struct {
 	CreatedAt         string `json:"createdAt"`
 }
 
+type BranchTargetProgress struct {
+	TargetID      int64  `json:"targetId"`
+	AchievedCents int64  `json:"achievedCents"`
+	FetchedAt     string `json:"fetchedAt"`
+}
+
 type CashboxAccount struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
@@ -139,6 +145,13 @@ type CategoryIcon struct {
 	ID         int64  `json:"id"`
 	Icon       string `json:"icon"`
 	Categories string `json:"categories"`
+}
+
+type CentralQuickAccessItem struct {
+	ProductUid string `json:"productUid"`
+	Position   int64  `json:"position"`
+	Color      string `json:"color"`
+	TextColor  string `json:"textColor"`
 }
 
 type Client struct {
@@ -448,6 +461,8 @@ type QuickAccessItem struct {
 	ProductID int64  `json:"productId"`
 	Position  int64  `json:"position"`
 	CreatedAt string `json:"createdAt"`
+	Color     string `json:"color"`
+	TextColor string `json:"textColor"`
 }
 
 type ReturnInvoice struct {
@@ -493,47 +508,52 @@ type SalespersonAttendanceEvent struct {
 }
 
 type Setting struct {
-	BranchName             string         `json:"branchName"`
-	ApiKey                 string         `json:"apiKey"`
-	PrinterID              string         `json:"printerId"`
-	PrinterSize            string         `json:"printerSize"`
-	ReceiptPrinter         string         `json:"receiptPrinter"`
-	ScreenPort             string         `json:"screenPort"`
-	ReceiptWidth           int64          `json:"receiptWidth"`
-	ReceiptHeight          int64          `json:"receiptHeight"`
-	Theme                  string         `json:"theme"`
-	TaxRate                float64        `json:"taxRate"`
-	RoundingMode           string         `json:"roundingMode"`
-	ReceiptEnabled         int64          `json:"receiptEnabled"`
-	SalesInventoryID       int64          `json:"salesInventoryId"`
-	BranchCode             string         `json:"branchCode"`
-	ExchangeRate           int64          `json:"exchangeRate"`
-	MarketName             string         `json:"marketName"`
-	MarketPhone            string         `json:"marketPhone"`
-	MarketDescription      string         `json:"marketDescription"`
-	ReturnPolicy           string         `json:"returnPolicy"`
-	Website                string         `json:"website"`
-	Instagram              string         `json:"instagram"`
-	SocialPlatforms        string         `json:"socialPlatforms"`
-	SocialHandles          string         `json:"socialHandles"`
-	ReceiptFont            string         `json:"receiptFont"`
-	ReceiptTitleSize       float64        `json:"receiptTitleSize"`
-	ReceiptBodySize        float64        `json:"receiptBodySize"`
-	ReceiptCutoff          int64          `json:"receiptCutoff"`
-	ReceiptBodyFont        string         `json:"receiptBodyFont"`
-	BranchPhone            string         `json:"branchPhone"`
-	CounterNumber          string         `json:"counterNumber"`
-	MaxOverpaymentCents    int64          `json:"maxOverpaymentCents"`
-	RoundingCurrency       string         `json:"roundingCurrency"`
-	ExchangeWindowHours    int64          `json:"exchangeWindowHours"`
-	DefaultOpeningFloatUsd int64          `json:"defaultOpeningFloatUsd"`
-	DefaultOpeningFloatLbp int64          `json:"defaultOpeningFloatLbp"`
-	CentralApiUrl          string         `json:"centralApiUrl"`
-	ShiftReceiptUploadMode int64          `json:"shiftReceiptUploadMode"`
-	FullMirrorConfirmedAt  sql.NullString `json:"fullMirrorConfirmedAt"`
-	SplitPrimaryCurrency   string         `json:"splitPrimaryCurrency"`
-	SplitPrimaryFirst      int64          `json:"splitPrimaryFirst"`
-	SplitPrimaryStep       int64          `json:"splitPrimaryStep"`
+	BranchName               string         `json:"branchName"`
+	ApiKey                   string         `json:"apiKey"`
+	PrinterID                string         `json:"printerId"`
+	PrinterSize              string         `json:"printerSize"`
+	ReceiptPrinter           string         `json:"receiptPrinter"`
+	ScreenPort               string         `json:"screenPort"`
+	ReceiptWidth             int64          `json:"receiptWidth"`
+	ReceiptHeight            int64          `json:"receiptHeight"`
+	Theme                    string         `json:"theme"`
+	TaxRate                  float64        `json:"taxRate"`
+	RoundingMode             string         `json:"roundingMode"`
+	ReceiptEnabled           int64          `json:"receiptEnabled"`
+	SalesInventoryID         int64          `json:"salesInventoryId"`
+	BranchCode               string         `json:"branchCode"`
+	ExchangeRate             int64          `json:"exchangeRate"`
+	MarketName               string         `json:"marketName"`
+	MarketPhone              string         `json:"marketPhone"`
+	MarketDescription        string         `json:"marketDescription"`
+	ReturnPolicy             string         `json:"returnPolicy"`
+	Website                  string         `json:"website"`
+	Instagram                string         `json:"instagram"`
+	SocialPlatforms          string         `json:"socialPlatforms"`
+	SocialHandles            string         `json:"socialHandles"`
+	ReceiptFont              string         `json:"receiptFont"`
+	ReceiptTitleSize         float64        `json:"receiptTitleSize"`
+	ReceiptBodySize          float64        `json:"receiptBodySize"`
+	ReceiptCutoff            int64          `json:"receiptCutoff"`
+	ReceiptBodyFont          string         `json:"receiptBodyFont"`
+	BranchPhone              string         `json:"branchPhone"`
+	CounterNumber            string         `json:"counterNumber"`
+	MaxOverpaymentCents      int64          `json:"maxOverpaymentCents"`
+	RoundingCurrency         string         `json:"roundingCurrency"`
+	ExchangeWindowHours      int64          `json:"exchangeWindowHours"`
+	DefaultOpeningFloatUsd   int64          `json:"defaultOpeningFloatUsd"`
+	DefaultOpeningFloatLbp   int64          `json:"defaultOpeningFloatLbp"`
+	CentralApiUrl            string         `json:"centralApiUrl"`
+	ShiftReceiptUploadMode   int64          `json:"shiftReceiptUploadMode"`
+	FullMirrorConfirmedAt    sql.NullString `json:"fullMirrorConfirmedAt"`
+	SplitPrimaryCurrency     string         `json:"splitPrimaryCurrency"`
+	SplitPrimaryFirst        int64          `json:"splitPrimaryFirst"`
+	SplitPrimaryStep         int64          `json:"splitPrimaryStep"`
+	HomeBranchCode           string         `json:"homeBranchCode"`
+	OversellMode             string         `json:"oversellMode"`
+	QuickAccessMode          string         `json:"quickAccessMode"`
+	QuickAccessModeChangedAt string         `json:"quickAccessModeChangedAt"`
+	QuickAccessReported      int64          `json:"quickAccessReported"`
 }
 
 type Shift struct {

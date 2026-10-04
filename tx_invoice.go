@@ -204,6 +204,17 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			return err
 		}
 		products, subtotal, discountedSubtotal, receiptItems, grandTotal := totals.Products, totals.Subtotal, totals.DiscountedSubtotal, totals.ReceiptItems, totals.GrandTotal
+		// "warn" is the sale screen's confirm (CheckOversell); only "block"
+		// is enforced here.
+		if settings.OversellMode == oversellBlock {
+			short, err := oversoldLines(a.ctx, q, settings, products)
+			if err != nil {
+				return err
+			}
+			if len(short) > 0 {
+				return oversellError(short)
+			}
+		}
 		roundingCurrency, err := resolveCurrency(a.ctx, q, settings.RoundingCurrency)
 		if err != nil {
 			return fmt.Errorf("rounding currency: %w", err)

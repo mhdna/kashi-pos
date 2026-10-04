@@ -105,6 +105,12 @@ DELETE FROM quick_access_items WHERE product_id = ?;
 -- name: SetQuickAccessPosition :exec
 UPDATE quick_access_items SET position = ? WHERE product_id = ?;
 
+-- name: ListQuickAccessColors :many
+SELECT product_id, color, text_color FROM quick_access_items WHERE color <> '' OR text_color <> '';
+
+-- name: SetQuickAccessColor :exec
+UPDATE quick_access_items SET color = ?, text_color = ? WHERE product_id = ?;
+
 -- name: GetPriceOverride :one
 SELECT * FROM price_overrides WHERE id = ?;
 

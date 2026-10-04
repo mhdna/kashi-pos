@@ -639,35 +639,9 @@ func (a *App) listInvoicesPage(cursorID int64, itemsPerPage int, filters Invoice
 		}
 	}
 
-	// Per-invoice sync dot (admin-only in the UI): "synced" only when the
-	// current central server confirmed it; "pending" while queued, retrying,
-	// or confirmed by a *different* server we're no longer pointed at;
-	// "failed" when kashi rejected it outright; "" when it was never queued.
-	syncByInvoice := make(map[int64]string, len(invoices))
-	if len(invoiceIDs) > 0 {
-		settings, _ := a.store.GetSettings(a.ctx)
-		target := strings.TrimRight(settings.CentralApiUrl, "/")
-		syncRows, err := a.store.SyncStateForInvoices(a.ctx, invoiceIDs)
-		if err != nil {
-			return InvoicePage{}, fmt.Errorf("invoice page sync state: %w", err)
-		}
-		for _, r := range syncRows {
-			if !r.Status.Valid {
-				continue
-			}
-			switch r.Status.String {
-			case "synced":
-				if target != "" && r.SyncedTo.Valid && strings.TrimRight(r.SyncedTo.String, "/") == target {
-					syncByInvoice[r.InvoiceID] = "synced"
-				} else {
-					syncByInvoice[r.InvoiceID] = "pending"
-				}
-			case "failed":
-				syncByInvoice[r.InvoiceID] = "failed"
-			case "pending":
-				syncByInvoice[r.InvoiceID] = "pending"
-			}
-		}
+	syncByInvoice, err := a.invoiceSyncStates(invoiceIDs)
+	if err != nil {
+		return InvoicePage{}, fmt.Errorf("invoice page sync state: %w", err)
 	}
 
 	result := make([]map[string]any, len(invoices))
@@ -698,22 +672,19 @@ func (a *App) listInvoicesPage(cursorID int64, itemsPerPage int, filters Invoice
 			"discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
 			"createdAt": inv.CreatedAt, "salespersonId": inv.SalespersonID, "salespersonName": inv.SalespersonName,
 			"settlementAccounts": settlementAccounts,
-			"syncState":          syncByInvoice[inv.ID],
+			"syncState":          syncByInvoice[inv.ID].State,
+			"syncError":          syncByInvoice[inv.ID].Error,
 		}
 	}
 	return InvoicePage{Items: result, Total: total}, nil
 }
 
-func settlementAccountLabel(name, currencyCode string) string {
+func settlementAccountLabel(name, _ string) string {
 	name = strings.TrimSpace(name)
-	currencyCode = strings.ToUpper(strings.TrimSpace(currencyCode))
 	if name == "" {
 		name = "Cash"
 	}
-	if currencyCode == "" || strings.Contains(strings.ToUpper(name), currencyCode) {
-		return name
-	}
-	return name + " " + currencyCode
+	return name
 }
 
 func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) {
@@ -902,4 +873,75 @@ func (a *App) incomeAccountTotals(shiftID int64) ([]db.ListIncomeAccountTotalsRo
 
 func isNonCollectedIncomeAccount(name string) bool {
 	return strings.EqualFold(strings.TrimSpace(name), "On Account")
+}
+
+// InvoiceSyncState drives the per-invoice sync column (admin-only in the
+// UI). State is "synced" only when the current central server confirmed it;
+// "pending" while queued, retrying, or confirmed by a *different* server
+// we're no longer pointed at (the list shows a spinner); "failed" when kashi
+// rejected it outright; "" when it was never queued. Error is the last push
+// error, if any -- e.g. why a pending invoice is still waiting.
+type InvoiceSyncState struct {
+	InvoiceID int64  `json:"invoiceId"`
+	State     string `json:"state"`
+	Error     string `json:"error"`
+}
+
+func (a *App) invoiceSyncStates(invoiceIDs []int64) (map[int64]InvoiceSyncState, error) {
+	states := make(map[int64]InvoiceSyncState, len(invoiceIDs))
+	if len(invoiceIDs) == 0 {
+		return states, nil
+	}
+	settings, _ := a.store.GetSettings(a.ctx)
+	target := strings.TrimRight(settings.CentralApiUrl, "/")
+	rows, err := a.store.SyncStateForInvoices(a.ctx, invoiceIDs)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		if !r.Status.Valid {
+			continue
+		}
+		var state string
+		switch r.Status.String {
+		case "synced":
+			if target != "" && r.SyncedTo.Valid && strings.TrimRight(r.SyncedTo.String, "/") == target {
+				state = "synced"
+			} else {
+				state = "pending"
+			}
+		case "failed":
+			state = "failed"
+		case "pending":
+			state = "pending"
+		default:
+			continue
+		}
+		s := InvoiceSyncState{InvoiceID: r.InvoiceID, State: state}
+		if state != "synced" {
+			s.Error = r.LastError.String
+		}
+		states[r.InvoiceID] = s
+	}
+	return states, nil
+}
+
+// GetInvoiceSyncStates lets an open invoice list refresh just its sync
+// column when the outbox moves (sync_state_changed), so a spinner turns into
+// a dot as soon as the upload lands -- without re-running the whole page
+// query and resetting the table under the cashier. Invoices that were never
+// queued are left out.
+func (a *App) GetInvoiceSyncStates(invoiceIDs []int64) ([]InvoiceSyncState, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	byID, err := a.invoiceSyncStates(invoiceIDs)
+	if err != nil {
+		return nil, err
+	}
+	states := make([]InvoiceSyncState, 0, len(byID))
+	for _, s := range byID {
+		states = append(states, s)
+	}
+	return states, nil
 }
