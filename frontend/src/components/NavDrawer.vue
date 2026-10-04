@@ -49,14 +49,14 @@
       </div>
 
       <div
-        v-if="auth.isAdmin"
-        class="sync-dot-wrap"
-        :title="syncDot.title"
-        role="button"
-        aria-label="Sync status"
-        @click="openSyncSettings"
+        :class="['sync-status', `sync-status--${syncState.tone}`, { 'sync-status--link': auth.isAdmin }]"
+        :title="syncState.title"
+        :role="auth.isAdmin ? 'button' : undefined"
+        :aria-label="`Sync: ${syncState.word}`"
+        @click="auth.isAdmin && openSyncSettings()"
       >
-        <v-icon icon="mdi-circle" size="12" :color="syncDot.color" />
+        <v-icon :icon="syncState.icon" size="20" />
+        <span class="sync-status-word">{{ syncState.word }}</span>
       </div>
 
       <v-list-item
@@ -85,15 +85,15 @@
       </div>
 
       <v-card-text class="options-grid options-grid--three px-4 pt-0 pb-4">
-        <v-card class="option-card" rounded="lg" variant="tonal" @click="openCloseShift">
+        <v-card class="option-card" rounded="lg" variant="text" @click="openCloseShift">
           <v-icon icon="mdi-close-circle-outline" size="44" />
           <span>Close Shift</span>
         </v-card>
-        <v-card class="option-card" rounded="lg" variant="tonal" @click="logout">
+        <v-card class="option-card" rounded="lg" variant="text" @click="logout">
           <v-icon icon="mdi-logout" size="44" />
           <span>Logout</span>
         </v-card>
-        <v-card class="option-card" rounded="lg" variant="tonal" @click="closeApp">
+        <v-card class="option-card" rounded="lg" variant="text" @click="closeApp">
           <v-icon icon="mdi-close" size="44" />
           <span>Close App</span>
         </v-card>
@@ -102,7 +102,7 @@
   </v-dialog>
 
   <v-dialog v-model="closeAppConfirmOpen" max-width="360">
-    <v-card rounded="xl">
+    <v-card class="options-dialog-card" rounded="xl">
       <v-card-title>Close app</v-card-title>
       <v-card-text>Are you sure you want to close the app?</v-card-text>
       <v-card-actions>
@@ -122,6 +122,7 @@ import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import { useSyncStatus } from "@/composables/useSyncStatus";
+import { useResyncStore } from "@/stores/resync";
 import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { Quit } from "../../wailsjs/runtime/runtime";
 
@@ -136,13 +137,23 @@ const {
 } = useVisitorCounter();
 
 const { status: syncStatus } = useSyncStatus();
-const syncDot = computed(() => {
+const resync = useResyncStore();
+const syncState = computed(() => {
   const st = syncStatus.value;
-  if (!st || !st.configured) return { color: 'grey', title: 'Sync not set up' };
-  if (st.failed > 0) return { color: 'error', title: `${st.failed} record(s) rejected by kashi` };
+  if (resync.running)
+    return { tone: 'busy', icon: 'mdi-sync', word: 'Syncing', title: resync.progress || 'Full sync running' };
+  if (!st || !st.configured)
+    return { tone: 'off', icon: 'mdi-cloud-off-outline', word: 'Off', title: 'Sync not set up' };
+  if (st.failed > 0)
+    return { tone: 'error', icon: 'mdi-alert-circle', word: 'Error', title: `${st.failed} record(s) rejected by kashi` };
   if (st.pending > 0 || st.confirmedElsewhere > 0)
-    return { color: 'warning', title: `${st.pending + st.confirmedElsewhere} record(s) not yet confirmed here` };
-  return { color: 'success', title: 'Fully synced with kashi' };
+    return {
+      tone: 'busy',
+      icon: 'mdi-cloud-upload',
+      word: 'Syncing',
+      title: `${st.pending + st.confirmedElsewhere} record(s) not yet confirmed here`,
+    };
+  return { tone: 'ok', icon: 'mdi-cloud-check-variant', word: 'Synced', title: 'Fully synced with kashi' };
 });
 const { status: attendanceStatus } = useAttendanceStatus();
 
@@ -238,17 +249,38 @@ const items = computed(() => {
 </script>
 
 <style scoped>
-.sync-dot-wrap {
+.sync-status {
+  flex: 0 0 auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 6px 0;
+  gap: 2px;
+  padding: 8px 0;
+}
+.sync-status--link {
   cursor: pointer;
 }
+.sync-status-word {
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.sync-status--ok {
+  color: #66bb6a;
+}
+.sync-status--busy {
+  color: #ffb74d;
+}
+.sync-status--error {
+  color: #ef5350;
+}
+.sync-status--off {
+  color: #9e9e9e;
+}
 .nav-drawer {
-  background-color: #000000;
+  background-color: #0f1b2d;
   border: 0 !important;
-  border-right: 1px solid #1f1f1f !important;
+  border-right: 1px solid #1e2c42 !important;
   box-shadow: none !important;
 }
 
@@ -264,11 +296,11 @@ const items = computed(() => {
   flex: 1 1 0;
   min-height: 0;
   max-height: 80px;
-  color: #ffffff;
+  color: #e3ecf8;
 }
 
 .nav-item.v-list-item--active {
-  background-color: #2e2e2e;
+  background-color: #22375a;
 }
 
 .nav-item-content {
@@ -304,27 +336,27 @@ const items = computed(() => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid #000000;
+  border: 2px solid #0f1b2d;
 }
 
 .nav-status-dot--up {
   background-color: #43a047;
 }
 
+/* Recording-light blink. !important to get past the global animation kill
+   in styles/settings.scss, same as the progress-spinner exception there. */
 .nav-status-dot--down {
-  background-color: #d32f2f;
-  animation: nav-status-pulse 1.2s ease-in-out infinite;
+  background-color: #e53935;
+  animation: nav-status-pulse 1.4s ease-in-out infinite !important;
 }
 
 @keyframes nav-status-pulse {
   0%,
   100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7);
+    opacity: 1;
   }
   50% {
-    transform: scale(1.15);
-    box-shadow: 0 0 0 6px rgba(211, 47, 47, 0);
+    opacity: 0.2;
   }
 }
 
@@ -387,6 +419,10 @@ const items = computed(() => {
 
 .options-grid--three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.options-dialog-card {
+  border: 4px dotted rgba(0, 0, 0, 0.45);
 }
 
 .option-card {

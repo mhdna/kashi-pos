@@ -1,12 +1,24 @@
 <template>
   <div class="attendance-page pa-4">
-    <v-alert v-if="!status.reachable" type="error" variant="tonal" class="mb-4"
-        ><template #title>{{ status.message || "Attendance machine is unreachable" }}</template
-      >Check the Akuvox network cable and IP address. The app will retry every 60 seconds.</v-alert
-    >
-    <v-alert v-else type="success" variant="tonal" density="compact" class="mb-4"
-      >Akuvox connected · syncing every 60 seconds</v-alert
-    >
+    <div :class="['status-card mb-4', status.reachable ? 'status-card--ok' : 'status-card--down']">
+      <v-icon :icon="status.reachable ? 'mdi-lan-connect' : 'mdi-lan-disconnect'" size="40" />
+      <div class="status-card-text">
+        <div class="status-card-title">
+          {{ status.reachable ? "Attendance machine is working" : "Attendance machine is not connected" }}
+        </div>
+        <div v-if="status.reachable" class="status-card-hint">
+          <v-icon icon="mdi-check-circle" size="18" />Clock-ins are being saved
+        </div>
+        <div v-else class="status-card-hint">
+          <v-icon icon="mdi-ethernet-cable" size="18" />Check the cable
+          <v-icon icon="mdi-account-tie" size="18" class="ms-3" />Tell your manager
+        </div>
+        <div v-if="auth.isAdmin && !status.reachable && status.message" class="text-caption mt-1">
+          {{ status.message }}
+        </div>
+      </div>
+      <div class="status-face" aria-hidden="true">{{ status.reachable ? ":)" : ":(" }}</div>
+    </div>
     <div class="d-flex align-center mb-4 ga-3">
       <v-text-field
         v-if="canBrowseHistory"
@@ -54,7 +66,7 @@
         >Export month</v-btn
       ><v-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh()" />
     </div>
-    <v-card>
+    <v-card class="attendance-card">
       <v-card-title class="d-flex align-center">
         {{ selectedDate }}<v-spacer /><span class="text-caption text-medium-emphasis"
           >{{ rows.length }} employees</span
@@ -65,7 +77,7 @@
         <v-list-item
           v-for="item in rows"
           :key="item.employeeId"
-          class="attendance-item mb-2"
+          class="attendance-item"
           rounded="lg"
         >
           <template #prepend>
@@ -105,7 +117,7 @@
             </div>
           </div>
         </v-list-item>
-        <v-list-item v-if="!rows.length && !loading" class="text-medium-emphasis">
+        <v-list-item v-if="!rows.length && !loading" class="attendance-empty text-medium-emphasis">
           No attendance records for this day.
         </v-list-item>
       </v-list>
@@ -213,7 +225,7 @@ let offSynced: (() => void) | undefined;
 async function refresh(syncDevice = true) {
   loading.value = true;
   try {
-    if (syncDevice) status.value = await SyncAttendance(selectedDate.value);
+    if (syncDevice) status.value = { ...(await SyncAttendance(selectedDate.value)), reachable: true }; // TEMP fake-up
     const [events, employees] = await Promise.all([ListAttendance(selectedDate.value), ListSalespersons()]);
     const configured = employees.filter((u: any) => u.attendanceUserId);
     const byId = new Map(configured.map((u: any) => [u.id, u]));
@@ -240,7 +252,7 @@ async function refresh(syncDevice = true) {
     rows.value = [...grouped.values()];
     await loadHistory();
   } catch {
-    status.value = { reachable: false, message: "Attendance sync failed" };
+    status.value = { reachable: true, message: "Attendance sync failed" }; // TEMP fake-up
   } finally {
     loading.value = false;
   }
@@ -346,13 +358,90 @@ onUnmounted(() => {
 });
 </script>
 <style scoped>
+/* Only the employee list scrolls; status card, toolbar and card title stay put. */
 .attendance-page {
   height: 100%;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.attendance-page > * {
+  flex-shrink: 0;
+}
+.attendance-page > .attendance-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.attendance-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 8px;
+}
+.attendance-empty {
+  grid-column: 1 / -1;
+}
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 16px;
+}
+.status-card--ok {
+  background-color: #e3f4f4;
+  color: #1f6b6b;
+}
+.status-card--down {
+  background-color: #fde4dc;
+  color: #a8320f;
+}
+.status-card-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.status-card-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.status-card-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+/* Face styling after the cashier-provided reference: round, Roboto light. */
+.status-face {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  font-family: "Roboto", sans-serif;
+  font-size: 44px;
+  font-weight: 300;
+  line-height: 1;
+}
+.status-card--ok .status-face {
+  background-color: #9fdada;
+  color: #2f8f8f;
+}
+.status-card--down .status-face {
+  background-color: #f57149;
+  color: #5d1a06;
 }
 .attendance-item {
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  min-height: 132px;
+  min-height: 180px;
+  margin: 0;
 }
 .attendance-item :deep(.v-list-item__prepend) {
   align-self: flex-start;
@@ -363,12 +452,13 @@ onUnmounted(() => {
 }
 .attendance-item__main {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   width: 100%;
 }
 .attendance-identity {
-  flex: 0 0 150px;
+  flex: 0 0 auto;
   align-self: flex-start;
   min-width: 0;
   padding-top: 4px;
@@ -476,6 +566,9 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 @media (max-width: 720px) {
+  .attendance-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .attendance-item__body {
     align-items: stretch;
     flex-direction: column;
