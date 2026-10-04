@@ -179,6 +179,7 @@ import {
   getCountries,
   getCountryCallingCode,
   parsePhoneNumberFromString,
+  validatePhoneNumberLength,
   type CountryCode,
 } from "libphonenumber-js/mobile";
 import { GetClientByPhone, CreateClient } from "../../wailsjs/go/main/App";
@@ -189,7 +190,7 @@ import {
   toClient,
   type Client,
 } from "@/lib/client";
-import { formatLebanesePhone } from "@/lib/phone";
+import { formatLebanesePhone, normalizeLebanesePhone } from "@/lib/phone";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
 const emit = defineEmits<{ select: [client: Client] }>();
@@ -219,7 +220,6 @@ const countries = getCountries()
   .sort((a, b) => a.name.localeCompare(b.name));
 const selectedFlag = computed(() => flagForCountry(selectedCountry.value));
 const selectedDialCode = computed(() => getCountryCallingCode(selectedCountry.value));
-const phoneDigitLimit = computed(() => (selectedCountry.value === "LB" ? 8 : 15));
 const phoneError = computed(() =>
   phoneSubmitted.value && phone.value.trim() && !normalizePhone(phone.value)
     ? isLebanon(selectedCountry.value)
@@ -248,8 +248,26 @@ function isLebanon(code: string) {
 }
 
 function normalizePhone(value: string) {
+  if (value === "00000000") return value;
+  if (isLebanon(selectedCountry.value)) {
+    const lebanese = normalizeLebanesePhone(value);
+    if (lebanese) return lebanese;
+  }
   const parsed = parsePhoneNumberFromString(value, selectedCountry.value);
   return parsed?.isValid() ? parsed.number : value === "00000000" ? value : "";
+}
+
+// Blocks typing past the selected country's longest possible number (by its
+// numbering plan, so it allows for a typed national prefix like UK's 0).
+// Lebanon uses its own fixed 8-digit cap, see normalizeLebanesePhone.
+function exceedsPhoneLength(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (selectedCountry.value === "LB") return digits.length > 8;
+  return digits.length > 15 || validatePhoneNumberLength(digits, selectedCountry.value) === "TOO_LONG";
+}
+
+function replaceSelection(value: string, start: number, end: number, inserted: string) {
+  return value.slice(0, start) + inserted + value.slice(end);
 }
 
 function appendPhoneDigit(digit: string) {
@@ -257,7 +275,7 @@ function appendPhoneDigit(digit: string) {
   const rawPhone = phone.value.replace(/\D/g, "");
   const start = input?.selectionStart ?? rawPhone.length;
   const end = input?.selectionEnd ?? start;
-  if (rawPhone.length - (end - start) >= phoneDigitLimit.value) return;
+  if (exceedsPhoneLength(replaceSelection(rawPhone, start, end, digit))) return;
   phone.value = rawPhone.slice(0, start) + digit + rawPhone.slice(end);
   phoneSubmitted.value = false;
   restorePhoneCaret(start + 1);
@@ -268,9 +286,7 @@ function preventPhoneLength(event: KeyboardEvent) {
   const input = event.target as HTMLInputElement;
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? start;
-  const selectedDigits = (input.value.slice(start, end).match(/\d/g) || []).length;
-  const currentDigits = phone.value.replace(/\D/g, "").length;
-  if (currentDigits - selectedDigits >= phoneDigitLimit.value) event.preventDefault();
+  if (exceedsPhoneLength(replaceSelection(input.value, start, end, event.key))) event.preventDefault();
 }
 
 function preventPhoneLengthInput(event: InputEvent) {
@@ -278,12 +294,7 @@ function preventPhoneLengthInput(event: InputEvent) {
   const input = event.target as HTMLInputElement;
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? start;
-  const selectedDigits = (input.value.slice(start, end).match(/\d/g) || []).length;
-  const insertedDigits = (event.data.match(/\d/g) || []).length;
-  const currentDigits = phone.value.replace(/\D/g, "").length;
-  if (currentDigits - selectedDigits + insertedDigits > phoneDigitLimit.value) {
-    event.preventDefault();
-  }
+  if (exceedsPhoneLength(replaceSelection(input.value, start, end, event.data))) event.preventDefault();
 }
 
 function clearPhone() {

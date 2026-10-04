@@ -197,10 +197,62 @@ func isWalkInPhone(phone string) bool { return phone == walkInClientPhone }
 
 func isWalkInClient(c db.Client) bool { return isWalkInPhone(c.Phone) }
 
+// lebaneseMobilePrefixes are the 8-digit mobile ranges (Alfa/Touch). The
+// phonenumbers metadata lags behind here -- it rejects most of 78/79 -- so
+// Lebanese numbers are checked against this list first.
+var lebaneseMobilePrefixes = []string{"70", "71", "76", "78", "79", "81"}
+
+// normalizeLebanesePhone recognises a Lebanese number typed with or without
+// the leading 0, +961 or 00961, and returns it in E.164. Accepts mobiles
+// (03 and the 8-digit ranges above) and landlines (01, 04-09). ok is false
+// for anything else, including numbers with a non-Lebanese country code.
+func normalizeLebanesePhone(phone string) (string, bool) {
+	phone = strings.TrimSpace(phone)
+	if strings.HasPrefix(phone, "+") && !strings.HasPrefix(phone, "+961") {
+		return "", false
+	}
+	var digits strings.Builder
+	for _, r := range phone {
+		switch {
+		case r >= '0' && r <= '9':
+			digits.WriteRune(r)
+		case r == '+' || r == ' ' || r == '-' || r == '(' || r == ')':
+		default:
+			return "", false
+		}
+	}
+	n := digits.String()
+	switch {
+	case strings.HasPrefix(n, "00961"):
+		n = n[5:]
+	case strings.HasPrefix(n, "961") && len(n) >= 10:
+		n = n[3:]
+	}
+	n = strings.TrimPrefix(n, "0")
+	switch len(n) {
+	case 8:
+		for _, prefix := range lebaneseMobilePrefixes {
+			if strings.HasPrefix(n, prefix) {
+				return "+961" + n, true
+			}
+		}
+	case 7:
+		// 3xxxxxx is the old 03 mobile range; 1 and 4-9 are the regional
+		// landline codes (01 Beirut, 07 South, ...).
+		if strings.ContainsRune("13456789", rune(n[0])) {
+			return "+961" + n, true
+		}
+	}
+	return "", false
+}
+
 func normalizeClientPhone(phone string) (string, error) {
 	phone = strings.TrimSpace(phone)
 	if phone == walkInClientPhone {
 		return phone, nil
+	}
+	if normalized, ok := normalizeLebanesePhone(phone); ok {
+		return normalized, nil
 	}
 	parsed, err := phonenumbers.Parse(phone, "LB")
 	if err != nil {
