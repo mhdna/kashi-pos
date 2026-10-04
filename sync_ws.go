@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"slices"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -12,6 +13,19 @@ import (
 const (
 	wsBackoffBase = 2 * time.Second
 	wsBackoffMax  = 60 * time.Second
+)
+
+// wsPingInterval/wsPongWait/wsWriteWait mirror kashi's own heartbeat
+// (api/ws_conn.go) -- ping the server well inside how long we'll wait for a
+// pong, so a connection that's actually dead (kashi restarted, or something
+// in between silently dropped the TCP connection) is detected within
+// roughly wsPongWait instead of only surfacing whenever the OS eventually
+// reaps it. This channel is push-only from kashi's side and can otherwise
+// sit idle a long time between real messages.
+const (
+	wsPingInterval = 30 * time.Second
+	wsPongWait     = 60 * time.Second
+	wsWriteWait    = 10 * time.Second
 )
 
 // wsConfigRecheckInterval is how often a live session re-reads settings to
@@ -40,6 +54,11 @@ type wsMessage struct {
 	// other pushed message, that one needs to say *which* expense, not
 	// just "go re-fetch this kind of thing".
 	ClientRef string `json:"client_ref,omitempty"`
+	// Entities is set on "sync_changed": the pull entities kashi's
+	// database reported changes to (kashi's api/sync_notify.go).
+	Entities []string `json:"entities,omitempty"`
+	// Features is set on "hello", kashi's first message of a session.
+	Features []string `json:"features,omitempty"`
 }
 
 var wsMessageEntity = map[string]string{
@@ -185,6 +204,17 @@ func (a *App) sleepOrStop(d time.Duration) bool {
 // fires.
 func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 	defer conn.Close()
+	// Without a live session nothing is being pushed: back to full polling.
+	defer a.wsPushesAll.Store(false)
+	defer a.kashiQuickAccess.Store(false)
+	// kashi may have restarted while we were away; report settings afresh.
+	a.settingsReport.forget()
+
+	conn.SetReadDeadline(time.Now().Add(wsPongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(wsPongWait))
+		return nil
+	})
 
 	a.runSyncPullOnce(a.ctx, client)
 
@@ -231,12 +261,19 @@ func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 	recheck := time.NewTicker(wsConfigRecheckInterval)
 	defer recheck.Stop()
 
+	ping := time.NewTicker(wsPingInterval)
+	defer ping.Stop()
+
 	for {
 		select {
 		case <-a.wsClientStop:
 			return teardown(nil)
 		case <-a.wsClientKick:
 			return teardown(errWSReconnect)
+		case <-ping.C:
+			if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(wsWriteWait)); err != nil {
+				return teardown(err)
+			}
 		case <-recheck.C:
 			s, err := a.store.GetSettings(a.ctx)
 			if err != nil {
@@ -272,6 +309,31 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 	}
 	if msg.Type == "expense_images_uploaded" {
 		a.emitExpenseImagesUploaded(msg.ClientRef)
+		return
+	}
+	if msg.Type == "hello" {
+		// A kashi that pushes every change lets the pull loop slow down to a
+		// backstop. An older kashi sends no hello, and its tills keep the
+		// 15s poll. runWSSession clears this when the session ends.
+		a.wsPushesAll.Store(slices.Contains(msg.Features, "sync_changed"))
+		a.kashiQuickAccess.Store(slices.Contains(msg.Features, "quick_access"))
+		return
+	}
+	if msg.Type == "pull_all" {
+		// kashi's change feed had a gap; catch up on everything.
+		a.runSyncPullOnce(a.ctx, client)
+		return
+	}
+	if msg.Type == "sync_changed" {
+		for _, entity := range msg.Entities {
+			// A newer kashi may name an entity this build doesn't pull yet.
+			if !slices.Contains(pullEntities, entity) {
+				continue
+			}
+			if err := a.pullEntityOnce(a.ctx, client, entity); err != nil {
+				log.Printf("ws client: apply %s: %v", entity, err)
+			}
+		}
 		return
 	}
 	entity, ok := wsMessageEntity[msg.Type]

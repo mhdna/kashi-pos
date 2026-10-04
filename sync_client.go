@@ -128,6 +128,40 @@ func (c *centralClient) Health(ctx context.Context) error {
 	return nil
 }
 
+// FullSyncStart/End bracket a "Sync everything" run so the admin UI can show
+// this branch as syncing for as long as the run actually takes. Both are
+// best-effort from the caller's side (ResyncAll logs and carries on if
+// either fails) -- an older kashi deploy without the route, or a network
+// blip on the notify call, shouldn't block or fail the sync itself.
+func (c *centralClient) FullSyncStart(ctx context.Context) error {
+	return c.postNoBody(ctx, "/branch/sync/full_sync/start")
+}
+
+func (c *centralClient) FullSyncEnd(ctx context.Context) error {
+	return c.postNoBody(ctx, "/branch/sync/full_sync/end")
+}
+
+func (c *centralClient) postNoBody(ctx context.Context, path string) error {
+	if !c.enabled() {
+		return errCentralSyncDisabled
+	}
+	req, err := c.newRequest(ctx, http.MethodPost, path, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		var body centralErrorBody
+		json.NewDecoder(resp.Body).Decode(&body)
+		return fmt.Errorf("%s failed (status %d): %s", path, resp.StatusCode, body.Error)
+	}
+	return nil
+}
+
 // PostInvoice sends a raw, already-serialized branchInvoicePayload JSON body
 // to kashi. It's deliberately just []byte in, error out — the sync worker
 // stores the exact bytes it needs to send (sync_outbox.payload_json) and
@@ -555,8 +589,78 @@ func (c *centralClient) PostShiftReceiptImage(ctx context.Context, shiftRef, fil
 // putBranchSettings in api/branch_settings.go), so pushing the same
 // snapshot repeatedly is harmless -- unlike invoices, settings has no
 // client_ref/idempotency concept because there's nothing to deduplicate.
-func (c *centralClient) PutSettings(ctx context.Context, payloadJSON []byte) error {
-	return c.sendJSON(ctx, http.MethodPut, "/branch/settings", payloadJSON)
+// PutSettings reports this till's settings and returns the branch code
+// kashi has it under. The till logs in with its register code; once its
+// branch has several registers, the two differ. An older kashi omits the
+// field, which comes back as "".
+func (c *centralClient) PutSettings(ctx context.Context, payloadJSON []byte) (string, error) {
+	if !c.enabled() {
+		return "", errCentralSyncDisabled
+	}
+	const path = "/branch/settings"
+	req, err := c.newRequest(ctx, http.MethodPut, path, bytes.NewReader(payloadJSON))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", responseError(http.MethodPut, path, resp)
+	}
+
+	var out struct {
+		BranchCode string `json:"branch_code"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", nil
+	}
+	return out.BranchCode, nil
+}
+
+// branchTargetProgress is one row of kashi's GET /branch/targets/progress:
+// a target's branch-wide achieved amount (every register's synced sales).
+type branchTargetProgress struct {
+	ID       int64 `json:"id"`
+	Achieved int64 `json:"achieved"`
+}
+
+// GetTargetsProgress fetches branch-wide target progress. A kashi that
+// predates the endpoint answers 404, reported as ok=false so the caller
+// keeps showing this till's own sales only.
+func (c *centralClient) GetTargetsProgress(ctx context.Context) (progress []branchTargetProgress, ok bool, err error) {
+	if !c.enabled() {
+		return nil, false, errCentralSyncDisabled
+	}
+	const path = "/branch/targets/progress"
+	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, false, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, false, nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, false, responseError(http.MethodGet, path, resp)
+	}
+	var out struct {
+		Progress []branchTargetProgress `json:"progress"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, false, fmt.Errorf("decode targets progress: %w", err)
+	}
+	return out.Progress, true, nil
 }
 
 func (c *centralClient) sendJSON(ctx context.Context, method, path string, payloadJSON []byte) error {

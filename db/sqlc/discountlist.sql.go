@@ -29,7 +29,7 @@ func (q *Queries) DeleteDiscountListItemsForList(ctx context.Context, discountLi
 }
 
 const getDiscountListByID = `-- name: GetDiscountListByID :one
-SELECT id, name, is_active, created_at, uid, is_default FROM discount_lists WHERE id = ?
+SELECT id, name, is_active, created_at, uid, is_default, is_special FROM discount_lists WHERE id = ?
 `
 
 func (q *Queries) GetDiscountListByID(ctx context.Context, id int64) (DiscountList, error) {
@@ -42,12 +42,13 @@ func (q *Queries) GetDiscountListByID(ctx context.Context, id int64) (DiscountLi
 		&i.CreatedAt,
 		&i.Uid,
 		&i.IsDefault,
+		&i.IsSpecial,
 	)
 	return i, err
 }
 
 const getDiscountListByUID = `-- name: GetDiscountListByUID :one
-SELECT id, name, is_active, created_at, uid, is_default FROM discount_lists WHERE uid = ?
+SELECT id, name, is_active, created_at, uid, is_default, is_special FROM discount_lists WHERE uid = ?
 `
 
 func (q *Queries) GetDiscountListByUID(ctx context.Context, uid sql.NullString) (DiscountList, error) {
@@ -60,6 +61,7 @@ func (q *Queries) GetDiscountListByUID(ctx context.Context, uid sql.NullString) 
 		&i.CreatedAt,
 		&i.Uid,
 		&i.IsDefault,
+		&i.IsSpecial,
 	)
 	return i, err
 }
@@ -82,7 +84,7 @@ func (q *Queries) InsertDiscountListItem(ctx context.Context, arg InsertDiscount
 }
 
 const listActiveDiscountListItems = `-- name: ListActiveDiscountListItems :many
-SELECT dli.product_uid, dli.discount, dl.id AS list_id, dl.name AS list_name
+SELECT dli.product_uid, dli.discount, dl.id AS list_id, dl.name AS list_name, dl.is_special
 FROM discount_list_items dli
 JOIN discount_lists dl ON dl.id = dli.discount_list_id
 WHERE dl.is_active = 1
@@ -94,6 +96,7 @@ type ListActiveDiscountListItemsRow struct {
 	Discount   int64  `json:"discount"`
 	ListID     int64  `json:"listId"`
 	ListName   string `json:"listName"`
+	IsSpecial  int64  `json:"isSpecial"`
 }
 
 // See ListActivePriceListItems for why this is ordered by is_default DESC.
@@ -111,6 +114,7 @@ func (q *Queries) ListActiveDiscountListItems(ctx context.Context) ([]ListActive
 			&i.Discount,
 			&i.ListID,
 			&i.ListName,
+			&i.IsSpecial,
 		); err != nil {
 			return nil, err
 		}
@@ -160,7 +164,7 @@ func (q *Queries) ListDiscountListItems(ctx context.Context, discountListID int6
 
 const listDiscountLists = `-- name: ListDiscountLists :many
 
-SELECT id, name, is_active, created_at, uid, is_default FROM discount_lists ORDER BY name
+SELECT id, name, is_active, created_at, uid, is_default, is_special FROM discount_lists ORDER BY name
 `
 
 // Read-only mirror of kashi's discount lists -- see pricelist.sql, which this
@@ -181,6 +185,7 @@ func (q *Queries) ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 			&i.CreatedAt,
 			&i.Uid,
 			&i.IsDefault,
+			&i.IsSpecial,
 		); err != nil {
 			return nil, err
 		}
@@ -196,13 +201,14 @@ func (q *Queries) ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 }
 
 const upsertDiscountListByUID = `-- name: UpsertDiscountListByUID :one
-INSERT INTO discount_lists (uid, name, is_active, is_default)
-VALUES (?, ?, ?, ?)
+INSERT INTO discount_lists (uid, name, is_active, is_default, is_special)
+VALUES (?, ?, ?, ?, ?)
 ON CONFLICT (uid) DO UPDATE SET
     name = excluded.name,
     is_active = excluded.is_active,
-    is_default = excluded.is_default
-RETURNING id, name, is_active, created_at, uid, is_default
+    is_default = excluded.is_default,
+    is_special = excluded.is_special
+RETURNING id, name, is_active, created_at, uid, is_default, is_special
 `
 
 type UpsertDiscountListByUIDParams struct {
@@ -210,6 +216,7 @@ type UpsertDiscountListByUIDParams struct {
 	Name      string         `json:"name"`
 	IsActive  int64          `json:"isActive"`
 	IsDefault int64          `json:"isDefault"`
+	IsSpecial int64          `json:"isSpecial"`
 }
 
 func (q *Queries) UpsertDiscountListByUID(ctx context.Context, arg UpsertDiscountListByUIDParams) (DiscountList, error) {
@@ -218,6 +225,7 @@ func (q *Queries) UpsertDiscountListByUID(ctx context.Context, arg UpsertDiscoun
 		arg.Name,
 		arg.IsActive,
 		arg.IsDefault,
+		arg.IsSpecial,
 	)
 	var i DiscountList
 	err := row.Scan(
@@ -227,6 +235,7 @@ func (q *Queries) UpsertDiscountListByUID(ctx context.Context, arg UpsertDiscoun
 		&i.CreatedAt,
 		&i.Uid,
 		&i.IsDefault,
+		&i.IsSpecial,
 	)
 	return i, err
 }

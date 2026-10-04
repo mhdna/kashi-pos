@@ -1,5 +1,9 @@
 <template>
-  <section class="quick-access" :class="{ 'quick-access--open': open }">
+  <section
+    class="quick-access"
+    :class="{ 'quick-access--open': open }"
+    :style="{ '--qa-font-scale': quickAccessFontScale / 100 }"
+  >
     <div class="quick-access__toolbar">
       <div
         class="quick-access__toggle ps-2"
@@ -8,17 +12,23 @@
         <v-icon :icon="open ? 'mdi-arrow-down' : 'mdi-button-pointer'" size="18" />
       </div>
       <ProductSearchDialog
-        v-if="open"
+        v-if="open && !managedByKashi"
         activator-text=""
         activator-icon="mdi-plus"
         @select="addPinnedItem"
       />
+      <span
+        v-if="open && managedByKashi"
+        class="text-caption text-medium-emphasis ps-2"
+        title="This register shows its branch's Quick Access list from kashi; edit it there."
+        >from kashi</span
+      >
     </div>
-    <div v-if="open" class="quick-access__body">
+    <div v-if="open" class="quick-access__body" :style="{ height: `${bodyHeight}px` }">
       <div v-if="!items.length" class="text-caption text-medium-emphasis text-center pa-2">
-        Add frequently used items here.
+        {{ managedByKashi ? "No Quick Access cards set in kashi for this branch yet." : "Add frequently used items here." }}
       </div>
-      <div class="quick-access__items" :class="{ 'quick-access__items--dragging': dragIndex !== null }">
+      <div ref="itemsEl" class="quick-access__items" :class="{ 'quick-access__items--dragging': dragIndex !== null }">
         <v-card
           v-for="(item, index) in items"
           :key="item.code"
@@ -32,15 +42,29 @@
           elevation="1"
           rounded="lg"
           :aria-label="item.name"
+          :style="quickAccessCardStyle(item)"
           @pointerdown="onPointerDown(index, $event)"
           @click="onCardClick(item, $event)"
         >
-          <div class="quick-access__code text-caption text-truncate">{{ item.code }}</div>
-          <div class="quick-access__name text-caption font-weight-medium text-truncate">{{ item.name }}</div>
-          <div class="quick-access__price text-caption text-medium-emphasis">
-            ${{ Number(item.price).toFixed(2) }}
+          <!-- The invisible sizer always holds every line, so hiding the code or
+               name from Settings never makes the cards shorter. -->
+          <div class="quick-access__lines">
+            <div class="quick-access__sizer" aria-hidden="true">
+              <div class="quick-access__code text-caption">&nbsp;</div>
+              <div class="quick-access__name text-caption font-weight-medium">&nbsp;</div>
+              <div class="quick-access__price text-caption">&nbsp;</div>
+            </div>
+            <div class="quick-access__content">
+              <div v-if="quickAccessShowCode" class="quick-access__code text-caption text-truncate">{{ item.code }}</div>
+              <div v-if="quickAccessShowName" class="quick-access__name text-caption font-weight-medium text-truncate">{{ item.name }}</div>
+              <div class="quick-access__price text-caption">
+                <template v-if="item.priced !== false">${{ Number(item.price).toFixed(2) }}</template>
+                <template v-else>No price</template>
+              </div>
+            </div>
           </div>
           <v-btn
+            v-if="quickAccessShowRemove && !managedByKashi"
             icon
             size="x-small"
             variant="text"
@@ -71,15 +95,25 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  quickAccessRows,
+  quickAccessShowCode,
+  quickAccessShowName,
+  quickAccessShowRemove,
+  quickAccessCardStyle,
+  quickAccessFontScale,
+} from "@/lib/display";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import {
   AddQuickAccessProduct,
   GetProductByCode,
+  GetQuickAccessSource,
   ListQuickAccessProducts,
   RemoveQuickAccessProduct,
   ReorderQuickAccessProducts,
 } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 type QuickAccessItem = {
   id?: number;
@@ -87,9 +121,15 @@ type QuickAccessItem = {
   code: string;
   category: string;
   price: number;
+  /** false when no active price list prices it (shown as "No price"). */
+  priced?: boolean;
   discount: number;
   qty: number;
   barcode?: string;
+  /** #rrggbb set by an admin in Settings, or "" for the default card colour. */
+  quickAccessColor?: string;
+  /** #rrggbb text colour override, or "" to pick black/white automatically. */
+  quickAccessTextColor?: string;
 };
 
 const emit = defineEmits<{ add: [item: QuickAccessItem] }>();
@@ -121,13 +161,61 @@ watch(
   { deep: true },
 );
 
-onMounted(loadQuickAccess);
+// Prices and products pushed from kashi update the cards in place, instead of
+// waiting for the panel to be reopened. Skipped mid-drag so a reload can't
+// yank a card out from under the cashier's finger.
+let stopSyncListeners: (() => void)[] = [];
+function reloadAfterSync() {
+  if (dragIndex.value === null) void loadQuickAccess();
+}
+onMounted(() => {
+  void loadQuickAccess();
+  stopSyncListeners = ["products", "price_lists", "discount_lists", "quick_access"].map((entity) =>
+    EventsOn(`sync_applied:${entity}`, reloadAfterSync),
+  );
+});
+onBeforeUnmount(() => stopSyncListeners.forEach((stop) => stop()));
+
+// The body is sized to show exactly `quickAccessRows` rows of cards (set by an
+// admin in Settings); anything beyond that scrolls. Card height depends on the
+// font size, so measure a real card instead of hard-coding it.
+const ROW_GAP = 4; // matches .quick-access__items gap
+const BODY_CHROME = 6; // .quick-access__items margin-top + .quick-access__body padding-bottom
+const itemsEl = ref<HTMLElement | null>(null);
+const rowHeight = ref(58);
+const bodyHeight = computed(() => {
+  const rows = Math.max(quickAccessRows.value, 1);
+  return rows * rowHeight.value + (rows - 1) * ROW_GAP + BODY_CHROME;
+});
+
+function measureRowHeight() {
+  const card = itemsEl.value?.querySelector<HTMLElement>(".quick-access__item");
+  if (card?.offsetHeight) rowHeight.value = card.offsetHeight;
+}
+const rowObserver = new ResizeObserver(measureRowHeight);
+watch(
+  [itemsEl, () => items.value.length],
+  async () => {
+    await nextTick();
+    rowObserver.disconnect();
+    const card = itemsEl.value?.querySelector<HTMLElement>(".quick-access__item");
+    if (card) rowObserver.observe(card);
+    measureRowHeight();
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => rowObserver.disconnect());
+
+// In 'kashi' mode the cards are the branch's list from kashi: read-only here
+// (no add, remove or drag). See kashi-pos's sync_quick_access.go.
+const managedByKashi = ref(false);
 
 async function loadQuickAccess() {
   const legacyItems = [...items.value];
   try {
+    managedByKashi.value = (await GetQuickAccessSource()).mode === "kashi";
     let saved = ((await ListQuickAccessProducts()) as QuickAccessItem[]) ?? [];
-    if (!saved.length && legacyItems.length) {
+    if (!saved.length && legacyItems.length && !managedByKashi.value) {
       for (const item of legacyItems) {
         try {
           const product = item.id ? item : ((await GetProductByCode(item.code)) as QuickAccessItem);
@@ -186,6 +274,7 @@ let suppressClick = false;
 let sourceEl: HTMLElement | null = null;
 
 function onPointerDown(index: number, event: PointerEvent) {
+  if (managedByKashi.value) return; // kashi's order; taps still go to onCardClick
   if ((event.target as HTMLElement).closest(".quick-access__remove")) return;
   if (event.pointerType === "mouse" && event.button !== 0) return;
 
@@ -297,7 +386,8 @@ function onCardClick(item: QuickAccessItem, event: MouseEvent) {
   transition: none !important;
 }
 .quick-access--open {
-  flex-basis: 240px;
+  flex: 0 1 auto;
+  min-height: 0;
 }
 .quick-access:not(.quick-access--open) {
   align-self: flex-start;
@@ -359,12 +449,35 @@ function onCardClick(item: QuickAccessItem, event: MouseEvent) {
   outline: 2px solid rgb(var(--v-theme-primary));
   outline-offset: -2px;
 }
+.quick-access__lines {
+  display: grid;
+  min-width: 0;
+}
+.quick-access__sizer,
+.quick-access__content {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.quick-access__sizer {
+  visibility: hidden;
+}
+.quick-access__content {
+  align-self: center;
+}
+.quick-access__content .quick-access__price {
+  opacity: var(--v-medium-emphasis-opacity);
+}
+/* --qa-font-scale is the admin's "Quick access text size" from Settings. The
+   sizer lines share these classes, so the card (and row height) grow with it. */
+.quick-access__name {
+  font-size: calc(var(--kashi-font-size-base) * var(--qa-font-scale, 1)) !important;
+}
 .quick-access__price {
-  font-size: var(--kashi-font-size-base) !important;
+  font-size: calc(var(--kashi-font-size-base) * var(--qa-font-scale, 1)) !important;
   line-height: 1.15;
 }
 .quick-access__code {
-  font-size: 0.7rem !important;
+  font-size: calc(0.7rem * var(--qa-font-scale, 1)) !important;
   line-height: 1.15;
 }
 .quick-access__remove {

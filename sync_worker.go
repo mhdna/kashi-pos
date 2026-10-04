@@ -20,6 +20,11 @@ const (
 	syncWorkerBatchSize      = 200
 	syncBackoffBase          = 5 * time.Second
 	syncBackoffMax           = time.Hour
+	// While kashi pushes every change (see runPullTick), the full pull is
+	// only a backstop for a lost push, and target progress -- which isn't
+	// pushed -- is polled on its own, shorter interval.
+	syncPullBackstopInterval = 5 * time.Minute
+	syncTargetsPollInterval  = time.Minute
 )
 
 // startSyncWorker launches two background goroutines: a push loop that
@@ -111,10 +116,38 @@ func (a *App) syncClient(ctx context.Context, what string) *centralClient {
 // else. It keeps running even during a "sync everything" pass so a live
 // sale still reaches kashi promptly; its writes ride the same retryBusy
 // path the resync uses.
+//
+// While kashi is unreachable it waits out pushLink's backoff instead of
+// timing out on every row; the first pass after that (or after startup)
+// probes /branch/health, and if kashi answers, releases every pending row at
+// once -- see sync_push_link.go.
 func (a *App) runPushTick(ctx context.Context) {
 	client := a.syncClient(ctx, "push")
 	if client == nil {
 		return
+	}
+	if a.pushLink.waiting(time.Now()) {
+		return
+	}
+	if !a.pushLink.isUp() {
+		// Any answer at all (even a 401) means the network is fine; only a
+		// request that got no answer keeps the link down.
+		if err := client.Health(ctx); err != nil && isNetworkError(err) {
+			a.pushLink.markDown(time.Now())
+			return
+		}
+		var released int64
+		if err := retryBusy(func() error {
+			var e error
+			released, e = a.store.MakePendingSyncOutboxDueNow(ctx)
+			return e
+		}); err != nil {
+			log.Printf("sync outbox: release pending rows: %v", err)
+		}
+		if released > 0 {
+			log.Printf("sync outbox: kashi reachable again, released %d backed-off rows", released)
+		}
+		a.pushLink.markUp()
 	}
 	if err := a.runSyncOutboxOnce(ctx, client); err != nil {
 		log.Printf("sync outbox: %v", err)
@@ -135,16 +168,45 @@ func (a *App) runSyncTick(ctx context.Context) {
 // pending commands, and pull master-data changes. The pull stands down
 // during a resync -- ResyncAll holds syncPullMu for its whole run anyway,
 // so a tick pull would just block.
+//
+// It ticks every 15s, but what it polls depends on what kashi pushes:
+//   - kashi unreachable (the push loop's pushLink is backing off): nothing.
+//     Every request would only sit through its timeout.
+//   - connected to a kashi that pushes every change (wsPushesAll): the full
+//     pull and the commands check are a backstop every
+//     syncPullBackstopInterval, since pushes already deliver both within a
+//     second; target progress (other registers' sales, not pushed) every
+//     syncTargetsPollInterval.
+//   - otherwise (no live session, or an older kashi): all of it, every tick.
 func (a *App) runPullTick(ctx context.Context) {
 	client := a.syncClient(ctx, "pull")
 	if client == nil {
 		return
 	}
+	now := time.Now()
+	if a.pushLink.waiting(now) {
+		return
+	}
+	pushed := a.wsPushesAll.Load()
+
 	if err := a.pushSettings(ctx, client); err != nil {
 		log.Printf("sync settings: %v", err)
 	}
-	a.runPendingCommandsOnce(ctx, client)
+	// Local-queue driven: no request at all unless a photo is waiting.
 	a.runShiftReceiptUploadsOnce(ctx, client)
+
+	if !pushed || now.Sub(a.lastTargetsPullAt) >= syncTargetsPollInterval {
+		a.lastTargetsPullAt = now
+		if err := a.pullTargetsProgress(ctx, client); err != nil {
+			log.Printf("sync targets progress: %v", err)
+		}
+	}
+	if pushed && now.Sub(a.lastFullPullAt) < syncPullBackstopInterval {
+		return
+	}
+	a.lastFullPullAt = now
+	a.maybeReportQuickAccess(ctx, client)
+	a.runPendingCommandsOnce(ctx, client)
 	if !a.resyncActive.Load() {
 		a.runSyncPullOnce(ctx, client)
 		a.maybeRunFullCheck(ctx, client)
@@ -182,6 +244,12 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 		}
 	}()
 
+	// Stop at the first network failure: every remaining row would only sit
+	// through its own timeout too. They stay due; pushLink decides when the
+	// next pass tries again.
+	downsAtStart := a.pushLink.downCount()
+	linkFailed := func() bool { return a.pushLink.downCount() != downsAtStart }
+
 	// Coalesce all due visitor-counter presses into a single batched POST.
 	// The write path queues one row per press so the local log stays exact;
 	// draining them one HTTP call each turns a rapid ▲▲▲▲▲ into a serial
@@ -202,6 +270,9 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 	if a.drainVisitorEventBatch(ctx, client, visitorEntries) {
 		changed = true
 	}
+	if linkFailed() {
+		return nil
+	}
 
 	// A lone client row is the live checkout path (a buyer queued right
 	// before their invoice): send it the plain per-row way. Two or more is
@@ -216,6 +287,9 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 
 	sent := 0
 	for _, entry := range rest {
+		if linkFailed() {
+			return nil
+		}
 		// A row queued after this pass fetched its list (a fresh sale)
 		// can't be in `rest`; without this a long pass makes it wait out
 		// every remaining row. Bail so the pending kick starts a new
@@ -312,10 +386,13 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 		}); err != nil {
 			log.Printf("sync outbox entry %d: mark synced: %v", entry.ID, err)
 		}
+		if entry.EntityType == "quick_access_mode" {
+			a.afterQuickAccessModePushed(client)
+		}
 		changed = true
 	}
 
-	if batchClients && !(sent > 0 && a.pushPreempted()) {
+	if batchClients && !linkFailed() && !(sent > 0 && a.pushPreempted()) {
 		if a.drainClientBatch(ctx, client, clientEntries) {
 			changed = true
 		}
@@ -412,6 +489,9 @@ func (a *App) drainClientsOneByOne(ctx context.Context, client *centralClient, e
 		}
 		if err := a.pushOneClient(ctx, client, path, entry); err != nil {
 			a.recordSyncOutboxError(ctx, entry, err)
+			if isNetworkError(err) {
+				break // the rest would time out too; see runSyncOutboxOnce
+			}
 			continue
 		}
 		a.markOutboxSynced(ctx, client, entry)
@@ -595,6 +675,8 @@ func branchInvoicePath(entityType string) (string, bool) {
 		return "/branch/attendance_changes", true
 	case "transfer_request":
 		return "/branch/transfer_requests", true
+	case "quick_access_mode":
+		return "/branch/quick_access/mode", true
 	default:
 		return "", false
 	}
@@ -603,7 +685,24 @@ func branchInvoicePath(entityType string) (string, bool) {
 // markSyncOutboxRetry schedules the next attempt with exponential backoff.
 // It never gives up — an offline branch may stay offline for a long time,
 // and that must not mean a sale silently stops trying to sync.
+//
+// A network error is not about this row: it stays due, keeps its attempt
+// count, and the connection as a whole backs off instead (pushLink). The
+// caller's pass stops at its next check (see runSyncOutboxOnce).
 func (a *App) markSyncOutboxRetry(ctx context.Context, entry db.SyncOutbox, postErr error) {
+	if isNetworkError(postErr) {
+		a.pushLink.markDown(time.Now())
+		if err := retryBusy(func() error {
+			return a.store.RecordSyncOutboxNetworkError(ctx, db.RecordSyncOutboxNetworkErrorParams{
+				LastError: postErr.Error(),
+				ID:        entry.ID,
+			})
+		}); err != nil {
+			log.Printf("sync outbox entry %d: record network error: %v", entry.ID, err)
+		}
+		return
+	}
+
 	delay := syncBackoffBase << entry.AttemptCount
 	if delay > syncBackoffMax || delay <= 0 {
 		delay = syncBackoffMax

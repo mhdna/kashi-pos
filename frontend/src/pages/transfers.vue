@@ -196,11 +196,13 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</v-snackbar>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from "vue";
 import QRCode from "qrcode";
 import {
   ListTransferRequests,
@@ -215,6 +217,7 @@ import { formatServerDateTime } from "@/lib/datetime";
 
 const tab = ref("outgoing");
 const required = (v: unknown) => !!v || "Required";
+const snackbar = reactive({ show: false, text: "" });
 
 function statusColor(s: string) {
   return (
@@ -290,6 +293,9 @@ async function submitCreate() {
     createDialog.value = false;
     await loadOutgoing();
     if (created?.clientRef) openUploadDialog(created.clientRef);
+  } catch (e: any) {
+    snackbar.text = e?.toString() || "Could not create transfer";
+    snackbar.show = true;
   } finally {
     creating.value = false;
   }
@@ -436,6 +442,9 @@ async function submitConfirm() {
     await ConfirmTransferRequest(incomingTarget.value.id, items, incomingNote.value);
     incomingDialog.value = false;
     await loadIncoming();
+  } catch (e: any) {
+    snackbar.text = e?.toString() || "Could not confirm receipt";
+    snackbar.show = true;
   } finally {
     confirming.value = false;
   }

@@ -478,3 +478,19 @@ SELECT id, name FROM clients WHERE id IN (sqlc.slice('ids'));
 
 -- name: ListInvoicePaymentsByInvoiceIDs :many
 SELECT invoice_id, cashbox_id, amount FROM invoice_payments WHERE invoice_id IN (sqlc.slice('ids'));
+
+-- name: SumInvoiceTotalNotOnCentralByDateRange :one
+-- This till's invoices in [date_from, date_to] that kashi hadn't received as
+-- of `as_of` (UTC, sqlite datetime format): still queued or rejected, or
+-- delivered after as_of. Added to kashi's branch-wide target progress
+-- fetched at as_of. Invoices with no outbox row are left out: those are
+-- either history restored from kashi (already in its figure) or sales from
+-- before this till synced. Plain SUM(grand_total) to match kashi's own
+-- figure (SumBranchRevenueForRange there).
+SELECT COALESCE(SUM(i.grand_total), 0)
+FROM invoices i
+JOIN invoice_client_refs r ON r.invoice_id = i.id
+JOIN sync_outbox o ON o.client_ref = r.client_ref
+WHERE date(i.created_at, 'localtime') >= sqlc.arg(date_from)
+  AND date(i.created_at, 'localtime') <= sqlc.arg(date_to)
+  AND (o.status != 'synced' OR o.synced_at > sqlc.arg(as_of));

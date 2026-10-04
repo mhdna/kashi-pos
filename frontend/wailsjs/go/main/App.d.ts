@@ -26,6 +26,8 @@ export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void
 
 export function CheckExpenseUploadStatus(arg1:string):Promise<boolean>;
 
+export function CheckOversell(arg1:string):Promise<main.OversellCheck>;
+
 export function CheckShiftReceiptCaptured(arg1:string):Promise<boolean>;
 
 export function CheckTransferUploadStatus(arg1:string):Promise<boolean>;
@@ -86,6 +88,10 @@ export function DeleteUser(arg1:number):Promise<void>;
 
 export function ExportAttendanceMonth(arg1:string):Promise<string>;
 
+export function ExportProductsCSV():Promise<string>;
+
+export function ExportQuickAccessCSV():Promise<string>;
+
 export function ForceSetAdminPassword(arg1:string):Promise<void>;
 
 export function GetAdminConfig():Promise<Record<string, any>>;
@@ -122,6 +128,8 @@ export function GetInvoiceDetails(arg1:number):Promise<Record<string, any>>;
 
 export function GetInvoiceForSettlementChange(arg1:number):Promise<Record<string, any>>;
 
+export function GetInvoiceSyncStates(arg1:Array<number>):Promise<Array<main.InvoiceSyncState>>;
+
 export function GetNextInvoiceCode(arg1:string):Promise<string>;
 
 export function GetOpenShift():Promise<Record<string, any>>;
@@ -131,6 +139,8 @@ export function GetPINLockoutStatus():Promise<Record<string, any>>;
 export function GetProductByBarcode(arg1:string):Promise<Record<string, any>>;
 
 export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
+
+export function GetQuickAccessSource():Promise<main.QuickAccessSource>;
 
 export function GetShiftExpectedTotals(arg1:number):Promise<Record<string, any>>;
 
@@ -153,6 +163,8 @@ export function GetVisitorCounterEnabled():Promise<boolean>;
 export function GetVisitorCountsForMonth(arg1:string):Promise<Record<string, number>>;
 
 export function HoldInvoice(arg1:string):Promise<number>;
+
+export function ImportPendingProductsCSV():Promise<main.ProductCSVImportResult>;
 
 export function IsStandaloneMode():Promise<boolean>;
 
@@ -240,6 +252,8 @@ export function OpenShift():Promise<Record<string, any>>;
 
 export function PayClientAccount(arg1:number,arg2:number,arg3:number):Promise<Record<string, any>>;
 
+export function PreviewProductsCSV():Promise<main.ProductCSVPreview>;
+
 export function PreviewShiftBalanceReplacement(arg1:number,arg2:number,arg3:number,arg4:number):Promise<main.ShiftBalanceReplacementPreview>;
 
 export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>>;
@@ -306,6 +320,8 @@ export function SetOpeningFloatEnabled(arg1:boolean):Promise<void>;
 
 export function SetOverchangeConfirmationEnabled(arg1:boolean):Promise<void>;
 
+export function SetOversellMode(arg1:string):Promise<void>;
+
 export function SetPageUnlocked(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
@@ -315,6 +331,10 @@ export function SetPriceChangeManualOverrideEnabled(arg1:boolean):Promise<void>;
 export function SetProductActive(arg1:number,arg2:boolean):Promise<void>;
 
 export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
+
+export function SetQuickAccessColor(arg1:number,arg2:string,arg3:string):Promise<void>;
+
+export function SetQuickAccessMode(arg1:string):Promise<void>;
 
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
 

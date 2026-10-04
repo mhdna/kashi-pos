@@ -26,3 +26,13 @@ ORDER BY target_amount_cents ASC;
 -- mirror of kashi's roster, so removing the local row outright is fine,
 -- unlike synced entities with local-only fields to preserve.
 DELETE FROM branch_targets WHERE remote_id = ?;
+
+-- name: DeleteBranchTargetProgress :exec
+DELETE FROM branch_target_progress;
+
+-- name: InsertBranchTargetProgress :exec
+INSERT INTO branch_target_progress (target_id, achieved_cents, fetched_at)
+VALUES (?, ?, ?);
+
+-- name: GetBranchTargetProgress :one
+SELECT * FROM branch_target_progress WHERE target_id = ?;

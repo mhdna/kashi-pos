@@ -4,7 +4,7 @@ SELECT * FROM coupon_types WHERE central_id = ?;
 -- name: UpsertCouponTypeByCentralID :one
 INSERT INTO coupon_types (central_id, name, value_cents, currency_code, is_active, reference_only, calculate_on_checkout, code_optional)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(central_id) DO UPDATE SET
+ON CONFLICT(central_id) WHERE central_id IS NOT NULL DO UPDATE SET
     name = excluded.name,
     value_cents = excluded.value_cents,
     currency_code = excluded.currency_code,
@@ -72,8 +72,11 @@ SELECT * FROM transfer_requests WHERE central_id = ?;
 -- column's NOT NULL UNIQUE (it's never read back by ref for these rows,
 -- only by central_id).
 INSERT INTO transfer_requests (client_ref, to_branch_code, note, status, direction, central_id, sender_branch_name)
-VALUES ('incoming-' || ?, '', ?, ?, 'incoming', ?, ?)
-ON CONFLICT(central_id) DO UPDATE SET
+VALUES (
+    'incoming-' || sqlc.arg(central_id), '', sqlc.arg(note), sqlc.arg(status), 'incoming',
+    sqlc.arg(central_id), sqlc.arg(sender_branch_name)
+)
+ON CONFLICT(central_id) WHERE central_id IS NOT NULL DO UPDATE SET
     note = excluded.note,
     status = excluded.status,
     sender_branch_name = excluded.sender_branch_name,
@@ -116,3 +119,21 @@ WHERE trim(sqlc.arg(search)) = ''
    OR p.code LIKE '%' || sqlc.arg(search) || '%' COLLATE NOCASE
 ORDER BY p.name, bs.barcode
 LIMIT 200;
+
+-- name: GetBranchStockRow :one
+SELECT * FROM branch_stock WHERE branch_code = ? AND variant_uid = ?;
+
+-- name: CountBranchStockRows :one
+SELECT COUNT(*) FROM branch_stock WHERE branch_code = ?;
+
+-- name: SumProductSoldNotOnCentral :one
+-- Units of one product this till sold that kashi's stock figure (fetched
+-- as of `as_of`) doesn't reflect yet: sales still queued, rejected, or
+-- delivered after as_of.
+SELECT COALESCE(SUM(ip.quantity), 0)
+FROM invoice_products ip
+JOIN sales_invoices s ON s.invoice_id = ip.invoice_id
+JOIN invoice_client_refs r ON r.invoice_id = ip.invoice_id
+JOIN sync_outbox o ON o.client_ref = r.client_ref
+WHERE ip.product_id = sqlc.arg(product_id)
+  AND (o.status != 'synced' OR o.synced_at > sqlc.arg(as_of));

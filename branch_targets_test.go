@@ -20,10 +20,12 @@ func TestListBranchTargetsWithProgress_OnlyCurrentMonth(t *testing.T) {
 		from, to time.Time
 		want     bool
 	}{
-		{1, firstOfMonth.AddDate(0, -1, 0), lastOfMonth.AddDate(0, -1, 0), false}, // last month
-		{2, firstOfMonth, lastOfMonth, true},                                      // this month
-		{3, firstOfMonth.AddDate(0, 1, 0), lastOfMonth.AddDate(0, 1, 0), false},   // next month
-		{4, firstOfMonth.AddDate(0, -1, 0), lastOfMonth.AddDate(0, 1, 0), true},   // quarter spanning now
+		// Last month ends the day before this one starts: lastOfMonth minus a
+		// month overflows (Oct 31 -> "Sep 31" = Oct 1) in a 31-day month.
+		{1, firstOfMonth.AddDate(0, -1, 0), firstOfMonth.AddDate(0, 0, -1), false}, // last month
+		{2, firstOfMonth, lastOfMonth, true},                                       // this month
+		{3, firstOfMonth.AddDate(0, 1, 0), lastOfMonth.AddDate(0, 1, 0), false},    // next month
+		{4, firstOfMonth.AddDate(0, -1, 0), lastOfMonth.AddDate(0, 1, 0), true},    // quarter spanning now
 	}
 	for _, s := range seed {
 		if err := store.UpsertBranchTarget(app.ctx, db.UpsertBranchTargetParams{

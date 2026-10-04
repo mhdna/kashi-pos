@@ -127,7 +127,7 @@
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
       />
-      <QuickAccessPanel v-if="pageMode !== 'settlement'" @add="(item) => invoiceItems?.addItem(item)" />
+      <QuickAccessPanel v-if="pageMode !== 'settlement' && quickAccessRows > 0" @add="(item) => invoiceItems?.addItem(item)" />
     </div>
     <div class="home-right-pane d-flex flex-column position-relative" style="flex: 5 5 0; min-width: 0">
       <div
@@ -227,6 +227,27 @@
   >
     {{ snackbar.text }}
   </v-snackbar>
+
+  <!-- "warn" oversell mode: the branch would go below zero on these
+       products. The cashier decides; kashi flags it either way. -->
+  <v-dialog v-model="oversellDialog.show" max-width="480" persistent>
+    <v-card>
+      <v-card-title>Not enough stock</v-card-title>
+      <v-card-text>
+        <p class="mb-3">The branch doesn't have enough of:</p>
+        <div v-for="line in oversellDialog.lines" :key="line.code" class="mb-1">
+          <strong>{{ line.name || line.code }}</strong> — {{ Math.max(line.available, 0) }} in stock,
+          {{ line.requested }} in this sale
+        </div>
+        <p class="mt-3 mb-0">Sell anyway? kashi will flag the stock to be corrected.</p>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn text="Cancel" @click="answerOversell(false)" />
+        <v-btn color="primary" text="Sell anyway" variant="flat" @click="answerOversell(true)" />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script lang="ts" setup>
@@ -238,6 +259,7 @@ import {
   VoidInvoice,
   CheckoutInvoice,
   CheckoutExchangeInvoice,
+  CheckOversell,
   SettleInvoicePayments,
   GetNextInvoiceCode,
   GetAppSettings,
@@ -259,6 +281,7 @@ import NoteButton from "@/components/NoteButton.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
+import { quickAccessRows } from "@/lib/display";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
@@ -828,6 +851,33 @@ async function onSettlementCheckout() {
   }
 }
 
+type OversellLine = { code: string; name: string; requested: number; available: number };
+const oversellDialog = reactive<{ show: boolean; lines: OversellLine[] }>({ show: false, lines: [] });
+let oversellAnswer: ((sell: boolean) => void) | null = null;
+
+function answerOversell(sell: boolean) {
+  oversellDialog.show = false;
+  oversellAnswer?.(sell);
+  oversellAnswer = null;
+}
+
+// Only "warn" asks here; "block" is refused by checkout itself. A failed
+// check never stops a sale.
+async function confirmOversellIfNeeded(itemsJSON: string): Promise<boolean> {
+  let check;
+  try {
+    check = await CheckOversell(itemsJSON);
+  } catch {
+    return true;
+  }
+  if (check?.mode !== "warn" || !check.lines?.length) return true;
+  oversellDialog.lines = check.lines;
+  oversellDialog.show = true;
+  return new Promise<boolean>((resolve) => {
+    oversellAnswer = resolve;
+  });
+}
+
 async function onCheckout() {
   if (pageMode.value === "settlement") {
     await onSettlementCheckout();
@@ -852,6 +902,7 @@ async function onCheckout() {
     snackbar.show = true;
     return;
   }
+  if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
   printing.value = receiptEnabled.value;
   try {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";

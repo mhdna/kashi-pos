@@ -2,8 +2,11 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -135,5 +138,51 @@ func TestWSSession_EndsOnConfigRecheck(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("runWSSession did not end after the bound config changed")
+	}
+}
+
+// kashi's database-driven change feed: "sync_changed" re-fetches exactly the
+// named entities (skipping any this build doesn't know), "pull_all" catches
+// up on everything after a gap in the feed.
+func TestHandleWSMessage_SyncChangedAndPullAll(t *testing.T) {
+	var mu sync.Mutex
+	var fetched []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		entity := r.URL.Query().Get("entity")
+		mu.Lock()
+		fetched = append(fetched, entity)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"entity":%q,"items":[],"server_time":"2026-10-04T00:00:00Z"}`, entity)
+	}))
+	defer server.Close()
+
+	app, _, _, _ := setUpTestInvoiceApp(t, server.URL)
+	client := newCentralClient(server.URL, "TEST01", "test-key")
+	take := func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		got := fetched
+		fetched = nil
+		return got
+	}
+
+	app.handleWSMessage(client, []byte(`{"type":"sync_changed","entities":["price_lists","entity_from_the_future","coupons"]}`))
+	if got := take(); !slices.Equal(got, []string{"price_lists", "coupons"}) {
+		t.Fatalf("sync_changed fetched %v, want [price_lists coupons]", got)
+	}
+
+	// Before kashi's hello says it supports Quick Access, that entity is
+	// skipped: an older kashi would answer it with an error.
+	withoutQuickAccess := slices.DeleteFunc(slices.Clone(pullEntities), func(e string) bool { return e == "quick_access" })
+	app.handleWSMessage(client, []byte(`{"type":"pull_all"}`))
+	if got := take(); !slices.Equal(got, withoutQuickAccess) {
+		t.Fatalf("pull_all (no hello) fetched %v, want every pull entity but quick_access", got)
+	}
+
+	app.handleWSMessage(client, []byte(`{"type":"hello","features":["sync_changed","quick_access"]}`))
+	app.handleWSMessage(client, []byte(`{"type":"pull_all"}`))
+	if got := take(); !slices.Equal(got, pullEntities) {
+		t.Fatalf("pull_all fetched %v, want every pull entity", got)
 	}
 }

@@ -69,11 +69,20 @@
         </v-menu>
       </template>
       <template #item.syncState="{ item }">
+        <v-progress-circular
+          v-if="item.syncState === 'pending'"
+          indeterminate
+          size="12"
+          width="2"
+          color="warning"
+          :title="syncDotTitle(item)"
+        />
         <v-icon
+          v-else
           icon="mdi-circle"
           size="10"
           :color="syncDotColor(item.syncState)"
-          :title="syncDotTitle(item.syncState)"
+          :title="syncDotTitle(item)"
         />
       </template>
       <template #item.invoiceCode="{ item }">
@@ -311,11 +320,13 @@ import {
   RoundInvoice,
   GetInvoiceDetails,
   GetInvoiceForSettlementChange,
+  GetInvoiceSyncStates,
   ListInvoicesFilteredPage,
   ListSalespersons,
   ReprintInvoice,
   SearchClients,
 } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { pendingSettlementInvoice } from "@/composables/useNavActions";
 import { toClient } from "@/lib/client";
@@ -411,8 +422,7 @@ function settlementAccountName(payment: any): string {
   const normalizedName = name.trim().toLowerCase();
   if (normalizedName.startsWith("on account")) return "On Account";
   if (normalizedName.startsWith("on coupon")) return "On Coupon";
-  const currency = String(payment.currencyCode || "USD").toUpperCase();
-  return name.toUpperCase().includes(currency) ? name : `${name} ${currency}`;
+  return name;
 }
 function formatDate(value?: string) {
   return value ? formatServerDateTime(value) : "Date unavailable";
@@ -450,11 +460,47 @@ function syncDotColor(state?: string) {
   if (state === "pending") return "warning";
   return "grey-lighten-1";
 }
-function syncDotTitle(state?: string) {
-  if (state === "synced") return "Confirmed on kashi";
-  if (state === "failed") return "Rejected by kashi";
-  if (state === "pending") return "Waiting to sync";
+function syncDotTitle(item: { syncState?: string; syncError?: string }) {
+  const reason = item.syncError ? ` (${item.syncError})` : "";
+  if (item.syncState === "synced") return "Confirmed on kashi";
+  if (item.syncState === "failed") return `Rejected by kashi${reason}`;
+  if (item.syncState === "pending") return item.syncError ? `Uploading — retrying${reason}` : "Uploading to kashi…";
   return "Not synced";
+}
+
+// Live sync column: whenever the outbox moves (an upload lands, fails, or
+// is retried), re-read just the invoices still showing a spinner and swap
+// in their new state -- not a full refresh(), which would reset the scroll
+// position and the loaded pages. sync_state_changed only fires on a real
+// transition, so this costs nothing while the till is idle or offline.
+let syncStatesInFlight = false;
+let syncStatesAgain = false;
+async function refreshSyncStates() {
+  if (syncStatesInFlight) {
+    syncStatesAgain = true;
+    return;
+  }
+  const pendingIds = items.value.filter((item) => item.syncState === "pending").map((item) => item.id);
+  if (pendingIds.length === 0) return;
+  syncStatesInFlight = true;
+  try {
+    const states = await GetInvoiceSyncStates(pendingIds);
+    if (!pageActive) return;
+    const byId = new Map(states.map((s) => [s.invoiceId, s]));
+    items.value = items.value.map((item) => {
+      const next = byId.get(item.id);
+      if (!next || (next.state === item.syncState && next.error === item.syncError)) return item;
+      return { ...item, syncState: next.state, syncError: next.error };
+    });
+  } catch {
+    // Best-effort: the next sync_state_changed tries again.
+  } finally {
+    syncStatesInFlight = false;
+    if (syncStatesAgain) {
+      syncStatesAgain = false;
+      void refreshSyncStates();
+    }
+  }
 }
 async function openInvoice(item: any) {
   try {
@@ -718,9 +764,15 @@ function ensureEditOptions(type: "client" | "salesperson"): Promise<void> {
   return salespersonOptionsPromise;
 }
 
-onMounted(() => void refresh());
+let stopSyncStateListener: (() => void) | null = null;
+
+onMounted(() => {
+  void refresh();
+  stopSyncStateListener = EventsOn("sync_state_changed", () => void refreshSyncStates());
+});
 
 onBeforeUnmount(() => {
+  stopSyncStateListener?.();
   pageActive = false;
   loadGeneration++;
   if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);

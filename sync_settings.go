@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -86,6 +89,8 @@ type branchSettingsPayload struct {
 	AttendanceEnabled                  bool   `json:"attendance_enabled"`
 	AttendanceDuplicateIntervalSeconds int64  `json:"attendance_duplicate_interval_seconds"`
 	AttendanceCashierHistory           bool   `json:"attendance_cashier_history"`
+
+	OversellMode string `json:"oversell_mode"`
 }
 
 // flagEnabled reads a feature_flags row as a bool, treating any read error
@@ -102,11 +107,48 @@ func (a *App) setFeatureFlagBool(ctx context.Context, key string, enabled bool) 
 	return a.store.SetFeatureFlag(ctx, db.SetFeatureFlagParams{Key: key, Enabled: boolInt(enabled)})
 }
 
-// pushSettings is called every sync tick (see runSyncTick in
-// sync_worker.go), not just on save, so kashi converges on this branch's
-// current settings even if a push was missed while offline -- there's no
-// outbox/idempotency tracking needed since it's a plain upsert, not an
-// event to deduplicate.
+// settingsResendInterval re-sends an unchanged settings report this often
+// anyway, so kashi's copy heals itself even if it was lost without the
+// connection dropping (e.g. kashi's database was restored).
+const settingsResendInterval = time.Hour
+
+// settingsReport remembers the last settings report kashi accepted, so
+// pushSettings only sends one when something changed. It's a report, not a
+// sync: kashi stores it per register to show what each till runs and warn
+// on drift, and answers with the till's branch code.
+type settingsReport struct {
+	mu     sync.Mutex
+	sum    [sha256.Size]byte
+	sentAt time.Time
+}
+
+// unchanged reports whether sum is what kashi last accepted, recently
+// enough that re-sending it would tell kashi nothing new.
+func (r *settingsReport) unchanged(sum [sha256.Size]byte, now time.Time) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return !r.sentAt.IsZero() && r.sum == sum && now.Sub(r.sentAt) < settingsResendInterval
+}
+
+func (r *settingsReport) accepted(sum [sha256.Size]byte, now time.Time) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sum, r.sentAt = sum, now
+}
+
+// forget makes the next pushSettings send regardless -- called when a new
+// WebSocket session starts, since kashi may have restarted meanwhile.
+func (r *settingsReport) forget() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sentAt = time.Time{}
+}
+
+// pushSettings is called every pull tick (see runPullTick in
+// sync_worker.go), so a change is reported within one tick however it was
+// made -- the settings page, a remote update_settings command, a feature
+// toggle -- but it only sends when the report differs from the one kashi
+// last accepted (see settingsReport), on a new session, or hourly.
 func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 	s, err := a.store.GetSettings(ctx)
 	if err != nil {
@@ -188,6 +230,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		AttendanceEnabled:                  attendanceEnabled,
 		AttendanceDuplicateIntervalSeconds: dupInterval,
 		AttendanceCashierHistory:           a.flagEnabled(ctx, attendanceCashierHistoryFlag),
+		OversellMode:                       s.OversellMode,
 	}
 
 	body, err := json.Marshal(payload)
@@ -195,8 +238,22 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		return fmt.Errorf("marshal settings payload: %w", err)
 	}
 
-	if err := client.PutSettings(ctx, body); err != nil {
+	// The target server is part of the fingerprint: a report kashi A
+	// accepted says nothing about kashi B.
+	sum := sha256.Sum256(append([]byte(client.baseURL+"\n"), body...))
+	if a.settingsReport.unchanged(sum, time.Now()) {
+		return nil
+	}
+
+	branchCode, err := client.PutSettings(ctx, body)
+	if err != nil {
 		return fmt.Errorf("push settings: %w", err)
+	}
+	a.settingsReport.accepted(sum, time.Now())
+	if branchCode != "" && branchCode != s.HomeBranchCode {
+		if err := a.store.SetHomeBranchCode(ctx, branchCode); err != nil {
+			return fmt.Errorf("save branch code: %w", err)
+		}
 	}
 	return nil
 }

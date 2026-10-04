@@ -31,13 +31,17 @@ var errDatabaseMissing = errors.New("database not found")
 var embeddedDB []byte
 
 type App struct {
-	ctx         context.Context
-	store       *db.Store
-	conn        *sql.DB
-	dbPath      string
-	admin       *adminServer
-	shiftUpload *shiftUploadServer
-	startupErr  error
+	ctx   context.Context
+	store *db.Store
+	// pendingProductsCSV holds the rows PreviewProductsCSV found, until
+	// ImportPendingProductsCSV writes them.
+	csvMu              sync.Mutex
+	pendingProductsCSV []productCSVRow
+	conn               *sql.DB
+	dbPath             string
+	admin              *adminServer
+	shiftUpload        *shiftUploadServer
+	startupErr         error
 
 	attendanceProbe     attendanceProbe
 	attendanceProbeStop chan struct{}
@@ -98,6 +102,23 @@ type App struct {
 	// produces "database is locked (517)". ResyncAll additionally holds
 	// syncPullMu for its whole run, which blocks the WS client's pulls too.
 	resyncActive atomic.Bool
+	// pushLink is whether kashi is reachable, as the push loop last saw it
+	// -- see sync_push_link.go.
+	pushLink pushLink
+	// wsPushesAll is true while a WebSocket session is open to a kashi that
+	// said (in its "hello") that it pushes every change to synced data. The
+	// pull loop then only polls as a slow backstop -- see runPullTick.
+	wsPushesAll atomic.Bool
+	// kashiQuickAccess: the live session's kashi supports central Quick
+	// Access (its hello lists "quick_access") -- see sync_quick_access.go.
+	kashiQuickAccess atomic.Bool
+	// lastFullPullAt / lastTargetsPullAt: when runPullTick last ran those
+	// steps. Only the pull loop goroutine touches them.
+	lastFullPullAt    time.Time
+	lastTargetsPullAt time.Time
+	// settingsReport is the last settings report kashi accepted -- see
+	// pushSettings.
+	settingsReport settingsReport
 	// backgroundWG lets shutdown wait for the sync worker and WS client
 	// goroutines to actually exit, not just signal them to — otherwise a
 	// goroutine can still be mid-tick (touching the SQLite file, e.g.
@@ -545,6 +566,18 @@ func (a *App) currentUserIsAdmin() bool {
 	a.pinMu.Lock()
 	defer a.pinMu.Unlock()
 	return a.currentRole == "admin"
+}
+
+// anyoneSignedInThisSession reports whether the login screen has been
+// passed yet this run of the app (PIN or admin password). SwitchBranch uses
+// this rather than "is a database open" -- a.store is set at startup before
+// the login screen ever renders, so that check never actually let the login
+// screen's own branch picker through; whether someone at the keyboard has
+// already proven who they are is the trust boundary that matters here.
+func (a *App) anyoneSignedInThisSession() bool {
+	a.pinMu.Lock()
+	defer a.pinMu.Unlock()
+	return a.currentRole != ""
 }
 
 func (a *App) ChangePassword(username, oldPassword, newPassword string) error {
@@ -1204,6 +1237,7 @@ func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
+	centralApiUrl = normalizeCentralAPIURL(centralApiUrl)
 	// GetSettings may legitimately have no row yet on a fresh install; the
 	// zero value's empty CentralApiUrl still gives the right "changed?"
 	// answer against a non-empty new URL.
@@ -1219,6 +1253,24 @@ func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
 		a.kickWSClient()
 	}
 	return nil
+}
+
+// normalizeCentralAPIURL defaults a bare host (e.g. "cloud.example.com",
+// typed without a scheme) to https://. Every central request is built as
+// baseURL+path with no scheme fallback of its own (see centralClient in
+// sync_client.go) -- a missing scheme doesn't error loudly, it just makes
+// every single central call fail, which looks like "sync does nothing" with
+// no obvious cause. Leaves an explicit http:// (e.g. a local dev server)
+// alone.
+func normalizeCentralAPIURL(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return trimmed
+	}
+	if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
+		return trimmed
+	}
+	return "https://" + trimmed
 }
 
 // SetSplitDisplay configures the till's two-currency total: which currency

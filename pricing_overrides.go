@@ -17,15 +17,17 @@ import (
 // the change: central decides what is sellable.
 
 type activePrice struct {
-	cents    int64
-	listID   int64
-	listName string
+	cents     int64
+	listID    int64
+	listName  string
+	isSpecial bool
 }
 
 type activeDiscount struct {
-	percent  int64
-	listID   int64
-	listName string
+	percent   int64
+	listID    int64
+	listName  string
+	isSpecial bool
 }
 
 // activePricing is every price and discount currently in force, keyed by
@@ -67,6 +69,7 @@ func loadActivePricing(ctx context.Context, q *db.Queries) (activePricing, error
 	for _, row := range priceRows {
 		pricing.prices[row.ProductUid] = activePrice{
 			cents: row.Price, listID: row.ListID, listName: row.ListName,
+			isSpecial: row.IsSpecial != 0,
 		}
 	}
 

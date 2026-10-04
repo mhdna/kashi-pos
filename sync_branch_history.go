@@ -66,6 +66,27 @@ func (a *App) PullBranchHistory() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("central sync is not fully configured")
 	}
 
+	// localHistoryIsEmpty just confirmed every local shift is inert (no
+	// counted money, float, or attached invoices/expenses/loans) -- clear
+	// those placeholder rows so the import below doesn't leave them sitting
+	// next to the real shift history it pulls down.
+	if err := retryBusy(func() error {
+		return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+			if err := q.DeleteAllShiftReceiptUploads(a.ctx); err != nil {
+				return err
+			}
+			if err := q.DeleteAllShiftBalanceReplacements(a.ctx); err != nil {
+				return err
+			}
+			if err := q.DeleteAllShiftsAccountsBalances(a.ctx); err != nil {
+				return err
+			}
+			return q.DeleteAllShifts(a.ctx)
+		})
+	}); err != nil {
+		return nil, fmt.Errorf("clear empty local shifts: %w", err)
+	}
+
 	// Guarantee the full product/client/price-list catalog is present before
 	// resolving any historical line item against it. Same primitive
 	// ResyncAll's own step 1 uses, without ResyncAll's push-up and
@@ -127,7 +148,7 @@ func (a *App) localHistoryIsEmpty() (bool, error) {
 	} else if n > 0 {
 		return false, nil
 	}
-	if n, err := a.store.CountShiftsAll(a.ctx); err != nil {
+	if n, err := a.store.CountActiveShiftsAll(a.ctx); err != nil {
 		return false, err
 	} else if n > 0 {
 		return false, nil

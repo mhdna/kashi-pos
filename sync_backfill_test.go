@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -615,5 +616,68 @@ func TestResyncAllDryRunNeverDeactivatesOrConfirms(t *testing.T) {
 	}
 	if settings.FullMirrorConfirmedAt.Valid {
 		t.Fatal("dry run must not set full_mirror_confirmed_at")
+	}
+}
+
+// "Sync everything" used to wipe every pull cursor, re-downloading all 65k
+// clients and the whole product catalog on each press. Against the server
+// the till already syncs with, clients and products now pull incrementally
+// (the completeness check covers them); the small entities are still
+// re-pulled whole. A first run, or a run against a different server, still
+// starts every entity from scratch.
+func TestResyncAllKeepsBigCursorsOnSameServer(t *testing.T) {
+	fc := newFakeCentral()
+	var mu sync.Mutex
+	pulledWhole := map[string]bool{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/branch/sync/changes" {
+			mu.Lock()
+			pulledWhole[r.URL.Query().Get("entity")] = r.URL.Query().Get("since") == ""
+			mu.Unlock()
+		}
+		fc.handler().ServeHTTP(w, r)
+	}))
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
+	run := func() map[string]bool {
+		t.Helper()
+		mu.Lock()
+		clear(pulledWhole)
+		mu.Unlock()
+		if _, err := app.ResyncAll(ResyncOptions{ConfirmDeactivation: true}); err != nil {
+			t.Fatal(err)
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		return maps.Clone(pulledWhole)
+	}
+
+	first := run()
+	for _, entity := range []string{"clients", "products", "currencies", "price_lists"} {
+		if !first[entity] {
+			t.Fatalf("first run: %s pulled incrementally, want whole", entity)
+		}
+	}
+
+	second := run()
+	for _, entity := range []string{"clients", "products"} {
+		if second[entity] {
+			t.Fatalf("second run against the same server re-downloaded all %s", entity)
+		}
+	}
+	for _, entity := range []string{"currencies", "price_lists", "coupons"} {
+		if !second[entity] {
+			t.Fatalf("second run: %s pulled incrementally, want whole", entity)
+		}
+	}
+
+	// Pointing the till at another server starts everything over.
+	if err := store.SetSyncTarget(app.ctx, "https://some-other-kashi.example"); err != nil {
+		t.Fatal(err)
+	}
+	third := run()
+	if !third["clients"] || !third["products"] {
+		t.Fatalf("run after a server change kept old cursors: %v", third)
 	}
 }

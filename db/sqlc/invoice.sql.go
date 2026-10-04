@@ -1680,6 +1680,36 @@ func (q *Queries) StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAc
 	return total, err
 }
 
+const sumInvoiceTotalNotOnCentralByDateRange = `-- name: SumInvoiceTotalNotOnCentralByDateRange :one
+SELECT COALESCE(SUM(i.grand_total), 0)
+FROM invoices i
+JOIN invoice_client_refs r ON r.invoice_id = i.id
+JOIN sync_outbox o ON o.client_ref = r.client_ref
+WHERE date(i.created_at, 'localtime') >= ?1
+  AND date(i.created_at, 'localtime') <= ?2
+  AND (o.status != 'synced' OR o.synced_at > ?3)
+`
+
+type SumInvoiceTotalNotOnCentralByDateRangeParams struct {
+	DateFrom string         `json:"dateFrom"`
+	DateTo   string         `json:"dateTo"`
+	AsOf     sql.NullString `json:"asOf"`
+}
+
+// This till's invoices in [date_from, date_to] that kashi hadn't received as
+// of `as_of` (UTC, sqlite datetime format): still queued or rejected, or
+// delivered after as_of. Added to kashi's branch-wide target progress
+// fetched at as_of. Invoices with no outbox row are left out: those are
+// either history restored from kashi (already in its figure) or sales from
+// before this till synced. Plain SUM(grand_total) to match kashi's own
+// figure (SumBranchRevenueForRange there).
+func (q *Queries) SumInvoiceTotalNotOnCentralByDateRange(ctx context.Context, arg SumInvoiceTotalNotOnCentralByDateRangeParams) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, sumInvoiceTotalNotOnCentralByDateRange, arg.DateFrom, arg.DateTo, arg.AsOf)
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
+}
+
 const updateInvoiceCashbox = `-- name: UpdateInvoiceCashbox :exec
 UPDATE invoices SET cashbox_id = ? WHERE id = ?
 `

@@ -13,6 +13,12 @@
         clearable
         class="products-search"
       />
+      <v-btn variant="tonal" prepend-icon="mdi-download" :loading="exporting" @click="exportCsv">
+        Export CSV
+      </v-btn>
+      <v-btn v-if="standalone" variant="tonal" prepend-icon="mdi-upload" :loading="previewing" @click="previewCsv">
+        Import CSV
+      </v-btn>
       <v-btn v-if="standalone" color="primary" prepend-icon="mdi-plus" @click="openCreate">
         Add product
       </v-btn>
@@ -46,7 +52,10 @@
           <td>{{ product.barcode }}</td>
           <td>{{ product.code }}</td>
           <td>{{ [product.color, product.size].filter(Boolean).join(" / ") }}</td>
-          <td class="text-right">{{ formatUsd(product.priceCents / 100) }}</td>
+          <td class="text-right">
+            <span v-if="product.priced">{{ formatUsd(product.priceCents / 100) }}</span>
+            <span v-else class="text-medium-emphasis" title="No active price list prices this product yet">No price</span>
+          </td>
           <td class="text-right">{{ product.discount ? `${product.discount}%` : "" }}</td>
           <td>
             <v-chip v-if="!product.isActive" size="x-small" variant="tonal">Inactive</v-chip>
@@ -127,19 +136,75 @@
     </v-card>
   </v-dialog>
 
+  <v-dialog v-model="importOpen" max-width="640" :persistent="importing">
+    <v-card>
+      <v-card-title>{{ importResult ? "Import finished" : "Import products from CSV" }}</v-card-title>
+      <v-card-text>
+        <template v-if="!importResult && csvPreview">
+          <div class="text-body-2 text-medium-emphasis mb-3 text-truncate">{{ csvPreview.file }}</div>
+          <div class="d-flex flex-wrap ga-4 mb-3">
+            <span><strong>{{ csvPreview.total }}</strong> rows</span>
+            <span class="text-success"><strong>{{ csvPreview.new }}</strong> new</span>
+            <span class="text-medium-emphasis"><strong>{{ csvPreview.existing }}</strong> already here (skipped)</span>
+            <span :class="csvPreview.invalid ? 'text-error' : 'text-medium-emphasis'">
+              <strong>{{ csvPreview.invalid }}</strong> with problems
+            </span>
+          </div>
+          <div class="text-body-2">
+            New products are added with their price in the Default price list, so they can be sold right away.
+          </div>
+        </template>
+        <div v-else-if="importResult" class="d-flex flex-wrap ga-4 mb-3">
+          <span class="text-success"><strong>{{ importResult.imported }}</strong> imported</span>
+          <span :class="importResult.failed ? 'text-error' : 'text-medium-emphasis'">
+            <strong>{{ importResult.failed }}</strong> failed
+          </span>
+        </div>
+        <v-table v-if="importProblems.length" density="compact" class="csv-problems mt-3">
+          <thead>
+            <tr><th class="text-right">Line</th><th>Barcode</th><th>Problem</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="problem in importProblems" :key="problem.line + problem.barcode">
+              <td class="text-right">{{ problem.line }}</td>
+              <td>{{ problem.barcode }}</td>
+              <td>{{ problem.message }}</td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <template v-if="importResult">
+          <v-btn color="primary" @click="importOpen = false">Done</v-btn>
+        </template>
+        <template v-else>
+          <v-btn variant="text" :disabled="importing" @click="importOpen = false">Cancel</v-btn>
+          <v-btn color="primary" :loading="importing" :disabled="!csvPreview?.new" @click="importCsv">
+            Import {{ csvPreview?.new ?? 0 }} new
+          </v-btn>
+        </template>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <v-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</v-snackbar>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import {
   CreateProduct,
   DeleteProduct,
+  ExportProductsCSV,
+  ImportPendingProductsCSV,
   IsStandaloneMode,
   ListManagedProducts,
+  PreviewProductsCSV,
   UpdateProduct,
 } from "../../wailsjs/go/main/App";
 import { main } from "../../wailsjs/go/models";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { useAuthStore } from "@/stores/auth";
 import { formatUsd } from "@/lib/format";
 
@@ -151,6 +216,8 @@ type ManagedProduct = {
   name: string;
   description: string;
   priceCents: number;
+  /** false when no active price list prices it -- it can't be sold yet. */
+  priced: boolean;
   discount: number;
   color: string;
   size: string;
@@ -171,6 +238,15 @@ const saving = ref(false);
 const deleting = ref(false);
 const editTarget = ref<ManagedProduct | null>(null);
 const snackbar = reactive({ show: false, text: "" });
+const exporting = ref(false);
+const previewing = ref(false);
+const importing = ref(false);
+const importOpen = ref(false);
+const csvPreview = ref<main.ProductCSVPreview | null>(null);
+const importResult = ref<main.ProductCSVImportResult | null>(null);
+const importProblems = computed(
+  () => (importResult.value ? importResult.value.problems : csvPreview.value?.problems) ?? [],
+);
 const form = reactive({
   name: "",
   barcode: "",
@@ -305,7 +381,59 @@ async function deleteSelected() {
   }
 }
 
+function notify(text: string) {
+  snackbar.text = text;
+  snackbar.show = true;
+}
+
+async function exportCsv() {
+  exporting.value = true;
+  try {
+    const path = await ExportProductsCSV();
+    if (path) notify(`Products exported to ${path}`);
+  } catch (e: any) {
+    notify(e?.toString() || "Could not export products");
+  } finally {
+    exporting.value = false;
+  }
+}
+
+async function previewCsv() {
+  previewing.value = true;
+  try {
+    const preview = await PreviewProductsCSV();
+    if (!preview.file) return;
+    csvPreview.value = preview;
+    importResult.value = null;
+    importOpen.value = true;
+  } catch (e: any) {
+    notify(e?.toString() || "Could not read the CSV");
+  } finally {
+    previewing.value = false;
+  }
+}
+
+async function importCsv() {
+  importing.value = true;
+  try {
+    importResult.value = await ImportPendingProductsCSV();
+    if (importResult.value.imported) reload();
+  } catch (e: any) {
+    notify(e?.toString() || "Could not import products");
+  } finally {
+    importing.value = false;
+  }
+}
+
+// A product or price that kashi pushes while this page is open shows up
+// without leaving the page. sync_applied:<entity> fires only when a pull
+// actually changed something (see kashi-pos's sync_pull.go).
+let stopSyncListeners: (() => void)[] = [];
+
 onMounted(async () => {
+  stopSyncListeners = ["products", "price_lists", "discount_lists"].map((entity) =>
+    EventsOn(`sync_applied:${entity}`, reload),
+  );
   try {
     standalone.value = await IsStandaloneMode();
   } catch {
@@ -313,6 +441,8 @@ onMounted(async () => {
   }
   void loadMore();
 });
+
+onBeforeUnmount(() => stopSyncListeners.forEach((stop) => stop()));
 </script>
 
 <style scoped>
@@ -321,5 +451,10 @@ onMounted(async () => {
 }
 .products-row--clickable {
   cursor: pointer;
+}
+.csv-problems {
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 </style>

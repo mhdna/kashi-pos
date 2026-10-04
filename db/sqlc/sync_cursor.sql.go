@@ -7,7 +7,31 @@ package db
 
 import (
 	"context"
+	"strings"
 )
+
+const clearSyncCursorsExcept = `-- name: ClearSyncCursorsExcept :exec
+DELETE FROM sync_cursors WHERE entity NOT IN (/*SLICE:keep*/?)
+`
+
+// "Sync everything" against the server this till already syncs with:
+// re-pull the small entities from scratch, but keep the big ones' cursors
+// (clients, products) -- the completeness check covers those by comparing
+// ids and versions instead of re-downloading the whole catalog.
+func (q *Queries) ClearSyncCursorsExcept(ctx context.Context, keep []string) error {
+	query := clearSyncCursorsExcept
+	var queryParams []interface{}
+	if len(keep) > 0 {
+		for _, v := range keep {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:keep*/?", strings.Repeat(",?", len(keep))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:keep*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
 
 const getSyncCursor = `-- name: GetSyncCursor :one
 SELECT cursor FROM sync_cursors WHERE entity = ?

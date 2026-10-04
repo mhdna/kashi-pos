@@ -215,3 +215,49 @@ func TestSyncPullProtectsLocalDefaultCurrency(t *testing.T) {
 		t.Fatal("local default currency (USC) must not be overwritten by a pulled change")
 	}
 }
+
+// kashi resends currencies and payment methods whole on every pull, so the
+// item count is never zero. Only a real difference in the local table may
+// count as a change -- otherwise sync_applied fires every 15s and the
+// Balance page (which listens for both) reloads under the cashier.
+func TestSyncPullWholeSetReportsChangeOnlyWhenTableDiffers(t *testing.T) {
+	lbpRate := "92000000000"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Query().Get("entity") {
+		case "currencies":
+			fmt.Fprintf(w, `{"entity":"currencies","items":[{"code":"LBP","name":"Lebanese Pound","symbol":"LL","is_default":false,"is_active":true,"units_per_usd_micros":%s,"cash_rounding_unit":10000}],"server_time":"2026-08-24T00:00:00Z"}`, lbpRate)
+		case "cashbox_accounts":
+			fmt.Fprint(w, `{"entity":"cashbox_accounts","items":[{"name":"Wire Transfer","currency_code":"USD","sort_order":9,"color":"#00ff00"}],"server_time":"2026-08-24T00:00:00Z"}`)
+		default:
+			t.Fatalf("unexpected entity %q", r.URL.Query().Get("entity"))
+		}
+	}))
+	defer server.Close()
+
+	app, _, _, _ := setUpTestInvoiceApp(t, server.URL)
+	client := newCentralClient(server.URL, "TEST01", "test-key")
+
+	pull := func(entity string) bool {
+		t.Helper()
+		changed, err := app.pullEntityLocked(app.ctx, client, entity)
+		if err != nil {
+			t.Fatalf("pull %s: %v", entity, err)
+		}
+		return changed
+	}
+
+	for _, entity := range []string{"currencies", "cashbox_accounts"} {
+		if !pull(entity) {
+			t.Fatalf("first pull of %s applied new data but reported no change", entity)
+		}
+		if pull(entity) {
+			t.Fatalf("second pull of %s got the identical set but reported a change", entity)
+		}
+	}
+
+	lbpRate = "89500000000"
+	if !pull("currencies") {
+		t.Fatal("LBP rate changed in kashi but the pull reported no change")
+	}
+}

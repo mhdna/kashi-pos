@@ -102,9 +102,23 @@ func managedProduct(p db.Product) map[string]any {
 	return map[string]any{
 		"id": p.ID, "uid": p.Uid.String, "barcode": p.Barcode, "code": p.Code,
 		"name": p.Name, "description": p.Description,
-		"priceCents": p.Price, "discount": p.Discount,
+		"priceCents": p.Price, "discount": p.Discount, "priced": p.Price > 0,
 		"color": p.Color, "size": p.Size, "isActive": p.IsActive != 0,
 	}
+}
+
+// listedManagedProduct is managedProduct with the price and discount a sale
+// would actually use: the active lists' (see invoice_validation.go), not the
+// product row's own columns, which are frozen and usually 0 for a product
+// synced from kashi. priced is false when no active list prices it -- the
+// screen shows "No price" rather than a misleading 0.00.
+func listedManagedProduct(p db.Product, pricing activePricing) map[string]any {
+	m := managedProduct(p)
+	listed, ok := pricing.priceFor(p.Uid.String)
+	m["priceCents"], m["priced"] = listed.cents, ok
+	discount, _ := pricing.discountFor(p.Uid.String)
+	m["discount"] = discount.percent
+	return m
 }
 
 // ManagedProductPage is one page of the product management list.
@@ -133,9 +147,13 @@ func (a *App) ListManagedProducts(afterID int64, limit int, search string) (Mana
 	if page.HasMore {
 		rows = rows[:limit]
 	}
+	pricing, err := loadActivePricing(a.ctx, a.store.Queries)
+	if err != nil {
+		return ManagedProductPage{}, err
+	}
 	page.Items = make([]map[string]any, len(rows))
 	for i, p := range rows {
-		page.Items[i] = managedProduct(p)
+		page.Items[i] = listedManagedProduct(p, pricing)
 	}
 	if len(rows) > 0 {
 		page.NextCursor = rows[len(rows)-1].ID

@@ -72,7 +72,7 @@ func setUpTestInvoiceApp(t *testing.T, centralAPIURL string) (*App, *db.Store, d
 		t.Fatal(err)
 	}
 
-	return &App{ctx: ctx, store: store}, store, cashbox, client
+	return &App{ctx: ctx, store: store, conn: database}, store, cashbox, client
 }
 
 func TestSalesInvoiceDoesNotQueueSyncWhenNotConfigured(t *testing.T) {

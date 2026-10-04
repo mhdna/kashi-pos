@@ -18,12 +18,13 @@ SELECT * FROM price_list_items WHERE price_list_id = ? ORDER BY product_uid;
 -- name: UpsertPriceListByUID :one
 -- Matched by uid, never by name or id -- a till's ids are its own, and a list
 -- renamed centrally must stay the same list here.
-INSERT INTO price_lists (uid, name, is_active, is_default)
-VALUES (?, ?, ?, ?)
+INSERT INTO price_lists (uid, name, is_active, is_default, is_special)
+VALUES (?, ?, ?, ?, ?)
 ON CONFLICT (uid) DO UPDATE SET
     name = excluded.name,
     is_active = excluded.is_active,
-    is_default = excluded.is_default
+    is_default = excluded.is_default,
+    is_special = excluded.is_special
 RETURNING *;
 
 -- name: DeletePriceListItemsForList :exec
@@ -48,7 +49,7 @@ DELETE FROM price_lists WHERE uid = ?;
 -- first and a branch list's row for the same product overwrites it --
 -- loadActiveOverrides builds a map keyed by product uid, so last write wins.
 -- A product only the default list mentions keeps the default price.
-SELECT pli.product_uid, pli.price, pl.id AS list_id, pl.name AS list_name
+SELECT pli.product_uid, pli.price, pl.id AS list_id, pl.name AS list_name, pl.is_special
 FROM price_list_items pli
 JOIN price_lists pl ON pl.id = pli.price_list_id
 WHERE pl.is_active = 1

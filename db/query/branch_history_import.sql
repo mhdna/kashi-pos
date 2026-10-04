@@ -54,5 +54,34 @@ SELECT COUNT(*) FROM expenses;
 -- name: CountLoansAll :one
 SELECT COUNT(*) FROM loans;
 
--- name: CountShiftsAll :one
-SELECT COUNT(*) FROM shifts;
+-- An empty shift (opened and possibly closed, but with no counted money,
+-- opening float, or closing salesperson, and -- implied by this check
+-- running after CountInvoices/CountExpensesAll/CountLoansAll have all come
+-- back zero -- no invoices/expenses/loans against it either) isn't "real"
+-- local history: it's what every freshly created branch already has before
+-- anyone has actually used it. Only a shift with real activity should block
+-- the import.
+-- name: CountActiveShiftsAll :one
+SELECT COUNT(*) FROM shifts
+WHERE closed_by_salesperson_id != 0
+   OR counted_usd != 0 OR counted_lbp != 0 OR counted_visa != 0 OR counted_whish != 0
+   OR expected_usd != 0 OR expected_lbp != 0 OR expected_visa != 0 OR expected_whish != 0
+   OR opening_float_usd != 0 OR opening_float_lbp != 0;
+
+-- PullBranchHistory only reaches these once CountActiveShiftsAll above has
+-- already come back zero, i.e. every local shift row left over on this
+-- freshly created branch is inert (no counted money, float, invoices,
+-- expenses or loans). Clear them out before importing kashi's real shift
+-- history so the branch doesn't end up with placeholder rows sitting next
+-- to the imported ones.
+-- name: DeleteAllShiftReceiptUploads :exec
+DELETE FROM shift_receipt_uploads;
+
+-- name: DeleteAllShiftBalanceReplacements :exec
+DELETE FROM shift_balance_replacements;
+
+-- name: DeleteAllShiftsAccountsBalances :exec
+DELETE FROM shifts_accounts_balances;
+
+-- name: DeleteAllShifts :exec
+DELETE FROM shifts;

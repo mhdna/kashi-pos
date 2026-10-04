@@ -6,6 +6,9 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
+
+	db "kashi-pos/db/sqlc"
 )
 
 func TestSyncWorkerDrainsOutboxOnSuccess(t *testing.T) {
@@ -103,4 +106,121 @@ func TestSyncWorkerNoopWhenNotConfigured(t *testing.T) {
 	// Nothing was queued (already covered by TestSalesInvoiceDoesNotQueueSyncWhenNotConfigured),
 	// so this should just be a cheap no-op with no error and no HTTP calls.
 	app.runSyncTick(app.ctx)
+}
+
+// While kashi pushes every change, the 15s pull tick only does the full
+// pull (and the commands check) as a 5-minute backstop. Without that --
+// no live session, or an older kashi that sends no hello -- it pulls on
+// every tick, as before.
+func TestPullTickBacksOffWhileKashiPushesEverything(t *testing.T) {
+	fc := newFakeCentral()
+	var fullPulls, commandChecks atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/branch/sync/changes" && r.URL.Query().Get("entity") == "currencies":
+			fullPulls.Add(1) // currencies is first in every full pass
+		case r.URL.Path == "/branch/commands/pending":
+			commandChecks.Add(1)
+		}
+		fc.handler().ServeHTTP(w, r)
+	}))
+	defer server.Close()
+
+	app, _, _, _ := setUpTestInvoiceApp(t, server.URL)
+	client := newCentralClient(server.URL, "TEST01", "test-key")
+	tick := func() (pulls, commands int32) {
+		t.Helper()
+		before, beforeCmd := fullPulls.Load(), commandChecks.Load()
+		app.runPullTick(app.ctx)
+		return fullPulls.Load() - before, commandChecks.Load() - beforeCmd
+	}
+
+	// No hello yet: every tick pulls.
+	for range 2 {
+		if pulls, commands := tick(); pulls != 1 || commands != 1 {
+			t.Fatalf("without pushes: tick pulled %d times, checked commands %d times; want 1 and 1", pulls, commands)
+		}
+	}
+
+	app.handleWSMessage(client, []byte(`{"type":"hello","features":["sync_changed"]}`))
+	if pulls, commands := tick(); pulls != 0 || commands != 0 {
+		t.Fatalf("right after a full pull, a pushed tick pulled %d / checked commands %d; want 0", pulls, commands)
+	}
+
+	// Backstop elapsed.
+	app.lastFullPullAt = time.Now().Add(-syncPullBackstopInterval)
+	if pulls, commands := tick(); pulls != 1 || commands != 1 {
+		t.Fatalf("after the backstop interval: pulled %d / commands %d; want 1 and 1", pulls, commands)
+	}
+
+	// An older kashi's hello (or none) keeps full polling.
+	app.handleWSMessage(client, []byte(`{"type":"hello","features":[]}`))
+	if pulls, _ := tick(); pulls != 1 {
+		t.Fatalf("kashi without sync_changed: tick pulled %d times, want 1", pulls)
+	}
+}
+
+// Offline (pushLink backing off), the pull tick makes no requests at all.
+func TestPullTickSkipsNetworkWhileKashiUnreachable(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	app, _, _, _ := setUpTestInvoiceApp(t, server.URL)
+	app.pushLink.markDown(time.Now())
+	app.runPullTick(app.ctx)
+	if n := requests.Load(); n != 0 {
+		t.Fatalf("pull tick made %d requests while kashi was unreachable, want 0", n)
+	}
+}
+
+// The settings report goes to kashi only when it changed, on a new session,
+// or hourly -- not on every 15s tick as before.
+func TestPushSettingsOnlySendsWhenSomethingChanged(t *testing.T) {
+	var puts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/branch/settings" {
+			puts.Add(1)
+		}
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
+	client := newCentralClient(server.URL, "TEST01", "test-key")
+	push := func() int32 {
+		t.Helper()
+		before := puts.Load()
+		if err := app.pushSettings(app.ctx, client); err != nil {
+			t.Fatal(err)
+		}
+		return puts.Load() - before
+	}
+
+	if n := push(); n != 1 {
+		t.Fatalf("first report: sent %d times, want 1", n)
+	}
+	if n := push(); n != 0 {
+		t.Fatalf("unchanged settings: sent %d times, want 0", n)
+	}
+
+	if err := store.SetFeatureFlag(app.ctx, db.SetFeatureFlagParams{Key: clientRequiredFlag, Enabled: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if n := push(); n != 1 {
+		t.Fatalf("after a setting changed: sent %d times, want 1", n)
+	}
+
+	app.settingsReport.forget() // what a new WebSocket session does
+	if n := push(); n != 1 {
+		t.Fatalf("on a new session: sent %d times, want 1", n)
+	}
+
+	app.settingsReport.sentAt = time.Now().Add(-settingsResendInterval)
+	if n := push(); n != 1 {
+		t.Fatalf("after the hourly refresh interval: sent %d times, want 1", n)
+	}
 }
