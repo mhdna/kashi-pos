@@ -217,6 +217,8 @@ func (a *App) GetOpenShift() (map[string]any, error) {
 
 // closeStaleOpenShifts closes open shifts created on an earlier local calendar
 // day. Physical counts and closing person are unavailable during startup.
+// Stale shifts with no activity at all are deleted instead of closed, so
+// $0 auto-closed shifts never appear in the shifts list or sync to kashi.
 func (a *App) closeStaleOpenShifts() error {
 	enabled, err := a.store.GetFeatureFlag(a.ctx, autoCloseStaleShiftsFlag)
 	if err == sql.ErrNoRows {
@@ -227,6 +229,9 @@ func (a *App) closeStaleOpenShifts() error {
 	}
 	if enabled == 0 {
 		return nil
+	}
+	if _, err := a.store.DeleteEmptyStaleOpenShifts(a.ctx); err != nil {
+		return fmt.Errorf("delete empty stale shifts: %w", err)
 	}
 	return a.store.CloseStaleOpenShifts(a.ctx, time.Now().UTC().Format("2006-01-02 15:04:05"))
 }

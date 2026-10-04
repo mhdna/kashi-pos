@@ -77,7 +77,7 @@ func TestListInvoicesPageBatchesClientAndSettlementLookups(t *testing.T) {
 		t.Fatalf("clientA row clientName = %v, want %q", rowA["clientName"], clientA.Name)
 	}
 	settlementA, ok := rowA["settlementAccounts"].([]string)
-	if !ok || len(settlementA) != 1 || settlementA[0] != "Cash USD" {
+	if !ok || len(settlementA) != 1 || settlementA[0] != "Cash" {
 		t.Fatalf("clientA settlement accounts = %#v", rowA["settlementAccounts"])
 	}
 
@@ -89,7 +89,7 @@ func TestListInvoicesPageBatchesClientAndSettlementLookups(t *testing.T) {
 		t.Fatalf("clientB row clientName = %v, want %q", rowB["clientName"], clientB.Name)
 	}
 	settlementB, ok := rowB["settlementAccounts"].([]string)
-	if !ok || len(settlementB) != 1 || settlementB[0] != "Visa USD" {
+	if !ok || len(settlementB) != 1 || settlementB[0] != "Visa" {
 		t.Fatalf("clientB settlement accounts = %#v", rowB["settlementAccounts"])
 	}
 

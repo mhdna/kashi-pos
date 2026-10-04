@@ -161,6 +161,12 @@ type Querier interface {
 	DeleteDiscountListByUID(ctx context.Context, uid sql.NullString) error
 	DeleteDiscountListItemsForList(ctx context.Context, discountListID int64) error
 	DeleteDiscountOverride(ctx context.Context, id int64) error
+	// A stale shift nothing ever happened in ($0, no rows of any kind point at
+	// it) is dropped instead of auto-closed, so it never shows up in the shifts
+	// list or gets pushed to kashi as a shift_close. Runs right before
+	// CloseStaleOpenShifts, with the same staleness test. Every table with a
+	// shift_id column must be listed here.
+	DeleteEmptyStaleOpenShifts(ctx context.Context) (int64, error)
 	DeleteHoldInvoice(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
 	DeleteInventoryItem(ctx context.Context, arg DeleteInventoryItemParams) error

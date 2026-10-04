@@ -78,6 +78,23 @@ WHERE id = ? AND is_closed = 0;
 -- name: CloseOpenShifts :exec
 UPDATE shifts SET is_closed = 1, closed_at = ? WHERE is_closed = 0;
 
+-- name: DeleteEmptyStaleOpenShifts :execrows
+-- A stale shift nothing ever happened in ($0, no rows of any kind point at
+-- it) is dropped instead of auto-closed, so it never shows up in the shifts
+-- list or gets pushed to kashi as a shift_close. Runs right before
+-- CloseStaleOpenShifts, with the same staleness test. Every table with a
+-- shift_id column must be listed here.
+DELETE FROM shifts
+WHERE is_closed = 0
+  AND date(created_at, 'localtime') < date('now', 'localtime')
+  AND NOT EXISTS (SELECT 1 FROM invoices WHERE shift_id = shifts.id)
+  AND NOT EXISTS (SELECT 1 FROM expenses WHERE shift_id = shifts.id)
+  AND NOT EXISTS (SELECT 1 FROM loans WHERE shift_id = shifts.id)
+  AND NOT EXISTS (SELECT 1 FROM client_account_payments WHERE shift_id = shifts.id)
+  AND NOT EXISTS (SELECT 1 FROM shift_balance_replacements WHERE shift_id = shifts.id)
+  AND NOT EXISTS (SELECT 1 FROM shifts_accounts_balances WHERE shift_id = shifts.id)
+  AND NOT EXISTS (SELECT 1 FROM shift_receipt_uploads WHERE shift_id = shifts.id);
+
 -- name: CloseStaleOpenShifts :exec
 UPDATE shifts
 SET is_closed = 1, closed_at = ?

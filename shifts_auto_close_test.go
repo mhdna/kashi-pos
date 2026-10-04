@@ -41,6 +41,15 @@ func TestCloseStaleOpenShiftsHonorsSettingAndKeepsTodayOpen(t *testing.T) {
 	if _, err := database.Exec(`UPDATE shifts SET created_at = datetime('now', '-1 day') WHERE id = ?`, stale.ID); err != nil {
 		t.Fatal(err)
 	}
+	// Give the stale shift some activity so it is closed, not deleted as an
+	// empty shift (see TestCloseStaleOpenShiftsDeletesEmptyStaleShift).
+	cash, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash USD", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`INSERT INTO shifts_accounts_balances (account_id, shift_id, balance) VALUES (?, ?, 500)`, cash.ID, stale.ID); err != nil {
+		t.Fatal(err)
+	}
 	app := &App{ctx: ctx, store: store}
 
 	// Explicitly disable first: fresh databases now default this flag to
@@ -77,6 +86,68 @@ func TestCloseStaleOpenShiftsHonorsSettingAndKeepsTodayOpen(t *testing.T) {
 	stillOpen, err := store.GetShiftByID(ctx, today.ID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if stillOpen.IsClosed != 0 {
+		t.Fatal("today's shift was closed")
+	}
+}
+
+func TestCloseStaleOpenShiftsDeletesEmptyStaleShift(t *testing.T) {
+	ctx := context.Background()
+	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "shifts.db")+"?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+
+	store := db.NewStore(database)
+	empty, err := store.CreateShift(ctx, db.CreateShiftParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	busy, err := store.CreateShift(ctx, db.CreateShiftParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	today, err := store.CreateShift(ctx, db.CreateShiftParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`UPDATE shifts SET created_at = datetime('now', '-1 day') WHERE id IN (?, ?)`, empty.ID, busy.ID); err != nil {
+		t.Fatal(err)
+	}
+	cash, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "Cash USD", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`INSERT INTO shifts_accounts_balances (account_id, shift_id, balance) VALUES (?, ?, 500)`, cash.ID, busy.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{ctx: ctx, store: store}
+	if err := app.SetAutoCloseStaleShiftsEnabled(true); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.closeStaleOpenShifts(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := store.GetShiftByID(ctx, empty.ID); err != sql.ErrNoRows {
+		t.Fatalf("empty stale shift should be deleted, got err=%v", err)
+	}
+	closed, err := store.GetShiftByID(ctx, busy.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if closed.IsClosed == 0 {
+		t.Fatal("stale shift with activity was not closed")
+	}
+	stillOpen, err := store.GetShiftByID(ctx, today.ID)
+	if err != nil {
+		t.Fatalf("today's empty shift must not be deleted: %v", err)
 	}
 	if stillOpen.IsClosed != 0 {
 		t.Fatal("today's shift was closed")
