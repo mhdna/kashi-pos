@@ -315,6 +315,7 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { formatServerDateTime } from "@/lib/datetime";
+import { playErrorSound, playSuccessSound } from "@/lib/sound";
 import { useCurrencies } from "@/composables/useCurrencies";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import QRCode from "qrcode";
@@ -508,8 +509,10 @@ async function doCloseShift() {
       receiptUpload = (result?.receiptUpload ?? null) as ReceiptUpload | null;
     }
     await OpenShift();
+    playSuccessSound();
   } catch (e) {
     console.error("close shift:", e);
+    playErrorSound();
   }
   closing.value = false;
 

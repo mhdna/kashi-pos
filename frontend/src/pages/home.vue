@@ -290,6 +290,7 @@ import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { normalizeRoundingMode, type RoundingMode } from "@/lib/money";
+import { playErrorSound, playSuccessSound } from "@/lib/sound";
 import type { Client } from "@/lib/client";
 import { useClient } from "@/composables/useClient";
 import { useSalesperson } from "@/composables/useSalesperson";
@@ -845,6 +846,7 @@ async function onSettlementCheckout() {
     snackbar.color = "success";
     snackbar.icon = "";
     snackbar.show = true;
+    playSuccessSound();
     clearInvoice();
     settlementState.value = null;
     notifyIncomeChanged();
@@ -854,6 +856,7 @@ async function onSettlementCheckout() {
     snackbar.color = "red-darken-4";
     snackbar.icon = "";
     snackbar.show = true;
+    playErrorSound();
   }
 }
 
@@ -975,6 +978,7 @@ async function onCheckout() {
     snackbar.color = "success";
     snackbar.icon = "";
     snackbar.show = true;
+    playSuccessSound();
     clearInvoice();
     exchangeState.value = null;
     notifyIncomeChanged();
@@ -986,6 +990,7 @@ async function onCheckout() {
     snackbar.color = "red-darken-4";
     snackbar.icon = "";
     snackbar.show = true;
+    playErrorSound();
   }
   printing.value = false;
 }
