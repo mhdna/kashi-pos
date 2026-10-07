@@ -28,3 +28,15 @@ build/*.exe
 cmd/temporary-shift-receipt/temporary-shift-receipt
 /db-beirut
 dbdd/*.backup-*
+
+# Local copies of till databases (customer data) and scratch databases
+/db-main-latest*
+/dbbbbb/
+tools/get-bazaar/
+
+# Compiled binaries and installer scratch
+/screen-probe
+tools/kashi-admin/kashi-admin
+tools/product-importer/product-importer
+tools/product-importer/frontend/dist
+build/windows/installer/tmp/
