@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -20,6 +21,12 @@ var assets embed.FS
 var appVersion = "dev"
 
 func main() {
+	// The update helper (updater.go) is this same program run from a
+	// temporary copy; it swaps the executable and exits, no window.
+	if len(os.Args) == 3 && os.Args[1] == "--apply-update" {
+		os.Exit(runUpdateHelper(os.Args[2], defaultUpdateProcesses()))
+	}
+
 	// Paint a native splash immediately, before the WebView2 runtime boots.
 	// hideSplash also runs on OnDomReady; the defer covers early-exit paths.
 	showSplash()

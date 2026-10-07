@@ -43,3 +43,20 @@ build-windows: set-version
 
 build-windows-compact: set-version
 	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -nsis -clean -o "Kashi Cloud Compact.exe" -ldflags "-X main.appVersion=$(APP_VERSION)"
+
+# Remote updates (updater.go). update-keygen runs once: it creates the
+# release-signing key in ~/.config/gb-cloud/ (back it up) and writes its
+# public half into internal/updatekey -- commit that. publish builds the
+# Windows app at the latest tag's version, signs it and uploads it to kashi;
+# choose which tills get it on kashi's App Updates page. It needs KASHI_URL
+# (the tills' central URL) and KASHI_USER; the password is asked for.
+#   git tag v1.2.3 && make publish NOTES="what changed"
+.PHONY: update-keygen publish publish-compact
+update-keygen:
+	go run ./cmd/publish-release keygen
+
+publish: build-windows
+	go run ./cmd/publish-release publish -file build/bin/Kashi-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)"
+
+publish-compact: build-windows-compact
+	go run ./cmd/publish-release publish -file "build/bin/Kashi Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)"

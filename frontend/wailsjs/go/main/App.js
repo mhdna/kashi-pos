@@ -58,6 +58,10 @@ export function CheckExpenseUploadStatus(arg1) {
   return window['go']['main']['App']['CheckExpenseUploadStatus'](arg1);
 }
 
+export function CheckForAppUpdate() {
+  return window['go']['main']['App']['CheckForAppUpdate']();
+}
+
 export function CheckOversell(arg1) {
   return window['go']['main']['App']['CheckOversell'](arg1);
 }
@@ -88,6 +92,10 @@ export function ClearScreen(arg1) {
 
 export function CloseShiftByID(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['CloseShiftByID'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function ConfirmAppStarted() {
+  return window['go']['main']['App']['ConfirmAppStarted']();
 }
 
 export function ConfirmTransferRequest(arg1, arg2, arg3) {
@@ -204,6 +212,10 @@ export function GetAdminConfig() {
 
 export function GetAppSettings() {
   return window['go']['main']['App']['GetAppSettings']();
+}
+
+export function GetAppUpdateStatus() {
+  return window['go']['main']['App']['GetAppUpdateStatus']();
 }
 
 export function GetAppVersion() {
@@ -348,6 +360,10 @@ export function HoldInvoice(arg1) {
 
 export function ImportPendingProductsCSV() {
   return window['go']['main']['App']['ImportPendingProductsCSV']();
+}
+
+export function InstallAppUpdate() {
+  return window['go']['main']['App']['InstallAppUpdate']();
 }
 
 export function IsStandaloneMode() {
@@ -584,6 +600,10 @@ export function ReprintInvoice(arg1) {
 
 export function ResyncAll(arg1) {
   return window['go']['main']['App']['ResyncAll'](arg1);
+}
+
+export function RollBackAppUpdate() {
+  return window['go']['main']['App']['RollBackAppUpdate']();
 }
 
 export function RoundInvoice(arg1) {

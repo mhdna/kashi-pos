@@ -322,6 +322,11 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 		a.queueWSWork(wsWork{client: client, commands: true})
 		return
 	}
+	if msg.Type == "app_update" {
+		// An admin changed which release this till should run.
+		a.kickUpdater()
+		return
+	}
 	if msg.Type == "expense_images_uploaded" {
 		a.emitExpenseImagesUploaded(msg.ClientRef)
 		return

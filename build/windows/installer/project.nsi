@@ -132,6 +132,13 @@ Section
 
     !insertmacro wails.files
 
+    # Let Kashi Cloud replace its own executable when kashi sends an update
+    # (updater.go) without an admin prompt at the till: give the local Users
+    # group modify rights on the install folder. *S-1-5-32-545 is
+    # BUILTIN\Users on every Windows language.
+    nsExec::ExecToLog 'icacls "$INSTDIR" /grant *S-1-5-32-545:(OI)(CI)M /T /C /Q'
+    Pop $0
+
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
 

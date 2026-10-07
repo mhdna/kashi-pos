@@ -1,4 +1,6 @@
 import {
+  mdiBackupRestore,
+  mdiUpdate,
   mdiAccount,
   mdiAccountClock,
   mdiAccountCreditCardOutline,
@@ -174,6 +176,8 @@ import {
 import { h } from "vue";
 
 const iconPaths: Record<string, string> = {
+  "mdi-backup-restore": mdiBackupRestore,
+  "mdi-update": mdiUpdate,
   "mdi-account": mdiAccount,
   "mdi-account-clock": mdiAccountClock,
   "mdi-account-credit-card-outline": mdiAccountCreditCardOutline,

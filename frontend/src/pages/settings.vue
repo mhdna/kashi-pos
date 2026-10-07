@@ -1203,6 +1203,8 @@
 
       <v-window-item value="admin">
         <div class="settings-grid">
+          <AppUpdateCard v-show="panelMatches('admin-app-updates')" />
+
           <v-card v-show="panelMatches('admin-page-access')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-lock-outline" size="20" />
@@ -1760,6 +1762,7 @@ import { salespersonColor } from "@/lib/salespersonColor";
 import { usePageUnlocks, lockablePages } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
+import AppUpdateCard from "@/components/AppUpdateCard.vue";
 import {
   animationsEnabled,
   setAnimationsEnabled,
@@ -1867,6 +1870,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
   "behavior-non-admin-month-nav": { tab: "behavior", title: "Income chart month navigation", keywords: "monthly income chart non-admin cashier back forward prev next month browse lock admin only" },
   "behavior-visitor-counter": { tab: "behavior", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
+  "admin-app-updates": { tab: "admin", title: "App updates", keywords: "update upgrade version install roll back rollback previous release download" },
   "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
   "admin-change-password": { tab: "admin", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
   "admin-cashier-pin": { tab: "admin", title: "Cashier login PIN", keywords: "cashier pin code login keypad 4 digit change shared" },

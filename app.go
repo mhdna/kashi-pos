@@ -144,6 +144,8 @@ type App struct {
 	// recreating -wal/-shm journal files) after shutdown returns, which
 	// raced with test cleanup deleting the database's temp directory.
 	backgroundWG sync.WaitGroup
+	// updater is the remote-update state -- see updater.go.
+	updater appUpdater
 }
 
 const (
@@ -292,6 +294,7 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 	a.startWSClient()
 	a.startAttendanceProbe()
 	a.startAttendancePushServer()
+	a.startUpdater()
 	return nil
 }
 
@@ -380,6 +383,7 @@ func (a *App) switchDatabase(path string, createIfMissing bool) error {
 		a.stopSyncWorker()
 		a.stopAttendanceProbe()
 		a.stopAttendancePushServer(context.Background())
+		a.stopUpdater()
 		a.backgroundWG.Wait()
 		a.stopAdminServer(context.Background())
 		a.stopShiftUploadServer(context.Background())
@@ -418,6 +422,7 @@ func (a *App) shutdown(ctx context.Context) {
 	a.stopSyncWorker()
 	a.stopAttendanceProbe()
 	a.stopAttendancePushServer(ctx)
+	a.stopUpdater()
 	// Both signaled to stop above; wait for them to actually finish before
 	// touching a.conn below — a goroutine still mid-tick when the
 	// connection closes underneath it would either error noisily or (worse,

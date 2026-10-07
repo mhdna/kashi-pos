@@ -30,6 +30,8 @@ export function ChangePassword(arg1:string,arg2:string,arg3:string):Promise<void
 
 export function CheckExpenseUploadStatus(arg1:string):Promise<boolean>;
 
+export function CheckForAppUpdate():Promise<Record<string, any>>;
+
 export function CheckOversell(arg1:string):Promise<main.OversellCheck>;
 
 export function CheckShiftReceiptCaptured(arg1:string):Promise<boolean>;
@@ -45,6 +47,8 @@ export function ChooseDatabase():Promise<string>;
 export function ClearScreen(arg1:string):Promise<void>;
 
 export function CloseShiftByID(arg1:number,arg2:number,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
+
+export function ConfirmAppStarted():Promise<Record<string, any>>;
 
 export function ConfirmTransferRequest(arg1:number,arg2:Array<main.confirmTransferItemInput>,arg3:string):Promise<void>;
 
@@ -103,6 +107,8 @@ export function ForceSetAdminPassword(arg1:string):Promise<void>;
 export function GetAdminConfig():Promise<Record<string, any>>;
 
 export function GetAppSettings():Promise<Record<string, any>>;
+
+export function GetAppUpdateStatus():Promise<Record<string, any>>;
 
 export function GetAppVersion():Promise<string>;
 
@@ -175,6 +181,8 @@ export function GetVisitorCountsForMonth(arg1:string):Promise<Record<string, num
 export function HoldInvoice(arg1:string):Promise<number>;
 
 export function ImportPendingProductsCSV():Promise<main.ProductCSVImportResult>;
+
+export function InstallAppUpdate():Promise<void>;
 
 export function IsStandaloneMode():Promise<boolean>;
 
@@ -293,6 +301,8 @@ export function ReportDisplayPrefs(arg1:string):Promise<void>;
 export function ReprintInvoice(arg1:number):Promise<void>;
 
 export function ResyncAll(arg1:main.ResyncOptions):Promise<main.ResyncReport>;
+
+export function RollBackAppUpdate():Promise<void>;
 
 export function RoundInvoice(arg1:number):Promise<void>;
 

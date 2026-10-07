@@ -73,6 +73,7 @@
     </v-alert>
     <router-view v-else />
     <AttendanceToast />
+    <AppUpdateBanner />
   </v-app>
 </template>
 
@@ -83,6 +84,7 @@ import { useTheme } from "vuetify";
 import { animationsEnabled, isCompactBuild, startDisplayPrefsSync } from "@/lib/display";
 import { EventsOn, WindowReloadApp } from "../wailsjs/runtime/runtime";
 import AttendanceToast from "@/components/AttendanceToast.vue";
+import AppUpdateBanner from "@/components/AppUpdateBanner.vue";
 
 const theme = useTheme();
 const startupLoading = ref(true);
