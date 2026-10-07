@@ -80,6 +80,13 @@ type App struct {
 	// restarts. Same buffered, nil-safe, coalescing contract as
 	// syncWorkerKick -- see kickWSClient in sync_ws.go.
 	wsClientKick chan struct{}
+	// wsWork is what kashi's pushes have asked runWSWorker to do and it
+	// hasn't started yet, guarded by wsWorkMu; wsWorkKick wakes the worker
+	// (same buffered, nil-safe, coalescing contract as wsClientKick). See
+	// queueWSWork in sync_ws.go.
+	wsWorkMu   sync.Mutex
+	wsWork     wsWork
+	wsWorkKick chan struct{}
 	// syncPullMu serializes the pull pass so the 15s tick (sync_worker.go)
 	// and the WebSocket's connect-time catch-up / per-delta fetches
 	// (sync_ws.go) can't run their apply transactions concurrently and

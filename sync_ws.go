@@ -75,8 +75,9 @@ var wsMessageEntity = map[string]string{
 	"transfer_requests_updated":          "transfer_requests",
 }
 
-// startWSClient runs the reconnect loop for kashi's push channel. It's a
-// separate goroutine from the poll-based sync ticker (sync_worker.go) —
+// startWSClient runs the reconnect loop for kashi's push channel, and the
+// worker that does what the pushes ask for (runWSWorker). Both are
+// separate goroutines from the poll-based sync ticker (sync_worker.go) —
 // losing the WebSocket doesn't affect polling at all, it just means
 // changes are noticed on the next tick instead of immediately.
 func (a *App) startWSClient() {
@@ -85,10 +86,15 @@ func (a *App) startWSClient() {
 	}
 	a.wsClientStop = make(chan struct{})
 	a.wsClientKick = make(chan struct{}, 1)
-	a.backgroundWG.Add(1)
+	a.wsWorkKick = make(chan struct{}, 1)
+	a.backgroundWG.Add(2)
 	go func() {
 		defer a.backgroundWG.Done()
 		a.runWSClientLoop()
+	}()
+	go func() {
+		defer a.backgroundWG.Done()
+		a.runWSWorker()
 	}()
 }
 
@@ -202,6 +208,13 @@ func (a *App) sleepOrStop(d time.Duration) bool {
 // push it may never get for something that already changed while it was
 // gone), then read live deltas until the connection drops or shutdown
 // fires.
+//
+// The session itself only reads, pings and queues: the catch-up, and every
+// pull or command a push asks for, run on runWSWorker. A pull can wait
+// minutes for syncPullMu ("Sync everything" holds it for its whole run),
+// and a session stuck behind one stops answering kashi's pings -- gorilla
+// only answers them while something reads -- so kashi drops the till as
+// dead and shows its branch offline exactly while it's busiest.
 func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 	defer conn.Close()
 	// Without a live session nothing is being pushed: back to full polling.
@@ -216,7 +229,7 @@ func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 		return nil
 	})
 
-	a.runSyncPullOnce(a.ctx, client)
+	a.queueWSWork(wsWork{client: client, pullAll: true})
 
 	// The central config this session is bound to. If the URL / branch code
 	// / key changes under us -- Settings page save, remote update_settings
@@ -291,9 +304,11 @@ func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 	}
 }
 
-// handleWSMessage applies one push frame. Every branch is a "go re-fetch"
-// trigger, never a payload apply, so a duplicate or out-of-order frame is
-// only ever a redundant fetch.
+// handleWSMessage applies one push frame. It runs on the session loop, so
+// it never waits: hello and expense_images_uploaded are applied here, and
+// everything that needs a request is queued for runWSWorker. Every pull is
+// a "go re-fetch" trigger, never a payload apply, so a duplicate or
+// out-of-order frame is only ever a redundant fetch.
 func (a *App) handleWSMessage(client *centralClient, data []byte) {
 	var msg wsMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
@@ -304,7 +319,7 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 		// Deliberately re-fetches *all* pending commands, not just
 		// CommandID -- a redundant or out-of-order push just means an extra
 		// fetch, and it naturally sweeps up anything else still pending.
-		a.runPendingCommandsOnce(a.ctx, client)
+		a.queueWSWork(wsWork{client: client, commands: true})
 		return
 	}
 	if msg.Type == "expense_images_uploaded" {
@@ -321,19 +336,11 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 	}
 	if msg.Type == "pull_all" {
 		// kashi's change feed had a gap; catch up on everything.
-		a.runSyncPullOnce(a.ctx, client)
+		a.queueWSWork(wsWork{client: client, pullAll: true})
 		return
 	}
 	if msg.Type == "sync_changed" {
-		for _, entity := range msg.Entities {
-			// A newer kashi may name an entity this build doesn't pull yet.
-			if !slices.Contains(pullEntities, entity) {
-				continue
-			}
-			if err := a.pullEntityOnce(a.ctx, client, entity); err != nil {
-				log.Printf("ws client: apply %s: %v", entity, err)
-			}
-		}
+		a.queueWSWork(wsWork{client: client, entities: msg.Entities})
 		return
 	}
 	entity, ok := wsMessageEntity[msg.Type]
@@ -341,7 +348,76 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 		log.Printf("ws client: unknown message type %q", msg.Type)
 		return
 	}
-	if err := a.pullEntityOnce(a.ctx, client, entity); err != nil {
-		log.Printf("ws client: apply %s: %v", entity, err)
+	a.queueWSWork(wsWork{client: client, entities: []string{entity}})
+}
+
+// wsWork is what pushes have asked runWSWorker to do: run pending commands,
+// catch up on every entity, re-fetch some. client is the session that
+// asked.
+type wsWork struct {
+	client   *centralClient
+	commands bool
+	pullAll  bool
+	entities []string
+}
+
+// queueWSWork adds a push's work to the worker's next pass and wakes it,
+// without waiting. Pushes that arrive while the worker is busy merge into
+// that one pass -- the tenth branch_stock change during a resync is the
+// same fetch as the first -- and the pass uses the latest session's client.
+func (a *App) queueWSWork(w wsWork) {
+	a.wsWorkMu.Lock()
+	a.wsWork.client = w.client
+	a.wsWork.commands = a.wsWork.commands || w.commands
+	a.wsWork.pullAll = a.wsWork.pullAll || w.pullAll
+	for _, entity := range w.entities {
+		if !slices.Contains(a.wsWork.entities, entity) {
+			a.wsWork.entities = append(a.wsWork.entities, entity)
+		}
+	}
+	a.wsWorkMu.Unlock()
+	select {
+	case a.wsWorkKick <- struct{}{}:
+	default:
+	}
+}
+
+// runWSWorker does the work pushes queue, off the session loop -- see
+// runWSSession for why the session can't do it itself.
+func (a *App) runWSWorker() {
+	for {
+		select {
+		case <-a.wsClientStop:
+			return
+		case <-a.wsWorkKick:
+			a.runQueuedWSWork()
+		}
+	}
+}
+
+// runQueuedWSWork takes everything queued so far and does it. Commands go
+// first: they don't need syncPullMu, so pulls in the same pass that wait
+// out a resync don't hold them up.
+func (a *App) runQueuedWSWork() {
+	a.wsWorkMu.Lock()
+	w := a.wsWork
+	a.wsWork = wsWork{}
+	a.wsWorkMu.Unlock()
+
+	if w.commands {
+		a.runPendingCommandsOnce(a.ctx, w.client)
+	}
+	if w.pullAll {
+		a.runSyncPullOnce(a.ctx, w.client)
+	}
+	// Walking pullEntities rather than w.entities skips any entity a newer
+	// kashi names that this build doesn't pull yet.
+	for _, entity := range pullEntities {
+		if !slices.Contains(w.entities, entity) {
+			continue
+		}
+		if err := a.pullEntityOnce(a.ctx, w.client, entity); err != nil {
+			log.Printf("ws client: apply %s: %v", entity, err)
+		}
 	}
 }

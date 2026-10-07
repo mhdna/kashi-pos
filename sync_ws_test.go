@@ -159,6 +159,11 @@ func TestHandleWSMessage_SyncChangedAndPullAll(t *testing.T) {
 
 	app, _, _, _ := setUpTestInvoiceApp(t, server.URL)
 	client := newCentralClient(server.URL, "TEST01", "test-key")
+	// handle is one push plus the worker pass it queues.
+	handle := func(msg string) {
+		app.handleWSMessage(client, []byte(msg))
+		app.runQueuedWSWork()
+	}
 	take := func() []string {
 		mu.Lock()
 		defer mu.Unlock()
@@ -167,7 +172,7 @@ func TestHandleWSMessage_SyncChangedAndPullAll(t *testing.T) {
 		return got
 	}
 
-	app.handleWSMessage(client, []byte(`{"type":"sync_changed","entities":["price_lists","entity_from_the_future","coupons"]}`))
+	handle(`{"type":"sync_changed","entities":["price_lists","entity_from_the_future","coupons"]}`)
 	if got := take(); !slices.Equal(got, []string{"price_lists", "coupons"}) {
 		t.Fatalf("sync_changed fetched %v, want [price_lists coupons]", got)
 	}
@@ -175,14 +180,126 @@ func TestHandleWSMessage_SyncChangedAndPullAll(t *testing.T) {
 	// Before kashi's hello says it supports Quick Access, that entity is
 	// skipped: an older kashi would answer it with an error.
 	withoutQuickAccess := slices.DeleteFunc(slices.Clone(pullEntities), func(e string) bool { return e == "quick_access" })
-	app.handleWSMessage(client, []byte(`{"type":"pull_all"}`))
+	handle(`{"type":"pull_all"}`)
 	if got := take(); !slices.Equal(got, withoutQuickAccess) {
 		t.Fatalf("pull_all (no hello) fetched %v, want every pull entity but quick_access", got)
 	}
 
-	app.handleWSMessage(client, []byte(`{"type":"hello","features":["sync_changed","quick_access"]}`))
-	app.handleWSMessage(client, []byte(`{"type":"pull_all"}`))
+	handle(`{"type":"hello","features":["sync_changed","quick_access"]}`)
+	handle(`{"type":"pull_all"}`)
 	if got := take(); !slices.Equal(got, pullEntities) {
 		t.Fatalf("pull_all fetched %v, want every pull entity", got)
 	}
+
+	// Pushes that pile up before the worker gets to them cost one fetch per
+	// entity, not one per push.
+	app.handleWSMessage(client, []byte(`{"type":"sync_changed","entities":["clients"]}`))
+	app.handleWSMessage(client, []byte(`{"type":"client_updated"}`))
+	app.handleWSMessage(client, []byte(`{"type":"sync_changed","entities":["coupons","clients"]}`))
+	app.runQueuedWSWork()
+	if got := take(); !slices.Equal(got, []string{"clients", "coupons"}) {
+		t.Fatalf("three queued pushes fetched %v, want [clients coupons]", got)
+	}
+}
+
+// A pull that has to wait for syncPullMu -- "Sync everything" holds it for
+// its whole run -- must not stall the session: kashi drops a till that
+// stops answering its pings, and shows its branch offline.
+func TestWSSession_KeepsAnsweringPingsWhilePullWaits(t *testing.T) {
+	// kashi's heartbeat (api/ws_conn.go), scaled down: ping every 50ms, and
+	// drop the till when no pong comes back within 300ms.
+	const pingEvery, pongWait = 50 * time.Millisecond, 300 * time.Millisecond
+
+	var drops, clientPulls atomic.Int32
+	conns := make(chan *websocket.Conn, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Upgrade") != "websocket" {
+			entity := r.URL.Query().Get("entity")
+			if entity == "clients" {
+				clientPulls.Add(1)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"entity":%q,"items":[],"server_time":"2026-10-07T00:00:00Z"}`, entity)
+			return
+		}
+		var upgrader websocket.Upgrader
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		c.SetReadDeadline(time.Now().Add(pongWait))
+		c.SetPongHandler(func(string) error {
+			c.SetReadDeadline(time.Now().Add(pongWait))
+			return nil
+		})
+		done := make(chan struct{})
+		defer close(done)
+		go func() {
+			ticker := time.NewTicker(pingEvery)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-done:
+					return
+				case <-ticker.C:
+					if c.WriteControl(websocket.PingMessage, nil, time.Now().Add(time.Second)) != nil {
+						return
+					}
+				}
+			}
+		}()
+		select {
+		case conns <- c:
+		default:
+		}
+		for {
+			if _, _, err := c.ReadMessage(); err != nil {
+				drops.Add(1)
+				return
+			}
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	app, _, _, _ := setUpTestInvoiceApp(t, server.URL)
+	app.startWSClient()
+	t.Cleanup(func() {
+		app.stopWSClient()
+		app.backgroundWG.Wait()
+	})
+
+	var c *websocket.Conn
+	select {
+	case c = <-conns:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the till never connected")
+	}
+	// The connect-time catch-up pulls clients once.
+	waitFor(t, "catch-up pull", func() bool { return clientPulls.Load() >= 1 })
+
+	// Hold the lock the way a resync does, push a few changes, and give
+	// kashi several pong-waits to give up on the till. Asserting only after
+	// unlocking keeps a failure from leaving the worker stuck on the lock.
+	app.syncPullMu.Lock()
+	pullsBefore := clientPulls.Load()
+	var pushErr error
+	for i := 0; i < 3 && pushErr == nil; i++ {
+		pushErr = c.WriteJSON(wsMessage{Type: "sync_changed", Entities: []string{"clients"}})
+	}
+	time.Sleep(5 * pongWait)
+	dropsWhileHeld, pullsWhileHeld := drops.Load(), clientPulls.Load()
+	app.syncPullMu.Unlock()
+
+	if pushErr != nil {
+		t.Fatal(pushErr)
+	}
+	if dropsWhileHeld != 0 {
+		t.Fatalf("kashi dropped the till %d time(s) while a pushed pull waited on syncPullMu", dropsWhileHeld)
+	}
+	if pullsWhileHeld != pullsBefore {
+		t.Fatalf("clients pulled while syncPullMu was held (%d -> %d)", pullsBefore, pullsWhileHeld)
+	}
+	// Once the lock frees, the pushed change still lands.
+	waitFor(t, "pushed pull after the lock frees", func() bool { return clientPulls.Load() > pullsBefore })
 }
