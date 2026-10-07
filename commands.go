@@ -47,6 +47,15 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 		return a.executeRemoteReturnInvoiceCommand(ctx, cmd.Payload)
 	case "set_branch_user_pin":
 		return a.executeSetBranchUserPinCommand(ctx, cmd.Payload)
+	case "print_shift_report":
+		return a.executePrintShiftReportCommand(cmd.Payload)
+	case "reprint_invoice":
+		return a.executeReprintInvoiceCommand(ctx, cmd.Payload)
+	case "sync_now":
+		a.kickSyncWorker()
+		return nil
+	case "transfer_decision":
+		return a.executeTransferDecisionCommand(ctx, cmd.Payload)
 	default:
 		return fmt.Errorf("unknown command type %q", cmd.Type)
 	}
@@ -99,6 +108,22 @@ type updateSettingsCommandPayload struct {
 	OpeningFloatEnabled           *bool `json:"opening_float_enabled"`
 	CountOpeningCashOnClose       *bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
+	CloseShiftRequiresSync        *bool `json:"close_shift_requires_sync"`
+	HidePaymentMethodCurrency     *bool `json:"hide_payment_method_currency"`
+	AutoAppendLbpZeros            *bool `json:"auto_append_lbp_zeros"`
+	AutoCloseStaleShifts          *bool `json:"auto_close_stale_shifts"`
+	VisitorCounterEnabled         *bool `json:"visitor_counter_enabled"`
+
+	// Cash handling. MaxOverpaymentCents caps how much a payment may exceed
+	// the total; the default opening float is what a new shift starts with.
+	BranchPhone            *string `json:"branch_phone"`
+	MaxOverpaymentCents    *int64  `json:"max_overpayment_cents"`
+	DefaultOpeningFloatUsd *int64  `json:"default_opening_float_usd"`
+	DefaultOpeningFloatLbp *int64  `json:"default_opening_float_lbp"`
+
+	// DisplayPrefs is a partial object of screen prefs (quick access rows,
+	// card text size, theme, ...) -- see displayPrefKeys in display_prefs.go.
+	DisplayPrefs json.RawMessage `json:"display_prefs"`
 
 	// OversellMode: "allow" | "warn" | "block" (see checkOversell).
 	OversellMode *string `json:"oversell_mode"`
@@ -190,7 +215,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		deref(p.ReceiptEnabled, current.ReceiptEnabled != 0),
 		current.SalesInventoryID,
 		deref(p.ExchangeRate, current.ExchangeRate),
-		current.MaxOverpaymentCents,
+		deref(p.MaxOverpaymentCents, current.MaxOverpaymentCents),
 	); err != nil {
 		return fmt.Errorf("update settings: %w", err)
 	}
@@ -207,7 +232,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 	if err := a.UpdateReceiptSettings(
 		deref(p.MarketName, current.MarketName),
 		deref(p.MarketPhone, current.MarketPhone),
-		current.BranchPhone,
+		deref(p.BranchPhone, current.BranchPhone),
 		deref(p.MarketDescription, current.MarketDescription),
 		deref(p.ReturnPolicy, current.ReturnPolicy),
 		deref(p.Website, current.Website),
@@ -263,6 +288,11 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.OpeningFloatEnabled, func(b bool) error { return a.setFeatureFlagBool(ctx, openingFloatEnabledFlag, b) }},
 		{p.CountOpeningCashOnClose, func(b bool) error { return a.setFeatureFlagBool(ctx, countOpeningCashOnCloseFlag, b) }},
 		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},
+		{p.CloseShiftRequiresSync, a.SetCloseShiftRequiresSyncEnabled},
+		{p.HidePaymentMethodCurrency, a.SetHidePaymentMethodCurrency},
+		{p.AutoAppendLbpZeros, a.SetAutoAppendLbpZerosEnabled},
+		{p.AutoCloseStaleShifts, a.SetAutoCloseStaleShiftsEnabled},
+		{p.VisitorCounterEnabled, a.SetVisitorCounterEnabled},
 		{p.PageUnlockClients, func(b bool) error { return a.SetPageUnlocked("clients", b) }},
 		{p.PageUnlockInventory, func(b bool) error { return a.SetPageUnlocked("inventory", b) }},
 		{p.PageUnlockProducts, func(b bool) error { return a.SetPageUnlocked("products", b) }},
@@ -289,6 +319,29 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 	if p.ShiftReceiptUploadMode != nil {
 		if err := a.SetShiftReceiptUploadMode(*p.ShiftReceiptUploadMode); err != nil {
 			return fmt.Errorf("update shift receipt upload mode: %w", err)
+		}
+	}
+
+	// Not through UpdateDefaultOpeningFloat: that asks for the manager
+	// password a person at the till types, which kashi's authenticated
+	// command channel stands in for. Its other rule (never negative) holds.
+	if p.DefaultOpeningFloatUsd != nil || p.DefaultOpeningFloatLbp != nil {
+		usd := deref(p.DefaultOpeningFloatUsd, current.DefaultOpeningFloatUsd)
+		lbp := deref(p.DefaultOpeningFloatLbp, current.DefaultOpeningFloatLbp)
+		if usd < 0 || lbp < 0 {
+			return fmt.Errorf("opening float cannot be negative")
+		}
+		if err := a.store.UpdateDefaultOpeningFloat(ctx, db.UpdateDefaultOpeningFloatParams{
+			DefaultOpeningFloatUsd: usd,
+			DefaultOpeningFloatLbp: lbp,
+		}); err != nil {
+			return fmt.Errorf("update default opening float: %w", err)
+		}
+	}
+
+	if len(p.DisplayPrefs) > 0 && string(p.DisplayPrefs) != "null" {
+		if err := a.applyRemoteDisplayPrefs(p.DisplayPrefs); err != nil {
+			return err
 		}
 	}
 
@@ -324,7 +377,57 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}
 	}
 
+	// Most setters above don't announce themselves; the open sale screen,
+	// nav counter and the like reload on this.
+	a.emitSettingsChanged()
 	return nil
+}
+
+type printShiftReportPayload struct {
+	// BranchShiftID is this till's own shifts.id, as it reported it in
+	// shift_close (kashi's branch_shifts.branch_shift_id).
+	BranchShiftID int64 `json:"branch_shift_id"`
+}
+
+// executePrintShiftReportCommand reprints a closed shift's end-of-shift
+// receipt on this till's printer -- the same PrintClosedShiftReceipt the
+// Shifts page's print button calls, so it prints exactly what that would.
+func (a *App) executePrintShiftReportCommand(payload json.RawMessage) error {
+	var p printShiftReportPayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return fmt.Errorf("decode print_shift_report payload: %w", err)
+	}
+	result, err := a.PrintClosedShiftReceipt(p.BranchShiftID)
+	if err != nil {
+		return err
+	}
+	if printed, _ := result["receiptPrinted"].(bool); !printed {
+		return fmt.Errorf("receipt printing is turned off on this till")
+	}
+	return nil
+}
+
+type reprintInvoicePayload struct {
+	ClientRef string `json:"client_ref"`
+}
+
+// executeReprintInvoiceCommand reprints a sale or return receipt, found by
+// the client_ref this till gave it, through the same ReprintInvoice the
+// invoice list uses.
+func (a *App) executeReprintInvoiceCommand(ctx context.Context, payload json.RawMessage) error {
+	var p reprintInvoicePayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return fmt.Errorf("decode reprint_invoice payload: %w", err)
+	}
+	p.ClientRef = strings.TrimSpace(p.ClientRef)
+	if p.ClientRef == "" {
+		return fmt.Errorf("client_ref is required")
+	}
+	invoiceID, err := a.store.GetInvoiceIDByClientRef(ctx, p.ClientRef)
+	if err != nil {
+		return fmt.Errorf("invoice not found for client_ref %q: %w", p.ClientRef, err)
+	}
+	return a.ReprintInvoice(invoiceID)
 }
 
 type setBranchUserPinPayload struct {
@@ -521,5 +624,38 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 	if err != nil {
 		return fmt.Errorf("checkout return: %w", err)
 	}
+	return nil
+}
+
+type transferDecisionPayload struct {
+	ClientRef string `json:"client_ref"`
+	Status    string `json:"status"`
+}
+
+// executeTransferDecisionCommand records kashi's approve/cancel of a
+// transfer this till proposed, the moment it's made -- the same status
+// write the transfer_requests pull does (applySyncedTransferRequest), which
+// stays as the fallback for a till that missed the command. A ref this till
+// doesn't have fails the command so kashi shows it, rather than
+// acknowledging a decision that went nowhere.
+func (a *App) executeTransferDecisionCommand(ctx context.Context, payload json.RawMessage) error {
+	var p transferDecisionPayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return fmt.Errorf("decode transfer_decision payload: %w", err)
+	}
+	p.ClientRef = strings.TrimSpace(p.ClientRef)
+	if p.ClientRef == "" || p.Status == "" {
+		return fmt.Errorf("client_ref and status are required")
+	}
+	if _, err := a.store.GetTransferRequestByClientRef(ctx, p.ClientRef); err != nil {
+		return fmt.Errorf("transfer request %q not found on this till: %w", p.ClientRef, err)
+	}
+	if err := applySyncedTransferRequest(ctx, a.store.Queries, syncedTransferRequest{
+		ClientRef: p.ClientRef,
+		Status:    p.Status,
+	}); err != nil {
+		return fmt.Errorf("record transfer decision: %w", err)
+	}
+	a.emitSyncApplied("transfer_requests")
 	return nil
 }

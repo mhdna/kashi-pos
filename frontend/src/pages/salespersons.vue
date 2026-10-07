@@ -39,7 +39,11 @@
       <v-list class="pa-0" bg-color="transparent">
         <v-list-item v-for="row in rows" :key="row.salespersonId" class="performance-item mb-2" rounded="lg">
           <template #prepend>
-            <InitialsAvatar :name="row.salespersonName" class="me-3" />
+            <InitialsAvatar
+              :name="row.salespersonName"
+              :color="salespersonColor({ color: colorById.get(row.salespersonId), fullName: row.salespersonName })"
+              class="me-3"
+            />
           </template>
           <div class="performance-item__main">
             <div class="d-flex align-center mb-1">
@@ -83,7 +87,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { ListSalespersonSalesSummary } from "../../wailsjs/go/main/App";
+import { ListSalespersonSalesSummary, ListSalespersons } from "../../wailsjs/go/main/App";
+import { salespersonColor } from "@/lib/salespersonColor";
 import { useAuthStore } from "@/stores/auth";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
 
@@ -153,9 +158,14 @@ function scoreRows(summary: SummaryRow[]): ScoredRow[] {
     .sort((a, b) => b.score - a.score);
 }
 
+// Avatar colors by salesperson id; the sales summary itself doesn't carry them.
+const colorById = ref(new Map<number, string>());
+
 async function refresh() {
   loading.value = true;
   try {
+    const people = await ListSalespersons().catch(() => []);
+    colorById.value = new Map(people.map((p: any) => [p.id, p.color]));
     const summary = (await ListSalespersonSalesSummary(fromDate.value, toDate.value)) as SummaryRow[];
     rows.value = scoreRows(summary);
   } catch {

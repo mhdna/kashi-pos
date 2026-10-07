@@ -16,6 +16,70 @@ export namespace main {
 	        this.hasMore = source["hasMore"];
 	    }
 	}
+	export class SyncPendingByType {
+	    entityType: string;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SyncPendingByType(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entityType = source["entityType"];
+	        this.count = source["count"];
+	    }
+	}
+	export class CloseShiftSyncGate {
+	    required: boolean;
+	    pending: number;
+	    failed: number;
+	    byType: SyncPendingByType[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CloseShiftSyncGate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.required = source["required"];
+	        this.pending = source["pending"];
+	        this.failed = source["failed"];
+	        this.byType = this.convertValues(source["byType"], SyncPendingByType);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DisplayPrefs {
+	    prefs: Record<string, any>;
+	    rev: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DisplayPrefs(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.prefs = source["prefs"];
+	        this.rev = source["rev"];
+	    }
+	}
 	export class ExchangeQuote {
 	    returnedTotalCents: number;
 	    replacementTotalCents: number;
@@ -613,6 +677,53 @@ export namespace main {
 	        this.destinationReceivesCents = source["destinationReceivesCents"];
 	    }
 	}
+	export class SyncFlushProgress {
+	    total: number;
+	    done: number;
+	    failed: number;
+	    remaining: number;
+	    perSecond: number;
+	    etaSeconds: number;
+	    elapsedSeconds: number;
+	    byType: SyncPendingByType[];
+	    finished: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SyncFlushProgress(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total = source["total"];
+	        this.done = source["done"];
+	        this.failed = source["failed"];
+	        this.remaining = source["remaining"];
+	        this.perSecond = source["perSecond"];
+	        this.etaSeconds = source["etaSeconds"];
+	        this.elapsedSeconds = source["elapsedSeconds"];
+	        this.byType = this.convertValues(source["byType"], SyncPendingByType);
+	        this.finished = source["finished"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class SyncStatusResult {
 	    configured: boolean;
 	    target: string;

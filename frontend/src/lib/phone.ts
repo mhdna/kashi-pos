@@ -18,7 +18,7 @@ export function normalizeLebanesePhone(value: string): string {
   if (digits.startsWith("0")) digits = digits.slice(1);
   if (digits.length === 8 && LEBANESE_MOBILE_PREFIXES.some((p) => digits.startsWith(p))) return `+961${digits}`;
   // 3xxxxxx is the old 03 mobile range; 1 and 4-9 are regional landlines.
-  if (digits.length === 7 && "13456789".includes(digits[0])) return `+961${digits}`;
+  if (digits.length === 7 && "13456789".includes(digits.charAt(0))) return `+961${digits}`;
   return "";
 }
 

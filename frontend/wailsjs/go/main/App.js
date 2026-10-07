@@ -22,6 +22,14 @@ export function ApproveAttendanceComplaint(arg1, arg2, arg3) {
   return window['go']['main']['App']['ApproveAttendanceComplaint'](arg1, arg2, arg3);
 }
 
+export function BypassCloseShiftSyncGate(arg1, arg2, arg3) {
+  return window['go']['main']['App']['BypassCloseShiftSyncGate'](arg1, arg2, arg3);
+}
+
+export function CancelSyncFlush() {
+  return window['go']['main']['App']['CancelSyncFlush']();
+}
+
 export function ChangeAdminPassword(arg1, arg2) {
   return window['go']['main']['App']['ChangeAdminPassword'](arg1, arg2);
 }
@@ -182,6 +190,10 @@ export function ExportQuickAccessCSV() {
   return window['go']['main']['App']['ExportQuickAccessCSV']();
 }
 
+export function FlushSyncOutbox() {
+  return window['go']['main']['App']['FlushSyncOutbox']();
+}
+
 export function ForceSetAdminPassword(arg1) {
   return window['go']['main']['App']['ForceSetAdminPassword'](arg1);
 }
@@ -222,6 +234,10 @@ export function GetClientProfile(arg1) {
   return window['go']['main']['App']['GetClientProfile'](arg1);
 }
 
+export function GetCloseShiftSyncGate() {
+  return window['go']['main']['App']['GetCloseShiftSyncGate']();
+}
+
 export function GetCurrentMonth() {
   return window['go']['main']['App']['GetCurrentMonth']();
 }
@@ -240,6 +256,10 @@ export function GetDatabaseStatus() {
 
 export function GetDeferredCouponTotalByMonth(arg1) {
   return window['go']['main']['App']['GetDeferredCouponTotalByMonth'](arg1);
+}
+
+export function GetDisplayPrefs() {
+  return window['go']['main']['App']['GetDisplayPrefs']();
 }
 
 export function GetExchangeInvoice(arg1) {
@@ -554,6 +574,10 @@ export function ReplaceShiftBalance(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['ReplaceShiftBalance'](arg1, arg2, arg3, arg4);
 }
 
+export function ReportDisplayPrefs(arg1) {
+  return window['go']['main']['App']['ReportDisplayPrefs'](arg1);
+}
+
 export function ReprintInvoice(arg1) {
   return window['go']['main']['App']['ReprintInvoice'](arg1);
 }
@@ -596,6 +620,10 @@ export function SetClientActive(arg1, arg2) {
 
 export function SetClientRequired(arg1) {
   return window['go']['main']['App']['SetClientRequired'](arg1);
+}
+
+export function SetCloseShiftRequiresSyncEnabled(arg1) {
+  return window['go']['main']['App']['SetCloseShiftRequiresSyncEnabled'](arg1);
 }
 
 export function SetCountOpeningCashOnCloseEnabled(arg1) {

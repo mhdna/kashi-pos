@@ -434,7 +434,9 @@ function salespersonFirstName(name?: string) {
   const trimmed = name?.trim();
   return trimmed ? trimmed.split(/\s+/)[0] : "Anonymous";
 }
-const baseHeaders = [
+// The first column is each invoice's sync state with kashi, shown to every
+// user so cashiers can see their sales upload.
+const headers = [
   { title: "", key: "syncState", sortable: false, width: "28px" },
   { title: "Invoice", key: "invoiceCode", width: "165px" },
   { title: "Customer", key: "clientId", width: "120px" },
@@ -450,10 +452,6 @@ const baseHeaders = [
     align: "end" as const,
   },
 ];
-// The sync dot is an admin-only detail; non-admin cashiers don't see it.
-const headers = computed(() =>
-  auth.isAdmin ? baseHeaders : baseHeaders.filter((h) => h.key !== "syncState"),
-);
 function syncDotColor(state?: string) {
   if (state === "synced") return "success";
   if (state === "failed") return "error";

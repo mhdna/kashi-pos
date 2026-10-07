@@ -491,6 +491,7 @@ type Salesperson struct {
 	AttendanceUserID string        `json:"attendanceUserId"`
 	RemoteID         sql.NullInt64 `json:"remoteId"`
 	IsActive         int64         `json:"isActive"`
+	Color            string        `json:"color"`
 }
 
 type SalespersonAttendanceEvent struct {
@@ -554,6 +555,8 @@ type Setting struct {
 	QuickAccessMode          string         `json:"quickAccessMode"`
 	QuickAccessModeChangedAt string         `json:"quickAccessModeChangedAt"`
 	QuickAccessReported      int64          `json:"quickAccessReported"`
+	DisplayPrefs             string         `json:"displayPrefs"`
+	DisplayPrefsRev          int64          `json:"displayPrefsRev"`
 }
 
 type Shift struct {

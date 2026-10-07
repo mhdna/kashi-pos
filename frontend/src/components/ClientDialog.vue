@@ -191,6 +191,7 @@ import {
   type Client,
 } from "@/lib/client";
 import { formatLebanesePhone, normalizeLebanesePhone } from "@/lib/phone";
+import { playClickSound, playDtmfSound } from "@/lib/sound";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
 const emit = defineEmits<{ select: [client: Client] }>();
@@ -276,6 +277,7 @@ function appendPhoneDigit(digit: string) {
   const start = input?.selectionStart ?? rawPhone.length;
   const end = input?.selectionEnd ?? start;
   if (exceedsPhoneLength(replaceSelection(rawPhone, start, end, digit))) return;
+  playDtmfSound(digit);
   phone.value = rawPhone.slice(0, start) + digit + rawPhone.slice(end);
   phoneSubmitted.value = false;
   restorePhoneCaret(start + 1);
@@ -298,11 +300,13 @@ function preventPhoneLengthInput(event: InputEvent) {
 }
 
 function clearPhone() {
+  playClickSound();
   phone.value = "";
   phoneSubmitted.value = false;
 }
 
 function backspacePhone() {
+  playClickSound();
   const input = phoneInput.value;
   if (!input) return;
   removePhoneAtCursor({

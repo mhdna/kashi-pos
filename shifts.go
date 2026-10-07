@@ -288,6 +288,9 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 	if err != nil {
 		return nil, err
 	}
+	if err := a.checkCloseShiftSyncGate(id); err != nil {
+		return nil, err
+	}
 
 	closedAt := time.Now().UTC().Format("2006-01-02 15:04:05")
 	printData, receiptEnabled, err := a.buildShiftClosePrintData(
@@ -378,6 +381,16 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		}
 		return nil, err
 	}
+	// Ask kashi for the receipt-photo link before waking the sync worker.
+	// kashi only mints an upload token for a close it hasn't seen yet, so if
+	// the worker pushed the queued close first, this request would get the
+	// shift back without a token and the QR would fall back to the local
+	// address every time.
+	uploadMode := a.shiftReceiptUploadMode()
+	var central *centralShiftUpload
+	if receiptEnabled || isDevMode {
+		central = a.requestCentralShiftUpload(uploadMode, shiftRef, shiftClosePayload, centralURL)
+	}
 	if centralURL != "" {
 		a.kickSyncWorker()
 	}
@@ -389,7 +402,7 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 	// attaches the QR link to the result so the close-shift screen blocks
 	// on the upload -- see resolveShiftReceiptUpload.
 	mintReceiptUpload := func() {
-		if upload := a.resolveShiftReceiptUpload(id, shiftRef, shiftClosePayload, centralURL); upload != nil {
+		if upload := a.resolveShiftReceiptUploadWith(id, uploadMode, central); upload != nil {
 			result["receiptUpload"] = upload
 		}
 	}
@@ -428,18 +441,47 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 //	         photo is forwarded to kashi later by sync_shift_receipts.go.
 func (a *App) resolveShiftReceiptUpload(shiftID int64, shiftRef string, payload branchShiftClosePayload, centralURL string) map[string]any {
 	mode := a.shiftReceiptUploadMode()
+	return a.resolveShiftReceiptUploadWith(shiftID, mode, a.requestCentralShiftUpload(mode, shiftRef, payload, centralURL))
+}
+
+// centralShiftUpload is kashi's answer to the direct shift-close push: the
+// one-time upload token and the QR URL built from it, or why there isn't
+// one.
+type centralShiftUpload struct {
+	token string
+	url   string
+	err   error
+}
+
+// requestCentralShiftUpload pushes the close to kashi directly for an upload
+// token when the mode wants the QR to point at kashi. nil means the mode
+// doesn't call for it (off/local) or sync isn't configured.
+func (a *App) requestCentralShiftUpload(mode int64, shiftRef string, payload branchShiftClosePayload, centralURL string) *centralShiftUpload {
+	if (mode != shiftUploadModeCentral && mode != shiftUploadModeHybrid) || centralURL == "" {
+		return nil
+	}
+	token, url, err := a.postShiftCloseForUploadToken(shiftRef, payload)
+	return &centralShiftUpload{token: token, url: url, err: err}
+}
+
+// resolveShiftReceiptUploadWith is resolveShiftReceiptUpload with kashi's
+// answer already in hand (central is nil when none was asked for).
+func (a *App) resolveShiftReceiptUploadWith(shiftID, mode int64, central *centralShiftUpload) map[string]any {
 	if mode == shiftUploadModeOff {
 		return nil
 	}
 
-	if (mode == shiftUploadModeCentral || mode == shiftUploadModeHybrid) && centralURL != "" {
-		if upload, err := a.mintCentralShiftReceiptUpload(shiftID, shiftRef, payload); err != nil {
-			log.Printf("close shift %d: central receipt upload: %v", shiftID, err)
-			if mode == shiftUploadModeCentral {
-				return nil // strict central: no local fallback
+	if central != nil {
+		if central.err == nil {
+			upload, err := a.insertShiftReceiptUpload(shiftID, central.token, "central", central.url)
+			if err == nil {
+				return upload
 			}
-		} else {
-			return upload
+			central.err = err
+		}
+		log.Printf("close shift %d: central receipt upload: %v", shiftID, central.err)
+		if mode == shiftUploadModeCentral {
+			return nil // strict central: no local fallback
 		}
 	} else if mode == shiftUploadModeCentral {
 		log.Printf("close shift %d: central receipt upload wanted but sync isn't configured", shiftID)
@@ -454,25 +496,27 @@ func (a *App) resolveShiftReceiptUpload(shiftID int64, shiftRef string, payload 
 	return upload
 }
 
-func (a *App) mintCentralShiftReceiptUpload(shiftID int64, shiftRef string, payload branchShiftClosePayload) (map[string]any, error) {
+// postShiftCloseForUploadToken sends the close to kashi directly and returns
+// the upload token and QR URL kashi minted for it.
+func (a *App) postShiftCloseForUploadToken(shiftRef string, payload branchShiftClosePayload) (string, string, error) {
 	settings, err := a.store.GetSettings(a.ctx)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 	client := newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 	ctx, cancel := context.WithTimeout(a.ctx, 4*time.Second)
 	defer cancel()
 	resp, err := client.PostShiftClose(ctx, body)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 	if resp.UploadToken == "" {
-		return nil, fmt.Errorf("kashi returned no upload token")
+		return "", "", fmt.Errorf("kashi returned no upload token")
 	}
 
 	// The close is on kashi now; the queued outbox row is redundant.
@@ -480,11 +524,10 @@ func (a *App) mintCentralShiftReceiptUpload(shiftID int64, shiftRef string, payl
 		SyncedTo:  client.baseURL,
 		ClientRef: shiftRef,
 	}); err != nil {
-		log.Printf("close shift %d: mark outbox synced: %v", shiftID, err)
+		log.Printf("close %s: mark outbox synced: %v", shiftRef, err)
 	}
 
-	url := client.ShiftUploadURL(resp.UploadToken)
-	return a.insertShiftReceiptUpload(shiftID, resp.UploadToken, "central", url)
+	return resp.UploadToken, client.ShiftUploadURL(resp.UploadToken), nil
 }
 
 func (a *App) mintLocalShiftReceiptUpload(shiftID int64) (map[string]any, error) {

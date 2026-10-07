@@ -146,7 +146,7 @@ import CalculatorEntries from "@/components/calculator/CalculatorEntries.vue";
 import CalculatorKeypad from "@/components/calculator/CalculatorKeypad.vue";
 import CalculatorPaymentMethods from "@/components/calculator/CalculatorPaymentMethods.vue";
 import CalculatorStatus from "@/components/calculator/CalculatorStatus.vue";
-import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
+import { isCashPaymentMethod, isSpecialPaymentMethod } from "@/lib/paymentMethods";
 
 interface PaymentMethod {
   id: number;
@@ -666,6 +666,13 @@ const paymentsJSON = computed(() => {
   })));
 });
 const firstEntryAccountId = computed(() => entries.value[0]?.accountId ?? 0);
+// Total physical cash tendered this sale (gross, not netted against change
+// given back) - shown to the cashier while the receipt prints.
+const cashTotalCents = computed(() =>
+  entries.value
+    .filter((entry) => entry.amountCents > 0 && isCashPaymentMethod(entry.type))
+    .reduce((sum, entry) => sum + entry.amountCents, 0),
+);
 defineExpose({
   diff,
   checkoutReady,
@@ -673,6 +680,7 @@ defineExpose({
   clearAll,
   firstEntryAccountId,
   paymentsJSON,
+  cashTotalCents,
   addCoupon,
   selectMethodAndConfirm,
   addOnAccount,

@@ -129,6 +129,11 @@ func (a *App) runPushTick(ctx context.Context) {
 	if a.pushLink.waiting(time.Now()) {
 		return
 	}
+	// A close-shift flush is draining everything already (sync_flush.go).
+	if !a.pushMu.TryLock() {
+		return
+	}
+	defer a.pushMu.Unlock()
 	if !a.pushLink.isUp() {
 		// Any answer at all (even a 401) means the network is fine; only a
 		// request that got no answer keeps the link down.
@@ -299,96 +304,7 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 			return nil
 		}
 		sent++
-
-		// transfer_confirm has no fixed path -- it targets one specific
-		// central transfer id, parsed back out of the outbox row's own
-		// synthesized client_ref (see queueBranchTransferConfirmSync).
-		if entry.EntityType == "transfer_confirm" {
-			centralID, parseErr := parseTransferConfirmClientRef(entry.ClientRef)
-			if parseErr != nil {
-				log.Printf("sync outbox entry %d: %v, marking failed", entry.ID, parseErr)
-				a.markSyncOutboxFailed(ctx, entry, parseErr)
-				changed = true
-				continue
-			}
-			path := fmt.Sprintf("/branch/transfer_requests/%d/confirm", centralID)
-			if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
-				a.recordSyncOutboxError(ctx, entry, err)
-				changed = true
-				continue
-			}
-			if err := retryBusy(func() error {
-				return a.store.MarkSyncOutboxSynced(ctx, db.MarkSyncOutboxSyncedParams{
-					SyncedTo: client.baseURL,
-					ID:       entry.ID,
-				})
-			}); err != nil {
-				log.Printf("sync outbox entry %d: mark synced: %v", entry.ID, err)
-			}
-			changed = true
-			continue
-		}
-
-		path, ok := branchInvoicePath(entry.EntityType)
-		if !ok {
-			// A payload shape kashi has no route for is never going to start
-			// working on retry. Park it in 'failed' so it stops being
-			// re-selected every tick and occupying a drain-batch slot.
-			log.Printf("sync outbox entry %d: unknown entity_type %q, marking failed", entry.ID, entry.EntityType)
-			a.markSyncOutboxFailed(ctx, entry, fmt.Errorf("unknown entity_type %q", entry.EntityType))
-			changed = true
-			continue
-		}
-
-		// Expenses need kashi's response body (the one-time receipt-upload
-		// token) -- every other entity's response is discarded, since
-		// kashi's idempotency handling already makes any 2xx equally a
-		// success for them.
-		if entry.EntityType == "expense" {
-			resp, err := client.PostExpense(ctx, path, []byte(entry.PayloadJson))
-			if err != nil {
-				a.recordSyncOutboxError(ctx, entry, err)
-				changed = true
-				continue
-			}
-			if resp.UploadToken != "" {
-				a.emitExpenseUploadReady(entry.ClientRef, client.UploadURL(resp.UploadToken))
-			}
-		} else if entry.EntityType == "transfer_request" {
-			// Same shape as "expense" above: the response body carries the
-			// one-time photo-upload token this transfer's QR points at.
-			resp, err := client.PostTransferRequest(ctx, path, []byte(entry.PayloadJson))
-			if err != nil {
-				a.recordSyncOutboxError(ctx, entry, err)
-				changed = true
-				continue
-			}
-			if resp.UploadToken != "" {
-				a.emitTransferUploadReady(entry.ClientRef, client.TransferUploadURL(resp.UploadToken))
-			}
-		} else if entry.EntityType == "client" {
-			if err := a.pushOneClient(ctx, client, path, entry); err != nil {
-				a.recordSyncOutboxError(ctx, entry, err)
-				changed = true
-				continue
-			}
-		} else if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
-			a.recordSyncOutboxError(ctx, entry, err)
-			changed = true
-			continue
-		}
-
-		if err := retryBusy(func() error {
-			return a.store.MarkSyncOutboxSynced(ctx, db.MarkSyncOutboxSyncedParams{
-				SyncedTo: client.baseURL,
-				ID:       entry.ID,
-			})
-		}); err != nil {
-			log.Printf("sync outbox entry %d: mark synced: %v", entry.ID, err)
-		}
-		if entry.EntityType == "quick_access_mode" {
-			a.afterQuickAccessModePushed(client)
-		}
+		a.pushOutboxEntry(ctx, client, entry)
 		changed = true
 	}
 
@@ -407,6 +323,81 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 	}
 
 	return nil
+}
+
+// pushOutboxEntry sends one outbox row to kashi and settles it: 'synced',
+// back on the retry path, or 'failed' -- it always changes the row's state.
+// It reports whether the row ended synced. Shared by the live drain
+// (runSyncOutboxOnce) and the parallel close-shift flush (sync_flush.go).
+func (a *App) pushOutboxEntry(ctx context.Context, client *centralClient, entry db.SyncOutbox) bool {
+	// transfer_confirm has no fixed path -- it targets one specific
+	// central transfer id, parsed back out of the outbox row's own
+	// synthesized client_ref (see queueBranchTransferConfirmSync).
+	if entry.EntityType == "transfer_confirm" {
+		centralID, parseErr := parseTransferConfirmClientRef(entry.ClientRef)
+		if parseErr != nil {
+			log.Printf("sync outbox entry %d: %v, marking failed", entry.ID, parseErr)
+			a.markSyncOutboxFailed(ctx, entry, parseErr)
+			return false
+		}
+		path := fmt.Sprintf("/branch/transfer_requests/%d/confirm", centralID)
+		if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
+			a.recordSyncOutboxError(ctx, entry, err)
+			return false
+		}
+		a.markOutboxSynced(ctx, client, entry)
+		return true
+	}
+
+	path, ok := branchInvoicePath(entry.EntityType)
+	if !ok {
+		// A payload shape kashi has no route for is never going to start
+		// working on retry. Park it in 'failed' so it stops being
+		// re-selected every tick and occupying a drain-batch slot.
+		log.Printf("sync outbox entry %d: unknown entity_type %q, marking failed", entry.ID, entry.EntityType)
+		a.markSyncOutboxFailed(ctx, entry, fmt.Errorf("unknown entity_type %q", entry.EntityType))
+		return false
+	}
+
+	// Expenses need kashi's response body (the one-time receipt-upload
+	// token) -- every other entity's response is discarded, since
+	// kashi's idempotency handling already makes any 2xx equally a
+	// success for them.
+	if entry.EntityType == "expense" {
+		resp, err := client.PostExpense(ctx, path, []byte(entry.PayloadJson))
+		if err != nil {
+			a.recordSyncOutboxError(ctx, entry, err)
+			return false
+		}
+		if resp.UploadToken != "" {
+			a.emitExpenseUploadReady(entry.ClientRef, client.UploadURL(resp.UploadToken))
+		}
+	} else if entry.EntityType == "transfer_request" {
+		// Same shape as "expense" above: the response body carries the
+		// one-time photo-upload token this transfer's QR points at.
+		resp, err := client.PostTransferRequest(ctx, path, []byte(entry.PayloadJson))
+		if err != nil {
+			a.recordSyncOutboxError(ctx, entry, err)
+			return false
+		}
+		if resp.UploadToken != "" {
+			a.emitTransferUploadReady(entry.ClientRef, client.TransferUploadURL(resp.UploadToken))
+		}
+	} else if entry.EntityType == "client" {
+		if err := a.pushOneClient(ctx, client, path, entry); err != nil {
+			a.recordSyncOutboxError(ctx, entry, err)
+			return false
+		}
+	} else if err := client.PostInvoice(ctx, path, []byte(entry.PayloadJson)); err != nil {
+		a.recordSyncOutboxError(ctx, entry, err)
+		return false
+	}
+
+	a.markOutboxSynced(ctx, client, entry)
+	if entry.EntityType == "quick_access_mode" {
+		a.afterQuickAccessModePushed(client)
+	}
+	return true
 }
 
 // pushPreempted reports whether a kick is waiting: something was queued

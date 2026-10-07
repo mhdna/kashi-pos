@@ -15,6 +15,11 @@ type Querier interface {
 	AddHoldInvoiceItem(ctx context.Context, arg AddHoldInvoiceItemParams) error
 	AddInventoryProductQuantity(ctx context.Context, arg AddInventoryProductQuantityParams) error
 	AddQuickAccessProduct(ctx context.Context, productID int64) error
+	// First roster pull on a till that already had its own salespersons: link
+	// the till's unlinked salesperson with the same name to kashi's record
+	// instead of creating a duplicate. Keeps its local id, so invoices and
+	// attendance pairing stay attached.
+	AdoptSalespersonByName(ctx context.Context, arg AdoptSalespersonByNameParams) (Salesperson, error)
 	// A user the till already created locally (e.g. a set_branch_user_pin
 	// command landed before the first roster pull) is matched by username and
 	// linked to its kashi row. password_hash is left as-is.
@@ -55,6 +60,8 @@ type Querier interface {
 	CountInvoices(ctx context.Context) (int64, error)
 	CountLoansAll(ctx context.Context) (int64, error)
 	CountPendingSyncOutbox(ctx context.Context) (int64, error)
+	// The "what's left to upload" breakdown the close-shift sync dialog shows.
+	CountPendingSyncOutboxByEntityType(ctx context.Context) ([]CountPendingSyncOutboxByEntityTypeRow, error)
 	// search_pattern must already be wrapped in '%...%' by the caller. Counts the
 	// same rows ListProductsPage returns, so the total under a paged search never
 	// promises more results than the pages can show.
@@ -226,6 +233,7 @@ type Querier interface {
 	GetDiscountListByID(ctx context.Context, id int64) (DiscountList, error)
 	GetDiscountListByUID(ctx context.Context, uid sql.NullString) (DiscountList, error)
 	GetDiscountOverride(ctx context.Context, id int64) (DiscountOverride, error)
+	GetDisplayPrefs(ctx context.Context) (GetDisplayPrefsRow, error)
 	GetExpense(ctx context.Context, id int64) (Expense, error)
 	GetExpenseCategoryByName(ctx context.Context, name string) (ExpenseCategory, error)
 	GetFeatureFlag(ctx context.Context, key string) (int64, error)
@@ -555,6 +563,8 @@ type Querier interface {
 	SetIdentityAdoptedAt(ctx context.Context, identityAdoptedAt sql.NullString) error
 	SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
+	// The screen's own edits: stored so they're reported to kashi, rev untouched.
+	SetLocalDisplayPrefs(ctx context.Context, displayPrefs string) error
 	SetOversellMode(ctx context.Context, oversellMode string) error
 	SetProductActive(ctx context.Context, arg SetProductActiveParams) error
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
@@ -567,6 +577,8 @@ type Querier interface {
 	SetQuickAccessMode(ctx context.Context, arg SetQuickAccessModeParams) error
 	SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error
 	SetQuickAccessReported(ctx context.Context) error
+	// kashi's push: stored and the rev bumped, so the screen adopts it.
+	SetRemoteDisplayPrefs(ctx context.Context, displayPrefs string) error
 	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
 	SetSyncTarget(ctx context.Context, currentTarget string) error

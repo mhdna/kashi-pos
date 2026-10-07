@@ -57,6 +57,7 @@ type branchSettingsPayload struct {
 	OpeningFloatEnabled           bool `json:"opening_float_enabled"`
 	CountOpeningCashOnClose       bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        bool `json:"overchange_confirmation"`
+	CloseShiftRequiresSync        bool `json:"close_shift_requires_sync"`
 
 	// non-admin page-access locks (page_unlock_* flags)
 	PageUnlockClients      bool `json:"page_unlock_clients"`
@@ -91,6 +92,19 @@ type branchSettingsPayload struct {
 	AttendanceCashierHistory           bool   `json:"attendance_cashier_history"`
 
 	OversellMode string `json:"oversell_mode"`
+
+	HidePaymentMethodCurrency bool   `json:"hide_payment_method_currency"`
+	AutoAppendLbpZeros        bool   `json:"auto_append_lbp_zeros"`
+	AutoCloseStaleShifts      bool   `json:"auto_close_stale_shifts"`
+	VisitorCounterEnabled     bool   `json:"visitor_counter_enabled"`
+	ShiftReceiptUploadMode    int64  `json:"shift_receipt_upload_mode"`
+	BranchPhone               string `json:"branch_phone"`
+	MaxOverpaymentCents       int64  `json:"max_overpayment_cents"`
+	DefaultOpeningFloatUsd    int64  `json:"default_opening_float_usd"`
+	DefaultOpeningFloatLbp    int64  `json:"default_opening_float_lbp"`
+
+	// The screen's display prefs as it last reported them (display_prefs.go).
+	DisplayPrefs json.RawMessage `json:"display_prefs"`
 }
 
 // flagEnabled reads a feature_flags row as a bool, treating any read error
@@ -163,6 +177,17 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 	if len(socialHandles) == 0 {
 		socialHandles = json.RawMessage("{}")
 	}
+	// The screen reports its own prefs; the theme is stored in settings.theme
+	// instead, so it's added here.
+	prefs := map[string]any{}
+	_ = json.Unmarshal([]byte(s.DisplayPrefs), &prefs)
+	if s.Theme == "light" || s.Theme == "dark" {
+		prefs["theme"] = s.Theme
+	}
+	displayPrefs, err := json.Marshal(prefs)
+	if err != nil {
+		return fmt.Errorf("marshal display prefs: %w", err)
+	}
 
 	// Attendance device config -- ip/username/enabled/interval only; the
 	// akuvox password never leaves the till.
@@ -203,6 +228,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		OpeningFloatEnabled:           a.openingFloatEnabled(),
 		CountOpeningCashOnClose:       a.countOpeningCashOnClose(),
 		OverchangeConfirmation:        a.overchangeConfirmationEnabled(),
+		CloseShiftRequiresSync:        a.closeShiftRequiresSync(),
 
 		PageUnlockClients:      a.flagEnabled(ctx, pageUnlockFlag("clients")),
 		PageUnlockInventory:    a.flagEnabled(ctx, pageUnlockFlag("inventory")),
@@ -231,6 +257,17 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		AttendanceDuplicateIntervalSeconds: dupInterval,
 		AttendanceCashierHistory:           a.flagEnabled(ctx, attendanceCashierHistoryFlag),
 		OversellMode:                       s.OversellMode,
+
+		HidePaymentMethodCurrency: a.flagEnabled(ctx, hidePaymentMethodCurrencyFlag),
+		AutoAppendLbpZeros:        a.flagEnabled(ctx, autoAppendLbpZerosFlag),
+		AutoCloseStaleShifts:      a.flagEnabled(ctx, autoCloseStaleShiftsFlag),
+		VisitorCounterEnabled:     a.flagEnabled(ctx, visitorCounterFlag),
+		ShiftReceiptUploadMode:    a.shiftReceiptUploadMode(),
+		BranchPhone:               s.BranchPhone,
+		MaxOverpaymentCents:       s.MaxOverpaymentCents,
+		DefaultOpeningFloatUsd:    s.DefaultOpeningFloatUsd,
+		DefaultOpeningFloatLbp:    s.DefaultOpeningFloatLbp,
+		DisplayPrefs:              displayPrefs,
 	}
 
 	body, err := json.Marshal(payload)

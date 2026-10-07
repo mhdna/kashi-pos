@@ -218,6 +218,8 @@
       </v-btn>
     </div>
 
+    <CloseShiftSyncDialog ref="syncDialog" />
+
     <v-dialog v-model="receiptDialog" max-width="420" persistent scrollable>
       <v-card class="text-center">
         <template v-if="receiptState === 'scan'">
@@ -318,6 +320,7 @@ import { formatServerDateTime } from "@/lib/datetime";
 import { playErrorSound, playSuccessSound } from "@/lib/sound";
 import { useCurrencies } from "@/composables/useCurrencies";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
+import CloseShiftSyncDialog from "@/components/shifts/CloseShiftSyncDialog.vue";
 import QRCode from "qrcode";
 import {
   GetOpenShift,
@@ -483,9 +486,30 @@ onBeforeUnmount(() => {
 
 type ReceiptUpload = { token: string; url: string; required: boolean; mode?: string };
 
+const syncDialog = ref<InstanceType<typeof CloseShiftSyncDialog> | null>(null);
+
+// With "upload everything before closing" on, nothing is closed or printed
+// until the office has every sale -- the sync dialog uploads and shows
+// progress first. It resolves straight away when the mode is off.
+async function syncBeforeClose(): Promise<boolean> {
+  try {
+    return (await syncDialog.value?.run(shiftId.value)) ?? true;
+  } catch (e) {
+    console.error("close shift sync:", e);
+    playErrorSound();
+    window.alert(`Couldn't check what's left to upload: ${e instanceof Error ? e.message : e}`);
+    return false;
+  }
+}
+
 async function doCloseShift() {
   closing.value = true;
+  if (!(await syncBeforeClose())) {
+    closing.value = false;
+    return;
+  }
   let receiptUpload: ReceiptUpload | null = null;
+  let shiftClosed = false;
   try {
     if (shiftId.value && closingPersonId.value) {
       const result = await CloseShiftByID(
@@ -503,6 +527,7 @@ async function doCloseShift() {
           ),
         ),
       );
+      shiftClosed = true;
       if (result?.receiptError) {
         window.alert(`Shift closed, but the receipt could not be printed: ${result.receiptError}`);
       }
@@ -513,6 +538,13 @@ async function doCloseShift() {
   } catch (e) {
     console.error("close shift:", e);
     playErrorSound();
+    if (!shiftClosed) {
+      // Still open: stay here so the cashier can retry (e.g. a sale was
+      // rung up on another screen after the upload finished).
+      closing.value = false;
+      window.alert(`The shift was not closed: ${e instanceof Error ? e.message : e}`);
+      return;
+    }
   }
   closing.value = false;
 

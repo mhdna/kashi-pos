@@ -275,12 +275,17 @@ type syncedSalesperson struct {
 	ID       int64  `json:"id"`
 	Name     string `json:"name"`
 	IsActive bool   `json:"is_active"`
+	// Avatar color, picked at random in kashi and changeable there.
+	Color string `json:"color"`
 }
 
 // applySyncedSalesperson upserts by remote_id and deliberately never
 // touches attendance_user_id -- that's the local Akuvox device pairing for
 // this salesperson at this branch, which kashi has no opinion on (see the
-// comment on UpdateSyncedSalesperson in db/query/salesperson.sql).
+// comment on UpdateSyncedSalesperson in db/query/salesperson.sql). A
+// remote_id it hasn't seen is first matched by name against the till's own
+// unlinked salespersons (made before it was connected), so those are
+// adopted instead of duplicated.
 func applySyncedSalesperson(ctx context.Context, q *db.Queries, s syncedSalesperson) error {
 	isActive := int64(0)
 	if s.IsActive {
@@ -289,10 +294,20 @@ func applySyncedSalesperson(ctx context.Context, q *db.Queries, s syncedSalesper
 	remoteID := sql.NullInt64{Int64: s.ID, Valid: true}
 
 	if _, err := q.GetSalespersonByRemoteID(ctx, remoteID); err == sql.ErrNoRows {
-		_, err := q.CreateSyncedSalesperson(ctx, db.CreateSyncedSalespersonParams{
+		_, err := q.AdoptSalespersonByName(ctx, db.AdoptSalespersonByNameParams{
+			RemoteID: remoteID,
+			FullName: s.Name,
+			IsActive: isActive,
+			Color:    s.Color,
+		})
+		if err != sql.ErrNoRows {
+			return err
+		}
+		_, err = q.CreateSyncedSalesperson(ctx, db.CreateSyncedSalespersonParams{
 			FullName: s.Name,
 			RemoteID: remoteID,
 			IsActive: isActive,
+			Color:    s.Color,
 		})
 		return err
 	} else if err != nil {
@@ -302,6 +317,7 @@ func applySyncedSalesperson(ctx context.Context, q *db.Queries, s syncedSalesper
 	_, err := q.UpdateSyncedSalesperson(ctx, db.UpdateSyncedSalespersonParams{
 		FullName: s.Name,
 		IsActive: isActive,
+		Color:    s.Color,
 		RemoteID: remoteID,
 	})
 	return err

@@ -146,6 +146,61 @@ func TestSyncPullAppliesSalespersonWithoutTouchingLocalAttendanceID(t *testing.T
 	}
 }
 
+func TestSyncPullAdoptsLocalSalespersonByNameAndAppliesColor(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Query().Get("entity") {
+		case "salespersons":
+			fmt.Fprint(w, `{"entity":"salespersons","items":[{"id":7,"name":"Sarah M","is_active":true,"color":"#1E88E5"},{"id":8,"name":"New Person","is_active":true,"color":"#43A047"}],"server_time":"2026-08-24T00:00:00Z"}`)
+		default:
+			fmt.Fprint(w, `{"entity":"noop","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		}
+	}))
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
+	client := newCentralClient(server.URL, "TEST01", "test-key")
+
+	// Made on the till before it was connected; kashi's name differs only
+	// in case and spacing.
+	local, err := store.CreateSalesperson(app.ctx, "  sarah m ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpdateSalespersonAttendanceID(app.ctx, db.UpdateSalespersonAttendanceIDParams{
+		AttendanceUserID: "DEVICE-42",
+		ID:               local.ID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := app.pullEntityOnce(app.ctx, client, "salespersons"); err != nil {
+		t.Fatal(err)
+	}
+
+	adopted, err := store.GetSalespersonByRemoteID(app.ctx, sql.NullInt64{Int64: 7, Valid: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if adopted.ID != local.ID || adopted.FullName != "Sarah M" || adopted.Color != "#1E88E5" || adopted.AttendanceUserID != "DEVICE-42" {
+		t.Fatalf("local salesperson not adopted: %+v", adopted)
+	}
+	created, err := store.GetSalespersonByRemoteID(app.ctx, sql.NullInt64{Int64: 8, Valid: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Color != "#43A047" {
+		t.Fatalf("new salesperson color = %q", created.Color)
+	}
+	all, err := store.ListSalespersons(app.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("want 2 salespersons (no duplicate), got %d: %+v", len(all), all)
+	}
+}
+
 func TestSyncPullRemovesBranchTargetWhenKashiMarksItInactive(t *testing.T) {
 	active := true
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

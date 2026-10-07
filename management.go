@@ -875,8 +875,8 @@ func isNonCollectedIncomeAccount(name string) bool {
 	return strings.EqualFold(strings.TrimSpace(name), "On Account")
 }
 
-// InvoiceSyncState drives the per-invoice sync column (admin-only in the
-// UI). State is "synced" only when the current central server confirmed it;
+// InvoiceSyncState drives the per-invoice sync column (shown to every
+// user). State is "synced" only when the current central server confirmed it;
 // "pending" while queued, retrying, or confirmed by a *different* server
 // we're no longer pointed at (the list shows a spinner); "failed" when kashi
 // rejected it outright; "" when it was never queued. Error is the last push

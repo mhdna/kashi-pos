@@ -81,6 +81,13 @@ SELECT COUNT(*) FROM sync_outbox WHERE status = 'pending';
 -- name: CountSyncOutboxByStatus :one
 SELECT COUNT(*) FROM sync_outbox WHERE status = ?;
 
+-- name: CountPendingSyncOutboxByEntityType :many
+-- The "what's left to upload" breakdown the close-shift sync dialog shows.
+SELECT entity_type, COUNT(*) AS count FROM sync_outbox
+WHERE status = 'pending'
+GROUP BY entity_type
+ORDER BY count DESC;
+
 -- name: CountSyncOutboxConfirmedOnTarget :one
 SELECT COUNT(*) FROM sync_outbox WHERE status = 'synced' AND synced_to = ?;
 

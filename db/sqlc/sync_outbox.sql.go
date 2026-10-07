@@ -31,6 +31,42 @@ func (q *Queries) CountPendingSyncOutbox(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countPendingSyncOutboxByEntityType = `-- name: CountPendingSyncOutboxByEntityType :many
+SELECT entity_type, COUNT(*) AS count FROM sync_outbox
+WHERE status = 'pending'
+GROUP BY entity_type
+ORDER BY count DESC
+`
+
+type CountPendingSyncOutboxByEntityTypeRow struct {
+	EntityType string `json:"entityType"`
+	Count      int64  `json:"count"`
+}
+
+// The "what's left to upload" breakdown the close-shift sync dialog shows.
+func (q *Queries) CountPendingSyncOutboxByEntityType(ctx context.Context) ([]CountPendingSyncOutboxByEntityTypeRow, error) {
+	rows, err := q.db.QueryContext(ctx, countPendingSyncOutboxByEntityType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountPendingSyncOutboxByEntityTypeRow{}
+	for rows.Next() {
+		var i CountPendingSyncOutboxByEntityTypeRow
+		if err := rows.Scan(&i.EntityType, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countSyncOutboxByStatus = `-- name: CountSyncOutboxByStatus :one
 SELECT COUNT(*) FROM sync_outbox WHERE status = ?
 `

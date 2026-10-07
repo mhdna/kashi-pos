@@ -10,8 +10,54 @@ import (
 	"database/sql"
 )
 
+const adoptSalespersonByName = `-- name: AdoptSalespersonByName :one
+UPDATE salespersons
+SET remote_id = ?1,
+    full_name = ?2,
+    is_active = ?3,
+    color = ?4
+WHERE id = (
+    SELECT id FROM salespersons
+    WHERE remote_id IS NULL
+      AND lower(trim(full_name)) = lower(trim(?2))
+    ORDER BY id
+    LIMIT 1
+)
+RETURNING id, full_name, attendance_user_id, remote_id, is_active, color
+`
+
+type AdoptSalespersonByNameParams struct {
+	RemoteID sql.NullInt64 `json:"remoteId"`
+	FullName string        `json:"fullName"`
+	IsActive int64         `json:"isActive"`
+	Color    string        `json:"color"`
+}
+
+// First roster pull on a till that already had its own salespersons: link
+// the till's unlinked salesperson with the same name to kashi's record
+// instead of creating a duplicate. Keeps its local id, so invoices and
+// attendance pairing stay attached.
+func (q *Queries) AdoptSalespersonByName(ctx context.Context, arg AdoptSalespersonByNameParams) (Salesperson, error) {
+	row := q.db.QueryRowContext(ctx, adoptSalespersonByName,
+		arg.RemoteID,
+		arg.FullName,
+		arg.IsActive,
+		arg.Color,
+	)
+	var i Salesperson
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.AttendanceUserID,
+		&i.RemoteID,
+		&i.IsActive,
+		&i.Color,
+	)
+	return i, err
+}
+
 const createSalesperson = `-- name: CreateSalesperson :one
-INSERT INTO salespersons (full_name) VALUES (?) RETURNING id, full_name, attendance_user_id, remote_id, is_active
+INSERT INTO salespersons (full_name) VALUES (?) RETURNING id, full_name, attendance_user_id, remote_id, is_active, color
 `
 
 func (q *Queries) CreateSalesperson(ctx context.Context, fullName string) (Salesperson, error) {
@@ -23,22 +69,29 @@ func (q *Queries) CreateSalesperson(ctx context.Context, fullName string) (Sales
 		&i.AttendanceUserID,
 		&i.RemoteID,
 		&i.IsActive,
+		&i.Color,
 	)
 	return i, err
 }
 
 const createSyncedSalesperson = `-- name: CreateSyncedSalesperson :one
-INSERT INTO salespersons (full_name, remote_id, is_active) VALUES (?, ?, ?) RETURNING id, full_name, attendance_user_id, remote_id, is_active
+INSERT INTO salespersons (full_name, remote_id, is_active, color) VALUES (?, ?, ?, ?) RETURNING id, full_name, attendance_user_id, remote_id, is_active, color
 `
 
 type CreateSyncedSalespersonParams struct {
 	FullName string        `json:"fullName"`
 	RemoteID sql.NullInt64 `json:"remoteId"`
 	IsActive int64         `json:"isActive"`
+	Color    string        `json:"color"`
 }
 
 func (q *Queries) CreateSyncedSalesperson(ctx context.Context, arg CreateSyncedSalespersonParams) (Salesperson, error) {
-	row := q.db.QueryRowContext(ctx, createSyncedSalesperson, arg.FullName, arg.RemoteID, arg.IsActive)
+	row := q.db.QueryRowContext(ctx, createSyncedSalesperson,
+		arg.FullName,
+		arg.RemoteID,
+		arg.IsActive,
+		arg.Color,
+	)
 	var i Salesperson
 	err := row.Scan(
 		&i.ID,
@@ -46,6 +99,7 @@ func (q *Queries) CreateSyncedSalesperson(ctx context.Context, arg CreateSyncedS
 		&i.AttendanceUserID,
 		&i.RemoteID,
 		&i.IsActive,
+		&i.Color,
 	)
 	return i, err
 }
@@ -60,7 +114,7 @@ func (q *Queries) DeleteSalesperson(ctx context.Context, id int64) error {
 }
 
 const getSalespersonByID = `-- name: GetSalespersonByID :one
-SELECT id, full_name, attendance_user_id, remote_id, is_active FROM salespersons WHERE id = ?
+SELECT id, full_name, attendance_user_id, remote_id, is_active, color FROM salespersons WHERE id = ?
 `
 
 func (q *Queries) GetSalespersonByID(ctx context.Context, id int64) (Salesperson, error) {
@@ -72,12 +126,13 @@ func (q *Queries) GetSalespersonByID(ctx context.Context, id int64) (Salesperson
 		&i.AttendanceUserID,
 		&i.RemoteID,
 		&i.IsActive,
+		&i.Color,
 	)
 	return i, err
 }
 
 const getSalespersonByRemoteID = `-- name: GetSalespersonByRemoteID :one
-SELECT id, full_name, attendance_user_id, remote_id, is_active FROM salespersons WHERE remote_id = ?
+SELECT id, full_name, attendance_user_id, remote_id, is_active, color FROM salespersons WHERE remote_id = ?
 `
 
 func (q *Queries) GetSalespersonByRemoteID(ctx context.Context, remoteID sql.NullInt64) (Salesperson, error) {
@@ -89,12 +144,13 @@ func (q *Queries) GetSalespersonByRemoteID(ctx context.Context, remoteID sql.Nul
 		&i.AttendanceUserID,
 		&i.RemoteID,
 		&i.IsActive,
+		&i.Color,
 	)
 	return i, err
 }
 
 const listSalespersons = `-- name: ListSalespersons :many
-SELECT id, full_name, attendance_user_id, remote_id, is_active FROM salespersons ORDER BY id
+SELECT id, full_name, attendance_user_id, remote_id, is_active, color FROM salespersons ORDER BY id
 `
 
 func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
@@ -112,6 +168,7 @@ func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
 			&i.AttendanceUserID,
 			&i.RemoteID,
 			&i.IsActive,
+			&i.Color,
 		); err != nil {
 			return nil, err
 		}
@@ -127,7 +184,7 @@ func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
 }
 
 const updateSalesperson = `-- name: UpdateSalesperson :one
-UPDATE salespersons SET full_name = ? WHERE id = ? RETURNING id, full_name, attendance_user_id, remote_id, is_active
+UPDATE salespersons SET full_name = ? WHERE id = ? RETURNING id, full_name, attendance_user_id, remote_id, is_active, color
 `
 
 type UpdateSalespersonParams struct {
@@ -144,6 +201,7 @@ func (q *Queries) UpdateSalesperson(ctx context.Context, arg UpdateSalespersonPa
 		&i.AttendanceUserID,
 		&i.RemoteID,
 		&i.IsActive,
+		&i.Color,
 	)
 	return i, err
 }
@@ -163,19 +221,25 @@ func (q *Queries) UpdateSalespersonAttendanceID(ctx context.Context, arg UpdateS
 }
 
 const updateSyncedSalesperson = `-- name: UpdateSyncedSalesperson :one
-UPDATE salespersons SET full_name = ?, is_active = ? WHERE remote_id = ? RETURNING id, full_name, attendance_user_id, remote_id, is_active
+UPDATE salespersons SET full_name = ?, is_active = ?, color = ? WHERE remote_id = ? RETURNING id, full_name, attendance_user_id, remote_id, is_active, color
 `
 
 type UpdateSyncedSalespersonParams struct {
 	FullName string        `json:"fullName"`
 	IsActive int64         `json:"isActive"`
+	Color    string        `json:"color"`
 	RemoteID sql.NullInt64 `json:"remoteId"`
 }
 
 // attendance_user_id is deliberately not touched here -- it's local-only
 // device pairing, never sent by kashi (see sync_pull.go).
 func (q *Queries) UpdateSyncedSalesperson(ctx context.Context, arg UpdateSyncedSalespersonParams) (Salesperson, error) {
-	row := q.db.QueryRowContext(ctx, updateSyncedSalesperson, arg.FullName, arg.IsActive, arg.RemoteID)
+	row := q.db.QueryRowContext(ctx, updateSyncedSalesperson,
+		arg.FullName,
+		arg.IsActive,
+		arg.Color,
+		arg.RemoteID,
+	)
 	var i Salesperson
 	err := row.Scan(
 		&i.ID,
@@ -183,6 +247,7 @@ func (q *Queries) UpdateSyncedSalesperson(ctx context.Context, arg UpdateSyncedS
 		&i.AttendanceUserID,
 		&i.RemoteID,
 		&i.IsActive,
+		&i.Color,
 	)
 	return i, err
 }

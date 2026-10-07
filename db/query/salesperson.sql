@@ -20,9 +20,28 @@ SELECT * FROM salespersons WHERE remote_id = ?;
 UPDATE salespersons SET attendance_user_id = ? WHERE id = ?;
 
 -- name: CreateSyncedSalesperson :one
-INSERT INTO salespersons (full_name, remote_id, is_active) VALUES (?, ?, ?) RETURNING *;
+INSERT INTO salespersons (full_name, remote_id, is_active, color) VALUES (?, ?, ?, ?) RETURNING *;
+
+-- name: AdoptSalespersonByName :one
+-- First roster pull on a till that already had its own salespersons: link
+-- the till's unlinked salesperson with the same name to kashi's record
+-- instead of creating a duplicate. Keeps its local id, so invoices and
+-- attendance pairing stay attached.
+UPDATE salespersons
+SET remote_id = sqlc.arg(remote_id),
+    full_name = sqlc.arg(full_name),
+    is_active = sqlc.arg(is_active),
+    color = sqlc.arg(color)
+WHERE id = (
+    SELECT id FROM salespersons
+    WHERE remote_id IS NULL
+      AND lower(trim(full_name)) = lower(trim(sqlc.arg(full_name)))
+    ORDER BY id
+    LIMIT 1
+)
+RETURNING *;
 
 -- name: UpdateSyncedSalesperson :one
 -- attendance_user_id is deliberately not touched here -- it's local-only
 -- device pairing, never sent by kashi (see sync_pull.go).
-UPDATE salespersons SET full_name = ?, is_active = ? WHERE remote_id = ? RETURNING *;
+UPDATE salespersons SET full_name = ?, is_active = ?, color = ? WHERE remote_id = ? RETURNING *;

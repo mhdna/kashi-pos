@@ -23,6 +23,7 @@ func (a *App) ListSalespersons() ([]map[string]any, error) {
 			"attendanceUserId": s.AttendanceUserID,
 			"isActive":         s.IsActive != 0,
 			"isSynced":         s.RemoteID.Valid,
+			"color":            s.Color,
 		}
 	}
 	return result, nil
@@ -38,7 +39,14 @@ func (a *App) UpdateSalespersonAttendanceID(id int64, attendanceUserID string) e
 	})
 }
 
+// Creating, renaming and deleting salespersons is local-only in standalone
+// mode. Once the till is connected, kashi owns the roster (see
+// applySyncedSalesperson); a till-only salesperson left over from before can
+// still be deleted, but not renamed.
 func (a *App) CreateSalesperson(fullName string) (map[string]any, error) {
+	if err := a.requireStandalone(); err != nil {
+		return nil, err
+	}
 	name := strings.TrimSpace(fullName)
 	if name == "" {
 		return nil, fmt.Errorf("salesperson name is required")
@@ -51,6 +59,9 @@ func (a *App) CreateSalesperson(fullName string) (map[string]any, error) {
 }
 
 func (a *App) UpdateSalesperson(id int64, fullName string) (map[string]any, error) {
+	if err := a.requireStandalone(); err != nil {
+		return nil, err
+	}
 	name := strings.TrimSpace(fullName)
 	if name == "" {
 		return nil, fmt.Errorf("salesperson name is required")
@@ -63,5 +74,15 @@ func (a *App) UpdateSalesperson(id int64, fullName string) (map[string]any, erro
 }
 
 func (a *App) DeleteSalesperson(id int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	s, err := a.store.GetSalespersonByID(a.ctx, id)
+	if err != nil {
+		return err
+	}
+	if s.RemoteID.Valid {
+		return errManagedByKashi
+	}
 	return a.store.DeleteSalesperson(a.ctx, id)
 }

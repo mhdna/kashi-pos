@@ -27,7 +27,7 @@
           >
             <InitialsAvatar
               :name="p.fullName ?? ''"
-              :color="colorFor(p.id) ?? 'grey'"
+              :color="salespersonColor(p)"
               :size="48"
               class="mb-2 flex-shrink-0"
             />
@@ -43,21 +43,17 @@
 import { ref, computed, onMounted } from "vue";
 import { ListSalespersons } from "../../wailsjs/go/main/App";
 import InitialsAvatar from "./InitialsAvatar.vue";
+import { salespersonColor } from "@/lib/salespersonColor";
 import { useSalesperson, type Salesperson } from "@/composables/useSalesperson";
 
 defineProps<{ disabled?: boolean }>();
 const menu = ref(false);
-// Matches the people-counter background in NavDrawer (.visitor-counter).
-const salespersonAvatarColor = "#f57c00";
 
 const salespersons = ref<Salesperson[]>([]);
 const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperson();
 
 const selectedName = computed(() => selected.value?.fullName.split(" ")[0] ?? "Salesperson");
 
-function colorFor(id: number) {
-  return salespersonAvatarColor;
-}
 
 function selectSalesperson(p: Salesperson) {
   selected.value = p;

@@ -12,6 +12,10 @@ export function ApplyOpeningFloatToCurrentShift(arg1:number,arg2:number,arg3:str
 
 export function ApproveAttendanceComplaint(arg1:number,arg2:boolean,arg3:string):Promise<void>;
 
+export function BypassCloseShiftSyncGate(arg1:number,arg2:string,arg3:string):Promise<void>;
+
+export function CancelSyncFlush():Promise<void>;
+
 export function ChangeAdminPassword(arg1:string,arg2:string):Promise<void>;
 
 export function ChangeInvoiceClient(arg1:number,arg2:number):Promise<void>;
@@ -92,6 +96,8 @@ export function ExportProductsCSV():Promise<string>;
 
 export function ExportQuickAccessCSV():Promise<string>;
 
+export function FlushSyncOutbox():Promise<main.SyncFlushProgress>;
+
 export function ForceSetAdminPassword(arg1:string):Promise<void>;
 
 export function GetAdminConfig():Promise<Record<string, any>>;
@@ -112,6 +118,8 @@ export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
 
 export function GetClientProfile(arg1:number):Promise<Record<string, any>>;
 
+export function GetCloseShiftSyncGate():Promise<main.CloseShiftSyncGate>;
+
 export function GetCurrentMonth():Promise<string>;
 
 export function GetCurrentShiftIncomeByAccount():Promise<Array<Record<string, any>>>;
@@ -121,6 +129,8 @@ export function GetDailyIncomeByMonth(arg1:string):Promise<Array<Record<string, 
 export function GetDatabaseStatus():Promise<Record<string, any>>;
 
 export function GetDeferredCouponTotalByMonth(arg1:string):Promise<number>;
+
+export function GetDisplayPrefs():Promise<main.DisplayPrefs>;
 
 export function GetExchangeInvoice(arg1:string):Promise<Record<string, any>>;
 
@@ -278,6 +288,8 @@ export function ReorderQuickAccessProducts(arg1:Array<number>):Promise<void>;
 
 export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
 
+export function ReportDisplayPrefs(arg1:string):Promise<void>;
+
 export function ReprintInvoice(arg1:number):Promise<void>;
 
 export function ResyncAll(arg1:main.ResyncOptions):Promise<main.ResyncReport>;
@@ -299,6 +311,8 @@ export function SetCashierPIN(arg1:string):Promise<void>;
 export function SetClientActive(arg1:number,arg2:boolean):Promise<void>;
 
 export function SetClientRequired(arg1:boolean):Promise<void>;
+
+export function SetCloseShiftRequiresSyncEnabled(arg1:boolean):Promise<void>;
 
 export function SetCountOpeningCashOnCloseEnabled(arg1:boolean):Promise<void>;
 

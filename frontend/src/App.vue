@@ -80,7 +80,7 @@
 import { onMounted, reactive, ref } from "vue";
 import { CreateBranch, ListBranches, SwitchBranch, WaitUntilReady } from "../wailsjs/go/main/App";
 import { useTheme } from "vuetify";
-import { animationsEnabled, isCompactBuild } from "@/lib/display";
+import { animationsEnabled, isCompactBuild, startDisplayPrefsSync } from "@/lib/display";
 import { EventsOn, WindowReloadApp } from "../wailsjs/runtime/runtime";
 import AttendanceToast from "@/components/AttendanceToast.vue";
 
@@ -137,6 +137,7 @@ onMounted(async () => {
     if (startupError.value && !databaseMissing.value) return;
 
     theme.change(result.theme === "dark" ? "dark" : "light");
+    void startDisplayPrefsSync((next) => theme.change(next));
   } catch (error) {
     startupError.value = error instanceof Error ? error.message : String(error);
   } finally {

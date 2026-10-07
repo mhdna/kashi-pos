@@ -127,7 +127,15 @@
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
       />
-      <QuickAccessPanel v-if="pageMode !== 'settlement' && quickAccessRows > 0" @add="(item) => invoiceItems?.addItem(item)" />
+      <QuickAccessPanel
+        v-if="pageMode !== 'settlement' && quickAccessRows > 0"
+        @add="
+          (item) => {
+            playClickSound();
+            invoiceItems?.addItem(item);
+          }
+        "
+      />
     </div>
     <div class="home-right-pane d-flex flex-column position-relative" style="flex: 5 5 0; min-width: 0">
       <div
@@ -213,14 +221,29 @@
 
   <v-overlay v-model="printing" class="align-center justify-center" persistent>
     <v-card class="pa-8 text-center" width="300">
-      <div class="print-spinner mb-4" aria-hidden="true"></div>
-      <div class="text-h6">Printing receipt...</div>
+      <template v-if="printPhase === 'success'">
+        <div class="print-face" aria-hidden="true">:)</div>
+        <div class="text-h6 mt-2">Done!</div>
+      </template>
+      <template v-else>
+        <div v-if="printCashCents > 0" class="text-subtitle-1 mb-2">
+          {{ formatUsd(printCashCents / 100) }} into cash
+        </div>
+        <div class="print-spinner mb-4" aria-hidden="true"></div>
+        <div class="text-h6">Printing receipt...</div>
+      </template>
     </v-card>
   </v-overlay>
 
   <v-snackbar
     v-model="snackbar.show"
-    class="app-snackbar"
+    :class="[
+      'app-snackbar',
+      {
+        'app-snackbar--success': snackbar.color === 'success',
+        'app-snackbar--error': snackbar.color === 'red-darken-4',
+      },
+    ]"
     :timeout="snackbar.icon ? 1500 : 3500"
     :location="snackbar.icon ? 'center' : 'top'"
     variant="flat"
@@ -288,9 +311,10 @@ import { quickAccessRows } from "@/lib/display";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
+import { formatUsd } from "@/lib/format";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { normalizeRoundingMode, type RoundingMode } from "@/lib/money";
-import { playErrorSound, playSuccessSound } from "@/lib/sound";
+import { playClickSound, playErrorSound, playSuccessSound, playWarningSound } from "@/lib/sound";
 import type { Client } from "@/lib/client";
 import { useClient } from "@/composables/useClient";
 import { useSalesperson } from "@/composables/useSalesperson";
@@ -702,6 +726,7 @@ function onProductSelect(product: {
   discount: number;
   qty: number;
 }) {
+  playClickSound();
   invoiceItems.value?.addItem(product);
   focusBarcode();
 }
@@ -753,6 +778,8 @@ function showDiscountError(message: string) {
 }
 
 const printing = ref(false);
+const printPhase = ref<"printing" | "success">("printing");
+const printCashCents = ref(0);
 const snackbar = reactive({ show: false, text: "", color: "success", icon: "" });
 
 let screenQueue = Promise.resolve();
@@ -888,6 +915,7 @@ async function confirmOversellIfNeeded(itemsJSON: string): Promise<boolean> {
 }
 
 function notifyCheckoutBlocked(text: string, icon: string) {
+  playWarningSound();
   snackbar.text = text;
   snackbar.color = "warning";
   snackbar.icon = icon;
@@ -943,6 +971,8 @@ async function onCheckout() {
   const isExchange = Boolean(exchangeState.value);
   if (flagMissingAssignment()) return;
   if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
+  printPhase.value = "printing";
+  printCashCents.value = calculator.value?.cashTotalCents ?? 0;
   printing.value = receiptEnabled.value;
   try {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
@@ -985,6 +1015,10 @@ async function onCheckout() {
     await nextTick();
     queueScreenUpdate("");
     await refreshNextInvoiceCode("sales");
+    if (printing.value) {
+      printPhase.value = "success";
+      await new Promise((resolve) => setTimeout(resolve, 900));
+    }
   } catch (e: any) {
     snackbar.text = e?.toString() || "Checkout failed";
     snackbar.color = "red-darken-4";
@@ -1240,6 +1274,23 @@ onBeforeUnmount(() => {
   }
 }
 
+/* Same face used on the attendance page's "machine is working" card. */
+.print-face {
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  font-family: "Roboto", sans-serif;
+  font-size: 44px;
+  font-weight: 300;
+  line-height: 1;
+  background-color: #9fdada;
+  color: #2f8f8f;
+}
+
 .home-right-pane {
   background-color: var(--kashi-app-background);
   border-left: 1px solid rgba(var(--v-border-color), 0.18);
@@ -1292,6 +1343,16 @@ onBeforeUnmount(() => {
   color: rgb(var(--v-theme-on-surface-variant)) !important;
   border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
+}
+.app-snackbar--success .v-snackbar__wrapper {
+  background: rgba(46, 125, 50, 0.85) !important;
+  color: #fff !important;
+  border-color: rgba(46, 125, 50, 0.4);
+}
+.app-snackbar--error .v-snackbar__wrapper {
+  background: rgba(198, 40, 40, 0.85) !important;
+  color: #fff !important;
+  border-color: rgba(198, 40, 40, 0.4);
 }
 .checkout-blocked-text {
   font-size: 1.25rem;

@@ -81,7 +81,7 @@
           rounded="lg"
         >
           <template #prepend>
-            <v-avatar color="primary" variant="tonal" class="me-3">
+            <v-avatar :color="salespersonColor({ color: item.color, fullName: item.employeeName })" class="me-3">
               {{ item.employeeName?.charAt(0)?.toUpperCase() || "?" }}
             </v-avatar>
           </template>
@@ -190,6 +190,7 @@ import {
   SyncAttendance,
 } from "../../wailsjs/go/main/App";
 import { useAuthStore } from "@/stores/auth";
+import { salespersonColor } from "@/lib/salespersonColor";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 const auth = useAuthStore();
@@ -234,6 +235,7 @@ async function refresh(syncDevice = true) {
       grouped.set(u.id, {
         employeeId: u.id,
         employeeName: u.fullName,
+        color: u.color,
         userId: u.attendanceUserId,
         events: [],
       }),
@@ -244,6 +246,7 @@ async function refresh(syncDevice = true) {
         grouped.set(e.employeeId, {
           employeeId: e.employeeId,
           employeeName: u?.fullName || e.employeeName,
+          color: u?.color,
           userId: u?.attendanceUserId,
           events: [],
         });

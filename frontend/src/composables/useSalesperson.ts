@@ -3,6 +3,8 @@ import { ref } from "vue";
 export interface Salesperson {
   id: number;
   fullName: string;
+  // Set in kashi; empty for a till-only salesperson (see lib/salespersonColor).
+  color?: string;
 }
 
 const selectedSalesperson = ref<Salesperson | null>(null);

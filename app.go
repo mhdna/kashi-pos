@@ -112,6 +112,18 @@ type App struct {
 	// pushLink is whether kashi is reachable, as the push loop last saw it
 	// -- see sync_push_link.go.
 	pushLink pushLink
+	// pushMu keeps the live push loop and a close-shift flush
+	// (FlushSyncOutbox) from sending the same rows at once: the flush holds
+	// it for its whole run, the push loop only TryLocks.
+	pushMu sync.Mutex
+	// syncFlushCancel is the running flush's cancel (nil when none runs),
+	// guarded by syncFlushMu -- see CancelSyncFlush.
+	syncFlushMu     sync.Mutex
+	syncFlushCancel context.CancelFunc
+	// closeShiftSyncBypass is the shift id a manager let close with uploads
+	// still pending (0 = none); consumed by that close -- see
+	// BypassCloseShiftSyncGate.
+	closeShiftSyncBypass atomic.Int64
 	// wsPushesAll is true while a WebSocket session is open to a kashi that
 	// said (in its "hello") that it pushes every change to synced data. The
 	// pull loop then only polls as a slow backstop -- see runPullTick.
@@ -908,6 +920,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["overchangeConfirmationEnabled"] = true
 	}
+	result["closeShiftRequiresSync"] = a.closeShiftRequiresSync()
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, productSearchEnabledFlag); flagErr == nil {
 		result["productSearchEnabled"] = enabled != 0
 	} else {

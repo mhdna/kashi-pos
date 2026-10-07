@@ -386,6 +386,21 @@
                 hide-details
                 class="field-full"
               />
+              <v-switch
+                :model-value="form.closeShiftRequiresSync"
+                :loading="closeShiftRequiresSyncSaving"
+                label="Upload everything before closing a shift"
+                color="primary"
+                hide-details
+                class="field-full"
+                @update:model-value="(value) => setCloseShiftRequiresSync(value)"
+              />
+              <div class="text-caption text-medium-emphasis field-full">
+                Closing a shift first uploads every sale, return, expense and the rest still
+                waiting for the office, showing progress and time left, and only then closes
+                the shift and prints its receipt. Offline, a manager can override with the
+                admin password.
+              </div>
 
               <div class="field-full sync-everything">
                 <div class="text-caption text-medium-emphasis mb-1">
@@ -1396,6 +1411,9 @@
               density="comfortable"
               hover
             >
+              <template #item.color="{ item }">
+                <span class="salesperson-color-dot" :style="{ background: salespersonColor(item) }" />
+              </template>
               <template #item.isActive="{ item }">
                 <v-chip v-if="item.isSynced" :color="item.isActive ? 'green' : 'red'" size="small" variant="tonal">
                   {{ item.isActive ? "Active" : "Inactive" }}
@@ -1534,7 +1552,7 @@
       <v-card>
         <v-card-title>
           {{
-            editingSalesperson?.isSynced
+            !salespersonNameEditable
               ? "Attendance ID"
               : editingSalesperson
                 ? "Edit Salesperson"
@@ -1543,7 +1561,7 @@
         </v-card-title>
         <v-card-text>
           <v-text-field
-            v-if="!editingSalesperson?.isSynced"
+            v-if="salespersonNameEditable"
             v-model="salespersonName"
             placeholder="Full name"
             variant="outlined"
@@ -1551,7 +1569,12 @@
             autofocus
           />
           <div v-else class="text-body-2 text-medium-emphasis mb-3">
-            {{ editingSalesperson?.fullName }} -- name and active state are managed from kashi.
+            {{ editingSalesperson?.fullName }} --
+            {{
+              editingSalesperson?.isSynced
+                ? "name, color and active state are managed from kashi."
+                : "not in kashi; add them there to manage their name."
+            }}
           </div>
           <v-text-field v-model="salespersonAttendanceUserId" placeholder="Akuvox attendance ID" variant="outlined" density="compact" />
         </v-card-text>
@@ -1561,7 +1584,7 @@
           <v-btn
             color="primary"
             variant="flat"
-            :disabled="!editingSalesperson?.isSynced && !salespersonName.trim()"
+            :disabled="salespersonNameEditable && !salespersonName.trim()"
             :loading="savingSalesperson"
             @click="saveSalesperson"
             >Save</v-btn
@@ -1676,6 +1699,7 @@ import {
   SetHidePaymentMethodCurrency,
   SetAutoAppendLbpZerosEnabled,
   SetOverchangeConfirmationEnabled,
+  SetCloseShiftRequiresSyncEnabled,
   SetOpeningFloatEnabled,
   SetCountOpeningCashOnCloseEnabled,
   SetShiftReceiptUploadMode,
@@ -1732,6 +1756,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useResyncStore } from "@/stores/resync";
 import { useClient } from "@/composables/useClient";
 import { useSalesperson } from "@/composables/useSalesperson";
+import { salespersonColor } from "@/lib/salespersonColor";
 import { usePageUnlocks, lockablePages } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
@@ -1819,7 +1844,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
   "general-branches": { tab: "general", title: "Branches", keywords: "branches switch default active add branch multiple instances" },
-  "general-sync": { tab: "general", title: "Central sync (kashi)", keywords: "central sync kashi server url branch code api key" },
+  "general-sync": { tab: "general", title: "Central sync (kashi)", keywords: "central sync kashi server url branch code api key upload before close shift wait pending offline" },
   "general-targets": { tab: "general", title: "Targets", keywords: "targets revenue goal progress date range" },
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
   "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
@@ -1966,6 +1991,7 @@ const form = reactive({
   hidePaymentMethodCurrency: false,
   autoAppendLbpZeros: false,
   overchangeConfirmationEnabled: true,
+  closeShiftRequiresSync: false,
   openingFloatEnabled: true,
   countOpeningCashOnClose: true,
   shiftReceiptUploadMode: 2,
@@ -2011,6 +2037,7 @@ const editingCurrencyCode = ref<string | null>(null);
 const currencySaving = ref(false);
 const autoAppendLbpZerosSaving = ref(false);
 const overchangeConfirmationSaving = ref(false);
+const closeShiftRequiresSyncSaving = ref(false);
 const openingFloatEnabledSaving = ref(false);
 const shiftReceiptUploadModeSaving = ref(false);
 const shiftReceiptUploadModes = [
@@ -2162,6 +2189,7 @@ const deleteTarget = ref<any>(null);
 
 const salespersons = ref<any[]>([]);
 const salespersonHeaders = [
+  { title: "", key: "color", sortable: false, width: "40px" },
   { title: "Name", key: "fullName" },
   { title: "Attendance ID", key: "attendanceUserId" },
   { title: "Status", key: "isActive", sortable: false },
@@ -2171,6 +2199,9 @@ const salespersonHeaders = [
 // owned upstream and only the local attendance ID is editable. With no central
 // server set, salespersons are managed entirely locally (add/rename/delete).
 const salespersonsSyncManaged = computed(() => !!form.centralApiUrl?.trim());
+// Mirrors the Go guards in salespersons.go: names are editable only in
+// standalone mode.
+const salespersonNameEditable = computed(() => !salespersonsSyncManaged.value && !editingSalesperson.value?.isSynced);
 const salespersonDialog = ref(false);
 const editingSalesperson = ref<any>(null);
 const salespersonName = ref("");
@@ -2386,6 +2417,7 @@ async function loadSettings() {
         hidePaymentMethodCurrency: Boolean(s.hidePaymentMethodCurrency),
         autoAppendLbpZeros: Boolean(s.autoAppendLbpZeros),
         overchangeConfirmationEnabled: s.overchangeConfirmationEnabled !== false,
+        closeShiftRequiresSync: Boolean(s.closeShiftRequiresSync),
         openingFloatEnabled: s.openingFloatEnabled !== false,
         countOpeningCashOnClose: s.countOpeningCashOnClose !== false,
         shiftReceiptUploadMode: Number(s.shiftReceiptUploadMode ?? 2),
@@ -2735,6 +2767,22 @@ async function setOverchangeConfirmationEnabled(value: boolean | null) {
   }
 }
 
+async function setCloseShiftRequiresSync(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.closeShiftRequiresSync;
+  form.closeShiftRequiresSync = enabled;
+  closeShiftRequiresSyncSaving.value = true;
+  try {
+    await SetCloseShiftRequiresSyncEnabled(enabled);
+    notify(`Upload before closing a shift ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.closeShiftRequiresSync = previous;
+    notify("Failed to update upload-before-close setting", "red");
+  } finally {
+    closeShiftRequiresSyncSaving.value = false;
+  }
+}
+
 async function setShiftReceiptUploadMode(value: number | null) {
   const mode = Number(value ?? 2);
   const previous = form.shiftReceiptUploadMode;
@@ -2963,7 +3011,7 @@ function openSalespersonDialog(salesperson?: any) {
 
 async function saveSalesperson() {
   const editing = editingSalesperson.value;
-  if ((!editing || !editing.isSynced) && !salespersonName.value.trim()) return;
+  if (salespersonNameEditable.value && !salespersonName.value.trim()) return;
   savingSalesperson.value = true;
   try {
     // No editing target => creating a new local salesperson. Only possible
@@ -2975,9 +3023,9 @@ async function saveSalesperson() {
       id = Number(created.id);
     } else {
       id = editing.id;
-      // Renaming only applies to salespersons not synced from kashi -- once
-      // synced, the name is kashi-owned (see the admin-salespersons panel note).
-      if (!editing.isSynced) {
+      // Renaming is standalone-only -- with kashi connected the name is
+      // kashi-owned, also for a till-only leftover (see salespersonNameEditable).
+      if (salespersonNameEditable.value) {
         await UpdateSalesperson(id, salespersonName.value);
       }
     }
@@ -3130,6 +3178,13 @@ async function deleteUser() {
 </script>
 
 <style scoped>
+.salesperson-color-dot {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
 .qa-color-row {
   align-items: center;
   display: flex;

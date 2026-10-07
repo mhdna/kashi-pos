@@ -17,12 +17,6 @@
         activator-icon="mdi-plus"
         @select="addPinnedItem"
       />
-      <span
-        v-if="open && managedByKashi"
-        class="text-caption text-medium-emphasis ps-2"
-        title="This register shows its branch's Quick Access list from kashi; edit it there."
-        >from kashi</span
-      >
     </div>
     <div v-if="open" class="quick-access__body" :style="{ height: `${bodyHeight}px` }">
       <div v-if="!items.length" class="text-caption text-medium-emphasis text-center pa-2">
