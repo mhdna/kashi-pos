@@ -15,11 +15,10 @@ import (
 func newVisitorTestApp(t *testing.T) *App {
 	t.Helper()
 	ctx := context.Background()
-	// Match the production DSN's locking behavior (app.go): WAL + a busy
-	// timeout so a background sync goroutine holding a write lock makes a
-	// concurrent write wait, not fail with SQLITE_BUSY.
-	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "visitors.db")+
-		"?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
+	// The production DSN (databaseDSN), so a background sync goroutine
+	// holding a write lock makes a concurrent write wait, not fail with
+	// SQLITE_BUSY.
+	database, err := sql.Open("sqlite", databaseDSN(filepath.Join(t.TempDir(), "visitors.db")))
 	if err != nil {
 		t.Fatal(err)
 	}

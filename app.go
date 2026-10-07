@@ -188,6 +188,39 @@ func (a *App) startup(ctx context.Context) {
 	}
 }
 
+// databaseDSN is the connection string every pooled connection to the app
+// database opens with.
+//
+// _txlock=immediate makes BeginTx (so every ExecTx) start with BEGIN
+// IMMEDIATE, taking the write lock up front, where busy_timeout waits for
+// it. A plain deferred BEGIN takes it only at the first write, and SQLite
+// can't wait out that read-to-write upgrade: it fails at once with
+// "database is locked" -- (5) while another connection is writing, (517)
+// if one committed since this transaction's first read. Checkout reads
+// pricing, payments and coupons before it writes, so any sync-worker
+// commit landing in that window failed the sale. Read-only transactions
+// (sql.TxOptions{ReadOnly: true}) still begin deferred.
+//
+// synchronous(NORMAL) is the standard pairing with WAL: the database can
+// never corrupt, but an OS crash or power loss in the instant after a
+// commit can roll that one transaction back. In exchange every commit
+// (i.e. every sale) stops doing a full fsync. cache_size is 64 MB of
+// page cache (negative = KiB), temp_store(MEMORY) keeps the GROUP BY /
+// ORDER BY scratch b-trees off disk, and mmap_size lets reads page the
+// file in directly.
+func databaseDSN(path string) string {
+	return path + "?" + strings.Join([]string{
+		"_pragma=journal_mode(WAL)",
+		"_pragma=foreign_keys(ON)",
+		"_pragma=busy_timeout(5000)",
+		"_pragma=synchronous(NORMAL)",
+		"_pragma=cache_size(-65536)",
+		"_pragma=temp_store(MEMORY)",
+		"_pragma=mmap_size(268435456)",
+		"_txlock=immediate",
+	}, "&")
+}
+
 func (a *App) openDatabase(path string, createIfMissing bool) error {
 	path = filepath.Clean(path)
 	databaseExisted := true
@@ -204,23 +237,7 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 		}
 	}
 
-	// synchronous(NORMAL) is the standard pairing with WAL: the database can
-	// never corrupt, but an OS crash or power loss in the instant after a
-	// commit can roll that one transaction back. In exchange every commit
-	// (i.e. every sale) stops doing a full fsync. cache_size is 64 MB of
-	// page cache (negative = KiB), temp_store(MEMORY) keeps the GROUP BY /
-	// ORDER BY scratch b-trees off disk, and mmap_size lets reads page the
-	// file in directly.
-	dsn := path + "?" + strings.Join([]string{
-		"_pragma=journal_mode(WAL)",
-		"_pragma=foreign_keys(ON)",
-		"_pragma=busy_timeout(5000)",
-		"_pragma=synchronous(NORMAL)",
-		"_pragma=cache_size(-65536)",
-		"_pragma=temp_store(MEMORY)",
-		"_pragma=mmap_size(268435456)",
-	}, "&")
-	conn, err := sql.Open("sqlite", dsn)
+	conn, err := sql.Open("sqlite", databaseDSN(path))
 	if err != nil {
 		return err
 	}
