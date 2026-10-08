@@ -1302,17 +1302,29 @@ func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
 // baseURL+path with no scheme fallback of its own (see centralClient in
 // sync_client.go) -- a missing scheme doesn't error loudly, it just makes
 // every single central call fail, which looks like "sync does nothing" with
-// no obvious cause. Leaves an explicit http:// (e.g. a local dev server)
-// alone.
+// no obvious cause.
+//
+// An https:// address with no path also gets /api: the deployed kashi sits
+// behind Caddy, which only routes /api/* to the server, so
+// "https://cloud.example.com" would send every call to the web UI instead.
+// An explicit http:// (a local dev server talking straight to kashi's Go
+// server, which has no /api prefix) and any URL that already has a path are
+// left as typed.
 func normalizeCentralAPIURL(raw string) string {
-	trimmed := strings.TrimSpace(raw)
+	trimmed := strings.TrimRight(strings.TrimSpace(raw), "/")
 	if trimmed == "" {
 		return trimmed
 	}
-	if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
+	if strings.HasPrefix(trimmed, "http://") {
 		return trimmed
 	}
-	return "https://" + trimmed
+	if !strings.HasPrefix(trimmed, "https://") {
+		trimmed = "https://" + trimmed
+	}
+	if !strings.Contains(strings.TrimPrefix(trimmed, "https://"), "/") {
+		trimmed += "/api"
+	}
+	return trimmed
 }
 
 // SetSplitDisplay configures the till's two-currency total: which currency
