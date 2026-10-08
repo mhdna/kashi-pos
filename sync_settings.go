@@ -116,6 +116,15 @@ func (a *App) flagEnabled(ctx context.Context, key string) bool {
 	return err == nil && v != 0
 }
 
+// flagEnabledDefaultOn is flagEnabled for a flag the till treats as on
+// until it's set (see GetAppSettings). Reading such a flag with flagEnabled
+// reports a never-touched till as "off" while it behaves as "on", and kashi
+// then shows -- and on the next save, pushes -- the wrong value.
+func (a *App) flagEnabledDefaultOn(ctx context.Context, key string) bool {
+	v, err := a.store.GetFeatureFlag(ctx, key)
+	return err != nil || v != 0
+}
+
 // setFeatureFlagBool upserts a feature_flags row. Used for the behaviour
 // flags that have no dedicated App setter of their own.
 func (a *App) setFeatureFlagBool(ctx context.Context, key string, enabled bool) error {
@@ -216,14 +225,14 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		Instagram:            s.Instagram,
 		SocialPlatforms:      socialPlatforms,
 		SocialHandles:        socialHandles,
-		SearchButtonEnabled:  a.flagEnabled(ctx, productSearchEnabledFlag),
+		SearchButtonEnabled:  a.flagEnabledDefaultOn(ctx, productSearchEnabledFlag),
 
 		CustomItemDiscountsEnabled:    a.flagEnabled(ctx, customItemDiscountsFlag),
 		CustomItemPricesEnabled:       a.flagEnabled(ctx, customItemPricesFlag),
 		PerUnitItemPricesEnabled:      a.flagEnabled(ctx, perUnitItemPricesFlag),
 		PriceChangeManualOverrideMode: a.flagEnabled(ctx, priceChangeManualOverrideFlag),
 		InvoiceKeyboardMode:           a.flagEnabled(ctx, invoiceKeyboardModeFlag),
-		ClientRequired:                a.flagEnabled(ctx, clientRequiredFlag),
+		ClientRequired:                a.flagEnabledDefaultOn(ctx, clientRequiredFlag),
 		SalespersonPerInvoiceRequired: a.flagEnabled(ctx, salespersonPerInvoiceRequiredFlag),
 		NonAdminMonthNavEnabled:       a.flagEnabled(ctx, nonAdminMonthNavEnabledFlag),
 		OpeningFloatEnabled:           a.openingFloatEnabled(),

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -207,7 +208,7 @@ func TestPushSettingsOnlySendsWhenSomethingChanged(t *testing.T) {
 		t.Fatalf("unchanged settings: sent %d times, want 0", n)
 	}
 
-	if err := store.SetFeatureFlag(app.ctx, db.SetFeatureFlagParams{Key: clientRequiredFlag, Enabled: 1}); err != nil {
+	if err := store.SetFeatureFlag(app.ctx, db.SetFeatureFlagParams{Key: clientRequiredFlag, Enabled: 0}); err != nil {
 		t.Fatal(err)
 	}
 	if n := push(); n != 1 {
@@ -222,5 +223,38 @@ func TestPushSettingsOnlySendsWhenSomethingChanged(t *testing.T) {
 	app.settingsReport.sentAt = time.Now().Add(-settingsResendInterval)
 	if n := push(); n != 1 {
 		t.Fatalf("after the hourly refresh interval: sent %d times, want 1", n)
+	}
+}
+
+// A flag the till treats as on until set must be reported to kashi as on
+// too. Reported as off, kashi showed the product search button (and client
+// requirement) off for a till that had them on, and a save from kashi would
+// then have turned them off for real.
+func TestPushSettingsReportsDefaultOnFlagsAsOn(t *testing.T) {
+	var body []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/branch/settings" {
+			body, _ = io.ReadAll(r.Body)
+		}
+		w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	app, _, _, _ := setUpTestInvoiceApp(t, server.URL)
+	for _, key := range []string{productSearchEnabledFlag, clientRequiredFlag, scanByCodeFlag} {
+		if _, err := app.conn.ExecContext(app.ctx, "DELETE FROM feature_flags WHERE key = ?", key); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := app.pushSettings(app.ctx, newCentralClient(server.URL, "TEST01", "test-key")); err != nil {
+		t.Fatal(err)
+	}
+	var got branchSettingsPayload
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("decode report %q: %v", body, err)
+	}
+	if !got.SearchButtonEnabled || !got.ClientRequired || !got.ScanByCodeEnabled {
+		t.Fatalf("unset flags reported search=%v client=%v scanByCode=%v, want all true",
+			got.SearchButtonEnabled, got.ClientRequired, got.ScanByCodeEnabled)
 	}
 }
