@@ -92,11 +92,10 @@
           <v-icon icon="mdi-autorenew" size="22" />
         </v-btn>
         <v-btn
-          v-if="pageMode !== 'settlement'"
+          v-if="pageMode !== 'settlement' && productSearchEnabled"
           variant="text"
           rounded
           aria-label="Search products"
-          :disabled="!productSearchEnabled"
           @click="productSearchDialog?.openDialog()"
         >
           <v-icon icon="mdi-magnify" size="22" />

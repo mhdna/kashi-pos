@@ -1105,7 +1105,7 @@
                 @update:model-value="setProductSearchEnabled"
               />
               <div class="text-caption text-medium-emphasis mt-2">
-                When off, the magnifier button in the sale screen toolbar is disabled.
+                When off, the magnifier button is hidden from the sale screen toolbar.
                 This can also be changed remotely from kashi.
               </div>
             </v-card-text>
