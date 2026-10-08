@@ -11,14 +11,14 @@ const status = ref<{ reachable: boolean; message?: string }>({ reachable: true }
 let loaded = false;
 
 function apply(result: any) {
-  status.value = { reachable: true, message: result?.message }; // TEMP fake-up
+  status.value = { reachable: Boolean(result?.reachable), message: result?.message };
 }
 
 async function refresh() {
   try {
     apply(await GetAttendanceStatus());
   } catch {
-    status.value = { reachable: true, message: "Attendance status unavailable" }; // TEMP fake-up
+    status.value = { reachable: false, message: "Attendance status unavailable" };
   }
 }
 

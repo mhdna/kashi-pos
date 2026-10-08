@@ -226,7 +226,7 @@ let offSynced: (() => void) | undefined;
 async function refresh(syncDevice = true) {
   loading.value = true;
   try {
-    if (syncDevice) status.value = { ...(await SyncAttendance(selectedDate.value)), reachable: true }; // TEMP fake-up
+    if (syncDevice) status.value = await SyncAttendance(selectedDate.value);
     const [events, employees] = await Promise.all([ListAttendance(selectedDate.value), ListSalespersons()]);
     const configured = employees.filter((u: any) => u.attendanceUserId);
     const byId = new Map(configured.map((u: any) => [u.id, u]));
@@ -255,7 +255,7 @@ async function refresh(syncDevice = true) {
     rows.value = [...grouped.values()];
     await loadHistory();
   } catch {
-    status.value = { reachable: true, message: "Attendance sync failed" }; // TEMP fake-up
+    status.value = { reachable: false, message: "Attendance sync failed" };
   } finally {
     loading.value = false;
   }
