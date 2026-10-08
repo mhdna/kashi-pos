@@ -478,6 +478,55 @@ func (q *Queries) ListActiveProducts(ctx context.Context) ([]Product, error) {
 	return items, nil
 }
 
+const listActiveProductsByCode = `-- name: ListActiveProductsByCode :many
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products WHERE code = ? AND is_active = 1 ORDER BY id
+`
+
+// Codes repeat across colour/size variants, so a code can name several
+// products; the scan field offers them all instead of picking one.
+func (q *Queries) ListActiveProductsByCode(ctx context.Context, code string) ([]Product, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveProductsByCode, code)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
+			&i.Uid,
+			&i.RemoteUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDiscountOverridesByProduct = `-- name: ListDiscountOverridesByProduct :many
 SELECT id, name, product_id, discount, created_at FROM discount_overrides WHERE product_id = ?
 `

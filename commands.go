@@ -109,6 +109,7 @@ type updateSettingsCommandPayload struct {
 	CountOpeningCashOnClose       *bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        *bool `json:"close_shift_requires_sync"`
+	ScanByCodeEnabled             *bool `json:"scan_by_code_enabled"`
 	HidePaymentMethodCurrency     *bool `json:"hide_payment_method_currency"`
 	AutoAppendLbpZeros            *bool `json:"auto_append_lbp_zeros"`
 	AutoCloseStaleShifts          *bool `json:"auto_close_stale_shifts"`
@@ -289,6 +290,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.CountOpeningCashOnClose, func(b bool) error { return a.setFeatureFlagBool(ctx, countOpeningCashOnCloseFlag, b) }},
 		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},
 		{p.CloseShiftRequiresSync, a.SetCloseShiftRequiresSyncEnabled},
+		{p.ScanByCodeEnabled, a.SetScanByCodeEnabled},
 		{p.HidePaymentMethodCurrency, a.SetHidePaymentMethodCurrency},
 		{p.AutoAppendLbpZeros, a.SetAutoAppendLbpZerosEnabled},
 		{p.AutoCloseStaleShifts, a.SetAutoCloseStaleShiftsEnabled},

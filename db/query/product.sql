@@ -10,6 +10,11 @@ SELECT * FROM products WHERE barcode = ?;
 -- name: GetProductByCode :one
 SELECT * FROM products WHERE code = ? ORDER BY id LIMIT 1;
 
+-- name: ListActiveProductsByCode :many
+-- Codes repeat across colour/size variants, so a code can name several
+-- products; the scan field offers them all instead of picking one.
+SELECT * FROM products WHERE code = ? AND is_active = 1 ORDER BY id;
+
 -- name: ListProducts :many
 SELECT * FROM products ORDER BY id;
 

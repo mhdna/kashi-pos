@@ -198,6 +198,10 @@ export function ExportQuickAccessCSV() {
   return window['go']['main']['App']['ExportQuickAccessCSV']();
 }
 
+export function FindProductsForScan(arg1) {
+  return window['go']['main']['App']['FindProductsForScan'](arg1);
+}
+
 export function FlushSyncOutbox() {
   return window['go']['main']['App']['FlushSyncOutbox']();
 }
@@ -720,6 +724,10 @@ export function SetQuickAccessMode(arg1) {
 
 export function SetSalespersonPerInvoiceRequired(arg1) {
   return window['go']['main']['App']['SetSalespersonPerInvoiceRequired'](arg1);
+}
+
+export function SetScanByCodeEnabled(arg1) {
+  return window['go']['main']['App']['SetScanByCodeEnabled'](arg1);
 }
 
 export function SetShiftReceiptUploadMode(arg1) {

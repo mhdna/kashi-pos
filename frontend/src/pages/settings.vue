@@ -1111,6 +1111,28 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('behavior-scan-by-code')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-barcode-scan" size="20" />
+              Product code in scan field
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.scanByCodeEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Accept a product code in the scan field"
+                @update:model-value="setScanByCodeEnabled"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                When nothing has the entered barcode, it is tried as a product code. If several
+                variants share that code, the cashier picks one. This can also be changed remotely
+                from kashi.
+              </div>
+            </v-card-text>
+          </v-card>
+
           <v-card v-show="panelMatches('behavior-client-required')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-account-off-outline" size="20" />
@@ -1694,6 +1716,7 @@ import {
   SetPriceChangeManualOverrideEnabled,
   SetInvoiceKeyboardModeEnabled,
   SetProductSearchEnabled,
+  SetScanByCodeEnabled,
   SetVisitorCounterEnabled,
   SetClientRequired,
   SetSalespersonPerInvoiceRequired,
@@ -1866,6 +1889,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-price-change-mode": { tab: "behavior", title: "Price change mode", keywords: "price change manual override discount lever" },
   "behavior-invoice-keyboard": { tab: "behavior", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
   "behavior-product-search": { tab: "behavior", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
+  "behavior-scan-by-code": { tab: "behavior", title: "Product code in scan field", keywords: "barcode scan code sku variant type enter" },
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
   "behavior-non-admin-month-nav": { tab: "behavior", title: "Income chart month navigation", keywords: "monthly income chart non-admin cashier back forward prev next month browse lock admin only" },
@@ -1988,6 +2012,7 @@ const form = reactive({
   priceChangeManualOverrideEnabled: false,
   invoiceKeyboardModeEnabled: false,
   productSearchEnabled: true,
+  scanByCodeEnabled: true,
   visitorCounterEnabled: false,
   clientRequired: true,
   salespersonPerInvoiceRequired: false,
@@ -2414,6 +2439,7 @@ async function loadSettings() {
         priceChangeManualOverrideEnabled: Boolean(s.priceChangeManualOverrideEnabled),
         invoiceKeyboardModeEnabled: Boolean(s.invoiceKeyboardModeEnabled),
         productSearchEnabled: s.productSearchEnabled !== false,
+        scanByCodeEnabled: s.scanByCodeEnabled !== false,
         visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
         salespersonPerInvoiceRequired: Boolean(s.salespersonPerInvoiceRequired),
@@ -2643,6 +2669,22 @@ async function setProductSearchEnabled(value: boolean | null) {
   } catch {
     form.productSearchEnabled = previous;
     notify("Failed to update product search button", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setScanByCodeEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.scanByCodeEnabled;
+  form.scanByCodeEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetScanByCodeEnabled(enabled);
+    notify(`Product codes in the scan field ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.scanByCodeEnabled = previous;
+    notify("Failed to update the scan field setting", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }

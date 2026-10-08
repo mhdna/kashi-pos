@@ -926,6 +926,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		result["overchangeConfirmationEnabled"] = true
 	}
 	result["closeShiftRequiresSync"] = a.closeShiftRequiresSync()
+	result["scanByCodeEnabled"] = a.scanByCodeEnabled()
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, productSearchEnabledFlag); flagErr == nil {
 		result["productSearchEnabled"] = enabled != 0
 	} else {

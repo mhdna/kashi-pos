@@ -58,6 +58,7 @@ type branchSettingsPayload struct {
 	CountOpeningCashOnClose       bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        bool `json:"close_shift_requires_sync"`
+	ScanByCodeEnabled             bool `json:"scan_by_code_enabled"`
 
 	// non-admin page-access locks (page_unlock_* flags)
 	PageUnlockClients      bool `json:"page_unlock_clients"`
@@ -229,6 +230,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		CountOpeningCashOnClose:       a.countOpeningCashOnClose(),
 		OverchangeConfirmation:        a.overchangeConfirmationEnabled(),
 		CloseShiftRequiresSync:        a.closeShiftRequiresSync(),
+		ScanByCodeEnabled:             a.scanByCodeEnabled(),
 
 		PageUnlockClients:      a.flagEnabled(ctx, pageUnlockFlag("clients")),
 		PageUnlockInventory:    a.flagEnabled(ctx, pageUnlockFlag("inventory")),

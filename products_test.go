@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	db "kashi-pos/db/sqlc"
@@ -445,5 +446,66 @@ func TestListManagedProductsShowsListPrice(t *testing.T) {
 	}
 	if p := byCode["SKU-2"]; p["priced"] != false {
 		t.Fatalf("SKU-2 has no list price but priced=%v", p["priced"])
+	}
+}
+
+// The scan field resolves a barcode to its one product; failing that, a
+// product code -- shared by colour/size variants -- returns every active
+// variant so the screen can ask which, rather than silently selling the
+// oldest one. Turning scan_by_code off limits the field to barcodes.
+func TestFindProductsForScan(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+
+	for _, p := range []db.CreateProductParams{
+		{Barcode: "BAR-RED", Code: "SHIRT-1", Name: "Oxford Shirt", Color: "Red", IsActive: 1, Price: 4500, CurrencyCode: "USD"},
+		{Barcode: "BAR-BLUE", Code: "SHIRT-1", Name: "Oxford Shirt", Color: "Blue", IsActive: 1, Price: 4500, CurrencyCode: "USD"},
+		{Barcode: "BAR-OLD", Code: "SHIRT-1", Name: "Oxford Shirt", Color: "Green", IsActive: 0, Price: 4500, CurrencyCode: "USD"},
+		{Barcode: "BAR-HAT", Code: "HAT-1", Name: "Cap", IsActive: 1, Price: 1500, CurrencyCode: "USD"},
+		// A code that is also another product's barcode: the barcode wins.
+		{Barcode: "BAR-SOCK", Code: "BAR-HAT", Name: "Socks", IsActive: 1, Price: 500, CurrencyCode: "USD"},
+	} {
+		if _, err := app.store.CreateProduct(app.ctx, p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	priceProductsFromRows(t, app.store.Queries)
+
+	scan := func(value string) string {
+		t.Helper()
+		found, err := app.FindProductsForScan(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := make([]string, len(found))
+		for i, p := range found {
+			out[i], _ = p["barcode"].(string)
+		}
+		return strings.Join(out, ",")
+	}
+
+	cases := []struct{ value, want string }{
+		{"BAR-RED", "BAR-RED"},
+		{" BAR-RED ", "BAR-RED"},
+		{"SHIRT-1", "BAR-RED,BAR-BLUE"}, // inactive variant left out
+		{"HAT-1", "BAR-HAT"},
+		{"BAR-HAT", "BAR-HAT"},
+		{"NOPE", ""},
+		{"", ""},
+	}
+	for _, tc := range cases {
+		if got := scan(tc.value); got != tc.want {
+			t.Errorf("scan(%q) = %q, want %q", tc.value, got, tc.want)
+		}
+	}
+
+	if err := app.SetScanByCodeEnabled(false); err != nil {
+		t.Fatal(err)
+	}
+	if got := scan("SHIRT-1"); got != "" {
+		t.Errorf("scan by code while disabled = %q, want nothing", got)
+	}
+	if got := scan("BAR-BLUE"); got != "BAR-BLUE" {
+		t.Errorf("scan by barcode while code disabled = %q, want BAR-BLUE", got)
 	}
 }

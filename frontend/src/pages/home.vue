@@ -67,7 +67,7 @@
           :class="barcodeFeedback ? `barcode-flash-${barcodeFeedback}` : ''"
           density="compact"
           hide-details="auto"
-          placeholder="Scan or Enter Barcode"
+          :placeholder="scanByCodeEnabled ? 'Enter a barcode or a code' : 'Scan or enter barcode'"
           :disabled="pageMode === 'settlement'"
           variant="outlined"
           @blur="onBlur"
@@ -160,7 +160,7 @@
         >
           <v-icon icon="mdi-barcode-scan" size="42" class="mb-2" />
           <div class="empty-cart-label text-subtitle-2">
-            Scan a barcode<br />to add a product
+            Scan a barcode<br />{{ scanByCodeEnabled ? "or type a code" : "to add a product" }}
           </div>
         </v-card>
       </div>
@@ -274,13 +274,41 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <!-- A scanned/typed product code shared by several variants: pick one. -->
+  <v-dialog v-model="variantPicker.show" max-width="560" scrollable>
+    <v-card>
+      <v-card-title>Choose a variant of {{ variantPicker.code }}</v-card-title>
+      <v-card-text class="pa-0">
+        <v-list>
+          <v-list-item
+            v-for="variant in variantPicker.variants"
+            :key="variant.barcode"
+            link
+            @click="pickVariant(variant)"
+          >
+            <v-list-item-title class="font-weight-medium">
+              {{ [variant.color, variant.size].filter(Boolean).join(" · ") || variant.name }}
+            </v-list-item-title>
+            <v-list-item-subtitle>{{ variant.name }} · {{ variant.barcode }}</v-list-item-subtitle>
+            <template #append>
+              <span class="font-weight-medium">${{ Number(variant.price || 0).toFixed(2) }}</span>
+            </template>
+          </v-list-item>
+        </v-list>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn text="Cancel" @click="variantPicker.show = false" />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from "vue";
 import {
-  GetProductByBarcode,
-  GetProductByCode,
+  FindProductsForScan,
   HoldInvoice,
   VoidInvoice,
   CheckoutInvoice,
@@ -367,6 +395,9 @@ const alwaysAnonymousClientEnabled = ref(false);
 // local Settings page and remotely from kashi; a "settings_changed" event
 // (see loadAppSettings) reflects either change here without a reload.
 const productSearchEnabled = ref(true);
+// Whether the scan field also accepts product codes (see FindProductsForScan);
+// only changes the hint text here, the backend enforces it.
+const scanByCodeEnabled = ref(true);
 const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
 );
@@ -751,23 +782,39 @@ function flashBarcodeFeedback(kind: "success" | "error") {
   );
 }
 
+// The backend tries the value as a barcode first, then (when the branch
+// allows it) as a product code. A code shared by several variants comes
+// back as all of them, and the cashier picks one in variantPicker.
 async function onBarcodeEnter() {
   const value = barcodeValue.value;
   if (!value) return;
-  let match: any = null;
-  try {
-    const p = await GetProductByBarcode(value);
-    match = { ...p, qty: 1 };
-  } catch {
-    try {
-      const p = await GetProductByCode(value);
-      match = { ...p, qty: 1 };
-    } catch {}
-  }
-  flashBarcodeFeedback(match ? "success" : "error");
-  if (match) invoiceItems.value?.addItem(match);
   barcodeValue.value = "";
+  let matches: any[] = [];
+  try {
+    matches = (await FindProductsForScan(value)) ?? [];
+  } catch {}
+  flashBarcodeFeedback(matches.length ? "success" : "error");
+  if (matches.length === 1) {
+    invoiceItems.value?.addItem({ ...matches[0], qty: 1 });
+  } else if (matches.length > 1) {
+    variantPicker.code = value.trim();
+    variantPicker.variants = matches;
+    variantPicker.show = true;
+    return;
+  }
   focusBarcode();
+}
+
+const variantPicker = reactive<{ show: boolean; code: string; variants: any[] }>({
+  show: false,
+  code: "",
+  variants: [],
+});
+
+function pickVariant(variant: any) {
+  variantPicker.show = false;
+  invoiceItems.value?.addItem({ ...variant, qty: 1 });
+  scheduleBarcodeFocus();
 }
 
 function showDiscountError(message: string) {
@@ -1168,6 +1215,7 @@ async function loadAppSettings() {
     setSalespersonPerInvoiceRequired(Boolean(settings?.salespersonPerInvoiceRequired));
     // Absent (older backend) means "available" - only an explicit false disables it.
     productSearchEnabled.value = settings?.productSearchEnabled !== false;
+    scanByCodeEnabled.value = settings?.scanByCodeEnabled !== false;
     overchangeConfirmationEnabled.value = settings?.overchangeConfirmationEnabled !== false;
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";

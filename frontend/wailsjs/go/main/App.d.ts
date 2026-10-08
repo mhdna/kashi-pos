@@ -100,6 +100,8 @@ export function ExportProductsCSV():Promise<string>;
 
 export function ExportQuickAccessCSV():Promise<string>;
 
+export function FindProductsForScan(arg1:string):Promise<Array<Record<string, any>>>;
+
 export function FlushSyncOutbox():Promise<main.SyncFlushProgress>;
 
 export function ForceSetAdminPassword(arg1:string):Promise<void>;
@@ -361,6 +363,8 @@ export function SetQuickAccessColor(arg1:number,arg2:string,arg3:string):Promise
 export function SetQuickAccessMode(arg1:string):Promise<void>;
 
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
+
+export function SetScanByCodeEnabled(arg1:boolean):Promise<void>;
 
 export function SetShiftReceiptUploadMode(arg1:number):Promise<void>;
 

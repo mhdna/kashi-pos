@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"regexp"
@@ -48,6 +50,11 @@ const (
 	// touched this flag keeps that navigation admin-only - matching behavior
 	// before this setting existed.
 	nonAdminMonthNavEnabledFlag = "non_admin_month_nav_enabled"
+	// Lets the sale screen's scan field fall back to the product code when
+	// nothing has that barcode. Defaults to true when unset, so a database
+	// that has never touched this flag keeps accepting codes there - matching
+	// behavior before this setting existed.
+	scanByCodeFlag = "scan_by_code"
 )
 
 // overchangeConfirmationEnabled reports whether the checkout calculator's
@@ -58,6 +65,29 @@ func (a *App) overchangeConfirmationEnabled() bool {
 		return v != 0
 	}
 	return true
+}
+
+// scanByCodeEnabled reports whether the scan field accepts product codes,
+// defaulting to true when the flag has never been set.
+func (a *App) scanByCodeEnabled() bool {
+	if v, err := a.store.GetFeatureFlag(a.ctx, scanByCodeFlag); err == nil {
+		return v != 0
+	}
+	return true
+}
+
+// SetScanByCodeEnabled toggles the scan field's product-code fallback.
+// Called both by the local Settings page and by an update_settings command
+// from kashi; emits "settings_changed" like the other sale-screen toggles.
+func (a *App) SetScanByCodeEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, scanByCodeFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
 }
 
 type ProductPage struct {
@@ -97,6 +127,51 @@ func (a *App) GetProductByBarcode(barcode string) (map[string]any, error) {
 		return nil, err
 	}
 	return productMap(product, listPricing, attrs), nil
+}
+
+// FindProductsForScan resolves what the cashier typed or scanned into the
+// sale screen's scan field. A barcode names exactly one product and always
+// wins. Failing that, and only while scanByCodeFlag is on, the value is
+// tried as a product code -- which can return several active variants
+// (colour/size share a code); the screen then asks which one. An empty
+// result means nothing matched.
+func (a *App) FindProductsForScan(value string) ([]map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return []map[string]any{}, nil
+	}
+
+	var products []db.Product
+	if p, err := a.store.GetProductByBarcode(a.ctx, value); err == nil {
+		products = []db.Product{p}
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	} else if a.scanByCodeEnabled() {
+		products, err = a.store.ListActiveProductsByCode(a.ctx, value)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(products) == 0 {
+		return []map[string]any{}, nil
+	}
+
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]any, 0, len(products))
+	for _, p := range products {
+		attrs, err := loadOneProductAttributeValues(a.ctx, a.store.Queries, p.ID)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, productMap(p, listPricing, attrs))
+	}
+	return result, nil
 }
 
 func (a *App) GetProductByCode(code string) (map[string]any, error) {

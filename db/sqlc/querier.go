@@ -330,6 +330,9 @@ type Querier interface {
 	// A product only the default list mentions keeps the default price.
 	ListActivePriceListItems(ctx context.Context) ([]ListActivePriceListItemsRow, error)
 	ListActiveProducts(ctx context.Context) ([]Product, error)
+	// Codes repeat across colour/size variants, so a code can name several
+	// products; the scan field offers them all instead of picking one.
+	ListActiveProductsByCode(ctx context.Context, code string) ([]Product, error)
 	ListAllAttendanceChangeRequests(ctx context.Context) ([]AttendanceChangeRequest, error)
 	ListAllExpenses(ctx context.Context) ([]Expense, error)
 	ListAllLoans(ctx context.Context) ([]Loan, error)
