@@ -24,6 +24,9 @@ func (a *App) ListSalespersons() ([]map[string]any, error) {
 			"isActive":         s.IsActive != 0,
 			"isSynced":         s.RemoteID.Valid,
 			"color":            s.Color,
+			// Off for staff who only punch attendance: the selling screens
+			// leave them out, the attendance page doesn't.
+			"isSalesperson": s.IsSalesperson != 0,
 		}
 	}
 	return result, nil

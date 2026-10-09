@@ -23,6 +23,15 @@ func (q *Queries) CreateInvoiceClientRef(ctx context.Context, arg CreateInvoiceC
 	return err
 }
 
+const deleteInvoiceClientRef = `-- name: DeleteInvoiceClientRef :exec
+DELETE FROM invoice_client_refs WHERE invoice_id = ?
+`
+
+func (q *Queries) DeleteInvoiceClientRef(ctx context.Context, invoiceID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteInvoiceClientRef, invoiceID)
+	return err
+}
+
 const getInvoiceClientRef = `-- name: GetInvoiceClientRef :one
 SELECT client_ref FROM invoice_client_refs WHERE invoice_id = ?
 `

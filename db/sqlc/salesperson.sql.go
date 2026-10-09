@@ -23,7 +23,7 @@ WHERE id = (
     ORDER BY id
     LIMIT 1
 )
-RETURNING id, full_name, attendance_user_id, remote_id, is_active, color
+RETURNING id, full_name, attendance_user_id, remote_id, is_active, color, is_salesperson
 `
 
 type AdoptSalespersonByNameParams struct {
@@ -52,12 +52,13 @@ func (q *Queries) AdoptSalespersonByName(ctx context.Context, arg AdoptSalespers
 		&i.RemoteID,
 		&i.IsActive,
 		&i.Color,
+		&i.IsSalesperson,
 	)
 	return i, err
 }
 
 const createSalesperson = `-- name: CreateSalesperson :one
-INSERT INTO salespersons (full_name) VALUES (?) RETURNING id, full_name, attendance_user_id, remote_id, is_active, color
+INSERT INTO salespersons (full_name) VALUES (?) RETURNING id, full_name, attendance_user_id, remote_id, is_active, color, is_salesperson
 `
 
 func (q *Queries) CreateSalesperson(ctx context.Context, fullName string) (Salesperson, error) {
@@ -70,12 +71,13 @@ func (q *Queries) CreateSalesperson(ctx context.Context, fullName string) (Sales
 		&i.RemoteID,
 		&i.IsActive,
 		&i.Color,
+		&i.IsSalesperson,
 	)
 	return i, err
 }
 
 const createSyncedSalesperson = `-- name: CreateSyncedSalesperson :one
-INSERT INTO salespersons (full_name, remote_id, is_active, color) VALUES (?, ?, ?, ?) RETURNING id, full_name, attendance_user_id, remote_id, is_active, color
+INSERT INTO salespersons (full_name, remote_id, is_active, color) VALUES (?, ?, ?, ?) RETURNING id, full_name, attendance_user_id, remote_id, is_active, color, is_salesperson
 `
 
 type CreateSyncedSalespersonParams struct {
@@ -100,6 +102,7 @@ func (q *Queries) CreateSyncedSalesperson(ctx context.Context, arg CreateSyncedS
 		&i.RemoteID,
 		&i.IsActive,
 		&i.Color,
+		&i.IsSalesperson,
 	)
 	return i, err
 }
@@ -114,7 +117,7 @@ func (q *Queries) DeleteSalesperson(ctx context.Context, id int64) error {
 }
 
 const getSalespersonByID = `-- name: GetSalespersonByID :one
-SELECT id, full_name, attendance_user_id, remote_id, is_active, color FROM salespersons WHERE id = ?
+SELECT id, full_name, attendance_user_id, remote_id, is_active, color, is_salesperson FROM salespersons WHERE id = ?
 `
 
 func (q *Queries) GetSalespersonByID(ctx context.Context, id int64) (Salesperson, error) {
@@ -127,12 +130,13 @@ func (q *Queries) GetSalespersonByID(ctx context.Context, id int64) (Salesperson
 		&i.RemoteID,
 		&i.IsActive,
 		&i.Color,
+		&i.IsSalesperson,
 	)
 	return i, err
 }
 
 const getSalespersonByRemoteID = `-- name: GetSalespersonByRemoteID :one
-SELECT id, full_name, attendance_user_id, remote_id, is_active, color FROM salespersons WHERE remote_id = ?
+SELECT id, full_name, attendance_user_id, remote_id, is_active, color, is_salesperson FROM salespersons WHERE remote_id = ?
 `
 
 func (q *Queries) GetSalespersonByRemoteID(ctx context.Context, remoteID sql.NullInt64) (Salesperson, error) {
@@ -145,12 +149,13 @@ func (q *Queries) GetSalespersonByRemoteID(ctx context.Context, remoteID sql.Nul
 		&i.RemoteID,
 		&i.IsActive,
 		&i.Color,
+		&i.IsSalesperson,
 	)
 	return i, err
 }
 
 const listSalespersons = `-- name: ListSalespersons :many
-SELECT id, full_name, attendance_user_id, remote_id, is_active, color FROM salespersons ORDER BY id
+SELECT id, full_name, attendance_user_id, remote_id, is_active, color, is_salesperson FROM salespersons ORDER BY id
 `
 
 func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
@@ -169,6 +174,7 @@ func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
 			&i.RemoteID,
 			&i.IsActive,
 			&i.Color,
+			&i.IsSalesperson,
 		); err != nil {
 			return nil, err
 		}
@@ -183,8 +189,38 @@ func (q *Queries) ListSalespersons(ctx context.Context) ([]Salesperson, error) {
 	return items, nil
 }
 
+const setSalespersonAttendanceIDByRemoteID = `-- name: SetSalespersonAttendanceIDByRemoteID :exec
+UPDATE salespersons SET attendance_user_id = ? WHERE remote_id = ?
+`
+
+type SetSalespersonAttendanceIDByRemoteIDParams struct {
+	AttendanceUserID string        `json:"attendanceUserId"`
+	RemoteID         sql.NullInt64 `json:"remoteId"`
+}
+
+// kashi decided this salesperson's device number (attendance_user_id_set in
+// the salesperson feed); it replaces whatever was typed in here.
+func (q *Queries) SetSalespersonAttendanceIDByRemoteID(ctx context.Context, arg SetSalespersonAttendanceIDByRemoteIDParams) error {
+	_, err := q.db.ExecContext(ctx, setSalespersonAttendanceIDByRemoteID, arg.AttendanceUserID, arg.RemoteID)
+	return err
+}
+
+const setSalespersonIsSalespersonByRemoteID = `-- name: SetSalespersonIsSalespersonByRemoteID :exec
+UPDATE salespersons SET is_salesperson = ? WHERE remote_id = ?
+`
+
+type SetSalespersonIsSalespersonByRemoteIDParams struct {
+	IsSalesperson int64         `json:"isSalesperson"`
+	RemoteID      sql.NullInt64 `json:"remoteId"`
+}
+
+func (q *Queries) SetSalespersonIsSalespersonByRemoteID(ctx context.Context, arg SetSalespersonIsSalespersonByRemoteIDParams) error {
+	_, err := q.db.ExecContext(ctx, setSalespersonIsSalespersonByRemoteID, arg.IsSalesperson, arg.RemoteID)
+	return err
+}
+
 const updateSalesperson = `-- name: UpdateSalesperson :one
-UPDATE salespersons SET full_name = ? WHERE id = ? RETURNING id, full_name, attendance_user_id, remote_id, is_active, color
+UPDATE salespersons SET full_name = ? WHERE id = ? RETURNING id, full_name, attendance_user_id, remote_id, is_active, color, is_salesperson
 `
 
 type UpdateSalespersonParams struct {
@@ -202,6 +238,7 @@ func (q *Queries) UpdateSalesperson(ctx context.Context, arg UpdateSalespersonPa
 		&i.RemoteID,
 		&i.IsActive,
 		&i.Color,
+		&i.IsSalesperson,
 	)
 	return i, err
 }
@@ -221,7 +258,7 @@ func (q *Queries) UpdateSalespersonAttendanceID(ctx context.Context, arg UpdateS
 }
 
 const updateSyncedSalesperson = `-- name: UpdateSyncedSalesperson :one
-UPDATE salespersons SET full_name = ?, is_active = ?, color = ? WHERE remote_id = ? RETURNING id, full_name, attendance_user_id, remote_id, is_active, color
+UPDATE salespersons SET full_name = ?, is_active = ?, color = ? WHERE remote_id = ? RETURNING id, full_name, attendance_user_id, remote_id, is_active, color, is_salesperson
 `
 
 type UpdateSyncedSalespersonParams struct {
@@ -248,6 +285,7 @@ func (q *Queries) UpdateSyncedSalesperson(ctx context.Context, arg UpdateSyncedS
 		&i.RemoteID,
 		&i.IsActive,
 		&i.Color,
+		&i.IsSalesperson,
 	)
 	return i, err
 }

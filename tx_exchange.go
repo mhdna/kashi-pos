@@ -13,6 +13,9 @@ type exchangePolicy struct {
 	allowLate       bool
 	allowLowerTotal bool
 	returnOnly      bool
+	// cancellation makes this full return a cancel of its sale (CancelInvoice):
+	// both invoices get cancelled_at and kashi is told so.
+	cancellation bool
 }
 
 var posExchangePolicy = exchangePolicy{}
@@ -65,10 +68,25 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 
 	var result map[string]any
 	var exchangeInvoiceID int64
-	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+	err = a.checkoutTx(func(q *db.Queries) error {
 		source, err := q.GetSalesInvoiceByID(a.ctx, originalInvoiceID)
 		if err != nil {
 			return fmt.Errorf("source invoice: %w", err)
+		}
+		// A cancelled sale has already been returned in full.
+		if source.CancelledAt.Valid {
+			return fmt.Errorf("this sale was cancelled")
+		}
+		// A cancel returns everything at once; after a partial return it would
+		// refund lines that already came back, so the remainder is a return.
+		if policy.cancellation {
+			returns, err := q.CountReturnsForSale(a.ctx, source.ID)
+			if err != nil {
+				return fmt.Errorf("count returns: %w", err)
+			}
+			if returns > 0 {
+				return fmt.Errorf("this sale already has a return or exchange -- return the remaining items instead of cancelling")
+			}
 		}
 		if !policy.allowLate {
 			if err := validateExchangeWindow(source.CreatedAt, time.Now(), exchangeWindowDuration(settings.ExchangeWindowHours)); err != nil {
@@ -155,6 +173,13 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 		if err := recordExchangePayments(a, q, invoice.ID, shift.ID, payments); err != nil {
 			return err
 		}
+		if policy.cancellation {
+			for _, id := range []int64{invoice.ID, source.ID} {
+				if err := q.MarkInvoiceCancelled(a.ctx, id); err != nil {
+					return fmt.Errorf("mark cancelled: %w", err)
+				}
+			}
+		}
 
 		if settings.CentralApiUrl != "" {
 			if err := queueBranchClientSyncForPurchase(a.ctx, q, settings.CentralApiUrl, source.ClientID); err != nil {
@@ -228,6 +253,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				SalespersonName:        salespersonName,
 				Payments:               payloadPayments,
 				Items:                  payloadItems,
+				Cancellation:           policy.cancellation,
 			}); err != nil {
 				return fmt.Errorf("queue branch invoice sync: %w", err)
 			}

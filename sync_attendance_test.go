@@ -345,3 +345,129 @@ func lastChangeRequestID(t *testing.T, app *App) int64 {
 	}
 	return id
 }
+
+// A punch the device never recorded is requested with action "add" (no
+// original event), approved from kashi through review_attendance_request,
+// and appears as a new punch; the decision goes back to kashi with kashi's
+// user as the actor, and a second decision on the same request is refused.
+func TestKashiApprovesAddedAttendanceRequest(t *testing.T) {
+	app, store := setUpTestAttendanceApp(t, "http://localhost:9999")
+	sp := makeSalesperson(t, app, store, "Dina", "U9")
+	if err := app.SubmitAttendanceComplaint(sp.ID, "2026-08-22", 0, "08:55", "IN", "add", ""); err != nil {
+		t.Fatal(err)
+	}
+	requestID := lastChangeRequestID(t, app)
+
+	payload, _ := json.Marshal(reviewAttendanceRequestPayload{
+		ClientRef: fmt.Sprintf("acr-%d-complaint", requestID), Approved: true, Actor: "kashi: admin",
+	})
+	if err := app.executeCommand(app.ctx, branchCommand{Type: "review_attendance_request", Payload: payload}); err != nil {
+		t.Fatalf("review_attendance_request: %v", err)
+	}
+
+	var eventTime, eventType string
+	if err := app.conn.QueryRowContext(app.ctx, `SELECT event_time, type FROM salesperson_attendance_events
+		WHERE salesperson_id = ? AND event_date = '2026-08-22'`, sp.ID).Scan(&eventTime, &eventType); err != nil {
+		t.Fatalf("added punch not found: %v", err)
+	}
+	if eventTime != "08:55" || eventType != "IN" {
+		t.Fatalf("added punch = %s %s, want IN 08:55", eventType, eventTime)
+	}
+
+	entries := outboxByType(t, app, store, "attendance_change")
+	if len(entries) != 2 {
+		t.Fatalf("expected complaint + approval in the outbox, got %d", len(entries))
+	}
+	if approval := decodeAttendanceChange(t, entries[1]); approval.Status != "approved" || approval.Actor != "kashi: admin" || approval.Action != "add" {
+		t.Fatalf("approval sent to kashi = %+v, want approved by 'kashi: admin' for an add", approval)
+	}
+
+	if err := app.executeCommand(app.ctx, branchCommand{Type: "review_attendance_request", Payload: payload}); err == nil {
+		t.Fatal("reviewing an already reviewed request must fail")
+	}
+}
+
+// Manager approval on the till is on by default: a manager adds a missed
+// punch in one step with the password. Turned off, the till's own approve
+// and add are refused, while kashi's review_attendance_request still works.
+func TestAttendanceManagerApprovalMode(t *testing.T) {
+	app, store := setUpTestAttendanceApp(t, "http://localhost:9999")
+	if err := app.UpdateAttendanceApproverPassword("secret"); err != nil {
+		t.Fatal(err)
+	}
+	sp := makeSalesperson(t, app, store, "Eli", "U4")
+	if !app.GetAttendanceManagerApprovalEnabled() {
+		t.Fatal("manager approval must be on by default")
+	}
+	if err := app.AddAttendanceWithManagerApproval(sp.ID, "2026-08-23", "08:30", "IN", "wrong"); err == nil {
+		t.Fatal("a wrong manager password must be refused")
+	}
+	if err := app.AddAttendanceWithManagerApproval(sp.ID, "2026-08-23", "08:30", "IN", "secret"); err != nil {
+		t.Fatalf("manager add: %v", err)
+	}
+	var punches int
+	if err := app.conn.QueryRowContext(app.ctx, `SELECT COUNT(*) FROM salesperson_attendance_events WHERE salesperson_id = ? AND event_date = '2026-08-23'`, sp.ID).Scan(&punches); err != nil {
+		t.Fatal(err)
+	}
+	if punches != 1 {
+		t.Fatalf("punches after manager add = %d, want 1", punches)
+	}
+
+	if err := app.SetAttendanceManagerApprovalEnabled(false); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.AddAttendanceWithManagerApproval(sp.ID, "2026-08-23", "17:00", "OUT", "secret"); err == nil {
+		t.Fatal("manager add must be refused while the mode is off")
+	}
+	if err := app.SubmitAttendanceComplaint(sp.ID, "2026-08-23", 0, "17:00", "OUT", "add", ""); err != nil {
+		t.Fatal(err)
+	}
+	requestID := lastChangeRequestID(t, app)
+	if err := app.ApproveAttendanceComplaint(requestID, true, "secret"); err == nil {
+		t.Fatal("approving on the till must be refused while the mode is off")
+	}
+	payload, _ := json.Marshal(reviewAttendanceRequestPayload{ClientRef: fmt.Sprintf("acr-%d-complaint", requestID), Approved: true, Actor: "kashi: admin"})
+	if err := app.executeCommand(app.ctx, branchCommand{Type: "review_attendance_request", Payload: payload}); err != nil {
+		t.Fatalf("kashi's approval must still work with the mode off: %v", err)
+	}
+}
+
+// What kashi gets from an approved replace: the corrected punch, uploaded
+// with who approved it and what it replaced, and in the approval the ref of
+// the original punch so kashi takes its copy away.
+func TestApprovedReplaceUploadsChangedPunchAndOriginalRef(t *testing.T) {
+	app, store := setUpTestAttendanceApp(t, "http://localhost:9999")
+	sp := makeSalesperson(t, app, store, "Fadi", "U5")
+	eventID := insertAttendanceEvent(t, app, sp, "2026-08-24", "09:20:00")
+	var deviceID, devEventID string
+	if err := app.conn.QueryRowContext(app.ctx, `SELECT device_id, event_id FROM salesperson_attendance_events WHERE id = ?`, eventID).Scan(&deviceID, &devEventID); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.SubmitAttendanceComplaint(sp.ID, "2026-08-24", eventID, "09:00", "IN", "replace", ""); err != nil {
+		t.Fatal(err)
+	}
+	requestID := lastChangeRequestID(t, app)
+	payload, _ := json.Marshal(reviewAttendanceRequestPayload{ClientRef: fmt.Sprintf("acr-%d-complaint", requestID), Approved: true, Actor: "kashi: admin"})
+	if err := app.executeCommand(app.ctx, branchCommand{Type: "review_attendance_request", Payload: payload}); err != nil {
+		t.Fatal(err)
+	}
+
+	changes := outboxByType(t, app, store, "attendance_change")
+	approval := decodeAttendanceChange(t, changes[len(changes)-1])
+	if approval.OriginalEventRef != deviceID+"|"+devEventID {
+		t.Fatalf("approval original_event_ref = %q, want %q", approval.OriginalEventRef, deviceID+"|"+devEventID)
+	}
+
+	events := outboxByType(t, app, store, "attendance_events")
+	var sent branchAttendanceEventsPayload
+	if err := json.Unmarshal([]byte(events[len(events)-1].PayloadJson), &sent); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent.Events) != 1 {
+		t.Fatalf("expected the corrected punch to be uploaded, got %d events", len(sent.Events))
+	}
+	punch := sent.Events[0]
+	if punch.EventTime != "09:00" || punch.ChangedBy != "kashi: admin" || punch.ChangeNote != "Changed from 09:20:00" {
+		t.Fatalf("uploaded punch = %+v, want 09:00 changed by 'kashi: admin' from 09:20:00", punch)
+	}
+}

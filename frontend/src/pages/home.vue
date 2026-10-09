@@ -274,6 +274,26 @@
     </v-card>
   </v-dialog>
 
+  <!-- A typed price far from the list price is almost always a slip of the
+       keypad ($3 keyed as $3000); asked once at checkout, not per keystroke. -->
+  <v-dialog v-model="priceCheckDialog.show" max-width="480" persistent>
+    <v-card>
+      <v-card-title>Check these prices</v-card-title>
+      <v-card-text>
+        <div v-for="line in priceCheckDialog.lines" :key="line.code" class="mb-1">
+          <strong>{{ line.name || line.code }}</strong> — selling at ${{ line.price.toFixed(2) }},
+          list price ${{ line.listPrice.toFixed(2) }}
+        </div>
+        <p class="mt-3 mb-0">Is that right?</p>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn text="Fix prices" @click="answerPriceCheck(false)" />
+        <v-btn color="primary" text="Prices are right" variant="flat" @click="answerPriceCheck(true)" />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <!-- A scanned/typed product code shared by several variants: pick one. -->
   <v-dialog v-model="variantPicker.show" max-width="560" scrollable>
     <v-card>
@@ -960,6 +980,37 @@ async function confirmOversellIfNeeded(itemsJSON: string): Promise<boolean> {
   });
 }
 
+// A manual price more than PRICE_CHECK_FACTOR times above or below the list
+// price is asked about before the sale exists, so a mistyped price never
+// needs a cancel afterwards.
+const PRICE_CHECK_FACTOR = 3;
+type PriceCheckLine = { code: string; name: string; price: number; listPrice: number };
+const priceCheckDialog = reactive<{ show: boolean; lines: PriceCheckLine[] }>({ show: false, lines: [] });
+let priceCheckAnswer: ((ok: boolean) => void) | null = null;
+
+function answerPriceCheck(ok: boolean) {
+  priceCheckDialog.show = false;
+  priceCheckAnswer?.(ok);
+  priceCheckAnswer = null;
+}
+
+async function confirmPricesIfUnusual(): Promise<boolean> {
+  const lines: PriceCheckLine[] = [];
+  for (const item of invoiceItems.value?.items ?? []) {
+    const listPrice = Number(item.originalPrice ?? 0);
+    if (item.qty <= 0 || !(listPrice > 0)) continue;
+    const prices: number[] = item.unitPrices?.length ? item.unitPrices : [item.price];
+    const odd = prices.map(Number).find((p) => p > listPrice * PRICE_CHECK_FACTOR || p < listPrice / PRICE_CHECK_FACTOR);
+    if (odd !== undefined) lines.push({ code: item.code, name: item.name, price: odd, listPrice });
+  }
+  if (!lines.length) return true;
+  priceCheckDialog.lines = lines;
+  priceCheckDialog.show = true;
+  return new Promise<boolean>((resolve) => {
+    priceCheckAnswer = resolve;
+  });
+}
+
 function notifyCheckoutBlocked(text: string, icon: string) {
   playWarningSound();
   snackbar.text = text;
@@ -1016,6 +1067,7 @@ async function onCheckout() {
   if (json === "[]") return;
   const isExchange = Boolean(exchangeState.value);
   if (flagMissingAssignment()) return;
+  if (!(await confirmPricesIfUnusual())) return;
   if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
   printPhase.value = "printing";
   printCashCents.value = calculator.value?.cashTotalCents ?? 0;

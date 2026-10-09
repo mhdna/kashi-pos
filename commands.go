@@ -56,6 +56,8 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 		return nil
 	case "transfer_decision":
 		return a.executeTransferDecisionCommand(ctx, cmd.Payload)
+	case "review_attendance_request":
+		return a.executeReviewAttendanceRequestCommand(cmd.Payload)
 	default:
 		return fmt.Errorf("unknown command type %q", cmd.Type)
 	}
@@ -110,6 +112,7 @@ type updateSettingsCommandPayload struct {
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        *bool `json:"close_shift_requires_sync"`
 	ScanByCodeEnabled             *bool `json:"scan_by_code_enabled"`
+	SoundsEnabled                 *bool `json:"sounds_enabled"`
 	HidePaymentMethodCurrency     *bool `json:"hide_payment_method_currency"`
 	AutoAppendLbpZeros            *bool `json:"auto_append_lbp_zeros"`
 	AutoCloseStaleShifts          *bool `json:"auto_close_stale_shifts"`
@@ -165,6 +168,7 @@ type updateSettingsCommandPayload struct {
 	AttendanceEnabled                  *bool   `json:"attendance_enabled"`
 	AttendanceDuplicateIntervalSeconds *int64  `json:"attendance_duplicate_interval_seconds"`
 	AttendanceCashierHistory           *bool   `json:"attendance_cashier_history"`
+	AttendanceManagerApprovalEnabled   *bool   `json:"attendance_manager_approval_enabled"`
 
 	// AdminPassword force-sets the local "admin" account's password (plaintext
 	// -- kashi's bcrypt hash is unusable here). Absent/empty = leave it alone.
@@ -291,6 +295,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},
 		{p.CloseShiftRequiresSync, a.SetCloseShiftRequiresSyncEnabled},
 		{p.ScanByCodeEnabled, a.SetScanByCodeEnabled},
+		{p.SoundsEnabled, a.SetSoundsEnabled},
 		{p.HidePaymentMethodCurrency, a.SetHidePaymentMethodCurrency},
 		{p.AutoAppendLbpZeros, a.SetAutoAppendLbpZerosEnabled},
 		{p.AutoCloseStaleShifts, a.SetAutoCloseStaleShiftsEnabled},
@@ -302,6 +307,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.PageUnlockAttendance, func(b bool) error { return a.SetPageUnlocked("attendance", b) }},
 		{p.PageUnlockSalespersons, func(b bool) error { return a.SetPageUnlocked("salespersons", b) }},
 		{p.AttendanceCashierHistory, a.SetAttendanceCashierHistoryEnabled},
+		{p.AttendanceManagerApprovalEnabled, a.SetAttendanceManagerApprovalEnabled},
 	}
 	for _, u := range flagUpdates {
 		if u.v == nil {
@@ -498,6 +504,9 @@ type remoteReturnInvoiceCommandPayload struct {
 	// only ever echoes it back, it never assigns or reinterprets it (see
 	// branch_invoice_items in kashi's db/migrations).
 	Items []remoteReturnInvoiceItemPayload `json:"items"`
+	// Cancel asks for the whole sale to be cancelled (see cancelInvoice)
+	// rather than returned; Items is ignored then.
+	Cancel bool `json:"cancel"`
 }
 
 type remoteReturnInvoiceItemPayload struct {
@@ -541,32 +550,30 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 		return fmt.Errorf("original invoice has no items to return")
 	}
 
-	// The invoice header itself carries no salesperson (sales are recorded
-	// per line, see salesInvoiceTx) -- fall back to whoever sold the first
-	// line, then to this install's first configured salesperson, same
-	// "pick the first configured one" fallback exchangeCashbox already uses
-	// for the settlement account below.
-	salespersonID := lines[0].SalespersonID
-	if salespersonID <= 0 {
-		salespersons, err := a.store.ListSalespersons(ctx)
-		if err != nil || len(salespersons) == 0 {
-			return fmt.Errorf("no salesperson configured to attribute the return to")
+	if p.Cancel {
+		notes := strings.TrimSpace(p.Reason)
+		if notes == "" {
+			notes = "Cancelled from kashi"
 		}
-		salespersonID = salespersons[0].ID
+		if err := a.cancelInvoice(ctx, invoiceID, notes); err != nil {
+			return fmt.Errorf("cancel invoice: %w", err)
+		}
+		return nil
 	}
 
-	type lineToReturn struct {
-		line     db.InvoiceProduct
-		quantity int64
+	salespersonID, err := a.returnSalespersonID(ctx, lines)
+	if err != nil {
+		return err
 	}
-	var linesToReturn []lineToReturn
+
+	var linesToReturn []returnLine
 	if len(p.Items) > 0 {
 		// Item-level selection: only the requested products, at the
 		// requested (possibly partial) quantity each. Every requested line
 		// must exist on the original invoice -- invoice_products' PK is
 		// (invoice_id, product_id), so a product appears at most once,
 		// there's no ambiguity in this match.
-		linesToReturn = make([]lineToReturn, 0, len(p.Items))
+		linesToReturn = make([]returnLine, 0, len(p.Items))
 		for _, requested := range p.Items {
 			var found *db.InvoiceProduct
 			for i := range lines {
@@ -581,35 +588,17 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 			if requested.Quantity <= 0 || requested.Quantity > found.Quantity {
 				return fmt.Errorf("requested quantity %d for product %d exceeds the original line quantity %d", requested.Quantity, requested.BranchProductID, found.Quantity)
 			}
-			linesToReturn = append(linesToReturn, lineToReturn{line: *found, quantity: requested.Quantity})
+			linesToReturn = append(linesToReturn, returnLine{line: *found, quantity: requested.Quantity})
 		}
 	} else {
 		// No items specified -- fall back to returning every line at full
 		// quantity, same as before item-level selection existed.
-		linesToReturn = make([]lineToReturn, 0, len(lines))
-		for _, line := range lines {
-			linesToReturn = append(linesToReturn, lineToReturn{line: line, quantity: line.Quantity})
-		}
+		linesToReturn = fullReturnLines(lines)
 	}
 
-	items := make([]exchangeLine, 0, len(linesToReturn))
-	for _, lq := range linesToReturn {
-		product, err := a.store.GetProductByID(ctx, lq.line.ProductID)
-		if err != nil {
-			return fmt.Errorf("load product for invoice line: %w", err)
-		}
-		unitPrice := lq.line.UnitPrice
-		discount := lq.line.Discount
-		items = append(items, exchangeLine{
-			Code:           product.Code,
-			Qty:            -lq.quantity,
-			UnitPriceCents: &unitPrice,
-			UnitDiscount:   &discount,
-		})
-	}
-	itemsJSON, err := json.Marshal(items)
+	itemsJSON, err := a.returnItemsJSON(ctx, linesToReturn)
 	if err != nil {
-		return fmt.Errorf("build return items: %w", err)
+		return err
 	}
 
 	accounts, err := a.store.ListCashboxAccounts(ctx)
@@ -622,7 +611,7 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 		notes = "Remote return"
 	}
 
-	_, err = a.checkoutAdminReturnInvoice(string(itemsJSON), invoiceID, salespersonID, accounts[0].ID, notes)
+	_, err = a.checkoutAdminReturnInvoice(itemsJSON, invoiceID, salespersonID, accounts[0].ID, notes)
 	if err != nil {
 		return fmt.Errorf("checkout return: %w", err)
 	}

@@ -634,6 +634,9 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 			return branchInvoicePayload{}, fmt.Errorf("resolve source sale ref: %w", err)
 		}
 		payload.RelatedClientRef = relatedRef
+		// The cancellation return carries the mark; a cancelled sale itself
+		// is just a sale -- kashi derives its mark from the return.
+		payload.Cancellation = inv.CancelledAt.Valid
 	}
 	return payload, nil
 }
@@ -1051,6 +1054,18 @@ func retryBusy(fn func() error) error {
 
 func (a *App) resyncTx(ctx context.Context, fn func(*db.Queries) error) error {
 	return retryBusy(func() error { return a.store.ExecTx(ctx, fn) })
+}
+
+// checkoutTx is ExecTx for the foreground sale paths (checkout, returns,
+// exchanges), retried on a transient lock. busy_timeout already waits 5s for
+// the write lock, but a long sync write -- a first pull of a big catalog, or
+// the whole Default price list being rewritten after one price changed in
+// kashi -- can outlast that on a slow till, and the cashier saw "database is
+// locked" with the sale lost. fn must be safe to run again from scratch: a
+// failed attempt is rolled back, so only state fn builds inside itself, or
+// overwrites wholesale, may cross attempts.
+func (a *App) checkoutTx(fn func(*db.Queries) error) error {
+	return retryBusy(func() error { return a.store.ExecTx(a.ctx, fn) })
 }
 
 func (a *App) upsertOutbox(ctx context.Context, params db.UpsertSyncOutboxEntryParams) error {

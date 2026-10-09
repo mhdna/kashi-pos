@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 	"time"
 
 	db "kashi-pos/db/sqlc"
@@ -277,16 +278,44 @@ type syncedSalesperson struct {
 	IsActive bool   `json:"is_active"`
 	// Avatar color, picked at random in kashi and changeable there.
 	Color string `json:"color"`
+	// The salesperson's user number on this branch's fingerprint device.
+	// Only taken when AttendanceUserIDSet says kashi decided it; until then
+	// the number typed in on this till stands, and is reported up instead
+	// (see salespersonAttendanceIDsForReport). An older kashi sends neither.
+	AttendanceUserID    string `json:"attendance_user_id"`
+	AttendanceUserIDSet bool   `json:"attendance_user_id_set"`
+	// Whether checkout offers them (staff who only punch attendance don't
+	// sell). Nil from an older kashi: leave the till's value, which
+	// defaults to selling.
+	IsSalesperson *bool `json:"is_salesperson"`
 }
 
-// applySyncedSalesperson upserts by remote_id and deliberately never
-// touches attendance_user_id -- that's the local Akuvox device pairing for
-// this salesperson at this branch, which kashi has no opinion on (see the
-// comment on UpdateSyncedSalesperson in db/query/salesperson.sql). A
-// remote_id it hasn't seen is first matched by name against the till's own
-// unlinked salespersons (made before it was connected), so those are
-// adopted instead of duplicated.
+// applySyncedSalesperson upserts by remote_id. A remote_id it hasn't seen is
+// first matched by name against the till's own unlinked salespersons (made
+// before it was connected), so those are adopted instead of duplicated.
+// attendance_user_id is only written when kashi has set it.
 func applySyncedSalesperson(ctx context.Context, q *db.Queries, s syncedSalesperson) error {
+	if err := upsertSyncedSalesperson(ctx, q, s); err != nil {
+		return err
+	}
+	if s.IsSalesperson != nil {
+		if err := q.SetSalespersonIsSalespersonByRemoteID(ctx, db.SetSalespersonIsSalespersonByRemoteIDParams{
+			IsSalesperson: boolToInt64(*s.IsSalesperson),
+			RemoteID:      sql.NullInt64{Int64: s.ID, Valid: true},
+		}); err != nil {
+			return err
+		}
+	}
+	if !s.AttendanceUserIDSet {
+		return nil
+	}
+	return q.SetSalespersonAttendanceIDByRemoteID(ctx, db.SetSalespersonAttendanceIDByRemoteIDParams{
+		AttendanceUserID: strings.TrimSpace(s.AttendanceUserID),
+		RemoteID:         sql.NullInt64{Int64: s.ID, Valid: true},
+	})
+}
+
+func upsertSyncedSalesperson(ctx context.Context, q *db.Queries, s syncedSalesperson) error {
 	isActive := int64(0)
 	if s.IsActive {
 		isActive = 1

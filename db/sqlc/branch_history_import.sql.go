@@ -108,7 +108,7 @@ INSERT INTO invoices (
     cashbox_id, shift_id, invoice_code, invoice_index,
     year, client_id, inventory_id, discount,
     subtotal, discounted_total, grand_total, salesperson_id, notes, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at
 `
 
 type CreateHistoricalInvoiceParams struct {
@@ -162,6 +162,7 @@ func (q *Queries) CreateHistoricalInvoice(ctx context.Context, arg CreateHistori
 		&i.CreatedAt,
 		&i.SalespersonID,
 		&i.Notes,
+		&i.CancelledAt,
 	)
 	return i, err
 }

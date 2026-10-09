@@ -68,7 +68,8 @@ SELECT invoice_id, sales_invoice_id FROM return_invoices;
 -- sqlc.arg(limit) rows instead of an OFFSET scan that re-walks and discards
 -- everything above it. Ordering is a stable id DESC so the cursor is
 -- unambiguous.
-SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+SELECT i.*, COALESCE(s.full_name, 'Anonymous') AS salesperson_name,
+  EXISTS (SELECT 1 FROM sales_invoices si WHERE si.invoice_id = i.id) AS is_sale
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
@@ -160,6 +161,7 @@ JOIN products p ON p.id = ip.product_id
 LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
 WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
   AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+  AND i.cancelled_at IS NULL
 GROUP BY sp.id, sp.full_name, p.id, p.barcode, p.code, p.name, p.color, p.size, p.currency_code
 ORDER BY sp.full_name, SUM(ip.quantity) DESC, p.name, p.id;
 
@@ -180,6 +182,7 @@ JOIN invoice_products ip ON ip.invoice_id = i.id
 LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
 WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
   AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+  AND i.cancelled_at IS NULL
 GROUP BY sp.id, sp.full_name
 ORDER BY sp.full_name;
 
@@ -197,6 +200,7 @@ JOIN invoice_products ip ON ip.invoice_id = i.id
 LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
 WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
   AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+  AND i.cancelled_at IS NULL
 GROUP BY sp.id;
 
 -- name: ListSalespersonDiscountSummary :many
@@ -212,6 +216,7 @@ JOIN invoices i ON i.id = si.invoice_id
 LEFT JOIN salespersons sp ON sp.id = NULLIF(i.salesperson_id, 0)
 WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
   AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+  AND i.cancelled_at IS NULL
 GROUP BY sp.id;
 
 -- name: CountInvoices :one
@@ -493,4 +498,14 @@ JOIN invoice_client_refs r ON r.invoice_id = i.id
 JOIN sync_outbox o ON o.client_ref = r.client_ref
 WHERE date(i.created_at, 'localtime') >= sqlc.arg(date_from)
   AND date(i.created_at, 'localtime') <= sqlc.arg(date_to)
+  AND i.cancelled_at IS NULL
   AND (o.status != 'synced' OR o.synced_at > sqlc.arg(as_of));
+
+-- name: MarkInvoiceCancelled :exec
+UPDATE invoices SET cancelled_at = COALESCE(cancelled_at, datetime('now')) WHERE id = ?;
+
+-- name: CountReturnsForSale :one
+SELECT COUNT(*) FROM return_invoices WHERE sales_invoice_id = ?;
+
+-- name: CountCouponsRedeemedOnInvoice :one
+SELECT COUNT(*) FROM coupons WHERE redeemed_invoice_id = ?;

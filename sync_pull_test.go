@@ -316,3 +316,63 @@ func TestSyncPullWholeSetReportsChangeOnlyWhenTableDiffers(t *testing.T) {
 		t.Fatal("LBP rate changed in kashi but the pull reported no change")
 	}
 }
+
+// Once kashi decides a salesperson's device number (attendance_user_id_set),
+// the pull replaces the one typed in here -- an empty one too, which clears
+// it. Until then the till's own number is what it reports up to kashi.
+func TestSyncPullTakesKashiSetAttendanceID(t *testing.T) {
+	item := `{"id":7,"name":"Sarah M","is_active":true}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Query().Get("entity") {
+		case "salespersons":
+			fmt.Fprintf(w, `{"entity":"salespersons","items":[%s],"server_time":"2026-08-24T00:00:00Z"}`, item)
+		default:
+			fmt.Fprint(w, `{"entity":"noop","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		}
+	}))
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
+	client := newCentralClient(server.URL, "TEST01", "test-key")
+	pull := func() db.Salesperson {
+		t.Helper()
+		if err := app.pullEntityOnce(app.ctx, client, "salespersons"); err != nil {
+			t.Fatal(err)
+		}
+		s, err := store.GetSalespersonByRemoteID(app.ctx, sql.NullInt64{Int64: 7, Valid: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+
+	local := pull()
+	if err := store.UpdateSalespersonAttendanceID(app.ctx, db.UpdateSalespersonAttendanceIDParams{
+		AttendanceUserID: "DEVICE-42", ID: local.ID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := salespersonAttendanceIDsForReport(app.ctx, store.Queries); got["7"] != "DEVICE-42" {
+		t.Fatalf("report = %v, want kashi id 7 -> DEVICE-42", got)
+	}
+
+	item = `{"id":7,"name":"Sarah M","is_active":true,"attendance_user_id":"15","attendance_user_id_set":true}`
+	if got := pull().AttendanceUserID; got != "15" {
+		t.Fatalf("after kashi set it: attendance id = %q, want 15", got)
+	}
+
+	item = `{"id":7,"name":"Sarah M","is_active":true,"attendance_user_id":"","attendance_user_id_set":true}`
+	if got := pull().AttendanceUserID; got != "" {
+		t.Fatalf("after kashi cleared it: attendance id = %q, want empty", got)
+	}
+
+	// Staff who only punch attendance: still on the roster, no longer sells.
+	if got := pull().IsSalesperson; got != 1 {
+		t.Fatalf("is_salesperson before kashi says otherwise = %d, want 1", got)
+	}
+	item = `{"id":7,"name":"Sarah M","is_active":true,"is_salesperson":false}`
+	if got := pull().IsSalesperson; got != 0 {
+		t.Fatalf("after kashi turned selling off: is_salesperson = %d, want 0", got)
+	}
+}

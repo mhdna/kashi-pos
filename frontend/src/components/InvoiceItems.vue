@@ -434,9 +434,10 @@ onMounted(async () => {
     categoryIcons.value = map;
   } catch {}
   try {
-    salespersons.value = ((await ListSalespersons()) as Salesperson[]).sort((a, b) =>
-      a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }),
-    );
+    // Staff who only punch attendance (isSalesperson off in kashi) don't sell.
+    salespersons.value = ((await ListSalespersons()) as Salesperson[])
+      .filter((s: any) => s.isSalesperson !== false)
+      .sort((a, b) => a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }));
   } catch {}
 });
 

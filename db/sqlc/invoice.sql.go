@@ -11,6 +11,17 @@ import (
 	"strings"
 )
 
+const countCouponsRedeemedOnInvoice = `-- name: CountCouponsRedeemedOnInvoice :one
+SELECT COUNT(*) FROM coupons WHERE redeemed_invoice_id = ?
+`
+
+func (q *Queries) CountCouponsRedeemedOnInvoice(ctx context.Context, redeemedInvoiceID sql.NullInt64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCouponsRedeemedOnInvoice, redeemedInvoiceID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countFilteredInvoices = `-- name: CountFilteredInvoices :one
 SELECT COUNT(*)
 FROM invoices i
@@ -77,12 +88,23 @@ func (q *Queries) CountInvoices(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countReturnsForSale = `-- name: CountReturnsForSale :one
+SELECT COUNT(*) FROM return_invoices WHERE sales_invoice_id = ?
+`
+
+func (q *Queries) CountReturnsForSale(ctx context.Context, salesInvoiceID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countReturnsForSale, salesInvoiceID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createInvoice = `-- name: CreateInvoice :one
 INSERT INTO invoices (
     cashbox_id, shift_id, invoice_code, invoice_index,
     year, client_id, inventory_id, discount,
     subtotal, discounted_total, grand_total, salesperson_id, notes
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at
 `
 
 type CreateInvoiceParams struct {
@@ -134,6 +156,7 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		&i.CreatedAt,
 		&i.SalespersonID,
 		&i.Notes,
+		&i.CancelledAt,
 	)
 	return i, err
 }
@@ -279,7 +302,7 @@ func (q *Queries) DeleteSalesInvoice(ctx context.Context, invoiceID int64) error
 }
 
 const getInvoiceByID = `-- name: GetInvoiceByID :one
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes FROM invoices WHERE id = ?
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at FROM invoices WHERE id = ?
 `
 
 func (q *Queries) GetInvoiceByID(ctx context.Context, id int64) (Invoice, error) {
@@ -301,6 +324,7 @@ func (q *Queries) GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 		&i.CreatedAt,
 		&i.SalespersonID,
 		&i.Notes,
+		&i.CancelledAt,
 	)
 	return i, err
 }
@@ -455,7 +479,7 @@ func (q *Queries) GetReturnedQuantityForProductPrice(ctx context.Context, arg Ge
 }
 
 const getSalesInvoiceByCode = `-- name: GetSalesInvoiceByCode :one
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at
 FROM invoices i
 JOIN sales_invoices s ON s.invoice_id = i.id
 WHERE lower(i.invoice_code) = lower(?)
@@ -480,12 +504,13 @@ func (q *Queries) GetSalesInvoiceByCode(ctx context.Context, lower string) (Invo
 		&i.CreatedAt,
 		&i.SalespersonID,
 		&i.Notes,
+		&i.CancelledAt,
 	)
 	return i, err
 }
 
 const getSalesInvoiceByID = `-- name: GetSalesInvoiceByID :one
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at
 FROM invoices i
 JOIN sales_invoices s ON s.invoice_id = i.id
 WHERE i.id = ?
@@ -510,6 +535,7 @@ func (q *Queries) GetSalesInvoiceByID(ctx context.Context, id int64) (Invoice, e
 		&i.CreatedAt,
 		&i.SalespersonID,
 		&i.Notes,
+		&i.CancelledAt,
 	)
 	return i, err
 }
@@ -1029,7 +1055,7 @@ func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]I
 }
 
 const listInvoices = `-- name: ListInvoices :many
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes FROM invoices ORDER BY id
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at FROM invoices ORDER BY id
 `
 
 func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
@@ -1057,6 +1083,7 @@ func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
 			&i.CreatedAt,
 			&i.SalespersonID,
 			&i.Notes,
+			&i.CancelledAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1072,7 +1099,7 @@ func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
 }
 
 const listInvoicesByDate = `-- name: ListInvoicesByDate :many
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 WHERE date(i.created_at, 'localtime') = ?1
@@ -1080,22 +1107,23 @@ ORDER BY i.id DESC
 `
 
 type ListInvoicesByDateRow struct {
-	ID              int64  `json:"id"`
-	CashboxID       int64  `json:"cashboxId"`
-	ShiftID         int64  `json:"shiftId"`
-	InvoiceCode     string `json:"invoiceCode"`
-	InvoiceIndex    int64  `json:"invoiceIndex"`
-	Year            int64  `json:"year"`
-	ClientID        int64  `json:"clientId"`
-	InventoryID     int64  `json:"inventoryId"`
-	Discount        int64  `json:"discount"`
-	Subtotal        int64  `json:"subtotal"`
-	DiscountedTotal int64  `json:"discountedTotal"`
-	GrandTotal      int64  `json:"grandTotal"`
-	CreatedAt       string `json:"createdAt"`
-	SalespersonID   int64  `json:"salespersonId"`
-	Notes           string `json:"notes"`
-	SalespersonName string `json:"salespersonName"`
+	ID              int64          `json:"id"`
+	CashboxID       int64          `json:"cashboxId"`
+	ShiftID         int64          `json:"shiftId"`
+	InvoiceCode     string         `json:"invoiceCode"`
+	InvoiceIndex    int64          `json:"invoiceIndex"`
+	Year            int64          `json:"year"`
+	ClientID        int64          `json:"clientId"`
+	InventoryID     int64          `json:"inventoryId"`
+	Discount        int64          `json:"discount"`
+	Subtotal        int64          `json:"subtotal"`
+	DiscountedTotal int64          `json:"discountedTotal"`
+	GrandTotal      int64          `json:"grandTotal"`
+	CreatedAt       string         `json:"createdAt"`
+	SalespersonID   int64          `json:"salespersonId"`
+	Notes           string         `json:"notes"`
+	CancelledAt     sql.NullString `json:"cancelledAt"`
+	SalespersonName string         `json:"salespersonName"`
 }
 
 func (q *Queries) ListInvoicesByDate(ctx context.Context, date string) ([]ListInvoicesByDateRow, error) {
@@ -1123,6 +1151,7 @@ func (q *Queries) ListInvoicesByDate(ctx context.Context, date string) ([]ListIn
 			&i.CreatedAt,
 			&i.SalespersonID,
 			&i.Notes,
+			&i.CancelledAt,
 			&i.SalespersonName,
 		); err != nil {
 			return nil, err
@@ -1139,7 +1168,7 @@ func (q *Queries) ListInvoicesByDate(ctx context.Context, date string) ([]ListIn
 }
 
 const listInvoicesByDateRange = `-- name: ListInvoicesByDateRange :many
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 WHERE date(i.created_at, 'localtime') >= ?1
@@ -1153,22 +1182,23 @@ type ListInvoicesByDateRangeParams struct {
 }
 
 type ListInvoicesByDateRangeRow struct {
-	ID              int64  `json:"id"`
-	CashboxID       int64  `json:"cashboxId"`
-	ShiftID         int64  `json:"shiftId"`
-	InvoiceCode     string `json:"invoiceCode"`
-	InvoiceIndex    int64  `json:"invoiceIndex"`
-	Year            int64  `json:"year"`
-	ClientID        int64  `json:"clientId"`
-	InventoryID     int64  `json:"inventoryId"`
-	Discount        int64  `json:"discount"`
-	Subtotal        int64  `json:"subtotal"`
-	DiscountedTotal int64  `json:"discountedTotal"`
-	GrandTotal      int64  `json:"grandTotal"`
-	CreatedAt       string `json:"createdAt"`
-	SalespersonID   int64  `json:"salespersonId"`
-	Notes           string `json:"notes"`
-	SalespersonName string `json:"salespersonName"`
+	ID              int64          `json:"id"`
+	CashboxID       int64          `json:"cashboxId"`
+	ShiftID         int64          `json:"shiftId"`
+	InvoiceCode     string         `json:"invoiceCode"`
+	InvoiceIndex    int64          `json:"invoiceIndex"`
+	Year            int64          `json:"year"`
+	ClientID        int64          `json:"clientId"`
+	InventoryID     int64          `json:"inventoryId"`
+	Discount        int64          `json:"discount"`
+	Subtotal        int64          `json:"subtotal"`
+	DiscountedTotal int64          `json:"discountedTotal"`
+	GrandTotal      int64          `json:"grandTotal"`
+	CreatedAt       string         `json:"createdAt"`
+	SalespersonID   int64          `json:"salespersonId"`
+	Notes           string         `json:"notes"`
+	CancelledAt     sql.NullString `json:"cancelledAt"`
+	SalespersonName string         `json:"salespersonName"`
 }
 
 func (q *Queries) ListInvoicesByDateRange(ctx context.Context, arg ListInvoicesByDateRangeParams) ([]ListInvoicesByDateRangeRow, error) {
@@ -1196,6 +1226,7 @@ func (q *Queries) ListInvoicesByDateRange(ctx context.Context, arg ListInvoicesB
 			&i.CreatedAt,
 			&i.SalespersonID,
 			&i.Notes,
+			&i.CancelledAt,
 			&i.SalespersonName,
 		); err != nil {
 			return nil, err
@@ -1212,7 +1243,7 @@ func (q *Queries) ListInvoicesByDateRange(ctx context.Context, arg ListInvoicesB
 }
 
 const listInvoicesByShiftID = `-- name: ListInvoicesByShiftID :many
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes FROM invoices WHERE shift_id = ? ORDER BY id
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at FROM invoices WHERE shift_id = ? ORDER BY id
 `
 
 func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error) {
@@ -1240,6 +1271,7 @@ func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]I
 			&i.CreatedAt,
 			&i.SalespersonID,
 			&i.Notes,
+			&i.CancelledAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1255,7 +1287,8 @@ func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]I
 }
 
 const listInvoicesPage = `-- name: ListInvoicesPage :many
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, COALESCE(s.full_name, 'Anonymous') AS salesperson_name,
+  EXISTS (SELECT 1 FROM sales_invoices si WHERE si.invoice_id = i.id) AS is_sale
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
@@ -1301,22 +1334,24 @@ type ListInvoicesPageParams struct {
 }
 
 type ListInvoicesPageRow struct {
-	ID              int64  `json:"id"`
-	CashboxID       int64  `json:"cashboxId"`
-	ShiftID         int64  `json:"shiftId"`
-	InvoiceCode     string `json:"invoiceCode"`
-	InvoiceIndex    int64  `json:"invoiceIndex"`
-	Year            int64  `json:"year"`
-	ClientID        int64  `json:"clientId"`
-	InventoryID     int64  `json:"inventoryId"`
-	Discount        int64  `json:"discount"`
-	Subtotal        int64  `json:"subtotal"`
-	DiscountedTotal int64  `json:"discountedTotal"`
-	GrandTotal      int64  `json:"grandTotal"`
-	CreatedAt       string `json:"createdAt"`
-	SalespersonID   int64  `json:"salespersonId"`
-	Notes           string `json:"notes"`
-	SalespersonName string `json:"salespersonName"`
+	ID              int64          `json:"id"`
+	CashboxID       int64          `json:"cashboxId"`
+	ShiftID         int64          `json:"shiftId"`
+	InvoiceCode     string         `json:"invoiceCode"`
+	InvoiceIndex    int64          `json:"invoiceIndex"`
+	Year            int64          `json:"year"`
+	ClientID        int64          `json:"clientId"`
+	InventoryID     int64          `json:"inventoryId"`
+	Discount        int64          `json:"discount"`
+	Subtotal        int64          `json:"subtotal"`
+	DiscountedTotal int64          `json:"discountedTotal"`
+	GrandTotal      int64          `json:"grandTotal"`
+	CreatedAt       string         `json:"createdAt"`
+	SalespersonID   int64          `json:"salespersonId"`
+	Notes           string         `json:"notes"`
+	CancelledAt     sql.NullString `json:"cancelledAt"`
+	SalespersonName string         `json:"salespersonName"`
+	IsSale          int64          `json:"isSale"`
 }
 
 // Keyset ("seek") pagination: callers pass the id of the last row they've
@@ -1359,7 +1394,9 @@ func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPagePara
 			&i.CreatedAt,
 			&i.SalespersonID,
 			&i.Notes,
+			&i.CancelledAt,
 			&i.SalespersonName,
+			&i.IsSale,
 		); err != nil {
 			return nil, err
 		}
@@ -1410,6 +1447,7 @@ JOIN invoices i ON i.id = si.invoice_id
 LEFT JOIN salespersons sp ON sp.id = NULLIF(i.salesperson_id, 0)
 WHERE date(i.created_at, 'localtime') >= ?1
   AND date(i.created_at, 'localtime') <= ?2
+  AND i.cancelled_at IS NULL
 GROUP BY sp.id
 `
 
@@ -1464,6 +1502,7 @@ JOIN products p ON p.id = ip.product_id
 LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
 WHERE date(i.created_at, 'localtime') >= ?1
   AND date(i.created_at, 'localtime') <= ?2
+  AND i.cancelled_at IS NULL
 GROUP BY sp.id, sp.full_name, p.id, p.barcode, p.code, p.name, p.color, p.size, p.currency_code
 ORDER BY sp.full_name, SUM(ip.quantity) DESC, p.name, p.id
 `
@@ -1532,6 +1571,7 @@ JOIN invoice_products ip ON ip.invoice_id = i.id
 LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
 WHERE date(i.created_at, 'localtime') >= ?1
   AND date(i.created_at, 'localtime') <= ?2
+  AND i.cancelled_at IS NULL
 GROUP BY sp.id
 `
 
@@ -1585,6 +1625,7 @@ JOIN invoice_products ip ON ip.invoice_id = i.id
 LEFT JOIN salespersons sp ON sp.id = COALESCE(NULLIF(ip.salesperson_id, 0), NULLIF(i.salesperson_id, 0))
 WHERE date(i.created_at, 'localtime') >= ?1
   AND date(i.created_at, 'localtime') <= ?2
+  AND i.cancelled_at IS NULL
 GROUP BY sp.id, sp.full_name
 ORDER BY sp.full_name
 `
@@ -1634,6 +1675,15 @@ func (q *Queries) ListSalespersonSalesSummary(ctx context.Context, arg ListSales
 		return nil, err
 	}
 	return items, nil
+}
+
+const markInvoiceCancelled = `-- name: MarkInvoiceCancelled :exec
+UPDATE invoices SET cancelled_at = COALESCE(cancelled_at, datetime('now')) WHERE id = ?
+`
+
+func (q *Queries) MarkInvoiceCancelled(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, markInvoiceCancelled, id)
+	return err
 }
 
 const staleOnAccountTotalForShift = `-- name: StaleOnAccountTotalForShift :one
@@ -1687,6 +1737,7 @@ JOIN invoice_client_refs r ON r.invoice_id = i.id
 JOIN sync_outbox o ON o.client_ref = r.client_ref
 WHERE date(i.created_at, 'localtime') >= ?1
   AND date(i.created_at, 'localtime') <= ?2
+  AND i.cancelled_at IS NULL
   AND (o.status != 'synced' OR o.synced_at > ?3)
 `
 

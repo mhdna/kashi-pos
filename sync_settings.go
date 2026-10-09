@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -59,6 +60,12 @@ type branchSettingsPayload struct {
 	OverchangeConfirmation        bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        bool `json:"close_shift_requires_sync"`
 	ScanByCodeEnabled             bool `json:"scan_by_code_enabled"`
+	SoundsEnabled                 bool `json:"sounds_enabled"`
+
+	// Device numbers typed in here for kashi's salespersons, keyed by kashi's
+	// salesperson id. kashi adopts them for any salesperson it hasn't set one
+	// for (see applySyncedSalesperson for the other direction).
+	SalespersonAttendanceIDs map[string]string `json:"salesperson_attendance_ids,omitempty"`
 
 	// non-admin page-access locks (page_unlock_* flags)
 	PageUnlockClients      bool `json:"page_unlock_clients"`
@@ -91,6 +98,7 @@ type branchSettingsPayload struct {
 	AttendanceEnabled                  bool   `json:"attendance_enabled"`
 	AttendanceDuplicateIntervalSeconds int64  `json:"attendance_duplicate_interval_seconds"`
 	AttendanceCashierHistory           bool   `json:"attendance_cashier_history"`
+	AttendanceManagerApprovalEnabled   bool   `json:"attendance_manager_approval_enabled"`
 
 	OversellMode string `json:"oversell_mode"`
 
@@ -173,6 +181,23 @@ func (r *settingsReport) forget() {
 // made -- the settings page, a remote update_settings command, a feature
 // toggle -- but it only sends when the report differs from the one kashi
 // last accepted (see settingsReport), on a new session, or hourly.
+// salespersonAttendanceIDsForReport lists the device numbers set here for
+// salespersons kashi knows (remote_id), keyed by kashi's id. A failed read
+// just leaves them out of this report; the next one carries them.
+func salespersonAttendanceIDsForReport(ctx context.Context, q *db.Queries) map[string]string {
+	salespersons, err := q.ListSalespersons(ctx)
+	if err != nil {
+		return nil
+	}
+	ids := map[string]string{}
+	for _, s := range salespersons {
+		if s.RemoteID.Valid && strings.TrimSpace(s.AttendanceUserID) != "" {
+			ids[strconv.FormatInt(s.RemoteID.Int64, 10)] = strings.TrimSpace(s.AttendanceUserID)
+		}
+	}
+	return ids
+}
+
 func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 	s, err := a.store.GetSettings(ctx)
 	if err != nil {
@@ -240,6 +265,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		OverchangeConfirmation:        a.overchangeConfirmationEnabled(),
 		CloseShiftRequiresSync:        a.closeShiftRequiresSync(),
 		ScanByCodeEnabled:             a.scanByCodeEnabled(),
+		SoundsEnabled:                 a.soundsEnabled(),
 
 		PageUnlockClients:      a.flagEnabled(ctx, pageUnlockFlag("clients")),
 		PageUnlockInventory:    a.flagEnabled(ctx, pageUnlockFlag("inventory")),
@@ -267,6 +293,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		AttendanceEnabled:                  attendanceEnabled,
 		AttendanceDuplicateIntervalSeconds: dupInterval,
 		AttendanceCashierHistory:           a.flagEnabled(ctx, attendanceCashierHistoryFlag),
+		AttendanceManagerApprovalEnabled:   a.attendanceManagerApprovalEnabled(),
 		OversellMode:                       s.OversellMode,
 
 		HidePaymentMethodCurrency: a.flagEnabled(ctx, hidePaymentMethodCurrencyFlag),
@@ -280,6 +307,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		DefaultOpeningFloatLbp:    s.DefaultOpeningFloatLbp,
 		DisplayPrefs:              displayPrefs,
 	}
+	payload.SalespersonAttendanceIDs = salespersonAttendanceIDsForReport(ctx, a.store.Queries)
 
 	body, err := json.Marshal(payload)
 	if err != nil {

@@ -89,6 +89,7 @@
         <span class="font-weight-bold invoice-code">
           {{ item.invoiceCode || `Invoice #${item.id}` }}
         </span>
+        <v-chip v-if="item.cancelled" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</v-chip>
       </template>
       <template #item.clientId="{ item }">
         <span class="invoice-cell-truncate" :title="item.clientName || 'Walk-in customer'">
@@ -136,7 +137,8 @@
             <v-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startChange('salesperson', item)" />
             <v-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" :disabled="settlementLoading" @click.stop="startSettlementChange(item)" />
             <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-cash-check" title="Fix Rounding" @click.stop="requestRounding(item)" />
-            <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
+            <v-list-item v-if="auth.isAdmin && item.isSale && !item.cancelled" prepend-icon="mdi-cancel" title="Cancel Invoice" base-color="error" @click.stop="requestCancel(item)" />
+            <v-list-item v-if="auth.isAdmin && !item.cancelled" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
           </v-list>
         </v-menu>
       </template>
@@ -229,12 +231,33 @@
       </v-card>
     </v-dialog>
 
+    <v-dialog v-model="cancelOpen" max-width="460">
+      <v-card>
+        <v-card-title>Cancel invoice?</v-card-title>
+        <v-card-text>
+          <p class="mb-3">
+            {{ cancelTarget?.invoiceCode || "This invoice" }} is returned in full: the
+            ${{ money(cancelTarget?.grandTotal) }} is refunded to its payment account and the
+            items come back. Both stay on record marked Cancelled, and neither counts in sales
+            stats, here or in kashi.
+          </p>
+          <v-text-field v-model="cancelReason" label="Reason (optional)" density="compact" hide-details />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="cancelOpen = false">Keep</v-btn>
+          <v-btn color="error" :loading="cancelling" @click="cancelSelected">Cancel invoice</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-dialog v-model="deleteOpen" max-width="420">
       <v-card
         ><v-card-title>Delete invoice?</v-card-title
         ><v-card-text
           >This permanently deletes {{ deleteInvoice?.invoiceCode || "this invoice" }} and its
-          payment records.</v-card-text
+          payment records. Only an invoice that hasn't been uploaded to kashi can be deleted;
+          for a sale that has, use Cancel Invoice.</v-card-text
         ><v-card-actions
           ><v-spacer /><v-btn variant="text" @click="deleteOpen = false">Cancel</v-btn
           ><v-btn color="error" :loading="deleting" @click="deleteSelected"
@@ -316,6 +339,7 @@ import { useRouter } from "vue-router";
 import {
   ChangeInvoiceClient,
   ChangeInvoiceSalesperson,
+  CancelInvoice,
   DeleteInvoice,
   RoundInvoice,
   GetInvoiceDetails,
@@ -390,6 +414,10 @@ const selected = ref<any>(null),
 const deleteOpen = ref(false),
   deleting = ref(false),
   deleteInvoice = ref<any>(null);
+const cancelOpen = ref(false),
+  cancelling = ref(false),
+  cancelTarget = ref<any>(null),
+  cancelReason = ref("");
 const roundingOpen = ref(false),
   rounding = ref(false),
   roundingInvoice = ref<any>(null);
@@ -563,6 +591,27 @@ async function startSettlementChange(item: any) {
     notify(e?.toString() || "Could not load invoice for settlement change", "error");
   } finally {
     settlementLoading.value = false;
+  }
+}
+function requestCancel(item: any) {
+  actionMenus[item.id] = false;
+  cancelTarget.value = item;
+  cancelReason.value = "";
+  cancelOpen.value = true;
+}
+async function cancelSelected() {
+  if (!cancelTarget.value || !auth.isAdmin) return;
+  cancelling.value = true;
+  try {
+    await CancelInvoice(cancelTarget.value.id, cancelReason.value);
+    notifyIncomeChanged();
+    cancelOpen.value = false;
+    notify("Invoice cancelled");
+    await refresh();
+  } catch (e: any) {
+    notify(e?.toString() || "Could not cancel invoice", "error");
+  } finally {
+    cancelling.value = false;
   }
 }
 function requestDelete(item: any) {
@@ -752,7 +801,8 @@ function ensureEditOptions(type: "client" | "salesperson"): Promise<void> {
   if (!salespersonOptionsPromise) {
     salespersonOptionsPromise = ListSalespersons()
       .then((loadedSalespersons) => {
-        salespersons.value = loadedSalespersons;
+        // Staff who only punch attendance can't be set as a sale's salesperson.
+        salespersons.value = loadedSalespersons.filter((s: any) => s.isSalesperson !== false);
       })
       .catch((error) => {
         salespersonOptionsPromise = null;

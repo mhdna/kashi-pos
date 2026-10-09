@@ -52,7 +52,11 @@
           <v-list v-if="pendingComplaints.length" density="compact">
             <v-list-item v-for="item in pendingComplaints" :key="item.id">
               <v-list-item-title>{{ item.employeeName }} · {{ item.date }}</v-list-item-title>
-              <v-list-item-subtitle>{{ item.action === "delete" ? `Delete ${item.originalTime}` : `Replace ${item.originalTime} with ${item.requestedType} ${item.requestedTime}` }}</v-list-item-subtitle>
+              <v-list-item-subtitle>{{ requestSummary(item) }}</v-list-item-subtitle>
+              <template v-if="managerApproval" #append>
+                <v-btn size="small" variant="text" color="error" @click="askManager({ kind: 'review', request: item, approved: false })">Reject</v-btn>
+                <v-btn size="small" variant="tonal" color="primary" @click="askManager({ kind: 'review', request: item, approved: true })">Approve</v-btn>
+              </template>
             </v-list-item>
           </v-list>
           <v-card-text v-else class="text-medium-emphasis">No pending attendance requests.</v-card-text>
@@ -110,9 +114,8 @@
                 size="small"
                 variant="tonal"
                 prepend-icon="mdi-message-draw"
-                :disabled="!item.events.length"
                 @click="openComplaint(item)"
-                >Request change</v-btn
+                >{{ item.events.length ? "Request change" : "Request missing punch" }}</v-btn
               >
             </div>
           </div>
@@ -127,6 +130,17 @@
         ><v-card-title>Request attendance change</v-card-title
         ><v-card-text
           ><v-select
+            v-model="complaintAction"
+            :items="complaintActionOptions"
+            item-title="title"
+            item-value="value"
+            label="Action"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="attendance-action-field mb-2"
+          /><v-select
+            v-if="complaintAction !== 'add'"
             v-model="complaintEventId"
             :items="complaintEventOptions"
             item-title="title"
@@ -137,26 +151,16 @@
             hide-details
             class="mb-2"
             @update:model-value="selectComplaintEvent"
-          /><v-select
-            v-model="complaintAction"
-            :items="[{ title: 'Replace', value: 'replace' }, { title: 'Delete', value: 'delete' }]"
-            item-title="title"
-            item-value="value"
-            label="Action"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="attendance-action-field mb-2"
           /><div class="attendance-correction-row mb-2">
-            <div v-if="complaintAction === 'replace'" class="attendance-time-field">
-              <span class="attendance-time-field__label">Corrected time</span>
+            <div v-if="complaintAction !== 'delete'" class="attendance-time-field">
+              <span class="attendance-time-field__label">{{ complaintAction === "add" ? "Time" : "Corrected time" }}</span>
               <div class="attendance-time-field__controls">
                 <NumberPadMenu v-model="complaintHour" :max="23" :max-length="2" preserve-string suffix="h" aria-label="Corrected hour" />
                 <span class="attendance-time-field__separator">:</span>
                 <NumberPadMenu v-model="complaintMinute" :max="59" :max-length="2" preserve-string suffix="m" aria-label="Corrected minute" />
               </div>
             </div><v-select
-              v-if="complaintAction === 'replace'"
+              v-if="complaintAction !== 'delete'"
               v-model="complaintType"
               :items="['IN', 'OUT']"
               label="IN / OUT"
@@ -168,20 +172,51 @@
           </div></v-card-text
         ><v-card-actions
           ><v-btn variant="text" @click="complaintDialog = false">Cancel</v-btn><v-spacer /><v-btn
+            v-if="managerApproval && complaintAction === 'add'"
+            variant="tonal"
+            title="Record it now with the manager password, without waiting for approval"
+            @click="askManager({ kind: 'add' })"
+            >Add now (manager)</v-btn
+          ><v-btn
             color="primary"
             :loading="savingComplaint"
             @click="submitComplaint"
-            >Submit</v-btn
+            >Submit request</v-btn
           ></v-card-actions
         ></v-card
       ></v-dialog
     >
+    <v-dialog v-model="managerDialog.show" max-width="380">
+      <v-card>
+        <v-card-title>Manager approval</v-card-title>
+        <v-card-text>
+          <p class="mb-3">{{ managerDialogText }}</p>
+          <v-text-field
+            v-model="managerDialog.password"
+            type="password"
+            label="Manager password"
+            variant="outlined"
+            density="compact"
+            autofocus
+            :error-messages="managerDialog.error"
+            @keyup.enter="confirmManager"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" @click="managerDialog.show = false">Cancel</v-btn><v-spacer />
+          <v-btn color="primary" :loading="managerDialog.saving" @click="confirmManager">Confirm</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import {
+  AddAttendanceWithManagerApproval,
+  ApproveAttendanceComplaint,
   ExportAttendanceMonth,
+  GetAttendanceManagerApprovalEnabled,
   ListAttendanceComplaints,
   ListAttendance,
   ListSalespersons,
@@ -192,6 +227,7 @@ import {
 import { useAuthStore } from "@/stores/auth";
 import { salespersonColor } from "@/lib/salespersonColor";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
+import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 const auth = useAuthStore();
 const today = new Date().toISOString().slice(0, 10);
@@ -209,7 +245,20 @@ const complaintEventId = ref<number | null>(null);
 const complaintType = ref("IN");
 const complaintAction = ref("replace");
 const savingComplaint = ref(false);
-const status = ref<any>({ reachable: true, message: "" });
+// The card combines two sources. The live probe (one TCP check a second)
+// catches a pulled cable at once. The last door-log sync catches a device
+// that answers but fails the request. Either one being down shows down.
+const syncStatus = ref<any>({ reachable: true, message: "" });
+const { status: liveStatus } = useAttendanceStatus();
+const status = computed(() => (liveStatus.value.reachable ? syncStatus.value : liveStatus.value));
+// Once the machine is back, sync again so the card doesn't stay red on a
+// failure from while it was down.
+watch(
+  () => liveStatus.value.reachable,
+  (up, wasUp) => {
+    if (up && !wasUp && !loading.value) void refresh();
+  },
+);
 const cashierHistory = ref(false);
 const canBrowseHistory = computed(() => auth.isAdmin || cashierHistory.value);
 const complaintEventOptions = computed(() =>
@@ -226,7 +275,7 @@ let offSynced: (() => void) | undefined;
 async function refresh(syncDevice = true) {
   loading.value = true;
   try {
-    if (syncDevice) status.value = await SyncAttendance(selectedDate.value);
+    if (syncDevice) syncStatus.value = await SyncAttendance(selectedDate.value);
     const [events, employees] = await Promise.all([ListAttendance(selectedDate.value), ListSalespersons()]);
     const configured = employees.filter((u: any) => u.attendanceUserId);
     const byId = new Map(configured.map((u: any) => [u.id, u]));
@@ -255,7 +304,7 @@ async function refresh(syncDevice = true) {
     rows.value = [...grouped.values()];
     await loadHistory();
   } catch {
-    status.value = { reachable: false, message: "Attendance sync failed" };
+    syncStatus.value = { reachable: false, message: "Attendance sync failed" };
   } finally {
     loading.value = false;
   }
@@ -281,12 +330,30 @@ async function loadHistory() {
     complaints.value = await ListAttendanceComplaints(selectedMonth.value);
   } catch {}
 }
+// "add" is for a punch the device never recorded; replace/delete need one of
+// the person's existing punches to act on, so they're only offered when the
+// day has some.
+const complaintActionOptions = computed(() => {
+  const options = [{ title: "Add missing punch", value: "add" }];
+  if (complaintEmployee.value?.events?.length) {
+    options.push({ title: "Replace", value: "replace" }, { title: "Delete", value: "delete" });
+  }
+  return options;
+});
+function requestSummary(item: any) {
+  if (item.action === "add") return `Add ${item.requestedType} ${item.requestedTime}`;
+  if (item.action === "delete") return `Delete ${item.originalTime}`;
+  return `Replace ${item.originalTime} with ${item.requestedType} ${item.requestedTime}`;
+}
 function openComplaint(row: any) {
   complaintEmployee.value = row;
-  complaintEventId.value = row.events[0]?.id ?? null;
-  complaintAction.value = "replace";
-  complaintType.value = eventKind(row.events[0], 0);
-  setComplaintTime(row.events[0]?.time || "00:00");
+  const first = row.events[0];
+  complaintEventId.value = first?.id ?? null;
+  complaintAction.value = first ? "replace" : "add";
+  // A missing punch is usually the day's first IN, or the OUT after the last
+  // recorded one.
+  complaintType.value = first ? eventKind(first, 0) : "IN";
+  setComplaintTime(first?.time || new Date().toTimeString().slice(0, 5));
   complaintDialog.value = true;
 }
 function selectComplaintEvent(id: number | null) {
@@ -307,7 +374,8 @@ function correctedTime() {
   return complaintTime.value;
 }
 async function submitComplaint() {
-  if (!complaintEventId.value || !complaintEmployee.value) return;
+  if (!complaintEmployee.value) return;
+  if (complaintAction.value !== "add" && !complaintEventId.value) return;
   correctedTime();
   savingComplaint.value = true;
   try {
@@ -342,11 +410,72 @@ async function exportMonth() {
       a.remove();
     }, 1000);
   } catch (error) {
-    status.value = { reachable: status.value.reachable, message: error instanceof Error ? error.message : "Attendance export failed" };
+    syncStatus.value = { reachable: syncStatus.value.reachable, message: error instanceof Error ? error.message : "Attendance export failed" };
   }
 }
+// Manager approval on the till (on by default, switchable here or from
+// kashi): a manager decides requests, or records a missed punch at once,
+// with the manager password. Off, requests wait for kashi.
+const managerApproval = ref(false);
+async function loadManagerApproval() {
+  try {
+    managerApproval.value = Boolean(await GetAttendanceManagerApprovalEnabled());
+  } catch {
+    managerApproval.value = false;
+  }
+}
+type ManagerAction = { kind: "review"; request: any; approved: boolean } | { kind: "add" };
+const managerDialog = reactive<{ show: boolean; password: string; error: string; saving: boolean; action: ManagerAction | null }>({
+  show: false,
+  password: "",
+  error: "",
+  saving: false,
+  action: null,
+});
+const managerDialogText = computed(() => {
+  const action = managerDialog.action;
+  if (!action) return "";
+  if (action.kind === "add") {
+    return `Record ${complaintType.value} ${correctedTime()} on ${selectedDate.value} for ${complaintEmployee.value?.employeeName ?? "this person"}.`;
+  }
+  return `${action.approved ? "Approve" : "Reject"}: ${action.request.employeeName} · ${action.request.date} -- ${requestSummary(action.request)}.`;
+});
+function askManager(action: ManagerAction) {
+  Object.assign(managerDialog, { show: true, password: "", error: "", saving: false, action });
+}
+async function confirmManager() {
+  const action = managerDialog.action;
+  if (!action || !managerDialog.password) return;
+  managerDialog.saving = true;
+  managerDialog.error = "";
+  try {
+    if (action.kind === "add") {
+      await AddAttendanceWithManagerApproval(
+        complaintEmployee.value.employeeId,
+        selectedDate.value,
+        correctedTime(),
+        complaintType.value,
+        managerDialog.password,
+      );
+      complaintDialog.value = false;
+    } else {
+      await ApproveAttendanceComplaint(action.request.id, action.approved, managerDialog.password);
+    }
+    managerDialog.show = false;
+    await Promise.all([loadHistory(), refresh(false)]);
+  } catch (error) {
+    managerDialog.error = error instanceof Error ? error.message : String(error);
+  } finally {
+    managerDialog.saving = false;
+  }
+}
+let offSettings: (() => void) | undefined;
 onMounted(() => {
   loadAttendanceOptions();
+  loadManagerApproval();
+  offSettings = EventsOn("settings_changed", () => {
+    void loadManagerApproval();
+  });
   refresh();
   timer = setInterval(() => refresh(), 60_000);
   // Rows imported outside this page (the device's push, the fallback poll):
@@ -358,6 +487,7 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(timer);
   offSynced?.();
+  offSettings?.();
 });
 </script>
 <style scoped>

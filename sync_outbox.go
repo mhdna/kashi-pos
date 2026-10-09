@@ -90,6 +90,10 @@ type branchInvoicePayload struct {
 	// it in full but moves no central stock (see api/branch_sync.go). Never
 	// set on a live checkout, so it stays omitted from those payloads.
 	Historical bool `json:"historical,omitempty"`
+	// Cancellation marks a return that cancels its sale outright (see
+	// CancelInvoice): kashi stamps cancelled_at on both and leaves them out
+	// of sales statistics. Only ever set on a return.
+	Cancellation bool `json:"cancellation,omitempty"`
 }
 
 type branchInvoicePayloadItem struct {
@@ -179,12 +183,12 @@ func buildBranchInvoicePayments(ctx context.Context, q *db.Queries, invoiceID in
 // meaningless to kashi's schema — kashi stores them as opaque traceability
 // data, not foreign keys, same reasoning as branchInvoicePayload above.
 type branchExpensePayload struct {
-	ClientRef              string    `json:"client_ref"`
-	Description            string    `json:"description"`
-	Category               string    `json:"category"`
-	Amount                 int64     `json:"amount"`
-	CurrencyCode           string    `json:"currency_code"`
-	BranchCashboxAccountID int64     `json:"branch_cashbox_account_id"`
+	ClientRef              string `json:"client_ref"`
+	Description            string `json:"description"`
+	Category               string `json:"category"`
+	Amount                 int64  `json:"amount"`
+	CurrencyCode           string `json:"currency_code"`
+	BranchCashboxAccountID int64  `json:"branch_cashbox_account_id"`
 	// AccountName is the payment account's display name, same reasoning as
 	// branchInvoicePaymentPayload.AccountName: unlike an id, it survives a
 	// branch's local database being wiped and reprovisioned, which is what
@@ -548,6 +552,10 @@ type branchAttendanceEvent struct {
 	EventAt          string `json:"event_at"`
 	Type             string `json:"type"`
 	Status           string `json:"status"`
+	// Set on a punch an approved attendance change created: who approved it
+	// and what it was, so kashi shows it as changed, not as a device punch.
+	ChangedBy  string `json:"changed_by,omitempty"`
+	ChangeNote string `json:"change_note,omitempty"`
 }
 
 // branchAttendanceEventsPayload is the exact JSON body POSTed to kashi's
@@ -580,6 +588,10 @@ type branchAttendanceChangePayload struct {
 	Note            string    `json:"note,omitempty"`
 	Actor           string    `json:"actor,omitempty"`
 	OccurredAt      time.Time `json:"occurred_at"`
+	// On an approved replace/delete: the punch it took away here
+	// ("<device_id>|<event_id>", the same ref it was uploaded under), so
+	// kashi removes its copy too.
+	OriginalEventRef string `json:"original_event_ref,omitempty"`
 }
 
 // queueSyncOutboxRaw inserts a sync_outbox row on an arbitrary *sql.Tx —

@@ -131,3 +131,11 @@ SELECT invoice_id, client_ref FROM invoice_client_refs;
 -- Drops a not-yet-synced row whose subject no longer exists (a client
 -- merged into another). Synced rows are history and are kept.
 DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced';
+
+-- name: GetSyncOutboxStatusByClientRef :one
+SELECT status FROM sync_outbox WHERE client_ref = ?;
+
+-- name: DeleteUnsyncedSyncOutboxByClientRef :exec
+-- Drops a row kashi never accepted, so deleting its invoice locally also
+-- stops it from being uploaded later. A synced row is left alone.
+DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced';

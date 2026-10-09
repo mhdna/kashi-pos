@@ -131,6 +131,17 @@ func (q *Queries) CreateSyncOutboxEntry(ctx context.Context, arg CreateSyncOutbo
 	return i, err
 }
 
+const deleteUnsyncedSyncOutboxByClientRef = `-- name: DeleteUnsyncedSyncOutboxByClientRef :exec
+DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced'
+`
+
+// Drops a row kashi never accepted, so deleting its invoice locally also
+// stops it from being uploaded later. A synced row is left alone.
+func (q *Queries) DeleteUnsyncedSyncOutboxByClientRef(ctx context.Context, clientRef string) error {
+	_, err := q.db.ExecContext(ctx, deleteUnsyncedSyncOutboxByClientRef, clientRef)
+	return err
+}
+
 const deleteUnsyncedSyncOutboxEntry = `-- name: DeleteUnsyncedSyncOutboxEntry :exec
 DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced'
 `
@@ -140,6 +151,17 @@ DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced'
 func (q *Queries) DeleteUnsyncedSyncOutboxEntry(ctx context.Context, clientRef string) error {
 	_, err := q.db.ExecContext(ctx, deleteUnsyncedSyncOutboxEntry, clientRef)
 	return err
+}
+
+const getSyncOutboxStatusByClientRef = `-- name: GetSyncOutboxStatusByClientRef :one
+SELECT status FROM sync_outbox WHERE client_ref = ?
+`
+
+func (q *Queries) GetSyncOutboxStatusByClientRef(ctx context.Context, clientRef string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSyncOutboxStatusByClientRef, clientRef)
+	var status string
+	err := row.Scan(&status)
+	return status, err
 }
 
 const latestSyncOutboxSyncedAt = `-- name: LatestSyncOutboxSyncedAt :one

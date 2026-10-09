@@ -553,6 +553,13 @@
               <v-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details class="field-full" />
               <v-switch v-model="form.attendanceCashierHistory" label="Cashiers can browse previous days" color="primary" hide-details class="field-full" />
               <v-switch
+                v-model="form.attendanceManagerApproval"
+                label="Manager approves requests and adds missed punches here (manager password)"
+                color="primary"
+                hide-details
+                class="field-full"
+              />
+              <v-switch
                 v-model="form.autoCloseStaleShiftsEnabled"
                 label="Auto-close previous-day shifts"
                 color="primary"
@@ -1129,6 +1136,27 @@
                 When nothing has the entered barcode, it is tried as a product code. If several
                 variants share that code, the cashier picks one. This can also be changed remotely
                 from kashi.
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('behavior-sounds')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-volume-high" size="20" />
+              Sounds
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.soundsEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Play sounds"
+                @update:model-value="setSoundsEnabled"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                Scan and checkout chimes, error and warning tones, and keypad clicks. Off by
+                default. This can also be changed remotely from kashi.
               </div>
             </v-card-text>
           </v-card>
@@ -1717,6 +1745,7 @@ import {
   SetInvoiceKeyboardModeEnabled,
   SetProductSearchEnabled,
   SetScanByCodeEnabled,
+  SetSoundsEnabled,
   SetVisitorCounterEnabled,
   SetClientRequired,
   SetSalespersonPerInvoiceRequired,
@@ -1732,6 +1761,7 @@ import {
   UpdateDefaultOpeningFloat,
   SetAutoCloseStaleShiftsEnabled,
   SetAttendanceCashierHistoryEnabled,
+  SetAttendanceManagerApprovalEnabled,
   UpdateUserAttendanceID,
   UpdateSalespersonAttendanceID,
   UpdateReceiptSettings,
@@ -1890,6 +1920,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-invoice-keyboard": { tab: "behavior", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
   "behavior-product-search": { tab: "behavior", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
   "behavior-scan-by-code": { tab: "behavior", title: "Product code in scan field", keywords: "barcode scan code sku variant type enter" },
+  "behavior-sounds": { tab: "behavior", title: "Sounds", keywords: "sound audio beep chime click mute volume quiet silent" },
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
   "behavior-non-admin-month-nav": { tab: "behavior", title: "Income chart month navigation", keywords: "monthly income chart non-admin cashier back forward prev next month browse lock admin only" },
@@ -2013,6 +2044,7 @@ const form = reactive({
   invoiceKeyboardModeEnabled: false,
   productSearchEnabled: true,
   scanByCodeEnabled: true,
+  soundsEnabled: false,
   visitorCounterEnabled: false,
   clientRequired: true,
   salespersonPerInvoiceRequired: false,
@@ -2034,6 +2066,7 @@ const form = reactive({
   attendanceApproverPassword: "",
   attendanceDuplicateIntervalSeconds: 30,
   attendanceCashierHistory: false,
+  attendanceManagerApproval: true,
 });
 const roundingModes = [
   { title: "Half up (standard)", value: "half_up" },
@@ -2440,6 +2473,7 @@ async function loadSettings() {
         invoiceKeyboardModeEnabled: Boolean(s.invoiceKeyboardModeEnabled),
         productSearchEnabled: s.productSearchEnabled !== false,
         scanByCodeEnabled: s.scanByCodeEnabled !== false,
+        soundsEnabled: s.soundsEnabled === true,
         visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
         salespersonPerInvoiceRequired: Boolean(s.salespersonPerInvoiceRequired),
@@ -2457,6 +2491,7 @@ async function loadSettings() {
         attendanceApproverPassword: "",
         attendanceDuplicateIntervalSeconds: Number(s.attendance?.duplicateIntervalSeconds ?? 30),
         attendanceCashierHistory: Boolean(s.attendance?.cashierHistory),
+        attendanceManagerApproval: s.attendanceManagerApprovalEnabled !== false,
       });
     const admin = await adminBridge()?.GetAdminConfig();
     Object.assign(form, {
@@ -2685,6 +2720,22 @@ async function setScanByCodeEnabled(value: boolean | null) {
   } catch {
     form.scanByCodeEnabled = previous;
     notify("Failed to update the scan field setting", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setSoundsEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.soundsEnabled;
+  form.soundsEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetSoundsEnabled(enabled);
+    notify(`Sounds ${enabled ? "on" : "off"}`);
+  } catch {
+    form.soundsEnabled = previous;
+    notify("Failed to update the sounds setting", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -2989,6 +3040,7 @@ async function saveSettings() {
     if (form.attendanceApproverPassword.trim()) await UpdateAttendanceApproverPassword(form.attendanceApproverPassword.trim());
     await SetAttendanceDuplicateInterval(Math.max(0, Math.floor(Number(form.attendanceDuplicateIntervalSeconds) || 0)));
     await SetAttendanceCashierHistoryEnabled(Boolean(form.attendanceCashierHistory));
+    await SetAttendanceManagerApprovalEnabled(Boolean(form.attendanceManagerApproval));
     const exchangeWindowHours =
       Math.max(0, Math.floor(Number(form.exchangeWindowDays) || 0)) * 24 +
       Math.max(0, Math.floor(Number(form.exchangeWindowHours) || 0));

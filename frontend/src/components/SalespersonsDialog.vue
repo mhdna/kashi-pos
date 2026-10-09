@@ -61,7 +61,8 @@ function selectSalesperson(p: Salesperson) {
 }
 
 onMounted(async () => {
-  const list = await ListSalespersons();
+  // Staff who only punch attendance (isSalesperson off in kashi) don't sell.
+  const list = ((await ListSalespersons()) as any[]).filter((s) => s.isSalesperson !== false);
   if (list.length) {
     salespersons.value = [...(list as Salesperson[])].sort((a, b) =>
       a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }),

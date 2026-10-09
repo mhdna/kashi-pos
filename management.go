@@ -674,6 +674,8 @@ func (a *App) listInvoicesPage(cursorID int64, itemsPerPage int, filters Invoice
 			"settlementAccounts": settlementAccounts,
 			"syncState":          syncByInvoice[inv.ID].State,
 			"syncError":          syncByInvoice[inv.ID].Error,
+			"isSale":             inv.IsSale != 0,
+			"cancelled":          inv.CancelledAt.Valid,
 		}
 	}
 	return InvoicePage{Items: result, Total: total}, nil

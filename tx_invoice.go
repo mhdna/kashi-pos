@@ -194,7 +194,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 	}
 
 	year := int64(time.Now().Year())
-	err = a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+	err = a.checkoutTx(func(q *db.Queries) error {
 		cashbox, err := q.GetCashboxAccountByID(a.ctx, payments[0].AccountID)
 		if err != nil {
 			return fmt.Errorf("payment account: %w", err)

@@ -469,24 +469,38 @@ func parseAttendanceTimestamp(value string) (time.Time, error) {
 
 func (a *App) SubmitAttendanceComplaint(employeeID int64, date string, originalEventID int64, requestedTime, requestedType, action, note string) error {
 	action = strings.ToLower(strings.TrimSpace(action))
-	if action != "replace" && action != "delete" {
-		return fmt.Errorf("attendance request action must be replace or delete")
+	// "add" is for a punch the device never recorded at all (someone forgot
+	// to clock in, or the reader missed them): there is no original event to
+	// fix, only a new one to create once a manager approves.
+	if action != "replace" && action != "delete" && action != "add" {
+		return fmt.Errorf("attendance request action must be add, replace or delete")
 	}
 	requestedType = strings.ToUpper(strings.TrimSpace(requestedType))
-	if action == "replace" && requestedType != "IN" && requestedType != "OUT" {
+	if action != "delete" && requestedType != "IN" && requestedType != "OUT" {
 		return fmt.Errorf("attendance type must be IN or OUT")
+	}
+	requestedTime = strings.TrimSpace(requestedTime)
+	if action != "delete" {
+		if _, err := time.ParseInLocation("2006-01-02 15:04", date+" "+requestedTime, time.Local); err != nil {
+			return fmt.Errorf("invalid attendance date or time: %w", err)
+		}
 	}
 	salesperson, err := a.store.GetSalespersonByID(a.ctx, employeeID)
 	if err != nil {
 		return err
 	}
 	var originalTime string
-	if err := a.conn.QueryRowContext(a.ctx, `SELECT event_time FROM salesperson_attendance_events WHERE id = ? AND salesperson_id = ? AND event_date = ?`, originalEventID, employeeID, date).Scan(&originalTime); err != nil {
+	if action == "add" {
+		originalEventID = 0
+	} else if err := a.conn.QueryRowContext(a.ctx, `SELECT event_time FROM salesperson_attendance_events WHERE id = ? AND salesperson_id = ? AND event_date = ?`, originalEventID, employeeID, date).Scan(&originalTime); err != nil {
 		return fmt.Errorf("attendance event not found: %w", err)
 	}
 	changeNote := fmt.Sprintf("Replace %s with %s %s", originalTime, requestedType, requestedTime)
-	if action == "delete" {
+	switch action {
+	case "delete":
 		changeNote = fmt.Sprintf("Delete %s", originalTime)
+	case "add":
+		changeNote = fmt.Sprintf("Add %s %s", requestedType, requestedTime)
 	}
 	centralURL, err := a.syncCentralAPIURL()
 	if err != nil {
@@ -579,8 +593,28 @@ func (a *App) verifyManagerPassword(password string) error {
 }
 
 func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password string) error {
+	if !a.attendanceManagerApprovalEnabled() {
+		return errManagerApprovalOff
+	}
 	if err := a.verifyManagerPassword(password); err != nil {
 		return err
+	}
+	return a.reviewAttendanceComplaint(id, approved, "manager approval")
+}
+
+// reviewAttendanceComplaint applies a manager's decision on a pending request;
+// actor is who decided, recorded on the request, its audit row and the copy
+// sent to kashi. ApproveAttendanceComplaint (manager password, on the till)
+// and kashi's review_attendance_request command (kashi checked its own
+// user's rights) both land here. Only a pending request can be reviewed, so
+// a decision arriving twice is refused rather than applied twice.
+func (a *App) reviewAttendanceComplaint(id int64, approved bool, actor string) error {
+	var currentStatus string
+	if err := a.conn.QueryRowContext(a.ctx, `SELECT status FROM attendance_change_requests WHERE id = ?`, id).Scan(&currentStatus); err != nil {
+		return fmt.Errorf("attendance request not found: %w", err)
+	}
+	if currentStatus != "pending" {
+		return fmt.Errorf("this attendance request was already %s", currentStatus)
 	}
 	centralURL, err := a.syncCentralAPIURL()
 	if err != nil {
@@ -612,6 +646,10 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 	}
 
 	var changedFrom, changedTo string
+	// What kashi needs to mirror an approval: the punch it took away (its
+	// upload ref) and the punch it created, marked with who approved it.
+	var originalEventRef string
+	var newPunch *branchAttendanceEvent
 	if approved {
 		var salespersonID, originalEventID int64
 		var date, requestedTime, requestedType, action, name, attendanceUserID string
@@ -621,25 +659,28 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 		if err != nil {
 			return err
 		}
-		var originalEvent struct {
-			deviceID, eventID, attendanceUserID, salespersonName, eventDate, eventTime, eventAt, eventType, status string
-		}
-		if err := tx.QueryRowContext(a.ctx, `SELECT device_id, event_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status
-			FROM salesperson_attendance_events WHERE id = ? AND salesperson_id = ?`, originalEventID, salespersonID).Scan(
-			&originalEvent.deviceID, &originalEvent.eventID, &originalEvent.attendanceUserID, &originalEvent.salespersonName, &originalEvent.eventDate, &originalEvent.eventTime, &originalEvent.eventAt, &originalEvent.eventType, &originalEvent.status); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(a.ctx, `INSERT INTO attendance_event_audit
-			(request_id, original_event_id, device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status, action, audited_at, approved_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manager approval')`, id, originalEventID, originalEvent.deviceID, originalEvent.eventID, salespersonID, originalEvent.attendanceUserID, originalEvent.salespersonName, originalEvent.eventDate, originalEvent.eventTime, originalEvent.eventAt, originalEvent.eventType, originalEvent.status, action, time.Now().UTC().Format("2006-01-02 15:04:05")); err != nil {
-			return err
-		}
+		// An "add" request has no original punch: nothing to audit or remove,
+		// only the new one to insert below.
 		if originalEventID > 0 {
+			var originalEvent struct {
+				deviceID, eventID, attendanceUserID, salespersonName, eventDate, eventTime, eventAt, eventType, status string
+			}
+			if err := tx.QueryRowContext(a.ctx, `SELECT device_id, event_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status
+				FROM salesperson_attendance_events WHERE id = ? AND salesperson_id = ?`, originalEventID, salespersonID).Scan(
+				&originalEvent.deviceID, &originalEvent.eventID, &originalEvent.attendanceUserID, &originalEvent.salespersonName, &originalEvent.eventDate, &originalEvent.eventTime, &originalEvent.eventAt, &originalEvent.eventType, &originalEvent.status); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(a.ctx, `INSERT INTO attendance_event_audit
+				(request_id, original_event_id, device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status, action, audited_at, approved_by)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, originalEventID, originalEvent.deviceID, originalEvent.eventID, salespersonID, originalEvent.attendanceUserID, originalEvent.salespersonName, originalEvent.eventDate, originalEvent.eventTime, originalEvent.eventAt, originalEvent.eventType, originalEvent.status, action, time.Now().UTC().Format("2006-01-02 15:04:05"), actor); err != nil {
+				return err
+			}
 			if _, err := tx.ExecContext(a.ctx, `DELETE FROM salesperson_attendance_events WHERE id = ? AND salesperson_id = ? AND event_date = ?`, originalEventID, salespersonID, date); err != nil {
 				return err
 			}
+			originalEventRef = originalEvent.deviceID + "|" + originalEvent.eventID
 		}
-		if action == "replace" {
+		if action == "replace" || action == "add" {
 			eventAt, err := time.ParseInLocation("2006-01-02 15:04", date+" "+requestedTime, time.Local)
 			if err != nil {
 				return fmt.Errorf("invalid requested attendance time: %w", err)
@@ -648,6 +689,22 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 			(device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status)
 			VALUES ('manual', ?, ?, ?, ?, ?, ?, ?, ?, 'Approved')`, fmt.Sprintf("change-request-%d", id), salespersonID, attendanceUserID, name, date, requestedTime, eventAt.Format(time.RFC3339), requestedType); err != nil {
 				return err
+			}
+			changeNote := "Added (missed punch)"
+			if action == "replace" && reqOriginalTime != "" {
+				changeNote = "Changed from " + reqOriginalTime
+			}
+			newPunch = &branchAttendanceEvent{
+				Ref:              fmt.Sprintf("manual|change-request-%d", id),
+				SalespersonName:  name,
+				AttendanceUserID: attendanceUserID,
+				EventDate:        date,
+				EventTime:        requestedTime,
+				EventAt:          eventAt.Format(time.RFC3339),
+				Type:             requestedType,
+				Status:           "Approved",
+				ChangedBy:        actor,
+				ChangeNote:       changeNote,
 			}
 		}
 		changedFrom = requestedTime
@@ -659,10 +716,13 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 			}
 		}
 		changedTo = fmt.Sprintf("%s %s", requestedType, requestedTime)
-		if action == "delete" {
+		switch action {
+		case "delete":
 			changedTo = "deleted"
+		case "add":
+			changedFrom = "none"
 		}
-		if _, err := tx.ExecContext(a.ctx, `UPDATE attendance_change_requests SET changed_from = ?, changed_to = ?, approved_by = 'manager approval', note = ?, reviewed_at = ? WHERE id = ?`, changedFrom, changedTo, fmt.Sprintf("Changed from %s to %s by manager approval", changedFrom, changedTo), time.Now().UTC().Format("2006-01-02 15:04:05"), id); err != nil {
+		if _, err := tx.ExecContext(a.ctx, `UPDATE attendance_change_requests SET changed_from = ?, changed_to = ?, approved_by = ?, note = ?, reviewed_at = ? WHERE id = ?`, changedFrom, changedTo, actor, fmt.Sprintf("Changed from %s to %s by %s", changedFrom, changedTo, actor), time.Now().UTC().Format("2006-01-02 15:04:05"), id); err != nil {
 			return err
 		}
 	} else {
@@ -675,24 +735,36 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 	}
 
 	if centralURL != "" {
+		// The new punch goes up like any punch, so kashi's attendance list
+		// has it -- labelled with who approved it, not as a device punch.
+		if newPunch != nil {
+			body, err := json.Marshal(branchAttendanceEventsPayload{Events: []branchAttendanceEvent{*newPunch}})
+			if err != nil {
+				return fmt.Errorf("marshal attendance event sync: %w", err)
+			}
+			if err := queueSyncOutboxRaw(a.ctx, tx, "attendance_events", uuid.NewString(), string(body)); err != nil {
+				return fmt.Errorf("queue attendance event sync: %w", err)
+			}
+		}
 		ref := fmt.Sprintf("acr-%d-review", id)
 		note := "rejected"
 		if approved {
 			note = strings.TrimSpace(fmt.Sprintf("%s -> %s", changedFrom, changedTo))
 		}
 		body, err := json.Marshal(branchAttendanceChangePayload{
-			Ref:             ref,
-			Kind:            "approval",
-			SalespersonName: reqName,
-			AttendanceDate:  reqDate,
-			OriginalTime:    reqOriginalTime,
-			RequestedTime:   reqRequestedTime,
-			RequestedType:   reqRequestedType,
-			Action:          reqAction,
-			Status:          status,
-			Note:            note,
-			Actor:           "manager approval",
-			OccurredAt:      time.Now().UTC(),
+			Ref:              ref,
+			Kind:             "approval",
+			SalespersonName:  reqName,
+			AttendanceDate:   reqDate,
+			OriginalTime:     reqOriginalTime,
+			RequestedTime:    reqRequestedTime,
+			RequestedType:    reqRequestedType,
+			Action:           reqAction,
+			Status:           status,
+			Note:             note,
+			Actor:            actor,
+			OccurredAt:       time.Now().UTC(),
+			OriginalEventRef: originalEventRef,
 		})
 		if err != nil {
 			return fmt.Errorf("marshal attendance change sync: %w", err)
@@ -736,4 +808,92 @@ func (a *App) ExportAttendanceMonth(month string) (string, error) {
 	}
 	data, err := json.MarshalIndent(clean, "", "  ")
 	return string(data), err
+}
+
+// reviewAttendanceRequestPayload is what kashi's review_attendance_request
+// command carries (see resolveCommandTarget in kashi's api/branch_command.go):
+// the request's own ref ("acr-<id>-complaint", as this till sent it), the
+// decision, and who made it in kashi.
+type reviewAttendanceRequestPayload struct {
+	ClientRef string `json:"client_ref"`
+	Approved  bool   `json:"approved"`
+	Actor     string `json:"actor"`
+}
+
+// executeReviewAttendanceRequestCommand applies an approval or rejection made
+// in kashi. It goes through reviewAttendanceComplaint like a manager's
+// decision here, minus the manager password -- kashi already checked its own
+// user's rights -- and the result syncs back to kashi the same way.
+func (a *App) executeReviewAttendanceRequestCommand(payload json.RawMessage) error {
+	var p reviewAttendanceRequestPayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return fmt.Errorf("decode review_attendance_request payload: %w", err)
+	}
+	var id int64
+	if _, err := fmt.Sscanf(strings.TrimSpace(p.ClientRef), "acr-%d-complaint", &id); err != nil || id <= 0 {
+		return fmt.Errorf("not an attendance request ref: %q", p.ClientRef)
+	}
+	actor := strings.TrimSpace(p.Actor)
+	if actor == "" {
+		actor = "kashi"
+	}
+	return a.reviewAttendanceComplaint(id, p.Approved, actor)
+}
+
+// attendanceManagerApprovalFlag lets a manager decide attendance requests on
+// the till itself, with the manager password -- approve or reject a request,
+// or add a missed punch straight away. On unless turned off (here or from
+// kashi's branch settings); when off, requests wait for kashi.
+const attendanceManagerApprovalFlag = "attendance_manager_approval"
+
+var errManagerApprovalOff = fmt.Errorf("manager approval on the till is turned off for this branch -- approve it from kashi")
+
+func (a *App) attendanceManagerApprovalEnabled() bool {
+	if v, err := a.store.GetFeatureFlag(a.ctx, attendanceManagerApprovalFlag); err == nil {
+		return v != 0
+	}
+	return true
+}
+
+// GetAttendanceManagerApprovalEnabled is for the attendance screen, which
+// shows the manager's approve/add buttons only while it's on.
+func (a *App) GetAttendanceManagerApprovalEnabled() bool {
+	if a.store == nil {
+		return false
+	}
+	return a.attendanceManagerApprovalEnabled()
+}
+
+// SetAttendanceManagerApprovalEnabled is called by the Settings page and by
+// kashi's update_settings.
+func (a *App) SetAttendanceManagerApprovalEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, attendanceManagerApprovalFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// AddAttendanceWithManagerApproval records a punch the device missed, on the
+// manager's password, in one step: it files an "add" request and approves it
+// at once, so it leaves the same request, audit and kashi trail as one a
+// cashier filed and a manager approved.
+func (a *App) AddAttendanceWithManagerApproval(salespersonID int64, date, requestedTime, requestedType, password string) error {
+	if !a.attendanceManagerApprovalEnabled() {
+		return errManagerApprovalOff
+	}
+	if err := a.verifyManagerPassword(password); err != nil {
+		return err
+	}
+	if err := a.SubmitAttendanceComplaint(salespersonID, date, 0, requestedTime, requestedType, "add", ""); err != nil {
+		return err
+	}
+	var id int64
+	if err := a.conn.QueryRowContext(a.ctx, `SELECT MAX(id) FROM attendance_change_requests WHERE salesperson_id = ?`, salespersonID).Scan(&id); err != nil {
+		return err
+	}
+	return a.reviewAttendanceComplaint(id, true, "manager approval")
 }

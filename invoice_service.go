@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -142,10 +143,48 @@ func (a *App) DeleteInvoice(id int64) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	if _, err := a.store.GetInvoiceByID(a.ctx, id); err != nil {
+	invoice, err := a.store.GetInvoiceByID(a.ctx, id)
+	if err != nil {
 		return err
 	}
+	if invoice.CancelledAt.Valid {
+		return fmt.Errorf("a cancelled invoice can't be deleted")
+	}
+	// Only an invoice kashi never accepted can go: kashi has no way to hear
+	// about a delete, so removing an uploaded one would leave its sale counted
+	// there for good. The fix for a mistaken sale is CancelInvoice.
 	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
+		if returns, err := q.CountReturnsForSale(a.ctx, id); err != nil {
+			return err
+		} else if returns > 0 {
+			return fmt.Errorf("this sale has a return or exchange against it -- cancel it instead")
+		}
+		if coupons, err := q.CountCouponsRedeemedOnInvoice(a.ctx, sql.NullInt64{Int64: id, Valid: true}); err != nil {
+			return err
+		} else if coupons > 0 {
+			return fmt.Errorf("a coupon was redeemed on this invoice -- cancel it instead")
+		}
+		ref, err := q.GetInvoiceClientRef(a.ctx, id)
+		switch {
+		case err == nil:
+			// A ref with no upload row, or a synced one, is already on kashi
+			// (pushed, or pulled down from it as history).
+			status, statusErr := q.GetSyncOutboxStatusByClientRef(a.ctx, ref)
+			if statusErr == sql.ErrNoRows || (statusErr == nil && status == "synced") {
+				return fmt.Errorf("this invoice is already uploaded to kashi -- cancel it instead")
+			}
+			if statusErr != nil {
+				return statusErr
+			}
+			if err := q.DeleteUnsyncedSyncOutboxByClientRef(a.ctx, ref); err != nil {
+				return err
+			}
+			if err := q.DeleteInvoiceClientRef(a.ctx, id); err != nil {
+				return err
+			}
+		case err != sql.ErrNoRows:
+			return err
+		}
 		if err := q.DeleteInvoicePayments(a.ctx, id); err != nil {
 			return err
 		}

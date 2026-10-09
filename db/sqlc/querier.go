@@ -53,6 +53,7 @@ type Querier interface {
 	CountClients(ctx context.Context) (int64, error)
 	CountClientsPage(ctx context.Context, search string) (int64, error)
 	CountCouponsByTypeID(ctx context.Context, typeID sql.NullInt64) (int64, error)
+	CountCouponsRedeemedOnInvoice(ctx context.Context, redeemedInvoiceID sql.NullInt64) (int64, error)
 	CountExpensesAll(ctx context.Context) (int64, error)
 	CountFilteredInvoices(ctx context.Context, arg CountFilteredInvoicesParams) (int64, error)
 	CountInvoiceCouponPaymentsByCode(ctx context.Context, couponCode string) (int64, error)
@@ -66,6 +67,7 @@ type Querier interface {
 	// same rows ListProductsPage returns, so the total under a paged search never
 	// promises more results than the pages can show.
 	CountProducts(ctx context.Context, searchPattern string) (int64, error)
+	CountReturnsForSale(ctx context.Context, salesInvoiceID int64) (int64, error)
 	CountSyncOutboxByStatus(ctx context.Context, status string) (int64, error)
 	CountSyncOutboxConfirmedElsewhere(ctx context.Context, syncedTo string) (int64, error)
 	CountSyncOutboxConfirmedOnTarget(ctx context.Context, syncedTo string) (int64, error)
@@ -178,6 +180,7 @@ type Querier interface {
 	DeleteInventory(ctx context.Context, id int64) error
 	DeleteInventoryItem(ctx context.Context, arg DeleteInventoryItemParams) error
 	DeleteInvoice(ctx context.Context, id int64) error
+	DeleteInvoiceClientRef(ctx context.Context, invoiceID int64) error
 	DeleteInvoicePaymentEntries(ctx context.Context, invoiceID int64) error
 	DeleteInvoicePayments(ctx context.Context, invoiceID int64) error
 	DeleteInvoiceProducts(ctx context.Context, invoiceID int64) error
@@ -201,6 +204,9 @@ type Querier interface {
 	DeleteSalesperson(ctx context.Context, id int64) error
 	DeleteTransferItems(ctx context.Context, transferID int64) error
 	DeleteTransferRequestItems(ctx context.Context, transferRequestID int64) error
+	// Drops a row kashi never accepted, so deleting its invoice locally also
+	// stops it from being uploaded later. A synced row is left alone.
+	DeleteUnsyncedSyncOutboxByClientRef(ctx context.Context, clientRef string) error
 	// Drops a not-yet-synced row whose subject no longer exists (a client
 	// merged into another). Synced rows are history and are kept.
 	DeleteUnsyncedSyncOutboxEntry(ctx context.Context, clientRef string) error
@@ -295,6 +301,7 @@ type Querier interface {
 	// created - pass '' for the historical "everything" behavior.
 	GetShiftTotals(ctx context.Context, totalsMonth interface{}) ([]GetShiftTotalsRow, error)
 	GetSyncCursor(ctx context.Context, entity string) (string, error)
+	GetSyncOutboxStatusByClientRef(ctx context.Context, clientRef string) (string, error)
 	GetSyncState(ctx context.Context) (SyncState, error)
 	GetTransferByID(ctx context.Context, id int64) (Transfer, error)
 	GetTransferItemByID(ctx context.Context, id int64) (TransferItem, error)
@@ -515,6 +522,7 @@ type Querier interface {
 	// the connection was down (or by a pre-pushLink build, up to an hour) go
 	// out on the very next pass instead of each waiting out its own timer.
 	MakePendingSyncOutboxDueNow(ctx context.Context) (int64, error)
+	MarkInvoiceCancelled(ctx context.Context, id int64) error
 	MarkShiftReceiptCaptured(ctx context.Context, arg MarkShiftReceiptCapturedParams) error
 	MarkShiftReceiptSynced(ctx context.Context, id int64) error
 	MarkShiftReceiptUploadAttemptFailed(ctx context.Context, arg MarkShiftReceiptUploadAttemptFailedParams) error
@@ -582,6 +590,10 @@ type Querier interface {
 	SetQuickAccessReported(ctx context.Context) error
 	// kashi's push: stored and the rev bumped, so the screen adopts it.
 	SetRemoteDisplayPrefs(ctx context.Context, displayPrefs string) error
+	// kashi decided this salesperson's device number (attendance_user_id_set in
+	// the salesperson feed); it replaces whatever was typed in here.
+	SetSalespersonAttendanceIDByRemoteID(ctx context.Context, arg SetSalespersonAttendanceIDByRemoteIDParams) error
+	SetSalespersonIsSalespersonByRemoteID(ctx context.Context, arg SetSalespersonIsSalespersonByRemoteIDParams) error
 	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
 	SetSyncTarget(ctx context.Context, currentTarget string) error

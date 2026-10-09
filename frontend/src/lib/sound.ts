@@ -1,3 +1,5 @@
+import { GetSoundsEnabled } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import successUrl from "@/assets/sounds/success.mp3";
 import errorUrl from "@/assets/sounds/error.mp3";
 import warningUrl from "@/assets/sounds/warning.mp3";
@@ -32,7 +34,28 @@ const dtmfTones: Record<string, string> = {
   "#": dtmfPound,
 };
 
+// Every sound goes through play(), so the sounds_enabled flag (Settings, or
+// kashi's branch settings) is checked here once. Off until the flag has been
+// read and says otherwise -- sounds are off by default. settings_changed
+// fires on any flag change, a push from kashi included, so a running till
+// follows it without a restart.
+let soundsEnabled = false;
+
+async function refreshSoundsEnabled() {
+  try {
+    soundsEnabled = Boolean(await GetSoundsEnabled());
+  } catch {
+    soundsEnabled = false;
+  }
+}
+
+void refreshSoundsEnabled();
+EventsOn("settings_changed", () => {
+  void refreshSoundsEnabled();
+});
+
 function play(url: string) {
+  if (!soundsEnabled) return;
   const audio = new Audio(url);
   audio.play().catch(() => {});
 }

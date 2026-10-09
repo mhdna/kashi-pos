@@ -298,21 +298,22 @@ type InventoryItem struct {
 }
 
 type Invoice struct {
-	ID              int64  `json:"id"`
-	CashboxID       int64  `json:"cashboxId"`
-	ShiftID         int64  `json:"shiftId"`
-	InvoiceCode     string `json:"invoiceCode"`
-	InvoiceIndex    int64  `json:"invoiceIndex"`
-	Year            int64  `json:"year"`
-	ClientID        int64  `json:"clientId"`
-	InventoryID     int64  `json:"inventoryId"`
-	Discount        int64  `json:"discount"`
-	Subtotal        int64  `json:"subtotal"`
-	DiscountedTotal int64  `json:"discountedTotal"`
-	GrandTotal      int64  `json:"grandTotal"`
-	CreatedAt       string `json:"createdAt"`
-	SalespersonID   int64  `json:"salespersonId"`
-	Notes           string `json:"notes"`
+	ID              int64          `json:"id"`
+	CashboxID       int64          `json:"cashboxId"`
+	ShiftID         int64          `json:"shiftId"`
+	InvoiceCode     string         `json:"invoiceCode"`
+	InvoiceIndex    int64          `json:"invoiceIndex"`
+	Year            int64          `json:"year"`
+	ClientID        int64          `json:"clientId"`
+	InventoryID     int64          `json:"inventoryId"`
+	Discount        int64          `json:"discount"`
+	Subtotal        int64          `json:"subtotal"`
+	DiscountedTotal int64          `json:"discountedTotal"`
+	GrandTotal      int64          `json:"grandTotal"`
+	CreatedAt       string         `json:"createdAt"`
+	SalespersonID   int64          `json:"salespersonId"`
+	Notes           string         `json:"notes"`
+	CancelledAt     sql.NullString `json:"cancelledAt"`
 }
 
 type InvoiceClientRef struct {
@@ -492,6 +493,7 @@ type Salesperson struct {
 	RemoteID         sql.NullInt64 `json:"remoteId"`
 	IsActive         int64         `json:"isActive"`
 	Color            string        `json:"color"`
+	IsSalesperson    int64         `json:"isSalesperson"`
 }
 
 type SalespersonAttendanceEvent struct {
