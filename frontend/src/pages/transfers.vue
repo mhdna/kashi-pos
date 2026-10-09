@@ -303,7 +303,7 @@ function statusColor(s: string) {
 
 // ------------------------------------------------------------ OUTGOING
 const outgoingHeaders = [
-  { title: "", key: "photo", sortable: false, width: 64 },
+  { title: "Photo", key: "photo", sortable: false, width: 72 },
   { title: "To", key: "toBranchCode", sortable: false },
   { title: "Note", key: "note", sortable: false },
   { title: "Status", key: "status", sortable: false },
@@ -482,7 +482,7 @@ function onUploadDialogVisibilityChange(visible: boolean) {
 
 // ------------------------------------------------------------ INCOMING
 const incomingHeaders = [
-  { title: "", key: "photo", sortable: false, width: 64 },
+  { title: "Photo", key: "photo", sortable: false, width: 72 },
   { title: "From", key: "senderBranchName", sortable: false },
   { title: "Note", key: "note", sortable: false },
   { title: "Status", key: "status", sortable: false },

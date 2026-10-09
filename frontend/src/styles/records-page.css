@@ -24,6 +24,16 @@
   height: 100%;
 }
 
+/* Straight on the page background, no card of its own. The sticky header
+   takes the page colour so rows scrolling under it stay hidden. */
+.records-table {
+  background: transparent !important;
+}
+
+.records-table :deep(thead th) {
+  background: rgb(var(--v-theme-background)) !important;
+}
+
 .records-table :deep(.v-table__wrapper) {
   overflow-y: auto;
 }

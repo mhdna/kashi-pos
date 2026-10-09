@@ -238,7 +238,7 @@ import { formatServerDateTime } from "@/lib/datetime";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 
 const headers = [
-  { title: "", key: "photo", sortable: false, width: 64 },
+  { title: "Photo", key: "photo", sortable: false, width: 72 },
   { title: "Description", key: "description", sortable: false },
   { title: "Category", key: "category", sortable: false },
   { title: "Amount", key: "amount", sortable: false, align: "end" as const },
