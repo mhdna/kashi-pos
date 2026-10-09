@@ -28,6 +28,23 @@
         <span>{{ formatBalance(incomeTotal, "USD", currencies, roundingMode) }}</span>
       </div>
     </template>
+    <!-- Money that went out during the shift, then income minus it. Display
+         only: the shift's expected cash still doesn't take expenses or loans
+         out (see GetShiftTotals). -->
+    <div v-if="shiftId && (shiftExpenses.length || shiftLoans.length)" class="px-4 pt-2">
+      <div v-for="row in shiftExpenses" :key="`e-${row.id}`" class="spend-row">
+        <span class="text-truncate"><v-icon icon="mdi-receipt-text-outline" size="16" class="me-1" />{{ row.description || row.category || "Expense" }}</span>
+        <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
+      </div>
+      <div v-for="row in shiftLoans" :key="`l-${row.id}`" class="spend-row">
+        <span class="text-truncate"><v-icon icon="mdi-hand-coin-outline" size="16" class="me-1" />{{ row.description || row.category || "Loan" }}</span>
+        <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
+      </div>
+      <div class="d-flex justify-space-between pt-2 mt-1 border-t font-weight-bold">
+        <span>Net income</span>
+        <span>{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
+      </div>
+    </div>
     <div v-else class="shift-income-empty pa-3 text-caption text-medium-emphasis">
       <div class="shift-income-empty-message d-flex align-center justify-center">
         <v-icon icon="mdi-information-outline" size="18" class="me-1" />
@@ -59,39 +76,23 @@
       >
         Opening amount: {{ formatUsd((openingFloatUsd ?? 0) / 100) }} / {{ Math.round(openingFloatLbp ?? 0).toLocaleString() }} LBP
       </div>
-      <v-btn
-        block
-        color="primary"
-        prepend-icon="mdi-cash-minus"
-        variant="tonal"
-        @click="spendOpen = true"
-      >
-        Spend
-      </v-btn>
+      <!-- Straight to each page, with this month's total underneath. -->
+      <div class="spend-buttons">
+        <v-btn class="spend-button" color="primary" variant="tonal" @click="openExpenses">
+          <div class="spend-button-body">
+            <span class="spend-button-label"><v-icon icon="mdi-receipt-text-outline" size="18" class="me-1" />Expenses</span>
+            <span class="spend-button-total">{{ formatCurrencyTotals(monthExpenses, currencies) }} this month</span>
+          </div>
+        </v-btn>
+        <v-btn class="spend-button" color="primary" variant="tonal" @click="openLoans">
+          <div class="spend-button-body">
+            <span class="spend-button-label"><v-icon icon="mdi-hand-coin-outline" size="18" class="me-1" />Loans</span>
+            <span class="spend-button-total">{{ formatCurrencyTotals(monthLoans, currencies) }} this month</span>
+          </div>
+        </v-btn>
+      </div>
     </div>
   </v-sheet>
-  <v-dialog v-model="spendOpen" max-width="520">
-    <v-card rounded="xl">
-      <div class="dialog-close-row px-4 pt-0">
-        <v-btn
-          icon="mdi-close"
-          variant="text"
-          aria-label="Close spend menu"
-          @click="spendOpen = false"
-        />
-      </div>
-      <v-card-text class="spend-options px-4 pt-0 pb-4">
-        <v-card class="spend-option" rounded="lg" variant="tonal" @click="openExpenses">
-          <v-icon icon="mdi-receipt-text-outline" size="44" />
-          <span>Expenses</span>
-        </v-card>
-        <v-card class="spend-option" rounded="lg" variant="tonal" @click="openLoans">
-          <v-icon icon="mdi-hand-coin-outline" size="44" />
-          <span>Loans</span>
-        </v-card>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
   <BalanceReplacementDialog v-model="replacementOpen" :shift-id="shiftId" :sources="balanceSources" :payment-methods="paymentMethods" @saved="emit('balance-replaced', $event)" />
   <SetOpeningFloatDialog
     v-if="openingFloatEnabled"
@@ -104,8 +105,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { GetSpendSummary } from "../../../wailsjs/go/main/App";
+import { formatCurrencyTotals, formatSpendAmount, sumToUsdCents, type CurrencyTotal } from "@/lib/spend";
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { paymentAccentColor } from "@/lib/paymentColor";
@@ -134,19 +137,40 @@ const emit = defineEmits<{
 }>();
 const replacementOpen = ref(false);
 const openingFloatOpen = ref(false);
-const spendOpen = ref(false);
+
+const monthExpenses = ref<CurrencyTotal[]>([]);
+const monthLoans = ref<CurrencyTotal[]>([]);
+const shiftExpenses = ref<any[]>([]);
+const shiftLoans = ref<any[]>([]);
+async function loadSpend() {
+  try {
+    const summary = await GetSpendSummary(props.shiftId ?? 0);
+    monthExpenses.value = summary.monthExpenses ?? [];
+    monthLoans.value = summary.monthLoans ?? [];
+    shiftExpenses.value = summary.shiftExpenses ?? [];
+    shiftLoans.value = summary.shiftLoans ?? [];
+  } catch {
+    // Totals just stay as they were; the buttons still work.
+  }
+}
+onMounted(loadSpend);
+watch(() => props.shiftId, loadSpend);
+const netIncome = computed(
+  () =>
+    (Number(props.incomeTotal) || 0) -
+    sumToUsdCents(shiftExpenses.value, currencies.value) -
+    sumToUsdCents(shiftLoans.value, currencies.value),
+);
 const balanceSources = computed<Balance[]>(() => props.balanceSources
   .filter((item) => !item.isOnAccount && !item.isOnCoupon && item.accountId && Number(item.balance) !== 0));
 
 const incomeTotal = computed(() => Number(props.incomeTotal) || 0);
 
 function openExpenses() {
-  spendOpen.value = false;
   void router.push("/expenses");
 }
 
 function openLoans() {
-  spendOpen.value = false;
   void router.push("/loans");
 }
 </script>
@@ -193,6 +217,48 @@ function openLoans() {
 
 .shift-income-opening {
   margin-top: -2px;
+}
+
+.spend-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.85rem;
+  padding: 2px 0;
+}
+
+.spend-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.spend-button {
+  height: auto !important;
+  min-height: 56px;
+  padding: 8px 6px !important;
+}
+
+.spend-button-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  white-space: normal;
+}
+
+.spend-button-label {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+}
+
+.spend-button-total {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.85;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .dialog-close-row {

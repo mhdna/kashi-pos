@@ -162,3 +162,78 @@ func (q *Queries) ListExpenses(ctx context.Context, arg ListExpensesParams) ([]E
 	}
 	return items, nil
 }
+
+const listExpensesForShift = `-- name: ListExpensesForShift :many
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at FROM expenses WHERE shift_id = ? ORDER BY id
+`
+
+func (q *Queries) ListExpensesForShift(ctx context.Context, shiftID sql.NullInt64) ([]Expense, error) {
+	rows, err := q.db.QueryContext(ctx, listExpensesForShift, shiftID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Expense{}
+	for rows.Next() {
+		var i Expense
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientRef,
+			&i.Description,
+			&i.Category,
+			&i.Amount,
+			&i.CurrencyCode,
+			&i.CashboxAccountID,
+			&i.ShiftID,
+			&i.OccurredAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sumExpensesByCurrencySince = `-- name: SumExpensesByCurrencySince :many
+SELECT currency_code, CAST(COALESCE(SUM(amount), 0) AS INTEGER) AS total
+FROM expenses WHERE occurred_at >= ?
+GROUP BY currency_code
+`
+
+type SumExpensesByCurrencySinceRow struct {
+	CurrencyCode string `json:"currencyCode"`
+	Total        int64  `json:"total"`
+}
+
+// Expenses from `since` (a local "YYYY-MM-DD HH:MM:SS") on, per currency --
+// the month total under the Expenses button. Amounts are in the expense's
+// own currency, x100, as entered.
+func (q *Queries) SumExpensesByCurrencySince(ctx context.Context, occurredAt string) ([]SumExpensesByCurrencySinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, sumExpensesByCurrencySince, occurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SumExpensesByCurrencySinceRow{}
+	for rows.Next() {
+		var i SumExpensesByCurrencySinceRow
+		if err := rows.Scan(&i.CurrencyCode, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

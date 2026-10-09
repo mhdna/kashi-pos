@@ -176,6 +176,8 @@ export function GetShiftTotals(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function GetSoundsEnabled():Promise<boolean>;
 
+export function GetSpendSummary(arg1:number):Promise<Record<string, any>>;
+
 export function GetStartupError():Promise<string>;
 
 export function GetSyncStatus():Promise<main.SyncStatusResult>;

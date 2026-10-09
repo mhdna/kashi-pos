@@ -162,3 +162,76 @@ func (q *Queries) ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, e
 	}
 	return items, nil
 }
+
+const listLoansForShift = `-- name: ListLoansForShift :many
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at FROM loans WHERE shift_id = ? ORDER BY id
+`
+
+func (q *Queries) ListLoansForShift(ctx context.Context, shiftID sql.NullInt64) ([]Loan, error) {
+	rows, err := q.db.QueryContext(ctx, listLoansForShift, shiftID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Loan{}
+	for rows.Next() {
+		var i Loan
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientRef,
+			&i.Description,
+			&i.Category,
+			&i.Amount,
+			&i.CurrencyCode,
+			&i.CashboxAccountID,
+			&i.ShiftID,
+			&i.OccurredAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sumLoansByCurrencySince = `-- name: SumLoansByCurrencySince :many
+SELECT currency_code, CAST(COALESCE(SUM(amount), 0) AS INTEGER) AS total
+FROM loans WHERE occurred_at >= ?
+GROUP BY currency_code
+`
+
+type SumLoansByCurrencySinceRow struct {
+	CurrencyCode string `json:"currencyCode"`
+	Total        int64  `json:"total"`
+}
+
+// Same as SumExpensesByCurrencySince, for loans.
+func (q *Queries) SumLoansByCurrencySince(ctx context.Context, occurredAt string) ([]SumLoansByCurrencySinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, sumLoansByCurrencySince, occurredAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SumLoansByCurrencySinceRow{}
+	for rows.Next() {
+		var i SumLoansByCurrencySinceRow
+		if err := rows.Scan(&i.CurrencyCode, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

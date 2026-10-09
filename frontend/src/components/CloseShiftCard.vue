@@ -23,6 +23,18 @@
         </div>
       </template>
       <div v-else class="text-center text-medium-emphasis py-4">No transactions this shift</div>
+      <!-- Money paid out during the shift, listed under the sales balances
+           (which stay as they are). -->
+      <div v-if="shiftSpend.length" class="shift-spend mt-3">
+        <div class="text-caption font-weight-bold text-medium-emphasis mb-1">Expenses &amp; loans this shift</div>
+        <div v-for="row in shiftSpend" :key="row.key" class="d-flex justify-space-between py-1">
+          <span class="text-truncate">
+            <v-icon :icon="row.kind === 'loan' ? 'mdi-hand-coin-outline' : 'mdi-receipt-text-outline'" size="16" class="me-1" />
+            {{ row.label }}
+          </span>
+          <span class="font-weight-bold text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
+        </div>
+      </div>
       <v-select
         v-model="closingPersonId"
         :items="salespersons"
@@ -332,7 +344,9 @@ import {
   CheckShiftReceiptCaptured,
   SkipShiftReceiptUpload,
   SwitchShiftReceiptToLocal,
+  GetSpendSummary,
 } from "../../wailsjs/go/main/App";
+import { formatSpendAmount } from "@/lib/spend";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 const emit = defineEmits(["close"]);
@@ -462,6 +476,26 @@ async function autofillFromExpected() {
   }
 }
 
+// The shift's expenses and loans, listed under its balances.
+const shiftSpend = ref<{ key: string; kind: "expense" | "loan"; label: string; amount: number; currencyCode: string }[]>([]);
+async function loadShiftSpend() {
+  try {
+    const summary = await GetSpendSummary(shiftId.value);
+    shiftSpend.value = [
+      ...((summary.shiftExpenses ?? []) as any[]).map((e) => ({
+        key: `e-${e.id}`, kind: "expense" as const, label: e.description || e.category || "Expense",
+        amount: e.amount, currencyCode: e.currencyCode,
+      })),
+      ...((summary.shiftLoans ?? []) as any[]).map((l) => ({
+        key: `l-${l.id}`, kind: "loan" as const, label: l.description || l.category || "Loan",
+        amount: l.amount, currencyCode: l.currencyCode,
+      })),
+    ];
+  } catch {
+    shiftSpend.value = [];
+  }
+}
+
 onMounted(async () => {
   try {
     const shift = await GetOpenShift();
@@ -469,6 +503,7 @@ onMounted(async () => {
     shiftCreatedAt.value = shift.createdAt ?? null;
     const b = await ListShiftBalances(shiftId.value);
     balanceRows.value = (b as any[]) ?? [];
+    void loadShiftSpend();
     salespersons.value = ((await ListSalespersons()) as any[]) ?? [];
     await autofillFromExpected();
   } catch {}

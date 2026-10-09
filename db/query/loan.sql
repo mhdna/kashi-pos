@@ -19,3 +19,12 @@ SELECT * FROM loans ORDER BY id DESC LIMIT ? OFFSET ?;
 
 -- name: ListAllLoans :many
 SELECT * FROM loans ORDER BY id;
+
+-- name: SumLoansByCurrencySince :many
+-- Same as SumExpensesByCurrencySince, for loans.
+SELECT currency_code, CAST(COALESCE(SUM(amount), 0) AS INTEGER) AS total
+FROM loans WHERE occurred_at >= ?
+GROUP BY currency_code;
+
+-- name: ListLoansForShift :many
+SELECT * FROM loans WHERE shift_id = ? ORDER BY id;

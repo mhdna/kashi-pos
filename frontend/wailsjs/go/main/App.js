@@ -350,6 +350,10 @@ export function GetSoundsEnabled() {
   return window['go']['main']['App']['GetSoundsEnabled']();
 }
 
+export function GetSpendSummary(arg1) {
+  return window['go']['main']['App']['GetSpendSummary'](arg1);
+}
+
 export function GetStartupError() {
   return window['go']['main']['App']['GetStartupError']();
 }

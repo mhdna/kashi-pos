@@ -417,6 +417,7 @@ type Querier interface {
 	ListDueSyncOutboxEntries(ctx context.Context, limit int64) ([]SyncOutbox, error)
 	ListExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)
+	ListExpensesForShift(ctx context.Context, shiftID sql.NullInt64) ([]Expense, error)
 	ListHoldInvoiceItems(ctx context.Context, holdInvoiceID int64) ([]ListHoldInvoiceItemsRow, error)
 	ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error)
 	// Every cashbox account's running total for a single shift: invoice
@@ -460,6 +461,7 @@ type Querier interface {
 	ListInvoicesPage(ctx context.Context, arg ListInvoicesPageParams) ([]ListInvoicesPageRow, error)
 	ListLoanCategories(ctx context.Context) ([]LoanCategory, error)
 	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
+	ListLoansForShift(ctx context.Context, shiftID sql.NullInt64) ([]Loan, error)
 	ListOutgoingTransferRequests(ctx context.Context) ([]TransferRequest, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error)
@@ -623,6 +625,10 @@ type Querier interface {
 	// The shift filter is pushed into every branch so each is an index seek,
 	// matching ListIncomeAccountTotals above.
 	StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error)
+	// Expenses from `since` (a local "YYYY-MM-DD HH:MM:SS") on, per currency --
+	// the month total under the Expenses button. Amounts are in the expense's
+	// own currency, x100, as entered.
+	SumExpensesByCurrencySince(ctx context.Context, occurredAt string) ([]SumExpensesByCurrencySinceRow, error)
 	// This till's invoices in [date_from, date_to] that kashi hadn't received as
 	// of `as_of` (UTC, sqlite datetime format): still queued or rejected, or
 	// delivered after as_of. Added to kashi's branch-wide target progress
@@ -631,6 +637,8 @@ type Querier interface {
 	// before this till synced. Plain SUM(grand_total) to match kashi's own
 	// figure (SumBranchRevenueForRange there).
 	SumInvoiceTotalNotOnCentralByDateRange(ctx context.Context, arg SumInvoiceTotalNotOnCentralByDateRangeParams) (interface{}, error)
+	// Same as SumExpensesByCurrencySince, for loans.
+	SumLoansByCurrencySince(ctx context.Context, occurredAt string) ([]SumLoansByCurrencySinceRow, error)
 	// Units of one product this till sold that kashi's stock figure (fetched
 	// as of `as_of`) doesn't reflect yet: sales still queued, rejected, or
 	// delivered after as_of.
