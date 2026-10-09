@@ -331,6 +331,10 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 		a.emitExpenseImagesUploaded(msg.ClientRef)
 		return
 	}
+	if msg.Type == "loan_images_uploaded" {
+		a.emitLoanImagesUploaded(msg.ClientRef)
+		return
+	}
 	if msg.Type == "hello" {
 		// A kashi that pushes every change lets the pull loop slow down to a
 		// backstop. An older kashi sends no hello, and its tills keep the

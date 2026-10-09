@@ -83,7 +83,10 @@ func (a *App) CreateLoan(description, category string, amount int64, currencyCod
 		a.kickSyncWorker()
 	}
 
-	return loanMap(loan), nil
+	result := loanMap(loan)
+	// As on CreateExpense: whether a photo link will come back from sync.
+	result["syncConfigured"] = syncConfigured
+	return result, nil
 }
 
 func (a *App) ListLoans(pageSize, pageID int32) ([]map[string]any, error) {

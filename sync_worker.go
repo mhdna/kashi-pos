@@ -372,6 +372,17 @@ func (a *App) pushOutboxEntry(ctx context.Context, client *centralClient, entry 
 		if resp.UploadToken != "" {
 			a.emitExpenseUploadReady(entry.ClientRef, client.UploadURL(resp.UploadToken))
 		}
+	} else if entry.EntityType == "loan" {
+		// A new loan's answer carries a photo-upload token too (kashi
+		// 000131); an older kashi sends none, and then there's no QR.
+		resp, err := client.PostExpense(ctx, path, []byte(entry.PayloadJson))
+		if err != nil {
+			a.recordSyncOutboxError(ctx, entry, err)
+			return false
+		}
+		if resp.UploadToken != "" {
+			a.emitLoanUploadReady(entry.ClientRef, client.LoanUploadURL(resp.UploadToken))
+		}
 	} else if entry.EntityType == "transfer_request" {
 		// Same shape as "expense" above: the response body carries the
 		// one-time photo-upload token this transfer's QR points at.

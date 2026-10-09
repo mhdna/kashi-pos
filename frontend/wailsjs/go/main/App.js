@@ -310,6 +310,10 @@ export function GetInvoiceSyncStates(arg1) {
   return window['go']['main']['App']['GetInvoiceSyncStates'](arg1);
 }
 
+export function GetLoanPhoto(arg1, arg2) {
+  return window['go']['main']['App']['GetLoanPhoto'](arg1, arg2);
+}
+
 export function GetNextInvoiceCode(arg1) {
   return window['go']['main']['App']['GetNextInvoiceCode'](arg1);
 }
@@ -494,6 +498,10 @@ export function ListLoanCategories() {
   return window['go']['main']['App']['ListLoanCategories']();
 }
 
+export function ListLoanPhotoIDs(arg1) {
+  return window['go']['main']['App']['ListLoanPhotoIDs'](arg1);
+}
+
 export function ListLoans(arg1, arg2) {
   return window['go']['main']['App']['ListLoans'](arg1, arg2);
 }
@@ -636,6 +644,14 @@ export function ReportDisplayPrefs(arg1) {
 
 export function ReprintInvoice(arg1) {
   return window['go']['main']['App']['ReprintInvoice'](arg1);
+}
+
+export function RequestExpenseUploadLink(arg1) {
+  return window['go']['main']['App']['RequestExpenseUploadLink'](arg1);
+}
+
+export function RequestLoanUploadLink(arg1) {
+  return window['go']['main']['App']['RequestLoanUploadLink'](arg1);
 }
 
 export function ResyncAll(arg1) {

@@ -514,6 +514,11 @@ func (c *centralClient) UploadURL(token string) string {
 	return c.baseURL + "/expense_uploads/" + token
 }
 
+// LoanUploadURL is UploadURL's counterpart for a loan's photos.
+func (c *centralClient) LoanUploadURL(token string) string {
+	return c.baseURL + "/loan_uploads/" + token
+}
+
 // TransferUploadURL is UploadURL's counterpart for a transfer request's
 // photo -- see transfer_upload.go in the kashi repo.
 func (c *centralClient) TransferUploadURL(token string) string {

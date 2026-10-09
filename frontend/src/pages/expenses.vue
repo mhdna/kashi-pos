@@ -20,7 +20,7 @@
       @click:row="(_e: unknown, row: any) => openDetail(row.item)"
     >
       <template #item.photo="{ item }">
-        <RecordPhoto :cache-key="`expense-thumb-${item.clientRef}`" :load="() => firstExpensePhoto(item.clientRef, 96)" />
+        <RecordPhoto :cache-key="`expense-thumb-${item.clientRef}-${photoVersion[item.clientRef] ?? 0}`" :load="() => firstExpensePhoto(item.clientRef, 96)" />
       </template>
       <template #item.description="{ item }">
         <span class="font-weight-medium">{{ item.description || "—" }}</span>
@@ -74,6 +74,13 @@
           <div v-else class="empty-photos">
             <v-icon icon="mdi-image-off-outline" size="32" color="grey" />
             <div class="text-body-2 text-medium-emphasis">No photo attached{{ syncHint }}</div>
+          </div>
+          <!-- A photo that wasn't sent when the expense was made can still be:
+               kashi gives the expense a new link, up to 3 photos in all. -->
+          <div v-if="!detailPhotosLoading && selected.clientRef && detailPhotos.length < 3" class="d-flex justify-center mt-3">
+            <v-btn color="primary" variant="tonal" prepend-icon="mdi-camera-outline" @click="openUploadDialog(selected.clientRef, 'resend')">
+              {{ detailPhotos.length ? "Add more photos" : "Send photo" }}
+            </v-btn>
           </div>
         </v-card-text>
       </v-card>
@@ -177,53 +184,19 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="uploadDialog" max-width="380" persistent @update:model-value="onUploadDialogVisibilityChange">
-      <v-card class="text-center pa-4">
-        <template v-if="uploadState === 'waiting'">
-          <v-card-title>Preparing upload link…</v-card-title>
-          <v-card-text>
-            <v-progress-circular class="my-4" color="primary" indeterminate size="48" />
-            <div class="text-body-2">Syncing this expense to the server.</div>
-          </v-card-text>
-        </template>
-
-        <template v-else-if="uploadState === 'ready'">
-          <v-card-title>Attach a receipt photo</v-card-title>
-          <v-card-text>
-            <div class="text-body-2 mb-3">Scan this with a phone to upload up to 3 photos.</div>
-            <img v-if="qrDataUrl" :src="qrDataUrl" alt="Upload QR code" style="width: 220px; height: 220px" />
-            <div class="text-caption text-medium-emphasis mt-3" style="word-break: break-all">{{ uploadUrl }}</div>
-          </v-card-text>
-        </template>
-
-        <template v-else-if="uploadState === 'success'">
-          <v-card-text>
-            <v-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
-            <div class="text-h6">Uploaded!</div>
-          </v-card-text>
-        </template>
-
-        <template v-else-if="uploadState === 'error'">
-          <v-card-title>Couldn't prepare the upload link</v-card-title>
-          <v-card-text>
-            <div class="text-body-2">Check the connection to the server and try again later.</div>
-          </v-card-text>
-        </template>
-
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="closeUploadDialog">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <PhotoUploadDialog
+      v-model="uploadOpen"
+      kind="expense"
+      :client-ref="uploadRef"
+      :mode="uploadMode"
+      @uploaded="onPhotosUploaded(uploadRef)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
-import QRCode from "qrcode";
 import {
-  CheckExpenseUploadStatus,
   CreateExpense,
   GetExpensePhoto,
   ListExpenseCategories,
@@ -232,6 +205,7 @@ import {
   ListPaymentMethods,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import PhotoUploadDialog from "@/components/PhotoUploadDialog.vue";
 import RecordPhoto from "@/components/RecordPhoto.vue";
 import { useInfiniteList } from "@/composables/useInfiniteList";
 import { formatServerDateTime } from "@/lib/datetime";
@@ -373,89 +347,22 @@ async function submit() {
   }
 }
 
-// ---- photo upload after saving (unchanged flow) -------------------------
-type UploadState = "waiting" | "ready" | "success" | "error";
+// ---- photos: QR upload after saving, or a new link later -------------
+const uploadOpen = ref(false);
+const uploadRef = ref("");
+const uploadMode = ref<"new" | "resend">("new");
+// Bumped per expense when photos arrive, so its row thumbnail refetches.
+const photoVersion = ref<Record<string, number>>({});
 
-const uploadDialog = ref(false);
-const uploadState = ref<UploadState>("waiting");
-const uploadUrl = ref("");
-const qrDataUrl = ref("");
-let uploadUnsubscribers: Array<() => void> = [];
-let pollHandle: ReturnType<typeof setInterval> | null = null;
-let waitingTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
-
-const UPLOAD_READY_TIMEOUT_MS = 30000;
-const UPLOAD_POLL_INTERVAL_MS = 4000;
-
-function stopUploadWatchers() {
-  uploadUnsubscribers.forEach((unsub) => unsub());
-  uploadUnsubscribers = [];
-  if (pollHandle !== null) {
-    clearInterval(pollHandle);
-    pollHandle = null;
-  }
-  if (waitingTimeoutHandle !== null) {
-    clearTimeout(waitingTimeoutHandle);
-    waitingTimeoutHandle = null;
-  }
+function openUploadDialog(clientRef: string, mode: "new" | "resend" = "new") {
+  uploadRef.value = clientRef;
+  uploadMode.value = mode;
+  uploadOpen.value = true;
 }
 
-function markUploadSuccess() {
-  uploadState.value = "success";
-  stopUploadWatchers();
-}
-
-function startUploadPolling(clientRef: string) {
-  pollHandle = setInterval(async () => {
-    try {
-      const uploaded = await CheckExpenseUploadStatus(clientRef);
-      if (uploaded) markUploadSuccess();
-    } catch {
-      // Transient network hiccups are expected while a branch is offline —
-      // the WS push (or the next poll tick) will still get there.
-    }
-  }, UPLOAD_POLL_INTERVAL_MS);
-}
-
-async function openUploadDialog(clientRef: string) {
-  stopUploadWatchers();
-  uploadUrl.value = "";
-  qrDataUrl.value = "";
-  uploadState.value = "waiting";
-  uploadDialog.value = true;
-
-  waitingTimeoutHandle = setTimeout(() => {
-    if (uploadState.value === "waiting") {
-      uploadState.value = "error";
-      stopUploadWatchers();
-    }
-  }, UPLOAD_READY_TIMEOUT_MS);
-
-  uploadUnsubscribers.push(
-    EventsOn(`expense_upload_ready:${clientRef}`, async (url: string) => {
-      if (waitingTimeoutHandle !== null) {
-        clearTimeout(waitingTimeoutHandle);
-        waitingTimeoutHandle = null;
-      }
-      uploadUrl.value = url;
-      try {
-        qrDataUrl.value = await QRCode.toDataURL(url, { width: 220, margin: 1 });
-      } catch {
-        qrDataUrl.value = "";
-      }
-      uploadState.value = "ready";
-      startUploadPolling(clientRef);
-    }),
-  );
-  uploadUnsubscribers.push(EventsOn(`expense_images_uploaded:${clientRef}`, markUploadSuccess));
-}
-
-function closeUploadDialog() {
-  uploadDialog.value = false;
-}
-
-function onUploadDialogVisibilityChange(visible: boolean) {
-  if (!visible) stopUploadWatchers();
+function onPhotosUploaded(clientRef: string) {
+  photoVersion.value = { ...photoVersion.value, [clientRef]: (photoVersion.value[clientRef] ?? 0) + 1 };
+  if (selected.value?.clientRef === clientRef && detailOpen.value) void openDetail(selected.value);
 }
 
 // ---- loading -------------------------------------------------------------
@@ -486,7 +393,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   categorySyncUnsub?.();
-  stopUploadWatchers();
 });
 </script>
 

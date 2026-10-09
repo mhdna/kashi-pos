@@ -1046,6 +1046,24 @@ func (a *App) emitExpenseImagesUploaded(clientRef string) {
 	}
 }
 
+// emitLoanImagesUploaded is emitExpenseImagesUploaded for a loan's photos.
+func (a *App) emitLoanImagesUploaded(clientRef string) {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "loan_images_uploaded:"+clientRef)
+	default:
+	}
+}
+
+// emitLoanUploadReady is emitExpenseUploadReady for a just-synced loan.
+func (a *App) emitLoanUploadReady(clientRef, uploadURL string) {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "loan_upload_ready:"+clientRef, uploadURL)
+	default:
+	}
+}
+
 // emitSyncStateChanged tells the frontend the push side of sync advanced --
 // a row was accepted by kashi, moved to failed, or re-armed by a resync --
 // so any open sync-status indicator (the nav-rail dot, the per-invoice

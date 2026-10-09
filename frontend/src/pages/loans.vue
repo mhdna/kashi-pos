@@ -6,8 +6,6 @@
       <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" @click="openAdd">Add loan</v-btn>
     </div>
 
-    <!-- Loans carry no photo, so the first column is the category's icon in
-         its kashi colour -- the same visual anchor the photo is elsewhere. -->
     <v-data-table-virtual
       class="records-table"
       :headers="headers"
@@ -21,16 +19,17 @@
       no-data-text="No loans yet."
       @click:row="(_e: unknown, row: any) => openDetail(row.item)"
     >
-      <template #item.icon="{ item }">
-        <v-avatar size="40" rounded="lg" :color="categoryOf(item.category)?.color || 'blue-grey'" variant="tonal">
-          <v-icon :icon="categoryOf(item.category)?.icon || 'mdi-tag-outline'" size="22" />
-        </v-avatar>
+      <template #item.photo="{ item }">
+        <RecordPhoto :cache-key="`loan-thumb-${item.clientRef}-${photoVersion[item.clientRef] ?? 0}`" :load="() => firstLoanPhoto(item.clientRef, 96)" />
       </template>
       <template #item.description="{ item }">
         <span class="font-weight-medium">{{ item.description || "—" }}</span>
       </template>
       <template #item.category="{ item }">
-        <span>{{ item.category || "—" }}</span>
+        <v-chip v-if="item.category" size="small" variant="tonal" :color="categoryOf(item.category)?.color || 'blue-grey'" :prepend-icon="categoryOf(item.category)?.icon || 'mdi-tag-outline'">
+          {{ item.category }}
+        </v-chip>
+        <span v-else class="text-medium-emphasis">—</span>
       </template>
       <template #item.amount="{ item }">
         <span class="font-weight-bold">{{ formatCents(item.amount) }} {{ item.currencyCode }}</span>
@@ -38,7 +37,7 @@
       <template #item.occurredAt="{ item }">{{ formatServerDateTime(item.occurredAt) }}</template>
     </v-data-table-virtual>
 
-    <v-dialog v-model="detailOpen" max-width="620">
+    <v-dialog v-model="detailOpen" max-width="700">
       <v-card v-if="selected">
         <v-card-title class="d-flex align-center">
           <div>
@@ -64,6 +63,21 @@
               <v-icon icon="mdi-wallet-outline" color="primary" />
               <div class="overview-value">{{ accountName(selected.cashboxAccountId) }}</div>
             </div>
+          </div>
+
+          <div class="section-label mt-5 mb-2">Photos</div>
+          <div v-if="detailPhotosLoading" class="d-flex justify-center pa-6"><v-progress-circular indeterminate /></div>
+          <div v-else-if="detailPhotos.length" class="photo-strip">
+            <img v-for="(src, i) in detailPhotos" :key="i" :src="src" alt="Loan photo" class="photo-full" />
+          </div>
+          <div v-else class="empty-photos">
+            <v-icon icon="mdi-image-off-outline" size="32" color="grey" />
+            <div class="text-body-2 text-medium-emphasis">No photo attached{{ selected.clientRef ? "" : " (not synced yet)" }}</div>
+          </div>
+          <div v-if="!detailPhotosLoading && selected.clientRef && detailPhotos.length < 3" class="d-flex justify-center mt-3">
+            <v-btn color="primary" variant="tonal" prepend-icon="mdi-camera-outline" @click="openUploadDialog(selected.clientRef, 'resend')">
+              {{ detailPhotos.length ? "Add more photos" : "Send photo" }}
+            </v-btn>
           </div>
         </v-card-text>
       </v-card>
@@ -133,19 +147,36 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <PhotoUploadDialog
+      v-model="uploadOpen"
+      kind="loan"
+      :client-ref="uploadRef"
+      :mode="uploadMode"
+      @uploaded="onPhotosUploaded(uploadRef)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
-import { CreateLoan, ListLoans, ListLoanCategories, ListPaymentMethods } from "../../wailsjs/go/main/App";
+import {
+  CreateLoan,
+  GetLoanPhoto,
+  ListLoanCategories,
+  ListLoanPhotoIDs,
+  ListLoans,
+  ListPaymentMethods,
+} from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import PhotoUploadDialog from "@/components/PhotoUploadDialog.vue";
+import RecordPhoto from "@/components/RecordPhoto.vue";
 import { useInfiniteList } from "@/composables/useInfiniteList";
 import { formatServerDateTime } from "@/lib/datetime";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 
 const headers = [
-  { title: "", key: "icon", sortable: false, width: 64 },
+  { title: "Photo", key: "photo", sortable: false, width: 72 },
   { title: "Description", key: "description", sortable: false },
   { title: "Category", key: "category", sortable: false },
   { title: "Amount", key: "amount", sortable: false, align: "end" as const },
@@ -167,11 +198,45 @@ function formatCents(cents: number): string {
   return (Number(cents ?? 0) / 100).toFixed(2);
 }
 
+// The first photo, as a thumbnail, for the row; "" shows the no-photo icon.
+async function firstLoanPhoto(clientRef: string, width: number): Promise<string> {
+  const ids = (await ListLoanPhotoIDs(clientRef)) ?? [];
+  const first = ids[0];
+  return first ? GetLoanPhoto(first, width) : "";
+}
+
 const detailOpen = ref(false);
 const selected = ref<any>(null);
-function openDetail(item: any) {
+const detailPhotos = ref<string[]>([]);
+const detailPhotosLoading = ref(false);
+async function openDetail(item: any) {
   selected.value = item;
   detailOpen.value = true;
+  detailPhotos.value = [];
+  detailPhotosLoading.value = true;
+  try {
+    const ids = (await ListLoanPhotoIDs(item.clientRef)) ?? [];
+    const photos = await Promise.all(ids.map((id: number) => GetLoanPhoto(id, 0)));
+    if (selected.value === item) detailPhotos.value = photos.filter(Boolean);
+  } finally {
+    detailPhotosLoading.value = false;
+  }
+}
+
+// Photos: the QR right after saving, or a new link from the detail view.
+const uploadOpen = ref(false);
+const uploadRef = ref("");
+const uploadMode = ref<"new" | "resend">("new");
+// Bumped per loan when photos arrive, so its row thumbnail refetches.
+const photoVersion = ref<Record<string, number>>({});
+function openUploadDialog(clientRef: string, mode: "new" | "resend" = "new") {
+  uploadRef.value = clientRef;
+  uploadMode.value = mode;
+  uploadOpen.value = true;
+}
+function onPhotosUploaded(clientRef: string) {
+  photoVersion.value = { ...photoVersion.value, [clientRef]: (photoVersion.value[clientRef] ?? 0) + 1 };
+  if (selected.value?.clientRef === clientRef && detailOpen.value) void openDetail(selected.value);
 }
 
 const dialog = ref(false);
@@ -205,7 +270,7 @@ async function submit() {
   if (!valid?.valid || !canSave.value) return;
   saving.value = true;
   try {
-    await CreateLoan(
+    const created = await CreateLoan(
       form.value.description.trim(),
       form.value.category,
       Math.round((form.value.amount ?? 0) * 100),
@@ -214,6 +279,7 @@ async function submit() {
     );
     dialog.value = false;
     await list.refresh();
+    if (created?.syncConfigured && created?.clientRef) openUploadDialog(created.clientRef);
   } finally {
     saving.value = false;
   }

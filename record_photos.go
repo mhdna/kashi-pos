@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-// Photos of this till's expenses and transfers. The phone uploads them
+// Photos of this till's expenses, loans and transfers. The phone uploads them
 // straight to kashi (QR links), so the till has no copy: the Expenses and
 // Transfers pages fetch them from kashi's /branch/expense_photos and
 // /branch/transfer_photo, which only ever serve this branch's own. A width
@@ -74,24 +75,33 @@ func widthQuery(width int) string {
 // ListExpensePhotoIDs returns kashi's ids of an expense's photos (empty when
 // it has none, or kashi can't be reached).
 func (a *App) ListExpensePhotoIDs(clientRef string) ([]int64, error) {
+	return a.listPhotoIDs("/branch/expense_photos", clientRef), nil
+}
+
+// ListLoanPhotoIDs is ListExpensePhotoIDs for a loan.
+func (a *App) ListLoanPhotoIDs(clientRef string) ([]int64, error) {
+	return a.listPhotoIDs("/branch/loan_photos", clientRef), nil
+}
+
+func (a *App) listPhotoIDs(path, clientRef string) []int64 {
 	client := a.photoClient()
 	if client == nil || clientRef == "" {
-		return []int64{}, nil
+		return []int64{}
 	}
 	ctx, cancel := context.WithTimeout(a.ctx, photoFetchTimeout)
 	defer cancel()
-	path := "/branch/expense_photos?client_ref=" + url.QueryEscape(clientRef)
+	path += "?client_ref=" + url.QueryEscape(clientRef)
 	req, err := client.newRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
-		return []int64{}, nil
+		return []int64{}
 	}
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
-		return []int64{}, nil
+		return []int64{}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return []int64{}, nil
+		return []int64{}
 	}
 	var out struct {
 		Images []struct {
@@ -99,32 +109,100 @@ func (a *App) ListExpensePhotoIDs(clientRef string) ([]int64, error) {
 		} `json:"images"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return []int64{}, nil
+		return []int64{}
 	}
 	ids := make([]int64, 0, len(out.Images))
 	for _, image := range out.Images {
 		ids = append(ids, image.ID)
 	}
-	return ids, nil
+	return ids
 }
 
 // GetExpensePhoto returns one expense photo as a data: URL ("" if missing).
 func (a *App) GetExpensePhoto(id int64, width int) (string, error) {
+	return a.getPhoto("/branch/expense_photos", id, width), nil
+}
+
+// GetLoanPhoto is GetExpensePhoto for a loan's photo.
+func (a *App) GetLoanPhoto(id int64, width int) (string, error) {
+	return a.getPhoto("/branch/loan_photos", id, width), nil
+}
+
+func (a *App) getPhoto(base string, id int64, width int) string {
 	client := a.photoClient()
 	if client == nil || id <= 0 {
-		return "", nil
+		return ""
 	}
 	ctx, cancel := context.WithTimeout(a.ctx, photoFetchTimeout)
 	defer cancel()
-	path := fmt.Sprintf("/branch/expense_photos/%d/file", id)
+	path := fmt.Sprintf("%s/%d/file", base, id)
 	if q := widthQuery(width); q != "" {
 		path += "?" + q
 	}
 	data, err := client.fetchImageDataURL(ctx, path)
 	if err != nil {
-		return "", nil
+		return ""
 	}
-	return data, nil
+	return data
+}
+
+// RequestExpenseUploadLink asks kashi for a new photo link for an expense
+// whose photo wasn't sent when it was made, and returns the URL to show as a
+// QR code. It fails if kashi hasn't received the expense yet or it already
+// has 3 photos.
+func (a *App) RequestExpenseUploadLink(clientRef string) (string, error) {
+	client, token, err := a.requestUploadToken("/branch/expenses/upload_link", clientRef)
+	if err != nil {
+		return "", err
+	}
+	return client.UploadURL(token), nil
+}
+
+// RequestLoanUploadLink is RequestExpenseUploadLink for a loan.
+func (a *App) RequestLoanUploadLink(clientRef string) (string, error) {
+	client, token, err := a.requestUploadToken("/branch/loans/upload_link", clientRef)
+	if err != nil {
+		return "", err
+	}
+	return client.LoanUploadURL(token), nil
+}
+
+func (a *App) requestUploadToken(path, clientRef string) (*centralClient, string, error) {
+	client := a.photoClient()
+	if client == nil {
+		return nil, "", fmt.Errorf("this till isn't connected to kashi")
+	}
+	if clientRef == "" {
+		return nil, "", fmt.Errorf("this record has no reference to send")
+	}
+	body, _ := json.Marshal(map[string]string{"client_ref": clientRef})
+	ctx, cancel := context.WithTimeout(a.ctx, photoFetchTimeout)
+	defer cancel()
+	req, err := client.newRequest(ctx, http.MethodPost, path, bytes.NewReader(body))
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.httpClient.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("couldn't reach kashi: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		var e centralErrorBody
+		_ = json.NewDecoder(resp.Body).Decode(&e)
+		if e.Error == "" {
+			e.Error = fmt.Sprintf("status %d", resp.StatusCode)
+		}
+		return nil, "", fmt.Errorf("%s", e.Error)
+	}
+	var out struct {
+		UploadToken string `json:"upload_token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil || out.UploadToken == "" {
+		return nil, "", fmt.Errorf("kashi didn't send a link")
+	}
+	return client, out.UploadToken, nil
 }
 
 // GetTransferPhoto returns a transfer's photo as a data: URL ("" if none):
