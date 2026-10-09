@@ -56,6 +56,7 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 255, G: 255, B: 255, A: 255},
 		Windows: &windows.Options{
 			WebviewGpuIsDisabled: true,
+			WebviewUserDataPath:  webviewUserDataPath(),
 		},
 		OnStartup: app.startup,
 		OnDomReady: func(ctx context.Context) {

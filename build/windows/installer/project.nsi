@@ -56,7 +56,17 @@ ManifestDPIAware true
 !define MUI_UNICON "..\icon.ico"
 !define MUI_FINISHPAGE_NOAUTOCLOSE # Wait on the INSTFILES page so the user can take a look into the details of the installation steps
 !define MUI_ABORTWARNING # This will warn the user if they exit from the installer.
-!define MUI_FINISHPAGE_RUN "$INSTDIR\${PRODUCT_EXECUTABLE}" # Offer to launch the app when the installer finishes.
+# Offer to launch the app when the installer finishes -- through explorer.exe,
+# not directly. The installer runs elevated, and a direct launch would hand
+# the app that admin token; WebView2 then creates its data folder from an
+# elevated process and later normal launches fail with "Microsoft Edge can't
+# read and write to its data directory". Explorer starts it as the signed-in
+# user, exactly like the Start Menu shortcut does.
+!define MUI_FINISHPAGE_RUN
+!define MUI_FINISHPAGE_RUN_FUNCTION LaunchAppUnelevated
+Function LaunchAppUnelevated
+    Exec '"$WINDIR\explorer.exe" "$INSTDIR\${PRODUCT_EXECUTABLE}"'
+FunctionEnd
 
 !insertmacro MUI_PAGE_WELCOME # Welcome to the installer page.
 !insertmacro MUI_PAGE_DIRECTORY # In which folder install page.
@@ -114,11 +124,22 @@ FunctionEnd
 # Best-effort close of a running instance so its files aren't locked when
 # we overwrite them. Not fatal if nothing is running or taskkill can't find
 # it - installation proceeds either way.
+#
+# nsExec::Exec, not ExecToLog: ExecToLog copies taskkill's own output into
+# the details pane, and on a machine where the app isn't running that's
+# 'ERROR: The process "..." not found.' - the normal case on a fresh install,
+# not an error. taskkill exits 0 only when it actually closed something
+# (128 = no such process), so the log line is ours, chosen from that.
 !macro CLOSE_RUNNING_APP
     DetailPrint "Closing ${INFO_PRODUCTNAME} if it is running..."
-    nsExec::ExecToLog 'taskkill /F /IM "${PRODUCT_EXECUTABLE}"'
+    nsExec::Exec 'taskkill /F /IM "${PRODUCT_EXECUTABLE}"'
     Pop $0
-    Sleep 500
+    ${If} $0 == 0
+        DetailPrint "Closed running ${INFO_PRODUCTNAME}."
+        Sleep 500
+    ${Else}
+        DetailPrint "${INFO_PRODUCTNAME} was not running."
+    ${EndIf}
 !macroend
 
 Section
