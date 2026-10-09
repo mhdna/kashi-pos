@@ -14,7 +14,7 @@
     !define INFO_PRODUCTNAME "Kashi Cloud"
 !endif
 !ifndef INFO_PRODUCTVERSION
-    !define INFO_PRODUCTVERSION "1.0.9.2"
+    !define INFO_PRODUCTVERSION "1.0.9.3"
 !endif
 !ifndef INFO_COPYRIGHT
     !define INFO_COPYRIGHT "Copyright © Kashi"
