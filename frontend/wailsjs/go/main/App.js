@@ -294,6 +294,10 @@ export function GetExchangeInvoice(arg1) {
   return window['go']['main']['App']['GetExchangeInvoice'](arg1);
 }
 
+export function GetExpensePhoto(arg1, arg2) {
+  return window['go']['main']['App']['GetExpensePhoto'](arg1, arg2);
+}
+
 export function GetInvoiceDetails(arg1) {
   return window['go']['main']['App']['GetInvoiceDetails'](arg1);
 }
@@ -360,6 +364,10 @@ export function GetTheme() {
 
 export function GetTodayIncomeByAccount() {
   return window['go']['main']['App']['GetTodayIncomeByAccount']();
+}
+
+export function GetTransferPhoto(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetTransferPhoto'](arg1, arg2, arg3);
 }
 
 export function GetVisitorCountToday() {
@@ -444,6 +452,10 @@ export function ListDiscountLists() {
 
 export function ListExpenseCategories() {
   return window['go']['main']['App']['ListExpenseCategories']();
+}
+
+export function ListExpensePhotoIDs(arg1) {
+  return window['go']['main']['App']['ListExpensePhotoIDs'](arg1);
 }
 
 export function ListExpenses(arg1, arg2) {

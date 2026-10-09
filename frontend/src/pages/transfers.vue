@@ -1,49 +1,116 @@
 <template>
-  <v-card class="pa-4">
-    <v-card-title class="d-flex align-center justify-space-between">
-      Transfers
-      <v-btn v-if="tab === 'outgoing'" color="primary" prepend-icon="mdi-plus" @click="openCreate">
+  <div class="records-page">
+    <div class="records-head">
+      <div class="text-h6">Transfers</div>
+      <v-tabs v-model="tab" density="compact" class="ms-4">
+        <v-tab value="outgoing">Outgoing</v-tab>
+        <v-tab value="incoming">
+          Incoming
+          <v-badge v-if="unconfirmedIncomingCount > 0" color="warning" :content="unconfirmedIncomingCount" inline />
+        </v-tab>
+      </v-tabs>
+      <v-spacer />
+      <v-btn v-if="tab === 'outgoing'" color="primary" variant="flat" prepend-icon="mdi-plus" @click="openCreate">
         New Transfer
       </v-btn>
-    </v-card-title>
+    </div>
 
-    <v-tabs v-model="tab" class="mb-2">
-      <v-tab value="outgoing">Outgoing</v-tab>
-      <v-tab value="incoming">
-        Incoming
-        <v-badge v-if="unconfirmedIncomingCount > 0" color="warning" :content="unconfirmedIncomingCount" inline />
-      </v-tab>
-    </v-tabs>
+    <!-- Same layout as the invoices list; the transfer's photo (taken with a
+         phone, kept in kashi) is the first column. -->
+    <v-data-table-virtual
+      v-if="tab === 'outgoing'"
+      class="records-table"
+      :headers="outgoingHeaders"
+      :items="outgoing"
+      :loading="outgoingLoading"
+      height="100%"
+      :item-height="60"
+      fixed-header
+      item-value="id"
+      hover
+      no-data-text="No transfers sent yet."
+      @click:row="(_e: unknown, row: any) => openOutgoing(row.item)"
+    >
+      <template #item.photo="{ item }">
+        <RecordPhoto :cache-key="`transfer-out-${item.clientRef}`" :load="() => GetTransferPhoto(item.clientRef, 0, 96)" />
+      </template>
+      <template #item.toBranchCode="{ item }">
+        <span class="font-weight-medium">{{ branchName(item.toBranchCode) }}</span>
+      </template>
+      <template #item.note="{ item }">
+        <span class="text-truncate d-inline-block" style="max-width: 260px">{{ item.note || "—" }}</span>
+      </template>
+      <template #item.status="{ item }">
+        <v-chip :color="statusColor(item.status)" size="small">{{ item.status }}</v-chip>
+      </template>
+      <template #item.createdAt="{ item }">{{ formatServerDateTime(item.createdAt) }}</template>
+    </v-data-table-virtual>
 
-    <v-window v-model="tab">
-      <v-window-item value="outgoing">
-        <v-data-table :headers="outgoingHeaders" :items="outgoing" :loading="outgoingLoading" density="compact" hover>
-          <template #item.status="{ item }">
-            <v-chip :color="statusColor(item.status)" size="small">{{ item.status }}</v-chip>
-          </template>
-          <template #item.createdAt="{ item }">{{ formatServerDateTime(item.createdAt) }}</template>
-        </v-data-table>
-      </v-window-item>
+    <v-data-table-virtual
+      v-else
+      class="records-table"
+      :headers="incomingHeaders"
+      :items="incoming"
+      :loading="incomingLoading"
+      height="100%"
+      :item-height="60"
+      fixed-header
+      item-value="id"
+      hover
+      no-data-text="No incoming transfers."
+      @click:row="(_e: unknown, row: any) => openIncoming(row.item)"
+    >
+      <template #item.photo="{ item }">
+        <RecordPhoto :cache-key="`transfer-in-${item.id}`" :load="() => GetTransferPhoto('', item.id, 96)" />
+      </template>
+      <template #item.senderBranchName="{ item }">
+        <span class="font-weight-medium">{{ item.senderBranchName || "—" }}</span>
+      </template>
+      <template #item.note="{ item }">
+        <span class="text-truncate d-inline-block" style="max-width: 260px">{{ item.note || "—" }}</span>
+      </template>
+      <template #item.status="{ item }">
+        <v-chip :color="statusColor(item.status)" size="small">{{ item.status }}</v-chip>
+      </template>
+      <template #item.confirmed="{ item }">
+        <v-icon v-if="isConfirmed(item)" color="success" icon="mdi-check-circle" />
+        <v-icon v-else color="warning" icon="mdi-clock-outline" />
+      </template>
+      <template #item.createdAt="{ item }">{{ formatServerDateTime(item.createdAt) }}</template>
+    </v-data-table-virtual>
 
-      <v-window-item value="incoming">
-        <v-data-table
-          :headers="incomingHeaders"
-          :items="incoming"
-          :loading="incomingLoading"
-          density="compact"
-          hover
-          @click:row="(e: any, { item }: any) => openIncoming(item)"
-        >
-          <template #item.status="{ item }">
-            <v-chip :color="statusColor(item.status)" size="small">{{ item.status }}</v-chip>
-          </template>
-          <template #item.confirmed="{ item }">
-            <v-icon v-if="isConfirmed(item)" color="success" icon="mdi-check-circle" />
-            <v-icon v-else color="warning" icon="mdi-clock-outline" />
-          </template>
-        </v-data-table>
-      </v-window-item>
-    </v-window>
+    <!-- Outgoing detail: the invoice dialog's shape, photo then items. -->
+    <v-dialog v-model="outgoingDialog" max-width="700">
+      <v-card v-if="outgoingTarget">
+        <v-card-title class="d-flex align-center">
+          <div>
+            <div class="text-h6">To {{ branchName(outgoingTarget.toBranchCode) }}</div>
+            <div class="text-caption text-medium-emphasis">{{ formatServerDateTime(outgoingTarget.createdAt) }}</div>
+          </div>
+          <v-spacer />
+          <v-chip :color="statusColor(outgoingTarget.status)" size="small" class="me-2">{{ outgoingTarget.status }}</v-chip>
+          <v-btn icon="mdi-close" variant="text" aria-label="Close" @click="outgoingDialog = false" />
+        </v-card-title>
+        <v-card-text>
+          <div v-if="outgoingTarget.note" class="mb-4">{{ outgoingTarget.note }}</div>
+          <div class="section-label mb-2">Photo</div>
+          <div v-if="detailPhotoLoading" class="d-flex justify-center pa-6"><v-progress-circular indeterminate /></div>
+          <img v-else-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-4" />
+          <div v-else class="empty-photos mb-2">
+            <v-icon icon="mdi-image-off-outline" size="32" color="grey" />
+            <div class="text-body-2 text-medium-emphasis">No photo attached</div>
+          </div>
+          <div class="section-label mb-2">Items</div>
+          <v-list density="compact" class="pa-0">
+            <v-list-item v-for="line in outgoingTarget.items || []" :key="line.id || line.barcode">
+              <template #title>{{ line.name || line.barcode }}</template>
+              <template #append><span class="font-weight-bold">× {{ line.quantity }}</span></template>
+            </v-list-item>
+            <div v-if="!(outgoingTarget.items || []).length" class="text-body-2 text-medium-emphasis">No items listed.</div>
+          </v-list>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
 
     <!-- --------------------------------------------------------- CREATE -->
     <v-dialog v-model="createDialog" max-width="560">
@@ -163,6 +230,7 @@
         </v-card-title>
         <v-card-text>
           <div v-if="incomingTarget.note" class="text-body-2 text-medium-emphasis mb-2">{{ incomingTarget.note }}</div>
+          <img v-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-3" />
           <v-table density="compact">
             <thead>
               <tr>
@@ -198,7 +266,7 @@
     </v-dialog>
 
     <v-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</v-snackbar>
-  </v-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -211,8 +279,10 @@ import {
   CreateTransferRequest,
   ConfirmTransferRequest,
   CheckTransferUploadStatus,
+  GetTransferPhoto,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import RecordPhoto from "@/components/RecordPhoto.vue";
 import { formatServerDateTime } from "@/lib/datetime";
 
 const tab = ref("outgoing");
@@ -233,12 +303,37 @@ function statusColor(s: string) {
 
 // ------------------------------------------------------------ OUTGOING
 const outgoingHeaders = [
-  { title: "ID", key: "id" },
-  { title: "To", key: "toBranchCode" },
-  { title: "Note", key: "note" },
-  { title: "Status", key: "status" },
-  { title: "Created", key: "createdAt" },
+  { title: "", key: "photo", sortable: false, width: 64 },
+  { title: "To", key: "toBranchCode", sortable: false },
+  { title: "Note", key: "note", sortable: false },
+  { title: "Status", key: "status", sortable: false },
+  { title: "Created", key: "createdAt", sortable: false },
 ];
+
+function branchName(code: string) {
+  return branches.value.find((b) => b.code === code)?.name || code || "—";
+}
+
+// The photo for whichever transfer's dialog is open, full size.
+const detailPhoto = ref("");
+const detailPhotoLoading = ref(false);
+async function loadDetailPhoto(clientRef: string, transferID: number) {
+  detailPhoto.value = "";
+  detailPhotoLoading.value = true;
+  try {
+    detailPhoto.value = await GetTransferPhoto(clientRef, transferID, 0);
+  } finally {
+    detailPhotoLoading.value = false;
+  }
+}
+
+const outgoingDialog = ref(false);
+const outgoingTarget = ref<any>(null);
+function openOutgoing(item: any) {
+  outgoingTarget.value = item;
+  outgoingDialog.value = true;
+  void loadDetailPhoto(item.clientRef, 0);
+}
 const outgoing = ref<any[]>([]);
 const outgoingLoading = ref(true);
 
@@ -387,11 +482,12 @@ function onUploadDialogVisibilityChange(visible: boolean) {
 
 // ------------------------------------------------------------ INCOMING
 const incomingHeaders = [
-  { title: "From", key: "senderBranchName" },
-  { title: "Note", key: "note" },
-  { title: "Status", key: "status" },
-  { title: "Counted", key: "confirmed" },
-  { title: "Created", key: "createdAt" },
+  { title: "", key: "photo", sortable: false, width: 64 },
+  { title: "From", key: "senderBranchName", sortable: false },
+  { title: "Note", key: "note", sortable: false },
+  { title: "Status", key: "status", sortable: false },
+  { title: "Counted", key: "confirmed", sortable: false },
+  { title: "Created", key: "createdAt", sortable: false },
 ];
 const incoming = ref<any[]>([]);
 const incomingLoading = ref(true);
@@ -428,6 +524,7 @@ function openIncoming(item: any) {
   }));
   incomingNote.value = "";
   incomingDialog.value = true;
+  void loadDetailPhoto("", item.id);
 }
 
 async function submitConfirm() {
@@ -465,3 +562,7 @@ onBeforeUnmount(() => {
   stopUploadWatchers();
 });
 </script>
+
+<style scoped>
+@import "@/styles/records-page.css";
+</style>

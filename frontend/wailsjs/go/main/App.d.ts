@@ -148,6 +148,8 @@ export function GetDisplayPrefs():Promise<main.DisplayPrefs>;
 
 export function GetExchangeInvoice(arg1:string):Promise<Record<string, any>>;
 
+export function GetExpensePhoto(arg1:number,arg2:number):Promise<string>;
+
 export function GetInvoiceDetails(arg1:number):Promise<Record<string, any>>;
 
 export function GetInvoiceForSettlementChange(arg1:number):Promise<Record<string, any>>;
@@ -181,6 +183,8 @@ export function GetSyncStatus():Promise<main.SyncStatusResult>;
 export function GetTheme():Promise<string>;
 
 export function GetTodayIncomeByAccount():Promise<Array<Record<string, any>>>;
+
+export function GetTransferPhoto(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function GetVisitorCountToday():Promise<number>;
 
@@ -223,6 +227,8 @@ export function ListDiscountListItems(arg1:number):Promise<Array<Record<string, 
 export function ListDiscountLists():Promise<Array<Record<string, any>>>;
 
 export function ListExpenseCategories():Promise<Array<Record<string, any>>>;
+
+export function ListExpensePhotoIDs(arg1:string):Promise<Array<number>>;
 
 export function ListExpenses(arg1:number,arg2:number):Promise<Array<Record<string, any>>>;
 
