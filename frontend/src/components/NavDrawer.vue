@@ -1,5 +1,8 @@
 <template>
-  <v-navigation-drawer permanent width="72" class="nav-drawer border-0">
+  <!-- touchless: a permanent drawer never swipes shut, and Vuetify's swipe
+       handler (on window, non-passive) can claim a drag that starts a little
+       sideways, which then never scrolls the page list. -->
+  <v-navigation-drawer permanent touchless width="72" class="nav-drawer border-0">
     <v-list class="d-flex flex-column fill-height pa-0" nav>
       <div class="nav-items-group">
         <v-list-item
@@ -290,15 +293,25 @@ const items = computed(() => {
   flex: 1 1 0;
   min-height: 0;
   /* Too many pages for the screen scroll here instead of squeezing every
-     item; the counter, sync status and Quit below stay pinned. The drawer is
-     only 72px wide, so the scrollbar is hidden — touch and wheel still scroll. */
+     item; the counter, sync status and Quit below stay pinned. A thin
+     scrollbar shows there is more and can be dragged with a mouse;
+     pan-y hands vertical finger drags to the scroll, and contain stops a
+     drag at the end from moving the page behind. */
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: none;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #3a5378 transparent;
 }
 
 .nav-items-group::-webkit-scrollbar {
-  display: none;
+  width: 4px;
+}
+
+.nav-items-group::-webkit-scrollbar-thumb {
+  background-color: #3a5378;
+  border-radius: 2px;
 }
 
 /* Grow to share spare height up to 80px, but never shrink below 64px. */
