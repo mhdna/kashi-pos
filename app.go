@@ -385,6 +385,13 @@ func (a *App) switchDatabase(path string, createIfMissing bool) error {
 		a.stopAttendancePushServer(context.Background())
 		a.stopUpdater()
 		a.backgroundWG.Wait()
+		// stopWSClient/stopSyncWorker leave their channels set (see
+		// stopSyncWorker). Every goroutine has exited by now, so clearing
+		// them can't race; if openDatabase below fails before restarting
+		// the workers, App.shutdown would otherwise close them again and
+		// panic.
+		a.wsClientStop = nil
+		a.syncWorkerStop = nil
 		a.stopAdminServer(context.Background())
 		a.stopShiftUploadServer(context.Background())
 		_ = a.conn.Close()
