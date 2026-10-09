@@ -85,9 +85,6 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	out.WriteString(separator + "\n")
 	writeESCPosLine(&out, "Subtotal", fmt.Sprintf("$%.2f", subtotal), columns)
 	writeESCPosLine(&out, "Discount", fmt.Sprintf("-$%.2f", totalDiscount), columns)
-	if math.Abs(tax) > 0.005 {
-		writeESCPosLine(&out, "Tax", fmt.Sprintf("$%.2f", tax), columns)
-	}
 	if math.Abs(rounding) > 0.005 {
 		writeESCPosLine(&out, "Rounding", fmt.Sprintf("$%.2f", rounding), columns)
 	}

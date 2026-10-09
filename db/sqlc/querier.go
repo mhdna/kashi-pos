@@ -338,7 +338,8 @@ type Querier interface {
 	ListActivePriceListItems(ctx context.Context) ([]ListActivePriceListItemsRow, error)
 	ListActiveProducts(ctx context.Context) ([]Product, error)
 	// Codes repeat across colour/size variants, so a code can name several
-	// products; the scan field offers them all instead of picking one.
+	// products; the scan field offers them all instead of picking one. Case
+	// doesn't matter: a cashier typing "1579b" means 1579B.
 	ListActiveProductsByCode(ctx context.Context, code string) ([]Product, error)
 	ListAllAttendanceChangeRequests(ctx context.Context) ([]AttendanceChangeRequest, error)
 	ListAllExpenses(ctx context.Context) ([]Expense, error)

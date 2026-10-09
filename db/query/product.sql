@@ -12,8 +12,9 @@ SELECT * FROM products WHERE code = ? ORDER BY id LIMIT 1;
 
 -- name: ListActiveProductsByCode :many
 -- Codes repeat across colour/size variants, so a code can name several
--- products; the scan field offers them all instead of picking one.
-SELECT * FROM products WHERE code = ? AND is_active = 1 ORDER BY id;
+-- products; the scan field offers them all instead of picking one. Case
+-- doesn't matter: a cashier typing "1579b" means 1579B.
+SELECT * FROM products WHERE code = ? COLLATE NOCASE AND is_active = 1 ORDER BY id;
 
 -- name: ListProducts :many
 SELECT * FROM products ORDER BY id;

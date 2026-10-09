@@ -76,7 +76,6 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 
 	for _, line := range []string{
 		"Cashier: " + fallbackReceiptValue(report.Cashier, "Not specified"),
-		"Register: " + fallbackReceiptValue(report.Register, "Not specified"),
 		"Opened: " + report.OpenedAt,
 		"Closed: " + report.ClosedAt,
 	} {
@@ -100,7 +99,6 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	if report.ReturnAmount != 0 {
 		y = c.reportRow(y, "Return Value", formatShiftUSD(-report.ReturnAmount), false)
 	}
-	y = c.reportRow(y, "Tax", formatShiftUSD(report.Tax), false)
 	if report.CashRounding != 0 {
 		y = c.reportRow(y, "Rounding", formatShiftUSD(report.CashRounding), false)
 	}
@@ -141,43 +139,45 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		y += 8
 	}
 	y = c.reportSection(y, "CASH COUNT")
-	y, _ = c.left(y, "USD", c.data.BodySize-1, true)
-	y += 7
-	for _, bill := range report.USDBillCounts {
-		label := fmt.Sprintf("$%d x %s", bill.Denomination, formatInt(bill.Count))
-		value := formatShiftUSD(bill.Denomination * bill.Count * 100)
-		y = c.reportRow(y, label, value, false)
+	// A method with nothing expected and nothing counted collapses to one
+	// "None" line instead of three rows of zeros.
+	if report.ExpectedUSD == 0 && report.CountedUSD == 0 && len(report.USDBillCounts) == 0 && report.OpeningFloatUSD == 0 {
+		y = c.reportRow(y, "USD", "None", true)
+	} else {
+		y, _ = c.left(y, "USD", c.data.BodySize-1, true)
+		y += 7
+		for _, bill := range report.USDBillCounts {
+			label := fmt.Sprintf("$%d x %s", bill.Denomination, formatInt(bill.Count))
+			value := formatShiftUSD(bill.Denomination * bill.Count * 100)
+			y = c.reportRow(y, label, value, false)
+		}
+		if len(report.USDBillCounts) > 0 {
+			y += 4
+		}
+		if report.OpeningFloatUSD != 0 {
+			y = c.reportRow(y, "Opening float", formatShiftUSD(report.OpeningFloatUSD), false)
+		}
+		y = c.reportRow(y, "Expected", formatShiftUSD(report.ExpectedUSD), false)
+		y = c.reportRow(y, "Counted", formatShiftUSD(report.CountedUSD), false)
+		y = c.reportRow(y, "Difference", formatSignedShiftUSD(report.CountedUSD-report.ExpectedUSD), true)
 	}
-	if len(report.USDBillCounts) > 0 {
-		y += 4
+	y += 7
+	if report.ExpectedLBP == 0 && report.CountedLBP == 0 && report.OpeningFloatLBP == 0 {
+		y = c.reportRow(y, "LBP", "None", true)
+	} else {
+		y, _ = c.left(y, "LBP", c.data.BodySize-1, true)
+		y += 7
+		if report.OpeningFloatLBP != 0 {
+			y = c.reportRow(y, "Opening float", formatShiftLBP(report.OpeningFloatLBP), false)
+		}
+		y = c.reportRow(y, "Expected", formatShiftLBP(report.ExpectedLBP), false)
+		y = c.reportRow(y, "Counted", formatShiftLBP(report.CountedLBP), false)
+		y = c.reportRow(y, "Difference", formatSignedShiftLBP(report.CountedLBP-report.ExpectedLBP), true)
 	}
-	if report.OpeningFloatUSD != 0 {
-		y = c.reportRow(y, "Opening float", formatShiftUSD(report.OpeningFloatUSD), false)
-	}
-	y = c.reportRow(y, "Expected", formatShiftUSD(report.ExpectedUSD), false)
-	y = c.reportRow(y, "Counted", formatShiftUSD(report.CountedUSD), false)
-	y = c.reportRow(y, "Difference", formatSignedShiftUSD(report.CountedUSD-report.ExpectedUSD), true)
 	y += 7
-	y, _ = c.left(y, "LBP", c.data.BodySize-1, true)
+	y = c.reportUSDCount(y, "VISA", report.ExpectedVisa, report.CountedVisa)
 	y += 7
-	if report.OpeningFloatLBP != 0 {
-		y = c.reportRow(y, "Opening float", formatShiftLBP(report.OpeningFloatLBP), false)
-	}
-	y = c.reportRow(y, "Expected", formatShiftLBP(report.ExpectedLBP), false)
-	y = c.reportRow(y, "Counted", formatShiftLBP(report.CountedLBP), false)
-	y = c.reportRow(y, "Difference", formatSignedShiftLBP(report.CountedLBP-report.ExpectedLBP), true)
-	y += 7
-	y, _ = c.left(y, "VISA", c.data.BodySize-1, true)
-	y += 7
-	y = c.reportRow(y, "Expected", formatShiftUSD(report.ExpectedVisa), false)
-	y = c.reportRow(y, "Counted", formatShiftUSD(report.CountedVisa), false)
-	y = c.reportRow(y, "Difference", formatSignedShiftUSD(report.CountedVisa-report.ExpectedVisa), true)
-	y += 7
-	y, _ = c.left(y, "WHISH", c.data.BodySize-1, true)
-	y += 7
-	y = c.reportRow(y, "Expected", formatShiftUSD(report.ExpectedWhish), false)
-	y = c.reportRow(y, "Counted", formatShiftUSD(report.CountedWhish), false)
-	y = c.reportRow(y, "Difference", formatSignedShiftUSD(report.CountedWhish-report.ExpectedWhish), true)
+	y = c.reportUSDCount(y, "WHISH", report.ExpectedWhish, report.CountedWhish)
 
 	y = c.rule(y+9) + 10
 	y, _ = c.center(y, "SHIFT STATUS: CLOSED", c.data.BodySize-1, true, false)
@@ -187,6 +187,19 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	y, _ = c.left(y, "Manager: ____________________", c.data.BodySize-1, false)
 	y += 50
 	return y, nil
+}
+
+// reportUSDCount prints a USD-denominated method's expected/counted block, or
+// a single "None" line when both are zero.
+func (c *receiptCanvas) reportUSDCount(y int, title string, expected, counted int64) int {
+	if expected == 0 && counted == 0 {
+		return c.reportRow(y, title, "None", true)
+	}
+	y, _ = c.left(y, title, c.data.BodySize-1, true)
+	y += 7
+	y = c.reportRow(y, "Expected", formatShiftUSD(expected), false)
+	y = c.reportRow(y, "Counted", formatShiftUSD(counted), false)
+	return c.reportRow(y, "Difference", formatSignedShiftUSD(counted-expected), true)
 }
 
 func (c *receiptCanvas) reportSection(y int, title string) int {

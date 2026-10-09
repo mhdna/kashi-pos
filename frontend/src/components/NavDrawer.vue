@@ -289,12 +289,22 @@ const items = computed(() => {
   flex-direction: column;
   flex: 1 1 0;
   min-height: 0;
-  overflow: hidden;
+  /* Too many pages for the screen scroll here instead of squeezing every
+     item; the counter, sync status and Quit below stay pinned. The drawer is
+     only 72px wide, so the scrollbar is hidden — touch and wheel still scroll. */
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
 }
 
+.nav-items-group::-webkit-scrollbar {
+  display: none;
+}
+
+/* Grow to share spare height up to 80px, but never shrink below 64px. */
 .nav-item {
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 1 0 64px;
+  min-height: 64px;
   max-height: 80px;
   color: #e3ecf8;
 }
@@ -382,8 +392,6 @@ const items = computed(() => {
   gap: 6px;
   margin: 6px 8px;
   padding: 8px 0;
-  border-radius: 12px;
-  background-color: #f57c00;
   color: #ffffff;
 }
 

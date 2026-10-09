@@ -198,9 +198,6 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if discountTotal > 0 {
 		rows = append(rows, [2]string{"Discount", fmt.Sprintf("-$%.2f", discountTotal)})
 	}
-	if math.Abs(tax) > 0.005 {
-		rows = append(rows, [2]string{"Tax", fmt.Sprintf("$%.2f", tax)})
-	}
 	if math.Abs(rounding) > 0.005 {
 		rows = append(rows, [2]string{"Rounding", fmt.Sprintf("$%.2f", rounding)})
 	}

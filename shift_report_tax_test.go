@@ -138,16 +138,17 @@ func TestReceiptOmitsZeroTax(t *testing.T) {
 	}
 }
 
-// A real tax rate still prints, and the snap stays on its own line.
-func TestReceiptPrintsNonZeroTaxSeparatelyFromRounding(t *testing.T) {
+// Tax is never printed, even at a real rate, and it isn't folded into the
+// rounding line either: the snap stays on its own line.
+func TestReceiptHidesNonZeroTaxAndKeepsRounding(t *testing.T) {
 	text := receiptLines(t, printReceiptData{
 		Items:           []invoiceItem{{Name: "Shirt", Qty: 1, Price: 50.00, Discount: 0}},
 		GrandTotalCents: 5600, // 5000 + 550 tax + 50 snap
 		TaxCents:        550,
 		ReceiptWidth:    80,
 	})
-	if !strings.Contains(text, "Tax") || !strings.Contains(text, "5.50") {
-		t.Fatalf("receipt lost the $5.50 tax line:\n%s", text)
+	if strings.Contains(text, "Tax") || strings.Contains(text, "5.50") {
+		t.Fatalf("receipt printed the $5.50 tax:\n%s", text)
 	}
 	if !strings.Contains(text, "Rounding") || !strings.Contains(text, "0.50") {
 		t.Fatalf("receipt lost the 50 cent rounding line:\n%s", text)

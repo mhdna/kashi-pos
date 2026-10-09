@@ -488,6 +488,9 @@ func TestFindProductsForScan(t *testing.T) {
 		{"BAR-RED", "BAR-RED"},
 		{" BAR-RED ", "BAR-RED"},
 		{"SHIRT-1", "BAR-RED,BAR-BLUE"}, // inactive variant left out
+		{"shirt-1", "BAR-RED,BAR-BLUE"}, // codes match in any case
+		{"Hat-1", "BAR-HAT"},
+		{"bar-red", ""}, // barcodes stay exact
 		{"HAT-1", "BAR-HAT"},
 		{"BAR-HAT", "BAR-HAT"},
 		{"NOPE", ""},

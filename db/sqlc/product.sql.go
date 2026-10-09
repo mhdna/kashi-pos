@@ -479,11 +479,12 @@ func (q *Queries) ListActiveProducts(ctx context.Context) ([]Product, error) {
 }
 
 const listActiveProductsByCode = `-- name: ListActiveProductsByCode :many
-SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products WHERE code = ? AND is_active = 1 ORDER BY id
+SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products WHERE code = ? COLLATE NOCASE AND is_active = 1 ORDER BY id
 `
 
 // Codes repeat across colour/size variants, so a code can name several
-// products; the scan field offers them all instead of picking one.
+// products; the scan field offers them all instead of picking one. Case
+// doesn't matter: a cashier typing "1579b" means 1579B.
 func (q *Queries) ListActiveProductsByCode(ctx context.Context, code string) ([]Product, error) {
 	rows, err := q.db.QueryContext(ctx, listActiveProductsByCode, code)
 	if err != nil {
