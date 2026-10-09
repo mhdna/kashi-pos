@@ -50,8 +50,11 @@ build-windows-compact: set-version
 # Windows app at the latest tag's version, signs it and uploads it to kashi;
 # choose which tills get it on kashi's App Updates page. It needs KASHI_URL
 # (the tills' central URL) and KASHI_USER; the password is asked for.
+# publish-all (and publish-compact-all) also sets every active till of that
+# build to the new release, so the ones online update right away.
 #   git tag v1.2.3 && make publish NOTES="what changed"
-.PHONY: update-keygen publish publish-compact
+#   git tag v1.2.3 && make publish-all NOTES="what changed"
+.PHONY: update-keygen publish publish-compact publish-all publish-compact-all
 update-keygen:
 	go run ./cmd/publish-release keygen
 
@@ -60,3 +63,9 @@ publish: build-windows
 
 publish-compact: build-windows-compact
 	go run ./cmd/publish-release publish -file "build/bin/Kashi Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)"
+
+publish-all: build-windows
+	go run ./cmd/publish-release publish -file build/bin/Kashi-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -target-all
+
+publish-compact-all: build-windows-compact
+	go run ./cmd/publish-release publish -file "build/bin/Kashi Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all

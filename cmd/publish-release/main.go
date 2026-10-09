@@ -4,6 +4,7 @@
 //
 //	make update-keygen                      # once: create the release key
 //	git tag v1.2.3 && make publish NOTES="…" # every release
+//	git tag v1.2.3 && make publish-all NOTES="…" # …and send it to every till
 //
 // publish needs KASHI_URL (the same central URL the tills use, e.g.
 // https://cloud.example.com/api) and KASHI_USER, an admin; KASHI_PASSWORD is
@@ -40,7 +41,7 @@ const updateKeyFile = "internal/updatekey/updatekey.go"
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: publish-release keygen | publish -file F -version V -flavor standard|compact [-notes N]")
+		fmt.Fprintln(os.Stderr, "usage: publish-release keygen | publish -file F -version V -flavor standard|compact [-notes N] [-target-all]")
 		os.Exit(2)
 	}
 	var err error
@@ -125,6 +126,7 @@ func publish(args []string) error {
 	flavor := fs.String("flavor", "standard", "standard or compact")
 	notes := fs.String("notes", "", "what changed; cashiers see this after the update")
 	keyPath := fs.String("key", defaultKeyPath(), "the release key")
+	targetAll := fs.Bool("target-all", false, "also set every active register of this flavor to the new release")
 	_ = fs.Parse(args)
 
 	*version = strings.TrimPrefix(strings.TrimSpace(*version), "v")
@@ -214,7 +216,99 @@ func publish(args []string) error {
 	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("upload failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
 	}
-	fmt.Printf("Published Kashi Cloud %s (%s). Choose which tills get it on kashi's App Updates page.\n", *version, *flavor)
+	var created struct {
+		Release struct {
+			ID int64 `json:"id"`
+		} `json:"release"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil || created.Release.ID == 0 {
+		return errors.New("kashi's upload answer had no release id")
+	}
+	if !*targetAll {
+		fmt.Printf("Published Kashi Cloud %s (%s). Choose which tills get it on kashi's App Updates page.\n", *version, *flavor)
+		return nil
+	}
+	fmt.Printf("Published Kashi Cloud %s (%s).\n", *version, *flavor)
+	return targetAllRegisters(baseURL, token, created.Release.ID, *version, *flavor)
+}
+
+// targetAllRegisters does what ticking every till on the App Updates page
+// does: each active register that runs this flavor is set to the release,
+// and kashi tells the connected ones to fetch it now (the others pick it up
+// when they next connect). A register that hasn't reported its flavor yet is
+// left alone and listed, since it may be the other build.
+func targetAllRegisters(baseURL, token string, releaseID int64, version, flavor string) error {
+	req, err := http.NewRequest(http.MethodGet, baseURL+"/app_updates/registers", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("list registers failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
+	}
+	var list struct {
+		Registers []struct {
+			ID         int64  `json:"id"`
+			BranchCode string `json:"branch_code"`
+			Code       string `json:"code"`
+			IsActive   bool   `json:"is_active"`
+			AppFlavor  string `json:"app_flavor"`
+			AppVersion string `json:"app_version"`
+			Connected  bool   `json:"connected"`
+		} `json:"registers"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		return fmt.Errorf("read registers: %w", err)
+	}
+
+	var ids []int64
+	var targeted, skipped []string
+	for _, r := range list.Registers {
+		if !r.IsActive {
+			continue
+		}
+		name := r.BranchCode + "/" + r.Code
+		switch r.AppFlavor {
+		case flavor:
+			ids = append(ids, r.ID)
+			state := "offline, updates when it connects"
+			if r.Connected {
+				state = "online"
+			}
+			targeted = append(targeted, fmt.Sprintf("  %s (runs %s, %s)", name, r.AppVersion, state))
+		case "":
+			skipped = append(skipped, "  "+name+" (hasn't reported which build it runs)")
+		}
+	}
+	for _, line := range skipped {
+		fmt.Println("Skipped", strings.TrimSpace(line))
+	}
+	if len(ids) == 0 {
+		return fmt.Errorf("no active %s register to update; set them on the App Updates page", flavor)
+	}
+
+	raw, _ := json.Marshal(map[string]any{"release_id": releaseID, "register_ids": ids})
+	req, err = http.NewRequest(http.MethodPut, baseURL+"/app_updates/target", bytes.NewReader(raw))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err = (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("set target failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
+	}
+	fmt.Printf("Set %d register(s) to %s:\n%s\n", len(ids), version, strings.Join(targeted, "\n"))
+	fmt.Println("Follow their progress on kashi's App Updates page.")
 	return nil
 }
 
