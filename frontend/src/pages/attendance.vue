@@ -601,10 +601,22 @@ onUnmounted(() => {
   background-color: #f57149;
   color: #5d1a06;
 }
+/* Flex rather than v-list-item's own grid: inside the two-column list grid,
+   the nested grid sized the row before the punches wrapped, so a day with
+   many punches spilled onto the card below. As a flex row the card grows
+   with them. */
 .attendance-item {
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   min-height: 180px;
   margin: 0;
+  display: flex;
+  align-items: flex-start;
+  height: auto;
+}
+.attendance-item :deep(.v-list-item__content) {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: visible;
 }
 .attendance-item :deep(.v-list-item__prepend) {
   align-self: flex-start;
