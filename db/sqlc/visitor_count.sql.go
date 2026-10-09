@@ -20,6 +20,35 @@ func (q *Queries) GetVisitorCount(ctx context.Context, day string) (int64, error
 	return count, err
 }
 
+const listAllVisitorCounts = `-- name: ListAllVisitorCounts :many
+SELECT day, count, updated_at FROM visitor_counts ORDER BY day
+`
+
+// Every day's tally, for the resync backfill of days counted before
+// per-press events were logged (see visitorCountBackfill).
+func (q *Queries) ListAllVisitorCounts(ctx context.Context) ([]VisitorCount, error) {
+	rows, err := q.db.QueryContext(ctx, listAllVisitorCounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []VisitorCount{}
+	for rows.Next() {
+		var i VisitorCount
+		if err := rows.Scan(&i.Day, &i.Count, &i.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVisitorCountsForMonth = `-- name: ListVisitorCountsForMonth :many
 SELECT day, count FROM visitor_counts
 WHERE day LIKE ?1

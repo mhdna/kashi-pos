@@ -12,3 +12,8 @@ ON CONFLICT(day) DO UPDATE SET
 SELECT day, count FROM visitor_counts
 WHERE day LIKE sqlc.arg(month_prefix)
 ORDER BY day;
+
+-- name: ListAllVisitorCounts :many
+-- Every day's tally, for the resync backfill of days counted before
+-- per-press events were logged (see visitorCountBackfill).
+SELECT day, count, updated_at FROM visitor_counts ORDER BY day;

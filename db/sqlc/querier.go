@@ -350,6 +350,9 @@ type Querier interface {
 	// per-product lookup in productMap.
 	ListAllProductAttributeValues(ctx context.Context) ([]ListAllProductAttributeValuesRow, error)
 	ListAllSalespersonAttendanceEvents(ctx context.Context) ([]SalespersonAttendanceEvent, error)
+	// Every day's tally, for the resync backfill of days counted before
+	// per-press events were logged (see visitorCountBackfill).
+	ListAllVisitorCounts(ctx context.Context) ([]VisitorCount, error)
 	ListAllVisitorEvents(ctx context.Context) ([]ListAllVisitorEventsRow, error)
 	ListAssets(ctx context.Context) ([]Asset, error)
 	ListAttendanceComplaints(ctx context.Context, attendanceDate string) ([]AttendanceComplaint, error)

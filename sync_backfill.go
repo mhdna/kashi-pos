@@ -833,12 +833,50 @@ func (a *App) resyncShiftCloses(ctx context.Context, client *centralClient, opts
 	return rep, nil
 }
 
+// visitorCountBackfill covers days counted before the till logged one
+// visitor_events row per press (those started in late September 2026):
+// such a day has a tally in visitor_counts but fewer logged presses than
+// the tally, and only the presses ever reach kashi. For each day it returns
+// one synthetic "in" per missing visit, so kashi's footfall matches the
+// number the till shows. Refs are fixed ("count-backfill|<day>|<n>"), so a
+// second resync finds them already in kashi instead of doubling them. The
+// real press times are unknown; they're stamped at the tally's last update,
+// so kashi's hourly view puts those days in one hour while day and month
+// totals are right.
+func visitorCountBackfill(events []db.ListAllVisitorEventsRow, counts []db.VisitorCount) []db.ListAllVisitorEventsRow {
+	net := make(map[string]int64, len(counts))
+	for _, e := range events {
+		if e.Direction == "out" {
+			net[e.Day]--
+		} else {
+			net[e.Day]++
+		}
+	}
+	var out []db.ListAllVisitorEventsRow
+	for _, c := range counts {
+		for n := net[c.Day] + 1; n <= c.Count; n++ {
+			out = append(out, db.ListAllVisitorEventsRow{
+				ClientRef:  fmt.Sprintf("count-backfill|%s|%d", c.Day, n),
+				Day:        c.Day,
+				Direction:  "in",
+				OccurredAt: c.UpdatedAt,
+			})
+		}
+	}
+	return out
+}
+
 func (a *App) resyncVisitorEvents(ctx context.Context, client *centralClient, opts ResyncOptions) (ResyncEntityReport, error) {
 	rep := ResyncEntityReport{Entity: "visitor_events"}
 	rows, err := a.store.ListAllVisitorEvents(ctx)
 	if err != nil {
 		return rep, err
 	}
+	counts, err := a.store.ListAllVisitorCounts(ctx)
+	if err != nil {
+		return rep, err
+	}
+	rows = append(rows, visitorCountBackfill(rows, counts)...)
 	rep.Local = len(rows)
 	byRef := make(map[string]db.ListAllVisitorEventsRow, len(rows))
 	refs := make([]string, 0, len(rows))

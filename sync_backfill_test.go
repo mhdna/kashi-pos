@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"maps"
 	"net/http"
@@ -679,5 +680,35 @@ func TestResyncAllKeepsBigCursorsOnSameServer(t *testing.T) {
 	third := run()
 	if !third["clients"] || !third["products"] {
 		t.Fatalf("run after a server change kept old cursors: %v", third)
+	}
+}
+
+// Days tallied before per-press logging get synthetic "in"s up to the
+// tally, with stable refs; a day whose presses already match its tally
+// gets none.
+func TestVisitorCountBackfill(t *testing.T) {
+	events := []db.ListAllVisitorEventsRow{
+		{ClientRef: "a", Day: "2026-09-21", Direction: "in"},
+		{ClientRef: "b", Day: "2026-09-21", Direction: "in"},
+		{ClientRef: "c", Day: "2026-09-22", Direction: "in"},
+		{ClientRef: "d", Day: "2026-09-22", Direction: "out"},
+	}
+	counts := []db.VisitorCount{
+		{Day: "2026-09-01", Count: 3, UpdatedAt: "2026-09-01 21:30:35"},
+		{Day: "2026-09-21", Count: 2},
+		{Day: "2026-09-22", Count: 0},
+	}
+	got := visitorCountBackfill(events, counts)
+	if len(got) != 3 {
+		t.Fatalf("backfill = %d rows, want 3 (only Sep 1's tally is missing presses): %+v", len(got), got)
+	}
+	for i, r := range got {
+		want := fmt.Sprintf("count-backfill|2026-09-01|%d", i+1)
+		if r.ClientRef != want || r.Direction != "in" || r.OccurredAt != "2026-09-01 21:30:35" {
+			t.Fatalf("row %d = %+v, want ref %s, in, at the tally's last update", i, r, want)
+		}
+	}
+	if again := visitorCountBackfill(events, counts); again[2].ClientRef != got[2].ClientRef {
+		t.Fatal("backfill refs must be the same on every run")
 	}
 }
