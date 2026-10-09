@@ -40,7 +40,15 @@
         hide-details
         style="max-width: 190px"
         @change="loadHistory"
-      /><v-spacer /><v-menu v-if="auth.isLoggedIn" :close-on-content-click="false">
+      /><v-spacer /><v-btn
+        v-if="auth.isLoggedIn"
+        variant="tonal"
+        prepend-icon="mdi-message-draw"
+        class="me-1"
+        :disabled="!rows.length"
+        @click="openRequestDialog"
+        >Request change</v-btn
+      ><v-menu v-if="auth.isLoggedIn" :close-on-content-click="false">
         <template #activator="{ props }">
           <v-btn v-bind="props" variant="tonal" prepend-icon="mdi-clipboard-check-outline" class="me-1">
             Requests<span v-if="pendingComplaints.length" class="ms-1">({{ pendingComplaints.length }})</span>
@@ -110,13 +118,6 @@
               <div v-if="item.events.length" class="attendance-summary">
                 <span class="text-caption text-medium-emphasis">{{ item.events.length }} event{{ item.events.length === 1 ? "" : "s" }}</span>
               </div>
-              <v-btn
-                size="small"
-                variant="tonal"
-                prepend-icon="mdi-message-draw"
-                @click="openComplaint(item)"
-                >{{ item.events.length ? "Request change" : "Request missing punch" }}</v-btn
-              >
             </div>
           </div>
         </v-list-item>
@@ -130,6 +131,18 @@
         ><v-card-title>Request attendance change</v-card-title
         ><v-card-text
           ><v-select
+            :model-value="complaintEmployee?.employeeId ?? null"
+            :items="rows"
+            item-title="employeeName"
+            item-value="employeeId"
+            label="Person"
+            prepend-inner-icon="mdi-account-outline"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="mb-2"
+            @update:model-value="selectComplaintPerson"
+          /><v-select
             v-model="complaintAction"
             :items="complaintActionOptions"
             item-title="title"
@@ -175,11 +188,13 @@
             v-if="managerApproval && complaintAction === 'add'"
             variant="tonal"
             title="Record it now with the manager password, without waiting for approval"
+            :disabled="!complaintEmployee"
             @click="askManager({ kind: 'add' })"
             >Add now (manager)</v-btn
           ><v-btn
             color="primary"
             :loading="savingComplaint"
+            :disabled="!complaintEmployee"
             @click="submitComplaint"
             >Submit request</v-btn
           ></v-card-actions
@@ -345,6 +360,20 @@ function requestSummary(item: any) {
   if (item.action === "delete") return `Delete ${item.originalTime}`;
   return `Replace ${item.originalTime} with ${item.requestedType} ${item.requestedTime}`;
 }
+// One "Request change" button by Requests; the person is picked in the
+// dialog, and the action/punch/time follow whoever is picked.
+function openRequestDialog() {
+  complaintEmployee.value = null;
+  complaintEventId.value = null;
+  complaintAction.value = "add";
+  complaintType.value = "IN";
+  setComplaintTime(new Date().toTimeString().slice(0, 5));
+  complaintDialog.value = true;
+}
+function selectComplaintPerson(employeeId: number | null) {
+  const row = rows.value.find((r: any) => r.employeeId === employeeId);
+  if (row) openComplaint(row);
+}
 function openComplaint(row: any) {
   complaintEmployee.value = row;
   const first = row.events[0];
@@ -450,6 +479,7 @@ async function confirmManager() {
   managerDialog.error = "";
   try {
     if (action.kind === "add") {
+      if (!complaintEmployee.value) throw new Error("Pick a person first.");
       await AddAttendanceWithManagerApproval(
         complaintEmployee.value.employeeId,
         selectedDate.value,
