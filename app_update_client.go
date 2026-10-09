@@ -65,7 +65,10 @@ func (c *centralClient) DownloadAppUpdate(ctx context.Context, id int64, path st
 	if !c.enabled() {
 		return errCentralSyncDisabled
 	}
-	out, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	// Not O_APPEND: on Windows an append-only handle can't be truncated
+	// ("Access is denied"), and a 200 below has to start the file over.
+	// Seeking to the end gives the same resume point.
+	out, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -94,8 +97,13 @@ func (c *centralClient) DownloadAppUpdate(ctx context.Context, id int64, path st
 	case http.StatusOK:
 		// The server sent the whole file (no range support, or a stale
 		// partial): start over.
-		if err := out.Truncate(0); err != nil {
-			return err
+		if have > 0 {
+			if err := out.Truncate(0); err != nil {
+				return err
+			}
+			if _, err := out.Seek(0, io.SeekStart); err != nil {
+				return err
+			}
 		}
 		have = 0
 	case http.StatusRequestedRangeNotSatisfiable:
