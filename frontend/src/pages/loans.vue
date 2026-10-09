@@ -121,23 +121,53 @@
               density="comfortable"
               :rules="[required]"
             />
-            <v-text-field
-              v-model.number="form.amount"
-              label="Amount"
-              type="number"
-              prepend-inner-icon="mdi-cash"
-              :suffix="selectedAccount?.currencyCode || ''"
-              variant="outlined"
-              density="comfortable"
-              :rules="[required, positive]"
-            />
-
+            <!-- One line per account it went into ($100 + 200,000 LL is two
+                 lines), each saved as its own loan in that account's
+                 currency, as Add expense does. -->
             <div class="section-label mb-2">Deposited to</div>
-            <v-chip-group v-model="form.cashboxAccountId" mandatory selected-class="text-primary" column>
-              <v-chip v-for="method in paymentMethods" :key="method.id" :value="method.id" variant="outlined" filter>
-                {{ method.displayName }}
-              </v-chip>
-            </v-chip-group>
+            <div v-for="(line, index) in form.payments" :key="line.key" class="payment-line mb-2">
+              <v-select
+                v-model="line.cashboxAccountId"
+                :items="accountChoices(index)"
+                item-title="displayName"
+                item-value="id"
+                label="Account"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                class="payment-account"
+              />
+              <v-text-field
+                v-model="line.amount"
+                label="Amount"
+                inputmode="decimal"
+                :suffix="accountOf(line.cashboxAccountId)?.currencyCode || ''"
+                variant="outlined"
+                density="comfortable"
+                hide-details
+                class="payment-amount"
+                @update:model-value="(v: string) => (line.amount = cleanAmount(v))"
+              />
+              <v-btn
+                v-if="form.payments.length > 1"
+                icon="mdi-close"
+                variant="text"
+                size="small"
+                aria-label="Remove this account"
+                @click="form.payments.splice(index, 1)"
+              />
+            </div>
+            <v-btn
+              v-if="form.payments.length < paymentMethods.length"
+              variant="text"
+              size="small"
+              prepend-icon="mdi-plus"
+              class="mb-1"
+              @click="addPaymentLine"
+            >
+              Add payment method
+            </v-btn>
+            <div v-if="totalsLabel" class="text-body-2 font-weight-bold mt-1">Total: {{ totalsLabel }}</div>
           </v-form>
         </v-card-text>
         <v-card-actions class="px-5 pb-4">
@@ -242,44 +272,77 @@ function onPhotosUploaded(clientRef: string) {
 const dialog = ref(false);
 const saving = ref(false);
 const formRef = ref();
-const form = ref({ description: "", category: "", amount: null as number | null, cashboxAccountId: null as number | null });
-const selectedAccount = computed(() => paymentMethods.value.find((m) => m.id === form.value.cashboxAccountId));
+type PaymentLine = { key: number; cashboxAccountId: number | null; amount: string };
+let lineKey = 0;
+const form = ref({ description: "", category: "", payments: [] as PaymentLine[] });
 const required = (v: unknown) => (v !== null && v !== undefined && v !== "") || "Required";
-const positive = (v: unknown) => Number(v) > 0 || "Must be more than 0";
-// Loans need a category (CreateLoan's contract, as before).
+
+// The payment lines work exactly as on Add expense (expenses.vue).
+function accountOf(id: number | null) {
+  return paymentMethods.value.find((m) => m.id === id);
+}
+// Each account once: a line can't pick one another line already uses.
+function accountChoices(index: number) {
+  const taken = new Set(form.value.payments.filter((_, i) => i !== index).map((p) => p.cashboxAccountId));
+  return paymentMethods.value.filter((m) => !taken.has(m.id));
+}
+function cleanAmount(value: string) {
+  const digits = String(value ?? "").replace(/[^\d.]/g, "");
+  const [whole = "", ...rest] = digits.split(".");
+  return rest.length ? `${whole}.${rest.join("")}` : whole;
+}
+function addPaymentLine() {
+  const next = accountChoices(form.value.payments.length)[0];
+  form.value.payments.push({ key: ++lineKey, cashboxAccountId: next?.id ?? null, amount: "" });
+}
+const filledLines = computed(() =>
+  form.value.payments.filter((p) => p.cashboxAccountId && Number(p.amount) > 0),
+);
+const totalsLabel = computed(() => {
+  const byCurrency = new Map<string, number>();
+  for (const p of filledLines.value) {
+    const code = accountOf(p.cashboxAccountId)?.currencyCode || "";
+    byCurrency.set(code, (byCurrency.get(code) ?? 0) + Number(p.amount));
+  }
+  return [...byCurrency].map(([code, sum]) => `${sum.toLocaleString()} ${code}`.trim()).join(" + ");
+});
+// Loans need a category (CreateLoan's contract, as before), and every line
+// that was started must be complete.
 const canSave = computed(
   () =>
     Boolean(form.value.description?.trim()) &&
     Boolean(form.value.category) &&
-    Number(form.value.amount) > 0 &&
-    Boolean(form.value.cashboxAccountId),
+    filledLines.value.length > 0 &&
+    form.value.payments.every((p) => Number(p.amount) > 0 && p.cashboxAccountId),
 );
 
 function openAdd() {
-  form.value = {
-    description: "",
-    category: "",
-    amount: null,
-    cashboxAccountId: paymentMethods.value.length === 1 ? paymentMethods.value[0].id : null,
-  };
+  form.value = { description: "", category: "", payments: [] };
+  addPaymentLine();
   dialog.value = true;
 }
 
+// One loan per line, same category and description; the photo prompt goes
+// with the first.
 async function submit() {
   const valid = await formRef.value?.validate();
   if (!valid?.valid || !canSave.value) return;
   saving.value = true;
   try {
-    const created = await CreateLoan(
-      form.value.description.trim(),
-      form.value.category,
-      Math.round((form.value.amount ?? 0) * 100),
-      selectedAccount.value?.currencyCode ?? "USD",
-      form.value.cashboxAccountId as number,
-    );
+    let first: any = null;
+    for (const line of filledLines.value) {
+      const created = await CreateLoan(
+        form.value.description.trim(),
+        form.value.category,
+        Math.round(Number(line.amount) * 100),
+        accountOf(line.cashboxAccountId)?.currencyCode ?? "USD",
+        line.cashboxAccountId as number,
+      );
+      if (!first && created?.clientRef) first = created;
+    }
     dialog.value = false;
     await list.refresh();
-    if (created?.syncConfigured && created?.clientRef) openUploadDialog(created.clientRef);
+    if (first?.syncConfigured) openUploadDialog(first.clientRef);
   } finally {
     saving.value = false;
   }
@@ -317,6 +380,18 @@ onBeforeUnmount(() => {
 
 <style scoped>
 @import "@/styles/records-page.css";
+
+.payment-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.payment-account {
+  flex: 1 1 55%;
+}
+.payment-amount {
+  flex: 1 1 45%;
+}
 
 .category-grid {
   display: grid;
