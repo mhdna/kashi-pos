@@ -1,4 +1,8 @@
-/* Shared by the Expenses, Loans and Transfers pages: the invoices-list
+/* Pulled in with @import from a scoped <style>, which leaves these rules
+   unscoped, so they're plain selectors (a :deep() here is dropped as
+   invalid). Every class is records-* or page-specific enough not to clash.
+
+   Shared by the Expenses, Loans and Transfers pages: the invoices-list
    layout (a full-height virtual table that loads more as it scrolls) with a
    photo as the first column, and the invoice-style detail dialog. */
 
@@ -30,19 +34,20 @@
   background: transparent !important;
 }
 
-.records-table :deep(thead th) {
+.records-table thead th {
   background: rgb(var(--v-theme-background)) !important;
+  box-shadow: none !important;
 }
 
-.records-table :deep(.v-table__wrapper) {
+.records-table .v-table__wrapper {
   overflow-y: auto;
 }
 
-.records-table :deep(tbody tr) {
+.records-table tbody tr {
   cursor: pointer;
 }
 
-.records-table :deep(td) {
+.records-table td {
   white-space: nowrap;
 }
 
