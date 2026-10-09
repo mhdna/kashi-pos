@@ -137,3 +137,12 @@ JOIN invoice_client_refs r ON r.invoice_id = ip.invoice_id
 JOIN sync_outbox o ON o.client_ref = r.client_ref
 WHERE ip.product_id = sqlc.arg(product_id)
   AND (o.status != 'synced' OR o.synced_at > sqlc.arg(as_of));
+
+-- name: ListBranchStockForProducts :many
+-- Other branches' stock for one page of the Inventory list, keyed back to
+-- the local product row.
+SELECT p.id AS product_id, bs.branch_code, bs.quantity, bs.price_cents
+FROM branch_stock bs
+JOIN products p ON p.uid = bs.variant_uid
+WHERE p.id IN (sqlc.slice('product_ids'))
+ORDER BY bs.branch_code;

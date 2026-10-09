@@ -240,6 +240,8 @@ export function ListIncomingTransferRequests():Promise<Array<Record<string, any>
 
 export function ListInventories():Promise<Array<Record<string, any>>>;
 
+export function ListInventoryCursor(arg1:number,arg2:number,arg3:string):Promise<main.ProductCursorPage>;
+
 export function ListInvoicesFilteredPage(arg1:number,arg2:number,arg3:string):Promise<main.InvoicePage>;
 
 export function ListInvoicesPage(arg1:number,arg2:number):Promise<main.InvoicePage>;

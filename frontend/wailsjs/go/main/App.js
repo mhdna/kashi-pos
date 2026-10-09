@@ -478,6 +478,10 @@ export function ListInventories() {
   return window['go']['main']['App']['ListInventories']();
 }
 
+export function ListInventoryCursor(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ListInventoryCursor'](arg1, arg2, arg3);
+}
+
 export function ListInvoicesFilteredPage(arg1, arg2, arg3) {
   return window['go']['main']['App']['ListInvoicesFilteredPage'](arg1, arg2, arg3);
 }

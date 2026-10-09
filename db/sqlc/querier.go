@@ -360,6 +360,9 @@ type Querier interface {
 	ListAttendanceEvents(ctx context.Context, eventDate string) ([]AttendanceEvent, error)
 	ListAttendanceEventsByEmployeeDate(ctx context.Context, arg ListAttendanceEventsByEmployeeDateParams) ([]AttendanceEvent, error)
 	ListAttendanceEventsByMonth(ctx context.Context, eventDate string) ([]AttendanceEvent, error)
+	// Other branches' stock for one page of the Inventory list, keyed back to
+	// the local product row.
+	ListBranchStockForProducts(ctx context.Context, productIds []int64) ([]ListBranchStockForProductsRow, error)
 	ListBranchTargets(ctx context.Context) ([]BranchTarget, error)
 	// Targets whose [date_from, date_to] range intersects [range_from,
 	// range_to]. kashi-pos only ever shows the current calendar month, so

@@ -1,107 +1,333 @@
 <template>
-  <v-card class="pa-4 mb-4">
-    <v-card-title>Inventory</v-card-title>
-    <v-data-table :headers="headers" :items="items" :loading="loading" density="compact" hover />
-  </v-card>
-
-  <v-card class="pa-4">
-    <v-card-title>Other Branches</v-card-title>
-    <v-card-subtitle>
-      Search what another branch has on hand and its selling price. Kept live from kashi.
-    </v-card-subtitle>
-    <v-card-text>
+  <!-- Same list as the product search dialog, as a page: products scroll in
+       batches above a search bar and the on-screen keyboard, and each row
+       carries what the other branches hold of it. -->
+  <div class="inventory-page">
+    <div :key="listKey" class="inventory-list">
+      <v-virtual-scroll
+        class="inventory-virtual-scroll"
+        :items="products"
+        :item-height="52"
+        height="100%"
+        @scroll.passive="handleScroll"
+      >
+        <template #default="{ item: product }">
+          <v-list-item
+            :key="product.id"
+            class="inventory-list-item"
+            density="comfortable"
+            link
+            @click="openProduct(product)"
+          >
+            <template #title>
+              <div class="inventory-row">
+                <span class="inventory-code text-medium-emphasis">{{ product.code }}</span>
+                <span class="inventory-name font-weight-medium text-truncate">{{ product.name }}</span>
+                <span v-if="product.brand" class="inventory-meta text-medium-emphasis">{{ product.brand }}</span>
+                <span v-if="product.color" class="inventory-variant text-medium-emphasis">{{ product.color }}</span>
+                <span v-if="product.size" class="inventory-variant text-medium-emphasis">{{ product.size }}</span>
+                <span class="inventory-branches">
+                  <v-chip
+                    v-for="branch in product.branches.slice(0, 4)"
+                    :key="branch.branchCode"
+                    :color="branch.quantity > 0 ? 'primary' : undefined"
+                    size="x-small"
+                    variant="tonal"
+                  >
+                    {{ branch.branchCode }} {{ branch.quantity }}
+                  </v-chip>
+                  <span v-if="product.branches.length > 4" class="text-caption text-medium-emphasis">
+                    +{{ product.branches.length - 4 }}
+                  </span>
+                </span>
+                <span class="inventory-price">${{ Number(product.price || 0).toFixed(2) }}</span>
+              </div>
+            </template>
+          </v-list-item>
+        </template>
+      </v-virtual-scroll>
+      <div v-if="loadError" class="inventory-status inventory-status-error">
+        <span class="text-error text-caption">{{ loadErrorMessage }}</span>
+        <v-btn size="small" variant="text" @click="loadMore">Retry</v-btn>
+      </div>
+      <div v-else class="inventory-status text-medium-emphasis">
+        <v-progress-circular v-if="loading" indeterminate color="primary" size="16" width="2" class="me-2" />
+        <span>{{ countLabel }}</span>
+      </div>
+    </div>
+    <v-divider />
+    <div class="inventory-search-row">
       <v-text-field
         v-model="search"
-        clearable
         density="compact"
         hide-details
-        label="Search by product name, code, or barcode"
+        placeholder="Search by name, code or barcode..."
         prepend-inner-icon="mdi-magnify"
         variant="outlined"
-        @update:model-value="onSearch"
+        clearable
+        autofocus
       />
-      <v-data-table
-        class="mt-4"
-        density="compact"
-        :headers="branchStockHeaders"
-        hover
-        :items="branchStockRows"
-        :items-per-page="25"
-        :loading="branchStockLoading"
-      >
-        <template #item.priceCents="{ item }">{{ formatMoney(item.priceCents) }}</template>
-        <template #no-data>
-          {{ search ? "No matching stock at any other branch." : "Type to search other branches' stock." }}
-        </template>
-      </v-data-table>
-    </v-card-text>
-  </v-card>
+    </div>
+    <div class="inventory-keyboard">
+      <InlineKeyboard v-model="search" :max-length="80" layout="code" />
+    </div>
+  </div>
+
+  <v-dialog v-model="detailOpen" max-width="560">
+    <v-card v-if="selected">
+      <v-card-title class="d-flex align-center ga-2">
+        <span class="text-truncate">{{ selected.name }}</span>
+        <v-spacer />
+        <v-btn icon="mdi-close" variant="text" density="comfortable" @click="detailOpen = false" />
+      </v-card-title>
+      <v-card-subtitle>
+        {{ [selected.code, selected.barcode, selected.brand, selected.color, selected.size].filter(Boolean).join(" · ") }}
+      </v-card-subtitle>
+      <v-card-text>
+        <div class="d-flex justify-space-between font-weight-bold mb-3">
+          <span>Price here</span>
+          <span>${{ Number(selected.price || 0).toFixed(2) }}</span>
+        </div>
+        <v-table v-if="selected.branches.length" density="compact">
+          <thead>
+            <tr>
+              <th>Branch</th>
+              <th class="text-end">On hand</th>
+              <th class="text-end">Their price</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="branch in selected.branches" :key="branch.branchCode">
+              <td>{{ branch.branchCode }}</td>
+              <td class="text-end">{{ branch.quantity }}</td>
+              <td class="text-end">${{ (branch.priceCents / 100).toFixed(2) }}</td>
+            </tr>
+          </tbody>
+        </v-table>
+        <div v-else class="text-medium-emphasis text-center py-4">
+          No other branch has stock of this product.
+        </div>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from "vue";
-import { ListInventories, ListBranchStock } from "../../wailsjs/go/main/App";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { ListInventoryCursor } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
-const headers = [
-  { title: "ID", key: "id" },
-  { title: "Name", key: "name" },
-];
-const items = ref<any[]>([]);
-const loading = ref(true);
+type BranchStock = { branchCode: string; quantity: number; priceCents: number };
+type InventoryItem = {
+  id: number;
+  name: string;
+  code: string;
+  barcode: string;
+  brand?: string;
+  color: string;
+  size: string;
+  price: number;
+  branches: BranchStock[];
+  otherStock: number;
+};
 
-onMounted(async () => {
-  try {
-    items.value = await ListInventories();
-  } catch {}
-  loading.value = false;
+const search = ref("");
+const debouncedSearch = ref("");
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(search, (value) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    debouncedSearch.value = (value ?? "").trim();
+  }, 250);
+});
+watch(debouncedSearch, () => resetList());
+
+// Same cursor paging as ProductSearchDialog.
+const batchSize = 50;
+const products = ref<InventoryItem[]>([]);
+const cursor = ref(0);
+const listKey = ref(0);
+const loading = ref(false);
+const hasMore = ref(true);
+const loadError = ref(false);
+const loadErrorMessage = ref("");
+const total = ref(-1);
+let latestRequest = 0;
+
+const countLabel = computed(() => {
+  if (total.value === 0) return "No products found";
+  if (total.value < 0) return loading.value ? "Loading…" : "";
+  const noun = total.value === 1 ? "product" : "products";
+  if (!hasMore.value) return `${total.value} ${noun} · all loaded`;
+  return `${total.value} ${noun} · ${products.value.length} loaded`;
 });
 
-const branchStockHeaders = [
-  { title: "Branch", key: "branchCode" },
-  { title: "Product", key: "productName" },
-  { title: "Code", key: "productCode" },
-  { title: "Barcode", key: "barcode" },
-  { title: "Quantity", key: "quantity" },
-  { title: "Price", key: "priceCents" },
-];
-const search = ref("");
-const branchStockRows = ref<any[]>([]);
-const branchStockLoading = ref(false);
-
-function formatMoney(cents: number) {
-  return `$${(cents / 100).toFixed(2)}`;
+function resetList() {
+  latestRequest++;
+  products.value = [];
+  cursor.value = 0;
+  hasMore.value = true;
+  total.value = -1;
+  loadError.value = false;
+  loadErrorMessage.value = "";
+  loading.value = false;
+  listKey.value++;
+  void loadMore();
 }
 
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
-function onSearch(value: string) {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => runSearch(value ?? ""), 250);
-}
-
-async function runSearch(value: string) {
-  branchStockLoading.value = true;
+async function loadMore() {
+  if (loading.value || !hasMore.value) return;
+  const request = ++latestRequest;
+  loading.value = true;
+  loadError.value = false;
+  loadErrorMessage.value = "";
   try {
-    branchStockRows.value = await ListBranchStock(value);
-  } catch {
-    branchStockRows.value = [];
+    const result = await ListInventoryCursor(cursor.value, batchSize, debouncedSearch.value);
+    if (request !== latestRequest) return;
+    products.value.push(...(result.items as InventoryItem[]));
+    cursor.value = result.nextCursor;
+    hasMore.value = result.hasMore;
+    if (typeof result.total === "number" && result.total >= 0) total.value = result.total;
+  } catch (e) {
+    if (request !== latestRequest) return;
+    loadError.value = true;
+    loadErrorMessage.value = e instanceof Error ? e.message : String(e);
   } finally {
-    branchStockLoading.value = false;
+    if (request === latestRequest) loading.value = false;
   }
 }
 
-// Kept live: kashi's branch_stock feed can land mid-search (another
-// branch made a sale, kashi approved a transfer, ...), so re-run
-// whatever's currently typed whenever a sync pull actually applied
-// something -- same "go re-fetch this" contract every other synced
-// entity's page already listens for (see loans.vue/expenses.vue).
-let branchStockSyncUnsub: (() => void) | null = null;
+function handleScroll(event: Event) {
+  const element = event.currentTarget as HTMLElement;
+  if (element.scrollHeight - element.scrollTop - element.clientHeight <= 120) void loadMore();
+}
 
+const detailOpen = ref(false);
+const selected = ref<InventoryItem | null>(null);
+function openProduct(product: InventoryItem) {
+  selected.value = product;
+  detailOpen.value = true;
+}
+
+// Other branches' stock arrives from kashi's branch_stock feed; when a pull
+// applied some, reload so the quantities shown are the new ones.
+let branchStockSyncUnsub: (() => void) | null = null;
 onMounted(() => {
-  branchStockSyncUnsub = EventsOn("sync_applied:branch_stock", () => runSearch(search.value ?? ""));
+  resetList();
+  branchStockSyncUnsub = EventsOn("sync_applied:branch_stock", () => resetList());
 });
 
 onBeforeUnmount(() => {
+  clearTimeout(searchTimer);
+  latestRequest++;
   branchStockSyncUnsub?.();
 });
 </script>
+
+<style scoped>
+.inventory-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+}
+
+.inventory-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.inventory-virtual-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.inventory-list-item {
+  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.inventory-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.inventory-name {
+  flex: 1 1 auto;
+}
+
+.inventory-code,
+.inventory-meta,
+.inventory-variant {
+  font-size: 0.75rem;
+}
+
+.inventory-code,
+.inventory-meta {
+  flex: 0 0 96px;
+  width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-branches {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inventory-price {
+  flex: 0 0 72px;
+  text-align: end;
+  font-weight: 600;
+}
+
+.inventory-status {
+  flex: 0 0 auto;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+}
+
+.inventory-status-error {
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 16px;
+}
+
+.inventory-search-row {
+  flex: 0 0 auto;
+  padding: 8px 16px 6px;
+}
+
+/* Tall enough for the full "code" layout keyboard, as in the dialog. */
+.inventory-keyboard {
+  flex: 0 0 264px;
+  height: 264px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+  margin-inline: auto;
+  width: 100%;
+  max-width: 748px;
+  padding-inline: 8px;
+  padding-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .inventory-meta,
+  .inventory-variant {
+    display: none;
+  }
+}
+</style>

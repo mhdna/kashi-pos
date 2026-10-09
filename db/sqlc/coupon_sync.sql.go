@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
 
 const countBranchStockRows = `-- name: CountBranchStockRows :one
@@ -176,6 +177,61 @@ func (q *Queries) GetTransferRequestByClientRef(ctx context.Context, clientRef s
 		&i.SenderBranchName,
 	)
 	return i, err
+}
+
+const listBranchStockForProducts = `-- name: ListBranchStockForProducts :many
+SELECT p.id AS product_id, bs.branch_code, bs.quantity, bs.price_cents
+FROM branch_stock bs
+JOIN products p ON p.uid = bs.variant_uid
+WHERE p.id IN (/*SLICE:product_ids*/?)
+ORDER BY bs.branch_code
+`
+
+type ListBranchStockForProductsRow struct {
+	ProductID  int64  `json:"productId"`
+	BranchCode string `json:"branchCode"`
+	Quantity   int64  `json:"quantity"`
+	PriceCents int64  `json:"priceCents"`
+}
+
+// Other branches' stock for one page of the Inventory list, keyed back to
+// the local product row.
+func (q *Queries) ListBranchStockForProducts(ctx context.Context, productIds []int64) ([]ListBranchStockForProductsRow, error) {
+	query := listBranchStockForProducts
+	var queryParams []interface{}
+	if len(productIds) > 0 {
+		for _, v := range productIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:product_ids*/?", strings.Repeat(",?", len(productIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:product_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBranchStockForProductsRow{}
+	for rows.Next() {
+		var i ListBranchStockForProductsRow
+		if err := rows.Scan(
+			&i.ProductID,
+			&i.BranchCode,
+			&i.Quantity,
+			&i.PriceCents,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listIncomingTransferRequests = `-- name: ListIncomingTransferRequests :many
