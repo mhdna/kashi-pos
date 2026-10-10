@@ -235,6 +235,14 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 			}
 		}
 	}
+	invoiceClient, invoiceClientErr := a.store.GetClientByID(a.ctx, clientID)
+
+	// Post-sale WhatsApp "thank you / please rate us" message. Best-effort and
+	// off the checkout path -- see whatsAppThankYou.
+	if invoiceClientErr == nil {
+		go a.whatsAppThankYou(result.InvoiceCode, result.GrandTotal, invoiceClient, result.Items)
+	}
+
 	settings, settingsErr := a.store.GetSettings(a.ctx)
 	if settingsErr == nil && settings.ReceiptEnabled != 0 {
 		marketName := settings.MarketName
@@ -242,8 +250,8 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 			marketName = "Market"
 		}
 		customer := "Walk-in"
-		if client, err := a.store.GetClientByID(a.ctx, clientID); err == nil && client.Name != "" && !isWalkInClient(client) {
-			customer = client.Name
+		if invoiceClientErr == nil && invoiceClient.Name != "" && !isWalkInClient(invoiceClient) {
+			customer = invoiceClient.Name
 		}
 		roundingCurrency, currErr := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
 		if currErr != nil {
