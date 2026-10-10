@@ -40,3 +40,37 @@ tools/kashi-admin/kashi-admin
 tools/product-importer/product-importer
 tools/product-importer/frontend/dist
 build/windows/installer/tmp/
+
+# Kept out of the repo: local till databases (client data), sales/door logs,
+# exports, generated PDFs, binaries, media and personal editor settings.
+/database
+/db2
+/db/kashi.db*
+/dbdd/
+/tools/database
+/tools/kashi-admin/database
+/kashi-pos
+/run
+/doorlog.json
+/old/
+/build/backups/
+/.zed/
+/ElevenLabs_*.mp3
+/INV-*.png
+*.mp4
+*.pdf
+*.csv
+*.csv-old
+.~lock.*
+tools/gen-barcode.~1~/
+tools/kashi-admin/kashi-admin-new
+tools/kashi-admin/kashi-admin.exe
+tools/kashi-admin/-export-csv
+tools/kashi-admin/*doorlog.json
+tools/kashi-admin/sold
+tools/kashi-admin/sales.txt
+tools/kashi-admin/beirut.txt
+tools/kashi-admin/imported-to-import/
+tools/kashi-admin/to-restore-prices/
+tools/kashi-admin/conflicts/
+tools/kashi-admin/main-september-sale-staff-guide*
