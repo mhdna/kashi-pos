@@ -451,6 +451,8 @@ type Querier interface {
 	ListInvoicePayments(ctx context.Context, invoiceID int64) ([]InvoicePayment, error)
 	ListInvoicePaymentsByInvoiceIDs(ctx context.Context, ids []int64) ([]InvoicePayment, error)
 	ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
+	// Every invoice made by a salesperson kashi knows, with kashi's id for them.
+	ListInvoiceSalespersonRemoteIDs(ctx context.Context) ([]ListInvoiceSalespersonRemoteIDsRow, error)
 	ListInvoices(ctx context.Context) ([]Invoice, error)
 	ListInvoicesByDate(ctx context.Context, date string) ([]ListInvoicesByDateRow, error)
 	ListInvoicesByDateRange(ctx context.Context, arg ListInvoicesByDateRangeParams) ([]ListInvoicesByDateRangeRow, error)
@@ -602,6 +604,7 @@ type Querier interface {
 	// kashi decided this salesperson's device number (attendance_user_id_set in
 	// the salesperson feed); it replaces whatever was typed in here.
 	SetSalespersonAttendanceIDByRemoteID(ctx context.Context, arg SetSalespersonAttendanceIDByRemoteIDParams) error
+	SetSalespersonIDsReportedAt(ctx context.Context, salespersonIdsReportedAt sql.NullString) error
 	SetSalespersonIsSalespersonByRemoteID(ctx context.Context, arg SetSalespersonIsSalespersonByRemoteIDParams) error
 	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error

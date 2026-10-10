@@ -197,6 +197,7 @@ func (a *App) runPullTick(ctx context.Context) {
 	if err := a.pushSettings(ctx, client); err != nil {
 		log.Printf("sync settings: %v", err)
 	}
+	a.reportInvoiceSalespersons(ctx, client)
 	// Local-queue driven: no request at all unless a photo is waiting.
 	a.runShiftReceiptUploadsOnce(ctx, client)
 

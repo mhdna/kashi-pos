@@ -345,6 +345,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				LoyaltyPointsDelta:     loyaltyPointsDelta,
 				OccurredAt:             time.Now().UTC(),
 				SalespersonName:        params.Salesperson,
+				SalespersonID:          salespersonRemoteIDByName(a.ctx, q, params.Salesperson),
 				Payments:               payloadPayments,
 				Items:                  payloadItems,
 			}); err != nil {

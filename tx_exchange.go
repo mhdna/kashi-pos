@@ -251,6 +251,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				LoyaltyPointsDelta:     0,
 				OccurredAt:             time.Now().UTC(),
 				SalespersonName:        salespersonName,
+				SalespersonID:          salespersonRemoteID(a.ctx, q, salespersonID),
 				Payments:               payloadPayments,
 				Items:                  payloadItems,
 				Cancellation:           policy.cancellation,

@@ -82,7 +82,11 @@ type branchInvoicePayload struct {
 	// shared entity across the branch boundary the way products are, so
 	// there's no branch-scoped id for kashi to store a foreign key against.
 	// Empty when no salesperson was recorded for this invoice.
-	SalespersonName  string                        `json:"salesperson_name,omitempty"`
+	SalespersonName string `json:"salesperson_name,omitempty"`
+	// SalespersonID is kashi's id for that salesperson (salespersons.
+	// remote_id), so a renamed salesperson stays one person on kashi's
+	// reports. 0 (omitted) when they aren't one of kashi's.
+	SalespersonID    int64                         `json:"salesperson_id,omitempty"`
 	Payments         []branchInvoicePaymentPayload `json:"payments"`
 	Items            []branchInvoicePayloadItem    `json:"items"`
 	RelatedClientRef string                        `json:"related_client_ref,omitempty"`

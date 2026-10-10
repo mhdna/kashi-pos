@@ -128,6 +128,9 @@ type App struct {
 	// said (in its "hello") that it pushes every change to synced data. The
 	// pull loop then only polls as a slow backstop -- see runPullTick.
 	wsPushesAll atomic.Bool
+	// salespersonIDsNextTry is when to retry the one-time report of past
+	// sales' salespersons (unix seconds; sync_salesperson_ids.go).
+	salespersonIDsNextTry atomic.Int64
 	// kashiQuickAccess: the live session's kashi supports central Quick
 	// Access (its hello lists "quick_access") -- see sync_quick_access.go.
 	kashiQuickAccess atomic.Bool

@@ -22,7 +22,7 @@ func (q *Queries) GetFeatureFlag(ctx context.Context, key string) (int64, error)
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number, max_overpayment_cents, rounding_currency, exchange_window_hours, default_opening_float_usd, default_opening_float_lbp, central_api_url, shift_receipt_upload_mode, full_mirror_confirmed_at, split_primary_currency, split_primary_first, split_primary_step, home_branch_code, oversell_mode, quick_access_mode, quick_access_mode_changed_at, quick_access_reported, display_prefs, display_prefs_rev FROM settings LIMIT 1
+SELECT branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, branch_code, exchange_rate, market_name, market_phone, market_description, return_policy, website, instagram, social_platforms, social_handles, receipt_font, receipt_title_size, receipt_body_size, receipt_cutoff, receipt_body_font, branch_phone, counter_number, max_overpayment_cents, rounding_currency, exchange_window_hours, default_opening_float_usd, default_opening_float_lbp, central_api_url, shift_receipt_upload_mode, full_mirror_confirmed_at, split_primary_currency, split_primary_first, split_primary_step, home_branch_code, oversell_mode, quick_access_mode, quick_access_mode_changed_at, quick_access_reported, display_prefs, display_prefs_rev, salesperson_ids_reported_at FROM settings LIMIT 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -77,6 +77,7 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.QuickAccessReported,
 		&i.DisplayPrefs,
 		&i.DisplayPrefsRev,
+		&i.SalespersonIdsReportedAt,
 	)
 	return i, err
 }

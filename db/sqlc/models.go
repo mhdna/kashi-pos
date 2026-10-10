@@ -559,6 +559,7 @@ type Setting struct {
 	QuickAccessReported      int64          `json:"quickAccessReported"`
 	DisplayPrefs             string         `json:"displayPrefs"`
 	DisplayPrefsRev          int64          `json:"displayPrefsRev"`
+	SalespersonIdsReportedAt sql.NullString `json:"salespersonIdsReportedAt"`
 }
 
 type Shift struct {

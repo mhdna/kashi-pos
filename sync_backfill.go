@@ -624,6 +624,7 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 		LoyaltyPointsDelta:     loyaltyDelta,
 		OccurredAt:             occurredAt,
 		SalespersonName:        salespersonName,
+		SalespersonID:          salespersonRemoteID(ctx, q, inv.SalespersonID),
 		Payments:               payments,
 		Items:                  items,
 		Historical:             historical,
