@@ -28,6 +28,12 @@
         <span>{{ formatBalance(incomeTotal, "USD", currencies, roundingMode) }}</span>
       </div>
     </template>
+    <div v-else class="shift-income-empty pa-3 text-caption text-medium-emphasis">
+      <div class="shift-income-empty-message d-flex align-center justify-center">
+        <v-icon icon="mdi-information-outline" size="18" class="me-1" />
+        {{ shiftId ? "No income found for the current shift." : "No open shift found." }}
+      </div>
+    </div>
     <!-- Money that went out during the shift, then income minus it. Display
          only: the shift's expected cash still doesn't take expenses or loans
          out (see GetShiftTotals). -->
@@ -43,12 +49,6 @@
       <div class="d-flex justify-space-between pt-2 mt-1 border-t font-weight-bold">
         <span>Net income</span>
         <span>{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
-      </div>
-    </div>
-    <div v-else class="shift-income-empty pa-3 text-caption text-medium-emphasis">
-      <div class="shift-income-empty-message d-flex align-center justify-center">
-        <v-icon icon="mdi-information-outline" size="18" class="me-1" />
-        {{ shiftId ? "No income found for the current shift." : "No open shift found." }}
       </div>
     </div>
     <div v-if="shiftId" class="shift-income-actions mt-auto">

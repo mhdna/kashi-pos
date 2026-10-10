@@ -385,6 +385,9 @@
                 density="compact"
                 hide-details
                 class="field-full"
+                :append-inner-icon="showCentralApiUrl ? 'mdi-eye' : 'mdi-eye-off'"
+                :type="showCentralApiUrl ? 'text' : 'password'"
+                @click:append-inner="showCentralApiUrl = !showCentralApiUrl"
               />
               <v-switch
                 :model-value="form.closeShiftRequiresSync"
@@ -2219,6 +2222,7 @@ const pageUnlockLabels: Record<string, string> = {
 const adminSettingsSaving = ref(false);
 const samplePrinting = ref(false);
 const showApiKey = ref(false);
+const showCentralApiUrl = ref(false);
 const showAdminToken = ref(false);
 const settingsLoading = ref(true);
 const settingsLoadError = ref(false);

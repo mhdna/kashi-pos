@@ -239,7 +239,6 @@
     :class="[
       'app-snackbar',
       {
-        'app-snackbar--success': snackbar.color === 'success',
         'app-snackbar--error': snackbar.color === 'red-darken-4',
       },
     ]"
@@ -1442,11 +1441,6 @@ onBeforeUnmount(() => {
   color: rgb(var(--v-theme-on-surface-variant)) !important;
   border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
-}
-.app-snackbar--success .v-snackbar__wrapper {
-  background: rgba(46, 125, 50, 0.85) !important;
-  color: #fff !important;
-  border-color: rgba(46, 125, 50, 0.4);
 }
 .app-snackbar--error .v-snackbar__wrapper {
   background: rgba(198, 40, 40, 0.85) !important;
