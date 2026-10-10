@@ -590,8 +590,8 @@ export function PreviewProductsCSV() {
   return window['go']['main']['App']['PreviewProductsCSV']();
 }
 
-export function PreviewShiftBalanceReplacement(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['PreviewShiftBalanceReplacement'](arg1, arg2, arg3, arg4);
+export function PreviewShiftBalanceReplacement(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['PreviewShiftBalanceReplacement'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function PrintClosedShiftReceipt(arg1) {
@@ -634,8 +634,8 @@ export function ReorderQuickAccessProducts(arg1) {
   return window['go']['main']['App']['ReorderQuickAccessProducts'](arg1);
 }
 
-export function ReplaceShiftBalance(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['ReplaceShiftBalance'](arg1, arg2, arg3, arg4);
+export function ReplaceShiftBalance(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['ReplaceShiftBalance'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function ReportDisplayPrefs(arg1) {

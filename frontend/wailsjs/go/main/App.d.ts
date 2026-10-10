@@ -296,7 +296,7 @@ export function PayClientAccount(arg1:number,arg2:number,arg3:number):Promise<Re
 
 export function PreviewProductsCSV():Promise<main.ProductCSVPreview>;
 
-export function PreviewShiftBalanceReplacement(arg1:number,arg2:number,arg3:number,arg4:number):Promise<main.ShiftBalanceReplacementPreview>;
+export function PreviewShiftBalanceReplacement(arg1:number,arg2:number,arg3:number,arg4:number,arg5:boolean):Promise<main.ShiftBalanceReplacementPreview>;
 
 export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>>;
 
@@ -318,7 +318,7 @@ export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
 
 export function ReorderQuickAccessProducts(arg1:Array<number>):Promise<void>;
 
-export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
+export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number,arg5:boolean):Promise<void>;
 
 export function ReportDisplayPrefs(arg1:string):Promise<void>;
 

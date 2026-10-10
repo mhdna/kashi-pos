@@ -58,6 +58,8 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 		return a.executeTransferDecisionCommand(ctx, cmd.Payload)
 	case "review_attendance_request":
 		return a.executeReviewAttendanceRequestCommand(cmd.Payload)
+	case "replace_shift_balance":
+		return a.executeReplaceShiftBalanceCommand(ctx, cmd.Payload)
 	default:
 		return fmt.Errorf("unknown command type %q", cmd.Type)
 	}
@@ -648,5 +650,44 @@ func (a *App) executeTransferDecisionCommand(ctx context.Context, payload json.R
 		return fmt.Errorf("record transfer decision: %w", err)
 	}
 	a.emitSyncApplied("transfer_requests")
+	return nil
+}
+
+// replaceShiftBalancePayload names the payment methods by name: cashbox
+// accounts are synced from kashi and matched by name on the till (see
+// applySyncedCashboxAccount), so kashi's ids mean nothing here.
+type replaceShiftBalancePayload struct {
+	FromAccount   string `json:"from_account"`
+	ToAccount     string `json:"to_account"`
+	AmountCents   int64  `json:"amount_cents"`
+	AllowNegative bool   `json:"allow_negative"`
+}
+
+// executeReplaceShiftBalanceCommand swaps (or, with allow_negative,
+// transfers) a balance in this till's open shift -- the same validation the
+// Shifts page's swap dialog uses, minus its admin check: kashi only queues
+// an allow_negative command for a user with its own permission for it.
+// Only the open shift: a closed shift has already reported its totals.
+func (a *App) executeReplaceShiftBalanceCommand(ctx context.Context, payload json.RawMessage) error {
+	var p replaceShiftBalancePayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return fmt.Errorf("decode replace_shift_balance payload: %w", err)
+	}
+	shift, err := a.store.GetOpenShift(ctx)
+	if err != nil {
+		return fmt.Errorf("no open shift on this till: %w", err)
+	}
+	from, err := a.store.GetCashboxAccountByName(ctx, strings.TrimSpace(p.FromAccount))
+	if err != nil {
+		return fmt.Errorf("payment method %q not found on this till", p.FromAccount)
+	}
+	to, err := a.store.GetCashboxAccountByName(ctx, strings.TrimSpace(p.ToAccount))
+	if err != nil {
+		return fmt.Errorf("payment method %q not found on this till", p.ToAccount)
+	}
+	if err := a.replaceShiftBalance(shift.ID, from.ID, to.ID, p.AmountCents, p.AllowNegative); err != nil {
+		return err
+	}
+	a.emitSyncApplied("shift_balances")
 	return nil
 }
