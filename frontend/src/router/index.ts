@@ -49,6 +49,12 @@ const router = createRouter({
           component: () => import("@/pages/salespersons.vue"),
           meta: { lockable: "salespersons" },
         },
+        // Admins see it outright; anyone else unlocks it with the manager
+        // password on the page itself (see GetConversionReport).
+        {
+          path: "conversion",
+          component: () => import("@/pages/conversion.vue"),
+        },
         {
           path: "transfers",
           component: () => import("@/pages/transfers.vue"),

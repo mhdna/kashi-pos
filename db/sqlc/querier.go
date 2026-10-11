@@ -402,6 +402,11 @@ type Querier interface {
 	// scans) to build the monthly income chart. Same net-of-returns and
 	// deferred-coupon-exclusion convention as GetInvoiceIncomeTotalByDate.
 	ListDailyInvoiceIncomeByMonth(ctx context.Context, yearMonth string) ([]ListDailyInvoiceIncomeByMonthRow, error)
+	// Sale invoices and their total per local day, for the conversion page
+	// (visitors who bought). Original sales only -- returns and exchanges
+	// aren't a visitor deciding to buy -- and cancelled sales are left out,
+	// like every other sales statistic.
+	ListDailySalesTotals(ctx context.Context, arg ListDailySalesTotalsParams) ([]ListDailySalesTotalsRow, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
 	// Read-only mirror of kashi's discount lists -- see pricelist.sql, which this
 	// file mirrors exactly.
@@ -528,6 +533,8 @@ type Querier interface {
 	ListTransfers(ctx context.Context) ([]Transfer, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	ListVisitorCountsForMonth(ctx context.Context, monthPrefix string) ([]ListVisitorCountsForMonthRow, error)
+	// day is "YYYY-MM-DD" text, so a text comparison is a date comparison.
+	ListVisitorCountsInRange(ctx context.Context, arg ListVisitorCountsInRangeParams) ([]ListVisitorCountsInRangeRow, error)
 	ListVisitorEventsForDay(ctx context.Context, day string) ([]ListVisitorEventsForDayRow, error)
 	// Run when kashi becomes reachable again: rows that were backed off while
 	// the connection was down (or by a pre-pushLink build, up to an hour) go

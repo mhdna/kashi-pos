@@ -17,3 +17,9 @@ ORDER BY day;
 -- Every day's tally, for the resync backfill of days counted before
 -- per-press events were logged (see visitorCountBackfill).
 SELECT day, count, updated_at FROM visitor_counts ORDER BY day;
+
+-- name: ListVisitorCountsInRange :many
+-- day is "YYYY-MM-DD" text, so a text comparison is a date comparison.
+SELECT day, count FROM visitor_counts
+WHERE day >= sqlc.arg(report_from) AND day <= sqlc.arg(report_to)
+ORDER BY day;
