@@ -119,6 +119,18 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 	} else if removed > 0 {
 		// Existing records are cleaned before importing the latest device data.
 	}
+	// Punches an approved change deleted or replaced that an older build
+	// pulled from the device again (see removed below): the delete and its
+	// audit copy were one transaction, so a live row matching an audit copy
+	// can only be such a re-import.
+	if _, err := a.conn.ExecContext(a.ctx, `DELETE FROM salesperson_attendance_events
+		WHERE device_id <> 'manual' AND EXISTS (
+			SELECT 1 FROM attendance_event_audit au
+			WHERE au.device_id <> 'manual'
+			  AND au.event_id = salesperson_attendance_events.event_id
+			  AND au.event_at = salesperson_attendance_events.event_at)`); err != nil {
+		return nil, err
+	}
 	if date == "" {
 		date = time.Now().Format("2006-01-02")
 	}
@@ -227,6 +239,27 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 	if err := rows.Close(); err != nil {
 		return nil, err
 	}
+	// The device keeps every punch it ever logged, so one an approved change
+	// deleted or replaced (its copy is in attendance_event_audit) comes back
+	// in every pull and must not be imported again. Keyed by the device's
+	// event id and time rather than device_id, which is the device's IP and
+	// can change.
+	removed := make(map[string]bool)
+	auditRows, err := a.conn.QueryContext(a.ctx, `SELECT event_id, event_at FROM attendance_event_audit WHERE device_id <> 'manual'`)
+	if err != nil {
+		return nil, err
+	}
+	for auditRows.Next() {
+		var eventID, eventAtValue string
+		if err := auditRows.Scan(&eventID, &eventAtValue); err != nil {
+			auditRows.Close()
+			return nil, err
+		}
+		removed[eventID+"|"+eventAtValue] = true
+	}
+	if err := auditRows.Close(); err != nil {
+		return nil, err
+	}
 	centralURL, err := a.syncCentralAPIURL()
 	if err != nil {
 		return nil, fmt.Errorf("load settings: %w", err)
@@ -245,6 +278,10 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 	newEvents := make([]branchAttendanceEvent, 0)
 	recorded := make([]recordedAttendance, 0)
 	for _, candidate := range candidates {
+		eventAtRFC := candidate.eventAt.Format(time.RFC3339)
+		if removed[candidate.item.ID+"|"+eventAtRFC] {
+			continue
+		}
 		key := fmt.Sprintf("%d|%s", candidate.salespersonID, candidate.item.Date)
 		duplicate := false
 		for _, previous := range existing[key] {
@@ -256,7 +293,6 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 		if duplicate {
 			continue
 		}
-		eventAtRFC := candidate.eventAt.Format(time.RFC3339)
 		if _, err = tx.ExecContext(a.ctx, `INSERT OR IGNORE INTO salesperson_attendance_events
 			(device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, ip, candidate.item.ID, candidate.salespersonID, candidate.userID,
