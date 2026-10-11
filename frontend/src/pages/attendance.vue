@@ -81,13 +81,13 @@
     <v-card class="attendance-card">
       <v-card-title class="d-flex align-center">
         {{ selectedDate }}<v-spacer /><span class="text-caption text-medium-emphasis"
-          >{{ rows.length }} employees</span
+          >{{ presentRows.length }} employees</span
         >
       </v-card-title>
       <v-progress-linear v-if="loading" indeterminate color="primary" />
       <v-list lines="two" class="attendance-list pa-2">
         <v-list-item
-          v-for="item in rows"
+          v-for="item in presentRows"
           :key="item.employeeId"
           class="attendance-item"
           rounded="lg"
@@ -113,15 +113,14 @@
                   <span class="attendance-event__label">{{ eventKind(event, Number(index)) }}</span>
                   <span class="attendance-event__time">{{ event.time }}</span>
                 </div>
-                <span v-if="!item.events.length" class="text-caption text-medium-emphasis">No attendance recorded</span>
               </div>
-              <div v-if="item.events.length" class="attendance-summary">
+              <div class="attendance-summary">
                 <span class="text-caption text-medium-emphasis">{{ item.events.length }} event{{ item.events.length === 1 ? "" : "s" }}</span>
               </div>
             </div>
           </div>
         </v-list-item>
-        <v-list-item v-if="!rows.length && !loading" class="attendance-empty text-medium-emphasis">
+        <v-list-item v-if="!presentRows.length && !loading" class="attendance-empty text-medium-emphasis">
           No attendance records for this day.
         </v-list-item>
       </v-list>
@@ -250,6 +249,9 @@ const selectedDate = ref(today);
 const selectedMonth = ref(today.slice(0, 7));
 const loading = ref(false);
 const rows = ref<any[]>([]);
+// The day's list shows only people who punched; rows keeps everyone with an
+// attendance ID so a missed punch can still be requested for them.
+const presentRows = computed(() => rows.value.filter((r: any) => r.events.length));
 const complaints = ref<any[]>([]);
 const complaintDialog = ref(false);
 const complaintTime = ref("");
