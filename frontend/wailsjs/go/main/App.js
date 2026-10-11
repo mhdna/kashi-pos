@@ -266,6 +266,10 @@ export function GetCloseShiftSyncGate() {
   return window['go']['main']['App']['GetCloseShiftSyncGate']();
 }
 
+export function GetConversionReport(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetConversionReport'](arg1, arg2, arg3);
+}
+
 export function GetCurrentMonth() {
   return window['go']['main']['App']['GetCurrentMonth']();
 }

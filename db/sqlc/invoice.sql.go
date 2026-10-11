@@ -644,6 +644,57 @@ func (q *Queries) ListDailyInvoiceIncomeByMonth(ctx context.Context, yearMonth s
 	return items, nil
 }
 
+const listDailySalesTotals = `-- name: ListDailySalesTotals :many
+SELECT CAST(date(i.created_at, 'localtime') AS TEXT) AS day,
+       CAST(COUNT(*) AS INTEGER) AS invoice_count,
+       CAST(COALESCE(SUM(i.grand_total), 0) AS INTEGER) AS revenue
+FROM sales_invoices si
+JOIN invoices i ON i.id = si.invoice_id
+WHERE date(i.created_at, 'localtime') >= ?1
+  AND date(i.created_at, 'localtime') <= ?2
+  AND i.cancelled_at IS NULL
+GROUP BY date(i.created_at, 'localtime')
+ORDER BY day
+`
+
+type ListDailySalesTotalsParams struct {
+	ReportFrom string `json:"reportFrom"`
+	ReportTo   string `json:"reportTo"`
+}
+
+type ListDailySalesTotalsRow struct {
+	Day          string `json:"day"`
+	InvoiceCount int64  `json:"invoiceCount"`
+	Revenue      int64  `json:"revenue"`
+}
+
+// Sale invoices and their total per local day, for the conversion page
+// (visitors who bought). Original sales only -- returns and exchanges
+// aren't a visitor deciding to buy -- and cancelled sales are left out,
+// like every other sales statistic.
+func (q *Queries) ListDailySalesTotals(ctx context.Context, arg ListDailySalesTotalsParams) ([]ListDailySalesTotalsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDailySalesTotals, arg.ReportFrom, arg.ReportTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDailySalesTotalsRow{}
+	for rows.Next() {
+		var i ListDailySalesTotalsRow
+		if err := rows.Scan(&i.Day, &i.InvoiceCount, &i.Revenue); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listIncomeAccountTotals = `-- name: ListIncomeAccountTotals :many
 WITH account_totals AS (
     SELECT ip.cashbox_id, ip.amount

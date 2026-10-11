@@ -230,6 +230,15 @@ const items = computed(() => {
       t: "Sales",
       locked: !auth.isAdmin && !pageUnlocks.value.salespersons,
     },
+    // Sales per visitor, so only while visitors are being counted (admins
+    // keep it to look back). A manager opens it with the manager password.
+    {
+      value: "conversion",
+      to: "/conversion",
+      icon: "mdi-account-convert",
+      t: "Conversion",
+      locked: !auth.isAdmin && !visitorCounterEnabled.value,
+    },
     {
       value: "transfers",
       to: "/transfers",

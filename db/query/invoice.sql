@@ -509,3 +509,19 @@ SELECT COUNT(*) FROM return_invoices WHERE sales_invoice_id = ?;
 
 -- name: CountCouponsRedeemedOnInvoice :one
 SELECT COUNT(*) FROM coupons WHERE redeemed_invoice_id = ?;
+
+-- name: ListDailySalesTotals :many
+-- Sale invoices and their total per local day, for the conversion page
+-- (visitors who bought). Original sales only -- returns and exchanges
+-- aren't a visitor deciding to buy -- and cancelled sales are left out,
+-- like every other sales statistic.
+SELECT CAST(date(i.created_at, 'localtime') AS TEXT) AS day,
+       CAST(COUNT(*) AS INTEGER) AS invoice_count,
+       CAST(COALESCE(SUM(i.grand_total), 0) AS INTEGER) AS revenue
+FROM sales_invoices si
+JOIN invoices i ON i.id = si.invoice_id
+WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
+  AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+  AND i.cancelled_at IS NULL
+GROUP BY date(i.created_at, 'localtime')
+ORDER BY day;

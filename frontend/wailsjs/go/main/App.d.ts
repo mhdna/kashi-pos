@@ -134,6 +134,8 @@ export function GetClientProfile(arg1:number):Promise<Record<string, any>>;
 
 export function GetCloseShiftSyncGate():Promise<main.CloseShiftSyncGate>;
 
+export function GetConversionReport(arg1:string,arg2:string,arg3:string):Promise<main.ConversionReport>;
+
 export function GetCurrentMonth():Promise<string>;
 
 export function GetCurrentShiftIncomeByAccount():Promise<Array<Record<string, any>>>;
