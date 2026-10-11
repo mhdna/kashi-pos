@@ -41,6 +41,9 @@ type shiftReportData struct {
 	CountedWhish    int64
 	ExchangeRate    int64
 	RoundingMode    string
+	// SignatureLines prints the cashier/manager sign-off lines at the foot
+	// (see shiftReportSignaturesFlag).
+	SignatureLines bool
 }
 
 type shiftDenominationCount struct {
@@ -180,11 +183,12 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	y = c.reportUSDCount(y, "WHISH", report.ExpectedWhish, report.CountedWhish)
 
 	y = c.rule(y+9) + 10
-	y, _ = c.center(y, "SHIFT STATUS: CLOSED", c.data.BodySize-1, true, false)
-	y += 22
-	y, _ = c.left(y, "Cashier: ____________________", c.data.BodySize-1, false)
-	y += 20
-	y, _ = c.left(y, "Manager: ____________________", c.data.BodySize-1, false)
+	if report.SignatureLines {
+		y += 12
+		y, _ = c.left(y, "Cashier: ____________________", c.data.BodySize-1, false)
+		y += 20
+		y, _ = c.left(y, "Manager: ____________________", c.data.BodySize-1, false)
+	}
 	y += 50
 	return y, nil
 }

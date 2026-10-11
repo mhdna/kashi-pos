@@ -75,6 +75,31 @@ const openingFloatEnabledFlag = "opening_float_enabled"
 // up.
 const countOpeningCashOnCloseFlag = "count_opening_cash_on_close"
 
+// shiftReportSignaturesFlag controls the "Cashier: ____" / "Manager: ____"
+// sign-off lines at the foot of the end-of-shift receipt. Default (missing
+// row or 1) prints them, the historical behaviour.
+const shiftReportSignaturesFlag = "shift_report_signatures"
+
+// shiftReportSignatures reports whether the end-of-shift receipt prints the
+// sign-off lines, defaulting to true when the flag has never been set.
+func (a *App) shiftReportSignatures() bool {
+	if v, err := a.store.GetFeatureFlag(a.ctx, shiftReportSignaturesFlag); err == nil {
+		return v != 0
+	}
+	return true
+}
+
+// SetShiftReportSignaturesEnabled toggles the end-of-shift receipt's
+// sign-off lines (see shiftReportSignaturesFlag).
+func (a *App) SetShiftReportSignaturesEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: shiftReportSignaturesFlag, Enabled: boolInt(enabled),
+	})
+}
+
 // openingFloatEnabled reports whether the opening cash float feature is
 // switched on at all, defaulting to true when the flag has never been set.
 func (a *App) openingFloatEnabled() bool {
@@ -961,6 +986,7 @@ func (a *App) buildShiftClosePrintData(
 		CountedWhish:    countedWhish,
 		ExchangeRate:    rate,
 		RoundingMode:    settings.RoundingMode,
+		SignatureLines:  a.shiftReportSignatures(),
 	}
 	marketName := strings.TrimSpace(settings.MarketName)
 	if marketName == "" {

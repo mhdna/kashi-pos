@@ -158,3 +158,20 @@ func TestExecuteCommand_TransferDecision(t *testing.T) {
 		t.Error("expected an error for a transfer this till doesn't have")
 	}
 }
+
+// The end-of-shift receipt's sign-off lines print until a till or kashi
+// turns them off.
+func TestShiftReportSignatures_DefaultOnAndPushable(t *testing.T) {
+	ctx := context.Background()
+	app := newRemoteControlTestApp(t)
+
+	if !app.shiftReportSignatures() {
+		t.Fatal("signature lines off on a till that never set them")
+	}
+	if err := app.executeUpdateSettingsCommand(ctx, json.RawMessage(`{"shift_report_signatures":false}`)); err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if app.shiftReportSignatures() {
+		t.Error("signature lines still on after kashi turned them off")
+	}
+}

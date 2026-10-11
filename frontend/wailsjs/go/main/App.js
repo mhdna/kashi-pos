@@ -790,6 +790,10 @@ export function SetShiftReceiptUploadMode(arg1) {
   return window['go']['main']['App']['SetShiftReceiptUploadMode'](arg1);
 }
 
+export function SetShiftReportSignaturesEnabled(arg1) {
+  return window['go']['main']['App']['SetShiftReportSignaturesEnabled'](arg1);
+}
+
 export function SetSoundsEnabled(arg1) {
   return window['go']['main']['App']['SetSoundsEnabled'](arg1);
 }

@@ -679,6 +679,7 @@
               />
 
               <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details class="field-full" />
+              <v-switch v-model="form.shiftReportSignatures" label="Cashier and manager signature lines on end-of-shift receipt" color="primary" hide-details class="field-full" />
             </v-card-text>
             <v-card-actions class="px-4 pb-4">
               <v-btn
@@ -1758,6 +1759,7 @@ import {
   SetOverchangeConfirmationEnabled,
   SetCloseShiftRequiresSyncEnabled,
   SetOpeningFloatEnabled,
+  SetShiftReportSignaturesEnabled,
   SetCountOpeningCashOnCloseEnabled,
   SetShiftReceiptUploadMode,
   SetPageUnlocked,
@@ -1908,7 +1910,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
   "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
   "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port qr code close shift photo upload" },
-  "printing-receipt": { tab: "printing", title: "Receipt settings", keywords: "market name phone description branch phone register return policy social platforms instagram facebook website font body size title size cut paper sample" },
+  "printing-receipt": { tab: "printing", title: "Receipt settings", keywords: "market name phone description branch phone register return policy social platforms instagram facebook website font body size title size cut paper sample signature cashier manager end of shift" },
   "money-general": { tab: "money", title: "Money settings", keywords: "vat tax rate exchange rate overpayment rounding mode currency calculator total currency auto append lbp zeros 000 confirm change overchange refund more than owed" },
   "money-float": { tab: "money", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift close count reconciliation expected enable disable feature toggle balance" },
   "money-exchange": { tab: "money", title: "Exchange settings", keywords: "exchange window days hours return" },
@@ -2040,6 +2042,7 @@ const form = reactive({
   receiptBodySize: 11,
   receiptBodyFont: "Printer Font A",
   receiptCutoff: true,
+  shiftReportSignatures: true,
   customItemDiscountsEnabled: false,
   customItemPricesEnabled: false,
   perUnitItemPricesEnabled: false,
@@ -2470,6 +2473,7 @@ async function loadSettings() {
         receiptBodySize: Number(s.receiptBodySize ?? 11),
         receiptBodyFont: s.receiptBodyFont ?? "Printer Font A",
         receiptCutoff: s.receiptCutoff !== false,
+        shiftReportSignatures: s.shiftReportSignatures !== false,
         customItemDiscountsEnabled: Boolean(s.customItemDiscountsEnabled),
         customItemPricesEnabled: Boolean(s.customItemPricesEnabled),
         perUnitItemPricesEnabled: Boolean(s.perUnitItemPricesEnabled),
@@ -3040,6 +3044,7 @@ async function saveSettings() {
       Number(form.receiptTitleSize), Number(form.receiptBodySize),
       Boolean(form.receiptCutoff),
     );
+    await SetShiftReportSignaturesEnabled(Boolean(form.shiftReportSignatures));
     await UpdateAttendanceConfig(form.akuvoxIP, form.akuvoxUsername, form.akuvoxPassword, Boolean(form.attendanceEnabled));
     if (form.attendanceApproverPassword.trim()) await UpdateAttendanceApproverPassword(form.attendanceApproverPassword.trim());
     await SetAttendanceDuplicateInterval(Math.max(0, Math.floor(Number(form.attendanceDuplicateIntervalSeconds) || 0)));
