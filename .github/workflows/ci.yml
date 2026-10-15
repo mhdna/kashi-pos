@@ -30,6 +30,11 @@ jobs:
         pnpm install --frozen-lockfile
         pnpm run build-only
 
+    # app.go embeds the empty template database, which is gitignored; tests
+    # work against an empty one.
+    - name: Template database
+      run: touch db/kashi.db
+
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
