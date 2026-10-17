@@ -887,6 +887,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 		result["openingFloatEnabled"] = true
 	}
 	result["shiftReportSignatures"] = a.shiftReportSignatures()
+	result["shiftReportUppercaseHeader"] = a.shiftReportUppercaseHeader()
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, countOpeningCashOnCloseFlag); flagErr == nil {
 		result["countOpeningCashOnClose"] = enabled != 0
 	} else {

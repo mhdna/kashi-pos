@@ -112,6 +112,7 @@ type updateSettingsCommandPayload struct {
 	NonAdminMonthNavEnabled       *bool `json:"non_admin_month_nav_enabled"`
 	OpeningFloatEnabled           *bool `json:"opening_float_enabled"`
 	ShiftReportSignatures         *bool `json:"shift_report_signatures"`
+	ShiftReportUppercaseHeader    *bool `json:"shift_report_uppercase_header"`
 	CountOpeningCashOnClose       *bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        *bool `json:"close_shift_requires_sync"`
@@ -296,6 +297,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}},
 		{p.OpeningFloatEnabled, func(b bool) error { return a.setFeatureFlagBool(ctx, openingFloatEnabledFlag, b) }},
 		{p.ShiftReportSignatures, a.SetShiftReportSignaturesEnabled},
+		{p.ShiftReportUppercaseHeader, a.SetShiftReportUppercaseHeaderEnabled},
 		{p.CountOpeningCashOnClose, func(b bool) error { return a.setFeatureFlagBool(ctx, countOpeningCashOnCloseFlag, b) }},
 		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},
 		{p.CloseShiftRequiresSync, a.SetCloseShiftRequiresSyncEnabled},

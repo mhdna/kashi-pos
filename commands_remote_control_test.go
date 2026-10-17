@@ -175,3 +175,20 @@ func TestShiftReportSignatures_DefaultOnAndPushable(t *testing.T) {
 		t.Error("signature lines still on after kashi turned them off")
 	}
 }
+
+// The end-of-shift receipt's header stays as typed until a till or kashi
+// asks for capitals.
+func TestShiftReportUppercaseHeader_DefaultOffAndPushable(t *testing.T) {
+	ctx := context.Background()
+	app := newRemoteControlTestApp(t)
+
+	if app.shiftReportUppercaseHeader() {
+		t.Fatal("capitalised header on a till that never set it")
+	}
+	if err := app.executeUpdateSettingsCommand(ctx, json.RawMessage(`{"shift_report_uppercase_header":true}`)); err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if !app.shiftReportUppercaseHeader() {
+		t.Error("header still as typed after kashi turned capitals on")
+	}
+}

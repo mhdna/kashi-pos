@@ -57,6 +57,7 @@ type branchSettingsPayload struct {
 	NonAdminMonthNavEnabled       bool `json:"non_admin_month_nav_enabled"`
 	OpeningFloatEnabled           bool `json:"opening_float_enabled"`
 	ShiftReportSignatures         bool `json:"shift_report_signatures"`
+	ShiftReportUppercaseHeader    bool `json:"shift_report_uppercase_header"`
 	CountOpeningCashOnClose       bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        bool `json:"close_shift_requires_sync"`
@@ -263,6 +264,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		NonAdminMonthNavEnabled:       a.flagEnabled(ctx, nonAdminMonthNavEnabledFlag),
 		OpeningFloatEnabled:           a.openingFloatEnabled(),
 		ShiftReportSignatures:         a.shiftReportSignatures(),
+		ShiftReportUppercaseHeader:    a.shiftReportUppercaseHeader(),
 		CountOpeningCashOnClose:       a.countOpeningCashOnClose(),
 		OverchangeConfirmation:        a.overchangeConfirmationEnabled(),
 		CloseShiftRequiresSync:        a.closeShiftRequiresSync(),
