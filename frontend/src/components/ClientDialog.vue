@@ -1,5 +1,7 @@
 <template>
-  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 320 : 760">
+  <!-- Reset only once the close animation is over: resetting on close put
+       the phone step back on screen while the dialog was still fading. -->
+  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 320 : 760" @after-leave="reset">
     <v-card v-if="step === 'phone'">
       <v-card-title class="font-weight-bold">Enter Phone Number</v-card-title>
       <v-card-text class="client-phone-layout">
@@ -126,14 +128,12 @@
     <v-card v-else-if="step === 'new'">
       <v-card-title>New Client</v-card-title>
       <v-card-text>
-        <v-text-field
-          :model-value="formatLebanesePhone(newClient.phone)"
-          placeholder="Phone Number"
-          variant="outlined"
-          density="compact"
+        <PhoneField
+          ref="newPhoneField"
+          v-model="newClient.phone"
           class="mb-2"
-          readonly
-          @update:model-value="newClient.phone = $event.replace(/\D/g, '')"
+          :error-messages="newPhoneError"
+          @focus="newPhoneActive = true"
         >
           <template #prepend>
             <span
@@ -144,7 +144,7 @@
             <span v-else class="country-flag">{{ selectedFlag }}</span>
             <span>+{{ selectedDialCode }}</span>
           </template>
-        </v-text-field>
+        </PhoneField>
         <v-text-field
           v-model="newClient.name"
           placeholder="Name"
@@ -155,8 +155,10 @@
           @keydown="preventClientNameNumber"
           @beforeinput="preventClientNameNumberInput"
           @keydown.enter="createClient"
+          @focus="newPhoneActive = false"
         />
-        <InlineKeyboard v-model="newClient.name" class="client-name-keyboard mt-3" />
+        <PhonePad v-if="newPhoneActive" class="mt-3" @press="newPhoneField?.press($event)" />
+        <InlineKeyboard v-else v-model="newClient.name" class="client-name-keyboard mt-3" />
       </v-card-text>
       <v-card-actions class="pa-4">
         <v-btn variant="text" @click="step = 'phone'">Back</v-btn>
@@ -190,9 +192,11 @@ import {
   toClient,
   type Client,
 } from "@/lib/client";
-import { formatLebanesePhone, normalizeLebanesePhone } from "@/lib/phone";
+import { normalizeLebanesePhone } from "@/lib/phone";
 import { playClickSound, playDtmfSound } from "@/lib/sound";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import PhoneField from "@/components/PhoneField.vue";
+import PhonePad from "@/components/PhonePad.vue";
 
 const emit = defineEmits<{ select: [client: Client] }>();
 
@@ -207,7 +211,12 @@ const phone = ref("");
 const phoneInput = ref<HTMLInputElement | null>(null);
 const phoneSubmitted = ref(false);
 const selectedCountry = ref<CountryCode>("LB");
+// newClient.phone is the number after the country code, as edited on the
+// new-client step; createClient puts the country code back.
 const newClient = reactive({ name: "", phone: "" });
+const newPhoneField = ref<InstanceType<typeof PhoneField> | null>(null);
+const newPhoneActive = ref(false);
+const newPhoneError = ref("");
 const phonePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
 const countries = getCountries()
@@ -232,6 +241,10 @@ const phoneError = computed(() =>
 watch([dialog, step], ([open, currentStep]) => {
   if (!open || currentStep !== "phone") return;
   void nextTick(() => phoneInput.value?.focus());
+});
+
+watch(() => newClient.phone, () => {
+  newPhoneError.value = "";
 });
 
 watch([phone, selectedCountry], () => {
@@ -383,27 +396,32 @@ async function lookupPhone() {
     const c = await GetClientByPhone(p);
     emit("select", toClient(c));
     dialog.value = false;
-    reset();
   } catch {
-    newClient.phone = p;
+    const dial = `+${selectedDialCode.value}`;
+    newClient.phone = p.startsWith(dial) ? p.slice(dial.length) : p;
     newClient.name = "";
+    newPhoneError.value = "";
+    newPhoneActive.value = false;
     step.value = "new";
   }
 }
 
 async function createClient() {
   if (!newClient.name.trim()) return;
+  const phone = newClient.phone.startsWith("+") ? newClient.phone : normalizePhone(newClient.phone);
+  if (!phone) {
+    newPhoneError.value = isLebanon(selectedCountry.value)
+      ? "Enter a valid Lebanese phone number"
+      : "Enter a valid mobile phone number";
+    return;
+  }
   try {
-    const c = await CreateClient(capitalizeName(newClient.name), newClient.phone);
+    const c = await CreateClient(capitalizeName(newClient.name), phone);
     emit("select", toClient(c));
   } catch {
-    emit(
-      "select",
-      toClient({ id: 0, name: capitalizeName(newClient.name), phone: newClient.phone }),
-    );
+    emit("select", toClient({ id: 0, name: capitalizeName(newClient.name), phone }));
   }
   dialog.value = false;
-  reset();
 }
 
 function capitalizeName(value: string) {
@@ -418,7 +436,6 @@ function capitalizeName(value: string) {
 function selectAnonymous() {
   emit("select", anonymousClient());
   dialog.value = false;
-  reset();
 }
 
 function reset() {
@@ -428,6 +445,8 @@ function reset() {
   selectedCountry.value = "LB";
   newClient.name = "";
   newClient.phone = "";
+  newPhoneError.value = "";
+  newPhoneActive.value = false;
 }
 </script>
 
