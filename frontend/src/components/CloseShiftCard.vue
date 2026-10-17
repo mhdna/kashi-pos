@@ -237,8 +237,11 @@
         <template v-if="receiptState === 'scan'">
           <v-card-title class="pt-4">Upload the shift receipt</v-card-title>
           <v-card-text class="pb-4">
-            <div class="text-body-2 mb-3">
-              Scan with a phone and upload one photo of the printed close-shift receipt.
+            <div class="text-body-2">
+              Scan with a phone and take one photo of the printed receipt and the handwritten receipt.
+            </div>
+            <div class="text-body-2 mb-3" dir="rtl" lang="ar">
+              امسح الرمز بالهاتف والتقط صورة واحدة للإيصال المطبوع والإيصال المكتوب بخط اليد.
             </div>
             <img
               v-if="receiptQr"
