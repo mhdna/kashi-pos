@@ -315,6 +315,8 @@ type Invoice struct {
 	Notes           string         `json:"notes"`
 	CancelledAt     sql.NullString `json:"cancelledAt"`
 }
+	LbpTotal        sql.NullInt64  `json:"lbpTotal"`
+	LbpRate         sql.NullInt64  `json:"lbpRate"`
 
 type InvoiceClientRef struct {
 	InvoiceID int64  `json:"invoiceId"`

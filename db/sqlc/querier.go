@@ -597,6 +597,7 @@ type Querier interface {
 	SetOversellMode(ctx context.Context, oversellMode string) error
 	SetProductActive(ctx context.Context, arg SetProductActiveParams) error
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
+	SetInvoiceLBPTotal(ctx context.Context, arg SetInvoiceLBPTotalParams) error
 	// Frees a barcode held by a stale local-only product so kashi's product
 	// with that barcode can take it; the stale row keeps its history.
 	SetProductBarcodeInactive(ctx context.Context, arg SetProductBarcodeInactiveParams) error

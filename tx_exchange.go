@@ -231,6 +231,10 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			if err != nil {
 				return err
 			}
+			lbpTotal, lbpRate, err := stampInvoiceLBPTotal(a.ctx, q, invoice.ID, total, roundingMode)
+			if err != nil {
+				return fmt.Errorf("record LBP total: %w", err)
+			}
 
 			// checkoutReturnExchangeInvoice doesn't touch loyalty points at
 			// all today (unlike salesInvoiceTx) — report that faithfully as
@@ -252,6 +256,8 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				OccurredAt:             time.Now().UTC(),
 				SalespersonName:        salespersonName,
 				SalespersonID:          salespersonRemoteID(a.ctx, q, salespersonID),
+				LbpTotal:               lbpTotal,
+				LbpRate:                lbpRate,
 				Payments:               payloadPayments,
 				Items:                  payloadItems,
 				Cancellation:           policy.cancellation,
