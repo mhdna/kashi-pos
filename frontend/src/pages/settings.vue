@@ -680,6 +680,7 @@
 
               <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details class="field-full" />
               <v-switch v-model="form.shiftReportSignatures" label="Cashier and manager signature lines on end-of-shift receipt" color="primary" hide-details class="field-full" />
+              <v-switch v-model="form.shiftReportUppercaseHeader" label="Store and branch name in capitals on end-of-shift receipt" color="primary" hide-details class="field-full" />
             </v-card-text>
             <v-card-actions class="px-4 pb-4">
               <v-btn
@@ -1760,6 +1761,7 @@ import {
   SetCloseShiftRequiresSyncEnabled,
   SetOpeningFloatEnabled,
   SetShiftReportSignaturesEnabled,
+  SetShiftReportUppercaseHeaderEnabled,
   SetCountOpeningCashOnCloseEnabled,
   SetShiftReceiptUploadMode,
   SetPageUnlocked,
@@ -2043,6 +2045,7 @@ const form = reactive({
   receiptBodyFont: "Printer Font A",
   receiptCutoff: true,
   shiftReportSignatures: true,
+  shiftReportUppercaseHeader: false,
   customItemDiscountsEnabled: false,
   customItemPricesEnabled: false,
   perUnitItemPricesEnabled: false,
@@ -2474,6 +2477,7 @@ async function loadSettings() {
         receiptBodyFont: s.receiptBodyFont ?? "Printer Font A",
         receiptCutoff: s.receiptCutoff !== false,
         shiftReportSignatures: s.shiftReportSignatures !== false,
+        shiftReportUppercaseHeader: Boolean(s.shiftReportUppercaseHeader),
         customItemDiscountsEnabled: Boolean(s.customItemDiscountsEnabled),
         customItemPricesEnabled: Boolean(s.customItemPricesEnabled),
         perUnitItemPricesEnabled: Boolean(s.perUnitItemPricesEnabled),
@@ -3045,6 +3049,7 @@ async function saveSettings() {
       Boolean(form.receiptCutoff),
     );
     await SetShiftReportSignaturesEnabled(Boolean(form.shiftReportSignatures));
+    await SetShiftReportUppercaseHeaderEnabled(Boolean(form.shiftReportUppercaseHeader));
     await UpdateAttendanceConfig(form.akuvoxIP, form.akuvoxUsername, form.akuvoxPassword, Boolean(form.attendanceEnabled));
     if (form.attendanceApproverPassword.trim()) await UpdateAttendanceApproverPassword(form.attendanceApproverPassword.trim());
     await SetAttendanceDuplicateInterval(Math.max(0, Math.floor(Number(form.attendanceDuplicateIntervalSeconds) || 0)));

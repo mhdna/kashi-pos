@@ -802,6 +802,10 @@ export function SetShiftReportSignaturesEnabled(arg1) {
   return window['go']['main']['App']['SetShiftReportSignaturesEnabled'](arg1);
 }
 
+export function SetShiftReportUppercaseHeaderEnabled(arg1) {
+  return window['go']['main']['App']['SetShiftReportUppercaseHeaderEnabled'](arg1);
+}
+
 export function SetSoundsEnabled(arg1) {
   return window['go']['main']['App']['SetSoundsEnabled'](arg1);
 }

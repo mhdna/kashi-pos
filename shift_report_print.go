@@ -50,6 +50,9 @@ type shiftReportData struct {
 	// SignatureLines prints the cashier/manager sign-off lines at the foot
 	// (see shiftReportSignaturesFlag).
 	SignatureLines bool
+	// UppercaseHeader prints the store and branch names in capitals (see
+	// shiftReportUppercaseHeaderFlag).
+	UppercaseHeader bool
 }
 
 type shiftDenominationCount struct {
@@ -65,7 +68,11 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 
 	y := 0
 	var err error
-	if y, err = c.center(y, c.data.StoreName, c.data.TitleSize, true, true); err != nil {
+	storeName, branch := c.data.StoreName, strings.TrimSpace(c.data.Branch)
+	if report.UppercaseHeader {
+		storeName, branch = strings.ToUpper(storeName), strings.ToUpper(branch)
+	}
+	if y, err = c.center(y, storeName, c.data.TitleSize, true, true); err != nil {
 		return 0, err
 	}
 	y += 4
@@ -73,8 +80,8 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	if branchSize <= 0 {
 		branchSize = c.data.BodySize
 	}
-	if strings.TrimSpace(c.data.Branch) != "" {
-		y, _ = c.center(y+2, strings.TrimSpace(c.data.Branch), branchSize, false, true)
+	if branch != "" {
+		y, _ = c.center(y+2, branch, branchSize, false, true)
 		y += 10
 	}
 	y, _ = c.center(y+8, "END OF SHIFT REPORT", c.data.BodySize-1, true, false)

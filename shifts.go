@@ -100,6 +100,27 @@ func (a *App) SetShiftReportSignaturesEnabled(enabled bool) error {
 	})
 }
 
+// shiftReportUppercaseHeaderFlag prints the store and branch names in
+// capitals at the top of the end-of-shift receipt. Off (missing row or 0)
+// keeps them as typed, the historical behaviour.
+const shiftReportUppercaseHeaderFlag = "shift_report_uppercase_header"
+
+func (a *App) shiftReportUppercaseHeader() bool {
+	v, err := a.store.GetFeatureFlag(a.ctx, shiftReportUppercaseHeaderFlag)
+	return err == nil && v != 0
+}
+
+// SetShiftReportUppercaseHeaderEnabled toggles the end-of-shift receipt's
+// capitalised header (see shiftReportUppercaseHeaderFlag).
+func (a *App) SetShiftReportUppercaseHeaderEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: shiftReportUppercaseHeaderFlag, Enabled: boolInt(enabled),
+	})
+}
+
 // openingFloatEnabled reports whether the opening cash float feature is
 // switched on at all, defaulting to true when the flag has never been set.
 func (a *App) openingFloatEnabled() bool {
@@ -1116,6 +1137,7 @@ func (a *App) buildShiftClosePrintData(
 		ExchangeRate:    rate,
 		RoundingMode:    settings.RoundingMode,
 		SignatureLines:  a.shiftReportSignatures(),
+		UppercaseHeader: a.shiftReportUppercaseHeader(),
 	}
 	marketName := strings.TrimSpace(settings.MarketName)
 	if marketName == "" {

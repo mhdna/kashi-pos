@@ -402,6 +402,8 @@ export function SetShiftReceiptUploadMode(arg1:number):Promise<void>;
 
 export function SetShiftReportSignaturesEnabled(arg1:boolean):Promise<void>;
 
+export function SetShiftReportUppercaseHeaderEnabled(arg1:boolean):Promise<void>;
+
 export function SetSoundsEnabled(arg1:boolean):Promise<void>;
 
 export function SetSplitDisplay(arg1:string,arg2:boolean,arg3:number):Promise<void>;
