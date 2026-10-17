@@ -194,7 +194,8 @@
         <template v-else-if="uploadState === 'ready'">
           <v-card-title>Attach a photo (optional)</v-card-title>
           <v-card-text>
-            <div class="text-body-2 mb-3">Scan this with a phone to upload one photo of the transfer.</div>
+            <div class="text-body-2">Scan this with a phone to upload one photo of the transfer.</div>
+            <div class="text-body-2 mb-3" dir="rtl" lang="ar">امسح الرمز بالهاتف والتقط صورة واحدة لورقة التحويل.</div>
             <img v-if="qrDataUrl" :src="qrDataUrl" alt="Upload QR code" style="width: 220px; height: 220px" />
             <div class="text-caption text-medium-emphasis mt-3" style="word-break: break-all">{{ uploadUrl }}</div>
           </v-card-text>
