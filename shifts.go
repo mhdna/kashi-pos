@@ -801,7 +801,90 @@ func (a *App) computeExpectedShiftTotals(shiftID int64) (expectedUSD, expectedLB
 		return 0, 0, 0, 0, fmt.Errorf("expected LBP: %w", err)
 	}
 	expectedLBP *= lbpSign
+
+	// Expenses and loans paid out of the drawer during the shift leave it
+	// short by exactly that much, so they come off what the cashier is
+	// expected to count. LBP is taken off in LBP units after the rounding
+	// above, so an LBP payout never picks up a conversion error.
+	spend, err := a.shiftSpend(shiftID)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	expectedUSD -= spend.USD
+	expectedLBP -= spend.LBP
+	expectedVisa -= spend.Visa
+	expectedWhish -= spend.Whish
 	return expectedUSD, expectedLBP, expectedVisa, expectedWhish, nil
+}
+
+// shiftSpendLine is one expense or loan as the end-of-shift report prints it.
+type shiftSpendLine struct {
+	Kind         string // "expense" or "loan"
+	Label        string
+	Amount       int64 // the account's currency, x100, as entered
+	CurrencyCode string
+}
+
+// shiftSpendTotals is what a shift's expenses and loans took out of each
+// bucket computeExpectedShiftTotals reconciles: USD/Visa/Whish in cents,
+// LBP in whole LBP. Lines lists every one of them, for the receipt --
+// including any paid from an account outside those buckets.
+type shiftSpendTotals struct {
+	USD, LBP, Visa, Whish int64
+	Lines                 []shiftSpendLine
+}
+
+func (a *App) shiftSpend(shiftID int64) (shiftSpendTotals, error) {
+	var totals shiftSpendTotals
+	shiftRef := sql.NullInt64{Int64: shiftID, Valid: true}
+	expenses, err := a.store.ListExpensesForShift(a.ctx, shiftRef)
+	if err != nil {
+		return totals, fmt.Errorf("shift expenses: %w", err)
+	}
+	loans, err := a.store.ListLoansForShift(a.ctx, shiftRef)
+	if err != nil {
+		return totals, fmt.Errorf("shift loans: %w", err)
+	}
+
+	type outflow struct {
+		line      shiftSpendLine
+		accountID int64
+	}
+	var outflows []outflow
+	for _, e := range expenses {
+		outflows = append(outflows, outflow{shiftSpendLine{"expense", fallbackReceiptValue(e.Description, fallbackReceiptValue(e.Category, "Expense")), e.Amount, e.CurrencyCode}, e.CashboxAccountID})
+	}
+	for _, l := range loans {
+		outflows = append(outflows, outflow{shiftSpendLine{"loan", fallbackReceiptValue(l.Description, fallbackReceiptValue(l.Category, "Loan")), l.Amount, l.CurrencyCode}, l.CashboxAccountID})
+	}
+
+	accounts := make(map[int64]string)
+	for _, o := range outflows {
+		totals.Lines = append(totals.Lines, o.line)
+		name, ok := accounts[o.accountID]
+		if !ok {
+			account, err := a.store.GetCashboxAccountByID(a.ctx, o.accountID)
+			if err != nil && err != sql.ErrNoRows {
+				return totals, fmt.Errorf("spend account %d: %w", o.accountID, err)
+			}
+			name = account.Name
+			accounts[o.accountID] = name
+		}
+		// Same bucketing as the income side of computeExpectedShiftTotals.
+		currency := strings.ToUpper(strings.TrimSpace(o.line.CurrencyCode))
+		switch {
+		case strings.EqualFold(strings.TrimSpace(name), "Visa") && currency == "USD":
+			totals.Visa += o.line.Amount
+		case strings.EqualFold(strings.TrimSpace(name), "Whish") && currency == "USD":
+			totals.Whish += o.line.Amount
+		case !isCashAccount(name, currency):
+		case currency == "LBP":
+			totals.LBP += o.line.Amount / 100
+		case currency == "USD":
+			totals.USD += o.line.Amount
+		}
+	}
+	return totals, nil
 }
 
 // suggestUSDBillBreakdown greedily splits a USD cents amount into whole
@@ -930,6 +1013,10 @@ func (a *App) buildShiftClosePrintData(
 	if err != nil {
 		return printReceiptData{}, false, err
 	}
+	spend, err := a.shiftSpend(shiftID)
+	if err != nil {
+		return printReceiptData{}, false, err
+	}
 	countedTotal, err := reconcileShiftCountedTotal(
 		totalPayments,
 		expectedUSD, countedUSD,
@@ -973,11 +1060,14 @@ func (a *App) buildShiftClosePrintData(
 		CountedCoupon:   countedCoupon,
 		OnAccount:       onAccount,
 		Payments:        payments,
+		Spend:           spend.Lines,
 		OpeningFloatUSD: reportOpeningFloatUSD,
+		PaidOutUSD:      spend.USD,
 		ExpectedUSD:     expectedUSD,
 		CountedUSD:      countedUSD,
 		USDBillCounts:   usdBillCounts,
 		OpeningFloatLBP: reportOpeningFloatLBP,
+		PaidOutLBP:      spend.LBP,
 		ExpectedLBP:     expectedLBP,
 		CountedLBP:      countedLBP,
 		ExpectedVisa:    expectedVisa,
