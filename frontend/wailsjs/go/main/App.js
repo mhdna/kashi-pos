@@ -10,6 +10,14 @@ export function AddClientLoyaltyPoints(arg1, arg2) {
   return window['go']['main']['App']['AddClientLoyaltyPoints'](arg1, arg2);
 }
 
+export function AddExpensePhotosFromComputer(arg1, arg2) {
+  return window['go']['main']['App']['AddExpensePhotosFromComputer'](arg1, arg2);
+}
+
+export function AddLoanPhotosFromComputer(arg1, arg2) {
+  return window['go']['main']['App']['AddLoanPhotosFromComputer'](arg1, arg2);
+}
+
 export function AddQuickAccessProduct(arg1) {
   return window['go']['main']['App']['AddQuickAccessProduct'](arg1);
 }
@@ -872,6 +880,14 @@ export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
 
 export function UpdateDefaultOpeningFloat(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateDefaultOpeningFloat'](arg1, arg2, arg3);
+}
+
+export function UpdateExpenseCategory(arg1, arg2) {
+  return window['go']['main']['App']['UpdateExpenseCategory'](arg1, arg2);
+}
+
+export function UpdateLoanCategory(arg1, arg2) {
+  return window['go']['main']['App']['UpdateLoanCategory'](arg1, arg2);
 }
 
 export function UpdateProduct(arg1, arg2) {

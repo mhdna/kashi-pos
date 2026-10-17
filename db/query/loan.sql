@@ -28,3 +28,6 @@ GROUP BY currency_code;
 
 -- name: ListLoansForShift :many
 SELECT * FROM loans WHERE shift_id = ? ORDER BY id;
+
+-- name: SetLoanCategory :one
+UPDATE loans SET category = ? WHERE id = ? RETURNING *;

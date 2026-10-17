@@ -66,6 +66,20 @@
   border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
 }
 
+/* The category card in the expense/loan detail opens a menu to change it. */
+.overview-card--edit {
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.overview-card--edit:hover {
+  background-color: rgba(var(--v-theme-primary), 0.08);
+}
+
 .overview-value {
   font-weight: 600;
   line-height: 1.2;

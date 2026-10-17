@@ -593,6 +593,7 @@ type Querier interface {
 	// push with the canonical uid of an existing client with the same phone).
 	SetClientUID(ctx context.Context, arg SetClientUIDParams) error
 	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
+	SetExpenseCategory(ctx context.Context, arg SetExpenseCategoryParams) (Expense, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	SetFullMirrorConfirmedAt(ctx context.Context, fullMirrorConfirmedAt sql.NullString) error
 	SetHomeBranchCode(ctx context.Context, homeBranchCode string) error
@@ -600,6 +601,7 @@ type Querier interface {
 	SetInvoiceLBPTotal(ctx context.Context, arg SetInvoiceLBPTotalParams) error
 	SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
+	SetLoanCategory(ctx context.Context, arg SetLoanCategoryParams) (Loan, error)
 	// The screen's own edits: stored so they're reported to kashi, rev untouched.
 	SetLocalDisplayPrefs(ctx context.Context, displayPrefs string) error
 	SetOversellMode(ctx context.Context, oversellMode string) error
@@ -630,6 +632,10 @@ type Querier interface {
 	// authoritative the moment it's synced (see approveTransfer/
 	// notifyBranchTransferDecision in the kashi repo).
 	SetTransferRequestStatus(ctx context.Context, arg SetTransferRequestStatusParams) error
+	// Changes one top-level field of a row kashi hasn't accepted yet (an
+	// expense re-categorised before it synced), so the edit goes up with the
+	// record itself. 0 rows: it's synced (or was never queued).
+	SetUnsyncedSyncOutboxField(ctx context.Context, arg SetUnsyncedSyncOutboxFieldParams) (int64, error)
 	SetUserPasswordHashByUsername(ctx context.Context, arg SetUserPasswordHashByUsernameParams) (int64, error)
 	SetVisitorCount(ctx context.Context, arg SetVisitorCountParams) error
 	// Guard for the uploader: kashi only has a branch_shifts row to attach the

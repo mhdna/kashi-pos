@@ -50,12 +50,31 @@
         </v-card-title>
         <v-card-text>
           <div class="overview-grid mb-5">
-            <div class="overview-card">
-              <v-avatar size="36" :color="categoryOf(selected.category)?.color || 'blue-grey'" variant="tonal">
-                <v-icon :icon="categoryOf(selected.category)?.icon || 'mdi-tag-outline'" size="20" />
-              </v-avatar>
-              <div class="overview-value">{{ selected.category || "No category" }}</div>
-            </div>
+            <!-- Tap to change the category; kashi gets the change too. -->
+            <v-menu location="bottom start">
+              <template #activator="{ props: menuProps }">
+                <button type="button" class="overview-card overview-card--edit" v-bind="menuProps" :disabled="categorySaving">
+                  <v-avatar size="36" :color="categoryOf(selected.category)?.color || 'blue-grey'" variant="tonal">
+                    <v-icon :icon="categoryOf(selected.category)?.icon || 'mdi-tag-outline'" size="20" />
+                  </v-avatar>
+                  <div class="overview-value">{{ selected.category || "No category" }}</div>
+                  <v-progress-circular v-if="categorySaving" indeterminate size="16" width="2" class="ms-auto" />
+                  <v-icon v-else icon="mdi-pencil-outline" size="18" class="ms-auto text-medium-emphasis" />
+                </button>
+              </template>
+              <v-list density="compact" max-height="360">
+                <v-list-item title="No category" prepend-icon="mdi-tag-outline" :active="!selected.category" @click="setCategory('')" />
+                <v-list-item
+                  v-for="category in expenseCategories"
+                  :key="category.id"
+                  :title="category.name"
+                  :prepend-icon="category.icon || 'mdi-tag-outline'"
+                  :base-color="category.color || undefined"
+                  :active="selected.category === category.name"
+                  @click="setCategory(category.name)"
+                />
+              </v-list>
+            </v-menu>
             <div class="overview-card">
               <v-icon icon="mdi-cash" color="error" />
               <div class="overview-value">{{ formatCents(selected.amount) }} {{ selected.currencyCode }}</div>
@@ -75,13 +94,17 @@
             <v-icon icon="mdi-image-off-outline" size="32" color="grey" />
             <div class="text-body-2 text-medium-emphasis">No photo attached{{ syncHint }}</div>
           </div>
-          <!-- A photo that wasn't sent when the expense was made can still be:
-               kashi gives the expense a new link, up to 3 photos in all. -->
-          <div v-if="!detailPhotosLoading && selected.clientRef && detailPhotos.length < 3" class="d-flex justify-center mt-3">
+          <!-- More photos: scan the QR with a phone, or pick files on this
+               computer. kashi takes up to 3 in all. -->
+          <div v-if="!detailPhotosLoading && selected.clientRef && detailPhotos.length < 3" class="d-flex justify-center flex-wrap ga-2 mt-3">
             <v-btn color="primary" variant="tonal" prepend-icon="mdi-camera-outline" @click="openUploadDialog(selected.clientRef, 'resend')">
-              {{ detailPhotos.length ? "Add more photos" : "Send photo" }}
+              {{ detailPhotos.length ? "Add with phone" : "Send photo with phone" }}
+            </v-btn>
+            <v-btn color="primary" variant="tonal" prepend-icon="mdi-upload" :loading="computerUploading" @click="uploadFromComputer">
+              From this computer
             </v-btn>
           </div>
+          <div v-if="photoError" class="text-body-2 text-error text-center mt-2">{{ photoError }}</div>
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -197,12 +220,14 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import {
+  AddExpensePhotosFromComputer,
   CreateExpense,
   GetExpensePhoto,
   ListExpenseCategories,
   ListExpensePhotoIDs,
   ListExpenses,
   ListPaymentMethods,
+  UpdateExpenseCategory,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import PhotoUploadDialog from "@/components/PhotoUploadDialog.vue";
@@ -250,6 +275,7 @@ const syncHint = computed(() => (selected.value?.clientRef ? "" : " (not synced 
 
 async function openDetail(item: any) {
   selected.value = item;
+  photoError.value = "";
   detailOpen.value = true;
   detailPhotos.value = [];
   detailPhotosLoading.value = true;
@@ -363,6 +389,41 @@ function openUploadDialog(clientRef: string, mode: "new" | "resend" = "new") {
 function onPhotosUploaded(clientRef: string) {
   photoVersion.value = { ...photoVersion.value, [clientRef]: (photoVersion.value[clientRef] ?? 0) + 1 };
   if (selected.value?.clientRef === clientRef && detailOpen.value) void openDetail(selected.value);
+}
+
+// ---- detail edits: category, photos from this computer -------------------
+const categorySaving = ref(false);
+const computerUploading = ref(false);
+const photoError = ref("");
+
+async function setCategory(name: string) {
+  const item = selected.value;
+  if (!item || item.category === name) return;
+  categorySaving.value = true;
+  try {
+    await UpdateExpenseCategory(item.id, name);
+    // The row in the table is this same object, so it updates too.
+    item.category = name;
+  } catch (err) {
+    photoError.value = `Couldn't change the category: ${err}`;
+  } finally {
+    categorySaving.value = false;
+  }
+}
+
+async function uploadFromComputer() {
+  const item = selected.value;
+  if (!item?.clientRef) return;
+  photoError.value = "";
+  computerUploading.value = true;
+  try {
+    const sent = await AddExpensePhotosFromComputer(item.clientRef, 3 - detailPhotos.value.length);
+    if (sent > 0) onPhotosUploaded(item.clientRef);
+  } catch (err) {
+    photoError.value = String(err);
+  } finally {
+    computerUploading.value = false;
+  }
 }
 
 // ---- loading -------------------------------------------------------------

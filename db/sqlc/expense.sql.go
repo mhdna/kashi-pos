@@ -201,6 +201,33 @@ func (q *Queries) ListExpensesForShift(ctx context.Context, shiftID sql.NullInt6
 	return items, nil
 }
 
+const setExpenseCategory = `-- name: SetExpenseCategory :one
+UPDATE expenses SET category = ? WHERE id = ? RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at
+`
+
+type SetExpenseCategoryParams struct {
+	Category string `json:"category"`
+	ID       int64  `json:"id"`
+}
+
+func (q *Queries) SetExpenseCategory(ctx context.Context, arg SetExpenseCategoryParams) (Expense, error) {
+	row := q.db.QueryRowContext(ctx, setExpenseCategory, arg.Category, arg.ID)
+	var i Expense
+	err := row.Scan(
+		&i.ID,
+		&i.ClientRef,
+		&i.Description,
+		&i.Category,
+		&i.Amount,
+		&i.CurrencyCode,
+		&i.CashboxAccountID,
+		&i.ShiftID,
+		&i.OccurredAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const sumExpensesByCurrencySince = `-- name: SumExpensesByCurrencySince :many
 SELECT currency_code, CAST(COALESCE(SUM(amount), 0) AS INTEGER) AS total
 FROM expenses WHERE occurred_at >= ?

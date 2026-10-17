@@ -30,3 +30,6 @@ GROUP BY currency_code;
 
 -- name: ListExpensesForShift :many
 SELECT * FROM expenses WHERE shift_id = ? ORDER BY id;
+
+-- name: SetExpenseCategory :one
+UPDATE expenses SET category = ? WHERE id = ? RETURNING *;
