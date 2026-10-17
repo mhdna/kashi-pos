@@ -95,7 +95,7 @@
           <div v-if="outgoingTarget.note" class="mb-4">{{ outgoingTarget.note }}</div>
           <div class="section-label mb-2">Photo</div>
           <div v-if="detailPhotoLoading" class="d-flex justify-center pa-6"><v-progress-circular indeterminate /></div>
-          <img v-else-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-4" />
+          <img v-else-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-4" @click="viewerOpen = true" />
           <div v-else class="empty-photos mb-2">
             <v-icon icon="mdi-image-off-outline" size="32" color="grey" />
             <div class="text-body-2 text-medium-emphasis">No photo attached</div>
@@ -231,7 +231,7 @@
         </v-card-title>
         <v-card-text>
           <div v-if="incomingTarget.note" class="text-body-2 text-medium-emphasis mb-2">{{ incomingTarget.note }}</div>
-          <img v-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-3" />
+          <img v-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-3" @click="viewerOpen = true" />
           <v-table density="compact">
             <thead>
               <tr>
@@ -267,6 +267,7 @@
     </v-dialog>
 
     <v-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</v-snackbar>
+    <PhotoViewer v-model="viewerOpen" :photos="detailPhoto ? [detailPhoto] : []" />
   </div>
 </template>
 
@@ -284,6 +285,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import RecordPhoto from "@/components/RecordPhoto.vue";
+import PhotoViewer from "@/components/PhotoViewer.vue";
 import { formatServerDateTime } from "@/lib/datetime";
 
 const tab = ref("outgoing");
@@ -317,6 +319,7 @@ function branchName(code: string) {
 
 // The photo for whichever transfer's dialog is open, full size.
 const detailPhoto = ref("");
+const viewerOpen = ref(false);
 const detailPhotoLoading = ref(false);
 async function loadDetailPhoto(clientRef: string, transferID: number) {
   detailPhoto.value = "";
