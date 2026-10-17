@@ -122,10 +122,10 @@
             item-title="name"
             item-value="code"
             :items="branches"
-            label="Destination branch"
+            placeholder="Destination branch"
             :rules="[required]"
           />
-          <v-text-field v-model="createForm.note" label="Note (optional)" />
+          <v-text-field v-model="createForm.note" placeholder="Note (optional)" />
 
           <div class="text-subtitle-2 mt-4 mb-1">Items</div>
           <div class="d-flex align-center mb-2" style="gap: 12px">
@@ -133,14 +133,14 @@
               v-model="newItemBarcode"
               density="compact"
               hide-details
-              label="Scan or type barcode"
+              placeholder="Scan or type barcode"
               @keyup.enter="addCreateItem"
             />
             <v-text-field
               v-model.number="newItemQuantity"
               density="compact"
               hide-details
-              label="Qty"
+              placeholder="Qty"
               style="max-width: 100px"
               type="number"
             />
@@ -256,7 +256,7 @@
               </tr>
             </tbody>
           </v-table>
-          <v-text-field v-model="incomingNote" class="mt-4" label="Note (optional) — e.g. damage, shortage" />
+          <v-text-field v-model="incomingNote" class="mt-4" placeholder="Note (optional) — e.g. damage, shortage" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />

@@ -40,7 +40,7 @@
         :items="salespersons"
         item-title="fullName"
         item-value="id"
-        label="Closing person"
+        placeholder="Closing person"
         active
         :menu-props="{ transition: false }"
         variant="outlined"
@@ -280,7 +280,7 @@
                 autofocus
                 density="compact"
                 hide-details="auto"
-                label="Admin password"
+                placeholder="Admin password"
                 type="password"
                 variant="outlined"
                 @update:model-value="skipError = ''"
@@ -289,7 +289,7 @@
                 v-model="skipReason"
                 density="compact"
                 hide-details="auto"
-                label="Reason (optional)"
+                placeholder="Reason (optional)"
                 variant="outlined"
               />
               <div v-if="skipError" class="text-caption text-error">{{ skipError }}</div>

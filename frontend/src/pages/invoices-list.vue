@@ -241,7 +241,7 @@
             items come back. Both stay on record marked Cancelled, and neither counts in sales
             stats, here or in kashi.
           </p>
-          <v-text-field v-model="cancelReason" label="Reason (optional)" density="compact" hide-details />
+          <v-text-field v-model="cancelReason" placeholder="Reason (optional)" density="compact" hide-details />
         </v-card-text>
         <v-card-actions>
           <v-spacer />

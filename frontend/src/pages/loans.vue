@@ -115,7 +115,7 @@
 
             <v-text-field
               v-model="form.description"
-              label="Description"
+              placeholder="Description"
               prepend-inner-icon="mdi-text"
               variant="outlined"
               density="comfortable"
@@ -131,7 +131,7 @@
                 :items="accountChoices(index)"
                 item-title="displayName"
                 item-value="id"
-                label="Account"
+                placeholder="Account"
                 variant="outlined"
                 density="comfortable"
                 hide-details
@@ -139,7 +139,7 @@
               />
               <v-text-field
                 v-model="line.amount"
-                label="Amount"
+                placeholder="Amount"
                 inputmode="decimal"
                 :suffix="accountOf(line.cashboxAccountId)?.currencyCode || ''"
                 variant="outlined"

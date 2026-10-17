@@ -168,7 +168,7 @@
             :items="salespersonOptions"
             item-title="title"
             item-value="value"
-            label="Salesperson for this line"
+            placeholder="Salesperson for this line"
             prepend-inner-icon="mdi-account-tie"
             variant="outlined"
             density="compact"

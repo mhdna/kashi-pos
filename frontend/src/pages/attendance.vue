@@ -134,7 +134,7 @@
             :items="complaintActionOptions"
             item-title="title"
             item-value="value"
-            label="Action"
+            placeholder="Action"
             variant="outlined"
             density="compact"
             hide-details
@@ -144,7 +144,7 @@
             :items="complaintPeople"
             item-title="employeeName"
             item-value="employeeId"
-            label="Person"
+            placeholder="Person"
             prepend-inner-icon="mdi-account-outline"
             variant="outlined"
             density="compact"
@@ -157,7 +157,7 @@
             :items="complaintEventOptions"
             item-title="title"
             item-value="value"
-            label="Attendance scan to modify"
+            placeholder="Attendance scan to modify"
             variant="outlined"
             density="compact"
             hide-details
@@ -175,7 +175,7 @@
               v-if="complaintAction !== 'delete'"
               v-model="complaintType"
               :items="['IN', 'OUT']"
-              label="IN / OUT"
+              placeholder="IN / OUT"
               variant="outlined"
               density="compact"
               hide-details
@@ -208,7 +208,7 @@
           <v-text-field
             v-model="managerDialog.password"
             type="password"
-            label="Manager password"
+            placeholder="Manager password"
             variant="outlined"
             density="compact"
             autofocus
