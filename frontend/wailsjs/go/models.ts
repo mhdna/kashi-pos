@@ -16,6 +16,28 @@ export namespace main {
 	        this.hasMore = source["hasMore"];
 	    }
 	}
+	export class ClockStatus {
+	    checked: boolean;
+	    zone: string;
+	    pcZone: string;
+	    zoneMismatch: boolean;
+	    driftSeconds: number;
+	    clockOff: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ClockStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.checked = source["checked"];
+	        this.zone = source["zone"];
+	        this.pcZone = source["pcZone"];
+	        this.zoneMismatch = source["zoneMismatch"];
+	        this.driftSeconds = source["driftSeconds"];
+	        this.clockOff = source["clockOff"];
+	    }
+	}
 	export class SyncPendingByType {
 	    entityType: string;
 	    count: number;

@@ -621,6 +621,7 @@ type Querier interface {
 	// Applied from the transfer_requests down-sync: kashi's status is
 	// authoritative the moment it's synced (see approveTransfer/
 	// notifyBranchTransferDecision in the kashi repo).
+	SetSettingsTimezone(ctx context.Context, timezone sql.NullString) error
 	SetTransferRequestStatus(ctx context.Context, arg SetTransferRequestStatusParams) error
 	SetUserPasswordHashByUsername(ctx context.Context, arg SetUserPasswordHashByUsernameParams) (int64, error)
 	SetVisitorCount(ctx context.Context, arg SetVisitorCountParams) error

@@ -262,6 +262,10 @@ export function GetClientProfile(arg1) {
   return window['go']['main']['App']['GetClientProfile'](arg1);
 }
 
+export function GetClockStatus() {
+  return window['go']['main']['App']['GetClockStatus']();
+}
+
 export function GetCloseShiftSyncGate() {
   return window['go']['main']['App']['GetCloseShiftSyncGate']();
 }

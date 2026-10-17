@@ -194,6 +194,10 @@ func (a *App) runPullTick(ctx context.Context) {
 	}
 	pushed := a.wsPushesAll.Load()
 
+	if now.Sub(a.lastClockCheckAt) >= clockCheckInterval {
+		a.lastClockCheckAt = now
+		a.checkClock(ctx, client)
+	}
 	if err := a.pushSettings(ctx, client); err != nil {
 		log.Printf("sync settings: %v", err)
 	}

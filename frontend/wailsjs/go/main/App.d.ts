@@ -132,6 +132,8 @@ export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
 
 export function GetClientProfile(arg1:number):Promise<Record<string, any>>;
 
+export function GetClockStatus():Promise<main.ClockStatus>;
+
 export function GetCloseShiftSyncGate():Promise<main.CloseShiftSyncGate>;
 
 export function GetConversionReport(arg1:string,arg2:string,arg3:string):Promise<main.ConversionReport>;

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -115,7 +116,7 @@ func TestListInvoicesPageBatchesClientAndSettlementLookups(t *testing.T) {
 		{name: "combined", filters: `{"customer":"Second","paidTo":"Visa"}`, want: 1},
 		{name: "salesperson", filters: `{"salesperson":"Anonymous"}`, want: 3},
 		{name: "invoice code", filters: fmt.Sprintf(`{"invoiceCode":%q}`, rowA["invoiceCode"]), want: 1},
-		{name: "date", filters: fmt.Sprintf(`{"date":%q}`, rowA["createdAt"].(string)[:10]), want: 3},
+		{name: "date", filters: fmt.Sprintf(`{"date":%q}`, localDay(t, rowA["createdAt"].(string))), want: 3},
 		{name: "total", filters: fmt.Sprintf(`{"total":%q}`, fmt.Sprintf("%.2f", float64(quote.GrandTotalCents)/100)), want: 3},
 		{name: "no match", filters: `{"customer":"does-not-exist"}`, want: 0},
 	}
@@ -227,4 +228,16 @@ func TestGetShiftTotalsIsBoundedToTheCurrentMonth(t *testing.T) {
 	if seen[oldShift.ID] {
 		t.Fatalf("a shift from 2 months ago was included in GetShiftTotals: %#v", totals)
 	}
+}
+
+// localDay is the local calendar day of a stored UTC created_at -- what the
+// date filter matches (datetime(created_at, 'localtime')), and not the UTC
+// day the string starts with, which differs from local midnight to 02:00/03:00.
+func localDay(t *testing.T, createdAt string) string {
+	t.Helper()
+	at, err := time.ParseInLocation("2006-01-02 15:04:05", createdAt, time.UTC)
+	if err != nil {
+		t.Fatalf("parse createdAt %q: %v", createdAt, err)
+	}
+	return at.Local().Format("2006-01-02")
 }
