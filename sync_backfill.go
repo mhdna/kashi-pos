@@ -643,6 +643,8 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 	return payload, nil
 }
 
+// parseLocalTime reads a stored timestamp, which is UTC (see 000066 and
+// 000117) despite the name.
 func parseLocalTime(v string) time.Time {
 	for _, layout := range []string{"2006-01-02 15:04:05", time.RFC3339} {
 		if t, err := time.Parse(layout, v); err == nil {

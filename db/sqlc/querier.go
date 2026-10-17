@@ -653,7 +653,8 @@ type Querier interface {
 	// The shift filter is pushed into every branch so each is an index seek,
 	// matching ListIncomeAccountTotals above.
 	StaleOnAccountTotalForShift(ctx context.Context, arg StaleOnAccountTotalForShiftParams) (interface{}, error)
-	// Expenses from `since` (a local "YYYY-MM-DD HH:MM:SS") on, per currency --
+	// Expenses from `since` (a local "YYYY-MM-DD HH:MM:SS"; occurred_at is UTC)
+	// on, per currency --
 	// the month total under the Expenses button. Amounts are in the expense's
 	// own currency, x100, as entered.
 	SumExpensesByCurrencySince(ctx context.Context, occurredAt string) ([]SumExpensesByCurrencySinceRow, error)

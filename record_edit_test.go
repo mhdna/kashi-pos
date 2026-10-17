@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -66,5 +67,28 @@ func TestUpdateExpenseCategoryFollowsTheExpense(t *testing.T) {
 	}
 	if got.Category != "Bills" {
 		t.Fatalf("local category = %q, want Bills", got.Category)
+	}
+}
+
+// Expenses are stored in UTC like every other timestamp (000117), so the
+// screens' UTC-to-local display shows the time they were made.
+func TestCreateExpenseStoresUTC(t *testing.T) {
+	app, store, cashbox, _ := setUpTestInvoiceApp(t, "")
+	before := time.Now().UTC().Add(-time.Minute)
+
+	created, err := app.CreateExpense("Glue", "", 100, "USD", cashbox.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetExpense(app.ctx, created["id"].(int64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	at, err := time.Parse("2006-01-02 15:04:05", got.OccurredAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if at.Before(before) || at.After(time.Now().UTC().Add(time.Minute)) {
+		t.Fatalf("occurred_at = %s, want about %s (UTC)", got.OccurredAt, time.Now().UTC().Format("15:04:05"))
 	}
 }
