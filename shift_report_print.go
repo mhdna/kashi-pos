@@ -29,6 +29,9 @@ type shiftReportData struct {
 	OnAccount       int64
 	Payments        []receiptPayment
 	Spend           []shiftSpendLine
+	// SpendUSD is Spend converted to USD cents; NET TOTAL is TotalPayments
+	// (collected, so on-account is already out) minus it.
+	SpendUSD        int64
 	OpeningFloatUSD int64
 	PaidOutUSD      int64
 	ExpectedUSD     int64
@@ -153,7 +156,16 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 			}
 			y = c.reportRow(y, label, "-"+formatShiftSpendAmount(line.Amount, line.CurrencyCode), false)
 		}
+		y = c.rule(y+3) + 12
+		y, _ = c.twoCol(y, "TOTAL OUT", formatShiftUSD(-report.SpendUSD), c.data.BodySize, true)
+		y += 8
 	}
+	boxTop = c.rule(y) + 12
+	y = boxTop + 8
+	y, _ = c.twoCol(y, "NET TOTAL", formatShiftUSD(report.TotalPayments-report.SpendUSD), c.data.BodySize+2, true)
+	y += 8
+	c.dottedBox(boxTop, y-boxTop)
+	y += 6
 	y = c.reportSection(y, "CASH COUNT")
 	// A method with nothing expected and nothing counted collapses to one
 	// "None" line instead of three rows of zeros.
