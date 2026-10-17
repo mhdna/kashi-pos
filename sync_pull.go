@@ -1123,6 +1123,15 @@ func (a *App) emitExpenseImagesUploaded(clientRef string) {
 	}
 }
 
+// emitReview shows a client's answer to the post-sale rating poll as a toast.
+func (a *App) emitReview(review wsReview) {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "review_received", review)
+	default:
+	}
+}
+
 // emitLoanImagesUploaded is emitExpenseImagesUploaded for a loan's photos.
 func (a *App) emitLoanImagesUploaded(clientRef string) {
 	select {

@@ -26,6 +26,7 @@ type Querier interface {
 	AdoptUserAsSynced(ctx context.Context, arg AdoptUserAsSyncedParams) (User, error)
 	ApproveAttendanceComplaint(ctx context.Context, arg ApproveAttendanceComplaintParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
+	BumpWhatsAppPending(ctx context.Context, invoiceCode string) error
 	ClearSyncCursors(ctx context.Context) error
 	// "Sync everything" against the server this till already syncs with:
 	// re-pull the small entities from scratch, but keep the big ones' cursors
@@ -176,8 +177,8 @@ type Querier interface {
 	// CloseStaleOpenShifts, with the same staleness test. Every table with a
 	// shift_id column must be listed here.
 	DeleteEmptyStaleOpenShifts(ctx context.Context) (int64, error)
-	DeleteHoldInvoice(ctx context.Context, id int64) error
 	DeleteExpenseCategory(ctx context.Context, id int64) error
+	DeleteHoldInvoice(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
 	DeleteInventoryItem(ctx context.Context, arg DeleteInventoryItemParams) error
 	DeleteInvoice(ctx context.Context, id int64) error
@@ -185,8 +186,8 @@ type Querier interface {
 	DeleteInvoicePaymentEntries(ctx context.Context, invoiceID int64) error
 	DeleteInvoicePayments(ctx context.Context, invoiceID int64) error
 	DeleteInvoiceProducts(ctx context.Context, invoiceID int64) error
-	DeletePermission(ctx context.Context, id int64) error
 	DeleteLoanCategory(ctx context.Context, id int64) error
+	DeletePermission(ctx context.Context, id int64) error
 	DeletePriceListByUID(ctx context.Context, uid sql.NullString) error
 	// Half of the replace-on-apply: kashi has no way to tell a till "this one
 	// item is gone", so an applied list is cleared and refilled and a removal is
@@ -213,6 +214,7 @@ type Querier interface {
 	// merged into another). Synced rows are history and are kept.
 	DeleteUnsyncedSyncOutboxEntry(ctx context.Context, clientRef string) error
 	DeleteUser(ctx context.Context, id int64) error
+	DeleteWhatsAppPending(ctx context.Context, invoiceCode string) error
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
 	GetActiveCouponByCode(ctx context.Context, code string) (Coupon, error)
 	GetAssetByID(ctx context.Context, id int64) (Asset, error)
@@ -538,6 +540,8 @@ type Querier interface {
 	// day is "YYYY-MM-DD" text, so a text comparison is a date comparison.
 	ListVisitorCountsInRange(ctx context.Context, arg ListVisitorCountsInRangeParams) ([]ListVisitorCountsInRangeRow, error)
 	ListVisitorEventsForDay(ctx context.Context, day string) ([]ListVisitorEventsForDayRow, error)
+	// Oldest first; the caller drops the ones too old to still send.
+	ListWhatsAppPending(ctx context.Context) ([]WhatsappPending, error)
 	// Run when kashi becomes reachable again: rows that were backed off while
 	// the connection was down (or by a pre-pushLink build, up to an hour) go
 	// out on the very next pass instead of each waiting out its own timer.
@@ -577,6 +581,7 @@ type Querier interface {
 	// Live 'pending' rows and rows already confirmed on the current target are
 	// left alone.
 	RequeueSyncOutboxConfirmedElsewhere(ctx context.Context, currentTarget string) (int64, error)
+	SaveWhatsAppPending(ctx context.Context, arg SaveWhatsAppPendingParams) error
 	SearchBranchStock(ctx context.Context, search string) ([]SearchBranchStockRow, error)
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
@@ -592,6 +597,7 @@ type Querier interface {
 	SetFullMirrorConfirmedAt(ctx context.Context, fullMirrorConfirmedAt sql.NullString) error
 	SetHomeBranchCode(ctx context.Context, homeBranchCode string) error
 	SetIdentityAdoptedAt(ctx context.Context, identityAdoptedAt sql.NullString) error
+	SetInvoiceLBPTotal(ctx context.Context, arg SetInvoiceLBPTotalParams) error
 	SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
 	// The screen's own edits: stored so they're reported to kashi, rev untouched.
@@ -599,7 +605,6 @@ type Querier interface {
 	SetOversellMode(ctx context.Context, oversellMode string) error
 	SetProductActive(ctx context.Context, arg SetProductActiveParams) error
 	SetProductAttribute(ctx context.Context, arg SetProductAttributeParams) error
-	SetInvoiceLBPTotal(ctx context.Context, arg SetInvoiceLBPTotalParams) error
 	// Frees a barcode held by a stale local-only product so kashi's product
 	// with that barcode can take it; the stale row keeps its history.
 	SetProductBarcodeInactive(ctx context.Context, arg SetProductBarcodeInactiveParams) error
@@ -616,6 +621,7 @@ type Querier interface {
 	SetSalespersonAttendanceIDByRemoteID(ctx context.Context, arg SetSalespersonAttendanceIDByRemoteIDParams) error
 	SetSalespersonIDsReportedAt(ctx context.Context, salespersonIdsReportedAt sql.NullString) error
 	SetSalespersonIsSalespersonByRemoteID(ctx context.Context, arg SetSalespersonIsSalespersonByRemoteIDParams) error
+	SetSettingsTimezone(ctx context.Context, timezone sql.NullString) error
 	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
 	SetSyncTarget(ctx context.Context, currentTarget string) error
@@ -623,7 +629,6 @@ type Querier interface {
 	// Applied from the transfer_requests down-sync: kashi's status is
 	// authoritative the moment it's synced (see approveTransfer/
 	// notifyBranchTransferDecision in the kashi repo).
-	SetSettingsTimezone(ctx context.Context, timezone sql.NullString) error
 	SetTransferRequestStatus(ctx context.Context, arg SetTransferRequestStatusParams) error
 	SetUserPasswordHashByUsername(ctx context.Context, arg SetUserPasswordHashByUsernameParams) (int64, error)
 	SetVisitorCount(ctx context.Context, arg SetVisitorCountParams) error

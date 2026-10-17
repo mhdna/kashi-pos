@@ -6,6 +6,7 @@ package db
 
 import (
 	"database/sql"
+	"time"
 )
 
 type Account struct {
@@ -314,9 +315,9 @@ type Invoice struct {
 	SalespersonID   int64          `json:"salespersonId"`
 	Notes           string         `json:"notes"`
 	CancelledAt     sql.NullString `json:"cancelledAt"`
-}
 	LbpTotal        sql.NullInt64  `json:"lbpTotal"`
 	LbpRate         sql.NullInt64  `json:"lbpRate"`
+}
 
 type InvoiceClientRef struct {
 	InvoiceID int64  `json:"invoiceId"`
@@ -562,8 +563,8 @@ type Setting struct {
 	DisplayPrefs             string         `json:"displayPrefs"`
 	DisplayPrefsRev          int64          `json:"displayPrefsRev"`
 	SalespersonIdsReportedAt sql.NullString `json:"salespersonIdsReportedAt"`
-}
 	Timezone                 sql.NullString `json:"timezone"`
+}
 
 type Shift struct {
 	ID                    int64          `json:"id"`
@@ -721,4 +722,11 @@ type VoidInvoice struct {
 	ItemsJson string `json:"itemsJson"`
 	Reason    string `json:"reason"`
 	CreatedAt string `json:"createdAt"`
+}
+
+type WhatsappPending struct {
+	InvoiceCode string    `json:"invoiceCode"`
+	Payload     string    `json:"payload"`
+	CreatedAt   time.Time `json:"createdAt"`
+	Attempts    int64     `json:"attempts"`
 }
