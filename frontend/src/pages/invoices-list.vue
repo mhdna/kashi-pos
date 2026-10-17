@@ -802,7 +802,7 @@ function ensureEditOptions(type: "client" | "salesperson"): Promise<void> {
     salespersonOptionsPromise = ListSalespersons()
       .then((loadedSalespersons) => {
         // Staff who only punch attendance can't be set as a sale's salesperson.
-        salespersons.value = loadedSalespersons.filter((s: any) => s.isSalesperson !== false);
+        salespersons.value = loadedSalespersons.filter((s: any) => s.isSalesperson !== false && s.isCurrent !== false);
       })
       .catch((error) => {
         salespersonOptionsPromise = null;
