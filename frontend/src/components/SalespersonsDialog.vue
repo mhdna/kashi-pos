@@ -61,8 +61,9 @@ function selectSalesperson(p: Salesperson) {
 }
 
 onMounted(async () => {
-  // Staff who only punch attendance (isSalesperson off in kashi) don't sell.
-  const list = ((await ListSalespersons()) as any[]).filter((s) => s.isSalesperson !== false);
+  // Staff who only punch attendance (isSalesperson off in kashi) don't sell,
+  // and the till's own leftovers aren't offered once kashi manages the staff.
+  const list = ((await ListSalespersons()) as any[]).filter((s) => s.isSalesperson !== false && s.isCurrent !== false);
   if (list.length) {
     salespersons.value = [...(list as Salesperson[])].sort((a, b) =>
       a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }),

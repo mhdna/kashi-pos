@@ -434,9 +434,10 @@ onMounted(async () => {
     categoryIcons.value = map;
   } catch {}
   try {
-    // Staff who only punch attendance (isSalesperson off in kashi) don't sell.
+    // Staff who only punch attendance (isSalesperson off in kashi) don't sell,
+    // and the till's own leftovers aren't offered once kashi manages the staff.
     salespersons.value = ((await ListSalespersons()) as Salesperson[])
-      .filter((s: any) => s.isSalesperson !== false)
+      .filter((s: any) => s.isSalesperson !== false && s.isCurrent !== false)
       .sort((a, b) => a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }));
   } catch {}
 });

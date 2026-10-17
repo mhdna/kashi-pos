@@ -15,6 +15,19 @@ func (a *App) ListSalespersons() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Connected to kashi, the staff are kashi's: a salesperson made on this
+	// till before (often a spelling of someone kashi has, which the adopt-by-
+	// name in applySyncedSalesperson missed) stays for its history but isn't
+	// offered any more. Until kashi has sent any, the till's own still are.
+	kashiManaged := false
+	if settings, err := a.store.GetSettings(a.ctx); err == nil && strings.TrimSpace(settings.CentralApiUrl) != "" {
+		for _, s := range list {
+			if s.RemoteID.Valid {
+				kashiManaged = true
+				break
+			}
+		}
+	}
 	result := make([]map[string]any, len(list))
 	for i, s := range list {
 		result[i] = map[string]any{
@@ -27,6 +40,8 @@ func (a *App) ListSalespersons() ([]map[string]any, error) {
 			// Off for staff who only punch attendance: the selling screens
 			// leave them out, the attendance page doesn't.
 			"isSalesperson": s.IsSalesperson != 0,
+			// Offered on the selling and closing screens (see kashiManaged).
+			"isCurrent": s.RemoteID.Valid || !kashiManaged,
 		}
 	}
 	return result, nil
