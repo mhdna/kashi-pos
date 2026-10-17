@@ -29,7 +29,7 @@ type shiftReportData struct {
 	OnAccount       int64
 	Payments        []receiptPayment
 	Spend           []shiftSpendLine
-	// SpendUSD is Spend converted to USD cents; NET TOTAL is TotalPayments
+	// SpendUSD is Spend converted to USD cents; NET TOTAL is CountedTotal
 	// (collected, so on-account is already out) minus it.
 	SpendUSD        int64
 	OpeningFloatUSD int64
@@ -133,7 +133,13 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		} else if strings.EqualFold(strings.TrimSpace(payment.AccountName), "On Coupon") {
 			label = "ON COUPON (AUTO-COUNTED)"
 		}
-		y, _ = c.twoCol(y, label, formatReceiptPayment(payment, report.RoundingMode), 10, true)
+		// A method can end the shift negative (more LBP given as change than
+		// taken); formatReceiptPayment prints magnitudes, so sign it here.
+		amount := formatReceiptPayment(payment, report.RoundingMode)
+		if payment.AmountCents < 0 {
+			amount = "-" + amount
+		}
+		y, _ = c.twoCol(y, label, amount, 10, true)
 		y += 7
 	}
 	if len(report.Payments) == 0 {
@@ -169,7 +175,9 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	}
 	boxTop = c.rule(y) + 12
 	y = boxTop + 8
-	y, _ = c.twoCol(y, "NET TOTAL", formatShiftUSD(report.TotalPayments-report.SpendUSD), c.data.BodySize+2, true)
+	// What is actually in hand: the counted total (counted cash is already
+	// net of payouts, so CountedTotal adds them back) minus what went out.
+	y, _ = c.twoCol(y, "NET TOTAL", formatShiftUSD(report.CountedTotal-report.SpendUSD), c.data.BodySize+2, true)
 	y += 8
 	c.dottedBox(boxTop, y-boxTop)
 	y += 6
