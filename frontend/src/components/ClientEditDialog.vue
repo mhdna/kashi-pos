@@ -5,7 +5,7 @@
       <v-card-text>
         <v-text-field
           :model-value="formatLebanesePhone(form.phone)"
-          label="Phone Number"
+          placeholder="Phone Number"
           placeholder="Phone Number"
           variant="outlined"
           density="compact"
@@ -15,7 +15,7 @@
         />
         <v-text-field
           v-model="form.name"
-          label="Name"
+          placeholder="Name"
           placeholder="Name"
           variant="outlined"
           density="compact"

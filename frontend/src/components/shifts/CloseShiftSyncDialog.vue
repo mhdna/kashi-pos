@@ -59,7 +59,7 @@
             autofocus
             density="compact"
             hide-details="auto"
-            label="Admin password"
+            placeholder="Admin password"
             type="password"
             variant="outlined"
             @update:model-value="bypassError = ''"
@@ -68,7 +68,7 @@
             v-model="bypassReason"
             density="compact"
             hide-details="auto"
-            label="Reason (optional)"
+            placeholder="Reason (optional)"
             variant="outlined"
           />
           <div v-if="bypassError" class="text-caption text-error">{{ bypassError }}</div>
