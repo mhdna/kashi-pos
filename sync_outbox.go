@@ -98,6 +98,11 @@ type branchInvoicePayload struct {
 	// CancelInvoice): kashi stamps cancelled_at on both and leaves them out
 	// of sales statistics. Only ever set on a return.
 	Cancellation bool `json:"cancellation,omitempty"`
+	// LbpTotal/LbpRate are the LBP total the till printed and the LBP per
+	// USD it used (stampInvoiceLBPTotal), so kashi's reports show what was
+	// actually sold in LBP. Omitted for invoices from before they existed.
+	LbpTotal *int64 `json:"lbp_total,omitempty"`
+	LbpRate  *int64 `json:"lbp_rate,omitempty"`
 }
 
 type branchInvoicePayloadItem struct {

@@ -331,6 +331,10 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			if err != nil {
 				return err
 			}
+			lbpTotal, lbpRate, err := stampInvoiceLBPTotal(a.ctx, q, invoice.ID, grandTotal, roundingMode)
+			if err != nil {
+				return fmt.Errorf("record LBP total: %w", err)
+			}
 			if err := queueBranchInvoiceSync(a.ctx, q, settings.CentralApiUrl, "sales_invoice", branchInvoicePayload{
 				ClientRef:              clientRef,
 				BranchInvoiceCode:      invoiceCode,
@@ -348,6 +352,8 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				SalespersonID:          salespersonRemoteIDByName(a.ctx, q, params.Salesperson),
 				Payments:               payloadPayments,
 				Items:                  payloadItems,
+				LbpTotal:               lbpTotal,
+				LbpRate:                lbpRate,
 			}); err != nil {
 				return fmt.Errorf("queue branch invoice sync: %w", err)
 			}

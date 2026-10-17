@@ -525,3 +525,6 @@ WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
   AND i.cancelled_at IS NULL
 GROUP BY date(i.created_at, 'localtime')
 ORDER BY day;
+
+-- name: SetInvoiceLBPTotal :exec
+UPDATE invoices SET lbp_total = ?, lbp_rate = ? WHERE id = ?;
