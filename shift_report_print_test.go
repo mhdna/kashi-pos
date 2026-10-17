@@ -112,6 +112,11 @@ func shiftReportPreviewData() printReceiptData {
 			{AccountName: "Visa", CurrencyCode: "USD", AmountCents: 25350},
 			{AccountName: "Whish", CurrencyCode: "USD", AmountCents: 10000},
 		},
+		Spend: []shiftSpendLine{
+			{Kind: "expense", Label: "internet", Amount: 5000, CurrencyCode: "USD"},
+			{Kind: "loan", Label: "Advance - Ali", Amount: 90000000, CurrencyCode: "LBP"},
+		},
+		PaidOutUSD: 5000, PaidOutLBP: 900000,
 		ExpectedUSD: 72000, CountedUSD: 71800,
 		USDBillCounts: []shiftDenominationCount{
 			{Denomination: 100, Count: 6},

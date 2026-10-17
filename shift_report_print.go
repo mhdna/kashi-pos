@@ -28,11 +28,14 @@ type shiftReportData struct {
 	CountedCoupon   int64
 	OnAccount       int64
 	Payments        []receiptPayment
+	Spend           []shiftSpendLine
 	OpeningFloatUSD int64
+	PaidOutUSD      int64
 	ExpectedUSD     int64
 	CountedUSD      int64
 	USDBillCounts   []shiftDenominationCount
 	OpeningFloatLBP int64
+	PaidOutLBP      int64
 	ExpectedLBP     int64
 	CountedLBP      int64
 	ExpectedVisa    int64
@@ -141,10 +144,20 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		y, _ = c.twoCol(y, "ON ACCOUNT", formatShiftUSD(report.OnAccount), c.data.BodySize, true)
 		y += 8
 	}
+	if len(report.Spend) > 0 {
+		y = c.reportSection(y, "EXPENSES & LOANS")
+		for _, line := range report.Spend {
+			label := line.Label
+			if line.Kind == "loan" {
+				label = "Loan - " + label
+			}
+			y = c.reportRow(y, label, "-"+formatShiftSpendAmount(line.Amount, line.CurrencyCode), false)
+		}
+	}
 	y = c.reportSection(y, "CASH COUNT")
 	// A method with nothing expected and nothing counted collapses to one
 	// "None" line instead of three rows of zeros.
-	if report.ExpectedUSD == 0 && report.CountedUSD == 0 && len(report.USDBillCounts) == 0 && report.OpeningFloatUSD == 0 {
+	if report.ExpectedUSD == 0 && report.CountedUSD == 0 && len(report.USDBillCounts) == 0 && report.OpeningFloatUSD == 0 && report.PaidOutUSD == 0 {
 		y = c.reportRow(y, "USD", "None", true)
 	} else {
 		y, _ = c.left(y, "USD", c.data.BodySize-1, true)
@@ -160,18 +173,24 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		if report.OpeningFloatUSD != 0 {
 			y = c.reportRow(y, "Opening float", formatShiftUSD(report.OpeningFloatUSD), false)
 		}
+		if report.PaidOutUSD != 0 {
+			y = c.reportRow(y, "Paid out", formatShiftUSD(-report.PaidOutUSD), false)
+		}
 		y = c.reportRow(y, "Expected", formatShiftUSD(report.ExpectedUSD), false)
 		y = c.reportRow(y, "Counted", formatShiftUSD(report.CountedUSD), false)
 		y = c.reportRow(y, "Difference", formatSignedShiftUSD(report.CountedUSD-report.ExpectedUSD), true)
 	}
 	y += 7
-	if report.ExpectedLBP == 0 && report.CountedLBP == 0 && report.OpeningFloatLBP == 0 {
+	if report.ExpectedLBP == 0 && report.CountedLBP == 0 && report.OpeningFloatLBP == 0 && report.PaidOutLBP == 0 {
 		y = c.reportRow(y, "LBP", "None", true)
 	} else {
 		y, _ = c.left(y, "LBP", c.data.BodySize-1, true)
 		y += 7
 		if report.OpeningFloatLBP != 0 {
 			y = c.reportRow(y, "Opening float", formatShiftLBP(report.OpeningFloatLBP), false)
+		}
+		if report.PaidOutLBP != 0 {
+			y = c.reportRow(y, "Paid out", formatShiftLBP(-report.PaidOutLBP), false)
 		}
 		y = c.reportRow(y, "Expected", formatShiftLBP(report.ExpectedLBP), false)
 		y = c.reportRow(y, "Counted", formatShiftLBP(report.CountedLBP), false)
@@ -229,6 +248,18 @@ func formatSignedShiftUSD(cents int64) string {
 		return "+" + formatShiftUSD(cents)
 	}
 	return formatShiftUSD(cents)
+}
+
+// formatShiftSpendAmount prints an expense/loan amount (x100, in its own
+// currency) the way the rest of the report prints that currency.
+func formatShiftSpendAmount(amount int64, currencyCode string) string {
+	switch strings.ToUpper(strings.TrimSpace(currencyCode)) {
+	case "USD":
+		return formatShiftUSD(amount)
+	case "LBP":
+		return formatShiftLBP(amount / 100)
+	}
+	return fmt.Sprintf("%.2f %s", float64(amount)/100, strings.ToUpper(strings.TrimSpace(currencyCode)))
 }
 
 func formatShiftLBP(amount int64) string {
