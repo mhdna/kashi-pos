@@ -138,6 +138,10 @@ type App struct {
 	// steps. Only the pull loop goroutine touches them.
 	lastFullPullAt    time.Time
 	lastTargetsPullAt time.Time
+	lastClockCheckAt  time.Time
+	// clock is the last clock check's result -- see clock.go.
+	clockMu sync.Mutex
+	clock   ClockStatus
 	// settingsReport is the last settings report kashi accepted -- see
 	// pushSettings.
 	settingsReport settingsReport
@@ -288,12 +292,14 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 	if err := a.applyEnvironmentDefaults(); err != nil {
 		log.Println("apply environment setting defaults:", err)
 	}
+	a.applySavedZone()
 	if err := a.closeStaleOpenShifts(); err != nil {
 		log.Println("close stale open shifts:", err)
 	}
 	a.startAdminServer()
 	a.startShiftUploadServer()
 	a.startSyncWorker()
+	a.startWhatsAppRetry()
 	a.startWSClient()
 	a.startAttendanceProbe()
 	a.startAttendancePushServer()
