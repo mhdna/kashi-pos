@@ -130,16 +130,32 @@ FunctionEnd
 # 'ERROR: The process "..." not found.' - the normal case on a fresh install,
 # not an error. taskkill exits 0 only when it actually closed something
 # (128 = no such process), so the log line is ours, chosen from that.
+#
+# taskkill returns before Windows has let go of the exe, and copying over it
+# then fails with "can't write, the file is in use". So after killing it
+# (/T: with its WebView2 children) we wait until no copy is left, up to 15 s,
+# killing again in case one was just starting.
 !macro CLOSE_RUNNING_APP
     DetailPrint "Closing ${INFO_PRODUCTNAME} if it is running..."
-    nsExec::Exec 'taskkill /F /IM "${PRODUCT_EXECUTABLE}"'
+    nsExec::Exec 'taskkill /F /T /IM "${PRODUCT_EXECUTABLE}"'
     Pop $0
     ${If} $0 == 0
         DetailPrint "Closed running ${INFO_PRODUCTNAME}."
-        Sleep 500
     ${Else}
         DetailPrint "${INFO_PRODUCTNAME} was not running."
     ${EndIf}
+    StrCpy $1 0
+    ${Do}
+        # find exits 0 while tasklist still lists the exe.
+        nsExec::Exec 'cmd /c tasklist /FI "IMAGENAME eq ${PRODUCT_EXECUTABLE}" /NH | find /I "${PRODUCT_EXECUTABLE}"'
+        Pop $0
+        ${IfThen} $0 != 0 ${|} ${Break} ${|}
+        ${IfThen} $1 >= 30 ${|} ${Break} ${|}
+        nsExec::Exec 'taskkill /F /T /IM "${PRODUCT_EXECUTABLE}"'
+        Pop $0
+        Sleep 500
+        IntOp $1 $1 + 1
+    ${Loop}
 !macroend
 
 Section
