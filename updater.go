@@ -77,6 +77,8 @@ type updaterState struct {
 	StagedPath string `json:"staged_path"`
 	// PreviousVersion is what <exe>.previous runs -- what "Roll back" goes to.
 	PreviousVersion string `json:"previous_version"`
+	// Force: kashi wants it installed now, shift or not (App Updates' force).
+	Force bool `json:"force"`
 	// SkipVersion is a version this till rolled back from (by hand or
 	// because it didn't start); it isn't installed again until kashi points
 	// the till somewhere else.
@@ -206,6 +208,7 @@ func (a *App) GetAppUpdateStatus() map[string]any {
 		"notes":           s.Notes,
 		"previousVersion": s.PreviousVersion,
 		"canRollBack":     canRollBack,
+		"force":           s.Force,
 	}
 }
 
@@ -339,6 +342,9 @@ func (a *App) checkAndDownload(ctx context.Context, client *centralClient) error
 	}
 	if s.State == updateReady && s.ReleaseID == manifest.ID && s.StagedPath != "" {
 		if _, err := os.Stat(s.StagedPath); err == nil {
+			if s.Force != manifest.Force { // forced (or not) after it downloaded
+				s = a.setUpdateState(func(st *updaterState) { st.Force = manifest.Force })
+			}
 			a.reportUpdateStatus(ctx, client, s)
 			return nil
 		}
@@ -359,6 +365,7 @@ func (a *App) checkAndDownload(ctx context.Context, client *centralClient) error
 	next := a.setUpdateState(func(st *updaterState) {
 		st.State, st.Detail, st.Progress = updateReady, "", 100
 		st.ReleaseID, st.Version, st.Notes, st.StagedPath = manifest.ID, manifest.Version, manifest.Notes, staged
+		st.Force = manifest.Force
 	})
 	a.reportUpdateStatus(ctx, client, next)
 	return nil
@@ -493,17 +500,19 @@ func (a *App) reportUpdateStatusNow(s updaterState) {
 // maybePromptIdleInstall offers to install a ready update once no shift is
 // open -- after close shift, or overnight once a shift auto-closes. The
 // frontend shows a countdown the cashier can cancel; it prompts again the
-// next time the till is idle.
+// next time the till is idle. A forced update (App Updates' force) is
+// prompted for right away, shift or not, with a countdown that can't be
+// cancelled.
 func (a *App) maybePromptIdleInstall() {
 	s := a.updateStateSnapshot()
 	u := &a.updater
 	_, err := a.store.GetOpenShift(a.ctx)
 	idle := errors.Is(err, sql.ErrNoRows)
 	u.mu.Lock()
-	if !idle {
+	if !idle && !s.Force {
 		u.prompted = false
 	}
-	prompt := idle && s.State == updateReady && !u.prompted && updateInstallSupported
+	prompt := (idle || s.Force) && s.State == updateReady && !u.prompted && updateInstallSupported
 	if prompt {
 		u.prompted = true
 	}

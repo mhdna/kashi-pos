@@ -20,13 +20,18 @@
     </v-card>
   </v-dialog>
 
-  <!-- No shift open: install by itself unless the cashier says not now. -->
+  <!-- No shift open: install by itself unless the cashier says not now.
+       Forced from kashi: install even mid-shift, and no "not now". -->
   <v-dialog v-model="idlePrompt" max-width="440" persistent>
-    <v-card title="Installing an update">
-      <v-card-text>No shift is open, so Kashi Cloud {{ status.version }} installs in {{ countdown }} seconds.</v-card-text>
+    <v-card :title="status.force ? 'A required update' : 'Installing an update'">
+      <v-card-text v-if="status.force">
+        GB Cloud {{ status.version }} installs in {{ countdown }} seconds. Finish the current sale now; GB Cloud
+        closes and reopens by itself.
+      </v-card-text>
+      <v-card-text v-else>No shift is open, so GB Cloud {{ status.version }} installs in {{ countdown }} seconds.</v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" @click="cancelIdle">Not now</v-btn>
+        <v-btn v-if="!status.force" variant="text" @click="cancelIdle">Not now</v-btn>
         <v-btn color="primary" variant="flat" @click="install">Install now</v-btn>
       </v-card-actions>
     </v-card>
@@ -103,7 +108,7 @@ onMounted(async () => {
   offs.push(EventsOn("app_update_installing", () => (installing.value = true)));
   offs.push(EventsOn("app_update_prompt", (s: Record<string, any>) => {
     status.value = s;
-    countdown.value = 30;
+    countdown.value = s.force ? 60 : 30;
     idlePrompt.value = true;
     timer = setInterval(() => {
       countdown.value -= 1;

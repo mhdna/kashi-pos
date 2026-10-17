@@ -54,7 +54,10 @@ build-windows-compact: set-version
 # build to the new release, so the ones online update right away.
 #   git tag v1.2.3 && make publish NOTES="what changed"
 #   git tag v1.2.3 && make publish-all NOTES="what changed"
-.PHONY: update-keygen publish publish-compact publish-all publish-compact-all
+# publish-all-force (and publish-compact-all-force) also makes them install it
+# right away, even mid-shift, after a one-minute countdown on the till.
+#   git tag v1.2.3 && make publish-all-force NOTES="urgent fix"
+.PHONY: update-keygen publish publish-compact publish-all publish-compact-all publish-all-force publish-compact-all-force
 update-keygen:
 	go run ./cmd/publish-release keygen
 
@@ -69,3 +72,9 @@ publish-all: build-windows
 
 publish-compact-all: build-windows-compact
 	go run ./cmd/publish-release publish -file "build/bin/Kashi Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all
+
+publish-all-force: build-windows
+	go run ./cmd/publish-release publish -file build/bin/Kashi-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -target-all -force
+
+publish-compact-all-force: build-windows-compact
+	go run ./cmd/publish-release publish -file "build/bin/Kashi Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all -force
