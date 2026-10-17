@@ -58,6 +58,7 @@ type branchSettingsPayload struct {
 	OpeningFloatEnabled           bool `json:"opening_float_enabled"`
 	ShiftReportSignatures         bool `json:"shift_report_signatures"`
 	ShiftReportUppercaseHeader    bool `json:"shift_report_uppercase_header"`
+	AutoCoverNegativeLBP          bool `json:"auto_cover_negative_lbp"`
 	CountOpeningCashOnClose       bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        bool `json:"close_shift_requires_sync"`
@@ -265,6 +266,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		OpeningFloatEnabled:           a.openingFloatEnabled(),
 		ShiftReportSignatures:         a.shiftReportSignatures(),
 		ShiftReportUppercaseHeader:    a.shiftReportUppercaseHeader(),
+		AutoCoverNegativeLBP:          a.autoCoverNegativeLBP(),
 		CountOpeningCashOnClose:       a.countOpeningCashOnClose(),
 		OverchangeConfirmation:        a.overchangeConfirmationEnabled(),
 		CloseShiftRequiresSync:        a.closeShiftRequiresSync(),

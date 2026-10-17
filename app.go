@@ -888,6 +888,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	}
 	result["shiftReportSignatures"] = a.shiftReportSignatures()
 	result["shiftReportUppercaseHeader"] = a.shiftReportUppercaseHeader()
+	result["autoCoverNegativeLbp"] = a.autoCoverNegativeLBP()
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, countOpeningCashOnCloseFlag); flagErr == nil {
 		result["countOpeningCashOnClose"] = enabled != 0
 	} else {

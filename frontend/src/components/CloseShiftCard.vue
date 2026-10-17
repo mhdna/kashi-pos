@@ -348,6 +348,7 @@ import {
   SkipShiftReceiptUpload,
   SwitchShiftReceiptToLocal,
   GetSpendSummary,
+  PrepareShiftClose,
 } from "../../wailsjs/go/main/App";
 import { formatSpendAmount } from "@/lib/spend";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
@@ -504,6 +505,9 @@ onMounted(async () => {
     const shift = await GetOpenShift();
     shiftId.value = shift.id as number;
     shiftCreatedAt.value = shift.createdAt ?? null;
+    // Branch-level close-time fixes (a negative Cash LL swapped into Cash $$)
+    // land before the balances and expected totals are read.
+    await PrepareShiftClose(shiftId.value).catch(() => false);
     const b = await ListShiftBalances(shiftId.value);
     balanceRows.value = (b as any[]) ?? [];
     void loadShiftSpend();

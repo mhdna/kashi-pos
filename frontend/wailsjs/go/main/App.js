@@ -602,6 +602,10 @@ export function PayClientAccount(arg1, arg2, arg3) {
   return window['go']['main']['App']['PayClientAccount'](arg1, arg2, arg3);
 }
 
+export function PrepareShiftClose(arg1) {
+  return window['go']['main']['App']['PrepareShiftClose'](arg1);
+}
+
 export function PreviewProductsCSV() {
   return window['go']['main']['App']['PreviewProductsCSV']();
 }
@@ -704,6 +708,10 @@ export function SetAutoAppendLbpZerosEnabled(arg1) {
 
 export function SetAutoCloseStaleShiftsEnabled(arg1) {
   return window['go']['main']['App']['SetAutoCloseStaleShiftsEnabled'](arg1);
+}
+
+export function SetAutoCoverNegativeLBPEnabled(arg1) {
+  return window['go']['main']['App']['SetAutoCoverNegativeLBPEnabled'](arg1);
 }
 
 export function SetCashierPIN(arg1) {
