@@ -11,7 +11,11 @@ import (
 )
 
 type exchangeLine struct {
-	Code           string `json:"code"`
+	Code string `json:"code"`
+	// Barcode, when set, names the exact variant: codes repeat across a
+	// product's colours and sizes, so a code alone resolves to the first
+	// (see lineProduct). Sales already go by barcode the same way.
+	Barcode        string `json:"barcode,omitempty"`
 	Qty            int64  `json:"qty"`
 	UnitPriceCents *int64 `json:"unitPriceCents,omitempty"`
 	UnitDiscount   *int64 `json:"unitDiscount,omitempty"`
@@ -66,6 +70,7 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 	replacementIndex := make(map[string]int)
 	for _, line := range lines {
 		line.Code = strings.TrimSpace(line.Code)
+		line.Barcode = strings.TrimSpace(line.Barcode)
 		line.Note = strings.TrimSpace(line.Note)
 		if line.Code == "" || line.Qty == 0 {
 			return exchangeRequest{}, fmt.Errorf("invalid exchange item")
@@ -82,7 +87,7 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 			}
 			returnedIndex := -1
 			for index, returned := range request.returnedItems {
-				if strings.EqualFold(returned.Code, line.Code) &&
+				if strings.EqualFold(returned.Code, line.Code) && returned.Barcode == line.Barcode &&
 					(returned.UnitPriceCents == nil || line.UnitPriceCents == nil || *returned.UnitPriceCents == *line.UnitPriceCents) &&
 					(returned.UnitDiscount == nil || line.UnitDiscount == nil || *returned.UnitDiscount == *line.UnitDiscount) {
 					returnedIndex = index
@@ -130,7 +135,7 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 		// the same product) - it's kept as its own separate line rather than
 		// netted against the return, so the returned line stays negative and
 		// the replacement stays positive.
-		normalizedCode := strings.ToLower(line.Code)
+		normalizedCode := strings.ToLower(line.Code) + "\x00" + line.Barcode
 		hasCustomPricing := line.CustomPriceCents != nil || len(line.UnitPricesCents) > 0 || len(line.UnitDiscounts) > 0
 		if index, exists := replacementIndex[normalizedCode]; exists {
 			existing := request.replacements[index]
@@ -154,6 +159,15 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 	return request, nil
 }
 
+// lineProduct is the product an exchange line names: by barcode when it
+// carries one, else the first product with its code.
+func lineProduct(a *App, q *db.Queries, line exchangeLine) (db.Product, error) {
+	if line.Barcode != "" {
+		return q.GetProductByBarcode(a.ctx, line.Barcode)
+	}
+	return q.GetProductByCode(a.ctx, line.Code)
+}
+
 func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request exchangeRequest, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool, listPricing activePricing) (pricedExchange, error) {
 	var result pricedExchange
 	sourceLines, err := q.ListInvoiceProducts(a.ctx, sourceID)
@@ -167,7 +181,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 				return result, fmt.Errorf("salesperson for returned item %s: %w", requested.Code, err)
 			}
 		}
-		product, err := q.GetProductByCode(a.ctx, requested.Code)
+		product, err := lineProduct(a, q, requested)
 		if err != nil {
 			return result, fmt.Errorf("returned product: %w", err)
 		}
@@ -210,7 +224,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 				return result, fmt.Errorf("salesperson for replacement %s: %w", line.Code, err)
 			}
 		}
-		product, err := q.GetProductByCode(a.ctx, line.Code)
+		product, err := lineProduct(a, q, line)
 		if err != nil || product.IsActive == 0 {
 			return result, fmt.Errorf("replacement product %s not found or inactive", line.Code)
 		}
