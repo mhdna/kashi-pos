@@ -17,3 +17,6 @@ UPDATE expense_categories
 SET name = ?, is_active = ?, icon = ?, color = ?, updated_at = datetime('now')
 WHERE id = ?
 RETURNING *;
+
+-- name: DeleteExpenseCategory :exec
+DELETE FROM expense_categories WHERE id = ?;

@@ -41,6 +41,15 @@ func (q *Queries) CreateExpenseCategory(ctx context.Context, arg CreateExpenseCa
 	return i, err
 }
 
+const deleteExpenseCategory = `-- name: DeleteExpenseCategory :exec
+DELETE FROM expense_categories WHERE id = ?
+`
+
+func (q *Queries) DeleteExpenseCategory(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteExpenseCategory, id)
+	return err
+}
+
 const getExpenseCategoryByName = `-- name: GetExpenseCategoryByName :one
 SELECT id, name, is_active, icon, color, updated_at FROM expense_categories WHERE name = ?
 `

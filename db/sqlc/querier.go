@@ -177,6 +177,7 @@ type Querier interface {
 	// shift_id column must be listed here.
 	DeleteEmptyStaleOpenShifts(ctx context.Context) (int64, error)
 	DeleteHoldInvoice(ctx context.Context, id int64) error
+	DeleteExpenseCategory(ctx context.Context, id int64) error
 	DeleteInventory(ctx context.Context, id int64) error
 	DeleteInventoryItem(ctx context.Context, arg DeleteInventoryItemParams) error
 	DeleteInvoice(ctx context.Context, id int64) error
@@ -185,6 +186,7 @@ type Querier interface {
 	DeleteInvoicePayments(ctx context.Context, invoiceID int64) error
 	DeleteInvoiceProducts(ctx context.Context, invoiceID int64) error
 	DeletePermission(ctx context.Context, id int64) error
+	DeleteLoanCategory(ctx context.Context, id int64) error
 	DeletePriceListByUID(ctx context.Context, uid sql.NullString) error
 	// Half of the replace-on-apply: kashi has no way to tell a till "this one
 	// item is gone", so an applied list is cleared and refilled and a removal is
