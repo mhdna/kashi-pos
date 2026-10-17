@@ -887,6 +887,40 @@ func (a *App) shiftSpend(shiftID int64) (shiftSpendTotals, error) {
 	return totals, nil
 }
 
+// shiftSpendUSDCents converts every expense and loan line to USD cents at
+// the currency's current rate, for the receipt's net total.
+func (a *App) shiftSpendUSDCents(lines []shiftSpendLine, roundingMode string) (int64, error) {
+	var total int64
+	rates := make(map[string]int64)
+	for _, line := range lines {
+		code := strings.ToUpper(strings.TrimSpace(line.CurrencyCode))
+		if code == "USD" {
+			total += line.Amount
+			continue
+		}
+		rate, ok := rates[code]
+		if !ok {
+			currency, err := resolveCurrency(a.ctx, a.store.Queries, code)
+			if err != nil {
+				return 0, fmt.Errorf("spend currency %s: %w", code, err)
+			}
+			rate = currency.UnitsPerUsdMicros
+			rates[code] = rate
+		}
+		amount := line.Amount
+		sign := int64(1)
+		if amount < 0 {
+			sign, amount = -1, -amount
+		}
+		cents, err := roundCentsFromCurrencyUnits(amount/100, rate, roundingMode)
+		if err != nil {
+			return 0, fmt.Errorf("spend in %s: %w", code, err)
+		}
+		total += sign * cents
+	}
+	return total, nil
+}
+
 // suggestUSDBillBreakdown greedily splits a USD cents amount into whole
 // bills across the denominations this app counts, largest first. It's only
 // a starting suggestion for the close-shift dialog - the actual drawer
@@ -1017,6 +1051,10 @@ func (a *App) buildShiftClosePrintData(
 	if err != nil {
 		return printReceiptData{}, false, err
 	}
+	spendUSD, err := a.shiftSpendUSDCents(spend.Lines, settings.RoundingMode)
+	if err != nil {
+		return printReceiptData{}, false, err
+	}
 	countedTotal, err := reconcileShiftCountedTotal(
 		totalPayments,
 		expectedUSD, countedUSD,
@@ -1061,6 +1099,7 @@ func (a *App) buildShiftClosePrintData(
 		OnAccount:       onAccount,
 		Payments:        payments,
 		Spend:           spend.Lines,
+		SpendUSD:        spendUSD,
 		OpeningFloatUSD: reportOpeningFloatUSD,
 		PaidOutUSD:      spend.USD,
 		ExpectedUSD:     expectedUSD,
