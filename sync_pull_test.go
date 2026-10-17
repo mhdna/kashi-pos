@@ -245,6 +245,70 @@ func TestSyncPullRemovesBranchTargetWhenKashiMarksItInactive(t *testing.T) {
 	}
 }
 
+// kashi hard-deletes categories (and renames / moves them to central), none
+// of which a since-delta can carry. The till pulls the whole branch-scoped
+// set every time and drops anything kashi no longer reports.
+func TestSyncPullPrunesCategoriesKashiNoLongerReports(t *testing.T) {
+	items := `[{"name":"Electricity","is_active":true,"icon":"mdi-flash","color":"red"},{"name":"test","is_active":true,"icon":"mdi-tag-outline","color":"blue-grey"}]`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if since := r.URL.Query().Get("since"); since != "" {
+			t.Fatalf("category pull must always ask for the whole set, got since=%q", since)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		entity := r.URL.Query().Get("entity")
+		fmt.Fprintf(w, `{"entity":%q,"items":%s,"server_time":"2026-08-24T00:00:00Z"}`, entity, items)
+	}))
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
+	client := newCentralClient(server.URL, "TEST01", "test-key")
+
+	names := func(entity string) []string {
+		t.Helper()
+		var out []string
+		switch entity {
+		case "expense_categories":
+			rows, err := store.ListExpenseCategories(app.ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range rows {
+				out = append(out, r.Name)
+			}
+		case "loan_categories":
+			rows, err := store.ListLoanCategories(app.ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, r := range rows {
+				out = append(out, r.Name)
+			}
+		}
+		return out
+	}
+
+	for _, entity := range []string{"expense_categories", "loan_categories"} {
+		items = `[{"name":"Electricity","is_active":true,"icon":"mdi-flash","color":"red"},{"name":"test","is_active":true,"icon":"mdi-tag-outline","color":"blue-grey"}]`
+		if changed, err := app.pullEntityLocked(app.ctx, client, entity); err != nil || !changed {
+			t.Fatalf("first pull of %s: changed=%v err=%v", entity, changed, err)
+		}
+		if got := names(entity); len(got) != 2 {
+			t.Fatalf("%s after first pull: %v", entity, got)
+		}
+		if changed, err := app.pullEntityLocked(app.ctx, client, entity); err != nil || changed {
+			t.Fatalf("identical re-pull of %s: changed=%v err=%v", entity, changed, err)
+		}
+
+		items = `[{"name":"Electricity","is_active":false,"icon":"mdi-flash","color":"red"}]`
+		if changed, err := app.pullEntityLocked(app.ctx, client, entity); err != nil || !changed {
+			t.Fatalf("pull of %s after delete: changed=%v err=%v", entity, changed, err)
+		}
+		if got := names(entity); len(got) != 1 || got[0] != "Electricity" {
+			t.Fatalf("%s after kashi deleted \"test\": %v", entity, got)
+		}
+	}
+}
+
 func TestSyncPullProtectsLocalDefaultCurrency(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
