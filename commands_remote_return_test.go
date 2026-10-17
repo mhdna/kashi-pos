@@ -12,13 +12,26 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestExecuteRemoteReturnInvoiceCommand(t *testing.T) {
+// remoteReturnFixture is a till with one sale of 2 x product, ready for a
+// remote command against it.
+type remoteReturnFixture struct {
+	app       *App
+	store     *db.Store
+	database  *sql.DB
+	product   db.Product
+	cashbox   db.CashboxAccount
+	sourceID  int64
+	clientRef string
+}
+
+func newRemoteReturnFixture(t *testing.T, extraProducts ...db.CreateProductParams) remoteReturnFixture {
+	t.Helper()
 	ctx := context.Background()
 	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "remote_return.db")+"?_pragma=foreign_keys(ON)")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer database.Close()
+	t.Cleanup(func() { database.Close() })
 	if err := applyMigrations(ctx, database, "", false); err != nil {
 		t.Fatal(err)
 	}
@@ -50,6 +63,13 @@ func TestExecuteRemoteReturnInvoiceCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Extra products come first, so a variant sharing the sold product's
+	// code sits ahead of it, the way an earlier colour or size would.
+	for _, extra := range extraProducts {
+		if _, err := store.CreateProduct(ctx, extra); err != nil {
+			t.Fatal(err)
+		}
+	}
 	product, err := store.CreateProduct(ctx, db.CreateProductParams{
 		Barcode: "999", Code: "REMOTE-RETURN-1", Name: "Remote return product", IsActive: 1, Price: 1000,
 	})
@@ -79,7 +99,7 @@ func TestExecuteRemoteReturnInvoiceCommand(t *testing.T) {
 	}
 
 	app := &App{ctx: ctx, store: store}
-	saleItems, _ := json.Marshal([]salesInvoiceItem{{Code: product.Code, Qty: 2, SalespersonID: salesperson.ID}})
+	saleItems, _ := json.Marshal([]salesInvoiceItem{{Code: product.Code, Barcode: product.Barcode, Qty: 2, SalespersonID: salesperson.ID}})
 	salePayments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 2000}})
 	sale, err := app.salesInvoiceTx(SalesInvoiceParams{
 		ItemsJSON: string(saleItems), PaymentsJSON: string(salePayments), ClientID: client.ID,
@@ -98,6 +118,14 @@ func TestExecuteRemoteReturnInvoiceCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected sale to already have a client_ref queued for sync: %v", err)
 	}
+
+	return remoteReturnFixture{app: app, store: store, database: database, product: product, cashbox: cashbox, sourceID: sourceID, clientRef: clientRef}
+}
+
+func TestExecuteRemoteReturnInvoiceCommand(t *testing.T) {
+	ctx := context.Background()
+	f := newRemoteReturnFixture(t)
+	app, database, clientRef := f.app, f.database, f.clientRef
 
 	payload, _ := json.Marshal(remoteReturnInvoiceCommandPayload{
 		ClientRef:       clientRef,
@@ -138,5 +166,67 @@ func TestExecuteRemoteReturnInvoiceCommand(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected a return_invoice sync_outbox entry, got %v", kinds)
+	}
+}
+
+// An exchange from kashi takes one unit back and hands out a different
+// variant of the same product, found by its uid. The sold variant isn't the
+// first with its code, so the return has to go by barcode to find it.
+func TestExecuteRemoteReturnInvoiceCommand_Exchange(t *testing.T) {
+	ctx := context.Background()
+	f := newRemoteReturnFixture(t, db.CreateProductParams{
+		Barcode: "998", Code: "REMOTE-RETURN-1", Name: "Remote return product (red)", IsActive: 1, Price: 1500,
+	})
+	replacement, err := f.store.GetProductByBarcode(ctx, "998")
+	if err != nil {
+		t.Fatal(err)
+	}
+	uid := replacement.Uid.String // stamped when the fixture priced it
+
+	payload, _ := json.Marshal(remoteReturnInvoiceCommandPayload{
+		ClientRef:    f.clientRef,
+		Items:        []remoteReturnInvoiceItemPayload{{BranchProductID: f.product.ID, Quantity: 1}},
+		Replacements: []remoteReplacementPayload{{ProductUID: uid, Barcode: "998", Quantity: 1}},
+	})
+	if err := f.app.executeRemoteReturnInvoiceCommand(ctx, payload); err != nil {
+		t.Fatalf("remote exchange: %v", err)
+	}
+
+	var exchangeID int64
+	if err := f.database.QueryRowContext(ctx,
+		`SELECT invoice_id FROM return_invoices WHERE sales_invoice_id = ?`, f.sourceID).Scan(&exchangeID); err != nil {
+		t.Fatal(err)
+	}
+	lines, err := f.store.ListInvoiceProducts(ctx, exchangeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[int64]int64{}
+	for _, line := range lines {
+		got[line.ProductID] = line.Quantity
+	}
+	if got[f.product.ID] != -1 || got[replacement.ID] != 1 || len(got) != 2 {
+		t.Fatalf("exchange lines = %v, want %d:-1 and %d:+1", got, f.product.ID, replacement.ID)
+	}
+
+	// The difference ($5 more for the red one) lands on the sale's account.
+	var grandTotal int64
+	if err := f.database.QueryRowContext(ctx, `SELECT grand_total FROM invoices WHERE id = ?`, exchangeID).Scan(&grandTotal); err != nil {
+		t.Fatal(err)
+	}
+	if grandTotal != 500 {
+		t.Fatalf("exchange grand total = %d, want 500", grandTotal)
+	}
+}
+
+func TestExecuteRemoteReturnInvoiceCommand_UnknownReplacementFails(t *testing.T) {
+	ctx := context.Background()
+	f := newRemoteReturnFixture(t)
+	payload, _ := json.Marshal(remoteReturnInvoiceCommandPayload{
+		ClientRef:    f.clientRef,
+		Replacements: []remoteReplacementPayload{{ProductUID: "not-here", Barcode: "nope", Quantity: 1}},
+	})
+	if err := f.app.executeRemoteReturnInvoiceCommand(ctx, payload); err == nil {
+		t.Fatal("expected an exchange for a product this till doesn't have to fail")
 	}
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -511,6 +512,19 @@ type remoteReturnInvoiceCommandPayload struct {
 	// Cancel asks for the whole sale to be cancelled (see cancelInvoice)
 	// rather than returned; Items is ignored then.
 	Cancel bool `json:"cancel"`
+	// Replacements turns the return into an exchange: these go out to the
+	// customer in place of the returned items, priced from this till's
+	// own lists like any replacement.
+	Replacements []remoteReplacementPayload `json:"replacements"`
+}
+
+// remoteReplacementPayload names a product the way kashi knows it (see
+// withTillReplacements in kashi's api/branch_command.go): its uid, which the
+// product sync stamped here, and its barcode for one that hasn't got a uid.
+type remoteReplacementPayload struct {
+	ProductUID string `json:"product_uid"`
+	Barcode    string `json:"barcode"`
+	Quantity   int64  `json:"quantity"`
 }
 
 type remoteReturnInvoiceItemPayload struct {
@@ -600,6 +614,10 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 		linesToReturn = fullReturnLines(lines)
 	}
 
+	if len(p.Replacements) > 0 {
+		return a.executeRemoteExchange(ctx, invoiceID, salespersonID, linesToReturn, p.Replacements, p.Reason)
+	}
+
 	itemsJSON, err := a.returnItemsJSON(ctx, linesToReturn)
 	if err != nil {
 		return err
@@ -620,6 +638,67 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 		return fmt.Errorf("checkout return: %w", err)
 	}
 	return nil
+}
+
+// executeRemoteExchange takes lines back and hands out kashi's replacements
+// on one exchange invoice, through the same admin exchange path (late, and
+// allowed to come to less than what's returned) a local admin exchange uses.
+// The difference is settled on the sale's own payment account, as a cancel
+// refunds to it.
+func (a *App) executeRemoteExchange(ctx context.Context, invoiceID, salespersonID int64, returned []returnLine, replacements []remoteReplacementPayload, reason string) error {
+	itemsJSON, err := a.returnItemsJSON(ctx, returned)
+	if err != nil {
+		return err
+	}
+	var items []exchangeLine
+	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
+		return fmt.Errorf("build exchange items: %w", err)
+	}
+	for _, r := range replacements {
+		if r.Quantity <= 0 {
+			return fmt.Errorf("replacement quantity must be positive")
+		}
+		product, err := a.replacementProduct(ctx, r)
+		if err != nil {
+			return err
+		}
+		if product.IsActive == 0 {
+			return fmt.Errorf("replacement %s is inactive here", product.Barcode)
+		}
+		items = append(items, exchangeLine{Code: product.Code, Barcode: product.Barcode, Qty: r.Quantity})
+	}
+	encoded, err := json.Marshal(items)
+	if err != nil {
+		return fmt.Errorf("build exchange items: %w", err)
+	}
+
+	source, err := a.store.GetSalesInvoiceByID(ctx, invoiceID)
+	if err != nil {
+		return fmt.Errorf("load original invoice: %w", err)
+	}
+	notes := strings.TrimSpace(reason)
+	if notes == "" {
+		notes = "Remote exchange"
+	}
+	if _, err := a.checkoutReturnExchangeInvoice(string(encoded), "", invoiceID, salespersonID, notes, source.CashboxID, adminReturnExchangePolicy); err != nil {
+		return fmt.Errorf("checkout exchange: %w", err)
+	}
+	return nil
+}
+
+// replacementProduct finds kashi's product here by uid, then by barcode.
+func (a *App) replacementProduct(ctx context.Context, r remoteReplacementPayload) (db.Product, error) {
+	if uid := strings.TrimSpace(r.ProductUID); uid != "" {
+		if product, err := a.store.GetProductByUID(ctx, sql.NullString{String: uid, Valid: true}); err == nil {
+			return product, nil
+		}
+	}
+	if barcode := strings.TrimSpace(r.Barcode); barcode != "" {
+		if product, err := a.store.GetProductByBarcode(ctx, barcode); err == nil {
+			return product, nil
+		}
+	}
+	return db.Product{}, fmt.Errorf("replacement %s isn't on this till yet -- sync products and retry", r.Barcode)
 }
 
 type transferDecisionPayload struct {
