@@ -6,6 +6,10 @@ export function AddAttendanceWithManagerApproval(arg1:number,arg2:string,arg3:st
 
 export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<string, any>>;
 
+export function AddExpensePhotosFromComputer(arg1:string,arg2:number):Promise<number>;
+
+export function AddLoanPhotosFromComputer(arg1:string,arg2:number):Promise<number>;
+
 export function AddQuickAccessProduct(arg1:number):Promise<void>;
 
 export function AdjustVisitorCountToday(arg1:number):Promise<number>;
@@ -437,6 +441,10 @@ export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record
 export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean,arg7:boolean,arg8:boolean):Promise<void>;
 
 export function UpdateDefaultOpeningFloat(arg1:number,arg2:number,arg3:string):Promise<void>;
+
+export function UpdateExpenseCategory(arg1:number,arg2:string):Promise<Record<string, any>>;
+
+export function UpdateLoanCategory(arg1:number,arg2:string):Promise<Record<string, any>>;
 
 export function UpdateProduct(arg1:number,arg2:main.ProductInput):Promise<Record<string, any>>;
 

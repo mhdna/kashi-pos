@@ -201,6 +201,33 @@ func (q *Queries) ListLoansForShift(ctx context.Context, shiftID sql.NullInt64) 
 	return items, nil
 }
 
+const setLoanCategory = `-- name: SetLoanCategory :one
+UPDATE loans SET category = ? WHERE id = ? RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at
+`
+
+type SetLoanCategoryParams struct {
+	Category string `json:"category"`
+	ID       int64  `json:"id"`
+}
+
+func (q *Queries) SetLoanCategory(ctx context.Context, arg SetLoanCategoryParams) (Loan, error) {
+	row := q.db.QueryRowContext(ctx, setLoanCategory, arg.Category, arg.ID)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.ClientRef,
+		&i.Description,
+		&i.Category,
+		&i.Amount,
+		&i.CurrencyCode,
+		&i.CashboxAccountID,
+		&i.ShiftID,
+		&i.OccurredAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const sumLoansByCurrencySince = `-- name: SumLoansByCurrencySince :many
 SELECT currency_code, CAST(COALESCE(SUM(amount), 0) AS INTEGER) AS total
 FROM loans WHERE occurred_at >= ?
