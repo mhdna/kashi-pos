@@ -81,7 +81,7 @@ func (a *App) AdjustVisitorCountToday(delta int64) (int64, error) {
 
 	now := time.Now()
 	day := localVisitDayKey(now)
-	occurredAt := now.Format("2006-01-02 15:04:05")
+	occurredAt := now.UTC().Format("2006-01-02 15:04:05")
 
 	var next int64
 	queued := false

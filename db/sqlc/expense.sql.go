@@ -18,9 +18,11 @@ INSERT INTO expenses (
   amount,
   currency_code,
   cashbox_account_id,
-  shift_id
+  shift_id,
+  occurred_at,
+  created_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
 ) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at
 `
 
@@ -230,7 +232,7 @@ func (q *Queries) SetExpenseCategory(ctx context.Context, arg SetExpenseCategory
 
 const sumExpensesByCurrencySince = `-- name: SumExpensesByCurrencySince :many
 SELECT currency_code, CAST(COALESCE(SUM(amount), 0) AS INTEGER) AS total
-FROM expenses WHERE occurred_at >= ?
+FROM expenses WHERE datetime(occurred_at, 'localtime') >= ?
 GROUP BY currency_code
 `
 
@@ -239,7 +241,8 @@ type SumExpensesByCurrencySinceRow struct {
 	Total        int64  `json:"total"`
 }
 
-// Expenses from `since` (a local "YYYY-MM-DD HH:MM:SS") on, per currency --
+// Expenses from `since` (a local "YYYY-MM-DD HH:MM:SS"; occurred_at is UTC)
+// on, per currency --
 // the month total under the Expenses button. Amounts are in the expense's
 // own currency, x100, as entered.
 func (q *Queries) SumExpensesByCurrencySince(ctx context.Context, occurredAt string) ([]SumExpensesByCurrencySinceRow, error) {

@@ -18,9 +18,11 @@ INSERT INTO loans (
   amount,
   currency_code,
   cashbox_account_id,
-  shift_id
+  shift_id,
+  occurred_at,
+  created_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
 ) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at
 `
 
@@ -230,7 +232,7 @@ func (q *Queries) SetLoanCategory(ctx context.Context, arg SetLoanCategoryParams
 
 const sumLoansByCurrencySince = `-- name: SumLoansByCurrencySince :many
 SELECT currency_code, CAST(COALESCE(SUM(amount), 0) AS INTEGER) AS total
-FROM loans WHERE occurred_at >= ?
+FROM loans WHERE datetime(occurred_at, 'localtime') >= ?
 GROUP BY currency_code
 `
 
