@@ -50,7 +50,8 @@
         <span class="text-truncate"><v-icon icon="mdi-hand-coin-outline" size="16" class="me-1" />{{ row.description || row.category || "Loan" }}</span>
         <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
       </div>
-      <div class="d-flex justify-space-between pt-2 mt-1 border-t font-weight-bold">
+      <!-- Only when something came off; otherwise it just repeats the total. -->
+      <div v-if="shiftExpenses.length || shiftLoans.length" class="d-flex justify-space-between pt-2 mt-1 border-t font-weight-bold">
         <span>Net income</span>
         <span>{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
       </div>
