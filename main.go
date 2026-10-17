@@ -45,7 +45,7 @@ func main() {
 	// the `dev` build tag) run windowed and resizable; production stays
 	// fullscreen with a fixed window.
 	appOptions := &options.App{
-		Title:            "Kashi Cloud",
+		Title:            "GB Cloud",
 		Fullscreen:       !isDevMode,
 		WindowStartState: options.Normal,
 		DisableResize:    !isDevMode,

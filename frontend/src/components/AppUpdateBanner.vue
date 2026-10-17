@@ -2,7 +2,7 @@
   <!-- An update is downloaded and waiting. -->
   <v-snackbar v-model="showReady" :timeout="-1" location="bottom" color="primary">
     <v-icon icon="mdi-update" class="me-2" />
-    Kashi Cloud {{ status.version }} is ready.
+    GB Cloud {{ status.version }} is ready.
     <template #actions>
       <v-btn variant="text" @click="dismissed = true">Later</v-btn>
       <v-btn variant="flat" @click="confirmInstall = true">Install now</v-btn>
@@ -11,7 +11,7 @@
 
   <v-dialog v-model="confirmInstall" max-width="440">
     <v-card title="Install the update?">
-      <v-card-text>Kashi Cloud will close and reopen in about 10 seconds. Finish the current sale first.</v-card-text>
+      <v-card-text>GB Cloud will close and reopen in about 10 seconds. Finish the current sale first.</v-card-text>
       <v-card-actions>
         <v-spacer />
         <v-btn variant="text" @click="confirmInstall = false">Cancel</v-btn>
@@ -35,7 +35,7 @@
   <v-overlay :model-value="installing" persistent class="align-center justify-center">
     <v-card class="pa-6 text-center" max-width="420">
       <v-progress-circular indeterminate color="primary" class="mb-4" />
-      <div class="text-h6">Updating Kashi Cloud to {{ status.version }}…</div>
+      <div class="text-h6">Updating GB Cloud to {{ status.version }}…</div>
       <div class="text-body-2 mt-2">It reopens by itself in a few seconds. Don't turn off the computer.</div>
     </v-card>
   </v-overlay>
@@ -117,15 +117,15 @@ onMounted(async () => {
   if (ready.error) return;
   const started = await ConfirmAppStarted();
   if (started.result === "update") {
-    resultTitle.value = `Kashi Cloud was updated to ${started.to}`;
+    resultTitle.value = `GB Cloud was updated to ${started.to}`;
     resultText.value = started.notes ? `What's new:\n${started.notes}` : "";
     resultDialog.value = true;
   } else if (started.result === "rollback") {
-    resultTitle.value = `Kashi Cloud went back to ${started.to}`;
+    resultTitle.value = `GB Cloud went back to ${started.to}`;
     resultDialog.value = true;
   } else if (started.result === "failed") {
     resultTitle.value = "The update didn't work";
-    resultText.value = `${started.from ? `${started.to} didn't start, so ` : ""}Kashi Cloud went back to the previous version. Your data is safe.`;
+    resultText.value = `${started.from ? `${started.to} didn't start, so ` : ""}GB Cloud went back to the previous version. Your data is safe.`;
     resultDialog.value = true;
   }
 });
