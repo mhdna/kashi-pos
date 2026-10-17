@@ -86,7 +86,7 @@
           <div class="section-label mt-5 mb-2">Photos</div>
           <div v-if="detailPhotosLoading" class="d-flex justify-center pa-6"><v-progress-circular indeterminate /></div>
           <div v-else-if="detailPhotos.length" class="photo-strip">
-            <img v-for="(src, i) in detailPhotos" :key="i" :src="src" alt="Loan photo" class="photo-full" />
+            <img v-for="(src, i) in detailPhotos" :key="i" :src="src" alt="Loan photo" class="photo-full" @click="openViewer(i)" />
           </div>
           <div v-else class="empty-photos">
             <v-icon icon="mdi-image-off-outline" size="32" color="grey" />
@@ -202,6 +202,7 @@
       </v-card>
     </v-dialog>
 
+    <PhotoViewer v-model="viewerOpen" v-model:index="viewerIndex" :photos="detailPhotos" />
     <PhotoUploadDialog
       v-model="uploadOpen"
       kind="loan"
@@ -226,6 +227,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import PhotoUploadDialog from "@/components/PhotoUploadDialog.vue";
+import PhotoViewer from "@/components/PhotoViewer.vue";
 import RecordPhoto from "@/components/RecordPhoto.vue";
 import { useInfiniteList } from "@/composables/useInfiniteList";
 import { formatServerDateTime } from "@/lib/datetime";
@@ -298,6 +300,12 @@ function onPhotosUploaded(clientRef: string) {
 
 // ---- detail edits: category, photos from this computer -------------------
 const categorySaving = ref(false);
+const viewerOpen = ref(false);
+const viewerIndex = ref(0);
+function openViewer(i: number) {
+  viewerIndex.value = i;
+  viewerOpen.value = true;
+}
 const computerUploading = ref(false);
 const photoError = ref("");
 

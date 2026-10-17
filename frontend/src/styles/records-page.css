@@ -94,19 +94,30 @@
   color: rgba(var(--v-theme-on-surface), 0.6);
 }
 
+/* Photos sit inside the dialog as thumbnails; tapping one opens
+   PhotoViewer (full screen, pinch to zoom). */
 .photo-strip {
   display: flex;
-  flex-direction: column;
   gap: 10px;
-  max-height: 60vh;
-  overflow-y: auto;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .photo-full {
-  width: 100%;
+  display: block;
+  max-width: 100%;
+  max-height: 260px;
+  margin-inline: auto;
   border-radius: 10px;
   object-fit: contain;
   background: rgba(var(--v-theme-on-surface), 0.04);
+  cursor: zoom-in;
+}
+
+.photo-strip .photo-full {
+  max-width: calc(33% - 7px);
+  min-width: 120px;
+  margin-inline: 0;
 }
 
 .empty-photos {
