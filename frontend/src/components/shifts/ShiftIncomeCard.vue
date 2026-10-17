@@ -7,14 +7,14 @@
     <v-progress-linear v-if="loading" indeterminate />
     <template v-else-if="items.length">
       <v-list density="compact" class="pa-0">
-        <v-list-item v-for="item in items" :key="item.accountName">
+        <v-list-item v-for="item in collectedItems" :key="item.accountName">
         <template #prepend>
           <v-avatar :color="paymentAccentColor({ name: item.accountName, color: item.color })" variant="tonal" size="32">
             <v-icon icon="mdi-wallet" size="18" />
           </v-avatar>
         </template>
         <template #title>
-          {{ item.isOnAccount ? "(On Account) — not collected" : item.accountName }}
+          {{ item.accountName }}
         </template>
         <template #append>
           <span class="font-weight-bold text-medium-emphasis">
@@ -25,7 +25,7 @@
       </v-list>
       <div class="d-flex justify-space-between px-4 pt-3 mt-2 border-t font-weight-bold">
         <span>Income total</span>
-        <span>{{ formatBalance(incomeTotal, "USD", currencies, roundingMode) }}</span>
+        <span>{{ formatBalance(collectedTotal, "USD", currencies, roundingMode) }}</span>
       </div>
     </template>
     <div v-else class="shift-income-empty pa-3 text-caption text-medium-emphasis">
@@ -34,10 +34,14 @@
         {{ shiftId ? "No income found for the current shift." : "No open shift found." }}
       </div>
     </div>
-    <!-- Money that went out during the shift, then income minus it. Display
-         only: the shift's expected cash still doesn't take expenses or loans
-         out (see GetShiftTotals). -->
-    <div v-if="shiftId && (shiftExpenses.length || shiftLoans.length)" class="px-4 pt-2">
+    <!-- Sold on account (not collected, so it's kept out of the income total
+         above), then money that went out during the shift, then income minus
+         that. Display only (see GetShiftTotals). -->
+    <div v-if="shiftId && (onAccountTotal || shiftExpenses.length || shiftLoans.length)" class="px-4 pt-2">
+      <div v-if="onAccountTotal" class="spend-row text-medium-emphasis">
+        <span class="text-truncate"><v-icon icon="mdi-account-clock" size="16" class="me-1" />On account — not collected</span>
+        <span>{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }}</span>
+      </div>
       <div v-for="row in shiftExpenses" :key="`e-${row.id}`" class="spend-row">
         <span class="text-truncate"><v-icon icon="mdi-receipt-text-outline" size="16" class="me-1" />{{ row.description || row.category || "Expense" }}</span>
         <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
@@ -155,16 +159,21 @@ async function loadSpend() {
 }
 onMounted(loadSpend);
 watch(() => props.shiftId, loadSpend);
+// On-account sales are owed, not in the drawer: they stay out of the income
+// total and the net, and get their own line under the total instead.
+const collectedItems = computed(() => props.items.filter((item) => !item.isOnAccount));
+const onAccountTotal = computed(() =>
+  props.items.filter((item) => item.isOnAccount).reduce((sum, item) => sum + (Number(item.total) || 0), 0),
+);
+const collectedTotal = computed(() => (Number(props.incomeTotal) || 0) - onAccountTotal.value);
 const netIncome = computed(
   () =>
-    (Number(props.incomeTotal) || 0) -
+    collectedTotal.value -
     sumToUsdCents(shiftExpenses.value, currencies.value) -
     sumToUsdCents(shiftLoans.value, currencies.value),
 );
 const balanceSources = computed<Balance[]>(() => props.balanceSources
   .filter((item) => !item.isOnAccount && !item.isOnCoupon && item.accountId && Number(item.balance) !== 0));
-
-const incomeTotal = computed(() => Number(props.incomeTotal) || 0);
 
 function openExpenses() {
   void router.push("/expenses");
