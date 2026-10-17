@@ -73,9 +73,10 @@
     </v-alert>
     <router-view v-else />
     <AttendanceToast />
+    <WhatsAppToast />
     <AppUpdateBanner />
-  </v-app>
     <ClockWarning />
+  </v-app>
 </template>
 
 <script setup>
@@ -85,10 +86,11 @@ import { useTheme } from "vuetify";
 import { animationsEnabled, isCompactBuild, startDisplayPrefsSync } from "@/lib/display";
 import { EventsOn, WindowReloadApp } from "../wailsjs/runtime/runtime";
 import AttendanceToast from "@/components/AttendanceToast.vue";
+import WhatsAppToast from "@/components/WhatsAppToast.vue";
 import AppUpdateBanner from "@/components/AppUpdateBanner.vue";
+import ClockWarning from "@/components/ClockWarning.vue";
 
 const theme = useTheme();
-import ClockWarning from "@/components/ClockWarning.vue";
 const startupLoading = ref(true);
 const startupError = ref("");
 const databaseMissing = ref(false);

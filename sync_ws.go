@@ -59,6 +59,14 @@ type wsMessage struct {
 	Entities []string `json:"entities,omitempty"`
 	// Features is set on "hello", kashi's first message of a session.
 	Features []string `json:"features,omitempty"`
+	// Review is set on "review": a client just answered the rating poll
+	// for a sale at this branch.
+	Review *wsReview `json:"review,omitempty"`
+}
+
+type wsReview struct {
+	ClientName string `json:"client_name"`
+	Rating     int    `json:"rating"` // 1-5
 }
 
 var wsMessageEntity = map[string]string{
@@ -329,6 +337,12 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 	}
 	if msg.Type == "expense_images_uploaded" {
 		a.emitExpenseImagesUploaded(msg.ClientRef)
+		return
+	}
+	if msg.Type == "review" {
+		if msg.Review != nil {
+			a.emitReview(*msg.Review)
+		}
 		return
 	}
 	if msg.Type == "loan_images_uploaded" {
