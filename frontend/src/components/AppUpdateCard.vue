@@ -58,7 +58,7 @@
     <v-dialog v-model="confirmRollback" max-width="440">
       <v-card :title="`Roll back to ${status.previousVersion}?`">
         <v-card-text>
-          Kashi Cloud closes and reopens on {{ status.previousVersion }} in about 10 seconds. It won't
+          GB Cloud closes and reopens on {{ status.previousVersion }} in about 10 seconds. It won't
           install {{ status.currentVersion }} again until it's sent a different version or you
           check for updates here. Your data is not changed.
         </v-card-text>

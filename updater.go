@@ -555,7 +555,7 @@ func (a *App) beginHandoff(h updateHandoff, source string) error {
 	if err := copyFile(source, newExePath(exe)); err != nil {
 		next := a.setUpdateState(func(st *updaterState) {
 			st.State = updateBlocked
-			st.Detail = "Kashi Cloud can't write to its install folder. Reinstall it once with the latest installer; updates install by themselves after that. (" + err.Error() + ")"
+			st.Detail = "GB Cloud can't write to its install folder. Reinstall it once with the latest installer; updates install by themselves after that. (" + err.Error() + ")"
 		})
 		go a.reportUpdateStatusNow(next)
 		return errors.New(next.Detail)
@@ -698,7 +698,7 @@ func runUpdateHelper(handoffPath string, procs updateProcesses) int {
 
 	if !procs.waitExit(h.ParentPID, updateExitTimeout) {
 		os.Remove(newExePath(h.ExePath))
-		h.Phase, h.Detail = "done", "Kashi Cloud didn't close; the update was cancelled"
+		h.Phase, h.Detail = "done", "GB Cloud didn't close; the update was cancelled"
 		_ = saveHandoff(handoffPath, h)
 		_ = procs.start(h.ExePath)
 		return 1

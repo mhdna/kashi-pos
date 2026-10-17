@@ -309,7 +309,7 @@ func splashThread() {
 	hwnd, _, err := pCreateWindowExW.Call(
 		wsExTopmost|wsExToolWindow,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(utf16Ptr("Kashi Cloud"))),
+		uintptr(unsafe.Pointer(utf16Ptr("GB Cloud"))),
 		wsPopup|wsVisible,
 		i32(x), i32(y), splashWinW, splashWinH,
 		0, 0, hInst, 0,
