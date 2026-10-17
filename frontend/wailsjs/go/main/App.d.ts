@@ -302,6 +302,8 @@ export function OpenShift():Promise<Record<string, any>>;
 
 export function PayClientAccount(arg1:number,arg2:number,arg3:number):Promise<Record<string, any>>;
 
+export function PrepareShiftClose(arg1:number):Promise<boolean>;
+
 export function PreviewProductsCSV():Promise<main.ProductCSVPreview>;
 
 export function PreviewShiftBalanceReplacement(arg1:number,arg2:number,arg3:number,arg4:number,arg5:boolean):Promise<main.ShiftBalanceReplacementPreview>;
@@ -353,6 +355,8 @@ export function SetAttendanceManagerApprovalEnabled(arg1:boolean):Promise<void>;
 export function SetAutoAppendLbpZerosEnabled(arg1:boolean):Promise<void>;
 
 export function SetAutoCloseStaleShiftsEnabled(arg1:boolean):Promise<void>;
+
+export function SetAutoCoverNegativeLBPEnabled(arg1:boolean):Promise<void>;
 
 export function SetCashierPIN(arg1:string):Promise<void>;
 

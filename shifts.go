@@ -337,6 +337,9 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 	if err := a.checkCloseShiftSyncGate(id); err != nil {
 		return nil, err
 	}
+	if _, err := a.PrepareShiftClose(id); err != nil {
+		return nil, err
+	}
 
 	closedAt := time.Now().UTC().Format("2006-01-02 15:04:05")
 	printData, receiptEnabled, err := a.buildShiftClosePrintData(
