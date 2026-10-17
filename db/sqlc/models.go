@@ -563,6 +563,7 @@ type Setting struct {
 	DisplayPrefsRev          int64          `json:"displayPrefsRev"`
 	SalespersonIdsReportedAt sql.NullString `json:"salespersonIdsReportedAt"`
 }
+	Timezone                 sql.NullString `json:"timezone"`
 
 type Shift struct {
 	ID                    int64          `json:"id"`

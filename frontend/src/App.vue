@@ -75,6 +75,7 @@
     <AttendanceToast />
     <AppUpdateBanner />
   </v-app>
+    <ClockWarning />
 </template>
 
 <script setup>
@@ -87,6 +88,7 @@ import AttendanceToast from "@/components/AttendanceToast.vue";
 import AppUpdateBanner from "@/components/AppUpdateBanner.vue";
 
 const theme = useTheme();
+import ClockWarning from "@/components/ClockWarning.vue";
 const startupLoading = ref(true);
 const startupError = ref("");
 const databaseMissing = ref(false);
