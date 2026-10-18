@@ -725,8 +725,9 @@ type VoidInvoice struct {
 }
 
 type WhatsappPending struct {
-	InvoiceCode string    `json:"invoiceCode"`
-	Payload     string    `json:"payload"`
-	CreatedAt   time.Time `json:"createdAt"`
-	Attempts    int64     `json:"attempts"`
+	InvoiceCode   string       `json:"invoiceCode"`
+	Payload       string       `json:"payload"`
+	CreatedAt     time.Time    `json:"createdAt"`
+	Attempts      int64        `json:"attempts"`
+	NextAttemptAt sql.NullTime `json:"nextAttemptAt"`
 }

@@ -240,7 +240,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 	// Post-sale WhatsApp "thank you / please rate us" message. Best-effort and
 	// off the checkout path -- see whatsAppThankYou.
 	if invoiceClientErr == nil {
-		go a.whatsAppThankYou(result.InvoiceCode, result.GrandTotal, invoiceClient, result.Items)
+		go a.whatsAppThankYou(result.InvoiceCode, result.GrandTotal, invoiceClient, result.Items, result.Payments)
 	}
 
 	settings, settingsErr := a.store.GetSettings(a.ctx)

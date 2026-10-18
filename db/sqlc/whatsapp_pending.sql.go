@@ -10,11 +10,20 @@ import (
 )
 
 const bumpWhatsAppPending = `-- name: BumpWhatsAppPending :exec
-UPDATE whatsapp_pending SET attempts = attempts + 1 WHERE invoice_code = ?
+UPDATE whatsapp_pending
+SET attempts = attempts + 1, next_attempt_at = datetime('now', ?1)
+WHERE invoice_code = ?2
 `
 
-func (q *Queries) BumpWhatsAppPending(ctx context.Context, invoiceCode string) error {
-	_, err := q.db.ExecContext(ctx, bumpWhatsAppPending, invoiceCode)
+type BumpWhatsAppPendingParams struct {
+	Delay       interface{} `json:"delay"`
+	InvoiceCode string      `json:"invoiceCode"`
+}
+
+// One more failed try; the next waits `delay` (a SQLite modifier such as
+// '+4 minutes').
+func (q *Queries) BumpWhatsAppPending(ctx context.Context, arg BumpWhatsAppPendingParams) error {
+	_, err := q.db.ExecContext(ctx, bumpWhatsAppPending, arg.Delay, arg.InvoiceCode)
 	return err
 }
 
@@ -28,7 +37,7 @@ func (q *Queries) DeleteWhatsAppPending(ctx context.Context, invoiceCode string)
 }
 
 const listWhatsAppPending = `-- name: ListWhatsAppPending :many
-SELECT invoice_code, payload, created_at, attempts FROM whatsapp_pending ORDER BY created_at
+SELECT invoice_code, payload, created_at, attempts, next_attempt_at FROM whatsapp_pending ORDER BY created_at
 `
 
 // Oldest first; the caller drops the ones too old to still send.
@@ -46,6 +55,7 @@ func (q *Queries) ListWhatsAppPending(ctx context.Context) ([]WhatsappPending, e
 			&i.Payload,
 			&i.CreatedAt,
 			&i.Attempts,
+			&i.NextAttemptAt,
 		); err != nil {
 			return nil, err
 		}
