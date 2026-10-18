@@ -676,6 +676,9 @@ func (c *centralClient) GetTargetsProgress(ctx context.Context) (progress []bran
 type whatsAppThankYouResponse struct {
 	Sent   bool   `json:"sent"`
 	Reason string `json:"reason"`
+	// Retry: kashi couldn't send for now (bridge or Meta unreachable) and a
+	// later try may work, so the thank-you stays pending.
+	Retry bool `json:"retry"`
 }
 
 // PostWhatsAppThankYou asks kashi to send the post-sale WhatsApp thank-you

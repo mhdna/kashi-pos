@@ -26,7 +26,9 @@ type Querier interface {
 	AdoptUserAsSynced(ctx context.Context, arg AdoptUserAsSyncedParams) (User, error)
 	ApproveAttendanceComplaint(ctx context.Context, arg ApproveAttendanceComplaintParams) error
 	AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error
-	BumpWhatsAppPending(ctx context.Context, invoiceCode string) error
+	// One more failed try; the next waits `delay` (a SQLite modifier such as
+	// '+4 minutes').
+	BumpWhatsAppPending(ctx context.Context, arg BumpWhatsAppPendingParams) error
 	ClearSyncCursors(ctx context.Context) error
 	// "Sync everything" against the server this till already syncs with:
 	// re-pull the small entities from scratch, but keep the big ones' cursors

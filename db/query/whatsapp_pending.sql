@@ -10,4 +10,8 @@ DELETE FROM whatsapp_pending WHERE invoice_code = ?;
 SELECT * FROM whatsapp_pending ORDER BY created_at;
 
 -- name: BumpWhatsAppPending :exec
-UPDATE whatsapp_pending SET attempts = attempts + 1 WHERE invoice_code = ?;
+-- One more failed try; the next waits `delay` (a SQLite modifier such as
+-- '+4 minutes').
+UPDATE whatsapp_pending
+SET attempts = attempts + 1, next_attempt_at = datetime('now', sqlc.arg(delay))
+WHERE invoice_code = sqlc.arg(invoice_code);
