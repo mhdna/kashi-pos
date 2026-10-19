@@ -141,7 +141,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		// The "Unknown item" placeholder has no list price: whatever the
 		// cashier typed is its price, whatever the custom-price settings say
 		// (kashi's picture session is what vouches for the sale instead).
-		isUnknown := product.Barcode == unknownProductBarcode
+		isUnknown := product.Barcode == a.unknownBarcode()
 		if item.CustomPriceCents != nil {
 			if !customPricingEnabled && !isUnknown {
 				return nil, 0, 0, nil, fmt.Errorf("custom item pricing is disabled")

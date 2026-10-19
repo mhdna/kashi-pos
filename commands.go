@@ -141,6 +141,9 @@ type updateSettingsCommandPayload struct {
 	OversellMode *string `json:"oversell_mode"`
 	// PriceEditCodes replaces the list of codes editable by hand.
 	PriceEditCodes *string `json:"price_edit_codes"`
+	// UnknownProductBarcode names the product the "Unknown item" button adds
+	// ("" = the built-in placeholder).
+	UnknownProductBarcode *string `json:"unknown_product_barcode"`
 
 	// ShiftReceiptUploadMode is an enum, not a flag: 0=off, 1=central,
 	// 2=hybrid, 3=local (see shiftUploadMode* in shifts.go).
@@ -330,6 +333,12 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}
 		if err := u.fn(*u.v); err != nil {
 			return fmt.Errorf("update feature flag: %w", err)
+		}
+	}
+
+	if p.UnknownProductBarcode != nil {
+		if err := a.SetUnknownProductBarcode(*p.UnknownProductBarcode); err != nil {
+			return fmt.Errorf("update unknown product: %w", err)
 		}
 	}
 

@@ -108,6 +108,9 @@ type branchSettingsPayload struct {
 	OversellMode string `json:"oversell_mode"`
 	// Comma-separated codes editable by hand while PriceEditRestricted is on.
 	PriceEditCodes string `json:"price_edit_codes"`
+	// Barcode of the product the "Unknown item" button adds; empty means the
+	// built-in placeholder.
+	UnknownProductBarcode string `json:"unknown_product_barcode"`
 
 	HidePaymentMethodCurrency bool   `json:"hide_payment_method_currency"`
 	AutoAppendLbpZeros        bool   `json:"auto_append_lbp_zeros"`
@@ -308,6 +311,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		AttendanceManagerApprovalEnabled:   a.attendanceManagerApprovalEnabled(),
 		OversellMode:                       s.OversellMode,
 		PriceEditCodes:                     s.PriceEditCodes,
+		UnknownProductBarcode:              s.UnknownProductBarcode,
 
 		HidePaymentMethodCurrency: a.flagEnabled(ctx, hidePaymentMethodCurrencyFlag),
 		AutoAppendLbpZeros:        a.flagEnabled(ctx, autoAppendLbpZerosFlag),

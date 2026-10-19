@@ -72,17 +72,17 @@ func TestPerUnitInvoicePricesRequireFeatureAndGroupPriceLines(t *testing.T) {
 
 func TestParseSalesItemsValidatesPerUnitPriceCount(t *testing.T) {
 	if _, err := parseSalesItems(
-		`[{"code":"BZ005","qty":2,"unitPricesCents":[1000]}]`,
+		`[{"code":"BZ005","qty":2,"unitPricesCents":[1000]}]`, "UNKNOWN",
 	); err == nil {
 		t.Fatal("expected mismatched per-unit price count to fail")
 	}
 	if _, err := parseSalesItems(
-		`[{"code":"BZ005","qty":2,"unitPricesCents":[1000,750],"unitDiscounts":[10,0]}]`,
+		`[{"code":"BZ005","qty":2,"unitPricesCents":[1000,750],"unitDiscounts":[10,0]}]`, "UNKNOWN",
 	); err != nil {
 		t.Fatalf("valid per-unit prices rejected: %v", err)
 	}
 	if _, err := parseSalesItems(
-		`[{"code":"BZ005","qty":2,"unitPricesCents":[1000,750],"unitDiscounts":[10]}]`,
+		`[{"code":"BZ005","qty":2,"unitPricesCents":[1000,750],"unitDiscounts":[10]}]`, "UNKNOWN",
 	); err == nil {
 		t.Fatal("expected mismatched per-unit discount count to fail")
 	}

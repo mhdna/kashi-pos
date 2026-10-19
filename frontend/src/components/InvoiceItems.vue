@@ -317,6 +317,8 @@ const props = defineProps<{
   // in priceEditCodes (lowercased by the caller).
   priceEditRestricted?: boolean;
   priceEditCodes?: string[];
+  // Barcode of the "Unknown item" product (kashi's branch setting).
+  unknownBarcode?: string;
   perUnitPricesEnabled?: boolean;
   // "discount" (default): editing price or discount recomputes the other
   // from the line's original price, so a price change is always expressed
@@ -544,9 +546,8 @@ function clearItems() {
 // The "Unknown item" placeholder: its price is whatever was typed when it was
 // added, one per unit, and is never edited afterwards (remove it and add it
 // again to change it).
-const UNKNOWN_BARCODE = "UNKNOWN";
 function isUnknownItem(item: LineItem): boolean {
-  return item.barcode === UNKNOWN_BARCODE;
+  return item.barcode === (props.unknownBarcode || "UNKNOWN");
 }
 
 function codeAllowsPriceEdit(item: LineItem): boolean {

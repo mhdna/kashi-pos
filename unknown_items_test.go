@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	db "kashi-pos/db/sqlc"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,8 +21,8 @@ func TestUnknownProductIsCreatedOnceAndPricedWithoutCustomPriceFlags(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first["id"] != second["id"] || first["barcode"] != unknownProductBarcode {
-		t.Fatalf("placeholder = %v then %v, want one product with barcode %q", first, second, unknownProductBarcode)
+	if first["id"] != second["id"] || first["barcode"] != defaultUnknownBarcode {
+		t.Fatalf("placeholder = %v then %v, want one product with barcode %q", first, second, defaultUnknownBarcode)
 	}
 
 	listPricing, err := loadActivePricing(app.ctx, app.store.Queries)
@@ -99,10 +100,40 @@ func TestVerifyUnknownPicturesNeedsEveryUnit(t *testing.T) {
 }
 
 func TestEveryUnknownItemMayBeItsOwnLine(t *testing.T) {
-	if _, err := parseSalesItems(`[{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1},{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1}]`); err != nil {
+	if _, err := parseSalesItems(`[{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1},{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1}]`, "UNKNOWN"); err != nil {
 		t.Fatalf("two unknown lines were refused: %v", err)
 	}
-	if _, err := parseSalesItems(`[{"code":"A","barcode":"111","qty":1},{"code":"A","barcode":"111","qty":1}]`); err == nil {
+	if _, err := parseSalesItems(`[{"code":"A","barcode":"111","qty":1},{"code":"A","barcode":"111","qty":1}]`, "UNKNOWN"); err == nil {
 		t.Fatal("a repeated ordinary product was accepted")
+	}
+}
+
+func TestUnknownProductCanBeANamedProduct(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	if _, err := database.Exec(`INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id) VALUES ('Test', '', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0)`); err != nil {
+		t.Fatal(err)
+	}
+	if got := app.unknownBarcode(); got != defaultUnknownBarcode {
+		t.Fatalf("default unknown barcode = %q", got)
+	}
+	if err := app.SetUnknownProductBarcode(" 8001 "); err != nil {
+		t.Fatal(err)
+	}
+	if got := app.unknownBarcode(); got != "8001" {
+		t.Fatalf("unknown barcode = %q, want 8001", got)
+	}
+	// Named but not in the catalog yet: refused, not silently invented.
+	if _, err := app.GetUnknownProduct(); err == nil {
+		t.Fatal("a named product missing from the catalog was accepted")
+	}
+	if _, err := app.store.CreateProduct(app.ctx, db.CreateProductParams{
+		Barcode: "8001", Code: "MYSTERY", Name: "Mystery item", IsActive: 1, CurrencyCode: "USD",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	product, err := app.GetUnknownProduct()
+	if err != nil || product["code"] != "MYSTERY" {
+		t.Fatalf("GetUnknownProduct = (%v, %v), want the named product", product, err)
 	}
 }

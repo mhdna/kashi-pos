@@ -51,3 +51,6 @@ UPDATE settings SET oversell_mode = ?;
 
 -- name: SetPriceEditCodes :exec
 UPDATE settings SET price_edit_codes = ?;
+
+-- name: SetUnknownProductBarcode :exec
+UPDATE settings SET unknown_product_barcode = ?;

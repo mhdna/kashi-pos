@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,26 +27,59 @@ import (
 // (see api/unknown_items.go in the kashi repo).
 
 const (
-	unknownProductBarcode = "UNKNOWN"
+	// defaultUnknownBarcode is the built-in placeholder's barcode, used while
+	// the branch hasn't named a product of its own (settings.unknown_product_barcode).
+	defaultUnknownBarcode = "UNKNOWN"
 	unknownProductName    = "Unknown item"
 
 	unknownCallTimeout = 10 * time.Second
 )
 
-// ensureUnknownProduct returns the placeholder product, creating it on first
-// use. It is active (the sale pricing rejects inactive products), has no uid
-// (so kashi never tries to move stock for it) and no list price: its price is
-// always the one the cashier typed (see validateAndPriceItems).
-func ensureUnknownProduct(ctx context.Context, q *db.Queries) (db.Product, error) {
-	product, err := q.GetProductByBarcode(ctx, unknownProductBarcode)
+// unknownBarcode is the barcode of the product that stands for "an item I
+// can't name": the one kashi's branch settings point at, else the built-in
+// placeholder.
+func (a *App) unknownBarcode() string {
+	if a.store != nil {
+		if settings, err := a.store.GetSettings(a.ctx); err == nil {
+			if barcode := strings.TrimSpace(settings.UnknownProductBarcode); barcode != "" {
+				return barcode
+			}
+		}
+	}
+	return defaultUnknownBarcode
+}
+
+// SetUnknownProductBarcode names the product the "Unknown item" button adds
+// ("" goes back to the built-in placeholder). Called by an update_settings
+// command from kashi.
+func (a *App) SetUnknownProductBarcode(barcode string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.store.SetUnknownProductBarcode(a.ctx, strings.TrimSpace(barcode)); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// ensureUnknownProduct returns the unknown product. A product kashi named must
+// already be in this till's catalog; the built-in placeholder is created on
+// first use. Either way it is priced by what the cashier types (see
+// validateAndPriceItems), and kashi never moves stock for it.
+func ensureUnknownProduct(ctx context.Context, q *db.Queries, barcode string) (db.Product, error) {
+	product, err := q.GetProductByBarcode(ctx, barcode)
 	if err == nil {
 		return product, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return db.Product{}, err
 	}
+	if barcode != defaultUnknownBarcode {
+		return db.Product{}, fmt.Errorf("the unknown product %q isn't in this till's catalog yet", barcode)
+	}
 	return q.CreateProduct(ctx, db.CreateProductParams{
-		Barcode: unknownProductBarcode, Code: unknownProductBarcode, Name: unknownProductName,
+		Barcode: barcode, Code: barcode, Name: unknownProductName,
 		IsActive: 1, Price: 0, CurrencyCode: "USD",
 	})
 }
@@ -56,7 +90,7 @@ func (a *App) GetUnknownProduct() (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	product, err := ensureUnknownProduct(a.ctx, a.store.Queries)
+	product, err := ensureUnknownProduct(a.ctx, a.store.Queries, a.unknownBarcode())
 	if err != nil {
 		return nil, err
 	}
@@ -67,10 +101,10 @@ func (a *App) GetUnknownProduct() (map[string]any, error) {
 }
 
 // unknownUnitCount is how many units of the placeholder a cart carries.
-func unknownUnitCount(items []salesInvoiceItem) int64 {
+func unknownUnitCount(items []salesInvoiceItem, barcode string) int64 {
 	var units int64
 	for _, item := range items {
-		if item.Barcode == unknownProductBarcode {
+		if item.Barcode == barcode {
 			units += int64(item.Qty)
 		}
 	}
@@ -208,7 +242,7 @@ func (a *App) verifyUnknownPictures(itemsJSON string) (string, error) {
 	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
 		return "", nil // the sale's own validation reports a bad cart
 	}
-	units := unknownUnitCount(items)
+	units := unknownUnitCount(items, a.unknownBarcode())
 	if units == 0 {
 		return "", nil
 	}
