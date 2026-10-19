@@ -92,6 +92,15 @@
           <v-icon icon="mdi-autorenew" size="22" />
         </v-btn>
         <v-btn
+          v-if="pageMode === 'sale'"
+          icon
+          variant="text"
+          aria-label="Add an unknown item"
+          @click="unknownPrice.show = true"
+        >
+          <v-icon icon="mdi-help-box-outline" size="22" />
+        </v-btn>
+        <v-btn
           v-if="pageMode !== 'settlement' && productSearchEnabled"
           variant="text"
           rounded
@@ -106,6 +115,14 @@
           hide-activator
           :rounding-mode="roundingMode"
           @exchange="onExchange"
+        />
+        <UnknownPriceDialog v-model="unknownPrice.show" @add="onUnknownAdd" />
+        <UnknownPicturesDialog
+          v-if="unknownPictures.show"
+          v-model="unknownPictures.show"
+          :units="unknownPictures.units"
+          @cancel="answerUnknownPictures(false)"
+          @ready="answerUnknownPictures(true)"
         />
         <ProductSearchDialog
           ref="productSearchDialog"
@@ -344,6 +361,7 @@ import {
   WriteToScreen,
   QuoteInvoiceTotal,
   QuoteExchangeTotal,
+  GetUnknownProduct,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import ActionBar from "@/components/ActionBar.vue";
@@ -355,6 +373,8 @@ import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import NoteButton from "@/components/NoteButton.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
+import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
+import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import { quickAccessRows } from "@/lib/display";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
@@ -695,6 +715,7 @@ function clearInvoice() {
   invoiceNotes.value = "";
   noteDraft.value = "";
   noteDialog.value = false;
+  unknownPicturesReadyFor = "";
   clearDraft();
   resetClient();
 }
@@ -885,17 +906,16 @@ async function getFullItemsJSON(): Promise<string> {
       code: i.code,
       category: i.category,
       price: i.price,
-      customPriceCents: customItemPricesEnabled.value
-        ? Math.round(Number(i.price) * 100)
-        : undefined,
+      customPriceCents:
+        customItemPricesEnabled.value && !isUnknownItem(i) ? Math.round(Number(i.price) * 100) : undefined,
       unitPricesCents:
-        (perUnitItemPricesEnabled.value || customItemPricesEnabled.value) && i.qty > 0
+        (perUnitItemPricesEnabled.value || customItemPricesEnabled.value || isUnknownItem(i)) && i.qty > 0
           ? (i.unitPrices ?? Array(Math.trunc(i.qty)).fill(i.price)).map((price: number) =>
               Math.round(Number(price) * 100),
             )
           : undefined,
       unitDiscounts:
-        (perUnitItemPricesEnabled.value || customItemDiscountsEnabled.value) && i.qty > 0
+        (perUnitItemPricesEnabled.value || customItemDiscountsEnabled.value || isUnknownItem(i)) && i.qty > 0
           ? (i.unitDiscounts ?? Array(Math.trunc(i.qty)).fill(i.discount)).map((discount: number) =>
               Math.trunc(Number(discount)),
             )
@@ -1016,6 +1036,70 @@ async function confirmPricesIfUnusual(): Promise<boolean> {
   });
 }
 
+// --- "Unknown item": something with no code, rung up at a typed price, with a
+// picture of every unit taken on a phone before the customer pays. ---
+const UNKNOWN_BARCODE = "UNKNOWN";
+const isUnknownItem = (item: any) => item?.barcode === UNKNOWN_BARCODE;
+const unknownPrice = reactive({ show: false });
+const unknownPictures = reactive<{
+  show: boolean;
+  units: { label: string; unitPriceCents: number; discount: number }[];
+}>({ show: false, units: [] });
+let unknownPicturesAnswer: ((ready: boolean) => void) | null = null;
+// The cart (one unit per picture) the last finished session was opened for.
+let unknownPicturesReadyFor = "";
+
+async function onUnknownAdd(price: number) {
+  try {
+    const product = await GetUnknownProduct();
+    invoiceItems.value?.addItem({ ...product, price, qty: 1, originalPrice: price } as any);
+    playClickSound();
+  } catch (e: any) {
+    showDiscountError(e?.toString() || "Couldn't add an unknown item");
+  }
+  focusBarcode();
+}
+
+function unknownUnits() {
+  const units: { label: string; unitPriceCents: number; discount: number }[] = [];
+  for (const item of invoiceItems.value?.items ?? []) {
+    if (!isUnknownItem(item) || !(item.qty > 0)) continue;
+    for (let i = 0; i < item.qty; i++) {
+      const price = Number(item.unitPrices?.[i] ?? item.price);
+      units.push({
+        label: `Unknown item $${price.toFixed(2)}`,
+        unitPriceCents: Math.round(price * 100),
+        discount: Math.trunc(Number(item.unitDiscounts?.[i] ?? item.discount ?? 0)),
+      });
+    }
+  }
+  return units;
+}
+
+// Resolves true once every unit of the cart has a picture (or a manager's
+// pass); false if the cashier backs out. Skipped when nothing is unknown, or
+// when this exact cart already finished a session.
+async function ensureUnknownPictures(): Promise<boolean> {
+  const units = unknownUnits();
+  if (!units.length) return true;
+  const signature = JSON.stringify(units);
+  if (signature === unknownPicturesReadyFor) return true;
+  unknownPicturesReadyFor = "";
+  unknownPictures.units = units;
+  unknownPictures.show = true;
+  const ready = await new Promise<boolean>((resolve) => {
+    unknownPicturesAnswer = resolve;
+  });
+  if (ready) unknownPicturesReadyFor = signature;
+  return ready;
+}
+
+function answerUnknownPictures(ready: boolean) {
+  const answer = unknownPicturesAnswer;
+  unknownPicturesAnswer = null;
+  answer?.(ready);
+}
+
 function notifyCheckoutBlocked(text: string, icon: string) {
   playWarningSound();
   snackbar.text = text;
@@ -1072,6 +1156,7 @@ async function onCheckout() {
   if (json === "[]") return;
   const isExchange = Boolean(exchangeState.value);
   if (flagMissingAssignment()) return;
+  if (!isExchange && !(await ensureUnknownPictures())) return;
   if (!(await confirmPricesIfUnusual())) return;
   if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
   printPhase.value = "printing";

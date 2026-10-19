@@ -473,7 +473,13 @@ function addItem(item: LineItem) {
       !i.locked &&
       ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)),
   );
-  if (existing) {
+  if (existing && isUnknownItem(existing)) {
+    // Each unknown item keeps the price typed for it.
+    ensureUnitPrices(existing);
+    existing.unitPrices?.push(Number(item.price));
+    existing.unitDiscounts?.push(0);
+    existing.qty++;
+  } else if (existing) {
     ensureUnitPrices(existing);
     existing.unitPrices?.push(existing.price);
     existing.unitDiscounts?.push(existing.discount);
@@ -538,7 +544,16 @@ function clearItems() {
   detailItem.value = null;
 }
 
+// The "Unknown item" placeholder: its price is whatever was typed when it was
+// added, one per unit, and is never edited afterwards (remove it and add it
+// again to change it).
+const UNKNOWN_BARCODE = "UNKNOWN";
+function isUnknownItem(item: LineItem): boolean {
+  return item.barcode === UNKNOWN_BARCODE;
+}
+
 function codeAllowsPriceEdit(item: LineItem): boolean {
+  if (isUnknownItem(item)) return false;
   if (!props.priceEditRestricted) return true;
   return (props.priceEditCodes ?? []).includes((item.code ?? "").trim().toLowerCase());
 }
