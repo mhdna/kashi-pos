@@ -29,7 +29,7 @@
       </v-btn>
     </div>
   </div>
-  <ClientDialog v-model="dialog" @select="setClient" />
+  <ClientDialog v-model="dialog" @select="chooseClient" />
   <ClientEditDialog v-if="clientSelected && client.id !== 0" v-model="editDialog" :client="client" @saved="setClient" />
 </template>
 
@@ -38,11 +38,19 @@ import { ref } from "vue";
 import ClientDialog from "./ClientDialog.vue";
 import ClientEditDialog from "./ClientEditDialog.vue";
 import { useClient } from "@/composables/useClient";
+import { WhatsAppWelcome } from "../../wailsjs/go/main/App";
 
 defineProps<{ disabled?: boolean }>();
 const dialog = ref(false);
 const editDialog = ref(false);
 const { client, clientSelected, pulseClient, setClient } = useClient();
+
+// A client picked or added in the dialog: kashi may welcome them on WhatsApp
+// right away (its setting; otherwise at checkout). Fire and forget.
+function chooseClient(chosen: Parameters<typeof setClient>[0]) {
+  setClient(chosen);
+  if (chosen.phone) WhatsAppWelcome(chosen.name, chosen.phone).catch(() => {});
+}
 </script>
 
 <style scoped>

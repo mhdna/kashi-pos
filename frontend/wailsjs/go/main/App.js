@@ -994,6 +994,10 @@ export function WaitUntilReady() {
   return window['go']['main']['App']['WaitUntilReady']();
 }
 
+export function WhatsAppWelcome(arg1, arg2) {
+  return window['go']['main']['App']['WhatsAppWelcome'](arg1, arg2);
+}
+
 export function WriteToScreen(arg1, arg2) {
   return window['go']['main']['App']['WriteToScreen'](arg1, arg2);
 }

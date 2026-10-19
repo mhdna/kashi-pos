@@ -498,4 +498,6 @@ export function VoidInvoice(arg1:string,arg2:string):Promise<void>;
 
 export function WaitUntilReady():Promise<Record<string, any>>;
 
+export function WhatsAppWelcome(arg1:string,arg2:string):Promise<void>;
+
 export function WriteToScreen(arg1:string,arg2:string):Promise<void>;
