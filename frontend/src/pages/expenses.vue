@@ -223,6 +223,7 @@ import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import {
   AddExpensePhotosFromComputer,
   CreateExpense,
+  GetExpenseFirstPhoto,
   GetExpensePhoto,
   ListExpenseCategories,
   ListExpensePhotoIDs,
@@ -264,9 +265,7 @@ function formatCents(cents: number): string {
 
 // The first photo, as a thumbnail, for the row; "" shows the no-photo icon.
 async function firstExpensePhoto(clientRef: string, width: number): Promise<string> {
-  const ids = (await ListExpensePhotoIDs(clientRef)) ?? [];
-  const first = ids[0];
-  return first ? GetExpensePhoto(first, width) : "";
+  return GetExpenseFirstPhoto(clientRef, width);
 }
 
 // ---- detail ------------------------------------------------------------

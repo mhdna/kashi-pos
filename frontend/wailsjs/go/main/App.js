@@ -310,6 +310,10 @@ export function GetExchangeInvoice(arg1) {
   return window['go']['main']['App']['GetExchangeInvoice'](arg1);
 }
 
+export function GetExpenseFirstPhoto(arg1, arg2) {
+  return window['go']['main']['App']['GetExpenseFirstPhoto'](arg1, arg2);
+}
+
 export function GetExpensePhoto(arg1, arg2) {
   return window['go']['main']['App']['GetExpensePhoto'](arg1, arg2);
 }
@@ -324,6 +328,10 @@ export function GetInvoiceForSettlementChange(arg1) {
 
 export function GetInvoiceSyncStates(arg1) {
   return window['go']['main']['App']['GetInvoiceSyncStates'](arg1);
+}
+
+export function GetLoanFirstPhoto(arg1, arg2) {
+  return window['go']['main']['App']['GetLoanFirstPhoto'](arg1, arg2);
 }
 
 export function GetLoanPhoto(arg1, arg2) {
@@ -650,6 +658,10 @@ export function QuoteSettlementPaymentStatus(arg1, arg2) {
   return window['go']['main']['App']['QuoteSettlementPaymentStatus'](arg1, arg2);
 }
 
+export function RefreshCartPricing(arg1) {
+  return window['go']['main']['App']['RefreshCartPricing'](arg1);
+}
+
 export function RemoveQuickAccessProduct(arg1) {
   return window['go']['main']['App']['RemoveQuickAccessProduct'](arg1);
 }
@@ -814,6 +826,10 @@ export function SetProductSearchEnabled(arg1) {
   return window['go']['main']['App']['SetProductSearchEnabled'](arg1);
 }
 
+export function SetProductSearchHiddenFields(arg1) {
+  return window['go']['main']['App']['SetProductSearchHiddenFields'](arg1);
+}
+
 export function SetQuickAccessColor(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetQuickAccessColor'](arg1, arg2, arg3);
 }
@@ -852,6 +868,10 @@ export function SetSplitDisplay(arg1, arg2, arg3) {
 
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
+}
+
+export function SetUnknownProductBarcode(arg1) {
+  return window['go']['main']['App']['SetUnknownProductBarcode'](arg1);
 }
 
 export function SetVisitorCounterEnabled(arg1) {
@@ -976,8 +996,4 @@ export function WaitUntilReady() {
 
 export function WriteToScreen(arg1, arg2) {
   return window['go']['main']['App']['WriteToScreen'](arg1, arg2);
-}
-
-export function RefreshCartPricing(arg1) {
-  return window['go']['main']['App']['RefreshCartPricing'](arg1);
 }
