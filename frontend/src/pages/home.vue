@@ -129,6 +129,7 @@
           v-if="pageMode !== 'settlement'"
           :show-activator="false"
           :code-only="productSearchCodeOnly"
+          :hidden-fields="productSearchHiddenFields"
           @select="onProductSelect"
         />
       </div>
@@ -442,6 +443,7 @@ const productSearchEnabled = ref(true);
 // only changes the hint text here, the backend enforces it.
 const scanByCodeEnabled = ref(true);
 const productSearchCodeOnly = ref(false);
+const productSearchHiddenFields = ref<string[]>([]);
 const priceEditRestricted = ref(false);
 const priceEditCodes = ref<string[]>([]);
 const priceChangeMode = computed(() =>
@@ -1390,6 +1392,9 @@ async function loadAppSettings() {
     productSearchEnabled.value = settings?.productSearchEnabled !== false;
     scanByCodeEnabled.value = settings?.scanByCodeEnabled !== false;
     productSearchCodeOnly.value = Boolean(settings?.productSearchCodeOnly);
+    productSearchHiddenFields.value = String(settings?.productSearchHiddenFields ?? "")
+      .split(",")
+      .filter(Boolean);
     priceEditRestricted.value = Boolean(settings?.priceEditRestricted);
     unknownProductBarcode.value = String(settings?.unknownProductBarcode || "UNKNOWN");
     priceEditCodes.value = String(settings?.priceEditCodes ?? "")

@@ -685,3 +685,43 @@ func (a *App) RefreshCartPricing(barcodesJSON string) ([]map[string]any, error) 
 	}
 	return out, nil
 }
+
+// productSearchFields are the columns of the product search dialog a branch
+// may hide.
+var productSearchFields = map[string]bool{"code": true, "name": true, "brand": true, "color": true, "size": true, "price": true}
+
+// normalizeProductSearchHiddenFields keeps the known field names from a
+// comma/space separated list, once each, in the order they were given.
+func normalizeProductSearchHiddenFields(raw string) string {
+	seen := map[string]bool{}
+	var fields []string
+	for _, field := range strings.FieldsFunc(strings.ToLower(raw), func(r rune) bool {
+		return r == ',' || r == ';' || r == ' ' || r == '\n' || r == '\t'
+	}) {
+		if productSearchFields[field] && !seen[field] {
+			seen[field] = true
+			fields = append(fields, field)
+		}
+	}
+	return strings.Join(fields, ",")
+}
+
+// SetProductSearchHiddenFields chooses which columns the product search dialog
+// leaves out. Called by an update_settings command from kashi.
+func (a *App) SetProductSearchHiddenFields(raw string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.store.SetProductSearchHiddenFields(a.ctx, normalizeProductSearchHiddenFields(raw)); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+func (a *App) productSearchHiddenFields() string {
+	if s, err := a.store.GetSettings(a.ctx); err == nil {
+		return s.ProductSearchHiddenFields
+	}
+	return ""
+}

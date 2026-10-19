@@ -632,6 +632,7 @@ type Querier interface {
 	SetSalespersonIsSalespersonByRemoteID(ctx context.Context, arg SetSalespersonIsSalespersonByRemoteIDParams) error
 	SetSettingsTimezone(ctx context.Context, timezone sql.NullString) error
 	SetShiftReceiptUploadMode(ctx context.Context, shiftReceiptUploadMode int64) error
+	SetProductSearchHiddenFields(ctx context.Context, productSearchHiddenFields string) error
 	SetUnknownProductBarcode(ctx context.Context, unknownProductBarcode string) error
 	SetSyncCursor(ctx context.Context, arg SetSyncCursorParams) error
 	SetSyncTarget(ctx context.Context, currentTarget string) error

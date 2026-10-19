@@ -603,3 +603,9 @@ func TestRefreshCartPricingFollowsTheLists(t *testing.T) {
 		t.Fatalf("after the discount = %v, want 25%%", rows[0])
 	}
 }
+
+func TestProductSearchHiddenFieldsKeepsKnownNamesOnly(t *testing.T) {
+	if got := normalizeProductSearchHiddenFields(" Price, size;price\nbogus,CODE"); got != "price,size,code" {
+		t.Fatalf("normalize = %q, want price,size,code", got)
+	}
+}

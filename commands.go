@@ -141,6 +141,8 @@ type updateSettingsCommandPayload struct {
 	OversellMode *string `json:"oversell_mode"`
 	// PriceEditCodes replaces the list of codes editable by hand.
 	PriceEditCodes *string `json:"price_edit_codes"`
+	// ProductSearchHiddenFields replaces the columns the product search hides.
+	ProductSearchHiddenFields *string `json:"product_search_hidden_fields"`
 	// UnknownProductBarcode names the product the "Unknown item" button adds
 	// ("" = the built-in placeholder).
 	UnknownProductBarcode *string `json:"unknown_product_barcode"`
@@ -333,6 +335,12 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}
 		if err := u.fn(*u.v); err != nil {
 			return fmt.Errorf("update feature flag: %w", err)
+		}
+	}
+
+	if p.ProductSearchHiddenFields != nil {
+		if err := a.SetProductSearchHiddenFields(*p.ProductSearchHiddenFields); err != nil {
+			return fmt.Errorf("update product search fields: %w", err)
 		}
 	}
 
