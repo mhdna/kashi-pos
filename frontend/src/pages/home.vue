@@ -1067,7 +1067,7 @@ function unknownUnits() {
     for (let i = 0; i < item.qty; i++) {
       const price = Number(item.unitPrices?.[i] ?? item.price);
       units.push({
-        label: `Unknown item $${price.toFixed(2)}`,
+        label: `Unknown item · $${price.toFixed(2)}`,
         unitPriceCents: Math.round(price * 100),
         discount: Math.trunc(Number(item.unitDiscounts?.[i] ?? item.discount ?? 0)),
       });
