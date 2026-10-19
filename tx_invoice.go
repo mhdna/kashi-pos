@@ -173,7 +173,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		return result, fmt.Errorf("database not initialized")
 	}
 
-	items, err := parseSalesItems(params.ItemsJSON)
+	items, err := parseSalesItems(params.ItemsJSON, a.unknownBarcode())
 	if err != nil {
 		return result, err
 	}
@@ -421,7 +421,7 @@ func normalizeCashRoundedPayments(ctx context.Context, q *db.Queries, payments [
 	return changed, nil
 }
 
-func parseSalesItems(raw string) ([]salesInvoiceItem, error) {
+func parseSalesItems(raw, unknownBarcode string) ([]salesInvoiceItem, error) {
 	var items []salesInvoiceItem
 	if err := json.Unmarshal([]byte(raw), &items); err != nil || len(items) == 0 {
 		return nil, fmt.Errorf("invalid invoice items")
@@ -434,7 +434,7 @@ func parseSalesItems(raw string) ([]salesInvoiceItem, error) {
 		}
 		// Every "Unknown item" is its own line (each gets its own pictures),
 		// so that one barcode may repeat; any other product may not.
-		repeatable := item.Barcode == unknownProductBarcode
+		repeatable := item.Barcode == unknownBarcode
 		if (item.Code == "" && item.Barcode == "") || item.Qty <= 0 || math.Trunc(item.Qty) != item.Qty || item.Qty > math.MaxInt64 || (seen[key] && !repeatable) {
 			return nil, fmt.Errorf("invalid or duplicate item %q", item.Code)
 		}

@@ -138,6 +138,7 @@
         :readonly="pageMode === 'settlement'"
         :custom-discounts-enabled="customItemDiscountsEnabled"
         :custom-prices-enabled="customItemPricesEnabled"
+        :unknown-barcode="unknownProductBarcode"
         :price-edit-restricted="priceEditRestricted"
         :price-edit-codes="priceEditCodes"
         :per-unit-prices-enabled="perUnitItemPricesEnabled"
@@ -1038,8 +1039,9 @@ async function confirmPricesIfUnusual(): Promise<boolean> {
 
 // --- "Unknown item": something with no code, rung up at a typed price, with a
 // picture of every unit taken on a phone before the customer pays. ---
-const UNKNOWN_BARCODE = "UNKNOWN";
-const isUnknownItem = (item: any) => item?.barcode === UNKNOWN_BARCODE;
+// The product kashi named for unknown items (or the built-in placeholder).
+const unknownProductBarcode = ref("UNKNOWN");
+const isUnknownItem = (item: any) => item?.barcode === unknownProductBarcode.value;
 const unknownPrice = reactive({ show: false });
 const unknownPictures = reactive<{
   show: boolean;
@@ -1359,6 +1361,7 @@ async function loadAppSettings() {
     scanByCodeEnabled.value = settings?.scanByCodeEnabled !== false;
     productSearchCodeOnly.value = Boolean(settings?.productSearchCodeOnly);
     priceEditRestricted.value = Boolean(settings?.priceEditRestricted);
+    unknownProductBarcode.value = String(settings?.unknownProductBarcode || "UNKNOWN");
     priceEditCodes.value = String(settings?.priceEditCodes ?? "")
       .split(",")
       .map((code) => code.trim().toLowerCase())

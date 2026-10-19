@@ -954,6 +954,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	result["productSearchCodeOnly"] = a.flagEnabled(a.ctx, productSearchCodeOnlyFlag)
 	result["priceEditRestricted"] = a.flagEnabled(a.ctx, priceEditRestrictedFlag)
 	result["priceEditCodes"] = a.priceEditCodes()
+	result["unknownProductBarcode"] = a.unknownBarcode()
 	result["soundsEnabled"] = a.soundsEnabled()
 	result["attendanceManagerApprovalEnabled"] = a.attendanceManagerApprovalEnabled()
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, productSearchEnabledFlag); flagErr == nil {

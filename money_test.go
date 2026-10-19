@@ -127,7 +127,7 @@ func TestParseSalesItemsRejectsUnsafeInput(t *testing.T) {
 		`[{"code":"A","qty":-1}]`,
 		`[{"code":"A","qty":1},{"code":"A","qty":1}]`,
 	} {
-		if _, err := parseSalesItems(raw); err == nil {
+		if _, err := parseSalesItems(raw, "UNKNOWN"); err == nil {
 			t.Fatalf("parseSalesItems(%s) unexpectedly succeeded", raw)
 		}
 	}

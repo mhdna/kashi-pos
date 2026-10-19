@@ -565,6 +565,7 @@ type Setting struct {
 	SalespersonIdsReportedAt sql.NullString `json:"salespersonIdsReportedAt"`
 	Timezone                 sql.NullString `json:"timezone"`
 	PriceEditCodes           string         `json:"priceEditCodes"`
+	UnknownProductBarcode    string         `json:"unknownProductBarcode"`
 }
 
 type Shift struct {
