@@ -77,49 +77,45 @@
           v-if="pageMode !== 'settlement'"
           icon
           class="ms-1"
-          size="large"
           color="warning"
           variant="text"
           aria-label="Invoices on hold"
           @click="onHoldMenu?.open()"
         >
-          <v-icon icon="mdi-pause" size="28" />
+          <v-icon icon="mdi-pause" size="22" />
         </v-btn>
         <v-btn
           v-if="pageMode !== 'settlement'"
           icon
           class="ms-1"
-          size="large"
           color="info"
           variant="text"
           aria-label="Exchange invoice"
           @click="returnInvoiceMenu?.open()"
         >
-          <v-icon icon="mdi-autorenew" size="28" />
+          <v-icon icon="mdi-autorenew" size="22" />
         </v-btn>
         <v-btn
           v-if="pageMode === 'sale'"
           icon
           class="ms-1"
-          size="large"
           color="deep-purple"
           variant="text"
           aria-label="Add an unknown item"
           @click="unknownPrice.show = true"
         >
-          <v-icon icon="mdi-help-box-outline" size="28" />
+          <v-icon icon="mdi-help-box-outline" size="22" />
         </v-btn>
         <v-btn
           v-if="pageMode !== 'settlement' && productSearchEnabled"
           icon
           class="ms-1"
-          size="large"
           color="success"
           variant="text"
           aria-label="Search products"
           @click="productSearchDialog?.openDialog()"
         >
-          <v-icon icon="mdi-magnify" size="28" />
+          <v-icon icon="mdi-magnify" size="22" />
         </v-btn>
         <OnHoldMenu ref="onHoldMenu" hide-activator @restore="onRestoreHold" />
         <ReturnInvoiceMenu
