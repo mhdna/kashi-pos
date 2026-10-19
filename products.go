@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -656,4 +657,31 @@ func (a *App) UpdateProductDiscount(code string, discount int64) error {
 		Kind: product.Kind, Season: product.Season, ProductYear: product.ProductYear, ID: product.ID,
 	})
 	return err
+}
+
+// RefreshCartPricing returns the current list price and discount of each
+// barcode in the cart, so lines already on the sale screen can follow a price
+// or discount list that kashi has just changed. Barcodes that no longer
+// resolve are left out; the screen keeps those lines as they are.
+func (a *App) RefreshCartPricing(barcodesJSON string) ([]map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	var barcodes []string
+	if err := json.Unmarshal([]byte(barcodesJSON), &barcodes); err != nil {
+		return nil, fmt.Errorf("invalid barcodes")
+	}
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, fmt.Errorf("load price/discount lists: %w", err)
+	}
+	out := make([]map[string]any, 0, len(barcodes))
+	for _, barcode := range barcodes {
+		product, err := a.store.GetProductByBarcode(a.ctx, strings.TrimSpace(barcode))
+		if err != nil || product.IsActive == 0 {
+			continue
+		}
+		out = append(out, productMap(product, listPricing, nil))
+	}
+	return out, nil
 }
