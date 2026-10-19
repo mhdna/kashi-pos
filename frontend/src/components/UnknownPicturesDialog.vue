@@ -16,15 +16,16 @@
       </template>
 
       <template v-else>
-        <div class="d-flex ga-4 align-center">
-          <img v-if="qrDataUrl" alt="Upload QR code" :src="qrDataUrl" style="width: 180px; height: 180px; flex: none" />
-          <div>
-            <div class="text-body-2">
-              Scan with a phone, then take a picture of each item. The sale goes through as soon as every one has a picture.
-            </div>
-            <div class="text-body-2 mt-1" dir="rtl" lang="ar">
-              امسح الرمز بالهاتف والتقط صورة لكل قطعة.
-            </div>
+        <div class="text-center">
+          <img
+            v-if="qrDataUrl"
+            alt="Upload QR code"
+            :src="qrDataUrl"
+            style="width: 260px; height: 260px"
+          />
+          <div class="text-body-1 mt-2">Scan, then photograph each item.</div>
+          <div class="text-body-2 text-medium-emphasis" dir="rtl" lang="ar">
+            امسح الرمز والتقط صورة لكل قطعة
           </div>
         </div>
 
@@ -121,7 +122,7 @@ async function start() {
     if (mine !== session) return;
     clientRef = info.clientRef;
     slots.value = info.slots ?? [];
-    qrDataUrl.value = await QRCode.toDataURL(info.uploadUrl, { width: 180, margin: 1 });
+    qrDataUrl.value = await QRCode.toDataURL(info.uploadUrl, { width: 260, margin: 1 });
     if (mine !== session) return;
     state.value = "ready";
     if (info.complete) {
