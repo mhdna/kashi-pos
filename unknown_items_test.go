@@ -137,3 +137,23 @@ func TestUnknownProductCanBeANamedProduct(t *testing.T) {
 		t.Fatalf("GetUnknownProduct = (%v, %v), want the named product", product, err)
 	}
 }
+
+func TestUnknownItemTakesADiscountWithCustomDiscountsOff(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	if _, err := app.GetUnknownProduct(); err != nil {
+		t.Fatal(err)
+	}
+	listPricing, err := loadActivePricing(app.ctx, app.store.Queries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := []salesInvoiceItem{{Code: "UNKNOWN", Barcode: "UNKNOWN", Qty: 1, UnitPricesCents: []int64{3000}, UnitDiscounts: []int64{10}}}
+	_, subtotal, discounted, _, err := app.validateAndPriceItems(app.store.Queries, 0, items, "half_up", false, listPricing, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subtotal != 3000 || discounted != 2700 {
+		t.Fatalf("subtotal %d, discounted %d; want 3000 and 2700", subtotal, discounted)
+	}
+}
