@@ -234,6 +234,7 @@ import { EventsOn } from "../../wailsjs/runtime/runtime";
 import PhotoUploadDialog from "@/components/PhotoUploadDialog.vue";
 import PhotoViewer from "@/components/PhotoViewer.vue";
 import RecordPhoto from "@/components/RecordPhoto.vue";
+import { detailPhotoWidth } from "@/lib/photos";
 import { useInfiniteList } from "@/composables/useInfiniteList";
 import { formatServerDateTime } from "@/lib/datetime";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
@@ -283,7 +284,7 @@ async function openDetail(item: any) {
   detailPhotosLoading.value = true;
   try {
     const ids = (await ListExpensePhotoIDs(item.clientRef)) ?? [];
-    const photos = await Promise.all(ids.map((id: number) => GetExpensePhoto(id, 0)));
+    const photos = await Promise.all(ids.map((id: number) => GetExpensePhoto(id, detailPhotoWidth)));
     if (selected.value === item) detailPhotos.value = photos.filter(Boolean);
   } finally {
     detailPhotosLoading.value = false;

@@ -285,6 +285,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import RecordPhoto from "@/components/RecordPhoto.vue";
+import { detailPhotoWidth } from "@/lib/photos";
 import PhotoViewer from "@/components/PhotoViewer.vue";
 import { formatServerDateTime } from "@/lib/datetime";
 
@@ -325,7 +326,7 @@ async function loadDetailPhoto(clientRef: string, transferID: number) {
   detailPhoto.value = "";
   detailPhotoLoading.value = true;
   try {
-    detailPhoto.value = await GetTransferPhoto(clientRef, transferID, 0);
+    detailPhoto.value = await GetTransferPhoto(clientRef, transferID, detailPhotoWidth);
   } finally {
     detailPhotoLoading.value = false;
   }
