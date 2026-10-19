@@ -37,8 +37,8 @@
               <template #title>
                 <div class="product-primary-row">
                   <span class="product-code text-medium-emphasis">{{ product.code }}</span>
-                  <span class="font-weight-medium text-truncate">{{ product.name }}</span>
-                  <span v-if="product.brand" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
+                  <span v-if="!codeOnly" class="font-weight-medium text-truncate">{{ product.name }}</span>
+                  <span v-if="product.brand && !codeOnly" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
                   <span v-if="product.color" class="product-variant text-medium-emphasis">{{ product.color }}</span>
                   <span v-if="product.size" class="product-variant text-medium-emphasis">{{ product.size }}</span>
                   <span class="product-price">
@@ -79,7 +79,7 @@
           class="product-search-control"
           density="compact"
           hide-details
-          placeholder="Search products..."
+          :placeholder="codeOnly ? 'Enter a product code...' : 'Search products...'"
           variant="outlined"
           autofocus
         />
@@ -141,11 +141,14 @@ const props = withDefaults(
     activatorText?: string;
     activatorIcon?: string;
     showActivator?: boolean;
+    // Hides product names; the backend then matches only code/barcode.
+    codeOnly?: boolean;
   }>(),
   {
     activatorText: "Products List",
     activatorIcon: "mdi-format-list-bulleted-square",
     showActivator: true,
+    codeOnly: false,
   },
 );
 const activatorText = props.activatorText;

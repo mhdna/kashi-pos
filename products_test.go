@@ -512,3 +512,59 @@ func TestFindProductsForScan(t *testing.T) {
 		t.Errorf("scan by barcode while code disabled = %q, want BAR-BLUE", got)
 	}
 }
+
+func TestProductSearchCodeOnlyIgnoresNames(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+
+	if _, err := app.store.CreateProduct(app.ctx, db.CreateProductParams{
+		Barcode: "BAR-VARIANT", Code: "SKU-VARIANT", Name: "Denim Jacket",
+		IsActive: 1, Price: 4599, CurrencyCode: "USD",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	priceProductsFromRows(t, app.store.Queries)
+
+	if err := app.SetProductSearchCodeOnly(true); err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{"Denim", "jacket"} {
+		page, err := app.ListProductsCursor(0, 10, query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Items) != 0 || page.Total != 0 {
+			t.Fatalf("code-only search %q = %#v (total %d), want nothing", query, page.Items, page.Total)
+		}
+	}
+	for _, query := range []string{"SKU-VARIANT", "BAR-VARIANT"} {
+		page, err := app.ListProductsCursor(0, 10, query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Items) != 1 || page.Total != 1 {
+			t.Fatalf("code-only search %q = %#v (total %d), want the variant", query, page.Items, page.Total)
+		}
+	}
+}
+
+func TestNormalizePriceEditCodes(t *testing.T) {
+	got := normalizePriceEditCodes(" A1, b2\nA1;C3 \r\n")
+	if got != "A1,b2,C3" {
+		t.Fatalf("normalizePriceEditCodes = %q, want %q", got, "A1,b2,C3")
+	}
+}
+
+func TestSetPriceEditCodesRoundTrips(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	if _, err := database.Exec(`INSERT INTO settings (branch_name) VALUES ('x')`); err != nil {
+		t.Skipf("cannot seed settings row: %v", err)
+	}
+	if err := app.SetPriceEditCodes("A1\nb2"); err != nil {
+		t.Fatal(err)
+	}
+	if got := app.priceEditCodes(); got != "A1,b2" {
+		t.Fatalf("priceEditCodes = %q, want A1,b2", got)
+	}
+}

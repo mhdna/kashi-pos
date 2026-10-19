@@ -806,6 +806,18 @@ export function SetSalespersonPerInvoiceRequired(arg1) {
   return window['go']['main']['App']['SetSalespersonPerInvoiceRequired'](arg1);
 }
 
+export function SetPriceEditCodes(arg1) {
+  return window['go']['main']['App']['SetPriceEditCodes'](arg1);
+}
+
+export function SetPriceEditRestricted(arg1) {
+  return window['go']['main']['App']['SetPriceEditRestricted'](arg1);
+}
+
+export function SetProductSearchCodeOnly(arg1) {
+  return window['go']['main']['App']['SetProductSearchCodeOnly'](arg1);
+}
+
 export function SetScanByCodeEnabled(arg1) {
   return window['go']['main']['App']['SetScanByCodeEnabled'](arg1);
 }

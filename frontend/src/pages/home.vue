@@ -111,6 +111,7 @@
           ref="productSearchDialog"
           v-if="pageMode !== 'settlement'"
           :show-activator="false"
+          :code-only="productSearchCodeOnly"
           @select="onProductSelect"
         />
       </div>
@@ -120,6 +121,8 @@
         :readonly="pageMode === 'settlement'"
         :custom-discounts-enabled="customItemDiscountsEnabled"
         :custom-prices-enabled="customItemPricesEnabled"
+        :price-edit-restricted="priceEditRestricted"
+        :price-edit-codes="priceEditCodes"
         :per-unit-prices-enabled="perUnitItemPricesEnabled"
         :price-change-mode="priceChangeMode"
         :keyboard-mode="invoiceKeyboardModeEnabled"
@@ -416,6 +419,9 @@ const productSearchEnabled = ref(true);
 // Whether the scan field also accepts product codes (see FindProductsForScan);
 // only changes the hint text here, the backend enforces it.
 const scanByCodeEnabled = ref(true);
+const productSearchCodeOnly = ref(false);
+const priceEditRestricted = ref(false);
+const priceEditCodes = ref<string[]>([]);
 const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
 );
@@ -1266,6 +1272,12 @@ async function loadAppSettings() {
     // Absent (older backend) means "available" - only an explicit false disables it.
     productSearchEnabled.value = settings?.productSearchEnabled !== false;
     scanByCodeEnabled.value = settings?.scanByCodeEnabled !== false;
+    productSearchCodeOnly.value = Boolean(settings?.productSearchCodeOnly);
+    priceEditRestricted.value = Boolean(settings?.priceEditRestricted);
+    priceEditCodes.value = String(settings?.priceEditCodes ?? "")
+      .split(",")
+      .map((code) => code.trim().toLowerCase())
+      .filter(Boolean);
     overchangeConfirmationEnabled.value = settings?.overchangeConfirmationEnabled !== false;
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";

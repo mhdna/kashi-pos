@@ -118,6 +118,8 @@ type updateSettingsCommandPayload struct {
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        *bool `json:"close_shift_requires_sync"`
 	ScanByCodeEnabled             *bool `json:"scan_by_code_enabled"`
+	ProductSearchCodeOnly         *bool `json:"product_search_code_only"`
+	PriceEditRestricted           *bool `json:"price_edit_restricted"`
 	SoundsEnabled                 *bool `json:"sounds_enabled"`
 	HidePaymentMethodCurrency     *bool `json:"hide_payment_method_currency"`
 	AutoAppendLbpZeros            *bool `json:"auto_append_lbp_zeros"`
@@ -137,6 +139,8 @@ type updateSettingsCommandPayload struct {
 
 	// OversellMode: "allow" | "warn" | "block" (see checkOversell).
 	OversellMode *string `json:"oversell_mode"`
+	// PriceEditCodes replaces the list of codes editable by hand.
+	PriceEditCodes *string `json:"price_edit_codes"`
 
 	// ShiftReceiptUploadMode is an enum, not a flag: 0=off, 1=central,
 	// 2=hybrid, 3=local (see shiftUploadMode* in shifts.go).
@@ -304,6 +308,8 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},
 		{p.CloseShiftRequiresSync, a.SetCloseShiftRequiresSyncEnabled},
 		{p.ScanByCodeEnabled, a.SetScanByCodeEnabled},
+		{p.ProductSearchCodeOnly, a.SetProductSearchCodeOnly},
+		{p.PriceEditRestricted, a.SetPriceEditRestricted},
 		{p.SoundsEnabled, a.SetSoundsEnabled},
 		{p.HidePaymentMethodCurrency, a.SetHidePaymentMethodCurrency},
 		{p.AutoAppendLbpZeros, a.SetAutoAppendLbpZerosEnabled},
@@ -324,6 +330,12 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}
 		if err := u.fn(*u.v); err != nil {
 			return fmt.Errorf("update feature flag: %w", err)
+		}
+	}
+
+	if p.PriceEditCodes != nil {
+		if err := a.SetPriceEditCodes(*p.PriceEditCodes); err != nil {
+			return fmt.Errorf("update price edit codes: %w", err)
 		}
 	}
 

@@ -63,6 +63,8 @@ type branchSettingsPayload struct {
 	OverchangeConfirmation        bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        bool `json:"close_shift_requires_sync"`
 	ScanByCodeEnabled             bool `json:"scan_by_code_enabled"`
+	ProductSearchCodeOnly         bool `json:"product_search_code_only"`
+	PriceEditRestricted           bool `json:"price_edit_restricted"`
 	SoundsEnabled                 bool `json:"sounds_enabled"`
 
 	// Device numbers typed in here for kashi's salespersons, keyed by kashi's
@@ -104,6 +106,8 @@ type branchSettingsPayload struct {
 	AttendanceManagerApprovalEnabled   bool   `json:"attendance_manager_approval_enabled"`
 
 	OversellMode string `json:"oversell_mode"`
+	// Comma-separated codes editable by hand while PriceEditRestricted is on.
+	PriceEditCodes string `json:"price_edit_codes"`
 
 	HidePaymentMethodCurrency bool   `json:"hide_payment_method_currency"`
 	AutoAppendLbpZeros        bool   `json:"auto_append_lbp_zeros"`
@@ -271,6 +275,8 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		OverchangeConfirmation:        a.overchangeConfirmationEnabled(),
 		CloseShiftRequiresSync:        a.closeShiftRequiresSync(),
 		ScanByCodeEnabled:             a.scanByCodeEnabled(),
+		ProductSearchCodeOnly:         a.flagEnabled(ctx, productSearchCodeOnlyFlag),
+		PriceEditRestricted:           a.flagEnabled(ctx, priceEditRestrictedFlag),
 		SoundsEnabled:                 a.soundsEnabled(),
 
 		PageUnlockClients:      a.flagEnabled(ctx, pageUnlockFlag("clients")),
@@ -301,6 +307,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		AttendanceCashierHistory:           a.flagEnabled(ctx, attendanceCashierHistoryFlag),
 		AttendanceManagerApprovalEnabled:   a.attendanceManagerApprovalEnabled(),
 		OversellMode:                       s.OversellMode,
+		PriceEditCodes:                     s.PriceEditCodes,
 
 		HidePaymentMethodCurrency: a.flagEnabled(ctx, hidePaymentMethodCurrencyFlag),
 		AutoAppendLbpZeros:        a.flagEnabled(ctx, autoAppendLbpZerosFlag),

@@ -404,6 +404,12 @@ export function SetQuickAccessMode(arg1:string):Promise<void>;
 
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
 
+export function SetPriceEditCodes(arg1:string):Promise<void>;
+
+export function SetPriceEditRestricted(arg1:boolean):Promise<void>;
+
+export function SetProductSearchCodeOnly(arg1:boolean):Promise<void>;
+
 export function SetScanByCodeEnabled(arg1:boolean):Promise<void>;
 
 export function SetShiftReceiptUploadMode(arg1:number):Promise<void>;
