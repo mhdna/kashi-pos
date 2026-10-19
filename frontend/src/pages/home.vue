@@ -78,7 +78,7 @@
           icon
           class="ms-1"
           color="warning"
-          variant="tonal"
+          variant="text"
           aria-label="Invoices on hold"
           @click="onHoldMenu?.open()"
         >
@@ -89,7 +89,7 @@
           icon
           class="ms-1"
           color="info"
-          variant="tonal"
+          variant="text"
           aria-label="Exchange invoice"
           @click="returnInvoiceMenu?.open()"
         >
@@ -100,7 +100,7 @@
           icon
           class="ms-1"
           color="deep-purple"
-          variant="tonal"
+          variant="text"
           aria-label="Add an unknown item"
           @click="unknownPrice.show = true"
         >
@@ -111,7 +111,7 @@
           icon
           class="ms-1"
           color="success"
-          variant="tonal"
+          variant="text"
           aria-label="Search products"
           @click="productSearchDialog?.openDialog()"
         >
