@@ -29,187 +29,6 @@
       <v-window v-model="tab">
       <v-window-item value="general">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('general-appearance')" class="settings-card">
-            <v-card-title>Appearance</v-card-title>
-            <v-card-text>
-              <v-switch
-                :model-value="darkThemeEnabled"
-                :loading="themeSaving"
-                :disabled="themeSaving"
-                label="Dark theme"
-                color="primary"
-                hide-details
-                @update:model-value="setDarkTheme"
-              />
-              <v-switch
-                :model-value="animationsEnabled"
-                label="Animations"
-                color="primary"
-                hide-details
-                @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
-              />
-              <div class="text-body-2 mt-4">
-                Quick access rows:
-                <strong>{{ quickAccessRows === 0 ? "Hidden" : quickAccessRows }}</strong>
-              </div>
-              <v-slider
-                :model-value="quickAccessRows"
-                :min="0"
-                :max="QUICK_ACCESS_MAX_ROWS"
-                :step="1"
-                color="primary"
-                show-ticks="always"
-                hint="Rows shown on the sale screen before it scrolls. 0 hides the panel."
-                persistent-hint
-                @update:model-value="setQuickAccessRows"
-              />
-              <div class="text-body-2 mt-4">
-                Quick access text size: <strong>{{ quickAccessFontScale }}%</strong>
-              </div>
-              <v-slider
-                :model-value="quickAccessFontScale"
-                :min="QUICK_ACCESS_FONT_MIN"
-                :max="QUICK_ACCESS_FONT_MAX"
-                :step="10"
-                color="primary"
-                show-ticks="always"
-                hide-details
-                @update:model-value="setQuickAccessFontScale"
-              >
-                <template #append>
-                  <v-btn
-                    size="small"
-                    variant="text"
-                    :disabled="quickAccessFontScale === 100"
-                    @click="setQuickAccessFontScale(100)"
-                  >
-                    Reset
-                  </v-btn>
-                </template>
-              </v-slider>
-              <v-switch
-                :model-value="quickAccessShowCode"
-                label="Show code on quick access cards"
-                color="primary"
-                hide-details
-                @update:model-value="(value) => setQuickAccessShowCode(value ?? false)"
-              />
-              <v-switch
-                :model-value="quickAccessShowName"
-                label="Show name on quick access cards"
-                color="primary"
-                hide-details
-                @update:model-value="(value) => setQuickAccessShowName(value ?? false)"
-              />
-              <v-switch
-                :model-value="quickAccessShowRemove"
-                label="Show remove (X) button on quick access cards"
-                color="primary"
-                hide-details
-                @update:model-value="(value) => setQuickAccessShowRemove(value ?? false)"
-              />
-            </v-card-text>
-          </v-card>
-
-          <v-card v-show="panelMatches('general-quick-access-colors')" class="settings-card settings-card--wide">
-            <v-card-title class="d-flex align-center">
-              Quick access colors
-              <v-spacer />
-              <v-btn
-                variant="tonal"
-                size="small"
-                prepend-icon="mdi-download"
-                :loading="exportingQuickAccess"
-                :disabled="!quickAccessItems.length"
-                @click="exportQuickAccessCsv"
-              >
-                Export CSV
-              </v-btn>
-            </v-card-title>
-            <v-card-text>
-              <div class="d-flex align-center flex-wrap ga-3 mb-4">
-                <span class="text-body-2">Cards come from</span>
-                <v-btn-toggle
-                  :model-value="quickAccessMode"
-                  mandatory
-                  density="compact"
-                  variant="outlined"
-                  color="primary"
-                  :disabled="!auth.isAdmin || changingQuickAccessMode"
-                  @update:model-value="changeQuickAccessMode"
-                >
-                  <v-btn size="small" value="till">This till</v-btn>
-                  <v-btn size="small" value="kashi">kashi</v-btn>
-                </v-btn-toggle>
-                <span v-if="quickAccessMode === 'kashi'" class="text-caption text-medium-emphasis">
-                  This register shows its branch's list from kashi. Edit cards and colours there (Branch settings →
-                  Quick access).
-                </span>
-                <span v-else-if="!quickAccessKashiAvailable" class="text-caption text-medium-emphasis">
-                  kashi isn't connected, or doesn't manage Quick Access yet.
-                </span>
-              </div>
-              <div v-if="!quickAccessItems.length" class="text-body-2 text-medium-emphasis">
-                {{
-                  quickAccessMode === "kashi"
-                    ? "No Quick Access cards set in kashi for this branch yet."
-                    : "No quick access items yet. Pin products from the sale screen first."
-                }}
-              </div>
-              <div v-for="item in quickAccessItems" :key="item.id" class="qa-color-row">
-                <div class="qa-color-row__preview text-caption" :style="quickAccessCardStyle(item)">
-                  <div class="text-truncate">{{ item.code }}</div>
-                  <div class="text-truncate font-weight-medium">{{ item.name }}</div>
-                  <div class="qa-color-row__price">${{ Number(item.price).toFixed(2) }}</div>
-                </div>
-                <div v-if="quickAccessMode !== 'kashi'" class="qa-color-row__pickers">
-                  <div class="qa-color-row__swatches">
-                    <span class="qa-color-row__label text-caption">Card</span>
-                    <button
-                      type="button"
-                      class="qa-swatch qa-swatch--none"
-                      :class="{ 'qa-swatch--selected': !item.quickAccessColor }"
-                      title="No color"
-                      @click="setQuickAccessItemColor(item, { quickAccessColor: '' })"
-                    />
-                    <button
-                      v-for="color in QUICK_ACCESS_COLORS"
-                      :key="color"
-                      type="button"
-                      class="qa-swatch"
-                      :class="{ 'qa-swatch--selected': item.quickAccessColor === color }"
-                      :style="{ backgroundColor: color }"
-                      :title="color"
-                      @click="setQuickAccessItemColor(item, { quickAccessColor: color })"
-                    />
-                  </div>
-                  <div class="qa-color-row__swatches">
-                    <span class="qa-color-row__label text-caption">Text</span>
-                    <button
-                      type="button"
-                      class="qa-swatch qa-swatch--auto text-caption"
-                      :class="{ 'qa-swatch--selected': !item.quickAccessTextColor }"
-                      title="Automatic"
-                      @click="setQuickAccessItemColor(item, { quickAccessTextColor: '' })"
-                    >
-                      A
-                    </button>
-                    <button
-                      v-for="color in QUICK_ACCESS_TEXT_COLORS"
-                      :key="color"
-                      type="button"
-                      class="qa-swatch"
-                      :class="{ 'qa-swatch--selected': item.quickAccessTextColor === color }"
-                      :style="{ backgroundColor: color }"
-                      :title="color"
-                      @click="setQuickAccessItemColor(item, { quickAccessTextColor: color })"
-                    />
-                  </div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-
           <v-card v-show="panelMatches('general-branch')" class="settings-card">
             <v-card-title>Branch</v-card-title>
             <v-card-text class="field-grid">
@@ -236,26 +55,6 @@
               />
             </v-card-text>
           </v-card>
-
-          <v-card v-show="panelMatches('general-database')" class="settings-card">
-            <v-card-title>Database</v-card-title>
-            <v-card-text>
-              <v-text-field
-                :model-value="databasePath"
-                label="Current database"
-                variant="outlined"
-                density="compact"
-                readonly
-                hide-details
-              />
-              <div class="d-flex justify-end mt-2">
-                <v-btn variant="text" color="primary" :loading="databaseSwitching" @click="chooseDatabase">
-                  <v-icon start icon="mdi-folder-open-outline" /> Choose database
-                </v-btn>
-              </div>
-            </v-card-text>
-          </v-card>
-
           <v-card v-show="panelMatches('general-branches')" class="settings-card">
             <v-card-title>Branches</v-card-title>
             <v-card-text>
@@ -364,7 +163,24 @@
               </v-alert>
             </v-card-text>
           </v-card>
-
+          <v-card v-show="panelMatches('general-database')" class="settings-card">
+            <v-card-title>Database</v-card-title>
+            <v-card-text>
+              <v-text-field
+                :model-value="databasePath"
+                label="Current database"
+                variant="outlined"
+                density="compact"
+                readonly
+                hide-details
+              />
+              <div class="d-flex justify-end mt-2">
+                <v-btn variant="text" color="primary" :loading="databaseSwitching" @click="chooseDatabase">
+                  <v-icon start icon="mdi-folder-open-outline" /> Choose database
+                </v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
           <v-card v-show="panelMatches('general-sync')" class="settings-card">
             <v-card-title>Central sync (kashi)</v-card-title>
             <v-card-text class="field-grid">
@@ -389,21 +205,6 @@
                 :type="showCentralApiUrl ? 'text' : 'password'"
                 @click:append-inner="showCentralApiUrl = !showCentralApiUrl"
               />
-              <v-switch
-                :model-value="form.closeShiftRequiresSync"
-                :loading="closeShiftRequiresSyncSaving"
-                label="Upload everything before closing a shift"
-                color="primary"
-                hide-details
-                class="field-full"
-                @update:model-value="(value) => setCloseShiftRequiresSync(value)"
-              />
-              <div class="text-caption text-medium-emphasis field-full">
-                Closing a shift first uploads every sale, return, expense and the rest still
-                waiting for the office, showing progress and time left, and only then closes
-                the shift and prints its receipt. Offline, a manager can override with the
-                admin password.
-              </div>
 
               <div class="field-full sync-everything">
                 <div class="text-caption text-medium-emphasis mb-1">
@@ -490,9 +291,6 @@
               </div>
             </v-card-text>
           </v-card>
-
-          <!-- Read-only: targets are set in kashi's admin UI only, this
-               just confirms what's synced down for this branch. -->
           <v-card v-show="panelMatches('general-targets')" class="settings-card">
             <v-card-title>Targets</v-card-title>
             <v-card-text>
@@ -514,10 +312,6 @@
               </v-table>
             </v-card-text>
           </v-card>
-
-          <!-- kashi-admin (legacy): the separate local CLI tool's own admin
-               API, unrelated to central sync above. Slated for removal once
-               kashi's remote-command channel covers everything it does. -->
           <v-card v-show="panelMatches('general-admin-legacy')" class="settings-card">
             <v-card-title>kashi-admin (legacy)</v-card-title>
             <v-card-text class="field-grid">
@@ -535,6 +329,7 @@
               <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="field-full" />
             </v-card-text>
           </v-card>
+          <AppUpdateCard v-show="panelMatches('admin-app-updates')" />
         </div>
         <div class="settings-page-actions">
           <v-btn color="primary" variant="flat" :loading="saving || adminSettingsSaving" @click="saveGeneralSettings">
@@ -543,168 +338,10 @@
         </div>
       </v-window-item>
 
-      <v-window-item value="attendance">
-        <div class="settings-grid">
-          <v-card v-show="panelMatches('attendance-machine')" class="settings-card">
-            <v-card-title>Attendance machine</v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field v-model="form.akuvoxIP" placeholder="Akuvox IP address" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.akuvoxUsername" placeholder="Device username" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.akuvoxPassword" placeholder="Device password" type="password" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.attendanceApproverPassword" placeholder="Manager password" type="password" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.attendanceDuplicateIntervalSeconds" placeholder="Duplicate interval (sec)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
-              <v-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details class="field-full" />
-              <v-switch v-model="form.attendanceCashierHistory" label="Cashiers can browse previous days" color="primary" hide-details class="field-full" />
-              <v-switch
-                v-model="form.attendanceManagerApproval"
-                label="Manager approves requests and adds missed punches here (manager password)"
-                color="primary"
-                hide-details
-                class="field-full"
-              />
-              <v-switch
-                v-model="form.autoCloseStaleShiftsEnabled"
-                label="Auto-close previous-day shifts"
-                color="primary"
-                hide-details
-                class="field-full"
-              />
-            </v-card-text>
-          </v-card>
-        </div>
-        <div class="settings-page-actions">
-          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <v-icon start icon="mdi-content-save-outline" /> Save attendance settings
-          </v-btn>
-        </div>
-      </v-window-item>
-
-      <v-window-item value="printing">
-        <div class="settings-grid">
-          <v-card v-show="panelMatches('printing-printer')" class="settings-card">
-            <v-card-title>Printer &amp; customer screen</v-card-title>
-            <v-card-text class="field-grid">
-              <v-select v-model="form.receiptPrinter" :items="printers" placeholder="Receipt printer" variant="outlined" density="compact" hide-details />
-              <v-select v-model="form.printerSize" :items="['58mm', '80mm']" placeholder="Printing size" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.receiptWidth" placeholder="Width (mm)" type="number" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" hide-details />
-              <v-select v-model="form.screenPort" :items="serialPorts" placeholder="Customer screen COM port" variant="outlined" density="compact" hide-details />
-              <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
-              <v-switch
-                :model-value="form.shiftReceiptUploadMode !== 0"
-                :loading="shiftReceiptUploadModeSaving"
-                label="Show receipt-photo QR code after closing a shift"
-                color="primary"
-                hide-details
-                class="field-full"
-                @update:model-value="(value) => setShiftReceiptUploadMode(value ? 2 : 0)"
-              />
-              <template v-if="form.shiftReceiptUploadMode !== 0">
-                <v-select
-                  :model-value="form.shiftReceiptUploadMode"
-                  :items="shiftReceiptUploadModes"
-                  :loading="shiftReceiptUploadModeSaving"
-                  label="Close-shift receipt photo"
-                  class="field-full"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  @update:model-value="(value) => setShiftReceiptUploadMode(value)"
-                />
-                <div class="text-caption text-medium-emphasis field-full">
-                  After a shift closes, the cashier is shown a QR code to upload one photo of the
-                  printed receipt. <b>Hybrid</b> sends it to the office when there's a connection
-                  and buffers it on this machine otherwise; <b>Local</b> always uploads over the
-                  shop Wi-Fi to this machine; <b>Central</b> always goes straight to the office.
-                </div>
-              </template>
-              <div v-else class="text-caption text-medium-emphasis field-full">
-                When off, closing a shift logs straight out without asking for a receipt photo.
-              </div>
-            </v-card-text>
-          </v-card>
-
-          <v-card v-show="panelMatches('printing-receipt')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-printer-outline" size="20" />
-              Receipt settings
-            </v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field v-model="form.marketName" placeholder="Market name" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.marketPhone" placeholder="Market phone" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.marketDescription" placeholder="Tagline" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.branchPhone" placeholder="Branch phone" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.registerName" placeholder="Register name (POS-01)" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.website" placeholder="Website" variant="outlined" density="compact" hide-details />
-              <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" placeholder="Title font" variant="outlined" density="compact" hide-details />
-              <v-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" placeholder="Body font" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.receiptTitleSize" placeholder="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.receiptBodySize" placeholder="Body size" type="number" min="6" max="24" variant="outlined" density="compact" hide-details />
-
-              <v-textarea v-model="form.returnPolicy" placeholder="Return policy" rows="2" variant="outlined" density="compact" hide-details class="field-full" />
-
-              <v-select
-                v-model="form.socialPlatforms"
-                :items="socialPlatformOptions"
-                placeholder="Social platforms"
-                multiple
-                chips
-                closable-chips
-                hide-selected
-                variant="outlined"
-                density="compact"
-                hide-details
-                class="field-full"
-              >
-                <template #chip="{ props, item }">
-                  <v-chip v-bind="props" :icon="platformIcon(String(item.value))" label variant="tonal" />
-                </template>
-                <template #item="{ props, item }">
-                  <v-list-item v-bind="props" :prepend-icon="platformIcon(String(item.value))">
-                    <template #title>
-                      <span class="sr-only">{{ platformLabel(String(item.value)) }}</span>
-                    </template>
-                  </v-list-item>
-                </template>
-              </v-select>
-              <v-text-field
-                v-for="platform in form.socialPlatforms"
-                :key="platform"
-                v-model="form.socialHandles[platform]"
-                :placeholder="`${platformLabel(platform)} handle`"
-                :prepend-inner-icon="platformIcon(platform)"
-                variant="outlined"
-                density="compact"
-                hide-details
-              />
-
-              <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details class="field-full" />
-              <v-switch v-model="form.shiftReportSignatures" label="Cashier and manager signature lines on end-of-shift receipt" color="primary" hide-details class="field-full" />
-              <v-switch v-model="form.shiftReportUppercaseHeader" label="Store and branch name in capitals on end-of-shift receipt" color="primary" hide-details class="field-full" />
-            </v-card-text>
-            <v-card-actions class="px-4 pb-4">
-              <v-btn
-                variant="tonal"
-                color="primary"
-                :loading="samplePrinting"
-                @click="printCloseShiftSample"
-              >
-                <v-icon start icon="mdi-printer-eye" /> Print sample
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-        </div>
-        <div class="settings-page-actions">
-          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <v-icon start icon="mdi-content-save-outline" /> Save printing settings
-          </v-btn>
-        </div>
-      </v-window-item>
-
       <v-window-item value="money">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('money-general')" class="settings-card">
-            <v-card-title>Money settings</v-card-title>
+          <v-card v-show="panelMatches('money-rates')" class="settings-card">
+            <v-card-title>Rates &amp; rounding</v-card-title>
             <v-card-text class="field-grid">
               <v-text-field v-model.number="form.taxRate" placeholder="VAT rate" type="number" step="0.01" min="0" max="1" variant="outlined" density="compact" hide-details />
               <v-text-field v-model.number="form.exchangeRate" placeholder="Legacy exchange rate" type="number" min="1" step="1" variant="outlined" density="compact" hide-details />
@@ -722,15 +359,124 @@
                 density="compact"
                 hide-details
               />
-              <v-select
-                :model-value="calculatorTotalCurrency"
-                :items="calculatorDisplayCurrencies"
-                placeholder="Calculator total currency"
-                variant="outlined"
-                density="compact"
-                hide-details
-                @update:model-value="(value) => setCalculatorTotalCurrency(value ?? 'USD')"
-              />
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('money-exchange')" class="settings-card">
+            <v-card-title>Exchange settings</v-card-title>
+            <v-card-text class="field-grid">
+              <v-text-field v-model.number="form.exchangeWindowDays" label="Days" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.exchangeWindowHours" label="Hours" type="number" min="0" max="23" step="1" variant="outlined" density="compact" hide-details />
+            </v-card-text>
+          </v-card>
+          <v-card v-show="panelMatches('money-currencies')" class="settings-card settings-card--wide">
+            <v-card-title>Currencies &amp; rates</v-card-title>
+            <v-card-text>
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Currencies and their rates are set in kashi and sync down here.
+              </v-alert>
+              <v-table density="compact">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Symbol</th>
+                    <th>Units per USD</th>
+                    <th>Cash rounding unit</th>
+                    <th>Active</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="currency in currencies" :key="currency.code">
+                    <td>{{ currency.code }}</td>
+                    <td>{{ currency.name }}</td>
+                    <td>{{ currency.symbol }}</td>
+                    <td>{{ currency.unitsPerUsd }}</td>
+                    <td>{{ currency.cashRoundingUnit }}</td>
+                    <td>{{ currency.isActive ? "Yes" : "No" }}</td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-card-text>
+          </v-card>
+          <v-card v-show="panelMatches('money-price-lists')" class="settings-card">
+            <v-card-title>Price lists</v-card-title>
+            <v-card-text>
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Prices are set in kashi and sync down here. A product that no
+                active list prices cannot be sold.
+              </v-alert>
+              <v-table density="compact">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Active</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="list in priceLists" :key="list.id">
+                    <td>
+                      {{ list.name }}
+                      <v-chip v-if="list.isDefault" size="x-small" class="ml-2">default</v-chip>
+                    </td>
+                    <td>{{ list.isActive ? "Yes" : "No" }}</td>
+                    <td>
+                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('price', list)" />
+                    </td>
+                  </tr>
+                  <tr v-if="!priceLists.length">
+                    <td colspan="3" class="text-medium-emphasis">No price lists have synced yet.</td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-card-text>
+          </v-card>
+          <v-card v-show="panelMatches('money-discount-lists')" class="settings-card">
+            <v-card-title>Discount lists</v-card-title>
+            <v-card-text>
+              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+                Discounts are set in kashi and sync down here.
+              </v-alert>
+              <v-table density="compact">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Active</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="list in discountLists" :key="list.id">
+                    <td>
+                      {{ list.name }}
+                      <v-chip v-if="list.isDefault" size="x-small" class="ml-2">default</v-chip>
+                    </td>
+                    <td>{{ list.isActive ? "Yes" : "No" }}</td>
+                    <td>
+                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('discount', list)" />
+                    </td>
+                  </tr>
+                  <tr v-if="!discountLists.length">
+                    <td colspan="3" class="text-medium-emphasis">No discount lists have synced yet.</td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-card-text>
+          </v-card>
+        </div>
+        <div class="settings-page-actions">
+          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <v-icon start icon="mdi-content-save-outline" /> Save money settings
+          </v-btn>
+        </div>
+      </v-window-item>
+
+      <v-window-item value="payments">
+        <div class="settings-grid">
+          <v-card v-show="panelMatches('payments-till')" class="settings-card">
+            <v-card-title>At the till</v-card-title>
+            <v-card-text class="field-grid">
               <v-text-field
                 v-model.number="form.maxOverpayment"
                 placeholder="Max overpayment (USD)"
@@ -766,100 +512,6 @@
                 cashier enters change or a refund larger than what's owed back. Turn off to
                 accept it straight away.
               </div>
-            </v-card-text>
-          </v-card>
-
-          <v-card v-show="panelMatches('money-float')" class="settings-card">
-            <v-card-title>Opening cash float</v-card-title>
-            <v-card-text class="field-grid">
-              <v-switch
-                :model-value="form.openingFloatEnabled"
-                :loading="openingFloatEnabledSaving"
-                label="Enable opening cash float"
-                color="primary"
-                hide-details
-                class="field-full"
-                @update:model-value="(value) => setOpeningFloatEnabled(value)"
-              />
-              <div class="text-caption text-medium-emphasis field-full">
-                When off, shifts start with no opening float, the "Set opening cash" controls
-                on the Shifts page are hidden, and the opening amount is left out of every
-                balance, income total and close-shift receipt.
-              </div>
-              <template v-if="form.openingFloatEnabled">
-                <v-text-field v-model.number="form.defaultOpeningFloatUsd" placeholder="Opening float (USD)" type="number" min="0" step="0.01" variant="outlined" density="compact" hide-details />
-                <v-text-field v-model.number="form.defaultOpeningFloatLbp" placeholder="Opening float (LBP)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
-                <v-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="field-full">
-                  Opening float cannot be negative.
-                </v-alert>
-                <v-btn color="primary" variant="tonal" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</v-btn>
-                <v-switch
-                  :model-value="form.countOpeningCashOnClose"
-                  :loading="countOpeningCashOnCloseSaving"
-                  label="Count opening float in close-shift cash count"
-                  color="primary"
-                  hide-details
-                  class="field-full"
-                  @update:model-value="(value) => setCountOpeningCashOnClose(value)"
-                />
-                <div class="text-caption text-medium-emphasis field-full">
-                  When off, the cashier enters only the cash taken in during the shift; the
-                  opening float is left out of the expected total and the printed close-shift
-                  reconciliation.
-                </div>
-              </template>
-              <v-switch
-                :model-value="form.autoCoverNegativeLbp"
-                :loading="autoCoverNegativeLbpSaving"
-                label="At close shift, cover a negative Cash LL balance from Cash $$"
-                color="primary"
-                hide-details
-                class="field-full"
-                @update:model-value="(value) => setAutoCoverNegativeLbp(value)"
-              />
-              <div class="text-caption text-medium-emphasis field-full">
-                When more LBP went out as change than came in, the shortfall is swapped into
-                Cash $$ as the close-shift screen opens, so LBP closes at 0.
-              </div>
-            </v-card-text>
-          </v-card>
-
-          <v-card v-show="panelMatches('money-exchange')" class="settings-card">
-            <v-card-title>Exchange settings</v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field v-model.number="form.exchangeWindowDays" label="Days" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.exchangeWindowHours" label="Hours" type="number" min="0" max="23" step="1" variant="outlined" density="compact" hide-details />
-            </v-card-text>
-          </v-card>
-
-          <v-card v-show="panelMatches('money-currencies')" class="settings-card settings-card--wide">
-            <v-card-title>Currencies &amp; rates</v-card-title>
-            <v-card-text>
-              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-                Currencies and their rates are set in kashi and sync down here.
-              </v-alert>
-              <v-table density="compact">
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>Symbol</th>
-                    <th>Units per USD</th>
-                    <th>Cash rounding unit</th>
-                    <th>Active</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="currency in currencies" :key="currency.code">
-                    <td>{{ currency.code }}</td>
-                    <td>{{ currency.name }}</td>
-                    <td>{{ currency.symbol }}</td>
-                    <td>{{ currency.unitsPerUsd }}</td>
-                    <td>{{ currency.cashRoundingUnit }}</td>
-                    <td>{{ currency.isActive ? "Yes" : "No" }}</td>
-                  </tr>
-                </tbody>
-              </v-table>
             </v-card-text>
           </v-card>
 
@@ -910,77 +562,10 @@
               />
             </v-card-text>
           </v-card>
-
-          <v-card v-show="panelMatches('money-price-lists')" class="settings-card">
-            <v-card-title>Price lists</v-card-title>
-            <v-card-text>
-              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-                Prices are set in kashi and sync down here. A product that no
-                active list prices cannot be sold.
-              </v-alert>
-              <v-table density="compact">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Active</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="list in priceLists" :key="list.id">
-                    <td>
-                      {{ list.name }}
-                      <v-chip v-if="list.isDefault" size="x-small" class="ml-2">default</v-chip>
-                    </td>
-                    <td>{{ list.isActive ? "Yes" : "No" }}</td>
-                    <td>
-                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('price', list)" />
-                    </td>
-                  </tr>
-                  <tr v-if="!priceLists.length">
-                    <td colspan="3" class="text-medium-emphasis">No price lists have synced yet.</td>
-                  </tr>
-                </tbody>
-              </v-table>
-            </v-card-text>
-          </v-card>
-
-          <v-card v-show="panelMatches('money-discount-lists')" class="settings-card">
-            <v-card-title>Discount lists</v-card-title>
-            <v-card-text>
-              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-                Discounts are set in kashi and sync down here.
-              </v-alert>
-              <v-table density="compact">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Active</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="list in discountLists" :key="list.id">
-                    <td>
-                      {{ list.name }}
-                      <v-chip v-if="list.isDefault" size="x-small" class="ml-2">default</v-chip>
-                    </td>
-                    <td>{{ list.isActive ? "Yes" : "No" }}</td>
-                    <td>
-                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('discount', list)" />
-                    </td>
-                  </tr>
-                  <tr v-if="!discountLists.length">
-                    <td colspan="3" class="text-medium-emphasis">No discount lists have synced yet.</td>
-                  </tr>
-                </tbody>
-              </v-table>
-            </v-card-text>
-          </v-card>
         </div>
         <div class="settings-page-actions">
           <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <v-icon start icon="mdi-content-save-outline" /> Save money settings
+            <v-icon start icon="mdi-content-save-outline" /> Save payment settings
           </v-btn>
         </div>
       </v-window-item>
@@ -1026,7 +611,6 @@
               </v-list>
             </v-card-text>
           </v-card>
-
           <v-card v-show="panelMatches('coupons-issued')" class="settings-card">
             <v-card-title>Issued coupons</v-card-title>
             <v-card-text>
@@ -1046,7 +630,7 @@
         </div>
       </v-window-item>
 
-      <v-window-item value="behavior">
+      <v-window-item value="behaviour">
         <div class="settings-grid">
           <v-card v-show="panelMatches('behavior-custom-pricing')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
@@ -1094,23 +678,6 @@
                 hide-details
                 label="Manual override (independent price & discount)"
                 @update:model-value="setPriceChangeManualOverrideEnabled"
-              />
-            </v-card-text>
-          </v-card>
-
-          <v-card v-show="panelMatches('behavior-invoice-keyboard')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-keyboard" size="20" />
-              Invoice keyboard mode
-            </v-card-title>
-            <v-card-text>
-              <v-switch
-                :model-value="form.invoiceKeyboardModeEnabled"
-                :loading="pricingSettingsSaving"
-                color="primary"
-                hide-details
-                label="Enable keyboard mode"
-                @update:model-value="setInvoiceKeyboardModeEnabled"
               />
             </v-card-text>
           </v-card>
@@ -1213,27 +780,6 @@
             </v-card-text>
           </v-card>
 
-          <v-card v-show="panelMatches('behavior-sounds')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-volume-high" size="20" />
-              Sounds
-            </v-card-title>
-            <v-card-text>
-              <v-switch
-                :model-value="form.soundsEnabled"
-                :loading="pricingSettingsSaving"
-                color="primary"
-                hide-details
-                label="Play sounds"
-                @update:model-value="setSoundsEnabled"
-              />
-              <div class="text-caption text-medium-emphasis mt-2">
-                Scan and checkout chimes, error and warning tones, and keypad clicks. Off by
-                default. This can also be changed remotely from kashi.
-              </div>
-            </v-card-text>
-          </v-card>
-
           <v-card v-show="panelMatches('behavior-client-required')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-account-off-outline" size="20" />
@@ -1324,126 +870,499 @@
         </div>
       </v-window-item>
 
-      <v-window-item value="admin">
+      <v-window-item value="display">
         <div class="settings-grid">
-          <AppUpdateCard v-show="panelMatches('admin-app-updates')" />
-
-          <v-card v-show="panelMatches('admin-page-access')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-lock-outline" size="20" />
-              Page access
-            </v-card-title>
-            <v-card-text>
+          <v-card v-show="panelMatches('display-look')" class="settings-card">
+            <v-card-title>Look &amp; feel</v-card-title>
+            <v-card-text class="field-grid">
               <v-switch
-                v-for="page in lockablePages"
-                :key="page"
-                :model-value="pageUnlocks[page] ?? false"
-                :loading="pageUnlockSaving"
+                :model-value="darkThemeEnabled"
+                :loading="themeSaving"
+                :disabled="themeSaving"
+                label="Dark theme"
                 color="primary"
                 hide-details
-                :label="pageUnlockLabels[page] ?? page"
-                class="mb-1"
-                @update:model-value="(value) => togglePageUnlock(page, value)"
+                @update:model-value="setDarkTheme"
+              />
+              <v-switch
+                :model-value="animationsEnabled"
+                label="Animations"
+                color="primary"
+                hide-details
+                @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
+              />
+              <v-select
+                :model-value="calculatorTotalCurrency"
+                :items="calculatorDisplayCurrencies"
+                placeholder="Calculator total currency"
+                variant="outlined"
+                density="compact"
+                hide-details
+                @update:model-value="(value) => setCalculatorTotalCurrency(value ?? 'USD')"
               />
             </v-card-text>
           </v-card>
 
-          <v-form v-show="panelMatches('admin-change-password')" class="settings-form-wrap" @submit.prevent="changePassword">
-            <v-card class="settings-card">
-              <v-card-title class="d-flex align-center ga-3">
-                <v-icon icon="mdi-lock-reset" size="20" />
-                Change admin password
-              </v-card-title>
-              <div class="text-caption text-medium-emphasis px-4 pb-2">
-                The password entered on the login screen's admin sign-in.
+          <v-card v-show="panelMatches('behavior-sounds')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-volume-high" size="20" />
+              Sounds
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.soundsEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Play sounds"
+                @update:model-value="setSoundsEnabled"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                Scan and checkout chimes, error and warning tones, and keypad clicks. Off by
+                default. This can also be changed remotely from kashi.
               </div>
-              <v-card-text>
-                <v-text-field
-                  v-model="passwordForm.current"
-                  placeholder="Current admin password"
-                  variant="outlined"
-                  density="compact"
-                  class="mb-2"
-                  :type="showPw ? 'text' : 'password'"
-                  :append-inner-icon="showPw ? 'mdi-eye' : 'mdi-eye-off'"
-                  @click:append-inner="showPw = !showPw"
-                />
-                <v-text-field
-                  v-model="passwordForm.newPass"
-                  placeholder="New password"
-                  variant="outlined"
-                  density="compact"
-                  class="mb-2"
-                  :type="showPw ? 'text' : 'password'"
-                />
-                <v-text-field
-                  v-model="passwordForm.confirm"
-                  placeholder="Confirm new password"
-                  variant="outlined"
-                  density="compact"
-                  :type="showPw ? 'text' : 'password'"
-                  :rules="[(v) => v === passwordForm.newPass || 'Passwords do not match']"
-                />
-              </v-card-text>
-              <v-card-actions>
-                <v-spacer />
-                <v-btn color="primary" variant="flat" type="submit" :loading="changingPassword">
-                  <v-icon start icon="mdi-lock-reset" /> Change password
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-form>
+            </v-card-text>
+          </v-card>
+          <v-card v-show="panelMatches('behavior-invoice-keyboard')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-keyboard" size="20" />
+              Invoice keyboard mode
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.invoiceKeyboardModeEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Enable keyboard mode"
+                @update:model-value="setInvoiceKeyboardModeEnabled"
+              />
+            </v-card-text>
+          </v-card>
+          <v-card v-show="panelMatches('display-quick-access-cards')" class="settings-card">
+            <v-card-title>Quick access cards</v-card-title>
+            <v-card-text class="">
+              <div class="text-body-2 mt-4">
+                Quick access rows:
+                <strong>{{ quickAccessRows === 0 ? "Hidden" : quickAccessRows }}</strong>
+              </div>
+              <v-slider
+                :model-value="quickAccessRows"
+                :min="0"
+                :max="QUICK_ACCESS_MAX_ROWS"
+                :step="1"
+                color="primary"
+                show-ticks="always"
+                hint="Rows shown on the sale screen before it scrolls. 0 hides the panel."
+                persistent-hint
+                @update:model-value="setQuickAccessRows"
+              />
+              <div class="text-body-2 mt-4">
+                Quick access text size: <strong>{{ quickAccessFontScale }}%</strong>
+              </div>
+              <v-slider
+                :model-value="quickAccessFontScale"
+                :min="QUICK_ACCESS_FONT_MIN"
+                :max="QUICK_ACCESS_FONT_MAX"
+                :step="10"
+                color="primary"
+                show-ticks="always"
+                hide-details
+                @update:model-value="setQuickAccessFontScale"
+              >
+                <template #append>
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    :disabled="quickAccessFontScale === 100"
+                    @click="setQuickAccessFontScale(100)"
+                  >
+                    Reset
+                  </v-btn>
+                </template>
+              </v-slider>
+              <v-switch
+                :model-value="quickAccessShowCode"
+                label="Show code on quick access cards"
+                color="primary"
+                hide-details
+                @update:model-value="(value) => setQuickAccessShowCode(value ?? false)"
+              />
+              <v-switch
+                :model-value="quickAccessShowName"
+                label="Show name on quick access cards"
+                color="primary"
+                hide-details
+                @update:model-value="(value) => setQuickAccessShowName(value ?? false)"
+              />
+              <v-switch
+                :model-value="quickAccessShowRemove"
+                label="Show remove (X) button on quick access cards"
+                color="primary"
+                hide-details
+                @update:model-value="(value) => setQuickAccessShowRemove(value ?? false)"
+              />
+            </v-card-text>
+          </v-card>
 
-          <v-form v-show="panelMatches('admin-cashier-pin')" class="settings-form-wrap" @submit.prevent="saveCashierPin">
-            <v-card class="settings-card">
-              <v-card-title class="d-flex align-center ga-3">
-                <v-icon icon="mdi-dialpad" size="20" />
-                Cashier login PIN
-              </v-card-title>
-              <div class="text-caption text-medium-emphasis px-4 pb-2">
-                The shared 4-digit PIN cashiers enter on the login keypad.
-              </div>
-              <v-card-text>
-                <v-text-field
-                  v-model="cashierPinForm.newPin"
-                  placeholder="New 4-digit PIN"
-                  variant="outlined"
+        </div>
+      </v-window-item>
+
+      <v-window-item value="quick_access">
+        <div class="settings-grid">
+          <v-card v-show="panelMatches('general-quick-access-colors')" class="settings-card settings-card--wide">
+            <v-card-title class="d-flex align-center">
+              Quick access colors
+              <v-spacer />
+              <v-btn
+                variant="tonal"
+                size="small"
+                prepend-icon="mdi-download"
+                :loading="exportingQuickAccess"
+                :disabled="!quickAccessItems.length"
+                @click="exportQuickAccessCsv"
+              >
+                Export CSV
+              </v-btn>
+            </v-card-title>
+            <v-card-text>
+              <div class="d-flex align-center flex-wrap ga-3 mb-4">
+                <span class="text-body-2">Cards come from</span>
+                <v-btn-toggle
+                  :model-value="quickAccessMode"
+                  mandatory
                   density="compact"
-                  class="mb-2"
-                  inputmode="numeric"
-                  maxlength="4"
-                  :type="showCashierPin ? 'text' : 'password'"
-                  :append-inner-icon="showCashierPin ? 'mdi-eye' : 'mdi-eye-off'"
-                  :hint="cashierPinCurrent ? `Current: ${cashierPinCurrent}` : ''"
-                  persistent-hint
-                  @click:append-inner="showCashierPin = !showCashierPin"
-                />
-                <v-text-field
-                  v-model="cashierPinForm.confirm"
-                  placeholder="Confirm PIN"
                   variant="outlined"
-                  density="compact"
-                  inputmode="numeric"
-                  maxlength="4"
-                  :type="showCashierPin ? 'text' : 'password'"
-                  :rules="[(v) => v === cashierPinForm.newPin || 'PINs do not match']"
-                />
-              </v-card-text>
-              <v-card-actions>
-                <v-spacer />
-                <v-btn
                   color="primary"
-                  variant="flat"
-                  type="submit"
-                  :loading="savingCashierPin"
-                  :disabled="!/^\d{4}$/.test(cashierPinForm.newPin) || cashierPinForm.newPin !== cashierPinForm.confirm"
+                  :disabled="!auth.isAdmin || changingQuickAccessMode"
+                  @update:model-value="changeQuickAccessMode"
                 >
-                  <v-icon start icon="mdi-dialpad" /> Update PIN
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-form>
+                  <v-btn size="small" value="till">This till</v-btn>
+                  <v-btn size="small" value="kashi">kashi</v-btn>
+                </v-btn-toggle>
+                <span v-if="quickAccessMode === 'kashi'" class="text-caption text-medium-emphasis">
+                  This register shows its branch's list from kashi. Edit cards and colours there (Branch settings →
+                  Quick access).
+                </span>
+                <span v-else-if="!quickAccessKashiAvailable" class="text-caption text-medium-emphasis">
+                  kashi isn't connected, or doesn't manage Quick Access yet.
+                </span>
+              </div>
+              <div v-if="!quickAccessItems.length" class="text-body-2 text-medium-emphasis">
+                {{
+                  quickAccessMode === "kashi"
+                    ? "No Quick Access cards set in kashi for this branch yet."
+                    : "No quick access items yet. Pin products from the sale screen first."
+                }}
+              </div>
+              <div v-for="item in quickAccessItems" :key="item.id" class="qa-color-row">
+                <div class="qa-color-row__preview text-caption" :style="quickAccessCardStyle(item)">
+                  <div class="text-truncate">{{ item.code }}</div>
+                  <div class="text-truncate font-weight-medium">{{ item.name }}</div>
+                  <div class="qa-color-row__price">${{ Number(item.price).toFixed(2) }}</div>
+                </div>
+                <div v-if="quickAccessMode !== 'kashi'" class="qa-color-row__pickers">
+                  <div class="qa-color-row__swatches">
+                    <span class="qa-color-row__label text-caption">Card</span>
+                    <button
+                      type="button"
+                      class="qa-swatch qa-swatch--none"
+                      :class="{ 'qa-swatch--selected': !item.quickAccessColor }"
+                      title="No color"
+                      @click="setQuickAccessItemColor(item, { quickAccessColor: '' })"
+                    />
+                    <button
+                      v-for="color in QUICK_ACCESS_COLORS"
+                      :key="color"
+                      type="button"
+                      class="qa-swatch"
+                      :class="{ 'qa-swatch--selected': item.quickAccessColor === color }"
+                      :style="{ backgroundColor: color }"
+                      :title="color"
+                      @click="setQuickAccessItemColor(item, { quickAccessColor: color })"
+                    />
+                  </div>
+                  <div class="qa-color-row__swatches">
+                    <span class="qa-color-row__label text-caption">Text</span>
+                    <button
+                      type="button"
+                      class="qa-swatch qa-swatch--auto text-caption"
+                      :class="{ 'qa-swatch--selected': !item.quickAccessTextColor }"
+                      title="Automatic"
+                      @click="setQuickAccessItemColor(item, { quickAccessTextColor: '' })"
+                    >
+                      A
+                    </button>
+                    <button
+                      v-for="color in QUICK_ACCESS_TEXT_COLORS"
+                      :key="color"
+                      type="button"
+                      class="qa-swatch"
+                      :class="{ 'qa-swatch--selected': item.quickAccessTextColor === color }"
+                      :style="{ backgroundColor: color }"
+                      :title="color"
+                      @click="setQuickAccessItemColor(item, { quickAccessTextColor: color })"
+                    />
+                  </div>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+        </div>
+      </v-window-item>
 
+      <v-window-item value="cash">
+        <div class="settings-grid">
+          <v-card v-show="panelMatches('money-float')" class="settings-card">
+            <v-card-title>Opening cash float</v-card-title>
+            <v-card-text class="field-grid">
+              <v-switch
+                :model-value="form.openingFloatEnabled"
+                :loading="openingFloatEnabledSaving"
+                label="Enable opening cash float"
+                color="primary"
+                hide-details
+                class="field-full"
+                @update:model-value="(value) => setOpeningFloatEnabled(value)"
+              />
+              <div class="text-caption text-medium-emphasis field-full">
+                When off, shifts start with no opening float, the "Set opening cash" controls
+                on the Shifts page are hidden, and the opening amount is left out of every
+                balance, income total and close-shift receipt.
+              </div>
+              <template v-if="form.openingFloatEnabled">
+                <v-text-field v-model.number="form.defaultOpeningFloatUsd" placeholder="Opening float (USD)" type="number" min="0" step="0.01" variant="outlined" density="compact" hide-details />
+                <v-text-field v-model.number="form.defaultOpeningFloatLbp" placeholder="Opening float (LBP)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+                <v-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="field-full">
+                  Opening float cannot be negative.
+                </v-alert>
+                <v-btn color="primary" variant="tonal" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</v-btn>
+                <v-switch
+                  :model-value="form.countOpeningCashOnClose"
+                  :loading="countOpeningCashOnCloseSaving"
+                  label="Count opening float in close-shift cash count"
+                  color="primary"
+                  hide-details
+                  class="field-full"
+                  @update:model-value="(value) => setCountOpeningCashOnClose(value)"
+                />
+                <div class="text-caption text-medium-emphasis field-full">
+                  When off, the cashier enters only the cash taken in during the shift; the
+                  opening float is left out of the expected total and the printed close-shift
+                  reconciliation.
+                </div>
+              </template>
+            </v-card-text>
+          </v-card>
+          <v-card v-show="panelMatches('cash-closing')" class="settings-card">
+            <v-card-title>Closing shifts</v-card-title>
+            <v-card-text class="field-grid">
+              <v-switch
+                v-model="form.autoCloseStaleShiftsEnabled"
+                label="Auto-close previous-day shifts"
+                color="primary"
+                hide-details
+                class="field-full"
+              />
+              <v-switch
+                :model-value="form.closeShiftRequiresSync"
+                :loading="closeShiftRequiresSyncSaving"
+                label="Upload everything before closing a shift"
+                color="primary"
+                hide-details
+                class="field-full"
+                @update:model-value="(value) => setCloseShiftRequiresSync(value)"
+              />
+              <div class="text-caption text-medium-emphasis field-full">
+                Closing a shift first uploads every sale, return, expense and the rest still
+                waiting for the office, showing progress and time left, and only then closes
+                the shift and prints its receipt. Offline, a manager can override with the
+                admin password.
+              </div>
+              <v-switch
+                :model-value="form.shiftReceiptUploadMode !== 0"
+                :loading="shiftReceiptUploadModeSaving"
+                label="Show receipt-photo QR code after closing a shift"
+                color="primary"
+                hide-details
+                class="field-full"
+                @update:model-value="(value) => setShiftReceiptUploadMode(value ? 2 : 0)"
+              />
+              <template v-if="form.shiftReceiptUploadMode !== 0">
+                <v-select
+                  :model-value="form.shiftReceiptUploadMode"
+                  :items="shiftReceiptUploadModes"
+                  :loading="shiftReceiptUploadModeSaving"
+                  label="Close-shift receipt photo"
+                  class="field-full"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  @update:model-value="(value) => setShiftReceiptUploadMode(value)"
+                />
+                <div class="text-caption text-medium-emphasis field-full">
+                  After a shift closes, the cashier is shown a QR code to upload one photo of the
+                  printed receipt. <b>Hybrid</b> sends it to the office when there's a connection
+                  and buffers it on this machine otherwise; <b>Local</b> always uploads over the
+                  shop Wi-Fi to this machine; <b>Central</b> always goes straight to the office.
+                </div>
+              </template>
+              <div v-else class="text-caption text-medium-emphasis field-full">
+                When off, closing a shift logs straight out without asking for a receipt photo.
+              </div>
+              <v-switch
+                :model-value="form.autoCoverNegativeLbp"
+                :loading="autoCoverNegativeLbpSaving"
+                label="At close shift, cover a negative Cash LL balance from Cash $$"
+                color="primary"
+                hide-details
+                class="field-full"
+                @update:model-value="(value) => setAutoCoverNegativeLbp(value)"
+              />
+              <div class="text-caption text-medium-emphasis field-full">
+                When more LBP went out as change than came in, the shortfall is swapped into
+                Cash $$ as the close-shift screen opens, so LBP closes at 0.
+              </div>
+            </v-card-text>
+          </v-card>
+
+        </div>
+        <div class="settings-page-actions">
+          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <v-icon start icon="mdi-content-save-outline" /> Save cash &amp; shifts settings
+          </v-btn>
+        </div>
+      </v-window-item>
+
+      <v-window-item value="printing">
+        <div class="settings-grid">
+          <v-card v-show="panelMatches('printing-receipt')" class="settings-card">
+            <v-card-title>Receipt</v-card-title>
+            <v-card-text class="field-grid">
+              <v-select v-model="form.printerSize" :items="['58mm', '80mm']" placeholder="Printing size" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.receiptWidth" placeholder="Width (mm)" type="number" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" placeholder="Title font" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" placeholder="Body font" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.receiptTitleSize" placeholder="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.receiptBodySize" placeholder="Body size" type="number" min="6" max="24" variant="outlined" density="compact" hide-details />
+              <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
+              <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details class="field-full" />
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('printing-end-of-shift')" class="settings-card">
+            <v-card-title>End-of-shift receipt</v-card-title>
+            <v-card-text class="field-grid">
+              <v-switch v-model="form.shiftReportSignatures" label="Cashier and manager signature lines on end-of-shift receipt" color="primary" hide-details class="field-full" />
+              <v-switch v-model="form.shiftReportUppercaseHeader" label="Store and branch name in capitals on end-of-shift receipt" color="primary" hide-details class="field-full" />
+            </v-card-text>
+            <v-card-actions class="px-4 pb-4">
+              <v-btn
+                variant="tonal"
+                color="primary"
+                :loading="samplePrinting"
+                @click="printCloseShiftSample"
+              >
+                <v-icon start icon="mdi-printer-eye" /> Print sample
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+
+          <v-card v-show="panelMatches('printing-header-footer')" class="settings-card">
+            <v-card-title>Receipt header &amp; footer</v-card-title>
+            <v-card-text class="field-grid">
+              <v-text-field v-model="form.marketName" placeholder="Market name" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.marketPhone" placeholder="Market phone" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.marketDescription" placeholder="Tagline" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.branchPhone" placeholder="Branch phone" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.registerName" placeholder="Register name (POS-01)" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.website" placeholder="Website" variant="outlined" density="compact" hide-details />
+              <v-textarea v-model="form.returnPolicy" placeholder="Return policy" rows="2" variant="outlined" density="compact" hide-details class="field-full" />
+              <v-select
+                v-model="form.socialPlatforms"
+                :items="socialPlatformOptions"
+                placeholder="Social platforms"
+                multiple
+                chips
+                closable-chips
+                hide-selected
+                variant="outlined"
+                density="compact"
+                hide-details
+                class="field-full"
+              >
+                <template #chip="{ props, item }">
+                  <v-chip v-bind="props" :icon="platformIcon(String(item.value))" label variant="tonal" />
+                </template>
+                <template #item="{ props, item }">
+                  <v-list-item v-bind="props" :prepend-icon="platformIcon(String(item.value))">
+                    <template #title>
+                      <span class="sr-only">{{ platformLabel(String(item.value)) }}</span>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-select>
+              <v-text-field
+                v-for="platform in form.socialPlatforms"
+                :key="platform"
+                v-model="form.socialHandles[platform]"
+                :placeholder="`${platformLabel(platform)} handle`"
+                :prepend-inner-icon="platformIcon(platform)"
+                variant="outlined"
+                density="compact"
+                hide-details
+              />
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('printing-devices')" class="settings-card">
+            <v-card-title>Devices</v-card-title>
+            <v-card-text class="field-grid">
+              <v-select v-model="form.receiptPrinter" :items="printers" placeholder="Receipt printer" variant="outlined" density="compact" hide-details />
+              <v-select v-model="form.screenPort" :items="serialPorts" placeholder="Customer screen COM port" variant="outlined" density="compact" hide-details />
+            </v-card-text>
+          </v-card>
+
+        </div>
+        <div class="settings-page-actions">
+          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <v-icon start icon="mdi-content-save-outline" /> Save printing settings
+          </v-btn>
+        </div>
+      </v-window-item>
+
+      <v-window-item value="attendance">
+        <div class="settings-grid">
+          <v-card v-show="panelMatches('attendance-machine')" class="settings-card">
+            <v-card-title>Attendance machine</v-card-title>
+            <v-card-text class="field-grid">
+              <v-text-field v-model="form.akuvoxIP" placeholder="Akuvox IP address" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.akuvoxUsername" placeholder="Device username" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.akuvoxPassword" placeholder="Device password" type="password" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="form.attendanceApproverPassword" placeholder="Manager password" type="password" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model.number="form.attendanceDuplicateIntervalSeconds" placeholder="Duplicate interval (sec)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+              <v-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details class="field-full" />
+              <v-switch v-model="form.attendanceCashierHistory" label="Cashiers can browse previous days" color="primary" hide-details class="field-full" />
+              <v-switch
+                v-model="form.attendanceManagerApproval"
+                label="Manager approves requests and adds missed punches here (manager password)"
+                color="primary"
+                hide-details
+                class="field-full"
+              />
+            </v-card-text>
+          </v-card>
+        </div>
+        <div class="settings-page-actions">
+          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <v-icon start icon="mdi-content-save-outline" /> Save attendance settings
+          </v-btn>
+        </div>
+      </v-window-item>
+
+      <v-window-item value="users">
+        <div class="settings-grid">
           <v-card v-show="panelMatches('admin-users')" class="settings-card settings-card--wide">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-account-group-outline" size="20" />
@@ -1504,7 +1423,6 @@
               </template>
             </v-data-table>
           </v-card>
-
           <v-card v-show="panelMatches('admin-salespersons')" class="settings-card settings-card--wide">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-account-tie" size="20" />
@@ -1560,6 +1478,124 @@
                 </v-btn>
               </template>
             </v-data-table>
+          </v-card>
+          <v-form v-show="panelMatches('admin-change-password')" class="settings-form-wrap" @submit.prevent="changePassword">
+            <v-card class="settings-card">
+              <v-card-title class="d-flex align-center ga-3">
+                <v-icon icon="mdi-lock-reset" size="20" />
+                Change admin password
+              </v-card-title>
+              <div class="text-caption text-medium-emphasis px-4 pb-2">
+                The password entered on the login screen's admin sign-in.
+              </div>
+              <v-card-text>
+                <v-text-field
+                  v-model="passwordForm.current"
+                  placeholder="Current admin password"
+                  variant="outlined"
+                  density="compact"
+                  class="mb-2"
+                  :type="showPw ? 'text' : 'password'"
+                  :append-inner-icon="showPw ? 'mdi-eye' : 'mdi-eye-off'"
+                  @click:append-inner="showPw = !showPw"
+                />
+                <v-text-field
+                  v-model="passwordForm.newPass"
+                  placeholder="New password"
+                  variant="outlined"
+                  density="compact"
+                  class="mb-2"
+                  :type="showPw ? 'text' : 'password'"
+                />
+                <v-text-field
+                  v-model="passwordForm.confirm"
+                  placeholder="Confirm new password"
+                  variant="outlined"
+                  density="compact"
+                  :type="showPw ? 'text' : 'password'"
+                  :rules="[(v) => v === passwordForm.newPass || 'Passwords do not match']"
+                />
+              </v-card-text>
+              <v-card-actions>
+                <v-spacer />
+                <v-btn color="primary" variant="flat" type="submit" :loading="changingPassword">
+                  <v-icon start icon="mdi-lock-reset" /> Change password
+                </v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-form>
+          <v-form v-show="panelMatches('admin-cashier-pin')" class="settings-form-wrap" @submit.prevent="saveCashierPin">
+            <v-card class="settings-card">
+              <v-card-title class="d-flex align-center ga-3">
+                <v-icon icon="mdi-dialpad" size="20" />
+                Cashier login PIN
+              </v-card-title>
+              <div class="text-caption text-medium-emphasis px-4 pb-2">
+                The shared 4-digit PIN cashiers enter on the login keypad.
+              </div>
+              <v-card-text>
+                <v-text-field
+                  v-model="cashierPinForm.newPin"
+                  placeholder="New 4-digit PIN"
+                  variant="outlined"
+                  density="compact"
+                  class="mb-2"
+                  inputmode="numeric"
+                  maxlength="4"
+                  :type="showCashierPin ? 'text' : 'password'"
+                  :append-inner-icon="showCashierPin ? 'mdi-eye' : 'mdi-eye-off'"
+                  :hint="cashierPinCurrent ? `Current: ${cashierPinCurrent}` : ''"
+                  persistent-hint
+                  @click:append-inner="showCashierPin = !showCashierPin"
+                />
+                <v-text-field
+                  v-model="cashierPinForm.confirm"
+                  placeholder="Confirm PIN"
+                  variant="outlined"
+                  density="compact"
+                  inputmode="numeric"
+                  maxlength="4"
+                  :type="showCashierPin ? 'text' : 'password'"
+                  :rules="[(v) => v === cashierPinForm.newPin || 'PINs do not match']"
+                />
+              </v-card-text>
+              <v-card-actions>
+                <v-spacer />
+                <v-btn
+                  color="primary"
+                  variant="flat"
+                  type="submit"
+                  :loading="savingCashierPin"
+                  :disabled="!/^\d{4}$/.test(cashierPinForm.newPin) || cashierPinForm.newPin !== cashierPinForm.confirm"
+                >
+                  <v-icon start icon="mdi-dialpad" /> Update PIN
+                </v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-form>
+        </div>
+      </v-window-item>
+
+      <v-window-item value="pages">
+        <div class="settings-grid">
+          <v-card v-show="panelMatches('admin-page-access')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-lock-outline" size="20" />
+              Page access
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                v-for="page in lockablePages"
+                :key="page"
+                :model-value="pageUnlocks[page] ?? false"
+                :loading="pageUnlockSaving"
+                color="primary"
+                hide-details
+                :label="pageUnlockLabels[page] ?? page"
+                class="mb-1"
+                @update:model-value="(value) => togglePageUnlock(page, value)"
+              />
+            </v-card-text>
           </v-card>
         </div>
       </v-window-item>
@@ -1928,12 +1964,17 @@ const tab = ref("general");
 
 const settingsTabs = [
   { value: "general", label: "General", icon: "mdi-cog-outline" },
+  { value: "money", label: "Money", icon: "mdi-cash-multiple" },
+  { value: "payments", label: "Payments", icon: "mdi-credit-card-outline" },
+  { value: "coupons", label: "Coupons", icon: "mdi-ticket-percent-outline" },
+  { value: "behaviour", label: "Behaviour", icon: "mdi-button-pointer" },
+  { value: "display", label: "Till display", icon: "mdi-monitor-dashboard" },
+  { value: "quick_access", label: "Quick access", icon: "mdi-flash" },
+  { value: "cash", label: "Cash & shifts", icon: "mdi-cash-register" },
   { value: "printing", label: "Printing", icon: "mdi-printer-outline" },
   { value: "attendance", label: "Attendance", icon: "mdi-clipboard-check-outline" },
-  { value: "money", label: "Money", icon: "mdi-cash-multiple" },
-  { value: "coupons", label: "Coupons", icon: "mdi-ticket-percent-outline" },
-  { value: "behavior", label: "Behavior", icon: "mdi-button-pointer" },
-  { value: "admin", label: "Security", icon: "mdi-shield-account-outline" },
+  { value: "users", label: "Users", icon: "mdi-account-group-outline" },
+  { value: "pages", label: "Page access", icon: "mdi-lock-outline" },
 ] as const;
 
 // Static index of every settings "panel" (its tab + searchable text) used by
@@ -1974,8 +2015,15 @@ function cancelDeactivation() {
 }
 
 const panelMeta: Record<string, { tab: string; title: string; keywords: string }> = {
-  "general-quick-access-colors": { tab: "general", title: "Quick access colors", keywords: "quick access card color colour background text font source kashi central managed till" },
-  "general-appearance": { tab: "general", title: "Appearance", keywords: "dark theme animations mode display quick access rows panel hide code name card remove x button text font size bigger smaller" },
+  "money-rates": { tab: "money", title: "Rates & rounding", keywords: "vat tax rate exchange rate rounding mode currency split primary step cash rounding" },
+  "payments-till": { tab: "payments", title: "At the till", keywords: "overpayment max allow auto append lbp zeros 000 thousands confirm change overchange refund more than owed" },
+  "display-look": { tab: "display", title: "Look & feel", keywords: "dark theme animations calculator total currency shows first mode display" },
+  "display-quick-access-cards": { tab: "display", title: "Quick access cards", keywords: "quick access rows text size font bigger smaller show code name remove x button cards" },
+  "cash-closing": { tab: "cash", title: "Closing shifts", keywords: "close shift auto close previous day stale upload before closing wait pending offline receipt photo qr hybrid local central cover negative cash ll lbp swap" },
+  "printing-end-of-shift": { tab: "printing", title: "End-of-shift receipt", keywords: "end of shift close shift signature cashier manager capitals uppercase header sample print" },
+  "printing-header-footer": { tab: "printing", title: "Receipt header & footer", keywords: "market name phone tagline description branch phone register name website return policy social platforms instagram facebook handle" },
+  "printing-devices": { tab: "printing", title: "Devices", keywords: "receipt printer customer screen com port serial" },
+  "general-quick-access-colors": { tab: "quick_access", title: "Quick access colors", keywords: "quick access card color colour background text font source kashi central managed till" },
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
   "general-branches": { tab: "general", title: "Branches", keywords: "branches switch default active add branch multiple instances" },
@@ -1983,35 +2031,34 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "general-targets": { tab: "general", title: "Targets", keywords: "targets revenue goal progress date range" },
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
   "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
-  "printing-printer": { tab: "printing", title: "Printer & customer screen", keywords: "receipt printer size width height print customer screen com port qr code close shift photo upload" },
-  "printing-receipt": { tab: "printing", title: "Receipt settings", keywords: "market name phone description branch phone register return policy social platforms instagram facebook website font body size title size cut paper sample signature cashier manager end of shift" },
-  "money-general": { tab: "money", title: "Money settings", keywords: "vat tax rate exchange rate overpayment rounding mode currency calculator total currency auto append lbp zeros 000 confirm change overchange refund more than owed" },
-  "money-float": { tab: "money", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift close count reconciliation expected enable disable feature toggle balance" },
+  "printing-receipt": { tab: "printing", title: "Receipt", keywords: "receipt printer size width height print after checkout cut paper title font body font size" },
+  "money-float": { tab: "cash", title: "Opening cash float", keywords: "opening cash float usd lbp drawer shift close count reconciliation expected enable disable feature toggle balance" },
   "money-exchange": { tab: "money", title: "Exchange settings", keywords: "exchange window days hours return" },
   "money-currencies": { tab: "money", title: "Currencies & rates", keywords: "currency code name symbol units per usd cash rounding unit active add currency" },
-  "money-payment-methods": { tab: "money", title: "Payment methods", keywords: "payment method cashbox account currency" },
+  "money-payment-methods": { tab: "payments", title: "Payment methods", keywords: "payment method cashbox account currency" },
   "money-price-lists": { tab: "money", title: "Price lists", keywords: "price list override product code black friday active" },
   "money-discount-lists": { tab: "money", title: "Discount lists", keywords: "discount list override product code percent active" },
   "coupons-types": { tab: "coupons", title: "Coupon types", keywords: "coupon type value currency reference only active" },
   "coupons-issued": { tab: "coupons", title: "Issued coupons", keywords: "coupon issue code new" },
-  "behavior-custom-pricing": { tab: "behavior", title: "Custom item pricing", keywords: "custom item price discount per unit editing" },
-  "behavior-price-change-mode": { tab: "behavior", title: "Price change mode", keywords: "price change manual override discount lever" },
-  "behavior-invoice-keyboard": { tab: "behavior", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
-  "behavior-product-search": { tab: "behavior", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
-  "behavior-scan-by-code": { tab: "behavior", title: "Product code in scan field", keywords: "barcode scan code sku variant type enter" },
-  "behavior-search-code-only": { tab: "behavior", title: "Code-only product search", keywords: "product search code only hide names barcode lookup" },
-  "behavior-price-edit-codes": { tab: "behavior", title: "Price edits by code", keywords: "price discount manual edit restrict allow only selected codes products" },
-  "behavior-sounds": { tab: "behavior", title: "Sounds", keywords: "sound audio beep chime click mute volume quiet silent" },
-  "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
-  "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
-  "behavior-non-admin-month-nav": { tab: "behavior", title: "Income chart month navigation", keywords: "monthly income chart non-admin cashier back forward prev next month browse lock admin only" },
-  "behavior-visitor-counter": { tab: "behavior", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
-  "admin-app-updates": { tab: "admin", title: "App updates", keywords: "update upgrade version install roll back rollback previous release download" },
-  "admin-page-access": { tab: "admin", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
-  "admin-change-password": { tab: "admin", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
-  "admin-cashier-pin": { tab: "admin", title: "Cashier login PIN", keywords: "cashier pin code login keypad 4 digit change shared" },
-  "admin-users": { tab: "admin", title: "Users", keywords: "users username role status add user edit delete akuvox userid" },
-  "admin-salespersons": { tab: "admin", title: "Salespersons", keywords: "salespersons full name attendance id add edit delete" },
+  "behavior-custom-pricing": { tab: "behaviour", title: "Custom item pricing", keywords: "custom item price discount per unit editing" },
+  "behavior-price-change-mode": { tab: "behaviour", title: "Price change mode", keywords: "price change manual override discount lever" },
+  "behavior-invoice-keyboard": { tab: "display", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
+  "behavior-product-search": { tab: "behaviour", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
+  "behavior-scan-by-code": { tab: "behaviour", title: "Product code in scan field", keywords: "barcode scan code sku variant type enter" },
+  "behavior-search-code-only": { tab: "behaviour", title: "Code-only product search", keywords: "product search code only hide names barcode lookup" },
+  "behavior-price-edit-codes": { tab: "behaviour", title: "Price edits by code", keywords: "price discount manual edit restrict allow only selected codes products" },
+  "behavior-sounds": { tab: "display", title: "Sounds", keywords: "sound audio beep chime click mute volume quiet silent" },
+  "behavior-client-required": { tab: "behaviour", title: "Client on every invoice", keywords: "require client select checkout invoice anonymous prefer not to say" },
+  "behavior-always-anonymous": { tab: "behaviour", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
+  "behavior-salesperson-per-invoice": { tab: "behaviour", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
+  "behavior-non-admin-month-nav": { tab: "behaviour", title: "Income chart month navigation", keywords: "monthly income chart non-admin cashier back forward prev next month browse lock admin only" },
+  "behavior-visitor-counter": { tab: "behaviour", title: "People visits counter", keywords: "people visits counter footfall traffic side menu nav drawer up down orange chip monthly income" },
+  "admin-app-updates": { tab: "general", title: "App updates", keywords: "update upgrade version install roll back rollback previous release download" },
+  "admin-page-access": { tab: "pages", title: "Page access", keywords: "page access lock unlock non-admin clients inventory transfers attendance salespersons permissions" },
+  "admin-change-password": { tab: "users", title: "Change admin password", keywords: "change admin password current new confirm account security login sign in" },
+  "admin-cashier-pin": { tab: "users", title: "Cashier login PIN", keywords: "cashier pin code login keypad 4 digit change shared" },
+  "admin-users": { tab: "users", title: "Users", keywords: "users username role status add user edit delete akuvox userid" },
+  "admin-salespersons": { tab: "users", title: "Salespersons", keywords: "salespersons full name attendance id add edit delete" },
 };
 
 const settingsSearch = ref("");
