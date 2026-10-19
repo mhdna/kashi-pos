@@ -138,8 +138,12 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		// deliberately overriding a price they can see, not inventing one for
 		// a product central never priced. The line stops being attributed to
 		// the list once it no longer carries the list's value.
+		// The "Unknown item" placeholder has no list price: whatever the
+		// cashier typed is its price, whatever the custom-price settings say
+		// (kashi's picture session is what vouches for the sale instead).
+		isUnknown := product.Barcode == unknownProductBarcode
 		if item.CustomPriceCents != nil {
-			if !customPricingEnabled {
+			if !customPricingEnabled && !isUnknown {
 				return nil, 0, 0, nil, fmt.Errorf("custom item pricing is disabled")
 			}
 			product.Price = *item.CustomPriceCents
@@ -155,7 +159,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			{price: product.Price, discount: product.Discount}: int64(item.Qty),
 		}
 		if len(item.UnitPricesCents) > 0 || len(item.UnitDiscounts) > 0 {
-			if len(perUnitPricingEnabled) == 0 || !perUnitPricingEnabled[0] {
+			if !isUnknown && (len(perUnitPricingEnabled) == 0 || !perUnitPricingEnabled[0]) {
 				return nil, 0, 0, nil, fmt.Errorf("per-unit item pricing is disabled")
 			}
 			priceQuantities = make(map[unitPricing]int64)

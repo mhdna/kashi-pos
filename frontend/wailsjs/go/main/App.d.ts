@@ -481,3 +481,11 @@ export function VoidInvoice(arg1:string,arg2:string):Promise<void>;
 export function WaitUntilReady():Promise<Record<string, any>>;
 
 export function WriteToScreen(arg1:string,arg2:string):Promise<void>;
+
+export function GetUnknownProduct():Promise<Record<string, any>>;
+
+export function RequestUnknownItemHelp(arg1:string):Promise<void>;
+
+export function StartUnknownItemSession(arg1:string):Promise<Record<string, any>>;
+
+export function UnknownItemSessionStatus(arg1:string):Promise<Record<string, any>>;

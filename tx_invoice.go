@@ -44,6 +44,9 @@ type SalesInvoiceParams struct {
 	// (selected once per invoice at the till), so it's threaded straight
 	// through instead.
 	Salesperson string `json:"salesperson"`
+	// UnknownSessionRef is the picture session of a cart holding "Unknown
+	// item" lines, sent to kashi with the sale (see unknown_items.go).
+	UnknownSessionRef string `json:"unknownSessionRef,omitempty"`
 }
 
 type SalesInvoiceResult struct {
@@ -352,6 +355,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				SalespersonID:          salespersonRemoteIDByName(a.ctx, q, params.Salesperson),
 				Payments:               payloadPayments,
 				Items:                  payloadItems,
+				UnknownSessionRef:      params.UnknownSessionRef,
 				LbpTotal:               lbpTotal,
 				LbpRate:                lbpRate,
 			}); err != nil {

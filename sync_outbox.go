@@ -103,6 +103,9 @@ type branchInvoicePayload struct {
 	// actually sold in LBP. Omitted for invoices from before they existed.
 	LbpTotal *int64 `json:"lbp_total,omitempty"`
 	LbpRate  *int64 `json:"lbp_rate,omitempty"`
+	// UnknownSessionRef ties a sale with "Unknown item" lines to the pictures
+	// taken for it (kashi's unknown_session_ref).
+	UnknownSessionRef string `json:"unknown_session_ref,omitempty"`
 }
 
 type branchInvoicePayloadItem struct {

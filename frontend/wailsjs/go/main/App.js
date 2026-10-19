@@ -961,3 +961,19 @@ export function WaitUntilReady() {
 export function WriteToScreen(arg1, arg2) {
   return window['go']['main']['App']['WriteToScreen'](arg1, arg2);
 }
+
+export function GetUnknownProduct() {
+  return window['go']['main']['App']['GetUnknownProduct']();
+}
+
+export function RequestUnknownItemHelp(arg1) {
+  return window['go']['main']['App']['RequestUnknownItemHelp'](arg1);
+}
+
+export function StartUnknownItemSession(arg1) {
+  return window['go']['main']['App']['StartUnknownItemSession'](arg1);
+}
+
+export function UnknownItemSessionStatus(arg1) {
+  return window['go']['main']['App']['UnknownItemSessionStatus'](arg1);
+}
