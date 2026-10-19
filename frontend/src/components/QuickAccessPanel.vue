@@ -25,7 +25,7 @@
       <div ref="itemsEl" class="quick-access__items" :class="{ 'quick-access__items--dragging': dragIndex !== null }">
         <v-card
           v-for="(item, index) in items"
-          :key="item.code"
+          :key="item.barcode || item.code"
           class="quick-access__item pa-2"
           :class="{
             'quick-access__item--dragging': dragIndex === index,
