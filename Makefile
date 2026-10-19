@@ -1,7 +1,21 @@
-.PHONY: fmt lint test dev generate build-windows build-windows-compact
+.PHONY: fmt lint test dev generate receipt-previews build-windows build-windows-compact
 
 generate:
 	sqlc generate
+
+# Receipt look previews for kashi's settings pages. kashi cannot run this
+# renderer, so its UI ships the images and a catalog generated from it (see
+# TestGenerateReceiptPreviews). Rerun whenever a theme or layout changes, then
+# commit the result in kashi.
+KASHI_UI ?= ../kashi/ui
+receipt-previews:
+	rm -rf .receipt-previews && mkdir -p .receipt-previews
+	KASHI_RECEIPT_PREVIEW_OUT=$(CURDIR)/.receipt-previews go test -count=1 -run TestGenerateReceiptPreviews .
+	mkdir -p $(KASHI_UI)/public/receipt-previews $(KASHI_UI)/src/data
+	rm -f $(KASHI_UI)/public/receipt-previews/*.png
+	cp .receipt-previews/*.png $(KASHI_UI)/public/receipt-previews/
+	cp .receipt-previews/catalog.json $(KASHI_UI)/src/data/receiptThemes.json
+	rm -rf .receipt-previews
 
 fmt:
 	cd frontend && pnpm run format

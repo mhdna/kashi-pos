@@ -161,7 +161,7 @@ func receiptThemes() []receiptTheme {
 		},
 		{
 			ID: "boutique", Name: "Boutique",
-			Description: "Elegant serif with size and colour shown, centered and spacious.",
+			Description: "Elegant serif with size and colour shown, and room to breathe.",
 			BestFor:     "Clothing, shoes, jewellery, gifts",
 			Style: receiptStyle{
 				Fonts:      &receiptFontSet{Title: cormorantBold, TitleBold: cormorantBold, Body: jostRegular, BodyBold: jostSemiBold, Name: cormorantBold},
