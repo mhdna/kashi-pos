@@ -1,19 +1,20 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="340" @update:model-value="emit('update:modelValue', $event)">
+  <v-dialog :model-value="modelValue" max-width="420" @update:model-value="emit('update:modelValue', $event)">
     <v-card class="pa-4">
-      <v-card-title class="px-0 pt-0">Unknown item</v-card-title>
-      <div class="text-body-2 text-medium-emphasis mb-3">
-        Type its price. A picture of each one is taken before payment.
+      <v-card-title class="px-0 pt-0 text-center">Unknown item</v-card-title>
+      <div class="text-body-1 text-medium-emphasis text-center mb-3">
+        Type the price<br />
+        <span dir="rtl" lang="ar">أدخل سعر القطعة</span>
       </div>
-      <div class="unknown-price-display text-h4 text-center mb-3" data-testid="unknown-price">
+      <div class="unknown-price-display text-h3 text-center mb-3" data-testid="unknown-price">
         ${{ display }}
       </div>
       <div class="unknown-keypad">
-        <v-btn v-for="key in keys" :key="key" size="large" variant="tonal" :aria-label="key" @click="press(key)">
+        <v-btn v-for="key in keys" :key="key" class="unknown-key" variant="tonal" :aria-label="key" @click="press(key)">
           {{ key }}
         </v-btn>
-        <v-btn size="large" variant="tonal" aria-label="Delete" @click="backspace">
-          <v-icon icon="mdi-backspace-outline" />
+        <v-btn class="unknown-key" variant="tonal" aria-label="Delete" @click="backspace">
+          <v-icon icon="mdi-backspace-outline" size="36" />
         </v-btn>
       </div>
       <v-card-actions class="px-0 pb-0 mt-3">
@@ -91,6 +92,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
 .unknown-keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
+}
+.unknown-key {
+  height: 84px !important;
+  font-size: 2.4rem;
+  font-weight: 500;
 }
 </style>
