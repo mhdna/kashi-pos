@@ -298,6 +298,9 @@ interface LineItem {
   // change mode, where a price edit is expressed as a discount off this
   // value rather than as a new base price.
   originalPrice?: number;
+  // The list discount captured with originalPrice; a line still carrying both
+  // untouched can follow a list change (applyListPricing).
+  originalDiscount?: number;
   // Locks just this line, independent of the component-level `readonly`
   // prop - used by exchange mode, where returned (negative-qty) lines stay
   // locked while replacement lines scanned afterward are fully editable.
@@ -505,8 +508,46 @@ function addItem(item: LineItem) {
       unitPrices,
       unitDiscounts,
       originalPrice: item.originalPrice ?? price,
+      originalDiscount: item.originalDiscount ?? Number(item.discount || 0),
     });
   }
+}
+
+// Follows a price/discount list change on lines already in the cart: a line
+// nobody edited (price, discount and every unit still as listed) takes the
+// new list price and discount; an edited line keeps what the cashier set.
+// Returns the names of the lines that changed.
+function applyListPricing(rows: any[]): string[] {
+  const changed: string[] = [];
+  for (const item of items.value) {
+    if (item.locked || !(item.qty > 0) || isUnknownItem(item)) continue;
+    const row = rows.find((r) => r.barcode === item.barcode);
+    const price = Number(row?.price);
+    if (!row || !(price > 0)) continue;
+    const discount = Math.trunc(Number(row.discount || 0));
+    const listedPrice = Number(item.originalPrice ?? item.price);
+    const listedDiscount = Number(item.originalDiscount ?? 0);
+    const untouched =
+      Math.abs(Number(item.price) - listedPrice) < 0.005 &&
+      Number(item.discount) === listedDiscount &&
+      (item.unitPrices ?? []).every((p) => Math.abs(Number(p) - listedPrice) < 0.005) &&
+      (item.unitDiscounts ?? []).every((d) => Number(d) === listedDiscount);
+    if (!untouched || (Math.abs(price - listedPrice) < 0.005 && discount === listedDiscount)) continue;
+    const qty = Math.max(1, Math.trunc(item.qty));
+    item.price = price;
+    item.discount = discount;
+    item.originalPrice = price;
+    item.originalDiscount = discount;
+    item.unitPrices = Array(qty).fill(price);
+    item.unitDiscounts = Array(qty).fill(discount);
+    item.priceListOverridden = Boolean(row.priceListOverridden);
+    item.priceListName = row.priceListName || "";
+    item.discountListOverridden = Boolean(row.discountListOverridden);
+    item.discountListName = row.discountListName || "";
+    savedDiscounts.set(item.code, discount);
+    changed.push(item.name);
+  }
+  return changed;
 }
 
 function addExchangeItems(returned: LineItem[], replacements: LineItem[]) {
@@ -854,6 +895,7 @@ defineExpose({
   subtotalCents,
   discountedSubtotalCents,
   addItem,
+  applyListPricing,
   addExchangeItems,
   items,
   clearItems,

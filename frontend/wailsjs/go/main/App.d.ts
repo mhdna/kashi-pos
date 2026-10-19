@@ -198,6 +198,8 @@ export function GetTodayIncomeByAccount():Promise<Array<Record<string, any>>>;
 
 export function GetTransferPhoto(arg1:string,arg2:number,arg3:number):Promise<string>;
 
+export function GetUnknownProduct():Promise<Record<string, any>>;
+
 export function GetVisitorCountToday():Promise<number>;
 
 export function GetVisitorCounterEnabled():Promise<boolean>;
@@ -338,6 +340,8 @@ export function RequestExpenseUploadLink(arg1:string):Promise<string>;
 
 export function RequestLoanUploadLink(arg1:string):Promise<string>;
 
+export function RequestUnknownItemHelp(arg1:string):Promise<void>;
+
 export function ResyncAll(arg1:main.ResyncOptions):Promise<main.ResyncReport>;
 
 export function RollBackAppUpdate():Promise<void>;
@@ -394,7 +398,13 @@ export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
 
 export function SetPriceChangeManualOverrideEnabled(arg1:boolean):Promise<void>;
 
+export function SetPriceEditCodes(arg1:string):Promise<void>;
+
+export function SetPriceEditRestricted(arg1:boolean):Promise<void>;
+
 export function SetProductActive(arg1:number,arg2:boolean):Promise<void>;
+
+export function SetProductSearchCodeOnly(arg1:boolean):Promise<void>;
 
 export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
 
@@ -403,12 +413,6 @@ export function SetQuickAccessColor(arg1:number,arg2:string,arg3:string):Promise
 export function SetQuickAccessMode(arg1:string):Promise<void>;
 
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
-
-export function SetPriceEditCodes(arg1:string):Promise<void>;
-
-export function SetPriceEditRestricted(arg1:boolean):Promise<void>;
-
-export function SetProductSearchCodeOnly(arg1:boolean):Promise<void>;
 
 export function SetScanByCodeEnabled(arg1:boolean):Promise<void>;
 
@@ -430,6 +434,8 @@ export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<st
 
 export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function StartUnknownItemSession(arg1:string):Promise<Record<string, any>>;
+
 export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string):Promise<void>;
 
 export function SwitchBranch(arg1:string):Promise<void>;
@@ -437,6 +443,8 @@ export function SwitchBranch(arg1:string):Promise<void>;
 export function SwitchShiftReceiptToLocal(arg1:string):Promise<Record<string, any>>;
 
 export function SyncAttendance(arg1:string):Promise<Record<string, any>>;
+
+export function UnknownItemSessionStatus(arg1:string):Promise<Record<string, any>>;
 
 export function UpdateAdminConfig(arg1:boolean,arg2:string,arg3:string):Promise<void>;
 
@@ -482,10 +490,4 @@ export function WaitUntilReady():Promise<Record<string, any>>;
 
 export function WriteToScreen(arg1:string,arg2:string):Promise<void>;
 
-export function GetUnknownProduct():Promise<Record<string, any>>;
-
-export function RequestUnknownItemHelp(arg1:string):Promise<void>;
-
-export function StartUnknownItemSession(arg1:string):Promise<Record<string, any>>;
-
-export function UnknownItemSessionStatus(arg1:string):Promise<Record<string, any>>;
+export function RefreshCartPricing(arg1:string):Promise<Array<Record<string, any>>>;

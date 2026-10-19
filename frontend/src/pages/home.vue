@@ -363,6 +363,7 @@ import {
   QuoteInvoiceTotal,
   QuoteExchangeTotal,
   GetUnknownProduct,
+  RefreshCartPricing,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import ActionBar from "@/components/ActionBar.vue";
@@ -535,6 +536,35 @@ const dialogOpen = ref(false);
 let overlayObserver: MutationObserver | undefined;
 let overlayFocusTimer: ReturnType<typeof setTimeout> | undefined;
 let unsubscribeSettingsChanged: (() => void) | undefined;
+let unsubscribeListChanges: Array<() => void> = [];
+let listRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+// kashi changed a price or discount list: lines already in the cart follow it
+// (see InvoiceItems.applyListPricing) and the cashier is told, so a total never
+// moves silently. Debounced, since one edit can touch several synced tables.
+function scheduleCartListRefresh() {
+  if (listRefreshTimer) clearTimeout(listRefreshTimer);
+  listRefreshTimer = setTimeout(async () => {
+    listRefreshTimer = null;
+    const barcodes = (invoiceItems.value?.items ?? [])
+      .filter((item: any) => item.barcode && !isUnknownItem(item) && item.qty > 0 && !item.locked)
+      .map((item: any) => item.barcode);
+    if (!barcodes.length || pageMode.value === "settlement") return;
+    try {
+      const rows = (await RefreshCartPricing(JSON.stringify(barcodes))) ?? [];
+      const changed: string[] = invoiceItems.value?.applyListPricing(rows) ?? [];
+      if (changed.length) {
+        snackbar.text = `Price updated: ${changed.join(", ")}`;
+        snackbar.color = "info";
+        snackbar.icon = "";
+        snackbar.show = true;
+        await refreshQuote();
+      }
+    } catch {
+      // The lines keep what they had; the next change tries again.
+    }
+  }, 400);
+}
 let restoringDraft = true;
 
 provide("dialogOpen", dialogOpen);
@@ -1375,6 +1405,9 @@ async function loadAppSettings() {
 onMounted(async () => {
   await nextTick();
   if (!pageActive) return;
+  unsubscribeListChanges = ["discount_lists", "price_lists", "products"].map((entity) =>
+    EventsOn(`sync_applied:${entity}`, scheduleCartListRefresh),
+  );
   unsubscribeSettingsChanged = EventsOn("settings_changed", () => {
     void loadAppSettings();
   });
@@ -1411,6 +1444,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   pageActive = false;
   unsubscribeSettingsChanged?.();
+  unsubscribeListChanges.forEach((unsubscribe) => unsubscribe());
+  if (listRefreshTimer) clearTimeout(listRefreshTimer);
   clearTimeout(overlayFocusTimer);
   clearTimeout(missingAssignmentFlashTimer);
   overlayObserver?.disconnect();

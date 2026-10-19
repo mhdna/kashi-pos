@@ -394,6 +394,10 @@ export function GetTransferPhoto(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetTransferPhoto'](arg1, arg2, arg3);
 }
 
+export function GetUnknownProduct() {
+  return window['go']['main']['App']['GetUnknownProduct']();
+}
+
 export function GetVisitorCountToday() {
   return window['go']['main']['App']['GetVisitorCountToday']();
 }
@@ -674,6 +678,10 @@ export function RequestLoanUploadLink(arg1) {
   return window['go']['main']['App']['RequestLoanUploadLink'](arg1);
 }
 
+export function RequestUnknownItemHelp(arg1) {
+  return window['go']['main']['App']['RequestUnknownItemHelp'](arg1);
+}
+
 export function ResyncAll(arg1) {
   return window['go']['main']['App']['ResyncAll'](arg1);
 }
@@ -786,8 +794,20 @@ export function SetPriceChangeManualOverrideEnabled(arg1) {
   return window['go']['main']['App']['SetPriceChangeManualOverrideEnabled'](arg1);
 }
 
+export function SetPriceEditCodes(arg1) {
+  return window['go']['main']['App']['SetPriceEditCodes'](arg1);
+}
+
+export function SetPriceEditRestricted(arg1) {
+  return window['go']['main']['App']['SetPriceEditRestricted'](arg1);
+}
+
 export function SetProductActive(arg1, arg2) {
   return window['go']['main']['App']['SetProductActive'](arg1, arg2);
+}
+
+export function SetProductSearchCodeOnly(arg1) {
+  return window['go']['main']['App']['SetProductSearchCodeOnly'](arg1);
 }
 
 export function SetProductSearchEnabled(arg1) {
@@ -804,18 +824,6 @@ export function SetQuickAccessMode(arg1) {
 
 export function SetSalespersonPerInvoiceRequired(arg1) {
   return window['go']['main']['App']['SetSalespersonPerInvoiceRequired'](arg1);
-}
-
-export function SetPriceEditCodes(arg1) {
-  return window['go']['main']['App']['SetPriceEditCodes'](arg1);
-}
-
-export function SetPriceEditRestricted(arg1) {
-  return window['go']['main']['App']['SetPriceEditRestricted'](arg1);
-}
-
-export function SetProductSearchCodeOnly(arg1) {
-  return window['go']['main']['App']['SetProductSearchCodeOnly'](arg1);
 }
 
 export function SetScanByCodeEnabled(arg1) {
@@ -858,6 +866,10 @@ export function SkipShiftReceiptUpload(arg1, arg2, arg3) {
   return window['go']['main']['App']['SkipShiftReceiptUpload'](arg1, arg2, arg3);
 }
 
+export function StartUnknownItemSession(arg1) {
+  return window['go']['main']['App']['StartUnknownItemSession'](arg1);
+}
+
 export function SubmitAttendanceComplaint(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
   return window['go']['main']['App']['SubmitAttendanceComplaint'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
@@ -872,6 +884,10 @@ export function SwitchShiftReceiptToLocal(arg1) {
 
 export function SyncAttendance(arg1) {
   return window['go']['main']['App']['SyncAttendance'](arg1);
+}
+
+export function UnknownItemSessionStatus(arg1) {
+  return window['go']['main']['App']['UnknownItemSessionStatus'](arg1);
 }
 
 export function UpdateAdminConfig(arg1, arg2, arg3) {
@@ -962,18 +978,6 @@ export function WriteToScreen(arg1, arg2) {
   return window['go']['main']['App']['WriteToScreen'](arg1, arg2);
 }
 
-export function GetUnknownProduct() {
-  return window['go']['main']['App']['GetUnknownProduct']();
-}
-
-export function RequestUnknownItemHelp(arg1) {
-  return window['go']['main']['App']['RequestUnknownItemHelp'](arg1);
-}
-
-export function StartUnknownItemSession(arg1) {
-  return window['go']['main']['App']['StartUnknownItemSession'](arg1);
-}
-
-export function UnknownItemSessionStatus(arg1) {
-  return window['go']['main']['App']['UnknownItemSessionStatus'](arg1);
+export function RefreshCartPricing(arg1) {
+  return window['go']['main']['App']['RefreshCartPricing'](arg1);
 }

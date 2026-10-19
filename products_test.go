@@ -568,3 +568,38 @@ func TestSetPriceEditCodesRoundTrips(t *testing.T) {
 		t.Fatalf("priceEditCodes = %q, want A1,b2", got)
 	}
 }
+
+func TestRefreshCartPricingFollowsTheLists(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	product, err := app.store.CreateProduct(app.ctx, db.CreateProductParams{
+		Barcode: "B1", Code: "C1", Name: "Jacket", IsActive: 1, Price: 1200, CurrencyCode: "USD",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`UPDATE products SET uid = 'uid-1' WHERE id = ?`, product.ID); err != nil {
+		t.Fatal(err)
+	}
+	priceProductsFromRows(t, app.store.Queries)
+
+	rows, err := app.RefreshCartPricing(`["B1","missing"]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0]["price"] != 12.0 || rows[0]["discount"] != int64(0) {
+		t.Fatalf("before the discount = %v, want one row at $12 with none", rows)
+	}
+
+	// kashi puts the product on the discount list: the next read has it.
+	if _, err := database.Exec(`INSERT INTO discount_list_items (discount_list_id, product_uid, discount) SELECT id, 'uid-1', 25 FROM discount_lists WHERE uid = 'test-default-discount-list'`); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = app.RefreshCartPricing(`["B1"]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows[0]["discount"] != int64(25) {
+		t.Fatalf("after the discount = %v, want 25%%", rows[0])
+	}
+}
