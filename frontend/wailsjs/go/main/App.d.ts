@@ -156,6 +156,8 @@ export function GetDisplayPrefs():Promise<main.DisplayPrefs>;
 
 export function GetExchangeInvoice(arg1:string):Promise<Record<string, any>>;
 
+export function GetExpenseFirstPhoto(arg1:string,arg2:number):Promise<string>;
+
 export function GetExpensePhoto(arg1:number,arg2:number):Promise<string>;
 
 export function GetInvoiceDetails(arg1:number):Promise<Record<string, any>>;
@@ -163,6 +165,8 @@ export function GetInvoiceDetails(arg1:number):Promise<Record<string, any>>;
 export function GetInvoiceForSettlementChange(arg1:number):Promise<Record<string, any>>;
 
 export function GetInvoiceSyncStates(arg1:Array<number>):Promise<Array<main.InvoiceSyncState>>;
+
+export function GetLoanFirstPhoto(arg1:string,arg2:number):Promise<string>;
 
 export function GetLoanPhoto(arg1:number,arg2:number):Promise<string>;
 
@@ -326,6 +330,8 @@ export function QuotePaymentStatus(arg1:string,arg2:string):Promise<main.Payment
 
 export function QuoteSettlementPaymentStatus(arg1:number,arg2:string):Promise<main.PaymentStatus>;
 
+export function RefreshCartPricing(arg1:string):Promise<Array<Record<string, any>>>;
+
 export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
 
 export function ReorderQuickAccessProducts(arg1:Array<number>):Promise<void>;
@@ -408,6 +414,8 @@ export function SetProductSearchCodeOnly(arg1:boolean):Promise<void>;
 
 export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
 
+export function SetProductSearchHiddenFields(arg1:string):Promise<void>;
+
 export function SetQuickAccessColor(arg1:number,arg2:string,arg3:string):Promise<void>;
 
 export function SetQuickAccessMode(arg1:string):Promise<void>;
@@ -427,6 +435,8 @@ export function SetSoundsEnabled(arg1:boolean):Promise<void>;
 export function SetSplitDisplay(arg1:string,arg2:boolean,arg3:number):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
+
+export function SetUnknownProductBarcode(arg1:string):Promise<void>;
 
 export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
 
@@ -489,5 +499,3 @@ export function VoidInvoice(arg1:string,arg2:string):Promise<void>;
 export function WaitUntilReady():Promise<Record<string, any>>;
 
 export function WriteToScreen(arg1:string,arg2:string):Promise<void>;
-
-export function RefreshCartPricing(arg1:string):Promise<Array<Record<string, any>>>;

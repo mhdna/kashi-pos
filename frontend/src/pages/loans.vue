@@ -218,6 +218,7 @@ import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import {
   AddLoanPhotosFromComputer,
   CreateLoan,
+  GetLoanFirstPhoto,
   GetLoanPhoto,
   ListLoanCategories,
   ListLoanPhotoIDs,
@@ -259,9 +260,7 @@ function formatCents(cents: number): string {
 
 // The first photo, as a thumbnail, for the row; "" shows the no-photo icon.
 async function firstLoanPhoto(clientRef: string, width: number): Promise<string> {
-  const ids = (await ListLoanPhotoIDs(clientRef)) ?? [];
-  const first = ids[0];
-  return first ? GetLoanPhoto(first, width) : "";
+  return GetLoanFirstPhoto(clientRef, width);
 }
 
 const detailOpen = ref(false);
