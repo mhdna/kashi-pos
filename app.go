@@ -53,6 +53,11 @@ type App struct {
 	attendanceSyncMu sync.Mutex
 	ready            chan struct{}
 
+	// unknownSessionRef is the picture session of the cart being paid (see
+	// unknown_items.go), guarded by unknownMu.
+	unknownMu         sync.Mutex
+	unknownSessionRef string
+
 	pinMu             sync.Mutex
 	failedPINAttempts int
 	pinLockedUntil    time.Time

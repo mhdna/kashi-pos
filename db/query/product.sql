@@ -50,6 +50,7 @@ LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 SELECT * FROM products
 WHERE id > sqlc.arg(after_id)
   AND is_active = 1
+  AND barcode != 'UNKNOWN'
   AND (name || ' ' || code || ' ' || barcode)
       LIKE sqlc.arg(search_pattern)
 ORDER BY id
@@ -61,6 +62,7 @@ LIMIT sqlc.arg(limit);
 SELECT * FROM products
 WHERE id > sqlc.arg(after_id)
   AND is_active = 1
+  AND barcode != 'UNKNOWN'
   AND (code || ' ' || barcode) LIKE sqlc.arg(search_pattern)
 ORDER BY id
 LIMIT sqlc.arg(limit);
@@ -68,12 +70,14 @@ LIMIT sqlc.arg(limit);
 -- name: CountProductsByCode :one
 SELECT COUNT(*) FROM products
 WHERE is_active = 1
+  AND barcode != 'UNKNOWN'
   AND (code || ' ' || barcode) LIKE sqlc.arg(search_pattern);
 
 -- name: ListProductsAfterUnfiltered :many
 SELECT * FROM products
 WHERE id > sqlc.arg(after_id)
   AND is_active = 1
+  AND barcode != 'UNKNOWN'
 ORDER BY id
 LIMIT sqlc.arg(limit);
 
@@ -83,11 +87,12 @@ LIMIT sqlc.arg(limit);
 -- promises more results than the pages can show.
 SELECT COUNT(*) FROM products
 WHERE is_active = 1
+  AND barcode != 'UNKNOWN'
   AND (name || ' ' || code || ' ' || barcode)
       LIKE sqlc.arg(search_pattern);
 
 -- name: CountAllProducts :one
-SELECT COUNT(*) FROM products WHERE is_active = 1;
+SELECT COUNT(*) FROM products WHERE is_active = 1 AND barcode != 'UNKNOWN';
 
 -- name: CreateProduct :one
 INSERT INTO products (barcode, code, name, description, is_active, price, discount, color, size, currency_code, brand, family, kind, season, product_year)

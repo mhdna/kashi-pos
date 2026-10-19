@@ -213,10 +213,15 @@ func (a *App) VoidInvoice(itemsJSON string, reason string) error {
 }
 
 func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes string) (map[string]any, error) {
-	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson)})
+	unknownRef, err := a.verifyUnknownPictures(itemsJSON)
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}
+	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson), UnknownSessionRef: unknownRef})
+	if err != nil {
+		return nil, fmt.Errorf("invoice creation failed: %w", err)
+	}
+	a.clearUnknownSession(unknownRef)
 
 	response := map[string]any{
 		"invoiceCode":    result.InvoiceCode,

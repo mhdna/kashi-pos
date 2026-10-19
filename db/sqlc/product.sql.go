@@ -23,7 +23,7 @@ func (q *Queries) AddQuickAccessProduct(ctx context.Context, productID int64) er
 }
 
 const countAllProducts = `-- name: CountAllProducts :one
-SELECT COUNT(*) FROM products WHERE is_active = 1
+SELECT COUNT(*) FROM products WHERE is_active = 1 AND barcode != 'UNKNOWN'
 `
 
 func (q *Queries) CountAllProducts(ctx context.Context) (int64, error) {
@@ -36,6 +36,7 @@ func (q *Queries) CountAllProducts(ctx context.Context) (int64, error) {
 const countProducts = `-- name: CountProducts :one
 SELECT COUNT(*) FROM products
 WHERE is_active = 1
+  AND barcode != 'UNKNOWN'
   AND (name || ' ' || code || ' ' || barcode)
       LIKE ?1
 `
@@ -53,6 +54,7 @@ func (q *Queries) CountProducts(ctx context.Context, searchPattern string) (int6
 const countProductsByCode = `-- name: CountProductsByCode :one
 SELECT COUNT(*) FROM products
 WHERE is_active = 1
+  AND barcode != 'UNKNOWN'
   AND (code || ' ' || barcode) LIKE ?1
 `
 
@@ -697,6 +699,7 @@ const listProductsAfter = `-- name: ListProductsAfter :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
 WHERE id > ?1
   AND is_active = 1
+  AND barcode != 'UNKNOWN'
   AND (name || ' ' || code || ' ' || barcode)
       LIKE ?2
 ORDER BY id
@@ -757,6 +760,7 @@ const listProductsAfterByCode = `-- name: ListProductsAfterByCode :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
 WHERE id > ?1
   AND is_active = 1
+  AND barcode != 'UNKNOWN'
   AND (code || ' ' || barcode) LIKE ?2
 ORDER BY id
 LIMIT ?3
@@ -817,6 +821,7 @@ const listProductsAfterUnfiltered = `-- name: ListProductsAfterUnfiltered :many
 SELECT id, barcode, code, name, description, is_active, price, discount, color, size, currency_code, created_at, brand, family, kind, season, product_year, uid, remote_updated_at FROM products
 WHERE id > ?1
   AND is_active = 1
+  AND barcode != 'UNKNOWN'
 ORDER BY id
 LIMIT ?2
 `

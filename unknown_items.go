@@ -1,0 +1,241 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"strconv"
+	"time"
+
+	"github.com/google/uuid"
+
+	db "kashi-pos/db/sqlc"
+)
+
+// "Unknown item": something a customer wants that has no code here. The
+// cashier rings it up as the placeholder product below at the price they
+// type; before payment, a phone takes a picture of every unit (the QR link
+// kashi hands back), the pictures go straight to kashi, and the sale is held
+// only until each unit has one -- or a kashi user with the right permission
+// lets it through. Afterwards someone in kashi names what each picture was
+// (see api/unknown_items.go in the kashi repo).
+
+const (
+	unknownProductBarcode = "UNKNOWN"
+	unknownProductName    = "Unknown item"
+
+	unknownCallTimeout = 10 * time.Second
+)
+
+// ensureUnknownProduct returns the placeholder product, creating it on first
+// use. It is active (the sale pricing rejects inactive products), has no uid
+// (so kashi never tries to move stock for it) and no list price: its price is
+// always the one the cashier typed (see validateAndPriceItems).
+func ensureUnknownProduct(ctx context.Context, q *db.Queries) (db.Product, error) {
+	product, err := q.GetProductByBarcode(ctx, unknownProductBarcode)
+	if err == nil {
+		return product, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return db.Product{}, err
+	}
+	return q.CreateProduct(ctx, db.CreateProductParams{
+		Barcode: unknownProductBarcode, Code: unknownProductBarcode, Name: unknownProductName,
+		IsActive: 1, Price: 0, CurrencyCode: "USD",
+	})
+}
+
+// GetUnknownProduct is the sale screen's "Unknown item" button: the
+// placeholder as a cart line, still without a price.
+func (a *App) GetUnknownProduct() (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	product, err := ensureUnknownProduct(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"id": product.ID, "name": product.Name, "code": product.Code, "barcode": product.Barcode,
+		"category": "", "brand": "", "color": "", "size": "", "price": 0, "discount": 0, "qty": 1,
+	}, nil
+}
+
+// unknownUnitCount is how many units of the placeholder a cart carries.
+func unknownUnitCount(items []salesInvoiceItem) int64 {
+	var units int64
+	for _, item := range items {
+		if item.Barcode == unknownProductBarcode {
+			units += int64(item.Qty)
+		}
+	}
+	return units
+}
+
+// unknownCall is one JSON round trip to kashi's /branch API for the unknown
+// item pictures.
+func (a *App) unknownCall(method, path string, in, out any) error {
+	client := a.photoClient()
+	if client == nil {
+		return fmt.Errorf("this till isn't connected to kashi")
+	}
+	var body bytes.Buffer
+	if in != nil {
+		if err := json.NewEncoder(&body).Encode(in); err != nil {
+			return err
+		}
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, unknownCallTimeout)
+	defer cancel()
+	req, err := client.newRequest(ctx, method, path, &body)
+	if err != nil {
+		return err
+	}
+	if in != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := client.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("couldn't reach kashi: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		var e centralErrorBody
+		_ = json.NewDecoder(resp.Body).Decode(&e)
+		if e.Error == "" {
+			e.Error = fmt.Sprintf("status %d", resp.StatusCode)
+		}
+		return fmt.Errorf("%s", e.Error)
+	}
+	if out == nil {
+		return nil
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+type unknownSlotInput struct {
+	Label          string `json:"label"`
+	UnitPriceCents int64  `json:"unitPriceCents"`
+	Discount       int64  `json:"discount"`
+}
+
+type unknownSessionResponse struct {
+	UploadToken string `json:"upload_token"`
+	Complete    bool   `json:"complete"`
+	Slots       []struct {
+		SlotRef  string `json:"slot_ref"`
+		Label    string `json:"label"`
+		HasImage bool   `json:"has_image"`
+		Waived   bool   `json:"waived"`
+	} `json:"slots"`
+}
+
+func unknownSessionResult(clientRef, uploadURL string, resp unknownSessionResponse) map[string]any {
+	slots := make([]map[string]any, 0, len(resp.Slots))
+	for _, slot := range resp.Slots {
+		slots = append(slots, map[string]any{
+			"slotRef": slot.SlotRef, "label": slot.Label,
+			"hasImage": slot.HasImage, "waived": slot.Waived, "done": slot.HasImage || slot.Waived,
+		})
+	}
+	return map[string]any{"clientRef": clientRef, "uploadUrl": uploadURL, "slots": slots, "complete": resp.Complete}
+}
+
+// StartUnknownItemSession opens the picture session of the cart being paid:
+// one slot per unit. It returns the link the phone's QR code carries. The
+// session is remembered so CheckoutInvoice can tie the sale to it.
+func (a *App) StartUnknownItemSession(slotsJSON string) (map[string]any, error) {
+	var slots []unknownSlotInput
+	if err := json.Unmarshal([]byte(slotsJSON), &slots); err != nil || len(slots) == 0 {
+		return nil, fmt.Errorf("no unknown items to take pictures of")
+	}
+	type slotBody struct {
+		SlotRef   string `json:"slot_ref"`
+		Label     string `json:"label"`
+		UnitPrice int64  `json:"unit_price"`
+		Discount  int64  `json:"discount"`
+	}
+	body := struct {
+		ClientRef string     `json:"client_ref"`
+		Slots     []slotBody `json:"slots"`
+	}{ClientRef: uuid.NewString()}
+	for i, slot := range slots {
+		body.Slots = append(body.Slots, slotBody{
+			SlotRef: strconv.Itoa(i + 1), Label: slot.Label, UnitPrice: slot.UnitPriceCents, Discount: slot.Discount,
+		})
+	}
+	var resp unknownSessionResponse
+	if err := a.unknownCall(http.MethodPost, "/branch/unknown_sessions", body, &resp); err != nil {
+		return nil, err
+	}
+	if resp.UploadToken == "" {
+		return nil, fmt.Errorf("kashi didn't send a link")
+	}
+	client := a.photoClient()
+	a.unknownMu.Lock()
+	a.unknownSessionRef = body.ClientRef
+	a.unknownMu.Unlock()
+	return unknownSessionResult(body.ClientRef, client.baseURL+"/unknown_uploads/"+resp.UploadToken, resp), nil
+}
+
+// UnknownItemSessionStatus is the dialog's poll: which units have a picture or
+// a manager's pass.
+func (a *App) UnknownItemSessionStatus(clientRef string) (map[string]any, error) {
+	var resp unknownSessionResponse
+	path := "/branch/unknown_sessions/status?client_ref=" + url.QueryEscape(clientRef)
+	if err := a.unknownCall(http.MethodGet, path, nil, &resp); err != nil {
+		return nil, err
+	}
+	return unknownSessionResult(clientRef, "", resp), nil
+}
+
+// RequestUnknownItemHelp is the cashier's "ask a manager" button: the session
+// jumps to the top of kashi's Waiting list.
+func (a *App) RequestUnknownItemHelp(clientRef string) error {
+	return a.unknownCall(http.MethodPost, "/branch/unknown_sessions/help", map[string]string{"client_ref": clientRef}, nil)
+}
+
+// verifyUnknownPictures is checkout's gate: a cart with unknown items is only
+// sold once the remembered session has a picture or a pass for every unit.
+// It returns the session's ref for the sync payload ("" for an ordinary cart).
+func (a *App) verifyUnknownPictures(itemsJSON string) (string, error) {
+	var items []salesInvoiceItem
+	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
+		return "", nil // the sale's own validation reports a bad cart
+	}
+	units := unknownUnitCount(items)
+	if units == 0 {
+		return "", nil
+	}
+	a.unknownMu.Lock()
+	ref := a.unknownSessionRef
+	a.unknownMu.Unlock()
+	if ref == "" {
+		return "", fmt.Errorf("take pictures of the unknown items before paying")
+	}
+	var resp unknownSessionResponse
+	if err := a.unknownCall(http.MethodGet, "/branch/unknown_sessions/status?client_ref="+url.QueryEscape(ref), nil, &resp); err != nil {
+		return "", fmt.Errorf("unknown items need kashi to take their pictures: %w", err)
+	}
+	if !resp.Complete || int64(len(resp.Slots)) != units {
+		return "", fmt.Errorf("pictures of the unknown items are missing")
+	}
+	return ref, nil
+}
+
+// clearUnknownSession forgets the session once its sale is made.
+func (a *App) clearUnknownSession(ref string) {
+	if ref == "" {
+		return
+	}
+	a.unknownMu.Lock()
+	if a.unknownSessionRef == ref {
+		a.unknownSessionRef = ""
+	}
+	a.unknownMu.Unlock()
+}
