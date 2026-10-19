@@ -85,6 +85,41 @@ func (a *App) whatsAppThankYou(invoiceCode string, grandTotalCents int64, client
 	a.postWhatsAppPending(central, invoiceCode, payload, 0)
 }
 
+// WhatsAppWelcome asks kashi to send a new client's welcome now, when the
+// cashier has just entered their name and number, instead of after checkout
+// (a Settings > WhatsApp switch on kashi; with it off, or for a client kashi
+// has messaged before, kashi sends nothing and checkout does the job).
+// Best-effort and fired in the background: kashi unreachable just means the
+// message goes out at checkout like any other, so nothing is retried.
+func (a *App) WhatsAppWelcome(name, phone string) {
+	if a == nil || a.store == nil || strings.TrimSpace(phone) == "" || isWalkInPhone(phone) {
+		return
+	}
+	go func() {
+		settings, err := a.store.GetSettings(context.Background())
+		if err != nil {
+			log.Printf("whatsapp welcome: load settings: %v", err)
+			return
+		}
+		central := newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
+		if !central.enabled() {
+			return
+		}
+		payload, err := json.Marshal(map[string]string{"client_name": name, "client_phone": phone})
+		if err != nil {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		resp, err := central.PostWhatsAppWelcome(ctx, payload)
+		if err != nil {
+			log.Printf("whatsapp welcome: %v", err)
+			return
+		}
+		log.Printf("whatsapp welcome: sent=%t %s", resp.Sent, resp.Reason)
+	}()
+}
+
 // Pending thank-yous are checked every minute. A failed try waits 1, 2, 4...
 // minutes (at most whatsAppRetryMaxDelay) before the next, for as long as a
 // thank-you still makes sense (whatsAppPendingMaxAge). kashi sends at most
