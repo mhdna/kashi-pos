@@ -40,7 +40,7 @@
             </div>
             <div class="invoice-discount-control">
               <NumberPadMenu
-                v-if="customDiscountsEnabled && !readonly && !item.locked && item.qty > 0"
+                v-if="canEditDiscount(item)"
                 :ref="(element) => setFieldRef(index, 'discount', element)"
                 :model-value="item.discount"
                 aria-label="Item discount percentage"
@@ -56,7 +56,7 @@
               />
             </div>
             <NumberPadMenu
-              v-if="customPricesEnabled && !readonly && !item.locked && item.qty > 0"
+              v-if="canEditPrice(item)"
               :ref="(element) => setFieldRef(index, 'price', element)"
               :model-value="
                 (priceChangeMode === 'discount' ? effectiveUnitPrice(item) : item.price).toFixed(2)
@@ -123,7 +123,7 @@
                 />
                 <span class="invoice-price-values">
                   <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
-                  <span v-if="item.discount && !customDiscountsEnabled" class="text-caption text-red">
+                  <span v-if="item.discount && (!customDiscountsEnabled || !codeAllowsPriceEdit(item))" class="text-caption text-red">
                     -{{ item.discount }}%
                     <v-icon
                       v-if="item.discountListOverridden"
@@ -313,6 +313,10 @@ const props = defineProps<{
   readonly?: boolean;
   customDiscountsEnabled?: boolean;
   customPricesEnabled?: boolean;
+  // When restricted, price/discount are editable only on lines whose code is
+  // in priceEditCodes (lowercased by the caller).
+  priceEditRestricted?: boolean;
+  priceEditCodes?: string[];
   perUnitPricesEnabled?: boolean;
   // "discount" (default): editing price or discount recomputes the other
   // from the line's original price, so a price change is always expressed
@@ -534,10 +538,36 @@ function clearItems() {
   detailItem.value = null;
 }
 
+function codeAllowsPriceEdit(item: LineItem): boolean {
+  if (!props.priceEditRestricted) return true;
+  return (props.priceEditCodes ?? []).includes((item.code ?? "").trim().toLowerCase());
+}
+
+function canEditPrice(item: LineItem): boolean {
+  return (
+    customPricesEnabled.value &&
+    codeAllowsPriceEdit(item) &&
+    !readonly.value &&
+    !item.locked &&
+    item.qty > 0
+  );
+}
+
+function canEditDiscount(item: LineItem): boolean {
+  return (
+    customDiscountsEnabled.value &&
+    codeAllowsPriceEdit(item) &&
+    !readonly.value &&
+    !item.locked &&
+    item.qty > 0
+  );
+}
+
 function canEditUnitPrice(item: LineItem): boolean {
   return (
     item.qty > 0 &&
     (perUnitPricesEnabled.value || customPricesEnabled.value) &&
+    codeAllowsPriceEdit(item) &&
     !readonly.value &&
     !item.locked
   );
@@ -547,6 +577,7 @@ function canEditUnitDiscount(item: LineItem): boolean {
   return (
     item.qty > 0 &&
     (perUnitPricesEnabled.value || customDiscountsEnabled.value) &&
+    codeAllowsPriceEdit(item) &&
     !readonly.value &&
     !item.locked
   );
@@ -604,10 +635,10 @@ function setFieldRef(
 function columnsForItem(item: LineItem): FieldColumn[] {
   const columns: FieldColumn[] = [];
   if (!readonly.value && !item.locked && item.qty >= 0) columns.push("qty");
-  if (customDiscountsEnabled.value && !readonly.value && !item.locked && item.qty > 0) {
+  if (canEditDiscount(item)) {
     columns.push("discount");
   }
-  if (customPricesEnabled.value && !readonly.value && !item.locked && item.qty > 0) {
+  if (canEditPrice(item)) {
     columns.push("price");
   }
   return columns;

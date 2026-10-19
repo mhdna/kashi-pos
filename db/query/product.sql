@@ -55,6 +55,21 @@ WHERE id > sqlc.arg(after_id)
 ORDER BY id
 LIMIT sqlc.arg(limit);
 
+-- name: ListProductsAfterByCode :many
+-- Code-only search for tills that hide product names: matches the code or the
+-- barcode, never the name. search_pattern must already be wrapped in '%...%'.
+SELECT * FROM products
+WHERE id > sqlc.arg(after_id)
+  AND is_active = 1
+  AND (code || ' ' || barcode) LIKE sqlc.arg(search_pattern)
+ORDER BY id
+LIMIT sqlc.arg(limit);
+
+-- name: CountProductsByCode :one
+SELECT COUNT(*) FROM products
+WHERE is_active = 1
+  AND (code || ' ' || barcode) LIKE sqlc.arg(search_pattern);
+
 -- name: ListProductsAfterUnfiltered :many
 SELECT * FROM products
 WHERE id > sqlc.arg(after_id)

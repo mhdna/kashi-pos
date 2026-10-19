@@ -55,7 +55,83 @@ const (
 	// that has never touched this flag keeps accepting codes there - matching
 	// behavior before this setting existed.
 	scanByCodeFlag = "scan_by_code"
+	// When on, the product search dialog hides product names and matches only
+	// the code or barcode. Defaults to false when unset, so a database that
+	// has never touched this flag keeps the name search - matching behavior
+	// before this setting existed.
+	productSearchCodeOnlyFlag = "product_search_code_only"
+	// When on, a line's price and discount can be edited by hand only for the
+	// codes in settings.price_edit_codes (on top of the custom price/discount
+	// flags). Defaults to false when unset, so every line stays editable as it
+	// was before this setting existed.
+	priceEditRestrictedFlag = "price_edit_restricted"
 )
+
+// SetProductSearchCodeOnly toggles code-only product search. Called both by
+// the local Settings page and by an update_settings command from kashi.
+func (a *App) SetProductSearchCodeOnly(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, productSearchCodeOnlyFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// SetPriceEditRestricted toggles the per-code limit on manual price and
+// discount edits.
+func (a *App) SetPriceEditRestricted(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, priceEditRestrictedFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// normalizePriceEditCodes splits a comma/space/newline separated list into
+// distinct trimmed codes joined by commas, so the stored form is the same
+// however kashi or the Settings page typed it. Codes compare case-insensitively
+// on the sale screen, so case is kept as typed.
+func normalizePriceEditCodes(raw string) string {
+	seen := map[string]bool{}
+	var codes []string
+	for _, code := range strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ';' || r == '\n' || r == '\r' || r == ' ' || r == '\t'
+	}) {
+		key := strings.ToLower(code)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		codes = append(codes, code)
+	}
+	return strings.Join(codes, ",")
+}
+
+// SetPriceEditCodes stores the codes whose price/discount may be edited by
+// hand while price_edit_restricted is on.
+func (a *App) SetPriceEditCodes(raw string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.store.SetPriceEditCodes(a.ctx, normalizePriceEditCodes(raw)); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+func (a *App) priceEditCodes() string {
+	if s, err := a.store.GetSettings(a.ctx); err == nil {
+		return s.PriceEditCodes
+	}
+	return ""
+}
 
 // overchangeConfirmationEnabled reports whether the checkout calculator's
 // "Confirm change amount" dialog is on, defaulting to true when the flag has
@@ -414,10 +490,17 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 		products []db.Product
 		err      error
 	)
+	codeOnly := a.flagEnabled(a.ctx, productSearchCodeOnlyFlag)
 	if search == "" {
 		products, err = a.store.ListProductsAfterUnfiltered(a.ctx, db.ListProductsAfterUnfilteredParams{
 			AfterID: afterID,
 			Limit:   queryLimit,
+		})
+	} else if codeOnly {
+		products, err = a.store.ListProductsAfterByCode(a.ctx, db.ListProductsAfterByCodeParams{
+			AfterID:       afterID,
+			SearchPattern: "%" + search + "%",
+			Limit:         queryLimit,
 		})
 	} else {
 		products, err = a.store.ListProductsAfter(a.ctx, db.ListProductsAfterParams{
@@ -458,6 +541,8 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 	if afterID == 0 {
 		if search == "" {
 			total, err = a.store.CountAllProducts(a.ctx)
+		} else if codeOnly {
+			total, err = a.store.CountProductsByCode(a.ctx, "%"+search+"%")
 		} else {
 			total, err = a.store.CountProducts(a.ctx, "%"+search+"%")
 		}

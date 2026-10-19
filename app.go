@@ -946,6 +946,9 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	}
 	result["closeShiftRequiresSync"] = a.closeShiftRequiresSync()
 	result["scanByCodeEnabled"] = a.scanByCodeEnabled()
+	result["productSearchCodeOnly"] = a.flagEnabled(a.ctx, productSearchCodeOnlyFlag)
+	result["priceEditRestricted"] = a.flagEnabled(a.ctx, priceEditRestrictedFlag)
+	result["priceEditCodes"] = a.priceEditCodes()
 	result["soundsEnabled"] = a.soundsEnabled()
 	result["attendanceManagerApprovalEnabled"] = a.attendanceManagerApprovalEnabled()
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, productSearchEnabledFlag); flagErr == nil {

@@ -1136,6 +1136,61 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('behavior-search-code-only')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-barcode-scan" size="20" />
+              Code-only product search
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.productSearchCodeOnly"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Search products by code only and hide their names"
+                @update:model-value="setProductSearchCodeOnly"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                The product list matches the code or barcode only, and no longer shows product
+                names. This can also be changed remotely from kashi.
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('behavior-price-edit-codes')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-tag-multiple-outline" size="20" />
+              Price edits by code
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.priceEditRestricted"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Allow manual price and discount edits only for selected codes"
+                @update:model-value="setPriceEditRestricted"
+              />
+              <v-textarea
+                v-model="form.priceEditCodes"
+                class="mt-3"
+                label="Allowed codes"
+                placeholder="One per line, or separated by commas"
+                variant="outlined"
+                density="compact"
+                rows="3"
+                auto-grow
+                hide-details
+                :disabled="!form.priceEditRestricted"
+                @blur="savePriceEditCodes"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                Needs custom item prices and/or discounts turned on. Every other line keeps its
+                list price and discount. This can also be changed remotely from kashi.
+              </div>
+            </v-card-text>
+          </v-card>
+
           <v-card v-show="panelMatches('behavior-scan-by-code')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-barcode-scan" size="20" />
@@ -1763,6 +1818,9 @@ import {
   SetInvoiceKeyboardModeEnabled,
   SetProductSearchEnabled,
   SetScanByCodeEnabled,
+  SetProductSearchCodeOnly,
+  SetPriceEditRestricted,
+  SetPriceEditCodes,
   SetSoundsEnabled,
   SetVisitorCounterEnabled,
   SetClientRequired,
@@ -1941,6 +1999,8 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-invoice-keyboard": { tab: "behavior", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
   "behavior-product-search": { tab: "behavior", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
   "behavior-scan-by-code": { tab: "behavior", title: "Product code in scan field", keywords: "barcode scan code sku variant type enter" },
+  "behavior-search-code-only": { tab: "behavior", title: "Code-only product search", keywords: "product search code only hide names barcode lookup" },
+  "behavior-price-edit-codes": { tab: "behavior", title: "Price edits by code", keywords: "price discount manual edit restrict allow only selected codes products" },
   "behavior-sounds": { tab: "behavior", title: "Sounds", keywords: "sound audio beep chime click mute volume quiet silent" },
   "behavior-always-anonymous": { tab: "behavior", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "behavior-salesperson-per-invoice": { tab: "behavior", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
@@ -2067,6 +2127,9 @@ const form = reactive({
   invoiceKeyboardModeEnabled: false,
   productSearchEnabled: true,
   scanByCodeEnabled: true,
+  productSearchCodeOnly: false,
+  priceEditRestricted: false,
+  priceEditCodes: "",
   soundsEnabled: false,
   visitorCounterEnabled: false,
   clientRequired: true,
@@ -2501,6 +2564,9 @@ async function loadSettings() {
         invoiceKeyboardModeEnabled: Boolean(s.invoiceKeyboardModeEnabled),
         productSearchEnabled: s.productSearchEnabled !== false,
         scanByCodeEnabled: s.scanByCodeEnabled !== false,
+        productSearchCodeOnly: Boolean(s.productSearchCodeOnly),
+        priceEditRestricted: Boolean(s.priceEditRestricted),
+        priceEditCodes: String(s.priceEditCodes ?? "").split(",").join("\n"),
         soundsEnabled: s.soundsEnabled === true,
         visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
@@ -2749,6 +2815,50 @@ async function setScanByCodeEnabled(value: boolean | null) {
   } catch {
     form.scanByCodeEnabled = previous;
     notify("Failed to update the scan field setting", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setProductSearchCodeOnly(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.productSearchCodeOnly;
+  form.productSearchCodeOnly = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetProductSearchCodeOnly(enabled);
+    notify(`Code-only product search ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.productSearchCodeOnly = previous;
+    notify("Failed to update the product search setting", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setPriceEditRestricted(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.priceEditRestricted;
+  form.priceEditRestricted = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetPriceEditRestricted(enabled);
+    notify(`Price edits limited to selected codes ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.priceEditRestricted = previous;
+    notify("Failed to update the price edit setting", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function savePriceEditCodes() {
+  pricingSettingsSaving.value = true;
+  try {
+    await SetPriceEditCodes(form.priceEditCodes);
+    notify("Allowed price edit codes saved");
+  } catch {
+    notify("Failed to save the allowed codes", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }

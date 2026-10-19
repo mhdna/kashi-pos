@@ -48,3 +48,6 @@ UPDATE settings SET home_branch_code = ?;
 
 -- name: SetOversellMode :exec
 UPDATE settings SET oversell_mode = ?;
+
+-- name: SetPriceEditCodes :exec
+UPDATE settings SET price_edit_codes = ?;
