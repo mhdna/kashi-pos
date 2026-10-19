@@ -395,3 +395,61 @@ func (a *App) fullCheckEntity(ctx context.Context, client *centralClient, entity
 	rep.Deactivated = len(orphans)
 	return rep, nil
 }
+
+// seedCursorFromLocalCatalog spares a till that already holds kashi's
+// clients/products (a copied database, a register added to a branch that
+// has them) the full re-download an empty cursor would otherwise cost. It
+// runs the completeness check for the entity -- which fetches only the uids
+// the till lacks or holds a different version of -- and stores the cursor,
+// returning it so the caller's regular pull only has to cover what changed
+// since. "" means nothing was seeded and the caller pulls from the
+// beginning as before.
+//
+// The cursor is kashi's clock read *before* the uid listing, so a row that
+// changes while the check runs is newer than the cursor and lands in the
+// next pull. Nothing local is deactivated here: orphan handling stays with
+// the regular full check.
+func (a *App) seedCursorFromLocalCatalog(ctx context.Context, client *centralClient, entity string) (string, error) {
+	if entity != "clients" && entity != "products" {
+		return "", nil
+	}
+	local, err := a.localVersions(ctx, entity)
+	if err != nil {
+		return "", err
+	}
+	stamped := false
+	for _, lv := range local {
+		if !lv.remoteUpdatedAt.IsZero() {
+			stamped = true
+			break
+		}
+	}
+	if !stamped {
+		return "", nil
+	}
+
+	// A since in the future matches no row, so this is a cheap way to read
+	// kashi's clock (server_time) without a dedicated endpoint.
+	probe, err := client.FetchChanges(ctx, fetchChangesParams{
+		Entity: entity,
+		Since:  time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339),
+		Limit:  1,
+	})
+	if err != nil {
+		return "", err
+	}
+	rep, err := a.fullCheckEntity(ctx, client, entity, false)
+	if err != nil {
+		return "", err
+	}
+	cursor := probe.ServerTime.Format(time.RFC3339)
+	if err := retryBusy(func() error {
+		return a.store.SetSyncCursor(ctx, db.SetSyncCursorParams{Entity: entity, Cursor: cursor})
+	}); err != nil {
+		return "", err
+	}
+	if rep.Fetched > 0 {
+		a.emitSyncApplied(entity)
+	}
+	return cursor, nil
+}
