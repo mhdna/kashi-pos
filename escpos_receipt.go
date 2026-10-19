@@ -243,8 +243,12 @@ func sanitizeESCPos(value string) string {
 	return out.String()
 }
 
+// receiptNow is the clock the receipt date comes from; previews pin it so the
+// same sale always renders the same image.
+var receiptNow = time.Now
+
 func currentReceiptDate() string {
-	return time.Now().Format("02-01-2006 15:04")
+	return receiptNow().Format("02-01-2006 15:04")
 }
 
 func maxInt(a, b int) int {
