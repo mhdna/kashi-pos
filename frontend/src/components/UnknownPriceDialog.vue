@@ -1,5 +1,5 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="420" @update:model-value="emit('update:modelValue', $event)">
+  <v-dialog :model-value="modelValue" max-width="380" @update:model-value="emit('update:modelValue', $event)">
     <v-card class="pa-4">
       <v-card-title class="px-0 pt-0 text-center">Unknown item</v-card-title>
       <div class="text-body-1 text-medium-emphasis text-center mb-3">
@@ -14,7 +14,7 @@
           {{ key }}
         </v-btn>
         <v-btn class="unknown-key" variant="tonal" aria-label="Delete" @click="backspace">
-          <v-icon icon="mdi-backspace-outline" size="36" />
+          <v-icon icon="mdi-backspace-outline" size="30" />
         </v-btn>
       </div>
       <v-card-actions class="px-0 pb-0 mt-3">
@@ -92,11 +92,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
 .unknown-keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 .unknown-key {
-  height: 84px !important;
-  font-size: 2.4rem;
+  height: 68px !important;
+  font-size: 2rem;
   font-weight: 500;
 }
 </style>
