@@ -123,7 +123,7 @@
                 />
                 <span class="invoice-price-values">
                   <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
-                  <span v-if="item.discount && (!customDiscountsEnabled || !(isUnknownItem(item) || codeAllowsPriceEdit(item)))" class="text-caption text-red">
+                  <span v-if="item.discount && !discountEditable(item)" class="text-caption text-red">
                     -{{ item.discount }}%
                     <v-icon
                       v-if="item.discountListOverridden"
@@ -607,16 +607,16 @@ function canEditPrice(item: LineItem): boolean {
   );
 }
 
+// Whether a line's discount can be typed in. An unknown item always can (like
+// its price, it has no list to take it from); every other line follows the
+// branch's custom-discount setting and its price-edit codes.
+function discountEditable(item: LineItem): boolean {
+  if (isUnknownItem(item)) return true;
+  return customDiscountsEnabled.value && codeAllowsPriceEdit(item);
+}
+
 function canEditDiscount(item: LineItem): boolean {
-  // An unknown item's price is fixed when it is added, but its discount
-  // follows the branch's custom-discount setting like any other line.
-  return (
-    customDiscountsEnabled.value &&
-    (isUnknownItem(item) || codeAllowsPriceEdit(item)) &&
-    !readonly.value &&
-    !item.locked &&
-    item.qty > 0
-  );
+  return discountEditable(item) && !readonly.value && !item.locked && item.qty > 0;
 }
 
 function canEditUnitPrice(item: LineItem): boolean {
@@ -766,6 +766,12 @@ function setUnitDiscount(item: LineItem, index: number, value: unknown) {
 }
 
 function persistDiscount(item: LineItem): Promise<boolean> {
+  if (isUnknownItem(item)) {
+    // An unknown item's discount belongs to this sale alone: it is never
+    // remembered for the product (and needs no custom-discount setting).
+    item.discount = Math.min(100, Math.max(0, Math.trunc(Number(item.discount) || 0)));
+    return Promise.resolve(true);
+  }
   const pending = pendingDiscounts.get(item.code);
   if (pending) return pending;
 
