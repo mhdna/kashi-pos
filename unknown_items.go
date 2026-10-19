@@ -181,6 +181,16 @@ type unknownSessionResponse struct {
 	} `json:"slots"`
 }
 
+func doneUnknownUnits(resp unknownSessionResponse) int {
+	done := 0
+	for _, slot := range resp.Slots {
+		if slot.HasImage || slot.Waived {
+			done++
+		}
+	}
+	return done
+}
+
 func unknownSessionResult(clientRef, uploadURL string, resp unknownSessionResponse) map[string]any {
 	slots := make([]map[string]any, 0, len(resp.Slots))
 	for _, slot := range resp.Slots {
@@ -225,18 +235,26 @@ func (a *App) StartUnknownItemSession(slotsJSON string) (map[string]any, error) 
 	client := a.photoClient()
 	a.unknownMu.Lock()
 	a.unknownSessionRef = body.ClientRef
+	a.unknownDone = doneUnknownUnits(resp)
 	a.unknownMu.Unlock()
 	return unknownSessionResult(body.ClientRef, client.baseURL+"/unknown_uploads/"+resp.UploadToken, resp), nil
 }
 
 // UnknownItemSessionStatus is the dialog's poll: which units have a picture or
-// a manager's pass.
+// a manager's pass. Kashi holds the call until that changes (a few seconds at
+// most), so a picture shows up the moment it lands.
 func (a *App) UnknownItemSessionStatus(clientRef string) (map[string]any, error) {
 	var resp unknownSessionResponse
-	path := "/branch/unknown_sessions/status?client_ref=" + url.QueryEscape(clientRef)
+	a.unknownMu.Lock()
+	known := a.unknownDone
+	a.unknownMu.Unlock()
+	path := "/branch/unknown_sessions/status?client_ref=" + url.QueryEscape(clientRef) + "&known=" + strconv.Itoa(known)
 	if err := a.unknownCall(http.MethodGet, path, nil, &resp); err != nil {
 		return nil, err
 	}
+	a.unknownMu.Lock()
+	a.unknownDone = doneUnknownUnits(resp)
+	a.unknownMu.Unlock()
 	return unknownSessionResult(clientRef, "", resp), nil
 }
 
