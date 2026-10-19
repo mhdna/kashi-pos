@@ -1,14 +1,12 @@
 <template>
   <v-dialog :model-value="modelValue" max-width="360" @update:model-value="emit('update:modelValue', $event)">
     <v-card class="pa-4">
-      <v-card-title class="px-0 pt-0 text-center">
-        <v-icon icon="mdi-help-box-outline" class="mr-2" />Unknown item
-      </v-card-title>
-      <div class="text-h6 text-medium-emphasis text-center mb-3">
+      <v-card-title class="px-0 pt-0 text-center text-h5">Unknown item</v-card-title>
+      <div class="text-h5 text-medium-emphasis text-center mb-3">
         Type the price<br />
         <span dir="rtl" lang="ar">أدخل سعر القطعة</span>
       </div>
-      <div class="unknown-price-display text-h3 text-center mb-3" data-testid="unknown-price">
+      <div class="unknown-price-display text-center mb-3" data-testid="unknown-price">
         ${{ display }}
       </div>
       <div class="unknown-keypad">
@@ -91,6 +89,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
 </script>
 
 <style scoped>
+.unknown-price-display {
+  font-size: 3.5rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
 .unknown-keypad {
   display: grid;
   gap: 6px;
