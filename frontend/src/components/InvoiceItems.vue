@@ -1,5 +1,5 @@
 <template>
-  <div ref="invoiceScroll" class="invoice-items ms-2 mt-2 mb-2 me-0">
+  <div ref="invoiceScroll" class="invoice-items mt-2 mb-2 me-0">
     <div
       v-for="(item, index) in displayItems"
       :key="`${items.length - 1 - index}-${item.barcode || item.code}`"
@@ -915,8 +915,6 @@ defineExpose({
 <style scoped>
 .invoice-item-unknown {
   background: rgba(var(--v-theme-warning), 0.18);
-  margin-left: -8px; /* the list's ms-2: the tint runs to the panel's edge */
-  padding-left: 8px;
 }
 
 .invoice-item-actions {
@@ -952,6 +950,10 @@ defineExpose({
 .invoice-items :deep(.v-list-item__append) {
   justify-content: flex-end;
   margin-inline-start: auto;
+}
+
+.invoice-items :deep(.v-list-item) {
+  padding-inline-start: 24px; /* the text keeps its indent; the row itself starts at the edge */
 }
 
 .invoice-items {
