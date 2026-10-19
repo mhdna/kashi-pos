@@ -2,7 +2,7 @@
   <v-dialog :model-value="modelValue" max-width="380" @update:model-value="emit('update:modelValue', $event)">
     <v-card class="pa-4">
       <v-card-title class="px-0 pt-0 text-center">Unknown item</v-card-title>
-      <div class="text-body-1 text-medium-emphasis text-center mb-3">
+      <div class="text-h6 text-medium-emphasis text-center mb-3">
         Type the price<br />
         <span dir="rtl" lang="ar">أدخل سعر القطعة</span>
       </div>
