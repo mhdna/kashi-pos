@@ -90,7 +90,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
 
 <style scoped>
 .unknown-price-display {
-  font-size: 3.5rem;
+  font-size: 2.25rem;
   font-weight: 500;
   line-height: 1.2;
 }
