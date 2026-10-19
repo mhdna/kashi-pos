@@ -49,6 +49,18 @@ func (a *App) unknownBarcode() string {
 	return defaultUnknownBarcode
 }
 
+// unknownCode is the code of that same product. The sale screen's cart lines
+// carry a code but no barcode, so a cart is matched on this one.
+func (a *App) unknownCode() string {
+	barcode := a.unknownBarcode()
+	if a.store != nil {
+		if product, err := a.store.GetProductByBarcode(a.ctx, barcode); err == nil && product.Code != "" {
+			return product.Code
+		}
+	}
+	return barcode
+}
+
 // SetUnknownProductBarcode names the product the "Unknown item" button adds
 // ("" goes back to the built-in placeholder). Called by an update_settings
 // command from kashi.
@@ -101,10 +113,10 @@ func (a *App) GetUnknownProduct() (map[string]any, error) {
 }
 
 // unknownUnitCount is how many units of the placeholder a cart carries.
-func unknownUnitCount(items []salesInvoiceItem, barcode string) int64 {
+func unknownUnitCount(items []salesInvoiceItem, barcode, code string) int64 {
 	var units int64
 	for _, item := range items {
-		if item.Barcode == barcode {
+		if item.Barcode == barcode || (item.Barcode == "" && item.Code == code) {
 			units += int64(item.Qty)
 		}
 	}
@@ -242,7 +254,7 @@ func (a *App) verifyUnknownPictures(itemsJSON string) (string, error) {
 	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
 		return "", nil // the sale's own validation reports a bad cart
 	}
-	units := unknownUnitCount(items, a.unknownBarcode())
+	units := unknownUnitCount(items, a.unknownBarcode(), a.unknownCode())
 	if units == 0 {
 		return "", nil
 	}
