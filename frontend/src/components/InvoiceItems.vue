@@ -915,6 +915,8 @@ defineExpose({
 <style scoped>
 .invoice-item-unknown {
   background: rgba(var(--v-theme-warning), 0.18);
+  margin-left: -8px; /* the list's ms-2: the tint runs to the panel's edge */
+  padding-left: 8px;
 }
 
 .invoice-item-actions {
