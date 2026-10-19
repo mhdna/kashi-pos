@@ -123,7 +123,7 @@
                 />
                 <span class="invoice-price-values">
                   <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
-                  <span v-if="item.discount && (!customDiscountsEnabled || !codeAllowsPriceEdit(item))" class="text-caption text-red">
+                  <span v-if="item.discount && (!customDiscountsEnabled || !(isUnknownItem(item) || codeAllowsPriceEdit(item)))" class="text-caption text-red">
                     -{{ item.discount }}%
                     <v-icon
                       v-if="item.discountListOverridden"
@@ -566,9 +566,11 @@ function canEditPrice(item: LineItem): boolean {
 }
 
 function canEditDiscount(item: LineItem): boolean {
+  // An unknown item's price is fixed when it is added, but its discount
+  // follows the branch's custom-discount setting like any other line.
   return (
     customDiscountsEnabled.value &&
-    codeAllowsPriceEdit(item) &&
+    (isUnknownItem(item) || codeAllowsPriceEdit(item)) &&
     !readonly.value &&
     !item.locked &&
     item.qty > 0
