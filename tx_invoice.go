@@ -432,7 +432,10 @@ func parseSalesItems(raw string) ([]salesInvoiceItem, error) {
 		if item.Barcode != "" {
 			key = "barcode:" + item.Barcode
 		}
-		if (item.Code == "" && item.Barcode == "") || item.Qty <= 0 || math.Trunc(item.Qty) != item.Qty || item.Qty > math.MaxInt64 || seen[key] {
+		// Every "Unknown item" is its own line (each gets its own pictures),
+		// so that one barcode may repeat; any other product may not.
+		repeatable := item.Barcode == unknownProductBarcode
+		if (item.Code == "" && item.Barcode == "") || item.Qty <= 0 || math.Trunc(item.Qty) != item.Qty || item.Qty > math.MaxInt64 || (seen[key] && !repeatable) {
 			return nil, fmt.Errorf("invalid or duplicate item %q", item.Code)
 		}
 		if item.SalespersonID < 0 {

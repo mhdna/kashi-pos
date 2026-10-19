@@ -97,3 +97,12 @@ func TestVerifyUnknownPicturesNeedsEveryUnit(t *testing.T) {
 		t.Fatal("a session with the wrong number of units was let through")
 	}
 }
+
+func TestEveryUnknownItemMayBeItsOwnLine(t *testing.T) {
+	if _, err := parseSalesItems(`[{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1},{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1}]`); err != nil {
+		t.Fatalf("two unknown lines were refused: %v", err)
+	}
+	if _, err := parseSalesItems(`[{"code":"A","barcode":"111","qty":1},{"code":"A","barcode":"111","qty":1}]`); err == nil {
+		t.Fatal("a repeated ordinary product was accepted")
+	}
+}
