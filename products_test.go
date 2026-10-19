@@ -558,8 +558,8 @@ func TestNormalizePriceEditCodes(t *testing.T) {
 func TestSetPriceEditCodesRoundTrips(t *testing.T) {
 	app, database := newProductTestApp(t)
 	defer database.Close()
-	if _, err := database.Exec(`INSERT INTO settings (branch_name) VALUES ('x')`); err != nil {
-		t.Skipf("cannot seed settings row: %v", err)
+	if _, err := database.Exec(`INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id) VALUES ('Test', '', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0)`); err != nil {
+		t.Fatal(err)
 	}
 	if err := app.SetPriceEditCodes("A1\nb2"); err != nil {
 		t.Fatal(err)
