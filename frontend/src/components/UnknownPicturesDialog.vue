@@ -26,7 +26,7 @@
             />
             <div class="text-h6 mt-3">Scan, then photograph each item.</div>
             <div class="text-h6 font-weight-regular text-medium-emphasis" dir="rtl" lang="ar">
-              امسح الرمز والتقط صورة لكل قطعة
+              امسح الرمز والتقط صورة لكل قطعة غير معروف كودها
             </div>
           </div>
 
