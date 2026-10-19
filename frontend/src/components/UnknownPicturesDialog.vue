@@ -1,7 +1,7 @@
 <template>
   <v-dialog :model-value="modelValue" max-width="720" persistent @update:model-value="emit('update:modelValue', $event)">
     <v-card class="pa-4">
-      <v-card-title class="px-0 pt-0">Pictures of the unknown items</v-card-title>
+      <v-card-title class="px-0 pt-0 text-h5">Pictures of the unknown items</v-card-title>
 
       <template v-if="state === 'starting'">
         <div class="text-center py-6">
@@ -24,14 +24,14 @@
               :src="qrDataUrl"
               style="width: 260px; height: 260px"
             />
-            <div class="text-body-1 mt-2">Scan, then photograph each item.</div>
-            <div class="text-body-2 text-medium-emphasis" dir="rtl" lang="ar">
+            <div class="text-h6 mt-3">Scan, then photograph each item.</div>
+            <div class="text-h6 font-weight-regular text-medium-emphasis" dir="rtl" lang="ar">
               امسح الرمز والتقط صورة لكل قطعة
             </div>
           </div>
 
           <div class="flex-grow-1" style="min-width: 0">
-            <v-list density="compact">
+            <v-list class="text-body-1">
               <v-list-item v-for="(slot, index) in slots" :key="slot.slotRef" :title="`#${index + 1} · ${slot.label}`">
                 <template #append>
                   <v-icon v-if="slot.hasImage" color="success" icon="mdi-check-circle" />
@@ -40,17 +40,17 @@
                 </template>
               </v-list-item>
             </v-list>
-            <div class="text-caption text-medium-emphasis">{{ doneCount }} of {{ slots.length }} ready</div>
+            <div class="text-body-1 text-medium-emphasis">{{ doneCount }} of {{ slots.length }} ready</div>
           </div>
         </div>
       </template>
 
       <v-card-actions class="px-0 pb-0 mt-3">
-        <v-btn v-if="state === 'ready'" :disabled="helpAsked" prepend-icon="mdi-bell-ring-outline" variant="tonal" @click="askForHelp">
+        <v-btn v-if="state === 'ready'" :disabled="helpAsked" size="large" prepend-icon="mdi-bell-ring-outline" variant="tonal" @click="askForHelp">
           {{ helpAsked ? "Manager asked" : "Ask a manager" }}
         </v-btn>
         <v-spacer />
-        <v-btn variant="text" @click="cancel">Cancel</v-btn>
+        <v-btn size="large" variant="text" @click="cancel">Cancel</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
