@@ -100,13 +100,13 @@
           </div>
           </div>
           <div
-            class="client-phone-error text-error text-caption text-center mt-2"
+            class="client-phone-error text-error text-caption text-center"
             :class="{ 'client-phone-error--hidden': !phoneError }"
           >
             {{ phoneError || " " }}
           </div>
           <v-btn
-            class="client-phone-action-button w-100 mt-4"
+            class="client-phone-action-button w-100"
             variant="elevated"
             color="primary"
             :disabled="!phone.trim()"
@@ -115,7 +115,7 @@
             Continue
           </v-btn>
           <v-btn
-            class="client-phone-action-button w-100 mt-6"
+            class="client-phone-action-button w-100 mt-5"
             variant="tonal"
             @click="selectAnonymous"
           >
