@@ -567,6 +567,8 @@ type Setting struct {
 	PriceEditCodes            string         `json:"priceEditCodes"`
 	UnknownProductBarcode     string         `json:"unknownProductBarcode"`
 	ProductSearchHiddenFields string         `json:"productSearchHiddenFields"`
+	ReceiptTheme              string         `json:"receiptTheme"`
+	ReceiptLayout             string         `json:"receiptLayout"`
 }
 
 type Shift struct {

@@ -724,6 +724,63 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('behavior-stock')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-package-variant-closed" size="20" />
+              Selling beyond stock
+            </v-card-title>
+            <v-card-text>
+              <v-select
+                v-model="form.oversellMode"
+                :items="oversellModes"
+                :loading="pricingSettingsSaving"
+                density="compact"
+                hide-details
+                label="Selling more than the till has in stock"
+                variant="outlined"
+                @update:model-value="saveOversellMode"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                Whatever the mode, kashi raises an "oversold" alert when a sale takes a product's stock below zero.
+                This can also be changed remotely from kashi.
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('behavior-search-columns')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-magnify" size="20" />
+              Product search &amp; unknown item
+            </v-card-title>
+            <v-card-text>
+              <v-select
+                v-model="form.productSearchHiddenFields"
+                :items="productSearchFieldOptions"
+                chips
+                closable-chips
+                density="compact"
+                hide-details="auto"
+                hint="Columns the product search list leaves out"
+                label="Hide in product search"
+                multiple
+                persistent-hint
+                variant="outlined"
+                @update:model-value="saveProductSearchHiddenFields"
+              />
+              <v-text-field
+                v-model="form.unknownProductBarcode"
+                class="mt-4"
+                density="compact"
+                hide-details="auto"
+                hint="Barcode of a product already on this till. Leave empty for the built-in Unknown item."
+                label="Unknown item product barcode"
+                persistent-hint
+                variant="outlined"
+                @blur="saveUnknownProductBarcode"
+              />
+            </v-card-text>
+          </v-card>
+
           <v-card v-show="panelMatches('behavior-price-edit-codes')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-tag-multiple-outline" size="20" />
@@ -1248,6 +1305,20 @@
               <v-text-field v-model.number="form.receiptBodySize" placeholder="Body size" type="number" min="6" max="24" variant="outlined" density="compact" hide-details />
               <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
               <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details class="field-full" />
+            </v-card-text>
+          </v-card>
+
+          <v-card v-show="panelMatches('printing-look')" class="settings-card settings-card--wide">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-palette" size="20" />
+              Receipt look
+            </v-card-title>
+            <v-card-text>
+              <ReceiptLookPicker @saved="onReceiptLookSaved" @error="(message: string) => notify(message, 'red')" />
+              <div class="text-caption text-medium-emphasis mt-3">
+                The theme and layout of the printed invoice. Fonts and sizes above apply to the Classic theme; the
+                other themes bring their own. This can also be changed remotely from kashi.
+              </div>
             </v-card-text>
           </v-card>
 
@@ -1856,8 +1927,11 @@ import {
   SetScanByCodeEnabled,
   SetProductSearchCodeOnly,
   SetPriceEditRestricted,
+  SetOversellMode,
   SetPriceEditCodes,
+  SetProductSearchHiddenFields,
   SetSoundsEnabled,
+  SetUnknownProductBarcode,
   SetVisitorCounterEnabled,
   SetClientRequired,
   SetSalespersonPerInvoiceRequired,
@@ -1931,6 +2005,7 @@ import { usePageUnlocks, lockablePages } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import AppUpdateCard from "@/components/AppUpdateCard.vue";
+import ReceiptLookPicker from "@/components/ReceiptLookPicker.vue";
 import {
   animationsEnabled,
   setAnimationsEnabled,
@@ -2022,6 +2097,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "cash-closing": { tab: "cash", title: "Closing shifts", keywords: "close shift auto close previous day stale upload before closing wait pending offline receipt photo qr hybrid local central cover negative cash ll lbp swap" },
   "printing-end-of-shift": { tab: "printing", title: "End-of-shift receipt", keywords: "end of shift close shift signature cashier manager capitals uppercase header sample print" },
   "printing-header-footer": { tab: "printing", title: "Receipt header & footer", keywords: "market name phone tagline description branch phone register name website return policy social platforms instagram facebook handle" },
+  "printing-look": { tab: "printing", title: "Receipt look", keywords: "receipt look theme layout style design columns preview classic supermarket boutique modern bistro typewriter fonts" },
   "printing-devices": { tab: "printing", title: "Devices", keywords: "receipt printer customer screen com port serial" },
   "general-quick-access-colors": { tab: "quick_access", title: "Quick access colors", keywords: "quick access card color colour background text font source kashi central managed till" },
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
@@ -2046,6 +2122,8 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-product-search": { tab: "behaviour", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
   "behavior-scan-by-code": { tab: "behaviour", title: "Product code in scan field", keywords: "barcode scan code sku variant type enter" },
   "behavior-search-code-only": { tab: "behaviour", title: "Code-only product search", keywords: "product search code only hide names barcode lookup" },
+  "behavior-stock": { tab: "behaviour", title: "Selling beyond stock", keywords: "oversell stock allow warn block sell more than in stock negative" },
+  "behavior-search-columns": { tab: "behaviour", title: "Product search & unknown item", keywords: "product search hide columns code name brand color size price unknown item barcode placeholder" },
   "behavior-price-edit-codes": { tab: "behaviour", title: "Price edits by code", keywords: "price discount manual edit restrict allow only selected codes products" },
   "behavior-sounds": { tab: "display", title: "Sounds", keywords: "sound audio beep chime click mute volume quiet silent" },
   "behavior-client-required": { tab: "behaviour", title: "Client on every invoice", keywords: "require client select checkout invoice anonymous prefer not to say" },
@@ -2177,6 +2255,9 @@ const form = reactive({
   productSearchCodeOnly: false,
   priceEditRestricted: false,
   priceEditCodes: "",
+  oversellMode: "allow",
+  productSearchHiddenFields: [] as string[],
+  unknownProductBarcode: "",
   soundsEnabled: false,
   visitorCounterEnabled: false,
   clientRequired: true,
@@ -2614,6 +2695,9 @@ async function loadSettings() {
         productSearchCodeOnly: Boolean(s.productSearchCodeOnly),
         priceEditRestricted: Boolean(s.priceEditRestricted),
         priceEditCodes: String(s.priceEditCodes ?? "").split(",").join("\n"),
+        oversellMode: String(s.oversellMode || "allow"),
+        productSearchHiddenFields: String(s.productSearchHiddenFields ?? "").split(",").filter(Boolean),
+        unknownProductBarcode: String(s.unknownProductBarcode ?? ""),
         soundsEnabled: s.soundsEnabled === true,
         visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
@@ -2909,6 +2993,57 @@ async function savePriceEditCodes() {
   } finally {
     pricingSettingsSaving.value = false;
   }
+}
+
+const oversellModes = [
+  { title: "Allow: sell, fix stock in kashi later", value: "allow" },
+  { title: "Warn: cashier confirms before selling", value: "warn" },
+  { title: "Block: refuse the sale", value: "block" },
+];
+
+const productSearchFieldOptions = [
+  { title: "Code", value: "code" },
+  { title: "Name", value: "name" },
+  { title: "Brand", value: "brand" },
+  { title: "Color", value: "color" },
+  { title: "Size", value: "size" },
+  { title: "Price", value: "price" },
+];
+
+async function saveOversellMode(value: string) {
+  pricingSettingsSaving.value = true;
+  try {
+    await SetOversellMode(value);
+    notify("Oversell mode saved");
+  } catch {
+    notify("Failed to save the oversell mode", "red");
+    await loadSettings();
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function saveProductSearchHiddenFields(value: string[]) {
+  try {
+    await SetProductSearchHiddenFields(value.join(","));
+    notify("Product search columns saved");
+  } catch {
+    notify("Failed to save the product search columns", "red");
+    await loadSettings();
+  }
+}
+
+async function saveUnknownProductBarcode() {
+  try {
+    await SetUnknownProductBarcode(form.unknownProductBarcode);
+    notify("Unknown item product saved");
+  } catch {
+    notify("Failed to save the unknown item product", "red");
+  }
+}
+
+function onReceiptLookSaved() {
+  notify("Receipt look saved");
 }
 
 async function setSoundsEnabled(value: boolean | null) {

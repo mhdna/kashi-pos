@@ -873,7 +873,10 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 		})
 	}
 	receiptPayments = aggregateReceiptPayments(receiptPayments)
+	theme, layout := a.receiptLook()
 	return printReceiptToPrinter(printReceiptData{
+		Theme:            theme,
+		Layout:           layout,
 		Items:            items,
 		StoreName:        storeName,
 		Branch:           branch,

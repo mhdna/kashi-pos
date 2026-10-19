@@ -182,6 +182,8 @@ export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
 
 export function GetQuickAccessSource():Promise<main.QuickAccessSource>;
 
+export function GetReceiptLooks():Promise<Record<string, any>>;
+
 export function GetShiftExpectedTotals(arg1:number):Promise<Record<string, any>>;
 
 export function GetShiftReceiptUploadMode():Promise<number>;
@@ -312,6 +314,8 @@ export function PrepareShiftClose(arg1:number):Promise<boolean>;
 
 export function PreviewProductsCSV():Promise<main.ProductCSVPreview>;
 
+export function PreviewReceiptLook(arg1:string,arg2:string):Promise<string>;
+
 export function PreviewShiftBalanceReplacement(arg1:number,arg2:number,arg3:number,arg4:number,arg5:boolean):Promise<main.ShiftBalanceReplacementPreview>;
 
 export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>>;
@@ -419,6 +423,8 @@ export function SetProductSearchHiddenFields(arg1:string):Promise<void>;
 export function SetQuickAccessColor(arg1:number,arg2:string,arg3:string):Promise<void>;
 
 export function SetQuickAccessMode(arg1:string):Promise<void>;
+
+export function SetReceiptLook(arg1:string,arg2:string):Promise<void>;
 
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
 

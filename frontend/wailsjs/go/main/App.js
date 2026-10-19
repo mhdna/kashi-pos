@@ -362,6 +362,10 @@ export function GetQuickAccessSource() {
   return window['go']['main']['App']['GetQuickAccessSource']();
 }
 
+export function GetReceiptLooks() {
+  return window['go']['main']['App']['GetReceiptLooks']();
+}
+
 export function GetShiftExpectedTotals(arg1) {
   return window['go']['main']['App']['GetShiftExpectedTotals'](arg1);
 }
@@ -622,6 +626,10 @@ export function PreviewProductsCSV() {
   return window['go']['main']['App']['PreviewProductsCSV']();
 }
 
+export function PreviewReceiptLook(arg1, arg2) {
+  return window['go']['main']['App']['PreviewReceiptLook'](arg1, arg2);
+}
+
 export function PreviewShiftBalanceReplacement(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['PreviewShiftBalanceReplacement'](arg1, arg2, arg3, arg4, arg5);
 }
@@ -836,6 +844,10 @@ export function SetQuickAccessColor(arg1, arg2, arg3) {
 
 export function SetQuickAccessMode(arg1) {
   return window['go']['main']['App']['SetQuickAccessMode'](arg1);
+}
+
+export function SetReceiptLook(arg1, arg2) {
+  return window['go']['main']['App']['SetReceiptLook'](arg1, arg2);
 }
 
 export function SetSalespersonPerInvoiceRequired(arg1) {

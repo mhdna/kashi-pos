@@ -894,6 +894,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["openingFloatEnabled"] = true
 	}
+	result["receiptTheme"], result["receiptLayout"] = a.receiptLook()
 	result["shiftReportSignatures"] = a.shiftReportSignatures()
 	result["shiftReportUppercaseHeader"] = a.shiftReportUppercaseHeader()
 	result["autoCoverNegativeLbp"] = a.autoCoverNegativeLBP()
@@ -957,6 +958,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	result["productSearchCodeOnly"] = a.flagEnabled(a.ctx, productSearchCodeOnlyFlag)
 	result["priceEditRestricted"] = a.flagEnabled(a.ctx, priceEditRestrictedFlag)
 	result["priceEditCodes"] = a.priceEditCodes()
+	result["oversellMode"] = settings.OversellMode
 	result["unknownProductBarcode"] = a.unknownBarcode()
 	result["productSearchHiddenFields"] = a.productSearchHiddenFields()
 	result["soundsEnabled"] = a.soundsEnabled()

@@ -169,6 +169,10 @@ type updateSettingsCommandPayload struct {
 	ReceiptTitleSize *float64 `json:"receipt_title_size"`
 	ReceiptBodySize  *float64 `json:"receipt_body_size"`
 	ReceiptCutoff    *bool    `json:"receipt_cutoff"`
+	// ReceiptTheme / ReceiptLayout pick the printed invoice's look; either
+	// alone keeps the other as it is.
+	ReceiptTheme  *string `json:"receipt_theme"`
+	ReceiptLayout *string `json:"receipt_layout"`
 
 	// per-machine device identifiers
 	PrinterID      *string `json:"printer_id"`
@@ -335,6 +339,13 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}
 		if err := u.fn(*u.v); err != nil {
 			return fmt.Errorf("update feature flag: %w", err)
+		}
+	}
+
+	if p.ReceiptTheme != nil || p.ReceiptLayout != nil {
+		theme, layout := a.receiptLook()
+		if err := a.SetReceiptLook(deref(p.ReceiptTheme, theme), deref(p.ReceiptLayout, layout)); err != nil {
+			return fmt.Errorf("update receipt look: %w", err)
 		}
 	}
 

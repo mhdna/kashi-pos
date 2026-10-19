@@ -623,6 +623,9 @@ type Querier interface {
 	SetQuickAccessMode(ctx context.Context, arg SetQuickAccessModeParams) error
 	SetQuickAccessPosition(ctx context.Context, arg SetQuickAccessPositionParams) error
 	SetQuickAccessReported(ctx context.Context) error
+	// Narrow like UpdateTheme: the settings page and kashi's update_settings
+	// command both set the printed invoice's theme and layout on their own.
+	SetReceiptLook(ctx context.Context, arg SetReceiptLookParams) error
 	// kashi's push: stored and the rev bumped, so the screen adopts it.
 	SetRemoteDisplayPrefs(ctx context.Context, displayPrefs string) error
 	// kashi decided this salesperson's device number (attendance_user_id_set in

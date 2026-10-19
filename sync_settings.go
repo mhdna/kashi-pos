@@ -90,6 +90,9 @@ type branchSettingsPayload struct {
 	ReceiptTitleSize float64 `json:"receipt_title_size"`
 	ReceiptBodySize  float64 `json:"receipt_body_size"`
 	ReceiptCutoff    bool    `json:"receipt_cutoff"`
+	// The printed invoice's look: theme id and that theme's layout id.
+	ReceiptTheme  string `json:"receipt_theme"`
+	ReceiptLayout string `json:"receipt_layout"`
 
 	// per-machine device identifiers -- reported for display only; the
 	// admin UI defaults these to "managed at the branch".
@@ -216,6 +219,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		return fmt.Errorf("load settings: %w", err)
 	}
 
+	receiptThemeID, receiptLayoutID := normalizeReceiptLook(s.ReceiptTheme, s.ReceiptLayout)
 	socialPlatforms := json.RawMessage(s.SocialPlatforms)
 	if len(socialPlatforms) == 0 {
 		socialPlatforms = json.RawMessage("[]")
@@ -300,6 +304,8 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		ReceiptTitleSize: s.ReceiptTitleSize,
 		ReceiptBodySize:  s.ReceiptBodySize,
 		ReceiptCutoff:    s.ReceiptCutoff != 0,
+		ReceiptTheme:     receiptThemeID,
+		ReceiptLayout:    receiptLayoutID,
 
 		PrinterID:      strings.TrimSpace(s.PrinterID),
 		ReceiptPrinter: strings.TrimSpace(s.ReceiptPrinter),
