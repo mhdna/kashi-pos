@@ -93,6 +93,10 @@ func TestVerifyUnknownPicturesNeedsEveryUnit(t *testing.T) {
 	if err != nil || ref != "sess-1" {
 		t.Fatalf("complete session = (%q, %v), want sess-1", ref, err)
 	}
+	// The sale screen sends a code and no barcode; that is still unknown.
+	if _, err := app.verifyUnknownPictures(`[{"code":"UNKNOWN","qty":3}]`); err == nil {
+		t.Fatal("a code-only unknown line skipped the picture check")
+	}
 	// A session sized for a different cart is refused (a unit was added after).
 	if _, err := app.verifyUnknownPictures(`[{"code":"UNKNOWN","barcode":"UNKNOWN","qty":3}]`); err == nil {
 		t.Fatal("a session with the wrong number of units was let through")
