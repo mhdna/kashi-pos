@@ -935,6 +935,12 @@ defineExpose({
   width: 56px;
 }
 
+/* The pad reserves room for 999; the cart's highlight should hug "Qty 1". */
+.invoice-qty-control :deep(.number-pad-activator) {
+  min-width: 0 !important;
+  padding-inline: 6px;
+}
+
 .invoice-discount-control {
   width: 44px;
 }
