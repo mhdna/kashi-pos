@@ -473,13 +473,14 @@ function addItem(item: LineItem) {
   // target - scanning the same product as a replacement must add a
   // separate, editable line rather than incrementing the locked line's qty
   // (which would silently net a -1 return back toward 0).
+  // Unknown items merge only at the same price: a different price is its own line.
   const existing = items.value.find(
     (i) =>
       !i.locked &&
-      ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)),
+      ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)) &&
+      (!isUnknownItem(i) || Number(i.price) === Number(item.price)),
   );
   if (existing && isUnknownItem(existing)) {
-    // Each unknown item keeps the price typed for it.
     ensureUnitPrices(existing);
     existing.unitPrices?.push(Number(item.price));
     existing.unitDiscounts?.push(0);
