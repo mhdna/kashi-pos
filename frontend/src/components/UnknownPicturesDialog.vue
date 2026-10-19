@@ -80,21 +80,21 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
-const POLL_MS = 1000;
+const RETRY_MS = 1000;
 const state = ref<"starting" | "ready" | "error">("starting");
 const slots = ref<Slot[]>([]);
 const qrDataUrl = ref("");
 const errorText = ref("");
 const helpAsked = ref(false);
 let clientRef = "";
-let pollTimer: ReturnType<typeof setInterval> | null = null;
 let session = 0;
 
 const doneCount = computed(() => slots.value.filter((slot) => slot.done).length);
 
+// Each status call is held by kashi until a unit finishes (or a few seconds
+// pass), so the loop asks again straight away; a dropped call waits a moment.
 function stopPolling() {
-  if (pollTimer !== null) clearInterval(pollTimer);
-  pollTimer = null;
+  session++;
 }
 
 function finish() {
@@ -104,14 +104,19 @@ function finish() {
   emit("update:modelValue", false);
 }
 
-async function poll(mine: number) {
-  try {
-    const status = await UnknownItemSessionStatus(clientRef);
-    if (mine !== session) return;
-    slots.value = status.slots ?? [];
-    if (status.complete) finish();
-  } catch {
-    // A dropped poll is simply tried again a second later.
+async function pollLoop(mine: number) {
+  while (mine === session) {
+    try {
+      const status = await UnknownItemSessionStatus(clientRef);
+      if (mine !== session) return;
+      slots.value = status.slots ?? [];
+      if (status.complete) {
+        finish();
+        return;
+      }
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
+    }
   }
 }
 
@@ -133,7 +138,7 @@ async function start() {
       finish();
       return;
     }
-    pollTimer = setInterval(() => void poll(mine), POLL_MS);
+    void pollLoop(mine);
   } catch (e) {
     if (mine !== session) return;
     errorText.value = e instanceof Error ? e.message : String(e);

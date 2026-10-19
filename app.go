@@ -57,6 +57,9 @@ type App struct {
 	// unknown_items.go), guarded by unknownMu.
 	unknownMu         sync.Mutex
 	unknownSessionRef string
+	// unknownDone is how many units the till last saw finished; kashi holds a
+	// status call until that number changes.
+	unknownDone int
 
 	pinMu             sync.Mutex
 	failedPINAttempts int
