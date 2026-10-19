@@ -111,6 +111,8 @@ type branchSettingsPayload struct {
 	// Barcode of the product the "Unknown item" button adds; empty means the
 	// built-in placeholder.
 	UnknownProductBarcode string `json:"unknown_product_barcode"`
+	// Product search columns left out, comma-separated.
+	ProductSearchHiddenFields string `json:"product_search_hidden_fields"`
 
 	HidePaymentMethodCurrency bool   `json:"hide_payment_method_currency"`
 	AutoAppendLbpZeros        bool   `json:"auto_append_lbp_zeros"`
@@ -312,6 +314,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		OversellMode:                       s.OversellMode,
 		PriceEditCodes:                     s.PriceEditCodes,
 		UnknownProductBarcode:              s.UnknownProductBarcode,
+		ProductSearchHiddenFields:          s.ProductSearchHiddenFields,
 
 		HidePaymentMethodCurrency: a.flagEnabled(ctx, hidePaymentMethodCurrencyFlag),
 		AutoAppendLbpZeros:        a.flagEnabled(ctx, autoAppendLbpZerosFlag),

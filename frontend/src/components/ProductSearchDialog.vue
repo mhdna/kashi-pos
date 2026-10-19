@@ -36,12 +36,12 @@
             >
               <template #title>
                 <div class="product-primary-row">
-                  <span class="product-code text-medium-emphasis">{{ product.code }}</span>
-                  <span v-if="!codeOnly" class="font-weight-medium text-truncate">{{ product.name }}</span>
-                  <span v-if="product.brand && !codeOnly" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
-                  <span v-if="product.color" class="product-variant text-medium-emphasis">{{ product.color }}</span>
-                  <span v-if="product.size" class="product-variant text-medium-emphasis">{{ product.size }}</span>
-                  <span class="product-price">
+                  <span v-if="shows('code')" class="product-code text-medium-emphasis">{{ product.code }}</span>
+                  <span v-if="!codeOnly && shows('name')" class="font-weight-medium text-truncate">{{ product.name }}</span>
+                  <span v-if="product.brand && !codeOnly && shows('brand')" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
+                  <span v-if="product.color && shows('color')" class="product-variant text-medium-emphasis">{{ product.color }}</span>
+                  <span v-if="product.size && shows('size')" class="product-variant text-medium-emphasis">{{ product.size }}</span>
+                  <span v-if="shows('price')" class="product-price">
                     ${{ Number(product.price || 0).toFixed(2) }}
                     <v-icon
                       v-if="product.priceListOverridden"
@@ -143,14 +143,18 @@ const props = withDefaults(
     showActivator?: boolean;
     // Hides product names; the backend then matches only code/barcode.
     codeOnly?: boolean;
+    // Columns the branch leaves out of the list (kashi's branch setting).
+    hiddenFields?: string[];
   }>(),
   {
     activatorText: "Products List",
     activatorIcon: "mdi-format-list-bulleted-square",
     showActivator: true,
     codeOnly: false,
+    hiddenFields: () => [],
   },
 );
+const shows = (field: string) => !props.hiddenFields.includes(field);
 const activatorText = props.activatorText;
 const activatorIcon = props.activatorIcon;
 const showActivator = props.showActivator;

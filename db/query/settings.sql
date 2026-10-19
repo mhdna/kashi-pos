@@ -54,3 +54,6 @@ UPDATE settings SET price_edit_codes = ?;
 
 -- name: SetUnknownProductBarcode :exec
 UPDATE settings SET unknown_product_barcode = ?;
+
+-- name: SetProductSearchHiddenFields :exec
+UPDATE settings SET product_search_hidden_fields = ?;
