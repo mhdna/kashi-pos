@@ -83,7 +83,7 @@
           aria-label="Invoices on hold"
           @click="onHoldMenu?.open()"
         >
-          <v-icon icon="mdi-pause" size="32" />
+          <v-icon icon="mdi-pause" size="28" />
         </v-btn>
         <v-btn
           v-if="pageMode !== 'settlement'"
@@ -95,7 +95,7 @@
           aria-label="Exchange invoice"
           @click="returnInvoiceMenu?.open()"
         >
-          <v-icon icon="mdi-autorenew" size="32" />
+          <v-icon icon="mdi-autorenew" size="28" />
         </v-btn>
         <v-btn
           v-if="pageMode === 'sale'"
@@ -107,7 +107,7 @@
           aria-label="Add an unknown item"
           @click="unknownPrice.show = true"
         >
-          <v-icon icon="mdi-help-box-outline" size="32" />
+          <v-icon icon="mdi-help-box-outline" size="28" />
         </v-btn>
         <v-btn
           v-if="pageMode !== 'settlement' && productSearchEnabled"
@@ -119,7 +119,7 @@
           aria-label="Search products"
           @click="productSearchDialog?.openDialog()"
         >
-          <v-icon icon="mdi-magnify" size="32" />
+          <v-icon icon="mdi-magnify" size="28" />
         </v-btn>
         <OnHoldMenu ref="onHoldMenu" hide-activator @restore="onRestoreHold" />
         <ReturnInvoiceMenu
