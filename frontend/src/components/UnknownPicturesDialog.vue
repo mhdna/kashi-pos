@@ -1,5 +1,5 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="520" persistent @update:model-value="emit('update:modelValue', $event)">
+  <v-dialog :model-value="modelValue" max-width="720" persistent @update:model-value="emit('update:modelValue', $event)">
     <v-card class="pa-4">
       <v-card-title class="px-0 pt-0">Pictures of the unknown items</v-card-title>
 
@@ -16,29 +16,33 @@
       </template>
 
       <template v-else>
-        <div class="text-center">
-          <img
-            v-if="qrDataUrl"
-            alt="Upload QR code"
-            :src="qrDataUrl"
-            style="width: 260px; height: 260px"
-          />
-          <div class="text-body-1 mt-2">Scan, then photograph each item.</div>
-          <div class="text-body-2 text-medium-emphasis" dir="rtl" lang="ar">
-            امسح الرمز والتقط صورة لكل قطعة
+        <div class="d-flex ga-6 align-start">
+          <div class="text-center" style="flex: none; width: 260px">
+            <img
+              v-if="qrDataUrl"
+              alt="Upload QR code"
+              :src="qrDataUrl"
+              style="width: 260px; height: 260px"
+            />
+            <div class="text-body-1 mt-2">Scan, then photograph each item.</div>
+            <div class="text-body-2 text-medium-emphasis" dir="rtl" lang="ar">
+              امسح الرمز والتقط صورة لكل قطعة
+            </div>
+          </div>
+
+          <div class="flex-grow-1" style="min-width: 0">
+            <v-list density="compact">
+              <v-list-item v-for="(slot, index) in slots" :key="slot.slotRef" :title="`#${index + 1} · ${slot.label}`">
+                <template #append>
+                  <v-icon v-if="slot.hasImage" color="success" icon="mdi-check-circle" />
+                  <span v-else-if="slot.waived" class="text-caption text-success">allowed by a manager</span>
+                  <v-icon v-else color="grey" icon="mdi-timer-sand" />
+                </template>
+              </v-list-item>
+            </v-list>
+            <div class="text-caption text-medium-emphasis">{{ doneCount }} of {{ slots.length }} ready</div>
           </div>
         </div>
-
-        <v-list class="mt-3" density="compact">
-          <v-list-item v-for="(slot, index) in slots" :key="slot.slotRef" :title="`#${index + 1} · ${slot.label}`">
-            <template #append>
-              <v-icon v-if="slot.hasImage" color="success" icon="mdi-check-circle" />
-              <span v-else-if="slot.waived" class="text-caption text-success">allowed by a manager</span>
-              <v-icon v-else color="grey" icon="mdi-timer-sand" />
-            </template>
-          </v-list-item>
-        </v-list>
-        <div class="text-caption text-medium-emphasis">{{ doneCount }} of {{ slots.length }} ready</div>
       </template>
 
       <v-card-actions class="px-0 pb-0 mt-3">
