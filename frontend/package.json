@@ -5,7 +5,8 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
+    "check:icons": "node scripts/check-icons.mjs",
+    "build": "node scripts/check-icons.mjs && run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
     "test": "vitest run",
