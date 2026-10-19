@@ -77,7 +77,6 @@
           v-if="pageMode !== 'settlement'"
           icon
           class="ms-1"
-          color="warning"
           variant="text"
           aria-label="Invoices on hold"
           @click="onHoldMenu?.open()"
@@ -88,7 +87,6 @@
           v-if="pageMode !== 'settlement'"
           icon
           class="ms-1"
-          color="info"
           variant="text"
           aria-label="Exchange invoice"
           @click="returnInvoiceMenu?.open()"
@@ -99,7 +97,6 @@
           v-if="pageMode === 'sale'"
           icon
           class="ms-1"
-          color="deep-purple"
           variant="text"
           aria-label="Add an unknown item"
           @click="unknownPrice.show = true"
@@ -110,7 +107,6 @@
           v-if="pageMode !== 'settlement' && productSearchEnabled"
           icon
           class="ms-1"
-          color="success"
           variant="text"
           aria-label="Search products"
           @click="productSearchDialog?.openDialog()"
