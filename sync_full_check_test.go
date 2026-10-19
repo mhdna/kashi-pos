@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	db "kashi-pos/db/sqlc"
 )
 
 // fakeKashiCatalog answers the completeness-check routes from an in-memory
@@ -173,5 +175,55 @@ func TestFullCheckDeactivatesOrphanProductsOnlyWhenConfirmed(t *testing.T) {
 		if e.Entity == "products" && e.Deactivated != 1 {
 			t.Fatalf("expected 1 deactivated product, got %+v", e)
 		}
+	}
+}
+
+// A till that already holds kashi's client (matching stamp) and has no
+// cursor pulls nothing in full: the missing client comes through the uid
+// check, the held one is skipped, and the cursor is seeded from kashi's clock.
+func TestPullSeedsCursorFromLocalCatalog(t *testing.T) {
+	fk := newFakeKashiCatalog()
+	stamp := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC).Format(time.RFC3339Nano)
+	fk.clients[fcClientUID] = map[string]any{"uid": fcClientUID, "name": "Rana", "phone": "70555111", "is_active": true, "updated_at": stamp}
+	serverTime := time.Date(2026, 10, 19, 9, 0, 0, 0, time.UTC)
+	var fullPulls int
+	inner := fk.handler()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/branch/sync/changes" {
+			inner.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Query().Get("since") == "" {
+			fullPulls++
+		}
+		json.NewEncoder(w).Encode(map[string]any{"entity": "clients", "items": []any{}, "server_time": serverTime})
+	}))
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
+	cc := newCentralClient(server.URL, "TEST01", "test-key")
+	if _, err := app.runFullCheckLocked(app.ctx, cc); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetSyncCursor(app.ctx, db.SetSyncCursorParams{Entity: "clients", Cursor: ""}); err != nil {
+		t.Fatal(err)
+	}
+	// kashi gains a second client the till has never seen.
+	other := "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	fk.clients[other] = map[string]any{"uid": other, "name": "Omar", "phone": "70555222", "is_active": true, "updated_at": stamp}
+	fk.fetches = 0
+
+	if _, err := app.pullEntityLocked(app.ctx, cc, "clients"); err != nil {
+		t.Fatal(err)
+	}
+	if fullPulls != 0 {
+		t.Fatalf("expected no from-the-beginning pull, got %d", fullPulls)
+	}
+	if _, err := store.GetClientByUID(app.ctx, sql.NullString{String: other, Valid: true}); err != nil {
+		t.Fatalf("missing client was not fetched: %v", err)
+	}
+	cursor, err := store.GetSyncCursor(app.ctx, "clients")
+	if err != nil || cursor != serverTime.Format(time.RFC3339) {
+		t.Fatalf("cursor = %q, %v", cursor, err)
 	}
 }

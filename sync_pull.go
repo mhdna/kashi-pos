@@ -714,6 +714,13 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 	if _, isWholeSet := wholeSetEntities[entity]; isWholeSet {
 		since = ""
 	}
+	if since == "" {
+		seeded, err := a.seedCursorFromLocalCatalog(ctx, client, entity)
+		if err != nil {
+			return false, fmt.Errorf("seed cursor from local catalog: %w", err)
+		}
+		since = seeded
+	}
 
 	// Walk pages until kashi stops handing back a next_cursor. Each page is
 	// applied in its own transaction so a first-ever pull of a big catalog
