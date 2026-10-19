@@ -4,7 +4,7 @@
       v-for="(item, index) in displayItems"
       :key="`${items.length - 1 - index}-${item.barcode || item.code}`"
     >
-      <v-list-item>
+      <v-list-item :class="{ 'invoice-item-unknown': isUnknownItem(item) }">
         <template #title>
           <button
             class="invoice-item-details-trigger"
@@ -913,6 +913,10 @@ defineExpose({
 </script>
 
 <style scoped>
+.invoice-item-unknown {
+  background: rgba(var(--v-theme-warning), 0.18);
+}
+
 .invoice-item-actions {
   justify-content: flex-end;
   margin-inline-start: auto;
