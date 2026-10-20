@@ -665,6 +665,10 @@ func branchInvoicePath(entityType string) (string, bool) {
 		return "/branch/expenses", true
 	case "loan":
 		return "/branch/loans", true
+	case "expense_cancel":
+		return "/branch/expenses/cancel", true
+	case "loan_cancel":
+		return "/branch/loans/cancel", true
 	case "expense_category":
 		return "/branch/expenses/category", true
 	case "loan_category":

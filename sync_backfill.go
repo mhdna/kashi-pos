@@ -708,6 +708,17 @@ func (a *App) resyncExpenses(ctx context.Context, client *centralClient, opts Re
 		}); err != nil {
 			return rep, err
 		}
+		if r.CancelledAt.Valid {
+			cancelBody, err := json.Marshal(branchRecordCancelPayload{ClientRef: r.ClientRef})
+			if err != nil {
+				return rep, err
+			}
+			if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
+				EntityType: recordCancelEntityType("expense"), ClientRef: recordCancelOutboxRef("expense", r.ClientRef), PayloadJson: string(cancelBody),
+			}); err != nil {
+				return rep, err
+			}
+		}
 		rep.Queued++
 	}
 	return rep, nil
@@ -766,6 +777,17 @@ func (a *App) resyncLoans(ctx context.Context, client *centralClient, opts Resyn
 			EntityType: "loan", ClientRef: r.ClientRef, PayloadJson: string(body),
 		}); err != nil {
 			return rep, err
+		}
+		if r.CancelledAt.Valid {
+			cancelBody, err := json.Marshal(branchRecordCancelPayload{ClientRef: r.ClientRef})
+			if err != nil {
+				return rep, err
+			}
+			if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
+				EntityType: recordCancelEntityType("loan"), ClientRef: recordCancelOutboxRef("loan", r.ClientRef), PayloadJson: string(cancelBody),
+			}); err != nil {
+				return rep, err
+			}
 		}
 		rep.Queued++
 	}

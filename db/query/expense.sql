@@ -28,11 +28,19 @@ SELECT * FROM expenses ORDER BY id;
 -- the month total under the Expenses button. Amounts are in the expense's
 -- own currency, x100, as entered.
 SELECT currency_code, CAST(COALESCE(SUM(amount), 0) AS INTEGER) AS total
-FROM expenses WHERE datetime(occurred_at, 'localtime') >= ?
+FROM expenses WHERE cancelled_at IS NULL AND datetime(occurred_at, 'localtime') >= ?
 GROUP BY currency_code;
 
 -- name: ListExpensesForShift :many
-SELECT * FROM expenses WHERE shift_id = ? ORDER BY id;
+SELECT * FROM expenses WHERE shift_id = ? AND cancelled_at IS NULL ORDER BY id;
 
 -- name: SetExpenseCategory :one
 UPDATE expenses SET category = ? WHERE id = ? RETURNING *;
+
+-- name: CancelExpenseByClientRef :one
+-- Stamps cancelled_at once; a repeat matches no row, which the callers treat
+-- as already cancelled rather than an error.
+UPDATE expenses SET cancelled_at = datetime('now') WHERE client_ref = ? AND cancelled_at IS NULL RETURNING *;
+
+-- name: GetExpenseByClientRef :one
+SELECT * FROM expenses WHERE client_ref = ?;

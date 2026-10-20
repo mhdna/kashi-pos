@@ -146,6 +146,9 @@ func expenseMap(expense db.Expense) map[string]any {
 		"occurredAt":       expense.OccurredAt,
 		"createdAt":        expense.CreatedAt,
 	}
+	if expense.CancelledAt.Valid {
+		m["cancelledAt"] = expense.CancelledAt.String
+	}
 	if expense.ShiftID.Valid {
 		m["shiftId"] = expense.ShiftID.Int64
 	}

@@ -20,7 +20,11 @@ export function ApproveAttendanceComplaint(arg1:number,arg2:boolean,arg3:string)
 
 export function BypassCloseShiftSyncGate(arg1:number,arg2:string,arg3:string):Promise<void>;
 
+export function CancelExpense(arg1:number):Promise<void>;
+
 export function CancelInvoice(arg1:number,arg2:string):Promise<void>;
+
+export function CancelLoan(arg1:number):Promise<void>;
 
 export function CancelSyncFlush():Promise<void>;
 

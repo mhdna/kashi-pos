@@ -23,7 +23,8 @@
         <RecordPhoto :cache-key="`expense-thumb-${item.clientRef}-${photoVersion[item.clientRef] ?? 0}`" :load="() => firstExpensePhoto(item.clientRef, 96)" />
       </template>
       <template #item.description="{ item }">
-        <span class="font-weight-medium">{{ item.description || "—" }}</span>
+        <span class="font-weight-medium" :class="{ 'text-decoration-line-through': item.cancelledAt }">{{ item.description || "—" }}</span>
+        <v-chip v-if="item.cancelledAt" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</v-chip>
       </template>
       <template #item.category="{ item }">
         <v-chip v-if="item.category" size="small" variant="tonal" :color="categoryOf(item.category)?.color || 'blue-grey'" :prepend-icon="categoryOf(item.category)?.icon || 'mdi-tag-outline'">
@@ -32,7 +33,7 @@
         <span v-else class="text-medium-emphasis">—</span>
       </template>
       <template #item.amount="{ item }">
-        <span class="font-weight-bold">{{ formatCents(item.amount) }} {{ item.currencyCode }}</span>
+        <span class="font-weight-bold" :class="{ 'text-decoration-line-through text-medium-emphasis': item.cancelledAt }">{{ formatCents(item.amount) }} {{ item.currencyCode }}</span>
       </template>
       <template #item.occurredAt="{ item }">{{ formatServerDateTime(item.occurredAt) }}</template>
     </v-data-table-virtual>
@@ -106,12 +107,32 @@
           </div>
           <div v-if="photoError" class="text-body-2 text-error text-center mt-2">{{ photoError }}</div>
         </v-card-text>
+        <v-card-actions v-if="auth.isAdmin && !selected.cancelledAt" class="px-5 pb-4">
+          <v-spacer />
+          <v-btn color="error" variant="tonal" prepend-icon="mdi-cancel" @click="requestCancel">Cancel expense</v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
 
     <!-- Add: kashi's categories (with their icon and colour) as tiles, then
          description, amount in the paying account's currency, and the
          account itself. -->
+    <v-dialog v-model="cancelOpen" max-width="420">
+      <v-card v-if="selected">
+        <v-card-title class="pt-4 px-5">Cancel this expense?</v-card-title>
+        <v-card-text class="px-5">
+          "{{ selected.description || "Expense" }}" ({{ formatCents(selected.amount) }} {{ selected.currencyCode }}) stays in the list marked
+          cancelled, and the shift and kashi stop counting it.
+          <div v-if="cancelError" class="text-body-2 text-error mt-2">{{ cancelError }}</div>
+        </v-card-text>
+        <v-card-actions class="px-5 pb-4">
+          <v-spacer />
+          <v-btn variant="text" @click="cancelOpen = false">Keep it</v-btn>
+          <v-btn color="error" variant="flat" :loading="cancelling" @click="cancelSelected">Cancel expense</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-dialog v-model="dialog" max-width="560">
       <v-card class="add-card">
         <v-card-title class="d-flex align-center ga-2 pt-4 px-5">
@@ -222,6 +243,7 @@
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import {
   AddExpensePhotosFromComputer,
+  CancelExpense,
   CreateExpense,
   GetExpenseFirstPhoto,
   GetExpensePhoto,
@@ -239,6 +261,8 @@ import { detailPhotoWidth } from "@/lib/photos";
 import { useInfiniteList } from "@/composables/useInfiniteList";
 import { formatServerDateTime } from "@/lib/datetime";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
+import { notifyIncomeChanged } from "@/lib/incomeEvents";
+import { useAuthStore } from "../stores/auth";
 
 const headers = [
   { title: "Photo", key: "photo", sortable: false, width: 72 },
@@ -291,6 +315,33 @@ async function openDetail(item: any) {
 }
 
 // ---- add ---------------------------------------------------------------
+// Cancelling keeps the row, marked cancelled, and tells kashi (admin only).
+const auth = useAuthStore();
+const cancelOpen = ref(false);
+const cancelling = ref(false);
+const cancelError = ref("");
+function requestCancel() {
+  cancelError.value = "";
+  cancelOpen.value = true;
+}
+async function cancelSelected() {
+  const item = selected.value;
+  if (!item || !auth.isAdmin) return;
+  cancelling.value = true;
+  cancelError.value = "";
+  try {
+    await CancelExpense(item.id);
+    notifyIncomeChanged();
+    cancelOpen.value = false;
+    detailOpen.value = false;
+    await list.refresh();
+  } catch (err) {
+    cancelError.value = String(err);
+  } finally {
+    cancelling.value = false;
+  }
+}
+
 const dialog = ref(false);
 const saving = ref(false);
 const formRef = ref();
@@ -454,14 +505,17 @@ async function loadExpenseCategories() {
 }
 
 let categorySyncUnsub: (() => void) | null = null;
+let recordSyncUnsub: (() => void) | null = null;
 
 onMounted(async () => {
   await Promise.all([list.loadMore(), loadPaymentMethods(), loadExpenseCategories()]);
   categorySyncUnsub = EventsOn("sync_applied:expense_categories", loadExpenseCategories);
+  recordSyncUnsub = EventsOn("sync_applied:expenses", () => void list.refresh());
 });
 
 onBeforeUnmount(() => {
   categorySyncUnsub?.();
+  recordSyncUnsub?.();
 });
 </script>
 

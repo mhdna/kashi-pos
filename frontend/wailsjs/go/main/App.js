@@ -38,8 +38,16 @@ export function BypassCloseShiftSyncGate(arg1, arg2, arg3) {
   return window['go']['main']['App']['BypassCloseShiftSyncGate'](arg1, arg2, arg3);
 }
 
+export function CancelExpense(arg1) {
+  return window['go']['main']['App']['CancelExpense'](arg1);
+}
+
 export function CancelInvoice(arg1, arg2) {
   return window['go']['main']['App']['CancelInvoice'](arg1, arg2);
+}
+
+export function CancelLoan(arg1) {
+  return window['go']['main']['App']['CancelLoan'](arg1);
 }
 
 export function CancelSyncFlush() {

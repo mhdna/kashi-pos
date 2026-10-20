@@ -121,6 +121,9 @@ func loanMap(loan db.Loan) map[string]any {
 		"occurredAt":       loan.OccurredAt,
 		"createdAt":        loan.CreatedAt,
 	}
+	if loan.CancelledAt.Valid {
+		m["cancelledAt"] = loan.CancelledAt.String
+	}
 	if loan.ShiftID.Valid {
 		m["shiftId"] = loan.ShiftID.Int64
 	}

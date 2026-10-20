@@ -29,6 +29,12 @@ type Querier interface {
 	// One more failed try; the next waits `delay` (a SQLite modifier such as
 	// '+4 minutes').
 	BumpWhatsAppPending(ctx context.Context, arg BumpWhatsAppPendingParams) error
+	// Stamps cancelled_at once; a repeat matches no row, which the callers treat
+	// as already cancelled rather than an error.
+	CancelExpenseByClientRef(ctx context.Context, clientRef string) (Expense, error)
+	// Stamps cancelled_at once; a repeat matches no row, which the callers treat
+	// as already cancelled rather than an error.
+	CancelLoanByClientRef(ctx context.Context, clientRef string) (Loan, error)
 	ClearSyncCursors(ctx context.Context) error
 	// "Sync everything" against the server this till already syncs with:
 	// re-pull the small entities from scratch, but keep the big ones' cursors
@@ -248,6 +254,7 @@ type Querier interface {
 	GetDiscountOverride(ctx context.Context, id int64) (DiscountOverride, error)
 	GetDisplayPrefs(ctx context.Context) (GetDisplayPrefsRow, error)
 	GetExpense(ctx context.Context, id int64) (Expense, error)
+	GetExpenseByClientRef(ctx context.Context, clientRef string) (Expense, error)
 	GetExpenseCategoryByName(ctx context.Context, name string) (ExpenseCategory, error)
 	GetFeatureFlag(ctx context.Context, key string) (int64, error)
 	GetInventoryByID(ctx context.Context, id int64) (Inventory, error)
@@ -271,6 +278,7 @@ type Querier interface {
 	GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductParams) (InvoiceProduct, error)
 	GetLastInvoiceInventoryID(ctx context.Context) (int64, error)
 	GetLoan(ctx context.Context, id int64) (Loan, error)
+	GetLoanByClientRef(ctx context.Context, clientRef string) (Loan, error)
 	GetLoanCategoryByName(ctx context.Context, name string) (LoanCategory, error)
 	GetOpenShift(ctx context.Context) (Shift, error)
 	GetPermissionByID(ctx context.Context, id int64) (Permission, error)
