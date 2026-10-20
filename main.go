@@ -41,15 +41,15 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
-	// Create application with options: a normal, resizable window in every
-	// build (the user maximises or fullscreens it when they want to).
+	// Create application with options: a resizable window that opens
+	// maximised in every build (not fullscreen; the user can restore it).
 	appOptions := &options.App{
 		Title:            "GB Cloud",
 		Width:            appWindowWidth,
 		Height:           appWindowHeight,
 		MinWidth:         appMinWindowWidth,
 		MinHeight:        appMinWindowHeight,
-		WindowStartState: options.Normal,
+		WindowStartState: options.Maximised,
 		// Keep the real window hidden until the frontend can paint, so the
 		// only thing on screen during WebView2 boot is the native splash.
 		StartHidden:      true,
