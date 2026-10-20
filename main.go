@@ -41,14 +41,15 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
-	// Create application with options. In development (`wails dev`, which sets
-	// the `dev` build tag) run windowed and resizable; production stays
-	// fullscreen with a fixed window.
+	// Create application with options: a normal, resizable window in every
+	// build (the user maximises or fullscreens it when they want to).
 	appOptions := &options.App{
 		Title:            "GB Cloud",
-		Fullscreen:       !isDevMode,
+		Width:            appWindowWidth,
+		Height:           appWindowHeight,
+		MinWidth:         appMinWindowWidth,
+		MinHeight:        appMinWindowHeight,
 		WindowStartState: options.Normal,
-		DisableResize:    !isDevMode,
 		// Keep the real window hidden until the frontend can paint, so the
 		// only thing on screen during WebView2 boot is the native splash.
 		StartHidden:      true,
@@ -71,11 +72,6 @@ func main() {
 			OpenInspectorOnStartup: envBool("KASHI_DEBUG", false),
 		},
 	}
-	if isDevMode {
-		appOptions.Width = appWindowWidth
-		appOptions.Height = appWindowHeight
-	}
-
 	err := wails.Run(appOptions)
 	if err != nil {
 		println("Error:", err.Error())

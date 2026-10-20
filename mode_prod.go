@@ -2,6 +2,5 @@
 
 package main
 
-// isDevMode is false for `wails build` (production) binaries, which run
-// fullscreen with a fixed window.
+// isDevMode is false for `wails build` (production) binaries.
 const isDevMode = false
