@@ -57,7 +57,7 @@ func printReceiptToPrinterBlocking(data printReceiptData) error {
 	}
 	defer closePrinter.Call(printer)
 
-	docName, _ := syscall.UTF16PtrFromString("Kashi POS Receipt")
+	docName, _ := syscall.UTF16PtrFromString("GB Cloud Receipt")
 	raw, _ := syscall.UTF16PtrFromString("RAW")
 	document := docInfo{docName: docName, datatype: raw}
 	if result, _, callErr := startDocPrinter.Call(printer, 1, uintptr(unsafe.Pointer(&document))); result == 0 {

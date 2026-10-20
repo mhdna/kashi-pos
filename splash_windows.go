@@ -282,7 +282,7 @@ func splashThread() {
 
 	splashLog("splashThread: entry")
 	hInst, _, _ := pGetModuleHandleW.Call(0)
-	className := utf16Ptr("KashiSplashWindow")
+	className := utf16Ptr("GBSplashWindow")
 	if className == nil {
 		return
 	}

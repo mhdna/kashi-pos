@@ -15,9 +15,9 @@ func configureWebView() error {
 }
 
 // webviewUserDataPath picks WebView2's profile folder instead of leaving it to
-// the default, %APPDATA%\Kashi-Cloud.exe. That default is the folder behind
+// the default, %APPDATA%\GB-Cloud.exe. That default is the folder behind
 // "Microsoft Edge can't read and write to its data directory": once an
-// elevated run (e.g. the installer's "Run Kashi Cloud" checkbox, which inherited
+// elevated run (e.g. the installer's "Run GB Cloud" checkbox, which inherited
 // the installer's admin token) has created it, a normal run can be refused
 // access, and the app never gets past the error box.
 //
@@ -29,9 +29,9 @@ func configureWebView() error {
 func webviewUserDataPath() string {
 	var candidates []string
 	if dir, err := os.UserCacheDir(); err == nil { // %LOCALAPPDATA%
-		candidates = append(candidates, filepath.Join(dir, "Kashi Cloud", "WebView2"))
+		candidates = append(candidates, filepath.Join(dir, "GB Cloud", "WebView2"))
 	}
-	candidates = append(candidates, filepath.Join(os.TempDir(), "Kashi Cloud WebView2"))
+	candidates = append(candidates, filepath.Join(os.TempDir(), "GB Cloud WebView2"))
 
 	for _, dir := range candidates {
 		if dirWritable(dir) {

@@ -1,7 +1,7 @@
 Unicode true
 
 ####
-## Custom Kashi Cloud installer, based on the Wails NSIS template.
+## Custom GB Cloud installer, based on the Wails NSIS template.
 ##
 ## This installs AND upgrades cleanly:
 ##  - if a previous version is already installed, its running process is
@@ -25,7 +25,7 @@ Unicode true
 # macro copies whatever binary was built and renames it to this, so if this
 # doesn't match, shortcuts/taskkill/uninstall all silently target the wrong
 # file.
-!define PRODUCT_EXECUTABLE "Kashi-Cloud.exe"
+!define PRODUCT_EXECUTABLE "GB-Cloud.exe"
 
 # Stable across renames of company/product name in wails.json, so upgrades
 # from older installs (built before this file existed) still find the same
@@ -165,11 +165,20 @@ Section
 
     !insertmacro wails.webview2runtime
 
+    # Installs made before the GB rebrand ran as Kashi-Cloud.exe with
+    # "Kashi Cloud" shortcuts; drop them so an upgrade leaves one app behind.
+    nsExec::Exec 'taskkill /F /T /IM "Kashi-Cloud.exe"'
+    Pop $0
+    Sleep 500
+    Delete "$INSTDIR\Kashi-Cloud.exe"
+    Delete "$SMPROGRAMS\Kashi Cloud.lnk"
+    Delete "$DESKTOP\Kashi Cloud.lnk"
+
     SetOutPath $INSTDIR
 
     !insertmacro wails.files
 
-    # Let Kashi Cloud replace its own executable when kashi sends an update
+    # Let GB Cloud replace its own executable when kashi sends an update
     # (updater.go) without an admin prompt at the till: give the local Users
     # group modify rights on the install folder. *S-1-5-32-545 is
     # BUILTIN\Users on every Windows language.

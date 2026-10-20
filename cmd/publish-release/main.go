@@ -1,4 +1,4 @@
-// publish-release signs a Kashi Cloud build and uploads it to kashi as a remote
+// publish-release signs a GB Cloud build and uploads it to kashi as a remote
 // update (see updater.go and kashi's api/app_update.go). Run it through the
 // Makefile:
 //
@@ -121,7 +121,7 @@ func loadPrivateKey(path string) (ed25519.PrivateKey, error) {
 
 func publish(args []string) error {
 	fs := flag.NewFlagSet("publish", flag.ExitOnError)
-	file := fs.String("file", "", "the built Kashi Cloud .exe")
+	file := fs.String("file", "", "the built GB Cloud .exe")
 	version := fs.String("version", "", "its version, e.g. 1.2.3")
 	flavor := fs.String("flavor", "standard", "standard or compact")
 	notes := fs.String("notes", "", "what changed; cashiers see this after the update")
@@ -181,7 +181,7 @@ func publish(args []string) error {
 		return err
 	}
 
-	fmt.Printf("Uploading %s (%.1f MB) as Kashi Cloud %s (%s)…\n", filepath.Base(*file), float64(len(content))/(1<<20), *version, *flavor)
+	fmt.Printf("Uploading %s (%.1f MB) as GB Cloud %s (%s)…\n", filepath.Base(*file), float64(len(content))/(1<<20), *version, *flavor)
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
 	for k, v := range map[string]string{
@@ -226,10 +226,10 @@ func publish(args []string) error {
 		return errors.New("kashi's upload answer had no release id")
 	}
 	if !*targetAll {
-		fmt.Printf("Published Kashi Cloud %s (%s). Choose which tills get it on kashi's App Updates page.\n", *version, *flavor)
+		fmt.Printf("Published GB Cloud %s (%s). Choose which tills get it on kashi's App Updates page.\n", *version, *flavor)
 		return nil
 	}
-	fmt.Printf("Published Kashi Cloud %s (%s).\n", *version, *flavor)
+	fmt.Printf("Published GB Cloud %s (%s).\n", *version, *flavor)
 	return targetAllRegisters(baseURL, token, created.Release.ID, *version, *flavor, *force)
 }
 

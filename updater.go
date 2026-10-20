@@ -384,7 +384,7 @@ func (a *App) downloadRelease(ctx context.Context, client *centralClient, m *app
 	if err := os.MkdirAll(releaseDir, 0o755); err != nil {
 		return "", err
 	}
-	final := filepath.Join(releaseDir, "Kashi-Cloud.exe")
+	final := filepath.Join(releaseDir, "GB-Cloud.exe")
 	if verifyRelease(final, m) == nil {
 		return final, nil
 	}
@@ -690,7 +690,7 @@ func (a *App) ConfirmAppStarted() map[string]any {
 	return started
 }
 
-// runUpdateHelper is the helper process (`Kashi-Cloud.exe --apply-update
+// runUpdateHelper is the helper process (`GB-Cloud.exe --apply-update
 // <handoff.json>`), started from a temporary copy of the old executable so
 // the program it replaces isn't running. It returns the process exit code.
 func runUpdateHelper(handoffPath string, procs updateProcesses) int {

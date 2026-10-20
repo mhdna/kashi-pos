@@ -8,16 +8,16 @@
     !define INFO_PROJECTNAME "gb-cloud"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "Kashi"
+    !define INFO_COMPANYNAME "GB"
 !endif
 !ifndef INFO_PRODUCTNAME
-    !define INFO_PRODUCTNAME "Kashi Cloud"
+    !define INFO_PRODUCTNAME "GB Cloud"
 !endif
 !ifndef INFO_PRODUCTVERSION
     !define INFO_PRODUCTVERSION "1.1.13.0"
 !endif
 !ifndef INFO_COPYRIGHT
-    !define INFO_COPYRIGHT "Copyright © Kashi"
+    !define INFO_COPYRIGHT "Copyright © GB"
 !endif
 !ifndef PRODUCT_EXECUTABLE
     !define PRODUCT_EXECUTABLE "${INFO_PROJECTNAME}.exe"

@@ -31,7 +31,7 @@ func signedManifest(t *testing.T, content []byte, version string) *appUpdateMani
 	t.Cleanup(func() { updatePublicKey = old })
 	digest := sha256.Sum256(content)
 	return &appUpdateManifest{
-		ID: 7, Version: version, Flavor: appFlavor, FileName: "Kashi-Cloud.exe",
+		ID: 7, Version: version, Flavor: appFlavor, FileName: "GB-Cloud.exe",
 		SizeBytes: int64(len(content)), Sha256: hex.EncodeToString(digest[:]),
 		Signature: base64.StdEncoding.EncodeToString(ed25519.Sign(priv, digest[:])),
 	}
@@ -40,7 +40,7 @@ func signedManifest(t *testing.T, content []byte, version string) *appUpdateMani
 func TestVerifyRelease(t *testing.T) {
 	content := []byte("new build")
 	m := signedManifest(t, content, "1.0.9")
-	path := filepath.Join(t.TempDir(), "Kashi-Cloud.exe")
+	path := filepath.Join(t.TempDir(), "GB-Cloud.exe")
 	if err := os.WriteFile(path, content, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestCheckAndDownload_DownloadsVerifiesAndReports(t *testing.T) {
 		case "/branch/app_update":
 			_ = json.NewEncoder(w).Encode(map[string]any{"release": m})
 		case "/branch/app_update/download/7":
-			http.ServeContent(w, r, "Kashi-Cloud.exe", time.Now(), strings.NewReader(string(content)))
+			http.ServeContent(w, r, "GB-Cloud.exe", time.Now(), strings.NewReader(string(content)))
 		case "/branch/app_update/status":
 			var rep appUpdateStatusReport
 			_ = json.NewDecoder(r.Body).Decode(&rep)
@@ -158,7 +158,7 @@ func (f *fakeTill) procs() updateProcesses {
 func setupInstall(t *testing.T, current, next string) (exe, handoff string) {
 	t.Helper()
 	dir := t.TempDir()
-	exe = filepath.Join(dir, "Kashi-Cloud.exe")
+	exe = filepath.Join(dir, "GB-Cloud.exe")
 	if err := os.WriteFile(exe, []byte(current), 0o644); err != nil {
 		t.Fatal(err)
 	}

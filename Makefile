@@ -56,7 +56,7 @@ build-windows: set-version
 	wails build -platform windows/amd64 -nsis -clean -ldflags "-X main.appVersion=$(APP_VERSION)"
 
 build-windows-compact: set-version
-	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -nsis -clean -o "Kashi Cloud Compact.exe" -ldflags "-X main.appVersion=$(APP_VERSION)"
+	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -nsis -clean -o "GB Cloud Compact.exe" -ldflags "-X main.appVersion=$(APP_VERSION)"
 
 # Remote updates (updater.go). update-keygen runs once: it creates the
 # release-signing key in ~/.config/gb-cloud/ (back it up) and writes its
@@ -76,19 +76,19 @@ update-keygen:
 	go run ./cmd/publish-release keygen
 
 publish: build-windows
-	go run ./cmd/publish-release publish -file build/bin/Kashi-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)"
+	go run ./cmd/publish-release publish -file build/bin/GB-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)"
 
 publish-compact: build-windows-compact
-	go run ./cmd/publish-release publish -file "build/bin/Kashi Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)"
+	go run ./cmd/publish-release publish -file "build/bin/GB Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)"
 
 publish-all: build-windows
-	go run ./cmd/publish-release publish -file build/bin/Kashi-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -target-all
+	go run ./cmd/publish-release publish -file build/bin/GB-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -target-all
 
 publish-compact-all: build-windows-compact
-	go run ./cmd/publish-release publish -file "build/bin/Kashi Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all
+	go run ./cmd/publish-release publish -file "build/bin/GB Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all
 
 publish-all-force: build-windows
-	go run ./cmd/publish-release publish -file build/bin/Kashi-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -target-all -force
+	go run ./cmd/publish-release publish -file build/bin/GB-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -target-all -force
 
 publish-compact-all-force: build-windows-compact
-	go run ./cmd/publish-release publish -file "build/bin/Kashi Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all -force
+	go run ./cmd/publish-release publish -file "build/bin/GB Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all -force
