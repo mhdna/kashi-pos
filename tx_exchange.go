@@ -16,6 +16,9 @@ type exchangePolicy struct {
 	// cancellation makes this full return a cancel of its sale (CancelInvoice):
 	// both invoices get cancelled_at and kashi is told so.
 	cancellation bool
+	// unknownSessionRef is the picture session of the "Unknown item"
+	// replacements, sent to kashi with the exchange (see unknown_items.go).
+	unknownSessionRef string
 }
 
 var posExchangePolicy = exchangePolicy{}
@@ -24,7 +27,20 @@ var adminReturnExchangePolicy = exchangePolicy{allowLate: true, allowLowerTotal:
 // CheckoutExchangeInvoice records one returned line and one or more
 // replacement lines. Only the positive difference is paid by the customer.
 func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, salespersonID int64, notes string) (map[string]any, error) {
-	return a.checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON, originalInvoiceID, salespersonID, notes, 0, posExchangePolicy)
+	// Only replacements are sold, so only they need pictures (a returned
+	// unknown item has qty < 0 and is skipped by unknownUnitCount).
+	unknownRef, err := a.verifyUnknownPictures(itemsJSON)
+	if err != nil {
+		return nil, fmt.Errorf("exchange failed: %w", err)
+	}
+	policy := posExchangePolicy
+	policy.unknownSessionRef = unknownRef
+	result, err := a.checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON, originalInvoiceID, salespersonID, notes, 0, policy)
+	if err != nil {
+		return nil, err
+	}
+	a.clearUnknownSession(unknownRef)
+	return result, nil
 }
 
 func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, salespersonID int64, notes string, settlementAccountID int64, policy exchangePolicy) (map[string]any, error) {
@@ -261,6 +277,7 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				Payments:               payloadPayments,
 				Items:                  payloadItems,
 				Cancellation:           policy.cancellation,
+				UnknownSessionRef:      policy.unknownSessionRef,
 			}); err != nil {
 				return fmt.Errorf("queue branch invoice sync: %w", err)
 			}

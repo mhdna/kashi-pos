@@ -112,10 +112,15 @@ func (a *App) GetUnknownProduct() (map[string]any, error) {
 	}, nil
 }
 
-// unknownUnitCount is how many units of the placeholder a cart carries.
+// unknownUnitCount is how many units of the placeholder a cart sells. A
+// negative quantity is an exchange's returned line, not a sale: it needs no
+// picture.
 func unknownUnitCount(items []salesInvoiceItem, barcode, code string) int64 {
 	var units int64
 	for _, item := range items {
+		if item.Qty <= 0 {
+			continue
+		}
 		if item.Barcode == barcode || (item.Barcode == "" && item.Code == code) {
 			units += int64(item.Qty)
 		}

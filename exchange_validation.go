@@ -243,8 +243,12 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		if listed, ok := listPricing.discountFor(product.Uid.String); ok {
 			product.Discount = listed.percent
 		}
+		// The "Unknown item" placeholder has no list price: whatever the
+		// cashier typed is its price (the picture session vouches for it),
+		// as in validateAndPriceItems.
+		isUnknown := product.Barcode == a.unknownBarcode()
 		if line.CustomPriceCents != nil {
-			if !customPricingEnabled {
+			if !customPricingEnabled && !isUnknown {
 				return result, fmt.Errorf("custom item pricing is disabled")
 			}
 			product.Price = *line.CustomPriceCents
@@ -257,7 +261,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 			{price: product.Price, discount: product.Discount}: line.Qty,
 		}
 		if len(line.UnitPricesCents) > 0 || len(line.UnitDiscounts) > 0 {
-			if !perUnitPricingEnabled {
+			if !isUnknown && !perUnitPricingEnabled {
 				return result, fmt.Errorf("per-unit item pricing is disabled")
 			}
 			priceQuantities = make(map[unitPricing]int64)

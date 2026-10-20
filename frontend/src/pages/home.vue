@@ -94,7 +94,7 @@
           <v-icon icon="mdi-autorenew" size="26" />
         </v-btn>
         <v-btn
-          v-if="pageMode === 'sale'"
+          v-if="pageMode !== 'settlement'"
           icon
           class="ms-1"
           variant="text"
@@ -1194,7 +1194,7 @@ async function onCheckout() {
   if (json === "[]") return;
   const isExchange = Boolean(exchangeState.value);
   if (flagMissingAssignment()) return;
-  if (!isExchange && !(await ensureUnknownPictures())) return;
+  if (!(await ensureUnknownPictures())) return;
   if (!(await confirmPricesIfUnusual())) return;
   if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
   printPhase.value = "printing";
