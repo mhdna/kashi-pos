@@ -110,7 +110,7 @@ func (c *receiptCanvas) drawGrid(y int, cfg gridConfig) (int, float64, float64) 
 			c.rightRole(midR, y, cfg.midHeader, hdrSize, roleBodyBold, image.Black)
 		}
 		hb, _ := c.rightRole(totalR, y, "TOTAL", hdrSize, roleBodyBold, image.Black)
-		y = c.ruleLine(hb+6) + 10
+		y = c.ruleLine(hb+c.gap(6)) + c.gap(10)
 	}
 
 	var subtotal, discountTotal float64
@@ -133,7 +133,7 @@ func (c *receiptCanvas) drawGrid(y int, cfg gridConfig) (int, float64, float64) 
 				y = bottom + 2
 			}
 		}
-		y = bottom + 4
+		y = bottom + 4 + c.style.Gap/2
 		subline := cfg.subline
 		if narrow {
 			// what the hidden middle column carried
@@ -151,14 +151,14 @@ func (c *receiptCanvas) drawGrid(y int, cfg gridConfig) (int, float64, float64) 
 		if subline != nil {
 			if text := subline(item, discount); text != "" {
 				y, _ = c.textRole(c.margin+12, y, text, 10, roleBody, image.Black)
-				y += 4
+				y += 4 + c.style.Gap/2
 			}
 		}
 		if cfg.rowRule {
 			c.fillRect(c.margin, y+2, right, y+3, color.Gray{Y: 150})
 			y += 8
 		} else {
-			y += 5
+			y += 5 + c.style.Gap
 		}
 	}
 	return y, subtotal, discountTotal

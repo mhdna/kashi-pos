@@ -100,8 +100,10 @@ type receiptStyle struct {
 	MetaCentered bool
 	Total        totalKind
 	Thanks       string
-	ItemCount    bool // "N items" line above the totals
-	Savings      bool // "You saved $X" line when anything was discounted
+	// Gap adds pixels to every vertical space on the receipt.
+	Gap       int
+	ItemCount bool // "N items" line above the totals
+	Savings   bool // "You saved $X" line when anything was discounted
 }
 
 // receiptLayoutSpec is one arrangement of the item lines within a theme.
@@ -133,7 +135,7 @@ func receiptThemes() []receiptTheme {
 			Description: "The original look: dotted dividers, boxed total, your own font choices.",
 			BestFor:     "Any shop",
 			Style: receiptStyle{
-				TitleScale: 1, BodyScale: 1,
+				TitleScale: 1, BodyScale: 1, Gap: 6,
 				Rule: ruleDotted, Total: totalBox,
 				Thanks: "Thank you for shopping with us!",
 			},

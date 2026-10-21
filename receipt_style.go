@@ -103,7 +103,7 @@ func (c *receiptCanvas) drawMeta(y int) int {
 		default:
 			y, _ = c.left(y, pair[0]+": "+pair[1], size, false)
 		}
-		y += 8
+		y += c.gap(8)
 	}
 	return y
 }
@@ -146,7 +146,7 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
 		}
 		c.textRole(c.margin, y, "TOTAL", size, labelRole, image.Black)
 		y, _ = c.rightRole(right, y, amount, size, roleBodyBold, image.Black)
-		y += 8
+		y += c.gap(8)
 		if second[0] != "" {
 			y, _ = c.twoCol(y, second[0], second[1], 11, true)
 			y += 8

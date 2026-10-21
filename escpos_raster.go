@@ -123,6 +123,9 @@ func firstRasterInkRow(img *image.RGBA, height int) int {
 	return 0
 }
 
+// gap is a vertical space of n pixels plus the theme's extra breathing room.
+func (c *receiptCanvas) gap(n int) int { return n + c.style.Gap }
+
 func (c *receiptCanvas) drawReceipt() (int, error) {
 	y := 0
 	var err error
@@ -133,7 +136,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if y, err = c.center(y, store, c.data.TitleSize*c.titleFactor(), true, true); err != nil {
 		return 0, err
 	}
-	y += 4
+	y += c.gap(4)
 	branchPhone := c.data.BranchPhone
 	if branchPhone == "" {
 		branchPhone = c.data.Phone
@@ -148,34 +151,34 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	}
 	if branch != "" {
 		y, _ = c.center(y+2, branch, branchSize, false, true)
-		y += 10
+		y += c.gap(10)
 	}
 	if branchPhone != "" {
 		y, _ = c.center(y, branchPhone, phoneSize, false, true)
-		y += 12
+		y += c.gap(12)
 	}
 	// Receipt description temporarily disabled.
 	// if c.data.Description != "" {
 	// 	y, _ = c.centerWrappedNormal(y, c.data.Description, c.data.BodySize-1, 8)
 	// }
-	y, _ = c.center(y+8, receiptInvoiceLabel(c.data.ReceiptNo)+": "+c.data.ReceiptNo, c.data.BodySize-1, true, false)
-	y += 8
+	y, _ = c.center(y+c.gap(8), receiptInvoiceLabel(c.data.ReceiptNo)+": "+c.data.ReceiptNo, c.data.BodySize-1, true, false)
+	y += c.gap(8)
 	if strings.TrimSpace(c.data.Website) != "" {
 		y, _ = c.center(y, strings.TrimSpace(c.data.Website), c.data.BodySize-1.5, true, false)
-		y += 8
+		y += c.gap(8)
 	}
-	y = c.ruleLine(y) + 10
+	y = c.ruleLine(y) + c.gap(10)
 	y = c.drawMeta(y)
 	if strings.TrimSpace(c.data.Notes) != "" {
-		y += 6
+		y += c.gap(6)
 		y, _ = c.left(y, "Note: "+strings.TrimSpace(c.data.Notes), c.data.BodySize-1, false)
-		y += 8
+		y += c.gap(8)
 	}
-	y = c.ruleLine(y) + 10
+	y = c.ruleLine(y) + c.gap(10)
 
 	y, subtotal, discountTotal := c.layout.draw(c, y)
 
-	y = c.ruleLine(y) + 10
+	y = c.ruleLine(y) + c.gap(10)
 	grandTotal := float64(c.data.GrandTotalCents) / 100
 	// See buildESCPosReceipt: the grand total already carries the cash-grid
 	// snap, so tax has to come from the invoice rather than be inferred from
@@ -201,14 +204,14 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	}
 	for _, row := range rows {
 		y, _ = c.twoCol(y, row[0], row[1], 11, true)
-		y += 7
+		y += c.gap(7)
 	}
 	y = c.drawTotal(y, grandTotal)
-	y += 6
+	y += c.gap(6)
 
 	if len(c.data.Payments) > 0 {
 		y, _ = c.center(y, "PAYMENT DETAILS", c.data.BodySize-1, true, false)
-		y += 8
+		y += c.gap(8)
 		for _, payment := range c.data.Payments {
 			label := payment.AccountName
 			if label == "" {
@@ -220,21 +223,21 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 				label = "Received - " + label
 			}
 			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, c.data.RoundingMode), 10, true)
-			y += 7
+			y += c.gap(7)
 		}
 	}
 
 	if len(c.data.Payments) > 0 {
-		y = c.ruleLine(y) + 10
+		y = c.ruleLine(y) + c.gap(10)
 	}
 	y, _ = c.center(y, "EXCHANGE POLICY", c.data.BodySize-1.5, true, false)
-	y += 8
+	y += c.gap(8)
 	policy := c.data.ReturnPolicy
 	if policy == "" {
 		policy = "Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt."
 	}
 	y, _ = c.centerWrappedNormal(y, policy, c.data.BodySize-2.5, 8)
-	y = c.ruleLine(y+6) + 10
+	y = c.ruleLine(y+c.gap(6)) + c.gap(10)
 
 	socials := socialFooterItems(c.data.SocialPlatforms, c.data.SocialHandles)
 	if len(socials) > 0 {
@@ -242,14 +245,14 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		if rowBottom, err = c.socialFooterRow(y, socials); err != nil {
 			return 0, err
 		}
-		y = rowBottom + 10
+		y = rowBottom + c.gap(10)
 		// Match the PDF receipt: show one centered handle beneath the icon row.
 		if y, err = c.center(y, socials[0].handle, c.data.BodySize-1.5, false, false); err != nil {
 			return 0, err
 		}
-		y += 8
+		y += c.gap(8)
 	}
-	y += 10
+	y += c.gap(10)
 	thanks := c.style.Thanks
 	if thanks == "" {
 		thanks = "Thank you for shopping with us!"
@@ -635,6 +638,8 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	const (
 		iconSize = 32
 		gap      = 16
+		// labelGap keeps the first icon off the colon.
+		labelGap = 10
 	)
 
 	label := "Follow us on:"
@@ -642,7 +647,7 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	if err != nil {
 		return y, err
 	}
-	rowWidth := labelWidth + len(items)*iconSize + (len(items)-1)*gap
+	rowWidth := labelWidth + labelGap + len(items)*iconSize + (len(items)-1)*gap
 	startX := c.margin + (c.contentW-rowWidth)/2
 	if startX < c.margin {
 		startX = c.margin
@@ -651,7 +656,7 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 		return y, err
 	}
 
-	x := startX + labelWidth
+	x := startX + labelWidth + labelGap
 	rowBottom := y
 	for _, item := range items {
 		iconBytes := socialPlatformIconBytes(item.platform)
