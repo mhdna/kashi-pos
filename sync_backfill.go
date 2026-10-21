@@ -699,6 +699,7 @@ func (a *App) resyncExpenses(ctx context.Context, client *centralClient, opts Re
 			AccountName:            accountName,
 			BranchShiftID:          shiftID,
 			OccurredAt:             parseLocalTime(r.OccurredAt),
+			FromCentral:            r.FromCentral != 0,
 		})
 		if err != nil {
 			return rep, err

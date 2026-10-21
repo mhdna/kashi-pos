@@ -150,8 +150,8 @@ export function CreateDatabase() {
   return window['go']['main']['App']['CreateDatabase']();
 }
 
-export function CreateExpense(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['CreateExpense'](arg1, arg2, arg3, arg4, arg5);
+export function CreateExpense(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['CreateExpense'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function CreateLoan(arg1, arg2, arg3, arg4, arg5) {
@@ -784,6 +784,10 @@ export function SetDefaultBranch(arg1) {
 
 export function SetExchangeWindowHours(arg1) {
   return window['go']['main']['App']['SetExchangeWindowHours'](arg1);
+}
+
+export function SetExpenseFromCentral(arg1, arg2) {
+  return window['go']['main']['App']['SetExpenseFromCentral'](arg1, arg2);
 }
 
 export function SetHidePaymentMethodCurrency(arg1) {

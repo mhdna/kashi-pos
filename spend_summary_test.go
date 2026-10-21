@@ -49,7 +49,7 @@ func TestGetSpendSummary(t *testing.T) {
 		currency string
 		account  int64
 	}{{10000, "USD", usd.ID}, {2500, "USD", usd.ID}, {20000000, "LBP", lbp.ID}} {
-		if _, err := app.CreateExpense("Supplies", "", e.amount, e.currency, e.account); err != nil {
+		if _, err := app.CreateExpense("Supplies", "", e.amount, e.currency, e.account, false); err != nil {
 			t.Fatal(err)
 		}
 	}

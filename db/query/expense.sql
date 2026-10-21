@@ -7,10 +7,11 @@ INSERT INTO expenses (
   currency_code,
   cashbox_account_id,
   shift_id,
+  from_central,
   occurred_at,
   created_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
+  ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
 ) RETURNING *;
 
 -- name: GetExpense :one
@@ -32,10 +33,14 @@ FROM expenses WHERE cancelled_at IS NULL AND datetime(occurred_at, 'localtime') 
 GROUP BY currency_code;
 
 -- name: ListExpensesForShift :many
-SELECT * FROM expenses WHERE shift_id = ? AND cancelled_at IS NULL ORDER BY id;
+-- What came out of the shift's drawer: an expense central paid for didn't.
+SELECT * FROM expenses WHERE shift_id = ? AND cancelled_at IS NULL AND from_central = 0 ORDER BY id;
 
 -- name: SetExpenseCategory :one
 UPDATE expenses SET category = ? WHERE id = ? RETURNING *;
+
+-- name: SetExpenseFromCentral :one
+UPDATE expenses SET from_central = ? WHERE client_ref = ? RETURNING *;
 
 -- name: CancelExpenseByClientRef :one
 -- Stamps cancelled_at once; a repeat matches no row, which the callers treat

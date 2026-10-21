@@ -147,3 +147,10 @@ DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced';
 UPDATE sync_outbox
 SET payload_json = json_set(payload_json, sqlc.arg(field_path), sqlc.arg(value))
 WHERE client_ref = sqlc.arg(client_ref) AND status != 'synced';
+
+-- name: SetUnsyncedSyncOutboxJSONField :execrows
+-- SetUnsyncedSyncOutboxField for a value that isn't a string: json_value is
+-- JSON text ('true', '12'), stored as that JSON value.
+UPDATE sync_outbox
+SET payload_json = json_set(payload_json, sqlc.arg(field_path), json(sqlc.arg(json_value)))
+WHERE client_ref = sqlc.arg(client_ref) AND status != 'synced';

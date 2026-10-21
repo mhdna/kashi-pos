@@ -11,7 +11,7 @@ import (
 )
 
 const cancelExpenseByClientRef = `-- name: CancelExpenseByClientRef :one
-UPDATE expenses SET cancelled_at = datetime('now') WHERE client_ref = ? AND cancelled_at IS NULL RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at
+UPDATE expenses SET cancelled_at = datetime('now') WHERE client_ref = ? AND cancelled_at IS NULL RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central
 `
 
 // Stamps cancelled_at once; a repeat matches no row, which the callers treat
@@ -31,6 +31,7 @@ func (q *Queries) CancelExpenseByClientRef(ctx context.Context, clientRef string
 		&i.OccurredAt,
 		&i.CreatedAt,
 		&i.CancelledAt,
+		&i.FromCentral,
 	)
 	return i, err
 }
@@ -44,11 +45,12 @@ INSERT INTO expenses (
   currency_code,
   cashbox_account_id,
   shift_id,
+  from_central,
   occurred_at,
   created_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
-) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at
+  ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
+) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central
 `
 
 type CreateExpenseParams struct {
@@ -59,6 +61,7 @@ type CreateExpenseParams struct {
 	CurrencyCode     string        `json:"currencyCode"`
 	CashboxAccountID int64         `json:"cashboxAccountId"`
 	ShiftID          sql.NullInt64 `json:"shiftId"`
+	FromCentral      int64         `json:"fromCentral"`
 }
 
 func (q *Queries) CreateExpense(ctx context.Context, arg CreateExpenseParams) (Expense, error) {
@@ -70,6 +73,7 @@ func (q *Queries) CreateExpense(ctx context.Context, arg CreateExpenseParams) (E
 		arg.CurrencyCode,
 		arg.CashboxAccountID,
 		arg.ShiftID,
+		arg.FromCentral,
 	)
 	var i Expense
 	err := row.Scan(
@@ -84,12 +88,13 @@ func (q *Queries) CreateExpense(ctx context.Context, arg CreateExpenseParams) (E
 		&i.OccurredAt,
 		&i.CreatedAt,
 		&i.CancelledAt,
+		&i.FromCentral,
 	)
 	return i, err
 }
 
 const getExpense = `-- name: GetExpense :one
-SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at FROM expenses WHERE id = ?
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central FROM expenses WHERE id = ?
 `
 
 func (q *Queries) GetExpense(ctx context.Context, id int64) (Expense, error) {
@@ -107,12 +112,13 @@ func (q *Queries) GetExpense(ctx context.Context, id int64) (Expense, error) {
 		&i.OccurredAt,
 		&i.CreatedAt,
 		&i.CancelledAt,
+		&i.FromCentral,
 	)
 	return i, err
 }
 
 const getExpenseByClientRef = `-- name: GetExpenseByClientRef :one
-SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at FROM expenses WHERE client_ref = ?
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central FROM expenses WHERE client_ref = ?
 `
 
 func (q *Queries) GetExpenseByClientRef(ctx context.Context, clientRef string) (Expense, error) {
@@ -130,12 +136,13 @@ func (q *Queries) GetExpenseByClientRef(ctx context.Context, clientRef string) (
 		&i.OccurredAt,
 		&i.CreatedAt,
 		&i.CancelledAt,
+		&i.FromCentral,
 	)
 	return i, err
 }
 
 const listAllExpenses = `-- name: ListAllExpenses :many
-SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at FROM expenses ORDER BY id
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central FROM expenses ORDER BY id
 `
 
 func (q *Queries) ListAllExpenses(ctx context.Context) ([]Expense, error) {
@@ -159,6 +166,7 @@ func (q *Queries) ListAllExpenses(ctx context.Context) ([]Expense, error) {
 			&i.OccurredAt,
 			&i.CreatedAt,
 			&i.CancelledAt,
+			&i.FromCentral,
 		); err != nil {
 			return nil, err
 		}
@@ -174,7 +182,7 @@ func (q *Queries) ListAllExpenses(ctx context.Context) ([]Expense, error) {
 }
 
 const listExpenses = `-- name: ListExpenses :many
-SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at FROM expenses ORDER BY id DESC LIMIT ? OFFSET ?
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central FROM expenses ORDER BY id DESC LIMIT ? OFFSET ?
 `
 
 type ListExpensesParams struct {
@@ -203,6 +211,7 @@ func (q *Queries) ListExpenses(ctx context.Context, arg ListExpensesParams) ([]E
 			&i.OccurredAt,
 			&i.CreatedAt,
 			&i.CancelledAt,
+			&i.FromCentral,
 		); err != nil {
 			return nil, err
 		}
@@ -218,9 +227,10 @@ func (q *Queries) ListExpenses(ctx context.Context, arg ListExpensesParams) ([]E
 }
 
 const listExpensesForShift = `-- name: ListExpensesForShift :many
-SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at FROM expenses WHERE shift_id = ? AND cancelled_at IS NULL ORDER BY id
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central FROM expenses WHERE shift_id = ? AND cancelled_at IS NULL AND from_central = 0 ORDER BY id
 `
 
+// What came out of the shift's drawer: an expense central paid for didn't.
 func (q *Queries) ListExpensesForShift(ctx context.Context, shiftID sql.NullInt64) ([]Expense, error) {
 	rows, err := q.db.QueryContext(ctx, listExpensesForShift, shiftID)
 	if err != nil {
@@ -242,6 +252,7 @@ func (q *Queries) ListExpensesForShift(ctx context.Context, shiftID sql.NullInt6
 			&i.OccurredAt,
 			&i.CreatedAt,
 			&i.CancelledAt,
+			&i.FromCentral,
 		); err != nil {
 			return nil, err
 		}
@@ -257,7 +268,7 @@ func (q *Queries) ListExpensesForShift(ctx context.Context, shiftID sql.NullInt6
 }
 
 const setExpenseCategory = `-- name: SetExpenseCategory :one
-UPDATE expenses SET category = ? WHERE id = ? RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at
+UPDATE expenses SET category = ? WHERE id = ? RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central
 `
 
 type SetExpenseCategoryParams struct {
@@ -280,6 +291,36 @@ func (q *Queries) SetExpenseCategory(ctx context.Context, arg SetExpenseCategory
 		&i.OccurredAt,
 		&i.CreatedAt,
 		&i.CancelledAt,
+		&i.FromCentral,
+	)
+	return i, err
+}
+
+const setExpenseFromCentral = `-- name: SetExpenseFromCentral :one
+UPDATE expenses SET from_central = ? WHERE client_ref = ? RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central
+`
+
+type SetExpenseFromCentralParams struct {
+	FromCentral int64  `json:"fromCentral"`
+	ClientRef   string `json:"clientRef"`
+}
+
+func (q *Queries) SetExpenseFromCentral(ctx context.Context, arg SetExpenseFromCentralParams) (Expense, error) {
+	row := q.db.QueryRowContext(ctx, setExpenseFromCentral, arg.FromCentral, arg.ClientRef)
+	var i Expense
+	err := row.Scan(
+		&i.ID,
+		&i.ClientRef,
+		&i.Description,
+		&i.Category,
+		&i.Amount,
+		&i.CurrencyCode,
+		&i.CashboxAccountID,
+		&i.ShiftID,
+		&i.OccurredAt,
+		&i.CreatedAt,
+		&i.CancelledAt,
+		&i.FromCentral,
 	)
 	return i, err
 }

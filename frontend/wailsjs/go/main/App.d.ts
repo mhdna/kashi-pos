@@ -76,7 +76,7 @@ export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolea
 
 export function CreateDatabase():Promise<string>;
 
-export function CreateExpense(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
+export function CreateExpense(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number,arg6:boolean):Promise<Record<string, any>>;
 
 export function CreateLoan(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
 
@@ -393,6 +393,8 @@ export function SetCustomItemPricesEnabled(arg1:boolean):Promise<void>;
 export function SetDefaultBranch(arg1:string):Promise<void>;
 
 export function SetExchangeWindowHours(arg1:number):Promise<void>;
+
+export function SetExpenseFromCentral(arg1:number,arg2:boolean):Promise<Record<string, any>>;
 
 export function SetHidePaymentMethodCurrency(arg1:boolean):Promise<void>;
 

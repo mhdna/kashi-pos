@@ -32,6 +32,10 @@
         </v-chip>
         <span v-else class="text-medium-emphasis">—</span>
       </template>
+      <template #item.fromCentral="{ item }">
+        <v-chip v-if="item.fromCentral" size="small" color="primary" variant="tonal" prepend-icon="mdi-domain">From central</v-chip>
+        <span v-else class="text-medium-emphasis">—</span>
+      </template>
       <template #item.amount="{ item }">
         <span class="font-weight-bold" :class="{ 'text-decoration-line-through text-medium-emphasis': item.cancelledAt }">{{ formatCents(item.amount) }} {{ item.currencyCode }}</span>
       </template>
@@ -84,6 +88,21 @@
               <v-icon icon="mdi-wallet-outline" color="primary" />
               <div class="overview-value">{{ accountName(selected.cashboxAccountId) }}</div>
             </div>
+            <!-- Who paid: central or this till. An admin can switch it; the
+                 shift only takes the till's off the drawer. -->
+            <component
+              :is="canEditFromCentral ? 'button' : 'div'"
+              type="button"
+              class="overview-card"
+              :class="{ 'overview-card--edit': canEditFromCentral }"
+              :disabled="fromCentralSaving"
+              @click="toggleFromCentral"
+            >
+              <v-icon :icon="selected.fromCentral ? 'mdi-domain' : 'mdi-cash-register'" :color="selected.fromCentral ? 'primary' : undefined" />
+              <div class="overview-value">{{ selected.fromCentral ? "From central · من المركزي" : "From the till" }}</div>
+              <v-progress-circular v-if="fromCentralSaving" indeterminate size="16" width="2" class="ms-auto" />
+              <v-icon v-else-if="canEditFromCentral" icon="mdi-swap-horizontal" size="18" class="ms-auto text-medium-emphasis" />
+            </component>
           </div>
 
           <div class="section-label mb-2">Photos</div>
@@ -218,6 +237,17 @@
               Add payment method
             </v-btn>
             <div v-if="totalsLabel" class="text-body-2 font-weight-bold mt-1">Total: {{ totalsLabel }}</div>
+            <!-- Central paid it: still this branch's expense, but the shift
+                 doesn't take it off the drawer. -->
+            <v-switch
+              v-model="form.fromCentral"
+              color="primary"
+              density="comfortable"
+              class="mt-2"
+              label="From central · من المركزي"
+              :hint="form.fromCentral ? 'Paid by central: the shift won\'t take it out of the drawer.' : ''"
+              :persistent-hint="form.fromCentral"
+            />
           </v-form>
         </v-card-text>
         <v-card-actions class="px-5 pb-4">
@@ -251,6 +281,7 @@ import {
   ListExpensePhotoIDs,
   ListExpenses,
   ListPaymentMethods,
+  SetExpenseFromCentral,
   UpdateExpenseCategory,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
@@ -268,6 +299,7 @@ const headers = [
   { title: "Photo", key: "photo", sortable: false, width: 72 },
   { title: "Description", key: "description", sortable: false },
   { title: "Category", key: "category", sortable: false },
+  { title: "From central", key: "fromCentral", sortable: false },
   { title: "Amount", key: "amount", sortable: false, align: "end" as const },
   { title: "Date", key: "occurredAt", sortable: false },
 ];
@@ -347,7 +379,7 @@ const saving = ref(false);
 const formRef = ref();
 type PaymentLine = { key: number; cashboxAccountId: number | null; amount: string };
 let lineKey = 0;
-const form = ref({ description: "", category: "", payments: [] as PaymentLine[] });
+const form = ref({ description: "", category: "", fromCentral: false, payments: [] as PaymentLine[] });
 const required = (v: unknown) => (v !== null && v !== undefined && v !== "") || "Required";
 
 function accountOf(id: number | null) {
@@ -389,7 +421,7 @@ const canSave = computed(
 );
 
 function openAdd() {
-  form.value = { description: "", category: "", payments: [] };
+  form.value = { description: "", category: "", fromCentral: false, payments: [] };
   addPaymentLine();
   dialog.value = true;
 }
@@ -410,6 +442,7 @@ async function submit() {
         Math.round(Number(line.amount) * 100),
         accountOf(line.cashboxAccountId)?.currencyCode ?? "USD",
         line.cashboxAccountId as number,
+        form.value.fromCentral,
       );
       if (!firstRef && created?.clientRef) {
         firstRef = created.clientRef;
@@ -467,6 +500,26 @@ async function setCategory(name: string) {
     photoError.value = `Couldn't change the category: ${err}`;
   } finally {
     categorySaving.value = false;
+  }
+}
+
+// Admin only, like cancelling; kashi gets the change too.
+const fromCentralSaving = ref(false);
+const canEditFromCentral = computed(() => auth.isAdmin && !selected.value?.cancelledAt);
+async function toggleFromCentral() {
+  const item = selected.value;
+  if (!item || !canEditFromCentral.value) return;
+  fromCentralSaving.value = true;
+  photoError.value = "";
+  try {
+    const updated = await SetExpenseFromCentral(item.id, !item.fromCentral);
+    // The row in the table is this same object, so it updates too.
+    item.fromCentral = Boolean(updated?.fromCentral);
+    notifyIncomeChanged();
+  } catch (err) {
+    photoError.value = `Couldn't change who paid: ${err}`;
+  } finally {
+    fromCentralSaving.value = false;
   }
 }
 

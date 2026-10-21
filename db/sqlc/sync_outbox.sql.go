@@ -391,6 +391,28 @@ func (q *Queries) SetUnsyncedSyncOutboxField(ctx context.Context, arg SetUnsynce
 	return result.RowsAffected()
 }
 
+const setUnsyncedSyncOutboxJSONField = `-- name: SetUnsyncedSyncOutboxJSONField :execrows
+UPDATE sync_outbox
+SET payload_json = json_set(payload_json, ?1, json(?2))
+WHERE client_ref = ?3 AND status != 'synced'
+`
+
+type SetUnsyncedSyncOutboxJSONFieldParams struct {
+	FieldPath interface{} `json:"fieldPath"`
+	JsonValue interface{} `json:"jsonValue"`
+	ClientRef string      `json:"clientRef"`
+}
+
+// SetUnsyncedSyncOutboxField for a value that isn't a string: json_value is
+// JSON text ('true', '12'), stored as that JSON value.
+func (q *Queries) SetUnsyncedSyncOutboxJSONField(ctx context.Context, arg SetUnsyncedSyncOutboxJSONFieldParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setUnsyncedSyncOutboxJSONField, arg.FieldPath, arg.JsonValue, arg.ClientRef)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const syncStateForInvoices = `-- name: SyncStateForInvoices :many
 SELECT
     icr.invoice_id   AS invoice_id,

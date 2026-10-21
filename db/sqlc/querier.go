@@ -440,6 +440,7 @@ type Querier interface {
 	ListDueSyncOutboxEntries(ctx context.Context, limit int64) ([]SyncOutbox, error)
 	ListExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)
+	// What came out of the shift's drawer: an expense central paid for didn't.
 	ListExpensesForShift(ctx context.Context, shiftID sql.NullInt64) ([]Expense, error)
 	ListHoldInvoiceItems(ctx context.Context, holdInvoiceID int64) ([]ListHoldInvoiceItemsRow, error)
 	ListHoldInvoices(ctx context.Context) ([]HoldInvoice, error)
@@ -608,6 +609,7 @@ type Querier interface {
 	SetClientUID(ctx context.Context, arg SetClientUIDParams) error
 	SetCurrencyActive(ctx context.Context, arg SetCurrencyActiveParams) (Currency, error)
 	SetExpenseCategory(ctx context.Context, arg SetExpenseCategoryParams) (Expense, error)
+	SetExpenseFromCentral(ctx context.Context, arg SetExpenseFromCentralParams) (Expense, error)
 	SetFeatureFlag(ctx context.Context, arg SetFeatureFlagParams) error
 	SetFullMirrorConfirmedAt(ctx context.Context, fullMirrorConfirmedAt sql.NullString) error
 	SetHomeBranchCode(ctx context.Context, homeBranchCode string) error
@@ -656,6 +658,9 @@ type Querier interface {
 	// expense re-categorised before it synced), so the edit goes up with the
 	// record itself. 0 rows: it's synced (or was never queued).
 	SetUnsyncedSyncOutboxField(ctx context.Context, arg SetUnsyncedSyncOutboxFieldParams) (int64, error)
+	// SetUnsyncedSyncOutboxField for a value that isn't a string: json_value is
+	// JSON text ('true', '12'), stored as that JSON value.
+	SetUnsyncedSyncOutboxJSONField(ctx context.Context, arg SetUnsyncedSyncOutboxJSONFieldParams) (int64, error)
 	SetUserPasswordHashByUsername(ctx context.Context, arg SetUserPasswordHashByUsernameParams) (int64, error)
 	SetVisitorCount(ctx context.Context, arg SetVisitorCountParams) error
 	// Guard for the uploader: kashi only has a branch_shifts row to attach the

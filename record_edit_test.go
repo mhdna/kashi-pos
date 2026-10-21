@@ -13,7 +13,7 @@ import (
 func TestUpdateExpenseCategoryFollowsTheExpense(t *testing.T) {
 	app, store, cashbox, _ := setUpTestInvoiceApp(t, "http://central.test")
 
-	created, err := app.CreateExpense("Internet", "", 5000, "USD", cashbox.ID)
+	created, err := app.CreateExpense("Internet", "", 5000, "USD", cashbox.ID, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestCreateExpenseStoresUTC(t *testing.T) {
 	app, store, cashbox, _ := setUpTestInvoiceApp(t, "")
 	before := time.Now().UTC().Add(-time.Minute)
 
-	created, err := app.CreateExpense("Glue", "", 100, "USD", cashbox.ID)
+	created, err := app.CreateExpense("Glue", "", 100, "USD", cashbox.ID, false)
 	if err != nil {
 		t.Fatal(err)
 	}

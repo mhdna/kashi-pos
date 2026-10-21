@@ -258,6 +258,7 @@ type Expense struct {
 	OccurredAt       string         `json:"occurredAt"`
 	CreatedAt        string         `json:"createdAt"`
 	CancelledAt      sql.NullString `json:"cancelledAt"`
+	FromCentral      int64          `json:"fromCentral"`
 }
 
 type ExpenseCategory struct {

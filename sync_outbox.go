@@ -209,6 +209,8 @@ type branchExpensePayload struct {
 	AccountName   string    `json:"account_name"`
 	BranchShiftID *int64    `json:"branch_shift_id,omitempty"`
 	OccurredAt    time.Time `json:"occurred_at"`
+	// FromCentral: central paid it, so the shift didn't count it.
+	FromCentral bool `json:"from_central"`
 }
 
 // queueBranchExpenseSync is queueBranchInvoiceSync's counterpart for

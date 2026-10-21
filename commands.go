@@ -59,6 +59,8 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 		return a.executeTransferDecisionCommand(ctx, cmd.Payload)
 	case "cancel_record":
 		return a.executeCancelRecordCommand(ctx, cmd.Payload)
+	case "set_expense_from_central":
+		return a.executeSetExpenseFromCentralCommand(ctx, cmd.Payload)
 	case "review_attendance_request":
 		return a.executeReviewAttendanceRequestCommand(cmd.Payload)
 	case "replace_shift_balance":

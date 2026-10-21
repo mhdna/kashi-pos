@@ -60,7 +60,7 @@ INSERT INTO expenses (
   cashbox_account_id, shift_id, occurred_at, created_at
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?
-) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at
+) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central
 `
 
 type CreateHistoricalExpenseParams struct {
@@ -99,6 +99,8 @@ func (q *Queries) CreateHistoricalExpense(ctx context.Context, arg CreateHistori
 		&i.ShiftID,
 		&i.OccurredAt,
 		&i.CreatedAt,
+		&i.CancelledAt,
+		&i.FromCentral,
 	)
 	return i, err
 }
@@ -175,7 +177,7 @@ INSERT INTO loans (
   cashbox_account_id, shift_id, occurred_at, created_at
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?
-) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at
+) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at
 `
 
 type CreateHistoricalLoanParams struct {
@@ -214,6 +216,7 @@ func (q *Queries) CreateHistoricalLoan(ctx context.Context, arg CreateHistorical
 		&i.ShiftID,
 		&i.OccurredAt,
 		&i.CreatedAt,
+		&i.CancelledAt,
 	)
 	return i, err
 }
