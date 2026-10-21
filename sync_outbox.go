@@ -478,7 +478,10 @@ type branchShiftClosePayload struct {
 	CountedLbp        int64     `json:"counted_lbp"`
 	CountedVisa       int64     `json:"counted_visa"`
 	CountedWhish      int64     `json:"counted_whish"`
-	OccurredAt        time.Time `json:"occurred_at"`
+	// LbpRate is LBP per USD at close; 0 (a backfilled shift) lets kashi
+	// apply the rate every till used before this field existed.
+	LbpRate    int64     `json:"lbp_rate"`
+	OccurredAt time.Time `json:"occurred_at"`
 }
 
 // queueBranchShiftCloseSync is queueBranchInvoiceSync's counterpart for a

@@ -381,6 +381,11 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		}
 	}
 
+	var lbpRate int64
+	if lbp, rateErr := a.store.GetCurrencyByCode(a.ctx, "LBP"); rateErr == nil {
+		lbpRate = lbp.UnitsPerUsdMicros / unitsPerUsdMicroScale
+	}
+
 	shiftRef := fmt.Sprintf("shift-%d", id)
 	shiftClosePayload := branchShiftClosePayload{
 		ShiftRef:          shiftRef,
@@ -398,6 +403,7 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		CountedLbp:        countedLBP,
 		CountedVisa:       countedVisa,
 		CountedWhish:      countedWhish,
+		LbpRate:           lbpRate,
 		OccurredAt:        time.Now().UTC(),
 	}
 
