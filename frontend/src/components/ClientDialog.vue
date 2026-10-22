@@ -725,12 +725,6 @@ function reset() {
   margin-inline-end: 8px;
 }
 
-/* The shared PhonePad adds an arrow row; slightly shorter keys keep the dialog
-   from growing much taller than it was. */
-.client-phone-pad :deep(.phone-pad-key) {
-  height: 46px !important;
-}
-
 .client-phone-numpad-display {
   align-items: baseline;
   display: flex;

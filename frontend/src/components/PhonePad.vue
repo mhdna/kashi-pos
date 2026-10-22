@@ -46,7 +46,7 @@ function press(key: string) {
 .phone-pad {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+  gap: 6px;
   max-width: 360px;
   margin-inline: auto;
 }
@@ -55,7 +55,18 @@ function press(key: string) {
 .phone-pad-key {
   grid-column: span 2;
   height: 52px !important;
-  font-size: 1.35rem;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border-radius: 4px;
+  font-size: 2rem !important;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.phone-pad-key:hover {
+  border-color: currentColor;
 }
 
 .phone-pad-key:nth-last-child(-n + 2) {
