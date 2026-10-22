@@ -559,7 +559,7 @@ function reset() {
 .country-flag-lebanon::after {
   content: "";
   position: absolute;
-  inset: 3px 9px 3px 9px;
+  inset: 19% 37.5%;
   background: #16863d;
   clip-path: polygon(
     50% 0,
@@ -678,7 +678,7 @@ function reset() {
 .client-phone-country-cards {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   overflow-y: auto;
   padding: 2px;
 }
@@ -698,6 +698,20 @@ function reset() {
   text-align: start;
 }
 
+.client-phone-country-card .country-flag,
+.client-phone-country-trigger .country-flag {
+  font-size: 2.1rem;
+  margin-inline-end: 0;
+}
+
+/* The Lebanese flag is drawn, not an emoji, so it needs the size set. */
+.client-phone-country-card .country-flag-lebanon,
+.client-phone-country-trigger .country-flag-lebanon {
+  height: 28px;
+  vertical-align: baseline;
+  width: 42px;
+}
+
 .client-phone-country-card:hover {
   border-color: currentColor;
 }
@@ -711,9 +725,8 @@ function reset() {
 .client-phone-country-card-name {
   font-size: 0.9rem;
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .client-phone-country-card-code {
