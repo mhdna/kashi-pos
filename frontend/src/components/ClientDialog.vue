@@ -1,10 +1,10 @@
 <template>
   <!-- Reset only once the close animation is over: resetting on close put
        the phone step back on screen while the dialog was still fading. -->
-  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 640 : 760" @after-leave="reset">
+  <v-dialog v-model="dialog" :max-width="step === 'phone' && !countryPickerOpen ? 640 : 760" @after-leave="reset">
     <v-card v-if="step === 'phone'" class="client-phone-card">
-      <v-card-title class="font-weight-bold">Enter Phone Number</v-card-title>
-      <v-card-text class="client-phone-layout">
+      <v-card-title v-if="!countryPickerOpen" class="font-weight-bold">Enter Phone Number</v-card-title>
+      <v-card-text v-if="!countryPickerOpen" class="client-phone-layout">
         <div class="client-phone-form">
           <div class="client-phone-numpad">
           <div class="client-phone-numpad-display">
@@ -128,18 +128,26 @@
         </div>
       </v-card-text>
 
-      <!-- Every country as a card, filling the whole dialog; tapping one
-           picks it and closes this. -->
-      <div
-        v-if="countryPickerOpen"
-        class="client-phone-picker"
-        role="dialog"
-        aria-label="Select country"
-      >
+      <!-- Every country as a card, replacing the phone step; tapping one
+           picks it and goes back. Search is typed on the on-screen keyboard
+           below, by country name or dial code. -->
+      <div v-else class="client-phone-picker" role="dialog" aria-label="Select country">
         <div class="client-phone-picker-header">
           <span class="text-h6 font-weight-bold">Select country</span>
-          <v-btn variant="tonal" size="large" @click="countryPickerOpen = false">Close</v-btn>
+          <v-btn variant="tonal" size="large" @click="closeCountryPicker">Close</v-btn>
         </div>
+        <v-text-field
+          :model-value="countrySearch"
+          class="client-phone-picker-search"
+          placeholder="Search country or code"
+          variant="outlined"
+          density="comfortable"
+          prepend-inner-icon="mdi-magnify"
+          hide-details
+          readonly
+          clearable
+          @click:clear="countrySearch = ''"
+        />
         <div class="client-phone-picker-grid">
           <button
             v-for="country in pickerCountries"
@@ -158,7 +166,11 @@
             <span class="client-phone-country-card-name">{{ country.name }}</span>
             <span class="client-phone-country-card-code">+{{ country.dialCode }}</span>
           </button>
+          <div v-if="pickerCountries.length === 0" class="client-phone-picker-empty text-medium-emphasis">
+            No country matches "{{ countrySearch }}"
+          </div>
         </div>
+        <InlineKeyboard v-model="countrySearch" class="client-phone-picker-keyboard" layout="code" :max-length="30" />
       </div>
     </v-card>
 
@@ -276,17 +288,33 @@ const frequentCountries = frequentCountryCodes
   .map((code) => countries.find((country) => country.code === code))
   .filter((country): country is (typeof countries)[number] => !!country);
 // The full picker lists the common countries first, then everyone else A-Z.
-const pickerCountries = [
+const allPickerCountries = [
   ...frequentCountries,
   ...countries.filter((country) => !frequentCountryCodes.includes(country.code)),
 ];
 const countryPickerOpen = ref(false);
+const countrySearch = ref("");
+// Matches the name, the ISO code or the dial code ("+1" and "1" both work).
+const pickerCountries = computed(() => {
+  const query = countrySearch.value.trim().toLowerCase().replace(/^\+/, "");
+  if (!query) return allPickerCountries;
+  return allPickerCountries.filter(
+    (country) =>
+      country.name.toLowerCase().includes(query) ||
+      country.code.toLowerCase() === query ||
+      country.dialCode.startsWith(query),
+  );
+});
+function closeCountryPicker() {
+  countryPickerOpen.value = false;
+  countrySearch.value = "";
+}
 const selectedCountryName = computed(
   () => countries.find((country) => country.code === selectedCountry.value)?.name ?? selectedCountry.value,
 );
 function pickCountry(code: CountryCode) {
   selectedCountry.value = code;
-  countryPickerOpen.value = false;
+  closeCountryPicker();
 }
 const selectedFlag = computed(() => flagForCountry(selectedCountry.value));
 const selectedDialCode = computed(() => getCountryCallingCode(selectedCountry.value));
@@ -503,7 +531,7 @@ function reset() {
   phone.value = "";
   phoneSubmitted.value = false;
   selectedCountry.value = "LB";
-  countryPickerOpen.value = false;
+  closeCountryPicker();
   newClient.name = "";
   newClient.phone = "";
   newPhoneError.value = "";
@@ -594,13 +622,10 @@ function reset() {
 }
 
 .client-phone-picker {
-  background: rgb(var(--v-theme-surface));
   display: flex;
   flex-direction: column;
-  inset: 0;
+  height: min(92vh, 760px);
   padding: 16px;
-  position: absolute;
-  z-index: 2;
 }
 
 .client-phone-picker-header {
@@ -610,10 +635,32 @@ function reset() {
   margin-bottom: 12px;
 }
 
+.client-phone-picker-search {
+  flex: 0 0 auto;
+  margin-bottom: 10px;
+}
+
+.client-phone-picker-keyboard {
+  flex: 0 0 auto;
+  margin-inline: auto;
+  margin-top: 10px;
+  max-width: 700px;
+  width: 100%;
+}
+
+.client-phone-picker-empty {
+  grid-column: 1 / -1;
+  padding: 24px;
+  text-align: center;
+}
+
 .client-phone-picker-grid {
   display: grid;
   gap: 10px;
+  flex: 1 1 0;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  align-content: start;
+  min-height: 0;
   overflow-y: auto;
   padding: 2px;
 }
