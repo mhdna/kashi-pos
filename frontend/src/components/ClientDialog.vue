@@ -1,46 +1,11 @@
 <template>
   <!-- Reset only once the close animation is over: resetting on close put
        the phone step back on screen while the dialog was still fading. -->
-  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 320 : 760" @after-leave="reset">
+  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 640 : 760" @after-leave="reset">
     <v-card v-if="step === 'phone'">
       <v-card-title class="font-weight-bold">Enter Phone Number</v-card-title>
       <v-card-text class="client-phone-layout">
         <div class="client-phone-form">
-          <v-autocomplete
-            v-model="selectedCountry"
-            :items="countries"
-            item-title="displayName"
-            item-value="code"
-            placeholder="Country"
-            variant="outlined"
-            density="compact"
-            class="mb-2"
-            hide-details
-            autocomplete="off"
-          >
-            <template #selection="{ item }">
-              <span
-                v-if="isLebanon(item.code)"
-                class="country-flag country-flag-lebanon"
-                aria-label="Lebanon"
-              />
-              <span v-else class="country-flag">{{ item.flag }}</span>
-              <span>{{ item.displayName }}</span>
-            </template>
-            <template #item="{ props: itemProps, item }">
-              <v-list-item v-bind="itemProps" :subtitle="`+${item.dialCode}`">
-                <template #title>
-                  <span
-                    v-if="isLebanon(item.code)"
-                    class="country-flag country-flag-lebanon"
-                    aria-label="Lebanon"
-                  />
-                  <span v-else class="country-flag">{{ item.flag }}</span>
-                  <span>{{ item.name }}</span>
-                </template>
-              </v-list-item>
-            </template>
-          </v-autocomplete>
           <div class="client-phone-numpad">
           <div class="client-phone-numpad-display">
             <input
@@ -121,6 +86,64 @@
           >
             Prefer not to say
           </v-btn>
+        </div>
+        <div class="client-phone-countries">
+          <v-autocomplete
+            v-model="selectedCountry"
+            :items="countries"
+            item-title="displayName"
+            item-value="code"
+            placeholder="Country"
+            variant="outlined"
+            density="compact"
+            class="mb-3"
+            hide-details
+            autocomplete="off"
+          >
+            <template #selection="{ item }">
+              <span
+                v-if="isLebanon(item.code)"
+                class="country-flag country-flag-lebanon"
+                aria-label="Lebanon"
+              />
+              <span v-else class="country-flag">{{ item.flag }}</span>
+              <span>{{ item.displayName }}</span>
+            </template>
+            <template #item="{ props: itemProps, item }">
+              <v-list-item v-bind="itemProps" :subtitle="`+${item.dialCode}`">
+                <template #title>
+                  <span
+                    v-if="isLebanon(item.code)"
+                    class="country-flag country-flag-lebanon"
+                    aria-label="Lebanon"
+                  />
+                  <span v-else class="country-flag">{{ item.flag }}</span>
+                  <span>{{ item.name }}</span>
+                </template>
+              </v-list-item>
+            </template>
+          </v-autocomplete>
+          <div class="client-phone-country-cards" role="listbox" aria-label="Common countries">
+            <button
+              v-for="country in frequentCountries"
+              :key="country.code"
+              type="button"
+              role="option"
+              class="client-phone-country-card"
+              :class="{ 'client-phone-country-card--active': country.code === selectedCountry }"
+              :aria-selected="country.code === selectedCountry"
+              @click="selectedCountry = country.code"
+            >
+              <span
+                v-if="isLebanon(country.code)"
+                class="country-flag country-flag-lebanon"
+                aria-label="Lebanon"
+              />
+              <span v-else class="country-flag">{{ country.flag }}</span>
+              <span class="client-phone-country-card-name">{{ country.name }}</span>
+              <span class="client-phone-country-card-code">+{{ country.dialCode }}</span>
+            </button>
+          </div>
         </div>
       </v-card-text>
     </v-card>
@@ -228,6 +251,16 @@ const countries = getCountries()
     flag: flagForCountry(code),
   }))
   .sort((a, b) => a.name.localeCompare(b.name));
+// Countries our clients' numbers actually come from (production, by client
+// count), most common first; +1 is shared by Canada and the US, so both are
+// listed. Anything else is still in the dropdown.
+const frequentCountryCodes: CountryCode[] = [
+  "LB", "IQ", "SY", "CI", "DE", "FR", "CG", "ID", "GA", "SL", "SA", "CA", "US",
+  "ML", "GM", "AE", "GH", "CF", "SE", "MZ", "CH", "KW", "GB", "TG", "OM", "AF",
+];
+const frequentCountries = frequentCountryCodes
+  .map((code) => countries.find((country) => country.code === code))
+  .filter((country): country is (typeof countries)[number] => !!country);
 const selectedFlag = computed(() => flagForCountry(selectedCountry.value));
 const selectedDialCode = computed(() => getCountryCallingCode(selectedCountry.value));
 const phoneError = computed(() =>
@@ -489,8 +522,68 @@ function reset() {
 }
 
 .client-phone-layout {
+  align-items: flex-start;
   display: flex;
+  gap: 24px;
   justify-content: center;
+}
+
+.client-phone-countries {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+  /* Same height as the numpad column so the cards scroll instead of
+     stretching the dialog. */
+  max-height: 560px;
+}
+
+.client-phone-country-cards {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.client-phone-country-card {
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 0 8px;
+  grid-template-columns: auto 1fr;
+  padding: 8px 10px;
+  text-align: start;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.client-phone-country-card:hover {
+  border-color: currentColor;
+}
+
+.client-phone-country-card--active {
+  background: rgba(var(--v-theme-primary), 0.12);
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.client-phone-country-card-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-phone-country-card-code {
+  font-size: 0.75rem;
+  grid-column: 2;
+  opacity: 0.7;
 }
 
 .client-phone-form {
@@ -576,7 +669,7 @@ function reset() {
 
 @media (max-width: 600px) {
   .client-phone-layout {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
   .client-phone-numpad {
