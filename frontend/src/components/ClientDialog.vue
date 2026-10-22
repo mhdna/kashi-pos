@@ -242,16 +242,35 @@ const allPickerCountries = [
 ];
 const countryPickerOpen = ref(false);
 const countrySearch = ref("");
-// Matches the name, the ISO code or the dial code ("+1" and "1" both work).
+// Search by name ("uni"), two-letter code ("us") or dial code ("+1" or "1").
+// Closest matches first: an exact code, then names starting with the text,
+// then dial codes starting with it, then names containing it; ties keep the
+// common-countries-first order.
 const pickerCountries = computed(() => {
-  const query = countrySearch.value.trim().toLowerCase().replace(/^\+/, "");
+  const raw = countrySearch.value.trim().toLowerCase();
+  if (!raw) return allPickerCountries;
+  const dialOnly = raw.startsWith("+");
+  const query = raw.replace(/^\+/, "");
   if (!query) return allPickerCountries;
-  return allPickerCountries.filter(
-    (country) =>
-      country.name.toLowerCase().includes(query) ||
-      country.code.toLowerCase() === query ||
-      country.dialCode.startsWith(query),
-  );
+  const digitsOnly = /^\d+$/.test(query);
+  const rank = (country: (typeof countries)[number]) => {
+    const name = country.name.toLowerCase();
+    const iso = country.code.toLowerCase();
+    if (digitsOnly) {
+      if (country.dialCode === query) return 0;
+      return country.dialCode.startsWith(query) ? 2 : -1;
+    }
+    if (dialOnly) return -1;
+    if (iso === query) return 0;
+    if (name.startsWith(query)) return 1;
+    if (query.length <= 2 && iso.startsWith(query)) return 2;
+    return name.includes(query) ? 3 : -1;
+  };
+  return allPickerCountries
+    .map((country, index) => ({ country, index, score: rank(country) }))
+    .filter((entry) => entry.score >= 0)
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .map((entry) => entry.country);
 });
 function closeCountryPicker() {
   countryPickerOpen.value = false;
