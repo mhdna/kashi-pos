@@ -216,11 +216,16 @@ const newPhoneField = ref<InstanceType<typeof PhoneField> | null>(null);
 const newPhoneActive = ref(false);
 const newPhoneError = ref("");
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
+// Left out of the country lists altogether.
+const hiddenCountryCodes: string[] = ["IL"];
+// The browser's own names, except where we use a different one.
+const countryNameOverrides: Record<string, string> = { PS: "Palestine" };
 const countries = getCountries()
+  .filter((code) => !hiddenCountryCodes.includes(code))
   .map((code) => ({
     code,
-    name: countryNames.of(code) || code,
-    displayName: `${countryNames.of(code) || code} (+${getCountryCallingCode(code)})`,
+    name: countryNameOverrides[code] || countryNames.of(code) || code,
+    displayName: `${countryNameOverrides[code] || countryNames.of(code) || code} (+${getCountryCallingCode(code)})`,
     dialCode: getCountryCallingCode(code),
     flag: flagForCountry(code),
   }))
@@ -229,7 +234,7 @@ const countries = getCountries()
 // count), most common first; +1 is shared by Canada and the US, so both are
 // listed. Anything else is still in the dropdown.
 const frequentCountryCodes: CountryCode[] = [
-  "LB", "IQ", "SY", "CI", "DE", "FR", "CG", "ID", "GA", "SL", "SA", "CA", "US",
+  "LB", "IQ", "SY", "PS", "CI", "DE", "FR", "CG", "ID", "GA", "SL", "SA", "CA", "US",
   "ML", "GM", "AE", "GH", "CF", "SE", "MZ", "CH", "KW", "GB", "TG", "OM", "AF",
 ];
 const frequentCountries = frequentCountryCodes
