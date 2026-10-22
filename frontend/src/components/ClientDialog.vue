@@ -96,7 +96,6 @@
             :aria-expanded="countryPickerOpen"
             @click="countryPickerOpen = true"
           >
-            <span class="client-phone-country-trigger-label">Country</span>
             <span class="country-flag">{{ selectedFlag }}</span>
             <span class="client-phone-country-trigger-name">{{ selectedCountryName }} (+{{ selectedDialCode }})</span>
             <span class="client-phone-country-trigger-search" aria-hidden="true">
@@ -544,48 +543,30 @@ function reset() {
 
 .client-phone-country-trigger {
   align-items: center;
-  background: transparent;
-  border: 1px solid rgba(var(--v-border-color), 0.55);
+  background: rgb(var(--v-theme-primary));
+  border: 0;
   border-radius: 4px;
-  color: inherit;
+  color: rgb(var(--v-theme-on-primary));
   cursor: pointer;
   display: grid;
   gap: 0 10px;
   grid-template-columns: auto 1fr auto;
   min-height: 56px;
-  padding: 0 8px 0 12px;
-  position: relative;
+  padding: 0 14px 0 12px;
   text-align: start;
   width: 100%;
 }
 
-/* Sits on the top border like an outlined field's label. */
-.client-phone-country-trigger-label {
-  background: rgb(var(--v-theme-surface));
-  font-size: 0.75rem;
-  left: 10px;
-  line-height: 1;
-  opacity: 0.75;
-  padding: 0 4px;
-  position: absolute;
-  top: -6px;
-}
-
 .client-phone-country-trigger-search {
   align-items: center;
-  background: rgb(var(--v-theme-primary));
-  border-radius: 4px;
-  color: rgb(var(--v-theme-on-primary));
   display: flex;
   font-size: 0.95rem;
   font-weight: 500;
   gap: 6px;
-  height: 40px;
-  padding: 0 14px;
 }
 
 .client-phone-country-trigger:hover {
-  border-color: currentColor;
+  filter: brightness(1.1);
 }
 
 .client-phone-country-trigger-name {
