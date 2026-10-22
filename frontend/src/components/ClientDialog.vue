@@ -90,14 +90,19 @@
         <div class="client-phone-countries">
           <button
             type="button"
-            class="client-phone-country-trigger mb-3"
+            class="client-phone-country-trigger mt-2 mb-3"
+            aria-label="Country: choose or search"
             aria-haspopup="dialog"
             :aria-expanded="countryPickerOpen"
             @click="countryPickerOpen = true"
           >
+            <span class="client-phone-country-trigger-label">Country</span>
             <span class="country-flag">{{ selectedFlag }}</span>
             <span class="client-phone-country-trigger-name">{{ selectedCountryName }} (+{{ selectedDialCode }})</span>
-            <span class="client-phone-country-trigger-more">All countries</span>
+            <span class="client-phone-country-trigger-icons" aria-hidden="true">
+              <v-icon icon="mdi-magnify" size="22" />
+              <v-icon icon="mdi-menu-down" size="28" />
+            </span>
           </button>
           <div class="client-phone-country-cards" role="listbox" aria-label="Common countries">
             <button
@@ -540,17 +545,39 @@ function reset() {
 .client-phone-country-trigger {
   align-items: center;
   background: transparent;
-  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border: 1px solid rgba(var(--v-border-color), 0.55);
   border-radius: 4px;
   color: inherit;
   cursor: pointer;
   display: grid;
   gap: 0 10px;
   grid-template-columns: auto 1fr auto;
-  min-height: 48px;
-  padding: 0 12px;
+  min-height: 56px;
+  padding: 0 8px 0 12px;
+  position: relative;
   text-align: start;
   width: 100%;
+}
+
+/* Sits on the top border like an outlined field's label. */
+.client-phone-country-trigger-label {
+  background: rgb(var(--v-theme-surface));
+  font-size: 0.75rem;
+  left: 10px;
+  line-height: 1;
+  opacity: 0.75;
+  padding: 0 4px;
+  position: absolute;
+  top: -6px;
+}
+
+.client-phone-country-trigger-icons {
+  align-items: center;
+  border-inline-start: 1px solid rgba(var(--v-border-color), 0.3);
+  display: flex;
+  gap: 2px;
+  opacity: 0.7;
+  padding-inline-start: 8px;
 }
 
 .client-phone-country-trigger:hover {
@@ -563,11 +590,6 @@ function reset() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.client-phone-country-trigger-more {
-  font-size: 0.8rem;
-  opacity: 0.6;
 }
 
 .client-phone-picker {
