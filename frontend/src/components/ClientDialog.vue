@@ -670,6 +670,8 @@ function reset() {
   flex: 1 1 0;
   flex-direction: column;
   min-width: 0;
+  /* On the left of the numpad, though it follows it in the markup. */
+  order: -1;
   /* Same height as the numpad column so the cards scroll instead of
      stretching the dialog. */
   max-height: 560px;
@@ -819,6 +821,10 @@ function reset() {
 @media (max-width: 600px) {
   .client-phone-layout {
     flex-direction: column;
+  }
+
+  .client-phone-countries {
+    order: 0;
   }
 
   .client-phone-numpad {
