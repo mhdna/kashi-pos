@@ -95,12 +95,7 @@
             :aria-expanded="countryPickerOpen"
             @click="countryPickerOpen = true"
           >
-            <span
-              v-if="isLebanon(selectedCountry)"
-              class="country-flag country-flag-lebanon"
-              aria-label="Lebanon"
-            />
-            <span v-else class="country-flag">{{ selectedFlag }}</span>
+            <span class="country-flag">{{ selectedFlag }}</span>
             <span class="client-phone-country-trigger-name">{{ selectedCountryName }} (+{{ selectedDialCode }})</span>
             <span class="client-phone-country-trigger-more">All countries</span>
           </button>
@@ -115,12 +110,7 @@
               :aria-selected="country.code === selectedCountry"
               @click="selectedCountry = country.code"
             >
-              <span
-                v-if="isLebanon(country.code)"
-                class="country-flag country-flag-lebanon"
-                aria-label="Lebanon"
-              />
-              <span v-else class="country-flag">{{ country.flag }}</span>
+              <span class="country-flag">{{ country.flag }}</span>
               <span class="client-phone-country-card-name">{{ country.name }}</span>
               <span class="client-phone-country-card-code">+{{ country.dialCode }}</span>
             </button>
@@ -157,12 +147,7 @@
             :class="{ 'client-phone-country-card--active': country.code === selectedCountry }"
             @click="pickCountry(country.code)"
           >
-            <span
-              v-if="isLebanon(country.code)"
-              class="country-flag country-flag-lebanon"
-              aria-label="Lebanon"
-            />
-            <span v-else class="country-flag">{{ country.flag }}</span>
+            <span class="country-flag">{{ country.flag }}</span>
             <span class="client-phone-country-card-name">{{ country.name }}</span>
             <span class="client-phone-country-card-code">+{{ country.dialCode }}</span>
           </button>
@@ -185,12 +170,7 @@
           @focus="newPhoneActive = true"
         >
           <template #prepend>
-            <span
-              v-if="isLebanon(selectedCountry)"
-              class="country-flag country-flag-lebanon"
-              aria-label="Lebanon"
-            />
-            <span v-else class="country-flag">{{ selectedFlag }}</span>
+            <span class="country-flag">{{ selectedFlag }}</span>
             <span>+{{ selectedDialCode }}</span>
           </template>
         </PhoneField>
@@ -546,37 +526,6 @@ function reset() {
   line-height: 1;
 }
 
-.country-flag-lebanon {
-  position: relative;
-  width: 24px;
-  height: 16px;
-  vertical-align: -3px;
-  border-radius: 2px;
-  background: linear-gradient(to bottom, #ed1c24 0 25%, #fff 25% 75%, #ed1c24 75%);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 12%);
-}
-
-.country-flag-lebanon::after {
-  content: "";
-  position: absolute;
-  inset: 19% 37.5%;
-  background: #16863d;
-  clip-path: polygon(
-    50% 0,
-    62% 28%,
-    100% 18%,
-    72% 48%,
-    100% 72%,
-    62% 62%,
-    50% 100%,
-    38% 62%,
-    0 72%,
-    28% 48%,
-    0 18%,
-    38% 28%
-  );
-}
-
 .client-phone-layout {
   align-items: stretch;
   display: flex;
@@ -705,14 +654,6 @@ function reset() {
 .client-phone-country-trigger .country-flag {
   font-size: 2.1rem;
   margin-inline-end: 0;
-}
-
-/* The Lebanese flag is drawn, not an emoji, so it needs the size set. */
-.client-phone-country-card .country-flag-lebanon,
-.client-phone-country-trigger .country-flag-lebanon {
-  height: 28px;
-  vertical-align: baseline;
-  width: 42px;
 }
 
 .client-phone-country-card:hover {
