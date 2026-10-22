@@ -1,7 +1,7 @@
 <template>
   <!-- Reset only once the close animation is over: resetting on close put
        the phone step back on screen while the dialog was still fading. -->
-  <v-dialog v-model="dialog" :max-width="step === 'phone' && !countryPickerOpen ? 640 : 760" @after-leave="reset">
+  <v-dialog v-model="dialog" :max-width="step === 'phone' && !countryPickerOpen ? 720 : 760" @after-leave="reset">
     <v-card v-if="step === 'phone'" class="client-phone-card">
       <v-card-title v-if="!countryPickerOpen" class="font-weight-bold">Enter Phone Number</v-card-title>
       <v-card-text v-if="!countryPickerOpen" class="client-phone-layout">
@@ -627,7 +627,7 @@ function reset() {
   display: grid;
   flex: 1 1 0;
   gap: 6px;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   /* Basis 0 keeps the list out of the dialog's height: the numpad column
      sets that, and the list scrolls inside it. */
   min-height: 0;
@@ -643,16 +643,16 @@ function reset() {
   color: inherit;
   cursor: pointer;
   display: grid;
-  gap: 0 10px;
+  gap: 0 8px;
   grid-template-columns: auto 1fr auto;
   min-height: 48px;
-  padding: 0 12px;
+  padding: 0 10px;
   text-align: start;
 }
 
 .client-phone-country-card .country-flag,
 .client-phone-country-trigger .country-flag {
-  font-size: 2.1rem;
+  font-size: 1.9rem;
   margin-inline-end: 0;
 }
 
