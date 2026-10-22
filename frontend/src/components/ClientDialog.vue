@@ -6,6 +6,12 @@
       <v-card-title v-if="!countryPickerOpen" class="font-weight-bold">Enter Phone Number</v-card-title>
       <v-card-text v-if="!countryPickerOpen" class="client-phone-layout">
         <div class="client-phone-form">
+          <div
+            class="client-phone-error text-error text-caption text-center"
+            :class="{ 'client-phone-error--hidden': !phoneError && !phoneLengthHint }"
+          >
+            {{ phoneError || phoneLengthHint || " " }}
+          </div>
           <div class="client-phone-numpad">
           <div class="client-phone-numpad-display">
             <span class="client-phone-prefix" aria-label="Country code">+{{ selectedDialCode }}</span>
@@ -65,14 +71,8 @@
             </v-btn>
           </div>
           </div>
-          <div
-            class="client-phone-error text-error text-caption text-center"
-            :class="{ 'client-phone-error--hidden': !phoneError && !phoneLengthHint }"
-          >
-            {{ phoneError || phoneLengthHint || " " }}
-          </div>
           <v-btn
-            class="client-phone-action-button w-100"
+            class="client-phone-action-button w-100 mt-3"
             variant="elevated"
             color="primary"
             :disabled="!phone.trim()"
@@ -807,7 +807,12 @@ function reset() {
 }
 
 .client-phone-error {
-  min-height: 18px;
+  /* Two lines reserved, so a message never moves the number or the keypad. */
+  align-items: flex-end;
+  display: flex;
+  justify-content: center;
+  min-height: 2.6em;
+  line-height: 1.3;
 }
 
 .client-phone-error--hidden {
