@@ -578,7 +578,7 @@ function reset() {
 }
 
 .client-phone-layout {
-  align-items: flex-start;
+  align-items: stretch;
   display: flex;
   gap: 24px;
   justify-content: center;
@@ -598,7 +598,7 @@ function reset() {
   display: grid;
   gap: 0 10px;
   grid-template-columns: auto 1fr auto;
-  min-height: 52px;
+  min-height: 48px;
   padding: 0 12px;
   text-align: start;
   width: 100%;
@@ -672,15 +672,16 @@ function reset() {
   min-width: 0;
   /* On the left of the numpad, though it follows it in the markup. */
   order: -1;
-  /* Same height as the numpad column so the cards scroll instead of
-     stretching the dialog. */
-  max-height: 560px;
 }
 
 .client-phone-country-cards {
   display: grid;
+  flex: 1 1 0;
   gap: 6px;
   grid-template-columns: minmax(0, 1fr);
+  /* Basis 0 keeps the list out of the dialog's height: the numpad column
+     sets that, and the list scrolls inside it. */
+  min-height: 0;
   overflow-y: auto;
   padding: 2px;
 }
@@ -695,7 +696,7 @@ function reset() {
   display: grid;
   gap: 0 10px;
   grid-template-columns: auto 1fr auto;
-  min-height: 52px;
+  min-height: 48px;
   padding: 0 12px;
   text-align: start;
 }
@@ -744,7 +745,7 @@ function reset() {
 }
 
 .client-phone-numpad {
-  margin-top: 24px;
+  margin-top: 8px;
   width: 100%;
 }
 
@@ -825,6 +826,11 @@ function reset() {
 
   .client-phone-countries {
     order: 0;
+  }
+
+  .client-phone-country-cards {
+    flex: 0 0 auto;
+    max-height: 320px;
   }
 
   .client-phone-numpad {
