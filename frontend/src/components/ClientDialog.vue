@@ -32,44 +32,7 @@
               @input="handlePhoneInput"
             />
           </div>
-          <div class="client-phone-numpad-grid">
-            <v-btn
-              v-for="digit in phonePadDigits"
-              :key="digit"
-              class="client-phone-numpad-key"
-              size="small"
-              variant="tonal"
-              @click="appendPhoneDigit(digit)"
-            >
-              {{ digit }}
-            </v-btn>
-            <v-btn
-              aria-label="Clear phone number"
-              class="client-phone-numpad-key"
-              size="small"
-              variant="tonal"
-              @click="clearPhone"
-            >
-              C
-            </v-btn>
-            <v-btn
-              class="client-phone-numpad-key"
-              size="small"
-              variant="tonal"
-              @click="appendPhoneDigit('0')"
-            >
-              0
-            </v-btn>
-            <v-btn
-              aria-label="Delete last phone digit"
-              class="client-phone-numpad-key"
-              size="small"
-              variant="tonal"
-              @click="backspacePhone"
-            >
-              ⌫
-            </v-btn>
-          </div>
+          <PhonePad class="client-phone-pad" @press="pressPhoneKey" />
           </div>
           <v-btn
             class="client-phone-action-button w-100 mt-3"
@@ -252,7 +215,6 @@ const newClient = reactive({ name: "", phone: "" });
 const newPhoneField = ref<InstanceType<typeof PhoneField> | null>(null);
 const newPhoneActive = ref(false);
 const newPhoneError = ref("");
-const phonePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
 const countries = getCountries()
   .map((code) => ({
@@ -378,13 +340,13 @@ function replaceSelection(value: string, start: number, end: number, inserted: s
   return value.slice(0, start) + inserted + value.slice(end);
 }
 
-function appendPhoneDigit(digit: string) {
+function appendPhoneDigit(digit: string, silent = false) {
   const input = phoneInput.value;
   const rawPhone = phone.value.replace(/\D/g, "");
   const start = input?.selectionStart ?? rawPhone.length;
   const end = input?.selectionEnd ?? start;
   if (blocksPhoneLength(replaceSelection(rawPhone, start, end, digit))) return;
-  playDtmfSound(digit);
+  if (!silent) playDtmfSound(digit);
   phone.value = rawPhone.slice(0, start) + digit + rawPhone.slice(end);
   phoneSubmitted.value = false;
   restorePhoneCaret(start + 1);
@@ -406,14 +368,14 @@ function preventPhoneLengthInput(event: InputEvent) {
   if (blocksPhoneLength(replaceSelection(input.value, start, end, event.data))) event.preventDefault();
 }
 
-function clearPhone() {
-  playClickSound();
+function clearPhone(silent = false) {
+  if (!silent) playClickSound();
   phone.value = "";
   phoneSubmitted.value = false;
 }
 
-function backspacePhone() {
-  playClickSound();
+function backspacePhone(silent = false) {
+  if (!silent) playClickSound();
   const input = phoneInput.value;
   if (!input) return;
   removePhoneAtCursor({
@@ -421,6 +383,25 @@ function backspacePhone() {
     preventDefault() {},
     stopPropagation() {},
   } as unknown as KeyboardEvent);
+}
+
+// Keys from the shared PhonePad, which plays the key sound itself.
+function pressPhoneKey(key: string) {
+  if (/^\d$/.test(key)) appendPhoneDigit(key, true);
+  else if (key === "clear") clearPhone(true);
+  else if (key === "back") backspacePhone(true);
+  else if (key === "left") movePhoneCaret(-1);
+  else if (key === "right") movePhoneCaret(1);
+}
+
+function movePhoneCaret(step: number) {
+  const input = phoneInput.value;
+  if (!input) return;
+  const hasSelection = input.selectionStart !== input.selectionEnd;
+  const from = (step < 0 ? input.selectionStart : input.selectionEnd) ?? input.value.length;
+  const next = hasSelection ? from : Math.min(Math.max(from + step, 0), input.value.length);
+  input.focus();
+  input.setSelectionRange(next, next);
 }
 
 function handlePhoneInput(event: Event) {
@@ -744,6 +725,12 @@ function reset() {
   margin-inline-end: 8px;
 }
 
+/* The shared PhonePad adds an arrow row; slightly shorter keys keep the dialog
+   from growing much taller than it was. */
+.client-phone-pad :deep(.phone-pad-key) {
+  height: 46px !important;
+}
+
 .client-phone-numpad-display {
   align-items: baseline;
   display: flex;
@@ -771,29 +758,6 @@ function reset() {
 .client-phone-numpad-display-input::placeholder {
   color: inherit;
   opacity: 0.55;
-}
-
-.client-phone-numpad-grid {
-  display: grid;
-  gap: 6px;
-  grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: 56px;
-}
-
-.client-phone-numpad-key {
-  border: 1px solid rgba(var(--v-border-color), 0.18);
-  border-radius: 4px;
-  font-size: 2rem !important;
-  height: 100%;
-  min-width: 0;
-  padding: 0;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease;
-}
-
-.client-phone-numpad-key:hover {
-  border-color: currentColor;
 }
 
 .client-name-keyboard {
