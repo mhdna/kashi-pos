@@ -32,7 +32,7 @@
               @input="handlePhoneInput"
             />
           </div>
-          <PhonePad class="client-phone-pad" @press="pressPhoneKey" />
+          <PhonePad class="client-phone-pad" :show-arrows="false" @press="pressPhoneKey" />
           </div>
           <v-btn
             class="client-phone-action-button w-100 mt-3"

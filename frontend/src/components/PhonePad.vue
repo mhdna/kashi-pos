@@ -3,10 +3,13 @@
        it was) while a key is tapped. -->
   <div class="phone-pad">
     <v-btn
-      v-for="key in keys"
+      v-for="key in visibleKeys"
       :key="key.value"
       class="phone-pad-key"
-      :class="{ 'phone-pad-key--clear': key.value === 'clear' }"
+      :class="{
+        'phone-pad-key--clear': key.value === 'clear',
+        'phone-pad-key--arrow': !!key.icon,
+      }"
       size="small"
       variant="tonal"
       :aria-label="key.label"
@@ -20,8 +23,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { playClickSound, playDtmfSound } from "@/lib/sound";
 
+const props = withDefaults(defineProps<{ showArrows?: boolean }>(), { showArrows: true });
 const emit = defineEmits<{ press: [key: string] }>();
 
 type Key = { value: string; label: string; text?: string; icon?: string };
@@ -34,6 +39,8 @@ const keys: Key[] = [
   { value: "left", label: "Move cursor left", icon: "mdi-chevron-left" },
   { value: "right", label: "Move cursor right", icon: "mdi-chevron-right" },
 ];
+
+const visibleKeys = computed(() => (props.showArrows ? keys : keys.filter((key) => !key.icon)));
 
 function press(key: string) {
   if (/^\d$/.test(key)) playDtmfSound(key);
@@ -69,7 +76,7 @@ function press(key: string) {
   border-color: currentColor;
 }
 
-.phone-pad-key:nth-last-child(-n + 2) {
+.phone-pad-key--arrow {
   grid-column: span 3;
 }
 
