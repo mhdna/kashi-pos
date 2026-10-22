@@ -66,9 +66,9 @@
           </div>
           <div
             class="client-phone-error text-error text-caption text-center"
-            :class="{ 'client-phone-error--hidden': !phoneError }"
+            :class="{ 'client-phone-error--hidden': !phoneError && !phoneLengthHint }"
           >
-            {{ phoneError || " " }}
+            {{ phoneError || phoneLengthHint || " " }}
           </div>
           <v-btn
             class="client-phone-action-button w-100"
@@ -91,13 +91,18 @@
           <button
             type="button"
             class="client-phone-country-trigger mt-2 mb-3"
-            aria-label="Search for a country"
+            aria-label="Country: choose or search"
             aria-haspopup="dialog"
             :aria-expanded="countryPickerOpen"
             @click="countryPickerOpen = true"
           >
-            <v-icon icon="mdi-magnify" size="24" />
-            Search country
+            <span class="client-phone-country-trigger-label">Country</span>
+            <span class="country-flag">{{ selectedFlag }}</span>
+            <span class="client-phone-country-trigger-name">{{ selectedCountryName }} (+{{ selectedDialCode }})</span>
+            <span class="client-phone-country-trigger-search" aria-hidden="true">
+              <v-icon icon="mdi-magnify" size="22" />
+              Search
+            </span>
           </button>
           <div class="client-phone-country-cards" role="listbox" aria-label="Common countries">
             <button
@@ -293,6 +298,9 @@ function pickCountry(code: CountryCode) {
   selectedCountry.value = code;
   closeCountryPicker();
 }
+const selectedCountryName = computed(
+  () => countries.find((country) => country.code === selectedCountry.value)?.name ?? selectedCountry.value,
+);
 const selectedFlag = computed(() => flagForCountry(selectedCountry.value));
 const selectedDialCode = computed(() => getCountryCallingCode(selectedCountry.value));
 const phoneError = computed(() =>
@@ -314,6 +322,7 @@ watch(() => newClient.phone, () => {
 
 watch([phone, selectedCountry], () => {
   phoneSubmitted.value = false;
+  phoneLengthHint.value = "";
 });
 
 function flagForCountry(code: string) {
@@ -338,11 +347,30 @@ function normalizePhone(value: string) {
 
 // Blocks typing past the selected country's longest possible number (by its
 // numbering plan, so it allows for a typed national prefix like UK's 0).
-// Lebanon uses its own fixed 8-digit cap, see normalizeLebanesePhone.
+// Lebanon is 8 digits, plus the leading 0, 961 or 00961 that
+// normalizeLebanesePhone also accepts.
 function exceedsPhoneLength(value: string) {
   const digits = value.replace(/\D/g, "");
-  if (selectedCountry.value === "LB") return digits.length > 8;
+  if (isLebanon(selectedCountry.value)) {
+    if (digits.length <= 8) return false;
+    if (digits.startsWith("00961")) return digits.length > 13;
+    if (digits.startsWith("961")) return digits.length > 11;
+    if (digits.startsWith("0")) return digits.length > 9;
+    return true;
+  }
   return digits.length > 15 || validatePhoneNumberLength(digits, selectedCountry.value) === "TOO_LONG";
+}
+
+// Typing stops at the country's longest number without any other sign, which
+// looks like a broken keypad -- most of all when a foreign number is typed
+// while Lebanon is still selected. So say why it stopped.
+const phoneLengthHint = ref("");
+function blocksPhoneLength(value: string) {
+  if (!exceedsPhoneLength(value)) return false;
+  phoneLengthHint.value = isLebanon(selectedCountry.value)
+    ? "Lebanese numbers have 8 digits. For another country, tap Search."
+    : `That's the longest number for ${selectedCountryName.value}.`;
+  return true;
 }
 
 function replaceSelection(value: string, start: number, end: number, inserted: string) {
@@ -354,7 +382,7 @@ function appendPhoneDigit(digit: string) {
   const rawPhone = phone.value.replace(/\D/g, "");
   const start = input?.selectionStart ?? rawPhone.length;
   const end = input?.selectionEnd ?? start;
-  if (exceedsPhoneLength(replaceSelection(rawPhone, start, end, digit))) return;
+  if (blocksPhoneLength(replaceSelection(rawPhone, start, end, digit))) return;
   playDtmfSound(digit);
   phone.value = rawPhone.slice(0, start) + digit + rawPhone.slice(end);
   phoneSubmitted.value = false;
@@ -366,7 +394,7 @@ function preventPhoneLength(event: KeyboardEvent) {
   const input = event.target as HTMLInputElement;
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? start;
-  if (exceedsPhoneLength(replaceSelection(input.value, start, end, event.key))) event.preventDefault();
+  if (blocksPhoneLength(replaceSelection(input.value, start, end, event.key))) event.preventDefault();
 }
 
 function preventPhoneLengthInput(event: InputEvent) {
@@ -374,7 +402,7 @@ function preventPhoneLengthInput(event: InputEvent) {
   const input = event.target as HTMLInputElement;
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? start;
-  if (exceedsPhoneLength(replaceSelection(input.value, start, end, event.data))) event.preventDefault();
+  if (blocksPhoneLength(replaceSelection(input.value, start, end, event.data))) event.preventDefault();
 }
 
 function clearPhone() {
@@ -536,24 +564,57 @@ function reset() {
 
 .client-phone-country-trigger {
   align-items: center;
-  /* Teal, so it isn't mistaken for the blue Continue button below. */
-  background: #00796b;
-  border: 0;
+  background: transparent;
+  border: 1px solid rgba(var(--v-border-color), 0.55);
   border-radius: 4px;
-  color: #fff;
+  color: inherit;
   cursor: pointer;
-  display: flex;
-  font-size: 1rem;
-  font-weight: 500;
-  gap: 8px;
-  justify-content: center;
+  display: grid;
+  gap: 0 10px;
+  grid-template-columns: auto 1fr auto;
   min-height: 56px;
-  padding: 0 14px;
+  padding: 0 8px 0 12px;
+  position: relative;
+  text-align: start;
   width: 100%;
 }
 
 .client-phone-country-trigger:hover {
-  filter: brightness(1.1);
+  border-color: currentColor;
+}
+
+/* Sits on the top border like an outlined field's label. */
+.client-phone-country-trigger-label {
+  background: rgb(var(--v-theme-surface));
+  font-size: 0.75rem;
+  left: 10px;
+  line-height: 1;
+  opacity: 0.75;
+  padding: 0 4px;
+  position: absolute;
+  top: -6px;
+}
+
+.client-phone-country-trigger-name {
+  font-size: 0.95rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-phone-country-trigger-search {
+  align-items: center;
+  /* Teal, so it isn't mistaken for the blue Continue button below. */
+  background: #00796b;
+  border-radius: 4px;
+  color: #fff;
+  display: flex;
+  font-size: 0.95rem;
+  font-weight: 500;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
 }
 
 .client-phone-picker {
