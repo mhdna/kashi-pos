@@ -536,10 +536,11 @@ function reset() {
 
 .client-phone-country-trigger {
   align-items: center;
-  background: rgb(var(--v-theme-primary));
+  /* Teal, so it isn't mistaken for the blue Continue button below. */
+  background: #00796b;
   border: 0;
   border-radius: 4px;
-  color: rgb(var(--v-theme-on-primary));
+  color: #fff;
   cursor: pointer;
   display: flex;
   font-size: 1rem;
