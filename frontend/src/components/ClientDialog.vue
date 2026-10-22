@@ -91,17 +91,13 @@
           <button
             type="button"
             class="client-phone-country-trigger mt-2 mb-3"
-            aria-label="Country: choose or search"
+            aria-label="Search for a country"
             aria-haspopup="dialog"
             :aria-expanded="countryPickerOpen"
             @click="countryPickerOpen = true"
           >
-            <span class="country-flag">{{ selectedFlag }}</span>
-            <span class="client-phone-country-trigger-name">{{ selectedCountryName }} (+{{ selectedDialCode }})</span>
-            <span class="client-phone-country-trigger-search" aria-hidden="true">
-              <v-icon icon="mdi-magnify" size="22" />
-              Search
-            </span>
+            <v-icon icon="mdi-magnify" size="24" />
+            Search country
           </button>
           <div class="client-phone-country-cards" role="listbox" aria-label="Common countries">
             <button
@@ -293,9 +289,6 @@ function closeCountryPicker() {
   countryPickerOpen.value = false;
   countrySearch.value = "";
 }
-const selectedCountryName = computed(
-  () => countries.find((country) => country.code === selectedCountry.value)?.name ?? selectedCountry.value,
-);
 function pickCountry(code: CountryCode) {
   selectedCountry.value = code;
   closeCountryPicker();
@@ -548,33 +541,18 @@ function reset() {
   border-radius: 4px;
   color: rgb(var(--v-theme-on-primary));
   cursor: pointer;
-  display: grid;
-  gap: 0 10px;
-  grid-template-columns: auto 1fr auto;
-  min-height: 56px;
-  padding: 0 14px 0 12px;
-  text-align: start;
-  width: 100%;
-}
-
-.client-phone-country-trigger-search {
-  align-items: center;
   display: flex;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 500;
-  gap: 6px;
+  gap: 8px;
+  justify-content: center;
+  min-height: 56px;
+  padding: 0 14px;
+  width: 100%;
 }
 
 .client-phone-country-trigger:hover {
   filter: brightness(1.1);
-}
-
-.client-phone-country-trigger-name {
-  font-size: 0.95rem;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .client-phone-picker {
