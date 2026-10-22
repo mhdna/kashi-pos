@@ -591,15 +591,15 @@ function reset() {
 .client-phone-country-trigger {
   align-items: center;
   background: transparent;
-  border: 1px solid rgba(var(--v-border-color), 0.4);
-  border-radius: 8px;
+  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border-radius: 4px;
   color: inherit;
   cursor: pointer;
   display: grid;
   gap: 0 10px;
-  grid-template-columns: auto 1fr;
-  min-height: 56px;
-  padding: 8px 12px;
+  grid-template-columns: auto 1fr auto;
+  min-height: 52px;
+  padding: 0 12px;
   text-align: start;
   width: 100%;
 }
@@ -609,16 +609,16 @@ function reset() {
 }
 
 .client-phone-country-trigger-name {
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .client-phone-country-trigger-more {
-  font-size: 0.75rem;
-  grid-column: 2;
-  opacity: 0.7;
+  font-size: 0.8rem;
+  opacity: 0.6;
 }
 
 .client-phone-picker {
@@ -656,7 +656,7 @@ function reset() {
 
 .client-phone-picker-grid {
   display: grid;
-  gap: 10px;
+  gap: 6px;
   flex: 1 1 0;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   align-content: start;
@@ -677,7 +677,7 @@ function reset() {
 
 .client-phone-country-cards {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   overflow-y: auto;
   padding: 2px;
@@ -686,19 +686,16 @@ function reset() {
 .client-phone-country-card {
   align-items: center;
   background: transparent;
-  border: 1px solid rgba(var(--v-border-color), 0.3);
-  border-radius: 8px;
+  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border-radius: 4px;
   color: inherit;
   cursor: pointer;
   display: grid;
-  gap: 0 8px;
-  grid-template-columns: auto 1fr;
-  min-height: 56px;
-  padding: 8px 10px;
+  gap: 0 10px;
+  grid-template-columns: auto 1fr auto;
+  min-height: 52px;
+  padding: 0 12px;
   text-align: start;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease;
 }
 
 .client-phone-country-card:hover {
@@ -706,22 +703,23 @@ function reset() {
 }
 
 .client-phone-country-card--active {
-  background: rgba(var(--v-theme-primary), 0.12);
+  background: rgb(var(--v-theme-primary));
   border-color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
 }
 
 .client-phone-country-card-name {
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .client-phone-country-card-code {
-  font-size: 0.75rem;
-  grid-column: 2;
-  opacity: 0.7;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
 }
 
 .client-phone-form {
