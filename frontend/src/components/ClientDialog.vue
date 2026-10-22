@@ -7,11 +7,8 @@
       <v-card-text v-if="!countryPickerOpen" class="client-phone-layout">
         <div class="client-phone-form">
           <div class="client-phone-numpad">
-          <div class="client-phone-prefix text-caption" aria-label="Country code">
-            <span class="country-flag">{{ selectedFlag }}</span>
-            <span>+{{ selectedDialCode }}</span>
-          </div>
           <div class="client-phone-numpad-display">
+            <span class="client-phone-prefix" aria-label="Country code">+{{ selectedDialCode }}</span>
             <input
               ref="phoneInput"
               class="client-phone-numpad-display-input"
@@ -742,12 +739,9 @@ function reset() {
 }
 
 .client-phone-prefix {
-  align-items: center;
-  display: flex;
-  font-size: 0.9rem !important;
-  font-weight: 500;
-  justify-content: center;
-  opacity: 0.7;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  flex: 0 0 auto;
+  margin-inline-end: 8px;
 }
 
 .client-phone-numpad-display {
@@ -757,7 +751,7 @@ function reset() {
   font-weight: 700;
   justify-content: center;
   margin-bottom: 12px;
-  min-height: 36px;
+  min-height: 40px;
   overflow: hidden;
 }
 
