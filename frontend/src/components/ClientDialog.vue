@@ -99,9 +99,9 @@
             <span class="client-phone-country-trigger-label">Country</span>
             <span class="country-flag">{{ selectedFlag }}</span>
             <span class="client-phone-country-trigger-name">{{ selectedCountryName }} (+{{ selectedDialCode }})</span>
-            <span class="client-phone-country-trigger-icons" aria-hidden="true">
+            <span class="client-phone-country-trigger-search" aria-hidden="true">
               <v-icon icon="mdi-magnify" size="22" />
-              <v-icon icon="mdi-menu-down" size="28" />
+              Search
             </span>
           </button>
           <div class="client-phone-country-cards" role="listbox" aria-label="Common countries">
@@ -571,13 +571,17 @@ function reset() {
   top: -6px;
 }
 
-.client-phone-country-trigger-icons {
+.client-phone-country-trigger-search {
   align-items: center;
-  border-inline-start: 1px solid rgba(var(--v-border-color), 0.3);
+  background: rgb(var(--v-theme-primary));
+  border-radius: 4px;
+  color: rgb(var(--v-theme-on-primary));
   display: flex;
-  gap: 2px;
-  opacity: 0.7;
-  padding-inline-start: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
 }
 
 .client-phone-country-trigger:hover {
