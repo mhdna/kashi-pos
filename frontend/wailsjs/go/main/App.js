@@ -1006,6 +1006,10 @@ export function VerifyAdminPassword(arg1) {
   return window['go']['main']['App']['VerifyAdminPassword'](arg1);
 }
 
+export function VerifyManagerPassword(arg1) {
+  return window['go']['main']['App']['VerifyManagerPassword'](arg1);
+}
+
 export function VerifyPIN(arg1) {
   return window['go']['main']['App']['VerifyPIN'](arg1);
 }

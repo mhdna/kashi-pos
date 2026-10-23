@@ -81,19 +81,13 @@
       >
         Opening amount: {{ formatUsd((openingFloatUsd ?? 0) / 100) }} / {{ Math.round(openingFloatLbp ?? 0).toLocaleString() }} LBP
       </div>
-      <!-- Straight to each page, with this month's total underneath. -->
+      <!-- Manager only: each asks for the manager password before opening. -->
       <div class="spend-buttons">
-        <v-btn class="spend-button" color="primary" variant="tonal" @click="openExpenses">
-          <div class="spend-button-body">
-            <span class="spend-button-label"><v-icon icon="mdi-receipt-text-outline" size="18" class="me-1" />Expenses</span>
-            <span class="spend-button-total">{{ formatCurrencyTotals(monthExpenses, currencies) }} this month</span>
-          </div>
+        <v-btn class="spend-button" color="primary" variant="tonal" @click="openManagerPage('/expenses')">
+          <span class="spend-button-label"><v-icon icon="mdi-receipt-text-outline" size="18" class="me-1" />Expenses</span>
         </v-btn>
-        <v-btn class="spend-button" color="primary" variant="tonal" @click="openLoans">
-          <div class="spend-button-body">
-            <span class="spend-button-label"><v-icon icon="mdi-hand-coin-outline" size="18" class="me-1" />Loans</span>
-            <span class="spend-button-total">{{ formatCurrencyTotals(monthLoans, currencies) }} this month</span>
-          </div>
+        <v-btn class="spend-button" color="primary" variant="tonal" @click="openManagerPage('/loans')">
+          <span class="spend-button-label"><v-icon icon="mdi-hand-coin-outline" size="18" class="me-1" />Loans</span>
         </v-btn>
       </div>
     </div>
@@ -107,22 +101,48 @@
     :opening-float-lbp="openingFloatLbp"
     @saved="emit('opening-float-set')"
   />
+  <v-dialog v-model="managerDialog.show" max-width="380">
+    <v-card>
+      <v-card-title class="d-flex align-center ga-2"><v-icon icon="mdi-lock-outline" />Manager password</v-card-title>
+      <v-card-text>
+        <v-text-field
+          v-model="managerDialog.password"
+          autofocus
+          placeholder="Manager password"
+          :type="managerDialog.reveal ? 'text' : 'password'"
+          variant="outlined"
+          density="compact"
+          :append-inner-icon="managerDialog.reveal ? 'mdi-eye-off' : 'mdi-eye'"
+          :error-messages="managerDialog.error"
+          @click:append-inner="managerDialog.reveal = !managerDialog.reveal"
+          @keyup.enter="confirmManager"
+        />
+      </v-card-text>
+      <v-card-actions>
+        <v-btn variant="text" @click="managerDialog.show = false">Cancel</v-btn><v-spacer />
+        <v-btn color="primary" :loading="managerDialog.checking" @click="confirmManager">Open</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { GetSpendSummary } from "../../../wailsjs/go/main/App";
-import { formatCurrencyTotals, formatSpendAmount, sumToUsdCents, type CurrencyTotal } from "@/lib/spend";
+import { GetSpendSummary, VerifyManagerPassword } from "../../../wailsjs/go/main/App";
+import { formatSpendAmount, sumToUsdCents } from "@/lib/spend";
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { paymentAccentColor } from "@/lib/paymentColor";
 import { useCurrencies } from "@/composables/useCurrencies";
+import { grantManagerPass } from "@/composables/useManagerPass";
+import { useAuthStore } from "@/stores/auth";
 import BalanceReplacementDialog from "@/components/shifts/BalanceReplacementDialog.vue";
 import SetOpeningFloatDialog from "@/components/shifts/SetOpeningFloatDialog.vue";
 
 const { currencies, roundingMode } = useCurrencies();
 const router = useRouter();
+const auth = useAuthStore();
 
 const props = defineProps<{
   items: IncomeRow[];
@@ -143,19 +163,15 @@ const emit = defineEmits<{
 const replacementOpen = ref(false);
 const openingFloatOpen = ref(false);
 
-const monthExpenses = ref<CurrencyTotal[]>([]);
-const monthLoans = ref<CurrencyTotal[]>([]);
 const shiftExpenses = ref<any[]>([]);
 const shiftLoans = ref<any[]>([]);
 async function loadSpend() {
   try {
     const summary = await GetSpendSummary(props.shiftId ?? 0);
-    monthExpenses.value = summary.monthExpenses ?? [];
-    monthLoans.value = summary.monthLoans ?? [];
     shiftExpenses.value = summary.shiftExpenses ?? [];
     shiftLoans.value = summary.shiftLoans ?? [];
   } catch {
-    // Totals just stay as they were; the buttons still work.
+    // The lists just stay as they were; the buttons still work.
   }
 }
 onMounted(loadSpend);
@@ -176,12 +192,30 @@ const netIncome = computed(
 const balanceSources = computed<Balance[]>(() => props.balanceSources
   .filter((item) => !item.isOnAccount && !item.isOnCoupon && item.accountId && Number(item.balance) !== 0));
 
-function openExpenses() {
-  void router.push("/expenses");
+// Admins go straight in; anyone else types the manager password, checked
+// by the server, every time they open the page.
+const managerDialog = reactive({ show: false, path: "", password: "", error: "", checking: false, reveal: false });
+function openManagerPage(path: string) {
+  if (auth.isAdmin) {
+    void router.push(path);
+    return;
+  }
+  Object.assign(managerDialog, { show: true, path, password: "", error: "", checking: false, reveal: false });
 }
-
-function openLoans() {
-  void router.push("/loans");
+async function confirmManager() {
+  if (!managerDialog.password || managerDialog.checking) return;
+  managerDialog.checking = true;
+  managerDialog.error = "";
+  try {
+    await VerifyManagerPassword(managerDialog.password);
+    managerDialog.show = false;
+    grantManagerPass(managerDialog.path);
+    void router.push(managerDialog.path);
+  } catch (error) {
+    managerDialog.error = String(error).includes("password") ? "Wrong password" : String(error);
+  } finally {
+    managerDialog.checking = false;
+  }
 }
 </script>
 
@@ -249,26 +283,10 @@ function openLoans() {
   padding: 8px 6px !important;
 }
 
-.spend-button-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  white-space: normal;
-}
-
 .spend-button-label {
   display: inline-flex;
   align-items: center;
   font-weight: 700;
-}
-
-.spend-button-total {
-  font-size: 0.75rem;
-  font-weight: 500;
-  opacity: 0.85;
-  text-transform: none;
-  letter-spacing: 0;
 }
 
 .dialog-close-row {

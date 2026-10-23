@@ -7,8 +7,8 @@ import (
 )
 
 // GetSpendSummary is what the shift screens show about money going out:
-// this month's expense and loan totals (one per currency, for the Expenses
-// and Loans buttons) and, for shiftID, the expenses and loans entered during
+// this month's expense and loan totals (one per currency; no longer shown,
+// the Expenses and Loans pages are manager only) and, for shiftID, the expenses and loans entered during
 // that shift (for the income card and the close-shift summary). Amounts are
 // in each row's own currency, x100, as entered. shiftID 0 skips the lists.
 func (a *App) GetSpendSummary(shiftID int64) (map[string]any, error) {

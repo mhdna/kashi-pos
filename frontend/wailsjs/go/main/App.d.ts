@@ -504,6 +504,8 @@ export function UpdateUserAttendanceID(arg1:number,arg2:string):Promise<void>;
 
 export function VerifyAdminPassword(arg1:string):Promise<Record<string, any>>;
 
+export function VerifyManagerPassword(arg1:string):Promise<void>;
+
 export function VerifyPIN(arg1:string):Promise<Record<string, any>>;
 
 export function VoidInvoice(arg1:string,arg2:string):Promise<void>;

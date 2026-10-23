@@ -628,6 +628,15 @@ func (a *App) verifyManagerPassword(password string) error {
 	return nil
 }
 
+// VerifyManagerPassword lets the frontend open a manager-only page (Expenses,
+// Loans) after asking for the manager password. The admin is let straight in.
+func (a *App) VerifyManagerPassword(password string) error {
+	if a.currentUserIsAdmin() {
+		return nil
+	}
+	return a.verifyManagerPassword(password)
+}
+
 func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password string) error {
 	if !a.attendanceManagerApprovalEnabled() {
 		return errManagerApprovalOff
