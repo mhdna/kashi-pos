@@ -13,16 +13,14 @@
             @click.stop="openDetails(item)"
           >
             <span class="invoice-item-name text-caption font-weight-medium">
-              {{ item.name }}
+              <span class="invoice-item-name-text">{{ item.name }}</span>
               <v-chip
                 v-if="item.saleOption"
-                class="ms-1"
-                :color="saleOptionLook(item.saleOption).color"
+                class="invoice-item-sale-option"
                 label
-                :prepend-icon="saleOptionLook(item.saleOption).icon"
                 size="small"
                 :text="item.saleOption"
-                variant="flat"
+                variant="tonal"
               />
             </span>
             <span class="invoice-item-code text-overline text-medium-emphasis">
@@ -275,7 +273,6 @@ import {
   type ComponentPublicInstance,
   type Ref,
 } from "vue";
-import { saleOptionLook } from "@/lib/saleOptions";
 import {
   ListCategoryIcons,
   ListSalespersons,
@@ -1022,6 +1019,25 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The name and its sale option chip sit on one line, centred on each other;
+   a long name still ellipsizes instead of pushing the chip away. */
+.invoice-item-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.invoice-item-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invoice-item-sale-option {
+  flex-shrink: 0;
 }
 
 .invoice-item-details-trigger:hover,
