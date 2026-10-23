@@ -70,7 +70,7 @@
           </button>
           <div class="client-phone-country-cards" role="listbox" aria-label="Common countries">
             <button
-              v-for="country in frequentCountries"
+              v-for="country in pagedFrequentCountries"
               :key="country.code"
               type="button"
               role="option"
@@ -83,6 +83,23 @@
               <span class="client-phone-country-card-name">{{ country.name }}</span>
               <span class="client-phone-country-card-code">+{{ country.dialCode }}</span>
             </button>
+          </div>
+          <div class="client-phone-country-pager">
+            <v-btn
+              icon="mdi-chevron-left"
+              variant="tonal"
+              aria-label="Previous countries"
+              :disabled="countryPage === 0"
+              @click="countryPage--"
+            />
+            <span class="text-medium-emphasis">{{ countryPage + 1 }} / {{ countryPageCount }}</span>
+            <v-btn
+              icon="mdi-chevron-right"
+              variant="tonal"
+              aria-label="More countries"
+              :disabled="countryPage === countryPageCount - 1"
+              @click="countryPage++"
+            />
           </div>
         </div>
       </v-card-text>
@@ -240,6 +257,14 @@ const frequentCountryCodes: CountryCode[] = [
 const frequentCountries = frequentCountryCodes
   .map((code) => countries.find((country) => country.code === code))
   .filter((country): country is (typeof countries)[number] => !!country);
+// Beside the numpad, eight at a time with arrows to page through, so opening
+// the dialog draws a handful of cards rather than the whole list.
+const countryPageSize = 8;
+const countryPageCount = Math.ceil(frequentCountries.length / countryPageSize);
+const countryPage = ref(0);
+const pagedFrequentCountries = computed(() =>
+  frequentCountries.slice(countryPage.value * countryPageSize, (countryPage.value + 1) * countryPageSize),
+);
 // The full picker lists the common countries first, then everyone else A-Z.
 const allPickerCountries = [
   ...frequentCountries,
@@ -542,6 +567,7 @@ function reset() {
   phone.value = "";
   phoneSubmitted.value = false;
   selectedCountry.value = "LB";
+  countryPage.value = 0;
   closeCountryPicker();
   newClient.name = "";
   newClient.phone = "";
@@ -677,6 +703,7 @@ function reset() {
 }
 
 .client-phone-country-cards {
+  align-content: start;
   display: grid;
   flex: 1 1 0;
   gap: 6px;
@@ -686,6 +713,14 @@ function reset() {
   min-height: 0;
   overflow-y: auto;
   padding: 2px;
+}
+
+.client-phone-country-pager {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: space-between;
+  padding-top: 8px;
 }
 
 .client-phone-country-card {
