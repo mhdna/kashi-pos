@@ -5,6 +5,7 @@
  */
 import { createRouter, createWebHashHistory } from "vue-router";
 
+const loadHome = () => import("@/pages/home.vue");
 const loadInvoicesList = () => import("@/pages/invoices-list.vue");
 
 const router = createRouter({
@@ -19,7 +20,7 @@ const router = createRouter({
       path: "/",
       component: () => import("@/layouts/DefaultLayout.vue"),
       children: [
-        { path: "home", component: () => import("@/pages/home.vue") },
+        { path: "home", component: loadHome },
         {
           path: "settings",
           component: () => import("@/pages/settings.vue"),
@@ -88,7 +89,12 @@ const router = createRouter({
   ],
 });
 
-router.isReady().then(() => void loadInvoicesList().catch(() => undefined));
+// Fetched while the login screen is up, so signing in doesn't then wait on
+// the checkout page, the biggest chunk.
+router.isReady().then(() => {
+  void loadHome().catch(() => undefined);
+  void loadInvoicesList().catch(() => undefined);
+});
 
 router.beforeEach(async (to, from) => {
   try {
