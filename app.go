@@ -293,6 +293,7 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 
 	a.conn = conn
 	a.store = db.NewStore(conn)
+	resetPricingCache()
 	a.dbPath = path
 	a.startupErr = nil
 	a.loadPINLockoutState()
