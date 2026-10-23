@@ -385,6 +385,7 @@
 
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from "vue";
+import { saleOptionLook } from "@/lib/saleOptions";
 import {
   FindProductsForScan,
   HoldInvoice,
@@ -935,19 +936,6 @@ function addProductToCart(product: any): boolean {
   }
   invoiceItems.value?.addItem(product);
   return true;
-}
-
-// Summer and Winter get their own colour and icon so the cashier can tell
-// them apart at a glance; any other option kashi adds uses the primary look.
-function saleOptionLook(name: string): { color: string; icon: string } {
-  switch (name.toLowerCase()) {
-    case "summer":
-      return { color: "orange-darken-2", icon: "mdi-weather-sunny" };
-    case "winter":
-      return { color: "light-blue-darken-2", icon: "mdi-weather-pouring" };
-    default:
-      return { color: "primary", icon: "mdi-tag-outline" };
-  }
 }
 
 function pickSaleOption(option: { name: string; discount: number; discountListName?: string }) {

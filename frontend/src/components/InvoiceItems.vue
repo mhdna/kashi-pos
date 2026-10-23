@@ -14,7 +14,17 @@
           >
             <span class="invoice-item-name text-caption font-weight-medium">
               {{ item.name }}
-              <v-chip v-if="item.saleOption" class="ms-1" density="compact" label size="x-small" :text="item.saleOption" />
+              <v-chip
+                v-if="item.saleOption"
+                class="ms-1"
+                :color="saleOptionLook(item.saleOption).color"
+                density="compact"
+                label
+                :prepend-icon="saleOptionLook(item.saleOption).icon"
+                size="x-small"
+                :text="item.saleOption"
+                variant="flat"
+              />
             </span>
             <span class="invoice-item-code text-overline text-medium-emphasis">
               {{ item.code }}
@@ -266,6 +276,7 @@ import {
   type ComponentPublicInstance,
   type Ref,
 } from "vue";
+import { saleOptionLook } from "@/lib/saleOptions";
 import {
   ListCategoryIcons,
   ListSalespersons,
