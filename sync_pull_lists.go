@@ -39,13 +39,22 @@ type syncedDiscountListItem struct {
 	Discount          int64  `json:"discount"`
 }
 
+// A discount that applies only when the line is sold as the named sale
+// option -- see 000126_sale_options.up.sql.
+type syncedDiscountListOptionItem struct {
+	ProductVariantUID string `json:"product_variant_uid"`
+	SaleOption        string `json:"sale_option"`
+	Discount          int64  `json:"discount"`
+}
+
 type syncedDiscountList struct {
-	UID       string                   `json:"uid"`
-	Name      string                   `json:"name"`
-	IsActive  bool                     `json:"is_active"`
-	IsDefault bool                     `json:"is_default"`
-	IsSpecial bool                     `json:"is_special"`
-	Items     []syncedDiscountListItem `json:"items"`
+	UID         string                         `json:"uid"`
+	Name        string                         `json:"name"`
+	IsActive    bool                           `json:"is_active"`
+	IsDefault   bool                           `json:"is_default"`
+	IsSpecial   bool                           `json:"is_special"`
+	Items       []syncedDiscountListItem       `json:"items"`
+	OptionItems []syncedDiscountListOptionItem `json:"option_items"`
 }
 
 // A list kashi reports as inactive is deleted outright rather than kept and
@@ -122,6 +131,24 @@ func applySyncedDiscountList(ctx context.Context, q *db.Queries, l syncedDiscoun
 		if err := q.InsertDiscountListItem(ctx, db.InsertDiscountListItemParams{
 			DiscountListID: list.ID,
 			ProductUid:     item.ProductVariantUID,
+			Discount:       item.Discount,
+		}); err != nil {
+			return err
+		}
+	}
+
+	// Replaced whole like the plain items, so a removed option row goes too.
+	if err := q.DeleteDiscountListOptionItemsForList(ctx, list.ID); err != nil {
+		return err
+	}
+	for _, item := range l.OptionItems {
+		if item.ProductVariantUID == "" || item.SaleOption == "" {
+			continue
+		}
+		if err := q.InsertDiscountListOptionItem(ctx, db.InsertDiscountListOptionItemParams{
+			DiscountListID: list.ID,
+			ProductUid:     item.ProductVariantUID,
+			SaleOption:     item.SaleOption,
 			Discount:       item.Discount,
 		}); err != nil {
 			return err

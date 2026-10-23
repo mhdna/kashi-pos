@@ -179,6 +179,7 @@ type Querier interface {
 	DeleteCouponType(ctx context.Context, id int64) error
 	DeleteDiscountListByUID(ctx context.Context, uid sql.NullString) error
 	DeleteDiscountListItemsForList(ctx context.Context, discountListID int64) error
+	DeleteDiscountListOptionItemsForList(ctx context.Context, discountListID int64) error
 	DeleteDiscountOverride(ctx context.Context, id int64) error
 	// A stale shift nothing ever happened in ($0, no rows of any kind point at
 	// it) is dropped instead of auto-closed, so it never shows up in the shifts
@@ -210,6 +211,8 @@ type Querier interface {
 	// Rows that only describe the product (not history), removed with it.
 	DeleteProductOwnedRows(ctx context.Context, id int64) error
 	DeleteProductQuickAccess(ctx context.Context, id int64) error
+	// Sale options mirrored from kashi -- see 000126_sale_options.up.sql.
+	DeleteProductSaleOptions(ctx context.Context, productID int64) error
 	DeleteRole(ctx context.Context, id int64) error
 	DeleteRolePermissions(ctx context.Context, roleID int64) error
 	DeleteSalesInvoice(ctx context.Context, invoiceID int64) error
@@ -331,7 +334,9 @@ type Querier interface {
 	InsertBranchTargetProgress(ctx context.Context, arg InsertBranchTargetProgressParams) error
 	InsertCentralQuickAccessItem(ctx context.Context, arg InsertCentralQuickAccessItemParams) error
 	InsertDiscountListItem(ctx context.Context, arg InsertDiscountListItemParams) error
+	InsertDiscountListOptionItem(ctx context.Context, arg InsertDiscountListOptionItemParams) error
 	InsertPriceListItem(ctx context.Context, arg InsertPriceListItemParams) error
+	InsertProductSaleOption(ctx context.Context, arg InsertProductSaleOptionParams) error
 	LatestSyncOutboxSyncedAt(ctx context.Context) (string, error)
 	ListAccounts(ctx context.Context) ([]Account, error)
 	// What a cashier may actually take payment with. A method kashi has retired
@@ -341,6 +346,8 @@ type Querier interface {
 	ListActiveClients(ctx context.Context) ([]Client, error)
 	// See ListActivePriceListItems for why this is ordered by is_default DESC.
 	ListActiveDiscountListItems(ctx context.Context) ([]ListActiveDiscountListItemsRow, error)
+	// See ListActiveDiscountListItems for why this is ordered by is_default DESC.
+	ListActiveDiscountListOptionItems(ctx context.Context) ([]ListActiveDiscountListOptionItemsRow, error)
 	ListActiveExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListActiveLoanCategories(ctx context.Context) ([]LoanCategory, error)
 	// Every price in force: the default list, plus this branch's own list if
@@ -364,6 +371,7 @@ type Querier interface {
 	// regardless of how many products are in the result set, avoiding an N+1
 	// per-product lookup in productMap.
 	ListAllProductAttributeValues(ctx context.Context) ([]ListAllProductAttributeValuesRow, error)
+	ListAllProductSaleOptions(ctx context.Context) ([]ListAllProductSaleOptionsRow, error)
 	ListAllSalespersonAttendanceEvents(ctx context.Context) ([]SalespersonAttendanceEvent, error)
 	// Every day's tally, for the resync backfill of days counted before
 	// per-press events were logged (see visitorCountBackfill).

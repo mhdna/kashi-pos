@@ -238,6 +238,14 @@ type DiscountListItem struct {
 	CreatedAt      string `json:"createdAt"`
 }
 
+type DiscountListOptionItem struct {
+	ID             int64  `json:"id"`
+	DiscountListID int64  `json:"discountListId"`
+	ProductUid     string `json:"productUid"`
+	SaleOption     string `json:"saleOption"`
+	Discount       int64  `json:"discount"`
+}
+
 type DiscountOverride struct {
 	ID        int64         `json:"id"`
 	Name      string        `json:"name"`
@@ -366,6 +374,7 @@ type InvoiceProduct struct {
 	Note           string        `json:"note"`
 	PriceListID    sql.NullInt64 `json:"priceListId"`
 	DiscountListID sql.NullInt64 `json:"discountListId"`
+	SaleOption     string        `json:"saleOption"`
 }
 
 type Loan struct {
@@ -456,6 +465,12 @@ type Product struct {
 	ProductYear     int64          `json:"productYear"`
 	Uid             sql.NullString `json:"uid"`
 	RemoteUpdatedAt sql.NullString `json:"remoteUpdatedAt"`
+}
+
+type ProductSaleOption struct {
+	ProductID int64  `json:"productId"`
+	Name      string `json:"name"`
+	SortOrder int64  `json:"sortOrder"`
 }
 
 type ProductsAttribute struct {

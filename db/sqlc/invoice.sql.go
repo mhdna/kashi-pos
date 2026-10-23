@@ -202,8 +202,8 @@ func (q *Queries) CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoi
 }
 
 const createInvoiceProduct = `-- name: CreateInvoiceProduct :exec
-INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateInvoiceProductParams struct {
@@ -217,6 +217,7 @@ type CreateInvoiceProductParams struct {
 	Note           string        `json:"note"`
 	PriceListID    sql.NullInt64 `json:"priceListId"`
 	DiscountListID sql.NullInt64 `json:"discountListId"`
+	SaleOption     string        `json:"saleOption"`
 }
 
 func (q *Queries) CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error {
@@ -231,6 +232,7 @@ func (q *Queries) CreateInvoiceProduct(ctx context.Context, arg CreateInvoicePro
 		arg.Note,
 		arg.PriceListID,
 		arg.DiscountListID,
+		arg.SaleOption,
 	)
 	return err
 }
@@ -410,7 +412,7 @@ func (q *Queries) GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams
 }
 
 const getInvoiceProduct = `-- name: GetInvoiceProduct :one
-SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id FROM invoice_products WHERE invoice_id = ? AND product_id = ?
+SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option FROM invoice_products WHERE invoice_id = ? AND product_id = ?
 `
 
 type GetInvoiceProductParams struct {
@@ -433,6 +435,7 @@ func (q *Queries) GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductPa
 		&i.Note,
 		&i.PriceListID,
 		&i.DiscountListID,
+		&i.SaleOption,
 	)
 	return i, err
 }
@@ -1075,7 +1078,7 @@ func (q *Queries) ListInvoicePaymentsByInvoiceIDs(ctx context.Context, ids []int
 }
 
 const listInvoiceProducts = `-- name: ListInvoiceProducts :many
-SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id FROM invoice_products WHERE invoice_id = ?
+SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option FROM invoice_products WHERE invoice_id = ?
 `
 
 func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error) {
@@ -1099,6 +1102,7 @@ func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]I
 			&i.Note,
 			&i.PriceListID,
 			&i.DiscountListID,
+			&i.SaleOption,
 		); err != nil {
 			return nil, err
 		}

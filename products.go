@@ -631,7 +631,27 @@ func productMap(p db.Product, listPricing activePricing, attrs map[string]string
 		"season": attrs["season"], "year": attrs["year"],
 		"priceListOverridden": priceSpecial, "priceListName": priceListName,
 		"discountListOverridden": discountSpecial, "discountListName": discountListName,
+		"saleOptions": saleOptionsMap(p, listPricing),
 	}
+}
+
+// saleOptionsMap lists what the till must ask when this product is sold
+// (Summer/Winter...), each with the discount the line gets as that option,
+// so the cashier sees the difference on the choice itself. Empty for an
+// ordinary product, which is added to the cart without asking.
+func saleOptionsMap(p db.Product, listPricing activePricing) []map[string]any {
+	names := listPricing.saleOptions[p.Uid.String]
+	out := make([]map[string]any, 0, len(names))
+	for _, name := range names {
+		var discount int64
+		listName := ""
+		if listed, ok := listPricing.discountForOption(p.Uid.String, name); ok {
+			discount = listed.percent
+			listName = listed.listName
+		}
+		out = append(out, map[string]any{"name": name, "discount": discount, "discountListName": listName})
+	}
+	return out
 }
 
 func (a *App) UpdateProductDiscount(code string, discount int64) error {

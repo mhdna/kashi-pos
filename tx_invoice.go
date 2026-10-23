@@ -22,6 +22,9 @@ type salesInvoiceItem struct {
 	UnitDiscounts    []int64 `json:"unitDiscounts,omitempty"`
 	SalespersonID    int64   `json:"salespersonId,omitempty"`
 	Note             string  `json:"note,omitempty"`
+	// The sale option the cashier picked for a product that asks one
+	// (Summer/Winter); it picks the line's discount. Empty otherwise.
+	SaleOption string `json:"saleOption,omitempty"`
 }
 
 type checkoutPayment struct {
@@ -257,6 +260,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				SalespersonID: product.salespersonID, Note: product.note,
 				PriceListID:    sql.NullInt64{Int64: product.priceListID, Valid: product.priceListID != 0},
 				DiscountListID: sql.NullInt64{Int64: product.discountListID, Valid: product.discountListID != 0},
+				SaleOption:     product.saleOption,
 			}); err != nil {
 				return fmt.Errorf("add product %s: %w", product.product.Code, err)
 			}

@@ -400,6 +400,7 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 			UnitPrice: replacement.unitPrice, LineTotal: replacement.lineTotal,
 			Discount: replacement.discount, Quantity: replacement.qty,
 			SalespersonID: replacement.salespersonID, Note: replacement.note,
+			SaleOption: replacement.saleOption,
 		}); err != nil {
 			return err
 		}

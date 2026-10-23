@@ -239,8 +239,8 @@ SELECT * FROM invoice_products WHERE invoice_id = ? AND product_id = ?;
 SELECT * FROM invoice_products WHERE invoice_id = ?;
 
 -- name: CreateInvoiceProduct :exec
-INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: CreateInvoicePayment :exec
 INSERT INTO invoice_payments (invoice_id, cashbox_id, amount) VALUES (?, ?, ?)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -21,6 +22,7 @@ type pricedInvoiceProduct struct {
 	note           string
 	priceListID    int64
 	discountListID int64
+	saleOption     string
 }
 
 type unitPricing struct {
@@ -129,7 +131,14 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			product.Price = listed.cents
 			priceListID = listed.listID
 		}
-		if listed, ok := listPricing.discountFor(product.Uid.String); ok {
+		// The option only counts if the product still asks it: one left over
+		// in a cart from before kashi took the product's options away is sold
+		// at the plain discount, rather than failing the sale.
+		saleOption := ""
+		if slices.Contains(listPricing.saleOptions[product.Uid.String], item.SaleOption) {
+			saleOption = item.SaleOption
+		}
+		if listed, ok := listPricing.discountForOption(product.Uid.String, saleOption); ok {
 			product.Discount = listed.percent
 			discountListID = listed.listID
 		}
@@ -196,6 +205,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			}
 			priced.salespersonID = item.SalespersonID
 			priced.note = strings.TrimSpace(item.Note)
+			priced.saleOption = saleOption
 			if pricing.price == product.Price {
 				priced.priceListID = priceListID
 			}
@@ -210,7 +220,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			subtotal += gross
 			discountedSubtotal += lineTotal
 			products = append(products, priced)
-			receiptItems = append(receiptItems, invoiceItem{Name: product.Name, Code: product.Code, Barcode: product.Barcode, Category: product.Description, Color: product.Color, Size: product.Size, Price: float64(pricing.price) / 100, Discount: float64(pricing.discount), Qty: float64(qty)})
+			receiptItems = append(receiptItems, invoiceItem{Name: nameWithSaleOption(product.Name, saleOption), Code: product.Code, Barcode: product.Barcode, Category: product.Description, Color: product.Color, Size: product.Size, Price: float64(pricing.price) / 100, Discount: float64(pricing.discount), Qty: float64(qty)})
 		}
 	}
 	return products, subtotal, discountedSubtotal, receiptItems, nil
@@ -235,4 +245,13 @@ func priceInvoiceProduct(product db.Product, qty int64, roundingMode string) (pr
 		discount:  product.Discount,
 		lineTotal: gross - lineDiscount,
 	}, nil
+}
+
+// nameWithSaleOption is the line's name on the receipt: "Lady Jacket
+// (Summer)", so the receipt says which stock was sold.
+func nameWithSaleOption(name, saleOption string) string {
+	if saleOption == "" {
+		return name
+	}
+	return name + " (" + saleOption + ")"
 }

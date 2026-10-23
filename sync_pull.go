@@ -78,6 +78,11 @@ type syncedProductVariant struct {
 	Kind        sql.NullString `json:"kind"`
 	Season      sql.NullString `json:"season"`
 	Year        sql.NullString `json:"year"`
+	// The options the till asks for when this product is sold (Summer,
+	// Winter...), by name and in display order. nil from a kashi that
+	// predates sale options -- left alone then, as nothing could have set
+	// them; an empty array clears them.
+	SaleOptions []string `json:"sale_options"`
 }
 
 // syncedExpenseCategory / syncedLoanCategory mirror the raw row kashi
@@ -556,6 +561,18 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 
 	if err := applySyncedProductAttributes(ctx, q, productID, v); err != nil {
 		return err
+	}
+	if v.SaleOptions != nil {
+		if err := q.DeleteProductSaleOptions(ctx, productID); err != nil {
+			return err
+		}
+		for i, name := range v.SaleOptions {
+			if err := q.InsertProductSaleOption(ctx, db.InsertProductSaleOptionParams{
+				ProductID: productID, Name: name, SortOrder: int64(i),
+			}); err != nil {
+				return err
+			}
+		}
 	}
 	return stampRemoteVersion(ctx, v.UpdatedAt, func(ver string) error {
 		return q.SetProductRemoteUpdatedAt(ctx, db.SetProductRemoteUpdatedAtParams{RemoteUpdatedAt: sql.NullString{String: ver, Valid: true}, ID: productID})

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -21,6 +22,8 @@ type exchangeLine struct {
 	UnitDiscount   *int64 `json:"unitDiscount,omitempty"`
 	SalespersonID  int64  `json:"salespersonId,omitempty"`
 	Note           string `json:"note,omitempty"`
+	// See salesInvoiceItem.SaleOption; used on replacement lines.
+	SaleOption string `json:"saleOption,omitempty"`
 	// The following only apply to replacement (positive-qty) lines - a
 	// returned line's price/discount always comes from the original sold
 	// line (UnitPriceCents/UnitDiscount above are only ever used to *match*
@@ -240,7 +243,13 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		if listed, ok := listPricing.priceFor(product.Uid.String); ok {
 			product.Price = listed.cents
 		}
-		if listed, ok := listPricing.discountFor(product.Uid.String); ok {
+		// As in validateAndPriceItems: an option the product no longer asks
+		// is sold at the plain discount.
+		saleOption := ""
+		if slices.Contains(listPricing.saleOptions[product.Uid.String], line.SaleOption) {
+			saleOption = line.SaleOption
+		}
+		if listed, ok := listPricing.discountForOption(product.Uid.String, saleOption); ok {
 			product.Discount = listed.percent
 		}
 		// The "Unknown item" placeholder has no list price: whatever the
@@ -298,6 +307,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 			}
 			priced.salespersonID = line.SalespersonID
 			priced.note = line.Note
+			priced.saleOption = saleOption
 			if result.replacementTotal > math.MaxInt64-priced.lineTotal {
 				return result, fmt.Errorf("replacement total is too large")
 			}

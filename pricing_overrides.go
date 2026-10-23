@@ -37,6 +37,12 @@ type activeDiscount struct {
 type activePricing struct {
 	prices    map[string]activePrice
 	discounts map[string]activeDiscount
+	// optionDiscounts[uid][option] is the discount for a line sold as that
+	// sale option (000126); see discountForOption.
+	optionDiscounts map[string]map[string]activeDiscount
+	// saleOptions[uid] is what the till asks when the product is sold, in
+	// display order; absent for an ordinary product.
+	saleOptions map[string][]string
 }
 
 // priceFor / discountFor report whether central said anything about a product
@@ -52,10 +58,24 @@ func (p activePricing) discountFor(productUID string) (activeDiscount, bool) {
 	return v, ok
 }
 
+// discountForOption is the discount for a line sold as saleOption: the
+// option's own row when a list has one, otherwise the product's plain
+// discount. An empty saleOption is the plain discount.
+func (p activePricing) discountForOption(productUID, saleOption string) (activeDiscount, bool) {
+	if saleOption != "" {
+		if v, ok := p.optionDiscounts[productUID][saleOption]; ok {
+			return v, true
+		}
+	}
+	return p.discountFor(productUID)
+}
+
 func loadActivePricing(ctx context.Context, q *db.Queries) (activePricing, error) {
 	pricing := activePricing{
-		prices:    map[string]activePrice{},
-		discounts: map[string]activeDiscount{},
+		prices:          map[string]activePrice{},
+		discounts:       map[string]activeDiscount{},
+		optionDiscounts: map[string]map[string]activeDiscount{},
+		saleOptions:     map[string][]string{},
 	}
 
 	// Both queries order is_default DESC, so a default-list row is written
@@ -81,6 +101,31 @@ func loadActivePricing(ctx context.Context, q *db.Queries) (activePricing, error
 		pricing.discounts[row.ProductUid] = activeDiscount{
 			percent: row.Discount, listID: row.ListID, listName: row.ListName,
 		}
+	}
+
+	// Same order, same rule: a branch list's option row overwrites the
+	// default list's for the same product and option.
+	optionRows, err := q.ListActiveDiscountListOptionItems(ctx)
+	if err != nil {
+		return pricing, err
+	}
+	for _, row := range optionRows {
+		byOption := pricing.optionDiscounts[row.ProductUid]
+		if byOption == nil {
+			byOption = map[string]activeDiscount{}
+			pricing.optionDiscounts[row.ProductUid] = byOption
+		}
+		byOption[row.SaleOption] = activeDiscount{
+			percent: row.Discount, listID: row.ListID, listName: row.ListName,
+		}
+	}
+
+	saleOptionRows, err := q.ListAllProductSaleOptions(ctx)
+	if err != nil {
+		return pricing, err
+	}
+	for _, row := range saleOptionRows {
+		pricing.saleOptions[row.ProductUid.String] = append(pricing.saleOptions[row.ProductUid.String], row.Name)
 	}
 	return pricing, nil
 }
