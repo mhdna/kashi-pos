@@ -1,6 +1,9 @@
 /* Central typography controls. Change these values to resize the app globally. */
 :root {
-  --kashi-font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
+  /* Twemoji Country Flags (registered in main.ts only where the system has
+     no flag emoji, e.g. Windows) covers just the flag characters, so it can
+     lead the stack without touching any other text. */
+  --kashi-font-family: "Twemoji Country Flags", "Roboto", "Helvetica Neue", Arial, sans-serif;
   --kashi-app-background: #f7f7f7;
   --kashi-font-size-base: 0.95rem;
   --kashi-font-size-sm: 0.8;
