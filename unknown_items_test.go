@@ -51,8 +51,12 @@ func TestUnknownProductStaysOutOfProductSearch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Items) != 0 || page.Total != 0 {
-		t.Fatalf("search lists %d items (total %d), want none", len(page.Items), page.Total)
+	total, err := app.CountProductsForSearch("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 0 || total != 0 {
+		t.Fatalf("search lists %d items (total %d), want none", len(page.Items), total)
 	}
 }
 

@@ -533,8 +533,12 @@ func TestProductSearchCodeOnlyIgnoresNames(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(page.Items) != 0 || page.Total != 0 {
-			t.Fatalf("code-only search %q = %#v (total %d), want nothing", query, page.Items, page.Total)
+		total, err := app.CountProductsForSearch(query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Items) != 0 || total != 0 {
+			t.Fatalf("code-only search %q = %#v (total %d), want nothing", query, page.Items, total)
 		}
 	}
 	for _, query := range []string{"SKU-VARIANT", "BAR-VARIANT"} {
@@ -542,8 +546,12 @@ func TestProductSearchCodeOnlyIgnoresNames(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(page.Items) != 1 || page.Total != 1 {
-			t.Fatalf("code-only search %q = %#v (total %d), want the variant", query, page.Items, page.Total)
+		total, err := app.CountProductsForSearch(query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Items) != 1 || total != 1 {
+			t.Fatalf("code-only search %q = %#v (total %d), want the variant", query, page.Items, total)
 		}
 	}
 }

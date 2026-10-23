@@ -18,8 +18,9 @@
       </v-btn>
     </template>
     <v-card class="product-list-card">
-      <div :key="listKey" class="product-list">
+      <div class="product-list">
         <v-virtual-scroll
+          ref="scroller"
           class="product-virtual-scroll"
           :items="products"
           :item-height="48"
@@ -103,7 +104,7 @@
 
 <script lang="ts" setup>
 import { computed, ref, inject, onBeforeUnmount, watch } from "vue";
-import { ListProductsCursor } from "../../wailsjs/go/main/App";
+import { CountProductsForSearch, ListProductsCursor } from "../../wailsjs/go/main/App";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
 type ProductItem = {
@@ -178,11 +179,14 @@ watch(dialog, (v) => {
   }
 });
 
+// A search answers in a few milliseconds, so it runs as you type; the short
+// timer only folds a burst of keys (a paste, a barcode wedge) into one
+// request, and latestRequest drops replies a newer search superseded.
 watch(search, (value) => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     debouncedSearch.value = value.trim();
-  }, 250);
+  }, 30);
 });
 
 watch(debouncedSearch, () => {
@@ -192,7 +196,10 @@ watch(debouncedSearch, () => {
 const batchSize = 50;
 const products = ref<ProductItem[]>([]);
 const cursor = ref(0);
-const listKey = ref(0);
+const scroller = ref<{ scrollToIndex: (index: number) => void } | null>(null);
+// A new search replaces the list when its first page arrives, rather than
+// emptying it first, so typing doesn't flash an empty list on every key.
+let replaceOnNextPage = false;
 const loading = ref(false);
 const hasMore = ref(true);
 const loadError = ref(false);
@@ -211,18 +218,32 @@ const countLabel = computed(() => {
 
 function resetList() {
   latestRequest++;
-  products.value = [];
   cursor.value = 0;
   hasMore.value = true;
-  total.value = -1;
+  replaceOnNextPage = true;
   loadError.value = false;
   loadErrorMessage.value = "";
   // A previous loadMore() may still be in flight and, once superseded, will
   // never get to clear this itself (its finally only fires for the request
   // it still owns) - clear it here so the guard below can't wedge shut.
   loading.value = false;
-  listKey.value++;
-  if (dialog.value) void loadMore();
+  if (dialog.value) {
+    void loadMore();
+    void loadCount();
+  }
+}
+
+// The "N results" label, asked beside the first page so the list never
+// waits for the count.
+let latestCount = 0;
+async function loadCount() {
+  const request = ++latestCount;
+  try {
+    const count = await CountProductsForSearch(debouncedSearch.value);
+    if (request === latestCount) total.value = Number(count);
+  } catch {
+    // The label stays as it was; the results don't depend on it.
+  }
 }
 
 async function loadMore() {
@@ -234,10 +255,16 @@ async function loadMore() {
   try {
     const result = await ListProductsCursor(cursor.value, batchSize, debouncedSearch.value);
     if (request !== latestRequest) return;
-    products.value.push(...result.items.map((product) => ({ ...product, qty: 1 }) as ProductItem));
+    const page = result.items.map((product) => ({ ...product, qty: 1 }) as ProductItem);
+    if (replaceOnNextPage) {
+      replaceOnNextPage = false;
+      products.value = page;
+      scroller.value?.scrollToIndex(0);
+    } else {
+      products.value.push(...page);
+    }
     cursor.value = result.nextCursor;
     hasMore.value = result.hasMore;
-    if (typeof result.total === "number" && result.total >= 0) total.value = result.total;
   } catch (e) {
     if (request !== latestRequest) return;
     console.error("ListProductsCursor failed:", e);
