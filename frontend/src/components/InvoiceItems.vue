@@ -119,6 +119,7 @@
                       <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
                       <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
                     </span>
+                    <span class="invoice-price-discount" />
                   </span>
                 </button>
               </template>
@@ -133,22 +134,31 @@
                   :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
                 />
                 <span class="invoice-price-values">
-                  <!-- The list price and its discount share a line, so the
-                       column is two lines, not three. -->
-                  <span class="invoice-price-was">
-                    <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
-                    <span v-if="item.discount && !discountEditable(item)" class="text-caption text-red">
-                      -{{ item.discount }}%
-                      <v-icon
-                        v-if="item.discountListOverridden"
-                        icon="mdi-star"
-                        color="amber-darken-2"
-                        size="12"
-                        :title="item.discountListName ? `Discount from list: ${item.discountListName}` : 'List discount'"
-                      />
-                    </span>
-                  </span>
+                  <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
                   <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
+                </span>
+                <!-- The discount as a chip to the right of both prices,
+                     centred on them. The slot is there (empty) on every line
+                     so the prices line up whether or not a line has one. -->
+                <span class="invoice-price-discount">
+                  <v-chip
+                    v-if="item.discount && !discountEditable(item)"
+                    color="red"
+                    density="comfortable"
+                    label
+                    size="x-small"
+                    variant="tonal"
+                    :title="item.discountListName ? `Discount from list: ${item.discountListName}` : undefined"
+                  >
+                    -{{ item.discount }}%
+                    <v-icon
+                      v-if="item.discountListOverridden"
+                      class="ms-1"
+                      icon="mdi-star"
+                      color="amber-darken-2"
+                      size="10"
+                    />
+                  </v-chip>
                 </span>
               </span>
             </div>
@@ -1033,10 +1043,14 @@ defineExpose({
 
 /* Name over code, with the sale option chip beside the pair and centred on
    it; a long name still ellipsizes instead of pushing the chip away. */
-.invoice-price-was {
+.invoice-price-values {
+  min-width: 48px;
+}
+
+.invoice-price-discount {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  justify-content: flex-start;
+  width: 46px;
 }
 
 .invoice-item-title-text {
@@ -1092,8 +1106,8 @@ defineExpose({
    final price falls on the same vertical line whether or not a discount
    sits beside the list price. */
 .invoice-price-control {
-  flex: 0 0 88px;
-  width: 88px;
+  flex: 0 0 100px;
+  width: 100px;
 }
 
 .invoice-price-value {
