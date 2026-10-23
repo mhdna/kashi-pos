@@ -365,16 +365,27 @@
           :autofocus="index === 0"
           class="sale-option-tile"
           :color="saleOptionLook(option.name).color"
-          height="150"
+          height="210"
           variant="flat"
           @click="pickSaleOption(option)"
         >
-          <div class="d-flex flex-column align-center ga-2">
-            <v-icon :icon="saleOptionLook(option.name).icon" size="36" />
-            <span class="text-h5 font-weight-bold">{{ option.name }}</span>
-            <span class="text-h6 sale-option-discount">
-              {{ option.discount > 0 ? `-${option.discount}%` : "No discount" }}
+          <div class="d-flex flex-column align-center ga-1">
+            <div class="d-flex align-center ga-2">
+              <v-icon :icon="saleOptionLook(option.name).icon" size="28" />
+              <span class="text-h6 font-weight-bold">{{ option.name }}</span>
+            </div>
+            <span class="sale-option-discount">
+              {{ option.discount > 0 ? `${option.discount}% OFF` : "NO DISCOUNT" }}
             </span>
+            <!-- What the customer pays, so the discount is a price, not just a number. -->
+            <div class="d-flex align-baseline ga-2">
+              <span v-if="option.discount > 0" class="sale-option-was">
+                ${{ Number(saleOptionPicker.product.price || 0).toFixed(2) }}
+              </span>
+              <span class="text-h5 font-weight-bold">
+                ${{ (Number(saleOptionPicker.product.price || 0) * (1 - option.discount / 100)).toFixed(2) }}
+              </span>
+            </div>
           </div>
         </v-btn>
       </v-card-text>
@@ -1692,8 +1703,19 @@ onBeforeUnmount(() => {
 }
 
 .sale-option-discount {
-  padding: 2px 14px;
+  margin: 4px 0;
+  padding: 4px 16px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
+  background: #ffffff;
+  color: #212121;
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.sale-option-was {
+  font-size: 1.1rem;
+  text-decoration: line-through;
+  opacity: 0.8;
 }
 </style>
