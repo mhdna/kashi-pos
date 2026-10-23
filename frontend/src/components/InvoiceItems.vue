@@ -12,23 +12,24 @@
             :aria-label="`Open details for ${item.name}`"
             @click.stop="openDetails(item)"
           >
-            <span class="invoice-item-name text-caption font-weight-medium">
-              <span class="invoice-item-name-text">{{ item.name }}</span>
-              <v-chip
-                v-if="item.saleOption"
-                class="invoice-item-sale-option"
-                label
-                size="small"
-                :text="item.saleOption"
-                variant="tonal"
-              />
-            </span>
-            <span class="invoice-item-code text-overline text-medium-emphasis">
-              {{ item.code }}
-              <span v-if="item.color || item.size" class="text-caption text-medium-emphasis ms-2">
-                {{ [item.color, item.size].filter(Boolean).join(" / ") }}
+            <span class="invoice-item-title-text">
+              <span class="invoice-item-name text-caption font-weight-medium">{{ item.name }}</span>
+              <span class="invoice-item-code text-overline text-medium-emphasis">
+                {{ item.code }}
+                <span v-if="item.color || item.size" class="text-caption text-medium-emphasis ms-2">
+                  {{ [item.color, item.size].filter(Boolean).join(" / ") }}
+                </span>
               </span>
             </span>
+            <!-- Beside the name and code, centred on both. -->
+            <v-chip
+              v-if="item.saleOption"
+              class="invoice-item-sale-option"
+              label
+              size="small"
+              :text="item.saleOption"
+              variant="tonal"
+            />
           </button>
         </template>
         <template #append>
@@ -1002,8 +1003,8 @@ defineExpose({
   color: inherit;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  gap: 10px;
   margin-inline-start: -6px;
   max-width: 100%;
   overflow: hidden;
@@ -1021,19 +1022,14 @@ defineExpose({
   white-space: nowrap;
 }
 
-/* The name and its sale option chip sit on one line, centred on each other;
-   a long name still ellipsizes instead of pushing the chip away. */
-.invoice-item-name {
+/* Name over code, with the sale option chip beside the pair and centred on
+   it; a long name still ellipsizes instead of pushing the chip away. */
+.invoice-item-title-text {
   display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.invoice-item-name-text {
+  flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 100%;
 }
 
 .invoice-item-sale-option {
