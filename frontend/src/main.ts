@@ -25,7 +25,11 @@ import "./styles/compact.scss";
 // font only on platforms that can't render them, so macOS keeps its own. The
 // font file ships with the app (Twemoji flags, MIT) rather than the
 // polyfill's default CDN URL, so it works on a till with no internet.
-polyfillCountryFlagEmojis("Twemoji Country Flags", flagFontUrl);
+// It's otherwise only fetched when a flag is first drawn, which made the
+// client dialog's first open wait on it; load it now instead.
+if (polyfillCountryFlagEmojis("Twemoji Country Flags", flagFontUrl)) {
+  void document.fonts.load('1em "Twemoji Country Flags"', "\u{1F1F1}\u{1F1E7}").catch(() => undefined);
+}
 
 const app = createApp(App);
 
