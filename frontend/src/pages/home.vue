@@ -349,8 +349,8 @@
   </v-dialog>
 
   <!-- A product that asks a sale option: which one is being sold. -->
-  <v-dialog v-model="saleOptionPicker.show" max-width="560">
-    <v-card v-if="saleOptionPicker.product" class="pa-2">
+  <v-dialog v-model="saleOptionPicker.show" max-width="420">
+    <v-card v-if="saleOptionPicker.product">
       <v-card-title class="text-h5 pb-0">{{ saleOptionPicker.product.name }}</v-card-title>
       <v-card-subtitle class="text-subtitle-1">
         {{ saleOptionPicker.product.code }}
@@ -358,19 +358,19 @@
           · {{ [saleOptionPicker.product.color, saleOptionPicker.product.size].filter(Boolean).join(" / ") }}
         </template>
       </v-card-subtitle>
-      <v-card-text class="sale-option-grid pt-5">
+      <v-card-text class="sale-option-grid pt-3 pb-1">
         <v-btn
           v-for="(option, index) in saleOptionPicker.product.saleOptions"
           :key="option.name"
           :autofocus="index === 0"
           class="sale-option-tile"
           :color="saleOptionLook(option.name).color"
-          height="150"
+          height="96"
           variant="flat"
           @click="pickSaleOption(option)"
         >
-          <div class="d-flex flex-column align-center ga-2">
-            <v-icon :icon="saleOptionLook(option.name).icon" size="44" />
+          <div class="d-flex flex-column align-center ga-1">
+            <v-icon :icon="saleOptionLook(option.name).icon" size="32" />
             <span class="sale-option-name">{{ option.name }}</span>
           </div>
         </v-btn>
@@ -1679,7 +1679,7 @@ onBeforeUnmount(() => {
 .sale-option-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 10px;
 }
 
 .sale-option-tile {
@@ -1689,7 +1689,7 @@ onBeforeUnmount(() => {
 }
 
 .sale-option-name {
-  font-size: 1.6rem;
+  font-size: 1.25rem;
   font-weight: 800;
   line-height: 1.1;
 }
