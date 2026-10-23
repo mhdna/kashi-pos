@@ -323,8 +323,10 @@ let statusDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 watch(
   [entries, () => props.itemsJson, () => props.settlementInvoiceId, () => props.exchangeOriginalInvoiceId],
   () => {
+    // No wait, for the same reason as home.vue's quote: the backend answers
+    // in well under a millisecond; statusRequestToken drops stale replies.
     clearTimeout(statusDebounceTimer);
-    statusDebounceTimer = setTimeout(refreshPaymentStatus, 120);
+    statusDebounceTimer = setTimeout(refreshPaymentStatus, 0);
   },
   { deep: true, immediate: true },
 );
