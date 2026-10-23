@@ -12,7 +12,10 @@
             :aria-label="`Open details for ${item.name}`"
             @click.stop="openDetails(item)"
           >
-            <span class="invoice-item-name text-caption font-weight-medium">{{ item.name }}</span>
+            <span class="invoice-item-name text-caption font-weight-medium">
+              {{ item.name }}
+              <v-chip v-if="item.saleOption" class="ms-1" density="compact" label size="x-small" :text="item.saleOption" />
+            </span>
             <span class="invoice-item-code text-overline text-medium-emphasis">
               {{ item.code }}
               <span v-if="item.color || item.size" class="text-caption text-medium-emphasis ms-2">
@@ -293,6 +296,11 @@ interface LineItem {
   priceListName?: string;
   discountListOverridden?: boolean;
   discountListName?: string;
+  // The sale option the cashier picked (Summer/Winter) for a product that
+  // asks one; it decides the line's list discount. See home.vue
+  // addProductToCart.
+  saleOption?: string;
+  saleOptions?: { name: string; discount: number; discountListName?: string }[];
   // The catalog/list price captured when the line was added, before any
   // manual edit. Used as the fixed reference point in "discount" price
   // change mode, where a price edit is expressed as a discount off this
@@ -478,6 +486,9 @@ function addItem(item: LineItem) {
     (i) =>
       !i.locked &&
       ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)) &&
+      // A summer and a winter unit of one barcode are discounted
+      // differently, so each option is its own line.
+      (i.saleOption ?? "") === (item.saleOption ?? "") &&
       (!isUnknownItem(i) || Number(i.price) === Number(item.price)),
   );
   if (existing && isUnknownItem(existing)) {
@@ -491,8 +502,12 @@ function addItem(item: LineItem) {
     existing.unitDiscounts?.push(existing.discount);
     existing.qty++;
   } else {
-    const discount = savedDiscounts.get(item.code) ?? Number(item.discount || 0);
-    savedDiscounts.set(item.code, discount);
+    // savedDiscounts remembers a per-code discount; an option line's
+    // discount belongs to the option, so it neither reads nor sets it.
+    const discount = item.saleOption
+      ? Number(item.discount || 0)
+      : (savedDiscounts.get(item.code) ?? Number(item.discount || 0));
+    if (!item.saleOption) savedDiscounts.set(item.code, discount);
     const price = Number(item.price);
     const qty = Math.max(1, Math.trunc(Number(item.qty || 1)));
     const unitPrices =
@@ -528,7 +543,12 @@ function applyListPricing(rows: any[]): string[] {
     const row = rows.find((r) => r.barcode === item.barcode);
     const price = Number(row?.price);
     if (!row || !(price > 0)) continue;
-    const discount = Math.trunc(Number(row.discount || 0));
+    // An option line follows its option's discount (see productMap's
+    // saleOptions), not the product's plain one.
+    const option = item.saleOption
+      ? (row.saleOptions ?? []).find((o: any) => o.name === item.saleOption)
+      : undefined;
+    const discount = Math.trunc(Number((option ?? row).discount || 0));
     const listedPrice = Number(item.originalPrice ?? item.price);
     const listedDiscount = Number(item.originalDiscount ?? 0);
     const untouched =
@@ -547,8 +567,8 @@ function applyListPricing(rows: any[]): string[] {
     item.priceListOverridden = Boolean(row.priceListOverridden);
     item.priceListName = row.priceListName || "";
     item.discountListOverridden = Boolean(row.discountListOverridden);
-    item.discountListName = row.discountListName || "";
-    savedDiscounts.set(item.code, discount);
+    item.discountListName = (option ?? row).discountListName || "";
+    if (!item.saleOption) savedDiscounts.set(item.code, discount);
     changed.push(item.name);
   }
   return changed;

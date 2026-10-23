@@ -157,7 +157,7 @@
         @add="
           (item) => {
             playClickSound();
-            invoiceItems?.addItem(item);
+            addProductToCart(item);
           }
         "
       />
@@ -344,6 +344,45 @@
       <v-card-actions>
         <v-spacer />
         <v-btn text="Cancel" @click="variantPicker.show = false" />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- A product that asks a sale option: which one is being sold. -->
+  <v-dialog v-model="saleOptionPicker.show" max-width="460">
+    <v-card v-if="saleOptionPicker.product">
+      <v-card-title>{{ saleOptionPicker.product.name }}</v-card-title>
+      <v-card-subtitle>
+        {{ saleOptionPicker.product.code }}
+        <template v-if="saleOptionPicker.product.color || saleOptionPicker.product.size">
+          · {{ [saleOptionPicker.product.color, saleOptionPicker.product.size].filter(Boolean).join(" / ") }}
+        </template>
+      </v-card-subtitle>
+      <v-card-text class="d-flex flex-column ga-3 pt-4">
+        <v-btn
+          v-for="(option, index) in saleOptionPicker.product.saleOptions"
+          :key="option.name"
+          :autofocus="index === 0"
+          block
+          class="justify-space-between"
+          size="x-large"
+          variant="tonal"
+          @click="pickSaleOption(option)"
+        >
+          <span>{{ option.name }}</span>
+          <template #append>
+            <v-chip
+              :color="option.discount > 0 ? 'success' : undefined"
+              label
+              size="small"
+              :text="option.discount > 0 ? `-${option.discount}%` : 'No discount'"
+            />
+          </template>
+        </v-btn>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn text="Cancel" @click="saleOptionPicker.show = false" />
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -840,8 +879,7 @@ function onProductSelect(product: {
   qty: number;
 }) {
   playClickSound();
-  invoiceItems.value?.addItem(product);
-  focusBarcode();
+  if (addProductToCart(product)) focusBarcode();
 }
 
 function onAccountClientSelect(client: Client) {
@@ -877,7 +915,7 @@ async function onBarcodeEnter() {
   } catch {}
   flashBarcodeFeedback(matches.length ? "success" : "error");
   if (matches.length === 1) {
-    invoiceItems.value?.addItem({ ...matches[0], qty: 1 });
+    if (!addProductToCart({ ...matches[0], qty: 1 })) return;
   } else if (matches.length > 1) {
     variantPicker.code = value.trim();
     variantPicker.variants = matches;
@@ -885,6 +923,38 @@ async function onBarcodeEnter() {
     return;
   }
   focusBarcode();
+}
+
+// A product that asks a sale option (Summer/Winter, set in kashi) can't go
+// into the cart until the cashier says which one is being sold: the same
+// barcode covers both, and they're discounted differently. Every way of
+// adding a product comes through here. Returns false when it opened the
+// picker instead, so the caller leaves focus to the dialog.
+const saleOptionPicker = reactive<{ show: boolean; product: any }>({ show: false, product: null });
+
+function addProductToCart(product: any): boolean {
+  if (product?.saleOptions?.length && !product.saleOption) {
+    saleOptionPicker.product = product;
+    saleOptionPicker.show = true;
+    return false;
+  }
+  invoiceItems.value?.addItem(product);
+  return true;
+}
+
+function pickSaleOption(option: { name: string; discount: number; discountListName?: string }) {
+  const product = saleOptionPicker.product;
+  saleOptionPicker.show = false;
+  saleOptionPicker.product = null;
+  if (!product) return;
+  invoiceItems.value?.addItem({
+    ...product,
+    saleOption: option.name,
+    discount: Number(option.discount || 0),
+    originalDiscount: Number(option.discount || 0),
+    discountListName: option.discountListName ?? "",
+  });
+  scheduleBarcodeFocus();
 }
 
 const variantPicker = reactive<{ show: boolean; code: string; variants: any[] }>({
@@ -895,8 +965,7 @@ const variantPicker = reactive<{ show: boolean; code: string; variants: any[] }>
 
 function pickVariant(variant: any) {
   variantPicker.show = false;
-  invoiceItems.value?.addItem({ ...variant, qty: 1 });
-  scheduleBarcodeFocus();
+  if (addProductToCart({ ...variant, qty: 1 })) scheduleBarcodeFocus();
 }
 
 function showDiscountError(message: string) {
@@ -932,7 +1001,9 @@ watch([invoiceTotal, hasItems], showCustomerTotal);
 
 async function getItemsJSON(): Promise<string> {
   const items = invoiceItems.value?.items ?? [];
-  return JSON.stringify(items.map((i: any) => ({ code: i.code, barcode: i.barcode, qty: i.qty })));
+  return JSON.stringify(
+    items.map((i: any) => ({ code: i.code, barcode: i.barcode, qty: i.qty, saleOption: i.saleOption || undefined })),
+  );
 }
 
 async function getFullItemsJSON(): Promise<string> {
@@ -962,6 +1033,7 @@ async function getFullItemsJSON(): Promise<string> {
       discount: i.discount,
       salespersonId: Number(i.salespersonId || 0),
       note: String(i.note || "").trim(),
+      saleOption: i.saleOption || undefined,
       qty: i.qty,
     })),
   );
