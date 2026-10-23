@@ -746,8 +746,12 @@ watch(
     customItemDiscountsEnabled,
   ],
   () => {
+    // No wait: a quote reuses the cached prices (pricing_overrides.go) and
+    // takes well under a millisecond, so the total follows each scan or key
+    // at once. The 0ms timer only folds changes made in the same tick into
+    // one request; quoteRequestToken drops any reply a newer one superseded.
     clearTimeout(quoteDebounceTimer);
-    quoteDebounceTimer = setTimeout(refreshQuote, 120);
+    quoteDebounceTimer = setTimeout(refreshQuote, 0);
   },
   { deep: true, immediate: true },
 );

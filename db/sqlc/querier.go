@@ -289,6 +289,8 @@ type Querier interface {
 	GetPriceListByID(ctx context.Context, id int64) (PriceList, error)
 	GetPriceListByUID(ctx context.Context, uid sql.NullString) (PriceList, error)
 	GetPriceOverride(ctx context.Context, id int64) (PriceOverride, error)
+	// See 000127_pricing_version.up.sql: what loadActivePricing's cache is keyed on.
+	GetPricingVersion(ctx context.Context) (GetPricingVersionRow, error)
 	GetProductByBarcode(ctx context.Context, barcode string) (Product, error)
 	GetProductByCode(ctx context.Context, code string) (Product, error)
 	GetProductByID(ctx context.Context, id int64) (Product, error)

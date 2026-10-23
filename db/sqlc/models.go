@@ -445,6 +445,12 @@ type PriceOverride struct {
 	CreatedAt string        `json:"createdAt"`
 }
 
+type PricingVersion struct {
+	ID      int64  `json:"id"`
+	Token   string `json:"token"`
+	Version int64  `json:"version"`
+}
+
 type Product struct {
 	ID              int64          `json:"id"`
 	Barcode         string         `json:"barcode"`

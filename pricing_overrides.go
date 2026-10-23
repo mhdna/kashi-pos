@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"sync"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -70,7 +71,55 @@ func (p activePricing) discountForOption(productUID, saleOption string) (activeD
 	return p.discountFor(productUID)
 }
 
+// pricingCache keeps the last loaded activePricing, so a quote doesn't re-read
+// every price and discount (~13k rows, most of a quote's time) on each scan.
+// It's keyed on pricing_version (000127), which triggers move on any write
+// to what prices a sale, so a reuse is only ever of exactly what the database
+// holds now. The token tells databases apart (tests, a branch switch).
+// Callers only read the maps, never write them, so sharing them is safe.
+var pricingCache struct {
+	sync.Mutex
+	token   string
+	version int64
+	pricing *activePricing
+}
+
+// resetPricingCache drops the cached pricing; called when the till opens a
+// database, since two branches' databases can carry the same version.
+func resetPricingCache() {
+	pricingCache.Lock()
+	pricingCache.pricing = nil
+	pricingCache.Unlock()
+}
+
+// loadActivePricing is the pricing in force, from the cache when nothing that
+// prices a sale changed since it was loaded. q may be a transaction's: the
+// version is read through it, so a checkout prices from what its own
+// transaction sees.
 func loadActivePricing(ctx context.Context, q *db.Queries) (activePricing, error) {
+	current, err := q.GetPricingVersion(ctx)
+	if err != nil {
+		return activePricing{}, err
+	}
+	pricingCache.Lock()
+	if cached := pricingCache.pricing; cached != nil &&
+		pricingCache.token == current.Token && pricingCache.version == current.Version {
+		pricingCache.Unlock()
+		return *cached, nil
+	}
+	pricingCache.Unlock()
+
+	pricing, err := readActivePricing(ctx, q)
+	if err != nil {
+		return pricing, err
+	}
+	pricingCache.Lock()
+	pricingCache.token, pricingCache.version, pricingCache.pricing = current.Token, current.Version, &pricing
+	pricingCache.Unlock()
+	return pricing, nil
+}
+
+func readActivePricing(ctx context.Context, q *db.Queries) (activePricing, error) {
 	pricing := activePricing{
 		prices:          map[string]activePrice{},
 		discounts:       map[string]activeDiscount{},

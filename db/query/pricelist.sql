@@ -54,3 +54,7 @@ FROM price_list_items pli
 JOIN price_lists pl ON pl.id = pli.price_list_id
 WHERE pl.is_active = 1
 ORDER BY pli.product_uid, pl.is_default DESC;
+
+-- name: GetPricingVersion :one
+-- See 000127_pricing_version.up.sql: what loadActivePricing's cache is keyed on.
+SELECT token, version FROM pricing_version WHERE id = 1;
