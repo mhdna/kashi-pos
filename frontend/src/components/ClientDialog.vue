@@ -745,16 +745,18 @@ function reset() {
 
 .client-phone-prefix {
   color: rgba(var(--v-theme-on-surface), 0.6);
-  flex: 0 0 auto;
-  margin-inline-end: 8px;
+  font-size: var(--kashi-font-size-xl);
+  justify-self: start;
 }
 
+/* Prefix | number | empty column of the same width, so the number sits on
+   the keypad's centre line rather than in the space the prefix leaves. */
 .client-phone-numpad-display {
   align-items: baseline;
-  display: flex;
+  display: grid;
   font-size: var(--kashi-font-size-2xl);
   font-weight: 700;
-  justify-content: center;
+  grid-template-columns: 1fr auto 1fr;
   margin-bottom: 12px;
   min-height: 40px;
   overflow: hidden;
@@ -764,7 +766,6 @@ function reset() {
   background: transparent;
   border: 0;
   color: inherit;
-  flex: 0 1 auto;
   font: inherit;
   min-width: 0;
   outline: 0;
