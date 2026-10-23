@@ -97,7 +97,7 @@
                 <button
                   v-bind="activatorProps"
                   :ref="setRef"
-                  class="invoice-price-editor invoice-price-control d-flex flex-column align-end"
+                  class="invoice-price-editor invoice-price-control d-flex flex-column align-center"
                   :class="{ 'invoice-price-editor--keyboard': fieldKeyboardMode }"
                   type="button"
                   aria-label="Set custom item price"
@@ -123,7 +123,7 @@
                 </button>
               </template>
             </NumberPadMenu>
-            <div v-else class="invoice-price-control d-flex flex-column align-end">
+            <div v-else class="invoice-price-control d-flex flex-column align-center">
               <span class="invoice-price-value">
                 <v-icon
                   v-if="item.priceListOverridden"
