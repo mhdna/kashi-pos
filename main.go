@@ -76,6 +76,9 @@ func main() {
 		OnDomReady: func(ctx context.Context) {
 			wailsruntime.WindowShow(ctx)
 			hideSplash()
+			// Off the startup path: it waits on Explorer, and nothing on
+			// screen depends on it.
+			go autoHideTaskbar()
 		},
 		OnShutdown: app.shutdown,
 		Bind: []interface{}{
@@ -91,6 +94,7 @@ func main() {
 	}
 
 	err := wails.Run(appOptions)
+	restoreTaskbar()
 	if err != nil {
 		println("Error:", err.Error())
 	}
