@@ -510,6 +510,9 @@ type Querier interface {
 	// For a single-product lookup, where scanning the whole catalog's
 	// attributes (as ListAllProductAttributeValues does) would be wasteful.
 	ListProductAttributeValues(ctx context.Context, productID int64) ([]ListProductAttributeValuesRow, error)
+	// ListAllProductAttributeValues for just the products on screen (a search
+	// page of 50), instead of the whole catalogue.
+	ListProductAttributeValuesFor(ctx context.Context, productIds []int64) ([]ListProductAttributeValuesForRow, error)
 	ListProductSyncVersions(ctx context.Context) ([]ListProductSyncVersionsRow, error)
 	ListProducts(ctx context.Context) ([]Product, error)
 	// search_pattern must already be wrapped in '%...%' by the caller.

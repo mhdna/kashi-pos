@@ -20,6 +20,15 @@ FROM products_attributes pa
 JOIN attributes a ON a.id = pa.attribute_id
 JOIN attributes_values av ON av.id = pa.attribute_value_id;
 
+-- name: ListProductAttributeValuesFor :many
+-- ListAllProductAttributeValues for just the products on screen (a search
+-- page of 50), instead of the whole catalogue.
+SELECT pa.product_id, a.name AS attribute_name, av.value
+FROM products_attributes pa
+JOIN attributes a ON a.id = pa.attribute_id
+JOIN attributes_values av ON av.id = pa.attribute_value_id
+WHERE pa.product_id IN (sqlc.slice('product_ids'));
+
 -- name: UpsertAttributeValue :one
 INSERT INTO attributes_values (attribute_id, value)
 VALUES (?, ?)

@@ -519,15 +519,19 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 		log.Printf("ListProductsCursor: load active pricing: %v", err)
 		return ProductCursorPage{}, fmt.Errorf("load price/discount lists: %w", err)
 	}
-	attrs, err := loadProductAttributeValues(a.ctx, a.store.Queries)
-	if err != nil {
-		log.Printf("ListProductsCursor: load product attributes: %v", err)
-		return ProductCursorPage{}, fmt.Errorf("load product attributes: %w", err)
-	}
-
 	hasMore := len(products) > limit
 	if hasMore {
 		products = products[:limit]
+	}
+	// Only this page's attributes, not the whole catalogue's.
+	ids := make([]int64, len(products))
+	for i, product := range products {
+		ids[i] = product.ID
+	}
+	attrs, err := loadProductAttributeValuesFor(a.ctx, a.store.Queries, ids)
+	if err != nil {
+		log.Printf("ListProductsCursor: load product attributes: %v", err)
+		return ProductCursorPage{}, fmt.Errorf("load product attributes: %w", err)
 	}
 	result := make([]map[string]any, len(products))
 	for i, product := range products {
@@ -538,21 +542,36 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 		nextCursor = products[len(products)-1].ID
 	}
 
-	total := int64(-1)
-	if afterID == 0 {
-		if search == "" {
-			total, err = a.store.CountAllProducts(a.ctx)
-		} else if codeOnly {
-			total, err = a.store.CountProductsByCode(a.ctx, "%"+search+"%")
-		} else {
-			total, err = a.store.CountProducts(a.ctx, "%"+search+"%")
-		}
-		if err != nil {
-			log.Printf("ListProductsCursor: count products (search=%q): %v", search, err)
-			return ProductCursorPage{}, fmt.Errorf("count products: %w", err)
-		}
+	// The match count is CountProductsForSearch's, asked separately, so the
+	// results never wait on counting every match.
+	return ProductCursorPage{Items: result, NextCursor: nextCursor, HasMore: hasMore, Total: -1}, nil
+}
+
+// CountProductsForSearch counts every product ListProductsCursor's search
+// would page through -- the "N results" label. It's its own call so the
+// first page can show before the count (the slower part of a search) is in.
+func (a *App) CountProductsForSearch(search string) (int64, error) {
+	if a.store == nil {
+		return 0, fmt.Errorf("database not initialized")
 	}
-	return ProductCursorPage{Items: result, NextCursor: nextCursor, HasMore: hasMore, Total: total}, nil
+	search = strings.TrimSpace(search)
+	var (
+		total int64
+		err   error
+	)
+	switch {
+	case search == "":
+		total, err = a.store.CountAllProducts(a.ctx)
+	case a.flagEnabled(a.ctx, productSearchCodeOnlyFlag):
+		total, err = a.store.CountProductsByCode(a.ctx, "%"+search+"%")
+	default:
+		total, err = a.store.CountProducts(a.ctx, "%"+search+"%")
+	}
+	if err != nil {
+		log.Printf("CountProductsForSearch: count products (search=%q): %v", search, err)
+		return 0, fmt.Errorf("count products: %w", err)
+	}
+	return total, nil
 }
 
 // loadProductAttributeValues loads every product's attribute values in one
@@ -571,6 +590,26 @@ func loadProductAttributeValues(ctx context.Context, q *db.Queries) (map[int64]m
 		return nil, err
 	}
 	attrs := make(map[int64]map[string]string)
+	for _, row := range rows {
+		if attrs[row.ProductID] == nil {
+			attrs[row.ProductID] = make(map[string]string)
+		}
+		attrs[row.ProductID][row.AttributeName] = row.Value
+	}
+	return attrs, nil
+}
+
+// loadProductAttributeValuesFor is loadProductAttributeValues for just these
+// products.
+func loadProductAttributeValuesFor(ctx context.Context, q *db.Queries, productIDs []int64) (map[int64]map[string]string, error) {
+	attrs := make(map[int64]map[string]string)
+	if len(productIDs) == 0 {
+		return attrs, nil
+	}
+	rows, err := q.ListProductAttributeValuesFor(ctx, productIDs)
+	if err != nil {
+		return nil, err
+	}
 	for _, row := range rows {
 		if attrs[row.ProductID] == nil {
 			attrs[row.ProductID] = make(map[string]string)
