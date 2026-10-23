@@ -1,11 +1,8 @@
 <template>
   <v-app :class="{ 'kashi-compact': isCompactBuild, 'animations-disabled': !animationsEnabled }">
-    <div v-if="startupLoading" class="startup-screen" role="status" aria-label="Loading">
-      <div class="startup-loader-content">
-        <div class="startup-spinner" aria-hidden="true"></div>
-        <span>Loading…</span>
-      </div>
-    </div>
+    <!-- While starting up, index.html's #startup-loader covers the window;
+         it is removed below once startup is done. -->
+    <template v-if="startupLoading" />
     <div v-else-if="databaseMissing" class="database-setup">
       <v-card v-if="knownBranches.length === 0 || showAddBranchForm" class="database-setup-card" max-width="480">
         <v-card-title>Set up this branch</v-card-title>
@@ -148,34 +145,20 @@ onMounted(async () => {
     startupError.value = error instanceof Error ? error.message : String(error);
   } finally {
     startupLoading.value = false;
+    hideStartupLoader();
   }
 });
+
+// Fades out and removes the loader index.html shows from launch.
+function hideStartupLoader() {
+  const loader = document.getElementById("startup-loader");
+  if (!loader) return;
+  loader.classList.add("startup-loader-done");
+  setTimeout(() => loader.remove(), 200);
+}
 </script>
 
 <style scoped>
-.startup-screen {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  background: rgb(var(--v-theme-background));
-  color: rgb(var(--v-theme-primary));
-}
-
-.startup-loader-content {
-  display: grid;
-  justify-items: center;
-  gap: 16px;
-}
-
-.startup-spinner {
-  width: 36px;
-  height: 36px;
-  border: 4px solid rgba(var(--v-theme-primary), 0.2);
-  border-top-color: currentColor;
-  border-radius: 50%;
-  animation: startup-spin 0.8s linear infinite !important;
-}
-
 .database-setup {
   min-height: 100vh;
   display: grid;
@@ -186,11 +169,5 @@ onMounted(async () => {
 
 .database-setup-card {
   width: 100%;
-}
-
-@keyframes startup-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>
