@@ -119,7 +119,7 @@
                       <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
                       <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
                     </span>
-                    <span class="invoice-price-discount" />
+                    <span v-if="showDiscountChips" class="invoice-price-discount" />
                   </span>
                 </button>
               </template>
@@ -138,9 +138,9 @@
                   <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
                 </span>
                 <!-- The discount as a chip to the right of both prices,
-                     centred on them. The slot is there (empty) on every line
-                     so the prices line up whether or not a line has one. -->
-                <span class="invoice-price-discount">
+                     centred on them. While any line has one, the slot is
+                     there (empty) on every line so the prices line up. -->
+                <span v-if="showDiscountChips" class="invoice-price-discount">
                   <v-chip
                     v-if="item.discount && !discountEditable(item)"
                     color="red"
@@ -665,6 +665,10 @@ function discountEditable(item: LineItem): boolean {
   if (isUnknownItem(item)) return true;
   return customDiscountsEnabled.value && codeAllowsPriceEdit(item);
 }
+
+// Whether any line shows its discount as a chip beside the price. Without
+// one, the chip slot is left out so the price doesn't carry empty room.
+const showDiscountChips = computed(() => items.value.some((item) => item.discount && !discountEditable(item)));
 
 function canEditDiscount(item: LineItem): boolean {
   return discountEditable(item) && !readonly.value && !item.locked && item.qty > 0;
