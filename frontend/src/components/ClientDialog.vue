@@ -747,6 +747,7 @@ function reset() {
   color: rgba(var(--v-theme-on-surface), 0.6);
   font-size: var(--kashi-font-size-xl);
   justify-self: start;
+  margin-inline-start: 12px;
 }
 
 /* Prefix | number | empty column of the same width, so the number sits on
