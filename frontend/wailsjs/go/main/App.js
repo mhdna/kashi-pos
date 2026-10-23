@@ -130,6 +130,10 @@ export function ConvertCashEntryToCents(arg1, arg2) {
   return window['go']['main']['App']['ConvertCashEntryToCents'](arg1, arg2);
 }
 
+export function CountProductsForSearch(arg1) {
+  return window['go']['main']['App']['CountProductsForSearch'](arg1);
+}
+
 export function CreateBranch(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateBranch'](arg1, arg2, arg3, arg4);
 }

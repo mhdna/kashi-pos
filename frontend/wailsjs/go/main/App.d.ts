@@ -66,6 +66,8 @@ export function ConfirmTransferRequest(arg1:number,arg2:Array<main.confirmTransf
 
 export function ConvertCashEntryToCents(arg1:string,arg2:number):Promise<number>;
 
+export function CountProductsForSearch(arg1:string):Promise<number>;
+
 export function CreateBranch(arg1:string,arg2:string,arg3:string,arg4:string):Promise<Record<string, any>>;
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
