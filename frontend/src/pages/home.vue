@@ -207,6 +207,7 @@
         <Calculator
           ref="calculator"
           :total-cents="quote?.grandTotalCents ?? 0"
+          :unrounded-cents="quote?.unroundedCents"
           :exchange-shortfall-cents="quote?.exchangeShortfallCents ?? 0"
           :quote-error="quoteError"
           :items-json="cartItemsJson"
@@ -534,6 +535,9 @@ const accountDialog = ref(false);
 // payment-status checks are always priced from the exact same cart JSON.
 interface InvoiceQuote {
   grandTotalCents: number;
+  // The total before cash rounding (discounted subtotal plus tax), when the
+  // backend says; the calculator shows "Rounded from" when it differs.
+  unroundedCents?: number;
   // Only set in exchange mode: how much more replacement value is still
   // needed before the exchange can be checked out. Exchanges can never pay
   // cash back to the customer, so while returned value exceeds replacement
@@ -707,7 +711,10 @@ async function refreshQuote() {
   try {
     const result = await QuoteInvoiceTotal(itemsJson);
     if (token !== quoteRequestToken) return;
-    quote.value = { grandTotalCents: Number(result.grandTotalCents) };
+    quote.value = {
+      grandTotalCents: Number(result.grandTotalCents),
+      unroundedCents: Number(result.discountedSubtotalCents) + Number(result.taxCents),
+    };
   } catch (e) {
     if (token !== quoteRequestToken) return;
     // Surfaced on screen as well as in the console - the reason is either a

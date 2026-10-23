@@ -35,7 +35,8 @@
           <span v-if="remainingAmount.second" class="calculator-amounts-plus" aria-hidden="true">+</span>
           <span v-if="remainingAmount.second" :class="statusColor">{{ remainingAmount.second }}</span>
         </div>
-        <span v-if="isRounded" class="calculator-amounts-rounded">Rounded</span>
+        <span v-if="roundedFromText" class="calculator-amounts-rounded">{{ roundedFromText }}</span>
+        <span v-else-if="isRounded" class="calculator-amounts-rounded">Rounded</span>
       </template>
     </div>
   </section>
@@ -55,6 +56,8 @@ const props = defineProps<{
   // cash back to the customer, so this replaces the normal total/remaining
   // display with an explicit "add more" message instead of showing $0.00.
   exchangeShortfallCents?: number;
+  // "Rounded from $5.6" when the backend rounded the total for cash.
+  roundedFromText?: string;
   remainingAmount: {
     // The two halves of the split, in display order -- which currency each
     // holds is per-branch config (see splitAmount in Calculator.vue).

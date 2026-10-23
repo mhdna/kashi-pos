@@ -7,6 +7,7 @@
       :remaining-amount="remainingAmount"
       :quote-error="quoteError"
       :exchange-shortfall-cents="exchangeShortfallCents"
+      :rounded-from-text="roundedFromText"
     />
 
     <v-card class="calculator-display pa-2 mb-3 mt-2" variant="outlined" rounded="lg">
@@ -165,6 +166,8 @@ interface Entry {
 const FALLBACK_CURRENCY: CurrencyRate = { code: "USD", symbol: "$", unitsPerUsd: 1, cashRoundingUnit: 1 };
 const props = defineProps<{
   totalCents: number;
+  // The total before the backend's cash rounding; see roundedFromText.
+  unroundedCents?: number;
   // Set when the backend quote failed. totalCents is meaningless (0) in that
   // case, so the total is replaced by this message and checkout is blocked -
   // otherwise diffCents === 0 makes a pricing failure read as "Paid".
@@ -250,6 +253,15 @@ function currencySymbolFor(methodName: string) {
 
 // totalCents comes straight from the backend quote - no local re-rounding.
 const totalCents = computed(() => props.totalCents);
+
+// The total is rounded so it can be paid in cash (e.g. $5.60 becomes
+// $5 + LL 50,000 = $5.56); this says from what, so the cashier can see why it
+// differs from the lines.
+const roundedFromText = computed(() => {
+  const unrounded = props.unroundedCents;
+  if (unrounded == null || unrounded === totalCents.value) return "";
+  return `Rounded from $${String(Number((unrounded / 100).toFixed(2)))}`;
+});
 const paidCents = computed(() => entries.value.reduce((sum, entry) => sum + entry.amountCents, 0));
 
 // checkoutReady/cashRoundedToTotal require server-side logic (cash-rounding
