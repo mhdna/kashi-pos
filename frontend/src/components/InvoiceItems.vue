@@ -116,8 +116,8 @@
                       :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
                     />
                     <span class="invoice-price-values">
-                      <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
-                      <span class="text-caption font-weight-bold">${{ totalAfterDiscount(item).toFixed(2) }}</span>
+                      <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
+                      <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
                     </span>
                   </span>
                 </button>
@@ -136,7 +136,7 @@
                   <!-- The list price and its discount share a line, so the
                        column is two lines, not three. -->
                   <span class="invoice-price-was">
-                    <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
+                    <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
                     <span v-if="item.discount && !discountEditable(item)" class="text-caption text-red">
                       -{{ item.discount }}%
                       <v-icon
@@ -148,7 +148,7 @@
                       />
                     </span>
                   </span>
-                  <span class="text-caption font-weight-bold">${{ totalAfterDiscount(item).toFixed(2) }}</span>
+                  <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
                 </span>
               </span>
             </div>
@@ -371,6 +371,11 @@ function effectiveUnitPriceAt(item: LineItem, index: number): number {
 
 function discountAmount(item: LineItem): number {
   return (itemGrossCents(item) - discountedItemCents(item)) / 100;
+}
+
+// A cart line's prices without trailing zeros: $7, $5.6, $5.65.
+function shortPrice(value: number): string {
+  return String(Number(Number(value || 0).toFixed(2)));
 }
 
 function totalAfterDiscount(item: LineItem): number {
@@ -1029,7 +1034,7 @@ defineExpose({
 /* Name over code, with the sale option chip beside the pair and centred on
    it; a long name still ellipsizes instead of pushing the chip away. */
 /* The price after discount sits centred under the "$7.00 -20%" line. */
-.invoice-price-values--centred {
+.invoice-price-values.invoice-price-values--centred {
   align-items: center;
 }
 
