@@ -133,16 +133,20 @@
                   :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
                 />
                 <span class="invoice-price-values">
-                  <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
-                  <span v-if="item.discount && !discountEditable(item)" class="text-caption text-red">
-                    -{{ item.discount }}%
-                    <v-icon
-                      v-if="item.discountListOverridden"
-                      icon="mdi-star"
-                      color="amber-darken-2"
-                      size="12"
-                      :title="item.discountListName ? `Discount from list: ${item.discountListName}` : 'List discount'"
-                    />
+                  <!-- The list price and its discount share a line, so the
+                       column is two lines, not three. -->
+                  <span class="invoice-price-was">
+                    <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
+                    <span v-if="item.discount && !discountEditable(item)" class="text-caption text-red">
+                      -{{ item.discount }}%
+                      <v-icon
+                        v-if="item.discountListOverridden"
+                        icon="mdi-star"
+                        color="amber-darken-2"
+                        size="12"
+                        :title="item.discountListName ? `Discount from list: ${item.discountListName}` : 'List discount'"
+                      />
+                    </span>
                   </span>
                   <span class="text-caption font-weight-bold">${{ totalAfterDiscount(item).toFixed(2) }}</span>
                 </span>
@@ -1024,6 +1028,12 @@ defineExpose({
 
 /* Name over code, with the sale option chip beside the pair and centred on
    it; a long name still ellipsizes instead of pushing the chip away. */
+.invoice-price-was {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
 .invoice-item-title-text {
   display: flex;
   flex-direction: column;
