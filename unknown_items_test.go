@@ -107,6 +107,66 @@ func TestVerifyUnknownPicturesNeedsEveryUnit(t *testing.T) {
 	}
 }
 
+// The cart's units go to kashi as a background session, under the refs the
+// sale screen gave them; the session is then the one the payment checks, and
+// emptying the cart forgets it and sends the paired phone back to waiting.
+func TestSyncUnknownItemsKeepsTheCartsSession(t *testing.T) {
+	var got struct {
+		ClientRef  string `json:"client_ref"`
+		Background bool   `json:"background"`
+		Slots      []struct {
+			SlotRef   string `json:"slot_ref"`
+			UnitPrice int64  `json:"unit_price"`
+		} `json:"slots"`
+	}
+	idled := false
+	kashi := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/branch/unknown_sessions":
+			_ = json.NewDecoder(r.Body).Decode(&got)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"upload_token": "tok", "complete": false, "phone_online": true,
+				"slots": []map[string]any{{"slot_ref": "u1", "has_image": true}, {"slot_ref": "u2"}},
+			})
+		case "/branch/unknown_pairing/idle":
+			idled = true
+			_ = json.NewEncoder(w).Encode(map[string]any{"idle": true})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer kashi.Close()
+
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	if _, err := database.Exec(`INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, central_api_url, branch_code) VALUES ('Test', 'key', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0, ?, 'B1')`, kashi.URL); err != nil {
+		t.Fatal(err)
+	}
+
+	status, err := app.SyncUnknownItems("cart-1", `[{"slotRef":"u1","unitPriceCents":1000},{"slotRef":"u2","unitPriceCents":500}]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ClientRef != "cart-1" || !got.Background || len(got.Slots) != 2 || got.Slots[1].SlotRef != "u2" || got.Slots[1].UnitPrice != 500 {
+		t.Fatalf("kashi got %+v", got)
+	}
+	if status["phoneOnline"] != true || status["complete"] != false {
+		t.Fatalf("status = %v", status)
+	}
+	if app.unknownSessionRef != "cart-1" || app.unknownDone != 1 {
+		t.Fatalf("remembered (%q, %d), want (cart-1, 1)", app.unknownSessionRef, app.unknownDone)
+	}
+
+	// A cart with no unknown unit left still tells kashi, so it drops them.
+	if _, err := app.SyncUnknownItems("cart-1", `[]`); err != nil || got.Slots == nil || len(got.Slots) != 0 {
+		t.Fatalf("empty sync = %v, kashi got %+v", err, got)
+	}
+
+	if err := app.IdleUnknownPhone(); err != nil || !idled || app.unknownSessionRef != "" {
+		t.Fatalf("idle = %v, idled %v, ref %q", err, idled, app.unknownSessionRef)
+	}
+}
+
 func TestEveryUnknownItemMayBeItsOwnLine(t *testing.T) {
 	if _, err := parseSalesItems(`[{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1},{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1}]`, "UNKNOWN"); err != nil {
 		t.Fatalf("two unknown lines were refused: %v", err)

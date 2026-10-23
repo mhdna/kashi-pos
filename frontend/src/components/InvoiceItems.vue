@@ -310,6 +310,9 @@ interface LineItem {
   soldUnitDiscount?: number;
   unitPrices?: number[];
   unitDiscounts?: number[];
+  // An unknown item's per-unit picture refs, beside unitPrices: each unit's
+  // picture on the paired phone stays with it (see home.vue unknownUnits).
+  unknownRefs?: string[];
   discount: number;
   qty: number;
   salespersonId?: number;

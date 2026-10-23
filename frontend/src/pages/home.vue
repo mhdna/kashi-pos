@@ -101,7 +101,10 @@
           aria-label="Add an unknown item"
           @click="unknownPrice.show = true"
         >
-          <v-icon icon="mdi-help-box-outline" size="26" />
+          <!-- units still waiting for the phone's picture -->
+          <v-badge :model-value="unknownPending > 0" color="warning" :content="unknownPending" floating>
+            <v-icon icon="mdi-help-box-outline" size="26" />
+          </v-badge>
         </v-btn>
         <v-btn
           v-if="pageMode !== 'settlement' && productSearchEnabled"
@@ -120,14 +123,33 @@
           :rounding-mode="roundingMode"
           @exchange="onExchange"
         />
-        <UnknownPriceDialog v-model="unknownPrice.show" @add="onUnknownAdd" />
+        <UnknownPriceDialog
+          v-model="unknownPrice.show"
+          :phone-online="unknownStatus.phoneOnline"
+          @add="onUnknownAdd"
+          @pair="unknownPairing = true"
+        />
         <UnknownPicturesDialog
           v-if="unknownPictures.show"
           v-model="unknownPictures.show"
-          :units="unknownPictures.units"
+          :client-ref="unknownSessionRef"
+          :error="unknownPictures.error"
+          :slots="unknownStatus.slots"
           @cancel="answerUnknownPictures(false)"
-          @ready="answerUnknownPictures(true)"
+          @retry="retryUnknownPictures"
         />
+        <v-dialog v-model="unknownPairing" max-width="340">
+          <v-card class="pa-4">
+            <v-card-title class="px-0 pt-0 text-center text-h5">Pair a phone</v-card-title>
+            <div class="d-flex justify-center">
+              <UnknownPhonePairing v-if="unknownPairing" @online="unknownStatus.phoneOnline = $event" />
+            </div>
+            <v-card-actions class="px-0 pb-0">
+              <v-spacer />
+              <v-btn variant="text" @click="unknownPairing = false">Close</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
         <ProductSearchDialog
           ref="productSearchDialog"
           v-if="pageMode !== 'settlement'"
@@ -407,6 +429,11 @@ import {
   QuoteInvoiceTotal,
   QuoteExchangeTotal,
   GetUnknownProduct,
+  GetUnknownPairing,
+  IdleUnknownPhone,
+  MarkUnknownItemsAtPayment,
+  SyncUnknownItems,
+  UnknownItemSessionStatus,
   RefreshCartPricing,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
@@ -419,6 +446,7 @@ import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import NoteButton from "@/components/NoteButton.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
+import UnknownPhonePairing from "@/components/UnknownPhonePairing.vue";
 import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
 import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
@@ -452,6 +480,8 @@ type InvoiceDraft = {
   // (returned lines locked in, replacements maybe scanned) survives an app
   // restart or logout/login instead of silently reverting to a normal sale.
   exchangeOriginalInvoiceId?: number;
+  // The cart's unknown-item picture session, so its pictures survive too.
+  unknownSessionRef?: string;
 };
 const { client, clientSelected, setClient, resetClient, pulseMissingClient, setClientRequired } = useClient();
 const { selectedSalesperson, pulseSalesperson, salespersonPerInvoiceRequired, setSalespersonPerInvoiceRequired } =
@@ -659,6 +689,7 @@ watch(
         notes: invoiceNotes.value,
         calculator: calculator.value?.holdState(),
         exchangeOriginalInvoiceId: exchangeState.value?.originalInvoiceId,
+        unknownSessionRef: unknownSessionRef || undefined,
       } satisfies InvoiceDraft),
     );
   },
@@ -773,6 +804,7 @@ async function restoreDraft() {
     invoiceNotes.value = draft.notes ?? "";
     noteDraft.value = invoiceNotes.value;
     calculator.value?.restoreHoldState(draft.calculator);
+    switchUnknownCart(draft.unknownSessionRef ?? "");
     if (draft.exchangeOriginalInvoiceId) {
       exchangeState.value = { originalInvoiceId: draft.exchangeOriginalInvoiceId };
       await refreshNextInvoiceCode("exchange");
@@ -801,7 +833,7 @@ function clearInvoice() {
   invoiceNotes.value = "";
   noteDraft.value = "";
   noteDialog.value = false;
-  unknownPicturesReadyFor = "";
+  switchUnknownCart("");
   clearDraft();
   resetClient();
 }
@@ -1061,6 +1093,7 @@ async function onHold() {
       salesperson: selectedSalesperson.value,
       calculator: calculator.value?.holdState(),
       notes: invoiceNotes.value,
+      unknownSessionRef: unknownSessionRef || undefined,
     }),
   );
   clearInvoice();
@@ -1155,23 +1188,55 @@ async function confirmPricesIfUnusual(): Promise<boolean> {
   });
 }
 
-// --- "Unknown item": something with no code, rung up at a typed price, with a
-// picture of every unit taken on a phone before the customer pays. ---
+// --- "Unknown item": something with no code, rung up at a typed price. The
+// phone paired with this till shows each unit the moment it is rung up (the
+// cart's units go to kashi whenever they change), so its picture is usually
+// taken before the customer pays; the payment waits only for a unit still
+// missing one. ---
 // The product kashi named for unknown items (or the built-in placeholder).
 const unknownProductBarcode = ref("UNKNOWN");
 const isUnknownItem = (item: any) => item?.barcode === unknownProductBarcode.value;
 const unknownPrice = reactive({ show: false });
-const unknownPictures = reactive<{
-  show: boolean;
-  units: { label: string; unitPriceCents: number; discount: number }[];
-}>({ show: false, units: [] });
+const unknownPairing = ref(false);
+type UnknownUnit = { slotRef: string; label: string; unitPriceCents: number; discount: number };
+type UnknownSlot = { slotRef: string; label: string; hasImage: boolean; waived: boolean; done: boolean };
+// What kashi last said about the cart's units; kept live while one still
+// needs a picture.
+const unknownStatus = reactive<{ slots: UnknownSlot[]; complete: boolean; phoneOnline: boolean }>({
+  slots: [],
+  complete: false,
+  phoneOnline: false,
+});
+const unknownPending = computed(() => unknownStatus.slots.filter((slot) => !slot.done).length);
+const unknownPictures = reactive({ show: false, error: "" });
 let unknownPicturesAnswer: ((ready: boolean) => void) | null = null;
-// The cart (one unit per picture) the last finished session was opened for.
-let unknownPicturesReadyFor = "";
+// The cart's picture session ("" until its first unknown unit). It goes
+// with the cart when it is held, and with the draft.
+let unknownSessionRef = "";
+// The units, as last sent, that kashi has ("" when they must be sent again).
+let unknownSyncedFor = "";
+// Whether the phone is showing this cart, so leaving it sends the phone back
+// to waiting.
+let unknownPhoneOnCart = false;
+let unknownSyncTimer: ReturnType<typeof setTimeout> | undefined;
+// Calls to kashi run one after another, so it always ends on the latest cart.
+let unknownCalls: Promise<unknown> = Promise.resolve();
+let unknownPolling = false;
+
+function newUnknownRef() {
+  return crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function queueUnknownCall(call: () => Promise<unknown>) {
+  unknownCalls = unknownCalls.then(call, call).catch(() => {});
+  return unknownCalls;
+}
 
 async function onUnknownAdd(price: number) {
   try {
     const product = await GetUnknownProduct();
+    // Named before the line exists, so a draft saved right away keeps it.
+    if (!unknownSessionRef) unknownSessionRef = newUnknownRef();
     invoiceItems.value?.addItem({ ...product, price, qty: 1, originalPrice: price } as any);
     playClickSound();
   } catch (e: any) {
@@ -1180,13 +1245,21 @@ async function onUnknownAdd(price: number) {
   focusBarcode();
 }
 
-function unknownUnits() {
-  const units: { label: string; unitPriceCents: number; discount: number }[] = [];
+// The cart's unknown units, one per unit. Each unit keeps a ref of its own on
+// its line (unknownRefs, beside unitPrices), so its picture stays with it
+// while the cart changes, and a unit taken off the line takes its ref along.
+function unknownUnits(): UnknownUnit[] {
+  const units: UnknownUnit[] = [];
   for (const item of invoiceItems.value?.items ?? []) {
     if (!isUnknownItem(item) || !(item.qty > 0)) continue;
-    for (let i = 0; i < item.qty; i++) {
+    const qty = Math.trunc(item.qty);
+    const refs: string[] = Array.isArray(item.unknownRefs) ? item.unknownRefs.slice(0, qty) : [];
+    while (refs.length < qty) refs.push(newUnknownRef());
+    if (!Array.isArray(item.unknownRefs) || item.unknownRefs.length !== qty) item.unknownRefs = refs;
+    for (let i = 0; i < qty; i++) {
       const price = Number(item.unitPrices?.[i] ?? item.price);
       units.push({
+        slotRef: refs[i]!,
         label: `Unknown item $${price.toFixed(2)}`,
         unitPriceCents: Math.round(price * 100),
         discount: Math.trunc(Number(item.unitDiscounts?.[i] ?? item.discount ?? 0)),
@@ -1196,23 +1269,121 @@ function unknownUnits() {
   return units;
 }
 
+function applyUnknownStatus(status: any) {
+  unknownStatus.slots = status?.slots ?? [];
+  unknownStatus.complete = Boolean(status?.complete);
+  unknownStatus.phoneOnline = Boolean(status?.phoneOnline);
+  if (unknownPending.value > 0) void pollUnknownStatus();
+}
+
+// Sends the cart's units to kashi if they changed since the last time.
+function syncUnknownItems() {
+  clearTimeout(unknownSyncTimer);
+  return queueUnknownCall(async () => {
+    if (settlementState.value) return;
+    const units = unknownUnits();
+    if (!units.length && !unknownSessionRef) return;
+    if (!unknownSessionRef) unknownSessionRef = newUnknownRef();
+    const signature = JSON.stringify(units);
+    if (signature === unknownSyncedFor) return;
+    const ref = unknownSessionRef;
+    try {
+      const status = await SyncUnknownItems(ref, signature);
+      if (ref !== unknownSessionRef) return;
+      unknownSyncedFor = signature;
+      unknownPhoneOnCart = true;
+      unknownPictures.error = "";
+      applyUnknownStatus(status);
+    } catch (e: any) {
+      if (ref === unknownSessionRef) unknownPictures.error = e?.toString() || "Couldn't reach kashi";
+    }
+  });
+}
+
+watch(
+  () => invoiceItems.value?.items,
+  () => {
+    clearTimeout(unknownSyncTimer);
+    unknownSyncTimer = setTimeout(() => void syncUnknownItems(), 250);
+  },
+  { deep: true },
+);
+
+// While a unit still needs a picture, follows kashi so a picture shows on
+// the till the moment the phone sends it (kashi holds each call until then).
+async function pollUnknownStatus() {
+  if (unknownPolling) return;
+  unknownPolling = true;
+  try {
+    while (unknownPending.value > 0 && unknownSessionRef) {
+      const ref = unknownSessionRef;
+      try {
+        const status = await UnknownItemSessionStatus(ref);
+        if (ref !== unknownSessionRef) continue;
+        unknownStatus.slots = status?.slots ?? [];
+        unknownStatus.complete = Boolean(status?.complete);
+        unknownStatus.phoneOnline = Boolean(status?.phoneOnline);
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
+  } finally {
+    unknownPolling = false;
+  }
+}
+
+// Moves to another cart's session: a new cart (""), or a restored one.
+function switchUnknownCart(ref: string) {
+  clearTimeout(unknownSyncTimer);
+  unknownSessionRef = ref;
+  unknownSyncedFor = "";
+  unknownStatus.slots = [];
+  unknownStatus.complete = false;
+  unknownPictures.error = "";
+  if (unknownPhoneOnCart) {
+    unknownPhoneOnCart = false;
+    void queueUnknownCall(() => IdleUnknownPhone());
+  }
+}
+
+watch(
+  () => unknownPrice.show,
+  (open) => {
+    if (open)
+      GetUnknownPairing()
+        .then((pairing: any) => (unknownStatus.phoneOnline = Boolean(pairing?.phoneOnline)))
+        .catch(() => {});
+  },
+);
+
 // Resolves true once every unit of the cart has a picture (or a manager's
-// pass); false if the cashier backs out. Skipped when nothing is unknown, or
-// when this exact cart already finished a session.
+// pass); false if the cashier backs out. Usually the phone has taken them
+// all already and nothing is shown.
 async function ensureUnknownPictures(): Promise<boolean> {
-  const units = unknownUnits();
-  if (!units.length) return true;
-  const signature = JSON.stringify(units);
-  if (signature === unknownPicturesReadyFor) return true;
-  unknownPicturesReadyFor = "";
-  unknownPictures.units = units;
+  if (!unknownUnits().length) return true;
+  await syncUnknownItems();
+  if (unknownSyncedFor && unknownStatus.complete) return true;
+  if (unknownSyncedFor) void MarkUnknownItemsAtPayment(unknownSessionRef).catch(() => {});
   unknownPictures.show = true;
-  const ready = await new Promise<boolean>((resolve) => {
+  return new Promise<boolean>((resolve) => {
     unknownPicturesAnswer = resolve;
   });
-  if (ready) unknownPicturesReadyFor = signature;
-  return ready;
 }
+
+async function retryUnknownPictures() {
+  unknownSyncedFor = "";
+  await syncUnknownItems();
+  if (unknownSyncedFor && !unknownStatus.complete) void MarkUnknownItemsAtPayment(unknownSessionRef).catch(() => {});
+}
+
+watch(
+  () => unknownStatus.complete,
+  (complete) => {
+    if (!complete || !unknownPictures.show) return;
+    unknownPictures.show = false;
+    answerUnknownPictures(true);
+  },
+);
 
 function answerUnknownPictures(ready: boolean) {
   const answer = unknownPicturesAnswer;
@@ -1386,6 +1557,7 @@ function onRestoreHold(hold: any) {
   invoiceNotes.value = hold.notes ?? "";
   noteDraft.value = invoiceNotes.value;
   calculator.value?.restoreHoldState(hold.calculator);
+  switchUnknownCart(hold.unknownSessionRef ?? "");
   void DeleteHoldInvoice(hold.id);
 }
 

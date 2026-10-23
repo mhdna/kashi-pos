@@ -210,6 +210,8 @@ export function GetTodayIncomeByAccount():Promise<Array<Record<string, any>>>;
 
 export function GetTransferPhoto(arg1:string,arg2:number,arg3:number):Promise<string>;
 
+export function GetUnknownPairing():Promise<Record<string, any>>;
+
 export function GetUnknownProduct():Promise<Record<string, any>>;
 
 export function GetVisitorCountToday():Promise<number>;
@@ -219,6 +221,8 @@ export function GetVisitorCounterEnabled():Promise<boolean>;
 export function GetVisitorCountsForMonth(arg1:string):Promise<Record<string, number>>;
 
 export function HoldInvoice(arg1:string):Promise<number>;
+
+export function IdleUnknownPhone():Promise<void>;
 
 export function ImportPendingProductsCSV():Promise<main.ProductCSVImportResult>;
 
@@ -312,6 +316,8 @@ export function ListTransfers():Promise<Array<Record<string, any>>>;
 
 export function ListUsers():Promise<Array<Record<string, any>>>;
 
+export function MarkUnknownItemsAtPayment(arg1:string):Promise<void>;
+
 export function OpenShift():Promise<Record<string, any>>;
 
 export function PayClientAccount(arg1:number,arg2:number,arg3:number):Promise<Record<string, any>>;
@@ -357,6 +363,8 @@ export function RequestExpenseUploadLink(arg1:string):Promise<string>;
 export function RequestLoanUploadLink(arg1:string):Promise<string>;
 
 export function RequestUnknownItemHelp(arg1:string):Promise<void>;
+
+export function ResetUnknownPairing():Promise<Record<string, any>>;
 
 export function ResyncAll(arg1:main.ResyncOptions):Promise<main.ResyncReport>;
 
@@ -458,8 +466,6 @@ export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<st
 
 export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Promise<void>;
 
-export function StartUnknownItemSession(arg1:string):Promise<Record<string, any>>;
-
 export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string):Promise<void>;
 
 export function SwitchBranch(arg1:string):Promise<void>;
@@ -467,6 +473,8 @@ export function SwitchBranch(arg1:string):Promise<void>;
 export function SwitchShiftReceiptToLocal(arg1:string):Promise<Record<string, any>>;
 
 export function SyncAttendance(arg1:string):Promise<Record<string, any>>;
+
+export function SyncUnknownItems(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function UnknownItemSessionStatus(arg1:string):Promise<Record<string, any>>;
 

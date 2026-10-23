@@ -13,18 +13,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	db "kashi-pos/db/sqlc"
 )
 
 // "Unknown item": something a customer wants that has no code here. The
 // cashier rings it up as the placeholder product below at the price they
-// type; before payment, a phone takes a picture of every unit (the QR link
-// kashi hands back), the pictures go straight to kashi, and the sale is held
-// only until each unit has one -- or a kashi user with the right permission
-// lets it through. Afterwards someone in kashi names what each picture was
-// (see api/unknown_items.go in the kashi repo).
+// type. A phone paired with this till (it scanned the till's QR code once)
+// shows each unit the moment it is rung up, so its picture is taken while
+// the item is still in hand; the pictures go straight to kashi, and the sale
+// is held at the payment only until each unit has one -- or a kashi user with
+// the right permission lets it through. Afterwards someone in kashi names
+// what each picture was (see api/unknown_items.go in the kashi repo).
 
 const (
 	// defaultUnknownBarcode is the built-in placeholder's barcode, used while
@@ -170,6 +169,9 @@ func (a *App) unknownCall(method, path string, in, out any) error {
 }
 
 type unknownSlotInput struct {
+	// SlotRef names the unit for as long as it is in the cart (held and
+	// restored too), so its picture stays with it while the cart changes.
+	SlotRef        string `json:"slotRef"`
 	Label          string `json:"label"`
 	UnitPriceCents int64  `json:"unitPriceCents"`
 	Discount       int64  `json:"discount"`
@@ -178,6 +180,7 @@ type unknownSlotInput struct {
 type unknownSessionResponse struct {
 	UploadToken string `json:"upload_token"`
 	Complete    bool   `json:"complete"`
+	PhoneOnline bool   `json:"phone_online"`
 	Slots       []struct {
 		SlotRef  string `json:"slot_ref"`
 		Label    string `json:"label"`
@@ -196,7 +199,7 @@ func doneUnknownUnits(resp unknownSessionResponse) int {
 	return done
 }
 
-func unknownSessionResult(clientRef, uploadURL string, resp unknownSessionResponse) map[string]any {
+func unknownSessionResult(clientRef string, resp unknownSessionResponse) map[string]any {
 	slots := make([]map[string]any, 0, len(resp.Slots))
 	for _, slot := range resp.Slots {
 		slots = append(slots, map[string]any{
@@ -204,16 +207,20 @@ func unknownSessionResult(clientRef, uploadURL string, resp unknownSessionRespon
 			"hasImage": slot.HasImage, "waived": slot.Waived, "done": slot.HasImage || slot.Waived,
 		})
 	}
-	return map[string]any{"clientRef": clientRef, "uploadUrl": uploadURL, "slots": slots, "complete": resp.Complete}
+	return map[string]any{"clientRef": clientRef, "slots": slots, "complete": resp.Complete, "phoneOnline": resp.PhoneOnline}
 }
 
-// StartUnknownItemSession opens the picture session of the cart being paid:
-// one slot per unit. It returns the link the phone's QR code carries. The
-// session is remembered so CheckoutInvoice can tie the sale to it.
-func (a *App) StartUnknownItemSession(slotsJSON string) (map[string]any, error) {
+// SyncUnknownItems brings the cart's picture session up to date with its
+// unknown units, every time they change: kashi shows them on the paired
+// phone at once. The session is remembered so CheckoutInvoice can tie the
+// sale to it. No units drops the ones the session had.
+func (a *App) SyncUnknownItems(clientRef, slotsJSON string) (map[string]any, error) {
 	var slots []unknownSlotInput
-	if err := json.Unmarshal([]byte(slotsJSON), &slots); err != nil || len(slots) == 0 {
-		return nil, fmt.Errorf("no unknown items to take pictures of")
+	if err := json.Unmarshal([]byte(slotsJSON), &slots); err != nil {
+		return nil, fmt.Errorf("bad unknown items: %w", err)
+	}
+	if clientRef == "" {
+		return nil, fmt.Errorf("no cart to take pictures for")
 	}
 	type slotBody struct {
 		SlotRef   string `json:"slot_ref"`
@@ -222,32 +229,77 @@ func (a *App) StartUnknownItemSession(slotsJSON string) (map[string]any, error) 
 		Discount  int64  `json:"discount"`
 	}
 	body := struct {
-		ClientRef string     `json:"client_ref"`
-		Slots     []slotBody `json:"slots"`
-	}{ClientRef: uuid.NewString()}
-	for i, slot := range slots {
+		ClientRef  string     `json:"client_ref"`
+		Slots      []slotBody `json:"slots"`
+		Background bool       `json:"background"`
+	}{ClientRef: clientRef, Slots: []slotBody{}, Background: true}
+	for _, slot := range slots {
 		body.Slots = append(body.Slots, slotBody{
-			SlotRef: strconv.Itoa(i + 1), Label: slot.Label, UnitPrice: slot.UnitPriceCents, Discount: slot.Discount,
+			SlotRef: slot.SlotRef, Label: slot.Label, UnitPrice: slot.UnitPriceCents, Discount: slot.Discount,
 		})
 	}
 	var resp unknownSessionResponse
 	if err := a.unknownCall(http.MethodPost, "/branch/unknown_sessions", body, &resp); err != nil {
 		return nil, err
 	}
-	if resp.UploadToken == "" {
-		return nil, fmt.Errorf("kashi didn't send a link")
-	}
-	client := a.photoClient()
 	a.unknownMu.Lock()
-	a.unknownSessionRef = body.ClientRef
+	a.unknownSessionRef = clientRef
 	a.unknownDone = doneUnknownUnits(resp)
 	a.unknownMu.Unlock()
-	return unknownSessionResult(body.ClientRef, client.baseURL+"/unknown_uploads/"+resp.UploadToken, resp), nil
+	return unknownSessionResult(clientRef, resp), nil
 }
 
-// UnknownItemSessionStatus is the dialog's poll: which units have a picture or
-// a manager's pass. Kashi holds the call until that changes (a few seconds at
-// most), so a picture shows up the moment it lands.
+// MarkUnknownItemsAtPayment: the cashier is at the payment with units still
+// missing a picture, so kashi lists the cart on its Waiting tab.
+func (a *App) MarkUnknownItemsAtPayment(clientRef string) error {
+	return a.unknownCall(http.MethodPost, "/branch/unknown_sessions/checkout", map[string]string{"client_ref": clientRef}, nil)
+}
+
+// IdleUnknownPhone: the cart was emptied (paid, held or voided), so the
+// paired phone goes back to waiting for the next one.
+func (a *App) IdleUnknownPhone() error {
+	a.unknownMu.Lock()
+	a.unknownSessionRef = ""
+	a.unknownMu.Unlock()
+	return a.unknownCall(http.MethodPost, "/branch/unknown_pairing/idle", nil, nil)
+}
+
+type unknownPairingResponse struct {
+	Token       string `json:"token"`
+	PhoneOnline bool   `json:"phone_online"`
+}
+
+func (a *App) unknownPairingResult(resp unknownPairingResponse) (map[string]any, error) {
+	client := a.photoClient()
+	if client == nil || resp.Token == "" {
+		return nil, fmt.Errorf("kashi didn't send a link")
+	}
+	return map[string]any{"url": client.baseURL + "/unknown_pairs/" + resp.Token, "phoneOnline": resp.PhoneOnline}, nil
+}
+
+// GetUnknownPairing is the link the till's QR code carries for its paired
+// phone (the same one every time), and whether that phone is online.
+func (a *App) GetUnknownPairing() (map[string]any, error) {
+	var resp unknownPairingResponse
+	if err := a.unknownCall(http.MethodGet, "/branch/unknown_pairing", nil, &resp); err != nil {
+		return nil, err
+	}
+	return a.unknownPairingResult(resp)
+}
+
+// ResetUnknownPairing pairs another phone: the old phone's link stops working.
+func (a *App) ResetUnknownPairing() (map[string]any, error) {
+	var resp unknownPairingResponse
+	if err := a.unknownCall(http.MethodPost, "/branch/unknown_pairing/reset", nil, &resp); err != nil {
+		return nil, err
+	}
+	return a.unknownPairingResult(resp)
+}
+
+// UnknownItemSessionStatus is the sale screen's poll while a unit still needs
+// a picture: which units have one or a manager's pass. Kashi holds the call
+// until that changes (a few seconds at most), so a picture shows up the
+// moment it lands.
 func (a *App) UnknownItemSessionStatus(clientRef string) (map[string]any, error) {
 	var resp unknownSessionResponse
 	a.unknownMu.Lock()
@@ -260,7 +312,7 @@ func (a *App) UnknownItemSessionStatus(clientRef string) (map[string]any, error)
 	a.unknownMu.Lock()
 	a.unknownDone = doneUnknownUnits(resp)
 	a.unknownMu.Unlock()
-	return unknownSessionResult(clientRef, "", resp), nil
+	return unknownSessionResult(clientRef, resp), nil
 }
 
 // RequestUnknownItemHelp is the cashier's "ask a manager" button: the session

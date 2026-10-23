@@ -17,7 +17,18 @@
           <v-icon icon="mdi-backspace-outline" size="26" />
         </v-btn>
       </div>
-      <v-card-actions class="px-0 pb-0 mt-3">
+      <div class="text-center mt-2">
+        <v-btn
+          :color="phoneOnline ? 'success' : undefined"
+          prepend-icon="mdi-cellphone"
+          size="small"
+          variant="text"
+          @click="emit('pair')"
+        >
+          {{ phoneOnline ? "Phone connected" : "Pair a phone" }}
+        </v-btn>
+      </div>
+      <v-card-actions class="px-0 pb-0 mt-1">
         <v-btn variant="text" @click="emit('update:modelValue', false)">Cancel</v-btn>
         <v-spacer />
         <v-btn color="primary" :disabled="!(price > 0)" variant="flat" @click="add">Add</v-btn>
@@ -30,11 +41,13 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 // The price of an "Unknown item" line, typed on a keypad (this till is a
-// touch screen). Opening it starts from zero each time.
-const props = defineProps<{ modelValue: boolean }>();
+// touch screen). Opening it starts from zero each time. Below it, whether the
+// paired phone that photographs the item is connected (tap to pair one).
+const props = defineProps<{ modelValue: boolean; phoneOnline?: boolean }>();
 const emit = defineEmits<{
   "update:modelValue": [open: boolean];
   add: [price: number];
+  pair: [];
 }>();
 
 const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0"];

@@ -418,6 +418,10 @@ export function GetTransferPhoto(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetTransferPhoto'](arg1, arg2, arg3);
 }
 
+export function GetUnknownPairing() {
+  return window['go']['main']['App']['GetUnknownPairing']();
+}
+
 export function GetUnknownProduct() {
   return window['go']['main']['App']['GetUnknownProduct']();
 }
@@ -436,6 +440,10 @@ export function GetVisitorCountsForMonth(arg1) {
 
 export function HoldInvoice(arg1) {
   return window['go']['main']['App']['HoldInvoice'](arg1);
+}
+
+export function IdleUnknownPhone() {
+  return window['go']['main']['App']['IdleUnknownPhone']();
 }
 
 export function ImportPendingProductsCSV() {
@@ -622,6 +630,10 @@ export function ListUsers() {
   return window['go']['main']['App']['ListUsers']();
 }
 
+export function MarkUnknownItemsAtPayment(arg1) {
+  return window['go']['main']['App']['MarkUnknownItemsAtPayment'](arg1);
+}
+
 export function OpenShift() {
   return window['go']['main']['App']['OpenShift']();
 }
@@ -712,6 +724,10 @@ export function RequestLoanUploadLink(arg1) {
 
 export function RequestUnknownItemHelp(arg1) {
   return window['go']['main']['App']['RequestUnknownItemHelp'](arg1);
+}
+
+export function ResetUnknownPairing() {
+  return window['go']['main']['App']['ResetUnknownPairing']();
 }
 
 export function ResyncAll(arg1) {
@@ -914,10 +930,6 @@ export function SkipShiftReceiptUpload(arg1, arg2, arg3) {
   return window['go']['main']['App']['SkipShiftReceiptUpload'](arg1, arg2, arg3);
 }
 
-export function StartUnknownItemSession(arg1) {
-  return window['go']['main']['App']['StartUnknownItemSession'](arg1);
-}
-
 export function SubmitAttendanceComplaint(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
   return window['go']['main']['App']['SubmitAttendanceComplaint'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
@@ -932,6 +944,10 @@ export function SwitchShiftReceiptToLocal(arg1) {
 
 export function SyncAttendance(arg1) {
   return window['go']['main']['App']['SyncAttendance'](arg1);
+}
+
+export function SyncUnknownItems(arg1, arg2) {
+  return window['go']['main']['App']['SyncUnknownItems'](arg1, arg2);
 }
 
 export function UnknownItemSessionStatus(arg1) {
