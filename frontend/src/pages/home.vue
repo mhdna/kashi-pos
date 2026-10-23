@@ -363,13 +363,13 @@
           v-for="(option, index) in saleOptionPicker.product.saleOptions"
           :key="option.name"
           :autofocus="index === 0"
-          class="sale-option-tile"
-          :color="saleOptionLook(option.name).color"
+          :class="['sale-option-tile', saleOptionLook(option.name).theme && `sale-option-tile--${saleOptionLook(option.name).theme}`]"
+          :color="saleOptionLook(option.name).theme ? undefined : 'primary'"
           height="124"
           variant="flat"
           @click="pickSaleOption(option)"
         >
-          <div class="d-flex flex-column align-center ga-1">
+          <div class="sale-option-plate d-flex flex-column align-center ga-1">
             <v-icon :icon="saleOptionLook(option.name).icon" size="32" />
             <span class="sale-option-name">{{ option.name }}</span>
             <span class="sale-option-discount">
@@ -1679,6 +1679,35 @@ onBeforeUnmount(() => {
   border-radius: 12px;
 }
 
+/* Patterned tiles: a small SVG repeated over a light ground, a large motif in
+   the middle of each tile and a small one on its corners, so the repeat reads
+   as a staggered print. Dark text keeps the name readable on top. */
+.sale-option-tile--winter {
+  color: #1d4e89 !important;
+  background-color: #dbe9f6 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cdefs%3E%3Cpath id='s' d='M0 0V-15M0-8l-5-5M0-8l5-5M0-15l-2.5 3.5M0-15l2.5 3.5'/%3E%3Cg id='f'%3E%3Cuse href='%23s'/%3E%3Cuse href='%23s' transform='rotate(60)'/%3E%3Cuse href='%23s' transform='rotate(120)'/%3E%3Cuse href='%23s' transform='rotate(180)'/%3E%3Cuse href='%23s' transform='rotate(240)'/%3E%3Cuse href='%23s' transform='rotate(300)'/%3E%3C/g%3E%3C/defs%3E%3Cg fill='none' stroke='%23b3cbe9' stroke-width='2' stroke-linecap='round'%3E%3Cuse href='%23f' transform='translate(32 32)'/%3E%3Cuse href='%23f' transform='translate(0 0) scale(.5)'/%3E%3Cuse href='%23f' transform='translate(64 0) scale(.5)'/%3E%3Cuse href='%23f' transform='translate(0 64) scale(.5)'/%3E%3Cuse href='%23f' transform='translate(64 64) scale(.5)'/%3E%3C/g%3E%3C/svg%3E") !important;
+}
+
+.sale-option-tile--summer {
+  color: #8a3f00 !important;
+  background-color: #fff0d4 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cdefs%3E%3Cg id='u'%3E%3Ccircle r='6'/%3E%3Cg stroke-width='2.2' stroke-linecap='round'%3E%3Cpath id='r' d='M0-10V-15'/%3E%3Cuse href='%23r' transform='rotate(45)'/%3E%3Cuse href='%23r' transform='rotate(90)'/%3E%3Cuse href='%23r' transform='rotate(135)'/%3E%3Cuse href='%23r' transform='rotate(180)'/%3E%3Cuse href='%23r' transform='rotate(225)'/%3E%3Cuse href='%23r' transform='rotate(270)'/%3E%3Cuse href='%23r' transform='rotate(315)'/%3E%3C/g%3E%3C/g%3E%3C/defs%3E%3Cg fill='%23f9d898' stroke='%23f9d898'%3E%3Cuse href='%23u' transform='translate(32 32)'/%3E%3Cuse href='%23u' transform='translate(0 0) scale(.5)'/%3E%3Cuse href='%23u' transform='translate(64 0) scale(.5)'/%3E%3Cuse href='%23u' transform='translate(0 64) scale(.5)'/%3E%3Cuse href='%23u' transform='translate(64 64) scale(.5)'/%3E%3C/g%3E%3C/svg%3E") !important;
+}
+
+/* A frosted panel under the icon, name and discount, so the pattern frames
+   them without running behind the text. */
+.sale-option-plate {
+  padding: 8px 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.sale-option-tile:not(.sale-option-tile--winter):not(.sale-option-tile--summer) .sale-option-plate {
+  background: transparent;
+  box-shadow: none;
+}
+
 .sale-option-discount {
   padding: 1px 10px;
   border-radius: 999px;
@@ -1686,6 +1715,17 @@ onBeforeUnmount(() => {
   color: #212121;
   font-size: 0.95rem;
   font-weight: 700;
+}
+
+/* On the frosted panel the discount takes the season's colour. */
+.sale-option-tile--winter .sale-option-discount {
+  background: #1d4e89;
+  color: #ffffff;
+}
+
+.sale-option-tile--summer .sale-option-discount {
+  background: #8a3f00;
+  color: #ffffff;
 }
 
 .sale-option-name {
