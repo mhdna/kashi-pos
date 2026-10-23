@@ -211,6 +211,9 @@ Section "uninstall"
     Delete "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk"
     Delete "$DESKTOP\${INFO_PRODUCTNAME}.lnk"
 
+    # The app adds itself to startup on every launch (autostart_windows.go).
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${INFO_PRODUCTNAME}"
+
     !insertmacro wails.unassociateFiles
     !insertmacro wails.unassociateCustomProtocols
 
