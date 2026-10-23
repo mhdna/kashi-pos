@@ -349,40 +349,38 @@
   </v-dialog>
 
   <!-- A product that asks a sale option: which one is being sold. -->
-  <v-dialog v-model="saleOptionPicker.show" max-width="460">
-    <v-card v-if="saleOptionPicker.product">
-      <v-card-title>{{ saleOptionPicker.product.name }}</v-card-title>
-      <v-card-subtitle>
+  <v-dialog v-model="saleOptionPicker.show" max-width="560">
+    <v-card v-if="saleOptionPicker.product" class="pa-2">
+      <v-card-title class="text-h5 pb-0">{{ saleOptionPicker.product.name }}</v-card-title>
+      <v-card-subtitle class="text-subtitle-1">
         {{ saleOptionPicker.product.code }}
         <template v-if="saleOptionPicker.product.color || saleOptionPicker.product.size">
           · {{ [saleOptionPicker.product.color, saleOptionPicker.product.size].filter(Boolean).join(" / ") }}
         </template>
       </v-card-subtitle>
-      <v-card-text class="d-flex flex-column ga-3 pt-4">
+      <v-card-text class="sale-option-grid pt-5">
         <v-btn
           v-for="(option, index) in saleOptionPicker.product.saleOptions"
           :key="option.name"
           :autofocus="index === 0"
-          block
-          class="justify-space-between"
-          size="x-large"
-          variant="tonal"
+          class="sale-option-tile"
+          :color="saleOptionLook(option.name).color"
+          height="150"
+          variant="flat"
           @click="pickSaleOption(option)"
         >
-          <span>{{ option.name }}</span>
-          <template #append>
-            <v-chip
-              :color="option.discount > 0 ? 'success' : undefined"
-              label
-              size="small"
-              :text="option.discount > 0 ? `-${option.discount}%` : 'No discount'"
-            />
-          </template>
+          <div class="d-flex flex-column align-center ga-2">
+            <v-icon :icon="saleOptionLook(option.name).icon" size="36" />
+            <span class="text-h5 font-weight-bold">{{ option.name }}</span>
+            <span class="text-h6 sale-option-discount">
+              {{ option.discount > 0 ? `-${option.discount}%` : "No discount" }}
+            </span>
+          </div>
         </v-btn>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn text="Cancel" @click="saleOptionPicker.show = false" />
+        <v-btn size="large" text="Cancel" @click="saleOptionPicker.show = false" />
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -940,6 +938,19 @@ function addProductToCart(product: any): boolean {
   }
   invoiceItems.value?.addItem(product);
   return true;
+}
+
+// Summer and Winter get their own colour and icon so the cashier can tell
+// them apart at a glance; any other option kashi adds uses the primary look.
+function saleOptionLook(name: string): { color: string; icon: string } {
+  switch (name.toLowerCase()) {
+    case "summer":
+      return { color: "orange-darken-2", icon: "mdi-weather-sunny" };
+    case "winter":
+      return { color: "light-blue-darken-2", icon: "mdi-snowflake" };
+    default:
+      return { color: "primary", icon: "mdi-tag-outline" };
+  }
 }
 
 function pickSaleOption(option: { name: string; discount: number; discountListName?: string }) {
@@ -1666,5 +1677,23 @@ onBeforeUnmount(() => {
 .checkout-blocked-text {
   font-size: 1.25rem;
   font-weight: 700;
+}
+
+.sale-option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.sale-option-tile {
+  text-transform: none;
+  letter-spacing: normal;
+  border-radius: 12px;
+}
+
+.sale-option-discount {
+  padding: 2px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
 }
 </style>
