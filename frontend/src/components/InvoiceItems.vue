@@ -18,10 +18,9 @@
                 v-if="item.saleOption"
                 class="ms-1"
                 :color="saleOptionLook(item.saleOption).color"
-                density="compact"
                 label
                 :prepend-icon="saleOptionLook(item.saleOption).icon"
-                size="x-small"
+                size="small"
                 :text="item.saleOption"
                 variant="flat"
               />
