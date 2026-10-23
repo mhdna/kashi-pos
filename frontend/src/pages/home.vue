@@ -365,16 +365,13 @@
           :autofocus="index === 0"
           class="sale-option-tile"
           :color="saleOptionLook(option.name).color"
-          height="240"
+          height="150"
           variant="flat"
           @click="pickSaleOption(option)"
         >
           <div class="d-flex flex-column align-center ga-2">
-            <v-icon :icon="saleOptionLook(option.name).icon" size="64" />
+            <v-icon :icon="saleOptionLook(option.name).icon" size="44" />
             <span class="sale-option-name">{{ option.name }}</span>
-            <span class="sale-option-discount">
-              {{ option.discount > 0 ? `${option.discount}% OFF` : "NO DISCOUNT" }}
-            </span>
           </div>
         </v-btn>
       </v-card-text>
@@ -1691,19 +1688,8 @@ onBeforeUnmount(() => {
   border-radius: 12px;
 }
 
-.sale-option-discount {
-  margin: 4px 0;
-  padding: 4px 16px;
-  border-radius: 999px;
-  background: #ffffff;
-  color: #212121;
-  font-size: 1.9rem;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
 .sale-option-name {
-  font-size: 2.2rem;
+  font-size: 1.6rem;
   font-weight: 800;
   line-height: 1.1;
 }
