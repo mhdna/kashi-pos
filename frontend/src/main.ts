@@ -8,9 +8,14 @@
 import { polyfillCountryFlagEmojis } from "country-flag-emoji-polyfill";
 import flagFontUrl from "@/assets/TwemojiCountryFlags.woff2?url";
 import { createApp } from "vue";
-import "@fontsource/roboto/400.css";
-import "@fontsource/roboto/500.css";
-import "@fontsource/roboto/700.css";
+// Latin subsets only: the full weights also declare Cyrillic, Greek,
+// Vietnamese, math and symbol faces the till never shows.
+import "@fontsource/roboto/latin-400.css";
+import "@fontsource/roboto/latin-ext-400.css";
+import "@fontsource/roboto/latin-500.css";
+import "@fontsource/roboto/latin-ext-500.css";
+import "@fontsource/roboto/latin-700.css";
+import "@fontsource/roboto/latin-ext-700.css";
 
 // Plugins
 import { registerPlugins } from "@/plugins";
