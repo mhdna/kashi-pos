@@ -5,9 +5,9 @@
 export function saleOptionLook(name: string): { color: string; icon: string } {
   switch (name.toLowerCase()) {
     case "summer":
-      return { color: "orange-darken-2", icon: "mdi-weather-sunny" };
+      return { color: "#FF7A00", icon: "mdi-weather-sunny" };
     case "winter":
-      return { color: "light-blue-darken-2", icon: "mdi-weather-pouring" };
+      return { color: "#1E90FF", icon: "mdi-weather-pouring" };
     default:
       return { color: "primary", icon: "mdi-tag-outline" };
   }
