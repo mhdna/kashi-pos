@@ -27,6 +27,11 @@ build/database
 build/*.exe
 cmd/temporary-shift-receipt/temporary-shift-receipt
 /db-beirut
+/db-beirut-shm
+/db-beirut-wal
+# The old Wizard POS install (its database, a RAR backup, FaceID data):
+# client data, and 400MB.
+/build/old-wizard/
 dbdd/*.backup-*
 
 # Local copies of till databases (customer data) and scratch databases
