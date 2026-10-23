@@ -365,27 +365,16 @@
           :autofocus="index === 0"
           class="sale-option-tile"
           :color="saleOptionLook(option.name).color"
-          height="210"
+          height="240"
           variant="flat"
           @click="pickSaleOption(option)"
         >
-          <div class="d-flex flex-column align-center ga-1">
-            <div class="d-flex align-center ga-2">
-              <v-icon :icon="saleOptionLook(option.name).icon" size="28" />
-              <span class="text-h6 font-weight-bold">{{ option.name }}</span>
-            </div>
+          <div class="d-flex flex-column align-center ga-2">
+            <v-icon :icon="saleOptionLook(option.name).icon" size="64" />
+            <span class="sale-option-name">{{ option.name }}</span>
             <span class="sale-option-discount">
               {{ option.discount > 0 ? `${option.discount}% OFF` : "NO DISCOUNT" }}
             </span>
-            <!-- What the customer pays, so the discount is a price, not just a number. -->
-            <div class="d-flex align-baseline ga-2">
-              <span v-if="option.discount > 0" class="sale-option-was">
-                ${{ Number(saleOptionPicker.product.price || 0).toFixed(2) }}
-              </span>
-              <span class="text-h5 font-weight-bold">
-                ${{ (Number(saleOptionPicker.product.price || 0) * (1 - option.discount / 100)).toFixed(2) }}
-              </span>
-            </div>
           </div>
         </v-btn>
       </v-card-text>
@@ -1713,9 +1702,9 @@ onBeforeUnmount(() => {
   line-height: 1.2;
 }
 
-.sale-option-was {
-  font-size: 1.1rem;
-  text-decoration: line-through;
-  opacity: 0.8;
+.sale-option-name {
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1.1;
 }
 </style>
