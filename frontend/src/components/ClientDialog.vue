@@ -257,9 +257,9 @@ const frequentCountryCodes: CountryCode[] = [
 const frequentCountries = frequentCountryCodes
   .map((code) => countries.find((country) => country.code === code))
   .filter((country): country is (typeof countries)[number] => !!country);
-// Beside the numpad, eight at a time with arrows to page through, so opening
+// Beside the numpad, twelve at a time with arrows to page through, so opening
 // the dialog draws a handful of cards rather than the whole list.
-const countryPageSize = 8;
+const countryPageSize = 12;
 const countryPageCount = Math.ceil(frequentCountries.length / countryPageSize);
 const countryPage = ref(0);
 const pagedFrequentCountries = computed(() =>
