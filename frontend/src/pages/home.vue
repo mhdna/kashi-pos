@@ -958,7 +958,7 @@ function saleOptionLook(name: string): { color: string; icon: string } {
     case "summer":
       return { color: "orange-darken-2", icon: "mdi-weather-sunny" };
     case "winter":
-      return { color: "light-blue-darken-2", icon: "mdi-snowflake" };
+      return { color: "light-blue-darken-2", icon: "mdi-weather-pouring" };
     default:
       return { color: "primary", icon: "mdi-tag-outline" };
   }
