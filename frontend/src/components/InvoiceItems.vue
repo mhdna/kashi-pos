@@ -97,7 +97,7 @@
                 <button
                   v-bind="activatorProps"
                   :ref="setRef"
-                  class="invoice-price-editor invoice-price-control d-flex flex-column align-end"
+                  class="invoice-price-editor invoice-price-control d-flex flex-column align-center"
                   :class="{ 'invoice-price-editor--keyboard': fieldKeyboardMode }"
                   type="button"
                   aria-label="Set custom item price"
@@ -119,11 +119,12 @@
                       <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
                       <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
                     </span>
+                    <span class="invoice-price-discount" />
                   </span>
                 </button>
               </template>
             </NumberPadMenu>
-            <div v-else class="invoice-price-control d-flex flex-column align-end">
+            <div v-else class="invoice-price-control d-flex flex-column align-center">
               <span class="invoice-price-value">
                 <v-icon
                   v-if="item.priceListOverridden"
@@ -134,17 +135,30 @@
                 />
                 <span class="invoice-price-values">
                   <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
-                  <span v-if="item.discount && !discountEditable(item)" class="text-caption text-red">
+                  <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
+                </span>
+                <!-- The discount as a chip to the right of both prices,
+                     centred on them. The slot is there (empty) on every line
+                     so the prices line up whether or not a line has one. -->
+                <span class="invoice-price-discount">
+                  <v-chip
+                    v-if="item.discount && !discountEditable(item)"
+                    color="red"
+                    density="comfortable"
+                    label
+                    size="x-small"
+                    variant="tonal"
+                    :title="item.discountListName ? `Discount from list: ${item.discountListName}` : undefined"
+                  >
                     -{{ item.discount }}%
                     <v-icon
                       v-if="item.discountListOverridden"
+                      class="ms-1"
                       icon="mdi-star"
                       color="amber-darken-2"
-                      size="12"
-                      :title="item.discountListName ? `Discount from list: ${item.discountListName}` : 'List discount'"
+                      size="10"
                     />
-                  </span>
-                  <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
+                  </v-chip>
                 </span>
               </span>
             </div>
@@ -1029,6 +1043,16 @@ defineExpose({
 
 /* Name over code, with the sale option chip beside the pair and centred on
    it; a long name still ellipsizes instead of pushing the chip away. */
+.invoice-price-values {
+  min-width: 48px;
+}
+
+.invoice-price-discount {
+  display: flex;
+  justify-content: flex-start;
+  width: 46px;
+}
+
 .invoice-item-title-text {
   display: flex;
   flex-direction: column;
@@ -1078,20 +1102,23 @@ defineExpose({
   padding: 2px 5px;
 }
 
+/* One width for every line, with its prices centred in it, so each line's
+   final price falls on the same vertical line whether or not a discount
+   sits beside the list price. */
 .invoice-price-control {
-  flex: 0 0 72px;
-  width: 72px;
+  flex: 0 0 100px;
+  width: 100px;
 }
 
 .invoice-price-value {
   align-items: center;
   display: flex;
   gap: 4px;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .invoice-price-values {
-  align-items: flex-end;
+  align-items: center;
   display: flex;
   flex-direction: column;
 }
