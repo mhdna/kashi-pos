@@ -64,7 +64,7 @@ func (a *App) CheckOversell(itemsJSON string) (OversellCheck, error) {
 	if a.store == nil {
 		return check, fmt.Errorf("database not initialized")
 	}
-	items, err := parseSalesItems(itemsJSON, a.unknownBarcode())
+	items, err := parseSalesItems(itemsJSON, a.unknownBarcode(), a.unknownCode())
 	if err != nil {
 		return check, err
 	}

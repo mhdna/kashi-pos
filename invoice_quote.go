@@ -37,7 +37,7 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 	if a.store == nil {
 		return quote, fmt.Errorf("database not initialized")
 	}
-	items, err := parseSalesItems(itemsJSON, a.unknownBarcode())
+	items, err := parseSalesItems(itemsJSON, a.unknownBarcode(), a.unknownCode())
 	if err != nil {
 		return quote, err
 	}
@@ -99,7 +99,7 @@ func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string) (PaymentStatus,
 	if a.store == nil {
 		return status, fmt.Errorf("database not initialized")
 	}
-	items, err := parseSalesItems(itemsJSON, a.unknownBarcode())
+	items, err := parseSalesItems(itemsJSON, a.unknownBarcode(), a.unknownCode())
 	if err != nil {
 		return status, err
 	}

@@ -108,10 +108,13 @@ func TestVerifyUnknownPicturesNeedsEveryUnit(t *testing.T) {
 }
 
 func TestEveryUnknownItemMayBeItsOwnLine(t *testing.T) {
-	if _, err := parseSalesItems(`[{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1},{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1}]`, "UNKNOWN"); err != nil {
+	if _, err := parseSalesItems(`[{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1},{"code":"UNKNOWN","barcode":"UNKNOWN","qty":1}]`, "UNKNOWN", "UNKNOWN"); err != nil {
 		t.Fatalf("two unknown lines were refused: %v", err)
 	}
-	if _, err := parseSalesItems(`[{"code":"A","barcode":"111","qty":1},{"code":"A","barcode":"111","qty":1}]`, "UNKNOWN"); err == nil {
+	if _, err := parseSalesItems(`[{"code":"UNKNOWN","qty":1},{"code":"UNKNOWN","qty":1}]`, "UNKNOWN", "UNKNOWN"); err != nil {
+		t.Fatalf("two unknown lines sent by code were refused: %v", err)
+	}
+	if _, err := parseSalesItems(`[{"code":"A","barcode":"111","qty":1},{"code":"A","barcode":"111","qty":1}]`, "UNKNOWN", "UNKNOWN"); err == nil {
 		t.Fatal("a repeated ordinary product was accepted")
 	}
 }
