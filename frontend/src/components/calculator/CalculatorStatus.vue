@@ -35,8 +35,14 @@
           <span v-if="remainingAmount.second" class="calculator-amounts-plus" aria-hidden="true">+</span>
           <span v-if="remainingAmount.second" :class="statusColor">{{ remainingAmount.second }}</span>
         </div>
-        <span v-if="roundedFromText" class="calculator-amounts-rounded">{{ roundedFromText }}</span>
-        <span v-else-if="isRounded" class="calculator-amounts-rounded">Rounded</span>
+        <!-- What it was rounded from is in the tooltip; the pill just says so. -->
+        <span
+          v-if="roundedFromText || isRounded"
+          class="calculator-amounts-rounded"
+          :title="roundedFromText || undefined"
+        >
+          Rounded
+        </span>
       </template>
     </div>
   </section>
@@ -128,11 +134,14 @@ function flipCurrency() {
 }
 .calculator-amounts-rounded {
   position: absolute;
-  bottom: 4px;
+  bottom: 6px;
   left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  /* A tint of the status colour (green/red...) behind text in that colour. */
+  background: color-mix(in srgb, currentColor 16%, transparent);
   font-size: var(--kashi-font-size-xs, 0.6875rem);
-  font-weight: 500;
-  opacity: 0.6;
+  font-weight: 600;
   line-height: 1;
 }
 .calculator-amounts-label {
