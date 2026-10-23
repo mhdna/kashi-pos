@@ -4,6 +4,7 @@
     :close-on-content-click="false"
     location="bottom"
     offset="6"
+    :target="pinnedTarget"
   >
     <template #activator="{ props: activatorProps }">
       <slot
@@ -93,6 +94,7 @@ import {
   computed,
   inject,
   onBeforeUnmount,
+  onMounted,
   ref,
   watch,
   type ComponentPublicInstance,
@@ -169,7 +171,30 @@ const activatorMinWidthCh = computed(() => {
   return digits + affixChars + (affixChars ? affixChars * 0.5 : 0);
 });
 
+// While the pad is open it stays where it opened. Typing changes the
+// field's width (58 is wider than 5), and with it a custom activator and the
+// row around it; anchored to the activator, the menu would follow on every
+// key. So it's anchored to the point under the activator's centre as it was
+// on opening, and only moves again when the window is resized.
+const pinnedTarget = ref<[number, number] | undefined>();
+
+function pinToActivator() {
+  const el = activatorEl.value as (HTMLElement & { $el?: HTMLElement }) | null;
+  const node = el && typeof el.getBoundingClientRect === "function" ? el : el?.$el;
+  const rect = node?.getBoundingClientRect?.();
+  pinnedTarget.value = rect && rect.width ? [rect.left + rect.width / 2, rect.bottom] : undefined;
+}
+
+function onWindowResize() {
+  if (open.value) pinToActivator();
+}
+
+onMounted(() => window.addEventListener("resize", onWindowResize));
+onBeforeUnmount(() => window.removeEventListener("resize", onWindowResize));
+
 watch(open, (value) => {
+  if (value) pinToActivator();
+  else pinnedTarget.value = undefined;
   if (value) {
     draft.value = String(props.modelValue);
     replaceOnInput.value = props.replaceOnOpen;
