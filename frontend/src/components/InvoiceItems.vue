@@ -132,7 +132,7 @@
                   size="20"
                   :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
                 />
-                <span class="invoice-price-values">
+                <span class="invoice-price-values invoice-price-values--centred">
                   <!-- The list price and its discount share a line, so the
                        column is two lines, not three. -->
                   <span class="invoice-price-was">
@@ -1028,6 +1028,11 @@ defineExpose({
 
 /* Name over code, with the sale option chip beside the pair and centred on
    it; a long name still ellipsizes instead of pushing the chip away. */
+/* The price after discount sits centred under the "$7.00 -20%" line. */
+.invoice-price-values--centred {
+  align-items: center;
+}
+
 .invoice-price-was {
   display: flex;
   align-items: baseline;
