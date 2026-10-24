@@ -966,10 +966,18 @@ async function onBarcodeEnter() {
 // into the cart until the cashier says which one is being sold: the same
 // barcode covers both, and they're discounted differently. Every way of
 // adding a product comes through here. Returns false when it opened the
-// picker instead, so the caller leaves focus to the dialog.
+// picker instead, so the caller leaves focus to the dialog. A product with a
+// single option (a jacket that is only ever Winter) has nothing to ask: it
+// goes in as that option, with that option's discount.
 const saleOptionPicker = reactive<{ show: boolean; product: any }>({ show: false, product: null });
 
+type SaleOption = { name: string; discount: number; discountListName?: string };
+
 function addProductToCart(product: any): boolean {
+  if (product?.saleOptions?.length === 1 && !product.saleOption) {
+    addAsSaleOption(product, product.saleOptions[0]);
+    return true;
+  }
   if (product?.saleOptions?.length && !product.saleOption) {
     saleOptionPicker.product = product;
     saleOptionPicker.show = true;
@@ -979,11 +987,7 @@ function addProductToCart(product: any): boolean {
   return true;
 }
 
-function pickSaleOption(option: { name: string; discount: number; discountListName?: string }) {
-  const product = saleOptionPicker.product;
-  saleOptionPicker.show = false;
-  saleOptionPicker.product = null;
-  if (!product) return;
+function addAsSaleOption(product: any, option: SaleOption) {
   invoiceItems.value?.addItem({
     ...product,
     saleOption: option.name,
@@ -991,6 +995,14 @@ function pickSaleOption(option: { name: string; discount: number; discountListNa
     originalDiscount: Number(option.discount || 0),
     discountListName: option.discountListName ?? "",
   });
+}
+
+function pickSaleOption(option: SaleOption) {
+  const product = saleOptionPicker.product;
+  saleOptionPicker.show = false;
+  saleOptionPicker.product = null;
+  if (!product) return;
+  addAsSaleOption(product, option);
   scheduleBarcodeFocus();
 }
 
