@@ -54,7 +54,7 @@
               size="x-small"
               :title="`${dealFor(item)!.name} · ${dealChipText(item)}`"
               :variant="dealFor(item)!.discountCents ? 'flat' : 'outlined'"
-              @click="onDiscountChipClick($event, item)"
+              @click="onDealChipClick($event, item)"
             >
               <v-icon class="me-1" icon="mdi-gift-outline" size="14" />
               <span class="invoice-deal-chip-text">
@@ -64,14 +64,14 @@
             </v-chip>
             <!-- The deal a salesperson turned off on this line; tap to give it back. -->
             <v-chip
-              v-else-if="item.discountOff && offDealFor(item)"
+              v-else-if="offDealFor(item)"
               class="invoice-item-sale-option"
               color="grey"
               label
               size="x-small"
               :title="`${offDealFor(item)} turned off`"
               variant="outlined"
-              @click="onDiscountChipClick($event, item)"
+              @click="onDealChipClick($event, item)"
             >
               <v-icon class="me-1" icon="mdi-tag-off-outline" size="14" />
               <span class="invoice-deal-chip-text">
@@ -245,24 +245,24 @@
     <v-dialog v-model="toggleDialog" width="420" @after-leave="toggleItem = null">
       <v-card v-if="toggleItem">
         <v-card-title class="text-wrap">
-          {{ toggleItem.discountOff ? "Give the discount back?" : "Turn the discount off?" }}
+          {{ toggleIsOff ? `Give the ${toggleKind} back?` : `Turn the ${toggleKind} off?` }}
         </v-card-title>
         <v-card-text>
           <div class="text-body-1">
-            {{ toggleItem.discountOff ? "Give back" : "Remove" }}
-            <strong>{{ toggleDiscountName(toggleItem) }}</strong>
-            {{ toggleItem.discountOff ? "on" : "from" }} {{ toggleItem.name }}?
+            {{ toggleIsOff ? "Give back" : "Remove" }}
+            <strong>{{ toggleName }}</strong>
+            {{ toggleIsOff ? "on" : "from" }} {{ toggleItem.name }}?
           </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="toggleDialog = false">Cancel</v-btn>
           <v-btn
-            :color="toggleItem.discountOff ? 'primary' : 'red'"
+            :color="toggleIsOff ? 'primary' : 'red'"
             variant="flat"
-            @click="confirmToggleDiscount"
+            @click="confirmToggle"
           >
-            {{ toggleItem.discountOff ? "Give discount" : "Turn off" }}
+            {{ toggleIsOff ? `Give ${toggleKind}` : "Turn off" }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -428,10 +428,13 @@ interface LineItem {
   // The list discount captured with originalPrice; a line still carrying both
   // untouched can follow a list change (applyListPricing).
   originalDiscount?: number;
-  // The salesperson turned the line's list discount (or deal) off for this
-  // sale (discount_toggle); discount is 0 meanwhile and originalDiscount is
-  // what turning it back on gives.
+  // The salesperson turned the line's list discount off for this sale
+  // (discount_toggle); discount is 0 meanwhile and originalDiscount is what
+  // turning it back on gives.
   discountOff?: boolean;
+  // The salesperson turned the line's deal off (deal_toggle): it counts
+  // towards no deal in this sale.
+  dealOff?: boolean;
   // Locks just this line, independent of the component-level `readonly`
   // prop - used by exchange mode, where returned (negative-qty) lines stay
   // locked while replacement lines scanned afterward are fully editable.
@@ -463,9 +466,11 @@ const props = defineProps<{
   // When true, clicking a line's qty/discount/price focuses it instead of
   // opening the number-pad popup, and arrow keys move focus between fields.
   keyboardMode?: boolean;
-  // A salesperson may turn a line's list discount or deal off and on, with a
+  // A salesperson may turn a line's list discount off and on, with a
   // confirmation, but never change it (kashi's discount_toggle).
   discountToggleEnabled?: boolean;
+  // The same for a line's deal (kashi's deal_toggle).
+  dealToggleEnabled?: boolean;
   // With the toggle on, new lines start with their discount off.
   discountDefaultOff?: boolean;
 }>();
@@ -490,9 +495,9 @@ function effectiveUnitPriceAt(item: LineItem, index: number): number {
 const dealsByCartLine = computed(() => dealsByLine(props.dealLines ?? []));
 const offDealsByCartLine = computed(() => offDealsByLine(props.dealLines ?? []));
 
-// The deal a line gave up by having its discount turned off ("B2G1").
+// The deal a line gave up by having its deal turned off ("B2G1").
 function offDealFor(item: LineItem): string | undefined {
-  if (!item.discountOff || item.qty <= 0) return undefined;
+  if (!item.dealOff || item.qty <= 0) return undefined;
   return offDealsByCartLine.value.get(item.barcode || item.code);
 }
 
@@ -513,27 +518,43 @@ function canToggleDiscount(item: LineItem): boolean {
   );
 }
 
+function canToggleDeal(item: LineItem): boolean {
+  return Boolean(props.dealToggleEnabled) && !readonly.value && !item.locked && item.qty > 0 && !isUnknownItem(item);
+}
+
 const toggleDialog = ref(false);
 const toggleItem = ref<LineItem | null>(null);
+const toggleKind = ref<"discount" | "deal">("discount");
+const toggleIsOff = computed(() =>
+  Boolean(toggleKind.value === "deal" ? toggleItem.value?.dealOff : toggleItem.value?.discountOff),
+);
+const toggleName = computed(() => {
+  const item = toggleItem.value;
+  if (!item) return "";
+  if (toggleKind.value === "discount") return `the ${chipDiscount(item)}% discount`;
+  return `the ${(item.dealOff ? offDealFor(item) : dealFor(item)?.label) ?? ""} deal`;
+});
 
 watch(toggleDialog, (open) => {
   if (dialogOpen) dialogOpen.value = open;
 });
 
-// A chip tap asks to turn the discount off or on; on a line that can't, the
-// tap falls through to the line's details as before.
-function onDiscountChipClick(event: Event, item: LineItem) {
-  if (!canToggleDiscount(item)) return;
+// A chip tap asks to turn the discount (or deal) off or on; on a line that
+// can't, the tap falls through to the line's details as before.
+function askToggle(event: Event, item: LineItem, kind: "discount" | "deal") {
   event.stopPropagation();
   event.preventDefault();
+  toggleKind.value = kind;
   toggleItem.value = item;
   toggleDialog.value = true;
 }
 
-function toggleDiscountName(item: LineItem): string {
-  const deal = item.discountOff ? offDealFor(item) : dealFor(item)?.label;
-  if (deal) return `the ${deal} deal`;
-  return `the ${chipDiscount(item)}% discount`;
+function onDiscountChipClick(event: Event, item: LineItem) {
+  if (canToggleDiscount(item)) askToggle(event, item, "discount");
+}
+
+function onDealChipClick(event: Event, item: LineItem) {
+  if (canToggleDeal(item)) askToggle(event, item, "deal");
 }
 
 function setDiscountOff(item: LineItem, off: boolean) {
@@ -544,19 +565,27 @@ function setDiscountOff(item: LineItem, off: boolean) {
   item.unitDiscounts = Array(qty).fill(discount);
 }
 
-function confirmToggleDiscount() {
+function confirmToggle() {
   const item = toggleItem.value;
-  if (item && canToggleDiscount(item)) setDiscountOff(item, !item.discountOff);
+  if (item && toggleKind.value === "discount" && canToggleDiscount(item)) setDiscountOff(item, !item.discountOff);
+  if (item && toggleKind.value === "deal" && canToggleDeal(item)) item.dealOff = !item.dealOff;
   toggleDialog.value = false;
 }
 
-// kashi turned the toggle off: every line gets its discount back, since
-// the till no longer accepts a line with it off.
+// kashi turned a toggle off: every line gets its discount (or deal) back,
+// since the till no longer accepts a line with it off.
 watch(
   () => props.discountToggleEnabled,
   (enabled) => {
     if (enabled) return;
     for (const item of items.value) if (item.discountOff) setDiscountOff(item, false);
+  },
+);
+watch(
+  () => props.dealToggleEnabled,
+  (enabled) => {
+    if (enabled) return;
+    for (const item of items.value) item.dealOff = false;
   },
 );
 

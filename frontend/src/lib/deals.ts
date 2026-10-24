@@ -11,9 +11,9 @@ export interface DealLine {
   dealLabel?: string;
   dealDiscountCents?: number;
   free?: boolean;
-  // The salesperson turned the line's discount off (discount_toggle): what it
-  // gave up, a percent or a deal in short ("B2G1").
-  discountOff?: boolean;
+  // What the line gave up when the salesperson turned its discount
+  // (discount_toggle) or its deal (deal_toggle) off: a percent, or the deal
+  // in short ("B2G1").
   offDiscount?: number;
   offDealLabel?: string;
 }
@@ -43,12 +43,12 @@ export function dealsByLine(lines: DealLine[]): Map<string, CartLineDeal> {
   return out;
 }
 
-// The deal each cart line gave up by having its discount turned off, keyed
+// The deal each cart line gave up by having its deal turned off, keyed
 // as dealsByLine is.
 export function offDealsByLine(lines: DealLine[]): Map<string, string> {
   const out = new Map<string, string>();
   for (const line of lines) {
-    if (line.discountOff && line.offDealLabel) out.set(line.barcode || line.code, line.offDealLabel);
+    if (line.offDealLabel) out.set(line.barcode || line.code, line.offDealLabel);
   }
   return out;
 }
