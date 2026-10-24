@@ -566,11 +566,11 @@ function addItem(item: LineItem) {
     existing.unitDiscounts?.push(existing.discount);
     existing.qty++;
   } else {
-    // savedDiscounts remembers a per-code discount; an option line's
-    // discount belongs to the option, so it neither reads nor sets it.
-    const discount = item.saleOption
-      ? Number(item.discount || 0)
-      : (savedDiscounts.get(item.code) ?? Number(item.discount || 0));
+    // The discount is what the active lists give the product right now (the
+    // backend quote prices from them too). A remembered per-code value must
+    // not win here: one saved while the product had no discount would hide
+    // a later list discount on the line while the total still applied it.
+    const discount = Number(item.discount || 0);
     if (!item.saleOption) savedDiscounts.set(item.code, discount);
     const price = Number(item.price);
     const qty = Math.max(1, Math.trunc(Number(item.qty || 1)));
