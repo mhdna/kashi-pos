@@ -1,5 +1,9 @@
 <template>
-  <div ref="invoiceScroll" class="invoice-items mt-2 mb-2 me-0">
+  <div
+    ref="invoiceScroll"
+    class="invoice-items mt-2 mb-2 me-0"
+    :class="{ 'invoice-items--discount-chips': showDiscountChips }"
+  >
     <div
       v-for="(item, index) in displayItems"
       :key="`${items.length - 1 - index}-${item.barcode || item.code}`"
@@ -30,20 +34,22 @@
               :text="item.saleOption"
               variant="tonal"
             />
-            <!-- The line's deal: FREE for units it gives away, the deal's
-                 name while it takes something off, and greyed while the
-                 cart is short of it. -->
+            <!-- The line's deal: how many of its units are free, the deal's
+                 name while it takes something off, and just its icon while
+                 the cart is short of it (the name shows on hover). -->
             <v-chip
               v-if="dealFor(item)"
               class="invoice-item-sale-option"
               :color="dealFor(item)!.freeQty ? 'success' : dealFor(item)!.discountCents ? 'deep-purple' : undefined"
               label
-              prepend-icon="mdi-gift-outline"
-              size="small"
-              :text="dealChipText(item)"
+              :prepend-icon="dealChipText(item) ? 'mdi-gift-outline' : undefined"
+              size="x-small"
+              :text="dealChipText(item) || undefined"
               :title="dealFor(item)!.name"
               :variant="dealFor(item)!.discountCents ? 'flat' : 'outlined'"
-            />
+            >
+              <v-icon v-if="!dealChipText(item)" icon="mdi-gift-outline" />
+            </v-chip>
           </button>
         </template>
         <template #append>
@@ -63,7 +69,7 @@
                 @navigate-h="(direction) => moveHorizontal(index, 'qty', direction)"
               />
             </div>
-            <div class="invoice-discount-control">
+            <div v-if="anyDiscountEditable" class="invoice-discount-control">
               <NumberPadMenu
                 v-if="canEditDiscount(item)"
                 :ref="(element) => setFieldRef(index, 'discount', element)"
@@ -407,8 +413,8 @@ function dealFor(item: LineItem) {
 function dealChipText(item: LineItem): string {
   const deal = dealFor(item);
   if (!deal) return "";
-  if (deal.freeQty) return deal.freeQty === item.qty ? "FREE" : `${deal.freeQty} FREE`;
-  return deal.name;
+  if (deal.freeQty) return deal.freeQty === item.qty ? "FREE" : `${deal.freeQty} of ${item.qty} free`;
+  return deal.discountCents ? deal.name : "";
 }
 
 function discountAmount(item: LineItem): number {
@@ -704,6 +710,8 @@ function discountEditable(item: LineItem): boolean {
 // Whether any line shows its discount as a chip beside the price. Without
 // one, the chip slot is left out so the price doesn't carry empty room.
 const showDiscountChips = computed(() => items.value.some((item) => item.discount && !discountEditable(item)));
+// The discount column only takes room while some line can edit one.
+const anyDiscountEditable = computed(() => items.value.some((item) => canEditDiscount(item)));
 
 function canEditDiscount(item: LineItem): boolean {
   return discountEditable(item) && !readonly.value && !item.locked && item.qty > 0;
@@ -1019,7 +1027,7 @@ defineExpose({
 }
 
 .invoice-qty-control {
-  width: 56px;
+  width: 46px;
 }
 
 /* The pad reserves room for 999; the cart's highlight should hug "Qty 1". */
@@ -1033,7 +1041,7 @@ defineExpose({
 }
 
 .invoice-delete-control {
-  width: 40px;
+  width: 36px;
 }
 
 .invoice-items :deep(.v-list-item__content) {
@@ -1145,7 +1153,13 @@ defineExpose({
    final price falls on the same vertical line whether or not a discount
    sits beside the list price. */
 .invoice-price-control {
-  flex: 0 0 100px;
+  flex: 0 0 64px;
+  width: 64px;
+}
+
+/* Room for the discount chip slot beside the prices, while any line has one. */
+.invoice-items--discount-chips .invoice-price-control {
+  flex-basis: 100px;
   width: 100px;
 }
 
