@@ -158,6 +158,8 @@ export function GetDatabaseStatus():Promise<Record<string, any>>;
 
 export function GetDeferredCouponTotalByMonth(arg1:string):Promise<number>;
 
+export function GetDeviceStatus():Promise<main.DeviceStatus>;
+
 export function GetDisplayPrefs():Promise<main.DisplayPrefs>;
 
 export function GetExchangeInvoice(arg1:string):Promise<Record<string, any>>;

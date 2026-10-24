@@ -313,6 +313,7 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 	a.startAttendanceProbe()
 	a.startAttendancePushServer()
 	a.startUpdater()
+	a.startDeviceWatch()
 	return nil
 }
 
