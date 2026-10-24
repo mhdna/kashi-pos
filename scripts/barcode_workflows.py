@@ -8,6 +8,7 @@ next workflow. `n` also skips the rest of a list, `p` pauses/resumes, `q` quits.
 
     scripts/barcode_workflows.py                 # newest till DB with discounts
     scripts/barcode_workflows.py --db ~/Library/Application\\ Support/kashi-pos/database-tb
+    scripts/barcode_workflows.py --central       # real data from kashi over ssh
     scripts/barcode_workflows.py --list          # just print the workflows
 """
 import argparse
@@ -59,19 +60,53 @@ def pick_db():
     return max(paths, key=os.path.getmtime)
 
 
-def build_workflows(db):
-    cols = ["barcode", "code", "name", "price", "d", "deal", "opts"]
-    products = [dict(zip(cols, r)) for r in db.execute(BASE)]
+COLS = ["barcode", "code", "name", "price", "d", "deal", "opts"]
 
-    plain = [p for p in products if not p["d"] and not p["deal"] and not p["opts"]]
-    disc = [p for p in products if p["d"] and not p["deal"] and not p["opts"]]
-    deal = [p for p in products if p["deal"]]
-    opts = [p for p in products if p["opts"]]
-    cheap = sorted(plain, key=lambda p: p["price"])
+# The same three questions against kashi's Postgres (read-only, over `ssh kashi`).
+CENTRAL_PRODUCTS = """
+SELECT v.barcode, p.code, p.name, pi.price, COALESCE(di.discount, 0), COALESCE(di.deal_id::text, ''),
+       (SELECT count(*) FROM product_sale_options o WHERE o.product_id = v.product_id)
+FROM product_variants v JOIN products p ON p.id = v.product_id
+JOIN price_list_items pi ON pi.product_variant_id = v.id
+JOIN price_lists pl ON pl.id = pi.price_list_id AND pl.is_active
+LEFT JOIN discount_list_items di ON di.product_variant_id = v.id
+  AND di.discount_list_id IN (SELECT id FROM discount_lists WHERE is_active)
+WHERE v.is_active AND v.barcode <> ''
+"""
+CENTRAL_VARIANTS = """
+SELECT v.barcode FROM product_variants v JOIN products p ON p.id = v.product_id
+WHERE v.is_active AND v.barcode <> '' AND p.code = (
+  SELECT p2.code FROM product_variants v2 JOIN products p2 ON p2.id = v2.product_id
+  WHERE v2.is_active AND v2.barcode <> '' AND p2.code <> ''
+  GROUP BY p2.code HAVING count(*) >= 3 ORDER BY count(*) LIMIT 1) LIMIT 4
+"""
+CENTRAL_UNPRICED = """
+SELECT v.barcode FROM product_variants v WHERE v.is_active AND v.barcode <> '' AND NOT EXISTS (
+  SELECT 1 FROM price_list_items pi JOIN price_lists pl ON pl.id = pi.price_list_id AND pl.is_active
+  WHERE pi.product_variant_id = v.id) LIMIT 2
+"""
 
-    def take(lst, n, skip=0):
-        return [p["barcode"] for p in lst[skip:skip + n]]
 
+def central_rows(sql):
+    out = subprocess.run(
+        ["ssh", "kashi", "LC_ALL=C.UTF-8 psql 'postgresql://kashi:kashi@localhost:5432/kashi?sslmode=disable'"
+         " -At -F'|' -v ON_ERROR_STOP=1"],
+        input=sql, capture_output=True, text=True, check=True,
+    ).stdout
+    return [line.split("|") for line in out.splitlines() if line]
+
+
+def from_central():
+    products = [
+        dict(zip(COLS, [r[0], r[1], r[2], int(r[3]), int(r[4]), r[5], int(r[6])]))
+        for r in central_rows(CENTRAL_PRODUCTS)
+    ]
+    return (products, [r[0] for r in central_rows(CENTRAL_VARIANTS)],
+            [r[0] for r in central_rows(CENTRAL_UNPRICED)])
+
+
+def from_local(db):
+    products = [dict(zip(COLS, r)) for r in db.execute(BASE)]
     # Same code, several barcodes: colour/size variants of one model.
     model = db.execute(
         "SELECT code FROM products WHERE is_active = 1 AND barcode <> '' AND code <> '' "
@@ -81,13 +116,24 @@ def build_workflows(db):
         "SELECT barcode FROM products WHERE code = ? AND is_active = 1 AND barcode <> '' LIMIT 4",
         (model[0],),
     )] if model else []
-
     # In no active price list: the till must refuse it as unpriced.
     unpriced = [r[0] for r in db.execute(
         "SELECT barcode FROM products p WHERE is_active = 1 AND barcode <> '' AND NOT EXISTS "
         "(SELECT 1 FROM price_list_items pi JOIN price_lists pl ON pl.id = pi.price_list_id "
         "AND pl.is_active = 1 WHERE pi.product_uid = p.uid) LIMIT 2"
     )]
+    return products, variants, unpriced
+
+
+def build_workflows(products, variants, unpriced):
+    plain = [p for p in products if not p["d"] and not p["deal"] and not p["opts"]]
+    disc = [p for p in products if p["d"] and not p["deal"] and not p["opts"]]
+    deal = [p for p in products if p["deal"]]
+    opts = [p for p in products if p["opts"]]
+    cheap = sorted(plain, key=lambda p: p["price"])
+
+    def take(lst, n, skip=0):
+        return [p["barcode"] for p in lst[skip:skip + n]]
 
     first_deal = deal[0]["deal"] if deal else None
     same_deal = [p for p in deal if p["deal"] == first_deal]
@@ -160,13 +206,18 @@ def run(flows):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--db", help="till database (default: newest one with discounts)")
+    parser.add_argument("--central", action="store_true", help="read kashi's database over `ssh kashi` instead")
     parser.add_argument("--list", action="store_true", help="print the workflows and exit")
     args = parser.parse_args()
 
-    path = os.path.expanduser(args.db) if args.db else pick_db()
-    print(f"database: {path}")
-    with connect(path) as db:
-        flows = build_workflows(db)
+    if args.central:
+        print("source: kashi (ssh kashi, read-only)")
+        flows = build_workflows(*from_central())
+    else:
+        path = os.path.expanduser(args.db) if args.db else pick_db()
+        print(f"database: {path}")
+        with connect(path) as db:
+            flows = build_workflows(*from_local(db))
 
     if args.list or not sys.stdin.isatty():
         for title, codes in flows:
