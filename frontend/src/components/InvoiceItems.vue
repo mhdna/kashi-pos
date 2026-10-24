@@ -166,7 +166,7 @@
                     />
                     <span class="invoice-price-values">
                       <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
-                      <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
+                      <span class="text-caption font-weight-bold">{{ signedPrice(totalAfterDiscount(item)) }}</span>
                     </span>
                     <span v-if="showDiscountChips" class="invoice-price-discount">
                       <v-chip
@@ -197,7 +197,7 @@
                 />
                 <span class="invoice-price-values">
                   <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
-                  <span class="text-caption font-weight-bold">${{ shortPrice(totalAfterDiscount(item)) }}</span>
+                  <span class="text-caption font-weight-bold">{{ signedPrice(totalAfterDiscount(item)) }}</span>
                 </span>
                 <!-- The discount as a chip to the right of both prices,
                      centred on them. While any line has one, the slot is
@@ -633,9 +633,16 @@ function shortPrice(value: number): string {
   return String(Number(Number(value || 0).toFixed(2)));
 }
 
+// "$8.8", or "−$8.8" for a returned line's credit.
+function signedPrice(value: number): string {
+  return value < 0 ? `−$${shortPrice(-value)}` : `$${shortPrice(value)}`;
+}
+
 // The deal's saving comes off here only for display; the quote is what
-// charges it.
+// charges it. A returned line (qty below zero) is a credit and stays
+// negative; a sold line's deal can't take it below zero.
 function totalAfterDiscount(item: LineItem): number {
+  if (item.qty < 0) return discountedItemCents(item) / 100;
   const deal = dealFor(item);
   return Math.max(0, discountedItemCents(item) - (deal?.discountCents ?? 0)) / 100;
 }
