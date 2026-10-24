@@ -133,7 +133,7 @@ func TestCheckoutWithDeal(t *testing.T) {
 			freeReceipt = item
 		}
 	}
-	if freeReceipt.Name != "Item C (FREE · Buy 2 get 1)" || freeReceipt.DealDiscount != 50 {
+	if freeReceipt.Name != "Item C (FREE)" || freeReceipt.DealDiscount != 50 {
 		t.Fatalf("receipt free line = %+v", freeReceipt)
 	}
 	if _, _, net := itemAmounts(freeReceipt); net != 0 {

@@ -850,7 +850,7 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 			if gross != 0 {
 				item.Discount = item.DealDiscount * 100 / gross
 			}
-			item.Name = nameWithDeal(item.Name, item.Deal, item.Free)
+			item.Name = nameWithDeal(item.Name, item.Free)
 		}
 		items = append(items, item)
 	}

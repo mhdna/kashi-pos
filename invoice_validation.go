@@ -248,7 +248,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 
 // receiptItemFor is a priced line as the receipt prints it. A deal line
 // carries its saving as an amount (a bundle's share is rarely a whole
-// percent) and says what it is: "Shirt (FREE · Buy 2 get 1)".
+// percent) and says so when a unit is free: "Shirt (FREE)".
 func receiptItemFor(p pricedInvoiceProduct) invoiceItem {
 	item := invoiceItem{
 		Name: nameWithSaleOption(p.product.Name, p.saleOption), Code: p.product.Code, Barcode: p.product.Barcode,
@@ -260,17 +260,19 @@ func receiptItemFor(p pricedInvoiceProduct) invoiceItem {
 		item.Free = p.isFree()
 		item.DealDiscount = float64(p.dealDiscount) / 100
 		item.Discount = float64(p.dealDiscount) * 100 / float64(p.unitPrice*p.qty)
-		item.Name = nameWithDeal(item.Name, p.dealName, item.Free)
+		item.Name = nameWithDeal(item.Name, item.Free)
 	}
 	return item
 }
 
-// nameWithDeal marks a deal line on the receipt and the till's lists.
-func nameWithDeal(name, deal string, free bool) string {
+// nameWithDeal marks a free deal unit on the receipt and the till's lists.
+// A unit that only got a saving shows it in the discount column, and the
+// deal's long name would only wrap the line.
+func nameWithDeal(name string, free bool) string {
 	if free {
-		return name + " (FREE · " + deal + ")"
+		return name + " (FREE)"
 	}
-	return name + " (" + deal + ")"
+	return name
 }
 
 func priceInvoiceProduct(product db.Product, qty int64, roundingMode string) (pricedInvoiceProduct, error) {
