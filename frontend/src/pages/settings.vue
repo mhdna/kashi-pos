@@ -815,6 +815,36 @@
             </v-card-text>
           </v-card>
 
+          <v-card v-show="panelMatches('behavior-discount-toggle')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-tag-off-outline" size="20" />
+              Turn discounts off at the till
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.discountToggleEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Salespersons can tap a line's discount or deal to turn it off or on"
+                @update:model-value="setDiscountToggleEnabled"
+              />
+              <v-switch
+                :model-value="form.discountToggleDefaultOff"
+                :loading="pricingSettingsSaving"
+                :disabled="!form.discountToggleEnabled"
+                color="primary"
+                hide-details
+                label="Discounts start off on each new line"
+                @update:model-value="setDiscountToggleDefaultOff"
+              />
+              <div class="text-caption text-medium-emphasis mt-2">
+                The salesperson confirms each change and can't change the amount: a line gets its
+                list discount or deal, or none. This can also be changed remotely from kashi.
+              </div>
+            </v-card-text>
+          </v-card>
+
           <v-card v-show="panelMatches('behavior-scan-by-code')" class="settings-card">
             <v-card-title class="d-flex align-center ga-3">
               <v-icon icon="mdi-barcode-scan" size="20" />
@@ -1927,6 +1957,8 @@ import {
   SetScanByCodeEnabled,
   SetProductSearchCodeOnly,
   SetPriceEditRestricted,
+  SetDiscountToggleEnabled,
+  SetDiscountToggleDefaultOff,
   SetOversellMode,
   SetPriceEditCodes,
   SetProductSearchHiddenFields,
@@ -2124,6 +2156,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-search-code-only": { tab: "behaviour", title: "Code-only product search", keywords: "product search code only hide names barcode lookup" },
   "behavior-stock": { tab: "behaviour", title: "Selling beyond stock", keywords: "oversell stock allow warn block sell more than in stock negative" },
   "behavior-search-columns": { tab: "behaviour", title: "Product search & unknown item", keywords: "product search hide columns code name brand color size price unknown item barcode placeholder" },
+  "behavior-discount-toggle": { tab: "behaviour", title: "Turn discounts off at the till", keywords: "discount deal toggle turn off on remove salesperson default off b2g1 percent" },
   "behavior-price-edit-codes": { tab: "behaviour", title: "Price edits by code", keywords: "price discount manual edit restrict allow only selected codes products" },
   "behavior-sounds": { tab: "display", title: "Sounds", keywords: "sound audio beep chime click mute volume quiet silent" },
   "behavior-client-required": { tab: "behaviour", title: "Client on every invoice", keywords: "require client select checkout invoice anonymous prefer not to say" },
@@ -2255,6 +2288,8 @@ const form = reactive({
   productSearchCodeOnly: false,
   priceEditRestricted: false,
   priceEditCodes: "",
+  discountToggleEnabled: false,
+  discountToggleDefaultOff: false,
   oversellMode: "allow",
   productSearchHiddenFields: [] as string[],
   unknownProductBarcode: "",
@@ -2694,6 +2729,8 @@ async function loadSettings() {
         scanByCodeEnabled: s.scanByCodeEnabled !== false,
         productSearchCodeOnly: Boolean(s.productSearchCodeOnly),
         priceEditRestricted: Boolean(s.priceEditRestricted),
+        discountToggleEnabled: Boolean(s.discountToggleEnabled),
+        discountToggleDefaultOff: Boolean(s.discountToggleDefaultOff),
         priceEditCodes: String(s.priceEditCodes ?? "").split(",").join("\n"),
         oversellMode: String(s.oversellMode || "allow"),
         productSearchHiddenFields: String(s.productSearchHiddenFields ?? "").split(",").filter(Boolean),
@@ -2962,6 +2999,38 @@ async function setProductSearchCodeOnly(value: boolean | null) {
   } catch {
     form.productSearchCodeOnly = previous;
     notify("Failed to update the product search setting", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setDiscountToggleEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.discountToggleEnabled;
+  form.discountToggleEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetDiscountToggleEnabled(enabled);
+    notify(`Turning discounts off at the till ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.discountToggleEnabled = previous;
+    notify("Failed to update the discount toggle setting", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setDiscountToggleDefaultOff(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.discountToggleDefaultOff;
+  form.discountToggleDefaultOff = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetDiscountToggleDefaultOff(enabled);
+    notify(`Discounts start off ${enabled ? "enabled" : "disabled"}`);
+  } catch {
+    form.discountToggleDefaultOff = previous;
+    notify("Failed to update the discount default setting", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }

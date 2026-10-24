@@ -29,6 +29,11 @@ type pricedInvoiceProduct struct {
 	dealName     string
 	dealLabel    string
 	dealDiscount int64
+	// The line's discount was turned off (salesInvoiceItem.NoDiscount), and
+	// what it would have had: a percent, or a deal's short label.
+	discountOff  bool
+	offDiscount  int64
+	offDealLabel string
 }
 
 type unitPricing struct {
@@ -104,7 +109,14 @@ func (a *App) resolveClientID(id int64) (int64, error) {
 func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool, listPricing activePricing, perUnitPricingEnabled ...bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
 	products := make([]pricedInvoiceProduct, 0, len(items))
 	var subtotal int64
+	discountToggleChecked := false
 	for _, item := range items {
+		if item.NoDiscount && !discountToggleChecked {
+			if !a.flagEnabled(a.ctx, discountToggleFlag) {
+				return nil, 0, 0, nil, fmt.Errorf("turning a discount off is disabled")
+			}
+			discountToggleChecked = true
+		}
 		if item.SalespersonID > 0 {
 			if _, err := q.GetSalespersonByID(a.ctx, item.SalespersonID); err != nil {
 				return nil, 0, 0, nil, fmt.Errorf("salesperson for item %s: %w", item.Code, err)
@@ -177,6 +189,19 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		if isUnknown || item.CustomPriceCents != nil || len(item.UnitPricesCents) > 0 || len(item.UnitDiscounts) > 0 {
 			dealUID = ""
 		}
+		// A discount turned off at the till: the line pays the list price,
+		// and the cart is told what it gave up so it can offer it back.
+		var offDiscount int64
+		offDealLabel := ""
+		if item.NoDiscount && !isUnknown {
+			offDiscount = product.Discount
+			if terms, ok := listPricing.deals[dealUID]; ok && dealUID != "" {
+				offDealLabel = terms.label()
+			}
+			product.Discount = 0
+			discountListID = 0
+			dealUID = ""
+		}
 		priceQuantities := map[unitPricing]int64{
 			{price: product.Price, discount: product.Discount}: int64(item.Qty),
 		}
@@ -220,6 +245,9 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			priced.note = strings.TrimSpace(item.Note)
 			priced.saleOption = saleOption
 			priced.dealUID = dealUID
+			priced.discountOff = offDiscount > 0 || offDealLabel != ""
+			priced.offDiscount = offDiscount
+			priced.offDealLabel = offDealLabel
 			if pricing.price == product.Price {
 				priced.priceListID = priceListID
 			}

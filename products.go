@@ -66,7 +66,42 @@ const (
 	// flags). Defaults to false when unset, so every line stays editable as it
 	// was before this setting existed.
 	priceEditRestrictedFlag = "price_edit_restricted"
+	// When on, a salesperson can tap a line's list discount or deal chip to
+	// turn it off for that sale (and back on), never to change its amount.
+	// Defaults to false when unset, so every line keeps its discount as it
+	// did before this setting existed.
+	discountToggleFlag = "discount_toggle"
+	// With discount_toggle on, lines start with their discount off and the
+	// salesperson taps to give it. Ignored while discount_toggle is off, so
+	// it can never leave a branch with discounts it has no way to turn on.
+	discountToggleDefaultOffFlag = "discount_toggle_default_off"
 )
+
+// SetDiscountToggleEnabled lets salespersons turn a line's discount off/on.
+// Called both by the local Settings page and by an update_settings command
+// from kashi.
+func (a *App) SetDiscountToggleEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, discountToggleFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// SetDiscountToggleDefaultOff makes new lines start with their discount off.
+func (a *App) SetDiscountToggleDefaultOff(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, discountToggleDefaultOffFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
 
 // SetProductSearchCodeOnly toggles code-only product search. Called both by
 // the local Settings page and by an update_settings command from kashi.
