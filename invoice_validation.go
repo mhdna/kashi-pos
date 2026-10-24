@@ -27,6 +27,7 @@ type pricedInvoiceProduct struct {
 	// lineTotal already has it off. See deals.go.
 	dealUID      string
 	dealName     string
+	dealLabel    string
 	dealDiscount int64
 }
 

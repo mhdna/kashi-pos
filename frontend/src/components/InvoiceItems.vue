@@ -34,22 +34,19 @@
               :text="item.saleOption"
               variant="tonal"
             />
-            <!-- The line's deal: how many of its units are free, the deal's
-                 name while it takes something off, and just its icon while
-                 the cart is short of it (the name shows on hover). -->
+            <!-- The line's deal in short ("B2G1"), and how many of its
+                 units it gives free; the deal's full name shows on hover. -->
             <v-chip
               v-if="dealFor(item)"
               class="invoice-item-sale-option"
               :color="dealFor(item)!.freeQty ? 'success' : dealFor(item)!.discountCents ? 'deep-purple' : undefined"
               label
-              :prepend-icon="dealChipText(item) ? 'mdi-gift-outline' : undefined"
+              prepend-icon="mdi-gift-outline"
               size="x-small"
-              :text="dealChipText(item) || undefined"
+              :text="dealChipText(item)"
               :title="dealFor(item)!.name"
               :variant="dealFor(item)!.discountCents ? 'flat' : 'outlined'"
-            >
-              <v-icon v-if="!dealChipText(item)" icon="mdi-gift-outline" />
-            </v-chip>
+            />
           </button>
         </template>
         <template #append>
@@ -413,8 +410,7 @@ function dealFor(item: LineItem) {
 function dealChipText(item: LineItem): string {
   const deal = dealFor(item);
   if (!deal) return "";
-  if (deal.freeQty) return deal.freeQty === item.qty ? "FREE" : `${deal.freeQty} of ${item.qty} free`;
-  return deal.discountCents ? deal.name : "";
+  return deal.freeQty ? `${deal.label} · ${deal.freeQty} free` : deal.label;
 }
 
 function discountAmount(item: LineItem): number {
@@ -1089,7 +1085,8 @@ defineExpose({
 }
 
 /* Name over code, with the sale option chip beside the pair and centred on
-   it; a long name still ellipsizes instead of pushing the chip away. */
+   it; the pair takes the row's spare room, so the chips line up down the
+   cart, and a long name still ellipsizes instead of pushing the chip away. */
 .invoice-price-values {
   min-width: 48px;
 }
@@ -1102,6 +1099,7 @@ defineExpose({
 
 .invoice-item-title-text {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: flex-start;
   min-width: 0;

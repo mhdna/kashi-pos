@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -49,6 +50,23 @@ func dealTermsFromInvoice(d db.InvoiceDeal) dealTerms {
 // $50, 3 or more 20% off). Only a reward unit is swap credit at its shelf
 // price in an exchange; see deal_exchange.go.
 func (t dealTerms) rewardsFreeUnits() bool { return t.Kind == dealBuyGet }
+
+// label is the deal's terms in a few characters, for the cart's chip:
+// "B2G1", "B1G1 50%", "3 for $50", "3+ 20%".
+func (t dealTerms) label() string {
+	switch t.Kind {
+	case dealBuyGet:
+		if t.Percent >= 100 {
+			return fmt.Sprintf("B%dG%d", t.BuyQty, t.GetQty)
+		}
+		return fmt.Sprintf("B%dG%d %d%%", t.BuyQty, t.GetQty, t.Percent)
+	case dealBundlePrice:
+		return fmt.Sprintf("%d for $%s", t.BuyQty, strings.TrimSuffix(centsString(t.BundlePrice), ".00"))
+	case dealVolumePercent:
+		return fmt.Sprintf("%d+ %d%%", t.BuyQty, t.Percent)
+	}
+	return t.Name
+}
 
 // unitDiscounts is what the deal takes off each of these units, given their
 // shelf prices, in the same order. Units are taken cheapest first; equal
@@ -189,6 +207,7 @@ func applyDeals(products []pricedInvoiceProduct, deals map[string]dealTerms, rou
 			line := p
 			line.qty = counts[d]
 			line.dealName = terms.Name
+			line.dealLabel = terms.label()
 			line.dealDiscount = d * line.qty
 			line.lineTotal = line.unitPrice*line.qty - line.dealDiscount
 			// A unit the deal gave nothing (the pool fell short, or it paid

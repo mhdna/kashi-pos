@@ -7,12 +7,15 @@ export interface DealLine {
   barcode: string;
   qty: number;
   deal?: string;
+  // The deal's terms in short, e.g. "B2G1" (deals.go dealTerms.label).
+  dealLabel?: string;
   dealDiscountCents?: number;
   free?: boolean;
 }
 
 export interface CartLineDeal {
   name: string;
+  label: string;
   discountCents: number;
   freeQty: number;
 }
@@ -22,7 +25,12 @@ export function dealsByLine(lines: DealLine[]): Map<string, CartLineDeal> {
   for (const line of lines) {
     if (!line.deal) continue;
     const key = line.barcode || line.code;
-    const entry = out.get(key) ?? { name: line.deal, discountCents: 0, freeQty: 0 };
+    const entry = out.get(key) ?? {
+      name: line.deal,
+      label: line.dealLabel || line.deal,
+      discountCents: 0,
+      freeQty: 0,
+    };
     entry.discountCents += line.dealDiscountCents ?? 0;
     if (line.free) entry.freeQty += line.qty;
     out.set(key, entry);

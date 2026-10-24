@@ -102,3 +102,22 @@ func TestApplyDealsUnknownDeal(t *testing.T) {
 		t.Fatalf("got %+v", out)
 	}
 }
+
+func TestDealTermsLabel(t *testing.T) {
+	cases := []struct {
+		terms dealTerms
+		want  string
+	}{
+		{dealTerms{Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100}, "B2G1"},
+		{dealTerms{Kind: dealBuyGet, BuyQty: 1, GetQty: 1, Percent: 50}, "B1G1 50%"},
+		{dealTerms{Kind: dealBundlePrice, BuyQty: 3, BundlePrice: 5000}, "3 for $50"},
+		{dealTerms{Kind: dealBundlePrice, BuyQty: 2, BundlePrice: 2550}, "2 for $25.50"},
+		{dealTerms{Kind: dealVolumePercent, BuyQty: 3, Percent: 20}, "3+ 20%"},
+		{dealTerms{Kind: "other", Name: "Spring"}, "Spring"},
+	}
+	for _, c := range cases {
+		if got := c.terms.label(); got != c.want {
+			t.Errorf("%+v: label() = %q, want %q", c.terms, got, c.want)
+		}
+	}
+}

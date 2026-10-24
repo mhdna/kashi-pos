@@ -316,6 +316,7 @@ export namespace main {
 	    discountCents: number;
 	    qty: number;
 	    deal?: string;
+	    dealLabel?: string;
 	    dealDiscountCents?: number;
 	    free?: boolean;
 	
@@ -331,6 +332,7 @@ export namespace main {
 	        this.discountCents = source["discountCents"];
 	        this.qty = source["qty"];
 	        this.deal = source["deal"];
+	        this.dealLabel = source["dealLabel"];
 	        this.dealDiscountCents = source["dealDiscountCents"];
 	        this.free = source["free"];
 	    }

@@ -32,6 +32,7 @@ type LineQuote struct {
 	// matches them by barcode and adds them up.
 	Qty               int64  `json:"qty"`
 	Deal              string `json:"deal,omitempty"`
+	DealLabel         string `json:"dealLabel,omitempty"`
 	DealDiscountCents int64  `json:"dealDiscountCents,omitempty"`
 	Free              bool   `json:"free,omitempty"`
 }
@@ -70,6 +71,7 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 			DiscountCents:     product.discount,
 			Qty:               product.qty,
 			Deal:              product.dealName,
+			DealLabel:         product.dealLabel,
 			DealDiscountCents: product.dealDiscount,
 			Free:              product.isFree(),
 		})
