@@ -181,6 +181,40 @@
               </div>
             </v-card-text>
           </v-card>
+          <v-card v-if="cashMachine?.supported" v-show="panelMatches('general-cash-machine')" class="settings-card">
+            <v-card-title>Cash machine</v-card-title>
+            <v-card-text>
+              <p class="text-body-2 mb-2">
+                While GB Cloud runs, every other program is closed and startup apps are switched off, so the till
+                has the computer to itself. Windows' own programs, AnyDesk and touch screen drivers stay.
+              </p>
+              <p v-if="cashMachine.closedPrograms.length" class="text-body-2 mb-1">
+                Closed since GB Cloud started:
+                {{ cashMachine.closedPrograms.map((p) => (p.count > 1 ? `${p.name} (${p.count})` : p.name)).join(", ") }}
+              </p>
+              <p v-if="cashMachine.startupOff.length" class="text-body-2 mb-1">
+                Startup apps switched off: {{ cashMachine.startupOff.join(", ") }}
+              </p>
+              <p v-if="!cashMachine.on" class="text-body-2 text-medium-emphasis mb-1">Off on this till (kiosk mode is off).</p>
+              <template v-if="cashMachine.lastSetup">
+                <p class="text-body-2 mt-3 mb-1">
+                  Made a cash machine {{ new Date(cashMachine.lastSetup.at).toLocaleString() }}:
+                </p>
+                <v-list density="compact" class="py-0">
+                  <v-list-item v-for="s in cashMachine.lastSetup.steps" :key="s.name" :title="s.name" :subtitle="s.detail">
+                    <template #prepend>
+                      <v-icon :icon="s.ok ? 'mdi-check-circle' : 'mdi-close-circle'" :color="s.ok ? 'success' : 'error'" />
+                    </template>
+                  </v-list-item>
+                </v-list>
+              </template>
+              <div class="d-flex justify-end mt-2">
+                <v-btn variant="text" color="primary" :loading="cashMachineRunning" @click="cashMachineConfirm = true">
+                  <v-icon start icon="mdi-cash-register" /> Make this a cash machine
+                </v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
           <v-card v-show="panelMatches('general-sync')" class="settings-card">
             <v-card-title>Central sync (kashi)</v-card-title>
             <v-card-text class="field-grid">
@@ -1806,6 +1840,27 @@
       </v-card>
     </v-dialog>
 
+    <v-dialog v-model="cashMachineConfirm" max-width="520">
+      <v-card>
+        <v-card-title>Make this a cash machine?</v-card-title>
+        <v-card-text>
+          <p class="mb-2">Windows will ask for an administrator's approval. Then, on this computer:</p>
+          <ul class="ml-5 mb-2">
+            <li>Startup apps, third-party scheduled tasks and background services are switched off.</li>
+            <li>Apps a till doesn't use are removed: OneDrive, Teams, Xbox, Copilot, widgets, news, games and the like.</li>
+            <li>Notifications, tips and ads are off; the computer never sleeps.</li>
+            <li>Windows Update only restarts outside 7:00-1:00.</li>
+          </ul>
+          <p>Removed apps don't come back by themselves. It can take a few minutes; leave the till until it's done.</p>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" @click="cashMachineConfirm = false">Cancel</v-btn>
+          <v-spacer />
+          <v-btn color="primary" variant="flat" @click="setUpCashMachine">Make it a cash machine</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-dialog v-model="deleteDialog" max-width="400">
       <v-card>
         <v-card-title>Delete User</v-card-title>
@@ -2031,8 +2086,11 @@ import {
   SetQuickAccessMode,
   SetQuickAccessColor,
   ExportQuickAccessCSV,
+  GetCashMachineStatus,
+  SetUpCashMachine,
 } from "../../wailsjs/go/main/App";
 import { EventsOn, WindowReloadApp } from "../../wailsjs/runtime/runtime";
+import type { main } from "../../wailsjs/go/models";
 import { formatUsd } from "@/lib/format";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
 import { friendlySyncErrorReason } from "@/lib/syncErrors";
@@ -2144,6 +2202,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
   "general-branches": { tab: "general", title: "Branches", keywords: "branches switch default active add branch multiple instances" },
+  "general-cash-machine": { tab: "general", title: "Cash machine", keywords: "cash machine windows performance slow programs apps startup close kiosk minimal onedrive teams" },
   "general-sync": { tab: "general", title: "Central sync (kashi)", keywords: "central sync kashi server url branch code api key upload before close shift wait pending offline" },
   "general-targets": { tab: "general", title: "Targets", keywords: "targets revenue goal progress date range" },
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
@@ -2799,6 +2858,31 @@ async function chooseDatabase() {
   }
 }
 
+const cashMachine = ref<main.CashMachineStatus | null>(null);
+const cashMachineConfirm = ref(false);
+const cashMachineRunning = ref(false);
+
+async function loadCashMachine() {
+  try {
+    cashMachine.value = await GetCashMachineStatus();
+  } catch {}
+}
+
+async function setUpCashMachine() {
+  cashMachineConfirm.value = false;
+  cashMachineRunning.value = true;
+  try {
+    const setup = await SetUpCashMachine();
+    const failed = setup.steps.filter((s) => !s.ok).length;
+    notify(failed ? `Done, ${failed} step(s) didn't work; see Cash machine` : "This till is now a cash machine", failed ? "warning" : "success");
+  } catch (error) {
+    notify(error instanceof Error ? error.message : String(error), "red");
+  } finally {
+    cashMachineRunning.value = false;
+    await loadCashMachine();
+  }
+}
+
 async function loadBranches() {
   try {
     const result = await ListBranches();
@@ -3411,6 +3495,7 @@ onMounted(() => {
     loadSalespersons(),
     loadCashierPin(),
     loadQuickAccessItems(),
+    loadCashMachine(),
     wrap(async () => {
       serialPorts.value = await ListSerialPorts();
     }),
