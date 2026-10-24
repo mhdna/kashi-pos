@@ -209,6 +209,9 @@ export namespace main {
 	    keyboard: string;
 	    mouse: string;
 	    printerName: string;
+	    scannerName: string;
+	    keyboardName: string;
+	    mouseName: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new DeviceStatus(source);
@@ -221,6 +224,9 @@ export namespace main {
 	        this.keyboard = source["keyboard"];
 	        this.mouse = source["mouse"];
 	        this.printerName = source["printerName"];
+	        this.scannerName = source["scannerName"];
+	        this.keyboardName = source["keyboardName"];
+	        this.mouseName = source["mouseName"];
 	    }
 	}
 	export class DisplayPrefs {

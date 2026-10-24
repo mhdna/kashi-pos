@@ -34,6 +34,10 @@ var (
 	pGetRawInputDeviceInfoW  = user32.NewProc("GetRawInputDeviceInfoW")
 	pGetRawInputDeviceList   = user32.NewProc("GetRawInputDeviceList")
 
+	hidDLL                 = windows.NewLazySystemDLL("hid.dll")
+	pHidDGetProductString  = hidDLL.NewProc("HidD_GetProductString")
+	pHidDGetManufacturerSt = hidDLL.NewProc("HidD_GetManufacturerString")
+
 	winspoolDLL    = windows.NewLazySystemDLL("winspool.drv")
 	pOpenPrinterW  = winspoolDLL.NewProc("OpenPrinterW")
 	pGetPrinterW   = winspoolDLL.NewProc("GetPrinterW")
@@ -234,6 +238,11 @@ func inputDeviceID(device uintptr) string {
 }
 
 func rawInputDeviceID(device uintptr) string {
+	return deviceIDFromPath(rawInputDevicePath(device))
+}
+
+// rawInputDevicePath is the device's interface path, \\?\HID#VID_...#...
+func rawInputDevicePath(device uintptr) string {
 	var n uint32
 	pGetRawInputDeviceInfoW.Call(device, ridiDeviceName, 0, uintptr(unsafe.Pointer(&n)))
 	if n == 0 {
@@ -243,16 +252,55 @@ func rawInputDeviceID(device uintptr) string {
 	if r, _, _ := pGetRawInputDeviceInfoW.Call(device, ridiDeviceName, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&n))); int32(r) <= 0 {
 		return ""
 	}
-	path := strings.ToUpper(windows.UTF16ToString(buf))
+	return windows.UTF16ToString(buf)
+}
+
+func deviceIDFromPath(path string) string {
+	path = strings.ToUpper(path)
 	if id := vidPidPattern.FindString(path); id != "" {
 		return id
 	}
 	return path
 }
 
-// presentInputDevices returns the IDs of the keyboards and mice plugged in
-// now, or nil when Windows can't say.
-func presentInputDevices() (keyboards, mice map[string]bool) {
+// deviceNames caches usbDeviceName by device ID; only watchDevices uses it.
+var deviceNames = map[string]string{}
+
+// usbDeviceName is the name a HID device gives itself ("Honeywell Voyager
+// 1250g"), or its USB ID when it gives none. Opening it with no access
+// rights is allowed even for the keyboards and mice Windows holds open.
+func usbDeviceName(id, path string) string {
+	if name, ok := deviceNames[id]; ok {
+		return name
+	}
+	name := id
+	if handle, err := windows.CreateFile(windows.StringToUTF16Ptr(path), 0,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE, nil, windows.OPEN_EXISTING, 0, 0); err == nil {
+		product := hidString(pHidDGetProductString, handle)
+		maker := hidString(pHidDGetManufacturerSt, handle)
+		windows.CloseHandle(handle)
+		switch {
+		case product != "" && maker != "" && !strings.Contains(strings.ToLower(product), strings.ToLower(maker)):
+			name = maker + " " + product
+		case product != "":
+			name = product
+		}
+	}
+	deviceNames[id] = name
+	return name
+}
+
+func hidString(proc *windows.LazyProc, handle windows.Handle) string {
+	var buf [127]uint16 // the USB limit, plus the terminator
+	if r, _, _ := proc.Call(uintptr(handle), uintptr(unsafe.Pointer(&buf[0])), unsafe.Sizeof(buf)); r == 0 {
+		return ""
+	}
+	return strings.TrimSpace(windows.UTF16ToString(buf[:]))
+}
+
+// presentInputDevices returns the keyboards and mice plugged in now, by ID
+// with their names, or nil when Windows can't say.
+func presentInputDevices() (keyboards, mice map[string]string) {
 	var n uint32
 	entrySize := unsafe.Sizeof(rawInputDeviceListEntry{})
 	pGetRawInputDeviceList.Call(0, uintptr(unsafe.Pointer(&n)), entrySize)
@@ -265,9 +313,9 @@ func presentInputDevices() (keyboards, mice map[string]bool) {
 	if int32(r) < 0 {
 		return nil, nil
 	}
-	keyboards, mice = map[string]bool{}, map[string]bool{}
+	keyboards, mice = map[string]string{}, map[string]string{}
 	for _, entry := range list[:r] {
-		var into map[string]bool
+		var into map[string]string
 		switch entry.kind {
 		case rimTypeKeyboard:
 			into = keyboards
@@ -276,8 +324,9 @@ func presentInputDevices() (keyboards, mice map[string]bool) {
 		default:
 			continue
 		}
-		if id := rawInputDeviceID(entry.device); id != "" {
-			into[id] = true
+		path := rawInputDevicePath(entry.device)
+		if id := deviceIDFromPath(path); id != "" {
+			into[id] = usbDeviceName(id, path)
 		}
 	}
 	return keyboards, mice
