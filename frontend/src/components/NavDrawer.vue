@@ -369,8 +369,12 @@ const items = computed(() => {
 .device-status {
   flex: 0 0 auto;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
+  gap: 4px 8px;
+  /* Two icons a row: scanner and printer, the keyboard under them. */
+  width: 56px;
+  margin: 0 auto;
   padding: 0 0 8px;
 }
 .device-status--ok {
