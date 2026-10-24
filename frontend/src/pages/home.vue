@@ -1028,6 +1028,9 @@ async function getFullItemsJSON(): Promise<string> {
     items.map((i: any) => ({
       name: i.name,
       code: i.code,
+      // Colour/size variants of one model share a code; the barcode is what
+      // tells them apart, here and in the backend's duplicate-line check.
+      barcode: i.barcode || undefined,
       category: i.category,
       price: i.price,
       customPriceCents:

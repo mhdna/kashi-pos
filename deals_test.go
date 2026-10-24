@@ -13,6 +13,7 @@ func TestDealUnitDiscounts(t *testing.T) {
 	threeFor50 := dealTerms{Kind: dealBundlePrice, BuyQty: 3, BundlePrice: 5000}
 	volume := dealTerms{Kind: dealVolumePercent, BuyQty: 3, Percent: 20}
 	b2g1else30 := dealTerms{Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100, FallbackPercent: 30}
+	b2g1else30NoSet := dealTerms{Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100, FallbackPercent: 30, FallbackOnlyWithoutSet: true}
 
 	for _, tc := range []struct {
 		name   string
@@ -35,6 +36,10 @@ func TestDealUnitDiscounts(t *testing.T) {
 		{"fallback: the dearest unit beside a set gets it", b2g1else30, []int64{5000, 10000, 8000, 6000}, []int64{5000, 3000, 0, 0}},
 		{"fallback: two sets, nothing left over", b2g1else30, []int64{1, 2, 3, 4, 5, 6}, []int64{1, 2, 0, 0, 0, 0}},
 		{"no fallback: units outside a set stay full price", b2g1, []int64{10000, 8000, 5000, 6000}, []int64{0, 0, 5000, 0}},
+		{"only without a set: one unit is 30% off", b2g1else30NoSet, []int64{10000}, []int64{3000}},
+		{"only without a set: two units are both 30% off", b2g1else30NoSet, []int64{10000, 8000}, []int64{3000, 2400}},
+		{"only without a set: a full set is the deal alone", b2g1else30NoSet, []int64{10000, 8000, 5000}, []int64{0, 0, 5000}},
+		{"only without a set: the unit beside a set pays full price", b2g1else30NoSet, []int64{5000, 10000, 8000, 6000}, []int64{5000, 0, 0, 0}},
 		{"3 or more 20% off", volume, []int64{1000, 2000, 3000}, []int64{200, 400, 600}},
 		{"2 is not 3 or more", volume, []int64{1000, 2000}, []int64{0, 0}},
 	} {

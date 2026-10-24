@@ -188,20 +188,21 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 }
 
 const createInvoiceDeal = `-- name: CreateInvoiceDeal :exec
-INSERT INTO invoice_deals (invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO invoice_deals (invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent, fallback_only_without_set)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateInvoiceDealParams struct {
-	InvoiceID       int64  `json:"invoiceId"`
-	DealUid         string `json:"dealUid"`
-	Name            string `json:"name"`
-	Kind            string `json:"kind"`
-	BuyQty          int64  `json:"buyQty"`
-	GetQty          int64  `json:"getQty"`
-	Percent         int64  `json:"percent"`
-	BundlePrice     int64  `json:"bundlePrice"`
-	FallbackPercent int64  `json:"fallbackPercent"`
+	InvoiceID              int64  `json:"invoiceId"`
+	DealUid                string `json:"dealUid"`
+	Name                   string `json:"name"`
+	Kind                   string `json:"kind"`
+	BuyQty                 int64  `json:"buyQty"`
+	GetQty                 int64  `json:"getQty"`
+	Percent                int64  `json:"percent"`
+	BundlePrice            int64  `json:"bundlePrice"`
+	FallbackPercent        int64  `json:"fallbackPercent"`
+	FallbackOnlyWithoutSet int64  `json:"fallbackOnlyWithoutSet"`
 }
 
 func (q *Queries) CreateInvoiceDeal(ctx context.Context, arg CreateInvoiceDealParams) error {
@@ -215,6 +216,7 @@ func (q *Queries) CreateInvoiceDeal(ctx context.Context, arg CreateInvoiceDealPa
 		arg.Percent,
 		arg.BundlePrice,
 		arg.FallbackPercent,
+		arg.FallbackOnlyWithoutSet,
 	)
 	return err
 }
@@ -890,7 +892,7 @@ func (q *Queries) ListIncomeAccountTotals(ctx context.Context, incomeShiftID int
 }
 
 const listInvoiceDeals = `-- name: ListInvoiceDeals :many
-SELECT invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent FROM invoice_deals WHERE invoice_id = ? ORDER BY deal_uid
+SELECT invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent, fallback_only_without_set FROM invoice_deals WHERE invoice_id = ? ORDER BY deal_uid
 `
 
 func (q *Queries) ListInvoiceDeals(ctx context.Context, invoiceID int64) ([]InvoiceDeal, error) {
@@ -912,6 +914,7 @@ func (q *Queries) ListInvoiceDeals(ctx context.Context, invoiceID int64) ([]Invo
 			&i.Percent,
 			&i.BundlePrice,
 			&i.FallbackPercent,
+			&i.FallbackOnlyWithoutSet,
 		); err != nil {
 			return nil, err
 		}

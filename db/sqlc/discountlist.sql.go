@@ -138,7 +138,7 @@ func (q *Queries) ListActiveDiscountListItems(ctx context.Context) ([]ListActive
 }
 
 const listDeals = `-- name: ListDeals :many
-SELECT uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent FROM deals ORDER BY uid
+SELECT uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent, fallback_only_without_set FROM deals ORDER BY uid
 `
 
 func (q *Queries) ListDeals(ctx context.Context) ([]Deal, error) {
@@ -159,6 +159,7 @@ func (q *Queries) ListDeals(ctx context.Context) ([]Deal, error) {
 			&i.Percent,
 			&i.BundlePrice,
 			&i.FallbackPercent,
+			&i.FallbackOnlyWithoutSet,
 		); err != nil {
 			return nil, err
 		}
@@ -246,23 +247,25 @@ func (q *Queries) ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 }
 
 const upsertDeal = `-- name: UpsertDeal :exec
-INSERT INTO deals (uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO deals (uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent, fallback_only_without_set)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (uid) DO UPDATE SET
     name = excluded.name, kind = excluded.kind, buy_qty = excluded.buy_qty,
     get_qty = excluded.get_qty, percent = excluded.percent, bundle_price = excluded.bundle_price,
-    fallback_percent = excluded.fallback_percent
+    fallback_percent = excluded.fallback_percent,
+    fallback_only_without_set = excluded.fallback_only_without_set
 `
 
 type UpsertDealParams struct {
-	Uid             string `json:"uid"`
-	Name            string `json:"name"`
-	Kind            string `json:"kind"`
-	BuyQty          int64  `json:"buyQty"`
-	GetQty          int64  `json:"getQty"`
-	Percent         int64  `json:"percent"`
-	BundlePrice     int64  `json:"bundlePrice"`
-	FallbackPercent int64  `json:"fallbackPercent"`
+	Uid                    string `json:"uid"`
+	Name                   string `json:"name"`
+	Kind                   string `json:"kind"`
+	BuyQty                 int64  `json:"buyQty"`
+	GetQty                 int64  `json:"getQty"`
+	Percent                int64  `json:"percent"`
+	BundlePrice            int64  `json:"bundlePrice"`
+	FallbackPercent        int64  `json:"fallbackPercent"`
+	FallbackOnlyWithoutSet int64  `json:"fallbackOnlyWithoutSet"`
 }
 
 // Deals arrive with the lists naming them (sync_pull_lists.go); a deal two
@@ -277,6 +280,7 @@ func (q *Queries) UpsertDeal(ctx context.Context, arg UpsertDealParams) error {
 		arg.Percent,
 		arg.BundlePrice,
 		arg.FallbackPercent,
+		arg.FallbackOnlyWithoutSet,
 	)
 	return err
 }
