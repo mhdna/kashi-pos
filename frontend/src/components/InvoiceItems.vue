@@ -30,6 +30,20 @@
               :text="item.saleOption"
               variant="tonal"
             />
+            <!-- The line's deal: FREE for units it gives away, the deal's
+                 name while it takes something off, and greyed while the
+                 cart is short of it. -->
+            <v-chip
+              v-if="dealFor(item)"
+              class="invoice-item-sale-option"
+              :color="dealFor(item)!.freeQty ? 'success' : dealFor(item)!.discountCents ? 'deep-purple' : undefined"
+              label
+              prepend-icon="mdi-gift-outline"
+              size="small"
+              :text="dealChipText(item)"
+              :title="dealFor(item)!.name"
+              :variant="dealFor(item)!.discountCents ? 'flat' : 'outlined'"
+            />
           </button>
         </template>
         <template #append>
@@ -294,6 +308,7 @@ import {
   UpdateProductDiscount,
 } from "../../wailsjs/go/main/App";
 import { roundDiscountCents, normalizeRoundingMode } from "@/lib/money";
+import { dealsByLine, type DealLine } from "@/lib/deals";
 import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
@@ -357,6 +372,8 @@ const props = defineProps<{
   // from the line's original price, so a price change is always expressed
   // as a discount. "override": price and discount are edited independently.
   priceChangeMode?: "override" | "discount";
+  // The quote's priced lines; a sold line on a deal is marked from them.
+  dealLines?: DealLine[];
   // When true, clicking a line's qty/discount/price focuses it instead of
   // opening the number-pad popup, and arrow keys move focus between fields.
   keyboardMode?: boolean;
@@ -379,6 +396,21 @@ function effectiveUnitPriceAt(item: LineItem, index: number): number {
   return Math.round(price * (1 - discount / 100) * 100) / 100;
 }
 
+const dealsByCartLine = computed(() => dealsByLine(props.dealLines ?? []));
+
+// A returned line (qty < 0) in an exchange is never re-priced by a deal.
+function dealFor(item: LineItem) {
+  if (item.qty <= 0) return undefined;
+  return dealsByCartLine.value.get(item.barcode || item.code);
+}
+
+function dealChipText(item: LineItem): string {
+  const deal = dealFor(item);
+  if (!deal) return "";
+  if (deal.freeQty) return deal.freeQty === item.qty ? "FREE" : `${deal.freeQty} FREE`;
+  return deal.name;
+}
+
 function discountAmount(item: LineItem): number {
   return (itemGrossCents(item) - discountedItemCents(item)) / 100;
 }
@@ -388,8 +420,11 @@ function shortPrice(value: number): string {
   return String(Number(Number(value || 0).toFixed(2)));
 }
 
+// The deal's saving comes off here only for display; the quote is what
+// charges it.
 function totalAfterDiscount(item: LineItem): number {
-  return discountedItemCents(item) / 100;
+  const deal = dealFor(item);
+  return Math.max(0, discountedItemCents(item) - (deal?.discountCents ?? 0)) / 100;
 }
 
 function itemGrossCents(item: LineItem): number {

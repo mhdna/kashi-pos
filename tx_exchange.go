@@ -117,7 +117,9 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 		if err != nil {
 			return err
 		}
-		if !policy.allowLowerTotal && priced.replacementTotal < priced.returnedTotal {
+		// What was paid for the returned units, not their swap credit: a free
+		// unit's credit may go unused (deal_exchange.go).
+		if !policy.allowLowerTotal && priced.replacementTotal < priced.requiredReplacement {
 			return fmt.Errorf("combined replacement total must equal or exceed the returned item")
 		}
 		netDifference := priced.replacementTotal - priced.returnedTotal
@@ -177,6 +179,10 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 		if err != nil {
 			return err
 		}
+		// What the exchange did to the sale's deals is printed with the notes.
+		if dealNotes := dealAdjustmentNotes(priced.dealAdjustments); dealNotes != "" {
+			notes = strings.TrimSpace(strings.TrimSpace(notes) + "\n" + dealNotes)
+		}
 		invoice, err := createExchangeInvoice(
 			a, q, cashbox, shift, source, inventoryID, salespersonID, total, settings.BranchCode, notes, policy.returnOnly,
 		)
@@ -184,6 +190,9 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			return err
 		}
 		if err := recordExchangeProducts(a, q, invoice.ID, inventoryID, priced); err != nil {
+			return err
+		}
+		if err := recordExchangeDealAdjustments(a.ctx, q, invoice.ID, source.ID, priced.dealAdjustments); err != nil {
 			return err
 		}
 		if err := recordExchangePayments(a, q, invoice.ID, shift.ID, payments); err != nil {
@@ -225,6 +234,8 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 					LineTotal:       -returned.lineTotal,
 					Discount:        int16(returned.line.Discount),
 					Quantity:        -returned.qty,
+					Deal:            dealNameOf(source.ID, returned.deal.dealUID, q, a),
+					DealDiscount:    -returned.deal.unitDeal * returned.qty,
 				})
 			}
 			for _, replacement := range priced.replacements {
@@ -383,6 +394,9 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 			UnitPrice: returned.line.UnitPrice, LineTotal: -returned.lineTotal,
 			Discount: returned.line.Discount, Quantity: -returned.qty,
 			SalespersonID: returned.salespersonID, Note: returned.note,
+			// Signed like the quantity, so a unit's deal discount reads the
+			// same on the sold line and the returned one.
+			DealUid: returned.deal.dealUID, DealDiscount: -returned.deal.unitDeal * returned.qty,
 		}); err != nil {
 			return err
 		}
@@ -401,6 +415,9 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 			Discount: replacement.discount, Quantity: replacement.qty,
 			SalespersonID: replacement.salespersonID, Note: replacement.note,
 			SaleOption: replacement.saleOption,
+			// Set only on a replacement standing in for a returned paid unit
+			// of the sale's deal (deal_exchange.go).
+			DealUid: replacement.dealUID,
 		}); err != nil {
 			return err
 		}

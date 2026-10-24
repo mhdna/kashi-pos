@@ -29,6 +29,8 @@ type activeDiscount struct {
 	listID    int64
 	listName  string
 	isSpecial bool
+	// The deal the row puts the product on (000128); percent is 0 then.
+	dealUID string
 }
 
 // activePricing is every price and discount currently in force, keyed by
@@ -44,6 +46,8 @@ type activePricing struct {
 	// saleOptions[uid] is what the till asks when the product is sold, in
 	// display order; absent for an ordinary product.
 	saleOptions map[string][]string
+	// deals[uid] is a deal's terms, for the rows naming it (deals.go).
+	deals map[string]dealTerms
 }
 
 // priceFor / discountFor report whether central said anything about a product
@@ -125,6 +129,7 @@ func readActivePricing(ctx context.Context, q *db.Queries) (activePricing, error
 		discounts:       map[string]activeDiscount{},
 		optionDiscounts: map[string]map[string]activeDiscount{},
 		saleOptions:     map[string][]string{},
+		deals:           map[string]dealTerms{},
 	}
 
 	// Both queries order is_default DESC, so a default-list row is written
@@ -149,6 +154,7 @@ func readActivePricing(ctx context.Context, q *db.Queries) (activePricing, error
 	for _, row := range discountRows {
 		pricing.discounts[row.ProductUid] = activeDiscount{
 			percent: row.Discount, listID: row.ListID, listName: row.ListName,
+			dealUID: row.DealUid,
 		}
 	}
 
@@ -175,6 +181,14 @@ func readActivePricing(ctx context.Context, q *db.Queries) (activePricing, error
 	}
 	for _, row := range saleOptionRows {
 		pricing.saleOptions[row.ProductUid.String] = append(pricing.saleOptions[row.ProductUid.String], row.Name)
+	}
+
+	dealRows, err := q.ListDeals(ctx)
+	if err != nil {
+		return pricing, err
+	}
+	for _, row := range dealRows {
+		pricing.deals[row.Uid] = dealTermsFromRow(row)
 	}
 	return pricing, nil
 }

@@ -223,6 +223,7 @@ export namespace main {
 	    taxCents: number;
 	    grandTotalCents: number;
 	    needsMoreReplacementValue: boolean;
+	    shortfallCents: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ExchangeQuote(source);
@@ -235,6 +236,7 @@ export namespace main {
 	        this.taxCents = source["taxCents"];
 	        this.grandTotalCents = source["grandTotalCents"];
 	        this.needsMoreReplacementValue = source["needsMoreReplacementValue"];
+	        this.shortfallCents = source["shortfallCents"];
 	    }
 	}
 	export class FullCheckEntityReport {
@@ -312,6 +314,10 @@ export namespace main {
 	    barcode: string;
 	    lineTotalCents: number;
 	    discountCents: number;
+	    qty: number;
+	    deal?: string;
+	    dealDiscountCents?: number;
+	    free?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new LineQuote(source);
@@ -323,6 +329,10 @@ export namespace main {
 	        this.barcode = source["barcode"];
 	        this.lineTotalCents = source["lineTotalCents"];
 	        this.discountCents = source["discountCents"];
+	        this.qty = source["qty"];
+	        this.deal = source["deal"];
+	        this.dealDiscountCents = source["dealDiscountCents"];
+	        this.free = source["free"];
 	    }
 	}
 	export class InvoiceQuote {

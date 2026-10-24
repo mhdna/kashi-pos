@@ -42,13 +42,22 @@ func (a *App) getExchangeInvoice(code string, enforceWindow bool) (map[string]an
 		return nil, err
 	}
 
+	dealNames := map[string]string{}
+	if deals, err := a.store.ListInvoiceDeals(a.ctx, invoice.ID); err == nil {
+		for _, d := range deals {
+			dealNames[d.DealUid] = d.Name
+		}
+	}
 	items := make([]map[string]any, 0, len(lines))
 	for _, line := range lines {
+		key := keyOfLine(line)
 		returned, err := a.store.GetReturnedQuantityForProductPrice(a.ctx, db.GetReturnedQuantityForProductPriceParams{
-			SalesInvoiceID: invoice.ID,
-			ProductID:      line.ProductID,
-			UnitPrice:      line.UnitPrice,
-			Discount:       line.Discount,
+			SalesInvoiceID:   invoice.ID,
+			ProductID:        line.ProductID,
+			UnitPrice:        line.UnitPrice,
+			Discount:         line.Discount,
+			DealUid:          line.DealUid,
+			UnitDealDiscount: key.unitDeal,
 		})
 		if err != nil {
 			return nil, err
@@ -79,6 +88,12 @@ func (a *App) getExchangeInvoice(code string, enforceWindow bool) (map[string]an
 			"available":       available,
 			"salespersonId":   line.SalespersonID,
 			"salespersonName": lineSalespersonName,
+			// Deal units (deal_exchange.go): a free one swaps for anything up
+			// to its price; what was paid per unit is what a paid one credits.
+			"deal":          dealNames[line.DealUid],
+			"dealDiscount":  float64(key.unitDeal) / 100,
+			"free":          key.unitDeal > 0 && key.unitDeal == line.UnitPrice,
+			"paidUnitPrice": float64(line.LineTotal/max(1, line.Quantity)) / 100,
 		})
 	}
 	if len(items) == 0 {

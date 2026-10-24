@@ -99,6 +99,30 @@ func (q *Queries) CountReturnsForSale(ctx context.Context, salesInvoiceID int64)
 	return count, err
 }
 
+const createExchangeDealAdjustment = `-- name: CreateExchangeDealAdjustment :exec
+INSERT INTO exchange_deal_adjustments (invoice_id, sales_invoice_id, deal_uid, forfeited, clawback)
+VALUES (?, ?, ?, ?, ?)
+`
+
+type CreateExchangeDealAdjustmentParams struct {
+	InvoiceID      int64  `json:"invoiceId"`
+	SalesInvoiceID int64  `json:"salesInvoiceId"`
+	DealUid        string `json:"dealUid"`
+	Forfeited      int64  `json:"forfeited"`
+	Clawback       int64  `json:"clawback"`
+}
+
+func (q *Queries) CreateExchangeDealAdjustment(ctx context.Context, arg CreateExchangeDealAdjustmentParams) error {
+	_, err := q.db.ExecContext(ctx, createExchangeDealAdjustment,
+		arg.InvoiceID,
+		arg.SalesInvoiceID,
+		arg.DealUid,
+		arg.Forfeited,
+		arg.Clawback,
+	)
+	return err
+}
+
 const createInvoice = `-- name: CreateInvoice :one
 INSERT INTO invoices (
     cashbox_id, shift_id, invoice_code, invoice_index,
@@ -163,6 +187,36 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 	return i, err
 }
 
+const createInvoiceDeal = `-- name: CreateInvoiceDeal :exec
+INSERT INTO invoice_deals (invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+`
+
+type CreateInvoiceDealParams struct {
+	InvoiceID   int64  `json:"invoiceId"`
+	DealUid     string `json:"dealUid"`
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	BuyQty      int64  `json:"buyQty"`
+	GetQty      int64  `json:"getQty"`
+	Percent     int64  `json:"percent"`
+	BundlePrice int64  `json:"bundlePrice"`
+}
+
+func (q *Queries) CreateInvoiceDeal(ctx context.Context, arg CreateInvoiceDealParams) error {
+	_, err := q.db.ExecContext(ctx, createInvoiceDeal,
+		arg.InvoiceID,
+		arg.DealUid,
+		arg.Name,
+		arg.Kind,
+		arg.BuyQty,
+		arg.GetQty,
+		arg.Percent,
+		arg.BundlePrice,
+	)
+	return err
+}
+
 const createInvoicePayment = `-- name: CreateInvoicePayment :exec
 INSERT INTO invoice_payments (invoice_id, cashbox_id, amount) VALUES (?, ?, ?)
 ON CONFLICT (invoice_id, cashbox_id) DO UPDATE SET amount = invoice_payments.amount + excluded.amount
@@ -202,8 +256,8 @@ func (q *Queries) CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoi
 }
 
 const createInvoiceProduct = `-- name: CreateInvoiceProduct :exec
-INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateInvoiceProductParams struct {
@@ -218,6 +272,8 @@ type CreateInvoiceProductParams struct {
 	PriceListID    sql.NullInt64 `json:"priceListId"`
 	DiscountListID sql.NullInt64 `json:"discountListId"`
 	SaleOption     string        `json:"saleOption"`
+	DealUid        string        `json:"dealUid"`
+	DealDiscount   int64         `json:"dealDiscount"`
 }
 
 func (q *Queries) CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error {
@@ -233,6 +289,8 @@ func (q *Queries) CreateInvoiceProduct(ctx context.Context, arg CreateInvoicePro
 		arg.PriceListID,
 		arg.DiscountListID,
 		arg.SaleOption,
+		arg.DealUid,
+		arg.DealDiscount,
 	)
 	return err
 }
@@ -412,7 +470,7 @@ func (q *Queries) GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams
 }
 
 const getInvoiceProduct = `-- name: GetInvoiceProduct :one
-SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option FROM invoice_products WHERE invoice_id = ? AND product_id = ?
+SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount FROM invoice_products WHERE invoice_id = ? AND product_id = ?
 `
 
 type GetInvoiceProductParams struct {
@@ -436,6 +494,8 @@ func (q *Queries) GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductPa
 		&i.PriceListID,
 		&i.DiscountListID,
 		&i.SaleOption,
+		&i.DealUid,
+		&i.DealDiscount,
 	)
 	return i, err
 }
@@ -463,14 +523,20 @@ const getReturnedQuantityForProductPrice = `-- name: GetReturnedQuantityForProdu
 SELECT COALESCE(SUM(CASE WHEN ip.quantity < 0 THEN -ip.quantity ELSE 0 END), 0) AS quantity
 FROM return_invoices r
 JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
-WHERE r.sales_invoice_id = ? AND ip.product_id = ? AND ip.unit_price = ? AND ip.discount = ?
+WHERE r.sales_invoice_id = ?1 AND ip.product_id = ?2
+  AND ip.unit_price = ?3 AND ip.discount = ?4
+  -- A sold deal line is one unit deal discount (000128): the free units of a
+  -- product are told from its paid ones by it, not by price.
+  AND ip.deal_uid = ?5 AND ip.deal_discount = ?6 * ip.quantity
 `
 
 type GetReturnedQuantityForProductPriceParams struct {
-	SalesInvoiceID int64 `json:"salesInvoiceId"`
-	ProductID      int64 `json:"productId"`
-	UnitPrice      int64 `json:"unitPrice"`
-	Discount       int64 `json:"discount"`
+	SalesInvoiceID   int64  `json:"salesInvoiceId"`
+	ProductID        int64  `json:"productId"`
+	UnitPrice        int64  `json:"unitPrice"`
+	Discount         int64  `json:"discount"`
+	DealUid          string `json:"dealUid"`
+	UnitDealDiscount int64  `json:"unitDealDiscount"`
 }
 
 func (q *Queries) GetReturnedQuantityForProductPrice(ctx context.Context, arg GetReturnedQuantityForProductPriceParams) (interface{}, error) {
@@ -479,6 +545,8 @@ func (q *Queries) GetReturnedQuantityForProductPrice(ctx context.Context, arg Ge
 		arg.ProductID,
 		arg.UnitPrice,
 		arg.Discount,
+		arg.DealUid,
+		arg.UnitDealDiscount,
 	)
 	var quantity interface{}
 	err := row.Scan(&quantity)
@@ -706,6 +774,39 @@ func (q *Queries) ListDailySalesTotals(ctx context.Context, arg ListDailySalesTo
 	return items, nil
 }
 
+const listExchangeDealAdjustments = `-- name: ListExchangeDealAdjustments :many
+SELECT invoice_id, sales_invoice_id, deal_uid, forfeited, clawback FROM exchange_deal_adjustments WHERE invoice_id = ? ORDER BY deal_uid
+`
+
+func (q *Queries) ListExchangeDealAdjustments(ctx context.Context, invoiceID int64) ([]ExchangeDealAdjustment, error) {
+	rows, err := q.db.QueryContext(ctx, listExchangeDealAdjustments, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExchangeDealAdjustment{}
+	for rows.Next() {
+		var i ExchangeDealAdjustment
+		if err := rows.Scan(
+			&i.InvoiceID,
+			&i.SalesInvoiceID,
+			&i.DealUid,
+			&i.Forfeited,
+			&i.Clawback,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listIncomeAccountTotals = `-- name: ListIncomeAccountTotals :many
 WITH account_totals AS (
     SELECT ip.cashbox_id, ip.amount
@@ -772,6 +873,42 @@ func (q *Queries) ListIncomeAccountTotals(ctx context.Context, incomeShiftID int
 			&i.CurrencyCode,
 			&i.Color,
 			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvoiceDeals = `-- name: ListInvoiceDeals :many
+SELECT invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price FROM invoice_deals WHERE invoice_id = ? ORDER BY deal_uid
+`
+
+func (q *Queries) ListInvoiceDeals(ctx context.Context, invoiceID int64) ([]InvoiceDeal, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoiceDeals, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InvoiceDeal{}
+	for rows.Next() {
+		var i InvoiceDeal
+		if err := rows.Scan(
+			&i.InvoiceID,
+			&i.DealUid,
+			&i.Name,
+			&i.Kind,
+			&i.BuyQty,
+			&i.GetQty,
+			&i.Percent,
+			&i.BundlePrice,
 		); err != nil {
 			return nil, err
 		}
@@ -1078,7 +1215,7 @@ func (q *Queries) ListInvoicePaymentsByInvoiceIDs(ctx context.Context, ids []int
 }
 
 const listInvoiceProducts = `-- name: ListInvoiceProducts :many
-SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option FROM invoice_products WHERE invoice_id = ?
+SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount FROM invoice_products WHERE invoice_id = ?
 `
 
 func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error) {
@@ -1103,6 +1240,8 @@ func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]I
 			&i.PriceListID,
 			&i.DiscountListID,
 			&i.SaleOption,
+			&i.DealUid,
+			&i.DealDiscount,
 		); err != nil {
 			return nil, err
 		}
@@ -1504,6 +1643,90 @@ func (q *Queries) ListReturnInvoices(ctx context.Context) ([]ReturnInvoice, erro
 	for rows.Next() {
 		var i ReturnInvoice
 		if err := rows.Scan(&i.InvoiceID, &i.SalesInvoiceID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSaleDealAdjustments = `-- name: ListSaleDealAdjustments :many
+SELECT deal_uid, CAST(COALESCE(SUM(forfeited), 0) AS INTEGER) AS forfeited,
+       CAST(COALESCE(SUM(clawback), 0) AS INTEGER) AS clawback
+FROM exchange_deal_adjustments WHERE sales_invoice_id = ?
+GROUP BY deal_uid ORDER BY deal_uid
+`
+
+type ListSaleDealAdjustmentsRow struct {
+	DealUid   string `json:"dealUid"`
+	Forfeited int64  `json:"forfeited"`
+	Clawback  int64  `json:"clawback"`
+}
+
+// What earlier exchanges and returns of the sale did to each of its deals.
+func (q *Queries) ListSaleDealAdjustments(ctx context.Context, salesInvoiceID int64) ([]ListSaleDealAdjustmentsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSaleDealAdjustments, salesInvoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSaleDealAdjustmentsRow{}
+	for rows.Next() {
+		var i ListSaleDealAdjustmentsRow
+		if err := rows.Scan(&i.DealUid, &i.Forfeited, &i.Clawback); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSaleExchangeDealLines = `-- name: ListSaleExchangeDealLines :many
+SELECT ip.id, ip.invoice_id, ip.product_id, ip.unit_price, ip.line_total, ip.discount, ip.quantity, ip.salesperson_id, ip.note, ip.price_list_id, ip.discount_list_id, ip.sale_option, ip.deal_uid, ip.deal_discount FROM return_invoices r
+JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
+WHERE r.sales_invoice_id = ? AND ip.deal_uid != ''
+ORDER BY ip.invoice_id, ip.id
+`
+
+// Every deal line on the sale's returns and exchanges: returned deal units
+// (quantity < 0) and replacements counted towards a deal (quantity > 0).
+func (q *Queries) ListSaleExchangeDealLines(ctx context.Context, salesInvoiceID int64) ([]InvoiceProduct, error) {
+	rows, err := q.db.QueryContext(ctx, listSaleExchangeDealLines, salesInvoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InvoiceProduct{}
+	for rows.Next() {
+		var i InvoiceProduct
+		if err := rows.Scan(
+			&i.ID,
+			&i.InvoiceID,
+			&i.ProductID,
+			&i.UnitPrice,
+			&i.LineTotal,
+			&i.Discount,
+			&i.Quantity,
+			&i.SalespersonID,
+			&i.Note,
+			&i.PriceListID,
+			&i.DiscountListID,
+			&i.SaleOption,
+			&i.DealUid,
+			&i.DealDiscount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

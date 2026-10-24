@@ -220,6 +220,16 @@ type Currency struct {
 	CashRoundingUnit       int64  `json:"cashRoundingUnit"`
 }
 
+type Deal struct {
+	Uid         string `json:"uid"`
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	BuyQty      int64  `json:"buyQty"`
+	GetQty      int64  `json:"getQty"`
+	Percent     int64  `json:"percent"`
+	BundlePrice int64  `json:"bundlePrice"`
+}
+
 type DiscountList struct {
 	ID        int64          `json:"id"`
 	Name      string         `json:"name"`
@@ -236,6 +246,7 @@ type DiscountListItem struct {
 	ProductUid     string `json:"productUid"`
 	Discount       int64  `json:"discount"`
 	CreatedAt      string `json:"createdAt"`
+	DealUid        string `json:"dealUid"`
 }
 
 type DiscountListOptionItem struct {
@@ -252,6 +263,14 @@ type DiscountOverride struct {
 	ProductID sql.NullInt64 `json:"productId"`
 	Discount  int64         `json:"discount"`
 	CreatedAt string        `json:"createdAt"`
+}
+
+type ExchangeDealAdjustment struct {
+	InvoiceID      int64  `json:"invoiceId"`
+	SalesInvoiceID int64  `json:"salesInvoiceId"`
+	DealUid        string `json:"dealUid"`
+	Forfeited      int64  `json:"forfeited"`
+	Clawback       int64  `json:"clawback"`
 }
 
 type Expense struct {
@@ -341,6 +360,17 @@ type InvoiceCouponPayment struct {
 	Amount       int64  `json:"amount"`
 }
 
+type InvoiceDeal struct {
+	InvoiceID   int64  `json:"invoiceId"`
+	DealUid     string `json:"dealUid"`
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	BuyQty      int64  `json:"buyQty"`
+	GetQty      int64  `json:"getQty"`
+	Percent     int64  `json:"percent"`
+	BundlePrice int64  `json:"bundlePrice"`
+}
+
 type InvoiceIndex struct {
 	Year      int64  `json:"year"`
 	LastIndex int64  `json:"lastIndex"`
@@ -375,6 +405,8 @@ type InvoiceProduct struct {
 	PriceListID    sql.NullInt64 `json:"priceListId"`
 	DiscountListID sql.NullInt64 `json:"discountListId"`
 	SaleOption     string        `json:"saleOption"`
+	DealUid        string        `json:"dealUid"`
+	DealDiscount   int64         `json:"dealDiscount"`
 }
 
 type Loan struct {
