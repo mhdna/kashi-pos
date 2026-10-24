@@ -26,6 +26,11 @@ func main() {
 	if len(os.Args) == 3 && os.Args[1] == "--apply-update" {
 		os.Exit(runUpdateHelper(os.Args[2], defaultUpdateProcesses()))
 	}
+	// "Make this a cash machine" runs this same program as administrator for
+	// the computer's settings (cash_machine_windows.go); no window.
+	if len(os.Args) == 3 && os.Args[1] == "--cash-machine-setup" {
+		os.Exit(runCashMachineSetup(os.Args[2]))
+	}
 
 	// Paint a native splash immediately, before the WebView2 runtime boots.
 	// hideSplash also runs on OnDomReady; the defer covers early-exit paths.

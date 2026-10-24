@@ -138,6 +138,8 @@ export function GetAttendanceManagerApprovalEnabled():Promise<boolean>;
 
 export function GetAttendanceStatus():Promise<Record<string, any>>;
 
+export function GetCashMachineStatus():Promise<main.CashMachineStatus>;
+
 export function GetCashierPIN():Promise<string>;
 
 export function GetClientAccountDetails(arg1:number):Promise<Record<string, any>>;
@@ -467,6 +469,8 @@ export function SetSplitDisplay(arg1:string,arg2:boolean,arg3:number):Promise<vo
 export function SetTheme(arg1:string):Promise<void>;
 
 export function SetUnknownProductBarcode(arg1:string):Promise<void>;
+
+export function SetUpCashMachine():Promise<main.CashMachineSetup>;
 
 export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
 

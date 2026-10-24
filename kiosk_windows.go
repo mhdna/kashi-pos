@@ -19,6 +19,7 @@ package main
 //   - The Windows key, Alt+Tab, Alt+Esc, Ctrl+Esc and Alt+F4 do nothing
 //     while the till is in front.
 //   - Minimized windows (AnyDesk's session window, say) aren't drawn.
+//   - Other programs are closed (cash machine mode, cash_machine.go).
 //
 // Closing the app (Quit -> Close App) starts Explorer again, so that's the
 // way to Windows. Shut Down and Restart in the same dialog leave it off.
@@ -152,6 +153,7 @@ func enterKiosk() {
 	exitExplorer()
 	hideMinimizedWindows()
 	takeForeground(window, 0)
+	startCashMachine()
 }
 
 // minimizedMetrics is the Win32 MINIMIZEDMETRICS struct.
@@ -184,6 +186,7 @@ func hideMinimizedWindows() {
 // leaveKiosk turns kiosk mode off and, unless the app is closing for a
 // shutdown or an update, starts Explorer again.
 func leaveKiosk() {
+	stopCashMachine()
 	kiosk.mu.Lock()
 	if kiosk.threadID != 0 {
 		pPostThreadMessageW.Call(uintptr(kiosk.threadID), wmQuit, 0, 0)
