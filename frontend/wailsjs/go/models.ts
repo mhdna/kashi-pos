@@ -207,6 +207,7 @@ export namespace main {
 	    scanner: string;
 	    printer: string;
 	    keyboard: string;
+	    mouse: string;
 	    printerName: string;
 	
 	    static createFrom(source: any = {}) {
@@ -218,6 +219,7 @@ export namespace main {
 	        this.scanner = source["scanner"];
 	        this.printer = source["printer"];
 	        this.keyboard = source["keyboard"];
+	        this.mouse = source["mouse"];
 	        this.printerName = source["printerName"];
 	    }
 	}

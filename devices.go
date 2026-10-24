@@ -13,7 +13,7 @@ import (
 )
 
 // Connected devices on the nav rail: the barcode scanner, the receipt
-// printer and the keyboard, each green while it's there and red once it's
+// printer, the keyboard and the mouse, each green while it's there and red once it's
 // gone.
 //
 // The printer is the receipt printer in Settings, as Windows' spooler sees
@@ -21,7 +21,8 @@ import (
 // is the scanner from how it types (devices_windows.go): a burst of keys a
 // few milliseconds apart ending in Enter. That's kept in devices.json next to
 // the branch registry, and a new scanner replaces the old one on its first
-// scan. The keyboard is any other USB keyboard plugged in, used or not.
+// scan. The keyboard is any other USB keyboard plugged in, used or not, and
+// the mouse any USB mouse.
 
 const (
 	deviceOK      = "ok"
@@ -34,6 +35,7 @@ type DeviceStatus struct {
 	Scanner  string `json:"scanner"`
 	Printer  string `json:"printer"`
 	Keyboard string `json:"keyboard"`
+	Mouse    string `json:"mouse"`
 	// PrinterName is the receipt printer the status is for.
 	PrinterName string `json:"printerName"`
 }
@@ -145,11 +147,12 @@ func (a *App) watchDevices() {
 }
 
 func (a *App) checkDevices() DeviceStatus {
-	status := DeviceStatus{Scanner: deviceUnknown, Printer: deviceUnknown, Keyboard: deviceUnknown}
-	if present := presentInputDevices(); present != nil {
+	status := DeviceStatus{Scanner: deviceUnknown, Printer: deviceUnknown, Keyboard: deviceUnknown, Mouse: deviceUnknown}
+	if keyboards, mice := presentInputDevices(); keyboards != nil {
 		scanner := learnedInputDevices().Scanner
-		status.Scanner = presence(scanner, present)
-		status.Keyboard = keyboardPresence(scanner, present)
+		status.Scanner = presence(scanner, keyboards)
+		status.Keyboard = usbPresence(scanner, keyboards)
+		status.Mouse = usbPresence("", mice)
 	}
 	if a.store != nil {
 		if settings, err := a.store.GetSettings(a.ctx); err == nil && settings.ReceiptPrinter != "" {
@@ -160,13 +163,13 @@ func (a *App) checkDevices() DeviceStatus {
 	return status
 }
 
-// keyboardPresence is ok while a USB keyboard other than the scanner is
-// plugged in. Keyboards without a USB ID are left out: Windows lists a PS/2
-// keyboard on most PCs whether one is there or not, and remote sessions add
-// virtual ones.
-func keyboardPresence(scanner string, present map[string]bool) string {
+// usbPresence is ok while a USB device in present other than except (the
+// scanner, among keyboards) is plugged in. Devices without a USB ID are left
+// out: Windows lists a PS/2 keyboard and mouse on most PCs whether they're
+// there or not, and remote sessions add virtual ones.
+func usbPresence(except string, present map[string]bool) string {
 	for id := range present {
-		if id != scanner && strings.HasPrefix(id, "VID_") {
+		if id != except && strings.HasPrefix(id, "VID_") {
 			return deviceOK
 		}
 	}

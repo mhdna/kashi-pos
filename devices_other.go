@@ -8,6 +8,6 @@ package main
 func startInputDeviceListener() {}
 
 // presentInputDevices returns nil: presence can't be told here.
-func presentInputDevices() map[string]bool { return nil }
+func presentInputDevices() (keyboards, mice map[string]bool) { return nil, nil }
 
 func printerStatus(string) string { return deviceUnknown }

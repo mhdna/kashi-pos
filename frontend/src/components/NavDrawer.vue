@@ -217,6 +217,7 @@ const deviceIcons = computed(() => {
         : "Printer: none chosen in Settings",
     },
     { icon: "mdi-keyboard", state: st?.keyboard ?? "unknown", title: `Keyboard: ${deviceWords[st?.keyboard ?? "unknown"]}` },
+    { icon: "mdi-mouse", state: st?.mouse ?? "unknown", title: `Mouse: ${deviceWords[st?.mouse ?? "unknown"]}` },
   ];
 });
 
@@ -372,7 +373,7 @@ const items = computed(() => {
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px 8px;
-  /* Two icons a row: scanner and printer, the keyboard under them. */
+  /* Two icons a row: scanner and printer, keyboard and mouse under them. */
   width: 56px;
   margin: 0 auto;
   padding: 0 0 8px;

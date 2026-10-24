@@ -11,6 +11,8 @@ package main
 // don't. Keys injected by AnyDesk or the on-screen keyboard have no device
 // and are ignored.
 //
+// Mouse: any USB mouse in raw input's device list.
+//
 // Printer: the spooler's status for the receipt printer. Windows marks a USB
 // printer offline when it's unplugged or switched off.
 
@@ -45,6 +47,7 @@ const (
 	ridevDevNotify      = 0x00002000
 	ridInput            = 0x10000003
 	ridiDeviceName      = 0x20000007
+	rimTypeMouse        = 0
 	rimTypeKeyboard     = 1
 	riKeyBreak          = 0x01 // RAWKEYBOARD.Flags: the key went up
 
@@ -247,30 +250,37 @@ func rawInputDeviceID(device uintptr) string {
 	return path
 }
 
-// presentInputDevices returns the IDs of the keyboards plugged in now.
-func presentInputDevices() map[string]bool {
+// presentInputDevices returns the IDs of the keyboards and mice plugged in
+// now, or nil when Windows can't say.
+func presentInputDevices() (keyboards, mice map[string]bool) {
 	var n uint32
 	entrySize := unsafe.Sizeof(rawInputDeviceListEntry{})
 	pGetRawInputDeviceList.Call(0, uintptr(unsafe.Pointer(&n)), entrySize)
 	if n == 0 {
-		return nil
+		return nil, nil
 	}
 	list := make([]rawInputDeviceListEntry, n+4) // room for one plugged in meanwhile
 	n = uint32(len(list))
 	r, _, _ := pGetRawInputDeviceList.Call(uintptr(unsafe.Pointer(&list[0])), uintptr(unsafe.Pointer(&n)), entrySize)
 	if int32(r) < 0 {
-		return nil
+		return nil, nil
 	}
-	present := map[string]bool{}
+	keyboards, mice = map[string]bool{}, map[string]bool{}
 	for _, entry := range list[:r] {
-		if entry.kind != rimTypeKeyboard {
+		var into map[string]bool
+		switch entry.kind {
+		case rimTypeKeyboard:
+			into = keyboards
+		case rimTypeMouse:
+			into = mice
+		default:
 			continue
 		}
 		if id := rawInputDeviceID(entry.device); id != "" {
-			present[id] = true
+			into[id] = true
 		}
 	}
-	return present
+	return keyboards, mice
 }
 
 // printerStatus asks the spooler whether the printer can print now.
