@@ -175,16 +175,22 @@ onBeforeUnmount(() => stopSyncListeners.forEach((stop) => stop()));
 // font size, so measure a real card instead of hard-coding it.
 const ROW_GAP = 4; // matches .quick-access__items gap
 const BODY_CHROME = 6; // .quick-access__items margin-top + .quick-access__body padding-bottom
+// A few spare pixels, so a card a fraction of a pixel taller than measured
+// doesn't bring up a scrollbar when every row fits.
+const BODY_SLACK = 4;
 const itemsEl = ref<HTMLElement | null>(null);
 const rowHeight = ref(58);
 const bodyHeight = computed(() => {
   const rows = Math.max(quickAccessRows.value, 1);
-  return rows * rowHeight.value + (rows - 1) * ROW_GAP + BODY_CHROME;
+  return rows * rowHeight.value + (rows - 1) * ROW_GAP + BODY_CHROME + BODY_SLACK;
 });
 
 function measureRowHeight() {
   const card = itemsEl.value?.querySelector<HTMLElement>(".quick-access__item");
-  if (card?.offsetHeight) rowHeight.value = card.offsetHeight;
+  // Not offsetHeight: it rounds, and a card of 58.4px measured as 58 left the
+  // body short of its last row.
+  const height = card?.getBoundingClientRect().height;
+  if (height) rowHeight.value = Math.ceil(height);
 }
 const rowObserver = new ResizeObserver(measureRowHeight);
 watch(
