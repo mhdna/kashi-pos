@@ -211,6 +211,16 @@
               <v-list-item v-for="line in selected.items" :key="`${line.barcode}-${line.price}-${line.discount}`">
                 <template #title>
                   {{ line.name }}
+                  <v-chip
+                    v-if="line.deal && (line.free || line.dealDiscount)"
+                    class="ms-1"
+                    :color="line.free ? 'success' : 'deep-purple'"
+                    label
+                    prepend-icon="mdi-gift-outline"
+                    size="x-small"
+                    :text="line.free ? `FREE · ${line.deal}` : line.deal"
+                    variant="flat"
+                  />
                   <span v-if="line.color || line.size" class="text-caption text-medium-emphasis ms-2">{{ [line.color, line.size].filter(Boolean).join(" · ") }}</span>
                 </template>
                 <template #subtitle>{{ line.qty }} × ${{ Number(line.price).toFixed(2) }}<span v-if="line.discount"> · {{ line.discount }}% discount</span><span v-if="line.salespersonName"> · Sold by {{ line.salespersonName }}</span></template>

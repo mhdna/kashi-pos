@@ -2,6 +2,7 @@ import { nextTick, ref } from "vue";
 import { GetAppSettings, GetExchangeInvoice } from "../../wailsjs/go/main/App";
 import {
   effectiveExchangePrice,
+  mergeDealUnits,
   normalizeExchangeCode,
   type ExchangeInvoice,
   type ExchangeItem,
@@ -42,12 +43,12 @@ export function useExchangeDialog(roundingMode: () => string) {
       invoiceCode.value = loaded.invoiceCode;
       invoice.value = {
         ...loaded,
-        items: (loaded.items ?? []).map((item) => ({
+        items: mergeDealUnits((loaded.items ?? []).map((item) => ({
           ...item,
           price: Number(item.price),
           discount: Number(item.discount),
           available: Number(item.available),
-        })),
+        }))),
       };
       returned.value = [];
       scanValue.value = "";
