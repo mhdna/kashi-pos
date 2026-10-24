@@ -314,6 +314,10 @@ export function GetDeferredCouponTotalByMonth(arg1) {
   return window['go']['main']['App']['GetDeferredCouponTotalByMonth'](arg1);
 }
 
+export function GetDeviceStatus() {
+  return window['go']['main']['App']['GetDeviceStatus']();
+}
+
 export function GetDisplayPrefs() {
   return window['go']['main']['App']['GetDisplayPrefs']();
 }

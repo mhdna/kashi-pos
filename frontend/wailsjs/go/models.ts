@@ -203,6 +203,24 @@ export namespace main {
 		}
 	}
 	
+	export class DeviceStatus {
+	    scanner: string;
+	    printer: string;
+	    keyboard: string;
+	    printerName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeviceStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.scanner = source["scanner"];
+	        this.printer = source["printer"];
+	        this.keyboard = source["keyboard"];
+	        this.printerName = source["printerName"];
+	    }
+	}
 	export class DisplayPrefs {
 	    prefs: Record<string, any>;
 	    rev: number;

@@ -62,6 +62,17 @@
         <span class="sync-status-word">{{ syncState.word }}</span>
       </div>
 
+      <div class="device-status" aria-label="Devices">
+        <v-icon
+          v-for="device in deviceIcons"
+          :key="device.icon"
+          :icon="device.icon"
+          :class="`device-status--${device.state}`"
+          :title="device.title"
+          size="20"
+        />
+      </div>
+
       <v-list-item
         class="nav-item options-item"
         :value="undefined"
@@ -125,6 +136,7 @@ import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import { useSyncStatus } from "@/composables/useSyncStatus";
+import { useDeviceStatus } from "@/composables/useDeviceStatus";
 import { useResyncStore } from "@/stores/resync";
 import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { Quit } from "../../wailsjs/runtime/runtime";
@@ -159,6 +171,28 @@ const syncState = computed(() => {
   return { tone: 'ok', icon: 'mdi-cloud-check-variant', word: 'Synced', title: 'Fully synced with kashi' };
 });
 const { status: attendanceStatus } = useAttendanceStatus();
+
+const { status: deviceStatus } = useDeviceStatus();
+const deviceWords: Record<string, string> = {
+  ok: "connected",
+  off: "not connected",
+  unknown: "not seen yet",
+};
+const deviceIcons = computed(() => {
+  const st = deviceStatus.value;
+  const printerState = st?.printer ?? "unknown";
+  return [
+    { icon: "mdi-barcode-scan", state: st?.scanner ?? "unknown", title: `Scanner: ${deviceWords[st?.scanner ?? "unknown"]}` },
+    {
+      icon: "mdi-printer",
+      state: printerState,
+      title: st?.printerName
+        ? `Printer ${st.printerName}: ${printerState === "ok" ? "ready" : "offline"}`
+        : "Printer: none chosen in Settings",
+    },
+    { icon: "mdi-keyboard", state: st?.keyboard ?? "unknown", title: `Keyboard: ${deviceWords[st?.keyboard ?? "unknown"]}` },
+  ];
+});
 
 function openSyncSettings() {
   router.push({ path: '/settings', query: { panel: 'general-sync' } });
@@ -287,6 +321,22 @@ const items = computed(() => {
   color: #ef5350;
 }
 .sync-status--off {
+  color: #9e9e9e;
+}
+.device-status {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 0 8px;
+}
+.device-status--ok {
+  color: #66bb6a;
+}
+.device-status--off {
+  color: #ef5350;
+}
+.device-status--unknown {
   color: #9e9e9e;
 }
 .nav-drawer {
