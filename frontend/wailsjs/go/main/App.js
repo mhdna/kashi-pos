@@ -786,6 +786,14 @@ export function SetDefaultBranch(arg1) {
   return window['go']['main']['App']['SetDefaultBranch'](arg1);
 }
 
+export function SetDiscountToggleDefaultOff(arg1) {
+  return window['go']['main']['App']['SetDiscountToggleDefaultOff'](arg1);
+}
+
+export function SetDiscountToggleEnabled(arg1) {
+  return window['go']['main']['App']['SetDiscountToggleEnabled'](arg1);
+}
+
 export function SetExchangeWindowHours(arg1) {
   return window['go']['main']['App']['SetExchangeWindowHours'](arg1);
 }

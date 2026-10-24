@@ -65,6 +65,8 @@ type branchSettingsPayload struct {
 	ScanByCodeEnabled             bool `json:"scan_by_code_enabled"`
 	ProductSearchCodeOnly         bool `json:"product_search_code_only"`
 	PriceEditRestricted           bool `json:"price_edit_restricted"`
+	DiscountToggle                bool `json:"discount_toggle"`
+	DiscountToggleDefaultOff      bool `json:"discount_toggle_default_off"`
 	SoundsEnabled                 bool `json:"sounds_enabled"`
 
 	// Device numbers typed in here for kashi's salespersons, keyed by kashi's
@@ -286,6 +288,8 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		ScanByCodeEnabled:             a.scanByCodeEnabled(),
 		ProductSearchCodeOnly:         a.flagEnabled(ctx, productSearchCodeOnlyFlag),
 		PriceEditRestricted:           a.flagEnabled(ctx, priceEditRestrictedFlag),
+		DiscountToggle:                a.flagEnabled(ctx, discountToggleFlag),
+		DiscountToggleDefaultOff:      a.flagEnabled(ctx, discountToggleDefaultOffFlag),
 		SoundsEnabled:                 a.soundsEnabled(),
 
 		PageUnlockClients:      a.flagEnabled(ctx, pageUnlockFlag("clients")),

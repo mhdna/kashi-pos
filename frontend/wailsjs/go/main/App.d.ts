@@ -394,6 +394,10 @@ export function SetCustomItemPricesEnabled(arg1:boolean):Promise<void>;
 
 export function SetDefaultBranch(arg1:string):Promise<void>;
 
+export function SetDiscountToggleDefaultOff(arg1:boolean):Promise<void>;
+
+export function SetDiscountToggleEnabled(arg1:boolean):Promise<void>;
+
 export function SetExchangeWindowHours(arg1:number):Promise<void>;
 
 export function SetExpenseFromCentral(arg1:number,arg2:boolean):Promise<Record<string, any>>;
