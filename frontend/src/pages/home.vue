@@ -151,6 +151,7 @@
         :keyboard-mode="invoiceKeyboardModeEnabled"
         :deal-lines="quote?.lines ?? []"
         :discount-toggle-enabled="discountToggleEnabled && pageMode === 'sale'"
+        :deal-toggle-enabled="dealToggleEnabled && pageMode === 'sale'"
         :discount-default-off="discountToggleDefaultOff"
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
@@ -492,10 +493,12 @@ const scanByCodeEnabled = ref(true);
 const productSearchCodeOnly = ref(false);
 const productSearchHiddenFields = ref<string[]>([]);
 const priceEditRestricted = ref(false);
-// A salesperson can tap a line's discount or deal chip to turn it off/on
-// (kashi's discount_toggle), and new lines can start with it off.
+// A salesperson can tap a line's discount chip to turn it off/on (kashi's
+// discount_toggle), and new lines can start with it off; deal_toggle does
+// the same for a line's deal chip.
 const discountToggleEnabled = ref(false);
 const discountToggleDefaultOff = ref(false);
+const dealToggleEnabled = ref(false);
 const priceEditCodes = ref<string[]>([]);
 const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
@@ -1060,6 +1063,7 @@ async function getFullItemsJSON(): Promise<string> {
       note: String(i.note || "").trim(),
       saleOption: i.saleOption || undefined,
       noDiscount: discountToggleEnabled.value && i.discountOff && i.qty > 0 ? true : undefined,
+      noDeal: dealToggleEnabled.value && i.dealOff && i.qty > 0 ? true : undefined,
       qty: i.qty,
     })),
   );
@@ -1500,6 +1504,7 @@ async function loadAppSettings() {
     priceEditRestricted.value = Boolean(settings?.priceEditRestricted);
     discountToggleEnabled.value = Boolean(settings?.discountToggleEnabled);
     discountToggleDefaultOff.value = Boolean(settings?.discountToggleDefaultOff);
+    dealToggleEnabled.value = Boolean(settings?.dealToggleEnabled);
     unknownProductBarcode.value = String(settings?.unknownProductBarcode || "UNKNOWN");
     priceEditCodes.value = String(settings?.priceEditCodes ?? "")
       .split(",")

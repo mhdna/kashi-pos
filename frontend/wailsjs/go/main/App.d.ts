@@ -396,6 +396,8 @@ export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
 
 export function SetCustomItemPricesEnabled(arg1:boolean):Promise<void>;
 
+export function SetDealToggleEnabled(arg1:boolean):Promise<void>;
+
 export function SetDefaultBranch(arg1:string):Promise<void>;
 
 export function SetDiscountToggleDefaultOff(arg1:boolean):Promise<void>;

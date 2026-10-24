@@ -67,6 +67,7 @@ type branchSettingsPayload struct {
 	PriceEditRestricted           bool `json:"price_edit_restricted"`
 	DiscountToggle                bool `json:"discount_toggle"`
 	DiscountToggleDefaultOff      bool `json:"discount_toggle_default_off"`
+	DealToggle                    bool `json:"deal_toggle"`
 	SoundsEnabled                 bool `json:"sounds_enabled"`
 
 	// Device numbers typed in here for kashi's salespersons, keyed by kashi's
@@ -290,6 +291,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		PriceEditRestricted:           a.flagEnabled(ctx, priceEditRestrictedFlag),
 		DiscountToggle:                a.flagEnabled(ctx, discountToggleFlag),
 		DiscountToggleDefaultOff:      a.flagEnabled(ctx, discountToggleDefaultOffFlag),
+		DealToggle:                    a.flagEnabled(ctx, dealToggleFlag),
 		SoundsEnabled:                 a.soundsEnabled(),
 
 		PageUnlockClients:      a.flagEnabled(ctx, pageUnlockFlag("clients")),

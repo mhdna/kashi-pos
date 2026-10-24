@@ -126,6 +126,7 @@ type updateSettingsCommandPayload struct {
 	PriceEditRestricted           *bool `json:"price_edit_restricted"`
 	DiscountToggle                *bool `json:"discount_toggle"`
 	DiscountToggleDefaultOff      *bool `json:"discount_toggle_default_off"`
+	DealToggle                    *bool `json:"deal_toggle"`
 	SoundsEnabled                 *bool `json:"sounds_enabled"`
 	HidePaymentMethodCurrency     *bool `json:"hide_payment_method_currency"`
 	AutoAppendLbpZeros            *bool `json:"auto_append_lbp_zeros"`
@@ -327,6 +328,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.PriceEditRestricted, a.SetPriceEditRestricted},
 		{p.DiscountToggle, a.SetDiscountToggleEnabled},
 		{p.DiscountToggleDefaultOff, a.SetDiscountToggleDefaultOff},
+		{p.DealToggle, a.SetDealToggleEnabled},
 		{p.SoundsEnabled, a.SetSoundsEnabled},
 		{p.HidePaymentMethodCurrency, a.SetHidePaymentMethodCurrency},
 		{p.AutoAppendLbpZeros, a.SetAutoAppendLbpZerosEnabled},

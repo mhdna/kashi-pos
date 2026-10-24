@@ -35,9 +35,8 @@ type LineQuote struct {
 	DealLabel         string `json:"dealLabel,omitempty"`
 	DealDiscountCents int64  `json:"dealDiscountCents,omitempty"`
 	Free              bool   `json:"free,omitempty"`
-	// The salesperson turned the line's discount off: the percent or the
-	// deal (short label) it gave up, for the chip that turns it back on.
-	DiscountOff  bool   `json:"discountOff,omitempty"`
+	// The salesperson turned the line's discount or deal off: the percent or
+	// the deal (short label) it gave up, for the chip that turns it back on.
 	OffDiscount  int64  `json:"offDiscount,omitempty"`
 	OffDealLabel string `json:"offDealLabel,omitempty"`
 }
@@ -79,7 +78,6 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 			DealLabel:         product.dealLabel,
 			DealDiscountCents: product.dealDiscount,
 			Free:              product.isFree(),
-			DiscountOff:       product.discountOff,
 			OffDiscount:       product.offDiscount,
 			OffDealLabel:      product.offDealLabel,
 		})

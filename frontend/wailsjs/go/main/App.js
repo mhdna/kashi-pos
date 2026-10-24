@@ -790,6 +790,10 @@ export function SetCustomItemPricesEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemPricesEnabled'](arg1);
 }
 
+export function SetDealToggleEnabled(arg1) {
+  return window['go']['main']['App']['SetDealToggleEnabled'](arg1);
+}
+
 export function SetDefaultBranch(arg1) {
   return window['go']['main']['App']['SetDefaultBranch'](arg1);
 }

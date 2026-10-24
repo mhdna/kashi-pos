@@ -25,9 +25,11 @@ type salesInvoiceItem struct {
 	// The sale option the cashier picked for a product that asks one
 	// (Summer/Winter); it picks the line's discount. Empty otherwise.
 	SaleOption string `json:"saleOption,omitempty"`
-	// The salesperson turned the line's list discount (or its deal) off for
-	// this sale (discount_toggle). It can only take a saving away.
+	// The salesperson turned the line's list discount (discount_toggle) or
+	// its deal (deal_toggle) off for this sale. Either only takes a saving
+	// away.
 	NoDiscount bool `json:"noDiscount,omitempty"`
+	NoDeal     bool `json:"noDeal,omitempty"`
 }
 
 type checkoutPayment struct {
