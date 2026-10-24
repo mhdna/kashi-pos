@@ -234,7 +234,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y += c.gap(8)
 	policy := c.data.ReturnPolicy
 	if policy == "" {
-		policy = "Exchange within 3 days with tags and this receipt."
+		policy = "Exchange within 3 days if items are unworn, unwashed and with tags.\nPlease present this receipt."
 	}
 	y, _ = c.centerWrappedNormal(y, policy, c.data.BodySize-2.5, 2)
 	y = c.ruleLine(y+c.gap(6)) + c.gap(10)

@@ -367,7 +367,7 @@ func ensureAttendanceColumns(ctx context.Context, conn *sql.DB) error {
 func ensureReceiptBrandingColumns(ctx context.Context, conn *sql.DB) error {
 	columns := []struct{ name, definition string }{
 		{"market_name", "text NOT NULL DEFAULT ''"}, {"market_phone", "text NOT NULL DEFAULT ''"},
-		{"market_description", "text NOT NULL DEFAULT 'Shop for all'"}, {"return_policy", "text NOT NULL DEFAULT 'Exchange within 3 days with tags and this receipt.'"},
+		{"market_description", "text NOT NULL DEFAULT 'Shop for all'"}, {"return_policy", "text NOT NULL DEFAULT 'Exchange within 3 days if items are unworn, unwashed and with tags.\nPlease present this receipt.'"},
 		{"website", "text NOT NULL DEFAULT 'yourwebsite.com'"}, {"instagram", "text NOT NULL DEFAULT '@your_instagram'"}, {"receipt_font", "text NOT NULL DEFAULT 'Belleza'"},
 		{"social_platforms", "text NOT NULL DEFAULT '[]'"}, {"social_handles", "text NOT NULL DEFAULT '{}'"},
 		{"receipt_title_size", "real NOT NULL DEFAULT 21"}, {"receipt_body_size", "real NOT NULL DEFAULT 11"}, {"receipt_cutoff", "integer NOT NULL DEFAULT 1"},
