@@ -388,7 +388,9 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			// deal_discount is signed like quantity on a returned line.
 			"deal":         dealNameByUID[line.DealUid],
 			"dealDiscount": float64(absInt64(line.DealDiscount)) / 100,
-			"free":         line.DealDiscount != 0 && line.LineTotal == 0,
+			// Free: the deal took each unit's whole price (on a returned
+			// line too, whose credit may carry swap credit).
+			"free": line.DealDiscount != 0 && absInt64(line.DealDiscount) == line.UnitPrice*absInt64(line.Quantity),
 		})
 	}
 	paymentList := make([]map[string]any, 0, len(payments))
@@ -837,11 +839,16 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	items := make([]invoiceItem, 0)
 	for _, raw := range details["items"].([]map[string]any) {
 		item := invoiceItem{Name: raw["name"].(string), Code: raw["code"].(string), Barcode: raw["barcode"].(string), Category: raw["category"].(string), Color: databaseString(raw["color"]), Size: databaseString(raw["size"]), Price: raw["price"].(float64), Discount: float64(raw["discount"].(int64)), Qty: float64(raw["qty"].(int64))}
-		// Printed as at checkout (receiptItemFor).
-		if dealDiscount := raw["dealDiscount"].(float64); dealDiscount > 0 {
-			item.Deal, item.Free, item.DealDiscount = raw["deal"].(string), raw["free"].(bool), dealDiscount
-			if gross := item.Price * item.Qty; gross != 0 {
-				item.Discount = dealDiscount * 100 / gross
+		// Printed as at checkout (receiptItemFor). The line's own total is
+		// what it came to: on an exchange it carries a free unit's swap
+		// credit or a deal charged back, which no percent says.
+		gross := item.Price * item.Qty
+		changed := math.Abs(gross*(1-item.Discount/100)-raw["lineTotal"].(float64)) >= 0.005
+		if deal := raw["deal"].(string); deal != "" && (raw["dealDiscount"].(float64) > 0 || changed) {
+			item.Deal, item.Free = deal, raw["free"].(bool)
+			item.DealDiscount = gross - raw["lineTotal"].(float64)
+			if gross != 0 {
+				item.Discount = item.DealDiscount * 100 / gross
 			}
 			item.Name = nameWithDeal(item.Name, item.Deal, item.Free)
 		}

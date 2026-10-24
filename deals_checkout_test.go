@@ -61,11 +61,18 @@ func setUpDealShop(t *testing.T) dealShop {
 	return dealShop{app: app, store: store, cashbox: cashbox, client: client, salesperson: salesperson}
 }
 
-// sell checks out codes (one unit each) paying exactly the total.
+// sell checks out codes paying exactly the total; a code given twice is one
+// line of two units, as the cart sends it.
 func (s dealShop) sell(t *testing.T, codes ...string) SalesInvoiceResult {
 	t.Helper()
-	items := make([]salesInvoiceItem, 0, len(codes))
+	var items []salesInvoiceItem
+	at := map[string]int{}
 	for _, code := range codes {
+		if i, ok := at[code]; ok {
+			items[i].Qty++
+			continue
+		}
+		at[code] = len(items)
 		items = append(items, salesInvoiceItem{Barcode: "bc-" + code, Qty: 1})
 	}
 	itemsJSON, _ := json.Marshal(items)

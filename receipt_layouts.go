@@ -15,7 +15,7 @@ import (
 func itemAmounts(item invoiceItem) (gross, discount, net float64) {
 	gross = item.Qty * item.Price
 	discount = gross * item.Discount / 100
-	if item.DealDiscount > 0 {
+	if item.DealDiscount != 0 {
 		discount = item.DealDiscount
 	}
 	return gross, discount, gross - discount

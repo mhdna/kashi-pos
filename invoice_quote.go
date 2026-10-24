@@ -183,6 +183,10 @@ type ExchangeQuote struct {
 	TaxCents                  int64 `json:"taxCents"`
 	GrandTotalCents           int64 `json:"grandTotalCents"`
 	NeedsMoreReplacementValue bool  `json:"needsMoreReplacementValue"`
+	// How much more the replacements must come to: what was paid for the
+	// returned units less the replacements. Not returned - replacement: a
+	// free unit's swap credit is in the returned total but needn't be used.
+	ShortfallCents int64 `json:"shortfallCents"`
 }
 
 func (a *App) quoteExchange(itemsJSON string, originalInvoiceID int64) (ExchangeQuote, pricedExchange, error) {
@@ -228,7 +232,7 @@ func (a *App) quoteExchange(itemsJSON string, originalInvoiceID int64) (Exchange
 	if err != nil {
 		return quote, pricedExchange{}, fmt.Errorf("round exchange total: %w", err)
 	}
-	needsMoreReplacementValue := priced.replacementTotal < priced.returnedTotal
+	needsMoreReplacementValue := priced.replacementTotal < priced.requiredReplacement
 	if total < 0 {
 		total = 0
 	}
@@ -238,6 +242,7 @@ func (a *App) quoteExchange(itemsJSON string, originalInvoiceID int64) (Exchange
 		TaxCents:                  taxCents,
 		GrandTotalCents:           total,
 		NeedsMoreReplacementValue: needsMoreReplacementValue,
+		ShortfallCents:            max(0, priced.requiredReplacement-priced.replacementTotal),
 	}
 	return quote, priced, nil
 }

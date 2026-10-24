@@ -223,6 +223,7 @@ export namespace main {
 	    taxCents: number;
 	    grandTotalCents: number;
 	    needsMoreReplacementValue: boolean;
+	    shortfallCents: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ExchangeQuote(source);
@@ -235,6 +236,7 @@ export namespace main {
 	        this.taxCents = source["taxCents"];
 	        this.grandTotalCents = source["grandTotalCents"];
 	        this.needsMoreReplacementValue = source["needsMoreReplacementValue"];
+	        this.shortfallCents = source["shortfallCents"];
 	    }
 	}
 	export class FullCheckEntityReport {

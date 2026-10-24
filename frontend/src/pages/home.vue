@@ -702,7 +702,7 @@ async function refreshQuote() {
       quote.value = {
         grandTotalCents: Number(result.grandTotalCents),
         exchangeShortfallCents: result.needsMoreReplacementValue
-          ? Number(result.returnedTotalCents) - Number(result.replacementTotalCents)
+          ? Number(result.shortfallCents)
           : 0,
       };
     } catch (e) {
