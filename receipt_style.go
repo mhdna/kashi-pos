@@ -105,7 +105,8 @@ func (c *receiptCanvas) drawMeta(y int) int {
 		}
 		y += c.gap(8)
 	}
-	return y
+	// Room before the rule under the block, as there is above the first line.
+	return y + c.gap(8)
 }
 
 // drawTotal prints the TOTAL line (and the rounding-currency equivalent) in
