@@ -597,6 +597,8 @@ func (a *App) beginHandoff(h updateHandoff, source string) error {
 	go func() {
 		// Let the frontend paint its "Updating…" screen first.
 		time.Sleep(1500 * time.Millisecond)
+		// The new version hides the taskbar again as it starts.
+		kioskKeepShellOff.Store(true)
 		wailsruntime.Quit(a.ctx)
 	}()
 	return nil
