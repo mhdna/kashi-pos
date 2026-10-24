@@ -42,6 +42,12 @@ type invoiceItem struct {
 	Price    float64 `json:"price"`
 	Discount float64 `json:"discount"`
 	Qty      float64 `json:"qty"`
+	// A deal line (deals.go): its deal, whether it is free, and the deal's
+	// saving in dollars, which the receipt prints instead of working one out
+	// from Discount (a bundle's share is not a whole percent).
+	Deal         string  `json:"deal,omitempty"`
+	Free         bool    `json:"free,omitempty"`
+	DealDiscount float64 `json:"dealDiscount,omitempty"`
 }
 
 func (a *App) HoldInvoice(snapshotJSON string) (int64, error) {
@@ -329,6 +335,20 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			discountListNameByID[list.ID] = list.Name
 		}
 	}
+	// A line's deal by name: the invoice's own copy of its terms first, then
+	// the till's deals (a returned line names the sale's deal, not this
+	// invoice's).
+	dealNameByUID := make(map[string]string)
+	if deals, listErr := a.store.ListDeals(a.ctx); listErr == nil {
+		for _, deal := range deals {
+			dealNameByUID[deal.Uid] = deal.Name
+		}
+	}
+	if deals, listErr := a.store.ListInvoiceDeals(a.ctx, id); listErr == nil {
+		for _, deal := range deals {
+			dealNameByUID[deal.DealUid] = deal.Name
+		}
+	}
 	accountByID := make(map[int64]db.CashboxAccount)
 	if accounts, listErr := a.store.ListCashboxAccounts(a.ctx); listErr == nil {
 		for _, account := range accounts {
@@ -365,6 +385,10 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			"priceListName":        priceListName,
 			"isDiscountOverridden": line.DiscountListID.Valid,
 			"discountListName":     discountListName,
+			// deal_discount is signed like quantity on a returned line.
+			"deal":         dealNameByUID[line.DealUid],
+			"dealDiscount": float64(absInt64(line.DealDiscount)) / 100,
+			"free":         line.DealDiscount != 0 && line.LineTotal == 0,
 		})
 	}
 	paymentList := make([]map[string]any, 0, len(payments))
@@ -812,7 +836,16 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	}
 	items := make([]invoiceItem, 0)
 	for _, raw := range details["items"].([]map[string]any) {
-		items = append(items, invoiceItem{Name: raw["name"].(string), Code: raw["code"].(string), Barcode: raw["barcode"].(string), Category: raw["category"].(string), Color: databaseString(raw["color"]), Size: databaseString(raw["size"]), Price: raw["price"].(float64), Discount: float64(raw["discount"].(int64)), Qty: float64(raw["qty"].(int64))})
+		item := invoiceItem{Name: raw["name"].(string), Code: raw["code"].(string), Barcode: raw["barcode"].(string), Category: raw["category"].(string), Color: databaseString(raw["color"]), Size: databaseString(raw["size"]), Price: raw["price"].(float64), Discount: float64(raw["discount"].(int64)), Qty: float64(raw["qty"].(int64))}
+		// Printed as at checkout (receiptItemFor).
+		if dealDiscount := raw["dealDiscount"].(float64); dealDiscount > 0 {
+			item.Deal, item.Free, item.DealDiscount = raw["deal"].(string), raw["free"].(bool), dealDiscount
+			if gross := item.Price * item.Qty; gross != 0 {
+				item.Discount = dealDiscount * 100 / gross
+			}
+			item.Name = nameWithDeal(item.Name, item.Deal, item.Free)
+		}
+		items = append(items, item)
 	}
 	settings, err := a.store.GetSettings(a.ctx)
 	if err != nil {

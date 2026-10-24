@@ -72,6 +72,8 @@ type invoiceTotals struct {
 	TaxCents           int64
 	GrandTotal         int64
 	ReceiptItems       []invoiceItem
+	// The terms of the deals the lines name, copied onto the invoice.
+	Deals []dealTerms
 }
 
 func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool) (invoiceTotals, error) {
@@ -106,6 +108,7 @@ func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []sales
 	totals.TaxCents = taxCents
 	totals.GrandTotal = grandTotal
 	totals.ReceiptItems = receiptItems
+	totals.Deals = invoiceDealTerms(products, listPricing.deals)
 	return totals, nil
 }
 
@@ -261,6 +264,8 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				PriceListID:    sql.NullInt64{Int64: product.priceListID, Valid: product.priceListID != 0},
 				DiscountListID: sql.NullInt64{Int64: product.discountListID, Valid: product.discountListID != 0},
 				SaleOption:     product.saleOption,
+				DealUid:        product.dealUID,
+				DealDiscount:   product.dealDiscount,
 			}); err != nil {
 				return fmt.Errorf("add product %s: %w", product.product.Code, err)
 			}
@@ -275,6 +280,9 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			// if count, err := updated.RowsAffected(); err != nil || count != 1 {
 			// 	return fmt.Errorf("insufficient stock for product %s", product.product.Code)
 			// }
+		}
+		if err := recordInvoiceDeals(a.ctx, q, invoice.ID, totals.Deals); err != nil {
+			return err
 		}
 		netByAccount := netPaymentsByAccount(payments)
 		for _, payment := range payments {
@@ -332,6 +340,8 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 					LineTotal:       product.lineTotal,
 					Discount:        int16(product.discount),
 					Quantity:        product.qty,
+					Deal:            product.dealName,
+					DealDiscount:    product.dealDiscount,
 				})
 			}
 			payloadPayments, err := buildBranchInvoicePayments(a.ctx, q, invoice.ID)

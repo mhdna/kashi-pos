@@ -93,6 +93,7 @@ type Querier interface {
 	CreateCouponType(ctx context.Context, arg CreateCouponTypeParams) (CouponType, error)
 	CreateCurrency(ctx context.Context, arg CreateCurrencyParams) (Currency, error)
 	CreateDiscountOverride(ctx context.Context, arg CreateDiscountOverrideParams) (DiscountOverride, error)
+	CreateExchangeDealAdjustment(ctx context.Context, arg CreateExchangeDealAdjustmentParams) error
 	CreateExpense(ctx context.Context, arg CreateExpenseParams) (Expense, error)
 	CreateExpenseCategory(ctx context.Context, arg CreateExpenseCategoryParams) (ExpenseCategory, error)
 	CreateHistoricalExpense(ctx context.Context, arg CreateHistoricalExpenseParams) (Expense, error)
@@ -114,6 +115,7 @@ type Querier interface {
 	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (Invoice, error)
 	CreateInvoiceClientRef(ctx context.Context, arg CreateInvoiceClientRefParams) error
 	CreateInvoiceCouponPayment(ctx context.Context, arg CreateInvoiceCouponPaymentParams) (InvoiceCouponPayment, error)
+	CreateInvoiceDeal(ctx context.Context, arg CreateInvoiceDealParams) error
 	CreateInvoicePayment(ctx context.Context, arg CreateInvoicePaymentParams) error
 	CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoicePaymentEntryParams) error
 	CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error
@@ -432,6 +434,7 @@ type Querier interface {
 	// aren't a visitor deciding to buy -- and cancelled sales are left out,
 	// like every other sales statistic.
 	ListDailySalesTotals(ctx context.Context, arg ListDailySalesTotalsParams) ([]ListDailySalesTotalsRow, error)
+	ListDeals(ctx context.Context) ([]Deal, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
 	// Read-only mirror of kashi's discount lists -- see pricelist.sql, which this
 	// file mirrors exactly.
@@ -448,6 +451,7 @@ type Querier interface {
 	// first, then the other transactional entities, then the bulk catch-up
 	// rows; id breaks ties within a tier so it's still FIFO per priority.
 	ListDueSyncOutboxEntries(ctx context.Context, limit int64) ([]SyncOutbox, error)
+	ListExchangeDealAdjustments(ctx context.Context, invoiceID int64) ([]ExchangeDealAdjustment, error)
 	ListExpenseCategories(ctx context.Context) ([]ExpenseCategory, error)
 	ListExpenses(ctx context.Context, arg ListExpensesParams) ([]Expense, error)
 	// What came out of the shift's drawer: an expense central paid for didn't.
@@ -471,6 +475,7 @@ type Querier interface {
 	ListInventories(ctx context.Context) ([]Inventory, error)
 	ListInventoryItems(ctx context.Context, inventoryID int64) ([]InventoryItem, error)
 	ListInvoiceClientRefsMap(ctx context.Context) ([]InvoiceClientRef, error)
+	ListInvoiceDeals(ctx context.Context, invoiceID int64) ([]InvoiceDeal, error)
 	ListInvoiceIncomeAccountTotalsByDate(ctx context.Context, invoiceIncomeDate string) ([]ListInvoiceIncomeAccountTotalsByDateRow, error)
 	ListInvoiceIncomeAccountTotalsByShift(ctx context.Context, invoiceIncomeShiftID int64) ([]ListInvoiceIncomeAccountTotalsByShiftRow, error)
 	// Like ListInvoiceIncomeAccountTotalsByShift, but also scoped to a single
@@ -540,6 +545,11 @@ type Querier interface {
 	ListQuickAccessProducts(ctx context.Context) ([]Product, error)
 	ListReturnInvoices(ctx context.Context) ([]ReturnInvoice, error)
 	ListRoles(ctx context.Context) ([]Role, error)
+	// What earlier exchanges and returns of the sale did to each of its deals.
+	ListSaleDealAdjustments(ctx context.Context, salesInvoiceID int64) ([]ListSaleDealAdjustmentsRow, error)
+	// Every deal line on the sale's returns and exchanges: returned deal units
+	// (quantity < 0) and replacements counted towards a deal (quantity > 0).
+	ListSaleExchangeDealLines(ctx context.Context, salesInvoiceID int64) ([]InvoiceProduct, error)
 	// Revenue-weighted discount total from original sale invoices, attributed at
 	// the invoice level (discount is an invoice-wide concept, unlike line-level
 	// item sales attribution). Exchange invoices are excluded since their
@@ -767,6 +777,9 @@ type Querier interface {
 	UpsertBranchStock(ctx context.Context, arg UpsertBranchStockParams) error
 	UpsertBranchTarget(ctx context.Context, arg UpsertBranchTargetParams) error
 	UpsertCouponTypeByCentralID(ctx context.Context, arg UpsertCouponTypeByCentralIDParams) (CouponType, error)
+	// Deals arrive with the lists naming them (sync_pull_lists.go); a deal two
+	// lists share is the same row.
+	UpsertDeal(ctx context.Context, arg UpsertDealParams) error
 	UpsertDiscountListByUID(ctx context.Context, arg UpsertDiscountListByUIDParams) (DiscountList, error)
 	// Incoming transfers sync whole, like a price list -- see
 	// applySyncedIncomingTransfer. client_ref has no meaning for a transfer

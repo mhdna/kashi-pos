@@ -62,9 +62,7 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 
 	var subtotal, totalDiscount float64
 	for _, item := range data.Items {
-		gross := item.Qty * item.Price
-		discount := gross * item.Discount / 100
-		lineTotal := gross - discount
+		gross, discount, lineTotal := itemAmounts(item)
 		subtotal += gross
 		totalDiscount += discount
 		writeESCPosLine(&out, sanitizeESCPos(item.Name), fmt.Sprintf("$%.2f", lineTotal), columns)

@@ -23,6 +23,11 @@ type pricedInvoiceProduct struct {
 	priceListID    int64
 	discountListID int64
 	saleOption     string
+	// The deal the line is on, and what it took off the whole line (cents);
+	// lineTotal already has it off. See deals.go.
+	dealUID      string
+	dealName     string
+	dealDiscount int64
 }
 
 type unitPricing struct {
@@ -97,8 +102,7 @@ func (a *App) resolveClientID(id int64) (int64, error) {
 
 func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool, listPricing activePricing, perUnitPricingEnabled ...bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
 	products := make([]pricedInvoiceProduct, 0, len(items))
-	receiptItems := make([]invoiceItem, 0, len(items))
-	var subtotal, discountedSubtotal int64
+	var subtotal int64
 	for _, item := range items {
 		if item.SalespersonID > 0 {
 			if _, err := q.GetSalespersonByID(a.ctx, item.SalespersonID); err != nil {
@@ -127,6 +131,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		product.Price = 0
 		product.Discount = 0
 		var priceListID, discountListID int64
+		dealUID := ""
 		if listed, ok := listPricing.priceFor(product.Uid.String); ok {
 			product.Price = listed.cents
 			priceListID = listed.listID
@@ -141,6 +146,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		if listed, ok := listPricing.discountForOption(product.Uid.String, saleOption); ok {
 			product.Discount = listed.percent
 			discountListID = listed.listID
+			dealUID = listed.dealUID
 		}
 
 		// A manual override still wins over the list price -- the cashier is
@@ -163,6 +169,12 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		}
 		if len(item.UnitDiscounts) > 0 {
 			discountListID = 0
+		}
+		// A line priced by hand stays out of its deal: the cashier set what it
+		// costs, and a deal never stacks on another saving. So does the
+		// "Unknown item" placeholder, which is in no list.
+		if isUnknown || item.CustomPriceCents != nil || len(item.UnitPricesCents) > 0 || len(item.UnitDiscounts) > 0 {
+			dealUID = ""
 		}
 		priceQuantities := map[unitPricing]int64{
 			{price: product.Price, discount: product.Discount}: int64(item.Qty),
@@ -206,6 +218,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			priced.salespersonID = item.SalespersonID
 			priced.note = strings.TrimSpace(item.Note)
 			priced.saleOption = saleOption
+			priced.dealUID = dealUID
 			if pricing.price == product.Price {
 				priced.priceListID = priceListID
 			}
@@ -213,17 +226,50 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 				priced.discountListID = discountListID
 			}
 			gross := pricing.price * qty
-			lineTotal := priced.lineTotal
-			if subtotal > math.MaxInt64-gross || discountedSubtotal > math.MaxInt64-lineTotal {
+			if subtotal > math.MaxInt64-gross {
 				return nil, 0, 0, nil, fmt.Errorf("invoice total is too large")
 			}
 			subtotal += gross
-			discountedSubtotal += lineTotal
 			products = append(products, priced)
-			receiptItems = append(receiptItems, invoiceItem{Name: nameWithSaleOption(product.Name, saleOption), Code: product.Code, Barcode: product.Barcode, Category: product.Description, Color: product.Color, Size: product.Size, Price: float64(pricing.price) / 100, Discount: float64(pricing.discount), Qty: float64(qty)})
 		}
 	}
+	// Deals price lines together, so they come once every line is known; a
+	// deal only ever takes off, so the totals can't grow past the checks above.
+	products = applyDeals(products, listPricing.deals, roundingMode)
+	var discountedSubtotal int64
+	receiptItems := make([]invoiceItem, 0, len(products))
+	for _, p := range products {
+		discountedSubtotal += p.lineTotal
+		receiptItems = append(receiptItems, receiptItemFor(p))
+	}
 	return products, subtotal, discountedSubtotal, receiptItems, nil
+}
+
+// receiptItemFor is a priced line as the receipt prints it. A deal line
+// carries its saving as an amount (a bundle's share is rarely a whole
+// percent) and says what it is: "Shirt (FREE · Buy 2 get 1)".
+func receiptItemFor(p pricedInvoiceProduct) invoiceItem {
+	item := invoiceItem{
+		Name: nameWithSaleOption(p.product.Name, p.saleOption), Code: p.product.Code, Barcode: p.product.Barcode,
+		Category: p.product.Description, Color: p.product.Color, Size: p.product.Size,
+		Price: float64(p.unitPrice) / 100, Discount: float64(p.discount), Qty: float64(p.qty),
+	}
+	if p.dealDiscount > 0 {
+		item.Deal = p.dealName
+		item.Free = p.isFree()
+		item.DealDiscount = float64(p.dealDiscount) / 100
+		item.Discount = float64(p.dealDiscount) * 100 / float64(p.unitPrice*p.qty)
+		item.Name = nameWithDeal(item.Name, p.dealName, item.Free)
+	}
+	return item
+}
+
+// nameWithDeal marks a deal line on the receipt and the till's lists.
+func nameWithDeal(name, deal string, free bool) string {
+	if free {
+		return name + " (FREE · " + deal + ")"
+	}
+	return name + " (" + deal + ")"
 }
 
 func priceInvoiceProduct(product db.Product, qty int64, roundingMode string) (pricedInvoiceProduct, error) {

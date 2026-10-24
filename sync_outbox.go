@@ -122,6 +122,10 @@ type branchInvoicePayloadItem struct {
 	LineTotal  int64  `json:"line_total"`
 	Discount   int16  `json:"discount"`
 	Quantity   int64  `json:"quantity"`
+	// A deal line (deals.go): the deal's name and what it took off the
+	// line, in cents; line_total already has it off.
+	Deal         string `json:"deal,omitempty"`
+	DealDiscount int64  `json:"deal_discount,omitempty"`
 }
 
 // clientUIDForSync returns the uid to report as an invoice's buyer: empty

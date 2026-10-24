@@ -67,24 +67,30 @@ func (q *Queries) GetDiscountListByUID(ctx context.Context, uid sql.NullString) 
 }
 
 const insertDiscountListItem = `-- name: InsertDiscountListItem :exec
-INSERT INTO discount_list_items (discount_list_id, product_uid, discount)
-VALUES (?, ?, ?)
-ON CONFLICT (discount_list_id, product_uid) DO UPDATE SET discount = excluded.discount
+INSERT INTO discount_list_items (discount_list_id, product_uid, discount, deal_uid)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (discount_list_id, product_uid) DO UPDATE SET discount = excluded.discount, deal_uid = excluded.deal_uid
 `
 
 type InsertDiscountListItemParams struct {
 	DiscountListID int64  `json:"discountListId"`
 	ProductUid     string `json:"productUid"`
 	Discount       int64  `json:"discount"`
+	DealUid        string `json:"dealUid"`
 }
 
 func (q *Queries) InsertDiscountListItem(ctx context.Context, arg InsertDiscountListItemParams) error {
-	_, err := q.db.ExecContext(ctx, insertDiscountListItem, arg.DiscountListID, arg.ProductUid, arg.Discount)
+	_, err := q.db.ExecContext(ctx, insertDiscountListItem,
+		arg.DiscountListID,
+		arg.ProductUid,
+		arg.Discount,
+		arg.DealUid,
+	)
 	return err
 }
 
 const listActiveDiscountListItems = `-- name: ListActiveDiscountListItems :many
-SELECT dli.product_uid, dli.discount, dl.id AS list_id, dl.name AS list_name, dl.is_special
+SELECT dli.product_uid, dli.discount, dli.deal_uid, dl.id AS list_id, dl.name AS list_name, dl.is_special
 FROM discount_list_items dli
 JOIN discount_lists dl ON dl.id = dli.discount_list_id
 WHERE dl.is_active = 1
@@ -94,6 +100,7 @@ ORDER BY dli.product_uid, dl.is_default DESC
 type ListActiveDiscountListItemsRow struct {
 	ProductUid string `json:"productUid"`
 	Discount   int64  `json:"discount"`
+	DealUid    string `json:"dealUid"`
 	ListID     int64  `json:"listId"`
 	ListName   string `json:"listName"`
 	IsSpecial  int64  `json:"isSpecial"`
@@ -112,6 +119,7 @@ func (q *Queries) ListActiveDiscountListItems(ctx context.Context) ([]ListActive
 		if err := rows.Scan(
 			&i.ProductUid,
 			&i.Discount,
+			&i.DealUid,
 			&i.ListID,
 			&i.ListName,
 			&i.IsSpecial,
@@ -129,8 +137,43 @@ func (q *Queries) ListActiveDiscountListItems(ctx context.Context) ([]ListActive
 	return items, nil
 }
 
+const listDeals = `-- name: ListDeals :many
+SELECT uid, name, kind, buy_qty, get_qty, percent, bundle_price FROM deals ORDER BY uid
+`
+
+func (q *Queries) ListDeals(ctx context.Context) ([]Deal, error) {
+	rows, err := q.db.QueryContext(ctx, listDeals)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Deal{}
+	for rows.Next() {
+		var i Deal
+		if err := rows.Scan(
+			&i.Uid,
+			&i.Name,
+			&i.Kind,
+			&i.BuyQty,
+			&i.GetQty,
+			&i.Percent,
+			&i.BundlePrice,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDiscountListItems = `-- name: ListDiscountListItems :many
-SELECT id, discount_list_id, product_uid, discount, created_at FROM discount_list_items WHERE discount_list_id = ? ORDER BY product_uid
+SELECT id, discount_list_id, product_uid, discount, created_at, deal_uid FROM discount_list_items WHERE discount_list_id = ? ORDER BY product_uid
 `
 
 func (q *Queries) ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error) {
@@ -148,6 +191,7 @@ func (q *Queries) ListDiscountListItems(ctx context.Context, discountListID int6
 			&i.ProductUid,
 			&i.Discount,
 			&i.CreatedAt,
+			&i.DealUid,
 		); err != nil {
 			return nil, err
 		}
@@ -198,6 +242,39 @@ func (q *Queries) ListDiscountLists(ctx context.Context) ([]DiscountList, error)
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertDeal = `-- name: UpsertDeal :exec
+INSERT INTO deals (uid, name, kind, buy_qty, get_qty, percent, bundle_price)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (uid) DO UPDATE SET
+    name = excluded.name, kind = excluded.kind, buy_qty = excluded.buy_qty,
+    get_qty = excluded.get_qty, percent = excluded.percent, bundle_price = excluded.bundle_price
+`
+
+type UpsertDealParams struct {
+	Uid         string `json:"uid"`
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	BuyQty      int64  `json:"buyQty"`
+	GetQty      int64  `json:"getQty"`
+	Percent     int64  `json:"percent"`
+	BundlePrice int64  `json:"bundlePrice"`
+}
+
+// Deals arrive with the lists naming them (sync_pull_lists.go); a deal two
+// lists share is the same row.
+func (q *Queries) UpsertDeal(ctx context.Context, arg UpsertDealParams) error {
+	_, err := q.db.ExecContext(ctx, upsertDeal,
+		arg.Uid,
+		arg.Name,
+		arg.Kind,
+		arg.BuyQty,
+		arg.GetQty,
+		arg.Percent,
+		arg.BundlePrice,
+	)
+	return err
 }
 
 const upsertDiscountListByUID = `-- name: UpsertDiscountListByUID :one

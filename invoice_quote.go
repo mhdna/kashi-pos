@@ -27,6 +27,13 @@ type LineQuote struct {
 	Barcode        string `json:"barcode"`
 	LineTotalCents int64  `json:"lineTotalCents"`
 	DiscountCents  int64  `json:"discountCents"`
+	// Deal lines (deals.go). A cart line on a deal can come back as several
+	// quote lines, one per unit price -- its free units apart -- so the cart
+	// matches them by barcode and adds them up.
+	Qty               int64  `json:"qty"`
+	Deal              string `json:"deal,omitempty"`
+	DealDiscountCents int64  `json:"dealDiscountCents,omitempty"`
+	Free              bool   `json:"free,omitempty"`
 }
 
 // QuoteInvoiceTotal prices a cart exactly as checkout would, without
@@ -57,10 +64,14 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 	lines := make([]LineQuote, 0, len(totals.Products))
 	for _, product := range totals.Products {
 		lines = append(lines, LineQuote{
-			Code:           product.product.Code,
-			Barcode:        product.product.Barcode,
-			LineTotalCents: product.lineTotal,
-			DiscountCents:  product.discount,
+			Code:              product.product.Code,
+			Barcode:           product.product.Barcode,
+			LineTotalCents:    product.lineTotal,
+			DiscountCents:     product.discount,
+			Qty:               product.qty,
+			Deal:              product.dealName,
+			DealDiscountCents: product.dealDiscount,
+			Free:              product.isFree(),
 		})
 	}
 
