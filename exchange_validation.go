@@ -191,7 +191,10 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		}
 	}
 	isReward := func(line db.InvoiceProduct) bool {
-		return line.DealDiscount > 0 && saleDeals[line.DealUid].rewardsFreeUnits()
+		if line.Quantity == 0 {
+			return false
+		}
+		return saleDeals[line.DealUid].isRewardUnit(line.UnitPrice, line.DealDiscount/line.Quantity, roundingMode)
 	}
 	// Units of one product at one price are alike on the shelf, free or
 	// paid; a returned one is taken as the free unit first. That's the

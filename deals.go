@@ -35,14 +35,17 @@ type dealTerms struct {
 	GetQty      int64
 	Percent     int64
 	BundlePrice int64
+	// What units outside a set get on a buy_get deal ("Buy 2 get 1, otherwise
+	// 30%"); 0 for nothing.
+	FallbackPercent int64
 }
 
 func dealTermsFromRow(d db.Deal) dealTerms {
-	return dealTerms{UID: d.Uid, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty, GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice}
+	return dealTerms{UID: d.Uid, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty, GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice, FallbackPercent: d.FallbackPercent}
 }
 
 func dealTermsFromInvoice(d db.InvoiceDeal) dealTerms {
-	return dealTerms{UID: d.DealUid, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty, GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice}
+	return dealTerms{UID: d.DealUid, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty, GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice, FallbackPercent: d.FallbackPercent}
 }
 
 // rewardsFreeUnits says whether the deal's reward is particular units (Buy 2
@@ -51,15 +54,34 @@ func dealTermsFromInvoice(d db.InvoiceDeal) dealTerms {
 // price in an exchange; see deal_exchange.go.
 func (t dealTerms) rewardsFreeUnits() bool { return t.Kind == dealBuyGet }
 
+// isRewardUnit says whether a sold unit, at its shelf price with the deal
+// taking unitDeal off it, was the deal's reward rather than a unit that got
+// the fallback discount (which is a saving, not a free unit, and earns no
+// swap credit). The two are told apart by amount; a fallback equal to the
+// reward's percent can't be, and counts as the reward.
+func (t dealTerms) isRewardUnit(price, unitDeal int64, roundingMode string) bool {
+	if !t.rewardsFreeUnits() || unitDeal <= 0 {
+		return false
+	}
+	if t.FallbackPercent > 0 && t.FallbackPercent != t.Percent && unitDeal == percentOf(price, t.FallbackPercent, roundingMode) {
+		return false
+	}
+	return true
+}
+
 // label is the deal's terms in a few characters, for the cart's chip:
 // "B2G1", "B1G1 50%", "3 for $50", "3+ 20%".
 func (t dealTerms) label() string {
 	switch t.Kind {
 	case dealBuyGet:
-		if t.Percent >= 100 {
-			return fmt.Sprintf("B%dG%d", t.BuyQty, t.GetQty)
+		label := fmt.Sprintf("B%dG%d", t.BuyQty, t.GetQty)
+		if t.Percent < 100 {
+			label += fmt.Sprintf(" %d%%", t.Percent)
 		}
-		return fmt.Sprintf("B%dG%d %d%%", t.BuyQty, t.GetQty, t.Percent)
+		if t.FallbackPercent > 0 {
+			label += fmt.Sprintf(" else %d%%", t.FallbackPercent)
+		}
+		return label
 	case dealBundlePrice:
 		return fmt.Sprintf("%d for $%s", t.BuyQty, strings.TrimSuffix(centsString(t.BundlePrice), ".00"))
 	case dealVolumePercent:
@@ -89,6 +111,13 @@ func (t dealTerms) unitDiscounts(prices []int64, roundingMode string) []int64 {
 		rewards := n / set * t.GetQty
 		for _, i := range order[:rewards] {
 			discounts[i] = percentOf(prices[i], t.Percent, roundingMode)
+		}
+		// The units outside a set (the dearest ones) get the fallback; a
+		// full set is the deal alone, whatever the fallback would have saved.
+		if t.FallbackPercent > 0 {
+			for _, i := range order[n/set*set:] {
+				discounts[i] = percentOf(prices[i], t.FallbackPercent, roundingMode)
+			}
 		}
 	case dealBundlePrice:
 		if t.BuyQty < 2 || t.BundlePrice <= 0 {
@@ -244,6 +273,7 @@ func recordInvoiceDeals(ctx context.Context, q *db.Queries, invoiceID int64, dea
 		if err := q.CreateInvoiceDeal(ctx, db.CreateInvoiceDealParams{
 			InvoiceID: invoiceID, DealUid: d.UID, Name: d.Name, Kind: d.Kind,
 			BuyQty: d.BuyQty, GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice,
+			FallbackPercent: d.FallbackPercent,
 		}); err != nil {
 			return fmt.Errorf("record deal %s: %w", d.Name, err)
 		}

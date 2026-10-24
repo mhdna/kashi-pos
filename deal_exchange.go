@@ -186,7 +186,7 @@ func (a *App) settleExchangeDeals(q *db.Queries, sourceID int64, sourceLines []d
 		}
 		returnUnits := func(k soldLineKey, qty int64) {
 			left[k] -= qty
-			if group.terms.rewardsFreeUnits() && k.unitDeal > 0 {
+			if group.terms.isRewardUnit(k.unitPrice, k.unitDeal, roundingMode) {
 				for range qty {
 					group.swappedRewards = append(group.swappedRewards, dealUnit{k.unitPrice, k.unitDeal})
 				}

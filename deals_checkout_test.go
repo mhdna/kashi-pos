@@ -19,7 +19,11 @@ type dealShop struct {
 	salesperson db.Salesperson
 }
 
-func setUpDealShop(t *testing.T) dealShop {
+func setUpDealShop(t *testing.T) dealShop { return setUpDealShopWithFallback(t, 0) }
+
+// setUpDealShopWithFallback is the same shop with "Buy 2 get 1" giving
+// fallback percent to the units outside a set.
+func setUpDealShopWithFallback(t *testing.T, fallback int64) dealShop {
 	t.Helper()
 	ctx := context.Background()
 	app, store, cashbox, client := setUpTestInvoiceApp(t, "http://localhost:9999")
@@ -50,7 +54,7 @@ func setUpDealShop(t *testing.T) dealShop {
 	}
 	if err := applySyncedDiscountList(ctx, q, syncedDiscountList{
 		UID: "disc", Name: "Deals", IsActive: true, Items: discounts,
-		Deals: []syncedDeal{{UID: "deal-b2g1", Name: "Buy 2 get 1", Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100}},
+		Deals: []syncedDeal{{UID: "deal-b2g1", Name: "Buy 2 get 1", Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100, FallbackPercent: fallback}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -192,5 +196,37 @@ func TestDealSkipsHandPricedLines(t *testing.T) {
 		if p.product.Code == "C" && p.dealUID != "" {
 			t.Fatalf("hand-priced line kept its deal: %+v", p)
 		}
+	}
+}
+
+// "Buy 2 get 1, otherwise 30%": a lone shirt, or two, are 30% off; three are
+// the deal, and a fourth unit beside the set is 30% off on its own. A jacket
+// on no deal is no part of it.
+func TestCheckoutWithDealFallback(t *testing.T) {
+	ctx := context.Background()
+	shop := setUpDealShopWithFallback(t, 30)
+
+	for _, tc := range []struct {
+		name  string
+		codes []string
+		want  int64
+	}{
+		{"one shirt", []string{"A"}, 7000},
+		{"two shirts", []string{"A", "B"}, 7000 + 5600},
+		{"a shirt beside a jacket off the deal", []string{"A", "JACKET"}, 7000 + 10000},
+		{"three shirts are the deal", []string{"A", "B", "C"}, 18000},
+		{"four: the set, and the dearest left over at 30%", []string{"A", "B", "C", "D"}, 32000 - 5000 - 3000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shop.sell(t, tc.codes...).GrandTotal; got != tc.want {
+				t.Fatalf("total = %d, want %d", got, tc.want)
+			}
+		})
+	}
+
+	sale := shop.sell(t, "A")
+	deals, err := shop.store.ListInvoiceDeals(ctx, sale.InvoiceID)
+	if err != nil || len(deals) != 1 || deals[0].FallbackPercent != 30 {
+		t.Fatalf("invoice deals = %+v, %v", deals, err)
 	}
 }

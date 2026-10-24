@@ -247,8 +247,8 @@ INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, di
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: CreateInvoiceDeal :exec
-INSERT INTO invoice_deals (invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO invoice_deals (invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: ListInvoiceDeals :many
 SELECT * FROM invoice_deals WHERE invoice_id = ? ORDER BY deal_uid;

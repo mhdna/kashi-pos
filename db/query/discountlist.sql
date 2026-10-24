@@ -45,11 +45,12 @@ ORDER BY dli.product_uid, dl.is_default DESC;
 -- name: UpsertDeal :exec
 -- Deals arrive with the lists naming them (sync_pull_lists.go); a deal two
 -- lists share is the same row.
-INSERT INTO deals (uid, name, kind, buy_qty, get_qty, percent, bundle_price)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO deals (uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (uid) DO UPDATE SET
     name = excluded.name, kind = excluded.kind, buy_qty = excluded.buy_qty,
-    get_qty = excluded.get_qty, percent = excluded.percent, bundle_price = excluded.bundle_price;
+    get_qty = excluded.get_qty, percent = excluded.percent, bundle_price = excluded.bundle_price,
+    fallback_percent = excluded.fallback_percent;
 
 -- name: ListDeals :many
 SELECT * FROM deals ORDER BY uid;

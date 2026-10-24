@@ -188,19 +188,20 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 }
 
 const createInvoiceDeal = `-- name: CreateInvoiceDeal :exec
-INSERT INTO invoice_deals (invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO invoice_deals (invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateInvoiceDealParams struct {
-	InvoiceID   int64  `json:"invoiceId"`
-	DealUid     string `json:"dealUid"`
-	Name        string `json:"name"`
-	Kind        string `json:"kind"`
-	BuyQty      int64  `json:"buyQty"`
-	GetQty      int64  `json:"getQty"`
-	Percent     int64  `json:"percent"`
-	BundlePrice int64  `json:"bundlePrice"`
+	InvoiceID       int64  `json:"invoiceId"`
+	DealUid         string `json:"dealUid"`
+	Name            string `json:"name"`
+	Kind            string `json:"kind"`
+	BuyQty          int64  `json:"buyQty"`
+	GetQty          int64  `json:"getQty"`
+	Percent         int64  `json:"percent"`
+	BundlePrice     int64  `json:"bundlePrice"`
+	FallbackPercent int64  `json:"fallbackPercent"`
 }
 
 func (q *Queries) CreateInvoiceDeal(ctx context.Context, arg CreateInvoiceDealParams) error {
@@ -213,6 +214,7 @@ func (q *Queries) CreateInvoiceDeal(ctx context.Context, arg CreateInvoiceDealPa
 		arg.GetQty,
 		arg.Percent,
 		arg.BundlePrice,
+		arg.FallbackPercent,
 	)
 	return err
 }
@@ -888,7 +890,7 @@ func (q *Queries) ListIncomeAccountTotals(ctx context.Context, incomeShiftID int
 }
 
 const listInvoiceDeals = `-- name: ListInvoiceDeals :many
-SELECT invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price FROM invoice_deals WHERE invoice_id = ? ORDER BY deal_uid
+SELECT invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent FROM invoice_deals WHERE invoice_id = ? ORDER BY deal_uid
 `
 
 func (q *Queries) ListInvoiceDeals(ctx context.Context, invoiceID int64) ([]InvoiceDeal, error) {
@@ -909,6 +911,7 @@ func (q *Queries) ListInvoiceDeals(ctx context.Context, invoiceID int64) ([]Invo
 			&i.GetQty,
 			&i.Percent,
 			&i.BundlePrice,
+			&i.FallbackPercent,
 		); err != nil {
 			return nil, err
 		}
