@@ -62,15 +62,18 @@
         <span class="sync-status-word">{{ syncState.word }}</span>
       </div>
 
-      <div class="device-status" aria-label="Devices">
-        <v-icon
-          v-for="device in deviceIcons"
-          :key="device.icon"
-          :icon="device.icon"
-          :class="`device-status--${device.state}`"
-          :title="device.title"
-          size="20"
-        />
+      <div class="device-panel" aria-label="Devices">
+        <span class="device-panel-title">Devices</span>
+        <div class="device-status">
+          <v-icon
+            v-for="device in deviceIcons"
+            :key="device.icon"
+            :icon="device.icon"
+            :class="`device-status--${device.state}`"
+            :title="device.title"
+            size="20"
+          />
+        </div>
       </div>
 
       <v-list-item
@@ -367,16 +370,30 @@ const items = computed(() => {
 .sync-status--off {
   color: #9e9e9e;
 }
-.device-status {
+.device-panel {
   flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0 6px 8px;
+  padding: 4px 0 6px;
+  background: #000;
+  border-radius: 8px;
+}
+.device-panel-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #9e9e9e;
+}
+.device-status {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px 8px;
   /* Two icons a row: scanner and printer, keyboard and mouse under them. */
   width: 56px;
-  margin: 0 auto;
-  padding: 0 0 8px;
 }
 .device-status--ok {
   color: #66bb6a;
