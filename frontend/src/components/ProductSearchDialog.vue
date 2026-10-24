@@ -37,7 +37,11 @@
             >
               <template #title>
                 <div class="product-primary-row">
-                  <span v-if="shows('code')" class="product-code text-medium-emphasis">{{ product.code }}</span>
+                  <span
+                    v-if="shows('code')"
+                    class="product-code"
+                    :class="namesHidden ? 'product-code--lead font-weight-medium' : 'text-medium-emphasis'"
+                  >{{ product.code }}</span>
                   <span v-if="!codeOnly && shows('name')" class="font-weight-medium text-truncate">{{ product.name }}</span>
                   <span v-if="product.brand && !codeOnly && shows('brand')" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
                   <span v-if="product.color && shows('color')" class="product-variant text-medium-emphasis">{{ product.color }}</span>
@@ -156,6 +160,9 @@ const props = withDefaults(
   },
 );
 const shows = (field: string) => !props.hiddenFields.includes(field);
+// With no name on the row the code is what the cashier reads, so it takes
+// the name's place: full size and contrast, and the name's width.
+const namesHidden = computed(() => props.codeOnly || !shows("name"));
 const activatorText = props.activatorText;
 const activatorIcon = props.activatorIcon;
 const showActivator = props.showActivator;
@@ -361,6 +368,13 @@ defineExpose({ openDialog });
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.product-code--lead {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  font-size: 1rem;
 }
 
 .product-brand {
