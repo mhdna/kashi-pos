@@ -18,6 +18,7 @@ package main
 //     types into someone else's window.
 //   - The Windows key, Alt+Tab, Alt+Esc, Ctrl+Esc and Alt+F4 do nothing
 //     while the till is in front.
+//   - Minimized windows (AnyDesk's session window, say) aren't drawn.
 //
 // Closing the app (Quit -> Close App) starts Explorer again, so that's the
 // way to Windows. Shut Down and Restart in the same dialog leave it off.
@@ -60,6 +61,9 @@ var (
 	pIsWindowVisible          = user32.NewProc("IsWindowVisible")
 	pEnumWindows              = user32.NewProc("EnumWindows")
 	pGetAsyncKeyState         = user32.NewProc("GetAsyncKeyState")
+	pSystemParametersInfoW    = user32.NewProc("SystemParametersInfoW")
+	pArrangeIconicWindows     = user32.NewProc("ArrangeIconicWindows")
+	pGetDesktopWindow         = user32.NewProc("GetDesktopWindow")
 )
 
 const (
@@ -86,6 +90,10 @@ const (
 	swpNoActivate = 0x0010
 
 	processQueryLimitedInformation = 0x1000
+
+	spiGetMinimizedMetrics = 0x002B
+	spiSetMinimizedMetrics = 0x002C
+	arwHide                = 0x0008 // MINIMIZEDMETRICS.iArrange: don't draw minimized windows
 )
 
 var (
@@ -93,9 +101,11 @@ var (
 	hwndNoTopmost = ^uintptr(1) // HWND_NOTOPMOST, (HWND)-2
 )
 
-// kioskAllowedPrograms may come to the front over the till: the way out if
-// the till stops responding.
-var kioskAllowedPrograms = map[string]bool{"taskmgr.exe": true}
+// kioskAllowedPrograms may come to the front over the till: Task Manager,
+// the way out if the till stops responding, and Windows' administrator
+// approval prompt (when it isn't on its own secure screen), which a printer
+// port change in the Devices dialog can raise.
+var kioskAllowedPrograms = map[string]bool{"taskmgr.exe": true, "consent.exe": true}
 
 // kbdLLHookStruct is the Win32 KBDLLHOOKSTRUCT.
 type kbdLLHookStruct struct {
@@ -140,7 +150,35 @@ func enterKiosk() {
 	kiosk.mu.Unlock()
 
 	exitExplorer()
+	hideMinimizedWindows()
 	takeForeground(window, 0)
+}
+
+// minimizedMetrics is the Win32 MINIMIZEDMETRICS struct.
+type minimizedMetrics struct {
+	size, width, horzGap, vertGap, arrange int32
+}
+
+// hideMinimizedWindows stops Windows drawing minimized windows as little
+// title bars in the bottom-left corner, which it does once Explorer has
+// gone: Explorer turns that off while it runs, as minimized windows live on
+// its taskbar. Without it, AnyDesk's minimized session window sat on top of
+// the till. The change isn't saved; Explorer sets it again when it starts.
+func hideMinimizedWindows() {
+	metrics := minimizedMetrics{}
+	metrics.size = int32(unsafe.Sizeof(metrics))
+	pSystemParametersInfoW.Call(spiGetMinimizedMetrics, uintptr(metrics.size), uintptr(unsafe.Pointer(&metrics)), 0)
+	if metrics.arrange&arwHide != 0 {
+		return
+	}
+	metrics.arrange |= arwHide
+	if r, _, err := pSystemParametersInfoW.Call(spiSetMinimizedMetrics, uintptr(metrics.size), uintptr(unsafe.Pointer(&metrics)), 0); r == 0 {
+		log.Printf("kiosk: hide minimized windows: %v", err)
+		return
+	}
+	// Windows already minimized move to the new (hidden) arrangement.
+	desktop, _, _ := pGetDesktopWindow.Call()
+	pArrangeIconicWindows.Call(desktop)
 }
 
 // leaveKiosk turns kiosk mode off and, unless the app is closing for a
