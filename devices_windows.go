@@ -11,7 +11,8 @@ package main
 // don't. Keys injected by AnyDesk or the on-screen keyboard have no device
 // and are ignored.
 //
-// Mouse: any USB mouse in raw input's device list.
+// Mouse: any USB mouse in raw input's device list, other than a touch
+// screen's (which Windows lists as a mouse too).
 //
 // Printer: the spooler's status for the receipt printer. Windows marks a USB
 // printer offline when it's unplugged or switched off.
@@ -51,9 +52,14 @@ const (
 	ridevDevNotify      = 0x00002000
 	ridInput            = 0x10000003
 	ridiDeviceName      = 0x20000007
+	ridiDeviceInfo      = 0x2000000b
 	rimTypeMouse        = 0
-	rimTypeKeyboard     = 1
-	riKeyBreak          = 0x01 // RAWKEYBOARD.Flags: the key went up
+	rimTypeHID          = 2
+	// A HID collection with this usage page and usage is a touch screen.
+	hidUsagePageDigitizer = 0x0D
+	hidUsageTouchScreen   = 0x04
+	rimTypeKeyboard       = 1
+	riKeyBreak            = 0x01 // RAWKEYBOARD.Flags: the key went up
 
 	vkReturn = 0x0D
 	vkTabKey = 0x09
@@ -77,6 +83,15 @@ type rawInputDevice struct {
 	usagePage, usage uint16
 	flags            uint32
 	target           uintptr
+}
+
+// ridDeviceInfoHID is RID_DEVICE_INFO with its HID member, padded to the
+// union's full size (the keyboard member is the largest).
+type ridDeviceInfoHID struct {
+	size, kind                      uint32
+	vendorID, productID, versionNum uint32
+	usagePage, usage                uint16
+	_                               [8]byte
 }
 
 type rawInputDeviceListEntry struct {
@@ -314,6 +329,7 @@ func presentInputDevices() (keyboards, mice map[string]string) {
 		return nil, nil
 	}
 	keyboards, mice = map[string]string{}, map[string]string{}
+	touchScreens := map[string]bool{}
 	for _, entry := range list[:r] {
 		var into map[string]string
 		switch entry.kind {
@@ -321,6 +337,11 @@ func presentInputDevices() (keyboards, mice map[string]string) {
 			into = keyboards
 		case rimTypeMouse:
 			into = mice
+		case rimTypeHID:
+			if isTouchScreen(entry.device) {
+				touchScreens[deviceIDFromPath(rawInputDevicePath(entry.device))] = true
+			}
+			continue
 		default:
 			continue
 		}
@@ -329,7 +350,25 @@ func presentInputDevices() (keyboards, mice map[string]string) {
 			into[id] = usbDeviceName(id, path)
 		}
 	}
+	// A touch screen also reports itself as a mouse (and sometimes a
+	// keyboard), which would keep those lights green with neither plugged
+	// in. Its touch collection shares the USB ID, which gives it away.
+	for id := range touchScreens {
+		delete(mice, id)
+		delete(keyboards, id)
+	}
 	return keyboards, mice
+}
+
+// isTouchScreen reports whether a raw input HID collection is a touch
+// screen (a touchpad or pen is a different usage and isn't counted).
+func isTouchScreen(device uintptr) bool {
+	info := ridDeviceInfoHID{}
+	info.size = uint32(unsafe.Sizeof(info))
+	size := info.size
+	r, _, _ := pGetRawInputDeviceInfoW.Call(device, ridiDeviceInfo, uintptr(unsafe.Pointer(&info)), uintptr(unsafe.Pointer(&size)))
+	return int32(r) > 0 && info.kind == rimTypeHID &&
+		info.usagePage == hidUsagePageDigitizer && info.usage == hidUsageTouchScreen
 }
 
 // printerStatus asks the spooler whether the printer can print now.

@@ -24,7 +24,7 @@ import (
 // few milliseconds apart ending in Enter. That's kept in devices.json next to
 // the branch registry, and a new scanner replaces the old one on its first
 // scan. The keyboard is any other USB keyboard plugged in, used or not, and
-// the mouse any USB mouse.
+// the mouse any USB mouse; a touch screen counts as neither.
 
 const (
 	deviceOK      = "ok"
