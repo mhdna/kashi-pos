@@ -67,7 +67,7 @@
         <div class="device-status">
           <v-icon
             v-for="device in deviceIcons"
-            :key="device.icon"
+            :key="device.kind"
             :icon="device.icon"
             :class="`device-status--${device.state}`"
             :title="device.title"
@@ -126,21 +126,7 @@
     </v-card>
   </v-dialog>
 
-  <v-dialog v-model="devicesOpen" max-width="640">
-    <v-card class="options-dialog-card" rounded="xl">
-      <div class="dialog-close-row px-4 pt-0">
-        <v-btn icon="mdi-close" variant="text" aria-label="Close devices" @click="devicesOpen = false" />
-      </div>
-      <v-card-text class="devices-grid px-4 pt-0 pb-6">
-        <div v-for="device in deviceIcons" :key="device.icon" class="device-card">
-          <v-icon :icon="device.icon" size="72" :class="`device-status--${device.state}`" />
-          <span class="device-card-label">{{ device.label }}</span>
-          <span v-if="device.name" class="device-card-name">{{ device.name }}</span>
-          <span :class="['device-card-word', `device-status--${device.state}`]">{{ device.word }}</span>
-        </div>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
+  <DevicesDialog v-model="devicesOpen" />
 
   <v-dialog v-model="closeAppConfirmOpen" max-width="360">
     <v-card class="options-dialog-card" rounded="xl">
@@ -181,6 +167,7 @@ import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import { useSyncStatus } from "@/composables/useSyncStatus";
 import { useDeviceStatus } from "@/composables/useDeviceStatus";
+import DevicesDialog from "@/components/DevicesDialog.vue";
 import { useResyncStore } from "@/stores/resync";
 import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { Quit } from "../../wailsjs/runtime/runtime";
@@ -217,40 +204,7 @@ const syncState = computed(() => {
 });
 const { status: attendanceStatus } = useAttendanceStatus();
 
-const { status: deviceStatus } = useDeviceStatus();
-type DeviceState = "ok" | "off" | "unknown";
-const connectedWords: Record<DeviceState, string> = {
-  ok: "Connected",
-  off: "Not connected",
-  unknown: "Not known yet",
-};
-const deviceIcons = computed(() => {
-  const st = deviceStatus.value;
-  const state = (value?: string) => (value ?? "unknown") as DeviceState;
-  const devices = [
-    {
-      icon: "mdi-barcode-scanner-gun",
-      label: "Scanner",
-      state: state(st?.scanner),
-      name: st?.scannerName ?? "",
-      words: { ...connectedWords, unknown: "Scan a barcode once so the till knows it" },
-    },
-    {
-      icon: "mdi-printer",
-      label: "Printer",
-      state: state(st?.printer),
-      name: st?.printerName ?? "",
-      words: { ok: "Ready", off: "Offline", unknown: "None chosen in Settings" },
-    },
-    { icon: "mdi-keyboard", label: "Keyboard", state: state(st?.keyboard), name: st?.keyboardName ?? "", words: connectedWords },
-    { icon: "mdi-mouse", label: "Mouse", state: state(st?.mouse), name: st?.mouseName ?? "", words: connectedWords },
-  ];
-  return devices.map((device) => ({
-    ...device,
-    word: device.words[device.state],
-    title: `${device.label}: ${device.words[device.state]}`,
-  }));
-});
+const { devices: deviceIcons } = useDeviceStatus();
 const devicesOpen = ref(false);
 
 function openSyncSettings() {
@@ -410,30 +364,6 @@ const items = computed(() => {
   background: #000;
   border-radius: 8px;
   cursor: pointer;
-}
-.devices-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-}
-.device-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  text-align: center;
-}
-.device-card-label {
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-.device-card-name {
-  font-size: 0.85rem;
-  overflow-wrap: anywhere;
-}
-.device-card-word {
-  font-size: 0.85rem;
-  font-weight: 700;
 }
 .device-panel-title {
   font-size: 0.65rem;

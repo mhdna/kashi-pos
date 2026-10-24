@@ -226,6 +226,7 @@ import {
   mdiWeatherPouring,
   mdiWhatsapp,
   mdiWifi,
+  mdiUsb,
   mdiWrench,
   mdiYoutube,
 } from "@mdi/js";
@@ -430,6 +431,7 @@ const iconPaths: Record<string, string> = {
   "mdi-radiobox-marked": mdiRadioboxMarked,
   "mdi-receipt-text-outline": mdiReceiptTextOutline,
   "mdi-refresh": mdiRefresh,
+  "mdi-usb": mdiUsb,
   "mdi-ring": mdiRing,
   "mdi-sale-outline": mdiSaleOutline,
   "mdi-shoe-sneaker": mdiShoeSneaker,

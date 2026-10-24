@@ -529,6 +529,74 @@ export namespace main {
 	        this.productNames = source["productNames"];
 	    }
 	}
+	export class PrinterChoice {
+	    name: string;
+	    port: string;
+	    ready: boolean;
+	    receipt: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PrinterChoice(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.port = source["port"];
+	        this.ready = source["ready"];
+	        this.receipt = source["receipt"];
+	    }
+	}
+	export class PrinterPort {
+	    port: string;
+	    device: string;
+	    usedBy: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PrinterPort(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.port = source["port"];
+	        this.device = source["device"];
+	        this.usedBy = source["usedBy"];
+	    }
+	}
+	export class PrinterSearch {
+	    printers: PrinterChoice[];
+	    livePorts: PrinterPort[];
+	    receiptPrinter: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PrinterSearch(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.printers = this.convertValues(source["printers"], PrinterChoice);
+	        this.livePorts = this.convertValues(source["livePorts"], PrinterPort);
+	        this.receiptPrinter = source["receiptPrinter"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ProductCSVProblem {
 	    line: number;
 	    barcode: string;

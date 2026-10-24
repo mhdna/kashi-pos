@@ -226,6 +226,10 @@ export function ExportQuickAccessCSV() {
   return window['go']['main']['App']['ExportQuickAccessCSV']();
 }
 
+export function FindPrinters() {
+  return window['go']['main']['App']['FindPrinters']();
+}
+
 export function FindProductsForScan(arg1) {
   return window['go']['main']['App']['FindProductsForScan'](arg1);
 }
@@ -236,6 +240,10 @@ export function FlushSyncOutbox() {
 
 export function ForceSetAdminPassword(arg1) {
   return window['go']['main']['App']['ForceSetAdminPassword'](arg1);
+}
+
+export function ForgetScanner() {
+  return window['go']['main']['App']['ForgetScanner']();
 }
 
 export function GetAdminConfig() {
@@ -624,6 +632,10 @@ export function ListTransfers() {
 
 export function ListUsers() {
   return window['go']['main']['App']['ListUsers']();
+}
+
+export function MovePrinterToPort(arg1, arg2) {
+  return window['go']['main']['App']['MovePrinterToPort'](arg1, arg2);
 }
 
 export function OpenShift() {
@@ -1028,6 +1040,10 @@ export function UpdateUser(arg1, arg2, arg3, arg4, arg5) {
 
 export function UpdateUserAttendanceID(arg1, arg2) {
   return window['go']['main']['App']['UpdateUserAttendanceID'](arg1, arg2);
+}
+
+export function UseReceiptPrinter(arg1) {
+  return window['go']['main']['App']['UseReceiptPrinter'](arg1);
 }
 
 export function VerifyAdminPassword(arg1) {

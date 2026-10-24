@@ -114,11 +114,15 @@ export function ExportProductsCSV():Promise<string>;
 
 export function ExportQuickAccessCSV():Promise<string>;
 
+export function FindPrinters():Promise<main.PrinterSearch>;
+
 export function FindProductsForScan(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function FlushSyncOutbox():Promise<main.SyncFlushProgress>;
 
 export function ForceSetAdminPassword(arg1:string):Promise<void>;
+
+export function ForgetScanner():Promise<void>;
 
 export function GetAdminConfig():Promise<Record<string, any>>;
 
@@ -313,6 +317,8 @@ export function ListTransferRequests():Promise<Array<Record<string, any>>>;
 export function ListTransfers():Promise<Array<Record<string, any>>>;
 
 export function ListUsers():Promise<Array<Record<string, any>>>;
+
+export function MovePrinterToPort(arg1:string,arg2:string):Promise<void>;
 
 export function OpenShift():Promise<Record<string, any>>;
 
@@ -515,6 +521,8 @@ export function UpdateSettings(arg1:string,arg2:string,arg3:string,arg4:string,a
 export function UpdateUser(arg1:number,arg2:string,arg3:string,arg4:number,arg5:number):Promise<void>;
 
 export function UpdateUserAttendanceID(arg1:number,arg2:string):Promise<void>;
+
+export function UseReceiptPrinter(arg1:string):Promise<void>;
 
 export function VerifyAdminPassword(arg1:string):Promise<Record<string, any>>;
 
