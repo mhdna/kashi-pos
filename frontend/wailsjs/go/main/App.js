@@ -274,6 +274,10 @@ export function GetAttendanceStatus() {
   return window['go']['main']['App']['GetAttendanceStatus']();
 }
 
+export function GetCashMachineStatus() {
+  return window['go']['main']['App']['GetCashMachineStatus']();
+}
+
 export function GetCashierPIN() {
   return window['go']['main']['App']['GetCashierPIN']();
 }
@@ -932,6 +936,10 @@ export function SetTheme(arg1) {
 
 export function SetUnknownProductBarcode(arg1) {
   return window['go']['main']['App']['SetUnknownProductBarcode'](arg1);
+}
+
+export function SetUpCashMachine() {
+  return window['go']['main']['App']['SetUpCashMachine']();
 }
 
 export function SetVisitorCounterEnabled(arg1) {
