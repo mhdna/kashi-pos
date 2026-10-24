@@ -26,8 +26,18 @@
               </span>
             </span>
             <!-- Beside the name and code, centred on both. -->
+            <!-- Summer and Winter are just their icon (the name on hover); any
+                 other option keeps its name. -->
+            <v-icon
+              v-if="item.saleOption && saleOptionIcon(item.saleOption)"
+              class="invoice-item-sale-option"
+              :color="saleOptionIcon(item.saleOption)!.color"
+              :icon="saleOptionIcon(item.saleOption)!.icon"
+              size="22"
+              :title="item.saleOption"
+            />
             <v-chip
-              v-if="item.saleOption"
+              v-else-if="item.saleOption"
               class="invoice-item-sale-option"
               label
               size="small"
@@ -41,12 +51,16 @@
               class="invoice-item-sale-option"
               :color="dealFor(item)!.freeQty ? 'success' : dealFor(item)!.discountCents ? 'deep-purple' : undefined"
               label
-              prepend-icon="mdi-gift-outline"
               size="x-small"
-              :text="dealChipText(item)"
-              :title="dealFor(item)!.name"
+              :title="`${dealFor(item)!.name} · ${dealChipText(item)}`"
               :variant="dealFor(item)!.discountCents ? 'flat' : 'outlined'"
-            />
+            >
+              <v-icon class="me-1" icon="mdi-gift-outline" size="14" />
+              <span class="invoice-deal-chip-text">
+                <span>{{ dealChipLines(item)[0] }}</span>
+                <span v-if="dealChipLines(item)[1]" class="invoice-deal-chip-sub">{{ dealChipLines(item)[1] }}</span>
+              </span>
+            </v-chip>
           </button>
         </template>
         <template #append>
@@ -405,6 +419,29 @@ const dealsByCartLine = computed(() => dealsByLine(props.dealLines ?? []));
 function dealFor(item: LineItem) {
   if (item.qty <= 0) return undefined;
   return dealsByCartLine.value.get(item.barcode || item.code);
+}
+
+// The icon a Summer/Winter sale option shows instead of its name; other
+// options have none and keep their text chip.
+function saleOptionIcon(option: string): { icon: string; color: string } | undefined {
+  switch (option.trim().toLowerCase()) {
+    case "summer":
+      return { icon: "mdi-weather-sunny", color: "amber-darken-2" };
+    case "winter":
+      return { icon: "mdi-snowflake", color: "blue-lighten-1" };
+  }
+  return undefined;
+}
+
+// The deal chip on two short lines: the deal ("B2G1"), then what it gave
+// this line, how many units are free or else what the fallback does
+// ("else 30%"). The full terms are in the chip's hover title.
+function dealChipLines(item: LineItem): [string, string] {
+  const deal = dealFor(item);
+  if (!deal) return ["", ""];
+  const [head, fallback] = deal.label.split(" else ");
+  if (deal.freeQty) return [head, `${deal.freeQty} free`];
+  return [head, fallback ? `else ${fallback}` : ""];
 }
 
 function dealChipText(item: LineItem): string {
@@ -1104,6 +1141,22 @@ defineExpose({
   align-items: flex-start;
   min-width: 0;
   max-width: 100%;
+}
+
+.invoice-deal-chip-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.invoice-deal-chip-sub {
+  font-size: 0.65rem;
+  opacity: 0.85;
+}
+
+.invoice-item-sale-option.v-chip--size-x-small:has(.invoice-deal-chip-text) {
+  height: auto;
+  padding-block: 2px;
 }
 
 .invoice-item-sale-option {

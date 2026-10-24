@@ -218,6 +218,7 @@ import {
   mdiWater,
   mdiWeatherNight,
   mdiWeatherSunny,
+  mdiSnowflake,
   mdiWeatherPouring,
   mdiWhatsapp,
   mdiWifi,
@@ -445,6 +446,7 @@ const iconPaths: Record<string, string> = {
   "mdi-watch": mdiWatch,
   "mdi-weather-night": mdiWeatherNight,
   "mdi-weather-sunny": mdiWeatherSunny,
+  "mdi-snowflake": mdiSnowflake,
   "mdi-weather-pouring": mdiWeatherPouring,
   "mdi-youtube": mdiYoutube,
 };
