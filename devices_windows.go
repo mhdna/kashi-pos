@@ -53,10 +53,8 @@ const (
 
 	// A scanner types a whole barcode with keys this close together and
 	// ends it with Enter (or Tab); a person is never that fast.
-	scanKeyGap     = 50 * time.Millisecond
-	scanMinKeys    = 6
-	humanKeyGapMin = 80 * time.Millisecond
-	humanKeyGapMax = 1500 * time.Millisecond
+	scanKeyGap  = 50 * time.Millisecond
+	scanMinKeys = 6
 
 	printerAttributeWorkOffline = 0x00000400
 	// The PRINTER_STATUS_* bits that mean a receipt won't come out.
@@ -199,31 +197,24 @@ func logRawInputFailure(err error) {
 	}
 }
 
-// onDeviceKey learns, from the timing of its keys, whether a device is a
-// scanner or a keyboard.
+// onDeviceKey learns, from the timing of its keys, that a device is the
+// scanner.
 func onDeviceKey(device uintptr, vKey uint16, now time.Time) {
 	c := inputListener.cadence[device]
 	if c == nil {
 		c = &keyCadence{}
 		inputListener.cadence[device] = c
 	}
-	gap := now.Sub(c.last)
-	first := c.last.IsZero()
-	c.last = now
-	if !first && gap < scanKeyGap {
+	if !c.last.IsZero() && now.Sub(c.last) < scanKeyGap {
 		c.run++
 	} else {
 		c.run = 1
 	}
+	c.last = now
 
-	switch {
-	case (vKey == vkReturn || vKey == vkTabKey) && c.run >= scanMinKeys:
+	if (vKey == vkReturn || vKey == vkTabKey) && c.run >= scanMinKeys {
 		if id := inputDeviceID(device); id != "" {
-			learnInputDevice(id, true)
-		}
-	case !first && gap >= humanKeyGapMin && gap <= humanKeyGapMax:
-		if id := inputDeviceID(device); id != "" {
-			learnInputDevice(id, false)
+			learnScanner(id)
 		}
 	}
 }

@@ -6,7 +6,7 @@ import type { main } from "../../wailsjs/go/models";
 /**
  * Shared, module-cached status of the scanner, receipt printer and keyboard
  * for the nav rail. Each is "ok", "off" (gone) or "unknown" (no printer
- * chosen, or the scanner/keyboard hasn't been used on this till yet).
+ * chosen, or the scanner hasn't scanned on this till yet).
  *
  * `device_status_changed` fires from the Go side whenever one changes, so
  * the icons follow a plug or unplug without polling.

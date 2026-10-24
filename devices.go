@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,17 +17,16 @@ import (
 // gone.
 //
 // The printer is the receipt printer in Settings, as Windows' spooler sees
-// it. Scanners and keyboards both reach Windows as keyboards, so the till
-// learns which is which from how they type (devices_windows.go): a burst of
-// keys a few milliseconds apart ending in Enter is the scanner, keys at a
-// person's pace are the keyboard. What it learned is kept in devices.json
-// next to the branch registry, and a new scanner or keyboard replaces the
-// old one the first time it's used.
+// it. Scanners reach Windows as keyboards, so the till learns which device
+// is the scanner from how it types (devices_windows.go): a burst of keys a
+// few milliseconds apart ending in Enter. That's kept in devices.json next to
+// the branch registry, and a new scanner replaces the old one on its first
+// scan. The keyboard is any other USB keyboard plugged in, used or not.
 
 const (
 	deviceOK      = "ok"
 	deviceOff     = "off"
-	deviceUnknown = "unknown" // no printer chosen, or not seen in use yet
+	deviceUnknown = "unknown" // no printer chosen, or the scanner not seen scanning yet
 )
 
 // DeviceStatus is what the nav rail shows.
@@ -38,11 +38,10 @@ type DeviceStatus struct {
 	PrinterName string `json:"printerName"`
 }
 
-// learnedDevices are the input devices the till has seen scan and type,
-// by vendor and product ID (or the device path when there's none).
+// learnedDevices is the scanner the till has seen scan, by USB vendor and
+// product ID (or the device path when there's none).
 type learnedDevices struct {
-	Scanner  string `json:"scanner,omitempty"`
-	Keyboard string `json:"keyboard,omitempty"`
+	Scanner string `json:"scanner,omitempty"`
 }
 
 var devices struct {
@@ -82,28 +81,18 @@ func learnedInputDevices() learnedDevices {
 	return devices.learned
 }
 
-// learnInputDevice records id as the scanner (or the keyboard) and wakes
-// the watcher when that's news.
-func learnInputDevice(id string, scanner bool) {
+// learnScanner records id as the scanner and wakes the watcher when that's
+// news.
+func learnScanner(id string) {
 	learned := learnedInputDevices()
-	if scanner {
-		if learned.Scanner == id {
-			return
-		}
-		learned.Scanner = id
-		if learned.Keyboard == id {
-			learned.Keyboard = ""
-		}
-	} else {
-		if learned.Keyboard == id || learned.Scanner == id {
-			return
-		}
-		learned.Keyboard = id
+	if learned.Scanner == id {
+		return
 	}
+	learned.Scanner = id
 	devices.mu.Lock()
 	devices.learned = learned
 	devices.mu.Unlock()
-	log.Printf("devices: learned scanner=%q keyboard=%q", learned.Scanner, learned.Keyboard)
+	log.Printf("devices: learned scanner %q", id)
 	if path, err := learnedDevicesPath(); err == nil {
 		data, _ := json.Marshal(learned)
 		if err := os.WriteFile(path, data, 0o644); err != nil {
@@ -157,13 +146,10 @@ func (a *App) watchDevices() {
 
 func (a *App) checkDevices() DeviceStatus {
 	status := DeviceStatus{Scanner: deviceUnknown, Printer: deviceUnknown, Keyboard: deviceUnknown}
-	learned := learnedInputDevices()
-	if learned.Scanner != "" || learned.Keyboard != "" {
-		present := presentInputDevices()
-		if present != nil {
-			status.Scanner = presence(learned.Scanner, present)
-			status.Keyboard = presence(learned.Keyboard, present)
-		}
+	if present := presentInputDevices(); present != nil {
+		scanner := learnedInputDevices().Scanner
+		status.Scanner = presence(scanner, present)
+		status.Keyboard = keyboardPresence(scanner, present)
 	}
 	if a.store != nil {
 		if settings, err := a.store.GetSettings(a.ctx); err == nil && settings.ReceiptPrinter != "" {
@@ -172,6 +158,19 @@ func (a *App) checkDevices() DeviceStatus {
 		}
 	}
 	return status
+}
+
+// keyboardPresence is ok while a USB keyboard other than the scanner is
+// plugged in. Keyboards without a USB ID are left out: Windows lists a PS/2
+// keyboard on most PCs whether one is there or not, and remote sessions add
+// virtual ones.
+func keyboardPresence(scanner string, present map[string]bool) string {
+	for id := range present {
+		if id != scanner && strings.HasPrefix(id, "VID_") {
+			return deviceOK
+		}
+	}
+	return deviceOff
 }
 
 func presence(id string, present map[string]bool) string {
