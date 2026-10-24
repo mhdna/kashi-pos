@@ -446,6 +446,9 @@ func parseSalesItems(raw, unknownBarcode, unknownCode string) ([]salesInvoiceIte
 		if item.Barcode != "" {
 			key = "barcode:" + item.Barcode
 		}
+		// A product sold as Summer and as Winter is two lines: each option
+		// has its own discount.
+		key += "|" + item.SaleOption
 		// Every "Unknown item" is its own line (each gets its own pictures),
 		// so that one product may repeat; any other product may not. The
 		// checkout payload carries only the code, so match on either.
