@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -11,12 +12,18 @@ import (
 )
 
 type exchangeLine struct {
-	Code           string `json:"code"`
+	Code string `json:"code"`
+	// Barcode, when set, names the exact variant: codes repeat across a
+	// product's colours and sizes, so a code alone resolves to the first
+	// (see lineProduct). Sales already go by barcode the same way.
+	Barcode        string `json:"barcode,omitempty"`
 	Qty            int64  `json:"qty"`
 	UnitPriceCents *int64 `json:"unitPriceCents,omitempty"`
 	UnitDiscount   *int64 `json:"unitDiscount,omitempty"`
 	SalespersonID  int64  `json:"salespersonId,omitempty"`
 	Note           string `json:"note,omitempty"`
+	// See salesInvoiceItem.SaleOption; used on replacement lines.
+	SaleOption string `json:"saleOption,omitempty"`
 	// The following only apply to replacement (positive-qty) lines - a
 	// returned line's price/discount always comes from the original sold
 	// line (UnitPriceCents/UnitDiscount above are only ever used to *match*
@@ -41,6 +48,8 @@ type pricedReturnedProduct struct {
 	lineTotal     int64
 	note          string
 	salespersonID int64
+	// The unit's place in its sale's deal; zero for a unit on no deal.
+	deal dealExchangeLine
 }
 
 type pricedExchange struct {
@@ -50,6 +59,11 @@ type pricedExchange struct {
 	returned         []pricedReturnedProduct
 	replacements     []pricedInvoiceProduct
 	replacementTotal int64
+	// What the replacements must cover at the till: what was paid for the
+	// returned units. returnedTotal can be more (a free unit's swap credit)
+	// or less (a deal charged back); see deal_exchange.go.
+	requiredReplacement int64
+	dealAdjustments     []exchangeDealAdjustment
 }
 
 func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, error) {
@@ -66,6 +80,7 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 	replacementIndex := make(map[string]int)
 	for _, line := range lines {
 		line.Code = strings.TrimSpace(line.Code)
+		line.Barcode = strings.TrimSpace(line.Barcode)
 		line.Note = strings.TrimSpace(line.Note)
 		if line.Code == "" || line.Qty == 0 {
 			return exchangeRequest{}, fmt.Errorf("invalid exchange item")
@@ -82,7 +97,7 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 			}
 			returnedIndex := -1
 			for index, returned := range request.returnedItems {
-				if strings.EqualFold(returned.Code, line.Code) &&
+				if strings.EqualFold(returned.Code, line.Code) && returned.Barcode == line.Barcode &&
 					(returned.UnitPriceCents == nil || line.UnitPriceCents == nil || *returned.UnitPriceCents == *line.UnitPriceCents) &&
 					(returned.UnitDiscount == nil || line.UnitDiscount == nil || *returned.UnitDiscount == *line.UnitDiscount) {
 					returnedIndex = index
@@ -130,7 +145,7 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 		// the same product) - it's kept as its own separate line rather than
 		// netted against the return, so the returned line stays negative and
 		// the replacement stays positive.
-		normalizedCode := strings.ToLower(line.Code)
+		normalizedCode := strings.ToLower(line.Code) + "\x00" + line.Barcode
 		hasCustomPricing := line.CustomPriceCents != nil || len(line.UnitPricesCents) > 0 || len(line.UnitDiscounts) > 0
 		if index, exists := replacementIndex[normalizedCode]; exists {
 			existing := request.replacements[index]
@@ -154,32 +169,59 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 	return request, nil
 }
 
+// lineProduct is the product an exchange line names: by barcode when it
+// carries one, else the first product with its code.
+func lineProduct(a *App, q *db.Queries, line exchangeLine) (db.Product, error) {
+	if line.Barcode != "" {
+		return q.GetProductByBarcode(a.ctx, line.Barcode)
+	}
+	return q.GetProductByCode(a.ctx, line.Code)
+}
+
 func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request exchangeRequest, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool, listPricing activePricing) (pricedExchange, error) {
 	var result pricedExchange
 	sourceLines, err := q.ListInvoiceProducts(a.ctx, sourceID)
 	if err != nil {
 		return result, fmt.Errorf("returned product was not sold on invoice")
 	}
-	reserved := make(map[string]int64)
+	saleDeals := map[string]dealTerms{}
+	if deals, err := q.ListInvoiceDeals(a.ctx, sourceID); err == nil {
+		for _, d := range deals {
+			saleDeals[d.DealUid] = dealTermsFromInvoice(d)
+		}
+	}
+	isReward := func(line db.InvoiceProduct) bool {
+		if line.Quantity == 0 {
+			return false
+		}
+		return saleDeals[line.DealUid].isRewardUnit(line.UnitPrice, line.DealDiscount/line.Quantity, roundingMode)
+	}
+	// Units of one product at one price are alike on the shelf, free or
+	// paid; a returned one is taken as the free unit first. That's the
+	// customer's side of it -- the free unit swaps up to its price -- and
+	// it's safe: the paid units they keep still earn it.
+	candidates := slices.Clone(sourceLines)
+	sort.SliceStable(candidates, func(i, j int) bool { return isReward(candidates[i]) && !isReward(candidates[j]) })
+	reserved := make(map[soldLineKey]int64)
 	for _, requested := range request.returnedItems {
 		if requested.SalespersonID > 0 {
 			if _, err := q.GetSalespersonByID(a.ctx, requested.SalespersonID); err != nil {
 				return result, fmt.Errorf("salesperson for returned item %s: %w", requested.Code, err)
 			}
 		}
-		product, err := q.GetProductByCode(a.ctx, requested.Code)
+		product, err := lineProduct(a, q, requested)
 		if err != nil {
 			return result, fmt.Errorf("returned product: %w", err)
 		}
 		var originalLine db.InvoiceProduct
 		foundAvailableLine := false
 		requestedQty := -requested.Qty
-		for _, line := range sourceLines {
+		for _, line := range candidates {
 			if line.ProductID != product.ID || (requested.UnitPriceCents != nil && line.UnitPrice != *requested.UnitPriceCents) || (requested.UnitDiscount != nil && line.Discount != *requested.UnitDiscount) {
 				continue
 			}
-			returnedQty, returnedErr := q.GetReturnedQuantityForProductPrice(a.ctx, db.GetReturnedQuantityForProductPriceParams{SalesInvoiceID: sourceID, ProductID: product.ID, UnitPrice: line.UnitPrice, Discount: line.Discount})
-			lineKey := fmt.Sprintf("%d:%d:%d", product.ID, line.UnitPrice, line.Discount)
+			lineKey := keyOfLine(line)
+			returnedQty, returnedErr := q.GetReturnedQuantityForProductPrice(a.ctx, db.GetReturnedQuantityForProductPriceParams{SalesInvoiceID: sourceID, ProductID: product.ID, UnitPrice: line.UnitPrice, Discount: line.Discount, DealUid: line.DealUid, UnitDealDiscount: lineKey.unitDeal})
 			if returnedErr == nil && requestedQty <= line.Quantity-databaseInt64(returnedQty)-reserved[lineKey] {
 				originalLine = line
 				foundAvailableLine = true
@@ -190,11 +232,18 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		if !foundAvailableLine {
 			return result, fmt.Errorf("item has already been returned")
 		}
+		// What was paid for one unit. A deal line's units all paid the same
+		// (applyDeals splits them), and a free unit paid nothing.
 		unitTotal := originalLine.UnitPrice - roundRatio(originalLine.UnitPrice*originalLine.Discount, 100, roundingMode)
-		if requestedQty > math.MaxInt64/unitTotal {
+		var deal dealExchangeLine
+		if originalLine.DealUid != "" {
+			deal = dealExchangeLine{dealUID: originalLine.DealUid, unitDeal: keyOfLine(originalLine).unitDeal, reward: isReward(originalLine)}
+			unitTotal -= deal.unitDeal
+		}
+		if unitTotal > 0 && requestedQty > math.MaxInt64/unitTotal {
 			return result, fmt.Errorf("returned total is too large")
 		}
-		priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: unitTotal * requestedQty, note: requested.Note, salespersonID: requested.SalespersonID}
+		priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: unitTotal * requestedQty, note: requested.Note, salespersonID: requested.SalespersonID, deal: deal}
 		result.returned = append(result.returned, priced)
 		result.returnedTotal += priced.lineTotal
 	}
@@ -210,7 +259,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 				return result, fmt.Errorf("salesperson for replacement %s: %w", line.Code, err)
 			}
 		}
-		product, err := q.GetProductByCode(a.ctx, line.Code)
+		product, err := lineProduct(a, q, line)
 		if err != nil || product.IsActive == 0 {
 			return result, fmt.Errorf("replacement product %s not found or inactive", line.Code)
 		}
@@ -226,11 +275,29 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		if listed, ok := listPricing.priceFor(product.Uid.String); ok {
 			product.Price = listed.cents
 		}
-		if listed, ok := listPricing.discountFor(product.Uid.String); ok {
+		// As in validateAndPriceItems: an option the product no longer asks
+		// is sold at the plain discount.
+		saleOption := ""
+		if slices.Contains(listPricing.saleOptions[product.Uid.String], line.SaleOption) {
+			saleOption = line.SaleOption
+		}
+		dealUID := ""
+		if listed, ok := listPricing.discountForOption(product.Uid.String, saleOption); ok {
 			product.Discount = listed.percent
+			dealUID = listed.dealUID
+		}
+		// The "Unknown item" placeholder has no list price: whatever the
+		// cashier typed is its price (the picture session vouches for it),
+		// as in validateAndPriceItems.
+		isUnknown := product.Barcode == a.unknownBarcode()
+		// A replacement is never priced by a deal (it is sold at its list
+		// price); its deal only says whether it can stand in for a returned
+		// paid unit of the sale's deal. Hand-priced, it can't.
+		if isUnknown || line.CustomPriceCents != nil || len(line.UnitPricesCents) > 0 || len(line.UnitDiscounts) > 0 {
+			dealUID = ""
 		}
 		if line.CustomPriceCents != nil {
-			if !customPricingEnabled {
+			if !customPricingEnabled && !isUnknown {
 				return result, fmt.Errorf("custom item pricing is disabled")
 			}
 			product.Price = *line.CustomPriceCents
@@ -243,7 +310,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 			{price: product.Price, discount: product.Discount}: line.Qty,
 		}
 		if len(line.UnitPricesCents) > 0 || len(line.UnitDiscounts) > 0 {
-			if !perUnitPricingEnabled {
+			if !isUnknown && !perUnitPricingEnabled {
 				return result, fmt.Errorf("per-unit item pricing is disabled")
 			}
 			priceQuantities = make(map[unitPricing]int64)
@@ -280,12 +347,17 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 			}
 			priced.salespersonID = line.SalespersonID
 			priced.note = line.Note
+			priced.saleOption = saleOption
+			priced.dealUID = dealUID
 			if result.replacementTotal > math.MaxInt64-priced.lineTotal {
 				return result, fmt.Errorf("replacement total is too large")
 			}
 			result.replacementTotal += priced.lineTotal
 			result.replacements = append(result.replacements, priced)
 		}
+	}
+	if err := a.settleExchangeDeals(q, sourceID, sourceLines, &result, roundingMode); err != nil {
+		return result, err
 	}
 	return result, nil
 }

@@ -101,14 +101,14 @@ func replacementCount(t *testing.T, database *sql.DB) int64 {
 
 func TestReplaceShiftBalancePreservesTotalAcrossPartialAndReverseSwaps(t *testing.T) {
 	fixture := newBalanceSwapFixture(t, 1000)
-	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 400); err != nil {
+	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 400, false); err != nil {
 		t.Fatal(err)
 	}
 	balances := fixtureBalances(t, fixture)
 	if balances[fixture.sourceID] != 600 || balances[fixture.destinationID] != 400 {
 		t.Fatalf("partial swap balances = source %d, destination %d", balances[fixture.sourceID], balances[fixture.destinationID])
 	}
-	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.destinationID, fixture.sourceID, 150); err != nil {
+	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.destinationID, fixture.sourceID, 150, false); err != nil {
 		t.Fatal(err)
 	}
 	balances = fixtureBalances(t, fixture)
@@ -129,14 +129,14 @@ func TestReplaceShiftBalancePreservesTotalAcrossPartialAndReverseSwaps(t *testin
 
 func TestReplaceShiftBalancePreservesNegativeTotalAndRejectsOverdraw(t *testing.T) {
 	fixture := newBalanceSwapFixture(t, -1000)
-	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 400); err != nil {
+	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 400, false); err != nil {
 		t.Fatal(err)
 	}
 	balances := fixtureBalances(t, fixture)
 	if balances[fixture.sourceID] != -600 || balances[fixture.destinationID] != -400 {
 		t.Fatalf("negative partial swap balances = source %d, destination %d", balances[fixture.sourceID], balances[fixture.destinationID])
 	}
-	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 601); err == nil {
+	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 601, false); err == nil {
 		t.Fatal("negative source overdraw was accepted")
 	}
 	if replacementCount(t, fixture.database) != 1 {
@@ -161,7 +161,7 @@ func TestReplaceShiftBalanceRejectsInvalidAndNonCashAccountsWithoutWriting(t *te
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, test.from, test.to, test.amount); err == nil {
+			if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, test.from, test.to, test.amount, false); err == nil {
 				t.Fatal("invalid replacement was accepted")
 			}
 		})
@@ -225,7 +225,7 @@ func TestReplaceShiftBalanceMovesNegativeBalanceWithItsSign(t *testing.T) {
 	}
 
 	app := &App{ctx: ctx, store: store}
-	if err := app.ReplaceShiftBalance(shift.ID, source.ID, destination.ID, 1000); err != nil {
+	if err := app.ReplaceShiftBalance(shift.ID, source.ID, destination.ID, 1000, false); err != nil {
 		t.Fatal(err)
 	}
 	balances, err := app.ListShiftBalances(shift.ID)
@@ -320,7 +320,7 @@ func TestReplaceShiftBalanceEmptiesRoundedCashSourceDespiteConversionOvershoot(t
 		t.Fatalf("expected conversion to overshoot the source magnitude, got %d", entryCents)
 	}
 
-	preview, err := app.PreviewShiftBalanceReplacement(shift.ID, source.ID, destination.ID, entryCents)
+	preview, err := app.PreviewShiftBalanceReplacement(shift.ID, source.ID, destination.ID, entryCents, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +330,7 @@ func TestReplaceShiftBalanceEmptiesRoundedCashSourceDespiteConversionOvershoot(t
 	if preview.SourceRemainingCents != 0 || preview.DestinationReceivesCents != sourceCents {
 		t.Fatalf("preview = %#v, want remaining 0 and destination %d", preview, sourceCents)
 	}
-	if err := app.ReplaceShiftBalance(shift.ID, source.ID, destination.ID, entryCents); err != nil {
+	if err := app.ReplaceShiftBalance(shift.ID, source.ID, destination.ID, entryCents, false); err != nil {
 		t.Fatalf("submit rejected a swap the preview accepted: %v", err)
 	}
 	balances, err := app.ListShiftBalances(shift.ID)
@@ -356,14 +356,14 @@ func TestPreviewShiftBalanceReplacementNeverDivergesFromActualSubmit(t *testing.
 	defer fixture.database.Close()
 
 	// A valid partial swap: preview must match what actually happens.
-	preview, err := fixture.app.PreviewShiftBalanceReplacement(fixture.shiftID, fixture.sourceID, fixture.destinationID, 2000)
+	preview, err := fixture.app.PreviewShiftBalanceReplacement(fixture.shiftID, fixture.sourceID, fixture.destinationID, 2000, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !preview.Valid || preview.SourceRemainingCents != 3000 || preview.DestinationReceivesCents != 2000 {
 		t.Fatalf("preview = %#v, want valid with remaining 3000 and destination 2000", preview)
 	}
-	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 2000); err != nil {
+	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 2000, false); err != nil {
 		t.Fatalf("submit rejected a swap the preview said was valid: %v", err)
 	}
 	balances := fixtureBalances(t, fixture)
@@ -376,27 +376,27 @@ func TestPreviewShiftBalanceReplacementNeverDivergesFromActualSubmit(t *testing.
 
 	// Over the remaining source balance (3000 left): preview must say
 	// invalid, and an actual submit must also be rejected.
-	overPreview, err := fixture.app.PreviewShiftBalanceReplacement(fixture.shiftID, fixture.sourceID, fixture.destinationID, 4000)
+	overPreview, err := fixture.app.PreviewShiftBalanceReplacement(fixture.shiftID, fixture.sourceID, fixture.destinationID, 4000, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if overPreview.Valid || overPreview.Reason == "" {
 		t.Fatalf("preview accepted a swap larger than the remaining source balance: %#v", overPreview)
 	}
-	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 4000); err == nil {
+	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.sourceID, fixture.destinationID, 4000, false); err == nil {
 		t.Fatal("submit accepted a swap the preview said was invalid")
 	}
 
 	// A blocked account (On Account): preview must say invalid, matching
 	// the actual submit's rejection.
-	blockedPreview, err := fixture.app.PreviewShiftBalanceReplacement(fixture.shiftID, fixture.onAccountID, fixture.destinationID, 100)
+	blockedPreview, err := fixture.app.PreviewShiftBalanceReplacement(fixture.shiftID, fixture.onAccountID, fixture.destinationID, 100, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if blockedPreview.Valid {
 		t.Fatal("preview accepted a swap through a blocked On Account balance")
 	}
-	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.onAccountID, fixture.destinationID, 100); err == nil {
+	if err := fixture.app.ReplaceShiftBalance(fixture.shiftID, fixture.onAccountID, fixture.destinationID, 100, false); err == nil {
 		t.Fatal("submit accepted a swap through a blocked On Account balance")
 	}
 }

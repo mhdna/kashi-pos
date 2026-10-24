@@ -81,13 +81,13 @@
     <v-card class="attendance-card">
       <v-card-title class="d-flex align-center">
         {{ selectedDate }}<v-spacer /><span class="text-caption text-medium-emphasis"
-          >{{ rows.length }} employees</span
+          >{{ presentRows.length }} employees</span
         >
       </v-card-title>
       <v-progress-linear v-if="loading" indeterminate color="primary" />
       <v-list lines="two" class="attendance-list pa-2">
         <v-list-item
-          v-for="item in rows"
+          v-for="item in presentRows"
           :key="item.employeeId"
           class="attendance-item"
           rounded="lg"
@@ -113,15 +113,14 @@
                   <span class="attendance-event__label">{{ eventKind(event, Number(index)) }}</span>
                   <span class="attendance-event__time">{{ event.time }}</span>
                 </div>
-                <span v-if="!item.events.length" class="text-caption text-medium-emphasis">No attendance recorded</span>
               </div>
-              <div v-if="item.events.length" class="attendance-summary">
+              <div class="attendance-summary">
                 <span class="text-caption text-medium-emphasis">{{ item.events.length }} event{{ item.events.length === 1 ? "" : "s" }}</span>
               </div>
             </div>
           </div>
         </v-list-item>
-        <v-list-item v-if="!rows.length && !loading" class="attendance-empty text-medium-emphasis">
+        <v-list-item v-if="!presentRows.length && !loading" class="attendance-empty text-medium-emphasis">
           No attendance records for this day.
         </v-list-item>
       </v-list>
@@ -131,11 +130,21 @@
         ><v-card-title>Request attendance change</v-card-title
         ><v-card-text
           ><v-select
+            v-model="complaintAction"
+            :items="complaintActionOptions"
+            item-title="title"
+            item-value="value"
+            placeholder="Action"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="attendance-action-field mb-2"
+          /><v-select
             :model-value="complaintEmployee?.employeeId ?? null"
-            :items="rows"
+            :items="complaintPeople"
             item-title="employeeName"
             item-value="employeeId"
-            label="Person"
+            placeholder="Person"
             prepend-inner-icon="mdi-account-outline"
             variant="outlined"
             density="compact"
@@ -143,22 +152,12 @@
             class="mb-2"
             @update:model-value="selectComplaintPerson"
           /><v-select
-            v-model="complaintAction"
-            :items="complaintActionOptions"
-            item-title="title"
-            item-value="value"
-            label="Action"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="attendance-action-field mb-2"
-          /><v-select
             v-if="complaintAction !== 'add'"
             v-model="complaintEventId"
             :items="complaintEventOptions"
             item-title="title"
             item-value="value"
-            label="Attendance scan to modify"
+            placeholder="Attendance scan to modify"
             variant="outlined"
             density="compact"
             hide-details
@@ -176,7 +175,7 @@
               v-if="complaintAction !== 'delete'"
               v-model="complaintType"
               :items="['IN', 'OUT']"
-              label="IN / OUT"
+              placeholder="IN / OUT"
               variant="outlined"
               density="compact"
               hide-details
@@ -194,7 +193,7 @@
           ><v-btn
             color="primary"
             :loading="savingComplaint"
-            :disabled="!complaintEmployee"
+            :disabled="!complaintEmployee || (complaintAction !== 'add' && !complaintEventId)"
             @click="submitComplaint"
             >Submit request</v-btn
           ></v-card-actions
@@ -209,7 +208,7 @@
           <v-text-field
             v-model="managerDialog.password"
             type="password"
-            label="Manager password"
+            placeholder="Manager password"
             variant="outlined"
             density="compact"
             autofocus
@@ -250,6 +249,9 @@ const selectedDate = ref(today);
 const selectedMonth = ref(today.slice(0, 7));
 const loading = ref(false);
 const rows = ref<any[]>([]);
+// The day's list shows only people who punched; rows keeps everyone with an
+// attendance ID so a missed punch can still be requested for them.
+const presentRows = computed(() => rows.value.filter((r: any) => r.events.length));
 const complaints = ref<any[]>([]);
 const complaintDialog = ref(false);
 const complaintTime = ref("");
@@ -345,23 +347,36 @@ async function loadHistory() {
     complaints.value = await ListAttendanceComplaints(selectedMonth.value);
   } catch {}
 }
-// "add" is for a punch the device never recorded; replace/delete need one of
-// the person's existing punches to act on, so they're only offered when the
-// day has some.
+// The action is picked first and decides who can be picked. "add" is for a
+// punch the device never recorded, so anyone with an attendance ID; replace
+// and delete act on one of the person's punches, so only people who punched
+// that day -- and only offered when someone did.
 const complaintActionOptions = computed(() => {
   const options = [{ title: "Add missing punch", value: "add" }];
-  if (complaintEmployee.value?.events?.length) {
+  if (presentRows.value.length) {
     options.push({ title: "Replace", value: "replace" }, { title: "Delete", value: "delete" });
   }
   return options;
+});
+const complaintPeople = computed(() => (complaintAction.value === "add" ? rows.value : presentRows.value));
+// Switching from add to replace/delete: someone with no punches that day
+// can't stay picked; someone with punches gets their first one selected.
+watch(complaintAction, (action) => {
+  if (action === "add") return;
+  if (!complaintEmployee.value?.events?.length) {
+    complaintEmployee.value = null;
+    complaintEventId.value = null;
+  } else if (!complaintEventId.value) {
+    selectFirstComplaintEvent();
+  }
 });
 function requestSummary(item: any) {
   if (item.action === "add") return `Add ${item.requestedType} ${item.requestedTime}`;
   if (item.action === "delete") return `Delete ${item.originalTime}`;
   return `Replace ${item.originalTime} with ${item.requestedType} ${item.requestedTime}`;
 }
-// One "Request change" button by Requests; the person is picked in the
-// dialog, and the action/punch/time follow whoever is picked.
+// One "Request change" button by Requests; the action and then the person
+// are picked in the dialog, and the punch/time follow whoever is picked.
 function openRequestDialog() {
   complaintEmployee.value = null;
   complaintEventId.value = null;
@@ -371,19 +386,18 @@ function openRequestDialog() {
   complaintDialog.value = true;
 }
 function selectComplaintPerson(employeeId: number | null) {
-  const row = rows.value.find((r: any) => r.employeeId === employeeId);
-  if (row) openComplaint(row);
+  complaintEmployee.value = rows.value.find((r: any) => r.employeeId === employeeId) ?? null;
+  complaintEventId.value = null;
+  if (complaintAction.value !== "add") selectFirstComplaintEvent();
 }
-function openComplaint(row: any) {
-  complaintEmployee.value = row;
-  const first = row.events[0];
+// Replace/delete start on the person's first punch of the day, its time
+// and IN/OUT filled in.
+function selectFirstComplaintEvent() {
+  const first = complaintEmployee.value?.events?.[0];
   complaintEventId.value = first?.id ?? null;
-  complaintAction.value = first ? "replace" : "add";
-  // A missing punch is usually the day's first IN, or the OUT after the last
-  // recorded one.
-  complaintType.value = first ? eventKind(first, 0) : "IN";
-  setComplaintTime(first?.time || new Date().toTimeString().slice(0, 5));
-  complaintDialog.value = true;
+  if (!first) return;
+  setComplaintTime(first.time);
+  complaintType.value = eventKind(first, 0);
 }
 function selectComplaintEvent(id: number | null) {
   const index = (complaintEmployee.value?.events ?? []).findIndex((event: any) => event.id === id);

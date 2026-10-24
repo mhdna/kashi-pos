@@ -700,3 +700,53 @@ func TestExchangeReplacementIsPricedFromListsNotTheProductRow(t *testing.T) {
 		t.Fatal("an unpriced replacement must be refused, not sold off the frozen product row")
 	}
 }
+
+// The "Unknown item" placeholder has no list price, so an exchange may sell
+// it at a typed per-unit price even with custom and per-unit pricing off --
+// the picture session, not the flags, vouches for it (see
+// CheckoutExchangeInvoice). The picture check itself runs a layer above, so
+// this goes in below it.
+func TestExchangeReplacementAllowsTypedPriceForUnknownItem(t *testing.T) {
+	app, sourceID, salesperson, _, _ := newExchangeReplacementPricingFixture(t)
+	unknown, err := ensureUnknownProduct(app.ctx, app.store.Queries, app.unknownBarcode())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	items, _ := json.Marshal([]exchangeLine{
+		{Code: "RETURN-P", Qty: -1},
+		{Code: unknown.Code, Barcode: unknown.Barcode, Qty: 1, UnitPricesCents: []int64{1000}},
+	})
+	if _, err := app.checkoutReturnExchangeInvoice(string(items), "[]", sourceID, salesperson.ID, "", 0, posExchangePolicy); err != nil {
+		t.Fatalf("exchange with a typed-price unknown item: %v", err)
+	}
+	lines, err := app.store.ListInvoiceProducts(app.ctx, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sold int
+	for _, line := range lines {
+		if line.Quantity > 0 {
+			sold++
+			if line.UnitPrice != 1000 {
+				t.Fatalf("unknown item unit price = %d, want the typed 1000", line.UnitPrice)
+			}
+		}
+	}
+	if sold != 1 {
+		t.Fatalf("sold lines = %d, want 1", sold)
+	}
+}
+
+// Only what an exchange sells needs a picture: a returned unknown item has a
+// negative quantity.
+func TestUnknownUnitCountIgnoresReturnedLines(t *testing.T) {
+	items := []salesInvoiceItem{
+		{Barcode: "UNKNOWN", Qty: -2},
+		{Barcode: "UNKNOWN", Qty: 3},
+		{Barcode: "OTHER", Qty: 5},
+	}
+	if got := unknownUnitCount(items, "UNKNOWN", "UNKNOWN"); got != 3 {
+		t.Fatalf("unknownUnitCount = %d, want 3", got)
+	}
+}

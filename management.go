@@ -225,14 +225,53 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 // cashbox to another without changing the original invoice payments.
 // amountCents is always in the accounting currency (USD cents), including
 // when the source or destination cashbox is denominated in LBP.
-func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCents int64) error {
+//
+// allowNegative picks between the two ways of moving value:
+//   - false (a swap): moves part or all of the source's balance, keeping its
+//     sign, and can never take the source past zero.
+//   - true (a transfer): takes amountCents out of the source and adds it to
+//     the destination whatever the source holds, so the source may go (or
+//     go further) negative - e.g. LBP cash handed out as change that was
+//     really settled by a Whish transfer.
+//
+// Only an admin may leave the source negative this way; kashi's remote
+// command goes through replaceShiftBalance, since kashi checks its own
+// user's permission before queuing it.
+func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCents int64, allowNegative bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	check, err := a.checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents)
+	check, err := a.checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents, allowNegative)
 	if err != nil {
 		return err
 	}
+	if err := a.checkNegativeTransferAllowed(check); err != nil {
+		return err
+	}
+	return a.writeShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, check)
+}
+
+// replaceShiftBalance is ReplaceShiftBalance without the admin check, for
+// kashi's remote replace_shift_balance command.
+func (a *App) replaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCents int64, allowNegative bool) error {
+	check, err := a.checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents, allowNegative)
+	if err != nil {
+		return err
+	}
+	return a.writeShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, check)
+}
+
+// checkNegativeTransferAllowed refuses a non-admin a transfer that leaves
+// the source balance below zero. A transfer that keeps the source at or
+// above zero is no different from an ordinary swap, so anyone may do it.
+func (a *App) checkNegativeTransferAllowed(check shiftBalanceReplacementCheck) error {
+	if check.SourceRemainingCents < 0 && !a.currentUserIsAdmin() {
+		return fmt.Errorf("only an admin can take a balance below zero")
+	}
+	return nil
+}
+
+func (a *App) writeShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID int64, check shiftBalanceReplacementCheck) error {
 	return a.store.ExecTx(a.ctx, func(q *db.Queries) error {
 		return q.CreateShiftBalanceReplacement(a.ctx, db.CreateShiftBalanceReplacementParams{
 			ShiftID: shiftID, FromCashboxID: fromCashboxID, ToCashboxID: toCashboxID, Amount: check.SignedAmount,
@@ -245,20 +284,25 @@ func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 // ReplaceShiftBalance itself applies, so the preview can never diverge
 // from what a submit would actually do.
 type ShiftBalanceReplacementPreview struct {
-	Valid                    bool   `json:"valid"`
-	Reason                   string `json:"reason"`
-	SourceRemainingCents     int64  `json:"sourceRemainingCents"`
-	DestinationReceivesCents int64  `json:"destinationReceivesCents"`
+	Valid  bool   `json:"valid"`
+	Reason string `json:"reason"`
+	// SourceRemainingCents is the magnitude left in the source after a swap,
+	// or the source's signed balance after a transfer (it can be negative).
+	SourceRemainingCents     int64 `json:"sourceRemainingCents"`
+	DestinationReceivesCents int64 `json:"destinationReceivesCents"`
 }
 
 // PreviewShiftBalanceReplacement validates a proposed balance swap without
 // applying it. A validation failure is returned as Valid=false with a
 // Reason, not a Go error, so the frontend can show it inline.
-func (a *App) PreviewShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents int64) (ShiftBalanceReplacementPreview, error) {
+func (a *App) PreviewShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents int64, allowNegative bool) (ShiftBalanceReplacementPreview, error) {
 	if a.store == nil {
 		return ShiftBalanceReplacementPreview{}, fmt.Errorf("database not initialized")
 	}
-	check, err := a.checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents)
+	check, err := a.checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents, allowNegative)
+	if err == nil {
+		err = a.checkNegativeTransferAllowed(check)
+	}
 	if err != nil {
 		return ShiftBalanceReplacementPreview{Reason: err.Error()}, nil
 	}
@@ -275,7 +319,7 @@ type shiftBalanceReplacementCheck struct {
 	SignedAmount             int64
 }
 
-func (a *App) checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents int64) (shiftBalanceReplacementCheck, error) {
+func (a *App) checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents int64, allowNegative bool) (shiftBalanceReplacementCheck, error) {
 	var check shiftBalanceReplacementCheck
 	if shiftID <= 0 || fromCashboxID <= 0 || toCashboxID <= 0 || fromCashboxID == toCashboxID {
 		return check, fmt.Errorf("choose different balance accounts")
@@ -324,6 +368,15 @@ func (a *App) checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, 
 		} else if strings.EqualFold(from.CurrencyCode, "LBP") {
 			sourceTotal += lbpFloatCents
 		}
+	}
+	if allowNegative {
+		// A transfer moves exactly what was asked, out of the source and into
+		// the destination, with no cap: the source keeps whatever is left,
+		// negative included.
+		check.SourceRemainingCents = sourceTotal - amountCents
+		check.DestinationReceivesCents = amountCents
+		check.SignedAmount = amountCents
+		return check, nil
 	}
 	sourceMagnitude := absInt64(sourceTotal)
 	// The swap dialog autofills the amount by rounding the source balance to

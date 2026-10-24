@@ -29,6 +29,8 @@ const (
 
 type receiptCanvas struct {
 	data     printReceiptData
+	style    receiptStyle
+	layout   receiptLayoutSpec
 	img      *image.RGBA
 	width    int
 	margin   int
@@ -59,16 +61,28 @@ func renderReceiptRaster(data printReceiptData) (*image.RGBA, error) {
 	if data.ReceiptWidth > 0 && data.ReceiptWidth <= 58 {
 		width = raster58mmWidth
 	}
-	estimatedHeight := 1900 + len(data.Items)*110 + len(data.SocialPlatforms)*60 + len(data.ReturnPolicy)*2
+	// The canvas is allocated up front, so this is an upper estimate; the
+	// drawn height is checked below. Themed layouts can take more room per
+	// item than the classic one, and narrow paper wraps names further.
+	estimatedHeight := 1900 + len(data.Items)*150 + len(data.SocialPlatforms)*60 + len(data.ReturnPolicy)*2
 	if data.ShiftReport != nil {
 		estimatedHeight = 2400 + len(data.ShiftReport.Payments)*60
 	}
 	if estimatedHeight > rasterMaxHeight {
-		return nil, fmt.Errorf("receipt is too long to render safely")
+		if data.ShiftReport != nil || len(data.Items) > 120 {
+			return nil, fmt.Errorf("receipt is too long to render safely")
+		}
+		estimatedHeight = rasterMaxHeight
 	}
 
+	theme, layout := resolveReceiptTheme(defaultReceiptTheme, defaultReceiptLayout)
+	if data.ShiftReport == nil {
+		theme, layout = resolveReceiptTheme(data.Theme, data.Layout)
+	}
 	c := &receiptCanvas{
 		data:     data,
+		style:    theme.Style,
+		layout:   layout,
 		img:      image.NewRGBA(image.Rect(0, 0, width, estimatedHeight)),
 		width:    width,
 		margin:   24,
@@ -109,13 +123,20 @@ func firstRasterInkRow(img *image.RGBA, height int) int {
 	return 0
 }
 
+// gap is a vertical space of n pixels plus the theme's extra breathing room.
+func (c *receiptCanvas) gap(n int) int { return n + c.style.Gap }
+
 func (c *receiptCanvas) drawReceipt() (int, error) {
 	y := 0
 	var err error
-	if y, err = c.center(y, c.data.StoreName, c.data.TitleSize, true, true); err != nil {
+	store, branch := c.data.StoreName, c.data.Branch
+	if c.style.UpperStore {
+		store, branch = strings.ToUpper(store), strings.ToUpper(branch)
+	}
+	if y, err = c.center(y, store, c.data.TitleSize*c.titleFactor(), true, true); err != nil {
 		return 0, err
 	}
-	y += 4
+	y += c.gap(4)
 	branchPhone := c.data.BranchPhone
 	if branchPhone == "" {
 		branchPhone = c.data.Phone
@@ -128,66 +149,36 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if phoneSize <= 0 {
 		phoneSize = c.data.BodySize - 1
 	}
-	if c.data.Branch != "" {
-		y, _ = c.center(y+2, c.data.Branch, branchSize, false, true)
-		y += 10
+	if branch != "" {
+		y, _ = c.center(y+2, branch, branchSize, false, true)
+		y += c.gap(10)
 	}
 	if branchPhone != "" {
 		y, _ = c.center(y, branchPhone, phoneSize, false, true)
-		y += 12
+		y += c.gap(12)
 	}
 	// Receipt description temporarily disabled.
 	// if c.data.Description != "" {
 	// 	y, _ = c.centerWrappedNormal(y, c.data.Description, c.data.BodySize-1, 8)
 	// }
-	y, _ = c.center(y+8, receiptInvoiceLabel(c.data.ReceiptNo)+": "+c.data.ReceiptNo, c.data.BodySize-1, true, false)
-	y += 8
+	y, _ = c.center(y+c.gap(8), receiptInvoiceLabel(c.data.ReceiptNo)+": "+c.data.ReceiptNo, c.data.BodySize-1, true, false)
+	y += c.gap(8)
 	if strings.TrimSpace(c.data.Website) != "" {
 		y, _ = c.center(y, strings.TrimSpace(c.data.Website), c.data.BodySize-1.5, true, false)
-		y += 8
+		y += c.gap(8)
 	}
-	y = c.rule(y) + 10
-
-	metadata := []string{
-		"Customer: " + fallbackReceiptValue(c.data.Customer, "Walk-in"),
-		"Salesperson: " + formatReceiptSalesperson(c.data.Salesperson),
-		"Date: " + currentReceiptDate(),
-	}
-	for _, line := range metadata {
-		y, _ = c.left(y, line, c.data.BodySize-1, false)
-		y += 8
-	}
+	y = c.ruleLine(y) + c.gap(10)
+	y = c.drawMeta(y)
 	if strings.TrimSpace(c.data.Notes) != "" {
-		y += 6
+		y += c.gap(6)
 		y, _ = c.left(y, "Note: "+strings.TrimSpace(c.data.Notes), c.data.BodySize-1, false)
-		y += 8
+		y += c.gap(8)
 	}
-	y = c.rule(y) + 10
-	y, _ = c.twoCol(y, "ITEM", "TOTAL", c.data.BodySize, true)
-	y = c.rule(y+6) + 10
+	y = c.ruleLine(y) + c.gap(10)
 
-	var subtotal, discountTotal float64
-	for _, item := range c.data.Items {
-		gross := item.Qty * item.Price
-		discount := gross * item.Discount / 100
-		lineTotal := gross - discount
-		subtotal += gross
-		discountTotal += discount
-		y, _ = c.itemRow(y, item.Name, fmt.Sprintf("$%.2f", lineTotal), 11)
-		y += 5
-		if item.Code != "" {
-			y, _ = c.indented(y, "Code: "+item.Code, 10)
-			y += 3
-		}
-		qty := fmt.Sprintf("%.0f x $%.2f", item.Qty, item.Price)
-		if item.Discount > 0 {
-			qty += fmt.Sprintf("  (-%.0f%% = -$%.2f)", item.Discount, discount)
-		}
-		y, _ = c.indented(y, qty, 10)
-		y += 7
-	}
+	y, subtotal, discountTotal := c.layout.draw(c, y)
 
-	y = c.rule(y) + 10
+	y = c.ruleLine(y) + c.gap(10)
 	grandTotal := float64(c.data.GrandTotalCents) / 100
 	// See buildESCPosReceipt: the grand total already carries the cash-grid
 	// snap, so tax has to come from the invoice rather than be inferred from
@@ -201,26 +192,26 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if math.Abs(rounding) > 0.005 {
 		rows = append(rows, [2]string{"Rounding", fmt.Sprintf("$%.2f", rounding)})
 	}
+	if c.style.ItemCount {
+		var units float64
+		for _, item := range c.data.Items {
+			units += item.Qty
+		}
+		rows = append(rows, [2]string{"Items", fmt.Sprintf("%.0f", units)})
+	}
+	if c.style.Savings && discountTotal > 0 {
+		rows = append(rows, [2]string{"You saved", fmt.Sprintf("$%.2f", discountTotal)})
+	}
 	for _, row := range rows {
 		y, _ = c.twoCol(y, row[0], row[1], 11, true)
-		y += 7
+		y += c.gap(7)
 	}
-	boxTop := c.rule(y) + 12
-	y = boxTop + 8
-	y, _ = c.twoCol(y, "TOTAL", fmt.Sprintf("$%.2f", grandTotal), 13, true)
-	y += 8
-	if currency := c.data.RoundingCurrency; currency.UnitsPerUsdMicros > 0 {
-		if rounded, err := roundCurrencyUnitsFromCents(c.data.GrandTotalCents, currency.UnitsPerUsdMicros, currency.CashRoundingUnit, c.data.RoundingMode); err == nil {
-			y, _ = c.twoCol(y, currency.Code+" TOTAL", formatInt(rounded)+" "+currency.Symbol, 11, true)
-			y += 8
-		}
-	}
-	c.dottedBox(boxTop, y-boxTop)
-	y += 6
+	y = c.drawTotal(y, grandTotal)
+	y += c.gap(6)
 
 	if len(c.data.Payments) > 0 {
 		y, _ = c.center(y, "PAYMENT DETAILS", c.data.BodySize-1, true, false)
-		y += 8
+		y += c.gap(8)
 		for _, payment := range c.data.Payments {
 			label := payment.AccountName
 			if label == "" {
@@ -232,21 +223,21 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 				label = "Received - " + label
 			}
 			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, c.data.RoundingMode), 10, true)
-			y += 7
+			y += c.gap(7)
 		}
 	}
 
 	if len(c.data.Payments) > 0 {
-		y = c.rule(y) + 10
+		y = c.ruleLine(y) + c.gap(10)
 	}
 	y, _ = c.center(y, "EXCHANGE POLICY", c.data.BodySize-1.5, true, false)
-	y += 8
+	y += c.gap(8)
 	policy := c.data.ReturnPolicy
 	if policy == "" {
-		policy = "Exchanges accepted within 3 days. Items must be unworn, unused, unwashed, undamaged, with tags. Present this receipt."
+		policy = "Exchange within 3 days if items are unworn, unwashed and with tags.\nPlease present this receipt."
 	}
-	y, _ = c.centerWrappedNormal(y, policy, c.data.BodySize-2.5, 8)
-	y = c.rule(y+6) + 10
+	y, _ = c.centerWrappedNormal(y, policy, c.data.BodySize-2.5, 2)
+	y = c.ruleLine(y+c.gap(6)) + c.gap(10)
 
 	socials := socialFooterItems(c.data.SocialPlatforms, c.data.SocialHandles)
 	if len(socials) > 0 {
@@ -254,15 +245,19 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		if rowBottom, err = c.socialFooterRow(y, socials); err != nil {
 			return 0, err
 		}
-		y = rowBottom + 10
+		y = rowBottom + c.gap(10)
 		// Match the PDF receipt: show one centered handle beneath the icon row.
 		if y, err = c.center(y, socials[0].handle, c.data.BodySize-1.5, false, false); err != nil {
 			return 0, err
 		}
-		y += 8
+		y += c.gap(8)
 	}
-	y += 10
-	y, _ = c.center(y, "Thank you for shopping with us!", c.data.BodySize-1, true, false)
+	y += c.gap(10)
+	thanks := c.style.Thanks
+	if thanks == "" {
+		thanks = "Thank you for shopping with us!"
+	}
+	y, _ = c.center(y, thanks, c.data.BodySize-1, true, false)
 	y += 56
 	// Printer barcode temporarily disabled.
 	// y = c.barcode(y, c.data.ReceiptNo) + 24
@@ -270,33 +265,101 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	return y, nil
 }
 
+// fontRole is which of a theme's fonts a piece of text uses.
+type fontRole int
+
+const (
+	roleBody fontRole = iota
+	roleBodyBold
+	roleTitle
+	roleTitleBold
+	roleName // item names
+)
+
+func fontRoleFor(bold, title bool) fontRole {
+	switch {
+	case title && bold:
+		return roleTitleBold
+	case title:
+		return roleTitle
+	case bold:
+		return roleBodyBold
+	}
+	return roleBody
+}
+
 func (c *receiptCanvas) face(size float64, bold, title bool) (font.Face, error) {
-	key := fmt.Sprintf("%.2f:%t:%t", size, bold, title)
+	return c.faceRole(size, fontRoleFor(bold, title))
+}
+
+// titleFactor and bodyFactor are the theme's point-size scales; a zero value
+// (the classic style) means 1.
+func (c *receiptCanvas) titleFactor() float64 {
+	if c.style.TitleScale > 0 {
+		return c.style.TitleScale
+	}
+	return 1
+}
+
+func (c *receiptCanvas) bodyFactor() float64 {
+	if c.style.BodyScale > 0 {
+		return c.style.BodyScale
+	}
+	return 1
+}
+
+func (c *receiptCanvas) faceRole(size float64, role fontRole) (font.Face, error) {
+	key := fmt.Sprintf("%.2f:%d", size, role)
 	if face := c.faces[key]; face != nil {
 		return face, nil
 	}
-	fontData := gomono.TTF
-	if title {
-		fontData = goregular.TTF
-		if bold {
+	title := role == roleTitle || role == roleTitleBold
+	bold := role == roleBodyBold || role == roleTitleBold || role == roleName
+	scale := c.bodyFactor()
+	var fontData []byte
+	if fonts := c.style.Fonts; fonts != nil {
+		switch role {
+		case roleTitle:
+			fontData = fonts.Title
+		case roleTitleBold:
+			fontData = fonts.TitleBold
+		case roleBodyBold:
+			fontData = fonts.BodyBold
+		case roleName:
+			fontData = fonts.Name
+			if fontData == nil {
+				fontData = fonts.BodyBold
+			}
+		default:
+			fontData = fonts.Body
+		}
+		if title {
+			scale = c.titleFactor()
+		}
+	} else {
+		fontData = gomono.TTF
+		if title {
+			fontData = goregular.TTF
+			if bold {
+				fontData = gobold.TTF
+			}
+		} else if bold {
 			fontData = gobold.TTF
 		}
-	} else if bold {
-		fontData = gobold.TTF
-	}
-	if (title && c.data.Font == "Belleza") || (!title && c.data.BodyFont == "Belleza") {
-		fontData = bellezaFont
-	} else if !title && (c.data.BodyFont == "CascadiaMono" || c.data.BodyFont == "Helvetica" || c.data.BodyFont == "Courier" || c.data.BodyFont == "Printer Font A") {
-		fontData = cascadiaMonoRegular
-		if bold {
-			fontData = cascadiaMonoBold
+		if (title && c.data.Font == "Belleza") || (!title && c.data.BodyFont == "Belleza") {
+			fontData = bellezaFont
+		} else if !title && (c.data.BodyFont == "CascadiaMono" || c.data.BodyFont == "Helvetica" || c.data.BodyFont == "Courier" || c.data.BodyFont == "Printer Font A") {
+			fontData = cascadiaMonoRegular
+			if bold {
+				fontData = cascadiaMonoBold
+			}
 		}
 	}
 	parsed, err := opentype.Parse(fontData)
 	if err != nil {
 		return nil, fmt.Errorf("parse receipt font: %w", err)
 	}
-	face, err := opentype.NewFace(parsed, &opentype.FaceOptions{Size: size * 2.6, DPI: 72, Hinting: font.HintingFull})
+	face, err := opentype.NewFace(parsed, &opentype.FaceOptions{Size: size * scale * 2.6, DPI: 72, Hinting: font.HintingFull})
 	if err != nil {
 		return nil, fmt.Errorf("create receipt font: %w", err)
 	}
@@ -305,14 +368,20 @@ func (c *receiptCanvas) face(size float64, bold, title bool) (font.Face, error) 
 }
 
 func (c *receiptCanvas) text(x, y int, value string, size float64, bold, title bool) (int, error) {
-	face, err := c.face(size, bold, title)
+	return c.textRole(x, y, value, size, fontRoleFor(bold, title), image.Black)
+}
+
+func (c *receiptCanvas) textRole(x, y int, value string, size float64, role fontRole, ink image.Image) (int, error) {
+	face, err := c.faceRole(size, role)
 	if err != nil {
 		return y, err
 	}
 	metrics := face.Metrics()
-	drawer := font.Drawer{Dst: c.img, Src: image.Black, Face: face, Dot: fixed.P(x, y+metrics.Ascent.Ceil())}
+	drawer := font.Drawer{Dst: c.img, Src: ink, Face: face, Dot: fixed.P(x, y+metrics.Ascent.Ceil())}
 	drawer.DrawString(value)
-	if bold && ((title && c.data.Font == "Belleza") || (!title && c.data.BodyFont == "Belleza")) {
+	title := role == roleTitle || role == roleTitleBold
+	bold := role == roleBodyBold || role == roleTitleBold || role == roleName
+	if c.style.Fonts == nil && bold && ((title && c.data.Font == "Belleza") || (!title && c.data.BodyFont == "Belleza")) {
 		drawer.Dot = fixed.P(x+1, y+metrics.Ascent.Ceil())
 		drawer.DrawString(value)
 	}
@@ -320,7 +389,11 @@ func (c *receiptCanvas) text(x, y int, value string, size float64, bold, title b
 }
 
 func (c *receiptCanvas) measure(value string, size float64, bold, title bool) (int, error) {
-	face, err := c.face(size, bold, title)
+	return c.measureRole(value, size, fontRoleFor(bold, title))
+}
+
+func (c *receiptCanvas) measureRole(value string, size float64, role fontRole) (int, error) {
+	face, err := c.faceRole(size, role)
 	if err != nil {
 		return 0, err
 	}
@@ -565,6 +638,8 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	const (
 		iconSize = 32
 		gap      = 16
+		// labelGap keeps the first icon off the colon.
+		labelGap = 10
 	)
 
 	label := "Follow us on:"
@@ -572,7 +647,7 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	if err != nil {
 		return y, err
 	}
-	rowWidth := labelWidth + len(items)*iconSize + (len(items)-1)*gap
+	rowWidth := labelWidth + labelGap + len(items)*iconSize + (len(items)-1)*gap
 	startX := c.margin + (c.contentW-rowWidth)/2
 	if startX < c.margin {
 		startX = c.margin
@@ -581,7 +656,7 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 		return y, err
 	}
 
-	x := startX + labelWidth
+	x := startX + labelWidth + labelGap
 	rowBottom := y
 	for _, item := range items {
 		iconBytes := socialPlatformIconBytes(item.platform)

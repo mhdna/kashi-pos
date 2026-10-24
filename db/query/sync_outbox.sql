@@ -139,3 +139,18 @@ SELECT status FROM sync_outbox WHERE client_ref = ?;
 -- Drops a row kashi never accepted, so deleting its invoice locally also
 -- stops it from being uploaded later. A synced row is left alone.
 DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced';
+
+-- name: SetUnsyncedSyncOutboxField :execrows
+-- Changes one top-level field of a row kashi hasn't accepted yet (an
+-- expense re-categorised before it synced), so the edit goes up with the
+-- record itself. 0 rows: it's synced (or was never queued).
+UPDATE sync_outbox
+SET payload_json = json_set(payload_json, sqlc.arg(field_path), sqlc.arg(value))
+WHERE client_ref = sqlc.arg(client_ref) AND status != 'synced';
+
+-- name: SetUnsyncedSyncOutboxJSONField :execrows
+-- SetUnsyncedSyncOutboxField for a value that isn't a string: json_value is
+-- JSON text ('true', '12'), stored as that JSON value.
+UPDATE sync_outbox
+SET payload_json = json_set(payload_json, sqlc.arg(field_path), json(sqlc.arg(json_value)))
+WHERE client_ref = sqlc.arg(client_ref) AND status != 'synced';

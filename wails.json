@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "gb-cloud",
-  "outputfilename": "Kashi-Cloud",
+  "outputfilename": "GB-Cloud",
   "frontend:install": "pnpm install",
   "frontend:build": "pnpm run build",
   "frontend:dev:watcher": "pnpm run dev",
@@ -11,9 +11,9 @@
     "email": "admin@example.com"
   },
   "info": {
-    "companyName": "Kashi",
-    "productName": "Kashi Cloud",
-    "productVersion": "1.0.9.3",
-    "copyright": "Copyright © Kashi"
+    "companyName": "GB",
+    "productName": "GB Cloud",
+    "productVersion": "1.1.48.0",
+    "copyright": "Copyright © GB"
   }
 }

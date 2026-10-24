@@ -2,8 +2,7 @@
   <v-menu
     v-model="open"
     :close-on-content-click="false"
-    location="bottom"
-    offset="6"
+    :location-strategy="placeOnce"
   >
     <template #activator="{ props: activatorProps }">
       <slot
@@ -168,6 +167,46 @@ const activatorMinWidthCh = computed(() => {
   const affixChars = (props.prefix.length || 0) + (props.suffix.length || 0);
   return digits + affixChars + (affixChars ? affixChars * 0.5 : 0);
 });
+
+// While the pad is open it stays where it opened. Vuetify's own placement
+// re-runs whenever the activator or its row changes size -- and typing does
+// exactly that (58 is wider than 5, the line total grows) -- so the pad slid
+// around on every key. placeOnce puts it under the activator (above, when
+// there's no room below), once, after it opens; Vuetify only calls it again
+// on a window resize or a viewport scroll.
+const PAD_GAP = 6;
+const VIEWPORT_MARGIN = 8;
+
+function placeOnce(
+  data: { target: Ref<unknown>; contentEl: Ref<HTMLElement | undefined> },
+  _props: unknown,
+  contentStyles: Ref<Record<string, string>>,
+) {
+  function place() {
+    const target = data.target.value as HTMLElement | [number, number] | undefined;
+    const content = data.contentEl.value;
+    if (!target || !content) return;
+    const rect = Array.isArray(target)
+      ? { left: target[0], right: target[0], top: target[1], bottom: target[1] }
+      : target.getBoundingClientRect();
+    const width = content.offsetWidth;
+    const height = content.offsetHeight;
+    const left = Math.min(
+      Math.max(VIEWPORT_MARGIN, (rect.left + rect.right) / 2 - width / 2),
+      window.innerWidth - width - VIEWPORT_MARGIN,
+    );
+    let top = rect.bottom + PAD_GAP;
+    if (top + height > window.innerHeight - VIEWPORT_MARGIN) {
+      top = Math.max(VIEWPORT_MARGIN, rect.top - PAD_GAP - height);
+    }
+    contentStyles.value = { position: "fixed", left: `${left}px`, top: `${top}px` };
+  }
+  // The content has its size only once it's rendered; until then it stays
+  // hidden rather than flash in a corner.
+  contentStyles.value = { position: "fixed", visibility: "hidden" };
+  requestAnimationFrame(place);
+  return { updateLocation: place };
+}
 
 watch(open, (value) => {
   if (value) {

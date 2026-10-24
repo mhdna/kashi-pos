@@ -471,3 +471,92 @@ func TestApprovedReplaceUploadsChangedPunchAndOriginalRef(t *testing.T) {
 		t.Fatalf("uploaded punch = %+v, want 09:00 changed by 'kashi: admin' from 09:20:00", punch)
 	}
 }
+
+// The device keeps every punch it logged, so the next pull after an approved
+// delete returns the deleted punch again; it must stay deleted.
+func TestSyncAttendanceKeepsDeletedPunchDeleted(t *testing.T) {
+	app, store := setUpTestAttendanceApp(t, "http://localhost:9999")
+	if err := app.UpdateAttendanceApproverPassword("secret"); err != nil {
+		t.Fatal(err)
+	}
+	sp := makeSalesperson(t, app, store, "Dina", "U4")
+	host := fakeAkuvox(t, []map[string]string{
+		{"ID": "d1", "UserID": "U4", "Name": "Dina", "Date": "2026-08-23", "Time": "09:00:00", "Type": "IN", "Status": "Success"},
+	})
+	if err := app.UpdateAttendanceConfig(host, "", "", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.SyncAttendance("2026-08-23"); err != nil {
+		t.Fatal(err)
+	}
+	var eventID int64
+	if err := app.conn.QueryRowContext(app.ctx, `SELECT id FROM salesperson_attendance_events WHERE salesperson_id = ?`, sp.ID).Scan(&eventID); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.SubmitAttendanceComplaint(sp.ID, "2026-08-23", eventID, "09:00", "IN", "delete", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.ApproveAttendanceComplaint(lastChangeRequestID(t, app), true, "secret"); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := app.SyncAttendance("2026-08-23")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result["events"] != 0 {
+		t.Errorf("imported %v events on the second pull, want 0", result["events"])
+	}
+	var count int
+	if err := app.conn.QueryRowContext(app.ctx, `SELECT COUNT(*) FROM salesperson_attendance_events WHERE salesperson_id = ?`, sp.ID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Errorf("deleted punch came back: %d rows, want 0", count)
+	}
+	if entries := outboxByType(t, app, store, "attendance_events"); len(entries) != 1 {
+		t.Errorf("attendance_events outbox entries = %d, want 1 (the first pull only)", len(entries))
+	}
+}
+
+// A till that already pulled a deleted punch back (before the fix) drops it
+// on its next sync.
+func TestSyncAttendanceRemovesPunchPulledBackBeforeFix(t *testing.T) {
+	app, store := setUpTestAttendanceApp(t, "http://localhost:9999")
+	sp := makeSalesperson(t, app, store, "Eli", "U5")
+	host := fakeAkuvox(t, []map[string]string{
+		{"ID": "d1", "UserID": "U5", "Name": "Eli", "Date": "2026-08-24", "Time": "09:00:00", "Type": "IN", "Status": "Success"},
+	})
+	if err := app.UpdateAttendanceConfig(host, "", "", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.SyncAttendance("2026-08-24"); err != nil {
+		t.Fatal(err)
+	}
+	var eventID int64
+	if err := app.conn.QueryRowContext(app.ctx, `SELECT id FROM salesperson_attendance_events WHERE salesperson_id = ?`, sp.ID).Scan(&eventID); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.SubmitAttendanceComplaint(sp.ID, "2026-08-24", eventID, "09:00", "IN", "delete", ""); err != nil {
+		t.Fatal(err)
+	}
+	// The audit copy an approved delete leaves, with the punch still present
+	// as the old import loop left it.
+	if _, err := app.conn.ExecContext(app.ctx, `INSERT INTO attendance_event_audit
+		(request_id, original_event_id, device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status, action, audited_at, approved_by)
+		SELECT ?, id, device_id, event_id, salesperson_id, attendance_user_id, salesperson_name, event_date, event_time, event_at, type, status, 'delete', '2026-08-24 10:00:00', 'manager approval'
+		FROM salesperson_attendance_events WHERE salesperson_id = ?`, lastChangeRequestID(t, app), sp.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := app.SyncAttendance("2026-08-24"); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := app.conn.QueryRowContext(app.ctx, `SELECT COUNT(*) FROM salesperson_attendance_events WHERE salesperson_id = ?`, sp.ID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Errorf("pulled-back punch still there: %d rows, want 0", count)
+	}
+}

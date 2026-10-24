@@ -23,7 +23,8 @@
         <RecordPhoto :cache-key="`loan-thumb-${item.clientRef}-${photoVersion[item.clientRef] ?? 0}`" :load="() => firstLoanPhoto(item.clientRef, 96)" />
       </template>
       <template #item.description="{ item }">
-        <span class="font-weight-medium">{{ item.description || "—" }}</span>
+        <span class="font-weight-medium" :class="{ 'text-decoration-line-through': item.cancelledAt }">{{ item.description || "—" }}</span>
+        <v-chip v-if="item.cancelledAt" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</v-chip>
       </template>
       <template #item.category="{ item }">
         <v-chip v-if="item.category" size="small" variant="tonal" :color="categoryOf(item.category)?.color || 'blue-grey'" :prepend-icon="categoryOf(item.category)?.icon || 'mdi-tag-outline'">
@@ -32,7 +33,7 @@
         <span v-else class="text-medium-emphasis">—</span>
       </template>
       <template #item.amount="{ item }">
-        <span class="font-weight-bold">{{ formatCents(item.amount) }} {{ item.currencyCode }}</span>
+        <span class="font-weight-bold" :class="{ 'text-decoration-line-through text-medium-emphasis': item.cancelledAt }">{{ formatCents(item.amount) }} {{ item.currencyCode }}</span>
       </template>
       <template #item.occurredAt="{ item }">{{ formatServerDateTime(item.occurredAt) }}</template>
     </v-data-table-virtual>
@@ -49,12 +50,30 @@
         </v-card-title>
         <v-card-text>
           <div class="overview-grid">
-            <div class="overview-card">
-              <v-avatar size="36" :color="categoryOf(selected.category)?.color || 'blue-grey'" variant="tonal">
-                <v-icon :icon="categoryOf(selected.category)?.icon || 'mdi-tag-outline'" size="20" />
-              </v-avatar>
-              <div class="overview-value">{{ selected.category || "No category" }}</div>
-            </div>
+            <!-- Tap to change the category; kashi gets the change too. -->
+            <v-menu location="bottom start">
+              <template #activator="{ props: menuProps }">
+                <button type="button" class="overview-card overview-card--edit" v-bind="menuProps" :disabled="categorySaving">
+                  <v-avatar size="36" :color="categoryOf(selected.category)?.color || 'blue-grey'" variant="tonal">
+                    <v-icon :icon="categoryOf(selected.category)?.icon || 'mdi-tag-outline'" size="20" />
+                  </v-avatar>
+                  <div class="overview-value">{{ selected.category || "No category" }}</div>
+                  <v-progress-circular v-if="categorySaving" indeterminate size="16" width="2" class="ms-auto" />
+                  <v-icon v-else icon="mdi-pencil-outline" size="18" class="ms-auto text-medium-emphasis" />
+                </button>
+              </template>
+              <v-list density="compact" max-height="360">
+                <v-list-item
+                  v-for="category in loanCategories"
+                  :key="category.id"
+                  :title="category.name"
+                  :prepend-icon="category.icon || 'mdi-tag-outline'"
+                  :base-color="category.color || undefined"
+                  :active="selected.category === category.name"
+                  @click="setCategory(category.name)"
+                />
+              </v-list>
+            </v-menu>
             <div class="overview-card">
               <v-icon icon="mdi-cash" color="primary" />
               <div class="overview-value">{{ formatCents(selected.amount) }} {{ selected.currencyCode }}</div>
@@ -68,18 +87,44 @@
           <div class="section-label mt-5 mb-2">Photos</div>
           <div v-if="detailPhotosLoading" class="d-flex justify-center pa-6"><v-progress-circular indeterminate /></div>
           <div v-else-if="detailPhotos.length" class="photo-strip">
-            <img v-for="(src, i) in detailPhotos" :key="i" :src="src" alt="Loan photo" class="photo-full" />
+            <img v-for="(src, i) in detailPhotos" :key="i" :src="src" alt="Loan photo" class="photo-full" @click="openViewer(i)" />
           </div>
           <div v-else class="empty-photos">
             <v-icon icon="mdi-image-off-outline" size="32" color="grey" />
             <div class="text-body-2 text-medium-emphasis">No photo attached{{ selected.clientRef ? "" : " (not synced yet)" }}</div>
           </div>
-          <div v-if="!detailPhotosLoading && selected.clientRef && detailPhotos.length < 3" class="d-flex justify-center mt-3">
+          <!-- More photos: scan the QR with a phone, or pick files on this
+               computer. kashi takes up to 3 in all. -->
+          <div v-if="!detailPhotosLoading && selected.clientRef && detailPhotos.length < 3" class="d-flex justify-center flex-wrap ga-2 mt-3">
             <v-btn color="primary" variant="tonal" prepend-icon="mdi-camera-outline" @click="openUploadDialog(selected.clientRef, 'resend')">
-              {{ detailPhotos.length ? "Add more photos" : "Send photo" }}
+              {{ detailPhotos.length ? "Add with phone" : "Send photo with phone" }}
+            </v-btn>
+            <v-btn color="primary" variant="tonal" prepend-icon="mdi-upload" :loading="computerUploading" @click="uploadFromComputer">
+              From this computer
             </v-btn>
           </div>
+          <div v-if="photoError" class="text-body-2 text-error text-center mt-2">{{ photoError }}</div>
         </v-card-text>
+        <v-card-actions v-if="auth.isAdmin && !selected.cancelledAt" class="px-5 pb-4">
+          <v-spacer />
+          <v-btn color="error" variant="tonal" prepend-icon="mdi-cancel" @click="requestCancel">Cancel loan</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="cancelOpen" max-width="420">
+      <v-card v-if="selected">
+        <v-card-title class="pt-4 px-5">Cancel this loan?</v-card-title>
+        <v-card-text class="px-5">
+          "{{ selected.description || "Loan" }}" ({{ formatCents(selected.amount) }} {{ selected.currencyCode }}) stays in the list marked
+          cancelled, and the shift and kashi stop counting it.
+          <div v-if="cancelError" class="text-body-2 text-error mt-2">{{ cancelError }}</div>
+        </v-card-text>
+        <v-card-actions class="px-5 pb-4">
+          <v-spacer />
+          <v-btn variant="text" @click="cancelOpen = false">Keep it</v-btn>
+          <v-btn color="error" variant="flat" :loading="cancelling" @click="cancelSelected">Cancel loan</v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
 
@@ -115,7 +160,7 @@
 
             <v-text-field
               v-model="form.description"
-              label="Description"
+              placeholder="Description"
               prepend-inner-icon="mdi-text"
               variant="outlined"
               density="comfortable"
@@ -131,7 +176,7 @@
                 :items="accountChoices(index)"
                 item-title="displayName"
                 item-value="id"
-                label="Account"
+                placeholder="Account"
                 variant="outlined"
                 density="comfortable"
                 hide-details
@@ -139,7 +184,7 @@
               />
               <v-text-field
                 v-model="line.amount"
-                label="Amount"
+                placeholder="Amount"
                 inputmode="decimal"
                 :suffix="accountOf(line.cashboxAccountId)?.currencyCode || ''"
                 variant="outlined"
@@ -178,6 +223,7 @@
       </v-card>
     </v-dialog>
 
+    <PhotoViewer v-model="viewerOpen" v-model:index="viewerIndex" :photos="detailPhotos" />
     <PhotoUploadDialog
       v-model="uploadOpen"
       kind="loan"
@@ -191,19 +237,27 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount } from "vue";
 import {
+  AddLoanPhotosFromComputer,
+  CancelLoan,
   CreateLoan,
+  GetLoanFirstPhoto,
   GetLoanPhoto,
   ListLoanCategories,
   ListLoanPhotoIDs,
   ListLoans,
   ListPaymentMethods,
+  UpdateLoanCategory,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import PhotoUploadDialog from "@/components/PhotoUploadDialog.vue";
+import PhotoViewer from "@/components/PhotoViewer.vue";
 import RecordPhoto from "@/components/RecordPhoto.vue";
+import { detailPhotoWidth } from "@/lib/photos";
 import { useInfiniteList } from "@/composables/useInfiniteList";
 import { formatServerDateTime } from "@/lib/datetime";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
+import { notifyIncomeChanged } from "@/lib/incomeEvents";
+import { useAuthStore } from "../stores/auth";
 
 const headers = [
   { title: "Photo", key: "photo", sortable: false, width: 72 },
@@ -230,9 +284,7 @@ function formatCents(cents: number): string {
 
 // The first photo, as a thumbnail, for the row; "" shows the no-photo icon.
 async function firstLoanPhoto(clientRef: string, width: number): Promise<string> {
-  const ids = (await ListLoanPhotoIDs(clientRef)) ?? [];
-  const first = ids[0];
-  return first ? GetLoanPhoto(first, width) : "";
+  return GetLoanFirstPhoto(clientRef, width);
 }
 
 const detailOpen = ref(false);
@@ -241,12 +293,13 @@ const detailPhotos = ref<string[]>([]);
 const detailPhotosLoading = ref(false);
 async function openDetail(item: any) {
   selected.value = item;
+  photoError.value = "";
   detailOpen.value = true;
   detailPhotos.value = [];
   detailPhotosLoading.value = true;
   try {
     const ids = (await ListLoanPhotoIDs(item.clientRef)) ?? [];
-    const photos = await Promise.all(ids.map((id: number) => GetLoanPhoto(id, 0)));
+    const photos = await Promise.all(ids.map((id: number) => GetLoanPhoto(id, detailPhotoWidth)));
     if (selected.value === item) detailPhotos.value = photos.filter(Boolean);
   } finally {
     detailPhotosLoading.value = false;
@@ -267,6 +320,74 @@ function openUploadDialog(clientRef: string, mode: "new" | "resend" = "new") {
 function onPhotosUploaded(clientRef: string) {
   photoVersion.value = { ...photoVersion.value, [clientRef]: (photoVersion.value[clientRef] ?? 0) + 1 };
   if (selected.value?.clientRef === clientRef && detailOpen.value) void openDetail(selected.value);
+}
+
+// ---- detail edits: category, photos from this computer -------------------
+const categorySaving = ref(false);
+const viewerOpen = ref(false);
+const viewerIndex = ref(0);
+function openViewer(i: number) {
+  viewerIndex.value = i;
+  viewerOpen.value = true;
+}
+const computerUploading = ref(false);
+const photoError = ref("");
+
+async function setCategory(name: string) {
+  const item = selected.value;
+  if (!item || item.category === name) return;
+  categorySaving.value = true;
+  try {
+    await UpdateLoanCategory(item.id, name);
+    // The row in the table is this same object, so it updates too.
+    item.category = name;
+  } catch (err) {
+    photoError.value = `Couldn't change the category: ${err}`;
+  } finally {
+    categorySaving.value = false;
+  }
+}
+
+async function uploadFromComputer() {
+  const item = selected.value;
+  if (!item?.clientRef) return;
+  photoError.value = "";
+  computerUploading.value = true;
+  try {
+    const sent = await AddLoanPhotosFromComputer(item.clientRef, 3 - detailPhotos.value.length);
+    if (sent > 0) onPhotosUploaded(item.clientRef);
+  } catch (err) {
+    photoError.value = String(err);
+  } finally {
+    computerUploading.value = false;
+  }
+}
+
+// Cancelling keeps the row, marked cancelled, and tells kashi (admin only).
+const auth = useAuthStore();
+const cancelOpen = ref(false);
+const cancelling = ref(false);
+const cancelError = ref("");
+function requestCancel() {
+  cancelError.value = "";
+  cancelOpen.value = true;
+}
+async function cancelSelected() {
+  const item = selected.value;
+  if (!item || !auth.isAdmin) return;
+  cancelling.value = true;
+  cancelError.value = "";
+  try {
+    await CancelLoan(item.id);
+    notifyIncomeChanged();
+    cancelOpen.value = false;
+    detailOpen.value = false;
+    await list.refresh();
+  } catch (err) {
+    cancelError.value = String(err);
+  } finally {
+    cancelling.value = false;
+  }
 }
 
 const dialog = ref(false);
@@ -367,14 +488,17 @@ async function loadLoanCategories() {
 }
 
 let categorySyncUnsub: (() => void) | null = null;
+let recordSyncUnsub: (() => void) | null = null;
 
 onMounted(async () => {
   await Promise.all([list.loadMore(), loadPaymentMethods(), loadLoanCategories()]);
   categorySyncUnsub = EventsOn("sync_applied:loan_categories", loadLoanCategories);
+  recordSyncUnsub = EventsOn("sync_applied:loans", () => void list.refresh());
 });
 
 onBeforeUnmount(() => {
   categorySyncUnsub?.();
+  recordSyncUnsub?.();
 });
 </script>
 

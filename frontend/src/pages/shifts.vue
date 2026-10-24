@@ -318,6 +318,8 @@ onMounted(async () => {
     EventsOn("sync_applied:branch_targets", refreshIncome),
     EventsOn("sync_applied:currencies", refreshIncome),
     EventsOn("sync_applied:cashbox_accounts", refreshIncome),
+    // kashi's replace_shift_balance command (commands.go).
+    EventsOn("sync_applied:shift_balances", refreshIncome),
   ];
   try {
     paymentMethods.value = ((await ListPaymentMethods()) as PaymentMethod[]).filter(

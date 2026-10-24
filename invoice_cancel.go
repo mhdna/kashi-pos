@@ -52,6 +52,7 @@ func (a *App) returnItemsJSON(ctx context.Context, lines []returnLine) (string, 
 		discount := lq.line.Discount
 		items = append(items, exchangeLine{
 			Code:           product.Code,
+			Barcode:        product.Barcode,
 			Qty:            -lq.quantity,
 			UnitPriceCents: &unitPrice,
 			UnitDiscount:   &discount,

@@ -60,7 +60,7 @@ INSERT INTO expenses (
   cashbox_account_id, shift_id, occurred_at, created_at
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?
-) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at
+) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at, from_central
 `
 
 type CreateHistoricalExpenseParams struct {
@@ -99,6 +99,8 @@ func (q *Queries) CreateHistoricalExpense(ctx context.Context, arg CreateHistori
 		&i.ShiftID,
 		&i.OccurredAt,
 		&i.CreatedAt,
+		&i.CancelledAt,
+		&i.FromCentral,
 	)
 	return i, err
 }
@@ -108,7 +110,7 @@ INSERT INTO invoices (
     cashbox_id, shift_id, invoice_code, invoice_index,
     year, client_id, inventory_id, discount,
     subtotal, discounted_total, grand_total, salesperson_id, notes, created_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at, lbp_total, lbp_rate
 `
 
 type CreateHistoricalInvoiceParams struct {
@@ -163,6 +165,8 @@ func (q *Queries) CreateHistoricalInvoice(ctx context.Context, arg CreateHistori
 		&i.SalespersonID,
 		&i.Notes,
 		&i.CancelledAt,
+		&i.LbpTotal,
+		&i.LbpRate,
 	)
 	return i, err
 }
@@ -173,7 +177,7 @@ INSERT INTO loans (
   cashbox_account_id, shift_id, occurred_at, created_at
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?
-) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at
+) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at
 `
 
 type CreateHistoricalLoanParams struct {
@@ -212,6 +216,7 @@ func (q *Queries) CreateHistoricalLoan(ctx context.Context, arg CreateHistorical
 		&i.ShiftID,
 		&i.OccurredAt,
 		&i.CreatedAt,
+		&i.CancelledAt,
 	)
 	return i, err
 }

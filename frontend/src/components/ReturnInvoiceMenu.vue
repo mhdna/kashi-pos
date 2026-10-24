@@ -55,6 +55,20 @@
                 <template #prepend>
                   <v-icon icon="mdi-barcode" class="me-3" />
                 </template>
+                <!-- A deal unit: how many of these were free. A free one
+                     swaps for anything up to its price. -->
+                <template v-if="item.deal" #title>
+                  {{ item.name }}
+                  <v-chip
+                    class="ms-2"
+                    :color="item.freeQty ? 'success' : undefined"
+                    label
+                    prepend-icon="mdi-gift-outline"
+                    size="x-small"
+                    :text="item.freeQty ? `${item.freeQty} FREE · ${item.deal}` : item.deal"
+                    :variant="item.freeQty ? 'flat' : 'outlined'"
+                  />
+                </template>
                 <template #append>
                   <div class="exchange-item-selection">
                     <span

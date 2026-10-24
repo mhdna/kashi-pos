@@ -368,6 +368,51 @@ func (q *Queries) RequeueSyncOutboxConfirmedElsewhere(ctx context.Context, curre
 	return result.RowsAffected()
 }
 
+const setUnsyncedSyncOutboxField = `-- name: SetUnsyncedSyncOutboxField :execrows
+UPDATE sync_outbox
+SET payload_json = json_set(payload_json, ?1, ?2)
+WHERE client_ref = ?3 AND status != 'synced'
+`
+
+type SetUnsyncedSyncOutboxFieldParams struct {
+	FieldPath interface{} `json:"fieldPath"`
+	Value     interface{} `json:"value"`
+	ClientRef string      `json:"clientRef"`
+}
+
+// Changes one top-level field of a row kashi hasn't accepted yet (an
+// expense re-categorised before it synced), so the edit goes up with the
+// record itself. 0 rows: it's synced (or was never queued).
+func (q *Queries) SetUnsyncedSyncOutboxField(ctx context.Context, arg SetUnsyncedSyncOutboxFieldParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setUnsyncedSyncOutboxField, arg.FieldPath, arg.Value, arg.ClientRef)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setUnsyncedSyncOutboxJSONField = `-- name: SetUnsyncedSyncOutboxJSONField :execrows
+UPDATE sync_outbox
+SET payload_json = json_set(payload_json, ?1, json(?2))
+WHERE client_ref = ?3 AND status != 'synced'
+`
+
+type SetUnsyncedSyncOutboxJSONFieldParams struct {
+	FieldPath interface{} `json:"fieldPath"`
+	JsonValue interface{} `json:"jsonValue"`
+	ClientRef string      `json:"clientRef"`
+}
+
+// SetUnsyncedSyncOutboxField for a value that isn't a string: json_value is
+// JSON text ('true', '12'), stored as that JSON value.
+func (q *Queries) SetUnsyncedSyncOutboxJSONField(ctx context.Context, arg SetUnsyncedSyncOutboxJSONFieldParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setUnsyncedSyncOutboxJSONField, arg.FieldPath, arg.JsonValue, arg.ClientRef)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const syncStateForInvoices = `-- name: SyncStateForInvoices :many
 SELECT
     icr.invoice_id   AS invoice_id,

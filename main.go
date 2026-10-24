@@ -26,6 +26,11 @@ func main() {
 	if len(os.Args) == 3 && os.Args[1] == "--apply-update" {
 		os.Exit(runUpdateHelper(os.Args[2], defaultUpdateProcesses()))
 	}
+	// "Make this a cash machine" runs this same program as administrator for
+	// the computer's settings (cash_machine_windows.go); no window.
+	if len(os.Args) == 3 && os.Args[1] == "--cash-machine-setup" {
+		os.Exit(runCashMachineSetup(os.Args[2]))
+	}
 
 	// Paint a native splash immediately, before the WebView2 runtime boots.
 	// hideSplash also runs on OnDomReady; the defer covers early-exit paths.
@@ -45,7 +50,7 @@ func main() {
 	// the `dev` build tag) run windowed and resizable; production stays
 	// fullscreen with a fixed window.
 	appOptions := &options.App{
-		Title:            "Kashi Cloud",
+		Title:            "GB Cloud",
 		Fullscreen:       !isDevMode,
 		WindowStartState: options.Normal,
 		DisableResize:    !isDevMode,
@@ -58,10 +63,27 @@ func main() {
 			WebviewGpuIsDisabled: true,
 			WebviewUserDataPath:  webviewUserDataPath(),
 		},
+		// A second launch (a double-click while the splash is still up, or the
+		// Desktop and Start Menu shortcuts both used) would otherwise run a
+		// second copy against the same database and cloud sync. It exits
+		// instead and brings this window forward.
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId: "gb-cloud-7f3c1d52-9a0e-4b6a-8c14-2e5d90b7a1f6",
+			OnSecondInstanceLaunch: func(options.SecondInstanceData) {
+				// Nil until startup has run; the window isn't up to show yet.
+				if ctx := app.ctx; ctx != nil {
+					wailsruntime.WindowUnminimise(ctx)
+					wailsruntime.WindowShow(ctx)
+				}
+			},
+		},
 		OnStartup: app.startup,
 		OnDomReady: func(ctx context.Context) {
 			wailsruntime.WindowShow(ctx)
 			hideSplash()
+			// Off the startup path: nothing on screen depends on these.
+			go enterKiosk()
+			go registerAutostart()
 		},
 		OnShutdown: app.shutdown,
 		Bind: []interface{}{
@@ -77,6 +99,7 @@ func main() {
 	}
 
 	err := wails.Run(appOptions)
+	leaveKiosk()
 	if err != nil {
 		println("Error:", err.Error())
 	}

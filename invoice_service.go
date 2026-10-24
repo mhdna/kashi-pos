@@ -42,6 +42,12 @@ type invoiceItem struct {
 	Price    float64 `json:"price"`
 	Discount float64 `json:"discount"`
 	Qty      float64 `json:"qty"`
+	// A deal line (deals.go): its deal, whether it is free, and the deal's
+	// saving in dollars, which the receipt prints instead of working one out
+	// from Discount (a bundle's share is not a whole percent).
+	Deal         string  `json:"deal,omitempty"`
+	Free         bool    `json:"free,omitempty"`
+	DealDiscount float64 `json:"dealDiscount,omitempty"`
 }
 
 func (a *App) HoldInvoice(snapshotJSON string) (int64, error) {
@@ -213,10 +219,15 @@ func (a *App) VoidInvoice(itemsJSON string, reason string) error {
 }
 
 func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes string) (map[string]any, error) {
-	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson)})
+	unknownRef, err := a.verifyUnknownPictures(itemsJSON)
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}
+	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson), UnknownSessionRef: unknownRef})
+	if err != nil {
+		return nil, fmt.Errorf("invoice creation failed: %w", err)
+	}
+	a.clearUnknownSession(unknownRef)
 
 	response := map[string]any{
 		"invoiceCode":    result.InvoiceCode,
@@ -240,7 +251,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 	// Post-sale WhatsApp "thank you / please rate us" message. Best-effort and
 	// off the checkout path -- see whatsAppThankYou.
 	if invoiceClientErr == nil {
-		go a.whatsAppThankYou(result.InvoiceCode, result.GrandTotal, invoiceClient, result.Items)
+		go a.whatsAppThankYou(result.InvoiceCode, result.GrandTotal, invoiceClient, result.Items, result.Payments)
 	}
 
 	settings, settingsErr := a.store.GetSettings(a.ctx)
@@ -324,6 +335,20 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			discountListNameByID[list.ID] = list.Name
 		}
 	}
+	// A line's deal by name: the invoice's own copy of its terms first, then
+	// the till's deals (a returned line names the sale's deal, not this
+	// invoice's).
+	dealNameByUID := make(map[string]string)
+	if deals, listErr := a.store.ListDeals(a.ctx); listErr == nil {
+		for _, deal := range deals {
+			dealNameByUID[deal.Uid] = deal.Name
+		}
+	}
+	if deals, listErr := a.store.ListInvoiceDeals(a.ctx, id); listErr == nil {
+		for _, deal := range deals {
+			dealNameByUID[deal.DealUid] = deal.Name
+		}
+	}
 	accountByID := make(map[int64]db.CashboxAccount)
 	if accounts, listErr := a.store.ListCashboxAccounts(a.ctx); listErr == nil {
 		for _, account := range accounts {
@@ -360,6 +385,12 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			"priceListName":        priceListName,
 			"isDiscountOverridden": line.DiscountListID.Valid,
 			"discountListName":     discountListName,
+			// deal_discount is signed like quantity on a returned line.
+			"deal":         dealNameByUID[line.DealUid],
+			"dealDiscount": float64(absInt64(line.DealDiscount)) / 100,
+			// Free: the deal took each unit's whole price (on a returned
+			// line too, whose credit may carry swap credit).
+			"free": line.DealDiscount != 0 && absInt64(line.DealDiscount) == line.UnitPrice*absInt64(line.Quantity),
 		})
 	}
 	paymentList := make([]map[string]any, 0, len(payments))
@@ -807,7 +838,21 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	}
 	items := make([]invoiceItem, 0)
 	for _, raw := range details["items"].([]map[string]any) {
-		items = append(items, invoiceItem{Name: raw["name"].(string), Code: raw["code"].(string), Barcode: raw["barcode"].(string), Category: raw["category"].(string), Color: databaseString(raw["color"]), Size: databaseString(raw["size"]), Price: raw["price"].(float64), Discount: float64(raw["discount"].(int64)), Qty: float64(raw["qty"].(int64))})
+		item := invoiceItem{Name: raw["name"].(string), Code: raw["code"].(string), Barcode: raw["barcode"].(string), Category: raw["category"].(string), Color: databaseString(raw["color"]), Size: databaseString(raw["size"]), Price: raw["price"].(float64), Discount: float64(raw["discount"].(int64)), Qty: float64(raw["qty"].(int64))}
+		// Printed as at checkout (receiptItemFor). The line's own total is
+		// what it came to: on an exchange it carries a free unit's swap
+		// credit or a deal charged back, which no percent says.
+		gross := item.Price * item.Qty
+		changed := math.Abs(gross*(1-item.Discount/100)-raw["lineTotal"].(float64)) >= 0.005
+		if deal := raw["deal"].(string); deal != "" && (raw["dealDiscount"].(float64) > 0 || changed) {
+			item.Deal, item.Free = deal, raw["free"].(bool)
+			item.DealDiscount = gross - raw["lineTotal"].(float64)
+			if gross != 0 {
+				item.Discount = item.DealDiscount * 100 / gross
+			}
+			item.Name = nameWithDeal(item.Name, item.Free)
+		}
+		items = append(items, item)
 	}
 	settings, err := a.store.GetSettings(a.ctx)
 	if err != nil {
@@ -868,7 +913,10 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 		})
 	}
 	receiptPayments = aggregateReceiptPayments(receiptPayments)
+	theme, layout := a.receiptLook()
 	return printReceiptToPrinter(printReceiptData{
+		Theme:            theme,
+		Layout:           layout,
 		Items:            items,
 		StoreName:        storeName,
 		Branch:           branch,

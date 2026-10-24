@@ -10,6 +10,14 @@ export function AddClientLoyaltyPoints(arg1, arg2) {
   return window['go']['main']['App']['AddClientLoyaltyPoints'](arg1, arg2);
 }
 
+export function AddExpensePhotosFromComputer(arg1, arg2) {
+  return window['go']['main']['App']['AddExpensePhotosFromComputer'](arg1, arg2);
+}
+
+export function AddLoanPhotosFromComputer(arg1, arg2) {
+  return window['go']['main']['App']['AddLoanPhotosFromComputer'](arg1, arg2);
+}
+
 export function AddQuickAccessProduct(arg1) {
   return window['go']['main']['App']['AddQuickAccessProduct'](arg1);
 }
@@ -30,8 +38,16 @@ export function BypassCloseShiftSyncGate(arg1, arg2, arg3) {
   return window['go']['main']['App']['BypassCloseShiftSyncGate'](arg1, arg2, arg3);
 }
 
+export function CancelExpense(arg1) {
+  return window['go']['main']['App']['CancelExpense'](arg1);
+}
+
 export function CancelInvoice(arg1, arg2) {
   return window['go']['main']['App']['CancelInvoice'](arg1, arg2);
+}
+
+export function CancelLoan(arg1) {
+  return window['go']['main']['App']['CancelLoan'](arg1);
 }
 
 export function CancelSyncFlush() {
@@ -114,6 +130,10 @@ export function ConvertCashEntryToCents(arg1, arg2) {
   return window['go']['main']['App']['ConvertCashEntryToCents'](arg1, arg2);
 }
 
+export function CountProductsForSearch(arg1) {
+  return window['go']['main']['App']['CountProductsForSearch'](arg1);
+}
+
 export function CreateBranch(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateBranch'](arg1, arg2, arg3, arg4);
 }
@@ -134,8 +154,8 @@ export function CreateDatabase() {
   return window['go']['main']['App']['CreateDatabase']();
 }
 
-export function CreateExpense(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['CreateExpense'](arg1, arg2, arg3, arg4, arg5);
+export function CreateExpense(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['CreateExpense'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function CreateLoan(arg1, arg2, arg3, arg4, arg5) {
@@ -206,6 +226,10 @@ export function ExportQuickAccessCSV() {
   return window['go']['main']['App']['ExportQuickAccessCSV']();
 }
 
+export function FindPrinters() {
+  return window['go']['main']['App']['FindPrinters']();
+}
+
 export function FindProductsForScan(arg1) {
   return window['go']['main']['App']['FindProductsForScan'](arg1);
 }
@@ -216,6 +240,10 @@ export function FlushSyncOutbox() {
 
 export function ForceSetAdminPassword(arg1) {
   return window['go']['main']['App']['ForceSetAdminPassword'](arg1);
+}
+
+export function ForgetScanner() {
+  return window['go']['main']['App']['ForgetScanner']();
 }
 
 export function GetAdminConfig() {
@@ -246,6 +274,10 @@ export function GetAttendanceStatus() {
   return window['go']['main']['App']['GetAttendanceStatus']();
 }
 
+export function GetCashMachineStatus() {
+  return window['go']['main']['App']['GetCashMachineStatus']();
+}
+
 export function GetCashierPIN() {
   return window['go']['main']['App']['GetCashierPIN']();
 }
@@ -262,8 +294,16 @@ export function GetClientProfile(arg1) {
   return window['go']['main']['App']['GetClientProfile'](arg1);
 }
 
+export function GetClockStatus() {
+  return window['go']['main']['App']['GetClockStatus']();
+}
+
 export function GetCloseShiftSyncGate() {
   return window['go']['main']['App']['GetCloseShiftSyncGate']();
+}
+
+export function GetConversionReport(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetConversionReport'](arg1, arg2, arg3);
 }
 
 export function GetCurrentMonth() {
@@ -286,12 +326,20 @@ export function GetDeferredCouponTotalByMonth(arg1) {
   return window['go']['main']['App']['GetDeferredCouponTotalByMonth'](arg1);
 }
 
+export function GetDeviceStatus() {
+  return window['go']['main']['App']['GetDeviceStatus']();
+}
+
 export function GetDisplayPrefs() {
   return window['go']['main']['App']['GetDisplayPrefs']();
 }
 
 export function GetExchangeInvoice(arg1) {
   return window['go']['main']['App']['GetExchangeInvoice'](arg1);
+}
+
+export function GetExpenseFirstPhoto(arg1, arg2) {
+  return window['go']['main']['App']['GetExpenseFirstPhoto'](arg1, arg2);
 }
 
 export function GetExpensePhoto(arg1, arg2) {
@@ -308,6 +356,10 @@ export function GetInvoiceForSettlementChange(arg1) {
 
 export function GetInvoiceSyncStates(arg1) {
   return window['go']['main']['App']['GetInvoiceSyncStates'](arg1);
+}
+
+export function GetLoanFirstPhoto(arg1, arg2) {
+  return window['go']['main']['App']['GetLoanFirstPhoto'](arg1, arg2);
 }
 
 export function GetLoanPhoto(arg1, arg2) {
@@ -336,6 +388,10 @@ export function GetProductByCode(arg1) {
 
 export function GetQuickAccessSource() {
   return window['go']['main']['App']['GetQuickAccessSource']();
+}
+
+export function GetReceiptLooks() {
+  return window['go']['main']['App']['GetReceiptLooks']();
 }
 
 export function GetShiftExpectedTotals(arg1) {
@@ -376,6 +432,10 @@ export function GetTodayIncomeByAccount() {
 
 export function GetTransferPhoto(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetTransferPhoto'](arg1, arg2, arg3);
+}
+
+export function GetUnknownProduct() {
+  return window['go']['main']['App']['GetUnknownProduct']();
 }
 
 export function GetVisitorCountToday() {
@@ -578,6 +638,10 @@ export function ListUsers() {
   return window['go']['main']['App']['ListUsers']();
 }
 
+export function MovePrinterToPort(arg1, arg2) {
+  return window['go']['main']['App']['MovePrinterToPort'](arg1, arg2);
+}
+
 export function OpenShift() {
   return window['go']['main']['App']['OpenShift']();
 }
@@ -586,12 +650,20 @@ export function PayClientAccount(arg1, arg2, arg3) {
   return window['go']['main']['App']['PayClientAccount'](arg1, arg2, arg3);
 }
 
+export function PrepareShiftClose(arg1) {
+  return window['go']['main']['App']['PrepareShiftClose'](arg1);
+}
+
 export function PreviewProductsCSV() {
   return window['go']['main']['App']['PreviewProductsCSV']();
 }
 
-export function PreviewShiftBalanceReplacement(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['PreviewShiftBalanceReplacement'](arg1, arg2, arg3, arg4);
+export function PreviewReceiptLook(arg1, arg2) {
+  return window['go']['main']['App']['PreviewReceiptLook'](arg1, arg2);
+}
+
+export function PreviewShiftBalanceReplacement(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['PreviewShiftBalanceReplacement'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function PrintClosedShiftReceipt(arg1) {
@@ -626,6 +698,10 @@ export function QuoteSettlementPaymentStatus(arg1, arg2) {
   return window['go']['main']['App']['QuoteSettlementPaymentStatus'](arg1, arg2);
 }
 
+export function RefreshCartPricing(arg1) {
+  return window['go']['main']['App']['RefreshCartPricing'](arg1);
+}
+
 export function RemoveQuickAccessProduct(arg1) {
   return window['go']['main']['App']['RemoveQuickAccessProduct'](arg1);
 }
@@ -634,8 +710,8 @@ export function ReorderQuickAccessProducts(arg1) {
   return window['go']['main']['App']['ReorderQuickAccessProducts'](arg1);
 }
 
-export function ReplaceShiftBalance(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['ReplaceShiftBalance'](arg1, arg2, arg3, arg4);
+export function ReplaceShiftBalance(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['ReplaceShiftBalance'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function ReportDisplayPrefs(arg1) {
@@ -652,6 +728,14 @@ export function RequestExpenseUploadLink(arg1) {
 
 export function RequestLoanUploadLink(arg1) {
   return window['go']['main']['App']['RequestLoanUploadLink'](arg1);
+}
+
+export function RequestUnknownItemHelp(arg1) {
+  return window['go']['main']['App']['RequestUnknownItemHelp'](arg1);
+}
+
+export function RestartComputer() {
+  return window['go']['main']['App']['RestartComputer']();
 }
 
 export function ResyncAll(arg1) {
@@ -690,6 +774,10 @@ export function SetAutoCloseStaleShiftsEnabled(arg1) {
   return window['go']['main']['App']['SetAutoCloseStaleShiftsEnabled'](arg1);
 }
 
+export function SetAutoCoverNegativeLBPEnabled(arg1) {
+  return window['go']['main']['App']['SetAutoCoverNegativeLBPEnabled'](arg1);
+}
+
 export function SetCashierPIN(arg1) {
   return window['go']['main']['App']['SetCashierPIN'](arg1);
 }
@@ -718,12 +806,28 @@ export function SetCustomItemPricesEnabled(arg1) {
   return window['go']['main']['App']['SetCustomItemPricesEnabled'](arg1);
 }
 
+export function SetDealToggleEnabled(arg1) {
+  return window['go']['main']['App']['SetDealToggleEnabled'](arg1);
+}
+
 export function SetDefaultBranch(arg1) {
   return window['go']['main']['App']['SetDefaultBranch'](arg1);
 }
 
+export function SetDiscountToggleDefaultOff(arg1) {
+  return window['go']['main']['App']['SetDiscountToggleDefaultOff'](arg1);
+}
+
+export function SetDiscountToggleEnabled(arg1) {
+  return window['go']['main']['App']['SetDiscountToggleEnabled'](arg1);
+}
+
 export function SetExchangeWindowHours(arg1) {
   return window['go']['main']['App']['SetExchangeWindowHours'](arg1);
+}
+
+export function SetExpenseFromCentral(arg1, arg2) {
+  return window['go']['main']['App']['SetExpenseFromCentral'](arg1, arg2);
 }
 
 export function SetHidePaymentMethodCurrency(arg1) {
@@ -762,12 +866,28 @@ export function SetPriceChangeManualOverrideEnabled(arg1) {
   return window['go']['main']['App']['SetPriceChangeManualOverrideEnabled'](arg1);
 }
 
+export function SetPriceEditCodes(arg1) {
+  return window['go']['main']['App']['SetPriceEditCodes'](arg1);
+}
+
+export function SetPriceEditRestricted(arg1) {
+  return window['go']['main']['App']['SetPriceEditRestricted'](arg1);
+}
+
 export function SetProductActive(arg1, arg2) {
   return window['go']['main']['App']['SetProductActive'](arg1, arg2);
 }
 
+export function SetProductSearchCodeOnly(arg1) {
+  return window['go']['main']['App']['SetProductSearchCodeOnly'](arg1);
+}
+
 export function SetProductSearchEnabled(arg1) {
   return window['go']['main']['App']['SetProductSearchEnabled'](arg1);
+}
+
+export function SetProductSearchHiddenFields(arg1) {
+  return window['go']['main']['App']['SetProductSearchHiddenFields'](arg1);
 }
 
 export function SetQuickAccessColor(arg1, arg2, arg3) {
@@ -776,6 +896,10 @@ export function SetQuickAccessColor(arg1, arg2, arg3) {
 
 export function SetQuickAccessMode(arg1) {
   return window['go']['main']['App']['SetQuickAccessMode'](arg1);
+}
+
+export function SetReceiptLook(arg1, arg2) {
+  return window['go']['main']['App']['SetReceiptLook'](arg1, arg2);
 }
 
 export function SetSalespersonPerInvoiceRequired(arg1) {
@@ -790,6 +914,14 @@ export function SetShiftReceiptUploadMode(arg1) {
   return window['go']['main']['App']['SetShiftReceiptUploadMode'](arg1);
 }
 
+export function SetShiftReportSignaturesEnabled(arg1) {
+  return window['go']['main']['App']['SetShiftReportSignaturesEnabled'](arg1);
+}
+
+export function SetShiftReportUppercaseHeaderEnabled(arg1) {
+  return window['go']['main']['App']['SetShiftReportUppercaseHeaderEnabled'](arg1);
+}
+
 export function SetSoundsEnabled(arg1) {
   return window['go']['main']['App']['SetSoundsEnabled'](arg1);
 }
@@ -802,6 +934,14 @@ export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
+export function SetUnknownProductBarcode(arg1) {
+  return window['go']['main']['App']['SetUnknownProductBarcode'](arg1);
+}
+
+export function SetUpCashMachine() {
+  return window['go']['main']['App']['SetUpCashMachine']();
+}
+
 export function SetVisitorCounterEnabled(arg1) {
   return window['go']['main']['App']['SetVisitorCounterEnabled'](arg1);
 }
@@ -810,8 +950,16 @@ export function SettleInvoicePayments(arg1, arg2) {
   return window['go']['main']['App']['SettleInvoicePayments'](arg1, arg2);
 }
 
+export function ShutDownComputer() {
+  return window['go']['main']['App']['ShutDownComputer']();
+}
+
 export function SkipShiftReceiptUpload(arg1, arg2, arg3) {
   return window['go']['main']['App']['SkipShiftReceiptUpload'](arg1, arg2, arg3);
+}
+
+export function StartUnknownItemSession(arg1) {
+  return window['go']['main']['App']['StartUnknownItemSession'](arg1);
 }
 
 export function SubmitAttendanceComplaint(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
@@ -828,6 +976,10 @@ export function SwitchShiftReceiptToLocal(arg1) {
 
 export function SyncAttendance(arg1) {
   return window['go']['main']['App']['SyncAttendance'](arg1);
+}
+
+export function UnknownItemSessionStatus(arg1) {
+  return window['go']['main']['App']['UnknownItemSessionStatus'](arg1);
 }
 
 export function UpdateAdminConfig(arg1, arg2, arg3) {
@@ -856,6 +1008,14 @@ export function UpdateCouponType(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
 
 export function UpdateDefaultOpeningFloat(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateDefaultOpeningFloat'](arg1, arg2, arg3);
+}
+
+export function UpdateExpenseCategory(arg1, arg2) {
+  return window['go']['main']['App']['UpdateExpenseCategory'](arg1, arg2);
+}
+
+export function UpdateLoanCategory(arg1, arg2) {
+  return window['go']['main']['App']['UpdateLoanCategory'](arg1, arg2);
 }
 
 export function UpdateProduct(arg1, arg2) {
@@ -890,8 +1050,16 @@ export function UpdateUserAttendanceID(arg1, arg2) {
   return window['go']['main']['App']['UpdateUserAttendanceID'](arg1, arg2);
 }
 
+export function UseReceiptPrinter(arg1) {
+  return window['go']['main']['App']['UseReceiptPrinter'](arg1);
+}
+
 export function VerifyAdminPassword(arg1) {
   return window['go']['main']['App']['VerifyAdminPassword'](arg1);
+}
+
+export function VerifyManagerPassword(arg1) {
+  return window['go']['main']['App']['VerifyManagerPassword'](arg1);
 }
 
 export function VerifyPIN(arg1) {
@@ -904,6 +1072,10 @@ export function VoidInvoice(arg1, arg2) {
 
 export function WaitUntilReady() {
   return window['go']['main']['App']['WaitUntilReady']();
+}
+
+export function WhatsAppWelcome(arg1, arg2) {
+  return window['go']['main']['App']['WhatsAppWelcome'](arg1, arg2);
 }
 
 export function WriteToScreen(arg1, arg2) {

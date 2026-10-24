@@ -1,7 +1,7 @@
 Unicode true
 
 ####
-## Custom Kashi Cloud installer, based on the Wails NSIS template.
+## Custom GB Cloud installer, based on the Wails NSIS template.
 ##
 ## This installs AND upgrades cleanly:
 ##  - if a previous version is already installed, its running process is
@@ -25,7 +25,7 @@ Unicode true
 # macro copies whatever binary was built and renames it to this, so if this
 # doesn't match, shortcuts/taskkill/uninstall all silently target the wrong
 # file.
-!define PRODUCT_EXECUTABLE "Kashi-Cloud.exe"
+!define PRODUCT_EXECUTABLE "GB-Cloud.exe"
 
 # Stable across renames of company/product name in wails.json, so upgrades
 # from older installs (built before this file existed) still find the same
@@ -130,16 +130,32 @@ FunctionEnd
 # 'ERROR: The process "..." not found.' - the normal case on a fresh install,
 # not an error. taskkill exits 0 only when it actually closed something
 # (128 = no such process), so the log line is ours, chosen from that.
+#
+# taskkill returns before Windows has let go of the exe, and copying over it
+# then fails with "can't write, the file is in use". So after killing it
+# (/T: with its WebView2 children) we wait until no copy is left, up to 15 s,
+# killing again in case one was just starting.
 !macro CLOSE_RUNNING_APP
     DetailPrint "Closing ${INFO_PRODUCTNAME} if it is running..."
-    nsExec::Exec 'taskkill /F /IM "${PRODUCT_EXECUTABLE}"'
+    nsExec::Exec 'taskkill /F /T /IM "${PRODUCT_EXECUTABLE}"'
     Pop $0
     ${If} $0 == 0
         DetailPrint "Closed running ${INFO_PRODUCTNAME}."
-        Sleep 500
     ${Else}
         DetailPrint "${INFO_PRODUCTNAME} was not running."
     ${EndIf}
+    StrCpy $1 0
+    ${Do}
+        # find exits 0 while tasklist still lists the exe.
+        nsExec::Exec 'cmd /c tasklist /FI "IMAGENAME eq ${PRODUCT_EXECUTABLE}" /NH | find /I "${PRODUCT_EXECUTABLE}"'
+        Pop $0
+        ${IfThen} $0 != 0 ${|} ${Break} ${|}
+        ${IfThen} $1 >= 30 ${|} ${Break} ${|}
+        nsExec::Exec 'taskkill /F /T /IM "${PRODUCT_EXECUTABLE}"'
+        Pop $0
+        Sleep 500
+        IntOp $1 $1 + 1
+    ${Loop}
 !macroend
 
 Section
@@ -149,11 +165,20 @@ Section
 
     !insertmacro wails.webview2runtime
 
+    # Installs made before the GB rebrand ran as Kashi-Cloud.exe with
+    # "Kashi Cloud" shortcuts; drop them so an upgrade leaves one app behind.
+    nsExec::Exec 'taskkill /F /T /IM "Kashi-Cloud.exe"'
+    Pop $0
+    Sleep 500
+    Delete "$INSTDIR\Kashi-Cloud.exe"
+    Delete "$SMPROGRAMS\Kashi Cloud.lnk"
+    Delete "$DESKTOP\Kashi Cloud.lnk"
+
     SetOutPath $INSTDIR
 
     !insertmacro wails.files
 
-    # Let Kashi Cloud replace its own executable when kashi sends an update
+    # Let GB Cloud replace its own executable when kashi sends an update
     # (updater.go) without an admin prompt at the till: give the local Users
     # group modify rights on the install folder. *S-1-5-32-545 is
     # BUILTIN\Users on every Windows language.
@@ -185,6 +210,9 @@ Section "uninstall"
 
     Delete "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk"
     Delete "$DESKTOP\${INFO_PRODUCTNAME}.lnk"
+
+    # The app adds itself to startup on every launch (autostart_windows.go).
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${INFO_PRODUCTNAME}"
 
     !insertmacro wails.unassociateFiles
     !insertmacro wails.unassociateCustomProtocols

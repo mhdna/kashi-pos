@@ -194,6 +194,10 @@ func (a *App) runPullTick(ctx context.Context) {
 	}
 	pushed := a.wsPushesAll.Load()
 
+	if now.Sub(a.lastClockCheckAt) >= clockCheckInterval {
+		a.lastClockCheckAt = now
+		a.checkClock(ctx, client)
+	}
 	if err := a.pushSettings(ctx, client); err != nil {
 		log.Printf("sync settings: %v", err)
 	}
@@ -661,6 +665,16 @@ func branchInvoicePath(entityType string) (string, bool) {
 		return "/branch/expenses", true
 	case "loan":
 		return "/branch/loans", true
+	case "expense_cancel":
+		return "/branch/expenses/cancel", true
+	case "loan_cancel":
+		return "/branch/loans/cancel", true
+	case "expense_category":
+		return "/branch/expenses/category", true
+	case "expense_from_central":
+		return "/branch/expenses/from_central", true
+	case "loan_category":
+		return "/branch/loans/category", true
 	case "invoice_settlement":
 		return "/branch/invoice_settlements", true
 	case "shift_close":

@@ -53,7 +53,11 @@ WHERE r.sales_invoice_id = ? AND ip.product_id = ?;
 SELECT COALESCE(SUM(CASE WHEN ip.quantity < 0 THEN -ip.quantity ELSE 0 END), 0) AS quantity
 FROM return_invoices r
 JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
-WHERE r.sales_invoice_id = ? AND ip.product_id = ? AND ip.unit_price = ? AND ip.discount = ?;
+WHERE r.sales_invoice_id = sqlc.arg(sales_invoice_id) AND ip.product_id = sqlc.arg(product_id)
+  AND ip.unit_price = sqlc.arg(unit_price) AND ip.discount = sqlc.arg(discount)
+  -- A sold deal line is one unit deal discount (000128): the free units of a
+  -- product are told from its paid ones by it, not by price.
+  AND ip.deal_uid = sqlc.arg(deal_uid) AND ip.deal_discount = sqlc.arg(unit_deal_discount) * ip.quantity;
 
 -- name: ListInvoices :many
 SELECT * FROM invoices ORDER BY id;
@@ -239,8 +243,37 @@ SELECT * FROM invoice_products WHERE invoice_id = ? AND product_id = ?;
 SELECT * FROM invoice_products WHERE invoice_id = ?;
 
 -- name: CreateInvoiceProduct :exec
-INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id)
+INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: CreateInvoiceDeal :exec
+INSERT INTO invoice_deals (invoice_id, deal_uid, name, kind, buy_qty, get_qty, percent, bundle_price, fallback_percent, fallback_only_without_set)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: ListInvoiceDeals :many
+SELECT * FROM invoice_deals WHERE invoice_id = ? ORDER BY deal_uid;
+
+-- name: ListSaleExchangeDealLines :many
+-- Every deal line on the sale's returns and exchanges: returned deal units
+-- (quantity < 0) and replacements counted towards a deal (quantity > 0).
+SELECT ip.* FROM return_invoices r
+JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
+WHERE r.sales_invoice_id = ? AND ip.deal_uid != ''
+ORDER BY ip.invoice_id, ip.id;
+
+-- name: CreateExchangeDealAdjustment :exec
+INSERT INTO exchange_deal_adjustments (invoice_id, sales_invoice_id, deal_uid, forfeited, clawback)
+VALUES (?, ?, ?, ?, ?);
+
+-- name: ListSaleDealAdjustments :many
+-- What earlier exchanges and returns of the sale did to each of its deals.
+SELECT deal_uid, CAST(COALESCE(SUM(forfeited), 0) AS INTEGER) AS forfeited,
+       CAST(COALESCE(SUM(clawback), 0) AS INTEGER) AS clawback
+FROM exchange_deal_adjustments WHERE sales_invoice_id = ?
+GROUP BY deal_uid ORDER BY deal_uid;
+
+-- name: ListExchangeDealAdjustments :many
+SELECT * FROM exchange_deal_adjustments WHERE invoice_id = ? ORDER BY deal_uid;
 
 -- name: CreateInvoicePayment :exec
 INSERT INTO invoice_payments (invoice_id, cashbox_id, amount) VALUES (?, ?, ?)
@@ -509,3 +542,22 @@ SELECT COUNT(*) FROM return_invoices WHERE sales_invoice_id = ?;
 
 -- name: CountCouponsRedeemedOnInvoice :one
 SELECT COUNT(*) FROM coupons WHERE redeemed_invoice_id = ?;
+
+-- name: ListDailySalesTotals :many
+-- Sale invoices and their total per local day, for the conversion page
+-- (visitors who bought). Original sales only -- returns and exchanges
+-- aren't a visitor deciding to buy -- and cancelled sales are left out,
+-- like every other sales statistic.
+SELECT CAST(date(i.created_at, 'localtime') AS TEXT) AS day,
+       CAST(COUNT(*) AS INTEGER) AS invoice_count,
+       CAST(COALESCE(SUM(i.grand_total), 0) AS INTEGER) AS revenue
+FROM sales_invoices si
+JOIN invoices i ON i.id = si.invoice_id
+WHERE date(i.created_at, 'localtime') >= sqlc.arg(report_from)
+  AND date(i.created_at, 'localtime') <= sqlc.arg(report_to)
+  AND i.cancelled_at IS NULL
+GROUP BY date(i.created_at, 'localtime')
+ORDER BY day;
+
+-- name: SetInvoiceLBPTotal :exec
+UPDATE invoices SET lbp_total = ?, lbp_rate = ? WHERE id = ?;

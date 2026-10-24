@@ -27,6 +27,18 @@ type LineQuote struct {
 	Barcode        string `json:"barcode"`
 	LineTotalCents int64  `json:"lineTotalCents"`
 	DiscountCents  int64  `json:"discountCents"`
+	// Deal lines (deals.go). A cart line on a deal can come back as several
+	// quote lines, one per unit price -- its free units apart -- so the cart
+	// matches them by barcode and adds them up.
+	Qty               int64  `json:"qty"`
+	Deal              string `json:"deal,omitempty"`
+	DealLabel         string `json:"dealLabel,omitempty"`
+	DealDiscountCents int64  `json:"dealDiscountCents,omitempty"`
+	Free              bool   `json:"free,omitempty"`
+	// The salesperson turned the line's discount or deal off: the percent or
+	// the deal (short label) it gave up, for the chip that turns it back on.
+	OffDiscount  int64  `json:"offDiscount,omitempty"`
+	OffDealLabel string `json:"offDealLabel,omitempty"`
 }
 
 // QuoteInvoiceTotal prices a cart exactly as checkout would, without
@@ -37,7 +49,7 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 	if a.store == nil {
 		return quote, fmt.Errorf("database not initialized")
 	}
-	items, err := parseSalesItems(itemsJSON)
+	items, err := parseSalesItems(itemsJSON, a.unknownBarcode(), a.unknownCode())
 	if err != nil {
 		return quote, err
 	}
@@ -57,10 +69,17 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 	lines := make([]LineQuote, 0, len(totals.Products))
 	for _, product := range totals.Products {
 		lines = append(lines, LineQuote{
-			Code:           product.product.Code,
-			Barcode:        product.product.Barcode,
-			LineTotalCents: product.lineTotal,
-			DiscountCents:  product.discount,
+			Code:              product.product.Code,
+			Barcode:           product.product.Barcode,
+			LineTotalCents:    product.lineTotal,
+			DiscountCents:     product.discount,
+			Qty:               product.qty,
+			Deal:              product.dealName,
+			DealLabel:         product.dealLabel,
+			DealDiscountCents: product.dealDiscount,
+			Free:              product.isFree(),
+			OffDiscount:       product.offDiscount,
+			OffDealLabel:      product.offDealLabel,
 		})
 	}
 
@@ -99,7 +118,7 @@ func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string) (PaymentStatus,
 	if a.store == nil {
 		return status, fmt.Errorf("database not initialized")
 	}
-	items, err := parseSalesItems(itemsJSON)
+	items, err := parseSalesItems(itemsJSON, a.unknownBarcode(), a.unknownCode())
 	if err != nil {
 		return status, err
 	}
@@ -172,6 +191,10 @@ type ExchangeQuote struct {
 	TaxCents                  int64 `json:"taxCents"`
 	GrandTotalCents           int64 `json:"grandTotalCents"`
 	NeedsMoreReplacementValue bool  `json:"needsMoreReplacementValue"`
+	// How much more the replacements must come to: what was paid for the
+	// returned units less the replacements. Not returned - replacement: a
+	// free unit's swap credit is in the returned total but needn't be used.
+	ShortfallCents int64 `json:"shortfallCents"`
 }
 
 func (a *App) quoteExchange(itemsJSON string, originalInvoiceID int64) (ExchangeQuote, pricedExchange, error) {
@@ -217,7 +240,7 @@ func (a *App) quoteExchange(itemsJSON string, originalInvoiceID int64) (Exchange
 	if err != nil {
 		return quote, pricedExchange{}, fmt.Errorf("round exchange total: %w", err)
 	}
-	needsMoreReplacementValue := priced.replacementTotal < priced.returnedTotal
+	needsMoreReplacementValue := priced.replacementTotal < priced.requiredReplacement
 	if total < 0 {
 		total = 0
 	}
@@ -227,6 +250,7 @@ func (a *App) quoteExchange(itemsJSON string, originalInvoiceID int64) (Exchange
 		TaxCents:                  taxCents,
 		GrandTotalCents:           total,
 		NeedsMoreReplacementValue: needsMoreReplacementValue,
+		ShortfallCents:            max(0, priced.requiredReplacement-priced.replacementTotal),
 	}
 	return quote, priced, nil
 }

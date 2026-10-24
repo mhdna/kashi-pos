@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -294,5 +295,110 @@ func TestOpeningFloatFeatureDisabled(t *testing.T) {
 	}
 	if err := app.UpdateDefaultOpeningFloat(5000, 0, ""); err == nil {
 		t.Fatal("UpdateDefaultOpeningFloat should fail while the feature is off")
+	}
+}
+
+// Expenses and loans paid out of the drawer during the shift come off what
+// the cashier is expected to count, in the bucket of the account that paid
+// them, and are listed on the printed report.
+func TestCloseShiftExpectedSubtractsExpensesAndLoans(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t)
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	store := db.NewStore(database)
+	if err := store.UpsertSettings(ctx, defaultSettingsParams()); err != nil {
+		t.Fatal(err)
+	}
+
+	shift, err := store.CreateShift(ctx, db.CreateShiftParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	usd, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "USD", CurrencyCode: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lbp, err := store.CreateCashboxAccount(ctx, db.CreateCashboxAccountParams{Name: "LBP", CurrencyCode: "LBP"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := store.CreateInventory(ctx, "Sales")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := store.CreateClient(ctx, db.CreateClientParams{Name: "Walk-in", Phone: "00000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	salesperson, err := store.CreateSalesperson(ctx, "Cashier")
+	if err != nil {
+		t.Fatal(err)
+	}
+	invoice, err := store.CreateInvoice(ctx, db.CreateInvoiceParams{
+		CashboxID: usd.ID, ShiftID: shift.ID, InvoiceCode: "SA/CN/2026/SPEND",
+		InvoiceIndex: 1, Year: 2026, ClientID: client.ID, InventoryID: inventory.ID,
+		GrandTotal: 10000, DiscountedTotal: 10000, Subtotal: 10000, SalespersonID: salesperson.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.CreateInvoicePayment(ctx, db.CreateInvoicePaymentParams{
+		InvoiceID: invoice.ID, CashboxID: usd.ID, Amount: 10000,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	shiftRef := sql.NullInt64{Int64: shift.ID, Valid: true}
+	if _, err := store.CreateExpense(ctx, db.CreateExpenseParams{
+		ClientRef: "exp-1", Description: "internet", Amount: 2500,
+		CurrencyCode: "USD", CashboxAccountID: usd.ID, ShiftID: shiftRef,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateLoan(ctx, db.CreateLoanParams{
+		ClientRef: "loan-1", Description: "advance", Amount: 900_000 * 100,
+		CurrencyCode: "LBP", CashboxAccountID: lbp.ID, ShiftID: shiftRef,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// Not this shift's: must not count.
+	if _, err := store.CreateExpense(ctx, db.CreateExpenseParams{
+		ClientRef: "exp-2", Description: "other shift", Amount: 999,
+		CurrencyCode: "USD", CashboxAccountID: usd.ID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &App{ctx: ctx, store: store, conn: database}
+	if err := store.SetFeatureFlag(ctx, db.SetFeatureFlagParams{
+		Key: countOpeningCashOnCloseFlag, Enabled: 0,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedUSD, expectedLBP, _, _, err := app.computeExpectedShiftTotals(shift.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expectedUSD != 7500 {
+		t.Fatalf("expected USD = %d, want 7500 (10000 sales - 2500 expense)", expectedUSD)
+	}
+	if expectedLBP != -900_000 {
+		t.Fatalf("expected LBP = %d, want -900000 (LBP loan)", expectedLBP)
+	}
+
+	closedAt := time.Now().Format("2006-01-02 15:04:05")
+	printData, _, err := app.buildShiftClosePrintData(shift.ID, salesperson.ID, 0, 0, 0, 0, nil, closedAt, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := printData.ShiftReport
+	if len(report.Spend) != 2 || report.PaidOutUSD != 2500 || report.PaidOutLBP != 900_000 {
+		t.Fatalf("receipt spend = %+v paidOutUSD=%d paidOutLBP=%d", report.Spend, report.PaidOutUSD, report.PaidOutLBP)
+	}
+	if report.ExpectedUSD != 7500 {
+		t.Fatalf("receipt expected USD = %d, want 7500", report.ExpectedUSD)
 	}
 }

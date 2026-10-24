@@ -62,6 +62,20 @@
         <span class="sync-status-word">{{ syncState.word }}</span>
       </div>
 
+      <div class="device-panel" role="button" aria-label="Devices" @click="devicesOpen = true">
+        <span class="device-panel-title">Devices</span>
+        <div class="device-status">
+          <v-icon
+            v-for="device in deviceIcons"
+            :key="device.kind"
+            :icon="device.icon"
+            :class="`device-status--${device.state}`"
+            :title="device.title"
+            size="20"
+          />
+        </div>
+      </div>
+
       <v-list-item
         class="nav-item options-item"
         :value="undefined"
@@ -100,18 +114,45 @@
           <v-icon icon="mdi-close" size="44" />
           <span>Close App</span>
         </v-card>
+        <v-card class="option-card" rounded="lg" variant="text" @click="askPower('restart')">
+          <v-icon icon="mdi-restart" size="44" />
+          <span>Restart</span>
+        </v-card>
+        <v-card class="option-card" rounded="lg" variant="text" @click="askPower('shutdown')">
+          <v-icon icon="mdi-power" size="44" />
+          <span>Shut Down</span>
+        </v-card>
       </v-card-text>
     </v-card>
   </v-dialog>
 
+  <DevicesDialog v-model="devicesOpen" />
+
   <v-dialog v-model="closeAppConfirmOpen" max-width="360">
     <v-card class="options-dialog-card" rounded="xl">
       <v-card-title>Close app</v-card-title>
-      <v-card-text>Are you sure you want to close the app?</v-card-text>
+      <v-card-text>Close the app and go to Windows?</v-card-text>
       <v-card-actions>
         <v-spacer />
         <v-btn variant="text" @click="closeAppConfirmOpen = false">Cancel</v-btn>
         <v-btn color="error" variant="flat" @click="confirmCloseApp">Close App</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <v-dialog :model-value="powerConfirm !== null" max-width="360" @update:model-value="powerConfirm = null">
+    <v-card class="options-dialog-card" rounded="xl">
+      <v-card-title>{{ powerConfirm === 'restart' ? 'Restart computer' : 'Shut down computer' }}</v-card-title>
+      <v-card-text>
+        {{ powerConfirm === 'restart' ? 'Restart this computer now?' : 'Turn this computer off now?' }}
+        <div v-if="powerError" class="text-error mt-2">{{ powerError }}</div>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn variant="text" @click="powerConfirm = null">Cancel</v-btn>
+        <v-btn color="error" variant="flat" @click="confirmPower">
+          {{ powerConfirm === 'restart' ? 'Restart' : 'Shut Down' }}
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -125,9 +166,12 @@ import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import { useSyncStatus } from "@/composables/useSyncStatus";
+import { useDeviceStatus } from "@/composables/useDeviceStatus";
+import DevicesDialog from "@/components/DevicesDialog.vue";
 import { useResyncStore } from "@/stores/resync";
 import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { Quit } from "../../wailsjs/runtime/runtime";
+import { RestartComputer, ShutDownComputer } from "../../wailsjs/go/main/App";
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -160,6 +204,9 @@ const syncState = computed(() => {
 });
 const { status: attendanceStatus } = useAttendanceStatus();
 
+const { devices: deviceIcons } = useDeviceStatus();
+const devicesOpen = ref(false);
+
 function openSyncSettings() {
   router.push({ path: '/settings', query: { panel: 'general-sync' } });
 }
@@ -185,6 +232,23 @@ function closeApp() {
 function confirmCloseApp() {
   closeAppConfirmOpen.value = false;
   Quit();
+}
+
+const powerConfirm = ref<"restart" | "shutdown" | null>(null);
+const powerError = ref("");
+
+function askPower(action: "restart" | "shutdown") {
+  optionsOpen.value = false;
+  powerError.value = "";
+  powerConfirm.value = action;
+}
+
+async function confirmPower() {
+  try {
+    await (powerConfirm.value === "restart" ? RestartComputer() : ShutDownComputer());
+  } catch (err) {
+    powerError.value = String(err);
+  }
 }
 
 function openCloseShift() {
@@ -229,6 +293,15 @@ const items = computed(() => {
       icon: "mdi-chart-bar",
       t: "Sales",
       locked: !auth.isAdmin && !pageUnlocks.value.salespersons,
+    },
+    // Sales per visitor, so only while visitors are being counted (admins
+    // keep it to look back). A manager opens it with the manager password.
+    {
+      value: "conversion",
+      to: "/conversion",
+      icon: "mdi-account-convert",
+      t: "Conversion",
+      locked: !auth.isAdmin && !visitorCounterEnabled.value,
     },
     {
       value: "transfers",
@@ -278,6 +351,41 @@ const items = computed(() => {
   color: #ef5350;
 }
 .sync-status--off {
+  color: #9e9e9e;
+}
+.device-panel {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0 6px 8px;
+  padding: 4px 0 6px;
+  background: #000;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.device-panel-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #9e9e9e;
+}
+.device-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 8px;
+  /* Two icons a row: scanner and printer, keyboard and mouse under them. */
+  width: 56px;
+}
+.device-status--ok {
+  color: #66bb6a;
+}
+.device-status--off {
+  color: #ef5350;
+}
+.device-status--unknown {
   color: #9e9e9e;
 }
 .nav-drawer {

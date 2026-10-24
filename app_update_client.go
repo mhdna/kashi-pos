@@ -26,6 +26,8 @@ type appUpdateManifest struct {
 	Sha256    string `json:"sha256"`
 	Signature string `json:"signature"`
 	Notes     string `json:"notes"`
+	// Force: install as soon as it's here, even with a shift open.
+	Force bool `json:"force"`
 }
 
 // GetAppUpdate returns this register's target release, or nil if it has none.

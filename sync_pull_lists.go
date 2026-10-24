@@ -37,15 +37,42 @@ type syncedPriceList struct {
 type syncedDiscountListItem struct {
 	ProductVariantUID string `json:"product_variant_uid"`
 	Discount          int64  `json:"discount"`
+	// The deal the variant is on (deals.go), one of the list's Deals.
+	DealUID string `json:"deal_uid,omitempty"`
+}
+
+// A deal's terms, sent with every list whose rows name it.
+type syncedDeal struct {
+	UID         string `json:"uid"`
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	BuyQty      int64  `json:"buy_qty"`
+	GetQty      int64  `json:"get_qty"`
+	Percent     int64  `json:"percent"`
+	BundlePrice int64  `json:"bundle_price"`
+	// What units outside a set get (kashi 000205); 0 for none.
+	FallbackPercent int64 `json:"fallback_percent"`
+	// The fallback is only for a cart that makes no set (kashi 000207).
+	FallbackOnlyWithoutSet bool `json:"fallback_only_without_set"`
+}
+
+// A discount that applies only when the line is sold as the named sale
+// option -- see 000126_sale_options.up.sql.
+type syncedDiscountListOptionItem struct {
+	ProductVariantUID string `json:"product_variant_uid"`
+	SaleOption        string `json:"sale_option"`
+	Discount          int64  `json:"discount"`
 }
 
 type syncedDiscountList struct {
-	UID       string                   `json:"uid"`
-	Name      string                   `json:"name"`
-	IsActive  bool                     `json:"is_active"`
-	IsDefault bool                     `json:"is_default"`
-	IsSpecial bool                     `json:"is_special"`
-	Items     []syncedDiscountListItem `json:"items"`
+	UID         string                         `json:"uid"`
+	Name        string                         `json:"name"`
+	IsActive    bool                           `json:"is_active"`
+	IsDefault   bool                           `json:"is_default"`
+	IsSpecial   bool                           `json:"is_special"`
+	Items       []syncedDiscountListItem       `json:"items"`
+	OptionItems []syncedDiscountListOptionItem `json:"option_items"`
+	Deals       []syncedDeal                   `json:"deals"`
 }
 
 // A list kashi reports as inactive is deleted outright rather than kept and
@@ -112,6 +139,22 @@ func applySyncedDiscountList(ctx context.Context, q *db.Queries, l syncedDiscoun
 		return err
 	}
 
+	// Deals first: they are shared between lists and kept by uid, so a deal
+	// a list stops naming is simply left unused, never deleted out from
+	// under another list.
+	for _, d := range l.Deals {
+		if d.UID == "" {
+			continue
+		}
+		if err := q.UpsertDeal(ctx, db.UpsertDealParams{
+			Uid: d.UID, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty,
+			GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice,
+			FallbackPercent: d.FallbackPercent, FallbackOnlyWithoutSet: boolInt(d.FallbackOnlyWithoutSet),
+		}); err != nil {
+			return err
+		}
+	}
+
 	if err := q.DeleteDiscountListItemsForList(ctx, list.ID); err != nil {
 		return err
 	}
@@ -122,6 +165,25 @@ func applySyncedDiscountList(ctx context.Context, q *db.Queries, l syncedDiscoun
 		if err := q.InsertDiscountListItem(ctx, db.InsertDiscountListItemParams{
 			DiscountListID: list.ID,
 			ProductUid:     item.ProductVariantUID,
+			Discount:       item.Discount,
+			DealUid:        item.DealUID,
+		}); err != nil {
+			return err
+		}
+	}
+
+	// Replaced whole like the plain items, so a removed option row goes too.
+	if err := q.DeleteDiscountListOptionItemsForList(ctx, list.ID); err != nil {
+		return err
+	}
+	for _, item := range l.OptionItems {
+		if item.ProductVariantUID == "" || item.SaleOption == "" {
+			continue
+		}
+		if err := q.InsertDiscountListOptionItem(ctx, db.InsertDiscountListOptionItemParams{
+			DiscountListID: list.ID,
+			ProductUid:     item.ProductVariantUID,
+			SaleOption:     item.SaleOption,
 			Discount:       item.Discount,
 		}); err != nil {
 			return err

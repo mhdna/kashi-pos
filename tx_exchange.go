@@ -16,6 +16,9 @@ type exchangePolicy struct {
 	// cancellation makes this full return a cancel of its sale (CancelInvoice):
 	// both invoices get cancelled_at and kashi is told so.
 	cancellation bool
+	// unknownSessionRef is the picture session of the "Unknown item"
+	// replacements, sent to kashi with the exchange (see unknown_items.go).
+	unknownSessionRef string
 }
 
 var posExchangePolicy = exchangePolicy{}
@@ -24,7 +27,20 @@ var adminReturnExchangePolicy = exchangePolicy{allowLate: true, allowLowerTotal:
 // CheckoutExchangeInvoice records one returned line and one or more
 // replacement lines. Only the positive difference is paid by the customer.
 func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, salespersonID int64, notes string) (map[string]any, error) {
-	return a.checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON, originalInvoiceID, salespersonID, notes, 0, posExchangePolicy)
+	// Only replacements are sold, so only they need pictures (a returned
+	// unknown item has qty < 0 and is skipped by unknownUnitCount).
+	unknownRef, err := a.verifyUnknownPictures(itemsJSON)
+	if err != nil {
+		return nil, fmt.Errorf("exchange failed: %w", err)
+	}
+	policy := posExchangePolicy
+	policy.unknownSessionRef = unknownRef
+	result, err := a.checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON, originalInvoiceID, salespersonID, notes, 0, policy)
+	if err != nil {
+		return nil, err
+	}
+	a.clearUnknownSession(unknownRef)
+	return result, nil
 }
 
 func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, salespersonID int64, notes string, settlementAccountID int64, policy exchangePolicy) (map[string]any, error) {
@@ -101,7 +117,9 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 		if err != nil {
 			return err
 		}
-		if !policy.allowLowerTotal && priced.replacementTotal < priced.returnedTotal {
+		// What was paid for the returned units, not their swap credit: a free
+		// unit's credit may go unused (deal_exchange.go).
+		if !policy.allowLowerTotal && priced.replacementTotal < priced.requiredReplacement {
 			return fmt.Errorf("combined replacement total must equal or exceed the returned item")
 		}
 		netDifference := priced.replacementTotal - priced.returnedTotal
@@ -161,6 +179,10 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 		if err != nil {
 			return err
 		}
+		// What the exchange did to the sale's deals is printed with the notes.
+		if dealNotes := dealAdjustmentNotes(priced.dealAdjustments); dealNotes != "" {
+			notes = strings.TrimSpace(strings.TrimSpace(notes) + "\n" + dealNotes)
+		}
 		invoice, err := createExchangeInvoice(
 			a, q, cashbox, shift, source, inventoryID, salespersonID, total, settings.BranchCode, notes, policy.returnOnly,
 		)
@@ -168,6 +190,9 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			return err
 		}
 		if err := recordExchangeProducts(a, q, invoice.ID, inventoryID, priced); err != nil {
+			return err
+		}
+		if err := recordExchangeDealAdjustments(a.ctx, q, invoice.ID, source.ID, priced.dealAdjustments); err != nil {
 			return err
 		}
 		if err := recordExchangePayments(a, q, invoice.ID, shift.ID, payments); err != nil {
@@ -209,6 +234,8 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 					LineTotal:       -returned.lineTotal,
 					Discount:        int16(returned.line.Discount),
 					Quantity:        -returned.qty,
+					Deal:            dealNameOf(source.ID, returned.deal.dealUID, q, a),
+					DealDiscount:    -returned.deal.unitDeal * returned.qty,
 				})
 			}
 			for _, replacement := range priced.replacements {
@@ -231,6 +258,10 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			if err != nil {
 				return err
 			}
+			lbpTotal, lbpRate, err := stampInvoiceLBPTotal(a.ctx, q, invoice.ID, total, roundingMode)
+			if err != nil {
+				return fmt.Errorf("record LBP total: %w", err)
+			}
 
 			// checkoutReturnExchangeInvoice doesn't touch loyalty points at
 			// all today (unlike salesInvoiceTx) — report that faithfully as
@@ -252,9 +283,12 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				OccurredAt:             time.Now().UTC(),
 				SalespersonName:        salespersonName,
 				SalespersonID:          salespersonRemoteID(a.ctx, q, salespersonID),
+				LbpTotal:               lbpTotal,
+				LbpRate:                lbpRate,
 				Payments:               payloadPayments,
 				Items:                  payloadItems,
 				Cancellation:           policy.cancellation,
+				UnknownSessionRef:      policy.unknownSessionRef,
 			}); err != nil {
 				return fmt.Errorf("queue branch invoice sync: %w", err)
 			}
@@ -360,6 +394,9 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 			UnitPrice: returned.line.UnitPrice, LineTotal: -returned.lineTotal,
 			Discount: returned.line.Discount, Quantity: -returned.qty,
 			SalespersonID: returned.salespersonID, Note: returned.note,
+			// Signed like the quantity, so a unit's deal discount reads the
+			// same on the sold line and the returned one.
+			DealUid: returned.deal.dealUID, DealDiscount: -returned.deal.unitDeal * returned.qty,
 		}); err != nil {
 			return err
 		}
@@ -377,6 +414,10 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 			UnitPrice: replacement.unitPrice, LineTotal: replacement.lineTotal,
 			Discount: replacement.discount, Quantity: replacement.qty,
 			SalespersonID: replacement.salespersonID, Note: replacement.note,
+			SaleOption: replacement.saleOption,
+			// Set only on a replacement standing in for a returned paid unit
+			// of the sale's deal (deal_exchange.go).
+			DealUid: replacement.dealUID,
 		}); err != nil {
 			return err
 		}

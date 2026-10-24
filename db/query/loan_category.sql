@@ -17,3 +17,6 @@ UPDATE loan_categories
 SET name = ?, is_active = ?, icon = ?, color = ?, updated_at = datetime('now')
 WHERE id = ?
 RETURNING *;
+
+-- name: DeleteLoanCategory :exec
+DELETE FROM loan_categories WHERE id = ?;

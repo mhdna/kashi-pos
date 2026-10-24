@@ -1,46 +1,20 @@
 <template>
-  <v-dialog v-model="dialog" :max-width="step === 'phone' ? 320 : 760">
-    <v-card v-if="step === 'phone'">
-      <v-card-title class="font-weight-bold">Enter Phone Number</v-card-title>
-      <v-card-text class="client-phone-layout">
+  <!-- Reset only once the close animation is over: resetting on close put
+       the phone step back on screen while the dialog was still fading. -->
+  <v-dialog v-model="dialog" :max-width="step === 'phone' && !countryPickerOpen ? 720 : 760" @after-leave="reset">
+    <v-card v-if="step === 'phone'" class="client-phone-card">
+      <v-card-title v-if="!countryPickerOpen" class="font-weight-bold">Enter Phone Number</v-card-title>
+      <v-card-text v-if="!countryPickerOpen" class="client-phone-layout">
         <div class="client-phone-form">
-          <v-autocomplete
-            v-model="selectedCountry"
-            :items="countries"
-            item-title="displayName"
-            item-value="code"
-            placeholder="Country"
-            variant="outlined"
-            density="compact"
-            class="mb-2"
-            hide-details
-            autocomplete="off"
+          <div
+            class="client-phone-error text-error text-caption text-center"
+            :class="{ 'client-phone-error--hidden': !phoneError && !phoneLengthHint }"
           >
-            <template #selection="{ item }">
-              <span
-                v-if="isLebanon(item.code)"
-                class="country-flag country-flag-lebanon"
-                aria-label="Lebanon"
-              />
-              <span v-else class="country-flag">{{ item.flag }}</span>
-              <span>{{ item.displayName }}</span>
-            </template>
-            <template #item="{ props: itemProps, item }">
-              <v-list-item v-bind="itemProps" :subtitle="`+${item.dialCode}`">
-                <template #title>
-                  <span
-                    v-if="isLebanon(item.code)"
-                    class="country-flag country-flag-lebanon"
-                    aria-label="Lebanon"
-                  />
-                  <span v-else class="country-flag">{{ item.flag }}</span>
-                  <span>{{ item.name }}</span>
-                </template>
-              </v-list-item>
-            </template>
-          </v-autocomplete>
+            {{ phoneError || phoneLengthHint || " " }}
+          </div>
           <div class="client-phone-numpad">
           <div class="client-phone-numpad-display">
+            <span class="client-phone-prefix" aria-label="Country code">+{{ selectedDialCode }}</span>
             <input
               ref="phoneInput"
               class="client-phone-numpad-display-input"
@@ -58,53 +32,10 @@
               @input="handlePhoneInput"
             />
           </div>
-          <div class="client-phone-numpad-grid">
-            <v-btn
-              v-for="digit in phonePadDigits"
-              :key="digit"
-              class="client-phone-numpad-key"
-              size="small"
-              variant="tonal"
-              @click="appendPhoneDigit(digit)"
-            >
-              {{ digit }}
-            </v-btn>
-            <v-btn
-              aria-label="Clear phone number"
-              class="client-phone-numpad-key"
-              size="small"
-              variant="tonal"
-              @click="clearPhone"
-            >
-              C
-            </v-btn>
-            <v-btn
-              class="client-phone-numpad-key"
-              size="small"
-              variant="tonal"
-              @click="appendPhoneDigit('0')"
-            >
-              0
-            </v-btn>
-            <v-btn
-              aria-label="Delete last phone digit"
-              class="client-phone-numpad-key"
-              size="small"
-              variant="tonal"
-              @click="backspacePhone"
-            >
-              ⌫
-            </v-btn>
-          </div>
-          </div>
-          <div
-            class="client-phone-error text-error text-caption text-center mt-2"
-            :class="{ 'client-phone-error--hidden': !phoneError }"
-          >
-            {{ phoneError || " " }}
+          <PhonePad class="client-phone-pad" :show-arrows="false" @press="pressPhoneKey" />
           </div>
           <v-btn
-            class="client-phone-action-button w-100 mt-4"
+            class="client-phone-action-button w-100 mt-3"
             variant="elevated"
             color="primary"
             :disabled="!phone.trim()"
@@ -113,38 +44,122 @@
             Continue
           </v-btn>
           <v-btn
-            class="client-phone-action-button w-100 mt-6"
+            class="client-phone-action-button w-100 mt-5"
             variant="tonal"
             @click="selectAnonymous"
           >
             Prefer not to say
           </v-btn>
         </div>
+        <div class="client-phone-countries">
+          <button
+            type="button"
+            class="client-phone-country-trigger mt-2 mb-3"
+            aria-label="Country: choose or search"
+            aria-haspopup="dialog"
+            :aria-expanded="countryPickerOpen"
+            @click="countryPickerOpen = true"
+          >
+            <span class="client-phone-country-trigger-label">Country</span>
+            <span class="country-flag">{{ selectedFlag }}</span>
+            <span class="client-phone-country-trigger-name">{{ selectedCountryName }} (+{{ selectedDialCode }})</span>
+            <span class="client-phone-country-trigger-search" aria-hidden="true">
+              <v-icon icon="mdi-magnify" size="22" />
+              Search
+            </span>
+          </button>
+          <div class="client-phone-country-cards" role="listbox" aria-label="Common countries">
+            <button
+              v-for="country in pagedFrequentCountries"
+              :key="country.code"
+              type="button"
+              role="option"
+              class="client-phone-country-card"
+              :class="{ 'client-phone-country-card--active': country.code === selectedCountry }"
+              :aria-selected="country.code === selectedCountry"
+              @click="selectedCountry = country.code"
+            >
+              <span class="country-flag">{{ country.flag }}</span>
+              <span class="client-phone-country-card-name">{{ country.name }}</span>
+              <span class="client-phone-country-card-code">+{{ country.dialCode }}</span>
+            </button>
+          </div>
+          <div class="client-phone-country-pager">
+            <v-btn
+              icon="mdi-chevron-left"
+              variant="tonal"
+              aria-label="Previous countries"
+              :disabled="countryPage === 0"
+              @click="countryPage--"
+            />
+            <span class="text-medium-emphasis">{{ countryPage + 1 }} / {{ countryPageCount }}</span>
+            <v-btn
+              icon="mdi-chevron-right"
+              variant="tonal"
+              aria-label="More countries"
+              :disabled="countryPage === countryPageCount - 1"
+              @click="countryPage++"
+            />
+          </div>
+        </div>
       </v-card-text>
+
+      <!-- Every country as a card, replacing the phone step; tapping one
+           picks it and goes back. Search is typed on the on-screen keyboard
+           below, by country name or dial code. -->
+      <div v-else class="client-phone-picker" role="dialog" aria-label="Select country">
+        <div class="client-phone-picker-header">
+          <span class="text-h6 font-weight-bold">Select country</span>
+          <v-btn variant="tonal" size="large" @click="closeCountryPicker">Close</v-btn>
+        </div>
+        <v-text-field
+          :model-value="countrySearch"
+          class="client-phone-picker-search"
+          placeholder="Search country or code"
+          variant="outlined"
+          density="comfortable"
+          prepend-inner-icon="mdi-magnify"
+          hide-details
+          readonly
+          clearable
+          @click:clear="countrySearch = ''"
+        />
+        <div class="client-phone-picker-grid">
+          <button
+            v-for="country in pickerCountries"
+            :key="country.code"
+            type="button"
+            class="client-phone-country-card"
+            :class="{ 'client-phone-country-card--active': country.code === selectedCountry }"
+            @click="pickCountry(country.code)"
+          >
+            <span class="country-flag">{{ country.flag }}</span>
+            <span class="client-phone-country-card-name">{{ country.name }}</span>
+            <span class="client-phone-country-card-code">+{{ country.dialCode }}</span>
+          </button>
+          <div v-if="pickerCountries.length === 0" class="client-phone-picker-empty text-medium-emphasis">
+            No country matches "{{ countrySearch }}"
+          </div>
+        </div>
+        <InlineKeyboard v-model="countrySearch" class="client-phone-picker-keyboard" layout="code" :max-length="30" />
+      </div>
     </v-card>
 
     <v-card v-else-if="step === 'new'">
       <v-card-title>New Client</v-card-title>
       <v-card-text>
-        <v-text-field
-          :model-value="formatLebanesePhone(newClient.phone)"
-          placeholder="Phone Number"
-          variant="outlined"
-          density="compact"
+        <PhoneField
+          ref="newPhoneField"
+          v-model="newClient.phone"
           class="mb-2"
-          readonly
-          @update:model-value="newClient.phone = $event.replace(/\D/g, '')"
+          :error-messages="newPhoneError"
+          @focus="newPhoneActive = true"
         >
           <template #prepend>
-            <span
-              v-if="isLebanon(selectedCountry)"
-              class="country-flag country-flag-lebanon"
-              aria-label="Lebanon"
-            />
-            <span v-else class="country-flag">{{ selectedFlag }}</span>
+            <span class="country-flag">{{ selectedFlag }}</span>
             <span>+{{ selectedDialCode }}</span>
           </template>
-        </v-text-field>
+        </PhoneField>
         <v-text-field
           v-model="newClient.name"
           placeholder="Name"
@@ -155,8 +170,10 @@
           @keydown="preventClientNameNumber"
           @beforeinput="preventClientNameNumberInput"
           @keydown.enter="createClient"
+          @focus="newPhoneActive = false"
         />
-        <InlineKeyboard v-model="newClient.name" class="client-name-keyboard mt-3" />
+        <PhonePad v-if="newPhoneActive" class="mt-3" @press="newPhoneField?.press($event)" />
+        <InlineKeyboard v-else v-model="newClient.name" class="client-name-keyboard mt-3" />
       </v-card-text>
       <v-card-actions class="pa-4">
         <v-btn variant="text" @click="step = 'phone'">Back</v-btn>
@@ -190,9 +207,11 @@ import {
   toClient,
   type Client,
 } from "@/lib/client";
-import { formatLebanesePhone, normalizeLebanesePhone } from "@/lib/phone";
+import { normalizeLebanesePhone } from "@/lib/phone";
 import { playClickSound, playDtmfSound } from "@/lib/sound";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import PhoneField from "@/components/PhoneField.vue";
+import PhonePad from "@/components/PhonePad.vue";
 
 const emit = defineEmits<{ select: [client: Client] }>();
 
@@ -207,18 +226,93 @@ const phone = ref("");
 const phoneInput = ref<HTMLInputElement | null>(null);
 const phoneSubmitted = ref(false);
 const selectedCountry = ref<CountryCode>("LB");
+// newClient.phone is the number after the country code, as edited on the
+// new-client step; createClient puts the country code back.
 const newClient = reactive({ name: "", phone: "" });
-const phonePadDigits = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+const newPhoneField = ref<InstanceType<typeof PhoneField> | null>(null);
+const newPhoneActive = ref(false);
+const newPhoneError = ref("");
 const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
+// Left out of the country lists altogether.
+const hiddenCountryCodes: string[] = ["IL"];
+// The browser's own names, except where we use a different one.
+const countryNameOverrides: Record<string, string> = { PS: "Palestine" };
 const countries = getCountries()
+  .filter((code) => !hiddenCountryCodes.includes(code))
   .map((code) => ({
     code,
-    name: countryNames.of(code) || code,
-    displayName: `${countryNames.of(code) || code} (+${getCountryCallingCode(code)})`,
+    name: countryNameOverrides[code] || countryNames.of(code) || code,
+    displayName: `${countryNameOverrides[code] || countryNames.of(code) || code} (+${getCountryCallingCode(code)})`,
     dialCode: getCountryCallingCode(code),
     flag: flagForCountry(code),
   }))
   .sort((a, b) => a.name.localeCompare(b.name));
+// Countries our clients' numbers actually come from (production, by client
+// count), most common first; +1 is shared by Canada and the US, so both are
+// listed. Anything else is still in the dropdown.
+const frequentCountryCodes: CountryCode[] = [
+  "LB", "IQ", "SY", "PS", "CI", "DE", "FR", "CG", "ID", "GA", "SL", "SA", "CA", "US",
+  "ML", "GM", "AE", "GH", "CF", "SE", "MZ", "CH", "KW", "GB", "TG", "OM", "AF",
+];
+const frequentCountries = frequentCountryCodes
+  .map((code) => countries.find((country) => country.code === code))
+  .filter((country): country is (typeof countries)[number] => !!country);
+// Beside the numpad, twelve at a time with arrows to page through, so opening
+// the dialog draws a handful of cards rather than the whole list.
+const countryPageSize = 12;
+const countryPageCount = Math.ceil(frequentCountries.length / countryPageSize);
+const countryPage = ref(0);
+const pagedFrequentCountries = computed(() =>
+  frequentCountries.slice(countryPage.value * countryPageSize, (countryPage.value + 1) * countryPageSize),
+);
+// The full picker lists the common countries first, then everyone else A-Z.
+const allPickerCountries = [
+  ...frequentCountries,
+  ...countries.filter((country) => !frequentCountryCodes.includes(country.code)),
+];
+const countryPickerOpen = ref(false);
+const countrySearch = ref("");
+// Search by name ("uni"), two-letter code ("us") or dial code ("+1" or "1").
+// Closest matches first: an exact code, then names starting with the text,
+// then dial codes starting with it, then names containing it; ties keep the
+// common-countries-first order.
+const pickerCountries = computed(() => {
+  const raw = countrySearch.value.trim().toLowerCase();
+  if (!raw) return allPickerCountries;
+  const dialOnly = raw.startsWith("+");
+  const query = raw.replace(/^\+/, "");
+  if (!query) return allPickerCountries;
+  const digitsOnly = /^\d+$/.test(query);
+  const rank = (country: (typeof countries)[number]) => {
+    const name = country.name.toLowerCase();
+    const iso = country.code.toLowerCase();
+    if (digitsOnly) {
+      if (country.dialCode === query) return 0;
+      return country.dialCode.startsWith(query) ? 2 : -1;
+    }
+    if (dialOnly) return -1;
+    if (iso === query) return 0;
+    if (name.startsWith(query)) return 1;
+    if (query.length <= 2 && iso.startsWith(query)) return 2;
+    return name.includes(query) ? 3 : -1;
+  };
+  return allPickerCountries
+    .map((country, index) => ({ country, index, score: rank(country) }))
+    .filter((entry) => entry.score >= 0)
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .map((entry) => entry.country);
+});
+function closeCountryPicker() {
+  countryPickerOpen.value = false;
+  countrySearch.value = "";
+}
+function pickCountry(code: CountryCode) {
+  selectedCountry.value = code;
+  closeCountryPicker();
+}
+const selectedCountryName = computed(
+  () => countries.find((country) => country.code === selectedCountry.value)?.name ?? selectedCountry.value,
+);
 const selectedFlag = computed(() => flagForCountry(selectedCountry.value));
 const selectedDialCode = computed(() => getCountryCallingCode(selectedCountry.value));
 const phoneError = computed(() =>
@@ -234,8 +328,13 @@ watch([dialog, step], ([open, currentStep]) => {
   void nextTick(() => phoneInput.value?.focus());
 });
 
+watch(() => newClient.phone, () => {
+  newPhoneError.value = "";
+});
+
 watch([phone, selectedCountry], () => {
   phoneSubmitted.value = false;
+  phoneLengthHint.value = "";
 });
 
 function flagForCountry(code: string) {
@@ -260,24 +359,43 @@ function normalizePhone(value: string) {
 
 // Blocks typing past the selected country's longest possible number (by its
 // numbering plan, so it allows for a typed national prefix like UK's 0).
-// Lebanon uses its own fixed 8-digit cap, see normalizeLebanesePhone.
+// Lebanon is 8 digits, plus the leading 0, 961 or 00961 that
+// normalizeLebanesePhone also accepts.
 function exceedsPhoneLength(value: string) {
   const digits = value.replace(/\D/g, "");
-  if (selectedCountry.value === "LB") return digits.length > 8;
+  if (isLebanon(selectedCountry.value)) {
+    if (digits.length <= 8) return false;
+    if (digits.startsWith("00961")) return digits.length > 13;
+    if (digits.startsWith("961")) return digits.length > 11;
+    if (digits.startsWith("0")) return digits.length > 9;
+    return true;
+  }
   return digits.length > 15 || validatePhoneNumberLength(digits, selectedCountry.value) === "TOO_LONG";
+}
+
+// Typing stops at the country's longest number without any other sign, which
+// looks like a broken keypad -- most of all when a foreign number is typed
+// while Lebanon is still selected. So say why it stopped.
+const phoneLengthHint = ref("");
+function blocksPhoneLength(value: string) {
+  if (!exceedsPhoneLength(value)) return false;
+  phoneLengthHint.value = isLebanon(selectedCountry.value)
+    ? "Lebanese numbers have 8 digits. For another country, tap Search."
+    : `That's the longest number for ${selectedCountryName.value}.`;
+  return true;
 }
 
 function replaceSelection(value: string, start: number, end: number, inserted: string) {
   return value.slice(0, start) + inserted + value.slice(end);
 }
 
-function appendPhoneDigit(digit: string) {
+function appendPhoneDigit(digit: string, silent = false) {
   const input = phoneInput.value;
   const rawPhone = phone.value.replace(/\D/g, "");
   const start = input?.selectionStart ?? rawPhone.length;
   const end = input?.selectionEnd ?? start;
-  if (exceedsPhoneLength(replaceSelection(rawPhone, start, end, digit))) return;
-  playDtmfSound(digit);
+  if (blocksPhoneLength(replaceSelection(rawPhone, start, end, digit))) return;
+  if (!silent) playDtmfSound(digit);
   phone.value = rawPhone.slice(0, start) + digit + rawPhone.slice(end);
   phoneSubmitted.value = false;
   restorePhoneCaret(start + 1);
@@ -288,7 +406,7 @@ function preventPhoneLength(event: KeyboardEvent) {
   const input = event.target as HTMLInputElement;
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? start;
-  if (exceedsPhoneLength(replaceSelection(input.value, start, end, event.key))) event.preventDefault();
+  if (blocksPhoneLength(replaceSelection(input.value, start, end, event.key))) event.preventDefault();
 }
 
 function preventPhoneLengthInput(event: InputEvent) {
@@ -296,17 +414,17 @@ function preventPhoneLengthInput(event: InputEvent) {
   const input = event.target as HTMLInputElement;
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? start;
-  if (exceedsPhoneLength(replaceSelection(input.value, start, end, event.data))) event.preventDefault();
+  if (blocksPhoneLength(replaceSelection(input.value, start, end, event.data))) event.preventDefault();
 }
 
-function clearPhone() {
-  playClickSound();
+function clearPhone(silent = false) {
+  if (!silent) playClickSound();
   phone.value = "";
   phoneSubmitted.value = false;
 }
 
-function backspacePhone() {
-  playClickSound();
+function backspacePhone(silent = false) {
+  if (!silent) playClickSound();
   const input = phoneInput.value;
   if (!input) return;
   removePhoneAtCursor({
@@ -314,6 +432,25 @@ function backspacePhone() {
     preventDefault() {},
     stopPropagation() {},
   } as unknown as KeyboardEvent);
+}
+
+// Keys from the shared PhonePad, which plays the key sound itself.
+function pressPhoneKey(key: string) {
+  if (/^\d$/.test(key)) appendPhoneDigit(key, true);
+  else if (key === "clear") clearPhone(true);
+  else if (key === "back") backspacePhone(true);
+  else if (key === "left") movePhoneCaret(-1);
+  else if (key === "right") movePhoneCaret(1);
+}
+
+function movePhoneCaret(step: number) {
+  const input = phoneInput.value;
+  if (!input) return;
+  const hasSelection = input.selectionStart !== input.selectionEnd;
+  const from = (step < 0 ? input.selectionStart : input.selectionEnd) ?? input.value.length;
+  const next = hasSelection ? from : Math.min(Math.max(from + step, 0), input.value.length);
+  input.focus();
+  input.setSelectionRange(next, next);
 }
 
 function handlePhoneInput(event: Event) {
@@ -383,27 +520,32 @@ async function lookupPhone() {
     const c = await GetClientByPhone(p);
     emit("select", toClient(c));
     dialog.value = false;
-    reset();
   } catch {
-    newClient.phone = p;
+    const dial = `+${selectedDialCode.value}`;
+    newClient.phone = p.startsWith(dial) ? p.slice(dial.length) : p;
     newClient.name = "";
+    newPhoneError.value = "";
+    newPhoneActive.value = false;
     step.value = "new";
   }
 }
 
 async function createClient() {
   if (!newClient.name.trim()) return;
+  const phone = newClient.phone.startsWith("+") ? newClient.phone : normalizePhone(newClient.phone);
+  if (!phone) {
+    newPhoneError.value = isLebanon(selectedCountry.value)
+      ? "Enter a valid Lebanese phone number"
+      : "Enter a valid mobile phone number";
+    return;
+  }
   try {
-    const c = await CreateClient(capitalizeName(newClient.name), newClient.phone);
+    const c = await CreateClient(capitalizeName(newClient.name), phone);
     emit("select", toClient(c));
   } catch {
-    emit(
-      "select",
-      toClient({ id: 0, name: capitalizeName(newClient.name), phone: newClient.phone }),
-    );
+    emit("select", toClient({ id: 0, name: capitalizeName(newClient.name), phone }));
   }
   dialog.value = false;
-  reset();
 }
 
 function capitalizeName(value: string) {
@@ -418,7 +560,6 @@ function capitalizeName(value: string) {
 function selectAnonymous() {
   emit("select", anonymousClient());
   dialog.value = false;
-  reset();
 }
 
 function reset() {
@@ -426,8 +567,12 @@ function reset() {
   phone.value = "";
   phoneSubmitted.value = false;
   selectedCountry.value = "LB";
+  countryPage.value = 0;
+  closeCountryPicker();
   newClient.name = "";
   newClient.phone = "";
+  newPhoneError.value = "";
+  newPhoneActive.value = false;
 }
 </script>
 
@@ -438,40 +583,188 @@ function reset() {
   line-height: 1;
 }
 
-.country-flag-lebanon {
-  position: relative;
-  width: 24px;
-  height: 16px;
-  vertical-align: -3px;
-  border-radius: 2px;
-  background: linear-gradient(to bottom, #ed1c24 0 25%, #fff 25% 75%, #ed1c24 75%);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 12%);
-}
-
-.country-flag-lebanon::after {
-  content: "";
-  position: absolute;
-  inset: 3px 9px 3px 9px;
-  background: #16863d;
-  clip-path: polygon(
-    50% 0,
-    62% 28%,
-    100% 18%,
-    72% 48%,
-    100% 72%,
-    62% 62%,
-    50% 100%,
-    38% 62%,
-    0 72%,
-    28% 48%,
-    0 18%,
-    38% 28%
-  );
-}
-
 .client-phone-layout {
+  align-items: stretch;
   display: flex;
+  gap: 24px;
   justify-content: center;
+}
+
+.client-phone-card {
+  position: relative;
+}
+
+.client-phone-country-trigger {
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(var(--v-border-color), 0.55);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 0 10px;
+  grid-template-columns: auto 1fr auto;
+  min-height: 56px;
+  padding: 0 8px 0 12px;
+  position: relative;
+  text-align: start;
+  width: 100%;
+}
+
+.client-phone-country-trigger:hover {
+  border-color: currentColor;
+}
+
+/* Sits on the top border like an outlined field's label. */
+.client-phone-country-trigger-label {
+  background: rgb(var(--v-theme-surface));
+  font-size: 0.75rem;
+  left: 10px;
+  line-height: 1;
+  opacity: 0.75;
+  padding: 0 4px;
+  position: absolute;
+  top: -6px;
+}
+
+.client-phone-country-trigger-name {
+  font-size: 0.95rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-phone-country-trigger-search {
+  align-items: center;
+  /* Teal, so it isn't mistaken for the blue Continue button below. */
+  background: #00796b;
+  border-radius: 4px;
+  color: #fff;
+  display: flex;
+  font-size: 0.95rem;
+  font-weight: 500;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+}
+
+.client-phone-picker {
+  display: flex;
+  flex-direction: column;
+  height: min(92vh, 760px);
+  padding: 16px;
+}
+
+.client-phone-picker-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.client-phone-picker-search {
+  flex: 0 0 auto;
+  margin-bottom: 10px;
+}
+
+.client-phone-picker-keyboard {
+  flex: 0 0 auto;
+  margin-inline: auto;
+  margin-top: 10px;
+  max-width: 700px;
+  width: 100%;
+}
+
+.client-phone-picker-empty {
+  grid-column: 1 / -1;
+  padding: 24px;
+  text-align: center;
+}
+
+.client-phone-picker-grid {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 0;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.client-phone-countries {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+  /* On the left of the numpad, though it follows it in the markup. */
+  order: -1;
+}
+
+.client-phone-country-cards {
+  align-content: start;
+  display: grid;
+  flex: 1 1 0;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Basis 0 keeps the list out of the dialog's height: the numpad column
+     sets that, and the list scrolls inside it. */
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.client-phone-country-pager {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: space-between;
+  padding-top: 8px;
+}
+
+.client-phone-country-card {
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 0 8px;
+  grid-template-columns: auto 1fr auto;
+  min-height: 48px;
+  padding: 0 10px;
+  text-align: start;
+}
+
+.client-phone-country-card .country-flag,
+.client-phone-country-trigger .country-flag {
+  font-size: 1.9rem;
+  margin-inline-end: 0;
+}
+
+.client-phone-country-card:hover {
+  border-color: currentColor;
+}
+
+.client-phone-country-card--active {
+  background: rgb(var(--v-theme-primary));
+  border-color: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+
+.client-phone-country-card-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.client-phone-country-card-code {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
 }
 
 .client-phone-form {
@@ -481,16 +774,25 @@ function reset() {
 }
 
 .client-phone-numpad {
-  margin-top: 24px;
+  margin-top: 8px;
   width: 100%;
 }
 
+.client-phone-prefix {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  font-size: var(--kashi-font-size-xl);
+  justify-self: start;
+  margin-inline-start: 12px;
+}
+
+/* Prefix | number | empty column of the same width, so the number sits on
+   the keypad's centre line rather than in the space the prefix leaves. */
 .client-phone-numpad-display {
   align-items: baseline;
-  display: flex;
+  display: grid;
   font-size: var(--kashi-font-size-2xl);
   font-weight: 700;
-  justify-content: center;
+  grid-template-columns: 1fr auto 1fr;
   margin-bottom: 12px;
   min-height: 40px;
   overflow: hidden;
@@ -500,7 +802,6 @@ function reset() {
   background: transparent;
   border: 0;
   color: inherit;
-  flex: 0 1 auto;
   font: inherit;
   min-width: 0;
   outline: 0;
@@ -514,29 +815,6 @@ function reset() {
   opacity: 0.55;
 }
 
-.client-phone-numpad-grid {
-  display: grid;
-  gap: 6px;
-  grid-template-columns: repeat(3, 1fr);
-  grid-auto-rows: 56px;
-}
-
-.client-phone-numpad-key {
-  border: 1px solid rgba(var(--v-border-color), 0.18);
-  border-radius: 4px;
-  font-size: 2rem !important;
-  height: 100%;
-  min-width: 0;
-  padding: 0;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease;
-}
-
-.client-phone-numpad-key:hover {
-  border-color: currentColor;
-}
-
 .client-name-keyboard {
   margin-inline: auto;
   max-width: 700px;
@@ -548,7 +826,12 @@ function reset() {
 }
 
 .client-phone-error {
-  min-height: 18px;
+  /* Two lines reserved, so a message never moves the number or the keypad. */
+  align-items: flex-end;
+  display: flex;
+  justify-content: center;
+  min-height: 2.6em;
+  line-height: 1.3;
 }
 
 .client-phone-error--hidden {
@@ -557,7 +840,16 @@ function reset() {
 
 @media (max-width: 600px) {
   .client-phone-layout {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .client-phone-countries {
+    order: 0;
+  }
+
+  .client-phone-country-cards {
+    flex: 0 0 auto;
+    max-height: 320px;
   }
 
   .client-phone-numpad {

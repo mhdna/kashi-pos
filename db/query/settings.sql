@@ -48,3 +48,17 @@ UPDATE settings SET home_branch_code = ?;
 
 -- name: SetOversellMode :exec
 UPDATE settings SET oversell_mode = ?;
+
+-- name: SetPriceEditCodes :exec
+UPDATE settings SET price_edit_codes = ?;
+
+-- name: SetUnknownProductBarcode :exec
+UPDATE settings SET unknown_product_barcode = ?;
+
+-- name: SetProductSearchHiddenFields :exec
+UPDATE settings SET product_search_hidden_fields = ?;
+
+-- name: SetReceiptLook :exec
+-- Narrow like UpdateTheme: the settings page and kashi's update_settings
+-- command both set the printed invoice's theme and layout on their own.
+UPDATE settings SET receipt_theme = ?, receipt_layout = ?;

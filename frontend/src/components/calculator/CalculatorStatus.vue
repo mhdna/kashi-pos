@@ -2,7 +2,7 @@
   <section class="mb-4">
     <div class="calculator-amounts mb-2" :class="statusColor">
       <v-btn
-        v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState && !quoteError"
+        v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState && !quoteError && !exchangeShortfallText"
         class="calculator-amounts-flip"
         icon="mdi-swap-vertical"
         variant="text"
@@ -17,9 +17,14 @@
         <v-icon icon="mdi-alert-circle" color="red-darken-2" size="28" />
         <span class="calculator-error-text" :title="quoteError">{{ quoteError }}</span>
       </div>
-      <div v-else-if="exchangeShortfallText" class="calculator-error-state">
-        <v-icon icon="mdi-alert-circle" color="red-darken-2" size="28" />
-        <span class="calculator-error-text">Add {{ exchangeShortfallText }} more in replacement items — exchanges can't return cash</span>
+      <!-- An exchange that isn't covered yet is a normal step, not an error:
+           a calm hint saying what's left to pick. -->
+      <div v-else-if="exchangeShortfallText" class="calculator-error-state calculator-hint-state">
+        <v-icon icon="mdi-information-outline" color="blue-grey-darken-1" size="28" />
+        <span class="calculator-error-text">
+          Add <strong class="calculator-hint-amount">{{ exchangeShortfallText }}</strong> more in new items to finish
+          the exchange (no cash back)
+        </span>
       </div>
       <div v-else-if="showReadyState" class="calculator-accepted-state calculator-green">
         <v-icon icon="mdi-check-circle" color="green-darken-3" size="40" />
@@ -35,7 +40,14 @@
           <span v-if="remainingAmount.second" class="calculator-amounts-plus" aria-hidden="true">+</span>
           <span v-if="remainingAmount.second" :class="statusColor">{{ remainingAmount.second }}</span>
         </div>
-        <span v-if="isRounded" class="calculator-amounts-rounded">Rounded</span>
+        <!-- What it was rounded from is in the tooltip; the pill just says so. -->
+        <span
+          v-if="roundedFromText || isRounded"
+          class="calculator-amounts-rounded"
+          :title="roundedFromText || undefined"
+        >
+          Rounded
+        </span>
       </template>
     </div>
   </section>
@@ -55,6 +67,8 @@ const props = defineProps<{
   // cash back to the customer, so this replaces the normal total/remaining
   // display with an explicit "add more" message instead of showing $0.00.
   exchangeShortfallCents?: number;
+  // "Rounded from $5.6" when the backend rounded the total for cash.
+  roundedFromText?: string;
   remainingAmount: {
     // The two halves of the split, in display order -- which currency each
     // holds is per-branch config (see splitAmount in Calculator.vue).
@@ -125,11 +139,14 @@ function flipCurrency() {
 }
 .calculator-amounts-rounded {
   position: absolute;
-  bottom: 4px;
+  bottom: 6px;
   left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  /* A tint of the status colour (green/red...) behind text in that colour. */
+  background: color-mix(in srgb, currentColor 16%, transparent);
   font-size: var(--kashi-font-size-xs, 0.6875rem);
-  font-weight: 500;
-  opacity: 0.6;
+  font-weight: 600;
   line-height: 1;
 }
 .calculator-amounts-label {
@@ -157,6 +174,14 @@ function flipCurrency() {
   color: #c62828;
   font-size: var(--kashi-font-size-base);
   font-weight: 600;
+}
+.calculator-hint-state {
+  color: rgba(var(--v-theme-on-surface), 0.8);
+  font-weight: 500;
+}
+.calculator-amounts .calculator-hint-amount {
+  font-size: inherit;
+  font-weight: 700;
 }
 .calculator-error-text {
   min-width: 0;

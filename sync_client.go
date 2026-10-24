@@ -676,6 +676,9 @@ func (c *centralClient) GetTargetsProgress(ctx context.Context) (progress []bran
 type whatsAppThankYouResponse struct {
 	Sent   bool   `json:"sent"`
 	Reason string `json:"reason"`
+	// Retry: kashi couldn't send for now (bridge or Meta unreachable) and a
+	// later try may work, so the thank-you stays pending.
+	Retry bool `json:"retry"`
 }
 
 // PostWhatsAppThankYou asks kashi to send the post-sale WhatsApp thank-you
@@ -705,6 +708,32 @@ func (c *centralClient) PostWhatsAppThankYou(ctx context.Context, payloadJSON []
 	var out whatsAppThankYouResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return nil, fmt.Errorf("decode whatsapp thank-you response: %w", err)
+	}
+	return &out, nil
+}
+
+// PostWhatsAppWelcome asks kashi to send a new client's welcome message
+// before checkout (see App.WhatsAppWelcome).
+func (c *centralClient) PostWhatsAppWelcome(ctx context.Context, payloadJSON []byte) (*whatsAppThankYouResponse, error) {
+	if !c.enabled() {
+		return nil, errCentralSyncDisabled
+	}
+	req, err := c.newRequest(ctx, http.MethodPost, "/branch/whatsapp/welcome", bytes.NewReader(payloadJSON))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, responseError(http.MethodPost, "/branch/whatsapp/welcome", resp)
+	}
+	var out whatsAppThankYouResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode whatsapp welcome response: %w", err)
 	}
 	return &out, nil
 }

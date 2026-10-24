@@ -6,6 +6,7 @@ package db
 
 import (
 	"database/sql"
+	"time"
 )
 
 type Account struct {
@@ -219,6 +220,18 @@ type Currency struct {
 	CashRoundingUnit       int64  `json:"cashRoundingUnit"`
 }
 
+type Deal struct {
+	Uid                    string `json:"uid"`
+	Name                   string `json:"name"`
+	Kind                   string `json:"kind"`
+	BuyQty                 int64  `json:"buyQty"`
+	GetQty                 int64  `json:"getQty"`
+	Percent                int64  `json:"percent"`
+	BundlePrice            int64  `json:"bundlePrice"`
+	FallbackPercent        int64  `json:"fallbackPercent"`
+	FallbackOnlyWithoutSet int64  `json:"fallbackOnlyWithoutSet"`
+}
+
 type DiscountList struct {
 	ID        int64          `json:"id"`
 	Name      string         `json:"name"`
@@ -235,6 +248,15 @@ type DiscountListItem struct {
 	ProductUid     string `json:"productUid"`
 	Discount       int64  `json:"discount"`
 	CreatedAt      string `json:"createdAt"`
+	DealUid        string `json:"dealUid"`
+}
+
+type DiscountListOptionItem struct {
+	ID             int64  `json:"id"`
+	DiscountListID int64  `json:"discountListId"`
+	ProductUid     string `json:"productUid"`
+	SaleOption     string `json:"saleOption"`
+	Discount       int64  `json:"discount"`
 }
 
 type DiscountOverride struct {
@@ -245,17 +267,27 @@ type DiscountOverride struct {
 	CreatedAt string        `json:"createdAt"`
 }
 
+type ExchangeDealAdjustment struct {
+	InvoiceID      int64  `json:"invoiceId"`
+	SalesInvoiceID int64  `json:"salesInvoiceId"`
+	DealUid        string `json:"dealUid"`
+	Forfeited      int64  `json:"forfeited"`
+	Clawback       int64  `json:"clawback"`
+}
+
 type Expense struct {
-	ID               int64         `json:"id"`
-	ClientRef        string        `json:"clientRef"`
-	Description      string        `json:"description"`
-	Category         string        `json:"category"`
-	Amount           int64         `json:"amount"`
-	CurrencyCode     string        `json:"currencyCode"`
-	CashboxAccountID int64         `json:"cashboxAccountId"`
-	ShiftID          sql.NullInt64 `json:"shiftId"`
-	OccurredAt       string        `json:"occurredAt"`
-	CreatedAt        string        `json:"createdAt"`
+	ID               int64          `json:"id"`
+	ClientRef        string         `json:"clientRef"`
+	Description      string         `json:"description"`
+	Category         string         `json:"category"`
+	Amount           int64          `json:"amount"`
+	CurrencyCode     string         `json:"currencyCode"`
+	CashboxAccountID int64          `json:"cashboxAccountId"`
+	ShiftID          sql.NullInt64  `json:"shiftId"`
+	OccurredAt       string         `json:"occurredAt"`
+	CreatedAt        string         `json:"createdAt"`
+	CancelledAt      sql.NullString `json:"cancelledAt"`
+	FromCentral      int64          `json:"fromCentral"`
 }
 
 type ExpenseCategory struct {
@@ -314,6 +346,8 @@ type Invoice struct {
 	SalespersonID   int64          `json:"salespersonId"`
 	Notes           string         `json:"notes"`
 	CancelledAt     sql.NullString `json:"cancelledAt"`
+	LbpTotal        sql.NullInt64  `json:"lbpTotal"`
+	LbpRate         sql.NullInt64  `json:"lbpRate"`
 }
 
 type InvoiceClientRef struct {
@@ -326,6 +360,19 @@ type InvoiceCouponPayment struct {
 	CouponCode   string `json:"couponCode"`
 	CouponTypeID int64  `json:"couponTypeId"`
 	Amount       int64  `json:"amount"`
+}
+
+type InvoiceDeal struct {
+	InvoiceID              int64  `json:"invoiceId"`
+	DealUid                string `json:"dealUid"`
+	Name                   string `json:"name"`
+	Kind                   string `json:"kind"`
+	BuyQty                 int64  `json:"buyQty"`
+	GetQty                 int64  `json:"getQty"`
+	Percent                int64  `json:"percent"`
+	BundlePrice            int64  `json:"bundlePrice"`
+	FallbackPercent        int64  `json:"fallbackPercent"`
+	FallbackOnlyWithoutSet int64  `json:"fallbackOnlyWithoutSet"`
 }
 
 type InvoiceIndex struct {
@@ -361,19 +408,23 @@ type InvoiceProduct struct {
 	Note           string        `json:"note"`
 	PriceListID    sql.NullInt64 `json:"priceListId"`
 	DiscountListID sql.NullInt64 `json:"discountListId"`
+	SaleOption     string        `json:"saleOption"`
+	DealUid        string        `json:"dealUid"`
+	DealDiscount   int64         `json:"dealDiscount"`
 }
 
 type Loan struct {
-	ID               int64         `json:"id"`
-	ClientRef        string        `json:"clientRef"`
-	Description      string        `json:"description"`
-	Category         string        `json:"category"`
-	Amount           int64         `json:"amount"`
-	CurrencyCode     string        `json:"currencyCode"`
-	CashboxAccountID int64         `json:"cashboxAccountId"`
-	ShiftID          sql.NullInt64 `json:"shiftId"`
-	OccurredAt       string        `json:"occurredAt"`
-	CreatedAt        string        `json:"createdAt"`
+	ID               int64          `json:"id"`
+	ClientRef        string         `json:"clientRef"`
+	Description      string         `json:"description"`
+	Category         string         `json:"category"`
+	Amount           int64          `json:"amount"`
+	CurrencyCode     string         `json:"currencyCode"`
+	CashboxAccountID int64          `json:"cashboxAccountId"`
+	ShiftID          sql.NullInt64  `json:"shiftId"`
+	OccurredAt       string         `json:"occurredAt"`
+	CreatedAt        string         `json:"createdAt"`
+	CancelledAt      sql.NullString `json:"cancelledAt"`
 }
 
 type LoanCategory struct {
@@ -430,6 +481,12 @@ type PriceOverride struct {
 	CreatedAt string        `json:"createdAt"`
 }
 
+type PricingVersion struct {
+	ID      int64  `json:"id"`
+	Token   string `json:"token"`
+	Version int64  `json:"version"`
+}
+
 type Product struct {
 	ID              int64          `json:"id"`
 	Barcode         string         `json:"barcode"`
@@ -450,6 +507,12 @@ type Product struct {
 	ProductYear     int64          `json:"productYear"`
 	Uid             sql.NullString `json:"uid"`
 	RemoteUpdatedAt sql.NullString `json:"remoteUpdatedAt"`
+}
+
+type ProductSaleOption struct {
+	ProductID int64  `json:"productId"`
+	Name      string `json:"name"`
+	SortOrder int64  `json:"sortOrder"`
 }
 
 type ProductsAttribute struct {
@@ -511,55 +574,61 @@ type SalespersonAttendanceEvent struct {
 }
 
 type Setting struct {
-	BranchName               string         `json:"branchName"`
-	ApiKey                   string         `json:"apiKey"`
-	PrinterID                string         `json:"printerId"`
-	PrinterSize              string         `json:"printerSize"`
-	ReceiptPrinter           string         `json:"receiptPrinter"`
-	ScreenPort               string         `json:"screenPort"`
-	ReceiptWidth             int64          `json:"receiptWidth"`
-	ReceiptHeight            int64          `json:"receiptHeight"`
-	Theme                    string         `json:"theme"`
-	TaxRate                  float64        `json:"taxRate"`
-	RoundingMode             string         `json:"roundingMode"`
-	ReceiptEnabled           int64          `json:"receiptEnabled"`
-	SalesInventoryID         int64          `json:"salesInventoryId"`
-	BranchCode               string         `json:"branchCode"`
-	ExchangeRate             int64          `json:"exchangeRate"`
-	MarketName               string         `json:"marketName"`
-	MarketPhone              string         `json:"marketPhone"`
-	MarketDescription        string         `json:"marketDescription"`
-	ReturnPolicy             string         `json:"returnPolicy"`
-	Website                  string         `json:"website"`
-	Instagram                string         `json:"instagram"`
-	SocialPlatforms          string         `json:"socialPlatforms"`
-	SocialHandles            string         `json:"socialHandles"`
-	ReceiptFont              string         `json:"receiptFont"`
-	ReceiptTitleSize         float64        `json:"receiptTitleSize"`
-	ReceiptBodySize          float64        `json:"receiptBodySize"`
-	ReceiptCutoff            int64          `json:"receiptCutoff"`
-	ReceiptBodyFont          string         `json:"receiptBodyFont"`
-	BranchPhone              string         `json:"branchPhone"`
-	CounterNumber            string         `json:"counterNumber"`
-	MaxOverpaymentCents      int64          `json:"maxOverpaymentCents"`
-	RoundingCurrency         string         `json:"roundingCurrency"`
-	ExchangeWindowHours      int64          `json:"exchangeWindowHours"`
-	DefaultOpeningFloatUsd   int64          `json:"defaultOpeningFloatUsd"`
-	DefaultOpeningFloatLbp   int64          `json:"defaultOpeningFloatLbp"`
-	CentralApiUrl            string         `json:"centralApiUrl"`
-	ShiftReceiptUploadMode   int64          `json:"shiftReceiptUploadMode"`
-	FullMirrorConfirmedAt    sql.NullString `json:"fullMirrorConfirmedAt"`
-	SplitPrimaryCurrency     string         `json:"splitPrimaryCurrency"`
-	SplitPrimaryFirst        int64          `json:"splitPrimaryFirst"`
-	SplitPrimaryStep         int64          `json:"splitPrimaryStep"`
-	HomeBranchCode           string         `json:"homeBranchCode"`
-	OversellMode             string         `json:"oversellMode"`
-	QuickAccessMode          string         `json:"quickAccessMode"`
-	QuickAccessModeChangedAt string         `json:"quickAccessModeChangedAt"`
-	QuickAccessReported      int64          `json:"quickAccessReported"`
-	DisplayPrefs             string         `json:"displayPrefs"`
-	DisplayPrefsRev          int64          `json:"displayPrefsRev"`
-	SalespersonIdsReportedAt sql.NullString `json:"salespersonIdsReportedAt"`
+	BranchName                string         `json:"branchName"`
+	ApiKey                    string         `json:"apiKey"`
+	PrinterID                 string         `json:"printerId"`
+	PrinterSize               string         `json:"printerSize"`
+	ReceiptPrinter            string         `json:"receiptPrinter"`
+	ScreenPort                string         `json:"screenPort"`
+	ReceiptWidth              int64          `json:"receiptWidth"`
+	ReceiptHeight             int64          `json:"receiptHeight"`
+	Theme                     string         `json:"theme"`
+	TaxRate                   float64        `json:"taxRate"`
+	RoundingMode              string         `json:"roundingMode"`
+	ReceiptEnabled            int64          `json:"receiptEnabled"`
+	SalesInventoryID          int64          `json:"salesInventoryId"`
+	BranchCode                string         `json:"branchCode"`
+	ExchangeRate              int64          `json:"exchangeRate"`
+	MarketName                string         `json:"marketName"`
+	MarketPhone               string         `json:"marketPhone"`
+	MarketDescription         string         `json:"marketDescription"`
+	ReturnPolicy              string         `json:"returnPolicy"`
+	Website                   string         `json:"website"`
+	Instagram                 string         `json:"instagram"`
+	SocialPlatforms           string         `json:"socialPlatforms"`
+	SocialHandles             string         `json:"socialHandles"`
+	ReceiptFont               string         `json:"receiptFont"`
+	ReceiptTitleSize          float64        `json:"receiptTitleSize"`
+	ReceiptBodySize           float64        `json:"receiptBodySize"`
+	ReceiptCutoff             int64          `json:"receiptCutoff"`
+	ReceiptBodyFont           string         `json:"receiptBodyFont"`
+	BranchPhone               string         `json:"branchPhone"`
+	CounterNumber             string         `json:"counterNumber"`
+	MaxOverpaymentCents       int64          `json:"maxOverpaymentCents"`
+	RoundingCurrency          string         `json:"roundingCurrency"`
+	ExchangeWindowHours       int64          `json:"exchangeWindowHours"`
+	DefaultOpeningFloatUsd    int64          `json:"defaultOpeningFloatUsd"`
+	DefaultOpeningFloatLbp    int64          `json:"defaultOpeningFloatLbp"`
+	CentralApiUrl             string         `json:"centralApiUrl"`
+	ShiftReceiptUploadMode    int64          `json:"shiftReceiptUploadMode"`
+	FullMirrorConfirmedAt     sql.NullString `json:"fullMirrorConfirmedAt"`
+	SplitPrimaryCurrency      string         `json:"splitPrimaryCurrency"`
+	SplitPrimaryFirst         int64          `json:"splitPrimaryFirst"`
+	SplitPrimaryStep          int64          `json:"splitPrimaryStep"`
+	HomeBranchCode            string         `json:"homeBranchCode"`
+	OversellMode              string         `json:"oversellMode"`
+	QuickAccessMode           string         `json:"quickAccessMode"`
+	QuickAccessModeChangedAt  string         `json:"quickAccessModeChangedAt"`
+	QuickAccessReported       int64          `json:"quickAccessReported"`
+	DisplayPrefs              string         `json:"displayPrefs"`
+	DisplayPrefsRev           int64          `json:"displayPrefsRev"`
+	SalespersonIdsReportedAt  sql.NullString `json:"salespersonIdsReportedAt"`
+	Timezone                  sql.NullString `json:"timezone"`
+	PriceEditCodes            string         `json:"priceEditCodes"`
+	UnknownProductBarcode     string         `json:"unknownProductBarcode"`
+	ProductSearchHiddenFields string         `json:"productSearchHiddenFields"`
+	ReceiptTheme              string         `json:"receiptTheme"`
+	ReceiptLayout             string         `json:"receiptLayout"`
 }
 
 type Shift struct {
@@ -718,4 +787,12 @@ type VoidInvoice struct {
 	ItemsJson string `json:"itemsJson"`
 	Reason    string `json:"reason"`
 	CreatedAt string `json:"createdAt"`
+}
+
+type WhatsappPending struct {
+	InvoiceCode   string       `json:"invoiceCode"`
+	Payload       string       `json:"payload"`
+	CreatedAt     time.Time    `json:"createdAt"`
+	Attempts      int64        `json:"attempts"`
+	NextAttemptAt sql.NullTime `json:"nextAttemptAt"`
 }

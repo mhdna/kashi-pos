@@ -76,29 +76,42 @@
         <v-btn
           v-if="pageMode !== 'settlement'"
           icon
+          class="ms-1"
           variant="text"
           aria-label="Invoices on hold"
           @click="onHoldMenu?.open()"
         >
-          <v-icon icon="mdi-pause" size="22" />
+          <v-icon icon="mdi-pause" size="26" />
         </v-btn>
         <v-btn
           v-if="pageMode !== 'settlement'"
           icon
+          class="ms-1"
           variant="text"
           aria-label="Exchange invoice"
           @click="returnInvoiceMenu?.open()"
         >
-          <v-icon icon="mdi-autorenew" size="22" />
+          <v-icon icon="mdi-autorenew" size="26" />
+        </v-btn>
+        <v-btn
+          v-if="pageMode !== 'settlement'"
+          icon
+          class="ms-1"
+          variant="text"
+          aria-label="Add an unknown item"
+          @click="unknownPrice.show = true"
+        >
+          <v-icon icon="mdi-help-box-outline" size="26" />
         </v-btn>
         <v-btn
           v-if="pageMode !== 'settlement' && productSearchEnabled"
+          icon
+          class="ms-1"
           variant="text"
-          rounded
           aria-label="Search products"
           @click="productSearchDialog?.openDialog()"
         >
-          <v-icon icon="mdi-magnify" size="22" />
+          <v-icon icon="mdi-magnify" size="26" />
         </v-btn>
         <OnHoldMenu ref="onHoldMenu" hide-activator @restore="onRestoreHold" />
         <ReturnInvoiceMenu
@@ -107,10 +120,20 @@
           :rounding-mode="roundingMode"
           @exchange="onExchange"
         />
+        <UnknownPriceDialog v-model="unknownPrice.show" @add="onUnknownAdd" />
+        <UnknownPicturesDialog
+          v-if="unknownPictures.show"
+          v-model="unknownPictures.show"
+          :units="unknownPictures.units"
+          @cancel="answerUnknownPictures(false)"
+          @ready="answerUnknownPictures(true)"
+        />
         <ProductSearchDialog
           ref="productSearchDialog"
           v-if="pageMode !== 'settlement'"
           :show-activator="false"
+          :code-only="productSearchCodeOnly"
+          :hidden-fields="productSearchHiddenFields"
           @select="onProductSelect"
         />
       </div>
@@ -120,9 +143,16 @@
         :readonly="pageMode === 'settlement'"
         :custom-discounts-enabled="customItemDiscountsEnabled"
         :custom-prices-enabled="customItemPricesEnabled"
+        :unknown-barcode="unknownProductBarcode"
+        :price-edit-restricted="priceEditRestricted"
+        :price-edit-codes="priceEditCodes"
         :per-unit-prices-enabled="perUnitItemPricesEnabled"
         :price-change-mode="priceChangeMode"
         :keyboard-mode="invoiceKeyboardModeEnabled"
+        :deal-lines="quote?.lines ?? []"
+        :discount-toggle-enabled="discountToggleEnabled && pageMode === 'sale'"
+        :deal-toggle-enabled="dealToggleEnabled && pageMode === 'sale'"
+        :discount-default-off="discountToggleDefaultOff"
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
       />
@@ -131,7 +161,7 @@
         @add="
           (item) => {
             playClickSound();
-            invoiceItems?.addItem(item);
+            addProductToCart(item);
           }
         "
       />
@@ -181,6 +211,7 @@
         <Calculator
           ref="calculator"
           :total-cents="quote?.grandTotalCents ?? 0"
+          :unrounded-cents="quote?.unroundedCents"
           :exchange-shortfall-cents="quote?.exchangeShortfallCents ?? 0"
           :quote-error="quoteError"
           :items-json="cartItemsJson"
@@ -321,10 +352,48 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <!-- A product that asks a sale option: which one is being sold. -->
+  <v-dialog v-model="saleOptionPicker.show" max-width="420">
+    <v-card v-if="saleOptionPicker.product">
+      <v-card-title class="text-h5 pb-0">{{ saleOptionPicker.product.name }}</v-card-title>
+      <v-card-subtitle class="text-subtitle-1">
+        {{ saleOptionPicker.product.code }}
+        <template v-if="saleOptionPicker.product.color || saleOptionPicker.product.size">
+          · {{ [saleOptionPicker.product.color, saleOptionPicker.product.size].filter(Boolean).join(" / ") }}
+        </template>
+      </v-card-subtitle>
+      <v-card-text class="sale-option-grid pt-3 pb-1">
+        <v-btn
+          v-for="(option, index) in saleOptionPicker.product.saleOptions"
+          :key="option.name"
+          :autofocus="index === 0"
+          class="sale-option-tile"
+          :color="saleOptionLook(option.name).color"
+          height="124"
+          variant="flat"
+          @click="pickSaleOption(option)"
+        >
+          <div class="d-flex flex-column align-center ga-1">
+            <v-icon :icon="saleOptionLook(option.name).icon" size="32" />
+            <span class="sale-option-name">{{ option.name }}</span>
+            <span class="sale-option-discount">
+              {{ option.discount > 0 ? `-${option.discount}%` : "No discount" }}
+            </span>
+          </div>
+        </v-btn>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn size="large" text="Cancel" @click="saleOptionPicker.show = false" />
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from "vue";
+import { saleOptionLook } from "@/lib/saleOptions";
 import {
   FindProductsForScan,
   HoldInvoice,
@@ -341,6 +410,8 @@ import {
   WriteToScreen,
   QuoteInvoiceTotal,
   QuoteExchangeTotal,
+  GetUnknownProduct,
+  RefreshCartPricing,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import ActionBar from "@/components/ActionBar.vue";
@@ -348,10 +419,13 @@ import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
 import ClientButton from "@/components/ClientButton.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
+import type { DealLine } from "@/lib/deals";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import NoteButton from "@/components/NoteButton.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
+import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
+import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import { quickAccessRows } from "@/lib/display";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
@@ -416,6 +490,16 @@ const productSearchEnabled = ref(true);
 // Whether the scan field also accepts product codes (see FindProductsForScan);
 // only changes the hint text here, the backend enforces it.
 const scanByCodeEnabled = ref(true);
+const productSearchCodeOnly = ref(false);
+const productSearchHiddenFields = ref<string[]>([]);
+const priceEditRestricted = ref(false);
+// A salesperson can tap a line's discount chip to turn it off/on (kashi's
+// discount_toggle), and new lines can start with it off; deal_toggle does
+// the same for a line's deal chip.
+const discountToggleEnabled = ref(false);
+const discountToggleDefaultOff = ref(false);
+const dealToggleEnabled = ref(false);
+const priceEditCodes = ref<string[]>([]);
 const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
 );
@@ -462,12 +546,18 @@ const accountDialog = ref(false);
 // payment-status checks are always priced from the exact same cart JSON.
 interface InvoiceQuote {
   grandTotalCents: number;
+  // The total before cash rounding (discounted subtotal plus tax), when the
+  // backend says; the calculator shows "Rounded from" when it differs.
+  unroundedCents?: number;
   // Only set in exchange mode: how much more replacement value is still
   // needed before the exchange can be checked out. Exchanges can never pay
   // cash back to the customer, so while returned value exceeds replacement
   // value the backend floors the total at 0 and checkout stays blocked -
   // this is what lets the UI explain why instead of just showing $0.00.
   exchangeShortfallCents?: number;
+  // The priced lines, for the deals they carry (free units, the saving):
+  // InvoiceItems marks them on the cart lines.
+  lines?: DealLine[];
 }
 const quote = ref<InvoiceQuote | null>(null);
 // A failed quote must never render as $0.00 - with a zero total the
@@ -508,6 +598,35 @@ const dialogOpen = ref(false);
 let overlayObserver: MutationObserver | undefined;
 let overlayFocusTimer: ReturnType<typeof setTimeout> | undefined;
 let unsubscribeSettingsChanged: (() => void) | undefined;
+let unsubscribeListChanges: Array<() => void> = [];
+let listRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+// kashi changed a price or discount list: lines already in the cart follow it
+// (see InvoiceItems.applyListPricing) and the cashier is told, so a total never
+// moves silently. Debounced, since one edit can touch several synced tables.
+function scheduleCartListRefresh() {
+  if (listRefreshTimer) clearTimeout(listRefreshTimer);
+  listRefreshTimer = setTimeout(async () => {
+    listRefreshTimer = null;
+    const barcodes = (invoiceItems.value?.items ?? [])
+      .filter((item: any) => item.barcode && !isUnknownItem(item) && item.qty > 0 && !item.locked)
+      .map((item: any) => item.barcode);
+    if (!barcodes.length || pageMode.value === "settlement") return;
+    try {
+      const rows = (await RefreshCartPricing(JSON.stringify(barcodes))) ?? [];
+      const changed: string[] = invoiceItems.value?.applyListPricing(rows) ?? [];
+      if (changed.length) {
+        snackbar.text = `Price updated: ${changed.join(", ")}`;
+        snackbar.color = "info";
+        snackbar.icon = "";
+        snackbar.show = true;
+        await refreshQuote();
+      }
+    } catch {
+      // The lines keep what they had; the next change tries again.
+    }
+  }, 400);
+}
 let restoringDraft = true;
 
 provide("dialogOpen", dialogOpen);
@@ -592,7 +711,7 @@ async function refreshQuote() {
       quote.value = {
         grandTotalCents: Number(result.grandTotalCents),
         exchangeShortfallCents: result.needsMoreReplacementValue
-          ? Number(result.returnedTotalCents) - Number(result.replacementTotalCents)
+          ? Number(result.shortfallCents)
           : 0,
       };
     } catch (e) {
@@ -606,7 +725,11 @@ async function refreshQuote() {
   try {
     const result = await QuoteInvoiceTotal(itemsJson);
     if (token !== quoteRequestToken) return;
-    quote.value = { grandTotalCents: Number(result.grandTotalCents) };
+    quote.value = {
+      grandTotalCents: Number(result.grandTotalCents),
+      unroundedCents: Number(result.discountedSubtotalCents) + Number(result.taxCents),
+      lines: result.lines ?? [],
+    };
   } catch (e) {
     if (token !== quoteRequestToken) return;
     // Surfaced on screen as well as in the console - the reason is either a
@@ -638,10 +761,26 @@ watch(
     customItemDiscountsEnabled,
   ],
   () => {
+    // No wait: a quote reuses the cached prices (pricing_overrides.go) and
+    // takes well under a millisecond, so the total follows each scan or key
+    // at once. The 0ms timer only folds changes made in the same tick into
+    // one request; quoteRequestToken drops any reply a newer one superseded.
     clearTimeout(quoteDebounceTimer);
-    quoteDebounceTimer = setTimeout(refreshQuote, 120);
+    quoteDebounceTimer = setTimeout(refreshQuote, 0);
   },
   { deep: true, immediate: true },
+);
+
+// An exchange whose returned items have all been taken out of the cart has
+// nothing left to exchange: it goes back to a normal sale, keeping any
+// replacement items already scanned.
+watch(
+  () => (invoiceItems.value?.items ?? []).some((item) => item.qty < 0),
+  (hasReturns) => {
+    if (hasReturns || !exchangeState.value || restoringDraft) return;
+    exchangeState.value = null;
+    void refreshNextInvoiceCode("sales");
+  },
 );
 
 async function restoreDraft() {
@@ -689,6 +828,7 @@ function clearInvoice() {
   invoiceNotes.value = "";
   noteDraft.value = "";
   noteDialog.value = false;
+  unknownPicturesReadyFor = "";
   clearDraft();
   resetClient();
 }
@@ -776,8 +916,7 @@ function onProductSelect(product: {
   qty: number;
 }) {
   playClickSound();
-  invoiceItems.value?.addItem(product);
-  focusBarcode();
+  if (addProductToCart(product)) focusBarcode();
 }
 
 function onAccountClientSelect(client: Client) {
@@ -813,7 +952,7 @@ async function onBarcodeEnter() {
   } catch {}
   flashBarcodeFeedback(matches.length ? "success" : "error");
   if (matches.length === 1) {
-    invoiceItems.value?.addItem({ ...matches[0], qty: 1 });
+    if (!addProductToCart({ ...matches[0], qty: 1 })) return;
   } else if (matches.length > 1) {
     variantPicker.code = value.trim();
     variantPicker.variants = matches;
@@ -821,6 +960,50 @@ async function onBarcodeEnter() {
     return;
   }
   focusBarcode();
+}
+
+// A product that asks a sale option (Summer/Winter, set in kashi) can't go
+// into the cart until the cashier says which one is being sold: the same
+// barcode covers both, and they're discounted differently. Every way of
+// adding a product comes through here. Returns false when it opened the
+// picker instead, so the caller leaves focus to the dialog. A product with a
+// single option (a jacket that is only ever Winter) has nothing to ask: it
+// goes in as that option, with that option's discount.
+const saleOptionPicker = reactive<{ show: boolean; product: any }>({ show: false, product: null });
+
+type SaleOption = { name: string; discount: number; discountListName?: string };
+
+function addProductToCart(product: any): boolean {
+  if (product?.saleOptions?.length === 1 && !product.saleOption) {
+    addAsSaleOption(product, product.saleOptions[0]);
+    return true;
+  }
+  if (product?.saleOptions?.length && !product.saleOption) {
+    saleOptionPicker.product = product;
+    saleOptionPicker.show = true;
+    return false;
+  }
+  invoiceItems.value?.addItem(product);
+  return true;
+}
+
+function addAsSaleOption(product: any, option: SaleOption) {
+  invoiceItems.value?.addItem({
+    ...product,
+    saleOption: option.name,
+    discount: Number(option.discount || 0),
+    originalDiscount: Number(option.discount || 0),
+    discountListName: option.discountListName ?? "",
+  });
+}
+
+function pickSaleOption(option: SaleOption) {
+  const product = saleOptionPicker.product;
+  saleOptionPicker.show = false;
+  saleOptionPicker.product = null;
+  if (!product) return;
+  addAsSaleOption(product, option);
+  scheduleBarcodeFocus();
 }
 
 const variantPicker = reactive<{ show: boolean; code: string; variants: any[] }>({
@@ -831,8 +1014,7 @@ const variantPicker = reactive<{ show: boolean; code: string; variants: any[] }>
 
 function pickVariant(variant: any) {
   variantPicker.show = false;
-  invoiceItems.value?.addItem({ ...variant, qty: 1 });
-  scheduleBarcodeFocus();
+  if (addProductToCart({ ...variant, qty: 1 })) scheduleBarcodeFocus();
 }
 
 function showDiscountError(message: string) {
@@ -868,7 +1050,9 @@ watch([invoiceTotal, hasItems], showCustomerTotal);
 
 async function getItemsJSON(): Promise<string> {
   const items = invoiceItems.value?.items ?? [];
-  return JSON.stringify(items.map((i: any) => ({ code: i.code, barcode: i.barcode, qty: i.qty })));
+  return JSON.stringify(
+    items.map((i: any) => ({ code: i.code, barcode: i.barcode, qty: i.qty, saleOption: i.saleOption || undefined })),
+  );
 }
 
 async function getFullItemsJSON(): Promise<string> {
@@ -877,19 +1061,21 @@ async function getFullItemsJSON(): Promise<string> {
     items.map((i: any) => ({
       name: i.name,
       code: i.code,
+      // Colour/size variants of one model share a code; the barcode is what
+      // tells them apart, here and in the backend's duplicate-line check.
+      barcode: i.barcode || undefined,
       category: i.category,
       price: i.price,
-      customPriceCents: customItemPricesEnabled.value
-        ? Math.round(Number(i.price) * 100)
-        : undefined,
+      customPriceCents:
+        customItemPricesEnabled.value && !isUnknownItem(i) ? Math.round(Number(i.price) * 100) : undefined,
       unitPricesCents:
-        (perUnitItemPricesEnabled.value || customItemPricesEnabled.value) && i.qty > 0
+        (perUnitItemPricesEnabled.value || customItemPricesEnabled.value || isUnknownItem(i)) && i.qty > 0
           ? (i.unitPrices ?? Array(Math.trunc(i.qty)).fill(i.price)).map((price: number) =>
               Math.round(Number(price) * 100),
             )
           : undefined,
       unitDiscounts:
-        (perUnitItemPricesEnabled.value || customItemDiscountsEnabled.value) && i.qty > 0
+        (perUnitItemPricesEnabled.value || customItemDiscountsEnabled.value || isUnknownItem(i)) && i.qty > 0
           ? (i.unitDiscounts ?? Array(Math.trunc(i.qty)).fill(i.discount)).map((discount: number) =>
               Math.trunc(Number(discount)),
             )
@@ -899,6 +1085,9 @@ async function getFullItemsJSON(): Promise<string> {
       discount: i.discount,
       salespersonId: Number(i.salespersonId || 0),
       note: String(i.note || "").trim(),
+      saleOption: i.saleOption || undefined,
+      noDiscount: discountToggleEnabled.value && i.discountOff && i.qty > 0 ? true : undefined,
+      noDeal: dealToggleEnabled.value && i.dealOff && i.qty > 0 ? true : undefined,
       qty: i.qty,
     })),
   );
@@ -1010,6 +1199,71 @@ async function confirmPricesIfUnusual(): Promise<boolean> {
   });
 }
 
+// --- "Unknown item": something with no code, rung up at a typed price, with a
+// picture of every unit taken on a phone before the customer pays. ---
+// The product kashi named for unknown items (or the built-in placeholder).
+const unknownProductBarcode = ref("UNKNOWN");
+const isUnknownItem = (item: any) => item?.barcode === unknownProductBarcode.value;
+const unknownPrice = reactive({ show: false });
+const unknownPictures = reactive<{
+  show: boolean;
+  units: { label: string; unitPriceCents: number; discount: number }[];
+}>({ show: false, units: [] });
+let unknownPicturesAnswer: ((ready: boolean) => void) | null = null;
+// The cart (one unit per picture) the last finished session was opened for.
+let unknownPicturesReadyFor = "";
+
+async function onUnknownAdd(price: number) {
+  try {
+    const product = await GetUnknownProduct();
+    invoiceItems.value?.addItem({ ...product, price, qty: 1, originalPrice: price } as any);
+    playClickSound();
+  } catch (e: any) {
+    showDiscountError(e?.toString() || "Couldn't add an unknown item");
+  }
+  focusBarcode();
+}
+
+function unknownUnits() {
+  const units: { label: string; unitPriceCents: number; discount: number }[] = [];
+  for (const item of invoiceItems.value?.items ?? []) {
+    if (!isUnknownItem(item) || !(item.qty > 0)) continue;
+    for (let i = 0; i < item.qty; i++) {
+      const price = Number(item.unitPrices?.[i] ?? item.price);
+      units.push({
+        label: `Unknown item $${price.toFixed(2)}`,
+        unitPriceCents: Math.round(price * 100),
+        discount: Math.trunc(Number(item.unitDiscounts?.[i] ?? item.discount ?? 0)),
+      });
+    }
+  }
+  return units;
+}
+
+// Resolves true once every unit of the cart has a picture (or a manager's
+// pass); false if the cashier backs out. Skipped when nothing is unknown, or
+// when this exact cart already finished a session.
+async function ensureUnknownPictures(): Promise<boolean> {
+  const units = unknownUnits();
+  if (!units.length) return true;
+  const signature = JSON.stringify(units);
+  if (signature === unknownPicturesReadyFor) return true;
+  unknownPicturesReadyFor = "";
+  unknownPictures.units = units;
+  unknownPictures.show = true;
+  const ready = await new Promise<boolean>((resolve) => {
+    unknownPicturesAnswer = resolve;
+  });
+  if (ready) unknownPicturesReadyFor = signature;
+  return ready;
+}
+
+function answerUnknownPictures(ready: boolean) {
+  const answer = unknownPicturesAnswer;
+  unknownPicturesAnswer = null;
+  answer?.(ready);
+}
+
 function notifyCheckoutBlocked(text: string, icon: string) {
   playWarningSound();
   snackbar.text = text;
@@ -1066,6 +1320,7 @@ async function onCheckout() {
   if (json === "[]") return;
   const isExchange = Boolean(exchangeState.value);
   if (flagMissingAssignment()) return;
+  if (!(await ensureUnknownPictures())) return;
   if (!(await confirmPricesIfUnusual())) return;
   if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
   printPhase.value = "printing";
@@ -1266,6 +1521,19 @@ async function loadAppSettings() {
     // Absent (older backend) means "available" - only an explicit false disables it.
     productSearchEnabled.value = settings?.productSearchEnabled !== false;
     scanByCodeEnabled.value = settings?.scanByCodeEnabled !== false;
+    productSearchCodeOnly.value = Boolean(settings?.productSearchCodeOnly);
+    productSearchHiddenFields.value = String(settings?.productSearchHiddenFields ?? "")
+      .split(",")
+      .filter(Boolean);
+    priceEditRestricted.value = Boolean(settings?.priceEditRestricted);
+    discountToggleEnabled.value = Boolean(settings?.discountToggleEnabled);
+    discountToggleDefaultOff.value = Boolean(settings?.discountToggleDefaultOff);
+    dealToggleEnabled.value = Boolean(settings?.dealToggleEnabled);
+    unknownProductBarcode.value = String(settings?.unknownProductBarcode || "UNKNOWN");
+    priceEditCodes.value = String(settings?.priceEditCodes ?? "")
+      .split(",")
+      .map((code) => code.trim().toLowerCase())
+      .filter(Boolean);
     overchangeConfirmationEnabled.value = settings?.overchangeConfirmationEnabled !== false;
     screenPort.value = settings?.screenPort ?? "";
     branchName.value = settings?.branchName || "Store";
@@ -1275,6 +1543,9 @@ async function loadAppSettings() {
 onMounted(async () => {
   await nextTick();
   if (!pageActive) return;
+  unsubscribeListChanges = ["discount_lists", "price_lists", "products"].map((entity) =>
+    EventsOn(`sync_applied:${entity}`, scheduleCartListRefresh),
+  );
   unsubscribeSettingsChanged = EventsOn("settings_changed", () => {
     void loadAppSettings();
   });
@@ -1311,6 +1582,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   pageActive = false;
   unsubscribeSettingsChanged?.();
+  unsubscribeListChanges.forEach((unsubscribe) => unsubscribe());
+  if (listRefreshTimer) clearTimeout(listRefreshTimer);
   clearTimeout(overlayFocusTimer);
   clearTimeout(missingAssignmentFlashTimer);
   overlayObserver?.disconnect();
@@ -1450,5 +1723,32 @@ onBeforeUnmount(() => {
 .checkout-blocked-text {
   font-size: 1.25rem;
   font-weight: 700;
+}
+
+.sale-option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sale-option-tile {
+  text-transform: none;
+  letter-spacing: normal;
+  border-radius: 12px;
+}
+
+.sale-option-discount {
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #212121;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.sale-option-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.1;
 }
 </style>

@@ -3,19 +3,9 @@
     <v-card>
       <v-card-title>Edit Client</v-card-title>
       <v-card-text>
-        <v-text-field
-          :model-value="formatLebanesePhone(form.phone)"
-          label="Phone Number"
-          placeholder="Phone Number"
-          variant="outlined"
-          density="compact"
-          class="mb-2"
-          inputmode="tel"
-          @update:model-value="(v: string) => (form.phone = v.replace(/\D/g, ''))"
-        />
+        <PhoneField ref="phoneField" v-model="form.phone" class="mb-2" @focus="phoneActive = true" />
         <v-text-field
           v-model="form.name"
-          label="Name"
           placeholder="Name"
           variant="outlined"
           density="compact"
@@ -23,8 +13,11 @@
           @keydown="preventClientNameNumber"
           @beforeinput="preventClientNameNumberInput"
           @keydown.enter="save"
+          @focus="phoneActive = false"
         />
-        <InlineKeyboard v-model="form.name" class="client-edit-keyboard mt-3" />
+        <!-- The number pad while the phone is being edited, letters otherwise. -->
+        <PhonePad v-if="phoneActive" class="mt-3" @press="phoneField?.press($event)" />
+        <InlineKeyboard v-else v-model="form.name" class="client-edit-keyboard mt-3" />
         <div v-if="error" class="text-error text-caption mt-2">{{ error }}</div>
       </v-card-text>
       <v-card-actions class="pa-4">
@@ -53,8 +46,9 @@ import {
   toClient,
   type Client,
 } from "@/lib/client";
-import { formatLebanesePhone } from "@/lib/phone";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import PhoneField from "@/components/PhoneField.vue";
+import PhonePad from "@/components/PhonePad.vue";
 
 const props = defineProps<{ client: Client }>();
 const emit = defineEmits<{ saved: [client: Client] }>();
@@ -63,12 +57,18 @@ const dialog = defineModel<boolean>({ default: false });
 const form = reactive({ name: "", phone: "" });
 const saving = ref(false);
 const error = ref("");
+const phoneField = ref<InstanceType<typeof PhoneField> | null>(null);
+const phoneActive = ref(false);
 
 watch(dialog, (open) => {
   if (!open) return;
   form.name = props.client.name;
-  form.phone = props.client.phone.replace(/\D/g, "");
+  // A Lebanese number is edited as the local number ("78928747"); the
+  // server turns that back into +961. Anything else keeps its "+".
+  const phone = props.client.phone.trim();
+  form.phone = phone.startsWith("+961") ? phone.slice(4) : phone;
   error.value = "";
+  phoneActive.value = false;
 });
 
 function capitalizeName(value: string) {

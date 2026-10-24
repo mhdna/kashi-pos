@@ -95,7 +95,7 @@
           <div v-if="outgoingTarget.note" class="mb-4">{{ outgoingTarget.note }}</div>
           <div class="section-label mb-2">Photo</div>
           <div v-if="detailPhotoLoading" class="d-flex justify-center pa-6"><v-progress-circular indeterminate /></div>
-          <img v-else-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-4" />
+          <img v-else-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-4" @click="viewerOpen = true" />
           <div v-else class="empty-photos mb-2">
             <v-icon icon="mdi-image-off-outline" size="32" color="grey" />
             <div class="text-body-2 text-medium-emphasis">No photo attached</div>
@@ -122,10 +122,10 @@
             item-title="name"
             item-value="code"
             :items="branches"
-            label="Destination branch"
+            placeholder="Destination branch"
             :rules="[required]"
           />
-          <v-text-field v-model="createForm.note" label="Note (optional)" />
+          <v-text-field v-model="createForm.note" placeholder="Note (optional)" />
 
           <div class="text-subtitle-2 mt-4 mb-1">Items</div>
           <div class="d-flex align-center mb-2" style="gap: 12px">
@@ -133,14 +133,14 @@
               v-model="newItemBarcode"
               density="compact"
               hide-details
-              label="Scan or type barcode"
+              placeholder="Scan or type barcode"
               @keyup.enter="addCreateItem"
             />
             <v-text-field
               v-model.number="newItemQuantity"
               density="compact"
               hide-details
-              label="Qty"
+              placeholder="Qty"
               style="max-width: 100px"
               type="number"
             />
@@ -194,7 +194,8 @@
         <template v-else-if="uploadState === 'ready'">
           <v-card-title>Attach a photo (optional)</v-card-title>
           <v-card-text>
-            <div class="text-body-2 mb-3">Scan this with a phone to upload one photo of the transfer.</div>
+            <div class="text-body-2">Scan this with a phone to upload one photo of the transfer.</div>
+            <div class="text-body-2 mb-3" dir="rtl" lang="ar">امسح الرمز بالهاتف والتقط صورة واحدة لورقة التحويل.</div>
             <img v-if="qrDataUrl" :src="qrDataUrl" alt="Upload QR code" style="width: 220px; height: 220px" />
             <div class="text-caption text-medium-emphasis mt-3" style="word-break: break-all">{{ uploadUrl }}</div>
           </v-card-text>
@@ -230,7 +231,7 @@
         </v-card-title>
         <v-card-text>
           <div v-if="incomingTarget.note" class="text-body-2 text-medium-emphasis mb-2">{{ incomingTarget.note }}</div>
-          <img v-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-3" />
+          <img v-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-3" @click="viewerOpen = true" />
           <v-table density="compact">
             <thead>
               <tr>
@@ -255,7 +256,7 @@
               </tr>
             </tbody>
           </v-table>
-          <v-text-field v-model="incomingNote" class="mt-4" label="Note (optional) — e.g. damage, shortage" />
+          <v-text-field v-model="incomingNote" class="mt-4" placeholder="Note (optional) — e.g. damage, shortage" />
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -266,6 +267,7 @@
     </v-dialog>
 
     <v-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</v-snackbar>
+    <PhotoViewer v-model="viewerOpen" :photos="detailPhoto ? [detailPhoto] : []" />
   </div>
 </template>
 
@@ -283,6 +285,8 @@ import {
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import RecordPhoto from "@/components/RecordPhoto.vue";
+import { detailPhotoWidth } from "@/lib/photos";
+import PhotoViewer from "@/components/PhotoViewer.vue";
 import { formatServerDateTime } from "@/lib/datetime";
 
 const tab = ref("outgoing");
@@ -316,12 +320,13 @@ function branchName(code: string) {
 
 // The photo for whichever transfer's dialog is open, full size.
 const detailPhoto = ref("");
+const viewerOpen = ref(false);
 const detailPhotoLoading = ref(false);
 async function loadDetailPhoto(clientRef: string, transferID: number) {
   detailPhoto.value = "";
   detailPhotoLoading.value = true;
   try {
-    detailPhoto.value = await GetTransferPhoto(clientRef, transferID, 0);
+    detailPhoto.value = await GetTransferPhoto(clientRef, transferID, detailPhotoWidth);
   } finally {
     detailPhotoLoading.value = false;
   }

@@ -98,6 +98,14 @@ type branchInvoicePayload struct {
 	// CancelInvoice): kashi stamps cancelled_at on both and leaves them out
 	// of sales statistics. Only ever set on a return.
 	Cancellation bool `json:"cancellation,omitempty"`
+	// LbpTotal/LbpRate are the LBP total the till printed and the LBP per
+	// USD it used (stampInvoiceLBPTotal), so kashi's reports show what was
+	// actually sold in LBP. Omitted for invoices from before they existed.
+	LbpTotal *int64 `json:"lbp_total,omitempty"`
+	LbpRate  *int64 `json:"lbp_rate,omitempty"`
+	// UnknownSessionRef ties a sale with "Unknown item" lines to the pictures
+	// taken for it (kashi's unknown_session_ref).
+	UnknownSessionRef string `json:"unknown_session_ref,omitempty"`
 }
 
 type branchInvoicePayloadItem struct {
@@ -114,6 +122,10 @@ type branchInvoicePayloadItem struct {
 	LineTotal  int64  `json:"line_total"`
 	Discount   int16  `json:"discount"`
 	Quantity   int64  `json:"quantity"`
+	// A deal line (deals.go): the deal's name and what it took off the
+	// line, in cents; line_total already has it off.
+	Deal         string `json:"deal,omitempty"`
+	DealDiscount int64  `json:"deal_discount,omitempty"`
 }
 
 // clientUIDForSync returns the uid to report as an invoice's buyer: empty
@@ -201,6 +213,8 @@ type branchExpensePayload struct {
 	AccountName   string    `json:"account_name"`
 	BranchShiftID *int64    `json:"branch_shift_id,omitempty"`
 	OccurredAt    time.Time `json:"occurred_at"`
+	// FromCentral: central paid it, so the shift didn't count it.
+	FromCentral bool `json:"from_central"`
 }
 
 // queueBranchExpenseSync is queueBranchInvoiceSync's counterpart for
@@ -470,7 +484,10 @@ type branchShiftClosePayload struct {
 	CountedLbp        int64     `json:"counted_lbp"`
 	CountedVisa       int64     `json:"counted_visa"`
 	CountedWhish      int64     `json:"counted_whish"`
-	OccurredAt        time.Time `json:"occurred_at"`
+	// LbpRate is LBP per USD at close; 0 (a backfilled shift) lets kashi
+	// apply the rate every till used before this field existed.
+	LbpRate    int64     `json:"lbp_rate"`
+	OccurredAt time.Time `json:"occurred_at"`
 }
 
 // queueBranchShiftCloseSync is queueBranchInvoiceSync's counterpart for a

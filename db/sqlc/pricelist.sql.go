@@ -69,6 +69,23 @@ func (q *Queries) GetPriceListByUID(ctx context.Context, uid sql.NullString) (Pr
 	return i, err
 }
 
+const getPricingVersion = `-- name: GetPricingVersion :one
+SELECT token, version FROM pricing_version WHERE id = 1
+`
+
+type GetPricingVersionRow struct {
+	Token   string `json:"token"`
+	Version int64  `json:"version"`
+}
+
+// See 000127_pricing_version.up.sql: what loadActivePricing's cache is keyed on.
+func (q *Queries) GetPricingVersion(ctx context.Context) (GetPricingVersionRow, error) {
+	row := q.db.QueryRowContext(ctx, getPricingVersion)
+	var i GetPricingVersionRow
+	err := row.Scan(&i.Token, &i.Version)
+	return i, err
+}
+
 const insertPriceListItem = `-- name: InsertPriceListItem :exec
 INSERT INTO price_list_items (price_list_id, product_uid, price)
 VALUES (?, ?, ?)

@@ -77,6 +77,8 @@ type updaterState struct {
 	StagedPath string `json:"staged_path"`
 	// PreviousVersion is what <exe>.previous runs -- what "Roll back" goes to.
 	PreviousVersion string `json:"previous_version"`
+	// Force: kashi wants it installed now, shift or not (App Updates' force).
+	Force bool `json:"force"`
 	// SkipVersion is a version this till rolled back from (by hand or
 	// because it didn't start); it isn't installed again until kashi points
 	// the till somewhere else.
@@ -206,6 +208,7 @@ func (a *App) GetAppUpdateStatus() map[string]any {
 		"notes":           s.Notes,
 		"previousVersion": s.PreviousVersion,
 		"canRollBack":     canRollBack,
+		"force":           s.Force,
 	}
 }
 
@@ -339,6 +342,9 @@ func (a *App) checkAndDownload(ctx context.Context, client *centralClient) error
 	}
 	if s.State == updateReady && s.ReleaseID == manifest.ID && s.StagedPath != "" {
 		if _, err := os.Stat(s.StagedPath); err == nil {
+			if s.Force != manifest.Force { // forced (or not) after it downloaded
+				s = a.setUpdateState(func(st *updaterState) { st.Force = manifest.Force })
+			}
 			a.reportUpdateStatus(ctx, client, s)
 			return nil
 		}
@@ -359,6 +365,7 @@ func (a *App) checkAndDownload(ctx context.Context, client *centralClient) error
 	next := a.setUpdateState(func(st *updaterState) {
 		st.State, st.Detail, st.Progress = updateReady, "", 100
 		st.ReleaseID, st.Version, st.Notes, st.StagedPath = manifest.ID, manifest.Version, manifest.Notes, staged
+		st.Force = manifest.Force
 	})
 	a.reportUpdateStatus(ctx, client, next)
 	return nil
@@ -377,7 +384,7 @@ func (a *App) downloadRelease(ctx context.Context, client *centralClient, m *app
 	if err := os.MkdirAll(releaseDir, 0o755); err != nil {
 		return "", err
 	}
-	final := filepath.Join(releaseDir, "Kashi-Cloud.exe")
+	final := filepath.Join(releaseDir, "GB-Cloud.exe")
 	if verifyRelease(final, m) == nil {
 		return final, nil
 	}
@@ -493,17 +500,19 @@ func (a *App) reportUpdateStatusNow(s updaterState) {
 // maybePromptIdleInstall offers to install a ready update once no shift is
 // open -- after close shift, or overnight once a shift auto-closes. The
 // frontend shows a countdown the cashier can cancel; it prompts again the
-// next time the till is idle.
+// next time the till is idle. A forced update (App Updates' force) is
+// prompted for right away, shift or not, with a countdown that can't be
+// cancelled.
 func (a *App) maybePromptIdleInstall() {
 	s := a.updateStateSnapshot()
 	u := &a.updater
 	_, err := a.store.GetOpenShift(a.ctx)
 	idle := errors.Is(err, sql.ErrNoRows)
 	u.mu.Lock()
-	if !idle {
+	if !idle && !s.Force {
 		u.prompted = false
 	}
-	prompt := idle && s.State == updateReady && !u.prompted && updateInstallSupported
+	prompt := (idle || s.Force) && s.State == updateReady && !u.prompted && updateInstallSupported
 	if prompt {
 		u.prompted = true
 	}
@@ -555,7 +564,7 @@ func (a *App) beginHandoff(h updateHandoff, source string) error {
 	if err := copyFile(source, newExePath(exe)); err != nil {
 		next := a.setUpdateState(func(st *updaterState) {
 			st.State = updateBlocked
-			st.Detail = "Kashi Cloud can't write to its install folder. Reinstall it once with the latest installer; updates install by themselves after that. (" + err.Error() + ")"
+			st.Detail = "GB Cloud can't write to its install folder. Reinstall it once with the latest installer; updates install by themselves after that. (" + err.Error() + ")"
 		})
 		go a.reportUpdateStatusNow(next)
 		return errors.New(next.Detail)
@@ -588,6 +597,8 @@ func (a *App) beginHandoff(h updateHandoff, source string) error {
 	go func() {
 		// Let the frontend paint its "Updating…" screen first.
 		time.Sleep(1500 * time.Millisecond)
+		// The new version hides the taskbar again as it starts.
+		kioskKeepShellOff.Store(true)
 		wailsruntime.Quit(a.ctx)
 	}()
 	return nil
@@ -681,7 +692,7 @@ func (a *App) ConfirmAppStarted() map[string]any {
 	return started
 }
 
-// runUpdateHelper is the helper process (`Kashi-Cloud.exe --apply-update
+// runUpdateHelper is the helper process (`GB-Cloud.exe --apply-update
 // <handoff.json>`), started from a temporary copy of the old executable so
 // the program it replaces isn't running. It returns the process exit code.
 func runUpdateHelper(handoffPath string, procs updateProcesses) int {
@@ -698,7 +709,7 @@ func runUpdateHelper(handoffPath string, procs updateProcesses) int {
 
 	if !procs.waitExit(h.ParentPID, updateExitTimeout) {
 		os.Remove(newExePath(h.ExePath))
-		h.Phase, h.Detail = "done", "Kashi Cloud didn't close; the update was cancelled"
+		h.Phase, h.Detail = "done", "GB Cloud didn't close; the update was cancelled"
 		_ = saveHandoff(handoffPath, h)
 		_ = procs.start(h.ExePath)
 		return 1

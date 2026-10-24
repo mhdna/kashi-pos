@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -55,7 +56,132 @@ const (
 	// that has never touched this flag keeps accepting codes there - matching
 	// behavior before this setting existed.
 	scanByCodeFlag = "scan_by_code"
+	// When on, the product search dialog hides product names and matches only
+	// the code or barcode. Defaults to false when unset, so a database that
+	// has never touched this flag keeps the name search - matching behavior
+	// before this setting existed.
+	productSearchCodeOnlyFlag = "product_search_code_only"
+	// When on, a line's price and discount can be edited by hand only for the
+	// codes in settings.price_edit_codes (on top of the custom price/discount
+	// flags). Defaults to false when unset, so every line stays editable as it
+	// was before this setting existed.
+	priceEditRestrictedFlag = "price_edit_restricted"
+	// When on, a salesperson can tap a line's list discount chip (30%) to
+	// turn it off for that sale (and back on), never to change its amount.
+	// Defaults to false when unset, so every line keeps its discount as it
+	// did before this setting existed.
+	discountToggleFlag = "discount_toggle"
+	// The same for a line's deal (B2G1), on its own switch. Defaults to false.
+	dealToggleFlag = "deal_toggle"
+	// With discount_toggle on, lines start with their discount off and the
+	// salesperson taps to give it. Ignored while discount_toggle is off, so
+	// it can never leave a branch with discounts it has no way to turn on.
+	discountToggleDefaultOffFlag = "discount_toggle_default_off"
 )
+
+// SetDiscountToggleEnabled lets salespersons turn a line's discount off/on.
+// Called both by the local Settings page and by an update_settings command
+// from kashi.
+func (a *App) SetDiscountToggleEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, discountToggleFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// SetDealToggleEnabled lets salespersons turn a line's deal off/on.
+func (a *App) SetDealToggleEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, dealToggleFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// SetDiscountToggleDefaultOff makes new lines start with their discount off.
+func (a *App) SetDiscountToggleDefaultOff(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, discountToggleDefaultOffFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// SetProductSearchCodeOnly toggles code-only product search. Called both by
+// the local Settings page and by an update_settings command from kashi.
+func (a *App) SetProductSearchCodeOnly(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, productSearchCodeOnlyFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// SetPriceEditRestricted toggles the per-code limit on manual price and
+// discount edits.
+func (a *App) SetPriceEditRestricted(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, priceEditRestrictedFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// normalizePriceEditCodes splits a comma/space/newline separated list into
+// distinct trimmed codes joined by commas, so the stored form is the same
+// however kashi or the Settings page typed it. Codes compare case-insensitively
+// on the sale screen, so case is kept as typed.
+func normalizePriceEditCodes(raw string) string {
+	seen := map[string]bool{}
+	var codes []string
+	for _, code := range strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ';' || r == '\n' || r == '\r' || r == ' ' || r == '\t'
+	}) {
+		key := strings.ToLower(code)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		codes = append(codes, code)
+	}
+	return strings.Join(codes, ",")
+}
+
+// SetPriceEditCodes stores the codes whose price/discount may be edited by
+// hand while price_edit_restricted is on.
+func (a *App) SetPriceEditCodes(raw string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.store.SetPriceEditCodes(a.ctx, normalizePriceEditCodes(raw)); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+func (a *App) priceEditCodes() string {
+	if s, err := a.store.GetSettings(a.ctx); err == nil {
+		return s.PriceEditCodes
+	}
+	return ""
+}
 
 // overchangeConfirmationEnabled reports whether the checkout calculator's
 // "Confirm change amount" dialog is on, defaulting to true when the flag has
@@ -414,10 +540,17 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 		products []db.Product
 		err      error
 	)
+	codeOnly := a.flagEnabled(a.ctx, productSearchCodeOnlyFlag)
 	if search == "" {
 		products, err = a.store.ListProductsAfterUnfiltered(a.ctx, db.ListProductsAfterUnfilteredParams{
 			AfterID: afterID,
 			Limit:   queryLimit,
+		})
+	} else if codeOnly {
+		products, err = a.store.ListProductsAfterByCode(a.ctx, db.ListProductsAfterByCodeParams{
+			AfterID:       afterID,
+			SearchPattern: "%" + search + "%",
+			Limit:         queryLimit,
 		})
 	} else {
 		products, err = a.store.ListProductsAfter(a.ctx, db.ListProductsAfterParams{
@@ -435,15 +568,19 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 		log.Printf("ListProductsCursor: load active pricing: %v", err)
 		return ProductCursorPage{}, fmt.Errorf("load price/discount lists: %w", err)
 	}
-	attrs, err := loadProductAttributeValues(a.ctx, a.store.Queries)
-	if err != nil {
-		log.Printf("ListProductsCursor: load product attributes: %v", err)
-		return ProductCursorPage{}, fmt.Errorf("load product attributes: %w", err)
-	}
-
 	hasMore := len(products) > limit
 	if hasMore {
 		products = products[:limit]
+	}
+	// Only this page's attributes, not the whole catalogue's.
+	ids := make([]int64, len(products))
+	for i, product := range products {
+		ids[i] = product.ID
+	}
+	attrs, err := loadProductAttributeValuesFor(a.ctx, a.store.Queries, ids)
+	if err != nil {
+		log.Printf("ListProductsCursor: load product attributes: %v", err)
+		return ProductCursorPage{}, fmt.Errorf("load product attributes: %w", err)
 	}
 	result := make([]map[string]any, len(products))
 	for i, product := range products {
@@ -454,19 +591,36 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 		nextCursor = products[len(products)-1].ID
 	}
 
-	total := int64(-1)
-	if afterID == 0 {
-		if search == "" {
-			total, err = a.store.CountAllProducts(a.ctx)
-		} else {
-			total, err = a.store.CountProducts(a.ctx, "%"+search+"%")
-		}
-		if err != nil {
-			log.Printf("ListProductsCursor: count products (search=%q): %v", search, err)
-			return ProductCursorPage{}, fmt.Errorf("count products: %w", err)
-		}
+	// The match count is CountProductsForSearch's, asked separately, so the
+	// results never wait on counting every match.
+	return ProductCursorPage{Items: result, NextCursor: nextCursor, HasMore: hasMore, Total: -1}, nil
+}
+
+// CountProductsForSearch counts every product ListProductsCursor's search
+// would page through -- the "N results" label. It's its own call so the
+// first page can show before the count (the slower part of a search) is in.
+func (a *App) CountProductsForSearch(search string) (int64, error) {
+	if a.store == nil {
+		return 0, fmt.Errorf("database not initialized")
 	}
-	return ProductCursorPage{Items: result, NextCursor: nextCursor, HasMore: hasMore, Total: total}, nil
+	search = strings.TrimSpace(search)
+	var (
+		total int64
+		err   error
+	)
+	switch {
+	case search == "":
+		total, err = a.store.CountAllProducts(a.ctx)
+	case a.flagEnabled(a.ctx, productSearchCodeOnlyFlag):
+		total, err = a.store.CountProductsByCode(a.ctx, "%"+search+"%")
+	default:
+		total, err = a.store.CountProducts(a.ctx, "%"+search+"%")
+	}
+	if err != nil {
+		log.Printf("CountProductsForSearch: count products (search=%q): %v", search, err)
+		return 0, fmt.Errorf("count products: %w", err)
+	}
+	return total, nil
 }
 
 // loadProductAttributeValues loads every product's attribute values in one
@@ -485,6 +639,26 @@ func loadProductAttributeValues(ctx context.Context, q *db.Queries) (map[int64]m
 		return nil, err
 	}
 	attrs := make(map[int64]map[string]string)
+	for _, row := range rows {
+		if attrs[row.ProductID] == nil {
+			attrs[row.ProductID] = make(map[string]string)
+		}
+		attrs[row.ProductID][row.AttributeName] = row.Value
+	}
+	return attrs, nil
+}
+
+// loadProductAttributeValuesFor is loadProductAttributeValues for just these
+// products.
+func loadProductAttributeValuesFor(ctx context.Context, q *db.Queries, productIDs []int64) (map[int64]map[string]string, error) {
+	attrs := make(map[int64]map[string]string)
+	if len(productIDs) == 0 {
+		return attrs, nil
+	}
+	rows, err := q.ListProductAttributeValuesFor(ctx, productIDs)
+	if err != nil {
+		return nil, err
+	}
 	for _, row := range rows {
 		if attrs[row.ProductID] == nil {
 			attrs[row.ProductID] = make(map[string]string)
@@ -545,7 +719,27 @@ func productMap(p db.Product, listPricing activePricing, attrs map[string]string
 		"season": attrs["season"], "year": attrs["year"],
 		"priceListOverridden": priceSpecial, "priceListName": priceListName,
 		"discountListOverridden": discountSpecial, "discountListName": discountListName,
+		"saleOptions": saleOptionsMap(p, listPricing),
 	}
+}
+
+// saleOptionsMap lists what the till must ask when this product is sold
+// (Summer/Winter...), each with the discount the line gets as that option,
+// so the cashier sees the difference on the choice itself. Empty for an
+// ordinary product, which is added to the cart without asking.
+func saleOptionsMap(p db.Product, listPricing activePricing) []map[string]any {
+	names := listPricing.saleOptions[p.Uid.String]
+	out := make([]map[string]any, 0, len(names))
+	for _, name := range names {
+		var discount int64
+		listName := ""
+		if listed, ok := listPricing.discountForOption(p.Uid.String, name); ok {
+			discount = listed.percent
+			listName = listed.listName
+		}
+		out = append(out, map[string]any{"name": name, "discount": discount, "discountListName": listName})
+	}
+	return out
 }
 
 func (a *App) UpdateProductDiscount(code string, discount int64) error {
@@ -571,4 +765,71 @@ func (a *App) UpdateProductDiscount(code string, discount int64) error {
 		Kind: product.Kind, Season: product.Season, ProductYear: product.ProductYear, ID: product.ID,
 	})
 	return err
+}
+
+// RefreshCartPricing returns the current list price and discount of each
+// barcode in the cart, so lines already on the sale screen can follow a price
+// or discount list that kashi has just changed. Barcodes that no longer
+// resolve are left out; the screen keeps those lines as they are.
+func (a *App) RefreshCartPricing(barcodesJSON string) ([]map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	var barcodes []string
+	if err := json.Unmarshal([]byte(barcodesJSON), &barcodes); err != nil {
+		return nil, fmt.Errorf("invalid barcodes")
+	}
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, fmt.Errorf("load price/discount lists: %w", err)
+	}
+	out := make([]map[string]any, 0, len(barcodes))
+	for _, barcode := range barcodes {
+		product, err := a.store.GetProductByBarcode(a.ctx, strings.TrimSpace(barcode))
+		if err != nil || product.IsActive == 0 {
+			continue
+		}
+		out = append(out, productMap(product, listPricing, nil))
+	}
+	return out, nil
+}
+
+// productSearchFields are the columns of the product search dialog a branch
+// may hide.
+var productSearchFields = map[string]bool{"code": true, "name": true, "brand": true, "color": true, "size": true, "price": true}
+
+// normalizeProductSearchHiddenFields keeps the known field names from a
+// comma/space separated list, once each, in the order they were given.
+func normalizeProductSearchHiddenFields(raw string) string {
+	seen := map[string]bool{}
+	var fields []string
+	for _, field := range strings.FieldsFunc(strings.ToLower(raw), func(r rune) bool {
+		return r == ',' || r == ';' || r == ' ' || r == '\n' || r == '\t'
+	}) {
+		if productSearchFields[field] && !seen[field] {
+			seen[field] = true
+			fields = append(fields, field)
+		}
+	}
+	return strings.Join(fields, ",")
+}
+
+// SetProductSearchHiddenFields chooses which columns the product search dialog
+// leaves out. Called by an update_settings command from kashi.
+func (a *App) SetProductSearchHiddenFields(raw string) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.store.SetProductSearchHiddenFields(a.ctx, normalizeProductSearchHiddenFields(raw)); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+func (a *App) productSearchHiddenFields() string {
+	if s, err := a.store.GetSettings(a.ctx); err == nil {
+		return s.ProductSearchHiddenFields
+	}
+	return ""
 }

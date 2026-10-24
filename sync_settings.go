@@ -56,10 +56,18 @@ type branchSettingsPayload struct {
 	SalespersonPerInvoiceRequired bool `json:"salesperson_per_invoice_required"`
 	NonAdminMonthNavEnabled       bool `json:"non_admin_month_nav_enabled"`
 	OpeningFloatEnabled           bool `json:"opening_float_enabled"`
+	ShiftReportSignatures         bool `json:"shift_report_signatures"`
+	ShiftReportUppercaseHeader    bool `json:"shift_report_uppercase_header"`
+	AutoCoverNegativeLBP          bool `json:"auto_cover_negative_lbp"`
 	CountOpeningCashOnClose       bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        bool `json:"close_shift_requires_sync"`
 	ScanByCodeEnabled             bool `json:"scan_by_code_enabled"`
+	ProductSearchCodeOnly         bool `json:"product_search_code_only"`
+	PriceEditRestricted           bool `json:"price_edit_restricted"`
+	DiscountToggle                bool `json:"discount_toggle"`
+	DiscountToggleDefaultOff      bool `json:"discount_toggle_default_off"`
+	DealToggle                    bool `json:"deal_toggle"`
 	SoundsEnabled                 bool `json:"sounds_enabled"`
 
 	// Device numbers typed in here for kashi's salespersons, keyed by kashi's
@@ -85,6 +93,9 @@ type branchSettingsPayload struct {
 	ReceiptTitleSize float64 `json:"receipt_title_size"`
 	ReceiptBodySize  float64 `json:"receipt_body_size"`
 	ReceiptCutoff    bool    `json:"receipt_cutoff"`
+	// The printed invoice's look: theme id and that theme's layout id.
+	ReceiptTheme  string `json:"receipt_theme"`
+	ReceiptLayout string `json:"receipt_layout"`
 
 	// per-machine device identifiers -- reported for display only; the
 	// admin UI defaults these to "managed at the branch".
@@ -101,6 +112,13 @@ type branchSettingsPayload struct {
 	AttendanceManagerApprovalEnabled   bool   `json:"attendance_manager_approval_enabled"`
 
 	OversellMode string `json:"oversell_mode"`
+	// Comma-separated codes editable by hand while PriceEditRestricted is on.
+	PriceEditCodes string `json:"price_edit_codes"`
+	// Barcode of the product the "Unknown item" button adds; empty means the
+	// built-in placeholder.
+	UnknownProductBarcode string `json:"unknown_product_barcode"`
+	// Product search columns left out, comma-separated.
+	ProductSearchHiddenFields string `json:"product_search_hidden_fields"`
 
 	HidePaymentMethodCurrency bool   `json:"hide_payment_method_currency"`
 	AutoAppendLbpZeros        bool   `json:"auto_append_lbp_zeros"`
@@ -204,6 +222,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		return fmt.Errorf("load settings: %w", err)
 	}
 
+	receiptThemeID, receiptLayoutID := normalizeReceiptLook(s.ReceiptTheme, s.ReceiptLayout)
 	socialPlatforms := json.RawMessage(s.SocialPlatforms)
 	if len(socialPlatforms) == 0 {
 		socialPlatforms = json.RawMessage("[]")
@@ -261,10 +280,18 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		SalespersonPerInvoiceRequired: a.flagEnabled(ctx, salespersonPerInvoiceRequiredFlag),
 		NonAdminMonthNavEnabled:       a.flagEnabled(ctx, nonAdminMonthNavEnabledFlag),
 		OpeningFloatEnabled:           a.openingFloatEnabled(),
+		ShiftReportSignatures:         a.shiftReportSignatures(),
+		ShiftReportUppercaseHeader:    a.shiftReportUppercaseHeader(),
+		AutoCoverNegativeLBP:          a.autoCoverNegativeLBP(),
 		CountOpeningCashOnClose:       a.countOpeningCashOnClose(),
 		OverchangeConfirmation:        a.overchangeConfirmationEnabled(),
 		CloseShiftRequiresSync:        a.closeShiftRequiresSync(),
 		ScanByCodeEnabled:             a.scanByCodeEnabled(),
+		ProductSearchCodeOnly:         a.flagEnabled(ctx, productSearchCodeOnlyFlag),
+		PriceEditRestricted:           a.flagEnabled(ctx, priceEditRestrictedFlag),
+		DiscountToggle:                a.flagEnabled(ctx, discountToggleFlag),
+		DiscountToggleDefaultOff:      a.flagEnabled(ctx, discountToggleDefaultOffFlag),
+		DealToggle:                    a.flagEnabled(ctx, dealToggleFlag),
 		SoundsEnabled:                 a.soundsEnabled(),
 
 		PageUnlockClients:      a.flagEnabled(ctx, pageUnlockFlag("clients")),
@@ -283,6 +310,8 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		ReceiptTitleSize: s.ReceiptTitleSize,
 		ReceiptBodySize:  s.ReceiptBodySize,
 		ReceiptCutoff:    s.ReceiptCutoff != 0,
+		ReceiptTheme:     receiptThemeID,
+		ReceiptLayout:    receiptLayoutID,
 
 		PrinterID:      strings.TrimSpace(s.PrinterID),
 		ReceiptPrinter: strings.TrimSpace(s.ReceiptPrinter),
@@ -295,6 +324,9 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		AttendanceCashierHistory:           a.flagEnabled(ctx, attendanceCashierHistoryFlag),
 		AttendanceManagerApprovalEnabled:   a.attendanceManagerApprovalEnabled(),
 		OversellMode:                       s.OversellMode,
+		PriceEditCodes:                     s.PriceEditCodes,
+		UnknownProductBarcode:              s.UnknownProductBarcode,
+		ProductSearchHiddenFields:          s.ProductSearchHiddenFields,
 
 		HidePaymentMethodCurrency: a.flagEnabled(ctx, hidePaymentMethodCurrencyFlag),
 		AutoAppendLbpZeros:        a.flagEnabled(ctx, autoAppendLbpZerosFlag),

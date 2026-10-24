@@ -83,6 +83,46 @@ func (q *Queries) ListVisitorCountsForMonth(ctx context.Context, monthPrefix str
 	return items, nil
 }
 
+const listVisitorCountsInRange = `-- name: ListVisitorCountsInRange :many
+SELECT day, count FROM visitor_counts
+WHERE day >= ?1 AND day <= ?2
+ORDER BY day
+`
+
+type ListVisitorCountsInRangeParams struct {
+	ReportFrom string `json:"reportFrom"`
+	ReportTo   string `json:"reportTo"`
+}
+
+type ListVisitorCountsInRangeRow struct {
+	Day   string `json:"day"`
+	Count int64  `json:"count"`
+}
+
+// day is "YYYY-MM-DD" text, so a text comparison is a date comparison.
+func (q *Queries) ListVisitorCountsInRange(ctx context.Context, arg ListVisitorCountsInRangeParams) ([]ListVisitorCountsInRangeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVisitorCountsInRange, arg.ReportFrom, arg.ReportTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisitorCountsInRangeRow{}
+	for rows.Next() {
+		var i ListVisitorCountsInRangeRow
+		if err := rows.Scan(&i.Day, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setVisitorCount = `-- name: SetVisitorCount :exec
 INSERT INTO visitor_counts (day, count, updated_at)
 VALUES (?1, ?2, datetime('now', 'localtime'))

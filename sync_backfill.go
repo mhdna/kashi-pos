@@ -629,6 +629,7 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 		Items:                  items,
 		Historical:             historical,
 	}
+	payload.LbpTotal, payload.LbpRate = storedInvoiceLBPTotal(inv)
 	if isReturn {
 		relatedRef, err := getOrCreateInvoiceClientRef(ctx, q, salesInvoiceID)
 		if err != nil {
@@ -642,6 +643,8 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 	return payload, nil
 }
 
+// parseLocalTime reads a stored timestamp, which is UTC (see 000066 and
+// 000117) despite the name.
 func parseLocalTime(v string) time.Time {
 	for _, layout := range []string{"2006-01-02 15:04:05", time.RFC3339} {
 		if t, err := time.Parse(layout, v); err == nil {
@@ -696,6 +699,7 @@ func (a *App) resyncExpenses(ctx context.Context, client *centralClient, opts Re
 			AccountName:            accountName,
 			BranchShiftID:          shiftID,
 			OccurredAt:             parseLocalTime(r.OccurredAt),
+			FromCentral:            r.FromCentral != 0,
 		})
 		if err != nil {
 			return rep, err
@@ -704,6 +708,17 @@ func (a *App) resyncExpenses(ctx context.Context, client *centralClient, opts Re
 			EntityType: "expense", ClientRef: r.ClientRef, PayloadJson: string(body),
 		}); err != nil {
 			return rep, err
+		}
+		if r.CancelledAt.Valid {
+			cancelBody, err := json.Marshal(branchRecordCancelPayload{ClientRef: r.ClientRef})
+			if err != nil {
+				return rep, err
+			}
+			if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
+				EntityType: recordCancelEntityType("expense"), ClientRef: recordCancelOutboxRef("expense", r.ClientRef), PayloadJson: string(cancelBody),
+			}); err != nil {
+				return rep, err
+			}
 		}
 		rep.Queued++
 	}
@@ -763,6 +778,17 @@ func (a *App) resyncLoans(ctx context.Context, client *centralClient, opts Resyn
 			EntityType: "loan", ClientRef: r.ClientRef, PayloadJson: string(body),
 		}); err != nil {
 			return rep, err
+		}
+		if r.CancelledAt.Valid {
+			cancelBody, err := json.Marshal(branchRecordCancelPayload{ClientRef: r.ClientRef})
+			if err != nil {
+				return rep, err
+			}
+			if err := a.upsertOutbox(ctx, db.UpsertSyncOutboxEntryParams{
+				EntityType: recordCancelEntityType("loan"), ClientRef: recordCancelOutboxRef("loan", r.ClientRef), PayloadJson: string(cancelBody),
+			}); err != nil {
+				return rep, err
+			}
 		}
 		rep.Queued++
 	}

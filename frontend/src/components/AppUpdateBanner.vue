@@ -2,7 +2,7 @@
   <!-- An update is downloaded and waiting. -->
   <v-snackbar v-model="showReady" :timeout="-1" location="bottom" color="primary">
     <v-icon icon="mdi-update" class="me-2" />
-    Kashi Cloud {{ status.version }} is ready.
+    GB Cloud {{ status.version }} is ready.
     <template #actions>
       <v-btn variant="text" @click="dismissed = true">Later</v-btn>
       <v-btn variant="flat" @click="confirmInstall = true">Install now</v-btn>
@@ -11,7 +11,7 @@
 
   <v-dialog v-model="confirmInstall" max-width="440">
     <v-card title="Install the update?">
-      <v-card-text>Kashi Cloud will close and reopen in about 10 seconds. Finish the current sale first.</v-card-text>
+      <v-card-text>GB Cloud will close and reopen in about 10 seconds. Finish the current sale first.</v-card-text>
       <v-card-actions>
         <v-spacer />
         <v-btn variant="text" @click="confirmInstall = false">Cancel</v-btn>
@@ -20,13 +20,18 @@
     </v-card>
   </v-dialog>
 
-  <!-- No shift open: install by itself unless the cashier says not now. -->
+  <!-- No shift open: install by itself unless the cashier says not now.
+       Forced from kashi: install even mid-shift, and no "not now". -->
   <v-dialog v-model="idlePrompt" max-width="440" persistent>
-    <v-card title="Installing an update">
-      <v-card-text>No shift is open, so Kashi Cloud {{ status.version }} installs in {{ countdown }} seconds.</v-card-text>
+    <v-card :title="status.force ? 'A required update' : 'Installing an update'">
+      <v-card-text v-if="status.force">
+        GB Cloud {{ status.version }} installs in {{ countdown }} seconds. Finish the current sale now; GB Cloud
+        closes and reopens by itself.
+      </v-card-text>
+      <v-card-text v-else>No shift is open, so GB Cloud {{ status.version }} installs in {{ countdown }} seconds.</v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" @click="cancelIdle">Not now</v-btn>
+        <v-btn v-if="!status.force" variant="text" @click="cancelIdle">Not now</v-btn>
         <v-btn color="primary" variant="flat" @click="install">Install now</v-btn>
       </v-card-actions>
     </v-card>
@@ -35,7 +40,7 @@
   <v-overlay :model-value="installing" persistent class="align-center justify-center">
     <v-card class="pa-6 text-center" max-width="420">
       <v-progress-circular indeterminate color="primary" class="mb-4" />
-      <div class="text-h6">Updating Kashi Cloud to {{ status.version }}…</div>
+      <div class="text-h6">Updating GB Cloud to {{ status.version }}…</div>
       <div class="text-body-2 mt-2">It reopens by itself in a few seconds. Don't turn off the computer.</div>
     </v-card>
   </v-overlay>
@@ -103,7 +108,7 @@ onMounted(async () => {
   offs.push(EventsOn("app_update_installing", () => (installing.value = true)));
   offs.push(EventsOn("app_update_prompt", (s: Record<string, any>) => {
     status.value = s;
-    countdown.value = 30;
+    countdown.value = s.force ? 60 : 30;
     idlePrompt.value = true;
     timer = setInterval(() => {
       countdown.value -= 1;
@@ -117,15 +122,15 @@ onMounted(async () => {
   if (ready.error) return;
   const started = await ConfirmAppStarted();
   if (started.result === "update") {
-    resultTitle.value = `Kashi Cloud was updated to ${started.to}`;
+    resultTitle.value = `GB Cloud was updated to ${started.to}`;
     resultText.value = started.notes ? `What's new:\n${started.notes}` : "";
     resultDialog.value = true;
   } else if (started.result === "rollback") {
-    resultTitle.value = `Kashi Cloud went back to ${started.to}`;
+    resultTitle.value = `GB Cloud went back to ${started.to}`;
     resultDialog.value = true;
   } else if (started.result === "failed") {
     resultTitle.value = "The update didn't work";
-    resultText.value = `${started.from ? `${started.to} didn't start, so ` : ""}Kashi Cloud went back to the previous version. Your data is safe.`;
+    resultText.value = `${started.from ? `${started.to} didn't start, so ` : ""}GB Cloud went back to the previous version. Your data is safe.`;
     resultDialog.value = true;
   }
 });

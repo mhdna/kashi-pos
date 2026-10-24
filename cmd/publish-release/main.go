@@ -1,4 +1,4 @@
-// publish-release signs a Kashi Cloud build and uploads it to kashi as a remote
+// publish-release signs a GB Cloud build and uploads it to kashi as a remote
 // update (see updater.go and kashi's api/app_update.go). Run it through the
 // Makefile:
 //
@@ -41,7 +41,7 @@ const updateKeyFile = "internal/updatekey/updatekey.go"
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: publish-release keygen | publish -file F -version V -flavor standard|compact [-notes N] [-target-all]")
+		fmt.Fprintln(os.Stderr, "usage: publish-release keygen | publish -file F -version V -flavor standard|compact [-notes N] [-target-all [-force]]")
 		os.Exit(2)
 	}
 	var err error
@@ -121,12 +121,13 @@ func loadPrivateKey(path string) (ed25519.PrivateKey, error) {
 
 func publish(args []string) error {
 	fs := flag.NewFlagSet("publish", flag.ExitOnError)
-	file := fs.String("file", "", "the built Kashi Cloud .exe")
+	file := fs.String("file", "", "the built GB Cloud .exe")
 	version := fs.String("version", "", "its version, e.g. 1.2.3")
 	flavor := fs.String("flavor", "standard", "standard or compact")
 	notes := fs.String("notes", "", "what changed; cashiers see this after the update")
 	keyPath := fs.String("key", defaultKeyPath(), "the release key")
 	targetAll := fs.Bool("target-all", false, "also set every active register of this flavor to the new release")
+	force := fs.Bool("force", false, "with -target-all: the tills install it right away, even during a shift")
 	_ = fs.Parse(args)
 
 	*version = strings.TrimPrefix(strings.TrimSpace(*version), "v")
@@ -180,7 +181,7 @@ func publish(args []string) error {
 		return err
 	}
 
-	fmt.Printf("Uploading %s (%.1f MB) as Kashi Cloud %s (%s)…\n", filepath.Base(*file), float64(len(content))/(1<<20), *version, *flavor)
+	fmt.Printf("Uploading %s (%.1f MB) as GB Cloud %s (%s)…\n", filepath.Base(*file), float64(len(content))/(1<<20), *version, *flavor)
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
 	for k, v := range map[string]string{
@@ -225,11 +226,11 @@ func publish(args []string) error {
 		return errors.New("kashi's upload answer had no release id")
 	}
 	if !*targetAll {
-		fmt.Printf("Published Kashi Cloud %s (%s). Choose which tills get it on kashi's App Updates page.\n", *version, *flavor)
+		fmt.Printf("Published GB Cloud %s (%s). Choose which tills get it on kashi's App Updates page.\n", *version, *flavor)
 		return nil
 	}
-	fmt.Printf("Published Kashi Cloud %s (%s).\n", *version, *flavor)
-	return targetAllRegisters(baseURL, token, created.Release.ID, *version, *flavor)
+	fmt.Printf("Published GB Cloud %s (%s).\n", *version, *flavor)
+	return targetAllRegisters(baseURL, token, created.Release.ID, *version, *flavor, *force)
 }
 
 // targetAllRegisters does what ticking every till on the App Updates page
@@ -237,7 +238,7 @@ func publish(args []string) error {
 // and kashi tells the connected ones to fetch it now (the others pick it up
 // when they next connect). A register that hasn't reported its flavor yet is
 // left alone and listed, since it may be the other build.
-func targetAllRegisters(baseURL, token string, releaseID int64, version, flavor string) error {
+func targetAllRegisters(baseURL, token string, releaseID int64, version, flavor string, force bool) error {
 	req, err := http.NewRequest(http.MethodGet, baseURL+"/app_updates/registers", nil)
 	if err != nil {
 		return err
@@ -292,7 +293,7 @@ func targetAllRegisters(baseURL, token string, releaseID int64, version, flavor 
 		return fmt.Errorf("no active %s register to update; set them on the App Updates page", flavor)
 	}
 
-	raw, _ := json.Marshal(map[string]any{"release_id": releaseID, "register_ids": ids})
+	raw, _ := json.Marshal(map[string]any{"release_id": releaseID, "register_ids": ids, "force": force})
 	req, err = http.NewRequest(http.MethodPut, baseURL+"/app_updates/target", bytes.NewReader(raw))
 	if err != nil {
 		return err
@@ -308,6 +309,9 @@ func targetAllRegisters(baseURL, token string, releaseID int64, version, flavor 
 		return fmt.Errorf("set target failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
 	}
 	fmt.Printf("Set %d register(s) to %s:\n%s\n", len(ids), version, strings.Join(targeted, "\n"))
+	if force {
+		fmt.Println("Forced: each till installs it as soon as it has it, after a one-minute countdown.")
+	}
 	fmt.Println("Follow their progress on kashi's App Updates page.")
 	return nil
 }

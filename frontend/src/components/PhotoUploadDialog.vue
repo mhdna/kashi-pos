@@ -12,7 +12,10 @@
       <template v-else-if="state === 'ready'">
         <v-card-title>Attach a photo</v-card-title>
         <v-card-text>
-          <div class="text-body-2 mb-3">Scan this with a phone to upload up to 3 photos.</div>
+          <div class="text-body-2">Scan this with your phone and take a photo of the receipt.</div>
+          <div class="text-body-2 mb-3" dir="rtl" lang="ar">
+            امسح الرمز بالهاتف والتقط صورة {{ kind === "loan" ? "الإيصال" : "سند الصرف" }}.
+          </div>
           <img v-if="qrDataUrl" :src="qrDataUrl" alt="Upload QR code" style="width: 220px; height: 220px" />
           <div class="text-caption text-medium-emphasis mt-3" style="word-break: break-all">{{ uploadUrl }}</div>
         </v-card-text>

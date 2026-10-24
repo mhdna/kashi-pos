@@ -18,6 +18,7 @@
     </div>
     <div class="inline-keyboard-actions">
       <v-btn size="small" variant="text" @click="append('-')">-</v-btn>
+      <v-btn v-if="layout === 'code'" size="small" variant="text" @click="append('+')">+</v-btn>
       <v-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
         Space
       </v-btn>

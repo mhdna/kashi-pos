@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -56,8 +57,14 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 		return nil
 	case "transfer_decision":
 		return a.executeTransferDecisionCommand(ctx, cmd.Payload)
+	case "cancel_record":
+		return a.executeCancelRecordCommand(ctx, cmd.Payload)
+	case "set_expense_from_central":
+		return a.executeSetExpenseFromCentralCommand(ctx, cmd.Payload)
 	case "review_attendance_request":
 		return a.executeReviewAttendanceRequestCommand(cmd.Payload)
+	case "replace_shift_balance":
+		return a.executeReplaceShiftBalanceCommand(ctx, cmd.Payload)
 	default:
 		return fmt.Errorf("unknown command type %q", cmd.Type)
 	}
@@ -108,10 +115,18 @@ type updateSettingsCommandPayload struct {
 	SalespersonPerInvoiceRequired *bool `json:"salesperson_per_invoice_required"`
 	NonAdminMonthNavEnabled       *bool `json:"non_admin_month_nav_enabled"`
 	OpeningFloatEnabled           *bool `json:"opening_float_enabled"`
+	ShiftReportSignatures         *bool `json:"shift_report_signatures"`
+	ShiftReportUppercaseHeader    *bool `json:"shift_report_uppercase_header"`
+	AutoCoverNegativeLBP          *bool `json:"auto_cover_negative_lbp"`
 	CountOpeningCashOnClose       *bool `json:"count_opening_cash_on_close"`
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        *bool `json:"close_shift_requires_sync"`
 	ScanByCodeEnabled             *bool `json:"scan_by_code_enabled"`
+	ProductSearchCodeOnly         *bool `json:"product_search_code_only"`
+	PriceEditRestricted           *bool `json:"price_edit_restricted"`
+	DiscountToggle                *bool `json:"discount_toggle"`
+	DiscountToggleDefaultOff      *bool `json:"discount_toggle_default_off"`
+	DealToggle                    *bool `json:"deal_toggle"`
 	SoundsEnabled                 *bool `json:"sounds_enabled"`
 	HidePaymentMethodCurrency     *bool `json:"hide_payment_method_currency"`
 	AutoAppendLbpZeros            *bool `json:"auto_append_lbp_zeros"`
@@ -131,6 +146,13 @@ type updateSettingsCommandPayload struct {
 
 	// OversellMode: "allow" | "warn" | "block" (see checkOversell).
 	OversellMode *string `json:"oversell_mode"`
+	// PriceEditCodes replaces the list of codes editable by hand.
+	PriceEditCodes *string `json:"price_edit_codes"`
+	// ProductSearchHiddenFields replaces the columns the product search hides.
+	ProductSearchHiddenFields *string `json:"product_search_hidden_fields"`
+	// UnknownProductBarcode names the product the "Unknown item" button adds
+	// ("" = the built-in placeholder).
+	UnknownProductBarcode *string `json:"unknown_product_barcode"`
 
 	// ShiftReceiptUploadMode is an enum, not a flag: 0=off, 1=central,
 	// 2=hybrid, 3=local (see shiftUploadMode* in shifts.go).
@@ -154,6 +176,10 @@ type updateSettingsCommandPayload struct {
 	ReceiptTitleSize *float64 `json:"receipt_title_size"`
 	ReceiptBodySize  *float64 `json:"receipt_body_size"`
 	ReceiptCutoff    *bool    `json:"receipt_cutoff"`
+	// ReceiptTheme / ReceiptLayout pick the printed invoice's look; either
+	// alone keeps the other as it is.
+	ReceiptTheme  *string `json:"receipt_theme"`
+	ReceiptLayout *string `json:"receipt_layout"`
 
 	// per-machine device identifiers
 	PrinterID      *string `json:"printer_id"`
@@ -291,10 +317,18 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 			return a.setFeatureFlagBool(ctx, nonAdminMonthNavEnabledFlag, b)
 		}},
 		{p.OpeningFloatEnabled, func(b bool) error { return a.setFeatureFlagBool(ctx, openingFloatEnabledFlag, b) }},
+		{p.ShiftReportSignatures, a.SetShiftReportSignaturesEnabled},
+		{p.ShiftReportUppercaseHeader, a.SetShiftReportUppercaseHeaderEnabled},
+		{p.AutoCoverNegativeLBP, a.SetAutoCoverNegativeLBPEnabled},
 		{p.CountOpeningCashOnClose, func(b bool) error { return a.setFeatureFlagBool(ctx, countOpeningCashOnCloseFlag, b) }},
 		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},
 		{p.CloseShiftRequiresSync, a.SetCloseShiftRequiresSyncEnabled},
 		{p.ScanByCodeEnabled, a.SetScanByCodeEnabled},
+		{p.ProductSearchCodeOnly, a.SetProductSearchCodeOnly},
+		{p.PriceEditRestricted, a.SetPriceEditRestricted},
+		{p.DiscountToggle, a.SetDiscountToggleEnabled},
+		{p.DiscountToggleDefaultOff, a.SetDiscountToggleDefaultOff},
+		{p.DealToggle, a.SetDealToggleEnabled},
 		{p.SoundsEnabled, a.SetSoundsEnabled},
 		{p.HidePaymentMethodCurrency, a.SetHidePaymentMethodCurrency},
 		{p.AutoAppendLbpZeros, a.SetAutoAppendLbpZerosEnabled},
@@ -315,6 +349,31 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		}
 		if err := u.fn(*u.v); err != nil {
 			return fmt.Errorf("update feature flag: %w", err)
+		}
+	}
+
+	if p.ReceiptTheme != nil || p.ReceiptLayout != nil {
+		theme, layout := a.receiptLook()
+		if err := a.SetReceiptLook(deref(p.ReceiptTheme, theme), deref(p.ReceiptLayout, layout)); err != nil {
+			return fmt.Errorf("update receipt look: %w", err)
+		}
+	}
+
+	if p.ProductSearchHiddenFields != nil {
+		if err := a.SetProductSearchHiddenFields(*p.ProductSearchHiddenFields); err != nil {
+			return fmt.Errorf("update product search fields: %w", err)
+		}
+	}
+
+	if p.UnknownProductBarcode != nil {
+		if err := a.SetUnknownProductBarcode(*p.UnknownProductBarcode); err != nil {
+			return fmt.Errorf("update unknown product: %w", err)
+		}
+	}
+
+	if p.PriceEditCodes != nil {
+		if err := a.SetPriceEditCodes(*p.PriceEditCodes); err != nil {
+			return fmt.Errorf("update price edit codes: %w", err)
 		}
 	}
 
@@ -507,6 +566,19 @@ type remoteReturnInvoiceCommandPayload struct {
 	// Cancel asks for the whole sale to be cancelled (see cancelInvoice)
 	// rather than returned; Items is ignored then.
 	Cancel bool `json:"cancel"`
+	// Replacements turns the return into an exchange: these go out to the
+	// customer in place of the returned items, priced from this till's
+	// own lists like any replacement.
+	Replacements []remoteReplacementPayload `json:"replacements"`
+}
+
+// remoteReplacementPayload names a product the way kashi knows it (see
+// withTillReplacements in kashi's api/branch_command.go): its uid, which the
+// product sync stamped here, and its barcode for one that hasn't got a uid.
+type remoteReplacementPayload struct {
+	ProductUID string `json:"product_uid"`
+	Barcode    string `json:"barcode"`
+	Quantity   int64  `json:"quantity"`
 }
 
 type remoteReturnInvoiceItemPayload struct {
@@ -596,6 +668,10 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 		linesToReturn = fullReturnLines(lines)
 	}
 
+	if len(p.Replacements) > 0 {
+		return a.executeRemoteExchange(ctx, invoiceID, salespersonID, linesToReturn, p.Replacements, p.Reason)
+	}
+
 	itemsJSON, err := a.returnItemsJSON(ctx, linesToReturn)
 	if err != nil {
 		return err
@@ -616,6 +692,67 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 		return fmt.Errorf("checkout return: %w", err)
 	}
 	return nil
+}
+
+// executeRemoteExchange takes lines back and hands out kashi's replacements
+// on one exchange invoice, through the same admin exchange path (late, and
+// allowed to come to less than what's returned) a local admin exchange uses.
+// The difference is settled on the sale's own payment account, as a cancel
+// refunds to it.
+func (a *App) executeRemoteExchange(ctx context.Context, invoiceID, salespersonID int64, returned []returnLine, replacements []remoteReplacementPayload, reason string) error {
+	itemsJSON, err := a.returnItemsJSON(ctx, returned)
+	if err != nil {
+		return err
+	}
+	var items []exchangeLine
+	if err := json.Unmarshal([]byte(itemsJSON), &items); err != nil {
+		return fmt.Errorf("build exchange items: %w", err)
+	}
+	for _, r := range replacements {
+		if r.Quantity <= 0 {
+			return fmt.Errorf("replacement quantity must be positive")
+		}
+		product, err := a.replacementProduct(ctx, r)
+		if err != nil {
+			return err
+		}
+		if product.IsActive == 0 {
+			return fmt.Errorf("replacement %s is inactive here", product.Barcode)
+		}
+		items = append(items, exchangeLine{Code: product.Code, Barcode: product.Barcode, Qty: r.Quantity})
+	}
+	encoded, err := json.Marshal(items)
+	if err != nil {
+		return fmt.Errorf("build exchange items: %w", err)
+	}
+
+	source, err := a.store.GetSalesInvoiceByID(ctx, invoiceID)
+	if err != nil {
+		return fmt.Errorf("load original invoice: %w", err)
+	}
+	notes := strings.TrimSpace(reason)
+	if notes == "" {
+		notes = "Remote exchange"
+	}
+	if _, err := a.checkoutReturnExchangeInvoice(string(encoded), "", invoiceID, salespersonID, notes, source.CashboxID, adminReturnExchangePolicy); err != nil {
+		return fmt.Errorf("checkout exchange: %w", err)
+	}
+	return nil
+}
+
+// replacementProduct finds kashi's product here by uid, then by barcode.
+func (a *App) replacementProduct(ctx context.Context, r remoteReplacementPayload) (db.Product, error) {
+	if uid := strings.TrimSpace(r.ProductUID); uid != "" {
+		if product, err := a.store.GetProductByUID(ctx, sql.NullString{String: uid, Valid: true}); err == nil {
+			return product, nil
+		}
+	}
+	if barcode := strings.TrimSpace(r.Barcode); barcode != "" {
+		if product, err := a.store.GetProductByBarcode(ctx, barcode); err == nil {
+			return product, nil
+		}
+	}
+	return db.Product{}, fmt.Errorf("replacement %s isn't on this till yet -- sync products and retry", r.Barcode)
 }
 
 type transferDecisionPayload struct {
@@ -648,5 +785,44 @@ func (a *App) executeTransferDecisionCommand(ctx context.Context, payload json.R
 		return fmt.Errorf("record transfer decision: %w", err)
 	}
 	a.emitSyncApplied("transfer_requests")
+	return nil
+}
+
+// replaceShiftBalancePayload names the payment methods by name: cashbox
+// accounts are synced from kashi and matched by name on the till (see
+// applySyncedCashboxAccount), so kashi's ids mean nothing here.
+type replaceShiftBalancePayload struct {
+	FromAccount   string `json:"from_account"`
+	ToAccount     string `json:"to_account"`
+	AmountCents   int64  `json:"amount_cents"`
+	AllowNegative bool   `json:"allow_negative"`
+}
+
+// executeReplaceShiftBalanceCommand swaps (or, with allow_negative,
+// transfers) a balance in this till's open shift -- the same validation the
+// Shifts page's swap dialog uses, minus its admin check: kashi only queues
+// an allow_negative command for a user with its own permission for it.
+// Only the open shift: a closed shift has already reported its totals.
+func (a *App) executeReplaceShiftBalanceCommand(ctx context.Context, payload json.RawMessage) error {
+	var p replaceShiftBalancePayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return fmt.Errorf("decode replace_shift_balance payload: %w", err)
+	}
+	shift, err := a.store.GetOpenShift(ctx)
+	if err != nil {
+		return fmt.Errorf("no open shift on this till: %w", err)
+	}
+	from, err := a.store.GetCashboxAccountByName(ctx, strings.TrimSpace(p.FromAccount))
+	if err != nil {
+		return fmt.Errorf("payment method %q not found on this till", p.FromAccount)
+	}
+	to, err := a.store.GetCashboxAccountByName(ctx, strings.TrimSpace(p.ToAccount))
+	if err != nil {
+		return fmt.Errorf("payment method %q not found on this till", p.ToAccount)
+	}
+	if err := a.replaceShiftBalance(shift.ID, from.ID, to.ID, p.AmountCents, p.AllowNegative); err != nil {
+		return err
+	}
+	a.emitSyncApplied("shift_balances")
 	return nil
 }

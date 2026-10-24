@@ -6,6 +6,10 @@ export function AddAttendanceWithManagerApproval(arg1:number,arg2:string,arg3:st
 
 export function AddClientLoyaltyPoints(arg1:number,arg2:number):Promise<Record<string, any>>;
 
+export function AddExpensePhotosFromComputer(arg1:string,arg2:number):Promise<number>;
+
+export function AddLoanPhotosFromComputer(arg1:string,arg2:number):Promise<number>;
+
 export function AddQuickAccessProduct(arg1:number):Promise<void>;
 
 export function AdjustVisitorCountToday(arg1:number):Promise<number>;
@@ -16,7 +20,11 @@ export function ApproveAttendanceComplaint(arg1:number,arg2:boolean,arg3:string)
 
 export function BypassCloseShiftSyncGate(arg1:number,arg2:string,arg3:string):Promise<void>;
 
+export function CancelExpense(arg1:number):Promise<void>;
+
 export function CancelInvoice(arg1:number,arg2:string):Promise<void>;
+
+export function CancelLoan(arg1:number):Promise<void>;
 
 export function CancelSyncFlush():Promise<void>;
 
@@ -58,6 +66,8 @@ export function ConfirmTransferRequest(arg1:number,arg2:Array<main.confirmTransf
 
 export function ConvertCashEntryToCents(arg1:string,arg2:number):Promise<number>;
 
+export function CountProductsForSearch(arg1:string):Promise<number>;
+
 export function CreateBranch(arg1:string,arg2:string,arg3:string,arg4:string):Promise<Record<string, any>>;
 
 export function CreateClient(arg1:string,arg2:string):Promise<Record<string, any>>;
@@ -68,7 +78,7 @@ export function CreateCouponType(arg1:string,arg2:string,arg3:number,arg4:boolea
 
 export function CreateDatabase():Promise<string>;
 
-export function CreateExpense(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
+export function CreateExpense(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number,arg6:boolean):Promise<Record<string, any>>;
 
 export function CreateLoan(arg1:string,arg2:string,arg3:number,arg4:string,arg5:number):Promise<Record<string, any>>;
 
@@ -104,11 +114,15 @@ export function ExportProductsCSV():Promise<string>;
 
 export function ExportQuickAccessCSV():Promise<string>;
 
+export function FindPrinters():Promise<main.PrinterSearch>;
+
 export function FindProductsForScan(arg1:string):Promise<Array<Record<string, any>>>;
 
 export function FlushSyncOutbox():Promise<main.SyncFlushProgress>;
 
 export function ForceSetAdminPassword(arg1:string):Promise<void>;
+
+export function ForgetScanner():Promise<void>;
 
 export function GetAdminConfig():Promise<Record<string, any>>;
 
@@ -124,6 +138,8 @@ export function GetAttendanceManagerApprovalEnabled():Promise<boolean>;
 
 export function GetAttendanceStatus():Promise<Record<string, any>>;
 
+export function GetCashMachineStatus():Promise<main.CashMachineStatus>;
+
 export function GetCashierPIN():Promise<string>;
 
 export function GetClientAccountDetails(arg1:number):Promise<Record<string, any>>;
@@ -132,7 +148,11 @@ export function GetClientByPhone(arg1:string):Promise<Record<string, any>>;
 
 export function GetClientProfile(arg1:number):Promise<Record<string, any>>;
 
+export function GetClockStatus():Promise<main.ClockStatus>;
+
 export function GetCloseShiftSyncGate():Promise<main.CloseShiftSyncGate>;
+
+export function GetConversionReport(arg1:string,arg2:string,arg3:string):Promise<main.ConversionReport>;
 
 export function GetCurrentMonth():Promise<string>;
 
@@ -144,9 +164,13 @@ export function GetDatabaseStatus():Promise<Record<string, any>>;
 
 export function GetDeferredCouponTotalByMonth(arg1:string):Promise<number>;
 
+export function GetDeviceStatus():Promise<main.DeviceStatus>;
+
 export function GetDisplayPrefs():Promise<main.DisplayPrefs>;
 
 export function GetExchangeInvoice(arg1:string):Promise<Record<string, any>>;
+
+export function GetExpenseFirstPhoto(arg1:string,arg2:number):Promise<string>;
 
 export function GetExpensePhoto(arg1:number,arg2:number):Promise<string>;
 
@@ -155,6 +179,8 @@ export function GetInvoiceDetails(arg1:number):Promise<Record<string, any>>;
 export function GetInvoiceForSettlementChange(arg1:number):Promise<Record<string, any>>;
 
 export function GetInvoiceSyncStates(arg1:Array<number>):Promise<Array<main.InvoiceSyncState>>;
+
+export function GetLoanFirstPhoto(arg1:string,arg2:number):Promise<string>;
 
 export function GetLoanPhoto(arg1:number,arg2:number):Promise<string>;
 
@@ -169,6 +195,8 @@ export function GetProductByBarcode(arg1:string):Promise<Record<string, any>>;
 export function GetProductByCode(arg1:string):Promise<Record<string, any>>;
 
 export function GetQuickAccessSource():Promise<main.QuickAccessSource>;
+
+export function GetReceiptLooks():Promise<Record<string, any>>;
 
 export function GetShiftExpectedTotals(arg1:number):Promise<Record<string, any>>;
 
@@ -189,6 +217,8 @@ export function GetTheme():Promise<string>;
 export function GetTodayIncomeByAccount():Promise<Array<Record<string, any>>>;
 
 export function GetTransferPhoto(arg1:string,arg2:number,arg3:number):Promise<string>;
+
+export function GetUnknownProduct():Promise<Record<string, any>>;
 
 export function GetVisitorCountToday():Promise<number>;
 
@@ -290,13 +320,19 @@ export function ListTransfers():Promise<Array<Record<string, any>>>;
 
 export function ListUsers():Promise<Array<Record<string, any>>>;
 
+export function MovePrinterToPort(arg1:string,arg2:string):Promise<void>;
+
 export function OpenShift():Promise<Record<string, any>>;
 
 export function PayClientAccount(arg1:number,arg2:number,arg3:number):Promise<Record<string, any>>;
 
+export function PrepareShiftClose(arg1:number):Promise<boolean>;
+
 export function PreviewProductsCSV():Promise<main.ProductCSVPreview>;
 
-export function PreviewShiftBalanceReplacement(arg1:number,arg2:number,arg3:number,arg4:number):Promise<main.ShiftBalanceReplacementPreview>;
+export function PreviewReceiptLook(arg1:string,arg2:string):Promise<string>;
+
+export function PreviewShiftBalanceReplacement(arg1:number,arg2:number,arg3:number,arg4:number,arg5:boolean):Promise<main.ShiftBalanceReplacementPreview>;
 
 export function PrintClosedShiftReceipt(arg1:number):Promise<Record<string, any>>;
 
@@ -314,11 +350,13 @@ export function QuotePaymentStatus(arg1:string,arg2:string):Promise<main.Payment
 
 export function QuoteSettlementPaymentStatus(arg1:number,arg2:string):Promise<main.PaymentStatus>;
 
+export function RefreshCartPricing(arg1:string):Promise<Array<Record<string, any>>>;
+
 export function RemoveQuickAccessProduct(arg1:number):Promise<void>;
 
 export function ReorderQuickAccessProducts(arg1:Array<number>):Promise<void>;
 
-export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number):Promise<void>;
+export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number,arg5:boolean):Promise<void>;
 
 export function ReportDisplayPrefs(arg1:string):Promise<void>;
 
@@ -327,6 +365,10 @@ export function ReprintInvoice(arg1:number):Promise<void>;
 export function RequestExpenseUploadLink(arg1:string):Promise<string>;
 
 export function RequestLoanUploadLink(arg1:string):Promise<string>;
+
+export function RequestUnknownItemHelp(arg1:string):Promise<void>;
+
+export function RestartComputer():Promise<void>;
 
 export function ResyncAll(arg1:main.ResyncOptions):Promise<main.ResyncReport>;
 
@@ -346,6 +388,8 @@ export function SetAutoAppendLbpZerosEnabled(arg1:boolean):Promise<void>;
 
 export function SetAutoCloseStaleShiftsEnabled(arg1:boolean):Promise<void>;
 
+export function SetAutoCoverNegativeLBPEnabled(arg1:boolean):Promise<void>;
+
 export function SetCashierPIN(arg1:string):Promise<void>;
 
 export function SetClientActive(arg1:number,arg2:boolean):Promise<void>;
@@ -360,9 +404,17 @@ export function SetCustomItemDiscountsEnabled(arg1:boolean):Promise<void>;
 
 export function SetCustomItemPricesEnabled(arg1:boolean):Promise<void>;
 
+export function SetDealToggleEnabled(arg1:boolean):Promise<void>;
+
 export function SetDefaultBranch(arg1:string):Promise<void>;
 
+export function SetDiscountToggleDefaultOff(arg1:boolean):Promise<void>;
+
+export function SetDiscountToggleEnabled(arg1:boolean):Promise<void>;
+
 export function SetExchangeWindowHours(arg1:number):Promise<void>;
+
+export function SetExpenseFromCentral(arg1:number,arg2:boolean):Promise<Record<string, any>>;
 
 export function SetHidePaymentMethodCurrency(arg1:boolean):Promise<void>;
 
@@ -382,13 +434,23 @@ export function SetPerUnitItemPricesEnabled(arg1:boolean):Promise<void>;
 
 export function SetPriceChangeManualOverrideEnabled(arg1:boolean):Promise<void>;
 
+export function SetPriceEditCodes(arg1:string):Promise<void>;
+
+export function SetPriceEditRestricted(arg1:boolean):Promise<void>;
+
 export function SetProductActive(arg1:number,arg2:boolean):Promise<void>;
 
+export function SetProductSearchCodeOnly(arg1:boolean):Promise<void>;
+
 export function SetProductSearchEnabled(arg1:boolean):Promise<void>;
+
+export function SetProductSearchHiddenFields(arg1:string):Promise<void>;
 
 export function SetQuickAccessColor(arg1:number,arg2:string,arg3:string):Promise<void>;
 
 export function SetQuickAccessMode(arg1:string):Promise<void>;
+
+export function SetReceiptLook(arg1:string,arg2:string):Promise<void>;
 
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
 
@@ -396,17 +458,29 @@ export function SetScanByCodeEnabled(arg1:boolean):Promise<void>;
 
 export function SetShiftReceiptUploadMode(arg1:number):Promise<void>;
 
+export function SetShiftReportSignaturesEnabled(arg1:boolean):Promise<void>;
+
+export function SetShiftReportUppercaseHeaderEnabled(arg1:boolean):Promise<void>;
+
 export function SetSoundsEnabled(arg1:boolean):Promise<void>;
 
 export function SetSplitDisplay(arg1:string,arg2:boolean,arg3:number):Promise<void>;
 
 export function SetTheme(arg1:string):Promise<void>;
 
+export function SetUnknownProductBarcode(arg1:string):Promise<void>;
+
+export function SetUpCashMachine():Promise<main.CashMachineSetup>;
+
 export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
 
 export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<string, any>>;
 
+export function ShutDownComputer():Promise<void>;
+
 export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function StartUnknownItemSession(arg1:string):Promise<Record<string, any>>;
 
 export function SubmitAttendanceComplaint(arg1:number,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string):Promise<void>;
 
@@ -415,6 +489,8 @@ export function SwitchBranch(arg1:string):Promise<void>;
 export function SwitchShiftReceiptToLocal(arg1:string):Promise<Record<string, any>>;
 
 export function SyncAttendance(arg1:string):Promise<Record<string, any>>;
+
+export function UnknownItemSessionStatus(arg1:string):Promise<Record<string, any>>;
 
 export function UpdateAdminConfig(arg1:boolean,arg2:string,arg3:string):Promise<void>;
 
@@ -429,6 +505,10 @@ export function UpdateClient(arg1:number,arg2:string,arg3:string):Promise<Record
 export function UpdateCouponType(arg1:number,arg2:string,arg3:string,arg4:number,arg5:boolean,arg6:boolean,arg7:boolean,arg8:boolean):Promise<void>;
 
 export function UpdateDefaultOpeningFloat(arg1:number,arg2:number,arg3:string):Promise<void>;
+
+export function UpdateExpenseCategory(arg1:number,arg2:string):Promise<Record<string, any>>;
+
+export function UpdateLoanCategory(arg1:number,arg2:string):Promise<Record<string, any>>;
 
 export function UpdateProduct(arg1:number,arg2:main.ProductInput):Promise<Record<string, any>>;
 
@@ -446,12 +526,18 @@ export function UpdateUser(arg1:number,arg2:string,arg3:string,arg4:number,arg5:
 
 export function UpdateUserAttendanceID(arg1:number,arg2:string):Promise<void>;
 
+export function UseReceiptPrinter(arg1:string):Promise<void>;
+
 export function VerifyAdminPassword(arg1:string):Promise<Record<string, any>>;
+
+export function VerifyManagerPassword(arg1:string):Promise<void>;
 
 export function VerifyPIN(arg1:string):Promise<Record<string, any>>;
 
 export function VoidInvoice(arg1:string,arg2:string):Promise<void>;
 
 export function WaitUntilReady():Promise<Record<string, any>>;
+
+export function WhatsAppWelcome(arg1:string,arg2:string):Promise<void>;
 
 export function WriteToScreen(arg1:string,arg2:string):Promise<void>;

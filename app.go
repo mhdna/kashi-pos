@@ -53,6 +53,14 @@ type App struct {
 	attendanceSyncMu sync.Mutex
 	ready            chan struct{}
 
+	// unknownSessionRef is the picture session of the cart being paid (see
+	// unknown_items.go), guarded by unknownMu.
+	unknownMu         sync.Mutex
+	unknownSessionRef string
+	// unknownDone is how many units the till last saw finished; kashi holds a
+	// status call until that number changes.
+	unknownDone int
+
 	pinMu             sync.Mutex
 	failedPINAttempts int
 	pinLockedUntil    time.Time
@@ -138,6 +146,10 @@ type App struct {
 	// steps. Only the pull loop goroutine touches them.
 	lastFullPullAt    time.Time
 	lastTargetsPullAt time.Time
+	lastClockCheckAt  time.Time
+	// clock is the last clock check's result -- see clock.go.
+	clockMu sync.Mutex
+	clock   ClockStatus
 	// settingsReport is the last settings report kashi accepted -- see
 	// pushSettings.
 	settingsReport settingsReport
@@ -281,6 +293,7 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 
 	a.conn = conn
 	a.store = db.NewStore(conn)
+	resetPricingCache()
 	a.dbPath = path
 	a.startupErr = nil
 	a.loadPINLockoutState()
@@ -288,16 +301,19 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 	if err := a.applyEnvironmentDefaults(); err != nil {
 		log.Println("apply environment setting defaults:", err)
 	}
+	a.applySavedZone()
 	if err := a.closeStaleOpenShifts(); err != nil {
 		log.Println("close stale open shifts:", err)
 	}
 	a.startAdminServer()
 	a.startShiftUploadServer()
 	a.startSyncWorker()
+	a.startWhatsAppRetry()
 	a.startWSClient()
 	a.startAttendanceProbe()
 	a.startAttendancePushServer()
 	a.startUpdater()
+	a.startDeviceWatch()
 	return nil
 }
 
@@ -880,6 +896,10 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	} else {
 		result["openingFloatEnabled"] = true
 	}
+	result["receiptTheme"], result["receiptLayout"] = a.receiptLook()
+	result["shiftReportSignatures"] = a.shiftReportSignatures()
+	result["shiftReportUppercaseHeader"] = a.shiftReportUppercaseHeader()
+	result["autoCoverNegativeLbp"] = a.autoCoverNegativeLBP()
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, countOpeningCashOnCloseFlag); flagErr == nil {
 		result["countOpeningCashOnClose"] = enabled != 0
 	} else {
@@ -937,6 +957,15 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	}
 	result["closeShiftRequiresSync"] = a.closeShiftRequiresSync()
 	result["scanByCodeEnabled"] = a.scanByCodeEnabled()
+	result["productSearchCodeOnly"] = a.flagEnabled(a.ctx, productSearchCodeOnlyFlag)
+	result["priceEditRestricted"] = a.flagEnabled(a.ctx, priceEditRestrictedFlag)
+	result["priceEditCodes"] = a.priceEditCodes()
+	result["discountToggleEnabled"] = a.flagEnabled(a.ctx, discountToggleFlag)
+	result["discountToggleDefaultOff"] = a.flagEnabled(a.ctx, discountToggleDefaultOffFlag)
+	result["dealToggleEnabled"] = a.flagEnabled(a.ctx, dealToggleFlag)
+	result["oversellMode"] = settings.OversellMode
+	result["unknownProductBarcode"] = a.unknownBarcode()
+	result["productSearchHiddenFields"] = a.productSearchHiddenFields()
 	result["soundsEnabled"] = a.soundsEnabled()
 	result["attendanceManagerApprovalEnabled"] = a.attendanceManagerApprovalEnabled()
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, productSearchEnabledFlag); flagErr == nil {

@@ -512,3 +512,108 @@ func TestFindProductsForScan(t *testing.T) {
 		t.Errorf("scan by barcode while code disabled = %q, want BAR-BLUE", got)
 	}
 }
+
+func TestProductSearchCodeOnlyIgnoresNames(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+
+	if _, err := app.store.CreateProduct(app.ctx, db.CreateProductParams{
+		Barcode: "BAR-VARIANT", Code: "SKU-VARIANT", Name: "Denim Jacket",
+		IsActive: 1, Price: 4599, CurrencyCode: "USD",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	priceProductsFromRows(t, app.store.Queries)
+
+	if err := app.SetProductSearchCodeOnly(true); err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{"Denim", "jacket"} {
+		page, err := app.ListProductsCursor(0, 10, query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		total, err := app.CountProductsForSearch(query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Items) != 0 || total != 0 {
+			t.Fatalf("code-only search %q = %#v (total %d), want nothing", query, page.Items, total)
+		}
+	}
+	for _, query := range []string{"SKU-VARIANT", "BAR-VARIANT"} {
+		page, err := app.ListProductsCursor(0, 10, query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		total, err := app.CountProductsForSearch(query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Items) != 1 || total != 1 {
+			t.Fatalf("code-only search %q = %#v (total %d), want the variant", query, page.Items, total)
+		}
+	}
+}
+
+func TestNormalizePriceEditCodes(t *testing.T) {
+	got := normalizePriceEditCodes(" A1, b2\nA1;C3 \r\n")
+	if got != "A1,b2,C3" {
+		t.Fatalf("normalizePriceEditCodes = %q, want %q", got, "A1,b2,C3")
+	}
+}
+
+func TestSetPriceEditCodesRoundTrips(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	if _, err := database.Exec(`INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id) VALUES ('Test', '', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.SetPriceEditCodes("A1\nb2"); err != nil {
+		t.Fatal(err)
+	}
+	if got := app.priceEditCodes(); got != "A1,b2" {
+		t.Fatalf("priceEditCodes = %q, want A1,b2", got)
+	}
+}
+
+func TestRefreshCartPricingFollowsTheLists(t *testing.T) {
+	app, database := newProductTestApp(t)
+	defer database.Close()
+	product, err := app.store.CreateProduct(app.ctx, db.CreateProductParams{
+		Barcode: "B1", Code: "C1", Name: "Jacket", IsActive: 1, Price: 1200, CurrencyCode: "USD",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Exec(`UPDATE products SET uid = 'uid-1' WHERE id = ?`, product.ID); err != nil {
+		t.Fatal(err)
+	}
+	priceProductsFromRows(t, app.store.Queries)
+
+	rows, err := app.RefreshCartPricing(`["B1","missing"]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0]["price"] != 12.0 || rows[0]["discount"] != int64(0) {
+		t.Fatalf("before the discount = %v, want one row at $12 with none", rows)
+	}
+
+	// kashi puts the product on the discount list: the next read has it.
+	if _, err := database.Exec(`INSERT INTO discount_list_items (discount_list_id, product_uid, discount) SELECT id, 'uid-1', 25 FROM discount_lists WHERE uid = 'test-default-discount-list'`); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = app.RefreshCartPricing(`["B1"]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows[0]["discount"] != int64(25) {
+		t.Fatalf("after the discount = %v, want 25%%", rows[0])
+	}
+}
+
+func TestProductSearchHiddenFieldsKeepsKnownNamesOnly(t *testing.T) {
+	if got := normalizeProductSearchHiddenFields(" Price, size;price\nbogus,CODE"); got != "price,size,code" {
+		t.Fatalf("normalize = %q, want price,size,code", got)
+	}
+}

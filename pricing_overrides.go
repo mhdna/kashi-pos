@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"sync"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -28,6 +29,8 @@ type activeDiscount struct {
 	listID    int64
 	listName  string
 	isSpecial bool
+	// The deal the row puts the product on (000128); percent is 0 then.
+	dealUID string
 }
 
 // activePricing is every price and discount currently in force, keyed by
@@ -37,6 +40,14 @@ type activeDiscount struct {
 type activePricing struct {
 	prices    map[string]activePrice
 	discounts map[string]activeDiscount
+	// optionDiscounts[uid][option] is the discount for a line sold as that
+	// sale option (000126); see discountForOption.
+	optionDiscounts map[string]map[string]activeDiscount
+	// saleOptions[uid] is what the till asks when the product is sold, in
+	// display order; absent for an ordinary product.
+	saleOptions map[string][]string
+	// deals[uid] is a deal's terms, for the rows naming it (deals.go).
+	deals map[string]dealTerms
 }
 
 // priceFor / discountFor report whether central said anything about a product
@@ -52,10 +63,73 @@ func (p activePricing) discountFor(productUID string) (activeDiscount, bool) {
 	return v, ok
 }
 
+// discountForOption is the discount for a line sold as saleOption: the
+// option's own row when a list has one, otherwise the product's plain
+// discount. An empty saleOption is the plain discount.
+func (p activePricing) discountForOption(productUID, saleOption string) (activeDiscount, bool) {
+	if saleOption != "" {
+		if v, ok := p.optionDiscounts[productUID][saleOption]; ok {
+			return v, true
+		}
+	}
+	return p.discountFor(productUID)
+}
+
+// pricingCache keeps the last loaded activePricing, so a quote doesn't re-read
+// every price and discount (~13k rows, most of a quote's time) on each scan.
+// It's keyed on pricing_version (000127), which triggers move on any write
+// to what prices a sale, so a reuse is only ever of exactly what the database
+// holds now. The token tells databases apart (tests, a branch switch).
+// Callers only read the maps, never write them, so sharing them is safe.
+var pricingCache struct {
+	sync.Mutex
+	token   string
+	version int64
+	pricing *activePricing
+}
+
+// resetPricingCache drops the cached pricing; called when the till opens a
+// database, since two branches' databases can carry the same version.
+func resetPricingCache() {
+	pricingCache.Lock()
+	pricingCache.pricing = nil
+	pricingCache.Unlock()
+}
+
+// loadActivePricing is the pricing in force, from the cache when nothing that
+// prices a sale changed since it was loaded. q may be a transaction's: the
+// version is read through it, so a checkout prices from what its own
+// transaction sees.
 func loadActivePricing(ctx context.Context, q *db.Queries) (activePricing, error) {
+	current, err := q.GetPricingVersion(ctx)
+	if err != nil {
+		return activePricing{}, err
+	}
+	pricingCache.Lock()
+	if cached := pricingCache.pricing; cached != nil &&
+		pricingCache.token == current.Token && pricingCache.version == current.Version {
+		pricingCache.Unlock()
+		return *cached, nil
+	}
+	pricingCache.Unlock()
+
+	pricing, err := readActivePricing(ctx, q)
+	if err != nil {
+		return pricing, err
+	}
+	pricingCache.Lock()
+	pricingCache.token, pricingCache.version, pricingCache.pricing = current.Token, current.Version, &pricing
+	pricingCache.Unlock()
+	return pricing, nil
+}
+
+func readActivePricing(ctx context.Context, q *db.Queries) (activePricing, error) {
 	pricing := activePricing{
-		prices:    map[string]activePrice{},
-		discounts: map[string]activeDiscount{},
+		prices:          map[string]activePrice{},
+		discounts:       map[string]activeDiscount{},
+		optionDiscounts: map[string]map[string]activeDiscount{},
+		saleOptions:     map[string][]string{},
+		deals:           map[string]dealTerms{},
 	}
 
 	// Both queries order is_default DESC, so a default-list row is written
@@ -80,7 +154,41 @@ func loadActivePricing(ctx context.Context, q *db.Queries) (activePricing, error
 	for _, row := range discountRows {
 		pricing.discounts[row.ProductUid] = activeDiscount{
 			percent: row.Discount, listID: row.ListID, listName: row.ListName,
+			dealUID: row.DealUid,
 		}
+	}
+
+	// Same order, same rule: a branch list's option row overwrites the
+	// default list's for the same product and option.
+	optionRows, err := q.ListActiveDiscountListOptionItems(ctx)
+	if err != nil {
+		return pricing, err
+	}
+	for _, row := range optionRows {
+		byOption := pricing.optionDiscounts[row.ProductUid]
+		if byOption == nil {
+			byOption = map[string]activeDiscount{}
+			pricing.optionDiscounts[row.ProductUid] = byOption
+		}
+		byOption[row.SaleOption] = activeDiscount{
+			percent: row.Discount, listID: row.ListID, listName: row.ListName,
+		}
+	}
+
+	saleOptionRows, err := q.ListAllProductSaleOptions(ctx)
+	if err != nil {
+		return pricing, err
+	}
+	for _, row := range saleOptionRows {
+		pricing.saleOptions[row.ProductUid.String] = append(pricing.saleOptions[row.ProductUid.String], row.Name)
+	}
+
+	dealRows, err := q.ListDeals(ctx)
+	if err != nil {
+		return pricing, err
+	}
+	for _, row := range dealRows {
+		pricing.deals[row.Uid] = dealTermsFromRow(row)
 	}
 	return pricing, nil
 }

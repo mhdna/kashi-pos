@@ -2,6 +2,7 @@
   <div class="pin-login" aria-labelledby="pin-title">
     <div class="pin-logo-wrap">
       <div
+        ref="logoEl"
         class="pin-logo"
         :style="{ '--pin-logo-image': `url(${logo})` }"
         role="img"
@@ -132,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import logo from "@/assets/app-logo.png";
 import { useAuthStore } from "@/stores/auth";
@@ -275,8 +276,36 @@ function handleKeydown(event: KeyboardEvent) {
   else if (event.key === "Escape" || event.key === "Delete") clearPIN();
 }
 
+// The startup loader in index.html draws this same logo, and puts it where
+// this one sits so the hand-off to the login screen doesn't move it. The
+// spot is kept as an offset from the window centre, plus the colours, for
+// the loader to read on the next launch.
+const logoEl = ref<HTMLElement | null>(null);
+function rememberLogoSpot() {
+  const el = logoEl.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  if (!rect.width) return;
+  const app = el.closest(".v-application");
+  try {
+    localStorage.setItem(
+      "startupLogoSpot",
+      JSON.stringify({
+        dx: Math.round(rect.left + rect.width / 2 - window.innerWidth / 2),
+        dy: Math.round(rect.top + rect.height / 2 - window.innerHeight / 2),
+        size: Math.round(rect.width),
+        color: getComputedStyle(el).backgroundColor,
+        background: app ? getComputedStyle(app).backgroundColor : "",
+      }),
+    );
+  } catch {
+    // Storage unavailable: the loader falls back to a centred logo.
+  }
+}
+
 onMounted(async () => {
   window.addEventListener("keydown", handleKeydown);
+  window.addEventListener("resize", rememberLogoSpot);
   const status = await auth.getPINLockoutStatus();
   if (status.locked) startLockout(status.retryAfter);
   try {
@@ -291,9 +320,14 @@ onMounted(async () => {
   } catch {
     branches.value = [];
   }
+  // After the branch list and version have rendered: they change the
+  // form's height, which moves the centred logo.
+  await nextTick();
+  rememberLogoSpot();
 });
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", handleKeydown);
+  window.removeEventListener("resize", rememberLogoSpot);
   if (lockTimer) clearInterval(lockTimer);
 });
 </script>

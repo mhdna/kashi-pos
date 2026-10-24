@@ -123,6 +123,37 @@ func (a *App) GetExpensePhoto(id int64, width int) (string, error) {
 	return a.getPhoto("/branch/expense_photos", id, width), nil
 }
 
+// GetExpenseFirstPhoto is the first photo of an expense by the till's own
+// clientRef, as a data: URL, in one request ("" if none). The list rows use
+// it instead of listing ids and then fetching a file: two round trips each.
+func (a *App) GetExpenseFirstPhoto(clientRef string, width int) (string, error) {
+	return a.firstPhoto("/branch/expense_photos/first", clientRef, width), nil
+}
+
+// GetLoanFirstPhoto is GetExpenseFirstPhoto for a loan.
+func (a *App) GetLoanFirstPhoto(clientRef string, width int) (string, error) {
+	return a.firstPhoto("/branch/loan_photos/first", clientRef, width), nil
+}
+
+func (a *App) firstPhoto(base, clientRef string, width int) string {
+	client := a.photoClient()
+	if client == nil || clientRef == "" {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, photoFetchTimeout)
+	defer cancel()
+	params := url.Values{}
+	params.Set("client_ref", clientRef)
+	if width > 0 {
+		params.Set("w", fmt.Sprint(width))
+	}
+	data, err := client.fetchImageDataURL(ctx, base+"?"+params.Encode())
+	if err != nil {
+		return ""
+	}
+	return data
+}
+
 // GetLoanPhoto is GetExpensePhoto for a loan's photo.
 func (a *App) GetLoanPhoto(id int64, width int) (string, error) {
 	return a.getPhoto("/branch/loan_photos", id, width), nil

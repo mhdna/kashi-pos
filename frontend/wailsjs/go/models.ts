@@ -1,5 +1,107 @@
 export namespace main {
 	
+	export class CashMachineCount {
+	    name: string;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CashMachineCount(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.count = source["count"];
+	    }
+	}
+	export class CashMachineStep {
+	    name: string;
+	    ok: boolean;
+	    detail?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CashMachineStep(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.ok = source["ok"];
+	        this.detail = source["detail"];
+	    }
+	}
+	export class CashMachineSetup {
+	    // Go type: time
+	    at: any;
+	    steps: CashMachineStep[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CashMachineSetup(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.at = this.convertValues(source["at"], null);
+	        this.steps = this.convertValues(source["steps"], CashMachineStep);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CashMachineStatus {
+	    supported: boolean;
+	    on: boolean;
+	    closedPrograms: CashMachineCount[];
+	    startupOff: string[];
+	    lastSetup?: CashMachineSetup;
+	
+	    static createFrom(source: any = {}) {
+	        return new CashMachineStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.supported = source["supported"];
+	        this.on = source["on"];
+	        this.closedPrograms = this.convertValues(source["closedPrograms"], CashMachineCount);
+	        this.startupOff = source["startupOff"];
+	        this.lastSetup = this.convertValues(source["lastSetup"], CashMachineSetup);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class ClientCursorPage {
 	    items: any[];
 	    nextCursor: number;
@@ -14,6 +116,28 @@ export namespace main {
 	        this.items = source["items"];
 	        this.nextCursor = source["nextCursor"];
 	        this.hasMore = source["hasMore"];
+	    }
+	}
+	export class ClockStatus {
+	    checked: boolean;
+	    zone: string;
+	    pcZone: string;
+	    zoneMismatch: boolean;
+	    driftSeconds: number;
+	    clockOff: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ClockStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.checked = source["checked"];
+	        this.zone = source["zone"];
+	        this.pcZone = source["pcZone"];
+	        this.zoneMismatch = source["zoneMismatch"];
+	        this.driftSeconds = source["driftSeconds"];
+	        this.clockOff = source["clockOff"];
 	    }
 	}
 	export class SyncPendingByType {
@@ -66,6 +190,147 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class ConversionDay {
+	    day: string;
+	    weekday: string;
+	    visitors: number;
+	    invoices: number;
+	    revenue: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConversionDay(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.day = source["day"];
+	        this.weekday = source["weekday"];
+	        this.visitors = source["visitors"];
+	        this.invoices = source["invoices"];
+	        this.revenue = source["revenue"];
+	    }
+	}
+	export class ConversionGroup {
+	    label: string;
+	    days: number;
+	    visitors: number;
+	    invoices: number;
+	    revenue: number;
+	    buyRate: number;
+	    avgInvoice: number;
+	    revenuePerVisitor: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConversionGroup(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.label = source["label"];
+	        this.days = source["days"];
+	        this.visitors = source["visitors"];
+	        this.invoices = source["invoices"];
+	        this.revenue = source["revenue"];
+	        this.buyRate = source["buyRate"];
+	        this.avgInvoice = source["avgInvoice"];
+	        this.revenuePerVisitor = source["revenuePerVisitor"];
+	    }
+	}
+	export class ConversionStats {
+	    days: number;
+	    visitors: number;
+	    invoices: number;
+	    revenue: number;
+	    buyRate: number;
+	    avgInvoice: number;
+	    revenuePerVisitor: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConversionStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.days = source["days"];
+	        this.visitors = source["visitors"];
+	        this.invoices = source["invoices"];
+	        this.revenue = source["revenue"];
+	        this.buyRate = source["buyRate"];
+	        this.avgInvoice = source["avgInvoice"];
+	        this.revenuePerVisitor = source["revenuePerVisitor"];
+	    }
+	}
+	export class ConversionReport {
+	    from: string;
+	    to: string;
+	    monthOnly: boolean;
+	    overall: ConversionStats;
+	    uncountedDays: number;
+	    byTraffic: ConversionGroup[];
+	    byWeekday: ConversionGroup[];
+	    days: ConversionDay[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ConversionReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.from = source["from"];
+	        this.to = source["to"];
+	        this.monthOnly = source["monthOnly"];
+	        this.overall = this.convertValues(source["overall"], ConversionStats);
+	        this.uncountedDays = source["uncountedDays"];
+	        this.byTraffic = this.convertValues(source["byTraffic"], ConversionGroup);
+	        this.byWeekday = this.convertValues(source["byWeekday"], ConversionGroup);
+	        this.days = this.convertValues(source["days"], ConversionDay);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class DeviceStatus {
+	    scanner: string;
+	    printer: string;
+	    keyboard: string;
+	    mouse: string;
+	    printerName: string;
+	    scannerName: string;
+	    keyboardName: string;
+	    mouseName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeviceStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.scanner = source["scanner"];
+	        this.printer = source["printer"];
+	        this.keyboard = source["keyboard"];
+	        this.mouse = source["mouse"];
+	        this.printerName = source["printerName"];
+	        this.scannerName = source["scannerName"];
+	        this.keyboardName = source["keyboardName"];
+	        this.mouseName = source["mouseName"];
+	    }
+	}
 	export class DisplayPrefs {
 	    prefs: Record<string, any>;
 	    rev: number;
@@ -86,6 +351,7 @@ export namespace main {
 	    taxCents: number;
 	    grandTotalCents: number;
 	    needsMoreReplacementValue: boolean;
+	    shortfallCents: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ExchangeQuote(source);
@@ -98,6 +364,7 @@ export namespace main {
 	        this.taxCents = source["taxCents"];
 	        this.grandTotalCents = source["grandTotalCents"];
 	        this.needsMoreReplacementValue = source["needsMoreReplacementValue"];
+	        this.shortfallCents = source["shortfallCents"];
 	    }
 	}
 	export class FullCheckEntityReport {
@@ -175,6 +442,13 @@ export namespace main {
 	    barcode: string;
 	    lineTotalCents: number;
 	    discountCents: number;
+	    qty: number;
+	    deal?: string;
+	    dealLabel?: string;
+	    dealDiscountCents?: number;
+	    free?: boolean;
+	    offDiscount?: number;
+	    offDealLabel?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new LineQuote(source);
@@ -186,6 +460,13 @@ export namespace main {
 	        this.barcode = source["barcode"];
 	        this.lineTotalCents = source["lineTotalCents"];
 	        this.discountCents = source["discountCents"];
+	        this.qty = source["qty"];
+	        this.deal = source["deal"];
+	        this.dealLabel = source["dealLabel"];
+	        this.dealDiscountCents = source["dealDiscountCents"];
+	        this.free = source["free"];
+	        this.offDiscount = source["offDiscount"];
+	        this.offDealLabel = source["offDealLabel"];
 	    }
 	}
 	export class InvoiceQuote {
@@ -349,6 +630,74 @@ export namespace main {
 	        this.productBarcodes = source["productBarcodes"];
 	        this.productNames = source["productNames"];
 	    }
+	}
+	export class PrinterChoice {
+	    name: string;
+	    port: string;
+	    ready: boolean;
+	    receipt: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PrinterChoice(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.port = source["port"];
+	        this.ready = source["ready"];
+	        this.receipt = source["receipt"];
+	    }
+	}
+	export class PrinterPort {
+	    port: string;
+	    device: string;
+	    usedBy: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PrinterPort(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.port = source["port"];
+	        this.device = source["device"];
+	        this.usedBy = source["usedBy"];
+	    }
+	}
+	export class PrinterSearch {
+	    printers: PrinterChoice[];
+	    livePorts: PrinterPort[];
+	    receiptPrinter: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PrinterSearch(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.printers = this.convertValues(source["printers"], PrinterChoice);
+	        this.livePorts = this.convertValues(source["livePorts"], PrinterPort);
+	        this.receiptPrinter = source["receiptPrinter"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class ProductCSVProblem {
 	    line: number;

@@ -5,6 +5,7 @@
  */
 import { createRouter, createWebHashHistory } from "vue-router";
 
+const loadHome = () => import("@/pages/home.vue");
 const loadInvoicesList = () => import("@/pages/invoices-list.vue");
 
 const router = createRouter({
@@ -19,7 +20,7 @@ const router = createRouter({
       path: "/",
       component: () => import("@/layouts/DefaultLayout.vue"),
       children: [
-        { path: "home", component: () => import("@/pages/home.vue") },
+        { path: "home", component: loadHome },
         {
           path: "settings",
           component: () => import("@/pages/settings.vue"),
@@ -49,18 +50,28 @@ const router = createRouter({
           component: () => import("@/pages/salespersons.vue"),
           meta: { lockable: "salespersons" },
         },
+        // Admins see it outright; anyone else unlocks it with the manager
+        // password on the page itself (see GetConversionReport).
+        {
+          path: "conversion",
+          component: () => import("@/pages/conversion.vue"),
+        },
         {
           path: "transfers",
           component: () => import("@/pages/transfers.vue"),
           meta: { lockable: "transfers" },
         },
+        // Manager only: opened from the shift card's buttons, which ask for
+        // the manager password first (see useManagerPass). Admins go straight in.
         {
           path: "expenses",
           component: () => import("@/pages/expenses.vue"),
+          meta: { requiresManager: true },
         },
         {
           path: "loans",
           component: () => import("@/pages/loans.vue"),
+          meta: { requiresManager: true },
         },
         {
           path: "clients",
@@ -78,15 +89,21 @@ const router = createRouter({
   ],
 });
 
-router.isReady().then(() => void loadInvoicesList().catch(() => undefined));
+// Fetched while the login screen is up, so signing in doesn't then wait on
+// the checkout page, the biggest chunk.
+router.isReady().then(() => {
+  void loadHome().catch(() => undefined);
+  void loadInvoicesList().catch(() => undefined);
+});
 
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
   try {
     const { useAuthStore } = await import("@/stores/auth");
     const auth = useAuthStore();
     const isLoginPage = to.path === "/login";
     const requiresAdmin = to.matched.some((route) => route.meta.requiresAdmin);
     const lockable = to.matched.map((route) => route.meta.lockable).find((page) => page);
+    const requiresManager = to.matched.some((route) => route.meta.requiresManager);
 
     if (!auth.isLoggedIn && !isLoginPage) {
       return "/login";
@@ -96,6 +113,13 @@ router.beforeEach(async (to) => {
     }
     if (requiresAdmin && !auth.isAdmin) {
       return "/home";
+    }
+    // Staying on the page (a query change) doesn't need a new pass.
+    if (requiresManager && !auth.isAdmin && from.path !== to.path) {
+      const { takeManagerPass } = await import("@/composables/useManagerPass");
+      if (!takeManagerPass(to.path)) {
+        return "/home";
+      }
     }
     if (lockable && !auth.isAdmin) {
       const { usePageUnlocks } = await import("@/composables/usePageUnlocks");

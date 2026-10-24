@@ -75,6 +75,52 @@ const openingFloatEnabledFlag = "opening_float_enabled"
 // up.
 const countOpeningCashOnCloseFlag = "count_opening_cash_on_close"
 
+// shiftReportSignaturesFlag controls the "Cashier: ____" / "Manager: ____"
+// sign-off lines at the foot of the end-of-shift receipt. Default (missing
+// row or 1) prints them, the historical behaviour.
+const shiftReportSignaturesFlag = "shift_report_signatures"
+
+// shiftReportSignatures reports whether the end-of-shift receipt prints the
+// sign-off lines, defaulting to true when the flag has never been set.
+func (a *App) shiftReportSignatures() bool {
+	if v, err := a.store.GetFeatureFlag(a.ctx, shiftReportSignaturesFlag); err == nil {
+		return v != 0
+	}
+	return true
+}
+
+// SetShiftReportSignaturesEnabled toggles the end-of-shift receipt's
+// sign-off lines (see shiftReportSignaturesFlag).
+func (a *App) SetShiftReportSignaturesEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: shiftReportSignaturesFlag, Enabled: boolInt(enabled),
+	})
+}
+
+// shiftReportUppercaseHeaderFlag prints the store and branch names in
+// capitals at the top of the end-of-shift receipt. Off (missing row or 0)
+// keeps them as typed, the historical behaviour.
+const shiftReportUppercaseHeaderFlag = "shift_report_uppercase_header"
+
+func (a *App) shiftReportUppercaseHeader() bool {
+	v, err := a.store.GetFeatureFlag(a.ctx, shiftReportUppercaseHeaderFlag)
+	return err == nil && v != 0
+}
+
+// SetShiftReportUppercaseHeaderEnabled toggles the end-of-shift receipt's
+// capitalised header (see shiftReportUppercaseHeaderFlag).
+func (a *App) SetShiftReportUppercaseHeaderEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.store.SetFeatureFlag(a.ctx, db.SetFeatureFlagParams{
+		Key: shiftReportUppercaseHeaderFlag, Enabled: boolInt(enabled),
+	})
+}
+
 // openingFloatEnabled reports whether the opening cash float feature is
 // switched on at all, defaulting to true when the flag has never been set.
 func (a *App) openingFloatEnabled() bool {
@@ -291,6 +337,9 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 	if err := a.checkCloseShiftSyncGate(id); err != nil {
 		return nil, err
 	}
+	if _, err := a.PrepareShiftClose(id); err != nil {
+		return nil, err
+	}
 
 	closedAt := time.Now().UTC().Format("2006-01-02 15:04:05")
 	printData, receiptEnabled, err := a.buildShiftClosePrintData(
@@ -332,6 +381,11 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		}
 	}
 
+	var lbpRate int64
+	if lbp, rateErr := a.store.GetCurrencyByCode(a.ctx, "LBP"); rateErr == nil {
+		lbpRate = lbp.UnitsPerUsdMicros / unitsPerUsdMicroScale
+	}
+
 	shiftRef := fmt.Sprintf("shift-%d", id)
 	shiftClosePayload := branchShiftClosePayload{
 		ShiftRef:          shiftRef,
@@ -349,6 +403,7 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 		CountedLbp:        countedLBP,
 		CountedVisa:       countedVisa,
 		CountedWhish:      countedWhish,
+		LbpRate:           lbpRate,
 		OccurredAt:        time.Now().UTC(),
 	}
 
@@ -776,7 +831,124 @@ func (a *App) computeExpectedShiftTotals(shiftID int64) (expectedUSD, expectedLB
 		return 0, 0, 0, 0, fmt.Errorf("expected LBP: %w", err)
 	}
 	expectedLBP *= lbpSign
+
+	// Expenses and loans paid out of the drawer during the shift leave it
+	// short by exactly that much, so they come off what the cashier is
+	// expected to count. LBP is taken off in LBP units after the rounding
+	// above, so an LBP payout never picks up a conversion error.
+	spend, err := a.shiftSpend(shiftID)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	expectedUSD -= spend.USD
+	expectedLBP -= spend.LBP
+	expectedVisa -= spend.Visa
+	expectedWhish -= spend.Whish
 	return expectedUSD, expectedLBP, expectedVisa, expectedWhish, nil
+}
+
+// shiftSpendLine is one expense or loan as the end-of-shift report prints it.
+type shiftSpendLine struct {
+	Kind         string // "expense" or "loan"
+	Label        string
+	Amount       int64 // the account's currency, x100, as entered
+	CurrencyCode string
+}
+
+// shiftSpendTotals is what a shift's expenses and loans took out of each
+// bucket computeExpectedShiftTotals reconciles: USD/Visa/Whish in cents,
+// LBP in whole LBP. Lines lists every one of them, for the receipt --
+// including any paid from an account outside those buckets.
+type shiftSpendTotals struct {
+	USD, LBP, Visa, Whish int64
+	Lines                 []shiftSpendLine
+}
+
+func (a *App) shiftSpend(shiftID int64) (shiftSpendTotals, error) {
+	var totals shiftSpendTotals
+	shiftRef := sql.NullInt64{Int64: shiftID, Valid: true}
+	expenses, err := a.store.ListExpensesForShift(a.ctx, shiftRef)
+	if err != nil {
+		return totals, fmt.Errorf("shift expenses: %w", err)
+	}
+	loans, err := a.store.ListLoansForShift(a.ctx, shiftRef)
+	if err != nil {
+		return totals, fmt.Errorf("shift loans: %w", err)
+	}
+
+	type outflow struct {
+		line      shiftSpendLine
+		accountID int64
+	}
+	var outflows []outflow
+	for _, e := range expenses {
+		outflows = append(outflows, outflow{shiftSpendLine{"expense", fallbackReceiptValue(e.Description, fallbackReceiptValue(e.Category, "Expense")), e.Amount, e.CurrencyCode}, e.CashboxAccountID})
+	}
+	for _, l := range loans {
+		outflows = append(outflows, outflow{shiftSpendLine{"loan", fallbackReceiptValue(l.Description, fallbackReceiptValue(l.Category, "Loan")), l.Amount, l.CurrencyCode}, l.CashboxAccountID})
+	}
+
+	accounts := make(map[int64]string)
+	for _, o := range outflows {
+		totals.Lines = append(totals.Lines, o.line)
+		name, ok := accounts[o.accountID]
+		if !ok {
+			account, err := a.store.GetCashboxAccountByID(a.ctx, o.accountID)
+			if err != nil && err != sql.ErrNoRows {
+				return totals, fmt.Errorf("spend account %d: %w", o.accountID, err)
+			}
+			name = account.Name
+			accounts[o.accountID] = name
+		}
+		// Same bucketing as the income side of computeExpectedShiftTotals.
+		currency := strings.ToUpper(strings.TrimSpace(o.line.CurrencyCode))
+		switch {
+		case strings.EqualFold(strings.TrimSpace(name), "Visa") && currency == "USD":
+			totals.Visa += o.line.Amount
+		case strings.EqualFold(strings.TrimSpace(name), "Whish") && currency == "USD":
+			totals.Whish += o.line.Amount
+		case !isCashAccount(name, currency):
+		case currency == "LBP":
+			totals.LBP += o.line.Amount / 100
+		case currency == "USD":
+			totals.USD += o.line.Amount
+		}
+	}
+	return totals, nil
+}
+
+// shiftSpendUSDCents converts every expense and loan line to USD cents at
+// the currency's current rate, for the receipt's net total.
+func (a *App) shiftSpendUSDCents(lines []shiftSpendLine, roundingMode string) (int64, error) {
+	var total int64
+	rates := make(map[string]int64)
+	for _, line := range lines {
+		code := strings.ToUpper(strings.TrimSpace(line.CurrencyCode))
+		if code == "USD" {
+			total += line.Amount
+			continue
+		}
+		rate, ok := rates[code]
+		if !ok {
+			currency, err := resolveCurrency(a.ctx, a.store.Queries, code)
+			if err != nil {
+				return 0, fmt.Errorf("spend currency %s: %w", code, err)
+			}
+			rate = currency.UnitsPerUsdMicros
+			rates[code] = rate
+		}
+		amount := line.Amount
+		sign := int64(1)
+		if amount < 0 {
+			sign, amount = -1, -amount
+		}
+		cents, err := roundCentsFromCurrencyUnits(amount/100, rate, roundingMode)
+		if err != nil {
+			return 0, fmt.Errorf("spend in %s: %w", code, err)
+		}
+		total += sign * cents
+	}
+	return total, nil
 }
 
 // suggestUSDBillBreakdown greedily splits a USD cents amount into whole
@@ -905,6 +1077,14 @@ func (a *App) buildShiftClosePrintData(
 	if err != nil {
 		return printReceiptData{}, false, err
 	}
+	spend, err := a.shiftSpend(shiftID)
+	if err != nil {
+		return printReceiptData{}, false, err
+	}
+	spendUSD, err := a.shiftSpendUSDCents(spend.Lines, settings.RoundingMode)
+	if err != nil {
+		return printReceiptData{}, false, err
+	}
 	countedTotal, err := reconcileShiftCountedTotal(
 		totalPayments,
 		expectedUSD, countedUSD,
@@ -948,11 +1128,15 @@ func (a *App) buildShiftClosePrintData(
 		CountedCoupon:   countedCoupon,
 		OnAccount:       onAccount,
 		Payments:        payments,
+		Spend:           spend.Lines,
+		SpendUSD:        spendUSD,
 		OpeningFloatUSD: reportOpeningFloatUSD,
+		PaidOutUSD:      spend.USD,
 		ExpectedUSD:     expectedUSD,
 		CountedUSD:      countedUSD,
 		USDBillCounts:   usdBillCounts,
 		OpeningFloatLBP: reportOpeningFloatLBP,
+		PaidOutLBP:      spend.LBP,
 		ExpectedLBP:     expectedLBP,
 		CountedLBP:      countedLBP,
 		ExpectedVisa:    expectedVisa,
@@ -961,6 +1145,8 @@ func (a *App) buildShiftClosePrintData(
 		CountedWhish:    countedWhish,
 		ExchangeRate:    rate,
 		RoundingMode:    settings.RoundingMode,
+		SignatureLines:  a.shiftReportSignatures(),
+		UppercaseHeader: a.shiftReportUppercaseHeader(),
 	}
 	marketName := strings.TrimSpace(settings.MarketName)
 	if marketName == "" {

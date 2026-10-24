@@ -28,11 +28,17 @@ type shiftReportData struct {
 	CountedCoupon   int64
 	OnAccount       int64
 	Payments        []receiptPayment
+	Spend           []shiftSpendLine
+	// SpendUSD is Spend converted to USD cents; NET TOTAL is CountedTotal
+	// (collected, so on-account is already out) minus it.
+	SpendUSD        int64
 	OpeningFloatUSD int64
+	PaidOutUSD      int64
 	ExpectedUSD     int64
 	CountedUSD      int64
 	USDBillCounts   []shiftDenominationCount
 	OpeningFloatLBP int64
+	PaidOutLBP      int64
 	ExpectedLBP     int64
 	CountedLBP      int64
 	ExpectedVisa    int64
@@ -41,6 +47,12 @@ type shiftReportData struct {
 	CountedWhish    int64
 	ExchangeRate    int64
 	RoundingMode    string
+	// SignatureLines prints the cashier/manager sign-off lines at the foot
+	// (see shiftReportSignaturesFlag).
+	SignatureLines bool
+	// UppercaseHeader prints the store and branch names in capitals (see
+	// shiftReportUppercaseHeaderFlag).
+	UppercaseHeader bool
 }
 
 type shiftDenominationCount struct {
@@ -56,7 +68,11 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 
 	y := 0
 	var err error
-	if y, err = c.center(y, c.data.StoreName, c.data.TitleSize, true, true); err != nil {
+	storeName, branch := c.data.StoreName, strings.TrimSpace(c.data.Branch)
+	if report.UppercaseHeader {
+		storeName, branch = strings.ToUpper(storeName), strings.ToUpper(branch)
+	}
+	if y, err = c.center(y, storeName, c.data.TitleSize, true, true); err != nil {
 		return 0, err
 	}
 	y += 4
@@ -64,8 +80,8 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	if branchSize <= 0 {
 		branchSize = c.data.BodySize
 	}
-	if strings.TrimSpace(c.data.Branch) != "" {
-		y, _ = c.center(y+2, strings.TrimSpace(c.data.Branch), branchSize, false, true)
+	if branch != "" {
+		y, _ = c.center(y+2, branch, branchSize, false, true)
 		y += 10
 	}
 	y, _ = c.center(y+8, "END OF SHIFT REPORT", c.data.BodySize-1, true, false)
@@ -117,7 +133,13 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		} else if strings.EqualFold(strings.TrimSpace(payment.AccountName), "On Coupon") {
 			label = "ON COUPON (AUTO-COUNTED)"
 		}
-		y, _ = c.twoCol(y, label, formatReceiptPayment(payment, report.RoundingMode), 10, true)
+		// A method can end the shift negative (more LBP given as change than
+		// taken); formatReceiptPayment prints magnitudes, so sign it here.
+		amount := formatReceiptPayment(payment, report.RoundingMode)
+		if payment.AmountCents < 0 {
+			amount = "-" + amount
+		}
+		y, _ = c.twoCol(y, label, amount, 10, true)
 		y += 7
 	}
 	if len(report.Payments) == 0 {
@@ -138,10 +160,31 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		y, _ = c.twoCol(y, "ON ACCOUNT", formatShiftUSD(report.OnAccount), c.data.BodySize, true)
 		y += 8
 	}
+	if len(report.Spend) > 0 {
+		y = c.reportSection(y, "EXPENSES & LOANS")
+		for _, line := range report.Spend {
+			label := line.Label
+			if line.Kind == "loan" {
+				label = "Loan - " + label
+			}
+			y = c.reportRow(y, label, "-"+formatShiftSpendAmount(line.Amount, line.CurrencyCode), false)
+		}
+		y = c.rule(y+3) + 12
+		y, _ = c.twoCol(y, "TOTAL OUT", formatShiftUSD(-report.SpendUSD), c.data.BodySize, true)
+		y += 8
+	}
+	boxTop = c.rule(y) + 12
+	y = boxTop + 8
+	// What is actually in hand: the counted total (counted cash is already
+	// net of payouts, so CountedTotal adds them back) minus what went out.
+	y, _ = c.twoCol(y, "NET TOTAL", formatShiftUSD(report.CountedTotal-report.SpendUSD), c.data.BodySize+2, true)
+	y += 8
+	c.dottedBox(boxTop, y-boxTop)
+	y += 6
 	y = c.reportSection(y, "CASH COUNT")
 	// A method with nothing expected and nothing counted collapses to one
 	// "None" line instead of three rows of zeros.
-	if report.ExpectedUSD == 0 && report.CountedUSD == 0 && len(report.USDBillCounts) == 0 && report.OpeningFloatUSD == 0 {
+	if report.ExpectedUSD == 0 && report.CountedUSD == 0 && len(report.USDBillCounts) == 0 && report.OpeningFloatUSD == 0 && report.PaidOutUSD == 0 {
 		y = c.reportRow(y, "USD", "None", true)
 	} else {
 		y, _ = c.left(y, "USD", c.data.BodySize-1, true)
@@ -157,18 +200,24 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 		if report.OpeningFloatUSD != 0 {
 			y = c.reportRow(y, "Opening float", formatShiftUSD(report.OpeningFloatUSD), false)
 		}
+		if report.PaidOutUSD != 0 {
+			y = c.reportRow(y, "Paid out", formatShiftUSD(-report.PaidOutUSD), false)
+		}
 		y = c.reportRow(y, "Expected", formatShiftUSD(report.ExpectedUSD), false)
 		y = c.reportRow(y, "Counted", formatShiftUSD(report.CountedUSD), false)
 		y = c.reportRow(y, "Difference", formatSignedShiftUSD(report.CountedUSD-report.ExpectedUSD), true)
 	}
 	y += 7
-	if report.ExpectedLBP == 0 && report.CountedLBP == 0 && report.OpeningFloatLBP == 0 {
+	if report.ExpectedLBP == 0 && report.CountedLBP == 0 && report.OpeningFloatLBP == 0 && report.PaidOutLBP == 0 {
 		y = c.reportRow(y, "LBP", "None", true)
 	} else {
 		y, _ = c.left(y, "LBP", c.data.BodySize-1, true)
 		y += 7
 		if report.OpeningFloatLBP != 0 {
 			y = c.reportRow(y, "Opening float", formatShiftLBP(report.OpeningFloatLBP), false)
+		}
+		if report.PaidOutLBP != 0 {
+			y = c.reportRow(y, "Paid out", formatShiftLBP(-report.PaidOutLBP), false)
 		}
 		y = c.reportRow(y, "Expected", formatShiftLBP(report.ExpectedLBP), false)
 		y = c.reportRow(y, "Counted", formatShiftLBP(report.CountedLBP), false)
@@ -180,11 +229,12 @@ func (c *receiptCanvas) drawShiftReport() (int, error) {
 	y = c.reportUSDCount(y, "WHISH", report.ExpectedWhish, report.CountedWhish)
 
 	y = c.rule(y+9) + 10
-	y, _ = c.center(y, "SHIFT STATUS: CLOSED", c.data.BodySize-1, true, false)
-	y += 22
-	y, _ = c.left(y, "Cashier: ____________________", c.data.BodySize-1, false)
-	y += 20
-	y, _ = c.left(y, "Manager: ____________________", c.data.BodySize-1, false)
+	if report.SignatureLines {
+		y += 12
+		y, _ = c.left(y, "Cashier: ____________________", c.data.BodySize-1, false)
+		y += 20
+		y, _ = c.left(y, "Manager: ____________________", c.data.BodySize-1, false)
+	}
 	y += 50
 	return y, nil
 }
@@ -225,6 +275,18 @@ func formatSignedShiftUSD(cents int64) string {
 		return "+" + formatShiftUSD(cents)
 	}
 	return formatShiftUSD(cents)
+}
+
+// formatShiftSpendAmount prints an expense/loan amount (x100, in its own
+// currency) the way the rest of the report prints that currency.
+func formatShiftSpendAmount(amount int64, currencyCode string) string {
+	switch strings.ToUpper(strings.TrimSpace(currencyCode)) {
+	case "USD":
+		return formatShiftUSD(amount)
+	case "LBP":
+		return formatShiftLBP(amount / 100)
+	}
+	return fmt.Sprintf("%.2f %s", float64(amount)/100, strings.ToUpper(strings.TrimSpace(currencyCode)))
 }
 
 func formatShiftLBP(amount int64) string {

@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"strings"
 )
 
 const getAttributeByName = `-- name: GetAttributeByName :one
@@ -85,6 +86,55 @@ func (q *Queries) ListProductAttributeValues(ctx context.Context, productID int6
 	for rows.Next() {
 		var i ListProductAttributeValuesRow
 		if err := rows.Scan(&i.AttributeName, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductAttributeValuesFor = `-- name: ListProductAttributeValuesFor :many
+SELECT pa.product_id, a.name AS attribute_name, av.value
+FROM products_attributes pa
+JOIN attributes a ON a.id = pa.attribute_id
+JOIN attributes_values av ON av.id = pa.attribute_value_id
+WHERE pa.product_id IN (/*SLICE:product_ids*/?)
+`
+
+type ListProductAttributeValuesForRow struct {
+	ProductID     int64  `json:"productId"`
+	AttributeName string `json:"attributeName"`
+	Value         string `json:"value"`
+}
+
+// ListAllProductAttributeValues for just the products on screen (a search
+// page of 50), instead of the whole catalogue.
+func (q *Queries) ListProductAttributeValuesFor(ctx context.Context, productIds []int64) ([]ListProductAttributeValuesForRow, error) {
+	query := listProductAttributeValuesFor
+	var queryParams []interface{}
+	if len(productIds) > 0 {
+		for _, v := range productIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:product_ids*/?", strings.Repeat(",?", len(productIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:product_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProductAttributeValuesForRow{}
+	for rows.Next() {
+		var i ListProductAttributeValuesForRow
+		if err := rows.Scan(&i.ProductID, &i.AttributeName, &i.Value); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

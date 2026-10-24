@@ -1,7 +1,21 @@
-.PHONY: fmt lint test dev generate build-windows build-windows-compact
+.PHONY: fmt lint test dev generate receipt-previews build-windows build-windows-compact
 
 generate:
 	sqlc generate
+
+# Receipt look previews for kashi's settings pages. kashi cannot run this
+# renderer, so its UI ships the images and a catalog generated from it (see
+# TestGenerateReceiptPreviews). Rerun whenever a theme or layout changes, then
+# commit the result in kashi.
+KASHI_UI ?= ../kashi/ui
+receipt-previews:
+	rm -rf .receipt-previews && mkdir -p .receipt-previews
+	KASHI_RECEIPT_PREVIEW_OUT=$(CURDIR)/.receipt-previews go test -count=1 -run TestGenerateReceiptPreviews .
+	mkdir -p $(KASHI_UI)/public/receipt-previews $(KASHI_UI)/src/data
+	rm -f $(KASHI_UI)/public/receipt-previews/*.png
+	cp .receipt-previews/*.png $(KASHI_UI)/public/receipt-previews/
+	cp .receipt-previews/catalog.json $(KASHI_UI)/src/data/receiptThemes.json
+	rm -rf .receipt-previews
 
 fmt:
 	cd frontend && pnpm run format
@@ -42,7 +56,7 @@ build-windows: set-version
 	wails build -platform windows/amd64 -nsis -clean -ldflags "-X main.appVersion=$(APP_VERSION)"
 
 build-windows-compact: set-version
-	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -nsis -clean -o "Kashi Cloud Compact.exe" -ldflags "-X main.appVersion=$(APP_VERSION)"
+	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -nsis -clean -o "GB Cloud Compact.exe" -ldflags "-X main.appVersion=$(APP_VERSION)"
 
 # Remote updates (updater.go). update-keygen runs once: it creates the
 # release-signing key in ~/.config/gb-cloud/ (back it up) and writes its
@@ -54,18 +68,27 @@ build-windows-compact: set-version
 # build to the new release, so the ones online update right away.
 #   git tag v1.2.3 && make publish NOTES="what changed"
 #   git tag v1.2.3 && make publish-all NOTES="what changed"
-.PHONY: update-keygen publish publish-compact publish-all publish-compact-all
+# publish-all-force (and publish-compact-all-force) also makes them install it
+# right away, even mid-shift, after a one-minute countdown on the till.
+#   git tag v1.2.3 && make publish-all-force NOTES="urgent fix"
+.PHONY: update-keygen publish publish-compact publish-all publish-compact-all publish-all-force publish-compact-all-force
 update-keygen:
 	go run ./cmd/publish-release keygen
 
 publish: build-windows
-	go run ./cmd/publish-release publish -file build/bin/Kashi-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)"
+	go run ./cmd/publish-release publish -file build/bin/GB-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)"
 
 publish-compact: build-windows-compact
-	go run ./cmd/publish-release publish -file "build/bin/Kashi Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)"
+	go run ./cmd/publish-release publish -file "build/bin/GB Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)"
 
 publish-all: build-windows
-	go run ./cmd/publish-release publish -file build/bin/Kashi-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -target-all
+	go run ./cmd/publish-release publish -file build/bin/GB-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -target-all
 
 publish-compact-all: build-windows-compact
-	go run ./cmd/publish-release publish -file "build/bin/Kashi Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all
+	go run ./cmd/publish-release publish -file "build/bin/GB Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all
+
+publish-all-force: build-windows
+	go run ./cmd/publish-release publish -file build/bin/GB-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -target-all -force
+
+publish-compact-all-force: build-windows-compact
+	go run ./cmd/publish-release publish -file "build/bin/GB Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all -force

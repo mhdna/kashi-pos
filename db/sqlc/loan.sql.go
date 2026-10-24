@@ -10,6 +10,31 @@ import (
 	"database/sql"
 )
 
+const cancelLoanByClientRef = `-- name: CancelLoanByClientRef :one
+UPDATE loans SET cancelled_at = datetime('now') WHERE client_ref = ? AND cancelled_at IS NULL RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at
+`
+
+// Stamps cancelled_at once; a repeat matches no row, which the callers treat
+// as already cancelled rather than an error.
+func (q *Queries) CancelLoanByClientRef(ctx context.Context, clientRef string) (Loan, error) {
+	row := q.db.QueryRowContext(ctx, cancelLoanByClientRef, clientRef)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.ClientRef,
+		&i.Description,
+		&i.Category,
+		&i.Amount,
+		&i.CurrencyCode,
+		&i.CashboxAccountID,
+		&i.ShiftID,
+		&i.OccurredAt,
+		&i.CreatedAt,
+		&i.CancelledAt,
+	)
+	return i, err
+}
+
 const createLoan = `-- name: CreateLoan :one
 INSERT INTO loans (
   client_ref,
@@ -18,10 +43,12 @@ INSERT INTO loans (
   amount,
   currency_code,
   cashbox_account_id,
-  shift_id
+  shift_id,
+  occurred_at,
+  created_at
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?
-) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at
+  ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
+) RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at
 `
 
 type CreateLoanParams struct {
@@ -56,12 +83,13 @@ func (q *Queries) CreateLoan(ctx context.Context, arg CreateLoanParams) (Loan, e
 		&i.ShiftID,
 		&i.OccurredAt,
 		&i.CreatedAt,
+		&i.CancelledAt,
 	)
 	return i, err
 }
 
 const getLoan = `-- name: GetLoan :one
-SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at FROM loans WHERE id = ?
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at FROM loans WHERE id = ?
 `
 
 func (q *Queries) GetLoan(ctx context.Context, id int64) (Loan, error) {
@@ -78,12 +106,36 @@ func (q *Queries) GetLoan(ctx context.Context, id int64) (Loan, error) {
 		&i.ShiftID,
 		&i.OccurredAt,
 		&i.CreatedAt,
+		&i.CancelledAt,
+	)
+	return i, err
+}
+
+const getLoanByClientRef = `-- name: GetLoanByClientRef :one
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at FROM loans WHERE client_ref = ?
+`
+
+func (q *Queries) GetLoanByClientRef(ctx context.Context, clientRef string) (Loan, error) {
+	row := q.db.QueryRowContext(ctx, getLoanByClientRef, clientRef)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.ClientRef,
+		&i.Description,
+		&i.Category,
+		&i.Amount,
+		&i.CurrencyCode,
+		&i.CashboxAccountID,
+		&i.ShiftID,
+		&i.OccurredAt,
+		&i.CreatedAt,
+		&i.CancelledAt,
 	)
 	return i, err
 }
 
 const listAllLoans = `-- name: ListAllLoans :many
-SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at FROM loans ORDER BY id
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at FROM loans ORDER BY id
 `
 
 func (q *Queries) ListAllLoans(ctx context.Context) ([]Loan, error) {
@@ -106,6 +158,7 @@ func (q *Queries) ListAllLoans(ctx context.Context) ([]Loan, error) {
 			&i.ShiftID,
 			&i.OccurredAt,
 			&i.CreatedAt,
+			&i.CancelledAt,
 		); err != nil {
 			return nil, err
 		}
@@ -121,7 +174,7 @@ func (q *Queries) ListAllLoans(ctx context.Context) ([]Loan, error) {
 }
 
 const listLoans = `-- name: ListLoans :many
-SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at FROM loans ORDER BY id DESC LIMIT ? OFFSET ?
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at FROM loans ORDER BY id DESC LIMIT ? OFFSET ?
 `
 
 type ListLoansParams struct {
@@ -149,6 +202,7 @@ func (q *Queries) ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, e
 			&i.ShiftID,
 			&i.OccurredAt,
 			&i.CreatedAt,
+			&i.CancelledAt,
 		); err != nil {
 			return nil, err
 		}
@@ -164,7 +218,7 @@ func (q *Queries) ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, e
 }
 
 const listLoansForShift = `-- name: ListLoansForShift :many
-SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at FROM loans WHERE shift_id = ? ORDER BY id
+SELECT id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at FROM loans WHERE shift_id = ? AND cancelled_at IS NULL ORDER BY id
 `
 
 func (q *Queries) ListLoansForShift(ctx context.Context, shiftID sql.NullInt64) ([]Loan, error) {
@@ -187,6 +241,7 @@ func (q *Queries) ListLoansForShift(ctx context.Context, shiftID sql.NullInt64) 
 			&i.ShiftID,
 			&i.OccurredAt,
 			&i.CreatedAt,
+			&i.CancelledAt,
 		); err != nil {
 			return nil, err
 		}
@@ -201,9 +256,37 @@ func (q *Queries) ListLoansForShift(ctx context.Context, shiftID sql.NullInt64) 
 	return items, nil
 }
 
+const setLoanCategory = `-- name: SetLoanCategory :one
+UPDATE loans SET category = ? WHERE id = ? RETURNING id, client_ref, description, category, amount, currency_code, cashbox_account_id, shift_id, occurred_at, created_at, cancelled_at
+`
+
+type SetLoanCategoryParams struct {
+	Category string `json:"category"`
+	ID       int64  `json:"id"`
+}
+
+func (q *Queries) SetLoanCategory(ctx context.Context, arg SetLoanCategoryParams) (Loan, error) {
+	row := q.db.QueryRowContext(ctx, setLoanCategory, arg.Category, arg.ID)
+	var i Loan
+	err := row.Scan(
+		&i.ID,
+		&i.ClientRef,
+		&i.Description,
+		&i.Category,
+		&i.Amount,
+		&i.CurrencyCode,
+		&i.CashboxAccountID,
+		&i.ShiftID,
+		&i.OccurredAt,
+		&i.CreatedAt,
+		&i.CancelledAt,
+	)
+	return i, err
+}
+
 const sumLoansByCurrencySince = `-- name: SumLoansByCurrencySince :many
 SELECT currency_code, CAST(COALESCE(SUM(amount), 0) AS INTEGER) AS total
-FROM loans WHERE occurred_at >= ?
+FROM loans WHERE cancelled_at IS NULL AND datetime(occurred_at, 'localtime') >= ?
 GROUP BY currency_code
 `
 

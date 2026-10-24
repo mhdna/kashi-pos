@@ -62,9 +62,7 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 
 	var subtotal, totalDiscount float64
 	for _, item := range data.Items {
-		gross := item.Qty * item.Price
-		discount := gross * item.Discount / 100
-		lineTotal := gross - discount
+		gross, discount, lineTotal := itemAmounts(item)
 		subtotal += gross
 		totalDiscount += discount
 		writeESCPosLine(&out, sanitizeESCPos(item.Name), fmt.Sprintf("$%.2f", lineTotal), columns)
@@ -243,8 +241,12 @@ func sanitizeESCPos(value string) string {
 	return out.String()
 }
 
+// receiptNow is the clock the receipt date comes from; previews pin it so the
+// same sale always renders the same image.
+var receiptNow = time.Now
+
 func currentReceiptDate() string {
-	return time.Now().Format("02-01-2006 15:04")
+	return receiptNow().Format("02-01-2006 15:04")
 }
 
 func maxInt(a, b int) int {

@@ -8,9 +8,13 @@
         </div>
         <v-select v-model="sourceId" :items="sources" item-title="accountName" item-value="accountId" placeholder="From" variant="outlined" density="comfortable" class="mb-2" />
         <v-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" placeholder="Swap with" variant="outlined" density="comfortable" class="mb-2" />
-        <v-text-field v-model.number="amount" :prefix="sourceIsNegative ? '−' : undefined" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01" variant="outlined" density="comfortable" />
+        <v-checkbox v-if="auth.isAdmin" v-model="transfer" label="Transfer: take the amount out of the source even if it goes below zero" density="compact" hide-details class="mb-2" />
+        <v-text-field v-model.number="amount" :prefix="sourceIsNegative && !transfer ? '−' : undefined" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01" variant="outlined" density="comfortable" />
         <div v-if="destination && preview?.valid" class="text-caption text-medium-emphasis">
           Destination receives {{ formatBalance(preview.destinationReceivesCents, destination.currencyCode ?? "USD", currencies, roundingMode) }}
+          <template v-if="transfer">
+            · {{ source?.accountName }} is left with {{ formatBalance(preview.sourceRemainingCents, source?.currencyCode ?? "USD", currencies, roundingMode) }}
+          </template>
         </div>
         <div v-else-if="preview && !preview.valid && preview.reason" class="text-caption text-red-darken-2">
           {{ preview.reason }}
@@ -19,7 +23,7 @@
       <v-card-actions>
         <v-spacer />
         <v-btn variant="text" @click="$emit('update:modelValue', false)">Cancel</v-btn>
-        <v-btn color="primary" :loading="saving" :disabled="!valid" @click="save">Swap</v-btn>
+        <v-btn color="primary" :loading="saving" :disabled="!valid" @click="save">{{ transfer ? "Transfer" : "Swap" }}</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -31,8 +35,10 @@ import { ReplaceShiftBalance, PreviewShiftBalanceReplacement, ConvertCashEntryTo
 import type { Balance, PaymentMethod } from "@/types/shifts";
 import { formatBalance } from "@/lib/format";
 import { useCurrencies, findCurrency } from "@/composables/useCurrencies";
+import { useAuthStore } from "@/stores/auth";
 
 const { currencies, roundingMode } = useCurrencies();
+const auth = useAuthStore();
 
 const props = defineProps<{
   modelValue: boolean;
@@ -44,6 +50,9 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean]; saved: [shiftI
 const destinationId = ref<number | null>(null);
 const sourceId = ref<number | null>(null);
 const amount = ref<number | null>(null);
+// Transfer mode (admin only, re-checked by the backend) moves exactly the
+// entered amount and may leave the source below zero; a swap can't.
+const transfer = ref(false);
 const saving = ref(false);
 const source = computed(() => props.sources.find((item) => item.accountId === sourceId.value) ?? null);
 const sourceCurrency = computed(() => findCurrency(currencies.value, source.value?.currencyCode ?? "USD"));
@@ -93,7 +102,7 @@ async function refreshPreview() {
       preview.value = null;
       return;
     }
-    const result = await PreviewShiftBalanceReplacement(props.shiftId, source.value.accountId, destinationId.value, entryCents.value);
+    const result = await PreviewShiftBalanceReplacement(props.shiftId, source.value.accountId, destinationId.value, entryCents.value, transfer.value);
     if (token !== refreshToken) return;
     preview.value = {
       valid: Boolean(result.valid),
@@ -109,7 +118,7 @@ async function refreshPreview() {
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-watch([amount, sourceId, destinationId], () => {
+watch([amount, sourceId, destinationId, transfer], () => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(refreshPreview, 150);
 });
@@ -121,6 +130,7 @@ watch(() => [props.modelValue, props.sources], ([open]) => {
     const currency = findCurrency(currencies.value, item.currencyCode ?? "USD");
     return currency && currency.cashRoundingUnit > 1;
   });
+  transfer.value = false;
   sourceId.value = physicalCashSource?.accountId ?? firstSource?.accountId ?? null;
   destinationId.value = destinations.value[0]?.id ?? null;
   amount.value = sourceAmount(source.value);
@@ -128,14 +138,20 @@ watch(() => [props.modelValue, props.sources], ([open]) => {
 
 watch(sourceId, () => {
   destinationId.value = destinations.value[0]?.id ?? null;
-  amount.value = sourceAmount(source.value);
+  amount.value = transfer.value ? null : sourceAmount(source.value);
+});
+
+// A transfer's amount has nothing to do with the source's balance, so don't
+// prefill it with that.
+watch(transfer, (on) => {
+  amount.value = on ? null : sourceAmount(source.value);
 });
 
 async function save() {
   if (!valid.value || !props.shiftId || !source.value || !destinationId.value) return;
   saving.value = true;
   try {
-    await ReplaceShiftBalance(props.shiftId, source.value.accountId, destinationId.value, entryCents.value);
+    await ReplaceShiftBalance(props.shiftId, source.value.accountId, destinationId.value, entryCents.value, transfer.value);
     emit("update:modelValue", false);
     emit("saved", props.shiftId);
   } catch (error) {

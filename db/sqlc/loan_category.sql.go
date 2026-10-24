@@ -41,6 +41,15 @@ func (q *Queries) CreateLoanCategory(ctx context.Context, arg CreateLoanCategory
 	return i, err
 }
 
+const deleteLoanCategory = `-- name: DeleteLoanCategory :exec
+DELETE FROM loan_categories WHERE id = ?
+`
+
+func (q *Queries) DeleteLoanCategory(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteLoanCategory, id)
+	return err
+}
+
 const getLoanCategoryByName = `-- name: GetLoanCategoryByName :one
 SELECT id, name, is_active, icon, color, updated_at FROM loan_categories WHERE name = ?
 `

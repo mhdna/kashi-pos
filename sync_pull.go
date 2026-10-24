@@ -78,6 +78,11 @@ type syncedProductVariant struct {
 	Kind        sql.NullString `json:"kind"`
 	Season      sql.NullString `json:"season"`
 	Year        sql.NullString `json:"year"`
+	// The options the till asks for when this product is sold (Summer,
+	// Winter...), by name and in display order. nil from a kashi that
+	// predates sale options -- left alone then, as nothing could have set
+	// them; an empty array clears them.
+	SaleOptions []string `json:"sale_options"`
 }
 
 // syncedExpenseCategory / syncedLoanCategory mirror the raw row kashi
@@ -250,6 +255,42 @@ func applySyncedLoanCategory(ctx context.Context, q *db.Queries, c syncedLoanCat
 		Color:    c.Color,
 	})
 	return err
+}
+
+// pruneSyncedExpenseCategories / pruneSyncedLoanCategories drop every local
+// category kashi no longer reports. These two entities are pulled as a whole
+// set (see wholeSetEntities), so a name missing from the batch was deleted in
+// kashi, renamed, or moved to scope='central' -- none of which a since-delta
+// can express. Safe to hard-delete: expenses.category / loans.category hold
+// the name as plain text, nothing references these rows.
+func pruneSyncedExpenseCategories(ctx context.Context, q *db.Queries, keep map[string]bool) error {
+	local, err := q.ListExpenseCategories(ctx)
+	if err != nil {
+		return err
+	}
+	for _, c := range local {
+		if !keep[c.Name] {
+			if err := q.DeleteExpenseCategory(ctx, c.ID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func pruneSyncedLoanCategories(ctx context.Context, q *db.Queries, keep map[string]bool) error {
+	local, err := q.ListLoanCategories(ctx)
+	if err != nil {
+		return err
+	}
+	for _, c := range local {
+		if !keep[c.Name] {
+			if err := q.DeleteLoanCategory(ctx, c.ID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // applySyncedBranchTarget is a plain upsert keyed by remote_id -- targets
@@ -521,6 +562,18 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 	if err := applySyncedProductAttributes(ctx, q, productID, v); err != nil {
 		return err
 	}
+	if v.SaleOptions != nil {
+		if err := q.DeleteProductSaleOptions(ctx, productID); err != nil {
+			return err
+		}
+		for i, name := range v.SaleOptions {
+			if err := q.InsertProductSaleOption(ctx, db.InsertProductSaleOptionParams{
+				ProductID: productID, Name: name, SortOrder: int64(i),
+			}); err != nil {
+				return err
+			}
+		}
+	}
 	return stampRemoteVersion(ctx, v.UpdatedAt, func(ver string) error {
 		return q.SetProductRemoteUpdatedAt(ctx, db.SetProductRemoteUpdatedAtParams{RemoteUpdatedAt: sql.NullString{String: ver, Valid: true}, ID: productID})
 	})
@@ -671,6 +724,20 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 	if err != nil && err != sql.ErrNoRows {
 		return false, fmt.Errorf("load cursor: %w", err)
 	}
+	// Whole-set entities always ask for everything. Most are answered whole
+	// regardless, but kashi still filters the categories by updated_at, and
+	// an empty since is the only way to get their complete set (which
+	// pruneSynced*Categories relies on) from any kashi version.
+	if _, isWholeSet := wholeSetEntities[entity]; isWholeSet {
+		since = ""
+	}
+	if since == "" {
+		seeded, err := a.seedCursorFromLocalCatalog(ctx, client, entity)
+		if err != nil {
+			return false, fmt.Errorf("seed cursor from local catalog: %w", err)
+		}
+		since = seeded
+	}
 
 	// Walk pages until kashi stops handing back a next_cursor. Each page is
 	// applied in its own transaction so a first-ever pull of a big catalog
@@ -754,19 +821,23 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 
 // wholeSetEntities are the entities kashi answers with its complete set on
 // every pull, ignoring `since` (see kashi's branch_catchup.go), so an
-// item count says nothing about whether anything changed.
+// item count says nothing about whether anything changed. The two category
+// entities are whole-set by our choice rather than kashi's: we pull them
+// with an empty since so deletions can be pruned locally.
 var wholeSetEntities = map[string]struct{}{
-	"currencies":       {},
-	"cashbox_accounts": {},
-	"branches":         {},
-	"quick_access":     {},
+	"currencies":         {},
+	"cashbox_accounts":   {},
+	"branches":           {},
+	"quick_access":       {},
+	"expense_categories": {},
+	"loan_categories":    {},
 }
 
 // wholeSetSnapshot reads the local table a whole-set entity is applied to,
-// so pullEntityLocked can compare it before and after the apply. All three
-// tables are tiny, and none has an updated_at column the apply would bump,
-// so the rows compare equal exactly when nothing changed. ok is false for
-// any other entity.
+// so pullEntityLocked can compare it before and after the apply. The tables
+// are tiny; where the apply bumps an updated_at (the categories) only the
+// synced columns are compared, so the snapshots match exactly when nothing
+// changed. ok is false for any other entity.
 func wholeSetSnapshot(ctx context.Context, q *db.Queries, entity string) (snapshot any, ok bool, err error) {
 	switch entity {
 	case "currencies":
@@ -775,6 +846,22 @@ func wholeSetSnapshot(ctx context.Context, q *db.Queries, entity string) (snapsh
 		snapshot, err = q.ListCashboxAccounts(ctx)
 	case "branches":
 		snapshot, err = q.ListSyncedBranches(ctx)
+	case "expense_categories":
+		rows, lErr := q.ListExpenseCategories(ctx)
+		// updated_at is bumped by every apply, so compare only what kashi
+		// sends.
+		var cats [][4]any
+		for _, r := range rows {
+			cats = append(cats, [4]any{r.Name, r.IsActive, r.Icon, r.Color})
+		}
+		snapshot, err = cats, lErr
+	case "loan_categories":
+		rows, lErr := q.ListLoanCategories(ctx)
+		var cats [][4]any
+		for _, r := range rows {
+			cats = append(cats, [4]any{r.Name, r.IsActive, r.Icon, r.Color})
+		}
+		snapshot, err = cats, lErr
 	case "quick_access":
 		settings, sErr := q.GetSettings(ctx)
 		if sErr != nil {
@@ -903,6 +990,13 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 				return fmt.Errorf("apply expense category %s: %w", item.Name, err)
 			}
 		}
+		keep := make(map[string]bool, len(items))
+		for _, item := range items {
+			keep[item.Name] = true
+		}
+		if err := pruneSyncedExpenseCategories(ctx, q, keep); err != nil {
+			return fmt.Errorf("prune expense categories: %w", err)
+		}
 	case "loan_categories":
 		var items []syncedLoanCategory
 		if err := json.Unmarshal(raw, &items); err != nil {
@@ -912,6 +1006,13 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 			if err := applySyncedLoanCategory(ctx, q, item); err != nil {
 				return fmt.Errorf("apply loan category %s: %w", item.Name, err)
 			}
+		}
+		keep := make(map[string]bool, len(items))
+		for _, item := range items {
+			keep[item.Name] = true
+		}
+		if err := pruneSyncedLoanCategories(ctx, q, keep); err != nil {
+			return fmt.Errorf("prune loan categories: %w", err)
 		}
 	case "coupon_types":
 		var items []syncedCouponType
@@ -1042,6 +1143,15 @@ func (a *App) emitExpenseImagesUploaded(clientRef string) {
 	select {
 	case <-a.ready:
 		runtime.EventsEmit(a.ctx, "expense_images_uploaded:"+clientRef)
+	default:
+	}
+}
+
+// emitReview shows a client's answer to the post-sale rating poll as a toast.
+func (a *App) emitReview(review wsReview) {
+	select {
+	case <-a.ready:
+		runtime.EventsEmit(a.ctx, "review_received", review)
 	default:
 	}
 }

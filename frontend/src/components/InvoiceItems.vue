@@ -1,10 +1,14 @@
 <template>
-  <div ref="invoiceScroll" class="invoice-items ms-2 mt-2 mb-2 me-0">
+  <div
+    ref="invoiceScroll"
+    class="invoice-items mt-2 mb-2 me-0"
+    :class="{ 'invoice-items--discount-chips': showDiscountChips }"
+  >
     <div
       v-for="(item, index) in displayItems"
       :key="`${items.length - 1 - index}-${item.barcode || item.code}`"
     >
-      <v-list-item>
+      <v-list-item :class="{ 'invoice-item-unknown': isUnknownItem(item) }">
         <template #title>
           <button
             class="invoice-item-details-trigger"
@@ -12,13 +16,69 @@
             :aria-label="`Open details for ${item.name}`"
             @click.stop="openDetails(item)"
           >
-            <span class="invoice-item-name text-caption font-weight-medium">{{ item.name }}</span>
-            <span class="invoice-item-code text-overline text-medium-emphasis">
-              {{ item.code }}
-              <span v-if="item.color || item.size" class="text-caption text-medium-emphasis ms-2">
-                {{ [item.color, item.size].filter(Boolean).join(" / ") }}
+            <span class="invoice-item-title-text">
+              <span class="invoice-item-name text-caption font-weight-medium">{{ item.name }}</span>
+              <span class="invoice-item-code text-overline text-medium-emphasis">
+                {{ item.code }}
+                <span v-if="item.color || item.size" class="text-caption text-medium-emphasis ms-2">
+                  {{ [item.color, item.size].filter(Boolean).join(" / ") }}
+                </span>
               </span>
             </span>
+            <!-- Beside the name and code, centred on both. -->
+            <!-- Summer and Winter are just their icon (the name on hover); any
+                 other option keeps its name. -->
+            <v-icon
+              v-if="item.saleOption && saleOptionIcon(item.saleOption)"
+              class="invoice-item-sale-option"
+              :color="saleOptionIcon(item.saleOption)!.color"
+              :icon="saleOptionIcon(item.saleOption)!.icon"
+              size="22"
+              :title="item.saleOption"
+            />
+            <v-chip
+              v-else-if="item.saleOption"
+              class="invoice-item-sale-option"
+              label
+              size="small"
+              :text="item.saleOption"
+              variant="tonal"
+            />
+            <!-- The line's deal in short ("B2G1"), and how many of its
+                 units it gives free; the deal's full name shows on hover. -->
+            <v-chip
+              v-if="dealFor(item)"
+              class="invoice-item-sale-option"
+              :color="dealFor(item)!.freeQty ? 'success' : dealFor(item)!.discountCents ? 'deep-purple' : undefined"
+              label
+              size="x-small"
+              :title="`${dealFor(item)!.name} · ${dealChipText(item)}`"
+              :variant="dealFor(item)!.discountCents ? 'flat' : 'outlined'"
+              @click="onDealChipClick($event, item)"
+            >
+              <v-icon class="me-1" icon="mdi-gift-outline" size="14" />
+              <span class="invoice-deal-chip-text">
+                <span>{{ dealChipLines(item)[0] }}</span>
+                <span v-if="dealChipLines(item)[1]" class="invoice-deal-chip-sub">{{ dealChipLines(item)[1] }}</span>
+              </span>
+            </v-chip>
+            <!-- The deal a salesperson turned off on this line; tap to give it back. -->
+            <v-chip
+              v-else-if="offDealFor(item)"
+              class="invoice-item-sale-option"
+              color="grey"
+              label
+              size="x-small"
+              :title="`${offDealFor(item)} turned off`"
+              variant="outlined"
+              @click="onDealChipClick($event, item)"
+            >
+              <v-icon class="me-1" icon="mdi-tag-off-outline" size="14" />
+              <span class="invoice-deal-chip-text">
+                <span class="text-decoration-line-through">{{ offDealFor(item) }}</span>
+                <span class="invoice-deal-chip-sub">off</span>
+              </span>
+            </v-chip>
           </button>
         </template>
         <template #append>
@@ -38,9 +98,9 @@
                 @navigate-h="(direction) => moveHorizontal(index, 'qty', direction)"
               />
             </div>
-            <div class="invoice-discount-control">
+            <div v-if="anyDiscountEditable" class="invoice-discount-control">
               <NumberPadMenu
-                v-if="customDiscountsEnabled && !readonly && !item.locked && item.qty > 0"
+                v-if="canEditDiscount(item)"
                 :ref="(element) => setFieldRef(index, 'discount', element)"
                 :model-value="item.discount"
                 aria-label="Item discount percentage"
@@ -56,7 +116,7 @@
               />
             </div>
             <NumberPadMenu
-              v-if="customPricesEnabled && !readonly && !item.locked && item.qty > 0"
+              v-if="canEditPrice(item)"
               :ref="(element) => setFieldRef(index, 'price', element)"
               :model-value="
                 (priceChangeMode === 'discount' ? effectiveUnitPrice(item) : item.price).toFixed(2)
@@ -86,7 +146,7 @@
                 <button
                   v-bind="activatorProps"
                   :ref="setRef"
-                  class="invoice-price-editor invoice-price-control d-flex flex-column align-end"
+                  class="invoice-price-editor invoice-price-control d-flex flex-column align-center"
                   :class="{ 'invoice-price-editor--keyboard': fieldKeyboardMode }"
                   type="button"
                   aria-label="Set custom item price"
@@ -105,14 +165,28 @@
                       :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
                     />
                     <span class="invoice-price-values">
-                      <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
-                      <span class="text-caption font-weight-bold">${{ totalAfterDiscount(item).toFixed(2) }}</span>
+                      <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
+                      <span class="text-caption font-weight-bold">{{ signedPrice(totalAfterDiscount(item)) }}</span>
+                    </span>
+                    <span v-if="showDiscountChips" class="invoice-price-discount">
+                      <v-chip
+                        v-if="canToggleDiscount(item) && chipDiscount(item)"
+                        :color="item.discountOff ? 'grey' : 'red'"
+                        density="comfortable"
+                        label
+                        size="x-small"
+                        :variant="item.discountOff ? 'outlined' : 'tonal'"
+                        @click="onDiscountChipClick($event, item)"
+                      >
+                        <v-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
+                        <span :class="{ 'text-decoration-line-through': item.discountOff }">-{{ chipDiscount(item) }}%</span>
+                      </v-chip>
                     </span>
                   </span>
                 </button>
               </template>
             </NumberPadMenu>
-            <div v-else class="invoice-price-control d-flex flex-column align-end">
+            <div v-else class="invoice-price-control d-flex flex-column align-center">
               <span class="invoice-price-value">
                 <v-icon
                   v-if="item.priceListOverridden"
@@ -122,23 +196,46 @@
                   :title="item.priceListName ? `Price from list: ${item.priceListName}` : 'List price'"
                 />
                 <span class="invoice-price-values">
-                  <span class="text-caption text-medium-emphasis">${{ item.price.toFixed(2) }}</span>
-                  <span v-if="item.discount && !customDiscountsEnabled" class="text-caption text-red">
-                    -{{ item.discount }}%
+                  <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
+                  <span class="text-caption font-weight-bold">{{ signedPrice(totalAfterDiscount(item)) }}</span>
+                </span>
+                <!-- The discount as a chip to the right of both prices,
+                     centred on them. While any line has one, the slot is
+                     there (empty) on every line so the prices line up. -->
+                <span v-if="showDiscountChips" class="invoice-price-discount">
+                  <v-chip
+                    v-if="chipDiscount(item) && !discountEditable(item)"
+                    :color="item.discountOff ? 'grey' : 'red'"
+                    density="comfortable"
+                    label
+                    size="x-small"
+                    :variant="item.discountOff ? 'outlined' : 'tonal'"
+                    :title="
+                      item.discountOff
+                        ? 'Discount turned off'
+                        : item.discountListName
+                          ? `Discount from list: ${item.discountListName}`
+                          : undefined
+                    "
+                    @click="onDiscountChipClick($event, item)"
+                  >
+                    <v-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
+                    <span :class="{ 'text-decoration-line-through': item.discountOff }">-{{ chipDiscount(item) }}%</span>
                     <v-icon
                       v-if="item.discountListOverridden"
+                      class="ms-1"
                       icon="mdi-star"
                       color="amber-darken-2"
-                      size="12"
-                      :title="item.discountListName ? `Discount from list: ${item.discountListName}` : 'List discount'"
+                      size="10"
                     />
-                  </span>
-                  <span class="text-caption font-weight-bold">${{ totalAfterDiscount(item).toFixed(2) }}</span>
+                  </v-chip>
                 </span>
               </span>
             </div>
             <div class="invoice-delete-control">
-              <v-btn v-if="!readonly && !item.locked" variant="text" rounded size="small" @click="removeItem(item)">
+              <!-- A returned line in an exchange can't be edited, but it can be
+                   taken out when the customer keeps that item after all. -->
+              <v-btn v-if="!readonly" variant="text" rounded size="small" @click="removeItem(item)">
                 <v-icon icon="mdi-delete" size="18" color="grey" />
               </v-btn>
             </div>
@@ -146,6 +243,32 @@
         </template>
       </v-list-item>
     </div>
+
+    <v-dialog v-model="toggleDialog" width="420" @after-leave="toggleItem = null">
+      <v-card v-if="toggleItem">
+        <v-card-title class="text-wrap">
+          {{ toggleIsOff ? `Give the ${toggleKind} back?` : `Turn the ${toggleKind} off?` }}
+        </v-card-title>
+        <v-card-text>
+          <div class="text-body-1">
+            {{ toggleIsOff ? "Give back" : "Remove" }}
+            <strong>{{ toggleName }}</strong>
+            {{ toggleIsOff ? "on" : "from" }} {{ toggleItem.name }}?
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="toggleDialog = false">Cancel</v-btn>
+          <v-btn
+            :color="toggleIsOff ? 'primary' : 'red'"
+            variant="flat"
+            @click="confirmToggle"
+          >
+            {{ toggleIsOff ? `Give ${toggleKind}` : "Turn off" }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <v-dialog v-model="detailsDialog" width="600" height="500" @after-leave="detailItem = null">
       <v-card v-if="detailItem">
@@ -168,7 +291,7 @@
             :items="salespersonOptions"
             item-title="title"
             item-value="value"
-            label="Salesperson for this line"
+            placeholder="Salesperson for this line"
             prepend-inner-icon="mdi-account-tie"
             variant="outlined"
             density="compact"
@@ -269,6 +392,7 @@ import {
   UpdateProductDiscount,
 } from "../../wailsjs/go/main/App";
 import { roundDiscountCents, normalizeRoundingMode } from "@/lib/money";
+import { dealsByLine, offDealsByLine, type DealLine } from "@/lib/deals";
 import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
@@ -293,11 +417,26 @@ interface LineItem {
   priceListName?: string;
   discountListOverridden?: boolean;
   discountListName?: string;
+  // The sale option the cashier picked (Summer/Winter) for a product that
+  // asks one; it decides the line's list discount. See home.vue
+  // addProductToCart.
+  saleOption?: string;
+  saleOptions?: { name: string; discount: number; discountListName?: string }[];
   // The catalog/list price captured when the line was added, before any
   // manual edit. Used as the fixed reference point in "discount" price
   // change mode, where a price edit is expressed as a discount off this
   // value rather than as a new base price.
   originalPrice?: number;
+  // The list discount captured with originalPrice; a line still carrying both
+  // untouched can follow a list change (applyListPricing).
+  originalDiscount?: number;
+  // The salesperson turned the line's list discount off for this sale
+  // (discount_toggle); discount is 0 meanwhile and originalDiscount is what
+  // turning it back on gives.
+  discountOff?: boolean;
+  // The salesperson turned the line's deal off (deal_toggle): it counts
+  // towards no deal in this sale.
+  dealOff?: boolean;
   // Locks just this line, independent of the component-level `readonly`
   // prop - used by exchange mode, where returned (negative-qty) lines stay
   // locked while replacement lines scanned afterward are fully editable.
@@ -313,14 +452,29 @@ const props = defineProps<{
   readonly?: boolean;
   customDiscountsEnabled?: boolean;
   customPricesEnabled?: boolean;
+  // When restricted, price/discount are editable only on lines whose code is
+  // in priceEditCodes (lowercased by the caller).
+  priceEditRestricted?: boolean;
+  priceEditCodes?: string[];
+  // Barcode of the "Unknown item" product (kashi's branch setting).
+  unknownBarcode?: string;
   perUnitPricesEnabled?: boolean;
   // "discount" (default): editing price or discount recomputes the other
   // from the line's original price, so a price change is always expressed
   // as a discount. "override": price and discount are edited independently.
   priceChangeMode?: "override" | "discount";
+  // The quote's priced lines; a sold line on a deal is marked from them.
+  dealLines?: DealLine[];
   // When true, clicking a line's qty/discount/price focuses it instead of
   // opening the number-pad popup, and arrow keys move focus between fields.
   keyboardMode?: boolean;
+  // A salesperson may turn a line's list discount off and on, with a
+  // confirmation, but never change it (kashi's discount_toggle).
+  discountToggleEnabled?: boolean;
+  // The same for a line's deal (kashi's deal_toggle).
+  dealToggleEnabled?: boolean;
+  // With the toggle on, new lines start with their discount off.
+  discountDefaultOff?: boolean;
 }>();
 const readonly = computed(() => props.readonly ?? false);
 const customDiscountsEnabled = computed(() => props.customDiscountsEnabled ?? false);
@@ -340,12 +494,159 @@ function effectiveUnitPriceAt(item: LineItem, index: number): number {
   return Math.round(price * (1 - discount / 100) * 100) / 100;
 }
 
+const dealsByCartLine = computed(() => dealsByLine(props.dealLines ?? []));
+const offDealsByCartLine = computed(() => offDealsByLine(props.dealLines ?? []));
+
+// The deal a line gave up by having its deal turned off ("B2G1").
+function offDealFor(item: LineItem): string | undefined {
+  if (!item.dealOff || item.qty <= 0) return undefined;
+  return offDealsByCartLine.value.get(item.barcode || item.code);
+}
+
+// The percent the line's chip shows: what it gets, or with the discount
+// turned off, what turning it back on gives.
+function chipDiscount(item: LineItem): number {
+  return item.discountOff ? Number(item.originalDiscount || 0) : Number(item.discount || 0);
+}
+
+function canToggleDiscount(item: LineItem): boolean {
+  return (
+    Boolean(props.discountToggleEnabled) &&
+    !readonly.value &&
+    !item.locked &&
+    item.qty > 0 &&
+    !isUnknownItem(item) &&
+    !discountEditable(item)
+  );
+}
+
+function canToggleDeal(item: LineItem): boolean {
+  return Boolean(props.dealToggleEnabled) && !readonly.value && !item.locked && item.qty > 0 && !isUnknownItem(item);
+}
+
+const toggleDialog = ref(false);
+const toggleItem = ref<LineItem | null>(null);
+const toggleKind = ref<"discount" | "deal">("discount");
+const toggleIsOff = computed(() =>
+  Boolean(toggleKind.value === "deal" ? toggleItem.value?.dealOff : toggleItem.value?.discountOff),
+);
+const toggleName = computed(() => {
+  const item = toggleItem.value;
+  if (!item) return "";
+  if (toggleKind.value === "discount") return `the ${chipDiscount(item)}% discount`;
+  return `the ${(item.dealOff ? offDealFor(item) : dealFor(item)?.label) ?? ""} deal`;
+});
+
+watch(toggleDialog, (open) => {
+  if (dialogOpen) dialogOpen.value = open;
+});
+
+// A chip tap asks to turn the discount (or deal) off or on; on a line that
+// can't, the tap falls through to the line's details as before.
+function askToggle(event: Event, item: LineItem, kind: "discount" | "deal") {
+  event.stopPropagation();
+  event.preventDefault();
+  toggleKind.value = kind;
+  toggleItem.value = item;
+  toggleDialog.value = true;
+}
+
+function onDiscountChipClick(event: Event, item: LineItem) {
+  if (canToggleDiscount(item)) askToggle(event, item, "discount");
+}
+
+function onDealChipClick(event: Event, item: LineItem) {
+  if (canToggleDeal(item)) askToggle(event, item, "deal");
+}
+
+function setDiscountOff(item: LineItem, off: boolean) {
+  const qty = Math.max(1, Math.trunc(item.qty));
+  const discount = off ? 0 : Number(item.originalDiscount || 0);
+  item.discountOff = off;
+  item.discount = discount;
+  item.unitDiscounts = Array(qty).fill(discount);
+}
+
+function confirmToggle() {
+  const item = toggleItem.value;
+  if (item && toggleKind.value === "discount" && canToggleDiscount(item)) setDiscountOff(item, !item.discountOff);
+  if (item && toggleKind.value === "deal" && canToggleDeal(item)) item.dealOff = !item.dealOff;
+  toggleDialog.value = false;
+}
+
+// kashi turned a toggle off: every line gets its discount (or deal) back,
+// since the till no longer accepts a line with it off.
+watch(
+  () => props.discountToggleEnabled,
+  (enabled) => {
+    if (enabled) return;
+    for (const item of items.value) if (item.discountOff) setDiscountOff(item, false);
+  },
+);
+watch(
+  () => props.dealToggleEnabled,
+  (enabled) => {
+    if (enabled) return;
+    for (const item of items.value) item.dealOff = false;
+  },
+);
+
+// A returned line (qty < 0) in an exchange is never re-priced by a deal.
+function dealFor(item: LineItem) {
+  if (item.qty <= 0) return undefined;
+  return dealsByCartLine.value.get(item.barcode || item.code);
+}
+
+// The icon a Summer/Winter sale option shows instead of its name; other
+// options have none and keep their text chip.
+function saleOptionIcon(option: string): { icon: string; color: string } | undefined {
+  switch (option.trim().toLowerCase()) {
+    case "summer":
+      return { icon: "mdi-weather-sunny", color: "amber-darken-2" };
+    case "winter":
+      return { icon: "mdi-snowflake", color: "blue-lighten-1" };
+  }
+  return undefined;
+}
+
+// The deal chip on two short lines: the deal ("B2G1"), then what it gave
+// this line, how many units are free or else what the fallback does
+// ("else 30%"). The full terms are in the chip's hover title.
+function dealChipLines(item: LineItem): [string, string] {
+  const deal = dealFor(item);
+  if (!deal) return ["", ""];
+  const [head = "", fallback] = deal.label.split(" else ");
+  if (deal.freeQty) return [head, `${deal.freeQty} free`];
+  return [head, fallback ? `else ${fallback}` : ""];
+}
+
+function dealChipText(item: LineItem): string {
+  const deal = dealFor(item);
+  if (!deal) return "";
+  return deal.freeQty ? `${deal.label} · ${deal.freeQty} free` : deal.label;
+}
+
 function discountAmount(item: LineItem): number {
   return (itemGrossCents(item) - discountedItemCents(item)) / 100;
 }
 
+// A cart line's prices without trailing zeros: $7, $5.6, $5.65.
+function shortPrice(value: number): string {
+  return String(Number(Number(value || 0).toFixed(2)));
+}
+
+// "$8.8", or "−$8.8" for a returned line's credit.
+function signedPrice(value: number): string {
+  return value < 0 ? `−$${shortPrice(-value)}` : `$${shortPrice(value)}`;
+}
+
+// The deal's saving comes off here only for display; the quote is what
+// charges it. A returned line (qty below zero) is a credit and stays
+// negative; a sold line's deal can't take it below zero.
 function totalAfterDiscount(item: LineItem): number {
-  return discountedItemCents(item) / 100;
+  if (item.qty < 0) return discountedItemCents(item) / 100;
+  const deal = dealFor(item);
+  return Math.max(0, discountedItemCents(item) - (deal?.discountCents ?? 0)) / 100;
 }
 
 function itemGrossCents(item: LineItem): number {
@@ -434,9 +735,10 @@ onMounted(async () => {
     categoryIcons.value = map;
   } catch {}
   try {
-    // Staff who only punch attendance (isSalesperson off in kashi) don't sell.
+    // Staff who only punch attendance (isSalesperson off in kashi) don't sell,
+    // and the till's own leftovers aren't offered once kashi manages the staff.
     salespersons.value = ((await ListSalespersons()) as Salesperson[])
-      .filter((s: any) => s.isSalesperson !== false)
+      .filter((s: any) => s.isSalesperson !== false && s.isCurrent !== false)
       .sort((a, b) => a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }));
   } catch {}
 });
@@ -463,19 +765,33 @@ function addItem(item: LineItem) {
   // target - scanning the same product as a replacement must add a
   // separate, editable line rather than incrementing the locked line's qty
   // (which would silently net a -1 return back toward 0).
+  // Unknown items merge only at the same price: a different price is its own line.
   const existing = items.value.find(
     (i) =>
       !i.locked &&
-      ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)),
+      ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)) &&
+      // A summer and a winter unit of one barcode are discounted
+      // differently, so each option is its own line.
+      (i.saleOption ?? "") === (item.saleOption ?? "") &&
+      (!isUnknownItem(i) || Number(i.price) === Number(item.price)),
   );
-  if (existing) {
+  if (existing && isUnknownItem(existing)) {
+    ensureUnitPrices(existing);
+    existing.unitPrices?.push(Number(item.price));
+    existing.unitDiscounts?.push(0);
+    existing.qty++;
+  } else if (existing) {
     ensureUnitPrices(existing);
     existing.unitPrices?.push(existing.price);
     existing.unitDiscounts?.push(existing.discount);
     existing.qty++;
   } else {
-    const discount = savedDiscounts.get(item.code) ?? Number(item.discount || 0);
-    savedDiscounts.set(item.code, discount);
+    // The discount is what the active lists give the product right now (the
+    // backend quote prices from them too). A remembered per-code value must
+    // not win here: one saved while the product had no discount would hide
+    // a later list discount on the line while the total still applied it.
+    const discount = Number(item.discount || 0);
+    if (!item.saleOption) savedDiscounts.set(item.code, discount);
     const price = Number(item.price);
     const qty = Math.max(1, Math.trunc(Number(item.qty || 1)));
     const unitPrices =
@@ -486,7 +802,7 @@ function addItem(item: LineItem) {
       Array.isArray(item.unitDiscounts) && item.unitDiscounts.length === qty
         ? item.unitDiscounts.map(Number)
         : Array(qty).fill(discount);
-    items.value.push({
+    const line: LineItem = {
       ...item,
       discount,
       price,
@@ -495,8 +811,61 @@ function addItem(item: LineItem) {
       unitPrices,
       unitDiscounts,
       originalPrice: item.originalPrice ?? price,
-    });
+      originalDiscount: item.originalDiscount ?? Number(item.discount || 0),
+    };
+    if (item.discountOff === undefined && props.discountDefaultOff && canToggleDiscount(line)) {
+      setDiscountOff(line, true);
+    }
+    items.value.push(line);
   }
+}
+
+// Follows a price/discount list change on lines already in the cart: a line
+// nobody edited (price, discount and every unit still as listed) takes the
+// new list price and discount; an edited line keeps what the cashier set.
+// Returns the names of the lines that changed.
+function applyListPricing(rows: any[]): string[] {
+  const changed: string[] = [];
+  for (const item of items.value) {
+    if (item.locked || !(item.qty > 0) || isUnknownItem(item)) continue;
+    const row = rows.find((r) => r.barcode === item.barcode);
+    const price = Number(row?.price);
+    if (!row || !(price > 0)) continue;
+    // An option line follows its option's discount (see productMap's
+    // saleOptions), not the product's plain one.
+    const option = item.saleOption
+      ? (row.saleOptions ?? []).find((o: any) => o.name === item.saleOption)
+      : undefined;
+    const discount = Math.trunc(Number((option ?? row).discount || 0));
+    const listedPrice = Number(item.originalPrice ?? item.price);
+    // A line with its discount turned off carries 0 and keeps it off.
+    const listedDiscount = item.discountOff ? 0 : Number(item.originalDiscount ?? 0);
+    const untouched =
+      Math.abs(Number(item.price) - listedPrice) < 0.005 &&
+      Number(item.discount) === listedDiscount &&
+      (item.unitPrices ?? []).every((p) => Math.abs(Number(p) - listedPrice) < 0.005) &&
+      (item.unitDiscounts ?? []).every((d) => Number(d) === listedDiscount);
+    const charged = item.discountOff ? 0 : discount;
+    if (
+      !untouched ||
+      (Math.abs(price - listedPrice) < 0.005 && discount === Number(item.originalDiscount ?? 0))
+    )
+      continue;
+    const qty = Math.max(1, Math.trunc(item.qty));
+    item.price = price;
+    item.discount = charged;
+    item.originalPrice = price;
+    item.originalDiscount = discount;
+    item.unitPrices = Array(qty).fill(price);
+    item.unitDiscounts = Array(qty).fill(charged);
+    item.priceListOverridden = Boolean(row.priceListOverridden);
+    item.priceListName = row.priceListName || "";
+    item.discountListOverridden = Boolean(row.discountListOverridden);
+    item.discountListName = (option ?? row).discountListName || "";
+    if (!item.saleOption) savedDiscounts.set(item.code, discount);
+    changed.push(item.name);
+  }
+  return changed;
 }
 
 function addExchangeItems(returned: LineItem[], replacements: LineItem[]) {
@@ -533,10 +902,54 @@ function clearItems() {
   detailItem.value = null;
 }
 
+// The "Unknown item" placeholder: its price is whatever was typed when it was
+// added, one per unit, and is never edited afterwards (remove it and add it
+// again to change it).
+function isUnknownItem(item: LineItem): boolean {
+  return item.barcode === (props.unknownBarcode || "UNKNOWN");
+}
+
+function codeAllowsPriceEdit(item: LineItem): boolean {
+  if (isUnknownItem(item)) return false;
+  if (!props.priceEditRestricted) return true;
+  return (props.priceEditCodes ?? []).includes((item.code ?? "").trim().toLowerCase());
+}
+
+function canEditPrice(item: LineItem): boolean {
+  return (
+    customPricesEnabled.value &&
+    codeAllowsPriceEdit(item) &&
+    !readonly.value &&
+    !item.locked &&
+    item.qty > 0
+  );
+}
+
+// Whether a line's discount can be typed in. An unknown item always can (like
+// its price, it has no list to take it from); every other line follows the
+// branch's custom-discount setting and its price-edit codes.
+function discountEditable(item: LineItem): boolean {
+  if (isUnknownItem(item)) return true;
+  return customDiscountsEnabled.value && codeAllowsPriceEdit(item);
+}
+
+// Whether any line shows its discount as a chip beside the price. Without
+// one, the chip slot is left out so the price doesn't carry empty room.
+const showDiscountChips = computed(() =>
+  items.value.some((item) => chipDiscount(item) && !discountEditable(item)),
+);
+// The discount column only takes room while some line can edit one.
+const anyDiscountEditable = computed(() => items.value.some((item) => canEditDiscount(item)));
+
+function canEditDiscount(item: LineItem): boolean {
+  return discountEditable(item) && !readonly.value && !item.locked && item.qty > 0;
+}
+
 function canEditUnitPrice(item: LineItem): boolean {
   return (
     item.qty > 0 &&
     (perUnitPricesEnabled.value || customPricesEnabled.value) &&
+    codeAllowsPriceEdit(item) &&
     !readonly.value &&
     !item.locked
   );
@@ -546,6 +959,7 @@ function canEditUnitDiscount(item: LineItem): boolean {
   return (
     item.qty > 0 &&
     (perUnitPricesEnabled.value || customDiscountsEnabled.value) &&
+    codeAllowsPriceEdit(item) &&
     !readonly.value &&
     !item.locked
   );
@@ -603,10 +1017,10 @@ function setFieldRef(
 function columnsForItem(item: LineItem): FieldColumn[] {
   const columns: FieldColumn[] = [];
   if (!readonly.value && !item.locked && item.qty >= 0) columns.push("qty");
-  if (customDiscountsEnabled.value && !readonly.value && !item.locked && item.qty > 0) {
+  if (canEditDiscount(item)) {
     columns.push("discount");
   }
-  if (customPricesEnabled.value && !readonly.value && !item.locked && item.qty > 0) {
+  if (canEditPrice(item)) {
     columns.push("price");
   }
   return columns;
@@ -678,6 +1092,12 @@ function setUnitDiscount(item: LineItem, index: number, value: unknown) {
 }
 
 function persistDiscount(item: LineItem): Promise<boolean> {
+  if (isUnknownItem(item)) {
+    // An unknown item's discount belongs to this sale alone: it is never
+    // remembered for the product (and needs no custom-discount setting).
+    item.discount = Math.min(100, Math.max(0, Math.trunc(Number(item.discount) || 0)));
+    return Promise.resolve(true);
+  }
   const pending = pendingDiscounts.get(item.code);
   if (pending) return pending;
 
@@ -807,6 +1227,7 @@ defineExpose({
   subtotalCents,
   discountedSubtotalCents,
   addItem,
+  applyListPricing,
   addExchangeItems,
   items,
   clearItems,
@@ -815,6 +1236,10 @@ defineExpose({
 </script>
 
 <style scoped>
+.invoice-item-unknown {
+  background: rgba(var(--v-theme-warning), 0.18);
+}
+
 .invoice-item-actions {
   justify-content: flex-end;
   margin-inline-start: auto;
@@ -830,7 +1255,13 @@ defineExpose({
 }
 
 .invoice-qty-control {
-  width: 56px;
+  width: 46px;
+}
+
+/* The pad reserves room for 999; the cart's highlight should hug "Qty 1". */
+.invoice-qty-control :deep(.number-pad-activator) {
+  min-width: 0 !important;
+  padding-inline: 6px;
 }
 
 .invoice-discount-control {
@@ -838,7 +1269,7 @@ defineExpose({
 }
 
 .invoice-delete-control {
-  width: 40px;
+  width: 36px;
 }
 
 .invoice-items :deep(.v-list-item__content) {
@@ -848,6 +1279,10 @@ defineExpose({
 .invoice-items :deep(.v-list-item__append) {
   justify-content: flex-end;
   margin-inline-start: auto;
+}
+
+.invoice-items :deep(.v-list-item) {
+  padding-inline-start: 24px; /* the text keeps its indent; the row itself starts at the edge */
 }
 
 .invoice-items {
@@ -862,8 +1297,8 @@ defineExpose({
   color: inherit;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  gap: 10px;
   margin-inline-start: -6px;
   max-width: 100%;
   overflow: hidden;
@@ -879,6 +1314,48 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Name over code, with the sale option chip beside the pair and centred on
+   it; the pair takes the row's spare room, so the chips line up down the
+   cart, and a long name still ellipsizes instead of pushing the chip away. */
+.invoice-price-values {
+  min-width: 48px;
+}
+
+.invoice-price-discount {
+  display: flex;
+  justify-content: flex-start;
+  width: 46px;
+}
+
+.invoice-item-title-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.invoice-deal-chip-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.invoice-deal-chip-sub {
+  font-size: 0.65rem;
+  opacity: 0.85;
+}
+
+.invoice-item-sale-option.v-chip--size-x-small:has(.invoice-deal-chip-text) {
+  height: auto;
+  padding-block: 2px;
+}
+
+.invoice-item-sale-option {
+  flex-shrink: 0;
 }
 
 .invoice-item-details-trigger:hover,
@@ -918,20 +1395,29 @@ defineExpose({
   padding: 2px 5px;
 }
 
+/* One width for every line, with its prices centred in it, so each line's
+   final price falls on the same vertical line whether or not a discount
+   sits beside the list price. */
 .invoice-price-control {
-  flex: 0 0 72px;
-  width: 72px;
+  flex: 0 0 64px;
+  width: 64px;
+}
+
+/* Room for the discount chip slot beside the prices, while any line has one. */
+.invoice-items--discount-chips .invoice-price-control {
+  flex-basis: 100px;
+  width: 100px;
 }
 
 .invoice-price-value {
   align-items: center;
   display: flex;
   gap: 4px;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .invoice-price-values {
-  align-items: flex-end;
+  align-items: center;
   display: flex;
   flex-direction: column;
 }

@@ -18,8 +18,9 @@
       </v-btn>
     </template>
     <v-card class="product-list-card">
-      <div :key="listKey" class="product-list">
+      <div class="product-list">
         <v-virtual-scroll
+          ref="scroller"
           class="product-virtual-scroll"
           :items="products"
           :item-height="48"
@@ -36,12 +37,16 @@
             >
               <template #title>
                 <div class="product-primary-row">
-                  <span class="product-code text-medium-emphasis">{{ product.code }}</span>
-                  <span class="font-weight-medium text-truncate">{{ product.name }}</span>
-                  <span v-if="product.brand" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
-                  <span v-if="product.color" class="product-variant text-medium-emphasis">{{ product.color }}</span>
-                  <span v-if="product.size" class="product-variant text-medium-emphasis">{{ product.size }}</span>
-                  <span class="product-price">
+                  <span
+                    v-if="shows('code')"
+                    class="product-code"
+                    :class="namesHidden ? 'product-code--lead font-weight-medium' : 'text-medium-emphasis'"
+                  >{{ product.code }}</span>
+                  <span v-if="!codeOnly && shows('name')" class="font-weight-medium text-truncate">{{ product.name }}</span>
+                  <span v-if="product.brand && !codeOnly && shows('brand')" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
+                  <span v-if="product.color && shows('color')" class="product-variant text-medium-emphasis">{{ product.color }}</span>
+                  <span v-if="product.size && shows('size')" class="product-variant text-medium-emphasis">{{ product.size }}</span>
+                  <span v-if="shows('price')" class="product-price">
                     ${{ Number(product.price || 0).toFixed(2) }}
                     <v-icon
                       v-if="product.priceListOverridden"
@@ -79,7 +84,7 @@
           class="product-search-control"
           density="compact"
           hide-details
-          placeholder="Search products..."
+          :placeholder="codeOnly ? 'Enter a product code...' : 'Search products...'"
           variant="outlined"
           autofocus
         />
@@ -103,7 +108,7 @@
 
 <script lang="ts" setup>
 import { computed, ref, inject, onBeforeUnmount, watch } from "vue";
-import { ListProductsCursor } from "../../wailsjs/go/main/App";
+import { CountProductsForSearch, ListProductsCursor } from "../../wailsjs/go/main/App";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
 type ProductItem = {
@@ -141,13 +146,23 @@ const props = withDefaults(
     activatorText?: string;
     activatorIcon?: string;
     showActivator?: boolean;
+    // Hides product names; the backend then matches only code/barcode.
+    codeOnly?: boolean;
+    // Columns the branch leaves out of the list (kashi's branch setting).
+    hiddenFields?: string[];
   }>(),
   {
     activatorText: "Products List",
     activatorIcon: "mdi-format-list-bulleted-square",
     showActivator: true,
+    codeOnly: false,
+    hiddenFields: () => [],
   },
 );
+const shows = (field: string) => !props.hiddenFields.includes(field);
+// With no name on the row the code is what the cashier reads, so it takes
+// the name's place: full size and contrast, and the name's width.
+const namesHidden = computed(() => props.codeOnly || !shows("name"));
 const activatorText = props.activatorText;
 const activatorIcon = props.activatorIcon;
 const showActivator = props.showActivator;
@@ -171,11 +186,14 @@ watch(dialog, (v) => {
   }
 });
 
+// A search answers in a few milliseconds, so it runs as you type; the short
+// timer only folds a burst of keys (a paste, a barcode wedge) into one
+// request, and latestRequest drops replies a newer search superseded.
 watch(search, (value) => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     debouncedSearch.value = value.trim();
-  }, 250);
+  }, 30);
 });
 
 watch(debouncedSearch, () => {
@@ -185,7 +203,10 @@ watch(debouncedSearch, () => {
 const batchSize = 50;
 const products = ref<ProductItem[]>([]);
 const cursor = ref(0);
-const listKey = ref(0);
+const scroller = ref<{ scrollToIndex: (index: number) => void } | null>(null);
+// A new search replaces the list when its first page arrives, rather than
+// emptying it first, so typing doesn't flash an empty list on every key.
+let replaceOnNextPage = false;
 const loading = ref(false);
 const hasMore = ref(true);
 const loadError = ref(false);
@@ -204,18 +225,32 @@ const countLabel = computed(() => {
 
 function resetList() {
   latestRequest++;
-  products.value = [];
   cursor.value = 0;
   hasMore.value = true;
-  total.value = -1;
+  replaceOnNextPage = true;
   loadError.value = false;
   loadErrorMessage.value = "";
   // A previous loadMore() may still be in flight and, once superseded, will
   // never get to clear this itself (its finally only fires for the request
   // it still owns) - clear it here so the guard below can't wedge shut.
   loading.value = false;
-  listKey.value++;
-  if (dialog.value) void loadMore();
+  if (dialog.value) {
+    void loadMore();
+    void loadCount();
+  }
+}
+
+// The "N results" label, asked beside the first page so the list never
+// waits for the count.
+let latestCount = 0;
+async function loadCount() {
+  const request = ++latestCount;
+  try {
+    const count = await CountProductsForSearch(debouncedSearch.value);
+    if (request === latestCount) total.value = Number(count);
+  } catch {
+    // The label stays as it was; the results don't depend on it.
+  }
 }
 
 async function loadMore() {
@@ -227,10 +262,16 @@ async function loadMore() {
   try {
     const result = await ListProductsCursor(cursor.value, batchSize, debouncedSearch.value);
     if (request !== latestRequest) return;
-    products.value.push(...result.items.map((product) => ({ ...product, qty: 1 }) as ProductItem));
+    const page = result.items.map((product) => ({ ...product, qty: 1 }) as ProductItem);
+    if (replaceOnNextPage) {
+      replaceOnNextPage = false;
+      products.value = page;
+      scroller.value?.scrollToIndex(0);
+    } else {
+      products.value.push(...page);
+    }
     cursor.value = result.nextCursor;
     hasMore.value = result.hasMore;
-    if (typeof result.total === "number" && result.total >= 0) total.value = result.total;
   } catch (e) {
     if (request !== latestRequest) return;
     console.error("ListProductsCursor failed:", e);
@@ -327,6 +368,13 @@ defineExpose({ openDialog });
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.product-code--lead {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  font-size: 1rem;
 }
 
 .product-brand {

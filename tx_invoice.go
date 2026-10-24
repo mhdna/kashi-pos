@@ -22,6 +22,14 @@ type salesInvoiceItem struct {
 	UnitDiscounts    []int64 `json:"unitDiscounts,omitempty"`
 	SalespersonID    int64   `json:"salespersonId,omitempty"`
 	Note             string  `json:"note,omitempty"`
+	// The sale option the cashier picked for a product that asks one
+	// (Summer/Winter); it picks the line's discount. Empty otherwise.
+	SaleOption string `json:"saleOption,omitempty"`
+	// The salesperson turned the line's list discount (discount_toggle) or
+	// its deal (deal_toggle) off for this sale. Either only takes a saving
+	// away.
+	NoDiscount bool `json:"noDiscount,omitempty"`
+	NoDeal     bool `json:"noDeal,omitempty"`
 }
 
 type checkoutPayment struct {
@@ -44,6 +52,9 @@ type SalesInvoiceParams struct {
 	// (selected once per invoice at the till), so it's threaded straight
 	// through instead.
 	Salesperson string `json:"salesperson"`
+	// UnknownSessionRef is the picture session of a cart holding "Unknown
+	// item" lines, sent to kashi with the sale (see unknown_items.go).
+	UnknownSessionRef string `json:"unknownSessionRef,omitempty"`
 }
 
 type SalesInvoiceResult struct {
@@ -66,6 +77,8 @@ type invoiceTotals struct {
 	TaxCents           int64
 	GrandTotal         int64
 	ReceiptItems       []invoiceItem
+	// The terms of the deals the lines name, copied onto the invoice.
+	Deals []dealTerms
 }
 
 func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool) (invoiceTotals, error) {
@@ -100,6 +113,7 @@ func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []sales
 	totals.TaxCents = taxCents
 	totals.GrandTotal = grandTotal
 	totals.ReceiptItems = receiptItems
+	totals.Deals = invoiceDealTerms(products, listPricing.deals)
 	return totals, nil
 }
 
@@ -170,7 +184,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		return result, fmt.Errorf("database not initialized")
 	}
 
-	items, err := parseSalesItems(params.ItemsJSON)
+	items, err := parseSalesItems(params.ItemsJSON, a.unknownBarcode(), a.unknownCode())
 	if err != nil {
 		return result, err
 	}
@@ -254,6 +268,9 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				SalespersonID: product.salespersonID, Note: product.note,
 				PriceListID:    sql.NullInt64{Int64: product.priceListID, Valid: product.priceListID != 0},
 				DiscountListID: sql.NullInt64{Int64: product.discountListID, Valid: product.discountListID != 0},
+				SaleOption:     product.saleOption,
+				DealUid:        product.dealUID,
+				DealDiscount:   product.dealDiscount,
 			}); err != nil {
 				return fmt.Errorf("add product %s: %w", product.product.Code, err)
 			}
@@ -268,6 +285,9 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			// if count, err := updated.RowsAffected(); err != nil || count != 1 {
 			// 	return fmt.Errorf("insufficient stock for product %s", product.product.Code)
 			// }
+		}
+		if err := recordInvoiceDeals(a.ctx, q, invoice.ID, totals.Deals); err != nil {
+			return err
 		}
 		netByAccount := netPaymentsByAccount(payments)
 		for _, payment := range payments {
@@ -325,11 +345,17 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 					LineTotal:       product.lineTotal,
 					Discount:        int16(product.discount),
 					Quantity:        product.qty,
+					Deal:            product.dealName,
+					DealDiscount:    product.dealDiscount,
 				})
 			}
 			payloadPayments, err := buildBranchInvoicePayments(a.ctx, q, invoice.ID)
 			if err != nil {
 				return err
+			}
+			lbpTotal, lbpRate, err := stampInvoiceLBPTotal(a.ctx, q, invoice.ID, grandTotal, roundingMode)
+			if err != nil {
+				return fmt.Errorf("record LBP total: %w", err)
 			}
 			if err := queueBranchInvoiceSync(a.ctx, q, settings.CentralApiUrl, "sales_invoice", branchInvoicePayload{
 				ClientRef:              clientRef,
@@ -348,6 +374,9 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				SalespersonID:          salespersonRemoteIDByName(a.ctx, q, params.Salesperson),
 				Payments:               payloadPayments,
 				Items:                  payloadItems,
+				UnknownSessionRef:      params.UnknownSessionRef,
+				LbpTotal:               lbpTotal,
+				LbpRate:                lbpRate,
 			}); err != nil {
 				return fmt.Errorf("queue branch invoice sync: %w", err)
 			}
@@ -411,7 +440,7 @@ func normalizeCashRoundedPayments(ctx context.Context, q *db.Queries, payments [
 	return changed, nil
 }
 
-func parseSalesItems(raw string) ([]salesInvoiceItem, error) {
+func parseSalesItems(raw, unknownBarcode, unknownCode string) ([]salesInvoiceItem, error) {
 	var items []salesInvoiceItem
 	if err := json.Unmarshal([]byte(raw), &items); err != nil || len(items) == 0 {
 		return nil, fmt.Errorf("invalid invoice items")
@@ -422,7 +451,14 @@ func parseSalesItems(raw string) ([]salesInvoiceItem, error) {
 		if item.Barcode != "" {
 			key = "barcode:" + item.Barcode
 		}
-		if (item.Code == "" && item.Barcode == "") || item.Qty <= 0 || math.Trunc(item.Qty) != item.Qty || item.Qty > math.MaxInt64 || seen[key] {
+		// A product sold as Summer and as Winter is two lines: each option
+		// has its own discount.
+		key += "|" + item.SaleOption
+		// Every "Unknown item" is its own line (each gets its own pictures),
+		// so that one product may repeat; any other product may not. The
+		// checkout payload carries only the code, so match on either.
+		repeatable := item.Barcode == unknownBarcode || (item.Barcode == "" && item.Code == unknownCode)
+		if (item.Code == "" && item.Barcode == "") || item.Qty <= 0 || math.Trunc(item.Qty) != item.Qty || item.Qty > math.MaxInt64 || (seen[key] && !repeatable) {
 			return nil, fmt.Errorf("invalid or duplicate item %q", item.Code)
 		}
 		if item.SalespersonID < 0 {

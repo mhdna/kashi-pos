@@ -5,7 +5,8 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
+    "check:icons": "node scripts/check-icons.mjs",
+    "build": "node scripts/check-icons.mjs && run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
     "test": "vitest run",
@@ -19,6 +20,7 @@
   "dependencies": {
     "@fontsource/roboto": "^5.3.0",
     "@mdi/js": "^7.4.47",
+    "country-flag-emoji-polyfill": "^0.1.10",
     "libphonenumber-js": "^1.13.14",
     "pinia": "^3.0.4",
     "qrcode": "^1.5.4",

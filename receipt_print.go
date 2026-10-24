@@ -33,6 +33,10 @@ type printReceiptData struct {
 	ReceiptWidth     int64
 	ReceiptHeight    int64
 	ShiftReport      *shiftReportData
+	// Theme and Layout pick the receipt's look (receipt_theme.go); empty
+	// means the default.
+	Theme  string
+	Layout string
 }
 
 // receiptCurrency carries the fields a receipt needs to display an amount
