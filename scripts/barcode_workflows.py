@@ -4,7 +4,8 @@
 Each workflow is a list of barcodes picked from the till's local database. The
 script copies one barcode with pbcopy every second (paste it into the barcode
 field with Cmd+V); when a list is done it waits, then press `n` to start the
-next workflow. `n` also skips the rest of a list, `p` pauses/resumes, `q` quits.
+next workflow. `n` also skips the rest of a list, `r` replays the current list from its
+first barcode, `p` pauses/resumes, `q` quits.
 
     scripts/barcode_workflows.py                 # newest till DB with discounts
     scripts/barcode_workflows.py --db ~/Library/Application\\ Support/kashi-pos/database-tb
@@ -170,10 +171,13 @@ def key_pressed(timeout):
 
 
 def run(flows):
+    """Returns when done or on q. n = next workflow, r = replay this one."""
     paused = False
-    for number, (title, codes) in enumerate(flows, 1):
-        print(f"\n\033[1m{title}\033[0m  ({len(codes)} barcodes)\r")
-        skipped = False
+    number = 0
+    while number < len(flows):
+        title, codes = flows[number]
+        print(f"\n\033[1m{number + 1}/{len(flows)} {title}\033[0m  ({len(codes)} barcodes)\r")
+        action = None  # "n" or "r" when a key cuts the list short
         for code in codes:
             copy(code)
             print(f"  copied {code}\r")
@@ -182,8 +186,8 @@ def run(flows):
                 key = key_pressed(0.1 if paused else max(0, deadline - time.time()))
                 if key == "q":
                     return
-                if key == "n":
-                    skipped = True
+                if key in ("n", "r"):
+                    action = key
                     break
                 if key == "p":
                     paused = not paused
@@ -191,15 +195,18 @@ def run(flows):
                     deadline = time.time() + 1
                 if not paused and time.time() >= deadline:
                     break
-            if skipped:
+            if action:
                 break
-        if skipped or number == len(flows):
-            continue
-        print("  list done. press n for the next workflow (q quits)\r")
-        while (key := key_pressed(None)) not in ("n", "q"):
-            pass
-        if key == "q":
-            return
+        if not action:
+            if number == len(flows) - 1:
+                break
+            print("  list done. n = next workflow, r = repeat this one, q = quit\r")
+            while (action := key_pressed(None)) not in ("n", "r", "q"):
+                pass
+            if action == "q":
+                return
+        if action == "n":
+            number += 1
     print("\nall workflows done\r")
 
 
@@ -224,7 +231,7 @@ def main():
             print(f"\n{title}\n  " + "\n  ".join(codes))
         return
 
-    print(f"{len(flows)} workflows. n = next, p = pause, q = quit. Starting in 3s: focus the barcode field.")
+    print(f"{len(flows)} workflows. n = next, r = repeat, p = pause, q = quit. Starting in 3s: focus the barcode field.")
     time.sleep(3)
     fd = sys.stdin.fileno()
     saved = termios.tcgetattr(fd)
