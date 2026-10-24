@@ -103,6 +103,7 @@ func learnInputDevice(id string, scanner bool) {
 	devices.mu.Lock()
 	devices.learned = learned
 	devices.mu.Unlock()
+	log.Printf("devices: learned scanner=%q keyboard=%q", learned.Scanner, learned.Keyboard)
 	if path, err := learnedDevicesPath(); err == nil {
 		data, _ := json.Marshal(learned)
 		if err := os.WriteFile(path, data, 0o644); err != nil {

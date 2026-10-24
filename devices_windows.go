@@ -149,6 +149,7 @@ func runInputDeviceListener(started chan<- bool) {
 		started <- false
 		return
 	}
+	log.Println("devices: listening for scanner and keyboard input")
 	started <- true
 
 	var m msgW
@@ -165,11 +166,16 @@ func runInputDeviceListener(started chan<- bool) {
 func inputListenerProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 	switch msg {
 	case wmInput:
-		var in rawKeyboardInput
-		size := uint32(unsafe.Sizeof(in))
-		header := unsafe.Offsetof(in.makeCode)
-		r, _, _ := pGetRawInputData.Call(lParam, ridInput, uintptr(unsafe.Pointer(&in)), uintptr(unsafe.Pointer(&size)), header)
-		if int32(r) > 0 && in.kind == rimTypeKeyboard && in.device != 0 && in.flags&riKeyBreak == 0 {
+		// RAWINPUT is sized for its largest member (the mouse), more than a
+		// keyboard needs; Windows refuses a buffer smaller than that.
+		var buf [8]uint64
+		size := uint32(unsafe.Sizeof(buf))
+		header := unsafe.Offsetof(rawKeyboardInput{}.makeCode)
+		r, _, err := pGetRawInputData.Call(lParam, ridInput, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&size)), header)
+		in := (*rawKeyboardInput)(unsafe.Pointer(&buf[0]))
+		if int32(r) <= 0 {
+			logRawInputFailure(err)
+		} else if in.kind == rimTypeKeyboard && in.device != 0 && in.flags&riKeyBreak == 0 {
 			onDeviceKey(in.device, in.vKey, time.Now())
 		}
 	case wmInputDeviceChange:
@@ -182,6 +188,15 @@ func inputListenerProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 	}
 	r, _, _ := pDefWindowProcW.Call(hwnd, msg, wParam, lParam)
 	return r
+}
+
+var rawInputFailureLogged bool
+
+func logRawInputFailure(err error) {
+	if !rawInputFailureLogged {
+		rawInputFailureLogged = true
+		log.Printf("devices: read raw input: %v", err)
+	}
 }
 
 // onDeviceKey learns, from the timing of its keys, whether a device is a
