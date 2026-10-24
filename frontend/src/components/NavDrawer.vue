@@ -208,7 +208,7 @@ const deviceIcons = computed(() => {
   const st = deviceStatus.value;
   const printerState = st?.printer ?? "unknown";
   return [
-    { icon: "mdi-barcode-scan", state: st?.scanner ?? "unknown", title: `Scanner: ${deviceWords[st?.scanner ?? "unknown"]}` },
+    { icon: "mdi-barcode-scanner-gun", state: st?.scanner ?? "unknown", title: `Scanner: ${deviceWords[st?.scanner ?? "unknown"]}` },
     {
       icon: "mdi-printer",
       state: printerState,
