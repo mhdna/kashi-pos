@@ -199,3 +199,19 @@ func TestDealExchangeNotes(t *testing.T) {
 		t.Fatalf("notes = %q", notes)
 	}
 }
+
+// A unit sold at the fallback discount was paid for ($70 of the $100 shirt)
+// and is no reward: it swaps for what it cost, with no swap credit up to its
+// shelf price as a free unit would have.
+func TestDealExchangeFallbackUnitHasNoSwapCredit(t *testing.T) {
+	shop := setUpDealShopWithFallback(t, 30)
+	sale := shop.sell(t, "A")
+	if got := shop.exchange(t, sale.InvoiceID, []string{"A"}, []string{"JACKET"}); got != 3000 {
+		t.Fatalf("pays %d, want 3000 ($100 jacket less the $70 paid)", got)
+	}
+	for _, adj := range shop.lastAdjustments(t) {
+		if adj.Forfeited != 0 {
+			t.Fatalf("swap credit forfeited = %d, want none", adj.Forfeited)
+		}
+	}
+}

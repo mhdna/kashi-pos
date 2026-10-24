@@ -50,6 +50,8 @@ type syncedDeal struct {
 	GetQty      int64  `json:"get_qty"`
 	Percent     int64  `json:"percent"`
 	BundlePrice int64  `json:"bundle_price"`
+	// What units outside a set get (kashi 000205); 0 for none.
+	FallbackPercent int64 `json:"fallback_percent"`
 }
 
 // A discount that applies only when the line is sold as the named sale
@@ -145,6 +147,7 @@ func applySyncedDiscountList(ctx context.Context, q *db.Queries, l syncedDiscoun
 		if err := q.UpsertDeal(ctx, db.UpsertDealParams{
 			Uid: d.UID, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty,
 			GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice,
+			FallbackPercent: d.FallbackPercent,
 		}); err != nil {
 			return err
 		}
