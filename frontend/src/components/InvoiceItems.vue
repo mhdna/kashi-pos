@@ -233,7 +233,9 @@
               </span>
             </div>
             <div class="invoice-delete-control">
-              <v-btn v-if="!readonly && !item.locked" variant="text" rounded size="small" @click="removeItem(item)">
+              <!-- A returned line in an exchange can't be edited, but it can be
+                   taken out when the customer keeps that item after all. -->
+              <v-btn v-if="!readonly" variant="text" rounded size="small" @click="removeItem(item)">
                 <v-icon icon="mdi-delete" size="18" color="grey" />
               </v-btn>
             </div>

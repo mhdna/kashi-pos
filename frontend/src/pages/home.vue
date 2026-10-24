@@ -771,6 +771,18 @@ watch(
   { deep: true, immediate: true },
 );
 
+// An exchange whose returned items have all been taken out of the cart has
+// nothing left to exchange: it goes back to a normal sale, keeping any
+// replacement items already scanned.
+watch(
+  () => (invoiceItems.value?.items ?? []).some((item) => item.qty < 0),
+  (hasReturns) => {
+    if (hasReturns || !exchangeState.value || restoringDraft) return;
+    exchangeState.value = null;
+    void refreshNextInvoiceCode("sales");
+  },
+);
+
 async function restoreDraft() {
   try {
     const draft = JSON.parse(
