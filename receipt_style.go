@@ -154,16 +154,19 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
 		return c.ruleLine(y) + 4
 	}
 
-	boxTop := c.ruleLine(y) + 12
-	y = boxTop + 8
+	// Room inside the box above and below the figures, and a little outside
+	// it before the next section starts.
+	boxTop := c.ruleLine(y) + 16
+	y = boxTop + 16
 	y, _ = c.twoCol(y, "TOTAL", amount, 13, true)
 	y += 8
 	if second[0] != "" {
 		y, _ = c.twoCol(y, second[0], second[1], 11, true)
 		y += 8
 	}
+	y += 14
 	c.dottedBox(boxTop, y-boxTop)
-	return y
+	return y + 8
 }
 
 func upperIf(on bool, value string) string {
