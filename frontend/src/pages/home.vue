@@ -150,6 +150,8 @@
         :price-change-mode="priceChangeMode"
         :keyboard-mode="invoiceKeyboardModeEnabled"
         :deal-lines="quote?.lines ?? []"
+        :discount-toggle-enabled="discountToggleEnabled && pageMode === 'sale'"
+        :discount-default-off="discountToggleDefaultOff"
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
       />
@@ -490,6 +492,10 @@ const scanByCodeEnabled = ref(true);
 const productSearchCodeOnly = ref(false);
 const productSearchHiddenFields = ref<string[]>([]);
 const priceEditRestricted = ref(false);
+// A salesperson can tap a line's discount or deal chip to turn it off/on
+// (kashi's discount_toggle), and new lines can start with it off.
+const discountToggleEnabled = ref(false);
+const discountToggleDefaultOff = ref(false);
 const priceEditCodes = ref<string[]>([]);
 const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
@@ -1053,6 +1059,7 @@ async function getFullItemsJSON(): Promise<string> {
       salespersonId: Number(i.salespersonId || 0),
       note: String(i.note || "").trim(),
       saleOption: i.saleOption || undefined,
+      noDiscount: discountToggleEnabled.value && i.discountOff && i.qty > 0 ? true : undefined,
       qty: i.qty,
     })),
   );
@@ -1491,6 +1498,8 @@ async function loadAppSettings() {
       .split(",")
       .filter(Boolean);
     priceEditRestricted.value = Boolean(settings?.priceEditRestricted);
+    discountToggleEnabled.value = Boolean(settings?.discountToggleEnabled);
+    discountToggleDefaultOff.value = Boolean(settings?.discountToggleDefaultOff);
     unknownProductBarcode.value = String(settings?.unknownProductBarcode || "UNKNOWN");
     priceEditCodes.value = String(settings?.priceEditCodes ?? "")
       .split(",")
