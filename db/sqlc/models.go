@@ -221,14 +221,15 @@ type Currency struct {
 }
 
 type Deal struct {
-	Uid             string `json:"uid"`
-	Name            string `json:"name"`
-	Kind            string `json:"kind"`
-	BuyQty          int64  `json:"buyQty"`
-	GetQty          int64  `json:"getQty"`
-	Percent         int64  `json:"percent"`
-	BundlePrice     int64  `json:"bundlePrice"`
-	FallbackPercent int64  `json:"fallbackPercent"`
+	Uid                    string `json:"uid"`
+	Name                   string `json:"name"`
+	Kind                   string `json:"kind"`
+	BuyQty                 int64  `json:"buyQty"`
+	GetQty                 int64  `json:"getQty"`
+	Percent                int64  `json:"percent"`
+	BundlePrice            int64  `json:"bundlePrice"`
+	FallbackPercent        int64  `json:"fallbackPercent"`
+	FallbackOnlyWithoutSet int64  `json:"fallbackOnlyWithoutSet"`
 }
 
 type DiscountList struct {
@@ -362,15 +363,16 @@ type InvoiceCouponPayment struct {
 }
 
 type InvoiceDeal struct {
-	InvoiceID       int64  `json:"invoiceId"`
-	DealUid         string `json:"dealUid"`
-	Name            string `json:"name"`
-	Kind            string `json:"kind"`
-	BuyQty          int64  `json:"buyQty"`
-	GetQty          int64  `json:"getQty"`
-	Percent         int64  `json:"percent"`
-	BundlePrice     int64  `json:"bundlePrice"`
-	FallbackPercent int64  `json:"fallbackPercent"`
+	InvoiceID              int64  `json:"invoiceId"`
+	DealUid                string `json:"dealUid"`
+	Name                   string `json:"name"`
+	Kind                   string `json:"kind"`
+	BuyQty                 int64  `json:"buyQty"`
+	GetQty                 int64  `json:"getQty"`
+	Percent                int64  `json:"percent"`
+	BundlePrice            int64  `json:"bundlePrice"`
+	FallbackPercent        int64  `json:"fallbackPercent"`
+	FallbackOnlyWithoutSet int64  `json:"fallbackOnlyWithoutSet"`
 }
 
 type InvoiceIndex struct {

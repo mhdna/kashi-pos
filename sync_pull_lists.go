@@ -52,6 +52,8 @@ type syncedDeal struct {
 	BundlePrice int64  `json:"bundle_price"`
 	// What units outside a set get (kashi 000205); 0 for none.
 	FallbackPercent int64 `json:"fallback_percent"`
+	// The fallback is only for a cart that makes no set (kashi 000207).
+	FallbackOnlyWithoutSet bool `json:"fallback_only_without_set"`
 }
 
 // A discount that applies only when the line is sold as the named sale
@@ -147,7 +149,7 @@ func applySyncedDiscountList(ctx context.Context, q *db.Queries, l syncedDiscoun
 		if err := q.UpsertDeal(ctx, db.UpsertDealParams{
 			Uid: d.UID, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty,
 			GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice,
-			FallbackPercent: d.FallbackPercent,
+			FallbackPercent: d.FallbackPercent, FallbackOnlyWithoutSet: boolInt(d.FallbackOnlyWithoutSet),
 		}); err != nil {
 			return err
 		}

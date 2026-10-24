@@ -38,14 +38,17 @@ type dealTerms struct {
 	// What units outside a set get on a buy_get deal ("Buy 2 get 1, otherwise
 	// 30%"); 0 for nothing.
 	FallbackPercent int64
+	// The fallback is only for a cart that makes no set: once a set forms,
+	// the units it leaves over pay the shelf price (kashi 000207).
+	FallbackOnlyWithoutSet bool
 }
 
 func dealTermsFromRow(d db.Deal) dealTerms {
-	return dealTerms{UID: d.Uid, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty, GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice, FallbackPercent: d.FallbackPercent}
+	return dealTerms{UID: d.Uid, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty, GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice, FallbackPercent: d.FallbackPercent, FallbackOnlyWithoutSet: d.FallbackOnlyWithoutSet != 0}
 }
 
 func dealTermsFromInvoice(d db.InvoiceDeal) dealTerms {
-	return dealTerms{UID: d.DealUid, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty, GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice, FallbackPercent: d.FallbackPercent}
+	return dealTerms{UID: d.DealUid, Name: d.Name, Kind: d.Kind, BuyQty: d.BuyQty, GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice, FallbackPercent: d.FallbackPercent, FallbackOnlyWithoutSet: d.FallbackOnlyWithoutSet != 0}
 }
 
 // rewardsFreeUnits says whether the deal's reward is particular units (Buy 2
@@ -114,7 +117,9 @@ func (t dealTerms) unitDiscounts(prices []int64, roundingMode string) []int64 {
 		}
 		// The units outside a set (the dearest ones) get the fallback; a
 		// full set is the deal alone, whatever the fallback would have saved.
-		if t.FallbackPercent > 0 {
+		// A deal that keeps its fallback for a cart with no set gives it only
+		// while no set forms.
+		if t.FallbackPercent > 0 && (!t.FallbackOnlyWithoutSet || n < set) {
 			for _, i := range order[n/set*set:] {
 				discounts[i] = percentOf(prices[i], t.FallbackPercent, roundingMode)
 			}
@@ -273,7 +278,7 @@ func recordInvoiceDeals(ctx context.Context, q *db.Queries, invoiceID int64, dea
 		if err := q.CreateInvoiceDeal(ctx, db.CreateInvoiceDealParams{
 			InvoiceID: invoiceID, DealUid: d.UID, Name: d.Name, Kind: d.Kind,
 			BuyQty: d.BuyQty, GetQty: d.GetQty, Percent: d.Percent, BundlePrice: d.BundlePrice,
-			FallbackPercent: d.FallbackPercent,
+			FallbackPercent: d.FallbackPercent, FallbackOnlyWithoutSet: boolInt(d.FallbackOnlyWithoutSet),
 		}); err != nil {
 			return fmt.Errorf("record deal %s: %w", d.Name, err)
 		}
