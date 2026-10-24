@@ -714,6 +714,10 @@ export function RequestUnknownItemHelp(arg1) {
   return window['go']['main']['App']['RequestUnknownItemHelp'](arg1);
 }
 
+export function RestartComputer() {
+  return window['go']['main']['App']['RestartComputer']();
+}
+
 export function ResyncAll(arg1) {
   return window['go']['main']['App']['ResyncAll'](arg1);
 }
@@ -916,6 +920,10 @@ export function SetVisitorCounterEnabled(arg1) {
 
 export function SettleInvoicePayments(arg1, arg2) {
   return window['go']['main']['App']['SettleInvoicePayments'](arg1, arg2);
+}
+
+export function ShutDownComputer() {
+  return window['go']['main']['App']['ShutDownComputer']();
 }
 
 export function SkipShiftReceiptUpload(arg1, arg2, arg3) {
