@@ -439,7 +439,7 @@ function saleOptionIcon(option: string): { icon: string; color: string } | undef
 function dealChipLines(item: LineItem): [string, string] {
   const deal = dealFor(item);
   if (!deal) return ["", ""];
-  const [head, fallback] = deal.label.split(" else ");
+  const [head = "", fallback] = deal.label.split(" else ");
   if (deal.freeQty) return [head, `${deal.freeQty} free`];
   return [head, fallback ? `else ${fallback}` : ""];
 }
