@@ -2,7 +2,7 @@
   <section class="mb-4">
     <div class="calculator-amounts mb-2" :class="statusColor">
       <v-btn
-        v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState && !quoteError"
+        v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState && !quoteError && !exchangeShortfallText"
         class="calculator-amounts-flip"
         icon="mdi-swap-vertical"
         variant="text"
@@ -17,9 +17,14 @@
         <v-icon icon="mdi-alert-circle" color="red-darken-2" size="28" />
         <span class="calculator-error-text" :title="quoteError">{{ quoteError }}</span>
       </div>
-      <div v-else-if="exchangeShortfallText" class="calculator-error-state">
-        <v-icon icon="mdi-alert-circle" color="red-darken-2" size="28" />
-        <span class="calculator-error-text">Add {{ exchangeShortfallText }} more in replacement items — exchanges can't return cash</span>
+      <!-- An exchange that isn't covered yet is a normal step, not an error:
+           a calm hint saying what's left to pick. -->
+      <div v-else-if="exchangeShortfallText" class="calculator-error-state calculator-hint-state">
+        <v-icon icon="mdi-information-outline" color="blue-grey-darken-1" size="28" />
+        <span class="calculator-error-text">
+          Add <strong class="calculator-hint-amount">{{ exchangeShortfallText }}</strong> more in new items to finish
+          the exchange (no cash back)
+        </span>
       </div>
       <div v-else-if="showReadyState" class="calculator-accepted-state calculator-green">
         <v-icon icon="mdi-check-circle" color="green-darken-3" size="40" />
@@ -169,6 +174,14 @@ function flipCurrency() {
   color: #c62828;
   font-size: var(--kashi-font-size-base);
   font-weight: 600;
+}
+.calculator-hint-state {
+  color: rgba(var(--v-theme-on-surface), 0.8);
+  font-weight: 500;
+}
+.calculator-amounts .calculator-hint-amount {
+  font-size: inherit;
+  font-weight: 700;
 }
 .calculator-error-text {
   min-width: 0;
