@@ -962,6 +962,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	result["priceEditCodes"] = a.priceEditCodes()
 	result["discountToggleEnabled"] = a.flagEnabled(a.ctx, discountToggleFlag)
 	result["discountToggleDefaultOff"] = a.flagEnabled(a.ctx, discountToggleDefaultOffFlag)
+	result["dealToggleEnabled"] = a.flagEnabled(a.ctx, dealToggleFlag)
 	result["oversellMode"] = settings.OversellMode
 	result["unknownProductBarcode"] = a.unknownBarcode()
 	result["productSearchHiddenFields"] = a.productSearchHiddenFields()

@@ -29,9 +29,8 @@ type pricedInvoiceProduct struct {
 	dealName     string
 	dealLabel    string
 	dealDiscount int64
-	// The line's discount was turned off (salesInvoiceItem.NoDiscount), and
-	// what it would have had: a percent, or a deal's short label.
-	discountOff  bool
+	// What the line gave up by having its discount (NoDiscount) or its deal
+	// (NoDeal) turned off: the percent, or the deal's short label.
 	offDiscount  int64
 	offDealLabel string
 }
@@ -109,13 +108,19 @@ func (a *App) resolveClientID(id int64) (int64, error) {
 func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []salesInvoiceItem, roundingMode string, customPricingEnabled bool, listPricing activePricing, perUnitPricingEnabled ...bool) ([]pricedInvoiceProduct, int64, int64, []invoiceItem, error) {
 	products := make([]pricedInvoiceProduct, 0, len(items))
 	var subtotal int64
-	discountToggleChecked := false
+	discountToggleChecked, dealToggleChecked := false, false
 	for _, item := range items {
 		if item.NoDiscount && !discountToggleChecked {
 			if !a.flagEnabled(a.ctx, discountToggleFlag) {
 				return nil, 0, 0, nil, fmt.Errorf("turning a discount off is disabled")
 			}
 			discountToggleChecked = true
+		}
+		if item.NoDeal && !dealToggleChecked {
+			if !a.flagEnabled(a.ctx, dealToggleFlag) {
+				return nil, 0, 0, nil, fmt.Errorf("turning a deal off is disabled")
+			}
+			dealToggleChecked = true
 		}
 		if item.SalespersonID > 0 {
 			if _, err := q.GetSalespersonByID(a.ctx, item.SalespersonID); err != nil {
@@ -189,17 +194,19 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		if isUnknown || item.CustomPriceCents != nil || len(item.UnitPricesCents) > 0 || len(item.UnitDiscounts) > 0 {
 			dealUID = ""
 		}
-		// A discount turned off at the till: the line pays the list price,
-		// and the cart is told what it gave up so it can offer it back.
+		// A discount or deal turned off at the till: the line goes without
+		// it, and the cart is told what it gave up so it can offer it back.
 		var offDiscount int64
 		offDealLabel := ""
-		if item.NoDiscount && !isUnknown {
+		if item.NoDiscount && !isUnknown && product.Discount > 0 {
 			offDiscount = product.Discount
-			if terms, ok := listPricing.deals[dealUID]; ok && dealUID != "" {
-				offDealLabel = terms.label()
-			}
 			product.Discount = 0
 			discountListID = 0
+		}
+		if item.NoDeal && !isUnknown && dealUID != "" {
+			if terms, ok := listPricing.deals[dealUID]; ok {
+				offDealLabel = terms.label()
+			}
 			dealUID = ""
 		}
 		priceQuantities := map[unitPricing]int64{
@@ -245,7 +252,6 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			priced.note = strings.TrimSpace(item.Note)
 			priced.saleOption = saleOption
 			priced.dealUID = dealUID
-			priced.discountOff = offDiscount > 0 || offDealLabel != ""
 			priced.offDiscount = offDiscount
 			priced.offDealLabel = offDealLabel
 			if pricing.price == product.Price {

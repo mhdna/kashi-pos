@@ -66,11 +66,13 @@ const (
 	// flags). Defaults to false when unset, so every line stays editable as it
 	// was before this setting existed.
 	priceEditRestrictedFlag = "price_edit_restricted"
-	// When on, a salesperson can tap a line's list discount or deal chip to
+	// When on, a salesperson can tap a line's list discount chip (30%) to
 	// turn it off for that sale (and back on), never to change its amount.
 	// Defaults to false when unset, so every line keeps its discount as it
 	// did before this setting existed.
 	discountToggleFlag = "discount_toggle"
+	// The same for a line's deal (B2G1), on its own switch. Defaults to false.
+	dealToggleFlag = "deal_toggle"
 	// With discount_toggle on, lines start with their discount off and the
 	// salesperson taps to give it. Ignored while discount_toggle is off, so
 	// it can never leave a branch with discounts it has no way to turn on.
@@ -85,6 +87,18 @@ func (a *App) SetDiscountToggleEnabled(enabled bool) error {
 		return fmt.Errorf("database not initialized")
 	}
 	if err := a.setFeatureFlagBool(a.ctx, discountToggleFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// SetDealToggleEnabled lets salespersons turn a line's deal off/on.
+func (a *App) SetDealToggleEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, dealToggleFlag, enabled); err != nil {
 		return err
 	}
 	a.emitSettingsChanged()

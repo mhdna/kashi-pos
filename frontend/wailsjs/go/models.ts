@@ -337,7 +337,6 @@ export namespace main {
 	    dealLabel?: string;
 	    dealDiscountCents?: number;
 	    free?: boolean;
-	    discountOff?: boolean;
 	    offDiscount?: number;
 	    offDealLabel?: string;
 	
@@ -356,7 +355,6 @@ export namespace main {
 	        this.dealLabel = source["dealLabel"];
 	        this.dealDiscountCents = source["dealDiscountCents"];
 	        this.free = source["free"];
-	        this.discountOff = source["discountOff"];
 	        this.offDiscount = source["offDiscount"];
 	        this.offDealLabel = source["offDealLabel"];
 	    }
