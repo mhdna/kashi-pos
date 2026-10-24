@@ -8,29 +8,32 @@
         <div v-for="device in devices" :key="device.kind" class="device-card">
           <v-icon :icon="device.icon" size="72" :class="`device-status--${device.state}`" />
           <span class="device-card-label">{{ device.label }}</span>
-          <span v-if="device.name" class="device-card-name">{{ device.name }}</span>
+          <span class="device-card-name">{{ device.name }}</span>
           <span :class="['device-card-word', `device-status--${device.state}`]">{{ device.word }}</span>
-          <!-- Only an admin changes which device the till uses. -->
-          <template v-if="auth.isAdmin && device.state !== 'ok'">
-            <v-btn
-              v-if="device.kind === 'printer'"
-              class="mt-1"
-              prepend-icon="mdi-magnify"
-              variant="tonal"
-              @click="openFindPrinter"
-            >
-              Find
-            </v-btn>
-            <v-btn
-              v-else-if="device.kind === 'scanner' && device.state === 'off'"
-              class="mt-1"
-              prepend-icon="mdi-magnify"
-              variant="tonal"
-              @click="forgetScanner"
-            >
-              Use another
-            </v-btn>
-          </template>
+          <!-- Only an admin changes which device the till uses. The wrapper is
+               always there so every card keeps the same five rows. -->
+          <div>
+            <template v-if="auth.isAdmin && device.state !== 'ok'">
+              <v-btn
+                v-if="device.kind === 'printer'"
+                class="mt-1"
+                prepend-icon="mdi-magnify"
+                variant="tonal"
+                @click="openFindPrinter"
+              >
+                Find
+              </v-btn>
+              <v-btn
+                v-else-if="device.kind === 'scanner' && device.state === 'off'"
+                class="mt-1"
+                prepend-icon="mdi-magnify"
+                variant="tonal"
+                @click="forgetScanner"
+              >
+                Use another
+              </v-btn>
+            </template>
+          </div>
         </div>
       </v-card-text>
       <v-card-text v-if="notice" class="text-center pt-0 pb-4">{{ notice }}</v-card-text>
@@ -197,16 +200,22 @@ async function forgetScanner() {
   display: flex;
   justify-content: flex-end;
 }
+/* The cards share the grid's rows (subgrid), so each line -- icon, label,
+   name, status, button -- sits at one height across all four, however many
+   lines a long device name takes. */
 .devices-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-rows: repeat(5, auto);
+  column-gap: 16px;
 }
 .device-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  display: grid;
+  grid-row: span 5;
+  grid-template-rows: subgrid;
+  justify-items: center;
+  align-items: start;
+  row-gap: 4px;
   text-align: center;
 }
 .device-card-label {
