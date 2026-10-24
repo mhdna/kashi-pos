@@ -19,6 +19,8 @@ import "@fontsource/roboto/latin-ext-700.css";
 
 // Plugins
 import { registerPlugins } from "@/plugins";
+import router from "@/router";
+import { preventNewWindows } from "@/lib/noNewWindows";
 
 // Components
 import App from "./App.vue";
@@ -39,5 +41,6 @@ if (polyfillCountryFlagEmojis("Twemoji Country Flags", flagFontUrl)) {
 const app = createApp(App);
 
 registerPlugins(app);
+preventNewWindows(router);
 
 app.mount("#app");
