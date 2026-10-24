@@ -77,7 +77,7 @@ func main() {
 			wailsruntime.WindowShow(ctx)
 			hideSplash()
 			// Off the startup path: nothing on screen depends on these.
-			go autoHideTaskbar()
+			go enterKiosk()
 			go registerAutostart()
 		},
 		OnShutdown: app.shutdown,
@@ -94,7 +94,7 @@ func main() {
 	}
 
 	err := wails.Run(appOptions)
-	restoreTaskbar()
+	leaveKiosk()
 	if err != nil {
 		println("Error:", err.Error())
 	}

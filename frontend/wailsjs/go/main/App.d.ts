@@ -358,6 +358,8 @@ export function RequestLoanUploadLink(arg1:string):Promise<string>;
 
 export function RequestUnknownItemHelp(arg1:string):Promise<void>;
 
+export function RestartComputer():Promise<void>;
+
 export function ResyncAll(arg1:main.ResyncOptions):Promise<main.ResyncReport>;
 
 export function RollBackAppUpdate():Promise<void>;
@@ -459,6 +461,8 @@ export function SetUnknownProductBarcode(arg1:string):Promise<void>;
 export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
 
 export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<string, any>>;
+
+export function ShutDownComputer():Promise<void>;
 
 export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Promise<void>;
 
