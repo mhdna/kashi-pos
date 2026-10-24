@@ -149,6 +149,7 @@
         :per-unit-prices-enabled="perUnitItemPricesEnabled"
         :price-change-mode="priceChangeMode"
         :keyboard-mode="invoiceKeyboardModeEnabled"
+        :deal-lines="quote?.lines ?? []"
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
       />
@@ -415,6 +416,7 @@ import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
 import ClientButton from "@/components/ClientButton.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
+import type { DealLine } from "@/lib/deals";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import NoteButton from "@/components/NoteButton.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
@@ -544,6 +546,9 @@ interface InvoiceQuote {
   // value the backend floors the total at 0 and checkout stays blocked -
   // this is what lets the UI explain why instead of just showing $0.00.
   exchangeShortfallCents?: number;
+  // The priced lines, for the deals they carry (free units, the saving):
+  // InvoiceItems marks them on the cart lines.
+  lines?: DealLine[];
 }
 const quote = ref<InvoiceQuote | null>(null);
 // A failed quote must never render as $0.00 - with a zero total the
@@ -714,6 +719,7 @@ async function refreshQuote() {
     quote.value = {
       grandTotalCents: Number(result.grandTotalCents),
       unroundedCents: Number(result.discountedSubtotalCents) + Number(result.taxCents),
+      lines: result.lines ?? [],
     };
   } catch (e) {
     if (token !== quoteRequestToken) return;

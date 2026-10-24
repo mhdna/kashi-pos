@@ -312,6 +312,10 @@ export namespace main {
 	    barcode: string;
 	    lineTotalCents: number;
 	    discountCents: number;
+	    qty: number;
+	    deal?: string;
+	    dealDiscountCents?: number;
+	    free?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new LineQuote(source);
@@ -323,6 +327,10 @@ export namespace main {
 	        this.barcode = source["barcode"];
 	        this.lineTotalCents = source["lineTotalCents"];
 	        this.discountCents = source["discountCents"];
+	        this.qty = source["qty"];
+	        this.deal = source["deal"];
+	        this.dealDiscountCents = source["dealDiscountCents"];
+	        this.free = source["free"];
 	    }
 	}
 	export class InvoiceQuote {
