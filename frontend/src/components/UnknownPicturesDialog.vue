@@ -32,15 +32,19 @@
 
           <div class="flex-grow-1" style="min-width: 0">
             <v-list class="text-body-1">
-              <v-list-item v-for="(slot, index) in slots" :key="slot.slotRef" :title="`#${index + 1} · ${slot.label}`">
+              <v-list-item
+                v-for="(line, index) in lines"
+                :key="line.key"
+                :title="`#${index + 1} · ${line.label}${line.units > 1 ? ` × ${line.units}` : ''}`"
+              >
                 <template #append>
-                  <v-icon v-if="slot.hasImage" color="success" icon="mdi-check-circle" />
-                  <span v-else-if="slot.waived" class="text-caption text-success">allowed by a manager</span>
+                  <v-icon v-if="line.done && !line.waived" color="success" icon="mdi-check-circle" />
+                  <span v-else-if="line.done" class="text-caption text-success">allowed by a manager</span>
                   <v-icon v-else color="grey" icon="mdi-timer-sand" />
                 </template>
               </v-list-item>
             </v-list>
-            <div class="text-body-1 text-medium-emphasis">{{ doneCount }} of {{ slots.length }} ready</div>
+            <div class="text-body-1 text-medium-emphasis">{{ doneCount }} of {{ lines.length }} ready</div>
           </div>
         </div>
       </template>
@@ -67,11 +71,13 @@ import {
 
 // Held between "pay" and the payment itself when the cart has unknown items:
 // opens a picture session on kashi, shows the phone's QR code, and closes
-// the moment every unit has a picture -- or a kashi manager lets it through.
+// the moment every line has a picture -- or a kashi manager lets it through.
 // Polls fast (a second) so the cashier never waits longer than the phone does.
 
-type Unit = { label: string; unitPriceCents: number; discount: number };
-type Slot = { slotRef: string; label: string; hasImage: boolean; waived: boolean; done: boolean };
+type Unit = { label: string; unitPriceCents: number; discount: number; lineRef: string };
+type Slot = { slotRef: string; lineRef?: string; label: string; hasImage: boolean; waived: boolean; done: boolean };
+// One cart line: kashi takes one picture for all its units.
+type Line = { key: string; label: string; units: number; done: boolean; waived: boolean };
 
 const props = defineProps<{ modelValue: boolean; units: Unit[] }>();
 const emit = defineEmits<{
@@ -89,7 +95,23 @@ const helpAsked = ref(false);
 let clientRef = "";
 let session = 0;
 
-const doneCount = computed(() => slots.value.filter((slot) => slot.done).length);
+// A kashi that knows no lines sends no lineRef: each unit is then its own line.
+const lines = computed(() => {
+  const byKey = new Map<string, Line>();
+  for (const slot of slots.value) {
+    const key = slot.lineRef || `unit:${slot.slotRef}`;
+    const line = byKey.get(key);
+    if (line) {
+      line.units++;
+      line.done &&= slot.done;
+      line.waived &&= slot.waived && !slot.hasImage;
+    } else {
+      byKey.set(key, { key, label: slot.label, units: 1, done: slot.done, waived: slot.waived && !slot.hasImage });
+    }
+  }
+  return [...byKey.values()];
+});
+const doneCount = computed(() => lines.value.filter((line) => line.done).length);
 
 // Each status call is held by kashi until a unit finishes (or a few seconds
 // pass), so the loop asks again straight away; a dropped call waits a moment.
