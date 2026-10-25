@@ -470,8 +470,6 @@ export function SetTheme(arg1:string):Promise<void>;
 
 export function SetUnknownProductBarcode(arg1:string):Promise<void>;
 
-export function SetUpCashMachine():Promise<main.CashMachineSetup>;
-
 export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
 
 export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<string, any>>;
@@ -479,6 +477,8 @@ export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<st
 export function ShutDownComputer():Promise<void>;
 
 export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function StartCashMachineSetup():Promise<void>;
 
 export function StartUnknownItemSession(arg1:string):Promise<Record<string, any>>;
 

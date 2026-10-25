@@ -69,6 +69,9 @@ export namespace main {
 	    closedPrograms: CashMachineCount[];
 	    startupOff: string[];
 	    lastSetup?: CashMachineSetup;
+	    setupRunning: boolean;
+	    // Go type: time
+	    setupStarted?: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new CashMachineStatus(source);
@@ -81,6 +84,8 @@ export namespace main {
 	        this.closedPrograms = this.convertValues(source["closedPrograms"], CashMachineCount);
 	        this.startupOff = source["startupOff"];
 	        this.lastSetup = this.convertValues(source["lastSetup"], CashMachineSetup);
+	        this.setupRunning = source["setupRunning"];
+	        this.setupStarted = this.convertValues(source["setupStarted"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

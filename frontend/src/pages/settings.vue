@@ -194,6 +194,9 @@
                   </v-list-item>
                 </v-list>
               </template>
+              <p v-if="cashMachine.setupRunning && cashMachine.setupStarted" class="text-caption mb-0">
+                Running since {{ new Date(cashMachine.setupStarted).toLocaleTimeString() }}…
+              </p>
               <div class="d-flex justify-end">
                 <v-btn variant="text" color="primary" :loading="cashMachineRunning" @click="cashMachineConfirm = true">
                   <v-icon start icon="mdi-cash-register" /> Make this a cash machine
@@ -1724,7 +1727,7 @@
             <li>Notifications, tips and ads are off; the computer never sleeps.</li>
             <li>Windows Update only restarts outside 7:00-23:00, never during working hours.</li>
           </ul>
-          <p>Removed apps don't come back by themselves. It can take a few minutes; leave the till until it's done.</p>
+          <p>Removed apps don't come back by themselves. It takes a few minutes and runs in the background.</p>
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="cashMachineConfirm = false">Cancel</v-btn>
@@ -1960,7 +1963,7 @@ import {
   SetQuickAccessColor,
   ExportQuickAccessCSV,
   GetCashMachineStatus,
-  SetUpCashMachine,
+  StartCashMachineSetup,
 } from "../../wailsjs/go/main/App";
 import { EventsOn, WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import type { main } from "../../wailsjs/go/models";
@@ -2733,7 +2736,10 @@ async function chooseDatabase() {
 
 const cashMachine = ref<main.CashMachineStatus | null>(null);
 const cashMachineConfirm = ref(false);
-const cashMachineRunning = ref(false);
+// The setup runs in the background (StartCashMachineSetup), so whether it's
+// running comes from the till, not this page: leave and come back and the
+// spinner is still there. CashMachineToast says when it's done.
+const cashMachineRunning = computed(() => cashMachine.value?.setupRunning ?? false);
 
 async function loadCashMachine() {
   try {
@@ -2743,18 +2749,17 @@ async function loadCashMachine() {
 
 async function setUpCashMachine() {
   cashMachineConfirm.value = false;
-  cashMachineRunning.value = true;
   try {
-    const setup = await SetUpCashMachine();
-    const failed = setup.steps.filter((s) => !s.ok).length;
-    notify(failed ? `Done, ${failed} step(s) didn't work; see Cash machine` : "This till is now a cash machine", failed ? "warning" : "success");
+    await StartCashMachineSetup();
+    notify("Making this a cash machine. Approve Windows' prompt; you can keep using the till.", "info");
   } catch (error) {
     notify(error instanceof Error ? error.message : String(error), "red");
-  } finally {
-    cashMachineRunning.value = false;
-    await loadCashMachine();
   }
+  await loadCashMachine();
 }
+
+const stopCashMachineListener = EventsOn("cash_machine_setup_done", () => void loadCashMachine());
+onBeforeUnmount(stopCashMachineListener);
 
 async function loadBranches() {
   try {

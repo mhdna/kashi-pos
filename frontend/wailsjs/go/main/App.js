@@ -938,10 +938,6 @@ export function SetUnknownProductBarcode(arg1) {
   return window['go']['main']['App']['SetUnknownProductBarcode'](arg1);
 }
 
-export function SetUpCashMachine() {
-  return window['go']['main']['App']['SetUpCashMachine']();
-}
-
 export function SetVisitorCounterEnabled(arg1) {
   return window['go']['main']['App']['SetVisitorCounterEnabled'](arg1);
 }
@@ -956,6 +952,10 @@ export function ShutDownComputer() {
 
 export function SkipShiftReceiptUpload(arg1, arg2, arg3) {
   return window['go']['main']['App']['SkipShiftReceiptUpload'](arg1, arg2, arg3);
+}
+
+export function StartCashMachineSetup() {
+  return window['go']['main']['App']['StartCashMachineSetup']();
 }
 
 export function StartUnknownItemSession(arg1) {

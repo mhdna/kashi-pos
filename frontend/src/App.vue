@@ -71,6 +71,7 @@
     <router-view v-else />
     <AttendanceToast />
     <WhatsAppToast />
+    <CashMachineToast />
     <AppUpdateBanner />
     <ClockWarning />
   </v-app>
@@ -84,6 +85,7 @@ import { animationsEnabled, isCompactBuild, startDisplayPrefsSync } from "@/lib/
 import { EventsOn, WindowReloadApp } from "../wailsjs/runtime/runtime";
 import AttendanceToast from "@/components/AttendanceToast.vue";
 import WhatsAppToast from "@/components/WhatsAppToast.vue";
+import CashMachineToast from "@/components/CashMachineToast.vue";
 import AppUpdateBanner from "@/components/AppUpdateBanner.vue";
 import ClockWarning from "@/components/ClockWarning.vue";
 

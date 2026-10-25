@@ -32,6 +32,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // cashMachineKeepWords keep any program or startup entry whose path or name
@@ -157,6 +159,10 @@ type CashMachineStatus struct {
 	StartupOff []string `json:"startupOff"`
 	// LastSetup is the last "Make this a cash machine", if any.
 	LastSetup *CashMachineSetup `json:"lastSetup,omitempty"`
+	// SetupRunning: "Make this a cash machine" is running now, since
+	// SetupStarted.
+	SetupRunning bool       `json:"setupRunning"`
+	SetupStarted *time.Time `json:"setupStarted,omitempty"`
 }
 
 type CashMachineCount struct {
@@ -174,6 +180,8 @@ var cashMachine struct {
 	on         bool
 	closed     map[string]int
 	startupOff []string
+	// setupStarted is when the running setup started; zero when none is.
+	setupStarted time.Time
 }
 
 func noteClosedProgram(name string) {
@@ -193,6 +201,11 @@ func (a *App) GetCashMachineStatus() CashMachineStatus {
 		On:             cashMachine.on,
 		ClosedPrograms: []CashMachineCount{},
 		StartupOff:     append([]string{}, cashMachine.startupOff...),
+		SetupRunning:   !cashMachine.setupStarted.IsZero(),
+	}
+	if s.SetupRunning {
+		started := cashMachine.setupStarted
+		s.SetupStarted = &started
 	}
 	for name, n := range cashMachine.closed {
 		s.ClosedPrograms = append(s.ClosedPrograms, CashMachineCount{Name: name, Count: n})
@@ -203,21 +216,38 @@ func (a *App) GetCashMachineStatus() CashMachineStatus {
 	return s
 }
 
-// SetUpCashMachine is "Make this a cash machine": the user's part here, then
-// the computer's part in a copy of GB Cloud run as administrator, which
-// Windows asks approval for.
-func (a *App) SetUpCashMachine() (CashMachineSetup, error) {
+// StartCashMachineSetup starts "Make this a cash machine" in the
+// background and returns at once, so the till can be used meanwhile: the
+// user's part here, then the computer's part in a copy of GB Cloud run as
+// administrator, which Windows asks approval for. It can take minutes;
+// "cash_machine_setup_done" carries the result when it's over, whichever
+// page is open.
+func (a *App) StartCashMachineSetup() error {
 	if !cashMachineSupported || isDevMode {
-		return CashMachineSetup{}, errors.New("only on a till running Windows, not from a development build")
+		return errors.New("only on a till running Windows, not from a development build")
 	}
-	steps := setUpCashMachineForUser()
-	machine, err := setUpCashMachineAsAdmin()
-	if err != nil {
-		steps = append(steps, CashMachineStep{Name: "Computer settings (administrator)", Detail: err.Error()})
+	cashMachine.mu.Lock()
+	if !cashMachine.setupStarted.IsZero() {
+		cashMachine.mu.Unlock()
+		return errors.New("this till is already being made a cash machine")
 	}
-	setup := CashMachineSetup{At: time.Now(), Steps: append(steps, machine...)}
-	saveCashMachineSetup(setup)
-	return setup, nil
+	cashMachine.setupStarted = time.Now()
+	cashMachine.mu.Unlock()
+
+	go func() {
+		steps := setUpCashMachineForUser()
+		machine, err := setUpCashMachineAsAdmin()
+		if err != nil {
+			steps = append(steps, CashMachineStep{Name: "Computer settings (administrator)", Detail: err.Error()})
+		}
+		setup := CashMachineSetup{At: time.Now(), Steps: append(steps, machine...)}
+		saveCashMachineSetup(setup)
+		cashMachine.mu.Lock()
+		cashMachine.setupStarted = time.Time{}
+		cashMachine.mu.Unlock()
+		wailsruntime.EventsEmit(a.ctx, "cash_machine_setup_done", setup)
+	}()
+	return nil
 }
 
 func cashMachineSetupPath() (string, error) {
