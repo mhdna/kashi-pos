@@ -765,22 +765,19 @@ function addItem(item: LineItem) {
   // target - scanning the same product as a replacement must add a
   // separate, editable line rather than incrementing the locked line's qty
   // (which would silently net a -1 return back toward 0).
-  // Unknown items merge only at the same price: a different price is its own line.
-  const existing = items.value.find(
-    (i) =>
-      !i.locked &&
-      ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)) &&
-      // A summer and a winter unit of one barcode are discounted
-      // differently, so each option is its own line.
-      (i.saleOption ?? "") === (item.saleOption ?? "") &&
-      (!isUnknownItem(i) || Number(i.price) === Number(item.price)),
-  );
-  if (existing && isUnknownItem(existing)) {
-    ensureUnitPrices(existing);
-    existing.unitPrices?.push(Number(item.price));
-    existing.unitDiscounts?.push(0);
-    existing.qty++;
-  } else if (existing) {
+  // Each unknown item added is its own line, even at the same price as
+  // another: a line is one item, pictured once whatever its qty.
+  const existing = isUnknownItem(item)
+    ? undefined
+    : items.value.find(
+        (i) =>
+          !i.locked &&
+          ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)) &&
+          // A summer and a winter unit of one barcode are discounted
+          // differently, so each option is its own line.
+          (i.saleOption ?? "") === (item.saleOption ?? ""),
+      );
+  if (existing) {
     ensureUnitPrices(existing);
     existing.unitPrices?.push(existing.price);
     existing.unitDiscounts?.push(existing.discount);

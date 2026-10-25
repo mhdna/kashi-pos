@@ -1207,7 +1207,7 @@ const isUnknownItem = (item: any) => item?.barcode === unknownProductBarcode.val
 const unknownPrice = reactive({ show: false });
 const unknownPictures = reactive<{
   show: boolean;
-  units: { label: string; unitPriceCents: number; discount: number }[];
+  units: { label: string; unitPriceCents: number; discount: number; lineRef: string }[];
 }>({ show: false, units: [] });
 let unknownPicturesAnswer: ((ready: boolean) => void) | null = null;
 // The cart (one unit per picture) the last finished session was opened for.
@@ -1224,16 +1224,21 @@ async function onUnknownAdd(price: number) {
   focusBarcode();
 }
 
+// One unit per piece sold, tagged with its cart line: kashi takes one picture
+// per line, whatever its qty.
 function unknownUnits() {
-  const units: { label: string; unitPriceCents: number; discount: number }[] = [];
+  const units: { label: string; unitPriceCents: number; discount: number; lineRef: string }[] = [];
+  let line = 0;
   for (const item of invoiceItems.value?.items ?? []) {
     if (!isUnknownItem(item) || !(item.qty > 0)) continue;
+    line++;
     for (let i = 0; i < item.qty; i++) {
       const price = Number(item.unitPrices?.[i] ?? item.price);
       units.push({
         label: `Unknown item $${price.toFixed(2)}`,
         unitPriceCents: Math.round(price * 100),
         discount: Math.trunc(Number(item.unitDiscounts?.[i] ?? item.discount ?? 0)),
+        lineRef: String(line),
       });
     }
   }

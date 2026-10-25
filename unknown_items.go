@@ -20,11 +20,11 @@ import (
 
 // "Unknown item": something a customer wants that has no code here. The
 // cashier rings it up as the placeholder product below at the price they
-// type; before payment, a phone takes a picture of every unit (the QR link
-// kashi hands back), the pictures go straight to kashi, and the sale is held
-// only until each unit has one -- or a kashi user with the right permission
-// lets it through. Afterwards someone in kashi names what each picture was
-// (see api/unknown_items.go in the kashi repo).
+// type; before payment, a phone takes a picture of every line, whatever its
+// qty (the QR link kashi hands back), the pictures go straight to kashi, and
+// the sale is held only until each unit has one -- or a kashi user with the
+// right permission lets it through. Afterwards someone in kashi names what
+// each picture was (see api/unknown_items.go in the kashi repo).
 
 const (
 	// defaultUnknownBarcode is the built-in placeholder's barcode, used while
@@ -173,6 +173,8 @@ type unknownSlotInput struct {
 	Label          string `json:"label"`
 	UnitPriceCents int64  `json:"unitPriceCents"`
 	Discount       int64  `json:"discount"`
+	// The cart line the unit is on; kashi takes one picture per line.
+	LineRef string `json:"lineRef"`
 }
 
 type unknownSessionResponse struct {
@@ -180,6 +182,7 @@ type unknownSessionResponse struct {
 	Complete    bool   `json:"complete"`
 	Slots       []struct {
 		SlotRef  string `json:"slot_ref"`
+		LineRef  string `json:"line_ref"`
 		Label    string `json:"label"`
 		HasImage bool   `json:"has_image"`
 		Waived   bool   `json:"waived"`
@@ -200,7 +203,7 @@ func unknownSessionResult(clientRef, uploadURL string, resp unknownSessionRespon
 	slots := make([]map[string]any, 0, len(resp.Slots))
 	for _, slot := range resp.Slots {
 		slots = append(slots, map[string]any{
-			"slotRef": slot.SlotRef, "label": slot.Label,
+			"slotRef": slot.SlotRef, "lineRef": slot.LineRef, "label": slot.Label,
 			"hasImage": slot.HasImage, "waived": slot.Waived, "done": slot.HasImage || slot.Waived,
 		})
 	}
@@ -208,7 +211,7 @@ func unknownSessionResult(clientRef, uploadURL string, resp unknownSessionRespon
 }
 
 // StartUnknownItemSession opens the picture session of the cart being paid:
-// one slot per unit. It returns the link the phone's QR code carries. The
+// one slot per unit, one picture per cart line. It returns the link the phone's QR code carries. The
 // session is remembered so CheckoutInvoice can tie the sale to it.
 func (a *App) StartUnknownItemSession(slotsJSON string) (map[string]any, error) {
 	var slots []unknownSlotInput
@@ -220,6 +223,7 @@ func (a *App) StartUnknownItemSession(slotsJSON string) (map[string]any, error) 
 		Label     string `json:"label"`
 		UnitPrice int64  `json:"unit_price"`
 		Discount  int64  `json:"discount"`
+		LineRef   string `json:"line_ref"`
 	}
 	body := struct {
 		ClientRef string     `json:"client_ref"`
@@ -228,6 +232,7 @@ func (a *App) StartUnknownItemSession(slotsJSON string) (map[string]any, error) 
 	for i, slot := range slots {
 		body.Slots = append(body.Slots, slotBody{
 			SlotRef: strconv.Itoa(i + 1), Label: slot.Label, UnitPrice: slot.UnitPriceCents, Discount: slot.Discount,
+			LineRef: slot.LineRef,
 		})
 	}
 	var resp unknownSessionResponse
