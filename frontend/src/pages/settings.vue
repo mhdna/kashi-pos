@@ -1849,7 +1849,7 @@
             <li>Startup apps, third-party scheduled tasks and background services are switched off.</li>
             <li>Apps a till doesn't use are removed: OneDrive, Teams, Xbox, Copilot, widgets, news, games and the like.</li>
             <li>Notifications, tips and ads are off; the computer never sleeps.</li>
-            <li>Windows Update only restarts outside 7:00-1:00.</li>
+            <li>Windows Update only restarts outside 7:00-23:00, never during working hours.</li>
           </ul>
           <p>Removed apps don't come back by themselves. It can take a few minutes; leave the till until it's done.</p>
         </v-card-text>
