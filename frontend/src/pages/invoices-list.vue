@@ -5,7 +5,7 @@
       class="invoices-table"
       :headers="headers"
       :items="items"
-      :loading="loading"
+      :loading="loading && !replacingRows"
       height="100%"
       :item-height="52"
       fixed-header
@@ -343,6 +343,15 @@
   </div>
 </template>
 
+<script lang="ts">
+// The unfiltered list's first page as it was last shown, kept for as long
+// as the app runs: opening the page paints it at once and the fresh page
+// replaces it in place, instead of an empty table and a loading bar.
+const pageCache: { firstPage: { items: any[]; total: number; endReached: boolean } | null } = {
+  firstPage: null,
+};
+</script>
+
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from "vue";
 import { useRouter } from "vue-router";
@@ -403,12 +412,15 @@ const filterableHeaders: {
   { headerKey: "createdAt", filterKey: "date", placeholder: "Date, e.g. 2026-08-21" },
   { headerKey: "grandTotal", filterKey: "total", placeholder: "Amount, e.g. 25.00" },
 ];
-let endReached = false;
-const loadedIds = new Set<number>();
-const items = shallowRef<any[]>([]),
-  totalItems = ref(0),
+const cachedPage = pageCache.firstPage;
+let endReached = cachedPage?.endReached ?? false;
+const loadedIds = new Set<number>(cachedPage?.items.map((item) => item.id));
+const items = shallowRef<any[]>(cachedPage?.items ?? []),
+  totalItems = ref(cachedPage?.total ?? 0),
   loading = ref(false),
-  initialized = ref(false);
+  initialized = ref(Boolean(cachedPage)),
+  // The rows on screen stay until the first fresh page replaces them.
+  replacingRows = ref(false);
 const hasMore = computed(
   () => !initialized.value || (!endReached && items.value.length < totalItems.value),
 );
@@ -617,7 +629,7 @@ async function cancelSelected() {
     notifyIncomeChanged();
     cancelOpen.value = false;
     notify("Invoice cancelled");
-    await refresh();
+    await refresh(true);
   } catch (e: any) {
     notify(e?.toString() || "Could not cancel invoice", "error");
   } finally {
@@ -642,7 +654,7 @@ async function roundSelected() {
     notifyIncomeChanged();
     roundingOpen.value = false;
     notify("Invoice rounding fixed");
-    await refresh();
+    await refresh(true);
   } catch (e: any) {
     notify(e?.toString() || "Could not fix invoice rounding", "error");
   } finally {
@@ -657,7 +669,7 @@ async function deleteSelected() {
     notifyIncomeChanged();
     deleteOpen.value = false;
     notify("Invoice deleted");
-    await refresh();
+    await refresh(true);
   } catch (e: any) {
     notify(e?.toString() || "Could not delete invoice", "error");
   } finally {
@@ -673,7 +685,7 @@ async function saveChange() {
     else await ChangeInvoiceSalesperson(changeInvoice.value.id, changeValue.value || 0);
     changeOpen.value = false;
     notify("Invoice updated");
-    await refresh();
+    await refresh(true);
   } catch (e: any) {
     notify(e?.toString() || "Could not update invoice", "error");
   } finally {
@@ -689,7 +701,7 @@ let pageActive = true;
 // Keyset cursor: id of the last invoice we've loaded. 0 asks for the first
 // page. Each fetch is an indexed `id < cursor` seek, so scrolling deep
 // stays as cheap as the first page (no OFFSET re-scan).
-let nextCursor = 0;
+let nextCursor = cachedPage?.items.at(-1)?.id ?? 0;
 let loadGeneration = 0;
 let activeLoad: Promise<void> | null = null;
 let scrollFrame: number | null = null;
@@ -711,7 +723,8 @@ function loadMore(): Promise<void> {
         loadedIds.add(item.id);
         return true;
       });
-      items.value = [...items.value, ...newItems];
+      items.value = replacingRows.value ? newItems : [...items.value, ...newItems];
+      replacingRows.value = false;
       // The backend only counts on the first page (cursor 0) and returns
       // total = -1 ("unchanged") thereafter, so infinite scroll never
       // re-runs COUNT(*) over the whole filtered set.
@@ -719,9 +732,13 @@ function loadMore(): Promise<void> {
       initialized.value = true;
       endReached = pageItems.length < PAGE_SIZE;
       if (pageItems.length > 0) nextCursor = pageItems[pageItems.length - 1].id;
+      if (cursor === 0 && !Object.values(filters).some(Boolean)) {
+        pageCache.firstPage = { items: items.value, total: totalItems.value, endReached };
+      }
     } catch (error: any) {
       if (!pageActive || generation !== loadGeneration) return;
       initialized.value = true;
+      replacingRows.value = false;
       notify(error?.toString() || "Could not load invoices", "error");
     }
   })().finally(() => {
@@ -743,16 +760,22 @@ function onTableScroll(event: Event) {
   });
 }
 
-async function refresh() {
+// keepRows leaves what's on screen up until the first fresh page replaces
+// it - for coming back to the page and for edits to a row. A filter change
+// clears the table instead, as the old rows no longer match it.
+async function refresh(keepRows = false) {
   const previousLoad = activeLoad;
   loadGeneration++;
-  items.value = [];
-  totalItems.value = 0;
-  initialized.value = false;
+  replacingRows.value = keepRows && items.value.length > 0;
+  if (!replacingRows.value) {
+    items.value = [];
+    totalItems.value = 0;
+    initialized.value = false;
+    invoicesTable.value?.scrollToIndex(0);
+  }
   endReached = false;
   loadedIds.clear();
   nextCursor = 0;
-  invoicesTable.value?.scrollToIndex(0);
   if (previousLoad) await previousLoad;
   if (pageActive) await loadMore();
 }
@@ -825,7 +848,7 @@ function ensureEditOptions(type: "client" | "salesperson"): Promise<void> {
 let stopSyncStateListener: (() => void) | null = null;
 
 onMounted(() => {
-  void refresh();
+  void refresh(true);
   stopSyncStateListener = EventsOn("sync_state_changed", () => void refreshSyncStates());
 });
 

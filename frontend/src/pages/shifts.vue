@@ -45,6 +45,38 @@
   </div>
 </template>
 
+<script lang="ts">
+import type { Balance, DayRow, IncomeRow, PaymentMethod, Shift } from "@/types/shifts";
+
+type BranchTarget = {
+  id: number;
+  dateFrom: string;
+  dateTo: string;
+  targetAmountCents: number;
+  achievedCents: number;
+  color: string;
+};
+
+// What the page last showed, kept for as long as the app runs. Coming back
+// to the page paints it at once and refresh() swaps the fresh numbers in
+// behind it, so the loading bars only show on the very first visit (or for
+// a month that hasn't been loaded yet).
+type LastView = {
+  month: string;
+  openShift: Shift | null;
+  closeBalances: Balance[];
+  todayIncome: IncomeRow[];
+  allShifts: Shift[];
+  deferredCouponTotal: number;
+  branchTargets: BranchTarget[];
+  visitorCounts: Record<string, number>;
+  paymentMethods: PaymentMethod[];
+  openingFloatEnabled: boolean;
+  nonAdminMonthNavEnabled: boolean;
+};
+const pageCache: { lastView: LastView | null } = { lastView: null };
+</script>
+
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import {
@@ -64,23 +96,27 @@ import { EventsOn } from "../../wailsjs/runtime/runtime";
 import MonthlyIncomeCard from "@/components/shifts/MonthlyIncomeCard.vue";
 import ShiftIncomeCard from "@/components/shifts/ShiftIncomeCard.vue";
 import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
-import type { Balance, DayRow, IncomeRow, PaymentMethod, Shift } from "@/types/shifts";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import { useAuthStore } from "@/stores/auth";
 import { serverDateLocalDayKey } from "@/lib/datetime";
 const auth = useAuthStore();
+const lastView = pageCache.lastView;
 const { enabled: visitorCounterEnabled, count: visitorCounterToday } = useVisitorCounter();
-const paymentMethods = ref<PaymentMethod[]>([]);
-const openingFloatEnabled = ref(true);
-const deferredCouponTotal = ref(0);
-const nonAdminMonthNavEnabled = ref(false);
+const paymentMethods = ref<PaymentMethod[]>(lastView?.paymentMethods ?? []);
+const openingFloatEnabled = ref(lastView?.openingFloatEnabled ?? true);
+const deferredCouponTotal = ref(lastView?.deferredCouponTotal ?? 0);
+const nonAdminMonthNavEnabled = ref(lastView?.nonAdminMonthNavEnabled ?? false);
 const canChangeMonth = computed(() => auth.isAdmin || nonAdminMonthNavEnabled.value);
 // Keyed "DD/MM/YYYY" to match the day keys MonthlyIncomeCard renders.
-const visitorCounts = ref<Record<string, number>>({});
+const visitorCounts = ref<Record<string, number>>(lastView?.visitorCounts ?? {});
 
-const openShift = ref<Shift | null>(null);
-const allShifts = ref<Shift[]>([]);
-const currentMonth = ref("");
+const openShift = ref<Shift | null>(lastView?.openShift ?? null);
+const allShifts = ref<Shift[]>(lastView?.allShifts ?? []);
+const currentMonth = ref(lastView?.month ?? "");
+// The month allShifts and friends belong to; a refresh for any other month
+// shows the loading bar instead of the wrong month's rows.
+let loadedMonth = lastView?.month ?? "";
+let refreshGeneration = 0;
 const thisMonthKey = `${new Date().getFullYear()}-${pad(new Date().getMonth() + 1)}`;
 
 function stepMonth(delta: number) {
@@ -93,8 +129,8 @@ function stepMonth(delta: number) {
   currentMonth.value = next;
   void refresh();
 }
-const loadingShift = ref(true);
-const loadingMonth = ref(true);
+const loadingShift = ref(!lastView);
+const loadingMonth = ref(!lastView);
 const printingShiftId = ref<number | null>(null);
 
 const balanceCache = reactive<Record<number, Balance[]>>({});
@@ -217,11 +253,9 @@ async function loadBalances(shiftId: number) {
   }
 }
 
-const closeBalances = ref<Balance[]>([]);
-const todayIncome = ref<IncomeRow[]>([]);
-const branchTargets = ref<
-  { id: number; dateFrom: string; dateTo: string; targetAmountCents: number; achievedCents: number; color: string }[]
->([]);
+const closeBalances = ref<Balance[]>(lastView?.closeBalances ?? []);
+const todayIncome = ref<IncomeRow[]>(lastView?.todayIncome ?? []);
+const branchTargets = ref<BranchTarget[]>(lastView?.branchTargets ?? []);
 
 // Only surface targets that cover the selected month — either they sit
 // entirely within it, or their date range spills across it.
@@ -237,68 +271,94 @@ const visibleTargets = computed(() => {
   });
 });
 
+// Every call goes out at once - they're independent, and one after another
+// they added up to a visible wait on every visit. Only a month with nothing
+// on screen yet gets the loading bars; anything else (a sale, a sync push,
+// coming back to the page) swaps the new numbers in where they stand.
 async function refresh() {
-  loadingShift.value = true;
-  loadingMonth.value = true;
+  const generation = ++refreshGeneration;
+  const month = currentMonth.value;
+  if (month !== loadedMonth) loadingMonth.value = true;
 
-  try {
-    openShift.value = (await GetOpenShift()) as Shift | null;
-    if (openShift.value?.id) {
-      closeBalances.value = ((await ListShiftBalances(openShift.value.id)) as Balance[]) ?? [];
-    } else {
-      closeBalances.value = [];
-    }
-  } catch {
-    openShift.value = null;
-    closeBalances.value = [];
-  }
+  const [shiftState, income, shifts, excluded, expandedBalances, targets, visitors] = await Promise.all([
+    GetOpenShift()
+      .then(async (shift) => {
+        const open = shift as Shift | null;
+        const balances = open?.id ? (((await ListShiftBalances(open.id)) as Balance[]) ?? []) : [];
+        return { open, balances };
+      })
+      .catch(() => ({ open: null, balances: [] as Balance[] })),
+    GetCurrentShiftIncomeByAccount()
+      .then((rows) => ((rows as IncomeRow[]) ?? []))
+      .catch(() => [] as IncomeRow[]),
+    GetShiftTotals(month)
+      .then((rows) =>
+        (((rows as Shift[]) ?? [])).map((shift) => ({
+          ...shift,
+          total: Number.isFinite(Number(shift.total)) ? Number(shift.total) : 0,
+        })),
+      )
+      .catch(() => [] as Shift[]),
+    GetDeferredCouponTotalByMonth(month)
+      .then((total) => (Number.isFinite(Number(total)) ? Number(total) : 0))
+      .catch(() => 0),
+    Promise.all(
+      [...shiftExpanded].map(async (shiftId) => {
+        try {
+          return [shiftId, ((await ListShiftBalances(shiftId)) as Balance[]) ?? []] as const;
+        } catch {
+          return [shiftId, [] as Balance[]] as const;
+        }
+      }),
+    ),
+    ListBranchTargetsWithProgress()
+      .then((rows) => ((rows ?? []) as BranchTarget[]))
+      .catch(() => [] as BranchTarget[]),
+    GetVisitorCountsForMonth(month)
+      .then((byIsoDay) => {
+        const remapped: Record<string, number> = {};
+        for (const [isoDay, value] of Object.entries((byIsoDay ?? {}) as Record<string, number>)) {
+          const [year, mm, day] = isoDay.split("-");
+          if (year && mm && day) remapped[`${day}/${mm}/${year}`] = value;
+        }
+        return remapped;
+      })
+      .catch(() => ({}) as Record<string, number>),
+  ]);
 
-  try {
-    todayIncome.value = ((await GetCurrentShiftIncomeByAccount()) as IncomeRow[]) ?? [];
-  } catch {
-    todayIncome.value = [];
-  }
+  // A newer refresh (say, the month stepped again) already owns the page.
+  if (generation !== refreshGeneration) return;
 
-  try {
-    const shifts = ((await GetShiftTotals(currentMonth.value)) as Shift[]) ?? [];
-    allShifts.value = shifts.map((shift) => ({
-      ...shift,
-      total: Number.isFinite(Number(shift.total)) ? Number(shift.total) : 0,
-    }));
-  } catch {
-    allShifts.value = [];
-  }
-
-  try {
-    const excluded = await GetDeferredCouponTotalByMonth(currentMonth.value);
-    deferredCouponTotal.value = Number.isFinite(Number(excluded)) ? Number(excluded) : 0;
-  } catch {
-    deferredCouponTotal.value = 0;
-  }
-
+  openShift.value = shiftState.open;
+  closeBalances.value = shiftState.balances;
+  todayIncome.value = income;
+  allShifts.value = shifts;
+  deferredCouponTotal.value = excluded;
   for (const shiftId of Object.keys(balanceCache)) delete balanceCache[Number(shiftId)];
-  await Promise.all([...shiftExpanded].map(loadBalances));
-
-  try {
-    branchTargets.value = ((await ListBranchTargetsWithProgress()) ?? []) as typeof branchTargets.value;
-  } catch {
-    branchTargets.value = [];
-  }
-
-  try {
-    const byIsoDay = ((await GetVisitorCountsForMonth(currentMonth.value)) ?? {}) as Record<string, number>;
-    const remapped: Record<string, number> = {};
-    for (const [isoDay, value] of Object.entries(byIsoDay)) {
-      const [year, month, day] = isoDay.split("-");
-      if (year && month && day) remapped[`${day}/${month}/${year}`] = value;
-    }
-    visitorCounts.value = remapped;
-  } catch {
-    visitorCounts.value = {};
-  }
+  for (const [shiftId, balances] of expandedBalances) balanceCache[shiftId] = balances;
+  branchTargets.value = targets;
+  visitorCounts.value = visitors;
+  loadedMonth = month;
 
   loadingShift.value = false;
   loadingMonth.value = false;
+  saveView();
+}
+
+function saveView() {
+  pageCache.lastView = {
+    month: loadedMonth,
+    openShift: openShift.value,
+    closeBalances: closeBalances.value,
+    todayIncome: todayIncome.value,
+    allShifts: allShifts.value,
+    deferredCouponTotal: deferredCouponTotal.value,
+    branchTargets: branchTargets.value,
+    visitorCounts: visitorCounts.value,
+    paymentMethods: paymentMethods.value,
+    openingFloatEnabled: openingFloatEnabled.value,
+    nonAdminMonthNavEnabled: nonAdminMonthNavEnabled.value,
+  };
 }
 
 function refreshIncome() {
@@ -312,6 +372,8 @@ function refreshIncome() {
 // kashi-pos's sync_pull.go.
 let stopSyncListeners: (() => void)[] = [];
 
+if (currentMonth.value === thisMonthKey) expandedDays.value = [currentDay.value];
+
 onMounted(async () => {
   window.addEventListener(INCOME_CHANGED_EVENT, refreshIncome);
   stopSyncListeners = [
@@ -321,25 +383,33 @@ onMounted(async () => {
     // kashi's replace_shift_balance command (commands.go).
     EventsOn("sync_applied:shift_balances", refreshIncome),
   ];
-  try {
-    paymentMethods.value = ((await ListPaymentMethods()) as PaymentMethod[]).filter(
-      (method) => !/^(on account|on coupon)$/i.test(method.name.trim()),
-    );
-  } catch {
-    paymentMethods.value = [];
-  }
-  try {
-    const settings = await GetAppSettings();
-    openingFloatEnabled.value = settings?.openingFloatEnabled !== false;
-    nonAdminMonthNavEnabled.value = Boolean(settings?.nonAdminMonthNavEnabled);
-  } catch {}
+  // Payment methods and settings don't feed the numbers, so they load
+  // alongside them; only the month has to be known before refresh().
+  const loadSetup = Promise.all([
+    ListPaymentMethods()
+      .then((methods) => {
+        paymentMethods.value = (methods as PaymentMethod[]).filter(
+          (method) => !/^(on account|on coupon)$/i.test(method.name.trim()),
+        );
+      })
+      .catch(() => {
+        paymentMethods.value = [];
+      }),
+    GetAppSettings()
+      .then((settings) => {
+        openingFloatEnabled.value = settings?.openingFloatEnabled !== false;
+        nonAdminMonthNavEnabled.value = Boolean(settings?.nonAdminMonthNavEnabled);
+      })
+      .catch(() => {}),
+  ]);
   try {
     currentMonth.value = await GetCurrentMonth();
   } catch {}
-  if (currentMonth.value === `${new Date().getFullYear()}-${pad(new Date().getMonth() + 1)}`) {
+  if (currentMonth.value === thisMonthKey && !expandedDays.value.length) {
     expandedDays.value = [currentDay.value];
   }
-  await refresh();
+  await Promise.all([loadSetup, refresh()]);
+  saveView();
 });
 
 onBeforeUnmount(() => {

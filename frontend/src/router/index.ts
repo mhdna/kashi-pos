@@ -7,6 +7,7 @@ import { createRouter, createWebHashHistory } from "vue-router";
 
 const loadHome = () => import("@/pages/home.vue");
 const loadInvoicesList = () => import("@/pages/invoices-list.vue");
+const loadShifts = () => import("@/pages/shifts.vue");
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -79,7 +80,7 @@ const router = createRouter({
           meta: { lockable: "clients" },
         },
         // { path: 'attendance', component: () => import('@/pages/attendance.vue') },
-        { path: "shifts", component: () => import("@/pages/shifts.vue") },
+        { path: "shifts", component: loadShifts },
       ],
     },
     {
@@ -90,10 +91,12 @@ const router = createRouter({
 });
 
 // Fetched while the login screen is up, so signing in doesn't then wait on
-// the checkout page, the biggest chunk.
+// the checkout page, the biggest chunk - nor the first click on Invoices
+// or Balance.
 router.isReady().then(() => {
   void loadHome().catch(() => undefined);
   void loadInvoicesList().catch(() => undefined);
+  void loadShifts().catch(() => undefined);
 });
 
 router.beforeEach(async (to, from) => {
