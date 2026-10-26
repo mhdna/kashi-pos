@@ -23,6 +23,21 @@ Other numbers from the dashboard that day: 2 disconnects, 0 refused by WhatsApp,
 sends, 1 stuck on one tick. So WhatsApp did not refuse any single send. It flagged the
 pattern, then killed the session.
 
+### Screenshots
+
+The sender dashboard after WhatsApp logged the device out (paused, `loggedOut` 401, 79 sent
+against a usual 28.2):
+
+![Sender dashboard paused](images/whatsapp-dashboard-paused.png)
+
+The banner on the phone:
+
+![Account is restricted banner](images/whatsapp-restricted-banner.png)
+
+The details screen, with the countdown and the reason (automated or bulk messaging):
+
+![Restriction details](images/whatsapp-restricted-details.png)
+
 ## Diagnosis
 
 - The **promo blast was the trigger, not the polls.** Polls ran fine for a long time at normal
