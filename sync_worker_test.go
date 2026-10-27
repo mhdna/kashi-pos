@@ -95,6 +95,63 @@ func TestSyncWorkerRetriesWithBackoffOnFailure(t *testing.T) {
 	}
 }
 
+// A kashi whose database is down answers its branch auth check with 401.
+// That says nothing about the rows, so they must stay pending, not be
+// parked as 'failed' until someone runs "sync everything".
+func TestSyncWorkerRetriesOnUnauthorized(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"dial tcp: connection refused"}`))
+	}))
+	defer server.Close()
+
+	app, store, cashbox, client := setUpTestInvoiceApp(t, server.URL)
+
+	items, _ := json.Marshal([]map[string]any{{"code": "SKU-1", "qty": 1}})
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 100}})
+	if _, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: string(items), PaymentsJSON: string(payments), ClientID: client.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := app.runSyncOutboxOnce(app.ctx, newCentralClient(server.URL, "TEST01", "test-key")); err != nil {
+		t.Fatal(err)
+	}
+
+	failed, err := store.CountSyncOutboxByStatus(app.ctx, "failed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if failed != 0 {
+		t.Fatalf("expected no rows parked as failed on a 401, got %d", failed)
+	}
+	if count, _ := store.CountPendingSyncOutbox(app.ctx); count != 2 {
+		t.Fatalf("expected both entries (invoice + client) still pending, got %d", count)
+	}
+}
+
+func TestIsRowRejection(t *testing.T) {
+	cases := []struct {
+		entity string
+		status int
+		want   bool
+	}{
+		{"sales_invoice", http.StatusBadRequest, true},
+		{"sales_invoice", http.StatusUnauthorized, false},
+		{"sales_invoice", http.StatusForbidden, false},
+		{"sales_invoice", http.StatusNotFound, true},
+		{"expense_cancel", http.StatusNotFound, false},
+		{"loan_cancel", http.StatusNotFound, false},
+		{"expense_from_central", http.StatusNotFound, false},
+		{"expense_cancel", http.StatusBadRequest, true},
+	}
+	for _, c := range cases {
+		err := &permanentError{status: c.status, msg: "x"}
+		if got := isRowRejection(c.entity, err); got != c.want {
+			t.Errorf("isRowRejection(%q, %d) = %v, want %v", c.entity, c.status, got, c.want)
+		}
+	}
+}
+
 func TestSyncWorkerNoopWhenNotConfigured(t *testing.T) {
 	app, _, cashbox, client := setUpTestInvoiceApp(t, "")
 

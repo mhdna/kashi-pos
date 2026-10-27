@@ -614,15 +614,41 @@ func (a *App) drainVisitorEventBatch(ctx context.Context, client *centralClient,
 
 // recordSyncOutboxError routes a failed push to the right terminal state: a
 // permanent rejection (4xx bar 408/429, see isPermanentSyncError) goes
-// straight to 'failed'; anything else -- offline, timeout, 5xx -- goes back
-// on the exponential-backoff retry path.
+// straight to 'failed'; anything else -- offline, timeout, 5xx, or a 4xx
+// that isn't about the row (see isRowRejection) -- goes back on the
+// exponential-backoff retry path.
 func (a *App) recordSyncOutboxError(ctx context.Context, entry db.SyncOutbox, postErr error) {
-	if isPermanentSyncError(postErr) {
+	if isPermanentSyncError(postErr) && isRowRejection(entry.EntityType, postErr) {
 		log.Printf("sync outbox entry %d: %v (permanent, marking failed)", entry.ID, postErr)
 		a.markSyncOutboxFailed(ctx, entry, postErr)
 		return
 	}
 	a.markSyncOutboxRetry(ctx, entry, postErr)
+}
+
+// isRowRejection reports whether a permanent (4xx) error is kashi rejecting
+// this row itself, as opposed to:
+//   - 401/403: the register's credentials, or a kashi whose database was
+//     down while it checked them -- nothing about the row, so parking it
+//     would strand every sale rung up while the server was sick;
+//   - 404 on a row that targets another record by client_ref: kashi answers
+//     404 until that record (an expense, a loan) has arrived, and expects
+//     the till to retry.
+func isRowRejection(entityType string, err error) bool {
+	var pe *permanentError
+	if !errors.As(err, &pe) {
+		return false
+	}
+	switch pe.status {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return false
+	case http.StatusNotFound:
+		switch entityType {
+		case "expense_cancel", "loan_cancel", "expense_from_central":
+			return false
+		}
+	}
+	return true
 }
 
 // markSyncOutboxFailed parks a row in the terminal 'failed' state. Only an
