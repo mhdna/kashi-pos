@@ -934,6 +934,10 @@ export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
+export function SetUnknownPicturesAtCheckout(arg1) {
+  return window['go']['main']['App']['SetUnknownPicturesAtCheckout'](arg1);
+}
+
 export function SetUnknownProductBarcode(arg1) {
   return window['go']['main']['App']['SetUnknownProductBarcode'](arg1);
 }
@@ -976,6 +980,10 @@ export function SwitchShiftReceiptToLocal(arg1) {
 
 export function SyncAttendance(arg1) {
   return window['go']['main']['App']['SyncAttendance'](arg1);
+}
+
+export function SyncUnknownItemSession(arg1, arg2) {
+  return window['go']['main']['App']['SyncUnknownItemSession'](arg1, arg2);
 }
 
 export function UnknownItemSessionStatus(arg1) {

@@ -65,7 +65,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import QRCode from "qrcode";
 import {
   RequestUnknownItemHelp,
-  StartUnknownItemSession,
+  SyncUnknownItemSession,
   UnknownItemSessionStatus,
 } from "../../wailsjs/go/main/App";
 
@@ -73,13 +73,16 @@ import {
 // opens a picture session on kashi, shows the phone's QR code, and closes
 // the moment every line has a picture -- or a kashi manager lets it through.
 // Polls fast (a second) so the cashier never waits longer than the phone does.
+// Given the clientRef of the session the sale screen's QR code already opened
+// (UnknownPicturesCorner), it carries on with that one: same QR code, and the
+// pictures already taken still count.
 
-type Unit = { label: string; unitPriceCents: number; discount: number; lineRef: string };
+type Unit = { label: string; unitPriceCents: number; discount: number; lineRef: string; slotRef?: string };
 type Slot = { slotRef: string; lineRef?: string; label: string; hasImage: boolean; waived: boolean; done: boolean };
 // One cart line: kashi takes one picture for all its units.
 type Line = { key: string; label: string; units: number; done: boolean; waived: boolean };
 
-const props = defineProps<{ modelValue: boolean; units: Unit[] }>();
+const props = defineProps<{ modelValue: boolean; units: Unit[]; clientRef?: string }>();
 const emit = defineEmits<{
   "update:modelValue": [open: boolean];
   ready: [];
@@ -149,7 +152,7 @@ async function start() {
   helpAsked.value = false;
   qrDataUrl.value = "";
   try {
-    const info = await StartUnknownItemSession(JSON.stringify(props.units));
+    const info = await SyncUnknownItemSession(props.clientRef ?? "", JSON.stringify(props.units));
     if (mine !== session) return;
     clientRef = info.clientRef;
     slots.value = info.slots ?? [];

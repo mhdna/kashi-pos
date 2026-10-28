@@ -10,6 +10,14 @@
             <div class="font-weight-bold">{{ pageModeTitle }}</div>
             <v-card-subtitle v-if="pageMode === 'sale' || pageMode === 'exchange'" class="pa-0">{{ invoiceCode }}</v-card-subtitle>
           </div>
+          <UnknownPicturesCorner
+            v-if="showUnknownCorner"
+            :client-ref="unknownSession.clientRef"
+            :paused="unknownPictures.show"
+            :units="unknownCartUnits"
+            @ready="unknownPicturesReadyFor = $event"
+            @session="unknownSession.clientRef = $event"
+          />
           <div class="d-flex flex-column align-end">
             <div class="d-flex align-center ga-2">
               <div
@@ -124,6 +132,7 @@
         <UnknownPicturesDialog
           v-if="unknownPictures.show"
           v-model="unknownPictures.show"
+          :client-ref="unknownPicturesAtCheckout ? '' : unknownSession.clientRef"
           :units="unknownPictures.units"
           @cancel="answerUnknownPictures(false)"
           @ready="answerUnknownPictures(true)"
@@ -427,6 +436,7 @@ import NoteButton from "@/components/NoteButton.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
+import UnknownPicturesCorner from "@/components/UnknownPicturesCorner.vue";
 import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import { quickAccessRows } from "@/lib/display";
@@ -836,6 +846,7 @@ function clearInvoice() {
   noteDraft.value = "";
   noteDialog.value = false;
   unknownPicturesReadyFor = "";
+  unknownSession.clientRef = "";
   clearDraft();
   resetClient();
 }
@@ -1212,18 +1223,29 @@ async function confirmPricesIfUnusual(): Promise<boolean> {
 const unknownProductBarcode = ref("UNKNOWN");
 const isUnknownItem = (item: any) => item?.barcode === unknownProductBarcode.value;
 const unknownPrice = reactive({ show: false });
-const unknownPictures = reactive<{
-  show: boolean;
-  units: { label: string; unitPriceCents: number; discount: number; lineRef: string }[];
-}>({ show: false, units: [] });
+type UnknownUnit = { label: string; unitPriceCents: number; discount: number; lineRef: string; slotRef: string };
+const unknownPictures = reactive<{ show: boolean; units: UnknownUnit[] }>({ show: false, units: [] });
 let unknownPicturesAnswer: ((ready: boolean) => void) | null = null;
 // The cart (one unit per picture) the last finished session was opened for.
 let unknownPicturesReadyFor = "";
+// Off (the default): the QR code shows on the sale screen as soon as an
+// unknown item is in the cart, so the phone takes pictures while the sale is
+// still being rung up. On: only once the cashier pays.
+const unknownPicturesAtCheckout = ref(false);
+// The session the sale screen's QR code opened for this cart.
+const unknownSession = reactive({ clientRef: "" });
+const unknownCartUnits = computed(() => unknownUnits());
+const showUnknownCorner = computed(
+  () => !unknownPicturesAtCheckout.value && pageMode.value !== "settlement" && unknownCartUnits.value.length > 0,
+);
 
 async function onUnknownAdd(price: number) {
   try {
     const product = await GetUnknownProduct();
-    invoiceItems.value?.addItem({ ...product, price, qty: 1, originalPrice: price } as any);
+    // unknownRef names the line to kashi, so its picture stays with it as
+    // other lines come and go while the phone is open.
+    const unknownRef = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    invoiceItems.value?.addItem({ ...product, price, qty: 1, originalPrice: price, unknownRef } as any);
     playClickSound();
   } catch (e: any) {
     showDiscountError(e?.toString() || "Couldn't add an unknown item");
@@ -1234,18 +1256,21 @@ async function onUnknownAdd(price: number) {
 // One unit per piece sold, tagged with its cart line: kashi takes one picture
 // per line, whatever its qty.
 function unknownUnits() {
-  const units: { label: string; unitPriceCents: number; discount: number; lineRef: string }[] = [];
+  const units: UnknownUnit[] = [];
   let line = 0;
   for (const item of invoiceItems.value?.items ?? []) {
     if (!isUnknownItem(item) || !(item.qty > 0)) continue;
     line++;
+    // A line from before unknownRef (an old draft or hold) goes by position.
+    const lineRef = String(item.unknownRef || line);
     for (let i = 0; i < item.qty; i++) {
       const price = Number(item.unitPrices?.[i] ?? item.price);
       units.push({
         label: `Unknown item $${price.toFixed(2)}`,
         unitPriceCents: Math.round(price * 100),
         discount: Math.trunc(Number(item.unitDiscounts?.[i] ?? item.discount ?? 0)),
-        lineRef: String(line),
+        lineRef,
+        slotRef: `${lineRef}:${i + 1}`,
       });
     }
   }
@@ -1542,6 +1567,7 @@ async function loadAppSettings() {
     discountToggleDefaultOff.value = Boolean(settings?.discountToggleDefaultOff);
     dealToggleEnabled.value = Boolean(settings?.dealToggleEnabled);
     unknownProductBarcode.value = String(settings?.unknownProductBarcode || "UNKNOWN");
+    unknownPicturesAtCheckout.value = Boolean(settings?.unknownPicturesAtCheckout);
     priceEditCodes.value = String(settings?.priceEditCodes ?? "")
       .split(",")
       .map((code) => code.trim().toLowerCase())
