@@ -316,9 +316,10 @@ func TestPushSettingsReportsDefaultOnFlagsAsOn(t *testing.T) {
 	}
 }
 
-// Rows an older build parked on a 401 (kashi's database down while it
-// checked the register) go back to pending; a real row rejection stays.
-func TestRequeueRetryableFailedSyncOutbox(t *testing.T) {
+// Every row parked as failed goes back to pending, keeping its reason:
+// one an older build parked on a 401, and a real rejection that kashi may
+// since have fixed.
+func TestRequeueFailedSyncOutbox(t *testing.T) {
 	app, store, cashbox, client := setUpTestInvoiceApp(t, "http://localhost:9999")
 	items, _ := json.Marshal([]map[string]any{{"code": "SKU-1", "qty": 1}})
 	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 100}})
@@ -339,14 +340,17 @@ func TestRequeueRetryableFailedSyncOutbox(t *testing.T) {
 		}
 	}
 
-	n, err := store.RequeueRetryableFailedSyncOutbox(app.ctx)
-	if err != nil {
-		t.Fatal(err)
+	app.retryFailedSyncOutbox()
+	if failed, _ := store.CountSyncOutboxByStatus(app.ctx, "failed"); failed != 0 {
+		t.Fatalf("failed = %d, want 0", failed)
 	}
-	if n != 1 {
-		t.Fatalf("re-armed %d rows, want 1", n)
+	due, err := store.ListDueSyncOutboxEntries(app.ctx, 10)
+	if err != nil || len(due) != 2 {
+		t.Fatalf("due = %d, %v", len(due), err)
 	}
-	if failed, _ := store.CountSyncOutboxByStatus(app.ctx, "failed"); failed != 1 {
-		t.Fatalf("failed = %d, want the 422 left", failed)
+	for _, e := range due {
+		if e.LastError == "" {
+			t.Fatalf("lost its reason: %+v", e)
+		}
 	}
 }

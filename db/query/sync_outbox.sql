@@ -155,15 +155,11 @@ UPDATE sync_outbox
 SET payload_json = json_set(payload_json, sqlc.arg(field_path), json(sqlc.arg(json_value)))
 WHERE client_ref = sqlc.arg(client_ref) AND status != 'synced';
 
--- name: RequeueRetryableFailedSyncOutbox :execrows
--- Puts back on the retry path rows parked as 'failed' by builds that parked
--- every 4xx: a 401/403 (the register's credentials, or a kashi whose
--- database was down while it checked them), and a 404 on a row that waits
--- for another record to arrive. Those say nothing about the row; see
--- isRowRejection. last_error stays, as the reason it's retrying.
+-- name: RequeueFailedSyncOutbox :execrows
+-- Gives every row parked as 'failed' another go (see retryFailedSyncOutbox):
+-- whatever kashi refused may since have been fixed on its side, and a row
+-- older builds parked on a 401/403 was never about the row at all.
+-- last_error stays, as the reason it's retrying.
 UPDATE sync_outbox
 SET status = 'pending', attempt_count = 0, next_attempt_at = datetime('now')
-WHERE status = 'failed'
-  AND (last_error LIKE '%(status 401)%'
-    OR last_error LIKE '%(status 403)%'
-    OR (last_error LIKE '%(status 404)%' AND entity_type IN ('expense_cancel', 'loan_cancel', 'expense_from_central')));
+WHERE status = 'failed';

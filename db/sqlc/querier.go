@@ -615,12 +615,11 @@ type Querier interface {
 	// one being kept, so the duplicate can then be removed with nothing
 	// pointing at it.
 	RepointInvoicesClient(ctx context.Context, arg RepointInvoicesClientParams) error
-	// Puts back on the retry path rows parked as 'failed' by builds that parked
-	// every 4xx: a 401/403 (the register's credentials, or a kashi whose
-	// database was down while it checked them), and a 404 on a row that waits
-	// for another record to arrive. Those say nothing about the row; see
-	// isRowRejection. last_error stays, as the reason it's retrying.
-	RequeueRetryableFailedSyncOutbox(ctx context.Context) (int64, error)
+	// Gives every row parked as 'failed' another go (see retryFailedSyncOutbox):
+	// whatever kashi refused may since have been fixed on its side, and a row
+	// older builds parked on a 401/403 was never about the row at all.
+	// last_error stays, as the reason it's retrying.
+	RequeueFailedSyncOutbox(ctx context.Context) (int64, error)
 	// Re-arms rows that a previous central server accepted (or that hard-failed)
 	// so a "sync everything" against a newly-pointed server re-pushes them.
 	// Live 'pending' rows and rows already confirmed on the current target are

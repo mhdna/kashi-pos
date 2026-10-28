@@ -348,22 +348,18 @@ func (q *Queries) RecordSyncOutboxNetworkError(ctx context.Context, arg RecordSy
 	return err
 }
 
-const requeueRetryableFailedSyncOutbox = `-- name: RequeueRetryableFailedSyncOutbox :execrows
+const requeueFailedSyncOutbox = `-- name: RequeueFailedSyncOutbox :execrows
 UPDATE sync_outbox
 SET status = 'pending', attempt_count = 0, next_attempt_at = datetime('now')
 WHERE status = 'failed'
-  AND (last_error LIKE '%(status 401)%'
-    OR last_error LIKE '%(status 403)%'
-    OR (last_error LIKE '%(status 404)%' AND entity_type IN ('expense_cancel', 'loan_cancel', 'expense_from_central')))
 `
 
-// Puts back on the retry path rows parked as 'failed' by builds that parked
-// every 4xx: a 401/403 (the register's credentials, or a kashi whose
-// database was down while it checked them), and a 404 on a row that waits
-// for another record to arrive. Those say nothing about the row; see
-// isRowRejection. last_error stays, as the reason it's retrying.
-func (q *Queries) RequeueRetryableFailedSyncOutbox(ctx context.Context) (int64, error) {
-	result, err := q.db.ExecContext(ctx, requeueRetryableFailedSyncOutbox)
+// Gives every row parked as 'failed' another go (see retryFailedSyncOutbox):
+// whatever kashi refused may since have been fixed on its side, and a row
+// older builds parked on a 401/403 was never about the row at all.
+// last_error stays, as the reason it's retrying.
+func (q *Queries) RequeueFailedSyncOutbox(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, requeueFailedSyncOutbox)
 	if err != nil {
 		return 0, err
 	}

@@ -43,13 +43,24 @@ func (a *App) startSyncWorker() {
 	a.syncWorkerStop = make(chan struct{})
 	a.syncWorkerKick = make(chan struct{}, 1)
 
-	// Builds before isRowRejection parked every 4xx, so a sale rung up while
-	// kashi's database was down sat as "Error" until a sync-everything.
-	if n, err := a.store.RequeueRetryableFailedSyncOutbox(a.ctx); err != nil {
-		log.Printf("sync outbox: re-arm rows parked on a retryable 4xx: %v", err)
-	} else if n > 0 {
-		log.Printf("sync outbox: re-armed %d row(s) parked on a retryable 4xx", n)
-	}
+	// A row kashi refused gets another go now and every hour, so the till
+	// catches up by itself once the cause is fixed on kashi's side -- no
+	// one has to run "sync everything" to clear the sync box.
+	a.retryFailedSyncOutbox()
+	a.backgroundWG.Add(1)
+	go func() {
+		defer a.backgroundWG.Done()
+		ticker := time.NewTicker(syncFailedRetryInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-a.syncWorkerStop:
+				return
+			case <-ticker.C:
+				a.retryFailedSyncOutbox()
+			}
+		}
+	}()
 
 	// Push loop (latency path): kick-driven, with a short ticker only as a
 	// backstop for a kick that was lost to the buffer-of-1 while a drain
@@ -86,6 +97,26 @@ func (a *App) startSyncWorker() {
 			}
 		}
 	}()
+}
+
+// syncFailedRetryInterval is how often rows kashi refused are tried again.
+// Rare and few, so an hour costs nothing; a row still refused is parked
+// again until the next round.
+const syncFailedRetryInterval = time.Hour
+
+// retryFailedSyncOutbox puts every 'failed' row back on the push path and
+// wakes the pusher. Builds before isRowRejection parked every 4xx,
+// including the 401 kashi gave while its database was starting.
+func (a *App) retryFailedSyncOutbox() {
+	n, err := a.store.RequeueFailedSyncOutbox(a.ctx)
+	if err != nil {
+		log.Printf("sync outbox: retry failed rows: %v", err)
+		return
+	}
+	if n > 0 {
+		log.Printf("sync outbox: retrying %d row(s) kashi refused before", n)
+		a.kickSyncWorker()
+	}
 }
 
 // kickSyncWorker wakes the sync worker immediately rather than leaving a
@@ -659,8 +690,8 @@ func isRowRejection(entityType string, err error) bool {
 	return true
 }
 
-// markSyncOutboxFailed parks a row in the terminal 'failed' state. Only an
-// explicit resync (see sync_backfill.go) re-arms it.
+// markSyncOutboxFailed parks a row in the 'failed' state until the hourly
+// retryFailedSyncOutbox (or a sync-everything) gives it another go.
 func (a *App) markSyncOutboxFailed(ctx context.Context, entry db.SyncOutbox, cause error) {
 	if err := retryBusy(func() error {
 		return a.store.MarkSyncOutboxFailed(ctx, db.MarkSyncOutboxFailedParams{
