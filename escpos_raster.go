@@ -184,10 +184,14 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	// snap, so tax has to come from the invoice rather than be inferred from
 	// the difference, and the leftover prints as rounding.
 	tax := float64(c.data.TaxCents) / 100
-	rounding := grandTotal - (subtotal - discountTotal) - tax
+	invoiceDisc := float64(c.data.InvoiceDiscount.Cents) / 100
+	rounding := grandTotal - (subtotal - discountTotal - invoiceDisc) - tax
 	rows := [][2]string{{"Subtotal", fmt.Sprintf("$%.2f", subtotal)}}
 	if discountTotal > 0 {
 		rows = append(rows, [2]string{"Discount", fmt.Sprintf("-$%.2f", discountTotal)})
+	}
+	if c.data.InvoiceDiscount.Cents > 0 {
+		rows = append(rows, [2]string{invoiceDiscountLabel(c.data.InvoiceDiscount), fmt.Sprintf("-$%.2f", invoiceDisc)})
 	}
 	if math.Abs(rounding) > 0.005 {
 		rows = append(rows, [2]string{"Rounding", fmt.Sprintf("$%.2f", rounding)})

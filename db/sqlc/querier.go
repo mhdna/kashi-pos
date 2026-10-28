@@ -195,6 +195,7 @@ type Querier interface {
 	DeleteInventoryItem(ctx context.Context, arg DeleteInventoryItemParams) error
 	DeleteInvoice(ctx context.Context, id int64) error
 	DeleteInvoiceClientRef(ctx context.Context, invoiceID int64) error
+	DeleteInvoiceDiscount(ctx context.Context, uid string) error
 	DeleteInvoicePaymentEntries(ctx context.Context, invoiceID int64) error
 	DeleteInvoicePayments(ctx context.Context, invoiceID int64) error
 	DeleteInvoiceProducts(ctx context.Context, invoiceID int64) error
@@ -477,6 +478,7 @@ type Querier interface {
 	ListInventoryItems(ctx context.Context, inventoryID int64) ([]InventoryItem, error)
 	ListInvoiceClientRefsMap(ctx context.Context) ([]InvoiceClientRef, error)
 	ListInvoiceDeals(ctx context.Context, invoiceID int64) ([]InvoiceDeal, error)
+	ListInvoiceDiscounts(ctx context.Context) ([]InvoiceDiscount, error)
 	ListInvoiceIncomeAccountTotalsByDate(ctx context.Context, invoiceIncomeDate string) ([]ListInvoiceIncomeAccountTotalsByDateRow, error)
 	ListInvoiceIncomeAccountTotalsByShift(ctx context.Context, invoiceIncomeShiftID int64) ([]ListInvoiceIncomeAccountTotalsByShiftRow, error)
 	// Like ListInvoiceIncomeAccountTotalsByShift, but also scoped to a single
@@ -643,6 +645,7 @@ type Querier interface {
 	SetFullMirrorConfirmedAt(ctx context.Context, fullMirrorConfirmedAt sql.NullString) error
 	SetHomeBranchCode(ctx context.Context, homeBranchCode string) error
 	SetIdentityAdoptedAt(ctx context.Context, identityAdoptedAt sql.NullString) error
+	SetInvoiceDiscount(ctx context.Context, arg SetInvoiceDiscountParams) error
 	SetInvoiceLBPTotal(ctx context.Context, arg SetInvoiceLBPTotalParams) error
 	SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
@@ -794,6 +797,7 @@ type Querier interface {
 	// only by central_id).
 	UpsertIncomingTransferRequest(ctx context.Context, arg UpsertIncomingTransferRequestParams) (TransferRequest, error)
 	UpsertInventoryItem(ctx context.Context, arg UpsertInventoryItemParams) error
+	UpsertInvoiceDiscount(ctx context.Context, arg UpsertInvoiceDiscountParams) error
 	UpsertInvoiceIndex(ctx context.Context, arg UpsertInvoiceIndexParams) error
 	// Matched by uid, never by name or id -- a till's ids are its own, and a list
 	// renamed centrally must stay the same list here.

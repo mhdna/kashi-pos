@@ -33,6 +33,9 @@ type pricedInvoiceProduct struct {
 	// (NoDeal) turned off: the percent, or the deal's short label.
 	offDiscount  int64
 	offDealLabel string
+	// The line's share of the sale's invoice discount (invoice_discounts.go);
+	// lineTotal already has it off.
+	invoiceDiscount int64
 }
 
 type unitPricing struct {

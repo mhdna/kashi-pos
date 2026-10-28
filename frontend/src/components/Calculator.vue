@@ -8,6 +8,7 @@
       :quote-error="quoteError"
       :exchange-shortfall-cents="exchangeShortfallCents"
       :rounded-from-text="roundedFromText"
+      :invoice-discount-text="invoiceDiscountText"
     />
 
     <v-card class="calculator-display pa-2 mb-3 mt-2" variant="outlined" rounded="lg">
@@ -168,6 +169,10 @@ const props = defineProps<{
   totalCents: number;
   // The total before the backend's cash rounding; see roundedFromText.
   unroundedCents?: number;
+  // kashi's invoice discount on this sale (invoice_discounts.go), already
+  // off totalCents; 0 for none.
+  invoiceDiscountCents?: number;
+  invoiceDiscountName?: string;
   // Set when the backend quote failed. totalCents is meaningless (0) in that
   // case, so the total is replaced by this message and checkout is blocked -
   // otherwise diffCents === 0 makes a pricing failure read as "Paid".
@@ -261,6 +266,11 @@ const roundedFromText = computed(() => {
   const unrounded = props.unroundedCents;
   if (unrounded == null || unrounded === totalCents.value) return "";
   return `Rounded from $${String(Number((unrounded / 100).toFixed(2)))}`;
+});
+const invoiceDiscountText = computed(() => {
+  const cents = props.invoiceDiscountCents ?? 0;
+  if (cents <= 0) return "";
+  return `${props.invoiceDiscountName || "Invoice discount"} −$${String(Number((cents / 100).toFixed(2)))}`;
 });
 const paidCents = computed(() => entries.value.reduce((sum, entry) => sum + entry.amountCents, 0));
 
