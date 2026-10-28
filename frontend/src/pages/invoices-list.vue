@@ -69,21 +69,27 @@
         </v-menu>
       </template>
       <template #item.syncState="{ item }">
-        <v-progress-circular
-          v-if="item.syncState === 'pending'"
-          indeterminate
-          size="12"
-          width="2"
-          color="warning"
-          :title="syncDotTitle(item)"
-        />
-        <v-icon
-          v-else
-          icon="mdi-circle"
-          size="10"
-          :color="syncDotColor(item.syncState)"
-          :title="syncDotTitle(item)"
-        />
+        <!-- A Vuetify tooltip, not a title attribute: the till's web view
+             shows no native tooltips. It opens on a tap too, for touch tills. -->
+        <v-tooltip :text="syncDotTitle(item)" location="end" open-on-click max-width="480">
+          <template #activator="{ props: tip }">
+            <span v-bind="tip" class="d-inline-flex pa-1" @click.stop>
+              <v-progress-circular
+                v-if="item.syncState === 'pending'"
+                indeterminate
+                size="12"
+                width="2"
+                color="warning"
+              />
+              <v-icon
+                v-else
+                icon="mdi-circle"
+                size="10"
+                :color="syncDotColor(item.syncState)"
+              />
+            </span>
+          </template>
+        </v-tooltip>
       </template>
       <template #item.invoiceCode="{ item }">
         <span class="font-weight-bold invoice-code">
