@@ -27,6 +27,9 @@ type printReceiptData struct {
 	PrinterName      string
 	GrandTotalCents  int64
 	TaxCents         int64
+	// The sale's invoice discount: a row of its own, apart from the item
+	// discounts (Items are priced before it).
+	InvoiceDiscount invoiceDiscount
 	Payments         []receiptPayment
 	RoundingCurrency receiptCurrency
 	RoundingMode     string

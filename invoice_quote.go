@@ -18,6 +18,10 @@ type InvoiceQuote struct {
 	RoundingCurrencyCode    string      `json:"roundingCurrencyCode"`
 	RoundingMode            string      `json:"roundingMode"`
 	Lines                   []LineQuote `json:"lines"`
+	// The sale's invoice discount (invoice_discounts.go), already off
+	// DiscountedSubtotalCents; the lines are shown before it.
+	InvoiceDiscountCents int64  `json:"invoiceDiscountCents,omitempty"`
+	InvoiceDiscountName  string `json:"invoiceDiscountName,omitempty"`
 }
 
 // LineQuote is the priced breakdown for one cart line, replacing the
@@ -71,7 +75,7 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 		lines = append(lines, LineQuote{
 			Code:              product.product.Code,
 			Barcode:           product.product.Barcode,
-			LineTotalCents:    product.lineTotal,
+			LineTotalCents:    product.lineTotal + product.invoiceDiscount,
 			DiscountCents:     product.discount,
 			Qty:               product.qty,
 			Deal:              product.dealName,
@@ -91,6 +95,8 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 		RoundingCurrencyCode:    roundingCurrency.Code,
 		RoundingMode:            pricing.RoundingMode,
 		Lines:                   lines,
+		InvoiceDiscountCents:    totals.InvoiceDiscount.Cents,
+		InvoiceDiscountName:     totals.InvoiceDiscount.Name,
 	}
 	return quote, nil
 }

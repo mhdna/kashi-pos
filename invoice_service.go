@@ -269,7 +269,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 			response["receiptError"] = currErr.Error()
 			return response, nil
 		}
-		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.Notes, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.TaxCents, result.Payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0); err != nil {
+		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.Notes, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.TaxCents, result.Payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0, result.InvoiceDiscount); err != nil {
 			response["receiptError"] = err.Error()
 		} else {
 			response["receiptPrinted"] = true
@@ -388,6 +388,8 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			// deal_discount is signed like quantity on a returned line.
 			"deal":         dealNameByUID[line.DealUid],
 			"dealDiscount": float64(absInt64(line.DealDiscount)) / 100,
+			// The line's share of the invoice discount; lineTotal has it off.
+			"invoiceDiscount": float64(line.InvoiceDiscount) / 100,
 			// Free: the deal took each unit's whole price (on a returned
 			// line too, whose credit may carry swap credit).
 			"free": line.DealDiscount != 0 && absInt64(line.DealDiscount) == line.UnitPrice*absInt64(line.Quantity),
@@ -422,6 +424,7 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 		"id": inv.ID, "invoiceCode": inv.InvoiceCode, "clientId": inv.ClientID, "clientName": clientName, "clientPhone": clientPhone,
 		"salespersonId": inv.SalespersonID, "salespersonName": salespersonName, "cashboxId": inv.CashboxID,
 		"subtotal": inv.Subtotal, "discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
+		"invoiceDiscount": inv.InvoiceDiscount, "invoiceDiscountName": inv.InvoiceDiscountName,
 		"loyaltyPointsEarned": loyaltyPointsEarned,
 		"createdAt":           inv.CreatedAt, "notes": inv.Notes, "items": items, "payments": paymentList,
 	}, nil
@@ -843,10 +846,13 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 		// what it came to: on an exchange it carries a free unit's swap
 		// credit or a deal charged back, which no percent says.
 		gross := item.Price * item.Qty
-		changed := math.Abs(gross*(1-item.Discount/100)-raw["lineTotal"].(float64)) >= 0.005
+		// The invoice discount prints as its own row, so the line is
+		// judged before its share of it.
+		lineTotal := raw["lineTotal"].(float64) + raw["invoiceDiscount"].(float64)
+		changed := math.Abs(gross*(1-item.Discount/100)-lineTotal) >= 0.005
 		if deal := raw["deal"].(string); deal != "" && (raw["dealDiscount"].(float64) > 0 || changed) {
 			item.Deal, item.Free = deal, raw["free"].(bool)
-			item.DealDiscount = gross - raw["lineTotal"].(float64)
+			item.DealDiscount = gross - lineTotal
 			if gross != 0 {
 				item.Discount = item.DealDiscount * 100 / gross
 			}
@@ -880,10 +886,11 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	if marketName == "" {
 		marketName = "Market"
 	}
-	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), details["clientName"].(string), details["notes"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, grandTotal, taxCents, payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0)
+	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), details["clientName"].(string), details["notes"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, grandTotal, taxCents, payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0,
+		invoiceDiscount{Name: details["invoiceDiscountName"].(string), Cents: details["invoiceDiscount"].(int64)})
 }
 
-func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, registerName, salesperson, customer, notes, receiptNo, printerName string, grandTotalCents, taxCents int64, payments []checkoutPayment, roundingCurrency db.Currency, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram string, socialPlatforms []string, socialHandles map[string]string, font, bodyFont string, titleSize, bodySize float64, cutoff bool) error {
+func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, registerName, salesperson, customer, notes, receiptNo, printerName string, grandTotalCents, taxCents int64, payments []checkoutPayment, roundingCurrency db.Currency, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram string, socialPlatforms []string, socialHandles map[string]string, font, bodyFont string, titleSize, bodySize float64, cutoff bool, invoiceDisc invoiceDiscount) error {
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")
 	}
@@ -946,6 +953,7 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 		RoundingMode:     roundingMode,
 		ReceiptWidth:     receiptWidth,
 		ReceiptHeight:    receiptHeight,
+		InvoiceDiscount:  invoiceDisc,
 	})
 }
 
