@@ -315,3 +315,38 @@ func TestPushSettingsReportsDefaultOnFlagsAsOn(t *testing.T) {
 			got.SearchButtonEnabled, got.ClientRequired, got.ScanByCodeEnabled)
 	}
 }
+
+// Rows an older build parked on a 401 (kashi's database down while it
+// checked the register) go back to pending; a real row rejection stays.
+func TestRequeueRetryableFailedSyncOutbox(t *testing.T) {
+	app, store, cashbox, client := setUpTestInvoiceApp(t, "http://localhost:9999")
+	items, _ := json.Marshal([]map[string]any{{"code": "SKU-1", "qty": 1}})
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 100}})
+	if _, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: string(items), PaymentsJSON: string(payments), ClientID: client.ID}); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := store.ListDueSyncOutboxEntries(app.ctx, 10)
+	if err != nil || len(entries) != 2 {
+		t.Fatalf("entries = %d, %v", len(entries), err)
+	}
+	reasons := []string{
+		"POST /branch/sales_invoices failed (status 401): pq: the database system is not yet accepting connections (57P03)",
+		"POST /branch/clients failed (status 422): phone is invalid",
+	}
+	for i, e := range entries {
+		if err := store.MarkSyncOutboxFailed(app.ctx, db.MarkSyncOutboxFailedParams{LastError: reasons[i], ID: e.ID}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	n, err := store.RequeueRetryableFailedSyncOutbox(app.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("re-armed %d rows, want 1", n)
+	}
+	if failed, _ := store.CountSyncOutboxByStatus(app.ctx, "failed"); failed != 1 {
+		t.Fatalf("failed = %d, want the 422 left", failed)
+	}
+}

@@ -43,6 +43,14 @@ func (a *App) startSyncWorker() {
 	a.syncWorkerStop = make(chan struct{})
 	a.syncWorkerKick = make(chan struct{}, 1)
 
+	// Builds before isRowRejection parked every 4xx, so a sale rung up while
+	// kashi's database was down sat as "Error" until a sync-everything.
+	if n, err := a.store.RequeueRetryableFailedSyncOutbox(a.ctx); err != nil {
+		log.Printf("sync outbox: re-arm rows parked on a retryable 4xx: %v", err)
+	} else if n > 0 {
+		log.Printf("sync outbox: re-armed %d row(s) parked on a retryable 4xx", n)
+	}
+
 	// Push loop (latency path): kick-driven, with a short ticker only as a
 	// backstop for a kick that was lost to the buffer-of-1 while a drain
 	// was already running.
