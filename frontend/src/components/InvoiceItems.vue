@@ -421,6 +421,9 @@ interface LineItem {
   // asks one; it decides the line's list discount. See home.vue
   // addProductToCart.
   saleOption?: string;
+  // An unknown item line's own id, so its picture follows it (home.vue
+  // unknownUnits).
+  unknownRef?: string;
   saleOptions?: { name: string; discount: number; discountListName?: string }[];
   // The catalog/list price captured when the line was added, before any
   // manual edit. Used as the fixed reference point in "discount" price

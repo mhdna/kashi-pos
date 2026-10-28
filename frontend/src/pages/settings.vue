@@ -766,6 +766,16 @@
                 variant="outlined"
                 @blur="saveUnknownProductBarcode"
               />
+              <v-select
+                :model-value="form.unknownPicturesAtCheckout"
+                :items="unknownPicturesModeOptions"
+                class="mt-3"
+                density="compact"
+                hide-details
+                label="Unknown item pictures QR code"
+                variant="outlined"
+                @update:model-value="setUnknownPicturesAtCheckout"
+              />
             </v-card-text>
           </v-card>
 
@@ -1895,6 +1905,7 @@ import {
   SetProductSearchEnabled,
   SetScanByCodeEnabled,
   SetProductSearchCodeOnly,
+  SetUnknownPicturesAtCheckout,
   SetPriceEditRestricted,
   SetDiscountToggleEnabled,
   SetDiscountToggleDefaultOff,
@@ -2099,7 +2110,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-scan-by-code": { tab: "behaviour", title: "Product code in scan field", keywords: "barcode scan code sku variant type enter" },
   "behavior-search-code-only": { tab: "behaviour", title: "Code-only product search", keywords: "product search code only hide names barcode lookup" },
   "behavior-stock": { tab: "behaviour", title: "Selling beyond stock", keywords: "oversell stock allow warn block sell more than in stock negative" },
-  "behavior-search-columns": { tab: "behaviour", title: "Product search & unknown item", keywords: "product search hide columns code name brand color size price unknown item barcode placeholder" },
+  "behavior-search-columns": { tab: "behaviour", title: "Product search & unknown item", keywords: "product search hide columns code name brand color size price unknown item barcode placeholder pictures qr phone checkout" },
   "behavior-discount-toggle": { tab: "behaviour", title: "Turn discounts or deals off at the till", keywords: "discount deal toggle turn off on remove salesperson default off b2g1 percent" },
   "behavior-price-edit-codes": { tab: "behaviour", title: "Price edits by code", keywords: "price discount manual edit restrict allow only selected codes products" },
   "behavior-sounds": { tab: "display", title: "Sounds", keywords: "sound audio beep chime click mute volume quiet silent" },
@@ -2238,6 +2249,7 @@ const form = reactive({
   oversellMode: "allow",
   productSearchHiddenFields: [] as string[],
   unknownProductBarcode: "",
+  unknownPicturesAtCheckout: false,
   soundsEnabled: false,
   visitorCounterEnabled: false,
   clientRequired: true,
@@ -2681,6 +2693,7 @@ async function loadSettings() {
         oversellMode: String(s.oversellMode || "allow"),
         productSearchHiddenFields: String(s.productSearchHiddenFields ?? "").split(",").filter(Boolean),
         unknownProductBarcode: String(s.unknownProductBarcode ?? ""),
+        unknownPicturesAtCheckout: Boolean(s.unknownPicturesAtCheckout),
         soundsEnabled: s.soundsEnabled === true,
         visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
@@ -3088,6 +3101,23 @@ async function saveProductSearchHiddenFields(value: string[]) {
   } catch {
     notify("Failed to save the product search columns", "red");
     await loadSettings();
+  }
+}
+
+const unknownPicturesModeOptions = [
+  { title: "Right after adding an unknown item", value: false },
+  { title: "At checkout", value: true },
+];
+
+async function setUnknownPicturesAtCheckout(value: boolean) {
+  const previous = form.unknownPicturesAtCheckout;
+  form.unknownPicturesAtCheckout = value;
+  try {
+    await SetUnknownPicturesAtCheckout(value);
+    notify(value ? "Unknown item QR code shows at checkout" : "Unknown item QR code shows right after adding one");
+  } catch {
+    form.unknownPicturesAtCheckout = previous;
+    notify("Failed to save the unknown item pictures setting", "red");
   }
 }
 
