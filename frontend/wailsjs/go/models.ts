@@ -482,6 +482,8 @@ export namespace main {
 	    roundingCurrencyCode: string;
 	    roundingMode: string;
 	    lines: LineQuote[];
+	    invoiceDiscountCents?: number;
+	    invoiceDiscountName?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new InvoiceQuote(source);
@@ -496,6 +498,8 @@ export namespace main {
 	        this.roundingCurrencyCode = source["roundingCurrencyCode"];
 	        this.roundingMode = source["roundingMode"];
 	        this.lines = this.convertValues(source["lines"], LineQuote);
+	        this.invoiceDiscountCents = source["invoiceDiscountCents"];
+	        this.invoiceDiscountName = source["invoiceDiscountName"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

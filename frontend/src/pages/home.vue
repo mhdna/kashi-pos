@@ -212,6 +212,8 @@
           ref="calculator"
           :total-cents="quote?.grandTotalCents ?? 0"
           :unrounded-cents="quote?.unroundedCents"
+          :invoice-discount-cents="quote?.invoiceDiscountCents ?? 0"
+          :invoice-discount-name="quote?.invoiceDiscountName ?? ''"
           :exchange-shortfall-cents="quote?.exchangeShortfallCents ?? 0"
           :quote-error="quoteError"
           :items-json="cartItemsJson"
@@ -558,6 +560,9 @@ interface InvoiceQuote {
   // The priced lines, for the deals they carry (free units, the saving):
   // InvoiceItems marks them on the cart lines.
   lines?: DealLine[];
+  // kashi's whole-sale discount, already off grandTotalCents.
+  invoiceDiscountCents?: number;
+  invoiceDiscountName?: string;
 }
 const quote = ref<InvoiceQuote | null>(null);
 // A failed quote must never render as $0.00 - with a zero total the
@@ -729,6 +734,8 @@ async function refreshQuote() {
       grandTotalCents: Number(result.grandTotalCents),
       unroundedCents: Number(result.discountedSubtotalCents) + Number(result.taxCents),
       lines: result.lines ?? [],
+      invoiceDiscountCents: Number(result.invoiceDiscountCents ?? 0),
+      invoiceDiscountName: result.invoiceDiscountName ?? "",
     };
   } catch (e) {
     if (token !== quoteRequestToken) return;

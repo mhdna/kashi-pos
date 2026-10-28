@@ -40,6 +40,10 @@
           <span v-if="remainingAmount.second" class="calculator-amounts-plus" aria-hidden="true">+</span>
           <span v-if="remainingAmount.second" :class="statusColor">{{ remainingAmount.second }}</span>
         </div>
+        <!-- kashi's whole-sale discount, already off the total above. -->
+        <span v-if="invoiceDiscountText" class="calculator-amounts-invoice-discount" :title="invoiceDiscountText">
+          {{ invoiceDiscountText }}
+        </span>
         <!-- What it was rounded from is in the tooltip; the pill just says so. -->
         <span
           v-if="roundedFromText || isRounded"
@@ -69,6 +73,8 @@ const props = defineProps<{
   exchangeShortfallCents?: number;
   // "Rounded from $5.6" when the backend rounded the total for cash.
   roundedFromText?: string;
+  // "15% over $150 −$42": the sale's invoice discount, when it gets one.
+  invoiceDiscountText?: string;
   remainingAmount: {
     // The two halves of the split, in display order -- which currency each
     // holds is per-branch config (see splitAmount in Calculator.vue).
@@ -145,6 +151,22 @@ function flipCurrency() {
   border-radius: 999px;
   /* A tint of the status colour (green/red...) behind text in that colour. */
   background: color-mix(in srgb, currentColor 16%, transparent);
+  font-size: var(--kashi-font-size-xs, 0.6875rem);
+  font-weight: 600;
+  line-height: 1;
+}
+.calculator-amounts-invoice-discount {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(46, 125, 50, 0.14);
+  color: #2e7d32;
   font-size: var(--kashi-font-size-xs, 0.6875rem);
   font-weight: 600;
   line-height: 1;
