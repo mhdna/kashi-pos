@@ -192,7 +192,9 @@ const syncState = computed(() => {
   if (!st || !st.configured)
     return { tone: 'off', icon: 'mdi-cloud-off-outline', word: 'Off', title: 'Sync not set up' };
   if (st.failed > 0)
-    return { tone: 'error', icon: 'mdi-alert-circle', word: 'Error', title: `${st.failed} record(s) rejected by kashi` };
+    // Amber and "Check", not red "Error": the sales are safe on the till,
+    // kashi just hasn't taken them yet.
+    return { tone: 'attention', icon: 'mdi-cloud-alert-outline', word: 'Check', title: `${st.failed} record(s) kashi didn't accept yet; they're safe on this till` };
   if (st.pending > 0 || st.confirmedElsewhere > 0)
     return {
       tone: 'busy',
@@ -347,8 +349,8 @@ const items = computed(() => {
 .sync-status--busy {
   color: #ffb74d;
 }
-.sync-status--error {
-  color: #ef5350;
+.sync-status--attention {
+  color: #ffd54f;
 }
 .sync-status--off {
   color: #9e9e9e;
