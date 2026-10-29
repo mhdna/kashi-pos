@@ -294,38 +294,20 @@ let refreshing = false;
 // side has already synced, so we don't pull the door-log again. quiet is for
 // the minute timer and the background events: no loading bar, the rows just
 // swap in place, so the page doesn't jump while someone reads it.
+//
+// What's already imported shows first; the door-log pull (up to 15s against
+// a machine that doesn't answer) comes after and only swaps in what's new.
+// It's skipped while the live probe already says the machine is down.
 async function refresh(syncDevice = true, quiet = false) {
   if (quiet && refreshing) return;
   refreshing = true;
   if (!quiet) loading.value = true;
   try {
-    if (syncDevice) syncStatus.value = await SyncAttendance(selectedDate.value);
-    const [events, employees] = await Promise.all([ListAttendance(selectedDate.value), ListSalespersons()]);
-    const configured = employees.filter((u: any) => u.attendanceUserId);
-    const byId = new Map(configured.map((u: any) => [u.id, u]));
-    const grouped = new Map<number, any>();
-    configured.forEach((u: any) =>
-      grouped.set(u.id, {
-        employeeId: u.id,
-        employeeName: u.fullName,
-        color: u.color,
-        userId: u.attendanceUserId,
-        events: [],
-      }),
-    );
-    events.forEach((e: any) => {
-      const u = byId.get(e.employeeId);
-      if (!grouped.has(e.employeeId))
-        grouped.set(e.employeeId, {
-          employeeId: e.employeeId,
-          employeeName: u?.fullName || e.employeeName,
-          color: u?.color,
-          userId: u?.attendanceUserId,
-          events: [],
-        });
-      grouped.get(e.employeeId).events.push(e);
-    });
-    rows.value = [...grouped.values()];
+    await loadRows();
+    if (syncDevice && liveStatus.value.reachable) {
+      syncStatus.value = await SyncAttendance(selectedDate.value);
+      await loadRows();
+    }
     await loadHistory();
   } catch {
     syncStatus.value = { reachable: false, message: "Attendance sync failed" };
@@ -333,6 +315,35 @@ async function refresh(syncDevice = true, quiet = false) {
     refreshing = false;
     if (!quiet) loading.value = false;
   }
+}
+// The selected day's stored punches, grouped by employee.
+async function loadRows() {
+  const [events, employees] = await Promise.all([ListAttendance(selectedDate.value), ListSalespersons()]);
+  const configured = employees.filter((u: any) => u.attendanceUserId);
+  const byId = new Map(configured.map((u: any) => [u.id, u]));
+  const grouped = new Map<number, any>();
+  configured.forEach((u: any) =>
+    grouped.set(u.id, {
+      employeeId: u.id,
+      employeeName: u.fullName,
+      color: u.color,
+      userId: u.attendanceUserId,
+      events: [],
+    }),
+  );
+  events.forEach((e: any) => {
+    const u = byId.get(e.employeeId);
+    if (!grouped.has(e.employeeId))
+      grouped.set(e.employeeId, {
+        employeeId: e.employeeId,
+        employeeName: u?.fullName || e.employeeName,
+        color: u?.color,
+        userId: u?.attendanceUserId,
+        events: [],
+      });
+    grouped.get(e.employeeId).events.push(e);
+  });
+  rows.value = [...grouped.values()];
 }
 async function loadAttendanceOptions() {
   try {
