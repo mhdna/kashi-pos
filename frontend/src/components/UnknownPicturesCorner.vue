@@ -1,23 +1,27 @@
 <template>
-  <v-menu location="bottom" :close-on-content-click="false">
+  <v-menu location="top" :close-on-content-click="false">
     <template #activator="{ props: menuProps }">
       <v-card
         v-bind="menuProps"
-        class="unknown-corner d-flex align-center ga-2 pa-1 pe-3"
+        class="unknown-corner d-flex align-center ga-3 pa-2 mx-3 mb-2"
         :class="{ 'unknown-corner--done': complete }"
         rounded="lg"
         variant="outlined"
       >
         <img v-if="qrDataUrl" alt="Unknown item pictures QR code" :src="qrDataUrl" class="unknown-corner__qr" />
         <div v-else class="unknown-corner__qr d-flex align-center justify-center">
-          <v-progress-circular v-if="!errorText" indeterminate size="22" />
-          <v-icon v-else color="warning" icon="mdi-alert-circle-outline" />
+          <v-progress-circular v-if="!errorText" indeterminate size="28" />
+          <v-icon v-else color="warning" icon="mdi-alert-circle-outline" size="32" />
         </div>
-        <div class="text-body-2" style="line-height: 1.25">
-          <div class="font-weight-medium">{{ errorText ? "No QR yet" : "Unknown items" }}</div>
-          <div class="d-flex align-center ga-1 text-medium-emphasis">
-            <v-icon v-if="complete" color="success" icon="mdi-check-circle" size="16" />
-            {{ errorText ? "Retrying…" : `${doneCount} of ${lines.length} pictured` }}
+        <div class="flex-grow-1" style="min-width: 0; line-height: 1.35">
+          <div class="text-subtitle-1 font-weight-bold">Unknown items need a picture</div>
+          <div class="text-body-2">Scan this code with the phone, then photograph each unknown item.</div>
+          <div class="text-body-2 text-medium-emphasis" dir="rtl" lang="ar">
+            امسح الرمز والتقط صورة لكل قطعة غير معروف كودها طبقا للسعر
+          </div>
+          <div class="d-flex align-center ga-1 mt-1 text-body-2 font-weight-medium" :class="complete ? 'text-success' : 'text-medium-emphasis'">
+            <v-icon :icon="complete ? 'mdi-check-circle' : 'mdi-camera-outline'" size="18" />
+            {{ errorText ? "No QR code yet, retrying…" : `${doneCount} of ${lines.length} pictured` }}
           </div>
         </div>
       </v-card>
@@ -38,8 +42,8 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import QRCode from "qrcode";
 import { SyncUnknownItemSession, UnknownItemSessionStatus } from "../../wailsjs/go/main/App";
 
-// The sale screen's small QR code for the unknown items' pictures, shown as
-// soon as one is in the cart (unless the branch takes them at checkout). It
+// The sale screen's QR code for the unknown items' pictures, a strip under
+// the cart (where Quick Access sits) shown as soon as one is in the cart (unless the branch takes them at checkout). It
 // keeps one kashi session per cart and re-sends it whenever the unknown items
 // change, so the phone already on the link just sees the new items appear.
 // It never blocks the cashier: paying still goes through UnknownPicturesDialog,
@@ -155,8 +159,8 @@ onBeforeUnmount(() => {
   border-color: rgb(var(--v-theme-success));
 }
 .unknown-corner__qr {
-  width: 88px;
-  height: 88px;
+  width: 112px;
+  height: 112px;
   flex: none;
   image-rendering: pixelated;
 }

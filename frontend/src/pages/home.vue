@@ -10,14 +10,6 @@
             <div class="font-weight-bold">{{ pageModeTitle }}</div>
             <v-card-subtitle v-if="pageMode === 'sale' || pageMode === 'exchange'" class="pa-0">{{ invoiceCode }}</v-card-subtitle>
           </div>
-          <UnknownPicturesCorner
-            v-if="showUnknownCorner"
-            :client-ref="unknownSession.clientRef"
-            :paused="unknownPictures.show"
-            :units="unknownCartUnits"
-            @ready="unknownPicturesReadyFor = $event"
-            @session="unknownSession.clientRef = $event"
-          />
           <div class="d-flex flex-column align-end">
             <div class="d-flex align-center ga-2">
               <div
@@ -164,6 +156,14 @@
         :discount-default-off="discountToggleDefaultOff"
         style="flex: 1 1 0; min-height: 0"
         @discount-error="showDiscountError"
+      />
+      <UnknownPicturesCorner
+        v-if="showUnknownCorner"
+        :client-ref="unknownSession.clientRef"
+        :paused="unknownPictures.show"
+        :units="unknownCartUnits"
+        @ready="unknownPicturesReadyFor = $event"
+        @session="unknownSession.clientRef = $event"
       />
       <QuickAccessPanel
         v-if="pageMode !== 'settlement' && quickAccessRows > 0"
