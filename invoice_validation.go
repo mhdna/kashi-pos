@@ -140,7 +140,9 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		if err != nil {
 			return nil, 0, 0, nil, fmt.Errorf("product %s: %w", item.Code, err)
 		}
-		if product.IsActive == 0 {
+		// The built-in "Unknown item" placeholder is never really off: earlier
+		// versions' catalog check could switch it off by mistake.
+		if product.IsActive == 0 && product.Barcode != defaultUnknownBarcode {
 			return nil, 0, 0, nil, fmt.Errorf("product %s is inactive", item.Code)
 		}
 		// The product row's price/discount columns are frozen (000097): the

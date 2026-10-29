@@ -178,6 +178,43 @@ func TestFullCheckDeactivatesOrphanProductsOnlyWhenConfirmed(t *testing.T) {
 	}
 }
 
+// The built-in "Unknown item" placeholder is the till's own, so kashi never
+// has its uid; the full check must leave it on. One an earlier version
+// switched off is turned back on by the Unknown item button.
+func TestFullCheckKeepsTheUnknownItemPlaceholder(t *testing.T) {
+	fk := newFakeKashiCatalog()
+	fk.products[fcProductUID] = map[string]any{"uid": fcProductUID, "barcode": "KASHI-1", "code": "K1", "name": "Kashi Shirt",
+		"price": map[string]any{"Int64": 1000, "Valid": true}, "is_active": true, "updated_at": time.Now().UTC().Format(time.RFC3339Nano)}
+	server := httptest.NewServer(fk.handler())
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
+	cc := newCentralClient(server.URL, "TEST01", "test-key")
+	placeholder, err := ensureUnknownProduct(app.ctx, store.Queries, defaultUnknownBarcode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetFullMirrorConfirmedAt(app.ctx, sql.NullString{String: "2026-01-01T00:00:00Z", Valid: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.runFullCheckLocked(app.ctx, cc); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := store.GetProductByID(app.ctx, placeholder.ID); p.IsActive != 1 {
+		t.Fatal("the full check switched the Unknown item placeholder off")
+	}
+
+	if err := store.SetProductActive(app.ctx, db.SetProductActiveParams{IsActive: 0, ID: placeholder.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if p, err := ensureUnknownProduct(app.ctx, store.Queries, defaultUnknownBarcode); err != nil || p.IsActive != 1 {
+		t.Fatalf("placeholder not turned back on: %+v err=%v", p, err)
+	}
+	if p, _ := store.GetProductByID(app.ctx, placeholder.ID); p.IsActive != 1 {
+		t.Fatal("placeholder still off in the database")
+	}
+}
+
 // A till that already holds kashi's client (matching stamp) and has no
 // cursor pulls nothing in full: the missing client comes through the uid
 // check, the held one is skipped, and the cursor is seeded from kashi's clock.

@@ -100,6 +100,14 @@ func (a *App) SetUnknownProductBarcode(barcode string) error {
 func ensureUnknownProduct(ctx context.Context, q *db.Queries, barcode string) (db.Product, error) {
 	product, err := q.GetProductByBarcode(ctx, barcode)
 	if err == nil {
+		// Earlier versions let the full catalog check switch the built-in
+		// placeholder off as a product kashi doesn't have; turn it back on.
+		if product.IsActive == 0 && barcode == defaultUnknownBarcode {
+			if err := q.SetProductActive(ctx, db.SetProductActiveParams{IsActive: 1, ID: product.ID}); err != nil {
+				return db.Product{}, err
+			}
+			product.IsActive = 1
+		}
 		return product, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
