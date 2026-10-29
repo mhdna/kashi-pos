@@ -75,11 +75,12 @@ build-windows-compact: set-version
 update-keygen:
 	go run ./cmd/publish-release keygen
 
+# Asks which branches get it; BRANCHES=CN,HR (or all) answers up front.
 publish: build-windows
-	go run ./cmd/publish-release publish -file build/bin/GB-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)"
+	go run ./cmd/publish-release publish -file build/bin/GB-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -branches "$(BRANCHES)"
 
 publish-compact: build-windows-compact
-	go run ./cmd/publish-release publish -file "build/bin/GB Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)"
+	go run ./cmd/publish-release publish -file "build/bin/GB Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -branches "$(BRANCHES)"
 
 publish-all: build-windows
 	go run ./cmd/publish-release publish -file build/bin/GB-Cloud.exe -version $(APP_VERSION) -flavor standard -notes "$(NOTES)" -target-all

@@ -3,8 +3,12 @@
 // Makefile:
 //
 //	make update-keygen                      # once: create the release key
-//	git tag v1.2.3 && make publish NOTES="…" # every release
+//	git tag v1.2.3 && make publish NOTES="…" # every release; asks which branches get it
+//	make publish NOTES="…" BRANCHES=CN,HR    # …straight to those branches' tills
 //	git tag v1.2.3 && make publish-all NOTES="…" # …and send it to every till
+//
+// Once every till it was sent to runs it, kashi deletes the build's file
+// (unless App Updates' "Keep old builds" says otherwise).
 //
 // publish needs KASHI_URL (the same central URL the tills use, e.g.
 // https://cloud.example.com/api) and KASHI_USER, an admin; KASHI_PASSWORD is
@@ -29,6 +33,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,7 +46,7 @@ const updateKeyFile = "internal/updatekey/updatekey.go"
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: publish-release keygen | publish -file F -version V -flavor standard|compact [-notes N] [-target-all [-force]]")
+		fmt.Fprintln(os.Stderr, "usage: publish-release keygen | publish -file F -version V -flavor standard|compact [-notes N] [-branches all|none|CODE,CODE | -target-all] [-force]")
 		os.Exit(2)
 	}
 	var err error
@@ -126,8 +131,9 @@ func publish(args []string) error {
 	flavor := fs.String("flavor", "standard", "standard or compact")
 	notes := fs.String("notes", "", "what changed; cashiers see this after the update")
 	keyPath := fs.String("key", defaultKeyPath(), "the release key")
-	targetAll := fs.Bool("target-all", false, "also set every active register of this flavor to the new release")
-	force := fs.Bool("force", false, "with -target-all: the tills install it right away, even during a shift")
+	targetAll := fs.Bool("target-all", false, "same as -branches all")
+	branches := fs.String("branches", "", `which branches' tills get it: "all", "none", or branch codes like CN,HR; asked when left out`)
+	force := fs.Bool("force", false, "the tills install it right away, even during a shift")
 	_ = fs.Parse(args)
 
 	*version = strings.TrimPrefix(strings.TrimSpace(*version), "v")
@@ -225,23 +231,171 @@ func publish(args []string) error {
 	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil || created.Release.ID == 0 {
 		return errors.New("kashi's upload answer had no release id")
 	}
-	if !*targetAll {
-		fmt.Printf("Published GB Cloud %s (%s). Choose which tills get it on kashi's App Updates page.\n", *version, *flavor)
-		return nil
-	}
 	fmt.Printf("Published GB Cloud %s (%s).\n", *version, *flavor)
-	return targetAllRegisters(baseURL, token, created.Release.ID, *version, *flavor, *force)
+	if *targetAll {
+		*branches = "all"
+	}
+	return targetBranches(baseURL, token, created.Release.ID, *version, *flavor, *branches, *force)
 }
 
-// targetAllRegisters does what ticking every till on the App Updates page
-// does: each active register that runs this flavor is set to the release,
-// and kashi tells the connected ones to fetch it now (the others pick it up
-// when they next connect). A register that hasn't reported its flavor yet is
-// left alone and listed, since it may be the other build.
-func targetAllRegisters(baseURL, token string, releaseID int64, version, flavor string, force bool) error {
-	req, err := http.NewRequest(http.MethodGet, baseURL+"/app_updates/registers", nil)
+type register struct {
+	ID         int64  `json:"id"`
+	BranchCode string `json:"branch_code"`
+	BranchName string `json:"branch_name"`
+	Code       string `json:"code"`
+	IsActive   bool   `json:"is_active"`
+	AppFlavor  string `json:"app_flavor"`
+	AppVersion string `json:"app_version"`
+	Connected  bool   `json:"connected"`
+}
+
+type branch struct {
+	Code, Name string
+	Registers  []register
+}
+
+// targetBranches does what ticking tills on the App Updates page does: the
+// active registers of the chosen branches that run this flavor are set to
+// the release, and kashi tells the connected ones to fetch it now (the
+// others pick it up when they next connect). choice is "all", "none", branch
+// codes ("CN,HR"), or "" to ask. A register that hasn't reported its flavor
+// yet is left alone and listed, since it may be the other build.
+func targetBranches(baseURL, token string, releaseID int64, version, flavor, choice string, force bool) error {
+	var list struct {
+		Registers []register `json:"registers"`
+	}
+	if err := apiJSON(http.MethodGet, baseURL+"/app_updates/registers", token, nil, &list); err != nil {
+		return fmt.Errorf("list registers: %w", err)
+	}
+
+	var branches []*branch
+	byCode := map[string]*branch{}
+	for _, r := range list.Registers {
+		if !r.IsActive {
+			continue
+		}
+		if r.AppFlavor == "" {
+			fmt.Printf("Skipped %s/%s (hasn't reported which build it runs)\n", r.BranchCode, r.Code)
+			continue
+		}
+		if r.AppFlavor != flavor {
+			continue
+		}
+		b := byCode[r.BranchCode]
+		if b == nil {
+			b = &branch{Code: r.BranchCode, Name: r.BranchName}
+			byCode[r.BranchCode] = b
+			branches = append(branches, b)
+		}
+		b.Registers = append(b.Registers, r)
+	}
+	if len(branches) == 0 {
+		fmt.Printf("No active %s till to send it to; set them on kashi's App Updates page.\n", flavor)
+		return nil
+	}
+
+	if strings.TrimSpace(choice) == "" {
+		if !term.IsTerminal(int(os.Stdin.Fd())) {
+			fmt.Println("Choose which tills get it on kashi's App Updates page (or pass BRANCHES=…).")
+			return nil
+		}
+		fmt.Printf("\nSend %s to which branches?\n", version)
+		for i, b := range branches {
+			fmt.Printf("  %d) %-6s %s\n", i+1, b.Code, b.Name)
+			for _, r := range b.Registers {
+				state := "offline, updates when it connects"
+				if r.Connected {
+					state = "online"
+				}
+				fmt.Printf("       %s runs %s, %s\n", r.Code, r.AppVersion, state)
+			}
+		}
+		fmt.Print(`Numbers or codes separated by commas, "all", or Enter for none: `)
+		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		choice = strings.TrimSpace(line)
+		if choice == "" {
+			choice = "none"
+		}
+	}
+	chosen, err := pickBranches(branches, choice)
 	if err != nil {
 		return err
+	}
+	if len(chosen) == 0 {
+		fmt.Println("Not sent anywhere yet; choose tills on kashi's App Updates page.")
+		return nil
+	}
+
+	var ids []int64
+	var lines []string
+	for _, b := range chosen {
+		for _, r := range b.Registers {
+			ids = append(ids, r.ID)
+			lines = append(lines, fmt.Sprintf("  %s/%s (runs %s)", b.Code, r.Code, r.AppVersion))
+		}
+	}
+	body := map[string]any{"release_id": releaseID, "register_ids": ids, "force": force}
+	if err := apiJSON(http.MethodPut, baseURL+"/app_updates/target", token, body, nil); err != nil {
+		return fmt.Errorf("set target: %w", err)
+	}
+	fmt.Printf("Sent %s to %d till(s):\n%s\n", version, len(ids), strings.Join(lines, "\n"))
+	if force {
+		fmt.Println("Forced: each till installs it as soon as it has it, after a one-minute countdown.")
+	}
+	fmt.Println("kashi deletes the build from the server once they've all installed it. Follow them on the App Updates page.")
+	return nil
+}
+
+// pickBranches reads "all", "none", or a comma-separated list of branch
+// numbers (as listed) and/or codes.
+func pickBranches(branches []*branch, choice string) ([]*branch, error) {
+	switch strings.ToLower(strings.TrimSpace(choice)) {
+	case "all":
+		return branches, nil
+	case "none", "":
+		return nil, nil
+	}
+	var out []*branch
+	seen := map[*branch]bool{}
+	for _, part := range strings.Split(choice, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		var match *branch
+		if n, err := strconv.Atoi(part); err == nil && n >= 1 && n <= len(branches) {
+			match = branches[n-1]
+		}
+		for _, b := range branches {
+			if match == nil && strings.EqualFold(b.Code, part) {
+				match = b
+			}
+		}
+		if match == nil {
+			return nil, fmt.Errorf("no branch %q with a till of this build; nothing was sent (the release is published, choose tills on the App Updates page)", part)
+		}
+		if !seen[match] {
+			seen[match] = true
+			out = append(out, match)
+		}
+	}
+	return out, nil
+}
+
+// apiJSON sends body (if any) as JSON and decodes the answer into out (if
+// any).
+func apiJSON(method, url, token string, body, out any) error {
+	var reader io.Reader
+	if body != nil {
+		raw, _ := json.Marshal(body)
+		reader = bytes.NewReader(raw)
+	}
+	req, err := http.NewRequest(method, url, reader)
+	if err != nil {
+		return err
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
@@ -250,70 +404,12 @@ func targetAllRegisters(baseURL, token string, releaseID int64, version, flavor 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("list registers failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
+		return fmt.Errorf("status %d: %s", resp.StatusCode, errorMessage(resp.Body))
 	}
-	var list struct {
-		Registers []struct {
-			ID         int64  `json:"id"`
-			BranchCode string `json:"branch_code"`
-			Code       string `json:"code"`
-			IsActive   bool   `json:"is_active"`
-			AppFlavor  string `json:"app_flavor"`
-			AppVersion string `json:"app_version"`
-			Connected  bool   `json:"connected"`
-		} `json:"registers"`
+	if out == nil {
+		return nil
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
-		return fmt.Errorf("read registers: %w", err)
-	}
-
-	var ids []int64
-	var targeted, skipped []string
-	for _, r := range list.Registers {
-		if !r.IsActive {
-			continue
-		}
-		name := r.BranchCode + "/" + r.Code
-		switch r.AppFlavor {
-		case flavor:
-			ids = append(ids, r.ID)
-			state := "offline, updates when it connects"
-			if r.Connected {
-				state = "online"
-			}
-			targeted = append(targeted, fmt.Sprintf("  %s (runs %s, %s)", name, r.AppVersion, state))
-		case "":
-			skipped = append(skipped, "  "+name+" (hasn't reported which build it runs)")
-		}
-	}
-	for _, line := range skipped {
-		fmt.Println("Skipped", strings.TrimSpace(line))
-	}
-	if len(ids) == 0 {
-		return fmt.Errorf("no active %s register to update; set them on the App Updates page", flavor)
-	}
-
-	raw, _ := json.Marshal(map[string]any{"release_id": releaseID, "register_ids": ids, "force": force})
-	req, err = http.NewRequest(http.MethodPut, baseURL+"/app_updates/target", bytes.NewReader(raw))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err = (&http.Client{Timeout: 30 * time.Second}).Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("set target failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
-	}
-	fmt.Printf("Set %d register(s) to %s:\n%s\n", len(ids), version, strings.Join(targeted, "\n"))
-	if force {
-		fmt.Println("Forced: each till installs it as soon as it has it, after a one-minute countdown.")
-	}
-	fmt.Println("Follow their progress on kashi's App Updates page.")
-	return nil
+	return json.NewDecoder(resp.Body).Decode(out)
 }
 
 func login(baseURL, user, password string) (string, error) {
