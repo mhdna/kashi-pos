@@ -169,15 +169,20 @@
           @ready="unknownPicturesReadyFor = $event"
           @session="unknownSession.clientRef = $event"
         />
-        <QuickAccessPanel
-          v-if="pageMode !== 'settlement' && quickAccessRows > 0"
-          @add="
-            (item) => {
-              playClickSound();
-              addProductToCart(item);
-            }
-          "
-        />
+        <!-- Taller than the search keyboard, so hidden behind it while
+             searching in place, keeping its room so nothing moves. The
+             wrapper takes no room of its own; the panel inherits it. -->
+        <div class="home-quick-access" :class="{ 'home-under-keyboard': searchingInPlace }">
+          <QuickAccessPanel
+            v-if="pageMode !== 'settlement' && quickAccessRows > 0"
+            @add="
+              (item) => {
+                playClickSound();
+                addProductToCart(item);
+              }
+            "
+          />
+        </div>
       </div>
       <div class="home-right-pane d-flex flex-column position-relative" style="flex: 5 5 0; min-width: 0">
         <!-- Searching in place: the results lie over the calculator, down to the
@@ -1784,6 +1789,14 @@ onBeforeUnmount(() => {
   bottom: var(--home-search-keyboard-height, 0px);
   z-index: 11;
   background-color: rgb(var(--v-theme-surface));
+}
+
+.home-quick-access {
+  display: contents;
+}
+
+.home-under-keyboard {
+  visibility: hidden;
 }
 
 .home-search-keyboard {
