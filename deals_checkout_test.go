@@ -230,3 +230,54 @@ func TestCheckoutWithDealFallback(t *testing.T) {
 		t.Fatalf("invoice deals = %+v, %v", deals, err)
 	}
 }
+
+// One product sold as Summer and as Winter is two cart lines on the same
+// deal; each quote line names its option, so the cart gives each line its
+// own share of the deal rather than the whole of it twice. Four $15 jeans on
+// "Buy 2 get 1, otherwise 30%": the Summer one is free, and of the three
+// Winter ones one gets the 30%.
+func TestDealQuoteLinesNameTheirSaleOption(t *testing.T) {
+	ctx := context.Background()
+	app, store, _, _ := setUpTestInvoiceApp(t, "http://localhost:9999")
+	q := store.Queries
+	if err := applySyncedProductVariant(ctx, q, syncedProductVariant{
+		UID: "var-jeans", Barcode: "bc-jeans", IsActive: true, Code: "CA23KGJE15", Name: "Kids Girl Jeans",
+		SaleOptions: []string{"Summer", "Winter"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := applySyncedPriceList(ctx, q, syncedPriceList{
+		UID: "prices", Name: "Prices", IsActive: true,
+		Items: []syncedPriceListItem{{ProductVariantUID: "var-jeans", Price: 1500}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := applySyncedDiscountList(ctx, q, syncedDiscountList{
+		UID: "disc", Name: "Deals", IsActive: true,
+		Items: []syncedDiscountListItem{{ProductVariantUID: "var-jeans", DealUID: "deal-b2g1"}},
+		Deals: []syncedDeal{{UID: "deal-b2g1", Name: "Buy 2 get 1", Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100, FallbackPercent: 30}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	itemsJSON, _ := json.Marshal([]salesInvoiceItem{
+		{Barcode: "bc-jeans", Qty: 1, SaleOption: "Summer"},
+		{Barcode: "bc-jeans", Qty: 3, SaleOption: "Winter"},
+	})
+	quote, err := app.QuoteInvoiceTotal(string(itemsJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dealOff := map[string]int64{}
+	for _, line := range quote.Lines {
+		if line.Barcode == "bc-jeans" {
+			dealOff[line.SaleOption] += line.DealDiscountCents
+		}
+	}
+	if dealOff["Summer"] != 1500 || dealOff["Winter"] != 450 || len(dealOff) != 2 {
+		t.Fatalf("deal off by option = %v, want Summer 1500 (free), Winter 450 (30%% of one)", dealOff)
+	}
+	if quote.SubtotalCents-quote.DiscountedSubtotalCents != 1950 {
+		t.Fatalf("quote = %+v, want 1950 off in all", quote)
+	}
+}

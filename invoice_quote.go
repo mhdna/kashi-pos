@@ -27,13 +27,15 @@ type InvoiceQuote struct {
 // LineQuote is the priced breakdown for one cart line, replacing the
 // frontend's local per-line discount recomputation.
 type LineQuote struct {
-	Code           string `json:"code"`
-	Barcode        string `json:"barcode"`
+	Code    string `json:"code"`
+	Barcode string `json:"barcode"`
+	// The same product sold as Summer and as Winter is two cart lines.
+	SaleOption     string `json:"saleOption,omitempty"`
 	LineTotalCents int64  `json:"lineTotalCents"`
 	DiscountCents  int64  `json:"discountCents"`
 	// Deal lines (deals.go). A cart line on a deal can come back as several
 	// quote lines, one per unit price -- its free units apart -- so the cart
-	// matches them by barcode and adds them up.
+	// matches them by barcode and sale option and adds them up.
 	Qty               int64  `json:"qty"`
 	Deal              string `json:"deal,omitempty"`
 	DealLabel         string `json:"dealLabel,omitempty"`
@@ -75,6 +77,7 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 		lines = append(lines, LineQuote{
 			Code:              product.product.Code,
 			Barcode:           product.product.Barcode,
+			SaleOption:        product.cartSaleOption,
 			LineTotalCents:    product.lineTotal + product.invoiceDiscount,
 			DiscountCents:     product.discount,
 			Qty:               product.qty,

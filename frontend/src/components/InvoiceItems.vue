@@ -392,7 +392,7 @@ import {
   UpdateProductDiscount,
 } from "../../wailsjs/go/main/App";
 import { roundDiscountCents, normalizeRoundingMode } from "@/lib/money";
-import { dealsByLine, offDealsByLine, type DealLine } from "@/lib/deals";
+import { dealLineKey, dealsByLine, offDealsByLine, type DealLine } from "@/lib/deals";
 import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
@@ -503,7 +503,7 @@ const offDealsByCartLine = computed(() => offDealsByLine(props.dealLines ?? []))
 // The deal a line gave up by having its deal turned off ("B2G1").
 function offDealFor(item: LineItem): string | undefined {
   if (!item.dealOff || item.qty <= 0) return undefined;
-  return offDealsByCartLine.value.get(item.barcode || item.code);
+  return offDealsByCartLine.value.get(dealLineKey(item));
 }
 
 // The percent the line's chip shows: what it gets, or with the discount
@@ -597,7 +597,7 @@ watch(
 // A returned line (qty < 0) in an exchange is never re-priced by a deal.
 function dealFor(item: LineItem) {
   if (item.qty <= 0) return undefined;
-  return dealsByCartLine.value.get(item.barcode || item.code);
+  return dealsByCartLine.value.get(dealLineKey(item));
 }
 
 // The icon a Summer/Winter sale option shows instead of its name; other

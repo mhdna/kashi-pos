@@ -23,6 +23,9 @@ type pricedInvoiceProduct struct {
 	priceListID    int64
 	discountListID int64
 	saleOption     string
+	// The option as the cart sent it, kept even when it no longer counts,
+	// so the quote's line matches the cart's (invoice_quote.go).
+	cartSaleOption string
 	// The deal the line is on, and what it took off the whole line (cents);
 	// lineTotal already has it off. See deals.go.
 	dealUID      string
@@ -256,6 +259,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			priced.salespersonID = item.SalespersonID
 			priced.note = strings.TrimSpace(item.Note)
 			priced.saleOption = saleOption
+			priced.cartSaleOption = item.SaleOption
 			priced.dealUID = dealUID
 			priced.offDiscount = offDiscount
 			priced.offDealLabel = offDealLabel
