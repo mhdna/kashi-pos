@@ -73,6 +73,12 @@ func (a *App) startAttendancePushServer() {
 			}
 		}
 	}()
+	// Catch up once on start: punches made while the till was off (the last
+	// one out after closing) would otherwise wait for the next punch's ping.
+	select {
+	case a.attendanceKick <- struct{}{}:
+	default:
+	}
 }
 
 func (a *App) stopAttendancePushServer(ctx context.Context) {
