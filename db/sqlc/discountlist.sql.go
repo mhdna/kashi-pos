@@ -67,16 +67,18 @@ func (q *Queries) GetDiscountListByUID(ctx context.Context, uid sql.NullString) 
 }
 
 const insertDiscountListItem = `-- name: InsertDiscountListItem :exec
-INSERT INTO discount_list_items (discount_list_id, product_uid, discount, deal_uid)
-VALUES (?, ?, ?, ?)
-ON CONFLICT (discount_list_id, product_uid) DO UPDATE SET discount = excluded.discount, deal_uid = excluded.deal_uid
+INSERT INTO discount_list_items (discount_list_id, product_uid, discount, deal_uid, deal_fallback_percent)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (discount_list_id, product_uid) DO UPDATE SET discount = excluded.discount, deal_uid = excluded.deal_uid,
+    deal_fallback_percent = excluded.deal_fallback_percent
 `
 
 type InsertDiscountListItemParams struct {
-	DiscountListID int64  `json:"discountListId"`
-	ProductUid     string `json:"productUid"`
-	Discount       int64  `json:"discount"`
-	DealUid        string `json:"dealUid"`
+	DiscountListID      int64         `json:"discountListId"`
+	ProductUid          string        `json:"productUid"`
+	Discount            int64         `json:"discount"`
+	DealUid             string        `json:"dealUid"`
+	DealFallbackPercent sql.NullInt64 `json:"dealFallbackPercent"`
 }
 
 func (q *Queries) InsertDiscountListItem(ctx context.Context, arg InsertDiscountListItemParams) error {
@@ -85,12 +87,13 @@ func (q *Queries) InsertDiscountListItem(ctx context.Context, arg InsertDiscount
 		arg.ProductUid,
 		arg.Discount,
 		arg.DealUid,
+		arg.DealFallbackPercent,
 	)
 	return err
 }
 
 const listActiveDiscountListItems = `-- name: ListActiveDiscountListItems :many
-SELECT dli.product_uid, dli.discount, dli.deal_uid, dl.id AS list_id, dl.name AS list_name, dl.is_special
+SELECT dli.product_uid, dli.discount, dli.deal_uid, dli.deal_fallback_percent, dl.id AS list_id, dl.name AS list_name, dl.is_special
 FROM discount_list_items dli
 JOIN discount_lists dl ON dl.id = dli.discount_list_id
 WHERE dl.is_active = 1
@@ -98,12 +101,13 @@ ORDER BY dli.product_uid, dl.is_default DESC
 `
 
 type ListActiveDiscountListItemsRow struct {
-	ProductUid string `json:"productUid"`
-	Discount   int64  `json:"discount"`
-	DealUid    string `json:"dealUid"`
-	ListID     int64  `json:"listId"`
-	ListName   string `json:"listName"`
-	IsSpecial  int64  `json:"isSpecial"`
+	ProductUid          string        `json:"productUid"`
+	Discount            int64         `json:"discount"`
+	DealUid             string        `json:"dealUid"`
+	DealFallbackPercent sql.NullInt64 `json:"dealFallbackPercent"`
+	ListID              int64         `json:"listId"`
+	ListName            string        `json:"listName"`
+	IsSpecial           int64         `json:"isSpecial"`
 }
 
 // See ListActivePriceListItems for why this is ordered by is_default DESC.
@@ -120,6 +124,7 @@ func (q *Queries) ListActiveDiscountListItems(ctx context.Context) ([]ListActive
 			&i.ProductUid,
 			&i.Discount,
 			&i.DealUid,
+			&i.DealFallbackPercent,
 			&i.ListID,
 			&i.ListName,
 			&i.IsSpecial,
@@ -175,7 +180,7 @@ func (q *Queries) ListDeals(ctx context.Context) ([]Deal, error) {
 }
 
 const listDiscountListItems = `-- name: ListDiscountListItems :many
-SELECT id, discount_list_id, product_uid, discount, created_at, deal_uid FROM discount_list_items WHERE discount_list_id = ? ORDER BY product_uid
+SELECT id, discount_list_id, product_uid, discount, created_at, deal_uid, deal_fallback_percent FROM discount_list_items WHERE discount_list_id = ? ORDER BY product_uid
 `
 
 func (q *Queries) ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error) {
@@ -194,6 +199,7 @@ func (q *Queries) ListDiscountListItems(ctx context.Context, discountListID int6
 			&i.Discount,
 			&i.CreatedAt,
 			&i.DealUid,
+			&i.DealFallbackPercent,
 		); err != nil {
 			return nil, err
 		}

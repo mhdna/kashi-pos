@@ -282,6 +282,8 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				DealUid:         product.dealUID,
 				DealDiscount:    product.dealDiscount,
 				InvoiceDiscount: product.invoiceDiscount,
+				// An exchange judges the deal by the fallback the unit was sold with.
+				DealFallbackPercent: product.dealFallback,
 			}); err != nil {
 				return fmt.Errorf("add product %s: %w", product.product.Code, err)
 			}

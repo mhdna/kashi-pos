@@ -466,9 +466,13 @@ const totalSummary = computed(() => {
     split: `${first} + ${second}`,
   };
 });
-const displayValue = computed(() =>
-  currentInput.value ? Number(currentInput.value).toLocaleString() : "0",
-);
+// The entry as typed: thousands grouped, and the decimal part kept as it is
+// so far ("12." and "1.50" while typing), never NaN.
+const displayValue = computed(() => {
+  const [whole = "", decimals] = currentInput.value.split(".");
+  const grouped = Number(whole || "0").toLocaleString();
+  return decimals === undefined ? grouped : `${grouped}.${decimals}`;
+});
 
 function formatEntryAmount(amount: number) {
   return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -534,7 +538,9 @@ const inputWasAutoFilled = ref(false);
 
 function appendDigit(value: string) {
   inputWasAutoFilled.value = false;
-  if (value !== "." || !currentInput.value.includes(".")) currentInput.value += value;
+  if (value === "." && currentInput.value.includes(".")) return;
+  // A point typed first starts "0.", so the entry is always a number.
+  currentInput.value += value === "." && !currentInput.value ? "0." : value;
 }
 function backspace() {
   inputWasAutoFilled.value = false;

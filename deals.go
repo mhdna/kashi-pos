@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
@@ -57,12 +58,24 @@ func dealTermsFromInvoice(d db.InvoiceDeal) dealTerms {
 // price in an exchange; see deal_exchange.go.
 func (t dealTerms) rewardsFreeUnits() bool { return t.Kind == dealBuyGet }
 
+// withFallback is the terms as a unit with its own fallback sees them
+// (kashi's 000216: one deal pooling the shop, the outlet codes' leftover
+// units at 30% and the rest at 20%); an unset fallback is the deal's own.
+func (t dealTerms) withFallback(fallback sql.NullInt64) dealTerms {
+	if fallback.Valid {
+		t.FallbackPercent = fallback.Int64
+	}
+	return t
+}
+
 // isRewardUnit says whether a sold unit, at its shelf price with the deal
 // taking unitDeal off it, was the deal's reward rather than a unit that got
 // the fallback discount (which is a saving, not a free unit, and earns no
 // swap credit). The two are told apart by amount; a fallback equal to the
-// reward's percent can't be, and counts as the reward.
-func (t dealTerms) isRewardUnit(price, unitDeal int64, roundingMode string) bool {
+// reward's percent can't be, and counts as the reward. fallback is the
+// unit's own, as it was sold.
+func (t dealTerms) isRewardUnit(price, unitDeal int64, fallback sql.NullInt64, roundingMode string) bool {
+	t = t.withFallback(fallback)
 	if !t.rewardsFreeUnits() || unitDeal <= 0 {
 		return false
 	}
@@ -96,7 +109,16 @@ func (t dealTerms) label() string {
 // unitDiscounts is what the deal takes off each of these units, given their
 // shelf prices, in the same order. Units are taken cheapest first; equal
 // prices keep their order, so the result never depends on map iteration.
-func (t dealTerms) unitDiscounts(prices []int64, roundingMode string) []int64 {
+// fallbacks, when given, is each unit's own fallback (withFallback); nil is
+// the deal's for every unit. Only what a unit left outside a set gets
+// depends on it: which units make the sets doesn't.
+func (t dealTerms) unitDiscounts(prices []int64, fallbacks []sql.NullInt64, roundingMode string) []int64 {
+	fallbackOf := func(i int) int64 {
+		if i < len(fallbacks) {
+			return t.withFallback(fallbacks[i]).FallbackPercent
+		}
+		return t.FallbackPercent
+	}
 	discounts := make([]int64, len(prices))
 	order := make([]int, len(prices))
 	for i := range order {
@@ -119,9 +141,11 @@ func (t dealTerms) unitDiscounts(prices []int64, roundingMode string) []int64 {
 		// full set is the deal alone, whatever the fallback would have saved.
 		// A deal that keeps its fallback for a cart with no set gives it only
 		// while no set forms.
-		if t.FallbackPercent > 0 && (!t.FallbackOnlyWithoutSet || n < set) {
+		if !t.FallbackOnlyWithoutSet || n < set {
 			for _, i := range order[n/set*set:] {
-				discounts[i] = percentOf(prices[i], t.FallbackPercent, roundingMode)
+				if fallback := fallbackOf(i); fallback > 0 {
+					discounts[i] = percentOf(prices[i], fallback, roundingMode)
+				}
 			}
 		}
 	case dealBundlePrice:
@@ -159,9 +183,9 @@ func (t dealTerms) unitDiscounts(prices []int64, roundingMode string) []int64 {
 }
 
 // totalDiscount is the deal's whole saving on these units.
-func (t dealTerms) totalDiscount(prices []int64, roundingMode string) int64 {
+func (t dealTerms) totalDiscount(prices []int64, fallbacks []sql.NullInt64, roundingMode string) int64 {
 	var total int64
-	for _, d := range t.unitDiscounts(prices, roundingMode) {
+	for _, d := range t.unitDiscounts(prices, fallbacks, roundingMode) {
 		total += d
 	}
 	return total
@@ -180,8 +204,9 @@ func percentOf(price, percent int64, roundingMode string) int64 {
 // own. Lines not on a deal pass through untouched, in their place.
 func applyDeals(products []pricedInvoiceProduct, deals map[string]dealTerms, roundingMode string) []pricedInvoiceProduct {
 	type unit struct {
-		line  int
-		price int64
+		line     int
+		price    int64
+		fallback sql.NullInt64
 	}
 	pools := map[string][]unit{}
 	var poolOrder []string
@@ -197,7 +222,7 @@ func applyDeals(products []pricedInvoiceProduct, deals map[string]dealTerms, rou
 			poolOrder = append(poolOrder, p.dealUID)
 		}
 		for range p.qty {
-			pools[p.dealUID] = append(pools[p.dealUID], unit{line: i, price: p.unitPrice})
+			pools[p.dealUID] = append(pools[p.dealUID], unit{line: i, price: p.unitPrice, fallback: p.dealFallback})
 		}
 	}
 	if len(pools) == 0 {
@@ -210,10 +235,11 @@ func applyDeals(products []pricedInvoiceProduct, deals map[string]dealTerms, rou
 		terms := deals[uid]
 		units := pools[uid]
 		prices := make([]int64, len(units))
+		fallbacks := make([]sql.NullInt64, len(units))
 		for i, u := range units {
-			prices[i] = u.price
+			prices[i], fallbacks[i] = u.price, u.fallback
 		}
-		discounts := terms.unitDiscounts(prices, roundingMode)
+		discounts := terms.unitDiscounts(prices, fallbacks, roundingMode)
 		for i, u := range units {
 			unitDeal[u.line] = append(unitDeal[u.line], discounts[i])
 		}
@@ -236,7 +262,8 @@ func applyDeals(products []pricedInvoiceProduct, deals map[string]dealTerms, rou
 			amounts = append(amounts, d)
 		}
 		sort.Slice(amounts, func(a, b int) bool { return amounts[a] < amounts[b] })
-		terms := deals[p.dealUID]
+		// The line's own fallback shows on its chip ("B2G1 else 30%").
+		terms := deals[p.dealUID].withFallback(p.dealFallback)
 		for _, d := range amounts {
 			line := p
 			line.qty = counts[d]

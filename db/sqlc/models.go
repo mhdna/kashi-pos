@@ -243,12 +243,13 @@ type DiscountList struct {
 }
 
 type DiscountListItem struct {
-	ID             int64  `json:"id"`
-	DiscountListID int64  `json:"discountListId"`
-	ProductUid     string `json:"productUid"`
-	Discount       int64  `json:"discount"`
-	CreatedAt      string `json:"createdAt"`
-	DealUid        string `json:"dealUid"`
+	ID                  int64         `json:"id"`
+	DiscountListID      int64         `json:"discountListId"`
+	ProductUid          string        `json:"productUid"`
+	Discount            int64         `json:"discount"`
+	CreatedAt           string        `json:"createdAt"`
+	DealUid             string        `json:"dealUid"`
+	DealFallbackPercent sql.NullInt64 `json:"dealFallbackPercent"`
 }
 
 type DiscountListOptionItem struct {
@@ -410,21 +411,22 @@ type InvoicePaymentEntry struct {
 }
 
 type InvoiceProduct struct {
-	ID              int64         `json:"id"`
-	InvoiceID       int64         `json:"invoiceId"`
-	ProductID       int64         `json:"productId"`
-	UnitPrice       int64         `json:"unitPrice"`
-	LineTotal       int64         `json:"lineTotal"`
-	Discount        int64         `json:"discount"`
-	Quantity        int64         `json:"quantity"`
-	SalespersonID   int64         `json:"salespersonId"`
-	Note            string        `json:"note"`
-	PriceListID     sql.NullInt64 `json:"priceListId"`
-	DiscountListID  sql.NullInt64 `json:"discountListId"`
-	SaleOption      string        `json:"saleOption"`
-	DealUid         string        `json:"dealUid"`
-	DealDiscount    int64         `json:"dealDiscount"`
-	InvoiceDiscount int64         `json:"invoiceDiscount"`
+	ID                  int64         `json:"id"`
+	InvoiceID           int64         `json:"invoiceId"`
+	ProductID           int64         `json:"productId"`
+	UnitPrice           int64         `json:"unitPrice"`
+	LineTotal           int64         `json:"lineTotal"`
+	Discount            int64         `json:"discount"`
+	Quantity            int64         `json:"quantity"`
+	SalespersonID       int64         `json:"salespersonId"`
+	Note                string        `json:"note"`
+	PriceListID         sql.NullInt64 `json:"priceListId"`
+	DiscountListID      sql.NullInt64 `json:"discountListId"`
+	SaleOption          string        `json:"saleOption"`
+	DealUid             string        `json:"dealUid"`
+	DealDiscount        int64         `json:"dealDiscount"`
+	InvoiceDiscount     int64         `json:"invoiceDiscount"`
+	DealFallbackPercent sql.NullInt64 `json:"dealFallbackPercent"`
 }
 
 type Loan struct {

@@ -388,9 +388,7 @@
           <div class="d-flex flex-column align-center ga-1">
             <v-icon :icon="saleOptionLook(option.name).icon" size="32" />
             <span class="sale-option-name">{{ option.name }}</span>
-            <span class="sale-option-discount">
-              {{ option.discount > 0 ? `-${option.discount}%` : "No discount" }}
-            </span>
+            <span v-if="option.discount > 0" class="sale-option-discount">-{{ option.discount }}%</span>
           </div>
         </v-btn>
       </v-card-text>

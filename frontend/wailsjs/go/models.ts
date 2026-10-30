@@ -445,6 +445,7 @@ export namespace main {
 	export class LineQuote {
 	    code: string;
 	    barcode: string;
+	    saleOption?: string;
 	    lineTotalCents: number;
 	    discountCents: number;
 	    qty: number;
@@ -463,6 +464,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.code = source["code"];
 	        this.barcode = source["barcode"];
+	        this.saleOption = source["saleOption"];
 	        this.lineTotalCents = source["lineTotalCents"];
 	        this.discountCents = source["discountCents"];
 	        this.qty = source["qty"];
