@@ -17,9 +17,54 @@
         <template v-if="activatorText">{{ activatorText }}</template>
       </v-btn>
     </template>
-    <v-card class="product-list-card">
-      <div class="product-list">
+    <v-card class="product-list-card" @mousedown="keepSearchFocus">
+      <div ref="listEl" class="product-list">
         <v-virtual-scroll
+          v-if="gridMode"
+          ref="scroller"
+          class="product-virtual-scroll product-grid-scroll"
+          :items="gridRows"
+          :item-height="gridRowHeight"
+          height="100%"
+          @scroll.passive="handleScroll"
+        >
+          <template #default="{ item: row }">
+            <div :key="row[0]?.id" class="product-grid-row" :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }">
+              <v-card
+                v-for="product in row"
+                :key="product.id"
+                class="product-cell"
+                :class="{ 'product-cell--named': showsName }"
+                variant="flat"
+                @click="selectProduct(product)"
+              >
+                <span v-if="shows('code')" class="product-cell-code"><template
+                  v-for="(part, i) in hits(product.code)"
+                  :key="i"
+                ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
+                <span v-if="showsName" class="product-cell-name text-truncate"><template
+                  v-for="(part, i) in hits(product.name)"
+                  :key="i"
+                ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
+                <span v-if="variantLabel(product) || shows('price')" class="product-cell-meta">
+                  <span class="product-cell-variant text-medium-emphasis text-truncate">{{ variantLabel(product) }}</span>
+                  <span v-if="shows('price')" class="product-price">
+                    ${{ Number(product.price || 0).toFixed(2) }}
+                    <v-icon
+                      v-if="product.priceListOverridden"
+                      icon="mdi-star"
+                      color="amber-darken-2"
+                      size="12"
+                      :title="product.priceListName ? `Price from list: ${product.priceListName}` : 'List price'"
+                    />
+                  </span>
+                </span>
+              </v-card>
+            </div>
+          </template>
+        </v-virtual-scroll>
+        <v-virtual-scroll
+          v-else
           ref="scroller"
           class="product-virtual-scroll"
           :items="products"
@@ -41,8 +86,13 @@
                     v-if="shows('code')"
                     class="product-code"
                     :class="namesHidden ? 'product-code--lead font-weight-medium' : 'text-medium-emphasis'"
-                  >{{ product.code }}</span>
-                  <span v-if="!codeOnly && shows('name')" class="font-weight-medium text-truncate">{{ product.name }}</span>
+                  ><template v-for="(part, i) in hits(product.code)" :key="i"><span
+                    :class="{ 'search-hit': part.hit }"
+                  >{{ part.text }}</span></template></span>
+                  <span v-if="showsName" class="font-weight-medium text-truncate"><template
+                    v-for="(part, i) in hits(product.name)"
+                    :key="i"
+                  ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
                   <span v-if="product.brand && !codeOnly && shows('brand')" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
                   <span v-if="product.color && shows('color')" class="product-variant text-medium-emphasis">{{ product.color }}</span>
                   <span v-if="product.size && shows('size')" class="product-variant text-medium-emphasis">{{ product.size }}</span>
@@ -80,17 +130,28 @@
       <v-divider />
       <div class="product-search-row">
         <v-text-field
+          ref="searchField"
           v-model="search"
           class="product-search-control"
           density="compact"
           hide-details
+          inputmode="none"
           :placeholder="codeOnly ? 'Enter a product code...' : 'Search products...'"
           variant="outlined"
           autofocus
         />
+        <v-btn
+          class="product-layout-toggle"
+          variant="tonal"
+          :aria-label="gridMode ? 'Show results as a list' : 'Show results in columns'"
+          :title="gridMode ? 'One per row' : 'Columns'"
+          @click="gridMode = !gridMode"
+        >
+          <v-icon :icon="gridMode ? 'mdi-view-agenda-outline' : 'mdi-view-grid-outline'" size="24" />
+        </v-btn>
       </div>
       <v-card-text class="product-inline-keyboard">
-        <InlineKeyboard v-model="search" :max-length="80" layout="code" />
+        <InlineKeyboard v-model="search" :input="searchInput" :max-length="80" layout="code" />
       </v-card-text>
       <v-btn
         class="product-dialog-close"
@@ -107,9 +168,11 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, inject, onBeforeUnmount, watch } from "vue";
+import { computed, nextTick, ref, inject, onBeforeUnmount, watch } from "vue";
 import { CountProductsForSearch, ListProductsCursor } from "../../wailsjs/go/main/App";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import { useTouchSelection } from "@/composables/useTouchSelection";
+import { matchParts } from "@/lib/highlight";
 
 type ProductItem = {
   id: number;
@@ -163,6 +226,7 @@ const shows = (field: string) => !props.hiddenFields.includes(field);
 // With no name on the row the code is what the cashier reads, so it takes
 // the name's place: full size and contrast, and the name's width.
 const namesHidden = computed(() => props.codeOnly || !shows("name"));
+const showsName = computed(() => !namesHidden.value);
 const activatorText = props.activatorText;
 const activatorIcon = props.activatorIcon;
 const showActivator = props.showActivator;
@@ -203,7 +267,7 @@ watch(debouncedSearch, () => {
 const batchSize = 50;
 const products = ref<ProductItem[]>([]);
 const cursor = ref(0);
-const scroller = ref<{ scrollToIndex: (index: number) => void } | null>(null);
+const scroller = ref<{ scrollToIndex: (index: number) => void; $el?: HTMLElement } | null>(null);
 // A new search replaces the list when its first page arrives, rather than
 // emptying it first, so typing doesn't flash an empty list on every key.
 let replaceOnNextPage = false;
@@ -280,11 +344,31 @@ async function loadMore() {
   } finally {
     if (request === latestRequest) loading.value = false;
   }
+  if (request === latestRequest && !loadError.value) void nextTick(fillScreen);
+}
+
+// A page in columns can be shorter than the list, leaving nothing to scroll
+// that would ask for the next one; keep asking until the list is full.
+// Measured from the rows, not the scroller, which grows a frame later.
+function fillScreen() {
+  const element = scroller.value?.$el;
+  if (!element) return;
+  const height = gridMode.value ? gridRows.value.length * gridRowHeight.value : products.value.length * 48;
+  if (height - element.clientHeight <= 120) void loadMore();
 }
 
 function handleScroll(event: Event) {
   const element = event.currentTarget as HTMLElement;
   if (element.scrollHeight - element.scrollTop - element.clientHeight <= 120) void loadMore();
+}
+
+// A tap anywhere in the dialog but the field leaves the field focused, with
+// its caret and selection, so typing carries on. Only a mouse on the list's
+// scrollbar is let through, to drag it.
+function keepSearchFocus(event: MouseEvent) {
+  const target = event.target as Element;
+  if (target === searchInput.value || target.classList.contains("v-virtual-scroll")) return;
+  event.preventDefault();
 }
 
 function selectProduct(product: ProductItem) {
@@ -302,17 +386,141 @@ function openDialog() {
   dialog.value = true;
 }
 
+// What was searched for, coloured wherever it shows in a result's code or
+// name. The term the shown results were found with, not the one being typed.
+const hits = (text: string) => matchParts(text || "", debouncedSearch.value);
+const variantLabel = (product: ProductItem) =>
+  [shows("color") && product.color, shows("size") && product.size].filter(Boolean).join(" · ");
+
+// Results in columns, several to a row: the default when rows show only a
+// code (and price), which leave most of a row empty. The choice is kept
+// apart for code-only rows and named rows.
+const gridKey = computed(() => `kashi-product-search-grid-${namesHidden.value ? "codes" : "named"}`);
+const storedGrid = (key: string) => localStorage.getItem(key);
+const gridMode = ref(false);
+watch(
+  gridKey,
+  (key) => {
+    const saved = storedGrid(key);
+    gridMode.value = saved === null ? namesHidden.value : saved === "true";
+  },
+  { immediate: true },
+);
+watch(gridMode, (on) => localStorage.setItem(gridKey.value, String(on)));
+
+
+const listEl = ref<HTMLElement | null>(null);
+const listWidth = ref(0);
+const resizer = new ResizeObserver(([entry]) => {
+  listWidth.value = entry?.contentRect.width ?? 0;
+});
+watch(listEl, (el, old) => {
+  if (old) resizer.unobserve(old);
+  if (el) resizer.observe(el);
+});
+// Four to a row at most, so each code stays big enough to read at a glance;
+// fewer where the window is too narrow for four.
+const MAX_COLUMNS = 4;
+const columns = computed(() => Math.min(MAX_COLUMNS, Math.max(1, Math.floor((listWidth.value - 24) / 200))));
+const gridRowHeight = computed(() => (showsName.value ? 96 : 68));
+const gridRows = computed(() => {
+  const rows: ProductItem[][] = [];
+  for (let i = 0; i < products.value.length; i += columns.value) rows.push(products.value.slice(i, i + columns.value));
+  return rows;
+});
+watch([gridMode, columns], () => void nextTick(fillScreen));
+
+// The search field's input, for the keyboard's caret and touch selection.
+const searchField = ref<{ $el?: HTMLElement } | null>(null);
+const searchInput = ref<HTMLInputElement | null>(null);
+watch(searchField, (field) => {
+  searchInput.value = field?.$el?.querySelector("input") ?? null;
+}, { flush: "post" });
+useTouchSelection(searchInput);
+
+onBeforeUnmount(() => resizer.disconnect());
+
 defineExpose({ openDialog });
 </script>
 
 <style scoped>
 .product-search-control {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .product-search-row {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 16px 6px;
+}
+
+.product-layout-toggle {
+  flex: 0 0 auto;
+  height: 40px !important;
+  min-width: 56px !important;
+}
+
+/* Like a highlighter pen: yellow behind the match, the text kept dark. */
+.search-hit {
+  background-color: #ffe066;
+  color: rgb(var(--v-theme-on-surface));
+  border-radius: 3px;
+  box-decoration-break: clone;
+}
+
+.product-grid-row {
+  display: grid;
+  gap: 8px;
+  height: 100%;
+  padding: 4px 12px;
+}
+
+.product-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), 0.045);
+}
+
+.product-cell-code {
+  font-size: 1.3rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-cell-name {
+  font-size: 1.05rem;
+}
+
+.product-cell--named .product-cell-code {
+  font-size: 0.95rem;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.product-cell--named .product-cell-code .search-hit {
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.product-cell-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.product-cell-variant {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .product-list-card {
@@ -428,14 +636,6 @@ defineExpose({ openDialog });
   padding-bottom: 0;
 }
 
-.product-dialog-close {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  height: 48px;
-  z-index: 1;
-}
-
 :global(.product-search-dialog .v-overlay__content) {
   position: fixed;
   top: 0;
@@ -452,5 +652,13 @@ defineExpose({ openDialog });
 
 :global(.kashi-compact .product-search-dialog .v-overlay__content) {
   left: 80px;
+}
+
+.product-dialog-close {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  height: 48px;
+  z-index: 1;
 }
 </style>

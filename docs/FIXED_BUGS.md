@@ -3,6 +3,41 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-30 · Product search: tapping beside the field lost its focus
+
+**Symptom.** In the products search dialog, a tap anywhere outside the
+search field (beside the keyboard, on the results count, an empty spot)
+took the focus off the field, and with it the caret.
+
+**Cause.** Pressing on any part of the dialog is a mousedown, and the
+browser moves the focus away from the field on mousedown. Only the
+keyboard's keys guarded against it.
+
+**Fix.** `ProductSearchDialog.vue`'s card cancels the mousedown
+(`keepSearchFocus`) everywhere but the field itself and the results'
+scrollbar, so the field keeps its focus, caret and selection; taps and
+clicks still work. Checked by touch and mouse in Chrome.
+
+## 2026-10-30 · Product search: no way to edit the middle of a search by touch
+
+**Symptom.** In the products search dialog, tapping inside the search text
+didn't put the caret there (a finger drag only scrolled the text), nothing
+could be selected, and the on-screen keys always typed and deleted at the
+end, wherever the caret was.
+
+**Cause.** `InlineKeyboard` only appended to or chopped the end of its
+value, and pressing a key took the focus off the field, losing its caret.
+WebView2's own touch handling of a one-line input doesn't place a caret
+or select on a drag.
+
+**Fix.** `InlineKeyboard.vue` takes the field (`input` prop) and types,
+deletes and replaces at its caret or selection, keeps it focused, and adds
+caret ◀ ▶ and select-all keys. `composables/useTouchSelection.ts` takes
+touch over in the search field: tap places the caret, drag selects, double
+tap selects all. Its field is `inputmode="none"` so Windows' own touch
+keyboard stays away. Tests: `lib/caret.test.ts`; checked by touch in
+Chrome.
+
 ## 2026-10-30 · Country flags show as letters in the phone dialog on Windows
 
 **Symptom.** On a Windows till, the client phone dialog's country cards and
