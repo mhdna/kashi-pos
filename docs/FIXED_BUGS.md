@@ -3,6 +3,31 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-30 · Payment amount showed "NaN"
+
+**Symptom.** The amount box above the keypad showed "NaN" instead of a
+number.
+
+**Cause.** Pressing "." with nothing typed made the entry ".", and the box
+showed `Number(entry)`, which is NaN for ".". The same display also dropped
+what was being typed after the point ("1.50" showed as "1.5", "12." as "12").
+
+**Fix.** A point typed first starts the entry as "0.", and the box shows the
+entry as typed with thousands grouped (`displayValue` and `appendDigit` in
+`frontend/src/components/Calculator.vue`).
+
+## 2026-10-30 · Summer/Winter picker said "No discount" on every option
+
+**Symptom.** Scanning a product sold as Summer or Winter showed a
+"No discount" chip on each option, which read as if the item had no deal
+either, even when it was on B2G1.
+
+**Cause.** The picker showed a chip for every option, "No discount" when
+the option had no percent of its own.
+
+**Fix.** The chip shows only when the option has a discount
+(`frontend/src/pages/home.vue`).
+
 ## 2026-10-30 · Cart showed the wrong price on deal lines split by sale option
 
 **Symptom.** The same product in the cart twice, once as Summer and once as
