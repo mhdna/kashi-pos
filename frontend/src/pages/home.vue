@@ -1799,7 +1799,9 @@ onBeforeUnmount(() => {
   visibility: hidden;
 }
 
-.home-search-keyboard {
+/* .home-page in front so this beats the keyboard's own position: relative:
+   it lies over the bottom of the screen and takes no room from the cart. */
+.home-page .home-search-keyboard {
   position: absolute;
   left: 0;
   right: 0;

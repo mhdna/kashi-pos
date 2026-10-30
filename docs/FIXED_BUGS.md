@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-30 · In-place product search squeezed the cart to a sliver
+
+**Symptom.** With the sale screen's in-place product search open, the cart
+showed only the top of its first line (the name, no code, one price), as
+if something hid the rest.
+
+**Cause.** The search keyboard was meant to lie over the bottom of the
+screen (`position: absolute` in `home.vue`), but its own component style
+(`position: relative` on `.product-search-keyboard`, scoped, so more
+specific) won. It stayed in the page's flow and took its height from the
+panes above; the cart, the only part that shrinks, was left about 20px.
+
+**Fix.** `home.vue`'s rule is now `.home-page .home-search-keyboard`, which
+outranks the component's, so the keyboard lies over the screen and the
+cart keeps its full height behind it. Checked in Chrome on the sale screen
+by measuring the cart with the search open and closed.
+
 ## 2026-10-30 · Product search: tapping beside the field lost its focus
 
 **Symptom.** In the products search dialog, a tap anywhere outside the
