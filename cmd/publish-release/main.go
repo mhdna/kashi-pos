@@ -11,8 +11,9 @@
 // (unless App Updates' "Keep old builds" says otherwise).
 //
 // publish needs KASHI_URL (the same central URL the tills use, e.g.
-// https://cloud.example.com/api) and KASHI_USER, an admin; KASHI_PASSWORD is
-// asked for when it isn't set.
+// https://cloud.example.com/api) and KASHI_USER, an admin. The password is
+// KASHI_PASSWORD, else the one saved in the macOS Keychain, else asked for;
+// a password typed in that logs in is saved to the Keychain for next time.
 package main
 
 import (
@@ -31,8 +32,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -170,19 +173,7 @@ func publish(args []string) error {
 	digest := sha256.Sum256(content)
 	signature := ed25519.Sign(priv, digest[:])
 
-	password := os.Getenv("KASHI_PASSWORD")
-	if password == "" {
-		fmt.Printf("kashi password for %s: ", user)
-		raw, err := term.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Println()
-		if err != nil {
-			// Not a terminal: read a line instead.
-			line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-			raw = []byte(strings.TrimSpace(line))
-		}
-		password = string(raw)
-	}
-	token, err := login(baseURL, user, password)
+	token, err := loginWithSavedPassword(baseURL, user)
 	if err != nil {
 		return err
 	}
@@ -410,6 +401,53 @@ func apiJSON(method, url, token string, body, out any) error {
 		return nil
 	}
 	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+// keychainService names the macOS Keychain item publish keeps the kashi
+// password in, one per kashi URL and user.
+func keychainService(baseURL string) string { return "gb-cloud-publish " + baseURL }
+
+func loginWithSavedPassword(baseURL, user string) (string, error) {
+	if password := os.Getenv("KASHI_PASSWORD"); password != "" {
+		return login(baseURL, user, password)
+	}
+	service := keychainService(baseURL)
+	if runtime.GOOS == "darwin" {
+		out, err := exec.Command("security", "find-generic-password", "-s", service, "-a", user, "-w").Output()
+		if saved := strings.TrimRight(string(out), "\n"); err == nil && saved != "" {
+			token, err := login(baseURL, user, saved)
+			if err == nil {
+				return token, nil
+			}
+			fmt.Println("The password saved in the Keychain didn't log in:", err)
+		}
+	}
+	password := askPassword(user)
+	token, err := login(baseURL, user, password)
+	if err != nil {
+		return "", err
+	}
+	if runtime.GOOS == "darwin" {
+		// -U replaces a saved password that stopped working.
+		if err := exec.Command("security", "add-generic-password", "-U", "-s", service, "-a", user, "-w", password).Run(); err != nil {
+			fmt.Println("Couldn't save the password to the Keychain:", err)
+		} else {
+			fmt.Println("Saved the password to the Keychain; publish won't ask again.")
+		}
+	}
+	return token, nil
+}
+
+func askPassword(user string) string {
+	fmt.Printf("kashi password for %s: ", user)
+	raw, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
+	if err != nil {
+		// Not a terminal: read a line instead.
+		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		raw = []byte(strings.TrimSpace(line))
+	}
+	return string(raw)
 }
 
 func login(baseURL, user, password string) (string, error) {

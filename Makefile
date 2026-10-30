@@ -102,7 +102,8 @@ build-windows-compact: set-version
 # public half into internal/updatekey -- commit that. publish builds the
 # Windows app at the latest tag's version, signs it and uploads it to kashi;
 # choose which tills get it on kashi's App Updates page. It needs KASHI_URL
-# (the tills' central URL) and KASHI_USER; the password is asked for.
+# (the tills' central URL) and KASHI_USER; the password is asked for once and
+# saved to the macOS Keychain (asked again if it changes).
 # publish-all (and publish-compact-all) also sets every active till of that
 # build to the new release, so the ones online update right away.
 #   git tag v1.2.3 && make publish NOTES="what changed"
