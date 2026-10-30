@@ -99,7 +99,7 @@
               @click="toggleFromCentral"
             >
               <v-icon :icon="selected.fromCentral ? 'mdi-domain' : 'mdi-cash-register'" :color="selected.fromCentral ? 'primary' : undefined" />
-              <div class="overview-value">{{ selected.fromCentral ? "From central · من المركزي" : "From the till" }}</div>
+              <div class="overview-value">{{ selected.fromCentral ? "From central من المركزي" : "From the till" }}</div>
               <v-progress-circular v-if="fromCentralSaving" indeterminate size="16" width="2" class="ms-auto" />
               <v-icon v-else-if="canEditFromCentral" icon="mdi-swap-horizontal" size="18" class="ms-auto text-medium-emphasis" />
             </component>
@@ -244,7 +244,7 @@
               color="primary"
               density="comfortable"
               class="mt-2"
-              label="From central · من المركزي"
+              label="From central من المركزي"
               :hint="form.fromCentral ? 'Paid by central: the shift won\'t take it out of the drawer.' : ''"
               :persistent-hint="form.fromCentral"
             />
