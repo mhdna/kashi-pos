@@ -3,6 +3,24 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-30 · Country flags show as letters in the phone dialog on Windows
+
+**Symptom.** On a Windows till, the client phone dialog's country cards and
+country picker showed two letters ("LB") instead of the flag emoji again.
+
+**Cause.** The bundled flag font was only registered when
+`country-flag-emoji-polyfill`'s canvas check said so: a smiley had to draw
+in colour *and* a flag had to fail. Where the till's WebView2 can't draw
+colour emoji on a canvas (no colour emoji font, or software rendering),
+the check failed, the font was never registered, and Windows fell back to
+the letters.
+
+**Fix.** `frontend/src/styles/typography.scss` declares the bundled
+Twemoji Country Flags `@font-face` itself, always, limited to the flag
+characters; `frontend/src/main.ts` only preloads it. The polyfill package
+is removed. macOS now shows the same Twemoji flags as Windows. No
+automated test: the frontend tests have no DOM; checked the built CSS.
+
 ## 2026-10-30 · "Saved info" popup over the till's fields
 
 **Symptom.** Tapping a field (the cart's quantity box, say) opened a
