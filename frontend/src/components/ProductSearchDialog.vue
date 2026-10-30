@@ -17,13 +17,7 @@
         <template v-if="activatorText">{{ activatorText }}</template>
       </v-btn>
     </template>
-    <v-card class="product-list-card" rounded="lg">
-      <div class="product-search-header">
-        <span class="product-search-title">{{ codeOnly ? "Find a product code" : "Find a product" }}</span>
-        <v-btn icon variant="text" size="small" aria-label="Close product search" @click="dialog = false">
-          <v-icon icon="mdi-close" size="22" />
-        </v-btn>
-      </div>
+    <v-card class="product-list-card">
       <div ref="listEl" class="product-list">
         <v-virtual-scroll
           v-if="gridMode"
@@ -160,6 +154,16 @@
       <v-card-text class="product-inline-keyboard">
         <InlineKeyboard v-model="search" :input="searchInput" :max-length="80" layout="code" />
       </v-card-text>
+      <v-btn
+        class="product-dialog-close"
+        color="error"
+        variant="tonal"
+        aria-label="Close product search"
+        @click="dialog = false"
+      >
+        <v-icon icon="mdi-close" size="28" class="me-1" />
+        Close
+      </v-btn>
     </v-card>
   </v-dialog>
 </template>
@@ -511,19 +515,6 @@ defineExpose({ openDialog });
   min-width: 0;
 }
 
-.product-search-header {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px 2px 20px;
-}
-
-.product-search-title {
-  font-size: var(--kashi-font-size-lg);
-  font-weight: 500;
-}
-
 .product-list-card {
   height: 100%;
   position: relative;
@@ -625,7 +616,7 @@ defineExpose({ openDialog });
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  margin-bottom: 8px;
+  margin-bottom: 48px;
   margin-inline: auto;
   /* The keys flex to share whatever width this element ends up with, so they
      can't overflow; this cap just stops them looking oversized on a wide
@@ -637,22 +628,29 @@ defineExpose({ openDialog });
   padding-bottom: 0;
 }
 
-/* A window over the sale screen rather than all of it: centred in the
-   space right of the nav rail, at most 1100 x 860. */
 :global(.product-search-dialog .v-overlay__content) {
   position: fixed;
-  top: 50%;
-  left: calc(72px + (100vw - 72px) / 2);
-  transform: translate(-50%, -50%);
-  width: min(1100px, calc(100vw - 72px - 48px)) !important;
-  height: min(860px, calc(100vh - 32px)) !important;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 72px;
+  width: auto !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
   max-width: none !important;
   max-height: none !important;
   margin: 0;
 }
 
 :global(.kashi-compact .product-search-dialog .v-overlay__content) {
-  left: calc(80px + (100vw - 80px) / 2);
-  width: min(1100px, calc(100vw - 80px - 48px)) !important;
+  left: 80px;
+}
+
+.product-dialog-close {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  height: 48px;
+  z-index: 1;
 }
 </style>
