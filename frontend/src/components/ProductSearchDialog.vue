@@ -17,7 +17,13 @@
         <template v-if="activatorText">{{ activatorText }}</template>
       </v-btn>
     </template>
-    <v-card class="product-list-card">
+    <v-card class="product-list-card" rounded="lg">
+      <div class="product-search-header">
+        <span class="product-search-title">{{ codeOnly ? "Find a product code" : "Find a product" }}</span>
+        <v-btn icon variant="text" size="small" aria-label="Close product search" @click="dialog = false">
+          <v-icon icon="mdi-close" size="22" />
+        </v-btn>
+      </div>
       <div ref="listEl" class="product-list">
         <v-virtual-scroll
           v-if="gridMode"
@@ -35,7 +41,7 @@
                 :key="product.id"
                 class="product-cell"
                 :class="{ 'product-cell--named': showsName }"
-                variant="outlined"
+                variant="flat"
                 @click="selectProduct(product)"
               >
                 <span v-if="shows('code')" class="product-cell-code"><template
@@ -46,7 +52,7 @@
                   v-for="(part, i) in hits(product.name)"
                   :key="i"
                 ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
-                <span class="product-cell-meta">
+                <span v-if="variantLabel(product) || shows('price')" class="product-cell-meta">
                   <span class="product-cell-variant text-medium-emphasis text-truncate">{{ variantLabel(product) }}</span>
                   <span v-if="shows('price')" class="product-price">
                     ${{ Number(product.price || 0).toFixed(2) }}
@@ -154,16 +160,6 @@
       <v-card-text class="product-inline-keyboard">
         <InlineKeyboard v-model="search" :input="searchInput" :max-length="80" layout="code" />
       </v-card-text>
-      <v-btn
-        class="product-dialog-close"
-        color="error"
-        variant="tonal"
-        aria-label="Close product search"
-        @click="dialog = false"
-      >
-        <v-icon icon="mdi-close" size="28" class="me-1" />
-        Close
-      </v-btn>
     </v-card>
   </v-dialog>
 </template>
@@ -410,9 +406,11 @@ watch(listEl, (el, old) => {
   if (old) resizer.unobserve(old);
   if (el) resizer.observe(el);
 });
-const cellWidth = computed(() => (showsName.value ? 260 : 170));
-const columns = computed(() => Math.max(1, Math.floor((listWidth.value - 16) / cellWidth.value)));
-const gridRowHeight = computed(() => (showsName.value ? 92 : 72));
+// Four to a row at most, so each code stays big enough to read at a glance;
+// fewer where the window is too narrow for four.
+const MAX_COLUMNS = 4;
+const columns = computed(() => Math.min(MAX_COLUMNS, Math.max(1, Math.floor((listWidth.value - 24) / 200))));
+const gridRowHeight = computed(() => (showsName.value ? 96 : 68));
 const gridRows = computed(() => {
   const rows: ProductItem[][] = [];
   for (let i = 0; i < products.value.length; i += columns.value) rows.push(products.value.slice(i, i + columns.value));
@@ -462,20 +460,22 @@ defineExpose({ openDialog });
   display: grid;
   gap: 8px;
   height: 100%;
-  padding: 4px 8px;
+  padding: 4px 12px;
 }
 
 .product-cell {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
-  padding: 6px 10px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), 0.045);
 }
 
 .product-cell-code {
-  font-size: 1.05rem;
+  font-size: 1.3rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -483,11 +483,11 @@ defineExpose({ openDialog });
 }
 
 .product-cell-name {
-  font-size: 0.85rem;
+  font-size: 1.05rem;
 }
 
 .product-cell--named .product-cell-code {
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -500,12 +500,25 @@ defineExpose({ openDialog });
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: 0.75rem;
+  font-size: 0.9rem;
 }
 
 .product-cell-variant {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.product-search-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 2px 20px;
+}
+
+.product-search-title {
+  font-size: var(--kashi-font-size-lg);
+  font-weight: 500;
 }
 
 .product-list-card {
@@ -609,7 +622,7 @@ defineExpose({ openDialog });
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  margin-bottom: 48px;
+  margin-bottom: 8px;
   margin-inline: auto;
   /* The keys flex to share whatever width this element ends up with, so they
      can't overflow; this cap just stops them looking oversized on a wide
@@ -621,29 +634,22 @@ defineExpose({ openDialog });
   padding-bottom: 0;
 }
 
-.product-dialog-close {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  height: 48px;
-  z-index: 1;
-}
-
+/* A window over the sale screen rather than all of it: centred in the
+   space right of the nav rail, at most 1100 x 860. */
 :global(.product-search-dialog .v-overlay__content) {
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 72px;
-  width: auto !important;
-  height: 100vh !important;
-  min-height: 100vh !important;
+  top: 50%;
+  left: calc(72px + (100vw - 72px) / 2);
+  transform: translate(-50%, -50%);
+  width: min(1100px, calc(100vw - 72px - 48px)) !important;
+  height: min(860px, calc(100vh - 32px)) !important;
   max-width: none !important;
   max-height: none !important;
   margin: 0;
 }
 
 :global(.kashi-compact .product-search-dialog .v-overlay__content) {
-  left: 80px;
+  left: calc(80px + (100vw - 80px) / 2);
+  width: min(1100px, calc(100vw - 80px - 48px)) !important;
 }
 </style>
