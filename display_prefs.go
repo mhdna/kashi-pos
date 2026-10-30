@@ -33,6 +33,7 @@ var displayPrefKeys = map[string]func(json.RawMessage) error{
 	"quick_access_show_name":    isBool,
 	"quick_access_show_remove":  isBool,
 	"animations_enabled":        isBool,
+	"product_search_in_place":   isBool,
 	"calculator_total_currency": isString,
 	"theme":                     oneOf("light", "dark"),
 }

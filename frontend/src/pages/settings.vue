@@ -698,6 +698,13 @@
                 label="Show the product search button on the sale screen"
                 @update:model-value="setProductSearchEnabled"
               />
+              <v-switch
+                :model-value="productSearchInPlace"
+                color="primary"
+                hide-details
+                label="Search in the sale screen: results in place of the calculator, keyboard along the bottom (off: a full-screen dialog)"
+                @update:model-value="(value) => setProductSearchInPlace(value ?? false)"
+              />
             </v-card-text>
           </v-card>
 
@@ -1995,6 +2002,8 @@ import ReceiptLookPicker from "@/components/ReceiptLookPicker.vue";
 import {
   animationsEnabled,
   setAnimationsEnabled,
+  productSearchInPlace,
+  setProductSearchInPlace,
   calculatorTotalCurrency,
   setCalculatorTotalCurrency,
   quickAccessRows,
@@ -2106,7 +2115,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-custom-pricing": { tab: "behaviour", title: "Custom item pricing", keywords: "custom item price discount per unit editing" },
   "behavior-price-change-mode": { tab: "behaviour", title: "Price change mode", keywords: "price change manual override discount lever" },
   "behavior-invoice-keyboard": { tab: "display", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
-  "behavior-product-search": { tab: "behaviour", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
+  "behavior-product-search": { tab: "behaviour", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide dialog in place calculator keyboard" },
   "behavior-scan-by-code": { tab: "behaviour", title: "Product code in scan field", keywords: "barcode scan code sku variant type enter" },
   "behavior-search-code-only": { tab: "behaviour", title: "Code-only product search", keywords: "product search code only hide names barcode lookup" },
   "behavior-stock": { tab: "behaviour", title: "Selling beyond stock", keywords: "oversell stock allow warn block sell more than in stock negative" },
