@@ -604,3 +604,25 @@ func TestSyncAttendanceReportsUnlinkedPunchesOnce(t *testing.T) {
 		t.Fatalf("skipped punch = %+v", skipped)
 	}
 }
+
+// Each pull asks the device for the past week, not just the day: a punch
+// made while the till was off is fetched by the next pull.
+func TestSyncAttendanceAsksForThePastWeek(t *testing.T) {
+	app, _ := setUpTestAttendanceApp(t, "")
+	var asked map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&asked)
+		json.NewEncoder(w).Encode(map[string]any{"retcode": 0, "data": map[string]any{"item": []any{}}})
+	}))
+	t.Cleanup(server.Close)
+	if err := app.UpdateAttendanceConfig(strings.TrimPrefix(server.URL, "http://"), "", "", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.SyncAttendance("2026-08-20"); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := asked["data"].(map[string]any)
+	if data["TimeStart"] != "2026-08-13 00:00:00" || data["TimeEnd"] != "2026-08-20 23:59:59" {
+		t.Fatalf("asked for %v .. %v, want the week up to the day", data["TimeStart"], data["TimeEnd"])
+	}
+}

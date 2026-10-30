@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-30 · Punches made while the till was off could be missed
+
+**Symptom.** An employee's attendance in kashi had almost only arrival
+punches (Ahmad Robaie at Centro: one punch a day all October), while
+colleagues on the same device had their exits too.
+
+**Cause.** After a punch the device pings the till, which then asked the
+device for that day's punches only, and nothing pulled when the till
+started. A punch made while the till was off (leaving after closing) was
+never asked for again if the device honours the dates. Not confirmed on the
+device itself; the fix is safe either way.
+
+**Fix.** Every pull asks for the past 7 days (already imported punches are
+skipped as before) and the till pulls once when it starts
+(`attendance.go`, `attendance_push_server.go`). Test:
+`TestSyncAttendanceAsksForThePastWeek`.
+
 ## 2026-10-30 · In-place product search squeezed the cart to a sliver
 
 **Symptom.** With the sale screen's in-place product search open, the cart

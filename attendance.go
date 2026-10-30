@@ -143,7 +143,7 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 		"target": "doorlog",
 		"action": "get",
 		"data": map[string]string{
-			"TimeStart": date + " 00:00:00",
+			"TimeStart": attendanceLookbackStart(date) + " 00:00:00",
 			"TimeEnd":   date + " 23:59:59",
 			"Status":    "Success",
 		},
@@ -996,4 +996,18 @@ func (a *App) newSkippedAttendance(tx *sql.Tx, ip string, items []akuvoxDoorLogI
 		})
 	}
 	return events, nil
+}
+
+// attendanceLookbackDays is how far back each pull asks the device. A punch
+// made while the till was off (someone leaving after closing time) is only
+// fetched by a later pull; asking for today alone would miss it if the
+// device honours the dates. Punches already imported are skipped as usual.
+const attendanceLookbackDays = 7
+
+func attendanceLookbackStart(date string) string {
+	day, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return date
+	}
+	return day.AddDate(0, 0, -attendanceLookbackDays).Format("2006-01-02")
 }
