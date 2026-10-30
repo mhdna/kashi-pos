@@ -3,6 +3,20 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-30 · "Saved info" popup over the till's fields
+
+**Symptom.** Tapping a field (the cart's quantity box, say) opened a
+Windows "Saved info" popup listing old values like "0" on top of the cart.
+
+**Cause.** WebView2, which the till runs in, remembers what was typed into
+each field and offers it back. No field asked it not to, and Wails has no
+option to turn WebView2's autofill off.
+
+**Fix.** `frontend/src/lib/noAutofill.ts`, called from `main.ts`, marks
+every input and textarea `autocomplete="off"`, including ones added later
+(dialogs, menus), through a MutationObserver. No automated test: the
+frontend tests have no DOM; checked with the build.
+
 ## 2026-10-30 · make bump tagged releases that couldn't be published
 
 **Symptom.** `make bump; make publish-all-force` run twice made v1.1.66,

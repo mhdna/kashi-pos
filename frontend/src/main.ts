@@ -21,6 +21,7 @@ import "@fontsource/roboto/latin-ext-700.css";
 import { registerPlugins } from "@/plugins";
 import router from "@/router";
 import { preventNewWindows } from "@/lib/noNewWindows";
+import { preventAutofill } from "@/lib/noAutofill";
 
 // Components
 import App from "./App.vue";
@@ -42,5 +43,6 @@ const app = createApp(App);
 
 registerPlugins(app);
 preventNewWindows(router);
+preventAutofill();
 
 app.mount("#app");
