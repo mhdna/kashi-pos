@@ -235,7 +235,7 @@
             <div class="invoice-delete-control">
               <!-- A returned line in an exchange can't be edited, but it can be
                    taken out when the customer keeps that item after all. -->
-              <v-btn v-if="!readonly" variant="text" rounded size="small" @click="removeItem(item)">
+              <v-btn v-if="!readonly" icon variant="text" size="32" @click="removeItem(item)">
                 <v-icon icon="mdi-delete" size="18" color="grey" />
               </v-btn>
             </div>
