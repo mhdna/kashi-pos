@@ -41,8 +41,13 @@
                     v-if="shows('code')"
                     class="product-code"
                     :class="namesHidden ? 'product-code--lead font-weight-medium' : 'text-medium-emphasis'"
-                  >{{ product.code }}</span>
-                  <span v-if="!codeOnly && shows('name')" class="font-weight-medium text-truncate">{{ product.name }}</span>
+                  ><template v-for="(part, i) in hits(product.code)" :key="i"><span
+                    :class="{ 'search-hit': part.hit }"
+                  >{{ part.text }}</span></template></span>
+                  <span v-if="!codeOnly && shows('name')" class="font-weight-medium text-truncate"><template
+                    v-for="(part, i) in hits(product.name)"
+                    :key="i"
+                  ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
                   <span v-if="product.brand && !codeOnly && shows('brand')" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
                   <span v-if="product.color && shows('color')" class="product-variant text-medium-emphasis">{{ product.color }}</span>
                   <span v-if="product.size && shows('size')" class="product-variant text-medium-emphasis">{{ product.size }}</span>
@@ -113,6 +118,7 @@ import { computed, ref, inject, onBeforeUnmount, watch } from "vue";
 import { CountProductsForSearch, ListProductsCursor } from "../../wailsjs/go/main/App";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { useTouchSelection } from "@/composables/useTouchSelection";
+import { matchParts } from "@/lib/highlight";
 
 type ProductItem = {
   id: number;
@@ -305,6 +311,10 @@ function openDialog() {
   dialog.value = true;
 }
 
+// What was searched for, coloured wherever it shows in a result's code or
+// name. The term the shown results were found with, not the one being typed.
+const hits = (text: string) => matchParts(text || "", debouncedSearch.value);
+
 // The search field's input, for the keyboard's caret and touch selection.
 const searchField = ref<{ $el?: HTMLElement } | null>(null);
 const searchInput = ref<HTMLInputElement | null>(null);
@@ -319,6 +329,11 @@ defineExpose({ openDialog });
 <style scoped>
 .product-search-control {
   width: 100%;
+}
+
+.search-hit {
+  color: rgb(var(--v-theme-error));
+  font-weight: 700;
 }
 
 .product-search-row {
