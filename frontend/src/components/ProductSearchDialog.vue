@@ -80,17 +80,19 @@
       <v-divider />
       <div class="product-search-row">
         <v-text-field
+          ref="searchField"
           v-model="search"
           class="product-search-control"
           density="compact"
           hide-details
+          inputmode="none"
           :placeholder="codeOnly ? 'Enter a product code...' : 'Search products...'"
           variant="outlined"
           autofocus
         />
       </div>
       <v-card-text class="product-inline-keyboard">
-        <InlineKeyboard v-model="search" :max-length="80" layout="code" />
+        <InlineKeyboard v-model="search" :input="searchInput" :max-length="80" layout="code" />
       </v-card-text>
       <v-btn
         class="product-dialog-close"
@@ -110,6 +112,7 @@
 import { computed, ref, inject, onBeforeUnmount, watch } from "vue";
 import { CountProductsForSearch, ListProductsCursor } from "../../wailsjs/go/main/App";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import { useTouchSelection } from "@/composables/useTouchSelection";
 
 type ProductItem = {
   id: number;
@@ -301,6 +304,14 @@ onBeforeUnmount(() => {
 function openDialog() {
   dialog.value = true;
 }
+
+// The search field's input, for the keyboard's caret and touch selection.
+const searchField = ref<{ $el?: HTMLElement } | null>(null);
+const searchInput = ref<HTMLInputElement | null>(null);
+watch(searchField, (field) => {
+  searchInput.value = field?.$el?.querySelector("input") ?? null;
+}, { flush: "post" });
+useTouchSelection(searchInput);
 
 defineExpose({ openDialog });
 </script>
