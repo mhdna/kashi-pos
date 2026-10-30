@@ -28,12 +28,8 @@
         </v-btn>
       </template>
       <v-btn size="small" variant="text" @click="append('-')">-</v-btn>
-      <v-btn v-if="layout === 'code'" size="small" variant="text" @click="append('+')">+</v-btn>
       <v-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
         Space
-      </v-btn>
-      <v-btn v-if="input" size="small" variant="text" aria-label="Select all" @click="selectAll">
-        <v-icon icon="mdi-select-all" size="26" />
       </v-btn>
       <v-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</v-btn>
       <v-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace">⌫</v-btn>
@@ -133,13 +129,6 @@ function move(step: number) {
   const caret = start !== end ? (step < 0 ? start : end) : Math.min(Math.max(start + step, 0), props.modelValue.length);
   el.focus({ preventScroll: true });
   el.setSelectionRange(caret, caret);
-}
-
-function selectAll() {
-  const el = props.input;
-  if (!el) return;
-  el.focus({ preventScroll: true });
-  el.select();
 }
 </script>
 
