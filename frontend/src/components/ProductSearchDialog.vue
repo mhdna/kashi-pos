@@ -18,8 +18,53 @@
       </v-btn>
     </template>
     <v-card class="product-list-card">
-      <div class="product-list">
+      <div ref="listEl" class="product-list">
         <v-virtual-scroll
+          v-if="gridMode"
+          ref="scroller"
+          class="product-virtual-scroll product-grid-scroll"
+          :items="gridRows"
+          :item-height="gridRowHeight"
+          height="100%"
+          @scroll.passive="handleScroll"
+        >
+          <template #default="{ item: row }">
+            <div :key="row[0]?.id" class="product-grid-row" :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }">
+              <v-card
+                v-for="product in row"
+                :key="product.id"
+                class="product-cell"
+                :class="{ 'product-cell--named': showsName }"
+                variant="outlined"
+                @click="selectProduct(product)"
+              >
+                <span v-if="shows('code')" class="product-cell-code"><template
+                  v-for="(part, i) in hits(product.code)"
+                  :key="i"
+                ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
+                <span v-if="showsName" class="product-cell-name text-truncate"><template
+                  v-for="(part, i) in hits(product.name)"
+                  :key="i"
+                ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
+                <span class="product-cell-meta">
+                  <span class="product-cell-variant text-medium-emphasis text-truncate">{{ variantLabel(product) }}</span>
+                  <span v-if="shows('price')" class="product-price">
+                    ${{ Number(product.price || 0).toFixed(2) }}
+                    <v-icon
+                      v-if="product.priceListOverridden"
+                      icon="mdi-star"
+                      color="amber-darken-2"
+                      size="12"
+                      :title="product.priceListName ? `Price from list: ${product.priceListName}` : 'List price'"
+                    />
+                  </span>
+                </span>
+              </v-card>
+            </div>
+          </template>
+        </v-virtual-scroll>
+        <v-virtual-scroll
+          v-else
           ref="scroller"
           class="product-virtual-scroll"
           :items="products"
@@ -44,7 +89,7 @@
                   ><template v-for="(part, i) in hits(product.code)" :key="i"><span
                     :class="{ 'search-hit': part.hit }"
                   >{{ part.text }}</span></template></span>
-                  <span v-if="!codeOnly && shows('name')" class="font-weight-medium text-truncate"><template
+                  <span v-if="showsName" class="font-weight-medium text-truncate"><template
                     v-for="(part, i) in hits(product.name)"
                     :key="i"
                   ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
@@ -95,6 +140,16 @@
           variant="outlined"
           autofocus
         />
+        <v-btn
+          class="product-layout-toggle"
+          variant="tonal"
+          :aria-label="gridMode ? 'Show results as a list' : 'Show results in columns'"
+          :title="gridMode ? 'One per row' : 'Columns'"
+          @mousedown.prevent
+          @click="gridMode = !gridMode"
+        >
+          <v-icon :icon="gridMode ? 'mdi-view-agenda-outline' : 'mdi-view-grid-outline'" size="24" />
+        </v-btn>
       </div>
       <v-card-text class="product-inline-keyboard">
         <InlineKeyboard v-model="search" :input="searchInput" :max-length="80" layout="code" />
@@ -114,7 +169,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, inject, onBeforeUnmount, watch } from "vue";
+import { computed, nextTick, ref, inject, onBeforeUnmount, watch } from "vue";
 import { CountProductsForSearch, ListProductsCursor } from "../../wailsjs/go/main/App";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { useTouchSelection } from "@/composables/useTouchSelection";
@@ -172,6 +227,7 @@ const shows = (field: string) => !props.hiddenFields.includes(field);
 // With no name on the row the code is what the cashier reads, so it takes
 // the name's place: full size and contrast, and the name's width.
 const namesHidden = computed(() => props.codeOnly || !shows("name"));
+const showsName = computed(() => !namesHidden.value);
 const activatorText = props.activatorText;
 const activatorIcon = props.activatorIcon;
 const showActivator = props.showActivator;
@@ -212,7 +268,7 @@ watch(debouncedSearch, () => {
 const batchSize = 50;
 const products = ref<ProductItem[]>([]);
 const cursor = ref(0);
-const scroller = ref<{ scrollToIndex: (index: number) => void } | null>(null);
+const scroller = ref<{ scrollToIndex: (index: number) => void; $el?: HTMLElement } | null>(null);
 // A new search replaces the list when its first page arrives, rather than
 // emptying it first, so typing doesn't flash an empty list on every key.
 let replaceOnNextPage = false;
@@ -289,6 +345,17 @@ async function loadMore() {
   } finally {
     if (request === latestRequest) loading.value = false;
   }
+  if (request === latestRequest && !loadError.value) void nextTick(fillScreen);
+}
+
+// A page in columns can be shorter than the list, leaving nothing to scroll
+// that would ask for the next one; keep asking until the list is full.
+// Measured from the rows, not the scroller, which grows a frame later.
+function fillScreen() {
+  const element = scroller.value?.$el;
+  if (!element) return;
+  const height = gridMode.value ? gridRows.value.length * gridRowHeight.value : products.value.length * 48;
+  if (height - element.clientHeight <= 120) void loadMore();
 }
 
 function handleScroll(event: Event) {
@@ -314,6 +381,44 @@ function openDialog() {
 // What was searched for, coloured wherever it shows in a result's code or
 // name. The term the shown results were found with, not the one being typed.
 const hits = (text: string) => matchParts(text || "", debouncedSearch.value);
+const variantLabel = (product: ProductItem) =>
+  [shows("color") && product.color, shows("size") && product.size].filter(Boolean).join(" · ");
+
+// Results in columns, several to a row: the default when rows show only a
+// code (and price), which leave most of a row empty. The choice is kept
+// apart for code-only rows and named rows.
+const gridKey = computed(() => `kashi-product-search-grid-${namesHidden.value ? "codes" : "named"}`);
+const storedGrid = (key: string) => localStorage.getItem(key);
+const gridMode = ref(false);
+watch(
+  gridKey,
+  (key) => {
+    const saved = storedGrid(key);
+    gridMode.value = saved === null ? namesHidden.value : saved === "true";
+  },
+  { immediate: true },
+);
+watch(gridMode, (on) => localStorage.setItem(gridKey.value, String(on)));
+
+
+const listEl = ref<HTMLElement | null>(null);
+const listWidth = ref(0);
+const resizer = new ResizeObserver(([entry]) => {
+  listWidth.value = entry?.contentRect.width ?? 0;
+});
+watch(listEl, (el, old) => {
+  if (old) resizer.unobserve(old);
+  if (el) resizer.observe(el);
+});
+const cellWidth = computed(() => (showsName.value ? 260 : 170));
+const columns = computed(() => Math.max(1, Math.floor((listWidth.value - 16) / cellWidth.value)));
+const gridRowHeight = computed(() => (showsName.value ? 92 : 72));
+const gridRows = computed(() => {
+  const rows: ProductItem[][] = [];
+  for (let i = 0; i < products.value.length; i += columns.value) rows.push(products.value.slice(i, i + columns.value));
+  return rows;
+});
+watch([gridMode, columns], () => void nextTick(fillScreen));
 
 // The search field's input, for the keyboard's caret and touch selection.
 const searchField = ref<{ $el?: HTMLElement } | null>(null);
@@ -323,12 +428,29 @@ watch(searchField, (field) => {
 }, { flush: "post" });
 useTouchSelection(searchInput);
 
+onBeforeUnmount(() => resizer.disconnect());
+
 defineExpose({ openDialog });
 </script>
 
 <style scoped>
 .product-search-control {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.product-search-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 6px;
+}
+
+.product-layout-toggle {
+  flex: 0 0 auto;
+  height: 40px !important;
+  min-width: 56px !important;
 }
 
 .search-hit {
@@ -336,9 +458,54 @@ defineExpose({ openDialog });
   font-weight: 700;
 }
 
-.product-search-row {
-  flex: 0 0 auto;
-  padding: 8px 16px 6px;
+.product-grid-row {
+  display: grid;
+  gap: 8px;
+  height: 100%;
+  padding: 4px 8px;
+}
+
+.product-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 10px;
+}
+
+.product-cell-code {
+  font-size: 1.05rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-cell-name {
+  font-size: 0.85rem;
+}
+
+.product-cell--named .product-cell-code {
+  font-size: 0.8rem;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.product-cell--named .product-cell-code .search-hit {
+  color: rgb(var(--v-theme-error));
+}
+
+.product-cell-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.75rem;
+}
+
+.product-cell-variant {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .product-list-card {
