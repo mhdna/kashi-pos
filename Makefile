@@ -52,6 +52,33 @@ set-version:
 		{ echo "version '$(APP_VERSION)' must be X.Y.Z or X.Y.Z.W (tag it like v1.2.3)"; exit 1; }
 	sed -i.bak -E 's/("productVersion": *")[^"]*"/\1$(WIN_VERSION)"/' wails.json && rm -f wails.json.bak
 
+# The next release: the latest tag plus one patch (1.1.65 -> 1.1.66), or
+# `make bump PART=minor` / `PART=major`, or `make bump VERSION=1.2.0`.
+# Writes it into wails.json and the installer, commits only those two files
+# as "chore: release vX" and tags it, so `make publish` then ships it.
+PART ?= patch
+.PHONY: bump
+bump:
+	@set -e; \
+	last=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); last=$${last:-0.0.0}; \
+	next="$(VERSION)"; \
+	if [ -z "$$next" ]; then \
+		set -- $$(echo "$$last" | tr . " "); ma=$$1; mi=$$2; pa=$$3; \
+		case "$(PART)" in \
+			major) next=$$((ma + 1)).0.0 ;; \
+			minor) next=$$ma.$$((mi + 1)).0 ;; \
+			patch) next=$$ma.$$mi.$$((pa + 1)) ;; \
+			*) echo "PART must be patch, minor or major"; exit 1 ;; \
+		esac; \
+	fi; \
+	echo "$$next" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "version '$$next' must be X.Y.Z"; exit 1; }; \
+	if git rev-parse -q --verify "refs/tags/v$$next" >/dev/null; then echo "v$$next is already tagged"; exit 1; fi; \
+	sed -i.bak -E "s/(\"productVersion\": *\")[^\"]*\"/\1$$next.0\"/" wails.json && rm -f wails.json.bak; \
+	sed -i.bak -E "s/(INFO_PRODUCTVERSION \")[^\"]*\"/\1$$next.0\"/" build/windows/installer/wails_tools.nsh && rm -f build/windows/installer/wails_tools.nsh.bak; \
+	git commit -q -m "chore: release v$$next" -- wails.json build/windows/installer/wails_tools.nsh; \
+	git tag "v$$next"; \
+	echo "v$$last -> v$$next (committed and tagged; make publish ships it)"
+
 build-windows: set-version
 	wails build -platform windows/amd64 -nsis -clean -ldflags "-X main.appVersion=$(APP_VERSION)"
 
