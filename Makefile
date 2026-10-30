@@ -56,11 +56,23 @@ set-version:
 # `make bump PART=minor` / `PART=major`, or `make bump VERSION=1.2.0`.
 # Writes it into wails.json and the installer, commits only those two files
 # as "chore: release vX" and tags it, so `make publish` then ships it.
+# Refuses, tagging nothing, when there are uncommitted changes (publish
+# builds what's on disk, so a release must be exactly what's committed), when
+# nothing was committed since the last release, or when the code doesn't build.
 PART ?= patch
 .PHONY: bump
 bump:
 	@set -e; \
 	last=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); last=$${last:-0.0.0}; \
+	if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Not bumping: there are uncommitted changes (git status). Commit or stash them first."; exit 1; \
+	fi; \
+	if git rev-parse -q --verify "refs/tags/v$$last" >/dev/null && \
+	   [ -z "$$(git log --format=%s "v$$last..HEAD" | grep -v '^chore: release v')" ]; then \
+		echo "Not bumping: nothing committed since v$$last."; exit 1; \
+	fi; \
+	echo "Checking it builds..."; \
+	go build -o /dev/null . || { echo "Not bumping: the code doesn't build."; exit 1; }; \
 	next="$(VERSION)"; \
 	if [ -z "$$next" ]; then \
 		set -- $$(echo "$$last" | tr . " "); ma=$$1; mi=$$2; pa=$$3; \

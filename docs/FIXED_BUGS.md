@@ -3,6 +3,20 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-30 · make bump tagged releases that couldn't be published
+
+**Symptom.** `make bump; make publish-all-force` run twice made v1.1.66,
+v1.1.67 and v1.1.68, and each publish failed to build, so none shipped.
+
+**Cause.** `make bump` tagged whatever was committed, with no checks, while
+`make publish` builds what's on disk, uncommitted work included. Work in
+progress that didn't compile yet was in the tree, and a second run bumped
+again with nothing new.
+
+**Fix.** `make bump` now refuses, tagging nothing, when there are
+uncommitted changes, when nothing was committed since the last release, or
+when `go build` fails (`Makefile`). The three unpublished tags were removed.
+
 ## 2026-10-30 · Payment amount showed "NaN"
 
 **Symptom.** The amount box above the keypad showed "NaN" instead of a
