@@ -451,9 +451,12 @@ defineExpose({ openDialog });
   min-width: 56px !important;
 }
 
+/* Like a highlighter pen: yellow behind the match, the text kept dark. */
 .search-hit {
-  color: rgb(var(--v-theme-error));
-  font-weight: 700;
+  background-color: #ffe066;
+  color: rgb(var(--v-theme-on-surface));
+  border-radius: 3px;
+  box-decoration-break: clone;
 }
 
 .product-grid-row {
@@ -492,7 +495,7 @@ defineExpose({ openDialog });
 }
 
 .product-cell--named .product-cell-code .search-hit {
-  color: rgb(var(--v-theme-error));
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .product-cell-meta {
