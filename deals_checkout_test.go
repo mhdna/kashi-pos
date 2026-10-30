@@ -281,3 +281,87 @@ func TestDealQuoteLinesNameTheirSaleOption(t *testing.T) {
 		t.Fatalf("quote = %+v, want 1950 off in all", quote)
 	}
 }
+
+// One "Buy 2 get 1" for the whole shop, CA codes' leftover units at 30%
+// (their rows' own fallback) and the rest at the deal's 20%: a mixed cart
+// makes one set across both, and a unit left outside it gets its own
+// fallback.
+func TestDealPoolsUnitsWithTheirOwnFallback(t *testing.T) {
+	ctx := context.Background()
+	app, store, _, _ := setUpTestInvoiceApp(t, "http://localhost:9999")
+	q := store.Queries
+	thirty := int64(30)
+	products := []struct {
+		code     string
+		price    int64
+		fallback *int64
+	}{{"CA23KGJE15", 1500, &thirty}, {"CA23KGJE25", 2500, &thirty}, {"BOC5KBJE15", 1500, nil}, {"BOC5KBJE20", 2000, nil}}
+	var prices []syncedPriceListItem
+	var rows []syncedDiscountListItem
+	for _, p := range products {
+		if err := applySyncedProductVariant(ctx, q, syncedProductVariant{
+			UID: "var-" + p.code, Barcode: "bc-" + p.code, IsActive: true, Code: p.code, Name: p.code,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		prices = append(prices, syncedPriceListItem{ProductVariantUID: "var-" + p.code, Price: p.price})
+		rows = append(rows, syncedDiscountListItem{ProductVariantUID: "var-" + p.code, DealUID: "deal-b2g1", DealFallbackPercent: p.fallback})
+	}
+	if err := applySyncedPriceList(ctx, q, syncedPriceList{UID: "prices", Name: "Prices", IsActive: true, Items: prices}); err != nil {
+		t.Fatal(err)
+	}
+	if err := applySyncedDiscountList(ctx, q, syncedDiscountList{
+		UID: "disc", Name: "Deals", IsActive: true, Items: rows,
+		Deals: []syncedDeal{{UID: "deal-b2g1", Name: "Buy 2 get 1", Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100, FallbackPercent: 20}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name  string
+		cart  []salesInvoiceItem
+		off   int64             // the deal's whole saving
+		label map[string]string // the chip of each code's lines
+	}{
+		{
+			// Your till's cart: 1 boy's + 2 girl's jeans at $15, one free.
+			name: "mixed set", off: 1500,
+			cart:  []salesInvoiceItem{{Barcode: "bc-BOC5KBJE15", Qty: 1}, {Barcode: "bc-CA23KGJE15", Qty: 2}},
+			label: map[string]string{"BOC5KBJE15": "B2G1 else 20%", "CA23KGJE15": "B2G1 else 30%"},
+		},
+		{
+			// $15 x3 boy's + $25 CA: a $15 free, the $25 CA left over at 30%.
+			name: "CA unit left over", off: 1500 + 750,
+			cart: []salesInvoiceItem{{Barcode: "bc-BOC5KBJE15", Qty: 3}, {Barcode: "bc-CA23KGJE25", Qty: 1}},
+		},
+		{
+			// $15 x2 CA + $20 x2 boy's: a $15 free, a $20 boy's left over at 20%.
+			name: "other unit left over", off: 1500 + 400,
+			cart: []salesInvoiceItem{{Barcode: "bc-CA23KGJE15", Qty: 2}, {Barcode: "bc-BOC5KBJE20", Qty: 2}},
+		},
+		{
+			// No set: each unit its own fallback.
+			name: "no set", off: 450 + 300,
+			cart: []salesInvoiceItem{{Barcode: "bc-CA23KGJE15", Qty: 1}, {Barcode: "bc-BOC5KBJE15", Qty: 1}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			itemsJSON, _ := json.Marshal(tc.cart)
+			quote, err := app.QuoteInvoiceTotal(string(itemsJSON))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var off int64
+			for _, line := range quote.Lines {
+				off += line.DealDiscountCents
+				if want, ok := tc.label[line.Code]; ok && line.DealLabel != want {
+					t.Errorf("%s chip = %q, want %q", line.Code, line.DealLabel, want)
+				}
+			}
+			if off != tc.off {
+				t.Fatalf("deal took %d off, want %d: %+v", off, tc.off, quote.Lines)
+			}
+		})
+	}
+}

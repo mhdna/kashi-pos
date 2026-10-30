@@ -17,6 +17,38 @@ again with nothing new.
 uncommitted changes, when nothing was committed since the last release, or
 when `go build` fails (`Makefile`). The three unpublished tags were removed.
 
+## 2026-10-30 · Mixed carts got no free item on B2G1
+
+**Symptom.** 1 Kids Boy Jeans (BOC5…) + 2 Kids Girl Jeans (CA…) at $15 on
+"Buy 2 get 1 free" came to $33 with nothing free: the boy's at 20% off, the
+girl's at 30%.
+
+**Cause.** The outlet codes (CA, EOC5, EF6) were to get 30% on units left
+outside a set and everything else 20%, and a deal has one fallback percent,
+so they were put on two deals. The till pools units per deal, so the two
+kinds never made a set together.
+
+**Fix.** One deal again, with each list row able to carry its own fallback
+(`deal_fallback_percent`, kashi 000216, till 000133). The till pools every
+unit on the deal and gives a unit left outside a set its row's fallback
+(`unitDiscounts` and `applyDeals` in `deals.go`). Sold lines keep the
+fallback they were sold with, so an exchange judges them by it
+(`deal_exchange.go`). A till on an older build ignores the new field and
+gives the deal's own 20%; it never stacks a discount on the deal. Tests:
+`TestDealPoolsUnitsWithTheirOwnFallback`, `TestDealTermsIsRewardUnit`.
+
+## 2026-10-30 · Salespersons shared colours on the picker
+
+**Symptom.** Three salespersons were orange and two pink on the till's
+salesperson picker.
+
+**Cause.** kashi picked each new salesperson's colour at random from 12.
+The till shows the colour kashi sets.
+
+**Fix.** In kashi (its `docs/FIXED_BUGS.md`): a new salesperson gets the
+colour least used in the branch, and the existing duplicates were reassigned.
+Nothing changed on the till.
+
 ## 2026-10-30 · Payment amount showed "NaN"
 
 **Symptom.** The amount box above the keypad showed "NaN" instead of a

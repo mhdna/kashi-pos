@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"math"
 	"strings"
@@ -397,6 +398,7 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 			// Signed like the quantity, so a unit's deal discount reads the
 			// same on the sold line and the returned one.
 			DealUid: returned.deal.dealUID, DealDiscount: -returned.deal.unitDeal * returned.qty,
+			DealFallbackPercent: returned.line.DealFallbackPercent,
 		}); err != nil {
 			return err
 		}
@@ -417,7 +419,8 @@ func recordExchangeProducts(a *App, q *db.Queries, invoiceID, inventoryID int64,
 			SaleOption: replacement.saleOption,
 			// Set only on a replacement standing in for a returned paid unit
 			// of the sale's deal (deal_exchange.go).
-			DealUid: replacement.dealUID,
+			DealUid:             replacement.dealUID,
+			DealFallbackPercent: replacementDealFallback(replacement),
 		}); err != nil {
 			return err
 		}
@@ -468,4 +471,13 @@ func recordExchangePayments(a *App, q *db.Queries, invoiceID, shiftID int64, pay
 		}
 	}
 	return nil
+}
+
+// replacementDealFallback is what a replacement counting towards the sale's
+// deal gets outside a set there: its own fallback, as for any unit on the deal.
+func replacementDealFallback(p pricedInvoiceProduct) sql.NullInt64 {
+	if p.dealUID == "" {
+		return sql.NullInt64{}
+	}
+	return p.dealFallback
 }

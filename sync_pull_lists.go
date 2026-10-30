@@ -39,6 +39,17 @@ type syncedDiscountListItem struct {
 	Discount          int64  `json:"discount"`
 	// The deal the variant is on (deals.go), one of the list's Deals.
 	DealUID string `json:"deal_uid,omitempty"`
+	// What the variant gets outside a set on that deal, in place of the
+	// deal's fallback (kashi's 000216); absent for the deal's own.
+	DealFallbackPercent *int64 `json:"deal_fallback_percent,omitempty"`
+}
+
+// dealFallback is the row's own fallback, for a row on a deal.
+func (item syncedDiscountListItem) dealFallback() sql.NullInt64 {
+	if item.DealUID == "" || item.DealFallbackPercent == nil {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: *item.DealFallbackPercent, Valid: true}
 }
 
 // A deal's terms, sent with every list whose rows name it.
@@ -163,10 +174,11 @@ func applySyncedDiscountList(ctx context.Context, q *db.Queries, l syncedDiscoun
 			continue
 		}
 		if err := q.InsertDiscountListItem(ctx, db.InsertDiscountListItemParams{
-			DiscountListID: list.ID,
-			ProductUid:     item.ProductVariantUID,
-			Discount:       item.Discount,
-			DealUid:        item.DealUID,
+			DiscountListID:      list.ID,
+			ProductUid:          item.ProductVariantUID,
+			Discount:            item.Discount,
+			DealUid:             item.DealUID,
+			DealFallbackPercent: item.dealFallback(),
 		}); err != nil {
 			return err
 		}
