@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,17 +19,20 @@ type akuvoxResponse struct {
 	Retcode int    `json:"retcode"`
 	Message string `json:"message"`
 	Data    struct {
-		Items []struct {
-			Code   string `json:"Code"`
-			Date   string `json:"Date"`
-			ID     string `json:"ID"`
-			Name   string `json:"Name"`
-			Status string `json:"Status"`
-			Time   string `json:"Time"`
-			Type   string `json:"Type"`
-			UserID string `json:"UserID"`
-		} `json:"item"`
+		Items []akuvoxDoorLogItem `json:"item"`
 	} `json:"data"`
+}
+
+// akuvoxDoorLogItem is one punch in the device's door log.
+type akuvoxDoorLogItem struct {
+	Code   string `json:"Code"`
+	Date   string `json:"Date"`
+	ID     string `json:"ID"`
+	Name   string `json:"Name"`
+	Status string `json:"Status"`
+	Time   string `json:"Time"`
+	Type   string `json:"Type"`
+	UserID string `json:"UserID"`
 }
 
 const attendanceCashierHistoryFlag = "attendance_cashier_history"
@@ -197,14 +201,21 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 		eventAt time.Time
 	}
 	candidates := make([]candidate, 0, len(items))
+	unlinked := make([]akuvoxDoorLogItem, 0)
 	for _, item := range items {
 		if item.Status != "Success" {
 			continue
 		}
 		salesperson, ok := byDoorID[strings.TrimSpace(item.UserID)]
 		if !ok {
+			// Not imported: a visitor, or an employee whose device user isn't
+			// linked to a salesperson (enrolled twice, a new number). kashi
+			// is told about it below so the gap shows in its reports.
+			if strings.TrimSpace(item.UserID) != "" {
+				unlinked = append(unlinked, item)
+			}
 			continue
-		} // visitors and unassigned device users are ignored
+		}
 		eventAt, err := time.ParseInLocation("2006-01-02 15:04:05", item.Date+" "+item.Time, time.Local)
 		if err != nil {
 			continue
@@ -322,6 +333,14 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 				Status:           candidate.item.Status,
 			})
 		}
+	}
+
+	if syncConfigured {
+		skipped, err := a.newSkippedAttendance(tx, ip, unlinked)
+		if err != nil {
+			return nil, err
+		}
+		newEvents = append(newEvents, skipped...)
 	}
 
 	if len(newEvents) > 0 {
@@ -941,4 +960,40 @@ func (a *App) AddAttendanceWithManagerApproval(salespersonID int64, date, reques
 		return err
 	}
 	return a.reviewAttendanceComplaint(id, true, "manager approval")
+}
+
+// skippedAttendanceStatus marks a punch the till didn't import. kashi keeps it
+// out of worked hours and lists it as a punch nobody is linked to.
+const skippedAttendanceStatus = "Skipped: unlinked"
+
+// newSkippedAttendance turns device punches by users not linked to any
+// salesperson into events for kashi, each one once (attendance_skipped_sent).
+// Only Success punches reach here; the device is asked for no others.
+func (a *App) newSkippedAttendance(tx *sql.Tx, ip string, items []akuvoxDoorLogItem) ([]branchAttendanceEvent, error) {
+	events := make([]branchAttendanceEvent, 0)
+	for _, item := range items {
+		eventAt, err := time.ParseInLocation("2006-01-02 15:04:05", item.Date+" "+item.Time, time.Local)
+		if err != nil {
+			continue
+		}
+		ref := ip + "|" + item.ID
+		res, err := tx.ExecContext(a.ctx, `INSERT OR IGNORE INTO attendance_skipped_sent (ref) VALUES (?)`, ref)
+		if err != nil {
+			return nil, fmt.Errorf("record skipped attendance: %w", err)
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			continue // reported before
+		}
+		events = append(events, branchAttendanceEvent{
+			Ref:              ref,
+			SalespersonName:  strings.TrimSpace(item.Name),
+			AttendanceUserID: strings.TrimSpace(item.UserID),
+			EventDate:        item.Date,
+			EventTime:        item.Time,
+			EventAt:          eventAt.Format(time.RFC3339),
+			Type:             item.Type,
+			Status:           skippedAttendanceStatus,
+		})
+	}
+	return events, nil
 }

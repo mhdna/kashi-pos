@@ -560,3 +560,47 @@ func TestSyncAttendanceRemovesPunchPulledBackBeforeFix(t *testing.T) {
 		t.Errorf("pulled-back punch still there: %d rows, want 0", count)
 	}
 }
+
+// A device user linked to nobody (an employee enrolled twice, say) isn't
+// imported, but kashi is told about each such punch once, marked skipped,
+// so its reports can show what the device has that attendance doesn't.
+func TestSyncAttendanceReportsUnlinkedPunchesOnce(t *testing.T) {
+	app, store := setUpTestAttendanceApp(t, "http://localhost:9999")
+	makeSalesperson(t, app, store, "Ava", "U1")
+	host := fakeAkuvox(t, []map[string]string{
+		{"ID": "d1", "UserID": "U1", "Name": "Ava", "Date": "2026-08-20", "Time": "09:00:00", "Type": "Face", "Status": "Success"},
+		{"ID": "d2", "UserID": "U7", "Name": "Ava 2", "Date": "2026-08-20", "Time": "18:00:00", "Type": "Face", "Status": "Success"},
+	})
+	if err := app.UpdateAttendanceConfig(host, "", "", true); err != nil {
+		t.Fatal(err)
+	}
+
+	for range 2 {
+		if _, err := app.SyncAttendance("2026-08-20"); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var local int
+	if err := app.conn.QueryRow(`SELECT COUNT(*) FROM salesperson_attendance_events`).Scan(&local); err != nil {
+		t.Fatal(err)
+	}
+	if local != 1 {
+		t.Fatalf("only the linked punch is imported on the till, got %d", local)
+	}
+	entries := outboxByType(t, app, store, "attendance_events")
+	if len(entries) != 1 {
+		t.Fatalf("the second pull has nothing new to report, got %d batches", len(entries))
+	}
+	var payload branchAttendanceEventsPayload
+	if err := json.Unmarshal([]byte(entries[0].PayloadJson), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Events) != 2 {
+		t.Fatalf("expected the linked punch and the unlinked one, got %+v", payload.Events)
+	}
+	skipped := payload.Events[1]
+	if skipped.Ref != host+"|d2" || skipped.AttendanceUserID != "U7" || skipped.SalespersonName != "Ava 2" || skipped.Status != skippedAttendanceStatus {
+		t.Fatalf("skipped punch = %+v", skipped)
+	}
+}
