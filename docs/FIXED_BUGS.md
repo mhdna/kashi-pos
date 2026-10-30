@@ -3,6 +3,21 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-30 · Product search: tapping beside the field lost its focus
+
+**Symptom.** In the products search dialog, a tap anywhere outside the
+search field (beside the keyboard, on the results count, an empty spot)
+took the focus off the field, and with it the caret.
+
+**Cause.** Pressing on any part of the dialog is a mousedown, and the
+browser moves the focus away from the field on mousedown. Only the
+keyboard's keys guarded against it.
+
+**Fix.** `ProductSearchDialog.vue`'s card cancels the mousedown
+(`keepSearchFocus`) everywhere but the field itself and the results'
+scrollbar, so the field keeps its focus, caret and selection; taps and
+clicks still work. Checked by touch and mouse in Chrome.
+
 ## 2026-10-30 · Product search: no way to edit the middle of a search by touch
 
 **Symptom.** In the products search dialog, tapping inside the search text

@@ -17,7 +17,7 @@
         <template v-if="activatorText">{{ activatorText }}</template>
       </v-btn>
     </template>
-    <v-card class="product-list-card">
+    <v-card class="product-list-card" @mousedown="keepSearchFocus">
       <div ref="listEl" class="product-list">
         <v-virtual-scroll
           v-if="gridMode"
@@ -145,7 +145,6 @@
           variant="tonal"
           :aria-label="gridMode ? 'Show results as a list' : 'Show results in columns'"
           :title="gridMode ? 'One per row' : 'Columns'"
-          @mousedown.prevent
           @click="gridMode = !gridMode"
         >
           <v-icon :icon="gridMode ? 'mdi-view-agenda-outline' : 'mdi-view-grid-outline'" size="24" />
@@ -361,6 +360,15 @@ function fillScreen() {
 function handleScroll(event: Event) {
   const element = event.currentTarget as HTMLElement;
   if (element.scrollHeight - element.scrollTop - element.clientHeight <= 120) void loadMore();
+}
+
+// A tap anywhere in the dialog but the field leaves the field focused, with
+// its caret and selection, so typing carries on. Only a mouse on the list's
+// scrollbar is let through, to drag it.
+function keepSearchFocus(event: MouseEvent) {
+  const target = event.target as Element;
+  if (target === searchInput.value || target.classList.contains("v-virtual-scroll")) return;
+  event.preventDefault();
 }
 
 function selectProduct(product: ProductItem) {
