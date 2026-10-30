@@ -15,6 +15,17 @@ export function setAnimationsEnabled(enabled: boolean) {
   reportDisplayPrefs();
 }
 
+/** Whether the sale screen's product search opens in place, its results
+ * where the calculator is and its keyboard along the bottom, rather than as
+ * a dialog over everything. On unless turned off in Settings. */
+export const productSearchInPlace = ref(localStorage.getItem("kashi-product-search-in-place") !== "false");
+
+export function setProductSearchInPlace(inPlace: boolean) {
+  productSearchInPlace.value = inPlace;
+  localStorage.setItem("kashi-product-search-in-place", String(inPlace));
+  reportDisplayPrefs();
+}
+
 /** Currency code shown first on the calculator's total. Cycled by the
  * flip icon on the calculator itself, or set as a default from Settings. */
 const storedTotalCurrency = localStorage.getItem("kashi-calculator-total-currency");
@@ -128,6 +139,7 @@ function currentDisplayPrefs() {
     quick_access_show_name: quickAccessShowName.value,
     quick_access_show_remove: quickAccessShowRemove.value,
     animations_enabled: animationsEnabled.value,
+    product_search_in_place: productSearchInPlace.value,
     calculator_total_currency: calculatorTotalCurrency.value,
   };
 }
@@ -149,6 +161,7 @@ async function adoptPushedDisplayPrefs(applyTheme: (theme: string) => void) {
     if (typeof p.quick_access_show_name === "boolean") setQuickAccessShowName(p.quick_access_show_name);
     if (typeof p.quick_access_show_remove === "boolean") setQuickAccessShowRemove(p.quick_access_show_remove);
     if (typeof p.animations_enabled === "boolean") setAnimationsEnabled(p.animations_enabled);
+    if (typeof p.product_search_in_place === "boolean") setProductSearchInPlace(p.product_search_in_place);
     if (typeof p.calculator_total_currency === "string" && p.calculator_total_currency) {
       setCalculatorTotalCurrency(p.calculator_total_currency);
     }
