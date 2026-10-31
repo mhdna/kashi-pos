@@ -178,6 +178,11 @@ and Search product / Held invoices / Select client buttons) instead of the dimme
 calculator. Exchange and settlement modes keep the old dim, because they rarely
 have an empty cart. "Select client" opens `ClientButton`'s dialog through
 `useClient().requestClientDialog` (a counter the button watches).
+The buttons are white with a thin border and **no shadow** (shadows are CPU-drawn
+on a till). "Held invoices" shows `· N` when there are held invoices: the count is
+read with `ListHoldInvoices` each time the panel comes up. "Select client" shows
+`Client: <first name>` once a client is chosen. The content sits a little above
+the middle (more padding below than above).
 
 It was added for clarity, not speed. Hiding the calculator with `display: none`
 does skip its layout and paint while the cart is empty, but its components still

@@ -240,18 +240,36 @@
         </div>
         -->
         <div v-if="showReady" class="ready-panel" data-testid="ready-panel">
-          <k-icon icon="mdi-barcode-scan" size="72" class="ready-panel__icon" />
+          <k-icon icon="mdi-barcode-scan" size="64" class="ready-panel__icon" />
           <div class="ready-panel__title">Ready to scan</div>
           <div class="ready-panel__hint">
             {{ scanByCodeEnabled ? "Scan a barcode or type a code to start" : "Scan a barcode to start" }}
           </div>
           <div class="ready-panel__actions">
-            <k-btn v-if="productSearchEnabled" variant="tonal" prepend-icon="mdi-magnify" @click="openProductSearch">
+            <k-btn
+              v-if="productSearchEnabled"
+              class="ready-panel__btn"
+              variant="outlined"
+              prepend-icon="mdi-magnify"
+              @click="openProductSearch"
+            >
               Search product
             </k-btn>
-            <k-btn variant="tonal" prepend-icon="mdi-pause" @click="onHoldMenu?.open()">Held invoices</k-btn>
-            <k-btn variant="tonal" prepend-icon="mdi-account-outline" @click="requestClientDialog">
-              Select client
+            <k-btn
+              class="ready-panel__btn"
+              variant="outlined"
+              prepend-icon="mdi-pause"
+              @click="onHoldMenu?.open()"
+            >
+              Held invoices<template v-if="heldCount > 0"> · {{ heldCount }}</template>
+            </k-btn>
+            <k-btn
+              class="ready-panel__btn"
+              variant="outlined"
+              prepend-icon="mdi-account-outline"
+              @click="requestClientDialog"
+            >
+              {{ clientSelected ? `Client: ${client.name.split(" ")[0]}` : "Select client" }}
             </k-btn>
           </div>
         </div>
@@ -473,6 +491,7 @@ import {
   GetAppSettings,
   DeleteHoldInvoice,
   GetOpenShift,
+  ListHoldInvoices,
   OpenShift,
   WriteToScreen,
   QuoteInvoiceTotal,
@@ -646,6 +665,24 @@ const invoiceTotal = computed(() => (quote.value?.grandTotalCents ?? 0) / 100);
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
 // An empty sale shows the "ready to scan" panel in place of the calculator.
 const showReady = computed(() => !hasItems.value && pageMode.value === "sale");
+
+// The held-invoice count on the ready panel's button, read each time the panel
+// comes up (a cheap local query) so it is right after a hold or a restore.
+const heldCount = ref(0);
+watch(
+  showReady,
+  (ready) => {
+    if (!ready) return;
+    ListHoldInvoices()
+      .then((holds) => {
+        heldCount.value = holds?.length ?? 0;
+      })
+      .catch(() => {
+        heldCount.value = 0;
+      });
+  },
+  { immediate: true },
+);
 
 // The calculator and action bar are the heaviest part of the screen. While
 // the ready panel is up they are not built at startup: they mount when the
@@ -1811,12 +1848,23 @@ onBeforeUnmount(() => {
   gap: 8px;
   justify-content: center;
   min-height: 0;
-  padding: 24px;
+  /* More room below than above puts the content a little over the middle,
+     where it reads as centred on a tall screen. */
+  padding: 24px 24px 96px;
   text-align: center;
 }
 
+/* Quiet, so "Ready to scan" leads. */
 .ready-panel__icon {
-  opacity: 0.55;
+  color: rgb(var(--k-theme-primary));
+  opacity: 0.3;
+}
+
+/* Light buttons: white, thin border. No shadow: shadows are CPU-drawn on the
+   till (see docs/dev/performance.md). */
+.ready-panel__btn {
+  background: rgb(var(--k-theme-surface)) !important;
+  border-color: rgba(var(--k-theme-on-surface), 0.2) !important;
 }
 
 .ready-panel__title {
@@ -1834,7 +1882,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 32px;
   width: 240px;
 }
 
