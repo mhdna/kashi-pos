@@ -291,7 +291,7 @@ func (a *App) SyncUnknownItemSession(clientRef, slotsJSON string) (map[string]an
 	a.unknownSessionRef = body.ClientRef
 	a.unknownDone = doneUnknownUnits(resp)
 	a.unknownMu.Unlock()
-	return unknownSessionResult(body.ClientRef, client.baseURL+"/unknown_uploads/"+resp.UploadToken, resp), nil
+	return unknownSessionResult(body.ClientRef, client.baseURL+"/u/"+resp.UploadToken, resp), nil
 }
 
 // UnknownItemSessionStatus is the dialog's poll: which units have a picture or

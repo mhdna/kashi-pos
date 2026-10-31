@@ -60,7 +60,7 @@ func TestRequestLoanUploadLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotRef != "loan-1" || url != kashi.URL+"/loan_uploads/abc123" {
+	if gotRef != "loan-1" || url != kashi.URL+"/l/abc123" {
 		t.Fatalf("ref %q, url %q", gotRef, url)
 	}
 
