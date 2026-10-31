@@ -91,7 +91,7 @@
           aria-label="Delete last digit"
           @click="removeDigit"
         >
-          ⌫
+          <k-icon icon="mdi-backspace-outline" size="26" />
         </k-btn>
       </div>
     </template>

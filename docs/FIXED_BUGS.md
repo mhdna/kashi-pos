@@ -3,6 +3,20 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-01 · The backspace key on the keypads showed a tiny icon
+
+**Symptom.** The backspace key on the number pad, login PIN pad, return/exchange
+pad, on-screen keyboard and phone pad showed a very small ⌫ symbol, hard to see
+on a touch screen.
+
+**Cause.** The key's label was the ⌫ text character, so its size depended on
+whichever system font supplied the glyph, which draws it small.
+
+**Fix.** All five keys use `mdi-backspace-outline` (already registered in
+`lib/icons.ts`) at 26px: `NumberPadMenu.vue`, `LoginForm.vue`,
+`ReturnInvoiceMenu.vue`, `InlineKeyboard.vue` and `PhonePad.vue`. No test
+covers it (it is a drawing change); the frontend build and tests pass.
+
 ## 2026-10-31 · Invoices, Expenses and Loans stopped loading more rows on scroll
 
 **Symptom.** Since the move off Vuetify, scrolling to the bottom of the

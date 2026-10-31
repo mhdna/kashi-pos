@@ -32,7 +32,7 @@
         Space
       </k-btn>
       <k-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</k-btn>
-      <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace">⌫</k-btn>
+      <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace" aria-label="Backspace"><k-icon icon="mdi-backspace-outline" size="26" /></k-btn>
     </div>
   </div>
 </template>
