@@ -39,6 +39,10 @@ type pricedInvoiceProduct struct {
 	// (NoDeal) turned off: the percent, or the deal's short label.
 	offDiscount  int64
 	offDealLabel string
+	// The cart's line ref, and for an unknown item line the deal choice in
+	// force ("" when the till has no deal to offer it); see LineQuote.
+	lineRef     string
+	unknownDeal string
 	// The line's share of the sale's invoice discount (invoice_discounts.go);
 	// lineTotal already has it off.
 	invoiceDiscount int64
@@ -222,6 +226,24 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			}
 			dealUID = ""
 		}
+		// An unknown item joins the shop's "Buy 2 get 1" at the fallback the
+		// salesperson picked, unless they took it out -- or typed it a
+		// discount, since a deal never stacks on another saving.
+		unknownDeal := ""
+		if isUnknown && listPricing.unknownDealUID != "" {
+			fallback, onDeal, err := unknownDealFallback(item.UnknownDeal)
+			if err != nil {
+				return nil, 0, 0, nil, err
+			}
+			unknownDeal = unknownDealNone
+			if onDeal && !hasUnitDiscount(item, product.Discount) {
+				dealUID, dealFallback = listPricing.unknownDealUID, fallback
+				unknownDeal = item.UnknownDeal
+				if unknownDeal == "" {
+					unknownDeal = unknownDealDefault
+				}
+			}
+		}
 		priceQuantities := map[unitPricing]int64{
 			{price: product.Price, discount: product.Discount}: int64(item.Qty),
 		}
@@ -271,6 +293,8 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			}
 			priced.offDiscount = offDiscount
 			priced.offDealLabel = offDealLabel
+			priced.lineRef = item.LineRef
+			priced.unknownDeal = unknownDeal
 			if pricing.price == product.Price {
 				priced.priceListID = priceListID
 			}

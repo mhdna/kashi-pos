@@ -45,6 +45,13 @@ type LineQuote struct {
 	// the deal (short label) it gave up, for the chip that turns it back on.
 	OffDiscount  int64  `json:"offDiscount,omitempty"`
 	OffDealLabel string `json:"offDealLabel,omitempty"`
+	// The cart line's ref as sent, so lines of one product (every unknown
+	// item) are told apart.
+	LineRef string `json:"lineRef,omitempty"`
+	// An unknown item line's deal choice in force: b2g1_30, b2g1_20 or none
+	// (a typed discount keeps it out of the deal); empty when the till has
+	// no "Buy 2 get 1" to offer it.
+	UnknownDeal string `json:"unknownDeal,omitempty"`
 }
 
 // QuoteInvoiceTotal prices a cart exactly as checkout would, without
@@ -87,6 +94,8 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 			Free:              product.isFree(),
 			OffDiscount:       product.offDiscount,
 			OffDealLabel:      product.offDealLabel,
+			LineRef:           product.lineRef,
+			UnknownDeal:       product.unknownDeal,
 		})
 	}
 
