@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-31 · Invoices, Expenses and Loans stopped loading more rows on scroll
+
+**Symptom.** Since the move off Vuetify, scrolling to the bottom of the
+Invoices list (and of Expenses and Loans) no longer loaded older rows: the
+list stopped at its first page.
+
+**Cause.** The scroll handlers only reacted to scrolling of an element with
+Vuetify's table class, `v-table__wrapper`. The new `k-data-table` scrolls a
+`k-table__wrapper` instead, so the check never matched and the next page was
+never asked for.
+
+**Fix.** Both handlers look for `k-table__wrapper`:
+`frontend/src/pages/invoices-list.vue` and
+`frontend/src/composables/useInfiniteList.ts` (Expenses, Loans). No other
+script or style still refers to a Vuetify class. No automated test: the
+frontend has no DOM test setup.
+
 ## 2026-10-31 · Branch picker on the login screen shrank to its text
 
 **Symptom.** Since the move off Vuetify, the branch picker above the PIN pad
