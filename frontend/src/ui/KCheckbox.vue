@@ -2,7 +2,7 @@
 import { colorVars } from "./util";
 import KIcon from "./KIcon";
 
-const props = defineProps<{ modelValue?: boolean | null; label?: string; color?: string; disabled?: boolean; hideDetails?: boolean | string; density?: string }>();
+defineProps<{ modelValue?: boolean | null; label?: string; color?: string; disabled?: boolean; hideDetails?: boolean | string; density?: string }>();
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
 </script>
 <template>

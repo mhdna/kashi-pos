@@ -49,7 +49,9 @@ const validated = ref(false);
 // max, step, inputmode, autocomplete...) goes to the real <input>.
 const rootAttrs = computed(() => ({ class: attrs.class, style: attrs.style }));
 const inputAttrs = computed(() => {
-  const { class: _c, style: _s, ...rest } = attrs;
+  const rest = { ...attrs };
+  delete rest.class;
+  delete rest.style;
   return rest;
 });
 

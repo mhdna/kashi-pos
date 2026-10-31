@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { colorVars } from "./util";
-const props = defineProps<{ modelValue?: number; min?: number | string; max?: number | string; step?: number | string; color?: string; showTicks?: boolean | string; hideDetails?: boolean | string; disabled?: boolean }>();
+defineProps<{ modelValue?: number; min?: number | string; max?: number | string; step?: number | string; color?: string; showTicks?: boolean | string; hideDetails?: boolean | string; disabled?: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [value: number] }>();
 </script>
 <template>
