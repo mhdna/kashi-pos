@@ -366,6 +366,10 @@ export function GetLoanPhoto(arg1, arg2) {
   return window['go']['main']['App']['GetLoanPhoto'](arg1, arg2);
 }
 
+export function GetMonthSales(arg1) {
+  return window['go']['main']['App']['GetMonthSales'](arg1);
+}
+
 export function GetNextInvoiceCode(arg1) {
   return window['go']['main']['App']['GetNextInvoiceCode'](arg1);
 }

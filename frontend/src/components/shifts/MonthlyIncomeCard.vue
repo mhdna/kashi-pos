@@ -183,8 +183,13 @@
       <span>Total</span>
       <span>{{ formatBalance(grandTotal, "USD", currencies, roundingMode) }}</span>
     </div>
-    <div v-if="deferredCouponTotal > 0" class="text-caption text-medium-emphasis text-end">
-      Excludes {{ formatBalance(deferredCouponTotal, "USD", currencies, roundingMode) }} in coupons
+    <!-- The total counts every sale, as kashi's reports do; these parts of
+         it aren't money in the drawer yet. -->
+    <div v-if="couponTotal || onAccountTotal" class="text-caption text-medium-emphasis text-end">
+      Includes
+      <template v-if="couponTotal">{{ formatBalance(couponTotal, "USD", currencies, roundingMode) }} in coupons</template>
+      <template v-if="couponTotal && onAccountTotal"> and </template>
+      <template v-if="onAccountTotal">{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }} on account</template>,
       not yet collected
     </div>
     <TargetsProgressCard :targets="targets" class="mt-3" />
@@ -239,7 +244,10 @@ const props = defineProps<{
   month: string;
   rows: DayRow[];
   grandTotal: number;
-  deferredCouponTotal: number;
+  // Parts of grandTotal not yet collected: "calculate on checkout" coupons
+  // and sales on account (shifts.vue, GetMonthSales).
+  couponTotal: number;
+  onAccountTotal: number;
   loading: boolean;
   expandedDays: string[];
   allDaysExpanded: boolean;

@@ -286,6 +286,13 @@ type Querier interface {
 	GetLoan(ctx context.Context, id int64) (Loan, error)
 	GetLoanByClientRef(ctx context.Context, clientRef string) (Loan, error)
 	GetLoanCategoryByName(ctx context.Context, name string) (LoanCategory, error)
+	// The month's sales the way kashi's reports count net sales: every invoice
+	// by the local day it was rung up (not the shift it fell in), returns
+	// netted by their own sign, cancelled sales and their refunds left out,
+	// and coupons counted as sales. Alongside, how much of that total is
+	// "calculate on checkout" coupons (settled later by their issuer) and how
+	// much went on account (the client still owes it), so the till can say so.
+	GetMonthSalesSummary(ctx context.Context, yearMonth string) (GetMonthSalesSummaryRow, error)
 	GetOpenShift(ctx context.Context) (Shift, error)
 	GetPermissionByID(ctx context.Context, id int64) (Permission, error)
 	GetPermissionByName(ctx context.Context, name string) (Permission, error)
@@ -431,6 +438,8 @@ type Querier interface {
 	// scans) to build the monthly income chart. Same net-of-returns and
 	// deferred-coupon-exclusion convention as GetInvoiceIncomeTotalByDate.
 	ListDailyInvoiceIncomeByMonth(ctx context.Context, yearMonth string) ([]ListDailyInvoiceIncomeByMonthRow, error)
+	// GetMonthSalesSummary's total, day by day.
+	ListDailySalesByMonth(ctx context.Context, yearMonth string) ([]ListDailySalesByMonthRow, error)
 	// Sale invoices and their total per local day, for the conversion page
 	// (visitors who bought). Original sales only -- returns and exchanges
 	// aren't a visitor deciding to buy -- and cancelled sales are left out,

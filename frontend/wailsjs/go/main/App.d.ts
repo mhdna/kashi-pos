@@ -184,6 +184,8 @@ export function GetLoanFirstPhoto(arg1:string,arg2:number):Promise<string>;
 
 export function GetLoanPhoto(arg1:number,arg2:number):Promise<string>;
 
+export function GetMonthSales(arg1:string):Promise<main.MonthSales>;
+
 export function GetNextInvoiceCode(arg1:string):Promise<string>;
 
 export function GetOpenShift():Promise<Record<string, any>>;

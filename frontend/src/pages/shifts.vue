@@ -19,7 +19,8 @@
         :month="currentMonth"
         :rows="dailyRows"
         :grand-total="grandTotal"
-        :deferred-coupon-total="deferredCouponTotal"
+        :coupon-total="monthSales.deferredCoupons"
+        :on-account-total="monthSales.onAccount"
         :loading="loadingMonth"
         :expanded-days="expandedDays"
         :all-days-expanded="allDaysExpanded"
@@ -61,13 +62,17 @@ type BranchTarget = {
 // to the page paints it at once and refresh() swaps the fresh numbers in
 // behind it, so the loading bars only show on the very first visit (or for
 // a month that hasn't been loaded yet).
+// The month's sales counted like kashi's reports (management.go GetMonthSales):
+// the total, each day's part of it, and how much is coupons or on account.
+type MonthSalesView = { total: number; deferredCoupons: number; onAccount: number; byDay: Record<string, number> };
+
 type LastView = {
   month: string;
   openShift: Shift | null;
   closeBalances: Balance[];
   todayIncome: IncomeRow[];
   allShifts: Shift[];
-  deferredCouponTotal: number;
+  monthSales: MonthSalesView;
   branchTargets: BranchTarget[];
   visitorCounts: Record<string, number>;
   paymentMethods: PaymentMethod[];
@@ -83,7 +88,7 @@ import {
   GetAppSettings,
   GetCurrentShiftIncomeByAccount,
   GetCurrentMonth,
-  GetDeferredCouponTotalByMonth,
+  GetMonthSales,
   GetOpenShift,
   GetShiftTotals,
   ListBranchTargetsWithProgress,
@@ -104,7 +109,8 @@ const lastView = pageCache.lastView;
 const { enabled: visitorCounterEnabled, count: visitorCounterToday } = useVisitorCounter();
 const paymentMethods = ref<PaymentMethod[]>(lastView?.paymentMethods ?? []);
 const openingFloatEnabled = ref(lastView?.openingFloatEnabled ?? true);
-const deferredCouponTotal = ref(lastView?.deferredCouponTotal ?? 0);
+const emptyMonthSales: MonthSalesView = { total: 0, deferredCoupons: 0, onAccount: 0, byDay: {} };
+const monthSales = ref<MonthSalesView>(lastView?.monthSales ?? emptyMonthSales);
 const nonAdminMonthNavEnabled = ref(lastView?.nonAdminMonthNavEnabled ?? false);
 const canChangeMonth = computed(() => auth.isAdmin || nonAdminMonthNavEnabled.value);
 // Keyed "DD/MM/YYYY" to match the day keys MonthlyIncomeCard renders.
@@ -175,7 +181,7 @@ const dailyRows = computed<DayRow[]>(() => {
   if (!year || !month) {
     return Object.entries(groups).map(([day, shifts]) => ({
       day,
-      total: dayTotal(shifts),
+      total: monthSales.value.byDay[day] ?? 0,
       shifts,
     }));
   }
@@ -184,11 +190,14 @@ const dailyRows = computed<DayRow[]>(() => {
   return Array.from({ length: daysInMonth }, (_, index) => {
     const day = `${pad(index + 1)}/${month}/${year}`;
     const shifts = groups[day] ?? [];
-    return { day, total: dayTotal(shifts), shifts };
+    // A day's total is its sales by the day they were rung up, as kashi's
+    // reports count them; a shift that ran past midnight shows under the
+    // day it opened, with its whole total.
+    return { day, total: monthSales.value.byDay[day] ?? 0, shifts };
   });
 });
 
-const grandTotal = computed(() => dailyRows.value.reduce((total, row) => total + row.total, 0));
+const grandTotal = computed(() => monthSales.value.total);
 const currentShiftTotal = computed(() => {
   const shiftId = Number(openShift.value?.id) || 0;
   if (!shiftId) return 0;
@@ -199,10 +208,6 @@ const allDaysExpanded = computed(
     dailyRows.value.length > 0 &&
     dailyRows.value.every((row) => expandedDays.value.includes(row.day)),
 );
-
-function dayTotal(shifts: Shift[]) {
-  return shifts.reduce((total, shift) => total + shift.total, 0);
-}
 
 function pad(value: number) {
   return value.toString().padStart(2, "0");
@@ -280,7 +285,7 @@ async function refresh() {
   const month = currentMonth.value;
   if (month !== loadedMonth) loadingMonth.value = true;
 
-  const [shiftState, income, shifts, excluded, expandedBalances, targets, visitors] = await Promise.all([
+  const [shiftState, income, shifts, sales, expandedBalances, targets, visitors] = await Promise.all([
     GetOpenShift()
       .then(async (shift) => {
         const open = shift as Shift | null;
@@ -299,9 +304,22 @@ async function refresh() {
         })),
       )
       .catch(() => [] as Shift[]),
-    GetDeferredCouponTotalByMonth(month)
-      .then((total) => (Number.isFinite(Number(total)) ? Number(total) : 0))
-      .catch(() => 0),
+    GetMonthSales(month)
+      .then((sales): MonthSalesView => {
+        // Keyed "DD/MM/YYYY" like the day rows.
+        const byDay: Record<string, number> = {};
+        for (const { day, total } of sales?.days ?? []) {
+          const [year, mm, dd] = String(day).split("-");
+          if (year && mm && dd) byDay[`${dd}/${mm}/${year}`] = Number(total) || 0;
+        }
+        return {
+          total: Number(sales?.total) || 0,
+          deferredCoupons: Number(sales?.deferredCoupons) || 0,
+          onAccount: Number(sales?.onAccount) || 0,
+          byDay,
+        };
+      })
+      .catch(() => emptyMonthSales),
     Promise.all(
       [...shiftExpanded].map(async (shiftId) => {
         try {
@@ -333,7 +351,7 @@ async function refresh() {
   closeBalances.value = shiftState.balances;
   todayIncome.value = income;
   allShifts.value = shifts;
-  deferredCouponTotal.value = excluded;
+  monthSales.value = sales;
   for (const shiftId of Object.keys(balanceCache)) delete balanceCache[Number(shiftId)];
   for (const [shiftId, balances] of expandedBalances) balanceCache[shiftId] = balances;
   branchTargets.value = targets;
@@ -352,7 +370,7 @@ function saveView() {
     closeBalances: closeBalances.value,
     todayIncome: todayIncome.value,
     allShifts: allShifts.value,
-    deferredCouponTotal: deferredCouponTotal.value,
+    monthSales: monthSales.value,
     branchTargets: branchTargets.value,
     visitorCounts: visitorCounts.value,
     paymentMethods: paymentMethods.value,
