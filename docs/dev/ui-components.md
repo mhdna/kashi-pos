@@ -22,19 +22,17 @@ and list item was a deep tree of reactive components.
   the app doesn't use is not.
 - **Types**: `src/ui/global.d.ts` declares the components, so templates are
   type-checked by `vue-tsc`.
-- **No transitions, no ripples.** Only the spinners (`k-progress-circular`,
-  `k-progress-linear`), the print spinner and the red status dot in the nav
-  rail can move, and only when animations are switched on.
+- **No transitions, no ripples.** Only the spinners move (`k-progress-circular`,
+  `k-progress-linear`, the print spinner, the startup loader's), and they **always
+  spin, whatever the Animations switch says**: they mean "working". Their rules
+  carry `!important` to get past the global kill in `styles/settings.scss`.
 - **Animations are off by default, on every build** (`lib/animationsDefault.ts`).
-  Before v1.1.82 they defaulted on, so the first start of v1.1.82 switches every
-  till off once (marker `kashi-animations-reset-v1`); a switch-on in Settings or
-  a push from kashi afterwards is kept. The `animations-disabled` class sits on
-  `<html>` (dialogs are teleported out of the app root). Off, the circular
-  spinner is a still ~75% arc, the linear one a still half-opacity bar, and the
-  status dot a solid red. The animations that escape the global kill in
-  `styles/settings.scss` are scoped with `:root:not(.animations-disabled)`; the
-  startup loader in `index.html` does the same from a small inline script (it
-  runs before the app, so it reads the stored switch itself).
+  Before v1.1.82 they defaulted on, so the first start of that version switches
+  every till off once (marker `kashi-animations-reset-v1`); a switch-on in
+  Settings or a push from kashi afterwards is kept. The `animations-disabled`
+  class sits on `<html>` (dialogs are teleported out of the app root). The switch
+  now only governs the red status dot in the nav rail (solid red when off, pulsing
+  when on) and the invoice salesperson menu's fade.
 - **Closed overlays cost nothing.** Dialogs, menus, tooltips and snackbars are
   rendered only while open, and teleported to `<body>`. Without a `v-model`
   (`<k-menu>` / `<k-dialog>` with an `#activator`) they keep their own open

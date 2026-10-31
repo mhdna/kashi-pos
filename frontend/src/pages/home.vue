@@ -1775,9 +1775,6 @@ onBeforeUnmount(() => {
   border: 5px solid rgba(var(--k-theme-primary), 0.25);
   border-top-color: rgb(var(--k-theme-primary));
   border-radius: 50%;
-}
-
-:root:not(.animations-disabled) .print-spinner {
   animation: print-spin 0.8s linear infinite !important;
 }
 
