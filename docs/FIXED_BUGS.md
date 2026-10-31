@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-31 · Branch picker on the login screen shrank to its text
+
+**Symptom.** Since the move off Vuetify, the branch picker above the PIN pad
+was only as wide as the branch name, not the 280px it had before.
+
+**Cause.** `KSelect` (and `KAutocomplete`) had two top-level elements: the
+field and its dropdown menu. Vue only puts a page's scoped-style marker on a
+component with a single root, so the page's `.pin-branch-select { width:
+280px }` never matched. Any page's scoped class on a `k-select` or
+`k-autocomplete` was ignored the same way.
+
+**Fix.** The menu now sits inside the field (it teleports to the body
+anyway, leaving only a hidden marker), so both components have one root and
+scoped classes on them apply again. `frontend/src/ui/KSelect.vue`,
+`frontend/src/ui/KAutocomplete.vue`. No automated test: the frontend has no
+DOM test setup (no `@vue/test-utils`/jsdom).
+
 ## 2026-10-31 · Country names in the phone dialog drawn in the flag's colours
 
 **Symptom.** In the client phone dialog (macOS window), the country names

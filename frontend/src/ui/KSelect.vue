@@ -177,14 +177,18 @@ defineExpose({ validate, focus: () => field.value?.$el.querySelector<HTMLElement
       </template>
       <span v-else-if="placeholder && (!label || floating)" class="k-select__placeholder">{{ placeholder }}</span>
     </div>
+    <!-- The menu sits inside the field, so this component has one root:
+         a page's scoped class on it (a width, a margin) only applies to a
+         single-root component. The menu teleports to the body, leaving only
+         a hidden marker here. -->
+    <KMenu v-model="open" :anchor="anchorEl" match-width :close-on-content-click="false" :max-height="320" location="bottom start">
+      <KList :density="density">
+        <template v-for="(item, index) in visibleOptions" :key="String(item.value)">
+          <slot name="item" :props="itemProps(item)" :item="item" :index="index">
+            <KListItem v-bind="itemProps(item)" :class="{ 'k-list-item--hover': hover === index }" />
+          </slot>
+        </template>
+      </KList>
+    </KMenu>
   </KField>
-  <KMenu v-model="open" :anchor="anchorEl" match-width :close-on-content-click="false" :max-height="320" location="bottom start">
-    <KList :density="density">
-      <template v-for="(item, index) in visibleOptions" :key="String(item.value)">
-        <slot name="item" :props="itemProps(item)" :item="item" :index="index">
-          <KListItem v-bind="itemProps(item)" :class="{ 'k-list-item--hover': hover === index }" />
-        </slot>
-      </template>
-    </KList>
-  </KMenu>
 </template>
