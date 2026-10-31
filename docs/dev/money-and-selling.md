@@ -152,10 +152,11 @@ mode (paying off an old invoice) never saves a draft.
 
 ## The sale screen with an empty cart
 
-In sale mode with nothing in the cart, the right pane shows a quiet "Ready to
-scan" message (no buttons: search, held invoices and the client are already on
-the left) instead of a dimmed calculator and action bar. The calculator and
-action bar stay mounted, only hidden (`v-show`), so a payment typed so far, the
-draft's calculator state and the component refs are not lost; they come back as
-soon as the first item is added. Exchange and settlement modes keep the old
-dimmed overlay.
+In sale mode with nothing in the cart, the right pane shows a "Ready to scan"
+panel (Search product, Held invoices, Select client) instead of a dimmed
+calculator and action bar. The calculator and action bar stay mounted, only
+hidden (`v-show`), so a payment typed so far, the draft's calculator state and
+the component refs are not lost; they come back as soon as the first item is
+added. Exchange and settlement modes keep the old dimmed overlay. "Select
+client" asks `ClientButton` to open its dialog through `useClient`'s
+`requestClientDialog`.

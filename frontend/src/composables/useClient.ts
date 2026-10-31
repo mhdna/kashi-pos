@@ -8,6 +8,12 @@ const client = reactive<Client>(anonymousClient());
 const clientRequired = ref(true);
 const clientSelected = ref(false);
 const pulseClient = ref(false);
+// Bumped by requestClientDialog; ClientButton opens its dialog when it changes,
+// so other parts of the sale screen can offer "Select client".
+const clientDialogRequest = ref(0);
+function requestClientDialog() {
+  clientDialogRequest.value++;
+}
 
 let pulseTimer: ReturnType<typeof setTimeout> | undefined;
 function pulseMissingClient() {
@@ -47,6 +53,8 @@ export function useClient() {
     clientRequired,
     clientSelected,
     pulseClient,
+    clientDialogRequest,
+    requestClientDialog,
     pulseMissingClient,
     setClient,
     resetClient,
