@@ -35,7 +35,7 @@
 }
 
 .records-table thead th {
-  background: rgb(var(--k-theme-background)) !important;
+  background: var(--kashi-app-background) !important;
   box-shadow: none !important;
 }
 
