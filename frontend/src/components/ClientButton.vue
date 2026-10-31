@@ -39,7 +39,6 @@ import ClientEditDialog from "./ClientEditDialog.vue";
 import { useClient } from "@/composables/useClient";
 import { WhatsAppWelcome } from "../../wailsjs/go/main/App";
 
-defineProps<{ disabled?: boolean }>();
 // The client dialog carries libphonenumber, so it is its own chunk: fetched
 // when the till is idle, and mounted on first open (then kept, so its
 // close/reset behaviour is unchanged).
@@ -56,7 +55,11 @@ onMounted(() => {
   else setTimeout(prefetch, 2000);
 });
 const editDialog = ref(false);
-const { client, clientSelected, pulseClient, setClient } = useClient();
+const { client, clientSelected, pulseClient, setClient, clientDialogRequest } = useClient();
+const props = defineProps<{ disabled?: boolean }>();
+watch(clientDialogRequest, () => {
+  if (!props.disabled) dialog.value = true;
+});
 
 // A client picked or added in the dialog: kashi may welcome them on WhatsApp
 // right away (its setting; otherwise at checkout). Fire and forget.
