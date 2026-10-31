@@ -455,6 +455,8 @@ export namespace main {
 	    free?: boolean;
 	    offDiscount?: number;
 	    offDealLabel?: string;
+	    lineRef?: string;
+	    unknownDeal?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new LineQuote(source);
@@ -474,6 +476,8 @@ export namespace main {
 	        this.free = source["free"];
 	        this.offDiscount = source["offDiscount"];
 	        this.offDealLabel = source["offDealLabel"];
+	        this.lineRef = source["lineRef"];
+	        this.unknownDeal = source["unknownDeal"];
 	    }
 	}
 	export class InvoiceQuote {

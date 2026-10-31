@@ -62,6 +62,22 @@
                 <span v-if="dealChipLines(item)[1]" class="invoice-deal-chip-sub">{{ dealChipLines(item)[1] }}</span>
               </span>
             </k-chip>
+            <!-- An unknown item taken out of the deal; tap to pick one. -->
+            <k-chip
+              v-else-if="unknownDealFor(item) === 'none'"
+              class="invoice-item-sale-option"
+              color="grey"
+              label
+              size="x-small"
+              title="No deal · tap to change"
+              variant="outlined"
+              @click="onDealChipClick($event, item)"
+            >
+              <k-icon class="me-1" icon="mdi-tag-off-outline" size="14" />
+              <span class="invoice-deal-chip-text">
+                <span>No deal</span>
+              </span>
+            </k-chip>
             <!-- The deal a salesperson turned off on this line; tap to give it back. -->
             <k-chip
               v-else-if="offDealFor(item)"
@@ -270,6 +286,38 @@
       </k-card>
     </k-dialog>
 
+    <!-- An unknown item's deal: one of three, always. -->
+    <k-dialog v-model="unknownDealDialog" width="440" @after-leave="unknownDealItem = null">
+      <k-card v-if="unknownDealItem">
+        <k-card-title class="text-wrap">Deal for {{ unknownDealItem.name }}</k-card-title>
+        <k-card-text>
+          <div v-if="hasTypedDiscount(unknownDealItem)" class="text-body-2 text-medium-emphasis mb-3">
+            Picking a deal removes the {{ unknownDealItem.discount }}% discount typed on this item.
+          </div>
+          <div class="unknown-deal-choices">
+            <k-btn
+              v-for="choice in unknownDealChoices"
+              :key="choice.value"
+              block
+              class="unknown-deal-choice"
+              :color="unknownDealFor(unknownDealItem) === choice.value ? 'primary' : undefined"
+              :variant="unknownDealFor(unknownDealItem) === choice.value ? 'flat' : 'outlined'"
+              @click="pickUnknownDeal(choice.value)"
+            >
+              <span class="unknown-deal-choice-text">
+                <span class="font-weight-medium">{{ choice.title }}</span>
+                <span class="text-caption">{{ choice.subtitle }}</span>
+              </span>
+            </k-btn>
+          </div>
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="unknownDealDialog = false">Cancel</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
+
     <k-dialog v-model="detailsDialog" width="600" height="500" @after-leave="detailItem = null">
       <k-card v-if="detailItem">
         <k-card-title class="d-flex align-center">
@@ -392,7 +440,15 @@ import {
   UpdateProductDiscount,
 } from "../../wailsjs/go/main/App";
 import { roundDiscountCents, normalizeRoundingMode } from "@/lib/money";
-import { dealLineKey, dealsByLine, offDealsByLine, type DealLine } from "@/lib/deals";
+import {
+  dealLineKey,
+  dealsByLine,
+  offDealsByLine,
+  unknownDealChoices,
+  unknownDealsByLine,
+  type DealLine,
+  type UnknownDealChoice,
+} from "@/lib/deals";
 import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
@@ -424,6 +480,9 @@ interface LineItem {
   // An unknown item line's own id, so its picture follows it (home.vue
   // unknownUnits).
   unknownRef?: string;
+  // The deal the salesperson picked for an unknown item line; unset is the
+  // till's default (a "Buy 2 get 1").
+  unknownDeal?: UnknownDealChoice;
   saleOptions?: { name: string; discount: number; discountListName?: string }[];
   // The catalog/list price captured when the line was added, before any
   // manual edit. Used as the fixed reference point in "discount" price
@@ -499,6 +558,44 @@ function effectiveUnitPriceAt(item: LineItem, index: number): number {
 
 const dealsByCartLine = computed(() => dealsByLine(props.dealLines ?? []));
 const offDealsByCartLine = computed(() => offDealsByLine(props.dealLines ?? []));
+const unknownDealsByCartLine = computed(() => unknownDealsByLine(props.dealLines ?? []));
+
+// The deal choice in force on an unknown item line, as the quote priced it;
+// undefined on other lines, and when the till has no deal to offer.
+function unknownDealFor(item: LineItem): UnknownDealChoice | undefined {
+  if (!isUnknownItem(item) || item.qty <= 0) return undefined;
+  return unknownDealsByCartLine.value.get(dealLineKey(item));
+}
+
+function canPickUnknownDeal(item: LineItem): boolean {
+  return !readonly.value && !item.locked && item.qty > 0 && unknownDealFor(item) !== undefined;
+}
+
+function hasTypedDiscount(item: LineItem): boolean {
+  return (item.unitDiscounts ?? [item.discount]).some((d) => Number(d) > 0);
+}
+
+const unknownDealDialog = ref(false);
+const unknownDealItem = ref<LineItem | null>(null);
+
+watch(unknownDealDialog, (open) => {
+  if (dialogOpen) dialogOpen.value = open;
+});
+
+function pickUnknownDeal(choice: UnknownDealChoice) {
+  const item = unknownDealItem.value;
+  if (item && canPickUnknownDeal(item)) {
+    item.unknownDeal = choice;
+    // A deal never stacks on another saving: picking one drops the typed
+    // discount, or the backend would keep the line off the deal.
+    if (choice !== "none" && hasTypedDiscount(item)) {
+      const qty = Math.max(1, Math.trunc(item.qty));
+      item.discount = 0;
+      item.unitDiscounts = Array(qty).fill(0);
+    }
+  }
+  unknownDealDialog.value = false;
+}
 
 // The deal a line gave up by having its deal turned off ("B2G1").
 function offDealFor(item: LineItem): string | undefined {
@@ -559,6 +656,13 @@ function onDiscountChipClick(event: Event, item: LineItem) {
 }
 
 function onDealChipClick(event: Event, item: LineItem) {
+  if (canPickUnknownDeal(item)) {
+    event.stopPropagation();
+    event.preventDefault();
+    unknownDealItem.value = item;
+    unknownDealDialog.value = true;
+    return;
+  }
   if (canToggleDeal(item)) askToggle(event, item, "deal");
 }
 
@@ -1347,6 +1451,28 @@ defineExpose({
 .invoice-deal-chip-sub {
   font-size: 0.65rem;
   opacity: 0.85;
+}
+
+.unknown-deal-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unknown-deal-choice {
+  height: auto !important;
+  min-height: 56px;
+  justify-content: flex-start;
+  text-align: start;
+}
+
+.unknown-deal-choice-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  white-space: normal;
+  text-transform: none;
 }
 
 .invoice-item-sale-option.k-chip--size-x-small:has(.invoice-deal-chip-text) {

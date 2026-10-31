@@ -1182,6 +1182,10 @@ async function getFullItemsJSON(): Promise<string> {
       saleOption: i.saleOption || undefined,
       noDiscount: discountToggleEnabled.value && i.discountOff && i.qty > 0 ? true : undefined,
       noDeal: dealToggleEnabled.value && i.dealOff && i.qty > 0 ? true : undefined,
+      // An unknown item's deal choice (unset: the till's default), and its
+      // ref, so its quote lines come back marked as its own.
+      unknownDeal: isUnknownItem(i) && i.unknownDeal ? i.unknownDeal : undefined,
+      lineRef: isUnknownItem(i) && i.unknownRef ? i.unknownRef : undefined,
       qty: i.qty,
     })),
   );
