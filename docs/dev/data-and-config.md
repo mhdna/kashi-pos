@@ -80,6 +80,26 @@ zone), so those show a warning instead.
 - Queries are generated with sqlc (`db/query` → `db/sqlc`), pinned at v1.30.0.
   See `releases-and-builds.md` for the regeneration gotchas.
 
+## Product search index (`products_search.go`, migration 135)
+
+The sale screen's product search (`ListProductsCursor`, `CountProductsForSearch`)
+no longer scans every product with `LIKE '%x%'`. `products_search` is an FTS5
+**trigram** table (rowid = `products.id`; `all_text` = name + code + barcode,
+`code_text` = code + barcode for the code-only switch), kept current by
+triggers on `products`, so every writer (sync, CSV import, edits, an older
+build) stays correct without Go changes.
+
+- Terms of **3+ characters** use the index; **1-2 characters** fall back to the
+  old LIKE queries (a trigram index can't answer them). Same rows either way.
+- The queries are hand-written (sqlc can't generate FTS), through
+  `Store.DB()`. `ListProductsPage` (the products page, the admin server) still
+  uses LIKE.
+- On a 13.9k-product database it takes selective searches (codes, barcodes, rare
+  words) from ~5 ms to ~0.2 ms. A very common word (2,400 matches) is no faster:
+  the first page is slower (~6 ms vs 1 ms) and the count a bit faster.
+- Adding the migration to a big catalogue backfills the index (0.8 s for 13.9k
+  products, once).
+
 ## Feature switches (`feature_flags` table)
 
 Most behaviour switches are rows in `feature_flags`. A **missing row means the
