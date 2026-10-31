@@ -309,16 +309,42 @@
           </k-card-text>
         </template>
 
+        <!-- The shift is done: say goodbye, and offer to turn the till off. -->
         <template v-else>
-          <k-card-text>
-            <k-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
-            <div class="text-h6">Receipt photo received</div>
-            <div class="text-caption text-medium-emphasis mt-1">
-              It will sync to the office automatically.
+          <k-card-text class="pt-6">
+            <k-icon :class="{ 'goodbye-smile': animationsEnabled }" color="amber-darken-2" icon="mdi-emoticon-excited-outline" size="96" />
+            <div class="text-h5 font-weight-bold mt-2">Well done{{ closerFirstName ? `, ${closerFirstName}` : "" }}!</div>
+            <div class="text-h6 mt-1" dir="rtl" lang="ar">أحسنت{{ closerFirstName ? ` يا ${closerFirstName}` : "" }}!</div>
+            <div class="text-body-1 mt-3">
+              Your shift is closed{{ receiptPhotoReceived ? " and the receipt photo is in" : "" }}. Thank you for
+              today's work. Get home safe!
             </div>
+            <div class="text-body-1 mt-1" dir="rtl" lang="ar">
+              تم إغلاق الوردية{{ receiptPhotoReceived ? " ووصلت صورة الإيصال" : "" }}. شكراً على تعبك اليوم، توصل بالسلامة!
+            </div>
+            <div v-if="receiptPhotoReceived" class="text-caption text-medium-emphasis mt-2">
+              The photo will sync to the office automatically.
+            </div>
+            <k-divider class="my-4" />
+            <div class="text-subtitle-1 font-weight-medium">Shut down the computer?</div>
+            <div class="text-subtitle-1" dir="rtl" lang="ar">هل تريد إطفاء الكمبيوتر؟</div>
+            <div v-if="shutdownError" class="text-caption text-error mt-2">{{ shutdownError }}</div>
           </k-card-text>
-          <k-card-actions class="justify-center">
-            <k-btn color="primary" variant="elevated" @click="finishReceipt">Finish</k-btn>
+          <k-card-actions class="flex-column ga-2 px-4 pb-4">
+            <k-btn
+              block
+              color="error"
+              :loading="shuttingDown"
+              prepend-icon="mdi-power"
+              size="large"
+              variant="flat"
+              @click="shutDownAfterShift"
+            >
+              Yes, shut down · إطفاء
+            </k-btn>
+            <k-btn block :disabled="shuttingDown" prepend-icon="mdi-logout" variant="text" @click="finishReceipt">
+              No, just log out · تسجيل الخروج فقط
+            </k-btn>
           </k-card-actions>
         </template>
       </k-card>
@@ -333,6 +359,7 @@ import { useAuthStore } from "@/stores/auth";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { formatServerDateTime } from "@/lib/datetime";
 import { playErrorSound, playSuccessSound } from "@/lib/sound";
+import { animationsEnabled } from "@/lib/display";
 import { useCurrencies } from "@/composables/useCurrencies";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import CloseShiftSyncDialog from "@/components/shifts/CloseShiftSyncDialog.vue";
@@ -345,6 +372,7 @@ import {
   OpenShift,
   GetShiftExpectedTotals,
   CheckShiftReceiptCaptured,
+  ShutDownComputer,
   SkipShiftReceiptUpload,
   SwitchShiftReceiptToLocal,
   GetSpendSummary,
@@ -599,6 +627,11 @@ async function doCloseShift() {
     openReceiptDialog(receiptUpload);
     return;
   }
+  // No photo to take: straight to the goodbye, if the shift really closed.
+  if (shiftClosed) {
+    showGoodbye(false);
+    return;
+  }
   auth.logout();
   router.push("/login");
 }
@@ -606,7 +639,38 @@ async function doCloseShift() {
 // ----------------------- Close-shift receipt photo -----------------------
 
 const receiptDialog = ref(false);
-const receiptState = ref<"scan" | "done">("scan");
+const receiptState = ref<"scan" | "goodbye">("scan");
+const receiptPhotoReceived = ref(false);
+const shuttingDown = ref(false);
+const shutdownError = ref("");
+
+// The closing salesperson's first name, for the goodbye.
+const closerFirstName = computed(() => {
+  const closer = salespersons.value.find((s) => s.id === closingPersonId.value);
+  return String(closer?.fullName ?? "").trim().split(/\s+/)[0] ?? "";
+});
+
+// The end of a closed shift: a thank-you, and the choice to turn the till
+// off or just log out.
+function showGoodbye(photoReceived: boolean) {
+  stopReceiptWatchers();
+  receiptPhotoReceived.value = photoReceived;
+  shutdownError.value = "";
+  receiptState.value = "goodbye";
+  receiptDialog.value = true;
+}
+
+async function shutDownAfterShift() {
+  shuttingDown.value = true;
+  shutdownError.value = "";
+  try {
+    await ShutDownComputer();
+    auth.logout();
+  } catch (e: any) {
+    shutdownError.value = `Couldn't shut down: ${e?.message ?? e}`;
+    shuttingDown.value = false;
+  }
+}
 const receiptUrl = ref("");
 const receiptQr = ref("");
 const receiptMode = ref<"central" | "local">("local");
@@ -638,8 +702,10 @@ function stopReceiptWatchers() {
 }
 
 function markReceiptCaptured() {
-  receiptState.value = "done";
-  stopReceiptWatchers();
+  // The event and the poll can both report it.
+  if (receiptState.value === "goodbye") return;
+  playSuccessSound();
+  showGoodbye(true);
 }
 
 async function openReceiptDialog(upload: { token: string; url: string; mode?: string }) {
@@ -695,7 +761,7 @@ async function submitSkip() {
   skipping.value = true;
   try {
     await SkipShiftReceiptUpload(receiptToken, adminPassword.value, skipReason.value);
-    finishReceipt();
+    showGoodbye(false);
   } catch (e: any) {
     skipError.value = e?.message ?? String(e);
   } finally {
@@ -713,6 +779,24 @@ onBeforeUnmount(stopReceiptWatchers);
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.goodbye-smile {
+  animation: goodbye-pop 0.5s ease-out;
+}
+
+@keyframes goodbye-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .close-shift-title {

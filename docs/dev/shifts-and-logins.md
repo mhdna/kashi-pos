@@ -31,6 +31,11 @@ Code: `shifts.go`, `shift_auto_swap.go`, `shift_upload_server.go`,
   - `local`: the QR points at the till's own server (`0.0.0.0:8788`,
     `KASHI_SHIFT_UPLOAD_LISTEN`); the photo is forwarded to kashi later.
   - `hybrid`: central, falling back to local if kashi can't be reached.
+- **Goodbye** (`CloseShiftCard.vue`): once the shift is closed and the photo
+  is in (or a manager skipped it, or none was needed), the closing salesperson
+  gets a thank-you by name, in English and Arabic, and the choice to shut the
+  computer down (`ShutDownComputer`, as in the Quit dialog; refused in a
+  development build) or just log out.
 - The shift receipt's sign-off lines (`shift_report_signatures`, on) and
   capital-letter header (`shift_report_uppercase_header`, off) are switches.
 - kashi can correct a closed shift's balances (`replace_shift_balance`) and
