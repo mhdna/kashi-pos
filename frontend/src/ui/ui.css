@@ -61,7 +61,7 @@
   @keyframes k-linear { 0% { left: -40%; } 100% { left: 100%; } }
 
   /* ---------- button ---------- */
-  .k-btn { --k-btn-h: 36px; position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; vertical-align: middle; height: var(--k-btn-h); min-width: 64px; padding: 0 16px; border: 0 solid transparent; border-radius: 4px; background: transparent; color: inherit; font-weight: 500; letter-spacing: .0071428571em; text-transform: none; text-decoration: none; white-space: nowrap; cursor: pointer; user-select: none; outline: 0; -webkit-tap-highlight-color: transparent; }
+  .k-btn { --k-btn-h: 36px; line-height: normal; position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; vertical-align: middle; height: var(--k-btn-h); min-width: 64px; padding: 0 16px; border: 0 solid transparent; border-radius: 4px; background: transparent; color: inherit; font-weight: 500; letter-spacing: .0071428571em; text-transform: none; text-decoration: none; white-space: nowrap; cursor: pointer; user-select: none; outline: 0; -webkit-tap-highlight-color: transparent; }
   .k-btn::before, .k-btn::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; background: currentColor; }
   .k-btn:hover::before { opacity: var(--k-hover-opacity); }
   .k-btn:focus-visible::before { opacity: .12; }

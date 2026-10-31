@@ -371,7 +371,7 @@
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving || adminSettingsSaving" @click="saveGeneralSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save general settings
+            <k-icon start icon="mdi-content-save-outline" /> Save
           </k-btn>
         </div>
       </k-window-item>
@@ -498,7 +498,7 @@
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save money settings
+            <k-icon start icon="mdi-content-save-outline" /> Save
           </k-btn>
         </div>
       </k-window-item>
@@ -587,7 +587,7 @@
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save payment settings
+            <k-icon start icon="mdi-content-save-outline" /> Save
           </k-btn>
         </div>
       </k-window-item>
@@ -1292,7 +1292,7 @@
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save cash &amp; shifts settings
+            <k-icon start icon="mdi-content-save-outline" /> Save
           </k-btn>
         </div>
       </k-window-item>
@@ -1401,7 +1401,7 @@
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save printing settings
+            <k-icon start icon="mdi-content-save-outline" /> Save
           </k-btn>
         </div>
       </k-window-item>
@@ -1430,7 +1430,7 @@
         </div>
         <div class="settings-page-actions">
           <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <k-icon start icon="mdi-content-save-outline" /> Save attendance settings
+            <k-icon start icon="mdi-content-save-outline" /> Save
           </k-btn>
         </div>
       </k-window-item>
@@ -3919,6 +3919,17 @@ async function deleteUser() {
   margin: 4px auto 0;
   display: flex;
   justify-content: flex-end;
+  /* Stays at the bottom of the screen while the settings scroll under it. */
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding: 24px 0 12px;
+  background: linear-gradient(to bottom, transparent, var(--kashi-app-background) 55%);
+  pointer-events: none;
+}
+
+.settings-page-actions > * {
+  pointer-events: auto;
 }
 
 .settings-page :deep(.k-input) {
