@@ -38,6 +38,8 @@ func main() {
 	defer hideSplash()
 
 	loadDotEnv()
+	// Before anything else logs: the till's log file (till_log.go).
+	setUpTillLog()
 
 	if err := configureWebView(); err != nil {
 		println("Error configuring WebView:", err.Error())
