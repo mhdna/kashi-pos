@@ -434,6 +434,7 @@
 </template>
 
 <script lang="ts" setup>
+import { createDraftSaver } from "@/lib/draftSaver";
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from "vue";
 import { saleOptionLook } from "@/lib/saleOptions";
 import {
@@ -698,6 +699,21 @@ watch(pendingHoldInvoice, () => consumePendingHold());
 watch(pendingExchangeSelection, () => void consumePendingExchange());
 watch(pendingSettlementInvoice, () => void consumePendingSettlement());
 
+const draftSaver = createDraftSaver(INVOICE_DRAFT_KEY);
+
+function buildDraft(): string | null {
+  // Settlement mode's cart is a frozen snapshot of one specific invoice,
+  // not a draft sale - it must never be persisted/restored as one.
+  if (restoringDraft || settlementState.value) return null;
+  return JSON.stringify({
+    items: invoiceItems.value?.items ?? [],
+    client,
+    notes: invoiceNotes.value,
+    calculator: calculator.value?.holdState(),
+    exchangeOriginalInvoiceId: exchangeState.value?.originalInvoiceId,
+  } satisfies InvoiceDraft);
+}
+
 watch(
   [
     () => invoiceItems.value?.items,
@@ -707,26 +723,29 @@ watch(
     () => calculator.value?.holdState(),
   ],
   ([items, client]) => {
-    // Settlement mode's cart is a frozen snapshot of one specific invoice,
-    // not a draft sale - it must never be persisted/restored as one.
-    if (restoringDraft || !client || settlementState.value) return;
-    if (!items?.length && client.id === 0 && !exchangeState.value) {
-      localStorage.removeItem(INVOICE_DRAFT_KEY);
+    if (restoringDraft || !client || settlementState.value) {
+      draftSaver.cancel();
       return;
     }
-    localStorage.setItem(
-      INVOICE_DRAFT_KEY,
-      JSON.stringify({
-        items: items ?? [],
-        client,
-        notes: invoiceNotes.value,
-        calculator: calculator.value?.holdState(),
-        exchangeOriginalInvoiceId: exchangeState.value?.originalInvoiceId,
-      } satisfies InvoiceDraft),
-    );
+    // Removing is immediate and cancels any save still waiting, so a sale
+    // that was just paid is never written back as a draft.
+    if (!items?.length && client.id === 0 && !exchangeState.value) {
+      draftSaver.remove();
+      return;
+    }
+    // Writing is coalesced (lib/draftSaver.ts): serialising the cart on every
+    // key was felt on slow tills.
+    draftSaver.save(buildDraft);
   },
   { deep: true },
 );
+
+// A save still waiting is written when the page is hidden or closed.
+function flushDraftOnHide() {
+  if (document.visibilityState === "hidden") draftSaver.flush();
+}
+document.addEventListener("visibilitychange", flushDraftOnHide);
+window.addEventListener("pagehide", draftSaver.flush);
 
 let quoteRequestToken = 0;
 let quoteDebounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -863,7 +882,7 @@ async function restoreDraft() {
 }
 
 function clearDraft() {
-  localStorage.removeItem(INVOICE_DRAFT_KEY);
+  draftSaver.remove();
 }
 
 function clearInvoice() {
@@ -1697,6 +1716,9 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  draftSaver.flush();
+  document.removeEventListener("visibilitychange", flushDraftOnHide);
+  window.removeEventListener("pagehide", draftSaver.flush);
   pageActive = false;
   unsubscribeSettingsChanged?.();
   unsubscribeListChanges.forEach((unsubscribe) => unsubscribe());
