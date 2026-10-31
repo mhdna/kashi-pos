@@ -27,8 +27,6 @@ const themes: Record<ThemeName, Record<string, string>> = {
     "on-info": "255,255,255",
     "on-success": "255,255,255",
     "on-warning": "255,255,255",
-    "shadow-color": "0,0,0",
-    "border-color": "0,0,0",
   },
   dark: {
     background: "18,18,18",
@@ -52,13 +50,13 @@ const themes: Record<ThemeName, Record<string, string>> = {
     "on-info": "255,255,255",
     "on-success": "255,255,255",
     "on-warning": "255,255,255",
-    "shadow-color": "0,0,0",
-    "border-color": "255,255,255",
   },
 };
 
 const levels: Record<ThemeName, Record<string, string>> = {
   light: {
+    "border-color": "0,0,0",
+    "shadow-color": "0,0,0",
     "border-opacity": "0.12",
     "high-emphasis-opacity": "0.87",
     "medium-emphasis-opacity": "0.6",
@@ -67,6 +65,8 @@ const levels: Record<ThemeName, Record<string, string>> = {
     "hover-opacity": "0.04",
   },
   dark: {
+    "border-color": "255,255,255",
+    "shadow-color": "0,0,0",
     "border-opacity": "0.12",
     "high-emphasis-opacity": "1",
     "medium-emphasis-opacity": "0.7",

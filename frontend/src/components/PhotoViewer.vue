@@ -1,5 +1,5 @@
 <template>
-  <k-dialog v-model="open" fullscreen :scrim="false" transition="fade-transition">
+  <k-dialog v-model="open" fullscreen :scrim="false">
     <div
       ref="stage"
       class="photo-viewer"

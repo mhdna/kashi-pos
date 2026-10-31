@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, useModel, watch } from "vue";
 import { nextZ, useEscapeToClose } from "./overlay";
 import { toUnit } from "./util";
 
@@ -15,14 +15,15 @@ const props = withDefaults(
     fullscreen?: boolean;
     scrim?: boolean | string;
   }>(),
-  { modelValue: false, scrim: true },
+  { scrim: true },
 );
 const emit = defineEmits<{ "update:modelValue": [value: boolean]; afterEnter: []; afterLeave: [] }>();
 
-const open = computed(() => props.modelValue);
+// Controlled with v-model, or its own state when opened by its activator slot.
+const open = useModel(props, "modelValue", { local: true });
 const zIndex = ref(2000);
 function close() {
-  emit("update:modelValue", false);
+  open.value = false;
 }
 useEscapeToClose(open, close, () => !props.persistent);
 
@@ -52,7 +53,7 @@ const contentStyle = computed(() => ({ maxWidth: toUnit(props.maxWidth), width: 
 </script>
 
 <template>
-  <slot name="activator" :props="{ onClick: () => emit('update:modelValue', true) }" />
+  <slot name="activator" :props="{ onClick: () => (open = true) }" />
   <Teleport to="body">
     <div
       v-if="open"

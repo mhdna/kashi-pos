@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, useModel, watch } from "vue";
 import { nextZ, useEscapeToClose } from "./overlay";
 import { placeBox } from "./position";
 
 const props = withDefaults(
   defineProps<{ modelValue?: boolean; location?: string; closeOnContentClick?: boolean; gap?: number; matchWidth?: boolean; maxHeight?: number | string; anchor?: HTMLElement | null }>(),
-  { modelValue: false, location: "bottom start", closeOnContentClick: true, gap: 0 },
+  { location: "bottom start", closeOnContentClick: true, gap: 0 },
 );
-const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
+defineEmits<{ "update:modelValue": [value: boolean] }>();
 
-const open = computed(() => props.modelValue);
+// Controlled with v-model, or its own state when used without one.
+const open = useModel(props, "modelValue", { local: true });
 const marker = ref<HTMLElement | null>(null);
 const content = ref<HTMLElement | null>(null);
 const zIndex = ref(2000);
@@ -17,7 +18,7 @@ const pos = ref({ left: 0, top: 0, minWidth: undefined as number | undefined, re
 let activator: HTMLElement | null = null;
 
 function setOpen(value: boolean) {
-  emit("update:modelValue", value);
+  open.value = value;
 }
 function onActivatorClick(event: MouseEvent) {
   activator = (event.currentTarget as HTMLElement | null) ?? activator;

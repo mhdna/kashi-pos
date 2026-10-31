@@ -8,9 +8,9 @@ const props = defineProps<{ items: readonly T[]; itemHeight: number | string; he
 defineSlots<{ default(scope: { item: T; index: number }): unknown }>();
 
 const root = ref<HTMLElement | null>(null);
-const { scrollTop, height } = useScrollWindow(root);
+const { scrollTop, height: viewport } = useScrollWindow(root);
 const rowHeight = computed(() => Number(props.itemHeight));
-const range = computed(() => visibleRange(scrollTop.value, height.value, rowHeight.value, props.items.length));
+const range = computed(() => visibleRange(scrollTop.value, viewport.value, rowHeight.value, props.items.length));
 const rows = computed(() => props.items.slice(range.value.start, range.value.end).map((item, i) => ({ item, index: range.value.start + i })));
 
 function scrollToIndex(index: number) {

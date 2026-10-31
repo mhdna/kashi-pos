@@ -38,7 +38,7 @@ const emit = defineEmits<{
   "click:append-inner": [event: MouseEvent];
   "click:clear": [event: MouseEvent];
 }>();
-defineSlots<{ "prepend-inner"?(): unknown; "append-inner"?(): unknown }>();
+defineSlots<{ prepend?(): unknown; append?(): unknown; "prepend-inner"?(): unknown; "append-inner"?(): unknown }>();
 
 const attrs = useAttrs();
 const input = ref<HTMLInputElement | HTMLTextAreaElement | null>(null);
@@ -137,6 +137,8 @@ defineExpose({ focus, blur, select, validate, input });
     @click:append-inner="emit('click:append-inner', $event)"
     @click:clear="clear"
   >
+    <template v-if="$slots.prepend" #prepend><slot name="prepend" /></template>
+    <template v-if="$slots.append" #append><slot name="append" /></template>
     <template v-if="$slots['prepend-inner']" #prepend-inner><slot name="prepend-inner" /></template>
     <template v-if="$slots['append-inner']" #append-inner><slot name="append-inner" /></template>
     <textarea

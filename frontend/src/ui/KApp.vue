@@ -1,1 +1,1 @@
-<template><div class="k-app"><slot /></div></template>
+<template><div class="k-app"><div class="k-app__wrap"><slot /></div></div></template>

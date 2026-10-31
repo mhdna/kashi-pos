@@ -34,6 +34,7 @@ export function pushOverlay(close: () => void): () => void {
   return () => {
     const i = stack.indexOf(entry);
     if (i >= 0) stack.splice(i, 1);
+    if (stack.length === 0) zCounter = 2000;
     if (stack.length === 0 && listening && typeof document !== "undefined") {
       document.removeEventListener("keydown", onKeydown, true);
       listening = false;

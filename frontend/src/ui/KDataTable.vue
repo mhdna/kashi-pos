@@ -37,14 +37,14 @@ defineSlots<Record<string, (scope: any) => unknown>>();
 const rowsClickable = !!getCurrentInstance()?.vnode.props?.["onClick:row"];
 
 const wrapper = ref<HTMLElement | null>(null);
-const { scrollTop, height } = useScrollWindow(wrapper);
+const { scrollTop, height: viewport } = useScrollWindow(wrapper);
 const sort = ref<SortState | null>(null);
 
 const sorted = computed(() => sortItems(props.items, sort.value));
 const virtual = computed(() => props.itemHeight !== undefined);
 const rowHeight = computed(() => Number(props.itemHeight));
 const range = computed(() =>
-  virtual.value ? visibleRange(scrollTop.value, Math.max(0, height.value - 56), rowHeight.value, sorted.value.length) : { start: 0, end: sorted.value.length, padTop: 0, padBottom: 0 },
+  virtual.value ? visibleRange(scrollTop.value, Math.max(0, viewport.value - 56), rowHeight.value, sorted.value.length) : { start: 0, end: sorted.value.length, padTop: 0, padBottom: 0 },
 );
 const rows = computed(() => sorted.value.slice(range.value.start, range.value.end).map((item, i) => ({ item, index: range.value.start + i })));
 

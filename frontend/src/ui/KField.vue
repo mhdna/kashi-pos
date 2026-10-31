@@ -28,7 +28,7 @@ const emit = defineEmits<{
   "click:append-inner": [event: MouseEvent];
   "click:clear": [event: MouseEvent];
 }>();
-defineSlots<{ default?(): unknown; "prepend-inner"?(): unknown; "append-inner"?(): unknown }>();
+defineSlots<{ default?(): unknown; prepend?(): unknown; append?(): unknown; "prepend-inner"?(): unknown; "append-inner"?(): unknown }>();
 
 const variant = computed(() => props.variant ?? "filled");
 const showDetails = computed(() => props.hideDetails !== true && (props.hideDetails !== "auto" || !!props.message));
@@ -36,7 +36,9 @@ const showDetails = computed(() => props.hideDetails !== true && (props.hideDeta
 
 <template>
   <div class="k-input" :class="[props.density && props.density !== 'default' && `k-input--density-${props.density}`, disabled && 'k-input--disabled']">
-    <div
+    <div class="k-input__control">
+      <div v-if="$slots.prepend" class="k-input__prepend"><slot name="prepend" /></div>
+      <div
       class="k-field"
       :class="[
         `k-field--variant-${variant}`,
@@ -63,6 +65,8 @@ const showDetails = computed(() => props.hideDetails !== true && (props.hideDeta
       </div>
       <div v-if="appendInnerIcon || $slots['append-inner']" class="k-field__append" @click="emit('click:append-inner', $event)">
         <slot name="append-inner"><KIcon :icon="appendInnerIcon" :class="{ 'k-field__icon-btn': true }" /></slot>
+      </div>
+      <div v-if="$slots.append" class="k-input__append"><slot name="append" /></div>
       </div>
     </div>
     <div v-if="showDetails" class="k-input__details" :class="{ 'k-input__details--error': messageIsError }">
