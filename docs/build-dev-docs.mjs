@@ -74,6 +74,12 @@ function renderBlocks(src) {
       const [path, cap] = line.replace('::: image', '').split('|').map((s) => s.trim())
       out.push(`<figure class="fig"><img src="${path}" alt="${esc(cap || '')}"><figcaption>${inline(cap || '')}</figcaption></figure>`)
       i++
+    } else if (line.startsWith('::: glance')) {
+      const buf = []
+      i++
+      while (i < src.length && src[i].trim() !== ':::') buf.push(src[i++])
+      i++
+      out.push(`<section class="glance"><h2>${icon('mdiFlashOutline')}At a glance</h2><ul>${buf.filter((l) => l.startsWith('- ')).map((l) => `<li>${inline(l.slice(2))}</li>`).join('')}</ul></section>`)
     } else if (line.startsWith('::: timeline') || line.startsWith('::: details')) {
       const kind = line.startsWith('::: timeline') ? 'timeline' : 'details'
       const title = line.replace(/^::: (timeline|details)/, '').trim()
@@ -180,6 +186,8 @@ if (config.source.file) {
 for (const s of sections) {
   const inj = config.inject && config.inject[s.id]
   if (inj) s.lines = [...inj.flatMap((d) => [`::: diagram ${d}`, '']), ...s.lines]
+  const gl = config.glance && config.glance[s.id]
+  if (gl) s.lines = ['::: glance', ...gl.map((g) => `- ${g}`), ':::', '', ...s.lines]
 }
 for (const s of sections) {
   let fence = false
@@ -283,6 +291,9 @@ ol.steps{list-style:none;counter-reset:s;padding:0;background:var(--s);border-ra
 ol.steps li{counter-increment:s;position:relative;padding:16px 16px 16px 68px;margin:0;border-top:1px solid var(--o);min-height:60px}ol.steps li:first-child{border-top:0}
 ol.steps li:before{content:counter(s);position:absolute;left:16px;top:16px;width:34px;height:34px;border-radius:50%;background:var(--p);color:#fff;display:grid;place-items:center;font:500 16px Roboto,sans-serif}
 :root[data-theme=dark] ol.steps li:before{color:#212121}
+.glance{background:var(--s);border-radius:2px;box-shadow:var(--e1);border-top:4px solid var(--acc);padding:4px 20px 12px;margin:16px 0}
+.glance h2{display:flex;align-items:center;gap:10px;font:500 18px Roboto,sans-serif;margin:12px 0 4px;color:var(--t)}.glance h2 .ic{color:var(--acc)}
+.glance ul{list-style:none;padding:0;margin:0}.glance li{position:relative;padding:5px 0 5px 22px;margin:0;line-height:26px}.glance li:before{content:"";position:absolute;left:4px;top:15px;width:7px;height:7px;border-radius:50%;background:var(--acc)}
 .fig{background:var(--s);border-radius:2px;box-shadow:var(--e1);padding:16px;text-align:center}.fig img{max-width:100%;background:#fff}figcaption{color:var(--m);font-size:14px;margin-top:8px}
 .diagram{width:100%;height:auto;font-family:Roboto,sans-serif}
 .box rect{fill:var(--sv);stroke:var(--o);stroke-width:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}.bt{font-size:16.5px;font-weight:500;fill:var(--t);text-anchor:middle}.bs{font-size:14px;fill:var(--m);text-anchor:middle}
