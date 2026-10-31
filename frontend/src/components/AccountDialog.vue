@@ -47,19 +47,24 @@
       </k-card-actions>
     </k-card>
   </k-dialog>
-  <ClientDialog v-model="newClientDialog" @select="selectClient" />
+  <ClientDialog v-if="newClientDialogLoaded" v-model="newClientDialog" @select="selectClient" />
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, ref, watch } from "vue";
 import { SearchClients } from "../../wailsjs/go/main/App";
-import ClientDialog from "@/components/ClientDialog.vue";
 import { toClient, type Client } from "@/lib/client";
 import { formatLebanesePhone } from "@/lib/phone";
 
 const emit = defineEmits<{ select: [client: Client] }>();
 const dialog = defineModel<boolean>({ default: false });
+// Its own chunk (it carries libphonenumber); mounted on first open.
+const ClientDialog = defineAsyncComponent(() => import("@/components/ClientDialog.vue"));
 const newClientDialog = ref(false);
+const newClientDialogLoaded = ref(false);
+watch(newClientDialog, (open) => {
+  if (open) newClientDialogLoaded.value = true;
+});
 const search = ref("");
 const clients = ref<Client[]>([]);
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
