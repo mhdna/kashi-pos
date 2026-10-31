@@ -84,3 +84,6 @@ and list item was a deep tree of reactive components.
 stack, floating-box placement, select items, form rules, the virtual window and
 sorting. Visual checks: render the component in a throwaway page and compare
 light and dark.
+
+See also [performance.md](performance.md) for the rules that keep the kit cheap
+on old tills (no blur, shadows or infinite animations) and the animation switch.

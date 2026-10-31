@@ -12,6 +12,7 @@ code behaves, including the parts that aren't obvious from the screens.
 | [ui-components.md](ui-components.md) | The own component kit that replaced Vuetify: theme vars, layers, quirks. |
 | [windows-till.md](windows-till.md) | Kiosk, cash machine mode, autostart, devices and the scanner, stuck keys, local ports, the compact build. |
 | [data-and-config.md](data-and-config.md) | Files on the till, `.env`, time zones, migrations, every feature switch and its default. |
+| [performance.md](performance.md) | Older tills: the rules for UI and queries, WebView flags, animations, startup, the search index, the draft saver, background loops, how to measure. |
 | [releases-and-builds.md](releases-and-builds.md) | `make bump` / `make publish`, how tills update and roll back, build and test gotchas. |
 
 Bug history is in [`../FIXED_BUGS.md`](../FIXED_BUGS.md).
@@ -66,6 +67,31 @@ Bug history is in [`../FIXED_BUGS.md`](../FIXED_BUGS.md).
     long time** (SQLite-in-Go is big). Go is pinned to 1.25.5 for Wails.
 25. **`TestStartupPreservesRuntimeDatabase` kills the Go test run** (known,
     since at least v1.1.75).
+26. **Animations are off by default, but spinners always spin.** The Animations
+    switch only governs the nav rail's red status dot and one menu fade;
+    `styles/settings.scss` kills every other transition regardless. v1.1.82
+    switched every till off once.
+27. **A layered `!important` beats an unlayered one.** The UI kit's CSS is in
+    `@layer`s, so a page's `!important` can't override a kit `!important`.
+28. **Nothing may use `backdrop-filter`, blur or heavy shadows.** The WebView
+    runs with GPU rasterisation off (`webview_windows.go`), so they are CPU-drawn.
+29. **The sale screen's calculator doesn't exist for the first moments.** It is
+    built when the till is idle (or at once when needed). Code that talks to
+    `calculator.value` while the cart may be empty must `await ensurePayArea()`.
+30. **The cart draft is saved ~0.4 s late, on purpose** (`lib/draftSaver.ts`);
+    clearing it is immediate. Never write it straight to `localStorage`.
+31. **Product search has an FTS5 index for terms of 3+ characters** and plain
+    `LIKE` below that; both must return the same rows. It is slower than `LIKE`
+    for the first page of a very common word.
+32. **`libphonenumber` lives only in the `ClientDialog` chunk.** Importing it from
+    the sale screen's startup path puts ~140 kB back into `home`.
+33. **sqlc is v1.31.1 now**, and it generates the FTS queries too. Some
+    `EXISTS`/`COUNT` results are `bool`, not `int64`.
+34. **`GB_CLOUD_WEBVIEW_ARGS` replaces the WebView2 flags for one till**, to
+    compare GPU rasterisation on and off without a rebuild.
+35. **`cp` may be aliased to `cp -i` in a shell**, and hangs a script waiting for
+    "y". Use `/bin/cp` when copying a database to benchmark on.
 
-These docs were written on 2026-10-31 from the code at v1.1.77. When you
+These docs were written on 2026-10-31 from the code at v1.1.77; items 26-35 and
+[performance.md](performance.md) were added with v1.1.82. When you
 change a behaviour described here, update the page in the same commit.
