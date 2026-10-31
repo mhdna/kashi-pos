@@ -69,7 +69,7 @@ export function useInfiniteList<T extends { id: number | string }>(
   function onScroll(event: Event) {
     if (frame !== null || loading.value || endReached.value) return;
     const target = event.target;
-    if (!(target instanceof HTMLElement) || !target.classList.contains("v-table__wrapper")) return;
+    if (!(target instanceof HTMLElement) || !target.classList.contains("k-table__wrapper")) return;
     frame = requestAnimationFrame(() => {
       frame = null;
       if (target.scrollHeight - target.scrollTop - target.clientHeight <= PRELOAD_DISTANCE_PX) void loadMore();

@@ -757,7 +757,7 @@ function loadMore(): Promise<void> {
 function onTableScroll(event: Event) {
   if (scrollFrame !== null || loading.value || !hasMore.value) return;
   const target = event.target;
-  if (!(target instanceof HTMLElement) || !target.classList.contains("v-table__wrapper")) return;
+  if (!(target instanceof HTMLElement) || !target.classList.contains("k-table__wrapper")) return;
 
   scrollFrame = requestAnimationFrame(() => {
     scrollFrame = null;
