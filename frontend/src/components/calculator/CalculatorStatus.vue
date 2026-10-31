@@ -1,7 +1,7 @@
 <template>
   <section class="mb-4">
     <div class="calculator-amounts mb-2" :class="statusColor">
-      <v-btn
+      <k-btn
         v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState && !quoteError && !exchangeShortfallText"
         class="calculator-amounts-flip"
         icon="mdi-swap-vertical"
@@ -14,20 +14,20 @@
       <!-- A failed quote has no total to show. Rendering $0.00 here would
            read as a legitimate, fully-paid zero-value sale. -->
       <div v-if="quoteError" class="calculator-error-state">
-        <v-icon icon="mdi-alert-circle" color="red-darken-2" size="28" />
+        <k-icon icon="mdi-alert-circle" color="red-darken-2" size="28" />
         <span class="calculator-error-text" :title="quoteError">{{ quoteError }}</span>
       </div>
       <!-- An exchange that isn't covered yet is a normal step, not an error:
            a calm hint saying what's left to pick. -->
       <div v-else-if="exchangeShortfallText" class="calculator-error-state calculator-hint-state">
-        <v-icon icon="mdi-information-outline" color="blue-grey-darken-1" size="28" />
+        <k-icon icon="mdi-information-outline" color="blue-grey-darken-1" size="28" />
         <span class="calculator-error-text">
           Add <strong class="calculator-hint-amount">{{ exchangeShortfallText }}</strong> more in new items to finish
           the exchange (no cash back)
         </span>
       </div>
       <div v-else-if="showReadyState" class="calculator-accepted-state calculator-green">
-        <v-icon icon="mdi-check-circle" color="green-darken-3" size="40" />
+        <k-icon icon="mdi-check-circle" color="green-darken-3" size="40" />
         <span>{{ paymentStatus }}</span>
       </div>
       <template v-else>
@@ -123,7 +123,7 @@ function flipCurrency() {
   height: 66px;
   align-items: center;
   padding: 8px 12px;
-  border: 1px solid rgba(var(--v-border-color), 0.12);
+  border: 1px solid rgba(var(--k-border-color), 0.12);
   border-radius: 10px;
   font-size: var(--kashi-font-size-base);
 }
@@ -198,7 +198,7 @@ function flipCurrency() {
   font-weight: 600;
 }
 .calculator-hint-state {
-  color: rgba(var(--v-theme-on-surface), 0.8);
+  color: rgba(var(--k-theme-on-surface), 0.8);
   font-weight: 500;
 }
 .calculator-amounts .calculator-hint-amount {
@@ -230,7 +230,7 @@ function flipCurrency() {
   font-size: var(--kashi-font-size-2xl);
 }
 .calculator-amounts-plus {
-  color: rgba(var(--v-theme-on-surface), 0.55);
+  color: rgba(var(--k-theme-on-surface), 0.55);
   font-weight: 700;
 }
 .calculator-amounts-split {

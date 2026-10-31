@@ -1,22 +1,22 @@
 <template>
   <div class="calculator-keypad">
     <div class="keypad-numbers">
-      <v-btn
+      <k-btn
         v-for="n in digitKeys"
         :key="n"
         class="keypad-button keypad-number text-h4"
         variant="text"
         @click="$emit('digit', n)"
-        >{{ n }}</v-btn
+        >{{ n }}</k-btn
       >
-      <v-btn
+      <k-btn
         class="keypad-button keypad-number text-h4"
         variant="text"
         @click="$emit('digit', '.')"
-        >.</v-btn
+        >.</k-btn
       >
-      <v-btn class="keypad-button keypad-number text-h4" variant="text" @click="$emit('digit', '0')">0</v-btn>
-      <v-btn class="keypad-button keypad-number text-h4" variant="text" @click="$emit('digit', '00')">00</v-btn>
+      <k-btn class="keypad-button keypad-number text-h4" variant="text" @click="$emit('digit', '0')">0</k-btn>
+      <k-btn class="keypad-button keypad-number text-h4" variant="text" @click="$emit('digit', '00')">00</k-btn>
     </div>
   </div>
 </template>
@@ -44,7 +44,7 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
   height: 100%;
   width: 100%;
   border-radius: 4px;
-  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border: 1px solid rgba(var(--k-border-color), 0.18);
   font-variant-numeric: tabular-nums;
   font-size: 2rem !important;
   transition:

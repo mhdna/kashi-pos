@@ -1,29 +1,9 @@
 /**
  * src/styles/settings.scss
  *
- * Configures SASS variables and Vuetify overwrites
+ * Global resets and app-wide overrides on top of the minimal UI kit (src/ui).
  */
 
-@use "vuetify/settings" with (
-  $body-font-family: var(--kashi-font-family),
-  $typography: (
-    "display-large": ("size": var(--kashi-font-size-display)),
-    "display-medium": ("size": var(--kashi-font-size-3xl)),
-    "display-small": ("size": var(--kashi-font-size-2xl)),
-    "headline-large": ("size": var(--kashi-font-size-xl)),
-    "headline-medium": ("size": var(--kashi-font-size-xl)),
-    "headline-small": ("size": var(--kashi-font-size-lg)),
-    "title-large": ("size": var(--kashi-font-size-lg)),
-    "title-medium": ("size": var(--kashi-font-size-base)),
-    "title-small": ("size": var(--kashi-font-size-sm)),
-    "body-large": ("size": var(--kashi-font-size-base)),
-    "body-medium": ("size": var(--kashi-font-size-base)),
-    "body-small": ("size": var(--kashi-font-size-xs)),
-    "label-large": ("size": var(--kashi-font-size-base)),
-    "label-medium": ("size": var(--kashi-font-size-xs)),
-    "label-small": ("size": var(--kashi-font-size-xxs))
-  )
-);
 *,
 *::before,
 *::after {
@@ -35,63 +15,20 @@
   animation-delay: 0s !important;
 }
 
-/* Exception to the blanket kill above: loading spinners must still spin.
-   Re-enable only the keyframe animations Vuetify's progress components need
-   (indeterminate circular + linear). No transitions, no other motion.
-   Vuetify's own rules aren't !important, so a class selector + !important
-   here wins over the `*` reset without any specificity gymnastics. */
-.v-progress-circular--indeterminate > svg {
-  animation: progress-circular-rotate 1.4s linear infinite !important;
-}
-
-.v-progress-circular--indeterminate .v-progress-circular__overlay {
-  animation:
-    progress-circular-dash 1.4s ease-in-out infinite,
-    progress-circular-rotate 1.4s linear infinite !important;
-}
-
-.v-progress-circular--indeterminate.v-progress-circular--disable-shrink > svg {
-  animation: progress-circular-rotate 0.7s linear infinite !important;
-}
-
-.v-progress-linear__indeterminate .long {
-  animation: indeterminate-ltr 2.2s infinite !important;
-}
-
-.v-progress-linear__indeterminate .short {
-  animation: indeterminate-short-ltr 2.2s infinite !important;
-}
-
-.v-progress-linear--reverse .v-progress-linear__indeterminate .long {
-  animation: indeterminate-rtl 2.2s infinite !important;
-}
-
-.v-progress-linear--reverse .v-progress-linear__indeterminate .short {
-  animation: indeterminate-short-rtl 2.2s infinite !important;
-}
-
-.v-progress-linear__stream {
-  animation: stream 0.25s linear infinite !important;
-}
-
-.v-application,
-.v-main {
+.k-app,
+.k-main {
   background-color: var(--kashi-app-background) !important;
 }
 
-.v-ripple__container {
-  display: none !important;
-}
-
-.v-btn:not(.v-btn--disabled):active {
-  background-color: rgba(var(--v-theme-primary), 0.18) !important;
-  color: rgb(var(--v-theme-primary)) !important;
+.k-btn:not(.k-btn--disabled):active {
+  background-color: rgba(var(--k-theme-primary), 0.18) !important;
+  color: rgb(var(--k-theme-primary)) !important;
 }
 
 /* Thin scrollbars everywhere. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(var(--v-theme-on-surface), 0.28) transparent;
+  scrollbar-color: rgba(var(--k-theme-on-surface), 0.28) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -104,12 +41,12 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: rgba(var(--v-theme-on-surface), 0.28);
+  background-color: rgba(var(--k-theme-on-surface), 0.28);
   border-radius: 4px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(var(--v-theme-on-surface), 0.45);
+  background-color: rgba(var(--k-theme-on-surface), 0.45);
 }
 
 *::-webkit-scrollbar-corner {

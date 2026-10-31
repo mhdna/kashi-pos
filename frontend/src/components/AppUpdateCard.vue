@@ -1,19 +1,19 @@
 <template>
-  <v-card class="settings-card">
-    <v-card-title class="d-flex align-center ga-3">
-      <v-icon icon="mdi-update" size="20" />
+  <k-card class="settings-card">
+    <k-card-title class="d-flex align-center ga-3">
+      <k-icon icon="mdi-update" size="20" />
       App updates
-    </v-card-title>
+    </k-card-title>
     <div class="text-caption text-medium-emphasis px-4 pb-2">
       Updates are sent from kashi's App Updates page and install at a safe moment.
     </div>
-    <v-card-text>
+    <k-card-text>
       <div class="mb-1">
         This till runs <strong>{{ status.currentVersion }}</strong>
         <span v-if="status.flavor === 'compact'" class="text-medium-emphasis">(compact)</span>
       </div>
       <div class="mb-3" :class="stateColor ? `text-${stateColor}` : 'text-medium-emphasis'">{{ stateText }}</div>
-      <v-progress-linear
+      <k-progress-linear
         v-if="status.state === 'downloading'"
         class="mb-3"
         color="info"
@@ -21,9 +21,9 @@
         :model-value="status.progress"
         rounded
       />
-      <v-alert v-if="error" type="error" density="compact" class="mb-3">{{ error }}</v-alert>
+      <k-alert v-if="error" type="error" density="compact" class="mb-3">{{ error }}</k-alert>
       <div class="d-flex flex-wrap ga-2">
-        <v-btn
+        <k-btn
           :disabled="!status.enabled"
           :loading="checking"
           prepend-icon="mdi-refresh"
@@ -32,8 +32,8 @@
           @click="check"
         >
           Check for updates
-        </v-btn>
-        <v-btn
+        </k-btn>
+        <k-btn
           v-if="status.state === 'ready' && status.supported"
           color="primary"
           prepend-icon="mdi-download"
@@ -42,8 +42,8 @@
           @click="install"
         >
           Install {{ status.version }} now
-        </v-btn>
-        <v-btn
+        </k-btn>
+        <k-btn
           v-if="status.canRollBack && auth.isAdmin"
           prepend-icon="mdi-backup-restore"
           size="small"
@@ -51,25 +51,25 @@
           @click="confirmRollback = true"
         >
           Roll back to {{ status.previousVersion }}
-        </v-btn>
+        </k-btn>
       </div>
-    </v-card-text>
+    </k-card-text>
 
-    <v-dialog v-model="confirmRollback" max-width="440">
-      <v-card :title="`Roll back to ${status.previousVersion}?`">
-        <v-card-text>
+    <k-dialog v-model="confirmRollback" max-width="440">
+      <k-card :title="`Roll back to ${status.previousVersion}?`">
+        <k-card-text>
           GB Cloud closes and reopens on {{ status.previousVersion }} in about 10 seconds. It won't
           install {{ status.currentVersion }} again until it's sent a different version or you
           check for updates here. Your data is not changed.
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="confirmRollback = false">Cancel</v-btn>
-          <v-btn color="primary" variant="flat" @click="rollBack">Roll back</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </v-card>
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="confirmRollback = false">Cancel</k-btn>
+          <k-btn color="primary" variant="flat" @click="rollBack">Roll back</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
+  </k-card>
 </template>
 
 <script setup lang="ts">

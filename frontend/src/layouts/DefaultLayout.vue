@@ -1,8 +1,8 @@
 <template>
   <NavDrawer />
-  <v-main class="app-main">
+  <k-main class="app-main">
     <router-view />
-  </v-main>
+  </k-main>
 
 </template>
 
@@ -18,7 +18,7 @@ body {
 .app-main {
   height: 100vh;
 }
-.app-main :deep(.v-main__wrap) {
+.app-main :deep(.k-main__wrap) {
   height: 100%;
   overflow-y: auto;
 }

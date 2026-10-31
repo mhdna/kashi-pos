@@ -2,27 +2,27 @@
 .kashi-compact {
   font-size: var(--kashi-font-size-base);
 
-  .v-app-bar {
+  .k-app-bar {
     height: 48px !important;
   }
 
-  .v-navigation-drawer {
+  .k-navigation-drawer {
     width: 80px !important;
   }
 
-  .v-list-item {
+  .k-list-item {
     padding-inline: 4px;
   }
 
-  .v-card-title {
+  .k-card-title {
     padding: 12px 14px 6px;
   }
 
-  .v-card-text {
+  .k-card-text {
     padding: 10px 14px 2px;
   }
 
-  .v-card-actions {
+  .k-card-actions {
     padding: 8px 14px;
   }
 
@@ -34,12 +34,12 @@
     gap: 10px;
   }
 
-  .settings-card .v-card-title,
-  .settings-card .v-card-text {
+  .settings-card .k-card-title,
+  .settings-card .k-card-text {
     padding-inline: 14px;
   }
 
-  .settings-card .v-card-title {
+  .settings-card .k-card-title {
     padding-top: 12px;
   }
 }

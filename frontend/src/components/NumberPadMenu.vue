@@ -1,5 +1,5 @@
 <template>
-  <v-menu
+  <k-menu
     v-model="open"
     :close-on-content-click="false"
     :location-strategy="placeOnce"
@@ -40,14 +40,14 @@
       </slot>
     </template>
 
-    <v-card class="number-pad pa-2" rounded="lg">
+    <k-card class="number-pad pa-2" rounded="lg">
       <div class="number-pad-display">
         <span v-if="prefix" class="number-pad-display-affix">{{ prefix }}</span>
         <span>{{ draft || "0" }}</span>
         <span v-if="suffix" class="number-pad-display-affix">{{ suffix }}</span>
       </div>
       <div class="number-pad-grid">
-        <v-btn
+        <k-btn
           v-for="digit in digits"
           :key="digit"
           class="number-pad-key"
@@ -56,12 +56,12 @@
           @click="appendDigit(digit)"
         >
           {{ digit }}
-        </v-btn>
-        <v-btn class="number-pad-key" size="small" variant="text" @click="clear">C</v-btn>
-        <v-btn class="number-pad-key" size="small" variant="tonal" @click="appendDigit('0')">
+        </k-btn>
+        <k-btn class="number-pad-key" size="small" variant="text" @click="clear">C</k-btn>
+        <k-btn class="number-pad-key" size="small" variant="tonal" @click="appendDigit('0')">
           0
-        </v-btn>
-        <v-btn
+        </k-btn>
+        <k-btn
           v-if="allowDecimal"
           class="number-pad-key"
           size="small"
@@ -69,8 +69,8 @@
           @click="appendDecimal"
         >
           .
-        </v-btn>
-        <v-btn
+        </k-btn>
+        <k-btn
           class="number-pad-key"
           :class="{ 'number-pad-key--wide': allowDecimal }"
           size="small"
@@ -78,13 +78,13 @@
           @click="backspace"
         >
           ⌫
-        </v-btn>
+        </k-btn>
       </div>
-      <v-btn block class="number-pad-done mt-2" color="primary" size="small" variant="flat" @click="apply">
+      <k-btn block class="number-pad-done mt-2" color="primary" size="small" variant="flat" @click="apply">
         Done
-      </v-btn>
-    </v-card>
-  </v-menu>
+      </k-btn>
+    </k-card>
+  </k-menu>
 </template>
 
 <script setup lang="ts">
@@ -400,7 +400,7 @@ defineExpose({ focus });
 
 .number-pad-activator:hover,
 .number-pad-activator:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.09);
+  background: rgba(var(--k-theme-primary), 0.09);
   outline: none;
 }
 
@@ -410,12 +410,12 @@ defineExpose({ focus });
 }
 
 .number-pad-activator--error {
-  color: rgb(var(--v-theme-error));
+  color: rgb(var(--k-theme-error));
 }
 
 .number-pad-activator--keyboard:focus {
-  background: rgba(var(--v-theme-primary), 0.14);
-  outline: 2px solid rgba(var(--v-theme-primary), 0.5);
+  background: rgba(var(--k-theme-primary), 0.14);
+  outline: 2px solid rgba(var(--k-theme-primary), 0.5);
   outline-offset: 1px;
 }
 

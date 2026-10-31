@@ -8,7 +8,7 @@
       v-for="(item, index) in displayItems"
       :key="`${items.length - 1 - index}-${item.barcode || item.code}`"
     >
-      <v-list-item :class="{ 'invoice-item-unknown': isUnknownItem(item) }">
+      <k-list-item :class="{ 'invoice-item-unknown': isUnknownItem(item) }">
         <template #title>
           <button
             class="invoice-item-details-trigger"
@@ -28,7 +28,7 @@
             <!-- Beside the name and code, centred on both. -->
             <!-- Summer and Winter are just their icon (the name on hover); any
                  other option keeps its name. -->
-            <v-icon
+            <k-icon
               v-if="item.saleOption && saleOptionIcon(item.saleOption)"
               class="invoice-item-sale-option"
               :color="saleOptionIcon(item.saleOption)!.color"
@@ -36,7 +36,7 @@
               size="22"
               :title="item.saleOption"
             />
-            <v-chip
+            <k-chip
               v-else-if="item.saleOption"
               class="invoice-item-sale-option"
               label
@@ -46,7 +46,7 @@
             />
             <!-- The line's deal in short ("B2G1"), and how many of its
                  units it gives free; the deal's full name shows on hover. -->
-            <v-chip
+            <k-chip
               v-if="dealFor(item)"
               class="invoice-item-sale-option"
               :color="dealFor(item)!.freeQty ? 'success' : dealFor(item)!.discountCents ? 'deep-purple' : undefined"
@@ -56,14 +56,14 @@
               :variant="dealFor(item)!.discountCents ? 'flat' : 'outlined'"
               @click="onDealChipClick($event, item)"
             >
-              <v-icon class="me-1" icon="mdi-gift-outline" size="14" />
+              <k-icon class="me-1" icon="mdi-gift-outline" size="14" />
               <span class="invoice-deal-chip-text">
                 <span>{{ dealChipLines(item)[0] }}</span>
                 <span v-if="dealChipLines(item)[1]" class="invoice-deal-chip-sub">{{ dealChipLines(item)[1] }}</span>
               </span>
-            </v-chip>
+            </k-chip>
             <!-- The deal a salesperson turned off on this line; tap to give it back. -->
-            <v-chip
+            <k-chip
               v-else-if="offDealFor(item)"
               class="invoice-item-sale-option"
               color="grey"
@@ -73,12 +73,12 @@
               variant="outlined"
               @click="onDealChipClick($event, item)"
             >
-              <v-icon class="me-1" icon="mdi-tag-off-outline" size="14" />
+              <k-icon class="me-1" icon="mdi-tag-off-outline" size="14" />
               <span class="invoice-deal-chip-text">
                 <span class="text-decoration-line-through">{{ offDealFor(item) }}</span>
                 <span class="invoice-deal-chip-sub">off</span>
               </span>
-            </v-chip>
+            </k-chip>
           </button>
         </template>
         <template #append>
@@ -157,7 +157,7 @@
                   @blur="onBlur"
                 >
                   <span class="invoice-price-value">
-                    <v-icon
+                    <k-icon
                       v-if="item.priceListOverridden"
                       icon="mdi-star"
                       color="amber-darken-2"
@@ -169,7 +169,7 @@
                       <span class="text-caption font-weight-bold">{{ signedPrice(totalAfterDiscount(item)) }}</span>
                     </span>
                     <span v-if="showDiscountChips" class="invoice-price-discount">
-                      <v-chip
+                      <k-chip
                         v-if="canToggleDiscount(item) && chipDiscount(item)"
                         :color="item.discountOff ? 'grey' : 'red'"
                         density="comfortable"
@@ -178,9 +178,9 @@
                         :variant="item.discountOff ? 'outlined' : 'tonal'"
                         @click="onDiscountChipClick($event, item)"
                       >
-                        <v-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
+                        <k-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
                         <span :class="{ 'text-decoration-line-through': item.discountOff }">-{{ chipDiscount(item) }}%</span>
-                      </v-chip>
+                      </k-chip>
                     </span>
                   </span>
                 </button>
@@ -188,7 +188,7 @@
             </NumberPadMenu>
             <div v-else class="invoice-price-control d-flex flex-column align-center">
               <span class="invoice-price-value">
-                <v-icon
+                <k-icon
                   v-if="item.priceListOverridden"
                   icon="mdi-star"
                   color="amber-darken-2"
@@ -203,7 +203,7 @@
                      centred on them. While any line has one, the slot is
                      there (empty) on every line so the prices line up. -->
                 <span v-if="showDiscountChips" class="invoice-price-discount">
-                  <v-chip
+                  <k-chip
                     v-if="chipDiscount(item) && !discountEditable(item)"
                     :color="item.discountOff ? 'grey' : 'red'"
                     density="comfortable"
@@ -219,74 +219,74 @@
                     "
                     @click="onDiscountChipClick($event, item)"
                   >
-                    <v-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
+                    <k-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
                     <span :class="{ 'text-decoration-line-through': item.discountOff }">-{{ chipDiscount(item) }}%</span>
-                    <v-icon
+                    <k-icon
                       v-if="item.discountListOverridden"
                       class="ms-1"
                       icon="mdi-star"
                       color="amber-darken-2"
                       size="10"
                     />
-                  </v-chip>
+                  </k-chip>
                 </span>
               </span>
             </div>
             <div class="invoice-delete-control">
               <!-- A returned line in an exchange can't be edited, but it can be
                    taken out when the customer keeps that item after all. -->
-              <v-btn v-if="!readonly" icon variant="text" size="32" @click="removeItem(item)">
-                <v-icon icon="mdi-delete" size="18" color="grey" />
-              </v-btn>
+              <k-btn v-if="!readonly" icon variant="text" size="32" @click="removeItem(item)">
+                <k-icon icon="mdi-delete" size="18" color="grey" />
+              </k-btn>
             </div>
           </div>
         </template>
-      </v-list-item>
+      </k-list-item>
     </div>
 
-    <v-dialog v-model="toggleDialog" width="420" @after-leave="toggleItem = null">
-      <v-card v-if="toggleItem">
-        <v-card-title class="text-wrap">
+    <k-dialog v-model="toggleDialog" width="420" @after-leave="toggleItem = null">
+      <k-card v-if="toggleItem">
+        <k-card-title class="text-wrap">
           {{ toggleIsOff ? `Give the ${toggleKind} back?` : `Turn the ${toggleKind} off?` }}
-        </v-card-title>
-        <v-card-text>
+        </k-card-title>
+        <k-card-text>
           <div class="text-body-1">
             {{ toggleIsOff ? "Give back" : "Remove" }}
             <strong>{{ toggleName }}</strong>
             {{ toggleIsOff ? "on" : "from" }} {{ toggleItem.name }}?
           </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="toggleDialog = false">Cancel</v-btn>
-          <v-btn
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="toggleDialog = false">Cancel</k-btn>
+          <k-btn
             :color="toggleIsOff ? 'primary' : 'red'"
             variant="flat"
             @click="confirmToggle"
           >
             {{ toggleIsOff ? `Give ${toggleKind}` : "Turn off" }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="detailsDialog" width="600" height="500" @after-leave="detailItem = null">
-      <v-card v-if="detailItem">
-        <v-card-title class="d-flex align-center">
+    <k-dialog v-model="detailsDialog" width="600" height="500" @after-leave="detailItem = null">
+      <k-card v-if="detailItem">
+        <k-card-title class="d-flex align-center">
           <div class="min-width-0">
             <div class="text-subtitle-1 text-truncate">{{ detailItem.name }}</div>
             <div class="text-caption text-medium-emphasis">{{ detailItem.code }}</div>
           </div>
-          <v-spacer />
-          <v-btn
+          <k-spacer />
+          <k-btn
             icon="mdi-close"
             variant="text"
             aria-label="Close item details"
             @click="detailsDialog = false"
           />
-        </v-card-title>
-        <v-card-text class="invoice-item-details-content">
-          <v-select
+        </k-card-title>
+        <k-card-text class="invoice-item-details-content">
+          <k-select
             :model-value="detailItem.salespersonId || 0"
             :items="salespersonOptions"
             item-title="title"
@@ -298,7 +298,7 @@
             :menu-props="{ transition: animationsEnabled ? 'fade-transition' : false }"
             @update:model-value="detailItem.salespersonId = Number($event || 0)"
           />
-          <v-textarea
+          <k-textarea
             v-model="detailItem.note"
             placeholder="Add a note about this item"
             prepend-inner-icon="mdi-note-text-outline"
@@ -317,7 +317,7 @@
               class="invoice-unit-line d-flex align-center ga-2"
             >
               <span class="text-caption text-medium-emphasis">Unit {{ unitIndex }}</span>
-              <v-spacer />
+              <k-spacer />
               <NumberPadMenu
                 v-if="canEditUnitDiscount(detailItem)"
                 :ref="(element) => setUnitFieldRef(unitIndex - 1, 'discount', element)"
@@ -365,13 +365,13 @@
               </span>
             </div>
           </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn color="primary" variant="flat" @click="detailsDialog = false">Done</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn color="primary" variant="flat" @click="detailsDialog = false">Done</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
   </div>
 </template>
 
@@ -1237,7 +1237,7 @@ defineExpose({
 
 <style scoped>
 .invoice-item-unknown {
-  background: rgba(var(--v-theme-warning), 0.18);
+  background: rgba(var(--k-theme-warning), 0.18);
 }
 
 .invoice-item-actions {
@@ -1272,16 +1272,16 @@ defineExpose({
   width: 36px;
 }
 
-.invoice-items :deep(.v-list-item__content) {
+.invoice-items :deep(.k-list-item__content) {
   min-width: 0;
 }
 
-.invoice-items :deep(.v-list-item__append) {
+.invoice-items :deep(.k-list-item__append) {
   justify-content: flex-end;
   margin-inline-start: auto;
 }
 
-.invoice-items :deep(.v-list-item) {
+.invoice-items :deep(.k-list-item) {
   padding-inline-start: 24px; /* the text keeps its indent; the row itself starts at the edge */
 }
 
@@ -1360,17 +1360,17 @@ defineExpose({
 
 .invoice-item-details-trigger:hover,
 .invoice-item-details-trigger:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.1);
+  background: rgba(var(--k-theme-primary), 0.1);
 }
 
 .invoice-item-details-trigger:focus-visible {
-  outline: 2px solid rgba(var(--v-theme-primary), 0.45);
+  outline: 2px solid rgba(var(--k-theme-primary), 0.45);
   outline-offset: 1px;
 }
 
 .invoice-unit-lines {
-  background: rgba(var(--v-theme-on-surface), 0.035);
-  border-inline-start: 2px solid rgba(var(--v-theme-primary), 0.3);
+  background: rgba(var(--k-theme-on-surface), 0.035);
+  border-inline-start: 2px solid rgba(var(--k-theme-primary), 0.3);
   max-height: 280px;
   overflow-y: auto;
   padding: 6px 12px;
@@ -1424,13 +1424,13 @@ defineExpose({
 
 .invoice-price-editor:hover,
 .invoice-price-editor:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.09);
+  background: rgba(var(--k-theme-primary), 0.09);
   outline: none;
 }
 
 .invoice-price-editor--keyboard:focus {
-  background: rgba(var(--v-theme-primary), 0.14);
-  outline: 2px solid rgba(var(--v-theme-primary), 0.5);
+  background: rgba(var(--k-theme-primary), 0.14);
+  outline: 2px solid rgba(var(--k-theme-primary), 0.5);
   outline-offset: 1px;
 }
 </style>

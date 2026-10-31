@@ -3,7 +3,7 @@ import { provide } from "vue";
 import { btnDefaultsKey, btnToggleKey } from "./keys";
 
 const props = defineProps<{ modelValue?: unknown; mandatory?: boolean; divided?: boolean; variant?: string; color?: string; density?: string; disabled?: boolean }>();
-const emit = defineEmits<{ "update:modelValue": [value: unknown] }>();
+const emit = defineEmits<{ "update:modelValue": [value: any] }>();
 
 provide(btnDefaultsKey, { variant: props.variant, color: props.color, density: props.density });
 provide(btnToggleKey, {

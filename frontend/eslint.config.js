@@ -1,19 +1,20 @@
-import vuetify from "eslint-config-vuetify";
+import js from "@eslint/js";
+import pluginVue from "eslint-plugin-vue";
+import tseslint from "typescript-eslint";
 
 export default [
-  ...vuetify({
-    ts: true,
-  }),
+  { ignores: ["dist/**", "wailsjs/**", "node_modules/**"] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  ...pluginVue.configs["flat/essential"],
+  {
+    files: ["**/*.vue"],
+    languageOptions: { parserOptions: { parser: tseslint.parser } },
+  },
   {
     rules: {
-      "vue/script-indent": [
-        "error",
-        2,
-        {
-          baseIndent: 1,
-          switchCase: 1,
-        },
-      ],
+      "vue/multi-word-component-names": "off",
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
 ];

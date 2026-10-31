@@ -1,8 +1,8 @@
 <template>
   <div class="record-photo" :style="{ width: `${size}px`, height: `${size}px` }">
     <img v-if="src" :src="src" alt="" class="record-photo__img" />
-    <v-progress-circular v-else-if="pending" indeterminate size="18" width="2" color="grey" />
-    <v-icon v-else :icon="emptyIcon" size="22" color="grey" />
+    <k-progress-circular v-else-if="pending" indeterminate size="18" width="2" color="grey" />
+    <k-icon v-else :icon="emptyIcon" size="22" color="grey" />
   </div>
 </template>
 
@@ -56,7 +56,7 @@ watch(() => props.cacheKey, () => {
   justify-content: center;
   border-radius: 8px;
   overflow: hidden;
-  background: rgba(var(--v-theme-on-surface), 0.06);
+  background: rgba(var(--k-theme-on-surface), 0.06);
   flex-shrink: 0;
 }
 .record-photo__img {

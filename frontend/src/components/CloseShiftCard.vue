@@ -29,13 +29,13 @@
         <div class="text-caption font-weight-bold text-medium-emphasis mb-1">Expenses &amp; loans this shift</div>
         <div v-for="row in shiftSpend" :key="row.key" class="d-flex justify-space-between py-1">
           <span class="text-truncate">
-            <v-icon :icon="row.kind === 'loan' ? 'mdi-hand-coin-outline' : 'mdi-receipt-text-outline'" size="16" class="me-1" />
+            <k-icon :icon="row.kind === 'loan' ? 'mdi-hand-coin-outline' : 'mdi-receipt-text-outline'" size="16" class="me-1" />
             {{ row.label }}
           </span>
           <span class="font-weight-bold text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
         </div>
       </div>
-      <v-select
+      <k-select
         v-model="closingPersonId"
         :items="salespersons"
         item-title="fullName"
@@ -48,7 +48,7 @@
         class="mt-4"
       />
       <div class="autofill-actions d-flex justify-end align-end flex-column">
-        <v-btn
+        <k-btn
           size="small"
           variant="tonal"
           prepend-icon="mdi-autorenew"
@@ -56,11 +56,11 @@
           @click="autofillFromExpected"
         >
           Autofill (Estimated Amount)
-        </v-btn>
+        </k-btn>
       </div>
-      <v-alert v-if="autofillError" type="error" variant="tonal" density="compact" class="mb-3">
+      <k-alert v-if="autofillError" type="error" variant="tonal" density="compact" class="mb-3">
         Autofill failed: {{ autofillError }}
-      </v-alert>
+      </k-alert>
       <div class="usd-bill-grid">
         <NumberPadMenu
           v-for="denomination in usdDenominations"
@@ -79,7 +79,7 @@
           "
         >
           <template #activator="{ props: activatorProps }">
-            <v-text-field
+            <k-text-field
               v-bind="activatorProps"
               :model-value="usdBillCounts[denomination]"
               :label="`$${denomination}`"
@@ -118,7 +118,7 @@
           "
         >
           <template #activator="{ props: activatorProps }">
-            <v-text-field
+            <k-text-field
               v-bind="activatorProps"
               :model-value="countedLbp"
               label="LBP"
@@ -154,7 +154,7 @@
           "
         >
           <template #activator="{ props: activatorProps }">
-            <v-text-field
+            <k-text-field
               v-bind="activatorProps"
               :model-value="countedVisa"
               label="Visa"
@@ -184,7 +184,7 @@
           "
         >
           <template #activator="{ props: activatorProps }">
-            <v-text-field
+            <k-text-field
               v-bind="activatorProps"
               :model-value="countedWhish"
               label="Whish"
@@ -198,7 +198,7 @@
             />
           </template>
         </NumberPadMenu>
-        <v-text-field
+        <k-text-field
           :model-value="(countedCouponCents / 100).toFixed(2)"
           label="Coupon"
           active
@@ -218,8 +218,8 @@
       </div>
     </div>
     <div class="close-shift-actions">
-      <v-btn variant="text" @click="emit('close')">Cancel</v-btn>
-      <v-btn
+      <k-btn variant="text" @click="emit('close')">Cancel</k-btn>
+      <k-btn
         color="error"
         variant="elevated"
         :loading="closing"
@@ -227,16 +227,16 @@
         @click="doCloseShift"
       >
         Close Shift
-      </v-btn>
+      </k-btn>
     </div>
 
     <CloseShiftSyncDialog ref="syncDialog" />
 
-    <v-dialog v-model="receiptDialog" max-width="420" persistent scrollable>
-      <v-card class="text-center">
+    <k-dialog v-model="receiptDialog" max-width="420" persistent scrollable>
+      <k-card class="text-center">
         <template v-if="receiptState === 'scan'">
-          <v-card-title class="pt-4">Upload the shift receipt</v-card-title>
-          <v-card-text class="pb-4">
+          <k-card-title class="pt-4">Upload the shift receipt</k-card-title>
+          <k-card-text class="pb-4">
             <div class="text-body-2">
               Scan with a phone and take one photo of the printed receipt and the handwritten receipt.
             </div>
@@ -253,12 +253,12 @@
               {{ receiptUrl }}
             </div>
             <div class="d-flex align-center justify-center ga-2 mt-4 text-medium-emphasis">
-              <v-progress-circular indeterminate size="18" width="2" />
+              <k-progress-circular indeterminate size="18" width="2" />
               <span class="text-caption">Waiting for the photo…</span>
             </div>
 
             <template v-if="!showSkip">
-              <v-btn
+              <k-btn
                 v-if="receiptMode === 'central'"
                 block
                 class="mt-4"
@@ -268,14 +268,14 @@
                 @click="switchToLocalUpload"
               >
                 Phone can't reach the server? Use local Wi-Fi
-              </v-btn>
-              <v-btn block class="mt-2" size="small" variant="text" @click="showSkip = true">
+              </k-btn>
+              <k-btn block class="mt-2" size="small" variant="text" @click="showSkip = true">
                 Can't upload now
-              </v-btn>
+              </k-btn>
             </template>
 
             <div v-else class="d-flex flex-column ga-3 mt-4 text-left">
-              <v-text-field
+              <k-text-field
                 v-model="adminPassword"
                 autofocus
                 density="compact"
@@ -285,7 +285,7 @@
                 variant="outlined"
                 @update:model-value="skipError = ''"
               />
-              <v-text-field
+              <k-text-field
                 v-model="skipReason"
                 density="compact"
                 hide-details="auto"
@@ -294,8 +294,8 @@
               />
               <div v-if="skipError" class="text-caption text-error">{{ skipError }}</div>
               <div class="d-flex ga-2 justify-space-between">
-                <v-btn size="small" variant="text" @click="showSkip = false">Back</v-btn>
-                <v-btn
+                <k-btn size="small" variant="text" @click="showSkip = false">Back</k-btn>
+                <k-btn
                   color="error"
                   :disabled="!adminPassword"
                   :loading="skipping"
@@ -303,26 +303,26 @@
                   @click="submitSkip"
                 >
                   Skip &amp; finish
-                </v-btn>
+                </k-btn>
               </div>
             </div>
-          </v-card-text>
+          </k-card-text>
         </template>
 
         <template v-else>
-          <v-card-text>
-            <v-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
+          <k-card-text>
+            <k-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
             <div class="text-h6">Receipt photo received</div>
             <div class="text-caption text-medium-emphasis mt-1">
               It will sync to the office automatically.
             </div>
-          </v-card-text>
-          <v-card-actions class="justify-center">
-            <v-btn color="primary" variant="elevated" @click="finishReceipt">Finish</v-btn>
-          </v-card-actions>
+          </k-card-text>
+          <k-card-actions class="justify-center">
+            <k-btn color="primary" variant="elevated" @click="finishReceipt">Finish</k-btn>
+          </k-card-actions>
         </template>
-      </v-card>
-    </v-dialog>
+      </k-card>
+    </k-dialog>
   </div>
 </template>
 
@@ -741,11 +741,11 @@ onBeforeUnmount(stopReceiptWatchers);
   padding: 8px 16px 8px;
 }
 
-.autofilled-field :deep(.v-field) {
+.autofilled-field :deep(.k-field) {
   background-color: rgba(255, 235, 59, 0.3);
 }
 
-.manually-edited-field :deep(.v-field) {
+.manually-edited-field :deep(.k-field) {
   background-color: rgba(76, 175, 80, 0.25);
 }
 

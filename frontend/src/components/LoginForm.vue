@@ -8,7 +8,7 @@
         role="img"
         aria-label="K"
       />
-      <v-btn
+      <k-btn
         class="pin-admin-toggle"
         :icon="mode === 'admin' ? 'mdi-keyboard-outline' : 'mdi-shield-key-outline'"
         size="small"
@@ -19,7 +19,7 @@
       />
     </div>
 
-    <v-select
+    <k-select
       v-if="branches.length > 1"
       class="pin-branch-select"
       :model-value="activeBranchCode"
@@ -47,7 +47,7 @@
       </div>
 
       <div class="pin-keypad" :aria-disabled="loading || locked">
-        <v-btn
+        <k-btn
           v-for="digit in digits"
           :key="digit"
           type="button"
@@ -59,8 +59,8 @@
           @click="enterDigit(digit)"
         >
           {{ digit }}
-        </v-btn>
-        <v-btn
+        </k-btn>
+        <k-btn
           type="button"
           class="pin-key"
           size="small"
@@ -70,8 +70,8 @@
           @click="clearPIN"
         >
           C
-        </v-btn>
-        <v-btn
+        </k-btn>
+        <k-btn
           type="button"
           class="pin-key"
           size="small"
@@ -81,8 +81,8 @@
           @click="enterDigit('0')"
         >
           0
-        </v-btn>
-        <v-btn
+        </k-btn>
+        <k-btn
           type="button"
           class="pin-key"
           size="small"
@@ -92,12 +92,12 @@
           @click="removeDigit"
         >
           ⌫
-        </v-btn>
+        </k-btn>
       </div>
     </template>
 
     <form v-else class="pin-admin-form" @submit.prevent="submitAdmin">
-      <v-text-field
+      <k-text-field
         v-model="adminPassword"
         autofocus
         type="password"
@@ -108,7 +108,7 @@
         :disabled="loading || locked"
         :class="{ 'pin-admin-field--error': error }"
       />
-      <v-btn
+      <k-btn
         type="submit"
         block
         color="primary"
@@ -118,11 +118,11 @@
         :disabled="locked || adminPassword.length === 0"
       >
         Sign in
-      </v-btn>
+      </k-btn>
     </form>
 
     <div class="pin-status" aria-live="polite">
-      <v-progress-circular v-if="loading && mode === 'pin'" indeterminate size="22" width="2" />
+      <k-progress-circular v-if="loading && mode === 'pin'" indeterminate size="22" width="2" />
       <span v-else-if="!locked && error" class="pin-error" role="alert">{{ error }}</span>
       <span v-if="mode === 'pin' && !locked && attempts > 0" class="pin-attempts text-subtitle-1">
         {{ 3 - attempts }} {{ 3 - attempts === 1 ? "attempt" : "attempts" }} remaining
@@ -286,7 +286,7 @@ function rememberLogoSpot() {
   if (!el) return;
   const rect = el.getBoundingClientRect();
   if (!rect.width) return;
-  const app = el.closest(".v-application");
+  const app = el.closest(".k-app");
   try {
     localStorage.setItem(
       "startupLogoSpot",
@@ -350,7 +350,7 @@ onBeforeUnmount(() => {
 .pin-logo {
   aspect-ratio: 1;
   width: clamp(105px, 14vw, 190px);
-  background-color: rgb(var(--v-theme-on-surface));
+  background-color: rgb(var(--k-theme-on-surface));
   mask: var(--pin-logo-image) center / contain no-repeat;
   -webkit-mask: var(--pin-logo-image) center / contain no-repeat;
   margin-bottom: 0;
@@ -375,7 +375,7 @@ onBeforeUnmount(() => {
 
 .pin-branch-error {
   margin-top: 4px;
-  color: rgb(var(--v-theme-error));
+  color: rgb(var(--k-theme-error));
   font-size: 0.8rem;
 }
 
@@ -393,7 +393,7 @@ onBeforeUnmount(() => {
 
 .pin-heading p {
   margin-top: 8px;
-  color: rgba(var(--v-theme-on-surface), 0.62);
+  color: rgba(var(--k-theme-on-surface), 0.62);
   font-size: 0.9rem;
 }
 
@@ -408,19 +408,19 @@ onBeforeUnmount(() => {
 .pin-dots span {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(var(--v-theme-on-surface), 0.32);
+  border: 2px solid rgba(var(--k-theme-on-surface), 0.32);
   border-radius: 50%;
   transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
 .pin-dots span.filled {
-  border-color: rgb(var(--v-theme-on-surface));
-  background: rgb(var(--v-theme-on-surface));
+  border-color: rgb(var(--k-theme-on-surface));
+  background: rgb(var(--k-theme-on-surface));
   transform: scale(1.08);
 }
 
 .pin-dots--error span {
-  border-color: rgb(var(--v-theme-error));
+  border-color: rgb(var(--k-theme-error));
 }
 
 .pin-keypad {
@@ -432,7 +432,7 @@ onBeforeUnmount(() => {
 }
 
 .pin-key {
-  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border: 1px solid rgba(var(--k-border-color), 0.18);
   border-radius: 4px;
   height: 100%;
   min-width: 0;
@@ -463,8 +463,8 @@ onBeforeUnmount(() => {
   margin: 18px 0 4px;
 }
 
-.pin-admin-field--error :deep(.v-field) {
-  border-color: rgb(var(--v-theme-error));
+.pin-admin-field--error :deep(.k-field) {
+  border-color: rgb(var(--k-theme-error));
 }
 
 .pin-status {
@@ -474,21 +474,21 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  color: rgba(var(--v-theme-on-surface), 0.55);
+  color: rgba(var(--k-theme-on-surface), 0.55);
   font-size: 0.8rem;
 }
 
 .pin-status .pin-error {
   display: block;
   margin-bottom: 4px;
-  color: rgb(var(--v-theme-error));
+  color: rgb(var(--k-theme-error));
   font-size: 1rem;
   font-weight: 600;
 }
 
 .pin-version {
   margin-top: 4px;
-  color: rgba(var(--v-theme-on-surface), 0.4);
+  color: rgba(var(--k-theme-on-surface), 0.4);
   font-size: 0.7rem;
   text-align: center;
 }

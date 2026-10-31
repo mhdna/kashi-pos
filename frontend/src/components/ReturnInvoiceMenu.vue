@@ -1,28 +1,28 @@
 <template>
-  <v-btn v-if="!hideActivator" class="px-5" variant="tonal" @click="menu = true">
+  <k-btn v-if="!hideActivator" class="px-5" variant="tonal" @click="menu = true">
     <template #prepend>
-      <v-icon icon="mdi-autorenew" size="20" class="me-2" />
+      <k-icon icon="mdi-autorenew" size="20" class="me-2" />
     </template>
     Exchange
-  </v-btn>
+  </k-btn>
 
-  <v-dialog
+  <k-dialog
     v-model="menu"
     :max-width="invoice ? 780 : 360"
     @after-enter="focusInvoiceInput"
     @after-leave="clearForm"
   >
-    <v-card class="exchange-dialog-card d-flex flex-column">
-      <v-card-title>Exchange Invoice</v-card-title>
+    <k-card class="exchange-dialog-card d-flex flex-column">
+      <k-card-title>Exchange Invoice</k-card-title>
 
-      <v-card-text
+      <k-card-text
         class="exchange-dialog-layout"
         :class="{ 'exchange-dialog-layout--entry': !invoice }"
       >
         <div v-if="invoice" class="exchange-dialog-content">
           <div class="exchange-input-row">
             <div class="exchange-input-control">
-              <v-text-field
+              <k-text-field
                 v-model="invoiceCode"
                 density="compact"
                 placeholder="Sales invoice code or barcode"
@@ -31,19 +31,19 @@
                 disabled
               />
             </div>
-            <v-btn height="40" variant="text" @click="changeInvoice">Change</v-btn>
+            <k-btn height="40" variant="text" @click="changeInvoice">Change</k-btn>
           </div>
 
-          <v-alert class="mb-3" density="compact" type="success" variant="tonal">
+          <k-alert class="mb-3" density="compact" type="success" variant="tonal">
             {{ invoice.invoiceCode }} · {{ invoice.client.name }} —
             {{ invoice.items.length }} available
             {{ invoice.items.length === 1 ? "item" : "items" }}
-          </v-alert>
+          </k-alert>
 
-          <v-card class="mb-3" variant="outlined">
-            <v-list-subheader>Items available to return</v-list-subheader>
-            <v-list density="compact" class="exchange-available-items py-0">
-              <v-list-item
+          <k-card class="mb-3" variant="outlined">
+            <k-list-subheader>Items available to return</k-list-subheader>
+            <k-list density="compact" class="exchange-available-items py-0">
+              <k-list-item
                 v-for="item in invoice.items"
                 :key="`${item.code}-${item.price}-${item.discount}`"
                 :active="Boolean(selectedReturn(item))"
@@ -53,13 +53,13 @@
                 @click="selectReturned(item)"
               >
                 <template #prepend>
-                  <v-icon icon="mdi-barcode" class="me-3" />
+                  <k-icon icon="mdi-barcode" class="me-3" />
                 </template>
                 <!-- A deal unit: how many of these were free. A free one
                      swaps for anything up to its price. -->
                 <template v-if="item.deal" #title>
                   {{ item.name }}
-                  <v-chip
+                  <k-chip
                     class="ms-2"
                     :color="item.freeQty ? 'success' : undefined"
                     label
@@ -80,7 +80,7 @@
                     <span class="text-body-2 font-weight-medium">
                       ${{ effectivePrice(item).toFixed(2) }}
                     </span>
-                    <v-btn
+                    <k-btn
                       v-if="selectedReturn(item)"
                       aria-label="Remove returned item"
                       icon="mdi-delete"
@@ -90,12 +90,12 @@
                     />
                   </div>
                 </template>
-              </v-list-item>
-            </v-list>
-          </v-card>
+              </k-list-item>
+            </k-list>
+          </k-card>
 
           <div class="exchange-input-control">
-            <v-text-field
+            <k-text-field
               ref="scanInput"
               v-model="scanValue"
               density="compact"
@@ -112,7 +112,7 @@
         <div v-if="!invoice" class="exchange-inline-numpad">
           <div class="exchange-inline-numpad-label">Invoice code</div>
           <div class="exchange-inline-numpad-display">
-            <v-text-field
+            <k-text-field
               ref="invoiceInput"
               v-model="invoiceCode"
               autofocus
@@ -132,7 +132,7 @@
             {{ invoiceError }}
           </div>
           <div class="exchange-inline-numpad-grid">
-            <v-btn
+            <k-btn
               v-for="digit in exchangePadDigits"
               :key="digit"
               class="exchange-inline-numpad-key"
@@ -142,8 +142,8 @@
               @click="appendExchangeDigit(digit)"
             >
               {{ digit }}
-            </v-btn>
-            <v-btn
+            </k-btn>
+            <k-btn
               aria-label="Clear exchange input"
               class="exchange-inline-numpad-key"
               size="small"
@@ -152,8 +152,8 @@
               @click="clearExchangeInput"
             >
               C
-            </v-btn>
-            <v-btn
+            </k-btn>
+            <k-btn
               class="exchange-inline-numpad-key"
               size="small"
               variant="tonal"
@@ -161,8 +161,8 @@
               @click="appendExchangeDigit('0')"
             >
               0
-            </v-btn>
-            <v-btn
+            </k-btn>
+            <k-btn
               aria-label="Delete last exchange digit"
               class="exchange-inline-numpad-key"
               size="small"
@@ -171,9 +171,9 @@
               @click="backspaceExchangeInput"
             >
               ⌫
-            </v-btn>
+            </k-btn>
           </div>
-          <v-btn
+          <k-btn
             block
             class="exchange-load-button mt-2"
             color="primary"
@@ -185,18 +185,18 @@
             @click="submitExchangeInput"
           >
             Load
-          </v-btn>
+          </k-btn>
         </div>
-      </v-card-text>
+      </k-card-text>
 
-      <v-card-actions class="pa-3">
-        <v-btn class="flex-1-1" variant="text" @click="menu = false">Cancel</v-btn>
-        <v-btn class="flex-1-1" color="primary" :disabled="!returned.length" @click="startExchange">
+      <k-card-actions class="pa-3">
+        <k-btn class="flex-1-1" variant="text" @click="menu = false">Cancel</k-btn>
+        <k-btn class="flex-1-1" color="primary" :disabled="!returned.length" @click="startExchange">
           Start exchange
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">
@@ -345,7 +345,7 @@ function startExchange() {
   min-width: 0;
 }
 
-.exchange-input-control :deep(.v-input) {
+.exchange-input-control :deep(.k-input) {
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -382,7 +382,7 @@ function startExchange() {
   overflow-y: auto;
 }
 
-.exchange-available-items :deep(.v-list-item) {
+.exchange-available-items :deep(.k-list-item) {
   min-height: 64px;
 }
 
@@ -425,7 +425,7 @@ function startExchange() {
 }
 
 .exchange-inline-numpad-key {
-  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border: 1px solid rgba(var(--k-border-color), 0.18);
   border-radius: 4px;
   font-size: 2rem !important;
   height: 100%;

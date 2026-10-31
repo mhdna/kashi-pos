@@ -1,5 +1,5 @@
 <template>
-  <v-snackbar
+  <k-snackbar
     v-model="visible"
     class="attendance-snackbar"
     :timeout="-1"
@@ -13,11 +13,11 @@
         <div class="attendance-toast__time">{{ current.time }}</div>
       </div>
       <div class="attendance-toast__kind" :class="isIn ? 'attendance-toast__kind--in' : 'attendance-toast__kind--out'">
-        <v-icon icon="mdi-account-clock" size="22" />
+        <k-icon icon="mdi-account-clock" size="22" />
         <span>{{ isIn ? "Check in" : "Check out" }}</span>
       </div>
     </div>
-  </v-snackbar>
+  </k-snackbar>
 </template>
 
 <script setup lang="ts">
@@ -108,10 +108,10 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .attendance-toast__kind--in {
-  color: rgb(var(--v-theme-success));
+  color: rgb(var(--k-theme-success));
 }
 .attendance-toast__kind--out {
-  color: rgb(var(--v-theme-warning));
+  color: rgb(var(--k-theme-warning));
 }
 </style>
 
@@ -119,10 +119,10 @@ onUnmounted(() => {
 /* Same look as the app's other snackbars (home / invoices-list / settings).
    Unscoped: the snackbar is teleported out of this component. Kept local so
    it looks right on every page, not only where that rule happens to be loaded. */
-.attendance-snackbar .v-snackbar__wrapper {
-  background: rgba(var(--v-theme-surface-variant), 0.72) !important;
-  color: rgb(var(--v-theme-on-surface-variant)) !important;
-  border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
+.attendance-snackbar .k-snackbar__wrapper {
+  background: rgba(var(--k-theme-surface-variant), 0.72) !important;
+  color: rgb(var(--k-theme-on-surface-variant)) !important;
+  border: 1px solid rgba(var(--k-theme-on-surface-variant), 0.1);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
 }
 </style>

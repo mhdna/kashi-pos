@@ -27,7 +27,7 @@ const props = defineProps<{
   hover?: boolean;
   density?: string;
   noDataText?: string;
-  itemsPerPage?: number;
+  itemsPerPage?: number | string;
   hideDefaultFooter?: boolean;
 }>();
 const emit = defineEmits<{ "click:row": [event: MouseEvent, scope: { item: any; index: number }] }>();

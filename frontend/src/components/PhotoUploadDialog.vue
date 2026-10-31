@@ -1,46 +1,46 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="380" persistent @update:model-value="emit('update:modelValue', $event)">
-    <v-card class="text-center pa-4">
+  <k-dialog :model-value="modelValue" max-width="380" persistent @update:model-value="emit('update:modelValue', $event)">
+    <k-card class="text-center pa-4">
       <template v-if="state === 'waiting'">
-        <v-card-title>Preparing upload link…</v-card-title>
-        <v-card-text>
-          <v-progress-circular class="my-4" color="primary" indeterminate size="48" />
+        <k-card-title>Preparing upload link…</k-card-title>
+        <k-card-text>
+          <k-progress-circular class="my-4" color="primary" indeterminate size="48" />
           <div class="text-body-2">{{ mode === "new" ? `Syncing this ${kind} to the server.` : "Asking the server for a new link." }}</div>
-        </v-card-text>
+        </k-card-text>
       </template>
 
       <template v-else-if="state === 'ready'">
-        <v-card-title>Attach a photo</v-card-title>
-        <v-card-text>
+        <k-card-title>Attach a photo</k-card-title>
+        <k-card-text>
           <div class="text-body-2">Scan this with your phone and take a photo of the receipt.</div>
           <div class="text-body-2 mb-3" dir="rtl" lang="ar">
             امسح الرمز بالهاتف والتقط صورة {{ kind === "loan" ? "الإيصال" : "سند الصرف" }}.
           </div>
           <img v-if="qrDataUrl" :src="qrDataUrl" alt="Upload QR code" style="width: 220px; height: 220px" />
           <div class="text-caption text-medium-emphasis mt-3" style="word-break: break-all">{{ uploadUrl }}</div>
-        </v-card-text>
+        </k-card-text>
       </template>
 
       <template v-else-if="state === 'success'">
-        <v-card-text>
-          <v-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
+        <k-card-text>
+          <k-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
           <div class="text-h6">Uploaded!</div>
-        </v-card-text>
+        </k-card-text>
       </template>
 
       <template v-else>
-        <v-card-title>Couldn't prepare the upload link</v-card-title>
-        <v-card-text>
+        <k-card-title>Couldn't prepare the upload link</k-card-title>
+        <k-card-text>
           <div class="text-body-2">{{ errorText || "Check the connection to the server and try again later." }}</div>
-        </v-card-text>
+        </k-card-text>
       </template>
 
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="emit('update:modelValue', false)">Close</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn variant="text" @click="emit('update:modelValue', false)">Close</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">

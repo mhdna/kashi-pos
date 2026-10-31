@@ -24,7 +24,7 @@ const props = defineProps<{
   disabled?: boolean;
   clearable?: boolean;
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: unknown]; "update:search": [value: string] }>();
+const emit = defineEmits<{ "update:modelValue": [value: any]; "update:search": [value: string] }>();
 
 const attrs = useAttrs();
 const rootAttrs = computed(() => ({ class: attrs.class, style: attrs.style }));

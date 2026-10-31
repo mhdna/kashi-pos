@@ -37,7 +37,7 @@ const props = defineProps<{
   active?: boolean;
   menuProps?: unknown;
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: unknown] }>();
+const emit = defineEmits<{ "update:modelValue": [value: any] }>();
 defineSlots<{
   item?(scope: { props: Record<string, unknown>; item: Item; index: number }): unknown;
   chip?(scope: { props: Record<string, unknown>; item: Item; index: number }): unknown;

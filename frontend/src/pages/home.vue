@@ -6,13 +6,13 @@
     <div class="home-panes d-flex">
       <div class="home-left-pane d-flex flex-column" style="flex: 5 5 0; min-width: 0; min-height: 0">
         <div>
-          <v-card-title
+          <k-card-title
             class="d-flex justify-space-between"
             style="font-size: var(--kashi-font-size-2xl)"
           >
             <div class="d-flex flex-column">
               <div class="font-weight-bold">{{ pageModeTitle }}</div>
-              <v-card-subtitle v-if="pageMode === 'sale' || pageMode === 'exchange'" class="pa-0">{{ invoiceCode }}</v-card-subtitle>
+              <k-card-subtitle v-if="pageMode === 'sale' || pageMode === 'exchange'" class="pa-0">{{ invoiceCode }}</k-card-subtitle>
             </div>
             <div class="d-flex flex-column align-end">
               <div class="d-flex align-center ga-2">
@@ -27,11 +27,11 @@
                   />
                 </div>
                 <NoteButton :note="invoiceNotes" @openDialog="openNoteDialog" />
-                <v-dialog v-model="noteDialog" max-width="760">
-                  <v-card>
-                    <v-card-title>Add a note</v-card-title>
-                    <v-card-text>
-                      <v-textarea
+                <k-dialog v-model="noteDialog" max-width="760">
+                  <k-card>
+                    <k-card-title>Add a note</k-card-title>
+                    <k-card-text>
+                      <k-textarea
                         ref="noteInput"
                         v-model="noteDraft"
                         auto-grow
@@ -43,28 +43,28 @@
                         @keydown.ctrl.enter="saveNote"
                       />
                       <InlineKeyboard v-model="noteDraft" :max-length="500" class="mt-3" />
-                    </v-card-text>
-                    <v-card-actions class="pa-4">
-                      <v-btn
+                    </k-card-text>
+                    <k-card-actions class="pa-4">
+                      <k-btn
                         v-if="invoiceNotes"
                         variant="text"
                         color="error"
                         @click="removeNote"
                       >
                         Remove
-                      </v-btn>
-                      <v-spacer />
-                      <v-btn variant="text" @click="noteDialog = false">Cancel</v-btn>
-                      <v-btn color="primary" variant="elevated" @click="saveNote">Add</v-btn>
-                    </v-card-actions>
-                  </v-card>
-                </v-dialog>
+                      </k-btn>
+                      <k-spacer />
+                      <k-btn variant="text" @click="noteDialog = false">Cancel</k-btn>
+                      <k-btn color="primary" variant="elevated" @click="saveNote">Add</k-btn>
+                    </k-card-actions>
+                  </k-card>
+                </k-dialog>
               </div>
             </div>
-          </v-card-title>
+          </k-card-title>
         </div>
         <div class="d-flex align-center ms-4 mt-4" :class="pageMode === 'settlement' ? 'me-4' : 'me-0'">
-          <v-text-field
+          <k-text-field
             ref="barcodeInput"
             v-model="barcodeValue"
             class="flex-grow-1"
@@ -77,7 +77,7 @@
             @blur="onBlur"
             @keydown.enter="onBarcodeEnter"
           />
-          <v-btn
+          <k-btn
             v-if="pageMode !== 'settlement'"
             icon
             class="ms-1"
@@ -85,9 +85,9 @@
             aria-label="Invoices on hold"
             @click="onHoldMenu?.open()"
           >
-            <v-icon icon="mdi-pause" size="26" />
-          </v-btn>
-          <v-btn
+            <k-icon icon="mdi-pause" size="26" />
+          </k-btn>
+          <k-btn
             v-if="pageMode !== 'settlement'"
             icon
             class="ms-1"
@@ -95,9 +95,9 @@
             aria-label="Exchange invoice"
             @click="returnInvoiceMenu?.open()"
           >
-            <v-icon icon="mdi-autorenew" size="26" />
-          </v-btn>
-          <v-btn
+            <k-icon icon="mdi-autorenew" size="26" />
+          </k-btn>
+          <k-btn
             v-if="pageMode !== 'settlement'"
             icon
             class="ms-1"
@@ -105,9 +105,9 @@
             aria-label="Add an unknown item"
             @click="unknownPrice.show = true"
           >
-            <v-icon icon="mdi-help-box-outline" size="26" />
-          </v-btn>
-          <v-btn
+            <k-icon icon="mdi-help-box-outline" size="26" />
+          </k-btn>
+          <k-btn
             v-if="pageMode !== 'settlement' && productSearchEnabled"
             icon
             class="ms-1"
@@ -115,8 +115,8 @@
             aria-label="Search products"
             @click="openProductSearch"
           >
-            <v-icon icon="mdi-magnify" size="26" />
-          </v-btn>
+            <k-icon icon="mdi-magnify" size="26" />
+          </k-btn>
           <OnHoldMenu ref="onHoldMenu" hide-activator @restore="onRestoreHold" />
           <ReturnInvoiceMenu
             ref="returnInvoiceMenu"
@@ -211,18 +211,18 @@
             z-index: 10;
           "
         >
-          <v-card
+          <k-card
             class="empty-cart-card pa-0 text-center d-flex flex-column align-center justify-center"
             rounded="lg"
             width="180"
             height="110"
             elevation="4"
           >
-            <v-icon icon="mdi-barcode-scan" size="42" class="mb-2" />
+            <k-icon icon="mdi-barcode-scan" size="42" class="mb-2" />
             <div class="empty-cart-label text-subtitle-2">
               Scan a barcode<br />{{ scanByCodeEnabled ? "or type a code" : "to add a product" }}
             </div>
-          </v-card>
+          </k-card>
         </div>
         <!--
         <div class="invoice-total-summary d-flex flex-column align-center mx-2 mt-1 px-1">
@@ -294,8 +294,8 @@
 
   <AccountDialog v-model="accountDialog" @select="onAccountClientSelect" />
 
-  <v-overlay v-model="printing" class="align-center justify-center" persistent>
-    <v-card class="pa-8 text-center" width="300">
+  <k-overlay v-model="printing" class="align-center justify-center" persistent>
+    <k-card class="pa-8 text-center" width="300">
       <template v-if="printPhase === 'success'">
         <div class="print-face" aria-hidden="true">:)</div>
         <div class="text-h6 mt-2">Done!</div>
@@ -307,10 +307,10 @@
         <div class="print-spinner mb-4" aria-hidden="true"></div>
         <div class="text-h6">Printing receipt...</div>
       </template>
-    </v-card>
-  </v-overlay>
+    </k-card>
+  </k-overlay>
 
-  <v-snackbar
+  <k-snackbar
     v-model="snackbar.show"
     :class="[
       'app-snackbar',
@@ -323,93 +323,93 @@
     variant="flat"
   >
     <div class="d-flex align-center ga-3">
-      <v-icon v-if="snackbar.icon" :icon="snackbar.icon" size="44" />
+      <k-icon v-if="snackbar.icon" :icon="snackbar.icon" size="44" />
       <span :class="{ 'checkout-blocked-text': snackbar.icon }">{{ snackbar.text }}</span>
     </div>
-  </v-snackbar>
+  </k-snackbar>
 
   <!-- "warn" oversell mode: the branch would go below zero on these
        products. The cashier decides; kashi flags it either way. -->
-  <v-dialog v-model="oversellDialog.show" max-width="480" persistent>
-    <v-card>
-      <v-card-title>Not enough stock</v-card-title>
-      <v-card-text>
+  <k-dialog v-model="oversellDialog.show" max-width="480" persistent>
+    <k-card>
+      <k-card-title>Not enough stock</k-card-title>
+      <k-card-text>
         <p class="mb-3">The branch doesn't have enough of:</p>
         <div v-for="line in oversellDialog.lines" :key="line.code" class="mb-1">
           <strong>{{ line.name || line.code }}</strong> — {{ Math.max(line.available, 0) }} in stock,
           {{ line.requested }} in this sale
         </div>
         <p class="mt-3 mb-0">Sell anyway? kashi will flag the stock to be corrected.</p>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn text="Cancel" @click="answerOversell(false)" />
-        <v-btn color="primary" text="Sell anyway" variant="flat" @click="answerOversell(true)" />
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn text="Cancel" @click="answerOversell(false)" />
+        <k-btn color="primary" text="Sell anyway" variant="flat" @click="answerOversell(true)" />
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
   <!-- A typed price far from the list price is almost always a slip of the
        keypad ($3 keyed as $3000); asked once at checkout, not per keystroke. -->
-  <v-dialog v-model="priceCheckDialog.show" max-width="480" persistent>
-    <v-card>
-      <v-card-title>Check these prices</v-card-title>
-      <v-card-text>
+  <k-dialog v-model="priceCheckDialog.show" max-width="480" persistent>
+    <k-card>
+      <k-card-title>Check these prices</k-card-title>
+      <k-card-text>
         <div v-for="line in priceCheckDialog.lines" :key="line.code" class="mb-1">
           <strong>{{ line.name || line.code }}</strong> — selling at ${{ line.price.toFixed(2) }},
           list price ${{ line.listPrice.toFixed(2) }}
         </div>
         <p class="mt-3 mb-0">Is that right?</p>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn text="Fix prices" @click="answerPriceCheck(false)" />
-        <v-btn color="primary" text="Prices are right" variant="flat" @click="answerPriceCheck(true)" />
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn text="Fix prices" @click="answerPriceCheck(false)" />
+        <k-btn color="primary" text="Prices are right" variant="flat" @click="answerPriceCheck(true)" />
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
   <!-- A scanned/typed product code shared by several variants: pick one. -->
-  <v-dialog v-model="variantPicker.show" max-width="560" scrollable>
-    <v-card>
-      <v-card-title>Choose a variant of {{ variantPicker.code }}</v-card-title>
-      <v-card-text class="pa-0">
-        <v-list>
-          <v-list-item
+  <k-dialog v-model="variantPicker.show" max-width="560" scrollable>
+    <k-card>
+      <k-card-title>Choose a variant of {{ variantPicker.code }}</k-card-title>
+      <k-card-text class="pa-0">
+        <k-list>
+          <k-list-item
             v-for="variant in variantPicker.variants"
             :key="variant.barcode"
             link
             @click="pickVariant(variant)"
           >
-            <v-list-item-title class="font-weight-medium">
+            <k-list-item-title class="font-weight-medium">
               {{ [variant.color, variant.size].filter(Boolean).join(" · ") || variant.name }}
-            </v-list-item-title>
-            <v-list-item-subtitle>{{ variant.name }} · {{ variant.barcode }}</v-list-item-subtitle>
+            </k-list-item-title>
+            <k-list-item-subtitle>{{ variant.name }} · {{ variant.barcode }}</k-list-item-subtitle>
             <template #append>
               <span class="font-weight-medium">${{ Number(variant.price || 0).toFixed(2) }}</span>
             </template>
-          </v-list-item>
-        </v-list>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn text="Cancel" @click="variantPicker.show = false" />
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+          </k-list-item>
+        </k-list>
+      </k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn text="Cancel" @click="variantPicker.show = false" />
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
   <!-- A product that asks a sale option: which one is being sold. -->
-  <v-dialog v-model="saleOptionPicker.show" max-width="420">
-    <v-card v-if="saleOptionPicker.product">
-      <v-card-title class="text-h5 pb-0">{{ saleOptionPicker.product.name }}</v-card-title>
-      <v-card-subtitle class="text-subtitle-1">
+  <k-dialog v-model="saleOptionPicker.show" max-width="420">
+    <k-card v-if="saleOptionPicker.product">
+      <k-card-title class="text-h5 pb-0">{{ saleOptionPicker.product.name }}</k-card-title>
+      <k-card-subtitle class="text-subtitle-1">
         {{ saleOptionPicker.product.code }}
         <template v-if="saleOptionPicker.product.color || saleOptionPicker.product.size">
           · {{ [saleOptionPicker.product.color, saleOptionPicker.product.size].filter(Boolean).join(" / ") }}
         </template>
-      </v-card-subtitle>
-      <v-card-text class="sale-option-grid pt-3 pb-1">
-        <v-btn
+      </k-card-subtitle>
+      <k-card-text class="sale-option-grid pt-3 pb-1">
+        <k-btn
           v-for="(option, index) in saleOptionPicker.product.saleOptions"
           :key="option.name"
           :autofocus="index === 0"
@@ -420,18 +420,18 @@
           @click="pickSaleOption(option)"
         >
           <div class="d-flex flex-column align-center ga-1">
-            <v-icon :icon="saleOptionLook(option.name).icon" size="32" />
+            <k-icon :icon="saleOptionLook(option.name).icon" size="32" />
             <span class="sale-option-name">{{ option.name }}</span>
             <span v-if="option.discount > 0" class="sale-option-discount">-{{ option.discount }}%</span>
           </div>
-        </v-btn>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn size="large" text="Cancel" @click="saleOptionPicker.show = false" />
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </k-btn>
+      </k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn size="large" text="Cancel" @click="saleOptionPicker.show = false" />
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script lang="ts" setup>
@@ -642,8 +642,8 @@ const canCheckout = computed(() => {
 });
 
 const barcodeValue = ref("");
-const barcodeInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
-const noteInput = ref<InstanceType<typeof import("vuetify/components").VTextarea> | null>(null);
+const barcodeInput = ref<InstanceType<typeof import("@/ui").KTextField> | null>(null);
+const noteInput = ref<InstanceType<typeof import("@/ui").KTextarea> | null>(null);
 const dialogOpen = ref(false);
 let overlayObserver: MutationObserver | undefined;
 let overlayFocusTimer: ReturnType<typeof setTimeout> | undefined;
@@ -913,7 +913,7 @@ function hasBlockingUi() {
     dialogOpen.value ||
     Boolean(
       document.querySelector(
-        ".v-overlay--active, .v-menu__content, [role='dialog'], [role='menu']",
+        ".k-overlay, .k-menu .k-overlay__content, [role='dialog'], [role='menu']",
       ),
     )
   );
@@ -950,7 +950,7 @@ function onBlur() {
       (active.matches("input, textarea, select, [contenteditable='true']") ||
         Boolean(
           active.closest(
-            "[role='dialog'], [role='menu'], .v-overlay__content, .invoice-items",
+            "[role='dialog'], [role='menu'], .k-overlay__content, .invoice-items",
           ),
         ))
     ) {
@@ -1706,8 +1706,8 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .empty-cart-card {
-  background-color: rgb(var(--v-theme-surface)) !important;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background-color: rgb(var(--k-theme-surface)) !important;
+  border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   gap: 0 !important;
   padding: 0 !important;
 }
@@ -1730,7 +1730,7 @@ onBeforeUnmount(() => {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.1;
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--k-theme-on-surface));
 }
 
 .invoice-total-summary__lbp {
@@ -1747,8 +1747,8 @@ onBeforeUnmount(() => {
   width: 48px;
   height: 48px;
   margin-inline: auto;
-  border: 5px solid rgba(var(--v-theme-primary), 0.25);
-  border-top-color: rgb(var(--v-theme-primary));
+  border: 5px solid rgba(var(--k-theme-primary), 0.25);
+  border-top-color: rgb(var(--k-theme-primary));
   border-radius: 50%;
   animation: print-spin 0.8s linear infinite !important;
 }
@@ -1788,7 +1788,7 @@ onBeforeUnmount(() => {
   right: 0;
   bottom: var(--home-search-keyboard-height, 0px);
   z-index: 11;
-  background-color: rgb(var(--v-theme-surface));
+  background-color: rgb(var(--k-theme-surface));
 }
 
 .home-quick-access {
@@ -1807,14 +1807,14 @@ onBeforeUnmount(() => {
   right: 0;
   bottom: 0;
   z-index: 20;
-  background-color: rgb(var(--v-theme-surface));
+  background-color: rgb(var(--k-theme-surface));
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
-  border-top: 1px solid rgba(var(--v-border-color), 0.18);
+  border-top: 1px solid rgba(var(--k-border-color), 0.18);
 }
 
 .home-right-pane {
   background-color: var(--kashi-app-background);
-  border-left: 1px solid rgba(var(--v-border-color), 0.18);
+  border-left: 1px solid rgba(var(--k-border-color), 0.18);
 }
 
 .home-left-pane {
@@ -1822,7 +1822,7 @@ onBeforeUnmount(() => {
 }
 
 .home-page .bg-surface-light {
-  background-color: rgba(var(--v-theme-on-surface), 0.04) !important;
+  background-color: rgba(var(--k-theme-on-surface), 0.04) !important;
 }
 
 .required-assignees {
@@ -1846,26 +1846,26 @@ onBeforeUnmount(() => {
 }
 
 /* Remove these three rules to disable the barcode scan success/error flash */
-.barcode-flash-success .v-field,
-.barcode-flash-error .v-field {
+.barcode-flash-success .k-field,
+.barcode-flash-error .k-field {
   transition: background-color 150ms ease;
   border-radius: 4px;
 }
-.barcode-flash-success .v-field {
+.barcode-flash-success .k-field {
   background-color: rgba(255, 214, 0, 0.35);
 }
-.barcode-flash-error .v-field {
+.barcode-flash-error .k-field {
   background-color: rgba(244, 67, 54, 0.28);
 }
 
 
-.app-snackbar .v-snackbar__wrapper {
-  background: rgba(var(--v-theme-surface-variant), 0.72) !important;
-  color: rgb(var(--v-theme-on-surface-variant)) !important;
-  border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
+.app-snackbar .k-snackbar__wrapper {
+  background: rgba(var(--k-theme-surface-variant), 0.72) !important;
+  color: rgb(var(--k-theme-on-surface-variant)) !important;
+  border: 1px solid rgba(var(--k-theme-on-surface-variant), 0.1);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
 }
-.app-snackbar--error .v-snackbar__wrapper {
+.app-snackbar--error .k-snackbar__wrapper {
   background: rgba(198, 40, 40, 0.85) !important;
   color: #fff !important;
   border-color: rgba(198, 40, 40, 0.4);

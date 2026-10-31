@@ -1,6 +1,6 @@
 <template>
   <div class="invoices-page" @scroll.passive.capture="onTableScroll">
-    <v-data-table-virtual
+    <k-data-table-virtual
       ref="invoicesTable"
       class="invoices-table"
       :headers="headers"
@@ -18,7 +18,7 @@
         :key="filterHeader.headerKey"
         #[`header.${filterHeader.headerKey}`]="{ column }"
       >
-        <v-menu
+        <k-menu
           v-model="filterMenus[filterHeader.filterKey]"
           :close-on-content-click="false"
           location="bottom start"
@@ -31,16 +31,16 @@
               @click.stop
             >
               <span>{{ column.title }}</span>
-              <v-icon
+              <k-icon
                 :icon="filters[filterHeader.filterKey] ? 'mdi-filter' : 'mdi-filter-outline'"
                 :color="filters[filterHeader.filterKey] ? 'primary' : undefined"
                 size="15"
               />
             </button>
           </template>
-          <v-card class="invoice-filter-menu" width="250" @click.stop>
-            <v-card-text class="pa-3 pb-2">
-              <v-text-field
+          <k-card class="invoice-filter-menu" width="250" @click.stop>
+            <k-card-text class="pa-3 pb-2">
+              <k-text-field
                 v-model="filterDrafts[filterHeader.filterKey]"
                 autofocus
                 clearable
@@ -50,38 +50,38 @@
                 variant="outlined"
                 @keydown.enter="applyFilter(filterHeader.filterKey)"
               />
-            </v-card-text>
-            <v-card-actions class="px-3 pt-0">
-              <v-btn
+            </k-card-text>
+            <k-card-actions class="px-3 pt-0">
+              <k-btn
                 size="small"
                 variant="text"
                 :disabled="!filters[filterHeader.filterKey] && !filterDrafts[filterHeader.filterKey]"
                 @click="clearFilter(filterHeader.filterKey)"
               >
                 Clear
-              </v-btn>
-              <v-spacer />
-              <v-btn size="small" color="primary" variant="flat" @click="applyFilter(filterHeader.filterKey)">
+              </k-btn>
+              <k-spacer />
+              <k-btn size="small" color="primary" variant="flat" @click="applyFilter(filterHeader.filterKey)">
                 Apply
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-menu>
+              </k-btn>
+            </k-card-actions>
+          </k-card>
+        </k-menu>
       </template>
       <template #item.syncState="{ item }">
         <!-- A Vuetify tooltip, not a title attribute: the till's web view
              shows no native tooltips. It opens on a tap too, for touch tills. -->
-        <v-tooltip :text="syncDotTitle(item)" location="end" open-on-click max-width="480">
+        <k-tooltip :text="syncDotTitle(item)" location="end" open-on-click max-width="480">
           <template #activator="{ props: tip }">
             <span v-bind="tip" class="d-inline-flex pa-1" @click.stop>
-              <v-progress-circular
+              <k-progress-circular
                 v-if="item.syncState === 'pending'"
                 indeterminate
                 size="12"
                 width="2"
                 color="warning"
               />
-              <v-icon
+              <k-icon
                 v-else
                 icon="mdi-circle"
                 size="10"
@@ -89,13 +89,13 @@
               />
             </span>
           </template>
-        </v-tooltip>
+        </k-tooltip>
       </template>
       <template #item.invoiceCode="{ item }">
         <span class="font-weight-bold invoice-code">
           {{ item.invoiceCode || `Invoice #${item.id}` }}
         </span>
-        <v-chip v-if="item.cancelled" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</v-chip>
+        <k-chip v-if="item.cancelled" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</k-chip>
       </template>
       <template #item.clientId="{ item }">
         <span class="invoice-cell-truncate" :title="item.clientName || 'Walk-in customer'">
@@ -103,14 +103,14 @@
         </span>
       </template>
       <template #item.salespersonName="{ item }">
-        <v-chip
+        <k-chip
           size="small"
           variant="tonal"
           prepend-icon="mdi-account-tie"
           :title="item.salespersonName || 'Anonymous'"
         >
           {{ salespersonFirstName(item.salespersonName) }}
-        </v-chip>
+        </k-chip>
       </template>
       <template #item.settlementAccounts="{ item }">
         <span
@@ -126,7 +126,7 @@
         <span class="font-weight-bold">${{ money(item.grandTotal) }}</span>
       </template>
       <template #item.actions="{ item }">
-        <v-btn
+        <k-btn
           icon="mdi-printer-outline"
           variant="text"
           density="comfortable"
@@ -134,65 +134,65 @@
           title="Print receipt again"
           @click.stop="reprint(item)"
         />
-        <v-menu v-model="actionMenus[item.id]" location="bottom end">
+        <k-menu v-model="actionMenus[item.id]" location="bottom end">
           <template #activator="{ props }">
-            <v-btn v-bind="props" icon="mdi-dots-vertical" variant="text" density="comfortable" @click.stop />
+            <k-btn v-bind="props" icon="mdi-dots-vertical" variant="text" density="comfortable" @click.stop />
           </template>
-          <v-list density="compact" min-width="190">
-            <v-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
-            <v-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startChange('salesperson', item)" />
-            <v-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" :disabled="settlementLoading" @click.stop="startSettlementChange(item)" />
-            <v-list-item v-if="auth.isAdmin" prepend-icon="mdi-cash-check" title="Fix Rounding" @click.stop="requestRounding(item)" />
-            <v-list-item v-if="auth.isAdmin && item.isSale && !item.cancelled" prepend-icon="mdi-cancel" title="Cancel Invoice" base-color="error" @click.stop="requestCancel(item)" />
-            <v-list-item v-if="auth.isAdmin && !item.cancelled" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
-          </v-list>
-        </v-menu>
+          <k-list density="compact" min-width="190">
+            <k-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
+            <k-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startChange('salesperson', item)" />
+            <k-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" :disabled="settlementLoading" @click.stop="startSettlementChange(item)" />
+            <k-list-item v-if="auth.isAdmin" prepend-icon="mdi-cash-check" title="Fix Rounding" @click.stop="requestRounding(item)" />
+            <k-list-item v-if="auth.isAdmin && item.isSale && !item.cancelled" prepend-icon="mdi-cancel" title="Cancel Invoice" base-color="error" @click.stop="requestCancel(item)" />
+            <k-list-item v-if="auth.isAdmin && !item.cancelled" prepend-icon="mdi-delete-outline" title="Delete Invoice" base-color="error" @click.stop="requestDelete(item)" />
+          </k-list>
+        </k-menu>
       </template>
       <template #no-data>
         <div class="invoices-empty pa-8 text-center">
-          <v-icon icon="mdi-cash-register" size="48" class="mb-3 text-medium-emphasis" />
+          <k-icon icon="mdi-cash-register" size="48" class="mb-3 text-medium-emphasis" />
           <div class="text-subtitle-1 font-weight-bold">No invoices found</div>
           <div class="text-body-2 text-medium-emphasis">Completed invoices will appear here.</div>
         </div>
       </template>
-    </v-data-table-virtual>
+    </k-data-table-virtual>
 
-    <v-dialog v-model="detailOpen" max-width="700">
-      <v-card v-if="selected">
-        <v-card-title class="invoice-detail-header d-flex align-center">
+    <k-dialog v-model="detailOpen" max-width="700">
+      <k-card v-if="selected">
+        <k-card-title class="invoice-detail-header d-flex align-center">
           <div>
             <div class="text-h6">{{ selected.invoiceCode }}</div>
             <div class="text-caption text-medium-emphasis">
               {{ formatDate(selected.createdAt) }}
             </div>
           </div>
-          <v-spacer />
-          <v-btn icon="mdi-printer-outline" variant="text" :loading="printingId === selected.id" title="Print receipt" @click="reprint(selected)" />
-          <v-btn icon="mdi-close" variant="text" aria-label="Close invoice details" @click="detailOpen = false" />
-        </v-card-title>
-        <v-card-text class="invoice-detail-content">
+          <k-spacer />
+          <k-btn icon="mdi-printer-outline" variant="text" :loading="printingId === selected.id" title="Print receipt" @click="reprint(selected)" />
+          <k-btn icon="mdi-close" variant="text" aria-label="Close invoice details" @click="detailOpen = false" />
+        </k-card-title>
+        <k-card-text class="invoice-detail-content">
           <div class="invoice-overview-grid mb-5">
             <div class="invoice-overview-card">
-              <v-icon class="invoice-overview-icon" icon="mdi-account-outline" color="grey-darken-1" />
+              <k-icon class="invoice-overview-icon" icon="mdi-account-outline" color="grey-darken-1" />
               <div class="invoice-overview-copy">
                 <div class="invoice-overview-value">{{ selected.clientName || "Walk-in customer" }}</div>
                 <div class="invoice-overview-detail">{{ selected.clientPhone ? formatLebanesePhone(selected.clientPhone) : "No phone number" }}</div>
               </div>
             </div>
             <div class="invoice-overview-card">
-              <v-icon class="invoice-overview-icon" icon="mdi-account-tie" color="primary" />
+              <k-icon class="invoice-overview-icon" icon="mdi-account-tie" color="primary" />
               <div class="invoice-overview-copy">
                 <div class="invoice-overview-value">{{ selected.salespersonName || "Anonymous" }}</div>
               </div>
             </div>
             <div class="invoice-overview-card">
-              <v-icon class="invoice-overview-icon" icon="mdi-star-four-points-outline" color="amber-darken-2" />
+              <k-icon class="invoice-overview-icon" icon="mdi-star-four-points-outline" color="amber-darken-2" />
               <div class="invoice-overview-copy">
                 <div class="invoice-overview-value">{{ Number(selected.loyaltyPointsEarned ?? Math.floor(Number(selected.grandTotal || 0) / 100)).toLocaleString() }} pts</div>
               </div>
             </div>
             <div class="invoice-overview-card">
-              <v-icon class="invoice-overview-icon" :icon="selected.notes?.trim() ? 'mdi-note-text-outline' : 'mdi-note-off-outline'" color="secondary" />
+              <k-icon class="invoice-overview-icon" :icon="selected.notes?.trim() ? 'mdi-note-text-outline' : 'mdi-note-off-outline'" color="secondary" />
               <div class="invoice-overview-copy">
                 <div class="invoice-overview-value" :class="{ 'text-medium-emphasis': !selected.notes?.trim() }">{{ selected.notes?.trim() || "None" }}</div>
               </div>
@@ -203,7 +203,7 @@
             <div class="section-label">Settlement</div>
             <div v-if="selected.payments?.length" class="settlement-list">
               <div v-for="payment in selected.payments" :key="`${payment.accountId}-${payment.amount}`" class="settlement-row">
-                <div class="d-flex align-center ga-2"><v-icon icon="mdi-credit-card-outline" size="19" color="primary" /><span>{{ settlementAccountName(payment) }}</span></div>
+                <div class="d-flex align-center ga-2"><k-icon icon="mdi-credit-card-outline" size="19" color="primary" /><span>{{ settlementAccountName(payment) }}</span></div>
                 <span class="font-weight-bold">${{ cents(payment.amount) }}</span>
               </div>
               <div class="settlement-row settlement-total"><span>Total paid</span><span>${{ cents(selectedPaid) }}</span></div>
@@ -213,11 +213,11 @@
 
           <div class="invoice-detail-scroll">
             <div class="section-label mb-2">Items</div>
-            <v-list class="invoice-items-list pa-0 mb-4" density="compact">
-              <v-list-item v-for="line in selected.items" :key="`${line.barcode}-${line.price}-${line.discount}`">
+            <k-list class="invoice-items-list pa-0 mb-4" density="compact">
+              <k-list-item v-for="line in selected.items" :key="`${line.barcode}-${line.price}-${line.discount}`">
                 <template #title>
                   {{ line.name }}
-                  <v-chip
+                  <k-chip
                     v-if="line.deal && (line.free || line.dealDiscount)"
                     class="ms-1"
                     :color="line.free ? 'success' : 'deep-purple'"
@@ -231,76 +231,76 @@
                 </template>
                 <template #subtitle>{{ line.qty }} × ${{ Number(line.price).toFixed(2) }}<span v-if="line.discount"> · {{ line.discount }}% discount</span><span v-if="line.salespersonName"> · Sold by {{ line.salespersonName }}</span></template>
                 <template #append>
-                  <v-tooltip v-if="line.note" :text="line.note" location="top"><template #activator="{ props: tooltipProps }"><v-icon v-bind="tooltipProps" icon="mdi-note-text-outline" size="18" color="primary" class="me-3" /></template></v-tooltip>
+                  <k-tooltip v-if="line.note" :text="line.note" location="top"><template #activator="{ props: tooltipProps }"><k-icon v-bind="tooltipProps" icon="mdi-note-text-outline" size="18" color="primary" class="me-3" /></template></k-tooltip>
                   <span class="font-weight-bold">${{ Number(line.lineTotal).toFixed(2) }}</span>
                 </template>
-              </v-list-item>
-            </v-list>
+              </k-list-item>
+            </k-list>
             <div class="totals invoice-totals">
               <div><span>Subtotal</span><span>${{ cents(selected.subtotal) }}</span></div>
               <div><span>Discount</span><span class="text-red">-${{ cents(Number(selected.subtotal) - Number(selected.discountedTotal)) }}</span></div>
-              <v-divider class="my-2" />
+              <k-divider class="my-2" />
               <div class="text-body-1 font-weight-bold"><span>Total</span><span>${{ cents(selected.grandTotal) }}</span></div>
             </div>
           </div>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+        </k-card-text>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="cancelOpen" max-width="460">
-      <v-card>
-        <v-card-title>Cancel invoice?</v-card-title>
-        <v-card-text>
+    <k-dialog v-model="cancelOpen" max-width="460">
+      <k-card>
+        <k-card-title>Cancel invoice?</k-card-title>
+        <k-card-text>
           <p class="mb-3">
             {{ cancelTarget?.invoiceCode || "This invoice" }} is returned in full: the
             ${{ money(cancelTarget?.grandTotal) }} is refunded to its payment account and the
             items come back. Both stay on record marked Cancelled, and neither counts in sales
             stats, here or in kashi.
           </p>
-          <v-text-field v-model="cancelReason" placeholder="Reason (optional)" density="compact" hide-details />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="cancelOpen = false">Keep</v-btn>
-          <v-btn color="error" :loading="cancelling" @click="cancelSelected">Cancel invoice</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          <k-text-field v-model="cancelReason" placeholder="Reason (optional)" density="compact" hide-details />
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="cancelOpen = false">Keep</k-btn>
+          <k-btn color="error" :loading="cancelling" @click="cancelSelected">Cancel invoice</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="deleteOpen" max-width="420">
-      <v-card
-        ><v-card-title>Delete invoice?</v-card-title
-        ><v-card-text
+    <k-dialog v-model="deleteOpen" max-width="420">
+      <k-card
+        ><k-card-title>Delete invoice?</k-card-title
+        ><k-card-text
           >This permanently deletes {{ deleteInvoice?.invoiceCode || "this invoice" }} and its
           payment records. Only an invoice that hasn't been uploaded to kashi can be deleted;
-          for a sale that has, use Cancel Invoice.</v-card-text
-        ><v-card-actions
-          ><v-spacer /><v-btn variant="text" @click="deleteOpen = false">Cancel</v-btn
-          ><v-btn color="error" :loading="deleting" @click="deleteSelected"
-            >Delete</v-btn
-          ></v-card-actions
-        ></v-card
+          for a sale that has, use Cancel Invoice.</k-card-text
+        ><k-card-actions
+          ><k-spacer /><k-btn variant="text" @click="deleteOpen = false">Cancel</k-btn
+          ><k-btn color="error" :loading="deleting" @click="deleteSelected"
+            >Delete</k-btn
+          ></k-card-actions
+        ></k-card
       >
-    </v-dialog>
-    <v-dialog v-model="roundingOpen" max-width="420">
-      <v-card>
-        <v-card-title>Fix invoice rounding?</v-card-title>
-        <v-card-text>
+    </k-dialog>
+    <k-dialog v-model="roundingOpen" max-width="420">
+      <k-card>
+        <k-card-title>Fix invoice rounding?</k-card-title>
+        <k-card-text>
           This applies the current rounding settings to
           {{ roundingInvoice?.invoiceCode || "this invoice" }} and updates its payments,
           balances, income, and receipt total.
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer /><v-btn variant="text" @click="roundingOpen = false">Cancel</v-btn>
-          <v-btn color="primary" :loading="rounding" @click="roundSelected">Fix rounding</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-    <v-dialog v-model="changeOpen" max-width="420">
-      <v-card
-        ><v-card-title>{{ changeTitle }}</v-card-title
-        ><v-card-text>
-          <v-autocomplete
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer /><k-btn variant="text" @click="roundingOpen = false">Cancel</k-btn>
+          <k-btn color="primary" :loading="rounding" @click="roundSelected">Fix rounding</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
+    <k-dialog v-model="changeOpen" max-width="420">
+      <k-card
+        ><k-card-title>{{ changeTitle }}</k-card-title
+        ><k-card-text>
+          <k-autocomplete
             v-if="changeType === 'client'"
             :model-value="changeValue"
             v-model:search="clientSearch"
@@ -314,7 +314,7 @@
             @update:model-value="changeValue = $event"
             @update:search="scheduleClientSearch"
           />
-          <v-select
+          <k-select
             v-else
             v-model="changeValue"
             :items="salespersons"
@@ -325,26 +325,26 @@
             :loading="optionsLoading"
             :disabled="optionsLoading"
             variant="outlined"
-          /> </v-card-text
-        ><v-card-actions
-          ><v-spacer /><v-btn variant="text" @click="changeOpen = false">Cancel</v-btn
-          ><v-btn
+          /> </k-card-text
+        ><k-card-actions
+          ><k-spacer /><k-btn variant="text" @click="changeOpen = false">Cancel</k-btn
+          ><k-btn
             color="primary"
             :loading="saving"
             :disabled="changeSaveDisabled"
             @click="saveChange"
-            >Save</v-btn
-          ></v-card-actions
-        ></v-card
+            >Save</k-btn
+          ></k-card-actions
+        ></k-card
       >
-    </v-dialog>
-    <v-snackbar
+    </k-dialog>
+    <k-snackbar
       v-model="snackbar.show"
       class="app-snackbar"
       timeout="3500"
       location="top"
       variant="flat"
-      >{{ snackbar.text }}</v-snackbar
+      >{{ snackbar.text }}</k-snackbar
     >
   </div>
 </template>
@@ -878,10 +878,10 @@ onBeforeUnmount(() => {
 .invoices-table {
   height: 100%;
 }
-.invoices-table :deep(.v-table__wrapper) {
+.invoices-table :deep(.k-table__wrapper) {
   overflow-x: hidden;
 }
-.invoices-table :deep(.v-table__wrapper > table) {
+.invoices-table :deep(.k-table__wrapper > table) {
   width: 100% !important;
   table-layout: fixed;
 }
@@ -919,7 +919,7 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 .invoice-item {
-  border-bottom: 1px solid rgba(var(--v-border-color), 0.08);
+  border-bottom: 1px solid rgba(var(--k-border-color), 0.08);
   cursor: pointer;
 }
 .invoice-item:last-child {
@@ -936,14 +936,14 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   margin: 4px 0;
 }
-.app-snackbar .v-snackbar__wrapper {
-  background: rgba(var(--v-theme-surface-variant), 0.72) !important;
-  color: rgb(var(--v-theme-on-surface-variant)) !important;
-  border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
+.app-snackbar .k-snackbar__wrapper {
+  background: rgba(var(--k-theme-surface-variant), 0.72) !important;
+  color: rgb(var(--k-theme-on-surface-variant)) !important;
+  border: 1px solid rgba(var(--k-theme-on-surface-variant), 0.1);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
 }
 .invoice-detail-header {
-  border-bottom: 1px solid rgba(var(--v-border-color), 0.08);
+  border-bottom: 1px solid rgba(var(--k-border-color), 0.08);
 }
 .invoice-detail-content {
   display: flex;
@@ -969,9 +969,9 @@ onBeforeUnmount(() => {
   min-width: 0;
   height: 50px;
   padding: 12px;
-  border: 1px solid rgba(var(--v-border-color), 0.12);
+  border: 1px solid rgba(var(--k-border-color), 0.12);
   border-radius: 12px;
-  background: rgba(var(--v-theme-on-surface), 0.025);
+  background: rgba(var(--k-theme-on-surface), 0.025);
 }
 .invoice-overview-icon {
   flex: 0 0 auto;
@@ -981,7 +981,7 @@ onBeforeUnmount(() => {
 .invoice-overview-label,
 .section-label {
   margin-bottom: 8px;
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--k-theme-on-surface));
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -999,14 +999,14 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 .invoice-overview-detail {
-  color: rgba(var(--v-theme-on-surface), 0.62);
+  color: rgba(var(--k-theme-on-surface), 0.62);
   font-size: 0.72rem;
 }
-.settlement-list { border: 1px solid rgba(var(--v-border-color), 0.12); border-radius: 10px; overflow: hidden; }
+.settlement-list { border: 1px solid rgba(var(--k-border-color), 0.12); border-radius: 10px; overflow: hidden; }
 .settlement-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 13px; }
-.settlement-row + .settlement-row { border-top: 1px solid rgba(var(--v-border-color), 0.08); }
-.settlement-total { font-weight: 700; background: rgba(var(--v-theme-on-surface), 0.035); }
-.invoice-items-list { border-top: 1px solid rgba(var(--v-border-color), 0.1); border-bottom: 1px solid rgba(var(--v-border-color), 0.1); }
+.settlement-row + .settlement-row { border-top: 1px solid rgba(var(--k-border-color), 0.08); }
+.settlement-total { font-weight: 700; background: rgba(var(--k-theme-on-surface), 0.035); }
+.invoice-items-list { border-top: 1px solid rgba(var(--k-border-color), 0.1); border-bottom: 1px solid rgba(var(--k-border-color), 0.1); }
 .invoice-totals { max-width: 360px; margin-left: auto; }
 @media (max-width: 560px) {
   .invoice-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

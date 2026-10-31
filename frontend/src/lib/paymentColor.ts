@@ -16,7 +16,7 @@ export function paymentTone(name: unknown): "green" | "purple" | "blue" | "red" 
 
 // Vuetify only generates CSS custom properties for a theme's own role
 // colors (primary, surface, error, ...) - not for arbitrary Material color
-// names like "green-darken-2", so `var(--v-theme-green-darken-2)` never
+// names like "green-darken-2", so `var(--k-theme-green-darken-2)` never
 // resolves to anything. These are the actual Material Design hex values for
 // the tokens paymentColor() returns, used directly instead.
 const DEFAULT_ACCENT_HEX = "#617557";

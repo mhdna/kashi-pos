@@ -1,5 +1,5 @@
 <template>
-  <v-text-field
+  <k-text-field
     ref="field"
     :model-value="display"
     :placeholder="placeholder"
@@ -13,7 +13,7 @@
     @focus="emit('focus')"
   >
     <template v-if="$slots.prepend" #prepend><slot name="prepend" /></template>
-  </v-text-field>
+  </k-text-field>
 </template>
 
 <script setup lang="ts">

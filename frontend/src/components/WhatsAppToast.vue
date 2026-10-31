@@ -1,5 +1,5 @@
 <template>
-  <v-snackbar
+  <k-snackbar
     v-model="visible"
     class="whatsapp-snackbar"
     :timeout="-1"
@@ -7,13 +7,13 @@
     variant="flat"
   >
     <div v-if="current" class="whatsapp-toast" role="status" aria-live="polite">
-      <v-icon :icon="current.icon" :color="current.color" size="32" />
+      <k-icon :icon="current.icon" :color="current.color" size="32" />
       <div class="whatsapp-toast__text">
         <div class="whatsapp-toast__title">{{ current.title }}</div>
         <div v-if="current.detail" class="whatsapp-toast__detail">{{ current.detail }}</div>
       </div>
     </div>
-  </v-snackbar>
+  </k-snackbar>
 </template>
 
 <script setup lang="ts">
@@ -113,10 +113,10 @@ onUnmounted(() => {
 <style>
 /* Solid, unlike AttendanceToast: see-through, the screen under it mixed
    with its text. Unscoped because the snackbar is teleported. */
-.whatsapp-snackbar .v-snackbar__wrapper {
-  background: rgb(var(--v-theme-surface)) !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+.whatsapp-snackbar .k-snackbar__wrapper {
+  background: rgb(var(--k-theme-surface)) !important;
+  color: rgb(var(--k-theme-on-surface)) !important;
+  border: 1px solid rgba(var(--k-theme-on-surface), 0.12);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25) !important;
   /* Sits under home.vue's "Receipt printed" snackbar, which is also at the
      top and usually still up when kashi reports the message sent. */

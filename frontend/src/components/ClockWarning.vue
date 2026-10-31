@@ -1,8 +1,8 @@
 <template>
   <!-- The PC's clock or zone disagrees with kashi's (clock.go). -->
-  <v-snackbar v-model="show" :timeout="-1" location="top" color="warning" multi-line>
+  <k-snackbar v-model="show" :timeout="-1" location="top" color="warning" multi-line>
     <div class="d-flex align-start">
-      <v-icon icon="mdi-clock-alert-outline" class="me-3 mt-1" />
+      <k-icon icon="mdi-clock-alert-outline" class="me-3 mt-1" />
       <div>
         <div v-if="status.clockOff">
           This computer's clock is {{ driftText }} {{ status.driftSeconds > 0 ? "ahead of" : "behind" }} kashi's,
@@ -18,9 +18,9 @@
       </div>
     </div>
     <template #actions>
-      <v-btn variant="text" @click="dismissed = true">Later</v-btn>
+      <k-btn variant="text" @click="dismissed = true">Later</k-btn>
     </template>
-  </v-snackbar>
+  </k-snackbar>
 </template>
 
 <script setup lang="ts">

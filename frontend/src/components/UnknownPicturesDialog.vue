@@ -1,18 +1,18 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="720" persistent @update:model-value="emit('update:modelValue', $event)">
-    <v-card class="pa-4">
-      <v-card-title class="px-0 pt-0 text-h5">Pictures of the unknown items</v-card-title>
+  <k-dialog :model-value="modelValue" max-width="720" persistent @update:model-value="emit('update:modelValue', $event)">
+    <k-card class="pa-4">
+      <k-card-title class="px-0 pt-0 text-h5">Pictures of the unknown items</k-card-title>
 
       <template v-if="state === 'starting'">
         <div class="text-center py-6">
-          <v-progress-circular color="primary" indeterminate size="40" />
+          <k-progress-circular color="primary" indeterminate size="40" />
           <div class="text-body-2 mt-3">Opening a picture session…</div>
         </div>
       </template>
 
       <template v-else-if="state === 'error'">
         <div class="text-body-2 py-3">{{ errorText }}</div>
-        <v-btn color="primary" variant="tonal" @click="start">Try again</v-btn>
+        <k-btn color="primary" variant="tonal" @click="start">Try again</k-btn>
       </template>
 
       <template v-else>
@@ -31,33 +31,33 @@
           </div>
 
           <div class="flex-grow-1" style="min-width: 0">
-            <v-list class="text-body-1">
-              <v-list-item
+            <k-list class="text-body-1">
+              <k-list-item
                 v-for="(line, index) in lines"
                 :key="line.key"
                 :title="`#${index + 1} · ${line.label}${line.units > 1 ? ` × ${line.units}` : ''}`"
               >
                 <template #append>
-                  <v-icon v-if="line.done && !line.waived" color="success" icon="mdi-check-circle" />
+                  <k-icon v-if="line.done && !line.waived" color="success" icon="mdi-check-circle" />
                   <span v-else-if="line.done" class="text-caption text-success">allowed by a manager</span>
-                  <v-icon v-else color="grey" icon="mdi-timer-sand" />
+                  <k-icon v-else color="grey" icon="mdi-timer-sand" />
                 </template>
-              </v-list-item>
-            </v-list>
+              </k-list-item>
+            </k-list>
             <div class="text-body-1 text-medium-emphasis">{{ doneCount }} of {{ lines.length }} ready</div>
           </div>
         </div>
       </template>
 
-      <v-card-actions class="px-0 pb-0 mt-3">
-        <v-btn v-if="state === 'ready'" :disabled="helpAsked" size="large" prepend-icon="mdi-bell-ring-outline" variant="tonal" @click="askForHelp">
+      <k-card-actions class="px-0 pb-0 mt-3">
+        <k-btn v-if="state === 'ready'" :disabled="helpAsked" size="large" prepend-icon="mdi-bell-ring-outline" variant="tonal" @click="askForHelp">
           {{ helpAsked ? "Manager asked" : "Ask a manager" }}
-        </v-btn>
-        <v-spacer />
-        <v-btn size="large" variant="text" @click="cancel">Cancel</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </k-btn>
+        <k-spacer />
+        <k-btn size="large" variant="text" @click="cancel">Cancel</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">

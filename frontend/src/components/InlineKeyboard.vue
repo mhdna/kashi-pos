@@ -7,7 +7,7 @@
       :key="rowIndex"
       class="inline-keyboard-row"
     >
-      <v-btn
+      <k-btn
         v-for="letter in row"
         :key="letter"
         class="inline-keyboard-key"
@@ -16,23 +16,23 @@
         @click="append(letter)"
       >
         {{ shift ? letter : letter.toLowerCase() }}
-      </v-btn>
+      </k-btn>
     </div>
     <div class="inline-keyboard-actions">
       <template v-if="input">
-        <v-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret left" @click="move(-1)">
-          <v-icon icon="mdi-chevron-left" size="28" />
-        </v-btn>
-        <v-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret right" @click="move(1)">
-          <v-icon icon="mdi-chevron-right" size="28" />
-        </v-btn>
+        <k-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret left" @click="move(-1)">
+          <k-icon icon="mdi-chevron-left" size="28" />
+        </k-btn>
+        <k-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret right" @click="move(1)">
+          <k-icon icon="mdi-chevron-right" size="28" />
+        </k-btn>
       </template>
-      <v-btn size="small" variant="text" @click="append('-')">-</v-btn>
-      <v-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
+      <k-btn size="small" variant="text" @click="append('-')">-</k-btn>
+      <k-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
         Space
-      </v-btn>
-      <v-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</v-btn>
-      <v-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace">⌫</v-btn>
+      </k-btn>
+      <k-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</k-btn>
+      <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace">⌫</k-btn>
     </div>
   </div>
 </template>
@@ -141,7 +141,7 @@ function move(step: number) {
   color: #fff;
 }
 .inline-keyboard-backspace {
-  background-color: rgba(var(--v-theme-on-surface), 0.1);
+  background-color: rgba(var(--k-theme-on-surface), 0.1);
 }
 
 .inline-keyboard-row {
@@ -156,7 +156,7 @@ function move(step: number) {
   /* Every key in a row shares the width equally, so a row always fits its
      container exactly - it can never overflow and get clipped, and on a wide
      container the max-width keeps the keys from ballooning. The !important
-     rules beat Vuetify's own .v-btn sizing (min-width / horizontal padding),
+     rules beat Vuetify's own .k-btn sizing (min-width / horizontal padding),
      which otherwise forces the keys wider than their slot. */
   flex: 1 1 0;
   min-width: 0 !important;
@@ -173,7 +173,7 @@ function move(step: number) {
   font-size: var(--kashi-font-size-lg);
 }
 
-.inline-keyboard-actions > .v-btn {
+.inline-keyboard-actions > .k-btn {
   height: 48px;
   min-height: 48px;
   font-size: var(--kashi-font-size-2xl);
@@ -190,6 +190,6 @@ function move(step: number) {
 
 .inline-keyboard-move {
   min-width: 56px;
-  background-color: rgba(var(--v-theme-on-surface), 0.06);
+  background-color: rgba(var(--k-theme-on-surface), 0.06);
 }
 </style>

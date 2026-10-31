@@ -3,7 +3,7 @@ import { iconPathFor } from "@/lib/icons";
 import { resolveColor } from "./colors";
 import { namedSizes, toUnit } from "./util";
 
-// <k-icon icon="mdi-name" size="20" color="primary" /> (or the name as slot text).
+// <k-icon icon="<icon name>" size="20" color="primary" /> (or the name as slot text).
 export default defineComponent({
   name: "KIcon",
   props: {

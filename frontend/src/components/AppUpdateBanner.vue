@@ -1,45 +1,45 @@
 <template>
   <!-- An update is downloaded and waiting. -->
-  <v-snackbar v-model="showReady" :timeout="-1" location="bottom" color="primary">
-    <v-icon icon="mdi-update" class="me-2" />
+  <k-snackbar v-model="showReady" :timeout="-1" location="bottom" color="primary">
+    <k-icon icon="mdi-update" class="me-2" />
     GB Cloud {{ status.version }} is ready.
     <template #actions>
-      <v-btn variant="text" @click="dismissed = true">Later</v-btn>
-      <v-btn variant="flat" @click="confirmInstall = true">Install now</v-btn>
+      <k-btn variant="text" @click="dismissed = true">Later</k-btn>
+      <k-btn variant="flat" @click="confirmInstall = true">Install now</k-btn>
     </template>
-  </v-snackbar>
+  </k-snackbar>
 
-  <v-dialog v-model="confirmInstall" max-width="440">
-    <v-card title="Install the update?">
-      <v-card-text>GB Cloud will close and reopen in about 10 seconds. Finish the current sale first.</v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="confirmInstall = false">Cancel</v-btn>
-        <v-btn color="primary" variant="flat" @click="install">Install now</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <k-dialog v-model="confirmInstall" max-width="440">
+    <k-card title="Install the update?">
+      <k-card-text>GB Cloud will close and reopen in about 10 seconds. Finish the current sale first.</k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn variant="text" @click="confirmInstall = false">Cancel</k-btn>
+        <k-btn color="primary" variant="flat" @click="install">Install now</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
   <!-- No shift open: install by itself unless the cashier says not now.
        Forced from kashi: install even mid-shift, and no "not now". -->
-  <v-dialog v-model="idlePrompt" max-width="440" persistent>
-    <v-card :title="status.force ? 'A required update' : 'Installing an update'">
-      <v-card-text v-if="status.force">
+  <k-dialog v-model="idlePrompt" max-width="440" persistent>
+    <k-card :title="status.force ? 'A required update' : 'Installing an update'">
+      <k-card-text v-if="status.force">
         GB Cloud {{ status.version }} installs in {{ countdown }} seconds. Finish the current sale now; GB Cloud
         closes and reopens by itself.
-      </v-card-text>
-      <v-card-text v-else>No shift is open, so GB Cloud {{ status.version }} installs in {{ countdown }} seconds.</v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn v-if="!status.force" variant="text" @click="cancelIdle">Not now</v-btn>
-        <v-btn color="primary" variant="flat" @click="install">Install now</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-text>
+      <k-card-text v-else>No shift is open, so GB Cloud {{ status.version }} installs in {{ countdown }} seconds.</k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn v-if="!status.force" variant="text" @click="cancelIdle">Not now</k-btn>
+        <k-btn color="primary" variant="flat" @click="install">Install now</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
   <!-- Covers the whole app while the update installs: GB Cloud closes and
        reopens by itself, so there is nothing to press. -->
-  <v-overlay
+  <k-overlay
     :model-value="installing"
     persistent
     scrim="background"
@@ -47,25 +47,25 @@
     class="align-center justify-center"
   >
     <div class="d-flex flex-column align-center text-center">
-      <v-progress-circular indeterminate color="primary" size="88" width="3">
-        <v-icon icon="mdi-update" size="36" color="primary" />
-      </v-progress-circular>
+      <k-progress-circular indeterminate color="primary" size="88" width="3">
+        <k-icon icon="mdi-update" size="36" color="primary" />
+      </k-progress-circular>
       <div class="update-title mt-8">Updating GB Cloud</div>
       <div v-if="status.version" class="update-version text-medium-emphasis mt-1">Version {{ status.version }}</div>
       <div class="text-body-2 text-medium-emphasis mt-8">Back in a few seconds. Keep the computer on.</div>
     </div>
-  </v-overlay>
+  </k-overlay>
 
   <!-- After a restart: what happened. -->
-  <v-dialog v-model="resultDialog" max-width="480">
-    <v-card :title="resultTitle">
-      <v-card-text style="white-space: pre-wrap">{{ resultText }}</v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn color="primary" variant="flat" @click="resultDialog = false">OK</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <k-dialog v-model="resultDialog" max-width="480">
+    <k-card :title="resultTitle">
+      <k-card-text style="white-space: pre-wrap">{{ resultText }}</k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn color="primary" variant="flat" @click="resultDialog = false">OK</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">

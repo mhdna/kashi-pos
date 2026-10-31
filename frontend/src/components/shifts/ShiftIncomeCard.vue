@@ -1,17 +1,17 @@
 <template>
-  <v-sheet class="shift-income-card shifts-card pa-4" style="flex: 1; min-width: 0">
-    <v-card-title class="shift-income-title text-body-1 font-weight-bold px-0">
-      <v-icon icon="mdi-cash-register" color="grey-darken-1" class="me-2" />
+  <k-sheet class="shift-income-card shifts-card pa-4" style="flex: 1; min-width: 0">
+    <k-card-title class="shift-income-title text-body-1 font-weight-bold px-0">
+      <k-icon icon="mdi-cash-register" color="grey-darken-1" class="me-2" />
       {{ title || "Shift Income" }}{{ shiftId ? ` (#${shiftId})` : "" }}
-    </v-card-title>
-    <v-progress-linear v-if="loading" indeterminate />
+    </k-card-title>
+    <k-progress-linear v-if="loading" indeterminate />
     <template v-else-if="items.length">
-      <v-list density="compact" class="pa-0">
-        <v-list-item v-for="item in collectedItems" :key="item.accountName">
+      <k-list density="compact" class="pa-0">
+        <k-list-item v-for="item in collectedItems" :key="item.accountName">
         <template #prepend>
-          <v-avatar :color="paymentAccentColor({ name: item.accountName, color: item.color })" variant="tonal" size="32">
-            <v-icon icon="mdi-wallet" size="18" />
-          </v-avatar>
+          <k-avatar :color="paymentAccentColor({ name: item.accountName, color: item.color })" variant="tonal" size="32">
+            <k-icon icon="mdi-wallet" size="18" />
+          </k-avatar>
         </template>
         <template #title>
           {{ item.accountName }}
@@ -21,8 +21,8 @@
             {{ formatBalance(item.total, item.currencyCode ?? "USD", currencies, roundingMode) }}
           </span>
         </template>
-        </v-list-item>
-      </v-list>
+        </k-list-item>
+      </k-list>
       <div class="d-flex justify-space-between px-4 pt-3 mt-2 border-t font-weight-bold">
         <span>Income total</span>
         <span>{{ formatBalance(collectedTotal, "USD", currencies, roundingMode) }}</span>
@@ -30,7 +30,7 @@
     </template>
     <div v-else class="shift-income-empty pa-3 text-caption text-medium-emphasis">
       <div class="shift-income-empty-message d-flex align-center justify-center">
-        <v-icon icon="mdi-information-outline" size="18" class="me-1" />
+        <k-icon icon="mdi-information-outline" size="18" class="me-1" />
         {{ shiftId ? "No income found for the current shift." : "No open shift found." }}
       </div>
     </div>
@@ -39,15 +39,15 @@
          that. Display only (see GetShiftTotals). -->
     <div v-if="shiftId && (onAccountTotal || shiftExpenses.length || shiftLoans.length)" class="px-4 pt-2">
       <div v-if="onAccountTotal" class="spend-row text-medium-emphasis">
-        <span class="text-truncate"><v-icon icon="mdi-account-clock" size="16" class="me-1" />On account — not collected</span>
+        <span class="text-truncate"><k-icon icon="mdi-account-clock" size="16" class="me-1" />On account — not collected</span>
         <span>{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }}</span>
       </div>
       <div v-for="row in shiftExpenses" :key="`e-${row.id}`" class="spend-row">
-        <span class="text-truncate"><v-icon icon="mdi-receipt-text-outline" size="16" class="me-1" />{{ row.description || row.category || "Expense" }}</span>
+        <span class="text-truncate"><k-icon icon="mdi-receipt-text-outline" size="16" class="me-1" />{{ row.description || row.category || "Expense" }}</span>
         <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
       </div>
       <div v-for="row in shiftLoans" :key="`l-${row.id}`" class="spend-row">
-        <span class="text-truncate"><v-icon icon="mdi-hand-coin-outline" size="16" class="me-1" />{{ row.description || row.category || "Loan" }}</span>
+        <span class="text-truncate"><k-icon icon="mdi-hand-coin-outline" size="16" class="me-1" />{{ row.description || row.category || "Loan" }}</span>
         <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
       </div>
       <!-- Only when something came off; otherwise it just repeats the total. -->
@@ -57,7 +57,7 @@
       </div>
     </div>
     <div v-if="shiftId" class="shift-income-actions mt-auto">
-      <v-btn
+      <k-btn
         v-if="balanceSources.length > 0"
         block
         prepend-icon="mdi-swap-horizontal"
@@ -65,8 +65,8 @@
         @click="replacementOpen = true"
       >
         Swap balance
-      </v-btn>
-      <v-btn
+      </k-btn>
+      <k-btn
         v-if="openingFloatEnabled"
         block
         prepend-icon="mdi-cash-plus"
@@ -74,7 +74,7 @@
         @click="openingFloatOpen = true"
       >
         Set opening cash
-      </v-btn>
+      </k-btn>
       <div
         v-if="openingFloatEnabled && (openingFloatUsd || openingFloatLbp)"
         class="shift-income-opening text-caption text-medium-emphasis px-1"
@@ -83,15 +83,15 @@
       </div>
       <!-- Manager only: each asks for the manager password before opening. -->
       <div class="spend-buttons">
-        <v-btn class="spend-button" color="primary" variant="tonal" @click="openManagerPage('/expenses')">
-          <span class="spend-button-label"><v-icon icon="mdi-receipt-text-outline" size="18" class="me-1" />Expenses</span>
-        </v-btn>
-        <v-btn class="spend-button" color="primary" variant="tonal" @click="openManagerPage('/loans')">
-          <span class="spend-button-label"><v-icon icon="mdi-hand-coin-outline" size="18" class="me-1" />Loans</span>
-        </v-btn>
+        <k-btn class="spend-button" color="primary" variant="tonal" @click="openManagerPage('/expenses')">
+          <span class="spend-button-label"><k-icon icon="mdi-receipt-text-outline" size="18" class="me-1" />Expenses</span>
+        </k-btn>
+        <k-btn class="spend-button" color="primary" variant="tonal" @click="openManagerPage('/loans')">
+          <span class="spend-button-label"><k-icon icon="mdi-hand-coin-outline" size="18" class="me-1" />Loans</span>
+        </k-btn>
       </div>
     </div>
-  </v-sheet>
+  </k-sheet>
   <BalanceReplacementDialog v-model="replacementOpen" :shift-id="shiftId" :sources="balanceSources" :payment-methods="paymentMethods" @saved="emit('balance-replaced', $event)" />
   <SetOpeningFloatDialog
     v-if="openingFloatEnabled"
@@ -101,11 +101,11 @@
     :opening-float-lbp="openingFloatLbp"
     @saved="emit('opening-float-set')"
   />
-  <v-dialog v-model="managerDialog.show" max-width="380">
-    <v-card>
-      <v-card-title class="d-flex align-center ga-2"><v-icon icon="mdi-lock-outline" />Manager password</v-card-title>
-      <v-card-text>
-        <v-text-field
+  <k-dialog v-model="managerDialog.show" max-width="380">
+    <k-card>
+      <k-card-title class="d-flex align-center ga-2"><k-icon icon="mdi-lock-outline" />Manager password</k-card-title>
+      <k-card-text>
+        <k-text-field
           v-model="managerDialog.password"
           autofocus
           placeholder="Manager password"
@@ -117,13 +117,13 @@
           @click:append-inner="managerDialog.reveal = !managerDialog.reveal"
           @keyup.enter="confirmManager"
         />
-      </v-card-text>
-      <v-card-actions>
-        <v-btn variant="text" @click="managerDialog.show = false">Cancel</v-btn><v-spacer />
-        <v-btn color="primary" :loading="managerDialog.checking" @click="confirmManager">Open</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-text>
+      <k-card-actions>
+        <k-btn variant="text" @click="managerDialog.show = false">Cancel</k-btn><k-spacer />
+        <k-btn color="primary" :loading="managerDialog.checking" @click="confirmManager">Open</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">
@@ -253,9 +253,9 @@ async function confirmManager() {
   gap: 8px;
 }
 
-/* Vuetify gives .v-btn--block `flex: 1 0 auto`; stop the buttons stretching
+/* Vuetify gives .k-btn--block `flex: 1 0 auto`; stop the buttons stretching
    to fill the card's free space so the action group stays compact. */
-.shift-income-actions > .v-btn {
+.shift-income-actions > .k-btn {
   flex: 0 0 auto;
 }
 
@@ -316,6 +316,6 @@ async function confirmManager() {
 }
 
 .spend-option:hover {
-  background-color: rgba(var(--v-theme-primary), 0.12);
+  background-color: rgba(var(--k-theme-primary), 0.12);
 }
 </style>

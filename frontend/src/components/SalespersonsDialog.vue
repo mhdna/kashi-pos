@@ -1,9 +1,9 @@
 <template>
-  <v-menu v-model="menu" :close-on-content-click="false" location="bottom center">
+  <k-menu v-model="menu" :close-on-content-click="false" location="bottom center">
     <template #activator="{ props }">
       <div class="header-btn-wrap">
         <div class="header-btn-subtitle">Salesperson</div>
-        <v-btn
+        <k-btn
           v-bind="props"
           size="small"
           color="blue-grey-darken-1"
@@ -12,14 +12,14 @@
           :disabled="disabled"
           :class="{ 'missing-selection-pulse': pulseMissingSalesperson }"
         >
-          <v-icon icon="mdi-account-tie" size="16" class="me-1 flex-shrink-0" />
+          <k-icon icon="mdi-account-tie" size="16" class="me-1 flex-shrink-0" />
           <span class="header-fixed-width-btn-label">{{ selectedName }}</span>
-        </v-btn>
+        </k-btn>
       </div>
     </template>
-    <v-card class="salespersons-grid">
-      <v-row class="pa-2 ga-2 fill-height" no-gutters>
-        <v-col v-for="p in salespersons" :key="p.id" cols="4" style="display: flex">
+    <k-card class="salespersons-grid">
+      <k-row class="pa-2 ga-2 fill-height" no-gutters>
+        <k-col v-for="p in salespersons" :key="p.id" cols="4" style="display: flex">
           <button
             type="button"
             class="salesperson-card d-flex flex-column align-center justify-center w-100"
@@ -33,10 +33,10 @@
             />
             <span class="text-caption text-center text-truncate w-100">{{ p.fullName }}</span>
           </button>
-        </v-col>
-      </v-row>
-    </v-card>
-  </v-menu>
+        </k-col>
+      </k-row>
+    </k-card>
+  </k-menu>
 </template>
 
 <script setup lang="ts">
@@ -81,7 +81,7 @@ onMounted(async () => {
 .header-btn-subtitle {
   font-size: 0.8rem;
   line-height: 1.2;
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  color: rgba(var(--k-theme-on-surface), 0.6);
   margin-bottom: 2px;
 }
 .header-fixed-width-btn {
@@ -102,10 +102,10 @@ onMounted(async () => {
 @keyframes missing-selection-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0);
+    box-shadow: 0 0 0 0 rgba(var(--k-theme-warning), 0);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(var(--v-theme-warning), 0.32);
+    box-shadow: 0 0 0 8px rgba(var(--k-theme-warning), 0.32);
   }
 }
 
@@ -123,7 +123,7 @@ onMounted(async () => {
   min-height: 112px;
   padding: 12px;
   background: transparent;
-  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border: 1px solid rgba(var(--k-border-color), 0.18);
   border-radius: 8px;
   cursor: pointer;
   transition: all 120ms ease;
@@ -133,8 +133,8 @@ onMounted(async () => {
 }
 
 .salesperson-card:hover {
-  background-color: rgba(var(--v-theme-on-surface), 0.08);
-  border-color: rgba(var(--v-border-color), 0.36);
+  background-color: rgba(var(--k-theme-on-surface), 0.08);
+  border-color: rgba(var(--k-border-color), 0.36);
 }
 
 .salesperson-card:active {

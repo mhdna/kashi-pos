@@ -9,7 +9,7 @@
         class="quick-access__toggle ps-2"
         @click="open = !open"
       >
-        <v-icon :icon="open ? 'mdi-arrow-down' : 'mdi-button-pointer'" size="18" />
+        <k-icon :icon="open ? 'mdi-arrow-down' : 'mdi-button-pointer'" size="18" />
       </div>
       <ProductSearchDialog
         v-if="open && !managedByKashi"
@@ -23,7 +23,7 @@
         {{ managedByKashi ? "No Quick Access cards set in kashi for this branch yet." : "Add frequently used items here." }}
       </div>
       <div ref="itemsEl" class="quick-access__items" :class="{ 'quick-access__items--dragging': dragIndex !== null }">
-        <v-card
+        <k-card
           v-for="(item, index) in items"
           :key="item.barcode || item.code"
           class="quick-access__item pa-2"
@@ -57,7 +57,7 @@
               </div>
             </div>
           </div>
-          <v-btn
+          <k-btn
             v-if="quickAccessShowRemove && !managedByKashi"
             icon
             size="x-small"
@@ -66,26 +66,26 @@
             title="Remove item"
             @click.stop.prevent="removePinnedItem(item.code)"
           >
-            <v-icon icon="mdi-close" size="14" />
-          </v-btn>
-        </v-card>
+            <k-icon icon="mdi-close" size="14" />
+          </k-btn>
+        </k-card>
       </div>
     </div>
   </section>
 
-  <v-dialog v-model="removeDialog" max-width="360">
-    <v-card>
-      <v-card-title>Remove quick-access item?</v-card-title>
-      <v-card-text
-        >Remove <strong>{{ removalName }}</strong> from quick access?</v-card-text
+  <k-dialog v-model="removeDialog" max-width="360">
+    <k-card>
+      <k-card-title>Remove quick-access item?</k-card-title>
+      <k-card-text
+        >Remove <strong>{{ removalName }}</strong> from quick access?</k-card-text
       >
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="removeDialog = false">Cancel</v-btn>
-        <v-btn color="error" variant="tonal" @click="confirmRemoval">Remove</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn variant="text" @click="removeDialog = false">Cancel</k-btn>
+        <k-btn color="error" variant="tonal" @click="confirmRemoval">Remove</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script lang="ts" setup>
@@ -376,7 +376,7 @@ function onCardClick(item: QuickAccessItem, event: MouseEvent) {
 
 <style scoped>
 .quick-access {
-  border: 1px solid rgba(var(--v-border-color), 0.12);
+  border: 1px solid rgba(var(--k-border-color), 0.12);
   border-radius: 12px;
   display: flex;
   flex: 0 0 42px;
@@ -410,7 +410,7 @@ function onCardClick(item: QuickAccessItem, event: MouseEvent) {
   transition: none !important;
   width: 40px;
 }
-.quick-access__toolbar :deep(.v-btn) {
+.quick-access__toolbar :deep(.k-btn) {
   height: 28px !important;
   min-width: 28px;
   padding: 0 4px;
@@ -446,7 +446,7 @@ function onCardClick(item: QuickAccessItem, event: MouseEvent) {
 }
 .quick-access__item--over,
 .quick-access__item--active {
-  outline: 2px solid rgb(var(--v-theme-primary));
+  outline: 2px solid rgb(var(--k-theme-primary));
   outline-offset: -2px;
 }
 .quick-access__lines {
@@ -465,7 +465,7 @@ function onCardClick(item: QuickAccessItem, event: MouseEvent) {
   align-self: center;
 }
 .quick-access__content .quick-access__price {
-  opacity: var(--v-medium-emphasis-opacity);
+  opacity: var(--k-medium-emphasis-opacity);
 }
 /* --qa-font-scale is the admin's "Quick access text size" from Settings. The
    sizer lines share these classes, so the card (and row height) grow with it. */
@@ -481,7 +481,7 @@ function onCardClick(item: QuickAccessItem, event: MouseEvent) {
   line-height: 1.15;
 }
 .quick-access__remove {
-  background: rgb(var(--v-theme-background)) !important;
+  background: rgb(var(--k-theme-background)) !important;
   height: 18px !important;
   position: absolute;
   right: 4px;

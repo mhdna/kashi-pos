@@ -4,7 +4,7 @@
        carries what the other branches hold of it. -->
   <div class="inventory-page">
     <div :key="listKey" class="inventory-list">
-      <v-virtual-scroll
+      <k-virtual-scroll
         class="inventory-virtual-scroll"
         :items="products"
         :item-height="52"
@@ -12,7 +12,7 @@
         @scroll.passive="handleScroll"
       >
         <template #default="{ item: product }">
-          <v-list-item
+          <k-list-item
             :key="product.id"
             class="inventory-list-item"
             density="comfortable"
@@ -27,7 +27,7 @@
                 <span v-if="product.color" class="inventory-variant text-medium-emphasis">{{ product.color }}</span>
                 <span v-if="product.size" class="inventory-variant text-medium-emphasis">{{ product.size }}</span>
                 <span class="inventory-branches">
-                  <v-chip
+                  <k-chip
                     v-for="branch in product.branches.slice(0, 4)"
                     :key="branch.branchCode"
                     :color="branch.quantity > 0 ? 'primary' : undefined"
@@ -35,7 +35,7 @@
                     variant="tonal"
                   >
                     {{ branch.branchCode }} {{ branch.quantity }}
-                  </v-chip>
+                  </k-chip>
                   <span v-if="product.branches.length > 4" class="text-caption text-medium-emphasis">
                     +{{ product.branches.length - 4 }}
                   </span>
@@ -43,21 +43,21 @@
                 <span class="inventory-price">${{ Number(product.price || 0).toFixed(2) }}</span>
               </div>
             </template>
-          </v-list-item>
+          </k-list-item>
         </template>
-      </v-virtual-scroll>
+      </k-virtual-scroll>
       <div v-if="loadError" class="inventory-status inventory-status-error">
         <span class="text-error text-caption">{{ loadErrorMessage }}</span>
-        <v-btn size="small" variant="text" @click="loadMore">Retry</v-btn>
+        <k-btn size="small" variant="text" @click="loadMore">Retry</k-btn>
       </div>
       <div v-else class="inventory-status text-medium-emphasis">
-        <v-progress-circular v-if="loading" indeterminate color="primary" size="16" width="2" class="me-2" />
+        <k-progress-circular v-if="loading" indeterminate color="primary" size="16" width="2" class="me-2" />
         <span>{{ countLabel }}</span>
       </div>
     </div>
-    <v-divider />
+    <k-divider />
     <div class="inventory-search-row">
-      <v-text-field
+      <k-text-field
         v-model="search"
         density="compact"
         hide-details
@@ -73,22 +73,22 @@
     </div>
   </div>
 
-  <v-dialog v-model="detailOpen" max-width="560">
-    <v-card v-if="selected">
-      <v-card-title class="d-flex align-center ga-2">
+  <k-dialog v-model="detailOpen" max-width="560">
+    <k-card v-if="selected">
+      <k-card-title class="d-flex align-center ga-2">
         <span class="text-truncate">{{ selected.name }}</span>
-        <v-spacer />
-        <v-btn icon="mdi-close" variant="text" density="comfortable" @click="detailOpen = false" />
-      </v-card-title>
-      <v-card-subtitle>
+        <k-spacer />
+        <k-btn icon="mdi-close" variant="text" density="comfortable" @click="detailOpen = false" />
+      </k-card-title>
+      <k-card-subtitle>
         {{ [selected.code, selected.barcode, selected.brand, selected.color, selected.size].filter(Boolean).join(" · ") }}
-      </v-card-subtitle>
-      <v-card-text>
+      </k-card-subtitle>
+      <k-card-text>
         <div class="d-flex justify-space-between font-weight-bold mb-3">
           <span>Price here</span>
           <span>${{ Number(selected.price || 0).toFixed(2) }}</span>
         </div>
-        <v-table v-if="selected.branches.length" density="compact">
+        <k-table v-if="selected.branches.length" density="compact">
           <thead>
             <tr>
               <th>Branch</th>
@@ -103,13 +103,13 @@
               <td class="text-end">${{ (branch.priceCents / 100).toFixed(2) }}</td>
             </tr>
           </tbody>
-        </v-table>
+        </k-table>
         <div v-else class="text-medium-emphasis text-center py-4">
           No other branch has stock of this product.
         </div>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
+      </k-card-text>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">
@@ -247,7 +247,7 @@ onBeforeUnmount(() => {
 }
 
 .inventory-list-item {
-  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-bottom: thin solid rgba(var(--k-border-color), var(--k-border-opacity));
 }
 
 .inventory-row {

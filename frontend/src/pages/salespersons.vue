@@ -2,9 +2,9 @@
   <div class="salespersons-page pa-4">
     <div class="d-flex align-center mb-4 ga-3">
       <h2 class="text-h6 font-weight-bold">Salespersons</h2>
-      <v-spacer />
+      <k-spacer />
       <template v-if="auth.isAdmin">
-        <v-text-field
+        <k-text-field
           v-model="fromDate"
           type="date"
           label="From"
@@ -14,7 +14,7 @@
           style="max-width: 170px"
           @change="refresh"
         />
-        <v-text-field
+        <k-text-field
           v-model="toDate"
           type="date"
           label="To"
@@ -26,18 +26,18 @@
         />
       </template>
       <span v-else class="text-caption text-medium-emphasis">{{ rangeLabel }}</span>
-      <v-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh" />
+      <k-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh" />
     </div>
 
     <section class="mb-6">
       <div class="d-flex align-center mb-2">
         <span class="text-subtitle-1 font-weight-bold">Performance</span>
-        <v-spacer />
+        <k-spacer />
         <span class="text-caption text-medium-emphasis">{{ rows.length }} salespersons</span>
       </div>
-      <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-2" />
-      <v-list class="pa-0" bg-color="transparent">
-        <v-list-item v-for="row in rows" :key="row.salespersonId" class="performance-item mb-2" rounded="lg">
+      <k-progress-linear v-if="loading" indeterminate color="primary" class="mb-2" />
+      <k-list class="pa-0" bg-color="transparent">
+        <k-list-item v-for="row in rows" :key="row.salespersonId" class="performance-item mb-2" rounded="lg">
           <template #prepend>
             <InitialsAvatar
               :name="row.salespersonName"
@@ -48,20 +48,20 @@
           <div class="performance-item__main">
             <div class="d-flex align-center mb-1">
               <span class="font-weight-bold">{{ row.salespersonName }}</span>
-              <v-spacer />
+              <k-spacer />
               <span class="text-body-2 text-medium-emphasis">{{ money(row.netAmount) }}</span>
               <span class="font-weight-bold ms-3" style="min-width: 40px; text-align: right">{{ Math.round(row.score) }}</span>
             </div>
-            <v-progress-linear :model-value="row.score" height="10" rounded color="primary" />
+            <k-progress-linear :model-value="row.score" height="10" rounded color="primary" />
           </div>
-        </v-list-item>
-        <v-list-item v-if="!rows.length && !loading" class="text-medium-emphasis">
+        </k-list-item>
+        <k-list-item v-if="!rows.length && !loading" class="text-medium-emphasis">
           No sales recorded for this range.
-        </v-list-item>
-      </v-list>
+        </k-list-item>
+      </k-list>
     </section>
 
-    <v-table class="salespersons-table">
+    <k-table class="salespersons-table">
       <thead>
         <tr>
           <th>Salesperson</th>
@@ -81,7 +81,7 @@
           <td colspan="4" class="text-medium-emphasis">No sales recorded for this range.</td>
         </tr>
       </tbody>
-    </v-table>
+    </k-table>
   </div>
 </template>
 
@@ -184,7 +184,7 @@ onMounted(refresh);
   overflow: auto;
 }
 .performance-item {
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
 }
 .performance-item__main {
   width: 100%;
