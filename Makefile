@@ -1,4 +1,8 @@
-.PHONY: fmt lint test dev generate receipt-previews build-windows build-windows-compact
+.PHONY: dev-docs fmt lint test dev generate receipt-previews build-windows build-windows-compact
+
+# Rebuild docs/dev-docs.html (the browsable developer docs) from docs/dev/*.md.
+dev-docs:
+	node docs/build-dev-docs.mjs
 
 generate:
 	sqlc generate
