@@ -240,7 +240,7 @@
         </div>
         -->
         <div v-if="showReady" class="ready-panel" data-testid="ready-panel">
-          <k-icon icon="mdi-barcode-scan" size="64" class="ready-panel__icon" />
+          <k-icon icon="mdi-barcode-scan" size="72" class="ready-panel__icon" />
           <div class="ready-panel__title">Ready to scan</div>
           <div class="ready-panel__hint">
             {{ scanByCodeEnabled ? "Scan a barcode or type a code to start" : "Scan a barcode to start" }}
@@ -1854,10 +1854,8 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-/* Quiet, so "Ready to scan" leads. */
 .ready-panel__icon {
-  color: rgb(var(--k-theme-primary));
-  opacity: 0.3;
+  opacity: 0.55;
 }
 
 /* Light buttons: white, thin border. No shadow: shadows are CPU-drawn on the
