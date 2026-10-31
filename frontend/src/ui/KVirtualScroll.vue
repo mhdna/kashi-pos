@@ -22,7 +22,7 @@ defineExpose({ scrollToIndex });
 <template>
   <div ref="root" class="k-virtual-scroll" :style="{ height: toUnit(height), maxHeight: toUnit(maxHeight) }">
     <div :style="{ height: `${range.padTop}px` }" />
-    <template v-for="row in rows" :key="row.index"><slot :item="row.item" :index="row.index" /></template>
+    <div v-for="row in rows" :key="row.index" class="k-virtual-scroll__item" :style="{ height: `${rowHeight}px` }"><slot :item="row.item" :index="row.index" /></div>
     <div :style="{ height: `${range.padBottom}px` }" />
   </div>
 </template>

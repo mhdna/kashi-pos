@@ -6,7 +6,7 @@ export interface Box {
 }
 
 // Where to put a floating box of `width` x `height` next to `anchor`.
-// `location` is Vuetify's "<side> <align>": "bottom start", "bottom end",
+// `location` is "<side> <align>": "bottom start", "bottom end",
 // "bottom center", "top", "end"... `rtl` flips start/end. The result is kept
 // inside the viewport, flipping above/below when the preferred side is cramped.
 export function placeBox(

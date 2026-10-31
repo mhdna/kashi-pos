@@ -14,7 +14,7 @@ export interface Header {
   align?: "start" | "center" | "end";
 }
 
-// One table for both Vuetify's v-data-table and v-data-table-virtual. Rows are
+// One table for both k-data-table and k-data-table-virtual. Rows are
 // windowed only when `item-height` is given (the virtual flavour).
 const props = defineProps<{
   headers: readonly Header[];
@@ -82,12 +82,14 @@ defineExpose({ scrollToIndex });
         <thead>
           <tr>
             <th v-for="h in headers" :key="h.key" :class="[alignClass(h), isSortable(h) && 'k-sortable']" @click="onHeaderClick(h)">
-              <slot :name="`header.${h.key}`" :column="h">
-                <span class="k-table__sort">
-                  {{ h.title }}
-                  <KIcon v-if="sort?.key === h.key" :icon="sort.direction === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down'" />
-                </span>
-              </slot>
+              <div class="k-table__th-content">
+                <slot :name="`header.${h.key}`" :column="h">
+                  <span class="k-table__sort">
+                    {{ h.title }}
+                    <KIcon v-if="sort?.key === h.key" :icon="sort.direction === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down'" />
+                  </span>
+                </slot>
+              </div>
             </th>
           </tr>
         </thead>

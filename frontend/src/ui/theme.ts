@@ -3,7 +3,7 @@ import { ref, readonly } from "vue";
 type ThemeName = "light" | "dark";
 
 // Colours as "r,g,b" triplets so CSS can write rgb(var(--k-theme-primary)) and
-// rgba(var(--k-theme-primary), .12), exactly as it did with Vuetify.
+// rgba(var(--k-theme-primary), .12), as the app's CSS expects.
 const themes: Record<ThemeName, Record<string, string>> = {
   light: {
     background: "255,255,255",
@@ -90,7 +90,7 @@ export function applyTheme(name: ThemeName) {
   current.value = name;
 }
 
-// Same shape the app used with Vuetify's useTheme: theme.name.value, theme.change(name).
+// theme.name.value, theme.change(name).
 export function useTheme() {
   return { name: readonly(current), change: applyTheme };
 }

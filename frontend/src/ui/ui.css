@@ -1,10 +1,10 @@
-/* Minimal component styles for the till (replaces Vuetify).
-   Everything lives in cascade layers, like Vuetify's CSS did, so any
+/* Minimal component styles for the till.
+   Everything lives in cascade layers so any
    unlayered app CSS (scoped styles, pages) always wins over it. */
 @layer k-core, k-components, k-utilities;
 
 @layer k-core {
-  /* Same reset Vuetify shipped. */
+  /* Base reset. */
   html { box-sizing: border-box; -webkit-text-size-adjust: 100%; tab-size: 4; margin: 0; }
   body { margin: 0; }
   *, :before, :after { background-repeat: no-repeat; box-sizing: inherit; }
@@ -217,10 +217,13 @@
   .k-table__wrapper { border-radius: inherit; overflow: auto; flex: 1 1 auto; }
   .k-table table { width: 100%; border-collapse: separate; border-spacing: 0; }
   .k-table th, .k-table td { padding: 0 16px; text-align: start; transition: none; }
-  .k-table th { height: var(--k-th-h); font-weight: 500; font-size: .875em; user-select: none; color: color-mix(in srgb, rgb(var(--k-theme-on-surface)) calc(var(--k-medium-emphasis-opacity) * 100%), transparent); border-bottom: thin solid rgba(var(--k-border-color), var(--k-border-opacity)); }
+  .k-table th { height: var(--k-th-h); font-weight: 500; font-size: .875rem; user-select: none; color: color-mix(in srgb, rgb(var(--k-theme-on-surface)) calc(var(--k-high-emphasis-opacity) * 100%), transparent); border-bottom: thin solid rgba(var(--k-border-color), var(--k-border-opacity)); }
   .k-table td { height: var(--k-tr-h); }
   .k-table tbody tr:not(:last-child) > td { border-bottom: thin solid rgba(var(--k-border-color), var(--k-border-opacity)); }
   .k-table--hover tbody tr:hover > td { background: rgba(var(--k-border-color), var(--k-hover-opacity)); }
+  .k-table__th-content { display: flex; align-items: center; }
+  .k-table th.k-align-end > .k-table__th-content { justify-content: flex-end; }
+  .k-table th.k-align-center > .k-table__th-content { justify-content: center; }
   .k-table .k-align-end { text-align: end; }
   .k-table .k-align-center { text-align: center; }
   .k-table--fixed-header thead th { position: sticky; top: 0; z-index: 2; background: rgb(var(--k-theme-surface)); box-shadow: inset 0 -1px rgba(var(--k-border-color), var(--k-border-opacity)); border-bottom: 0; }
@@ -231,6 +234,7 @@
   .k-table { position: relative; }
   .k-table__loading { position: absolute; top: var(--k-th-h); left: 0; right: 0; z-index: 3; }
   .k-table__no-data td { text-align: center; }
+  .k-virtual-scroll__item { overflow: visible; }
   .k-virtual-scroll { display: block; flex: 1 1 auto; max-width: 100%; overflow: auto; position: relative; }
 
   /* ---------- form fields ---------- */
@@ -274,7 +278,7 @@
   .k-field__icon-btn { cursor: pointer; }
   .k-input__details { display: flex; align-items: flex-start; justify-content: space-between; min-height: 22px; padding: 6px 16px 0; font-size: .75rem; letter-spacing: .0333333333em; line-height: normal; overflow: hidden; color: color-mix(in srgb, rgb(var(--k-theme-on-surface)) calc(var(--k-medium-emphasis-opacity) * 100%), transparent); }
   .k-input__details--error { color: rgb(var(--k-theme-error)); }
-  .k-select__menu-field { cursor: pointer; }
+  .k-select .k-field, .k-select .k-field__input, .k-select__selection { cursor: pointer; }
   .k-select__selection { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-block: 4px; overflow: hidden; }
   .k-select__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .k-select__placeholder { opacity: var(--k-medium-emphasis-opacity); }
@@ -319,7 +323,11 @@
   .k-overlay__scrim { position: fixed; inset: 0; background: #000; opacity: var(--k-scrim-opacity, .32); pointer-events: auto; }
   .k-overlay__content { position: relative; pointer-events: auto; max-width: 100%; contain: layout; }
   .k-dialog > .k-overlay__content { display: flex; flex-direction: column; max-height: calc(100% - 48px); width: calc(100% - 48px); max-width: calc(100% - 48px); margin: 24px; border-radius: 4px; box-shadow: var(--k-elevation-5); }
-  .k-dialog > .k-overlay__content > .k-card { display: flex; flex-direction: column; flex: 1 1 100%; min-height: 0; border-radius: inherit; overflow-y: auto; }
+  .k-dialog > .k-overlay__content > .k-card { display: flex; flex-direction: column; flex: 1 1 var(--k-card-height, 100%); min-height: 0; border-radius: inherit; overflow-y: auto; }
+  .k-dialog > .k-overlay__content > .k-card > .k-card-item { padding: 16px 24px; }
+  .k-dialog > .k-overlay__content > .k-card > .k-card-item + .k-card-text { padding-top: 0; }
+  .k-dialog > .k-overlay__content > .k-card > .k-card-text { font-size: inherit; letter-spacing: .03125em; line-height: inherit; padding: 16px 24px 24px; }
+  .k-dialog > .k-overlay__content > .k-card > .k-card-actions { justify-content: flex-end; }
   .k-dialog--scrollable > .k-overlay__content > .k-card { overflow: hidden; }
   .k-dialog--scrollable > .k-overlay__content > .k-card > .k-card-text { overflow-y: auto; }
   .k-dialog--fullscreen > .k-overlay__content { width: 100%; max-width: 100%; max-height: 100%; height: 100%; margin: 0; border-radius: 0; }
@@ -338,6 +346,7 @@
 
   /* ---------- navigation drawer ---------- */
   .k-navigation-drawer { display: flex; flex-direction: column; flex: none; position: fixed; top: 0; bottom: 0; inset-inline-start: 0; z-index: 1005; overflow: hidden; width: var(--k-drawer-w, 256px); background: rgb(var(--k-theme-surface)); color: color-mix(in srgb, rgb(var(--k-theme-on-surface)) calc(var(--k-high-emphasis-opacity) * 100%), transparent); border-inline-end: thin solid rgba(var(--k-border-color), var(--k-border-opacity)); }
+  .k-navigation-drawer .k-list { background: transparent; }
   .k-navigation-drawer__content { flex: 0 1 auto; height: 100%; max-width: 100%; overflow: hidden auto; }
 }
 

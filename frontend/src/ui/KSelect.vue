@@ -134,6 +134,7 @@ defineExpose({ validate, focus: () => field.value?.$el.querySelector<HTMLElement
 <template>
   <KField
     ref="field"
+    class="k-select"
     v-bind="rootAttrs"
     :variant="variant"
     :density="density"

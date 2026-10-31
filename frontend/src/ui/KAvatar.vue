@@ -13,7 +13,7 @@ const style = computed(() => {
 });
 </script>
 <template>
-  <span class="k-avatar" :class="[props.color && 'k-avatar--colored', props.variant && `k-avatar--variant-${props.variant}`]" :style="style">
+  <span class="k-avatar" :class="[props.color && 'k-avatar--colored', `k-avatar--variant-${props.variant ?? 'flat'}`]" :style="style">
     <slot><KIcon v-if="icon" :icon="icon" /><template v-else>{{ text }}</template></slot>
   </span>
 </template>

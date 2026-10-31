@@ -31,6 +31,7 @@ const style = computed(() => {
   s.maxWidth = toUnit(props.maxWidth);
   s.minWidth = toUnit(props.minWidth);
   s.height = toUnit(props.height);
+  s["--k-card-height"] = toUnit(props.height);
   s.maxHeight = toUnit(props.maxHeight);
   return s;
 });

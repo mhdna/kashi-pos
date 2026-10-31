@@ -10,7 +10,7 @@ provide(formKey, {
   },
 });
 
-// Runs every field's rules (showing their messages); { valid } like Vuetify's form.
+// Runs every field's rules (showing their messages); resolves { valid }.
 async function validate() {
   let valid = true;
   for (const run of validators) if (!run()) valid = false;

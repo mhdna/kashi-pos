@@ -12,7 +12,7 @@ function read(item: any, key: Key, fallback: unknown): unknown {
   return fallback;
 }
 
-// Same item rules as Vuetify's select: primitives are their own title and
+// Item rules for selects: primitives are their own title and
 // value; objects use item-title / item-value (default "title" / "value"), and
 // fall back to the object itself.
 export function normaliseItems(items: readonly unknown[] | undefined, itemTitle?: Key, itemValue?: Key): Item[] {
