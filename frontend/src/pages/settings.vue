@@ -3800,14 +3800,14 @@ async function deleteUser() {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 .qa-swatch {
   border: 1px solid rgba(var(--k-border-color), 0.3);
   border-radius: 50%;
   cursor: pointer;
-  height: 28px;
-  width: 28px;
+  height: 24px;
+  width: 24px;
 }
 .qa-swatch--none {
   background: linear-gradient(
