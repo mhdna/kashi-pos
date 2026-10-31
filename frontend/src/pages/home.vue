@@ -255,9 +255,11 @@
             </k-btn>
           </div>
         </div>
-        <!-- Kept mounted (v-show) while the cart is empty, so a typed payment
-             and the refs to the calculator and action bar survive. -->
-        <div v-show="!showReady" class="home-pay-area">
+        <!-- Built when the till is idle after the first paint (or at once when
+             something needs it: an item in the cart, a restored draft or
+             hold), then kept mounted and only hidden (v-show) while the cart
+             is empty, so a typed payment and the refs survive. -->
+        <div v-if="payAreaMounted || !showReady" v-show="!showReady" class="home-pay-area">
           <div class="mb-3 mt-1" style="flex: 1 1 0; min-height: 0">
             <Calculator
               ref="calculator"
@@ -644,6 +646,41 @@ const invoiceTotal = computed(() => (quote.value?.grandTotalCents ?? 0) / 100);
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
 // An empty sale shows the "ready to scan" panel in place of the calculator.
 const showReady = computed(() => !hasItems.value && pageMode.value === "sale");
+
+// The calculator and action bar are the heaviest part of the screen. While
+// the ready panel is up they are not built at startup: they mount when the
+// till is idle after the first paint, or at once when something needs them.
+// Anything that talks to `calculator` while the cart may be empty calls
+// ensurePayArea() first.
+const payAreaMounted = ref(false);
+async function ensurePayArea() {
+  payAreaMounted.value = true;
+  await nextTick();
+}
+// requestIdleCallback is missing from older WebViews, hence the fallback.
+const idleApi = window as unknown as {
+  requestIdleCallback?: Window["requestIdleCallback"];
+  cancelIdleCallback?: Window["cancelIdleCallback"];
+};
+let payAreaIdleHandle: number | undefined;
+let payAreaIdleIsTimeout = false;
+function mountPayAreaWhenIdle() {
+  const mount = () => {
+    payAreaMounted.value = true;
+  };
+  if (idleApi.requestIdleCallback) {
+    payAreaIdleHandle = idleApi.requestIdleCallback(mount, { timeout: 1500 });
+  } else {
+    payAreaIdleIsTimeout = true;
+    payAreaIdleHandle = window.setTimeout(mount, 300);
+  }
+}
+function cancelPayAreaIdle() {
+  if (payAreaIdleHandle === undefined) return;
+  if (payAreaIdleIsTimeout) clearTimeout(payAreaIdleHandle);
+  else idleApi.cancelIdleCallback?.(payAreaIdleHandle);
+}
+
 const salespersonSelected = computed(() => Boolean(selectedSalesperson.value));
 const missingAssignmentFlash = ref(false);
 let missingAssignmentFlashTimer: ReturnType<typeof setTimeout> | undefined;
@@ -884,6 +921,7 @@ async function restoreDraft() {
       localStorage.getItem(INVOICE_DRAFT_KEY) || "null",
     ) as InvoiceDraft | null;
     if (!draft) return;
+    await ensurePayArea();
     // Assigned directly (bypassing addItem's scan-one-unit-at-a-time merge,
     // which clamps qty to a minimum of 1) so a locked, negative-qty returned
     // line from an in-progress exchange restores exactly as it was, instead
@@ -1058,7 +1096,7 @@ function onProductSelect(product: {
 
 function onAccountClientSelect(client: Client) {
   setClient(client);
-  nextTick(() => calculator.value?.addOnAccount());
+  void ensurePayArea().then(() => calculator.value?.addOnAccount());
 }
 
 const barcodeFeedback = ref<"success" | "error" | null>(null);
@@ -1578,8 +1616,9 @@ async function refreshNextInvoiceCode(kind: "sales" | "exchange") {
   }
 }
 
-function onRestoreHold(hold: any) {
+async function onRestoreHold(hold: any) {
   if (!invoiceItems.value) return;
+  await ensurePayArea();
   invoiceItems.value.clearItems();
   for (const item of hold.items ?? []) {
     invoiceItems.value.addItem({ ...item, qty: item.qty || 1 });
@@ -1704,6 +1743,7 @@ async function loadAppSettings() {
 onMounted(async () => {
   await nextTick();
   if (!pageActive) return;
+  mountPayAreaWhenIdle();
   unsubscribeListChanges = ["discount_lists", "price_lists", "products"].map((entity) =>
     EventsOn(`sync_applied:${entity}`, scheduleCartListRefresh),
   );
@@ -1741,6 +1781,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  cancelPayAreaIdle();
   draftSaver.flush();
   document.removeEventListener("visibilitychange", flushDraftOnHide);
   window.removeEventListener("pagehide", draftSaver.flush);
