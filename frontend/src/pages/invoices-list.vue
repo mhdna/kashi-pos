@@ -69,7 +69,7 @@
         </k-menu>
       </template>
       <template #item.syncState="{ item }">
-        <!-- A Vuetify tooltip, not a title attribute: the till's web view
+        <!-- A k-tooltip, not a title attribute: the till's web view
              shows no native tooltips. It opens on a tap too, for touch tills. -->
         <k-tooltip :text="syncDotTitle(item)" location="end" open-on-click max-width="480">
           <template #activator="{ props: tip }">

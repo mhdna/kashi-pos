@@ -31,8 +31,8 @@ interface Punch {
   kind: "IN" | "OUT";
 }
 
-// How long each snackbar stays up, and the gap that lets Vuetify's leave
-// transition finish before the next queued punch appears.
+// How long each snackbar stays up, and the gap before the next queued punch
+// appears.
 const VISIBLE_MS = 2000;
 const GAP_MS = 300;
 

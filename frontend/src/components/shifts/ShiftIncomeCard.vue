@@ -253,7 +253,7 @@ async function confirmManager() {
   gap: 8px;
 }
 
-/* Vuetify gives .k-btn--block `flex: 1 0 auto`; stop the buttons stretching
+/* A block button is `flex: 1 0 auto`; stop the buttons stretching
    to fill the card's free space so the action group stays compact. */
 .shift-income-actions > .k-btn {
   flex: 0 0 auto;

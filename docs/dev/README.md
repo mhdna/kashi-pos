@@ -9,6 +9,7 @@ code behaves, including the parts that aren't obvious from the screens.
 | [sync.md](sync.md) | kashi ↔ till: who owns what, the outbox, pulls, commands, the settings report. |
 | [money-and-selling.md](money-and-selling.md) | Cents, currencies, where prices come from, deals, discounts, stock, returns. |
 | [shifts-and-logins.md](shifts-and-logins.md) | Shifts and closing, the opening float, logins and the PIN lockout, salespersons, targets. |
+| [ui-components.md](ui-components.md) | The own component kit that replaced Vuetify: theme vars, layers, quirks. |
 | [windows-till.md](windows-till.md) | Kiosk, cash machine mode, autostart, devices and the scanner, stuck keys, local ports, the compact build. |
 | [data-and-config.md](data-and-config.md) | Files on the till, `.env`, time zones, migrations, every feature switch and its default. |
 | [releases-and-builds.md](releases-and-builds.md) | `make bump` / `make publish`, how tills update and roll back, build and test gotchas. |

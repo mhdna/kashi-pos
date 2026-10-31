@@ -1,7 +1,6 @@
 <template>
-  <!-- touchless: a permanent drawer never swipes shut, and Vuetify's swipe
-       handler (on window, non-passive) can claim a drag that starts a little
-       sideways, which then never scrolls the page list. -->
+  <!-- A permanent drawer: it has no swipe handler, so a drag that starts a
+       little sideways still scrolls the page list. -->
   <k-navigation-drawer permanent touchless width="72" class="nav-drawer border-0">
     <k-list class="d-flex flex-column fill-height pa-0" nav>
       <div class="nav-items-group">
@@ -450,7 +449,7 @@ const items = computed(() => {
   transform: translateZ(0);
 }
 
-/* Vuetify clips list-item content; let the status dot stick out above the icon. */
+/* Let the status dot stick out above the icon rather than being clipped. */
 .nav-item :deep(.k-list-item__content) {
   overflow: visible;
 }

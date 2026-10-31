@@ -44,7 +44,7 @@
   }
 }
 
-/* This also disables Vuetify transitions and component animations. */
+/* This also disables the UI kit's transitions and component animations. */
 .animations-disabled,
 .animations-disabled * {
   animation-duration: 0s !important;

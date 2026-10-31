@@ -103,7 +103,7 @@ async function loadClients(query: string) {
 
 function openNewClientDialog() {
   // Do not stack two v-dialog focus traps. Render the child after the parent
-  // has closed so Vuetify only has one active modal overlay.
+  // has closed so only one modal overlay is active.
   dialog.value = false;
   void nextTick(() => {
     newClientDialog.value = true;

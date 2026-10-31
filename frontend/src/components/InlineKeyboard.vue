@@ -156,7 +156,7 @@ function move(step: number) {
   /* Every key in a row shares the width equally, so a row always fits its
      container exactly - it can never overflow and get clipped, and on a wide
      container the max-width keeps the keys from ballooning. The !important
-     rules beat Vuetify's own .k-btn sizing (min-width / horizontal padding),
+     rules beat the kit's own .k-btn sizing (min-width / horizontal padding),
      which otherwise forces the keys wider than their slot. */
   flex: 1 1 0;
   min-width: 0 !important;
