@@ -382,12 +382,13 @@ func takeForeground(window, from uintptr) {
 }
 
 // onKeyboard is the low-level keyboard hook: it swallows the keys that
-// would leave the till while the till is in front.
+// would leave the till while the till is in front, but not the device
+// listener's release of a stuck key.
 func onKeyboard(code, wParam, lParam uintptr) uintptr {
 	if int32(code) >= 0 {
 		if foreground, _, _ := pGetForegroundWindow.Call(); foreground == kiosk.window.Load() {
 			key := (*kbdLLHookStruct)(unsafe.Pointer(lParam))
-			if blockedKey(key) {
+			if key.extraInfo != stuckKeyRelease && blockedKey(key) {
 				return 1
 			}
 		}

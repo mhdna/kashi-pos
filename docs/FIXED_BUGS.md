@@ -3,6 +3,28 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-31 · Keyboard and scanner typed Windows shortcuts after AnyDesk
+
+**Symptom.** After connecting to a till with AnyDesk from a Mac, the till's
+keyboard and scanner stopped working on the whole computer: typing 1 did
+Win+1 (opened the first taskbar program), and a scan fired a string of
+shortcuts. It lasted after AnyDesk disconnected, until someone pressed the
+Windows key on the till. Turning off AnyDesk's "Transmit keyboard
+shortcuts" didn't stop it.
+
+**Cause.** AnyDesk sends the Mac's ⌘ as the Windows key. When the Mac keeps
+a key's release to itself (⌘+Tab away from the AnyDesk window), the till
+hears Win go down but never up, so Windows holds it until a real Win press.
+Not kashi-pos's doing, but only the till can notice it.
+
+**Fix.** The device listener, which already sees every key with the device
+it came from, tracks which modifiers a keyboard or scanner on the till is
+holding. Every second it checks the ones Windows holds, and lets go of any
+(Win, Ctrl, Alt, Shift) held by nothing on the till for 3 seconds
+(`stuck_keys.go`, `devices_windows.go`). The kiosk keyboard hook lets that
+release through (`kiosk_windows.go`). Tests: `TestModifierWatch*` in
+`stuck_keys_test.go`.
+
 ## 2026-10-30 · Punches made while the till was off could be missed
 
 **Symptom.** An employee's attendance in kashi had almost only arrival
