@@ -92,6 +92,7 @@
   .k-btn__prepend { display: inline-flex; align-items: center; }
   .k-btn--disabled { pointer-events: none; opacity: .26; }
   .k-btn--disabled.k-btn--variant-flat, .k-btn--disabled.k-btn--variant-elevated { opacity: 1; box-shadow: none; color: color-mix(in srgb, rgb(var(--k-theme-on-surface)) 26%, transparent); background: rgb(var(--k-theme-surface)); }
+  .k-btn--disabled.k-btn--colored.k-btn--variant-flat, .k-btn--disabled.k-btn--colored.k-btn--variant-elevated { opacity: .5; background: var(--k-c); color: var(--k-on); box-shadow: none; }
   .k-btn--loading { pointer-events: none; }
   .k-btn--loading .k-btn__content, .k-btn--loading .k-btn__prepend { opacity: 0; }
   .k-btn__loader { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
