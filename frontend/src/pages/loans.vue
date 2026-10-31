@@ -128,7 +128,7 @@
       </k-card>
     </k-dialog>
 
-    <k-dialog v-model="dialog" max-width="560">
+    <k-dialog v-model="dialog" max-width="720">
       <k-card>
         <k-card-title class="d-flex align-center ga-2 pt-4 px-5">
           <k-icon icon="mdi-hand-coin-outline" color="primary" />
