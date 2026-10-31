@@ -1,6 +1,10 @@
 package main
 
-import "time"
+import (
+	"fmt"
+	"sync/atomic"
+	"time"
+)
 
 // Stuck modifier keys. AnyDesk from a Mac sends ⌘ as the Windows key, and
 // when the Mac keeps a key's release to itself (⌘+Tab away from the AnyDesk
@@ -9,6 +13,33 @@ import "time"
 // opens the first taskbar program) until someone presses Win on the till,
 // even after AnyDesk disconnects. The device listener (devices_windows.go)
 // lets go of a modifier Windows holds that no keyboard on the till holds.
+//
+// On until turned off on the till's Settings page. Deliberately a till-only
+// setting that kashi neither sees nor pushes: meant for our own tills, not
+// something to offer customers (noted in kashi's roadmap, M9).
+const releaseStuckKeysFlag = "release_stuck_keys"
+
+// stuckKeysLeftAlone is the setting turned off, for the device listener,
+// whose thread doesn't read the database. Refreshed by watchDevices.
+var stuckKeysLeftAlone atomic.Bool
+
+// releaseStuckKeys reports whether the till lets go of stuck modifier keys.
+func (a *App) releaseStuckKeys() bool {
+	return a.flagEnabledDefaultOn(a.ctx, releaseStuckKeysFlag)
+}
+
+// SetReleaseStuckKeys turns letting go of stuck modifier keys on or off.
+func (a *App) SetReleaseStuckKeys(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, releaseStuckKeysFlag, enabled); err != nil {
+		return err
+	}
+	stuckKeysLeftAlone.Store(!enabled)
+	a.emitSettingsChanged()
+	return nil
+}
 
 type modifierKey int
 

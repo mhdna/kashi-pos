@@ -902,6 +902,10 @@ export function SetReceiptLook(arg1, arg2) {
   return window['go']['main']['App']['SetReceiptLook'](arg1, arg2);
 }
 
+export function SetReleaseStuckKeys(arg1) {
+  return window['go']['main']['App']['SetReleaseStuckKeys'](arg1);
+}
+
 export function SetSalespersonPerInvoiceRequired(arg1) {
   return window['go']['main']['App']['SetSalespersonPerInvoiceRequired'](arg1);
 }

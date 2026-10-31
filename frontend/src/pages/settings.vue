@@ -204,6 +204,26 @@
               </div>
             </v-card-text>
           </v-card>
+          <v-card v-show="panelMatches('general-stuck-keys')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-keyboard" size="20" />
+              Stuck keys
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.releaseStuckKeys"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Let go of Windows, Ctrl, Alt or Shift left held for 3 seconds"
+                @update:model-value="setReleaseStuckKeys"
+              />
+              <p class="text-caption text-medium-emphasis mt-1 mb-0 settings-wrap">
+                A remote session (AnyDesk from a Mac) can leave a key held down, so typing or scanning runs Windows
+                shortcuts. Keys held on the till's own keyboard or scanner are never let go.
+              </p>
+            </v-card-text>
+          </v-card>
           <v-card v-show="panelMatches('general-sync')" class="settings-card">
             <v-card-title>Central sync (kashi)</v-card-title>
             <v-card-text class="field-grid">
@@ -1921,6 +1941,7 @@ import {
   SetPriceEditCodes,
   SetProductSearchHiddenFields,
   SetSoundsEnabled,
+  SetReleaseStuckKeys,
   SetUnknownProductBarcode,
   SetVisitorCounterEnabled,
   SetClientRequired,
@@ -2099,6 +2120,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
   "general-branches": { tab: "general", title: "Branches", keywords: "branches switch default active add branch multiple instances" },
   "general-cash-machine": { tab: "general", title: "Cash machine", keywords: "cash machine windows performance slow programs apps startup close kiosk minimal onedrive teams" },
+  "general-stuck-keys": { tab: "general", title: "Stuck keys", keywords: "stuck keys windows key win ctrl alt shift held anydesk remote mac keyboard scanner shortcuts" },
   "general-sync": { tab: "general", title: "Central sync (kashi)", keywords: "central sync kashi server url branch code api key upload before close shift wait pending offline" },
   "general-targets": { tab: "general", title: "Targets", keywords: "targets revenue goal progress date range" },
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
@@ -2260,6 +2282,7 @@ const form = reactive({
   unknownProductBarcode: "",
   unknownPicturesAtCheckout: false,
   soundsEnabled: false,
+  releaseStuckKeys: true,
   visitorCounterEnabled: false,
   clientRequired: true,
   salespersonPerInvoiceRequired: false,
@@ -2704,6 +2727,7 @@ async function loadSettings() {
         unknownProductBarcode: String(s.unknownProductBarcode ?? ""),
         unknownPicturesAtCheckout: Boolean(s.unknownPicturesAtCheckout),
         soundsEnabled: s.soundsEnabled === true,
+        releaseStuckKeys: s.releaseStuckKeys !== false,
         visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
         salespersonPerInvoiceRequired: Boolean(s.salespersonPerInvoiceRequired),
@@ -3154,6 +3178,22 @@ async function setSoundsEnabled(value: boolean | null) {
   } catch {
     form.soundsEnabled = previous;
     notify("Failed to update the sounds setting", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setReleaseStuckKeys(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.releaseStuckKeys;
+  form.releaseStuckKeys = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetReleaseStuckKeys(enabled);
+    notify(`Letting go of stuck keys ${enabled ? "on" : "off"}`);
+  } catch {
+    form.releaseStuckKeys = previous;
+    notify("Failed to update the stuck keys setting", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }

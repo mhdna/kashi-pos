@@ -1,8 +1,15 @@
 package main
 
 import (
+	"context"
+	"database/sql"
+	"path/filepath"
 	"testing"
 	"time"
+
+	db "kashi-pos/db/sqlc"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestModifierWatchLetsGoOfAKeyNothingOnTheTillHolds(t *testing.T) {
@@ -50,5 +57,36 @@ func TestModifierWatchForgetsAMissedKeyUp(t *testing.T) {
 	w.check(modCtrl, true, start.Add(time.Second))
 	if !w.check(modCtrl, true, start.Add(4*time.Second)) {
 		t.Fatal("a missed key-up kept Ctrl from ever being let go")
+	}
+}
+
+// Letting go of stuck keys is on for a fresh till, and the Settings page's
+// switch turns it off and on for the device listener too.
+func TestReleaseStuckKeysOnByDefault(t *testing.T) {
+	ctx := context.Background()
+	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "keys.db")+"?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { database.Close() })
+	if err := applyMigrations(ctx, database, "", false); err != nil {
+		t.Fatal(err)
+	}
+	app := &App{ctx: ctx, store: db.NewStore(database), conn: database}
+	t.Cleanup(func() { stuckKeysLeftAlone.Store(false) })
+
+	if !app.releaseStuckKeys() {
+		t.Fatal("letting go of stuck keys must be on until turned off")
+	}
+	for _, want := range []bool{false, true} {
+		if err := app.SetReleaseStuckKeys(want); err != nil {
+			t.Fatal(err)
+		}
+		if got := app.releaseStuckKeys(); got != want {
+			t.Fatalf("after SetReleaseStuckKeys(%v), releaseStuckKeys() = %v", want, got)
+		}
+		if stuckKeysLeftAlone.Load() == want {
+			t.Fatalf("after SetReleaseStuckKeys(%v), the device listener wasn't told", want)
+		}
 	}
 }

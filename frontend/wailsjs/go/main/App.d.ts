@@ -452,6 +452,8 @@ export function SetQuickAccessMode(arg1:string):Promise<void>;
 
 export function SetReceiptLook(arg1:string,arg2:string):Promise<void>;
 
+export function SetReleaseStuckKeys(arg1:boolean):Promise<void>;
+
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
 
 export function SetScanByCodeEnabled(arg1:boolean):Promise<void>;

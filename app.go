@@ -968,6 +968,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	result["unknownProductBarcode"] = a.unknownBarcode()
 	result["productSearchHiddenFields"] = a.productSearchHiddenFields()
 	result["soundsEnabled"] = a.soundsEnabled()
+	result["releaseStuckKeys"] = a.releaseStuckKeys()
 	result["attendanceManagerApprovalEnabled"] = a.attendanceManagerApprovalEnabled()
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, productSearchEnabledFlag); flagErr == nil {
 		result["productSearchEnabled"] = enabled != 0

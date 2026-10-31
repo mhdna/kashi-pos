@@ -141,6 +141,9 @@ func (a *App) watchDevices() {
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for {
+		if a.store != nil {
+			stuckKeysLeftAlone.Store(!a.releaseStuckKeys())
+		}
 		status := a.checkDevices()
 		devices.mu.Lock()
 		changed := status != devices.status

@@ -279,6 +279,9 @@ var modifierKeys = [modifierCount][2]uint16{
 // releaseStuckModifiers lets go of the modifiers Windows holds that nothing
 // on the till has held for stuckModifierAfter.
 func releaseStuckModifiers() {
+	if stuckKeysLeftAlone.Load() {
+		return
+	}
 	now := time.Now()
 	for m, keys := range modifierKeys {
 		held := keyDown(uintptr(keys[0])) || keyDown(uintptr(keys[1]))
