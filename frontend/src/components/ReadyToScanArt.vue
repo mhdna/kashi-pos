@@ -5,8 +5,8 @@
   <svg
     class="ready-art"
     viewBox="0 0 160 120"
-    width="208"
-    height="156"
+    width="168"
+    height="126"
     role="img"
     aria-label="Ready to scan"
   >
@@ -26,13 +26,13 @@
     <!-- the number under it, as on a real label -->
     <text x="46" y="80" textLength="68" lengthAdjust="spacing" class="ready-art__digits">5 901234 123457</text>
     <!-- laser: a faint band with a bright line through it -->
-    <rect x="22" y="46" width="116" height="14" rx="7" class="ready-art__glow" />
-    <line x1="22" y1="53" x2="138" y2="53" class="ready-art__laser" />
+    <rect x="26" y="46" width="108" height="14" rx="7" class="ready-art__glow" />
+    <line x1="26" y1="53" x2="134" y2="53" class="ready-art__laser" />
     <!-- scan frame corners, centred on the card -->
-    <path d="M14 38 V24 a6 6 0 0 1 6 -6 H36" class="ready-art__corner" />
-    <path d="M124 18 H140 a6 6 0 0 1 6 6 V38" class="ready-art__corner" />
-    <path d="M146 82 V96 a6 6 0 0 1 -6 6 H124" class="ready-art__corner" />
-    <path d="M36 102 H20 a6 6 0 0 1 -6 -6 V82" class="ready-art__corner" />
+    <path d="M20 33 V27 a5 5 0 0 1 5 -5 H31" class="ready-art__corner" />
+    <path d="M129 22 H135 a5 5 0 0 1 5 5 V33" class="ready-art__corner" />
+    <path d="M140 87 V93 a5 5 0 0 1 -5 5 H129" class="ready-art__corner" />
+    <path d="M31 98 H25 a5 5 0 0 1 -5 -5 V87" class="ready-art__corner" />
   </svg>
 </template>
 
@@ -78,7 +78,7 @@ const bars = widths.map((w) => {
   stroke: rgba(var(--k-theme-on-surface), 0.3);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 5;
+  stroke-width: 3;
 }
 
 .ready-art__glow {
