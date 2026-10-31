@@ -1789,11 +1789,12 @@ onBeforeUnmount(() => {
 }
 
 .ready-panel__actions {
+  align-items: stretch;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  justify-content: center;
   margin-top: 16px;
+  width: 240px;
 }
 
 .empty-cart-card {
