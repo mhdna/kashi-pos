@@ -240,19 +240,12 @@
         </div>
         -->
         <div v-if="showReady" class="ready-panel" data-testid="ready-panel">
-          <k-icon icon="mdi-barcode-scan" size="72" class="ready-panel__icon" />
+          <div class="ready-panel__badge">
+            <k-icon icon="mdi-barcode-scan" size="56" />
+          </div>
           <div class="ready-panel__title">Ready to scan</div>
           <div class="ready-panel__hint">
-            {{ scanByCodeEnabled ? "Scan a barcode or type a code to start" : "Scan a barcode to start" }}
-          </div>
-          <div class="ready-panel__actions">
-            <k-btn v-if="productSearchEnabled" variant="tonal" prepend-icon="mdi-magnify" @click="openProductSearch">
-              Search product
-            </k-btn>
-            <k-btn variant="tonal" prepend-icon="mdi-pause" @click="onHoldMenu?.open()">Held invoices</k-btn>
-            <k-btn variant="tonal" prepend-icon="mdi-account-outline" @click="requestClientDialog">
-              Select client
-            </k-btn>
+            {{ scanByCodeEnabled ? "Scan a barcode or type a code" : "Scan a barcode" }}<br />to start a sale
           </div>
         </div>
         <!-- Kept mounted (v-show) while the cart is empty, so a typed payment
@@ -527,8 +520,7 @@ type InvoiceDraft = {
   // restart or logout/login instead of silently reverting to a normal sale.
   exchangeOriginalInvoiceId?: number;
 };
-const { client, clientSelected, setClient, resetClient, pulseMissingClient, setClientRequired, requestClientDialog } =
-  useClient();
+const { client, clientSelected, setClient, resetClient, pulseMissingClient, setClientRequired } = useClient();
 const { selectedSalesperson, pulseSalesperson, salespersonPerInvoiceRequired, setSalespersonPerInvoiceRequired } =
   useSalesperson();
 let pageActive = true;
@@ -1767,33 +1759,34 @@ onBeforeUnmount(() => {
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
-  gap: 8px;
   justify-content: center;
   min-height: 0;
   padding: 24px;
   text-align: center;
 }
 
-.ready-panel__icon {
-  opacity: 0.55;
+.ready-panel__badge {
+  align-items: center;
+  background: rgba(var(--k-theme-primary), 0.1);
+  border-radius: 50%;
+  color: rgb(var(--k-theme-primary));
+  display: flex;
+  height: 120px;
+  justify-content: center;
+  margin-bottom: 20px;
+  width: 120px;
 }
 
 .ready-panel__title {
   font-size: var(--kashi-font-size-2xl);
   font-weight: 700;
+  margin-bottom: 6px;
 }
 
 .ready-panel__hint {
   color: rgba(var(--k-theme-on-surface), 0.6);
   font-size: var(--kashi-font-size-lg);
-}
-
-.ready-panel__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  margin-top: 16px;
+  line-height: 1.4;
 }
 
 .empty-cart-card {
