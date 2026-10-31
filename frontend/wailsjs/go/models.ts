@@ -310,6 +310,20 @@ export namespace main {
 		}
 	}
 	
+	export class DaySales {
+	    day: string;
+	    total: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DaySales(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.day = source["day"];
+	        this.total = source["total"];
+	    }
+	}
 	export class DeviceStatus {
 	    scanner: string;
 	    printer: string;
@@ -558,6 +572,42 @@ export namespace main {
 	        this.nextCursor = source["nextCursor"];
 	        this.hasMore = source["hasMore"];
 	    }
+	}
+	export class MonthSales {
+	    days: DaySales[];
+	    total: number;
+	    deferredCoupons: number;
+	    onAccount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MonthSales(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.days = this.convertValues(source["days"], DaySales);
+	        this.total = source["total"];
+	        this.deferredCoupons = source["deferredCoupons"];
+	        this.onAccount = source["onAccount"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class OversellLine {
 	    code: string;

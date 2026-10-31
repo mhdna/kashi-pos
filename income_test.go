@@ -259,11 +259,12 @@ func TestNetSalesExcludesCalculateOnCheckoutCouponPayments(t *testing.T) {
 	}
 }
 
-// The balance page's "total income" figures (monthly income chart and
-// branch-target progress) must exclude deferred (calculate-on-checkout)
-// coupon payments too, the same way the shift report's net sales does -
-// otherwise a branch could look like it hit its revenue target purely off
-// supplier-reimbursed vouchers it hasn't actually been paid for yet.
+// Branch-target progress (and the daily income chart query) exclude
+// deferred (calculate-on-checkout) coupon payments, the same way the shift
+// report's net sales does - otherwise a branch could look like it hit its
+// revenue target purely off supplier-reimbursed vouchers it hasn't actually
+// been paid for yet. The shifts page's sales totals count them, to match
+// kashi's reports, and say how much they hold.
 func TestBalancePageIncomeExcludesCalculateOnCheckoutCouponPayments(t *testing.T) {
 	ctx := context.Background()
 	database := openTestDatabase(t)
@@ -341,26 +342,23 @@ func TestBalancePageIncomeExcludesCalculateOnCheckoutCouponPayments(t *testing.T
 		t.Fatalf("ListDailyInvoiceIncomeByMonth = %#v, want a single day totalling 3000", monthRows)
 	}
 
-	// The shift list's "total" column (shown on the same balance page as the
-	// income chart above) must agree with it, or the page shows two
-	// different numbers for the same day's income.
+	// The shifts page's own totals count sales the way kashi's reports do
+	// (GetMonthSales), coupons included, so the till and the report agree;
+	// the coupon part is shown under the total instead of taken out of it.
 	shiftRows, err := store.GetShiftTotals(ctx, time.Now().Format("2006-01"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(shiftRows) != 1 || shiftRows[0].Total != 3000 {
-		t.Fatalf("GetShiftTotals = %#v, want a single shift totalling 3000", shiftRows)
+	if len(shiftRows) != 1 || databaseInt64(shiftRows[0].Total) != 5000 {
+		t.Fatalf("GetShiftTotals = %#v, want a single shift totalling 5000", shiftRows)
 	}
-
-	// The balance page surfaces the excluded amount separately (a caption
-	// under the total) instead of just silently showing a lower number.
 	app := &App{ctx: ctx, store: store}
-	excluded, err := app.GetDeferredCouponTotalByMonth(time.Now().Format("2006-01"))
+	sales, err := app.GetMonthSales(time.Now().Format("2006-01"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if excluded != 2000 {
-		t.Fatalf("GetDeferredCouponTotalByMonth = %v, want 2000", excluded)
+	if sales.Total != 5000 || sales.DeferredCoupons != 2000 {
+		t.Fatalf("GetMonthSales = %+v, want a 5000 total holding 2000 in coupons", sales)
 	}
 }
 

@@ -561,3 +561,50 @@ ORDER BY day;
 
 -- name: SetInvoiceLBPTotal :exec
 UPDATE invoices SET lbp_total = ?, lbp_rate = ? WHERE id = ?;
+
+-- name: GetMonthSalesSummary :one
+-- The month's sales the way kashi's reports count net sales: every invoice
+-- by the local day it was rung up (not the shift it fell in), returns
+-- netted by their own sign, cancelled sales and their refunds left out,
+-- and coupons counted as sales. Alongside, how much of that total is
+-- "calculate on checkout" coupons (settled later by their issuer) and how
+-- much went on account (the client still owes it), so the till can say so.
+SELECT
+    COALESCE((
+        SELECT SUM(i.grand_total) FROM invoices i
+        WHERE strftime('%Y-%m', i.created_at, 'localtime') = sqlc.arg(year_month)
+          AND i.cancelled_at IS NULL
+    ), 0) AS total,
+    COALESCE((
+        SELECT SUM(icp.amount)
+        FROM invoice_coupon_payments icp
+        JOIN coupon_types ct ON ct.id = icp.coupon_type_id
+        JOIN invoices i ON i.id = icp.invoice_id
+        WHERE strftime('%Y-%m', i.created_at, 'localtime') = sqlc.arg(year_month)
+          AND i.cancelled_at IS NULL AND ct.calculate_on_checkout = 1
+    ), 0) AS deferred_coupons,
+    COALESCE((
+        SELECT SUM(ip.amount)
+        FROM invoice_payments ip
+        JOIN invoices i ON i.id = ip.invoice_id
+        JOIN cashbox_accounts ca ON ca.id = ip.cashbox_id
+        WHERE strftime('%Y-%m', i.created_at, 'localtime') = sqlc.arg(year_month)
+          AND i.cancelled_at IS NULL AND lower(trim(ca.name)) = 'on account'
+    ), 0) + COALESCE((
+        -- An invoice with no payment rows is booked whole to its own cashbox.
+        SELECT SUM(i.grand_total)
+        FROM invoices i
+        JOIN cashbox_accounts ca ON ca.id = i.cashbox_id
+        WHERE strftime('%Y-%m', i.created_at, 'localtime') = sqlc.arg(year_month)
+          AND i.cancelled_at IS NULL AND lower(trim(ca.name)) = 'on account'
+          AND NOT EXISTS (SELECT 1 FROM invoice_payments ip WHERE ip.invoice_id = i.id)
+    ), 0) AS on_account;
+
+-- name: ListDailySalesByMonth :many
+-- GetMonthSalesSummary's total, day by day.
+SELECT date(i.created_at, 'localtime') AS day, COALESCE(SUM(i.grand_total), 0) AS total
+FROM invoices i
+WHERE strftime('%Y-%m', i.created_at, 'localtime') = sqlc.arg(year_month)
+  AND i.cancelled_at IS NULL
+GROUP BY day
+ORDER BY day;

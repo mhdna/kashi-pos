@@ -127,20 +127,12 @@ RETURNING account_id, shift_id, balance;
 -- displays one month at a time) instead of loading every shift ever
 -- created - pass '' for the historical "everything" behavior.
 SELECT s.id, s.is_closed, s.created_at, s.closed_at,
+       -- Counted like GetMonthSalesSummary (and kashi's reports): returns
+       -- netted, cancelled sales left out, coupons counted as sales.
        COALESCE((
            SELECT SUM(i.grand_total)
            FROM invoices i
-           WHERE i.shift_id = s.id
-       ), 0) - COALESCE((
-           -- Same deferred-coupon exclusion as GetShiftReportSummary's
-           -- net_sales: a "calculate on checkout" coupon is settled later
-           -- by whoever issued it, not collected by the branch now, so it
-           -- must not inflate this shift's displayed total either.
-           SELECT SUM(icp.amount)
-           FROM invoice_coupon_payments icp
-           JOIN coupon_types ct ON ct.id = icp.coupon_type_id
-           JOIN invoices i ON i.id = icp.invoice_id
-           WHERE i.shift_id = s.id AND ct.calculate_on_checkout = 1
+           WHERE i.shift_id = s.id AND i.cancelled_at IS NULL
        ), 0) as total,
        COALESCE((
            SELECT SUM(MAX(p.price - ip.unit_price, 0) * ip.quantity)

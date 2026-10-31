@@ -764,6 +764,49 @@ func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) 
 	return result, nil
 }
 
+// MonthSales is the shifts page's monthly total, counted the way kashi's
+// reports count net sales, so the two agree: every sale by the day it was
+// rung up, returns netted, cancelled sales left out, coupons counted. The
+// coupon and on-account parts of it are given apart, since neither is
+// money in the drawer yet. Amounts are cents.
+type MonthSales struct {
+	Days            []DaySales `json:"days"`
+	Total           int64      `json:"total"`
+	DeferredCoupons int64      `json:"deferredCoupons"`
+	OnAccount       int64      `json:"onAccount"`
+}
+
+type DaySales struct {
+	Day   string `json:"day"` // YYYY-MM-DD, local
+	Total int64  `json:"total"`
+}
+
+func (a *App) GetMonthSales(yearMonth string) (MonthSales, error) {
+	var out MonthSales
+	if a.store == nil {
+		return out, fmt.Errorf("database not initialized")
+	}
+	if _, err := time.Parse("2006-01", yearMonth); err != nil {
+		return out, fmt.Errorf("invalid month %q; use YYYY-MM", yearMonth)
+	}
+	summary, err := a.store.GetMonthSalesSummary(a.ctx, yearMonth)
+	if err != nil {
+		return out, err
+	}
+	days, err := a.store.ListDailySalesByMonth(a.ctx, yearMonth)
+	if err != nil {
+		return out, err
+	}
+	out.Total = databaseInt64(summary.Total)
+	out.DeferredCoupons = databaseInt64(summary.DeferredCoupons)
+	out.OnAccount = summary.OnAccount
+	out.Days = make([]DaySales, 0, len(days))
+	for _, d := range days {
+		out.Days = append(out.Days, DaySales{Day: databaseString(d.Day), Total: databaseInt64(d.Total)})
+	}
+	return out, nil
+}
+
 func (a *App) GetTodayIncomeByAccount() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
