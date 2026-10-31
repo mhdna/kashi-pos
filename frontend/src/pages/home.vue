@@ -240,7 +240,7 @@
         </div>
         -->
         <div v-if="showReady" class="ready-panel" data-testid="ready-panel">
-          <ReadyToScanArt class="ready-panel__art" />
+          <k-icon icon="mdi-barcode-scan" size="72" class="ready-panel__icon" />
           <div class="ready-panel__title">Ready to scan</div>
           <div class="ready-panel__hint">
             {{ scanByCodeEnabled ? "Scan a barcode or type a code to start" : "Scan a barcode to start" }}
@@ -504,7 +504,6 @@ import ActionBar from "@/components/ActionBar.vue";
 import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
 import ClientButton from "@/components/ClientButton.vue";
-import ReadyToScanArt from "@/components/ReadyToScanArt.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
 import type { DealLine } from "@/lib/deals";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
@@ -1855,8 +1854,8 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.ready-panel__art {
-  margin-bottom: 8px;
+.ready-panel__icon {
+  opacity: 0.55;
 }
 
 /* Light buttons: white, thin border. No shadow: shadows are CPU-drawn on the
