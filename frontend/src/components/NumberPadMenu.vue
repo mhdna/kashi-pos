@@ -73,12 +73,12 @@
         </k-btn>
         <k-btn
           class="number-pad-key"
-          :class="{ 'number-pad-key--wide': allowDecimal }"
+          :class="['number-pad-key--back', { 'number-pad-key--wide': allowDecimal }]"
           size="small"
           variant="text"
           @click="backspace"
         >
-          <k-icon icon="mdi-backspace-outline" size="20" />
+          <k-icon icon="mdi-backspace-outline" size="24" />
         </k-btn>
       </div>
       <k-btn block class="number-pad-done mt-2" color="primary" size="small" variant="flat" @click="apply">
@@ -419,6 +419,11 @@ defineExpose({ focus });
   height: 42px;
   min-width: 0;
   padding: 0;
+}
+
+/* Taller than the digits so the backspace icon has room above and below. */
+.number-pad-key--back {
+  height: 56px;
 }
 
 .number-pad-done {

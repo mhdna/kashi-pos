@@ -13,7 +13,7 @@ on a touch screen.
 whichever system font supplied the glyph, which draws it small.
 
 **Fix.** All five keys use `mdi-backspace-outline` (already registered in
-`lib/icons.ts`) at 20px: `NumberPadMenu.vue`, `LoginForm.vue`,
+`lib/icons.ts`) at 20px (24px on the number pad, on a taller key): `NumberPadMenu.vue`, `LoginForm.vue`,
 `ReturnInvoiceMenu.vue`, `InlineKeyboard.vue` and `PhonePad.vue`. No test
 covers it (it is a drawing change); the frontend build and tests pass.
 
