@@ -98,11 +98,15 @@ defineExpose({ focus: () => input.value?.focus() });
       @focus="((focused = true), openMenu())"
       @blur="onBlur"
     />
+    <!-- The menu sits inside the field, so this component has one root:
+         a page's scoped class on it (a width, a margin) only applies to a
+         single-root component. The menu teleports to the body, leaving only
+         a hidden marker here. -->
+    <KMenu v-model="open" :anchor="anchorEl" match-width :close-on-content-click="false" :max-height="320">
+      <KList>
+        <KListItem v-for="item in filtered" :key="String(item.value)" :title="item.title" :active="item.value === modelValue" @mousedown.prevent @click="pick(item)" />
+        <KListItem v-if="!filtered.length && !loading" title="No data available" />
+      </KList>
+    </KMenu>
   </KField>
-  <KMenu v-model="open" :anchor="anchorEl" match-width :close-on-content-click="false" :max-height="320">
-    <KList>
-      <KListItem v-for="item in filtered" :key="String(item.value)" :title="item.title" :active="item.value === modelValue" @mousedown.prevent @click="pick(item)" />
-      <KListItem v-if="!filtered.length && !loading" title="No data available" />
-    </KList>
-  </KMenu>
 </template>
