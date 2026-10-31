@@ -3848,6 +3848,19 @@ async function deleteUser() {
   min-height: 0;
   overflow-y: auto;
   padding: 12px 24px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fill the screen so a short tab's Save bar still sits at the bottom of it. */
+.settings-scroll > .k-window,
+.settings-scroll > .k-window > .k-window-item {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+}
+.settings-scroll > .k-window > .k-window-item > .settings-page-actions {
+  margin-top: auto;
 }
 
 /* A tab with no Save bar still gets room under its last card. */
