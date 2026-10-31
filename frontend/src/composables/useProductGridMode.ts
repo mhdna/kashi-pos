@@ -1,9 +1,9 @@
 import { ref, watch, type Ref } from "vue";
 
 /**
- * Whether products search results show in columns, several to a row: the
- * default when rows show only a code (and price), which leave most of a row
- * empty. The choice is kept apart for code-only rows and named rows.
+ * Whether products search results show in columns, several to a row. Columns
+ * are the default; a choice made with the toggle is remembered, kept apart
+ * for code-only rows and named rows.
  */
 export function useProductGridMode(namesHidden: Ref<boolean>) {
   const gridMode = ref(false);
@@ -12,7 +12,7 @@ export function useProductGridMode(namesHidden: Ref<boolean>) {
     namesHidden,
     () => {
       const saved = localStorage.getItem(key());
-      gridMode.value = saved === null ? namesHidden.value : saved === "true";
+      gridMode.value = saved === null ? true : saved === "true";
     },
     { immediate: true },
   );
