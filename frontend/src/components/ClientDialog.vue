@@ -581,6 +581,9 @@ function reset() {
   display: inline-block;
   margin-inline-end: 6px;
   line-height: 1;
+  /* WebKit (the macOS webview) lets a colour-font flag leak its colour into the
+     text drawn after it; painting the flag in its own box stops that. */
+  contain: paint;
 }
 
 .client-phone-layout {
@@ -628,7 +631,6 @@ function reset() {
 }
 
 .client-phone-country-trigger-name {
-  font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 0.95rem;
   font-weight: 500;
   overflow: hidden;
@@ -756,7 +758,6 @@ function reset() {
 }
 
 .client-phone-country-card-name {
-  font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 0.9rem;
   font-weight: 500;
   line-height: 1.2;
@@ -764,7 +765,6 @@ function reset() {
 }
 
 .client-phone-country-card-code {
-  font-family: Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
   opacity: 0.65;
