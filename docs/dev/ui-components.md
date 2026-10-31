@@ -32,7 +32,9 @@ and list item was a deep tree of reactive components.
   `<html>` (dialogs are teleported out of the app root). Off, the circular
   spinner is a still ~75% arc, the linear one a still half-opacity bar, and the
   status dot a solid red. The animations that escape the global kill in
-  `styles/settings.scss` are scoped with `:root:not(.animations-disabled)`.
+  `styles/settings.scss` are scoped with `:root:not(.animations-disabled)`; the
+  startup loader in `index.html` does the same from a small inline script (it
+  runs before the app, so it reads the stored switch itself).
 - **Closed overlays cost nothing.** Dialogs, menus, tooltips and snackbars are
   rendered only while open, and teleported to `<body>`. Without a `v-model`
   (`<k-menu>` / `<k-dialog>` with an `#activator`) they keep their own open
