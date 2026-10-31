@@ -3888,12 +3888,6 @@ async function deleteUser() {
   text-transform: none;
   font-weight: 600;
   letter-spacing: 0;
-}
-
-.settings-tabs :deep(.k-tab .k-btn__content) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 8px;
 }
 
@@ -3927,8 +3921,6 @@ async function deleteUser() {
   justify-content: flex-end;
 }
 
-.settings-page :deep(.k-input),
-.settings-page :deep(.k-input),
 .settings-page :deep(.k-input) {
   --k-ic-h: 40px;
 }

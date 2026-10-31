@@ -285,6 +285,10 @@
   .k-selection--block { display: flex; }
   .k-selection__input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; inset: 0; cursor: pointer; }
   .k-selection__label { white-space: normal; }
+  .k-switch .k-selection { min-height: var(--k-ic-h); }
+  .k-checkbox .k-selection { min-height: 40px; }
+  .k-input--density-comfortable.k-checkbox .k-selection { min-height: 36px; }
+  .k-input--density-compact.k-checkbox .k-selection { min-height: 28px; }
   .k-switch__track { position: relative; flex: none; width: 36px; height: 14px; border-radius: 9999px; background: rgb(var(--k-theme-surface-variant)); opacity: .6; margin-inline: 8px; }
   .k-switch__thumb { position: absolute; left: -3px; top: -3px; width: 20px; height: 20px; border-radius: 50%; background: rgb(var(--k-theme-surface-bright)); box-shadow: 0 2px 4px -1px rgba(0,0,0,.2), 0 4px 5px 0 rgba(0,0,0,.14), 0 1px 10px 0 rgba(0,0,0,.12); display: flex; align-items: center; justify-content: center; }
   .k-switch__thumb .k-progress-circular { --k-pc-size: 14px; }
@@ -321,6 +325,7 @@
   .k-dialog--fullscreen > .k-overlay__content { width: 100%; max-width: 100%; max-height: 100%; height: 100%; margin: 0; border-radius: 0; }
   .k-menu > .k-overlay__content { position: fixed; z-index: inherit; border-radius: 4px; box-shadow: var(--k-elevation-3); background: rgb(var(--k-theme-surface)); overflow: auto; max-height: calc(100vh - 16px); min-width: 120px; }
   .k-menu > .k-overlay__content > * { max-width: 100%; }
+  .k-menu > .k-overlay__content > .k-card, .k-menu > .k-overlay__content > .k-list { box-shadow: none; border-radius: inherit; }
   .k-menu { inset: auto; pointer-events: none; }
   .k-tooltip > .k-overlay__content { position: fixed; background: rgba(97,97,97,.92); color: #fff; padding: 5px 16px; border-radius: 4px; font-size: .875rem; line-height: 1.4; pointer-events: none; overflow-wrap: break-word; }
   .k-snackbar-host { position: fixed; z-index: 10000; left: 0; right: 0; padding-inline-start: calc(8px + var(--k-layout-left, 0px)); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px; pointer-events: none; }

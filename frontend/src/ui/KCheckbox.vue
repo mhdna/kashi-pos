@@ -6,7 +6,7 @@ const props = defineProps<{ modelValue?: boolean | null; label?: string; color?:
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
 </script>
 <template>
-  <div class="k-input k-checkbox" :style="{ flex: '0 1 auto' }">
+  <div class="k-input k-checkbox" :class="[density && density !== 'default' && `k-input--density-${density}`]" :style="{ flex: '0 1 auto' }">
     <label class="k-selection" :class="[modelValue && 'k-checkbox--on', disabled && 'k-selection--disabled']" :style="colorVars(color)">
       <input class="k-selection__input" type="checkbox" :checked="!!modelValue" :disabled="disabled" @change="emit('update:modelValue', ($event.target as HTMLInputElement).checked)" />
       <span class="k-checkbox__box"><KIcon v-if="modelValue" icon="mdi-check" /></span>

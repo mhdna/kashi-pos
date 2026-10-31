@@ -20,7 +20,7 @@ const props = withDefaults(
 const emit = defineEmits<{ "update:modelValue": [value: boolean]; afterEnter: []; afterLeave: [] }>();
 
 // Controlled with v-model, or its own state when opened by its activator slot.
-const open = useModel(props, "modelValue", { local: true });
+const open = useModel(props, "modelValue");
 const zIndex = ref(2000);
 function close() {
   open.value = false;

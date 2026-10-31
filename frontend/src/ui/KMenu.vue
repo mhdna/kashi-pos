@@ -10,7 +10,7 @@ const props = withDefaults(
 defineEmits<{ "update:modelValue": [value: boolean] }>();
 
 // Controlled with v-model, or its own state when used without one.
-const open = useModel(props, "modelValue", { local: true });
+const open = useModel(props, "modelValue");
 const marker = ref<HTMLElement | null>(null);
 const content = ref<HTMLElement | null>(null);
 const zIndex = ref(2000);
