@@ -431,7 +431,7 @@ const items = computed(() => {
   color: #e3ecf8;
 }
 
-.nav-item.v-list-item--active {
+.nav-item.k-list-item--active {
   background-color: #22375a;
 }
 

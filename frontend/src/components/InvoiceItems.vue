@@ -1349,7 +1349,7 @@ defineExpose({
   opacity: 0.85;
 }
 
-.invoice-item-sale-option.v-chip--size-x-small:has(.invoice-deal-chip-text) {
+.invoice-item-sale-option.k-chip--size-x-small:has(.invoice-deal-chip-text) {
   height: auto;
   padding-block: 2px;
 }
