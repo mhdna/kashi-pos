@@ -149,14 +149,3 @@ is coalesced (`lib/draftSaver.ts`): about 0.4 s after the last change, or at
 once when the page is hidden or closed. Emptying the cart (or finishing the
 sale) deletes the draft immediately and cancels any save still waiting. Settlement
 mode (paying off an old invoice) never saves a draft.
-
-## The sale screen with an empty cart
-
-In sale mode with nothing in the cart, the right pane shows a "Ready to scan"
-panel (Search product, Held invoices, Select client) instead of a dimmed
-calculator and action bar. The calculator and action bar stay mounted, only
-hidden (`v-show`), so a payment typed so far, the draft's calculator state and
-the component refs are not lost; they come back as soon as the first item is
-added. Exchange and settlement modes keep the old dimmed overlay. "Select
-client" asks `ClientButton` to open its dialog through `useClient`'s
-`requestClientDialog`.

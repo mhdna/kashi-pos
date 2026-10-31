@@ -198,17 +198,16 @@
           :hidden-fields="productSearchHiddenFields"
           @select="onInPlaceSelect"
         />
-        <!-- Sale mode with nothing in the cart shows the "ready" panel below
-             instead of a dimmed calculator. Other modes keep this dim. -->
         <div
-          v-if="!hasItems && !showReady"
+          v-if="!hasItems"
           class="position-absolute d-flex align-center justify-center"
           style="
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.18);
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(4px);
             z-index: 10;
           "
         >
@@ -239,85 +238,45 @@
           </div>
         </div>
         -->
-        <div v-if="showReady" class="ready-panel" data-testid="ready-panel">
-          <k-icon icon="mdi-barcode-scan" size="72" class="ready-panel__icon" />
-          <div class="ready-panel__title">Ready to scan</div>
-          <div class="ready-panel__hint">
-            {{ scanByCodeEnabled ? "Scan a barcode or type a code to start" : "Scan a barcode to start" }}
-          </div>
-          <div class="ready-panel__actions">
-            <k-btn
-              v-if="productSearchEnabled"
-              class="ready-panel__btn"
-              variant="outlined"
-              prepend-icon="mdi-magnify"
-              @click="openProductSearch"
-            >
-              Search product
-            </k-btn>
-            <k-btn
-              class="ready-panel__btn"
-              variant="outlined"
-              prepend-icon="mdi-pause"
-              @click="onHoldMenu?.open()"
-            >
-              Held invoices<template v-if="heldCount > 0"> · {{ heldCount }}</template>
-            </k-btn>
-            <k-btn
-              class="ready-panel__btn"
-              variant="outlined"
-              prepend-icon="mdi-account-outline"
-              @click="requestClientDialog"
-            >
-              {{ clientSelected ? `Client: ${client.name.split(" ")[0]}` : "Select client" }}
-            </k-btn>
-          </div>
-        </div>
-        <!-- Built when the till is idle after the first paint (or at once when
-             something needs it: an item in the cart, a restored draft or
-             hold), then kept mounted and only hidden (v-show) while the cart
-             is empty, so a typed payment and the refs survive. -->
-        <div v-if="payAreaMounted || !showReady" v-show="!showReady" class="home-pay-area">
-          <div class="mb-3 mt-1" style="flex: 1 1 0; min-height: 0">
-            <Calculator
-              ref="calculator"
-              :total-cents="quote?.grandTotalCents ?? 0"
-              :unrounded-cents="quote?.unroundedCents"
-              :invoice-discount-cents="quote?.invoiceDiscountCents ?? 0"
-              :invoice-discount-name="quote?.invoiceDiscountName ?? ''"
-              :exchange-shortfall-cents="quote?.exchangeShortfallCents ?? 0"
-              :quote-error="quoteError"
-              :items-json="cartItemsJson"
-              :client-id="client.id"
-              :rounding-mode="roundingMode"
-              :rounding-currency="roundingCurrency"
-              :split-primary-currency="splitPrimaryCurrency"
-              :split-primary-first="splitPrimaryFirst"
-              :split-primary-step="splitPrimaryStep"
-              :has-items="hasItems"
-              :exchange-mode="pageMode === 'exchange'"
-              :exchange-original-invoice-id="exchangeState?.originalInvoiceId"
-              :settlement-invoice-id="settlementState?.invoiceId"
-              :hide-payment-method-currency="hidePaymentMethodCurrency"
-              :auto-append-lbp-zeros="autoAppendLbpZeros"
-              :overchange-confirmation-enabled="overchangeConfirmationEnabled"
-              @account="accountDialog = true"
-              @coupon="calculator?.openCouponDialog()"
-            />
-          </div>
-          <ActionBar
-            ref="actionBar"
-            :total="invoiceTotal"
-            :total-summary="calculator?.totalSummary ?? { first: '$0.00', second: '' }"
-            :can-checkout="canCheckout"
+        <div class="mb-3 mt-1" style="flex: 1 1 0; min-height: 0">
+          <Calculator
+            ref="calculator"
+            :total-cents="quote?.grandTotalCents ?? 0"
+            :unrounded-cents="quote?.unroundedCents"
+            :invoice-discount-cents="quote?.invoiceDiscountCents ?? 0"
+            :invoice-discount-name="quote?.invoiceDiscountName ?? ''"
+            :exchange-shortfall-cents="quote?.exchangeShortfallCents ?? 0"
+            :quote-error="quoteError"
+            :items-json="cartItemsJson"
+            :client-id="client.id"
+            :rounding-mode="roundingMode"
+            :rounding-currency="roundingCurrency"
+            :split-primary-currency="splitPrimaryCurrency"
+            :split-primary-first="splitPrimaryFirst"
+            :split-primary-step="splitPrimaryStep"
             :has-items="hasItems"
-            :mode="pageMode"
-            @checkout="onCheckout"
-            @hold="onHold"
-            @void="onVoid"
-            @cancelMode="cancelMode"
+            :exchange-mode="pageMode === 'exchange'"
+            :exchange-original-invoice-id="exchangeState?.originalInvoiceId"
+            :settlement-invoice-id="settlementState?.invoiceId"
+            :hide-payment-method-currency="hidePaymentMethodCurrency"
+            :auto-append-lbp-zeros="autoAppendLbpZeros"
+            :overchange-confirmation-enabled="overchangeConfirmationEnabled"
+            @account="accountDialog = true"
+            @coupon="calculator?.openCouponDialog()"
           />
         </div>
+        <ActionBar
+          ref="actionBar"
+          :total="invoiceTotal"
+          :total-summary="calculator?.totalSummary ?? { first: '$0.00', second: '' }"
+          :can-checkout="canCheckout"
+          :has-items="hasItems"
+          :mode="pageMode"
+          @checkout="onCheckout"
+          @hold="onHold"
+          @void="onVoid"
+          @cancelMode="cancelMode"
+        />
       </div>
     </div>
     <!-- Over the bottom of the sale screen, not pushing it up: what's
@@ -491,7 +450,6 @@ import {
   GetAppSettings,
   DeleteHoldInvoice,
   GetOpenShift,
-  ListHoldInvoices,
   OpenShift,
   WriteToScreen,
   QuoteInvoiceTotal,
@@ -548,8 +506,7 @@ type InvoiceDraft = {
   // restart or logout/login instead of silently reverting to a normal sale.
   exchangeOriginalInvoiceId?: number;
 };
-const { client, clientSelected, setClient, resetClient, pulseMissingClient, setClientRequired, requestClientDialog } =
-  useClient();
+const { client, clientSelected, setClient, resetClient, pulseMissingClient, setClientRequired } = useClient();
 const { selectedSalesperson, pulseSalesperson, salespersonPerInvoiceRequired, setSalespersonPerInvoiceRequired } =
   useSalesperson();
 let pageActive = true;
@@ -663,61 +620,6 @@ const quoteError = ref<string | null>(null);
 const cartItemsJson = ref("");
 const invoiceTotal = computed(() => (quote.value?.grandTotalCents ?? 0) / 100);
 const hasItems = computed(() => (invoiceItems.value?.items?.length ?? 0) > 0);
-// An empty sale shows the "ready to scan" panel in place of the calculator.
-const showReady = computed(() => !hasItems.value && pageMode.value === "sale");
-
-// The held-invoice count on the ready panel's button, read each time the panel
-// comes up (a cheap local query) so it is right after a hold or a restore.
-const heldCount = ref(0);
-watch(
-  showReady,
-  (ready) => {
-    if (!ready) return;
-    ListHoldInvoices()
-      .then((holds) => {
-        heldCount.value = holds?.length ?? 0;
-      })
-      .catch(() => {
-        heldCount.value = 0;
-      });
-  },
-  { immediate: true },
-);
-
-// The calculator and action bar are the heaviest part of the screen. While
-// the ready panel is up they are not built at startup: they mount when the
-// till is idle after the first paint, or at once when something needs them.
-// Anything that talks to `calculator` while the cart may be empty calls
-// ensurePayArea() first.
-const payAreaMounted = ref(false);
-async function ensurePayArea() {
-  payAreaMounted.value = true;
-  await nextTick();
-}
-// requestIdleCallback is missing from older WebViews, hence the fallback.
-const idleApi = window as unknown as {
-  requestIdleCallback?: Window["requestIdleCallback"];
-  cancelIdleCallback?: Window["cancelIdleCallback"];
-};
-let payAreaIdleHandle: number | undefined;
-let payAreaIdleIsTimeout = false;
-function mountPayAreaWhenIdle() {
-  const mount = () => {
-    payAreaMounted.value = true;
-  };
-  if (idleApi.requestIdleCallback) {
-    payAreaIdleHandle = idleApi.requestIdleCallback(mount, { timeout: 1500 });
-  } else {
-    payAreaIdleIsTimeout = true;
-    payAreaIdleHandle = window.setTimeout(mount, 300);
-  }
-}
-function cancelPayAreaIdle() {
-  if (payAreaIdleHandle === undefined) return;
-  if (payAreaIdleIsTimeout) clearTimeout(payAreaIdleHandle);
-  else idleApi.cancelIdleCallback?.(payAreaIdleHandle);
-}
-
 const salespersonSelected = computed(() => Boolean(selectedSalesperson.value));
 const missingAssignmentFlash = ref(false);
 let missingAssignmentFlashTimer: ReturnType<typeof setTimeout> | undefined;
@@ -958,7 +860,6 @@ async function restoreDraft() {
       localStorage.getItem(INVOICE_DRAFT_KEY) || "null",
     ) as InvoiceDraft | null;
     if (!draft) return;
-    await ensurePayArea();
     // Assigned directly (bypassing addItem's scan-one-unit-at-a-time merge,
     // which clamps qty to a minimum of 1) so a locked, negative-qty returned
     // line from an in-progress exchange restores exactly as it was, instead
@@ -1133,7 +1034,7 @@ function onProductSelect(product: {
 
 function onAccountClientSelect(client: Client) {
   setClient(client);
-  void ensurePayArea().then(() => calculator.value?.addOnAccount());
+  nextTick(() => calculator.value?.addOnAccount());
 }
 
 const barcodeFeedback = ref<"success" | "error" | null>(null);
@@ -1653,9 +1554,8 @@ async function refreshNextInvoiceCode(kind: "sales" | "exchange") {
   }
 }
 
-async function onRestoreHold(hold: any) {
+function onRestoreHold(hold: any) {
   if (!invoiceItems.value) return;
-  await ensurePayArea();
   invoiceItems.value.clearItems();
   for (const item of hold.items ?? []) {
     invoiceItems.value.addItem({ ...item, qty: item.qty || 1 });
@@ -1780,7 +1680,6 @@ async function loadAppSettings() {
 onMounted(async () => {
   await nextTick();
   if (!pageActive) return;
-  mountPayAreaWhenIdle();
   unsubscribeListChanges = ["discount_lists", "price_lists", "products"].map((entity) =>
     EventsOn(`sync_applied:${entity}`, scheduleCartListRefresh),
   );
@@ -1818,7 +1717,6 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  cancelPayAreaIdle();
   draftSaver.flush();
   document.removeEventListener("visibilitychange", flushDraftOnHide);
   window.removeEventListener("pagehide", draftSaver.flush);
@@ -1833,57 +1731,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.home-pay-area {
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.ready-panel {
-  align-items: center;
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-  gap: 8px;
-  justify-content: center;
-  min-height: 0;
-  /* More room below than above puts the content a little over the middle,
-     where it reads as centred on a tall screen. */
-  padding: 24px 24px 96px;
-  text-align: center;
-}
-
-.ready-panel__icon {
-  opacity: 0.55;
-}
-
-/* Light buttons: white, thin border. No shadow: shadows are CPU-drawn on the
-   till (see docs/dev/performance.md). */
-.ready-panel__btn {
-  background: rgb(var(--k-theme-surface)) !important;
-  border-color: rgba(var(--k-theme-on-surface), 0.2) !important;
-}
-
-.ready-panel__title {
-  font-size: var(--kashi-font-size-2xl);
-  font-weight: 700;
-}
-
-.ready-panel__hint {
-  color: rgba(var(--k-theme-on-surface), 0.6);
-  font-size: var(--kashi-font-size-lg);
-}
-
-.ready-panel__actions {
-  align-items: stretch;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 32px;
-  width: 240px;
-}
-
 .empty-cart-card {
   background-color: rgb(var(--k-theme-surface)) !important;
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));

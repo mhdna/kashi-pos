@@ -73,11 +73,11 @@ Bug history is in [`../FIXED_BUGS.md`](../FIXED_BUGS.md).
     switched every till off once.
 27. **A layered `!important` beats an unlayered one.** The UI kit's CSS is in
     `@layer`s, so a page's `!important` can't override a kit `!important`.
-28. **Nothing may use `backdrop-filter`, blur or heavy shadows.** The WebView
-    runs with GPU rasterisation off (`webview_windows.go`), so they are CPU-drawn.
-29. **The sale screen's calculator doesn't exist for the first moments.** It is
-    built when the till is idle (or at once when needed). Code that talks to
-    `calculator.value` while the cart may be empty must `await ensurePayArea()`.
+28. **The empty-cart overlay is blurred on purpose**, even on old tills
+    (`backdrop-filter`, CPU-drawn because GPU rasterisation is off in
+    `webview_windows.go`). Don't add other blurs or heavy shadows.
+29. **The "Ready to scan" panel and the idle-built calculator are on the
+    `ready-state` branch**, not on `master`.
 30. **The cart draft is saved ~0.4 s late, on purpose** (`lib/draftSaver.ts`);
     clearing it is immediate. Never write it straight to `localStorage`.
 31. **Product search has an FTS5 index for terms of 3+ characters** and plain

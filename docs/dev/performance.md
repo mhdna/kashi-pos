@@ -14,9 +14,11 @@ what a cashier will see. Anything marked **unmeasured** is reasoning, not data.
 
 1. **No infinite animations, no transitions.** They force repaints on a WebView
    that draws on the CPU. Spinners are the only exception (see Animations).
-2. **No `backdrop-filter`, no `filter: blur()`, no big or layered `box-shadow`.**
-   With `--disable-gpu-rasterization` (see WebView2 flags) every one of them is
-   computed on the CPU, on every repaint of whatever sits behind.
+2. **Think twice before `backdrop-filter`, `filter: blur()` or big or layered
+   `box-shadow`.** With `--disable-gpu-rasterization` (see WebView2 flags) each is
+   computed on the CPU, on every repaint of whatever sits behind. The one blur we
+   keep on purpose is the empty-cart overlay (see "The blur" below); don't add
+   another without measuring.
 3. **Never write `localStorage` or `JSON.stringify` the cart on every key.**
    Use `lib/draftSaver.ts`.
 4. **No deep watchers on the cart** unless they do almost nothing. The cart
@@ -40,7 +42,7 @@ what a cashier will see. Anything marked **unmeasured** is reasoning, not data.
 | Chunk | Size | Notes |
 |---|---|---|
 | `index-*.js` | 272 kB (95 kB) | Vue, router, pinia, the UI kit, the icon table. Loaded at launch. |
-| `home-*.js` | 137 kB (42 kB) | The sale screen. It was 281 kB (79 kB) before libphonenumber moved out. |
+| `home-*.js` | 135 kB (41 kB) | The sale screen. It was 281 kB (79 kB) before libphonenumber moved out. |
 | `ClientDialog-*.js` | 149 kB (39 kB) | Holds libphonenumber and its metadata. Loaded when idle or on first open. |
 | `settings-*.js` | 122 kB (30 kB) | Opened rarely, so it stays a separate chunk. |
 | `index-*.css` | 50 kB (10 kB) | The UI kit's CSS; `home-*.css` is another 23 kB. |
@@ -93,12 +95,15 @@ changed: that decision waits for measurements on an old PC.
   (`~/Code/kashi`, `branch-settings.vue`). The tri-state "Leave as is" in the
   default-branch settings is unchanged.
 
-### No blur
+### The blur
 
-The empty-cart overlay used to have `backdrop-filter: blur(4px)`. It was
-repainted on the CPU whenever the calculator behind it changed. It is a plain
-dim now (`rgba(0,0,0,0.18)`, still used in exchange and settlement modes). Don't
-bring it back, and don't add a new one.
+The empty-cart overlay on the sale screen (`home.vue`) has
+`backdrop-filter: blur(4px)` over a 10% dark layer. **It is kept on purpose, on
+every till including old ones**: it was removed once for speed and put back because
+the look matters more. Know the cost: it is drawn on the CPU and repainted whenever
+the calculator behind it changes (a keystroke, a total). If an old till feels slow
+on the empty sale screen, this is the first thing to suspect (**unmeasured**).
+Don't add new blurs.
 
 ## Startup
 
@@ -145,50 +150,7 @@ half-built screen for the same time.
 - **Sounds** (`lib/sound.ts`): imported as asset URLs; a `new Audio(url)` is made
   for every play. Cheap enough, but it is not a preloaded pool (**unmeasured**).
 
-### The sale screen's pay area is built after first paint
-
-The calculator and action bar are the heaviest part of the sale screen. While the
-cart is empty they are hidden behind the "Ready to scan" panel, so they are not
-built at startup (`home.vue`: `payAreaMounted`):
-
-- They mount when the browser is idle after the first paint
-  (`requestIdleCallback`, 1.5 s timeout; 300 ms `setTimeout` fallback), or **at
-  once** when `showReady` goes false (an item is added, or the mode isn't `sale`).
-- Once mounted they **stay** mounted and are only hidden with `v-show`. Don't
-  switch that to `v-if`: a typed payment, the draft's calculator state and the
-  `calculator` / `actionBar` refs would be lost every time the cart empties.
-- **Rule: anything that talks to `calculator.value` while the cart may be empty
-  must `await ensurePayArea()` first.** It sets the flag and waits a tick. Today
-  that is `restoreDraft`, `onRestoreHold` and `onAccountClientSelect`. A new
-  caller that forgets it silently does nothing at startup, because
-  `calculator.value` is `null` until idle. (`clearAll()` calls are fine: there is
-  nothing to clear if it was never built.)
-- `canCheckout` reads `calculator.value?.checkoutReady`, so it is false until the
-  area exists. That is correct: an empty cart can't check out.
-
-This costs a few milliseconds once, when the till goes idle, instead of at first
-paint. The gain is the time to first paint of the sale screen; it is **unmeasured**.
-
 ## The sale screen
-
-### "Ready to scan" panel
-
-In sale mode with nothing in the cart, the right pane shows a panel (icon, hint,
-and Search product / Held invoices / Select client buttons) instead of the dimmed
-calculator. Exchange and settlement modes keep the old dim, because they rarely
-have an empty cart. "Select client" opens `ClientButton`'s dialog through
-`useClient().requestClientDialog` (a counter the button watches).
-The picture is the stock `mdi-barcode-scan` icon (72 px, 55% opacity). We tried our
-own SVG illustration and went back to the icon.
-The buttons are white with a thin border and **no shadow** (shadows are CPU-drawn
-on a till). "Held invoices" shows `· N` when there are held invoices: the count is
-read with `ListHoldInvoices` each time the panel comes up. "Select client" shows
-`Client: <first name>` once a client is chosen. The content sits a little above
-the middle (more padding below than above).
-
-It was added for clarity, not speed. Hiding the calculator with `display: none`
-does skip its layout and paint while the cart is empty, but its components still
-exist and their watchers still run.
 
 ### Pricing a sale
 
@@ -218,7 +180,7 @@ The cart, client, note and calculator state are kept in
 - Settlement mode and the restore itself never save (`buildDraft` returns `null`;
   the watcher also cancels any pending save when entering them).
 - If you add state to the draft, add it to `buildDraft()` and the `InvoiceDraft`
-  type, and think about whether `restoreDraft` needs `ensurePayArea()` for it.
+  type.
 
 ### Focus and observers
 
@@ -338,8 +300,6 @@ once-a-second DB read is the one most worth checking if idle CPU looks high.
 ## Decisions and things deliberately not done
 
 - **WebView2 flags unchanged.** Only made overridable. Needs a real till.
-- **Calculator not unmounted when empty.** `v-if` would save more, and lose state.
-  See the pay area section.
 - **No `libphonenumber-js/min`.** Mobile validation needs `/mobile`.
 - **Startup loader kept.** It hides the Go startup wait and costs little.
 - **`LIKE` fallback for very common words** in product search: not built.
@@ -354,3 +314,15 @@ once-a-second DB read is the one most worth checking if idle CPU looks high.
 - Slow down the attendance probe's DB read (cache the config until settings change).
 - Drop the duplicate base64 logo from `index.html`.
 - Try GPU rasterisation on a till that has a working GPU.
+
+## Saved for later: the "Ready to scan" panel
+
+An empty sale screen that shows a "Ready to scan" panel (and a calculator that is
+only built when the till is idle) was built, then shelved in favour of the blurred
+look. It lives on the **`ready-state`** branch: the panel with its Search product /
+Held invoices (with count) / Select client buttons, a custom scan illustration in
+its history, `useClient().requestClientDialog`, and `payAreaMounted` /
+`ensurePayArea()` in `home.vue` (the calculator and action bar are built when idle
+or when something needs them, and kept mounted with `v-show`). Its notes are in
+that branch's `docs/dev/performance.md`. Merge it only after deciding about the
+blur: the panel replaces the overlay entirely.
