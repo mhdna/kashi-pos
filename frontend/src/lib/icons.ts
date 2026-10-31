@@ -67,6 +67,7 @@ import {
   mdiChartBar,
   mdiCheckboxBlankOutline,
   mdiCheckboxMarked,
+  mdiCheck,
   mdiCheckCircle,
   mdiChevronDown,
   mdiChevronLeft,
@@ -339,6 +340,7 @@ const iconPaths: Record<string, string> = {
   "mdi-cash-multiple": mdiCashMultiple,
   "mdi-cash-sync": mdiCashSync,
   "mdi-chart-bar": mdiChartBar,
+  "mdi-check": mdiCheck,
   "mdi-check-circle": mdiCheckCircle,
   "mdi-checkbox-blank-outline": mdiCheckboxBlankOutline,
   "mdi-checkbox-marked": mdiCheckboxMarked,
@@ -481,13 +483,20 @@ const iconPaths: Record<string, string> = {
 // a warning on every render is what makes a screen crawl.
 const warnedIcons = new Set<string>();
 
+// SVG path for an icon name; unknown names fall back to a help icon (and warn once).
+function iconPathFor(name: string): string {
+  const path = iconPaths[name];
+  if (path) return path;
+  if (!warnedIcons.has(name)) {
+    warnedIcons.add(name);
+    console.warn(`Icon "${name}" not found in custom MDI icon set`);
+  }
+  return iconPaths["mdi-help-circle-outline"]!;
+}
+
 const mdi = {
   component: (props: any) => {
-    const path = iconPaths[props.icon] ?? iconPaths["mdi-help-circle-outline"];
-    if (!iconPaths[props.icon] && !warnedIcons.has(props.icon)) {
-      warnedIcons.add(props.icon);
-      console.warn(`Icon "${props.icon}" not found in custom MDI icon set`);
-    }
+    const path = iconPathFor(props.icon);
     return h(props.tag, null, {
       default: () => [
         h(
@@ -552,4 +561,4 @@ const aliases: Record<string, string> = {
   color: "mdi-palette",
 };
 
-export { aliases, mdi };
+export { aliases, iconPathFor, mdi };
