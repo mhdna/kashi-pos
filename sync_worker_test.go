@@ -95,6 +95,63 @@ func TestSyncWorkerRetriesWithBackoffOnFailure(t *testing.T) {
 	}
 }
 
+// A kashi whose database is down answers its branch auth check with 401.
+// That says nothing about the rows, so they must stay pending, not be
+// parked as 'failed' until someone runs "sync everything".
+func TestSyncWorkerRetriesOnUnauthorized(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":"dial tcp: connection refused"}`))
+	}))
+	defer server.Close()
+
+	app, store, cashbox, client := setUpTestInvoiceApp(t, server.URL)
+
+	items, _ := json.Marshal([]map[string]any{{"code": "SKU-1", "qty": 1}})
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 100}})
+	if _, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: string(items), PaymentsJSON: string(payments), ClientID: client.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := app.runSyncOutboxOnce(app.ctx, newCentralClient(server.URL, "TEST01", "test-key")); err != nil {
+		t.Fatal(err)
+	}
+
+	failed, err := store.CountSyncOutboxByStatus(app.ctx, "failed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if failed != 0 {
+		t.Fatalf("expected no rows parked as failed on a 401, got %d", failed)
+	}
+	if count, _ := store.CountPendingSyncOutbox(app.ctx); count != 2 {
+		t.Fatalf("expected both entries (invoice + client) still pending, got %d", count)
+	}
+}
+
+func TestIsRowRejection(t *testing.T) {
+	cases := []struct {
+		entity string
+		status int
+		want   bool
+	}{
+		{"sales_invoice", http.StatusBadRequest, true},
+		{"sales_invoice", http.StatusUnauthorized, false},
+		{"sales_invoice", http.StatusForbidden, false},
+		{"sales_invoice", http.StatusNotFound, true},
+		{"expense_cancel", http.StatusNotFound, false},
+		{"loan_cancel", http.StatusNotFound, false},
+		{"expense_from_central", http.StatusNotFound, false},
+		{"expense_cancel", http.StatusBadRequest, true},
+	}
+	for _, c := range cases {
+		err := &permanentError{status: c.status, msg: "x"}
+		if got := isRowRejection(c.entity, err); got != c.want {
+			t.Errorf("isRowRejection(%q, %d) = %v, want %v", c.entity, c.status, got, c.want)
+		}
+	}
+}
+
 func TestSyncWorkerNoopWhenNotConfigured(t *testing.T) {
 	app, _, cashbox, client := setUpTestInvoiceApp(t, "")
 
@@ -256,5 +313,44 @@ func TestPushSettingsReportsDefaultOnFlagsAsOn(t *testing.T) {
 	if !got.SearchButtonEnabled || !got.ClientRequired || !got.ScanByCodeEnabled {
 		t.Fatalf("unset flags reported search=%v client=%v scanByCode=%v, want all true",
 			got.SearchButtonEnabled, got.ClientRequired, got.ScanByCodeEnabled)
+	}
+}
+
+// Every row parked as failed goes back to pending, keeping its reason:
+// one an older build parked on a 401, and a real rejection that kashi may
+// since have fixed.
+func TestRequeueFailedSyncOutbox(t *testing.T) {
+	app, store, cashbox, client := setUpTestInvoiceApp(t, "http://localhost:9999")
+	items, _ := json.Marshal([]map[string]any{{"code": "SKU-1", "qty": 1}})
+	payments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 100}})
+	if _, err := app.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: string(items), PaymentsJSON: string(payments), ClientID: client.ID}); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := store.ListDueSyncOutboxEntries(app.ctx, 10)
+	if err != nil || len(entries) != 2 {
+		t.Fatalf("entries = %d, %v", len(entries), err)
+	}
+	reasons := []string{
+		"POST /branch/sales_invoices failed (status 401): pq: the database system is not yet accepting connections (57P03)",
+		"POST /branch/clients failed (status 422): phone is invalid",
+	}
+	for i, e := range entries {
+		if err := store.MarkSyncOutboxFailed(app.ctx, db.MarkSyncOutboxFailedParams{LastError: reasons[i], ID: e.ID}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	app.retryFailedSyncOutbox()
+	if failed, _ := store.CountSyncOutboxByStatus(app.ctx, "failed"); failed != 0 {
+		t.Fatalf("failed = %d, want 0", failed)
+	}
+	due, err := store.ListDueSyncOutboxEntries(app.ctx, 10)
+	if err != nil || len(due) != 2 {
+		t.Fatalf("due = %d, %v", len(due), err)
+	}
+	for _, e := range due {
+		if e.LastError == "" {
+			t.Fatalf("lost its reason: %+v", e)
+		}
 	}
 }

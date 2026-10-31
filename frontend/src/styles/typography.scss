@@ -1,8 +1,18 @@
 /* Central typography controls. Change these values to resize the app globally. */
+
+/* Country flags (Twemoji, MIT), bundled so they draw the same on every till,
+   with or without internet. Windows has no flag emoji of its own and draws
+   two letters ("LB") instead. The unicode-range is just the flag characters,
+   so the font can lead the stack without touching any other text. */
+@font-face {
+  font-family: "Twemoji Country Flags";
+  unicode-range: U+1F1E6-1F1FF, U+1F3F4, U+E0062-E0063, U+E0065, U+E0067,
+    U+E006C, U+E006E, U+E0073-E0074, U+E0077, U+E007F;
+  src: url("../assets/TwemojiCountryFlags.woff2") format("woff2");
+  font-display: swap;
+}
+
 :root {
-  /* Twemoji Country Flags (registered in main.ts only where the system has
-     no flag emoji, e.g. Windows) covers just the flag characters, so it can
-     lead the stack without touching any other text. */
   --kashi-font-family: "Twemoji Country Flags", "Roboto", "Helvetica Neue", Arial, sans-serif;
   --kashi-app-background: #f7f7f7;
   --kashi-font-size-base: 0.95rem;

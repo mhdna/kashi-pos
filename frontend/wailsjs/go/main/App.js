@@ -902,6 +902,10 @@ export function SetReceiptLook(arg1, arg2) {
   return window['go']['main']['App']['SetReceiptLook'](arg1, arg2);
 }
 
+export function SetReleaseStuckKeys(arg1) {
+  return window['go']['main']['App']['SetReleaseStuckKeys'](arg1);
+}
+
 export function SetSalespersonPerInvoiceRequired(arg1) {
   return window['go']['main']['App']['SetSalespersonPerInvoiceRequired'](arg1);
 }
@@ -934,12 +938,12 @@ export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
 
-export function SetUnknownProductBarcode(arg1) {
-  return window['go']['main']['App']['SetUnknownProductBarcode'](arg1);
+export function SetUnknownPicturesAtCheckout(arg1) {
+  return window['go']['main']['App']['SetUnknownPicturesAtCheckout'](arg1);
 }
 
-export function SetUpCashMachine() {
-  return window['go']['main']['App']['SetUpCashMachine']();
+export function SetUnknownProductBarcode(arg1) {
+  return window['go']['main']['App']['SetUnknownProductBarcode'](arg1);
 }
 
 export function SetVisitorCounterEnabled(arg1) {
@@ -956,6 +960,10 @@ export function ShutDownComputer() {
 
 export function SkipShiftReceiptUpload(arg1, arg2, arg3) {
   return window['go']['main']['App']['SkipShiftReceiptUpload'](arg1, arg2, arg3);
+}
+
+export function StartCashMachineSetup() {
+  return window['go']['main']['App']['StartCashMachineSetup']();
 }
 
 export function StartUnknownItemSession(arg1) {
@@ -976,6 +984,10 @@ export function SwitchShiftReceiptToLocal(arg1) {
 
 export function SyncAttendance(arg1) {
   return window['go']['main']['App']['SyncAttendance'](arg1);
+}
+
+export function SyncUnknownItemSession(arg1, arg2) {
+  return window['go']['main']['App']['SyncUnknownItemSession'](arg1, arg2);
 }
 
 export function UnknownItemSessionStatus(arg1) {

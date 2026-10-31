@@ -712,3 +712,27 @@ func TestVisitorCountBackfill(t *testing.T) {
 		t.Fatal("backfill refs must be the same on every run")
 	}
 }
+
+// The "Unknown item" placeholder is the till's own product, never kashi's,
+// so a sync-everything must not offer to deactivate it.
+func TestResyncAllNeverDeactivatesTheUnknownItem(t *testing.T) {
+	fc := newFakeCentral()
+	server := httptest.NewServer(fc.handler())
+	defer server.Close()
+
+	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
+	if err := applySyncedProductVariant(app.ctx, store.Queries, syncedProductVariant{
+		UID: "var-unknown", Barcode: app.unknownBarcode(), IsActive: true, Code: "UNKNOWN", Name: "Unknown item",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	fc.productBarcodesGone[app.unknownBarcode()] = true
+
+	rep, err := app.ResyncAll(ResyncOptions{})
+	if err != nil {
+		t.Fatalf("ResyncAll: %v", err)
+	}
+	if rep.RequiresConfirmation {
+		t.Fatalf("asked to deactivate the Unknown item: %+v", rep.PendingDeactivation)
+	}
+}

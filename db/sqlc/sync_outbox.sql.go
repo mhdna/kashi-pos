@@ -348,6 +348,24 @@ func (q *Queries) RecordSyncOutboxNetworkError(ctx context.Context, arg RecordSy
 	return err
 }
 
+const requeueFailedSyncOutbox = `-- name: RequeueFailedSyncOutbox :execrows
+UPDATE sync_outbox
+SET status = 'pending', attempt_count = 0, next_attempt_at = datetime('now')
+WHERE status = 'failed'
+`
+
+// Gives every row parked as 'failed' another go (see retryFailedSyncOutbox):
+// whatever kashi refused may since have been fixed on its side, and a row
+// older builds parked on a 401/403 was never about the row at all.
+// last_error stays, as the reason it's retrying.
+func (q *Queries) RequeueFailedSyncOutbox(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, requeueFailedSyncOutbox)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const requeueSyncOutboxConfirmedElsewhere = `-- name: RequeueSyncOutboxConfirmedElsewhere :execrows
 UPDATE sync_outbox
 SET status = 'pending', attempt_count = 0, last_error = '',

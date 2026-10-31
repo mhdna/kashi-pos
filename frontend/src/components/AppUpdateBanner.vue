@@ -37,12 +37,23 @@
     </v-card>
   </v-dialog>
 
-  <v-overlay :model-value="installing" persistent class="align-center justify-center">
-    <v-card class="pa-6 text-center" max-width="420">
-      <v-progress-circular indeterminate color="primary" class="mb-4" />
-      <div class="text-h6">Updating GB Cloud to {{ status.version }}…</div>
-      <div class="text-body-2 mt-2">It reopens by itself in a few seconds. Don't turn off the computer.</div>
-    </v-card>
+  <!-- Covers the whole app while the update installs: GB Cloud closes and
+       reopens by itself, so there is nothing to press. -->
+  <v-overlay
+    :model-value="installing"
+    persistent
+    scrim="background"
+    :opacity="0.97"
+    class="align-center justify-center"
+  >
+    <div class="d-flex flex-column align-center text-center">
+      <v-progress-circular indeterminate color="primary" size="88" width="3">
+        <v-icon icon="mdi-update" size="36" color="primary" />
+      </v-progress-circular>
+      <div class="update-title mt-8">Updating GB Cloud</div>
+      <div v-if="status.version" class="update-version text-medium-emphasis mt-1">Version {{ status.version }}</div>
+      <div class="text-body-2 text-medium-emphasis mt-8">Back in a few seconds. Keep the computer on.</div>
+    </div>
   </v-overlay>
 
   <!-- After a restart: what happened. -->
@@ -140,3 +151,16 @@ onUnmounted(() => {
   cancelIdle();
 });
 </script>
+
+<style scoped>
+/* Set here rather than with text-h5/-body-1, which compact.scss shrinks for
+   the dense till screens; this is a full-screen message. */
+.update-title {
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.update-version {
+  font-size: 1.05rem;
+}
+</style>

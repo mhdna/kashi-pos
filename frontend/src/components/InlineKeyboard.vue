@@ -1,5 +1,7 @@
 <template>
-  <div class="inline-keyboard">
+  <!-- mousedown.prevent keeps the field focused, with its caret and
+       selection where they were, while a key is pressed. -->
+  <div class="inline-keyboard" @mousedown.prevent>
     <div
       v-for="(row, rowIndex) in visibleRows"
       :key="rowIndex"
@@ -17,8 +19,15 @@
       </v-btn>
     </div>
     <div class="inline-keyboard-actions">
+      <template v-if="input">
+        <v-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret left" @click="move(-1)">
+          <v-icon icon="mdi-chevron-left" size="28" />
+        </v-btn>
+        <v-btn class="inline-keyboard-move" size="small" variant="text" aria-label="Caret right" @click="move(1)">
+          <v-icon icon="mdi-chevron-right" size="28" />
+        </v-btn>
+      </template>
       <v-btn size="small" variant="text" @click="append('-')">-</v-btn>
-      <v-btn v-if="layout === 'code'" size="small" variant="text" @click="append('+')">+</v-btn>
       <v-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
         Space
       </v-btn>
@@ -29,17 +38,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
+import { replaceRange } from "@/lib/caret";
 
 const props = withDefaults(
   defineProps<{
     modelValue: string;
     maxLength?: number;
     layout?: "text" | "code";
+    // The field being typed into. Given, keys type at its caret (replacing
+    // a selection) and the caret keys show; without it they add at the end.
+    input?: HTMLInputElement | null;
   }>(),
   {
     maxLength: 80,
     layout: "text",
+    input: null,
   },
 );
 
@@ -56,26 +70,65 @@ const numberRow = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
 const visibleRows = computed(() => (props.layout === "code" ? [numberRow, ...rows] : rows));
 const shift = ref(false);
 
+// The field's selection, or the end of the text when it isn't focused (or
+// there's no field), which is where the keys used to type.
+function selection(): [number, number] {
+  const el = props.input;
+  const end = props.modelValue.length;
+  if (!el || document.activeElement !== el) return [end, end];
+  return [Math.min(el.selectionStart ?? end, end), Math.min(el.selectionEnd ?? end, end)];
+}
+
+function commit(value: string, caret: number) {
+  emit("update:modelValue", value);
+  const el = props.input;
+  if (!el) return;
+  // After the field shows the new value.
+  void nextTick(() => {
+    el.focus({ preventScroll: true });
+    el.setSelectionRange(caret, caret);
+  });
+}
+
 function append(character: string) {
-  if (props.modelValue.length >= props.maxLength) return;
-  const wordStart = !props.modelValue || /[\s'-]$/.test(props.modelValue);
+  const [start, end] = selection();
+  if (props.modelValue.length - (end - start) >= props.maxLength) return;
+  const before = props.modelValue.slice(0, start);
+  const wordStart = !before || /[\s'-]$/.test(before);
   const value =
     character === " "
       ? character
       : wordStart || shift.value
         ? character.toUpperCase()
         : character.toLowerCase();
-  emit("update:modelValue", props.modelValue + value);
+  const next = replaceRange(props.modelValue, start, end, value);
+  commit(next.value, next.caret);
   if (character !== " ") shift.value = false;
 }
 
 function clear() {
-  emit("update:modelValue", "");
+  commit("", 0);
   shift.value = false;
 }
 
 function backspace() {
-  emit("update:modelValue", props.modelValue.slice(0, -1));
+  let [start, end] = selection();
+  if (start === end) {
+    if (start === 0) return;
+    start--;
+  }
+  const next = replaceRange(props.modelValue, start, end, "");
+  commit(next.value, next.caret);
+}
+
+// A selection collapses to its side; otherwise the caret steps one character.
+function move(step: number) {
+  const el = props.input;
+  if (!el) return;
+  const [start, end] = selection();
+  const caret = start !== end ? (step < 0 ? start : end) : Math.min(Math.max(start + step, 0), props.modelValue.length);
+  el.focus({ preventScroll: true });
+  el.setSelectionRange(caret, caret);
 }
 </script>
 
@@ -133,5 +186,10 @@ function backspace() {
 
 .inline-keyboard-backspace {
   min-width: 90px;
+}
+
+.inline-keyboard-move {
+  min-width: 56px;
+  background-color: rgba(var(--v-theme-on-surface), 0.06);
 }
 </style>

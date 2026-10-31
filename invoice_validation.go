@@ -23,16 +23,25 @@ type pricedInvoiceProduct struct {
 	priceListID    int64
 	discountListID int64
 	saleOption     string
+	// The option as the cart sent it, kept even when it no longer counts,
+	// so the quote's line matches the cart's (invoice_quote.go).
+	cartSaleOption string
 	// The deal the line is on, and what it took off the whole line (cents);
 	// lineTotal already has it off. See deals.go.
 	dealUID      string
 	dealName     string
 	dealLabel    string
 	dealDiscount int64
+	// What the line's units get outside a set, in place of the deal's
+	// fallback (kashi's 000216); unset for the deal's own.
+	dealFallback sql.NullInt64
 	// What the line gave up by having its discount (NoDiscount) or its deal
 	// (NoDeal) turned off: the percent, or the deal's short label.
 	offDiscount  int64
 	offDealLabel string
+	// The line's share of the sale's invoice discount (invoice_discounts.go);
+	// lineTotal already has it off.
+	invoiceDiscount int64
 }
 
 type unitPricing struct {
@@ -137,7 +146,9 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		if err != nil {
 			return nil, 0, 0, nil, fmt.Errorf("product %s: %w", item.Code, err)
 		}
-		if product.IsActive == 0 {
+		// The built-in "Unknown item" placeholder is never really off: earlier
+		// versions' catalog check could switch it off by mistake.
+		if product.IsActive == 0 && product.Barcode != defaultUnknownBarcode {
 			return nil, 0, 0, nil, fmt.Errorf("product %s is inactive", item.Code)
 		}
 		// The product row's price/discount columns are frozen (000097): the
@@ -150,6 +161,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		product.Discount = 0
 		var priceListID, discountListID int64
 		dealUID := ""
+		var dealFallback sql.NullInt64
 		if listed, ok := listPricing.priceFor(product.Uid.String); ok {
 			product.Price = listed.cents
 			priceListID = listed.listID
@@ -165,6 +177,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			product.Discount = listed.percent
 			discountListID = listed.listID
 			dealUID = listed.dealUID
+			dealFallback = listed.dealFallback
 		}
 
 		// A manual override still wins over the list price -- the cashier is
@@ -205,7 +218,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		}
 		if item.NoDeal && !isUnknown && dealUID != "" {
 			if terms, ok := listPricing.deals[dealUID]; ok {
-				offDealLabel = terms.label()
+				offDealLabel = terms.withFallback(dealFallback).label()
 			}
 			dealUID = ""
 		}
@@ -251,7 +264,11 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			priced.salespersonID = item.SalespersonID
 			priced.note = strings.TrimSpace(item.Note)
 			priced.saleOption = saleOption
+			priced.cartSaleOption = item.SaleOption
 			priced.dealUID = dealUID
+			if dealUID != "" {
+				priced.dealFallback = dealFallback
+			}
 			priced.offDiscount = offDiscount
 			priced.offDealLabel = offDealLabel
 			if pricing.price == product.Price {

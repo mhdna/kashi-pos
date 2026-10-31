@@ -65,6 +65,8 @@ type SalesInvoiceResult struct {
 	TaxCents    int64
 	Payments    []checkoutPayment
 	Notes       string
+	// For the receipt: Items are priced before it.
+	InvoiceDiscount invoiceDiscount
 }
 
 // invoiceTotals is the priced result of an item list before persistence.
@@ -79,6 +81,9 @@ type invoiceTotals struct {
 	ReceiptItems       []invoiceItem
 	// The terms of the deals the lines name, copied onto the invoice.
 	Deals []dealTerms
+	// The sale's invoice discount (invoice_discounts.go): DiscountedSubtotal
+	// and the lines already have it off.
+	InvoiceDiscount invoiceDiscount
 }
 
 func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool) (invoiceTotals, error) {
@@ -91,6 +96,11 @@ func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []sales
 	if err != nil {
 		return totals, err
 	}
+	totals.Products, totals.DiscountedSubtotal = products, discountedSubtotal
+	if err := a.applyInvoiceDiscount(q, &totals, roundingMode); err != nil {
+		return totals, err
+	}
+	products, discountedSubtotal = totals.Products, totals.DiscountedSubtotal
 	taxCents, err := roundFloatToCents(float64(discountedSubtotal)/100*settings.TaxRate, roundingMode)
 	if err != nil {
 		return totals, fmt.Errorf("tax: %w", err)
@@ -266,11 +276,14 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				InvoiceID: invoice.ID, ProductID: product.product.ID, UnitPrice: product.unitPrice,
 				LineTotal: product.lineTotal, Discount: product.discount, Quantity: product.qty,
 				SalespersonID: product.salespersonID, Note: product.note,
-				PriceListID:    sql.NullInt64{Int64: product.priceListID, Valid: product.priceListID != 0},
-				DiscountListID: sql.NullInt64{Int64: product.discountListID, Valid: product.discountListID != 0},
-				SaleOption:     product.saleOption,
-				DealUid:        product.dealUID,
-				DealDiscount:   product.dealDiscount,
+				PriceListID:     sql.NullInt64{Int64: product.priceListID, Valid: product.priceListID != 0},
+				DiscountListID:  sql.NullInt64{Int64: product.discountListID, Valid: product.discountListID != 0},
+				SaleOption:      product.saleOption,
+				DealUid:         product.dealUID,
+				DealDiscount:    product.dealDiscount,
+				InvoiceDiscount: product.invoiceDiscount,
+				// An exchange judges the deal by the fallback the unit was sold with.
+				DealFallbackPercent: product.dealFallback,
 			}); err != nil {
 				return fmt.Errorf("add product %s: %w", product.product.Code, err)
 			}
@@ -288,6 +301,13 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		}
 		if err := recordInvoiceDeals(a.ctx, q, invoice.ID, totals.Deals); err != nil {
 			return err
+		}
+		if totals.InvoiceDiscount.Cents > 0 {
+			if err := q.SetInvoiceDiscount(a.ctx, db.SetInvoiceDiscountParams{
+				InvoiceDiscount: totals.InvoiceDiscount.Cents, InvoiceDiscountName: totals.InvoiceDiscount.Name, ID: invoice.ID,
+			}); err != nil {
+				return fmt.Errorf("record invoice discount: %w", err)
+			}
 		}
 		netByAccount := netPaymentsByAccount(payments)
 		for _, payment := range payments {
@@ -347,6 +367,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 					Quantity:        product.qty,
 					Deal:            product.dealName,
 					DealDiscount:    product.dealDiscount,
+					InvoiceDiscount: product.invoiceDiscount,
 				})
 			}
 			payloadPayments, err := buildBranchInvoicePayments(a.ctx, q, invoice.ID)
@@ -377,6 +398,8 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				UnknownSessionRef:      params.UnknownSessionRef,
 				LbpTotal:               lbpTotal,
 				LbpRate:                lbpRate,
+				InvoiceDiscount:        totals.InvoiceDiscount.Cents,
+				InvoiceDiscountName:    totals.InvoiceDiscount.Name,
 			}); err != nil {
 				return fmt.Errorf("queue branch invoice sync: %w", err)
 			}
@@ -384,6 +407,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 
 		result.InvoiceID, result.InvoiceCode, result.Items, result.GrandTotal, result.Payments, result.Notes = invoice.ID, invoiceCode, receiptItems, grandTotal, payments, strings.TrimSpace(params.Notes)
 		result.TaxCents = totals.TaxCents
+		result.InvoiceDiscount = totals.InvoiceDiscount
 		return nil
 	})
 	if err == nil && settings.CentralApiUrl != "" {

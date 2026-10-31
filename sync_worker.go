@@ -43,6 +43,25 @@ func (a *App) startSyncWorker() {
 	a.syncWorkerStop = make(chan struct{})
 	a.syncWorkerKick = make(chan struct{}, 1)
 
+	// A row kashi refused gets another go now and every hour, so the till
+	// catches up by itself once the cause is fixed on kashi's side -- no
+	// one has to run "sync everything" to clear the sync box.
+	a.retryFailedSyncOutbox()
+	a.backgroundWG.Add(1)
+	go func() {
+		defer a.backgroundWG.Done()
+		ticker := time.NewTicker(syncFailedRetryInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-a.syncWorkerStop:
+				return
+			case <-ticker.C:
+				a.retryFailedSyncOutbox()
+			}
+		}
+	}()
+
 	// Push loop (latency path): kick-driven, with a short ticker only as a
 	// backstop for a kick that was lost to the buffer-of-1 while a drain
 	// was already running.
@@ -78,6 +97,26 @@ func (a *App) startSyncWorker() {
 			}
 		}
 	}()
+}
+
+// syncFailedRetryInterval is how often rows kashi refused are tried again.
+// Rare and few, so an hour costs nothing; a row still refused is parked
+// again until the next round.
+const syncFailedRetryInterval = time.Hour
+
+// retryFailedSyncOutbox puts every 'failed' row back on the push path and
+// wakes the pusher. Builds before isRowRejection parked every 4xx,
+// including the 401 kashi gave while its database was starting.
+func (a *App) retryFailedSyncOutbox() {
+	n, err := a.store.RequeueFailedSyncOutbox(a.ctx)
+	if err != nil {
+		log.Printf("sync outbox: retry failed rows: %v", err)
+		return
+	}
+	if n > 0 {
+		log.Printf("sync outbox: retrying %d row(s) kashi refused before", n)
+		a.kickSyncWorker()
+	}
 }
 
 // kickSyncWorker wakes the sync worker immediately rather than leaving a
@@ -614,10 +653,11 @@ func (a *App) drainVisitorEventBatch(ctx context.Context, client *centralClient,
 
 // recordSyncOutboxError routes a failed push to the right terminal state: a
 // permanent rejection (4xx bar 408/429, see isPermanentSyncError) goes
-// straight to 'failed'; anything else -- offline, timeout, 5xx -- goes back
-// on the exponential-backoff retry path.
+// straight to 'failed'; anything else -- offline, timeout, 5xx, or a 4xx
+// that isn't about the row (see isRowRejection) -- goes back on the
+// exponential-backoff retry path.
 func (a *App) recordSyncOutboxError(ctx context.Context, entry db.SyncOutbox, postErr error) {
-	if isPermanentSyncError(postErr) {
+	if isPermanentSyncError(postErr) && isRowRejection(entry.EntityType, postErr) {
 		log.Printf("sync outbox entry %d: %v (permanent, marking failed)", entry.ID, postErr)
 		a.markSyncOutboxFailed(ctx, entry, postErr)
 		return
@@ -625,8 +665,33 @@ func (a *App) recordSyncOutboxError(ctx context.Context, entry db.SyncOutbox, po
 	a.markSyncOutboxRetry(ctx, entry, postErr)
 }
 
-// markSyncOutboxFailed parks a row in the terminal 'failed' state. Only an
-// explicit resync (see sync_backfill.go) re-arms it.
+// isRowRejection reports whether a permanent (4xx) error is kashi rejecting
+// this row itself, as opposed to:
+//   - 401/403: the register's credentials, or a kashi whose database was
+//     down while it checked them -- nothing about the row, so parking it
+//     would strand every sale rung up while the server was sick;
+//   - 404 on a row that targets another record by client_ref: kashi answers
+//     404 until that record (an expense, a loan) has arrived, and expects
+//     the till to retry.
+func isRowRejection(entityType string, err error) bool {
+	var pe *permanentError
+	if !errors.As(err, &pe) {
+		return false
+	}
+	switch pe.status {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return false
+	case http.StatusNotFound:
+		switch entityType {
+		case "expense_cancel", "loan_cancel", "expense_from_central":
+			return false
+		}
+	}
+	return true
+}
+
+// markSyncOutboxFailed parks a row in the 'failed' state until the hourly
+// retryFailedSyncOutbox (or a sync-everything) gives it another go.
 func (a *App) markSyncOutboxFailed(ctx context.Context, entry db.SyncOutbox, cause error) {
 	if err := retryBusy(func() error {
 		return a.store.MarkSyncOutboxFailed(ctx, db.MarkSyncOutboxFailedParams{

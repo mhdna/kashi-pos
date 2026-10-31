@@ -422,9 +422,13 @@ func setUpCashMachineAsAdmin() ([]CashMachineStep, error) {
 	verb, _ := windows.UTF16PtrFromString("runas")
 	file, _ := windows.UTF16PtrFromString(exe)
 	params, _ := windows.UTF16PtrFromString(`--cash-machine-setup "` + result + `"`)
-	info := shellExecuteInfo{mask: seeMaskNoCloseProcess, verb: verb, file: file, parameters: params}
+	owner, approved := beginApprovalPrompt()
+	info := shellExecuteInfo{mask: seeMaskNoCloseProcess, hwnd: owner, verb: verb, file: file, parameters: params}
 	info.size = uint32(unsafe.Sizeof(info))
-	if r, _, err := pShellExecuteExW.Call(uintptr(unsafe.Pointer(&info))); r == 0 {
+	// Returns once the approval prompt has been answered.
+	r, _, err := pShellExecuteExW.Call(uintptr(unsafe.Pointer(&info)))
+	approved()
+	if r == 0 {
 		if errors.Is(err, windows.ERROR_CANCELLED) {
 			return nil, errors.New("Windows' administrator approval was declined")
 		}
@@ -458,9 +462,11 @@ func runCashMachineSetup(result string) int {
 	steps = append(steps, disableServices())
 	steps = append(steps, step("Windows extras off (widgets, Cortana, Copilot, game bar, telemetry, background apps)", "",
 		registryValues(registry.LOCAL_MACHINE, cashMachinePolicies)))
-	// Active hours can span at most 18 hours: 7:00 to 1:00.
-	steps = append(steps, step("Windows Update restarts only outside 7:00-1:00", "", registryValues(registry.LOCAL_MACHINE, map[string]map[string]uint32{
-		`SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate`:    {"SetActiveHours": 1, "ActiveHoursStart": 7, "ActiveHoursEnd": 1},
+	// Active hours, when Windows won't restart for updates, cover the shops'
+	// working hours (8:00 or 10:00 to 22:00) with an hour either side for
+	// opening and closing. Windows allows at most 18 hours.
+	steps = append(steps, step("Windows Update restarts only outside 7:00-23:00", "", registryValues(registry.LOCAL_MACHINE, map[string]map[string]uint32{
+		`SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate`:    {"SetActiveHours": 1, "ActiveHoursStart": 7, "ActiveHoursEnd": 23},
 		`SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU`: {"NoAutoRebootWithLoggedOnUsers": 1},
 	})))
 	steps = append(steps, setPower())

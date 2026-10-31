@@ -3,7 +3,7 @@
     <div class="settings-header">
       <v-text-field
         v-model="settingsSearch"
-        class="settings-search mb-4"
+        class="settings-search mb-2"
         placeholder="Search settings…"
         prepend-inner-icon="mdi-magnify"
         variant="outlined"
@@ -58,10 +58,6 @@
           <v-card v-show="panelMatches('general-branches')" class="settings-card">
             <v-card-title>Branches</v-card-title>
             <v-card-text>
-              <div class="text-caption text-medium-emphasis mb-3">
-                Every branch set up on this machine has its own local database. Switching applies
-                immediately, without restarting the app.
-              </div>
               <v-select
                 v-model="selectedBranchCode"
                 :items="branchOptions"
@@ -134,14 +130,8 @@
               </v-alert>
 
               <v-divider class="my-4" />
-              <div class="text-subtitle-2 mb-2">Import branch history from kashi</div>
-              <div class="text-caption text-medium-emphasis mb-2">
-                If this branch already has real invoices, expenses, loans and closed shifts on
-                kashi (e.g. this is a re-provisioned till), pull them down. Only runs on a branch
-                with no local invoices, expenses, loans or shifts yet -- best-effort: line items
-                or payment accounts kashi can no longer match exactly are reconstructed with a
-                placeholder, not silently dropped.
-              </div>
+              <div class="text-subtitle-2 mb-1">Import branch history from kashi</div>
+              <div class="text-caption text-medium-emphasis mb-2">For a reinstalled till with no history yet.</div>
               <v-btn
                 variant="outlined"
                 :loading="importingHistory"
@@ -184,21 +174,17 @@
           <v-card v-if="cashMachine?.supported" v-show="panelMatches('general-cash-machine')" class="settings-card">
             <v-card-title>Cash machine</v-card-title>
             <v-card-text>
-              <p class="text-body-2 mb-2">
-                While GB Cloud runs, every other program is closed and startup apps are switched off, so the till
-                has the computer to itself. Windows' own programs, AnyDesk and touch screen drivers stay.
-              </p>
-              <p v-if="cashMachine.closedPrograms.length" class="text-body-2 mb-1">
-                Closed since GB Cloud started:
+              <p v-if="!cashMachine.on" class="text-caption text-medium-emphasis mb-1">Off (kiosk mode is off).</p>
+              <p v-if="cashMachine.closedPrograms.length" class="text-caption mb-1 settings-wrap">
+                <strong>Closed:</strong>
                 {{ cashMachine.closedPrograms.map((p) => (p.count > 1 ? `${p.name} (${p.count})` : p.name)).join(", ") }}
               </p>
-              <p v-if="cashMachine.startupOff.length" class="text-body-2 mb-1">
-                Startup apps switched off: {{ cashMachine.startupOff.join(", ") }}
+              <p v-if="cashMachine.startupOff.length" class="text-caption mb-1 settings-wrap">
+                <strong>Startup off:</strong> {{ cashMachine.startupOff.join(", ") }}
               </p>
-              <p v-if="!cashMachine.on" class="text-body-2 text-medium-emphasis mb-1">Off on this till (kiosk mode is off).</p>
               <template v-if="cashMachine.lastSetup">
-                <p class="text-body-2 mt-3 mb-1">
-                  Made a cash machine {{ new Date(cashMachine.lastSetup.at).toLocaleString() }}:
+                <p class="text-caption mt-2 mb-0">
+                  Set up {{ new Date(cashMachine.lastSetup.at).toLocaleString() }}
                 </p>
                 <v-list density="compact" class="py-0">
                   <v-list-item v-for="s in cashMachine.lastSetup.steps" :key="s.name" :title="s.name" :subtitle="s.detail">
@@ -208,11 +194,34 @@
                   </v-list-item>
                 </v-list>
               </template>
-              <div class="d-flex justify-end mt-2">
+              <p v-if="cashMachine.setupRunning && cashMachine.setupStarted" class="text-caption mb-0">
+                Running since {{ new Date(cashMachine.setupStarted).toLocaleTimeString() }}…
+              </p>
+              <div class="d-flex justify-end">
                 <v-btn variant="text" color="primary" :loading="cashMachineRunning" @click="cashMachineConfirm = true">
                   <v-icon start icon="mdi-cash-register" /> Make this a cash machine
                 </v-btn>
               </div>
+            </v-card-text>
+          </v-card>
+          <v-card v-show="panelMatches('general-stuck-keys')" class="settings-card">
+            <v-card-title class="d-flex align-center ga-3">
+              <v-icon icon="mdi-keyboard" size="20" />
+              Stuck keys
+            </v-card-title>
+            <v-card-text>
+              <v-switch
+                :model-value="form.releaseStuckKeys"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Let go of Windows, Ctrl, Alt or Shift left held for 3 seconds"
+                @update:model-value="setReleaseStuckKeys"
+              />
+              <p class="text-caption text-medium-emphasis mt-1 mb-0 settings-wrap">
+                A remote session (AnyDesk from a Mac) can leave a key held down, so typing or scanning runs Windows
+                shortcuts. Keys held on the till's own keyboard or scanner are never let go.
+              </p>
             </v-card-text>
           </v-card>
           <v-card v-show="panelMatches('general-sync')" class="settings-card">
@@ -230,7 +239,7 @@
               />
               <v-text-field
                 v-model="form.centralApiUrl"
-                placeholder="Central server URL (e.g. http://localhost:8080)"
+                placeholder="Central server URL"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -241,16 +250,11 @@
               />
 
               <div class="field-full sync-everything">
-                <div class="text-caption text-medium-emphasis mb-1">
-                  Push every local client and invoice this server is missing, and
-                  pull its catalog down. Safe to run again, and after changing the
-                  server URL above.
-                </div>
                 <v-checkbox
                   v-model="resyncApplyStock"
                   density="compact"
                   hide-details
-                  label="Also apply stock movements to kashi's inventory (only if kashi's stock was set up before these sales)"
+                  label="Also apply stock movements to kashi"
                 />
                 <div class="d-flex align-center ga-2 mt-2">
                   <v-btn
@@ -385,7 +389,7 @@
               <v-switch v-model="form.splitPrimaryFirst" color="primary" density="compact" hide-details :label="form.splitPrimaryFirst ? 'Primary currency first' : 'Rounding currency first'" />
               <v-text-field
                 v-model.number="form.splitPrimaryStep"
-                placeholder="Split step (0 = use currency's cash rounding)"
+                placeholder="Split step (0 = cash rounding)"
                 type="number"
                 min="0"
                 step="1"
@@ -406,9 +410,7 @@
           <v-card v-show="panelMatches('money-currencies')" class="settings-card settings-card--wide">
             <v-card-title>Currencies &amp; rates</v-card-title>
             <v-card-text>
-              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-                Currencies and their rates are set in kashi and sync down here.
-              </v-alert>
+              <div class="settings-note">Set in kashi.</div>
               <v-table density="compact">
                 <thead>
                   <tr>
@@ -436,10 +438,7 @@
           <v-card v-show="panelMatches('money-price-lists')" class="settings-card">
             <v-card-title>Price lists</v-card-title>
             <v-card-text>
-              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-                Prices are set in kashi and sync down here. A product that no
-                active list prices cannot be sold.
-              </v-alert>
+              <div class="settings-note">Set in kashi. A product no active list prices can't be sold.</div>
               <v-table density="compact">
                 <thead>
                   <tr>
@@ -469,9 +468,7 @@
           <v-card v-show="panelMatches('money-discount-lists')" class="settings-card">
             <v-card-title>Discount lists</v-card-title>
             <v-card-text>
-              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-                Discounts are set in kashi and sync down here.
-              </v-alert>
+              <div class="settings-note">Set in kashi.</div>
               <v-table density="compact">
                 <thead>
                   <tr>
@@ -541,22 +538,13 @@
                 class="field-full"
                 @update:model-value="(value) => setOverchangeConfirmationEnabled(value)"
               />
-              <div class="text-caption text-medium-emphasis field-full">
-                Shows a "Confirm change amount" prompt in the checkout calculator when the
-                cashier enters change or a refund larger than what's owed back. Turn off to
-                accept it straight away.
-              </div>
             </v-card-text>
           </v-card>
 
           <v-card v-show="panelMatches('money-payment-methods')" class="settings-card settings-card--wide">
             <v-card-title>Payment methods</v-card-title>
             <v-card-text>
-              <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-                Payment methods are set in kashi and sync down here. One kashi
-                no longer has stops being offered at checkout; past invoices
-                that used it still open.
-              </v-alert>
+              <div class="settings-note">Set in kashi.</div>
               <v-table density="compact">
                 <thead>
                   <tr>
@@ -730,10 +718,13 @@
                 label="Show the product search button on the sale screen"
                 @update:model-value="setProductSearchEnabled"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                When off, the magnifier button is hidden from the sale screen toolbar.
-                This can also be changed remotely from kashi.
-              </div>
+              <v-switch
+                :model-value="productSearchInPlace"
+                color="primary"
+                hide-details
+                label="Search in the sale screen: results in place of the calculator, keyboard along the bottom (off: a full-screen dialog)"
+                @update:model-value="(value) => setProductSearchInPlace(value ?? false)"
+              />
             </v-card-text>
           </v-card>
 
@@ -751,10 +742,7 @@
                 label="Search products by code only and hide their names"
                 @update:model-value="setProductSearchCodeOnly"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                The product list matches the code or barcode only, and no longer shows product
-                names. This can also be changed remotely from kashi.
-              </div>
+
             </v-card-text>
           </v-card>
 
@@ -774,10 +762,7 @@
                 variant="outlined"
                 @update:model-value="saveOversellMode"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                Whatever the mode, kashi raises an "oversold" alert when a sale takes a product's stock below zero.
-                This can also be changed remotely from kashi.
-              </div>
+<div class="settings-note mt-1">kashi alerts on any stock below zero.</div>
             </v-card-text>
           </v-card>
 
@@ -793,24 +778,30 @@
                 chips
                 closable-chips
                 density="compact"
-                hide-details="auto"
-                hint="Columns the product search list leaves out"
+                hide-details
                 label="Hide in product search"
                 multiple
-                persistent-hint
                 variant="outlined"
                 @update:model-value="saveProductSearchHiddenFields"
               />
               <v-text-field
                 v-model="form.unknownProductBarcode"
-                class="mt-4"
+                class="mt-3"
                 density="compact"
-                hide-details="auto"
-                hint="Barcode of a product already on this till. Leave empty for the built-in Unknown item."
-                label="Unknown item product barcode"
-                persistent-hint
+                hide-details
+                label="Unknown item barcode (empty = built-in)"
                 variant="outlined"
                 @blur="saveUnknownProductBarcode"
+              />
+              <v-select
+                :model-value="form.unknownPicturesAtCheckout"
+                :items="unknownPicturesModeOptions"
+                class="mt-3"
+                density="compact"
+                hide-details
+                label="Unknown item pictures QR code"
+                variant="outlined"
+                @update:model-value="setUnknownPicturesAtCheckout"
               />
             </v-card-text>
           </v-card>
@@ -842,10 +833,7 @@
                 :disabled="!form.priceEditRestricted"
                 @blur="savePriceEditCodes"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                Needs custom item prices and/or discounts turned on. Every other line keeps its
-                list price and discount. This can also be changed remotely from kashi.
-              </div>
+              <div class="settings-note mt-1">Needs custom prices or discounts on.</div>
             </v-card-text>
           </v-card>
 
@@ -880,10 +868,6 @@
                 label="Salespersons can tap a line's deal (B2G1) to turn it off or on"
                 @update:model-value="setDealToggleEnabled"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                The salesperson confirms each change and can't change the amount: a line gets its
-                list discount (or deal), or none. These can also be changed remotely from kashi.
-              </div>
             </v-card-text>
           </v-card>
 
@@ -901,11 +885,7 @@
                 label="Accept a product code in the scan field"
                 @update:model-value="setScanByCodeEnabled"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                When nothing has the entered barcode, it is tried as a product code. If several
-                variants share that code, the cashier picks one. This can also be changed remotely
-                from kashi.
-              </div>
+              <div class="settings-note mt-1">Used when no barcode matches.</div>
             </v-card-text>
           </v-card>
 
@@ -923,10 +903,7 @@
                 label="Require selecting a client before checkout"
                 @update:model-value="setClientRequired"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                When off, invoices default to Anonymous automatically - cashiers can still
-                enter a phone number and name to attach a real client.
-              </div>
+              <div class="settings-note mt-1">Off: invoices default to Anonymous.</div>
             </v-card-text>
           </v-card>
 
@@ -944,11 +921,7 @@
                 label="Require picking a salesperson on every invoice"
                 @update:model-value="setSalespersonPerInvoiceRequired"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                When on, the salesperson selection is cleared for each new invoice so
-                the cashier must choose again. When off, the previous invoice's
-                salesperson carries forward. This can also be changed remotely from kashi.
-              </div>
+              <div class="settings-note mt-1">Off: the last salesperson carries over.</div>
             </v-card-text>
           </v-card>
 
@@ -966,10 +939,6 @@
                 label="Let non-admins browse other months on the income chart"
                 @update:model-value="setNonAdminMonthNavEnabled"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                When off, only admins can use the back/forward buttons on the monthly
-                income chart - non-admins only see the current month.
-              </div>
             </v-card-text>
           </v-card>
 
@@ -987,12 +956,7 @@
                 label="Show the visits counter in the side menu"
                 @update:model-value="setVisitorCounterEnabled"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                Adds an up / down counter to the side menu for tallying how many people
-                visit each day. The daily total also shows as an orange chip in the
-                monthly shift income table. Turning this off only hides those - recorded
-                counts are kept.
-              </div>
+              <div class="settings-note mt-1">Turning it off keeps recorded counts.</div>
             </v-card-text>
           </v-card>
 
@@ -1046,10 +1010,6 @@
                 label="Play sounds"
                 @update:model-value="setSoundsEnabled"
               />
-              <div class="text-caption text-medium-emphasis mt-2">
-                Scan and checkout chimes, error and warning tones, and keypad clicks. Off by
-                default. This can also be changed remotely from kashi.
-              </div>
             </v-card-text>
           </v-card>
           <v-card v-show="panelMatches('behavior-invoice-keyboard')" class="settings-card">
@@ -1070,8 +1030,8 @@
           </v-card>
           <v-card v-show="panelMatches('display-quick-access-cards')" class="settings-card">
             <v-card-title>Quick access cards</v-card-title>
-            <v-card-text class="">
-              <div class="text-body-2 mt-4">
+            <v-card-text>
+              <div class="text-body-2">
                 Quick access rows:
                 <strong>{{ quickAccessRows === 0 ? "Hidden" : quickAccessRows }}</strong>
               </div>
@@ -1082,11 +1042,10 @@
                 :step="1"
                 color="primary"
                 show-ticks="always"
-                hint="Rows shown on the sale screen before it scrolls. 0 hides the panel."
-                persistent-hint
+                hide-details
                 @update:model-value="setQuickAccessRows"
               />
-              <div class="text-body-2 mt-4">
+              <div class="text-body-2 mt-2">
                 Quick access text size: <strong>{{ quickAccessFontScale }}%</strong>
               </div>
               <v-slider
@@ -1155,7 +1114,7 @@
               </v-btn>
             </v-card-title>
             <v-card-text>
-              <div class="d-flex align-center flex-wrap ga-3 mb-4">
+              <div class="d-flex align-center flex-wrap ga-3 mb-3">
                 <span class="text-body-2">Cards come from</span>
                 <v-btn-toggle
                   :model-value="quickAccessMode"
@@ -1170,11 +1129,10 @@
                   <v-btn size="small" value="kashi">kashi</v-btn>
                 </v-btn-toggle>
                 <span v-if="quickAccessMode === 'kashi'" class="text-caption text-medium-emphasis">
-                  This register shows its branch's list from kashi. Edit cards and colours there (Branch settings →
-                  Quick access).
+                  Edit in kashi: Branch settings → Quick access.
                 </span>
                 <span v-else-if="!quickAccessKashiAvailable" class="text-caption text-medium-emphasis">
-                  kashi isn't connected, or doesn't manage Quick Access yet.
+                  kashi isn't connected.
                 </span>
               </div>
               <div v-if="!quickAccessItems.length" class="text-body-2 text-medium-emphasis">
@@ -1254,11 +1212,6 @@
                 class="field-full"
                 @update:model-value="(value) => setOpeningFloatEnabled(value)"
               />
-              <div class="text-caption text-medium-emphasis field-full">
-                When off, shifts start with no opening float, the "Set opening cash" controls
-                on the Shifts page are hidden, and the opening amount is left out of every
-                balance, income total and close-shift receipt.
-              </div>
               <template v-if="form.openingFloatEnabled">
                 <v-text-field v-model.number="form.defaultOpeningFloatUsd" placeholder="Opening float (USD)" type="number" min="0" step="0.01" variant="outlined" density="compact" hide-details />
                 <v-text-field v-model.number="form.defaultOpeningFloatLbp" placeholder="Opening float (LBP)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
@@ -1275,11 +1228,6 @@
                   class="field-full"
                   @update:model-value="(value) => setCountOpeningCashOnClose(value)"
                 />
-                <div class="text-caption text-medium-emphasis field-full">
-                  When off, the cashier enters only the cash taken in during the shift; the
-                  opening float is left out of the expected total and the printed close-shift
-                  reconciliation.
-                </div>
               </template>
             </v-card-text>
           </v-card>
@@ -1302,12 +1250,7 @@
                 class="field-full"
                 @update:model-value="(value) => setCloseShiftRequiresSync(value)"
               />
-              <div class="text-caption text-medium-emphasis field-full">
-                Closing a shift first uploads every sale, return, expense and the rest still
-                waiting for the office, showing progress and time left, and only then closes
-                the shift and prints its receipt. Offline, a manager can override with the
-                admin password.
-              </div>
+              <div class="settings-note field-full">Offline, the admin password overrides.</div>
               <v-switch
                 :model-value="form.shiftReceiptUploadMode !== 0"
                 :loading="shiftReceiptUploadModeSaving"
@@ -1329,16 +1272,10 @@
                   hide-details
                   @update:model-value="(value) => setShiftReceiptUploadMode(value)"
                 />
-                <div class="text-caption text-medium-emphasis field-full">
-                  After a shift closes, the cashier is shown a QR code to upload one photo of the
-                  printed receipt. <b>Hybrid</b> sends it to the office when there's a connection
-                  and buffers it on this machine otherwise; <b>Local</b> always uploads over the
-                  shop Wi-Fi to this machine; <b>Central</b> always goes straight to the office.
+                <div class="settings-note field-full">
+                  Hybrid: office when online, else this till. Local: this till. Central: office.
                 </div>
               </template>
-              <div v-else class="text-caption text-medium-emphasis field-full">
-                When off, closing a shift logs straight out without asking for a receipt photo.
-              </div>
               <v-switch
                 :model-value="form.autoCoverNegativeLbp"
                 :loading="autoCoverNegativeLbpSaving"
@@ -1348,10 +1285,7 @@
                 class="field-full"
                 @update:model-value="(value) => setAutoCoverNegativeLbp(value)"
               />
-              <div class="text-caption text-medium-emphasis field-full">
-                When more LBP went out as change than came in, the shortfall is swapped into
-                Cash $$ as the close-shift screen opens, so LBP closes at 0.
-              </div>
+              <div class="settings-note field-full">So Cash LL closes at 0.</div>
             </v-card-text>
           </v-card>
 
@@ -1387,18 +1321,15 @@
             </v-card-title>
             <v-card-text>
               <ReceiptLookPicker @saved="onReceiptLookSaved" @error="(message: string) => notify(message, 'red')" />
-              <div class="text-caption text-medium-emphasis mt-3">
-                The theme and layout of the printed invoice. Fonts and sizes above apply to the Classic theme; the
-                other themes bring their own. This can also be changed remotely from kashi.
-              </div>
+              <div class="settings-note mt-2">Fonts and sizes above apply to the Classic theme.</div>
             </v-card-text>
           </v-card>
 
           <v-card v-show="panelMatches('printing-end-of-shift')" class="settings-card">
             <v-card-title>End-of-shift receipt</v-card-title>
             <v-card-text class="field-grid">
-              <v-switch v-model="form.shiftReportSignatures" label="Cashier and manager signature lines on end-of-shift receipt" color="primary" hide-details class="field-full" />
-              <v-switch v-model="form.shiftReportUppercaseHeader" label="Store and branch name in capitals on end-of-shift receipt" color="primary" hide-details class="field-full" />
+              <v-switch v-model="form.shiftReportSignatures" label="Cashier and manager signature lines" color="primary" hide-details class="field-full" />
+              <v-switch v-model="form.shiftReportUppercaseHeader" label="Store and branch name in capitals" color="primary" hide-details class="field-full" />
             </v-card-text>
             <v-card-actions class="px-4 pb-4">
               <v-btn
@@ -1489,7 +1420,7 @@
               <v-switch v-model="form.attendanceCashierHistory" label="Cashiers can browse previous days" color="primary" hide-details class="field-full" />
               <v-switch
                 v-model="form.attendanceManagerApproval"
-                label="Manager approves requests and adds missed punches here (manager password)"
+                label="Manager approves requests and adds missed punches"
                 color="primary"
                 hide-details
                 class="field-full"
@@ -1515,10 +1446,7 @@
                 <v-icon start icon="mdi-plus" /> Add user
               </v-btn>
             </v-card-title>
-            <div class="text-caption text-medium-emphasis px-4 pb-2">
-              Users synced from kashi are managed there. Locally you can only reset a
-              forgotten PIN for them.
-            </div>
+            <div class="settings-note px-4">kashi users: only their PIN can be reset here.</div>
             <v-data-table
               :headers="userHeaders"
               :items="users"
@@ -1580,14 +1508,8 @@
                 <v-icon start icon="mdi-plus" /> Add salesperson
               </v-btn>
             </v-card-title>
-            <div class="text-caption text-medium-emphasis px-4 pb-2">
-              <template v-if="salespersonsSyncManaged">
-                The roster (name, active state) is managed from kashi and synced here read-only.
-                Only the attendance device ID can be set locally.
-              </template>
-              <template v-else>
-                Salespersons are managed locally on this register.
-              </template>
+            <div v-if="salespersonsSyncManaged" class="settings-note px-4">
+              Set in kashi; only the attendance ID can be changed here.
             </div>
             <v-data-table
               :headers="salespersonHeaders"
@@ -1628,9 +1550,6 @@
                 <v-icon icon="mdi-lock-reset" size="20" />
                 Change admin password
               </v-card-title>
-              <div class="text-caption text-medium-emphasis px-4 pb-2">
-                The password entered on the login screen's admin sign-in.
-              </div>
               <v-card-text>
                 <v-text-field
                   v-model="passwordForm.current"
@@ -1673,9 +1592,6 @@
                 <v-icon icon="mdi-dialpad" size="20" />
                 Cashier login PIN
               </v-card-title>
-              <div class="text-caption text-medium-emphasis px-4 pb-2">
-                The shared 4-digit PIN cashiers enter on the login keypad.
-              </div>
               <v-card-text>
                 <v-text-field
                   v-model="cashierPinForm.newPin"
@@ -1811,10 +1727,7 @@
         <v-card-title>Deactivate products no longer on kashi?</v-card-title>
         <v-card-text>
           <div class="mb-2">
-            kashi no longer has the following. This will deactivate them here
-            too (hidden from checkout, not deleted -- past invoices and shift
-            reports still show them). This confirmation only appears once;
-            future syncs will do this automatically.
+            kashi no longer has these. They'll be hidden from checkout here too (past invoices keep them).
           </div>
           <div v-if="pendingDeactivation.productBarcodes.length" class="mb-2">
             <div class="text-caption text-medium-emphasis">
@@ -1849,9 +1762,9 @@
             <li>Startup apps, third-party scheduled tasks and background services are switched off.</li>
             <li>Apps a till doesn't use are removed: OneDrive, Teams, Xbox, Copilot, widgets, news, games and the like.</li>
             <li>Notifications, tips and ads are off; the computer never sleeps.</li>
-            <li>Windows Update only restarts outside 7:00-1:00.</li>
+            <li>Windows Update only restarts outside 7:00-23:00, never during working hours.</li>
           </ul>
-          <p>Removed apps don't come back by themselves. It can take a few minutes; leave the till until it's done.</p>
+          <p>Removed apps don't come back by themselves. It takes a few minutes and runs in the background.</p>
         </v-card-text>
         <v-card-actions>
           <v-btn variant="text" @click="cashMachineConfirm = false">Cancel</v-btn>
@@ -2019,6 +1932,7 @@ import {
   SetProductSearchEnabled,
   SetScanByCodeEnabled,
   SetProductSearchCodeOnly,
+  SetUnknownPicturesAtCheckout,
   SetPriceEditRestricted,
   SetDiscountToggleEnabled,
   SetDiscountToggleDefaultOff,
@@ -2027,6 +1941,7 @@ import {
   SetPriceEditCodes,
   SetProductSearchHiddenFields,
   SetSoundsEnabled,
+  SetReleaseStuckKeys,
   SetUnknownProductBarcode,
   SetVisitorCounterEnabled,
   SetClientRequired,
@@ -2087,7 +2002,7 @@ import {
   SetQuickAccessColor,
   ExportQuickAccessCSV,
   GetCashMachineStatus,
-  SetUpCashMachine,
+  StartCashMachineSetup,
 } from "../../wailsjs/go/main/App";
 import { EventsOn, WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import type { main } from "../../wailsjs/go/models";
@@ -2108,6 +2023,8 @@ import ReceiptLookPicker from "@/components/ReceiptLookPicker.vue";
 import {
   animationsEnabled,
   setAnimationsEnabled,
+  productSearchInPlace,
+  setProductSearchInPlace,
   calculatorTotalCurrency,
   setCalculatorTotalCurrency,
   quickAccessRows,
@@ -2203,6 +2120,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
   "general-branches": { tab: "general", title: "Branches", keywords: "branches switch default active add branch multiple instances" },
   "general-cash-machine": { tab: "general", title: "Cash machine", keywords: "cash machine windows performance slow programs apps startup close kiosk minimal onedrive teams" },
+  "general-stuck-keys": { tab: "general", title: "Stuck keys", keywords: "stuck keys windows key win ctrl alt shift held anydesk remote mac keyboard scanner shortcuts" },
   "general-sync": { tab: "general", title: "Central sync (kashi)", keywords: "central sync kashi server url branch code api key upload before close shift wait pending offline" },
   "general-targets": { tab: "general", title: "Targets", keywords: "targets revenue goal progress date range" },
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
@@ -2219,11 +2137,11 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-custom-pricing": { tab: "behaviour", title: "Custom item pricing", keywords: "custom item price discount per unit editing" },
   "behavior-price-change-mode": { tab: "behaviour", title: "Price change mode", keywords: "price change manual override discount lever" },
   "behavior-invoice-keyboard": { tab: "display", title: "Invoice keyboard mode", keywords: "invoice keyboard qty discount price number pad" },
-  "behavior-product-search": { tab: "behaviour", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide" },
+  "behavior-product-search": { tab: "behaviour", title: "Product search button", keywords: "product search magnifier sale screen find lookup disable hide dialog in place calculator keyboard" },
   "behavior-scan-by-code": { tab: "behaviour", title: "Product code in scan field", keywords: "barcode scan code sku variant type enter" },
   "behavior-search-code-only": { tab: "behaviour", title: "Code-only product search", keywords: "product search code only hide names barcode lookup" },
   "behavior-stock": { tab: "behaviour", title: "Selling beyond stock", keywords: "oversell stock allow warn block sell more than in stock negative" },
-  "behavior-search-columns": { tab: "behaviour", title: "Product search & unknown item", keywords: "product search hide columns code name brand color size price unknown item barcode placeholder" },
+  "behavior-search-columns": { tab: "behaviour", title: "Product search & unknown item", keywords: "product search hide columns code name brand color size price unknown item barcode placeholder pictures qr phone checkout" },
   "behavior-discount-toggle": { tab: "behaviour", title: "Turn discounts or deals off at the till", keywords: "discount deal toggle turn off on remove salesperson default off b2g1 percent" },
   "behavior-price-edit-codes": { tab: "behaviour", title: "Price edits by code", keywords: "price discount manual edit restrict allow only selected codes products" },
   "behavior-sounds": { tab: "display", title: "Sounds", keywords: "sound audio beep chime click mute volume quiet silent" },
@@ -2362,7 +2280,9 @@ const form = reactive({
   oversellMode: "allow",
   productSearchHiddenFields: [] as string[],
   unknownProductBarcode: "",
+  unknownPicturesAtCheckout: false,
   soundsEnabled: false,
+  releaseStuckKeys: true,
   visitorCounterEnabled: false,
   clientRequired: true,
   salespersonPerInvoiceRequired: false,
@@ -2805,7 +2725,9 @@ async function loadSettings() {
         oversellMode: String(s.oversellMode || "allow"),
         productSearchHiddenFields: String(s.productSearchHiddenFields ?? "").split(",").filter(Boolean),
         unknownProductBarcode: String(s.unknownProductBarcode ?? ""),
+        unknownPicturesAtCheckout: Boolean(s.unknownPicturesAtCheckout),
         soundsEnabled: s.soundsEnabled === true,
+        releaseStuckKeys: s.releaseStuckKeys !== false,
         visitorCounterEnabled: Boolean(s.visitorCounterEnabled),
         clientRequired: s.clientRequired !== false,
         salespersonPerInvoiceRequired: Boolean(s.salespersonPerInvoiceRequired),
@@ -2860,7 +2782,10 @@ async function chooseDatabase() {
 
 const cashMachine = ref<main.CashMachineStatus | null>(null);
 const cashMachineConfirm = ref(false);
-const cashMachineRunning = ref(false);
+// The setup runs in the background (StartCashMachineSetup), so whether it's
+// running comes from the till, not this page: leave and come back and the
+// spinner is still there. CashMachineToast says when it's done.
+const cashMachineRunning = computed(() => cashMachine.value?.setupRunning ?? false);
 
 async function loadCashMachine() {
   try {
@@ -2870,18 +2795,17 @@ async function loadCashMachine() {
 
 async function setUpCashMachine() {
   cashMachineConfirm.value = false;
-  cashMachineRunning.value = true;
   try {
-    const setup = await SetUpCashMachine();
-    const failed = setup.steps.filter((s) => !s.ok).length;
-    notify(failed ? `Done, ${failed} step(s) didn't work; see Cash machine` : "This till is now a cash machine", failed ? "warning" : "success");
+    await StartCashMachineSetup();
+    notify("Making this a cash machine. Approve Windows' prompt; you can keep using the till.", "info");
   } catch (error) {
     notify(error instanceof Error ? error.message : String(error), "red");
-  } finally {
-    cashMachineRunning.value = false;
-    await loadCashMachine();
   }
+  await loadCashMachine();
 }
+
+const stopCashMachineListener = EventsOn("cash_machine_setup_done", () => void loadCashMachine());
+onBeforeUnmount(stopCashMachineListener);
 
 async function loadBranches() {
   try {
@@ -3213,6 +3137,23 @@ async function saveProductSearchHiddenFields(value: string[]) {
   }
 }
 
+const unknownPicturesModeOptions = [
+  { title: "Right after adding an unknown item", value: false },
+  { title: "At checkout", value: true },
+];
+
+async function setUnknownPicturesAtCheckout(value: boolean) {
+  const previous = form.unknownPicturesAtCheckout;
+  form.unknownPicturesAtCheckout = value;
+  try {
+    await SetUnknownPicturesAtCheckout(value);
+    notify(value ? "Unknown item QR code shows at checkout" : "Unknown item QR code shows right after adding one");
+  } catch {
+    form.unknownPicturesAtCheckout = previous;
+    notify("Failed to save the unknown item pictures setting", "red");
+  }
+}
+
 async function saveUnknownProductBarcode() {
   try {
     await SetUnknownProductBarcode(form.unknownProductBarcode);
@@ -3237,6 +3178,22 @@ async function setSoundsEnabled(value: boolean | null) {
   } catch {
     form.soundsEnabled = previous;
     notify("Failed to update the sounds setting", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setReleaseStuckKeys(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.releaseStuckKeys;
+  form.releaseStuckKeys = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetReleaseStuckKeys(enabled);
+    notify(`Letting go of stuck keys ${enabled ? "on" : "off"}`);
+  } catch {
+    form.releaseStuckKeys = previous;
+    notify("Failed to update the stuck keys setting", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
@@ -3883,14 +3840,14 @@ async function deleteUser() {
 
 .settings-header {
   flex: 0 0 auto;
-  padding: 28px 32px 0;
+  padding: 16px 24px 0;
 }
 
 .settings-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 20px 32px 40px;
+  padding: 12px 24px 24px;
 }
 
 .settings-heading {
@@ -3949,16 +3906,23 @@ async function deleteUser() {
   line-height: 1;
 }
 
+/* Cards stack in columns (masonry), so a short card doesn't leave the
+   empty space a row of equal-height grid cells did. */
 .settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  align-items: start;
-  gap: 16px;
+  columns: 2 340px;
+  column-gap: 12px;
+}
+
+.settings-grid > .settings-card,
+.settings-grid > .settings-form-wrap > .settings-card {
+  break-inside: avoid;
+  margin-bottom: 12px;
+  width: 100%;
 }
 
 .settings-page-actions {
   max-width: 1200px;
-  margin: 16px auto 0;
+  margin: 4px auto 0;
   display: flex;
   justify-content: flex-end;
 }
@@ -3977,7 +3941,7 @@ async function deleteUser() {
 }
 
 .settings-card--wide {
-  grid-column: 1 / -1;
+  column-span: all;
 }
 
 .payment-method-color-swatch {
@@ -4006,14 +3970,36 @@ async function deleteUser() {
 }
 
 .settings-card :deep(.v-card-title) {
-  padding: 16px 18px 8px;
+  padding: 10px 14px 2px;
   font-size: var(--kashi-font-size-base) !important;
   line-height: 1.35;
   font-weight: 650;
 }
 
 .settings-card :deep(.v-card-text) {
-  padding: 12px 18px 16px;
+  padding: 8px 14px 12px;
+}
+
+.settings-card :deep(.v-card-actions) {
+  padding: 0 8px 8px;
+  min-height: 0;
+}
+
+/* Switches sit in a compact stack rather than 56px rows. */
+.settings-card :deep(.v-switch .v-selection-control) {
+  min-height: 36px;
+}
+
+/* One short grey line under a setting, in place of a paragraph. */
+.settings-note {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  margin-bottom: 6px;
+}
+
+.settings-wrap {
+  overflow-wrap: anywhere;
 }
 
 .settings-card :deep(.v-table) {
@@ -4023,7 +4009,7 @@ async function deleteUser() {
 .field-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 12px 16px;
+  gap: 8px 12px;
   align-items: start;
 }
 
@@ -4040,7 +4026,7 @@ async function deleteUser() {
 
 @media (max-width: 900px) {
   .settings-grid {
-    grid-template-columns: 1fr;
+    columns: 1;
   }
 
   .settings-header {

@@ -1,250 +1,295 @@
 <template>
-  <div class="home-page d-flex h-100" style="width: 100%; overflow: hidden">
-    <div class="home-left-pane d-flex flex-column" style="flex: 5 5 0; min-width: 0; min-height: 0">
-      <div>
-        <v-card-title
-          class="d-flex justify-space-between"
-          style="font-size: var(--kashi-font-size-2xl)"
-        >
-          <div class="d-flex flex-column">
-            <div class="font-weight-bold">{{ pageModeTitle }}</div>
-            <v-card-subtitle v-if="pageMode === 'sale' || pageMode === 'exchange'" class="pa-0">{{ invoiceCode }}</v-card-subtitle>
-          </div>
-          <div class="d-flex flex-column align-end">
-            <div class="d-flex align-center ga-2">
-              <div
-                class="required-assignees d-flex align-center ga-2"
-                :class="{ 'required-assignees--missing': missingAssignmentFlash }"
-              >
-                <SalespersonsDialog v-if="pageMode !== 'settlement'" />
-                <ClientButton
-                  v-if="pageMode === 'sale'"
-                  :always-anonymous-available="alwaysAnonymousClientEnabled"
-                />
-              </div>
-              <NoteButton :note="invoiceNotes" @openDialog="openNoteDialog" />
-              <v-dialog v-model="noteDialog" max-width="760">
-                <v-card>
-                  <v-card-title>Add a note</v-card-title>
-                  <v-card-text>
-                    <v-textarea
-                      ref="noteInput"
-                      v-model="noteDraft"
-                      auto-grow
-                      autofocus
-                      hide-details
-                      placeholder="Add a note"
-                      rows="3"
-                      variant="outlined"
-                      @keydown.ctrl.enter="saveNote"
-                    />
-                    <InlineKeyboard v-model="noteDraft" :max-length="500" class="mt-3" />
-                  </v-card-text>
-                  <v-card-actions class="pa-4">
-                    <v-btn
-                      v-if="invoiceNotes"
-                      variant="text"
-                      color="error"
-                      @click="removeNote"
-                    >
-                      Remove
-                    </v-btn>
-                    <v-spacer />
-                    <v-btn variant="text" @click="noteDialog = false">Cancel</v-btn>
-                    <v-btn color="primary" variant="elevated" @click="saveNote">Add</v-btn>
-                  </v-card-actions>
-                </v-card>
-              </v-dialog>
-            </div>
-          </div>
-        </v-card-title>
-      </div>
-      <div class="d-flex align-center ms-4 mt-4" :class="pageMode === 'settlement' ? 'me-4' : 'me-0'">
-        <v-text-field
-          ref="barcodeInput"
-          v-model="barcodeValue"
-          class="flex-grow-1"
-          :class="barcodeFeedback ? `barcode-flash-${barcodeFeedback}` : ''"
-          density="compact"
-          hide-details="auto"
-          :placeholder="scanByCodeEnabled ? 'Enter a barcode or a code' : 'Scan or enter barcode'"
-          :disabled="pageMode === 'settlement'"
-          variant="outlined"
-          @blur="onBlur"
-          @keydown.enter="onBarcodeEnter"
-        />
-        <v-btn
-          v-if="pageMode !== 'settlement'"
-          icon
-          class="ms-1"
-          variant="text"
-          aria-label="Invoices on hold"
-          @click="onHoldMenu?.open()"
-        >
-          <v-icon icon="mdi-pause" size="26" />
-        </v-btn>
-        <v-btn
-          v-if="pageMode !== 'settlement'"
-          icon
-          class="ms-1"
-          variant="text"
-          aria-label="Exchange invoice"
-          @click="returnInvoiceMenu?.open()"
-        >
-          <v-icon icon="mdi-autorenew" size="26" />
-        </v-btn>
-        <v-btn
-          v-if="pageMode !== 'settlement'"
-          icon
-          class="ms-1"
-          variant="text"
-          aria-label="Add an unknown item"
-          @click="unknownPrice.show = true"
-        >
-          <v-icon icon="mdi-help-box-outline" size="26" />
-        </v-btn>
-        <v-btn
-          v-if="pageMode !== 'settlement' && productSearchEnabled"
-          icon
-          class="ms-1"
-          variant="text"
-          aria-label="Search products"
-          @click="productSearchDialog?.openDialog()"
-        >
-          <v-icon icon="mdi-magnify" size="26" />
-        </v-btn>
-        <OnHoldMenu ref="onHoldMenu" hide-activator @restore="onRestoreHold" />
-        <ReturnInvoiceMenu
-          ref="returnInvoiceMenu"
-          hide-activator
-          :rounding-mode="roundingMode"
-          @exchange="onExchange"
-        />
-        <UnknownPriceDialog v-model="unknownPrice.show" @add="onUnknownAdd" />
-        <UnknownPicturesDialog
-          v-if="unknownPictures.show"
-          v-model="unknownPictures.show"
-          :units="unknownPictures.units"
-          @cancel="answerUnknownPictures(false)"
-          @ready="answerUnknownPictures(true)"
-        />
-        <ProductSearchDialog
-          ref="productSearchDialog"
-          v-if="pageMode !== 'settlement'"
-          :show-activator="false"
-          :code-only="productSearchCodeOnly"
-          :hidden-fields="productSearchHiddenFields"
-          @select="onProductSelect"
-        />
-      </div>
-      <InvoiceItems
-        ref="invoiceItems"
-        :rounding-mode="roundingMode"
-        :readonly="pageMode === 'settlement'"
-        :custom-discounts-enabled="customItemDiscountsEnabled"
-        :custom-prices-enabled="customItemPricesEnabled"
-        :unknown-barcode="unknownProductBarcode"
-        :price-edit-restricted="priceEditRestricted"
-        :price-edit-codes="priceEditCodes"
-        :per-unit-prices-enabled="perUnitItemPricesEnabled"
-        :price-change-mode="priceChangeMode"
-        :keyboard-mode="invoiceKeyboardModeEnabled"
-        :deal-lines="quote?.lines ?? []"
-        :discount-toggle-enabled="discountToggleEnabled && pageMode === 'sale'"
-        :deal-toggle-enabled="dealToggleEnabled && pageMode === 'sale'"
-        :discount-default-off="discountToggleDefaultOff"
-        style="flex: 1 1 0; min-height: 0"
-        @discount-error="showDiscountError"
-      />
-      <QuickAccessPanel
-        v-if="pageMode !== 'settlement' && quickAccessRows > 0"
-        @add="
-          (item) => {
-            playClickSound();
-            addProductToCart(item);
-          }
-        "
-      />
-    </div>
-    <div class="home-right-pane d-flex flex-column position-relative" style="flex: 5 5 0; min-width: 0">
-      <div
-        v-if="!hasItems"
-        class="position-absolute d-flex align-center justify-center"
-        style="
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.1);
-          backdrop-filter: blur(4px);
-          z-index: 10;
-        "
-      >
-        <v-card
-          class="empty-cart-card pa-0 text-center d-flex flex-column align-center justify-center"
-          rounded="lg"
-          width="180"
-          height="110"
-          elevation="4"
-        >
-          <v-icon icon="mdi-barcode-scan" size="42" class="mb-2" />
-          <div class="empty-cart-label text-subtitle-2">
-            Scan a barcode<br />{{ scanByCodeEnabled ? "or type a code" : "to add a product" }}
-          </div>
-        </v-card>
-      </div>
-      <!--
-      <div class="invoice-total-summary d-flex flex-column align-center mx-2 mt-1 px-1">
-        <span class="invoice-total-summary__label text-medium-emphasis">Total</span>
-        <div class="d-flex align-baseline justify-center ga-3">
-          <span class="invoice-total-summary__usd">{{ calculator?.totalSummary?.first ?? "$0.00" }}</span>
-          <span
-            v-if="calculator?.totalSummary?.second"
-            class="invoice-total-summary__lbp text-medium-emphasis"
+  <div
+    class="home-page d-flex flex-column h-100 position-relative"
+    :style="{ width: '100%', overflow: 'hidden', '--home-search-keyboard-height': `${searchKeyboardHeight}px` }"
+  >
+    <div class="home-panes d-flex">
+      <div class="home-left-pane d-flex flex-column" style="flex: 5 5 0; min-width: 0; min-height: 0">
+        <div>
+          <v-card-title
+            class="d-flex justify-space-between"
+            style="font-size: var(--kashi-font-size-2xl)"
           >
-            ≈ {{ calculator.totalSummary.second }}
-          </span>
+            <div class="d-flex flex-column">
+              <div class="font-weight-bold">{{ pageModeTitle }}</div>
+              <v-card-subtitle v-if="pageMode === 'sale' || pageMode === 'exchange'" class="pa-0">{{ invoiceCode }}</v-card-subtitle>
+            </div>
+            <div class="d-flex flex-column align-end">
+              <div class="d-flex align-center ga-2">
+                <div
+                  class="required-assignees d-flex align-center ga-2"
+                  :class="{ 'required-assignees--missing': missingAssignmentFlash }"
+                >
+                  <SalespersonsDialog v-if="pageMode !== 'settlement'" />
+                  <ClientButton
+                    v-if="pageMode === 'sale'"
+                    :always-anonymous-available="alwaysAnonymousClientEnabled"
+                  />
+                </div>
+                <NoteButton :note="invoiceNotes" @openDialog="openNoteDialog" />
+                <v-dialog v-model="noteDialog" max-width="760">
+                  <v-card>
+                    <v-card-title>Add a note</v-card-title>
+                    <v-card-text>
+                      <v-textarea
+                        ref="noteInput"
+                        v-model="noteDraft"
+                        auto-grow
+                        autofocus
+                        hide-details
+                        placeholder="Add a note"
+                        rows="3"
+                        variant="outlined"
+                        @keydown.ctrl.enter="saveNote"
+                      />
+                      <InlineKeyboard v-model="noteDraft" :max-length="500" class="mt-3" />
+                    </v-card-text>
+                    <v-card-actions class="pa-4">
+                      <v-btn
+                        v-if="invoiceNotes"
+                        variant="text"
+                        color="error"
+                        @click="removeNote"
+                      >
+                        Remove
+                      </v-btn>
+                      <v-spacer />
+                      <v-btn variant="text" @click="noteDialog = false">Cancel</v-btn>
+                      <v-btn color="primary" variant="elevated" @click="saveNote">Add</v-btn>
+                    </v-card-actions>
+                  </v-card>
+                </v-dialog>
+              </div>
+            </div>
+          </v-card-title>
+        </div>
+        <div class="d-flex align-center ms-4 mt-4" :class="pageMode === 'settlement' ? 'me-4' : 'me-0'">
+          <v-text-field
+            ref="barcodeInput"
+            v-model="barcodeValue"
+            class="flex-grow-1"
+            :class="barcodeFeedback ? `barcode-flash-${barcodeFeedback}` : ''"
+            density="compact"
+            hide-details="auto"
+            :placeholder="scanByCodeEnabled ? 'Enter a barcode or a code' : 'Scan or enter barcode'"
+            :disabled="pageMode === 'settlement'"
+            variant="outlined"
+            @blur="onBlur"
+            @keydown.enter="onBarcodeEnter"
+          />
+          <v-btn
+            v-if="pageMode !== 'settlement'"
+            icon
+            class="ms-1"
+            variant="text"
+            aria-label="Invoices on hold"
+            @click="onHoldMenu?.open()"
+          >
+            <v-icon icon="mdi-pause" size="26" />
+          </v-btn>
+          <v-btn
+            v-if="pageMode !== 'settlement'"
+            icon
+            class="ms-1"
+            variant="text"
+            aria-label="Exchange invoice"
+            @click="returnInvoiceMenu?.open()"
+          >
+            <v-icon icon="mdi-autorenew" size="26" />
+          </v-btn>
+          <v-btn
+            v-if="pageMode !== 'settlement'"
+            icon
+            class="ms-1"
+            variant="text"
+            aria-label="Add an unknown item"
+            @click="unknownPrice.show = true"
+          >
+            <v-icon icon="mdi-help-box-outline" size="26" />
+          </v-btn>
+          <v-btn
+            v-if="pageMode !== 'settlement' && productSearchEnabled"
+            icon
+            class="ms-1"
+            variant="text"
+            aria-label="Search products"
+            @click="openProductSearch"
+          >
+            <v-icon icon="mdi-magnify" size="26" />
+          </v-btn>
+          <OnHoldMenu ref="onHoldMenu" hide-activator @restore="onRestoreHold" />
+          <ReturnInvoiceMenu
+            ref="returnInvoiceMenu"
+            hide-activator
+            :rounding-mode="roundingMode"
+            @exchange="onExchange"
+          />
+          <UnknownPriceDialog v-model="unknownPrice.show" @add="onUnknownAdd" />
+          <UnknownPicturesDialog
+            v-if="unknownPictures.show"
+            v-model="unknownPictures.show"
+            :client-ref="unknownPicturesAtCheckout ? '' : unknownSession.clientRef"
+            :units="unknownPictures.units"
+            @cancel="answerUnknownPictures(false)"
+            @ready="answerUnknownPictures(true)"
+          />
+          <ProductSearchDialog
+            ref="productSearchDialog"
+            v-if="pageMode !== 'settlement'"
+            :show-activator="false"
+            :code-only="productSearchCodeOnly"
+            :hidden-fields="productSearchHiddenFields"
+            @select="onProductSelect"
+          />
+        </div>
+        <InvoiceItems
+          ref="invoiceItems"
+          :rounding-mode="roundingMode"
+          :readonly="pageMode === 'settlement'"
+          :custom-discounts-enabled="customItemDiscountsEnabled"
+          :custom-prices-enabled="customItemPricesEnabled"
+          :unknown-barcode="unknownProductBarcode"
+          :price-edit-restricted="priceEditRestricted"
+          :price-edit-codes="priceEditCodes"
+          :per-unit-prices-enabled="perUnitItemPricesEnabled"
+          :price-change-mode="priceChangeMode"
+          :keyboard-mode="invoiceKeyboardModeEnabled"
+          :deal-lines="quote?.lines ?? []"
+          :discount-toggle-enabled="discountToggleEnabled && pageMode === 'sale'"
+          :deal-toggle-enabled="dealToggleEnabled && pageMode === 'sale'"
+          :discount-default-off="discountToggleDefaultOff"
+          style="flex: 1 1 0; min-height: 0"
+          @discount-error="showDiscountError"
+        />
+        <UnknownPicturesCorner
+          v-if="showUnknownCorner"
+          :client-ref="unknownSession.clientRef"
+          :paused="unknownPictures.show"
+          :units="unknownCartUnits"
+          @ready="unknownPicturesReadyFor = $event"
+          @session="unknownSession.clientRef = $event"
+        />
+        <!-- Taller than the search keyboard, so hidden behind it while
+             searching in place, keeping its room so nothing moves. The
+             wrapper takes no room of its own; the panel inherits it. -->
+        <div class="home-quick-access" :class="{ 'home-under-keyboard': searchingInPlace }">
+          <QuickAccessPanel
+            v-if="pageMode !== 'settlement' && quickAccessRows > 0"
+            @add="
+              (item) => {
+                playClickSound();
+                addProductToCart(item);
+              }
+            "
+          />
         </div>
       </div>
-      -->
-      <div class="mb-3 mt-1" style="flex: 1 1 0; min-height: 0">
-        <Calculator
-          ref="calculator"
-          :total-cents="quote?.grandTotalCents ?? 0"
-          :unrounded-cents="quote?.unroundedCents"
-          :exchange-shortfall-cents="quote?.exchangeShortfallCents ?? 0"
-          :quote-error="quoteError"
-          :items-json="cartItemsJson"
-          :client-id="client.id"
-          :rounding-mode="roundingMode"
-          :rounding-currency="roundingCurrency"
-          :split-primary-currency="splitPrimaryCurrency"
-          :split-primary-first="splitPrimaryFirst"
-          :split-primary-step="splitPrimaryStep"
+      <div class="home-right-pane d-flex flex-column position-relative" style="flex: 5 5 0; min-width: 0">
+        <!-- Searching in place: the results lie over the calculator, down to the
+             keyboard; everything under them stays as it was, a payment being
+             keyed included, and is back once the search ends. -->
+        <ProductSearchResults
+          v-if="searchingInPlace"
+          class="home-search-results"
+          :search="inPlaceSearch"
+          active
+          :grid-mode="productGridMode"
+          :code-only="productSearchCodeOnly"
+          :hidden-fields="productSearchHiddenFields"
+          @select="onInPlaceSelect"
+        />
+        <div
+          v-if="!hasItems"
+          class="position-absolute d-flex align-center justify-center"
+          style="
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(4px);
+            z-index: 10;
+          "
+        >
+          <v-card
+            class="empty-cart-card pa-0 text-center d-flex flex-column align-center justify-center"
+            rounded="lg"
+            width="180"
+            height="110"
+            elevation="4"
+          >
+            <v-icon icon="mdi-barcode-scan" size="42" class="mb-2" />
+            <div class="empty-cart-label text-subtitle-2">
+              Scan a barcode<br />{{ scanByCodeEnabled ? "or type a code" : "to add a product" }}
+            </div>
+          </v-card>
+        </div>
+        <!--
+        <div class="invoice-total-summary d-flex flex-column align-center mx-2 mt-1 px-1">
+          <span class="invoice-total-summary__label text-medium-emphasis">Total</span>
+          <div class="d-flex align-baseline justify-center ga-3">
+            <span class="invoice-total-summary__usd">{{ calculator?.totalSummary?.first ?? "$0.00" }}</span>
+            <span
+              v-if="calculator?.totalSummary?.second"
+              class="invoice-total-summary__lbp text-medium-emphasis"
+            >
+              ≈ {{ calculator.totalSummary.second }}
+            </span>
+          </div>
+        </div>
+        -->
+        <div class="mb-3 mt-1" style="flex: 1 1 0; min-height: 0">
+          <Calculator
+            ref="calculator"
+            :total-cents="quote?.grandTotalCents ?? 0"
+            :unrounded-cents="quote?.unroundedCents"
+            :invoice-discount-cents="quote?.invoiceDiscountCents ?? 0"
+            :invoice-discount-name="quote?.invoiceDiscountName ?? ''"
+            :exchange-shortfall-cents="quote?.exchangeShortfallCents ?? 0"
+            :quote-error="quoteError"
+            :items-json="cartItemsJson"
+            :client-id="client.id"
+            :rounding-mode="roundingMode"
+            :rounding-currency="roundingCurrency"
+            :split-primary-currency="splitPrimaryCurrency"
+            :split-primary-first="splitPrimaryFirst"
+            :split-primary-step="splitPrimaryStep"
+            :has-items="hasItems"
+            :exchange-mode="pageMode === 'exchange'"
+            :exchange-original-invoice-id="exchangeState?.originalInvoiceId"
+            :settlement-invoice-id="settlementState?.invoiceId"
+            :hide-payment-method-currency="hidePaymentMethodCurrency"
+            :auto-append-lbp-zeros="autoAppendLbpZeros"
+            :overchange-confirmation-enabled="overchangeConfirmationEnabled"
+            @account="accountDialog = true"
+            @coupon="calculator?.openCouponDialog()"
+          />
+        </div>
+        <ActionBar
+          ref="actionBar"
+          :total="invoiceTotal"
+          :total-summary="calculator?.totalSummary ?? { first: '$0.00', second: '' }"
+          :can-checkout="canCheckout"
           :has-items="hasItems"
-          :exchange-mode="pageMode === 'exchange'"
-          :exchange-original-invoice-id="exchangeState?.originalInvoiceId"
-          :settlement-invoice-id="settlementState?.invoiceId"
-          :hide-payment-method-currency="hidePaymentMethodCurrency"
-          :auto-append-lbp-zeros="autoAppendLbpZeros"
-          :overchange-confirmation-enabled="overchangeConfirmationEnabled"
-          @account="accountDialog = true"
-          @coupon="calculator?.openCouponDialog()"
+          :mode="pageMode"
+          @checkout="onCheckout"
+          @hold="onHold"
+          @void="onVoid"
+          @cancelMode="cancelMode"
         />
       </div>
-      <ActionBar
-        ref="actionBar"
-        :total="invoiceTotal"
-        :total-summary="calculator?.totalSummary ?? { first: '$0.00', second: '' }"
-        :can-checkout="canCheckout"
-        :has-items="hasItems"
-        :mode="pageMode"
-        @checkout="onCheckout"
-        @hold="onHold"
-        @void="onVoid"
-        @cancelMode="cancelMode"
-      />
     </div>
+    <!-- Over the bottom of the sale screen, not pushing it up: what's
+         there (Check Out, the quick-access cards) waits behind it. -->
+    <ProductSearchKeyboard
+      v-if="searchingInPlace"
+      ref="searchKeyboard"
+      v-model="inPlaceSearch"
+      v-model:grid-mode="productGridMode"
+      class="home-search-keyboard"
+      :code-only="productSearchCodeOnly"
+      @close="searchingInPlace = false"
+    />
   </div>
 
   <AccountDialog v-model="accountDialog" @select="onAccountClientSelect" />
@@ -377,9 +422,7 @@
           <div class="d-flex flex-column align-center ga-1">
             <v-icon :icon="saleOptionLook(option.name).icon" size="32" />
             <span class="sale-option-name">{{ option.name }}</span>
-            <span class="sale-option-discount">
-              {{ option.discount > 0 ? `-${option.discount}%` : "No discount" }}
-            </span>
+            <span v-if="option.discount > 0" class="sale-option-discount">-{{ option.discount }}%</span>
           </div>
         </v-btn>
       </v-card-text>
@@ -424,10 +467,14 @@ import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import NoteButton from "@/components/NoteButton.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
+import ProductSearchKeyboard from "@/components/ProductSearchKeyboard.vue";
+import ProductSearchResults from "@/components/ProductSearchResults.vue";
+import { useProductGridMode } from "@/composables/useProductGridMode";
 import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
+import UnknownPicturesCorner from "@/components/UnknownPicturesCorner.vue";
 import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
-import { quickAccessRows } from "@/lib/display";
+import { productSearchInPlace, quickAccessRows } from "@/lib/display";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
@@ -558,6 +605,9 @@ interface InvoiceQuote {
   // The priced lines, for the deals they carry (free units, the saving):
   // InvoiceItems marks them on the cart lines.
   lines?: DealLine[];
+  // kashi's whole-sale discount, already off grandTotalCents.
+  invoiceDiscountCents?: number;
+  invoiceDiscountName?: string;
 }
 const quote = ref<InvoiceQuote | null>(null);
 // A failed quote must never render as $0.00 - with a zero total the
@@ -729,6 +779,8 @@ async function refreshQuote() {
       grandTotalCents: Number(result.grandTotalCents),
       unroundedCents: Number(result.discountedSubtotalCents) + Number(result.taxCents),
       lines: result.lines ?? [],
+      invoiceDiscountCents: Number(result.invoiceDiscountCents ?? 0),
+      invoiceDiscountName: result.invoiceDiscountName ?? "",
     };
   } catch (e) {
     if (token !== quoteRequestToken) return;
@@ -829,6 +881,7 @@ function clearInvoice() {
   noteDraft.value = "";
   noteDialog.value = false;
   unknownPicturesReadyFor = "";
+  unknownSession.clientRef = "";
   clearDraft();
   resetClient();
 }
@@ -906,6 +959,47 @@ function onBlur() {
     focusBarcode();
   });
 }
+
+// The search button: in place (results where the calculator is, keyboard
+// along the bottom) unless Settings turned that off for the dialog.
+const searchingInPlace = ref(false);
+const inPlaceSearch = ref("");
+const productGridMode = useProductGridMode(
+  computed(() => productSearchCodeOnly.value || productSearchHiddenFields.value.includes("name")),
+);
+
+function openProductSearch() {
+  if (productSearchInPlace.value) searchingInPlace.value = true;
+  else productSearchDialog.value?.openDialog();
+}
+
+// Picking a product ends the search; all of it goes and the sale is back.
+function onInPlaceSelect(product: Parameters<typeof onProductSelect>[0]) {
+  searchingInPlace.value = false;
+  onProductSelect(product);
+}
+
+// The results end where the keyboard starts.
+const searchKeyboard = ref<{ $el?: HTMLElement } | null>(null);
+const searchKeyboardHeight = ref(0);
+const keyboardResizer = new ResizeObserver(([entry]) => {
+  searchKeyboardHeight.value = entry?.borderBoxSize?.[0]?.blockSize ?? entry?.contentRect.height ?? 0;
+});
+watch(searchKeyboard, (keyboard, old) => {
+  if (old?.$el) keyboardResizer.unobserve(old.$el);
+  if (keyboard?.$el) keyboardResizer.observe(keyboard.$el);
+});
+onBeforeUnmount(() => keyboardResizer.disconnect());
+
+watch(searchingInPlace, (open) => {
+  // Keeps the barcode field from taking the focus back while searching.
+  dialogOpen.value = open;
+  if (!open) inPlaceSearch.value = "";
+});
+
+watch(pageMode, (mode) => {
+  if (mode === "settlement") searchingInPlace.value = false;
+});
 
 function onProductSelect(product: {
   name: string;
@@ -1205,18 +1299,29 @@ async function confirmPricesIfUnusual(): Promise<boolean> {
 const unknownProductBarcode = ref("UNKNOWN");
 const isUnknownItem = (item: any) => item?.barcode === unknownProductBarcode.value;
 const unknownPrice = reactive({ show: false });
-const unknownPictures = reactive<{
-  show: boolean;
-  units: { label: string; unitPriceCents: number; discount: number }[];
-}>({ show: false, units: [] });
+type UnknownUnit = { label: string; unitPriceCents: number; discount: number; lineRef: string; slotRef: string };
+const unknownPictures = reactive<{ show: boolean; units: UnknownUnit[] }>({ show: false, units: [] });
 let unknownPicturesAnswer: ((ready: boolean) => void) | null = null;
 // The cart (one unit per picture) the last finished session was opened for.
 let unknownPicturesReadyFor = "";
+// Off (the default): the QR code shows on the sale screen as soon as an
+// unknown item is in the cart, so the phone takes pictures while the sale is
+// still being rung up. On: only once the cashier pays.
+const unknownPicturesAtCheckout = ref(false);
+// The session the sale screen's QR code opened for this cart.
+const unknownSession = reactive({ clientRef: "" });
+const unknownCartUnits = computed(() => unknownUnits());
+const showUnknownCorner = computed(
+  () => !unknownPicturesAtCheckout.value && pageMode.value !== "settlement" && unknownCartUnits.value.length > 0,
+);
 
 async function onUnknownAdd(price: number) {
   try {
     const product = await GetUnknownProduct();
-    invoiceItems.value?.addItem({ ...product, price, qty: 1, originalPrice: price } as any);
+    // unknownRef names the line to kashi, so its picture stays with it as
+    // other lines come and go while the phone is open.
+    const unknownRef = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    invoiceItems.value?.addItem({ ...product, price, qty: 1, originalPrice: price, unknownRef } as any);
     playClickSound();
   } catch (e: any) {
     showDiscountError(e?.toString() || "Couldn't add an unknown item");
@@ -1224,16 +1329,24 @@ async function onUnknownAdd(price: number) {
   focusBarcode();
 }
 
+// One unit per piece sold, tagged with its cart line: kashi takes one picture
+// per line, whatever its qty.
 function unknownUnits() {
-  const units: { label: string; unitPriceCents: number; discount: number }[] = [];
+  const units: UnknownUnit[] = [];
+  let line = 0;
   for (const item of invoiceItems.value?.items ?? []) {
     if (!isUnknownItem(item) || !(item.qty > 0)) continue;
+    line++;
+    // A line from before unknownRef (an old draft or hold) goes by position.
+    const lineRef = String(item.unknownRef || line);
     for (let i = 0; i < item.qty; i++) {
       const price = Number(item.unitPrices?.[i] ?? item.price);
       units.push({
         label: `Unknown item $${price.toFixed(2)}`,
         unitPriceCents: Math.round(price * 100),
         discount: Math.trunc(Number(item.unitDiscounts?.[i] ?? item.discount ?? 0)),
+        lineRef,
+        slotRef: `${lineRef}:${i + 1}`,
       });
     }
   }
@@ -1530,6 +1643,7 @@ async function loadAppSettings() {
     discountToggleDefaultOff.value = Boolean(settings?.discountToggleDefaultOff);
     dealToggleEnabled.value = Boolean(settings?.dealToggleEnabled);
     unknownProductBarcode.value = String(settings?.unknownProductBarcode || "UNKNOWN");
+    unknownPicturesAtCheckout.value = Boolean(settings?.unknownPicturesAtCheckout);
     priceEditCodes.value = String(settings?.priceEditCodes ?? "")
       .split(",")
       .map((code) => code.trim().toLowerCase())
@@ -1660,6 +1774,42 @@ onBeforeUnmount(() => {
   line-height: 1;
   background-color: #9fdada;
   color: #2f8f8f;
+}
+
+.home-panes {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.home-search-results {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: var(--home-search-keyboard-height, 0px);
+  z-index: 11;
+  background-color: rgb(var(--v-theme-surface));
+}
+
+.home-quick-access {
+  display: contents;
+}
+
+.home-under-keyboard {
+  visibility: hidden;
+}
+
+/* .home-page in front so this beats the keyboard's own position: relative:
+   it lies over the bottom of the screen and takes no room from the cart. */
+.home-page .home-search-keyboard {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  background-color: rgb(var(--v-theme-surface));
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  border-top: 1px solid rgba(var(--v-border-color), 0.18);
 }
 
 .home-right-pane {

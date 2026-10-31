@@ -1,0 +1,229 @@
+# Fixed bugs
+
+One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
+and what changed. Add an entry in the same change as the fix (see AGENTS.md).
+
+## 2026-10-31 · Keyboard and scanner typed Windows shortcuts after AnyDesk
+
+**Symptom.** After connecting to a till with AnyDesk from a Mac, the till's
+keyboard and scanner stopped working on the whole computer: typing 1 did
+Win+1 (opened the first taskbar program), and a scan fired a string of
+shortcuts. It lasted after AnyDesk disconnected, until someone pressed the
+Windows key on the till. Turning off AnyDesk's "Transmit keyboard
+shortcuts" didn't stop it.
+
+**Cause.** AnyDesk sends the Mac's ⌘ as the Windows key. When the Mac keeps
+a key's release to itself (⌘+Tab away from the AnyDesk window), the till
+hears Win go down but never up, so Windows holds it until a real Win press.
+Not kashi-pos's doing, but only the till can notice it.
+
+**Fix.** The device listener, which already sees every key with the device
+it came from, tracks which modifiers a keyboard or scanner on the till is
+holding. Every second it checks the ones Windows holds, and lets go of any
+(Win, Ctrl, Alt, Shift) held by nothing on the till for 3 seconds
+(`stuck_keys.go`, `devices_windows.go`). The kiosk keyboard hook lets that
+release through (`kiosk_windows.go`). Tests: `TestModifierWatch*` in
+`stuck_keys_test.go`.
+
+## 2026-10-30 · Punches made while the till was off could be missed
+
+**Symptom.** An employee's attendance in kashi had almost only arrival
+punches (Ahmad Robaie at Centro: one punch a day all October), while
+colleagues on the same device had their exits too.
+
+**Cause.** After a punch the device pings the till, which then asked the
+device for that day's punches only, and nothing pulled when the till
+started. A punch made while the till was off (leaving after closing) was
+never asked for again if the device honours the dates. Not confirmed on the
+device itself; the fix is safe either way.
+
+**Fix.** Every pull asks for the past 7 days (already imported punches are
+skipped as before) and the till pulls once when it starts
+(`attendance.go`, `attendance_push_server.go`). Test:
+`TestSyncAttendanceAsksForThePastWeek`.
+
+## 2026-10-30 · In-place product search squeezed the cart to a sliver
+
+**Symptom.** With the sale screen's in-place product search open, the cart
+showed only the top of its first line (the name, no code, one price), as
+if something hid the rest.
+
+**Cause.** The search keyboard was meant to lie over the bottom of the
+screen (`position: absolute` in `home.vue`), but its own component style
+(`position: relative` on `.product-search-keyboard`, scoped, so more
+specific) won. It stayed in the page's flow and took its height from the
+panes above; the cart, the only part that shrinks, was left about 20px.
+
+**Fix.** `home.vue`'s rule is now `.home-page .home-search-keyboard`, which
+outranks the component's, so the keyboard lies over the screen and the
+cart keeps its full height behind it. Checked in Chrome on the sale screen
+by measuring the cart with the search open and closed.
+
+## 2026-10-30 · Product search: tapping beside the field lost its focus
+
+**Symptom.** In the products search dialog, a tap anywhere outside the
+search field (beside the keyboard, on the results count, an empty spot)
+took the focus off the field, and with it the caret.
+
+**Cause.** Pressing on any part of the dialog is a mousedown, and the
+browser moves the focus away from the field on mousedown. Only the
+keyboard's keys guarded against it.
+
+**Fix.** `ProductSearchDialog.vue`'s card cancels the mousedown
+(`keepSearchFocus`) everywhere but the field itself and the results'
+scrollbar, so the field keeps its focus, caret and selection; taps and
+clicks still work. Checked by touch and mouse in Chrome.
+
+## 2026-10-30 · Product search: no way to edit the middle of a search by touch
+
+**Symptom.** In the products search dialog, tapping inside the search text
+didn't put the caret there (a finger drag only scrolled the text), nothing
+could be selected, and the on-screen keys always typed and deleted at the
+end, wherever the caret was.
+
+**Cause.** `InlineKeyboard` only appended to or chopped the end of its
+value, and pressing a key took the focus off the field, losing its caret.
+WebView2's own touch handling of a one-line input doesn't place a caret
+or select on a drag.
+
+**Fix.** `InlineKeyboard.vue` takes the field (`input` prop) and types,
+deletes and replaces at its caret or selection, keeps it focused, and adds
+caret ◀ ▶ and select-all keys. `composables/useTouchSelection.ts` takes
+touch over in the search field: tap places the caret, drag selects, double
+tap selects all. Its field is `inputmode="none"` so Windows' own touch
+keyboard stays away. Tests: `lib/caret.test.ts`; checked by touch in
+Chrome.
+
+## 2026-10-30 · Country flags show as letters in the phone dialog on Windows
+
+**Symptom.** On a Windows till, the client phone dialog's country cards and
+country picker showed two letters ("LB") instead of the flag emoji again.
+
+**Cause.** The bundled flag font was only registered when
+`country-flag-emoji-polyfill`'s canvas check said so: a smiley had to draw
+in colour *and* a flag had to fail. Where the till's WebView2 can't draw
+colour emoji on a canvas (no colour emoji font, or software rendering),
+the check failed, the font was never registered, and Windows fell back to
+the letters.
+
+**Fix.** `frontend/src/styles/typography.scss` declares the bundled
+Twemoji Country Flags `@font-face` itself, always, limited to the flag
+characters; `frontend/src/main.ts` only preloads it. The polyfill package
+is removed. macOS now shows the same Twemoji flags as Windows. No
+automated test: the frontend tests have no DOM; checked the built CSS.
+
+## 2026-10-30 · "Saved info" popup over the till's fields
+
+**Symptom.** Tapping a field (the cart's quantity box, say) opened a
+Windows "Saved info" popup listing old values like "0" on top of the cart.
+
+**Cause.** WebView2, which the till runs in, remembers what was typed into
+each field and offers it back. No field asked it not to, and Wails has no
+option to turn WebView2's autofill off.
+
+**Fix.** `frontend/src/lib/noAutofill.ts`, called from `main.ts`, marks
+every input and textarea `autocomplete="off"`, including ones added later
+(dialogs, menus), through a MutationObserver. No automated test: the
+frontend tests have no DOM; checked with the build.
+
+## 2026-10-30 · make bump tagged releases that couldn't be published
+
+**Symptom.** `make bump; make publish-all-force` run twice made v1.1.66,
+v1.1.67 and v1.1.68, and each publish failed to build, so none shipped.
+
+**Cause.** `make bump` tagged whatever was committed, with no checks, while
+`make publish` builds what's on disk, uncommitted work included. Work in
+progress that didn't compile yet was in the tree, and a second run bumped
+again with nothing new.
+
+**Fix.** `make bump` now refuses, tagging nothing, when there are
+uncommitted changes, when nothing was committed since the last release, or
+when `go build` fails (`Makefile`). The three unpublished tags were removed.
+
+## 2026-10-30 · Mixed carts got no free item on B2G1
+
+**Symptom.** 1 Kids Boy Jeans (BOC5…) + 2 Kids Girl Jeans (CA…) at $15 on
+"Buy 2 get 1 free" came to $33 with nothing free: the boy's at 20% off, the
+girl's at 30%.
+
+**Cause.** The outlet codes (CA, EOC5, EF6) were to get 30% on units left
+outside a set and everything else 20%, and a deal has one fallback percent,
+so they were put on two deals. The till pools units per deal, so the two
+kinds never made a set together.
+
+**Fix.** One deal again, with each list row able to carry its own fallback
+(`deal_fallback_percent`, kashi 000216, till 000133). The till pools every
+unit on the deal and gives a unit left outside a set its row's fallback
+(`unitDiscounts` and `applyDeals` in `deals.go`). Sold lines keep the
+fallback they were sold with, so an exchange judges them by it
+(`deal_exchange.go`). A till on an older build ignores the new field and
+gives the deal's own 20%; it never stacks a discount on the deal. Tests:
+`TestDealPoolsUnitsWithTheirOwnFallback`, `TestDealTermsIsRewardUnit`.
+
+## 2026-10-30 · Salespersons shared colours on the picker
+
+**Symptom.** Three salespersons were orange and two pink on the till's
+salesperson picker.
+
+**Cause.** kashi picked each new salesperson's colour at random from 12.
+The till shows the colour kashi sets.
+
+**Fix.** In kashi (its `docs/FIXED_BUGS.md`): a new salesperson gets the
+colour least used in the branch, and the existing duplicates were reassigned.
+Nothing changed on the till.
+
+## 2026-10-30 · Payment amount showed "NaN"
+
+**Symptom.** The amount box above the keypad showed "NaN" instead of a
+number.
+
+**Cause.** Pressing "." with nothing typed made the entry ".", and the box
+showed `Number(entry)`, which is NaN for ".". The same display also dropped
+what was being typed after the point ("1.50" showed as "1.5", "12." as "12").
+
+**Fix.** A point typed first starts the entry as "0.", and the box shows the
+entry as typed with thousands grouped (`displayValue` and `appendDigit` in
+`frontend/src/components/Calculator.vue`).
+
+## 2026-10-30 · Summer/Winter picker said "No discount" on every option
+
+**Symptom.** Scanning a product sold as Summer or Winter showed a
+"No discount" chip on each option, which read as if the item had no deal
+either, even when it was on B2G1.
+
+**Cause.** The picker showed a chip for every option, "No discount" when
+the option had no percent of its own.
+
+**Fix.** The chip shows only when the option has a discount
+(`frontend/src/pages/home.vue`).
+
+## 2026-10-30 · Cart showed the wrong price on deal lines split by sale option
+
+**Symptom.** The same product in the cart twice, once as Summer and once as
+Winter, on a B2G1 deal: 1 Summer + 3 Winter Kids Girl Jeans at $15 showed
+$0 and $25.5, and both chips said "1 free". The right figures are $0 (the
+free unit) and $40.5 (two at $15, one at 30% off). The total charged was
+always right ($40.50); only the per-line figures were wrong.
+
+**Cause.** The cart takes each line's share of a deal from the till's quote
+and matched quote lines to cart lines by barcode alone. Two cart lines of
+one product with different sale options share a barcode, so each picked up
+the deal's whole discount ($15 free + $4.50 leftover 30%) and took it off
+its own price.
+
+**Fix.** Quote lines now carry the sale option the cart sent
+(`LineQuote.SaleOption`, kept even when the option no longer counts), and the
+cart matches on barcode + sale option (`dealLineKey` in
+`frontend/src/lib/deals.ts`). Tests: `TestDealQuoteLinesNameTheirSaleOption`,
+`frontend/src/lib/deals.test.ts`.
+
+## 2026-10-30 · Cart line delete button highlight too wide
+
+**Symptom.** Hovering or pressing the trash icon on a cart line showed a wide
+pill-shaped highlight that spilled out of its column.
+
+**Cause.** It was a plain text `v-btn`, whose minimum width (about 50px) is
+wider than the 36px column it sits in.
+
+**Fix.** It is now an icon button of 32px (`InvoiceItems.vue`), so the
+highlight is a circle that fits.

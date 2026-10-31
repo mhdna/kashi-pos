@@ -103,6 +103,10 @@ type branchInvoicePayload struct {
 	// actually sold in LBP. Omitted for invoices from before they existed.
 	LbpTotal *int64 `json:"lbp_total,omitempty"`
 	LbpRate  *int64 `json:"lbp_rate,omitempty"`
+	// The sale's invoice discount (invoice_discounts.go) and its rule's
+	// name; omitted when there is none.
+	InvoiceDiscount     int64  `json:"invoice_discount,omitempty"`
+	InvoiceDiscountName string `json:"invoice_discount_name,omitempty"`
 	// UnknownSessionRef ties a sale with "Unknown item" lines to the pictures
 	// taken for it (kashi's unknown_session_ref).
 	UnknownSessionRef string `json:"unknown_session_ref,omitempty"`
@@ -126,6 +130,8 @@ type branchInvoicePayloadItem struct {
 	// line, in cents; line_total already has it off.
 	Deal         string `json:"deal,omitempty"`
 	DealDiscount int64  `json:"deal_discount,omitempty"`
+	// The line's share of the invoice discount; LineTotal has it off.
+	InvoiceDiscount int64 `json:"invoice_discount,omitempty"`
 }
 
 // clientUIDForSync returns the uid to report as an invoice's buyer: empty

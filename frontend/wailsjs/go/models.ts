@@ -69,6 +69,9 @@ export namespace main {
 	    closedPrograms: CashMachineCount[];
 	    startupOff: string[];
 	    lastSetup?: CashMachineSetup;
+	    setupRunning: boolean;
+	    // Go type: time
+	    setupStarted?: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new CashMachineStatus(source);
@@ -81,6 +84,8 @@ export namespace main {
 	        this.closedPrograms = this.convertValues(source["closedPrograms"], CashMachineCount);
 	        this.startupOff = source["startupOff"];
 	        this.lastSetup = this.convertValues(source["lastSetup"], CashMachineSetup);
+	        this.setupRunning = source["setupRunning"];
+	        this.setupStarted = this.convertValues(source["setupStarted"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -440,6 +445,7 @@ export namespace main {
 	export class LineQuote {
 	    code: string;
 	    barcode: string;
+	    saleOption?: string;
 	    lineTotalCents: number;
 	    discountCents: number;
 	    qty: number;
@@ -458,6 +464,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.code = source["code"];
 	        this.barcode = source["barcode"];
+	        this.saleOption = source["saleOption"];
 	        this.lineTotalCents = source["lineTotalCents"];
 	        this.discountCents = source["discountCents"];
 	        this.qty = source["qty"];
@@ -477,6 +484,8 @@ export namespace main {
 	    roundingCurrencyCode: string;
 	    roundingMode: string;
 	    lines: LineQuote[];
+	    invoiceDiscountCents?: number;
+	    invoiceDiscountName?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new InvoiceQuote(source);
@@ -491,6 +500,8 @@ export namespace main {
 	        this.roundingCurrencyCode = source["roundingCurrencyCode"];
 	        this.roundingMode = source["roundingMode"];
 	        this.lines = this.convertValues(source["lines"], LineQuote);
+	        this.invoiceDiscountCents = source["invoiceDiscountCents"];
+	        this.invoiceDiscountName = source["invoiceDiscountName"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

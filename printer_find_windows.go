@@ -151,9 +151,12 @@ func setPrinterPort(name, port string) error {
 	}
 	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
 	command := fmt.Sprintf("Set-Printer -Name %s -PortName %s", quote(name), quote(port))
-	if err := windows.ShellExecute(0, windows.StringToUTF16Ptr("runas"),
+	owner, approved := beginApprovalPrompt()
+	err = windows.ShellExecute(windows.Handle(owner), windows.StringToUTF16Ptr("runas"),
 		windows.StringToUTF16Ptr("powershell.exe"),
-		windows.StringToUTF16Ptr("-NoProfile -WindowStyle Hidden -Command "+command), nil, windows.SW_HIDE); err != nil {
+		windows.StringToUTF16Ptr("-NoProfile -WindowStyle Hidden -Command "+command), nil, windows.SW_HIDE)
+	approved()
+	if err != nil {
 		return fmt.Errorf("change the printer's port: %w", err)
 	}
 	for deadline := time.Now().Add(60 * time.Second); time.Now().Before(deadline); {

@@ -452,6 +452,8 @@ export function SetQuickAccessMode(arg1:string):Promise<void>;
 
 export function SetReceiptLook(arg1:string,arg2:string):Promise<void>;
 
+export function SetReleaseStuckKeys(arg1:boolean):Promise<void>;
+
 export function SetSalespersonPerInvoiceRequired(arg1:boolean):Promise<void>;
 
 export function SetScanByCodeEnabled(arg1:boolean):Promise<void>;
@@ -468,9 +470,9 @@ export function SetSplitDisplay(arg1:string,arg2:boolean,arg3:number):Promise<vo
 
 export function SetTheme(arg1:string):Promise<void>;
 
-export function SetUnknownProductBarcode(arg1:string):Promise<void>;
+export function SetUnknownPicturesAtCheckout(arg1:boolean):Promise<void>;
 
-export function SetUpCashMachine():Promise<main.CashMachineSetup>;
+export function SetUnknownProductBarcode(arg1:string):Promise<void>;
 
 export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
 
@@ -479,6 +481,8 @@ export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<st
 export function ShutDownComputer():Promise<void>;
 
 export function SkipShiftReceiptUpload(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function StartCashMachineSetup():Promise<void>;
 
 export function StartUnknownItemSession(arg1:string):Promise<Record<string, any>>;
 
@@ -489,6 +493,8 @@ export function SwitchBranch(arg1:string):Promise<void>;
 export function SwitchShiftReceiptToLocal(arg1:string):Promise<Record<string, any>>;
 
 export function SyncAttendance(arg1:string):Promise<Record<string, any>>;
+
+export function SyncUnknownItemSession(arg1:string,arg2:string):Promise<Record<string, any>>;
 
 export function UnknownItemSessionStatus(arg1:string):Promise<Record<string, any>>;
 

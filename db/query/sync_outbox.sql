@@ -154,3 +154,12 @@ WHERE client_ref = sqlc.arg(client_ref) AND status != 'synced';
 UPDATE sync_outbox
 SET payload_json = json_set(payload_json, sqlc.arg(field_path), json(sqlc.arg(json_value)))
 WHERE client_ref = sqlc.arg(client_ref) AND status != 'synced';
+
+-- name: RequeueFailedSyncOutbox :execrows
+-- Gives every row parked as 'failed' another go (see retryFailedSyncOutbox):
+-- whatever kashi refused may since have been fixed on its side, and a row
+-- older builds parked on a 401/403 was never about the row at all.
+-- last_error stays, as the reason it's retrying.
+UPDATE sync_outbox
+SET status = 'pending', attempt_count = 0, next_attempt_at = datetime('now')
+WHERE status = 'failed';

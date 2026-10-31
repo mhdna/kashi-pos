@@ -103,10 +103,16 @@ var (
 )
 
 // kioskAllowedPrograms may come to the front over the till: Task Manager,
-// the way out if the till stops responding, and Windows' administrator
+// the way out if the till stops responding, Windows' administrator
 // approval prompt (when it isn't on its own secure screen), which a printer
-// port change in the Devices dialog can raise.
-var kioskAllowedPrograms = map[string]bool{"taskmgr.exe": true, "consent.exe": true}
+// port change in the Devices dialog can raise, and the remote access tools
+// (Tailscale's login and settings, AnyDesk's accept-the-session prompt).
+var kioskAllowedPrograms = map[string]bool{
+	"taskmgr.exe":       true,
+	"consent.exe":       true,
+	"tailscale-ipn.exe": true,
+	"anydesk.exe":       true,
+}
 
 // kbdLLHookStruct is the Win32 KBDLLHOOKSTRUCT.
 type kbdLLHookStruct struct {
@@ -126,6 +132,11 @@ var kiosk struct {
 
 	foregroundCallback uintptr
 	keyboardCallback   uintptr
+
+	// approving is set while Windows' administrator approval prompt is up
+	// (beginApprovalPrompt): the till neither takes focus back nor stays on
+	// top, so the prompt can be seen and answered.
+	approving atomic.Bool
 }
 
 // enterKiosk turns kiosk mode on once the till's window is showing.
@@ -154,6 +165,35 @@ func enterKiosk() {
 	hideMinimizedWindows()
 	takeForeground(window, 0)
 	startCashMachine()
+}
+
+// beginApprovalPrompt gets the till ready for Windows' administrator
+// approval prompt (a "runas" ShellExecute) and returns the window to name
+// as its owner. Windows only pops the prompt up for a request from the
+// window in front; one with no owner waits as a flashing taskbar button,
+// which kiosk mode has hidden, so the setup sat waiting for an approval
+// nobody could see. Call done once the prompt has been answered.
+func beginApprovalPrompt() (owner uintptr, done func()) {
+	owner = kiosk.window.Load()
+	if owner == 0 {
+		// Kiosk mode is off: the till's window is the one in front.
+		if foreground, _, _ := pGetForegroundWindow.Call(); windowProcess(foreground) == uint32(os.Getpid()) {
+			owner = foreground
+		}
+	}
+	kiosk.approving.Store(true)
+	if window := kiosk.window.Load(); window != 0 {
+		pSetWindowPos.Call(window, hwndNoTopmost, 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoActivate)
+	}
+	return owner, func() {
+		kiosk.approving.Store(false)
+		kiosk.mu.Lock()
+		on := kiosk.threadID != 0
+		kiosk.mu.Unlock()
+		if window := kiosk.window.Load(); on && window != 0 {
+			takeForeground(window, 0)
+		}
+	}
 }
 
 // minimizedMetrics is the Win32 MINIMIZEDMETRICS struct.
@@ -288,7 +328,7 @@ func runKioskHooks(started chan<- uint32) {
 // onForegroundChanged is the WinEventProc for EVENT_SYSTEM_FOREGROUND.
 func onForegroundChanged(_, _, hwnd, _, _, _, _ uintptr) uintptr {
 	window := kiosk.window.Load()
-	if hwnd == 0 || window == 0 {
+	if hwnd == 0 || window == 0 || kiosk.approving.Load() {
 		return 0
 	}
 	pid := windowProcess(hwnd)
@@ -348,12 +388,13 @@ func takeForeground(window, from uintptr) {
 }
 
 // onKeyboard is the low-level keyboard hook: it swallows the keys that
-// would leave the till while the till is in front.
+// would leave the till while the till is in front, but not the device
+// listener's release of a stuck key.
 func onKeyboard(code, wParam, lParam uintptr) uintptr {
 	if int32(code) >= 0 {
 		if foreground, _, _ := pGetForegroundWindow.Call(); foreground == kiosk.window.Load() {
 			key := (*kbdLLHookStruct)(unsafe.Pointer(lParam))
-			if blockedKey(key) {
+			if key.extraInfo != stuckKeyRelease && blockedKey(key) {
 				return 1
 			}
 		}

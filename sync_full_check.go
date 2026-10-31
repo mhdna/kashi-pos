@@ -379,9 +379,15 @@ func (a *App) fullCheckEntity(ctx context.Context, client *centralClient, entity
 	if err != nil {
 		return rep, err
 	}
+	// The built-in "Unknown item" placeholder only ever lives on the till, so
+	// kashi never has its uid; it isn't an orphan.
+	var placeholderID int64
+	if p, err := a.store.GetProductByBarcode(ctx, defaultUnknownBarcode); err == nil {
+		placeholderID = p.ID
+	}
 	var orphans []int64
 	for uid, lv := range local {
-		if _, ok := remote[uid]; !ok && lv.active {
+		if _, ok := remote[uid]; !ok && lv.active && lv.id != placeholderID {
 			orphans = append(orphans, lv.id)
 		}
 	}

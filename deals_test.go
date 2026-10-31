@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"reflect"
 	"testing"
 
@@ -44,7 +45,7 @@ func TestDealUnitDiscounts(t *testing.T) {
 		{"2 is not 3 or more", volume, []int64{1000, 2000}, []int64{0, 0}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.terms.unitDiscounts(tc.prices, roundingHalfUp)
+			got := tc.terms.unitDiscounts(tc.prices, nil, roundingHalfUp)
 			if !reflect.DeepEqual(got, tc.want) {
 				t.Fatalf("unitDiscounts(%v) = %v, want %v", tc.prices, got, tc.want)
 			}
@@ -139,6 +140,7 @@ func TestDealTermsIsRewardUnit(t *testing.T) {
 	b2g1else30 := dealTerms{Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100, FallbackPercent: 30}
 	b2g1 := dealTerms{Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100}
 	bundle := dealTerms{Kind: dealBundlePrice, BuyQty: 3, BundlePrice: 5000}
+	b2g1else20 := dealTerms{Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100, FallbackPercent: 20}
 	for _, tc := range []struct {
 		name  string
 		terms dealTerms
@@ -151,9 +153,31 @@ func TestDealTermsIsRewardUnit(t *testing.T) {
 		{"a paid unit", b2g1else30, 10000, 0, false},
 		{"without a fallback any saving is the reward", b2g1, 10000, 3000, true},
 		{"a bundle has no reward units", bundle, 2000, 333, false},
+		// Sold with its own 30% on a deal whose fallback is 20% (000133).
+		{"a unit at its own fallback is no reward", b2g1else20, 10000, 3000, false},
 	} {
-		if got := tc.terms.isRewardUnit(tc.price, tc.deal, roundingHalfUp); got != tc.want {
+		fallback := sql.NullInt64{}
+		if tc.terms == b2g1else20 {
+			fallback = sql.NullInt64{Int64: 30, Valid: true}
+		}
+		if got := tc.terms.isRewardUnit(tc.price, tc.deal, fallback, roundingHalfUp); got != tc.want {
 			t.Errorf("%s: isRewardUnit = %v, want %v", tc.name, got, tc.want)
 		}
+	}
+}
+
+// A unit kept after an exchange earned its own fallback (000133): a CA unit
+// sold at its 30% on a deal whose fallback is 20% owes nothing back.
+func TestDealClawbackUsesEachUnitsFallback(t *testing.T) {
+	terms := dealTerms{Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100, FallbackPercent: 20}
+	thirty := sql.NullInt64{Int64: 30, Valid: true}
+	kept := dealGroupState{terms: terms, kept: []dealUnit{{price: 1500, deal: 450, fallback: thirty}}}
+	if got := kept.clawback(roundingHalfUp); got != 0 {
+		t.Fatalf("clawback = %d, want 0: the unit earned its own 30%%", got)
+	}
+	// The same unit at the deal's own fallback earned only 20%.
+	own := dealGroupState{terms: terms, kept: []dealUnit{{price: 1500, deal: 450}}}
+	if got := own.clawback(roundingHalfUp); got != 150 {
+		t.Fatalf("clawback = %d, want 150", got)
 	}
 }

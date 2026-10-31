@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"sync"
 
 	db "kashi-pos/db/sqlc"
@@ -31,6 +32,9 @@ type activeDiscount struct {
 	isSpecial bool
 	// The deal the row puts the product on (000128); percent is 0 then.
 	dealUID string
+	// What the product gets outside a set on that deal, in place of the
+	// deal's fallback (000133); unset for the deal's own.
+	dealFallback sql.NullInt64
 }
 
 // activePricing is every price and discount currently in force, keyed by
@@ -154,7 +158,7 @@ func readActivePricing(ctx context.Context, q *db.Queries) (activePricing, error
 	for _, row := range discountRows {
 		pricing.discounts[row.ProductUid] = activeDiscount{
 			percent: row.Discount, listID: row.ListID, listName: row.ListName,
-			dealUID: row.DealUid,
+			dealUID: row.DealUid, dealFallback: row.DealFallbackPercent,
 		}
 	}
 

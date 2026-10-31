@@ -9,7 +9,8 @@ package main
 // RIDEV_DEVNOTIFY, so it hears plugging and unplugging). Raw input names the
 // device each key came from, which the ordinary key events the webview gets
 // don't. Keys injected by AnyDesk or the on-screen keyboard have no device
-// and are ignored.
+// and are ignored. The same window lets go of modifier keys a remote session
+// left held (stuck_keys.go).
 //
 // Mouse: any USB mouse in raw input's device list, other than a touch
 // screen's (which Windows lists as a mouse too).
@@ -34,6 +35,7 @@ var (
 	pGetRawInputData         = user32.NewProc("GetRawInputData")
 	pGetRawInputDeviceInfoW  = user32.NewProc("GetRawInputDeviceInfoW")
 	pGetRawInputDeviceList   = user32.NewProc("GetRawInputDeviceList")
+	pSendInput               = user32.NewProc("SendInput")
 
 	hidDLL                 = windows.NewLazySystemDLL("hid.dll")
 	pHidDGetProductString  = hidDLL.NewProc("HidD_GetProductString")
@@ -63,6 +65,24 @@ const (
 
 	vkReturn = 0x0D
 	vkTabKey = 0x09
+
+	vkLShift   = 0xA0
+	vkRShift   = 0xA1
+	vkLControl = 0xA2
+	vkRControl = 0xA3
+	vkMenu     = 0x12
+	vkLMenu    = 0xA4
+	vkRMenu    = 0xA5
+
+	inputKeyboard        = 1
+	keyEventfExtendedKey = 0x0001
+	keyEventfKeyUp       = 0x0002
+	// stuckKeyRelease marks the key-ups the listener sends, so the kiosk's
+	// keyboard hook lets them through.
+	stuckKeyRelease = 0x4B415348
+	// stuckKeyTimer is the listener window's timer for checking modifiers.
+	stuckKeyTimer   = 1
+	stuckKeyCheckMs = 1000
 
 	// A scanner types a whole barcode with keys this close together and
 	// ends it with Enter (or Tab); a person is never that fast.
@@ -108,6 +128,16 @@ type rawKeyboardInput struct {
 	message, extraInf uint32
 }
 
+// keyboardInput is the Win32 INPUT for a key: its KEYBDINPUT padded to the
+// union's full size (the mouse member is the largest).
+type keyboardInput struct {
+	kind        uint32
+	vk, scan    uint16
+	flags, time uint32
+	extraInfo   uintptr
+	_           [8]byte
+}
+
 // printerInfo2 is PRINTER_INFO_2W.
 type printerInfo2 struct {
 	serverName, printerName, shareName, portName, driverName, comment,
@@ -127,8 +157,9 @@ var vidPidPattern = regexp.MustCompile(`VID_[0-9A-F]{4}&PID_[0-9A-F]{4}`)
 
 // The listener's state; only its own thread touches it.
 var inputListener struct {
-	ids     map[uintptr]string
-	cadence map[uintptr]*keyCadence
+	ids       map[uintptr]string
+	cadence   map[uintptr]*keyCadence
+	modifiers modifierWatch
 }
 
 func startInputDeviceListener() {
@@ -169,6 +200,7 @@ func runInputDeviceListener(started chan<- bool) {
 		started <- false
 		return
 	}
+	pSetTimer.Call(hwnd, stuckKeyTimer, stuckKeyCheckMs, 0)
 	log.Println("devices: listening for scanner and keyboard input")
 	started <- true
 
@@ -195,8 +227,19 @@ func inputListenerProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 		in := (*rawKeyboardInput)(unsafe.Pointer(&buf[0]))
 		if int32(r) <= 0 {
 			logRawInputFailure(err)
-		} else if in.kind == rimTypeKeyboard && in.device != 0 && in.flags&riKeyBreak == 0 {
-			onDeviceKey(in.device, in.vKey, time.Now())
+		} else if in.kind == rimTypeKeyboard && in.device != 0 {
+			down := in.flags&riKeyBreak == 0
+			if m, ok := modifierOf(in.vKey); ok {
+				inputListener.modifiers.pressed(m, down)
+			}
+			if down {
+				onDeviceKey(in.device, in.vKey, time.Now())
+			}
+		}
+	case wmTimer:
+		if wParam == stuckKeyTimer {
+			releaseStuckModifiers()
+			return 0
 		}
 	case wmInputDeviceChange:
 		// The device handle is about to go stale or is new; names are
@@ -208,6 +251,61 @@ func inputListenerProc(hwnd, msg, wParam, lParam uintptr) uintptr {
 	}
 	r, _, _ := pDefWindowProcW.Call(hwnd, msg, wParam, lParam)
 	return r
+}
+
+// modifierOf is the modifier a raw input key is, if it is one.
+func modifierOf(vKey uint16) (modifierKey, bool) {
+	switch vKey {
+	case vkLWin, vkRWin:
+		return modWin, true
+	case vkControl, vkLControl, vkRControl:
+		return modCtrl, true
+	case vkMenu, vkLMenu, vkRMenu:
+		return modAlt, true
+	case vkShift, vkLShift, vkRShift:
+		return modShift, true
+	}
+	return 0, false
+}
+
+// modifierKeys are each modifier's left and right keys.
+var modifierKeys = [modifierCount][2]uint16{
+	modWin:   {vkLWin, vkRWin},
+	modCtrl:  {vkLControl, vkRControl},
+	modAlt:   {vkLMenu, vkRMenu},
+	modShift: {vkLShift, vkRShift},
+}
+
+// releaseStuckModifiers lets go of the modifiers Windows holds that nothing
+// on the till has held for stuckModifierAfter.
+func releaseStuckModifiers() {
+	if stuckKeysLeftAlone.Load() {
+		return
+	}
+	now := time.Now()
+	for m, keys := range modifierKeys {
+		held := keyDown(uintptr(keys[0])) || keyDown(uintptr(keys[1]))
+		if !inputListener.modifiers.check(modifierKey(m), held, now) {
+			continue
+		}
+		for i, vk := range keys {
+			if keyDown(uintptr(vk)) {
+				log.Printf("devices: letting go of key 0x%X, held by nothing on the till", vk)
+				// Both Win keys and the right Ctrl and Alt are extended keys.
+				sendKeyUp(vk, modifierKey(m) == modWin || (i == 1 && modifierKey(m) != modShift))
+			}
+		}
+	}
+}
+
+func sendKeyUp(vk uint16, extended bool) {
+	in := keyboardInput{kind: inputKeyboard, vk: vk, flags: keyEventfKeyUp, extraInfo: stuckKeyRelease}
+	if extended {
+		in.flags |= keyEventfExtendedKey
+	}
+	if n, _, err := pSendInput.Call(1, uintptr(unsafe.Pointer(&in)), unsafe.Sizeof(in)); n == 0 {
+		log.Printf("devices: let go of key 0x%X: %v", vk, err)
+	}
 }
 
 var rawInputFailureLogged bool

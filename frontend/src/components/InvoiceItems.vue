@@ -235,7 +235,7 @@
             <div class="invoice-delete-control">
               <!-- A returned line in an exchange can't be edited, but it can be
                    taken out when the customer keeps that item after all. -->
-              <v-btn v-if="!readonly" variant="text" rounded size="small" @click="removeItem(item)">
+              <v-btn v-if="!readonly" icon variant="text" size="32" @click="removeItem(item)">
                 <v-icon icon="mdi-delete" size="18" color="grey" />
               </v-btn>
             </div>
@@ -392,7 +392,7 @@ import {
   UpdateProductDiscount,
 } from "../../wailsjs/go/main/App";
 import { roundDiscountCents, normalizeRoundingMode } from "@/lib/money";
-import { dealsByLine, offDealsByLine, type DealLine } from "@/lib/deals";
+import { dealLineKey, dealsByLine, offDealsByLine, type DealLine } from "@/lib/deals";
 import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
@@ -421,6 +421,9 @@ interface LineItem {
   // asks one; it decides the line's list discount. See home.vue
   // addProductToCart.
   saleOption?: string;
+  // An unknown item line's own id, so its picture follows it (home.vue
+  // unknownUnits).
+  unknownRef?: string;
   saleOptions?: { name: string; discount: number; discountListName?: string }[];
   // The catalog/list price captured when the line was added, before any
   // manual edit. Used as the fixed reference point in "discount" price
@@ -500,7 +503,7 @@ const offDealsByCartLine = computed(() => offDealsByLine(props.dealLines ?? []))
 // The deal a line gave up by having its deal turned off ("B2G1").
 function offDealFor(item: LineItem): string | undefined {
   if (!item.dealOff || item.qty <= 0) return undefined;
-  return offDealsByCartLine.value.get(item.barcode || item.code);
+  return offDealsByCartLine.value.get(dealLineKey(item));
 }
 
 // The percent the line's chip shows: what it gets, or with the discount
@@ -594,7 +597,7 @@ watch(
 // A returned line (qty < 0) in an exchange is never re-priced by a deal.
 function dealFor(item: LineItem) {
   if (item.qty <= 0) return undefined;
-  return dealsByCartLine.value.get(item.barcode || item.code);
+  return dealsByCartLine.value.get(dealLineKey(item));
 }
 
 // The icon a Summer/Winter sale option shows instead of its name; other
@@ -765,22 +768,19 @@ function addItem(item: LineItem) {
   // target - scanning the same product as a replacement must add a
   // separate, editable line rather than incrementing the locked line's qty
   // (which would silently net a -1 return back toward 0).
-  // Unknown items merge only at the same price: a different price is its own line.
-  const existing = items.value.find(
-    (i) =>
-      !i.locked &&
-      ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)) &&
-      // A summer and a winter unit of one barcode are discounted
-      // differently, so each option is its own line.
-      (i.saleOption ?? "") === (item.saleOption ?? "") &&
-      (!isUnknownItem(i) || Number(i.price) === Number(item.price)),
-  );
-  if (existing && isUnknownItem(existing)) {
-    ensureUnitPrices(existing);
-    existing.unitPrices?.push(Number(item.price));
-    existing.unitDiscounts?.push(0);
-    existing.qty++;
-  } else if (existing) {
+  // Each unknown item added is its own line, even at the same price as
+  // another: a line is one item, pictured once whatever its qty.
+  const existing = isUnknownItem(item)
+    ? undefined
+    : items.value.find(
+        (i) =>
+          !i.locked &&
+          ((item.barcode && i.barcode === item.barcode) || (!item.barcode && i.code === item.code)) &&
+          // A summer and a winter unit of one barcode are discounted
+          // differently, so each option is its own line.
+          (i.saleOption ?? "") === (item.saleOption ?? ""),
+      );
+  if (existing) {
     ensureUnitPrices(existing);
     existing.unitPrices?.push(existing.price);
     existing.unitDiscounts?.push(existing.discount);

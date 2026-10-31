@@ -27,16 +27,17 @@ RETURNING *;
 DELETE FROM discount_list_items WHERE discount_list_id = ?;
 
 -- name: InsertDiscountListItem :exec
-INSERT INTO discount_list_items (discount_list_id, product_uid, discount, deal_uid)
-VALUES (?, ?, ?, ?)
-ON CONFLICT (discount_list_id, product_uid) DO UPDATE SET discount = excluded.discount, deal_uid = excluded.deal_uid;
+INSERT INTO discount_list_items (discount_list_id, product_uid, discount, deal_uid, deal_fallback_percent)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT (discount_list_id, product_uid) DO UPDATE SET discount = excluded.discount, deal_uid = excluded.deal_uid,
+    deal_fallback_percent = excluded.deal_fallback_percent;
 
 -- name: DeleteDiscountListByUID :exec
 DELETE FROM discount_lists WHERE uid = ?;
 
 -- name: ListActiveDiscountListItems :many
 -- See ListActivePriceListItems for why this is ordered by is_default DESC.
-SELECT dli.product_uid, dli.discount, dli.deal_uid, dl.id AS list_id, dl.name AS list_name, dl.is_special
+SELECT dli.product_uid, dli.discount, dli.deal_uid, dli.deal_fallback_percent, dl.id AS list_id, dl.name AS list_name, dl.is_special
 FROM discount_list_items dli
 JOIN discount_lists dl ON dl.id = dli.discount_list_id
 WHERE dl.is_active = 1

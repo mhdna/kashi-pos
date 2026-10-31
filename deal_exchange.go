@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
@@ -59,35 +60,38 @@ type dealGroupState struct {
 	terms          dealTerms
 	kept           []dealUnit
 	swappedRewards []dealUnit
-	counted        []int64
-	forfeited      int64 // this exchange's and earlier ones'
-	clawedBack     int64 // earlier exchanges'
+	counted        []dealUnit // deal is 0: bought in the exchange
+	forfeited      int64      // this exchange's and earlier ones'
+	clawedBack     int64      // earlier exchanges'
 }
 
-type dealUnit struct{ price, deal int64 }
+// fallback is the unit's own fallback on the deal (deals.go withFallback).
+type dealUnit struct {
+	price, deal int64
+	fallback    sql.NullInt64
+}
 
 func (g dealGroupState) clawback(roundingMode string) int64 {
 	enjoyed := -g.forfeited - g.clawedBack
-	prices := make([]int64, 0, len(g.kept)+len(g.swappedRewards)+len(g.counted))
-	for _, u := range g.kept {
+	units := make([]dealUnit, 0, len(g.kept)+len(g.swappedRewards)+len(g.counted))
+	units = append(append(append(units, g.kept...), g.swappedRewards...), g.counted...)
+	prices := make([]int64, len(units))
+	fallbacks := make([]sql.NullInt64, len(units))
+	for i, u := range units {
 		enjoyed += u.deal
-		prices = append(prices, u.price)
+		prices[i], fallbacks[i] = u.price, u.fallback
 	}
-	for _, u := range g.swappedRewards {
-		enjoyed += u.deal
-		prices = append(prices, u.price)
-	}
-	prices = append(prices, g.counted...)
-	earned := g.terms.totalDiscount(prices, roundingMode)
+	earned := g.terms.totalDiscount(prices, fallbacks, roundingMode)
 	return max(0, enjoyed-earned)
 }
 
 // soldLineKey tells a sale's lines apart the way a returned line is matched
-// to one: product, price, discount and its unit deal discount.
+// to one: product, price, discount, its unit deal discount and fallback.
 type soldLineKey struct {
 	productID, unitPrice, discount int64
 	dealUID                        string
 	unitDeal                       int64
+	fallback                       sql.NullInt64
 }
 
 func keyOfLine(l db.InvoiceProduct) soldLineKey {
@@ -95,7 +99,7 @@ func keyOfLine(l db.InvoiceProduct) soldLineKey {
 	if l.Quantity != 0 {
 		unitDeal = l.DealDiscount / l.Quantity
 	}
-	return soldLineKey{l.ProductID, l.UnitPrice, l.Discount, l.DealUid, unitDeal}
+	return soldLineKey{l.ProductID, l.UnitPrice, l.Discount, l.DealUid, unitDeal, l.DealFallbackPercent}
 }
 
 // settleExchangeDeals applies the rules above to a priced exchange. Before
@@ -186,9 +190,9 @@ func (a *App) settleExchangeDeals(q *db.Queries, sourceID int64, sourceLines []d
 		}
 		returnUnits := func(k soldLineKey, qty int64) {
 			left[k] -= qty
-			if group.terms.isRewardUnit(k.unitPrice, k.unitDeal, roundingMode) {
+			if group.terms.isRewardUnit(k.unitPrice, k.unitDeal, k.fallback, roundingMode) {
 				for range qty {
-					group.swappedRewards = append(group.swappedRewards, dealUnit{k.unitPrice, k.unitDeal})
+					group.swappedRewards = append(group.swappedRewards, dealUnit{k.unitPrice, k.unitDeal, k.fallback})
 				}
 			}
 		}
@@ -200,7 +204,7 @@ func (a *App) settleExchangeDeals(q *db.Queries, sourceID int64, sourceLines []d
 				returnUnits(keyOfLine(l), -l.Quantity)
 			} else {
 				for range l.Quantity {
-					group.counted = append(group.counted, l.UnitPrice)
+					group.counted = append(group.counted, dealUnit{price: l.UnitPrice, fallback: l.DealFallbackPercent})
 				}
 			}
 		}
@@ -212,13 +216,13 @@ func (a *App) settleExchangeDeals(q *db.Queries, sourceID int64, sourceLines []d
 		for _, p := range result.replacements {
 			if p.dealUID == uid {
 				for range p.qty {
-					group.counted = append(group.counted, p.unitPrice)
+					group.counted = append(group.counted, dealUnit{price: p.unitPrice, fallback: replacementDealFallback(p)})
 				}
 			}
 		}
 		for _, k := range keys {
 			for range max(0, left[k]) {
-				group.kept = append(group.kept, dealUnit{k.unitPrice, k.unitDeal})
+				group.kept = append(group.kept, dealUnit{k.unitPrice, k.unitDeal, k.fallback})
 			}
 		}
 

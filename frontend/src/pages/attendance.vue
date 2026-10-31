@@ -84,7 +84,7 @@
           >{{ presentRows.length }} employees</span
         >
       </v-card-title>
-      <v-progress-linear v-if="loading" indeterminate color="primary" />
+      <v-progress-linear :active="loading" absolute location="top" indeterminate color="primary" />
       <v-list lines="two" class="attendance-list pa-2">
         <v-list-item
           v-for="item in presentRows"
@@ -273,7 +273,7 @@ const status = computed(() => (liveStatus.value.reachable ? syncStatus.value : l
 watch(
   () => liveStatus.value.reachable,
   (up, wasUp) => {
-    if (up && !wasUp && !loading.value) void refresh();
+    if (up && !wasUp && !refreshing) void refresh(true, true);
   },
 );
 const cashierHistory = ref(false);
@@ -287,44 +287,63 @@ const complaintEventOptions = computed(() =>
 const pendingComplaints = computed(() => complaints.value.filter((item: any) => item.status === "pending"));
 let timer: ReturnType<typeof setInterval>;
 let offSynced: (() => void) | undefined;
+// The refresh in flight, shown or not; a background one waits its turn
+// rather than piling up.
+let refreshing = false;
 // syncDevice=false just reloads what's already imported -- used when the Go
-// side has already synced, so we don't pull the door-log again.
-async function refresh(syncDevice = true) {
-  loading.value = true;
+// side has already synced, so we don't pull the door-log again. quiet is for
+// the minute timer and the background events: no loading bar, the rows just
+// swap in place, so the page doesn't jump while someone reads it.
+//
+// What's already imported shows first; the door-log pull (up to 15s against
+// a machine that doesn't answer) comes after and only swaps in what's new.
+// It's skipped while the live probe already says the machine is down.
+async function refresh(syncDevice = true, quiet = false) {
+  if (quiet && refreshing) return;
+  refreshing = true;
+  if (!quiet) loading.value = true;
   try {
-    if (syncDevice) syncStatus.value = await SyncAttendance(selectedDate.value);
-    const [events, employees] = await Promise.all([ListAttendance(selectedDate.value), ListSalespersons()]);
-    const configured = employees.filter((u: any) => u.attendanceUserId);
-    const byId = new Map(configured.map((u: any) => [u.id, u]));
-    const grouped = new Map<number, any>();
-    configured.forEach((u: any) =>
-      grouped.set(u.id, {
-        employeeId: u.id,
-        employeeName: u.fullName,
-        color: u.color,
-        userId: u.attendanceUserId,
-        events: [],
-      }),
-    );
-    events.forEach((e: any) => {
-      const u = byId.get(e.employeeId);
-      if (!grouped.has(e.employeeId))
-        grouped.set(e.employeeId, {
-          employeeId: e.employeeId,
-          employeeName: u?.fullName || e.employeeName,
-          color: u?.color,
-          userId: u?.attendanceUserId,
-          events: [],
-        });
-      grouped.get(e.employeeId).events.push(e);
-    });
-    rows.value = [...grouped.values()];
+    await loadRows();
+    if (syncDevice && liveStatus.value.reachable) {
+      syncStatus.value = await SyncAttendance(selectedDate.value);
+      await loadRows();
+    }
     await loadHistory();
   } catch {
     syncStatus.value = { reachable: false, message: "Attendance sync failed" };
   } finally {
-    loading.value = false;
+    refreshing = false;
+    if (!quiet) loading.value = false;
   }
+}
+// The selected day's stored punches, grouped by employee.
+async function loadRows() {
+  const [events, employees] = await Promise.all([ListAttendance(selectedDate.value), ListSalespersons()]);
+  const configured = employees.filter((u: any) => u.attendanceUserId);
+  const byId = new Map(configured.map((u: any) => [u.id, u]));
+  const grouped = new Map<number, any>();
+  configured.forEach((u: any) =>
+    grouped.set(u.id, {
+      employeeId: u.id,
+      employeeName: u.fullName,
+      color: u.color,
+      userId: u.attendanceUserId,
+      events: [],
+    }),
+  );
+  events.forEach((e: any) => {
+    const u = byId.get(e.employeeId);
+    if (!grouped.has(e.employeeId))
+      grouped.set(e.employeeId, {
+        employeeId: e.employeeId,
+        employeeName: u?.fullName || e.employeeName,
+        color: u?.color,
+        userId: u?.attendanceUserId,
+        events: [],
+      });
+    grouped.get(e.employeeId).events.push(e);
+  });
+  rows.value = [...grouped.values()];
 }
 async function loadAttendanceOptions() {
   try {
@@ -521,11 +540,11 @@ onMounted(() => {
     void loadManagerApproval();
   });
   refresh();
-  timer = setInterval(() => refresh(), 60_000);
+  timer = setInterval(() => refresh(true, true), 60_000);
   // Rows imported outside this page (the device's push, the fallback poll):
   // reload what's stored, without pulling the door-log again.
   offSynced = EventsOn("attendance_recorded", () => {
-    if (!loading.value) void refresh(false);
+    void refresh(false, true);
   });
 });
 onUnmounted(() => {
@@ -546,6 +565,7 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 .attendance-page > .attendance-card {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;

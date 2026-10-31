@@ -79,10 +79,14 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	// checkout applies to the total, so it can't stand in for tax: at a 0%
 	// rate it printed a stray "Tax" of a few cents. Tax is passed in, and
 	// whatever is left over is the rounding.
-	rounding := grandTotal - (subtotal - totalDiscount) - tax
+	invoiceDisc := float64(data.InvoiceDiscount.Cents) / 100
+	rounding := grandTotal - (subtotal - totalDiscount - invoiceDisc) - tax
 	out.WriteString(separator + "\n")
 	writeESCPosLine(&out, "Subtotal", fmt.Sprintf("$%.2f", subtotal), columns)
 	writeESCPosLine(&out, "Discount", fmt.Sprintf("-$%.2f", totalDiscount), columns)
+	if data.InvoiceDiscount.Cents > 0 {
+		writeESCPosLine(&out, sanitizeESCPos(invoiceDiscountLabel(data.InvoiceDiscount)), fmt.Sprintf("-$%.2f", invoiceDisc), columns)
+	}
 	if math.Abs(rounding) > 0.005 {
 		writeESCPosLine(&out, "Rounding", fmt.Sprintf("$%.2f", rounding), columns)
 	}

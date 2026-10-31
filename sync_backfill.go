@@ -404,8 +404,11 @@ func (a *App) computeDeactivationCandidates(ctx context.Context, client *central
 	}
 	barcodes := make([]string, 0, len(products))
 	productNameByBarcode := make(map[string]string, len(products))
+	// The "Unknown item" placeholder is the till's own, never kashi's:
+	// deactivating it would take it off the sale screen.
+	unknown := a.unknownBarcode()
 	for _, p := range products {
-		if strings.TrimSpace(p.Barcode) == "" {
+		if strings.TrimSpace(p.Barcode) == "" || p.Barcode == unknown {
 			continue
 		}
 		barcodes = append(barcodes, p.Barcode)

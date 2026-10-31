@@ -20,11 +20,11 @@ import (
 
 // "Unknown item": something a customer wants that has no code here. The
 // cashier rings it up as the placeholder product below at the price they
-// type; before payment, a phone takes a picture of every unit (the QR link
-// kashi hands back), the pictures go straight to kashi, and the sale is held
-// only until each unit has one -- or a kashi user with the right permission
-// lets it through. Afterwards someone in kashi names what each picture was
-// (see api/unknown_items.go in the kashi repo).
+// type; before payment, a phone takes a picture of every line, whatever its
+// qty (the QR link kashi hands back), the pictures go straight to kashi, and
+// the sale is held only until each unit has one -- or a kashi user with the
+// right permission lets it through. Afterwards someone in kashi names what
+// each picture was (see api/unknown_items.go in the kashi repo).
 
 const (
 	// defaultUnknownBarcode is the built-in placeholder's barcode, used while
@@ -33,7 +33,25 @@ const (
 	unknownProductName    = "Unknown item"
 
 	unknownCallTimeout = 10 * time.Second
+
+	// When on, the phone's QR code only shows once the cashier pays (the
+	// original flow). Off, the default, the sale screen shows it as soon as
+	// an unknown item is in the cart, so pictures are taken while ringing up.
+	unknownPicturesAtCheckoutFlag = "unknown_pictures_at_checkout"
 )
+
+// SetUnknownPicturesAtCheckout picks when the unknown item QR code shows: at
+// checkout (true) or right after an unknown item is added (false).
+func (a *App) SetUnknownPicturesAtCheckout(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, unknownPicturesAtCheckoutFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
+}
 
 // unknownBarcode is the barcode of the product that stands for "an item I
 // can't name": the one kashi's branch settings point at, else the built-in
@@ -82,6 +100,14 @@ func (a *App) SetUnknownProductBarcode(barcode string) error {
 func ensureUnknownProduct(ctx context.Context, q *db.Queries, barcode string) (db.Product, error) {
 	product, err := q.GetProductByBarcode(ctx, barcode)
 	if err == nil {
+		// Earlier versions let the full catalog check switch the built-in
+		// placeholder off as a product kashi doesn't have; turn it back on.
+		if product.IsActive == 0 && barcode == defaultUnknownBarcode {
+			if err := q.SetProductActive(ctx, db.SetProductActiveParams{IsActive: 1, ID: product.ID}); err != nil {
+				return db.Product{}, err
+			}
+			product.IsActive = 1
+		}
 		return product, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -173,6 +199,11 @@ type unknownSlotInput struct {
 	Label          string `json:"label"`
 	UnitPriceCents int64  `json:"unitPriceCents"`
 	Discount       int64  `json:"discount"`
+	// The cart line the unit is on; kashi takes one picture per line.
+	LineRef string `json:"lineRef"`
+	// Stable across re-sends of the same cart, so a unit keeps its picture
+	// as lines around it come and go. Empty: its position in the cart.
+	SlotRef string `json:"slotRef"`
 }
 
 type unknownSessionResponse struct {
@@ -180,6 +211,7 @@ type unknownSessionResponse struct {
 	Complete    bool   `json:"complete"`
 	Slots       []struct {
 		SlotRef  string `json:"slot_ref"`
+		LineRef  string `json:"line_ref"`
 		Label    string `json:"label"`
 		HasImage bool   `json:"has_image"`
 		Waived   bool   `json:"waived"`
@@ -200,7 +232,7 @@ func unknownSessionResult(clientRef, uploadURL string, resp unknownSessionRespon
 	slots := make([]map[string]any, 0, len(resp.Slots))
 	for _, slot := range resp.Slots {
 		slots = append(slots, map[string]any{
-			"slotRef": slot.SlotRef, "label": slot.Label,
+			"slotRef": slot.SlotRef, "lineRef": slot.LineRef, "label": slot.Label,
 			"hasImage": slot.HasImage, "waived": slot.Waived, "done": slot.HasImage || slot.Waived,
 		})
 	}
@@ -208,9 +240,17 @@ func unknownSessionResult(clientRef, uploadURL string, resp unknownSessionRespon
 }
 
 // StartUnknownItemSession opens the picture session of the cart being paid:
-// one slot per unit. It returns the link the phone's QR code carries. The
+// one slot per unit, one picture per cart line. It returns the link the phone's QR code carries. The
 // session is remembered so CheckoutInvoice can tie the sale to it.
 func (a *App) StartUnknownItemSession(slotsJSON string) (map[string]any, error) {
+	return a.SyncUnknownItemSession("", slotsJSON)
+}
+
+// SyncUnknownItemSession is StartUnknownItemSession for a cart still being
+// rung up: given the clientRef of an open session it re-sends that session's
+// units, so the same QR link (and the phone already on it) follows the cart
+// as unknown items are added or taken off. "" opens a new session.
+func (a *App) SyncUnknownItemSession(clientRef, slotsJSON string) (map[string]any, error) {
 	var slots []unknownSlotInput
 	if err := json.Unmarshal([]byte(slotsJSON), &slots); err != nil || len(slots) == 0 {
 		return nil, fmt.Errorf("no unknown items to take pictures of")
@@ -220,14 +260,23 @@ func (a *App) StartUnknownItemSession(slotsJSON string) (map[string]any, error) 
 		Label     string `json:"label"`
 		UnitPrice int64  `json:"unit_price"`
 		Discount  int64  `json:"discount"`
+		LineRef   string `json:"line_ref"`
 	}
 	body := struct {
 		ClientRef string     `json:"client_ref"`
 		Slots     []slotBody `json:"slots"`
-	}{ClientRef: uuid.NewString()}
+	}{ClientRef: clientRef}
+	if body.ClientRef == "" {
+		body.ClientRef = uuid.NewString()
+	}
 	for i, slot := range slots {
+		slotRef := slot.SlotRef
+		if slotRef == "" {
+			slotRef = strconv.Itoa(i + 1)
+		}
 		body.Slots = append(body.Slots, slotBody{
-			SlotRef: strconv.Itoa(i + 1), Label: slot.Label, UnitPrice: slot.UnitPriceCents, Discount: slot.Discount,
+			SlotRef: slotRef, Label: slot.Label, UnitPrice: slot.UnitPriceCents, Discount: slot.Discount,
+			LineRef: slot.LineRef,
 		})
 	}
 	var resp unknownSessionResponse

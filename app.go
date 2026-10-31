@@ -958,6 +958,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	result["closeShiftRequiresSync"] = a.closeShiftRequiresSync()
 	result["scanByCodeEnabled"] = a.scanByCodeEnabled()
 	result["productSearchCodeOnly"] = a.flagEnabled(a.ctx, productSearchCodeOnlyFlag)
+	result["unknownPicturesAtCheckout"] = a.flagEnabled(a.ctx, unknownPicturesAtCheckoutFlag)
 	result["priceEditRestricted"] = a.flagEnabled(a.ctx, priceEditRestrictedFlag)
 	result["priceEditCodes"] = a.priceEditCodes()
 	result["discountToggleEnabled"] = a.flagEnabled(a.ctx, discountToggleFlag)
@@ -967,6 +968,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	result["unknownProductBarcode"] = a.unknownBarcode()
 	result["productSearchHiddenFields"] = a.productSearchHiddenFields()
 	result["soundsEnabled"] = a.soundsEnabled()
+	result["releaseStuckKeys"] = a.releaseStuckKeys()
 	result["attendanceManagerApprovalEnabled"] = a.attendanceManagerApprovalEnabled()
 	if enabled, flagErr := a.store.GetFeatureFlag(a.ctx, productSearchEnabledFlag); flagErr == nil {
 		result["productSearchEnabled"] = enabled != 0

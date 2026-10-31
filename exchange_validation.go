@@ -194,7 +194,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		if line.Quantity == 0 {
 			return false
 		}
-		return saleDeals[line.DealUid].isRewardUnit(line.UnitPrice, line.DealDiscount/line.Quantity, roundingMode)
+		return saleDeals[line.DealUid].isRewardUnit(line.UnitPrice, line.DealDiscount/line.Quantity, line.DealFallbackPercent, roundingMode)
 	}
 	// Units of one product at one price are alike on the shelf, free or
 	// paid; a returned one is taken as the free unit first. That's the
@@ -216,6 +216,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		var originalLine db.InvoiceProduct
 		foundAvailableLine := false
 		requestedQty := -requested.Qty
+		var alreadyReturned int64
 		for _, line := range candidates {
 			if line.ProductID != product.ID || (requested.UnitPriceCents != nil && line.UnitPrice != *requested.UnitPriceCents) || (requested.UnitDiscount != nil && line.Discount != *requested.UnitDiscount) {
 				continue
@@ -225,6 +226,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 			if returnedErr == nil && requestedQty <= line.Quantity-databaseInt64(returnedQty)-reserved[lineKey] {
 				originalLine = line
 				foundAvailableLine = true
+				alreadyReturned = databaseInt64(returnedQty) + reserved[lineKey]
 				reserved[lineKey] += requestedQty
 				break
 			}
@@ -243,7 +245,8 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		if unitTotal > 0 && requestedQty > math.MaxInt64/unitTotal {
 			return result, fmt.Errorf("returned total is too large")
 		}
-		priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: unitTotal * requestedQty, note: requested.Note, salespersonID: requested.SalespersonID, deal: deal}
+		lineTotal := unitTotal*requestedQty - returnedInvoiceDiscount(originalLine, alreadyReturned, requestedQty)
+		priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: lineTotal, note: requested.Note, salespersonID: requested.SalespersonID, deal: deal}
 		result.returned = append(result.returned, priced)
 		result.returnedTotal += priced.lineTotal
 	}
