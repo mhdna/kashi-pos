@@ -1,17 +1,22 @@
-import { ref } from "vue";
+import { ref, watchEffect } from "vue";
+import { ANIMATIONS_KEY, initialAnimationsEnabled } from "./animationsDefault";
 import { GetDisplayPrefs, ReportDisplayPrefs } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 export const isCompactBuild = import.meta.env.VITE_KASHI_COMPACT === "1";
 
-const storedAnimations = localStorage.getItem("kashi-animations-enabled");
-export const animationsEnabled = ref(
-  storedAnimations === null ? !isCompactBuild : storedAnimations === "true",
-);
+/** Off by default everywhere (see lib/animationsDefault.ts). */
+export const animationsEnabled = ref(initialAnimationsEnabled(localStorage));
+
+// Mirrored onto <html> because dialogs and menus are teleported to <body>,
+// outside the app root that carries the class.
+watchEffect(() => {
+  document.documentElement.classList.toggle("animations-disabled", !animationsEnabled.value);
+});
 
 export function setAnimationsEnabled(enabled: boolean) {
   animationsEnabled.value = enabled;
-  localStorage.setItem("kashi-animations-enabled", String(enabled));
+  localStorage.setItem(ANIMATIONS_KEY, String(enabled));
   reportDisplayPrefs();
 }
 
