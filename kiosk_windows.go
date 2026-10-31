@@ -103,10 +103,16 @@ var (
 )
 
 // kioskAllowedPrograms may come to the front over the till: Task Manager,
-// the way out if the till stops responding, and Windows' administrator
+// the way out if the till stops responding, Windows' administrator
 // approval prompt (when it isn't on its own secure screen), which a printer
-// port change in the Devices dialog can raise.
-var kioskAllowedPrograms = map[string]bool{"taskmgr.exe": true, "consent.exe": true}
+// port change in the Devices dialog can raise, and the remote access tools
+// (Tailscale's login and settings, AnyDesk's accept-the-session prompt).
+var kioskAllowedPrograms = map[string]bool{
+	"taskmgr.exe":       true,
+	"consent.exe":       true,
+	"tailscale-ipn.exe": true,
+	"anydesk.exe":       true,
+}
 
 // kbdLLHookStruct is the Win32 KBDLLHOOKSTRUCT.
 type kbdLLHookStruct struct {
