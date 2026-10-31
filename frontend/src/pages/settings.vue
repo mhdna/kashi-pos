@@ -3847,7 +3847,12 @@ async function deleteUser() {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px 24px 24px;
+  padding: 12px 24px 0;
+}
+
+/* A tab with no Save bar still gets room under its last card. */
+.settings-grid:last-child {
+  margin-bottom: 24px;
 }
 
 .settings-heading {
@@ -3923,13 +3928,8 @@ async function deleteUser() {
   position: sticky;
   bottom: 0;
   z-index: 5;
-  padding: 24px 0 12px;
-  background: linear-gradient(to bottom, transparent, var(--kashi-app-background) 55%);
-  pointer-events: none;
-}
-
-.settings-page-actions > * {
-  pointer-events: auto;
+  padding: 10px 0 14px;
+  background: var(--kashi-app-background);
 }
 
 .settings-page :deep(.k-input) {
@@ -4037,7 +4037,7 @@ async function deleteUser() {
   }
 
   .settings-scroll {
-    padding: 12px 16px 24px;
+    padding: 12px 16px 0;
   }
 }
 </style>
