@@ -311,23 +311,14 @@
 
         <!-- The shift is done: say goodbye, and offer to turn the till off. -->
         <template v-else>
-          <k-card-text class="pt-6 goodbye">
-            <!-- A confetti burst behind the icon; the pieces fly out once. -->
-            <div v-if="animationsEnabled" class="goodbye-confetti" aria-hidden="true">
-              <span v-for="piece in confetti" :key="piece.id" class="goodbye-confetti-piece" :style="piece.style" />
-            </div>
-            <k-icon
-              :class="{ 'goodbye-icon': animationsEnabled }"
-              color="deep-purple"
-              icon="mdi-party-popper"
-              size="104"
-            />
+          <k-card-text class="pt-6">
+            <k-icon color="success" icon="mdi-check-circle" size="72" />
             <div class="text-h5 font-weight-bold mt-2">
               Well done{{ closerFirstName ? `, ${closerFirstName}` : "" }}!
             </div>
             <div class="text-body-1 mt-3">
               Your shift is closed{{ receiptPhotoReceived ? " and the receipt photo is in" : "" }}. Thank you for
-              today's work. Get home safe!
+              today's work.
             </div>
             <div v-if="receiptPhotoReceived" class="text-caption text-medium-emphasis mt-2">
               The photo will sync to the office automatically.
@@ -365,7 +356,6 @@ import { useAuthStore } from "@/stores/auth";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { formatServerDateTime } from "@/lib/datetime";
 import { playErrorSound, playSuccessSound } from "@/lib/sound";
-import { animationsEnabled } from "@/lib/display";
 import { useCurrencies } from "@/composables/useCurrencies";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import CloseShiftSyncDialog from "@/components/shifts/CloseShiftSyncDialog.vue";
@@ -656,23 +646,6 @@ const closerFirstName = computed(() => {
   return String(closer?.fullName ?? "").trim().split(/\s+/)[0] ?? "";
 });
 
-// Confetti pieces flying out in every direction from behind the icon.
-const confettiColors = ["#f44336", "#ffb300", "#43a047", "#1e88e5", "#8e24aa", "#ec407a"];
-// The same burst every time: the pieces are spread evenly, at three
-// distances, with a fixed spin and delay each.
-const confetti = Array.from({ length: 36 }, (_, id) => {
-  const angle = (id / 36) * Math.PI * 2;
-  const distance = 100 + (id % 3) * 40;
-  const style: Record<string, string> = {
-    "--x": `${Math.round(Math.cos(angle) * distance)}px`,
-    "--y": `${Math.round(Math.sin(angle) * distance) - 30}px`,
-    "--spin": `${((id * 137) % 720) - 360}deg`,
-    background: confettiColors[id % confettiColors.length] ?? "#ffb300",
-    animationDelay: `${(id % 4) * 0.04}s`,
-  };
-  return { id, style };
-});
-
 // The end of a closed shift: a thank-you, and the choice to turn the till
 // off or just log out.
 function showGoodbye(photoReceived: boolean) {
@@ -802,76 +775,6 @@ onBeforeUnmount(stopReceiptWatchers);
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-.goodbye {
-  position: relative;
-}
-
-.goodbye-confetti {
-  position: absolute;
-  top: 76px;
-  left: 50%;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-
-.goodbye-confetti-piece {
-  position: absolute;
-  width: 8px;
-  height: 12px;
-  border-radius: 2px;
-  opacity: 0;
-  animation: goodbye-confetti 1.3s ease-out forwards;
-}
-
-@keyframes goodbye-confetti {
-  0% {
-    transform: translate(0, 0) rotate(0) scale(0.6);
-    opacity: 1;
-  }
-  80% {
-    opacity: 1;
-  }
-  100% {
-    transform: translate(var(--x), calc(var(--y) + 60px)) rotate(var(--spin)) scale(1);
-    opacity: 0;
-  }
-}
-
-.goodbye-icon {
-  position: relative;
-  animation:
-    goodbye-pop 0.5s ease-out,
-    goodbye-bounce 1s ease-in-out 0.5s 3;
-}
-
-@keyframes goodbye-pop {
-  0% {
-    transform: scale(0.3) rotate(-20deg);
-    opacity: 0;
-  }
-  70% {
-    transform: scale(1.2) rotate(6deg);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1) rotate(0);
-  }
-}
-
-@keyframes goodbye-bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  40% {
-    transform: translateY(-18px);
-  }
-  60% {
-    transform: translateY(-18px) scale(1.05, 0.95);
-  }
 }
 
 .close-shift-title {
