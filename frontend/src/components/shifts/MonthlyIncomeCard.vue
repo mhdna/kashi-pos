@@ -1,11 +1,11 @@
 <template>
-  <v-sheet class="monthly-income-card shifts-card pa-4" style="flex: 2; min-width: 0">
+  <k-sheet class="monthly-income-card shifts-card pa-4" style="flex: 2; min-width: 0">
     <div class="monthly-income-title d-flex align-center">
-      <v-icon icon="mdi-calendar-month-outline" color="grey-darken-1" class="me-2" />
-      <v-card-title class="text-body-1 font-weight-bold px-0">
+      <k-icon icon="mdi-calendar-month-outline" color="grey-darken-1" class="me-2" />
+      <k-card-title class="text-body-1 font-weight-bold px-0">
         Monthly Shift Income ({{ month }})
-      </v-card-title>
-      <v-btn
+      </k-card-title>
+      <k-btn
         v-if="canChangeMonth"
         icon="mdi-chevron-left"
         variant="text"
@@ -16,7 +16,7 @@
         aria-label="Previous month"
         @click="$emit('prev-month')"
       />
-      <v-btn
+      <k-btn
         v-if="canChangeMonth"
         icon="mdi-chevron-right"
         variant="text"
@@ -26,8 +26,8 @@
         aria-label="Next month"
         @click="$emit('next-month')"
       />
-      <v-spacer />
-      <v-btn
+      <k-spacer />
+      <k-btn
         variant="tonal"
         size="small"
         :prepend-icon="allDaysExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down'"
@@ -35,14 +35,14 @@
         @click="$emit('toggle-all')"
       >
         {{ allDaysExpanded ? "Collapse all" : "Expand all" }}
-      </v-btn>
+      </k-btn>
     </div>
 
     <div class="monthly-income-header text-caption font-weight-bold">
       <span>Day</span>
       <span>Total</span>
     </div>
-    <v-progress-linear v-if="loading" indeterminate />
+    <k-progress-linear v-if="loading" indeterminate />
     <div ref="monthlyIncomeScroll" v-else class="monthly-income-scroll">
       <div
         v-for="item in rows"
@@ -55,7 +55,7 @@
           :class="{ 'monthly-income-current-day': item.day === currentDay }"
           @click="$emit('toggle-day', item.day)"
         >
-          <v-btn
+          <k-btn
             class="monthly-income-expand"
             variant="text"
             density="compact"
@@ -66,16 +66,16 @@
           />
           <span class="d-flex align-center ga-2">
             {{ item.day }}
-            <v-chip
+            <k-chip
               v-if="visitorCounterEnabled && visitorCounts[item.day] != null"
               color="orange"
               size="x-small"
               variant="flat"
               :title="`${visitorCounts[item.day]} people visited`"
             >
-              <v-icon start icon="mdi-account-group-outline" size="12" />
+              <k-icon start icon="mdi-account-group-outline" size="12" />
               {{ visitorCounts[item.day] }}
-            </v-chip>
+            </k-chip>
           </span>
           <span class="font-weight-bold">{{ formatBalance(item.total, "USD", currencies, roundingMode) }}</span>
         </div>
@@ -89,7 +89,7 @@
                 class="d-flex align-center pa-2 shift-row"
                 @click.stop="$emit('toggle-shift', shift.id)"
               >
-                <v-chip
+                <k-chip
                   :color="shift.isClosed ? 'grey' : 'green-darken-2'"
                   size="x-small"
                   variant="outlined"
@@ -97,7 +97,7 @@
                   class="me-2"
                 >
                   {{ shift.isClosed ? "Closed" : "Open" }}
-                </v-chip>
+                </k-chip>
                 <span class="text-caption me-2">#{{ shift.id }}</span>
                 <span class="text-caption me-2">{{ formatServerDateTime(shift.createdAt) }}</span>
                 <span v-if="shift.closedAt" class="text-caption me-2">→ {{ formatServerDateTime(shift.closedAt) }}</span>
@@ -108,11 +108,11 @@
                   class="me-2"
                   :title="shift.closedBySalesperson"
                 />
-                <v-spacer />
+                <k-spacer />
                 <span class="font-weight-bold me-2">{{
                   formatBalance(shift.total, "USD", currencies, roundingMode)
                 }}</span>
-                <v-btn
+                <k-btn
                   v-if="isAdmin && shift.isClosed"
                   icon="mdi-printer-outline"
                   variant="text"
@@ -123,7 +123,7 @@
                   :loading="printingShiftId === shift.id"
                   @click.stop="$emit('print-shift', shift.id)"
                 />
-                <v-icon
+                <k-icon
                   :icon="shiftExpanded.has(shift.id) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
                   size="16"
                 />
@@ -134,7 +134,7 @@
                 </div>
                 <template v-if="shift.isClosed">
                   <div class="text-caption font-weight-bold mb-1">Expected vs Counted</div>
-                  <v-table density="compact" class="mb-3">
+                  <k-table density="compact" class="mb-3">
                     <thead>
                       <tr>
                         <th>Method</th>
@@ -153,12 +153,12 @@
                         </td>
                       </tr>
                     </tbody>
-                  </v-table>
+                  </k-table>
                 </template>
                 <div class="text-caption font-weight-bold mb-1">Balances</div>
-                <v-progress-linear v-if="balanceLoading[shift.id]" indeterminate />
-                <v-list v-else-if="balanceCache[shift.id]?.length" density="compact" class="pa-0">
-                  <v-list-item v-for="balance in balanceCache[shift.id]" :key="balance.accountId">
+                <k-progress-linear v-if="balanceLoading[shift.id]" indeterminate />
+                <k-list v-else-if="balanceCache[shift.id]?.length" density="compact" class="pa-0">
+                  <k-list-item v-for="balance in balanceCache[shift.id]" :key="balance.accountId">
                     <template #title>
                       {{ balance.isOnAccount ? "(On Account)" : balance.accountName }}
                       <small v-if="balance.isOnAccount" class="text-medium-emphasis">
@@ -170,8 +170,8 @@
                         formatBalance(balance.balance, balance.currencyCode ?? "USD", currencies, roundingMode)
                       }}</span>
                     </template>
-                  </v-list-item>
-                </v-list>
+                  </k-list-item>
+                </k-list>
                 <div v-else class="text-caption text-medium-emphasis">No balance data found.</div>
               </div>
             </div>
@@ -183,12 +183,17 @@
       <span>Total</span>
       <span>{{ formatBalance(grandTotal, "USD", currencies, roundingMode) }}</span>
     </div>
-    <div v-if="deferredCouponTotal > 0" class="text-caption text-medium-emphasis text-end">
-      Excludes {{ formatBalance(deferredCouponTotal, "USD", currencies, roundingMode) }} in coupons
+    <!-- The total counts every sale, as kashi's reports do; these parts of
+         it aren't money in the drawer yet. -->
+    <div v-if="couponTotal || onAccountTotal" class="text-caption text-medium-emphasis text-end">
+      Includes
+      <template v-if="couponTotal">{{ formatBalance(couponTotal, "USD", currencies, roundingMode) }} in coupons</template>
+      <template v-if="couponTotal && onAccountTotal"> and </template>
+      <template v-if="onAccountTotal">{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }} on account</template>,
       not yet collected
     </div>
     <TargetsProgressCard :targets="targets" class="mt-3" />
-  </v-sheet>
+  </k-sheet>
 </template>
 
 <script setup lang="ts">
@@ -239,7 +244,10 @@ const props = defineProps<{
   month: string;
   rows: DayRow[];
   grandTotal: number;
-  deferredCouponTotal: number;
+  // Parts of grandTotal not yet collected: "calculate on checkout" coupons
+  // and sales on account (shifts.vue, GetMonthSales).
+  couponTotal: number;
+  onAccountTotal: number;
   loading: boolean;
   expandedDays: string[];
   allDaysExpanded: boolean;
@@ -305,7 +313,7 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  border: 1px solid rgba(var(--k-theme-on-surface), 0.12);
 }
 
 .monthly-income-title {
@@ -340,7 +348,7 @@ const emit = defineEmits<{
   min-height: 40px;
   padding: 0 12px;
   border-bottom: 1px solid rgba(128, 128, 128, 0.35);
-  color: rgba(var(--v-theme-on-surface), 0.7);
+  color: rgba(var(--k-theme-on-surface), 0.7);
 }
 
 .monthly-income-header > span,
@@ -356,9 +364,9 @@ const emit = defineEmits<{
 }
 
 .monthly-income-current-day {
-  background: rgba(var(--v-theme-on-surface), 0.08);
+  background: rgba(var(--k-theme-on-surface), 0.08);
   border-radius: 8px;
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--k-theme-on-surface));
   font-weight: 600;
 }
 
@@ -377,7 +385,7 @@ const emit = defineEmits<{
   min-height: 40px;
   padding: 0 12px;
   border-top: 1px solid rgba(128, 128, 128, 0.35);
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--k-theme-on-surface));
 }
 
 .monthly-income-total + .text-caption {

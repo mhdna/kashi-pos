@@ -1,6 +1,6 @@
 <template>
   <div ref="listEl" class="product-list" @mousedown="keepFieldFocus">
-    <v-virtual-scroll
+    <k-virtual-scroll
       v-if="gridMode"
       ref="scroller"
       class="product-virtual-scroll product-grid-scroll"
@@ -11,7 +11,7 @@
     >
       <template #default="{ item: row }">
         <div :key="row[0]?.id" class="product-grid-row" :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }">
-          <v-card
+          <k-card
             v-for="product in row"
             :key="product.id"
             class="product-cell"
@@ -31,7 +31,7 @@
               <span class="product-cell-variant text-medium-emphasis text-truncate">{{ variantLabel(product) }}</span>
               <span v-if="shows('price')" class="product-price">
                 ${{ Number(product.price || 0).toFixed(2) }}
-                <v-icon
+                <k-icon
                   v-if="product.priceListOverridden"
                   icon="mdi-star"
                   color="amber-darken-2"
@@ -40,11 +40,11 @@
                 />
               </span>
             </span>
-          </v-card>
+          </k-card>
         </div>
       </template>
-    </v-virtual-scroll>
-    <v-virtual-scroll
+    </k-virtual-scroll>
+    <k-virtual-scroll
       v-else
       ref="scroller"
       class="product-virtual-scroll"
@@ -54,7 +54,7 @@
       @scroll.passive="handleScroll"
     >
       <template #default="{ item: product }">
-        <v-list-item
+        <k-list-item
           :key="product.id"
           class="product-list-item"
           density="comfortable"
@@ -79,7 +79,7 @@
               <span v-if="product.size && shows('size')" class="product-variant text-medium-emphasis">{{ product.size }}</span>
               <span v-if="shows('price')" class="product-price">
                 ${{ Number(product.price || 0).toFixed(2) }}
-                <v-icon
+                <k-icon
                   v-if="product.priceListOverridden"
                   icon="mdi-star"
                   color="amber-darken-2"
@@ -89,15 +89,15 @@
               </span>
             </div>
           </template>
-        </v-list-item>
+        </k-list-item>
       </template>
-    </v-virtual-scroll>
+    </k-virtual-scroll>
     <div v-if="loadError" class="product-list-status product-list-status-error">
       <span class="product-error-message text-error">{{ loadErrorMessage }}</span>
-      <v-btn size="small" variant="text" @click="loadMore">Retry</v-btn>
+      <k-btn size="small" variant="text" @click="loadMore">Retry</k-btn>
     </div>
     <div v-else class="product-list-status text-medium-emphasis">
-      <v-progress-circular
+      <k-progress-circular
         v-if="loading"
         indeterminate
         color="primary"
@@ -332,7 +332,7 @@ onBeforeUnmount(() => resizer.disconnect());
 /* Like a highlighter pen: yellow behind the match, the text kept dark. */
 .search-hit {
   background-color: #ffe066;
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--k-theme-on-surface));
   border-radius: 3px;
   box-decoration-break: clone;
 }
@@ -352,7 +352,7 @@ onBeforeUnmount(() => resizer.disconnect());
   min-width: 0;
   padding: 6px 14px;
   border-radius: 10px;
-  background: rgba(var(--v-theme-on-surface), 0.045);
+  background: rgba(var(--k-theme-on-surface), 0.045);
 }
 
 .product-cell-code {
@@ -369,11 +369,11 @@ onBeforeUnmount(() => resizer.disconnect());
 
 .product-cell--named .product-cell-code {
   font-size: 0.95rem;
-  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  color: rgba(var(--k-theme-on-surface), var(--k-medium-emphasis-opacity));
 }
 
 .product-cell--named .product-cell-code .search-hit {
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--k-theme-on-surface));
 }
 
 .product-cell-meta {
@@ -404,7 +404,7 @@ onBeforeUnmount(() => resizer.disconnect());
 }
 
 .product-list-item {
-  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-bottom: thin solid rgba(var(--k-border-color), var(--k-border-opacity));
 }
 
 .product-primary-row {

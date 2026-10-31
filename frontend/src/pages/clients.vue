@@ -2,8 +2,8 @@
   <div class="clients-page pa-4">
     <div class="client-list-layout">
       <div :key="listKey" class="client-list" @scroll.passive="handleScroll">
-        <v-list density="compact">
-          <v-list-item
+        <k-list density="compact">
+          <k-list-item
             v-for="client in clients"
             :key="client.id"
             class="client-list-item"
@@ -25,35 +25,35 @@
                 <span class="client-points text-medium-emphasis">
                   {{ formatLoyaltyPoints(client.validLoyaltyPoints) }} pts
                 </span>
-                <v-chip
+                <k-chip
                   :color="loyaltyTierColor(loyaltyTier(Number(client.totalLoyaltyPoints ?? 0)))"
                   size="x-small"
                   variant="tonal"
                 >
                   {{ loyaltyTier(Number(client.totalLoyaltyPoints ?? 0)) }}
-                </v-chip>
-                <v-chip v-if="client.isActive === false" size="x-small" variant="tonal">
+                </k-chip>
+                <k-chip v-if="client.isActive === false" size="x-small" variant="tonal">
                   Inactive
-                </v-chip>
-                <v-chip
+                </k-chip>
+                <k-chip
                   v-if="Number(client.accountBalance) > 0"
                   color="orange-darken-2"
                   size="x-small"
                   variant="tonal"
                 >
                   {{ formatUsd(Number(client.accountBalance) / 100) }}
-                </v-chip>
+                </k-chip>
               </div>
             </template>
             <template #append>
-              <v-btn
+              <k-btn
                 icon="mdi-account-edit"
                 variant="text"
                 density="comfortable"
                 title="Edit client"
                 @click.stop="openEdit(client)"
               />
-              <v-btn
+              <k-btn
                 icon="mdi-wallet"
                 variant="text"
                 density="comfortable"
@@ -61,21 +61,21 @@
                 @click.stop="openAccount(client)"
               />
             </template>
-          </v-list-item>
-        </v-list>
+          </k-list-item>
+        </k-list>
         <div v-if="loading" class="client-list-status">
-          <v-progress-circular indeterminate color="primary" size="24" width="2" />
+          <k-progress-circular indeterminate color="primary" size="24" width="2" />
         </div>
         <div v-else-if="loadError" class="client-list-status">
-          <v-btn size="small" variant="text" @click="loadMore">Retry</v-btn>
+          <k-btn size="small" variant="text" @click="loadMore">Retry</k-btn>
         </div>
         <div v-else-if="!hasMore" class="client-list-status text-medium-emphasis">
           {{ clients.length ? "All clients loaded" : "No clients found" }}
         </div>
       </div>
-      <v-divider />
+      <k-divider />
       <div class="client-search-row">
-        <v-text-field
+        <k-text-field
           v-model="search"
           class="client-search-control"
           density="compact"
@@ -91,19 +91,19 @@
     </div>
   </div>
 
-  <v-dialog v-model="accountOpen" max-width="820">
-    <v-card>
-      <v-card-title class="d-flex align-center">
+  <k-dialog v-model="accountOpen" max-width="820">
+    <k-card>
+      <k-card-title class="d-flex align-center">
         {{ accountDetails?.client?.name || accountTarget?.name }} — On Account
-        <v-spacer />
-        <v-chip color="orange-darken-2" variant="tonal">
+        <k-spacer />
+        <k-chip color="orange-darken-2" variant="tonal">
           Balance: {{ formatUsd(Number(accountDetails?.balance || 0) / 100) }}
-        </v-chip>
-      </v-card-title>
-      <v-progress-linear v-if="accountLoading" indeterminate />
-      <v-card-text v-else>
+        </k-chip>
+      </k-card-title>
+      <k-progress-linear v-if="accountLoading" indeterminate />
+      <k-card-text v-else>
         <div class="text-subtitle-2 mb-2">Invoices</div>
-        <v-table density="compact">
+        <k-table density="compact">
           <thead>
             <tr>
               <th>Invoice</th>
@@ -124,15 +124,15 @@
                 {{ formatUsd(Number(entry.outstanding) / 100) }}
               </td>
               <td class="text-end">
-                <v-btn
+                <k-btn
                   v-if="Number(entry.outstanding) > 0"
                   size="small"
                   color="primary"
                   variant="tonal"
                   @click="startPayment(entry)"
-                  >Pay</v-btn
+                  >Pay</k-btn
                 >
-                <v-chip v-else size="x-small" color="green" variant="tonal">Paid</v-chip>
+                <k-chip v-else size="x-small" color="green" variant="tonal">Paid</k-chip>
               </td>
             </tr>
             <tr v-if="!accountDetails?.entries?.length">
@@ -141,13 +141,13 @@
               </td>
             </tr>
           </tbody>
-        </v-table>
+        </k-table>
 
-        <v-expand-transition>
-          <v-sheet v-if="payTarget" class="pa-4 mt-4" rounded border>
+        <k-expand-transition>
+          <k-sheet v-if="payTarget" class="pa-4 mt-4" rounded border>
             <div class="text-subtitle-2 mb-3">Pay {{ payTarget.invoiceCode }}</div>
             <div class="d-flex ga-3 align-start">
-              <v-select
+              <k-select
                 v-model="paymentMethodId"
                 :items="collectableMethods"
                 item-title="displayName"
@@ -157,7 +157,7 @@
                 density="compact"
                 style="flex: 1"
               />
-              <v-text-field
+              <k-text-field
                 v-model.number="paymentAmount"
                 :placeholder="`Amount (${paymentCurrency})`"
                 type="number"
@@ -168,43 +168,43 @@
                 :error-messages="paymentError ? [paymentError] : []"
                 style="flex: 1"
               />
-              <v-btn variant="text" @click="payTarget = null">Cancel</v-btn>
-              <v-btn
+              <k-btn variant="text" @click="payTarget = null">Cancel</k-btn>
+              <k-btn
                 color="primary"
                 :loading="paying"
                 :disabled="Boolean(paymentError) || paymentCents <= 0"
                 @click="submitPayment"
-                >Save payment</v-btn
+                >Save payment</k-btn
               >
             </div>
-          </v-sheet>
-        </v-expand-transition>
+          </k-sheet>
+        </k-expand-transition>
 
         <template v-if="accountDetails?.payments?.length">
           <div class="text-subtitle-2 mt-5 mb-2">Payment history</div>
-          <v-list density="compact" border rounded>
-            <v-list-item v-for="payment in accountDetails.payments" :key="payment.id">
+          <k-list density="compact" border rounded>
+            <k-list-item v-for="payment in accountDetails.payments" :key="payment.id">
               <template #title
                 >{{ payment.accountName }} · {{ formatUsd(Number(payment.amount) / 100) }}</template
               >
               <template #subtitle>{{ formatServerDateTime(payment.createdAt) }} · Shift #{{ payment.shiftId }}</template>
-            </v-list-item>
-          </v-list>
+            </k-list-item>
+          </k-list>
         </template>
-      </v-card-text>
-      <v-card-actions
-        ><v-spacer /><v-btn variant="text" @click="accountOpen = false"
-          >Close</v-btn
-        ></v-card-actions
+      </k-card-text>
+      <k-card-actions
+        ><k-spacer /><k-btn variant="text" @click="accountOpen = false"
+          >Close</k-btn
+        ></k-card-actions
       >
-    </v-card>
-  </v-dialog>
+    </k-card>
+  </k-dialog>
 
-  <v-dialog v-model="editOpen" max-width="420">
-    <v-card>
-      <v-card-title>Edit client</v-card-title>
-      <v-card-text>
-        <v-text-field
+  <k-dialog v-model="editOpen" max-width="420">
+    <k-card>
+      <k-card-title>Edit client</k-card-title>
+      <k-card-text>
+        <k-text-field
           v-model="editForm.name"
           placeholder="Name"
           variant="outlined"
@@ -212,53 +212,53 @@
           @keydown="preventClientNameNumber"
           @beforeinput="preventClientNameNumberInput"
         />
-        <v-text-field v-model="editForm.phone" placeholder="Phone" variant="outlined" />
-      </v-card-text>
-      <v-card-actions>
-        <v-btn
+        <k-text-field v-model="editForm.phone" placeholder="Phone" variant="outlined" />
+      </k-card-text>
+      <k-card-actions>
+        <k-btn
           v-if="auth.isAdmin && standalone && editTarget?.isActive !== false"
           color="error"
           variant="text"
           @click="openDeleteFromEdit"
-          >Delete</v-btn
+          >Delete</k-btn
         >
-        <v-btn
+        <k-btn
           v-if="auth.isAdmin && standalone && editTarget?.isActive === false"
           variant="text"
           :loading="reactivating"
           @click="reactivateSelected"
-          >Reactivate</v-btn
+          >Reactivate</k-btn
         >
-        <v-spacer />
-        <v-btn variant="text" @click="editOpen = false">Cancel</v-btn>
-        <v-btn
+        <k-spacer />
+        <k-btn variant="text" @click="editOpen = false">Cancel</k-btn>
+        <k-btn
           color="primary"
           :loading="saving"
           :disabled="!editForm.name.trim() || !editForm.phone.trim()"
           @click="saveEdit"
-          >Save</v-btn
+          >Save</k-btn
         >
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
-  <v-dialog v-model="deleteOpen" max-width="420">
-    <v-card>
-      <v-card-title>Delete client?</v-card-title>
-      <v-card-text
+  <k-dialog v-model="deleteOpen" max-width="420">
+    <k-card>
+      <k-card-title>Delete client?</k-card-title>
+      <k-card-text
         >This will delete {{ deleteTarget?.name || "this client" }}. A client with invoices,
         coupons or an account balance is deactivated instead, so their history stays
-        intact.</v-card-text
+        intact.</k-card-text
       >
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="deleteOpen = false">Cancel</v-btn>
-        <v-btn color="error" :loading="deleting" @click="deleteSelected">Delete</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn variant="text" @click="deleteOpen = false">Cancel</k-btn>
+        <k-btn color="error" :loading="deleting" @click="deleteSelected">Delete</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
-  <v-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</v-snackbar>
+  <k-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</k-snackbar>
 
   <ClientProfileDialog v-model="profileOpen" :client-id="profileClientId" />
 </template>
@@ -600,19 +600,19 @@ onBeforeUnmount(() => {
   overflow-y: auto;
 }
 
-.client-list :deep(.v-list) {
+.client-list :deep(.k-list) {
   padding-block: 0;
 }
 
 .client-list-item {
-  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-bottom: thin solid rgba(var(--k-border-color), var(--k-border-opacity));
 }
 
-.client-list-item :deep(.v-list-item__prepend) {
+.client-list-item :deep(.k-list-item__prepend) {
   padding-inline-end: 12px;
 }
 
-.client-list-item :deep(.v-list-item__append) {
+.client-list-item :deep(.k-list-item__append) {
   padding-inline-start: 8px;
 }
 
@@ -667,14 +667,14 @@ onBeforeUnmount(() => {
   height: 64px;
 }
 
-.client-inline-keyboard :deep(.inline-keyboard-actions > .v-btn) {
+.client-inline-keyboard :deep(.inline-keyboard-actions > .k-btn) {
   height: 64px;
   min-height: 64px;
 }
 
 @media (max-width: 700px) {
   .client-points,
-  .client-primary-row > .v-chip {
+  .client-primary-row > .k-chip {
     display: none;
   }
 

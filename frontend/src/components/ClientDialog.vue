@@ -1,10 +1,10 @@
 <template>
   <!-- Reset only once the close animation is over: resetting on close put
        the phone step back on screen while the dialog was still fading. -->
-  <v-dialog v-model="dialog" :max-width="step === 'phone' && !countryPickerOpen ? 720 : 760" @after-leave="reset">
-    <v-card v-if="step === 'phone'" class="client-phone-card">
-      <v-card-title v-if="!countryPickerOpen" class="font-weight-bold">Enter Phone Number</v-card-title>
-      <v-card-text v-if="!countryPickerOpen" class="client-phone-layout">
+  <k-dialog v-model="dialog" :max-width="step === 'phone' && !countryPickerOpen ? 720 : 760" @after-leave="reset">
+    <k-card v-if="step === 'phone'" class="client-phone-card">
+      <k-card-title v-if="!countryPickerOpen" class="font-weight-bold">Enter Phone Number</k-card-title>
+      <k-card-text v-if="!countryPickerOpen" class="client-phone-layout">
         <div class="client-phone-form">
           <div
             class="client-phone-error text-error text-caption text-center"
@@ -34,7 +34,7 @@
           </div>
           <PhonePad class="client-phone-pad" :show-arrows="false" @press="pressPhoneKey" />
           </div>
-          <v-btn
+          <k-btn
             class="client-phone-action-button w-100 mt-3"
             variant="elevated"
             color="primary"
@@ -42,14 +42,14 @@
             @click="lookupPhone"
           >
             Continue
-          </v-btn>
-          <v-btn
+          </k-btn>
+          <k-btn
             class="client-phone-action-button w-100 mt-5"
             variant="tonal"
             @click="selectAnonymous"
           >
             Prefer not to say
-          </v-btn>
+          </k-btn>
         </div>
         <div class="client-phone-countries">
           <button
@@ -64,7 +64,7 @@
             <span class="country-flag">{{ selectedFlag }}</span>
             <span class="client-phone-country-trigger-name">{{ selectedCountryName }} (+{{ selectedDialCode }})</span>
             <span class="client-phone-country-trigger-search" aria-hidden="true">
-              <v-icon icon="mdi-magnify" size="22" />
+              <k-icon icon="mdi-magnify" size="22" />
               Search
             </span>
           </button>
@@ -85,7 +85,7 @@
             </button>
           </div>
           <div class="client-phone-country-pager">
-            <v-btn
+            <k-btn
               icon="mdi-chevron-left"
               variant="tonal"
               aria-label="Previous countries"
@@ -93,7 +93,7 @@
               @click="countryPage--"
             />
             <span class="text-medium-emphasis">{{ countryPage + 1 }} / {{ countryPageCount }}</span>
-            <v-btn
+            <k-btn
               icon="mdi-chevron-right"
               variant="tonal"
               aria-label="More countries"
@@ -102,7 +102,7 @@
             />
           </div>
         </div>
-      </v-card-text>
+      </k-card-text>
 
       <!-- Every country as a card, replacing the phone step; tapping one
            picks it and goes back. Search is typed on the on-screen keyboard
@@ -110,9 +110,9 @@
       <div v-else class="client-phone-picker" role="dialog" aria-label="Select country">
         <div class="client-phone-picker-header">
           <span class="text-h6 font-weight-bold">Select country</span>
-          <v-btn variant="tonal" size="large" @click="closeCountryPicker">Close</v-btn>
+          <k-btn variant="tonal" size="large" @click="closeCountryPicker">Close</k-btn>
         </div>
-        <v-text-field
+        <k-text-field
           :model-value="countrySearch"
           class="client-phone-picker-search"
           placeholder="Search country or code"
@@ -143,11 +143,11 @@
         </div>
         <InlineKeyboard v-model="countrySearch" class="client-phone-picker-keyboard" layout="code" :max-length="30" />
       </div>
-    </v-card>
+    </k-card>
 
-    <v-card v-else-if="step === 'new'">
-      <v-card-title>New Client</v-card-title>
-      <v-card-text>
+    <k-card v-else-if="step === 'new'">
+      <k-card-title>New Client</k-card-title>
+      <k-card-text>
         <PhoneField
           ref="newPhoneField"
           v-model="newClient.phone"
@@ -160,7 +160,7 @@
             <span>+{{ selectedDialCode }}</span>
           </template>
         </PhoneField>
-        <v-text-field
+        <k-text-field
           v-model="newClient.name"
           placeholder="Name"
           variant="outlined"
@@ -174,20 +174,20 @@
         />
         <PhonePad v-if="newPhoneActive" class="mt-3" @press="newPhoneField?.press($event)" />
         <InlineKeyboard v-else v-model="newClient.name" class="client-name-keyboard mt-3" />
-      </v-card-text>
-      <v-card-actions class="pa-4">
-        <v-btn variant="text" @click="step = 'phone'">Back</v-btn>
-        <v-spacer />
-        <v-btn
+      </k-card-text>
+      <k-card-actions class="pa-4">
+        <k-btn variant="text" @click="step = 'phone'">Back</k-btn>
+        <k-spacer />
+        <k-btn
           variant="elevated"
           color="primary"
           :disabled="!newClient.name.trim()"
           @click="createClient"
-          >Save</v-btn
+          >Save</k-btn
         >
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script lang="ts" setup>
@@ -581,6 +581,9 @@ function reset() {
   display: inline-block;
   margin-inline-end: 6px;
   line-height: 1;
+  /* WebKit (the macOS webview) lets a colour-font flag leak its colour into the
+     text drawn after it; painting the flag in its own box stops that. */
+  contain: paint;
 }
 
 .client-phone-layout {
@@ -597,7 +600,7 @@ function reset() {
 .client-phone-country-trigger {
   align-items: center;
   background: transparent;
-  border: 1px solid rgba(var(--v-border-color), 0.55);
+  border: 1px solid rgba(var(--k-border-color), 0.55);
   border-radius: 4px;
   color: inherit;
   cursor: pointer;
@@ -617,7 +620,7 @@ function reset() {
 
 /* Sits on the top border like an outlined field's label. */
 .client-phone-country-trigger-label {
-  background: rgb(var(--v-theme-surface));
+  background: rgb(var(--k-theme-surface));
   font-size: 0.75rem;
   left: 10px;
   line-height: 1;
@@ -726,7 +729,7 @@ function reset() {
 .client-phone-country-card {
   align-items: center;
   background: transparent;
-  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border: 1px solid rgba(var(--k-border-color), 0.18);
   border-radius: 4px;
   color: inherit;
   cursor: pointer;
@@ -749,9 +752,9 @@ function reset() {
 }
 
 .client-phone-country-card--active {
-  background: rgb(var(--v-theme-primary));
-  border-color: rgb(var(--v-theme-primary));
-  color: rgb(var(--v-theme-on-primary));
+  background: rgb(var(--k-theme-primary));
+  border-color: rgb(var(--k-theme-primary));
+  color: rgb(var(--k-theme-on-primary));
 }
 
 .client-phone-country-card-name {
@@ -779,7 +782,7 @@ function reset() {
 }
 
 .client-phone-prefix {
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  color: rgba(var(--k-theme-on-surface), 0.6);
   font-size: var(--kashi-font-size-xl);
   justify-self: start;
   margin-inline-start: 12px;

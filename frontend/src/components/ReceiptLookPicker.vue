@@ -2,23 +2,23 @@
   <div class="look-summary">
     <div class="look-thumb">
       <img v-if="currentPreview" :src="currentPreview" alt="The receipt look in use" />
-      <v-progress-circular v-else indeterminate size="24" />
+      <k-progress-circular v-else indeterminate size="24" />
     </div>
     <div class="look-summary-text">
       <div class="text-subtitle-1 font-weight-medium">{{ currentTheme?.name }} · {{ currentLayout?.name }}</div>
       <div class="text-body-2 text-medium-emphasis">{{ currentTheme?.description }}</div>
-      <v-btn class="mt-3" color="primary" prepend-icon="mdi-palette" variant="tonal" @click="openDialog">Change look</v-btn>
+      <k-btn class="mt-3" color="primary" prepend-icon="mdi-palette" variant="tonal" @click="openDialog">Change look</k-btn>
     </div>
   </div>
 
-  <v-dialog v-model="dialog" max-width="1000" scrollable>
-    <v-card>
-      <v-card-title>Receipt look</v-card-title>
-      <v-card-text class="look-dialog">
+  <k-dialog v-model="dialog" max-width="1000" scrollable>
+    <k-card>
+      <k-card-title>Receipt look</k-card-title>
+      <k-card-text class="look-dialog">
         <div class="look-choices">
           <div class="text-caption text-medium-emphasis mb-1">Theme</div>
-          <v-list class="look-themes" density="compact" nav>
-            <v-list-item
+          <k-list class="look-themes" density="compact" nav>
+            <k-list-item
               v-for="theme in themes"
               :key="theme.id"
               :active="theme.id === pickedTheme"
@@ -28,17 +28,17 @@
               @click="pickTheme(theme.id)"
             >
               <template v-if="theme.id === currentThemeId" #append>
-                <v-icon color="success" icon="mdi-check-circle" size="18" />
+                <k-icon color="success" icon="mdi-check-circle" size="18" />
               </template>
-            </v-list-item>
-          </v-list>
+            </k-list-item>
+          </k-list>
 
           <div class="text-caption text-medium-emphasis mt-4 mb-1">Layout</div>
-          <v-btn-toggle v-model="pickedLayout" class="look-layouts" color="primary" density="comfortable" divided mandatory variant="outlined">
-            <v-btn v-for="layout in pickedThemeInfo?.layouts ?? []" :key="layout.id" :value="layout.id">
+          <k-btn-toggle v-model="pickedLayout" class="look-layouts" color="primary" density="comfortable" divided mandatory variant="outlined">
+            <k-btn v-for="layout in pickedThemeInfo?.layouts ?? []" :key="layout.id" :value="layout.id">
               {{ layout.id }}
-            </v-btn>
-          </v-btn-toggle>
+            </k-btn>
+          </k-btn-toggle>
           <div v-if="pickedLayoutInfo" class="mt-2">
             <div class="text-body-2 font-weight-medium">{{ pickedLayoutInfo.name }}</div>
             <div class="text-body-2 text-medium-emphasis">{{ pickedLayoutInfo.description }}</div>
@@ -48,17 +48,17 @@
 
         <div class="look-preview">
           <img v-if="pickedPreview" :src="pickedPreview" :alt="`${pickedThemeInfo?.name} receipt preview`" />
-          <v-progress-circular v-else-if="!previewError" indeterminate />
+          <k-progress-circular v-else-if="!previewError" indeterminate />
           <div v-else class="text-body-2 text-error">{{ previewError }}</div>
         </div>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="dialog = false">Cancel</v-btn>
-        <v-btn color="primary" :disabled="!changed" :loading="saving" variant="flat" @click="save">Use this look</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn variant="text" @click="dialog = false">Cancel</k-btn>
+        <k-btn color="primary" :disabled="!changed" :loading="saving" variant="flat" @click="save">Use this look</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">
@@ -182,7 +182,7 @@ defineExpose({ reload: load });
   flex: 0 0 140px;
   height: 150px;
   overflow: hidden;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 8px;
   background: #fff;
   display: flex;
@@ -207,7 +207,7 @@ defineExpose({ reload: load });
   justify-content: center;
   padding: 12px;
   border-radius: 8px;
-  background: rgba(var(--v-theme-on-surface), 0.06);
+  background: rgba(var(--k-theme-on-surface), 0.06);
 }
 
 /* The receipt is white paper in either app theme. */

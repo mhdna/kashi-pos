@@ -1,7 +1,7 @@
 <template>
-  <v-snackbar v-model="visible" class="cash-machine-snackbar" :timeout="8000" location="top" variant="flat">
+  <k-snackbar v-model="visible" class="cash-machine-snackbar" :timeout="8000" location="top" variant="flat">
     <div v-if="result" class="cash-machine-toast" role="status" aria-live="polite">
-      <v-icon :icon="result.failed ? 'mdi-alert-circle' : 'mdi-check-circle'" :color="result.failed ? 'warning' : 'success'" size="32" />
+      <k-icon :icon="result.failed ? 'mdi-alert-circle' : 'mdi-check-circle'" :color="result.failed ? 'warning' : 'success'" size="32" />
       <div>
         <div class="cash-machine-toast__title">
           {{ result.failed ? "Cash machine set up, with problems" : "This till is now a cash machine" }}
@@ -11,7 +11,7 @@
         </div>
       </div>
     </div>
-  </v-snackbar>
+  </k-snackbar>
 </template>
 
 <script setup lang="ts">
@@ -54,10 +54,10 @@ onUnmounted(off);
 
 <style>
 /* Solid like WhatsAppToast; unscoped because the snackbar is teleported. */
-.cash-machine-snackbar .v-snackbar__wrapper {
-  background: rgb(var(--v-theme-surface)) !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+.cash-machine-snackbar .k-snackbar__wrapper {
+  background: rgb(var(--k-theme-surface)) !important;
+  color: rgb(var(--k-theme-on-surface)) !important;
+  border: 1px solid rgba(var(--k-theme-on-surface), 0.12);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25) !important;
 }
 </style>

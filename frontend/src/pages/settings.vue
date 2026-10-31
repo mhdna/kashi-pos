@@ -1,7 +1,7 @@
 <template>
   <div class="settings-page">
     <div class="settings-header">
-      <v-text-field
+      <k-text-field
         v-model="settingsSearch"
         class="settings-search mb-2"
         placeholder="Search settings…"
@@ -12,13 +12,13 @@
         hide-details
       />
 
-      <v-tabs v-model="tab" class="settings-tabs" color="primary" grow>
-        <v-tab v-for="t in settingsTabs" :key="t.value" :value="t.value" class="settings-tab">
-          <v-icon :icon="t.icon" size="20" class="settings-tab__icon" />
+      <k-tabs v-model="tab" class="settings-tabs" color="primary" grow>
+        <k-tab v-for="t in settingsTabs" :key="t.value" :value="t.value" class="settings-tab">
+          <k-icon :icon="t.icon" size="20" class="settings-tab__icon" />
           <span class="settings-tab__label">{{ t.label }}</span>
-        </v-tab>
-      </v-tabs>
-      <v-progress-linear v-if="settingsLoading" indeterminate color="primary" />
+        </k-tab>
+      </k-tabs>
+      <k-progress-linear v-if="settingsLoading" indeterminate color="primary" />
     </div>
 
     <div class="settings-scroll">
@@ -26,14 +26,14 @@
         No settings match "{{ settingsSearch }}".
       </div>
 
-      <v-window v-model="tab">
-      <v-window-item value="general">
+      <k-window v-model="tab">
+      <k-window-item value="general">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('general-branch')" class="settings-card">
-            <v-card-title>Branch</v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field v-model="form.branchName" placeholder="Branch name" variant="outlined" density="compact" hide-details />
-              <v-text-field
+          <k-card v-show="panelMatches('general-branch')" class="settings-card">
+            <k-card-title>Branch</k-card-title>
+            <k-card-text class="field-grid">
+              <k-text-field v-model="form.branchName" placeholder="Branch name" variant="outlined" density="compact" hide-details />
+              <k-text-field
                 v-model="form.branchCode"
                 placeholder="Branch code"
                 maxlength="8"
@@ -42,7 +42,7 @@
                 hide-details
                 @update:model-value="form.branchCode = form.branchCode.toUpperCase()"
               />
-              <v-select
+              <k-select
                 v-model.number="form.salesInventoryId"
                 :items="inventories"
                 item-title="name"
@@ -53,12 +53,12 @@
                 hide-details
                 class="field-full"
               />
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('general-branches')" class="settings-card">
-            <v-card-title>Branches</v-card-title>
-            <v-card-text>
-              <v-select
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('general-branches')" class="settings-card">
+            <k-card-title>Branches</k-card-title>
+            <k-card-text>
+              <k-select
                 v-model="selectedBranchCode"
                 :items="branchOptions"
                 item-title="title"
@@ -74,7 +74,7 @@
                 <span class="text-caption text-medium-emphasis">
                   Default at next launch: {{ defaultBranchCode || "—" }}
                 </span>
-                <v-btn
+                <k-btn
                   variant="text"
                   size="small"
                   :disabled="!activeBranchCode || activeBranchCode === defaultBranchCode"
@@ -82,11 +82,11 @@
                   @click="setDefaultBranch(activeBranchCode)"
                 >
                   Make active branch default
-                </v-btn>
+                </k-btn>
               </div>
-              <v-divider class="my-4" />
+              <k-divider class="my-4" />
               <div class="text-subtitle-2 mb-2">Add another branch</div>
-              <v-text-field
+              <k-text-field
                 v-model="newBranch.name"
                 label="Branch name"
                 variant="outlined"
@@ -94,7 +94,7 @@
                 hide-details
                 class="mb-2"
               />
-              <v-text-field
+              <k-text-field
                 v-model="newBranch.code"
                 label="Branch code"
                 hint="Letters and numbers only"
@@ -104,7 +104,7 @@
                 class="mb-2"
                 @update:model-value="newBranch.code = newBranch.code.toUpperCase()"
               />
-              <v-text-field
+              <k-text-field
                 v-model="newBranch.apiKey"
                 label="Central API key"
                 variant="outlined"
@@ -112,7 +112,7 @@
                 hide-details
                 class="mb-2"
               />
-              <v-text-field
+              <k-text-field
                 v-model="newBranch.centralApiUrl"
                 label="Central server URL"
                 variant="outlined"
@@ -121,25 +121,25 @@
                 class="mb-2"
               />
               <div class="d-flex justify-end">
-                <v-btn color="primary" variant="flat" :loading="creatingBranch" @click="createBranch">
+                <k-btn color="primary" variant="flat" :loading="creatingBranch" @click="createBranch">
                   Create branch
-                </v-btn>
+                </k-btn>
               </div>
-              <v-alert v-if="branchActionError" type="error" density="compact" class="mt-3">
+              <k-alert v-if="branchActionError" type="error" density="compact" class="mt-3">
                 {{ branchActionError }}
-              </v-alert>
+              </k-alert>
 
-              <v-divider class="my-4" />
+              <k-divider class="my-4" />
               <div class="text-subtitle-2 mb-1">Import branch history from kashi</div>
               <div class="text-caption text-medium-emphasis mb-2">For a reinstalled till with no history yet.</div>
-              <v-btn
+              <k-btn
                 variant="outlined"
                 :loading="importingHistory"
                 @click="importBranchHistory"
               >
                 Import branch history
-              </v-btn>
-              <v-alert v-if="historyImportResult" type="success" density="compact" class="mt-3">
+              </k-btn>
+              <k-alert v-if="historyImportResult" type="success" density="compact" class="mt-3">
                 Imported {{ historyImportResult.invoices }} invoice(s),
                 {{ historyImportResult.expenses }} expense(s), {{ historyImportResult.loans }}
                 loan(s) and {{ historyImportResult.shiftCloses }} shift close(s).
@@ -147,16 +147,16 @@
                   {{ historyImportResult.unresolvedItems }} line item(s) used a placeholder
                   product.
                 </span>
-              </v-alert>
-              <v-alert v-if="historyImportError" type="error" density="compact" class="mt-3">
+              </k-alert>
+              <k-alert v-if="historyImportError" type="error" density="compact" class="mt-3">
                 {{ historyImportError }}
-              </v-alert>
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('general-database')" class="settings-card">
-            <v-card-title>Database</v-card-title>
-            <v-card-text>
-              <v-text-field
+              </k-alert>
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('general-database')" class="settings-card">
+            <k-card-title>Database</k-card-title>
+            <k-card-text>
+              <k-text-field
                 :model-value="databasePath"
                 label="Current database"
                 variant="outlined"
@@ -165,15 +165,15 @@
                 hide-details
               />
               <div class="d-flex justify-end mt-2">
-                <v-btn variant="text" color="primary" :loading="databaseSwitching" @click="chooseDatabase">
-                  <v-icon start icon="mdi-folder-open-outline" /> Choose database
-                </v-btn>
+                <k-btn variant="text" color="primary" :loading="databaseSwitching" @click="chooseDatabase">
+                  <k-icon start icon="mdi-folder-open-outline" /> Choose database
+                </k-btn>
               </div>
-            </v-card-text>
-          </v-card>
-          <v-card v-if="cashMachine?.supported" v-show="panelMatches('general-cash-machine')" class="settings-card">
-            <v-card-title>Cash machine</v-card-title>
-            <v-card-text>
+            </k-card-text>
+          </k-card>
+          <k-card v-if="cashMachine?.supported" v-show="panelMatches('general-cash-machine')" class="settings-card">
+            <k-card-title>Cash machine</k-card-title>
+            <k-card-text>
               <p v-if="!cashMachine.on" class="text-caption text-medium-emphasis mb-1">Off (kiosk mode is off).</p>
               <p v-if="cashMachine.closedPrograms.length" class="text-caption mb-1 settings-wrap">
                 <strong>Closed:</strong>
@@ -186,31 +186,31 @@
                 <p class="text-caption mt-2 mb-0">
                   Set up {{ new Date(cashMachine.lastSetup.at).toLocaleString() }}
                 </p>
-                <v-list density="compact" class="py-0">
-                  <v-list-item v-for="s in cashMachine.lastSetup.steps" :key="s.name" :title="s.name" :subtitle="s.detail">
+                <k-list density="compact" class="py-0">
+                  <k-list-item v-for="s in cashMachine.lastSetup.steps" :key="s.name" :title="s.name" :subtitle="s.detail">
                     <template #prepend>
-                      <v-icon :icon="s.ok ? 'mdi-check-circle' : 'mdi-close-circle'" :color="s.ok ? 'success' : 'error'" />
+                      <k-icon :icon="s.ok ? 'mdi-check-circle' : 'mdi-close-circle'" :color="s.ok ? 'success' : 'error'" />
                     </template>
-                  </v-list-item>
-                </v-list>
+                  </k-list-item>
+                </k-list>
               </template>
               <p v-if="cashMachine.setupRunning && cashMachine.setupStarted" class="text-caption mb-0">
                 Running since {{ new Date(cashMachine.setupStarted).toLocaleTimeString() }}…
               </p>
               <div class="d-flex justify-end">
-                <v-btn variant="text" color="primary" :loading="cashMachineRunning" @click="cashMachineConfirm = true">
-                  <v-icon start icon="mdi-cash-register" /> Make this a cash machine
-                </v-btn>
+                <k-btn variant="text" color="primary" :loading="cashMachineRunning" @click="cashMachineConfirm = true">
+                  <k-icon start icon="mdi-cash-register" /> Make this a cash machine
+                </k-btn>
               </div>
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('general-stuck-keys')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-keyboard" size="20" />
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('general-stuck-keys')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-keyboard" size="20" />
               Stuck keys
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.releaseStuckKeys"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -222,12 +222,12 @@
                 A remote session (AnyDesk from a Mac) can leave a key held down, so typing or scanning runs Windows
                 shortcuts. Keys held on the till's own keyboard or scanner are never let go.
               </p>
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('general-sync')" class="settings-card">
-            <v-card-title>Central sync (kashi)</v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('general-sync')" class="settings-card">
+            <k-card-title>Central sync (kashi)</k-card-title>
+            <k-card-text class="field-grid">
+              <k-text-field
                 v-model="form.apiKey"
                 placeholder="API key"
                 variant="outlined"
@@ -237,7 +237,7 @@
                 :type="showApiKey ? 'text' : 'password'"
                 @click:append-inner="showApiKey = !showApiKey"
               />
-              <v-text-field
+              <k-text-field
                 v-model="form.centralApiUrl"
                 placeholder="Central server URL"
                 variant="outlined"
@@ -250,34 +250,34 @@
               />
 
               <div class="field-full sync-everything">
-                <v-checkbox
+                <k-checkbox
                   v-model="resyncApplyStock"
                   density="compact"
                   hide-details
                   label="Also apply stock movements to kashi"
                 />
                 <div class="d-flex align-center ga-2 mt-2">
-                  <v-btn
+                  <k-btn
                     color="primary"
                     variant="flat"
                     :loading="resyncRunning"
                     @click="runResync(false)"
                   >
                     Sync everything now
-                  </v-btn>
-                  <v-btn
+                  </k-btn>
+                  <k-btn
                     variant="text"
                     :disabled="resyncRunning"
                     @click="runResync(true)"
                   >
                     Preview
-                  </v-btn>
+                  </k-btn>
                   <span v-if="resyncProgress" class="text-caption text-medium-emphasis">
                     {{ resyncProgress }}
                   </span>
                 </div>
 
-                <v-alert
+                <k-alert
                   v-if="resyncError"
                   type="error"
                   density="compact"
@@ -289,9 +289,9 @@
                     <summary class="text-caption" style="cursor: pointer">Technical details</summary>
                     <div class="text-caption">{{ resyncError }}</div>
                   </details>
-                </v-alert>
+                </k-alert>
 
-                <v-table v-if="resyncReport" density="compact" class="mt-3">
+                <k-table v-if="resyncReport" density="compact" class="mt-3">
                   <thead>
                     <tr>
                       <th>Entity</th><th class="text-right">Local</th>
@@ -308,9 +308,9 @@
                       <td class="text-right">{{ row.queued }}</td>
                     </tr>
                   </tbody>
-                </v-table>
+                </k-table>
 
-                <v-table v-if="resyncReport?.fullCheck" density="compact" class="mt-3">
+                <k-table v-if="resyncReport?.fullCheck" density="compact" class="mt-3">
                   <thead>
                     <tr>
                       <th>Full check</th><th class="text-right">On kashi</th>
@@ -325,17 +325,17 @@
                       <td class="text-right">{{ row.deactivated }}</td>
                     </tr>
                   </tbody>
-                </v-table>
+                </k-table>
               </div>
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('general-targets')" class="settings-card">
-            <v-card-title>Targets</v-card-title>
-            <v-card-text>
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('general-targets')" class="settings-card">
+            <k-card-title>Targets</k-card-title>
+            <k-card-text>
               <div v-if="!branchTargets.length" class="text-caption text-medium-emphasis">
                 No targets set for this branch.
               </div>
-              <v-table v-else density="compact">
+              <k-table v-else density="compact">
                 <thead>
                   <tr><th /><th>From</th><th>To</th><th>Progress</th></tr>
                 </thead>
@@ -347,14 +347,14 @@
                     <td>{{ formatUsd(target.achievedCents / 100) }} / {{ formatUsd(target.targetAmountCents / 100) }}</td>
                   </tr>
                 </tbody>
-              </v-table>
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('general-admin-legacy')" class="settings-card">
-            <v-card-title>kashi-admin (legacy)</v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field v-model="form.adminListen" placeholder="Listen address" variant="outlined" density="compact" hide-details />
-              <v-text-field
+              </k-table>
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('general-admin-legacy')" class="settings-card">
+            <k-card-title>kashi-admin (legacy)</k-card-title>
+            <k-card-text class="field-grid">
+              <k-text-field v-model="form.adminListen" placeholder="Listen address" variant="outlined" density="compact" hide-details />
+              <k-text-field
                 v-model="form.adminToken"
                 placeholder="Admin token"
                 variant="outlined"
@@ -364,30 +364,30 @@
                 :append-inner-icon="showAdminToken ? 'mdi-eye' : 'mdi-eye-off'"
                 @click:append-inner="showAdminToken = !showAdminToken"
               />
-              <v-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="field-full" />
-            </v-card-text>
-          </v-card>
+              <k-switch v-model="form.adminEnabled" label="Enable remote admin API" color="primary" hide-details class="field-full" />
+            </k-card-text>
+          </k-card>
           <AppUpdateCard v-show="panelMatches('admin-app-updates')" />
         </div>
         <div class="settings-page-actions">
-          <v-btn color="primary" variant="flat" :loading="saving || adminSettingsSaving" @click="saveGeneralSettings">
-            <v-icon start icon="mdi-content-save-outline" /> Save general settings
-          </v-btn>
+          <k-btn color="primary" variant="flat" :loading="saving || adminSettingsSaving" @click="saveGeneralSettings">
+            <k-icon start icon="mdi-content-save-outline" /> Save
+          </k-btn>
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="money">
+      <k-window-item value="money">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('money-rates')" class="settings-card">
-            <v-card-title>Rates &amp; rounding</v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field v-model.number="form.taxRate" placeholder="VAT rate" type="number" step="0.01" min="0" max="1" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.exchangeRate" placeholder="Legacy exchange rate" type="number" min="1" step="1" variant="outlined" density="compact" hide-details />
-              <v-select v-model="form.roundingMode" :items="roundingModes" placeholder="Money rounding" variant="outlined" density="compact" hide-details />
-              <v-select v-model="form.roundingCurrency" :items="roundingCurrencies" placeholder="Round by currency" variant="outlined" density="compact" hide-details />
-              <v-select v-model="form.splitPrimaryCurrency" :items="roundingCurrencies" placeholder="Split primary currency" variant="outlined" density="compact" hide-details />
-              <v-switch v-model="form.splitPrimaryFirst" color="primary" density="compact" hide-details :label="form.splitPrimaryFirst ? 'Primary currency first' : 'Rounding currency first'" />
-              <v-text-field
+          <k-card v-show="panelMatches('money-rates')" class="settings-card">
+            <k-card-title>Rates &amp; rounding</k-card-title>
+            <k-card-text class="field-grid">
+              <k-text-field v-model.number="form.taxRate" placeholder="VAT rate" type="number" step="0.01" min="0" max="1" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.exchangeRate" placeholder="Legacy exchange rate" type="number" min="1" step="1" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.roundingMode" :items="roundingModes" placeholder="Money rounding" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.roundingCurrency" :items="roundingCurrencies" placeholder="Round by currency" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.splitPrimaryCurrency" :items="roundingCurrencies" placeholder="Split primary currency" variant="outlined" density="compact" hide-details />
+              <k-switch v-model="form.splitPrimaryFirst" color="primary" density="compact" hide-details :label="form.splitPrimaryFirst ? 'Primary currency first' : 'Rounding currency first'" />
+              <k-text-field
                 v-model.number="form.splitPrimaryStep"
                 placeholder="Split step (0 = cash rounding)"
                 type="number"
@@ -397,21 +397,21 @@
                 density="compact"
                 hide-details
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('money-exchange')" class="settings-card">
-            <v-card-title>Exchange settings</v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field v-model.number="form.exchangeWindowDays" label="Days" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.exchangeWindowHours" label="Hours" type="number" min="0" max="23" step="1" variant="outlined" density="compact" hide-details />
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('money-currencies')" class="settings-card settings-card--wide">
-            <v-card-title>Currencies &amp; rates</v-card-title>
-            <v-card-text>
+          <k-card v-show="panelMatches('money-exchange')" class="settings-card">
+            <k-card-title>Exchange settings</k-card-title>
+            <k-card-text class="field-grid">
+              <k-text-field v-model.number="form.exchangeWindowDays" label="Days" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.exchangeWindowHours" label="Hours" type="number" min="0" max="23" step="1" variant="outlined" density="compact" hide-details />
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('money-currencies')" class="settings-card settings-card--wide">
+            <k-card-title>Currencies &amp; rates</k-card-title>
+            <k-card-text>
               <div class="settings-note">Set in kashi.</div>
-              <v-table density="compact">
+              <k-table density="compact">
                 <thead>
                   <tr>
                     <th>Code</th>
@@ -432,14 +432,14 @@
                     <td>{{ currency.isActive ? "Yes" : "No" }}</td>
                   </tr>
                 </tbody>
-              </v-table>
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('money-price-lists')" class="settings-card">
-            <v-card-title>Price lists</v-card-title>
-            <v-card-text>
+              </k-table>
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('money-price-lists')" class="settings-card">
+            <k-card-title>Price lists</k-card-title>
+            <k-card-text>
               <div class="settings-note">Set in kashi. A product no active list prices can't be sold.</div>
-              <v-table density="compact">
+              <k-table density="compact">
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -451,25 +451,25 @@
                   <tr v-for="list in priceLists" :key="list.id">
                     <td>
                       {{ list.name }}
-                      <v-chip v-if="list.isDefault" size="x-small" class="ml-2">default</v-chip>
+                      <k-chip v-if="list.isDefault" size="x-small" class="ml-2">default</k-chip>
                     </td>
                     <td>{{ list.isActive ? "Yes" : "No" }}</td>
                     <td>
-                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('price', list)" />
+                      <k-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('price', list)" />
                     </td>
                   </tr>
                   <tr v-if="!priceLists.length">
                     <td colspan="3" class="text-medium-emphasis">No price lists have synced yet.</td>
                   </tr>
                 </tbody>
-              </v-table>
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('money-discount-lists')" class="settings-card">
-            <v-card-title>Discount lists</v-card-title>
-            <v-card-text>
+              </k-table>
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('money-discount-lists')" class="settings-card">
+            <k-card-title>Discount lists</k-card-title>
+            <k-card-text>
               <div class="settings-note">Set in kashi.</div>
-              <v-table density="compact">
+              <k-table density="compact">
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -481,34 +481,34 @@
                   <tr v-for="list in discountLists" :key="list.id">
                     <td>
                       {{ list.name }}
-                      <v-chip v-if="list.isDefault" size="x-small" class="ml-2">default</v-chip>
+                      <k-chip v-if="list.isDefault" size="x-small" class="ml-2">default</k-chip>
                     </td>
                     <td>{{ list.isActive ? "Yes" : "No" }}</td>
                     <td>
-                      <v-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('discount', list)" />
+                      <k-btn icon="mdi-format-list-bulleted-square" variant="text" size="small" title="View items" @click="openManageList('discount', list)" />
                     </td>
                   </tr>
                   <tr v-if="!discountLists.length">
                     <td colspan="3" class="text-medium-emphasis">No discount lists have synced yet.</td>
                   </tr>
                 </tbody>
-              </v-table>
-            </v-card-text>
-          </v-card>
+              </k-table>
+            </k-card-text>
+          </k-card>
         </div>
         <div class="settings-page-actions">
-          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <v-icon start icon="mdi-content-save-outline" /> Save money settings
-          </v-btn>
+          <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <k-icon start icon="mdi-content-save-outline" /> Save
+          </k-btn>
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="payments">
+      <k-window-item value="payments">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('payments-till')" class="settings-card">
-            <v-card-title>At the till</v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field
+          <k-card v-show="panelMatches('payments-till')" class="settings-card">
+            <k-card-title>At the till</k-card-title>
+            <k-card-text class="field-grid">
+              <k-text-field
                 v-model.number="form.maxOverpayment"
                 placeholder="Max overpayment (USD)"
                 type="number"
@@ -519,8 +519,8 @@
                 density="compact"
                 hide-details
               />
-              <v-switch v-model="form.allowOverpayment" label="Allow overpayment" color="primary" hide-details class="field-full" />
-              <v-switch
+              <k-switch v-model="form.allowOverpayment" label="Allow overpayment" color="primary" hide-details class="field-full" />
+              <k-switch
                 :model-value="form.autoAppendLbpZeros"
                 :loading="autoAppendLbpZerosSaving"
                 label="Auto-append 000 to LBP amounts"
@@ -529,7 +529,7 @@
                 class="field-full"
                 @update:model-value="(value) => setAutoAppendLbpZeros(value)"
               />
-              <v-switch
+              <k-switch
                 :model-value="form.overchangeConfirmationEnabled"
                 :loading="overchangeConfirmationSaving"
                 label="Confirm when giving more change than owed"
@@ -538,14 +538,14 @@
                 class="field-full"
                 @update:model-value="(value) => setOverchangeConfirmationEnabled(value)"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('money-payment-methods')" class="settings-card settings-card--wide">
-            <v-card-title>Payment methods</v-card-title>
-            <v-card-text>
+          <k-card v-show="panelMatches('money-payment-methods')" class="settings-card settings-card--wide">
+            <k-card-title>Payment methods</k-card-title>
+            <k-card-text>
               <div class="settings-note">Set in kashi.</div>
-              <v-table density="compact">
+              <k-table density="compact">
                 <thead>
                   <tr>
                     <th>Order</th>
@@ -572,8 +572,8 @@
                     </td>
                   </tr>
                 </tbody>
-              </v-table>
-              <v-switch
+              </k-table>
+              <k-switch
                 :model-value="!form.hidePaymentMethodCurrency"
                 :loading="paymentMethodSaving"
                 color="primary"
@@ -582,39 +582,39 @@
                 class="mt-2"
                 @update:model-value="(value) => setHidePaymentMethodCurrency(!value)"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
         </div>
         <div class="settings-page-actions">
-          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <v-icon start icon="mdi-content-save-outline" /> Save payment settings
-          </v-btn>
+          <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <k-icon start icon="mdi-content-save-outline" /> Save
+          </k-btn>
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="coupons">
+      <k-window-item value="coupons">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('coupons-types')" class="settings-card">
-            <v-card-title>Coupon types</v-card-title>
-            <v-card-text>
+          <k-card v-show="panelMatches('coupons-types')" class="settings-card">
+            <k-card-title>Coupon types</k-card-title>
+            <k-card-text>
               <div class="d-flex flex-wrap ga-2 align-start">
-                <v-text-field v-model="couponTypeForm.name" placeholder="Type name" variant="outlined" density="compact" style="max-width: 160px" />
-                <v-text-field v-model.number="couponTypeForm.value" placeholder="Value" type="number" min="0.01" step="0.01" variant="outlined" density="compact" style="max-width: 110px" />
-                <v-text-field v-model="couponTypeForm.currency" placeholder="Currency" maxlength="3" variant="outlined" density="compact" style="max-width: 100px" />
-                <v-btn color="primary" :loading="couponTypeSaving" @click="saveCouponType">{{ editingCouponTypeId ? "Save" : "Add" }}</v-btn>
-                <v-btn v-if="editingCouponTypeId" variant="text" @click="cancelCouponTypeEdit">Cancel</v-btn>
+                <k-text-field v-model="couponTypeForm.name" placeholder="Type name" variant="outlined" density="compact" style="max-width: 160px" />
+                <k-text-field v-model.number="couponTypeForm.value" placeholder="Value" type="number" min="0.01" step="0.01" variant="outlined" density="compact" style="max-width: 110px" />
+                <k-text-field v-model="couponTypeForm.currency" placeholder="Currency" maxlength="3" variant="outlined" density="compact" style="max-width: 100px" />
+                <k-btn color="primary" :loading="couponTypeSaving" @click="saveCouponType">{{ editingCouponTypeId ? "Save" : "Add" }}</k-btn>
+                <k-btn v-if="editingCouponTypeId" variant="text" @click="cancelCouponTypeEdit">Cancel</k-btn>
               </div>
               <div class="d-flex align-center ga-4 mb-2">
-                <v-checkbox
+                <k-checkbox
                   v-model="couponTypeForm.codeRequired"
                   density="compact"
                   hide-details
                   label="Code required"
                   title="Uncheck for coupon types that need no code or reference number at all - they're added directly at checkout"
                 />
-                <v-checkbox v-model="couponTypeForm.referenceOnly" :disabled="!couponTypeForm.codeRequired" density="compact" hide-details label="Reference-only" />
-                <v-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details label="Active" />
-                <v-checkbox
+                <k-checkbox v-model="couponTypeForm.referenceOnly" :disabled="!couponTypeForm.codeRequired" density="compact" hide-details label="Reference-only" />
+                <k-checkbox v-model="couponTypeForm.isActive" density="compact" hide-details label="Active" />
+                <k-checkbox
                   v-model="couponTypeForm.calculateOnCheckout"
                   density="compact"
                   hide-details
@@ -622,45 +622,45 @@
                   title="Tick when the coupon is settled later (e.g. reimbursed by the issuer) instead of collected by the branch now. Its payments are left out of the shift's total and net sales."
                 />
               </div>
-              <v-list density="compact" bg-color="transparent">
-                <v-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.codeRequired === false ? ' · No code required' : couponType.referenceOnly ? ' · Reference-only' : ''}${couponType.calculateOnCheckout ? ' · Not counted in totals' : ''}`">
+              <k-list density="compact" bg-color="transparent">
+                <k-list-item v-for="couponType in couponTypes" :key="couponType.id" :title="couponType.name" :subtitle="`${(Number(couponType.valueCents) / 100).toFixed(2)} ${couponType.currencyCode}${couponType.codeRequired === false ? ' · No code required' : couponType.referenceOnly ? ' · Reference-only' : ''}${couponType.calculateOnCheckout ? ' · Not counted in totals' : ''}`">
                   <template #append>
-                    <v-btn icon="mdi-pencil-outline" variant="text" density="compact" title="Edit coupon type" @click="editCouponType(couponType)" />
-                    <v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon type" @click="removeCouponType(couponType)" />
+                    <k-btn icon="mdi-pencil-outline" variant="text" density="compact" title="Edit coupon type" @click="editCouponType(couponType)" />
+                    <k-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon type" @click="removeCouponType(couponType)" />
                   </template>
-                </v-list-item>
-                <v-list-item v-if="!couponTypes.length" title="No coupon types configured" />
-              </v-list>
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('coupons-issued')" class="settings-card">
-            <v-card-title>Issued coupons</v-card-title>
-            <v-card-text>
+                </k-list-item>
+                <k-list-item v-if="!couponTypes.length" title="No coupon types configured" />
+              </k-list>
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('coupons-issued')" class="settings-card">
+            <k-card-title>Issued coupons</k-card-title>
+            <k-card-text>
               <div class="d-flex flex-wrap ga-2 align-start mb-2">
-                <v-text-field v-model="couponCodeForm" placeholder="New coupon code" variant="outlined" density="compact" />
-                <v-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" placeholder="Type" variant="outlined" density="compact" />
-                <v-btn color="secondary" :loading="couponIssuing" @click="issueCoupon">Issue</v-btn>
+                <k-text-field v-model="couponCodeForm" placeholder="New coupon code" variant="outlined" density="compact" />
+                <k-select v-model="couponIssueTypeId" :items="couponTypes" item-title="name" item-value="id" placeholder="Type" variant="outlined" density="compact" />
+                <k-btn color="secondary" :loading="couponIssuing" @click="issueCoupon">Issue</k-btn>
               </div>
-              <v-list density="compact" bg-color="transparent">
-                <v-list-item v-for="coupon in coupons" :key="coupon.code" :title="coupon.code" :subtitle="`${(Number(coupon.valueCents) / 100).toFixed(2)} · ${coupon.status}`">
-                  <template #append><v-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon" @click="removeCoupon(coupon)" /></template>
-                </v-list-item>
-                <v-list-item v-if="!coupons.length" title="No coupons issued" />
-              </v-list>
-            </v-card-text>
-          </v-card>
+              <k-list density="compact" bg-color="transparent">
+                <k-list-item v-for="coupon in coupons" :key="coupon.code" :title="coupon.code" :subtitle="`${(Number(coupon.valueCents) / 100).toFixed(2)} · ${coupon.status}`">
+                  <template #append><k-btn icon="mdi-delete-outline" variant="text" density="compact" title="Delete coupon" @click="removeCoupon(coupon)" /></template>
+                </k-list-item>
+                <k-list-item v-if="!coupons.length" title="No coupons issued" />
+              </k-list>
+            </k-card-text>
+          </k-card>
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="behaviour">
+      <k-window-item value="behaviour">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('behavior-custom-pricing')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-sale-outline" size="20" />
+          <k-card v-show="panelMatches('behavior-custom-pricing')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-sale-outline" size="20" />
               Custom item pricing
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.customItemPricesEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -668,7 +668,7 @@
                 label="Custom item prices"
                 @update:model-value="setCustomPricesEnabled"
               />
-              <v-switch
+              <k-switch
                 :model-value="form.perUnitItemPricesEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -676,7 +676,7 @@
                 label="Per-unit price/discount editing"
                 @update:model-value="setPerUnitPricesEnabled"
               />
-              <v-switch
+              <k-switch
                 :model-value="form.customItemDiscountsEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -684,16 +684,16 @@
                 label="Custom product discounts"
                 @update:model-value="setCustomDiscountsEnabled"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-price-change-mode')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-tag-multiple-outline" size="20" />
+          <k-card v-show="panelMatches('behavior-price-change-mode')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-tag-multiple-outline" size="20" />
               Price change mode
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.priceChangeManualOverrideEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -701,16 +701,16 @@
                 label="Manual override (independent price & discount)"
                 @update:model-value="setPriceChangeManualOverrideEnabled"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-product-search')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-magnify" size="20" />
+          <k-card v-show="panelMatches('behavior-product-search')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-magnify" size="20" />
               Product search button
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.productSearchEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -718,23 +718,23 @@
                 label="Show the product search button on the sale screen"
                 @update:model-value="setProductSearchEnabled"
               />
-              <v-switch
+              <k-switch
                 :model-value="productSearchInPlace"
                 color="primary"
                 hide-details
                 label="Search in the sale screen: results in place of the calculator, keyboard along the bottom (off: a full-screen dialog)"
                 @update:model-value="(value) => setProductSearchInPlace(value ?? false)"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-search-code-only')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-barcode-scan" size="20" />
+          <k-card v-show="panelMatches('behavior-search-code-only')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-barcode-scan" size="20" />
               Code-only product search
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.productSearchCodeOnly"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -743,16 +743,16 @@
                 @update:model-value="setProductSearchCodeOnly"
               />
 
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-stock')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-package-variant-closed" size="20" />
+          <k-card v-show="panelMatches('behavior-stock')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-package-variant-closed" size="20" />
               Selling beyond stock
-            </v-card-title>
-            <v-card-text>
-              <v-select
+            </k-card-title>
+            <k-card-text>
+              <k-select
                 v-model="form.oversellMode"
                 :items="oversellModes"
                 :loading="pricingSettingsSaving"
@@ -763,16 +763,16 @@
                 @update:model-value="saveOversellMode"
               />
 <div class="settings-note mt-1">kashi alerts on any stock below zero.</div>
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-search-columns')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-magnify" size="20" />
+          <k-card v-show="panelMatches('behavior-search-columns')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-magnify" size="20" />
               Product search &amp; unknown item
-            </v-card-title>
-            <v-card-text>
-              <v-select
+            </k-card-title>
+            <k-card-text>
+              <k-select
                 v-model="form.productSearchHiddenFields"
                 :items="productSearchFieldOptions"
                 chips
@@ -784,7 +784,7 @@
                 variant="outlined"
                 @update:model-value="saveProductSearchHiddenFields"
               />
-              <v-text-field
+              <k-text-field
                 v-model="form.unknownProductBarcode"
                 class="mt-3"
                 density="compact"
@@ -793,7 +793,7 @@
                 variant="outlined"
                 @blur="saveUnknownProductBarcode"
               />
-              <v-select
+              <k-select
                 :model-value="form.unknownPicturesAtCheckout"
                 :items="unknownPicturesModeOptions"
                 class="mt-3"
@@ -803,16 +803,16 @@
                 variant="outlined"
                 @update:model-value="setUnknownPicturesAtCheckout"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-price-edit-codes')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-tag-multiple-outline" size="20" />
+          <k-card v-show="panelMatches('behavior-price-edit-codes')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-tag-multiple-outline" size="20" />
               Price edits by code
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.priceEditRestricted"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -820,7 +820,7 @@
                 label="Allow manual price and discount edits only for selected codes"
                 @update:model-value="setPriceEditRestricted"
               />
-              <v-textarea
+              <k-textarea
                 v-model="form.priceEditCodes"
                 class="mt-3"
                 label="Allowed codes"
@@ -834,16 +834,16 @@
                 @blur="savePriceEditCodes"
               />
               <div class="settings-note mt-1">Needs custom prices or discounts on.</div>
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-discount-toggle')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-tag-off-outline" size="20" />
+          <k-card v-show="panelMatches('behavior-discount-toggle')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-tag-off-outline" size="20" />
               Turn discounts or deals off at the till
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.discountToggleEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -851,7 +851,7 @@
                 label="Salespersons can tap a line's discount (30%) to turn it off or on"
                 @update:model-value="setDiscountToggleEnabled"
               />
-              <v-switch
+              <k-switch
                 :model-value="form.discountToggleDefaultOff"
                 :loading="pricingSettingsSaving"
                 :disabled="!form.discountToggleEnabled"
@@ -860,7 +860,7 @@
                 label="Discounts start off on each new line"
                 @update:model-value="setDiscountToggleDefaultOff"
               />
-              <v-switch
+              <k-switch
                 :model-value="form.dealToggleEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -868,16 +868,16 @@
                 label="Salespersons can tap a line's deal (B2G1) to turn it off or on"
                 @update:model-value="setDealToggleEnabled"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-scan-by-code')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-barcode-scan" size="20" />
+          <k-card v-show="panelMatches('behavior-scan-by-code')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-barcode-scan" size="20" />
               Product code in scan field
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.scanByCodeEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -886,16 +886,16 @@
                 @update:model-value="setScanByCodeEnabled"
               />
               <div class="settings-note mt-1">Used when no barcode matches.</div>
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-client-required')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-account-off-outline" size="20" />
+          <k-card v-show="panelMatches('behavior-client-required')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-account-off-outline" size="20" />
               Client on checkout
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.clientRequired"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -904,16 +904,16 @@
                 @update:model-value="setClientRequired"
               />
               <div class="settings-note mt-1">Off: invoices default to Anonymous.</div>
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-salesperson-per-invoice')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-account-tie-outline" size="20" />
+          <k-card v-show="panelMatches('behavior-salesperson-per-invoice')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-account-tie-outline" size="20" />
               Salesperson per invoice
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.salespersonPerInvoiceRequired"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -922,16 +922,16 @@
                 @update:model-value="setSalespersonPerInvoiceRequired"
               />
               <div class="settings-note mt-1">Off: the last salesperson carries over.</div>
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-non-admin-month-nav')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-calendar-month-outline" size="20" />
+          <k-card v-show="panelMatches('behavior-non-admin-month-nav')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-calendar-month-outline" size="20" />
               Income chart month navigation
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.nonAdminMonthNavEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -939,16 +939,16 @@
                 label="Let non-admins browse other months on the income chart"
                 @update:model-value="setNonAdminMonthNavEnabled"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-visitor-counter')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-account-group-outline" size="20" />
+          <k-card v-show="panelMatches('behavior-visitor-counter')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-account-group-outline" size="20" />
               People visits counter
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.visitorCounterEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -957,18 +957,18 @@
                 @update:model-value="setVisitorCounterEnabled"
               />
               <div class="settings-note mt-1">Turning it off keeps recorded counts.</div>
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="display">
+      <k-window-item value="display">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('display-look')" class="settings-card">
-            <v-card-title>Look &amp; feel</v-card-title>
-            <v-card-text class="field-grid">
-              <v-switch
+          <k-card v-show="panelMatches('display-look')" class="settings-card">
+            <k-card-title>Look &amp; feel</k-card-title>
+            <k-card-text class="field-grid">
+              <k-switch
                 :model-value="darkThemeEnabled"
                 :loading="themeSaving"
                 :disabled="themeSaving"
@@ -977,14 +977,14 @@
                 hide-details
                 @update:model-value="setDarkTheme"
               />
-              <v-switch
+              <k-switch
                 :model-value="animationsEnabled"
                 label="Animations"
                 color="primary"
                 hide-details
                 @update:model-value="(value) => setAnimationsEnabled(value ?? false)"
               />
-              <v-select
+              <k-select
                 :model-value="calculatorTotalCurrency"
                 :items="calculatorDisplayCurrencies"
                 placeholder="Calculator total currency"
@@ -993,16 +993,16 @@
                 hide-details
                 @update:model-value="(value) => setCalculatorTotalCurrency(value ?? 'USD')"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('behavior-sounds')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-volume-high" size="20" />
+          <k-card v-show="panelMatches('behavior-sounds')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-volume-high" size="20" />
               Sounds
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.soundsEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -1010,15 +1010,15 @@
                 label="Play sounds"
                 @update:model-value="setSoundsEnabled"
               />
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('behavior-invoice-keyboard')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-keyboard" size="20" />
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('behavior-invoice-keyboard')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-keyboard" size="20" />
               Invoice keyboard mode
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 :model-value="form.invoiceKeyboardModeEnabled"
                 :loading="pricingSettingsSaving"
                 color="primary"
@@ -1026,16 +1026,16 @@
                 label="Enable keyboard mode"
                 @update:model-value="setInvoiceKeyboardModeEnabled"
               />
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('display-quick-access-cards')" class="settings-card">
-            <v-card-title>Quick access cards</v-card-title>
-            <v-card-text>
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('display-quick-access-cards')" class="settings-card">
+            <k-card-title>Quick access cards</k-card-title>
+            <k-card-text>
               <div class="text-body-2">
                 Quick access rows:
                 <strong>{{ quickAccessRows === 0 ? "Hidden" : quickAccessRows }}</strong>
               </div>
-              <v-slider
+              <k-slider
                 :model-value="quickAccessRows"
                 :min="0"
                 :max="QUICK_ACCESS_MAX_ROWS"
@@ -1048,7 +1048,7 @@
               <div class="text-body-2 mt-2">
                 Quick access text size: <strong>{{ quickAccessFontScale }}%</strong>
               </div>
-              <v-slider
+              <k-slider
                 :model-value="quickAccessFontScale"
                 :min="QUICK_ACCESS_FONT_MIN"
                 :max="QUICK_ACCESS_FONT_MAX"
@@ -1059,50 +1059,50 @@
                 @update:model-value="setQuickAccessFontScale"
               >
                 <template #append>
-                  <v-btn
+                  <k-btn
                     size="small"
                     variant="text"
                     :disabled="quickAccessFontScale === 100"
                     @click="setQuickAccessFontScale(100)"
                   >
                     Reset
-                  </v-btn>
+                  </k-btn>
                 </template>
-              </v-slider>
-              <v-switch
+              </k-slider>
+              <k-switch
                 :model-value="quickAccessShowCode"
                 label="Show code on quick access cards"
                 color="primary"
                 hide-details
                 @update:model-value="(value) => setQuickAccessShowCode(value ?? false)"
               />
-              <v-switch
+              <k-switch
                 :model-value="quickAccessShowName"
                 label="Show name on quick access cards"
                 color="primary"
                 hide-details
                 @update:model-value="(value) => setQuickAccessShowName(value ?? false)"
               />
-              <v-switch
+              <k-switch
                 :model-value="quickAccessShowRemove"
                 label="Show remove (X) button on quick access cards"
                 color="primary"
                 hide-details
                 @update:model-value="(value) => setQuickAccessShowRemove(value ?? false)"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="quick_access">
+      <k-window-item value="quick_access">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('general-quick-access-colors')" class="settings-card settings-card--wide">
-            <v-card-title class="d-flex align-center">
+          <k-card v-show="panelMatches('general-quick-access-colors')" class="settings-card settings-card--wide">
+            <k-card-title class="d-flex align-center">
               Quick access colors
-              <v-spacer />
-              <v-btn
+              <k-spacer />
+              <k-btn
                 variant="tonal"
                 size="small"
                 prepend-icon="mdi-download"
@@ -1111,12 +1111,12 @@
                 @click="exportQuickAccessCsv"
               >
                 Export CSV
-              </v-btn>
-            </v-card-title>
-            <v-card-text>
+              </k-btn>
+            </k-card-title>
+            <k-card-text>
               <div class="d-flex align-center flex-wrap ga-3 mb-3">
                 <span class="text-body-2">Cards come from</span>
-                <v-btn-toggle
+                <k-btn-toggle
                   :model-value="quickAccessMode"
                   mandatory
                   density="compact"
@@ -1125,9 +1125,9 @@
                   :disabled="!auth.isAdmin || changingQuickAccessMode"
                   @update:model-value="changeQuickAccessMode"
                 >
-                  <v-btn size="small" value="till">This till</v-btn>
-                  <v-btn size="small" value="kashi">kashi</v-btn>
-                </v-btn-toggle>
+                  <k-btn size="small" value="till">This till</k-btn>
+                  <k-btn size="small" value="kashi">kashi</k-btn>
+                </k-btn-toggle>
                 <span v-if="quickAccessMode === 'kashi'" class="text-caption text-medium-emphasis">
                   Edit in kashi: Branch settings → Quick access.
                 </span>
@@ -1193,17 +1193,17 @@
                   </div>
                 </div>
               </div>
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="cash">
+      <k-window-item value="cash">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('money-float')" class="settings-card">
-            <v-card-title>Opening cash float</v-card-title>
-            <v-card-text class="field-grid">
-              <v-switch
+          <k-card v-show="panelMatches('money-float')" class="settings-card">
+            <k-card-title>Opening cash float</k-card-title>
+            <k-card-text class="field-grid">
+              <k-switch
                 :model-value="form.openingFloatEnabled"
                 :loading="openingFloatEnabledSaving"
                 label="Enable opening cash float"
@@ -1213,13 +1213,13 @@
                 @update:model-value="(value) => setOpeningFloatEnabled(value)"
               />
               <template v-if="form.openingFloatEnabled">
-                <v-text-field v-model.number="form.defaultOpeningFloatUsd" placeholder="Opening float (USD)" type="number" min="0" step="0.01" variant="outlined" density="compact" hide-details />
-                <v-text-field v-model.number="form.defaultOpeningFloatLbp" placeholder="Opening float (LBP)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
-                <v-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="field-full">
+                <k-text-field v-model.number="form.defaultOpeningFloatUsd" placeholder="Opening float (USD)" type="number" min="0" step="0.01" variant="outlined" density="compact" hide-details />
+                <k-text-field v-model.number="form.defaultOpeningFloatLbp" placeholder="Opening float (LBP)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+                <k-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="field-full">
                   Opening float cannot be negative.
-                </v-alert>
-                <v-btn color="primary" variant="tonal" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</v-btn>
-                <v-switch
+                </k-alert>
+                <k-btn color="primary" variant="tonal" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</k-btn>
+                <k-switch
                   :model-value="form.countOpeningCashOnClose"
                   :loading="countOpeningCashOnCloseSaving"
                   label="Count opening float in close-shift cash count"
@@ -1229,19 +1229,19 @@
                   @update:model-value="(value) => setCountOpeningCashOnClose(value)"
                 />
               </template>
-            </v-card-text>
-          </v-card>
-          <v-card v-show="panelMatches('cash-closing')" class="settings-card">
-            <v-card-title>Closing shifts</v-card-title>
-            <v-card-text class="field-grid">
-              <v-switch
+            </k-card-text>
+          </k-card>
+          <k-card v-show="panelMatches('cash-closing')" class="settings-card">
+            <k-card-title>Closing shifts</k-card-title>
+            <k-card-text class="field-grid">
+              <k-switch
                 v-model="form.autoCloseStaleShiftsEnabled"
                 label="Auto-close previous-day shifts"
                 color="primary"
                 hide-details
                 class="field-full"
               />
-              <v-switch
+              <k-switch
                 :model-value="form.closeShiftRequiresSync"
                 :loading="closeShiftRequiresSyncSaving"
                 label="Upload everything before closing a shift"
@@ -1251,7 +1251,7 @@
                 @update:model-value="(value) => setCloseShiftRequiresSync(value)"
               />
               <div class="settings-note field-full">Offline, the admin password overrides.</div>
-              <v-switch
+              <k-switch
                 :model-value="form.shiftReceiptUploadMode !== 0"
                 :loading="shiftReceiptUploadModeSaving"
                 label="Show receipt-photo QR code after closing a shift"
@@ -1261,7 +1261,7 @@
                 @update:model-value="(value) => setShiftReceiptUploadMode(value ? 2 : 0)"
               />
               <template v-if="form.shiftReceiptUploadMode !== 0">
-                <v-select
+                <k-select
                   :model-value="form.shiftReceiptUploadMode"
                   :items="shiftReceiptUploadModes"
                   :loading="shiftReceiptUploadModeSaving"
@@ -1276,7 +1276,7 @@
                   Hybrid: office when online, else this till. Local: this till. Central: office.
                 </div>
               </template>
-              <v-switch
+              <k-switch
                 :model-value="form.autoCoverNegativeLbp"
                 :loading="autoCoverNegativeLbpSaving"
                 label="At close shift, cover a negative Cash LL balance from Cash $$"
@@ -1286,74 +1286,74 @@
                 @update:model-value="(value) => setAutoCoverNegativeLbp(value)"
               />
               <div class="settings-note field-full">So Cash LL closes at 0.</div>
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
         </div>
         <div class="settings-page-actions">
-          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <v-icon start icon="mdi-content-save-outline" /> Save cash &amp; shifts settings
-          </v-btn>
+          <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <k-icon start icon="mdi-content-save-outline" /> Save
+          </k-btn>
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="printing">
+      <k-window-item value="printing">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('printing-receipt')" class="settings-card">
-            <v-card-title>Receipt</v-card-title>
-            <v-card-text class="field-grid">
-              <v-select v-model="form.printerSize" :items="['58mm', '80mm']" placeholder="Printing size" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.receiptWidth" placeholder="Width (mm)" type="number" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" hide-details />
-              <v-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" placeholder="Title font" variant="outlined" density="compact" hide-details />
-              <v-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" placeholder="Body font" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.receiptTitleSize" placeholder="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.receiptBodySize" placeholder="Body size" type="number" min="6" max="24" variant="outlined" density="compact" hide-details />
-              <v-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
-              <v-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details class="field-full" />
-            </v-card-text>
-          </v-card>
+          <k-card v-show="panelMatches('printing-receipt')" class="settings-card">
+            <k-card-title>Receipt</k-card-title>
+            <k-card-text class="field-grid">
+              <k-select v-model="form.printerSize" :items="['58mm', '80mm']" placeholder="Printing size" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.receiptWidth" placeholder="Width (mm)" type="number" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.receiptHeight" placeholder="Height (mm)" type="number" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.receiptFont" :items="['Belleza', 'Helvetica', 'Times', 'Courier']" placeholder="Title font" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.receiptBodyFont" :items="['Printer Font A', 'Courier', 'Helvetica', 'Times', 'Belleza']" placeholder="Body font" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.receiptTitleSize" placeholder="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.receiptBodySize" placeholder="Body size" type="number" min="6" max="24" variant="outlined" density="compact" hide-details />
+              <k-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
+              <k-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details class="field-full" />
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('printing-look')" class="settings-card settings-card--wide">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-palette" size="20" />
+          <k-card v-show="panelMatches('printing-look')" class="settings-card settings-card--wide">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-palette" size="20" />
               Receipt look
-            </v-card-title>
-            <v-card-text>
+            </k-card-title>
+            <k-card-text>
               <ReceiptLookPicker @saved="onReceiptLookSaved" @error="(message: string) => notify(message, 'red')" />
               <div class="settings-note mt-2">Fonts and sizes above apply to the Classic theme.</div>
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('printing-end-of-shift')" class="settings-card">
-            <v-card-title>End-of-shift receipt</v-card-title>
-            <v-card-text class="field-grid">
-              <v-switch v-model="form.shiftReportSignatures" label="Cashier and manager signature lines" color="primary" hide-details class="field-full" />
-              <v-switch v-model="form.shiftReportUppercaseHeader" label="Store and branch name in capitals" color="primary" hide-details class="field-full" />
-            </v-card-text>
-            <v-card-actions class="px-4 pb-4">
-              <v-btn
+          <k-card v-show="panelMatches('printing-end-of-shift')" class="settings-card">
+            <k-card-title>End-of-shift receipt</k-card-title>
+            <k-card-text class="field-grid">
+              <k-switch v-model="form.shiftReportSignatures" label="Cashier and manager signature lines" color="primary" hide-details class="field-full" />
+              <k-switch v-model="form.shiftReportUppercaseHeader" label="Store and branch name in capitals" color="primary" hide-details class="field-full" />
+            </k-card-text>
+            <k-card-actions class="px-4 pb-4">
+              <k-btn
                 variant="tonal"
                 color="primary"
                 :loading="samplePrinting"
                 @click="printCloseShiftSample"
               >
-                <v-icon start icon="mdi-printer-eye" /> Print sample
-              </v-btn>
-            </v-card-actions>
-          </v-card>
+                <k-icon start icon="mdi-printer-eye" /> Print sample
+              </k-btn>
+            </k-card-actions>
+          </k-card>
 
-          <v-card v-show="panelMatches('printing-header-footer')" class="settings-card">
-            <v-card-title>Receipt header &amp; footer</v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field v-model="form.marketName" placeholder="Market name" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.marketPhone" placeholder="Market phone" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.marketDescription" placeholder="Tagline" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.branchPhone" placeholder="Branch phone" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.registerName" placeholder="Register name (POS-01)" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.website" placeholder="Website" variant="outlined" density="compact" hide-details />
-              <v-textarea v-model="form.returnPolicy" placeholder="Return policy" rows="2" variant="outlined" density="compact" hide-details class="field-full" />
-              <v-select
+          <k-card v-show="panelMatches('printing-header-footer')" class="settings-card">
+            <k-card-title>Receipt header &amp; footer</k-card-title>
+            <k-card-text class="field-grid">
+              <k-text-field v-model="form.marketName" placeholder="Market name" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.marketPhone" placeholder="Market phone" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.marketDescription" placeholder="Tagline" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.branchPhone" placeholder="Branch phone" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.registerName" placeholder="Register name (POS-01)" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.website" placeholder="Website" variant="outlined" density="compact" hide-details />
+              <k-textarea v-model="form.returnPolicy" placeholder="Return policy" rows="2" variant="outlined" density="compact" hide-details class="field-full" />
+              <k-select
                 v-model="form.socialPlatforms"
                 :items="socialPlatformOptions"
                 placeholder="Social platforms"
@@ -1367,17 +1367,17 @@
                 class="field-full"
               >
                 <template #chip="{ props, item }">
-                  <v-chip v-bind="props" :icon="platformIcon(String(item.value))" label variant="tonal" />
+                  <k-chip v-bind="props" :icon="platformIcon(String(item.value))" label variant="tonal" />
                 </template>
                 <template #item="{ props, item }">
-                  <v-list-item v-bind="props" :prepend-icon="platformIcon(String(item.value))">
+                  <k-list-item v-bind="props" :prepend-icon="platformIcon(String(item.value))">
                     <template #title>
                       <span class="sr-only">{{ platformLabel(String(item.value)) }}</span>
                     </template>
-                  </v-list-item>
+                  </k-list-item>
                 </template>
-              </v-select>
-              <v-text-field
+              </k-select>
+              <k-text-field
                 v-for="platform in form.socialPlatforms"
                 :key="platform"
                 v-model="form.socialHandles[platform]"
@@ -1387,67 +1387,67 @@
                 density="compact"
                 hide-details
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
 
-          <v-card v-show="panelMatches('printing-devices')" class="settings-card">
-            <v-card-title>Devices</v-card-title>
-            <v-card-text class="field-grid">
-              <v-select v-model="form.receiptPrinter" :items="printers" placeholder="Receipt printer" variant="outlined" density="compact" hide-details />
-              <v-select v-model="form.screenPort" :items="serialPorts" placeholder="Customer screen COM port" variant="outlined" density="compact" hide-details />
-            </v-card-text>
-          </v-card>
+          <k-card v-show="panelMatches('printing-devices')" class="settings-card">
+            <k-card-title>Devices</k-card-title>
+            <k-card-text class="field-grid">
+              <k-select v-model="form.receiptPrinter" :items="printers" placeholder="Receipt printer" variant="outlined" density="compact" hide-details />
+              <k-select v-model="form.screenPort" :items="serialPorts" placeholder="Customer screen COM port" variant="outlined" density="compact" hide-details />
+            </k-card-text>
+          </k-card>
 
         </div>
         <div class="settings-page-actions">
-          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <v-icon start icon="mdi-content-save-outline" /> Save printing settings
-          </v-btn>
+          <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <k-icon start icon="mdi-content-save-outline" /> Save
+          </k-btn>
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="attendance">
+      <k-window-item value="attendance">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('attendance-machine')" class="settings-card">
-            <v-card-title>Attendance machine</v-card-title>
-            <v-card-text class="field-grid">
-              <v-text-field v-model="form.akuvoxIP" placeholder="Akuvox IP address" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.akuvoxUsername" placeholder="Device username" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.akuvoxPassword" placeholder="Device password" type="password" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model="form.attendanceApproverPassword" placeholder="Manager password" type="password" variant="outlined" density="compact" hide-details />
-              <v-text-field v-model.number="form.attendanceDuplicateIntervalSeconds" placeholder="Duplicate interval (sec)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
-              <v-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details class="field-full" />
-              <v-switch v-model="form.attendanceCashierHistory" label="Cashiers can browse previous days" color="primary" hide-details class="field-full" />
-              <v-switch
+          <k-card v-show="panelMatches('attendance-machine')" class="settings-card">
+            <k-card-title>Attendance machine</k-card-title>
+            <k-card-text class="field-grid">
+              <k-text-field v-model="form.akuvoxIP" placeholder="Akuvox IP address" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.akuvoxUsername" placeholder="Device username" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.akuvoxPassword" placeholder="Device password" type="password" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model="form.attendanceApproverPassword" placeholder="Manager password" type="password" variant="outlined" density="compact" hide-details />
+              <k-text-field v-model.number="form.attendanceDuplicateIntervalSeconds" placeholder="Duplicate interval (sec)" type="number" min="0" step="1" variant="outlined" density="compact" hide-details />
+              <k-switch v-model="form.attendanceEnabled" label="Enable attendance" color="primary" hide-details class="field-full" />
+              <k-switch v-model="form.attendanceCashierHistory" label="Cashiers can browse previous days" color="primary" hide-details class="field-full" />
+              <k-switch
                 v-model="form.attendanceManagerApproval"
                 label="Manager approves requests and adds missed punches"
                 color="primary"
                 hide-details
                 class="field-full"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
         </div>
         <div class="settings-page-actions">
-          <v-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
-            <v-icon start icon="mdi-content-save-outline" /> Save attendance settings
-          </v-btn>
+          <k-btn color="primary" variant="flat" :loading="saving" @click="saveSettings">
+            <k-icon start icon="mdi-content-save-outline" /> Save
+          </k-btn>
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="users">
+      <k-window-item value="users">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('admin-users')" class="settings-card settings-card--wide">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-account-group-outline" size="20" />
+          <k-card v-show="panelMatches('admin-users')" class="settings-card settings-card--wide">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-account-group-outline" size="20" />
               Users
-              <v-spacer />
-              <v-btn color="primary" size="small" @click="openUserDialog()">
-                <v-icon start icon="mdi-plus" /> Add user
-              </v-btn>
-            </v-card-title>
+              <k-spacer />
+              <k-btn color="primary" size="small" @click="openUserDialog()">
+                <k-icon start icon="mdi-plus" /> Add user
+              </k-btn>
+            </k-card-title>
             <div class="settings-note px-4">kashi users: only their PIN can be reset here.</div>
-            <v-data-table
+            <k-data-table
               :headers="userHeaders"
               :items="users"
               items-per-page="-1"
@@ -1457,7 +1457,7 @@
             >
               <template #item.username="{ item }">
                 {{ item.username }}
-                <v-chip
+                <k-chip
                   v-if="item.isSynced"
                   class="ml-2"
                   color="primary"
@@ -1465,15 +1465,15 @@
                   variant="tonal"
                 >
                   kashi
-                </v-chip>
+                </k-chip>
               </template>
               <template #item.active="{ item }">
-                <v-chip :color="item.active ? 'green' : 'red'" size="small" variant="tonal">
+                <k-chip :color="item.active ? 'green' : 'red'" size="small" variant="tonal">
                   {{ item.active ? "Active" : "Disabled" }}
-                </v-chip>
+                </k-chip>
               </template>
               <template #item.actions="{ item }">
-                <v-btn
+                <k-btn
                   v-if="item.isSynced"
                   icon
                   size="small"
@@ -1481,37 +1481,37 @@
                   title="Reset PIN"
                   @click="openUserDialog(item)"
                 >
-                  <v-icon icon="mdi-key-outline" size="18" />
-                </v-btn>
+                  <k-icon icon="mdi-key-outline" size="18" />
+                </k-btn>
                 <template v-else>
-                  <v-btn icon size="small" variant="text" @click="openUserDialog(item)">
-                    <v-icon icon="mdi-pencil-outline" size="18" />
-                  </v-btn>
-                  <v-btn icon size="small" variant="text" @click="deleteUserConfirm(item)">
-                    <v-icon icon="mdi-delete-outline" size="18" color="red" />
-                  </v-btn>
+                  <k-btn icon size="small" variant="text" @click="openUserDialog(item)">
+                    <k-icon icon="mdi-pencil-outline" size="18" />
+                  </k-btn>
+                  <k-btn icon size="small" variant="text" @click="deleteUserConfirm(item)">
+                    <k-icon icon="mdi-delete-outline" size="18" color="red" />
+                  </k-btn>
                 </template>
               </template>
-            </v-data-table>
-          </v-card>
-          <v-card v-show="panelMatches('admin-salespersons')" class="settings-card settings-card--wide">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-account-tie" size="20" />
+            </k-data-table>
+          </k-card>
+          <k-card v-show="panelMatches('admin-salespersons')" class="settings-card settings-card--wide">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-account-tie" size="20" />
               Salespersons
-              <v-spacer />
-              <v-btn
+              <k-spacer />
+              <k-btn
                 v-if="!salespersonsSyncManaged"
                 color="primary"
                 size="small"
                 @click="openSalespersonDialog()"
               >
-                <v-icon start icon="mdi-plus" /> Add salesperson
-              </v-btn>
-            </v-card-title>
+                <k-icon start icon="mdi-plus" /> Add salesperson
+              </k-btn>
+            </k-card-title>
             <div v-if="salespersonsSyncManaged" class="settings-note px-4">
               Set in kashi; only the attendance ID can be changed here.
             </div>
-            <v-data-table
+            <k-data-table
               :headers="salespersonHeaders"
               :items="salespersons"
               items-per-page="-1"
@@ -1523,35 +1523,35 @@
                 <span class="salesperson-color-dot" :style="{ background: salespersonColor(item) }" />
               </template>
               <template #item.isActive="{ item }">
-                <v-chip v-if="item.isSynced" :color="item.isActive ? 'green' : 'red'" size="small" variant="tonal">
+                <k-chip v-if="item.isSynced" :color="item.isActive ? 'green' : 'red'" size="small" variant="tonal">
                   {{ item.isActive ? "Active" : "Inactive" }}
-                </v-chip>
+                </k-chip>
                 <span v-else class="text-caption text-medium-emphasis">Not synced</span>
               </template>
               <template #item.actions="{ item }">
-                <v-btn icon size="small" variant="text" @click="openSalespersonDialog(item)">
-                  <v-icon icon="mdi-pencil-outline" size="18" />
-                </v-btn>
-                <v-btn
+                <k-btn icon size="small" variant="text" @click="openSalespersonDialog(item)">
+                  <k-icon icon="mdi-pencil-outline" size="18" />
+                </k-btn>
+                <k-btn
                   v-if="!item.isSynced"
                   icon
                   size="small"
                   variant="text"
                   @click="deleteSalespersonConfirm(item)"
                 >
-                  <v-icon icon="mdi-delete-outline" size="18" color="red" />
-                </v-btn>
+                  <k-icon icon="mdi-delete-outline" size="18" color="red" />
+                </k-btn>
               </template>
-            </v-data-table>
-          </v-card>
-          <v-form v-show="panelMatches('admin-change-password')" class="settings-form-wrap" @submit.prevent="changePassword">
-            <v-card class="settings-card">
-              <v-card-title class="d-flex align-center ga-3">
-                <v-icon icon="mdi-lock-reset" size="20" />
+            </k-data-table>
+          </k-card>
+          <k-form v-show="panelMatches('admin-change-password')" class="settings-form-wrap" @submit.prevent="changePassword">
+            <k-card class="settings-card">
+              <k-card-title class="d-flex align-center ga-3">
+                <k-icon icon="mdi-lock-reset" size="20" />
                 Change admin password
-              </v-card-title>
-              <v-card-text>
-                <v-text-field
+              </k-card-title>
+              <k-card-text>
+                <k-text-field
                   v-model="passwordForm.current"
                   placeholder="Current admin password"
                   variant="outlined"
@@ -1561,7 +1561,7 @@
                   :append-inner-icon="showPw ? 'mdi-eye' : 'mdi-eye-off'"
                   @click:append-inner="showPw = !showPw"
                 />
-                <v-text-field
+                <k-text-field
                   v-model="passwordForm.newPass"
                   placeholder="New password"
                   variant="outlined"
@@ -1569,7 +1569,7 @@
                   class="mb-2"
                   :type="showPw ? 'text' : 'password'"
                 />
-                <v-text-field
+                <k-text-field
                   v-model="passwordForm.confirm"
                   placeholder="Confirm new password"
                   variant="outlined"
@@ -1577,23 +1577,23 @@
                   :type="showPw ? 'text' : 'password'"
                   :rules="[(v) => v === passwordForm.newPass || 'Passwords do not match']"
                 />
-              </v-card-text>
-              <v-card-actions>
-                <v-spacer />
-                <v-btn color="primary" variant="flat" type="submit" :loading="changingPassword">
-                  <v-icon start icon="mdi-lock-reset" /> Change password
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-form>
-          <v-form v-show="panelMatches('admin-cashier-pin')" class="settings-form-wrap" @submit.prevent="saveCashierPin">
-            <v-card class="settings-card">
-              <v-card-title class="d-flex align-center ga-3">
-                <v-icon icon="mdi-dialpad" size="20" />
+              </k-card-text>
+              <k-card-actions>
+                <k-spacer />
+                <k-btn color="primary" variant="flat" type="submit" :loading="changingPassword">
+                  <k-icon start icon="mdi-lock-reset" /> Change password
+                </k-btn>
+              </k-card-actions>
+            </k-card>
+          </k-form>
+          <k-form v-show="panelMatches('admin-cashier-pin')" class="settings-form-wrap" @submit.prevent="saveCashierPin">
+            <k-card class="settings-card">
+              <k-card-title class="d-flex align-center ga-3">
+                <k-icon icon="mdi-dialpad" size="20" />
                 Cashier login PIN
-              </v-card-title>
-              <v-card-text>
-                <v-text-field
+              </k-card-title>
+              <k-card-text>
+                <k-text-field
                   v-model="cashierPinForm.newPin"
                   placeholder="New 4-digit PIN"
                   variant="outlined"
@@ -1607,7 +1607,7 @@
                   persistent-hint
                   @click:append-inner="showCashierPin = !showCashierPin"
                 />
-                <v-text-field
+                <k-text-field
                   v-model="cashierPinForm.confirm"
                   placeholder="Confirm PIN"
                   variant="outlined"
@@ -1617,33 +1617,33 @@
                   :type="showCashierPin ? 'text' : 'password'"
                   :rules="[(v) => v === cashierPinForm.newPin || 'PINs do not match']"
                 />
-              </v-card-text>
-              <v-card-actions>
-                <v-spacer />
-                <v-btn
+              </k-card-text>
+              <k-card-actions>
+                <k-spacer />
+                <k-btn
                   color="primary"
                   variant="flat"
                   type="submit"
                   :loading="savingCashierPin"
                   :disabled="!/^\d{4}$/.test(cashierPinForm.newPin) || cashierPinForm.newPin !== cashierPinForm.confirm"
                 >
-                  <v-icon start icon="mdi-dialpad" /> Update PIN
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </v-form>
+                  <k-icon start icon="mdi-dialpad" /> Update PIN
+                </k-btn>
+              </k-card-actions>
+            </k-card>
+          </k-form>
         </div>
-      </v-window-item>
+      </k-window-item>
 
-      <v-window-item value="pages">
+      <k-window-item value="pages">
         <div class="settings-grid">
-          <v-card v-show="panelMatches('admin-page-access')" class="settings-card">
-            <v-card-title class="d-flex align-center ga-3">
-              <v-icon icon="mdi-lock-outline" size="20" />
+          <k-card v-show="panelMatches('admin-page-access')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-lock-outline" size="20" />
               Page access
-            </v-card-title>
-            <v-card-text>
-              <v-switch
+            </k-card-title>
+            <k-card-text>
+              <k-switch
                 v-for="page in lockablePages"
                 :key="page"
                 :model-value="pageUnlocks[page] ?? false"
@@ -1654,23 +1654,23 @@
                 class="mb-1"
                 @update:model-value="(value) => togglePageUnlock(page, value)"
               />
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
         </div>
-      </v-window-item>
-      </v-window>
+      </k-window-item>
+      </k-window>
     </div>
 
-    <v-dialog v-model="userDialog" max-width="400">
-      <v-card>
-        <v-card-title>
+    <k-dialog v-model="userDialog" max-width="400">
+      <k-card>
+        <k-card-title>
           {{ editingSyncedUser ? "Reset PIN" : editingUser ? "Edit User" : "New User" }}
-        </v-card-title>
-        <v-card-text>
+        </k-card-title>
+        <k-card-text>
           <div v-if="editingSyncedUser" class="text-body-2 text-medium-emphasis mb-3">
             {{ editingUser.username }} is managed from kashi. Only the PIN can be reset here.
           </div>
-          <v-text-field
+          <k-text-field
             v-if="!editingSyncedUser"
             v-model="userForm.username"
             placeholder="Username"
@@ -1678,7 +1678,7 @@
             density="compact"
             class="mb-2"
           />
-          <v-text-field
+          <k-text-field
             v-model="userForm.password"
             variant="outlined"
             density="compact"
@@ -1688,7 +1688,7 @@
             @click:append-inner="showUpw = !showUpw"
             :placeholder="editingSyncedUser ? 'New PIN' : editingUser ? 'Leave blank to keep current' : 'Password'"
           />
-          <v-select
+          <k-select
             v-if="!editingSyncedUser"
             v-model="userForm.roleId"
             :items="roles"
@@ -1699,33 +1699,33 @@
             density="compact"
             class="mb-2"
           />
-          <v-text-field
+          <k-text-field
             v-if="!editingSyncedUser"
             v-model="userForm.attendanceUserId"
             placeholder="Akuvox UserID (leave blank for visitors)"
             variant="outlined"
             density="compact"
           />
-        </v-card-text>
-        <v-card-actions>
-          <v-btn variant="text" @click="userDialog = false">Cancel</v-btn>
-          <v-spacer />
-          <v-btn
+        </k-card-text>
+        <k-card-actions>
+          <k-btn variant="text" @click="userDialog = false">Cancel</k-btn>
+          <k-spacer />
+          <k-btn
             color="primary"
             variant="flat"
             :disabled="editingSyncedUser ? !userForm.password : !userForm.username"
             :loading="savingUser"
             @click="saveUser"
-            >Save</v-btn
+            >Save</k-btn
           >
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog :model-value="showDeactivationConfirm" max-width="480" persistent>
-      <v-card v-if="pendingDeactivation">
-        <v-card-title>Deactivate products no longer on kashi?</v-card-title>
-        <v-card-text>
+    <k-dialog :model-value="showDeactivationConfirm" max-width="480" persistent>
+      <k-card v-if="pendingDeactivation">
+        <k-card-title>Deactivate products no longer on kashi?</k-card-title>
+        <k-card-text>
           <div class="mb-2">
             kashi no longer has these. They'll be hidden from checkout here too (past invoices keep them).
           </div>
@@ -1742,21 +1742,21 @@
               </li>
             </ul>
           </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-btn variant="text" :disabled="deactivationConfirming" @click="cancelDeactivation">Cancel</v-btn>
-          <v-spacer />
-          <v-btn color="primary" variant="flat" :loading="deactivationConfirming" @click="confirmDeactivationAndResync">
+        </k-card-text>
+        <k-card-actions>
+          <k-btn variant="text" :disabled="deactivationConfirming" @click="cancelDeactivation">Cancel</k-btn>
+          <k-spacer />
+          <k-btn color="primary" variant="flat" :loading="deactivationConfirming" @click="confirmDeactivationAndResync">
             Deactivate and sync
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="cashMachineConfirm" max-width="520">
-      <v-card>
-        <v-card-title>Make this a cash machine?</v-card-title>
-        <v-card-text>
+    <k-dialog v-model="cashMachineConfirm" max-width="520">
+      <k-card>
+        <k-card-title>Make this a cash machine?</k-card-title>
+        <k-card-text>
           <p class="mb-2">Windows will ask for an administrator's approval. Then, on this computer:</p>
           <ul class="ml-5 mb-2">
             <li>Startup apps, third-party scheduled tasks and background services are switched off.</li>
@@ -1765,30 +1765,30 @@
             <li>Windows Update only restarts outside 7:00-23:00, never during working hours.</li>
           </ul>
           <p>Removed apps don't come back by themselves. It takes a few minutes and runs in the background.</p>
-        </v-card-text>
-        <v-card-actions>
-          <v-btn variant="text" @click="cashMachineConfirm = false">Cancel</v-btn>
-          <v-spacer />
-          <v-btn color="primary" variant="flat" @click="setUpCashMachine">Make it a cash machine</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </k-card-text>
+        <k-card-actions>
+          <k-btn variant="text" @click="cashMachineConfirm = false">Cancel</k-btn>
+          <k-spacer />
+          <k-btn color="primary" variant="flat" @click="setUpCashMachine">Make it a cash machine</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="deleteDialog" max-width="400">
-      <v-card>
-        <v-card-title>Delete User</v-card-title>
-        <v-card-text>Are you sure you want to delete {{ deleteTarget?.username }}?</v-card-text>
-        <v-card-actions>
-          <v-btn variant="text" @click="deleteDialog = false">Cancel</v-btn>
-          <v-spacer />
-          <v-btn color="red" variant="flat" @click="deleteUser">Delete</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <k-dialog v-model="deleteDialog" max-width="400">
+      <k-card>
+        <k-card-title>Delete User</k-card-title>
+        <k-card-text>Are you sure you want to delete {{ deleteTarget?.username }}?</k-card-text>
+        <k-card-actions>
+          <k-btn variant="text" @click="deleteDialog = false">Cancel</k-btn>
+          <k-spacer />
+          <k-btn color="red" variant="flat" @click="deleteUser">Delete</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="salespersonDialog" max-width="400">
-      <v-card>
-        <v-card-title>
+    <k-dialog v-model="salespersonDialog" max-width="400">
+      <k-card>
+        <k-card-title>
           {{
             !salespersonNameEditable
               ? "Attendance ID"
@@ -1796,9 +1796,9 @@
                 ? "Edit Salesperson"
                 : "New Salesperson"
           }}
-        </v-card-title>
-        <v-card-text>
-          <v-text-field
+        </k-card-title>
+        <k-card-text>
+          <k-text-field
             v-if="salespersonNameEditable"
             v-model="salespersonName"
             placeholder="Full name"
@@ -1814,40 +1814,40 @@
                 : "not in kashi; add them there to manage their name."
             }}
           </div>
-          <v-text-field v-model="salespersonAttendanceUserId" placeholder="Akuvox attendance ID" variant="outlined" density="compact" />
-        </v-card-text>
-        <v-card-actions>
-          <v-btn variant="text" @click="salespersonDialog = false">Cancel</v-btn>
-          <v-spacer />
-          <v-btn
+          <k-text-field v-model="salespersonAttendanceUserId" placeholder="Akuvox attendance ID" variant="outlined" density="compact" />
+        </k-card-text>
+        <k-card-actions>
+          <k-btn variant="text" @click="salespersonDialog = false">Cancel</k-btn>
+          <k-spacer />
+          <k-btn
             color="primary"
             variant="flat"
             :disabled="salespersonNameEditable && !salespersonName.trim()"
             :loading="savingSalesperson"
             @click="saveSalesperson"
-            >Save</v-btn
+            >Save</k-btn
           >
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="deleteSalespersonDialog" max-width="400">
-      <v-card>
-        <v-card-title>Delete Salesperson</v-card-title>
-        <v-card-text>Delete {{ deleteSalespersonTarget?.fullName }}?</v-card-text>
-        <v-card-actions>
-          <v-btn variant="text" @click="deleteSalespersonDialog = false">Cancel</v-btn>
-          <v-spacer />
-          <v-btn color="red" variant="flat" @click="deleteSalesperson">Delete</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <k-dialog v-model="deleteSalespersonDialog" max-width="400">
+      <k-card>
+        <k-card-title>Delete Salesperson</k-card-title>
+        <k-card-text>Delete {{ deleteSalespersonTarget?.fullName }}?</k-card-text>
+        <k-card-actions>
+          <k-btn variant="text" @click="deleteSalespersonDialog = false">Cancel</k-btn>
+          <k-spacer />
+          <k-btn color="red" variant="flat" @click="deleteSalesperson">Delete</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="manageListDialog" max-width="520">
-      <v-card>
-        <v-card-title>{{ manageListName }} items</v-card-title>
-        <v-card-text>
-          <v-table density="compact">
+    <k-dialog v-model="manageListDialog" max-width="520">
+      <k-card>
+        <k-card-title>{{ manageListName }} items</k-card-title>
+        <k-card-text>
+          <k-table density="compact">
             <thead>
               <tr>
                 <th>Product</th>
@@ -1863,24 +1863,24 @@
                 <td colspan="2" class="text-medium-emphasis">No items yet.</td>
               </tr>
             </tbody>
-          </v-table>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="manageListDialog = false">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </k-table>
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="manageListDialog = false">Close</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="openingFloatDialog" max-width="380">
-      <v-card>
-        <v-card-title>Save opening float</v-card-title>
-        <v-card-text>
+    <k-dialog v-model="openingFloatDialog" max-width="380">
+      <k-card>
+        <k-card-title>Save opening float</k-card-title>
+        <k-card-text>
           <div class="text-body-2 mb-3">
             Applies to shifts opened after saving. Requires the manager password.
           </div>
           <div class="text-caption text-medium-emphasis mb-1">Manager password</div>
-          <v-text-field
+          <k-text-field
             v-model="openingFloatPassword"
             placeholder="••••••••"
             type="password"
@@ -1889,19 +1889,19 @@
             autofocus
             @keyup.enter="confirmOpeningFloatSave"
           />
-          <v-alert v-if="openingFloatError" type="error" variant="tonal" density="compact">{{ openingFloatError }}</v-alert>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="openingFloatDialog = false">Cancel</v-btn>
-          <v-btn color="primary" :loading="openingFloatSaving" @click="confirmOpeningFloatSave">Save</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          <k-alert v-if="openingFloatError" type="error" variant="tonal" density="compact">{{ openingFloatError }}</k-alert>
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="openingFloatDialog = false">Cancel</k-btn>
+          <k-btn color="primary" :loading="openingFloatSaving" @click="confirmOpeningFloatSave">Save</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-snackbar v-model="snackbar.show" class="app-snackbar" timeout="3500" location="top" variant="flat">
+    <k-snackbar v-model="snackbar.show" class="app-snackbar" timeout="3500" location="top" variant="flat">
       {{ snackbar.text }}
-    </v-snackbar>
+    </k-snackbar>
   </div>
 </template>
 
@@ -2044,7 +2044,7 @@ import {
   QUICK_ACCESS_FONT_MAX,
   quickAccessCardStyle,
 } from "@/lib/display";
-import { useTheme } from "vuetify";
+import { useTheme } from "@/ui";
 
 const auth = useAuthStore();
 const { setClientRequired: setClientRequiredState } = useClient();
@@ -3767,10 +3767,10 @@ async function deleteUser() {
   padding: 6px 0;
 }
 .qa-color-row + .qa-color-row {
-  border-top: 1px solid rgba(var(--v-border-color), 0.12);
+  border-top: 1px solid rgba(var(--k-border-color), 0.12);
 }
 .qa-color-row__preview {
-  border: 1px solid rgba(var(--v-border-color), 0.12);
+  border: 1px solid rgba(var(--k-border-color), 0.12);
   border-radius: 8px;
   flex: 0 0 160px;
   line-height: 1.2;
@@ -3778,7 +3778,7 @@ async function deleteUser() {
   padding: 6px 8px;
 }
 .qa-color-row__price {
-  opacity: var(--v-medium-emphasis-opacity);
+  opacity: var(--k-medium-emphasis-opacity);
 }
 .qa-color-row__pickers {
   display: flex;
@@ -3800,26 +3800,26 @@ async function deleteUser() {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 .qa-swatch {
-  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border: 1px solid rgba(var(--k-border-color), 0.3);
   border-radius: 50%;
   cursor: pointer;
-  height: 28px;
-  width: 28px;
+  height: 24px;
+  width: 24px;
 }
 .qa-swatch--none {
   background: linear-gradient(
     to top right,
     transparent calc(50% - 1px),
-    rgb(var(--v-theme-error)) calc(50% - 1px),
-    rgb(var(--v-theme-error)) calc(50% + 1px),
+    rgb(var(--k-theme-error)) calc(50% - 1px),
+    rgb(var(--k-theme-error)) calc(50% + 1px),
     transparent calc(50% + 1px)
   );
 }
 .qa-swatch--selected {
-  outline: 3px solid rgb(var(--v-theme-primary));
+  outline: 3px solid rgb(var(--k-theme-primary));
   outline-offset: 2px;
 }
 .target-color-swatch {
@@ -3827,7 +3827,7 @@ async function deleteUser() {
   width: 14px;
   height: 14px;
   border-radius: 4px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.2);
+  border: 1px solid rgba(var(--k-theme-on-surface), 0.2);
 }
 
 .settings-page {
@@ -3847,7 +3847,25 @@ async function deleteUser() {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px 24px 24px;
+  padding: 12px 24px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fill the screen so a short tab's Save bar still sits at the bottom of it. */
+.settings-scroll > .k-window,
+.settings-scroll > .k-window > .k-window-item {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+}
+.settings-scroll > .k-window > .k-window-item > .settings-page-actions {
+  margin-top: auto;
+}
+
+/* A tab with no Save bar still gets room under its last card. */
+.settings-grid:last-child {
+  margin-bottom: 24px;
 }
 
 .settings-heading {
@@ -3866,34 +3884,28 @@ async function deleteUser() {
   margin-inline: auto;
 }
 
-.settings-search :deep(.v-field) {
+.settings-search :deep(.k-field) {
   border-radius: 10px;
 }
 
 .settings-empty {
   padding: 32px 8px;
   text-align: center;
-  color: rgb(var(--v-theme-on-surface), 0.6);
+  color: rgb(var(--k-theme-on-surface), 0.6);
 }
 
 .settings-tabs {
-  border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-bottom: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   min-height: 44px;
   margin-bottom: 4px;
 }
 
-.settings-tabs :deep(.v-tab) {
+.settings-tabs :deep(.k-tab) {
   min-width: 0;
   padding-inline: 12px;
   text-transform: none;
   font-weight: 600;
   letter-spacing: 0;
-}
-
-.settings-tabs :deep(.v-tab .v-btn__content) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 8px;
 }
 
@@ -3925,15 +3937,19 @@ async function deleteUser() {
   margin: 4px auto 0;
   display: flex;
   justify-content: flex-end;
+  /* Stays at the bottom of the screen while the settings scroll under it. */
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding: 10px 0 14px;
+  background: var(--kashi-app-background);
 }
 
-.settings-page :deep(.v-text-field),
-.settings-page :deep(.v-select),
-.settings-page :deep(.v-textarea) {
-  --v-input-control-height: 40px;
+.settings-page :deep(.k-input) {
+  --k-ic-h: 40px;
 }
 
-/* The password card is wrapped in a <v-form> so the submit handler fires;
+/* The password card is wrapped in a <k-form> so the submit handler fires;
    display:contents keeps the form out of the grid layout so its child
    .settings-card is the actual grid item, sized like every other panel. */
 .settings-form-wrap {
@@ -3949,7 +3965,7 @@ async function deleteUser() {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 1px solid rgba(var(--v-border-color), 0.3);
+  border: 1px solid rgba(var(--k-border-color), 0.3);
 }
 
 .payment-method-color-input {
@@ -3964,29 +3980,29 @@ async function deleteUser() {
 .settings-card {
   min-width: 0;
   background: transparent !important;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 12px;
   box-shadow: none !important;
 }
 
-.settings-card :deep(.v-card-title) {
+.settings-card :deep(.k-card-title) {
   padding: 10px 14px 2px;
   font-size: var(--kashi-font-size-base) !important;
   line-height: 1.35;
   font-weight: 650;
 }
 
-.settings-card :deep(.v-card-text) {
+.settings-card :deep(.k-card-text) {
   padding: 8px 14px 12px;
 }
 
-.settings-card :deep(.v-card-actions) {
+.settings-card :deep(.k-card-actions) {
   padding: 0 8px 8px;
   min-height: 0;
 }
 
 /* Switches sit in a compact stack rather than 56px rows. */
-.settings-card :deep(.v-switch .v-selection-control) {
+.settings-card :deep(.k-switch .k-selection) {
   min-height: 36px;
 }
 
@@ -3994,7 +4010,7 @@ async function deleteUser() {
 .settings-note {
   font-size: 0.75rem;
   line-height: 1.3;
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  color: rgba(var(--k-theme-on-surface), 0.6);
   margin-bottom: 6px;
 }
 
@@ -4002,7 +4018,7 @@ async function deleteUser() {
   overflow-wrap: anywhere;
 }
 
-.settings-card :deep(.v-table) {
+.settings-card :deep(.k-table) {
   background: transparent;
 }
 
@@ -4017,10 +4033,10 @@ async function deleteUser() {
   grid-column: 1 / -1;
 }
 
-.app-snackbar .v-snackbar__wrapper {
-  background: rgba(var(--v-theme-surface-variant), 0.72) !important;
-  color: rgb(var(--v-theme-on-surface-variant)) !important;
-  border: 1px solid rgba(var(--v-theme-on-surface-variant), 0.1);
+.app-snackbar .k-snackbar__wrapper {
+  background: rgba(var(--k-theme-surface-variant), 0.72) !important;
+  color: rgb(var(--k-theme-on-surface-variant)) !important;
+  border: 1px solid rgba(var(--k-theme-on-surface-variant), 0.1);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
 }
 
@@ -4034,7 +4050,7 @@ async function deleteUser() {
   }
 
   .settings-scroll {
-    padding: 12px 16px 24px;
+    padding: 12px 16px 0;
   }
 }
 </style>

@@ -52,6 +52,9 @@ type activePricing struct {
 	saleOptions map[string][]string
 	// deals[uid] is a deal's terms, for the rows naming it (deals.go).
 	deals map[string]dealTerms
+	// The "Buy 2 get 1" deal unknown items join (unknown_item_deal.go); ""
+	// when there's none.
+	unknownDealUID string
 }
 
 // priceFor / discountFor report whether central said anything about a product
@@ -194,5 +197,6 @@ func readActivePricing(ctx context.Context, q *db.Queries) (activePricing, error
 	for _, row := range dealRows {
 		pricing.deals[row.Uid] = dealTermsFromRow(row)
 	}
+	pricing.unknownDealUID = pickUnknownItemDeal(pricing.deals, pricing.discounts)
 	return pricing, nil
 }

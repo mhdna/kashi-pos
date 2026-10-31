@@ -286,7 +286,7 @@ func TestResolveShiftReceiptUpload_CentralModeUsesKashiURL(t *testing.T) {
 	if upload["mode"] != "central" {
 		t.Fatalf("mode = %v, want central", upload["mode"])
 	}
-	if got := upload["url"].(string); got != fc.server.URL+"/shift_uploads/central-tok-123" {
+	if got := upload["url"].(string); got != fc.server.URL+"/s/central-tok-123" {
 		t.Fatalf("url = %q", got)
 	}
 

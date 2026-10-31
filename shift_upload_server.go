@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	_ "embed"
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,13 +23,15 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// newShiftUploadToken mints the 32-byte hex secret embedded in the QR URL.
+// newShiftUploadToken mints the secret embedded in the QR URL: 12 random
+// bytes as 16 URL-safe characters, short enough to type, and unguessable for
+// a single-use link that expires (kashi mints its tokens the same way).
 func newShiftUploadToken() (string, error) {
-	raw := make([]byte, 32)
+	raw := make([]byte, 12)
 	if _, err := rand.Read(raw); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(raw), nil
+	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
 
 // The close-shift receipt photo lands on the POS itself first (see the
@@ -82,6 +84,9 @@ func (a *App) startShiftUploadServer() {
 	s := &shiftUploadServer{app: a}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/shift_uploads/", s.route)
+	// The short path the QR code carries; the long one is for links
+	// shown before.
+	mux.HandleFunc("/s/", s.route)
 	s.server = &http.Server{
 		Addr:              addr,
 		Handler:           mux,
@@ -121,7 +126,7 @@ func (a *App) shiftUploadURL(token string) string {
 	if host == "" {
 		host = "127.0.0.1"
 	}
-	return fmt.Sprintf("http://%s:%s/shift_uploads/%s", host, port, token)
+	return fmt.Sprintf("http://%s:%s/s/%s", host, port, token)
 }
 
 // outboundLANIP returns this machine's primary non-loopback IPv4 address by
@@ -142,6 +147,9 @@ func outboundLANIP() string {
 
 func (s *shiftUploadServer) route(w http.ResponseWriter, r *http.Request) {
 	rest := strings.TrimPrefix(r.URL.Path, "/shift_uploads/")
+	if rest == r.URL.Path {
+		rest = strings.TrimPrefix(r.URL.Path, "/s/")
+	}
 	segments := strings.Split(rest, "/")
 	token := segments[0]
 	if token == "" {

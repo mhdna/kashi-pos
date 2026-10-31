@@ -1,9 +1,9 @@
 <template>
-  <v-card class="pa-4">
+  <k-card class="pa-4">
     <div class="d-flex align-center ga-3 mb-3">
-      <v-card-title class="pa-0">Products</v-card-title>
-      <v-spacer />
-      <v-text-field
+      <k-card-title class="pa-0">Products</k-card-title>
+      <k-spacer />
+      <k-text-field
         v-model="search"
         prepend-inner-icon="mdi-magnify"
         placeholder="Search name, code or barcode"
@@ -13,23 +13,23 @@
         clearable
         class="products-search"
       />
-      <v-btn variant="tonal" prepend-icon="mdi-download" :loading="exporting" @click="exportCsv">
+      <k-btn variant="tonal" prepend-icon="mdi-download" :loading="exporting" @click="exportCsv">
         Export CSV
-      </v-btn>
-      <v-btn v-if="standalone" variant="tonal" prepend-icon="mdi-upload" :loading="previewing" @click="previewCsv">
+      </k-btn>
+      <k-btn v-if="standalone" variant="tonal" prepend-icon="mdi-upload" :loading="previewing" @click="previewCsv">
         Import CSV
-      </v-btn>
-      <v-btn v-if="standalone" color="primary" prepend-icon="mdi-plus" @click="openCreate">
+      </k-btn>
+      <k-btn v-if="standalone" color="primary" prepend-icon="mdi-plus" @click="openCreate">
         Add product
-      </v-btn>
+      </k-btn>
     </div>
 
-    <v-alert v-if="!standalone" type="info" variant="tonal" density="compact" class="mb-3">
+    <k-alert v-if="!standalone" type="info" variant="tonal" density="compact" class="mb-3">
       This till is connected to kashi, which manages products. Add, edit or remove them in
       kashi; changes arrive here automatically.
-    </v-alert>
+    </k-alert>
 
-    <v-table density="compact" hover>
+    <k-table density="compact" hover>
       <thead>
         <tr>
           <th>Name</th>
@@ -58,28 +58,28 @@
           </td>
           <td class="text-right">{{ product.discount ? `${product.discount}%` : "" }}</td>
           <td>
-            <v-chip v-if="!product.isActive" size="x-small" variant="tonal">Inactive</v-chip>
+            <k-chip v-if="!product.isActive" size="x-small" variant="tonal">Inactive</k-chip>
           </td>
         </tr>
         <tr v-if="!loading && products.length === 0">
           <td colspan="7" class="text-center text-medium-emphasis">No products</td>
         </tr>
       </tbody>
-    </v-table>
+    </k-table>
 
     <div class="d-flex justify-center mt-3">
-      <v-progress-circular v-if="loading" indeterminate color="primary" size="24" width="2" />
-      <v-btn v-else-if="hasMore" variant="text" @click="loadMore">Load more</v-btn>
+      <k-progress-circular v-if="loading" indeterminate color="primary" size="24" width="2" />
+      <k-btn v-else-if="hasMore" variant="text" @click="loadMore">Load more</k-btn>
     </div>
-  </v-card>
+  </k-card>
 
-  <v-dialog v-model="editOpen" max-width="480">
-    <v-card>
-      <v-card-title>{{ editTarget ? "Edit product" : "Add product" }}</v-card-title>
-      <v-card-text>
-        <v-text-field v-model="form.name" label="Name" variant="outlined" autofocus />
-        <v-text-field v-model="form.barcode" label="Barcode" variant="outlined" />
-        <v-text-field
+  <k-dialog v-model="editOpen" max-width="480">
+    <k-card>
+      <k-card-title>{{ editTarget ? "Edit product" : "Add product" }}</k-card-title>
+      <k-card-text>
+        <k-text-field v-model="form.name" label="Name" variant="outlined" autofocus />
+        <k-text-field v-model="form.barcode" label="Barcode" variant="outlined" />
+        <k-text-field
           v-model="form.code"
           label="Code"
           hint="Defaults to the barcode"
@@ -88,12 +88,12 @@
           class="mb-2"
         />
         <div class="d-flex ga-2">
-          <v-text-field v-model="form.color" label="Color" variant="outlined" />
-          <v-text-field v-model="form.size" label="Size" variant="outlined" />
+          <k-text-field v-model="form.color" label="Color" variant="outlined" />
+          <k-text-field v-model="form.size" label="Size" variant="outlined" />
         </div>
         <div class="d-flex ga-2">
-          <v-text-field v-model="form.price" label="Price (USD)" type="number" min="0" variant="outlined" />
-          <v-text-field
+          <k-text-field v-model="form.price" label="Price (USD)" type="number" min="0" variant="outlined" />
+          <k-text-field
             v-model="form.discount"
             label="Discount %"
             type="number"
@@ -102,44 +102,44 @@
             variant="outlined"
           />
         </div>
-        <v-text-field v-model="form.description" label="Category / description" variant="outlined" />
-        <v-switch v-model="form.isActive" label="Active (sellable)" color="primary" hide-details />
-      </v-card-text>
-      <v-card-actions>
-        <v-btn
+        <k-text-field v-model="form.description" label="Category / description" variant="outlined" />
+        <k-switch v-model="form.isActive" label="Active (sellable)" color="primary" hide-details />
+      </k-card-text>
+      <k-card-actions>
+        <k-btn
           v-if="editTarget && auth.isAdmin"
           color="error"
           variant="text"
           :loading="deleting"
           @click="deleteOpen = true"
-          >Delete</v-btn
+          >Delete</k-btn
         >
-        <v-spacer />
-        <v-btn variant="text" @click="editOpen = false">Cancel</v-btn>
-        <v-btn color="primary" :loading="saving" :disabled="!canSave" @click="save">Save</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        <k-spacer />
+        <k-btn variant="text" @click="editOpen = false">Cancel</k-btn>
+        <k-btn color="primary" :loading="saving" :disabled="!canSave" @click="save">Save</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
-  <v-dialog v-model="deleteOpen" max-width="420">
-    <v-card>
-      <v-card-title>Delete product?</v-card-title>
-      <v-card-text>
+  <k-dialog v-model="deleteOpen" max-width="420">
+    <k-card>
+      <k-card-title>Delete product?</k-card-title>
+      <k-card-text>
         This will delete {{ editTarget?.name || "this product" }}. A product that was sold,
         transferred, held or still has stock is deactivated instead, so its history stays intact.
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="deleteOpen = false">Cancel</v-btn>
-        <v-btn color="error" :loading="deleting" @click="deleteSelected">Delete</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn variant="text" @click="deleteOpen = false">Cancel</k-btn>
+        <k-btn color="error" :loading="deleting" @click="deleteSelected">Delete</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
-  <v-dialog v-model="importOpen" max-width="640" :persistent="importing">
-    <v-card>
-      <v-card-title>{{ importResult ? "Import finished" : "Import products from CSV" }}</v-card-title>
-      <v-card-text>
+  <k-dialog v-model="importOpen" max-width="640" :persistent="importing">
+    <k-card>
+      <k-card-title>{{ importResult ? "Import finished" : "Import products from CSV" }}</k-card-title>
+      <k-card-text>
         <template v-if="!importResult && csvPreview">
           <div class="text-body-2 text-medium-emphasis mb-3 text-truncate">{{ csvPreview.file }}</div>
           <div class="d-flex flex-wrap ga-4 mb-3">
@@ -160,7 +160,7 @@
             <strong>{{ importResult.failed }}</strong> failed
           </span>
         </div>
-        <v-table v-if="importProblems.length" density="compact" class="csv-problems mt-3">
+        <k-table v-if="importProblems.length" density="compact" class="csv-problems mt-3">
           <thead>
             <tr><th class="text-right">Line</th><th>Barcode</th><th>Problem</th></tr>
           </thead>
@@ -171,24 +171,24 @@
               <td>{{ problem.message }}</td>
             </tr>
           </tbody>
-        </v-table>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
+        </k-table>
+      </k-card-text>
+      <k-card-actions>
+        <k-spacer />
         <template v-if="importResult">
-          <v-btn color="primary" @click="importOpen = false">Done</v-btn>
+          <k-btn color="primary" @click="importOpen = false">Done</k-btn>
         </template>
         <template v-else>
-          <v-btn variant="text" :disabled="importing" @click="importOpen = false">Cancel</v-btn>
-          <v-btn color="primary" :loading="importing" :disabled="!csvPreview?.new" @click="importCsv">
+          <k-btn variant="text" :disabled="importing" @click="importOpen = false">Cancel</k-btn>
+          <k-btn color="primary" :loading="importing" :disabled="!csvPreview?.new" @click="importCsv">
             Import {{ csvPreview?.new ?? 0 }} new
-          </v-btn>
+          </k-btn>
         </template>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
-  <v-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</v-snackbar>
+  <k-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</k-snackbar>
 </template>
 
 <script setup lang="ts">

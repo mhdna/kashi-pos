@@ -2,7 +2,7 @@
   <!-- mousedown.prevent keeps the phone field focused (and its caret where
        it was) while a key is tapped. -->
   <div class="phone-pad">
-    <v-btn
+    <k-btn
       v-for="key in visibleKeys"
       :key="key.value"
       class="phone-pad-key"
@@ -16,9 +16,9 @@
       @mousedown.prevent
       @click="press(key.value)"
     >
-      <v-icon v-if="key.icon" :icon="key.icon" />
+      <k-icon v-if="key.icon" :icon="key.icon" />
       <template v-else>{{ key.text }}</template>
-    </v-btn>
+    </k-btn>
   </div>
 </template>
 
@@ -64,7 +64,7 @@ function press(key: string) {
   height: 52px !important;
   min-width: 0;
   padding: 0;
-  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border: 1px solid rgba(var(--k-border-color), 0.18);
   border-radius: 4px;
   font-size: 2rem !important;
   transition:
@@ -81,6 +81,6 @@ function press(key: string) {
 }
 
 .phone-pad-key--clear {
-  color: rgb(var(--v-theme-error));
+  color: rgb(var(--k-theme-error));
 }
 </style>

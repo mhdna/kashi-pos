@@ -1,18 +1,18 @@
 <template>
-  <v-btn
+  <k-btn
     icon
     variant="text"
     :loading="saving"
     :title="`Switch to ${currentTheme === 'dark' ? 'light' : 'dark'} theme`"
     @click="toggleTheme"
   >
-    <v-icon :icon="currentTheme === 'dark' ? 'mdi-weather-sunny' : 'mdi-weather-night'" />
-  </v-btn>
+    <k-icon :icon="currentTheme === 'dark' ? 'mdi-weather-sunny' : 'mdi-weather-night'" />
+  </k-btn>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { useTheme } from "vuetify";
+import { useTheme } from "@/ui";
 import { SetTheme } from "../../wailsjs/go/main/App";
 
 const theme = useTheme();

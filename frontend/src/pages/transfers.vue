@@ -2,22 +2,22 @@
   <div class="records-page">
     <div class="records-head">
       <div class="text-h6">Transfers</div>
-      <v-tabs v-model="tab" density="compact" class="ms-4">
-        <v-tab value="outgoing">Outgoing</v-tab>
-        <v-tab value="incoming">
+      <k-tabs v-model="tab" density="compact" class="ms-4">
+        <k-tab value="outgoing">Outgoing</k-tab>
+        <k-tab value="incoming">
           Incoming
-          <v-badge v-if="unconfirmedIncomingCount > 0" color="warning" :content="unconfirmedIncomingCount" inline />
-        </v-tab>
-      </v-tabs>
-      <v-spacer />
-      <v-btn v-if="tab === 'outgoing'" color="primary" variant="flat" prepend-icon="mdi-plus" @click="openCreate">
+          <k-badge v-if="unconfirmedIncomingCount > 0" color="warning" :content="unconfirmedIncomingCount" inline />
+        </k-tab>
+      </k-tabs>
+      <k-spacer />
+      <k-btn v-if="tab === 'outgoing'" color="primary" variant="flat" prepend-icon="mdi-plus" @click="openCreate">
         New Transfer
-      </v-btn>
+      </k-btn>
     </div>
 
     <!-- Same layout as the invoices list; the transfer's photo (taken with a
          phone, kept in kashi) is the first column. -->
-    <v-data-table-virtual
+    <k-data-table-virtual
       v-if="tab === 'outgoing'"
       class="records-table"
       :headers="outgoingHeaders"
@@ -41,12 +41,12 @@
         <span class="text-truncate d-inline-block" style="max-width: 260px">{{ item.note || "—" }}</span>
       </template>
       <template #item.status="{ item }">
-        <v-chip :color="statusColor(item.status)" size="small">{{ item.status }}</v-chip>
+        <k-chip :color="statusColor(item.status)" size="small">{{ item.status }}</k-chip>
       </template>
       <template #item.createdAt="{ item }">{{ formatServerDateTime(item.createdAt) }}</template>
-    </v-data-table-virtual>
+    </k-data-table-virtual>
 
-    <v-data-table-virtual
+    <k-data-table-virtual
       v-else
       class="records-table"
       :headers="incomingHeaders"
@@ -70,54 +70,54 @@
         <span class="text-truncate d-inline-block" style="max-width: 260px">{{ item.note || "—" }}</span>
       </template>
       <template #item.status="{ item }">
-        <v-chip :color="statusColor(item.status)" size="small">{{ item.status }}</v-chip>
+        <k-chip :color="statusColor(item.status)" size="small">{{ item.status }}</k-chip>
       </template>
       <template #item.confirmed="{ item }">
-        <v-icon v-if="isConfirmed(item)" color="success" icon="mdi-check-circle" />
-        <v-icon v-else color="warning" icon="mdi-clock-outline" />
+        <k-icon v-if="isConfirmed(item)" color="success" icon="mdi-check-circle" />
+        <k-icon v-else color="warning" icon="mdi-clock-outline" />
       </template>
       <template #item.createdAt="{ item }">{{ formatServerDateTime(item.createdAt) }}</template>
-    </v-data-table-virtual>
+    </k-data-table-virtual>
 
     <!-- Outgoing detail: the invoice dialog's shape, photo then items. -->
-    <v-dialog v-model="outgoingDialog" max-width="700">
-      <v-card v-if="outgoingTarget">
-        <v-card-title class="d-flex align-center">
+    <k-dialog v-model="outgoingDialog" max-width="700">
+      <k-card v-if="outgoingTarget">
+        <k-card-title class="d-flex align-center">
           <div>
             <div class="text-h6">To {{ branchName(outgoingTarget.toBranchCode) }}</div>
             <div class="text-caption text-medium-emphasis">{{ formatServerDateTime(outgoingTarget.createdAt) }}</div>
           </div>
-          <v-spacer />
-          <v-chip :color="statusColor(outgoingTarget.status)" size="small" class="me-2">{{ outgoingTarget.status }}</v-chip>
-          <v-btn icon="mdi-close" variant="text" aria-label="Close" @click="outgoingDialog = false" />
-        </v-card-title>
-        <v-card-text>
+          <k-spacer />
+          <k-chip :color="statusColor(outgoingTarget.status)" size="small" class="me-2">{{ outgoingTarget.status }}</k-chip>
+          <k-btn icon="mdi-close" variant="text" aria-label="Close" @click="outgoingDialog = false" />
+        </k-card-title>
+        <k-card-text>
           <div v-if="outgoingTarget.note" class="mb-4">{{ outgoingTarget.note }}</div>
           <div class="section-label mb-2">Photo</div>
-          <div v-if="detailPhotoLoading" class="d-flex justify-center pa-6"><v-progress-circular indeterminate /></div>
+          <div v-if="detailPhotoLoading" class="d-flex justify-center pa-6"><k-progress-circular indeterminate /></div>
           <img v-else-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-4" @click="viewerOpen = true" />
           <div v-else class="empty-photos mb-2">
-            <v-icon icon="mdi-image-off-outline" size="32" color="grey" />
+            <k-icon icon="mdi-image-off-outline" size="32" color="grey" />
             <div class="text-body-2 text-medium-emphasis">No photo attached</div>
           </div>
           <div class="section-label mb-2">Items</div>
-          <v-list density="compact" class="pa-0">
-            <v-list-item v-for="line in outgoingTarget.items || []" :key="line.id || line.barcode">
+          <k-list density="compact" class="pa-0">
+            <k-list-item v-for="line in outgoingTarget.items || []" :key="line.id || line.barcode">
               <template #title>{{ line.name || line.barcode }}</template>
               <template #append><span class="font-weight-bold">× {{ line.quantity }}</span></template>
-            </v-list-item>
+            </k-list-item>
             <div v-if="!(outgoingTarget.items || []).length" class="text-body-2 text-medium-emphasis">No items listed.</div>
-          </v-list>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
+          </k-list>
+        </k-card-text>
+      </k-card>
+    </k-dialog>
 
     <!-- --------------------------------------------------------- CREATE -->
-    <v-dialog v-model="createDialog" max-width="560">
-      <v-card>
-        <v-card-title>New Transfer</v-card-title>
-        <v-card-text>
-          <v-select
+    <k-dialog v-model="createDialog" max-width="560">
+      <k-card>
+        <k-card-title>New Transfer</k-card-title>
+        <k-card-text>
+          <k-select
             v-model="createForm.toBranchCode"
             item-title="name"
             item-value="code"
@@ -125,18 +125,18 @@
             placeholder="Destination branch"
             :rules="[required]"
           />
-          <v-text-field v-model="createForm.note" placeholder="Note (optional)" />
+          <k-text-field v-model="createForm.note" placeholder="Note (optional)" />
 
           <div class="text-subtitle-2 mt-4 mb-1">Items</div>
           <div class="d-flex align-center mb-2" style="gap: 12px">
-            <v-text-field
+            <k-text-field
               v-model="newItemBarcode"
               density="compact"
               hide-details
               placeholder="Scan or type barcode"
               @keyup.enter="addCreateItem"
             />
-            <v-text-field
+            <k-text-field
               v-model.number="newItemQuantity"
               density="compact"
               hide-details
@@ -144,9 +144,9 @@
               style="max-width: 100px"
               type="number"
             />
-            <v-btn :disabled="!newItemBarcode || !newItemQuantity" @click="addCreateItem">Add</v-btn>
+            <k-btn :disabled="!newItemBarcode || !newItemQuantity" @click="addCreateItem">Add</k-btn>
           </div>
-          <v-table density="compact">
+          <k-table density="compact">
             <thead>
               <tr>
                 <th>Barcode</th>
@@ -159,80 +159,80 @@
                 <td>{{ item.Barcode }}</td>
                 <td class="text-end">{{ item.Quantity }}</td>
                 <td class="text-end">
-                  <v-icon icon="mdi-close" size="small" @click="createForm.items.splice(i, 1)" />
+                  <k-icon icon="mdi-close" size="small" @click="createForm.items.splice(i, 1)" />
                 </td>
               </tr>
             </tbody>
-          </v-table>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="createDialog = false">Cancel</v-btn>
-          <v-btn
+          </k-table>
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="createDialog = false">Cancel</k-btn>
+          <k-btn
             color="primary"
             :disabled="!createForm.toBranchCode || createForm.items.length === 0"
             :loading="creating"
             @click="submitCreate"
           >
             Send
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
     <!-- ----------------------------------------------------- UPLOAD QR -->
-    <v-dialog v-model="uploadDialog" max-width="380" persistent @update:model-value="onUploadDialogVisibilityChange">
-      <v-card class="text-center pa-4">
+    <k-dialog v-model="uploadDialog" max-width="380" persistent @update:model-value="onUploadDialogVisibilityChange">
+      <k-card class="text-center pa-4">
         <template v-if="uploadState === 'waiting'">
-          <v-card-title>Preparing upload link…</v-card-title>
-          <v-card-text>
-            <v-progress-circular class="my-4" color="primary" indeterminate size="48" />
+          <k-card-title>Preparing upload link…</k-card-title>
+          <k-card-text>
+            <k-progress-circular class="my-4" color="primary" indeterminate size="48" />
             <div class="text-body-2">Syncing this transfer to the server.</div>
-          </v-card-text>
+          </k-card-text>
         </template>
 
         <template v-else-if="uploadState === 'ready'">
-          <v-card-title>Attach a photo (optional)</v-card-title>
-          <v-card-text>
+          <k-card-title>Attach a photo (optional)</k-card-title>
+          <k-card-text>
             <div class="text-body-2">Scan this with a phone to upload one photo of the transfer.</div>
             <div class="text-body-2 mb-3" dir="rtl" lang="ar">امسح الرمز بالهاتف والتقط صورة واحدة لورقة التحويل.</div>
             <img v-if="qrDataUrl" :src="qrDataUrl" alt="Upload QR code" style="width: 220px; height: 220px" />
             <div class="text-caption text-medium-emphasis mt-3" style="word-break: break-all">{{ uploadUrl }}</div>
-          </v-card-text>
+          </k-card-text>
         </template>
 
         <template v-else-if="uploadState === 'success'">
-          <v-card-text>
-            <v-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
+          <k-card-text>
+            <k-icon class="my-2" color="success" icon="mdi-check-circle" size="72" />
             <div class="text-h6">Uploaded!</div>
-          </v-card-text>
+          </k-card-text>
         </template>
 
         <template v-else-if="uploadState === 'error'">
-          <v-card-title>Couldn't prepare the upload link</v-card-title>
-          <v-card-text>
+          <k-card-title>Couldn't prepare the upload link</k-card-title>
+          <k-card-text>
             <div class="text-body-2">Check the connection to the server and try again later.</div>
-          </v-card-text>
+          </k-card-text>
         </template>
 
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="closeUploadDialog">Close</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="closeUploadDialog">Close</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
     <!-- ------------------------------------------------------- CONFIRM -->
-    <v-dialog v-model="incomingDialog" max-width="640">
-      <v-card v-if="incomingTarget">
-        <v-card-title>
+    <k-dialog v-model="incomingDialog" max-width="640">
+      <k-card v-if="incomingTarget">
+        <k-card-title>
           From {{ incomingTarget.senderBranchName }}
-          <v-chip class="ml-2" :color="statusColor(incomingTarget.status)" size="small">{{ incomingTarget.status }}</v-chip>
-        </v-card-title>
-        <v-card-text>
+          <k-chip class="ml-2" :color="statusColor(incomingTarget.status)" size="small">{{ incomingTarget.status }}</k-chip>
+        </k-card-title>
+        <k-card-text>
           <div v-if="incomingTarget.note" class="text-body-2 text-medium-emphasis mb-2">{{ incomingTarget.note }}</div>
           <img v-if="detailPhoto" :src="detailPhoto" alt="Transfer photo" class="photo-full mb-3" @click="viewerOpen = true" />
-          <v-table density="compact">
+          <k-table density="compact">
             <thead>
               <tr>
                 <th>Barcode</th>
@@ -245,7 +245,7 @@
                 <td>{{ item.barcode }}</td>
                 <td class="text-end">{{ item.quantity }}</td>
                 <td class="text-end">
-                  <v-text-field
+                  <k-text-field
                     v-model.number="item.countedQuantity"
                     density="compact"
                     hide-details
@@ -255,18 +255,18 @@
                 </td>
               </tr>
             </tbody>
-          </v-table>
-          <v-text-field v-model="incomingNote" class="mt-4" placeholder="Note (optional) — e.g. damage, shortage" />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="incomingDialog = false">Close</v-btn>
-          <v-btn color="primary" :loading="confirming" @click="submitConfirm">Confirm receipt</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </k-table>
+          <k-text-field v-model="incomingNote" class="mt-4" placeholder="Note (optional) — e.g. damage, shortage" />
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="incomingDialog = false">Close</k-btn>
+          <k-btn color="primary" :loading="confirming" @click="submitConfirm">Confirm receipt</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</v-snackbar>
+    <k-snackbar v-model="snackbar.show" timeout="3500">{{ snackbar.text }}</k-snackbar>
     <PhotoViewer v-model="viewerOpen" :photos="detailPhoto ? [detailPhoto] : []" />
   </div>
 </template>

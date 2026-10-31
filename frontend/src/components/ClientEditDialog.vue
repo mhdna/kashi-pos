@@ -1,10 +1,10 @@
 <template>
-  <v-dialog v-model="dialog" max-width="760">
-    <v-card>
-      <v-card-title>Edit Client</v-card-title>
-      <v-card-text>
+  <k-dialog v-model="dialog" max-width="760">
+    <k-card>
+      <k-card-title>Edit Client</k-card-title>
+      <k-card-text>
         <PhoneField ref="phoneField" v-model="form.phone" class="mb-2" @focus="phoneActive = true" />
-        <v-text-field
+        <k-text-field
           v-model="form.name"
           placeholder="Name"
           variant="outlined"
@@ -19,11 +19,11 @@
         <PhonePad v-if="phoneActive" class="mt-3" @press="phoneField?.press($event)" />
         <InlineKeyboard v-else v-model="form.name" class="client-edit-keyboard mt-3" />
         <div v-if="error" class="text-error text-caption mt-2">{{ error }}</div>
-      </v-card-text>
-      <v-card-actions class="pa-4">
-        <v-btn variant="text" @click="dialog = false">Cancel</v-btn>
-        <v-spacer />
-        <v-btn
+      </k-card-text>
+      <k-card-actions class="pa-4">
+        <k-btn variant="text" @click="dialog = false">Cancel</k-btn>
+        <k-spacer />
+        <k-btn
           variant="elevated"
           color="primary"
           :loading="saving"
@@ -31,10 +31,10 @@
           @click="save"
         >
           Save
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script lang="ts" setup>

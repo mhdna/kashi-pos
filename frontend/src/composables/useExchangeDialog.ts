@@ -20,10 +20,10 @@ export function useExchangeDialog(roundingMode: () => string) {
   const returned = ref<ExchangeItem[]>([]);
   const invoiceError = ref("");
   const scanError = ref("");
-  const invoiceInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(
+  const invoiceInput = ref<InstanceType<typeof import("@/ui").KTextField> | null>(
     null,
   );
-  const scanInput = ref<InstanceType<typeof import("vuetify/components").VTextField> | null>(null);
+  const scanInput = ref<InstanceType<typeof import("@/ui").KTextField> | null>(null);
 
   function focusInvoiceInput() {
     nextTick(() => invoiceInput.value?.focus());

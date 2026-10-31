@@ -1,7 +1,7 @@
 <template>
   <div class="product-search-keyboard" @mousedown="keepFieldFocus">
     <div class="product-search-row">
-      <v-text-field
+      <k-text-field
         ref="searchField"
         :model-value="modelValue"
         class="product-search-control"
@@ -14,15 +14,15 @@
         @update:model-value="emit('update:modelValue', $event)"
         @keydown.esc="emit('close')"
       />
-      <v-btn
+      <k-btn
         class="product-layout-toggle"
         variant="tonal"
         :aria-label="gridMode ? 'Show results as a list' : 'Show results in columns'"
         :title="gridMode ? 'One per row' : 'Columns'"
         @click="emit('update:gridMode', !gridMode)"
       >
-        <v-icon :icon="gridMode ? 'mdi-view-agenda-outline' : 'mdi-view-grid-outline'" size="24" />
-      </v-btn>
+        <k-icon :icon="gridMode ? 'mdi-view-agenda-outline' : 'mdi-view-grid-outline'" size="24" />
+      </k-btn>
     </div>
     <div class="product-inline-keyboard">
       <InlineKeyboard
@@ -33,16 +33,16 @@
         @update:model-value="emit('update:modelValue', $event)"
       />
     </div>
-    <v-btn
+    <k-btn
       class="product-search-close"
       color="error"
       variant="tonal"
       aria-label="Close product search"
       @click="emit('close')"
     >
-      <v-icon icon="mdi-close" size="28" class="me-1" />
+      <k-icon icon="mdi-close" size="28" class="me-1" />
       Close
-    </v-btn>
+    </k-btn>
   </div>
 </template>
 

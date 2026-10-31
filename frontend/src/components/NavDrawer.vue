@@ -1,11 +1,10 @@
 <template>
-  <!-- touchless: a permanent drawer never swipes shut, and Vuetify's swipe
-       handler (on window, non-passive) can claim a drag that starts a little
-       sideways, which then never scrolls the page list. -->
-  <v-navigation-drawer permanent touchless width="72" class="nav-drawer border-0">
-    <v-list class="d-flex flex-column fill-height pa-0" nav>
+  <!-- A permanent drawer: it has no swipe handler, so a drag that starts a
+       little sideways still scrolls the page list. -->
+  <k-navigation-drawer permanent touchless width="72" class="nav-drawer border-0">
+    <k-list class="d-flex flex-column fill-height pa-0" nav>
       <div class="nav-items-group">
-        <v-list-item
+        <k-list-item
           v-for="item in items"
           :key="item.value"
           class="nav-item"
@@ -15,7 +14,7 @@
         >
           <div class="nav-item-content">
             <span class="nav-icon-wrap">
-              <v-icon :icon="item.icon" size="24" />
+              <k-icon :icon="item.icon" size="24" />
               <span
                 v-if="item.status"
                 :class="['nav-status-dot', `nav-status-dot--${item.status}`]"
@@ -24,11 +23,11 @@
             </span>
             <span class="nav-item-label text-center mt-1">{{ item.t }}</span>
           </div>
-        </v-list-item>
+        </k-list-item>
       </div>
 
       <div v-if="visitorCounterEnabled" class="visitor-counter" aria-label="People visits today">
-        <v-btn
+        <k-btn
           class="visitor-counter-btn"
           icon
           variant="flat"
@@ -36,10 +35,10 @@
           aria-label="Increase visitor count"
           @click="adjustVisitors(1)"
         >
-          <v-icon icon="mdi-chevron-up" size="32" />
-        </v-btn>
+          <k-icon icon="mdi-chevron-up" size="32" />
+        </k-btn>
         <span class="visitor-count">{{ visitorCount }}</span>
-        <v-btn
+        <k-btn
           class="visitor-counter-btn"
           icon
           variant="flat"
@@ -47,8 +46,8 @@
           aria-label="Decrease visitor count"
           @click="adjustVisitors(-1)"
         >
-          <v-icon icon="mdi-chevron-down" size="32" />
-        </v-btn>
+          <k-icon icon="mdi-chevron-down" size="32" />
+        </k-btn>
       </div>
 
       <div
@@ -58,14 +57,14 @@
         :aria-label="`Sync: ${syncState.word}`"
         @click="auth.isAdmin && openSyncSettings()"
       >
-        <v-icon :icon="syncState.icon" size="20" />
+        <k-icon :icon="syncState.icon" size="20" />
         <span class="sync-status-word">{{ syncState.word }}</span>
       </div>
 
       <div class="device-panel" role="button" aria-label="Devices" @click="devicesOpen = true">
         <span class="device-panel-title">Devices</span>
         <div class="device-status">
-          <v-icon
+          <k-icon
             v-for="device in deviceIcons"
             :key="device.kind"
             :icon="device.icon"
@@ -76,24 +75,24 @@
         </div>
       </div>
 
-      <v-list-item
+      <k-list-item
         class="nav-item options-item"
         :value="undefined"
         :active="false"
         @click="optionsOpen = true"
       >
         <div class="nav-item-content">
-          <v-icon icon="mdi-logout" size="24" />
+          <k-icon icon="mdi-logout" size="24" />
           <span class="nav-item-label text-center mt-1">Quit</span>
         </div>
-      </v-list-item>
-    </v-list>
-  </v-navigation-drawer>
+      </k-list-item>
+    </k-list>
+  </k-navigation-drawer>
 
-  <v-dialog v-model="optionsOpen" max-width="520">
-    <v-card class="options-dialog-card" rounded="xl">
+  <k-dialog v-model="optionsOpen" max-width="520">
+    <k-card class="options-dialog-card" rounded="xl">
       <div class="dialog-close-row px-4 pt-0">
-        <v-btn
+        <k-btn
           icon="mdi-close"
           variant="text"
           aria-label="Close out menu"
@@ -101,61 +100,61 @@
         />
       </div>
 
-      <v-card-text class="options-grid options-grid--three px-4 pt-0 pb-4">
-        <v-card class="option-card" rounded="lg" variant="text" @click="openCloseShift">
-          <v-icon icon="mdi-close-circle-outline" size="44" />
+      <k-card-text class="options-grid options-grid--three px-4 pt-0 pb-4">
+        <k-card class="option-card" rounded="lg" variant="text" @click="openCloseShift">
+          <k-icon icon="mdi-close-circle-outline" size="44" />
           <span>Close Shift</span>
-        </v-card>
-        <v-card class="option-card" rounded="lg" variant="text" @click="logout">
-          <v-icon icon="mdi-logout" size="44" />
+        </k-card>
+        <k-card class="option-card" rounded="lg" variant="text" @click="logout">
+          <k-icon icon="mdi-logout" size="44" />
           <span>Logout</span>
-        </v-card>
-        <v-card class="option-card" rounded="lg" variant="text" @click="closeApp">
-          <v-icon icon="mdi-close" size="44" />
+        </k-card>
+        <k-card class="option-card" rounded="lg" variant="text" @click="closeApp">
+          <k-icon icon="mdi-close" size="44" />
           <span>Close App</span>
-        </v-card>
-        <v-card class="option-card" rounded="lg" variant="text" @click="askPower('restart')">
-          <v-icon icon="mdi-restart" size="44" />
+        </k-card>
+        <k-card class="option-card" rounded="lg" variant="text" @click="askPower('restart')">
+          <k-icon icon="mdi-restart" size="44" />
           <span>Restart</span>
-        </v-card>
-        <v-card class="option-card" rounded="lg" variant="text" @click="askPower('shutdown')">
-          <v-icon icon="mdi-power" size="44" />
+        </k-card>
+        <k-card class="option-card" rounded="lg" variant="text" @click="askPower('shutdown')">
+          <k-icon icon="mdi-power" size="44" />
           <span>Shut Down</span>
-        </v-card>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
+        </k-card>
+      </k-card-text>
+    </k-card>
+  </k-dialog>
 
   <DevicesDialog v-model="devicesOpen" />
 
-  <v-dialog v-model="closeAppConfirmOpen" max-width="360">
-    <v-card class="options-dialog-card" rounded="xl">
-      <v-card-title>Close app</v-card-title>
-      <v-card-text>Close the app and go to Windows?</v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="closeAppConfirmOpen = false">Cancel</v-btn>
-        <v-btn color="error" variant="flat" @click="confirmCloseApp">Close App</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <k-dialog v-model="closeAppConfirmOpen" max-width="360">
+    <k-card class="options-dialog-card" rounded="xl">
+      <k-card-title>Close app</k-card-title>
+      <k-card-text>Close the app and go to Windows?</k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn variant="text" @click="closeAppConfirmOpen = false">Cancel</k-btn>
+        <k-btn color="error" variant="flat" @click="confirmCloseApp">Close App</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
-  <v-dialog :model-value="powerConfirm !== null" max-width="360" @update:model-value="powerConfirm = null">
-    <v-card class="options-dialog-card" rounded="xl">
-      <v-card-title>{{ powerConfirm === 'restart' ? 'Restart computer' : 'Shut down computer' }}</v-card-title>
-      <v-card-text>
+  <k-dialog :model-value="powerConfirm !== null" max-width="360" @update:model-value="powerConfirm = null">
+    <k-card class="options-dialog-card" rounded="xl">
+      <k-card-title>{{ powerConfirm === 'restart' ? 'Restart computer' : 'Shut down computer' }}</k-card-title>
+      <k-card-text>
         {{ powerConfirm === 'restart' ? 'Restart this computer now?' : 'Turn this computer off now?' }}
         <div v-if="powerError" class="text-error mt-2">{{ powerError }}</div>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="powerConfirm = null">Cancel</v-btn>
-        <v-btn color="error" variant="flat" @click="confirmPower">
+      </k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn variant="text" @click="powerConfirm = null">Cancel</k-btn>
+        <k-btn color="error" variant="flat" @click="confirmPower">
           {{ powerConfirm === 'restart' ? 'Restart' : 'Shut Down' }}
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
 </template>
 
@@ -432,7 +431,7 @@ const items = computed(() => {
   color: #e3ecf8;
 }
 
-.nav-item.v-list-item--active {
+.nav-item.k-list-item--active {
   background-color: #22375a;
 }
 
@@ -445,13 +444,13 @@ const items = computed(() => {
   width: 100%;
 }
 
-.nav-item :deep(.v-icon) {
+.nav-item :deep(.k-icon) {
   flex-shrink: 0;
   transform: translateZ(0);
 }
 
-/* Vuetify clips list-item content; let the status dot stick out above the icon. */
-.nav-item :deep(.v-list-item__content) {
+/* Let the status dot stick out above the icon rather than being clipped. */
+.nav-item :deep(.k-list-item__content) {
   overflow: visible;
 }
 
@@ -525,7 +524,7 @@ const items = computed(() => {
   color: #ffffff !important;
 }
 
-.visitor-counter-btn :deep(.v-icon) {
+.visitor-counter-btn :deep(.k-icon) {
   font-size: 32px;
 }
 
@@ -572,6 +571,6 @@ const items = computed(() => {
 }
 
 .option-card:hover {
-  background-color: rgba(var(--v-theme-primary), 0.12);
+  background-color: rgba(var(--k-theme-primary), 0.12);
 }
 </style>

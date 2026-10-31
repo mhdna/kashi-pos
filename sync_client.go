@@ -466,9 +466,14 @@ func (c *centralClient) TransferUploadStatus(ctx context.Context, clientRef stri
 	return out.ImageUploaded, nil
 }
 
+// The upload links use kashi's one-letter paths (/s/ shift receipt, /e/
+// expense, /l/ loan, /t/ transfer, /u/ unknown items) so the QR code and the
+// link shown under it stay short. kashi still answers the long ones
+// (/shift_uploads/ ...) for links handed out before.
+
 // ShiftUploadURL builds the central QR link a phone scans in "central" mode.
 func (c *centralClient) ShiftUploadURL(token string) string {
-	return c.baseURL + "/shift_uploads/" + token
+	return c.baseURL + "/s/" + token
 }
 
 // ExpenseUploadStatus polls kashi for whether receipt images have landed on
@@ -511,18 +516,18 @@ func (c *centralClient) ExpenseUploadStatus(ctx context.Context, clientRef strin
 // needs to know its own public address, kashi-pos already does (it's the
 // same host this client talks to for everything else).
 func (c *centralClient) UploadURL(token string) string {
-	return c.baseURL + "/expense_uploads/" + token
+	return c.baseURL + "/e/" + token
 }
 
 // LoanUploadURL is UploadURL's counterpart for a loan's photos.
 func (c *centralClient) LoanUploadURL(token string) string {
-	return c.baseURL + "/loan_uploads/" + token
+	return c.baseURL + "/l/" + token
 }
 
 // TransferUploadURL is UploadURL's counterpart for a transfer request's
 // photo -- see transfer_upload.go in the kashi repo.
 func (c *centralClient) TransferUploadURL(token string) string {
-	return c.baseURL + "/transfer_uploads/" + token
+	return c.baseURL + "/t/" + token
 }
 
 // errShiftNotReceivedYet is kashi's 409 on POST /branch/shift_receipt_images

@@ -1,15 +1,15 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="460" @update:model-value="$emit('update:modelValue', $event)">
-    <v-card title="Swap balance">
-      <v-card-text>
+  <k-dialog :model-value="modelValue" max-width="460" @update:model-value="$emit('update:modelValue', $event)">
+    <k-card title="Swap balance">
+      <k-card-text>
         <div class="text-body-2 mb-3">
           Move value from <strong>{{ source?.accountName }}</strong>
           ({{ source?.currencyCode ?? "USD" }}) to another cash account.
         </div>
-        <v-select v-model="sourceId" :items="sources" item-title="accountName" item-value="accountId" placeholder="From" variant="outlined" density="comfortable" class="mb-2" />
-        <v-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" placeholder="Swap with" variant="outlined" density="comfortable" class="mb-2" />
-        <v-checkbox v-if="auth.isAdmin" v-model="transfer" label="Transfer: take the amount out of the source even if it goes below zero" density="compact" hide-details class="mb-2" />
-        <v-text-field v-model.number="amount" :prefix="sourceIsNegative && !transfer ? '−' : undefined" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01" variant="outlined" density="comfortable" />
+        <k-select v-model="sourceId" :items="sources" item-title="accountName" item-value="accountId" placeholder="From" variant="outlined" density="comfortable" class="mb-2" />
+        <k-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" placeholder="Swap with" variant="outlined" density="comfortable" class="mb-2" />
+        <k-checkbox v-if="auth.isAdmin" v-model="transfer" label="Transfer: take the amount out of the source even if it goes below zero" density="compact" hide-details class="mb-2" />
+        <k-text-field v-model.number="amount" :prefix="sourceIsNegative && !transfer ? '−' : undefined" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01" variant="outlined" density="comfortable" />
         <div v-if="destination && preview?.valid" class="text-caption text-medium-emphasis">
           Destination receives {{ formatBalance(preview.destinationReceivesCents, destination.currencyCode ?? "USD", currencies, roundingMode) }}
           <template v-if="transfer">
@@ -19,14 +19,14 @@
         <div v-else-if="preview && !preview.valid && preview.reason" class="text-caption text-red-darken-2">
           {{ preview.reason }}
         </div>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" @click="$emit('update:modelValue', false)">Cancel</v-btn>
-        <v-btn color="primary" :loading="saving" :disabled="!valid" @click="save">{{ transfer ? "Transfer" : "Swap" }}</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn variant="text" @click="$emit('update:modelValue', false)">Cancel</k-btn>
+        <k-btn color="primary" :loading="saving" :disabled="!valid" @click="save">{{ transfer ? "Transfer" : "Swap" }}</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">

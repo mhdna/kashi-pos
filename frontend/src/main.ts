@@ -1,7 +1,7 @@
 /**
  * main.ts
  *
- * Bootstraps Vuetify and other plugins then mounts the App`
+ * Registers the UI kit (src/ui) and other plugins, then mounts the App.
  */
 
 // Composables

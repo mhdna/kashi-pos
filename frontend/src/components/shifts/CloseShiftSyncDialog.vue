@@ -1,17 +1,17 @@
 <template>
-  <v-dialog v-model="open" max-width="460" persistent>
-    <v-card>
-      <v-card-title class="d-flex align-center ga-2 pt-4">
-        <v-icon :icon="headerIcon" :color="headerColor" />
+  <k-dialog v-model="open" max-width="460" persistent>
+    <k-card>
+      <k-card-title class="d-flex align-center ga-2 pt-4">
+        <k-icon :icon="headerIcon" :color="headerColor" />
         {{ headerTitle }}
-      </v-card-title>
+      </k-card-title>
 
-      <v-card-text>
+      <k-card-text>
         <template v-if="state === 'uploading' || state === 'done'">
           <div class="text-body-2 mb-3">
             The shift closes and its receipt prints once everything has reached the office.
           </div>
-          <v-progress-linear
+          <k-progress-linear
             :model-value="percent"
             :indeterminate="state === 'uploading' && !progress"
             :color="state === 'done' ? 'success' : 'primary'"
@@ -27,9 +27,9 @@
         </template>
 
         <template v-else-if="state === 'error'">
-          <v-alert type="error" variant="tonal" density="compact" class="mb-3">
+          <k-alert type="error" variant="tonal" density="compact" class="mb-3">
             {{ errorMessage }}
-          </v-alert>
+          </k-alert>
           <div class="text-body-2">
             {{ remaining }} item{{ remaining === 1 ? "" : "s" }} still waiting to upload. Nothing
             is lost — once the internet is back, press <b>Try again</b>.
@@ -37,12 +37,12 @@
         </template>
 
         <div v-if="breakdown.length && state !== 'done'" class="d-flex flex-wrap ga-1 mt-3">
-          <v-chip v-for="row in breakdown" :key="row.entityType" size="small" variant="tonal">
+          <k-chip v-for="row in breakdown" :key="row.entityType" size="small" variant="tonal">
             {{ entityLabel(row.entityType) }}: {{ row.count }}
-          </v-chip>
+          </k-chip>
         </div>
 
-        <v-alert
+        <k-alert
           v-if="rejected > 0"
           type="warning"
           variant="tonal"
@@ -51,10 +51,10 @@
         >
           {{ rejected }} item{{ rejected === 1 ? " was" : "s were" }} rejected by the office and
           won't upload on retry. They don't block closing; check Settings › Central sync.
-        </v-alert>
+        </k-alert>
 
         <div v-if="showBypass" class="d-flex flex-column ga-3 mt-4">
-          <v-text-field
+          <k-text-field
             v-model="adminPassword"
             autofocus
             density="compact"
@@ -64,7 +64,7 @@
             variant="outlined"
             @update:model-value="bypassError = ''"
           />
-          <v-text-field
+          <k-text-field
             v-model="bypassReason"
             density="compact"
             hide-details="auto"
@@ -73,13 +73,13 @@
           />
           <div v-if="bypassError" class="text-caption text-error">{{ bypassError }}</div>
         </div>
-      </v-card-text>
+      </k-card-text>
 
-      <v-card-actions class="px-4 pb-4">
+      <k-card-actions class="px-4 pb-4">
         <template v-if="showBypass">
-          <v-btn variant="text" @click="showBypass = false">Back</v-btn>
-          <v-spacer />
-          <v-btn
+          <k-btn variant="text" @click="showBypass = false">Back</k-btn>
+          <k-spacer />
+          <k-btn
             color="error"
             variant="elevated"
             :disabled="!adminPassword"
@@ -87,23 +87,23 @@
             @click="submitBypass"
           >
             Close without uploading
-          </v-btn>
+          </k-btn>
         </template>
         <template v-else-if="state === 'error'">
-          <v-btn variant="text" @click="finish(false)">Cancel</v-btn>
-          <v-btn variant="text" size="small" @click="showBypass = true">Manager override</v-btn>
-          <v-spacer />
-          <v-btn color="primary" variant="elevated" prepend-icon="mdi-refresh" @click="upload">
+          <k-btn variant="text" @click="finish(false)">Cancel</k-btn>
+          <k-btn variant="text" size="small" @click="showBypass = true">Manager override</k-btn>
+          <k-spacer />
+          <k-btn color="primary" variant="elevated" prepend-icon="mdi-refresh" @click="upload">
             Try again
-          </v-btn>
+          </k-btn>
         </template>
         <template v-else-if="state === 'uploading'">
-          <v-spacer />
-          <v-btn variant="text" @click="cancelUpload">Cancel</v-btn>
+          <k-spacer />
+          <k-btn variant="text" @click="cancelUpload">Cancel</k-btn>
         </template>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">

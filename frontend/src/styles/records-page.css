@@ -35,11 +35,11 @@
 }
 
 .records-table thead th {
-  background: rgb(var(--v-theme-background)) !important;
+  background: var(--kashi-app-background) !important;
   box-shadow: none !important;
 }
 
-.records-table .v-table__wrapper {
+.records-table .k-table__wrapper {
   overflow-y: auto;
 }
 
@@ -63,11 +63,13 @@
   gap: 10px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  border: 1px solid rgba(var(--k-theme-on-surface), 0.1);
 }
 
 /* The category card in the expense/loan detail opens a menu to change it. */
 .overview-card--edit {
+  gap: 8px;
+  padding-inline: 10px;
   background: none;
   color: inherit;
   font: inherit;
@@ -77,13 +79,14 @@
 }
 
 .overview-card--edit:hover {
-  background-color: rgba(var(--v-theme-primary), 0.08);
+  background-color: rgba(var(--k-theme-primary), 0.08);
 }
 
 .overview-value {
   font-weight: 600;
   line-height: 1.2;
-  word-break: break-word;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .section-label {
@@ -91,7 +94,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  color: rgba(var(--k-theme-on-surface), 0.6);
 }
 
 /* Photos sit inside the dialog as thumbnails; tapping one opens
@@ -110,7 +113,7 @@
   margin-inline: auto;
   border-radius: 10px;
   object-fit: contain;
-  background: rgba(var(--v-theme-on-surface), 0.04);
+  background: rgba(var(--k-theme-on-surface), 0.04);
   cursor: zoom-in;
 }
 
@@ -126,4 +129,17 @@
   align-items: center;
   gap: 6px;
   padding: 24px 0;
+}
+
+.records-title {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.records-title h1 {
+  font-size: var(--kashi-font-size-3xl);
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0;
 }

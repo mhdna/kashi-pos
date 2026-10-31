@@ -1,30 +1,30 @@
 <template>
-  <v-dialog v-model="model" max-width="1100" scrollable>
-    <v-card>
-      <v-card-title class="d-flex align-center px-4 pt-3 pb-0">
+  <k-dialog v-model="model" max-width="1100" scrollable>
+    <k-card>
+      <k-card-title class="d-flex align-center px-4 pt-3 pb-0">
         <span>Client Profile</span>
-        <v-spacer />
-        <v-btn icon="mdi-close" variant="text" density="comfortable" @click="model = false" />
-      </v-card-title>
+        <k-spacer />
+        <k-btn icon="mdi-close" variant="text" density="comfortable" @click="model = false" />
+      </k-card-title>
 
-      <v-progress-linear v-if="loading" indeterminate />
+      <k-progress-linear v-if="loading" indeterminate />
 
-      <v-card-text v-if="!loading && profile" class="pa-4">
+      <k-card-text v-if="!loading && profile" class="pa-4">
         <!-- Row 1: header card + stat cards -->
         <div class="profile-top-row">
           <!-- Client header -->
-          <v-sheet class="profile-header-card pa-4" rounded border>
+          <k-sheet class="profile-header-card pa-4" rounded border>
             <div class="d-flex align-center ga-4">
               <InitialsAvatar :name="profile.client.name" color="blue-darken-3" :size="72" />
               <div class="flex-1-1">
                 <div class="d-flex align-center ga-2 mb-2">
                   <span class="text-h6 font-weight-bold">{{ profile.client.name }}</span>
-                  <v-chip
+                  <k-chip
                     :color="tierColor"
                     size="small"
                     variant="flat"
                     prepend-icon="mdi-star"
-                  >{{ tier }} Tier</v-chip>
+                  >{{ tier }} Tier</k-chip>
                 </div>
                 <table class="profile-meta-table">
                   <tbody>
@@ -48,11 +48,11 @@
                 </table>
               </div>
             </div>
-          </v-sheet>
+          </k-sheet>
 
           <!-- Stat cards (2×2) -->
           <div class="profile-stat-grid">
-            <v-sheet
+            <k-sheet
               v-for="stat in statCards"
               :key="stat.label"
               class="profile-stat-card pa-3"
@@ -61,14 +61,14 @@
             >
               <div class="text-caption text-medium-emphasis text-uppercase mb-1">{{ stat.label }}</div>
               <div class="text-h5 font-weight-bold">{{ stat.value }}</div>
-            </v-sheet>
+            </k-sheet>
           </div>
         </div>
 
         <!-- Row 2: category treemap + payment mix -->
         <div class="profile-chart-row mt-4" v-if="hasChartData">
           <!-- Treemap -->
-          <v-sheet v-if="profile.categorySpend.length" class="pa-3" rounded border style="flex: 2">
+          <k-sheet v-if="profile.categorySpend.length" class="pa-3" rounded border style="flex: 2">
             <div class="text-subtitle-2 mb-2">Spend by Category</div>
             <div class="treemap-container">
               <div
@@ -92,10 +92,10 @@
                 </div>
               </div>
             </div>
-          </v-sheet>
+          </k-sheet>
 
           <!-- Payment mix donut -->
-          <v-sheet v-if="profile.paymentMix.length" class="pa-3" rounded border style="flex: 1">
+          <k-sheet v-if="profile.paymentMix.length" class="pa-3" rounded border style="flex: 1">
             <div class="text-subtitle-2 mb-2">Payment Mix</div>
             <div class="donut-container">
               <svg viewBox="0 0 120 120" class="donut-svg">
@@ -108,7 +108,7 @@
                   />
                 </g>
                 <!-- hole -->
-                <circle cx="60" cy="60" r="28" fill="rgba(var(--v-theme-surface))" />
+                <circle cx="60" cy="60" r="28" fill="rgba(var(--k-theme-surface))" />
               </svg>
               <div class="donut-legend mt-2">
                 <div v-for="(arc, i) in donutArcs" :key="i" class="d-flex align-center ga-1 text-caption mb-1">
@@ -117,15 +117,15 @@
                 </div>
               </div>
             </div>
-          </v-sheet>
+          </k-sheet>
         </div>
 
         <!-- Row 3: recent purchases + loyalty -->
         <div class="profile-chart-row mt-4">
           <!-- Recent purchases -->
-          <v-sheet class="pa-3" rounded border style="flex: 2">
+          <k-sheet class="pa-3" rounded border style="flex: 2">
             <div class="text-subtitle-2 mb-2">Recent Purchases</div>
-            <v-table density="compact">
+            <k-table density="compact">
               <thead>
                 <tr>
                   <th>Date</th>
@@ -143,13 +143,13 @@
                   <td class="text-caption">{{ inv.branchName }}</td>
                   <td class="text-caption text-center">{{ inv.itemCount }}</td>
                   <td>
-                    <v-chip
+                    <k-chip
                       v-for="m in inv.paymentMethods"
                       :key="m"
                       size="x-small"
                       class="mr-1"
                       variant="tonal"
-                    >{{ m }}</v-chip>
+                    >{{ m }}</k-chip>
                   </td>
                   <td class="text-caption text-end font-weight-medium">{{ formatUsd(inv.grandTotal / 100) }}</td>
                 </tr>
@@ -157,17 +157,17 @@
                   <td colspan="6" class="text-center text-medium-emphasis py-4">No purchases yet.</td>
                 </tr>
               </tbody>
-            </v-table>
-          </v-sheet>
+            </k-table>
+          </k-sheet>
 
           <!-- Loyalty progress -->
-          <v-sheet class="pa-3" rounded border style="flex: 1">
+          <k-sheet class="pa-3" rounded border style="flex: 1">
             <div class="text-subtitle-2 mb-3">Loyalty</div>
             <div class="d-flex justify-space-between text-caption text-medium-emphasis mb-1">
               <span>{{ tier }} Tier</span>
               <span>{{ nextTierName }} Tier</span>
             </div>
-            <v-progress-linear
+            <k-progress-linear
               :model-value="tierProgress"
               :color="tierColor"
               rounded
@@ -200,15 +200,15 @@
                 <div class="text-body-1 font-weight-bold">{{ profile.pointsRedeemed.toLocaleString() }}</div>
               </div>
             </div>
-          </v-sheet>
+          </k-sheet>
         </div>
-      </v-card-text>
+      </k-card-text>
 
-      <v-card-text v-else-if="!loading && error" class="text-center text-medium-emphasis pa-8">
+      <k-card-text v-else-if="!loading && error" class="text-center text-medium-emphasis pa-8">
         {{ error }}
-      </v-card-text>
-    </v-card>
-  </v-dialog>
+      </k-card-text>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">

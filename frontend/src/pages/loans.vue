@@ -1,12 +1,15 @@
 <template>
   <div class="records-page" @scroll.passive.capture="list.onScroll">
     <div class="records-head">
-      <div class="text-h6">Loans</div>
-      <v-spacer />
-      <v-btn color="primary" variant="flat" prepend-icon="mdi-plus" @click="openAdd">Add loan</v-btn>
+      <div class="records-title">
+        <k-icon icon="mdi-hand-coin-outline" size="36" color="primary" />
+        <h1>Loans</h1>
+      </div>
+      <k-spacer />
+      <k-btn color="primary" variant="flat" prepend-icon="mdi-plus" @click="openAdd">Add loan</k-btn>
     </div>
 
-    <v-data-table-virtual
+    <k-data-table-virtual
       class="records-table"
       :headers="headers"
       :items="list.items.value"
@@ -24,46 +27,46 @@
       </template>
       <template #item.description="{ item }">
         <span class="font-weight-medium" :class="{ 'text-decoration-line-through': item.cancelledAt }">{{ item.description || "—" }}</span>
-        <v-chip v-if="item.cancelledAt" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</v-chip>
+        <k-chip v-if="item.cancelledAt" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</k-chip>
       </template>
       <template #item.category="{ item }">
-        <v-chip v-if="item.category" size="small" variant="tonal" :color="categoryOf(item.category)?.color || 'blue-grey'" :prepend-icon="categoryOf(item.category)?.icon || 'mdi-tag-outline'">
+        <k-chip v-if="item.category" size="small" variant="tonal" :color="categoryOf(item.category)?.color || 'blue-grey'" :prepend-icon="categoryOf(item.category)?.icon || 'mdi-tag-outline'">
           {{ item.category }}
-        </v-chip>
+        </k-chip>
         <span v-else class="text-medium-emphasis">—</span>
       </template>
       <template #item.amount="{ item }">
         <span class="font-weight-bold" :class="{ 'text-decoration-line-through text-medium-emphasis': item.cancelledAt }">{{ formatCents(item.amount) }} {{ item.currencyCode }}</span>
       </template>
       <template #item.occurredAt="{ item }">{{ formatServerDateTime(item.occurredAt) }}</template>
-    </v-data-table-virtual>
+    </k-data-table-virtual>
 
-    <v-dialog v-model="detailOpen" max-width="700">
-      <v-card v-if="selected">
-        <v-card-title class="d-flex align-center">
+    <k-dialog v-model="detailOpen" max-width="700">
+      <k-card v-if="selected">
+        <k-card-title class="d-flex align-center">
           <div>
             <div class="text-h6">{{ selected.description || "Loan" }}</div>
             <div class="text-caption text-medium-emphasis">{{ formatServerDateTime(selected.occurredAt) }}</div>
           </div>
-          <v-spacer />
-          <v-btn icon="mdi-close" variant="text" aria-label="Close" @click="detailOpen = false" />
-        </v-card-title>
-        <v-card-text>
+          <k-spacer />
+          <k-btn icon="mdi-close" variant="text" aria-label="Close" @click="detailOpen = false" />
+        </k-card-title>
+        <k-card-text>
           <div class="overview-grid">
             <!-- Tap to change the category; kashi gets the change too. -->
-            <v-menu location="bottom start">
+            <k-menu location="bottom start">
               <template #activator="{ props: menuProps }">
                 <button type="button" class="overview-card overview-card--edit" v-bind="menuProps" :disabled="categorySaving">
-                  <v-avatar size="36" :color="categoryOf(selected.category)?.color || 'blue-grey'" variant="tonal">
-                    <v-icon :icon="categoryOf(selected.category)?.icon || 'mdi-tag-outline'" size="20" />
-                  </v-avatar>
+                  <k-avatar size="36" :color="categoryOf(selected.category)?.color || 'blue-grey'" variant="tonal">
+                    <k-icon :icon="categoryOf(selected.category)?.icon || 'mdi-tag-outline'" size="20" />
+                  </k-avatar>
                   <div class="overview-value">{{ selected.category || "No category" }}</div>
-                  <v-progress-circular v-if="categorySaving" indeterminate size="16" width="2" class="ms-auto" />
-                  <v-icon v-else icon="mdi-pencil-outline" size="18" class="ms-auto text-medium-emphasis" />
+                  <k-progress-circular v-if="categorySaving" indeterminate size="16" width="2" class="ms-auto" />
+                  <k-icon v-else icon="mdi-pencil-outline" size="18" class="ms-auto text-medium-emphasis" />
                 </button>
               </template>
-              <v-list density="compact" max-height="360">
-                <v-list-item
+              <k-list density="compact" max-height="360">
+                <k-list-item
                   v-for="category in loanCategories"
                   :key="category.id"
                   :title="category.name"
@@ -72,72 +75,72 @@
                   :active="selected.category === category.name"
                   @click="setCategory(category.name)"
                 />
-              </v-list>
-            </v-menu>
+              </k-list>
+            </k-menu>
             <div class="overview-card">
-              <v-icon icon="mdi-cash" color="primary" />
+              <k-icon icon="mdi-cash" color="primary" />
               <div class="overview-value">{{ formatCents(selected.amount) }} {{ selected.currencyCode }}</div>
             </div>
             <div class="overview-card">
-              <v-icon icon="mdi-wallet-outline" color="primary" />
+              <k-icon icon="mdi-wallet-outline" color="primary" />
               <div class="overview-value">{{ accountName(selected.cashboxAccountId) }}</div>
             </div>
           </div>
 
           <div class="section-label mt-5 mb-2">Photos</div>
-          <div v-if="detailPhotosLoading" class="d-flex justify-center pa-6"><v-progress-circular indeterminate /></div>
+          <div v-if="detailPhotosLoading" class="d-flex justify-center pa-6"><k-progress-circular indeterminate /></div>
           <div v-else-if="detailPhotos.length" class="photo-strip">
             <img v-for="(src, i) in detailPhotos" :key="i" :src="src" alt="Loan photo" class="photo-full" @click="openViewer(i)" />
           </div>
           <div v-else class="empty-photos">
-            <v-icon icon="mdi-image-off-outline" size="32" color="grey" />
+            <k-icon icon="mdi-image-off-outline" size="32" color="grey" />
             <div class="text-body-2 text-medium-emphasis">No photo attached{{ selected.clientRef ? "" : " (not synced yet)" }}</div>
           </div>
           <!-- More photos: scan the QR with a phone, or pick files on this
                computer. kashi takes up to 3 in all. -->
           <div v-if="!detailPhotosLoading && selected.clientRef && detailPhotos.length < 3" class="d-flex justify-center flex-wrap ga-2 mt-3">
-            <v-btn color="primary" variant="tonal" prepend-icon="mdi-camera-outline" @click="openUploadDialog(selected.clientRef, 'resend')">
+            <k-btn color="primary" variant="tonal" prepend-icon="mdi-camera-outline" @click="openUploadDialog(selected.clientRef, 'resend')">
               {{ detailPhotos.length ? "Add with phone" : "Send photo with phone" }}
-            </v-btn>
-            <v-btn color="primary" variant="tonal" prepend-icon="mdi-upload" :loading="computerUploading" @click="uploadFromComputer">
+            </k-btn>
+            <k-btn color="primary" variant="tonal" prepend-icon="mdi-upload" :loading="computerUploading" @click="uploadFromComputer">
               From this computer
-            </v-btn>
+            </k-btn>
           </div>
           <div v-if="photoError" class="text-body-2 text-error text-center mt-2">{{ photoError }}</div>
-        </v-card-text>
-        <v-card-actions v-if="auth.isAdmin && !selected.cancelledAt" class="px-5 pb-4">
-          <v-spacer />
-          <v-btn color="error" variant="tonal" prepend-icon="mdi-cancel" @click="requestCancel">Cancel loan</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </k-card-text>
+        <k-card-actions v-if="auth.isAdmin && !selected.cancelledAt" class="px-5 pb-4">
+          <k-spacer />
+          <k-btn color="error" variant="tonal" prepend-icon="mdi-cancel" @click="requestCancel">Cancel loan</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="cancelOpen" max-width="420">
-      <v-card v-if="selected">
-        <v-card-title class="pt-4 px-5">Cancel this loan?</v-card-title>
-        <v-card-text class="px-5">
+    <k-dialog v-model="cancelOpen" max-width="420">
+      <k-card v-if="selected">
+        <k-card-title class="pt-4 px-5">Cancel this loan?</k-card-title>
+        <k-card-text class="px-5">
           "{{ selected.description || "Loan" }}" ({{ formatCents(selected.amount) }} {{ selected.currencyCode }}) stays in the list marked
           cancelled, and the shift and kashi stop counting it.
           <div v-if="cancelError" class="text-body-2 text-error mt-2">{{ cancelError }}</div>
-        </v-card-text>
-        <v-card-actions class="px-5 pb-4">
-          <v-spacer />
-          <v-btn variant="text" @click="cancelOpen = false">Keep it</v-btn>
-          <v-btn color="error" variant="flat" :loading="cancelling" @click="cancelSelected">Cancel loan</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </k-card-text>
+        <k-card-actions class="px-5 pb-4">
+          <k-spacer />
+          <k-btn variant="text" @click="cancelOpen = false">Keep it</k-btn>
+          <k-btn color="error" variant="flat" :loading="cancelling" @click="cancelSelected">Cancel loan</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="dialog" max-width="560">
-      <v-card>
-        <v-card-title class="d-flex align-center ga-2 pt-4 px-5">
-          <v-icon icon="mdi-hand-coin-outline" color="primary" />
+    <k-dialog v-model="dialog" max-width="720">
+      <k-card>
+        <k-card-title class="d-flex align-center ga-2 pt-4 px-5">
+          <k-icon icon="mdi-hand-coin-outline" color="primary" />
           <span>Add loan</span>
-          <v-spacer />
-          <v-btn icon="mdi-close" variant="text" size="small" aria-label="Close" @click="dialog = false" />
-        </v-card-title>
-        <v-card-text class="px-5">
-          <v-form ref="formRef">
+          <k-spacer />
+          <k-btn icon="mdi-close" variant="text" size="small" aria-label="Close" @click="dialog = false" />
+        </k-card-title>
+        <k-card-text class="px-5">
+          <k-form ref="formRef">
             <div class="section-label mb-2">Category</div>
             <div v-if="loanCategories.length" class="category-grid mb-4">
               <button
@@ -148,9 +151,9 @@
                 :class="{ 'category-tile--on': form.category === category.name }"
                 @click="form.category = category.name"
               >
-                <v-avatar size="36" :color="category.color || 'blue-grey'" variant="tonal">
-                  <v-icon :icon="category.icon || 'mdi-tag-outline'" size="20" />
-                </v-avatar>
+                <k-avatar size="36" :color="category.color || 'blue-grey'" variant="tonal">
+                  <k-icon :icon="category.icon || 'mdi-tag-outline'" size="20" />
+                </k-avatar>
                 <span class="category-name">{{ category.name }}</span>
               </button>
             </div>
@@ -158,7 +161,7 @@
               No loan categories yet -- they're set up in kashi and appear here after the next sync.
             </div>
 
-            <v-text-field
+            <k-text-field
               v-model="form.description"
               placeholder="Description"
               prepend-inner-icon="mdi-text"
@@ -171,7 +174,7 @@
                  currency, as Add expense does. -->
             <div class="section-label mb-2">Deposited to</div>
             <div v-for="(line, index) in form.payments" :key="line.key" class="payment-line mb-2">
-              <v-select
+              <k-select
                 v-model="line.cashboxAccountId"
                 :items="accountChoices(index)"
                 item-title="displayName"
@@ -182,7 +185,7 @@
                 hide-details
                 class="payment-account"
               />
-              <v-text-field
+              <k-text-field
                 v-model="line.amount"
                 placeholder="Amount"
                 inputmode="decimal"
@@ -193,7 +196,7 @@
                 class="payment-amount"
                 @update:model-value="(v: string) => (line.amount = cleanAmount(v))"
               />
-              <v-btn
+              <k-btn
                 v-if="form.payments.length > 1"
                 icon="mdi-close"
                 variant="text"
@@ -202,7 +205,7 @@
                 @click="form.payments.splice(index, 1)"
               />
             </div>
-            <v-btn
+            <k-btn
               v-if="form.payments.length < paymentMethods.length"
               variant="text"
               size="small"
@@ -211,17 +214,17 @@
               @click="addPaymentLine"
             >
               Add payment method
-            </v-btn>
+            </k-btn>
             <div v-if="totalsLabel" class="text-body-2 font-weight-bold mt-1">Total: {{ totalsLabel }}</div>
-          </v-form>
-        </v-card-text>
-        <v-card-actions class="px-5 pb-4">
-          <v-spacer />
-          <v-btn variant="text" @click="dialog = false">Cancel</v-btn>
-          <v-btn color="primary" variant="flat" :loading="saving" :disabled="!canSave" @click="submit">Save loan</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </k-form>
+        </k-card-text>
+        <k-card-actions class="px-5 pb-4">
+          <k-spacer />
+          <k-btn variant="text" @click="dialog = false">Cancel</k-btn>
+          <k-btn color="primary" variant="flat" :loading="saving" :disabled="!canSave" @click="submit">Save loan</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
     <PhotoViewer v-model="viewerOpen" v-model:index="viewerIndex" :photos="detailPhotos" />
     <PhotoUploadDialog
@@ -521,6 +524,10 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   gap: 8px;
+  /* The tiles scroll in their own block, so the dialog stays as tall as the form needs. */
+  max-height: 330px;
+  overflow-y: auto;
+  padding: 2px;
 }
 .category-tile {
   display: flex;
@@ -529,14 +536,14 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 10px 6px;
   border-radius: 12px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  border: 1px solid rgba(var(--k-theme-on-surface), 0.12);
   background: transparent;
   cursor: pointer;
   color: inherit;
 }
 .category-tile--on {
-  border-color: rgb(var(--v-theme-primary));
-  background: rgba(var(--v-theme-primary), 0.08);
+  border-color: rgb(var(--k-theme-primary));
+  background: rgba(var(--k-theme-primary), 0.08);
 }
 .category-name {
   font-size: 0.8rem;

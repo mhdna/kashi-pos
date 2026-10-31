@@ -10,10 +10,10 @@ import { createPinia } from "pinia";
 import router from "../router";
 
 // Plugins
-import vuetify from "./vuetify";
+import ui from "../ui";
 
 export function registerPlugins(app: App) {
-  app.use(vuetify);
+  app.use(ui);
   app.use(createPinia());
   app.use(router);
 }

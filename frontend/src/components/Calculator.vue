@@ -11,8 +11,8 @@
       :invoice-discount-text="invoiceDiscountText"
     />
 
-    <v-card class="calculator-display pa-2 mb-3 mt-2" variant="outlined" rounded="lg">
-      <v-btn
+    <k-card class="calculator-display pa-2 mb-3 mt-2" variant="outlined" rounded="lg">
+      <k-btn
         class="calculator-display-clear"
         icon
         variant="text"
@@ -20,10 +20,10 @@
         aria-label="Clear"
         @click="clearInput"
       >
-        <v-icon icon="mdi-close" size="20" />
-      </v-btn>
+        <k-icon icon="mdi-close" size="20" />
+      </k-btn>
       <span class="calculator-display-value text-h3 font-weight-bold">{{ displayValue }}</span>
-      <v-btn
+      <k-btn
         class="calculator-display-backspace"
         icon
         variant="text"
@@ -31,9 +31,9 @@
         aria-label="Backspace"
         @click="backspace"
       >
-        <v-icon icon="mdi-backspace-outline" size="20" />
-      </v-btn>
-    </v-card>
+        <k-icon icon="mdi-backspace-outline" size="20" />
+      </k-btn>
+    </k-card>
 
     <div class="d-flex ga-3">
       <div style="flex: 3 3 0; min-width: 0">
@@ -48,7 +48,7 @@
           @select="selectMethodAndConfirm"
         />
         <div class="calculator-action-cards" role="list" aria-label="Other actions">
-          <v-card
+          <k-card
             class="calculator-type-card d-flex flex-column" style="--payment-accent: #757575"
             :class="{ 'calculator-type-card--disabled': !hasItems || restricted }"
             elevation="0"
@@ -58,11 +58,11 @@
             @keydown.enter="!(!hasItems || restricted) && emit('account')"
             @keydown.space.prevent="!(!hasItems || restricted) && emit('account')"
           >
-            <v-card-text class="text-center py-2 px-1 flex-grow-1 d-flex align-center justify-center">
+            <k-card-text class="text-center py-2 px-1 flex-grow-1 d-flex align-center justify-center">
               <span class="payment-method-name text-h6 font-weight-bold">On Account</span>
-            </v-card-text>
-          </v-card>
-          <v-card
+            </k-card-text>
+          </k-card>
+          <k-card
             class="calculator-type-card d-flex flex-column" style="--payment-accent: #757575"
             :class="{ 'calculator-type-card--disabled': restricted }"
             elevation="0"
@@ -72,10 +72,10 @@
             @keydown.enter="!restricted && emit('coupon')"
             @keydown.space.prevent="!restricted && emit('coupon')"
           >
-            <v-card-text class="text-center py-2 px-1 flex-grow-1 d-flex align-center justify-center">
+            <k-card-text class="text-center py-2 px-1 flex-grow-1 d-flex align-center justify-center">
               <span class="payment-method-name text-h6 font-weight-bold">Coupon</span>
-            </v-card-text>
-          </v-card>
+            </k-card-text>
+          </k-card>
         </div>
       </div>
     </div>
@@ -87,10 +87,10 @@
       @remove="removeEntry"
     />
 
-    <v-dialog v-model="couponDialog" max-width="420">
-      <v-card title="Coupon payment">
-        <v-card-text>
-          <v-text-field
+    <k-dialog v-model="couponDialog" max-width="420">
+      <k-card title="Coupon payment">
+        <k-card-text>
+          <k-text-field
             v-if="selectedCouponType?.codeRequired !== false"
             v-model="couponCode"
             :placeholder="selectedCouponType?.referenceOnly ? 'Reference number' : 'Coupon code'"
@@ -99,29 +99,29 @@
             autofocus
             variant="outlined"
           />
-          <v-select v-model="couponTypeId" :items="couponTypes" item-title="name" item-value="id" placeholder="Coupon type" variant="outlined" />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn @click="couponDialog = false">Cancel</v-btn>
-          <v-btn color="primary" @click="confirmCoupon">Add coupon</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          <k-select v-model="couponTypeId" :items="couponTypes" item-title="name" item-value="id" placeholder="Coupon type" variant="outlined" />
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn @click="couponDialog = false">Cancel</k-btn>
+          <k-btn color="primary" @click="confirmCoupon">Add coupon</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog :model-value="Boolean(pendingOverchange)" max-width="420" @update:model-value="(v) => !v && cancelOverchange()">
-      <v-card title="Confirm change amount" v-if="pendingOverchange">
-        <v-card-text>
+    <k-dialog :model-value="Boolean(pendingOverchange)" max-width="420" @update:model-value="(v) => !v && cancelOverchange()">
+      <k-card title="Confirm change amount" v-if="pendingOverchange">
+        <k-card-text>
           Give {{ pendingOverchange.currencySymbol }} {{ pendingOverchange.amount.toLocaleString() }} in change?
           This is more than what's owed.
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn @click="cancelOverchange">Cancel</v-btn>
-          <v-btn color="primary" @click="confirmOverchange">Confirm</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn @click="cancelOverchange">Cancel</k-btn>
+          <k-btn color="primary" @click="confirmOverchange">Confirm</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
   </div>
 </template>
 
@@ -726,7 +726,7 @@ defineExpose({
   line-height: 1.2;
   flex: 1 1 0;
   text-align: center;
-  color: rgba(var(--v-theme-on-surface), 0.7);
+  color: rgba(var(--k-theme-on-surface), 0.7);
 }
 </style>
 
@@ -745,14 +745,14 @@ defineExpose({
   cursor: pointer;
   background: transparent !important;
   box-shadow: none !important;
-  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border: 1px solid rgba(var(--k-border-color), 0.18);
   border-top: 10px solid var(--payment-accent);
   transition: border-color 120ms ease;
 }
 .payment-method-name {
   font-size: 1.1rem !important;
   line-height: 1.25;
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--k-theme-on-surface));
 }
 .calculator-type-card--disabled {
   opacity: 0.5;
@@ -766,7 +766,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  border-color: rgba(var(--v-theme-on-surface), 0.18);
+  border-color: rgba(var(--k-theme-on-surface), 0.18);
 }
 .calculator-special-actions {
   display: grid;

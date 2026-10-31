@@ -1,15 +1,15 @@
 <template>
-  <v-dialog v-model="dialog" max-width="520">
-    <v-card>
-      <v-card-title class="d-flex align-center">
-        <v-icon icon="mdi-account-credit-card-outline" class="me-2" />
+  <k-dialog v-model="dialog" max-width="520">
+    <k-card>
+      <k-card-title class="d-flex align-center">
+        <k-icon icon="mdi-account-credit-card-outline" class="me-2" />
         Save sale on account
-      </v-card-title>
-      <v-card-text>
+      </k-card-title>
+      <k-card-text>
         <div class="text-body-2 text-medium-emphasis mb-3">
           Choose the customer who will pay later. The invoice total will be added to their account.
         </div>
-        <v-text-field
+        <k-text-field
           v-model="search"
           autofocus
           clearable
@@ -19,8 +19,8 @@
           prepend-inner-icon="mdi-magnify"
           variant="outlined"
         />
-        <v-list v-if="filteredClients.length" class="mt-2 account-client-list" lines="two">
-          <v-list-item
+        <k-list v-if="filteredClients.length" class="mt-2 account-client-list" lines="two">
+          <k-list-item
             v-for="client in filteredClients"
             :key="client.id"
             :title="client.name"
@@ -29,24 +29,24 @@
             @click="selectClient(client)"
           >
             <template #append>
-              <v-icon icon="mdi-chevron-right" />
+              <k-icon icon="mdi-chevron-right" />
             </template>
-          </v-list-item>
-        </v-list>
+          </k-list-item>
+        </k-list>
         <div v-else class="text-center text-medium-emphasis py-5">
           No existing customer matches this search.
         </div>
-      </v-card-text>
-      <v-divider />
-      <v-card-actions>
-        <v-btn prepend-icon="mdi-account-plus" color="primary" variant="tonal" @click="openNewClientDialog">
+      </k-card-text>
+      <k-divider />
+      <k-card-actions>
+        <k-btn prepend-icon="mdi-account-plus" color="primary" variant="tonal" @click="openNewClientDialog">
           New customer
-        </v-btn>
-        <v-spacer />
-        <v-btn variant="text" @click="dialog = false">Cancel</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+        </k-btn>
+        <k-spacer />
+        <k-btn variant="text" @click="dialog = false">Cancel</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
   <ClientDialog v-model="newClientDialog" @select="selectClient" />
 </template>
 
@@ -103,7 +103,7 @@ async function loadClients(query: string) {
 
 function openNewClientDialog() {
   // Do not stack two v-dialog focus traps. Render the child after the parent
-  // has closed so Vuetify only has one active modal overlay.
+  // has closed so only one modal overlay is active.
   dialog.value = false;
   void nextTick(() => {
     newClientDialog.value = true;

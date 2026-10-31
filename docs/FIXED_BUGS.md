@@ -3,6 +3,41 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-10-31 · Branch picker on the login screen shrank to its text
+
+**Symptom.** Since the move off Vuetify, the branch picker above the PIN pad
+was only as wide as the branch name, not the 280px it had before.
+
+**Cause.** `KSelect` (and `KAutocomplete`) had two top-level elements: the
+field and its dropdown menu. Vue only puts a page's scoped-style marker on a
+component with a single root, so the page's `.pin-branch-select { width:
+280px }` never matched. Any page's scoped class on a `k-select` or
+`k-autocomplete` was ignored the same way.
+
+**Fix.** The menu now sits inside the field (it teleports to the body
+anyway, leaving only a hidden marker), so both components have one root and
+scoped classes on them apply again. `frontend/src/ui/KSelect.vue`,
+`frontend/src/ui/KAutocomplete.vue`. No automated test: the frontend has no
+DOM test setup (no `@vue/test-utils`/jsdom).
+
+## 2026-10-31 · Country names in the phone dialog drawn in the flag's colours
+
+**Symptom.** In the client phone dialog (macOS window), the country names
+next to the flags were coloured like the flag (green for Iraq, red for
+Palestine) and invisible when the flag's colour was white (France, Indonesia,
+Saudi Arabia, Switzerland). The selected country in the field at the top was
+nearly invisible too. Windows tills were not affected.
+
+**Cause.** WebKit (the macOS webview) lets the colour of a colour-font flag
+glyph (the bundled Twemoji flags) leak into the text drawn after it in the
+same layer. Hiding the flags, or giving the text another font, made no
+difference; isolating the flag's painting did.
+
+**Fix.** `.country-flag` is `contain: paint`, so the flag is painted on its
+own and its colour can't carry over (`components/ClientDialog.vue`). Checked
+by rendering the dialog in WebKit before and after; there is no automated
+test for this.
+
 ## 2026-10-31 · Keyboard and scanner typed Windows shortcuts after AnyDesk
 
 **Symptom.** After connecting to a till with AnyDesk from a Mac, the till's

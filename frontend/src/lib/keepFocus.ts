@@ -7,6 +7,6 @@
  */
 export function keepFieldFocus(event: MouseEvent) {
   const target = event.target as Element;
-  if (target.closest("input, textarea") || target.classList.contains("v-virtual-scroll")) return;
+  if (target.closest("input, textarea") || target.classList.contains("k-virtual-scroll")) return;
   event.preventDefault();
 }

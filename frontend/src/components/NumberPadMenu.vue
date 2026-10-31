@@ -1,8 +1,9 @@
 <template>
-  <v-menu
+  <k-menu
     v-model="open"
     :close-on-content-click="false"
-    :location-strategy="placeOnce"
+    location="bottom center"
+    :gap="6"
   >
     <template #activator="{ props: activatorProps }">
       <slot
@@ -40,14 +41,14 @@
       </slot>
     </template>
 
-    <v-card class="number-pad pa-2" rounded="lg">
+    <k-card class="number-pad pa-2" rounded="lg">
       <div class="number-pad-display">
         <span v-if="prefix" class="number-pad-display-affix">{{ prefix }}</span>
         <span>{{ draft || "0" }}</span>
         <span v-if="suffix" class="number-pad-display-affix">{{ suffix }}</span>
       </div>
       <div class="number-pad-grid">
-        <v-btn
+        <k-btn
           v-for="digit in digits"
           :key="digit"
           class="number-pad-key"
@@ -56,12 +57,12 @@
           @click="appendDigit(digit)"
         >
           {{ digit }}
-        </v-btn>
-        <v-btn class="number-pad-key" size="small" variant="text" @click="clear">C</v-btn>
-        <v-btn class="number-pad-key" size="small" variant="tonal" @click="appendDigit('0')">
+        </k-btn>
+        <k-btn class="number-pad-key" size="small" variant="text" @click="clear">C</k-btn>
+        <k-btn class="number-pad-key" size="small" variant="tonal" @click="appendDigit('0')">
           0
-        </v-btn>
-        <v-btn
+        </k-btn>
+        <k-btn
           v-if="allowDecimal"
           class="number-pad-key"
           size="small"
@@ -69,8 +70,8 @@
           @click="appendDecimal"
         >
           .
-        </v-btn>
-        <v-btn
+        </k-btn>
+        <k-btn
           class="number-pad-key"
           :class="{ 'number-pad-key--wide': allowDecimal }"
           size="small"
@@ -78,13 +79,13 @@
           @click="backspace"
         >
           ⌫
-        </v-btn>
+        </k-btn>
       </div>
-      <v-btn block class="number-pad-done mt-2" color="primary" size="small" variant="flat" @click="apply">
+      <k-btn block class="number-pad-done mt-2" color="primary" size="small" variant="flat" @click="apply">
         Done
-      </v-btn>
-    </v-card>
-  </v-menu>
+      </k-btn>
+    </k-card>
+  </k-menu>
 </template>
 
 <script setup lang="ts">
@@ -168,45 +169,8 @@ const activatorMinWidthCh = computed(() => {
   return digits + affixChars + (affixChars ? affixChars * 0.5 : 0);
 });
 
-// While the pad is open it stays where it opened. Vuetify's own placement
-// re-runs whenever the activator or its row changes size -- and typing does
-// exactly that (58 is wider than 5, the line total grows) -- so the pad slid
-// around on every key. placeOnce puts it under the activator (above, when
-// there's no room below), once, after it opens; Vuetify only calls it again
-// on a window resize or a viewport scroll.
-const PAD_GAP = 6;
-const VIEWPORT_MARGIN = 8;
-
-function placeOnce(
-  data: { target: Ref<unknown>; contentEl: Ref<HTMLElement | undefined> },
-  _props: unknown,
-  contentStyles: Ref<Record<string, string>>,
-) {
-  function place() {
-    const target = data.target.value as HTMLElement | [number, number] | undefined;
-    const content = data.contentEl.value;
-    if (!target || !content) return;
-    const rect = Array.isArray(target)
-      ? { left: target[0], right: target[0], top: target[1], bottom: target[1] }
-      : target.getBoundingClientRect();
-    const width = content.offsetWidth;
-    const height = content.offsetHeight;
-    const left = Math.min(
-      Math.max(VIEWPORT_MARGIN, (rect.left + rect.right) / 2 - width / 2),
-      window.innerWidth - width - VIEWPORT_MARGIN,
-    );
-    let top = rect.bottom + PAD_GAP;
-    if (top + height > window.innerHeight - VIEWPORT_MARGIN) {
-      top = Math.max(VIEWPORT_MARGIN, rect.top - PAD_GAP - height);
-    }
-    contentStyles.value = { position: "fixed", left: `${left}px`, top: `${top}px` };
-  }
-  // The content has its size only once it's rendered; until then it stays
-  // hidden rather than flash in a corner.
-  contentStyles.value = { position: "fixed", visibility: "hidden" };
-  requestAnimationFrame(place);
-  return { updateLocation: place };
-}
+// While the pad is open it stays where it opened: the menu places itself once,
+// when it opens, and does not follow the activator as typing resizes it.
 
 watch(open, (value) => {
   if (value) {
@@ -400,7 +364,7 @@ defineExpose({ focus });
 
 .number-pad-activator:hover,
 .number-pad-activator:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.09);
+  background: rgba(var(--k-theme-primary), 0.09);
   outline: none;
 }
 
@@ -410,12 +374,12 @@ defineExpose({ focus });
 }
 
 .number-pad-activator--error {
-  color: rgb(var(--v-theme-error));
+  color: rgb(var(--k-theme-error));
 }
 
 .number-pad-activator--keyboard:focus {
-  background: rgba(var(--v-theme-primary), 0.14);
-  outline: 2px solid rgba(var(--v-theme-primary), 0.5);
+  background: rgba(var(--k-theme-primary), 0.14);
+  outline: 2px solid rgba(var(--k-theme-primary), 0.5);
   outline-offset: 1px;
 }
 

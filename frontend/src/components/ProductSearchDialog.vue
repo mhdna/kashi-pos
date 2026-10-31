@@ -1,23 +1,23 @@
 <template>
-  <v-dialog
+  <k-dialog
     v-model="dialog"
     class="product-search-dialog"
     max-width="none"
     width="auto"
   >
     <template v-if="showActivator" #activator="{ props: activatorProps }">
-      <v-btn
+      <k-btn
         v-bind="activatorProps"
         :icon="!activatorText"
         :aria-label="activatorText || 'Add products'"
         variant="text"
         class="ms-1"
       >
-        <v-icon :icon="activatorIcon" size="20" :class="{ 'me-1': Boolean(activatorText) }" />
+        <k-icon :icon="activatorIcon" size="20" :class="{ 'me-1': Boolean(activatorText) }" />
         <template v-if="activatorText">{{ activatorText }}</template>
-      </v-btn>
+      </k-btn>
     </template>
-    <v-card class="product-list-card" @mousedown="keepFieldFocus">
+    <k-card class="product-list-card" @mousedown="keepFieldFocus">
       <ProductSearchResults
         class="product-search-results"
         :search="search"
@@ -27,15 +27,15 @@
         :hidden-fields="hiddenFields"
         @select="selectProduct"
       />
-      <v-divider />
+      <k-divider />
       <ProductSearchKeyboard
         v-model="search"
         v-model:grid-mode="gridMode"
         :code-only="codeOnly"
         @close="dialog = false"
       />
-    </v-card>
-  </v-dialog>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script lang="ts" setup>
@@ -108,7 +108,7 @@ defineExpose({ openDialog });
   min-height: 0;
 }
 
-:global(.product-search-dialog .v-overlay__content) {
+:global(.product-search-dialog .k-overlay__content) {
   position: fixed;
   top: 0;
   right: 0;
@@ -122,7 +122,7 @@ defineExpose({ openDialog });
   margin: 0;
 }
 
-:global(.kashi-compact .product-search-dialog .v-overlay__content) {
+:global(.kashi-compact .product-search-dialog .k-overlay__content) {
   left: 80px;
 }
 </style>

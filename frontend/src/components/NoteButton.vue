@@ -1,7 +1,7 @@
 <template>
   <div class="header-btn-wrap">
     <div class="header-btn-subtitle">Note</div>
-    <v-btn
+    <k-btn
       size="small"
       variant="text"
       aria-label="Invoice note"
@@ -9,8 +9,8 @@
       :class="{ 'note-has-content': hasNote }"
       @click="openNoteDialog"
     >
-      <v-icon :icon="noteIcon" size="20" class="flex-shrink-0" />
-    </v-btn>
+      <k-icon :icon="noteIcon" size="20" class="flex-shrink-0" />
+    </k-btn>
   </div>
 </template>
 
@@ -38,7 +38,7 @@ function openNoteDialog() {
 .header-btn-subtitle {
   font-size: 0.8rem;
   line-height: 1.2;
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  color: rgba(var(--k-theme-on-surface), 0.6);
   margin-bottom: 2px;
 }
 
@@ -50,7 +50,7 @@ function openNoteDialog() {
 .note-btn {
   width: auto;
   height: 35px;
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  color: rgba(var(--k-theme-on-surface), 0.6);
 }
 
 .note-btn.note-has-content {

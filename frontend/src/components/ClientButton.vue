@@ -2,7 +2,7 @@
   <div class="header-btn-wrap">
     <div class="header-btn-subtitle">Client</div>
     <div class="header-btn-anchor">
-      <v-btn
+      <k-btn
         size="small"
         color="teal-darken-1"
         variant="tonal"
@@ -11,10 +11,10 @@
         :class="{ 'missing-selection-pulse': pulseClient }"
         @click="dialog = true"
       >
-        <v-icon icon="mdi-account-outline" size="16" class="me-1 flex-shrink-0" />
+        <k-icon icon="mdi-account-outline" size="16" class="me-1 flex-shrink-0" />
         <span class="header-fixed-width-btn-label">{{ clientSelected ? client.name.split(" ")[0] : "Client" }}</span>
-      </v-btn>
-      <v-btn
+      </k-btn>
+      <k-btn
         v-if="clientSelected && client.id !== 0"
         icon
         size="x-small"
@@ -25,8 +25,8 @@
         aria-label="Edit client"
         @click.stop="editDialog = true"
       >
-        <v-icon icon="mdi-pencil" size="12" />
-      </v-btn>
+        <k-icon icon="mdi-pencil" size="12" />
+      </k-btn>
     </div>
   </div>
   <ClientDialog v-model="dialog" @select="chooseClient" />
@@ -62,7 +62,7 @@ function chooseClient(chosen: Parameters<typeof setClient>[0]) {
 .header-btn-subtitle {
   font-size: 0.8rem;
   line-height: 1.2;
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  color: rgba(var(--k-theme-on-surface), 0.6);
   margin-bottom: 2px;
 }
 .header-btn-anchor {
@@ -79,7 +79,7 @@ function chooseClient(chosen: Parameters<typeof setClient>[0]) {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(var(--v-border-color), 0.3);
+  box-shadow: 0 0 0 1px rgba(var(--k-border-color), 0.3);
 }
 .header-fixed-width-btn-label {
   min-width: 0;
@@ -95,10 +95,10 @@ function chooseClient(chosen: Parameters<typeof setClient>[0]) {
 @keyframes missing-selection-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0);
+    box-shadow: 0 0 0 0 rgba(var(--k-theme-warning), 0);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(var(--v-theme-warning), 0.32);
+    box-shadow: 0 0 0 8px rgba(var(--k-theme-warning), 0.32);
   }
 }
 </style>

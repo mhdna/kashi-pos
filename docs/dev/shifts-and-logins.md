@@ -31,6 +31,19 @@ Code: `shifts.go`, `shift_auto_swap.go`, `shift_upload_server.go`,
   - `local`: the QR points at the till's own server (`0.0.0.0:8788`,
     `KASHI_SHIFT_UPLOAD_LISTEN`); the photo is forwarded to kashi later.
   - `hybrid`: central, falling back to local if kashi can't be reached.
+- **Monthly total on the shifts page** (`GetMonthSales`): counted the way
+  kashi's reports count net sales, so the two agree: every sale by the local
+  day it was rung up (not the shift it fell in), returns netted, cancelled
+  sales and their refunds left out, coupons counted. Under the total it says
+  how much of it is "calculate on checkout" coupons and how much is on
+  account. Each day's figure is that day's sales; a shift row under a day
+  still shows its own whole total. Branch-target progress is different: it
+  still leaves those coupons out.
+- **Goodbye** (`CloseShiftCard.vue`): once the shift is closed and the photo
+  is in (or a manager skipped it, or none was needed), the closing salesperson
+  gets a thank-you by name and the choice to shut the
+  computer down (`ShutDownComputer`, as in the Quit dialog; refused in a
+  development build) or just log out.
 - The shift receipt's sign-off lines (`shift_report_signatures`, on) and
   capital-letter header (`shift_report_uppercase_header`, off) are switches.
 - kashi can correct a closed shift's balances (`replace_shift_balance`) and

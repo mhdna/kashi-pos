@@ -1,17 +1,17 @@
 <template>
   <div class="attendance-page pa-4">
     <div :class="['status-card mb-4', status.reachable ? 'status-card--ok' : 'status-card--down']">
-      <v-icon :icon="status.reachable ? 'mdi-lan-connect' : 'mdi-lan-disconnect'" size="40" />
+      <k-icon :icon="status.reachable ? 'mdi-lan-connect' : 'mdi-lan-disconnect'" size="40" />
       <div class="status-card-text">
         <div class="status-card-title">
           {{ status.reachable ? "Attendance machine is working" : "Attendance machine is not connected" }}
         </div>
         <div v-if="status.reachable" class="status-card-hint">
-          <v-icon icon="mdi-check-circle" size="18" />Clock-ins are being saved
+          <k-icon icon="mdi-check-circle" size="18" />Clock-ins are being saved
         </div>
         <div v-else class="status-card-hint">
-          <v-icon icon="mdi-ethernet-cable" size="18" />Check the cable
-          <v-icon icon="mdi-account-tie" size="18" class="ms-3" />Tell your manager
+          <k-icon icon="mdi-ethernet-cable" size="18" />Check the cable
+          <k-icon icon="mdi-account-tie" size="18" class="ms-3" />Tell your manager
         </div>
         <div v-if="auth.isAdmin && !status.reachable && status.message" class="text-caption mt-1">
           {{ status.message }}
@@ -20,7 +20,7 @@
       <div class="status-face" aria-hidden="true">{{ status.reachable ? ":)" : ":(" }}</div>
     </div>
     <div class="d-flex align-center mb-4 ga-3">
-      <v-text-field
+      <k-text-field
         v-if="canBrowseHistory"
         v-model="selectedDate"
         type="date"
@@ -30,7 +30,7 @@
         hide-details
         style="max-width: 190px"
         @change="refresh()"
-      /><v-text-field
+      /><k-text-field
         v-if="auth.isAdmin"
         v-model="selectedMonth"
         type="month"
@@ -40,67 +40,67 @@
         hide-details
         style="max-width: 190px"
         @change="loadHistory"
-      /><v-spacer /><v-btn
+      /><k-spacer /><k-btn
         v-if="auth.isLoggedIn"
         variant="tonal"
         prepend-icon="mdi-message-draw"
         class="me-1"
         :disabled="!rows.length"
         @click="openRequestDialog"
-        >Request change</v-btn
-      ><v-menu v-if="auth.isLoggedIn" :close-on-content-click="false">
+        >Request change</k-btn
+      ><k-menu v-if="auth.isLoggedIn" :close-on-content-click="false">
         <template #activator="{ props }">
-          <v-btn v-bind="props" variant="tonal" prepend-icon="mdi-clipboard-check-outline" class="me-1">
+          <k-btn v-bind="props" variant="tonal" prepend-icon="mdi-clipboard-check-outline" class="me-1">
             Requests<span v-if="pendingComplaints.length" class="ms-1">({{ pendingComplaints.length }})</span>
-          </v-btn>
+          </k-btn>
         </template>
-        <v-card min-width="390" max-width="520">
-          <v-card-title class="d-flex align-center">Attendance requests<v-spacer /><span class="text-caption text-medium-emphasis">{{ pendingComplaints.length }} pending</span></v-card-title>
-          <v-divider />
-          <v-list v-if="pendingComplaints.length" density="compact">
-            <v-list-item v-for="item in pendingComplaints" :key="item.id">
-              <v-list-item-title>{{ item.employeeName }} · {{ item.date }}</v-list-item-title>
-              <v-list-item-subtitle>{{ requestSummary(item) }}</v-list-item-subtitle>
+        <k-card min-width="390" max-width="520">
+          <k-card-title class="d-flex align-center">Attendance requests<k-spacer /><span class="text-caption text-medium-emphasis">{{ pendingComplaints.length }} pending</span></k-card-title>
+          <k-divider />
+          <k-list v-if="pendingComplaints.length" density="compact">
+            <k-list-item v-for="item in pendingComplaints" :key="item.id">
+              <k-list-item-title>{{ item.employeeName }} · {{ item.date }}</k-list-item-title>
+              <k-list-item-subtitle>{{ requestSummary(item) }}</k-list-item-subtitle>
               <template v-if="managerApproval" #append>
-                <v-btn size="small" variant="text" color="error" @click="askManager({ kind: 'review', request: item, approved: false })">Reject</v-btn>
-                <v-btn size="small" variant="tonal" color="primary" @click="askManager({ kind: 'review', request: item, approved: true })">Approve</v-btn>
+                <k-btn size="small" variant="text" color="error" @click="askManager({ kind: 'review', request: item, approved: false })">Reject</k-btn>
+                <k-btn size="small" variant="tonal" color="primary" @click="askManager({ kind: 'review', request: item, approved: true })">Approve</k-btn>
               </template>
-            </v-list-item>
-          </v-list>
-          <v-card-text v-else class="text-medium-emphasis">No pending attendance requests.</v-card-text>
-        </v-card>
-      </v-menu><v-btn v-if="canBrowseHistory" icon="mdi-chevron-left" variant="text" @click="moveDay(-1)" /><v-btn v-if="canBrowseHistory" icon="mdi-chevron-right" variant="text" @click="moveDay(1)" /><v-btn
+            </k-list-item>
+          </k-list>
+          <k-card-text v-else class="text-medium-emphasis">No pending attendance requests.</k-card-text>
+        </k-card>
+      </k-menu><k-btn v-if="canBrowseHistory" icon="mdi-chevron-left" variant="text" @click="moveDay(-1)" /><k-btn v-if="canBrowseHistory" icon="mdi-chevron-right" variant="text" @click="moveDay(1)" /><k-btn
         v-if="auth.isAdmin"
         variant="tonal"
         class="me-2"
         prepend-icon="mdi-download"
         @click="exportMonth"
-        >Export month</v-btn
-      ><v-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh()" />
+        >Export month</k-btn
+      ><k-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh()" />
     </div>
-    <v-card class="attendance-card">
-      <v-card-title class="d-flex align-center">
-        {{ selectedDate }}<v-spacer /><span class="text-caption text-medium-emphasis"
+    <k-card class="attendance-card">
+      <k-card-title class="d-flex align-center">
+        {{ selectedDate }}<k-spacer /><span class="text-caption text-medium-emphasis"
           >{{ presentRows.length }} employees</span
         >
-      </v-card-title>
-      <v-progress-linear :active="loading" absolute location="top" indeterminate color="primary" />
-      <v-list lines="two" class="attendance-list pa-2">
-        <v-list-item
+      </k-card-title>
+      <k-progress-linear :active="loading" absolute location="top" indeterminate color="primary" />
+      <k-list lines="two" class="attendance-list pa-2">
+        <k-list-item
           v-for="item in presentRows"
           :key="item.employeeId"
           class="attendance-item"
           rounded="lg"
         >
           <template #prepend>
-            <v-avatar :color="salespersonColor({ color: item.color, fullName: item.employeeName })" class="me-3">
+            <k-avatar :color="salespersonColor({ color: item.color, fullName: item.employeeName })" class="me-3">
               {{ item.employeeName?.charAt(0)?.toUpperCase() || "?" }}
-            </v-avatar>
+            </k-avatar>
           </template>
           <div class="attendance-item__main">
             <div class="attendance-identity">
-              <v-list-item-title class="font-weight-bold">{{ item.employeeName }}</v-list-item-title>
-              <v-list-item-subtitle>Attendance ID: {{ item.userId || "—" }}</v-list-item-subtitle>
+              <k-list-item-title class="font-weight-bold">{{ item.employeeName }}</k-list-item-title>
+              <k-list-item-subtitle>Attendance ID: {{ item.userId || "—" }}</k-list-item-subtitle>
             </div>
             <div class="attendance-item__body">
               <div class="attendance-events">
@@ -119,17 +119,17 @@
               </div>
             </div>
           </div>
-        </v-list-item>
-        <v-list-item v-if="!presentRows.length && !loading" class="attendance-empty text-medium-emphasis">
+        </k-list-item>
+        <k-list-item v-if="!presentRows.length && !loading" class="attendance-empty text-medium-emphasis">
           No attendance records for this day.
-        </v-list-item>
-      </v-list>
-    </v-card>
-    <v-dialog v-model="complaintDialog" max-width="440"
-      ><v-card
-        ><v-card-title>Request attendance change</v-card-title
-        ><v-card-text
-          ><v-select
+        </k-list-item>
+      </k-list>
+    </k-card>
+    <k-dialog v-model="complaintDialog" max-width="440"
+      ><k-card
+        ><k-card-title>Request attendance change</k-card-title
+        ><k-card-text
+          ><k-select
             v-model="complaintAction"
             :items="complaintActionOptions"
             item-title="title"
@@ -139,7 +139,7 @@
             density="compact"
             hide-details
             class="attendance-action-field mb-2"
-          /><v-select
+          /><k-select
             :model-value="complaintEmployee?.employeeId ?? null"
             :items="complaintPeople"
             item-title="employeeName"
@@ -151,7 +151,7 @@
             hide-details
             class="mb-2"
             @update:model-value="selectComplaintPerson"
-          /><v-select
+          /><k-select
             v-if="complaintAction !== 'add'"
             v-model="complaintEventId"
             :items="complaintEventOptions"
@@ -171,7 +171,7 @@
                 <span class="attendance-time-field__separator">:</span>
                 <NumberPadMenu v-model="complaintMinute" :max="59" :max-length="2" preserve-string suffix="m" aria-label="Corrected minute" />
               </div>
-            </div><v-select
+            </div><k-select
               v-if="complaintAction !== 'delete'"
               v-model="complaintType"
               :items="['IN', 'OUT']"
@@ -181,31 +181,31 @@
               hide-details
               class="attendance-type-field"
             />
-          </div></v-card-text
-        ><v-card-actions
-          ><v-btn variant="text" @click="complaintDialog = false">Cancel</v-btn><v-spacer /><v-btn
+          </div></k-card-text
+        ><k-card-actions
+          ><k-btn variant="text" @click="complaintDialog = false">Cancel</k-btn><k-spacer /><k-btn
             v-if="managerApproval && complaintAction === 'add'"
             variant="tonal"
             title="Record it now with the manager password, without waiting for approval"
             :disabled="!complaintEmployee"
             @click="askManager({ kind: 'add' })"
-            >Add now (manager)</v-btn
-          ><v-btn
+            >Add now (manager)</k-btn
+          ><k-btn
             color="primary"
             :loading="savingComplaint"
             :disabled="!complaintEmployee || (complaintAction !== 'add' && !complaintEventId)"
             @click="submitComplaint"
-            >Submit request</v-btn
-          ></v-card-actions
-        ></v-card
-      ></v-dialog
+            >Submit request</k-btn
+          ></k-card-actions
+        ></k-card
+      ></k-dialog
     >
-    <v-dialog v-model="managerDialog.show" max-width="380">
-      <v-card>
-        <v-card-title>Manager approval</v-card-title>
-        <v-card-text>
+    <k-dialog v-model="managerDialog.show" max-width="380">
+      <k-card>
+        <k-card-title>Manager approval</k-card-title>
+        <k-card-text>
           <p class="mb-3">{{ managerDialogText }}</p>
-          <v-text-field
+          <k-text-field
             v-model="managerDialog.password"
             type="password"
             placeholder="Manager password"
@@ -215,13 +215,13 @@
             :error-messages="managerDialog.error"
             @keyup.enter="confirmManager"
           />
-        </v-card-text>
-        <v-card-actions>
-          <v-btn variant="text" @click="managerDialog.show = false">Cancel</v-btn><v-spacer />
-          <v-btn color="primary" :loading="managerDialog.saving" @click="confirmManager">Confirm</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </k-card-text>
+        <k-card-actions>
+          <k-btn variant="text" @click="managerDialog.show = false">Cancel</k-btn><k-spacer />
+          <k-btn color="primary" :loading="managerDialog.saving" @click="confirmManager">Confirm</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -640,23 +640,23 @@ onUnmounted(() => {
    many punches spilled onto the card below. As a flex row the card grows
    with them. */
 .attendance-item {
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   min-height: 180px;
   margin: 0;
   display: flex;
   align-items: flex-start;
   height: auto;
 }
-.attendance-item :deep(.v-list-item__content) {
+.attendance-item :deep(.k-list-item__content) {
   flex: 1 1 auto;
   min-width: 0;
   overflow: visible;
 }
-.attendance-item :deep(.v-list-item__prepend) {
+.attendance-item :deep(.k-list-item__prepend) {
   align-self: flex-start;
   padding-top: 4px;
 }
-.attendance-item :deep(.v-list-item__content) {
+.attendance-item :deep(.k-list-item__content) {
   align-self: flex-start;
 }
 .attendance-item__main {
@@ -724,7 +724,7 @@ onUnmounted(() => {
   gap: 12px;
   min-height: 40px;
   padding: 0 12px;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 4px;
 }
 .attendance-correction-row {
@@ -743,7 +743,7 @@ onUnmounted(() => {
   width: 100%;
 }
 .attendance-time-field__label {
-  color: rgba(var(--v-theme-on-surface), 0.7);
+  color: rgba(var(--k-theme-on-surface), 0.7);
   font-size: 0.875rem;
 }
 .attendance-time-field__controls {
@@ -803,7 +803,7 @@ onUnmounted(() => {
     min-height: auto;
     text-align: left;
   }
-  .attendance-item__body .v-btn {
+  .attendance-item__body .k-btn {
     align-self: flex-start;
   }
 }

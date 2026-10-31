@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="open" fullscreen :scrim="false" transition="fade-transition">
+  <k-dialog v-model="open" fullscreen :scrim="false">
     <div
       ref="stage"
       class="photo-viewer"
@@ -18,14 +18,14 @@
         draggable="false"
         :style="{ transform: `translate(${x}px, ${y}px) scale(${scale})` }"
       />
-      <v-btn class="photo-viewer-close" icon="mdi-close" variant="flat" aria-label="Close" @pointerdown.stop @click="open = false" />
+      <k-btn class="photo-viewer-close" icon="mdi-close" variant="flat" aria-label="Close" @pointerdown.stop @click="open = false" />
       <template v-if="photos.length > 1">
-        <v-btn class="photo-viewer-nav photo-viewer-nav--prev" icon="mdi-chevron-left" variant="flat" aria-label="Previous photo" @pointerdown.stop @click="step(-1)" />
-        <v-btn class="photo-viewer-nav photo-viewer-nav--next" icon="mdi-chevron-right" variant="flat" aria-label="Next photo" @pointerdown.stop @click="step(1)" />
+        <k-btn class="photo-viewer-nav photo-viewer-nav--prev" icon="mdi-chevron-left" variant="flat" aria-label="Previous photo" @pointerdown.stop @click="step(-1)" />
+        <k-btn class="photo-viewer-nav photo-viewer-nav--next" icon="mdi-chevron-right" variant="flat" aria-label="Next photo" @pointerdown.stop @click="step(1)" />
         <div class="photo-viewer-count">{{ index + 1 }} / {{ photos.length }}</div>
       </template>
     </div>
-  </v-dialog>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">

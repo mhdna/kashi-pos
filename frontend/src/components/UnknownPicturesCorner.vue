@@ -1,7 +1,7 @@
 <template>
-  <v-menu location="top" :close-on-content-click="false">
+  <k-menu location="top" :close-on-content-click="false">
     <template #activator="{ props: menuProps }">
-      <v-card
+      <k-card
         v-bind="menuProps"
         class="unknown-corner d-flex align-center ga-3 pa-2 mx-3 mb-2"
         :class="{ 'unknown-corner--done': complete }"
@@ -10,8 +10,8 @@
       >
         <img v-if="qrDataUrl" alt="Unknown item pictures QR code" :src="qrDataUrl" class="unknown-corner__qr" />
         <div v-else class="unknown-corner__qr d-flex align-center justify-center">
-          <v-progress-circular v-if="!errorText" indeterminate size="28" />
-          <v-icon v-else color="warning" icon="mdi-alert-circle-outline" size="32" />
+          <k-progress-circular v-if="!errorText" indeterminate size="28" />
+          <k-icon v-else color="warning" icon="mdi-alert-circle-outline" size="32" />
         </div>
         <div class="flex-grow-1" style="min-width: 0; line-height: 1.35">
           <div class="text-subtitle-1 font-weight-bold">Unknown items need a picture</div>
@@ -20,21 +20,21 @@
             امسح الرمز والتقط صورة لكل قطعة غير معروف كودها طبقا للسعر
           </div>
           <div class="d-flex align-center ga-1 mt-1 text-body-2 font-weight-medium" :class="complete ? 'text-success' : 'text-medium-emphasis'">
-            <v-icon :icon="complete ? 'mdi-check-circle' : 'mdi-camera-outline'" size="18" />
+            <k-icon :icon="complete ? 'mdi-check-circle' : 'mdi-camera-outline'" size="18" />
             {{ errorText ? "No QR code yet, retrying…" : `${doneCount} of ${lines.length} pictured` }}
           </div>
         </div>
-      </v-card>
+      </k-card>
     </template>
-    <v-card class="pa-4 text-center" max-width="320">
+    <k-card class="pa-4 text-center" max-width="320">
       <img v-if="qrDataUrl" alt="Unknown item pictures QR code" :src="qrDataUrl" style="width: 260px; height: 260px" />
       <div class="text-body-1 mt-2">Scan, then photograph each item.</div>
       <div class="text-body-2 text-medium-emphasis" dir="rtl" lang="ar">
         امسح الرمز والتقط صورة لكل قطعة غير معروف كودها طبقا للسعر
       </div>
       <div v-if="errorText" class="text-caption text-warning mt-2">{{ errorText }}</div>
-    </v-card>
-  </v-menu>
+    </k-card>
+  </k-menu>
 </template>
 
 <script setup lang="ts">
@@ -156,7 +156,7 @@ onBeforeUnmount(() => {
   user-select: none;
 }
 .unknown-corner--done {
-  border-color: rgb(var(--v-theme-success));
+  border-color: rgb(var(--k-theme-success));
 }
 .unknown-corner__qr {
   width: 112px;

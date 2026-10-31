@@ -1,7 +1,7 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="360" @update:model-value="emit('update:modelValue', $event)">
-    <v-card class="pa-4">
-      <v-card-title class="px-0 pt-0 text-center text-h5">Unknown item</v-card-title>
+  <k-dialog :model-value="modelValue" max-width="360" @update:model-value="emit('update:modelValue', $event)">
+    <k-card class="pa-4">
+      <k-card-title class="px-0 pt-0 text-center text-h5">Unknown item</k-card-title>
       <div class="text-h5 text-medium-emphasis text-center mb-3">
         Type the price<br />
         <span dir="rtl" lang="ar">أدخل سعر القطعة</span>
@@ -10,20 +10,20 @@
         ${{ display }}
       </div>
       <div class="unknown-keypad">
-        <v-btn v-for="key in keys" :key="key" class="unknown-key" variant="tonal" :aria-label="key" @click="press(key)">
+        <k-btn v-for="key in keys" :key="key" class="unknown-key" variant="tonal" :aria-label="key" @click="press(key)">
           {{ key }}
-        </v-btn>
-        <v-btn class="unknown-key" variant="tonal" aria-label="Delete" @click="backspace">
-          <v-icon icon="mdi-backspace-outline" size="26" />
-        </v-btn>
+        </k-btn>
+        <k-btn class="unknown-key" variant="tonal" aria-label="Delete" @click="backspace">
+          <k-icon icon="mdi-backspace-outline" size="26" />
+        </k-btn>
       </div>
-      <v-card-actions class="px-0 pb-0 mt-3">
-        <v-btn variant="text" @click="emit('update:modelValue', false)">Cancel</v-btn>
-        <v-spacer />
-        <v-btn color="primary" :disabled="!(price > 0)" variant="flat" @click="add">Add</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+      <k-card-actions class="px-0 pb-0 mt-3">
+        <k-btn variant="text" @click="emit('update:modelValue', false)">Cancel</k-btn>
+        <k-spacer />
+        <k-btn color="primary" :disabled="!(price > 0)" variant="flat" @click="add">Add</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 </template>
 
 <script setup lang="ts">
@@ -103,7 +103,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
   width: min(100%, 280px);
 }
 .unknown-key {
-  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border: 1px solid rgba(var(--k-border-color), 0.18);
   border-radius: 4px;
   font-size: 2rem !important;
   height: 100% !important;

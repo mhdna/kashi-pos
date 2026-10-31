@@ -1,7 +1,7 @@
 <template>
   <div v-if="sorted.length" class="targets-progress">
     <div class="targets-progress-title text-caption font-weight-bold text-medium-emphasis">
-      <v-icon icon="mdi-flag-outline" size="14" class="me-1" />
+      <k-icon icon="mdi-flag-outline" size="14" class="me-1" />
       Targets
     </div>
     <div class="target-stack">
@@ -81,14 +81,14 @@ function formatDate(value: string) {
   width: 100%;
   height: 12px;
   border-radius: 6px;
-  background: rgba(var(--v-theme-on-surface), 0.08);
+  background: rgba(var(--k-theme-on-surface), 0.08);
   overflow: hidden;
 }
 
 .target-fill {
   height: 100%;
   border-radius: 6px;
-  background-color: rgb(var(--v-theme-primary));
+  background-color: rgb(var(--k-theme-primary));
   background-image: repeating-linear-gradient(
     45deg,
     rgba(255, 255, 255, 0.18) 0,
@@ -102,6 +102,6 @@ function formatDate(value: string) {
   display: flex;
   justify-content: space-between;
   font-size: 0.75rem;
-  color: rgba(var(--v-theme-on-surface), 0.7);
+  color: rgba(var(--k-theme-on-surface), 0.7);
 }
 </style>

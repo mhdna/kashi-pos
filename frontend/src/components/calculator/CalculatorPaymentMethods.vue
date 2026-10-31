@@ -5,7 +5,7 @@
     role="list"
     aria-label="Payment methods"
   >
-    <v-card
+    <k-card
       v-for="method in methods"
       :key="method.name"
       class="calculator-type-card"
@@ -18,13 +18,13 @@
       @keydown.enter="$emit('select', method.name)"
       @keydown.space.prevent="$emit('select', method.name)"
     >
-      <v-card-text class="calculator-type-card-text text-center py-2 px-1">
+      <k-card-text class="calculator-type-card-text text-center py-2 px-1">
         <div class="payment-method-name text-h6 font-weight-bold">{{ method.displayName }}</div>
         <div v-if="props.showCurrency" class="payment-method-currency text-body-1 text-medium-emphasis">
           {{ method.currencyCode }}
         </div>
-      </v-card-text>
-    </v-card>
+      </k-card-text>
+    </k-card>
   </div>
 </template>
 
@@ -60,7 +60,7 @@ defineEmits<{ select: [methodName: string] }>();
   cursor: pointer;
   background: transparent !important;
   box-shadow: none !important;
-  border: 1px solid rgba(var(--v-border-color), 0.18);
+  border: 1px solid rgba(var(--k-border-color), 0.18);
   border-top: 10px solid var(--payment-accent);
   height: 62px;
   display: flex;
@@ -76,7 +76,7 @@ defineEmits<{ select: [methodName: string] }>();
   width: 100%;
   font-size: 1.1rem !important;
   line-height: 1.25;
-  color: rgb(var(--v-theme-on-surface));
+  color: rgb(var(--k-theme-on-surface));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -8,7 +8,7 @@
       v-for="(item, index) in displayItems"
       :key="`${items.length - 1 - index}-${item.barcode || item.code}`"
     >
-      <v-list-item :class="{ 'invoice-item-unknown': isUnknownItem(item) }">
+      <k-list-item :class="{ 'invoice-item-unknown': isUnknownItem(item) }">
         <template #title>
           <button
             class="invoice-item-details-trigger"
@@ -28,7 +28,7 @@
             <!-- Beside the name and code, centred on both. -->
             <!-- Summer and Winter are just their icon (the name on hover); any
                  other option keeps its name. -->
-            <v-icon
+            <k-icon
               v-if="item.saleOption && saleOptionIcon(item.saleOption)"
               class="invoice-item-sale-option"
               :color="saleOptionIcon(item.saleOption)!.color"
@@ -36,7 +36,7 @@
               size="22"
               :title="item.saleOption"
             />
-            <v-chip
+            <k-chip
               v-else-if="item.saleOption"
               class="invoice-item-sale-option"
               label
@@ -46,7 +46,7 @@
             />
             <!-- The line's deal in short ("B2G1"), and how many of its
                  units it gives free; the deal's full name shows on hover. -->
-            <v-chip
+            <k-chip
               v-if="dealFor(item)"
               class="invoice-item-sale-option"
               :color="dealFor(item)!.freeQty ? 'success' : dealFor(item)!.discountCents ? 'deep-purple' : undefined"
@@ -56,14 +56,30 @@
               :variant="dealFor(item)!.discountCents ? 'flat' : 'outlined'"
               @click="onDealChipClick($event, item)"
             >
-              <v-icon class="me-1" icon="mdi-gift-outline" size="14" />
+              <k-icon class="me-1" icon="mdi-gift-outline" size="14" />
               <span class="invoice-deal-chip-text">
                 <span>{{ dealChipLines(item)[0] }}</span>
                 <span v-if="dealChipLines(item)[1]" class="invoice-deal-chip-sub">{{ dealChipLines(item)[1] }}</span>
               </span>
-            </v-chip>
+            </k-chip>
+            <!-- An unknown item taken out of the deal; tap to pick one. -->
+            <k-chip
+              v-else-if="unknownDealFor(item) === 'none'"
+              class="invoice-item-sale-option"
+              color="grey"
+              label
+              size="x-small"
+              title="No deal · tap to change"
+              variant="outlined"
+              @click="onDealChipClick($event, item)"
+            >
+              <k-icon class="me-1" icon="mdi-tag-off-outline" size="14" />
+              <span class="invoice-deal-chip-text">
+                <span>No deal</span>
+              </span>
+            </k-chip>
             <!-- The deal a salesperson turned off on this line; tap to give it back. -->
-            <v-chip
+            <k-chip
               v-else-if="offDealFor(item)"
               class="invoice-item-sale-option"
               color="grey"
@@ -73,12 +89,12 @@
               variant="outlined"
               @click="onDealChipClick($event, item)"
             >
-              <v-icon class="me-1" icon="mdi-tag-off-outline" size="14" />
+              <k-icon class="me-1" icon="mdi-tag-off-outline" size="14" />
               <span class="invoice-deal-chip-text">
                 <span class="text-decoration-line-through">{{ offDealFor(item) }}</span>
                 <span class="invoice-deal-chip-sub">off</span>
               </span>
-            </v-chip>
+            </k-chip>
           </button>
         </template>
         <template #append>
@@ -157,7 +173,7 @@
                   @blur="onBlur"
                 >
                   <span class="invoice-price-value">
-                    <v-icon
+                    <k-icon
                       v-if="item.priceListOverridden"
                       icon="mdi-star"
                       color="amber-darken-2"
@@ -169,7 +185,7 @@
                       <span class="text-caption font-weight-bold">{{ signedPrice(totalAfterDiscount(item)) }}</span>
                     </span>
                     <span v-if="showDiscountChips" class="invoice-price-discount">
-                      <v-chip
+                      <k-chip
                         v-if="canToggleDiscount(item) && chipDiscount(item)"
                         :color="item.discountOff ? 'grey' : 'red'"
                         density="comfortable"
@@ -178,9 +194,9 @@
                         :variant="item.discountOff ? 'outlined' : 'tonal'"
                         @click="onDiscountChipClick($event, item)"
                       >
-                        <v-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
+                        <k-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
                         <span :class="{ 'text-decoration-line-through': item.discountOff }">-{{ chipDiscount(item) }}%</span>
-                      </v-chip>
+                      </k-chip>
                     </span>
                   </span>
                 </button>
@@ -188,7 +204,7 @@
             </NumberPadMenu>
             <div v-else class="invoice-price-control d-flex flex-column align-center">
               <span class="invoice-price-value">
-                <v-icon
+                <k-icon
                   v-if="item.priceListOverridden"
                   icon="mdi-star"
                   color="amber-darken-2"
@@ -203,7 +219,7 @@
                      centred on them. While any line has one, the slot is
                      there (empty) on every line so the prices line up. -->
                 <span v-if="showDiscountChips" class="invoice-price-discount">
-                  <v-chip
+                  <k-chip
                     v-if="chipDiscount(item) && !discountEditable(item)"
                     :color="item.discountOff ? 'grey' : 'red'"
                     density="comfortable"
@@ -219,74 +235,106 @@
                     "
                     @click="onDiscountChipClick($event, item)"
                   >
-                    <v-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
+                    <k-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
                     <span :class="{ 'text-decoration-line-through': item.discountOff }">-{{ chipDiscount(item) }}%</span>
-                    <v-icon
+                    <k-icon
                       v-if="item.discountListOverridden"
                       class="ms-1"
                       icon="mdi-star"
                       color="amber-darken-2"
                       size="10"
                     />
-                  </v-chip>
+                  </k-chip>
                 </span>
               </span>
             </div>
             <div class="invoice-delete-control">
               <!-- A returned line in an exchange can't be edited, but it can be
                    taken out when the customer keeps that item after all. -->
-              <v-btn v-if="!readonly" icon variant="text" size="32" @click="removeItem(item)">
-                <v-icon icon="mdi-delete" size="18" color="grey" />
-              </v-btn>
+              <k-btn v-if="!readonly" icon variant="text" size="32" @click="removeItem(item)">
+                <k-icon icon="mdi-delete" size="18" color="grey" />
+              </k-btn>
             </div>
           </div>
         </template>
-      </v-list-item>
+      </k-list-item>
     </div>
 
-    <v-dialog v-model="toggleDialog" width="420" @after-leave="toggleItem = null">
-      <v-card v-if="toggleItem">
-        <v-card-title class="text-wrap">
+    <k-dialog v-model="toggleDialog" width="420" @after-leave="toggleItem = null">
+      <k-card v-if="toggleItem">
+        <k-card-title class="text-wrap">
           {{ toggleIsOff ? `Give the ${toggleKind} back?` : `Turn the ${toggleKind} off?` }}
-        </v-card-title>
-        <v-card-text>
+        </k-card-title>
+        <k-card-text>
           <div class="text-body-1">
             {{ toggleIsOff ? "Give back" : "Remove" }}
             <strong>{{ toggleName }}</strong>
             {{ toggleIsOff ? "on" : "from" }} {{ toggleItem.name }}?
           </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="toggleDialog = false">Cancel</v-btn>
-          <v-btn
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="toggleDialog = false">Cancel</k-btn>
+          <k-btn
             :color="toggleIsOff ? 'primary' : 'red'"
             variant="flat"
             @click="confirmToggle"
           >
             {{ toggleIsOff ? `Give ${toggleKind}` : "Turn off" }}
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          </k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
 
-    <v-dialog v-model="detailsDialog" width="600" height="500" @after-leave="detailItem = null">
-      <v-card v-if="detailItem">
-        <v-card-title class="d-flex align-center">
+    <!-- An unknown item's deal: one of three, always. -->
+    <k-dialog v-model="unknownDealDialog" width="440" @after-leave="unknownDealItem = null">
+      <k-card v-if="unknownDealItem">
+        <k-card-title class="text-wrap">Deal for {{ unknownDealItem.name }}</k-card-title>
+        <k-card-text>
+          <div v-if="hasTypedDiscount(unknownDealItem)" class="text-body-2 text-medium-emphasis mb-3">
+            Picking a deal removes the {{ unknownDealItem.discount }}% discount typed on this item.
+          </div>
+          <div class="unknown-deal-choices">
+            <k-btn
+              v-for="choice in unknownDealChoices"
+              :key="choice.value"
+              block
+              class="unknown-deal-choice"
+              :color="unknownDealFor(unknownDealItem) === choice.value ? 'primary' : undefined"
+              :variant="unknownDealFor(unknownDealItem) === choice.value ? 'flat' : 'outlined'"
+              @click="pickUnknownDeal(choice.value)"
+            >
+              <span class="unknown-deal-choice-text">
+                <span class="font-weight-medium">{{ choice.title }}</span>
+                <span class="text-caption">{{ choice.subtitle }}</span>
+              </span>
+            </k-btn>
+          </div>
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn variant="text" @click="unknownDealDialog = false">Cancel</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
+
+    <k-dialog v-model="detailsDialog" width="600" height="500" @after-leave="detailItem = null">
+      <k-card v-if="detailItem">
+        <k-card-title class="d-flex align-center">
           <div class="min-width-0">
             <div class="text-subtitle-1 text-truncate">{{ detailItem.name }}</div>
             <div class="text-caption text-medium-emphasis">{{ detailItem.code }}</div>
           </div>
-          <v-spacer />
-          <v-btn
+          <k-spacer />
+          <k-btn
             icon="mdi-close"
             variant="text"
             aria-label="Close item details"
             @click="detailsDialog = false"
           />
-        </v-card-title>
-        <v-card-text class="invoice-item-details-content">
-          <v-select
+        </k-card-title>
+        <k-card-text class="invoice-item-details-content">
+          <k-select
             :model-value="detailItem.salespersonId || 0"
             :items="salespersonOptions"
             item-title="title"
@@ -298,7 +346,7 @@
             :menu-props="{ transition: animationsEnabled ? 'fade-transition' : false }"
             @update:model-value="detailItem.salespersonId = Number($event || 0)"
           />
-          <v-textarea
+          <k-textarea
             v-model="detailItem.note"
             placeholder="Add a note about this item"
             prepend-inner-icon="mdi-note-text-outline"
@@ -317,7 +365,7 @@
               class="invoice-unit-line d-flex align-center ga-2"
             >
               <span class="text-caption text-medium-emphasis">Unit {{ unitIndex }}</span>
-              <v-spacer />
+              <k-spacer />
               <NumberPadMenu
                 v-if="canEditUnitDiscount(detailItem)"
                 :ref="(element) => setUnitFieldRef(unitIndex - 1, 'discount', element)"
@@ -365,13 +413,13 @@
               </span>
             </div>
           </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn color="primary" variant="flat" @click="detailsDialog = false">Done</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+        </k-card-text>
+        <k-card-actions>
+          <k-spacer />
+          <k-btn color="primary" variant="flat" @click="detailsDialog = false">Done</k-btn>
+        </k-card-actions>
+      </k-card>
+    </k-dialog>
   </div>
 </template>
 
@@ -392,7 +440,15 @@ import {
   UpdateProductDiscount,
 } from "../../wailsjs/go/main/App";
 import { roundDiscountCents, normalizeRoundingMode } from "@/lib/money";
-import { dealLineKey, dealsByLine, offDealsByLine, type DealLine } from "@/lib/deals";
+import {
+  dealLineKey,
+  dealsByLine,
+  offDealsByLine,
+  unknownDealChoices,
+  unknownDealsByLine,
+  type DealLine,
+  type UnknownDealChoice,
+} from "@/lib/deals";
 import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
@@ -424,6 +480,9 @@ interface LineItem {
   // An unknown item line's own id, so its picture follows it (home.vue
   // unknownUnits).
   unknownRef?: string;
+  // The deal the salesperson picked for an unknown item line; unset is the
+  // till's default (a "Buy 2 get 1").
+  unknownDeal?: UnknownDealChoice;
   saleOptions?: { name: string; discount: number; discountListName?: string }[];
   // The catalog/list price captured when the line was added, before any
   // manual edit. Used as the fixed reference point in "discount" price
@@ -499,6 +558,44 @@ function effectiveUnitPriceAt(item: LineItem, index: number): number {
 
 const dealsByCartLine = computed(() => dealsByLine(props.dealLines ?? []));
 const offDealsByCartLine = computed(() => offDealsByLine(props.dealLines ?? []));
+const unknownDealsByCartLine = computed(() => unknownDealsByLine(props.dealLines ?? []));
+
+// The deal choice in force on an unknown item line, as the quote priced it;
+// undefined on other lines, and when the till has no deal to offer.
+function unknownDealFor(item: LineItem): UnknownDealChoice | undefined {
+  if (!isUnknownItem(item) || item.qty <= 0) return undefined;
+  return unknownDealsByCartLine.value.get(dealLineKey(item));
+}
+
+function canPickUnknownDeal(item: LineItem): boolean {
+  return !readonly.value && !item.locked && item.qty > 0 && unknownDealFor(item) !== undefined;
+}
+
+function hasTypedDiscount(item: LineItem): boolean {
+  return (item.unitDiscounts ?? [item.discount]).some((d) => Number(d) > 0);
+}
+
+const unknownDealDialog = ref(false);
+const unknownDealItem = ref<LineItem | null>(null);
+
+watch(unknownDealDialog, (open) => {
+  if (dialogOpen) dialogOpen.value = open;
+});
+
+function pickUnknownDeal(choice: UnknownDealChoice) {
+  const item = unknownDealItem.value;
+  if (item && canPickUnknownDeal(item)) {
+    item.unknownDeal = choice;
+    // A deal never stacks on another saving: picking one drops the typed
+    // discount, or the backend would keep the line off the deal.
+    if (choice !== "none" && hasTypedDiscount(item)) {
+      const qty = Math.max(1, Math.trunc(item.qty));
+      item.discount = 0;
+      item.unitDiscounts = Array(qty).fill(0);
+    }
+  }
+  unknownDealDialog.value = false;
+}
 
 // The deal a line gave up by having its deal turned off ("B2G1").
 function offDealFor(item: LineItem): string | undefined {
@@ -559,6 +656,13 @@ function onDiscountChipClick(event: Event, item: LineItem) {
 }
 
 function onDealChipClick(event: Event, item: LineItem) {
+  if (canPickUnknownDeal(item)) {
+    event.stopPropagation();
+    event.preventDefault();
+    unknownDealItem.value = item;
+    unknownDealDialog.value = true;
+    return;
+  }
   if (canToggleDeal(item)) askToggle(event, item, "deal");
 }
 
@@ -1237,7 +1341,7 @@ defineExpose({
 
 <style scoped>
 .invoice-item-unknown {
-  background: rgba(var(--v-theme-warning), 0.18);
+  background: rgba(var(--k-theme-warning), 0.18);
 }
 
 .invoice-item-actions {
@@ -1272,16 +1376,16 @@ defineExpose({
   width: 36px;
 }
 
-.invoice-items :deep(.v-list-item__content) {
+.invoice-items :deep(.k-list-item__content) {
   min-width: 0;
 }
 
-.invoice-items :deep(.v-list-item__append) {
+.invoice-items :deep(.k-list-item__append) {
   justify-content: flex-end;
   margin-inline-start: auto;
 }
 
-.invoice-items :deep(.v-list-item) {
+.invoice-items :deep(.k-list-item) {
   padding-inline-start: 24px; /* the text keeps its indent; the row itself starts at the edge */
 }
 
@@ -1349,7 +1453,29 @@ defineExpose({
   opacity: 0.85;
 }
 
-.invoice-item-sale-option.v-chip--size-x-small:has(.invoice-deal-chip-text) {
+.unknown-deal-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unknown-deal-choice {
+  height: auto !important;
+  min-height: 56px;
+  justify-content: flex-start;
+  text-align: start;
+}
+
+.unknown-deal-choice-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  white-space: normal;
+  text-transform: none;
+}
+
+.invoice-item-sale-option.k-chip--size-x-small:has(.invoice-deal-chip-text) {
   height: auto;
   padding-block: 2px;
 }
@@ -1360,17 +1486,17 @@ defineExpose({
 
 .invoice-item-details-trigger:hover,
 .invoice-item-details-trigger:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.1);
+  background: rgba(var(--k-theme-primary), 0.1);
 }
 
 .invoice-item-details-trigger:focus-visible {
-  outline: 2px solid rgba(var(--v-theme-primary), 0.45);
+  outline: 2px solid rgba(var(--k-theme-primary), 0.45);
   outline-offset: 1px;
 }
 
 .invoice-unit-lines {
-  background: rgba(var(--v-theme-on-surface), 0.035);
-  border-inline-start: 2px solid rgba(var(--v-theme-primary), 0.3);
+  background: rgba(var(--k-theme-on-surface), 0.035);
+  border-inline-start: 2px solid rgba(var(--k-theme-primary), 0.3);
   max-height: 280px;
   overflow-y: auto;
   padding: 6px 12px;
@@ -1424,13 +1550,13 @@ defineExpose({
 
 .invoice-price-editor:hover,
 .invoice-price-editor:focus-visible {
-  background: rgba(var(--v-theme-primary), 0.09);
+  background: rgba(var(--k-theme-primary), 0.09);
   outline: none;
 }
 
 .invoice-price-editor--keyboard:focus {
-  background: rgba(var(--v-theme-primary), 0.14);
-  outline: 2px solid rgba(var(--v-theme-primary), 0.5);
+  background: rgba(var(--k-theme-primary), 0.14);
+  outline: 2px solid rgba(var(--k-theme-primary), 0.5);
   outline-offset: 1px;
 }
 </style>

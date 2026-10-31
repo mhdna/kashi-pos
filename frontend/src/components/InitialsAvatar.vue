@@ -1,7 +1,7 @@
 <template>
-  <v-avatar :color="color" :size="avatarSize">
+  <k-avatar :color="color" :size="avatarSize">
     <span :style="{ letterSpacing: '1px', fontSize: fontSize }">{{ initials }}</span>
-  </v-avatar>
+  </k-avatar>
 </template>
 
 <script setup lang="ts">

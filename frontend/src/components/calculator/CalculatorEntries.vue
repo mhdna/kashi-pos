@@ -1,6 +1,6 @@
 <template>
   <template v-if="entries.length">
-    <v-divider class="my-3" />
+    <k-divider class="my-3" />
     <div class="calculator-entry-grid">
       <div
         v-for="(item, index) in entries"
@@ -15,9 +15,9 @@
           {{ item.amount >= 0 ? "+" : "" }}{{ formatAmount(item.amount) }}
           {{ currencySymbolFor(item.type) }}
         </span>
-        <v-btn icon size="x-small" variant="text" @click="$emit('remove', index)"
-          ><v-icon icon="mdi-delete" size="16"
-        /></v-btn>
+        <k-btn icon size="x-small" variant="text" @click="$emit('remove', index)"
+          ><k-icon icon="mdi-delete" size="16"
+        /></k-btn>
       </div>
     </div>
   </template>
@@ -45,8 +45,8 @@ defineEmits<{ remove: [index: number] }>();
   min-height: 36px;
   padding: 4px 10px;
   border-radius: 12px;
-  background: rgba(var(--v-theme-on-surface), 0.03);
-  border: 1px solid rgba(var(--v-border-color), 0.16);
+  background: rgba(var(--k-theme-on-surface), 0.03);
+  border: 1px solid rgba(var(--k-border-color), 0.16);
 }
 .calculator-entry-text {
   font-size: var(--kashi-font-size-sm);
