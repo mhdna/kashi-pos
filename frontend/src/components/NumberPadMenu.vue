@@ -402,6 +402,13 @@ defineExpose({ focus });
   font-weight: 700;
   justify-content: center;
   min-height: 34px;
+  padding: 8px 0;
+}
+
+/* The currency sign beside the number being typed, larger than the small
+   one on the page's own field (.number-pad-affix). */
+.number-pad-display .number-pad-display-affix {
+  font-size: var(--kashi-font-size-xl);
 }
 
 .number-pad-grid {
