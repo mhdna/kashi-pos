@@ -46,8 +46,11 @@
   .k-progress-circular svg { width: 100%; height: 100%; position: absolute; inset: 0; transform: rotate(-90deg); }
   .k-progress-circular__underlay { stroke: currentColor; opacity: .16; fill: none; }
   .k-progress-circular__overlay { stroke: currentColor; fill: none; stroke-linecap: round; }
-  .k-progress-circular--indeterminate > svg { animation: k-rotate 1.4s linear infinite !important; }
-  .k-progress-circular--indeterminate .k-progress-circular__overlay { stroke-dasharray: 25, 200; stroke-dashoffset: 0; animation: k-dash 1.4s ease-in-out infinite !important; }
+  /* The spinners are the only things that move, and only with animations on
+     (Settings). With them off they stay still: a ~75% arc / a half bar. */
+  .k-progress-circular--indeterminate .k-progress-circular__overlay { stroke-dasharray: 100, 200; stroke-dashoffset: 0; }
+  :root:not(.animations-disabled) .k-progress-circular--indeterminate > svg { animation: k-rotate 1.4s linear infinite !important; }
+  :root:not(.animations-disabled) .k-progress-circular--indeterminate .k-progress-circular__overlay { stroke-dasharray: 25, 200; animation: k-dash 1.4s ease-in-out infinite !important; }
   @keyframes k-rotate { to { transform: rotate(270deg); } }
   @keyframes k-dash { 0% { stroke-dasharray: 1, 200; stroke-dashoffset: 0; } 50% { stroke-dasharray: 100, 200; stroke-dashoffset: -15px; } 100% { stroke-dasharray: 100, 200; stroke-dashoffset: -124px; } }
 
@@ -57,7 +60,8 @@
   .k-progress-linear--rounded { border-radius: 9999px; }
   .k-progress-linear__bg { position: absolute; inset: 0; background: currentColor; opacity: .26; }
   .k-progress-linear__bar { position: absolute; top: 0; bottom: 0; left: 0; background: currentColor; }
-  .k-progress-linear__bar--ind { width: 40%; animation: k-linear 1.6s ease-in-out infinite !important; }
+  .k-progress-linear__bar--ind { width: 100%; opacity: .5; }
+  :root:not(.animations-disabled) .k-progress-linear__bar--ind { width: 40%; opacity: 1; animation: k-linear 1.6s ease-in-out infinite !important; }
   @keyframes k-linear { 0% { left: -40%; } 100% { left: 100%; } }
 
   /* ---------- button ---------- */

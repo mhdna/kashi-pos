@@ -29,19 +29,32 @@
       </k-btn>
     </div>
   </div>
-  <ClientDialog v-model="dialog" @select="chooseClient" />
+  <ClientDialog v-if="dialogLoaded" v-model="dialog" @select="chooseClient" />
   <ClientEditDialog v-if="clientSelected && client.id !== 0" v-model="editDialog" :client="client" @saved="setClient" />
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import ClientDialog from "./ClientDialog.vue";
+import { defineAsyncComponent, onMounted, ref, watch } from "vue";
 import ClientEditDialog from "./ClientEditDialog.vue";
 import { useClient } from "@/composables/useClient";
 import { WhatsAppWelcome } from "../../wailsjs/go/main/App";
 
 defineProps<{ disabled?: boolean }>();
+// The client dialog carries libphonenumber, so it is its own chunk: fetched
+// when the till is idle, and mounted on first open (then kept, so its
+// close/reset behaviour is unchanged).
+const loadClientDialog = () => import("./ClientDialog.vue");
+const ClientDialog = defineAsyncComponent(loadClientDialog);
 const dialog = ref(false);
+const dialogLoaded = ref(false);
+watch(dialog, (open) => {
+  if (open) dialogLoaded.value = true;
+});
+onMounted(() => {
+  const prefetch = () => void loadClientDialog().catch(() => undefined);
+  if ("requestIdleCallback" in window) window.requestIdleCallback(prefetch, { timeout: 5000 });
+  else setTimeout(prefetch, 2000);
+});
 const editDialog = ref(false);
 const { client, clientSelected, pulseClient, setClient } = useClient();
 

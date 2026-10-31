@@ -140,3 +140,12 @@ sell at their typed price and show no chip. The cart sends the line's
 - `RoundInvoice` re-applies the current rounding rule to an existing invoice
   and fixes its payments, account entries and shift balance with it (admins
   only).
+
+## The unfinished sale (draft)
+
+The cart, client, note and calculator state are kept in `localStorage`
+(`kashi-pos.invoice-draft`) so a restart or crash restores the sale. The write
+is coalesced (`lib/draftSaver.ts`): about 0.4 s after the last change, or at
+once when the page is hidden or closed. Emptying the cart (or finishing the
+sale) deletes the draft immediately and cancels any save still waiting. Settlement
+mode (paying off an old invoice) never saves a draft.

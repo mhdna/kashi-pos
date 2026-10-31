@@ -34,3 +34,7 @@ func (s *Store) ExecTx(ctx context.Context, fn func(*Queries) error) error {
 
 	return tx.Commit()
 }
+
+// DB is the underlying handle, for hand-written queries sqlc can't generate
+// (the FTS5 product search, products_search.go).
+func (s *Store) DB() DBTX { return s.conn }

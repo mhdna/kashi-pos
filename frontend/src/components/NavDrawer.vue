@@ -475,10 +475,14 @@ const items = computed(() => {
   background-color: #43a047;
 }
 
-/* Recording-light blink. !important to get past the global animation kill
-   in styles/settings.scss, same as the progress-spinner exception there. */
+/* Recording-light blink, only with animations on (Settings); off, it is a
+   solid red dot. !important to get past the global animation kill in
+   styles/settings.scss, same as the progress-spinner exception there. */
 .nav-status-dot--down {
   background-color: #e53935;
+}
+
+:root:not(.animations-disabled) .nav-status-dot--down {
   animation: nav-status-pulse 1.4s ease-in-out infinite !important;
 }
 

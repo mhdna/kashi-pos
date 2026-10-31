@@ -3,15 +3,22 @@
 package main
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 )
 
+// configureWebView sets the browser arguments WebView2 starts with: the
+// defaults, or GB_CLOUD_WEBVIEW_ARGS for comparing flags on one till (see
+// webview_args.go and docs/dev/windows-till.md).
 func configureWebView() error {
-	return os.Setenv(
-		"WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-		"--disable-smooth-scrolling --disable-gpu-rasterization --disable-gpu-vsync",
-	)
+	args, set := chooseWebViewArgs(os.LookupEnv)
+	if !set {
+		log.Printf("webview2: using the preset WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS")
+		return nil
+	}
+	log.Printf("webview2: browser arguments %q", args)
+	return os.Setenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", args)
 }
 
 // webviewUserDataPath picks WebView2's profile folder instead of leaving it to

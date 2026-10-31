@@ -62,6 +62,24 @@ and write to its data directory" when an elevated run (the installer's "Run
 GB Cloud" checkbox) created it first. The folder is test-written before use; if
 that fails a temp folder is used, since losing the webview cache is harmless.
 
+## WebView2 flags (`webview_windows.go`, `webview_args.go`)
+
+WebView2 starts with `--disable-smooth-scrolling --disable-gpu-rasterization
+--disable-gpu-vsync`. Nobody recorded why, and turning GPU rasterisation off
+makes every effect (shadows, opacity) CPU-drawn, which can be slower on a
+machine whose GPU works. To compare on one till without a rebuild, set the
+user environment variable `GB_CLOUD_WEBVIEW_ARGS` and restart the app:
+
+- unset: the defaults above (nothing changes);
+- a value: used instead, e.g. `--disable-smooth-scrolling` to try GPU
+  rasterisation on;
+- empty: no extra flags at all.
+
+A `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` already in the environment wins over
+both. Compare scrolling the invoice list, typing in product search and the
+checkout screen, then decide on a default. The flags in use are logged at
+startup (and, like all logs on a till, go nowhere unless a log file is added).
+
 ## Splash (`splash_windows.go`)
 
 A plain native window with the logo appears within milliseconds of launch and
