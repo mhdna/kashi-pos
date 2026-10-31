@@ -204,11 +204,12 @@
   .k-sheet { display: block; border-radius: 0; background: rgb(var(--k-theme-surface)); color: color-mix(in srgb, rgb(var(--k-theme-on-surface)) calc(var(--k-high-emphasis-opacity) * 100%), transparent); border: 0 solid rgba(var(--k-border-color), var(--k-border-opacity)); }
   .k-sheet--border { border-width: thin; }
   .k-sheet--rounded { border-radius: 4px; }
-  .k-row { display: flex; flex-wrap: wrap; flex: 1 1 auto; margin: -12px; }
-  .k-row--no-gutters { margin: 0; }
-  .k-row--no-gutters > .k-col { padding: 0; }
-  .k-col { flex-basis: 0; flex-grow: 1; max-width: 100%; padding: 12px; width: 100%; }
-  .k-col[data-cols="auto"] { flex: 0 0 auto; width: auto; }
+  /* Grid as in Vuetify 4: columns have no padding; a column's width accounts for the row's gap. */
+  .k-row { --k-col-gap-x: 24px; --k-col-gap-y: 24px; display: flex; flex-wrap: wrap; flex: 1 1 auto; gap: var(--k-col-gap-y) var(--k-col-gap-x); }
+  .k-row--no-gutters { --k-col-gap-x: 0px; --k-col-gap-y: 0px; }
+  .k-col { flex: 1 0 0; max-width: 100%; min-width: 0; }
+  .k-col--sized { flex: 0 0 calc(var(--k-col-size) * (100% + var(--k-col-gap-x)) / 12 - var(--k-col-gap-x)); }
+  .k-col--auto { flex: 0 0 auto; width: auto; min-width: auto; }
 
   /* ---------- table ---------- */
   .k-table { --k-th-h: 56px; --k-tr-h: 52px; display: flex; flex-direction: column; background: rgb(var(--k-theme-surface)); color: color-mix(in srgb, rgb(var(--k-theme-on-surface)) calc(var(--k-high-emphasis-opacity) * 100%), transparent); font-size: var(--kashi-font-size-base); }
