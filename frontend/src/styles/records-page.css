@@ -68,6 +68,8 @@
 
 /* The category card in the expense/loan detail opens a menu to change it. */
 .overview-card--edit {
+  gap: 8px;
+  padding-inline: 10px;
   background: none;
   color: inherit;
   font: inherit;
@@ -83,7 +85,8 @@
 .overview-value {
   font-weight: 600;
   line-height: 1.2;
-  word-break: break-word;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .section-label {
@@ -126,4 +129,17 @@
   align-items: center;
   gap: 6px;
   padding: 24px 0;
+}
+
+.records-title {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.records-title h1 {
+  font-size: var(--kashi-font-size-3xl);
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0;
 }

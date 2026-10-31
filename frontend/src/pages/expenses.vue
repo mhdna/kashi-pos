@@ -1,7 +1,10 @@
 <template>
   <div class="records-page" @scroll.passive.capture="list.onScroll">
     <div class="records-head">
-      <div class="text-h6">Expenses</div>
+      <div class="records-title">
+        <k-icon icon="mdi-cash-minus" size="36" color="error" />
+        <h1>Expenses</h1>
+      </div>
       <k-spacer />
       <k-btn color="primary" variant="flat" prepend-icon="mdi-plus" @click="openAdd">Add expense</k-btn>
     </div>
