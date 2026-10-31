@@ -5,37 +5,34 @@
   <svg
     class="ready-art"
     viewBox="0 0 160 120"
-    width="160"
-    height="120"
+    width="208"
+    height="156"
     role="img"
     aria-label="Ready to scan"
   >
-    <!-- the soft card behind the code -->
-    <rect x="30" y="22" width="100" height="76" rx="10" class="ready-art__card" />
-    <!-- barcode -->
+    <!-- the card the code is printed on -->
+    <rect x="30" y="28" width="100" height="64" rx="9" class="ready-art__card" />
+    <!-- barcode: wider than tall, like a real one -->
     <rect
       v-for="bar in bars"
       :key="bar.x"
       :x="bar.x"
-      y="33"
+      y="38"
       :width="bar.w"
-      height="46"
-      rx="0.6"
+      height="30"
+      rx="0.5"
       class="ready-art__bar"
     />
-    <!-- code digits as little dashes -->
-    <rect x="46" y="85" width="14" height="3" rx="1.5" class="ready-art__digit" />
-    <rect x="64" y="85" width="14" height="3" rx="1.5" class="ready-art__digit" />
-    <rect x="82" y="85" width="14" height="3" rx="1.5" class="ready-art__digit" />
-    <rect x="100" y="85" width="14" height="3" rx="1.5" class="ready-art__digit" />
+    <!-- the number under it, as on a real label -->
+    <text x="46" y="80" textLength="68" lengthAdjust="spacing" class="ready-art__digits">5 901234 123457</text>
     <!-- laser: a faint band with a bright line through it -->
-    <rect x="22" y="52" width="116" height="14" rx="7" class="ready-art__glow" />
-    <line x1="22" y1="59" x2="138" y2="59" class="ready-art__laser" />
-    <!-- scan frame corners -->
-    <path d="M14 36 V20 a6 6 0 0 1 6 -6 H36" class="ready-art__corner" />
-    <path d="M124 14 H140 a6 6 0 0 1 6 6 V36" class="ready-art__corner" />
-    <path d="M146 84 V100 a6 6 0 0 1 -6 6 H124" class="ready-art__corner" />
-    <path d="M36 106 H20 a6 6 0 0 1 -6 -6 V84" class="ready-art__corner" />
+    <rect x="22" y="46" width="116" height="14" rx="7" class="ready-art__glow" />
+    <line x1="22" y1="53" x2="138" y2="53" class="ready-art__laser" />
+    <!-- scan frame corners, centred on the card -->
+    <path d="M14 38 V24 a6 6 0 0 1 6 -6 H36" class="ready-art__corner" />
+    <path d="M124 18 H140 a6 6 0 0 1 6 6 V38" class="ready-art__corner" />
+    <path d="M146 82 V96 a6 6 0 0 1 -6 6 H124" class="ready-art__corner" />
+    <path d="M36 102 H20 a6 6 0 0 1 -6 -6 V82" class="ready-art__corner" />
   </svg>
 </template>
 
@@ -69,8 +66,11 @@ const bars = widths.map((w) => {
   fill: rgba(var(--k-theme-on-surface), 0.72);
 }
 
-.ready-art__digit {
-  fill: rgba(var(--k-theme-on-surface), 0.3);
+.ready-art__digits {
+  fill: rgba(var(--k-theme-on-surface), 0.62);
+  font-family: Consolas, "Roboto Mono", ui-monospace, monospace;
+  font-size: 7.6px;
+  font-weight: 700;
 }
 
 .ready-art__corner {
