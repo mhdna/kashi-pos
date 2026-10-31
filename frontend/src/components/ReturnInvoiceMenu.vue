@@ -170,7 +170,7 @@
               :disabled="exchangePadDisabled"
               @click="backspaceExchangeInput"
             >
-              <k-icon icon="mdi-backspace-outline" size="26" />
+              <k-icon icon="mdi-backspace-outline" size="20" />
             </k-btn>
           </div>
           <k-btn

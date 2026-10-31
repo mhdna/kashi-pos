@@ -78,7 +78,7 @@
           variant="text"
           @click="backspace"
         >
-          <k-icon icon="mdi-backspace-outline" size="26" />
+          <k-icon icon="mdi-backspace-outline" size="20" />
         </k-btn>
       </div>
       <k-btn block class="number-pad-done mt-2" color="primary" size="small" variant="flat" @click="apply">

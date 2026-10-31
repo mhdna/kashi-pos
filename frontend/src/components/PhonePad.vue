@@ -16,7 +16,7 @@
       @mousedown.prevent
       @click="press(key.value)"
     >
-      <k-icon v-if="key.icon" :icon="key.icon" :size="key.arrow ? undefined : 26" />
+      <k-icon v-if="key.icon" :icon="key.icon" :size="key.arrow ? undefined : 20" />
       <template v-else>{{ key.text }}</template>
     </k-btn>
   </div>
