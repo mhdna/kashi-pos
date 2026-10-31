@@ -65,6 +65,36 @@ func (q *Queries) CountProductsByCode(ctx context.Context, searchPattern string)
 	return count, err
 }
 
+const countProductsByCodeIndexed = `-- name: CountProductsByCodeIndexed :one
+SELECT COUNT(*) FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.code_text LIKE ?1
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN'
+`
+
+func (q *Queries) CountProductsByCodeIndexed(ctx context.Context, searchPattern string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProductsByCodeIndexed, searchPattern)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countProductsIndexed = `-- name: CountProductsIndexed :one
+SELECT COUNT(*) FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.all_text LIKE ?1
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN'
+`
+
+func (q *Queries) CountProductsIndexed(ctx context.Context, searchPattern string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProductsIndexed, searchPattern)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createDiscountOverride = `-- name: CreateDiscountOverride :one
 INSERT INTO discount_overrides (name, product_id, discount) VALUES (?, ?, ?) RETURNING id, name, product_id, discount, created_at
 `
@@ -776,6 +806,133 @@ type ListProductsAfterByCodeParams struct {
 // barcode, never the name. search_pattern must already be wrapped in '%...%'.
 func (q *Queries) ListProductsAfterByCode(ctx context.Context, arg ListProductsAfterByCodeParams) ([]Product, error) {
 	rows, err := q.db.QueryContext(ctx, listProductsAfterByCode, arg.AfterID, arg.SearchPattern, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
+			&i.Uid,
+			&i.RemoteUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductsAfterByCodeIndexed = `-- name: ListProductsAfterByCodeIndexed :many
+SELECT p.id, p.barcode, p.code, p.name, p.description, p.is_active, p.price, p.discount, p.color, p.size, p.currency_code, p.created_at, p.brand, p.family, p.kind, p.season, p.product_year, p.uid, p.remote_updated_at FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.code_text LIKE ?1
+  AND p.id > ?2
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN'
+ORDER BY p.id
+LIMIT ?3
+`
+
+type ListProductsAfterByCodeIndexedParams struct {
+	SearchPattern string `json:"searchPattern"`
+	AfterID       int64  `json:"afterId"`
+	Limit         int64  `json:"limit"`
+}
+
+func (q *Queries) ListProductsAfterByCodeIndexed(ctx context.Context, arg ListProductsAfterByCodeIndexedParams) ([]Product, error) {
+	rows, err := q.db.QueryContext(ctx, listProductsAfterByCodeIndexed, arg.SearchPattern, arg.AfterID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Barcode,
+			&i.Code,
+			&i.Name,
+			&i.Description,
+			&i.IsActive,
+			&i.Price,
+			&i.Discount,
+			&i.Color,
+			&i.Size,
+			&i.CurrencyCode,
+			&i.CreatedAt,
+			&i.Brand,
+			&i.Family,
+			&i.Kind,
+			&i.Season,
+			&i.ProductYear,
+			&i.Uid,
+			&i.RemoteUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductsAfterIndexed = `-- name: ListProductsAfterIndexed :many
+
+SELECT p.id, p.barcode, p.code, p.name, p.description, p.is_active, p.price, p.discount, p.color, p.size, p.currency_code, p.created_at, p.brand, p.family, p.kind, p.season, p.product_year, p.uid, p.remote_updated_at FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.all_text LIKE ?1
+  AND p.id > ?2
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN'
+ORDER BY p.id
+LIMIT ?3
+`
+
+type ListProductsAfterIndexedParams struct {
+	SearchPattern string `json:"searchPattern"`
+	AfterID       int64  `json:"afterId"`
+	Limit         int64  `json:"limit"`
+}
+
+// The sale screen's product search, answered from the products_search FTS5
+// trigram index (migration 000135) instead of scanning every product. Same
+// rows and order as ListProductsAfter / ListProductsAfterByCode and
+// CountProducts / CountProductsByCode, which still serve terms shorter than 3
+// characters (a trigram index can't answer those). search_pattern must
+// already be wrapped in '%...%' by the caller.
+func (q *Queries) ListProductsAfterIndexed(ctx context.Context, arg ListProductsAfterIndexedParams) ([]Product, error) {
+	rows, err := q.db.QueryContext(ctx, listProductsAfterIndexed, arg.SearchPattern, arg.AfterID, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

@@ -70,10 +70,11 @@ kept in the macOS Keychain. The release-signing key is in
 - **After adding a Go method the frontend calls:** run `wails generate module`,
   then `git checkout frontend/wailsjs/runtime` (it rewrites the runtime too),
   and commit `frontend/wailsjs/go`.
-- **sqlc is pinned at v1.30.0.** A local v1.31.1 rewrites every generated
-  file's header, and also turns some `EXISTS`/`COUNT` results into `bool`
-  (`ClientHasInvoice`, `ShiftCloseSyncedForRef`, `ListInvoices*.IsSale`),
-  which breaks the build. Revert those after `make generate`.
+- **sqlc is v1.31.1** (`make generate`). It turns some `EXISTS`/`COUNT` results
+  into `bool` (`ClientHasInvoice`, `ShiftCloseSyncedForRef`,
+  `ListInvoices*.IsSale`); the callers use them as bools. The FTS5 product
+  search queries (`ListProducts*Indexed`, `CountProducts*Indexed`) are generated
+  too: sqlc reads the `products_search` virtual table from migration 135.
 - **Icons:** the app doesn't use the MDI webfont. Every `mdi-*` name must be
   imported from `@mdi/js` and added to `iconPaths` in
   `frontend/src/lib/icons.ts`, or it renders as text. `pnpm build` runs

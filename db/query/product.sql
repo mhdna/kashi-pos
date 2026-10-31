@@ -218,3 +218,44 @@ WHERE id > sqlc.arg(after_id)
   AND (sqlc.arg(search) = '' OR (name || ' ' || code || ' ' || barcode) LIKE '%' || sqlc.arg(search) || '%')
 ORDER BY id
 LIMIT sqlc.arg(limit);
+
+-- The sale screen's product search, answered from the products_search FTS5
+-- trigram index (migration 000135) instead of scanning every product. Same
+-- rows and order as ListProductsAfter / ListProductsAfterByCode and
+-- CountProducts / CountProductsByCode, which still serve terms shorter than 3
+-- characters (a trigram index can't answer those). search_pattern must
+-- already be wrapped in '%...%' by the caller.
+
+-- name: ListProductsAfterIndexed :many
+SELECT p.* FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.all_text LIKE sqlc.arg(search_pattern)
+  AND p.id > sqlc.arg(after_id)
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN'
+ORDER BY p.id
+LIMIT sqlc.arg(limit);
+
+-- name: ListProductsAfterByCodeIndexed :many
+SELECT p.* FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.code_text LIKE sqlc.arg(search_pattern)
+  AND p.id > sqlc.arg(after_id)
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN'
+ORDER BY p.id
+LIMIT sqlc.arg(limit);
+
+-- name: CountProductsIndexed :one
+SELECT COUNT(*) FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.all_text LIKE sqlc.arg(search_pattern)
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN';
+
+-- name: CountProductsByCodeIndexed :one
+SELECT COUNT(*) FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.code_text LIKE sqlc.arg(search_pattern)
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN';

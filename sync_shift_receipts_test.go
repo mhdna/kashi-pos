@@ -300,7 +300,7 @@ func TestResolveShiftReceiptUpload_CentralModeUsesKashiURL(t *testing.T) {
 
 	// The queued outbox row for this close is now redundant.
 	synced, _ := store.ShiftCloseSyncedForRef(app.ctx, ref)
-	if synced != 1 {
+	if !synced {
 		t.Fatal("outbox shift_close row was not marked synced after the direct push")
 	}
 }

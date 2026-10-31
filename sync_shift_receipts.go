@@ -42,7 +42,7 @@ func (a *App) runShiftReceiptUploadsOnce(ctx context.Context, client *centralCli
 			log.Printf("shift receipt uploads: %s: check close synced: %v", shiftRef, err)
 			continue
 		}
-		if synced == 0 {
+		if !synced {
 			continue
 		}
 

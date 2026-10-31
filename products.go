@@ -549,8 +549,20 @@ func (a *App) ListProductsCursor(afterID int64, limit int, search string) (Produ
 		})
 	case searchUsesIndex(search):
 		// 3+ characters: answered from the trigram index instead of
-		// scanning every product (products_search.go).
-		products, err = a.listProductsAfterIndexed(a.ctx, afterID, "%"+search+"%", queryLimit, codeOnly)
+		// scanning every product (migration 135, ListProducts*Indexed).
+		if codeOnly {
+			products, err = a.store.ListProductsAfterByCodeIndexed(a.ctx, db.ListProductsAfterByCodeIndexedParams{
+				AfterID:       afterID,
+				SearchPattern: "%" + search + "%",
+				Limit:         queryLimit,
+			})
+		} else {
+			products, err = a.store.ListProductsAfterIndexed(a.ctx, db.ListProductsAfterIndexedParams{
+				AfterID:       afterID,
+				SearchPattern: "%" + search + "%",
+				Limit:         queryLimit,
+			})
+		}
 	case codeOnly:
 		products, err = a.store.ListProductsAfterByCode(a.ctx, db.ListProductsAfterByCodeParams{
 			AfterID:       afterID,
@@ -617,7 +629,11 @@ func (a *App) CountProductsForSearch(search string) (int64, error) {
 	case search == "":
 		total, err = a.store.CountAllProducts(a.ctx)
 	case searchUsesIndex(search):
-		total, err = a.countProductsIndexed(a.ctx, "%"+search+"%", a.flagEnabled(a.ctx, productSearchCodeOnlyFlag))
+		if a.flagEnabled(a.ctx, productSearchCodeOnlyFlag) {
+			total, err = a.store.CountProductsByCodeIndexed(a.ctx, "%"+search+"%")
+		} else {
+			total, err = a.store.CountProductsIndexed(a.ctx, "%"+search+"%")
+		}
 	case a.flagEnabled(a.ctx, productSearchCodeOnlyFlag):
 		total, err = a.store.CountProductsByCode(a.ctx, "%"+search+"%")
 	default:

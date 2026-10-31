@@ -66,7 +66,12 @@ func TestIndexedSearchMatchesLikeQueries(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, err := app.listProductsAfterIndexed(app.ctx, 0, pattern, 50, codeOnly)
+			var got []db.Product
+			if codeOnly {
+				got, err = app.store.ListProductsAfterByCodeIndexed(app.ctx, db.ListProductsAfterByCodeIndexedParams{SearchPattern: pattern, Limit: 50})
+			} else {
+				got, err = app.store.ListProductsAfterIndexed(app.ctx, db.ListProductsAfterIndexedParams{SearchPattern: pattern, Limit: 50})
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -83,7 +88,12 @@ func TestIndexedSearchMatchesLikeQueries(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			gotCount, err := app.countProductsIndexed(app.ctx, pattern, codeOnly)
+			var gotCount int64
+			if codeOnly {
+				gotCount, err = app.store.CountProductsByCodeIndexed(app.ctx, pattern)
+			} else {
+				gotCount, err = app.store.CountProductsIndexed(app.ctx, pattern)
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -99,14 +109,14 @@ func TestIndexedSearchSkipsInactiveAndUnknownAndPages(t *testing.T) {
 	defer database.Close()
 	seedSearchProducts(t, app)
 
-	first, err := app.listProductsAfterIndexed(app.ctx, 0, "%shirt%", 50, false)
+	first, err := app.store.ListProductsAfterIndexed(app.ctx, db.ListProductsAfterIndexedParams{SearchPattern: "%shirt%", Limit: 50})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(first) != 2 { // Blue Shirt, Red SHIRT; not the inactive or UNKNOWN ones
 		t.Fatalf("got %d shirts, want 2: %v", len(first), ids(first))
 	}
-	rest, err := app.listProductsAfterIndexed(app.ctx, first[0].ID, "%shirt%", 50, false)
+	rest, err := app.store.ListProductsAfterIndexed(app.ctx, db.ListProductsAfterIndexedParams{AfterID: first[0].ID, SearchPattern: "%shirt%", Limit: 50})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,14 +130,14 @@ func TestCodeOnlySearchNeverMatchesTheName(t *testing.T) {
 	defer database.Close()
 	seedSearchProducts(t, app)
 
-	byName, err := app.listProductsAfterIndexed(app.ctx, 0, "%denim%", 50, true)
+	byName, err := app.store.ListProductsAfterByCodeIndexed(app.ctx, db.ListProductsAfterByCodeIndexedParams{SearchPattern: "%denim%", Limit: 50})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(byName) != 0 {
 		t.Fatalf("code-only search matched a name: %v", ids(byName))
 	}
-	byCode, err := app.listProductsAfterIndexed(app.ctx, 0, "%CD20%", 50, true)
+	byCode, err := app.store.ListProductsAfterByCodeIndexed(app.ctx, db.ListProductsAfterByCodeIndexedParams{SearchPattern: "%CD20%", Limit: 50})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +152,7 @@ func TestSearchIndexFollowsInsertUpdateAndDelete(t *testing.T) {
 	defer database.Close()
 
 	count := func(term string) int64 {
-		n, err := app.countProductsIndexed(app.ctx, "%"+term+"%", false)
+		n, err := app.store.CountProductsIndexed(app.ctx, "%"+term+"%")
 		if err != nil {
 			t.Fatal(err)
 		}

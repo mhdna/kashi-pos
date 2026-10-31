@@ -139,7 +139,7 @@ func (a *App) UpdateClient(clientID int64, name, phone string) (map[string]any, 
 		if err != nil {
 			return err
 		}
-		if hasInvoice == 0 {
+		if !hasInvoice {
 			return nil
 		}
 		return queueBranchClientSync(a.ctx, q, settings.CentralApiUrl, updated)
