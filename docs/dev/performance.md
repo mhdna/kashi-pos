@@ -178,6 +178,10 @@ and Search product / Held invoices / Select client buttons) instead of the dimme
 calculator. Exchange and settlement modes keep the old dim, because they rarely
 have an empty cart. "Select client" opens `ClientButton`'s dialog through
 `useClient().requestClientDialog` (a counter the button watches).
+The picture is our own inline SVG, `components/ReadyToScanArt.vue`: a barcode on a
+card, a red laser line, grey scan-frame corners. It is static (no animation, no
+filter) and uses theme colours, so it follows light/dark. Keep it symmetrical
+about x=80 / y=60 in its 160x120 box when editing.
 The buttons are white with a thin border and **no shadow** (shadows are CPU-drawn
 on a till). "Held invoices" shows `· N` when there are held invoices: the count is
 read with `ListHoldInvoices` each time the panel comes up. "Select client" shows
