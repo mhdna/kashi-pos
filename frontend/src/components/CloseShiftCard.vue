@@ -314,20 +314,15 @@
           <k-card-text class="pt-6">
             <k-icon :class="{ 'goodbye-smile': animationsEnabled }" color="amber-darken-2" icon="mdi-emoticon-excited-outline" size="96" />
             <div class="text-h5 font-weight-bold mt-2">Well done{{ closerFirstName ? `, ${closerFirstName}` : "" }}!</div>
-            <div class="text-h6 mt-1" dir="rtl" lang="ar">أحسنت{{ closerFirstName ? ` يا ${closerFirstName}` : "" }}!</div>
             <div class="text-body-1 mt-3">
               Your shift is closed{{ receiptPhotoReceived ? " and the receipt photo is in" : "" }}. Thank you for
               today's work. Get home safe!
-            </div>
-            <div class="text-body-1 mt-1" dir="rtl" lang="ar">
-              تم إغلاق الوردية{{ receiptPhotoReceived ? " ووصلت صورة الإيصال" : "" }}. شكراً على تعبك اليوم، توصل بالسلامة!
             </div>
             <div v-if="receiptPhotoReceived" class="text-caption text-medium-emphasis mt-2">
               The photo will sync to the office automatically.
             </div>
             <k-divider class="my-4" />
             <div class="text-subtitle-1 font-weight-medium">Shut down the computer?</div>
-            <div class="text-subtitle-1" dir="rtl" lang="ar">هل تريد إطفاء الكمبيوتر؟</div>
             <div v-if="shutdownError" class="text-caption text-error mt-2">{{ shutdownError }}</div>
           </k-card-text>
           <k-card-actions class="flex-column ga-2 px-4 pb-4">
@@ -340,10 +335,10 @@
               variant="flat"
               @click="shutDownAfterShift"
             >
-              Yes, shut down · إطفاء
+              Yes, shut down
             </k-btn>
             <k-btn block :disabled="shuttingDown" prepend-icon="mdi-logout" variant="text" @click="finishReceipt">
-              No, just log out · تسجيل الخروج فقط
+              No, just log out
             </k-btn>
           </k-card-actions>
         </template>

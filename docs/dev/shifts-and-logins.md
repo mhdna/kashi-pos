@@ -33,7 +33,7 @@ Code: `shifts.go`, `shift_auto_swap.go`, `shift_upload_server.go`,
   - `hybrid`: central, falling back to local if kashi can't be reached.
 - **Goodbye** (`CloseShiftCard.vue`): once the shift is closed and the photo
   is in (or a manager skipped it, or none was needed), the closing salesperson
-  gets a thank-you by name, in English and Arabic, and the choice to shut the
+  gets a thank-you by name and the choice to shut the
   computer down (`ShutDownComputer`, as in the Quit dialog; refused in a
   development build) or just log out.
 - The shift receipt's sign-off lines (`shift_report_signatures`, on) and
