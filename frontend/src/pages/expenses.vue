@@ -579,6 +579,10 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   gap: 8px;
+  /* The tiles scroll in their own block, so the dialog stays as tall as the form needs. */
+  max-height: 232px;
+  overflow-y: auto;
+  padding: 2px;
 }
 .category-tile {
   display: flex;
