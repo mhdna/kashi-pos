@@ -311,6 +311,7 @@ const items = computed(() => {
       t: "Transfers",
       locked: !auth.isAdmin && !pageUnlocks.value.transfers,
     },
+    { value: "events", to: "/events", icon: "mdi-calendar-month", t: "Events" },
     {
       value: "attendance",
       to: "/attendance",

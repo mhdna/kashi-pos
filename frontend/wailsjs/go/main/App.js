@@ -490,6 +490,10 @@ export function ListBranches() {
   return window['go']['main']['App']['ListBranches']();
 }
 
+export function ListCalendarEvents() {
+  return window['go']['main']['App']['ListCalendarEvents']();
+}
+
 export function ListCategoryIcons() {
   return window['go']['main']['App']['ListCategoryIcons']();
 }

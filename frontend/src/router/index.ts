@@ -57,6 +57,7 @@ const router = createRouter({
           path: "conversion",
           component: () => import("@/pages/conversion.vue"),
         },
+        { path: "events", component: () => import("@/pages/events.vue") },
         {
           path: "transfers",
           component: () => import("@/pages/transfers.vue"),

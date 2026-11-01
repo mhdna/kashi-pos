@@ -55,13 +55,16 @@ removed. While connected, only kashi deactivates.
   discount_lists, clients, branch_targets, salespersons, branch_users,
   expense_categories, loan_categories, coupon_types, coupons, branches,
   transfer_requests, incoming_transfer_requests, branch_stock, quick_access,
-  invoice_discounts.
+  invoice_discounts, calendar_events.
 - Each follows kashi's `updated_at` cursor, which only advances after a whole
   successful walk. So every apply must be idempotent: a failure mid-page
   re-applies the same payload next time.
 - Price and discount lists arrive **whole** (the list with all its items), and
   the till clears and refills them. That's the only way a removed item can
   disappear, since a delta can't say "this item is gone".
+- `calendar_events` (the Events page) arrive as the whole set too, and what kashi
+  drops is deleted. The built-in retail calendar is not synced: it is a copy in
+  `frontend/src/lib/retailCalendar.ts`, to keep in step with kashi's.
 - Payment methods and currencies also arrive as the whole set, so a row kashi
   didn't send is retired (deactivated). Two things kashi can never touch:
   the `On Account` and `On Coupon` placeholder methods (the code finds them by
