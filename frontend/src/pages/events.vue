@@ -1,7 +1,7 @@
 <template>
   <div class="events-page">
     <div class="events-head">
-      <k-icon icon="mdi-calendar-month" size="36" color="primary" />
+      <k-icon icon="mdi-calendar-month" size="24" color="primary" />
       <h1>Events</h1>
     </div>
 
@@ -120,10 +120,11 @@ onBeforeUnmount(() => unsub?.());
 </script>
 
 <style scoped>
-.events-page { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 12px 16px; }
-.events-head { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; }
+.events-page { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 8px 12px; }
+.events-head { display: flex; align-items: center; gap: 8px; padding-bottom: 4px; }
+.events-head h1 { font-size: 1.15rem; font-weight: 600; line-height: 1.2; margin: 0; }
 .events-body { display: flex; gap: 16px; flex: 1 1 auto; min-height: 0; }
-.upcoming { flex: 0 0 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.upcoming { flex: 0 0 290px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .upcoming h2 { font-size: 1rem; font-weight: 600; }
 .upcoming-row { display: flex; align-items: center; gap: 12px; padding: 8px 4px; }
 .upcoming-text { flex: 1 1 auto; min-width: 0; }
@@ -131,11 +132,11 @@ onBeforeUnmount(() => unsub?.());
 .month-nav { display: flex; align-items: center; gap: 4px; padding-bottom: 8px; }
 .month-title { font-size: 1.1rem; font-weight: 600; min-width: 170px; text-align: center; }
 .grid { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: auto repeat(6, 1fr); gap: 1px; background: rgba(128, 128, 128, 0.25); border: 1px solid rgba(128, 128, 128, 0.25); }
-.grid-head { background: rgb(var(--k-theme-surface)); padding: 4px; text-align: center; font-size: 0.8rem; font-weight: 600; }
+.grid-head { background: rgb(var(--k-theme-surface)); padding: 4px; text-align: center; font-size: 0.9rem; font-weight: 600; }
 .cell { background: rgb(var(--k-theme-surface)); padding: 3px; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
 .cell.outside { opacity: 0.45; }
 .cell.today .cell-num { background: rgb(var(--k-theme-primary)); color: rgb(var(--k-theme-on-primary)); }
-.cell-num { align-self: flex-start; font-size: 0.75rem; min-width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 11px; }
-.cell-event { font-size: 0.7rem; padding: 0 5px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cell-more { font-size: 0.68rem; opacity: 0.7; }
+.cell-num { align-self: flex-start; font-size: 0.9rem; min-width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 11px; }
+.cell-event { font-size: 0.85rem; padding: 1px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell-more { font-size: 0.8rem; opacity: 0.7; }
 </style>
