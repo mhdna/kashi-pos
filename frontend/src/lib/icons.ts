@@ -234,6 +234,17 @@ import {
   mdiUsb,
   mdiWrench,
   mdiYoutube,
+  mdiCalendarStar,
+  mdiCalendarMonth,
+  mdiFirework,
+  mdiFlowerTulip,
+  mdiWhiteBalanceSunny,
+  mdiSchool,
+  mdiHalloween,
+  mdiSale,
+  mdiPineTree,
+  mdiMoonWaningCrescent,
+  mdiPartyPopper,
 } from "@mdi/js";
 import { h } from "vue";
 
@@ -243,6 +254,17 @@ const barcodeScannerGun =
   "M5 2.5h1.6v9H5Z M7.2 4H19a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H7.2Z M13 10h5l1.4 8.6a1.5 1.5 0 0 1-1.5 1.7h-2.2a1.5 1.5 0 0 1-1.5-1.3Z M9.6 10h1.8v3.1a.9.9 0 0 1-1.8 0Z M4.3 4.6 1 2.9l.5-1 3.3 1.7Z M1 6.4h3.4v1.2H1Z M4.3 9.4 1 11.1l.5 1 3.3-1.7Z";
 
 const iconPaths: Record<string, string> = {
+  "mdi-calendar-star": mdiCalendarStar,
+  "mdi-calendar-month": mdiCalendarMonth,
+  "mdi-firework": mdiFirework,
+  "mdi-flower-tulip": mdiFlowerTulip,
+  "mdi-white-balance-sunny": mdiWhiteBalanceSunny,
+  "mdi-school": mdiSchool,
+  "mdi-halloween": mdiHalloween,
+  "mdi-sale": mdiSale,
+  "mdi-pine-tree": mdiPineTree,
+  "mdi-moon-waning-crescent": mdiMoonWaningCrescent,
+  "mdi-party-popper": mdiPartyPopper,
   "mdi-help-circle-outline": mdiHelpCircleOutline,
   "mdi-image-off-outline": mdiImageOffOutline,
   "mdi-image-outline": mdiImageOutline,

@@ -246,6 +246,8 @@ export function ListBranchTargetsWithProgress():Promise<Array<Record<string, any
 
 export function ListBranches():Promise<Record<string, any>>;
 
+export function ListCalendarEvents():Promise<Array<Record<string, any>>>;
+
 export function ListCategoryIcons():Promise<Array<Record<string, any>>>;
 
 export function ListClientsCursor(arg1:number,arg2:number,arg3:string):Promise<main.ClientCursorPage>;

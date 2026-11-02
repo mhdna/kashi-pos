@@ -15,33 +15,36 @@
         @balance-replaced="refresh"
         @opening-float-set="refresh"
       />
-      <MonthlyIncomeCard
-        :month="currentMonth"
-        :rows="dailyRows"
-        :grand-total="grandTotal"
-        :coupon-total="monthSales.deferredCoupons"
-        :on-account-total="monthSales.onAccount"
-        :loading="loadingMonth"
-        :expanded-days="expandedDays"
-        :all-days-expanded="allDaysExpanded"
-        :shift-expanded="shiftExpanded"
-        :balance-cache="balanceCache"
-        :balance-loading="balanceLoading"
-        :current-day="currentDay"
-        :is-admin="auth.isAdmin"
-        :can-change-month="canChangeMonth"
-        :printing-shift-id="printingShiftId"
-        :targets="visibleTargets"
-        :visitor-counts="visitorCounts"
-        :visitor-counter-enabled="visitorCounterEnabled"
-        @toggle-all="toggleAllDays"
-        @toggle-day="toggleDay"
-        @toggle-shift="toggleShift"
-        :at-current-month="currentMonth === thisMonthKey"
-        @print-shift="printClosedShift"
-        @prev-month="() => stepMonth(-1)"
-        @next-month="() => stepMonth(1)"
-      />
+      <div class="shifts-right d-flex flex-column">
+        <EventsCard class="events-strip" />
+        <MonthlyIncomeCard
+          :month="currentMonth"
+          :rows="dailyRows"
+          :grand-total="grandTotal"
+          :coupon-total="monthSales.deferredCoupons"
+          :on-account-total="monthSales.onAccount"
+          :loading="loadingMonth"
+          :expanded-days="expandedDays"
+          :all-days-expanded="allDaysExpanded"
+          :shift-expanded="shiftExpanded"
+          :balance-cache="balanceCache"
+          :balance-loading="balanceLoading"
+          :current-day="currentDay"
+          :is-admin="auth.isAdmin"
+          :can-change-month="canChangeMonth"
+          :printing-shift-id="printingShiftId"
+          :targets="visibleTargets"
+          :visitor-counts="visitorCounts"
+          :visitor-counter-enabled="visitorCounterEnabled"
+          @toggle-all="toggleAllDays"
+          @toggle-day="toggleDay"
+          @toggle-shift="toggleShift"
+          :at-current-month="currentMonth === thisMonthKey"
+          @print-shift="printClosedShift"
+          @prev-month="() => stepMonth(-1)"
+          @next-month="() => stepMonth(1)"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -64,7 +67,12 @@ type BranchTarget = {
 // a month that hasn't been loaded yet).
 // The month's sales counted like kashi's reports (management.go GetMonthSales):
 // the total, each day's part of it, and how much is coupons or on account.
-type MonthSalesView = { total: number; deferredCoupons: number; onAccount: number; byDay: Record<string, number> };
+type MonthSalesView = {
+  total: number;
+  deferredCoupons: number;
+  onAccount: number;
+  byDay: Record<string, number>;
+};
 
 type LastView = {
   month: string;
@@ -99,6 +107,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import MonthlyIncomeCard from "@/components/shifts/MonthlyIncomeCard.vue";
+import EventsCard from "@/components/shifts/EventsCard.vue";
 import ShiftIncomeCard from "@/components/shifts/ShiftIncomeCard.vue";
 import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
@@ -213,7 +222,6 @@ function pad(value: number) {
   return value.toString().padStart(2, "0");
 }
 
-
 function toggleDay(day: string) {
   expandedDays.value = expandedDays.value.includes(day)
     ? expandedDays.value.filter((value) => value !== day)
@@ -285,64 +293,69 @@ async function refresh() {
   const month = currentMonth.value;
   if (month !== loadedMonth) loadingMonth.value = true;
 
-  const [shiftState, income, shifts, sales, expandedBalances, targets, visitors] = await Promise.all([
-    GetOpenShift()
-      .then(async (shift) => {
-        const open = shift as Shift | null;
-        const balances = open?.id ? (((await ListShiftBalances(open.id)) as Balance[]) ?? []) : [];
-        return { open, balances };
-      })
-      .catch(() => ({ open: null, balances: [] as Balance[] })),
-    GetCurrentShiftIncomeByAccount()
-      .then((rows) => ((rows as IncomeRow[]) ?? []))
-      .catch(() => [] as IncomeRow[]),
-    GetShiftTotals(month)
-      .then((rows) =>
-        (((rows as Shift[]) ?? [])).map((shift) => ({
-          ...shift,
-          total: Number.isFinite(Number(shift.total)) ? Number(shift.total) : 0,
-        })),
-      )
-      .catch(() => [] as Shift[]),
-    GetMonthSales(month)
-      .then((sales): MonthSalesView => {
-        // Keyed "DD/MM/YYYY" like the day rows.
-        const byDay: Record<string, number> = {};
-        for (const { day, total } of sales?.days ?? []) {
-          const [year, mm, dd] = String(day).split("-");
-          if (year && mm && dd) byDay[`${dd}/${mm}/${year}`] = Number(total) || 0;
-        }
-        return {
-          total: Number(sales?.total) || 0,
-          deferredCoupons: Number(sales?.deferredCoupons) || 0,
-          onAccount: Number(sales?.onAccount) || 0,
-          byDay,
-        };
-      })
-      .catch(() => emptyMonthSales),
-    Promise.all(
-      [...shiftExpanded].map(async (shiftId) => {
-        try {
-          return [shiftId, ((await ListShiftBalances(shiftId)) as Balance[]) ?? []] as const;
-        } catch {
-          return [shiftId, [] as Balance[]] as const;
-        }
-      }),
-    ),
-    ListBranchTargetsWithProgress()
-      .then((rows) => ((rows ?? []) as BranchTarget[]))
-      .catch(() => [] as BranchTarget[]),
-    GetVisitorCountsForMonth(month)
-      .then((byIsoDay) => {
-        const remapped: Record<string, number> = {};
-        for (const [isoDay, value] of Object.entries((byIsoDay ?? {}) as Record<string, number>)) {
-          const [year, mm, day] = isoDay.split("-");
-          if (year && mm && day) remapped[`${day}/${mm}/${year}`] = value;
-        }
-        return remapped;
-      })
-      .catch(() => ({}) as Record<string, number>),
-  ]);
+  const [shiftState, income, shifts, sales, expandedBalances, targets, visitors] =
+    await Promise.all([
+      GetOpenShift()
+        .then(async (shift) => {
+          const open = shift as Shift | null;
+          const balances = open?.id
+            ? (((await ListShiftBalances(open.id)) as Balance[]) ?? [])
+            : [];
+          return { open, balances };
+        })
+        .catch(() => ({ open: null, balances: [] as Balance[] })),
+      GetCurrentShiftIncomeByAccount()
+        .then((rows) => (rows as IncomeRow[]) ?? [])
+        .catch(() => [] as IncomeRow[]),
+      GetShiftTotals(month)
+        .then((rows) =>
+          ((rows as Shift[]) ?? []).map((shift) => ({
+            ...shift,
+            total: Number.isFinite(Number(shift.total)) ? Number(shift.total) : 0,
+          })),
+        )
+        .catch(() => [] as Shift[]),
+      GetMonthSales(month)
+        .then((sales): MonthSalesView => {
+          // Keyed "DD/MM/YYYY" like the day rows.
+          const byDay: Record<string, number> = {};
+          for (const { day, total } of sales?.days ?? []) {
+            const [year, mm, dd] = String(day).split("-");
+            if (year && mm && dd) byDay[`${dd}/${mm}/${year}`] = Number(total) || 0;
+          }
+          return {
+            total: Number(sales?.total) || 0,
+            deferredCoupons: Number(sales?.deferredCoupons) || 0,
+            onAccount: Number(sales?.onAccount) || 0,
+            byDay,
+          };
+        })
+        .catch(() => emptyMonthSales),
+      Promise.all(
+        [...shiftExpanded].map(async (shiftId) => {
+          try {
+            return [shiftId, ((await ListShiftBalances(shiftId)) as Balance[]) ?? []] as const;
+          } catch {
+            return [shiftId, [] as Balance[]] as const;
+          }
+        }),
+      ),
+      ListBranchTargetsWithProgress()
+        .then((rows) => (rows ?? []) as BranchTarget[])
+        .catch(() => [] as BranchTarget[]),
+      GetVisitorCountsForMonth(month)
+        .then((byIsoDay) => {
+          const remapped: Record<string, number> = {};
+          for (const [isoDay, value] of Object.entries(
+            (byIsoDay ?? {}) as Record<string, number>,
+          )) {
+            const [year, mm, day] = isoDay.split("-");
+            if (year && mm && day) remapped[`${day}/${mm}/${year}`] = value;
+          }
+          return remapped;
+        })
+        .catch(() => ({}) as Record<string, number>),
+    ]);
 
   // A newer refresh (say, the month stepped again) already owns the page.
   if (generation !== refreshGeneration) return;
@@ -441,8 +454,25 @@ onBeforeUnmount(() => {
   overflow-y: auto;
 }
 
+.shifts-right {
+  flex: 2;
+  min-width: 0;
+  min-height: 0;
+}
+
+.shifts-right > .monthly-income-card {
+  flex: 1 1 0 !important;
+  height: auto;
+}
+
+.events-strip {
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+
 .shifts-cards {
   flex: 1 1 auto;
   min-height: 0;
+  gap: 12px;
 }
 </style>

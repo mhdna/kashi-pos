@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -178,6 +179,10 @@ func (a *App) unknownCall(method, path string, in, out any) error {
 	}
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
+		var dnsErr *net.DNSError
+		if errors.As(err, &dnsErr) {
+			return fmt.Errorf("can't find the kashi server (%s), check the internet or that the server is up", dnsErr.Name)
+		}
 		return fmt.Errorf("couldn't reach kashi: %w", err)
 	}
 	defer resp.Body.Close()

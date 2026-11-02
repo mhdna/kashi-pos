@@ -138,6 +138,15 @@ type BranchTargetProgress struct {
 	FetchedAt     string `json:"fetchedAt"`
 }
 
+type CalendarEvent struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Icon      string `json:"icon"`
+	Color     string `json:"color"`
+	StartDate string `json:"startDate"`
+	EndDate   string `json:"endDate"`
+}
+
 type CashboxAccount struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`

@@ -176,6 +176,8 @@ type Querier interface {
 	// unlike synced entities with local-only fields to preserve.
 	DeleteBranchTargetByRemoteID(ctx context.Context, remoteID int64) error
 	DeleteBranchTargetProgress(ctx context.Context) error
+	// kashi sends its whole set, so an event it no longer lists is one it deleted.
+	DeleteCalendarEventsNotIn(ctx context.Context, ids []int64) error
 	DeleteCashboxAccount(ctx context.Context, id int64) error
 	DeleteCentralQuickAccessItems(ctx context.Context) error
 	DeleteClient(ctx context.Context, id int64) error
@@ -408,6 +410,7 @@ type Querier interface {
 	// sorts correctly as text). A quarter- or year-long target set centrally
 	// still shows while the current month falls inside it.
 	ListBranchTargetsOverlapping(ctx context.Context, arg ListBranchTargetsOverlappingParams) ([]BranchTarget, error)
+	ListCalendarEvents(ctx context.Context) ([]CalendarEvent, error)
 	// Every account, active or not. Used where history has to resolve (shift
 	// reports, invoice detail) -- a retired method still has to have a name.
 	ListCashboxAccounts(ctx context.Context) ([]CashboxAccount, error)
@@ -804,6 +807,7 @@ type Querier interface {
 	// ---------------------------------------------------------------------------
 	UpsertBranchStock(ctx context.Context, arg UpsertBranchStockParams) error
 	UpsertBranchTarget(ctx context.Context, arg UpsertBranchTargetParams) error
+	UpsertCalendarEvent(ctx context.Context, arg UpsertCalendarEventParams) error
 	UpsertCouponTypeByCentralID(ctx context.Context, arg UpsertCouponTypeByCentralIDParams) (CouponType, error)
 	// Deals arrive with the lists naming them (sync_pull_lists.go); a deal two
 	// lists share is the same row.

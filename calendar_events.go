@@ -1,0 +1,70 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	db "kashi-pos/db/sqlc"
+)
+
+// Calendar events are a read-only mirror of kashi's user-defined events (the
+// "calendar_events" sync entity, api/calendar_event.go in the kashi repo).
+// kashi sends the whole set on every pull, so the apply upserts what it is
+// given and deletes the rest. The built-in retail calendar (Valentine's,
+// Black Friday...) is not synced: the frontend carries its own copy.
+
+type syncedCalendarEvent struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Icon      string `json:"icon"`
+	Color     string `json:"color"`
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+}
+
+const calendarDateLayout = "2006-01-02"
+
+func applySyncedCalendarEvents(ctx context.Context, q *db.Queries, events []syncedCalendarEvent) error {
+	ids := make([]int64, 0, len(events))
+	for _, e := range events {
+		start, err := time.Parse(calendarDateLayout, e.StartDate)
+		if err != nil {
+			return fmt.Errorf("event %d: bad start_date %q", e.ID, e.StartDate)
+		}
+		end, err := time.Parse(calendarDateLayout, e.EndDate)
+		if err != nil || end.Before(start) {
+			return fmt.Errorf("event %d: bad end_date %q", e.ID, e.EndDate)
+		}
+		if err := q.UpsertCalendarEvent(ctx, db.UpsertCalendarEventParams{
+			ID: e.ID, Name: e.Name, Icon: e.Icon, Color: e.Color,
+			StartDate: e.StartDate, EndDate: e.EndDate,
+		}); err != nil {
+			return err
+		}
+		ids = append(ids, e.ID)
+	}
+	if len(ids) == 0 {
+		ids = []int64{-1} // an empty IN () is invalid SQL; no real id is negative
+	}
+	return q.DeleteCalendarEventsNotIn(ctx, ids)
+}
+
+// ListCalendarEvents returns the synced events for the Events page.
+func (a *App) ListCalendarEvents() ([]map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	rows, err := a.store.ListCalendarEvents(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]map[string]any, len(rows))
+	for i, r := range rows {
+		out[i] = map[string]any{
+			"id": r.ID, "name": r.Name, "icon": r.Icon, "color": r.Color,
+			"startDate": r.StartDate, "endDate": r.EndDate,
+		}
+	}
+	return out, nil
+}
