@@ -1,7 +1,7 @@
 <template>
   <div class="events-page">
     <div class="events-head">
-      <k-icon icon="mdi-calendar-month" size="24" color="primary" />
+      <k-icon icon="mdi-calendar-month" size="30" color="primary" />
       <h1>Events</h1>
     </div>
 
@@ -122,7 +122,7 @@ onBeforeUnmount(() => unsub?.());
 <style scoped>
 .events-page { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 8px 12px; }
 .events-head { display: flex; align-items: center; gap: 8px; padding-bottom: 4px; }
-.events-head h1 { font-size: 1.15rem; font-weight: 600; line-height: 1.2; margin: 0; }
+.events-head h1 { font-size: 1.6rem; font-weight: 600; line-height: 1.2; margin: 0; }
 .events-body { display: flex; gap: 16px; flex: 1 1 auto; min-height: 0; }
 .upcoming { flex: 0 0 290px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .upcoming h2 { font-size: 1rem; font-weight: 600; }
