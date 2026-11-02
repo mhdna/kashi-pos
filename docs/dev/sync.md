@@ -64,7 +64,9 @@ removed. While connected, only kashi deactivates.
   disappear, since a delta can't say "this item is gone".
 - `calendar_events` (the Events page) arrive as the whole set too, and what kashi
   drops is deleted. The built-in retail calendar is not synced: it is a copy in
-  `frontend/src/lib/retailCalendar.ts`, to keep in step with kashi's.
+  `frontend/src/lib/retailCalendar.ts`, to keep in step with kashi's. The same
+  events also show as the "Coming up" card on the Shifts page
+  (`components/shifts/EventsCard.vue`: next 60 days, 8 at most).
 - Payment methods and currencies also arrive as the whole set, so a row kashi
   didn't send is retired (deactivated). Two things kashi can never touch:
   the `On Account` and `On Coupon` placeholder methods (the code finds them by
