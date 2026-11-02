@@ -124,12 +124,13 @@ onBeforeUnmount(() => unsub?.());
 .events-head { display: flex; align-items: center; justify-content: center; gap: 8px; padding-bottom: 4px; }
 .events-head h1 { font-size: 1.6rem; font-weight: 600; line-height: 1.2; margin: 0; }
 .events-body { display: flex; gap: 16px; flex: 1 1 auto; min-height: 0; }
-.upcoming { flex: 0 0 290px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-.upcoming h2 { font-size: 1rem; font-weight: 600; }
+.upcoming { flex: 0 0 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.upcoming h2 { font-size: 1.1rem; font-weight: 600; min-height: 48px; display: flex; align-items: center; padding-inline-start: 4px; margin: 0; }
 .upcoming-row { display: flex; align-items: center; gap: 12px; padding: 8px 4px; }
+.upcoming-row :deep(.k-chip) { min-width: 104px; justify-content: center; }
 .upcoming-text { flex: 1 1 auto; min-width: 0; }
 .month { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-.month-nav { display: flex; align-items: center; gap: 4px; padding-bottom: 8px; }
+.month-nav { display: flex; align-items: center; gap: 4px; min-height: 48px; }
 .month-title { font-size: 1.1rem; font-weight: 600; min-width: 170px; text-align: center; }
 .grid { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: auto repeat(6, 1fr); gap: 1px; background: rgba(128, 128, 128, 0.25); border: 1px solid rgba(128, 128, 128, 0.25); }
 .grid-head { background: rgb(var(--k-theme-surface)); padding: 4px; text-align: center; font-size: 0.9rem; font-weight: 600; }
