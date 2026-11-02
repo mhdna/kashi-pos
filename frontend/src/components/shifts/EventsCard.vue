@@ -8,13 +8,13 @@
     </div>
     <div class="events-card-list">
       <div v-if="!upcoming.length" class="text-medium-emphasis text-body-2">Nothing in the next {{ DAYS }} days.</div>
-      <div v-for="e in upcoming" :key="e.key" class="events-card-row" :style="{ borderInlineStartColor: resolveColor(e.color) }">
-        <k-avatar size="32" :color="e.color" variant="tonal"><k-icon :icon="e.icon" size="18" /></k-avatar>
+      <div v-for="e in upcoming" :key="e.key" class="events-card-row">
+        <k-avatar size="40" :color="e.color" variant="tonal"><k-icon :icon="e.icon" /></k-avatar>
         <div class="events-card-text">
-          <div class="font-weight-medium text-body-2">{{ e.name }}</div>
+          <div class="font-weight-medium">{{ e.name }}</div>
           <div class="text-caption text-medium-emphasis">{{ rangeLabel(e) }}</div>
         </div>
-        <k-chip size="x-small" variant="tonal" :color="e.color">{{ whenLabel(e) }}</k-chip>
+        <k-chip size="small" variant="tonal" :color="e.color">{{ whenLabel(e) }}</k-chip>
       </div>
     </div>
   </k-sheet>
@@ -26,7 +26,6 @@ import { useRouter } from "vue-router";
 import { ListCalendarEvents } from "../../../wailsjs/go/main/App";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import { eventsInRange, type CalendarEvent, type SyncedEvent } from "@/lib/retailCalendar";
-import { resolveColor } from "@/ui/colors";
 
 const DAYS = 60;
 const MS_DAY = 86_400_000;
@@ -69,7 +68,7 @@ onBeforeUnmount(() => unsub?.());
 .shifts-card { height: 100%; min-height: 0; }
 .events-card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(var(--k-theme-on-surface), 0.12); }
 .events-card-title { min-height: 40px; padding-bottom: 8px; }
-.events-card-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-.events-card-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-inline-start: 4px solid transparent; border-radius: 4px; background: rgba(var(--k-theme-on-surface), 0.04); }
+.events-card-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.events-card-row { display: flex; align-items: center; gap: 12px; padding: 8px 4px; }
 .events-card-text { flex: 1 1 auto; min-width: 0; }
 </style>
