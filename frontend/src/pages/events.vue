@@ -125,7 +125,7 @@ onBeforeUnmount(() => unsub?.());
 .events-head h1 { font-size: 1.6rem; font-weight: 600; line-height: 1.2; margin: 0; }
 .events-body { display: flex; gap: 16px; flex: 1 1 auto; min-height: 0; }
 .upcoming { flex: 0 0 290px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-.upcoming h2 { font-size: 1rem; font-weight: 600; }
+.upcoming h2 { font-size: 1rem; font-weight: 600; padding-inline-start: 12px; }
 .upcoming-row { display: flex; align-items: center; gap: 12px; padding: 8px 4px; }
 .upcoming-text { flex: 1 1 auto; min-width: 0; }
 .month { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
