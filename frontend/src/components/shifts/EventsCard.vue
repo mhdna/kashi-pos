@@ -27,7 +27,7 @@ import { ListCalendarEvents } from "../../../wailsjs/go/main/App";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
 import { eventsInRange, type CalendarEvent, type SyncedEvent } from "@/lib/retailCalendar";
 
-const DAYS = 120;
+const DAYS = 90;
 const MS_DAY = 86_400_000;
 const router = useRouter();
 const synced = ref<SyncedEvent[]>([]);
