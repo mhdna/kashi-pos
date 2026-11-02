@@ -42,6 +42,7 @@
         @prev-month="() => stepMonth(-1)"
         @next-month="() => stepMonth(1)"
       />
+      <EventsCard />
     </div>
   </div>
 </template>
@@ -99,6 +100,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import MonthlyIncomeCard from "@/components/shifts/MonthlyIncomeCard.vue";
+import EventsCard from "@/components/shifts/EventsCard.vue";
 import ShiftIncomeCard from "@/components/shifts/ShiftIncomeCard.vue";
 import { INCOME_CHANGED_EVENT } from "@/lib/incomeEvents";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
@@ -444,5 +446,6 @@ onBeforeUnmount(() => {
 .shifts-cards {
   flex: 1 1 auto;
   min-height: 0;
+  gap: 12px;
 }
 </style>
