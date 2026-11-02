@@ -9,7 +9,7 @@
     <div class="events-card-list">
       <div v-if="!upcoming.length" class="text-medium-emphasis text-body-2">Nothing in the next {{ DAYS }} days.</div>
       <div v-for="e in upcoming" :key="e.key" class="events-card-row">
-        <k-icon :icon="e.icon" :color="e.color" size="20" class="events-card-icon" />
+        <k-icon :icon="e.icon" :color="e.color" size="28" class="events-card-icon" />
         <div class="events-card-text">
           <div class="font-weight-medium text-body-2 events-card-name">{{ e.name }}</div>
           <div class="events-card-meta text-caption text-medium-emphasis">
