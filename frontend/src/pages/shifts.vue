@@ -1,5 +1,6 @@
 <template>
   <div class="shifts-page d-flex flex-column h-100">
+    <EventsCard class="events-strip" />
     <div class="shifts-cards d-flex">
       <ShiftIncomeCard
         :items="shiftIncome"
@@ -42,7 +43,6 @@
         @prev-month="() => stepMonth(-1)"
         @next-month="() => stepMonth(1)"
       />
-      <EventsCard />
     </div>
   </div>
 </template>
@@ -441,6 +441,11 @@ onBeforeUnmount(() => {
 <style scoped>
 .shifts-page {
   overflow-y: auto;
+}
+
+.events-strip {
+  flex: 0 0 auto;
+  margin-bottom: 12px;
 }
 
 .shifts-cards {
