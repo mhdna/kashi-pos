@@ -45,7 +45,7 @@ async function load() {
 }
 
 const upcoming = computed(() =>
-  eventsInRange(today, new Date(today.getTime() + DAYS * MS_DAY), synced.value).slice(0, 6),
+  eventsInRange(today, new Date(today.getTime() + DAYS * MS_DAY), synced.value).slice(0, 3),
 );
 
 const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
