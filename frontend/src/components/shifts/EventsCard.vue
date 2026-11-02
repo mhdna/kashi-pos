@@ -13,8 +13,8 @@
         <div class="events-card-text">
           <div class="font-weight-medium">{{ e.name }}</div>
           <div class="text-caption text-medium-emphasis">{{ rangeLabel(e) }}</div>
+          <k-chip size="small" variant="tonal" :color="e.color" class="mt-1">{{ whenLabel(e) }}</k-chip>
         </div>
-        <k-chip size="small" variant="tonal" :color="e.color">{{ whenLabel(e) }}</k-chip>
       </div>
     </div>
   </k-sheet>
@@ -69,7 +69,7 @@ onBeforeUnmount(() => unsub?.());
 .events-card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(var(--k-theme-on-surface), 0.12); }
 .events-card-title { min-height: 40px; padding-bottom: 8px; }
 .events-card-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-.events-card-row { display: flex; align-items: center; gap: 12px; padding: 8px 4px; }
+.events-card-row { display: flex; align-items: flex-start; gap: 12px; padding: 8px 4px; }
 .events-card-icon { flex: 0 0 auto; }
 .events-card-text { flex: 1 1 auto; min-width: 0; }
 </style>
