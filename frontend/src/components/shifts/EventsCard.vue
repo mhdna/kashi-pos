@@ -43,7 +43,7 @@ async function load() {
 }
 
 const upcoming = computed(() =>
-  eventsInRange(today, new Date(today.getTime() + DAYS * MS_DAY), synced.value).slice(0, 8),
+  eventsInRange(today, new Date(today.getTime() + DAYS * MS_DAY), synced.value).slice(0, 6),
 );
 
 const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -67,8 +67,8 @@ onBeforeUnmount(() => unsub?.());
 <style scoped>
 .events-card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(var(--k-theme-on-surface), 0.12); }
 .events-card-title { min-height: 40px; padding-bottom: 8px; }
-.events-card-list { display: flex; flex-direction: row; gap: 12px; overflow-x: auto; }
-.events-card-row { flex: 0 0 210px; display: flex; align-items: flex-start; gap: 12px; padding: 8px 4px; }
+.events-card-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 12px; }
+.events-card-row { min-width: 0; display: flex; align-items: flex-start; gap: 12px; padding: 8px 4px; }
 .events-card-icon { flex: 0 0 auto; }
 .events-card-text { flex: 1 1 auto; min-width: 0; }
 </style>
