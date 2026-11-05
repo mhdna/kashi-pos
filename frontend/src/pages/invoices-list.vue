@@ -140,7 +140,7 @@
           </template>
           <k-list density="compact" min-width="190">
             <k-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
-            <k-list-item prepend-icon="mdi-account-tie" title="Change Salesman" @click.stop="startChange('salesperson', item)" />
+            <k-list-item prepend-icon="mdi-account-tie" title="Change Salesperson" @click.stop="startChange('salesperson', item)" />
             <k-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" :disabled="settlementLoading" @click.stop="startSettlementChange(item)" />
             <k-list-item v-if="auth.isAdmin" prepend-icon="mdi-cash-check" title="Fix Rounding" @click.stop="requestRounding(item)" />
             <k-list-item v-if="auth.isAdmin && item.isSale && !item.cancelled" prepend-icon="mdi-cancel" title="Cancel Invoice" base-color="error" @click.stop="requestCancel(item)" />
@@ -458,7 +458,7 @@ const clients = ref<any[]>([]),
 const clientSearch = ref("");
 const snackbar = reactive({ show: false, text: "", color: "success" });
 const settlementLoading = ref(false);
-const changeTitle = computed(() => (changeType.value === "client" ? "Change Client" : "Change Salesman"));
+const changeTitle = computed(() => (changeType.value === "client" ? "Change Client" : "Change Salesperson"));
 const selectedPaid = computed(() =>
   (selected.value?.payments ?? []).reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0),
 );
