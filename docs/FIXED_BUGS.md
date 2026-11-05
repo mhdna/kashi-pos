@@ -3,6 +3,37 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-05 · Tapping a line's deal chip could open the line's details
+
+**Symptom.** The deal chip sat inside the block that opens a line's details, so
+the block lit up with it, and a tap on the chip could open the details too.
+
+**Cause.** The chips were nested inside the details button.
+
+**Fix.** The chips sit beside it (`frontend/src/components/InvoiceItems.vue`).
+
+## 2026-11-05 · AnyDesk's minimized bar showed on top of the till in kiosk mode
+
+**Symptom.** With AnyDesk's session window minimized, its little title bar stayed
+in the bottom-left corner, over the till's menu.
+
+**Cause.** Asking Windows not to draw minimized windows (`hideMinimizedWindows`)
+didn't cover it.
+
+**Fix.** While kiosk mode is on, a minimized AnyDesk window is hidden, and comes
+back when kiosk mode ends (`kiosk_windows.go`). Not yet tried on Windows.
+
+## 2026-11-05 · Changing one row of a list rewrote the whole list on the till
+
+**Symptom.** Adding a rule that changed one product's discount made the till apply
+the whole list again, slowly.
+
+**Cause.** A list arrives whole, and the till cleared and refilled it, moving the
+pricing version once per row.
+
+**Fix.** Only the rows that differ are written (`sync_pull_lists.go`). Test:
+`TestApplySyncedDiscountListTouchesOnlyWhatChanged`.
+
 ## 2026-11-05 · Unknown items stayed on Buy 2 Get 1 after a branch changed deal
 
 **Symptom.** With Centro on Buy 1 Get 1, unknown items still made sets of three
