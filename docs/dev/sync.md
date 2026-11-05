@@ -148,3 +148,9 @@ uid can't be reconstructed exactly.
 kashi used to get only the salesperson's name on a sale, so renaming one split
 them in two. Sales now carry kashi's salesperson id, and each till reported
 the ids of all its past sales once in bulk.
+
+## Reporting to kashi
+
+After each pull pass the till sends `POST /branch/sync/report` (`sync_report.go`), for kashi's Commands page: each entity that failed or applied something, an error that has cleared, and its outbox counts. A pass with nothing new sends nothing, and a long paged pull also sends a running count. It never fails a sync, and an older kashi just answers 404.
+
+A price or discount list kashi switches off keeps its row here, off and emptied, because sold lines point at it. Deleting one with sales fails and rolls back the whole pull, so nothing else in it arrives.
