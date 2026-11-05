@@ -22,20 +22,34 @@ export interface DealLine {
   // unknown item is the same product, so this is what tells them apart.
   lineRef?: string;
   // An unknown item line's deal choice in force (UnknownDealChoice); absent
-  // when the till has no "Buy 2 get 1" to offer it.
+  // when the till has no deal to offer it.
   unknownDeal?: string;
+  // The deal that choice is about, e.g. "B1G1" and "Buy 1 Get 1".
+  unknownDealLabel?: string;
+  unknownDealName?: string;
 }
 
 // What a salesperson picks for an unknown item (backend unknown_item_deal.go):
-// the shop's "Buy 2 get 1" with 30% or 20% off a unit outside a set, or no
-// deal at all.
+// the shop's deal with 30% or 20% off a unit outside a set, or no deal at all.
+// The values keep their b2g1_ names whatever the deal.
 export type UnknownDealChoice = "b2g1_30" | "b2g1_20" | "none";
 
-export const unknownDealChoices: { value: UnknownDealChoice; title: string; subtitle: string }[] = [
-  { value: "b2g1_30", title: "B2G1 · else 30%", subtitle: "Buy 2 get 1 free, 30% off when there's no set" },
-  { value: "b2g1_20", title: "B2G1 · else 20%", subtitle: "Buy 2 get 1 free, 20% off when there's no set" },
-  { value: "none", title: "No deal", subtitle: "Full price, no discount" },
-];
+export interface UnknownDealOption {
+  value: UnknownDealChoice;
+  title: string;
+  subtitle: string;
+}
+
+export const unknownDealChoices: UnknownDealOption[] = unknownDealOptions("B2G1", "Buy 2 get 1 free");
+
+// The choices as they read for the deal the line would join.
+export function unknownDealOptions(label: string, name: string): UnknownDealOption[] {
+  return [
+    { value: "b2g1_30", title: `${label} · else 30%`, subtitle: `${name}, 30% off when there's no set` },
+    { value: "b2g1_20", title: `${label} · else 20%`, subtitle: `${name}, 20% off when there's no set` },
+    { value: "none", title: "No deal", subtitle: "Full price, no discount" },
+  ];
+}
 
 export interface CartLineDeal {
   name: string;

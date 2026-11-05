@@ -30,7 +30,8 @@ type salesInvoiceItem struct {
 	// away.
 	NoDiscount bool `json:"noDiscount,omitempty"`
 	NoDeal     bool `json:"noDeal,omitempty"`
-	// An unknown item line's deal: b2g1_30, b2g1_20 or none; empty is the
+	// An unknown item line's deal: b2g1_30, b2g1_20 or none (the names stay
+	// whatever the deal); empty is the
 	// default (unknown_item_deal.go). Ignored on any other line.
 	UnknownDeal string `json:"unknownDeal,omitempty"`
 	// The cart's own name for the line, echoed on its quote lines so the

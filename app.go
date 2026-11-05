@@ -103,6 +103,9 @@ type App struct {
 	// serializing: cursors are per-entity and monotonic, so whichever pull
 	// runs first advances them and the other finds nothing new to fetch.
 	syncPullMu sync.Mutex
+	// What the last pull applied, under syncPullMu; see sync_report.go.
+	lastPullApplied int64
+	syncReport      syncReporter
 	// fullCheckAttemptAt is when the completeness check last started
 	// (sync_full_check.go), successful or not -- guarded by syncPullMu. It
 	// keeps a check that keeps failing from rerunning every pull tick.

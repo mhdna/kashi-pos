@@ -13,6 +13,10 @@ import (
 func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing.T) {
 	var calls int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/branch/sync/report" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		calls++
 		entity := r.URL.Query().Get("entity")
 		since := r.URL.Query().Get("since")
@@ -57,6 +61,8 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 			fmt.Fprint(w, `{"entity":"branch_stock","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "invoice_discounts":
 			fmt.Fprint(w, `{"entity":"invoice_discounts","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "calendar_events":
+			fmt.Fprint(w, `{"entity":"calendar_events","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		default:
 			t.Fatalf("unexpected entity %q", entity)
 		}
@@ -95,8 +101,8 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 	// Second pull should send the saved cursor as `since`, not fetch
 	// everything all over again.
 	app.runSyncPullOnce(app.ctx, client)
-	if calls != 36 {
-		t.Fatalf("expected 36 total calls (18 entities x 2 ticks), got %d", calls)
+	if calls != 38 {
+		t.Fatalf("expected 38 total calls (19 entities x 2 ticks), got %d", calls)
 	}
 }
 

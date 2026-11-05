@@ -52,7 +52,7 @@ type activePricing struct {
 	saleOptions map[string][]string
 	// deals[uid] is a deal's terms, for the rows naming it (deals.go).
 	deals map[string]dealTerms
-	// The "Buy 2 get 1" deal unknown items join (unknown_item_deal.go); ""
+	// The deal unknown items join (unknown_item_deal.go); ""
 	// when there's none.
 	unknownDealUID string
 }

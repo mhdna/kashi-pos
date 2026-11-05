@@ -94,10 +94,6 @@ func applySyncedPriceList(ctx context.Context, q *db.Queries, l syncedPriceList)
 	if l.UID == "" {
 		return fmt.Errorf("price list %q has no uid", l.Name)
 	}
-	if !l.IsActive {
-		return q.DeletePriceListByUID(ctx, sql.NullString{String: l.UID, Valid: true})
-	}
-
 	list, err := q.UpsertPriceListByUID(ctx, db.UpsertPriceListByUIDParams{
 		Uid:       sql.NullString{String: l.UID, Valid: true},
 		Name:      l.Name,
@@ -135,10 +131,6 @@ func applySyncedDiscountList(ctx context.Context, q *db.Queries, l syncedDiscoun
 	if l.UID == "" {
 		return fmt.Errorf("discount list %q has no uid", l.Name)
 	}
-	if !l.IsActive {
-		return q.DeleteDiscountListByUID(ctx, sql.NullString{String: l.UID, Valid: true})
-	}
-
 	list, err := q.UpsertDiscountListByUID(ctx, db.UpsertDiscountListByUIDParams{
 		Uid:       sql.NullString{String: l.UID, Valid: true},
 		Name:      l.Name,
