@@ -1040,11 +1040,11 @@ function canEditPrice(item: LineItem): boolean {
   );
 }
 
-// Whether a line's discount can be typed in. An unknown item always can (like
-// its price, it has no list to take it from); every other line follows the
-// branch's custom-discount setting and its price-edit codes.
+// Whether a line's discount can be typed in: it follows the branch's
+// custom-discount setting, and its price-edit codes for anything but an unknown
+// item, which has no code of its own.
 function discountEditable(item: LineItem): boolean {
-  if (isUnknownItem(item)) return true;
+  if (isUnknownItem(item)) return customDiscountsEnabled.value;
   return customDiscountsEnabled.value && codeAllowsPriceEdit(item);
 }
 
