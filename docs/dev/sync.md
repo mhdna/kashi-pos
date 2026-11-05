@@ -153,4 +153,6 @@ the ids of all its past sales once in bulk.
 
 After each pull pass the till sends `POST /branch/sync/report` (`sync_report.go`), for kashi's Commands page: each entity that failed or applied something, an error that has cleared, and its outbox counts. A pass with nothing new sends nothing, and a long paged pull also sends a running count. It never fails a sync, and an older kashi just answers 404.
 
+It also sends a fingerprint of each list in force, whenever one changes: its row count and a hash of its rows, with the same recipe as kashi's `api/list_fingerprint.go`, so kashi can check what the till really holds. Change one and you must change the other; a test in each repo pins the same values.
+
 A price or discount list kashi switches off keeps its row here, off and emptied, because sold lines point at it. Deleting one with sales fails and rolls back the whole pull, so nothing else in it arrives.
