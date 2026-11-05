@@ -172,7 +172,11 @@ func (a *App) sendLiveCartReports() {
 		ctx, cancel := context.WithTimeout(context.Background(), liveCartReportTimeout)
 		err := client.sendJSON(ctx, http.MethodPost, "/branch/live_cart", payload)
 		cancel()
-		if err != nil && !errors.Is(err, errCentralSyncDisabled) {
+		// An older kashi has no live cart: it answers 404, which isn't worth
+		// a log line on every scan.
+		var perm *permanentError
+		if err != nil && !errors.Is(err, errCentralSyncDisabled) &&
+			!(errors.As(err, &perm) && perm.status == http.StatusNotFound) {
 			log.Printf("live cart report: %v", err)
 		}
 	}
