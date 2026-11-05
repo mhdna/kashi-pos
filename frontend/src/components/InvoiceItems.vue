@@ -46,6 +46,20 @@
               :text="item.saleOption"
               variant="tonal"
             />
+            <!-- kashi set this line's price, discount or deal from its live
+                 cart view; it stays as kashi set it. -->
+            <k-chip
+              v-if="item.remote"
+              class="invoice-item-sale-option"
+              color="primary"
+              label
+              size="x-small"
+              :title="remoteTitle(item)"
+              variant="tonal"
+            >
+              <k-icon class="me-1" icon="mdi-lock" size="12" />
+              kashi
+            </k-chip>
             <!-- The line's deal in short ("B2G1"), and how many of its
                  units it gives free; the deal's full name shows on hover. -->
             <k-chip
@@ -506,6 +520,26 @@ interface LineItem {
   // prop - used by exchange mode, where returned (negative-qty) lines stay
   // locked while replacement lines scanned afterward are fully editable.
   locked?: boolean;
+  // kashi priced this line from its live cart (live_cart.go): what it set,
+  // and the line's own price and discount to go back to when kashi lifts it.
+  // The till applies kashi's values itself; nothing here can be edited.
+  remote?: RemoteLine;
+}
+
+interface RemoteLine {
+  priceCents?: number | null;
+  discount?: number | null;
+  noDeal?: boolean;
+  prevPrice: number;
+  prevDiscount: number;
+}
+
+// One line of kashi's overrides, as GetLiveCartOverrides returns it.
+export interface LiveCartLineOverride {
+  barcode: string;
+  price_cents?: number | null;
+  discount?: number | null;
+  no_deal?: boolean;
 }
 
 const emit = defineEmits<{
@@ -623,6 +657,7 @@ function chipDiscount(item: LineItem): number {
 function canToggleDiscount(item: LineItem): boolean {
   return (
     Boolean(props.discountToggleEnabled) &&
+    !item.remote &&
     !readonly.value &&
     !item.locked &&
     item.qty > 0 &&
@@ -632,7 +667,14 @@ function canToggleDiscount(item: LineItem): boolean {
 }
 
 function canToggleDeal(item: LineItem): boolean {
-  return Boolean(props.dealToggleEnabled) && !readonly.value && !item.locked && item.qty > 0 && !isUnknownItem(item);
+  return (
+    Boolean(props.dealToggleEnabled) &&
+    !item.remote &&
+    !readonly.value &&
+    !item.locked &&
+    item.qty > 0 &&
+    !isUnknownItem(item)
+  );
 }
 
 const toggleDialog = ref(false);
@@ -942,7 +984,7 @@ function addItem(item: LineItem) {
 function applyListPricing(rows: any[]): string[] {
   const changed: string[] = [];
   for (const item of items.value) {
-    if (item.locked || !(item.qty > 0) || isUnknownItem(item)) continue;
+    if (item.locked || item.remote || !(item.qty > 0) || isUnknownItem(item)) continue;
     const row = rows.find((r) => r.barcode === item.barcode);
     const price = Number(row?.price);
     if (!row || !(price > 0)) continue;
@@ -1033,6 +1075,7 @@ function codeAllowsPriceEdit(item: LineItem): boolean {
 function canEditPrice(item: LineItem): boolean {
   return (
     customPricesEnabled.value &&
+    !item.remote &&
     codeAllowsPriceEdit(item) &&
     !readonly.value &&
     !item.locked &&
@@ -1044,6 +1087,7 @@ function canEditPrice(item: LineItem): boolean {
 // custom-discount setting, and its price-edit codes for anything but an unknown
 // item, which has no code of its own.
 function discountEditable(item: LineItem): boolean {
+  if (item.remote) return false;
   if (isUnknownItem(item)) return customDiscountsEnabled.value;
   return customDiscountsEnabled.value && codeAllowsPriceEdit(item);
 }
@@ -1064,6 +1108,7 @@ function canEditUnitPrice(item: LineItem): boolean {
   return (
     item.qty > 0 &&
     (perUnitPricesEnabled.value || customPricesEnabled.value) &&
+    !item.remote &&
     codeAllowsPriceEdit(item) &&
     !readonly.value &&
     !item.locked
@@ -1074,6 +1119,7 @@ function canEditUnitDiscount(item: LineItem): boolean {
   return (
     item.qty > 0 &&
     (perUnitPricesEnabled.value || customDiscountsEnabled.value) &&
+    !item.remote &&
     codeAllowsPriceEdit(item) &&
     !readonly.value &&
     !item.locked
@@ -1336,7 +1382,61 @@ const discountedSubtotalCents = computed(() =>
   items.value.reduce((sum, i) => sum + discountedItemCents(i), 0),
 );
 
+function remoteTitle(item: LineItem): string {
+  const r = item.remote;
+  if (!r) return "";
+  const parts = [];
+  if (r.priceCents != null) parts.push(`price $${(r.priceCents / 100).toFixed(2)}`);
+  if (r.discount != null) parts.push(`${r.discount}% off`);
+  if (r.noDeal) parts.push("no deal");
+  return `Set in kashi: ${parts.join(", ")}`;
+}
+
+// Puts kashi's live-cart overrides on the lines they name and takes them off
+// the rest, giving a freed line back its own price and discount. The till
+// prices from kashi's values whatever these say; this is so the cart shows
+// them. Returns whether any line changed.
+function applyRemoteOverrides(lines: LiveCartLineOverride[]): boolean {
+  let changed = false;
+  for (const item of items.value) {
+    const o = item.qty > 0 && !item.locked && !isUnknownItem(item) && item.barcode
+      ? lines.find((l) => l.barcode === item.barcode)
+      : undefined;
+    const qty = Math.max(1, Math.trunc(item.qty));
+    if (!o) {
+      if (!item.remote) continue;
+      item.price = item.remote.prevPrice;
+      item.discount = item.remote.prevDiscount;
+      item.unitPrices = Array(qty).fill(item.price);
+      item.unitDiscounts = Array(qty).fill(item.discount);
+      delete item.remote;
+      changed = true;
+      continue;
+    }
+    const prevPrice = item.remote?.prevPrice ?? Number(item.price);
+    const prevDiscount = item.remote?.prevDiscount ?? Number(item.discount);
+    const next: RemoteLine = {
+      priceCents: o.price_cents ?? null,
+      discount: o.discount ?? null,
+      noDeal: Boolean(o.no_deal),
+      prevPrice,
+      prevDiscount,
+    };
+    if (JSON.stringify(next) === JSON.stringify(item.remote)) continue;
+    item.remote = next;
+    item.price = o.price_cents != null ? o.price_cents / 100 : Number(item.originalPrice ?? prevPrice);
+    item.discount = o.discount != null ? o.discount : Number(item.originalDiscount ?? prevDiscount);
+    item.discountOff = false;
+    item.dealOff = false;
+    item.unitPrices = Array(qty).fill(item.price);
+    item.unitDiscounts = Array(qty).fill(item.discount);
+    changed = true;
+  }
+  return changed;
+}
+
 defineExpose({
+  applyRemoteOverrides,
   subtotal,
   totalDiscount,
   subtotalCents,

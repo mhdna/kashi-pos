@@ -101,6 +101,32 @@ kashi's table is the only queue, so nothing can get stuck on the till.
 | `cancel_record`, `set_expense_from_central` | Expense/loan changes made in kashi (applied without echoing back). |
 | `review_attendance_request` | Approve/reject an attendance request. |
 | `replace_shift_balance` | Correct a closed shift's balances. |
+| `cart_override` | kashi's changes to the sale on screen (see Live cart below). |
+
+## Live cart
+
+The sale screen reports its open sale (`ReportLiveCart`, `live_cart.go`) on
+every change and every 20 s, and the till forwards it to kashi's
+`POST /branch/live_cart`. It's a view, not a record: nothing goes through the
+outbox, and a failed report is just replaced by the next. kashi keeps only
+the latest per register, in memory.
+
+From kashi's app bar (the cart button) someone with pricing rights can send a
+`cart_override` for that sale: turn every deal off, or give a line (by
+barcode) a price, a discount or no deal. These go **past the branch's
+settings**: `validateAndPriceItems` applies them itself whatever
+`custom_item_prices`, `custom_item_discounts`, `price_edit_restricted` and
+the toggles say, so the quote and the checkout both charge them. The screen
+marks those lines "kashi" and locks them.
+
+- Overrides belong to one sale, named by a ref the screen makes per sale (kept
+  in the draft). A report of another sale drops them; a command for a sale
+  that's gone fails, and kashi shows it.
+- Only a plain sale takes them, never an exchange or settlement.
+- Unknown items can't be singled out (they share one barcode); "every deal
+  off" still takes them off the shop's deal.
+- They live in memory: a till restart drops them and the lines go back to
+  their own prices on the next report.
 
 ## Settings report
 

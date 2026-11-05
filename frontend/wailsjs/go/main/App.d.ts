@@ -180,6 +180,8 @@ export function GetInvoiceForSettlementChange(arg1:number):Promise<Record<string
 
 export function GetInvoiceSyncStates(arg1:Array<number>):Promise<Array<main.InvoiceSyncState>>;
 
+export function GetLiveCartOverrides():Promise<main.liveCartOverrides>;
+
 export function GetLoanFirstPhoto(arg1:string,arg2:number):Promise<string>;
 
 export function GetLoanPhoto(arg1:number,arg2:number):Promise<string>;
@@ -363,6 +365,8 @@ export function ReorderQuickAccessProducts(arg1:Array<number>):Promise<void>;
 export function ReplaceShiftBalance(arg1:number,arg2:number,arg3:number,arg4:number,arg5:boolean):Promise<void>;
 
 export function ReportDisplayPrefs(arg1:string):Promise<void>;
+
+export function ReportLiveCart(arg1:string):Promise<void>;
 
 export function ReprintInvoice(arg1:number):Promise<void>;
 

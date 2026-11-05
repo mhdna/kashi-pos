@@ -456,6 +456,8 @@ import {
   QuoteExchangeTotal,
   GetUnknownProduct,
   RefreshCartPricing,
+  ReportLiveCart,
+  GetLiveCartOverrides,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import ActionBar from "@/components/ActionBar.vue";
@@ -505,6 +507,8 @@ type InvoiceDraft = {
   // (returned lines locked in, replacements maybe scanned) survives an app
   // restart or logout/login instead of silently reverting to a normal sale.
   exchangeOriginalInvoiceId?: number;
+  // The sale's ref for kashi's live cart view (live_cart.go).
+  saleRef?: string;
 };
 const { client, clientSelected, setClient, resetClient, pulseMissingClient, setClientRequired } = useClient();
 const { selectedSalesperson, pulseSalesperson, salespersonPerInvoiceRequired, setSalespersonPerInvoiceRequired } =
@@ -702,6 +706,105 @@ watch(pendingSettlementInvoice, () => void consumePendingSettlement());
 
 const draftSaver = createDraftSaver(INVOICE_DRAFT_KEY);
 
+// ---- kashi's live cart view (live_cart.go) ----
+// The sale on screen is reported to kashi on every change and every 20 s.
+// Someone in kashi can then turn its deals off or set a line's price or
+// discount past this branch's settings; the till applies that itself and
+// tells the screen, which marks those lines and locks them. Each sale has its
+// own ref, so kashi's changes never carry over to the next one.
+function newSaleRef(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+const saleRef = ref(newSaleRef());
+const liveAllDealsOff = ref(false);
+let liveReportTimer: ReturnType<typeof setTimeout> | undefined;
+let liveHeartbeat: ReturnType<typeof setInterval> | undefined;
+let unsubscribeLiveCart: (() => void) | undefined;
+
+function liveCartReport() {
+  const items = invoiceItems.value?.items ?? [];
+  const quoteLines = quote.value?.lines ?? [];
+  return {
+    saleRef: saleRef.value,
+    mode: pageMode.value,
+    invoiceCode: invoiceCode.value,
+    client: clientSelected.value ? client.name : "",
+    salesperson: selectedSalesperson.value?.fullName ?? "",
+    totalCents: quoteError.value ? null : (quote.value?.grandTotalCents ?? 0),
+    invoiceDiscountCents: quote.value?.invoiceDiscountCents ?? 0,
+    invoiceDiscountName: quote.value?.invoiceDiscountName ?? "",
+    lines: items.map((i: any) => {
+      const priced = quoteLines.filter(
+        (l) =>
+          (i.barcode ? l.barcode === i.barcode : l.code === i.code) &&
+          (l.saleOption ?? "") === (i.saleOption ?? "") &&
+          (!l.lineRef || l.lineRef === i.unknownRef),
+      );
+      return {
+        barcode: i.barcode ?? "",
+        code: i.code,
+        name: i.name,
+        variant: [i.color, i.size].filter(Boolean).join(" / "),
+        saleOption: i.saleOption ?? "",
+        qty: i.qty,
+        priceCents: Math.round(Number(i.price) * 100),
+        discount: Number(i.discount || 0),
+        listPriceCents: Math.round(Number(i.originalPrice ?? i.price) * 100),
+        listDiscount: Number(i.originalDiscount ?? i.discount ?? 0),
+        deal: priced.find((l) => l.dealLabel)?.dealLabel ?? "",
+        dealDiscountCents: priced.reduce((sum, l) => sum + (l.dealDiscountCents ?? 0), 0),
+        dealOff: priced.find((l) => l.offDealLabel)?.offDealLabel ?? "",
+        unknown: isUnknownItem(i),
+        kashi: Boolean(i.remote),
+      };
+    }),
+  };
+}
+
+function sendLiveCart() {
+  clearTimeout(liveReportTimer);
+  liveReportTimer = undefined;
+  if (restoringDraft) return;
+  ReportLiveCart(JSON.stringify(liveCartReport()))
+    .then(() => syncLiveOverrides(false))
+    .catch(() => {});
+}
+
+function scheduleLiveCart() {
+  clearTimeout(liveReportTimer);
+  liveReportTimer = setTimeout(sendLiveCart, 600);
+}
+
+// Puts what kashi set for this sale on the cart (or takes it off), and
+// re-prices when anything changed. announce: kashi just sent it.
+async function syncLiveOverrides(announce: boolean) {
+  try {
+    const o: any = await GetLiveCartOverrides();
+    const mine = o?.sale_ref === saleRef.value;
+    const lines = mine ? (o?.lines ?? []) : [];
+    const allOff = mine && Boolean(o?.all_deals_off);
+    const changed = invoiceItems.value?.applyRemoteOverrides(lines) ?? false;
+    const dealsChanged = allOff !== liveAllDealsOff.value;
+    liveAllDealsOff.value = allOff;
+    if (!changed && !dealsChanged && !announce) return;
+    await refreshQuote();
+    if (announce && mine) {
+      snackbar.text = allOff ? "kashi changed this sale: every deal is off" : "kashi changed this sale";
+      snackbar.color = "info";
+      snackbar.icon = "";
+      snackbar.show = true;
+    }
+  } catch {
+    // The till still prices with what it holds; the next report tries again.
+  }
+}
+
+watch(
+  [() => invoiceItems.value?.items, quote, pageMode, () => client.name, selectedSalesperson, invoiceCode],
+  scheduleLiveCart,
+  { deep: true },
+);
+
 function buildDraft(): string | null {
   // Settlement mode's cart is a frozen snapshot of one specific invoice,
   // not a draft sale - it must never be persisted/restored as one.
@@ -712,6 +815,7 @@ function buildDraft(): string | null {
     notes: invoiceNotes.value,
     calculator: calculator.value?.holdState(),
     exchangeOriginalInvoiceId: exchangeState.value?.originalInvoiceId,
+    saleRef: saleRef.value,
   } satisfies InvoiceDraft);
 }
 
@@ -868,6 +972,7 @@ async function restoreDraft() {
       invoiceItems.value.items = (draft.items ?? []).map((item) => ({ ...item }));
     }
     if (draft.client?.id) setClient(draft.client);
+    if (draft.saleRef) saleRef.value = draft.saleRef;
     invoiceNotes.value = draft.notes ?? "";
     noteDraft.value = invoiceNotes.value;
     calculator.value?.restoreHoldState(draft.calculator);
@@ -903,6 +1008,7 @@ function clearInvoice() {
   unknownSession.clientRef = "";
   clearDraft();
   resetClient();
+  saleRef.value = newSaleRef();
 }
 
 function saveNote() {
@@ -1686,6 +1792,8 @@ onMounted(async () => {
   unsubscribeSettingsChanged = EventsOn("settings_changed", () => {
     void loadAppSettings();
   });
+  unsubscribeLiveCart = EventsOn("live_cart_overrides_changed", () => void syncLiveOverrides(true));
+  liveHeartbeat = setInterval(sendLiveCart, 20_000);
   overlayObserver = new MutationObserver(scheduleBarcodeFocus);
   overlayObserver.observe(document.body, {
     attributes: true,
@@ -1722,6 +1830,9 @@ onBeforeUnmount(() => {
   window.removeEventListener("pagehide", draftSaver.flush);
   pageActive = false;
   unsubscribeSettingsChanged?.();
+  unsubscribeLiveCart?.();
+  clearInterval(liveHeartbeat);
+  clearTimeout(liveReportTimer);
   unsubscribeListChanges.forEach((unsubscribe) => unsubscribe());
   if (listRefreshTimer) clearTimeout(listRefreshTimer);
   clearTimeout(overlayFocusTimer);

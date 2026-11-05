@@ -52,6 +52,8 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 		return a.executePrintShiftReportCommand(cmd.Payload)
 	case "reprint_invoice":
 		return a.executeReprintInvoiceCommand(ctx, cmd.Payload)
+	case "cart_override":
+		return a.executeCartOverrideCommand(cmd.Payload)
 	case "sync_now":
 		a.kickSyncWorker()
 		return nil
