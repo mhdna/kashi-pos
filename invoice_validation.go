@@ -195,6 +195,11 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		// cashier typed is its price, whatever the custom-price settings say
 		// (kashi's picture session is what vouches for the sale instead).
 		isUnknown := product.Barcode == a.unknownBarcode()
+		// Its price is the cashier's to type, but a discount on top follows the
+		// branch's custom-discount setting like any other line.
+		if isUnknown && hasUnitDiscount(item, 0) && !a.flagEnabled(a.ctx, customItemDiscountsFlag) {
+			return nil, 0, 0, nil, fmt.Errorf("custom item discounts are off for this branch")
+		}
 		if item.CustomPriceCents != nil {
 			if !customPricingEnabled && !isUnknown {
 				return nil, 0, 0, nil, fmt.Errorf("custom item pricing is disabled")

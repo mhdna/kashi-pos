@@ -130,6 +130,9 @@ func TestUnknownItemWithADiscountStaysOffTheDeal(t *testing.T) {
 	if _, err := shop.app.GetUnknownProduct(); err != nil {
 		t.Fatal(err)
 	}
+	if err := shop.app.setFeatureFlagBool(shop.app.ctx, customItemDiscountsFlag, true); err != nil {
+		t.Fatal(err)
+	}
 	line := unknownLine("u1", 3000, unknownDeal30)
 	line.UnitDiscounts = []int64{10}
 	quote := quoteItems(t, shop.app, line)
@@ -229,5 +232,26 @@ func TestUnknownItemFollowsTheBranchToANewDeal(t *testing.T) {
 	lines := unknownQuoteLines(quote)
 	if len(lines) != 1 || lines[0].UnknownDealLabel != "B1G1" || lines[0].UnknownDealName != "Buy 1 Get 1" {
 		t.Fatalf("lines = %+v", lines)
+	}
+}
+
+// With custom discounts off for the branch, an unknown item can't take one: its
+// price is still typed, its discount isn't.
+func TestUnknownItemDiscountFollowsTheSwitch(t *testing.T) {
+	shop := setUpDealShop(t)
+	if _, err := shop.app.GetUnknownProduct(); err != nil {
+		t.Fatal(err)
+	}
+	if err := shop.app.setFeatureFlagBool(shop.app.ctx, customItemDiscountsFlag, false); err != nil {
+		t.Fatal(err)
+	}
+	line := unknownLine("u1", 3000, unknownDeal30)
+	line.UnitDiscounts = []int64{10}
+	itemsJSON, _ := json.Marshal([]salesInvoiceItem{line})
+	if _, err := shop.app.QuoteInvoiceTotal(string(itemsJSON)); err == nil {
+		t.Fatal("a typed discount went through with custom discounts off")
+	}
+	if quote := quoteItems(t, shop.app, unknownLine("u1", 3000, unknownDeal30)); quote.GrandTotalCents != 2100 {
+		t.Fatalf("total = %d, want 2100 (30%% off with no set)", quote.GrandTotalCents)
 	}
 }
