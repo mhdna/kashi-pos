@@ -64,6 +64,9 @@ LBP amounts.
   (`price_edit_restricted` + the code list), and custom prices/discounts are
   separate switches (`custom_item_prices`, `custom_item_discounts`,
   `per_unit_item_prices`, `price_change_manual_override_mode`).
+- **kashi's live cart overrides** (`live_cart.go`) beat all of the above for
+  the one sale they were made for: a price, a discount or no deal per line,
+  or every deal off. See `sync.md`, Live cart.
 
 ## Stock
 

@@ -358,6 +358,10 @@ export function GetInvoiceSyncStates(arg1) {
   return window['go']['main']['App']['GetInvoiceSyncStates'](arg1);
 }
 
+export function GetLiveCartOverrides() {
+  return window['go']['main']['App']['GetLiveCartOverrides']();
+}
+
 export function GetLoanFirstPhoto(arg1, arg2) {
   return window['go']['main']['App']['GetLoanFirstPhoto'](arg1, arg2);
 }
@@ -724,6 +728,10 @@ export function ReplaceShiftBalance(arg1, arg2, arg3, arg4, arg5) {
 
 export function ReportDisplayPrefs(arg1) {
   return window['go']['main']['App']['ReportDisplayPrefs'](arg1);
+}
+
+export function ReportLiveCart(arg1) {
+  return window['go']['main']['App']['ReportLiveCart'](arg1);
 }
 
 export function ReprintInvoice(arg1) {

@@ -106,6 +106,8 @@ type App struct {
 	// What the last pull applied, under syncPullMu; see sync_report.go.
 	lastPullApplied int64
 	syncReport      syncReporter
+	// The sale on screen as kashi sees it, and kashi's overrides (live_cart.go).
+	liveCart liveCartState
 	// fullCheckAttemptAt is when the completeness check last started
 	// (sync_full_check.go), successful or not -- guarded by syncPullMu. It
 	// keeps a check that keeps failing from rerunning every pull tick.

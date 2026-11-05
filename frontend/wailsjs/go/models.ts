@@ -1188,6 +1188,60 @@ export namespace main {
 	        this.ReceivedQuantity = source["ReceivedQuantity"];
 	    }
 	}
+	export class liveCartLineOverride {
+	    barcode: string;
+	    price_cents?: number;
+	    discount?: number;
+	    no_deal?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new liveCartLineOverride(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.barcode = source["barcode"];
+	        this.price_cents = source["price_cents"];
+	        this.discount = source["discount"];
+	        this.no_deal = source["no_deal"];
+	    }
+	}
+	export class liveCartOverrides {
+	    sale_ref: string;
+	    all_deals_off: boolean;
+	    lines: liveCartLineOverride[];
+	    by?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new liveCartOverrides(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sale_ref = source["sale_ref"];
+	        this.all_deals_off = source["all_deals_off"];
+	        this.lines = this.convertValues(source["lines"], liveCartLineOverride);
+	        this.by = source["by"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class transferRequestItemInput {
 	    Barcode: string;
 	    Quantity: number;

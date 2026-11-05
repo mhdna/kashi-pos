@@ -125,7 +125,15 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 	products := make([]pricedInvoiceProduct, 0, len(items))
 	var subtotal int64
 	discountToggleChecked, dealToggleChecked := false, false
+	// What kashi set on the sale on screen (live_cart.go); empty otherwise.
+	liveOverrides := a.liveCart.activeOverrides()
 	for _, item := range items {
+		// Every unknown item shares one barcode, so kashi can't single one out.
+		var lineOverride liveCartLineOverride
+		overridden := false
+		if strings.TrimSpace(item.Barcode) != a.unknownBarcode() {
+			lineOverride, overridden = applyLiveCartOverride(liveOverrides, &item)
+		}
 		if item.NoDiscount && !discountToggleChecked {
 			if !a.flagEnabled(a.ctx, discountToggleFlag) {
 				return nil, 0, 0, nil, fmt.Errorf("turning a discount off is disabled")
@@ -234,6 +242,27 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			}
 			dealUID = ""
 		}
+		// A line kashi priced from the live cart: its price and discount are
+		// kashi's, past the branch's settings, and like any line priced by
+		// hand it leaves its deal.
+		if overridden && !isUnknown {
+			if lineOverride.PriceCents != nil {
+				product.Price = *lineOverride.PriceCents
+				priceListID = 0
+			}
+			if lineOverride.Discount != nil {
+				product.Discount = *lineOverride.Discount
+				discountListID = 0
+			}
+			if dealUID != "" && lineOverride.NoDeal {
+				if terms, ok := listPricing.deals[dealUID]; ok {
+					offDealLabel = terms.withFallback(dealFallback).label()
+				}
+			}
+			if lineOverride.NoDeal || lineOverride.PriceCents != nil || lineOverride.Discount != nil {
+				dealUID = ""
+			}
+		}
 		// An unknown item joins the shop's deal at the fallback the
 		// salesperson picked, unless they took it out -- or typed it a
 		// discount, since a deal never stacks on another saving.
@@ -251,6 +280,17 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 					unknownDeal = unknownDealDefault
 				}
 			}
+		}
+		// kashi turned every deal off for this sale.
+		if liveOverrides.AllDealsOff && dealUID != "" {
+			if !isUnknown {
+				if terms, ok := listPricing.deals[dealUID]; ok {
+					offDealLabel = terms.withFallback(dealFallback).label()
+				}
+			} else {
+				unknownDeal = unknownDealNone
+			}
+			dealUID = ""
 		}
 		priceQuantities := map[unitPricing]int64{
 			{price: product.Price, discount: product.Discount}: int64(item.Qty),
