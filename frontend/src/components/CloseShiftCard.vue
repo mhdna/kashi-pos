@@ -317,12 +317,9 @@
               Well done{{ closerFirstName ? `, ${closerFirstName}` : "" }}!
             </div>
             <div class="text-body-1 mt-3">
-              Your shift is closed{{ receiptPhotoReceived ? " and the receipt photo is in" : "" }}. Thank you for
-              today's work.
+              Your shift is closed{{ receiptPhotoReceived ? " and the receipt photo is in" : "" }}.
             </div>
-            <div v-if="receiptPhotoReceived" class="text-caption text-medium-emphasis mt-2">
-              The photo will sync to the office automatically.
-            </div>
+            <div class="text-body-1 mt-1">Thank you for today's work.</div>
             <k-divider class="my-4" />
             <div class="text-subtitle-1 font-weight-medium">Shut down the computer?</div>
             <div v-if="shutdownError" class="text-caption text-error mt-2">{{ shutdownError }}</div>

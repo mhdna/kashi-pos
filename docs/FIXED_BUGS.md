@@ -3,6 +3,18 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-05 · Shutting down showed "You're about to be signed out"
+
+**Symptom.** After closing a shift and choosing "Yes, shut down", Windows put up
+a "You're about to be signed out" notice over the till before turning off.
+
+**Cause.** The till ran `shutdown.exe /s /t 3`, giving itself three seconds to
+close cleanly; any delay above 0 makes Windows show that notice.
+
+**Fix.** A hidden helper waits the two seconds instead and then runs
+`shutdown /t 0`, which shows nothing (`startPowerCommand` in `kiosk_windows.go`).
+Windows-only, so no automated test: try it on a till.
+
 ## 2026-11-05 · Payment icons sat right against their names
 
 **Symptom.** On the Shifts page's income card the wallet icon touched "Cash $$"

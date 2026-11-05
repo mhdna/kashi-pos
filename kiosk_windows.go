@@ -31,6 +31,7 @@ package main
 // Off in `wails dev` builds, and on a till with KASHI_KIOSK=false.
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -39,6 +40,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -535,12 +537,29 @@ func startExplorer() {
 	_ = cmd.Process.Release()
 }
 
-// startPowerCommand asks Windows to shut down or restart in a few seconds,
-// time for the app to close cleanly first.
+// startPowerCommand shuts Windows down (or restarts it) in about two
+// seconds, time for the app to close cleanly first. The wait is a hidden
+// helper's, not shutdown's own /t: any /t above 0 makes Windows show
+// "You're about to be signed out" over the till.
 func startPowerCommand(restart bool) error {
 	mode := "/s"
 	if restart {
 		mode = "/r"
 	}
-	return exec.Command(filepath.Join(os.Getenv("WINDIR"), "System32", "shutdown.exe"), mode, "/t", "3").Run()
+	system32 := filepath.Join(os.Getenv("WINDIR"), "System32")
+	script := fmt.Sprintf(`"%s" -n 3 127.0.0.1 >nul & "%s" %s /t 0`,
+		filepath.Join(system32, "PING.EXE"), filepath.Join(system32, "shutdown.exe"), mode)
+	cmd := exec.Command(filepath.Join(system32, "cmd.exe"))
+	// Raw, so cmd sees the quotes and the & as written. No window: the
+	// helper and its children share one invisible console, and it outlives
+	// the app, which quits right after this.
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: windows.CREATE_NO_WINDOW,
+		CmdLine:       fmt.Sprintf(`cmd.exe /d /c "%s"`, script),
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
 }
