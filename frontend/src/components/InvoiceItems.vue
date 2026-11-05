@@ -296,7 +296,7 @@
           </div>
           <div class="unknown-deal-choices">
             <k-btn
-              v-for="choice in unknownDealChoices"
+              v-for="choice in unknownDealItemChoices"
               :key="choice.value"
               block
               class="unknown-deal-choice"
@@ -445,6 +445,7 @@ import {
   dealsByLine,
   offDealsByLine,
   unknownDealChoices,
+  unknownDealOptions,
   unknownDealsByLine,
   type DealLine,
   type UnknownDealChoice,
@@ -481,7 +482,7 @@ interface LineItem {
   // unknownUnits).
   unknownRef?: string;
   // The deal the salesperson picked for an unknown item line; unset is the
-  // till's default (a "Buy 2 get 1").
+  // till's default (the shop's deal).
   unknownDeal?: UnknownDealChoice;
   saleOptions?: { name: string; discount: number; discountListName?: string }[];
   // The catalog/list price captured when the line was added, before any
@@ -577,6 +578,14 @@ function hasTypedDiscount(item: LineItem): boolean {
 
 const unknownDealDialog = ref(false);
 const unknownDealItem = ref<LineItem | null>(null);
+// The picker names the deal the till would put this line on.
+const unknownDealItemChoices = computed(() => {
+  const item = unknownDealItem.value;
+  const quoted = item && (props.dealLines ?? []).find((line) => dealLineKey(line) === dealLineKey(item));
+  return quoted?.unknownDealLabel
+    ? unknownDealOptions(quoted.unknownDealLabel, quoted.unknownDealName || quoted.unknownDealLabel)
+    : unknownDealChoices;
+});
 
 watch(unknownDealDialog, (open) => {
   if (dialogOpen) dialogOpen.value = open;

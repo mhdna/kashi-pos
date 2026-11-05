@@ -43,6 +43,9 @@ type pricedInvoiceProduct struct {
 	// force ("" when the till has no deal to offer it); see LineQuote.
 	lineRef     string
 	unknownDeal string
+	// The deal it would join, for the picker; see unknownDealOffer.
+	unknownDealLabel string
+	unknownDealName  string
 	// The line's share of the sale's invoice discount (invoice_discounts.go);
 	// lineTotal already has it off.
 	invoiceDiscount int64
@@ -226,7 +229,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			}
 			dealUID = ""
 		}
-		// An unknown item joins the shop's "Buy 2 get 1" at the fallback the
+		// An unknown item joins the shop's deal at the fallback the
 		// salesperson picked, unless they took it out -- or typed it a
 		// discount, since a deal never stacks on another saving.
 		unknownDeal := ""
@@ -295,6 +298,9 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			priced.offDealLabel = offDealLabel
 			priced.lineRef = item.LineRef
 			priced.unknownDeal = unknownDeal
+			if isUnknown {
+				priced.unknownDealLabel, priced.unknownDealName = unknownDealOffer(listPricing)
+			}
 			if pricing.price == product.Price {
 				priced.priceListID = priceListID
 			}

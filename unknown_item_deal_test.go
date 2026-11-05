@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 )
@@ -151,9 +152,9 @@ func TestUnknownItemDealRejectsOtherChoices(t *testing.T) {
 	}
 }
 
-// A till with no "Buy 2 get 1" sells unknown items at their price, and says
+// A till with no deal to join sells unknown items at their price, and says
 // it has no deal to offer them.
-func TestUnknownItemWithoutABuy2Get1Deal(t *testing.T) {
+func TestUnknownItemWithoutADeal(t *testing.T) {
 	app, database := newProductTestApp(t)
 	defer database.Close()
 	if _, err := app.GetUnknownProduct(); err != nil {
@@ -173,12 +174,14 @@ func TestUnknownItemWithoutABuy2Get1Deal(t *testing.T) {
 	}
 }
 
-// The pick is the Buy 2 get 1 most products are on; other deal kinds, and
-// "Buy 2 get 1 50% off", don't count.
+// The pick is the free-units deal most products are on, whatever its numbers.
+// A deal no list names doesn't count, which is what lets a branch move on from
+// one: the till keeps the old deal's row. Other kinds and "50% off" don't either.
 func TestPickUnknownItemDeal(t *testing.T) {
 	deals := map[string]dealTerms{
 		"a":    {UID: "a", Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100},
-		"b":    {UID: "b", Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100},
+		"b":    {UID: "b", Kind: dealBuyGet, BuyQty: 1, GetQty: 1, Percent: 100},
+		"old":  {UID: "old", Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 100},
 		"half": {UID: "half", Kind: dealBuyGet, BuyQty: 2, GetQty: 1, Percent: 50},
 		"vol":  {UID: "vol", Kind: dealVolumePercent, BuyQty: 3, Percent: 20},
 	}
@@ -189,10 +192,42 @@ func TestPickUnknownItemDeal(t *testing.T) {
 	if got := pickUnknownItemDeal(deals, discounts); got != "b" {
 		t.Fatalf("picked %q, want b", got)
 	}
-	if got := pickUnknownItemDeal(deals, nil); got != "a" {
-		t.Fatalf("picked %q with no rows, want a (lowest uid)", got)
+	if got := pickUnknownItemDeal(deals, map[string]activeDiscount{"p1": {dealUID: "a"}, "p2": {dealUID: "b"}}); got != "a" {
+		t.Fatalf("picked %q on a tie, want a (lowest uid)", got)
+	}
+	if got := pickUnknownItemDeal(deals, nil); got != "" {
+		t.Fatalf("picked %q with no product on a deal, want none", got)
 	}
 	if got := pickUnknownItemDeal(map[string]dealTerms{"vol": deals["vol"]}, discounts); got != "" {
-		t.Fatalf("picked %q from no Buy 2 get 1, want none", got)
+		t.Fatalf("picked %q from no free-units deal, want none", got)
+	}
+}
+
+// A branch moved from Buy 2 Get 1 to Buy 1 Get 1: the old list arrives emptied or
+// switched off, even though it has sales. Unknown items follow, pooling with the
+// shop's items, and the picker names the new deal.
+func TestUnknownItemFollowsTheBranchToANewDeal(t *testing.T) {
+	ctx := context.Background()
+	shop := setUpDealShop(t)
+	if _, err := shop.app.GetUnknownProduct(); err != nil {
+		t.Fatal(err)
+	}
+	shop.sell(t, "A", "B", "C")
+	q := shop.store.Queries
+	if err := applySyncedEntityBatch(ctx, q, "discount_lists", []byte(`[
+		{"uid":"new","name":"buy 1 get 1","is_active":true,
+		 "items":[{"product_variant_uid":"var-A","discount":0,"deal_uid":"deal-b1g1"}],
+		 "option_items":[],
+		 "deals":[{"uid":"deal-b1g1","name":"Buy 1 Get 1","kind":"buy_get","buy_qty":1,"get_qty":1,"percent":100}]},
+		{"uid":"disc","name":"Deals","is_active":false,"items":[],"option_items":[],"deals":[]}]`)); err != nil {
+		t.Fatalf("the pull failed: %v", err)
+	}
+	quote := quoteItems(t, shop.app, salesInvoiceItem{Barcode: "bc-A", Qty: 1}, unknownLine("u1", 3000, ""))
+	if quote.GrandTotalCents != 10000 {
+		t.Fatalf("total = %d, want 10000 (the unknown item free with A)", quote.GrandTotalCents)
+	}
+	lines := unknownQuoteLines(quote)
+	if len(lines) != 1 || lines[0].UnknownDealLabel != "B1G1" || lines[0].UnknownDealName != "Buy 1 Get 1" {
+		t.Fatalf("lines = %+v", lines)
 	}
 }

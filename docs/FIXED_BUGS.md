@@ -3,6 +3,32 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-05 · Unknown items stayed on Buy 2 Get 1 after a branch changed deal
+
+**Symptom.** With Centro on Buy 1 Get 1, unknown items still made sets of three
+among themselves, and their picker still said "B2G1".
+
+**Cause.** The deal they join only looked for a "buy 2 get 1", and the till keeps
+deals after their list has gone, so it kept finding the old one. The picker's text
+was fixed.
+
+**Fix.** They join the free-units deal the most products are on in the lists in
+force, and the picker names it (`unknown_item_deal.go`, `frontend/src/lib/deals.ts`).
+Tests: `TestPickUnknownItemDeal`, `TestUnknownItemFollowsTheBranchToANewDeal`.
+
+## 2026-11-05 · A branch moved to another list never got it
+
+**Symptom.** Centro was moved to a new discount list in kashi, but the till kept
+selling on the old one, with no error on screen.
+
+**Cause.** A list kashi switches off was deleted here. Once it has sales the delete
+fails, because `invoice_products` points at it. That rolled back the whole pull, so
+the new list was lost too and the cursor never moved.
+
+**Fix.** The list's row stays, switched off and emptied (`sync_pull_lists.go`).
+Tests: `TestApplySyncedPriceListEmptiesOnDeactivation`,
+`TestUnknownItemFollowsTheBranchToANewDeal`.
+
 ## 2026-11-01 · The backspace key on the keypads showed a tiny icon
 
 **Symptom.** The backspace key on the number pad, login PIN pad, return/exchange

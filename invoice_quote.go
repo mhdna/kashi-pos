@@ -50,8 +50,11 @@ type LineQuote struct {
 	LineRef string `json:"lineRef,omitempty"`
 	// An unknown item line's deal choice in force: b2g1_30, b2g1_20 or none
 	// (a typed discount keeps it out of the deal); empty when the till has
-	// no "Buy 2 get 1" to offer it.
+	// no deal to offer it.
 	UnknownDeal string `json:"unknownDeal,omitempty"`
+	// The deal that choice is about: "B1G1", "Buy 1 Get 1".
+	UnknownDealLabel string `json:"unknownDealLabel,omitempty"`
+	UnknownDealName  string `json:"unknownDealName,omitempty"`
 }
 
 // QuoteInvoiceTotal prices a cart exactly as checkout would, without
@@ -96,6 +99,8 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 			OffDealLabel:      product.offDealLabel,
 			LineRef:           product.lineRef,
 			UnknownDeal:       product.unknownDeal,
+			UnknownDealLabel:  product.unknownDealLabel,
+			UnknownDealName:   product.unknownDealName,
 		})
 	}
 
