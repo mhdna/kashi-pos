@@ -354,6 +354,10 @@ export function GetInvoiceForSettlementChange(arg1) {
   return window['go']['main']['App']['GetInvoiceForSettlementChange'](arg1);
 }
 
+export function GetInvoiceRatings(arg1) {
+  return window['go']['main']['App']['GetInvoiceRatings'](arg1);
+}
+
 export function GetInvoiceSyncStates(arg1) {
   return window['go']['main']['App']['GetInvoiceSyncStates'](arg1);
 }
@@ -852,6 +856,10 @@ export function SetHidePaymentMethodCurrency(arg1) {
 
 export function SetInvoiceKeyboardModeEnabled(arg1) {
   return window['go']['main']['App']['SetInvoiceKeyboardModeEnabled'](arg1);
+}
+
+export function SetInvoiceRatingsEnabled(arg1) {
+  return window['go']['main']['App']['SetInvoiceRatingsEnabled'](arg1);
 }
 
 export function SetNonAdminMonthNavEnabled(arg1) {

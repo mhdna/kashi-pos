@@ -178,6 +178,8 @@ export function GetInvoiceDetails(arg1:number):Promise<Record<string, any>>;
 
 export function GetInvoiceForSettlementChange(arg1:number):Promise<Record<string, any>>;
 
+export function GetInvoiceRatings(arg1:Array<string>):Promise<Record<string, main.InvoiceRating>>;
+
 export function GetInvoiceSyncStates(arg1:Array<number>):Promise<Array<main.InvoiceSyncState>>;
 
 export function GetLiveCartOverrides():Promise<main.liveCartOverrides>;
@@ -427,6 +429,8 @@ export function SetExpenseFromCentral(arg1:number,arg2:boolean):Promise<Record<s
 export function SetHidePaymentMethodCurrency(arg1:boolean):Promise<void>;
 
 export function SetInvoiceKeyboardModeEnabled(arg1:boolean):Promise<void>;
+
+export function SetInvoiceRatingsEnabled(arg1:boolean):Promise<void>;
 
 export function SetNonAdminMonthNavEnabled(arg1:boolean):Promise<void>;
 

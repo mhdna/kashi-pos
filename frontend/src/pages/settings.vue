@@ -889,6 +889,26 @@
             </k-card-text>
           </k-card>
 
+          <k-card v-show="panelMatches('behavior-invoice-ratings')" class="settings-card">
+            <k-card-title class="d-flex align-center ga-3">
+              <k-icon icon="mdi-emoticon-happy-outline" size="20" />
+              Client ratings
+            </k-card-title>
+            <k-card-text>
+              <k-switch
+                :model-value="form.invoiceRatingsEnabled"
+                :loading="pricingSettingsSaving"
+                color="primary"
+                hide-details
+                label="Show how clients rated each sale in the invoices list"
+                @update:model-value="setInvoiceRatingsEnabled"
+              />
+              <div class="settings-note mt-1">
+                From the WhatsApp poll after a sale: 😍 loved it, 🙂 it was okay, 😕 not great.
+              </div>
+            </k-card-text>
+          </k-card>
+
           <k-card v-show="panelMatches('behavior-client-required')" class="settings-card">
             <k-card-title class="d-flex align-center ga-3">
               <k-icon icon="mdi-account-off-outline" size="20" />
@@ -1931,6 +1951,7 @@ import {
   SetInvoiceKeyboardModeEnabled,
   SetProductSearchEnabled,
   SetScanByCodeEnabled,
+  SetInvoiceRatingsEnabled,
   SetProductSearchCodeOnly,
   SetUnknownPicturesAtCheckout,
   SetPriceEditRestricted,
@@ -2145,6 +2166,7 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "behavior-discount-toggle": { tab: "behaviour", title: "Turn discounts or deals off at the till", keywords: "discount deal toggle turn off on remove salesperson default off b2g1 percent" },
   "behavior-price-edit-codes": { tab: "behaviour", title: "Price edits by code", keywords: "price discount manual edit restrict allow only selected codes products" },
   "behavior-sounds": { tab: "display", title: "Sounds", keywords: "sound audio beep chime click mute volume quiet silent" },
+  "behavior-invoice-ratings": { tab: "behaviour", title: "Client ratings", keywords: "rating review feedback emoji loved okay not great whatsapp poll invoices list" },
   "behavior-client-required": { tab: "behaviour", title: "Client on every invoice", keywords: "require client select checkout invoice anonymous prefer not to say" },
   "behavior-always-anonymous": { tab: "behaviour", title: "Always Anonymous client", keywords: "always anonymous client toggle button prefer not to say" },
   "behavior-salesperson-per-invoice": { tab: "behaviour", title: "Salesperson per invoice", keywords: "salesperson per invoice require force clear carry forward previous cashier pick" },
@@ -2271,6 +2293,7 @@ const form = reactive({
   invoiceKeyboardModeEnabled: false,
   productSearchEnabled: true,
   scanByCodeEnabled: true,
+  invoiceRatingsEnabled: true,
   productSearchCodeOnly: false,
   priceEditRestricted: false,
   priceEditCodes: "",
@@ -2716,6 +2739,7 @@ async function loadSettings() {
         invoiceKeyboardModeEnabled: Boolean(s.invoiceKeyboardModeEnabled),
         productSearchEnabled: s.productSearchEnabled !== false,
         scanByCodeEnabled: s.scanByCodeEnabled !== false,
+        invoiceRatingsEnabled: s.invoiceRatingsEnabled !== false,
         productSearchCodeOnly: Boolean(s.productSearchCodeOnly),
         priceEditRestricted: Boolean(s.priceEditRestricted),
         discountToggleEnabled: Boolean(s.discountToggleEnabled),
@@ -3002,6 +3026,22 @@ async function setScanByCodeEnabled(value: boolean | null) {
   } catch {
     form.scanByCodeEnabled = previous;
     notify("Failed to update the scan field setting", "red");
+  } finally {
+    pricingSettingsSaving.value = false;
+  }
+}
+
+async function setInvoiceRatingsEnabled(value: boolean | null) {
+  const enabled = Boolean(value);
+  const previous = form.invoiceRatingsEnabled;
+  form.invoiceRatingsEnabled = enabled;
+  pricingSettingsSaving.value = true;
+  try {
+    await SetInvoiceRatingsEnabled(enabled);
+    notify(`Client ratings in the invoices list ${enabled ? "shown" : "hidden"}`);
+  } catch {
+    form.invoiceRatingsEnabled = previous;
+    notify("Failed to update the client ratings setting", "red");
   } finally {
     pricingSettingsSaving.value = false;
   }
