@@ -68,6 +68,7 @@ type branchSettingsPayload struct {
 	DiscountToggle                bool `json:"discount_toggle"`
 	DiscountToggleDefaultOff      bool `json:"discount_toggle_default_off"`
 	DealToggle                    bool `json:"deal_toggle"`
+	InvoiceRatingsEnabled         bool `json:"invoice_ratings_enabled"`
 	SoundsEnabled                 bool `json:"sounds_enabled"`
 
 	// Device numbers typed in here for kashi's salespersons, keyed by kashi's
@@ -292,6 +293,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		DiscountToggle:                a.flagEnabled(ctx, discountToggleFlag),
 		DiscountToggleDefaultOff:      a.flagEnabled(ctx, discountToggleDefaultOffFlag),
 		DealToggle:                    a.flagEnabled(ctx, dealToggleFlag),
+		InvoiceRatingsEnabled:         a.flagEnabledDefaultOn(ctx, invoiceRatingsFlag),
 		SoundsEnabled:                 a.soundsEnabled(),
 
 		PageUnlockClients:      a.flagEnabled(ctx, pageUnlockFlag("clients")),

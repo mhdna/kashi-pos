@@ -122,6 +122,20 @@
         </span>
       </template>
       <template #item.createdAt="{ item }">{{ formatDate(item.createdAt) }}</template>
+      <template #item.rating="{ item }">
+        <k-tooltip
+          v-if="ratingOf(item)"
+          :text="ratingOf(item)?.answer || ratingEmoji(ratingOf(item)?.rating ?? 0)"
+          location="start"
+          open-on-click
+        >
+          <template #activator="{ props: tip }">
+            <span v-bind="tip" class="invoice-rating" @click.stop>
+              {{ ratingEmoji(ratingOf(item)?.rating ?? 0) }}
+            </span>
+          </template>
+        </k-tooltip>
+      </template>
       <template #item.grandTotal="{ item }">
         <span class="font-weight-bold">${{ money(item.grandTotal) }}</span>
       </template>
@@ -370,6 +384,8 @@ import {
   GetInvoiceDetails,
   GetInvoiceForSettlementChange,
   GetInvoiceSyncStates,
+  GetInvoiceRatings,
+  GetAppSettings,
   ListInvoicesFilteredPage,
   ListSalespersons,
   ReprintInvoice,
@@ -492,13 +508,14 @@ function salespersonFirstName(name?: string) {
 }
 // The first column is each invoice's sync state with kashi, shown to every
 // user so cashiers can see their sales upload.
-const headers = [
+const baseHeaders = [
   { title: "", key: "syncState", sortable: false, width: "28px" },
   { title: "Invoice", key: "invoiceCode", width: "165px" },
   { title: "Customer", key: "clientId", width: "120px" },
   { title: "Salesperson", key: "salespersonName", width: "120px" },
   { title: "Paid To", key: "settlementAccounts", sortable: false, width: "120px" },
   { title: "Date", key: "createdAt", width: "170px" },
+  { title: "", key: "rating", sortable: false, width: "36px", align: "center" as const },
   { title: "Total", key: "grandTotal", width: "80px", align: "end" as const },
   {
     title: "",
@@ -508,6 +525,45 @@ const headers = [
     align: "end" as const,
   },
 ];
+const headers = computed(() =>
+  ratingsEnabled.value ? baseHeaders : baseHeaders.filter((header) => header.key !== "rating"),
+);
+
+// How the client rated the sale in kashi's WhatsApp poll (invoice_ratings.go):
+// the answers live in kashi, so they're fetched for the invoices loaded here.
+// The invoice_ratings setting (Behaviour, on by default) hides the column.
+type InvoiceRating = { rating: number; answer: string };
+const ratingsEnabled = ref(true);
+const ratings = reactive<Record<string, InvoiceRating>>({});
+function ratingOf(item: { invoiceCode?: string }): InvoiceRating | undefined {
+  return item.invoiceCode ? ratings[item.invoiceCode] : undefined;
+}
+function ratingEmoji(rating: number): string {
+  if (rating >= 4) return "😍";
+  if (rating === 3) return "🙂";
+  return "😕";
+}
+async function loadRatings(rows: Array<{ invoiceCode?: string }>) {
+  if (!ratingsEnabled.value) return;
+  const codes = [...new Set(rows.map((row) => row.invoiceCode).filter((code): code is string => Boolean(code)))];
+  for (let i = 0; i < codes.length; i += 200) {
+    try {
+      const found = (await GetInvoiceRatings(codes.slice(i, i + 200))) ?? {};
+      if (!pageActive) return;
+      Object.assign(ratings, found);
+    } catch {
+      // No ratings is fine: offline, or a kashi without them.
+    }
+  }
+}
+async function loadRatingsSetting() {
+  try {
+    const settings: any = await GetAppSettings();
+    ratingsEnabled.value = settings?.invoiceRatingsEnabled !== false;
+  } catch {}
+  if (ratingsEnabled.value) void loadRatings(items.value);
+}
+
 function syncDotColor(state?: string) {
   if (state === "synced") return "success";
   if (state === "failed") return "error";
@@ -730,6 +786,7 @@ function loadMore(): Promise<void> {
         return true;
       });
       items.value = replacingRows.value ? newItems : [...items.value, ...newItems];
+      void loadRatings(newItems);
       replacingRows.value = false;
       // The backend only counts on the first page (cursor 0) and returns
       // total = -1 ("unchanged") thereafter, so infinite scroll never
@@ -852,14 +909,18 @@ function ensureEditOptions(type: "client" | "salesperson"): Promise<void> {
 }
 
 let stopSyncStateListener: (() => void) | null = null;
+let stopSettingsListener: (() => void) | null = null;
 
 onMounted(() => {
+  void loadRatingsSetting();
   void refresh(true);
   stopSyncStateListener = EventsOn("sync_state_changed", () => void refreshSyncStates());
+  stopSettingsListener = EventsOn("settings_changed", () => void loadRatingsSetting());
 });
 
 onBeforeUnmount(() => {
   stopSyncStateListener?.();
+  stopSettingsListener?.();
   pageActive = false;
   loadGeneration++;
   if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
@@ -869,6 +930,11 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.invoice-rating {
+  cursor: default;
+  font-size: 18px;
+  line-height: 1;
+}
 .invoices-page {
   box-sizing: border-box;
   height: 100%;
