@@ -10,6 +10,21 @@ import (
 	"database/sql"
 )
 
+const deleteDiscountListOptionItem = `-- name: DeleteDiscountListOptionItem :exec
+DELETE FROM discount_list_option_items WHERE discount_list_id = ? AND product_uid = ? AND sale_option = ?
+`
+
+type DeleteDiscountListOptionItemParams struct {
+	DiscountListID int64  `json:"discountListId"`
+	ProductUid     string `json:"productUid"`
+	SaleOption     string `json:"saleOption"`
+}
+
+func (q *Queries) DeleteDiscountListOptionItem(ctx context.Context, arg DeleteDiscountListOptionItemParams) error {
+	_, err := q.db.ExecContext(ctx, deleteDiscountListOptionItem, arg.DiscountListID, arg.ProductUid, arg.SaleOption)
+	return err
+}
+
 const deleteDiscountListOptionItemsForList = `-- name: DeleteDiscountListOptionItemsForList :exec
 DELETE FROM discount_list_option_items WHERE discount_list_id = ?
 `
@@ -141,6 +156,39 @@ func (q *Queries) ListAllProductSaleOptions(ctx context.Context) ([]ListAllProdu
 	for rows.Next() {
 		var i ListAllProductSaleOptionsRow
 		if err := rows.Scan(&i.ProductUid, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDiscountListOptionItems = `-- name: ListDiscountListOptionItems :many
+SELECT id, discount_list_id, product_uid, sale_option, discount FROM discount_list_option_items WHERE discount_list_id = ?
+`
+
+func (q *Queries) ListDiscountListOptionItems(ctx context.Context, discountListID int64) ([]DiscountListOptionItem, error) {
+	rows, err := q.db.QueryContext(ctx, listDiscountListOptionItems, discountListID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DiscountListOptionItem{}
+	for rows.Next() {
+		var i DiscountListOptionItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.DiscountListID,
+			&i.ProductUid,
+			&i.SaleOption,
+			&i.Discount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

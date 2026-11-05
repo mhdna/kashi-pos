@@ -18,6 +18,12 @@ ORDER BY pso.product_id, pso.sort_order, pso.name;
 -- name: DeleteDiscountListOptionItemsForList :exec
 DELETE FROM discount_list_option_items WHERE discount_list_id = ?;
 
+-- name: ListDiscountListOptionItems :many
+SELECT * FROM discount_list_option_items WHERE discount_list_id = ?;
+
+-- name: DeleteDiscountListOptionItem :exec
+DELETE FROM discount_list_option_items WHERE discount_list_id = ? AND product_uid = ? AND sale_option = ?;
+
 -- name: InsertDiscountListOptionItem :exec
 INSERT INTO discount_list_option_items (discount_list_id, product_uid, sale_option, discount)
 VALUES (?, ?, ?, ?)

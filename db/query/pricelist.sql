@@ -33,6 +33,9 @@ RETURNING *;
 -- expressed by the item simply not being in the payload.
 DELETE FROM price_list_items WHERE price_list_id = ?;
 
+-- name: DeletePriceListItem :exec
+DELETE FROM price_list_items WHERE price_list_id = ? AND product_uid = ?;
+
 -- name: InsertPriceListItem :exec
 INSERT INTO price_list_items (price_list_id, product_uid, price)
 VALUES (?, ?, ?)

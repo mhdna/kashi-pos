@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	db "kashi-pos/db/sqlc"
 	"testing"
 )
 
@@ -221,5 +222,69 @@ func TestApplySyncedPriceListRejectsMissingUID(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected an error for a list with no uid")
+	}
+}
+
+// A list arrives whole whatever changed in it, but only what differs is written:
+// a row that didn't change keeps its id, a changed one its new values, and a row
+// no longer sent goes.
+func TestApplySyncedDiscountListTouchesOnlyWhatChanged(t *testing.T) {
+	ctx := context.Background()
+	store := setUpTestClientDB(t)
+	q := store.Queries
+	list := syncedDiscountList{UID: "d1", Name: "Deals", IsActive: true, Items: []syncedDiscountListItem{
+		{ProductVariantUID: "same", Discount: 10}, {ProductVariantUID: "moved", Discount: 10}, {ProductVariantUID: "gone", Discount: 10},
+	}}
+	if err := applySyncedDiscountList(ctx, q, list); err != nil {
+		t.Fatal(err)
+	}
+	row, err := q.GetDiscountListByUID(ctx, sql.NullString{String: "d1", Valid: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func() map[string]db.DiscountListItem {
+		rows, err := q.ListDiscountListItems(ctx, row.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]db.DiscountListItem{}
+		for _, r := range rows {
+			out[r.ProductUid] = r
+		}
+		return out
+	}
+	before := read()
+	version := func() int64 {
+		v, err := q.GetPricingVersion(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v.Version
+	}
+
+	// The same list again writes no rows; only the list's own row is upserted.
+	start := version()
+	if err := applySyncedDiscountList(ctx, q, list); err != nil {
+		t.Fatal(err)
+	}
+	if moved := version() - start; moved > 1 {
+		t.Fatalf("an unchanged list moved the pricing version %d times", moved)
+	}
+
+	list.Items = []syncedDiscountListItem{
+		{ProductVariantUID: "same", Discount: 10}, {ProductVariantUID: "moved", Discount: 30}, {ProductVariantUID: "new", Discount: 5},
+	}
+	if err := applySyncedDiscountList(ctx, q, list); err != nil {
+		t.Fatal(err)
+	}
+	after := read()
+	if after["same"].ID != before["same"].ID {
+		t.Fatal("the row that didn't change was rewritten")
+	}
+	if after["moved"].Discount != 30 || after["new"].Discount != 5 {
+		t.Fatalf("rows = %+v", after)
+	}
+	if _, found := after["gone"]; found {
+		t.Fatal("the row no longer sent stayed")
 	}
 }

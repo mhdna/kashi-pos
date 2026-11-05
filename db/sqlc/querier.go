@@ -184,7 +184,9 @@ type Querier interface {
 	DeleteCoupon(ctx context.Context, code string) error
 	DeleteCouponType(ctx context.Context, id int64) error
 	DeleteDiscountListByUID(ctx context.Context, uid sql.NullString) error
+	DeleteDiscountListItem(ctx context.Context, arg DeleteDiscountListItemParams) error
 	DeleteDiscountListItemsForList(ctx context.Context, discountListID int64) error
+	DeleteDiscountListOptionItem(ctx context.Context, arg DeleteDiscountListOptionItemParams) error
 	DeleteDiscountListOptionItemsForList(ctx context.Context, discountListID int64) error
 	DeleteDiscountOverride(ctx context.Context, id int64) error
 	// A stale shift nothing ever happened in ($0, no rows of any kind point at
@@ -206,6 +208,7 @@ type Querier interface {
 	DeleteLoanCategory(ctx context.Context, id int64) error
 	DeletePermission(ctx context.Context, id int64) error
 	DeletePriceListByUID(ctx context.Context, uid sql.NullString) error
+	DeletePriceListItem(ctx context.Context, arg DeletePriceListItemParams) error
 	// Half of the replace-on-apply: kashi has no way to tell a till "this one
 	// item is gone", so an applied list is cleared and refilled and a removal is
 	// expressed by the item simply not being in the payload.
@@ -452,6 +455,7 @@ type Querier interface {
 	ListDailySalesTotals(ctx context.Context, arg ListDailySalesTotalsParams) ([]ListDailySalesTotalsRow, error)
 	ListDeals(ctx context.Context) ([]Deal, error)
 	ListDiscountListItems(ctx context.Context, discountListID int64) ([]DiscountListItem, error)
+	ListDiscountListOptionItems(ctx context.Context, discountListID int64) ([]DiscountListOptionItem, error)
 	// Read-only mirror of kashi's discount lists -- see pricelist.sql, which this
 	// file mirrors exactly.
 	ListDiscountLists(ctx context.Context) ([]DiscountList, error)
