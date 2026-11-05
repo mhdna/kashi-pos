@@ -713,6 +713,8 @@ func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity 
 	a.syncPullMu.Lock()
 	defer a.syncPullMu.Unlock()
 	_, err := a.pullEntityLocked(ctx, client, entity)
+	// A change kashi pushed: say straight away whether it landed.
+	a.reportSyncPass(ctx, client, []syncPullResult{{entity: entity, applied: a.lastPullApplied, err: err}})
 	return err
 }
 
