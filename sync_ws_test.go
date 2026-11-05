@@ -148,6 +148,10 @@ func TestHandleWSMessage_SyncChangedAndPullAll(t *testing.T) {
 	var mu sync.Mutex
 	var fetched []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/branch/sync/report" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		entity := r.URL.Query().Get("entity")
 		mu.Lock()
 		fetched = append(fetched, entity)

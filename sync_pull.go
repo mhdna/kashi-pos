@@ -690,14 +690,18 @@ func (a *App) runSyncPullOnce(ctx context.Context, client *centralClient) {
 // (blocking the tick's and the WS client's pulls) and still drive one pull
 // itself.
 func (a *App) runSyncPullLocked(ctx context.Context, client *centralClient) {
+	results := make([]syncPullResult, 0, len(pullEntities))
+	defer func() { a.reportSyncPass(ctx, client, results) }()
 	for _, entity := range pullEntities {
 		// An older kashi answers an entity it doesn't know with an error.
 		if entity == "quick_access" && !a.kashiQuickAccess.Load() {
 			continue
 		}
-		if _, err := a.pullEntityLocked(ctx, client, entity); err != nil {
+		_, err := a.pullEntityLocked(ctx, client, entity)
+		if err != nil {
 			log.Printf("sync pull %s: %v", entity, err)
 		}
+		results = append(results, syncPullResult{entity: entity, applied: a.lastPullApplied, err: err})
 	}
 }
 
@@ -746,6 +750,7 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 	// mid-walk failure just means the next tick re-pulls from the last
 	// confirmed point -- every apply is an idempotent upsert, so replaying
 	// an already-applied page is harmless.
+	a.lastPullApplied = 0
 	pageCursor := ""
 	totalApplied := 0
 	wholeSetChanged := false
@@ -799,6 +804,7 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 			break
 		}
 		pageCursor = changes.NextCursor
+		a.reportSyncProgress(ctx, client, entity, int64(totalApplied))
 	}
 
 	// Tell the frontend to re-fetch, mirroring the WS push's "go re-fetch
@@ -811,6 +817,11 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 	changed := totalApplied > 0
 	if _, isWholeSet := wholeSetEntities[entity]; isWholeSet {
 		changed = wholeSetChanged
+	}
+	// A whole-set entity sends everything every time, so only a real change
+	// is worth telling kashi about.
+	if changed {
+		a.lastPullApplied = int64(totalApplied)
 	}
 	if changed {
 		a.emitSyncApplied(entity)
