@@ -178,49 +178,52 @@ func publish(args []string) error {
 		return err
 	}
 
-	fmt.Printf("Uploading %s (%.1f MB) as GB Cloud %s (%s)…\n", filepath.Base(*file), float64(len(content))/(1<<20), *version, *flavor)
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
-	for k, v := range map[string]string{
+	// Uploaded compressed, about a third of the size (compact.go). The
+	// checksum and signature stay the exe's: that's what tills check.
+	upload, encoding := content, ""
+	if packed, err := compressBuild(*file, content); err != nil {
+		fmt.Printf("Couldn't compress the build, uploading it as is: %v\n", err)
+	} else {
+		upload, encoding = packed, "zstd"
+	}
+	fields := map[string]string{
 		"version":   *version,
 		"flavor":    *flavor,
 		"notes":     *notes,
 		"sha256":    hex.EncodeToString(digest[:]),
 		"signature": base64.StdEncoding.EncodeToString(signature),
-	} {
-		_ = w.WriteField(k, v)
 	}
-	part, err := w.CreateFormFile("file", filepath.Base(*file))
+	fmt.Printf("Uploading %s (%.1f MB, the program is %.1f MB) as GB Cloud %s (%s)…\n",
+		filepath.Base(*file), float64(len(upload))/(1<<20), float64(len(content))/(1<<20), *version, *flavor)
+	status, answer, err := uploadRelease(baseURL, token, fields, filepath.Base(*file), upload, encoding)
 	if err != nil {
 		return err
 	}
-	if _, err := part.Write(content); err != nil {
-		return err
+	// A kashi without compressed releases takes the file as the exe, and
+	// its checksum then doesn't match: send the exe itself.
+	if status == http.StatusBadRequest && encoding != "" && strings.Contains(answer, "checksum") {
+		fmt.Printf("This kashi doesn't take compressed builds yet; uploading the whole %.1f MB…\n", float64(len(content))/(1<<20))
+		status, answer, err = uploadRelease(baseURL, token, fields, filepath.Base(*file), content, "")
+		if err != nil {
+			return err
+		}
+		encoding = ""
 	}
-	if err := w.Close(); err != nil {
-		return err
-	}
-	req, err := http.NewRequest(http.MethodPost, baseURL+"/app_releases", &body)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", w.FormDataContentType())
-	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err := (&http.Client{Timeout: 15 * time.Minute}).Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("upload failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
+	if status != http.StatusCreated {
+		return fmt.Errorf("upload failed (status %d): %s", status, answer)
 	}
 	var created struct {
 		Release struct {
 			ID int64 `json:"id"`
 		} `json:"release"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil || created.Release.ID == 0 {
+	if err := json.Unmarshal([]byte(answer), &created); err != nil || created.Release.ID == 0 {
 		return errors.New("kashi's upload answer had no release id")
+	}
+	cacheBuild(*flavor, *version, content)
+	if encoding != "" {
+		fmt.Println("Making patches from the builds the tills run…")
+		publishPatches(baseURL, token, created.Release.ID, *version, *flavor, *file, content)
 	}
 	fmt.Printf("Published GB Cloud %s (%s).\n", *version, *flavor)
 	if *targetAll {
@@ -401,6 +404,46 @@ func apiJSON(method, url, token string, body, out any) error {
 		return nil
 	}
 	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+// uploadRelease posts the build (or its zstd form, with encoding "zstd")
+// and returns kashi's status and answer.
+func uploadRelease(baseURL, token string, fields map[string]string, name string, file []byte, encoding string) (int, string, error) {
+	var body bytes.Buffer
+	w := multipart.NewWriter(&body)
+	for k, v := range fields {
+		_ = w.WriteField(k, v)
+	}
+	if encoding != "" {
+		_ = w.WriteField("encoding", encoding)
+		_ = w.WriteField("file_sha256", sha256Hex(file))
+	}
+	part, err := w.CreateFormFile("file", name)
+	if err != nil {
+		return 0, "", err
+	}
+	if _, err := part.Write(file); err != nil {
+		return 0, "", err
+	}
+	if err := w.Close(); err != nil {
+		return 0, "", err
+	}
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/app_releases", &body)
+	if err != nil {
+		return 0, "", err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := (&http.Client{Timeout: 15 * time.Minute}).Do(req)
+	if err != nil {
+		return 0, "", err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusCreated {
+		return resp.StatusCode, errorMessage(bytes.NewReader(raw)), nil
+	}
+	return resp.StatusCode, string(raw), nil
 }
 
 // keychainService names the macOS Keychain item publish keeps the kashi

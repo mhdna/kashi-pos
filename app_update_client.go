@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -28,14 +29,32 @@ type appUpdateManifest struct {
 	Notes     string `json:"notes"`
 	// Force: install as soon as it's here, even with a shift open.
 	Force bool `json:"force"`
+	// Set only because the request said it understands them (update_compact.go):
+	// the full download is zstd of DownloadBytes, and Patch rebuilds the
+	// release from the exe this till runs.
+	Encoding      string              `json:"encoding"`
+	DownloadBytes int64               `json:"download_bytes"`
+	Patch         *appUpdatePatchInfo `json:"patch"`
+}
+
+type appUpdatePatchInfo struct {
+	ID         int64  `json:"id"`
+	BaseSha256 string `json:"base_sha256"`
+	SizeBytes  int64  `json:"size_bytes"`
 }
 
 // GetAppUpdate returns this register's target release, or nil if it has none.
-func (c *centralClient) GetAppUpdate(ctx context.Context) (*appUpdateManifest, error) {
+// have is the SHA-256 of the exe this till runs ("" if unknown): kashi offers
+// a patch from exactly that build when it has one.
+func (c *centralClient) GetAppUpdate(ctx context.Context, have string) (*appUpdateManifest, error) {
 	if !c.enabled() {
 		return nil, errCentralSyncDisabled
 	}
-	req, err := c.newRequest(ctx, http.MethodGet, "/branch/app_update", nil)
+	query := url.Values{"accept": {"zstd,patch"}}
+	if have != "" {
+		query.Set("have", have)
+	}
+	req, err := c.newRequest(ctx, http.MethodGet, "/branch/app_update?"+query.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +83,12 @@ func (c *centralClient) GetAppUpdate(ctx context.Context) (*appUpdateManifest, e
 // The 10s client timeout would cut off a 30MB download on a shop line, so
 // this uses its own client bounded only by ctx.
 func (c *centralClient) DownloadAppUpdate(ctx context.Context, id int64, path string, progress func(have int64)) error {
+	return c.downloadResumable(ctx, fmt.Sprintf("/branch/app_update/download/%d", id), path, progress)
+}
+
+// downloadResumable appends urlPath to the partial file at path, resuming
+// from its size; the full build, its zstd form and a patch all come this way.
+func (c *centralClient) downloadResumable(ctx context.Context, urlPath, path string, progress func(have int64)) error {
 	if !c.enabled() {
 		return errCentralSyncDisabled
 	}
@@ -80,7 +105,6 @@ func (c *centralClient) DownloadAppUpdate(ctx context.Context, id int64, path st
 		return err
 	}
 
-	urlPath := fmt.Sprintf("/branch/app_update/download/%d", id)
 	req, err := c.newRequest(ctx, http.MethodGet, urlPath, nil)
 	if err != nil {
 		return err

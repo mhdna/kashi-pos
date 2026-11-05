@@ -302,7 +302,7 @@ func (a *App) runUpdateCheck() {
 // checkAndDownload brings the till's view in line with its target: up to
 // date, or the target downloaded, verified and ready to install.
 func (a *App) checkAndDownload(ctx context.Context, client *centralClient) error {
-	manifest, err := client.GetAppUpdate(ctx)
+	manifest, err := client.GetAppUpdate(ctx, ownExeSha256())
 	if err != nil {
 		return err
 	}
@@ -391,10 +391,12 @@ func (a *App) downloadRelease(ctx context.Context, client *centralClient, m *app
 	part := final + ".part"
 
 	lastPercent := -1
-	progress := func(have int64) {
+	// total is what this download is: the patch, the compressed build or
+	// the exe.
+	progressOf := func(have, total int64) {
 		percent := 0
-		if m.SizeBytes > 0 {
-			percent = int(min(have*100/m.SizeBytes, 99))
+		if total > 0 {
+			percent = int(min(have*100/total, 99))
 		}
 		if percent == lastPercent {
 			return
@@ -406,7 +408,19 @@ func (a *App) downloadRelease(ctx context.Context, client *centralClient, m *app
 		})
 		a.reportUpdateStatus(ctx, client, next)
 	}
-	progress(0)
+	progressOf(0, 1)
+	// The smallest download kashi offers first: a patch from this exe, or
+	// the build compressed (update_compact.go); the plain exe otherwise.
+	if a.fetchReleaseSmall(ctx, client, m, releaseDir, part, progressOf) {
+		if err := os.Rename(part, final); err != nil {
+			return "", err
+		}
+		return final, nil
+	}
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	progress := func(have int64) { progressOf(have, m.SizeBytes) }
 	if err := client.DownloadAppUpdate(ctx, m.ID, part, progress); err != nil {
 		return "", err
 	}

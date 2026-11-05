@@ -54,6 +54,31 @@ kept in the macOS Keychain. The release-signing key is in
 - A kashi without the update route (404) just means no updates; the till stays
   quiet.
 
+## Small downloads (`update_compact.go`, `cmd/publish-release/compact.go`)
+
+A build is ~28 MB; what moves over the wire is much less:
+
+| What | Size | When |
+|---|---|---|
+| Patch from the build the till runs | ~1–2 MB | kashi has one from exactly that exe |
+| The build, zstd | ~9 MB | no patch for that exe |
+| The plain exe | ~28 MB | the others failed, or an old till / old kashi |
+
+- `make publish` uploads the build zstd-compressed (the `zstd` tool if
+  installed, `brew install zstd`, else the Go encoder, a little bigger), then a
+  patch from **every build active tills of that flavor run**. Each patch is
+  rebuilt and compared before upload.
+- Patches need the old builds: every published build is kept in
+  `~/.config/gb-cloud/releases/<flavor>/<version>.exe`; a missing one is
+  downloaded from kashi if kashi still has its file. No old build, no patch:
+  those tills just get the 9 MB download.
+- The till sends kashi its own exe's SHA-256 (`have=`), so a patch is only
+  offered for **exactly** the exe it was made from.
+- The signature and checksum are always the plain exe's: whatever arrives is
+  unpacked and checked like before. A patch or zstd file that doesn't rebuild
+  the signed exe is thrown away and the next, bigger download is tried.
+- Adds ~0.2 MB to the till's exe (`klauspost/compress`).
+
 ## Build gotchas
 
 - **Go toolchain is pinned to go1.25.5** in the Makefile (`GOTOOLCHAIN`):
