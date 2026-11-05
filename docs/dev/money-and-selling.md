@@ -120,10 +120,11 @@ picture, unless a kashi user with the right permission lets it through. Someone
 in kashi names the items afterwards. `unknown_pictures_at_checkout` controls
 the photo step.
 
-Unknown items join the free-units deal most products are on in the lists in force, whatever its numbers (`unknown_item_deal.go`): the
-buy-2-get-1-free deal the most products are on, pooled with every other unit
-on it. The salesperson picks one of three on each line by tapping its deal
-chip: **B2G1 else 30%**, **B2G1 else 20%** (the default) or **No deal**; the
+Unknown items join the shop's deal (`unknown_item_deal.go`): the free-units
+deal the most products are on in the lists in force, whatever its numbers,
+pooled with every other unit on it. The salesperson picks one of three on each
+line by tapping its deal chip: **deal else 30%**, **deal else 20%** (the default)
+or **No deal**, with the picker naming the real deal; the
 percent is what a unit outside a set gets, like a discount row's own fallback
 (kashi 000216). This choice works whatever `deal_toggle` says. A typed
 discount keeps the line off the deal (a deal never stacks on another saving),
