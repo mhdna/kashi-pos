@@ -93,8 +93,9 @@ func TestApplySyncedPriceListIsIdempotent(t *testing.T) {
 	}
 }
 
-// A list kashi deactivates is dropped outright, so it stops pricing anything.
-func TestApplySyncedPriceListDeletesOnDeactivation(t *testing.T) {
+// A list kashi deactivates stops pricing anything. Its row stays, because sold
+// lines point at it: deleting one with sales failed the whole pull.
+func TestApplySyncedPriceListEmptiesOnDeactivation(t *testing.T) {
 	ctx := context.Background()
 	store := setUpTestClientDB(t)
 	q := store.Queries
@@ -113,10 +114,14 @@ func TestApplySyncedPriceListDeletesOnDeactivation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := q.GetPriceListByUID(ctx, sql.NullString{String: "central-uid-3", Valid: true}); err == nil {
-		t.Fatal("a deactivated list must not survive locally")
+	got, err := q.GetPriceListByUID(ctx, sql.NullString{String: "central-uid-3", Valid: true})
+	if err != nil {
+		t.Fatalf("the list's row should stay: %v", err)
 	}
-	// Its items go with it (ON DELETE CASCADE), so nothing is left pricing.
+	if got.IsActive != 0 {
+		t.Fatal("a deactivated list must be off")
+	}
+	// Nothing is left pricing.
 	active, err := q.ListActivePriceListItems(ctx)
 	if err != nil {
 		t.Fatal(err)
