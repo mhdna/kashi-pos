@@ -10,6 +10,7 @@
     >
       <k-list-item :class="{ 'invoice-item-unknown': isUnknownItem(item) }">
         <template #title>
+          <div class="invoice-item-title-row">
           <button
             class="invoice-item-details-trigger"
             type="button"
@@ -25,6 +26,7 @@
                 </span>
               </span>
             </span>
+          </button>
             <!-- Beside the name and code, centred on both. -->
             <!-- Summer and Winter are just their icon (the name on hover); any
                  other option keeps its name. -->
@@ -95,7 +97,7 @@
                 <span class="invoice-deal-chip-sub">off</span>
               </span>
             </k-chip>
-          </button>
+          </div>
         </template>
         <template #append>
           <div class="invoice-item-actions d-flex align-center">
@@ -1038,11 +1040,11 @@ function canEditPrice(item: LineItem): boolean {
   );
 }
 
-// Whether a line's discount can be typed in. An unknown item always can (like
-// its price, it has no list to take it from); every other line follows the
-// branch's custom-discount setting and its price-edit codes.
+// Whether a line's discount can be typed in: it follows the branch's
+// custom-discount setting, and its price-edit codes for anything but an unknown
+// item, which has no code of its own.
 function discountEditable(item: LineItem): boolean {
-  if (isUnknownItem(item)) return true;
+  if (isUnknownItem(item)) return customDiscountsEnabled.value;
   return customDiscountsEnabled.value && codeAllowsPriceEdit(item);
 }
 
@@ -1411,13 +1413,21 @@ defineExpose({
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex: 1 1 auto;
   margin-inline-start: -6px;
-  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   padding: 3px 6px;
   text-align: start;
-  width: calc(100% + 6px);
+}
+
+/* The name opens the details and a chip does its own thing: side by side, never
+   one inside the other. */
+.invoice-item-title-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  max-width: 100%;
 }
 
 .invoice-item-name,

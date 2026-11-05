@@ -19,6 +19,20 @@ func (q *Queries) DeleteDiscountListByUID(ctx context.Context, uid sql.NullStrin
 	return err
 }
 
+const deleteDiscountListItem = `-- name: DeleteDiscountListItem :exec
+DELETE FROM discount_list_items WHERE discount_list_id = ? AND product_uid = ?
+`
+
+type DeleteDiscountListItemParams struct {
+	DiscountListID int64  `json:"discountListId"`
+	ProductUid     string `json:"productUid"`
+}
+
+func (q *Queries) DeleteDiscountListItem(ctx context.Context, arg DeleteDiscountListItemParams) error {
+	_, err := q.db.ExecContext(ctx, deleteDiscountListItem, arg.DiscountListID, arg.ProductUid)
+	return err
+}
+
 const deleteDiscountListItemsForList = `-- name: DeleteDiscountListItemsForList :exec
 DELETE FROM discount_list_items WHERE discount_list_id = ?
 `

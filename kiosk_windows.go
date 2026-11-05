@@ -87,8 +87,10 @@ const (
 	// llkhfAltDown is KBDLLHOOKSTRUCT.flags' "Alt is held" bit.
 	llkhfAltDown = 0x20
 
-	swRestore     = 9
-	swpNoActivate = 0x0010
+	swRestore         = 9
+	swHide            = 0
+	swShowMinNoActive = 7
+	swpNoActivate     = 0x0010
 
 	processQueryLimitedInformation = 0x1000
 
@@ -163,6 +165,7 @@ func enterKiosk() {
 
 	exitExplorer()
 	hideMinimizedWindows()
+	startHidingAnyDeskBar()
 	takeForeground(window, 0)
 	startCashMachine()
 }
@@ -223,10 +226,84 @@ func hideMinimizedWindows() {
 	pArrangeIconicWindows.Call(desktop)
 }
 
+// anyDeskBar hides AnyDesk's session window while it is minimized, the little
+// title bar in the bottom-left corner. hideMinimizedWindows should cover it, but
+// the bar was still seen on top of the till. Only a minimized one goes: an accept
+// prompt or an open session window still shows. The session itself is untouched,
+// and the windows come back with Explorer when kiosk mode ends.
+var anyDeskBar struct {
+	mu       sync.Mutex
+	stop     chan struct{}
+	hidden   map[uintptr]bool
+	callback uintptr
+}
+
+const anyDeskBarCheckEvery = 2 * time.Second
+
+func startHidingAnyDeskBar() {
+	anyDeskBar.mu.Lock()
+	defer anyDeskBar.mu.Unlock()
+	if anyDeskBar.stop != nil {
+		return
+	}
+	stop := make(chan struct{})
+	anyDeskBar.stop = stop
+	anyDeskBar.hidden = map[uintptr]bool{}
+	if anyDeskBar.callback == 0 {
+		anyDeskBar.callback = windows.NewCallback(hideAnyDeskBarWindow)
+	}
+	go func() {
+		ticker := time.NewTicker(anyDeskBarCheckEvery)
+		defer ticker.Stop()
+		for {
+			pEnumWindows.Call(anyDeskBar.callback, 0)
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+}
+
+func hideAnyDeskBarWindow(hwnd, _ uintptr) uintptr {
+	if visible, _, _ := pIsWindowVisible.Call(hwnd); visible == 0 {
+		return 1
+	}
+	if iconic, _, _ := pIsIconic.Call(hwnd); iconic == 0 {
+		return 1
+	}
+	if programName(windowProcess(hwnd)) != "anydesk.exe" {
+		return 1
+	}
+	pShowWindow.Call(hwnd, swHide)
+	anyDeskBar.mu.Lock()
+	if anyDeskBar.hidden != nil {
+		anyDeskBar.hidden[hwnd] = true
+	}
+	anyDeskBar.mu.Unlock()
+	return 1
+}
+
+func stopHidingAnyDeskBar() {
+	anyDeskBar.mu.Lock()
+	defer anyDeskBar.mu.Unlock()
+	if anyDeskBar.stop == nil {
+		return
+	}
+	close(anyDeskBar.stop)
+	anyDeskBar.stop = nil
+	for hwnd := range anyDeskBar.hidden {
+		pShowWindow.Call(hwnd, swShowMinNoActive)
+	}
+	anyDeskBar.hidden = nil
+}
+
 // leaveKiosk turns kiosk mode off and, unless the app is closing for a
 // shutdown or an update, starts Explorer again.
 func leaveKiosk() {
 	stopCashMachine()
+	stopHidingAnyDeskBar()
 	kiosk.mu.Lock()
 	if kiosk.threadID != 0 {
 		pPostThreadMessageW.Call(uintptr(kiosk.threadID), wmQuit, 0, 0)

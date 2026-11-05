@@ -126,8 +126,9 @@ pooled with every other unit on it. The salesperson picks one of three on each
 line by tapping its deal chip: **deal else 30%**, **deal else 20%** (the default)
 or **No deal**, with the picker naming the real deal; the
 percent is what a unit outside a set gets, like a discount row's own fallback
-(kashi 000216). This choice works whatever `deal_toggle` says. A typed
-discount keeps the line off the deal (a deal never stacks on another saving),
+(kashi 000216). This choice works whatever `deal_toggle` says. A
+discount can be typed only with the branch's custom discounts on (its price can
+always be typed), and it keeps the line off the deal (a deal never stacks on another saving),
 and picking a deal clears it. With no product on such a deal, unknown items
 sell at their typed price and show no chip. The cart sends the line's
 `unknownRef` as `lineRef`, and the quote echoes it with the choice in force

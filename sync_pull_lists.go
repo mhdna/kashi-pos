@@ -105,22 +105,39 @@ func applySyncedPriceList(ctx context.Context, q *db.Queries, l syncedPriceList)
 		return err
 	}
 
-	if err := q.DeletePriceListItemsForList(ctx, list.ID); err != nil {
+	return applyListRows(ctx, q, list.ID, l.Items)
+}
+
+// applyListRows makes a price list's rows match what kashi sent, touching only
+// the rows that differ. A list arrives whole whatever changed in it, so clearing
+// and refilling it rewrote thousands of rows, and moved the pricing version for
+// each, to change one.
+func applyListRows(ctx context.Context, q *db.Queries, listID int64, items []syncedPriceListItem) error {
+	existing, err := q.ListPriceListItems(ctx, listID)
+	if err != nil {
 		return err
 	}
-	for _, item := range l.Items {
-		// An item for a variant this till has never seen is skipped, not
-		// fatal: the product feed and the list feed advance independently, so
-		// a brand new product can be priced centrally a moment before its
-		// product row arrives here. The next pull carries the list again.
+	have := make(map[string]int64, len(existing))
+	for _, row := range existing {
+		have[row.ProductUid] = row.Price
+	}
+	for _, item := range items {
 		if item.ProductVariantUID == "" {
 			continue
 		}
+		price, found := have[item.ProductVariantUID]
+		delete(have, item.ProductVariantUID)
+		if found && price == item.Price {
+			continue
+		}
 		if err := q.InsertPriceListItem(ctx, db.InsertPriceListItemParams{
-			PriceListID: list.ID,
-			ProductUid:  item.ProductVariantUID,
-			Price:       item.Price,
+			PriceListID: listID, ProductUid: item.ProductVariantUID, Price: item.Price,
 		}); err != nil {
+			return err
+		}
+	}
+	for uid := range have {
+		if err := q.DeletePriceListItem(ctx, db.DeletePriceListItemParams{PriceListID: listID, ProductUid: uid}); err != nil {
 			return err
 		}
 	}
@@ -158,15 +175,33 @@ func applySyncedDiscountList(ctx context.Context, q *db.Queries, l syncedDiscoun
 		}
 	}
 
-	if err := q.DeleteDiscountListItemsForList(ctx, list.ID); err != nil {
+	if err := applyDiscountListRows(ctx, q, list.ID, l.Items); err != nil {
 		return err
 	}
-	for _, item := range l.Items {
+	return applyDiscountListOptionRows(ctx, q, list.ID, l.OptionItems)
+}
+
+// applyDiscountListRows is applyListRows for a discount list.
+func applyDiscountListRows(ctx context.Context, q *db.Queries, listID int64, items []syncedDiscountListItem) error {
+	existing, err := q.ListDiscountListItems(ctx, listID)
+	if err != nil {
+		return err
+	}
+	have := make(map[string]db.DiscountListItem, len(existing))
+	for _, row := range existing {
+		have[row.ProductUid] = row
+	}
+	for _, item := range items {
 		if item.ProductVariantUID == "" {
 			continue
 		}
+		row, found := have[item.ProductVariantUID]
+		delete(have, item.ProductVariantUID)
+		if found && row.Discount == item.Discount && row.DealUid == item.DealUID && row.DealFallbackPercent == item.dealFallback() {
+			continue
+		}
 		if err := q.InsertDiscountListItem(ctx, db.InsertDiscountListItemParams{
-			DiscountListID:      list.ID,
+			DiscountListID:      listID,
 			ProductUid:          item.ProductVariantUID,
 			Discount:            item.Discount,
 			DealUid:             item.DealUID,
@@ -175,20 +210,44 @@ func applySyncedDiscountList(ctx context.Context, q *db.Queries, l syncedDiscoun
 			return err
 		}
 	}
+	for uid := range have {
+		if err := q.DeleteDiscountListItem(ctx, db.DeleteDiscountListItemParams{DiscountListID: listID, ProductUid: uid}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	// Replaced whole like the plain items, so a removed option row goes too.
-	if err := q.DeleteDiscountListOptionItemsForList(ctx, list.ID); err != nil {
+// applyDiscountListOptionRows is the same for the per-sale-option discounts.
+func applyDiscountListOptionRows(ctx context.Context, q *db.Queries, listID int64, items []syncedDiscountListOptionItem) error {
+	existing, err := q.ListDiscountListOptionItems(ctx, listID)
+	if err != nil {
 		return err
 	}
-	for _, item := range l.OptionItems {
+	type key struct{ uid, option string }
+	have := make(map[key]int64, len(existing))
+	for _, row := range existing {
+		have[key{row.ProductUid, row.SaleOption}] = row.Discount
+	}
+	for _, item := range items {
 		if item.ProductVariantUID == "" || item.SaleOption == "" {
 			continue
 		}
+		k := key{item.ProductVariantUID, item.SaleOption}
+		discount, found := have[k]
+		delete(have, k)
+		if found && discount == item.Discount {
+			continue
+		}
 		if err := q.InsertDiscountListOptionItem(ctx, db.InsertDiscountListOptionItemParams{
-			DiscountListID: list.ID,
-			ProductUid:     item.ProductVariantUID,
-			SaleOption:     item.SaleOption,
-			Discount:       item.Discount,
+			DiscountListID: listID, ProductUid: item.ProductVariantUID, SaleOption: item.SaleOption, Discount: item.Discount,
+		}); err != nil {
+			return err
+		}
+	}
+	for k := range have {
+		if err := q.DeleteDiscountListOptionItem(ctx, db.DeleteDiscountListOptionItemParams{
+			DiscountListID: listID, ProductUid: k.uid, SaleOption: k.option,
 		}); err != nil {
 			return err
 		}

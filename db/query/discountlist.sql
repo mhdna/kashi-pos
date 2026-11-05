@@ -26,6 +26,9 @@ RETURNING *;
 -- name: DeleteDiscountListItemsForList :exec
 DELETE FROM discount_list_items WHERE discount_list_id = ?;
 
+-- name: DeleteDiscountListItem :exec
+DELETE FROM discount_list_items WHERE discount_list_id = ? AND product_uid = ?;
+
 -- name: InsertDiscountListItem :exec
 INSERT INTO discount_list_items (discount_list_id, product_uid, discount, deal_uid, deal_fallback_percent)
 VALUES (?, ?, ?, ?, ?)
