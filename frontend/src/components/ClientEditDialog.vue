@@ -48,6 +48,7 @@ import {
 } from "@/lib/client";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import PhoneField from "@/components/PhoneField.vue";
+import { localLebanesePhone } from "@/lib/phone";
 import PhonePad from "@/components/PhonePad.vue";
 
 const props = defineProps<{ client: Client }>();
@@ -63,10 +64,9 @@ const phoneActive = ref(false);
 watch(dialog, (open) => {
   if (!open) return;
   form.name = props.client.name;
-  // A Lebanese number is edited as the local number ("78928747"); the
-  // server turns that back into +961. Anything else keeps its "+".
-  const phone = props.client.phone.trim();
-  form.phone = phone.startsWith("+961") ? phone.slice(4) : phone;
+  // A Lebanese number is edited as the local number ("78928747", "03927807");
+  // the server turns that back into +961. Anything else keeps its "+".
+  form.phone = localLebanesePhone(props.client.phone);
   error.value = "";
   phoneActive.value = false;
 });

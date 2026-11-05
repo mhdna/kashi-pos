@@ -207,7 +207,7 @@ import {
   toClient,
   type Client,
 } from "@/lib/client";
-import { normalizeLebanesePhone } from "@/lib/phone";
+import { localLebanesePhone, normalizeLebanesePhone } from "@/lib/phone";
 import { playClickSound, playDtmfSound } from "@/lib/sound";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import PhoneField from "@/components/PhoneField.vue";
@@ -522,7 +522,7 @@ async function lookupPhone() {
     dialog.value = false;
   } catch {
     const dial = `+${selectedDialCode.value}`;
-    newClient.phone = p.startsWith(dial) ? p.slice(dial.length) : p;
+    newClient.phone = p.startsWith("+961") ? localLebanesePhone(p) : p.startsWith(dial) ? p.slice(dial.length) : p;
     newClient.name = "";
     newPhoneError.value = "";
     newPhoneActive.value = false;

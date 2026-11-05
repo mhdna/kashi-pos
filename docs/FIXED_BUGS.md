@@ -3,6 +3,18 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-05 · Lebanese numbers starting with 0 showed wrong on the client forms
+
+**Symptom.** 03 927 807 showed as (39) 278-07 on New Client, and on editing a
+client. Landlines such as 01 did the same.
+
+**Cause.** The forms cut +961 off the stored number and showed what was left. +961
+drops the leading 0, so the formatter split 3927807 in the wrong place. Only the
+display was wrong: the number saved correctly.
+
+**Fix.** `localLebanesePhone` puts the 0 back (`frontend/src/lib/phone.ts`, used by
+`ClientDialog.vue` and `ClientEditDialog.vue`); covered by `phone.test.ts`.
+
 ## 2026-11-05 · Tapping a line's deal chip could open the line's details
 
 **Symptom.** The deal chip sat inside the block that opens a line's details, so

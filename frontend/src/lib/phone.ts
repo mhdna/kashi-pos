@@ -22,6 +22,19 @@ export function normalizeLebanesePhone(value: string): string {
   return "";
 }
 
+/**
+ * A stored +961 number as it is typed locally, for editing without the country
+ * code. +961 drops the 0 of 03 and the landlines, and it has to come back:
+ * "3927807" would show as (39) 278-07. The 8-digit mobile ranges have none.
+ * Anything else comes back as it is.
+ */
+export function localLebanesePhone(value: string): string {
+  const phone = value.trim();
+  if (!phone.startsWith("+961")) return phone;
+  const national = phone.slice(4);
+  return national.length === 7 ? `0${national}` : national;
+}
+
 export function formatLebanesePhone(value: unknown): string {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
