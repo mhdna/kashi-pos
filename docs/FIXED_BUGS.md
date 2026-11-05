@@ -3,6 +3,31 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-05 · Payment icons sat right against their names
+
+**Symptom.** On the Shifts page's income card the wallet icon touched "Cash $$"
+and "Cash LL", with no space between them. Every list row starting with a round
+icon did the same.
+
+**Cause.** When the till's own k-* kit replaced Vuetify, list rows kept a gap
+after a plain icon but not after an avatar (the round icon); Vuetify had given
+it 16px.
+
+**Fix.** `.k-list-item__prepend > .k-avatar` gets a 16px gap again
+(`frontend/src/ui/ui.css`). A row that sets its own gap (attendance) keeps it.
+
+## 2026-11-05 · Rounded dialogs showed a grey square around them
+
+**Symptom.** Dialogs with rounded corners (devices, options) had a grey square
+edge around them, so they didn't look rounded.
+
+**Cause.** The dialog's outer box drew the shadow with 4px corners, while the
+card inside was rounded far more (`rounded="xl"`); the square shadow showed at
+the corners.
+
+**Fix.** The shadow moved from the outer box to what it holds, so it follows the
+card's own corners (`frontend/src/ui/ui.css`).
+
 ## 2026-11-05 · Lebanese numbers starting with 0 showed wrong on the client forms
 
 **Symptom.** 03 927 807 showed as (39) 278-07 on New Client, and on editing a

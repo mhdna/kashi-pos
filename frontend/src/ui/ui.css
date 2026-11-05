@@ -192,6 +192,7 @@
   .k-list-item--disabled { pointer-events: none; opacity: var(--k-disabled-opacity); }
   .k-list-item__prepend { grid-area: prepend; display: flex; align-items: center; align-self: center; }
   .k-list-item__prepend > .k-icon { opacity: var(--k-medium-emphasis-opacity); margin-inline-end: 32px; }
+  .k-list-item__prepend > .k-avatar { margin-inline-end: 16px; }
   .k-list-item--active .k-list-item__prepend > .k-icon { opacity: 1; }
   .k-list-item__append { grid-area: append; display: flex; align-items: center; align-self: center; margin-inline-start: 16px; }
   .k-list-item__append > .k-icon { opacity: var(--k-medium-emphasis-opacity); }
@@ -327,7 +328,11 @@
   .k-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
   .k-overlay__scrim { position: fixed; inset: 0; background: #000; opacity: var(--k-scrim-opacity, .32); pointer-events: auto; }
   .k-overlay__content { position: relative; pointer-events: auto; max-width: 100%; contain: layout; }
-  .k-dialog > .k-overlay__content { display: flex; flex-direction: column; max-height: calc(100% - 48px); width: calc(100% - 48px); max-width: calc(100% - 48px); margin: 24px; border-radius: 4px; box-shadow: var(--k-elevation-5); }
+  /* The shadow is on what the dialog holds, not on this box: a card rounded
+     more than this box's 4px (rounded="xl") would otherwise sit inside a
+     square grey shadow and not look rounded at all. */
+  .k-dialog > .k-overlay__content { display: flex; flex-direction: column; max-height: calc(100% - 48px); width: calc(100% - 48px); max-width: calc(100% - 48px); margin: 24px; border-radius: 4px; }
+  .k-dialog > .k-overlay__content > * { box-shadow: var(--k-elevation-5); }
   .k-dialog > .k-overlay__content > .k-card { display: flex; flex-direction: column; flex: 1 1 var(--k-card-height, 100%); min-height: 0; border-radius: inherit; overflow-y: auto; }
   .k-dialog > .k-overlay__content > .k-card > .k-card-item { padding: 16px 24px; }
   .k-dialog > .k-overlay__content > .k-card > .k-card-item + .k-card-text { padding-top: 0; }
