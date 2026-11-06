@@ -313,7 +313,7 @@ export const retailCalendarEvents: Builtin[] = [
     name: "Summer Sale",
     color: "orange",
     icon: "mdi-white-balance-sunny",
-    dates: (year) => span(year, 5, 1, 5, 30),
+    dates: (year) => span(year, 6, 15, 7, 31),
   },
   {
     list: "retail",
@@ -413,13 +413,6 @@ export const retailCalendarEvents: Builtin[] = [
   },
   {
     list: "clothing",
-    name: "Summer Clearance",
-    color: "deep-orange-lighten-1",
-    icon: "mdi-sale",
-    dates: (year) => span(year, 6, 15, 7, 31),
-  },
-  {
-    list: "clothing",
     name: "Fall Collection Arrival",
     color: "orange-darken-3",
     icon: "mdi-leaf",
@@ -471,13 +464,6 @@ export const retailCalendarEvents: Builtin[] = [
   },
 
   // --- Parties & fun (general shops).
-  {
-    list: "party",
-    name: "Mother’s Day (May)",
-    color: "deep-purple-lighten-2",
-    icon: "mdi-flower-tulip",
-    dates: (year) => single(nthWeekdayOfMonth(year, 4, 0, 2)), // 2nd Sunday of May (US/Europe)
-  },
   {
     list: "party",
     name: "Halloween",
