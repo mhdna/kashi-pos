@@ -310,7 +310,7 @@ export const retailCalendarEvents: Builtin[] = [
   },
   {
     list: "retail",
-    name: "Summer Sale",
+    name: "Summer Sale (approx.)",
     color: "orange",
     icon: "mdi-white-balance-sunny",
     dates: (year) => span(year, 6, 15, 7, 31),
@@ -427,7 +427,7 @@ export const retailCalendarEvents: Builtin[] = [
   },
   {
     list: "clothing",
-    name: "Winter Clearance Sale",
+    name: "Winter Clearance Sale (approx.)",
     color: "cyan-darken-1",
     icon: "mdi-snowflake",
     dates: (year) => span(year, 1, 20, 2, 10),
