@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -12,7 +13,9 @@ import (
 // "calendar_events" sync entity, api/calendar_event.go in the kashi repo).
 // kashi sends the whole set on every pull, so the apply upserts what it is
 // given and deletes the rest. The built-in retail calendar (Valentine's,
-// Black Friday...) is not synced: the frontend carries its own copy.
+// Black Friday...) is not synced: the frontend carries its own copy of the
+// event lists, and the "calendar_settings" entity says which business type's
+// list to show and which events kashi has switched off.
 
 type syncedCalendarEvent struct {
 	ID        int64  `json:"id"`
@@ -67,4 +70,44 @@ func (a *App) ListCalendarEvents() ([]map[string]any, error) {
 		}
 	}
 	return out, nil
+}
+
+// syncedCalendarSettings is the one item of the "calendar_settings" entity.
+type syncedCalendarSettings struct {
+	BusinessType string   `json:"business_type"`
+	HiddenEvents []string `json:"hidden_builtin_events"`
+}
+
+func applySyncedCalendarSettings(ctx context.Context, q *db.Queries, items []syncedCalendarSettings) error {
+	if len(items) == 0 {
+		return nil
+	}
+	s := items[0]
+	if s.BusinessType == "" {
+		s.BusinessType = "clothing"
+	}
+	if s.HiddenEvents == nil {
+		s.HiddenEvents = []string{}
+	}
+	hidden, err := json.Marshal(s.HiddenEvents)
+	if err != nil {
+		return err
+	}
+	return q.SetCalendarSettings(ctx, db.SetCalendarSettingsParams{
+		BusinessType: s.BusinessType, HiddenEvents: string(hidden),
+	})
+}
+
+// GetCalendarSettings tells the Events page which built-in calendar to show.
+func (a *App) GetCalendarSettings() (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	row, err := a.store.GetCalendarSettings(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	hidden := []string{}
+	_ = json.Unmarshal([]byte(row.HiddenEvents), &hidden) // bad JSON: show everything
+	return map[string]any{"businessType": row.BusinessType, "hiddenEvents": hidden}, nil
 }

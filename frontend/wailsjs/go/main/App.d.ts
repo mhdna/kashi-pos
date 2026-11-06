@@ -138,6 +138,8 @@ export function GetAttendanceManagerApprovalEnabled():Promise<boolean>;
 
 export function GetAttendanceStatus():Promise<Record<string, any>>;
 
+export function GetCalendarSettings():Promise<Record<string, any>>;
+
 export function GetCashMachineStatus():Promise<main.CashMachineStatus>;
 
 export function GetCashierPIN():Promise<string>;

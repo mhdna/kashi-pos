@@ -14,3 +14,9 @@ ON CONFLICT(id) DO UPDATE SET
 -- name: DeleteCalendarEventsNotIn :exec
 -- kashi sends its whole set, so an event it no longer lists is one it deleted.
 DELETE FROM calendar_events WHERE id NOT IN (sqlc.slice('ids'));
+
+-- name: GetCalendarSettings :one
+SELECT * FROM calendar_settings WHERE id = 1;
+
+-- name: SetCalendarSettings :exec
+UPDATE calendar_settings SET business_type = ?, hidden_events = ? WHERE id = 1;

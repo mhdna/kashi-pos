@@ -274,6 +274,10 @@ export function GetAttendanceStatus() {
   return window['go']['main']['App']['GetAttendanceStatus']();
 }
 
+export function GetCalendarSettings() {
+  return window['go']['main']['App']['GetCalendarSettings']();
+}
+
 export function GetCashMachineStatus() {
   return window['go']['main']['App']['GetCashMachineStatus']();
 }

@@ -52,3 +52,33 @@ func TestApplySyncedCalendarEventsRejectsBadDates(t *testing.T) {
 		t.Fatal("end before start should be rejected")
 	}
 }
+
+func TestApplySyncedCalendarSettings(t *testing.T) {
+	ctx := context.Background()
+	q := setUpTestClientDB(t).Queries
+
+	// Before kashi says anything: clothing, nothing hidden.
+	row, err := q.GetCalendarSettings(ctx)
+	if err != nil || row.BusinessType != "clothing" || row.HiddenEvents != "[]" {
+		t.Fatalf("defaults: %+v, %v", row, err)
+	}
+
+	if err := applySyncedCalendarSettings(ctx, q, []syncedCalendarSettings{
+		{BusinessType: "tech", HiddenEvents: []string{"Ashura (approx.)"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	row, _ = q.GetCalendarSettings(ctx)
+	if row.BusinessType != "tech" || row.HiddenEvents != `["Ashura (approx.)"]` {
+		t.Fatalf("got %+v", row)
+	}
+
+	// An empty answer leaves what is there.
+	if err := applySyncedCalendarSettings(ctx, q, nil); err != nil {
+		t.Fatal(err)
+	}
+	row, _ = q.GetCalendarSettings(ctx)
+	if row.BusinessType != "tech" {
+		t.Fatalf("empty answer changed it: %+v", row)
+	}
+}

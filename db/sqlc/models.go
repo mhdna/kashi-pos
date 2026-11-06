@@ -147,6 +147,12 @@ type CalendarEvent struct {
 	EndDate   string `json:"endDate"`
 }
 
+type CalendarSetting struct {
+	ID           int64  `json:"id"`
+	BusinessType string `json:"businessType"`
+	HiddenEvents string `json:"hiddenEvents"`
+}
+
 type CashboxAccount struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`

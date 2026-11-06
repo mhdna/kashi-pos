@@ -246,6 +246,18 @@ import {
   mdiPineTree,
   mdiMoonWaningCrescent,
   mdiPartyPopper,
+  mdiFlag,
+  mdiStore,
+  mdiChurch,
+  mdiCross,
+  mdiHammerWrench,
+  mdiStarCrescent,
+  mdiMosque,
+  mdiHumanFemale,
+  mdiLeaf,
+  mdiTagHeart,
+  mdiBeach,
+  mdiGlassCocktail,
 } from "@mdi/js";
 import { h } from "vue";
 
@@ -499,6 +511,19 @@ const iconPaths: Record<string, string> = {
   "mdi-snowflake": mdiSnowflake,
   "mdi-weather-pouring": mdiWeatherPouring,
   "mdi-youtube": mdiYoutube,
+  // Calendar event icons.
+  "mdi-flag": mdiFlag,
+  "mdi-store": mdiStore,
+  "mdi-church": mdiChurch,
+  "mdi-cross": mdiCross,
+  "mdi-hammer-wrench": mdiHammerWrench,
+  "mdi-star-crescent": mdiStarCrescent,
+  "mdi-mosque": mdiMosque,
+  "mdi-human-female": mdiHumanFemale,
+  "mdi-leaf": mdiLeaf,
+  "mdi-tag-heart": mdiTagHeart,
+  "mdi-beach": mdiBeach,
+  "mdi-glass-cocktail": mdiGlassCocktail,
 };
 
 // An icon missing from iconPaths is a bug (scripts/check-icons.mjs fails the

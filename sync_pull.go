@@ -666,7 +666,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 // pullEntities lists what gets pulled from kashi on each tick. Adding a
 // new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
-var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories", "coupon_types", "coupons", "branches", "transfer_requests", "incoming_transfer_requests", "branch_stock", "quick_access", "invoice_discounts", "calendar_events"}
+var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories", "coupon_types", "coupons", "branches", "transfer_requests", "incoming_transfer_requests", "branch_stock", "quick_access", "invoice_discounts", "calendar_events", "calendar_settings"}
 
 // runSyncPullOnce catches this branch up on every entity in pullEntities,
 // one at a time. Each entity's cursor advances independently — a decode
@@ -843,6 +843,7 @@ var wholeSetEntities = map[string]struct{}{
 	"branches":           {},
 	"quick_access":       {},
 	"calendar_events":    {},
+	"calendar_settings":  {},
 	"expense_categories": {},
 	"loan_categories":    {},
 }
@@ -878,6 +879,8 @@ func wholeSetSnapshot(ctx context.Context, q *db.Queries, entity string) (snapsh
 		snapshot, err = cats, lErr
 	case "calendar_events":
 		snapshot, err = q.ListCalendarEvents(ctx)
+	case "calendar_settings":
+		snapshot, err = q.GetCalendarSettings(ctx)
 	case "quick_access":
 		settings, sErr := q.GetSettings(ctx)
 		if sErr != nil {
@@ -1077,6 +1080,14 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 		}
 		if err := applySyncedCalendarEvents(ctx, q, items); err != nil {
 			return fmt.Errorf("apply calendar events: %w", err)
+		}
+	case "calendar_settings":
+		var items []syncedCalendarSettings
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		if err := applySyncedCalendarSettings(ctx, q, items); err != nil {
+			return fmt.Errorf("apply calendar settings: %w", err)
 		}
 	case "quick_access":
 		var items []syncedQuickAccess

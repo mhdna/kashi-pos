@@ -30,6 +30,17 @@ func (q *Queries) DeleteCalendarEventsNotIn(ctx context.Context, ids []int64) er
 	return err
 }
 
+const getCalendarSettings = `-- name: GetCalendarSettings :one
+SELECT id, business_type, hidden_events FROM calendar_settings WHERE id = 1
+`
+
+func (q *Queries) GetCalendarSettings(ctx context.Context) (CalendarSetting, error) {
+	row := q.db.QueryRowContext(ctx, getCalendarSettings)
+	var i CalendarSetting
+	err := row.Scan(&i.ID, &i.BusinessType, &i.HiddenEvents)
+	return i, err
+}
+
 const listCalendarEvents = `-- name: ListCalendarEvents :many
 SELECT id, name, icon, color, start_date, end_date FROM calendar_events ORDER BY start_date, id
 `
@@ -62,6 +73,20 @@ func (q *Queries) ListCalendarEvents(ctx context.Context) ([]CalendarEvent, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const setCalendarSettings = `-- name: SetCalendarSettings :exec
+UPDATE calendar_settings SET business_type = ?, hidden_events = ? WHERE id = 1
+`
+
+type SetCalendarSettingsParams struct {
+	BusinessType string `json:"businessType"`
+	HiddenEvents string `json:"hiddenEvents"`
+}
+
+func (q *Queries) SetCalendarSettings(ctx context.Context, arg SetCalendarSettingsParams) error {
+	_, err := q.db.ExecContext(ctx, setCalendarSettings, arg.BusinessType, arg.HiddenEvents)
+	return err
 }
 
 const upsertCalendarEvent = `-- name: UpsertCalendarEvent :exec
