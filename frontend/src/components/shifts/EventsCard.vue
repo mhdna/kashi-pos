@@ -11,7 +11,7 @@
       <div v-for="e in upcoming" :key="e.key" class="events-card-row">
         <k-icon :icon="e.icon" :color="e.color" size="24" class="events-card-icon" />
         <div class="events-card-text">
-          <div class="font-weight-medium text-body-2 events-card-name" :title="e.name">{{ e.name }}</div>
+          <div class="font-weight-medium text-body-2 events-card-name" dir="auto" :title="e.name">{{ e.name }}</div>
           <div class="events-card-meta text-caption text-medium-emphasis">
             <span>{{ rangeLabel(e) }}</span>
             <k-chip size="x-small" variant="tonal" :color="e.color">{{ whenLabel(e) }}</k-chip>

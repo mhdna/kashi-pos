@@ -30,7 +30,7 @@
           <div v-for="w in weekdays" :key="w" class="grid-head">{{ w }}</div>
           <div v-for="cell in cells" :key="cell.iso" class="cell" :class="{ outside: !cell.inMonth, today: cell.isToday }">
             <div class="cell-num">{{ cell.day }}</div>
-            <div v-for="e in cell.events.slice(0, 3)" :key="e.key" class="cell-event" :style="chipStyle(e)" :title="e.name">{{ e.name }}</div>
+            <div v-for="e in cell.events.slice(0, 3)" :key="e.key" class="cell-event" dir="auto" :style="chipStyle(e)" :title="e.name">{{ e.name }}</div>
             <div v-if="cell.events.length > 3" class="cell-more">+{{ cell.events.length - 3 }} more</div>
           </div>
         </div>
