@@ -19,7 +19,7 @@ function walk(dir) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) {
       walk(path);
-    } else if ([".vue", ".js", ".ts"].includes(extname(entry.name)) && path !== iconsFile) {
+    } else if ([".vue", ".js", ".ts", ".json"].includes(extname(entry.name)) && path !== iconsFile) {
       const lines = readFileSync(path, "utf8").split("\n");
       for (const [index, line] of lines.entries()) {
         // A name that ends in "-" or sits in a ${...} is built at run time and

@@ -1,0 +1,745 @@
+{
+ "lists": {
+  "lebanon": {
+   "title": "Lebanon",
+   "icon": "mdi-flag"
+  },
+  "islamic": {
+   "title": "Islamic",
+   "icon": "mdi-mosque"
+  },
+  "retail": {
+   "title": "Shopping seasons",
+   "icon": "mdi-sale"
+  },
+  "clothing": {
+   "title": "Clothing",
+   "icon": "mdi-hanger"
+  },
+  "tech": {
+   "title": "Tech",
+   "icon": "mdi-laptop"
+  },
+  "party": {
+   "title": "Parties & fun",
+   "icon": "mdi-party-popper"
+  }
+ },
+ "businessTypes": {
+  "clothing": {
+   "title": "Clothing",
+   "icon": "mdi-hanger",
+   "lists": [
+    "lebanon",
+    "islamic",
+    "retail",
+    "clothing"
+   ]
+  },
+  "tech": {
+   "title": "Tech",
+   "icon": "mdi-laptop",
+   "lists": [
+    "lebanon",
+    "islamic",
+    "retail",
+    "tech"
+   ]
+  },
+  "general": {
+   "title": "General shop",
+   "icon": "mdi-store",
+   "lists": [
+    "lebanon",
+    "islamic",
+    "retail",
+    "party"
+   ]
+  }
+ },
+ "events": [
+  {
+   "list": "lebanon",
+   "name": "عيد الميلاد للأرمن",
+   "color": "red-darken-2",
+   "icon": "mdi-church",
+   "rule": {
+    "type": "fixed",
+    "month": 1,
+    "day": 6
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد مار مارون",
+   "color": "red-darken-3",
+   "icon": "mdi-church",
+   "rule": {
+    "type": "fixed",
+    "month": 2,
+    "day": 9
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد الأم",
+   "color": "deep-purple",
+   "icon": "mdi-flower-tulip",
+   "rule": {
+    "type": "fixed",
+    "month": 3,
+    "day": 21
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد البشارة",
+   "color": "indigo-lighten-1",
+   "icon": "mdi-church",
+   "rule": {
+    "type": "fixed",
+    "month": 3,
+    "day": 25
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "الجمعة العظيمة (غربي)",
+   "color": "blue-grey-darken-1",
+   "icon": "mdi-cross",
+   "rule": {
+    "type": "easter",
+    "kind": "western",
+    "offset": -2
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد الفصح (غربي)",
+   "color": "purple-lighten-1",
+   "icon": "mdi-flower-tulip",
+   "rule": {
+    "type": "easter",
+    "kind": "western"
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "الجمعة العظيمة (شرقي)",
+   "color": "blue-grey-darken-2",
+   "icon": "mdi-cross",
+   "rule": {
+    "type": "easter",
+    "kind": "orthodox",
+    "offset": -2
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد الفصح (شرقي)",
+   "color": "purple-darken-1",
+   "icon": "mdi-flower-tulip",
+   "rule": {
+    "type": "easter",
+    "kind": "orthodox"
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد العمال",
+   "color": "red",
+   "icon": "mdi-hammer-wrench",
+   "rule": {
+    "type": "fixed",
+    "month": 5,
+    "day": 1
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد المقاومة والتحرير",
+   "color": "green-darken-3",
+   "icon": "mdi-flag",
+   "rule": {
+    "type": "fixed",
+    "month": 5,
+    "day": 25
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد الجيش",
+   "color": "green-darken-4",
+   "icon": "mdi-flag",
+   "rule": {
+    "type": "fixed",
+    "month": 8,
+    "day": 1
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد انتقال العذراء",
+   "color": "light-blue-darken-1",
+   "icon": "mdi-church",
+   "rule": {
+    "type": "fixed",
+    "month": 8,
+    "day": 15
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد جميع القديسين",
+   "color": "grey-darken-1",
+   "icon": "mdi-church",
+   "rule": {
+    "type": "fixed",
+    "month": 11,
+    "day": 1
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد الاستقلال",
+   "color": "red-darken-1",
+   "icon": "mdi-flag",
+   "rule": {
+    "type": "fixed",
+    "month": 11,
+    "day": 22
+   }
+  },
+  {
+   "list": "lebanon",
+   "name": "عيد الميلاد",
+   "color": "green-darken-2",
+   "icon": "mdi-pine-tree",
+   "rule": {
+    "type": "fixed",
+    "month": 12,
+    "day": 25
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "رمضان (تقريبي)",
+   "color": "teal-darken-2",
+   "icon": "mdi-star-crescent",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-03-11",
+    "days": 30
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "عيد الفطر (تقريبي)",
+   "color": "amber-darken-2",
+   "icon": "mdi-moon-waning-crescent",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-04-10",
+    "days": 3
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "عيد الأضحى (تقريبي)",
+   "color": "brown-darken-1",
+   "icon": "mdi-moon-waning-crescent",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-06-16",
+    "days": 4
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "رأس السنة الهجرية (تقريبي)",
+   "color": "teal-darken-3",
+   "icon": "mdi-mosque",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-07-07"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "عاشوراء (تقريبي)",
+   "color": "grey-darken-3",
+   "icon": "mdi-mosque",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-07-16"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "المولد النبوي (تقريبي)",
+   "color": "green",
+   "icon": "mdi-mosque",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-09-15"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "عيد الغدير (١٨ ذو الحجة، تقريبي)",
+   "color": "green-darken-2",
+   "icon": "mdi-handshake",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-06-24"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "١٥ شعبان – مولد الإمام المهدي (تقريبي)",
+   "color": "amber-darken-1",
+   "icon": "mdi-star-crescent",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-02-25"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "مولد الإمام الحسين (٣ شعبان، تقريبي)",
+   "color": "green",
+   "icon": "mdi-mosque",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-02-13"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "مولد الإمام علي (١٣ رجب، تقريبي)",
+   "color": "green-darken-1",
+   "icon": "mdi-mosque",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-01-25"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "المبعث النبوي (٢٧ رجب، تقريبي)",
+   "color": "teal",
+   "icon": "mdi-mosque",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-02-07"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "مولد السيدة فاطمة الزهراء (تقريبي)",
+   "color": "pink-darken-2",
+   "icon": "mdi-mosque",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-01-02"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "ذكرى استشهاد الإمام علي (٢١ رمضان، تقريبي)",
+   "color": "grey-darken-3",
+   "icon": "mdi-mosque",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-03-31"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "ليلة القدر (٢٣ رمضان، تقريبي)",
+   "color": "indigo-darken-3",
+   "icon": "mdi-star-crescent",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-04-02"
+   }
+  },
+  {
+   "list": "islamic",
+   "name": "الأربعين (تقريبي)",
+   "color": "grey-darken-2",
+   "icon": "mdi-mosque",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-08-25"
+   }
+  },
+  {
+   "list": "retail",
+   "name": "New Year Sale",
+   "color": "indigo",
+   "icon": "mdi-firework",
+   "rule": {
+    "type": "span",
+    "from": [
+     1,
+     1
+    ],
+    "to": [
+     1,
+     7
+    ]
+   }
+  },
+  {
+   "list": "retail",
+   "name": "Valentine’s Day",
+   "color": "pink",
+   "icon": "mdi-heart",
+   "rule": {
+    "type": "fixed",
+    "month": 2,
+    "day": 14
+   }
+  },
+  {
+   "list": "retail",
+   "name": "Summer Sale (approx.)",
+   "color": "orange",
+   "icon": "mdi-white-balance-sunny",
+   "rule": {
+    "type": "span",
+    "from": [
+     7,
+     15
+    ],
+    "to": [
+     8,
+     31
+    ]
+   }
+  },
+  {
+   "list": "retail",
+   "name": "Back to School",
+   "color": "teal",
+   "icon": "mdi-school",
+   "rule": {
+    "type": "span",
+    "from": [
+     8,
+     15
+    ],
+    "to": [
+     9,
+     5
+    ]
+   }
+  },
+  {
+   "list": "retail",
+   "name": "Black Friday",
+   "color": "blue-grey",
+   "icon": "mdi-sale",
+   "rule": {
+    "type": "nthWeekday",
+    "month": 11,
+    "weekday": 4,
+    "n": 4,
+    "offset": 1
+   }
+  },
+  {
+   "list": "retail",
+   "name": "Christmas Gift Season",
+   "color": "green-lighten-1",
+   "icon": "mdi-gift-outline",
+   "rule": {
+    "type": "span",
+    "from": [
+     12,
+     1
+    ],
+    "to": [
+     12,
+     24
+    ]
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "Women’s Day",
+   "color": "pink-darken-1",
+   "icon": "mdi-human-female",
+   "rule": {
+    "type": "fixed",
+    "month": 3,
+    "day": 8
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "Spring Collection Arrival",
+   "color": "light-green",
+   "icon": "mdi-leaf",
+   "rule": {
+    "type": "span",
+    "from": [
+     2,
+     15
+    ],
+    "to": [
+     3,
+     15
+    ]
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "تسوّق عيد الفطر (تقريبي)",
+   "color": "amber",
+   "icon": "mdi-tag-heart",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-04-10",
+    "days": 14,
+    "offset": -14
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "تسوّق الفصح",
+   "color": "purple-lighten-2",
+   "icon": "mdi-tag-heart",
+   "rule": {
+    "type": "easter",
+    "kind": "western",
+    "offset": -14,
+    "days": 14
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "Summer Collection Arrival",
+   "color": "yellow-darken-2",
+   "icon": "mdi-tshirt-crew",
+   "rule": {
+    "type": "span",
+    "from": [
+     4,
+     15
+    ],
+    "to": [
+     5,
+     15
+    ]
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "Swimwear Season",
+   "color": "cyan",
+   "icon": "mdi-beach",
+   "rule": {
+    "type": "span",
+    "from": [
+     5,
+     1
+    ],
+    "to": [
+     6,
+     15
+    ]
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "Graduation Season",
+   "color": "deep-purple-lighten-1",
+   "icon": "mdi-school",
+   "rule": {
+    "type": "span",
+    "from": [
+     5,
+     15
+    ],
+    "to": [
+     6,
+     30
+    ]
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "Father’s Day",
+   "color": "blue-darken-1",
+   "icon": "mdi-account-tie",
+   "rule": {
+    "type": "nthWeekday",
+    "month": 6,
+    "weekday": 0,
+    "n": 3
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "Wedding Season",
+   "color": "pink-lighten-2",
+   "icon": "mdi-ring",
+   "rule": {
+    "type": "span",
+    "from": [
+     6,
+     15
+    ],
+    "to": [
+     9,
+     15
+    ]
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "تسوّق عيد الأضحى (تقريبي)",
+   "color": "brown-lighten-1",
+   "icon": "mdi-tag-heart",
+   "rule": {
+    "type": "hijri",
+    "anchor": "2024-06-16",
+    "days": 7,
+    "offset": -7
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "Fall Collection Arrival",
+   "color": "orange-darken-3",
+   "icon": "mdi-leaf",
+   "rule": {
+    "type": "span",
+    "from": [
+     9,
+     1
+    ],
+    "to": [
+     10,
+     15
+    ]
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "Coats & Jackets Season",
+   "color": "blue-grey-darken-2",
+   "icon": "mdi-snowflake",
+   "rule": {
+    "type": "span",
+    "from": [
+     10,
+     15
+    ],
+    "to": [
+     11,
+     30
+    ]
+   }
+  },
+  {
+   "list": "clothing",
+   "name": "Winter Clearance Sale (approx.)",
+   "color": "cyan-darken-1",
+   "icon": "mdi-snowflake",
+   "rule": {
+    "type": "span",
+    "from": [
+     2,
+     20
+    ],
+    "to": [
+     3,
+     10
+    ]
+   }
+  },
+  {
+   "list": "tech",
+   "name": "Prime Day (approx.)",
+   "color": "blue-darken-3",
+   "icon": "mdi-sale",
+   "rule": {
+    "type": "span",
+    "from": [
+     7,
+     15
+    ],
+    "to": [
+     7,
+     16
+    ]
+   }
+  },
+  {
+   "list": "tech",
+   "name": "New iPhone Season",
+   "color": "grey-darken-2",
+   "icon": "mdi-cellphone",
+   "rule": {
+    "type": "span",
+    "from": [
+     9,
+     10
+    ],
+    "to": [
+     9,
+     30
+    ]
+   }
+  },
+  {
+   "list": "tech",
+   "name": "Singles’ Day (11.11)",
+   "color": "red-darken-1",
+   "icon": "mdi-sale",
+   "rule": {
+    "type": "fixed",
+    "month": 11,
+    "day": 11
+   }
+  },
+  {
+   "list": "tech",
+   "name": "Cyber Monday",
+   "color": "blue-darken-2",
+   "icon": "mdi-laptop",
+   "rule": {
+    "type": "nthWeekday",
+    "month": 11,
+    "weekday": 4,
+    "n": 4,
+    "offset": 4
+   }
+  },
+  {
+   "list": "party",
+   "name": "Halloween",
+   "color": "deep-orange",
+   "icon": "mdi-halloween",
+   "rule": {
+    "type": "fixed",
+    "month": 10,
+    "day": 31
+   }
+  },
+  {
+   "list": "party",
+   "name": "New Year’s Eve",
+   "color": "indigo-darken-2",
+   "icon": "mdi-glass-cocktail",
+   "rule": {
+    "type": "fixed",
+    "month": 12,
+    "day": 31
+   }
+  }
+ ]
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 )
 
@@ -64,13 +65,22 @@ func TestApplySyncedCalendarSettings(t *testing.T) {
 	}
 
 	if err := applySyncedCalendarSettings(ctx, q, []syncedCalendarSettings{
-		{BusinessType: "tech", HiddenEvents: []string{"Ashura (approx.)"}},
+		{BusinessType: "tech", HiddenEvents: []string{"Ashura (approx.)"}, Catalog: json.RawMessage(`{"events":[]}`)},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	row, _ = q.GetCalendarSettings(ctx)
-	if row.BusinessType != "tech" || row.HiddenEvents != `["Ashura (approx.)"]` {
+	if row.BusinessType != "tech" || row.HiddenEvents != `["Ashura (approx.)"]` || row.Catalog != `{"events":[]}` {
 		t.Fatalf("got %+v", row)
+	}
+
+	// An older kashi sends no catalog: it is cleared, so the page uses its bundled copy.
+	if err := applySyncedCalendarSettings(ctx, q, []syncedCalendarSettings{{BusinessType: "tech"}}); err != nil {
+		t.Fatal(err)
+	}
+	row, _ = q.GetCalendarSettings(ctx)
+	if row.Catalog != "" {
+		t.Fatalf("missing catalog should clear, got %q", row.Catalog)
 	}
 
 	// An empty answer leaves what is there.
