@@ -437,7 +437,7 @@ export const retailCalendarEvents: Builtin[] = [
     name: "Winter Clearance Sale",
     color: "cyan-darken-1",
     icon: "mdi-snowflake",
-    dates: (year) => span(year, 11, 26, 0, 10, 1),
+    dates: (year) => span(year, 1, 20, 2, 10),
   },
 
   // --- Tech.
