@@ -270,14 +270,14 @@ func (a *App) FindProductsForScan(value string) ([]map[string]any, error) {
 		return []map[string]any{}, nil
 	}
 
-	var products []db.Product
-	if p, err := a.store.GetProductByBarcode(a.ctx, value); err == nil {
-		products = []db.Product{p}
-	} else if !errors.Is(err, sql.ErrNoRows) {
+	products, err := a.lookupForScan(value)
+	if err != nil {
 		return nil, err
-	} else if a.scanByCodeEnabled() {
-		products, err = a.store.ListActiveProductsByCode(a.ctx, value)
-		if err != nil {
+	}
+	// A scanner or a slip of the keyboard can leave spaces inside the value
+	// ("AB 123"); try it without them when the value as typed finds nothing.
+	if squeezed := strings.Join(strings.Fields(value), ""); len(products) == 0 && squeezed != value {
+		if products, err = a.lookupForScan(squeezed); err != nil {
 			return nil, err
 		}
 	}
@@ -855,4 +855,20 @@ func (a *App) productSearchHiddenFields() string {
 		return s.ProductSearchHiddenFields
 	}
 	return ""
+}
+
+// lookupForScan finds products for one exact scan value: the barcode first,
+// then (while scan-by-code is on) the active variants sharing that code.
+func (a *App) lookupForScan(value string) ([]db.Product, error) {
+	p, err := a.store.GetProductByBarcode(a.ctx, value)
+	if err == nil {
+		return []db.Product{p}, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	if !a.scanByCodeEnabled() {
+		return nil, nil
+	}
+	return a.store.ListActiveProductsByCode(a.ctx, value)
 }

@@ -1169,8 +1169,12 @@ function flashBarcodeFeedback(kind: "success" | "error") {
 // allows it) as a product code. A code shared by several variants comes
 // back as all of them, and the cashier picks one in variantPicker.
 async function onBarcodeEnter() {
-  const value = barcodeValue.value;
-  if (!value) return;
+  const value = barcodeValue.value.trim();
+  // Only spaces: nothing was scanned, so leave the field alone (no red flash).
+  if (!value) {
+    barcodeValue.value = "";
+    return;
+  }
   barcodeValue.value = "";
   let matches: any[] = [];
   try {

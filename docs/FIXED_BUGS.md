@@ -3,6 +3,20 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-06 · Spaces in the scan field flashed "not found" or missed the product
+
+**Symptom.** Pressing Enter on a field holding only spaces cleared it and
+flashed the red "not found" feedback. A code or barcode with a stray space
+inside ("AB 123") found nothing.
+
+**Cause.** The empty check in the scan handler ran before trimming, and the
+lookup only trimmed the ends of the value.
+
+**Fix.** `frontend/src/pages/home.vue` trims first and ignores a blank entry.
+`products.go` (`FindProductsForScan`, `lookupForScan`) retries without inner
+whitespace when the value as typed matches nothing. Covered by
+`TestFindProductsForScan` in `products_test.go`.
+
 ## 2026-11-06 · Long Arabic event names lost their beginning, not their end
 
 **Symptom.** On the dashboard's "Coming up" card, a long Arabic event name was

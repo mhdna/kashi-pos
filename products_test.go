@@ -487,6 +487,9 @@ func TestFindProductsForScan(t *testing.T) {
 	cases := []struct{ value, want string }{
 		{"BAR-RED", "BAR-RED"},
 		{" BAR-RED ", "BAR-RED"},
+		{"BAR -RED", "BAR-RED"}, // stray space inside
+		{" SHIRT -1\t", "BAR-RED,BAR-BLUE"},
+		{"   ", ""},
 		{"SHIRT-1", "BAR-RED,BAR-BLUE"}, // inactive variant left out
 		{"shirt-1", "BAR-RED,BAR-BLUE"}, // codes match in any case
 		{"Hat-1", "BAR-HAT"},
