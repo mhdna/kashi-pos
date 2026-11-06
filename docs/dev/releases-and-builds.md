@@ -9,7 +9,7 @@
 | `make lint` | Type-check, `go vet`, golangci-lint. |
 | `make generate` | sqlc. |
 | `make bump` | The next release: commit `chore: release vX` and tag it. |
-| `make publish NOTES="…"` | Build the Windows exe at the latest tag, sign it, upload it to kashi, ask which branches get it. |
+| `make publish [NOTES="…"]` | Build the Windows exe at the latest tag, sign it, upload it to kashi, ask which branches get it. Without NOTES, the notes are the `feat`/`fix`/`perf` commits since kashi's last published build of that flavor (`cmd/publish-release/notes.go`). |
 | `make publish-all` | Same, and every active till of that flavor is set to it. |
 | `make publish-all-force` | Same, and tills install it right away, even mid-shift, after a one-minute countdown. |
 | `make publish-compact…` | The same for the compact flavor. |
