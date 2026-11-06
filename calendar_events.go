@@ -74,8 +74,9 @@ func (a *App) ListCalendarEvents() ([]map[string]any, error) {
 
 // syncedCalendarSettings is the one item of the "calendar_settings" entity.
 type syncedCalendarSettings struct {
-	BusinessType string   `json:"business_type"`
-	HiddenEvents []string `json:"hidden_builtin_events"`
+	BusinessType string          `json:"business_type"`
+	HiddenEvents []string        `json:"hidden_builtin_events"`
+	Catalog      json.RawMessage `json:"catalog"`
 }
 
 func applySyncedCalendarSettings(ctx context.Context, q *db.Queries, items []syncedCalendarSettings) error {
@@ -93,8 +94,14 @@ func applySyncedCalendarSettings(ctx context.Context, q *db.Queries, items []syn
 	if err != nil {
 		return err
 	}
+	// The built-in events as date rules. Kept only when it is valid JSON; an
+	// older kashi sends none, and the page then falls back to its bundled copy.
+	catalog := ""
+	if len(s.Catalog) > 0 && json.Valid(s.Catalog) {
+		catalog = string(s.Catalog)
+	}
 	return q.SetCalendarSettings(ctx, db.SetCalendarSettingsParams{
-		BusinessType: s.BusinessType, HiddenEvents: string(hidden),
+		BusinessType: s.BusinessType, HiddenEvents: string(hidden), Catalog: catalog,
 	})
 }
 
@@ -109,5 +116,5 @@ func (a *App) GetCalendarSettings() (map[string]any, error) {
 	}
 	hidden := []string{}
 	_ = json.Unmarshal([]byte(row.HiddenEvents), &hidden) // bad JSON: show everything
-	return map[string]any{"businessType": row.BusinessType, "hiddenEvents": hidden}, nil
+	return map[string]any{"businessType": row.BusinessType, "hiddenEvents": hidden, "catalog": row.Catalog}, nil
 }

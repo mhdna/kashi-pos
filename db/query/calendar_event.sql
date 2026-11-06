@@ -19,4 +19,4 @@ DELETE FROM calendar_events WHERE id NOT IN (sqlc.slice('ids'));
 SELECT * FROM calendar_settings WHERE id = 1;
 
 -- name: SetCalendarSettings :exec
-UPDATE calendar_settings SET business_type = ?, hidden_events = ? WHERE id = 1;
+UPDATE calendar_settings SET business_type = ?, hidden_events = ?, catalog = ? WHERE id = 1;

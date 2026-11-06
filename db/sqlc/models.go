@@ -151,6 +151,7 @@ type CalendarSetting struct {
 	ID           int64  `json:"id"`
 	BusinessType string `json:"businessType"`
 	HiddenEvents string `json:"hiddenEvents"`
+	Catalog      string `json:"catalog"`
 }
 
 type CashboxAccount struct {
