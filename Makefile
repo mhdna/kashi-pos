@@ -152,12 +152,20 @@ publish-compact-all-force: build-windows-compact
 # make (not a prerequisite) so APP_VERSION is read after the new tag exists.
 # Same variables as publish: NOTES, BRANCHES, and PART/VERSION for the bump
 # (`make release-all PART=minor NOTES="..."`). If the bump refuses (uncommitted
-# changes, nothing new since the last release) nothing is published.
+# changes) nothing is published. When nothing is new since the last tag (it was
+# bumped by hand, or the last publish failed) the bump is skipped and that tag
+# is published.
 #   make release            asks which branches get it
 #   make release-all        every till of that build, no questions
 #   make release-all-force  ...and installs it right away
 RELEASES = release release-compact release-all release-compact-all release-all-force release-compact-all-force
 .PHONY: $(RELEASES)
 $(RELEASES):
-	$(MAKE) bump
+	@last=$$(git describe --tags --abbrev=0 2>/dev/null); \
+	if [ -z "$$(git status --porcelain)" ] && [ -n "$$last" ] && \
+	   [ -z "$$(git log --format=%s "$$last..HEAD" | grep -v '^chore: release v')" ]; then \
+		echo "Nothing new since $$last: publishing it as is (no bump)."; \
+	else \
+		$(MAKE) bump || exit 1; \
+	fi
 	$(MAKE) $(patsubst release%,publish%,$@)
