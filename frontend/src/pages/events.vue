@@ -41,15 +41,22 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { ListCalendarEvents } from "../../wailsjs/go/main/App";
+import { GetCalendarSettings, ListCalendarEvents } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
-import { eventsInRange, type CalendarEvent, type SyncedEvent } from "@/lib/retailCalendar";
+import {
+  DEFAULT_CALENDAR_SETTINGS,
+  eventsInRange,
+  type CalendarEvent,
+  type CalendarSettings,
+  type SyncedEvent,
+} from "@/lib/retailCalendar";
 import { onColor, resolveColor } from "@/ui/colors";
 
 const UPCOMING_DAYS = 120;
 const MS_DAY = 86_400_000;
 
 const synced = ref<SyncedEvent[]>([]);
+const settings = ref<CalendarSettings>(DEFAULT_CALENDAR_SETTINGS);
 const today = ref(startOfDay(new Date()));
 const month = ref(new Date(today.value.getFullYear(), today.value.getMonth(), 1));
 
@@ -60,10 +67,11 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 
 async function load() {
   synced.value = (await ListCalendarEvents()) as SyncedEvent[];
+  settings.value = (await GetCalendarSettings()) as CalendarSettings;
 }
 
 const upcoming = computed(() =>
-  eventsInRange(today.value, new Date(today.value.getTime() + UPCOMING_DAYS * MS_DAY), synced.value),
+  eventsInRange(today.value, new Date(today.value.getTime() + UPCOMING_DAYS * MS_DAY), synced.value, settings.value),
 );
 
 const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -85,7 +93,7 @@ const cells = computed(() => {
   const lead = (first.getDay() + 6) % 7; // Monday first
   const gridStart = new Date(first.getFullYear(), first.getMonth(), 1 - lead);
   const gridEnd = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + 41, 23, 59, 59);
-  const events = eventsInRange(gridStart, gridEnd, synced.value);
+  const events = eventsInRange(gridStart, gridEnd, synced.value, settings.value);
   return Array.from({ length: 42 }, (_, i) => {
     const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
     const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
@@ -113,7 +121,12 @@ function goToday() {
 let unsub: (() => void) | undefined;
 onMounted(() => {
   void load();
-  unsub = EventsOn("sync_applied:calendar_events", () => void load());
+  const offEvents = EventsOn("sync_applied:calendar_events", () => void load());
+  const offSettings = EventsOn("sync_applied:calendar_settings", () => void load());
+  unsub = () => {
+    offEvents();
+    offSettings();
+  };
 });
 onBeforeUnmount(() => unsub?.());
 </script>

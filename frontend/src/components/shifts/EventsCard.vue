@@ -25,27 +25,35 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { ListCalendarEvents } from "../../../wailsjs/go/main/App";
+import { GetCalendarSettings, ListCalendarEvents } from "../../../wailsjs/go/main/App";
 import { EventsOn } from "../../../wailsjs/runtime/runtime";
-import { eventsInRange, type CalendarEvent, type SyncedEvent } from "@/lib/retailCalendar";
+import {
+  DEFAULT_CALENDAR_SETTINGS,
+  eventsInRange,
+  type CalendarEvent,
+  type CalendarSettings,
+  type SyncedEvent,
+} from "@/lib/retailCalendar";
 
 const DAYS = 90;
 const MS_DAY = 86_400_000;
 const router = useRouter();
 const synced = ref<SyncedEvent[]>([]);
+const settings = ref<CalendarSettings>(DEFAULT_CALENDAR_SETTINGS);
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 const today = startOfDay(new Date());
 
 async function load() {
   try {
     synced.value = (await ListCalendarEvents()) as SyncedEvent[];
+    settings.value = (await GetCalendarSettings()) as CalendarSettings;
   } catch {
     synced.value = [];
   }
 }
 
 const upcoming = computed(() =>
-  eventsInRange(today, new Date(today.getTime() + DAYS * MS_DAY), synced.value).slice(0, 3),
+  eventsInRange(today, new Date(today.getTime() + DAYS * MS_DAY), synced.value, settings.value).slice(0, 3),
 );
 
 const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -61,7 +69,12 @@ function whenLabel(e: CalendarEvent) {
 let unsub: (() => void) | undefined;
 onMounted(() => {
   void load();
-  unsub = EventsOn("sync_applied:calendar_events", () => void load());
+  const offEvents = EventsOn("sync_applied:calendar_events", () => void load());
+  const offSettings = EventsOn("sync_applied:calendar_settings", () => void load());
+  unsub = () => {
+    offEvents();
+    offSettings();
+  };
 });
 onBeforeUnmount(() => unsub?.());
 </script>

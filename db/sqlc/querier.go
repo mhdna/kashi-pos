@@ -243,6 +243,7 @@ type Querier interface {
 	GetAttributeByName(ctx context.Context, name string) (Attribute, error)
 	GetBranchStockRow(ctx context.Context, arg GetBranchStockRowParams) (BranchStock, error)
 	GetBranchTargetProgress(ctx context.Context, targetID int64) (BranchTargetProgress, error)
+	GetCalendarSettings(ctx context.Context) (CalendarSetting, error)
 	GetCashboxAccountByID(ctx context.Context, id int64) (CashboxAccount, error)
 	GetCashboxAccountByName(ctx context.Context, name string) (CashboxAccount, error)
 	GetClientAccountBalance(ctx context.Context, clientID int64) (interface{}, error)
@@ -657,6 +658,7 @@ type Querier interface {
 	SearchBranchStock(ctx context.Context, search string) ([]SearchBranchStockRow, error)
 	SearchClients(ctx context.Context, arg SearchClientsParams) ([]Client, error)
 	SearchProductsByName(ctx context.Context, name string) ([]Product, error)
+	SetCalendarSettings(ctx context.Context, arg SetCalendarSettingsParams) error
 	SetCashboxAccountActive(ctx context.Context, arg SetCashboxAccountActiveParams) error
 	SetCashboxAccountSortOrder(ctx context.Context, arg SetCashboxAccountSortOrderParams) error
 	SetClientActive(ctx context.Context, arg SetClientActiveParams) error
