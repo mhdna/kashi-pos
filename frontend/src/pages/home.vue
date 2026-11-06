@@ -853,7 +853,7 @@ document.addEventListener("visibilitychange", flushDraftOnHide);
 window.addEventListener("pagehide", draftSaver.flush);
 
 let quoteRequestToken = 0;
-let quoteDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+let quoteQueued = false;
 
 async function refreshQuote() {
   const token = ++quoteRequestToken;
@@ -938,10 +938,17 @@ watch(
   () => {
     // No wait: a quote reuses the cached prices (pricing_overrides.go) and
     // takes well under a millisecond, so the total follows each scan or key
-    // at once. The 0ms timer only folds changes made in the same tick into
-    // one request; quoteRequestToken drops any reply a newer one superseded.
-    clearTimeout(quoteDebounceTimer);
-    quoteDebounceTimer = setTimeout(refreshQuote, 0);
+    // at once. A microtask (not a timer, which can run after a repaint on a
+    // busy till) folds changes made in the same tick into one request, so the
+    // request leaves before the new line is first painted and its deal chip
+    // follows straight after. quoteRequestToken drops any reply a newer one
+    // superseded.
+    if (quoteQueued) return;
+    quoteQueued = true;
+    queueMicrotask(() => {
+      quoteQueued = false;
+      void refreshQuote();
+    });
   },
   { deep: true, immediate: true },
 );
