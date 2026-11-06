@@ -406,16 +406,23 @@ function splitAmount(amountCents: number) {
   const wholePrimary = Math.floor(primaryUnits / step) * step;
   const remainderCents = amountCents - (wholePrimary / primary.unitsPerUsd) * 100;
 
+  const secondaryUnits = roundCurrencyUnitsFromCents(remainderCents, secondary, roundingMode.value);
   const primaryText = unitsLabel(primary, wholePrimary);
-  const secondaryText = unitsLabel(
-    secondary,
-    roundCurrencyUnitsFromCents(remainderCents, secondary, roundingMode.value),
-  );
+  const secondaryText = unitsLabel(secondary, secondaryUnits);
   // The order is display-only: the arithmetic above is always primary-first.
   const primaryFirst = props.splitPrimaryFirst !== false;
+  const parts = [
+    { text: primaryText, zero: wholePrimary === 0 },
+    { text: secondaryText, zero: secondaryUnits === 0 },
+  ];
+  if (!primaryFirst) parts.reverse();
+  // A half that is zero is left out: "LL 540,000", not "$0 + LL 540,000".
+  // If both are zero, the first stays so there is still an amount to show.
+  const shown = parts.filter((part) => !part.zero);
+  if (shown.length === 0) shown.push(parts[0]!);
   return {
-    first: primaryFirst ? primaryText : secondaryText,
-    second: primaryFirst ? secondaryText : primaryText,
+    first: shown[0]!.text,
+    second: shown[1]?.text ?? "",
     remainderCents,
   };
 }
@@ -463,7 +470,7 @@ const totalSummary = computed(() => {
       roundingCurrency.value,
       roundCurrencyUnitsFromCents(totalCents.value, roundingCurrency.value, roundingMode.value),
     ),
-    split: `${first} + ${second}`,
+    split: second ? `${first} + ${second}` : first,
   };
 });
 // The entry as typed: thousands grouped, and the decimal part kept as it is
