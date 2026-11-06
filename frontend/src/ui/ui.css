@@ -46,6 +46,7 @@
   .k-progress-circular svg { width: 100%; height: 100%; position: absolute; inset: 0; transform: rotate(-90deg); }
   .k-progress-circular__underlay { stroke: currentColor; opacity: .16; fill: none; }
   .k-progress-circular__overlay { stroke: currentColor; fill: none; stroke-linecap: round; }
+  .k-progress-circular__content { position: relative; display: inline-flex; align-items: center; justify-content: center; }
   /* Spinners always spin, whatever the Animations switch says: they mean
      "working". !important to get past the global animation kill in
      styles/settings.scss. */

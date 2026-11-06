@@ -19,5 +19,7 @@ const dash = computed(() => `${(Number(props.modelValue) / 100) * circumference}
       <circle class="k-progress-circular__underlay" cx="22" cy="22" :r="radius" :stroke-width="strokeWidth" />
       <circle class="k-progress-circular__overlay" cx="22" cy="22" :r="radius" :stroke-width="strokeWidth" :stroke-dasharray="indeterminate ? undefined : dash" />
     </svg>
+    <!-- What sits in the ring: an icon, a percentage. -->
+    <span v-if="$slots.default" class="k-progress-circular__content"><slot /></span>
   </span>
 </template>

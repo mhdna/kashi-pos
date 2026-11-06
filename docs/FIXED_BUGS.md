@@ -40,6 +40,19 @@ the corners.
 **Fix.** The shadow moved from the outer box to what it holds, so it follows the
 card's own corners (`frontend/src/ui/ui.css`).
 
+## 2026-11-06 · The updating screen's spinner was an empty ring
+
+**Symptom.** "Updating GB Cloud" showed a bare spinning ring, without the update
+icon meant to sit in it. The ring on the Conversion page lost its percentage
+the same way.
+
+**Cause.** The till's own spinner (`KProgressCircular`, from the move off
+Vuetify) had no slot, so whatever was put inside it was dropped.
+
+**Fix.** It shows its content centred in the ring (`frontend/src/ui/KProgressCircular.vue`,
+`ui.css`), and the update icon pulses slowly (`AppUpdateBanner.vue`). Checked by
+rendering the updating screen.
+
 ## 2026-11-05 · Lebanese numbers starting with 0 showed wrong on the client forms
 
 **Symptom.** 03 927 807 showed as (39) 278-07 on New Client, and on editing a

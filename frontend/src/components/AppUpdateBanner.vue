@@ -48,7 +48,7 @@
   >
     <div class="d-flex flex-column align-center text-center">
       <k-progress-circular indeterminate color="primary" size="88" width="3">
-        <k-icon icon="mdi-update" size="36" color="primary" />
+        <k-icon class="update-icon" icon="mdi-update" size="36" color="primary" />
       </k-progress-circular>
       <div class="update-title mt-8">Updating GB Cloud</div>
       <div v-if="status.version" class="update-version text-medium-emphasis mt-1">Version {{ status.version }}</div>
@@ -162,5 +162,14 @@ onUnmounted(() => {
 }
 .update-version {
   font-size: 1.05rem;
+}
+/* A slow pulse, so the screen reads as working even if the ring is missed.
+   !important past the Animations switch, like the spinner itself. */
+.update-icon {
+  animation: update-pulse 1.6s ease-in-out infinite !important;
+}
+@keyframes update-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.86); opacity: 0.65; }
 }
 </style>
