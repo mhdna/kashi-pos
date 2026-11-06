@@ -49,6 +49,15 @@ const RAMADAN_ANCHOR = new Date(2024, 2, 11); // 1 Ramadan 1445 AH
 const ISLAMIC_NEW_YEAR_ANCHOR = new Date(2024, 6, 7); // 1 Muharram 1446 AH
 const ASHURA_ANCHOR = new Date(2024, 6, 16); // 10 Muharram 1446 AH
 const MAWLID_ANCHOR = new Date(2024, 8, 15); // 12 Rabi' al-awwal 1446 AH
+const SHABAN_15_ANCHOR = new Date(2024, 1, 25);
+const GHADIR_ANCHOR = new Date(2024, 5, 24);
+const ARBAEEN_ANCHOR = new Date(2024, 7, 25);
+const RAJAB_13_ANCHOR = new Date(2024, 0, 25);
+const MABATH_ANCHOR = new Date(2024, 1, 7);
+const FATIMA_BIRTH_ANCHOR = new Date(2024, 0, 2);
+const HUSSAIN_BIRTH_ANCHOR = new Date(2024, 1, 13);
+const QADR_ANCHOR = new Date(2024, 3, 2);
+const ALI_MARTYRDOM_ANCHOR = new Date(2024, 2, 31);
 
 // A Hijri date comes round every ~354 days, so it can land twice in one
 // Gregorian year (early January and late December): return every hit.
@@ -129,6 +138,7 @@ function single(d: Date): Range[] {
 // events are shown unless hidden, is on by default.
 export const EVENT_LISTS: Record<string, { title: string; icon: string }> = {
   lebanon: { title: "Lebanon", icon: "mdi-flag" },
+  islamic: { title: "Islamic", icon: "mdi-mosque" },
   retail: { title: "Shopping seasons", icon: "mdi-sale" },
   clothing: { title: "Clothing", icon: "mdi-hanger" },
   tech: { title: "Tech", icon: "mdi-laptop" },
@@ -137,9 +147,17 @@ export const EVENT_LISTS: Record<string, { title: string; icon: string }> = {
 
 // The key is what api/app_settings.go (validBusinessTypes) accepts.
 export const BUSINESS_TYPES: Record<string, { title: string; icon: string; lists: string[] }> = {
-  clothing: { title: "Clothing", icon: "mdi-hanger", lists: ["lebanon", "retail", "clothing"] },
-  tech: { title: "Tech", icon: "mdi-laptop", lists: ["lebanon", "retail", "tech"] },
-  general: { title: "General shop", icon: "mdi-store", lists: ["lebanon", "retail", "party"] },
+  clothing: {
+    title: "Clothing",
+    icon: "mdi-hanger",
+    lists: ["lebanon", "islamic", "retail", "clothing"],
+  },
+  tech: { title: "Tech", icon: "mdi-laptop", lists: ["lebanon", "islamic", "retail", "tech"] },
+  general: {
+    title: "General shop",
+    icon: "mdi-store",
+    lists: ["lebanon", "islamic", "retail", "party"],
+  },
 };
 export const DEFAULT_BUSINESS_TYPE = "clothing";
 
@@ -251,48 +269,111 @@ export const retailCalendarEvents: Builtin[] = [
     dates: (year) => oneDay(year, 11, 25),
   },
   {
-    list: "lebanon",
+    list: "islamic",
     name: "رمضان (تقريبي)",
     color: "teal-darken-2",
     icon: "mdi-star-crescent",
     dates: hijriSpan(RAMADAN_ANCHOR, { days: 30 }),
   },
   {
-    list: "lebanon",
+    list: "islamic",
     name: "عيد الفطر (تقريبي)",
     color: "amber-darken-2",
     icon: "mdi-moon-waning-crescent",
     dates: hijriSpan(EID_AL_FITR_ANCHOR, { days: 3 }),
   },
   {
-    list: "lebanon",
+    list: "islamic",
     name: "عيد الأضحى (تقريبي)",
     color: "brown-darken-1",
     icon: "mdi-moon-waning-crescent",
     dates: hijriSpan(EID_AL_ADHA_ANCHOR, { days: 4 }),
   },
   {
-    list: "lebanon",
+    list: "islamic",
     name: "رأس السنة الهجرية (تقريبي)",
     color: "teal-darken-3",
     icon: "mdi-mosque",
     dates: hijriSpan(ISLAMIC_NEW_YEAR_ANCHOR),
   },
   {
-    list: "lebanon",
+    list: "islamic",
     name: "عاشوراء (تقريبي)",
     color: "grey-darken-3",
     icon: "mdi-mosque",
     dates: hijriSpan(ASHURA_ANCHOR),
   },
   {
-    list: "lebanon",
+    list: "islamic",
     name: "المولد النبوي (تقريبي)",
     color: "green",
     icon: "mdi-mosque",
     dates: hijriSpan(MAWLID_ANCHOR),
   },
 
+  {
+    list: "islamic",
+    name: "عيد الغدير (١٨ ذو الحجة، تقريبي)",
+    color: "green-darken-2",
+    icon: "mdi-handshake",
+    dates: hijriSpan(GHADIR_ANCHOR),
+  },
+  {
+    list: "islamic",
+    name: "١٥ شعبان – مولد الإمام المهدي (تقريبي)",
+    color: "amber-darken-1",
+    icon: "mdi-star-crescent",
+    dates: hijriSpan(SHABAN_15_ANCHOR),
+  },
+  {
+    list: "islamic",
+    name: "مولد الإمام الحسين (٣ شعبان، تقريبي)",
+    color: "green",
+    icon: "mdi-mosque",
+    dates: hijriSpan(HUSSAIN_BIRTH_ANCHOR),
+  },
+  {
+    list: "islamic",
+    name: "مولد الإمام علي (١٣ رجب، تقريبي)",
+    color: "green-darken-1",
+    icon: "mdi-mosque",
+    dates: hijriSpan(RAJAB_13_ANCHOR),
+  },
+  {
+    list: "islamic",
+    name: "المبعث النبوي (٢٧ رجب، تقريبي)",
+    color: "teal",
+    icon: "mdi-mosque",
+    dates: hijriSpan(MABATH_ANCHOR),
+  },
+  {
+    list: "islamic",
+    name: "مولد السيدة فاطمة الزهراء (تقريبي)",
+    color: "pink-darken-2",
+    icon: "mdi-mosque",
+    dates: hijriSpan(FATIMA_BIRTH_ANCHOR),
+  },
+  {
+    list: "islamic",
+    name: "ذكرى استشهاد الإمام علي (٢١ رمضان، تقريبي)",
+    color: "grey-darken-3",
+    icon: "mdi-mosque",
+    dates: hijriSpan(ALI_MARTYRDOM_ANCHOR),
+  },
+  {
+    list: "islamic",
+    name: "ليلة القدر (٢٣ رمضان، تقريبي)",
+    color: "indigo-darken-3",
+    icon: "mdi-star-crescent",
+    dates: hijriSpan(QADR_ANCHOR),
+  },
+  {
+    list: "islamic",
+    name: "الأربعين (تقريبي)",
+    color: "grey-darken-2",
+    icon: "mdi-mosque",
+    dates: hijriSpan(ARBAEEN_ANCHOR),
+  },
   // --- Shopping seasons every shop has.
   {
     list: "retail",

@@ -258,6 +258,7 @@ import {
   mdiTagHeart,
   mdiBeach,
   mdiGlassCocktail,
+  mdiHandshake,
 } from "@mdi/js";
 import { h } from "vue";
 
@@ -524,6 +525,7 @@ const iconPaths: Record<string, string> = {
   "mdi-tag-heart": mdiTagHeart,
   "mdi-beach": mdiBeach,
   "mdi-glass-cocktail": mdiGlassCocktail,
+  "mdi-handshake": mdiHandshake,
 };
 
 // An icon missing from iconPaths is a bug (scripts/check-icons.mjs fails the
