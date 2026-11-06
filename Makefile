@@ -110,7 +110,9 @@ build-windows-compact: set-version
 # saved to the macOS Keychain (asked again if it changes).
 # publish-all (and publish-compact-all) also sets every active till of that
 # build to the new release, so the ones online update right away.
-#   git tag v1.2.3 && make publish NOTES="what changed"
+# Without NOTES, the notes are written from the feat/fix/perf commits since the
+# build kashi last published for that flavor ("New: …", "Fixed: …").
+#   git tag v1.2.3 && make publish
 #   git tag v1.2.3 && make publish-all NOTES="what changed"
 # publish-all-force (and publish-compact-all-force) also makes them install it
 # right away, even mid-shift, after a one-minute countdown on the till.

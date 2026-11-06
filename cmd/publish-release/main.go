@@ -132,7 +132,7 @@ func publish(args []string) error {
 	file := fs.String("file", "", "the built GB Cloud .exe")
 	version := fs.String("version", "", "its version, e.g. 1.2.3")
 	flavor := fs.String("flavor", "standard", "standard or compact")
-	notes := fs.String("notes", "", "what changed; cashiers see this after the update")
+	notes := fs.String("notes", "", "what changed; cashiers see this after the update (left out: written from the commits since the last published build)")
 	keyPath := fs.String("key", defaultKeyPath(), "the release key")
 	targetAll := fs.Bool("target-all", false, "same as -branches all")
 	branches := fs.String("branches", "", `which branches' tills get it: "all", "none", or branch codes like CN,HR; asked when left out`)
@@ -176,6 +176,19 @@ func publish(args []string) error {
 	token, err := loginWithSavedPassword(baseURL, user)
 	if err != nil {
 		return err
+	}
+
+	if strings.TrimSpace(*notes) == "" {
+		generated, since := autoNotes(baseURL, token, *flavor, *version)
+		*notes = generated
+		if since == "" {
+			since = "the start"
+		}
+		if generated == "" {
+			fmt.Printf("No feat/fix/perf commits since %s, so no notes.\n", since)
+		} else {
+			fmt.Printf("Notes, from the commits since %s:\n%s\n", since, generated)
+		}
 	}
 
 	// Uploaded compressed, about a third of the size (compact.go). The
