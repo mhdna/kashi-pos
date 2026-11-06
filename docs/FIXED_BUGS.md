@@ -3,6 +3,18 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-06 · Long Arabic event names lost their beginning, not their end
+
+**Symptom.** On the dashboard's "Coming up" card, a long Arabic event name was
+cut with "..." on its left, hiding the start of the name ("...مام علي").
+
+**Cause.** The name sat in a left-to-right box, so the Arabic text was laid out
+right-to-left from the box's left edge and the clipped edge was its start.
+
+**Fix.** `dir="auto"` on the name in `frontend/src/components/shifts/EventsCard.vue`
+and on the calendar cells in `frontend/src/pages/events.vue`: Arabic names now run
+right-to-left and the ellipsis comes at their end. No automated test (visual).
+
 ## 2026-11-06 · A turned-off deal chip was much wider than the live one
 
 **Symptom.** On a cart line, turning off a "B1G1 else 30%" deal made its chip
