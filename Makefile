@@ -139,3 +139,18 @@ publish-all-force: build-windows
 
 publish-compact-all-force: build-windows-compact
 	go run ./cmd/publish-release publish -file "build/bin/GB Cloud Compact.exe" -version $(APP_VERSION) -flavor compact -notes "$(NOTES)" -target-all -force
+
+# release* = `make bump` and then the matching publish*, in one go, so a
+# publish never runs on a version that is already out. The bump is a separate
+# make (not a prerequisite) so APP_VERSION is read after the new tag exists.
+# Same variables as publish: NOTES, BRANCHES, and PART/VERSION for the bump
+# (`make release-all PART=minor NOTES="..."`). If the bump refuses (uncommitted
+# changes, nothing new since the last release) nothing is published.
+#   make release            asks which branches get it
+#   make release-all        every till of that build, no questions
+#   make release-all-force  ...and installs it right away
+RELEASES = release release-compact release-all release-compact-all release-all-force release-compact-all-force
+.PHONY: $(RELEASES)
+$(RELEASES):
+	$(MAKE) bump
+	$(MAKE) $(patsubst release%,publish%,$@)
