@@ -101,6 +101,13 @@ build-windows: set-version
 build-windows-compact: set-version
 	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -nsis -clean -o "GB Cloud Compact.exe" -ldflags "-X main.appVersion=$(APP_VERSION)"
 
+# Where publish talks to: the tills' central URL (with /api) and the admin to
+# sign in as. Kept in .publish.env (git-ignored, KEY=value lines) so they need
+# not be typed; a variable exported in the shell still wins. The password is
+# not stored here (see below).
+-include .publish.env
+export KASHI_URL KASHI_USER
+
 # Remote updates (updater.go). update-keygen runs once: it creates the
 # release-signing key in ~/.config/gb-cloud/ (back it up) and writes its
 # public half into internal/updatekey -- commit that. publish builds the

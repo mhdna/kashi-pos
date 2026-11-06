@@ -9,9 +9,9 @@
     <div class="events-card-list">
       <div v-if="!upcoming.length" class="text-medium-emphasis text-body-2">Nothing in the next {{ DAYS }} days.</div>
       <div v-for="e in upcoming" :key="e.key" class="events-card-row">
-        <k-icon :icon="e.icon" :color="e.color" size="28" class="events-card-icon" />
+        <k-icon :icon="e.icon" :color="e.color" size="24" class="events-card-icon" />
         <div class="events-card-text">
-          <div class="font-weight-medium text-body-2 events-card-name">{{ e.name }}</div>
+          <div class="font-weight-medium text-body-2 events-card-name" :title="e.name">{{ e.name }}</div>
           <div class="events-card-meta text-caption text-medium-emphasis">
             <span>{{ rangeLabel(e) }}</span>
             <k-chip size="x-small" variant="tonal" :color="e.color">{{ whenLabel(e) }}</k-chip>
@@ -53,7 +53,7 @@ async function load() {
 }
 
 const upcoming = computed(() =>
-  eventsInRange(today, new Date(today.getTime() + DAYS * MS_DAY), synced.value, settings.value).slice(0, 3),
+  eventsInRange(today, new Date(today.getTime() + DAYS * MS_DAY), synced.value, settings.value).slice(0, 6),
 );
 
 const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -83,8 +83,8 @@ onBeforeUnmount(() => unsub?.());
 .events-card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(var(--k-theme-on-surface), 0.12); }
 .events-card-title { min-height: 32px; padding-bottom: 2px; }
 .events-card-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
-.events-card-row { min-width: 0; display: flex; align-items: flex-start; gap: 8px; padding: 4px 2px; }
-.events-card-name { line-height: 1.25; }
+.events-card-row { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 2px 2px; }
+.events-card-name { line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .events-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
 .events-card-icon { flex: 0 0 auto; }
 .events-card-text { flex: 1 1 auto; min-width: 0; }

@@ -79,3 +79,6 @@ tools/kashi-admin/imported-to-import/
 tools/kashi-admin/to-restore-prices/
 tools/kashi-admin/conflicts/
 tools/kashi-admin/main-september-sale-staff-guide*
+
+# publish settings (URL + admin user), see Makefile
+.publish.env
