@@ -150,6 +150,6 @@ onBeforeUnmount(() => unsub?.());
 .cell.outside { opacity: 0.45; }
 .cell.today .cell-num { background: rgb(var(--k-theme-primary)); color: rgb(var(--k-theme-on-primary)); }
 .cell-num { align-self: flex-start; font-size: 0.9rem; min-width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 11px; }
-.cell-event { font-size: 0.85rem; padding: 1px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell-event { font-size: 0.85rem; text-align: left; padding: 1px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cell-more { font-size: 0.8rem; opacity: 0.7; }
 </style>

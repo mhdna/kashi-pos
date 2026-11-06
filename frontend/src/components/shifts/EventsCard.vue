@@ -84,7 +84,7 @@ onBeforeUnmount(() => unsub?.());
 .events-card-title { min-height: 32px; padding-bottom: 2px; }
 .events-card-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
 .events-card-row { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 2px 2px; }
-.events-card-name { line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.events-card-name { line-height: 1.25; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .events-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
 .events-card-icon { flex: 0 0 auto; }
 .events-card-text { flex: 1 1 auto; min-width: 0; }
