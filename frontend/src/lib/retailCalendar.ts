@@ -434,13 +434,6 @@ export const retailCalendarEvents: Builtin[] = [
   },
   {
     list: "clothing",
-    name: "Holiday Party Season",
-    color: "red-darken-2",
-    icon: "mdi-party-popper",
-    dates: (year) => span(year, 11, 10, 11, 31),
-  },
-  {
-    list: "clothing",
     name: "Winter Clearance Sale",
     color: "cyan-darken-1",
     icon: "mdi-snowflake",
