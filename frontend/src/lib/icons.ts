@@ -259,6 +259,12 @@ import {
   mdiBeach,
   mdiGlassCocktail,
   mdiHandshake,
+  mdiCake,
+  mdiPercent,
+  mdiTruckDelivery,
+  mdiCamera,
+  mdiAirplane,
+  mdiMusic,
 } from "@mdi/js";
 import { h } from "vue";
 
@@ -526,6 +532,12 @@ const iconPaths: Record<string, string> = {
   "mdi-beach": mdiBeach,
   "mdi-glass-cocktail": mdiGlassCocktail,
   "mdi-handshake": mdiHandshake,
+  "mdi-cake": mdiCake,
+  "mdi-percent": mdiPercent,
+  "mdi-truck-delivery": mdiTruckDelivery,
+  "mdi-camera": mdiCamera,
+  "mdi-airplane": mdiAirplane,
+  "mdi-music": mdiMusic,
 };
 
 // An icon missing from iconPaths is a bug (scripts/check-icons.mjs fails the
