@@ -107,8 +107,8 @@
             >
               <k-icon class="me-1" icon="mdi-tag-off-outline" size="14" />
               <span class="invoice-deal-chip-text">
-                <span class="text-decoration-line-through">{{ offDealFor(item) }}</span>
-                <span class="invoice-deal-chip-sub">off</span>
+                <span class="text-decoration-line-through">{{ offDealParts(item)[0] }}</span>
+                <span class="invoice-deal-chip-sub">{{ offDealParts(item)[1] }}</span>
               </span>
             </k-chip>
           </div>
@@ -778,6 +778,13 @@ function dealChipLines(item: LineItem): [string, string] {
   const [head = "", fallback] = deal.label.split(" else ");
   if (deal.freeQty) return [head, `${deal.freeQty} free`];
   return [head, fallback ? `else ${fallback}` : ""];
+}
+
+// The off chip is as narrow as the live one: the short name on top, struck
+// through, and the "else 30%" fallback (if any) with "off" underneath.
+function offDealParts(item: LineItem): [string, string] {
+  const [head = "", fallback] = (offDealFor(item) ?? "").split(" else ");
+  return [head, fallback ? `else ${fallback} · off` : "off"];
 }
 
 function dealChipText(item: LineItem): string {

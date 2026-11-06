@@ -3,6 +3,17 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-06 · A turned-off deal chip was much wider than the live one
+
+**Symptom.** On a cart line, turning off a "B1G1 else 30%" deal made its chip
+far wider than the chip had been while the deal was on.
+
+**Cause.** The live chip splits the label into two lines ("B1G1" / "else 30%"),
+but the "off" chip printed the whole label struck through on one line.
+
+**Fix.** `frontend/src/components/InvoiceItems.vue`: the off chip now uses the
+same split (`offDealParts`): short name struck through, then "else 30% · off".
+
 ## 2026-11-05 · Shutting down showed "You're about to be signed out"
 
 **Symptom.** After closing a shift and choosing "Yes, shut down", Windows put up
