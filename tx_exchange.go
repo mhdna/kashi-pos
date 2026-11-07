@@ -75,9 +75,9 @@ var adminReturnExchangePolicy = exchangePolicy{allowLate: true, allowLowerTotal:
 
 // CheckoutExchangeInvoice records one returned line and one or more
 // replacement lines. Only the positive difference is paid by the customer.
-// printReceipt is the screen's "Print receipt" tick (set from the "Print
-// return receipts" setting); unticked, the receipt isn't printed even with
-// receipts on.
+// printReceipt is what the screen sends: this till's "Print return and
+// exchange receipts" (set from kashi); false, the receipt isn't printed even
+// with receipts on.
 func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, salespersonID int64, notes string, printReceipt bool) (map[string]any, error) {
 	// Only replacements are sold, so only they need pictures (a returned
 	// unknown item has qty < 0 and is skipped by unknownUnitCount).

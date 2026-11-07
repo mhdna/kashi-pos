@@ -175,7 +175,6 @@
           @discount-error="showDiscountError"
         />
         <ExchangeSummary v-if="pageMode === 'exchange' && quote?.exchange" :quote="quote.exchange" />
-        <ReturnReceiptTick v-if="pageMode === 'exchange' && receiptEnabled" v-model="printThisReturn" />
         <UnknownPicturesCorner
           v-if="showUnknownCorner"
           :client-ref="unknownSession.clientRef"
@@ -491,8 +490,7 @@ import { useProductGridMode } from "@/composables/useProductGridMode";
 import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
 import UnknownPicturesCorner from "@/components/UnknownPicturesCorner.vue";
 import ExchangeSummary from "@/components/ExchangeSummary.vue";
-import ReturnReceiptTick from "@/components/ReturnReceiptTick.vue";
-import { checkoutPrints, exchangeDoneMessage, startingReturnTick } from "@/lib/returnReceipt";
+import { checkoutPrints, exchangeDoneMessage } from "@/lib/returnReceipt";
 import ExchangeReturnsDialog from "@/components/ExchangeReturnsDialog.vue";
 import { checkExchangeQuote, type ExchangeQuoteResult } from "@/lib/exchangeQuote";
 import { buildHoldSnapshot, holdRestore } from "@/lib/holdSnapshot";
@@ -588,15 +586,6 @@ const noteDialog = ref(false);
 const noteDraft = ref("");
 // The sale an exchange returns items from; its code names a held exchange.
 const exchangeState = ref<{ originalInvoiceId: number; originalInvoiceCode?: string } | null>(null);
-// The exchange's "Print receipt" tick: back to the "Print return receipts"
-// setting whenever another exchange is loaded.
-const printThisReturn = ref(startingReturnTick(printReturnReceipts.value));
-watch(
-  () => exchangeState.value?.originalInvoiceId,
-  (id) => {
-    if (id) printThisReturn.value = startingReturnTick(printReturnReceipts.value);
-  },
-);
 const settlementState = ref<{
   invoiceId: number;
   invoiceCode: string;
@@ -1635,7 +1624,9 @@ async function onCheckout() {
   if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
   printPhase.value = "printing";
   printCashCents.value = calculator.value?.cashTotalCents ?? 0;
-  printing.value = checkoutPrints(isExchange ? "exchange" : "sale", receiptEnabled.value, printThisReturn.value);
+  // An exchange prints when kashi's "Print return and exchange receipts"
+  // is on for this till (it arrives with the till's settings).
+  printing.value = checkoutPrints(isExchange ? "exchange" : "sale", receiptEnabled.value, printReturnReceipts.value);
   try {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
     const clientID = client.id;
@@ -1648,7 +1639,7 @@ async function onCheckout() {
           clientID,
           salesperson!.id,
           invoiceNotes.value,
-          printThisReturn.value,
+          printReturnReceipts.value,
         )
       : await CheckoutInvoice(
           json,
