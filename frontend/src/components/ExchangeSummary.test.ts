@@ -56,7 +56,7 @@ describe("ExchangeSummary", () => {
   it("says what is missing when the new items don't cover the returned ones", async () => {
     const rows = await rendered(quoteNamed("not enough new items yet"));
     expect(rows.at(-1)).toEqual(["To pay", "$0.00"]);
-    expect(rows.map((r) => r[0])).toContain("Add $80.00 more in new items");
+    expect(rows.map((r) => r[0])).toContain("Add $30.00 more in new items");
   });
 
   // Whatever the backend sends, the amounts on screen add up to "To pay".

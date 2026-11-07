@@ -75,11 +75,13 @@ type ExchangeLineQuote struct {
 	// like the line; what the line would be with nothing off.
 	ShelfCents int64 `json:"shelfCents"`
 
-	PaidCents        int64  `json:"paidCents,omitempty"`
-	SwapCreditCents  int64  `json:"swapCreditCents,omitempty"`
-	ChargedBackCents int64  `json:"chargedBackCents,omitempty"`
-	Deal             string `json:"deal,omitempty"`
-	Free             bool   `json:"free,omitempty"`
+	PaidCents        int64 `json:"paidCents,omitempty"`
+	SwapCreditCents  int64 `json:"swapCreditCents,omitempty"`
+	ChargedBackCents int64 `json:"chargedBackCents,omitempty"`
+	// What a free unit could take off the replacements, used or not.
+	SwapAllowanceCents int64  `json:"swapAllowanceCents,omitempty"`
+	Deal               string `json:"deal,omitempty"`
+	Free               bool   `json:"free,omitempty"`
 }
 
 // ExchangeAdjustmentQuote is what the exchange did to one of the sale's
@@ -111,9 +113,9 @@ func splitUnits(amount, qty int64) []int64 {
 
 // unitAmounts is one priced unit of a request group, by component.
 type unitAmounts struct {
-	total, shelf, paid, swap, chargedBack int64
-	free                                  bool
-	deal                                  string
+	total, shelf, paid, swap, chargedBack, allowance int64
+	free                                             bool
+	deal                                             string
 }
 
 // exchangeQuoteLines gives each sent line its share of what its returned
@@ -134,11 +136,12 @@ func exchangeQuoteLines(request exchangeRequest, priced pricedExchange, rawLines
 		paid := splitUnits(r.paid, r.qty)
 		swap := splitUnits(r.swapCredit, r.qty)
 		back := splitUnits(r.chargedBack, r.qty)
+		allowance := splitUnits(r.swapAllowance, r.qty)
 		free := r.deal.unitDeal > 0 && r.deal.unitDeal == r.line.UnitPrice
 		for i := range r.qty {
 			returnedUnits[r.request] = append(returnedUnits[r.request], unitAmounts{
 				total: paid[i] + swap[i] - back[i], shelf: r.line.UnitPrice,
-				paid: paid[i], swap: swap[i], chargedBack: back[i],
+				paid: paid[i], swap: swap[i], chargedBack: back[i], allowance: allowance[i],
 				free: free, deal: dealNames[r.deal.dealUID],
 			})
 		}
@@ -177,6 +180,7 @@ func exchangeQuoteLines(request exchangeRequest, priced pricedExchange, rawLines
 			line.PaidCents += u.paid
 			line.SwapCreditCents += u.swap
 			line.ChargedBackCents += u.chargedBack
+			line.SwapAllowanceCents += u.allowance
 			free = free && u.free
 			if line.Deal == "" {
 				line.Deal = u.deal

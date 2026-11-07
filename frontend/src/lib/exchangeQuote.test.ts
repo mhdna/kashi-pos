@@ -92,7 +92,7 @@ describe("the shop-floor exchange", () => {
   it("shows the returned line's credit, not its shelf price", () => {
     const line = exchangeLineAt(shopFloorQuote(), cart, 1)!;
     expect(line.lineTotalCents).toBe(-567);
-    expect(returnedLineNotes(line)).toEqual(["Paid $12.00 · Buy 2 get 1 charged back −$6.33"]);
+    expect(returnedLineNotes(line)).toEqual(["Paid $12.00 · Buy 2 get 1 charged back $6.33"]);
   });
 
   it("shows a breakdown that ends in the total", () => {
@@ -134,6 +134,41 @@ describe("a quote that doesn't add up is never shown", () => {
     ["a line's code", (q) => (q.lines[1]!.code = "OTHER")],
     ["a line's barcode", (q) => (q.lines[1]!.barcode = "other")],
     ["a missing line", (q) => q.lines.pop()],
+    [
+      "a shortfall the lines don't have",
+      (q) => {
+        q.needsMoreReplacementValue = true;
+        q.shortfallCents = 1;
+      },
+    ],
+    [
+      "a shortfall off by a cent",
+      (q) => {
+        q.lines[0]!.lineTotalCents = 0;
+        q.replacementTotalCents = 0;
+        q.netCents = q.unroundedCents = -567;
+        q.grandTotalCents = 0;
+        q.needsMoreReplacementValue = true;
+        q.shortfallCents = 568;
+      },
+    ],
+    [
+      "a refund with nothing more asked",
+      (q) => {
+        q.lines[0]!.lineTotalCents = 0;
+        q.replacementTotalCents = 0;
+        q.netCents = q.unroundedCents = -567;
+        q.grandTotalCents = 0;
+      },
+    ],
+    [
+      "a free credit over its allowance",
+      (q) => {
+        q.lines[1]!.swapCreditCents = 1;
+        q.lines[1]!.chargedBackCents = 634;
+        q.adjustments[0]!.chargedBackCents = 634;
+      },
+    ],
     ["an amount that isn't one", (q) => (q.netCents = NaN)],
   ];
   it.each(mutations)("catches %s", (_, mutate) => {
@@ -204,11 +239,19 @@ describe("returnedLineNotes", () => {
     ]);
   });
   it("explains a free item's credit", () => {
-    expect(returnedLineNotes({ ...base, free: true, paidCents: 0, swapCreditCents: 1000 })).toEqual(
-      ["Free item · $10.00 credit toward the new items"],
-    );
-    expect(returnedLineNotes({ ...base, free: true, lineTotalCents: 0, paidCents: 0 })).toEqual([
-      "Free item · no credit",
+    const free = { ...base, free: true, paidCents: 0, swapAllowanceCents: 1000 };
+    // Nothing bought yet: what it can still take off, not "no credit".
+    expect(returnedLineNotes({ ...free, lineTotalCents: 0 })).toEqual([
+      "Free item · up to $10.00 off new items",
+    ]);
+    expect(returnedLineNotes({ ...free, lineTotalCents: -400, swapCreditCents: 400 })).toEqual([
+      "Free item · $4.00 of its $10.00 off the new items",
+    ]);
+    expect(returnedLineNotes({ ...free, swapCreditCents: 1000 })).toEqual([
+      "Free item · $10.00 off the new items",
+    ]);
+    expect(returnedLineNotes({ ...free, swapAllowanceCents: 0, lineTotalCents: 0 })).toEqual([
+      "Free item",
     ]);
   });
   it("explains a line charged down to nothing", () => {
@@ -219,7 +262,7 @@ describe("returnedLineNotes", () => {
         chargedBackCents: 1000,
         deal: "Buy 2 get 1",
       }),
-    ).toEqual(["Paid $10.00 · Buy 2 get 1 charged back −$10.00"]);
+    ).toEqual(["Paid $10.00 · Buy 2 get 1 charged back $10.00"]);
   });
   it("never notes a replacement", () => {
     expect(returnedLineNotes({ ...base, qty: 1, lineTotalCents: 500 })).toEqual([]);
@@ -257,7 +300,7 @@ describe("exchangeSummaryRows", () => {
     q.netCents = q.unroundedCents = -267;
     q.grandTotalCents = 0;
     q.needsMoreReplacementValue = true;
-    q.shortfallCents = 900;
+    q.shortfallCents = 267;
     expect(exchangeQuoteProblem(q, cart)).toBe("");
     expect(summaryAddsUp(exchangeSummaryRows(q))).toBe(true);
   });
@@ -305,6 +348,7 @@ describe("every consistent exchange adds up on screen", () => {
             paidCents: paid,
             swapCreditCents: swap,
             chargedBackCents: charged,
+            swapAllowanceCents: free ? shelf : 0,
             free,
             deal: "Buy 2 get 1",
             lineTotalCents: -(paid + swap - charged),
@@ -334,8 +378,9 @@ describe("every consistent exchange adds up on screen", () => {
         unroundedCents: net + tax,
         roundingCents: rounding,
         grandTotalCents: Math.max(0, net + tax + rounding),
-        needsMoreReplacementValue: false,
-        shortfallCents: 0,
+        // Short exactly by what the lines are short of, as the backend asks.
+        needsMoreReplacementValue: net < 0,
+        shortfallCents: Math.max(0, -net),
         lines,
         adjustments: back ? [{ deal: "Buy 2 get 1", chargedBackCents: back }] : [],
       };

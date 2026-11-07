@@ -3,6 +3,28 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-07 · An exchange asked for more than its lines were short of
+
+**Symptom.** Returning a whole Buy 1 Get 1 sale except one kept free unit
+showed the lines as $0, −$15 and −$26 (−$41) but asked "Add $44.00 more in new
+items". The free item said "no credit".
+
+**Cause.** What the replacements must cover was what was paid for the returned
+units ($44). It left out the $3 the deal charged back, which the lines already
+take off. The free unit's note only showed the swap credit used, which is $0
+until something is bought.
+
+**Fix.** The replacements must now cover what was paid less what was charged
+back: exactly the credit the lines show, so "add $X more" is always what the
+lines are short of (`deal_exchange.go`). The quote also sends each free unit's
+allowance, and its note reads "Free item · up to $9.00 off new items"
+(`exchange_quote_lines.go`, `lib/exchangeQuote.ts`). The backend and the
+screen both check the new rules: a shortfall equals the lines' shortfall, a
+quote that asks for nothing more is never a refund, and swap credit never
+exceeds its allowance. Tests: `TestExchangeQuoteShortfallIsTheLinesShortfall`,
+`TestExchangeQuoteFreeUnitAllowance`, the random-exchange test, and
+`lib/exchangeQuote.test.ts`.
+
 ## 2026-11-07 · The exchange screen's lines didn't add up to its total
 
 **Symptom.** An exchange of a $30 unknown item for a returned $12 Lady Winter

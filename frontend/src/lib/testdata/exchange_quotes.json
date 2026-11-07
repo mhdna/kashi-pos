@@ -85,6 +85,7 @@
           "lineTotalCents": -2000,
           "shelfCents": -5000,
           "swapCreditCents": 2000,
+          "swapAllowanceCents": 5000,
           "deal": "Buy 2 get 1",
           "free": true
         },
@@ -178,7 +179,7 @@
       "taxCents": 0,
       "grandTotalCents": 0,
       "needsMoreReplacementValue": true,
-      "shortfallCents": 8000,
+      "shortfallCents": 3000,
       "netCents": -3000,
       "roundingCents": 0,
       "unroundedCents": -3000,
@@ -275,6 +276,7 @@
           "lineTotalCents": -2000,
           "shelfCents": -5000,
           "swapCreditCents": 2000,
+          "swapAllowanceCents": 5000,
           "deal": "Buy 2 get 1",
           "free": true
         },
@@ -334,6 +336,7 @@
           "lineTotalCents": -5000,
           "shelfCents": -5000,
           "swapCreditCents": 5000,
+          "swapAllowanceCents": 5000,
           "deal": "Buy 2 get 1",
           "free": true
         },

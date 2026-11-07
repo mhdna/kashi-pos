@@ -66,6 +66,9 @@ type pricedReturnedProduct struct {
 	// paid is what the customer paid for these units on the sale; the other
 	// two are set by settleExchangeDeals (deal_exchange.go).
 	paid, swapCredit, chargedBack int64
+	// A free unit's swap credit before any is used: up to its shelf price,
+	// toward the replacements only. Zero for a paid unit.
+	swapAllowance int64
 }
 
 type pricedExchange struct {
@@ -76,8 +79,8 @@ type pricedExchange struct {
 	replacements     []pricedInvoiceProduct
 	replacementTotal int64
 	// What the replacements must cover at the till: what was paid for the
-	// returned units. returnedTotal can be more (a free unit's swap credit)
-	// or less (a deal charged back); see deal_exchange.go.
+	// returned units less any deal charged back -- their credit without the
+	// free units' swap credit, which needn't be used (deal_exchange.go).
 	requiredReplacement int64
 	dealAdjustments     []exchangeDealAdjustment
 }
