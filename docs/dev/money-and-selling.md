@@ -104,6 +104,12 @@ LBP amounts.
   replacements stay positive. Sum them as stored; don't flip signs. Return
   and exchange invoices have the `EX/` and `RS/` prefixes.
 - Only quantities not already returned can be returned again.
+- **An exchange can be held** like a sale (a settlement can't). The hold
+  snapshot carries `exchange: {originalInvoiceId, originalInvoiceCode}`, and
+  restoring puts the lines back as held: never through `addItem`, which would
+  turn a returned line into a unit for sale (`frontend/src/lib/holdSnapshot.ts`).
+  A hold's returned lines without a sale are dropped. Nothing is reserved while
+  it's held, so the quote re-checks the sale when it comes back.
 - **A product can sit on several lines of one sale**: a deal keeps its paid
   and free units apart, and the same product scanned at two prices stays
   apart (`invoice_products` has had its own id since 000061). Never match a

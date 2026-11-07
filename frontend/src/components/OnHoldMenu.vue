@@ -22,10 +22,10 @@
             <k-list-item class="on-hold-item text-left" @click="restoreHold(h)">
               <template #prepend>
                 <k-avatar color="primary" variant="tonal" size="36">
-                  <k-icon icon="mdi-receipt-text-outline" size="18" />
+                  <k-icon :icon="holdIcon(h)" size="18" />
                 </k-avatar>
               </template>
-              <k-list-item-title class="font-weight-medium">#{{ h.id }} — {{ h.itemCount }} items</k-list-item-title>
+              <k-list-item-title class="font-weight-medium">{{ holdTitle(h) }}</k-list-item-title>
               <k-list-item-subtitle>{{ formatServerDateTime(h.createdAt) }}</k-list-item-subtitle>
               <template #append>
                 <k-btn icon size="small" variant="text" aria-label="Remove hold" @click.stop="removeHold(h.id)">
@@ -49,6 +49,7 @@
 import { ref, watch } from "vue";
 import { ListHoldInvoices, DeleteHoldInvoice } from "../../wailsjs/go/main/App";
 import { formatServerDateTime } from "@/lib/datetime";
+import { holdRestore, holdTitle } from "@/lib/holdSnapshot";
 
 defineProps<{ hideActivator?: boolean }>();
 const emit = defineEmits<{ restore: [hold: any] }>();
@@ -57,6 +58,11 @@ const menu = ref(false);
 const holds = ref<any[]>([]);
 
 defineExpose({ open: () => { menu.value = true; }, close: () => { menu.value = false; } });
+
+// A held exchange is marked as one (lib/holdSnapshot.ts).
+function holdIcon(hold: any): string {
+  return holdRestore(hold).mode === "exchange" ? "mdi-swap-horizontal" : "mdi-receipt-text-outline";
+}
 
 async function load() {
   holds.value = await ListHoldInvoices();

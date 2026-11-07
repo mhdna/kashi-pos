@@ -480,6 +480,7 @@ import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
 import UnknownPicturesCorner from "@/components/UnknownPicturesCorner.vue";
 import ExchangeSummary from "@/components/ExchangeSummary.vue";
 import { checkExchangeQuote, type ExchangeQuoteResult } from "@/lib/exchangeQuote";
+import { buildHoldSnapshot, holdRestore } from "@/lib/holdSnapshot";
 import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import { productSearchInPlace, quickAccessRows } from "@/lib/display";
@@ -512,6 +513,7 @@ type InvoiceDraft = {
   // (returned lines locked in, replacements maybe scanned) survives an app
   // restart or logout/login instead of silently reverting to a normal sale.
   exchangeOriginalInvoiceId?: number;
+  exchangeOriginalInvoiceCode?: string;
   // The sale's ref for kashi's live cart view (live_cart.go).
   saleRef?: string;
 };
@@ -569,7 +571,8 @@ const invoiceCode = ref("Loading invoice code…");
 const invoiceNotes = ref("");
 const noteDialog = ref(false);
 const noteDraft = ref("");
-const exchangeState = ref<{ originalInvoiceId: number } | null>(null);
+// The sale an exchange returns items from; its code names a held exchange.
+const exchangeState = ref<{ originalInvoiceId: number; originalInvoiceCode?: string } | null>(null);
 const settlementState = ref<{
   invoiceId: number;
   invoiceCode: string;
@@ -823,6 +826,7 @@ function buildDraft(): string | null {
     notes: invoiceNotes.value,
     calculator: calculator.value?.holdState(),
     exchangeOriginalInvoiceId: exchangeState.value?.originalInvoiceId,
+    exchangeOriginalInvoiceCode: exchangeState.value?.originalInvoiceCode,
     saleRef: saleRef.value,
   } satisfies InvoiceDraft);
 }
@@ -1001,7 +1005,10 @@ async function restoreDraft() {
     noteDraft.value = invoiceNotes.value;
     calculator.value?.restoreHoldState(draft.calculator);
     if (draft.exchangeOriginalInvoiceId) {
-      exchangeState.value = { originalInvoiceId: draft.exchangeOriginalInvoiceId };
+      exchangeState.value = {
+        originalInvoiceId: draft.exchangeOriginalInvoiceId,
+        originalInvoiceCode: draft.exchangeOriginalInvoiceCode,
+      };
       await refreshNextInvoiceCode("exchange");
     }
   } catch {
@@ -1348,17 +1355,26 @@ async function onHold() {
   if (invoiceItems.value && !(await invoiceItems.value.flushChanges())) return;
   const items = invoiceItems.value?.items ?? [];
   if (!items.length) return;
+  // An exchange is held with the sale it returns items from, so it comes
+  // back as the same exchange (lib/holdSnapshot.ts).
+  const wasExchange = Boolean(exchangeState.value);
   await HoldInvoice(
-    JSON.stringify({
-      version: 1,
-      items,
-      client,
-      salesperson: selectedSalesperson.value,
-      calculator: calculator.value?.holdState(),
-      notes: invoiceNotes.value,
-    }),
+    JSON.stringify(
+      buildHoldSnapshot({
+        items,
+        client,
+        salesperson: selectedSalesperson.value,
+        calculator: calculator.value?.holdState(),
+        notes: invoiceNotes.value,
+        exchange: exchangeState.value,
+      }),
+    ),
   );
   clearInvoice();
+  if (wasExchange) {
+    exchangeState.value = null;
+    await refreshNextInvoiceCode("sales");
+  }
 }
 
 async function onVoid() {
@@ -1662,7 +1678,10 @@ async function onExchange(payload: ExchangeSelection) {
     [],
   );
   setClient(payload.client);
-  exchangeState.value = { originalInvoiceId: payload.originalInvoiceId };
+  exchangeState.value = {
+    originalInvoiceId: payload.originalInvoiceId,
+    originalInvoiceCode: payload.originalInvoiceCode,
+  };
   await refreshNextInvoiceCode("exchange");
   calculator.value?.clearAll();
   snackbar.text = "Exchange loaded. Scan or search replacement items, then check out.";
@@ -1690,10 +1709,20 @@ async function refreshNextInvoiceCode(kind: "sales" | "exchange") {
 
 function onRestoreHold(hold: any) {
   if (!invoiceItems.value) return;
+  const restore = holdRestore(hold);
   invoiceItems.value.clearItems();
-  for (const item of hold.items ?? []) {
-    invoiceItems.value.addItem({ ...item, qty: item.qty || 1 });
+  if (restore.mode === "exchange") {
+    // Assigned as held, as restoreDraft does: addItem would turn a returned
+    // line (negative, locked, at its sold price) into a new unit for sale.
+    invoiceItems.value.items = restore.items;
+    exchangeState.value = { ...restore.exchange };
+  } else {
+    for (const item of restore.items) {
+      invoiceItems.value.addItem({ ...item, qty: item.qty || 1 });
+    }
+    exchangeState.value = null;
   }
+  void refreshNextInvoiceCode(restore.mode === "exchange" ? "exchange" : "sales");
   if (hold.client?.id) setClient(hold.client);
   else resetClient();
   selectedSalesperson.value = hold.salesperson ?? null;
