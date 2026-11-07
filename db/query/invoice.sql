@@ -608,3 +608,22 @@ WHERE strftime('%Y-%m', i.created_at, 'localtime') = sqlc.arg(year_month)
   AND i.cancelled_at IS NULL
 GROUP BY day
 ORDER BY day;
+
+-- name: ListInvoiceProductsInOrder :many
+-- The lines as they were recorded (and sent to kashi, which keeps them in
+-- the same order): a line's position is how kashi names it.
+SELECT * FROM invoice_products WHERE invoice_id = ? ORDER BY id;
+
+-- name: SetInvoiceProductLineTotal :exec
+UPDATE invoice_products SET line_total = ? WHERE id = ? AND invoice_id = ?;
+
+-- name: SetReturnInvoiceTotals :exec
+-- A return or exchange keeps one total in all three (createExchangeInvoice).
+UPDATE invoices SET subtotal = ?, discounted_total = ?, grand_total = ?, notes = ? WHERE id = ?;
+
+-- name: GetReturnSaleID :one
+SELECT sales_invoice_id FROM return_invoices WHERE invoice_id = ?;
+
+-- name: ReduceExchangeDealClawback :exec
+-- An edit gave back part of what a deal charged back on this return.
+UPDATE exchange_deal_adjustments SET clawback = MAX(0, clawback - ?) WHERE invoice_id = ? AND deal_uid = ?;
