@@ -8,6 +8,7 @@ import {
   formatCents,
   normalizeExchangeQuote,
   returnedLineNotes,
+  returnedLineTone,
   summaryAddsUp,
   type ExchangeCartLine,
   type ExchangeQuoteLine,
@@ -442,5 +443,65 @@ describe("the backend's own quotes", () => {
     expect(summaryAddsUp(exchangeSummaryRows(q))).toBe(true);
     const shown = g.cart.reduce((s, _, i) => s + exchangeLineAt(q, g.cart, i)!.lineTotalCents, 0);
     expect(shown).toBe(q.netCents);
+  });
+});
+
+describe("returnedLineTone", () => {
+  const returned: ExchangeQuoteLine = {
+    index: 0,
+    code: "BOC5KBH15",
+    barcode: "",
+    qty: -1,
+    lineTotalCents: -1500,
+    shelfCents: -1500,
+    paidCents: 1500,
+  };
+  it("is orange when a deal was charged back (the $15 hoodie credited $12)", () => {
+    expect(
+      returnedLineTone({
+        ...returned,
+        lineTotalCents: -1200,
+        chargedBackCents: 300,
+        deal: "Buy 1 Get 1",
+      }),
+    ).toBe("charged");
+  });
+  it("is green for a free item, used or not", () => {
+    const free = { ...returned, free: true, paidCents: 0, swapAllowanceCents: 900 };
+    expect(returnedLineTone({ ...free, lineTotalCents: 0 })).toBe("free");
+    expect(returnedLineTone({ ...free, lineTotalCents: -900, swapCreditCents: 900 })).toBe("free");
+  });
+  it("is orange over green when a free item's credit was charged back too", () => {
+    expect(
+      returnedLineTone({
+        ...returned,
+        free: true,
+        paidCents: 0,
+        swapCreditCents: 500,
+        chargedBackCents: 500,
+        lineTotalCents: 0,
+      }),
+    ).toBe("charged");
+  });
+  it("is plain for a line credited what was paid, and never colours a new item", () => {
+    expect(returnedLineTone(returned)).toBe("");
+    expect(
+      returnedLineTone({ ...returned, qty: 1, lineTotalCents: 1500, chargedBackCents: 300 }),
+    ).toBe("");
+  });
+  it("colours every charged-back line of the backend's own quotes, and only those", () => {
+    const golden: { quote: unknown }[] = JSON.parse(
+      readFileSync(new URL("./testdata/exchange_quotes.json", import.meta.url), "utf8"),
+    );
+    for (const g of golden) {
+      for (const l of normalizeExchangeQuote(g.quote).lines) {
+        const tone = returnedLineTone(l);
+        if (l.qty > 0) expect(tone).toBe("");
+        else if ((l.chargedBackCents ?? 0) > 0) expect(tone).toBe("charged");
+        else expect(tone).toBe(l.free ? "free" : "");
+        // A coloured line always has a note saying why.
+        if (tone) expect(returnedLineNotes(l)).not.toEqual([]);
+      }
+    }
   });
 });

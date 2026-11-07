@@ -211,6 +211,19 @@ export function formatCents(value: number, sign: "auto" | "always" = "auto"): st
 // unit says what it can still take off new items: it is worth nothing
 // until something is bought, then up to its shelf price.
 // [] when the credit is the shelf price.
+// How a returned line's credit is coloured, so a cashier sees at a glance
+// why it isn't the shelf price: "charged" (orange) when a deal saving came
+// off it, "free" (green) for a free item's credit toward the new items, ""
+// when it is simply what was paid.
+export type ReturnedLineTone = "charged" | "free" | "";
+
+export function returnedLineTone(l: ExchangeQuoteLine): ReturnedLineTone {
+  if (l.qty >= 0) return "";
+  if ((l.chargedBackCents ?? 0) > 0) return "charged";
+  if (l.free) return "free";
+  return "";
+}
+
 export function returnedLineNotes(l: ExchangeQuoteLine): string[] {
   if (l.qty >= 0) return [];
   const paid = l.paidCents ?? 0;

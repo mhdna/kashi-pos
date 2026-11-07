@@ -31,6 +31,7 @@
                 v-for="note in exchangeNotesFor(item)"
                 :key="note"
                 class="invoice-item-exchange-note text-caption"
+                :class="exchangeToneClass(item)"
                 data-test="exchange-line-note"
               >
                 {{ note }}
@@ -208,7 +209,7 @@
                     />
                     <span class="invoice-price-values">
                       <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
-                      <span class="text-caption font-weight-bold">{{ lineAmountText(item) }}</span>
+                      <span class="text-caption font-weight-bold" :class="exchangeToneClass(item)">{{ lineAmountText(item) }}</span>
                     </span>
                     <span v-if="showDiscountChips" class="invoice-price-discount">
                       <k-chip
@@ -239,7 +240,7 @@
                 />
                 <span class="invoice-price-values">
                   <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
-                  <span class="text-caption font-weight-bold">{{ lineAmountText(item) }}</span>
+                  <span class="text-caption font-weight-bold" :class="exchangeToneClass(item)">{{ lineAmountText(item) }}</span>
                 </span>
                 <!-- The discount as a chip to the right of both prices,
                      centred on them. While any line has one, the slot is
@@ -480,6 +481,7 @@ import { asReturnedLine } from "@/lib/exchangeReturns";
 import {
   exchangeLineAt,
   returnedLineNotes,
+  returnedLineTone,
   type ExchangeQuoteLine,
   type ExchangeQuoteResult,
 } from "@/lib/exchangeQuote";
@@ -842,6 +844,15 @@ function lineAmountText(item: LineItem): string {
     return line ? signedPrice(line.lineTotalCents / 100) : "…";
   }
   return signedPrice(totalAfterDiscount(item));
+}
+
+// Orange for a returned line with a deal charged back, green for a free
+// item's credit (lib/exchangeQuote.ts returnedLineTone).
+function exchangeToneClass(item: LineItem): string {
+  if (!props.exchangeMode || item.qty >= 0) return "";
+  const line = exchangeLineFor(item);
+  const tone = line ? returnedLineTone(line) : "";
+  return tone ? `invoice-exchange-tone--${tone}` : "";
 }
 
 function exchangeNotesFor(item: LineItem): string[] {
@@ -1577,6 +1588,16 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Why a returned line's credit isn't its shelf price, in colour. */
+.invoice-exchange-tone--charged {
+  color: rgb(var(--k-theme-warning)) !important;
+  font-weight: 600;
+}
+.invoice-exchange-tone--free {
+  color: rgb(var(--k-theme-success)) !important;
+  font-weight: 600;
 }
 
 .invoice-item-exchange-note {
