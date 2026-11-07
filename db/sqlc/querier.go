@@ -321,6 +321,7 @@ type Querier interface {
 	GetProductByCode(ctx context.Context, code string) (Product, error)
 	GetProductByID(ctx context.Context, id int64) (Product, error)
 	GetProductByUID(ctx context.Context, uid sql.NullString) (Product, error)
+	GetReturnSaleID(ctx context.Context, invoiceID int64) (int64, error)
 	GetReturnedQuantityForProduct(ctx context.Context, arg GetReturnedQuantityForProductParams) (interface{}, error)
 	GetReturnedQuantityForProductPrice(ctx context.Context, arg GetReturnedQuantityForProductPriceParams) (interface{}, error)
 	GetRoleByID(ctx context.Context, id int64) (Role, error)
@@ -517,6 +518,9 @@ type Querier interface {
 	ListInvoicePayments(ctx context.Context, invoiceID int64) ([]InvoicePayment, error)
 	ListInvoicePaymentsByInvoiceIDs(ctx context.Context, ids []int64) ([]InvoicePayment, error)
 	ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
+	// The lines as they were recorded (and sent to kashi, which keeps them in
+	// the same order): a line's position is how kashi names it.
+	ListInvoiceProductsInOrder(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error)
 	// Every invoice made by a salesperson kashi knows, with kashi's id for them.
 	ListInvoiceSalespersonRemoteIDs(ctx context.Context) ([]ListInvoiceSalespersonRemoteIDsRow, error)
 	ListInvoices(ctx context.Context) ([]Invoice, error)
@@ -644,6 +648,8 @@ type Querier interface {
 	// the worker backs off the connection as a whole instead (see pushLink).
 	RecordSyncOutboxNetworkError(ctx context.Context, arg RecordSyncOutboxNetworkErrorParams) error
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
+	// An edit gave back part of what a deal charged back on this return.
+	ReduceExchangeDealClawback(ctx context.Context, arg ReduceExchangeDealClawbackParams) error
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
 	RepointClientAccountEntriesClient(ctx context.Context, arg RepointClientAccountEntriesClientParams) error
@@ -683,6 +689,7 @@ type Querier interface {
 	SetIdentityAdoptedAt(ctx context.Context, identityAdoptedAt sql.NullString) error
 	SetInvoiceDiscount(ctx context.Context, arg SetInvoiceDiscountParams) error
 	SetInvoiceLBPTotal(ctx context.Context, arg SetInvoiceLBPTotalParams) error
+	SetInvoiceProductLineTotal(ctx context.Context, arg SetInvoiceProductLineTotalParams) error
 	SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
 	SetLoanCategory(ctx context.Context, arg SetLoanCategoryParams) (Loan, error)
@@ -707,6 +714,8 @@ type Querier interface {
 	SetReceiptLook(ctx context.Context, arg SetReceiptLookParams) error
 	// kashi's push: stored and the rev bumped, so the screen adopts it.
 	SetRemoteDisplayPrefs(ctx context.Context, displayPrefs string) error
+	// A return or exchange keeps one total in all three (createExchangeInvoice).
+	SetReturnInvoiceTotals(ctx context.Context, arg SetReturnInvoiceTotalsParams) error
 	// kashi decided this salesperson's device number (attendance_user_id_set in
 	// the salesperson feed); it replaces whatever was typed in here.
 	SetSalespersonAttendanceIDByRemoteID(ctx context.Context, arg SetSalespersonAttendanceIDByRemoteIDParams) error

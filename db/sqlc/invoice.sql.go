@@ -566,6 +566,17 @@ func (q *Queries) GetMonthSalesSummary(ctx context.Context, yearMonth string) (G
 	return i, err
 }
 
+const getReturnSaleID = `-- name: GetReturnSaleID :one
+SELECT sales_invoice_id FROM return_invoices WHERE invoice_id = ?
+`
+
+func (q *Queries) GetReturnSaleID(ctx context.Context, invoiceID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getReturnSaleID, invoiceID)
+	var sales_invoice_id int64
+	err := row.Scan(&sales_invoice_id)
+	return sales_invoice_id, err
+}
+
 const getReturnedQuantityForProduct = `-- name: GetReturnedQuantityForProduct :one
 SELECT COALESCE(SUM(CASE WHEN ip.quantity < 0 THEN -ip.quantity ELSE 0 END), 0) AS quantity
 FROM return_invoices r
@@ -1368,6 +1379,52 @@ func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]I
 	return items, nil
 }
 
+const listInvoiceProductsInOrder = `-- name: ListInvoiceProductsInOrder :many
+SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount, invoice_discount, deal_fallback_percent FROM invoice_products WHERE invoice_id = ? ORDER BY id
+`
+
+// The lines as they were recorded (and sent to kashi, which keeps them in
+// the same order): a line's position is how kashi names it.
+func (q *Queries) ListInvoiceProductsInOrder(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error) {
+	rows, err := q.db.QueryContext(ctx, listInvoiceProductsInOrder, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InvoiceProduct{}
+	for rows.Next() {
+		var i InvoiceProduct
+		if err := rows.Scan(
+			&i.ID,
+			&i.InvoiceID,
+			&i.ProductID,
+			&i.UnitPrice,
+			&i.LineTotal,
+			&i.Discount,
+			&i.Quantity,
+			&i.SalespersonID,
+			&i.Note,
+			&i.PriceListID,
+			&i.DiscountListID,
+			&i.SaleOption,
+			&i.DealUid,
+			&i.DealDiscount,
+			&i.InvoiceDiscount,
+			&i.DealFallbackPercent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listInvoices = `-- name: ListInvoices :many
 SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at, lbp_total, lbp_rate, invoice_discount, invoice_discount_name FROM invoices ORDER BY id
 `
@@ -2118,6 +2175,22 @@ func (q *Queries) MarkInvoiceCancelled(ctx context.Context, id int64) error {
 	return err
 }
 
+const reduceExchangeDealClawback = `-- name: ReduceExchangeDealClawback :exec
+UPDATE exchange_deal_adjustments SET clawback = MAX(0, clawback - ?) WHERE invoice_id = ? AND deal_uid = ?
+`
+
+type ReduceExchangeDealClawbackParams struct {
+	Clawback  int64  `json:"clawback"`
+	InvoiceID int64  `json:"invoiceId"`
+	DealUid   string `json:"dealUid"`
+}
+
+// An edit gave back part of what a deal charged back on this return.
+func (q *Queries) ReduceExchangeDealClawback(ctx context.Context, arg ReduceExchangeDealClawbackParams) error {
+	_, err := q.db.ExecContext(ctx, reduceExchangeDealClawback, arg.Clawback, arg.InvoiceID, arg.DealUid)
+	return err
+}
+
 const setInvoiceLBPTotal = `-- name: SetInvoiceLBPTotal :exec
 UPDATE invoices SET lbp_total = ?, lbp_rate = ? WHERE id = ?
 `
@@ -2130,6 +2203,45 @@ type SetInvoiceLBPTotalParams struct {
 
 func (q *Queries) SetInvoiceLBPTotal(ctx context.Context, arg SetInvoiceLBPTotalParams) error {
 	_, err := q.db.ExecContext(ctx, setInvoiceLBPTotal, arg.LbpTotal, arg.LbpRate, arg.ID)
+	return err
+}
+
+const setInvoiceProductLineTotal = `-- name: SetInvoiceProductLineTotal :exec
+UPDATE invoice_products SET line_total = ? WHERE id = ? AND invoice_id = ?
+`
+
+type SetInvoiceProductLineTotalParams struct {
+	LineTotal int64 `json:"lineTotal"`
+	ID        int64 `json:"id"`
+	InvoiceID int64 `json:"invoiceId"`
+}
+
+func (q *Queries) SetInvoiceProductLineTotal(ctx context.Context, arg SetInvoiceProductLineTotalParams) error {
+	_, err := q.db.ExecContext(ctx, setInvoiceProductLineTotal, arg.LineTotal, arg.ID, arg.InvoiceID)
+	return err
+}
+
+const setReturnInvoiceTotals = `-- name: SetReturnInvoiceTotals :exec
+UPDATE invoices SET subtotal = ?, discounted_total = ?, grand_total = ?, notes = ? WHERE id = ?
+`
+
+type SetReturnInvoiceTotalsParams struct {
+	Subtotal        int64  `json:"subtotal"`
+	DiscountedTotal int64  `json:"discountedTotal"`
+	GrandTotal      int64  `json:"grandTotal"`
+	Notes           string `json:"notes"`
+	ID              int64  `json:"id"`
+}
+
+// A return or exchange keeps one total in all three (createExchangeInvoice).
+func (q *Queries) SetReturnInvoiceTotals(ctx context.Context, arg SetReturnInvoiceTotalsParams) error {
+	_, err := q.db.ExecContext(ctx, setReturnInvoiceTotals,
+		arg.Subtotal,
+		arg.DiscountedTotal,
+		arg.GrandTotal,
+		arg.Notes,
+		arg.ID,
+	)
 	return err
 }
 
