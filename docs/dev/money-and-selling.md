@@ -129,6 +129,34 @@ LBP amounts.
   longer earn the deal saving they still enjoy, the difference is charged back.
   The amounts ride on the exchange's own lines, so lines still add up to the
   invoice.
+
+  Worked examples. They come from a real Centro sale (SA/CT/2026/02923, Buy 1
+  Get 1, 8 items, $71 paid; free: $12, $12, $9, $9) and were run through the
+  till's code:
+
+  | Customer returns | Takes | Lines | Pays |
+  | --- | --- | --- | --- |
+  | Jacket $29 + Hoodie $15 (paid) | Men Hoodie $19 + Jacket $29, **on the deal** | −29, −15, +19, +29 | $4: full credit, the new items keep the free ones paired |
+  | Same | Skechers $35 + Crocs $19, **shoes, off the deal** | −17 (charged back $12), −15, +35, +19 | $22 |
+  | Jacket, Hoodie, free Pants $9 (refund, RS/CT/2026/00068) | nothing | −29, −12 (charged back $3), 0 | −$41 cash |
+  | Free Pants $9 | Men Hoodie $19 | −9 (swap credit), +19 | $10 |
+  | Free Pants $9 | $5 socks | −5, +5 | $0, the other $4 is lost |
+
+  The charge back is what the customer still enjoys free (kept free units,
+  plus returned free units, which still count) minus what the deal earns on
+  what they keep plus replacements on the deal. A returned free unit counting
+  keeps it lenient: RS/CT/2026/00068 takes $3, where counting only the kept
+  units would take $12. Covered by: shoes and Chinese items are off the deal,
+  outlet (CA, EOC5, EF6) and Bangladesh (BOC5, BNV, N) are on, as kashi's
+  discount list says. The cashier guide with these cases is
+  `tools/kashi-admin/guides/gb-buy1get1-returns-guide.png`.
+- **A return's refund can be edited from kashi** (Edit refund →
+  `edit_return_invoice`, `return_edit.go`). It sets a returned line's credit,
+  up to its price. The total, the payments of the main account and the shift
+  drawer move by the difference, the deal's recorded charge back drops by what
+  was given back, a note is added, and the edit syncs to kashi
+  (`/branch/return_invoice_edits`). Lines are named by position, as kashi lists
+  them.
 - **The exchange screen shows the quote's amounts, never its own.**
   `QuoteExchangeTotal` returns one line per cart line sent, in order
   (`exchange_quote_lines.go`), and a breakdown. A returned line shows its
