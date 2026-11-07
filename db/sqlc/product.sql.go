@@ -22,12 +22,86 @@ func (q *Queries) AddQuickAccessProduct(ctx context.Context, productID int64) er
 	return err
 }
 
+const countAllProductGroups = `-- name: CountAllProductGroups :one
+SELECT COUNT(DISTINCT CASE WHEN code = '' THEN 'id:' || id ELSE code END) FROM products
+WHERE is_active = 1 AND barcode != 'UNKNOWN'
+`
+
+func (q *Queries) CountAllProductGroups(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAllProductGroups)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countAllProducts = `-- name: CountAllProducts :one
 SELECT COUNT(*) FROM products WHERE is_active = 1 AND barcode != 'UNKNOWN'
 `
 
 func (q *Queries) CountAllProducts(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countAllProducts)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countProductGroups = `-- name: CountProductGroups :one
+
+SELECT COUNT(DISTINCT CASE WHEN code = '' THEN 'id:' || id ELSE code END) FROM products
+WHERE is_active = 1
+  AND barcode != 'UNKNOWN'
+  AND (name || ' ' || code || ' ' || barcode) LIKE ?1
+`
+
+// Product groups for the search's "N products" label: the variants sharing a
+// code show as one result, so these count codes, not rows. A product with no
+// code is its own group. Same filters as the CountProducts* queries above.
+func (q *Queries) CountProductGroups(ctx context.Context, searchPattern string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProductGroups, searchPattern)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countProductGroupsByCode = `-- name: CountProductGroupsByCode :one
+SELECT COUNT(DISTINCT CASE WHEN code = '' THEN 'id:' || id ELSE code END) FROM products
+WHERE is_active = 1
+  AND barcode != 'UNKNOWN'
+  AND (code || ' ' || barcode) LIKE ?1
+`
+
+func (q *Queries) CountProductGroupsByCode(ctx context.Context, searchPattern string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProductGroupsByCode, searchPattern)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countProductGroupsByCodeIndexed = `-- name: CountProductGroupsByCodeIndexed :one
+SELECT COUNT(DISTINCT CASE WHEN p.code = '' THEN 'id:' || p.id ELSE p.code END) FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.code_text LIKE ?1
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN'
+`
+
+func (q *Queries) CountProductGroupsByCodeIndexed(ctx context.Context, searchPattern string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProductGroupsByCodeIndexed, searchPattern)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countProductGroupsIndexed = `-- name: CountProductGroupsIndexed :one
+SELECT COUNT(DISTINCT CASE WHEN p.code = '' THEN 'id:' || p.id ELSE p.code END) FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.all_text LIKE ?1
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN'
+`
+
+func (q *Queries) CountProductGroupsIndexed(ctx context.Context, searchPattern string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countProductGroupsIndexed, searchPattern)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

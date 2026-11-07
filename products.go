@@ -646,6 +646,78 @@ func (a *App) CountProductsForSearch(search string) (int64, error) {
 	return total, nil
 }
 
+// CountProductGroupsForSearch counts what the product search shows: the
+// variants sharing a code are one result there, so this counts codes (a
+// product with no code counts alone) over the same matches as
+// CountProductsForSearch.
+func (a *App) CountProductGroupsForSearch(search string) (int64, error) {
+	if a.store == nil {
+		return 0, fmt.Errorf("database not initialized")
+	}
+	search = strings.TrimSpace(search)
+	var (
+		total int64
+		err   error
+	)
+	codeOnly := a.flagEnabled(a.ctx, productSearchCodeOnlyFlag)
+	switch {
+	case search == "":
+		total, err = a.store.CountAllProductGroups(a.ctx)
+	case searchUsesIndex(search) && codeOnly:
+		total, err = a.store.CountProductGroupsByCodeIndexed(a.ctx, "%"+search+"%")
+	case searchUsesIndex(search):
+		total, err = a.store.CountProductGroupsIndexed(a.ctx, "%"+search+"%")
+	case codeOnly:
+		total, err = a.store.CountProductGroupsByCode(a.ctx, "%"+search+"%")
+	default:
+		total, err = a.store.CountProductGroups(a.ctx, "%"+search+"%")
+	}
+	if err != nil {
+		log.Printf("CountProductGroupsForSearch: count products (search=%q): %v", search, err)
+		return 0, fmt.Errorf("count products: %w", err)
+	}
+	return total, nil
+}
+
+// ListProductVariants returns every active variant sharing a product code
+// (any case), priced like the search results, for the variant picker. The
+// search may have loaded only some of them; this is the whole set.
+func (a *App) ListProductVariants(code string) ([]map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return []map[string]any{}, nil
+	}
+	products, err := a.store.ListActiveProductsByCode(a.ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("list variants: %w", err)
+	}
+	listPricing, err := loadActivePricing(a.ctx, a.store.Queries)
+	if err != nil {
+		return nil, fmt.Errorf("load price/discount lists: %w", err)
+	}
+	ids := make([]int64, 0, len(products))
+	for _, p := range products {
+		if p.Barcode != "UNKNOWN" {
+			ids = append(ids, p.ID)
+		}
+	}
+	attrs, err := loadProductAttributeValuesFor(a.ctx, a.store.Queries, ids)
+	if err != nil {
+		return nil, fmt.Errorf("load product attributes: %w", err)
+	}
+	result := make([]map[string]any, 0, len(ids))
+	for _, p := range products {
+		if p.Barcode == "UNKNOWN" {
+			continue
+		}
+		result = append(result, productMap(p, listPricing, attrs[p.ID]))
+	}
+	return result, nil
+}
+
 // loadProductAttributeValues loads every product's attribute values in one
 // query (same batching pattern as loadActiveOverrides below: one query per
 // request regardless of how many products are in the result set), keyed

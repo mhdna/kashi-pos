@@ -69,6 +69,8 @@ type pricedReturnedProduct struct {
 	// A free unit's swap credit before any is used: up to its shelf price,
 	// toward the replacements only. Zero for a paid unit.
 	swapAllowance int64
+	// The units' share of the sale's invoice discount, off paid.
+	invoiceDiscount int64
 }
 
 type pricedExchange struct {
@@ -284,8 +286,9 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 			if unitTotal > 0 && requestedQty > math.MaxInt64/unitTotal {
 				return result, fmt.Errorf("returned total is too large")
 			}
-			lineTotal := unitTotal*requestedQty - returnedInvoiceDiscount(originalLine, alreadyReturned, requestedQty)
-			priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: lineTotal, note: requested.Note, salespersonID: requested.SalespersonID, deal: deal, request: requestIndex, paid: lineTotal}
+			invoiceShare := returnedInvoiceDiscount(originalLine, alreadyReturned, requestedQty)
+			lineTotal := unitTotal*requestedQty - invoiceShare
+			priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: lineTotal, note: requested.Note, salespersonID: requested.SalespersonID, deal: deal, request: requestIndex, paid: lineTotal, invoiceDiscount: invoiceShare}
 			result.returned = append(result.returned, priced)
 			result.returnedTotal += priced.lineTotal
 		}

@@ -211,6 +211,9 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 					Quantity:        -returned.qty,
 					Deal:            dealNameOf(source.ID, returned.deal.dealUID, q, a),
 					DealDiscount:    -returned.deal.unitDeal * returned.qty,
+					InvoiceDiscount: -returned.invoiceDiscount,
+					ChargedBack:     returned.chargedBack,
+					SwapCredit:      returned.swapCredit,
 				})
 			}
 			for _, replacement := range priced.replacements {
