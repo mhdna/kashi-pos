@@ -32,7 +32,7 @@
         rounded="lg"
         variant="text"
         color="grey-darken-2"
-        :disabled="!hasItems || restricted"
+        :disabled="!hasItems || mode === 'settlement'"
         @click="ask('hold')"
       >
         <div class="d-flex flex-column align-center">
@@ -102,10 +102,9 @@ const props = defineProps<{
 }>();
 
 const mode = computed(() => props.mode ?? "sale");
-// Both exchange and settlement mode lock the client and disable
-// hold - only the calculator and the mode-specific checkout action
-// are active. Cancel is available in all modes.
-const restricted = computed(() => mode.value !== "sale");
+// Both exchange and settlement mode lock the client. An exchange can be
+// held (it comes back as the same exchange); a settlement can't. Cancel is
+// available in all modes.
 const checkoutLabel = computed(() =>
   mode.value === "exchange" ? "Exchange" : mode.value === "settlement" ? "Change Settlement" : "Check Out",
 );

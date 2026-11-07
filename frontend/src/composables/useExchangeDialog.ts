@@ -129,6 +129,7 @@ export function useExchangeDialog(roundingMode: () => string) {
     if (!invoice.value || returned.value.length === 0) return null;
     return {
       originalInvoiceId: invoice.value.id,
+      originalInvoiceCode: invoice.value.invoiceCode,
       client: { ...invoice.value.client },
       returned: returned.value.map((item) => ({ ...item })),
     };

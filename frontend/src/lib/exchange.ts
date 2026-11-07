@@ -32,6 +32,9 @@ export interface ExchangeInvoice {
 
 export interface ExchangeSelection {
   originalInvoiceId: number;
+  // The sale's code (SA/CT/2026/00012), for the hold list; optional, as an
+  // old draft or hold has none.
+  originalInvoiceCode?: string;
   client: Client;
   returned: ExchangeItem[];
 }
