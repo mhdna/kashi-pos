@@ -3,6 +3,21 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-07 · An exchange called a free item's credit "unused" before anything was bought
+
+**Symptom.** With every item of a deal sale returned and nothing bought yet,
+the summary under the cart said "Unused free item credit (Buy 1 Get 1): $9.00"
+next to "Add $41.00 more in new items", as if the credit were already lost.
+
+**Cause.** The summary showed the deal's forfeited credit whenever there was
+any. While the new items don't cover the returned ones, none of it is lost
+yet: it is used as soon as new items are added.
+
+**Fix.** The "unused" note shows only once the exchange asks for nothing
+more (`exchangeSummaryRows`, `lib/exchangeQuote.ts`). Test: "says what is
+missing, and not that a free item's credit is lost, while more is needed" in
+`lib/exchangeQuote.test.ts`.
+
 ## 2026-11-07 · An exchange asked for more than its lines were short of
 
 **Symptom.** Returning a whole Buy 1 Get 1 sale except one kept free unit

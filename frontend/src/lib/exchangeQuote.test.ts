@@ -270,14 +270,12 @@ describe("returnedLineNotes", () => {
 });
 
 describe("exchangeSummaryRows", () => {
-  it("shows tax, rounding, a forfeited credit and a shortfall when there are any", () => {
+  it("shows tax, rounding and a forfeited credit when there are any", () => {
     const q = shopFloorQuote();
     q.taxCents = 268;
     q.unroundedCents = 2701;
     q.roundingCents = 2;
     q.grandTotalCents = 2703;
-    q.needsMoreReplacementValue = true;
-    q.shortfallCents = 400;
     q.adjustments = [{ deal: "Buy 2 get 1", chargedBackCents: 633, forfeitedCents: 300 }];
     const rows = exchangeSummaryRows(q);
     expect(rows.map((r) => r.key)).toEqual([
@@ -287,10 +285,35 @@ describe("exchangeSummaryRows", () => {
       "forfeit-Buy 2 get 1",
       "tax",
       "rounding",
+      "total",
+    ]);
+    expect(rows.find((r) => r.key === "forfeit-Buy 2 get 1")!.label).toBe(
+      "Unused free item credit (Buy 2 get 1): $3.00",
+    );
+    expect(summaryAddsUp(rows)).toBe(true);
+  });
+  it("says what is missing, and not that a free item's credit is lost, while more is needed", () => {
+    // Everything returned, nothing bought yet: the free item's credit is
+    // still there to use, so it isn't "unused" yet.
+    const q = shopFloorQuote();
+    q.lines[0]!.lineTotalCents = 0;
+    q.replacementTotalCents = 0;
+    q.netCents = q.unroundedCents = -567;
+    q.grandTotalCents = 0;
+    q.needsMoreReplacementValue = true;
+    q.shortfallCents = 567;
+    q.adjustments = [{ deal: "Buy 2 get 1", chargedBackCents: 633, forfeitedCents: 900 }];
+    expect(exchangeQuoteProblem(q, cart)).toBe("");
+    const rows = exchangeSummaryRows(q);
+    expect(rows.map((r) => r.key)).toEqual([
+      "new",
+      "returned",
+      "back-Buy 2 get 1",
       "shortfall",
       "total",
     ]);
-    expect(rows.find((r) => r.key === "shortfall")!.label).toBe("Add $4.00 more in new items");
+    expect(rows.find((r) => r.key === "shortfall")!.label).toBe("Add $5.67 more in new items");
+    expect(rows.some((r) => r.label.startsWith("Unused"))).toBe(false);
     expect(summaryAddsUp(rows)).toBe(true);
   });
   it("floors the total at zero while the new items don't cover the returned ones", () => {
