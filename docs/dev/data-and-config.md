@@ -80,6 +80,25 @@ zone), so those show a warning instead.
 - Queries are generated with sqlc (`db/query` → `db/sqlc`), v1.31.1.
   See `releases-and-builds.md` for the regeneration gotchas.
 
+## Product search shows one result per code
+
+A code is shared by its colour and size variants (one `products` row each,
+migration 27). The search still pages **rows** (`ListProductsCursor`), but the
+frontend folds them into one result per code (`lib/productGroups.ts`; a product
+with no code is its own result). Tapping a multi-variant result opens
+`VariantPicker.vue`.
+
+| Piece | What it does |
+|---|---|
+| `groupProducts` | Groups loaded rows by exact code, in first-seen order; a code's later rows join it when their page arrives. |
+| `CountProductGroupsForSearch` | The "N products" label: `COUNT(DISTINCT code)` over the same matches as `CountProductsForSearch`. |
+| `ListProductVariants(code)` | Every active variant of the code (any case), for the picker, since the list may hold only some yet. |
+| `VariantPicker` | Colour chips with swatches and size chips; impossible pairs greyed out; a single option is picked for the cashier; identical colour+size variants are listed. |
+| `lib/colorSwatch.ts` | Colour name to CSS: `A/B` names are split into slices, catalogue short forms (`Pur`, `Tra`) are read, unknown names get a dashed empty dot. kashi's colour hex values aren't synced to the till. |
+
+The scan field's code lookup (`FindProductsForScan`) still uses its own list
+picker in `home.vue`.
+
 ## Product search index (`products_search.go`, migration 135)
 
 The sale screen's product search (`ListProductsCursor`, `CountProductsForSearch`)

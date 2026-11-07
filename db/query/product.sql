@@ -259,3 +259,37 @@ JOIN products_search s ON s.rowid = p.id
 WHERE s.code_text LIKE sqlc.arg(search_pattern)
   AND p.is_active = 1
   AND p.barcode != 'UNKNOWN';
+
+-- Product groups for the search's "N products" label: the variants sharing a
+-- code show as one result, so these count codes, not rows. A product with no
+-- code is its own group. Same filters as the CountProducts* queries above.
+
+-- name: CountProductGroups :one
+SELECT COUNT(DISTINCT CASE WHEN code = '' THEN 'id:' || id ELSE code END) FROM products
+WHERE is_active = 1
+  AND barcode != 'UNKNOWN'
+  AND (name || ' ' || code || ' ' || barcode) LIKE sqlc.arg(search_pattern);
+
+-- name: CountProductGroupsByCode :one
+SELECT COUNT(DISTINCT CASE WHEN code = '' THEN 'id:' || id ELSE code END) FROM products
+WHERE is_active = 1
+  AND barcode != 'UNKNOWN'
+  AND (code || ' ' || barcode) LIKE sqlc.arg(search_pattern);
+
+-- name: CountAllProductGroups :one
+SELECT COUNT(DISTINCT CASE WHEN code = '' THEN 'id:' || id ELSE code END) FROM products
+WHERE is_active = 1 AND barcode != 'UNKNOWN';
+
+-- name: CountProductGroupsIndexed :one
+SELECT COUNT(DISTINCT CASE WHEN p.code = '' THEN 'id:' || p.id ELSE p.code END) FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.all_text LIKE sqlc.arg(search_pattern)
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN';
+
+-- name: CountProductGroupsByCodeIndexed :one
+SELECT COUNT(DISTINCT CASE WHEN p.code = '' THEN 'id:' || p.id ELSE p.code END) FROM products p
+JOIN products_search s ON s.rowid = p.id
+WHERE s.code_text LIKE sqlc.arg(search_pattern)
+  AND p.is_active = 1
+  AND p.barcode != 'UNKNOWN';

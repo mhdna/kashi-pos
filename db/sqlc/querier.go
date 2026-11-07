@@ -56,6 +56,7 @@ type Querier interface {
 	// anyone has actually used it. Only a shift with real activity should block
 	// the import.
 	CountActiveShiftsAll(ctx context.Context) (int64, error)
+	CountAllProductGroups(ctx context.Context) (int64, error)
 	CountAllProducts(ctx context.Context) (int64, error)
 	CountBranchStockRows(ctx context.Context, branchCode string) (int64, error)
 	CountCashboxAccountsByCurrency(ctx context.Context, currencyCode string) (int64, error)
@@ -72,6 +73,13 @@ type Querier interface {
 	CountPendingSyncOutbox(ctx context.Context) (int64, error)
 	// The "what's left to upload" breakdown the close-shift sync dialog shows.
 	CountPendingSyncOutboxByEntityType(ctx context.Context) ([]CountPendingSyncOutboxByEntityTypeRow, error)
+	// Product groups for the search's "N products" label: the variants sharing a
+	// code show as one result, so these count codes, not rows. A product with no
+	// code is its own group. Same filters as the CountProducts* queries above.
+	CountProductGroups(ctx context.Context, searchPattern string) (int64, error)
+	CountProductGroupsByCode(ctx context.Context, searchPattern string) (int64, error)
+	CountProductGroupsByCodeIndexed(ctx context.Context, searchPattern string) (int64, error)
+	CountProductGroupsIndexed(ctx context.Context, searchPattern string) (int64, error)
 	// search_pattern must already be wrapped in '%...%' by the caller. Counts the
 	// same rows ListProductsPage returns, so the total under a paged search never
 	// promises more results than the pages can show.

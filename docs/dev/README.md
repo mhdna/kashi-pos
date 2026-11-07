@@ -91,6 +91,9 @@ Bug history is in [`../FIXED_BUGS.md`](../FIXED_BUGS.md).
     compare GPU rasterisation on and off without a rebuild.
 35. **`cp` may be aliased to `cp -i` in a shell**, and hangs a script waiting for
     "y". Use `/bin/cp` when copying a database to benchmark on.
+36. **Product search groups variants by code** in the frontend; the count label
+    counts codes (`CountProductGroupsForSearch`) and the picker asks
+    `ListProductVariants` for the whole set (see data-and-config.md).
 
 These docs were written on 2026-10-31 from the code at v1.1.77; items 26-35 and
 [performance.md](performance.md) were added with v1.1.82. When you

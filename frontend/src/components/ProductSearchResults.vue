@@ -10,33 +10,46 @@
       @scroll.passive="handleScroll"
     >
       <template #default="{ item: row }">
-        <div :key="row[0]?.id" class="product-grid-row" :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }">
+        <div :key="row[0]?.key" class="product-grid-row" :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }">
           <k-card
-            v-for="product in row"
-            :key="product.id"
+            v-for="group in row"
+            :key="group.key"
             class="product-cell"
-            :class="{ 'product-cell--named': showsName }"
+            :class="{ 'product-cell--named': showsName, 'product-cell--group': group.variants.length > 1 }"
+            :data-group="group.key"
             variant="flat"
-            @click="selectProduct(product)"
+            @click="selectGroup(group)"
           >
             <span v-if="shows('code')" class="product-cell-code"><template
-              v-for="(part, i) in hits(product.code)"
+              v-for="(part, i) in hits(group.first.code)"
               :key="i"
             ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
             <span v-if="showsName" class="product-cell-name text-truncate"><template
-              v-for="(part, i) in hits(product.name)"
+              v-for="(part, i) in hits(group.first.name)"
               :key="i"
             ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
-            <span v-if="variantLabel(product) || shows('price')" class="product-cell-meta">
-              <span class="product-cell-variant text-medium-emphasis text-truncate">{{ variantLabel(product) }}</span>
+            <span v-if="group.variants.length > 1" class="product-cell-meta">
+              <span class="product-cell-variant product-group-options text-medium-emphasis">
+                <span v-if="shows('color') && group.colors.length" class="product-group-swatches">
+                  <ColorSwatch v-for="c in group.colors.slice(0, MAX_SWATCHES)" :key="c" :name="c" :size="14" />
+                  <span v-if="group.colors.length > MAX_SWATCHES" class="product-group-more">+{{ group.colors.length - MAX_SWATCHES }}</span>
+                </span>
+                <span v-if="shows('size') && group.sizes.length" class="product-group-sizes text-truncate">{{ group.sizes.join(" · ") }}</span>
+              </span>
+              <span v-if="shows('price')" class="product-price">{{ priceLabel(group.minPrice, group.maxPrice) }}</span>
+            </span>
+            <span v-else-if="variantLabel(group.first) || shows('price')" class="product-cell-meta">
+              <span class="product-cell-variant text-medium-emphasis text-truncate">
+                <ColorSwatch v-if="shows('color') && group.first.color" :name="group.first.color" :size="12" class="me-1" />{{ variantLabel(group.first) }}
+              </span>
               <span v-if="shows('price')" class="product-price">
-                ${{ Number(product.price || 0).toFixed(2) }}
+                ${{ Number(group.first.price || 0).toFixed(2) }}
                 <k-icon
-                  v-if="product.priceListOverridden"
+                  v-if="group.first.priceListOverridden"
                   icon="mdi-star"
                   color="amber-darken-2"
                   size="12"
-                  :title="product.priceListName ? `Price from list: ${product.priceListName}` : 'List price'"
+                  :title="group.first.priceListName ? `Price from list: ${group.first.priceListName}` : 'List price'"
                 />
               </span>
             </span>
@@ -48,18 +61,20 @@
       v-else
       ref="scroller"
       class="product-virtual-scroll"
-      :items="products"
+      :items="groups"
       :item-height="48"
       height="100%"
       @scroll.passive="handleScroll"
     >
-      <template #default="{ item: product }">
+      <template #default="{ item: group }">
         <k-list-item
-          :key="product.id"
+          :key="group.key"
           class="product-list-item"
+          :class="{ 'product-list-item--group': group.variants.length > 1 }"
+          :data-group="group.key"
           density="comfortable"
           link
-          @click="selectProduct(product)"
+          @click="selectGroup(group)"
         >
           <template #title>
             <div class="product-primary-row">
@@ -67,26 +82,38 @@
                 v-if="shows('code')"
                 class="product-code"
                 :class="namesHidden ? 'product-code--lead font-weight-medium' : 'text-medium-emphasis'"
-              ><template v-for="(part, i) in hits(product.code)" :key="i"><span
+              ><template v-for="(part, i) in hits(group.first.code)" :key="i"><span
                 :class="{ 'search-hit': part.hit }"
               >{{ part.text }}</span></template></span>
               <span v-if="showsName" class="font-weight-medium text-truncate"><template
-                v-for="(part, i) in hits(product.name)"
+                v-for="(part, i) in hits(group.first.name)"
                 :key="i"
               ><span :class="{ 'search-hit': part.hit }">{{ part.text }}</span></template></span>
-              <span v-if="product.brand && !codeOnly && shows('brand')" class="product-brand text-medium-emphasis">{{ product.brand }}</span>
-              <span v-if="product.color && shows('color')" class="product-variant text-medium-emphasis">{{ product.color }}</span>
-              <span v-if="product.size && shows('size')" class="product-variant text-medium-emphasis">{{ product.size }}</span>
-              <span v-if="shows('price')" class="product-price">
-                ${{ Number(product.price || 0).toFixed(2) }}
-                <k-icon
-                  v-if="product.priceListOverridden"
-                  icon="mdi-star"
-                  color="amber-darken-2"
-                  size="12"
-                  :title="product.priceListName ? `Price from list: ${product.priceListName}` : 'List price'"
-                />
-              </span>
+              <span v-if="group.first.brand && !codeOnly && shows('brand')" class="product-brand text-medium-emphasis">{{ group.first.brand }}</span>
+              <template v-if="group.variants.length > 1">
+                <span v-if="shows('color') && group.colors.length" class="product-group-swatches">
+                  <ColorSwatch v-for="c in group.colors.slice(0, MAX_SWATCHES)" :key="c" :name="c" :size="14" />
+                  <span v-if="group.colors.length > MAX_SWATCHES" class="product-group-more text-medium-emphasis">+{{ group.colors.length - MAX_SWATCHES }}</span>
+                </span>
+                <span v-if="shows('size') && group.sizes.length" class="product-variant product-group-sizes text-medium-emphasis">{{ group.sizes.join(" · ") }}</span>
+                <span v-if="shows('price')" class="product-price">{{ priceLabel(group.minPrice, group.maxPrice) }}</span>
+              </template>
+              <template v-else>
+                <span v-if="group.first.color && shows('color')" class="product-variant text-medium-emphasis">
+                  <ColorSwatch :name="group.first.color" :size="12" class="me-1" />{{ group.first.color }}
+                </span>
+                <span v-if="group.first.size && shows('size')" class="product-variant text-medium-emphasis">{{ group.first.size }}</span>
+                <span v-if="shows('price')" class="product-price">
+                  ${{ Number(group.first.price || 0).toFixed(2) }}
+                  <k-icon
+                    v-if="group.first.priceListOverridden"
+                    icon="mdi-star"
+                    color="amber-darken-2"
+                    size="12"
+                    :title="group.first.priceListName ? `Price from list: ${group.first.priceListName}` : 'List price'"
+                  />
+                </span>
+              </template>
             </div>
           </template>
         </k-list-item>
@@ -107,18 +134,31 @@
       />
       <span>{{ countLabel }}</span>
     </div>
+    <VariantPicker
+      v-model="picker.open"
+      :code="picker.code"
+      :variants="picker.variants"
+      refresh
+      @select="selectProduct($event as ProductItem)"
+    />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, ref, onBeforeUnmount, watch } from "vue";
-import { CountProductsForSearch, ListProductsCursor } from "../../wailsjs/go/main/App";
+import { computed, nextTick, reactive, ref, onBeforeUnmount, watch } from "vue";
+import { CountProductGroupsForSearch, ListProductsCursor } from "../../wailsjs/go/main/App";
 import { keepFieldFocus } from "@/lib/keepFocus";
 import { matchParts } from "@/lib/highlight";
+import { groupProducts, priceLabel, type ProductGroup } from "@/lib/productGroups";
+import ColorSwatch from "./ColorSwatch.vue";
+import VariantPicker from "./VariantPicker.vue";
 
 // The products search's results: a list, or columns of tiles, paged in as
 // they're scrolled to. Shown in the search dialog and, in the sale screen's
 // own search, in place of the calculator.
+//
+// The variants sharing a code (one per colour and size) show as one result
+// with their colours and sizes; tapping it opens VariantPicker to choose.
 
 export type ProductItem = {
   id: number;
@@ -194,12 +234,17 @@ const loadErrorMessage = ref("");
 // it; later batches don't recompute it (keeps infinite scroll count-free).
 const total = ref(-1);
 
+// The variants loaded so far, one entry per code. A code's later variants
+// can arrive with a later page; they join its entry.
+const groups = computed(() => groupProducts(products.value));
+
+// Counted in products (codes), as they show, not variants.
 const countLabel = computed(() => {
   if (total.value === 0) return "No products found";
   if (total.value < 0) return loading.value ? "Loading…" : "";
-  const noun = total.value === 1 ? "result" : "results";
+  const noun = total.value === 1 ? "product" : "products";
   if (!hasMore.value) return `${total.value} ${noun} · all loaded`;
-  return `${total.value} ${noun} · ${products.value.length} loaded`;
+  return `${total.value} ${noun} · ${groups.value.length} loaded`;
 });
 
 function resetList() {
@@ -225,7 +270,7 @@ let latestCount = 0;
 async function loadCount() {
   const request = ++latestCount;
   try {
-    const count = await CountProductsForSearch(debouncedSearch.value);
+    const count = await CountProductGroupsForSearch(debouncedSearch.value);
     if (request === latestCount) total.value = Number(count);
   } catch {
     // The label stays as it was; the results don't depend on it.
@@ -268,7 +313,7 @@ async function loadMore() {
 function fillScreen() {
   const element = scroller.value?.$el;
   if (!element) return;
-  const height = props.gridMode ? gridRows.value.length * gridRowHeight.value : products.value.length * 48;
+  const height = props.gridMode ? gridRows.value.length * gridRowHeight.value : groups.value.length * 48;
   if (height - element.clientHeight <= 120) void loadMore();
 }
 
@@ -278,7 +323,21 @@ function handleScroll(event: Event) {
 }
 
 function selectProduct(product: ProductItem) {
-  emit("select", product);
+  emit("select", { ...product, qty: 1 });
+}
+
+// One variant goes straight in; several open the picker, which loads the
+// code's whole set (this list may hold only some of them yet).
+const MAX_SWATCHES = 6;
+const picker = reactive<{ open: boolean; code: string; variants: ProductItem[] }>({ open: false, code: "", variants: [] });
+function selectGroup(group: ProductGroup<ProductItem>) {
+  if (group.variants.length === 1) {
+    selectProduct(group.first);
+    return;
+  }
+  picker.code = group.first.code;
+  picker.variants = group.variants;
+  picker.open = true;
 }
 
 onBeforeUnmount(() => {
@@ -307,8 +366,8 @@ const MAX_COLUMNS = 4;
 const columns = computed(() => Math.min(MAX_COLUMNS, Math.max(1, Math.floor((listWidth.value - 24) / 200))));
 const gridRowHeight = computed(() => (showsName.value ? 96 : 68));
 const gridRows = computed(() => {
-  const rows: ProductItem[][] = [];
-  for (let i = 0; i < products.value.length; i += columns.value) rows.push(products.value.slice(i, i + columns.value));
+  const rows: ProductGroup<ProductItem>[][] = [];
+  for (let i = 0; i < groups.value.length; i += columns.value) rows.push(groups.value.slice(i, i + columns.value));
   return rows;
 });
 watch([() => props.gridMode, columns], () => void nextTick(fillScreen));
@@ -425,6 +484,25 @@ onBeforeUnmount(() => resizer.disconnect());
 
 .product-code,
 .product-brand,
+.product-group-options {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.product-group-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+}
+.product-group-more {
+  font-size: 0.75rem;
+  margin-left: 2px;
+}
+.product-group-sizes {
+  min-width: 0;
+}
 .product-variant {
   font-size: 0.75rem;
 }
