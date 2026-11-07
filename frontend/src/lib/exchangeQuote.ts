@@ -20,6 +20,9 @@ export interface ExchangeQuoteLine {
   paidCents?: number;
   swapCreditCents?: number;
   chargedBackCents?: number;
+  // What a free unit could take off the new items (its shelf price), used
+  // or not; swapCreditCents is the part used.
+  swapAllowanceCents?: number;
   deal?: string;
   free?: boolean;
 }
@@ -79,6 +82,7 @@ export function normalizeExchangeQuote(raw: any): ExchangeQuoteResult {
       paidCents: cents(l.paidCents),
       swapCreditCents: cents(l.swapCreditCents),
       chargedBackCents: cents(l.chargedBackCents),
+      swapAllowanceCents: cents(l.swapAllowanceCents),
       deal: l.deal ? String(l.deal) : undefined,
       free: Boolean(l.free),
     })),
@@ -118,6 +122,9 @@ export function exchangeQuoteProblem(q: ExchangeQuoteResult, cart: ExchangeCartL
       returned -= l.lineTotalCents;
       const parts = (l.paidCents ?? 0) + (l.swapCreditCents ?? 0) - (l.chargedBackCents ?? 0);
       if (parts !== -l.lineTotalCents) return `${l.code}'s credit doesn't add up`;
+      if ((l.swapCreditCents ?? 0) > (l.swapAllowanceCents ?? 0)) {
+        return `${l.code}'s free item credit is more than it allows`;
+      }
     } else {
       replacements += l.lineTotalCents;
     }
@@ -134,6 +141,13 @@ export function exchangeQuoteProblem(q: ExchangeQuoteResult, cart: ExchangeCartL
   const lineBack = q.lines.reduce((s, l) => s + (l.chargedBackCents ?? 0), 0);
   const dealBack = q.adjustments.reduce((s, a) => s + (a.chargedBackCents ?? 0), 0);
   if (lineBack !== dealBack) return "the deal charge back doesn't add up";
+  // "Add $X more" is what the lines on screen are short of, to the cent;
+  // and asking for nothing more, the lines never come to a refund.
+  if (q.needsMoreReplacementValue !== q.shortfallCents > 0) return "the shortfall doesn't add up";
+  if (q.needsMoreReplacementValue && q.shortfallCents !== -q.netCents) {
+    return "the shortfall doesn't match the lines";
+  }
+  if (!q.needsMoreReplacementValue && q.netCents < 0) return "the lines come to a refund";
   return "";
 }
 
@@ -193,27 +207,32 @@ export function formatCents(value: number, sign: "auto" | "always" = "auto"): st
 }
 
 // Under a returned line, how its credit came about, when it isn't simply
-// its shelf price: "Paid $12.00 · Buy 2 get 1 charged back −$6.33".
+// its shelf price: "Paid $12.00 · Buy 2 get 1 charged back $6.33". A free
+// unit says what it can still take off new items: it is worth nothing
+// until something is bought, then up to its shelf price.
 // [] when the credit is the shelf price.
 export function returnedLineNotes(l: ExchangeQuoteLine): string[] {
   if (l.qty >= 0) return [];
   const paid = l.paidCents ?? 0;
   const swap = l.swapCreditCents ?? 0;
+  const allowance = l.swapAllowanceCents ?? 0;
   const back = l.chargedBackCents ?? 0;
   const credit = -l.lineTotalCents;
-  if (credit === -l.shelfCents && swap === 0 && back === 0) return [];
+  if (credit === -l.shelfCents && swap === 0 && back === 0 && !l.free) return [];
   const notes: string[] = [];
   if (l.free) {
-    notes.push(
-      swap > 0
-        ? `Free item · ${formatCents(swap)} credit toward the new items`
-        : "Free item · no credit",
-    );
+    if (allowance <= 0) notes.push("Free item");
+    else if (swap === 0) notes.push(`Free item · up to ${formatCents(allowance)} off new items`);
+    else if (swap < allowance) {
+      notes.push(
+        `Free item · ${formatCents(swap)} of its ${formatCents(allowance)} off the new items`,
+      );
+    } else notes.push(`Free item · ${formatCents(swap)} off the new items`);
   } else {
     notes.push(`Paid ${formatCents(paid)}`);
-    if (swap > 0) notes.push(`free item credit ${formatCents(swap)}`);
+    if (swap > 0) notes.push(`${formatCents(swap)} off the new items`);
   }
-  if (back > 0) notes.push(`${l.deal || "Deal"} charged back −${formatCents(back)}`);
+  if (back > 0) notes.push(`${l.deal || "Deal"} charged back ${formatCents(back)}`);
   return [notes.join(" · ")];
 }
 

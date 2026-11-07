@@ -107,7 +107,9 @@ func keyOfLine(l db.InvoiceProduct) soldLineKey {
 // reward lines carry the swap credit used, returned lines in a deal that is
 // no longer earned carry the charge back, the replacements that keep a deal
 // going name it, and result.requiredReplacement is what the replacements
-// must cover at the till (what was paid, never the swap credit).
+// must cover at the till: the returned lines' credit without any swap
+// credit, i.e. what was paid less what was charged back. That is the credit
+// the screen shows, so "add $X more" is always the lines' own shortfall.
 func (a *App) settleExchangeDeals(q *db.Queries, sourceID int64, sourceLines []db.InvoiceProduct, result *pricedExchange, roundingMode string) error {
 	result.requiredReplacement = result.returnedTotal
 	invoiceDeals, err := q.ListInvoiceDeals(a.ctx, sourceID)
@@ -138,6 +140,7 @@ func (a *App) settleExchangeDeals(q *db.Queries, sourceID int64, sourceLines []d
 			continue
 		}
 		allowance := r.deal.unitDeal * r.qty
+		r.swapAllowance = allowance
 		used := min(allowance, spare)
 		spare -= used
 		r.lineTotal += used
@@ -241,9 +244,12 @@ func (a *App) settleExchangeDeals(q *db.Queries, sourceID int64, sourceLines []d
 	}
 
 	result.returnedTotal = 0
+	required := int64(0)
 	for _, r := range result.returned {
 		result.returnedTotal += r.lineTotal
+		required += r.paid - r.chargedBack
 	}
+	result.requiredReplacement = max(0, required)
 	return nil
 }
 

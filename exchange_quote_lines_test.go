@@ -85,6 +85,14 @@ func quoteInconsistency(q ExchangeQuote, sent []exchangeLine) string {
 			if l.Free && l.PaidCents != 0 {
 				return fmt.Sprintf("free line %d was paid %d", i, l.PaidCents)
 			}
+			// A free unit's swap credit is up to its shelf price, and only a
+			// free (or reduced) unit has one.
+			if l.SwapCreditCents > l.SwapAllowanceCents || l.SwapAllowanceCents < 0 || l.SwapAllowanceCents > -l.ShelfCents {
+				return fmt.Sprintf("returned line %d swaps %d of an allowance of %d (shelf %d)", i, l.SwapCreditCents, l.SwapAllowanceCents, -l.ShelfCents)
+			}
+			if l.Free && l.SwapAllowanceCents != -l.ShelfCents {
+				return fmt.Sprintf("free line %d has an allowance of %d, not its shelf price %d", i, l.SwapAllowanceCents, -l.ShelfCents)
+			}
 		} else {
 			replacements += l.LineTotalCents
 			if l.PaidCents != 0 || l.SwapCreditCents != 0 || l.ChargedBackCents != 0 || l.Free {
@@ -119,6 +127,13 @@ func quoteInconsistency(q ExchangeQuote, sent []exchangeLine) string {
 		return fmt.Sprintf("lines charge back %d, the deals %d", chargedBack, adjusted)
 	case q.ShortfallCents < 0 || (q.ShortfallCents > 0) != q.NeedsMoreReplacementValue:
 		return fmt.Sprintf("shortfall %d, needs more %v", q.ShortfallCents, q.NeedsMoreReplacementValue)
+	// "Add $X more" is what the lines on screen are short of, to the cent:
+	// the credit shown less the new items shown.
+	case q.NeedsMoreReplacementValue && q.ShortfallCents != -q.NetCents:
+		return fmt.Sprintf("asks for %d more, the lines are short %d", q.ShortfallCents, -q.NetCents)
+	// And an exchange that asks for nothing more never pays out.
+	case !q.NeedsMoreReplacementValue && q.NetCents < 0:
+		return fmt.Sprintf("asks for nothing more with the lines at %d", q.NetCents)
 	}
 	return ""
 }
@@ -294,6 +309,50 @@ func TestExchangeQuoteLinesUnknownItemForAPaidDealUnit(t *testing.T) {
 		t.Fatalf("total %d, want 9000", quote.GrandTotalCents)
 	}
 	checkoutQuoted(t, shop, sale.InvoiceID, lines, quote)
+}
+
+// The shop-floor case: everything paid back from a deal sale whose free unit
+// the customer keeps. The kept unit is no longer free, so its saving comes
+// off the credit, and the screen asks for exactly what its lines are short
+// of -- not for what was paid.
+func TestExchangeQuoteShortfallIsTheLinesShortfall(t *testing.T) {
+	shop := setUpDealShop(t)
+	sale := shop.sell(t, "A", "B", "C")
+	// A $100 and B $80 back, C (free, $50) kept: $180 paid, $50 charged
+	// back, a $130 credit.
+	returnOnly := []exchangeLine{line("A", -1), line("B", -1)}
+	quote := quoteExchangeLines(t, shop, sale.InvoiceID, returnOnly)
+	if !quote.NeedsMoreReplacementValue || quote.ShortfallCents != 13000 || quote.NetCents != -13000 {
+		t.Fatalf("asks for %d more with the lines at %d, want 13000 and -13000", quote.ShortfallCents, quote.NetCents)
+	}
+	// $120 of jackets and socks: $10 short.
+	short := append(append([]exchangeLine{}, returnOnly...), line("JACKET", 1), line("SOCKS", 1))
+	if q := quoteExchangeLines(t, shop, sale.InvoiceID, short); q.ShortfallCents != 1000 {
+		t.Fatalf("asks for %d more, want 1000", q.ShortfallCents)
+	}
+	two := append(append([]exchangeLine{}, returnOnly...), line("JACKET", 2))
+	q := quoteExchangeLines(t, shop, sale.InvoiceID, two)
+	// $200 of jackets against the $130 credit: $70 to pay. The customer has
+	// paid $180 + $70 = $250 for C ($50) and two jackets ($200).
+	if q.NeedsMoreReplacementValue || q.GrandTotalCents != 7000 {
+		t.Fatalf("needs more %v, total %d, want false and 7000", q.NeedsMoreReplacementValue, q.GrandTotalCents)
+	}
+	checkoutQuoted(t, shop, sale.InvoiceID, two, q)
+}
+
+// A free unit returned with nothing bought shows what it could take off new
+// items, so the screen can say so rather than "no credit".
+func TestExchangeQuoteFreeUnitAllowance(t *testing.T) {
+	shop := setUpDealShop(t)
+	sale := shop.sell(t, "A", "B", "C")
+	q := quoteExchangeLines(t, shop, sale.InvoiceID, []exchangeLine{line("C", -1)})
+	if l := q.Lines[0]; !l.Free || l.SwapAllowanceCents != 5000 || l.SwapCreditCents != 0 || l.LineTotalCents != 0 {
+		t.Fatalf("free C = %+v", l)
+	}
+	q = quoteExchangeLines(t, shop, sale.InvoiceID, []exchangeLine{line("C", -1), line("SOCKS", 1)})
+	if l := q.Lines[0]; l.SwapAllowanceCents != 5000 || l.SwapCreditCents != 2000 {
+		t.Fatalf("free C for socks = %+v", l)
+	}
 }
 
 // Alike units are one returned item however the cart sends them; each sent
