@@ -133,9 +133,12 @@ onMounted(async () => {
   if (ready.error) return;
   const started = await ConfirmAppStarted();
   if (started.result === "update") {
-    resultTitle.value = `GB Cloud was updated to ${started.to}`;
-    resultText.value = started.notes ? `What's new:\n${started.notes}` : "";
-    resultDialog.value = true;
+    // The "updated to … / What's new" dialog is off for now; kept to turn
+    // back on later. ConfirmAppStarted above must still run (it tells the
+    // updater this version started), and the rollback/failed messages stay.
+    // resultTitle.value = `GB Cloud was updated to ${started.to}`;
+    // resultText.value = started.notes ? `What's new:\n${started.notes}` : "";
+    // resultDialog.value = true;
   } else if (started.result === "rollback") {
     resultTitle.value = `GB Cloud went back to ${started.to}`;
     resultDialog.value = true;
