@@ -19,13 +19,28 @@
       <k-card-text class="on-hold-list pa-0 flex-grow-1 overflow-y-auto">
         <k-list v-if="holds.length" class="py-0">
           <template v-for="(h, index) in holds" :key="h.id">
-            <k-list-item class="on-hold-item text-left" @click="restoreHold(h)">
+            <k-list-item
+              class="on-hold-item text-left"
+              :class="`on-hold-item--${holdKind(h).kind}`"
+              :data-kind="holdKind(h).kind"
+              @click="restoreHold(h)"
+            >
               <template #prepend>
-                <k-avatar color="primary" variant="tonal" size="36">
-                  <k-icon :icon="holdIcon(h)" size="18" />
+                <k-avatar :color="holdKind(h).color" variant="tonal" size="36" class="on-hold-avatar">
+                  <k-icon :icon="holdKind(h).icon" size="18" />
                 </k-avatar>
               </template>
-              <k-list-item-title class="font-weight-medium">{{ holdTitle(h) }}</k-list-item-title>
+              <k-list-item-title class="font-weight-medium d-flex align-center ga-2">
+                <k-chip
+                  class="on-hold-kind"
+                  :color="holdKind(h).color"
+                  label
+                  size="x-small"
+                  variant="flat"
+                  :text="holdKind(h).label"
+                />
+                <span class="on-hold-title">{{ holdTitle(h) }}</span>
+              </k-list-item-title>
               <k-list-item-subtitle>{{ formatServerDateTime(h.createdAt) }}</k-list-item-subtitle>
               <template #append>
                 <k-btn icon size="small" variant="text" aria-label="Remove hold" @click.stop="removeHold(h.id)">
@@ -49,7 +64,7 @@
 import { ref, watch } from "vue";
 import { ListHoldInvoices, DeleteHoldInvoice } from "../../wailsjs/go/main/App";
 import { formatServerDateTime } from "@/lib/datetime";
-import { holdRestore, holdTitle } from "@/lib/holdSnapshot";
+import { holdKind, holdTitle } from "@/lib/holdSnapshot";
 
 defineProps<{ hideActivator?: boolean }>();
 const emit = defineEmits<{ restore: [hold: any] }>();
@@ -58,11 +73,6 @@ const menu = ref(false);
 const holds = ref<any[]>([]);
 
 defineExpose({ open: () => { menu.value = true; }, close: () => { menu.value = false; } });
-
-// A held exchange is marked as one (lib/holdSnapshot.ts).
-function holdIcon(hold: any): string {
-  return holdRestore(hold).mode === "exchange" ? "mdi-swap-horizontal" : "mdi-receipt-text-outline";
-}
 
 async function load() {
   holds.value = await ListHoldInvoices();
@@ -89,6 +99,27 @@ watch(menu, async (v) => {
 }
 .on-hold-item:hover {
   background-color: rgba(var(--k-theme-on-surface), 0.04);
+}
+/* A stripe down the left in the hold's colour: blue for a sale, the
+   exchange's orange for an exchange. */
+.on-hold-item {
+  border-inline-start: 4px solid transparent;
+}
+.on-hold-item--sale {
+  border-inline-start-color: rgb(var(--k-theme-primary));
+}
+.on-hold-item--exchange {
+  border-inline-start-color: #ef6c00; /* orange-darken-3 (ui/palette.ts) */
+  background-color: rgba(239, 108, 0, 0.06);
+}
+.on-hold-item--exchange:hover {
+  background-color: rgba(239, 108, 0, 0.12);
+}
+.on-hold-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .on-hold-empty {
   min-height: 100%;

@@ -93,3 +93,19 @@ export function holdTitle(hold: any): string {
   const count = Number(hold?.itemCount ?? items.length);
   return `#${id} — ${count} ${count === 1 ? "item" : "items"}`;
 }
+
+// How the hold list marks a hold: a sale in blue with a receipt, an
+// exchange in the exchange's own orange (the Exchange checkout button's)
+// with the swap icon, so the two can be told apart at a glance.
+export interface HoldKind {
+  kind: "sale" | "exchange";
+  label: string;
+  icon: string;
+  color: string;
+}
+
+export function holdKind(hold: any): HoldKind {
+  return holdRestore(hold).mode === "exchange"
+    ? { kind: "exchange", label: "Exchange", icon: "mdi-swap-horizontal", color: "orange-darken-3" }
+    : { kind: "sale", label: "Sale", icon: "mdi-receipt-text-outline", color: "primary" };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildHoldSnapshot, holdRestore, holdTitle } from "./holdSnapshot";
+import { buildHoldSnapshot, holdKind, holdRestore, holdTitle } from "./holdSnapshot";
 
 // A returned line as the exchange puts it in the cart (InvoiceItems
 // addExchangeItems): negative, locked, at its sold price.
@@ -170,6 +170,43 @@ describe("a hold that doesn't make sense is never restored as one", () => {
         expect(restore.items).toEqual(items);
         expect(restore.items.some((i) => i.qty < 0)).toBe(true);
       }
+    }
+  });
+});
+
+describe("holdKind", () => {
+  const exchange = { originalInvoiceId: 412, originalInvoiceCode: "SA/CT/2026/02900" };
+  it("marks a held exchange in the exchange's orange with the swap icon", () => {
+    const hold = heldAndListed(buildHoldSnapshot({ items: [returned, unknown], exchange }));
+    expect(holdKind(hold)).toEqual({
+      kind: "exchange",
+      label: "Exchange",
+      icon: "mdi-swap-horizontal",
+      color: "orange-darken-3",
+    });
+  });
+  it("marks a held sale in blue with the receipt icon", () => {
+    const hold = heldAndListed(buildHoldSnapshot({ items: [socks] }));
+    expect(holdKind(hold)).toEqual({
+      kind: "sale",
+      label: "Sale",
+      icon: "mdi-receipt-text-outline",
+      color: "primary",
+    });
+  });
+  it("marks a hold the way it will be restored, never the other way", () => {
+    // An exchange hold with no returned lines left restores as a sale, and
+    // a hold with returned lines but no sale too: both show as sales.
+    expect(holdKind({ items: [socks], exchange: { originalInvoiceId: 9 } }).kind).toBe("sale");
+    expect(holdKind({ items: [returned] }).kind).toBe("sale");
+    expect(holdKind(null).kind).toBe("sale");
+    for (const hold of [
+      { items: [returned], exchange },
+      { items: [socks], exchange },
+      { items: [returned, socks] },
+      { items: [] },
+    ]) {
+      expect(holdKind(hold).kind).toBe(holdRestore(hold).mode);
     }
   });
 });

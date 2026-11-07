@@ -14,14 +14,30 @@ vi.mock("../../wailsjs/go/main/App", () => ({
 
 import { DeleteHoldInvoice, ListHoldInvoices } from "../../wailsjs/go/main/App";
 import { buildHoldSnapshot } from "@/lib/holdSnapshot";
+import { resolveColor } from "@/ui/colors";
 import ActionBar from "./ActionBar.vue";
 import OnHoldMenu from "./OnHoldMenu.vue";
 
 const listHolds = vi.mocked(ListHoldInvoices);
 const deleteHold = vi.mocked(DeleteHoldInvoice);
 
-const returned = { code: "CA24LWVZ12", barcode: "bc-vizon", name: "Lady Winter Vizon", price: 12, qty: -1, locked: true, soldUnitPrice: 12 };
-const unknown = { code: "UNKNOWN", barcode: "UNKNOWN", name: "Unknown item", price: 30, qty: 1, unitPrices: [30] };
+const returned = {
+  code: "CA24LWVZ12",
+  barcode: "bc-vizon",
+  name: "Lady Winter Vizon",
+  price: 12,
+  qty: -1,
+  locked: true,
+  soldUnitPrice: 12,
+};
+const unknown = {
+  code: "UNKNOWN",
+  barcode: "UNKNOWN",
+  name: "Unknown item",
+  price: 30,
+  qty: 1,
+  unitPrices: [30],
+};
 const socks = { code: "L6KS01.5", barcode: "bc-socks", name: "Kids Socks", price: 1.5, qty: 2 };
 
 const heldExchange = {
@@ -56,7 +72,13 @@ afterEach(() => {
 describe("ActionBar Hold", () => {
   function holdButton(mode: "sale" | "exchange" | "settlement", hasItems = true) {
     wrapper = mount(ActionBar, {
-      props: { total: 24.33, totalSummary: { first: "$24.33", second: "" }, canCheckout: true, hasItems, mode },
+      props: {
+        total: 24.33,
+        totalSummary: { first: "$24.33", second: "" },
+        canCheckout: true,
+        hasItems,
+        mode,
+      },
       global: { plugins: [ui] },
       attachTo: document.body,
     });
@@ -82,7 +104,9 @@ describe("ActionBar Hold", () => {
     await button.trigger("click");
     await flushPromises();
     expect(document.body.textContent).toContain("Save the current invoice to hold?");
-    const yes = [...document.body.querySelectorAll("button")].find((b) => /^\s*Confirm\s*$/.test(b.textContent ?? ""));
+    const yes = [...document.body.querySelectorAll("button")].find((b) =>
+      /^\s*Confirm\s*$/.test(b.textContent ?? ""),
+    );
     expect(yes, "a confirm button").toBeTruthy();
     yes!.click();
     await flushPromises();
@@ -92,7 +116,11 @@ describe("ActionBar Hold", () => {
 
 describe("OnHoldMenu", () => {
   async function openMenu() {
-    wrapper = mount(OnHoldMenu, { props: { hideActivator: true }, global: { plugins: [ui] }, attachTo: document.body });
+    wrapper = mount(OnHoldMenu, {
+      props: { hideActivator: true },
+      global: { plugins: [ui] },
+      attachTo: document.body,
+    });
     wrapper.vm.open();
     await flushPromises();
   }
@@ -105,17 +133,59 @@ describe("OnHoldMenu", () => {
     expect(text).toContain("#22 — 1 item");
   });
 
+  it("tells an exchange from a sale by icon, colour and tag", async () => {
+    listHolds.mockResolvedValue([heldExchange, heldSale]);
+    await openMenu();
+    const rowOf = (id: number) =>
+      [...document.body.querySelectorAll<HTMLElement>(".on-hold-item")].find((el) =>
+        el.textContent?.includes(`#${id}`),
+      )!;
+    const exchange = rowOf(21);
+    const sale = rowOf(22);
+    expect(exchange.dataset.kind).toBe("exchange");
+    expect(sale.dataset.kind).toBe("sale");
+    // The tag.
+    expect(exchange.querySelector(".on-hold-kind")!.textContent!.trim()).toBe("Exchange");
+    expect(sale.querySelector(".on-hold-kind")!.textContent!.trim()).toBe("Sale");
+    // The colour: the exchange's orange, the sale's blue, on the avatar and
+    // on the tag, and the stripe down the row's left.
+    const orange = resolveColor("orange-darken-3")!.toLowerCase();
+    const blue = resolveColor("primary")!.toLowerCase();
+    expect(orange).not.toBe(blue);
+    const styleOf = (row: HTMLElement, sel: string) =>
+      row.querySelector<HTMLElement>(sel)!.getAttribute("style")!.toLowerCase();
+    expect(styleOf(exchange, ".on-hold-avatar")).toContain(orange);
+    expect(styleOf(exchange, ".on-hold-kind")).toContain(orange);
+    expect(styleOf(sale, ".on-hold-avatar")).toContain(blue);
+    expect(styleOf(sale, ".on-hold-kind")).toContain(blue);
+    expect(exchange.classList.contains("on-hold-item--exchange")).toBe(true);
+    expect(sale.classList.contains("on-hold-item--sale")).toBe(true);
+    // The icon.
+    expect(exchange.querySelector(".on-hold-avatar")!.innerHTML).not.toBe(
+      sale.querySelector(".on-hold-avatar")!.innerHTML,
+    );
+  });
+
   it("hands a held exchange back whole, returned line and sale included", async () => {
     listHolds.mockResolvedValue([heldExchange, heldSale]);
     await openMenu();
-    const row = [...document.body.querySelectorAll(".on-hold-item")].find((el) => el.textContent?.includes("#21"));
+    const row = [...document.body.querySelectorAll(".on-hold-item")].find((el) =>
+      el.textContent?.includes("#21"),
+    );
     expect(row).toBeTruthy();
     (row as HTMLElement).click();
     await flushPromises();
     const restored = wrapper!.emitted("restore")?.[0]?.[0] as any;
     expect(restored.id).toBe(21);
-    expect(restored.exchange).toEqual({ originalInvoiceId: 412, originalInvoiceCode: "SA/CT/2026/02900" });
-    expect(restored.items.find((i: any) => i.code === "CA24LWVZ12")).toMatchObject({ qty: -1, locked: true, soldUnitPrice: 12 });
+    expect(restored.exchange).toEqual({
+      originalInvoiceId: 412,
+      originalInvoiceCode: "SA/CT/2026/02900",
+    });
+    expect(restored.items.find((i: any) => i.code === "CA24LWVZ12")).toMatchObject({
+      qty: -1,
+      locked: true,
+      soldUnitPrice: 12,
+    });
   });
 
   it("removes a held exchange without restoring it", async () => {
