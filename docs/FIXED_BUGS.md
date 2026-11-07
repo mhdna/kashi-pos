@@ -3,6 +3,28 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-07 · The exchange screen's lines didn't add up to its total
+
+**Symptom.** An exchange of a $30 unknown item for a returned $12 Lady Winter
+Vizon showed the lines as $30 and −$12, but the total as $24.33, with nothing
+on screen to explain the other $6.33.
+
+**Cause.** The cart showed every returned line at its shelf price. Checkout
+credits what was paid for it, less any deal saving charged back when the
+return breaks the deal (`deal_exchange.go`). The quote only sent the total,
+so the screen couldn't show either. The quote and checkout also worked the
+total out in two copies of the same code.
+
+**Fix.** `QuoteExchangeTotal` now returns each cart line's own amount (paid,
+swap credit, charged back) and a breakdown with net, tax and rounding
+(`exchange_quote_lines.go`), and refuses one that doesn't add up. The quote and
+checkout share `computeExchangeTotals`. The cart shows each line's amount,
+with a note under a returned line explaining its credit, and a summary under
+the cart that adds up to "To pay" (`InvoiceItems.vue`, `ExchangeSummary.vue`,
+`lib/exchangeQuote.ts`). Tests: `exchange_quote_lines_test.go` (including 1,200
+random exchanges, each quoted and checked out), `TestExchangeQuoteGolden`,
+`lib/exchangeQuote.test.ts`, `ExchangeSummary.test.ts`.
+
 ## 2026-11-07 · Change Salesperson showed the salesperson's number, not their name
 
 **Symptom.** On the invoice list, Change Salesperson opened with a number (the

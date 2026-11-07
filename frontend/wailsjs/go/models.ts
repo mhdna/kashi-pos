@@ -364,6 +364,54 @@ export namespace main {
 	        this.rev = source["rev"];
 	    }
 	}
+	export class ExchangeAdjustmentQuote {
+	    deal: string;
+	    chargedBackCents?: number;
+	    forfeitedCents?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExchangeAdjustmentQuote(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.deal = source["deal"];
+	        this.chargedBackCents = source["chargedBackCents"];
+	        this.forfeitedCents = source["forfeitedCents"];
+	    }
+	}
+	export class ExchangeLineQuote {
+	    index: number;
+	    code: string;
+	    barcode: string;
+	    qty: number;
+	    lineTotalCents: number;
+	    shelfCents: number;
+	    paidCents?: number;
+	    swapCreditCents?: number;
+	    chargedBackCents?: number;
+	    deal?: string;
+	    free?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExchangeLineQuote(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.index = source["index"];
+	        this.code = source["code"];
+	        this.barcode = source["barcode"];
+	        this.qty = source["qty"];
+	        this.lineTotalCents = source["lineTotalCents"];
+	        this.shelfCents = source["shelfCents"];
+	        this.paidCents = source["paidCents"];
+	        this.swapCreditCents = source["swapCreditCents"];
+	        this.chargedBackCents = source["chargedBackCents"];
+	        this.deal = source["deal"];
+	        this.free = source["free"];
+	    }
+	}
 	export class ExchangeQuote {
 	    returnedTotalCents: number;
 	    replacementTotalCents: number;
@@ -371,6 +419,11 @@ export namespace main {
 	    grandTotalCents: number;
 	    needsMoreReplacementValue: boolean;
 	    shortfallCents: number;
+	    netCents: number;
+	    roundingCents: number;
+	    unroundedCents: number;
+	    lines: ExchangeLineQuote[];
+	    adjustments: ExchangeAdjustmentQuote[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ExchangeQuote(source);
@@ -384,7 +437,30 @@ export namespace main {
 	        this.grandTotalCents = source["grandTotalCents"];
 	        this.needsMoreReplacementValue = source["needsMoreReplacementValue"];
 	        this.shortfallCents = source["shortfallCents"];
+	        this.netCents = source["netCents"];
+	        this.roundingCents = source["roundingCents"];
+	        this.unroundedCents = source["unroundedCents"];
+	        this.lines = this.convertValues(source["lines"], ExchangeLineQuote);
+	        this.adjustments = this.convertValues(source["adjustments"], ExchangeAdjustmentQuote);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class FullCheckEntityReport {
 	    entity: string;

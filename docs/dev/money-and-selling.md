@@ -116,6 +116,25 @@ LBP amounts.
   longer earn the deal saving they still enjoy, the difference is charged back.
   The amounts ride on the exchange's own lines, so lines still add up to the
   invoice.
+- **The exchange screen shows the quote's amounts, never its own.**
+  `QuoteExchangeTotal` returns one line per cart line sent, in order
+  (`exchange_quote_lines.go`), and a breakdown. A returned line shows its
+  credit, which is often not its shelf price: what was paid, plus any swap
+  credit, minus any charge back. These always hold, and the quote errors
+  rather than break them:
+
+  | Identity | Checked in |
+  | --- | --- |
+  | `-credit = paid + swapCredit - chargedBack` per returned line | `exchangeQuoteLines`, `exchangeQuoteProblem` |
+  | `sum(lines) = net = replacements - returned` | both |
+  | `net + tax = unrounded`, `max(0, unrounded + rounding) = total` | both |
+
+  Quote and checkout get the total from one function
+  (`computeExchangeTotals`). The screen re-checks every quote
+  (`frontend/src/lib/exchangeQuote.ts`) and shows an error, not a total, when
+  one doesn't add up for the cart it was asked about. Real quotes are written to
+  `frontend/src/lib/testdata/exchange_quotes.json` by `TestExchangeQuoteGolden`
+  (rewrite with `KASHI_UPDATE_GOLDEN=1`) and checked by the frontend tests.
 - An expense or loan entered by mistake is **cancelled, not deleted**
   (`records_cancel.go`): it stays listed as cancelled and stops counting.
 
