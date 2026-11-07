@@ -85,5 +85,14 @@ stack, floating-box placement, select items, form rules, the virtual window and
 sorting. Visual checks: render the component in a throwaway page and compare
 light and dark.
 
+**Component UI tests** mount a real component with the real kit in a fake DOM:
+put `// @vitest-environment happy-dom` at the top of the file, mount with
+`@vue/test-utils` and `global: { plugins: [ui] }` (`import ui from "@/ui"`),
+`attachTo: document.body`, and `vi.mock("../../wailsjs/go/main/App", ...)` for
+the backend. Dialogs and menus teleport to `<body>`, so query `document.body`.
+Hold backend calls open with a deferred promise to test what shows while they
+load. Example: `src/components/InvoiceChangeDialog.test.ts`. The rest of the
+suite stays on the plain node environment.
+
 See also [performance.md](performance.md) for the rules that keep the kit cheap
 on old tills (no blur, shadows or infinite animations) and the animation switch.

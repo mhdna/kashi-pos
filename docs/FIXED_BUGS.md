@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-07 · Change Salesperson showed the salesperson's number, not their name
+
+**Symptom.** On the invoice list, Change Salesperson opened with a number (the
+salesperson's id) in the field instead of their name; for some invoices it never
+turned into a name.
+
+**Cause.** The field names its value from the options list, and the list was
+empty until `ListSalespersons` answered, so it fell back to the bare id. A
+salesperson the list leaves out (attendance-only staff, a till-only leftover once
+kashi manages the roster) stayed a number for good.
+
+**Fix.** The dialog is now `frontend/src/components/InvoiceChangeDialog.vue`. It
+names the invoice's own salesperson from the list row at once, keeps them on offer
+even when the roster leaves them out ("Former salesperson" if the name is gone),
+and opens with the roster as last loaded (`frontend/src/lib/invoiceEditOptions.ts`).
+Tests: `frontend/src/components/InvoiceChangeDialog.test.ts` ("Change Salesperson").
+
 ## 2026-11-07 · A remote return of a deal product refused a quantity the sale had
 
 **Symptom.** From kashi, returning 3 units of a product sold on a deal as 2 paid
