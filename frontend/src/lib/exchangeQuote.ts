@@ -262,7 +262,9 @@ export function exchangeSummaryRows(q: ExchangeQuoteResult): ExchangeSummaryRow[
         note: true,
       });
     }
-    if ((a.forfeitedCents ?? 0) > 0) {
+    // A free item's credit is only lost once the new items are in: while
+    // more are needed it is still there to use (the line says "up to").
+    if ((a.forfeitedCents ?? 0) > 0 && !q.needsMoreReplacementValue) {
       rows.push({
         key: `forfeit-${a.deal}`,
         label: `Unused free item credit (${a.deal}): ${formatCents(a.forfeitedCents ?? 0)}`,
