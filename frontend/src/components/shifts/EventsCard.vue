@@ -1,20 +1,23 @@
 <template>
-  <!-- Folded by default: one button with the count, so the balance page
-       isn't crowded. Tapping it shows the list (and a link to the calendar). -->
-  <div class="events-card" :class="{ 'events-card--open': open }" style="min-width: 0">
-    <div class="d-flex align-center events-card-title">
-      <k-btn
-        variant="tonal"
-        size="small"
-        prepend-icon="mdi-calendar-month"
-        :append-icon="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+  <!-- Folded by default to one bar across the page, as wide as the cards
+       under it: the count and the next event. Tapping it opens the list in
+       the same card (and a link to the calendar). -->
+  <k-sheet class="events-card" :class="{ 'events-card--open': open }">
+    <div class="events-card-title">
+      <button
+        type="button"
         class="events-card-toggle"
         :aria-expanded="open"
         @click="open = !open"
       >
-        {{ countLabel }}
-      </k-btn>
-      <k-spacer />
+        <k-icon icon="mdi-calendar-month-outline" color="grey-darken-1" class="events-card-toggle-icon" />
+        <span class="events-card-count text-body-1 font-weight-bold">{{ countLabel }}</span>
+        <span v-if="next && !open" class="events-card-next text-body-2 text-medium-emphasis" dir="auto">
+          Next: {{ next.name }} · {{ whenLabel(next) }}
+        </span>
+        <k-spacer />
+        <k-icon :icon="open ? 'mdi-chevron-up' : 'mdi-chevron-down'" class="events-card-chevron" />
+      </button>
       <k-btn
         v-if="open"
         variant="text"
@@ -38,7 +41,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </k-sheet>
 </template>
 
 <script setup lang="ts">
@@ -81,6 +84,10 @@ const upcoming = computed(() =>
 const soonCount = computed(
   () => eventsInRange(today, new Date(today.getTime() + COUNT_DAYS * MS_DAY), synced.value, settings.value).length,
 );
+// The first of the events the count counts, for the folded bar.
+const next = computed(
+  () => eventsInRange(today, new Date(today.getTime() + COUNT_DAYS * MS_DAY), synced.value, settings.value)[0],
+);
 const countLabel = computed(() => {
   const n = soonCount.value;
   if (!n) return `No events in the next ${COUNT_DAYS} days`;
@@ -111,10 +118,21 @@ onBeforeUnmount(() => unsub?.());
 </script>
 
 <style scoped>
-.events-card { display: flex; flex-direction: column; overflow: hidden; }
-.events-card--open { padding: 8px 16px; border: 1px solid rgba(var(--k-theme-on-surface), 0.12); background: rgb(var(--k-theme-surface)); }
-.events-card-title { min-height: 32px; padding-bottom: 2px; }
-.events-card-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
+/* The same card as Monthly Shift Income under it, full width. */
+.events-card { display: flex; flex-direction: column; width: 100%; min-width: 0; overflow: hidden; border: 1px solid rgba(var(--k-theme-on-surface), 0.12); }
+.events-card-title { display: flex; align-items: center; min-width: 0; }
+.events-card-toggle {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px;
+  min-height: 52px; padding: 8px 16px; border: 0; background: transparent; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+}
+.events-card-toggle:hover { background: rgba(var(--k-theme-on-surface), 0.04); }
+.events-card-toggle:focus-visible { outline: 2px solid rgb(var(--k-theme-primary)); outline-offset: -2px; }
+.events-card-toggle-icon, .events-card-chevron { flex: 0 0 auto; }
+.events-card-count { flex: 0 0 auto; white-space: nowrap; }
+.events-card-next { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.events-card-calendar { flex: 0 0 auto; margin-inline-end: 8px; }
+.events-card-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; padding: 0 16px 10px; }
 .events-card-row { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 2px 2px; }
 .events-card-name { line-height: 1.25; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .events-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }

@@ -2,6 +2,8 @@
 //
 // The balance page's "Coming up" card: folded to one button with a count by
 // default, the list only after tapping it.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import ui from "@/ui";
@@ -28,6 +30,8 @@ async function mountCard(events: any[]) {
   return wrapper;
 }
 const toggle = () => wrapper!.find(".events-card-toggle");
+const count = () => wrapper!.find(".events-card-count").text();
+const next = () => wrapper!.find(".events-card-next");
 const names = () => wrapper!.findAll(".events-card-name").map((n) => n.text());
 
 beforeEach(() => {
@@ -59,17 +63,17 @@ describe("EventsCard", () => {
       ev(4, "Christmas", "2026-12-25"), // later: not counted
       ev(5, "Past", "2026-10-01"), // over: not counted
     ]);
-    expect(toggle().text()).toBe("3 events in the next 30 days");
+    expect(count()).toBe("3 events in the next 30 days");
   });
 
   it("says one event in the singular", async () => {
     await mountCard([ev(1, "Black Friday", "2026-11-27")]);
-    expect(toggle().text()).toBe("1 event in the next 30 days");
+    expect(count()).toBe("1 event in the next 30 days");
   });
 
   it("says when nothing is coming", async () => {
     await mountCard([ev(4, "Christmas", "2026-12-25")]);
-    expect(toggle().text()).toBe("No events in the next 30 days");
+    expect(count()).toBe("No events in the next 30 days");
   });
 
   it("opens the list on tap, with the calendar link, and folds again", async () => {
@@ -86,13 +90,41 @@ describe("EventsCard", () => {
     expect(wrapper!.find(".events-card-list").exists()).toBe(false);
   });
 
+  it("is a bar across the page, as wide as the cards under it", async () => {
+    await mountCard([ev(1, "Black Friday", "2026-11-27")]);
+    const card = wrapper!.find(".events-card");
+    // The whole bar is the button, not a small chip.
+    expect(toggle().element.tagName).toBe("BUTTON");
+    expect(card.element.firstElementChild!.contains(toggle().element)).toBe(true);
+    // Vitest doesn't load component CSS: the rules are read from the source.
+    const css = readFileSync(resolve(process.cwd(), "src/components/shifts/EventsCard.vue"), "utf8");
+    expect(css).toMatch(/\.events-card \{[^}]*width: 100%/);
+    expect(css).toMatch(/\.events-card \{[^}]*border: 1px solid/);
+    expect(css).toMatch(/\.events-card-toggle \{[^}]*flex: 1 1 auto/);
+  });
+
+  it("names the next event on the folded bar, and hides it when open", async () => {
+    await mountCard([ev(4, "Christmas", "2026-12-25"), ev(1, "Black Friday", "2026-11-27")]);
+    expect(next().text()).toBe("Next: Black Friday · In 20 days");
+    await toggle().trigger("click");
+    expect(next().exists()).toBe(false);
+  });
+
+  it("says an event on now is now, and names nothing when nothing is coming", async () => {
+    await mountCard([ev(1, "Running sale", "2026-11-01", "2026-11-10")]);
+    expect(next().text()).toBe("Next: Running sale · Now");
+    wrapper!.unmount();
+    await mountCard([ev(4, "Christmas", "2026-12-25")]);
+    expect(next().exists()).toBe(false);
+  });
+
   it("updates the count when kashi sends new events", async () => {
     await mountCard([]);
-    expect(toggle().text()).toBe("No events in the next 30 days");
+    expect(count()).toBe("No events in the next 30 days");
     const onEvents = vi.mocked(EventsOn).mock.calls.find(([name]) => name === "sync_applied:calendar_events")![1];
     vi.mocked(ListCalendarEvents).mockResolvedValue([ev(1, "Black Friday", "2026-11-27")] as any);
     onEvents();
     await flushPromises();
-    expect(toggle().text()).toBe("1 event in the next 30 days");
+    expect(count()).toBe("1 event in the next 30 days");
   });
 });
