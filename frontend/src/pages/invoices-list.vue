@@ -310,48 +310,13 @@
         </k-card-actions>
       </k-card>
     </k-dialog>
-    <k-dialog v-model="changeOpen" max-width="420">
-      <k-card
-        ><k-card-title>{{ changeTitle }}</k-card-title
-        ><k-card-text>
-          <k-autocomplete
-            v-if="changeType === 'client'"
-            :model-value="changeValue"
-            v-model:search="clientSearch"
-            :items="clients"
-            :item-title="clientOptionTitle"
-            item-value="id"
-            :loading="optionsLoading"
-            no-filter
-            placeholder="Search by name or phone"
-            variant="outlined"
-            @update:model-value="changeValue = $event"
-            @update:search="scheduleClientSearch"
-          />
-          <k-select
-            v-else
-            v-model="changeValue"
-            :items="salespersons"
-            item-title="fullName"
-            item-value="id"
-            placeholder="Select a salesman"
-            clearable
-            :loading="optionsLoading"
-            :disabled="optionsLoading"
-            variant="outlined"
-          /> </k-card-text
-        ><k-card-actions
-          ><k-spacer /><k-btn variant="text" @click="changeOpen = false">Cancel</k-btn
-          ><k-btn
-            color="primary"
-            :loading="saving"
-            :disabled="changeSaveDisabled"
-            @click="saveChange"
-            >Save</k-btn
-          ></k-card-actions
-        ></k-card
-      >
-    </k-dialog>
+    <InvoiceChangeDialog
+      v-model="changeOpen"
+      :type="changeType"
+      :invoice="changeInvoice"
+      @saved="onChangeSaved"
+      @error="notify($event, 'error')"
+    />
     <k-snackbar
       v-model="snackbar.show"
       class="app-snackbar"
@@ -376,8 +341,6 @@ const pageCache: { firstPage: { items: any[]; total: number; endReached: boolean
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from "vue";
 import { useRouter } from "vue-router";
 import {
-  ChangeInvoiceClient,
-  ChangeInvoiceSalesperson,
   CancelInvoice,
   DeleteInvoice,
   RoundInvoice,
@@ -387,15 +350,15 @@ import {
   GetInvoiceRatings,
   GetAppSettings,
   ListInvoicesFilteredPage,
-  ListSalespersons,
   ReprintInvoice,
-  SearchClients,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { pendingSettlementInvoice } from "@/composables/useNavActions";
 import { toClient } from "@/lib/client";
 import { formatLebanesePhone } from "@/lib/phone";
+import { prefetchInvoiceEditOptions } from "@/lib/invoiceEditOptions";
+import InvoiceChangeDialog from "@/components/InvoiceChangeDialog.vue";
 import { formatServerDateTime } from "@/lib/datetime";
 import { useAuthStore } from "../stores/auth";
 
@@ -452,8 +415,6 @@ const router = useRouter();
 const selected = ref<any>(null),
   detailOpen = ref(false),
   changeOpen = ref(false),
-  optionsLoading = ref(false),
-  saving = ref(false),
   printingId = ref<number | null>(null);
 const deleteOpen = ref(false),
   deleting = ref(false),
@@ -467,22 +428,12 @@ const roundingOpen = ref(false),
   roundingInvoice = ref<any>(null);
 const actionMenus = reactive<Record<number, boolean>>({});
 const changeType = ref<"client" | "salesperson">("client"),
-  changeValue = ref<number | null>(null),
   changeInvoice = ref<any>(null);
-const clients = ref<any[]>([]),
-  salespersons = ref<any[]>([]);
-const clientSearch = ref("");
 const snackbar = reactive({ show: false, text: "", color: "success" });
 const settlementLoading = ref(false);
-const changeTitle = computed(() => (changeType.value === "client" ? "Change Client" : "Change Salesperson"));
 const selectedPaid = computed(() =>
   (selected.value?.payments ?? []).reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0),
 );
-const changeSaveDisabled = computed(() => {
-  if (optionsLoading.value) return true;
-  if (changeType.value === "salesperson") return false;
-  return !changeValue.value;
-});
 function money(value: number | undefined) {
   return ((Number(value) || 0) / 100).toFixed(2);
 }
@@ -634,22 +585,11 @@ async function reprint(item: any) {
     printingId.value = null;
   }
 }
-async function startChange(type: "client" | "salesperson", item: any) {
+function startChange(type: "client" | "salesperson", item: any) {
   actionMenus[item.id] = false;
   changeType.value = type;
   changeInvoice.value = item;
-  changeValue.value = type === "client" ? item.clientId : item.salespersonId || null;
   changeOpen.value = true;
-  if (type === "client") clientSearch.value = "";
-
-  optionsLoading.value = true;
-  try {
-    await ensureEditOptions(type);
-  } catch (e: any) {
-    notify(e?.toString() || "Could not load invoice edit options", "error");
-  } finally {
-    optionsLoading.value = false;
-  }
 }
 
 async function startSettlementChange(item: any) {
@@ -738,21 +678,9 @@ async function deleteSelected() {
     deleting.value = false;
   }
 }
-async function saveChange() {
-  if (!changeInvoice.value) return;
-  saving.value = true;
-  try {
-    if (changeType.value === "client")
-      await ChangeInvoiceClient(changeInvoice.value.id, changeValue.value || 0);
-    else await ChangeInvoiceSalesperson(changeInvoice.value.id, changeValue.value || 0);
-    changeOpen.value = false;
-    notify("Invoice updated");
-    await refresh(true);
-  } catch (e: any) {
-    notify(e?.toString() || "Could not update invoice", "error");
-  } finally {
-    saving.value = false;
-  }
+async function onChangeSaved() {
+  notify("Invoice updated");
+  await refresh(true);
 }
 function notify(text: string, color = "success") {
   snackbar.text = text;
@@ -857,63 +785,14 @@ function clearFilter(key: InvoiceFilterKey) {
   if (wasActive) void refresh();
 }
 
-let salespersonOptionsPromise: Promise<void> | null = null;
-let clientSearchTimer: ReturnType<typeof setTimeout> | undefined;
-let clientSearchRequest = 0;
-
-function clientOptionTitle(client: any): string {
-  return client.phone ? `${client.name} · ${formatLebanesePhone(client.phone)}` : client.name;
-}
-
-async function loadClientOptions(search: string): Promise<void> {
-  const request = ++clientSearchRequest;
-  optionsLoading.value = true;
-  try {
-    const loadedClients = await SearchClients(
-      search.trim(),
-      changeType.value === "client" ? Number(changeValue.value || 0) : 0,
-    );
-    if (pageActive && request === clientSearchRequest) clients.value = loadedClients;
-  } finally {
-    if (request === clientSearchRequest) optionsLoading.value = false;
-  }
-}
-
-function scheduleClientSearch(search: string | null) {
-  clearTimeout(clientSearchTimer);
-  if (!changeOpen.value || changeType.value !== "client") return;
-  clientSearchTimer = setTimeout(() => {
-    void loadClientOptions(search ?? "").catch(() => {
-      notify("Could not search clients", "error");
-    });
-  }, 200);
-}
-
-function ensureEditOptions(type: "client" | "salesperson"): Promise<void> {
-  if (type === "client") {
-    return loadClientOptions(clientSearch.value);
-  }
-
-  if (!salespersonOptionsPromise) {
-    salespersonOptionsPromise = ListSalespersons()
-      .then((loadedSalespersons) => {
-        // Staff who only punch attendance can't be set as a sale's salesperson.
-        salespersons.value = loadedSalespersons.filter((s: any) => s.isSalesperson !== false && s.isCurrent !== false);
-      })
-      .catch((error) => {
-        salespersonOptionsPromise = null;
-        throw error;
-      });
-  }
-  return salespersonOptionsPromise;
-}
-
 let stopSyncStateListener: (() => void) | null = null;
 let stopSettingsListener: (() => void) | null = null;
 
 onMounted(() => {
   void loadRatingsSetting();
   void refresh(true);
+  // So the first Change Client / Change Salesperson opens with its list.
+  prefetchInvoiceEditOptions();
   stopSyncStateListener = EventsOn("sync_state_changed", () => void refreshSyncStates());
   stopSettingsListener = EventsOn("settings_changed", () => void loadRatingsSetting());
 });
@@ -924,8 +803,6 @@ onBeforeUnmount(() => {
   pageActive = false;
   loadGeneration++;
   if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
-  clearTimeout(clientSearchTimer);
-  clientSearchRequest++;
 });
 </script>
 

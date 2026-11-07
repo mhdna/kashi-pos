@@ -9,6 +9,16 @@ Measured or reported slow things that are not fixed yet. Nothing recorded yet.
 
 ## Entries
 
+### 2026-11-07 · Change Client and Change Salesperson felt slow on the invoice list
+
+**Symptom.** Both dialogs opened empty and took a moment to become usable; after picking a client, Save stayed greyed out for a beat.
+
+**Finding.** The backend isn't the cost: on the Centro till DB (64,326 clients) the first page of `SearchClients` takes 0.03 ms and a search matching nobody, the worst case (a full scan), 48 ms. `ListSalespersons` returns 7 rows. The waiting came from the frontend: Save was disabled during every load, picking a client set the search text to their name and started another search 200 ms later (disabling Save again), each open fetched from scratch, and the client field stayed blank until the first page arrived. Not timed on a till.
+
+**Change.** `frontend/src/components/InvoiceChangeDialog.vue` and `frontend/src/lib/invoiceEditOptions.ts`: the invoice list prefetches both lists on mount and dialogs open with the last copy, then refresh it; the current client or salesperson is named from the list row before anything loads; Save depends only on the choice (off until it changes), not on a load in flight; picking a client no longer starts a search; typing searches after 150 ms instead of 200 ms; a slower, older search can't overwrite a newer one.
+
+**Not done.** An index for client search: `LIKE '%…%'` can't use one, and 48 ms worst case isn't worth an FTS table.
+
 ### 2026-11-06 · A new cart line showed its deal chip a beat late
 
 **Symptom.** Adding an item made the line appear first; its B2G1 chip and the other lines' updates came noticeably later.
