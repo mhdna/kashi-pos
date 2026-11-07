@@ -175,6 +175,7 @@
           @discount-error="showDiscountError"
         />
         <ExchangeSummary v-if="pageMode === 'exchange' && quote?.exchange" :quote="quote.exchange" />
+        <ReturnReceiptTick v-if="pageMode === 'exchange' && receiptEnabled" v-model="printThisReturn" />
         <UnknownPicturesCorner
           v-if="showUnknownCorner"
           :client-ref="unknownSession.clientRef"
@@ -490,12 +491,14 @@ import { useProductGridMode } from "@/composables/useProductGridMode";
 import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
 import UnknownPicturesCorner from "@/components/UnknownPicturesCorner.vue";
 import ExchangeSummary from "@/components/ExchangeSummary.vue";
+import ReturnReceiptTick from "@/components/ReturnReceiptTick.vue";
+import { checkoutPrints, exchangeDoneMessage, startingReturnTick } from "@/lib/returnReceipt";
 import ExchangeReturnsDialog from "@/components/ExchangeReturnsDialog.vue";
 import { checkExchangeQuote, type ExchangeQuoteResult } from "@/lib/exchangeQuote";
 import { buildHoldSnapshot, holdRestore } from "@/lib/holdSnapshot";
 import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
-import { productSearchInPlace, quickAccessRows } from "@/lib/display";
+import { printReturnReceipts, productSearchInPlace, quickAccessRows } from "@/lib/display";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
@@ -585,6 +588,15 @@ const noteDialog = ref(false);
 const noteDraft = ref("");
 // The sale an exchange returns items from; its code names a held exchange.
 const exchangeState = ref<{ originalInvoiceId: number; originalInvoiceCode?: string } | null>(null);
+// The exchange's "Print receipt" tick: back to the "Print return receipts"
+// setting whenever another exchange is loaded.
+const printThisReturn = ref(startingReturnTick(printReturnReceipts.value));
+watch(
+  () => exchangeState.value?.originalInvoiceId,
+  (id) => {
+    if (id) printThisReturn.value = startingReturnTick(printReturnReceipts.value);
+  },
+);
 const settlementState = ref<{
   invoiceId: number;
   invoiceCode: string;
@@ -1623,7 +1635,7 @@ async function onCheckout() {
   if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
   printPhase.value = "printing";
   printCashCents.value = calculator.value?.cashTotalCents ?? 0;
-  printing.value = receiptEnabled.value;
+  printing.value = checkoutPrints(isExchange ? "exchange" : "sale", receiptEnabled.value, printThisReturn.value);
   try {
     const paymentsJSON = calculator.value?.paymentsJSON ?? "[]";
     const clientID = client.id;
@@ -1636,6 +1648,7 @@ async function onCheckout() {
           clientID,
           salesperson!.id,
           invoiceNotes.value,
+          printThisReturn.value,
         )
       : await CheckoutInvoice(
           json,
@@ -1648,10 +1661,10 @@ async function onCheckout() {
           receiptPrinter.value,
           invoiceNotes.value,
         );
-    snackbar.text = result?.receiptError
-      ? `Invoice created; receipt failed — ${result.receiptError}`
-      : isExchange
-        ? `Exchange completed — ${result?.invoiceCode ?? ""}`
+    snackbar.text = isExchange
+      ? exchangeDoneMessage(result?.invoiceCode ?? "", Boolean(result?.receiptPrinted), result?.receiptError)
+      : result?.receiptError
+        ? `Invoice created; receipt failed — ${result.receiptError}`
         : receiptEnabled.value
           ? `Receipt printed — ${result?.invoiceCode ?? ""}`
           : `Invoice created — ${result?.invoiceCode ?? ""}`;

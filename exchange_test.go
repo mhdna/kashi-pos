@@ -126,7 +126,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 		{Code: returnedProduct.Code, Qty: -1},
 		{Code: replacementProduct.Code, Qty: 1},
 	})
-	if _, err := app.CheckoutExchangeInvoice(string(tooLowItems), "[]", sourceID, 0, salesperson.ID, ""); err == nil {
+	if _, err := app.CheckoutExchangeInvoice(string(tooLowItems), "[]", sourceID, 0, salesperson.ID, "", true); err == nil {
 		t.Fatal("expected a replacement total below the return value to fail")
 	}
 
@@ -136,7 +136,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 		{Code: secondReplacement.Code, Qty: 1},
 	})
 	exchangePayments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: 200}})
-	exchangeResult, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, salesperson.ID, "")
+	exchangeResult, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, salesperson.ID, "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if _, err := app.GetExchangeInvoice(sale.InvoiceCode); err == nil {
 		t.Fatal("expected fully returned invoice to have no available items")
 	}
-	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, salesperson.ID, ""); err == nil {
+	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, salesperson.ID, "", true); err == nil {
 		t.Fatal("expected duplicate exchange to fail")
 	}
 
@@ -216,7 +216,7 @@ func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
 	if _, err := app.GetExchangeInvoice(sale.InvoiceCode); err == nil || !strings.Contains(err.Error(), "more than 3 days") {
 		t.Fatalf("expired invoice load error = %v", err)
 	}
-	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, salesperson.ID, ""); err == nil || !strings.Contains(err.Error(), "more than 3 days") {
+	if _, err := app.CheckoutExchangeInvoice(string(exchangeItems), string(exchangePayments), sourceID, 0, salesperson.ID, "", true); err == nil || !strings.Contains(err.Error(), "more than 3 days") {
 		t.Fatalf("expired invoice checkout error = %v", err)
 	}
 }
@@ -380,7 +380,7 @@ func TestExchangeReplacementRejectsCustomPriceWhenFlagDisabled(t *testing.T) {
 		{Code: "RETURN-P", Qty: -1},
 		{Code: replacementProduct.Code, Qty: 1, CustomPriceCents: &customPrice},
 	})
-	if _, err := app.CheckoutExchangeInvoice(string(items), "[]", sourceID, 0, salesperson.ID, ""); err == nil || !strings.Contains(err.Error(), "custom item pricing is disabled") {
+	if _, err := app.CheckoutExchangeInvoice(string(items), "[]", sourceID, 0, salesperson.ID, "", true); err == nil || !strings.Contains(err.Error(), "custom item pricing is disabled") {
 		t.Fatalf("custom price on a replacement with the flag disabled = %v, want a disabled-flag error", err)
 	}
 }
@@ -408,7 +408,7 @@ func TestExchangeReplacementSupportsCustomPriceAndPerUnitDiscount(t *testing.T) 
 	})
 	// Returned total: 3 * 1000 = 3000. Replacement total: 2000 + 1000 = 3000.
 	// Net difference is 0, so no payment is required.
-	result, err := app.CheckoutExchangeInvoice(string(items), "[]", sourceID, 0, salesperson.ID, "")
+	result, err := app.CheckoutExchangeInvoice(string(items), "[]", sourceID, 0, salesperson.ID, "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -643,7 +643,7 @@ func TestCheckoutExchangeInvoiceAllowsSameProductAsReplacement(t *testing.T) {
 		{Code: "RETURN-P", Qty: -1},
 		{Code: "RETURN-P", Qty: 1},
 	})
-	result, err := app.CheckoutExchangeInvoice(string(items), "[]", sourceID, 0, salesperson.ID, "")
+	result, err := app.CheckoutExchangeInvoice(string(items), "[]", sourceID, 0, salesperson.ID, "", true)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -574,6 +574,19 @@ type remoteReturnInvoiceCommandPayload struct {
 	// customer in place of the returned items, priced from this till's
 	// own lists like any replacement.
 	Replacements []remoteReplacementPayload `json:"replacements"`
+	// PrintReceipt is kashi's "Print the receipt on the till": false never
+	// prints this return's receipt; absent (or true, ticked) leaves it to
+	// this till's "Print return receipts" setting.
+	PrintReceipt *bool `json:"print_receipt"`
+}
+
+// receipt is the payload's receipt choice: an untick is a refusal; a tick
+// or nothing at all follows the setting.
+func (p remoteReturnInvoiceCommandPayload) receipt() receiptChoice {
+	if p.PrintReceipt != nil && !*p.PrintReceipt {
+		return receiptSkip
+	}
+	return receiptAsSettings
 }
 
 // remoteReplacementPayload names a product the way kashi knows it (see
@@ -634,7 +647,7 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 		if notes == "" {
 			notes = "Cancelled from kashi"
 		}
-		if err := a.cancelInvoice(ctx, invoiceID, notes); err != nil {
+		if err := a.cancelInvoice(ctx, invoiceID, notes, p.receipt()); err != nil {
 			return fmt.Errorf("cancel invoice: %w", err)
 		}
 		return nil
@@ -693,7 +706,7 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 	}
 
 	if len(p.Replacements) > 0 {
-		return a.executeRemoteExchange(ctx, invoiceID, salespersonID, linesToReturn, p.Replacements, p.Reason)
+		return a.executeRemoteExchange(ctx, invoiceID, salespersonID, linesToReturn, p.Replacements, p.Reason, p.receipt())
 	}
 
 	itemsJSON, err := a.returnItemsJSON(ctx, linesToReturn)
@@ -711,7 +724,7 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 		notes = "Remote return"
 	}
 
-	_, err = a.checkoutAdminReturnInvoice(itemsJSON, invoiceID, salespersonID, accounts[0].ID, notes)
+	_, err = a.checkoutAdminReturnInvoice(itemsJSON, invoiceID, salespersonID, accounts[0].ID, notes, p.receipt())
 	if err != nil {
 		return fmt.Errorf("checkout return: %w", err)
 	}
@@ -723,7 +736,7 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 // allowed to come to less than what's returned) a local admin exchange uses.
 // The difference is settled on the sale's own payment account, as a cancel
 // refunds to it.
-func (a *App) executeRemoteExchange(ctx context.Context, invoiceID, salespersonID int64, returned []returnLine, replacements []remoteReplacementPayload, reason string) error {
+func (a *App) executeRemoteExchange(ctx context.Context, invoiceID, salespersonID int64, returned []returnLine, replacements []remoteReplacementPayload, reason string, receipt receiptChoice) error {
 	itemsJSON, err := a.returnItemsJSON(ctx, returned)
 	if err != nil {
 		return err
@@ -758,7 +771,9 @@ func (a *App) executeRemoteExchange(ctx context.Context, invoiceID, salespersonI
 	if notes == "" {
 		notes = "Remote exchange"
 	}
-	if _, err := a.checkoutReturnExchangeInvoice(string(encoded), "", invoiceID, salespersonID, notes, source.CashboxID, adminReturnExchangePolicy); err != nil {
+	policy := adminReturnExchangePolicy
+	policy.receipt = receipt
+	if _, err := a.checkoutReturnExchangeInvoice(string(encoded), "", invoiceID, salespersonID, notes, source.CashboxID, policy); err != nil {
 		return fmt.Errorf("checkout exchange: %w", err)
 	}
 	return nil

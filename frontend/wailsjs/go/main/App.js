@@ -98,8 +98,8 @@ export function CheckTransferUploadStatus(arg1) {
   return window['go']['main']['App']['CheckTransferUploadStatus'](arg1);
 }
 
-export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5, arg6) {
-  return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5, arg6);
+export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
 export function CheckoutInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {

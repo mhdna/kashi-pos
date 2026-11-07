@@ -93,7 +93,7 @@ kashi's table is the only queue, so nothing can get stuck on the till.
 | Command | Does |
 |---|---|
 | `update_settings` | Change settings/flags (only the ones kashi has a name for). |
-| `remote_return_invoice` | A return started in kashi. |
+| `remote_return_invoice` | A return started in kashi. `print_receipt: false` never prints it; absent or true follows **Print return receipts**. |
 | `set_branch_user_pin` | Set a user's login PIN. |
 | `print_shift_report`, `reprint_invoice` | Print on the till. |
 | `sync_now` | Run a sync pass now. |
@@ -151,6 +151,8 @@ Where both the till and kashi can change something, the later change wins:
   them in localStorage and mirrors them to `settings.display_prefs`; a push
   from kashi bumps `display_prefs_rev`, and the screen adopts the stored prefs
   whenever the rev is newer than the one it last applied.
+  `print_return_receipts` is the one pref the backend reads too
+  (`returnReceiptsOn`), so a return kashi sends follows it.
 - **Quick access mode** (`till` or `kashi`): each side keeps when its value was
   chosen and only adopts a newer one. A flip made offline goes through the
   outbox.

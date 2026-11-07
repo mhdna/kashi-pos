@@ -82,12 +82,12 @@ func (a *App) CancelInvoice(invoiceID int64, reason string) error {
 	if reason == "" {
 		reason = "Cancelled"
 	}
-	return a.cancelInvoice(a.ctx, invoiceID, reason)
+	return a.cancelInvoice(a.ctx, invoiceID, reason, receiptAsSettings)
 }
 
 // cancelInvoice is CancelInvoice without the admin check, for kashi's remote
 // cancel command (kashi already checked its own user's rights).
-func (a *App) cancelInvoice(ctx context.Context, invoiceID int64, notes string) error {
+func (a *App) cancelInvoice(ctx context.Context, invoiceID int64, notes string, receipt receiptChoice) error {
 	source, err := a.store.GetSalesInvoiceByID(ctx, invoiceID)
 	if err != nil {
 		return fmt.Errorf("only a sale can be cancelled: %w", err)
@@ -111,6 +111,6 @@ func (a *App) cancelInvoice(ctx context.Context, invoiceID int64, notes string) 
 	// across several accounts is refunded whole to its main one; the shift
 	// report shows it there.
 	_, err = a.checkoutReturnExchangeInvoice(itemsJSON, "", invoiceID, salespersonID, notes, source.CashboxID,
-		exchangePolicy{allowLate: true, allowLowerTotal: true, returnOnly: true, cancellation: true})
+		exchangePolicy{allowLate: true, allowLowerTotal: true, returnOnly: true, cancellation: true, receipt: receipt})
 	return err
 }

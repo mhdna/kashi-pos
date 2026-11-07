@@ -20,6 +20,54 @@ type exchangePolicy struct {
 	// unknownSessionRef is the picture session of the "Unknown item"
 	// replacements, sent to kashi with the exchange (see unknown_items.go).
 	unknownSessionRef string
+	// receipt is whether this return or exchange prints its receipt (always
+	// only with receipts on in Settings); see returnReceiptChoice.
+	receipt receiptChoice
+}
+
+// receiptChoice is one return's "Print receipt": asked for, refused, or left
+// to the till's "Print return receipts" setting (print_return_receipts).
+// A return that didn't print can be reprinted from Invoices, or by kashi's
+// Print on till.
+type receiptChoice int
+
+const (
+	receiptAsSettings receiptChoice = iota
+	receiptPrint
+	receiptSkip
+)
+
+// printReturnReceipt prints a return or exchange; tests swap it to count
+// prints without a printer.
+var printReturnReceipt = (*App).printInvoiceReceipt
+
+// receiptChoiceOf is a yes/no from kashi or the screen; nil leaves it to the
+// setting.
+func receiptChoiceOf(print *bool) receiptChoice {
+	switch {
+	case print == nil:
+		return receiptAsSettings
+	case *print:
+		return receiptPrint
+	default:
+		return receiptSkip
+	}
+}
+
+// printsReturnReceipt says whether a return or exchange prints: receipts on,
+// and either this one asked to or the till prints return receipts.
+func (a *App) printsReturnReceipt(receiptsOn bool, choice receiptChoice) bool {
+	if !receiptsOn {
+		return false
+	}
+	switch choice {
+	case receiptPrint:
+		return true
+	case receiptSkip:
+		return false
+	default:
+		return a.returnReceiptsOn()
+	}
 }
 
 var posExchangePolicy = exchangePolicy{}
@@ -27,7 +75,10 @@ var adminReturnExchangePolicy = exchangePolicy{allowLate: true, allowLowerTotal:
 
 // CheckoutExchangeInvoice records one returned line and one or more
 // replacement lines. Only the positive difference is paid by the customer.
-func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, salespersonID int64, notes string) (map[string]any, error) {
+// printReceipt is the screen's "Print receipt" tick (set from the "Print
+// return receipts" setting); unticked, the receipt isn't printed even with
+// receipts on.
+func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, salespersonID int64, notes string, printReceipt bool) (map[string]any, error) {
 	// Only replacements are sold, so only they need pictures (a returned
 	// unknown item has qty < 0 and is skipped by unknownUnitCount).
 	unknownRef, err := a.verifyUnknownPictures(itemsJSON)
@@ -36,6 +87,7 @@ func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalIn
 	}
 	policy := posExchangePolicy
 	policy.unknownSessionRef = unknownRef
+	policy.receipt = receiptChoiceOf(&printReceipt)
 	result, err := a.checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON, originalInvoiceID, salespersonID, notes, 0, policy)
 	if err != nil {
 		return nil, err
@@ -286,8 +338,8 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 	if settings.CentralApiUrl != "" {
 		a.kickSyncWorker()
 	}
-	if settings.ReceiptEnabled != 0 {
-		if err := a.printInvoiceReceipt(exchangeInvoiceID, payments); err != nil {
+	if a.printsReturnReceipt(settings.ReceiptEnabled != 0, policy.receipt) {
+		if err := printReturnReceipt(a, exchangeInvoiceID, payments); err != nil {
 			result["receiptError"] = err.Error()
 		} else {
 			result["receiptPrinted"] = true
@@ -310,8 +362,8 @@ func signedAdjustmentTax(netDifference int64, taxRate float64, roundingMode stri
 	return tax, nil
 }
 
-func (a *App) checkoutAdminReturnInvoice(itemsJSON string, originalInvoiceID, salespersonID, settlementAccountID int64, notes string) (map[string]any, error) {
-	return a.checkoutReturnExchangeInvoice(itemsJSON, "", originalInvoiceID, salespersonID, notes, settlementAccountID, exchangePolicy{allowLate: true, allowLowerTotal: true, returnOnly: true})
+func (a *App) checkoutAdminReturnInvoice(itemsJSON string, originalInvoiceID, salespersonID, settlementAccountID int64, notes string, receipt receiptChoice) (map[string]any, error) {
+	return a.checkoutReturnExchangeInvoice(itemsJSON, "", originalInvoiceID, salespersonID, notes, settlementAccountID, exchangePolicy{allowLate: true, allowLowerTotal: true, returnOnly: true, receipt: receipt})
 }
 
 func optionalPayments(raw string) ([]checkoutPayment, error) {

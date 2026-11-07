@@ -31,6 +31,18 @@ export function setProductSearchInPlace(inPlace: boolean) {
   reportDisplayPrefs();
 }
 
+/** Settings > Receipt "Print return receipts": where an exchange's "Print
+ * receipt" tick starts, and whether a return kashi sends prints (the till
+ * reads it from the mirrored prefs, display_prefs.go returnReceiptsOn). On
+ * unless turned off. */
+export const printReturnReceipts = ref(localStorage.getItem("kashi-print-return-receipts") !== "false");
+
+export function setPrintReturnReceipts(print: boolean) {
+  printReturnReceipts.value = print;
+  localStorage.setItem("kashi-print-return-receipts", String(print));
+  reportDisplayPrefs();
+}
+
 /** Currency code shown first on the calculator's total. Cycled by the
  * flip icon on the calculator itself, or set as a default from Settings. */
 const storedTotalCurrency = localStorage.getItem("kashi-calculator-total-currency");
@@ -145,6 +157,7 @@ function currentDisplayPrefs() {
     quick_access_show_remove: quickAccessShowRemove.value,
     animations_enabled: animationsEnabled.value,
     product_search_in_place: productSearchInPlace.value,
+    print_return_receipts: printReturnReceipts.value,
     calculator_total_currency: calculatorTotalCurrency.value,
   };
 }
@@ -167,6 +180,7 @@ async function adoptPushedDisplayPrefs(applyTheme: (theme: string) => void) {
     if (typeof p.quick_access_show_remove === "boolean") setQuickAccessShowRemove(p.quick_access_show_remove);
     if (typeof p.animations_enabled === "boolean") setAnimationsEnabled(p.animations_enabled);
     if (typeof p.product_search_in_place === "boolean") setProductSearchInPlace(p.product_search_in_place);
+    if (typeof p.print_return_receipts === "boolean") setPrintReturnReceipts(p.print_return_receipts);
     if (typeof p.calculator_total_currency === "string" && p.calculator_total_currency) {
       setCalculatorTotalCurrency(p.calculator_total_currency);
     }
