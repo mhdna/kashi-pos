@@ -31,10 +31,11 @@ export function setProductSearchInPlace(inPlace: boolean) {
   reportDisplayPrefs();
 }
 
-/** Settings > Receipt "Print return receipts": where an exchange's "Print
- * receipt" tick starts, and whether a return kashi sends prints (the till
- * reads it from the mirrored prefs, display_prefs.go returnReceiptsOn). On
- * unless turned off. */
+/** "Print return and exchange receipts", set from kashi's branch settings
+ * (it arrives with the display prefs; the till has no switch for it): whether
+ * an exchange at the till prints, and whether a return kashi sends prints
+ * (the backend reads the mirrored prefs, display_prefs.go returnReceiptsOn).
+ * On unless kashi turned it off. */
 export const printReturnReceipts = ref(localStorage.getItem("kashi-print-return-receipts") !== "false");
 
 export function setPrintReturnReceipts(print: boolean) {

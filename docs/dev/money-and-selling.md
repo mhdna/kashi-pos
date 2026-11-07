@@ -149,9 +149,10 @@ LBP amounts.
   `frontend/src/lib/testdata/exchange_quotes.json` by `TestExchangeQuoteGolden`
   (rewrite with `KASHI_UPDATE_GOLDEN=1`) and checked by the frontend tests.
 - **Return receipts.** A return or exchange prints only with receipts on, and
-  then by its own choice (`receiptChoice` in `tx_exchange.go`): the cashier's
-  **Print receipt** tick, kashi's `print_receipt: false`, or else the
-  **Print return receipts** setting (`print_return_receipts` display pref).
+  then by its own choice (`receiptChoice` in `tx_exchange.go`): kashi's
+  `print_receipt: false` on a remote return, or else the till's
+  `print_return_receipts` display pref, which only kashi sets (branch settings,
+  **Print return and exchange receipts**). The till has no switch or tick for it.
   An unprinted one can be reprinted from Invoices or kashi's **Print on till**.
   The rule is shared with the screen through
   `frontend/src/lib/testdata/return_receipt_rule.json` (`TestReturnReceiptRuleGolden`).

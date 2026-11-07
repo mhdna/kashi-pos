@@ -1330,16 +1330,6 @@
               <k-text-field v-model.number="form.receiptTitleSize" placeholder="Market name size" type="number" min="8" max="40" variant="outlined" density="compact" hide-details />
               <k-text-field v-model.number="form.receiptBodySize" placeholder="Body size" type="number" min="6" max="24" variant="outlined" density="compact" hide-details />
               <k-switch v-model="form.receiptEnabled" label="Print receipts after checkout" color="primary" hide-details class="field-full" />
-              <k-switch
-                :model-value="printReturnReceipts"
-                :disabled="!form.receiptEnabled"
-                label="Print return and exchange receipts (off: the exchange's Print receipt starts unticked, and returns from kashi don't print)"
-                color="primary"
-                hide-details
-                class="field-full"
-                data-test="print-return-receipts"
-                @update:model-value="(value) => setPrintReturnReceipts(Boolean(value))"
-              />
               <k-switch v-model="form.receiptCutoff" label="Cut paper after printing" color="primary" hide-details class="field-full" />
             </k-card-text>
           </k-card>
@@ -2056,8 +2046,6 @@ import {
   setAnimationsEnabled,
   productSearchInPlace,
   setProductSearchInPlace,
-  printReturnReceipts,
-  setPrintReturnReceipts,
   calculatorTotalCurrency,
   setCalculatorTotalCurrency,
   quickAccessRows,
