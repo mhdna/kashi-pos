@@ -131,7 +131,17 @@ type branchInvoicePayloadItem struct {
 	Deal         string `json:"deal,omitempty"`
 	DealDiscount int64  `json:"deal_discount,omitempty"`
 	// The line's share of the invoice discount; LineTotal has it off.
+	// Signed like Quantity, as DealDiscount is.
 	InvoiceDiscount int64 `json:"invoice_discount,omitempty"`
+	// A returned line of an exchange (deal_exchange.go), in cents, both
+	// positive: the deal saving charged back off its credit because the deal
+	// is no longer earned, and the free unit's swap credit used on the new
+	// items. So for a returned line, LineTotal =
+	//   UnitPrice*Quantity - its percent discount - DealDiscount
+	//   - InvoiceDiscount - SwapCredit + ChargedBack
+	// (exchange_quote_lines.go), and kashi can show why a credit is what it is.
+	ChargedBack int64 `json:"charged_back,omitempty"`
+	SwapCredit  int64 `json:"swap_credit,omitempty"`
 }
 
 // clientUIDForSync returns the uid to report as an invoice's buyer: empty

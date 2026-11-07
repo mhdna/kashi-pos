@@ -191,7 +191,93 @@ func checkoutMismatch(shop dealShop, saleID int64, lines []exchangeLine, quote E
 	if storedSum != quote.NetCents {
 		return fmt.Sprintf("stored lines add up to %d, the quote's net is %d", storedSum, quote.NetCents)
 	}
+	return syncedReturnMismatch(shop, quote)
+}
+
+// syncedReturnMismatch holds the exchange sent to kashi to the quote: its
+// lines add up to the net and its total to the till's, and every line says
+// why it is what it is, so kashi's invoice view can show it:
+//
+//	line = unit*qty - percent off - deal - invoice share - swap credit + charged back
+func syncedReturnMismatch(shop dealShop, quote ExchangeQuote) string {
+	var raw string
+	if err := shop.app.conn.QueryRow(`SELECT payload_json FROM sync_outbox WHERE entity_type = 'return_invoice' ORDER BY id DESC LIMIT 1`).Scan(&raw); err != nil {
+		return "no exchange queued for kashi: " + err.Error()
+	}
+	var payload branchInvoicePayload
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return err.Error()
+	}
+	if want := quote.UnroundedCents + quote.RoundingCents; payload.GrandTotal != want {
+		return fmt.Sprintf("kashi is sent a total of %d, the till's is %d", payload.GrandTotal, want)
+	}
+	var sum, chargedBack, swap int64
+	for _, item := range payload.Items {
+		sum += item.LineTotal
+		chargedBack += item.ChargedBack
+		swap += item.SwapCredit
+		if item.ChargedBack < 0 || item.SwapCredit < 0 {
+			return fmt.Sprintf("kashi is sent a negative charge back or swap credit: %+v", item)
+		}
+		if item.Quantity > 0 && (item.ChargedBack != 0 || item.SwapCredit != 0 || item.DealDiscount != 0 || item.InvoiceDiscount != 0) {
+			return fmt.Sprintf("a new item is sent a returned line's parts: %+v", item)
+		}
+		percentOff := roundRatio(item.UnitPrice*int64(item.Discount), 100, "half_up") * item.Quantity
+		want := item.UnitPrice*item.Quantity - percentOff - item.DealDiscount - item.InvoiceDiscount - item.SwapCredit + item.ChargedBack
+		if item.LineTotal != want {
+			return fmt.Sprintf("kashi can't tell why line %s is %d: its parts make %d (%+v)", item.Barcode, item.LineTotal, want, item)
+		}
+	}
+	if sum != quote.NetCents {
+		return fmt.Sprintf("the lines sent to kashi add up to %d, the net is %d", sum, quote.NetCents)
+	}
+	var quotedBack, quotedSwap int64
+	for _, l := range quote.Lines {
+		quotedBack += l.ChargedBackCents
+		quotedSwap += l.SwapCreditCents
+	}
+	if chargedBack != quotedBack || swap != quotedSwap {
+		return fmt.Sprintf("kashi is sent %d charged back and %d swap credit, the screen showed %d and %d", chargedBack, swap, quotedBack, quotedSwap)
+	}
 	return ""
+}
+
+// The till's RS/CT/2026/00068: the hoodie's credit is $12, not $15, because
+// the Buy 1 Get 1 was charged back $3 off it. kashi is told so, line by line.
+func TestExchangeSendsKashiWhyACreditIsWhatItIs(t *testing.T) {
+	shop := setUpDealShop(t)
+	sale := shop.sell(t, "A", "B", "C")
+	lines := []exchangeLine{line("A", -1), line("JACKET", 1)}
+	quote := quoteExchangeLines(t, shop, sale.InvoiceID, lines)
+	checkoutQuoted(t, shop, sale.InvoiceID, lines, quote)
+	var raw string
+	if err := shop.app.conn.QueryRow(`SELECT payload_json FROM sync_outbox WHERE entity_type = 'return_invoice' ORDER BY id DESC LIMIT 1`).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	var payload branchInvoicePayload
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		t.Fatal(err)
+	}
+	a := payload.Items[0]
+	if a.Quantity != -1 || a.UnitPrice != 10000 || a.LineTotal != -5000 || a.ChargedBack != 5000 || a.Deal != "Buy 2 get 1" {
+		t.Fatalf("returned A sent as %+v", a)
+	}
+
+	// A free unit for socks: its swap credit is sent too.
+	shop = setUpDealShop(t)
+	sale = shop.sell(t, "A", "B", "C")
+	lines = []exchangeLine{line("C", -1), line("SOCKS", 1)}
+	checkoutQuoted(t, shop, sale.InvoiceID, lines, quoteExchangeLines(t, shop, sale.InvoiceID, lines))
+	if err := shop.app.conn.QueryRow(`SELECT payload_json FROM sync_outbox WHERE entity_type = 'return_invoice' ORDER BY id DESC LIMIT 1`).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	payload = branchInvoicePayload{} // fresh: an omitted field would keep the first payload's value
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if c := payload.Items[0]; c.LineTotal != -2000 || c.SwapCredit != 2000 || c.DealDiscount != -5000 || c.ChargedBack != 0 {
+		t.Fatalf("returned free C sent as %+v", c)
+	}
 }
 
 type wantLine struct {
