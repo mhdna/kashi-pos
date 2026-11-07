@@ -342,6 +342,10 @@ export function GetExchangeInvoice(arg1) {
   return window['go']['main']['App']['GetExchangeInvoice'](arg1);
 }
 
+export function GetExchangeInvoiceByID(arg1) {
+  return window['go']['main']['App']['GetExchangeInvoiceByID'](arg1);
+}
+
 export function GetExpenseFirstPhoto(arg1, arg2) {
   return window['go']['main']['App']['GetExpenseFirstPhoto'](arg1, arg2);
 }

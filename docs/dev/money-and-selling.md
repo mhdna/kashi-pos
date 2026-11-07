@@ -104,6 +104,13 @@ LBP amounts.
   replacements stay positive. Sum them as stored; don't flip signs. Return
   and exchange invoices have the `EX/` and `RS/` prefixes.
 - Only quantities not already returned can be returned again.
+- **What an exchange returns can change while it's on screen**: in exchange
+  mode the toolbar's exchange button opens "Returned items"
+  (`ExchangeReturnsDialog.vue`, `GetExchangeInvoiceByID`). It shows the sale's
+  items with a count each, from 0 ("not returned", left on the sale) up to what
+  the sale has left. At least one unit stays returned (cancel the exchange to
+  return nothing). Returned cart lines are built in one place
+  (`lib/exchangeReturns.ts`), for the dialog and the picker alike.
 - **An exchange can be held** like a sale (a settlement can't). The hold
   snapshot carries `exchange: {originalInvoiceId, originalInvoiceCode}`, and
   restoring puts the lines back as held: never through `addItem`, which would

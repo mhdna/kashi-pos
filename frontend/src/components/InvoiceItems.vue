@@ -476,6 +476,7 @@ import {
   type DealLine,
   type UnknownDealChoice,
 } from "@/lib/deals";
+import { asReturnedLine } from "@/lib/exchangeReturns";
 import {
   exchangeLineAt,
   returnedLineNotes,
@@ -1076,18 +1077,8 @@ function applyListPricing(rows: any[]): string[] {
 
 function addExchangeItems(returned: LineItem[], replacements: LineItem[]) {
   items.value = [
-    ...returned.map((item) => ({
-      ...item,
-      price: Number(item.price),
-      discount: 0,
-      qty: -Number(item.qty || 1),
-      soldUnitPrice: Number(item.soldUnitPrice ?? item.price),
-      soldUnitDiscount: Number(item.soldUnitDiscount ?? item.discount),
-      unitPrices: [],
-      unitDiscounts: [],
-      locked: true,
-      originalPrice: Number(item.originalPrice ?? item.price),
-    })),
+    // Built as the "Returned items" picker builds one (lib/exchangeReturns.ts).
+    ...returned.map((item) => asReturnedLine(item as any) as LineItem),
     ...replacements.map((item) => ({
       ...item,
       price: Number(item.price),

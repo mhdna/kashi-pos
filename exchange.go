@@ -15,6 +15,20 @@ func (a *App) GetExchangeInvoice(code string) (map[string]any, error) {
 	return a.getExchangeInvoice(code, true)
 }
 
+// GetExchangeInvoiceByID is GetExchangeInvoice for the sale an exchange in
+// progress returns items from (its id is all an old draft or hold kept): the
+// exchange screen's "Returned items" picker reads what is left to return.
+func (a *App) GetExchangeInvoiceByID(id int64) (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	sale, err := a.store.GetSalesInvoiceByID(a.ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("sales invoice not found")
+	}
+	return a.getExchangeInvoice(sale.InvoiceCode, true)
+}
+
 func (a *App) getExchangeInvoice(code string, enforceWindow bool) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")

@@ -1,13 +1,13 @@
 import { nextTick, ref } from "vue";
 import { GetAppSettings, GetExchangeInvoice } from "../../wailsjs/go/main/App";
 import {
-  effectiveExchangePrice,
   mergeDealUnits,
   normalizeExchangeCode,
   type ExchangeInvoice,
   type ExchangeItem,
   type ExchangeSelection,
 } from "@/lib/exchange";
+import { selectionItem } from "@/lib/exchangeReturns";
 
 // Selecting returned items is the dialog's only job - replacements are
 // scanned/searched on the home screen itself after "Start exchange", with
@@ -74,14 +74,7 @@ export function useExchangeDialog(roundingMode: () => string) {
       }
       existing.qty = Number(existing.qty || 1) + 1;
     } else {
-      returned.value.push({
-        ...item,
-        soldUnitPrice: Number(item.price),
-        soldUnitDiscount: Number(item.discount),
-        price: effectiveExchangePrice(item, roundingMode()),
-        discount: 0,
-        qty: 1,
-      });
+      returned.value.push(selectionItem(item, 1, roundingMode()));
     }
     scanError.value = "";
     scanValue.value = "";
