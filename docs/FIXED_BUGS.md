@@ -3,6 +3,20 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-07 · A remote return of a deal product refused a quantity the sale had
+
+**Symptom.** From kashi, returning 3 units of a product sold on a deal as 2 paid
+and 1 free failed with "requested quantity 3 ... exceeds the original line
+quantity 2", and asking for the paid line after the free one failed the same way.
+
+**Cause.** `executeRemoteReturnInvoiceCommand` still assumed a product sits on
+one line of a sale (true before `000061_invoice_products_surrogate_key`). It
+matched every requested item to the product's first line and capped it there.
+
+**Fix.** Each requested item is spread over all of its product's lines, at the
+unit price kashi now sends with it, and never past what they hold between them
+(`commands.go`). Test: `TestExecuteRemoteReturnInvoiceCommand_DealLinesOfOneProduct`.
+
 ## 2026-11-07 · Returning a buy-1-get-1 pair failed with "item has already been returned"
 
 **Symptom.** Returning both shoes of a Buy 1 Get 1 sale (remotely from kashi, or

@@ -230,3 +230,46 @@ func TestExecuteRemoteReturnInvoiceCommand_UnknownReplacementFails(t *testing.T)
 		t.Fatal("expected an exchange for a product this till doesn't have to fail")
 	}
 }
+
+// kashi lists a deal sale's paid and free units as separate lines of one
+// product and sends one item per line it shows; the till spreads each over
+// the sale's lines of that product, and never past what they hold.
+func TestExecuteRemoteReturnInvoiceCommand_DealLinesOfOneProduct(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		name  string
+		items []remoteReturnInvoiceItemPayload
+		ok    bool
+	}{
+		{"one item per unit", []remoteReturnInvoiceItemPayload{{Quantity: 1}, {Quantity: 1}, {Quantity: 1}}, true},
+		{"the paid line, then the free one", []remoteReturnInvoiceItemPayload{{Quantity: 2}, {Quantity: 1}}, true},
+		{"the free line, then the paid one", []remoteReturnInvoiceItemPayload{{Quantity: 1}, {Quantity: 2}}, true},
+		{"all three at once", []remoteReturnInvoiceItemPayload{{Quantity: 3}}, true},
+		{"more than were sold", []remoteReturnInvoiceItemPayload{{Quantity: 2}, {Quantity: 2}}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			shop := setUpDealShop(t)
+			sale := shop.sell(t, "D", "D", "D")
+			product, err := shop.store.GetProductByBarcode(ctx, "bc-D")
+			if err != nil {
+				t.Fatal(err)
+			}
+			clientRef, err := shop.store.GetInvoiceClientRef(ctx, sale.InvoiceID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := range tc.items {
+				tc.items[i].BranchProductID = product.ID
+			}
+			payload, _ := json.Marshal(remoteReturnInvoiceCommandPayload{ClientRef: clientRef, Items: tc.items})
+			err = shop.app.executeRemoteReturnInvoiceCommand(ctx, payload)
+			if tc.ok && err != nil {
+				t.Fatalf("return: %v", err)
+			}
+			if !tc.ok && err == nil {
+				t.Fatal("returned more units than the sale had")
+			}
+		})
+	}
+}

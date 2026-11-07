@@ -588,6 +588,9 @@ type remoteReplacementPayload struct {
 type remoteReturnInvoiceItemPayload struct {
 	BranchProductID int64 `json:"branch_product_id"`
 	Quantity        int64 `json:"quantity"`
+	// UnitPrice, when kashi sends it, is the sold line's unit price, so a
+	// product sold at two prices on one sale is returned at the right one.
+	UnitPrice *int64 `json:"unit_price"`
 }
 
 // executeRemoteReturnInvoiceCommand looks up the original sale by the
@@ -645,26 +648,43 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 	var linesToReturn []returnLine
 	if len(p.Items) > 0 {
 		// Item-level selection: only the requested products, at the
-		// requested (possibly partial) quantity each. Every requested line
-		// must exist on the original invoice -- invoice_products' PK is
-		// (invoice_id, product_id), so a product appears at most once,
-		// there's no ambiguity in this match.
+		// requested (possibly partial) quantity each. A product can sit on
+		// several lines of one sale (a deal keeps its paid and free units
+		// apart, and two scans at different prices stay apart), so a
+		// request is spread over every line of its product -- at its price
+		// when kashi sends one -- and never takes more than they hold
+		// between them. Which unit counts as free is the return's own call
+		// (validateAndPriceExchange).
 		linesToReturn = make([]returnLine, 0, len(p.Items))
+		taken := make([]int64, len(lines))
 		for _, requested := range p.Items {
-			var found *db.InvoiceProduct
+			if requested.Quantity <= 0 {
+				return fmt.Errorf("requested quantity %d for product %d must be positive", requested.Quantity, requested.BranchProductID)
+			}
+			onSale := false
+			left := requested.Quantity
 			for i := range lines {
-				if lines[i].ProductID == requested.BranchProductID {
-					found = &lines[i]
+				if lines[i].ProductID != requested.BranchProductID || (requested.UnitPrice != nil && lines[i].UnitPrice != *requested.UnitPrice) {
+					continue
+				}
+				onSale = true
+				take := min(left, lines[i].Quantity-taken[i])
+				if take <= 0 {
+					continue
+				}
+				taken[i] += take
+				left -= take
+				linesToReturn = append(linesToReturn, returnLine{line: lines[i], quantity: take})
+				if left == 0 {
 					break
 				}
 			}
-			if found == nil {
+			if !onSale {
 				return fmt.Errorf("product %d is not on the original invoice", requested.BranchProductID)
 			}
-			if requested.Quantity <= 0 || requested.Quantity > found.Quantity {
-				return fmt.Errorf("requested quantity %d for product %d exceeds the original line quantity %d", requested.Quantity, requested.BranchProductID, found.Quantity)
+			if left > 0 {
+				return fmt.Errorf("requested quantity %d for product %d exceeds what the original invoice holds", requested.Quantity, requested.BranchProductID)
 			}
-			linesToReturn = append(linesToReturn, returnLine{line: *found, quantity: requested.Quantity})
 		}
 	} else {
 		// No items specified -- fall back to returning every line at full
