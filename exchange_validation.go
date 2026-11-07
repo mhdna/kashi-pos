@@ -39,6 +39,16 @@ type exchangeRequest struct {
 	returned      exchangeLine
 	returnedItems []exchangeLine
 	replacements  []exchangeLine
+	// sources is each line of the request as sent, in order: the returned
+	// item or replacement it was merged into, and how many units it brought.
+	// The quote gives its amounts back per sent line (exchange_quote_lines.go).
+	sources []exchangeSource
+}
+
+type exchangeSource struct {
+	returned bool
+	group    int   // index into returnedItems or replacements
+	qty      int64 // units, always positive
 }
 
 type pricedReturnedProduct struct {
@@ -50,6 +60,12 @@ type pricedReturnedProduct struct {
 	salespersonID int64
 	// The unit's place in its sale's deal; zero for a unit on no deal.
 	deal dealExchangeLine
+	// request is the returned item (request.returnedItems) this came from.
+	request int
+	// How lineTotal came about: lineTotal = paid + swapCredit - chargedBack.
+	// paid is what the customer paid for these units on the sale; the other
+	// two are set by settleExchangeDeals (deal_exchange.go).
+	paid, swapCredit, chargedBack int64
 }
 
 type pricedExchange struct {
@@ -110,8 +126,10 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 				}
 				request.returnedItems[returnedIndex].Qty += line.Qty
 			} else {
+				returnedIndex = len(request.returnedItems)
 				request.returnedItems = append(request.returnedItems, line)
 			}
+			request.sources = append(request.sources, exchangeSource{returned: true, group: returnedIndex, qty: -line.Qty})
 			if request.returned.Code == "" {
 				request.returned = line
 			}
@@ -158,9 +176,11 @@ func parseExchangeRequest(raw string, returnOnly ...bool) (exchangeRequest, erro
 				return exchangeRequest{}, fmt.Errorf("replacement quantity is too large")
 			}
 			request.replacements[index].Qty += line.Qty
+			request.sources = append(request.sources, exchangeSource{group: index, qty: line.Qty})
 			continue
 		}
 		replacementIndex[normalizedCode] = len(request.replacements)
+		request.sources = append(request.sources, exchangeSource{group: len(request.replacements), qty: line.Qty})
 		request.replacements = append(request.replacements, line)
 	}
 	if len(request.returnedItems) == 0 || (len(request.replacements) == 0 && (len(returnOnly) == 0 || !returnOnly[0])) {
@@ -203,7 +223,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 	candidates := slices.Clone(sourceLines)
 	sort.SliceStable(candidates, func(i, j int) bool { return isReward(candidates[i]) && !isReward(candidates[j]) })
 	reserved := make(map[soldLineKey]int64)
-	for _, requested := range request.returnedItems {
+	for requestIndex, requested := range request.returnedItems {
 		if requested.SalespersonID > 0 {
 			if _, err := q.GetSalespersonByID(a.ctx, requested.SalespersonID); err != nil {
 				return result, fmt.Errorf("salesperson for returned item %s: %w", requested.Code, err)
@@ -262,7 +282,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 				return result, fmt.Errorf("returned total is too large")
 			}
 			lineTotal := unitTotal*requestedQty - returnedInvoiceDiscount(originalLine, alreadyReturned, requestedQty)
-			priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: lineTotal, note: requested.Note, salespersonID: requested.SalespersonID, deal: deal}
+			priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: lineTotal, note: requested.Note, salespersonID: requested.SalespersonID, deal: deal, request: requestIndex, paid: lineTotal}
 			result.returned = append(result.returned, priced)
 			result.returnedTotal += priced.lineTotal
 		}
@@ -273,7 +293,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 	}
 	result.replacements = make([]pricedInvoiceProduct, 0, len(request.replacements))
 
-	for _, line := range request.replacements {
+	for requestIndex, line := range request.replacements {
 		if line.SalespersonID > 0 {
 			if _, err := q.GetSalespersonByID(a.ctx, line.SalespersonID); err != nil {
 				return result, fmt.Errorf("salesperson for replacement %s: %w", line.Code, err)
@@ -369,6 +389,7 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 			priced.note = line.Note
 			priced.saleOption = saleOption
 			priced.dealUID = dealUID
+			priced.exchangeRequest = requestIndex
 			if result.replacementTotal > math.MaxInt64-priced.lineTotal {
 				return result, fmt.Errorf("replacement total is too large")
 			}

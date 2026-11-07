@@ -1,0 +1,467 @@
+[
+  {
+    "name": "paid deal unit for an unknown item",
+    "cart": [
+      {
+        "code": "UNKNOWN",
+        "barcode": "UNKNOWN",
+        "qty": 1
+      },
+      {
+        "code": "B",
+        "barcode": "bc-B",
+        "qty": -1
+      }
+    ],
+    "quote": {
+      "returnedTotalCents": 3000,
+      "replacementTotalCents": 12000,
+      "taxCents": 0,
+      "grandTotalCents": 9000,
+      "needsMoreReplacementValue": false,
+      "shortfallCents": 0,
+      "netCents": 9000,
+      "roundingCents": 0,
+      "unroundedCents": 9000,
+      "lines": [
+        {
+          "index": 0,
+          "code": "UNKNOWN",
+          "barcode": "UNKNOWN",
+          "qty": 1,
+          "lineTotalCents": 12000,
+          "shelfCents": 12000
+        },
+        {
+          "index": 1,
+          "code": "B",
+          "barcode": "bc-B",
+          "qty": -1,
+          "lineTotalCents": -3000,
+          "shelfCents": -8000,
+          "paidCents": 8000,
+          "chargedBackCents": 5000,
+          "deal": "Buy 2 get 1"
+        }
+      ],
+      "adjustments": [
+        {
+          "deal": "Buy 2 get 1",
+          "chargedBackCents": 5000
+        }
+      ]
+    }
+  },
+  {
+    "name": "free unit for cheaper socks",
+    "cart": [
+      {
+        "code": "C",
+        "barcode": "bc-C",
+        "qty": -1
+      },
+      {
+        "code": "SOCKS",
+        "barcode": "bc-SOCKS",
+        "qty": 1
+      }
+    ],
+    "quote": {
+      "returnedTotalCents": 2000,
+      "replacementTotalCents": 2000,
+      "taxCents": 0,
+      "grandTotalCents": 0,
+      "needsMoreReplacementValue": false,
+      "shortfallCents": 0,
+      "netCents": 0,
+      "roundingCents": 0,
+      "unroundedCents": 0,
+      "lines": [
+        {
+          "index": 0,
+          "code": "C",
+          "barcode": "bc-C",
+          "qty": -1,
+          "lineTotalCents": -2000,
+          "shelfCents": -5000,
+          "swapCreditCents": 2000,
+          "deal": "Buy 2 get 1",
+          "free": true
+        },
+        {
+          "index": 1,
+          "code": "SOCKS",
+          "barcode": "bc-SOCKS",
+          "qty": 1,
+          "lineTotalCents": 2000,
+          "shelfCents": 2000
+        }
+      ],
+      "adjustments": [
+        {
+          "deal": "Buy 2 get 1",
+          "forfeitedCents": 3000
+        }
+      ]
+    }
+  },
+  {
+    "name": "paid unit for a jacket off the deal",
+    "cart": [
+      {
+        "code": "A",
+        "barcode": "bc-A",
+        "qty": -1
+      },
+      {
+        "code": "JACKET",
+        "barcode": "bc-JACKET",
+        "qty": 1
+      }
+    ],
+    "quote": {
+      "returnedTotalCents": 5000,
+      "replacementTotalCents": 10000,
+      "taxCents": 0,
+      "grandTotalCents": 5000,
+      "needsMoreReplacementValue": false,
+      "shortfallCents": 0,
+      "netCents": 5000,
+      "roundingCents": 0,
+      "unroundedCents": 5000,
+      "lines": [
+        {
+          "index": 0,
+          "code": "A",
+          "barcode": "bc-A",
+          "qty": -1,
+          "lineTotalCents": -5000,
+          "shelfCents": -10000,
+          "paidCents": 10000,
+          "chargedBackCents": 5000,
+          "deal": "Buy 2 get 1"
+        },
+        {
+          "index": 1,
+          "code": "JACKET",
+          "barcode": "bc-JACKET",
+          "qty": 1,
+          "lineTotalCents": 10000,
+          "shelfCents": 10000
+        }
+      ],
+      "adjustments": [
+        {
+          "deal": "Buy 2 get 1",
+          "chargedBackCents": 5000
+        }
+      ]
+    }
+  },
+  {
+    "name": "not enough new items yet",
+    "cart": [
+      {
+        "code": "A",
+        "barcode": "bc-A",
+        "qty": -1
+      },
+      {
+        "code": "SOCKS",
+        "barcode": "bc-SOCKS",
+        "qty": 1
+      }
+    ],
+    "quote": {
+      "returnedTotalCents": 5000,
+      "replacementTotalCents": 2000,
+      "taxCents": 0,
+      "grandTotalCents": 0,
+      "needsMoreReplacementValue": true,
+      "shortfallCents": 8000,
+      "netCents": -3000,
+      "roundingCents": 0,
+      "unroundedCents": -3000,
+      "lines": [
+        {
+          "index": 0,
+          "code": "A",
+          "barcode": "bc-A",
+          "qty": -1,
+          "lineTotalCents": -5000,
+          "shelfCents": -10000,
+          "paidCents": 10000,
+          "chargedBackCents": 5000,
+          "deal": "Buy 2 get 1"
+        },
+        {
+          "index": 1,
+          "code": "SOCKS",
+          "barcode": "bc-SOCKS",
+          "qty": 1,
+          "lineTotalCents": 2000,
+          "shelfCents": 2000
+        }
+      ],
+      "adjustments": [
+        {
+          "deal": "Buy 2 get 1",
+          "chargedBackCents": 5000
+        }
+      ]
+    }
+  },
+  {
+    "name": "everything back for jackets",
+    "cart": [
+      {
+        "code": "A",
+        "barcode": "bc-A",
+        "qty": -1
+      },
+      {
+        "code": "B",
+        "barcode": "bc-B",
+        "qty": -1
+      },
+      {
+        "code": "C",
+        "barcode": "bc-C",
+        "qty": -1
+      },
+      {
+        "code": "JACKET",
+        "barcode": "bc-JACKET",
+        "qty": 2
+      }
+    ],
+    "quote": {
+      "returnedTotalCents": 18000,
+      "replacementTotalCents": 20000,
+      "taxCents": 0,
+      "grandTotalCents": 2000,
+      "needsMoreReplacementValue": false,
+      "shortfallCents": 0,
+      "netCents": 2000,
+      "roundingCents": 0,
+      "unroundedCents": 2000,
+      "lines": [
+        {
+          "index": 0,
+          "code": "A",
+          "barcode": "bc-A",
+          "qty": -1,
+          "lineTotalCents": -8000,
+          "shelfCents": -10000,
+          "paidCents": 10000,
+          "chargedBackCents": 2000,
+          "deal": "Buy 2 get 1"
+        },
+        {
+          "index": 1,
+          "code": "B",
+          "barcode": "bc-B",
+          "qty": -1,
+          "lineTotalCents": -8000,
+          "shelfCents": -8000,
+          "paidCents": 8000,
+          "deal": "Buy 2 get 1"
+        },
+        {
+          "index": 2,
+          "code": "C",
+          "barcode": "bc-C",
+          "qty": -1,
+          "lineTotalCents": -2000,
+          "shelfCents": -5000,
+          "swapCreditCents": 2000,
+          "deal": "Buy 2 get 1",
+          "free": true
+        },
+        {
+          "index": 3,
+          "code": "JACKET",
+          "barcode": "bc-JACKET",
+          "qty": 2,
+          "lineTotalCents": 20000,
+          "shelfCents": 20000
+        }
+      ],
+      "adjustments": [
+        {
+          "deal": "Buy 2 get 1",
+          "chargedBackCents": 2000,
+          "forfeitedCents": 3000
+        }
+      ]
+    }
+  },
+  {
+    "name": "alike units on two lines",
+    "cart": [
+      {
+        "code": "C",
+        "barcode": "bc-C",
+        "qty": -1
+      },
+      {
+        "code": "C",
+        "barcode": "bc-C",
+        "qty": -1
+      },
+      {
+        "code": "JACKET",
+        "barcode": "bc-JACKET",
+        "qty": 1
+      }
+    ],
+    "quote": {
+      "returnedTotalCents": 5000,
+      "replacementTotalCents": 10000,
+      "taxCents": 0,
+      "grandTotalCents": 5000,
+      "needsMoreReplacementValue": false,
+      "shortfallCents": 0,
+      "netCents": 5000,
+      "roundingCents": 0,
+      "unroundedCents": 5000,
+      "lines": [
+        {
+          "index": 0,
+          "code": "C",
+          "barcode": "bc-C",
+          "qty": -1,
+          "lineTotalCents": -5000,
+          "shelfCents": -5000,
+          "swapCreditCents": 5000,
+          "deal": "Buy 2 get 1",
+          "free": true
+        },
+        {
+          "index": 1,
+          "code": "C",
+          "barcode": "bc-C",
+          "qty": -1,
+          "lineTotalCents": 0,
+          "shelfCents": -5000,
+          "paidCents": 5000,
+          "chargedBackCents": 5000,
+          "deal": "Buy 2 get 1"
+        },
+        {
+          "index": 2,
+          "code": "JACKET",
+          "barcode": "bc-JACKET",
+          "qty": 1,
+          "lineTotalCents": 10000,
+          "shelfCents": 10000
+        }
+      ],
+      "adjustments": [
+        {
+          "deal": "Buy 2 get 1",
+          "chargedBackCents": 5000
+        }
+      ]
+    }
+  },
+  {
+    "name": "fallback percent after a return",
+    "cart": [
+      {
+        "code": "A",
+        "barcode": "bc-A",
+        "qty": -1
+      },
+      {
+        "code": "JACKET",
+        "barcode": "bc-JACKET",
+        "qty": 1
+      }
+    ],
+    "quote": {
+      "returnedTotalCents": 7600,
+      "replacementTotalCents": 10000,
+      "taxCents": 0,
+      "grandTotalCents": 2400,
+      "needsMoreReplacementValue": false,
+      "shortfallCents": 0,
+      "netCents": 2400,
+      "roundingCents": 0,
+      "unroundedCents": 2400,
+      "lines": [
+        {
+          "index": 0,
+          "code": "A",
+          "barcode": "bc-A",
+          "qty": -1,
+          "lineTotalCents": -7600,
+          "shelfCents": -10000,
+          "paidCents": 10000,
+          "chargedBackCents": 2400,
+          "deal": "Buy 2 get 1"
+        },
+        {
+          "index": 1,
+          "code": "JACKET",
+          "barcode": "bc-JACKET",
+          "qty": 1,
+          "lineTotalCents": 10000,
+          "shelfCents": 10000
+        }
+      ],
+      "adjustments": [
+        {
+          "deal": "Buy 2 get 1",
+          "chargedBackCents": 2400
+        }
+      ]
+    }
+  },
+  {
+    "name": "tax and cash rounding",
+    "cart": [
+      {
+        "code": "SOCKS",
+        "barcode": "bc-SOCKS",
+        "qty": -1
+      },
+      {
+        "code": "A",
+        "barcode": "bc-A",
+        "qty": 1
+      }
+    ],
+    "quote": {
+      "returnedTotalCents": 2000,
+      "replacementTotalCents": 10000,
+      "taxCents": 880,
+      "grandTotalCents": 8883,
+      "needsMoreReplacementValue": false,
+      "shortfallCents": 0,
+      "netCents": 8000,
+      "roundingCents": 3,
+      "unroundedCents": 8880,
+      "lines": [
+        {
+          "index": 0,
+          "code": "SOCKS",
+          "barcode": "bc-SOCKS",
+          "qty": -1,
+          "lineTotalCents": -2000,
+          "shelfCents": -2000,
+          "paidCents": 2000
+        },
+        {
+          "index": 1,
+          "code": "A",
+          "barcode": "bc-A",
+          "qty": 1,
+          "lineTotalCents": 10000,
+          "shelfCents": 10000
+        }
+      ],
+      "adjustments": []
+    }
+  }
+]

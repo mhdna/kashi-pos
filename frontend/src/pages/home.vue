@@ -155,12 +155,15 @@
           :price-change-mode="priceChangeMode"
           :keyboard-mode="invoiceKeyboardModeEnabled"
           :deal-lines="quote?.lines ?? []"
+          :exchange-mode="pageMode === 'exchange'"
+          :exchange-quote="quote?.exchange ?? null"
           :discount-toggle-enabled="discountToggleEnabled && pageMode === 'sale'"
           :deal-toggle-enabled="dealToggleEnabled && pageMode === 'sale'"
           :discount-default-off="discountToggleDefaultOff"
           style="flex: 1 1 0; min-height: 0"
           @discount-error="showDiscountError"
         />
+        <ExchangeSummary v-if="pageMode === 'exchange' && quote?.exchange" :quote="quote.exchange" />
         <UnknownPicturesCorner
           v-if="showUnknownCorner"
           :client-ref="unknownSession.clientRef"
@@ -475,6 +478,8 @@ import ProductSearchResults from "@/components/ProductSearchResults.vue";
 import { useProductGridMode } from "@/composables/useProductGridMode";
 import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
 import UnknownPicturesCorner from "@/components/UnknownPicturesCorner.vue";
+import ExchangeSummary from "@/components/ExchangeSummary.vue";
+import { checkExchangeQuote, type ExchangeQuoteResult } from "@/lib/exchangeQuote";
 import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import { productSearchInPlace, quickAccessRows } from "@/lib/display";
@@ -613,6 +618,9 @@ interface InvoiceQuote {
   // kashi's whole-sale discount, already off grandTotalCents.
   invoiceDiscountCents?: number;
   invoiceDiscountName?: string;
+  // Only in exchange mode: the whole exchange quote, checked to add up,
+  // for the cart lines' amounts and the breakdown under the cart.
+  exchange?: ExchangeQuoteResult;
 }
 const quote = ref<InvoiceQuote | null>(null);
 // A failed quote must never render as $0.00 - with a zero total the
@@ -881,11 +889,20 @@ async function refreshQuote() {
     try {
       const result = await QuoteExchangeTotal(itemsJson, exchangeState.value.originalInvoiceId);
       if (token !== quoteRequestToken) return;
+      // The lines and the breakdown on screen are the quote's; one that
+      // doesn't add up for the cart it was asked for is an error on screen,
+      // never a total (lib/exchangeQuote.ts).
+      const checked = checkExchangeQuote(result, itemsJson);
+      if (!checked.quote) {
+        quote.value = null;
+        quoteError.value = checked.error;
+        return;
+      }
       quote.value = {
-        grandTotalCents: Number(result.grandTotalCents),
-        exchangeShortfallCents: result.needsMoreReplacementValue
-          ? Number(result.shortfallCents)
-          : 0,
+        grandTotalCents: checked.quote.grandTotalCents,
+        unroundedCents: checked.quote.unroundedCents,
+        exchangeShortfallCents: checked.quote.needsMoreReplacementValue ? checked.quote.shortfallCents : 0,
+        exchange: checked.quote,
       };
     } catch (e) {
       if (token !== quoteRequestToken) return;

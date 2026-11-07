@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
+	"strings"
 )
 
 // InvoiceQuote is the read-only, authoritative preview of what a cart will
@@ -218,6 +220,20 @@ type ExchangeQuote struct {
 	// returned units less the replacements. Not returned - replacement: a
 	// free unit's swap credit is in the returned total but needn't be used.
 	ShortfallCents int64 `json:"shortfallCents"`
+
+	// The breakdown, so the screen shows a sum that is the total:
+	//   sum(Lines.LineTotalCents) = NetCents
+	//   NetCents + TaxCents       = UnroundedCents
+	//   UnroundedCents + RoundingCents = the total, GrandTotalCents
+	//   once it is above zero (below, the replacements don't cover the
+	//   returned items yet and nothing is collected).
+	NetCents       int64 `json:"netCents"`
+	RoundingCents  int64 `json:"roundingCents"`
+	UnroundedCents int64 `json:"unroundedCents"`
+	// One per line sent, in order (exchange_quote_lines.go).
+	Lines []ExchangeLineQuote `json:"lines"`
+	// What the exchange did to the sale's deals, as the receipt says it.
+	Adjustments []ExchangeAdjustmentQuote `json:"adjustments"`
 }
 
 func (a *App) quoteExchange(itemsJSON string, originalInvoiceID int64) (ExchangeQuote, pricedExchange, error) {
@@ -249,31 +265,44 @@ func (a *App) quoteExchange(itemsJSON string, originalInvoiceID int64) (Exchange
 	if err != nil {
 		return quote, pricedExchange{}, err
 	}
-	netDifference := priced.replacementTotal - priced.returnedTotal
-	taxCents, err := signedAdjustmentTax(netDifference, settings.TaxRate, roundingMode)
+	source, err := a.store.GetSalesInvoiceByID(a.ctx, originalInvoiceID)
+	if err != nil {
+		return quote, pricedExchange{}, fmt.Errorf("source invoice: %w", err)
+	}
+	totals, err := computeExchangeTotals(a.ctx, a.store.Queries, source, priced, settings, roundingMode)
 	if err != nil {
 		return quote, pricedExchange{}, err
 	}
-	total := netDifference + taxCents
-	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
-	if err != nil {
-		return quote, pricedExchange{}, fmt.Errorf("rounding currency: %w", err)
+	var rawLines []exchangeLine
+	if err := json.Unmarshal([]byte(itemsJSON), &rawLines); err != nil {
+		return quote, pricedExchange{}, fmt.Errorf("exchange lines: %w", err)
 	}
-	total, err = roundCentsByCurrency(total, roundingCurrency.UnitsPerUsdMicros, roundingCurrency.CashRoundingUnit, roundingMode)
-	if err != nil {
-		return quote, pricedExchange{}, fmt.Errorf("round exchange total: %w", err)
+	for i := range rawLines {
+		rawLines[i].Code = strings.TrimSpace(rawLines[i].Code)
+		rawLines[i].Barcode = strings.TrimSpace(rawLines[i].Barcode)
 	}
-	needsMoreReplacementValue := priced.replacementTotal < priced.requiredReplacement
-	if total < 0 {
-		total = 0
+	dealNames := map[string]string{}
+	if deals, err := a.store.ListInvoiceDeals(a.ctx, originalInvoiceID); err == nil {
+		for _, d := range deals {
+			dealNames[d.DealUid] = d.Name
+		}
+	}
+	lines, err := exchangeQuoteLines(request, priced, rawLines, dealNames)
+	if err != nil {
+		return quote, pricedExchange{}, fmt.Errorf("exchange breakdown: %w", err)
 	}
 	quote = ExchangeQuote{
 		ReturnedTotalCents:        priced.returnedTotal,
 		ReplacementTotalCents:     priced.replacementTotal,
-		TaxCents:                  taxCents,
-		GrandTotalCents:           total,
-		NeedsMoreReplacementValue: needsMoreReplacementValue,
+		NetCents:                  totals.net,
+		TaxCents:                  totals.tax,
+		RoundingCents:             totals.rounding,
+		UnroundedCents:            totals.net + totals.tax,
+		GrandTotalCents:           max(0, totals.total),
+		NeedsMoreReplacementValue: priced.replacementTotal < priced.requiredReplacement,
 		ShortfallCents:            max(0, priced.requiredReplacement-priced.replacementTotal),
+		Lines:                     lines,
+		Adjustments:               exchangeAdjustmentQuotes(priced.dealAdjustments),
 	}
 	return quote, priced, nil
 }

@@ -35,6 +35,9 @@ type pricedInvoiceProduct struct {
 	// What the line's units get outside a set, in place of the deal's
 	// fallback (kashi's 000216); unset for the deal's own.
 	dealFallback sql.NullInt64
+	// In an exchange, the replacement (exchangeRequest.replacements) this
+	// line was priced from; a line can be split into several.
+	exchangeRequest int
 	// What the line gave up by having its discount (NoDiscount) or its deal
 	// (NoDeal) turned off: the percent, or the deal's short label.
 	offDiscount  int64

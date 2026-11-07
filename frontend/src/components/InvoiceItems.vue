@@ -25,6 +25,16 @@
                   {{ [item.color, item.size].filter(Boolean).join(" / ") }}
                 </span>
               </span>
+              <!-- A returned line in an exchange: how its credit came about
+                   when it isn't its shelf price (lib/exchangeQuote.ts). -->
+              <span
+                v-for="note in exchangeNotesFor(item)"
+                :key="note"
+                class="invoice-item-exchange-note text-caption"
+                data-test="exchange-line-note"
+              >
+                {{ note }}
+              </span>
             </span>
           </button>
             <!-- Beside the name and code, centred on both. -->
@@ -198,7 +208,7 @@
                     />
                     <span class="invoice-price-values">
                       <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
-                      <span class="text-caption font-weight-bold">{{ signedPrice(totalAfterDiscount(item)) }}</span>
+                      <span class="text-caption font-weight-bold">{{ lineAmountText(item) }}</span>
                     </span>
                     <span v-if="showDiscountChips" class="invoice-price-discount">
                       <k-chip
@@ -229,7 +239,7 @@
                 />
                 <span class="invoice-price-values">
                   <span class="text-caption text-medium-emphasis">${{ shortPrice(item.price) }}</span>
-                  <span class="text-caption font-weight-bold">{{ signedPrice(totalAfterDiscount(item)) }}</span>
+                  <span class="text-caption font-weight-bold">{{ lineAmountText(item) }}</span>
                 </span>
                 <!-- The discount as a chip to the right of both prices,
                      centred on them. While any line has one, the slot is
@@ -466,6 +476,12 @@ import {
   type DealLine,
   type UnknownDealChoice,
 } from "@/lib/deals";
+import {
+  exchangeLineAt,
+  returnedLineNotes,
+  type ExchangeQuoteLine,
+  type ExchangeQuoteResult,
+} from "@/lib/exchangeQuote";
 import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
@@ -564,6 +580,11 @@ const props = defineProps<{
   priceChangeMode?: "override" | "discount";
   // The quote's priced lines; a sold line on a deal is marked from them.
   dealLines?: DealLine[];
+  // In an exchange, the backend's exchange quote: each line shows the
+  // amount it priced, so the lines add up to the total. While the quote is
+  // for another cart (being re-priced) a line shows "…", never a guess.
+  exchangeMode?: boolean;
+  exchangeQuote?: ExchangeQuoteResult | null;
   // When true, clicking a line's qty/discount/price focuses it instead of
   // opening the number-pad popup, and arrow keys move focus between fields.
   keyboardMode?: boolean;
@@ -805,6 +826,27 @@ function shortPrice(value: number): string {
 // "$8.8", or "−$8.8" for a returned line's credit.
 function signedPrice(value: number): string {
   return value < 0 ? `−$${shortPrice(-value)}` : `$${shortPrice(value)}`;
+}
+
+function exchangeLineFor(item: LineItem): ExchangeQuoteLine | undefined {
+  return exchangeLineAt(props.exchangeQuote, items.value, items.value.indexOf(item));
+}
+
+// The line's amount: in an exchange the quote's, as it will be charged
+// (a returned line's credit after its discounts and any deal charged back);
+// otherwise the line's own, with its deal off.
+function lineAmountText(item: LineItem): string {
+  if (props.exchangeMode) {
+    const line = exchangeLineFor(item);
+    return line ? signedPrice(line.lineTotalCents / 100) : "…";
+  }
+  return signedPrice(totalAfterDiscount(item));
+}
+
+function exchangeNotesFor(item: LineItem): string[] {
+  if (!props.exchangeMode || item.qty >= 0) return [];
+  const line = exchangeLineFor(item);
+  return line ? returnedLineNotes(line) : [];
 }
 
 // The deal's saving comes off here only for display; the quote is what
@@ -1544,6 +1586,13 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.invoice-item-exchange-note {
+  display: block;
+  color: rgba(var(--k-theme-on-surface), 0.7);
+  line-height: 1.3;
+  white-space: normal;
 }
 
 /* Name over code, with the sale option chip beside the pair and centred on

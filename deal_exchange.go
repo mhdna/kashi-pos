@@ -141,6 +141,7 @@ func (a *App) settleExchangeDeals(q *db.Queries, sourceID int64, sourceLines []d
 		used := min(allowance, spare)
 		spare -= used
 		r.lineTotal += used
+		r.swapCredit += used
 		allowanceByDeal[r.deal.dealUID] += allowance
 		usedByDeal[r.deal.dealUID] += used
 	}
@@ -302,12 +303,14 @@ func takeClawback(result *pricedExchange, uid string, amount int64) int64 {
 			}
 			take := min(amount, max(0, r.lineTotal))
 			r.lineTotal -= take
+			r.chargedBack += take
 			amount -= take
 			taken += take
 		}
 	}
 	if amount > 0 && first >= 0 && len(result.replacements) > 0 {
 		result.returned[first].lineTotal -= amount
+		result.returned[first].chargedBack += amount
 		taken += amount
 	}
 	return taken
