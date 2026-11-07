@@ -213,42 +213,59 @@ func (a *App) validateAndPriceExchange(q *db.Queries, sourceID int64, request ex
 		if err != nil {
 			return result, fmt.Errorf("returned product: %w", err)
 		}
-		var originalLine db.InvoiceProduct
-		foundAvailableLine := false
-		requestedQty := -requested.Qty
-		var alreadyReturned int64
+		// One request can span several sold lines: two alike units that
+		// were sold as one paid and one free line arrive merged as a
+		// quantity of 2 (parseExchangeRequest), and no single line holds
+		// both. Each line gives what it still has, the free one first.
+		type portion struct {
+			line            db.InvoiceProduct
+			qty             int64
+			alreadyReturned int64
+		}
+		var portions []portion
+		left := -requested.Qty
 		for _, line := range candidates {
+			if left == 0 {
+				break
+			}
 			if line.ProductID != product.ID || (requested.UnitPriceCents != nil && line.UnitPrice != *requested.UnitPriceCents) || (requested.UnitDiscount != nil && line.Discount != *requested.UnitDiscount) {
 				continue
 			}
 			lineKey := keyOfLine(line)
 			returnedQty, returnedErr := q.GetReturnedQuantityForProductPrice(a.ctx, db.GetReturnedQuantityForProductPriceParams{SalesInvoiceID: sourceID, ProductID: product.ID, UnitPrice: line.UnitPrice, Discount: line.Discount, DealUid: line.DealUid, UnitDealDiscount: lineKey.unitDeal})
-			if returnedErr == nil && requestedQty <= line.Quantity-databaseInt64(returnedQty)-reserved[lineKey] {
-				originalLine = line
-				foundAvailableLine = true
-				alreadyReturned = databaseInt64(returnedQty) + reserved[lineKey]
-				reserved[lineKey] += requestedQty
-				break
+			if returnedErr != nil {
+				continue
 			}
+			alreadyReturned := databaseInt64(returnedQty) + reserved[lineKey]
+			take := min(left, line.Quantity-alreadyReturned)
+			if take <= 0 {
+				continue
+			}
+			portions = append(portions, portion{line: line, qty: take, alreadyReturned: alreadyReturned})
+			reserved[lineKey] += take
+			left -= take
 		}
-		if !foundAvailableLine {
+		if left > 0 {
 			return result, fmt.Errorf("item has already been returned")
 		}
-		// What was paid for one unit. A deal line's units all paid the same
-		// (applyDeals splits them), and a free unit paid nothing.
-		unitTotal := originalLine.UnitPrice - roundRatio(originalLine.UnitPrice*originalLine.Discount, 100, roundingMode)
-		var deal dealExchangeLine
-		if originalLine.DealUid != "" {
-			deal = dealExchangeLine{dealUID: originalLine.DealUid, unitDeal: keyOfLine(originalLine).unitDeal, reward: isReward(originalLine)}
-			unitTotal -= deal.unitDeal
+		for _, part := range portions {
+			originalLine, alreadyReturned, requestedQty := part.line, part.alreadyReturned, part.qty
+			// What was paid for one unit. A deal line's units all paid the same
+			// (applyDeals splits them), and a free unit paid nothing.
+			unitTotal := originalLine.UnitPrice - roundRatio(originalLine.UnitPrice*originalLine.Discount, 100, roundingMode)
+			var deal dealExchangeLine
+			if originalLine.DealUid != "" {
+				deal = dealExchangeLine{dealUID: originalLine.DealUid, unitDeal: keyOfLine(originalLine).unitDeal, reward: isReward(originalLine)}
+				unitTotal -= deal.unitDeal
+			}
+			if unitTotal > 0 && requestedQty > math.MaxInt64/unitTotal {
+				return result, fmt.Errorf("returned total is too large")
+			}
+			lineTotal := unitTotal*requestedQty - returnedInvoiceDiscount(originalLine, alreadyReturned, requestedQty)
+			priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: lineTotal, note: requested.Note, salespersonID: requested.SalespersonID, deal: deal}
+			result.returned = append(result.returned, priced)
+			result.returnedTotal += priced.lineTotal
 		}
-		if unitTotal > 0 && requestedQty > math.MaxInt64/unitTotal {
-			return result, fmt.Errorf("returned total is too large")
-		}
-		lineTotal := unitTotal*requestedQty - returnedInvoiceDiscount(originalLine, alreadyReturned, requestedQty)
-		priced := pricedReturnedProduct{product: product, line: originalLine, qty: requestedQty, lineTotal: lineTotal, note: requested.Note, salespersonID: requested.SalespersonID, deal: deal}
-		result.returned = append(result.returned, priced)
-		result.returnedTotal += priced.lineTotal
 	}
 	if len(result.returned) > 0 {
 		result.returnedProduct = result.returned[0].product

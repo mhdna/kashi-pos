@@ -3,6 +3,20 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-07 · Returning a buy-1-get-1 pair failed with "item has already been returned"
+
+**Symptom.** Returning both shoes of a Buy 1 Get 1 sale (remotely from kashi, or
+at the till) failed with "checkout return: item has already been returned",
+though nothing had been returned.
+
+**Cause.** A deal sale stores alike units as two lines, one paid and one free.
+The return request merges alike items into one quantity of 2, and the check
+wanted a single sold line holding all 2, so it found none.
+
+**Fix.** A returned quantity is now taken from as many sold lines as it needs,
+the free one first (`exchange_validation.go`, `validateAndPriceExchange`). Test:
+`TestDealRefundOfAlikeUnitsSpansThePaidAndFreeLines`.
+
 ## 2026-11-06 · Spaces in the scan field flashed "not found" or missed the product
 
 **Symptom.** Pressing Enter on a field holding only spaces cleared it and

@@ -215,3 +215,16 @@ func TestDealExchangeFallbackUnitHasNoSwapCredit(t *testing.T) {
 		}
 	}
 }
+
+// Alike units sold as a paid line and a free line come back together: the
+// request merges to one quantity, which no single sold line holds.
+func TestDealRefundOfAlikeUnitsSpansThePaidAndFreeLines(t *testing.T) {
+	shop := setUpDealShop(t)
+	sale := shop.sell(t, "D", "D", "D")
+	if got := shop.refund(t, sale.InvoiceID, "D", "D", "D"); got != -18000 {
+		t.Fatalf("refund %d, want -18000", got)
+	}
+	if _, err := shop.tryExchange(sale.InvoiceID, []string{"D"}, []string{"SOCKS"}); err == nil {
+		t.Fatal("a fourth unit came back from a sale of three")
+	}
+}
