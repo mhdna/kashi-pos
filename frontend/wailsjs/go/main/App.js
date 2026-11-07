@@ -130,6 +130,10 @@ export function ConvertCashEntryToCents(arg1, arg2) {
   return window['go']['main']['App']['ConvertCashEntryToCents'](arg1, arg2);
 }
 
+export function CountProductGroupsForSearch(arg1) {
+  return window['go']['main']['App']['CountProductGroupsForSearch'](arg1);
+}
+
 export function CountProductsForSearch(arg1) {
   return window['go']['main']['App']['CountProductsForSearch'](arg1);
 }
@@ -608,6 +612,10 @@ export function ListPriceLists() {
 
 export function ListPrinters() {
   return window['go']['main']['App']['ListPrinters']();
+}
+
+export function ListProductVariants(arg1) {
+  return window['go']['main']['App']['ListProductVariants'](arg1);
 }
 
 export function ListProductsCursor(arg1, arg2, arg3) {
