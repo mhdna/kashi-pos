@@ -104,6 +104,11 @@ LBP amounts.
   replacements stay positive. Sum them as stored; don't flip signs. Return
   and exchange invoices have the `EX/` and `RS/` prefixes.
 - Only quantities not already returned can be returned again.
+- **A product can sit on several lines of one sale**: a deal keeps its paid
+  and free units apart, and the same product scanned at two prices stays
+  apart (`invoice_products` has had its own id since 000061). Never match a
+  returned item to "the" line of its product; spread the quantity over every
+  matching line (`validateAndPriceExchange`, `executeRemoteReturnInvoiceCommand`).
 - **Deal exchanges** (`deal_exchange.go`) have their own rules: a paid unit is
   credited what was paid; a free/reduced unit is credited what was paid plus
   "swap credit" up to its shelf price, which only buys replacements in the same
