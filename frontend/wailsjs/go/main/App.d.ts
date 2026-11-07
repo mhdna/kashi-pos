@@ -172,6 +172,8 @@ export function GetDisplayPrefs():Promise<main.DisplayPrefs>;
 
 export function GetExchangeInvoice(arg1:string):Promise<Record<string, any>>;
 
+export function GetExchangeInvoiceByID(arg1:number):Promise<Record<string, any>>;
+
 export function GetExpenseFirstPhoto(arg1:string,arg2:number):Promise<string>;
 
 export function GetExpensePhoto(arg1:number,arg2:number):Promise<string>;

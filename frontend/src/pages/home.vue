@@ -87,15 +87,18 @@
           >
             <k-icon icon="mdi-pause" size="26" />
           </k-btn>
+          <!-- In an exchange this changes what it returns (the sale's items,
+               returned or not); otherwise it starts an exchange. -->
           <k-btn
             v-if="pageMode !== 'settlement'"
             icon
             class="ms-1"
             variant="text"
-            aria-label="Exchange invoice"
-            @click="returnInvoiceMenu?.open()"
+            :aria-label="pageMode === 'exchange' ? 'Returned items' : 'Exchange invoice'"
+            :title="pageMode === 'exchange' ? 'Returned items' : 'Exchange invoice'"
+            @click="pageMode === 'exchange' ? (returnsDialog = true) : returnInvoiceMenu?.open()"
           >
-            <k-icon icon="mdi-autorenew" size="26" />
+            <k-icon :icon="pageMode === 'exchange' ? 'mdi-swap-horizontal' : 'mdi-autorenew'" size="26" />
           </k-btn>
           <k-btn
             v-if="pageMode !== 'settlement'"
@@ -118,6 +121,14 @@
             <k-icon icon="mdi-magnify" size="26" />
           </k-btn>
           <OnHoldMenu ref="onHoldMenu" hide-activator @restore="onRestoreHold" />
+          <ExchangeReturnsDialog
+            v-if="exchangeState"
+            v-model="returnsDialog"
+            :original-invoice-id="exchangeState.originalInvoiceId"
+            :items="invoiceItems?.items ?? []"
+            :rounding-mode="roundingMode"
+            @change="onReturnsChange"
+          />
           <ReturnInvoiceMenu
             ref="returnInvoiceMenu"
             hide-activator
@@ -479,6 +490,7 @@ import { useProductGridMode } from "@/composables/useProductGridMode";
 import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
 import UnknownPicturesCorner from "@/components/UnknownPicturesCorner.vue";
 import ExchangeSummary from "@/components/ExchangeSummary.vue";
+import ExchangeReturnsDialog from "@/components/ExchangeReturnsDialog.vue";
 import { checkExchangeQuote, type ExchangeQuoteResult } from "@/lib/exchangeQuote";
 import { buildHoldSnapshot, holdRestore } from "@/lib/holdSnapshot";
 import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
@@ -1688,6 +1700,12 @@ async function onExchange(payload: ExchangeSelection) {
   snackbar.color = "info";
   snackbar.icon = "";
   snackbar.show = true;
+}
+
+// The exchange's "Returned items" picker (ExchangeReturnsDialog).
+const returnsDialog = ref(false);
+function onReturnsChange(items: any[]) {
+  if (invoiceItems.value) invoiceItems.value.items = items;
 }
 
 async function cancelMode() {

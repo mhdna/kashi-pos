@@ -390,6 +390,7 @@ export namespace main {
 	    paidCents?: number;
 	    swapCreditCents?: number;
 	    chargedBackCents?: number;
+	    swapAllowanceCents?: number;
 	    deal?: string;
 	    free?: boolean;
 	
@@ -408,6 +409,7 @@ export namespace main {
 	        this.paidCents = source["paidCents"];
 	        this.swapCreditCents = source["swapCreditCents"];
 	        this.chargedBackCents = source["chargedBackCents"];
+	        this.swapAllowanceCents = source["swapAllowanceCents"];
 	        this.deal = source["deal"];
 	        this.free = source["free"];
 	    }
