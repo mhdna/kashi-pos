@@ -37,7 +37,7 @@ func (s dealShop) tryExchange(saleID int64, returned, replacements []string) (in
 		raw, _ := json.Marshal([]checkoutPayment{{AccountID: s.cashbox.ID, AmountCents: quote.GrandTotalCents}})
 		payments = string(raw)
 	}
-	if _, err := s.app.CheckoutExchangeInvoice(string(itemsJSON), payments, saleID, 0, s.salesperson.ID, ""); err != nil {
+	if _, err := s.app.CheckoutExchangeInvoice(string(itemsJSON), payments, saleID, 0, s.salesperson.ID, "", true); err != nil {
 		return 0, err
 	}
 	return quote.GrandTotalCents, nil
@@ -51,7 +51,7 @@ func (s dealShop) refund(t *testing.T, saleID int64, codes ...string) int64 {
 		lines = append(lines, exchangeLine{Code: code, Barcode: "bc-" + code, Qty: -1})
 	}
 	itemsJSON, _ := json.Marshal(lines)
-	result, err := s.app.checkoutAdminReturnInvoice(string(itemsJSON), saleID, s.salesperson.ID, s.cashbox.ID, "")
+	result, err := s.app.checkoutAdminReturnInvoice(string(itemsJSON), saleID, s.salesperson.ID, s.cashbox.ID, "", receiptAsSettings)
 	if err != nil {
 		t.Fatal(err)
 	}

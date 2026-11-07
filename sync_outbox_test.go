@@ -184,7 +184,7 @@ func TestReturnInvoiceQueuesSyncLinkedToOriginalSale(t *testing.T) {
 		{Code: "SKU-1", Qty: -1},
 		{Code: replacement.Code, Qty: 1},
 	})
-	if _, err := app.CheckoutExchangeInvoice(string(returnItems), "[]", sale.InvoiceID, 0, salesperson.ID, ""); err != nil {
+	if _, err := app.CheckoutExchangeInvoice(string(returnItems), "[]", sale.InvoiceID, 0, salesperson.ID, "", true); err != nil {
 		t.Fatal(err)
 	}
 

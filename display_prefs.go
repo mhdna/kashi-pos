@@ -36,6 +36,10 @@ var displayPrefKeys = map[string]func(json.RawMessage) error{
 	"product_search_in_place":   isBool,
 	"calculator_total_currency": isString,
 	"theme":                     oneOf("light", "dark"),
+	// Settings > Receipt: returns and exchanges print their receipt (when
+	// receipts are on). Unlike the rest it's read by the till's own checkout
+	// too, so a return kashi sends follows it (returnReceiptsOn).
+	"print_return_receipts": isBool,
 }
 
 func intInRange(min, max int) func(json.RawMessage) error {
@@ -79,6 +83,25 @@ func oneOf(values ...string) func(json.RawMessage) error {
 		}
 		return fmt.Errorf("must be one of %v", values)
 	}
+}
+
+// returnReceiptsOn is the "Print return receipts" setting: on unless it was
+// turned off, and on when the prefs can't be read (as receipts were before).
+func (a *App) returnReceiptsOn() bool {
+	if a.store == nil {
+		return true
+	}
+	row, err := a.store.GetDisplayPrefs(a.ctx)
+	if err != nil {
+		return true
+	}
+	var prefs struct {
+		PrintReturnReceipts *bool `json:"print_return_receipts"`
+	}
+	if json.Unmarshal([]byte(row.DisplayPrefs), &prefs) != nil || prefs.PrintReturnReceipts == nil {
+		return true
+	}
+	return *prefs.PrintReturnReceipts
 }
 
 // DisplayPrefs is what the screen reads at startup and on each push.

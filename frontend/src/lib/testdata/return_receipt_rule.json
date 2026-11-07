@@ -1,0 +1,22 @@
+[
+  {
+    "receiptsOn": false,
+    "tick": false,
+    "prints": false
+  },
+  {
+    "receiptsOn": false,
+    "tick": true,
+    "prints": false
+  },
+  {
+    "receiptsOn": true,
+    "tick": false,
+    "prints": false
+  },
+  {
+    "receiptsOn": true,
+    "tick": true,
+    "prints": true
+  }
+]

@@ -152,7 +152,7 @@ func TestCancelRefusedAfterPartialReturn(t *testing.T) {
 	if err := f.app.executeRemoteReturnInvoiceCommand(f.ctx, partial); err != nil {
 		t.Fatal(err)
 	}
-	err := f.app.cancelInvoice(f.ctx, f.saleID, "mistake")
+	err := f.app.cancelInvoice(f.ctx, f.saleID, "mistake", receiptAsSettings)
 	if err == nil || !strings.Contains(err.Error(), "already has a return") {
 		t.Fatalf("cancel after a partial return: got %v, want the already-has-a-return refusal", err)
 	}

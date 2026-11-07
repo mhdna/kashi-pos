@@ -50,7 +50,7 @@ export function CheckShiftReceiptCaptured(arg1:string):Promise<boolean>;
 
 export function CheckTransferUploadStatus(arg1:string):Promise<boolean>;
 
-export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:number,arg6:string):Promise<Record<string, any>>;
+export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:number,arg6:string,arg7:boolean):Promise<Record<string, any>>;
 
 export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<Record<string, any>>;
 
