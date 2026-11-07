@@ -1,12 +1,31 @@
 <template>
-  <k-sheet class="events-card px-4 py-2" style="min-width: 0">
+  <!-- Folded by default: one button with the count, so the balance page
+       isn't crowded. Tapping it shows the list (and a link to the calendar). -->
+  <div class="events-card" :class="{ 'events-card--open': open }" style="min-width: 0">
     <div class="d-flex align-center events-card-title">
-      <k-icon icon="mdi-calendar-month" color="primary" class="me-2" />
-      <k-card-title class="text-body-1 font-weight-bold px-0">Coming up</k-card-title>
+      <k-btn
+        variant="tonal"
+        size="small"
+        prepend-icon="mdi-calendar-month"
+        :append-icon="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+        class="events-card-toggle"
+        :aria-expanded="open"
+        @click="open = !open"
+      >
+        {{ countLabel }}
+      </k-btn>
       <k-spacer />
-      <k-btn variant="tonal" size="small" append-icon="mdi-chevron-right" @click="router.push('/events')">Calendar</k-btn>
+      <k-btn
+        v-if="open"
+        variant="text"
+        size="small"
+        append-icon="mdi-chevron-right"
+        class="events-card-calendar"
+        @click="router.push('/events')"
+        >Calendar</k-btn
+      >
     </div>
-    <div class="events-card-list">
+    <div v-if="open" class="events-card-list">
       <div v-if="!upcoming.length" class="text-medium-emphasis text-body-2">Nothing in the next {{ DAYS }} days.</div>
       <div v-for="e in upcoming" :key="e.key" class="events-card-row">
         <k-icon :icon="e.icon" :color="e.color" size="24" class="events-card-icon" />
@@ -19,7 +38,7 @@
         </div>
       </div>
     </div>
-  </k-sheet>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -36,12 +55,15 @@ import {
 } from "@/lib/retailCalendar";
 
 const DAYS = 90;
+// The folded button counts what is on or starts within this many days.
+const COUNT_DAYS = 30;
 const MS_DAY = 86_400_000;
 const router = useRouter();
 const synced = ref<SyncedEvent[]>([]);
 const settings = ref<CalendarSettings>(DEFAULT_CALENDAR_SETTINGS);
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 const today = startOfDay(new Date());
+const open = ref(false);
 
 async function load() {
   try {
@@ -55,6 +77,15 @@ async function load() {
 const upcoming = computed(() =>
   eventsInRange(today, new Date(today.getTime() + DAYS * MS_DAY), synced.value, settings.value).slice(0, 6),
 );
+
+const soonCount = computed(
+  () => eventsInRange(today, new Date(today.getTime() + COUNT_DAYS * MS_DAY), synced.value, settings.value).length,
+);
+const countLabel = computed(() => {
+  const n = soonCount.value;
+  if (!n) return `No events in the next ${COUNT_DAYS} days`;
+  return `${n} event${n === 1 ? "" : "s"} in the next ${COUNT_DAYS} days`;
+});
 
 const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 function rangeLabel(e: CalendarEvent) {
@@ -80,7 +111,8 @@ onBeforeUnmount(() => unsub?.());
 </script>
 
 <style scoped>
-.events-card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(var(--k-theme-on-surface), 0.12); }
+.events-card { display: flex; flex-direction: column; overflow: hidden; }
+.events-card--open { padding: 8px 16px; border: 1px solid rgba(var(--k-theme-on-surface), 0.12); background: rgb(var(--k-theme-surface)); }
 .events-card-title { min-height: 32px; padding-bottom: 2px; }
 .events-card-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
 .events-card-row { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 2px 2px; }
