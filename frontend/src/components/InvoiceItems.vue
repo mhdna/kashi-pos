@@ -477,6 +477,7 @@ import {
   type DealLine,
   type UnknownDealChoice,
 } from "@/lib/deals";
+import { liveOverrideFor, liveOverrideTitle, type LiveCartLineOverride } from "@/lib/liveCart";
 import { asReturnedLine } from "@/lib/exchangeReturns";
 import {
   exchangeLineAt,
@@ -549,16 +550,11 @@ interface RemoteLine {
   priceCents?: number | null;
   discount?: number | null;
   noDeal?: boolean;
+  // An unknown item's deal choice from kashi; the till prices it, the cart
+  // only shows it.
+  unknownDeal?: string;
   prevPrice: number;
   prevDiscount: number;
-}
-
-// One line of kashi's overrides, as GetLiveCartOverrides returns it.
-export interface LiveCartLineOverride {
-  barcode: string;
-  price_cents?: number | null;
-  discount?: number | null;
-  no_deal?: boolean;
 }
 
 const emit = defineEmits<{
@@ -629,7 +625,7 @@ function unknownDealFor(item: LineItem): UnknownDealChoice | undefined {
 }
 
 function canPickUnknownDeal(item: LineItem): boolean {
-  return !readonly.value && !item.locked && item.qty > 0 && unknownDealFor(item) !== undefined;
+  return !readonly.value && !item.locked && !item.remote && item.qty > 0 && unknownDealFor(item) !== undefined;
 }
 
 function hasTypedDiscount(item: LineItem): boolean {
@@ -1434,13 +1430,7 @@ const discountedSubtotalCents = computed(() =>
 );
 
 function remoteTitle(item: LineItem): string {
-  const r = item.remote;
-  if (!r) return "";
-  const parts = [];
-  if (r.priceCents != null) parts.push(`price $${(r.priceCents / 100).toFixed(2)}`);
-  if (r.discount != null) parts.push(`${r.discount}% off`);
-  if (r.noDeal) parts.push("no deal");
-  return `Set in kashi: ${parts.join(", ")}`;
+  return item.remote ? liveOverrideTitle(item.remote) : "";
 }
 
 // Puts kashi's live-cart overrides on the lines they name and takes them off
@@ -1450,9 +1440,7 @@ function remoteTitle(item: LineItem): string {
 function applyRemoteOverrides(lines: LiveCartLineOverride[]): boolean {
   let changed = false;
   for (const item of items.value) {
-    const o = item.qty > 0 && !item.locked && !isUnknownItem(item) && item.barcode
-      ? lines.find((l) => l.barcode === item.barcode)
-      : undefined;
+    const o = liveOverrideFor(item, lines, isUnknownItem(item));
     const qty = Math.max(1, Math.trunc(item.qty));
     if (!o) {
       if (!item.remote) continue;
@@ -1470,6 +1458,7 @@ function applyRemoteOverrides(lines: LiveCartLineOverride[]): boolean {
       priceCents: o.price_cents ?? null,
       discount: o.discount ?? null,
       noDeal: Boolean(o.no_deal),
+      unknownDeal: o.unknown_deal || undefined,
       prevPrice,
       prevDiscount,
     };

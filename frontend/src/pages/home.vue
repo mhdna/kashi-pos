@@ -779,6 +779,11 @@ function liveCartReport() {
         dealDiscountCents: priced.reduce((sum, l) => sum + (l.dealDiscountCents ?? 0), 0),
         dealOff: priced.find((l) => l.offDealLabel)?.offDealLabel ?? "",
         unknown: isUnknownItem(i),
+        // An unknown item's own name for kashi to change it by (every
+        // unknown item shares a barcode), and the deal choice it's on.
+        lineRef: isUnknownItem(i) ? (i.unknownRef ?? "") : "",
+        unknownDeal: priced.find((l) => l.unknownDeal)?.unknownDeal ?? "",
+        unknownDealLabel: priced.find((l) => l.unknownDealLabel)?.unknownDealLabel ?? "",
         kashi: Boolean(i.remote),
       };
     }),

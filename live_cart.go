@@ -20,7 +20,9 @@ import (
 // simply replaced by the next one.
 //
 // Someone in kashi can then send a cart_override command for that sale: turn
-// every deal off, or give a line a price, a discount or no deal. The till keeps
+// every deal off, or give a line a price, a discount or no deal. Unknown items
+// all share one barcode, so theirs go by the line's ref (the cart's unknownRef)
+// and can also pick the line's deal choice. The till keeps
 // the overrides here and priceInvoiceTotals applies them itself, past the
 // branch's custom price/discount and deal/discount toggle settings: the point
 // is that kashi can do what the till's settings don't let a salesperson do.
@@ -33,15 +35,25 @@ const (
 	liveCartMaxPriceCents = 99999999
 )
 
-// liveCartLineOverride is what kashi set on one line, keyed by barcode.
+// liveCartLineOverride is what kashi set on one line, keyed by barcode, or
+// for an unknown item by its line ref.
 type liveCartLineOverride struct {
 	Barcode string `json:"barcode"`
+	// An unknown item's line (the cart's unknownRef); "" for any other line.
+	LineRef string `json:"line_ref,omitempty"`
 	// The unit price in cents; nil keeps the list price.
 	PriceCents *int64 `json:"price_cents,omitempty"`
 	// The discount percent; nil keeps the list discount.
 	Discount *int64 `json:"discount,omitempty"`
 	// The line counts towards no deal.
 	NoDeal bool `json:"no_deal,omitempty"`
+	// An unknown item's deal choice (b2g1_30, b2g1_20 or none); "" keeps the
+	// salesperson's.
+	UnknownDeal string `json:"unknown_deal,omitempty"`
+}
+
+func (l liveCartLineOverride) sets() bool {
+	return l.PriceCents != nil || l.Discount != nil || l.NoDeal || l.UnknownDeal != ""
 }
 
 // liveCartOverrides is the whole set kashi wants on one sale. A command
@@ -58,13 +70,15 @@ func (o liveCartOverrides) empty() bool {
 	return !o.AllDealsOff && len(o.Lines) == 0
 }
 
-func (o liveCartOverrides) line(barcode string) (liveCartLineOverride, bool) {
+// line is what kashi set on the line with this barcode; an unknown item's
+// goes by its line ref instead (lineRef != "").
+func (o liveCartOverrides) line(barcode, lineRef string) (liveCartLineOverride, bool) {
 	barcode = strings.TrimSpace(barcode)
 	if barcode == "" {
 		return liveCartLineOverride{}, false
 	}
 	for _, l := range o.Lines {
-		if l.Barcode == barcode {
+		if l.Barcode == barcode && l.LineRef == lineRef {
 			return l, true
 		}
 	}
@@ -207,11 +221,13 @@ func (a *App) executeCartOverrideCommand(payloadJSON json.RawMessage) error {
 	if o.SaleRef == "" {
 		return errors.New("cart_override needs the sale's sale_ref")
 	}
-	seen := map[string]bool{}
+	seen := map[[2]string]bool{}
 	lines := make([]liveCartLineOverride, 0, len(o.Lines))
 	for _, l := range o.Lines {
 		l.Barcode = strings.TrimSpace(l.Barcode)
-		if l.Barcode == "" || seen[l.Barcode] {
+		l.LineRef = strings.TrimSpace(l.LineRef)
+		key := [2]string{l.Barcode, l.LineRef}
+		if l.Barcode == "" || seen[key] {
 			continue
 		}
 		if l.PriceCents != nil && (*l.PriceCents <= 0 || *l.PriceCents > liveCartMaxPriceCents) {
@@ -220,10 +236,18 @@ func (a *App) executeCartOverrideCommand(payloadJSON json.RawMessage) error {
 		if l.Discount != nil && (*l.Discount < 0 || *l.Discount > 100) {
 			return fmt.Errorf("cart_override: discount for %s must be 0 to 100", l.Barcode)
 		}
-		if l.PriceCents == nil && l.Discount == nil && !l.NoDeal {
+		if l.UnknownDeal != "" {
+			if l.LineRef == "" {
+				return fmt.Errorf("cart_override: only an unknown item's line picks a deal choice")
+			}
+			if _, _, err := unknownDealFallback(l.UnknownDeal); err != nil {
+				return fmt.Errorf("cart_override: %w", err)
+			}
+		}
+		if !l.sets() {
 			continue
 		}
-		seen[l.Barcode] = true
+		seen[key] = true
 		lines = append(lines, l)
 	}
 	o.Lines = lines
@@ -252,7 +276,7 @@ func applyLiveCartOverride(o liveCartOverrides, item *salesInvoiceItem) (liveCar
 	if item.Qty <= 0 {
 		return liveCartLineOverride{}, false
 	}
-	l, ok := o.line(item.Barcode)
+	l, ok := o.line(item.Barcode, "")
 	if !ok {
 		return liveCartLineOverride{}, false
 	}
@@ -261,5 +285,35 @@ func applyLiveCartOverride(o liveCartOverrides, item *salesInvoiceItem) (liveCar
 	item.UnitDiscounts = nil
 	item.NoDiscount = false
 	item.NoDeal = false
+	return l, true
+}
+
+// applyUnknownLiveCartOverride is applyLiveCartOverride for an unknown item,
+// found by its line ref. Its price is the one the cashier typed unless kashi
+// set another, and the same goes for its discount; kashi's deal choice (or
+// no deal) replaces the salesperson's. The line's discount is then kashi's to
+// set past the branch's custom-discount setting.
+func applyUnknownLiveCartOverride(o liveCartOverrides, item *salesInvoiceItem) (liveCartLineOverride, bool) {
+	if item.Qty <= 0 || strings.TrimSpace(item.LineRef) == "" {
+		return liveCartLineOverride{}, false
+	}
+	l, ok := o.line(item.Barcode, strings.TrimSpace(item.LineRef))
+	if !ok {
+		return liveCartLineOverride{}, false
+	}
+	if l.PriceCents != nil {
+		price := *l.PriceCents
+		item.CustomPriceCents = &price
+		item.UnitPricesCents = nil
+	}
+	if l.Discount != nil {
+		item.UnitDiscounts = nil
+	}
+	switch {
+	case l.NoDeal:
+		item.UnknownDeal = unknownDealNone
+	case l.UnknownDeal != "":
+		item.UnknownDeal = l.UnknownDeal
+	}
 	return l, true
 }
