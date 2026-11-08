@@ -113,7 +113,7 @@ the latest per register, in memory.
 
 From kashi's app bar (the cart button) someone with pricing rights can send a
 `cart_override` for that sale: turn every deal off, or give a line (by
-barcode) a price, a discount or no deal. These go **past the branch's
+barcode, or an unknown item by its line ref) a price, a discount or no deal. These go **past the branch's
 settings**: `validateAndPriceItems` applies them itself whatever
 `custom_item_prices`, `custom_item_discounts`, `price_edit_restricted` and
 the toggles say, so the quote and the checkout both charge them. The screen
@@ -123,8 +123,11 @@ marks those lines "kashi" and locks them.
   in the draft). A report of another sale drops them; a command for a sale
   that's gone fails, and kashi shows it.
 - Only a plain sale takes them, never an exchange or settlement.
-- Unknown items can't be singled out (they share one barcode); "every deal
-  off" still takes them off the shop's deal.
+- Unknown items all share one barcode, so their overrides go by the line's
+  `line_ref` (the cart's `unknownRef`, sent in the report as `lineRef`). kashi
+  can give one a price, a discount, or a deal choice (`unknown_deal`:
+  `b2g1_30`, `b2g1_20`, `none`); a discount still takes it off the deal.
+  A line with no ref (an old draft or hold) can't be named.
 - They live in memory: a till restart drops them and the lines go back to
   their own prices on the next report.
 

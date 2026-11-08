@@ -131,11 +131,14 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 	// What kashi set on the sale on screen (live_cart.go); empty otherwise.
 	liveOverrides := a.liveCart.activeOverrides()
 	for _, item := range items {
-		// Every unknown item shares one barcode, so kashi can't single one out.
+		// Every unknown item shares one barcode, so kashi names one by its
+		// line ref instead.
 		var lineOverride liveCartLineOverride
 		overridden := false
 		if strings.TrimSpace(item.Barcode) != a.unknownBarcode() {
 			lineOverride, overridden = applyLiveCartOverride(liveOverrides, &item)
+		} else {
+			lineOverride, overridden = applyUnknownLiveCartOverride(liveOverrides, &item)
 		}
 		if item.NoDiscount && !discountToggleChecked {
 			if !a.flagEnabled(a.ctx, discountToggleFlag) {
@@ -248,6 +251,11 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		// A line kashi priced from the live cart: its price and discount are
 		// kashi's, past the branch's settings, and like any line priced by
 		// hand it leaves its deal.
+		// kashi's discount on an unknown item (its price is already on the
+		// line as a custom price, and its deal choice on item.UnknownDeal).
+		if overridden && isUnknown && lineOverride.Discount != nil {
+			product.Discount = *lineOverride.Discount
+		}
 		if overridden && !isUnknown {
 			if lineOverride.PriceCents != nil {
 				product.Price = *lineOverride.PriceCents
