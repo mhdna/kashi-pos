@@ -336,6 +336,7 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 		return
 	}
 	if msg.Type == "expense_images_uploaded" {
+		a.forgetPhotos(msg.ClientRef)
 		a.emitExpenseImagesUploaded(msg.ClientRef)
 		return
 	}
@@ -346,6 +347,7 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 		return
 	}
 	if msg.Type == "loan_images_uploaded" {
+		a.forgetPhotos(msg.ClientRef)
 		a.emitLoanImagesUploaded(msg.ClientRef)
 		return
 	}

@@ -13,6 +13,7 @@
 | `%APPDATA%\kashi-pos\updates\` | Downloaded releases, `state.json` and `handoff.json` for remote updates. |
 | next to `GB-Cloud.exe` | The previous version's exe, kept for rollback, and an optional `.env`. |
 | `%LOCALAPPDATA%\...` | WebView2 profile (see `windows-till.md`). |
+| `%LOCALAPPDATA%\kashi-pos\.rc\store` | Saved copies of kashi's record photos, encrypted (see below). Hidden folder; safe to delete. |
 | `%TEMP%\kashicloud-splash.log` | Splash window log. |
 
 - **There is no app log.** The Go code calls `log.Printf` all over, but output
@@ -31,6 +32,37 @@
   by the seed after that.
 - SQLite runs with WAL, foreign keys on, a 5 s busy timeout and
   `_txlock=immediate` (every transaction takes the write lock at its start).
+
+## Record photo cache (`photo_cache.go`, `record_photos.go`)
+
+Expense, loan and transfer photos live in kashi (phones upload them there).
+The till keeps every one it has shown so the next showing is instant, offline
+too.
+
+- **One SQLite file, no image files.** `os.UserCacheDir()/kashi-pos/.rc/store`
+  (`%LOCALAPPDATA%` on Windows, never the roaming profile), the folder hidden.
+  Each photo is a row, **AES-256-GCM encrypted**; the key is a secret compiled
+  into the app plus a random per-file salt, and each row is bound to its own
+  key, so blobs can't be swapped. Keeps people out of the photos with a file
+  manager or SQLite browser; it can't stop someone who takes the exe apart.
+- **Saved copy first, kashi checks in the background.** A copy older than 30 s
+  (`photoRecheckAfter`) is still shown, then re-asked with its ETag (kashi
+  answers 304 when unchanged); at most 4 checks at once, one per copy. "No
+  photo" (404) is saved too.
+- **Changes reach the screen** as the `record_photos_changed` event with the
+  record's ref (expense/loan clientRef, sent transfer clientRef,
+  `transfer-<id>` received); pages bump that row's photo version
+  (`lib/recordPhotos.ts`). The ref naming is pinned by
+  `record_photo_refs.json`, written by `TestRecordPhotoRefsGolden`.
+- **New photos drop the record's copies**: on `expense_images_uploaded` /
+  `loan_images_uploaded` and after *Add from this computer*.
+- **Photo id lists are live.** `ListExpensePhotoIDs` / `ListLoanPhotoIDs` ask
+  kashi every time (the upload dialog polls them to see a photo land) and use
+  the saved list only when kashi can't be reached.
+- Copies are keyed by kashi URL + branch code + request, so another branch or
+  server never shows the old one's. Capped at 512 MB, least recently shown
+  dropped first.
+- Can't be opened: photos just come from kashi as before.
 
 ## `.env`
 

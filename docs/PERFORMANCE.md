@@ -9,6 +9,16 @@ Measured or reported slow things that are not fixed yet. Nothing recorded yet.
 
 ## Entries
 
+### 2026-11-10 · Expense, loan and transfer photos loaded slowly every time
+
+**Symptom.** Opening Expenses, Loans or Transfers, or a record's detail, waited on kashi for every thumbnail and photo, each session; offline they never showed.
+
+**Finding.** Every photo was a round trip to kashi (behind Cloudflare), kept only in memory for the session; reopening the app fetched them all again. Not timed on a till.
+
+**Change.** `photo_cache.go`, `record_photos.go`: every photo is saved, encrypted, in one hidden SQLite file and shown from it after the first time; kashi is asked in the background (ETag, 304 when unchanged) and the page redraws only if it changed (`frontend/src/lib/recordPhotos.ts`, the three pages). Works offline for photos seen before.
+
+**Not done.** Fetching recent records' thumbnails ahead of time, before anyone opens the page (in `FEATURE_IDEAS.md`).
+
 ### 2026-11-07 · Change Client and Change Salesperson felt slow on the invoice list
 
 **Symptom.** Both dialogs opened empty and took a moment to become usable; after picking a client, Save stayed greyed out for a beat.

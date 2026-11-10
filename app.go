@@ -164,6 +164,16 @@ type App struct {
 	// recreating -wal/-shm journal files) after shutdown returns, which
 	// raced with test cleanup deleting the database's temp directory.
 	backgroundWG sync.WaitGroup
+
+	// photoCache keeps kashi's photos on disk, encrypted (photo_cache.go);
+	// opened on first use. photoWG tracks its background checks and
+	// photoRechecks the copies being checked. onPhotosChanged replaces the
+	// "record_photos_changed" event in tests.
+	photoCache      *photoCache
+	photoCacheOnce  sync.Once
+	photoWG         sync.WaitGroup
+	photoRechecks   sync.Map
+	onPhotosChanged func(ref string)
 	// updater is the remote-update state -- see updater.go.
 	updater appUpdater
 }
@@ -460,6 +470,7 @@ func (a *App) shutdown(ctx context.Context) {
 	// for tests) still be touching the SQLite file on disk after shutdown
 	// has returned.
 	a.backgroundWG.Wait()
+	a.closePhotoCache()
 	a.stopAdminServer(ctx)
 	a.stopShiftUploadServer(ctx)
 	if a.conn != nil {
