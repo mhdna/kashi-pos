@@ -123,6 +123,10 @@ func firstRasterInkRow(img *image.RGBA, height int) int {
 	return 0
 }
 
+// receiptMinorSize is the point size of the secondary lines around the total
+// (subtotal, discount, rounding, payments), printed in the regular weight.
+const receiptMinorSize = 10
+
 // gap is a vertical space of n pixels plus the theme's extra breathing room.
 func (c *receiptCanvas) gap(n int) int { return n + c.style.Gap }
 
@@ -206,8 +210,10 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if c.style.Savings && discountTotal > 0 {
 		rows = append(rows, [2]string{"You saved", fmt.Sprintf("$%.2f", discountTotal)})
 	}
+	// Subtotal, discount and rounding are working lines, not the answer:
+	// regular weight and a size down, so TOTAL is the one heavy line.
 	for _, row := range rows {
-		y, _ = c.twoCol(y, row[0], row[1], 11, true)
+		y, _ = c.twoCol(y, row[0], row[1], receiptMinorSize, false)
 		y += c.gap(7)
 	}
 	y = c.drawTotal(y, grandTotal)
@@ -226,7 +232,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 			} else {
 				label = "Received - " + label
 			}
-			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, c.data.RoundingMode), 10, true)
+			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, c.data.RoundingMode), receiptMinorSize, false)
 			y += c.gap(7)
 		}
 	}
@@ -375,10 +381,17 @@ func (c *receiptCanvas) text(x, y int, value string, size float64, bold, title b
 	return c.textRole(x, y, value, size, fontRoleFor(bold, title), image.Black)
 }
 
+// receiptTextTrace, when set (tests only), is told about every string drawn,
+// so a test can check what weight and size a line printed in.
+var receiptTextTrace func(value string, size float64, role fontRole)
+
 func (c *receiptCanvas) textRole(x, y int, value string, size float64, role fontRole, ink image.Image) (int, error) {
 	face, err := c.faceRole(size, role)
 	if err != nil {
 		return y, err
+	}
+	if receiptTextTrace != nil {
+		receiptTextTrace(value, size, role)
 	}
 	metrics := face.Metrics()
 	drawer := font.Drawer{Dst: c.img, Src: ink, Face: face, Dot: fixed.P(x, y+metrics.Ascent.Ceil())}
