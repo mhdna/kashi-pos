@@ -292,6 +292,7 @@ import PhotoUploadDialog from "@/components/PhotoUploadDialog.vue";
 import PhotoViewer from "@/components/PhotoViewer.vue";
 import RecordPhoto from "@/components/RecordPhoto.vue";
 import { detailPhotoWidth } from "@/lib/photos";
+import { onRecordPhotosChanged } from "@/lib/recordPhotos";
 import { useInfiniteList } from "@/composables/useInfiniteList";
 import { formatServerDateTime } from "@/lib/datetime";
 import { isSpecialPaymentMethod } from "@/lib/paymentMethods";
@@ -342,7 +343,7 @@ async function openDetail(item: any) {
   detailPhotosLoading.value = true;
   try {
     const ids = (await ListExpensePhotoIDs(item.clientRef)) ?? [];
-    const photos = await Promise.all(ids.map((id: number) => GetExpensePhoto(id, detailPhotoWidth)));
+    const photos = await Promise.all(ids.map((id: number) => GetExpensePhoto(item.clientRef, id, detailPhotoWidth)));
     if (selected.value === item) detailPhotos.value = photos.filter(Boolean);
   } finally {
     detailPhotosLoading.value = false;
@@ -562,16 +563,20 @@ async function loadExpenseCategories() {
 
 let categorySyncUnsub: (() => void) | null = null;
 let recordSyncUnsub: (() => void) | null = null;
+let photosChangedUnsub: (() => void) | null = null;
 
 onMounted(async () => {
   await Promise.all([list.loadMore(), loadPaymentMethods(), loadExpenseCategories()]);
   categorySyncUnsub = EventsOn("sync_applied:expense_categories", loadExpenseCategories);
   recordSyncUnsub = EventsOn("sync_applied:expenses", () => void list.refresh());
+  // A photo turned, replaced or added in kashi: redraw that expense.
+  photosChangedUnsub = onRecordPhotosChanged(onPhotosUploaded);
 });
 
 onBeforeUnmount(() => {
   categorySyncUnsub?.();
   recordSyncUnsub?.();
+  photosChangedUnsub?.();
 });
 </script>
 

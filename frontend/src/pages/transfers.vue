@@ -32,7 +32,7 @@
       @click:row="(_e: unknown, row: any) => openOutgoing(row.item)"
     >
       <template #item.photo="{ item }">
-        <RecordPhoto :cache-key="`transfer-out-${item.clientRef}`" :load="() => GetTransferPhoto(item.clientRef, 0, 96)" />
+        <RecordPhoto :cache-key="photoKey('transfer-out', transferPhotoRef(item.clientRef, 0))" :load="() => GetTransferPhoto(item.clientRef, 0, 96)" />
       </template>
       <template #item.toBranchCode="{ item }">
         <span class="font-weight-medium">{{ branchName(item.toBranchCode) }}</span>
@@ -61,7 +61,7 @@
       @click:row="(_e: unknown, row: any) => openIncoming(row.item)"
     >
       <template #item.photo="{ item }">
-        <RecordPhoto :cache-key="`transfer-in-${item.id}`" :load="() => GetTransferPhoto('', item.id, 96)" />
+        <RecordPhoto :cache-key="photoKey('transfer-in', transferPhotoRef('', item.id))" :load="() => GetTransferPhoto('', item.id, 96)" />
       </template>
       <template #item.senderBranchName="{ item }">
         <span class="font-weight-medium">{{ item.senderBranchName || "—" }}</span>
@@ -284,6 +284,7 @@ import {
   GetTransferPhoto,
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { onRecordPhotosChanged, transferPhotoRef, usePhotoVersions } from "@/lib/recordPhotos";
 import RecordPhoto from "@/components/RecordPhoto.vue";
 import { detailPhotoWidth } from "@/lib/photos";
 import PhotoViewer from "@/components/PhotoViewer.vue";
@@ -329,6 +330,19 @@ async function loadDetailPhoto(clientRef: string, transferID: number) {
     detailPhoto.value = await GetTransferPhoto(clientRef, transferID, detailPhotoWidth);
   } finally {
     detailPhotoLoading.value = false;
+  }
+}
+
+// A photo turned or replaced in kashi: refetch that row's thumbnail and, if
+// its dialog is open, the full photo.
+const { cacheKey: photoKey, bump: bumpPhoto } = usePhotoVersions();
+function onPhotosChanged(ref: string) {
+  bumpPhoto(ref);
+  if (outgoingDialog.value && outgoingTarget.value && transferPhotoRef(outgoingTarget.value.clientRef, 0) === ref) {
+    void loadDetailPhoto(outgoingTarget.value.clientRef, 0);
+  }
+  if (incomingDialog.value && incomingTarget.value && transferPhotoRef("", incomingTarget.value.id) === ref) {
+    void loadDetailPhoto("", incomingTarget.value.id);
   }
 }
 
@@ -560,6 +574,7 @@ onMounted(async () => {
   unsubscribers.push(EventsOn("sync_applied:transfer_requests", loadOutgoing));
   unsubscribers.push(EventsOn("sync_applied:incoming_transfer_requests", loadIncoming));
   unsubscribers.push(EventsOn("sync_applied:branches", loadBranches));
+  unsubscribers.push(onRecordPhotosChanged(onPhotosChanged));
 });
 
 onBeforeUnmount(() => {

@@ -178,7 +178,7 @@ export function GetExchangeInvoiceByID(arg1:number):Promise<Record<string, any>>
 
 export function GetExpenseFirstPhoto(arg1:string,arg2:number):Promise<string>;
 
-export function GetExpensePhoto(arg1:number,arg2:number):Promise<string>;
+export function GetExpensePhoto(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function GetInvoiceDetails(arg1:number):Promise<Record<string, any>>;
 
@@ -192,7 +192,7 @@ export function GetLiveCartOverrides():Promise<main.liveCartOverrides>;
 
 export function GetLoanFirstPhoto(arg1:string,arg2:number):Promise<string>;
 
-export function GetLoanPhoto(arg1:number,arg2:number):Promise<string>;
+export function GetLoanPhoto(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function GetMonthSales(arg1:string):Promise<main.MonthSales>;
 

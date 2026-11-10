@@ -121,7 +121,11 @@ func (a *App) AddExpensePhotosFromComputer(clientRef string, limit int) (int, er
 	if err != nil {
 		return 0, err
 	}
-	return a.uploadPickedPhotos(client.UploadURL(token)+"/images", limit)
+	sent, err := a.uploadPickedPhotos(client.UploadURL(token)+"/images", limit)
+	if sent > 0 {
+		a.forgetPhotos(clientRef)
+	}
+	return sent, err
 }
 
 // AddLoanPhotosFromComputer is AddExpensePhotosFromComputer for a loan.
@@ -130,7 +134,11 @@ func (a *App) AddLoanPhotosFromComputer(clientRef string, limit int) (int, error
 	if err != nil {
 		return 0, err
 	}
-	return a.uploadPickedPhotos(client.LoanUploadURL(token)+"/images", limit)
+	sent, err := a.uploadPickedPhotos(client.LoanUploadURL(token)+"/images", limit)
+	if sent > 0 {
+		a.forgetPhotos(clientRef)
+	}
+	return sent, err
 }
 
 // The image types kashi's upload endpoints accept, by file extension.

@@ -354,8 +354,8 @@ export function GetExpenseFirstPhoto(arg1, arg2) {
   return window['go']['main']['App']['GetExpenseFirstPhoto'](arg1, arg2);
 }
 
-export function GetExpensePhoto(arg1, arg2) {
-  return window['go']['main']['App']['GetExpensePhoto'](arg1, arg2);
+export function GetExpensePhoto(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetExpensePhoto'](arg1, arg2, arg3);
 }
 
 export function GetInvoiceDetails(arg1) {
@@ -382,8 +382,8 @@ export function GetLoanFirstPhoto(arg1, arg2) {
   return window['go']['main']['App']['GetLoanFirstPhoto'](arg1, arg2);
 }
 
-export function GetLoanPhoto(arg1, arg2) {
-  return window['go']['main']['App']['GetLoanPhoto'](arg1, arg2);
+export function GetLoanPhoto(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetLoanPhoto'](arg1, arg2, arg3);
 }
 
 export function GetMonthSales(arg1) {
