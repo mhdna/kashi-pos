@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-10 · The calculator showed the total twice ("$30.00" over "$30")
+
+**Symptom.** On a sale of exactly $30 the calculator's total card read
+"$30.00" with "$30" right under it, the same amount twice.
+
+**Cause.** The line under the total is the cash split: whole dollars plus the
+rest in LBP ("$30 + LL 45,000"). With nothing left over the LBP half is
+dropped, leaving only "$30", which repeats the total above it.
+
+**Fix.** The split line is hidden when it is a single amount in the same
+currency as the total shown (`splitRepeatsTotal`, `lib/totalSplit.ts`;
+`Calculator.vue` now says which currency the lone half is in, and
+`calculator/CalculatorStatus.vue` uses it). It still shows with two halves,
+or in the other currency (a lone "LL 450,000" under a USD total, or "$30"
+when the total is flipped to LBP). Tests: `lib/totalSplit.test.ts` and
+`components/calculator/CalculatorStatus.test.ts`.
+
 ## 2026-11-07 · An exchange called a free item's credit "unused" before anything was bought
 
 **Symptom.** With every item of a deal sale returned and nothing bought yet,

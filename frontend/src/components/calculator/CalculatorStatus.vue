@@ -35,7 +35,7 @@
         <div class="calculator-amount calculator-total-usd">
           <strong :class="statusColor">{{ displayedTotal }}</strong>
         </div>
-        <div class="calculator-amounts-split">
+        <div v-if="showSplit" class="calculator-amounts-split">
           <span :class="statusColor">{{ remainingAmount.first }}</span>
           <span v-if="remainingAmount.second" class="calculator-amounts-plus" aria-hidden="true">+</span>
           <span v-if="remainingAmount.second" :class="statusColor">{{ remainingAmount.second }}</span>
@@ -60,6 +60,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { calculatorTotalCurrency, setCalculatorTotalCurrency } from "@/lib/display";
+import { splitRepeatsTotal } from "@/lib/totalSplit";
 
 const props = defineProps<{
   paymentStatus: string;
@@ -80,6 +81,8 @@ const props = defineProps<{
     // holds is per-branch config (see splitAmount in Calculator.vue).
     first: string;
     second: string;
+    // Currency of `first` when it stands alone (no second half).
+    firstCode?: string;
     fullPrimary: string;
     fullSecondary: string;
     secondaryRounded: boolean;
@@ -103,6 +106,12 @@ const currentIndex = computed(() => {
 const displayedTotal = computed(
   () => props.remainingAmount.amountsByCurrency[currentIndex.value]?.text ?? props.remainingAmount.fullPrimary,
 );
+const displayedCode = computed(
+  () => props.remainingAmount.amountsByCurrency[currentIndex.value]?.code ?? "USD",
+);
+// "$30.00" over "$30" says the same thing twice; the split line only shows
+// when it adds something (a second half, or another currency).
+const showSplit = computed(() => !splitRepeatsTotal(props.remainingAmount, displayedCode.value));
 const isRounded = computed(
   () => Boolean(props.remainingAmount.amountsByCurrency[currentIndex.value]?.rounded) || props.remainingAmount.secondaryRounded,
 );

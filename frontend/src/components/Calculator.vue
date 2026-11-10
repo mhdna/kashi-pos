@@ -412,8 +412,8 @@ function splitAmount(amountCents: number) {
   // The order is display-only: the arithmetic above is always primary-first.
   const primaryFirst = props.splitPrimaryFirst !== false;
   const parts = [
-    { text: primaryText, zero: wholePrimary === 0 },
-    { text: secondaryText, zero: secondaryUnits === 0 },
+    { text: primaryText, code: primary.code, zero: wholePrimary === 0 },
+    { text: secondaryText, code: secondary.code, zero: secondaryUnits === 0 },
   ];
   if (!primaryFirst) parts.reverse();
   // A half that is zero is left out: "LL 540,000", not "$0 + LL 540,000".
@@ -423,6 +423,7 @@ function splitAmount(amountCents: number) {
   return {
     first: shown[0]!.text,
     second: shown[1]?.text ?? "",
+    firstCode: shown.length === 1 ? shown[0]!.code : "",
     remainderCents,
   };
 }
@@ -442,12 +443,13 @@ const remainingAmount = computed(() => {
   // A secondary currency that rounds to 1 has no denomination to split at, so
   // there is no meaningful "whole units + remainder" to show -- one line only.
   if (roundingCurrency.value.cashRoundingUnit <= 1) {
-    return { first: fullUsd, second: "", fullPrimary: fullUsd, fullSecondary: "", amountsByCurrency, secondaryRounded: false };
+    return { first: fullUsd, second: "", firstCode: "USD", fullPrimary: fullUsd, fullSecondary: "", amountsByCurrency, secondaryRounded: false };
   }
-  const { first, second, remainderCents } = splitAmount(amountCents);
+  const { first, second, firstCode, remainderCents } = splitAmount(amountCents);
   return {
     first,
     second,
+    firstCode,
     fullPrimary: fullUsd,
     fullSecondary: unitsLabel(
       roundingCurrency.value,
