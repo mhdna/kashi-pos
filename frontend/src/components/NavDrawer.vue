@@ -123,9 +123,9 @@
 
   <k-dialog v-model="reloadAppConfirmOpen" max-width="360">
     <k-card class="options-dialog-card" rounded="xl" data-test="reload-app-dialog">
-      <k-card-title>Reload GB Cloud</k-card-title>
+      <k-card-title>Reload app</k-card-title>
       <k-card-text>
-        Reload GB Cloud? It closes and opens again in a few seconds.
+        Reload the app? It closes and opens again in a few seconds.
         <div v-if="reloadAppError" class="text-error mt-2" data-test="reload-app-error">{{ reloadAppError }}</div>
       </k-card-text>
       <k-card-actions>

@@ -60,13 +60,13 @@ describe("Quit menu", () => {
     expect(document.body.textContent).not.toContain("This app");
     expect(document.body.textContent).not.toContain("This computer");
     const labels = [...document.body.querySelectorAll(".option-card")].map((e) => e.textContent?.trim());
-    expect(labels).toEqual(["Close Shift", "Logout", "Reload GB Cloud", "Close App", "Restart PC", "Shut Down PC"]);
+    expect(labels).toEqual(["Close Shift", "Logout", "Reload App", "Close App", "Restart PC", "Shut Down PC"]);
   });
 
-  it("Reload GB Cloud asks first, then reloads the app, and not the computer", async () => {
+  it("Reload App asks first, then reloads the app, and not the computer", async () => {
     await openQuitMenu();
     await click('[data-test="quit-reload-app"]');
-    expect(q('[data-test="reload-app-dialog"]')!.textContent).toContain("Reload GB Cloud?");
+    expect(q('[data-test="reload-app-dialog"]')!.textContent).toContain("Reload the app?");
     expect(RestartApp).not.toHaveBeenCalled();
     await click('[data-test="reload-app-confirm"]');
     expect(RestartApp).toHaveBeenCalledTimes(1);

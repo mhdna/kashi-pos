@@ -45,7 +45,7 @@ Code: `shifts.go`, `shift_auto_swap.go`, `shift_upload_server.go`,
   computer down (`ShutDownComputer`, as in the Quit dialog; refused in a
   development build) or just log out.
 - The Quit menu (`lib/quitMenu.ts`) groups its options: Shift (Close Shift, Logout),
-  This app (Reload GB Cloud, Close App), This computer (Restart PC, Shut Down PC).
+  This app (Reload App, Close App), This computer (Restart PC, Shut Down PC).
   Reload (`RestartApp`) starts a hidden helper that reopens the exe after ~2 s, then
   quits; refused in a development build.
 - The shift receipt's sign-off lines (`shift_report_signatures`, on) and

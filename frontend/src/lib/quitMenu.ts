@@ -43,7 +43,7 @@ export const QUIT_GROUPS: QuitGroup[] = [
     title: "This app",
     tone: "app",
     options: [
-      { action: "reload-app", label: "Reload GB Cloud", icon: "mdi-autorenew", hint: "Close GB Cloud and open it again." },
+      { action: "reload-app", label: "Reload App", icon: "mdi-autorenew", hint: "Close GB Cloud and open it again." },
       { action: "close-app", label: "Close App", icon: "mdi-close", hint: "Close GB Cloud and go to Windows." },
     ],
   },

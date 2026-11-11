@@ -17,7 +17,7 @@ describe("quit menu", () => {
 
   it("names the app reload and the computer restart so they can't be confused", () => {
     const label = (a: string) => QUIT_OPTIONS.find((o) => o.action === a)!.label;
-    expect(label("reload-app")).toBe("Reload GB Cloud");
+    expect(label("reload-app")).toBe("Reload App");
     expect(label("restart-pc")).toBe("Restart PC");
     expect(label("shutdown-pc")).toBe("Shut Down PC");
     // No option is just "Restart": it used to mean the computer.
