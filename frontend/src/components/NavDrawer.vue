@@ -462,11 +462,11 @@ const items = computed(() => {
 .visitor-counter-btn {
   width: 40px;
   height: 40px;
-  background-color: #3a424e !important;
+  background-color: #4a6fa5 !important;
   color: #ffffff !important;
 }
 .visitor-counter-btn:active {
-  background-color: #4a5361 !important;
+  background-color: #5f83bb !important;
 }
 
 .visitor-counter-btn :deep(.k-icon) {
