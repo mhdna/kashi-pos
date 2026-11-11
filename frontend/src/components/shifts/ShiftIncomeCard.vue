@@ -258,7 +258,7 @@ async function confirmManager() {
 }
 
 /* The total is the card's answer: a square band across the whole card (it
-   cancels the card's 16px padding), a rule above it, a light tint behind,
+   cancels the card's 16px padding), a rule above it, a light green tint behind,
    bigger than the lines it adds up, amount in figures that line up. */
 .shift-total {
   display: flex;
@@ -269,7 +269,7 @@ async function confirmManager() {
   padding: 14px 32px;
   border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 0;
-  background: rgba(var(--k-theme-primary), 0.08);
+  background: rgba(67, 160, 71, 0.13);
 }
 .shift-total-label {
   font-size: 0.95rem;
