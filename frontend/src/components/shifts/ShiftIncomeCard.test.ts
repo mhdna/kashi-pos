@@ -55,6 +55,19 @@ describe("ShiftIncomeCard", () => {
     expect(total()).not.toContain("$0.00");
   });
 
+  it("gives each account the icon for what it is, not a wallet for all", async () => {
+    await show([
+      { accountId: 1, accountName: "Cash $$", currencyCode: "USD", total: 100 },
+      { accountId: 2, accountName: "Cash LBP", currencyCode: "LBP", total: 100 },
+      { accountId: 3, accountName: "Visa", currencyCode: "USD", total: 100 },
+      { accountId: 4, accountName: "Whish", currencyCode: "USD", total: 100 },
+    ]);
+    const rows = wrapper!.findAll(".shift-income-row");
+    expect(rows).toHaveLength(4);
+    const used = rows.map((r) => r.find('[data-test="account-icon"]').exists());
+    expect(used.every(Boolean)).toBe(true);
+  });
+
   it("heads the card with the title and the shift number as a pill", async () => {
     await show([{ accountId: 1, accountName: "Cash $$", currencyCode: "USD", total: 24300 }]);
     const header = wrapper!.find('[data-test="income-header"]');

@@ -14,7 +14,7 @@
         <k-list-item v-for="item in collectedItems" :key="item.accountName" class="shift-income-row">
         <template #prepend>
           <k-avatar :color="paymentAccentColor({ name: item.accountName, color: item.color })" variant="tonal" size="32">
-            <k-icon icon="mdi-wallet" size="18" />
+            <k-icon :icon="paymentIcon({ name: item.accountName, isOnAccount: item.isOnAccount })" size="18" data-test="account-icon" />
           </k-avatar>
         </template>
         <template #title>
@@ -142,6 +142,7 @@ import { collectedTotalCents, netIncomeCents, onAccountTotalCents } from "@/lib/
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { paymentAccentColor } from "@/lib/paymentColor";
+import { paymentIcon } from "@/lib/paymentIcon";
 import { useCurrencies } from "@/composables/useCurrencies";
 import { grantManagerPass } from "@/composables/useManagerPass";
 import { useAuthStore } from "@/stores/auth";
