@@ -3,7 +3,7 @@
 package main
 
 // Temporary end-to-end harness: runs the real sync code against a copy of a
-// real till database and a locally running kashi. Not part of the normal
+// real till database and a locally running central. Not part of the normal
 // test suite (build tag e2e). Usage:
 //
 //	E2E_DB=/path/copy.db E2E_URL=http://localhost:8090 E2E_CODE=E2E01 E2E_KEY=... \
@@ -88,7 +88,7 @@ func TestE2ESyncAll(t *testing.T) {
 	logJSON(t, "full check", rep.FullCheck)
 	t.Logf("sync all took %s", time.Since(start))
 
-	// Drain the outbox against kashi, like the push loop would.
+	// Drain the outbox against central, like the push loop would.
 	client := newCentralClient(os.Getenv("E2E_URL"), os.Getenv("E2E_CODE"), os.Getenv("E2E_KEY"))
 	drainStart := time.Now()
 	for i := 0; i < 2000; i++ {
@@ -133,7 +133,7 @@ func TestE2ESyncAll(t *testing.T) {
 		count(t, conn, "select count(*) from products where remote_updated_at is not null"))
 }
 
-// Changes made in kashi after the initial sync reach the till through the
+// Changes made in central after the initial sync reach the till through the
 // normal pull: a phone edit updates the same client in place, and a
 // deactivated variant goes inactive locally.
 func TestE2ELiveChanges(t *testing.T) {
@@ -167,7 +167,7 @@ func TestE2ELiveChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	if p.IsActive != 0 {
-		t.Fatalf("variant deactivated in kashi is still active locally: %+v", p)
+		t.Fatalf("variant deactivated in central is still active locally: %+v", p)
 	}
 	t.Logf("product %d (%s) is inactive locally", p.ID, p.Barcode)
 }

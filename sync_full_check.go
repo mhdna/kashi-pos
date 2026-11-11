@@ -15,14 +15,14 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// The completeness check. The regular pull (sync_pull.go) follows kashi's
+// The completeness check. The regular pull (sync_pull.go) follows central's
 // updated_at cursor, so it only ever sees rows that changed after the
 // cursor -- a row this till never received (a failed apply that a later
 // page skipped past, a restored backup, a till that joined late) would stay
 // missing forever. This pass compares the till's full set of client and
-// product uids against kashi's and fetches whatever is missing or older
-// than kashi's copy, so every till converges on the same copy of kashi's
-// clients and products. It also adopts kashi's uid for clients this branch
+// product uids against central's and fetches whatever is missing or older
+// than central's copy, so every till converges on the same copy of central's
+// clients and products. It also adopts central's uid for clients this branch
 // had linked before uids existed.
 
 const (
@@ -86,7 +86,7 @@ func (c *centralClient) doJSON(ctx context.Context, method, path string, in, out
 	return nil
 }
 
-// SyncIDs returns one page of kashi's uid/updated_at list for entity.
+// SyncIDs returns one page of central's uid/updated_at list for entity.
 func (c *centralClient) SyncIDs(ctx context.Context, entity, after string) (syncIDsResponse, error) {
 	var out syncIDsResponse
 	err := c.doJSON(ctx, http.MethodPost, "/branch/sync/ids",
@@ -94,7 +94,7 @@ func (c *centralClient) SyncIDs(ctx context.Context, entity, after string) (sync
 	return out, err
 }
 
-// SyncFetch returns kashi's full catch-up rows for the given uids, in the
+// SyncFetch returns central's full catch-up rows for the given uids, in the
 // same shape /branch/sync/changes uses for that entity.
 func (c *centralClient) SyncFetch(ctx context.Context, entity string, uids []string) (json.RawMessage, error) {
 	var out struct {
@@ -105,7 +105,7 @@ func (c *centralClient) SyncFetch(ctx context.Context, entity string, uids []str
 	return out.Items, err
 }
 
-// ClientUIDs returns this branch's (local client id -> kashi uid) links.
+// ClientUIDs returns this branch's (local client id -> central uid) links.
 func (c *centralClient) ClientUIDs(ctx context.Context) ([]clientUIDPair, error) {
 	var out struct {
 		Pairs []clientUIDPair `json:"pairs"`
@@ -115,9 +115,9 @@ func (c *centralClient) ClientUIDs(ctx context.Context) ([]clientUIDPair, error)
 }
 
 // adoptBranchClientUIDs gives every local client this branch had already
-// linked to a kashi client (before uids existed) that client's uid. Done
+// linked to a central client (before uids existed) that client's uid. Done
 // before a pull, it makes the pull match those clients by uid instead of by
-// phone -- which matters exactly when the phones differ (kashi trimmed it,
+// phone -- which matters exactly when the phones differ (central trimmed it,
 // replaced an unusable one, or an admin edited it). If the till already
 // holds a separate copy under that uid (pulled by phone), the two are the
 // same person and are merged, keeping the linked row and its history.
@@ -220,7 +220,7 @@ func (a *App) maybeRunFullCheck(ctx context.Context, client *centralClient) {
 }
 
 // runFullCheckLocked is the completeness check itself; the caller holds
-// syncPullMu. The first run on a till also adopts kashi's uids for the
+// syncPullMu. The first run on a till also adopts central's uids for the
 // clients this branch had linked (see adoptBranchClientUIDs).
 func (a *App) runFullCheckLocked(ctx context.Context, client *centralClient) (FullCheckReport, error) {
 	report := FullCheckReport{StartedAt: time.Now().UTC()}
@@ -245,7 +245,7 @@ func (a *App) runFullCheckLocked(ctx context.Context, client *centralClient) (Fu
 	if err != nil {
 		return report, err
 	}
-	// Local products kashi doesn't have are deactivated only once the
+	// Local products central doesn't have are deactivated only once the
 	// operator has confirmed full-mirror mode (the Sync All dialog); until
 	// then they're left alone.
 	deactivateOrphans := settings.FullMirrorConfirmedAt.Valid
@@ -278,7 +278,7 @@ func (a *App) runFullCheckLocked(ctx context.Context, client *centralClient) (Fu
 // localVersion is what the till holds for one uid.
 type localVersion struct {
 	id              int64
-	remoteUpdatedAt time.Time // zero = never applied from kashi
+	remoteUpdatedAt time.Time // zero = never applied from central
 	active          bool
 }
 
@@ -312,10 +312,10 @@ func (a *App) localVersions(ctx context.Context, entity string) (map[string]loca
 	return out, nil
 }
 
-// fullCheckEntity brings one entity to parity with kashi: fetch every uid
+// fullCheckEntity brings one entity to parity with central: fetch every uid
 // the till lacks or holds an older version of, then (products only, and
 // only once full-mirror mode is confirmed) deactivate active local products
-// whose uid kashi doesn't have. Clients kashi doesn't have are left alone --
+// whose uid central doesn't have. Clients central doesn't have are left alone --
 // they're this till's own new clients, on their way up through the outbox.
 func (a *App) fullCheckEntity(ctx context.Context, client *centralClient, entity string, deactivateOrphans bool) (FullCheckEntityReport, error) {
 	rep := FullCheckEntityReport{Entity: entity}
@@ -344,7 +344,7 @@ func (a *App) fullCheckEntity(ctx context.Context, client *centralClient, entity
 	for uid, remoteAt := range remote {
 		lv, ok := local[uid]
 		// Stamps are stored at full precision, so any difference (not just
-		// "older") means the till's copy isn't kashi's current one.
+		// "older") means the till's copy isn't central's current one.
 		if !ok || !lv.remoteUpdatedAt.Equal(remoteAt) {
 			need = append(need, uid)
 		}
@@ -367,20 +367,20 @@ func (a *App) fullCheckEntity(ctx context.Context, client *centralClient, entity
 		}
 	}
 
-	// An empty list from kashi is far likelier to be a misconfigured or
+	// An empty list from central is far likelier to be a misconfigured or
 	// freshly-reset server than a real catalog of zero products; never
 	// deactivate a till's whole catalog on that.
 	if entity != "products" || !deactivateOrphans || len(remote) == 0 {
 		return rep, nil
 	}
-	// Re-read: the fetch above may have stamped kashi's uid onto rows that
+	// Re-read: the fetch above may have stamped central's uid onto rows that
 	// were only matched by barcode.
 	local, err = a.localVersions(ctx, entity)
 	if err != nil {
 		return rep, err
 	}
 	// The built-in "Unknown item" placeholder only ever lives on the till, so
-	// kashi never has its uid; it isn't an orphan.
+	// Central never has its uid; it isn't an orphan.
 	var placeholderID int64
 	if p, err := a.store.GetProductByBarcode(ctx, defaultUnknownBarcode); err == nil {
 		placeholderID = p.ID
@@ -402,7 +402,7 @@ func (a *App) fullCheckEntity(ctx context.Context, client *centralClient, entity
 	return rep, nil
 }
 
-// seedCursorFromLocalCatalog spares a till that already holds kashi's
+// seedCursorFromLocalCatalog spares a till that already holds central's
 // clients/products (a copied database, a register added to a branch that
 // has them) the full re-download an empty cursor would otherwise cost. It
 // runs the completeness check for the entity -- which fetches only the uids
@@ -411,7 +411,7 @@ func (a *App) fullCheckEntity(ctx context.Context, client *centralClient, entity
 // since. "" means nothing was seeded and the caller pulls from the
 // beginning as before.
 //
-// The cursor is kashi's clock read *before* the uid listing, so a row that
+// The cursor is central's clock read *before* the uid listing, so a row that
 // changes while the check runs is newer than the cursor and lands in the
 // next pull. Nothing local is deactivated here: orphan handling stays with
 // the regular full check.
@@ -435,7 +435,7 @@ func (a *App) seedCursorFromLocalCatalog(ctx context.Context, client *centralCli
 	}
 
 	// A since in the future matches no row, so this is a cheap way to read
-	// kashi's clock (server_time) without a dedicated endpoint.
+	// central's clock (server_time) without a dedicated endpoint.
 	probe, err := client.FetchChanges(ctx, fetchChangesParams{
 		Entity: entity,
 		Since:  time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339),

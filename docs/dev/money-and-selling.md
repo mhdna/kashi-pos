@@ -31,11 +31,11 @@ LBP amounts.
 ## Where a price comes from
 
 - **Since migration 000097 a price is not part of the product.** It's an entry
-  in a price list that kashi decides and the sync mirrors down.
+  in a price list that central decides and the sync mirrors down.
   `products.price` and `products.discount` still exist but are frozen: nothing
   reads them.
 - A product in no active price list **has no price**, and checkout refuses a
-  zero price. That's deliberate: kashi decides what can be sold. "Can't sell
+  zero price. That's deliberate: central decides what can be sold. "Can't sell
   this item" at a till usually means it's missing from the branch's price list.
 - Price and discount lists are read-only on the till.
 
@@ -59,34 +59,34 @@ LBP amounts.
   actually paid. Exchanges never earn one.
 - **Discount/deal toggles** (`discount_toggle`, `deal_toggle`): let the
   salesperson turn a line's discount or deal off. `discount_toggle_default_off`
-  makes lines start with the discount off. Off by default; kashi can push them.
+  makes lines start with the discount off. Off by default; central can push them.
 - Price edits at the till can be restricted to certain product codes
   (`price_edit_restricted` + the code list), and custom prices/discounts are
   separate switches (`custom_item_prices`, `custom_item_discounts`,
   `per_unit_item_prices`, `price_change_manual_override_mode`).
-- **kashi's live cart overrides** (`live_cart.go`) beat all of the above for
+- **central's live cart overrides** (`live_cart.go`) beat all of the above for
   the one sale they were made for: a price, a discount or no deal per line
   (an unknown item's deal choice too), or every deal off. See `sync.md`, Live cart.
 
 ## Stock
 
 - **Checkout doesn't take stock off.** The deduction block in `salesInvoiceTx`
-  is disabled; stock is kashi's job, from the synced sales.
+  is disabled; stock is central's job, from the synced sales.
 - `invoices.inventory_id` is only a label. An unset or unknown sales
   inventory must never stop a sale; the worst case is a wrongly labelled
   invoice. Only a database with no inventories at all can't sell. If stock
   deduction is ever turned back on, this needs revisiting.
-- **Selling beyond stock** (`settings.oversell_mode`, set by kashi per
-  branch): `allow` (sell; kashi flags the negative stock), `warn` (the
-  cashier confirms first) or `block` (refuse). "Stock" is kashi's on-hand for
-  the branch minus this till's own sales kashi hadn't received yet. A product
-  kashi reports nothing for counts as 0. If the till has no stock data for the
+- **Selling beyond stock** (`settings.oversell_mode`, set by central per
+  branch): `allow` (sell; central flags the negative stock), `warn` (the
+  cashier confirms first) or `block` (refuse). "Stock" is central's on-hand for
+  the branch minus this till's own sales central hadn't received yet. A product
+  Central reports nothing for counts as 0. If the till has no stock data for the
   branch at all, nothing is checked: a till must never refuse a sale for lack
   of data.
 
 ## Payment methods
 
-- Payment methods are cashbox accounts, owned by kashi. Retiring one
+- Payment methods are cashbox accounts, owned by central. Retiring one
   deactivates it; it's never deleted, because invoices and shift balances
   point at it.
 - `On Account` (client credit) and `On Coupon` are internal placeholders that
@@ -147,15 +147,15 @@ LBP amounts.
   what they keep plus replacements on the deal. A returned free unit counting
   keeps it lenient: RS/CT/2026/00068 takes $3, where counting only the kept
   units would take $12. Covered by: shoes and Chinese items are off the deal,
-  outlet (CA, EOC5, EF6) and Bangladesh (BOC5, BNV, N) are on, as kashi's
+  outlet (CA, EOC5, EF6) and Bangladesh (BOC5, BNV, N) are on, as central's
   discount list says. The cashier guide with these cases is
   `tools/kashi-admin/guides/gb-buy1get1-returns-guide.png`.
-- **A return's refund can be edited from kashi** (Edit refund →
+- **A return's refund can be edited from central** (Edit refund →
   `edit_return_invoice`, `return_edit.go`). It sets a returned line's credit,
   up to its price. The total, the payments of the main account and the shift
   drawer move by the difference, the deal's recorded charge back drops by what
-  was given back, a note is added, and the edit syncs to kashi
-  (`/branch/return_invoice_edits`). Lines are named by position, as kashi lists
+  was given back, a note is added, and the edit syncs to central
+  (`/branch/return_invoice_edits`). Lines are named by position, as central lists
   them.
 - **The exchange screen shows the quote's amounts, never its own.**
   `QuoteExchangeTotal` returns one line per cart line sent, in order
@@ -177,11 +177,11 @@ LBP amounts.
   `frontend/src/lib/testdata/exchange_quotes.json` by `TestExchangeQuoteGolden`
   (rewrite with `KASHI_UPDATE_GOLDEN=1`) and checked by the frontend tests.
 - **Return receipts.** A return or exchange prints only with receipts on, and
-  then by its own choice (`receiptChoice` in `tx_exchange.go`): kashi's
+  then by its own choice (`receiptChoice` in `tx_exchange.go`): central's
   `print_receipt: false` on a remote return, or else the till's
-  `print_return_receipts` display pref, which only kashi sets (branch settings,
+  `print_return_receipts` display pref, which only central sets (branch settings,
   **Print return and exchange receipts**). The till has no switch or tick for it.
-  An unprinted one can be reprinted from Invoices or kashi's **Print on till**.
+  An unprinted one can be reprinted from Invoices or central's **Print on till**.
   The rule is shared with the screen through
   `frontend/src/lib/testdata/return_receipt_rule.json` (`TestReturnReceiptRuleGolden`).
 - An expense or loan entered by mistake is **cancelled, not deleted**
@@ -191,9 +191,9 @@ LBP amounts.
 
 Something with no code here (`unknown_items.go`): the cashier sells it as a
 placeholder product at a typed price; before payment a phone photographs
-every unit (QR link from kashi), and the sale is held until each unit has a
-picture, unless a kashi user with the right permission lets it through. Someone
-in kashi names the items afterwards. `unknown_pictures_at_checkout` controls
+every unit (QR link from central), and the sale is held until each unit has a
+picture, unless a central user with the right permission lets it through. Someone
+in central names the items afterwards. `unknown_pictures_at_checkout` controls
 the photo step.
 
 Unknown items join the shop's deal (`unknown_item_deal.go`): the free-units
@@ -202,7 +202,7 @@ pooled with every other unit on it. The salesperson picks one of three on each
 line by tapping its deal chip: **deal else 30%**, **deal else 20%** (the default)
 or **No deal**, with the picker naming the real deal; the
 percent is what a unit outside a set gets, like a discount row's own fallback
-(kashi 000216). This choice works whatever `deal_toggle` says. A
+(central 000216). This choice works whatever `deal_toggle` says. A
 discount can be typed only with the branch's custom discounts on (its price can
 always be typed), and it keeps the line off the deal (a deal never stacks on another saving),
 and picking a deal clears it. With no product on such a deal, unknown items
@@ -212,7 +212,7 @@ sell at their typed price and show no chip. The cart sends the line's
 
 ## Coupons and client accounts
 
-- Coupons and coupon types come from kashi.
+- Coupons and coupon types come from central.
 - A client's receivable balance is built from the invoices that created it
   and the payments applied to them (`client_accounts.go`).
 - `RoundInvoice` re-applies the current rounding rule to an existing invoice

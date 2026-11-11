@@ -45,7 +45,7 @@ func TestCancelRecordCommand_StampsWithoutEchoingToKashi(t *testing.T) {
 		t.Fatal(err)
 	}
 	if queued != 0 {
-		t.Fatalf("a cancel from kashi queued %d pushes back to kashi, want 0", queued)
+		t.Fatalf("a cancel from central queued %d pushes back to central, want 0", queued)
 	}
 }
 

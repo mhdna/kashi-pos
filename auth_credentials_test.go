@@ -58,7 +58,7 @@ func TestAuthCredentialsChangeAndVerify(t *testing.T) {
 		t.Fatalf("GetCashierPIN = %q, want 2468", got)
 	}
 
-	// ForceSetAdminPassword bypasses the current-password check (kashi command path).
+	// ForceSetAdminPassword bypasses the current-password check (central command path).
 	if err := app.ForceSetAdminPassword("from-kashi"); err != nil {
 		t.Fatalf("ForceSetAdminPassword: %v", err)
 	}

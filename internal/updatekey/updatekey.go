@@ -1,6 +1,6 @@
 // Package updatekey holds the public half of the release-signing key. Tills
 // only install an update whose signature checks out against it (see
-// updater.go), so even a compromised kashi can't push them a program.
+// updater.go), so even a compromised central can't push them a program.
 //
 // `make update-keygen` creates the key pair: the private half stays on the
 // developer's machine (~/.config/gb-cloud/update-signing.key -- back it up;

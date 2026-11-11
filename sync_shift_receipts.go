@@ -14,13 +14,13 @@ import (
 )
 
 // shiftReceiptUploadBatch bounds how many buffered photos one pass forwards
-// to kashi. In practice there's almost never more than one outstanding (one
+// to central. In practice there's almost never more than one outstanding (one
 // per shift close), but a branch that was offline for days could have a
 // small backlog.
 const shiftReceiptUploadBatch = 20
 
 // runShiftReceiptUploadsOnce forwards every close-shift receipt photo that's
-// been captured on this POS but not yet confirmed by kashi. It's called from
+// been captured on this POS but not yet confirmed by central. It's called from
 // runPullTick, so it runs on the 15s cadence and, being entirely driven by
 // shift_receipt_uploads rows, simply resumes after an app restart or a
 // multi-day outage -- there is no terminal "give up" state.
@@ -34,7 +34,7 @@ func (a *App) runShiftReceiptUploadsOnce(ctx context.Context, client *centralCli
 	for _, row := range rows {
 		shiftRef := fmt.Sprintf("shift-%d", row.ShiftID)
 
-		// kashi only has a branch_shifts row to hang the photo on once the
+		// Central only has a branch_shifts row to hang the photo on once the
 		// shift's own close has synced. Until then, wait -- no backoff bump,
 		// this isn't a failure.
 		synced, err := a.store.ShiftCloseSyncedForRef(ctx, shiftRef)
@@ -60,7 +60,7 @@ func (a *App) runShiftReceiptUploadsOnce(ctx context.Context, client *centralCli
 		err = client.PostShiftReceiptImage(ctx, shiftRef, row.FilePath, row.ContentType)
 		if err != nil {
 			if errors.Is(err, errShiftNotReceivedYet) {
-				// Transient by nature: the close is synced locally but kashi
+				// Transient by nature: the close is synced locally but central
 				// is still catching up. Short-circuit to a quick retry.
 				a.markShiftReceiptRetry(ctx, row, err)
 				continue
@@ -78,7 +78,7 @@ func (a *App) runShiftReceiptUploadsOnce(ctx context.Context, client *centralCli
 			runtime.EventsEmit(a.ctx, "shift_receipt_synced:"+row.Token)
 		default:
 		}
-		log.Printf("shift receipt uploads: %s: forwarded to kashi", shiftRef)
+		log.Printf("shift receipt uploads: %s: forwarded to central", shiftRef)
 	}
 }
 

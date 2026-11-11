@@ -21,7 +21,7 @@
   </k-dialog>
 
   <!-- No shift open: install by itself unless the cashier says not now.
-       Forced from kashi: install even mid-shift, and no "not now". -->
+       Forced from central: install even mid-shift, and no "not now". -->
   <k-dialog v-model="idlePrompt" max-width="440" persistent>
     <k-card :title="status.force ? 'A required update' : 'Installing an update'">
       <k-card-text v-if="status.force">

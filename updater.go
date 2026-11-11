@@ -23,7 +23,7 @@ import (
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// Remote updates. kashi tells each till which release to run (its App
+// Remote updates. Central tells each till which release to run (its App
 // Updates page); the till downloads it in the background, checks it was
 // signed with the release key (internal/updatekey), and installs it at a
 // safe moment: when the cashier taps "Install now", or by itself while no
@@ -48,7 +48,7 @@ const (
 	updateExitTimeout   = time.Minute
 )
 
-// Update states. The same strings go to kashi (appUpdateStates there).
+// Update states. The same strings go to central (appUpdateStates there).
 const (
 	updateUpToDate    = "up_to_date"
 	updateDownloading = "downloading"
@@ -77,10 +77,10 @@ type updaterState struct {
 	StagedPath string `json:"staged_path"`
 	// PreviousVersion is what <exe>.previous runs -- what "Roll back" goes to.
 	PreviousVersion string `json:"previous_version"`
-	// Force: kashi wants it installed now, shift or not (App Updates' force).
+	// Force: central wants it installed now, shift or not (App Updates' force).
 	Force bool `json:"force"`
 	// SkipVersion is a version this till rolled back from (by hand or
-	// because it didn't start); it isn't installed again until kashi points
+	// because it didn't start); it isn't installed again until central points
 	// the till somewhere else.
 	SkipVersion string `json:"skip_version"`
 }
@@ -155,7 +155,7 @@ func (a *App) loadUpdaterState() {
 }
 
 // setUpdateState changes the state, saves it, and tells the frontend.
-// Callers report to kashi themselves (reportUpdateStatus), since that needs
+// Callers report to central themselves (reportUpdateStatus), since that needs
 // the network.
 func (a *App) setUpdateState(change func(s *updaterState)) updaterState {
 	u := &a.updater
@@ -266,7 +266,7 @@ func (a *App) stopUpdater() {
 	}
 }
 
-// kickUpdater runs a check now -- kashi's "app_update" push, or the
+// kickUpdater runs a check now -- central's "app_update" push, or the
 // Settings "Check for updates" button.
 func (a *App) kickUpdater() {
 	a.updater.mu.Lock()
@@ -278,7 +278,7 @@ func (a *App) kickUpdater() {
 	}
 }
 
-// CheckForAppUpdate asks kashi now instead of waiting for the next check.
+// CheckForAppUpdate asks central now instead of waiting for the next check.
 func (a *App) CheckForAppUpdate() map[string]any {
 	// A manual check is also how a till retries a version it rolled back
 	// from.
@@ -331,7 +331,7 @@ func (a *App) checkAndDownload(ctx context.Context, client *centralClient) error
 	if manifest.Flavor != appFlavor {
 		next := a.setUpdateState(func(st *updaterState) {
 			st.State, st.ReleaseID, st.Version = updateFailed, manifest.ID, manifest.Version
-			st.Detail = fmt.Sprintf("kashi offered the %s build; this till runs the %s build", manifest.Flavor, appFlavor)
+			st.Detail = fmt.Sprintf("Central offered the %s build; this till runs the %s build", manifest.Flavor, appFlavor)
 		})
 		a.reportUpdateStatus(ctx, client, next)
 		return nil
@@ -409,7 +409,7 @@ func (a *App) downloadRelease(ctx context.Context, client *centralClient, m *app
 		a.reportUpdateStatus(ctx, client, next)
 	}
 	progressOf(0, 1)
-	// The smallest download kashi offers first: a patch from this exe, or
+	// The smallest download central offers first: a patch from this exe, or
 	// the build compressed (update_compact.go); the plain exe otherwise.
 	if a.fetchReleaseSmall(ctx, client, m, releaseDir, part, progressOf) {
 		if err := os.Rename(part, final); err != nil {

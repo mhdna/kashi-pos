@@ -44,7 +44,7 @@ import { SyncUnknownItemSession, UnknownItemSessionStatus } from "../../wailsjs/
 
 // The sale screen's QR code for the unknown items' pictures, a strip under
 // the cart (where Quick Access sits) shown as soon as one is in the cart (unless the branch takes them at checkout). It
-// keeps one kashi session per cart and re-sends it whenever the unknown items
+// keeps one central session per cart and re-sends it whenever the unknown items
 // change, so the phone already on the link just sees the new items appear.
 // It never blocks the cashier: paying still goes through UnknownPicturesDialog,
 // which skips itself once this has every picture.

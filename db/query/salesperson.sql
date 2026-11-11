@@ -24,7 +24,7 @@ INSERT INTO salespersons (full_name, remote_id, is_active, color) VALUES (?, ?, 
 
 -- name: AdoptSalespersonByName :one
 -- First roster pull on a till that already had its own salespersons: link
--- the till's unlinked salesperson with the same name to kashi's record
+-- the till's unlinked salesperson with the same name to central's record
 -- instead of creating a duplicate. Keeps its local id, so invoices and
 -- attendance pairing stay attached.
 UPDATE salespersons
@@ -43,11 +43,11 @@ RETURNING *;
 
 -- name: UpdateSyncedSalesperson :one
 -- attendance_user_id is deliberately not touched here -- it's local-only
--- device pairing, never sent by kashi (see sync_pull.go).
+-- device pairing, never sent by central (see sync_pull.go).
 UPDATE salespersons SET full_name = ?, is_active = ?, color = ? WHERE remote_id = ? RETURNING *;
 
 -- name: SetSalespersonAttendanceIDByRemoteID :exec
--- kashi decided this salesperson's device number (attendance_user_id_set in
+-- Central decided this salesperson's device number (attendance_user_id_set in
 -- the salesperson feed); it replaces whatever was typed in here.
 UPDATE salespersons SET attendance_user_id = ? WHERE remote_id = ?;
 

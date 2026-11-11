@@ -9,7 +9,7 @@ import (
 )
 
 // Since 000097 a price is not a property of a product row -- it is an entry
-// in a price list that kashi dictates and the sync mirrors down. products.price
+// in a price list that central dictates and the sync mirrors down. products.price
 // and products.discount still exist but are frozen: nothing reads them, and a
 // product's sellable price comes from here or from nowhere.
 //

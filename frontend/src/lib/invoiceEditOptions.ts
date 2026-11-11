@@ -27,7 +27,7 @@ export function cachedSalespersons(): SalespersonOption[] | null {
 }
 
 // Staff who can be set as a sale's salesperson: not attendance-only staff
-// and not a till-only leftover once kashi manages the roster (see
+// and not a till-only leftover once central manages the roster (see
 // ListSalespersons in salespersons.go).
 export async function loadSalespersons(): Promise<SalespersonOption[]> {
   const all = (await ListSalespersons()) ?? [];

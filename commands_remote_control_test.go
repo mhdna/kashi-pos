@@ -35,7 +35,7 @@ func newRemoteControlTestApp(t *testing.T) *App {
 	return &App{ctx: ctx, store: db.NewStore(database), conn: database}
 }
 
-// The settings kashi couldn't reach before: four feature flags, cash
+// The settings central couldn't reach before: four feature flags, cash
 // handling values and the default opening float, all through update_settings.
 func TestExecuteUpdateSettingsCommand_RemoteControlFields(t *testing.T) {
 	ctx := context.Background()
@@ -129,7 +129,7 @@ func TestExecuteCommand_RejectsNegativeOpeningFloat(t *testing.T) {
 	}
 }
 
-// kashi's approve/cancel reaches the till as a command and lands on the
+// central's approve/cancel reaches the till as a command and lands on the
 // request it proposed; a ref the till doesn't have fails visibly.
 func TestExecuteCommand_TransferDecision(t *testing.T) {
 	ctx := context.Background()
@@ -159,7 +159,7 @@ func TestExecuteCommand_TransferDecision(t *testing.T) {
 	}
 }
 
-// The end-of-shift receipt's sign-off lines print until a till or kashi
+// The end-of-shift receipt's sign-off lines print until a till or central
 // turns them off.
 func TestShiftReportSignatures_DefaultOnAndPushable(t *testing.T) {
 	ctx := context.Background()
@@ -172,11 +172,11 @@ func TestShiftReportSignatures_DefaultOnAndPushable(t *testing.T) {
 		t.Fatalf("push: %v", err)
 	}
 	if app.shiftReportSignatures() {
-		t.Error("signature lines still on after kashi turned them off")
+		t.Error("signature lines still on after central turned them off")
 	}
 }
 
-// The end-of-shift receipt's header stays as typed until a till or kashi
+// The end-of-shift receipt's header stays as typed until a till or central
 // asks for capitals.
 func TestShiftReportUppercaseHeader_DefaultOffAndPushable(t *testing.T) {
 	ctx := context.Background()
@@ -189,6 +189,6 @@ func TestShiftReportUppercaseHeader_DefaultOffAndPushable(t *testing.T) {
 		t.Fatalf("push: %v", err)
 	}
 	if !app.shiftReportUppercaseHeader() {
-		t.Error("header still as typed after kashi turned capitals on")
+		t.Error("header still as typed after central turned capitals on")
 	}
 }

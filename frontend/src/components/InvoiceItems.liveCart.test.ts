@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// kashi's live-cart changes on the cart as the cashier sees them: an unknown
+// central's live-cart changes on the cart as the cashier sees them: an unknown
 // item kashi set gets kashi's price and the "kashi" lock, the other unknown
 // item stays as rung, and lifting the change gives the line its own back.
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -49,10 +49,10 @@ async function cart() {
 }
 
 const rowsWithKashiLock = () =>
-  wrapper!.findAll(".invoice-item-sale-option").filter((c) => c.text().includes("kashi")).length;
+  wrapper!.findAll(".invoice-item-sale-option").filter((c) => c.text().includes("central")).length;
 
-describe("InvoiceItems with kashi's live-cart changes", () => {
-  it("puts kashi's price on the one unknown item it names", async () => {
+describe("InvoiceItems with central's live-cart changes", () => {
+  it("puts central's price on the one unknown item it names", async () => {
     const vm = await cart();
     const changed = vm.applyRemoteOverrides([
       { barcode: "UNKNOWN", line_ref: "u2", price_cents: 5500, discount: 10, unknown_deal: "none" },
@@ -70,7 +70,7 @@ describe("InvoiceItems with kashi's live-cart changes", () => {
     ])).toBe(false);
   });
 
-  it("gives the line its own price back when kashi lifts it", async () => {
+  it("gives the line its own price back when central lifts it", async () => {
     const vm = await cart();
     vm.applyRemoteOverrides([{ barcode: "UNKNOWN", line_ref: "u1", price_cents: 1000 }]);
     vm.applyRemoteOverrides([]);

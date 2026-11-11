@@ -5,7 +5,7 @@
  * older machines. Before v1.1.82 the default was on, so most tills that
  * report "on" never chose it; the first start of this version therefore
  * switches every till off once. After that an explicit choice (Settings, or
- * a push from kashi) is kept.
+ * a push from central) is kept.
  */
 
 export const ANIMATIONS_KEY = "kashi-animations-enabled";

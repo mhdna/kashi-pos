@@ -68,8 +68,8 @@ func (a *App) returnItemsJSON(ctx context.Context, lines []returnLine) (string, 
 // CancelInvoice undoes a sale rung up by mistake -- a $3 item keyed in at
 // $3000 -- without deleting anything. It checks out a full return of every
 // line through the admin return path, so stock comes back, the refund goes
-// through the drawer and both rows reach kashi like any other return; then
-// both are stamped cancelled_at so sales statistics, here and in kashi,
+// through the drawer and both rows reach central like any other return; then
+// both are stamped cancelled_at so sales statistics, here and in central,
 // leave them out. Admin only, like an admin return.
 func (a *App) CancelInvoice(invoiceID int64, reason string) error {
 	if a.store == nil {
@@ -85,8 +85,8 @@ func (a *App) CancelInvoice(invoiceID int64, reason string) error {
 	return a.cancelInvoice(a.ctx, invoiceID, reason, receiptAsSettings)
 }
 
-// cancelInvoice is CancelInvoice without the admin check, for kashi's remote
-// cancel command (kashi already checked its own user's rights).
+// cancelInvoice is CancelInvoice without the admin check, for central's remote
+// cancel command (central already checked its own user's rights).
 func (a *App) cancelInvoice(ctx context.Context, invoiceID int64, notes string, receipt receiptChoice) error {
 	source, err := a.store.GetSalesInvoiceByID(ctx, invoiceID)
 	if err != nil {

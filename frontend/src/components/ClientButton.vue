@@ -58,7 +58,7 @@ onMounted(() => {
 const editDialog = ref(false);
 const { client, clientSelected, pulseClient, setClient } = useClient();
 
-// A client picked or added in the dialog: kashi may welcome them on WhatsApp
+// A client picked or added in the dialog: central may welcome them on WhatsApp
 // right away (its setting; otherwise at checkout). Fire and forget.
 function chooseClient(chosen: Parameters<typeof setClient>[0]) {
   setClient(chosen);

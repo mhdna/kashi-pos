@@ -11,9 +11,9 @@ import (
 )
 
 // What checkout does when a line needs more stock than the branch has
-// (settings.oversell_mode, set by kashi per branch):
+// (settings.oversell_mode, set by central per branch):
 const (
-	oversellAllow = "allow" // sell; kashi flags the negative stock
+	oversellAllow = "allow" // sell; central flags the negative stock
 	oversellWarn  = "warn"  // the cashier confirms first (see CheckOversell)
 	oversellBlock = "block" // refuse the sale
 )
@@ -47,7 +47,7 @@ func (a *App) SetOversellMode(mode string) error {
 }
 
 // homeBranchCode is this till's branch in the branch_stock mirror. Until
-// kashi has told it (see pushSettings), it's the till's own code -- which is
+// Central has told it (see pushSettings), it's the till's own code -- which is
 // the branch code for a branch's first (or only) register.
 func homeBranchCode(settings db.Setting) string {
 	if code := strings.TrimSpace(settings.HomeBranchCode); code != "" {
@@ -85,9 +85,9 @@ func (a *App) CheckOversell(itemsJSON string) (OversellCheck, error) {
 }
 
 // oversoldLines compares each product's cart quantity with what the branch
-// has: kashi's on-hand for this branch (the branch_stock mirror, which
+// has: central's on-hand for this branch (the branch_stock mirror, which
 // already reflects every register's synced sales) minus this till's own
-// sales kashi hadn't received when that figure was pulled. A product kashi
+// sales central hadn't received when that figure was pulled. A product central
 // reports no stock row for counts as 0. When the mirror holds nothing for
 // this branch at all (sync off, or never pulled) stock is unknown and
 // nothing is reported -- a till must never refuse sales for lack of data.
@@ -123,7 +123,7 @@ func oversoldLines(ctx context.Context, q *db.Queries, settings db.Setting, prod
 
 	for _, n := range needs {
 		if !n.product.Uid.Valid || n.product.Uid.String == "" {
-			continue // a till-only product kashi doesn't track
+			continue // a till-only product central doesn't track
 		}
 		var onHand int64
 		asOf := sql.NullString{}

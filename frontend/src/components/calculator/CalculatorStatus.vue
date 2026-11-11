@@ -40,7 +40,7 @@
           <span v-if="remainingAmount.second" class="calculator-amounts-plus" aria-hidden="true">+</span>
           <span v-if="remainingAmount.second" :class="statusColor">{{ remainingAmount.second }}</span>
         </div>
-        <!-- kashi's whole-sale discount, already off the total above. -->
+        <!-- central's whole-sale discount, already off the total above. -->
         <span v-if="invoiceDiscountText" class="calculator-amounts-invoice-discount" :title="invoiceDiscountText">
           {{ invoiceDiscountText }}
         </span>

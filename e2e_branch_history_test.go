@@ -3,7 +3,7 @@
 package main
 
 // Manual e2e harness for the branch-history importer, exercised against a
-// real running kashi (see api/branch_history_sync.go there) rather than a
+// real running central (see api/branch_history_sync.go there) rather than a
 // mock. Usage:
 //
 //	E2E_URL=http://localhost:8090 E2E_CODE=E2ETB2 E2E_KEY=... \
@@ -17,7 +17,7 @@ package main
 // feature. This still exercises the actual, unmodified import logic
 // (resolveSalesperson/resolveCashboxAccount/resolveHistoricalProduct/
 // importShifts/importInvoices/importExpenses/importLoans) against real
-// JSON kashi returns, which is what actually needed verifying.
+// JSON central returns, which is what actually needed verifying.
 import (
 	"context"
 	"database/sql"
@@ -71,7 +71,7 @@ func TestE2EBranchHistoryImport(t *testing.T) {
 	app := &App{ctx: ctx, store: store, conn: conn}
 	client := newCentralClient(url, code, key)
 	if !client.enabled() {
-		t.Fatal("central client not enabled -- check E2E_URL/E2E_CODE/E2E_KEY")
+		t.Fatal("Central client not enabled -- check E2E_URL/E2E_CODE/E2E_KEY")
 	}
 
 	imp := &branchHistoryImporter{

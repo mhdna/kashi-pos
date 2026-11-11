@@ -23,7 +23,7 @@ async function loadPageUnlocks() {
  * ref means flipping a toggle in Settings updates the nav drawer immediately.
  *
  * `settings_changed` fires whenever a feature flag / page-unlock changes -
- * including a remote `update_settings` command pushed from kashi - so a
+ * including a remote `update_settings` command pushed from central - so a
  * running till re-reads the locks live instead of only on restart.
  */
 EventsOn("settings_changed", () => {

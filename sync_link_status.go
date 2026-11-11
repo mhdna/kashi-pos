@@ -14,14 +14,14 @@ import (
 
 // What the cashier sees of the connection, in one place. The sync indicator
 // used to say only "Synced" or "Syncing" from the push queue, so a till
-// whose live link to kashi was down (kashi shows its branch offline) and a
+// whose live link to central was down (central shows its branch offline) and a
 // till with no internet at all both read "Synced". Here the three are kept
 // apart, with what the till is doing right now:
 //
 //   - Internet: can this machine reach the internet at all?
-//   - kashi:    did the last request to the server get an answer?
+//   - central:    did the last request to the server get an answer?
 //   - Live:     is the push channel (websocket) up? This is the same thing
-//     kashi's Branches page shows as connected.
+//     central's Branches page shows as connected.
 //   - Activity: pulling an entity (3 of 21), sending queued records.
 //
 // One package-level tracker, because the transport that sees every request
@@ -52,7 +52,7 @@ const (
 type LinkStatus struct {
 	// Internet is "up", "down" or "unknown" (not tested yet).
 	Internet string `json:"internet"`
-	// Kashi is "up" (the last request got an answer), "down" or "unknown".
+	// Central is "up" (the last request got an answer), "down" or "unknown".
 	Kashi        string `json:"kashi"`
 	KashiError   string `json:"kashiError"`
 	KashiLastOK  string `json:"kashiLastOk"`
@@ -150,12 +150,12 @@ func (l *linkTracker) changedLocked() {
 	})
 }
 
-// kashiResult records what a request to kashi came back with. Any HTTP
-// answer, even a 500, means kashi is reachable; only a failure to get one
+// kashiResult records what a request to central came back with. Any HTTP
+// answer, even a 500, means central is reachable; only a failure to get one
 // (no route, DNS, timeout, refused) means it is not.
 func (l *linkTracker) kashiResult(err error) {
 	if errors.Is(err, context.Canceled) {
-		return // the caller gave up; that says nothing about kashi
+		return // the caller gave up; that says nothing about central
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -275,7 +275,7 @@ func (l *linkTracker) reveal(detail string) {
 }
 
 // sameAsLast reports whether this entity's batch is byte for byte what the
-// last pass already applied (and remembers it). kashi re-sends rows changed in
+// last pass already applied (and remembers it). Central re-sends rows changed in
 // the last couple of minutes (its cursor overlap), and an unchanged one is not
 // news.
 func (l *linkTracker) sameAsLast(entity string, raw []byte) bool {
@@ -426,8 +426,8 @@ func friendlyNetError(err error) string {
 }
 
 // linkTransport reports every request's outcome to the tracker. It wraps the
-// transport of each centralClient, so any call to kashi (push, pull,
-// commands, health) keeps the "kashi reachable" answer fresh for free.
+// transport of each centralClient, so any call to central (push, pull,
+// commands, health) keeps the "Central reachable" answer fresh for free.
 type linkTransport struct{ base http.RoundTripper }
 
 func (t linkTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -437,9 +437,9 @@ func (t linkTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // probeInternet asks "is the internet there?" by opening a TCP connection to
-// well-known public addresses. Tried only while kashi isn't answering (when
-// kashi answers, that already proves it): it is how the screen tells "no
-// internet" from "internet fine, kashi unreachable".
+// well-known public addresses. Tried only while central isn't answering (when
+// Central answers, that already proves it): it is how the screen tells "no
+// internet" from "internet fine, central unreachable".
 func probeInternet(ctx context.Context) bool {
 	d := net.Dialer{Timeout: linkInternetTimeout}
 	for _, addr := range []string{"1.1.1.1:443", "8.8.8.8:53", "9.9.9.9:443"} {
@@ -452,7 +452,7 @@ func probeInternet(ctx context.Context) bool {
 	return false
 }
 
-// runInternetProbe re-tests the internet whenever kashi has stopped
+// runInternetProbe re-tests the internet whenever central has stopped
 // answering, and now and then when it has not been proven for a while.
 func (a *App) runInternetProbe() {
 	t := time.NewTicker(linkInternetInterval)

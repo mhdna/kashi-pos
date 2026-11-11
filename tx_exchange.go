@@ -15,10 +15,10 @@ type exchangePolicy struct {
 	allowLowerTotal bool
 	returnOnly      bool
 	// cancellation makes this full return a cancel of its sale (CancelInvoice):
-	// both invoices get cancelled_at and kashi is told so.
+	// both invoices get cancelled_at and central is told so.
 	cancellation bool
 	// unknownSessionRef is the picture session of the "Unknown item"
-	// replacements, sent to kashi with the exchange (see unknown_items.go).
+	// replacements, sent to central with the exchange (see unknown_items.go).
 	unknownSessionRef string
 	// receipt is whether this return or exchange prints its receipt (always
 	// only with receipts on in Settings); see returnReceiptChoice.
@@ -27,7 +27,7 @@ type exchangePolicy struct {
 
 // receiptChoice is one return's "Print receipt": asked for, refused, or left
 // to the till's "Print return receipts" setting (print_return_receipts).
-// A return that didn't print can be reprinted from Invoices, or by kashi's
+// A return that didn't print can be reprinted from Invoices, or by central's
 // Print on till.
 type receiptChoice int
 
@@ -41,7 +41,7 @@ const (
 // prints without a printer.
 var printReturnReceipt = (*App).printInvoiceReceipt
 
-// receiptChoiceOf is a yes/no from kashi or the screen; nil leaves it to the
+// receiptChoiceOf is a yes/no from central or the screen; nil leaves it to the
 // setting.
 func receiptChoiceOf(print *bool) receiptChoice {
 	switch {
@@ -76,7 +76,7 @@ var adminReturnExchangePolicy = exchangePolicy{allowLate: true, allowLowerTotal:
 // CheckoutExchangeInvoice records one returned line and one or more
 // replacement lines. Only the positive difference is paid by the customer.
 // printReceipt is what the screen sends: this till's "Print return and
-// exchange receipts" (set from kashi); false, the receipt isn't printed even
+// exchange receipts" (set from central); false, the receipt isn't printed even
 // with receipts on.
 func (a *App) CheckoutExchangeInvoice(itemsJSON, paymentsJSON string, originalInvoiceID, _ int64, salespersonID int64, notes string, printReceipt bool) (map[string]any, error) {
 	// Only replacements are sold, so only they need pictures (a returned

@@ -553,7 +553,7 @@ type GetMonthSalesSummaryRow struct {
 	OnAccount       int64       `json:"onAccount"`
 }
 
-// The month's sales the way kashi's reports count net sales: every invoice
+// The month's sales the way central's reports count net sales: every invoice
 // by the local day it was rung up (not the shift it fell in), returns
 // netted by their own sign, cancelled sales and their refunds left out,
 // and coupons counted as sales. Alongside, how much of that total is
@@ -1383,8 +1383,8 @@ const listInvoiceProductsInOrder = `-- name: ListInvoiceProductsInOrder :many
 SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount, invoice_discount, deal_fallback_percent FROM invoice_products WHERE invoice_id = ? ORDER BY id
 `
 
-// The lines as they were recorded (and sent to kashi, which keeps them in
-// the same order): a line's position is how kashi names it.
+// The lines as they were recorded (and sent to central, which keeps them in
+// the same order): a line's position is how central names it.
 func (q *Queries) ListInvoiceProductsInOrder(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error) {
 	rows, err := q.db.QueryContext(ctx, listInvoiceProductsInOrder, invoiceID)
 	if err != nil {
@@ -2306,12 +2306,12 @@ type SumInvoiceTotalNotOnCentralByDateRangeParams struct {
 	AsOf     sql.NullString `json:"asOf"`
 }
 
-// This till's invoices in [date_from, date_to] that kashi hadn't received as
+// This till's invoices in [date_from, date_to] that central hadn't received as
 // of `as_of` (UTC, sqlite datetime format): still queued or rejected, or
-// delivered after as_of. Added to kashi's branch-wide target progress
+// delivered after as_of. Added to central's branch-wide target progress
 // fetched at as_of. Invoices with no outbox row are left out: those are
-// either history restored from kashi (already in its figure) or sales from
-// before this till synced. Plain SUM(grand_total) to match kashi's own
+// either history restored from central (already in its figure) or sales from
+// before this till synced. Plain SUM(grand_total) to match central's own
 // figure (SumBranchRevenueForRange there).
 func (q *Queries) SumInvoiceTotalNotOnCentralByDateRange(ctx context.Context, arg SumInvoiceTotalNotOnCentralByDateRangeParams) (interface{}, error) {
 	row := q.db.QueryRowContext(ctx, sumInvoiceTotalNotOnCentralByDateRange, arg.DateFrom, arg.DateTo, arg.AsOf)

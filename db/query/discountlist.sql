@@ -1,4 +1,4 @@
--- Read-only mirror of kashi's discount lists -- see pricelist.sql, which this
+-- Read-only mirror of central's discount lists -- see pricelist.sql, which this
 -- file mirrors exactly.
 
 -- name: ListDiscountLists :many

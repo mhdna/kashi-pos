@@ -110,15 +110,15 @@ func TestCashierExchangeReceiptFollowsTheTick(t *testing.T) {
 				}
 				var queued int
 				if err := shop.app.conn.QueryRow(`SELECT count(*) FROM sync_outbox WHERE entity_type = 'return_invoice'`).Scan(&queued); err != nil || queued != 1 {
-					t.Fatalf("exchange queued for kashi %d times (%v), want 1: a skipped receipt changes nothing else", queued, err)
+					t.Fatalf("exchange queued for central %d times (%v), want 1: a skipped receipt changes nothing else", queued, err)
 				}
 			})
 		}
 	}
 }
 
-// A return kashi sends (RS/CT/2026/00068 was one): unticked in kashi it
-// never prints; ticked or from an older kashi (no print_receipt) it follows
+// A return central sends (RS/CT/2026/00068 was one): unticked in central it
+// never prints; ticked or from an older central (no print_receipt) it follows
 // the till's "Print return receipts". Same for a remote exchange and cancel.
 func TestRemoteReturnReceipt(t *testing.T) {
 	kinds := map[string]func(ref string) map[string]any{
@@ -175,7 +175,7 @@ func TestRemoteReturnReceipt(t *testing.T) {
 	}
 }
 
-// The setting reads as on until it's turned off, and a push from kashi
+// The setting reads as on until it's turned off, and a push from central
 // (update_settings.display_prefs) turns it off and on like the screen does.
 func TestPrintReturnReceiptsSetting(t *testing.T) {
 	shop := setUpDealShop(t)
@@ -192,7 +192,7 @@ func TestPrintReturnReceiptsSetting(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !shop.app.returnReceiptsOn() {
-		t.Fatal("turned on from kashi, still off")
+		t.Fatal("turned on from central, still off")
 	}
 	if err := shop.app.applyRemoteDisplayPrefs(json.RawMessage(`{"print_return_receipts": "no"}`)); err == nil {
 		t.Fatal("a non-boolean print_return_receipts was accepted")

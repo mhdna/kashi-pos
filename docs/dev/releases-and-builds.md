@@ -9,11 +9,11 @@
 | `make lint` | Type-check, `go vet`, golangci-lint. |
 | `make generate` | sqlc. |
 | `make bump` | The next release: commit `chore: release vX` and tag it. |
-| `make publish [NOTES="…"]` | Build the Windows exe at the latest tag, sign it, upload it to kashi, ask which branches get it. Without NOTES, the notes are the `feat`/`fix`/`perf` commits since kashi's last published build of that flavor (`cmd/publish-release/notes.go`). |
+| `make publish [NOTES="…"]` | Build the Windows exe at the latest tag, sign it, upload it to central, ask which branches get it. Without NOTES, the notes are the `feat`/`fix`/`perf` commits since central's last published build of that flavor (`cmd/publish-release/notes.go`). |
 | `make publish-all` | Same, and every active till of that flavor is set to it. |
 | `make publish-all-force` | Same, and tills install it right away, even mid-shift, after a one-minute countdown. |
 | `make publish-compact…` | The same for the compact flavor. |
-| `make receipt-previews` | Regenerate the receipt look images kashi's settings pages show; commit them in kashi. |
+| `make receipt-previews` | Regenerate the receipt look images central's settings pages show; commit them in central. |
 
 ## Releasing
 
@@ -24,7 +24,7 @@
    two files, and tags `v1.1.77`.
 2. `make publish` builds **whatever is on disk** at the latest tag's version,
    so publish right after bumping, from a clean tree.
-3. Choose which tills get it on kashi's App Updates page (or use
+3. Choose which tills get it on central's App Updates page (or use
    `publish-all`).
 
 `publish` needs `KASHI_URL` and `KASHI_USER`; the password is asked once and
@@ -34,7 +34,7 @@ kept in the macOS Keychain. The release-signing key is in
 
 ## How a till updates (`updater.go`)
 
-- kashi tells each till which release to run. The till downloads it in the
+- Central tells each till which release to run. The till downloads it in the
   background (resuming partial downloads), checks size, SHA-256 and the
   release-key signature, and waits for a safe moment: the cashier taps
   "Install now", or it offers itself with a cancellable countdown once no
@@ -51,7 +51,7 @@ kept in the macOS Keychain. The release-signing key is in
   an older build accepts a newer schema, so migrations must stay additive (see
   `data-and-config.md`).
 - A till only gets updates of its own flavor (standard or compact).
-- A kashi without the update route (404) just means no updates; the till stays
+- A central without the update route (404) just means no updates; the till stays
   quiet.
 
 ## Small downloads (`update_compact.go`, `cmd/publish-release/compact.go`)
@@ -60,9 +60,9 @@ A build is ~28 MB; what moves over the wire is much less:
 
 | What | Size | When |
 |---|---|---|
-| Patch from the build the till runs | ~1–2 MB | kashi has one from exactly that exe |
+| Patch from the build the till runs | ~1–2 MB | Central has one from exactly that exe |
 | The build, zstd | ~9 MB | no patch for that exe |
-| The plain exe | ~28 MB | the others failed, or an old till / old kashi |
+| The plain exe | ~28 MB | the others failed, or an old till / old central |
 
 - `make publish` uploads the build zstd-compressed (the `zstd` tool if
   installed, `brew install zstd`, else the Go encoder, a little bigger), then a
@@ -70,9 +70,9 @@ A build is ~28 MB; what moves over the wire is much less:
   rebuilt and compared before upload.
 - Patches need the old builds: every published build is kept in
   `~/.config/gb-cloud/releases/<flavor>/<version>.exe`; a missing one is
-  downloaded from kashi if kashi still has its file. No old build, no patch:
+  downloaded from central if central still has its file. No old build, no patch:
   those tills just get the 9 MB download.
-- The till sends kashi its own exe's SHA-256 (`have=`), so a patch is only
+- The till sends central its own exe's SHA-256 (`have=`), so a patch is only
   offered for **exactly** the exe it was made from.
 - The signature and checksum are always the plain exe's: whatever arrives is
   unpacked and checked like before. A patch or zstd file that doesn't rebuild

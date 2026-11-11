@@ -64,7 +64,7 @@ type BranchTarget = {
 // to the page paints it at once and refresh() swaps the fresh numbers in
 // behind it, so the loading bars only show on the very first visit (or for
 // a month that hasn't been loaded yet).
-// The month's sales counted like kashi's reports (management.go GetMonthSales):
+// The month's sales counted like central's reports (management.go GetMonthSales):
 // the total, each day's part of it, and how much is coupons or on account.
 type MonthSalesView = {
   total: number;
@@ -198,7 +198,7 @@ const dailyRows = computed<DayRow[]>(() => {
   return Array.from({ length: daysInMonth }, (_, index) => {
     const day = `${pad(index + 1)}/${month}/${year}`;
     const shifts = groups[day] ?? [];
-    // A day's total is its sales by the day they were rung up, as kashi's
+    // A day's total is its sales by the day they were rung up, as central's
     // reports count them; a shift that ran past midnight shows under the
     // day it opened, with its whole total.
     return { day, total: monthSales.value.byDay[day] ?? 0, shifts };
@@ -405,7 +405,7 @@ onMounted(async () => {
     EventsOn("sync_applied:branch_targets", refreshIncome),
     EventsOn("sync_applied:currencies", refreshIncome),
     EventsOn("sync_applied:cashbox_accounts", refreshIncome),
-    // kashi's replace_shift_balance command (commands.go).
+    // central's replace_shift_balance command (commands.go).
     EventsOn("sync_applied:shift_balances", refreshIncome),
   ];
   // Payment methods and settings don't feed the numbers, so they load
@@ -461,7 +461,7 @@ onBeforeUnmount(() => {
 
 .events-strip {
   flex: 0 0 auto;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .shifts-cards {

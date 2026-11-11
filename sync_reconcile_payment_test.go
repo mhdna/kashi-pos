@@ -29,7 +29,7 @@ func contains(haystack []string, needle string) bool {
 	return false
 }
 
-// The core of the rule: a payment method kashi stops sending stops being
+// The core of the rule: a payment method central stops sending stops being
 // offered at the till.
 func TestReconcileCashboxAccountsRetiresWhatKashiNoLongerHas(t *testing.T) {
 	ctx := context.Background()
@@ -52,7 +52,7 @@ func TestReconcileCashboxAccountsRetiresWhatKashiNoLongerHas(t *testing.T) {
 		t.Fatalf("both sent methods should be active, got %v", names)
 	}
 
-	// kashi drops Visa.
+	// Central drops Visa.
 	remaining := []syncedCashboxAccount{{Name: "Cash $$", CurrencyCode: "USD"}}
 	if err := applySyncedCashboxAccount(ctx, q, remaining[0]); err != nil {
 		t.Fatal(err)
@@ -75,7 +75,7 @@ func TestReconcileCashboxAccountsRetiresWhatKashiNoLongerHas(t *testing.T) {
 	}
 }
 
-// "If kashi doesn't have any payment methods then kashi-pos doesn't" -- the
+// "If central doesn't have any payment methods then kashi-pos doesn't" -- the
 // empty payload is a real state, not a no-op, and the NOT IN queries it feeds
 // have to handle it.
 func TestReconcileCashboxAccountsEmptyPayloadRetiresEverything(t *testing.T) {
@@ -97,12 +97,12 @@ func TestReconcileCashboxAccountsEmptyPayloadRetiresEverything(t *testing.T) {
 
 	for _, name := range []string{"Cash $$", "Visa"} {
 		if contains(activeMethodNames(t, q), name) {
-			t.Fatalf("%q should be retired when kashi sends nothing", name)
+			t.Fatalf("%q should be retired when central sends nothing", name)
 		}
 	}
 }
 
-// The two internal placeholders are not kashi's to retire -- the coupon and
+// The two internal placeholders are not central's to retire -- the coupon and
 // client-account settlement paths look them up by exact name.
 func TestReconcileCashboxAccountsKeepsInternalPlaceholders(t *testing.T) {
 	ctx := context.Background()
@@ -117,7 +117,7 @@ func TestReconcileCashboxAccountsKeepsInternalPlaceholders(t *testing.T) {
 		}
 	}
 
-	// kashi sends nothing at all -- the strongest case.
+	// Central sends nothing at all -- the strongest case.
 	if err := reconcileCashboxAccounts(ctx, q, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestReconcileCashboxAccountsKeepsInternalPlaceholders(t *testing.T) {
 	}
 }
 
-// A method kashi re-adds comes back rather than staying retired.
+// A method central re-adds comes back rather than staying retired.
 func TestReconcileCashboxAccountsReactivatesOnReturn(t *testing.T) {
 	ctx := context.Background()
 	store := setUpTestClientDB(t)
@@ -154,12 +154,12 @@ func TestReconcileCashboxAccountsReactivatesOnReturn(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !contains(activeMethodNames(t, q), "Visa") {
-		t.Fatalf("Visa should be offered again once kashi re-adds it, got %v", activeMethodNames(t, q))
+		t.Fatalf("Visa should be offered again once central re-adds it, got %v", activeMethodNames(t, q))
 	}
 }
 
 // Same rule for currencies, except the default is the accounting anchor every
-// amount is stored in and is not kashi's to retire.
+// amount is stored in and is not central's to retire.
 func TestReconcileCurrenciesRetiresWhatKashiLacksButKeepsTheAnchor(t *testing.T) {
 	ctx := context.Background()
 	store := setUpTestClientDB(t)
@@ -178,7 +178,7 @@ func TestReconcileCurrenciesRetiresWhatKashiLacksButKeepsTheAnchor(t *testing.T)
 		t.Fatal(err)
 	}
 
-	// kashi sends nothing.
+	// Central sends nothing.
 	if err := reconcileCurrencies(ctx, q, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestReconcileCurrenciesRetiresWhatKashiLacksButKeepsTheAnchor(t *testing.T)
 		t.Fatal(err)
 	}
 	if retired.IsActive {
-		t.Fatal("EUR should be retired once kashi no longer has it")
+		t.Fatal("EUR should be retired once central no longer has it")
 	}
 
 	// The anchor (USC, the accounting cent) is untouched -- whatever state it

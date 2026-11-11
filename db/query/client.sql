@@ -216,7 +216,7 @@ VALUES (?, ?, ?, ?) RETURNING *;
 -- name: ListClientsWithInvoices :many
 -- Clients that have at least one invoice -- the only ones the branch pushes
 -- up. Everyone else is created locally but stays local until they buy
--- something; kashi remains the source of truth for the shared roster.
+-- something; central remains the source of truth for the shared roster.
 SELECT DISTINCT c.* FROM clients c
 JOIN invoices i ON i.client_id = c.id
 ORDER BY c.id;
@@ -228,7 +228,7 @@ SELECT EXISTS(SELECT 1 FROM invoices WHERE client_id = ?);
 SELECT * FROM clients WHERE uid = ?;
 
 -- name: SetClientUID :exec
--- Adopt kashi's uid for a local client (pull match, or kashi answering a
+-- Adopt central's uid for a local client (pull match, or central answering a
 -- push with the canonical uid of an existing client with the same phone).
 UPDATE clients SET uid = ? WHERE id = ?;
 
@@ -251,7 +251,7 @@ UPDATE client_account_entries SET client_id = sqlc.arg(keep_id) WHERE client_id 
 UPDATE clients SET remote_updated_at = ? WHERE id = ?;
 
 -- name: ListClientSyncVersions :many
--- Completeness check: every local client's uid and the kashi version last
+-- Completeness check: every local client's uid and the central version last
 -- applied to it.
 SELECT id, uid, remote_updated_at FROM clients WHERE uid IS NOT NULL;
 

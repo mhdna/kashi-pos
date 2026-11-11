@@ -1,5 +1,5 @@
 // What the nav-rail sync indicator and its detail dialog say, worked out from
-// three things the till knows: the connection (internet, kashi, the live push
+// three things the till knows: the connection (internet, central, the live push
 // channel, what it is doing right now), the push queue (pending / failed),
 // and a "Sync everything" run. Kept as plain functions so every combination
 // can be tested without mounting anything.
@@ -171,14 +171,14 @@ export function describeLink(
     return make({
       tone: "bad", icon: "mdi-wifi-off", word: "No internet", sub: queued > 0 ? `${queued} waiting` : "",
       spinner: { on: false, pct: null },
-      title: "No internet connection. Sales are kept on this till and go to kashi when it is back.",
+      title: "No internet connection. Sales are kept on this till and go to central when it is back.",
     });
   }
   if (kashiDown) {
     return make({
-      tone: "bad", icon: "mdi-cloud-off-outline", word: "No kashi", sub: queued > 0 ? `${queued} waiting` : "",
+      tone: "bad", icon: "mdi-cloud-off-outline", word: "No central", sub: queued > 0 ? `${queued} waiting` : "",
       spinner: { on: false, pct: null },
-      title: `The internet is fine but kashi does not answer (${link.kashiError || "unreachable"}). Sales are kept on this till.`,
+      title: `The internet is fine but central does not answer (${link.kashiError || "unreachable"}). Sales are kept on this till.`,
     });
   }
 
@@ -199,26 +199,26 @@ export function describeLink(
   if (failed > 0) {
     return make({
       tone: "attention", icon: "mdi-cloud-alert-outline", word: "Check", sub: "", spinner: { on: false, pct: null },
-      // Amber, not red: the sales are safe on the till, kashi just hasn't taken them yet.
-      title: `${failed} record(s) kashi didn't accept yet; they're safe on this till`,
+      // Amber, not red: the sales are safe on the till, central just hasn't taken them yet.
+      title: `${failed} record(s) central didn't accept yet; they're safe on this till`,
     });
   }
   if (queued > 0) {
     return make({
       tone: "busy", icon: "mdi-cloud-upload", word: "Waiting", sub: `${queued} to send`, spinner: { on: false, pct: null },
-      title: `${queued} record(s) not yet confirmed by kashi`,
+      title: `${queued} record(s) not yet confirmed by central`,
     });
   }
   if (liveDown) {
     return make({
       tone: "attention", icon: "mdi-lan-disconnect", word: "Not live", sub: "", spinner: { on: false, pct: null },
-      title: "Synced, but the live link to kashi is down: kashi shows this till as offline and changes reach it a little later.",
+      title: "Synced, but the live link to central is down: central shows this till as offline and changes reach it a little later.",
     });
   }
   if (link.kashi === "unknown" && !link.live) {
-    return make({ tone: "busy", icon: "mdi-sync", word: "Connecting", sub: "", spinner: { on: true, pct: null }, title: "Connecting to kashi" });
+    return make({ tone: "busy", icon: "mdi-sync", word: "Connecting", sub: "", spinner: { on: true, pct: null }, title: "Connecting to central" });
   }
-  return make({ tone: "ok", icon: "mdi-cloud-check-variant", word: "Synced", sub: "", spinner: { on: false, pct: null }, title: "Fully synced with kashi, live" });
+  return make({ tone: "ok", icon: "mdi-cloud-check-variant", word: "Synced", sub: "", spinner: { on: false, pct: null }, title: "Fully synced with central, live" });
 }
 
 function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[] {
@@ -233,17 +233,17 @@ function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[
   );
 
   if (link.kashi === "up") {
-    rows.push({ key: "kashi", label: "kashi server", state: "ok", value: "Reachable", detail: link.kashiLastOk ? `Last answer ${agoText(link.kashiLastOk, nowMs)}` : "" });
+    rows.push({ key: "kashi", label: "central server", state: "ok", value: "Reachable", detail: link.kashiLastOk ? `Last answer ${agoText(link.kashiLastOk, nowMs)}` : "" });
   } else if (link.kashi === "down") {
     const down = link.kashiDownForSeconds > 0 ? ` for ${durationText(link.kashiDownForSeconds)}` : "";
-    rows.push({ key: "kashi", label: "kashi server", state: "bad", value: `Not answering${down}`, detail: link.kashiError });
+    rows.push({ key: "kashi", label: "central server", state: "bad", value: `Not answering${down}`, detail: link.kashiError });
   } else {
-    rows.push({ key: "kashi", label: "kashi server", state: "idle", value: "Checking", detail: "" });
+    rows.push({ key: "kashi", label: "central server", state: "idle", value: "Checking", detail: "" });
   }
 
   if (link.live) {
     const since = link.liveSince ? `Connected ${agoText(link.liveSince, nowMs)}` : "";
-    const beat = link.liveLastBeat ? `heard from kashi ${agoText(link.liveLastBeat, nowMs)}` : "";
+    const beat = link.liveLastBeat ? `heard from central ${agoText(link.liveLastBeat, nowMs)}` : "";
     rows.push({ key: "live", label: "Live link", state: "ok", value: "Connected", detail: [since, beat].filter(Boolean).join(", ") });
   } else {
     const retry = secondsUntil(link.liveRetryAt, nowMs);
@@ -251,7 +251,7 @@ function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[
     rows.push({
       key: "live", label: "Live link", state: link.liveEverUp || link.kashi === "up" ? "warn" : "idle",
       value: link.liveEverUp || link.kashi === "up" ? "Not connected" : "Connecting",
-      detail: [link.liveError, retryText, "kashi shows this till as offline until it connects."].filter(Boolean).join(" "),
+      detail: [link.liveError, retryText, "Central shows this till as offline until it connects."].filter(Boolean).join(" "),
     });
   }
 
@@ -259,10 +259,10 @@ function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[
   rows.push({ key: "now", label: "Right now", state: work ? "ok" : "idle", value: work || "Nothing to do", detail: "" });
 
   rows.push({
-    key: "received", label: "Last update from kashi", state: link.lastPullError ? "warn" : "idle",
+    key: "received", label: "Last update from central", state: link.lastPullError ? "warn" : "idle",
     value: agoText(link.lastPullAt, nowMs), detail: link.lastPullError,
   });
-  rows.push({ key: "sent", label: "Last sent to kashi", state: "idle", value: agoText(link.lastPushAt, nowMs), detail: "" });
+  rows.push({ key: "sent", label: "Last sent to central", state: "idle", value: agoText(link.lastPushAt, nowMs), detail: "" });
 
   if (queue) {
     const queued = queue.pending + queue.confirmedElsewhere;

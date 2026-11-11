@@ -118,7 +118,7 @@ describe("EventsCard", () => {
     expect(next().exists()).toBe(false);
   });
 
-  it("updates the count when kashi sends new events", async () => {
+  it("updates the count when central sends new events", async () => {
     await mountCard([]);
     expect(count()).toBe("No events in the next 30 days");
     const onEvents = vi.mocked(EventsOn).mock.calls.find(([name]) => name === "sync_applied:calendar_events")![1];

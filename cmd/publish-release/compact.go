@@ -1,6 +1,6 @@
 package main
 
-// Smaller uploads and downloads (kashi's api/app_update_compact.go, and the
+// Smaller uploads and downloads (central's api/app_update_compact.go, and the
 // till's update_compact.go).
 //
 //   - The build is uploaded zstd-compressed: ~28 MB becomes ~9 MB.
@@ -14,7 +14,7 @@ package main
 //
 // Patches need the old builds. Every build published from this machine is
 // kept in ~/.config/gb-cloud/releases/<flavor>/<version>.exe; one that isn't
-// there is downloaded from kashi, while kashi still has its file.
+// there is downloaded from central, while central still has its file.
 
 import (
 	"bytes"
@@ -181,14 +181,14 @@ type publishedRelease struct {
 }
 
 // baseBuild is the exe of an earlier release: from the cache, else from
-// kashi. Either way it must be exactly what kashi says that release is.
+// central. Either way it must be exactly what central says that release is.
 func baseBuild(baseURL, token string, r publishedRelease) ([]byte, error) {
 	cached := filepath.Join(buildCacheDir(r.Flavor), r.Version+".exe")
 	if b, err := os.ReadFile(cached); err == nil && sha256Hex(b) == r.Sha256 {
 		return b, nil
 	}
 	if r.FileRemoved {
-		return nil, errors.New("not kept here, and kashi cleaned its file up")
+		return nil, errors.New("not kept here, and central cleaned its file up")
 	}
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/app_releases/%d/file", baseURL, r.ID), nil)
 	if err != nil {
@@ -201,7 +201,7 @@ func baseBuild(baseURL, token string, r publishedRelease) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("kashi answered %d: %s", resp.StatusCode, errorMessage(resp.Body))
+		return nil, fmt.Errorf("Central answered %d: %s", resp.StatusCode, errorMessage(resp.Body))
 	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, maxDecodedBuild))
 	if err != nil {
@@ -213,7 +213,7 @@ func baseBuild(baseURL, token string, r publishedRelease) ([]byte, error) {
 		}
 	}
 	if sha256Hex(b) != r.Sha256 {
-		return nil, errors.New("kashi's file isn't the build it says")
+		return nil, errors.New("central's file isn't the build it says")
 	}
 	cacheBuild(r.Flavor, r.Version, b)
 	return b, nil
@@ -257,7 +257,7 @@ func publishPatches(baseURL, token string, releaseID int64, version, flavor, new
 	for _, v := range versions {
 		r, ok := byVersion[v]
 		if !ok {
-			fmt.Printf("  no patch from %s: kashi has no release of it\n", v)
+			fmt.Printf("  no patch from %s: central has no release of it\n", v)
 			continue
 		}
 		base, err := baseBuild(baseURL, token, r)

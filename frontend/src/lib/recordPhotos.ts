@@ -2,8 +2,8 @@ import { ref } from "vue";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 // Record photos (expense, loan, transfer) come from the till's encrypted copy
-// first and are checked with kashi in the background (record_photos.go).
-// When kashi has something else now -- a photo turned, replaced, added or
+// first and are checked with central in the background (record_photos.go).
+// When central has something else now -- a photo turned, replaced, added or
 // removed -- the till sends "record_photos_changed" with the record's ref:
 // the expense or loan clientRef, the sent transfer's clientRef, or
 // "transfer-<id>" for a received one (transferPhotoRef).

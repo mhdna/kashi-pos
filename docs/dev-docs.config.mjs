@@ -15,7 +15,7 @@ export default {
       { file: 'dev/README.md', id: 'overview', title: 'Overview', icon: 'mdiCompass', group: 'Start here' },
       { file: 'dev/money-and-selling.md', title: 'Money and selling', icon: 'mdiCashRegister', group: 'Selling' },
       { file: 'dev/shifts-and-logins.md', title: 'Shifts and logins', icon: 'mdiAccountClock', group: 'Selling' },
-      { file: 'dev/sync.md', title: 'Sync with kashi', icon: 'mdiSync', group: 'Sync and devices' },
+      { file: 'dev/sync.md', title: 'Sync with central', icon: 'mdiSync', group: 'Sync and devices' },
       { file: 'dev/attendance.md', title: 'Attendance', icon: 'mdiFingerprint', group: 'Sync and devices' },
       { file: 'dev/windows-till.md', title: 'The Windows till', icon: 'mdiMonitor', group: 'Sync and devices' },
       { file: 'dev/data-and-config.md', title: 'Data and config', icon: 'mdiDatabaseCog', group: 'Platform' },
@@ -35,8 +35,8 @@ export default {
   glance: {
     overview: [
       '**There is no log on a till** (Windows build): add a log file before debugging by logs.',
-      '**Checkout does not take stock off**; stock is kashi\'s, from synced sales.',
-      '**A product has no price of its own**: prices come from kashi\'s price lists only.',
+      '**Checkout does not take stock off**; stock is central\'s, from synced sales.',
+      '**A product has no price of its own**: prices come from central\'s price lists only.',
       '**All money is integer USD cents**, whatever was paid with (expenses/loans: own currency x100).',
       '**Migrations are additive**; an older build must run on a newer database (that is what makes rollback safe).',
     ],
@@ -54,7 +54,7 @@ export default {
       'Stale shifts auto-close only if switched on; **empty ones are deleted**, not closed.',
     ],
     'sync-with-kashi': [
-      'kashi owns catalogue and prices; the till owns invoices, shifts, expenses, loans, attendance.',
+      'central owns catalogue and prices; the till owns invoices, shifts, expenses, loans, attendance.',
       'Match on **`uid`**, never integer ids.',
       'Every synced write queues an outbox row **in the same transaction**.',
       'A **network failure stops the whole pass** and waits; a 5xx/408/429 backs off just that row.',

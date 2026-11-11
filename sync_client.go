@@ -24,12 +24,12 @@ import (
 // configured. Every centralClient method must check this first — sync is
 // opt-in per branch, and an install that hasn't opted in must behave
 // exactly as it does today, indefinitely, not just "until it's set up".
-var errCentralSyncDisabled = errors.New("central sync is not configured for this branch")
+var errCentralSyncDisabled = errors.New("Central sync is not configured for this branch")
 
-// centralClient talks to the kashi central backend on behalf of this branch,
+// centralClient talks to the central central backend on behalf of this branch,
 // authenticating with the branch code/key pair from settings (branchAuthMiddleware
-// on the kashi side, not the PASETO user-token flow — see api/middleware.go
-// in the kashi repo for why a branch uses a separate, non-expiring credential).
+// on the central side, not the PASETO user-token flow — see api/middleware.go
+// in the central repo for why a branch uses a separate, non-expiring credential).
 type centralClient struct {
 	baseURL    string
 	branchCode string
@@ -65,11 +65,11 @@ type centralErrorBody struct {
 }
 
 // permanentError marks a central response the branch must not keep retrying:
-// a 4xx means kashi understood the request and rejected it (bad payload,
+// a 4xx means central understood the request and rejected it (bad payload,
 // unknown branch, a validation failure), and replaying the identical body on
 // a 15s loop forever will never change that. 408 and 429 are the two 4xx
 // codes that *are* transient, so they're deliberately excluded. Network
-// errors and 5xx are not permanent — the branch may just be offline or kashi
+// errors and 5xx are not permanent — the branch may just be offline or central
 // mid-deploy — and stay on the normal exponential-backoff retry path.
 type permanentError struct {
 	status int
@@ -100,7 +100,7 @@ func responseError(method, path string, resp *http.Response) error {
 	return errors.New(msg)
 }
 
-// Health confirms the configured branch code/key round-trips against kashi's
+// Health confirms the configured branch code/key round-trips against central's
 // /branch/health. It does nothing else — no retry, no side effects — this is
 // purely for manually verifying a branch is wired up correctly.
 func (c *centralClient) Health(ctx context.Context) error {
@@ -122,7 +122,7 @@ func (c *centralClient) Health(ctx context.Context) error {
 	if resp.StatusCode != http.StatusOK {
 		var body centralErrorBody
 		json.NewDecoder(resp.Body).Decode(&body)
-		return fmt.Errorf("central health check failed (status %d): %s", resp.StatusCode, body.Error)
+		return fmt.Errorf("Central health check failed (status %d): %s", resp.StatusCode, body.Error)
 	}
 
 	return nil
@@ -131,7 +131,7 @@ func (c *centralClient) Health(ctx context.Context) error {
 // FullSyncStart/End bracket a "Sync everything" run so the admin UI can show
 // this branch as syncing for as long as the run actually takes. Both are
 // best-effort from the caller's side (ResyncAll logs and carries on if
-// either fails) -- an older kashi deploy without the route, or a network
+// either fails) -- an older central deploy without the route, or a network
 // blip on the notify call, shouldn't block or fail the sync itself.
 func (c *centralClient) FullSyncStart(ctx context.Context) error {
 	return c.postNoBody(ctx, "/branch/sync/full_sync/start")
@@ -163,18 +163,18 @@ func (c *centralClient) postNoBody(ctx context.Context, path string) error {
 }
 
 // PostInvoice sends a raw, already-serialized branchInvoicePayload JSON body
-// to kashi. It's deliberately just []byte in, error out — the sync worker
+// to central. It's deliberately just []byte in, error out — the sync worker
 // stores the exact bytes it needs to send (sync_outbox.payload_json) and
 // has no reason to unmarshal/remarshal them, and the caller doesn't need
-// the response body since kashi's idempotency handling means any 2xx
+// the response body since central's idempotency handling means any 2xx
 // (fresh create or "already have this one") is equally a success.
 func (c *centralClient) PostInvoice(ctx context.Context, path string, payloadJSON []byte) error {
 	return c.sendJSON(ctx, http.MethodPost, path, payloadJSON)
 }
 
-// PostClient sends one client to kashi's per-client route and returns the
-// canonical uid kashi now maps it to (kashi answers {"client": {...}}). The
-// uid is "" from a kashi that predates uid sync, or when the body can't be
+// PostClient sends one client to central's per-client route and returns the
+// canonical uid central now maps it to (central answers {"client": {...}}). The
+// uid is "" from a central that predates uid sync, or when the body can't be
 // read -- the push itself still succeeded, so that is never an error.
 func (c *centralClient) PostClient(ctx context.Context, path string, payloadJSON []byte) (string, error) {
 	if !c.enabled() {
@@ -208,9 +208,9 @@ func (c *centralClient) PostClient(ctx context.Context, path string, payloadJSON
 	return out.Client.UID, nil
 }
 
-// postExpenseResponse is kashi's response body to POST /branch/expenses --
-// see createBranchExpense's envelope in the kashi repo's api/branch_expense.go.
-// UploadToken is empty on the idempotent "already exists" path (kashi only
+// postExpenseResponse is central's response body to POST /branch/expenses --
+// see createBranchExpense's envelope in the central repo's api/branch_expense.go.
+// UploadToken is empty on the idempotent "already exists" path (central only
 // mints one on a fresh insert), which the caller treats as "no QR dialog
 // this time" rather than an error.
 type postExpenseResponse struct {
@@ -249,10 +249,10 @@ func (c *centralClient) PostExpense(ctx context.Context, path string, payloadJSO
 	return &out, nil
 }
 
-// postTransferRequestResponse is kashi's response body to POST
+// postTransferRequestResponse is central's response body to POST
 // /branch/transfer_requests -- see createBranchTransferRequest's envelope
-// in the kashi repo's api/branch_transfer.go. UploadToken is empty on the
-// idempotent "already exists" path (kashi only mints one on a fresh
+// in the central repo's api/branch_transfer.go. UploadToken is empty on the
+// idempotent "already exists" path (central only mints one on a fresh
 // insert), same as postExpenseResponse.
 type postTransferRequestResponse struct {
 	UploadToken string `json:"upload_token"`
@@ -294,28 +294,28 @@ type branchClientsBatchPayload struct {
 	Clients []branchClientPayload `json:"clients"`
 }
 
-// branchClientBatchResult is kashi's verdict on one client of a batch (see
-// branchClientBatchResult in kashi's api/branch_client_batch.go). Status is
-// "ok" (stored/linked, possibly with a staged conflict), "invalid" (kashi
+// branchClientBatchResult is central's verdict on one client of a batch (see
+// branchClientBatchResult in central's api/branch_client_batch.go). Status is
+// "ok" (stored/linked, possibly with a staged conflict), "invalid" (central
 // will never accept these bytes) or "error" (server-side failure, retry).
 type branchClientBatchResult struct {
 	BranchClientID int64  `json:"branch_client_id"`
 	Status         string `json:"status"`
 	ConflictKind   string `json:"conflict_kind"`
-	// UID is the canonical uid kashi maps this client to (empty from a
-	// kashi that predates uid sync).
+	// UID is the canonical uid central maps this client to (empty from a
+	// Central that predates uid sync).
 	UID   string `json:"uid"`
 	Error string `json:"error"`
 }
 
-// clientsBatchTimeout is longer than the shared 10s client timeout: kashi
+// clientsBatchTimeout is longer than the shared 10s client timeout: central
 // resolves each client in the batch with a few queries, so a full chunk
 // legitimately takes longer than a single-row POST.
 const clientsBatchTimeout = 60 * time.Second
 
-// PostClientsBatch sends many clients in one round trip and returns kashi's
+// PostClientsBatch sends many clients in one round trip and returns central's
 // per-client results. A non-nil error means the whole call failed (network,
-// 5xx, or a 4xx such as 404 from a kashi that predates the route) and no
+// 5xx, or a 4xx such as 404 from a central that predates the route) and no
 // client was necessarily stored; the caller decides whether to fall back to
 // per-client POSTs. The batch is idempotent per client, so replaying it after
 // an ambiguous failure is safe.
@@ -356,7 +356,7 @@ func (c *centralClient) PostClientsBatch(ctx context.Context, payload branchClie
 	return out.Results, nil
 }
 
-// postShiftCloseResponse is kashi's body for POST /branch/shift_closes.
+// postShiftCloseResponse is central's body for POST /branch/shift_closes.
 // UploadToken is empty on the idempotent "already exists" path; the caller
 // then falls back to its own local upload server.
 type postShiftCloseResponse struct {
@@ -366,7 +366,7 @@ type postShiftCloseResponse struct {
 // PostShiftClose sends the shift-close payload synchronously (unlike the
 // normal outbox drain, which fires and forgets) so the hybrid close path
 // can read back the one-time upload token and point its QR straight at
-// kashi. The normal outbox row for this close is marked synced by the
+// central. The normal outbox row for this close is marked synced by the
 // caller afterwards so the worker doesn't re-send it.
 func (c *centralClient) PostShiftClose(ctx context.Context, payloadJSON []byte) (*postShiftCloseResponse, error) {
 	if !c.enabled() {
@@ -396,7 +396,7 @@ func (c *centralClient) PostShiftClose(ctx context.Context, payloadJSON []byte) 
 	return &out, nil
 }
 
-// ShiftReceiptUploadStatus polls kashi for whether the close-shift receipt
+// ShiftReceiptUploadStatus polls central for whether the close-shift receipt
 // photo has landed -- the "central" mode counterpart to watching the local
 // shift_receipt_uploads row, used by the QR dialog while it waits.
 func (c *centralClient) ShiftReceiptUploadStatus(ctx context.Context, shiftRef string) (bool, error) {
@@ -466,9 +466,9 @@ func (c *centralClient) TransferUploadStatus(ctx context.Context, clientRef stri
 	return out.ImageUploaded, nil
 }
 
-// The upload links use kashi's one-letter paths (/s/ shift receipt, /e/
+// The upload links use central's one-letter paths (/s/ shift receipt, /e/
 // expense, /l/ loan, /t/ transfer, /u/ unknown items) so the QR code and the
-// link shown under it stay short. kashi still answers the long ones
+// link shown under it stay short. Central still answers the long ones
 // (/shift_uploads/ ...) for links handed out before.
 
 // ShiftUploadURL builds the central QR link a phone scans in "central" mode.
@@ -476,7 +476,7 @@ func (c *centralClient) ShiftUploadURL(token string) string {
 	return c.baseURL + "/s/" + token
 }
 
-// ExpenseUploadStatus polls kashi for whether receipt images have landed on
+// ExpenseUploadStatus polls central for whether receipt images have landed on
 // a given expense yet -- the poll-based companion to the
 // "expense_images_uploaded" WS push, used by kashi-pos's QR dialog while
 // it's waiting.
@@ -512,7 +512,7 @@ func (c *centralClient) ExpenseUploadStatus(ctx context.Context, clientRef strin
 }
 
 // UploadURL builds the full one-time receipt-upload link a phone scans via
-// QR code, from this branch's own configured central_api_url -- kashi never
+// QR code, from this branch's own configured central_api_url -- central never
 // needs to know its own public address, kashi-pos already does (it's the
 // same host this client talks to for everything else).
 func (c *centralClient) UploadURL(token string) string {
@@ -525,22 +525,22 @@ func (c *centralClient) LoanUploadURL(token string) string {
 }
 
 // TransferUploadURL is UploadURL's counterpart for a transfer request's
-// photo -- see transfer_upload.go in the kashi repo.
+// photo -- see transfer_upload.go in the central repo.
 func (c *centralClient) TransferUploadURL(token string) string {
 	return c.baseURL + "/t/" + token
 }
 
-// errShiftNotReceivedYet is kashi's 409 on POST /branch/shift_receipt_images
+// errShiftNotReceivedYet is central's 409 on POST /branch/shift_receipt_images
 // when the branch_shifts row the photo attaches to hasn't synced yet. It's
 // retryable (the shift-close outbox entry just hasn't drained), so the
 // uploader treats it as a plain transient error, not a permanent one.
-var errShiftNotReceivedYet = errors.New("kashi has not received this shift close yet")
+var errShiftNotReceivedYet = errors.New("Central has not received this shift close yet")
 
 // PostShiftReceiptImage uploads the single close-shift receipt photo to
-// kashi, keyed by shift_ref (shift-<localID>) for idempotency -- kashi
+// central, keyed by shift_ref (shift-<localID>) for idempotency -- central
 // no-ops a second upload for a shift that already has one. Multipart rather
 // than JSON because the body is an image file; this is the shift-side
-// counterpart to a phone hitting kashi's public /expense_uploads endpoint.
+// counterpart to a phone hitting central's public /expense_uploads endpoint.
 func (c *centralClient) PostShiftReceiptImage(ctx context.Context, shiftRef, filePath, contentType string) error {
 	if !c.enabled() {
 		return errCentralSyncDisabled
@@ -595,13 +595,13 @@ func (c *centralClient) PostShiftReceiptImage(ctx context.Context, shiftRef, fil
 }
 
 // PutSettings pushes this branch's current business-identity settings
-// snapshot to kashi. It's a plain upsert on kashi's side (see
+// snapshot to central. It's a plain upsert on central's side (see
 // putBranchSettings in api/branch_settings.go), so pushing the same
 // snapshot repeatedly is harmless -- unlike invoices, settings has no
 // client_ref/idempotency concept because there's nothing to deduplicate.
 // PutSettings reports this till's settings and returns the branch code
-// kashi has it under. The till logs in with its register code; once its
-// branch has several registers, the two differ. An older kashi omits the
+// Central has it under. The till logs in with its register code; once its
+// branch has several registers, the two differ. An older central omits the
 // field, which comes back as "".
 func (c *centralClient) PutSettings(ctx context.Context, payloadJSON []byte) (string, error) {
 	if !c.enabled() {
@@ -633,14 +633,14 @@ func (c *centralClient) PutSettings(ctx context.Context, payloadJSON []byte) (st
 	return out.BranchCode, nil
 }
 
-// branchTargetProgress is one row of kashi's GET /branch/targets/progress:
+// branchTargetProgress is one row of central's GET /branch/targets/progress:
 // a target's branch-wide achieved amount (every register's synced sales).
 type branchTargetProgress struct {
 	ID       int64 `json:"id"`
 	Achieved int64 `json:"achieved"`
 }
 
-// GetTargetsProgress fetches branch-wide target progress. A kashi that
+// GetTargetsProgress fetches branch-wide target progress. A central that
 // predates the endpoint answers 404, reported as ok=false so the caller
 // keeps showing this till's own sales only.
 func (c *centralClient) GetTargetsProgress(ctx context.Context) (progress []branchTargetProgress, ok bool, err error) {
@@ -673,21 +673,21 @@ func (c *centralClient) GetTargetsProgress(ctx context.Context) (progress []bran
 	return out.Progress, true, nil
 }
 
-// whatsAppThankYouResponse is kashi's body for POST /branch/whatsapp/thank_you.
+// whatsAppThankYouResponse is central's body for POST /branch/whatsapp/thank_you.
 // Sent is false (not an error) whenever WhatsApp is disabled/misconfigured
-// on kashi's side, the phone was unusable, or the Cloud API call itself
-// failed -- kashi owns all of that and reports back why rather than kashi-pos
+// on central's side, the phone was unusable, or the Cloud API call itself
+// failed -- central owns all of that and reports back why rather than kashi-pos
 // guessing at it.
 type whatsAppThankYouResponse struct {
 	Sent   bool   `json:"sent"`
 	Reason string `json:"reason"`
-	// Retry: kashi couldn't send for now (bridge or Meta unreachable) and a
+	// Retry: central couldn't send for now (bridge or Meta unreachable) and a
 	// later try may work, so the thank-you stays pending.
 	Retry bool `json:"retry"`
 }
 
-// PostWhatsAppThankYou asks kashi to send the post-sale WhatsApp thank-you
-// message. All WhatsApp/Meta config lives centrally on kashi now (see
+// PostWhatsAppThankYou asks central to send the post-sale WhatsApp thank-you
+// message. All WhatsApp/Meta config lives centrally on central now (see
 // api/whatsapp.go in that repo) -- kashi-pos just reports the sale.
 func (c *centralClient) PostWhatsAppThankYou(ctx context.Context, payloadJSON []byte) (*whatsAppThankYouResponse, error) {
 	if !c.enabled() {
@@ -717,7 +717,7 @@ func (c *centralClient) PostWhatsAppThankYou(ctx context.Context, payloadJSON []
 	return &out, nil
 }
 
-// PostWhatsAppWelcome asks kashi to send a new client's welcome message
+// PostWhatsAppWelcome asks central to send a new client's welcome message
 // before checkout (see App.WhatsAppWelcome).
 func (c *centralClient) PostWhatsAppWelcome(ctx context.Context, payloadJSON []byte) (*whatsAppThankYouResponse, error) {
 	if !c.enabled() {
@@ -771,7 +771,7 @@ type branchSyncChangesResponse struct {
 	Entity     string          `json:"entity"`
 	Items      json.RawMessage `json:"items"`
 	ServerTime time.Time       `json:"server_time"`
-	// NextCursor is non-empty only when kashi truncated the response to
+	// NextCursor is non-empty only when central truncated the response to
 	// `limit` rows and there are more; the branch feeds it back as `cursor`
 	// to fetch the next page (see api/branch_catchup.go). Empty for every
 	// non-paged entity and for the last page of a paged one.
@@ -781,7 +781,7 @@ type branchSyncChangesResponse struct {
 // fetchChangesParams is the argument bag for FetchChanges. Since is the
 // entity's stored watermark (empty = "from the beginning"); Cursor, when
 // set, is a next_cursor from a previous page and supersedes Since; Limit
-// caps a paged entity's rows (ignored by kashi for the small entities).
+// caps a paged entity's rows (ignored by central for the small entities).
 type fetchChangesParams struct {
 	Entity string
 	Since  string
@@ -789,7 +789,7 @@ type fetchChangesParams struct {
 	Limit  int
 }
 
-// FetchChanges calls kashi's generalized catch-up endpoint for one entity.
+// FetchChanges calls central's generalized catch-up endpoint for one entity.
 // since may be empty, meaning "everything" (a fresh install or one just
 // turning sync on) — that's not a special case on either side, just an
 // empty `since` query param. Items is left as raw JSON since each entity
@@ -844,7 +844,7 @@ type branchPendingCommandsResponse struct {
 	Commands []branchCommand `json:"commands"`
 }
 
-// FetchPendingCommands polls kashi for commands issued to this branch that
+// FetchPendingCommands polls central for commands issued to this branch that
 // haven't been acked yet. Called every sync tick regardless of whether a
 // WebSocket "command" push was received (see sync_ws.go) -- the same
 // dual-path guarantee every other pushed entity gets, so a branch that was
@@ -878,7 +878,7 @@ func (c *centralClient) FetchPendingCommands(ctx context.Context) ([]branchComma
 	return out.Commands, nil
 }
 
-// AckCommand reports the outcome of executing one command back to kashi --
+// AckCommand reports the outcome of executing one command back to central --
 // the audit trail's completion record. status is "success" or "failed";
 // execErr, when non-nil, becomes the stored error text.
 func (c *centralClient) AckCommand(ctx context.Context, commandID int64, status string, execErr error) error {
@@ -896,7 +896,7 @@ func (c *centralClient) AckCommand(ctx context.Context, commandID int64, status 
 	return c.sendJSON(ctx, http.MethodPost, fmt.Sprintf("/branch/commands/%d/ack", commandID), payload)
 }
 
-// DialWS connects to kashi's push channel. kashi-pos is a Go client
+// DialWS connects to central's push channel. kashi-pos is a Go client
 // dialing directly (not a browser page), so — unlike a JS WebSocket — it
 // can set the same X-Branch-Code/X-Branch-Key headers used everywhere else
 // on the initial handshake request, no separate auth scheme needed for

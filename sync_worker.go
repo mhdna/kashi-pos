@@ -20,7 +20,7 @@ const (
 	syncWorkerBatchSize      = 200
 	syncBackoffBase          = 5 * time.Second
 	syncBackoffMax           = time.Hour
-	// While kashi pushes every change (see runPullTick), the full pull is
+	// While central pushes every change (see runPullTick), the full pull is
 	// only a backstop for a lost push, and target progress -- which isn't
 	// pushed -- is polled on its own, shorter interval.
 	syncPullBackstopInterval = 5 * time.Minute
@@ -28,10 +28,10 @@ const (
 )
 
 // startSyncWorker launches two background goroutines: a push loop that
-// drains sync_outbox into kashi and a pull loop that pulls master-data
-// changes from kashi (see sync_pull.go). They're split so an outgoing
+// drains sync_outbox into central and a pull loop that pulls master-data
+// changes from central (see sync_pull.go). They're split so an outgoing
 // write never waits on an incoming catch-up pass -- a kick wakes only the
-// push loop, and a press reaches kashi in one outbox drain rather than one
+// push loop, and a press reaches central in one outbox drain rather than one
 // full tick (outbox + settings + commands + a 9-entity sequential pull).
 // Both are always started -- the per-pass check for an empty
 // central_api_url is what actually makes sync opt-in; an unconfigured
@@ -43,8 +43,8 @@ func (a *App) startSyncWorker() {
 	a.syncWorkerStop = make(chan struct{})
 	a.syncWorkerKick = make(chan struct{}, 1)
 
-	// A row kashi refused gets another go now and every hour, so the till
-	// catches up by itself once the cause is fixed on kashi's side -- no
+	// A row central refused gets another go now and every hour, so the till
+	// catches up by itself once the cause is fixed on central's side -- no
 	// one has to run "sync everything" to clear the sync box.
 	a.retryFailedSyncOutbox()
 	a.backgroundWG.Add(1)
@@ -99,14 +99,14 @@ func (a *App) startSyncWorker() {
 	}()
 }
 
-// syncFailedRetryInterval is how often rows kashi refused are tried again.
+// syncFailedRetryInterval is how often rows central refused are tried again.
 // Rare and few, so an hour costs nothing; a row still refused is parked
 // again until the next round.
 const syncFailedRetryInterval = time.Hour
 
 // retryFailedSyncOutbox puts every 'failed' row back on the push path and
 // wakes the pusher. Builds before isRowRejection parked every 4xx,
-// including the 401 kashi gave while its database was starting.
+// including the 401 central gave while its database was starting.
 func (a *App) retryFailedSyncOutbox() {
 	n, err := a.store.RequeueFailedSyncOutbox(a.ctx)
 	if err != nil {
@@ -114,14 +114,14 @@ func (a *App) retryFailedSyncOutbox() {
 		return
 	}
 	if n > 0 {
-		log.Printf("sync outbox: retrying %d row(s) kashi refused before", n)
+		log.Printf("sync outbox: retrying %d row(s) central refused before", n)
 		a.kickSyncWorker()
 	}
 }
 
 // kickSyncWorker wakes the sync worker immediately rather than leaving a
 // freshly-queued outbox entry to wait for the next syncWorkerInterval tick
-// (up to 15s of pure latency between checkout and kashi actually receiving
+// (up to 15s of pure latency between checkout and central actually receiving
 // it). The buffered, non-blocking send means: a kick that lands while the
 // worker is already mid-tick is coalesced into the very next tick rather
 // than queued up or lost outright, and calling this before startSyncWorker
@@ -151,14 +151,14 @@ func (a *App) syncClient(ctx context.Context, what string) *centralClient {
 	return newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
 }
 
-// runPushTick is the latency path: drain sync_outbox into kashi and nothing
+// runPushTick is the latency path: drain sync_outbox into central and nothing
 // else. It keeps running even during a "sync everything" pass so a live
-// sale still reaches kashi promptly; its writes ride the same retryBusy
+// sale still reaches central promptly; its writes ride the same retryBusy
 // path the resync uses.
 //
-// While kashi is unreachable it waits out pushLink's backoff instead of
+// While central is unreachable it waits out pushLink's backoff instead of
 // timing out on every row; the first pass after that (or after startup)
-// probes /branch/health, and if kashi answers, releases every pending row at
+// probes /branch/health, and if central answers, releases every pending row at
 // once -- see sync_push_link.go.
 func (a *App) runPushTick(ctx context.Context) {
 	client := a.syncClient(ctx, "push")
@@ -189,7 +189,7 @@ func (a *App) runPushTick(ctx context.Context) {
 			log.Printf("sync outbox: release pending rows: %v", err)
 		}
 		if released > 0 {
-			log.Printf("sync outbox: kashi reachable again, released %d backed-off rows", released)
+			log.Printf("sync outbox: central reachable again, released %d backed-off rows", released)
 		}
 		a.pushLink.markUp()
 	}
@@ -213,15 +213,15 @@ func (a *App) runSyncTick(ctx context.Context) {
 // during a resync -- ResyncAll holds syncPullMu for its whole run anyway,
 // so a tick pull would just block.
 //
-// It ticks every 15s, but what it polls depends on what kashi pushes:
-//   - kashi unreachable (the push loop's pushLink is backing off): nothing.
+// It ticks every 15s, but what it polls depends on what central pushes:
+//   - central unreachable (the push loop's pushLink is backing off): nothing.
 //     Every request would only sit through its timeout.
-//   - connected to a kashi that pushes every change (wsPushesAll): the full
+//   - connected to a central that pushes every change (wsPushesAll): the full
 //     pull and the commands check are a backstop every
 //     syncPullBackstopInterval, since pushes already deliver both within a
 //     second; target progress (other registers' sales, not pushed) every
 //     syncTargetsPollInterval.
-//   - otherwise (no live session, or an older kashi): all of it, every tick.
+//   - otherwise (no live session, or an older central): all of it, every tick.
 func (a *App) runPullTick(ctx context.Context) {
 	client := a.syncClient(ctx, "pull")
 	if client == nil {
@@ -275,10 +275,10 @@ func (a *App) stopSyncWorker() {
 }
 
 // runSyncOutboxOnce drains up to syncWorkerBatchSize due entries in one pass.
-// A row ends a pass in exactly one of three states: 'synced' (kashi 2xx'd
+// A row ends a pass in exactly one of three states: 'synced' (central 2xx'd
 // it, stamped with which server), still 'pending' (a transient failure, on
-// backoff), or 'failed' (kashi rejected it outright, or it names an entity
-// kashi has no route for -- either way retrying the identical bytes forever
+// backoff), or 'failed' (central rejected it outright, or it names an entity
+// Central has no route for -- either way retrying the identical bytes forever
 // is pointless). Any transition emits sync_state_changed so the UI refetches.
 func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) error {
 	entries, err := a.store.ListDueSyncOutboxEntries(ctx, syncWorkerBatchSize)
@@ -328,7 +328,7 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 	// a bulk backfill -- one POST for the lot instead of a serial round
 	// trip each (see drainClientBatch). They sort last (priority 2), so
 	// appending keeps the drain order. Both routes answer with the
-	// canonical uid kashi maps the client to (see adoptCanonicalClientUID).
+	// canonical uid central maps the client to (see adoptCanonicalClientUID).
 	batchClients := len(clientEntries) >= 2
 	if !batchClients {
 		rest = append(rest, clientEntries...)
@@ -336,7 +336,7 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 
 	sent := 0
 	if len(rest) > 0 {
-		link.begin(phasePushing, "Sending to kashi", 0, len(rest))
+		link.begin(phasePushing, "Sending to central", 0, len(rest))
 		defer func() {
 			link.end(phasePushing)
 			if sent > 0 {
@@ -379,13 +379,13 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 	return nil
 }
 
-// pushOutboxEntry sends one outbox row to kashi and settles it: 'synced',
+// pushOutboxEntry sends one outbox row to central and settles it: 'synced',
 // back on the retry path, or 'failed' -- it always changes the row's state.
 // It reports whether the row ended synced. Shared by the live drain
 // (runSyncOutboxOnce) and the parallel close-shift flush (sync_flush.go).
 func (a *App) pushOutboxEntry(ctx context.Context, client *centralClient, entry db.SyncOutbox) bool {
 	// transfer_confirm has no fixed path -- it targets one specific
-	// central transfer id, parsed back out of the outbox row's own
+	// Central transfer id, parsed back out of the outbox row's own
 	// synthesized client_ref (see queueBranchTransferConfirmSync).
 	if entry.EntityType == "transfer_confirm" {
 		centralID, parseErr := parseTransferConfirmClientRef(entry.ClientRef)
@@ -405,7 +405,7 @@ func (a *App) pushOutboxEntry(ctx context.Context, client *centralClient, entry 
 
 	path, ok := branchInvoicePath(entry.EntityType)
 	if !ok {
-		// A payload shape kashi has no route for is never going to start
+		// A payload shape central has no route for is never going to start
 		// working on retry. Park it in 'failed' so it stops being
 		// re-selected every tick and occupying a drain-batch slot.
 		log.Printf("sync outbox entry %d: unknown entity_type %q, marking failed", entry.ID, entry.EntityType)
@@ -413,9 +413,9 @@ func (a *App) pushOutboxEntry(ctx context.Context, client *centralClient, entry 
 		return false
 	}
 
-	// Expenses need kashi's response body (the one-time receipt-upload
+	// Expenses need central's response body (the one-time receipt-upload
 	// token) -- every other entity's response is discarded, since
-	// kashi's idempotency handling already makes any 2xx equally a
+	// central's idempotency handling already makes any 2xx equally a
 	// success for them.
 	if entry.EntityType == "expense" {
 		resp, err := client.PostExpense(ctx, path, []byte(entry.PayloadJson))
@@ -427,8 +427,8 @@ func (a *App) pushOutboxEntry(ctx context.Context, client *centralClient, entry 
 			a.emitExpenseUploadReady(entry.ClientRef, client.UploadURL(resp.UploadToken))
 		}
 	} else if entry.EntityType == "loan" {
-		// A new loan's answer carries a photo-upload token too (kashi
-		// 000131); an older kashi sends none, and then there's no QR.
+		// A new loan's answer carries a photo-upload token too (central
+		// 000131); an older central sends none, and then there's no QR.
 		resp, err := client.PostExpense(ctx, path, []byte(entry.PayloadJson))
 		if err != nil {
 			a.recordSyncOutboxError(ctx, entry, err)
@@ -474,10 +474,10 @@ func (a *App) pushPreempted() bool {
 }
 
 // drainClientBatch POSTs the due client rows as one /branch/clients_batch
-// call and settles each row from kashi's per-client result: ok -> synced,
+// call and settles each row from central's per-client result: ok -> synced,
 // invalid -> failed (identical bytes never get accepted), error or no
 // result -> back on the backoff path. It returns whether any row changed
-// state. If kashi has no such route (an older deployment) the rows fall
+// state. If central has no such route (an older deployment) the rows fall
 // back to the one-at-a-time POST so a mixed rollout never strands them.
 func (a *App) drainClientBatch(ctx context.Context, client *centralClient, entries []db.SyncOutbox) bool {
 	changed := false
@@ -502,7 +502,7 @@ func (a *App) drainClientBatch(ctx context.Context, client *centralClient, entri
 	if err != nil {
 		var perm *permanentError
 		if errors.As(err, &perm) && (perm.status == http.StatusNotFound || perm.status == http.StatusMethodNotAllowed) {
-			log.Printf("sync clients batch: kashi has no clients_batch route (%v), sending one by one", err)
+			log.Printf("sync clients batch: central has no clients_batch route (%v), sending one by one", err)
 			return a.drainClientsOneByOne(ctx, client, send) || changed
 		}
 		for _, entry := range send {
@@ -526,7 +526,7 @@ func (a *App) drainClientBatch(ctx context.Context, client *centralClient, entri
 			a.adoptPushedClientUID(ctx, entry, res.UID)
 			a.markOutboxSynced(ctx, client, entry)
 		case res.Status == "invalid":
-			log.Printf("sync outbox entry %d: kashi rejected client (permanent, marking failed): %s", entry.ID, res.Error)
+			log.Printf("sync outbox entry %d: central rejected client (permanent, marking failed): %s", entry.ID, res.Error)
 			a.markSyncOutboxFailed(ctx, entry, errors.New(res.Error))
 		default:
 			a.markSyncOutboxRetry(ctx, entry, fmt.Errorf("clients batch: %s", res.Error))
@@ -536,7 +536,7 @@ func (a *App) drainClientBatch(ctx context.Context, client *centralClient, entri
 }
 
 // drainClientsOneByOne is the pre-batch path for client rows, kept as the
-// fallback for a kashi without /branch/clients_batch.
+// fallback for a central without /branch/clients_batch.
 func (a *App) drainClientsOneByOne(ctx context.Context, client *centralClient, entries []db.SyncOutbox) bool {
 	path, _ := branchInvoicePath("client")
 	for i, entry := range entries {
@@ -556,7 +556,7 @@ func (a *App) drainClientsOneByOne(ctx context.Context, client *centralClient, e
 }
 
 // pushOneClient POSTs one client outbox row and applies the canonical uid
-// kashi answers with.
+// Central answers with.
 func (a *App) pushOneClient(ctx context.Context, client *centralClient, path string, entry db.SyncOutbox) error {
 	uid, err := client.PostClient(ctx, path, []byte(entry.PayloadJson))
 	if err != nil {
@@ -566,7 +566,7 @@ func (a *App) pushOneClient(ctx context.Context, client *centralClient, path str
 	return nil
 }
 
-// adoptPushedClientUID applies kashi's canonical uid for a pushed client
+// adoptPushedClientUID applies central's canonical uid for a pushed client
 // row. A failure here is logged, not retried: the push itself landed, and
 // the next pull or push converges the uid anyway.
 func (a *App) adoptPushedClientUID(ctx context.Context, entry db.SyncOutbox, uid string) {
@@ -597,7 +597,7 @@ func (a *App) markOutboxSynced(ctx context.Context, client *centralClient, entry
 }
 
 // drainVisitorEventBatch POSTs every due visitor_event row as one
-// /branch/visitor_events_batch call. kashi dedupes each element on
+// /branch/visitor_events_batch call. Central dedupes each element on
 // (branch_id, ref), so replaying the whole batch (a retried drain) is
 // idempotent row by row. It returns whether anything changed state, so the
 // caller can fold that into its sync_state_changed emit. A row whose stored
@@ -675,12 +675,12 @@ func (a *App) recordSyncOutboxError(ctx context.Context, entry db.SyncOutbox, po
 	a.markSyncOutboxRetry(ctx, entry, postErr)
 }
 
-// isRowRejection reports whether a permanent (4xx) error is kashi rejecting
+// isRowRejection reports whether a permanent (4xx) error is central rejecting
 // this row itself, as opposed to:
-//   - 401/403: the register's credentials, or a kashi whose database was
+//   - 401/403: the register's credentials, or a central whose database was
 //     down while it checked them -- nothing about the row, so parking it
 //     would strand every sale rung up while the server was sick;
-//   - 404 on a row that targets another record by client_ref: kashi answers
+//   - 404 on a row that targets another record by client_ref: central answers
 //     404 until that record (an expense, a loan) has arrived, and expects
 //     the till to retry.
 func isRowRejection(entityType string, err error) bool {

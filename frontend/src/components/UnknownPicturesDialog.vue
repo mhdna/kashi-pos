@@ -51,7 +51,7 @@
 
       <k-card-actions class="px-0 pb-0 mt-3">
         <k-btn v-if="state === 'ready'" :disabled="helpAsked" size="large" prepend-icon="mdi-bell-ring-outline" variant="tonal" @click="askForHelp">
-          {{ helpAsked ? "Manager asked" : "Ask a manager" }}
+          {{ helpAsked ? "Requested from central" : "Request from central" }}
         </k-btn>
         <k-spacer />
         <k-btn size="large" variant="text" @click="cancel">Cancel</k-btn>
@@ -70,8 +70,8 @@ import {
 } from "../../wailsjs/go/main/App";
 
 // Held between "pay" and the payment itself when the cart has unknown items:
-// opens a picture session on kashi, shows the phone's QR code, and closes
-// the moment every line has a picture -- or a kashi manager lets it through.
+// opens a picture session on central, shows the phone's QR code, and closes
+// the moment every line has a picture -- or a central manager lets it through.
 // Polls fast (a second) so the cashier never waits longer than the phone does.
 // Given the clientRef of the session the sale screen's QR code already opened
 // (UnknownPicturesCorner), it carries on with that one: same QR code, and the
@@ -79,7 +79,7 @@ import {
 
 type Unit = { label: string; unitPriceCents: number; discount: number; lineRef: string; slotRef?: string };
 type Slot = { slotRef: string; lineRef?: string; label: string; hasImage: boolean; waived: boolean; done: boolean };
-// One cart line: kashi takes one picture for all its units.
+// One cart line: central takes one picture for all its units.
 type Line = { key: string; label: string; units: number; done: boolean; waived: boolean };
 
 const props = defineProps<{ modelValue: boolean; units: Unit[]; clientRef?: string }>();
@@ -98,7 +98,7 @@ const helpAsked = ref(false);
 let clientRef = "";
 let session = 0;
 
-// A kashi that knows no lines sends no lineRef: each unit is then its own line.
+// A central that knows no lines sends no lineRef: each unit is then its own line.
 const lines = computed(() => {
   const byKey = new Map<string, Line>();
   for (const slot of slots.value) {
@@ -116,7 +116,7 @@ const lines = computed(() => {
 });
 const doneCount = computed(() => lines.value.filter((line) => line.done).length);
 
-// Each status call is held by kashi until a unit finishes (or a few seconds
+// Each status call is held by central until a unit finishes (or a few seconds
 // pass), so the loop asks again straight away; a dropped call waits a moment.
 function stopPolling() {
   session++;

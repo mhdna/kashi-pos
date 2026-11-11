@@ -60,7 +60,7 @@ func TestCheckOversell_CountsUnsyncedLocalSales(t *testing.T) {
 		t.Fatalf("3 of 3 in stock should pass: %+v", check)
 	}
 
-	// A sale kashi hasn't received yet uses up 2 of the 3.
+	// A sale central hasn't received yet uses up 2 of the 3.
 	if err := sellSKU1(t, app, cashbox, client, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -121,15 +121,15 @@ func TestTargetProgress_BranchWidePlusUnsyncedLocal(t *testing.T) {
 		return rows[0]["achievedCents"].(int64)
 	}
 
-	// This till's sale, not yet on kashi.
+	// This till's sale, not yet on central.
 	if err := sellSKU1(t, app, cashbox, client, 1); err != nil {
 		t.Fatal(err)
 	}
 	if got := achieved(); got != 100 {
-		t.Fatalf("before any kashi figure: want local 100, got %d", got)
+		t.Fatalf("before any central figure: want local 100, got %d", got)
 	}
 
-	// kashi reports 5000 branch-wide (the other registers' sales); our sale
+	// Central reports 5000 branch-wide (the other registers' sales); our sale
 	// is still queued, so it's added on top.
 	fetchedAt := time.Now().UTC().Add(-time.Minute).Format(sqliteTimeLayout)
 	if err := store.InsertBranchTargetProgress(app.ctx, db.InsertBranchTargetProgressParams{
@@ -141,7 +141,7 @@ func TestTargetProgress_BranchWidePlusUnsyncedLocal(t *testing.T) {
 		t.Fatalf("want 5000 + 100 unsynced, got %d", got)
 	}
 
-	// Our sale lands on kashi before the next fetch: kashi's 5000 doesn't
+	// Our sale lands on central before the next fetch: central's 5000 doesn't
 	// have it yet, so it still counts once.
 	due, err := store.ListDueSyncOutboxEntries(app.ctx, 100)
 	if err != nil {

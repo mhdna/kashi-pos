@@ -54,13 +54,13 @@ SET attempt_count = attempt_count + 1, last_error = ?, next_attempt_at = ?
 WHERE id = ?;
 
 -- name: RecordSyncOutboxNetworkError :exec
--- A push that never got an answer from kashi (offline, DNS, timeout) says
+-- A push that never got an answer from central (offline, DNS, timeout) says
 -- nothing about the row itself, so it keeps its attempt count and stays due:
 -- the worker backs off the connection as a whole instead (see pushLink).
 UPDATE sync_outbox SET last_error = ? WHERE id = ?;
 
 -- name: MakePendingSyncOutboxDueNow :execrows
--- Run when kashi becomes reachable again: rows that were backed off while
+-- Run when central becomes reachable again: rows that were backed off while
 -- the connection was down (or by a pre-pushLink build, up to an hour) go
 -- out on the very next pass instead of each waiting out its own timer.
 UPDATE sync_outbox
@@ -68,7 +68,7 @@ SET next_attempt_at = datetime('now')
 WHERE status = 'pending' AND next_attempt_at > datetime('now');
 
 -- name: MarkSyncOutboxFailed :exec
--- Terminal state for a row kashi rejected outright (a 4xx, or an entity_type
+-- Terminal state for a row central rejected outright (a 4xx, or an entity_type
 -- it has no route for). It stays out of the drain batch until an explicit
 -- resync re-arms it.
 UPDATE sync_outbox
@@ -136,12 +136,12 @@ DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced';
 SELECT status FROM sync_outbox WHERE client_ref = ?;
 
 -- name: DeleteUnsyncedSyncOutboxByClientRef :exec
--- Drops a row kashi never accepted, so deleting its invoice locally also
+-- Drops a row central never accepted, so deleting its invoice locally also
 -- stops it from being uploaded later. A synced row is left alone.
 DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced';
 
 -- name: SetUnsyncedSyncOutboxField :execrows
--- Changes one top-level field of a row kashi hasn't accepted yet (an
+-- Changes one top-level field of a row central hasn't accepted yet (an
 -- expense re-categorised before it synced), so the edit goes up with the
 -- record itself. 0 rows: it's synced (or was never queued).
 UPDATE sync_outbox
@@ -157,7 +157,7 @@ WHERE client_ref = sqlc.arg(client_ref) AND status != 'synced';
 
 -- name: RequeueFailedSyncOutbox :execrows
 -- Gives every row parked as 'failed' another go (see retryFailedSyncOutbox):
--- whatever kashi refused may since have been fixed on its side, and a row
+-- whatever central refused may since have been fixed on its side, and a row
 -- older builds parked on a 401/403 was never about the row at all.
 -- last_error stays, as the reason it's retrying.
 UPDATE sync_outbox

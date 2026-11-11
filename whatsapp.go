@@ -12,19 +12,19 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// whatsAppThankYouPayload is the body POSTed to kashi's
+// whatsAppThankYouPayload is the body POSTed to central's
 // /branch/whatsapp/thank_you. All WhatsApp/Meta config (Cloud API
-// credentials, template, etc.) now lives centrally on kashi -- see
+// credentials, template, etc.) now lives centrally on central -- see
 // api/whatsapp.go in that repo -- kashi-pos just reports the sale. Items let
-// kashi's WhatsApp rules match on what was sold (a code or a category).
+// central's WhatsApp rules match on what was sold (a code or a category).
 type whatsAppThankYouPayload struct {
 	ClientName      string `json:"client_name"`
 	ClientPhone     string `json:"client_phone"`
 	InvoiceCode     string `json:"invoice_code"`
 	GrandTotalCents int64  `json:"grand_total_cents"`
 	// PaidCents is what the client actually paid now: the total minus any
-	// part put on account. kashi shows it as "Total paid", and leaves the
-	// line out when it's 0. Omitted by older tills; kashi then uses the total.
+	// part put on account. Central shows it as "Total paid", and leaves the
+	// line out when it's 0. Omitted by older tills; central then uses the total.
 	PaidCents *int64                 `json:"paid_cents,omitempty"`
 	Items     []whatsAppThankYouItem `json:"items"`
 }
@@ -36,10 +36,10 @@ type whatsAppThankYouItem struct {
 	Qty      float64 `json:"qty"`
 }
 
-// whatsAppThankYou asks kashi to fire a post-sale "thank you / please rate
+// whatsAppThankYou asks central to fire a post-sale "thank you / please rate
 // us" WhatsApp message to the invoice's client. It's off the checkout path:
 // no central sync configured, a walk-in/anonymous client or a client with no
-// phone just mean no message, and kashi being unreachable means it's sent
+// phone just mean no message, and central being unreachable means it's sent
 // later (retryWhatsAppPending). The caller invokes it in its own goroutine; nothing
 // here blocks the sale.
 func (a *App) whatsAppThankYou(invoiceCode string, grandTotalCents int64, client db.Client, items []invoiceItem, payments []checkoutPayment) {
@@ -85,11 +85,11 @@ func (a *App) whatsAppThankYou(invoiceCode string, grandTotalCents int64, client
 	a.postWhatsAppPending(central, invoiceCode, payload, 0)
 }
 
-// WhatsAppWelcome asks kashi to send a new client's welcome now, when the
+// WhatsAppWelcome asks central to send a new client's welcome now, when the
 // cashier has just entered their name and number, instead of after checkout
-// (a Settings > WhatsApp switch on kashi; with it off, or for a client kashi
-// has messaged before, kashi sends nothing and checkout does the job).
-// Best-effort and fired in the background: kashi unreachable just means the
+// (a Settings > WhatsApp switch on central; with it off, or for a client central
+// has messaged before, central sends nothing and checkout does the job).
+// Best-effort and fired in the background: central unreachable just means the
 // message goes out at checkout like any other, so nothing is retried.
 func (a *App) WhatsAppWelcome(name, phone string) {
 	if a == nil || a.store == nil || strings.TrimSpace(phone) == "" || isWalkInPhone(phone) {
@@ -122,7 +122,7 @@ func (a *App) WhatsAppWelcome(name, phone string) {
 
 // Pending thank-yous are checked every minute. A failed try waits 1, 2, 4...
 // minutes (at most whatsAppRetryMaxDelay) before the next, for as long as a
-// thank-you still makes sense (whatsAppPendingMaxAge). kashi sends at most
+// thank-you still makes sense (whatsAppPendingMaxAge). Central sends at most
 // one per invoice, so a retry of one that did go through just comes back
 // "already sent".
 const (
@@ -154,16 +154,16 @@ func (a *App) onAccountCents(payments []checkoutPayment) int64 {
 	return total
 }
 
-// postWhatsAppPending asks kashi to send one thank-you. kashi's answer
+// postWhatsAppPending asks central to send one thank-you. central's answer
 // settles it (sent, or not sent for a reason of its own, like a rule), unless
-// kashi says to retry (its bridge or Meta was unreachable); a request that
+// Central says to retry (its bridge or Meta was unreachable); a request that
 // got no answer stays pending too.
 func (a *App) postWhatsAppPending(central *centralClient, invoiceCode string, payload []byte, attempts int64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	resp, err := central.PostWhatsAppThankYou(ctx, payload)
 	if err == nil && !resp.Sent && resp.Retry {
-		err = fmt.Errorf("kashi couldn't send for now: %s", resp.Reason)
+		err = fmt.Errorf("Central couldn't send for now: %s", resp.Reason)
 	}
 	if err != nil {
 		log.Printf("whatsapp thank-you: not sent for invoice %s (will retry): %v", invoiceCode, err)
@@ -177,7 +177,7 @@ func (a *App) postWhatsAppPending(central *centralClient, invoiceCode string, pa
 		log.Printf("whatsapp thank-you: clear pending %s: %v", invoiceCode, err)
 	}
 	if !resp.Sent {
-		log.Printf("whatsapp thank-you: kashi did not send for invoice %s: %s", invoiceCode, resp.Reason)
+		log.Printf("whatsapp thank-you: central did not send for invoice %s: %s", invoiceCode, resp.Reason)
 		return
 	}
 	log.Printf("whatsapp thank-you: sent for invoice %s", invoiceCode)
@@ -190,7 +190,7 @@ func (a *App) postWhatsAppPending(central *centralClient, invoiceCode string, pa
 	}
 }
 
-// retryWhatsAppPending sends the thank-yous still waiting for kashi, oldest
+// retryWhatsAppPending sends the thank-yous still waiting for central, oldest
 // first, dropping ones too old or tried too often.
 func (a *App) retryWhatsAppPending() {
 	ctx := context.Background()

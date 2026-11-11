@@ -94,7 +94,7 @@ func (s dealShop) sell(t *testing.T, codes ...string) SalesInvoiceResult {
 
 // The cheapest of three is free: the sale charges $180, the free unit is a
 // line of its own with the deal's saving, the invoice keeps the deal's terms,
-// and kashi is told.
+// and central is told.
 func TestCheckoutWithDeal(t *testing.T) {
 	ctx := context.Background()
 	shop := setUpDealShop(t)

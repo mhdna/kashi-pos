@@ -53,7 +53,7 @@
         </k-card-title>
         <k-card-text>
           <div class="overview-grid">
-            <!-- Tap to change the category; kashi gets the change too. -->
+            <!-- Tap to change the category; central gets the change too. -->
             <k-menu location="bottom start">
               <template #activator="{ props: menuProps }">
                 <button type="button" class="overview-card overview-card--edit" v-bind="menuProps" :disabled="categorySaving">
@@ -97,7 +97,7 @@
             <div class="text-body-2 text-medium-emphasis">No photo attached{{ selected.clientRef ? "" : " (not synced yet)" }}</div>
           </div>
           <!-- More photos: scan the QR with a phone, or pick files on this
-               computer. kashi takes up to 3 in all. -->
+               computer. Central takes up to 3 in all. -->
           <div v-if="!detailPhotosLoading && selected.clientRef && detailPhotos.length < 3" class="d-flex justify-center flex-wrap ga-2 mt-3">
             <k-btn color="primary" variant="tonal" prepend-icon="mdi-camera-outline" @click="openUploadDialog(selected.clientRef, 'resend')">
               {{ detailPhotos.length ? "Add with phone" : "Send photo with phone" }}
@@ -120,7 +120,7 @@
         <k-card-title class="pt-4 px-5">Cancel this loan?</k-card-title>
         <k-card-text class="px-5">
           "{{ selected.description || "Loan" }}" ({{ formatCents(selected.amount) }} {{ selected.currencyCode }}) stays in the list marked
-          cancelled, and the shift and kashi stop counting it.
+          cancelled, and the shift and central stop counting it.
           <div v-if="cancelError" class="text-body-2 text-error mt-2">{{ cancelError }}</div>
         </k-card-text>
         <k-card-actions class="px-5 pb-4">
@@ -158,7 +158,7 @@
               </button>
             </div>
             <div v-else class="text-body-2 text-medium-emphasis mb-4">
-              No loan categories yet -- they're set up in kashi and appear here after the next sync.
+              No loan categories yet -- they're set up in central and appear here after the next sync.
             </div>
 
             <k-text-field
@@ -367,7 +367,7 @@ async function uploadFromComputer() {
   }
 }
 
-// Cancelling keeps the row, marked cancelled, and tells kashi (admin only).
+// Cancelling keeps the row, marked cancelled, and tells central (admin only).
 const auth = useAuthStore();
 const cancelOpen = ref(false);
 const cancelling = ref(false);
@@ -499,7 +499,7 @@ onMounted(async () => {
   await Promise.all([list.loadMore(), loadPaymentMethods(), loadLoanCategories()]);
   categorySyncUnsub = EventsOn("sync_applied:loan_categories", loadLoanCategories);
   recordSyncUnsub = EventsOn("sync_applied:loans", () => void list.refresh());
-  // A photo turned, replaced or added in kashi: redraw that loan.
+  // A photo turned, replaced or added in central: redraw that loan.
   photosChangedUnsub = onRecordPhotosChanged(onPhotosUploaded);
 });
 

@@ -9,7 +9,7 @@ import (
 // It joins the deal the shop's own products are on all the same (pooled with
 // every other unit on that deal, whatever the deal's numbers), and the
 // salesperson picks what its units get outside a set -- the same two fallbacks
-// kashi gives the shop's own rows (000216: the outlet codes' 30%, everything
+// Central gives the shop's own rows (000216: the outlet codes' 30%, everything
 // else's 20%) -- or takes it out of the deal. One of the three, always; the
 // deal_toggle setting doesn't apply, since the line has no list's deal to keep.
 // The choices keep their b2g1_ names whatever the deal: they are stored on carts.

@@ -60,7 +60,7 @@ type SalesInvoiceParams struct {
 	// through instead.
 	Salesperson string `json:"salesperson"`
 	// UnknownSessionRef is the picture session of a cart holding "Unknown
-	// item" lines, sent to kashi with the sale (see unknown_items.go).
+	// item" lines, sent to central with the sale (see unknown_items.go).
 	UnknownSessionRef string `json:"unknownSessionRef,omitempty"`
 }
 

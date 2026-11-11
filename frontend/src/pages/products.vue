@@ -25,8 +25,8 @@
     </div>
 
     <k-alert v-if="!standalone" type="info" variant="tonal" density="compact" class="mb-3">
-      This till is connected to kashi, which manages products. Add, edit or remove them in
-      kashi; changes arrive here automatically.
+      This till is connected to central, which manages products. Add, edit or remove them in
+      central; changes arrive here automatically.
     </k-alert>
 
     <k-table density="compact" hover>
@@ -425,7 +425,7 @@ async function importCsv() {
   }
 }
 
-// A product or price that kashi pushes while this page is open shows up
+// A product or price that central pushes while this page is open shows up
 // without leaving the page. sync_applied:<entity> fires only when a pull
 // actually changed something (see kashi-pos's sync_pull.go).
 let stopSyncListeners: (() => void)[] = [];

@@ -269,7 +269,7 @@
             {{ cancelTarget?.invoiceCode || "This invoice" }} is returned in full: the
             ${{ money(cancelTarget?.grandTotal) }} is refunded to its payment account and the
             items come back. Both stay on record marked Cancelled, and neither counts in sales
-            stats, here or in kashi.
+            stats, here or in central.
           </p>
           <k-text-field v-model="cancelReason" placeholder="Reason (optional)" density="compact" hide-details />
         </k-card-text>
@@ -286,7 +286,7 @@
         ><k-card-title>Delete invoice?</k-card-title
         ><k-card-text
           >This permanently deletes {{ deleteInvoice?.invoiceCode || "this invoice" }} and its
-          payment records. Only an invoice that hasn't been uploaded to kashi can be deleted;
+          payment records. Only an invoice that hasn't been uploaded to central can be deleted;
           for a sale that has, use Cancel Invoice.</k-card-text
         ><k-card-actions
           ><k-spacer /><k-btn variant="text" @click="deleteOpen = false">Cancel</k-btn
@@ -457,7 +457,7 @@ function salespersonFirstName(name?: string) {
   const trimmed = name?.trim();
   return trimmed ? trimmed.split(/\s+/)[0] : "Anonymous";
 }
-// The first column is each invoice's sync state with kashi, shown to every
+// The first column is each invoice's sync state with central, shown to every
 // user so cashiers can see their sales upload.
 const baseHeaders = [
   { title: "", key: "syncState", sortable: false, width: "28px" },
@@ -480,8 +480,8 @@ const headers = computed(() =>
   ratingsEnabled.value ? baseHeaders : baseHeaders.filter((header) => header.key !== "rating"),
 );
 
-// How the client rated the sale in kashi's WhatsApp poll (invoice_ratings.go):
-// the answers live in kashi, so they're fetched for the invoices loaded here.
+// How the client rated the sale in central's WhatsApp poll (invoice_ratings.go):
+// the answers live in central, so they're fetched for the invoices loaded here.
 // The invoice_ratings setting (Behaviour, on by default) hides the column.
 type InvoiceRating = { rating: number; answer: string };
 const ratingsEnabled = ref(true);
@@ -503,7 +503,7 @@ async function loadRatings(rows: Array<{ invoiceCode?: string }>) {
       if (!pageActive) return;
       Object.assign(ratings, found);
     } catch {
-      // No ratings is fine: offline, or a kashi without them.
+      // No ratings is fine: offline, or a central without them.
     }
   }
 }
@@ -523,9 +523,9 @@ function syncDotColor(state?: string) {
 }
 function syncDotTitle(item: { syncState?: string; syncError?: string }) {
   const reason = item.syncError ? ` (${item.syncError})` : "";
-  if (item.syncState === "synced") return "Confirmed on kashi";
-  if (item.syncState === "failed") return `Rejected by kashi${reason}`;
-  if (item.syncState === "pending") return item.syncError ? `Uploading — retrying${reason}` : "Uploading to kashi…";
+  if (item.syncState === "synced") return "Confirmed on central";
+  if (item.syncState === "failed") return `Rejected by central${reason}`;
+  if (item.syncState === "pending") return item.syncError ? `Uploading — retrying${reason}` : "Uploading to central…";
   return "Not synced";
 }
 

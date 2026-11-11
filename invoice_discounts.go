@@ -8,9 +8,9 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// Invoice discounts (000132, kashi's 000212): a discount on a whole sale
+// Invoice discounts (000132, central's 000212): a discount on a whole sale
 // once it reaches a total -- "invoices of $150 or more get 15% off", or a
-// fixed amount off. kashi decides the rules and which branches get them;
+// fixed amount off. Central decides the rules and which branches get them;
 // the till keeps only those that apply to it.
 //
 // The total checked is the sale's after item discounts and deals, before
@@ -28,7 +28,7 @@ const (
 	invoiceDiscountAmount  = "amount"
 )
 
-// syncedInvoiceDiscount is a rule as kashi sends it: every rule changed
+// syncedInvoiceDiscount is a rule as central sends it: every rule changed
 // since the last pull, with whether it applies to this branch.
 type syncedInvoiceDiscount struct {
 	UID       string     `json:"uid"`

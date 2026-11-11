@@ -389,7 +389,7 @@ func TestQuoteRejectsZeroPricedProduct(t *testing.T) {
 
 // The stronger form of the same rule: a product that no active list mentions
 // at all has no price and must be refused, not sold for nothing. This is the
-// state every product is in until kashi prices it, so it is the single most
+// state every product is in until central prices it, so it is the single most
 // important behaviour of the whole list-dictated pricing change.
 func TestQuoteRejectsProductMissingFromEveryList(t *testing.T) {
 	app, _, _, database := setupQuoteTestApp(t, 0, "half_up", "LBP")

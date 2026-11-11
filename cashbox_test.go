@@ -9,7 +9,7 @@ import (
 
 // addPaymentMethod puts a payment method in the database the way the sync
 // does. Tests used to call App.CreateCashboxAccount for this, but a till has
-// no such method any more -- payment methods come from kashi.
+// no such method any more -- payment methods come from central.
 func addPaymentMethod(t *testing.T, app *App, name, currencyCode string) db.CashboxAccount {
 	t.Helper()
 	account, err := app.store.CreateCashboxAccount(context.Background(), db.CreateCashboxAccountParams{
@@ -132,7 +132,7 @@ func TestHidePaymentMethodCurrencyDefaultsToVisibleAndPersistsWhenToggled(t *tes
 // method's color reaches the same per-account balance breakdowns the shift
 // closing/report screens show, not just the checkout calculator - both
 // ListShiftBalances and GetCurrentShiftIncomeByAccount select through
-// cashbox_accounts.color. The color is kashi's now and arrives via
+// cashbox_accounts.color. The color is central's now and arrives via
 // applySyncedCashboxAccount, so the sync's own write is what is exercised.
 func TestPaymentMethodColorFlowsIntoShiftBalancesAndIncome(t *testing.T) {
 	fixture := newBalanceSwapFixture(t, 1000)

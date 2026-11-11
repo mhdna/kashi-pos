@@ -1,6 +1,6 @@
--- Mirrors kashi's attribute system exactly (same table shapes and same
+-- Mirrors central's attribute system exactly (same table shapes and same
 -- seeded attribute ids/names — see 000005_create_products_attributes_table.up.sql
--- in the kashi repo) so a product's brand/category/etc. can sync between
+-- in the central repo) so a product's brand/category/etc. can sync between
 -- the two systems without a lossy field-name mapping.
 --
 -- This is additive only: products.brand/family/kind/season/product_year
@@ -39,7 +39,7 @@ INSERT INTO attributes (id, name) VALUES
   (8, 'origin');
 
 -- Backfill existing free-text values. kashi-pos's own "family" column has
--- no like-named counterpart in kashi's attribute set — mapped to
+-- no like-named counterpart in central's attribute set — mapped to
 -- 'sub-category' as the closest existing concept (category > sub-category
 -- reads as the same broad-to-narrow hierarchy "family" was used for here).
 INSERT INTO attributes_values (attribute_id, value)

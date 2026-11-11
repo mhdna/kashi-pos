@@ -55,10 +55,10 @@ import {
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 // The QR code a phone scans to upload photos for an expense or a loan.
-// mode "new": the record was just saved; kashi mints the link when the
+// mode "new": the record was just saved; central mints the link when the
 // record syncs, and it arrives as a "<kind>_upload_ready:<ref>" event.
 // mode "resend": the record exists and has no photo (or room for more); the
-// dialog asks kashi for a fresh link. Either way it's done when kashi pushes
+// dialog asks central for a fresh link. Either way it's done when central pushes
 // "<kind>_images_uploaded:<ref>", or, as a fallback for a dropped push, when
 // polling finds more photos than there were when it opened.
 

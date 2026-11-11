@@ -169,7 +169,7 @@ const props = defineProps<{
   totalCents: number;
   // The total before the backend's cash rounding; see roundedFromText.
   unroundedCents?: number;
-  // kashi's invoice discount on this sale (invoice_discounts.go), already
+  // central's invoice discount on this sale (invoice_discounts.go), already
   // off totalCents; 0 for none.
   invoiceDiscountCents?: number;
   invoiceDiscountName?: string;

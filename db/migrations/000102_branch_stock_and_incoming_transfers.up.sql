@@ -1,6 +1,6 @@
 -- Cross-branch stock visibility: every OTHER branch's on-hand quantity and
--- selling price for a variant, synced down from kashi's branch_stock feed
--- (see ListBranchStockForSync in the kashi repo). Purely a mirror for
+-- selling price for a variant, synced down from central's branch_stock feed
+-- (see ListBranchStockForSync in the central repo). Purely a mirror for
 -- browsing/search on the Inventory page -- this till never writes to it.
 CREATE TABLE IF NOT EXISTS branch_stock (
     branch_code text NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS branch_stock (
 -- already exist (000101) for this branch's own outgoing proposals.
 -- direction distinguishes those from transfers addressed TO this branch
 -- (which this till never created, so it has no client_ref of its own --
--- central_id, kashi's own transfers.id, is the key instead).
+-- central_id, central's own transfers.id, is the key instead).
 ALTER TABLE transfer_requests ADD COLUMN direction text NOT NULL DEFAULT 'outgoing';
 ALTER TABLE transfer_requests ADD COLUMN central_id INTEGER;
 ALTER TABLE transfer_requests ADD COLUMN sender_branch_name text NOT NULL DEFAULT '';

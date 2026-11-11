@@ -1,4 +1,4 @@
--- Invoice discounts, pulled from kashi (its 000212): "invoices of $150 or
+-- Invoice discounts, pulled from central (its 000212): "invoices of $150 or
 -- more get 15% off". Only the rules that apply to this branch are kept; one
 -- that stops applying is deleted. Dates are RFC3339, '' for an open end.
 -- See invoice_discounts.go for how a sale gets one.

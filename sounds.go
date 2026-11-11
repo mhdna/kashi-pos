@@ -5,7 +5,7 @@ import "fmt"
 // soundsEnabledFlag gates every sound the screen plays -- scan/checkout
 // chimes, error and warning tones, keypad clicks (frontend/src/lib/sound.ts
 // is the one place they go through). Off until someone turns it on, here or
-// from kashi's branch settings.
+// from central's branch settings.
 const soundsEnabledFlag = "sounds_enabled"
 
 // soundsEnabled reports whether the till plays sounds, defaulting to false
@@ -27,7 +27,7 @@ func (a *App) GetSoundsEnabled() bool {
 }
 
 // SetSoundsEnabled turns the till's sounds on or off. Called both by the
-// local Settings page and by an update_settings command from kashi; emits
+// local Settings page and by an update_settings command from central; emits
 // "settings_changed" so a running screen picks it up at once.
 func (a *App) SetSoundsEnabled(enabled bool) error {
 	if a.store == nil {

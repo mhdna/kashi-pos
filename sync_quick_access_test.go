@@ -26,7 +26,7 @@ func quickAccessPayload(t *testing.T, mode string, changedAt time.Time, uids ...
 	return raw
 }
 
-// Pulling kashi's Quick Access stores its list and adopts its mode when
+// Pulling central's Quick Access stores its list and adopts its mode when
 // kashi's choice is newer; in 'kashi' mode the panel shows kashi's cards
 // (resolved by uid, unknown products skipped) and till-side edits refuse.
 func TestQuickAccessKashiModeShowsCentralListReadOnly(t *testing.T) {
@@ -48,14 +48,14 @@ func TestQuickAccessKashiModeShowsCentralListReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(cards) != 1 || cards[0]["id"] != product.ID || cards[0]["quickAccessColor"] != "#ff0000" {
-		t.Fatalf("kashi-mode cards = %v, want the one known product in kashi's colour", cards)
+		t.Fatalf("kashi-mode cards = %v, want the one known product in central's colour", cards)
 	}
 	if err := app.AddQuickAccessProduct(product.ID); err != errQuickAccessManagedInKashi {
-		t.Fatalf("AddQuickAccessProduct in kashi mode: err = %v, want errQuickAccessManagedInKashi", err)
+		t.Fatalf("AddQuickAccessProduct in central mode: err = %v, want errQuickAccessManagedInKashi", err)
 	}
 }
 
-// The later flip wins: kashi's older choice must not undo a newer one made
+// The later flip wins: central's older choice must not undo a newer one made
 // here (e.g. still waiting in the outbox).
 func TestQuickAccessPullKeepsNewerLocalFlip(t *testing.T) {
 	app, store, _, _ := setUpTestInvoiceApp(t, "")
@@ -71,21 +71,21 @@ func TestQuickAccessPullKeepsNewerLocalFlip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if src, _ := app.GetQuickAccessSource(); src.Mode != quickAccessModeKashi {
-		t.Fatalf("an older kashi choice overrode a newer local flip: mode = %q", src.Mode)
+		t.Fatalf("an older central choice overrode a newer local flip: mode = %q", src.Mode)
 	}
 
-	// A newer one from kashi does win.
+	// A newer one from central does win.
 	if err := store.ExecTx(app.ctx, func(q *db.Queries) error {
 		return applySyncedEntityBatch(app.ctx, q, "quick_access", quickAccessPayload(t, "till", time.Now().Add(time.Minute)))
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if src, _ := app.GetQuickAccessSource(); src.Mode != quickAccessModeTill {
-		t.Fatalf("a newer kashi choice was ignored: mode = %q", src.Mode)
+		t.Fatalf("a newer central choice was ignored: mode = %q", src.Mode)
 	}
 }
 
-// A flip made on the till goes to kashi through the outbox (so an offline
+// A flip made on the till goes to central through the outbox (so an offline
 // flip still arrives), and only the latest flip is kept there.
 func TestSetQuickAccessModeQueuesOnlyLatestFlip(t *testing.T) {
 	app, store, _, _ := setUpTestInvoiceApp(t, "http://kashi.invalid")
@@ -117,6 +117,6 @@ func TestSetQuickAccessModeQueuesOnlyLatestFlip(t *testing.T) {
 		Mode string `json:"mode"`
 	}
 	if err := json.Unmarshal([]byte(flips[0].PayloadJson), &payload); err != nil || payload.Mode != quickAccessModeKashi {
-		t.Fatalf("queued flip = %s, want mode kashi", flips[0].PayloadJson)
+		t.Fatalf("queued flip = %s, want mode central", flips[0].PayloadJson)
 	}
 }

@@ -13,7 +13,7 @@
 | `%APPDATA%\kashi-pos\updates\` | Downloaded releases, `state.json` and `handoff.json` for remote updates. |
 | next to `GB-Cloud.exe` | The previous version's exe, kept for rollback, and an optional `.env`. |
 | `%LOCALAPPDATA%\...` | WebView2 profile (see `windows-till.md`). |
-| `%LOCALAPPDATA%\kashi-pos\.rc\store` | Saved copies of kashi's record photos, encrypted (see below). Hidden folder; safe to delete. |
+| `%LOCALAPPDATA%\kashi-pos\.rc\store` | Saved copies of central's record photos, encrypted (see below). Hidden folder; safe to delete. |
 | `%TEMP%\kashicloud-splash.log` | Splash window log. |
 
 - **There is no app log.** The Go code calls `log.Printf` all over, but output
@@ -35,7 +35,7 @@
 
 ## Record photo cache (`photo_cache.go`, `record_photos.go`)
 
-Expense, loan and transfer photos live in kashi (phones upload them there).
+Expense, loan and transfer photos live in central (phones upload them there).
 The till keeps every one it has shown so the next showing is instant, offline
 too.
 
@@ -45,8 +45,8 @@ too.
   into the app plus a random per-file salt, and each row is bound to its own
   key, so blobs can't be swapped. Keeps people out of the photos with a file
   manager or SQLite browser; it can't stop someone who takes the exe apart.
-- **Saved copy first, kashi checks in the background.** A copy older than 30 s
-  (`photoRecheckAfter`) is still shown, then re-asked with its ETag (kashi
+- **Saved copy first, central checks in the background.** A copy older than 30 s
+  (`photoRecheckAfter`) is still shown, then re-asked with its ETag (central
   answers 304 when unchanged); at most 4 checks at once, one per copy. "No
   photo" (404) is saved too.
 - **Changes reach the screen** as the `record_photos_changed` event with the
@@ -57,12 +57,12 @@ too.
 - **New photos drop the record's copies**: on `expense_images_uploaded` /
   `loan_images_uploaded` and after *Add from this computer*.
 - **Photo id lists are live.** `ListExpensePhotoIDs` / `ListLoanPhotoIDs` ask
-  kashi every time (the upload dialog polls them to see a photo land) and use
-  the saved list only when kashi can't be reached.
-- Copies are keyed by kashi URL + branch code + request, so another branch or
+  Central every time (the upload dialog polls them to see a photo land) and use
+  the saved list only when central can't be reached.
+- Copies are keyed by central URL + branch code + request, so another branch or
   server never shows the old one's. Capped at 512 MB, least recently shown
   dropped first.
-- Can't be opened: photos just come from kashi as before.
+- Can't be opened: photos just come from central as before.
 
 ## `.env`
 
@@ -92,7 +92,7 @@ Other variables:
 ## Time zones (`clock.go`)
 
 Times are stored in UTC, and days and hours are read in the **branch's** time
-zone (kashi's `branches.timezone`), not the PC's. The app sets Go's
+zone (central's `branches.timezone`), not the PC's. The app sets Go's
 `time.Local` to it, which also covers SQLite's `localtime`. What it can't fix
 is a wrong PC clock or the webview's own date formatting (it uses the PC's
 zone), so those show a warning instead.
@@ -126,7 +126,7 @@ with no code is its own result). Tapping a multi-variant result opens
 | `CountProductGroupsForSearch` | The "N products" label: `COUNT(DISTINCT code)` over the same matches as `CountProductsForSearch`. |
 | `ListProductVariants(code)` | Every active variant of the code (any case), for the picker, since the list may hold only some yet. |
 | `VariantPicker` | Colour chips with swatches and size chips; impossible pairs greyed out; a single option is picked for the cashier; identical colour+size variants are listed. |
-| `lib/colorSwatch.ts` | Colour name to CSS: `A/B` names are split into slices, catalogue short forms (`Pur`, `Tra`) are read, unknown names get a dashed empty dot. kashi's colour hex values aren't synced to the till. |
+| `lib/colorSwatch.ts` | Colour name to CSS: `A/B` names are split into slices, catalogue short forms (`Pur`, `Tra`) are read, unknown names get a dashed empty dot. central's colour hex values aren't synced to the till. |
 
 The scan field's code lookup (`FindProductsForScan`) still uses its own list
 picker in `home.vue`.
@@ -182,8 +182,8 @@ default-on ones.
 | `release_stuck_keys` | **on** | Release modifier keys left held (till-only). |
 | `salesperson_per_invoice_required` | off | Every sale names a salesperson. |
 | `scan_by_code` | **on** | Product code in the scan field. |
-| `variant_pick_required` | off | A scanned barcode whose item has colour/size variants (same code) opens the variant picker. `products.variant_pick` (`always`/`never`, synced from kashi) overrides it per item. |
-| `invoice_ratings` | **on** | Invoices list shows each sale's WhatsApp poll answer (😍 🙂 😕), fetched live from kashi's `/branch/invoice_ratings` for the codes on screen (`invoice_ratings.go`). kashi pushes it as `invoice_ratings_enabled`. |
+| `variant_pick_required` | off | A scanned barcode whose item has colour/size variants (same code) opens the variant picker. `products.variant_pick` (`always`/`never`, synced from central) overrides it per item. |
+| `invoice_ratings` | **on** | Invoices list shows each sale's WhatsApp poll answer (😍 🙂 😕), fetched live from central's `/branch/invoice_ratings` for the codes on screen (`invoice_ratings.go`). Central pushes it as `invoice_ratings_enabled`. |
 | `shift_report_signatures` | **on** | Sign-off lines on the shift receipt. |
 | `shift_report_uppercase_header` | off | Capitalised shift receipt header. |
 | `sounds_enabled` | off | Sounds. |
@@ -194,9 +194,9 @@ Enum settings that can't be a flag live in `settings` columns:
 `oversell_mode`, `shift_receipt_upload_mode`, `quick_access_mode`,
 `receipt_theme` / `receipt_layout`, `display_prefs`.
 
-Most switches can be pushed per branch from kashi's Branch Settings (see
-`~/Code/kashi` and the per-branch settings checklist). Adding one that kashi
+Most switches can be pushed per branch from central's Branch Settings (see
+`~/Code/kashi` and the per-branch settings checklist). Adding one that central
 can push touches both repos: the flag and its setter, `GetAppSettings`, the
 settings report (`branchSettingsPayload`), the `update_settings` payload and
-`flagUpdates` in `commands.go`, the Settings page, and on kashi a migration,
+`flagUpdates` in `commands.go`, the Settings page, and on central a migration,
 the branch settings API and its page.

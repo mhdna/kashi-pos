@@ -10,7 +10,7 @@ SELECT * FROM cashbox_accounts WHERE name = ?;
 SELECT * FROM cashbox_accounts ORDER BY sort_order, id;
 
 -- name: ListActiveCashboxAccounts :many
--- What a cashier may actually take payment with. A method kashi has retired
+-- What a cashier may actually take payment with. A method central has retired
 -- is deactivated rather than deleted, so this is the list the checkout
 -- calculator and the settings screen read.
 SELECT * FROM cashbox_accounts WHERE is_active = 1 ORDER BY sort_order, id;
@@ -19,8 +19,8 @@ SELECT * FROM cashbox_accounts WHERE is_active = 1 ORDER BY sort_order, id;
 UPDATE cashbox_accounts SET is_active = ? WHERE id = ?;
 
 -- name: DeactivateCashboxAccountsNotIn :exec
--- The reconcile half of the payment-method sync: anything kashi did not send
--- stops being offered. The two internal placeholders are exempt -- kashi has
+-- The reconcile half of the payment-method sync: anything central did not send
+-- stops being offered. The two internal placeholders are exempt -- central has
 -- no concept of them and the coupon/account settlement paths look them up by
 -- exact name.
 UPDATE cashbox_accounts
@@ -81,7 +81,7 @@ UPDATE shifts SET is_closed = 1, closed_at = ? WHERE is_closed = 0;
 -- name: DeleteEmptyStaleOpenShifts :execrows
 -- A stale shift nothing ever happened in ($0, no rows of any kind point at
 -- it) is dropped instead of auto-closed, so it never shows up in the shifts
--- list or gets pushed to kashi as a shift_close. Runs right before
+-- list or gets pushed to central as a shift_close. Runs right before
 -- CloseStaleOpenShifts, with the same staleness test. Every table with a
 -- shift_id column must be listed here.
 DELETE FROM shifts
@@ -127,7 +127,7 @@ RETURNING account_id, shift_id, balance;
 -- displays one month at a time) instead of loading every shift ever
 -- created - pass '' for the historical "everything" behavior.
 SELECT s.id, s.is_closed, s.created_at, s.closed_at,
-       -- Counted like GetMonthSalesSummary (and kashi's reports): returns
+       -- Counted like GetMonthSalesSummary (and central's reports): returns
        -- netted, cancelled sales left out, coupons counted as sales.
        COALESCE((
            SELECT SUM(i.grand_total)

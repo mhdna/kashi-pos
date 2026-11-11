@@ -1,10 +1,10 @@
--- Shared identity with kashi (see kashi's 000093_sync_uid). Every client and
--- product carries a uid that is the same on kashi and on every till; sync
+-- Shared identity with central (see central's 000093_sync_uid). Every client and
+-- product carries a uid that is the same on central and on every till; sync
 -- payloads reference rows by uid, never by this database's integer id.
 --
 -- New rows get a random v4 uid from the triggers below, so no insert path
--- has to remember to mint one. Rows that come from kashi then overwrite it
--- with kashi's uid (see applySyncedClient / applySyncedProductVariant).
+-- has to remember to mint one. Rows that come from central then overwrite it
+-- with central's uid (see applySyncedClient / applySyncedProductVariant).
 ALTER TABLE clients ADD COLUMN uid text;
 ALTER TABLE products ADD COLUMN uid text;
 

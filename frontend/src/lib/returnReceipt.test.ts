@@ -45,7 +45,7 @@ describe("exchangeDoneMessage", () => {
   });
 });
 
-// "Print return and exchange receipts" is kashi's to set (branch settings):
+// "Print return and exchange receipts" is central's to set (branch settings):
 // the till's exchange screen has no Print receipt tick and its Settings no
 // switch for it.
 describe("the till has no return receipt choice of its own", () => {

@@ -12,7 +12,7 @@ const (
 	pushLinkBackoffMax  = time.Minute
 )
 
-// pushLink is the push loop's view of whether kashi is reachable at all.
+// pushLink is the push loop's view of whether central is reachable at all.
 //
 // Before it existed, every queued row carried its own exponential backoff
 // (up to an hour) for *any* failure -- so a till that was offline for a day
@@ -23,11 +23,11 @@ const (
 // loop waits (5s, 10s, ... capped at a minute), and the first pass that gets
 // through makes every pending row due at once (see runPushTick).
 //
-// Per-row backoff is still right for an answer kashi actually gave (a 5xx,
+// Per-row backoff is still right for an answer central actually gave (a 5xx,
 // a 408/429): that is about the row, and must not hold the others back.
 //
 // The zero value is "not known to be up", so the first pass after startup
-// probes kashi and releases anything an older build had backed off.
+// probes central and releases anything an older build had backed off.
 type pushLink struct {
 	mu       sync.Mutex
 	up       bool
@@ -82,10 +82,10 @@ func (l *pushLink) waiting(now time.Time) bool {
 }
 
 // isNetworkError reports whether err means the request never got an answer
-// from kashi: no connection, DNS failure, timeout. net/http wraps every such
-// failure from Client.Do in a *url.Error; a response kashi did send comes
+// from central: no connection, DNS failure, timeout. net/http wraps every such
+// failure from Client.Do in a *url.Error; a response central did send comes
 // back from responseError instead, which is never one. (A malformed server
-// URL is a *url.Error too -- equally "can't reach kashi", so that's fine.)
+// URL is a *url.Error too -- equally "can't reach central", so that's fine.)
 func isNetworkError(err error) bool {
 	var ue *url.Error
 	return errors.As(err, &ue)

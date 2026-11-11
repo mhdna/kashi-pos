@@ -1,11 +1,11 @@
 <template>
-  <!-- The PC's clock or zone disagrees with kashi's (clock.go). -->
+  <!-- The PC's clock or zone disagrees with central's (clock.go). -->
   <k-snackbar v-model="show" :timeout="-1" location="top" color="warning" multi-line>
     <div class="d-flex align-start">
       <k-icon icon="mdi-clock-alert-outline" class="me-3 mt-1" />
       <div>
         <div v-if="status.clockOff">
-          This computer's clock is {{ driftText }} {{ status.driftSeconds > 0 ? "ahead of" : "behind" }} kashi's,
+          This computer's clock is {{ driftText }} {{ status.driftSeconds > 0 ? "ahead of" : "behind" }} central's,
           so sales and shifts get the wrong time.
         </div>
         <div v-if="status.zoneMismatch">

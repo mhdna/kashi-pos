@@ -1,4 +1,4 @@
--- The kashi central backend base URL this branch syncs against, e.g.
+-- The central central backend base URL this branch syncs against, e.g.
 -- https://kashi.example.com. Empty string means sync is disabled for this
 -- install — it should behave exactly as it does today, with no outbound
 -- calls at all.

@@ -9,13 +9,13 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// Calendar events are a read-only mirror of kashi's user-defined events (the
-// "calendar_events" sync entity, api/calendar_event.go in the kashi repo).
-// kashi sends the whole set on every pull, so the apply upserts what it is
+// Calendar events are a read-only mirror of central's user-defined events (the
+// "calendar_events" sync entity, api/calendar_event.go in the central repo).
+// Central sends the whole set on every pull, so the apply upserts what it is
 // given and deletes the rest. The built-in retail calendar (Valentine's,
 // Black Friday...) is not synced: the frontend carries its own copy of the
 // event lists, and the "calendar_settings" entity says which business type's
-// list to show and which events kashi has switched off.
+// list to show and which events central has switched off.
 
 type syncedCalendarEvent struct {
 	ID        int64  `json:"id"`
@@ -95,7 +95,7 @@ func applySyncedCalendarSettings(ctx context.Context, q *db.Queries, items []syn
 		return err
 	}
 	// The built-in events as date rules. Kept only when it is valid JSON; an
-	// older kashi sends none, and the page then falls back to its bundled copy.
+	// older central sends none, and the page then falls back to its bundled copy.
 	catalog := ""
 	if len(s.Catalog) > 0 && json.Valid(s.Catalog) {
 		catalog = string(s.Catalog)

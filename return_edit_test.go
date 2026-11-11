@@ -81,7 +81,7 @@ func returnClientRef(t *testing.T, shop dealShop, id int64) string {
 }
 
 // The case from the shop floor (RS/CT/2026/00068): a deal charged back part
-// of a paid unit's credit on a cash refund; kashi gives the customer the
+// of a paid unit's credit on a cash refund; central gives the customer the
 // rest. Sale A $100, B $80, C $50 on Buy 2 get 1 (C free). Refunding A
 // leaves C without its pair: A is credited $50, $50 charged back. The edit
 // makes it the full $100.
@@ -123,10 +123,10 @@ func TestEditReturnGivesTheFullCredit(t *testing.T) {
 	case !strings.Contains(after.notes, "Item A credit $50.00 -> $100.00") || !strings.Contains(after.notes, "Customer keeps the deal") || !strings.Contains(after.notes, "Mahdi"):
 		t.Fatalf("notes %q", after.notes)
 	case after.outbox != before.outbox+1:
-		t.Fatalf("%d edits queued for kashi, want 1", after.outbox-before.outbox)
+		t.Fatalf("%d edits queued for central, want 1", after.outbox-before.outbox)
 	}
 
-	// What kashi is sent.
+	// What central is sent.
 	var raw string
 	if err := shop.app.conn.QueryRow(`SELECT payload_json FROM sync_outbox WHERE entity_type = 'return_invoice_edit' ORDER BY id DESC LIMIT 1`).Scan(&raw); err != nil {
 		t.Fatal(err)
@@ -160,7 +160,7 @@ func TestEditReturnGivesTheFullCredit(t *testing.T) {
 	}
 }
 
-// What kashi's Edit refund sends goes through the command channel.
+// What central's Edit refund sends goes through the command channel.
 func TestEditReturnCommand(t *testing.T) {
 	shop := setUpDealShop(t)
 	sale := shop.sell(t, "A", "B", "C")
@@ -257,7 +257,7 @@ func TestEditReturnRefuses(t *testing.T) {
 
 // Any edit of any return keeps the books straight: the total moves by what
 // the lines moved, the payments still add up to the total and so do their
-// entries, the drawer moves by the same, and each edit is sent to kashi once.
+// entries, the drawer moves by the same, and each edit is sent to central once.
 func TestEditReturnKeepsTheBooksStraight(t *testing.T) {
 	codes := []string{"A", "B", "C", "D", "JACKET", "SOCKS"}
 	shop := setUpDealShop(t)
@@ -319,7 +319,7 @@ func TestEditReturnKeepsTheBooksStraight(t *testing.T) {
 		case after.balance-before.balance != moved:
 			t.Fatalf("drawer moved %d, lines %d", after.balance-before.balance, moved)
 		case after.outbox-before.outbox != want:
-			t.Fatalf("%d edits sent to kashi, want %d", after.outbox-before.outbox, want)
+			t.Fatalf("%d edits sent to central, want %d", after.outbox-before.outbox, want)
 		case after.clawback < 0 || after.clawback > before.clawback:
 			t.Fatalf("clawback %d -> %d", before.clawback, after.clawback)
 		}

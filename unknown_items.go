@@ -22,10 +22,10 @@ import (
 // "Unknown item": something a customer wants that has no code here. The
 // cashier rings it up as the placeholder product below at the price they
 // type; before payment, a phone takes a picture of every line, whatever its
-// qty (the QR link kashi hands back), the pictures go straight to kashi, and
-// the sale is held only until each unit has one -- or a kashi user with the
-// right permission lets it through. Afterwards someone in kashi names what
-// each picture was (see api/unknown_items.go in the kashi repo).
+// qty (the QR link central hands back), the pictures go straight to central, and
+// the sale is held only until each unit has one -- or a central user with the
+// right permission lets it through. Afterwards someone in central names what
+// each picture was (see api/unknown_items.go in the central repo).
 
 const (
 	// defaultUnknownBarcode is the built-in placeholder's barcode, used while
@@ -55,7 +55,7 @@ func (a *App) SetUnknownPicturesAtCheckout(enabled bool) error {
 }
 
 // unknownBarcode is the barcode of the product that stands for "an item I
-// can't name": the one kashi's branch settings point at, else the built-in
+// can't name": the one central's branch settings point at, else the built-in
 // placeholder.
 func (a *App) unknownBarcode() string {
 	if a.store != nil {
@@ -82,7 +82,7 @@ func (a *App) unknownCode() string {
 
 // SetUnknownProductBarcode names the product the "Unknown item" button adds
 // ("" goes back to the built-in placeholder). Called by an update_settings
-// command from kashi.
+// command from central.
 func (a *App) SetUnknownProductBarcode(barcode string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
@@ -94,15 +94,15 @@ func (a *App) SetUnknownProductBarcode(barcode string) error {
 	return nil
 }
 
-// ensureUnknownProduct returns the unknown product. A product kashi named must
+// ensureUnknownProduct returns the unknown product. A product central named must
 // already be in this till's catalog; the built-in placeholder is created on
 // first use. Either way it is priced by what the cashier types (see
-// validateAndPriceItems), and kashi never moves stock for it.
+// validateAndPriceItems), and central never moves stock for it.
 func ensureUnknownProduct(ctx context.Context, q *db.Queries, barcode string) (db.Product, error) {
 	product, err := q.GetProductByBarcode(ctx, barcode)
 	if err == nil {
 		// Earlier versions let the full catalog check switch the built-in
-		// placeholder off as a product kashi doesn't have; turn it back on.
+		// placeholder off as a product central doesn't have; turn it back on.
 		if product.IsActive == 0 && barcode == defaultUnknownBarcode {
 			if err := q.SetProductActive(ctx, db.SetProductActiveParams{IsActive: 1, ID: product.ID}); err != nil {
 				return db.Product{}, err
@@ -155,12 +155,12 @@ func unknownUnitCount(items []salesInvoiceItem, barcode, code string) int64 {
 	return units
 }
 
-// unknownCall is one JSON round trip to kashi's /branch API for the unknown
+// unknownCall is one JSON round trip to central's /branch API for the unknown
 // item pictures.
 func (a *App) unknownCall(method, path string, in, out any) error {
 	client := a.photoClient()
 	if client == nil {
-		return fmt.Errorf("this till isn't connected to kashi")
+		return fmt.Errorf("this till isn't connected to central")
 	}
 	var body bytes.Buffer
 	if in != nil {
@@ -181,9 +181,9 @@ func (a *App) unknownCall(method, path string, in, out any) error {
 	if err != nil {
 		var dnsErr *net.DNSError
 		if errors.As(err, &dnsErr) {
-			return fmt.Errorf("can't find the kashi server (%s), check the internet or that the server is up", dnsErr.Name)
+			return fmt.Errorf("can't find the central server (%s), check the internet or that the server is up", dnsErr.Name)
 		}
-		return fmt.Errorf("couldn't reach kashi: %w", err)
+		return fmt.Errorf("couldn't reach central: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -204,7 +204,7 @@ type unknownSlotInput struct {
 	Label          string `json:"label"`
 	UnitPriceCents int64  `json:"unitPriceCents"`
 	Discount       int64  `json:"discount"`
-	// The cart line the unit is on; kashi takes one picture per line.
+	// The cart line the unit is on; central takes one picture per line.
 	LineRef string `json:"lineRef"`
 	// Stable across re-sends of the same cart, so a unit keeps its picture
 	// as lines around it come and go. Empty: its position in the cart.
@@ -289,7 +289,7 @@ func (a *App) SyncUnknownItemSession(clientRef, slotsJSON string) (map[string]an
 		return nil, err
 	}
 	if resp.UploadToken == "" {
-		return nil, fmt.Errorf("kashi didn't send a link")
+		return nil, fmt.Errorf("Central didn't send a link")
 	}
 	client := a.photoClient()
 	a.unknownMu.Lock()
@@ -300,7 +300,7 @@ func (a *App) SyncUnknownItemSession(clientRef, slotsJSON string) (map[string]an
 }
 
 // UnknownItemSessionStatus is the dialog's poll: which units have a picture or
-// a manager's pass. Kashi holds the call until that changes (a few seconds at
+// a manager's pass. Central holds the call until that changes (a few seconds at
 // most), so a picture shows up the moment it lands.
 func (a *App) UnknownItemSessionStatus(clientRef string) (map[string]any, error) {
 	var resp unknownSessionResponse
@@ -317,8 +317,8 @@ func (a *App) UnknownItemSessionStatus(clientRef string) (map[string]any, error)
 	return unknownSessionResult(clientRef, "", resp), nil
 }
 
-// RequestUnknownItemHelp is the cashier's "ask a manager" button: the session
-// jumps to the top of kashi's Waiting list.
+// RequestUnknownItemHelp is the cashier's "request from central" button: the session
+// jumps to the top of central's Waiting list.
 func (a *App) RequestUnknownItemHelp(clientRef string) error {
 	return a.unknownCall(http.MethodPost, "/branch/unknown_sessions/help", map[string]string{"client_ref": clientRef}, nil)
 }
@@ -343,7 +343,7 @@ func (a *App) verifyUnknownPictures(itemsJSON string) (string, error) {
 	}
 	var resp unknownSessionResponse
 	if err := a.unknownCall(http.MethodGet, "/branch/unknown_sessions/status?client_ref="+url.QueryEscape(ref), nil, &resp); err != nil {
-		return "", fmt.Errorf("unknown items need kashi to take their pictures: %w", err)
+		return "", fmt.Errorf("unknown items need central to take their pictures: %w", err)
 	}
 	if !resp.Complete || int64(len(resp.Slots)) != units {
 		return "", fmt.Errorf("pictures of the unknown items are missing")

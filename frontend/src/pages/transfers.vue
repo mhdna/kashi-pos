@@ -16,7 +16,7 @@
     </div>
 
     <!-- Same layout as the invoices list; the transfer's photo (taken with a
-         phone, kept in kashi) is the first column. -->
+         phone, kept in central) is the first column. -->
     <k-data-table-virtual
       v-if="tab === 'outgoing'"
       class="records-table"
@@ -333,7 +333,7 @@ async function loadDetailPhoto(clientRef: string, transferID: number) {
   }
 }
 
-// A photo turned or replaced in kashi: refetch that row's thumbnail and, if
+// A photo turned or replaced in central: refetch that row's thumbnail and, if
 // its dialog is open, the full photo.
 const { cacheKey: photoKey, bump: bumpPhoto } = usePhotoVersions();
 function onPhotosChanged(ref: string) {

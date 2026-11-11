@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// kashi's live cart overrides price a sale past the branch's settings: with
-// custom prices, custom discounts and the deal toggle all off, kashi can still
+// central's live cart overrides price a sale past the branch's settings: with
+// custom prices, custom discounts and the deal toggle all off, central can still
 // turn every deal off and give a line a price or a discount. They belong to
 // the sale they were made for and go when the screen moves on.
 func TestLiveCartOverrides(t *testing.T) {
@@ -127,7 +127,7 @@ func setOverrides(t *testing.T, app *App, o liveCartOverrides) {
 
 func cents(v int64) *int64 { return &v }
 
-// kashi sets an unknown item's price, discount and deal from the live cart,
+// Central sets an unknown item's price, discount and deal from the live cart,
 // one line at a time though every unknown item shares a barcode: each line
 // goes by its ref, and the others stay as the cashier rang them.
 func TestLiveCartUnknownItemOverrides(t *testing.T) {
@@ -209,7 +209,7 @@ func TestLiveCartUnknownOverrideStaysOnItsLine(t *testing.T) {
 	}
 }
 
-// What kashi may send for an unknown line is checked on the till too.
+// What central may send for an unknown line is checked on the till too.
 func TestLiveCartUnknownOverrideRefusals(t *testing.T) {
 	app := liveCartShop(t).app
 	for name, l := range map[string]liveCartLineOverride{
@@ -225,12 +225,12 @@ func TestLiveCartUnknownOverrideRefusals(t *testing.T) {
 	}
 }
 
-// Over hundreds of random carts and overrides, a cart kashi changed prices
+// Over hundreds of random carts and overrides, a cart central changed prices
 // exactly as the same cart typed that way at the till, line by line, and its
 // lines add up to its total.
 func TestLiveCartUnknownOverridesRandomized(t *testing.T) {
 	app := liveCartShop(t).app
-	// The typed reference needs custom discounts; kashi's never does.
+	// The typed reference needs custom discounts; central's never does.
 	if err := app.setFeatureFlagBool(app.ctx, customItemDiscountsFlag, true); err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +279,7 @@ func TestLiveCartUnknownOverridesRandomized(t *testing.T) {
 		setOverrides(t, app, liveCartOverrides{Lines: lines})
 		got := quoteItems(t, app, cart...)
 		if got.GrandTotalCents != want.GrandTotalCents {
-			t.Fatalf("iter %d: kashi's cart %d, typed cart %d\noverrides %+v", iter, got.GrandTotalCents, want.GrandTotalCents, lines)
+			t.Fatalf("iter %d: central's cart %d, typed cart %d\noverrides %+v", iter, got.GrandTotalCents, want.GrandTotalCents, lines)
 		}
 		var sum int64
 		for _, l := range got.Lines {

@@ -9,7 +9,7 @@ import (
 )
 
 // syncCurrency / syncPaymentMethod put a currency or a payment method on the
-// till the only way one can arrive now: from kashi, through the sync. The
+// till the only way one can arrive now: from central, through the sync. The
 // App methods these tests used to call are gone.
 func syncCurrency(t *testing.T, app *App, code, name, symbol string, unitsPerUsdMicros, roundingUnit int64) {
 	t.Helper()
@@ -35,14 +35,14 @@ func syncPaymentMethod(t *testing.T, app *App, name, currencyCode string) db.Cas
 	return account
 }
 
-// A currency kashi sends must round-trip its rate and be immediately usable
+// A currency central sends must round-trip its rate and be immediately usable
 // for cash rounding -- it is a first-class currency, not a hardcoded
 // LBP/USD special case.
 func TestSyncedCurrencyRoundTripsRateAndIsUsableForCashRounding(t *testing.T) {
 	app, database := newProductTestApp(t)
 	defer database.Close()
 
-	// 0.92 EUR/USD expressed the way kashi sends it, in micros.
+	// 0.92 EUR/USD expressed the way central sends it, in micros.
 	syncCurrency(t, app, "EUR", "Euro", "\u20ac", 920000, 5)
 
 	currency, err := app.store.GetCurrencyByCode(app.ctx, "EUR")

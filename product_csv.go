@@ -438,7 +438,7 @@ func (a *App) ImportPendingProductsCSV() (ProductCSVImportResult, error) {
 }
 
 // ensureDefaultPriceList returns the active default price list, creating one
-// if there is none. Only reachable in standalone mode, where no kashi sync
+// if there is none. Only reachable in standalone mode, where no central sync
 // will ever send one.
 func ensureDefaultPriceList(a *App, q *db.Queries) (int64, error) {
 	lists, err := q.ListPriceLists(a.ctx)

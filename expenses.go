@@ -15,7 +15,7 @@ import (
 )
 
 // CreateExpense records a branch expense and, if this install is configured
-// to sync (central_api_url set), queues it for push to kashi in the same
+// to sync (central_api_url set), queues it for push to central in the same
 // transaction as the write itself — see queueBranchInvoiceSync's doc comment
 // in sync_outbox.go for why that matters (a crash between the two can never
 // happen). An open shift is looked up on a best-effort basis: unlike
@@ -166,9 +166,9 @@ func expenseMap(expense db.Expense) map[string]any {
 	return m
 }
 
-// branchExpenseFromCentralPayload is the body POSTed to kashi's
+// branchExpenseFromCentralPayload is the body POSTed to central's
 // /branch/expenses/from_central (see branchExpenseFromCentralRequest in
-// api/branch_expense_from_central.go in the kashi repo).
+// api/branch_expense_from_central.go in the central repo).
 type branchExpenseFromCentralPayload struct {
 	ClientRef   string `json:"client_ref"`
 	FromCentral bool   `json:"from_central"`
@@ -197,8 +197,8 @@ func (a *App) SetExpenseFromCentral(id int64, fromCentral bool) (map[string]any,
 }
 
 // setExpenseFromCentral saves the mark and, when pushToKashi is set, gets it
-// to kashi the way updateRecordCategory does a category: rewritten into the
-// expense's own pending outbox row if kashi doesn't have the expense yet,
+// to central the way updateRecordCategory does a category: rewritten into the
+// expense's own pending outbox row if central doesn't have the expense yet,
 // otherwise an "expense_from_central" row keyed per expense, so a later
 // flip replaces an unsent earlier one.
 func (a *App) setExpenseFromCentral(ctx context.Context, clientRef string, fromCentral, pushToKashi bool) (db.Expense, error) {
@@ -251,8 +251,8 @@ func (a *App) setExpenseFromCentral(ctx context.Context, clientRef string, fromC
 	return expense, nil
 }
 
-// executeSetExpenseFromCentralCommand applies kashi's change without
-// echoing it back. kashi sends it to every register of the branch, so a ref
+// executeSetExpenseFromCentralCommand applies central's change without
+// echoing it back. Central sends it to every register of the branch, so a ref
 // this till doesn't hold is not an error -- another register has it.
 func (a *App) executeSetExpenseFromCentralCommand(ctx context.Context, payload json.RawMessage) error {
 	var p branchExpenseFromCentralPayload

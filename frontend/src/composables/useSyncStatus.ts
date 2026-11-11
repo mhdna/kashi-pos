@@ -7,7 +7,7 @@ import type { main } from "../../wailsjs/go/models";
  * Shared, module-cached sync health for the nav-rail dot and the Settings
  * page. `status.fullySynced` is the green light: configured, nothing
  * pending, nothing failed, and nothing still stamped for a previous central
- * server (which is the "we just changed the kashi URL" case).
+ * server (which is the "we just changed the central URL" case).
  *
  * `sync_state_changed` fires from the Go side whenever the push side
  * advances (a row accepted / failed / re-armed), so the dot updates live

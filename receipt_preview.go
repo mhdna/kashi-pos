@@ -11,7 +11,7 @@ import (
 
 // Receipt previews: the real renderer run over a fixed sample sale. The till's
 // settings page shows them live (with the branch's own name and phone), and
-// the generator in receipt_preview_test.go writes the same images for kashi's
+// the generator in receipt_preview_test.go writes the same images for central's
 // settings pages, which cannot run this renderer themselves.
 
 // sampleReceiptItems is a mixed basket: long names that wrap, discounts, a

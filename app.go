@@ -57,7 +57,7 @@ type App struct {
 	// unknown_items.go), guarded by unknownMu.
 	unknownMu         sync.Mutex
 	unknownSessionRef string
-	// unknownDone is how many units the till last saw finished; kashi holds a
+	// unknownDone is how many units the till last saw finished; central holds a
 	// status call until that number changes.
 	unknownDone int
 
@@ -88,7 +88,7 @@ type App struct {
 	// restarts. Same buffered, nil-safe, coalescing contract as
 	// syncWorkerKick -- see kickWSClient in sync_ws.go.
 	wsClientKick chan struct{}
-	// wsWork is what kashi's pushes have asked runWSWorker to do and it
+	// wsWork is what central's pushes have asked runWSWorker to do and it
 	// hasn't started yet, guarded by wsWorkMu; wsWorkKick wakes the worker
 	// (same buffered, nil-safe, coalescing contract as wsClientKick). See
 	// queueWSWork in sync_ws.go.
@@ -106,7 +106,7 @@ type App struct {
 	// What the last pull applied, under syncPullMu; see sync_report.go.
 	lastPullApplied int64
 	syncReport      syncReporter
-	// The sale on screen as kashi sees it, and kashi's overrides (live_cart.go).
+	// The sale on screen as central sees it, and central's overrides (live_cart.go).
 	liveCart liveCartState
 	// fullCheckAttemptAt is when the completeness check last started
 	// (sync_full_check.go), successful or not -- guarded by syncPullMu. It
@@ -122,7 +122,7 @@ type App struct {
 	// produces "database is locked (517)". ResyncAll additionally holds
 	// syncPullMu for its whole run, which blocks the WS client's pulls too.
 	resyncActive atomic.Bool
-	// pushLink is whether kashi is reachable, as the push loop last saw it
+	// pushLink is whether central is reachable, as the push loop last saw it
 	// -- see sync_push_link.go.
 	pushLink pushLink
 	// pushMu keeps the live push loop and a close-shift flush
@@ -137,14 +137,14 @@ type App struct {
 	// still pending (0 = none); consumed by that close -- see
 	// BypassCloseShiftSyncGate.
 	closeShiftSyncBypass atomic.Int64
-	// wsPushesAll is true while a WebSocket session is open to a kashi that
+	// wsPushesAll is true while a WebSocket session is open to a central that
 	// said (in its "hello") that it pushes every change to synced data. The
 	// pull loop then only polls as a slow backstop -- see runPullTick.
 	wsPushesAll atomic.Bool
 	// salespersonIDsNextTry is when to retry the one-time report of past
 	// sales' salespersons (unix seconds; sync_salesperson_ids.go).
 	salespersonIDsNextTry atomic.Int64
-	// kashiQuickAccess: the live session's kashi supports central Quick
+	// kashiQuickAccess: the live session's central supports central Quick
 	// Access (its hello lists "quick_access") -- see sync_quick_access.go.
 	kashiQuickAccess atomic.Bool
 	// lastFullPullAt / lastTargetsPullAt: when runPullTick last ran those
@@ -155,7 +155,7 @@ type App struct {
 	// clock is the last clock check's result -- see clock.go.
 	clockMu sync.Mutex
 	clock   ClockStatus
-	// settingsReport is the last settings report kashi accepted -- see
+	// settingsReport is the last settings report central accepted -- see
 	// pushSettings.
 	settingsReport settingsReport
 	// backgroundWG lets shutdown wait for the sync worker and WS client
@@ -165,7 +165,7 @@ type App struct {
 	// raced with test cleanup deleting the database's temp directory.
 	backgroundWG sync.WaitGroup
 
-	// photoCache keeps kashi's photos on disk, encrypted (photo_cache.go);
+	// photoCache keeps central's photos on disk, encrypted (photo_cache.go);
 	// opened on first use. photoWG tracks its background checks and
 	// photoRechecks the copies being checked. onPhotosChanged replaces the
 	// "record_photos_changed" event in tests.
@@ -349,7 +349,7 @@ func (a *App) GetDatabaseStatus() map[string]interface{} {
 // ChooseDatabase opens an existing SQLite database selected by the user.
 func (a *App) ChooseDatabase() (string, error) {
 	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:   "Choose Kashi database",
+		Title:   "Choose Central database",
 		Filters: []runtime.FileFilter{{DisplayName: "SQLite database", Pattern: "*.db;database"}},
 	})
 	if err != nil || path == "" {
@@ -365,7 +365,7 @@ func (a *App) ChooseDatabase() (string, error) {
 // CreateDatabase asks for a folder and creates a fresh database there.
 func (a *App) CreateDatabase() (string, error) {
 	directory, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:                "Choose folder for the new Kashi database",
+		Title:                "Choose folder for the new Central database",
 		CanCreateDirectories: true,
 	})
 	if err != nil || directory == "" {
@@ -743,7 +743,7 @@ func (a *App) seedDefaults() {
 		}
 	}
 	// The two internal bookkeeping placeholders are seeded; real payment
-	// methods are not. They come from kashi, and a till that has never synced
+	// methods are not. They come from central, and a till that has never synced
 	// has none -- which is the point: this till does not get to invent a way
 	// of taking money that central knows nothing about.
 	a.seedPlaceholderCashboxAccounts()
@@ -767,11 +767,11 @@ func (a *App) seedSalespersons() {
 // seedPlaceholderCashboxAccounts creates only the two internal bookkeeping
 // placeholders. They are not payment methods -- the client-account and coupon
 // settlement paths resolve them by exact name (shifts.go, currencies.go) --
-// so kashi has no concept of them and never sends them, and a till cannot
+// so central has no concept of them and never sends them, and a till cannot
 // function without them.
 //
 // The real payment methods this used to seed (Cash $$, Cash LBP, Visa, Whish)
-// are gone: they now arrive from kashi like everything else, and a till that
+// are gone: they now arrive from central like everything else, and a till that
 // has not synced yet deliberately has none.
 func (a *App) seedPlaceholderCashboxAccounts() {
 	existing, _ := a.store.ListCashboxAccounts(context.Background())
@@ -1148,7 +1148,7 @@ func (a *App) SetOverchangeConfirmationEnabled(enabled bool) error {
 
 // SetProductSearchEnabled toggles the product-search (magnifier) button on
 // the sale screen. Called both by the local Settings page and by
-// executeUpdateSettingsCommand when kashi pushes the change, so it emits a
+// executeUpdateSettingsCommand when central pushes the change, so it emits a
 // "settings_changed" event either way -- an open sale screen picks the new
 // state up live rather than only on its next mount.
 func (a *App) SetProductSearchEnabled(enabled bool) error {
@@ -1191,7 +1191,7 @@ func (a *App) ListPageUnlocks() (map[string]bool, error) {
 
 // SetPageUnlocked unlocks or re-locks one page for non-admin users. Called
 // both by the local Settings page and by executeUpdateSettingsCommand when
-// kashi pushes the change, so it emits "settings_changed" either way -- an
+// Central pushes the change, so it emits "settings_changed" either way -- an
 // open nav drawer / router re-reads the locks live rather than only on the
 // next app start (usePageUnlocks.ts listens for it).
 func (a *App) SetPageUnlocked(page string, unlocked bool) error {
@@ -1334,7 +1334,7 @@ func (a *App) UpdateSettings(branchName, branchCode, apiKey, printerID, printerS
 	return nil
 }
 
-// UpdateCentralAPIURL sets the base URL of the kashi server this branch
+// UpdateCentralAPIURL sets the base URL of the central server this branch
 // syncs to (e.g. "http://localhost:8080"). Empty disables sync entirely —
 // the outbox worker and WebSocket client both check for this before
 // running (see sync_client.go's centralClient.enabled()).
@@ -1367,10 +1367,10 @@ func (a *App) UpdateCentralAPIURL(centralApiUrl string) error {
 // every single central call fail, which looks like "sync does nothing" with
 // no obvious cause.
 //
-// An https:// address with no path also gets /api: the deployed kashi sits
+// An https:// address with no path also gets /api: the deployed central sits
 // behind Caddy, which only routes /api/* to the server, so
 // "https://cloud.example.com" would send every call to the web UI instead.
-// An explicit http:// (a local dev server talking straight to kashi's Go
+// An explicit http:// (a local dev server talking straight to central's Go
 // server, which has no /api prefix) and any URL that already has a path are
 // left as typed.
 func normalizeCentralAPIURL(raw string) string {

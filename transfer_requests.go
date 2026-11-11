@@ -16,18 +16,18 @@ type transferRequestItemInput struct {
 
 // CreateTransferRequest stages a proposed transfer out of this branch's own
 // store inventory and, if this install is configured to sync, queues it for
-// push to kashi in the same transaction as the write itself -- same
+// push to central in the same transaction as the write itself -- same
 // same-transaction-as-the-write reasoning as CreateExpense. toBranchCode is
 // another branch's code, as last seen in the branches sync feed (see
 // ListSyncedBranches). The transfer sits centrally in 'requested' until a
-// kashi admin approves or rejects it; this till only finds out via the
+// Central admin approves or rejects it; this till only finds out via the
 // transfer_requests down-sync (see applySyncedTransferRequest) or, if
-// connected, the WS nudge that follows kashi's decision.
+// connected, the WS nudge that follows central's decision.
 //
 // A photo, if any, is never pushed by this till -- it's the same
 // QR-scan-and-upload flow as a close-shift receipt or an expense photo
 // (see CheckTransferUploadStatus and emitTransferUploadReady): once this
-// call's sync round-trip lands, kashi hands back a one-time upload token
+// call's sync round-trip lands, central hands back a one-time upload token
 // the frontend turns into a QR code for a phone to scan.
 func (a *App) CreateTransferRequest(toBranchCode, note string, items []transferRequestItemInput) (map[string]any, error) {
 	if a.store == nil {
@@ -106,7 +106,7 @@ func (a *App) CreateTransferRequest(toBranchCode, note string, items []transferR
 }
 
 // ListTransferRequests feeds this till's own "my transfer requests" screen
-// -- outgoing proposals only, newest first, whatever status kashi last
+// -- outgoing proposals only, newest first, whatever status central last
 // reported. See ListIncomingTransferRequests for transfers addressed to
 // this branch instead.
 func (a *App) ListTransferRequests() ([]map[string]any, error) {
@@ -172,7 +172,7 @@ type confirmTransferItemInput struct {
 // counted for an incoming transfer -- it records the counted quantities
 // locally (so applySyncedIncomingTransfer's replace-on-sync doesn't lose
 // them, see its own comment) and queues the confirmation for push to
-// kashi via the same sync_outbox worker every other entity uses.
+// Central via the same sync_outbox worker every other entity uses.
 func (a *App) ConfirmTransferRequest(centralID int64, items []confirmTransferItemInput, note string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")

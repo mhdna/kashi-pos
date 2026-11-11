@@ -21,7 +21,7 @@ func (a *App) receiptLook() (string, string) {
 }
 
 // SetReceiptLook chooses the printed invoice's theme and layout. Called by
-// the settings page and by an update_settings command from kashi.
+// the settings page and by an update_settings command from central.
 func (a *App) SetReceiptLook(theme, layout string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")

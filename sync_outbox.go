@@ -54,11 +54,11 @@ func getOrCreateInvoiceClientRef(ctx context.Context, q *db.Queries, invoiceID i
 	return ref, nil
 }
 
-// branchInvoicePayload is the exact JSON body POSTed to kashi's
+// branchInvoicePayload is the exact JSON body POSTed to central's
 // /branch/sales_invoices and /branch/return_invoices (see api/branch_sync.go
-// in the kashi repo — branchInvoiceRequest there must stay in sync with this
+// in the central repo — branchInvoiceRequest there must stay in sync with this
 // shape). Every ID here is this install's own local SQLite id, meaningless
-// to kashi's schema — kashi stores them as opaque traceability data, not
+// to central's schema — central stores them as opaque traceability data, not
 // foreign keys, until branch-scoped identity sync exists.
 type branchInvoicePayload struct {
 	ClientRef              string `json:"client_ref"`
@@ -74,32 +74,32 @@ type branchInvoicePayload struct {
 	Subtotal        int64  `json:"sub_total"`
 	DiscountedTotal int64  `json:"discounted_total"`
 	// Whatever this install already computed and applied locally (see
-	// AddClientLoyaltyPoints in tx_invoice.go) — kashi records this as
+	// AddClientLoyaltyPoints in tx_invoice.go) — central records this as
 	// reported, it must never be re-derived from GrandTotal centrally.
 	LoyaltyPointsDelta int64     `json:"loyalty_points_delta"`
 	OccurredAt         time.Time `json:"occurred_at"`
 	// Best-effort display name, not an id -- salespersons aren't a synced/
 	// shared entity across the branch boundary the way products are, so
-	// there's no branch-scoped id for kashi to store a foreign key against.
+	// there's no branch-scoped id for central to store a foreign key against.
 	// Empty when no salesperson was recorded for this invoice.
 	SalespersonName string `json:"salesperson_name,omitempty"`
-	// SalespersonID is kashi's id for that salesperson (salespersons.
-	// remote_id), so a renamed salesperson stays one person on kashi's
-	// reports. 0 (omitted) when they aren't one of kashi's.
+	// SalespersonID is central's id for that salesperson (salespersons.
+	// remote_id), so a renamed salesperson stays one person on central's
+	// reports. 0 (omitted) when they aren't one of central's.
 	SalespersonID    int64                         `json:"salesperson_id,omitempty"`
 	Payments         []branchInvoicePaymentPayload `json:"payments"`
 	Items            []branchInvoicePayloadItem    `json:"items"`
 	RelatedClientRef string                        `json:"related_client_ref,omitempty"`
-	// Historical marks a one-time backfill of a pre-sync sale: kashi records
+	// Historical marks a one-time backfill of a pre-sync sale: central records
 	// it in full but moves no central stock (see api/branch_sync.go). Never
 	// set on a live checkout, so it stays omitted from those payloads.
 	Historical bool `json:"historical,omitempty"`
 	// Cancellation marks a return that cancels its sale outright (see
-	// CancelInvoice): kashi stamps cancelled_at on both and leaves them out
+	// CancelInvoice): central stamps cancelled_at on both and leaves them out
 	// of sales statistics. Only ever set on a return.
 	Cancellation bool `json:"cancellation,omitempty"`
 	// LbpTotal/LbpRate are the LBP total the till printed and the LBP per
-	// USD it used (stampInvoiceLBPTotal), so kashi's reports show what was
+	// USD it used (stampInvoiceLBPTotal), so central's reports show what was
 	// actually sold in LBP. Omitted for invoices from before they existed.
 	LbpTotal *int64 `json:"lbp_total,omitempty"`
 	LbpRate  *int64 `json:"lbp_rate,omitempty"`
@@ -108,18 +108,18 @@ type branchInvoicePayload struct {
 	InvoiceDiscount     int64  `json:"invoice_discount,omitempty"`
 	InvoiceDiscountName string `json:"invoice_discount_name,omitempty"`
 	// UnknownSessionRef ties a sale with "Unknown item" lines to the pictures
-	// taken for it (kashi's unknown_session_ref).
+	// taken for it (central's unknown_session_ref).
 	UnknownSessionRef string `json:"unknown_session_ref,omitempty"`
 }
 
 type branchInvoicePayloadItem struct {
 	BranchProductID int64 `json:"branch_product_id"`
-	// Barcode is this line's SKU barcode -- the identifier kashi uses to
+	// Barcode is this line's SKU barcode -- the identifier central uses to
 	// resolve the line to a central product_variants row and decrement the
 	// branch's central store inventory. BranchProductID stays for
 	// traceability but doesn't resolve to anything central.
 	Barcode string `json:"barcode"`
-	// ProductUID is the line's shared variant identity; kashi prefers it
+	// ProductUID is the line's shared variant identity; central prefers it
 	// over Barcode and falls back to Barcode when it doesn't resolve.
 	ProductUID string `json:"product_uid,omitempty"`
 	UnitPrice  int64  `json:"unit_price"`
@@ -139,7 +139,7 @@ type branchInvoicePayloadItem struct {
 	// items. So for a returned line, LineTotal =
 	//   UnitPrice*Quantity - its percent discount - DealDiscount
 	//   - InvoiceDiscount - SwapCredit + ChargedBack
-	// (exchange_quote_lines.go), and kashi can show why a credit is what it is.
+	// (exchange_quote_lines.go), and central can show why a credit is what it is.
 	ChargedBack int64 `json:"charged_back,omitempty"`
 	SwapCredit  int64 `json:"swap_credit,omitempty"`
 }
@@ -163,7 +163,7 @@ type branchInvoicePaymentPayload struct {
 	AccountName string `json:"account_name"`
 	Amount      int64  `json:"amount"`
 	// CouponCode is set only on the one payment line that redeemed a
-	// coupon -- see GetInvoiceCouponPaymentByInvoiceID below. kashi uses
+	// coupon -- see GetInvoiceCouponPaymentByInvoiceID below. Central uses
 	// it to mark that code redeemed centrally (RedeemCoupon in its
 	// tx_branch_invoice.go), which is what stops the same code being
 	// redeemed again at a different branch.
@@ -208,11 +208,11 @@ func buildBranchInvoicePayments(ctx context.Context, q *db.Queries, invoiceID in
 	return payments, nil
 }
 
-// branchExpensePayload is the exact JSON body POSTed to kashi's
-// /branch/expenses (see api/branch_expense.go in the kashi repo —
+// branchExpensePayload is the exact JSON body POSTed to central's
+// /branch/expenses (see api/branch_expense.go in the central repo —
 // branchExpenseRequest there must stay in sync with this shape).
 // BranchCashboxAccountID/BranchShiftID are this install's own local ids,
-// meaningless to kashi's schema — kashi stores them as opaque traceability
+// meaningless to central's schema — central stores them as opaque traceability
 // data, not foreign keys, same reasoning as branchInvoicePayload above.
 type branchExpensePayload struct {
 	ClientRef              string `json:"client_ref"`
@@ -263,8 +263,8 @@ type branchTransferRequestItemPayload struct {
 	Quantity   int64  `json:"quantity"`
 }
 
-// branchTransferRequestPayload is the exact JSON body POSTed to kashi's
-// /branch/transfer_requests (see api/branch_transfer.go in the kashi repo).
+// branchTransferRequestPayload is the exact JSON body POSTed to central's
+// /branch/transfer_requests (see api/branch_transfer.go in the central repo).
 // ToBranchRef is another branch's code, as this install last pulled it
 // down via the branches sync feed (see synced_branches, sync_pull_coupons.go).
 type branchTransferRequestPayload struct {
@@ -301,13 +301,13 @@ type branchTransferConfirmItemPayload struct {
 	ReceivedQuantity int64  `json:"received_quantity"`
 }
 
-// branchTransferConfirmPayload is the exact JSON body POSTed to kashi's
+// branchTransferConfirmPayload is the exact JSON body POSTed to central's
 // /branch/transfer_requests/:id/confirm (see api/branch_transfer.go in the
-// kashi repo) -- the destination branch's own leg of a transfer, reporting
+// Central repo) -- the destination branch's own leg of a transfer, reporting
 // what it actually counted. Unlike every other outbox payload, there's no
 // natural client_ref (this branch never created the transfer); the outbox
 // row's own client_ref is synthesized purely for its own idempotent-retry
-// bookkeeping, never sent to kashi or read back.
+// bookkeeping, never sent to central or read back.
 type branchTransferConfirmPayload struct {
 	Items []branchTransferConfirmItemPayload `json:"items"`
 	Note  string                             `json:"note"`
@@ -333,12 +333,12 @@ func queueBranchTransferConfirmSync(ctx context.Context, q *db.Queries, centralA
 	return err
 }
 
-// branchLoanPayload is the exact JSON body POSTed to kashi's /branch/loans
-// (see api/branch_loan.go in the kashi repo — branchLoanRequest there must
+// branchLoanPayload is the exact JSON body POSTed to central's /branch/loans
+// (see api/branch_loan.go in the central repo — branchLoanRequest there must
 // stay in sync with this shape). BranchCashboxAccountID/BranchShiftID are
-// this install's own local ids, meaningless to kashi's schema, same
+// this install's own local ids, meaningless to central's schema, same
 // reasoning as branchExpensePayload above. CategoryName is a lender-source
-// name (e.g. "Owner"/"External") -- kashi resolves it to its own
+// name (e.g. "Owner"/"External") -- central resolves it to its own
 // loan_categories row, this install never fetches or caches that list.
 type branchLoanPayload struct {
 	ClientRef              string `json:"client_ref"`
@@ -402,19 +402,19 @@ func queueBranchInvoiceSync(ctx context.Context, q *db.Queries, centralAPIURL, e
 	return err
 }
 
-// branchSettlementPayload is the exact JSON body POSTed to kashi's
+// branchSettlementPayload is the exact JSON body POSTed to central's
 // /branch/invoice_settlements (see api/branch_invoice_settlement.go in the
-// kashi repo — branchSettlementRequest there must stay in sync with this
+// Central repo — branchSettlementRequest there must stay in sync with this
 // shape). A "change settlement" edit (ChangeInvoiceSettlement,
 // ChangeInvoiceSettlementAmount, SettleInvoicePayments) rewrites an
-// already-synced sale's per-account payment split; kashi replays that onto
+// already-synced sale's per-account payment split; central replays that onto
 // its branch_invoices copy so the admin view of who-paid-with-what never
 // goes stale.
 //
 // SettlementRef is a fresh uuid per edit — each change is its own event,
 // deduplicated on retry via (branch_id, client_ref), NOT collapsed with the
 // previous settlement of the same sale. SaleClientRef is the sale's stable
-// invoice_client_ref (see getOrCreateInvoiceClientRef), the key kashi uses
+// invoice_client_ref (see getOrCreateInvoiceClientRef), the key central uses
 // to find the branch invoice to update.
 type branchSettlementPayload struct {
 	SettlementRef string                        `json:"settlement_ref"`
@@ -476,13 +476,13 @@ func queueSettlementChange(ctx context.Context, q *db.Queries, centralAPIURL str
 	})
 }
 
-// branchShiftClosePayload is the exact JSON body POSTed to kashi's
-// /branch/shift_closes (see api/branch_shift.go in the kashi repo —
+// branchShiftClosePayload is the exact JSON body POSTed to central's
+// /branch/shift_closes (see api/branch_shift.go in the central repo —
 // branchShiftCloseRequest there must stay in sync with this shape).
 // BranchShiftID is this install's own local shifts.id, meaningless to
-// kashi's schema — stored as opaque traceability data, not a foreign key,
+// central's schema — stored as opaque traceability data, not a foreign key,
 // same reasoning as branchInvoicePayload. Expected/counted amounts are the
-// exact values printed on the close-shift receipt; kashi derives each
+// exact values printed on the close-shift receipt; central derives each
 // variance itself (counted − expected) rather than trusting a reported one.
 type branchShiftClosePayload struct {
 	ShiftRef          string    `json:"shift_ref"`
@@ -500,7 +500,7 @@ type branchShiftClosePayload struct {
 	CountedLbp        int64     `json:"counted_lbp"`
 	CountedVisa       int64     `json:"counted_visa"`
 	CountedWhish      int64     `json:"counted_whish"`
-	// LbpRate is LBP per USD at close; 0 (a backfilled shift) lets kashi
+	// LbpRate is LBP per USD at close; 0 (a backfilled shift) lets central
 	// apply the rate every till used before this field existed.
 	LbpRate    int64     `json:"lbp_rate"`
 	OccurredAt time.Time `json:"occurred_at"`
@@ -509,7 +509,7 @@ type branchShiftClosePayload struct {
 // queueBranchShiftCloseSync is queueBranchInvoiceSync's counterpart for a
 // shift close. ShiftRef is derived from the local shift id by the caller
 // ("shift-<id>"): a shift closes exactly once, so that stable ref is all
-// the idempotency kashi needs.
+// the idempotency central needs.
 func queueBranchShiftCloseSync(ctx context.Context, q *db.Queries, centralAPIURL string, payload branchShiftClosePayload) error {
 	if centralAPIURL == "" {
 		return nil
@@ -528,13 +528,13 @@ func queueBranchShiftCloseSync(ctx context.Context, q *db.Queries, centralAPIURL
 	return err
 }
 
-// branchVisitorEventPayload is the exact JSON body POSTed to kashi's
-// /branch/visitor_events (see api/branch_visitor.go in the kashi repo --
+// branchVisitorEventPayload is the exact JSON body POSTed to central's
+// /branch/visitor_events (see api/branch_visitor.go in the central repo --
 // branchVisitorEventRequest there must stay in sync with this shape). One
 // press of the nav-drawer counter = one payload = one outbox row. Ref is
-// the visitor_events.client_ref uuid; kashi dedupes on (branch_id, ref).
+// the visitor_events.client_ref uuid; central dedupes on (branch_id, ref).
 // Direction is "in" (▲) or "out" (▼). Day is the local "YYYY-MM-DD" the
-// press was bucketed under, sent so kashi's per-day rollup matches the
+// press was bucketed under, sent so central's per-day rollup matches the
 // till's own without re-deriving it from a timezone-shifted occurred_at.
 type branchVisitorEventPayload struct {
 	Ref        string    `json:"ref"`
@@ -543,12 +543,12 @@ type branchVisitorEventPayload struct {
 	OccurredAt time.Time `json:"occurred_at"`
 }
 
-// branchVisitorEventsPayload is the batched body POSTed to kashi's
+// branchVisitorEventsPayload is the batched body POSTed to central's
 // /branch/visitor_events_batch. The write path still queues one
 // visitor_event outbox row per press (so the local log stays exact); the
 // sync worker coalesces whatever visitor_event rows are due in one drain
 // into a single payload of this shape, so a burst of counter presses is
-// one HTTP round trip instead of one per press. kashi dedupes each element
+// one HTTP round trip instead of one per press. Central dedupes each element
 // on (branch_id, ref), so replaying the whole batch is row-level idempotent.
 type branchVisitorEventsPayload struct {
 	Events []branchVisitorEventPayload `json:"events"`
@@ -590,22 +590,22 @@ type branchAttendanceEvent struct {
 	Type             string `json:"type"`
 	Status           string `json:"status"`
 	// Set on a punch an approved attendance change created: who approved it
-	// and what it was, so kashi shows it as changed, not as a device punch.
+	// and what it was, so central shows it as changed, not as a device punch.
 	ChangedBy  string `json:"changed_by,omitempty"`
 	ChangeNote string `json:"change_note,omitempty"`
 }
 
-// branchAttendanceEventsPayload is the exact JSON body POSTed to kashi's
+// branchAttendanceEventsPayload is the exact JSON body POSTed to central's
 // /branch/attendance_events (see api/branch_attendance.go). A single sync
 // run's newly-imported punches are batched into one payload — one outbox
 // row, one POST — so a first-time backfill of a busy device can't flood the
-// outbox. kashi upserts each row on (branch_id, ref), so replaying the
+// outbox. Central upserts each row on (branch_id, ref), so replaying the
 // whole batch is still row-level idempotent.
 type branchAttendanceEventsPayload struct {
 	Events []branchAttendanceEvent `json:"events"`
 }
 
-// branchAttendanceChangePayload is the exact JSON body POSTed to kashi's
+// branchAttendanceChangePayload is the exact JSON body POSTed to central's
 // /branch/attendance_changes (see api/branch_attendance.go). It covers both
 // a cashier-filed change request ("complaint") and a manager's review of
 // one ("approval", carrying the approved/rejected Status and the resulting
@@ -627,7 +627,7 @@ type branchAttendanceChangePayload struct {
 	OccurredAt      time.Time `json:"occurred_at"`
 	// On an approved replace/delete: the punch it took away here
 	// ("<device_id>|<event_id>", the same ref it was uploaded under), so
-	// kashi removes its copy too.
+	// Central removes its copy too.
 	OriginalEventRef string `json:"original_event_ref,omitempty"`
 }
 

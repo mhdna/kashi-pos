@@ -321,7 +321,7 @@ const saving = ref(false);
 const deleting = ref(false);
 const reactivating = ref(false);
 // Client removal/reactivation is only possible in standalone mode; while
-// connected, kashi owns it (see standalone.go).
+// connected, central owns it (see standalone.go).
 const standalone = ref(false);
 IsStandaloneMode()
   .then((value) => (standalone.value = value))

@@ -146,7 +146,7 @@ func TestExecuteUpdateSettingsCommand_WidenedFields(t *testing.T) {
 		t.Errorf("omitted attendance fields changed: pw=%q dup=%d", pw, dup)
 	}
 
-	// 3. kashi's per-register printer push carries nothing else: every
+	// 3. central's per-register printer push carries nothing else: every
 	// branch-wide value must survive it.
 	applyRaw := func(raw string) error {
 		t.Helper()

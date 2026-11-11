@@ -8,7 +8,7 @@ import (
 // A receipt look is a theme (fonts, rules, header, total block, footer) plus
 // one of that theme's layouts (how the item lines are arranged). Both are
 // stored as short ids in settings (receipt_theme / receipt_layout) and synced
-// with kashi. The raster renderer (escpos_raster.go) is the only consumer.
+// with central. The raster renderer (escpos_raster.go) is the only consumer.
 //
 // The default is the original look, theme "classic" with layout "A" (the four
 // column ITEM / QTY / DISC / TOTAL table). Unknown ids fall back to it so a
@@ -254,7 +254,7 @@ func normalizeReceiptLook(themeID, layoutID string) (string, string) {
 }
 
 // receiptThemeInfo is the catalog as JSON for the settings pages and for the
-// preview generator that feeds kashi.
+// preview generator that feeds central.
 type receiptThemeInfo struct {
 	ID          string              `json:"id"`
 	Name        string              `json:"name"`

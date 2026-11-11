@@ -17,7 +17,7 @@ RETURNING *;
 -- name: UpsertSyncedCoupon :exec
 -- The caller (applySyncedCoupon) checks redeemed_invoice_id first and
 -- skips calling this at all for a coupon this till already redeemed
--- itself -- nothing kashi reports should walk that back. discount_type/
+-- itself -- nothing central reports should walk that back. discount_type/
 -- reason are left NULL on a fresh insert, same as any other
 -- centrally-authored coupon (see the coupons table's own comment).
 INSERT INTO coupons (code, status, type_id, value_cents, valid_until)
@@ -57,9 +57,9 @@ SELECT * FROM transfer_requests WHERE direction = 'outgoing' ORDER BY created_at
 SELECT * FROM transfer_requests WHERE direction = 'incoming' ORDER BY created_at DESC;
 
 -- name: SetTransferRequestStatus :exec
--- Applied from the transfer_requests down-sync: kashi's status is
+-- Applied from the transfer_requests down-sync: central's status is
 -- authoritative the moment it's synced (see approveTransfer/
--- notifyBranchTransferDecision in the kashi repo).
+-- notifyBranchTransferDecision in the central repo).
 UPDATE transfer_requests SET status = ?, updated_at = datetime('now') WHERE client_ref = ?;
 
 -- name: GetTransferRequestByCentralID :one
@@ -91,7 +91,7 @@ UPDATE transfer_request_items SET received_quantity = ? WHERE id = ?;
 
 -- ---------------------------------------------------------------------------
 -- Cross-branch stock visibility -- a pure mirror, upserted whole by
--- (branch_code, variant_uid) from kashi's branch_stock feed. Search joins
+-- (branch_code, variant_uid) from central's branch_stock feed. Search joins
 -- against the local products table (matched by uid) for a display name;
 -- a stock row for a variant this till hasn't itself pulled down yet still
 -- shows (barcode only) rather than being hidden.
@@ -127,7 +127,7 @@ SELECT * FROM branch_stock WHERE branch_code = ? AND variant_uid = ?;
 SELECT COUNT(*) FROM branch_stock WHERE branch_code = ?;
 
 -- name: SumProductSoldNotOnCentral :one
--- Units of one product this till sold that kashi's stock figure (fetched
+-- Units of one product this till sold that central's stock figure (fetched
 -- as of `as_of`) doesn't reflect yet: sales still queued, rejected, or
 -- delivered after as_of.
 SELECT COALESCE(SUM(ip.quantity), 0)

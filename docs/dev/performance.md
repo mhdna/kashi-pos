@@ -74,7 +74,7 @@ changed: that decision waits for measurements on an old PC.
 - **Off by default on every build** (`lib/animationsDefault.ts`). Before v1.1.82
   the standard build defaulted to on, so the first start of v1.1.82 switches every
   till off **once** (marker `kashi-animations-reset-v1` in `localStorage`). After
-  that a switch-on in Settings, or a push from kashi, is kept.
+  that a switch-on in Settings, or a push from central, is kept.
 - `styles/settings.scss` already kills **every** transition and animation with
   `!important`, whatever the switch says. So "animations on" only brings back the
   few things that escape that rule on purpose.
@@ -91,7 +91,7 @@ changed: that decision waits for measurements on an old PC.
   unlayered `!important`. That is why the spinner rules inside `ui.css` beat the
   global kill in `settings.scss`, and why an unlayered override can't turn them
   off again. Remove the `!important` or edit the layered rule itself.
-- kashi's branch settings form defaults animations to **off** now too
+- central's branch settings form defaults animations to **off** now too
   (`~/Code/kashi`, `branch-settings.vue`). The tri-state "Leave as is" in the
   default-branch settings is unchanged.
 
@@ -270,7 +270,7 @@ Everything here runs while the till is "idle", on the same slow CPU as the UI.
 | Sync worker (`sync_worker.go`) | 15 s, plus backstop and failed-retry timers | Outbox push and pulls. Stops at the first network error rather than backing off per row. |
 | Cash machine sweep (`cash_machine_windows.go`) | 30 s | Only in cash machine mode. |
 | Updater (`updater.go`) | check + idle tickers | Update checks. |
-| Sync WebSocket (`sync_ws.go`) | ping + config re-check tickers | Live pushes from kashi. |
+| Sync WebSocket (`sync_ws.go`) | ping + config re-check tickers | Live pushes from central. |
 | WhatsApp retry (`whatsapp.go`) | retry ticker | Only when messages are pending. |
 | Frontend `setInterval`s | various | `attendance.vue` 60 s while open; `transfers.vue` and `PhotoUploadDialog` poll while open; `CloseShiftCard` ticks a clock and polls receipts while open. They stop when the page closes; check that a new one does too. |
 

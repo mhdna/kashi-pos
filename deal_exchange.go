@@ -38,7 +38,7 @@ import (
 //
 // The amounts ride on the exchange's own lines -- swap credit on the returned
 // reward unit's line, a charge back off the returned lines' credit -- so the
-// lines still add up to the invoice, for the receipt and for kashi.
+// lines still add up to the invoice, for the receipt and for central.
 
 // dealExchangeLine is a returned unit's place in its sale's deal.
 type dealExchangeLine struct {
@@ -350,7 +350,7 @@ func dealAdjustmentNotes(adjustments []exchangeDealAdjustment) string {
 	return strings.Join(lines, "\n")
 }
 
-// dealNameOf is a sale's deal by name, for the exchange sent to kashi.
+// dealNameOf is a sale's deal by name, for the exchange sent to central.
 func dealNameOf(saleID int64, uid string, q *db.Queries, a *App) string {
 	if uid == "" {
 		return ""

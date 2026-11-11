@@ -1,13 +1,13 @@
-# Kashi Product Importer
+# Central Product Importer
 
-A small Windows desktop app for batch-inserting products into a Kashi POS
+A small Windows desktop app for batch-inserting products into a Central POS
 SQLite database from a CSV file. Built with [Wails](https://wails.io) (Go +
 a plain HTML/JS frontend, no Node build step required).
 
 ## Usage
 
 1. Launch `kashi-product-importer.exe`.
-2. **Choose database file…** and pick the Kashi `database` SQLite file you
+2. **Choose database file…** and pick the Central `database` SQLite file you
    want to add products to. The Brand, Family, Kind, Season, Color and Size
    fields then suggest the values already used in that database.
 3. Fill in the product (Name, Code and Price are required; leave Barcode
@@ -20,7 +20,7 @@ a plain HTML/JS frontend, no Node build step required).
 Prices are stored in cents. On databases with price lists (POS builds from
 2026-09-28 on), the till sells only at list prices, so each product's price
 is also added to the active default price list, and a discount to the
-default discount list. On a till connected to kashi, kashi's next
+default discount list. On a till connected to central, central's next
 price-list sync replaces that list and removes these prices.
 
 Databases from POS versions before 0.8 are not supported.

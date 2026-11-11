@@ -82,7 +82,7 @@ func TestStandaloneDeleteDeactivatesReferencedRows(t *testing.T) {
 	}
 }
 
-// While connected, kashi owns products and client removal.
+// While connected, central owns products and client removal.
 func TestConnectedModeRefusesLocalCatalogEdits(t *testing.T) {
 	app, _, _, client := setUpTestInvoiceApp(t, "http://kashi.invalid")
 

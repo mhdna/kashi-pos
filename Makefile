@@ -7,10 +7,10 @@ dev-docs:
 generate:
 	sqlc generate
 
-# Receipt look previews for kashi's settings pages. kashi cannot run this
+# Receipt look previews for central's settings pages. Central cannot run this
 # renderer, so its UI ships the images and a catalog generated from it (see
 # TestGenerateReceiptPreviews). Rerun whenever a theme or layout changes, then
-# commit the result in kashi.
+# commit the result in central.
 KASHI_UI ?= ../kashi/ui
 receipt-previews:
 	rm -rf .receipt-previews && mkdir -p .receipt-previews
@@ -111,14 +111,14 @@ export KASHI_URL KASHI_USER
 # Remote updates (updater.go). update-keygen runs once: it creates the
 # release-signing key in ~/.config/gb-cloud/ (back it up) and writes its
 # public half into internal/updatekey -- commit that. publish builds the
-# Windows app at the latest tag's version, signs it and uploads it to kashi;
-# choose which tills get it on kashi's App Updates page. It needs KASHI_URL
+# Windows app at the latest tag's version, signs it and uploads it to central;
+# choose which tills get it on central's App Updates page. It needs KASHI_URL
 # (the tills' central URL) and KASHI_USER; the password is asked for once and
 # saved to the macOS Keychain (asked again if it changes).
 # publish-all (and publish-compact-all) also sets every active till of that
 # build to the new release, so the ones online update right away.
 # Without NOTES, the notes are written from the feat/fix/perf commits since the
-# build kashi last published for that flavor ("New: …", "Fixed: …").
+# build central last published for that flavor ("New: …", "Fixed: …").
 #   git tag v1.2.3 && make publish
 #   git tag v1.2.3 && make publish-all NOTES="what changed"
 # publish-all-force (and publish-compact-all-force) also makes them install it

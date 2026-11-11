@@ -12,7 +12,7 @@ ON CONFLICT(id) DO UPDATE SET
     end_date = excluded.end_date;
 
 -- name: DeleteCalendarEventsNotIn :exec
--- kashi sends its whole set, so an event it no longer lists is one it deleted.
+-- Central sends its whole set, so an event it no longer lists is one it deleted.
 DELETE FROM calendar_events WHERE id NOT IN (sqlc.slice('ids'));
 
 -- name: GetCalendarSettings :one

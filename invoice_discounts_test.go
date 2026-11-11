@@ -65,7 +65,7 @@ func TestSpreadInvoiceDiscount(t *testing.T) {
 }
 
 // A $150-or-more sale gets 15% off on top of its deal, the lines carry their
-// shares, kashi is told, and a returned line is refunded what it was paid.
+// shares, central is told, and a returned line is refunded what it was paid.
 func TestCheckoutWithInvoiceDiscount(t *testing.T) {
 	ctx := context.Background()
 	shop := setUpDealShop(t)
@@ -128,7 +128,7 @@ func TestCheckoutWithInvoiceDiscount(t *testing.T) {
 		t.Fatalf("refund = %d, want -8500", got)
 	}
 
-	// kashi takes the rule away: the till drops it.
+	// Central takes the rule away: the till drops it.
 	if err := applySyncedInvoiceDiscount(ctx, shop.store.Queries, syncedInvoiceDiscount{UID: "inv-15", Applies: false}); err != nil {
 		t.Fatal(err)
 	}

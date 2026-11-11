@@ -29,7 +29,7 @@ SELECT * FROM products WHERE name LIKE ? ORDER BY id;
 -- search_pattern must already be wrapped in '%...%' by the caller.
 --
 -- Inactive products are excluded, matching ListProductsAfter below: a product
--- is deactivated because kashi retired it (DeactivateProductsByBarcode, driven
+-- is deactivated because central retired it (DeactivateProductsByBarcode, driven
 -- by the full-mirror check), so offering it in a search only lets a cashier
 -- put something unsellable in the cart.
 SELECT * FROM products
@@ -168,7 +168,7 @@ SELECT * FROM products WHERE uid = ?;
 UPDATE products SET uid = ? WHERE id = ?;
 
 -- name: SetProductBarcodeInactive :exec
--- Frees a barcode held by a stale local-only product so kashi's product
+-- Frees a barcode held by a stale local-only product so central's product
 -- with that barcode can take it; the stale row keeps its history.
 UPDATE products SET barcode = ?, is_active = 0 WHERE id = ?;
 
@@ -295,5 +295,5 @@ WHERE s.code_text LIKE sqlc.arg(search_pattern)
   AND p.barcode != 'UNKNOWN';
 
 -- name: SetProductVariantPick :exec
--- kashi's per-item "pick colour/size on scan" override: '', 'always', 'never'.
+-- central's per-item "pick colour/size on scan" override: '', 'always', 'never'.
 UPDATE products SET variant_pick = ? WHERE id = ?;

@@ -343,8 +343,8 @@ const items = computed(() => {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  margin: 0 6px 8px;
-  padding: 4px 0 6px;
+  margin: 0 6px 4px;
+  padding: 4px 0 5px;
   background: #000;
   border-radius: 8px;
   cursor: pointer;
@@ -498,9 +498,9 @@ const items = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  margin: 6px 8px;
-  padding: 8px 0;
+  gap: 10px;
+  margin: 2px 8px;
+  padding: 2px 0;
   color: #ffffff;
 }
 

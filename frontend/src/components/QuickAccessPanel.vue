@@ -20,7 +20,7 @@
     </div>
     <div v-if="open" class="quick-access__body" :style="{ height: `${bodyHeight}px` }">
       <div v-if="!items.length" class="text-caption text-medium-emphasis text-center pa-2">
-        {{ managedByKashi ? "No Quick Access cards set in kashi for this branch yet." : "Add frequently used items here." }}
+        {{ managedByKashi ? "No Quick Access cards set in central for this branch yet." : "Add frequently used items here." }}
       </div>
       <div ref="itemsEl" class="quick-access__items" :class="{ 'quick-access__items--dragging': dragIndex !== null }">
         <k-card
@@ -155,7 +155,7 @@ watch(
   { deep: true },
 );
 
-// Prices and products pushed from kashi update the cards in place, instead of
+// Prices and products pushed from central update the cards in place, instead of
 // waiting for the panel to be reopened. Skipped mid-drag so a reload can't
 // yank a card out from under the cashier's finger.
 let stopSyncListeners: (() => void)[] = [];
@@ -206,7 +206,7 @@ watch(
 );
 onBeforeUnmount(() => rowObserver.disconnect());
 
-// In 'kashi' mode the cards are the branch's list from kashi: read-only here
+// In 'central' mode the cards are the branch's list from central: read-only here
 // (no add, remove or drag). See kashi-pos's sync_quick_access.go.
 const managedByKashi = ref(false);
 
@@ -274,7 +274,7 @@ let suppressClick = false;
 let sourceEl: HTMLElement | null = null;
 
 function onPointerDown(index: number, event: PointerEvent) {
-  if (managedByKashi.value) return; // kashi's order; taps still go to onCardClick
+  if (managedByKashi.value) return; // central's order; taps still go to onCardClick
   if ((event.target as HTMLElement).closest(".quick-access__remove")) return;
   if (event.pointerType === "mouse" && event.button !== 0) return;
 

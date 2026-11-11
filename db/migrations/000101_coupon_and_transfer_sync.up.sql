@@ -1,4 +1,4 @@
--- Coupons become centrally managed: kashi (see its 000099 migration) mints
+-- Coupons become centrally managed: central (see its 000099 migration) mints
 -- coupon_types and coupons and syncs them down; this till mirrors them and
 -- reports redemptions back up through the existing invoice outbox. See
 -- sync_pull_coupons.go for the apply side.
@@ -15,14 +15,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_coupon_types_central_id
 -- coupons.status has only ever been 'active'/'inactive' locally (redemption
 -- sets 'inactive' + redeemed_invoice_id, see client.sql's RedeemCoupon).
 -- 'redeemed' is a third, distinct value this till only ever receives from
--- kashi -- it never writes it itself -- reported when the code was spent at
+-- central -- it never writes it itself -- reported when the code was spent at
 -- a *different* branch. SQLite can't ALTER a CHECK constraint in place, so
 -- the table is rebuilt, same approach as 000040's invoice_coupon_payments.
 -- Every existing column is carried over (there is no local category_id --
--- that's a kashi-only concept, coupon categories never leave kashi, same
+-- that's a kashi-only concept, coupon categories never leave central, same
 -- as expense/loan categories). discount_type/reason lose their NOT NULL --
 -- still populated by the local one-off CreateCoupon/CreateValueCoupon
--- flow, but a coupon that arrives via central sync has neither (kashi's
+-- flow, but a coupon that arrives via central sync has neither (central's
 -- own coupons table dropped both columns entirely -- see its 000099
 -- migration -- once value_cents/type_id existed to replace them), and
 -- SQLite's CHECK is satisfied vacuously by NULL either way.
@@ -48,9 +48,9 @@ ALTER TABLE coupons_new RENAME TO coupons;
 
 CREATE INDEX IF NOT EXISTS idx_coupons_type ON coupons(type_id);
 
--- Mirror of kashi's branches -- populated by the branches down-sync feed,
+-- Mirror of central's branches -- populated by the branches down-sync feed,
 -- purely to give a till a destination picker for a transfer request. See
--- ListBranchesForSync in the kashi repo.
+-- ListBranchesForSync in the central repo.
 CREATE TABLE IF NOT EXISTS synced_branches (
     code text primary key,
     name text not null,
@@ -58,14 +58,14 @@ CREATE TABLE IF NOT EXISTS synced_branches (
 );
 
 -- A transfer this till proposed out of its own store inventory. Mirrors
--- kashi's transfers/transfer_items (see its 000099 migration) just enough
+-- central's transfers/transfer_items (see its 000099 migration) just enough
 -- to stage, queue, and track one: status starts 'requested' and is
 -- overwritten wholesale by whatever the transfer_requests down-sync last
--- reported (kashi is authoritative for status the moment it's synced).
+-- reported (central is authoritative for status the moment it's synced).
 --
 -- No attachment_path here: a transfer's photo, like a close-shift
--- receipt or an expense receipt, is uploaded straight to kashi from a
--- phone that scanned a QR (see api/transfer_upload.go in the kashi
+-- receipt or an expense receipt, is uploaded straight to central from a
+-- phone that scanned a QR (see api/transfer_upload.go in the central
 -- repo) -- it never lands on this till's own disk, so there's nothing
 -- local to track beyond the transient "has it landed yet" the QR dialog
 -- polls for live (branchTransferUploadStatus).

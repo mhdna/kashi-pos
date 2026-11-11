@@ -14,7 +14,7 @@ import { EventsOn } from "../../wailsjs/runtime/runtime";
  * the DB.
  *
  * `settings_changed` fires whenever a feature flag changes - including a
- * remote `update_settings` push from kashi - so a running till re-reads the
+ * remote `update_settings` push from central - so a running till re-reads the
  * flag live instead of only on restart.
  */
 const enabled = ref(false);

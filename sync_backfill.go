@@ -15,15 +15,15 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// fullSyncHeartbeatInterval is how often ResyncAll renews kashi's
-// "this branch is syncing" lease, well inside kashi's 2-minute TTL.
+// fullSyncHeartbeatInterval is how often ResyncAll renews central's
+// "this branch is syncing" lease, well inside central's 2-minute TTL.
 const fullSyncHeartbeatInterval = 30 * time.Second
 
 // ResyncOptions controls one "sync everything now" run.
 type ResyncOptions struct {
 	// ApplyStock pushes backfilled invoices as normal sales that move
-	// central stock, instead of as historical records that don't. Only
-	// correct when kashi's inventory was seeded before the oldest local
+	// Central stock, instead of as historical records that don't. Only
+	// correct when central's inventory was seeded before the oldest local
 	// sale -- off by default.
 	ApplyStock bool `json:"applyStock"`
 	// DryRun reports what would be queued/deactivated without writing
@@ -38,7 +38,7 @@ type ResyncOptions struct {
 }
 
 // ResyncEntityReport is one row of a ResyncReport: how many of this entity
-// exist locally, how many kashi already had, how many were missing, and how
+// exist locally, how many central already had, how many were missing, and how
 // many this run queued (0 on a dry run).
 type ResyncEntityReport struct {
 	Entity  string `json:"entity"`
@@ -49,12 +49,12 @@ type ResyncEntityReport struct {
 }
 
 // PendingDeactivation lists the local-only products a run found -- present
-// here, no longer known to kashi -- that would be deactivated. Sent back
+// here, no longer known to central -- that would be deactivated. Sent back
 // instead of being acted on when this is the first time a run has found any
 // and the operator hasn't yet confirmed full-mirror mode.
 //
-// Clients are deliberately not here: kashi can't delete a client a branch is
-// linked to, so "kashi doesn't have this phone" only ever meant the phone
+// Clients are deliberately not here: central can't delete a client a branch is
+// linked to, so "Central doesn't have this phone" only ever meant the phone
 // differed (trimmed, synthetic, or edited centrally). Clients now converge by
 // uid through the pull instead, including their active flag.
 type PendingDeactivation struct {
@@ -84,16 +84,16 @@ type ResyncReport struct {
 // currently pointed at, in both directions: it pulls master data down from
 // scratch (products/clients/etc, matched and merged by barcode/phone -- see
 // applySyncedProductVariant and applySyncedClient), deactivates any local
-// product or client kashi no longer has (see the deactivation step below),
+// product or client central no longer has (see the deactivation step below),
 // then pushes up every local client and invoice the server is missing
 // (asking it first, via reconcile, rather than blindly re-sending), and
 // re-arms any other outbox rows that a *previous* central server had
 // accepted. Safe to re-run and safe to run right after changing the central
 // URL -- that's its point.
 //
-// Products are never pushed up: kashi is the sole source of product data
+// Products are never pushed up: central is the sole source of product data
 // now (a central product carries colours/sizes/categories the flat POS row
-// can't fully supply), so a product only ever flows kashi -> branch, never
+// can't fully supply), so a product only ever flows central -> branch, never
 // the other way.
 func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	if a.store == nil {
@@ -119,15 +119,15 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 		return ResyncReport{}, fmt.Errorf("load settings: %w", err)
 	}
 	if settings.CentralApiUrl == "" {
-		return ResyncReport{}, fmt.Errorf("central sync is not configured -- set the server URL and API key first")
+		return ResyncReport{}, fmt.Errorf("Central sync is not configured -- set the server URL and API key first")
 	}
 	client := newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
 	if !client.enabled() {
-		return ResyncReport{}, fmt.Errorf("central sync is not fully configured (URL, branch code and API key are all required)")
+		return ResyncReport{}, fmt.Errorf("Central sync is not fully configured (URL, branch code and API key are all required)")
 	}
 
 	if !opts.DryRun {
-		// kashi treats start as a 2-minute lease (so a run that dies without
+		// Central treats start as a 2-minute lease (so a run that dies without
 		// sending end stops showing as syncing on its own); re-sending start
 		// every 30s keeps a long run marked for as long as it lasts.
 		if err := client.FullSyncStart(ctx); err != nil {
@@ -177,9 +177,9 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	//    and a missing sync_cursors row means "everything", which is the
 	//    brand-new-till story.
 	if !opts.DryRun {
-		// 0. Adopt kashi's uid for every client this branch had linked, so
+		// 0. Adopt central's uid for every client this branch had linked, so
 		//    the pull below matches them by uid, not by a phone that may
-		//    differ. A kashi without the route (older deploy) just skips it.
+		//    differ. A central without the route (older deploy) just skips it.
 		if _, err := a.adoptBranchClientUIDs(ctx, client); err != nil {
 			log.Printf("resync: adopt client uids: %v", err)
 		}
@@ -197,9 +197,9 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 		a.runSyncPullLocked(ctx, client)
 	}
 
-	// 1.5 Deactivation: anything left over locally that kashi no longer has.
+	// 1.5 Deactivation: anything left over locally that central no longer has.
 	//     Products are cloud-only-creation now, so a local-only barcode is
-	//     stale by definition; a client, once known to kashi, is expected to
+	//     stale by definition; a client, once known to central, is expected to
 	//     stay known there. Soft-deletes (is_active = 0), never a hard
 	//     delete, so historical invoices/shift reports keep resolving.
 	pending, err := a.computeDeactivationCandidates(ctx, client)
@@ -216,7 +216,7 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 		// First time this branch has anything to deactivate, and the
 		// operator hasn't confirmed full-mirror mode yet: report what
 		// would happen and stop here. The pull above has already applied
-		// kashi's data (idempotent, harmless to repeat); none of the
+		// central's data (idempotent, harmless to repeat); none of the
 		// push-up steps below have run yet.
 		report.RequiresConfirmation = true
 		report.PendingDeactivation = &pending
@@ -253,7 +253,7 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 	}
 	report.Entities = append(report.Entities, invRep)
 
-	// Products are never pushed up -- kashi owns the catalog and the branch
+	// Products are never pushed up -- central owns the catalog and the branch
 	// only ever pulls it down (step 1 above). No product up-sync, no
 	// unknown-product conflicts.
 
@@ -304,7 +304,7 @@ func (a *App) ResyncAll(opts ResyncOptions) (ResyncReport, error) {
 
 	// 5b. Completeness check: fetch anything the cursor pull missed and,
 	//     now that full-mirror mode may just have been confirmed, deactivate
-	//     local products kashi doesn't have. Best-effort -- an older kashi
+	//     local products central doesn't have. Best-effort -- an older central
 	//     without the routes must not fail the whole run.
 	if !opts.DryRun {
 		fc, err := a.runFullCheckLocked(ctx, client)
@@ -389,10 +389,10 @@ func (a *App) resyncClients(ctx context.Context, client *centralClient, opts Res
 	return rep, nil
 }
 
-// computeDeactivationCandidates asks kashi, by barcode, which currently-active
-// local products it no longer has. Barcode is globally unique in kashi, so a
+// computeDeactivationCandidates asks central, by barcode, which currently-active
+// local products it no longer has. Barcode is globally unique in central, so a
 // "missing" result really does mean the product is gone centrally -- see
-// branchReconcile's "products" case in kashi's api/branch_catchup.go.
+// branchReconcile's "products" case in central's api/branch_catchup.go.
 // Already-deactivated rows are excluded (ListActiveProducts) so a settled
 // catalog doesn't keep re-asking about the same barcodes every run.
 func (a *App) computeDeactivationCandidates(ctx context.Context, client *centralClient) (PendingDeactivation, error) {
@@ -404,7 +404,7 @@ func (a *App) computeDeactivationCandidates(ctx context.Context, client *central
 	}
 	barcodes := make([]string, 0, len(products))
 	productNameByBarcode := make(map[string]string, len(products))
-	// The "Unknown item" placeholder is the till's own, never kashi's:
+	// The "Unknown item" placeholder is the till's own, never central's:
 	// deactivating it would take it off the sale screen.
 	unknown := a.unknownBarcode()
 	for _, p := range products {
@@ -640,7 +640,7 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 		}
 		payload.RelatedClientRef = relatedRef
 		// The cancellation return carries the mark; a cancelled sale itself
-		// is just a sale -- kashi derives its mark from the return.
+		// is just a sale -- central derives its mark from the return.
 		payload.Cancellation = inv.CancelledAt.Valid
 	}
 	return payload, nil
@@ -866,12 +866,12 @@ func (a *App) resyncShiftCloses(ctx context.Context, client *centralClient, opts
 // visitorCountBackfill covers days counted before the till logged one
 // visitor_events row per press (those started in late September 2026):
 // such a day has a tally in visitor_counts but fewer logged presses than
-// the tally, and only the presses ever reach kashi. For each day it returns
-// one synthetic "in" per missing visit, so kashi's footfall matches the
+// the tally, and only the presses ever reach central. For each day it returns
+// one synthetic "in" per missing visit, so central's footfall matches the
 // number the till shows. Refs are fixed ("count-backfill|<day>|<n>"), so a
-// second resync finds them already in kashi instead of doubling them. The
+// second resync finds them already in central instead of doubling them. The
 // real press times are unknown; they're stamped at the tally's last update,
-// so kashi's hourly view puts those days in one hour while day and month
+// so central's hourly view puts those days in one hour while day and month
 // totals are right.
 func visitorCountBackfill(events []db.ListAllVisitorEventsRow, counts []db.VisitorCount) []db.ListAllVisitorEventsRow {
 	net := make(map[string]int64, len(counts))
@@ -972,7 +972,7 @@ func (a *App) resyncAttendanceEvents(ctx context.Context, client *centralClient,
 	}
 
 	// One batch payload / one outbox row for all missing punches, same as
-	// the live device-import path; kashi upserts each row on (branch_id, ref).
+	// the live device-import path; central upserts each row on (branch_id, ref).
 	events := make([]branchAttendanceEvent, 0, len(missing))
 	for _, ref := range missing {
 		e := byRef[ref]
@@ -1128,7 +1128,7 @@ func (a *App) resyncTx(ctx context.Context, fn func(*db.Queries) error) error {
 // exchanges), retried on a transient lock. busy_timeout already waits 5s for
 // the write lock, but a long sync write -- a first pull of a big catalog, or
 // the whole Default price list being rewritten after one price changed in
-// kashi -- can outlast that on a slow till, and the cashier saw "database is
+// central -- can outlast that on a slow till, and the cashier saw "database is
 // locked" with the sale lost. fn must be safe to run again from scratch: a
 // failed attempt is rolled back, so only state fn builds inside itself, or
 // overwrites wholesale, may cross attempts.

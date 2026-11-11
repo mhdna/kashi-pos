@@ -15,8 +15,8 @@ import (
 // lets go of a modifier Windows holds that no keyboard on the till holds.
 //
 // On until turned off on the till's Settings page. Deliberately a till-only
-// setting that kashi neither sees nor pushes: meant for our own tills, not
-// something to offer customers (noted in kashi's roadmap, M9).
+// setting that central neither sees nor pushes: meant for our own tills, not
+// something to offer customers (noted in central's roadmap, M9).
 const releaseStuckKeysFlag = "release_stuck_keys"
 
 // stuckKeysLeftAlone is the setting turned off, for the device listener,

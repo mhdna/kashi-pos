@@ -6,7 +6,7 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// Price lists are read-only here. kashi owns them: it decides what exists,
+// Price lists are read-only here. Central owns them: it decides what exists,
 // what a product costs and which list this branch prices from, and the sync
 // mirrors that down (applySyncedPriceList). The create/update/activate and
 // per-item editing methods this file used to expose are gone, along with the

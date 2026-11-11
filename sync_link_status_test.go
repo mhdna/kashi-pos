@@ -41,13 +41,13 @@ func TestLinkKashiResultTracksReachability(t *testing.T) {
 		t.Fatalf("after an answer: %+v", s)
 	}
 	if s.Internet != "up" {
-		t.Fatalf("an answer from kashi proves the internet, got %q", s.Internet)
+		t.Fatalf("an answer from central proves the internet, got %q", s.Internet)
 	}
 
-	// The caller giving up says nothing about kashi.
+	// The caller giving up says nothing about central.
 	l.kashiResult(context.Canceled)
 	if l.snapshot().Kashi != "up" {
-		t.Fatal("a cancelled request must not mark kashi down")
+		t.Fatal("a cancelled request must not mark central down")
 	}
 }
 
@@ -125,7 +125,7 @@ func TestLinkActivity(t *testing.T) {
 	if l.snapshot().Phase != phasePulling {
 		t.Fatal("ending another phase cleared the pull")
 	}
-	l.begin(phasePushing, "Sending to kashi", 0, 4)
+	l.begin(phasePushing, "Sending to central", 0, 4)
 	l.progress(3, 4)
 	if s := l.snapshot(); s.Phase != phasePushing || s.Done != 3 || s.Detail != "" {
 		t.Fatalf("pushing: %+v (a new activity starts with no detail)", s)
@@ -196,7 +196,7 @@ func TestLinkTransportReportsEveryRequest(t *testing.T) {
 	}
 	resp.Body.Close()
 	if link.snapshot().Kashi != "up" {
-		t.Fatal("a 500 is an answer; kashi is reachable")
+		t.Fatal("a 500 is an answer; central is reachable")
 	}
 
 	server.Close()
@@ -204,12 +204,12 @@ func TestLinkTransportReportsEveryRequest(t *testing.T) {
 		t.Fatal("expected a connection error")
 	}
 	if s := link.snapshot(); s.Kashi != "down" || s.KashiError == "" {
-		t.Fatalf("a refused connection must mark kashi down: %+v", s)
+		t.Fatalf("a refused connection must mark central down: %+v", s)
 	}
 }
 
 // The live channel state follows the real websocket session: up while it is
-// connected, down once kashi goes away.
+// connected, down once central goes away.
 func TestLinkLiveFollowsTheWebsocket(t *testing.T) {
 	var (
 		mu    sync.Mutex
@@ -250,7 +250,7 @@ func TestLinkLiveFollowsTheWebsocket(t *testing.T) {
 		t.Fatalf("connected but no since: %+v", s)
 	}
 
-	// kashi drops the socket (a restart, a proxy cutting it).
+	// Central drops the socket (a restart, a proxy cutting it).
 	mu.Lock()
 	for _, c := range conns {
 		c.Close()

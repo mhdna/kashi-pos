@@ -2,13 +2,13 @@
 -- need: which central server a queued row was actually accepted by, and a
 -- one-row scratchpad for the last full reconcile.
 --
--- synced_to lets a per-invoice dot mean "kashi confirmed it, on the server
+-- synced_to lets a per-invoice dot mean "Central confirmed it, on the server
 -- we're pointed at now" -- re-pointing central_api_url at a different host
 -- leaves every historical 'synced' row stamped with the old URL, so the UI
 -- correctly drops back to "not confirmed here" until a reconcile re-checks.
 ALTER TABLE sync_outbox ADD COLUMN synced_to text NOT NULL DEFAULT '';
 
--- Permanently-rejected rows (a 4xx from kashi, or an entity_type kashi has
+-- Permanently-rejected rows (a 4xx from central, or an entity_type central has
 -- no route for) move to 'failed' instead of being retried forever and
 -- clogging the 20-row drain batch. status now goes pending -> synced or
 -- pending -> failed; a failed row is only ever retried by an explicit

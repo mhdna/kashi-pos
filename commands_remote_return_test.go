@@ -169,7 +169,7 @@ func TestExecuteRemoteReturnInvoiceCommand(t *testing.T) {
 	}
 }
 
-// An exchange from kashi takes one unit back and hands out a different
+// An exchange from central takes one unit back and hands out a different
 // variant of the same product, found by its uid. The sold variant isn't the
 // first with its code, so the return has to go by barcode to find it.
 func TestExecuteRemoteReturnInvoiceCommand_Exchange(t *testing.T) {
@@ -231,7 +231,7 @@ func TestExecuteRemoteReturnInvoiceCommand_UnknownReplacementFails(t *testing.T)
 	}
 }
 
-// kashi lists a deal sale's paid and free units as separate lines of one
+// Central lists a deal sale's paid and free units as separate lines of one
 // product and sends one item per line it shows; the till spreads each over
 // the sale's lines of that product, and never past what they hold.
 func TestExecuteRemoteReturnInvoiceCommand_DealLinesOfOneProduct(t *testing.T) {

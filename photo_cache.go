@@ -13,9 +13,9 @@ import (
 	"time"
 )
 
-// photoCache keeps this till's copies of kashi's photos (expense, loan and
+// photoCache keeps this till's copies of central's photos (expense, loan and
 // transfer photos, their thumbnails, and the lists of which photos a record
-// has) so a page shows them straight from disk instead of waiting on kashi.
+// has) so a page shows them straight from disk instead of waiting on central.
 // record_photos.go decides when to use and refresh a copy; this file only
 // stores them.
 //
@@ -30,7 +30,7 @@ import (
 // the app has to hold the key.
 //
 // It's a cache: anything wrong with a row (it won't decrypt, the file is
-// gone) is a miss, and the photo is fetched from kashi again.
+// gone) is a miss, and the photo is fetched from central again.
 type photoCache struct {
 	db       *sql.DB
 	aead     cipher.AEAD
@@ -54,8 +54,8 @@ type cachedPhoto struct {
 	Body        []byte
 	ContentType string
 	ETag        string
-	// Missing records that kashi said there's no photo, so a row without
-	// one shows its icon at once instead of asking kashi every time.
+	// Missing records that central said there's no photo, so a row without
+	// one shows its icon at once instead of asking central every time.
 	Missing   bool
 	CheckedAt time.Time
 }
@@ -194,7 +194,7 @@ func (c *photoCache) put(key, ref string, p cachedPhoto) error {
 	return nil
 }
 
-// markChecked records that kashi confirmed the copy is still current.
+// markChecked records that central confirmed the copy is still current.
 func (c *photoCache) markChecked(key string) {
 	_, _ = c.db.Exec(`UPDATE entries SET checked_at = ? WHERE key = ?`, c.now().UnixMilli(), key)
 }

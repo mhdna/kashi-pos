@@ -15,10 +15,10 @@ func (a *App) ListSalespersons() ([]map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Connected to kashi, the staff are kashi's: a salesperson made on this
-	// till before (often a spelling of someone kashi has, which the adopt-by-
+	// Connected to central, the staff are central's: a salesperson made on this
+	// till before (often a spelling of someone central has, which the adopt-by-
 	// name in applySyncedSalesperson missed) stays for its history but isn't
-	// offered any more. Until kashi has sent any, the till's own still are.
+	// offered any more. Until central has sent any, the till's own still are.
 	kashiManaged := false
 	if settings, err := a.store.GetSettings(a.ctx); err == nil && strings.TrimSpace(settings.CentralApiUrl) != "" {
 		for _, s := range list {
@@ -58,7 +58,7 @@ func (a *App) UpdateSalespersonAttendanceID(id int64, attendanceUserID string) e
 }
 
 // Creating, renaming and deleting salespersons is local-only in standalone
-// mode. Once the till is connected, kashi owns the roster (see
+// mode. Once the till is connected, central owns the roster (see
 // applySyncedSalesperson); a till-only salesperson left over from before can
 // still be deleted, but not renamed.
 func (a *App) CreateSalesperson(fullName string) (map[string]any, error) {

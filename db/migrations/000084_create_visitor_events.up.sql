@@ -1,7 +1,7 @@
 -- Append-only log of individual nav-drawer counter presses (see the
 -- `visitor_counter` feature flag and the visitor_counts table). visitor_counts
 -- stays the fast per-day read model the UI renders; this table records every
--- press as its own row so the central kashi backend can report gross
+-- press as its own row so the central central backend can report gross
 -- customers-in vs customers-out per branch, not just the clamped net tally.
 --
 -- A row is written only when the press actually moved the tally --
@@ -10,11 +10,11 @@
 -- log reconcilable with visitor_counts: sum(in) - sum(out) for a day
 -- equals that day's visitor_counts.count.
 --
--- client_ref is a uuid minted per row -- the idempotency key kashi dedupes
+-- client_ref is a uuid minted per row -- the idempotency key central dedupes
 -- on (branch_id, client_ref), exactly like a sales invoice's client_ref.
 -- Rows are kept forever regardless of the feature flag; disabling the
 -- counter only hides UI. Presses made while central sync was switched off
--- are logged here but never reach kashi (queueVisitorEventSync is a no-op
+-- are logged here but never reach central (queueVisitorEventSync is a no-op
 -- with no central_api_url), same "no retroactive backfill" behavior as
 -- invoices.
 CREATE TABLE IF NOT EXISTS visitor_events (

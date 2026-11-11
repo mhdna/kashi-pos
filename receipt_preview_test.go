@@ -11,7 +11,7 @@ import (
 )
 
 // TestGenerateReceiptPreviews writes one PNG per theme and layout, plus a
-// catalog.json describing them, into $KASHI_RECEIPT_PREVIEW_OUT. kashi's
+// catalog.json describing them, into $KASHI_RECEIPT_PREVIEW_OUT. central's
 // settings pages show these images (it cannot run this renderer), so rerun
 // it with `make receipt-previews` whenever a theme or layout changes.
 func TestGenerateReceiptPreviews(t *testing.T) {

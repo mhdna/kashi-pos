@@ -135,7 +135,7 @@ func (a *App) AdjustVisitorCountToday(delta int64) (int64, error) {
 
 	if queued {
 		// Same immediate-flush nudge every other sync-producing write path
-		// gives the worker, so a press reaches kashi in ~a tick, not ~15s.
+		// gives the worker, so a press reaches central in ~a tick, not ~15s.
 		a.kickSyncWorker()
 	}
 	return next, nil

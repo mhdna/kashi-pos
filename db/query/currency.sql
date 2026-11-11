@@ -23,10 +23,10 @@ UPDATE currencies SET is_active = ? WHERE code = ? AND is_default = false
 RETURNING *;
 
 -- name: DeactivateCurrenciesNotIn :exec
--- The reconcile half of the currency sync: a currency kashi no longer has
+-- The reconcile half of the currency sync: a currency central no longer has
 -- stops being offered. is_default = false guards the local USD anchor, which
 -- is how every amount in this database is stored -- it is structural, not a
--- currency kashi gets an opinion about, and the same guard is already on
+-- currency central gets an opinion about, and the same guard is already on
 -- UpdateCurrency and SetCurrencyActive above.
 UPDATE currencies
 SET is_active = false

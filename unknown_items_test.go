@@ -62,7 +62,7 @@ func TestUnknownProductStaysOutOfProductSearch(t *testing.T) {
 
 func TestVerifyUnknownPicturesNeedsEveryUnit(t *testing.T) {
 	complete := false
-	kashi := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	central := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/branch/unknown_sessions/status") {
 			http.NotFound(w, r)
 			return
@@ -72,11 +72,11 @@ func TestVerifyUnknownPicturesNeedsEveryUnit(t *testing.T) {
 			"slots":    []map[string]any{{"slot_ref": "1"}, {"slot_ref": "2"}},
 		})
 	}))
-	defer kashi.Close()
+	defer central.Close()
 
 	app, database := newProductTestApp(t)
 	defer database.Close()
-	if _, err := database.Exec(`INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, central_api_url, branch_code) VALUES ('Test', 'key', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0, ?, 'B1')`, kashi.URL); err != nil {
+	if _, err := database.Exec(`INSERT INTO settings (branch_name, api_key, printer_id, printer_size, receipt_printer, screen_port, receipt_width, receipt_height, theme, tax_rate, rounding_mode, receipt_enabled, sales_inventory_id, central_api_url, branch_code) VALUES ('Test', 'key', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0, ?, 'B1')`, central.URL); err != nil {
 		t.Fatal(err)
 	}
 

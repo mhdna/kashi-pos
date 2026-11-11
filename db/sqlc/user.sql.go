@@ -27,7 +27,7 @@ type AdoptUserAsSyncedParams struct {
 
 // A user the till already created locally (e.g. a set_branch_user_pin
 // command landed before the first roster pull) is matched by username and
-// linked to its kashi row. password_hash is left as-is.
+// linked to its central row. password_hash is left as-is.
 func (q *Queries) AdoptUserAsSynced(ctx context.Context, arg AdoptUserAsSyncedParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, adoptUserAsSynced,
 		arg.RoleID,

@@ -79,7 +79,7 @@ func (a *App) ChangeAdminPassword(currentPassword, newPassword string) error {
 
 // ForceSetAdminPassword sets the admin sign-in password without knowing the
 // current one -- the local execution path for the admin_password field of a
-// kashi update_settings command, which arrives over the already
+// Central update_settings command, which arrives over the already
 // authenticated command channel.
 func (a *App) ForceSetAdminPassword(newPassword string) error {
 	if a.conn == nil {

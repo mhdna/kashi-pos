@@ -19,9 +19,9 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// branchRecordCategoryPayload is the body POSTed to kashi's
+// branchRecordCategoryPayload is the body POSTed to central's
 // /branch/expenses/category and /branch/loans/category (see
-// api/branch_record_category.go in the kashi repo).
+// api/branch_record_category.go in the central repo).
 type branchRecordCategoryPayload struct {
 	ClientRef string `json:"client_ref"`
 	Category  string `json:"category"`
@@ -59,11 +59,11 @@ func (a *App) UpdateLoanCategory(id int64, category string) (map[string]any, err
 	return loanMap(loan), nil
 }
 
-// updateRecordCategory saves the new category locally and gets it to kashi.
-// A record kashi hasn't accepted yet has the category rewritten in its own
-// pending outbox row, so it goes up with the record. One kashi already has
+// updateRecordCategory saves the new category locally and gets it to central.
+// A record central hasn't accepted yet has the category rewritten in its own
+// pending outbox row, so it goes up with the record. One central already has
 // gets a "<kind>_category" row, keyed per record so a later edit replaces
-// an unsent earlier one. It can't be sent ahead of the record: kashi's 404
+// an unsent earlier one. It can't be sent ahead of the record: central's 404
 // for a record it doesn't have yet would park the row as failed.
 func (a *App) updateRecordCategory(kind, payloadField string, save func(q *db.Queries) (string, error), category string) error {
 	if a.store == nil {
@@ -113,7 +113,7 @@ func (a *App) updateRecordCategory(kind, payloadField string, save func(q *db.Qu
 
 // AddExpensePhotosFromComputer lets the cashier pick photos on this
 // computer instead of scanning the QR code: it gets a fresh upload link
-// from kashi, like the QR, and posts the files to it. limit is how many
+// from central, like the QR, and posts the files to it. limit is how many
 // more photos the expense can take. It returns how many were sent (0 when
 // the picker was cancelled).
 func (a *App) AddExpensePhotosFromComputer(clientRef string, limit int) (int, error) {
@@ -141,7 +141,7 @@ func (a *App) AddLoanPhotosFromComputer(clientRef string, limit int) (int, error
 	return sent, err
 }
 
-// The image types kashi's upload endpoints accept, by file extension.
+// The image types central's upload endpoints accept, by file extension.
 var uploadPhotoTypes = map[string]string{
 	".jpg":  "image/jpeg",
 	".jpeg": "image/jpeg",
@@ -198,7 +198,7 @@ func (a *App) uploadPickedPhotos(uploadURL string, limit int) (int, error) {
 	req.Header.Set("Content-Type", form.FormDataContentType())
 	resp, err := (&http.Client{Timeout: 2 * time.Minute}).Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("couldn't reach kashi: %w", err)
+		return 0, fmt.Errorf("couldn't reach central: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {

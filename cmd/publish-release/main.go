@@ -1,5 +1,5 @@
-// publish-release signs a GB Cloud build and uploads it to kashi as a remote
-// update (see updater.go and kashi's api/app_update.go). Run it through the
+// publish-release signs a GB Cloud build and uploads it to central as a remote
+// update (see updater.go and central's api/app_update.go). Run it through the
 // Makefile:
 //
 //	make update-keygen                      # once: create the release key
@@ -7,7 +7,7 @@
 //	make publish NOTES="…" BRANCHES=CN,HR    # …straight to those branches' tills
 //	git tag v1.2.3 && make publish-all NOTES="…" # …and send it to every till
 //
-// Once every till it was sent to runs it, kashi deletes the build's file
+// Once every till it was sent to runs it, central deletes the build's file
 // (unless App Updates' "Keep old builds" says otherwise).
 //
 // publish needs KASHI_URL (the same central URL the tills use, e.g.
@@ -149,7 +149,7 @@ func publish(args []string) error {
 	baseURL := strings.TrimRight(os.Getenv("KASHI_URL"), "/")
 	user := os.Getenv("KASHI_USER")
 	if baseURL == "" || user == "" {
-		return errors.New("set KASHI_URL (the tills' central URL, e.g. https://cloud.example.com/api) and KASHI_USER (a kashi admin)")
+		return errors.New("set KASHI_URL (the tills' central URL, e.g. https://cloud.example.com/api) and KASHI_USER (a central admin)")
 	}
 
 	priv, err := loadPrivateKey(*keyPath)
@@ -212,10 +212,10 @@ func publish(args []string) error {
 	if err != nil {
 		return err
 	}
-	// A kashi without compressed releases takes the file as the exe, and
+	// A central without compressed releases takes the file as the exe, and
 	// its checksum then doesn't match: send the exe itself.
 	if status == http.StatusBadRequest && encoding != "" && strings.Contains(answer, "checksum") {
-		fmt.Printf("This kashi doesn't take compressed builds yet; uploading the whole %.1f MB…\n", float64(len(content))/(1<<20))
+		fmt.Printf("This central doesn't take compressed builds yet; uploading the whole %.1f MB…\n", float64(len(content))/(1<<20))
 		status, answer, err = uploadRelease(baseURL, token, fields, filepath.Base(*file), content, "")
 		if err != nil {
 			return err
@@ -231,7 +231,7 @@ func publish(args []string) error {
 		} `json:"release"`
 	}
 	if err := json.Unmarshal([]byte(answer), &created); err != nil || created.Release.ID == 0 {
-		return errors.New("kashi's upload answer had no release id")
+		return errors.New("central's upload answer had no release id")
 	}
 	cacheBuild(*flavor, *version, content)
 	if encoding != "" {
@@ -263,7 +263,7 @@ type branch struct {
 
 // targetBranches does what ticking tills on the App Updates page does: the
 // active registers of the chosen branches that run this flavor are set to
-// the release, and kashi tells the connected ones to fetch it now (the
+// the release, and central tells the connected ones to fetch it now (the
 // others pick it up when they next connect). choice is "all", "none", branch
 // codes ("CN,HR"), or "" to ask. A register that hasn't reported its flavor
 // yet is left alone and listed, since it may be the other build.
@@ -297,13 +297,13 @@ func targetBranches(baseURL, token string, releaseID int64, version, flavor, cho
 		b.Registers = append(b.Registers, r)
 	}
 	if len(branches) == 0 {
-		fmt.Printf("No active %s till to send it to; set them on kashi's App Updates page.\n", flavor)
+		fmt.Printf("No active %s till to send it to; set them on central's App Updates page.\n", flavor)
 		return nil
 	}
 
 	if strings.TrimSpace(choice) == "" {
 		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			fmt.Println("Choose which tills get it on kashi's App Updates page (or pass BRANCHES=…).")
+			fmt.Println("Choose which tills get it on central's App Updates page (or pass BRANCHES=…).")
 			return nil
 		}
 		fmt.Printf("\nSend %s to which branches?\n", version)
@@ -329,7 +329,7 @@ func targetBranches(baseURL, token string, releaseID int64, version, flavor, cho
 		return err
 	}
 	if len(chosen) == 0 {
-		fmt.Println("Not sent anywhere yet; choose tills on kashi's App Updates page.")
+		fmt.Println("Not sent anywhere yet; choose tills on central's App Updates page.")
 		return nil
 	}
 
@@ -349,7 +349,7 @@ func targetBranches(baseURL, token string, releaseID int64, version, flavor, cho
 	if force {
 		fmt.Println("Forced: each till installs it as soon as it has it, after a one-minute countdown.")
 	}
-	fmt.Println("kashi deletes the build from the server once they've all installed it. Follow them on the App Updates page.")
+	fmt.Println("Central deletes the build from the server once they've all installed it. Follow them on the App Updates page.")
 	return nil
 }
 
@@ -420,7 +420,7 @@ func apiJSON(method, url, token string, body, out any) error {
 }
 
 // uploadRelease posts the build (or its zstd form, with encoding "zstd")
-// and returns kashi's status and answer.
+// and returns central's status and answer.
 func uploadRelease(baseURL, token string, fields map[string]string, name string, file []byte, encoding string) (int, string, error) {
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
@@ -459,8 +459,8 @@ func uploadRelease(baseURL, token string, fields map[string]string, name string,
 	return resp.StatusCode, string(raw), nil
 }
 
-// keychainService names the macOS Keychain item publish keeps the kashi
-// password in, one per kashi URL and user.
+// keychainService names the macOS Keychain item publish keeps the central
+// password in, one per central URL and user.
 func keychainService(baseURL string) string { return "gb-cloud-publish " + baseURL }
 
 func loginWithSavedPassword(baseURL, user string) (string, error) {
@@ -495,7 +495,7 @@ func loginWithSavedPassword(baseURL, user string) (string, error) {
 }
 
 func askPassword(user string) string {
-	fmt.Printf("kashi password for %s: ", user)
+	fmt.Printf("Central password for %s: ", user)
 	raw, err := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Println()
 	if err != nil {
@@ -510,17 +510,17 @@ func login(baseURL, user, password string) (string, error) {
 	raw, _ := json.Marshal(map[string]string{"name": user, "password": password})
 	resp, err := (&http.Client{Timeout: 30 * time.Second}).Post(baseURL+"/users/login", "application/json", bytes.NewReader(raw))
 	if err != nil {
-		return "", fmt.Errorf("log in to kashi: %w", err)
+		return "", fmt.Errorf("log in to central: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("log in to kashi failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
+		return "", fmt.Errorf("log in to central failed (status %d): %s", resp.StatusCode, errorMessage(resp.Body))
 	}
 	var out struct {
 		AccessToken string `json:"access_token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil || out.AccessToken == "" {
-		return "", errors.New("kashi's login answer had no token")
+		return "", errors.New("central's login answer had no token")
 	}
 	return out.AccessToken, nil
 }

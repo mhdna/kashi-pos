@@ -1,6 +1,6 @@
 // Summer and Winter get their own colour and icon so the cashier can tell
 // them apart at a glance -- on the picker's tiles (home.vue) and on the cart
-// line's chip (InvoiceItems.vue). Any other option kashi adds uses the
+// line's chip (InvoiceItems.vue). Any other option central adds uses the
 // primary look.
 export function saleOptionLook(name: string): { color: string; icon: string } {
   switch (name.toLowerCase()) {

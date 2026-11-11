@@ -17,7 +17,7 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// shiftReceiptCentral is a stand-in for kashi that records POSTs to
+// shiftReceiptCentral is a stand-in for central that records POSTs to
 // /branch/shift_receipt_images and lets a test dictate the status they get.
 type shiftReceiptCentral struct {
 	server *httptest.Server
@@ -232,7 +232,7 @@ func TestShiftReceiptUploadRetriesAndResumesAfterFailure(t *testing.T) {
 
 	got, _ := store.GetShiftReceiptUploadByToken(app.ctx, row.Token)
 	if got.SyncedAt.Valid {
-		t.Fatal("row marked synced despite a 500 from kashi")
+		t.Fatal("row marked synced despite a 500 from central")
 	}
 	if got.AttemptCount != 1 {
 		t.Fatalf("attempt_count = %d, want 1 after one failed forward", got.AttemptCount)
@@ -251,7 +251,7 @@ func TestShiftReceiptUploadRetriesAndResumesAfterFailure(t *testing.T) {
 
 	got, _ = store.GetShiftReceiptUploadByToken(app.ctx, row.Token)
 	if !got.SyncedAt.Valid {
-		t.Fatal("row not marked synced after kashi recovered")
+		t.Fatal("row not marked synced after central recovered")
 	}
 	if fc.posts() != 1 {
 		t.Fatalf("successful forwards = %d, want 1", fc.posts())

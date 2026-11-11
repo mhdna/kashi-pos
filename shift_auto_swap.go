@@ -10,7 +10,7 @@ import (
 
 // autoCoverNegativeLBPFlag: at close shift, a negative Cash LL balance (more
 // LBP paid out as change than taken in) is swapped into Cash $$, so LL ends
-// at 0 and the shortfall comes off the USD cash. Off by default; kashi can
+// at 0 and the shortfall comes off the USD cash. Off by default; central can
 // push it per branch.
 const autoCoverNegativeLBPFlag = "auto_cover_negative_lbp"
 

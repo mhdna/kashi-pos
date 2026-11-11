@@ -11,12 +11,12 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// syncedClient mirrors the JSON shape kashi's GET /branch/sync/changes
+// syncedClient mirrors the JSON shape central's GET /branch/sync/changes
 // (and /branch/sync/fetch) returns for the "clients" entity. UID is the
-// shared identity (kashi's 000093_sync_uid) and is what a local row is
+// shared identity (central's 000093_sync_uid) and is what a local row is
 // matched on; phone is only the fallback for a row that hasn't adopted
-// kashi's uid yet, or for an older kashi that doesn't send one. IsActive is
-// nil from an older kashi (treated as active).
+// central's uid yet, or for an older central that doesn't send one. IsActive is
+// nil from an older central (treated as active).
 type syncedClient struct {
 	UID       string `json:"uid"`
 	Name      string `json:"name"`
@@ -25,15 +25,15 @@ type syncedClient struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
-// applySyncedClient makes the local copy of one kashi client match kashi:
+// applySyncedClient makes the local copy of one central client match central:
 // same uid, name, phone and active flag. Loyalty points are left exactly as
-// this branch has them -- kashi has no opinion on a branch's own loyalty
+// this branch has them -- central has no opinion on a branch's own loyalty
 // bookkeeping, only on aggregating it at redemption time.
 //
-// Matching: by uid, else by phone (then kashi's uid is stamped on the row),
-// else a new local client is created under kashi's uid. If the phone kashi
+// Matching: by uid, else by phone (then central's uid is stamped on the row),
+// else a new local client is created under central's uid. If the phone central
 // reports is held locally by a different row, that row is the same person
-// (phone is kashi's global client key, and updates arrive in updated_at
+// (phone is central's global client key, and updates arrive in updated_at
 // order, so a genuine phone swap between two clients is already applied by
 // now) -- it is merged into the matched row rather than duplicated.
 func applySyncedClient(ctx context.Context, q *db.Queries, c syncedClient) error {
@@ -123,7 +123,7 @@ func applySyncedClientRow(ctx context.Context, q *db.Queries, c syncedClient) (i
 // mergeLocalClient folds the duplicate local client dropID into keepID:
 // every invoice, coupon and account entry is re-pointed, loyalty points are
 // added together, the duplicate's unsent outbox row is dropped (keepID is
-// the one kashi knows), and only then -- with nothing referencing it -- is
+// the one central knows), and only then -- with nothing referencing it -- is
 // the duplicate deleted. The walk-in client is never merged.
 func mergeLocalClient(ctx context.Context, q *db.Queries, keepID, dropID int64) error {
 	keep, err := q.GetClientByID(ctx, keepID)
@@ -167,17 +167,17 @@ func mergeLocalClient(ctx context.Context, q *db.Queries, keepID, dropID int64) 
 	return err
 }
 
-// branchClientPayload is the exact JSON body PUT to kashi's /branch/clients
-// (see branchClientRequest in kashi's api/branch_client.go). BranchClientID
-// is this install's own local client id -- opaque to kashi, used only to
-// remember which of this branch's clients maps to which kashi client (see
-// kashi's client_links table) so a later edit updates the same one instead
+// branchClientPayload is the exact JSON body PUT to central's /branch/clients
+// (see branchClientRequest in central's api/branch_client.go). BranchClientID
+// is this install's own local client id -- opaque to central, used only to
+// remember which of this branch's clients maps to which central client (see
+// central's client_links table) so a later edit updates the same one instead
 // of creating a duplicate link.
 type branchClientPayload struct {
 	BranchClientID int64  `json:"branch_client_id"`
 	Name           string `json:"name"`
 	Phone          string `json:"phone"`
-	// UID is the client's shared identity. kashi keeps it for a new client,
+	// UID is the client's shared identity. Central keeps it for a new client,
 	// or answers with the canonical uid when the phone already belongs to
 	// an existing client (see adoptCanonicalClientUID).
 	UID string `json:"uid,omitempty"`
@@ -190,7 +190,7 @@ type branchClientPayload struct {
 //
 // The ref is stable ("client-<id>"): a client that buys and gets edited
 // many times keeps re-arming one row rather than piling up an
-// unbounded history of throwaway rows -- kashi's putBranchClient upserts
+// unbounded history of throwaway rows -- central's putBranchClient upserts
 // by (branch_id, branch_client_id) regardless, so the latest payload wins.
 func queueBranchClientSync(ctx context.Context, q *db.Queries, centralAPIURL string, client db.Client) error {
 	if centralAPIURL == "" {
@@ -219,7 +219,7 @@ func queueBranchClientSync(ctx context.Context, q *db.Queries, centralAPIURL str
 // bought something -- the branch's rule is "only sync clients who actually
 // transact". No-op for the walk-in pseudo-client, an unset client, or an
 // unconfigured install. Called from the checkout paths right before the
-// invoice is queued, so the client row lands first and kashi can attribute
+// invoice is queued, so the client row lands first and central can attribute
 // the invoice immediately.
 func queueBranchClientSyncForPurchase(ctx context.Context, q *db.Queries, centralAPIURL string, clientID int64) error {
 	if centralAPIURL == "" || clientID <= 0 {
@@ -235,9 +235,9 @@ func queueBranchClientSyncForPurchase(ctx context.Context, q *db.Queries, centra
 	return queueBranchClientSync(ctx, q, centralAPIURL, client)
 }
 
-// adoptCanonicalClientUID applies kashi's answer to a client push: the uid
-// kashi now knows this local client by. Usually that's the uid the till
-// sent. When kashi instead matched the phone to an existing client, the
+// adoptCanonicalClientUID applies central's answer to a client push: the uid
+// Central now knows this local client by. Usually that's the uid the till
+// sent. When central instead matched the phone to an existing client, the
 // local row takes that client's uid -- or, if the till already holds a copy
 // of that client (pulled earlier), the pushed row is a duplicate of it and
 // is merged into it.
@@ -263,9 +263,9 @@ func adoptCanonicalClientUID(ctx context.Context, q *db.Queries, localID int64, 
 	}
 }
 
-// stampRemoteVersion normalises kashi's updated_at for a row just applied
+// stampRemoteVersion normalises central's updated_at for a row just applied
 // and records it via set, so the completeness check can compare versions.
-// An empty or unparseable value (an older kashi) records nothing.
+// An empty or unparseable value (an older central) records nothing.
 func stampRemoteVersion(ctx context.Context, updatedAt string, set func(string) error) error {
 	if updatedAt == "" {
 		return nil

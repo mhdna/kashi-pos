@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// wsProbeServer is a stand-in for kashi's /branch/ws: it upgrades the
+// wsProbeServer is a stand-in for central's /branch/ws: it upgrades the
 // socket, counts connections, and otherwise answers every request with an
 // empty JSON body so the session's connect-time catch-up pull is a no-op.
 type wsProbeServer struct {
@@ -92,7 +92,7 @@ func TestWSClient_ReconnectsWhenCentralURLChanges(t *testing.T) {
 
 	waitFor(t, "serverA connection", func() bool { return serverA.connections() >= 1 })
 
-	// Point the branch at a different kashi server. UpdateCentralAPIURL
+	// Point the branch at a different central server. UpdateCentralAPIURL
 	// persists it and kicks the WS client; the live session bound to
 	// serverA must drop and redial serverB without a restart.
 	if err := app.UpdateCentralAPIURL(serverB.URL); err != nil {
@@ -141,7 +141,7 @@ func TestWSSession_EndsOnConfigRecheck(t *testing.T) {
 	}
 }
 
-// kashi's database-driven change feed: "sync_changed" re-fetches exactly the
+// central's database-driven change feed: "sync_changed" re-fetches exactly the
 // named entities (skipping any this build doesn't know), "pull_all" catches
 // up on everything after a gap in the feed.
 func TestHandleWSMessage_SyncChangedAndPullAll(t *testing.T) {
@@ -181,8 +181,8 @@ func TestHandleWSMessage_SyncChangedAndPullAll(t *testing.T) {
 		t.Fatalf("sync_changed fetched %v, want [price_lists coupons]", got)
 	}
 
-	// Before kashi's hello says it supports Quick Access, that entity is
-	// skipped: an older kashi would answer it with an error.
+	// Before central's hello says it supports Quick Access, that entity is
+	// skipped: an older central would answer it with an error.
 	withoutQuickAccess := slices.DeleteFunc(slices.Clone(pullEntities), func(e string) bool { return e == "quick_access" })
 	handle(`{"type":"pull_all"}`)
 	if got := take(); !slices.Equal(got, withoutQuickAccess) {
@@ -207,10 +207,10 @@ func TestHandleWSMessage_SyncChangedAndPullAll(t *testing.T) {
 }
 
 // A pull that has to wait for syncPullMu -- "Sync everything" holds it for
-// its whole run -- must not stall the session: kashi drops a till that
+// its whole run -- must not stall the session: central drops a till that
 // stops answering its pings, and shows its branch offline.
 func TestWSSession_KeepsAnsweringPingsWhilePullWaits(t *testing.T) {
-	// kashi's heartbeat (api/ws_conn.go), scaled down: ping every 50ms, and
+	// central's heartbeat (api/ws_conn.go), scaled down: ping every 50ms, and
 	// drop the till when no pong comes back within 300ms.
 	const pingEvery, pongWait = 50 * time.Millisecond, 300 * time.Millisecond
 
@@ -283,7 +283,7 @@ func TestWSSession_KeepsAnsweringPingsWhilePullWaits(t *testing.T) {
 	waitFor(t, "catch-up pull", func() bool { return clientPulls.Load() >= 1 })
 
 	// Hold the lock the way a resync does, push a few changes, and give
-	// kashi several pong-waits to give up on the till. Asserting only after
+	// Central several pong-waits to give up on the till. Asserting only after
 	// unlocking keeps a failure from leaving the worker stuck on the lock.
 	app.syncPullMu.Lock()
 	pullsBefore := clientPulls.Load()
@@ -299,7 +299,7 @@ func TestWSSession_KeepsAnsweringPingsWhilePullWaits(t *testing.T) {
 		t.Fatal(pushErr)
 	}
 	if dropsWhileHeld != 0 {
-		t.Fatalf("kashi dropped the till %d time(s) while a pushed pull waited on syncPullMu", dropsWhileHeld)
+		t.Fatalf("Central dropped the till %d time(s) while a pushed pull waited on syncPullMu", dropsWhileHeld)
 	}
 	if pullsWhileHeld != pullsBefore {
 		t.Fatalf("clients pulled while syncPullMu was held (%d -> %d)", pullsBefore, pullsWhileHeld)

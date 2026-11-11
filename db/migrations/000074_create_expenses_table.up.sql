@@ -1,7 +1,7 @@
 -- client_ref lives directly on the row (unlike invoices, which needed the
 -- separate invoice_client_refs table because the invoices table predates
 -- sync) — generated at creation time and used as the sync idempotency key
--- kashi's /branch/expenses endpoint dedupes on.
+-- central's /branch/expenses endpoint dedupes on.
 CREATE TABLE IF NOT EXISTS expenses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     client_ref text not null unique,

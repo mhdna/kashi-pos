@@ -727,7 +727,7 @@ type ListClientSyncVersionsRow struct {
 	RemoteUpdatedAt sql.NullString `json:"remoteUpdatedAt"`
 }
 
-// Completeness check: every local client's uid and the kashi version last
+// Completeness check: every local client's uid and the central version last
 // applied to it.
 func (q *Queries) ListClientSyncVersions(ctx context.Context) ([]ListClientSyncVersionsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listClientSyncVersions)
@@ -942,7 +942,7 @@ ORDER BY c.id
 
 // Clients that have at least one invoice -- the only ones the branch pushes
 // up. Everyone else is created locally but stays local until they buy
-// something; kashi remains the source of truth for the shared roster.
+// something; central remains the source of truth for the shared roster.
 func (q *Queries) ListClientsWithInvoices(ctx context.Context) ([]Client, error) {
 	rows, err := q.db.QueryContext(ctx, listClientsWithInvoices)
 	if err != nil {
@@ -1233,7 +1233,7 @@ type SetClientUIDParams struct {
 	ID  int64          `json:"id"`
 }
 
-// Adopt kashi's uid for a local client (pull match, or kashi answering a
+// Adopt central's uid for a local client (pull match, or central answering a
 // push with the canonical uid of an existing client with the same phone).
 func (q *Queries) SetClientUID(ctx context.Context, arg SetClientUIDParams) error {
 	_, err := q.db.ExecContext(ctx, setClientUID, arg.Uid, arg.ID)

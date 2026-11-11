@@ -115,7 +115,7 @@ func TestItemVariantPickOverridesTheBranchSetting(t *testing.T) {
 		t.Errorf("item always, branch off: got %q", got)
 	}
 	// The override is per row: another row of the same code still follows
-	// the branch (kashi sends it on every variant, so in practice all agree).
+	// the branch (central sends it on every variant, so in practice all agree).
 	if got := scanBarcodes(t, app, "VAR-BLUE-L"); got != "VAR-BLUE-L" {
 		t.Errorf("other row follows the branch: got %q", got)
 	}
@@ -246,8 +246,8 @@ func TestVariantPickRandomCatalogues(t *testing.T) {
 	}
 }
 
-// kashi's per-item value lands on the till's product row on pull; an older
-// kashi that doesn't send it leaves what is there alone.
+// central's per-item value lands on the till's product row on pull; an older
+// Central that doesn't send it leaves what is there alone.
 func TestSyncPullAppliesVariantPick(t *testing.T) {
 	app, store, _, _ := setUpTestInvoiceApp(t, "http://localhost:9999")
 	pick := func(s string) *string { return &s }
@@ -275,7 +275,7 @@ func TestSyncPullAppliesVariantPick(t *testing.T) {
 	if got := get(); got != "always" {
 		t.Fatalf("after always: %q", got)
 	}
-	v.VariantPick = nil // an older kashi
+	v.VariantPick = nil // an older central
 	v.Name = "Shirt (renamed)"
 	apply()
 	if got := get(); got != "always" {
@@ -292,7 +292,7 @@ func TestSyncPullAppliesVariantPick(t *testing.T) {
 		t.Fatalf("an empty value clears it, got %q", got)
 	}
 
-	// Straight from kashi's JSON, as the feed sends it.
+	// Straight from central's JSON, as the feed sends it.
 	var fromJSON syncedProductVariant
 	if err := json.Unmarshal([]byte(`{"barcode":"x","variant_pick":"always"}`), &fromJSON); err != nil || fromJSON.VariantPick == nil || *fromJSON.VariantPick != "always" {
 		t.Fatalf("decode: %v %+v", err, fromJSON.VariantPick)
@@ -302,7 +302,7 @@ func TestSyncPullAppliesVariantPick(t *testing.T) {
 	}
 }
 
-// The setting travels both ways: kashi's update_settings command turns it
+// The setting travels both ways: central's update_settings command turns it
 // on, and the till reports it back in its settings push.
 func TestVariantPickRequiredSettingRoundTrips(t *testing.T) {
 	var body []byte
@@ -333,7 +333,7 @@ func TestVariantPickRequiredSettingRoundTrips(t *testing.T) {
 	on := true
 	str := func(v string) *string { return &v }
 	rate := int64(1)
-	// Every command carries kashi's core settings alongside what changed.
+	// Every command carries central's core settings alongside what changed.
 	command := func(p updateSettingsCommandPayload) []byte {
 		p.BranchName, p.RoundingMode, p.RoundingCurrency, p.ExchangeRate = str("Test"), str("half_up"), str("USD"), &rate
 		raw, _ := json.Marshal(p)

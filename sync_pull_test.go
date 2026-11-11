@@ -171,7 +171,7 @@ func TestSyncPullAdoptsLocalSalespersonByNameAndAppliesColor(t *testing.T) {
 	app, store, _, _ := setUpTestInvoiceApp(t, server.URL)
 	client := newCentralClient(server.URL, "TEST01", "test-key")
 
-	// Made on the till before it was connected; kashi's name differs only
+	// Made on the till before it was connected; central's name differs only
 	// in case and spacing.
 	local, err := store.CreateSalesperson(app.ctx, "  sarah m ")
 	if err != nil {
@@ -238,9 +238,9 @@ func TestSyncPullRemovesBranchTargetWhenKashiMarksItInactive(t *testing.T) {
 		t.Fatalf("expected 1 target after initial sync, got %d", len(targets))
 	}
 
-	// Deleting a target in kashi is a soft delete (is_active flips to
+	// Deleting a target in central is a soft delete (is_active flips to
 	// false) precisely so this branch can see the change and remove its
-	// local copy -- a hard delete on kashi's side would just vanish from
+	// local copy -- a hard delete on central's side would just vanish from
 	// the "changed since" query with no way for this branch to notice.
 	active = false
 	if err := app.pullEntityOnce(app.ctx, client, "branch_targets"); err != nil {
@@ -251,13 +251,13 @@ func TestSyncPullRemovesBranchTargetWhenKashiMarksItInactive(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(targets) != 0 {
-		t.Fatalf("expected target removed after kashi marked it inactive, got %d", len(targets))
+		t.Fatalf("expected target removed after central marked it inactive, got %d", len(targets))
 	}
 }
 
-// kashi hard-deletes categories (and renames / moves them to central), none
+// Central hard-deletes categories (and renames / moves them to central), none
 // of which a since-delta can carry. The till pulls the whole branch-scoped
-// set every time and drops anything kashi no longer reports.
+// set every time and drops anything central no longer reports.
 func TestSyncPullPrunesCategoriesKashiNoLongerReports(t *testing.T) {
 	items := `[{"name":"Electricity","is_active":true,"icon":"mdi-flash","color":"red"},{"name":"test","is_active":true,"icon":"mdi-tag-outline","color":"blue-grey"}]`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -314,7 +314,7 @@ func TestSyncPullPrunesCategoriesKashiNoLongerReports(t *testing.T) {
 			t.Fatalf("pull of %s after delete: changed=%v err=%v", entity, changed, err)
 		}
 		if got := names(entity); len(got) != 1 || got[0] != "Electricity" {
-			t.Fatalf("%s after kashi deleted \"test\": %v", entity, got)
+			t.Fatalf("%s after central deleted \"test\": %v", entity, got)
 		}
 	}
 }
@@ -324,7 +324,7 @@ func TestSyncPullProtectsLocalDefaultCurrency(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Query().Get("entity") {
 		case "currencies":
-			fmt.Fprint(w, `{"entity":"currencies","items":[{"code":"USC","name":"Renamed By Kashi","symbol":"X","is_default":true,"is_active":true,"units_per_usd_micros":1,"cash_rounding_unit":1}],"server_time":"2026-08-24T00:00:00Z"}`)
+			fmt.Fprint(w, `{"entity":"currencies","items":[{"code":"USC","name":"Renamed By Central","symbol":"X","is_default":true,"is_active":true,"units_per_usd_micros":1,"cash_rounding_unit":1}],"server_time":"2026-08-24T00:00:00Z"}`)
 		default:
 			fmt.Fprint(w, `{"entity":"cashbox_accounts","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		}
@@ -340,12 +340,12 @@ func TestSyncPullProtectsLocalDefaultCurrency(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if usc.Name == "Renamed By Kashi" {
+	if usc.Name == "Renamed By Central" {
 		t.Fatal("local default currency (USC) must not be overwritten by a pulled change")
 	}
 }
 
-// kashi resends currencies and payment methods whole on every pull, so the
+// Central resends currencies and payment methods whole on every pull, so the
 // item count is never zero. Only a real difference in the local table may
 // count as a change -- otherwise sync_applied fires every 15s and the
 // Balance page (which listens for both) reloads under the cashier.
@@ -387,13 +387,13 @@ func TestSyncPullWholeSetReportsChangeOnlyWhenTableDiffers(t *testing.T) {
 
 	lbpRate = "89500000000"
 	if !pull("currencies") {
-		t.Fatal("LBP rate changed in kashi but the pull reported no change")
+		t.Fatal("LBP rate changed in central but the pull reported no change")
 	}
 }
 
-// Once kashi decides a salesperson's device number (attendance_user_id_set),
+// Once central decides a salesperson's device number (attendance_user_id_set),
 // the pull replaces the one typed in here -- an empty one too, which clears
-// it. Until then the till's own number is what it reports up to kashi.
+// it. Until then the till's own number is what it reports up to central.
 func TestSyncPullTakesKashiSetAttendanceID(t *testing.T) {
 	item := `{"id":7,"name":"Sarah M","is_active":true}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -428,25 +428,25 @@ func TestSyncPullTakesKashiSetAttendanceID(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := salespersonAttendanceIDsForReport(app.ctx, store.Queries); got["7"] != "DEVICE-42" {
-		t.Fatalf("report = %v, want kashi id 7 -> DEVICE-42", got)
+		t.Fatalf("report = %v, want central id 7 -> DEVICE-42", got)
 	}
 
 	item = `{"id":7,"name":"Sarah M","is_active":true,"attendance_user_id":"15","attendance_user_id_set":true}`
 	if got := pull().AttendanceUserID; got != "15" {
-		t.Fatalf("after kashi set it: attendance id = %q, want 15", got)
+		t.Fatalf("after central set it: attendance id = %q, want 15", got)
 	}
 
 	item = `{"id":7,"name":"Sarah M","is_active":true,"attendance_user_id":"","attendance_user_id_set":true}`
 	if got := pull().AttendanceUserID; got != "" {
-		t.Fatalf("after kashi cleared it: attendance id = %q, want empty", got)
+		t.Fatalf("after central cleared it: attendance id = %q, want empty", got)
 	}
 
 	// Staff who only punch attendance: still on the roster, no longer sells.
 	if got := pull().IsSalesperson; got != 1 {
-		t.Fatalf("is_salesperson before kashi says otherwise = %d, want 1", got)
+		t.Fatalf("is_salesperson before central says otherwise = %d, want 1", got)
 	}
 	item = `{"id":7,"name":"Sarah M","is_active":true,"is_salesperson":false}`
 	if got := pull().IsSalesperson; got != 0 {
-		t.Fatalf("after kashi turned selling off: is_salesperson = %d, want 0", got)
+		t.Fatalf("after central turned selling off: is_salesperson = %d, want 0", got)
 	}
 }

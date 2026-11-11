@@ -3,7 +3,7 @@ import { ref } from "vue";
 export interface Salesperson {
   id: number;
   fullName: string;
-  // Set in kashi; empty for a till-only salesperson (see lib/salespersonColor).
+  // Set in central; empty for a till-only salesperson (see lib/salespersonColor).
   color?: string;
 }
 

@@ -23,12 +23,12 @@ func formatHistoryTime(t time.Time) string {
 }
 
 // PullBranchHistory imports this branch's own historical invoices, expenses,
-// loans and shift closes from kashi -- for re-provisioning a branch that
+// loans and shift closes from central -- for re-provisioning a branch that
 // already has real sales history there onto a fresh, empty local database
 // (see CreateBranch/SwitchBranch in branches.go for the everyday multi-
 // branch flow this complements). It inserts directly into the local tables,
-// seeding kashi's own client_ref on every row, and never touches
-// sync_outbox -- these rows are already on kashi, so nothing here should
+// seeding central's own client_ref on every row, and never touches
+// sync_outbox -- these rows are already on central, so nothing here should
 // ever be queued to push back.
 //
 // Refuses to run unless every affected local table is empty: this is a
@@ -52,7 +52,7 @@ func (a *App) PullBranchHistory() (map[string]interface{}, error) {
 		return nil, err
 	}
 	if settings.CentralApiUrl == "" || settings.BranchCode == "" || settings.ApiKey == "" {
-		return nil, fmt.Errorf("central sync is not fully configured (server URL, branch code and API key are all required)")
+		return nil, fmt.Errorf("Central sync is not fully configured (server URL, branch code and API key are all required)")
 	}
 
 	if empty, err := a.localHistoryIsEmpty(); err != nil {
@@ -63,7 +63,7 @@ func (a *App) PullBranchHistory() (map[string]interface{}, error) {
 
 	client := newCentralClient(settings.CentralApiUrl, settings.BranchCode, settings.ApiKey)
 	if !client.enabled() {
-		return nil, fmt.Errorf("central sync is not fully configured")
+		return nil, fmt.Errorf("Central sync is not fully configured")
 	}
 
 	// localHistoryIsEmpty just confirmed every local shift is inert (no
@@ -163,9 +163,9 @@ type branchHistoryImporter struct {
 	app    *App
 	client *centralClient
 
-	// shiftIDByBranch maps kashi's branch_shift_id (the old till's own local
-	// shifts.id, opaque to kashi -- see branch_shifts' table comment on the
-	// kashi side) to the new local shifts.id created for it. Only ever
+	// shiftIDByBranch maps central's branch_shift_id (the old till's own local
+	// shifts.id, opaque to central -- see branch_shifts' table comment on the
+	// Central side) to the new local shifts.id created for it. Only ever
 	// populated by importShifts, which must run first.
 	shiftIDByBranch map[int64]int64
 
@@ -184,7 +184,7 @@ type branchHistoryImporter struct {
 	walkInClientID       int64
 }
 
-// syncBranchShiftHistoryRow mirrors kashi's api/branch_catchup.go
+// syncBranchShiftHistoryRow mirrors central's api/branch_catchup.go
 // "branch_shift_history" case (backed by the branch_shifts table there).
 type syncBranchShiftHistoryRow struct {
 	ClientRef         string    `json:"client_ref"`
@@ -289,8 +289,8 @@ func (imp *branchHistoryImporter) resolveSalesperson(ctx context.Context, name s
 }
 
 // resolveCashboxAccount finds a local cashbox account by its display name --
-// cashbox accounts sync down from kashi by name (see ListCashboxAccountsForBranchSync
-// on the kashi side), so any account this branch has ever used should
+// cashbox accounts sync down from central by name (see ListCashboxAccountsForBranchSync
+// on the central side), so any account this branch has ever used should
 // already be present locally by the time this runs (after the full catalog
 // pull PullBranchHistory does first). Falls back to defaultCashboxID
 // (resolved once, lazily) when the name is blank or no longer matches any
@@ -371,12 +371,12 @@ func (imp *branchHistoryImporter) resolveClient(ctx context.Context, clientUID s
 // resolveHistoricalProduct resolves a pulled line item to a local product,
 // preferring ProductUID (the precise match) over Barcode. Falls back to a
 // once-created placeholder product only when NEITHER is resolvable --
-// expected to be rare in practice: kashi never deletes a product used in
+// expected to be rare in practice: central never deletes a product used in
 // any invoice (only deactivates it), and PullBranchHistory pulls the
 // complete catalog, active and deactivated, before importing any invoice.
-// The only rows that can still miss are ones pushed before kashi tracked
+// The only rows that can still miss are ones pushed before central tracked
 // product_uid at all and whose barcode never resolved to a central variant
-// at push time either -- see the kashi repo's tx_branch_invoice.go.
+// at push time either -- see the central repo's tx_branch_invoice.go.
 func (imp *branchHistoryImporter) resolveHistoricalProduct(ctx context.Context, item syncBranchInvoiceHistoryItem) (int64, bool, error) {
 	if item.ProductUID != "" {
 		if p, err := imp.app.store.GetProductByUID(ctx, sql.NullString{String: item.ProductUID, Valid: true}); err == nil {
@@ -411,7 +411,7 @@ func (imp *branchHistoryImporter) resolveHistoricalProduct(ctx context.Context, 
 	return p.ID, false, nil
 }
 
-// syncBranchInvoiceHistoryItem/Payment/Row mirror kashi's
+// syncBranchInvoiceHistoryItem/Payment/Row mirror central's
 // api/branch_history_sync.go response shapes exactly.
 type syncBranchInvoiceHistoryItem struct {
 	Barcode    string `json:"barcode"`
@@ -660,7 +660,7 @@ type syncBranchExpenseHistoryRow struct {
 }
 
 // importExpenses is a best-effort reconstruction, not a perfect restore:
-// only expenses synced after kashi's migration 000102 (see that repo) carry
+// only expenses synced after central's migration 000102 (see that repo) carry
 // branch_cashbox_account_name at all -- older rows only ever had an opaque,
 // now-meaningless local id, so resolveCashboxAccount's blank-name fallback
 // (any local account, right currency not even guaranteed) is genuinely the

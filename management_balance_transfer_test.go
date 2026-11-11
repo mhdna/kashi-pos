@@ -61,7 +61,7 @@ func TestTransferShiftBalanceStayingAboveZeroIsAllowedForNonAdmin(t *testing.T) 
 	}
 }
 
-// kashi checks its own user's permission before queuing the command, so the
+// Central checks its own user's permission before queuing the command, so the
 // till applies it to the open shift whoever is signed in there.
 func TestReplaceShiftBalanceCommandTransfersOnOpenShift(t *testing.T) {
 	fixture := newBalanceSwapFixture(t, -1000)

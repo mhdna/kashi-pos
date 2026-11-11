@@ -1,7 +1,7 @@
 -- Mirrors expenses (000074_create_expenses_table.up.sql): client_ref lives
 -- directly on the row, generated at creation time and used as the sync
--- idempotency key kashi's /branch/loans endpoint dedupes on. category is
--- free text (the lender source, e.g. "Owner"/"External") -- kashi resolves
+-- idempotency key central's /branch/loans endpoint dedupes on. category is
+-- free text (the lender source, e.g. "Owner"/"External") -- central resolves
 -- it to its own loan_categories row by name, this install never fetches or
 -- caches that lookup table.
 CREATE TABLE IF NOT EXISTS loans (

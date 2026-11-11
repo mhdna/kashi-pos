@@ -87,7 +87,7 @@ type ListCentralQuickAccessProductsRow struct {
 	QaTextColor string  `json:"qaTextColor"`
 }
 
-// kashi's branch list, resolved to this till's products by uid. A card for
+// central's branch list, resolved to this till's products by uid. A card for
 // a product this till doesn't have (yet) or that was deactivated is skipped,
 // same as ListQuickAccessProducts does for the till's own list.
 func (q *Queries) ListCentralQuickAccessProducts(ctx context.Context) ([]ListCentralQuickAccessProductsRow, error) {
@@ -150,7 +150,7 @@ type ListQuickAccessForReportRow struct {
 	TextColor string         `json:"textColor"`
 }
 
-// This till's own list, in card order, as kashi identifies products.
+// This till's own list, in card order, as central identifies products.
 func (q *Queries) ListQuickAccessForReport(ctx context.Context) ([]ListQuickAccessForReportRow, error) {
 	rows, err := q.db.QueryContext(ctx, listQuickAccessForReport)
 	if err != nil {

@@ -532,7 +532,7 @@ onMounted(async () => {
     const b = await ListShiftBalances(shiftId.value);
     balanceRows.value = (b as any[]) ?? [];
     void loadShiftSpend();
-    // The till's own leftovers aren't offered once kashi manages the staff.
+    // The till's own leftovers aren't offered once central manages the staff.
     salespersons.value = (((await ListSalespersons()) as any[]) ?? []).filter((s) => s.isCurrent !== false);
     await autofillFromExpected();
   } catch {}

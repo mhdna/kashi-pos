@@ -39,13 +39,13 @@ describe("eventsInRange", () => {
   const from = new Date(2026, 10, 1);
   const to = new Date(2026, 11, 31);
 
-  it("uses the bundled catalog until kashi sends one", () => {
+  it("uses the bundled catalog until central sends one", () => {
     const names = eventsInRange(from, to, []).map((e) => e.name);
     expect(names).toContain("Black Friday");
     expect(names).not.toContain("Cyber Monday"); // clothing is the default business
   });
 
-  it("follows the catalog kashi sent, the business type and the hidden list", () => {
+  it("follows the catalog central sent, the business type and the hidden list", () => {
     const catalog = JSON.stringify({
       lists: { a: { title: "A", icon: "mdi-flag" } },
       businessTypes: { shop: { title: "Shop", icon: "mdi-store", lists: ["a"] } },

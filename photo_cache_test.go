@@ -254,7 +254,7 @@ func TestPhotoCacheRandomized(t *testing.T) {
 
 // ---- fetching through the cache -----------------------------------------
 
-// fakePhotoKashi serves photos like kashi's serveStoredImage: an ETag per
+// fakePhotoKashi serves photos like central's serveStoredImage: an ETag per
 // file, 304 for a matching If-None-Match, 404 for no photo.
 type fakePhotoKashi struct {
 	t      *testing.T
@@ -386,11 +386,11 @@ func dataURL(body string) string {
 const firstThumb = "/branch/expense_photos/first?client_ref=exp-1&w=96"
 
 // The case asked for: a photo seen once comes from disk after that, with no
-// wait on kashi, even while kashi is slow to answer.
+// wait on central, even while central is slow to answer.
 func TestExpensePhotoSecondShowingIsFromDisk(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
-	kashi.set(firstThumb, "thumb v1", `"f1-w96-r0"`)
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central := newFakePhotoKashi(t)
+	central.set(firstThumb, "thumb v1", `"f1-w96-r0"`)
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 
 	if got, _ := app.GetExpenseFirstPhoto("exp-1", 96); got != dataURL("thumb v1") {
 		t.Fatalf("first showing = %q", got)
@@ -398,22 +398,22 @@ func TestExpensePhotoSecondShowingIsFromDisk(t *testing.T) {
 	if got, _ := app.GetExpenseFirstPhoto("exp-1", 96); got != dataURL("thumb v1") {
 		t.Fatalf("second showing = %q", got)
 	}
-	if n := kashi.hitCount(firstThumb); n != 1 {
-		t.Fatalf("kashi asked %d times, want 1 (the second showing is from disk)", n)
+	if n := central.hitCount(firstThumb); n != 1 {
+		t.Fatalf("Central asked %d times, want 1 (the second showing is from disk)", n)
 	}
 
-	// Later, with kashi hanging: the copy still shows at once.
+	// Later, with central hanging: the copy still shows at once.
 	app.clock.advance(photoRecheckAfter)
-	kashi.hold()
+	central.hold()
 	start := time.Now()
 	got, _ := app.GetExpenseFirstPhoto("exp-1", 96)
 	if got != dataURL("thumb v1") || time.Since(start) > 500*time.Millisecond {
 		t.Fatalf("a due copy must still show at once, got %q after %s", got, time.Since(start))
 	}
-	kashi.release()
+	central.release()
 	app.photoWG.Wait()
-	if n := kashi.hitCount(firstThumb); n != 2 {
-		t.Fatalf("kashi asked %d times, want 2 (one background check)", n)
+	if n := central.hitCount(firstThumb); n != 2 {
+		t.Fatalf("Central asked %d times, want 2 (one background check)", n)
 	}
 	if c := app.changes(); len(c) != 0 {
 		t.Fatalf("an unchanged photo announced a change: %v", c)
@@ -421,20 +421,20 @@ func TestExpensePhotoSecondShowingIsFromDisk(t *testing.T) {
 	// The check counted: the next showing doesn't ask again.
 	app.GetExpenseFirstPhoto("exp-1", 96)
 	app.photoWG.Wait()
-	if n := kashi.hitCount(firstThumb); n != 2 {
+	if n := central.hitCount(firstThumb); n != 2 {
 		t.Fatalf("asked again right after a check (%d)", n)
 	}
 }
 
-// A photo turned or replaced in kashi (new ETag) replaces the copy and tells
+// A photo turned or replaced in central (new ETag) replaces the copy and tells
 // the page which record to redraw.
 func TestExpensePhotoChangedInKashiIsPickedUp(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
-	kashi.set(firstThumb, "thumb v1", `"f1-w96-r0"`)
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central := newFakePhotoKashi(t)
+	central.set(firstThumb, "thumb v1", `"f1-w96-r0"`)
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 	app.GetExpenseFirstPhoto("exp-1", 96)
 
-	kashi.set(firstThumb, "thumb turned", `"f1-w96-r90"`)
+	central.set(firstThumb, "thumb turned", `"f1-w96-r90"`)
 	app.clock.advance(photoRecheckAfter)
 	if got, _ := app.GetExpenseFirstPhoto("exp-1", 96); got != dataURL("thumb v1") {
 		t.Fatalf("shows %q before the check", got)
@@ -448,14 +448,14 @@ func TestExpensePhotoChangedInKashiIsPickedUp(t *testing.T) {
 	}
 }
 
-// A photo deleted in kashi turns into the no-photo icon.
+// A photo deleted in central turns into the no-photo icon.
 func TestExpensePhotoRemovedInKashi(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
-	kashi.set(firstThumb, "thumb v1", `"f1-w96-r0"`)
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central := newFakePhotoKashi(t)
+	central.set(firstThumb, "thumb v1", `"f1-w96-r0"`)
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 	app.GetExpenseFirstPhoto("exp-1", 96)
 
-	kashi.remove(firstThumb)
+	central.remove(firstThumb)
 	app.clock.advance(photoRecheckAfter)
 	app.GetExpenseFirstPhoto("exp-1", 96)
 	app.photoWG.Wait()
@@ -470,14 +470,14 @@ func TestExpensePhotoRemovedInKashi(t *testing.T) {
 // An expense without a photo shows its icon at once the next time, and a
 // later recheck that still finds none announces nothing.
 func TestExpenseWithoutPhotoIsRemembered(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central := newFakePhotoKashi(t)
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 	for i := 0; i < 3; i++ {
 		if got, _ := app.GetExpenseFirstPhoto("exp-1", 96); got != "" {
 			t.Fatalf("got %q for no photo", got)
 		}
 	}
-	if n := kashi.hitCount(firstThumb); n != 1 {
+	if n := central.hitCount(firstThumb); n != 1 {
 		t.Fatalf("asked %d times, want 1", n)
 	}
 	app.clock.advance(photoRecheckAfter)
@@ -491,11 +491,11 @@ func TestExpenseWithoutPhotoIsRemembered(t *testing.T) {
 // New photos arriving (the phone's upload push) drop the remembered "no
 // photo", so the row shows the new one straight away.
 func TestUploadedPhotosReplaceTheRememberedNone(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central := newFakePhotoKashi(t)
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 	app.GetExpenseFirstPhoto("exp-1", 96)
 
-	kashi.set(firstThumb, "new photo", `"f2-w96-r0"`)
+	central.set(firstThumb, "new photo", `"f2-w96-r0"`)
 	app.handleWSMessage(nil, []byte(`{"type":"expense_images_uploaded","client_ref":"exp-1"}`))
 	if got, _ := app.GetExpenseFirstPhoto("exp-1", 96); got != dataURL("new photo") {
 		t.Fatalf("after the upload push = %q", got)
@@ -504,7 +504,7 @@ func TestUploadedPhotosReplaceTheRememberedNone(t *testing.T) {
 	// Same for a loan.
 	loanThumb := "/branch/loan_photos/first?client_ref=loan-1&w=96"
 	app.GetLoanFirstPhoto("loan-1", 96)
-	kashi.set(loanThumb, "loan photo", `"l1-w96-r0"`)
+	central.set(loanThumb, "loan photo", `"l1-w96-r0"`)
 	app.handleWSMessage(nil, []byte(`{"type":"loan_images_uploaded","client_ref":"loan-1"}`))
 	if got, _ := app.GetLoanFirstPhoto("loan-1", 96); got != dataURL("loan photo") {
 		t.Fatalf("loan after the upload push = %q", got)
@@ -514,11 +514,11 @@ func TestUploadedPhotosReplaceTheRememberedNone(t *testing.T) {
 // Offline, saved photos still show; unsaved ones are the icon, and nothing
 // is remembered from a failed fetch.
 func TestPhotosOffline(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
-	kashi.set(firstThumb, "thumb v1", `"f1-w96-r0"`)
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central := newFakePhotoKashi(t)
+	central.set(firstThumb, "thumb v1", `"f1-w96-r0"`)
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 	app.GetExpenseFirstPhoto("exp-1", 96)
-	kashi.server.Close()
+	central.server.Close()
 
 	app.clock.advance(photoRecheckAfter)
 	if got, _ := app.GetExpenseFirstPhoto("exp-1", 96); got != dataURL("thumb v1") {
@@ -528,7 +528,7 @@ func TestPhotosOffline(t *testing.T) {
 		t.Fatalf("never seen, offline = %q", got)
 	}
 	app.photoWG.Wait()
-	if _, ok := app.photoCache.get(photoCacheKey(newCentralClient(kashi.server.URL, "CN", "key"), "/branch/expense_photos/first?client_ref=exp-2&w=96")); ok {
+	if _, ok := app.photoCache.get(photoCacheKey(newCentralClient(central.server.URL, "CN", "key"), "/branch/expense_photos/first?client_ref=exp-2&w=96")); ok {
 		t.Fatal("a failed fetch was saved as no photo")
 	}
 	if c := app.changes(); len(c) != 0 {
@@ -536,13 +536,13 @@ func TestPhotosOffline(t *testing.T) {
 	}
 }
 
-// Copies are per kashi and branch: a till moved to another branch never
+// Copies are per central and branch: a till moved to another branch never
 // shows the old branch's photo for the same request.
 func TestPhotoCopiesArePerBranch(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
-	kashi.set(firstThumb, "thumb", `"f1-w96-r0"`)
-	client := newCentralClient(kashi.server.URL, "CN", "key")
-	if photoCacheKey(client, firstThumb) == photoCacheKey(newCentralClient(kashi.server.URL, "HR", "key"), firstThumb) {
+	central := newFakePhotoKashi(t)
+	central.set(firstThumb, "thumb", `"f1-w96-r0"`)
+	client := newCentralClient(central.server.URL, "CN", "key")
+	if photoCacheKey(client, firstThumb) == photoCacheKey(newCentralClient(central.server.URL, "HR", "key"), firstThumb) {
 		t.Fatal("two branches share a copy")
 	}
 	if photoCacheKey(client, firstThumb) == photoCacheKey(newCentralClient("https://other.example", "CN", "key"), firstThumb) {
@@ -556,36 +556,36 @@ func TestPhotoCopiesArePerBranch(t *testing.T) {
 // Many rows asking at once while a check is out make one request, not one
 // each.
 func TestPhotoRecheckRunsOncePerCopy(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
-	kashi.set(firstThumb, "thumb", `"f1-w96-r0"`)
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central := newFakePhotoKashi(t)
+	central.set(firstThumb, "thumb", `"f1-w96-r0"`)
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 	app.GetExpenseFirstPhoto("exp-1", 96)
 	app.clock.advance(photoRecheckAfter)
-	kashi.hold()
+	central.hold()
 	for i := 0; i < 20; i++ {
 		app.GetExpenseFirstPhoto("exp-1", 96)
 	}
-	kashi.release()
+	central.release()
 	app.photoWG.Wait()
-	if n := kashi.hitCount(firstThumb); n != 2 {
-		t.Fatalf("kashi asked %d times, want 2", n)
+	if n := central.hitCount(firstThumb); n != 2 {
+		t.Fatalf("Central asked %d times, want 2", n)
 	}
 }
 
 // The full photos in a record's detail come by id, named after the record so
 // a change redraws that record.
 func TestExpenseAndLoanPhotoByID(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
-	kashi.set("/branch/expense_photos/7/file?w=1280", "expense full", `"e7-w1280-r0"`)
-	kashi.set("/branch/loan_photos/8/file?w=1280", "loan full", `"l8-w1280-r0"`)
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central := newFakePhotoKashi(t)
+	central.set("/branch/expense_photos/7/file?w=1280", "expense full", `"e7-w1280-r0"`)
+	central.set("/branch/loan_photos/8/file?w=1280", "loan full", `"l8-w1280-r0"`)
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 	if got, _ := app.GetExpensePhoto("exp-1", 7, 1280); got != dataURL("expense full") {
 		t.Fatalf("expense = %q", got)
 	}
 	if got, _ := app.GetLoanPhoto("loan-1", 8, 1280); got != dataURL("loan full") {
 		t.Fatalf("loan = %q", got)
 	}
-	kashi.set("/branch/loan_photos/8/file?w=1280", "loan replaced", `"l8b-w1280-r0"`)
+	central.set("/branch/loan_photos/8/file?w=1280", "loan replaced", `"l8b-w1280-r0"`)
 	app.clock.advance(photoRecheckAfter)
 	app.GetLoanPhoto("loan-1", 8, 1280)
 	app.photoWG.Wait()
@@ -600,12 +600,12 @@ func TestExpenseAndLoanPhotoByID(t *testing.T) {
 // Transfers are named by the till's clientRef when it sent them, by
 // "transfer-<id>" when it receives them.
 func TestTransferPhotoCachedWithItsRef(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
+	central := newFakePhotoKashi(t)
 	in := "/branch/transfer_photo?transfer_id=5&w=96"
 	out := "/branch/transfer_photo?client_ref=tr-out&w=96"
-	kashi.set(in, "received", `"t5"`)
-	kashi.set(out, "sent", `"t6"`)
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central.set(in, "received", `"t5"`)
+	central.set(out, "sent", `"t6"`)
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 	if got, _ := app.GetTransferPhoto("", 5, 96); got != dataURL("received") {
 		t.Fatalf("in = %q", got)
 	}
@@ -613,11 +613,11 @@ func TestTransferPhotoCachedWithItsRef(t *testing.T) {
 		t.Fatalf("out = %q", got)
 	}
 	app.GetTransferPhoto("", 5, 96)
-	if kashi.hitCount(in) != 1 {
+	if central.hitCount(in) != 1 {
 		t.Fatal("the received transfer's photo wasn't served from disk")
 	}
-	kashi.set(in, "received, turned", `"t5-r90"`)
-	kashi.set(out, "sent, turned", `"t6-r90"`)
+	central.set(in, "received, turned", `"t5-r90"`)
+	central.set(out, "sent, turned", `"t6-r90"`)
 	app.clock.advance(photoRecheckAfter)
 	app.GetTransferPhoto("", 5, 96)
 	app.GetTransferPhoto("tr-out", 0, 96)
@@ -634,28 +634,28 @@ func TestTransferPhotoCachedWithItsRef(t *testing.T) {
 	}
 }
 
-// The photo id list always asks kashi while it's there -- the upload dialog
+// The photo id list always asks central while it's there -- the upload dialog
 // polls it to see a new photo land -- and falls back to the saved list only
 // offline.
 func TestPhotoIDListIsLiveWithOfflineFallback(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
+	central := newFakePhotoKashi(t)
 	list := "/branch/expense_photos?client_ref=exp-1"
 	body, _ := json.Marshal(map[string]any{"images": []map[string]int64{{"id": 7}}})
-	kashi.set(list, string(body), "")
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central.set(list, string(body), "")
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 
 	ids, _ := app.ListExpensePhotoIDs("exp-1")
 	if fmt.Sprint(ids) != "[7]" {
 		t.Fatalf("ids = %v", ids)
 	}
 	body, _ = json.Marshal(map[string]any{"images": []map[string]int64{{"id": 7}, {"id": 9}}})
-	kashi.set(list, string(body), "")
+	central.set(list, string(body), "")
 	ids, _ = app.ListExpensePhotoIDs("exp-1")
-	if fmt.Sprint(ids) != "[7 9]" || kashi.hitCount(list) != 2 {
-		t.Fatalf("a new photo must show on the next poll: ids %v after %d asks", ids, kashi.hitCount(list))
+	if fmt.Sprint(ids) != "[7 9]" || central.hitCount(list) != 2 {
+		t.Fatalf("a new photo must show on the next poll: ids %v after %d asks", ids, central.hitCount(list))
 	}
 
-	kashi.server.Close()
+	central.server.Close()
 	ids, _ = app.ListExpensePhotoIDs("exp-1")
 	if fmt.Sprint(ids) != "[7 9]" {
 		t.Fatalf("offline ids = %v, want the saved list", ids)
@@ -665,11 +665,11 @@ func TestPhotoIDListIsLiveWithOfflineFallback(t *testing.T) {
 	}
 }
 
-// With no cache (it couldn't be opened), photos still come from kashi.
+// With no cache (it couldn't be opened), photos still come from central.
 func TestPhotosWithoutACache(t *testing.T) {
-	kashi := newFakePhotoKashi(t)
-	kashi.set(firstThumb, "thumb", `"f1"`)
-	app := newPhotoTestApp(t, kashi.server.URL, "CN")
+	central := newFakePhotoKashi(t)
+	central.set(firstThumb, "thumb", `"f1"`)
+	app := newPhotoTestApp(t, central.server.URL, "CN")
 	app.photoCache.close()
 	app.photoCache = nil
 	app.photoCacheOnce.Do(func() {}) // as if opening had failed

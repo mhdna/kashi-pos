@@ -1,6 +1,6 @@
--- Post-sale WhatsApp thank-yous kashi hasn't confirmed yet. Saved before the
+-- Post-sale WhatsApp thank-yous central hasn't confirmed yet. Saved before the
 -- request so one cut off (the app closing for an update, no internet) is sent
--- again later; removed once kashi answers (whatsapp.go).
+-- again later; removed once central answers (whatsapp.go).
 CREATE TABLE IF NOT EXISTS whatsapp_pending (
     invoice_code TEXT PRIMARY KEY,
     payload TEXT NOT NULL,

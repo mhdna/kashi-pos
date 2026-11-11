@@ -12,18 +12,18 @@ import (
 
 // Standalone mode. A till with no central server configured owns its own
 // products and clients: it creates, edits and removes them itself. Once a
-// central server is configured, kashi is the only authority for both -- the
-// till copies kashi's catalog and roster (see sync_pull.go and
+// Central server is configured, central is the only authority for both -- the
+// till copies central's catalog and roster (see sync_pull.go and
 // sync_full_check.go) and these editing paths are refused. Every product and
 // client carries a uid either way (000095_sync_uid), so a standalone till
-// that later connects to kashi adopts kashi's identities without collisions.
+// that later connects to central adopts central's identities without collisions.
 //
 // Removal follows one rule in both modes: a row anything historical refers
 // to (an invoice, a transfer, stock on hand, a coupon, an account entry) is
 // deactivated, never deleted; only a row nothing refers to is really
 // removed.
 
-var errManagedByKashi = errors.New("managed by kashi while this till is connected to a central server")
+var errManagedByKashi = errors.New("managed by central while this till is connected to a central server")
 
 // isStandalone reports whether this till runs without a central server.
 func (a *App) isStandalone() (bool, error) {
@@ -34,7 +34,7 @@ func (a *App) isStandalone() (bool, error) {
 	return strings.TrimSpace(url) == "", nil
 }
 
-// requireStandalone refuses a product/client edit kashi owns in connected
+// requireStandalone refuses a product/client edit central owns in connected
 // mode.
 func (a *App) requireStandalone() error {
 	if a.store == nil {
@@ -110,7 +110,7 @@ func managedProduct(p db.Product) map[string]any {
 // listedManagedProduct is managedProduct with the price and discount a sale
 // would actually use: the active lists' (see invoice_validation.go), not the
 // product row's own columns, which are frozen and usually 0 for a product
-// synced from kashi. priced is false when no active list prices it -- the
+// synced from central. priced is false when no active list prices it -- the
 // screen shows "No price" rather than a misleading 0.00.
 func listedManagedProduct(p db.Product, pricing activePricing) map[string]any {
 	m := managedProduct(p)

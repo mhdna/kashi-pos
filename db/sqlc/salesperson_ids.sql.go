@@ -23,7 +23,7 @@ type ListInvoiceSalespersonRemoteIDsRow struct {
 	RemoteID    sql.NullInt64 `json:"remoteId"`
 }
 
-// Every invoice made by a salesperson kashi knows, with kashi's id for them.
+// Every invoice made by a salesperson central knows, with central's id for them.
 func (q *Queries) ListInvoiceSalespersonRemoteIDs(ctx context.Context) ([]ListInvoiceSalespersonRemoteIDsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listInvoiceSalespersonRemoteIDs)
 	if err != nil {
