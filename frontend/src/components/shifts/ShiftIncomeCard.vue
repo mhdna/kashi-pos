@@ -257,18 +257,19 @@ async function confirmManager() {
   flex: 0 0 auto;
 }
 
-/* The total is the card's answer: a rule above it, square (no rounded block),
+/* The total is the card's answer: a square band across the whole card (it
+   cancels the card's 16px padding), a rule above it, a light tint behind,
    bigger than the lines it adds up, amount in figures that line up. */
 .shift-total {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin: 12px 0 4px;
-  padding: 14px 16px 6px;
+  margin: 12px -16px 4px;
+  padding: 14px 32px;
   border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 0;
-  background: none;
+  background: rgba(var(--k-theme-primary), 0.08);
 }
 .shift-total-label {
   font-size: 0.95rem;
