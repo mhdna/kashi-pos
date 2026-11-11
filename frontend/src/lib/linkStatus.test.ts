@@ -6,7 +6,7 @@ const ago = (s: number) => new Date(NOW - s * 1000).toISOString();
 const ahead = (s: number) => new Date(NOW + s * 1000).toISOString();
 
 const link = (over: Partial<LinkInfo> = {}): LinkInfo => ({
-  internet: "up", kashi: "up", kashiError: "", kashiLastOk: ago(3), kashiDownForSeconds: 0,
+  internet: "up", kashi: "up", kashiError: "", kashiLastOk: ago(3), kashiDownForSeconds: 0, updating: false, updatingForSeconds: 0,
   live: true, liveSince: ago(600), liveLastBeat: ago(10), liveError: "", liveRetryAt: "", liveEverUp: true,
   phase: "idle", label: "", detail: "", done: 0, total: 0, lastPullAt: ago(20), lastPushAt: ago(40), lastPullError: "",
   ...over,
@@ -201,6 +201,47 @@ describe("the detail rows", () => {
 
 // Every combination of the facts gives one headline, and the picture and the
 // words never disagree about being offline.
+describe("kashi being upgraded", () => {
+  const upd = { updating: true, updatingForSeconds: 42, live: false };
+  it("says Upgrading, calm and spinning, not a fault", () => {
+    const s = d(upd);
+    expect(s).toMatchObject({ word: "Upgrading", tone: "busy", icon: "mdi-update", spinner: { on: true, pct: null } });
+    expect(s.title).toMatch(/upgraded/);
+    expect(s.title).toMatch(/Nothing is lost/);
+  });
+  it("is not the wording of not connected, not live or no kashi", () => {
+    const s = d(upd);
+    expect(s.word).not.toBe("Not live");
+    expect(s.word).not.toBe("No kashi");
+    expect(s.rows.find(r => r.key === "live")).toMatchObject({ state: "warn", value: "Waiting for the upgrade" });
+    expect(s.rows.find(r => r.key === "live")!.value).not.toBe("Not connected");
+    expect(s.rows.find(r => r.key === "kashi")).toMatchObject({ state: "warn", value: "Being upgraded for 42 s" });
+  });
+  it("a plain 'not connected' still reads Not live (the two stay apart)", () => {
+    const s = d({ live: false });
+    expect(s.word).toBe("Not live");
+    expect(s.rows.find(r => r.key === "live")!.value).toBe("Not connected");
+  });
+  it("shows what is waiting to be sent", () => {
+    expect(d(upd, { pending: 3 }).sub).toBe("3 waiting");
+    expect(d(upd).sub).toBe("central is updating");
+  });
+  it("no internet still outranks it, and so does not being set up", () => {
+    expect(d({ ...upd, internet: "down", kashi: "down" }).word).toBe("No internet");
+    expect(describeLink(link(upd), queue({ configured: false }), idle, NOW).word).toBe("Off");
+  });
+  it("beats a full sync and a pull in progress", () => {
+    expect(d(upd, {}, { running: true, progress: "x" }).word).toBe("Upgrading");
+    expect(d({ ...upd, phase: "pulling", label: "Products" }).word).toBe("Upgrading");
+  });
+  it("when the live link is already back it still reads as upgrading until the flag clears", () => {
+    expect(d({ updating: true, live: true }).rows.find(r => r.key === "live")!.value).toBe("Connected");
+  });
+  it("a missing time reads as just upgrading", () => {
+    expect(d({ updating: true, updatingForSeconds: 0, live: false }).rows.find(r => r.key === "kashi")!.value).toBe("Being upgraded");
+  });
+});
+
 describe("every combination", () => {
   it("is consistent", () => {
     const states = ["up", "down", "unknown"];
@@ -209,17 +250,21 @@ describe("every combination", () => {
       for (const central of states)
         for (const live of [true, false])
           for (const phase of phases)
+            for (const updating of [false, true])
             for (const failed of [0, 2])
               for (const pending of [0, 3])
                 for (const running of [false, true]) {
-                  const s = d({ internet, kashi: central, live, phase, label: phase === "idle" ? "" : "X", done: 1, total: 4, liveEverUp: true },
+                  const s = d({ internet, kashi: central, live, updating, phase, label: phase === "idle" ? "" : "X", done: 1, total: 4, liveEverUp: true },
                     { failed, pending }, { running, progress: running ? "p" : "" });
-                  const ctx = JSON.stringify({ internet, central, live, phase, failed, pending, running });
+                  const ctx = JSON.stringify({ internet, kashi: central, live, updating, phase, failed, pending, running });
                   expect(s.word, ctx).toBeTruthy();
                   expect(["ok", "busy", "attention", "bad", "off"], ctx).toContain(s.tone);
                   if (central === "down") expect(s.tone, ctx).toBe("bad");
+                  if (updating && central !== "down") expect(s.word, ctx).toBe("Upgrading");
+                  if (s.word === "Upgrading") expect(s.tone, ctx).toBe("busy");
                   if (s.tone === "ok") {
                     expect(central, ctx).not.toBe("down");
+                    expect(updating, ctx).toBe(false);
                     expect(live, ctx).toBe(true);
                     expect(failed + pending, ctx).toBe(0);
                     expect(phase, ctx).toBe("idle");
@@ -258,7 +303,7 @@ describe("the screen says central, never kashi", () => {
       return all.map(s => [s.word, s.sub, s.title, ...s.rows.flatMap(r => [r.label, r.value, r.detail])].join(" | ")).join(" || ");
     };
     for (const l of [{}, { kashi: "down" as const, kashiError: "no" }, { kashi: "unknown" as const, live: false, liveEverUp: false },
-      { live: false, kashiLastOk: "" }, { internet: "down", kashi: "down" }, { lastPullError: "x" }]) {
+      { live: false, kashiLastOk: "" }, { updating: true, updatingForSeconds: 30, live: false }, { internet: "down", kashi: "down" }, { lastPullError: "x" }]) {
       expect(texts(l as Partial<LinkInfo>), JSON.stringify(l)).not.toMatch(/kashi/i);
     }
     expect(texts({})).toMatch(/central server/);

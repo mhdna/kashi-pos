@@ -913,8 +913,13 @@ func (c *centralClient) DialWS(ctx context.Context) (*websocket.Conn, error) {
 	header.Set("X-Branch-Code", c.branchCode)
 	header.Set("X-Branch-Key", c.apiKey)
 
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL+"/branch/ws", header)
+	conn, resp, err := websocket.DefaultDialer.DialContext(ctx, wsURL+"/branch/ws", header)
 	link.kashiResult(err)
+	if resp != nil {
+		// A refused upgrade still came with a status: 502/503 means kashi is
+		// being updated, anything else means it is not.
+		link.kashiStatus(resp.StatusCode)
+	}
 	if err != nil {
 		return nil, err
 	}

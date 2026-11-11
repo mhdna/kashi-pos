@@ -94,6 +94,7 @@ apart, from one tracker (`sync_link_status.go`, `GetLinkStatus`, event
 | --- | --- |
 | Internet | Any answer from central proves it. While central is silent, a TCP probe to 1.1.1.1 / 8.8.8.8 / 9.9.9.9 every 20 s tells "no internet" from "Central down". |
 | central | `linkTransport` wraps every central request: any HTTP answer (even 500) is "up", only no answer is "down". |
+| Upgrade | `linkTransport` (and the websocket handshake) also read the status of each answer: 502/503/504, or Cloudflare's 521-523, mean central's proxy is up but the app behind it is being swapped. That sets `updating` (`isUpdateStatus`, `centralStatus`) and the light reads **Upgrading** (blue, spinning) instead of "Not live"/"No central"; the Live link row says "Waiting for the upgrade". Any normal answer ends it, and a gateway answer not renewed for 10 min stops being believed. A refused connection or no answer is still "not connected". |
 | Live link | The websocket. This is what central's Branches page calls connected, so a till can be fully synced yet not live: it reads "Not live" (amber), not "Synced". |
 | Activity | Pull: entity N of 21 and its change count; push: record N of M. The spinner is determinate when the total is known. |
 
