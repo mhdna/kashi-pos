@@ -233,12 +233,12 @@ function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[
   );
 
   if (link.kashi === "up") {
-    rows.push({ key: "kashi", label: "kashi server", state: "ok", value: "Reachable", detail: link.kashiLastOk ? `Last answer ${agoText(link.kashiLastOk, nowMs)}` : "" });
+    rows.push({ key: "kashi", label: "central server", state: "ok", value: "Reachable", detail: link.kashiLastOk ? `Last answer ${agoText(link.kashiLastOk, nowMs)}` : "" });
   } else if (link.kashi === "down") {
     const down = link.kashiDownForSeconds > 0 ? ` for ${durationText(link.kashiDownForSeconds)}` : "";
-    rows.push({ key: "kashi", label: "kashi server", state: "bad", value: `Not answering${down}`, detail: link.kashiError });
+    rows.push({ key: "kashi", label: "central server", state: "bad", value: `Not answering${down}`, detail: link.kashiError });
   } else {
-    rows.push({ key: "kashi", label: "kashi server", state: "idle", value: "Checking", detail: "" });
+    rows.push({ key: "kashi", label: "central server", state: "idle", value: "Checking", detail: "" });
   }
 
   if (link.live) {

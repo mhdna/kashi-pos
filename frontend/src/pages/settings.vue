@@ -1146,7 +1146,7 @@
                   @update:model-value="changeQuickAccessMode"
                 >
                   <k-btn size="small" value="till">This till</k-btn>
-                  <k-btn size="small" value="kashi">kashi</k-btn>
+                  <k-btn size="small" value="kashi">central</k-btn>
                 </k-btn-toggle>
                 <span v-if="quickAccessMode === 'kashi'" class="text-caption text-medium-emphasis">
                   Edit in central: Branch settings → Quick access.

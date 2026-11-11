@@ -250,3 +250,17 @@ describe("shouldHoldBusy (no Synced flicker between passes)", () => {
     expect(shouldHoldBusy(describeLink(link(), queue({ configured: false }), idle, NOW), 0, hold)).toBe(false);
   });
 });
+
+describe("the screen says central, never kashi", () => {
+  it("every word the dialog shows for a healthy, a silent and a fresh till", () => {
+    const texts = (l: Partial<LinkInfo>) => {
+      const all = [d(l), d(l, { failed: 2 }), d(l, { pending: 3 }), d(l, {}, { running: true, progress: "Products 3/21" })];
+      return all.map(s => [s.word, s.sub, s.title, ...s.rows.flatMap(r => [r.label, r.value, r.detail])].join(" | ")).join(" || ");
+    };
+    for (const l of [{}, { kashi: "down" as const, kashiError: "no" }, { kashi: "unknown" as const, live: false, liveEverUp: false },
+      { live: false, kashiLastOk: "" }, { internet: "down", kashi: "down" }, { lastPullError: "x" }]) {
+      expect(texts(l as Partial<LinkInfo>), JSON.stringify(l)).not.toMatch(/kashi/i);
+    }
+    expect(texts({})).toMatch(/central server/);
+  });
+});
