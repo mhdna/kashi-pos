@@ -117,5 +117,7 @@ describe("ShiftIncomeCard", () => {
     expect(css).toMatch(/\.shift-income-body \{[^}]*padding-inline: 16px/);
     expect(css).toMatch(/\.shift-total \{[^}]*margin: 12px -16px/);
     expect(css).toMatch(/\.shift-income-actions \{[^}]*flex-shrink: 0/);
+    // The rows run to the same edges as the total and the buttons (no extra side padding).
+    expect(css).toMatch(/\.shift-income-card :deep\(\.k-list-item\) \{[^}]*padding-inline: 0/);
   });
 });

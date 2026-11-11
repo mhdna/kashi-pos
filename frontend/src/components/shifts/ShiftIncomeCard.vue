@@ -244,6 +244,12 @@ async function confirmManager() {
   padding-inline: 16px;
 }
 
+/* The payment rows start and end where the total band and the buttons do:
+   the list item's own 16px side padding made the amounts stop short of them. */
+.shift-income-card :deep(.k-list-item) {
+  padding-inline: 0;
+}
+
 .shift-income-title {
   display: flex;
   align-items: center;
