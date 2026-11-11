@@ -51,13 +51,3 @@ onUnmounted(off);
   opacity: 0.75;
 }
 </style>
-
-<style>
-/* Solid like WhatsAppToast; unscoped because the snackbar is teleported. */
-.cash-machine-snackbar .k-snackbar__wrapper {
-  background: rgb(var(--k-theme-surface)) !important;
-  color: rgb(var(--k-theme-on-surface)) !important;
-  border: 1px solid rgba(var(--k-theme-on-surface), 0.12);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25) !important;
-}
-</style>

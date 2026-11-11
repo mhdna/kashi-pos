@@ -3,6 +3,21 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-11 · Some notifications weren't grey like the rest
+
+**Symptom.** Most notifications were the see-through grey, but some weren't: the
+WhatsApp and cash-machine toasts were white, the clients page's was solid, the
+clock warning was orange and the update banner blue, and sale errors red.
+
+**Cause.** The grey look lived in a copy-pasted `.app-snackbar` rule on three
+pages and in AttendanceToast; every other snackbar fell back to the base look or
+painted its own background, and a `color` filled the whole background.
+
+**Fix.** The grey is now the base `.k-snackbar__wrapper` in `ui/ui.css`, and a
+`color` only tints the icons and the leading edge; the per-screen copies are gone
+and a sale error reads in red on the same grey (`pages/home.vue`). Test:
+`ui/snackbarLook.test.ts` (no screen may set a snackbar background again).
+
 ## 2026-11-11 · Checkout: "custom item discounts are disabled" on a discounted line
 
 **Symptom.** With custom item discounts off, checking out a cart showed "custom

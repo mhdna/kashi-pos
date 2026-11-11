@@ -2087,16 +2087,11 @@ onBeforeUnmount(() => {
 }
 
 
-.app-snackbar .k-snackbar__wrapper {
-  background: rgba(var(--k-theme-surface-variant), 0.72) !important;
-  color: rgb(var(--k-theme-on-surface-variant)) !important;
-  border: 1px solid rgba(var(--k-theme-on-surface-variant), 0.1);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
-}
+/* Same grey as every notification; an error only reads in red. */
 .app-snackbar--error .k-snackbar__wrapper {
-  background: rgba(198, 40, 40, 0.85) !important;
-  color: #fff !important;
-  border-color: rgba(198, 40, 40, 0.4);
+  color: rgb(var(--k-theme-error)) !important;
+  font-weight: 600;
+  border-inline-start: 4px solid rgb(var(--k-theme-error));
 }
 .checkout-blocked-text {
   font-size: 1.25rem;

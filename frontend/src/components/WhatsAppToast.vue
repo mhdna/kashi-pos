@@ -111,13 +111,9 @@ onUnmounted(() => {
 </style>
 
 <style>
-/* Solid, unlike AttendanceToast: see-through, the screen under it mixed
-   with its text. Unscoped because the snackbar is teleported. */
+/* The grey background is every notification's (ui.css). Unscoped because
+   the snackbar is teleported. */
 .whatsapp-snackbar .k-snackbar__wrapper {
-  background: rgb(var(--k-theme-surface)) !important;
-  color: rgb(var(--k-theme-on-surface)) !important;
-  border: 1px solid rgba(var(--k-theme-on-surface), 0.12);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25) !important;
   /* Sits under home.vue's "Receipt printed" snackbar, which is also at the
      top and usually still up when central reports the message sent. */
   margin-top: 76px !important;

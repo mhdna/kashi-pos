@@ -114,15 +114,3 @@ onUnmounted(() => {
   color: rgb(var(--k-theme-warning));
 }
 </style>
-
-<style>
-/* Same look as the app's other snackbars (home / invoices-list / settings).
-   Unscoped: the snackbar is teleported out of this component. Kept local so
-   it looks right on every page, not only where that rule happens to be loaded. */
-.attendance-snackbar .k-snackbar__wrapper {
-  background: rgba(var(--k-theme-surface-variant), 0.72) !important;
-  color: rgb(var(--k-theme-on-surface-variant)) !important;
-  border: 1px solid rgba(var(--k-theme-on-surface-variant), 0.1);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
-}
-</style>

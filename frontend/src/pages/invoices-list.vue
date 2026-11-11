@@ -879,12 +879,6 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   margin: 4px 0;
 }
-.app-snackbar .k-snackbar__wrapper {
-  background: rgba(var(--k-theme-surface-variant), 0.72) !important;
-  color: rgb(var(--k-theme-on-surface-variant)) !important;
-  border: 1px solid rgba(var(--k-theme-on-surface-variant), 0.1);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
-}
 .invoice-detail-header {
   border-bottom: 1px solid rgba(var(--k-border-color), 0.08);
 }

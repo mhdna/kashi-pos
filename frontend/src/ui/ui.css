@@ -351,8 +351,11 @@
   .k-snackbar-host { position: fixed; z-index: 10000; left: 0; right: 0; padding-inline-start: calc(8px + var(--k-layout-left, 0px)); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px; pointer-events: none; }
   .k-snackbar-host--top { top: 0; }
   .k-snackbar-host--bottom { bottom: 0; }
-  .k-snackbar__wrapper { pointer-events: auto; display: flex; align-items: center; flex-wrap: wrap; min-width: 344px; max-width: 672px; min-height: 48px; border-radius: 4px; overflow: hidden; background: rgb(var(--k-theme-surface-variant)); color: rgb(var(--k-theme-on-surface-variant)); box-shadow: var(--k-elevation-3); }
-  .k-snackbar__wrapper--colored { background: var(--k-c); color: var(--k-on); }
+  .k-snackbar__wrapper { pointer-events: auto; display: flex; align-items: center; flex-wrap: wrap; min-width: 344px; max-width: 672px; min-height: 48px; border-radius: 4px; overflow: hidden; background: rgba(var(--k-theme-surface-variant), .72); color: rgb(var(--k-theme-on-surface-variant)); border: 1px solid rgba(var(--k-theme-on-surface-variant), .1); box-shadow: 0 4px 18px rgba(0,0,0,.12); }
+  /* Every notification has the same grey background; a colour only tints its
+     icons and edge, so a warning or an update still stands out. */
+  .k-snackbar__wrapper--colored { border-inline-start: 4px solid var(--k-c); }
+  .k-snackbar__wrapper--colored .k-icon { color: var(--k-c); }
   .k-snackbar__content { flex: 1 1 auto; padding: 14px 16px; font-size: .875rem; letter-spacing: .0178571429em; line-height: 1.4; }
   .k-snackbar__actions { display: flex; align-items: center; margin-inline-end: 8px; margin-inline-start: auto; }
 
