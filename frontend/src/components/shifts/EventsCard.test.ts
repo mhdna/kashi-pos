@@ -32,6 +32,8 @@ async function mountCard(events: any[]) {
 const toggle = () => wrapper!.find(".events-card-toggle");
 const count = () => wrapper!.find(".events-card-count").text();
 const next = () => wrapper!.find(".events-card-next");
+const nextName = () => wrapper!.find(".events-card-next-name").text();
+const nextWhen = () => wrapper!.find(".events-card-next-when").text();
 const names = () => wrapper!.findAll(".events-card-name").map((n) => n.text());
 
 beforeEach(() => {
@@ -105,14 +107,17 @@ describe("EventsCard", () => {
 
   it("names the next event on the folded bar, and hides it when open", async () => {
     await mountCard([ev(4, "Christmas", "2026-12-25"), ev(1, "Black Friday", "2026-11-27")]);
-    expect(next().text()).toBe("Next: Black Friday · In 20 days");
+    expect(next().find(".events-card-next-label").text()).toBe("Next");
+    expect(nextName()).toBe("Black Friday");
+    expect(nextWhen()).toBe("In 20 days");
     await toggle().trigger("click");
     expect(next().exists()).toBe(false);
   });
 
   it("says an event on now is now, and names nothing when nothing is coming", async () => {
     await mountCard([ev(1, "Running sale", "2026-11-01", "2026-11-10")]);
-    expect(next().text()).toBe("Next: Running sale · Now");
+    expect(nextName()).toBe("Running sale");
+    expect(nextWhen()).toBe("Now");
     wrapper!.unmount();
     await mountCard([ev(4, "Christmas", "2026-12-25")]);
     expect(next().exists()).toBe(false);

@@ -12,8 +12,12 @@
       >
         <k-icon icon="mdi-calendar-month-outline" color="grey-darken-1" class="events-card-toggle-icon" />
         <span class="events-card-count text-body-1 font-weight-bold">{{ countLabel }}</span>
-        <span v-if="next && !open" class="events-card-next text-body-2 text-medium-emphasis" dir="auto">
-          Next: {{ next.name }} · {{ whenLabel(next) }}
+        <!-- Three separate pieces: the name is isolated (bdi) so an Arabic name
+             can't pull "Next" or the time to the wrong side of it. -->
+        <span v-if="next && !open" class="events-card-next">
+          <span class="events-card-next-label text-caption text-medium-emphasis">Next</span>
+          <bdi class="events-card-next-name text-body-2 font-weight-medium" :title="next.name">{{ next.name }}</bdi>
+          <k-chip class="events-card-next-when" size="small" variant="tonal" :color="next.color">{{ whenLabel(next) }}</k-chip>
         </span>
         <k-spacer />
         <k-icon :icon="open ? 'mdi-chevron-up' : 'mdi-chevron-down'" class="events-card-chevron" />
@@ -130,7 +134,14 @@ onBeforeUnmount(() => unsub?.());
 .events-card-toggle:focus-visible { outline: 2px solid rgb(var(--k-theme-primary)); outline-offset: -2px; }
 .events-card-toggle-icon, .events-card-chevron { flex: 0 0 auto; }
 .events-card-count { flex: 0 0 auto; white-space: nowrap; }
-.events-card-next { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.events-card-next {
+  flex: 0 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px;
+  margin-inline-start: 4px; padding-inline-start: 14px;
+  border-inline-start: 1px solid rgba(var(--k-theme-on-surface), 0.14);
+}
+.events-card-next-label { flex: 0 0 auto; text-transform: uppercase; letter-spacing: 0.06em; }
+.events-card-next-name { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; unicode-bidi: isolate; }
+.events-card-next-when { flex: 0 0 auto; font-weight: 600; }
 .events-card-calendar { flex: 0 0 auto; margin-inline-end: 8px; }
 .events-card-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; padding: 0 16px 10px; }
 .events-card-row { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 2px 2px; }
