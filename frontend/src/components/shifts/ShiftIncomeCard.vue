@@ -1,9 +1,10 @@
 <template>
   <k-sheet class="shift-income-card shifts-card pa-4" style="flex: 1; min-width: 0">
-    <k-card-title class="shift-income-title text-body-1 font-weight-bold px-0">
-      <k-icon icon="mdi-cash-register" color="grey-darken-1" class="me-2" />
-      {{ title || "Shift Income" }}{{ shiftId ? ` (#${shiftId})` : "" }}
-    </k-card-title>
+    <div class="shift-income-header" data-test="income-header">
+      <span class="shift-income-header-icon"><k-icon icon="mdi-cash-register" size="22" /></span>
+      <span class="shift-income-header-title">{{ title || "Shift Income" }}</span>
+      <span v-if="shiftId" class="shift-income-header-shift" data-test="income-shift">Shift #{{ shiftId }}</span>
+    </div>
     <!-- Everything between the title and the buttons scrolls on its own, so
          the buttons stay at the bottom of the card however long it gets. -->
     <div class="shift-income-body">
@@ -240,10 +241,44 @@ async function confirmManager() {
   overflow-y: auto;
 }
 
-.shift-income-title {
+/* Icon in a soft disc, the title, and the shift number as a small pill at the
+   far end; a hairline under it separates the heading from the lines. */
+.shift-income-header {
   display: flex;
   align-items: center;
-  min-height: 40px;
+  gap: 12px;
+  min-height: 48px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
+}
+.shift-income-header-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(67, 160, 71, 0.14);
+  color: #2e7d32;
+}
+.shift-income-header-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.shift-income-header-shift {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(var(--k-theme-on-surface), 0.08);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .shift-income-empty {

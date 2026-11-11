@@ -55,6 +55,13 @@ describe("ShiftIncomeCard", () => {
     expect(total()).not.toContain("$0.00");
   });
 
+  it("heads the card with the title and the shift number as a pill", async () => {
+    await show([{ accountId: 1, accountName: "Cash $$", currencyCode: "USD", total: 24300 }]);
+    const header = wrapper!.find('[data-test="income-header"]');
+    expect(header.text()).toContain("Current Shift Income");
+    expect(wrapper!.find('[data-test="income-shift"]').text()).toBe("Shift #15");
+  });
+
   it("adds every collected line and leaves sales on account out", async () => {
     await show([
       { accountId: 1, accountName: "Cash $$", currencyCode: "USD", total: 24300 },
