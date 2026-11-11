@@ -510,6 +510,8 @@ type InvoiceDraft = {
   exchangeOriginalInvoiceCode?: string;
   // The sale's ref for kashi's live cart view (live_cart.go).
   saleRef?: string;
+  // The unknown-item pictures session opened for this cart.
+  unknownClientRef?: string;
 };
 const { client, clientSelected, setClient, resetClient, pulseMissingClient, setClientRequired } = useClient();
 const { selectedSalesperson, pulseSalesperson, salespersonPerInvoiceRequired, setSalespersonPerInvoiceRequired } =
@@ -721,6 +723,9 @@ function newSaleRef(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 const saleRef = ref(newSaleRef());
+// The session the sale screen's QR code opened for this cart. Kept in the
+// draft, so leaving the page and coming back keeps the same QR and pictures.
+const unknownSession = reactive({ clientRef: "" });
 const liveAllDealsOff = ref(false);
 let liveReportTimer: ReturnType<typeof setTimeout> | undefined;
 let liveHeartbeat: ReturnType<typeof setInterval> | undefined;
@@ -827,6 +832,7 @@ function buildDraft(): string | null {
     exchangeOriginalInvoiceId: exchangeState.value?.originalInvoiceId,
     exchangeOriginalInvoiceCode: exchangeState.value?.originalInvoiceCode,
     saleRef: saleRef.value,
+    unknownClientRef: unknownSession.clientRef || undefined,
   } satisfies InvoiceDraft);
 }
 
@@ -837,6 +843,7 @@ watch(
     invoiceNotes,
     exchangeState,
     () => calculator.value?.holdState(),
+    () => unknownSession.clientRef,
   ],
   ([items, client]) => {
     if (restoringDraft || !client || settlementState.value) {
@@ -1000,6 +1007,7 @@ async function restoreDraft() {
     }
     if (draft.client?.id) setClient(draft.client);
     if (draft.saleRef) saleRef.value = draft.saleRef;
+    unknownSession.clientRef = draft.unknownClientRef ?? "";
     invoiceNotes.value = draft.notes ?? "";
     noteDraft.value = invoiceNotes.value;
     calculator.value?.restoreHoldState(draft.calculator);
@@ -1482,8 +1490,6 @@ let unknownPicturesReadyFor = "";
 // unknown item is in the cart, so the phone takes pictures while the sale is
 // still being rung up. On: only once the cashier pays.
 const unknownPicturesAtCheckout = ref(false);
-// The session the sale screen's QR code opened for this cart.
-const unknownSession = reactive({ clientRef: "" });
 const unknownCartUnits = computed(() => unknownUnits());
 const showUnknownCorner = computed(
   () => !unknownPicturesAtCheckout.value && pageMode.value !== "settlement" && unknownCartUnits.value.length > 0,

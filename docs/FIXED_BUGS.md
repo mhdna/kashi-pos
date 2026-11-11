@@ -3,6 +3,20 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-11 · Unknown-item QR forgotten after leaving the sale screen
+
+**Symptom.** With an unknown item in the cart and its pictures already taken,
+going to another page and back showed a new QR code with "0 of 1 pictured".
+
+**Cause.** The pictures session's ref lived only in memory on the sale
+screen, so coming back opened a brand-new session while the draft cart (and
+its unknown item) was restored.
+
+**Fix.** The ref now rides in the cart draft (`unknownClientRef` in
+`pages/home.vue`), is saved when it changes and restored with the cart; a
+finished or cleared sale still forgets it. Test:
+`pages/homeUnknownSession.test.ts`.
+
 ## 2026-11-10 · The calculator showed the total twice ("$30.00" over "$30")
 
 **Symptom.** On a sale of exactly $30 the calculator's total card read
@@ -88,7 +102,7 @@ turned into a name.
 **Cause.** The field names its value from the options list, and the list was
 empty until `ListSalespersons` answered, so it fell back to the bare id. A
 salesperson the list leaves out (attendance-only staff, a till-only leftover once
-kashi manages the roster) stayed a number for good.
+Central manages the roster) stayed a number for good.
 
 **Fix.** The dialog is now `frontend/src/components/InvoiceChangeDialog.vue`. It
 names the invoice's own salesperson from the list row at once, keeps them on offer
@@ -98,7 +112,7 @@ Tests: `frontend/src/components/InvoiceChangeDialog.test.ts` ("Change Salesperso
 
 ## 2026-11-07 · A remote return of a deal product refused a quantity the sale had
 
-**Symptom.** From kashi, returning 3 units of a product sold on a deal as 2 paid
+**Symptom.** From central, returning 3 units of a product sold on a deal as 2 paid
 and 1 free failed with "requested quantity 3 ... exceeds the original line
 quantity 2", and asking for the paid line after the free one failed the same way.
 
@@ -107,12 +121,12 @@ one line of a sale (true before `000061_invoice_products_surrogate_key`). It
 matched every requested item to the product's first line and capped it there.
 
 **Fix.** Each requested item is spread over all of its product's lines, at the
-unit price kashi now sends with it, and never past what they hold between them
+unit price central now sends with it, and never past what they hold between them
 (`commands.go`). Test: `TestExecuteRemoteReturnInvoiceCommand_DealLinesOfOneProduct`.
 
 ## 2026-11-07 · Returning a buy-1-get-1 pair failed with "item has already been returned"
 
-**Symptom.** Returning both shoes of a Buy 1 Get 1 sale (remotely from kashi, or
+**Symptom.** Returning both shoes of a Buy 1 Get 1 sale (remotely from central, or
 at the till) failed with "checkout return: item has already been returned",
 though nothing had been returned.
 
@@ -269,10 +283,10 @@ Tests: `TestPickUnknownItemDeal`, `TestUnknownItemFollowsTheBranchToANewDeal`.
 
 ## 2026-11-05 · A branch moved to another list never got it
 
-**Symptom.** Centro was moved to a new discount list in kashi, but the till kept
+**Symptom.** Centro was moved to a new discount list in central, but the till kept
 selling on the old one, with no error on screen.
 
-**Cause.** A list kashi switches off was deleted here. Once it has sales the delete
+**Cause.** A list central switches off was deleted here. Once it has sales the delete
 fails, because `invoice_products` points at it. That rolled back the whole pull, so
 the new list was lost too and the cursor never moved.
 
@@ -370,7 +384,7 @@ release through (`kiosk_windows.go`). Tests: `TestModifierWatch*` in
 
 ## 2026-10-30 · Punches made while the till was off could be missed
 
-**Symptom.** An employee's attendance in kashi had almost only arrival
+**Symptom.** An employee's attendance in central had almost only arrival
 punches (Ahmad Robaie at Centro: one punch a day all October), while
 colleagues on the same device had their exits too.
 
@@ -495,7 +509,7 @@ so they were put on two deals. The till pools units per deal, so the two
 kinds never made a set together.
 
 **Fix.** One deal again, with each list row able to carry its own fallback
-(`deal_fallback_percent`, kashi 000216, till 000133). The till pools every
+(`deal_fallback_percent`, central 000216, till 000133). The till pools every
 unit on the deal and gives a unit left outside a set its row's fallback
 (`unitDiscounts` and `applyDeals` in `deals.go`). Sold lines keep the
 fallback they were sold with, so an exchange judges them by it
@@ -508,10 +522,10 @@ gives the deal's own 20%; it never stacks a discount on the deal. Tests:
 **Symptom.** Three salespersons were orange and two pink on the till's
 salesperson picker.
 
-**Cause.** kashi picked each new salesperson's colour at random from 12.
-The till shows the colour kashi sets.
+**Cause.** central picked each new salesperson's colour at random from 12.
+The till shows the colour central sets.
 
-**Fix.** In kashi (its `docs/FIXED_BUGS.md`): a new salesperson gets the
+**Fix.** In central (its `docs/FIXED_BUGS.md`): a new salesperson gets the
 colour least used in the branch, and the existing duplicates were reassigned.
 Nothing changed on the till.
 
