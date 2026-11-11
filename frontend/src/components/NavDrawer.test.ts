@@ -52,10 +52,13 @@ const click = async (sel: string) => {
 };
 
 describe("Quit menu", () => {
-  it("lists the options in three labelled groups", async () => {
+  it("lists the options in three colour-coded groups, with no captions", async () => {
     await openQuitMenu();
-    const groups = [...document.body.querySelectorAll(".options-group-title")].map((e) => e.textContent?.trim());
-    expect(groups).toEqual(["Shift", "This app", "This computer"]);
+    expect(document.body.querySelector(".options-group-title")).toBeNull();
+    const tones = [...document.body.querySelectorAll(".options-group")].map((e) => e.className.match(/options-group--(\w+)/)?.[1]);
+    expect(tones).toEqual(["shift", "app", "computer"]);
+    expect(document.body.textContent).not.toContain("This app");
+    expect(document.body.textContent).not.toContain("This computer");
     const labels = [...document.body.querySelectorAll(".option-card")].map((e) => e.textContent?.trim());
     expect(labels).toEqual(["Close Shift", "Logout", "Reload GB Cloud", "Close App", "Restart PC", "Shut Down PC"]);
   });

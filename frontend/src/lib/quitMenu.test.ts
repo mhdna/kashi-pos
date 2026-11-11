@@ -11,6 +11,10 @@ describe("quit menu", () => {
     ]);
   });
 
+  it("gives each group its own colour family", () => {
+    expect(QUIT_GROUPS.map((g) => g.tone)).toEqual(["shift", "app", "computer"]);
+  });
+
   it("names the app reload and the computer restart so they can't be confused", () => {
     const label = (a: string) => QUIT_OPTIONS.find((o) => o.action === a)!.label;
     expect(label("reload-app")).toBe("Reload GB Cloud");

@@ -92,8 +92,14 @@
       </div>
 
       <k-card-text class="px-4 pt-0 pb-4">
-        <section v-for="group in QUIT_GROUPS" :key="group.title" class="options-group" :data-test="`quit-group-${group.title}`">
-          <div class="options-group-title">{{ group.title }}</div>
+        <section
+          v-for="group in QUIT_GROUPS"
+          :key="group.title"
+          class="options-group"
+          :class="`options-group--${group.tone}`"
+          :aria-label="group.title"
+          :data-test="`quit-group-${group.tone}`"
+        >
           <div class="options-grid">
             <k-card
               v-for="option in group.options"
@@ -531,13 +537,19 @@ const items = computed(() => {
 .options-group + .options-group {
   margin-top: 16px;
 }
-.options-group-title {
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.6;
-  margin: 0 2px 8px;
+/* No captions: each group has its own colour instead. Green for the shift,
+   blue for the app, red for the computer; a tinted card and a coloured icon. */
+.options-group--shift { --option-color: 46, 125, 50; }
+.options-group--app { --option-color: 25, 118, 210; }
+.options-group--computer { --option-color: 211, 47, 47; }
+.options-group .option-card {
+  background-color: rgba(var(--option-color), 0.09);
+}
+.options-group .option-card:hover {
+  background-color: rgba(var(--option-color), 0.17);
+}
+.options-group .option-card :deep(.k-icon) {
+  color: rgb(var(--option-color));
 }
 
 .options-dialog-card {
