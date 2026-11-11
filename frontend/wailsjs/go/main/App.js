@@ -778,10 +778,6 @@ export function RestartApp() {
   return window['go']['main']['App']['RestartApp']();
 }
 
-export function RestartApp() {
-  return window['go']['main']['App']['RestartApp']();
-}
-
 export function RestartComputer() {
   return window['go']['main']['App']['RestartComputer']();
 }
