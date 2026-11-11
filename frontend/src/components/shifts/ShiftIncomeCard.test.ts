@@ -107,6 +107,10 @@ describe("ShiftIncomeCard", () => {
     const css = readFileSync(resolve(process.cwd(), "src/components/shifts/ShiftIncomeCard.vue"), "utf8");
     expect(css).toMatch(/\.shift-income-body \{[^}]*overflow-y: auto/);
     expect(css).toMatch(/\.shift-income-body \{[^}]*min-height: 0/);
+    // The body spans the card, so the total band (margin -16px) fills the width instead of being clipped.
+    expect(css).toMatch(/\.shift-income-body \{[^}]*margin-inline: -16px/);
+    expect(css).toMatch(/\.shift-income-body \{[^}]*padding-inline: 16px/);
+    expect(css).toMatch(/\.shift-total \{[^}]*margin: 12px -16px/);
     expect(css).toMatch(/\.shift-income-actions \{[^}]*flex-shrink: 0/);
   });
 });

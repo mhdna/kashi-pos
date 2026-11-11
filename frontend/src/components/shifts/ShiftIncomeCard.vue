@@ -235,10 +235,16 @@ async function confirmManager() {
   flex-direction: column;
 }
 
+/* Spans the card edge to edge (cancelling the card's 16px padding, and putting
+   it back inside) so the total band can fill the width: a scrolling box clips
+   anything that bleeds past it. */
 .shift-income-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  margin-inline: -16px;
+  padding-inline: 16px;
 }
 
 /* Centred: the icon in a soft disc, the title under it, the shift number as a
