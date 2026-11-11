@@ -461,7 +461,7 @@ onBeforeUnmount(() => {
 
 .events-strip {
   flex: 0 0 auto;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .shifts-cards {
