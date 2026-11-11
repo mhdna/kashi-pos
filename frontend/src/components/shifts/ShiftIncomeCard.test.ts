@@ -45,10 +45,10 @@ async function show(items: any[]) {
 const total = () => wrapper!.find('[data-test="income-total"]').text();
 
 describe("ShiftIncomeCard", () => {
-  it("the reported case: Cash $243.00 shows an income total of $243.00", async () => {
+  it("the reported case: Cash $243.00 shows a total collected of $243.00", async () => {
     await show([{ accountId: 1, accountName: "Cash $$", currencyCode: "USD", total: 24300 }]);
     expect(wrapper!.text()).toContain("$243.00");
-    expect(total()).toContain("Income total");
+    expect(total()).toContain("Total collected");
     expect(total()).toContain("$243.00");
     expect(total()).not.toContain("$0.00");
   });

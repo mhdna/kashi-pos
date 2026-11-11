@@ -24,7 +24,7 @@
         </k-list-item>
       </k-list>
       <div class="shift-total" data-test="income-total">
-        <span class="shift-total-label">Income total</span>
+        <span class="shift-total-label">Total collected</span>
         <span class="shift-total-amount">{{ formatBalance(collectedTotal, "USD", currencies, roundingMode) }}</span>
       </div>
     </template>
