@@ -335,6 +335,15 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 	}
 
 	sent := 0
+	if len(rest) > 0 {
+		link.begin(phasePushing, "Sending to kashi", 0, len(rest))
+		defer func() {
+			link.end(phasePushing)
+			if sent > 0 {
+				link.pushed()
+			}
+		}()
+	}
 	for _, entry := range rest {
 		if linkFailed() {
 			return nil
@@ -349,6 +358,7 @@ func (a *App) runSyncOutboxOnce(ctx context.Context, client *centralClient) erro
 		}
 		sent++
 		a.pushOutboxEntry(ctx, client, entry)
+		link.progress(sent, len(rest))
 		changed = true
 	}
 

@@ -222,6 +222,8 @@ export function GetSpendSummary(arg1:number):Promise<Record<string, any>>;
 
 export function GetStartupError():Promise<string>;
 
+export function GetLinkStatus():Promise<main.LinkStatus>;
+
 export function GetSyncStatus():Promise<main.SyncStatusResult>;
 
 export function GetTheme():Promise<string>;

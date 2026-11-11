@@ -442,6 +442,10 @@ export function GetStartupError() {
   return window['go']['main']['App']['GetStartupError']();
 }
 
+export function GetLinkStatus() {
+  return window['go']['main']['App']['GetLinkStatus']();
+}
+
 export function GetSyncStatus() {
   return window['go']['main']['App']['GetSyncStatus']();
 }

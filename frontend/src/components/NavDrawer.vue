@@ -50,16 +50,7 @@
         </k-btn>
       </div>
 
-      <div
-        :class="['sync-status', `sync-status--${syncState.tone}`, { 'sync-status--link': auth.isAdmin }]"
-        :title="syncState.title"
-        :role="auth.isAdmin ? 'button' : undefined"
-        :aria-label="`Sync: ${syncState.word}`"
-        @click="auth.isAdmin && openSyncSettings()"
-      >
-        <k-icon :icon="syncState.icon" size="20" />
-        <span class="sync-status-word">{{ syncState.word }}</span>
-      </div>
+      <SyncIndicator />
 
       <div class="device-panel" role="button" aria-label="Devices" @click="devicesOpen = true">
         <span class="device-panel-title">Devices</span>
@@ -164,10 +155,9 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
-import { useSyncStatus } from "@/composables/useSyncStatus";
+import SyncIndicator from "@/components/SyncIndicator.vue";
 import { useDeviceStatus } from "@/composables/useDeviceStatus";
 import DevicesDialog from "@/components/DevicesDialog.vue";
-import { useResyncStore } from "@/stores/resync";
 import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { Quit } from "../../wailsjs/runtime/runtime";
 import { RestartComputer, ShutDownComputer } from "../../wailsjs/go/main/App";
@@ -182,35 +172,11 @@ const {
   adjust: adjustVisitors,
 } = useVisitorCounter();
 
-const { status: syncStatus } = useSyncStatus();
-const resync = useResyncStore();
-const syncState = computed(() => {
-  const st = syncStatus.value;
-  if (resync.running)
-    return { tone: 'busy', icon: 'mdi-sync', word: 'Syncing', title: resync.progress || 'Full sync running' };
-  if (!st || !st.configured)
-    return { tone: 'off', icon: 'mdi-cloud-off-outline', word: 'Off', title: 'Sync not set up' };
-  if (st.failed > 0)
-    // Amber and "Check", not red "Error": the sales are safe on the till,
-    // kashi just hasn't taken them yet.
-    return { tone: 'attention', icon: 'mdi-cloud-alert-outline', word: 'Check', title: `${st.failed} record(s) kashi didn't accept yet; they're safe on this till` };
-  if (st.pending > 0 || st.confirmedElsewhere > 0)
-    return {
-      tone: 'busy',
-      icon: 'mdi-cloud-upload',
-      word: 'Syncing',
-      title: `${st.pending + st.confirmedElsewhere} record(s) not yet confirmed here`,
-    };
-  return { tone: 'ok', icon: 'mdi-cloud-check-variant', word: 'Synced', title: 'Fully synced with kashi' };
-});
 const { status: attendanceStatus } = useAttendanceStatus();
 
 const { devices: deviceIcons } = useDeviceStatus();
 const devicesOpen = ref(false);
 
-function openSyncSettings() {
-  router.push({ path: '/settings', query: { panel: 'general-sync' } });
-}
 const optionsOpen = ref(false);
 const closeAppConfirmOpen = ref(false);
 
@@ -326,34 +292,6 @@ const items = computed(() => {
 </script>
 
 <style scoped>
-.sync-status {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 8px 0;
-}
-.sync-status--link {
-  cursor: pointer;
-}
-.sync-status-word {
-  font-size: 0.7rem;
-  font-weight: 700;
-  line-height: 1.1;
-}
-.sync-status--ok {
-  color: #66bb6a;
-}
-.sync-status--busy {
-  color: #ffb74d;
-}
-.sync-status--attention {
-  color: #ffd54f;
-}
-.sync-status--off {
-  color: #9e9e9e;
-}
 .device-panel {
   flex: 0 0 auto;
   display: flex;

@@ -42,7 +42,7 @@ func newCentralClient(baseURL, branchCode, apiKey string) *centralClient {
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		branchCode: branchCode,
 		apiKey:     apiKey,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+		httpClient: &http.Client{Timeout: 10 * time.Second, Transport: linkTransport{base: http.DefaultTransport}},
 	}
 }
 
@@ -914,6 +914,7 @@ func (c *centralClient) DialWS(ctx context.Context) (*websocket.Conn, error) {
 	header.Set("X-Branch-Key", c.apiKey)
 
 	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL+"/branch/ws", header)
+	link.kashiResult(err)
 	if err != nil {
 		return nil, err
 	}

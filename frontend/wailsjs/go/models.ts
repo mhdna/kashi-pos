@@ -1220,6 +1220,54 @@ export namespace main {
 		}
 	}
 	
+	export class LinkStatus {
+	    internet: string;
+	    kashi: string;
+	    kashiError: string;
+	    kashiLastOk: string;
+	    kashiDownForSeconds: number;
+	    live: boolean;
+	    liveSince: string;
+	    liveLastBeat: string;
+	    liveError: string;
+	    liveRetryAt: string;
+	    liveEverUp: boolean;
+	    phase: string;
+	    label: string;
+	    detail: string;
+	    done: number;
+	    total: number;
+	    lastPullAt: string;
+	    lastPushAt: string;
+	    lastPullError: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LinkStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.internet = source["internet"];
+	        this.kashi = source["kashi"];
+	        this.kashiError = source["kashiError"];
+	        this.kashiLastOk = source["kashiLastOk"];
+	        this.kashiDownForSeconds = source["kashiDownForSeconds"];
+	        this.live = source["live"];
+	        this.liveSince = source["liveSince"];
+	        this.liveLastBeat = source["liveLastBeat"];
+	        this.liveError = source["liveError"];
+	        this.liveRetryAt = source["liveRetryAt"];
+	        this.liveEverUp = source["liveEverUp"];
+	        this.phase = source["phase"];
+	        this.label = source["label"];
+	        this.detail = source["detail"];
+	        this.done = source["done"];
+	        this.total = source["total"];
+	        this.lastPullAt = source["lastPullAt"];
+	        this.lastPushAt = source["lastPushAt"];
+	        this.lastPullError = source["lastPullError"];
+	    }
+	}
 	export class SyncStatusResult {
 	    configured: boolean;
 	    target: string;
