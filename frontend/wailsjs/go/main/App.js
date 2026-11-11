@@ -982,6 +982,10 @@ export function SetSplitDisplay(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetSplitDisplay'](arg1, arg2, arg3);
 }
 
+export function SetSyncVerboseEnabled(arg1) {
+  return window['go']['main']['App']['SetSyncVerboseEnabled'](arg1);
+}
+
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
