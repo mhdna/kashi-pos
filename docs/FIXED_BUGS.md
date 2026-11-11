@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-11 · Search results: the last rows can't be scrolled into view
+
+**Symptom.** Searching in place (the product list over the sale screen), the
+list scrolled to its end but the last row of cards stayed half under the search
+bar at the bottom.
+
+**Cause.** The results stopped `--home-search-keyboard-height` above the pane's
+bottom, taken from the keyboard's own height. When the pane ends above the
+screen bottom, that inset is more than the keyboard overlaps, so the results
+reached under the keyboard (likely cause, from the screenshot; not reproduced
+here).
+
+**Fix.** The inset is now measured from where the pane and the keyboard really
+are (`searchResultsInset` in `lib/searchInset.ts`, measured in `pages/home.vue`
+on resize and when either changes), so the results end exactly at the keyboard.
+Test: `lib/searchInset.test.ts`.
+
 ## 2026-11-11 · Unknown-item QR forgotten after leaving the sale screen
 
 **Symptom.** With an unknown item in the cart and its pictures already taken,

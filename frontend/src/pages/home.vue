@@ -198,7 +198,7 @@
           />
         </div>
       </div>
-      <div class="home-right-pane d-flex flex-column position-relative" style="flex: 5 5 0; min-width: 0">
+      <div ref="rightPane" class="home-right-pane d-flex flex-column position-relative" style="flex: 5 5 0; min-width: 0">
         <!-- Searching in place: the results lie over the calculator, down to the
              keyboard; everything under them stays as it was, a payment being
              keyed included, and is back once the search ends. -->
@@ -467,6 +467,7 @@ import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import ProductSearchKeyboard from "@/components/ProductSearchKeyboard.vue";
 import ProductSearchResults from "@/components/ProductSearchResults.vue";
+import { searchResultsInset } from "@/lib/searchInset";
 import { useProductGridMode } from "@/composables/useProductGridMode";
 import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
 import UnknownPicturesCorner from "@/components/UnknownPicturesCorner.vue";
@@ -1142,17 +1143,31 @@ function onInPlaceSelect(product: Parameters<typeof onProductSelect>[0]) {
   onProductSelect(product);
 }
 
-// The results end where the keyboard starts.
+// The results end where the keyboard starts: measured from where the pane and the
+// keyboard really are (see lib/searchInset.ts), so the last rows can't end up under it.
 const searchKeyboard = ref<{ $el?: HTMLElement } | null>(null);
+const rightPane = ref<HTMLElement | null>(null);
 const searchKeyboardHeight = ref(0);
-const keyboardResizer = new ResizeObserver(([entry]) => {
-  searchKeyboardHeight.value = entry?.borderBoxSize?.[0]?.blockSize ?? entry?.contentRect.height ?? 0;
-});
+function measureSearchInset() {
+  const keyboard = searchKeyboard.value?.$el;
+  const pane = rightPane.value;
+  searchKeyboardHeight.value =
+    keyboard && pane ? searchResultsInset(pane.getBoundingClientRect().bottom, keyboard.getBoundingClientRect().top) : 0;
+}
+const keyboardResizer = new ResizeObserver(measureSearchInset);
 watch(searchKeyboard, (keyboard, old) => {
   if (old?.$el) keyboardResizer.unobserve(old.$el);
-  if (keyboard?.$el) keyboardResizer.observe(keyboard.$el);
+  if (keyboard?.$el) {
+    keyboardResizer.observe(keyboard.$el);
+    if (rightPane.value) keyboardResizer.observe(rightPane.value);
+    measureSearchInset();
+  }
 });
-onBeforeUnmount(() => keyboardResizer.disconnect());
+window.addEventListener("resize", measureSearchInset);
+onBeforeUnmount(() => {
+  keyboardResizer.disconnect();
+  window.removeEventListener("resize", measureSearchInset);
+});
 
 watch(searchingInPlace, (open) => {
   // Keeps the barcode field from taking the focus back while searching.
