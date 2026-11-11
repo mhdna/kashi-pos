@@ -29,7 +29,7 @@ and list item was a deep tree of reactive components.
 - **Animations are off by default, on every build** (`lib/animationsDefault.ts`).
   Before v1.1.82 they defaulted on, so the first start of that version switches
   every till off once (marker `kashi-animations-reset-v1`); a switch-on in
-  Settings or a push from kashi afterwards is kept. The `animations-disabled`
+  Settings or a push from central afterwards is kept. The `animations-disabled`
   class sits on `<html>` (dialogs are teleported out of the app root). The switch
   now only governs the red status dot in the nav rail (solid red when off, pulsing
   when on) and the invoice salesperson menu's fade.

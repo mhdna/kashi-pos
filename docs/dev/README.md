@@ -6,7 +6,7 @@ code behaves, including the parts that aren't obvious from the screens.
 | File | About |
 |---|---|
 | [attendance.md](attendance.md) | Akuvox punches: when they're pulled, which are imported, requests and approval. |
-| [sync.md](sync.md) | kashi ↔ till: who owns what, the outbox, pulls, commands, the settings report. |
+| [sync.md](sync.md) | central ↔ till: who owns what, the outbox, pulls, commands, the settings report. |
 | [money-and-selling.md](money-and-selling.md) | Cents, currencies, where prices come from, deals, discounts, stock, returns. |
 | [shifts-and-logins.md](shifts-and-logins.md) | Shifts and closing, the opening float, logins and the PIN lockout, salespersons, targets. |
 | [ui-components.md](ui-components.md) | The own component kit that replaced Vuetify: theme vars, layers, quirks. |
@@ -21,8 +21,8 @@ Bug history is in [`../FIXED_BUGS.md`](../FIXED_BUGS.md).
 
 1. **There is no log on a till.** `log.Printf` output goes nowhere in the
    Windows build. Add a log file before debugging a till by its logs.
-2. **Checkout doesn't take stock off.** Stock is kashi's, from synced sales.
-3. **A product has no price of its own.** Prices come only from kashi's price
+2. **Checkout doesn't take stock off.** Stock is central's, from synced sales.
+3. **A product has no price of its own.** Prices come only from central's price
    lists; `products.price` is frozen. Not in an active list = can't be sold.
 4. **All money is integer USD cents**, whatever was paid with. Expenses and
    loans are the exception (their own currency, x100).
@@ -50,10 +50,10 @@ Bug history is in [`../FIXED_BUGS.md`](../FIXED_BUGS.md).
     ending in Enter/Tab), not by its USB ID.
 16. **A stuck Windows key after AnyDesk is released automatically** after 3
     seconds (till-only switch, on by default).
-17. **While connected, the till can't remove products or clients**; kashi
+17. **While connected, the till can't remove products or clients**; central
     deactivates them. Nothing anything refers to is ever hard-deleted.
 18. **Price lists, payment methods and currencies arrive whole**, so something
-    missing from kashi's list disappears from the till.
+    missing from central's list disappears from the till.
 19. **Sync stops at the first network error and waits for the connection**,
     instead of backing off each row.
 20. **Some settings never leave the till:** API key, theme, register number,

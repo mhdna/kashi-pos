@@ -1,6 +1,6 @@
 # Attendance
 
-How punches get from the Akuvox door device into the till and on to kashi,
+How punches get from the Akuvox door device into the till and on to central,
 and the rules that decide which punches count. Code: `attendance.go`,
 `attendance_push_server.go`, `attendance_probe.go`, `attendance_recorded.go`.
 
@@ -56,7 +56,7 @@ For each punch, in order:
    together than the **duplicate interval** (Settings, seconds; 0 = off) are
    one punch. Only the first is kept.
 4. Otherwise it's inserted into `salesperson_attendance_events` (`INSERT OR
-   IGNORE`, so re-pulling is harmless) and queued for kashi.
+   IGNORE`, so re-pulling is harmless) and queued for central.
 
 Surprises:
 
@@ -74,9 +74,9 @@ Surprises:
 
 A punch by a device user linked to no salesperson (a visitor, or an employee
 enrolled twice or under a new number) is **not attendance**, but since
-v1.1.75 kashi is told about it: it's sent once with status `Skipped: unlinked`,
+v1.1.75 central is told about it: it's sent once with status `Skipped: unlinked`,
 and `attendance_skipped_sent` (migration 000134) remembers which were sent,
-since the device returns them on every pull. kashi keeps them out of worked
+since the device returns them on every pull. Central keeps them out of worked
 hours and lists them so someone can link the user. Linking the user later
 doesn't turn the old skipped punches into attendance by itself.
 
@@ -92,22 +92,22 @@ A cashier can't edit a punch. They file a request (`SubmitAttendanceComplaint`):
 | `replace` | Change an existing punch's time and/or IN/OUT. |
 | `delete` | Remove an existing punch. |
 
-- The request is stored as `pending` and sent to kashi (`acr-<id>-complaint`).
+- The request is stored as `pending` and sent to central (`acr-<id>-complaint`).
 - It's decided either on the till with the **manager password**
-  (`ApproveAttendanceComplaint`), or in kashi, which sends a
+  (`ApproveAttendanceComplaint`), or in central, which sends a
   `review_attendance_request` command. Both run the same code
   (`reviewAttendanceComplaint`).
 - Only a `pending` request can be decided; a second decision is refused.
 - Approving `replace`/`delete` copies the original punch to
   `attendance_event_audit` and deletes it; `replace`/`add` insert a new punch
   with `device_id = 'manual'`, `event_id = change-request-<id>`, status
-  `Approved`. The new punch goes to kashi like any punch, labelled with who
+  `Approved`. The new punch goes to central like any punch, labelled with who
   approved it.
 - `AddAttendanceWithManagerApproval` files an `add` and approves it in one
   step, so it leaves the same trail.
 - Manager approval on the till can be turned off per branch
-  (`attendance_manager_approval`, on by default, kashi can push it). When
-  off, requests wait for kashi.
+  (`attendance_manager_approval`, on by default, central can push it). When
+  off, requests wait for central.
 - `CreateManualAttendanceEvent` (the legacy kashi-admin tool) records a punch
   with `device_id = 'admin-manual'` and no request.
 
@@ -120,7 +120,7 @@ There is one manager password per till, stored as
 `attendance_config.approver_password_hash`. Despite where it lives, it's the
 manager password for **everything**: attendance approvals, opening the
 Expenses and Loans pages, the Conversion page. An admin login skips it. It
-never leaves the till (kashi has no column for it).
+never leaves the till (central has no column for it).
 
 Hashing is plain unsalted SHA-256 (`hashPassword` in `app.go`), the same as
 other till passwords.
@@ -130,6 +130,6 @@ other till passwords.
 - `attendance_cashier_history`: lets cashiers see attendance history.
 - The device IP, user, password and enabled flag live in `attendance_config`.
   The password never leaves the till; the rest is in the settings report to
-  kashi.
+  central.
 - The "checked in" popup only shows for punches less than 2 minutes old, at
   most 5 at a time, so a catch-up import doesn't flood the screen.

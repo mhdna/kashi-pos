@@ -12,7 +12,7 @@ export default {
     box(640, 70, 240, 110, 'kashi', 'blue', 'central server\nGo + Postgres + web app'),
     arrow([[580, 125], [640, 125]], 'sync\nWebSocket'),
     `<text class="note" x="450" y="350">A till works alone when no central URL is set (standalone mode).</text>`,
-    `<text class="note" x="450" y="376">kashi owns products, prices and clients; the till owns invoices, shifts and cash.</text>`,
+    `<text class="note" x="450" y="376">central owns products, prices and clients; the till owns invoices, shifts and cash.</text>`,
   ].join('')),
 
   syncOverview: svg(900, 330, [
@@ -31,7 +31,7 @@ export default {
     box(685, 40, 200, 80, 'kashi', 'plain'),
     arrow([[200, 80], [235, 80]]), arrow([[425, 80], [460, 80]]), arrow([[650, 80], [685, 80]]),
     arrow([[555, 120], [555, 175], [300, 175], [300, 120]], 'no connection: stop the pass, wait 5 s, 10 s ... 1 min', 'dash'),
-    `<text class="note" x="450" y="212">A real error from kashi (5xx, 408, 429) backs off only that row; failed rows retry hourly.</text>`,
+    `<text class="note" x="450" y="212">A real error from central (5xx, 408, 429) backs off only that row; failed rows retry hourly.</text>`,
   ].join('')),
 
   pricing: svg(900, 220, [
@@ -51,7 +51,7 @@ export default {
     box(200, 40, 160, 80, 'Sales', 'plain', 'a sale needs\nan open shift'),
     box(390, 40, 160, 80, 'Close', 'orange', 'count the drawer'),
     box(580, 40, 150, 80, 'Receipt photo', 'blue', 'QR code,\nphone uploads'),
-    box(760, 40, 130, 80, 'Pushed', 'plain', 'to kashi'),
+    box(760, 40, 130, 80, 'Pushed', 'plain', 'to central'),
     arrow([[170, 80], [200, 80]]), arrow([[360, 80], [390, 80]]), arrow([[550, 80], [580, 80]]), arrow([[730, 80], [760, 80]]),
     `<text class="note" x="450" y="165">Expenses and loans do not need an open shift.</text>`,
   ].join('')),

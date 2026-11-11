@@ -49,7 +49,7 @@ Tills came with dozens of startup programs eating CPU and memory.
 ## Starting with Windows (`autostart_windows.go`)
 
 The app writes its own entry under `HKCU\...\CurrentVersion\Run` on **every
-launch** (not the installer), so tills that only ever got updates from kashi
+launch** (not the installer), so tills that only ever got updates from central
 have it too, and a moved install fixes itself. Turning it off in Task
 Manager's Startup tab still works: that choice is kept in a separate
 `StartupApproved` key the app never touches.
@@ -122,8 +122,8 @@ released with an injected key-up. The kiosk keyboard hook lets that key-up
 through (it's marked with `stuckKeyRelease` in `dwExtraInfo`).
 
 Switch: Settings → General → Stuck keys (`release_stuck_keys`, on by default).
-**Till-only on purpose:** kashi doesn't see or push it. It exists for our own
-remote sessions and isn't something to offer customers (noted in kashi's
+**Till-only on purpose:** central doesn't see or push it. It exists for our own
+remote sessions and isn't something to offer customers (noted in central's
 roadmap, M9).
 
 ## Local servers on the till
@@ -141,5 +141,5 @@ to reach them.
 
 `make build-windows-compact` builds "GB Cloud Compact.exe" with the `compact`
 Go tag and `VITE_KASHI_COMPACT=1`: a 1024x768 window for small screens. It's a
-separate **flavor**: kashi only ever sends a till an update of the flavor it
+separate **flavor**: central only ever sends a till an update of the flavor it
 runs (`app_flavor*.go`), so publish both when a change matters to both.

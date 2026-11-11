@@ -11,11 +11,11 @@ Measured or reported slow things that are not fixed yet. Nothing recorded yet.
 
 ### 2026-11-10 · Expense, loan and transfer photos loaded slowly every time
 
-**Symptom.** Opening Expenses, Loans or Transfers, or a record's detail, waited on kashi for every thumbnail and photo, each session; offline they never showed.
+**Symptom.** Opening Expenses, Loans or Transfers, or a record's detail, waited on central for every thumbnail and photo, each session; offline they never showed.
 
-**Finding.** Every photo was a round trip to kashi (behind Cloudflare), kept only in memory for the session; reopening the app fetched them all again. Not timed on a till.
+**Finding.** Every photo was a round trip to central (behind Cloudflare), kept only in memory for the session; reopening the app fetched them all again. Not timed on a till.
 
-**Change.** `photo_cache.go`, `record_photos.go`: every photo is saved, encrypted, in one hidden SQLite file and shown from it after the first time; kashi is asked in the background (ETag, 304 when unchanged) and the page redraws only if it changed (`frontend/src/lib/recordPhotos.ts`, the three pages). Works offline for photos seen before.
+**Change.** `photo_cache.go`, `record_photos.go`: every photo is saved, encrypted, in one hidden SQLite file and shown from it after the first time; central is asked in the background (ETag, 304 when unchanged) and the page redraws only if it changed (`frontend/src/lib/recordPhotos.ts`, the three pages). Works offline for photos seen before.
 
 **Not done.** Fetching recent records' thumbnails ahead of time, before anyone opens the page (in `FEATURE_IDEAS.md`).
 
