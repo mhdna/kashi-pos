@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -33,4 +35,37 @@ func (a *App) powerOff(restart bool) error {
 		wailsruntime.Quit(a.ctx)
 	}()
 	return nil
+}
+
+// RestartApp closes this app and starts it again, from the Quit dialog. The
+// new copy is started by a hidden helper after a short wait, not by this
+// process: the new one must not begin while this one still holds its ports
+// and the single-instance lock.
+func (a *App) RestartApp() error {
+	if isDevMode {
+		return errors.New("not from a development build")
+	}
+	exe, err := currentExecutable()
+	if err != nil {
+		return err
+	}
+	if err := startRelaunch(exe); err != nil {
+		return err
+	}
+	kioskKeepShellOff.Store(true)
+	go func() {
+		// Let the frontend paint before the window goes.
+		time.Sleep(300 * time.Millisecond)
+		wailsruntime.Quit(a.ctx)
+	}()
+	return nil
+}
+
+// relaunchScript is the cmd.exe line that waits about two seconds (three
+// pings to localhost, like the power helper: a timer command would need a
+// console) and then starts exe. The quotes keep a path with spaces whole;
+// `start "" ...` is cmd's way to start a program without waiting for it.
+func relaunchScript(system32, exe string) string {
+	return fmt.Sprintf(`"%s" -n 3 127.0.0.1 >nul & start "" "%s"`,
+		filepath.Join(system32, "PING.EXE"), exe)
 }

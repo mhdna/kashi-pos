@@ -388,6 +388,10 @@ export function RequestLoanUploadLink(arg1:string):Promise<string>;
 
 export function RequestUnknownItemHelp(arg1:string):Promise<void>;
 
+export function RestartApp():Promise<void>;
+
+export function RestartApp():Promise<void>;
+
 export function RestartComputer():Promise<void>;
 
 export function ResyncAll(arg1:main.ResyncOptions):Promise<main.ResyncReport>;

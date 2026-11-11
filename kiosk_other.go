@@ -14,3 +14,7 @@ func leaveKiosk() {}
 func startPowerCommand(bool) error {
 	return errors.New("shutting the computer down from the app only works on Windows")
 }
+
+func startRelaunch(string) error {
+	return errors.New("restarting the app from itself only works on Windows")
+}

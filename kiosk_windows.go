@@ -563,3 +563,19 @@ func startPowerCommand(restart bool) error {
 	}
 	return cmd.Process.Release()
 }
+
+// startRelaunch starts exe again in about two seconds, from a hidden helper
+// that outlives this process (see relaunchScript).
+func startRelaunch(exe string) error {
+	system32 := filepath.Join(os.Getenv("WINDIR"), "System32")
+	cmd := exec.Command(filepath.Join(system32, "cmd.exe"))
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: windows.CREATE_NO_WINDOW,
+		CmdLine:       fmt.Sprintf(`cmd.exe /d /c "%s"`, relaunchScript(system32, exe)),
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
+}

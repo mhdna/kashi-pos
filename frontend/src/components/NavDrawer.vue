@@ -91,32 +91,44 @@
         />
       </div>
 
-      <k-card-text class="options-grid options-grid--three px-4 pt-0 pb-4">
-        <k-card class="option-card" rounded="lg" variant="text" @click="openCloseShift">
-          <k-icon icon="mdi-close-circle-outline" size="44" />
-          <span>Close Shift</span>
-        </k-card>
-        <k-card class="option-card" rounded="lg" variant="text" @click="logout">
-          <k-icon icon="mdi-logout" size="44" />
-          <span>Logout</span>
-        </k-card>
-        <k-card class="option-card" rounded="lg" variant="text" @click="closeApp">
-          <k-icon icon="mdi-close" size="44" />
-          <span>Close App</span>
-        </k-card>
-        <k-card class="option-card" rounded="lg" variant="text" @click="askPower('restart')">
-          <k-icon icon="mdi-restart" size="44" />
-          <span>Restart</span>
-        </k-card>
-        <k-card class="option-card" rounded="lg" variant="text" @click="askPower('shutdown')">
-          <k-icon icon="mdi-power" size="44" />
-          <span>Shut Down</span>
-        </k-card>
+      <k-card-text class="px-4 pt-0 pb-4">
+        <section v-for="group in QUIT_GROUPS" :key="group.title" class="options-group" :data-test="`quit-group-${group.title}`">
+          <div class="options-group-title">{{ group.title }}</div>
+          <div class="options-grid">
+            <k-card
+              v-for="option in group.options"
+              :key="option.action"
+              class="option-card"
+              rounded="lg"
+              variant="text"
+              :data-test="`quit-${option.action}`"
+              @click="runQuitOption(option.action)"
+            >
+              <k-icon :icon="option.icon" size="44" />
+              <span>{{ option.label }}</span>
+            </k-card>
+          </div>
+        </section>
       </k-card-text>
     </k-card>
   </k-dialog>
 
   <DevicesDialog v-model="devicesOpen" />
+
+  <k-dialog v-model="reloadAppConfirmOpen" max-width="360">
+    <k-card class="options-dialog-card" rounded="xl" data-test="reload-app-dialog">
+      <k-card-title>Reload GB Cloud</k-card-title>
+      <k-card-text>
+        Reload GB Cloud? It closes and opens again in a few seconds.
+        <div v-if="reloadAppError" class="text-error mt-2" data-test="reload-app-error">{{ reloadAppError }}</div>
+      </k-card-text>
+      <k-card-actions>
+        <k-spacer />
+        <k-btn variant="text" @click="reloadAppConfirmOpen = false">Cancel</k-btn>
+        <k-btn color="primary" variant="flat" data-test="reload-app-confirm" @click="confirmReloadApp">Reload</k-btn>
+      </k-card-actions>
+    </k-card>
+  </k-dialog>
 
   <k-dialog v-model="closeAppConfirmOpen" max-width="360">
     <k-card class="options-dialog-card" rounded="xl">
@@ -132,7 +144,7 @@
 
   <k-dialog :model-value="powerConfirm !== null" max-width="360" @update:model-value="powerConfirm = null">
     <k-card class="options-dialog-card" rounded="xl">
-      <k-card-title>{{ powerConfirm === 'restart' ? 'Restart computer' : 'Shut down computer' }}</k-card-title>
+      <k-card-title>{{ powerConfirm === 'restart' ? 'Restart PC' : 'Shut down PC' }}</k-card-title>
       <k-card-text>
         {{ powerConfirm === 'restart' ? 'Restart this computer now?' : 'Turn this computer off now?' }}
         <div v-if="powerError" class="text-error mt-2">{{ powerError }}</div>
@@ -141,7 +153,7 @@
         <k-spacer />
         <k-btn variant="text" @click="powerConfirm = null">Cancel</k-btn>
         <k-btn color="error" variant="flat" @click="confirmPower">
-          {{ powerConfirm === 'restart' ? 'Restart' : 'Shut Down' }}
+          {{ powerConfirm === 'restart' ? 'Restart PC' : 'Shut Down PC' }}
         </k-btn>
       </k-card-actions>
     </k-card>
@@ -160,7 +172,8 @@ import { useDeviceStatus } from "@/composables/useDeviceStatus";
 import DevicesDialog from "@/components/DevicesDialog.vue";
 import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { Quit } from "../../wailsjs/runtime/runtime";
-import { RestartComputer, ShutDownComputer } from "../../wailsjs/go/main/App";
+import { RestartApp, RestartComputer, ShutDownComputer } from "../../wailsjs/go/main/App";
+import { QUIT_GROUPS, type QuitAction } from "@/lib/quitMenu";
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -179,6 +192,8 @@ const devicesOpen = ref(false);
 
 const optionsOpen = ref(false);
 const closeAppConfirmOpen = ref(false);
+const reloadAppConfirmOpen = ref(false);
+const reloadAppError = ref("");
 
 function handleItemClick(item: { locked?: boolean; to: string }) {
   if (item.locked) return;
@@ -194,6 +209,30 @@ function logout() {
 function closeApp() {
   optionsOpen.value = false;
   closeAppConfirmOpen.value = true;
+}
+
+function askReloadApp() {
+  optionsOpen.value = false;
+  reloadAppError.value = "";
+  reloadAppConfirmOpen.value = true;
+}
+
+async function confirmReloadApp() {
+  try {
+    await RestartApp();
+  } catch (err) {
+    reloadAppError.value = String(err);
+  }
+}
+
+// What each Quit-menu option does (the list itself is lib/quitMenu.ts).
+function runQuitOption(action: QuitAction) {
+  if (action === "close-shift") openCloseShift();
+  else if (action === "logout") logout();
+  else if (action === "reload-app") askReloadApp();
+  else if (action === "close-app") closeApp();
+  else if (action === "restart-pc") askPower("restart");
+  else askPower("shutdown");
 }
 
 function confirmCloseApp() {
@@ -489,8 +528,16 @@ const items = computed(() => {
   justify-content: flex-end;
 }
 
-.options-grid--three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.options-group + .options-group {
+  margin-top: 16px;
+}
+.options-group-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin: 0 2px 8px;
 }
 
 .options-dialog-card {
