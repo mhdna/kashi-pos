@@ -1,5 +1,5 @@
 <template>
-  <k-sheet class="shift-income-card shifts-card py-4 px-3" style="flex: 1; min-width: 0">
+  <k-sheet class="shift-income-card shifts-card py-4 px-0" style="flex: 1; min-width: 0">
     <k-card-title class="shift-income-title text-body-1 font-weight-bold" data-test="income-title">
       <k-icon icon="mdi-cash-register" color="grey-darken-1" class="me-2" />
       {{ title || "Shift Income" }}{{ shiftId ? ` (#${shiftId})` : "" }}
@@ -230,18 +230,20 @@ async function confirmManager() {
 .shift-income-card {
   display: flex;
   flex-direction: column;
+  /* How far the content (title, rows, total, buttons) is from the card's edges.
+     The title divider and the total band run edge to edge outside of it. */
+  --income-inset: 20px;
 }
 
 /* Invisible: it only makes the middle scroll and keeps the buttons in view.
-   It spans the card edge to edge (cancelling the card's 12px side padding and
-   putting it back inside) so the total band can fill the width. */
+   It spans the card edge to edge and keeps the content inset by --income-inset,
+   so the total band can fill the width. */
 .shift-income-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  margin-inline: -12px;
-  padding-inline: 12px;
+  padding-inline: var(--income-inset);
 }
 
 /* The payment rows start and end where the total band and the buttons do:
@@ -251,14 +253,14 @@ async function confirmManager() {
 }
 
 /* A centred header across the top of the card, no background, with a divider
-   under it; it cancels the card's side padding so the divider runs edge to edge. */
+   under it; the card has no side padding, so the divider runs edge to edge. */
 .shift-income-title {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 48px;
-  margin: -16px -12px 8px;
-  padding: 8px;
+  margin: -16px 0 8px;
+  padding: 8px var(--income-inset);
   border-bottom: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
 }
 
@@ -273,6 +275,7 @@ async function confirmManager() {
 }
 
 .shift-income-actions {
+  padding-inline: var(--income-inset);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -292,8 +295,8 @@ async function confirmManager() {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin: 12px -12px 4px;
-  padding: 14px 12px;
+  margin: 12px calc(var(--income-inset) * -1) 4px;
+  padding: 14px var(--income-inset);
   border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 0;
   background: rgba(67, 160, 71, 0.13);
