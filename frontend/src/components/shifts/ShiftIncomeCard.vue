@@ -23,9 +23,9 @@
         </template>
         </k-list-item>
       </k-list>
-      <div class="d-flex justify-space-between px-4 pt-3 mt-2 border-t font-weight-bold">
-        <span>Income total</span>
-        <span>{{ formatBalance(collectedTotal, "USD", currencies, roundingMode) }}</span>
+      <div class="shift-total" data-test="income-total">
+        <span class="shift-total-label">Income total</span>
+        <span class="shift-total-amount">{{ formatBalance(collectedTotal, "USD", currencies, roundingMode) }}</span>
       </div>
     </template>
     <div v-else class="shift-income-empty pa-3 text-caption text-medium-emphasis">
@@ -51,9 +51,9 @@
         <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
       </div>
       <!-- Only when something came off; otherwise it just repeats the total. -->
-      <div v-if="shiftExpenses.length || shiftLoans.length" class="d-flex justify-space-between pt-2 mt-1 border-t font-weight-bold">
+      <div v-if="shiftExpenses.length || shiftLoans.length" class="shift-net" data-test="net-income">
         <span>Net income</span>
-        <span>{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
+        <span class="shift-net-amount">{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
       </div>
     </div>
     <div v-if="shiftId" class="shift-income-actions mt-auto">
@@ -131,6 +131,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { GetSpendSummary, VerifyManagerPassword } from "../../../wailsjs/go/main/App";
 import { formatSpendAmount, sumToUsdCents } from "@/lib/spend";
+import { collectedTotalCents, netIncomeCents, onAccountTotalCents } from "@/lib/shiftIncome";
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { paymentAccentColor } from "@/lib/paymentColor";
@@ -148,7 +149,6 @@ const props = defineProps<{
   items: IncomeRow[];
   title?: string;
   shiftId?: number;
-  incomeTotal?: number;
   paymentMethods: PaymentMethod[];
   balanceSources: Balance[];
   loading: boolean;
@@ -179,15 +179,13 @@ watch(() => props.shiftId, loadSpend);
 // On-account sales are owed, not in the drawer: they stay out of the income
 // total and the net, and get their own line under the total instead.
 const collectedItems = computed(() => props.items.filter((item) => !item.isOnAccount));
-const onAccountTotal = computed(() =>
-  props.items.filter((item) => item.isOnAccount).reduce((sum, item) => sum + (Number(item.total) || 0), 0),
-);
-const collectedTotal = computed(() => (Number(props.incomeTotal) || 0) - onAccountTotal.value);
-const netIncome = computed(
-  () =>
-    collectedTotal.value -
-    sumToUsdCents(shiftExpenses.value, currencies.value) -
-    sumToUsdCents(shiftLoans.value, currencies.value),
+const onAccountTotal = computed(() => onAccountTotalCents(props.items));
+const collectedTotal = computed(() => collectedTotalCents(props.items));
+const netIncome = computed(() =>
+  netIncomeCents(
+    collectedTotal.value,
+    sumToUsdCents(shiftExpenses.value, currencies.value) + sumToUsdCents(shiftLoans.value, currencies.value),
+  ),
 );
 const balanceSources = computed<Balance[]>(() => props.balanceSources
   .filter((item) => !item.isOnAccount && !item.isOnCoupon && item.accountId && Number(item.balance) !== 0));
@@ -257,6 +255,42 @@ async function confirmManager() {
    to fill the card's free space so the action group stays compact. */
 .shift-income-actions > .k-btn {
   flex: 0 0 auto;
+}
+
+/* The total is the card's answer: bigger than the lines above it, on a soft
+   tinted block, amount right-aligned in figures that line up. */
+.shift-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 4px 4px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(var(--k-theme-primary), 0.09);
+}
+.shift-total-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}
+.shift-total-amount {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.shift-net {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 12px 0;
+  font-weight: 600;
+}
+.shift-net-amount {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 .shift-income-opening {

@@ -5,7 +5,6 @@
         :items="shiftIncome"
         title="Current Shift Income"
         :shift-id="openShift?.id"
-        :income-total="currentShiftTotal"
         :loading="loadingShift"
         :payment-methods="paymentMethods"
         :balance-sources="closeBalances"
@@ -207,11 +206,6 @@ const dailyRows = computed<DayRow[]>(() => {
 });
 
 const grandTotal = computed(() => monthSales.value.total);
-const currentShiftTotal = computed(() => {
-  const shiftId = Number(openShift.value?.id) || 0;
-  if (!shiftId) return 0;
-  return Number(allShifts.value.find((shift) => shift.id === shiftId)?.total) || 0;
-});
 const allDaysExpanded = computed(
   () =>
     dailyRows.value.length > 0 &&
