@@ -55,26 +55,6 @@ describe("ShiftIncomeCard", () => {
     expect(total()).not.toContain("$0.00");
   });
 
-  it("gives each account the icon for what it is, not a wallet for all", async () => {
-    await show([
-      { accountId: 1, accountName: "Cash $$", currencyCode: "USD", total: 100 },
-      { accountId: 2, accountName: "Cash LBP", currencyCode: "LBP", total: 100 },
-      { accountId: 3, accountName: "Visa", currencyCode: "USD", total: 100 },
-      { accountId: 4, accountName: "Whish", currencyCode: "USD", total: 100 },
-    ]);
-    const rows = wrapper!.findAll(".shift-income-row");
-    expect(rows).toHaveLength(4);
-    const used = rows.map((r) => r.find('[data-test="account-icon"]').exists());
-    expect(used.every(Boolean)).toBe(true);
-  });
-
-  it("heads the card with the title and the shift number as a pill", async () => {
-    await show([{ accountId: 1, accountName: "Cash $$", currencyCode: "USD", total: 24300 }]);
-    const header = wrapper!.find('[data-test="income-header"]');
-    expect(header.text()).toContain("Current Shift Income");
-    expect(wrapper!.find('[data-test="income-shift"]').text()).toBe("Shift #15");
-  });
-
   it("adds every collected line and leaves sales on account out", async () => {
     await show([
       { accountId: 1, accountName: "Cash $$", currencyCode: "USD", total: 24300 },
@@ -114,7 +94,7 @@ describe("ShiftIncomeCard", () => {
     expect(body.exists()).toBe(true);
     expect(actions.exists()).toBe(true);
     expect(body.element.contains(actions.element)).toBe(false);
-    expect(body.findAll(".shift-income-row").length).toBe(30);
+    expect(body.findAll(".k-list-item").length).toBe(30);
     expect(total()).toContain("$300.00");
     // Vitest doesn't load component CSS: the rules are read from the source.
     const css = readFileSync(resolve(process.cwd(), "src/components/shifts/ShiftIncomeCard.vue"), "utf8");

@@ -1,20 +1,19 @@
 <template>
   <k-sheet class="shift-income-card shifts-card pa-4" style="flex: 1; min-width: 0">
-    <div class="shift-income-header" data-test="income-header">
-      <span class="shift-income-header-icon"><k-icon icon="mdi-cash-register" size="22" /></span>
-      <span class="shift-income-header-title">{{ title || "Shift Income" }}</span>
-      <span v-if="shiftId" class="shift-income-header-shift" data-test="income-shift">Shift #{{ shiftId }}</span>
-    </div>
+    <k-card-title class="shift-income-title text-body-1 font-weight-bold px-0">
+      <k-icon icon="mdi-cash-register" color="grey-darken-1" class="me-2" />
+      {{ title || "Shift Income" }}{{ shiftId ? ` (#${shiftId})` : "" }}
+    </k-card-title>
     <!-- Everything between the title and the buttons scrolls on its own, so
          the buttons stay at the bottom of the card however long it gets. -->
     <div class="shift-income-body">
     <k-progress-linear v-if="loading" indeterminate />
     <template v-else-if="items.length">
       <k-list density="compact" class="pa-0">
-        <k-list-item v-for="item in collectedItems" :key="item.accountName" class="shift-income-row">
+        <k-list-item v-for="item in collectedItems" :key="item.accountName">
         <template #prepend>
           <k-avatar :color="paymentAccentColor({ name: item.accountName, color: item.color })" variant="tonal" size="32">
-            <k-icon :icon="paymentIcon({ name: item.accountName, isOnAccount: item.isOnAccount })" size="18" data-test="account-icon" />
+            <k-icon icon="mdi-wallet" size="18" />
           </k-avatar>
         </template>
         <template #title>
@@ -41,7 +40,7 @@
     <!-- Sold on account (not collected, so it's kept out of the income total
          above), then money that went out during the shift, then income minus
          that. Display only (see GetShiftTotals). -->
-    <div v-if="shiftId && (onAccountTotal || shiftExpenses.length || shiftLoans.length)" class="shift-income-extras">
+    <div v-if="shiftId && (onAccountTotal || shiftExpenses.length || shiftLoans.length)" class="px-4 pt-2">
       <div v-if="onAccountTotal" class="spend-row text-medium-emphasis">
         <span class="text-truncate"><k-icon icon="mdi-account-clock" size="16" class="me-1" />On account — not collected</span>
         <span>{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }}</span>
@@ -55,9 +54,9 @@
         <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
       </div>
       <!-- Only when something came off; otherwise it just repeats the total. -->
-      <div v-if="shiftExpenses.length || shiftLoans.length" class="shift-net" data-test="net-income">
+      <div v-if="shiftExpenses.length || shiftLoans.length" class="d-flex justify-space-between pt-2 mt-1 border-t font-weight-bold" data-test="net-income">
         <span>Net income</span>
-        <span class="shift-net-amount">{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
+        <span>{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
       </div>
     </div>
     </div>
@@ -65,9 +64,8 @@
       <k-btn
         v-if="balanceSources.length > 0"
         block
-        class="shift-income-secondary"
         prepend-icon="mdi-swap-horizontal"
-        variant="outlined"
+        variant="tonal"
         @click="replacementOpen = true"
       >
         Swap balance
@@ -75,9 +73,8 @@
       <k-btn
         v-if="openingFloatEnabled"
         block
-        class="shift-income-secondary"
         prepend-icon="mdi-cash-plus"
-        variant="outlined"
+        variant="tonal"
         @click="openingFloatOpen = true"
       >
         Set opening cash
@@ -142,7 +139,6 @@ import { collectedTotalCents, netIncomeCents, onAccountTotalCents } from "@/lib/
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
 import { paymentAccentColor } from "@/lib/paymentColor";
-import { paymentIcon } from "@/lib/paymentIcon";
 import { useCurrencies } from "@/composables/useCurrencies";
 import { grantManagerPass } from "@/composables/useManagerPass";
 import { useAuthStore } from "@/stores/auth";
@@ -236,9 +232,9 @@ async function confirmManager() {
   flex-direction: column;
 }
 
-/* Spans the card edge to edge (cancelling the card's 16px padding, and putting
-   it back inside) so the total band can fill the width: a scrolling box clips
-   anything that bleeds past it. */
+/* Invisible: it only makes the middle scroll and keeps the buttons in view.
+   It spans the card edge to edge (cancelling the card's 16px padding and
+   putting it back inside) so the total band can fill the width. */
 .shift-income-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -248,44 +244,10 @@ async function confirmManager() {
   padding-inline: 16px;
 }
 
-/* Centred: the icon in a soft disc, the title under it, the shift number as a
-   small pill under that; a hairline under the lot separates it from the lines. */
-.shift-income-header {
+.shift-income-title {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 4px 0 14px;
-  margin-bottom: 4px;
-  text-align: center;
-  border-bottom: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
-}
-.shift-income-header-icon {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: rgba(67, 160, 71, 0.14);
-  color: #2e7d32;
-}
-.shift-income-header-title {
-  min-width: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1.2;
-}
-.shift-income-header-shift {
-  flex: 0 0 auto;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: rgba(var(--k-theme-on-surface), 0.08);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
+  min-height: 40px;
 }
 
 .shift-income-empty {
@@ -298,29 +260,11 @@ async function confirmManager() {
   width: 100%;
 }
 
-/* One footer: a rule above it, then the actions at one height. */
 .shift-income-actions {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   gap: 8px;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
-}
-.shift-income-secondary {
-  min-height: 44px;
-}
-/* Rows start at the card's own left edge, like the title above them. */
-.shift-income-row {
-  padding-inline: 0 !important;
-  min-height: 52px;
-}
-.shift-income-row + .shift-income-row {
-  border-top: 1px solid rgba(var(--k-border-color), 0.5);
-}
-.shift-income-extras {
-  padding-top: 8px;
 }
 
 /* A block button is `flex: 1 0 auto`; stop the buttons stretching
@@ -329,9 +273,8 @@ async function confirmManager() {
   flex: 0 0 auto;
 }
 
-/* The total is the card's answer: a square band across the whole card (it
-   cancels the card's 16px padding), a rule above it, a light green tint behind,
-   bigger than the lines it adds up, amount in figures that line up. */
+/* The total: a square tinted band across the card under a divider, bigger than
+   the lines it adds up. */
 .shift-total {
   display: flex;
   align-items: baseline;
@@ -355,17 +298,6 @@ async function confirmManager() {
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
-.shift-net {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 8px 12px 0;
-  font-weight: 600;
-}
-.shift-net-amount {
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
 
 .shift-income-opening {
   margin-top: -2px;
@@ -387,7 +319,7 @@ async function confirmManager() {
 
 .spend-button {
   height: auto !important;
-  min-height: 48px;
+  min-height: 56px;
   padding: 8px 6px !important;
 }
 
