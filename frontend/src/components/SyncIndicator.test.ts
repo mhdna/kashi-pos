@@ -43,10 +43,10 @@ function show() {
 const text = (sel: string) => wrapper!.find(`[data-test="${sel}"]`).text();
 
 describe("SyncIndicator", () => {
-  it("healthy: Synced and Live, both link icons green, no spinner", () => {
+  it("healthy: Synced, both link icons green, no spinner or extra line", () => {
     show();
     expect(text("sync-word")).toBe("Synced");
-    expect(text("sync-sub")).toBe("Live");
+    expect(wrapper!.find('[data-test="sync-sub"]').exists()).toBe(false);
     expect(wrapper!.find('[data-test="sync-spinner"]').exists()).toBe(false);
     expect(wrapper!.find('[data-test="sync-internet"]').classes()).toContain("link-dot--ok");
     expect(wrapper!.find('[data-test="sync-live"]').classes()).toContain("link-dot--ok");

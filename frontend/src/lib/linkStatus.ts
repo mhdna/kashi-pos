@@ -204,7 +204,7 @@ export function describeLink(
   if (link.kashi === "unknown" && !link.live) {
     return make({ tone: "busy", icon: "mdi-sync", word: "Connecting", sub: "", spinner: { on: true, pct: null }, title: "Connecting to kashi" });
   }
-  return make({ tone: "ok", icon: "mdi-cloud-check-variant", word: "Synced", sub: "Live", spinner: { on: false, pct: null }, title: "Fully synced with kashi, live" });
+  return make({ tone: "ok", icon: "mdi-cloud-check-variant", word: "Synced", sub: "", spinner: { on: false, pct: null }, title: "Fully synced with kashi, live" });
 }
 
 function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[] {

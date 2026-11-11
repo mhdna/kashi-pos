@@ -57,13 +57,13 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
     <span class="sync-status-links">
       <k-icon
         :icon="summary.internetIcon"
-        size="14"
+        size="16"
         :class="`link-dot link-dot--${summary.internetTone}`"
         data-test="sync-internet"
       />
       <k-icon
         :icon="summary.liveIcon"
-        size="14"
+        size="16"
         :class="`link-dot link-dot--${summary.liveTone}`"
         data-test="sync-live"
       />
@@ -112,8 +112,8 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 8px 2px;
+  gap: 3px;
+  padding: 10px 4px 8px;
   cursor: pointer;
   text-align: center;
 }
@@ -124,23 +124,29 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
   min-height: 26px;
 }
 .sync-status-word {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.15;
+  margin-top: 2px;
 }
 .sync-status-sub {
-  font-size: 0.6rem;
-  line-height: 1.1;
-  opacity: 0.85;
+  font-size: 0.62rem;
+  line-height: 1.15;
+  opacity: 0.8;
   max-width: 64px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* The two connection icons sit together in one quiet pill. */
 .sync-status-links {
-  display: flex;
-  gap: 6px;
-  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
 }
 .sync-status--ok { color: #66bb6a; }
 .sync-status--busy { color: #ffb74d; }

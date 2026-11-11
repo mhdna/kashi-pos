@@ -51,7 +51,7 @@ describe("durationText and secondsUntil", () => {
 describe("the headline", () => {
   it("everything fine: Synced, live, no spinner", () => {
     const s = d();
-    expect(s).toMatchObject({ tone: "ok", word: "Synced", sub: "Live", icon: "mdi-cloud-check-variant" });
+    expect(s).toMatchObject({ tone: "ok", word: "Synced", sub: "", icon: "mdi-cloud-check-variant" });
     expect(s.spinner.on).toBe(false);
     expect(s.internetTone).toBe("ok");
     expect(s.liveTone).toBe("ok");
