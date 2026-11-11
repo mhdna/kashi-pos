@@ -1,5 +1,5 @@
 <template>
-  <k-sheet class="monthly-income-card shifts-card pa-4" style="flex: 2; min-width: 0">
+  <k-sheet class="monthly-income-card shifts-card pa-3" style="flex: 2; min-width: 0">
     <div class="monthly-income-title d-flex align-center">
       <k-icon icon="mdi-calendar-month-outline" color="grey-darken-1" class="me-2" />
       <k-card-title class="text-body-1 font-weight-bold px-0">
@@ -317,8 +317,8 @@ const emit = defineEmits<{
 }
 
 .monthly-income-title {
-  min-height: 40px;
-  padding-bottom: 8px;
+  min-height: 30px;
+  padding-bottom: 4px;
 }
 
 .monthly-income-scroll {
@@ -345,7 +345,7 @@ const emit = defineEmits<{
 }
 
 .monthly-income-header {
-  min-height: 40px;
+  min-height: 30px;
   padding: 0 12px;
   border-bottom: 1px solid rgba(128, 128, 128, 0.35);
   color: rgba(var(--k-theme-on-surface), 0.7);
@@ -358,7 +358,7 @@ const emit = defineEmits<{
 }
 
 .monthly-income-row {
-  min-height: 40px;
+  min-height: 30px;
   padding: 0 12px 0 0;
   border-bottom: 1px solid rgba(128, 128, 128, 0.2);
 }
@@ -382,7 +382,7 @@ const emit = defineEmits<{
 }
 
 .monthly-income-total {
-  min-height: 40px;
+  min-height: 30px;
   padding: 0 12px;
   border-top: 1px solid rgba(128, 128, 128, 0.35);
   color: rgb(var(--k-theme-on-surface));
