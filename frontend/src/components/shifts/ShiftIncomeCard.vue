@@ -1,6 +1,6 @@
 <template>
   <k-sheet class="shift-income-card shifts-card pa-4" style="flex: 1; min-width: 0">
-    <k-card-title class="shift-income-title text-body-1 font-weight-bold px-0">
+    <k-card-title class="shift-income-title text-body-1 font-weight-bold" data-test="income-title">
       <k-icon icon="mdi-cash-register" color="grey-darken-1" class="me-2" />
       {{ title || "Shift Income" }}{{ shiftId ? ` (#${shiftId})` : "" }}
     </k-card-title>
@@ -250,10 +250,17 @@ async function confirmManager() {
   padding-inline: 0;
 }
 
+/* A header band across the top of the card: centred, on the same tint as the
+   total band at the bottom, cancelling the card's 16px padding to run edge to edge. */
 .shift-income-title {
   display: flex;
   align-items: center;
-  min-height: 40px;
+  justify-content: center;
+  min-height: 48px;
+  margin: -16px -16px 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
+  background: rgba(67, 160, 71, 0.13);
 }
 
 .shift-income-empty {

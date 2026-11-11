@@ -47,6 +47,13 @@ async function show(items: any[]) {
 const total = () => wrapper!.find('[data-test="income-total"]').text();
 
 describe("ShiftIncomeCard", () => {
+  it("the header carries the title and the shift number, and opens the card", async () => {
+    await show([{ accountName: "Cash $$", currencyCode: "USD", total: 243 }]);
+    const title = wrapper!.find('[data-test="income-title"]');
+    expect(title.text()).toContain("Current Shift Income (#15)");
+    expect(title.classes()).not.toContain("px-0");
+    expect(wrapper!.find(".shift-income-card").element.firstElementChild).toBe(title.element);
+  });
   it("each payment method gets its own icon, not the same wallet", async () => {
     await show([
       { accountName: "Cash $$", currencyCode: "USD", total: 243 },
@@ -117,6 +124,10 @@ describe("ShiftIncomeCard", () => {
     expect(css).toMatch(/\.shift-income-body \{[^}]*padding-inline: 16px/);
     expect(css).toMatch(/\.shift-total \{[^}]*margin: 12px -16px/);
     expect(css).toMatch(/\.shift-income-actions \{[^}]*flex-shrink: 0/);
+    // The title is a centred band across the top, edge to edge, tinted like the total band.
+    expect(css).toMatch(/\.shift-income-title \{[^}]*justify-content: center/);
+    expect(css).toMatch(/\.shift-income-title \{[^}]*margin: -16px -16px 8px/);
+    expect(css).toMatch(/\.shift-income-title \{[^}]*background: rgba\(67, 160, 71, 0\.13\)/);
     // The rows run to the same edges as the total and the buttons (no extra side padding).
     expect(css).toMatch(/\.shift-income-card :deep\(\.k-list-item\) \{[^}]*padding-inline: 0/);
   });
