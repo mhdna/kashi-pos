@@ -328,9 +328,9 @@ const items = computed(() => {
   color: #9e9e9e;
 }
 .nav-drawer {
-  background-color: #0f1b2d;
+  background-color: #0c1727;
   border: 0 !important;
-  border-right: 1px solid #1e2c42 !important;
+  border-right: 1px solid #1a273b !important;
   box-shadow: none !important;
 }
 
@@ -370,7 +370,7 @@ const items = computed(() => {
 }
 
 .nav-item.k-list-item--active {
-  background-color: #22375a;
+  background-color: #1f3354;
 }
 
 .nav-item-content {
@@ -406,7 +406,7 @@ const items = computed(() => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid #0f1b2d;
+  border: 2px solid #0c1727;
 }
 
 .nav-status-dot--up {
