@@ -29,7 +29,7 @@ const setLocalDisplayPrefs = `-- name: SetLocalDisplayPrefs :exec
 UPDATE settings SET display_prefs = ?
 `
 
-// The screen's own edits: stored so they're reported to kashi, rev untouched.
+// The screen's own edits: stored so they're reported to central, rev untouched.
 func (q *Queries) SetLocalDisplayPrefs(ctx context.Context, displayPrefs string) error {
 	_, err := q.db.ExecContext(ctx, setLocalDisplayPrefs, displayPrefs)
 	return err
@@ -39,7 +39,7 @@ const setRemoteDisplayPrefs = `-- name: SetRemoteDisplayPrefs :exec
 UPDATE settings SET display_prefs = ?, display_prefs_rev = display_prefs_rev + 1
 `
 
-// kashi's push: stored and the rev bumped, so the screen adopts it.
+// central's push: stored and the rev bumped, so the screen adopts it.
 func (q *Queries) SetRemoteDisplayPrefs(ctx context.Context, displayPrefs string) error {
 	_, err := q.db.ExecContext(ctx, setRemoteDisplayPrefs, displayPrefs)
 	return err

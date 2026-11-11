@@ -13,9 +13,9 @@ const deleteBranchTargetByRemoteID = `-- name: DeleteBranchTargetByRemoteID :exe
 DELETE FROM branch_targets WHERE remote_id = ?
 `
 
-// Fires when kashi reports a target as no longer active (see
+// Fires when central reports a target as no longer active (see
 // applySyncedBranchTarget in sync_pull.go) -- this is just a read-only
-// mirror of kashi's roster, so removing the local row outright is fine,
+// mirror of central's roster, so removing the local row outright is fine,
 // unlike synced entities with local-only fields to preserve.
 func (q *Queries) DeleteBranchTargetByRemoteID(ctx context.Context, remoteID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteBranchTargetByRemoteID, remoteID)

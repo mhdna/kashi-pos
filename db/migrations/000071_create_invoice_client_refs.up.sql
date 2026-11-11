@@ -1,5 +1,5 @@
 -- Maps a local invoice id to the stable client_ref used to identify it to
--- kashi. Needed because a return/exchange must reference its original sale
+-- central. Needed because a return/exchange must reference its original sale
 -- by client_ref even if that sale was never queued for sync itself (e.g.
 -- sync was turned on after the sale happened) — this table lets us
 -- get-or-create a canonical ref for any invoice id on demand, so the same

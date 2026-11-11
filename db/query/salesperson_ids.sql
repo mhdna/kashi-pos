@@ -1,5 +1,5 @@
 -- name: ListInvoiceSalespersonRemoteIDs :many
--- Every invoice made by a salesperson kashi knows, with kashi's id for them.
+-- Every invoice made by a salesperson central knows, with central's id for them.
 SELECT i.invoice_code, s.remote_id
 FROM invoices i
 JOIN salespersons s ON s.id = i.salesperson_id

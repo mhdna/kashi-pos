@@ -59,6 +59,6 @@ UPDATE settings SET unknown_product_barcode = ?;
 UPDATE settings SET product_search_hidden_fields = ?;
 
 -- name: SetReceiptLook :exec
--- Narrow like UpdateTheme: the settings page and kashi's update_settings
+-- Narrow like UpdateTheme: the settings page and central's update_settings
 -- command both set the printed invoice's theme and layout on their own.
 UPDATE settings SET receipt_theme = ?, receipt_layout = ?;

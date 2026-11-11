@@ -37,7 +37,7 @@ const deletePriceListItemsForList = `-- name: DeletePriceListItemsForList :exec
 DELETE FROM price_list_items WHERE price_list_id = ?
 `
 
-// Half of the replace-on-apply: kashi has no way to tell a till "this one
+// Half of the replace-on-apply: central has no way to tell a till "this one
 // item is gone", so an applied list is cleared and refilled and a removal is
 // expressed by the item simply not being in the payload.
 func (q *Queries) DeletePriceListItemsForList(ctx context.Context, priceListID int64) error {
@@ -134,7 +134,7 @@ type ListActivePriceListItemsRow struct {
 }
 
 // Every price in force: the default list, plus this branch's own list if
-// kashi assigned it one.
+// Central assigned it one.
 //
 // Ordered is_default DESC so the default list's row for a product is read
 // first and a branch list's row for the same product overwrites it --
@@ -207,9 +207,9 @@ const listPriceLists = `-- name: ListPriceLists :many
 SELECT id, name, is_active, created_at, uid, is_default, is_special FROM price_lists ORDER BY name
 `
 
-// Price lists are a read-only mirror of kashi's since 000097. There are no
+// Price lists are a read-only mirror of central's since 000097. There are no
 // create/update/activate queries any more: the only writer is the sync, and
-// it writes a whole list at a time, because kashi sends a list complete with
+// it writes a whole list at a time, because central sends a list complete with
 // its items.
 func (q *Queries) ListPriceLists(ctx context.Context) ([]PriceList, error) {
 	rows, err := q.db.QueryContext(ctx, listPriceLists)

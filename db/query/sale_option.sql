@@ -1,4 +1,4 @@
--- Sale options mirrored from kashi -- see 000126_sale_options.up.sql.
+-- Sale options mirrored from central -- see 000126_sale_options.up.sql.
 
 -- name: DeleteProductSaleOptions :exec
 DELETE FROM product_sale_options WHERE product_id = ?;

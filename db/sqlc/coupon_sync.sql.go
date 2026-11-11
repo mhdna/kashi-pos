@@ -450,9 +450,9 @@ type SetTransferRequestStatusParams struct {
 	ClientRef string `json:"clientRef"`
 }
 
-// Applied from the transfer_requests down-sync: kashi's status is
+// Applied from the transfer_requests down-sync: central's status is
 // authoritative the moment it's synced (see approveTransfer/
-// notifyBranchTransferDecision in the kashi repo).
+// notifyBranchTransferDecision in the central repo).
 func (q *Queries) SetTransferRequestStatus(ctx context.Context, arg SetTransferRequestStatusParams) error {
 	_, err := q.db.ExecContext(ctx, setTransferRequestStatus, arg.Status, arg.ClientRef)
 	return err
@@ -473,7 +473,7 @@ type SumProductSoldNotOnCentralParams struct {
 	AsOf      sql.NullString `json:"asOf"`
 }
 
-// Units of one product this till sold that kashi's stock figure (fetched
+// Units of one product this till sold that central's stock figure (fetched
 // as of `as_of`) doesn't reflect yet: sales still queued, rejected, or
 // delivered after as_of.
 func (q *Queries) SumProductSoldNotOnCentral(ctx context.Context, arg SumProductSoldNotOnCentralParams) (interface{}, error) {
@@ -505,7 +505,7 @@ type UpsertBranchStockParams struct {
 
 // ---------------------------------------------------------------------------
 // Cross-branch stock visibility -- a pure mirror, upserted whole by
-// (branch_code, variant_uid) from kashi's branch_stock feed. Search joins
+// (branch_code, variant_uid) from central's branch_stock feed. Search joins
 // against the local products table (matched by uid) for a display name;
 // a stock row for a variant this till hasn't itself pulled down yet still
 // shows (barcode only) rather than being hidden.
@@ -659,7 +659,7 @@ type UpsertSyncedCouponParams struct {
 
 // The caller (applySyncedCoupon) checks redeemed_invoice_id first and
 // skips calling this at all for a coupon this till already redeemed
-// itself -- nothing kashi reports should walk that back. discount_type/
+// itself -- nothing central reports should walk that back. discount_type/
 // reason are left NULL on a fresh insert, same as any other
 // centrally-authored coupon (see the coupons table's own comment).
 func (q *Queries) UpsertSyncedCoupon(ctx context.Context, arg UpsertSyncedCouponParams) error {

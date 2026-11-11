@@ -206,8 +206,8 @@ WHERE name NOT IN (/*SLICE:names*/?)
   AND name NOT IN ('On Account', 'On Coupon')
 `
 
-// The reconcile half of the payment-method sync: anything kashi did not send
-// stops being offered. The two internal placeholders are exempt -- kashi has
+// The reconcile half of the payment-method sync: anything central did not send
+// stops being offered. The two internal placeholders are exempt -- central has
 // no concept of them and the coupon/account settlement paths look them up by
 // exact name.
 func (q *Queries) DeactivateCashboxAccountsNotIn(ctx context.Context, names []string) error {
@@ -258,7 +258,7 @@ WHERE is_closed = 0
 
 // A stale shift nothing ever happened in ($0, no rows of any kind point at
 // it) is dropped instead of auto-closed, so it never shows up in the shifts
-// list or gets pushed to kashi as a shift_close. Runs right before
+// list or gets pushed to central as a shift_close. Runs right before
 // CloseStaleOpenShifts, with the same staleness test. Every table with a
 // shift_id column must be listed here.
 func (q *Queries) DeleteEmptyStaleOpenShifts(ctx context.Context) (int64, error) {
@@ -543,7 +543,7 @@ func (q *Queries) GetShiftReportSummary(ctx context.Context, reportShiftID int64
 
 const getShiftTotals = `-- name: GetShiftTotals :many
 SELECT s.id, s.is_closed, s.created_at, s.closed_at,
-       -- Counted like GetMonthSalesSummary (and kashi's reports): returns
+       -- Counted like GetMonthSalesSummary (and central's reports): returns
        -- netted, cancelled sales left out, coupons counted as sales.
        COALESCE((
            SELECT SUM(i.grand_total)
@@ -658,7 +658,7 @@ const listActiveCashboxAccounts = `-- name: ListActiveCashboxAccounts :many
 SELECT id, name, currency_code, sort_order, color, is_active FROM cashbox_accounts WHERE is_active = 1 ORDER BY sort_order, id
 `
 
-// What a cashier may actually take payment with. A method kashi has retired
+// What a cashier may actually take payment with. A method central has retired
 // is deactivated rather than deleted, so this is the list the checkout
 // calculator and the settings screen read.
 func (q *Queries) ListActiveCashboxAccounts(ctx context.Context) ([]CashboxAccount, error) {

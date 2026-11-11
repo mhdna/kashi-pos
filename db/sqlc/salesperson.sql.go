@@ -34,7 +34,7 @@ type AdoptSalespersonByNameParams struct {
 }
 
 // First roster pull on a till that already had its own salespersons: link
-// the till's unlinked salesperson with the same name to kashi's record
+// the till's unlinked salesperson with the same name to central's record
 // instead of creating a duplicate. Keeps its local id, so invoices and
 // attendance pairing stay attached.
 func (q *Queries) AdoptSalespersonByName(ctx context.Context, arg AdoptSalespersonByNameParams) (Salesperson, error) {
@@ -198,7 +198,7 @@ type SetSalespersonAttendanceIDByRemoteIDParams struct {
 	RemoteID         sql.NullInt64 `json:"remoteId"`
 }
 
-// kashi decided this salesperson's device number (attendance_user_id_set in
+// Central decided this salesperson's device number (attendance_user_id_set in
 // the salesperson feed); it replaces whatever was typed in here.
 func (q *Queries) SetSalespersonAttendanceIDByRemoteID(ctx context.Context, arg SetSalespersonAttendanceIDByRemoteIDParams) error {
 	_, err := q.db.ExecContext(ctx, setSalespersonAttendanceIDByRemoteID, arg.AttendanceUserID, arg.RemoteID)
@@ -269,7 +269,7 @@ type UpdateSyncedSalespersonParams struct {
 }
 
 // attendance_user_id is deliberately not touched here -- it's local-only
-// device pairing, never sent by kashi (see sync_pull.go).
+// device pairing, never sent by central (see sync_pull.go).
 func (q *Queries) UpdateSyncedSalesperson(ctx context.Context, arg UpdateSyncedSalespersonParams) (Salesperson, error) {
 	row := q.db.QueryRowContext(ctx, updateSyncedSalesperson,
 		arg.FullName,

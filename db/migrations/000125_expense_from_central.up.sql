@@ -2,5 +2,5 @@
 -- still the branch's expense, but the money never left this drawer, so the
 -- shift's expected cash doesn't subtract it (see ListExpensesForShift).
 -- Chosen when the expense is added, or flipped later by an admin here or
--- from kashi.
+-- from central.
 ALTER TABLE expenses ADD COLUMN from_central integer not null default 0;

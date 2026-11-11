@@ -2,6 +2,6 @@
 -- deleted: CancelInvoice checks out a full return of it, and cancelled_at is
 -- stamped on both the sale and that return. Sales statistics skip both;
 -- the shift's cash and stock keep them, since the money and goods really did
--- go out and come back. kashi gets the same mark (see the cancellation flag
+-- go out and come back. Central gets the same mark (see the cancellation flag
 -- in branchInvoicePayload).
 ALTER TABLE invoices ADD COLUMN cancelled_at text;

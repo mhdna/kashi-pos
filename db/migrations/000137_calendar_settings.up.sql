@@ -1,5 +1,5 @@
--- Which built-in calendar kashi uses and which of its events are switched off,
--- mirrored from kashi (sync entity "calendar_settings"). One row; the till
+-- Which built-in calendar central uses and which of its events are switched off,
+-- mirrored from central (sync entity "calendar_settings"). One row; the till
 -- never edits it. hidden_events is a JSON array of event names.
 CREATE TABLE IF NOT EXISTS calendar_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),

@@ -92,9 +92,9 @@ ORDER BY id
 LIMIT ?
 `
 
-// Captured on the POS but not yet confirmed by kashi, and off backoff. Only
+// Captured on the POS but not yet confirmed by central, and off backoff. Only
 // 'local' rows are ever forwarded from here: a 'central' row's photo went
-// straight to kashi, so there's nothing to push. Deliberately no 'failed'
+// straight to central, so there's nothing to push. Deliberately no 'failed'
 // filter -- this table never gives up.
 func (q *Queries) ListDueShiftReceiptUploads(ctx context.Context, limit int64) ([]ShiftReceiptUpload, error) {
 	rows, err := q.db.QueryContext(ctx, listDueShiftReceiptUploads, limit)
@@ -210,7 +210,7 @@ SELECT EXISTS (
 ) AS synced
 `
 
-// Guard for the uploader: kashi only has a branch_shifts row to attach the
+// Guard for the uploader: central only has a branch_shifts row to attach the
 // photo to once the shift's own close has synced (entity_type 'shift_close',
 // client_ref 'shift-<id>').
 func (q *Queries) ShiftCloseSyncedForRef(ctx context.Context, clientRef string) (bool, error) {

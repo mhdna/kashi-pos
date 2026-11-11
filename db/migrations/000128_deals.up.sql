@@ -1,4 +1,4 @@
--- Deals, mirrored from kashi (its 000201): "Buy 2 get 1 free", "3 for $50",
+-- Deals, mirrored from central (its 000201): "Buy 2 get 1 free", "3 for $50",
 -- "Buy 3 or more, 20% off all". They arrive with the discount lists whose
 -- rows name them, and are known here by uid. See deals.go for the pricing.
 CREATE TABLE deals (
@@ -17,7 +17,7 @@ ALTER TABLE discount_list_items ADD COLUMN deal_uid text not null default '';
 
 -- A deal's terms as they were when the invoice was made. An exchange or
 -- return of a deal unit is judged by these, never by the deal as it is now,
--- which kashi may have changed or ended since.
+-- which central may have changed or ended since.
 CREATE TABLE invoice_deals (
     invoice_id bigint not null references invoices(id) on delete cascade,
     deal_uid text not null,

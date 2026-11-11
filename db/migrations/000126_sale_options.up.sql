@@ -1,4 +1,4 @@
--- Sale options, mirrored from kashi (its 000199): a product can make the
+-- Sale options, mirrored from central (its 000199): a product can make the
 -- till ask which option is being sold -- Summer or Winter for outlet stock
 -- whose one barcode covers both -- and a discount list can hold a discount
 -- that applies only when the variant is sold as that option. Options are
@@ -12,7 +12,7 @@ CREATE TABLE product_sale_options (
     primary key (product_id, name)
 );
 
--- Kept apart from discount_list_items for the same reason kashi does: every
+-- Kept apart from discount_list_items for the same reason central does: every
 -- existing reader of discount_list_items keeps meaning the plain discount.
 CREATE TABLE discount_list_option_items (
     id integer primary key autoincrement,

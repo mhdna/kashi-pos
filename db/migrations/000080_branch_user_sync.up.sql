@@ -1,7 +1,7 @@
 -- POS users become a synced-down-from-kashi roster (see salespersons'
 -- 000078 migration for the remote_id pattern). username / role_id / active
 -- / attendance_user_id are kashi-owned for a synced user; password_hash is
--- never sent by kashi (bcrypt vs sha256, and a PIN has little value at
+-- never sent by central (bcrypt vs sha256, and a PIN has little value at
 -- rest) -- it arrives via a set_branch_user_pin command, or a local
 -- admin-only reset.
 -- sqlite can't add a UNIQUE column via ALTER TABLE -- add it plain, then a

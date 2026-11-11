@@ -518,12 +518,12 @@ SELECT id, name FROM clients WHERE id IN (sqlc.slice('ids'));
 SELECT invoice_id, cashbox_id, amount FROM invoice_payments WHERE invoice_id IN (sqlc.slice('ids'));
 
 -- name: SumInvoiceTotalNotOnCentralByDateRange :one
--- This till's invoices in [date_from, date_to] that kashi hadn't received as
+-- This till's invoices in [date_from, date_to] that central hadn't received as
 -- of `as_of` (UTC, sqlite datetime format): still queued or rejected, or
--- delivered after as_of. Added to kashi's branch-wide target progress
+-- delivered after as_of. Added to central's branch-wide target progress
 -- fetched at as_of. Invoices with no outbox row are left out: those are
--- either history restored from kashi (already in its figure) or sales from
--- before this till synced. Plain SUM(grand_total) to match kashi's own
+-- either history restored from central (already in its figure) or sales from
+-- before this till synced. Plain SUM(grand_total) to match central's own
 -- figure (SumBranchRevenueForRange there).
 SELECT COALESCE(SUM(i.grand_total), 0)
 FROM invoices i
@@ -563,7 +563,7 @@ ORDER BY day;
 UPDATE invoices SET lbp_total = ?, lbp_rate = ? WHERE id = ?;
 
 -- name: GetMonthSalesSummary :one
--- The month's sales the way kashi's reports count net sales: every invoice
+-- The month's sales the way central's reports count net sales: every invoice
 -- by the local day it was rung up (not the shift it fell in), returns
 -- netted by their own sign, cancelled sales and their refunds left out,
 -- and coupons counted as sales. Alongside, how much of that total is
@@ -610,8 +610,8 @@ GROUP BY day
 ORDER BY day;
 
 -- name: ListInvoiceProductsInOrder :many
--- The lines as they were recorded (and sent to kashi, which keeps them in
--- the same order): a line's position is how kashi names it.
+-- The lines as they were recorded (and sent to central, which keeps them in
+-- the same order): a line's position is how central names it.
 SELECT * FROM invoice_products WHERE invoice_id = ? ORDER BY id;
 
 -- name: SetInvoiceProductLineTotal :exec

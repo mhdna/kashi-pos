@@ -233,7 +233,7 @@ const listDiscountLists = `-- name: ListDiscountLists :many
 SELECT id, name, is_active, created_at, uid, is_default, is_special FROM discount_lists ORDER BY name
 `
 
-// Read-only mirror of kashi's discount lists -- see pricelist.sql, which this
+// Read-only mirror of central's discount lists -- see pricelist.sql, which this
 // file mirrors exactly.
 func (q *Queries) ListDiscountLists(ctx context.Context) ([]DiscountList, error) {
 	rows, err := q.db.QueryContext(ctx, listDiscountLists)

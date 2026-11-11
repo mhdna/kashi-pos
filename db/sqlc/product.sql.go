@@ -1253,7 +1253,7 @@ type ListProductsPageParams struct {
 // search_pattern must already be wrapped in '%...%' by the caller.
 //
 // Inactive products are excluded, matching ListProductsAfter below: a product
-// is deactivated because kashi retired it (DeactivateProductsByBarcode, driven
+// is deactivated because central retired it (DeactivateProductsByBarcode, driven
 // by the full-mirror check), so offering it in a search only lets a cashier
 // put something unsellable in the cart.
 func (q *Queries) ListProductsPage(ctx context.Context, arg ListProductsPageParams) ([]Product, error) {
@@ -1542,7 +1542,7 @@ type SetProductBarcodeInactiveParams struct {
 	ID      int64  `json:"id"`
 }
 
-// Frees a barcode held by a stale local-only product so kashi's product
+// Frees a barcode held by a stale local-only product so central's product
 // with that barcode can take it; the stale row keeps its history.
 func (q *Queries) SetProductBarcodeInactive(ctx context.Context, arg SetProductBarcodeInactiveParams) error {
 	_, err := q.db.ExecContext(ctx, setProductBarcodeInactive, arg.Barcode, arg.ID)
@@ -1586,7 +1586,7 @@ type SetProductVariantPickParams struct {
 	ID          int64  `json:"id"`
 }
 
-// kashi's per-item "pick colour/size on scan" override: ”, 'always', 'never'.
+// central's per-item "pick colour/size on scan" override: ”, 'always', 'never'.
 func (q *Queries) SetProductVariantPick(ctx context.Context, arg SetProductVariantPickParams) error {
 	_, err := q.db.ExecContext(ctx, setProductVariantPick, arg.VariantPick, arg.ID)
 	return err

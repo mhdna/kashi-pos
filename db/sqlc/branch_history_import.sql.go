@@ -258,7 +258,7 @@ type CreateHistoricalShiftParams struct {
 // Historical-import variants of the ordinary write path (CreateShift,
 // CreateInvoice, CreateExpense, CreateLoan). Those hardcode/default their
 // timestamp to "now" because a live write always happens now; pulling a
-// record back down from kashi needs to set it to when the thing actually
+// record back down from central needs to set it to when the thing actually
 // happened, which may be years in the past. See sync_branch_history.go.
 // Deliberately separate queries rather than adding an optional timestamp
 // param to the live ones, so the live checkout/expense/loan/shift-close
@@ -319,7 +319,7 @@ DELETE FROM shift_receipt_uploads
 // PullBranchHistory only reaches these once CountActiveShiftsAll above has
 // already come back zero, i.e. every local shift row left over on this
 // freshly created branch is inert (no counted money, float, invoices,
-// expenses or loans). Clear them out before importing kashi's real shift
+// expenses or loans). Clear them out before importing central's real shift
 // history so the branch doesn't end up with placeholder rows sitting next
 // to the imported ones.
 func (q *Queries) DeleteAllShiftReceiptUploads(ctx context.Context) error {

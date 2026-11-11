@@ -1,5 +1,5 @@
 -- Price and discount lists stop being this till's own and become a read-only
--- mirror of kashi's (see kashi's 000094). Three changes.
+-- mirror of central's (see central's 000094). Three changes.
 --
 -- 1. Lists get the shared uid identity, same as clients and products in
 --    000095, plus is_default -- the default list is the base every price and
@@ -8,14 +8,14 @@
 -- 2. Items are re-keyed from product_code to product_uid. A code is not
 --    unique here (several variants of one product share it), so keying by
 --    code could not express two colours of a shirt at different prices; the
---    uid identifies exactly one sellable row, on this till and on kashi.
+--    uid identifies exactly one sellable row, on this till and on central.
 --
 -- 3. Every pre-existing local list is deactivated. It is NOT deleted: the
 --    rows are kept so the old contents can still be read, but from now on
---    only lists kashi sends may price anything, and leaving a locally-made
+--    only lists central sends may price anything, and leaving a locally-made
 --    list active would let this till quietly override central pricing --
 --    exactly what this change exists to stop. The real lists arrive on the
---    next sync and carry kashi's uid.
+--    next sync and carry central's uid.
 
 ALTER TABLE price_lists ADD COLUMN uid text;
 ALTER TABLE price_lists ADD COLUMN is_default integer NOT NULL DEFAULT 0;

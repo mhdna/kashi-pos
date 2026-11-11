@@ -34,9 +34,9 @@ SET skipped_reason = ?
 WHERE token = ?;
 
 -- name: ListDueShiftReceiptUploads :many
--- Captured on the POS but not yet confirmed by kashi, and off backoff. Only
+-- Captured on the POS but not yet confirmed by central, and off backoff. Only
 -- 'local' rows are ever forwarded from here: a 'central' row's photo went
--- straight to kashi, so there's nothing to push. Deliberately no 'failed'
+-- straight to central, so there's nothing to push. Deliberately no 'failed'
 -- filter -- this table never gives up.
 SELECT * FROM shift_receipt_uploads
 WHERE mode = 'local'
@@ -48,7 +48,7 @@ ORDER BY id
 LIMIT ?;
 
 -- name: ShiftCloseSyncedForRef :one
--- Guard for the uploader: kashi only has a branch_shifts row to attach the
+-- Guard for the uploader: central only has a branch_shifts row to attach the
 -- photo to once the shift's own close has synced (entity_type 'shift_close',
 -- client_ref 'shift-<id>').
 SELECT EXISTS (

@@ -157,7 +157,7 @@ type SetReceiptLookParams struct {
 	ReceiptLayout string `json:"receiptLayout"`
 }
 
-// Narrow like UpdateTheme: the settings page and kashi's update_settings
+// Narrow like UpdateTheme: the settings page and central's update_settings
 // command both set the printed invoice's theme and layout on their own.
 func (q *Queries) SetReceiptLook(ctx context.Context, arg SetReceiptLookParams) error {
 	_, err := q.db.ExecContext(ctx, setReceiptLook, arg.ReceiptTheme, arg.ReceiptLayout)

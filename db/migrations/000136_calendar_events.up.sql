@@ -1,5 +1,5 @@
--- User-defined calendar events, mirrored whole from kashi (sync entity
--- "calendar_events") for the Events page. id is kashi's own id. Dates are
+-- User-defined calendar events, mirrored whole from central (sync entity
+-- "calendar_events") for the Events page. id is central's own id. Dates are
 -- YYYY-MM-DD text; the till never edits these rows.
 CREATE TABLE IF NOT EXISTS calendar_events (
     id INTEGER PRIMARY KEY,

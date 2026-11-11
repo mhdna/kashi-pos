@@ -135,7 +135,7 @@ const deleteUnsyncedSyncOutboxByClientRef = `-- name: DeleteUnsyncedSyncOutboxBy
 DELETE FROM sync_outbox WHERE client_ref = ? AND status != 'synced'
 `
 
-// Drops a row kashi never accepted, so deleting its invoice locally also
+// Drops a row central never accepted, so deleting its invoice locally also
 // stops it from being uploaded later. A synced row is left alone.
 func (q *Queries) DeleteUnsyncedSyncOutboxByClientRef(ctx context.Context, clientRef string) error {
 	_, err := q.db.ExecContext(ctx, deleteUnsyncedSyncOutboxByClientRef, clientRef)
@@ -268,7 +268,7 @@ SET next_attempt_at = datetime('now')
 WHERE status = 'pending' AND next_attempt_at > datetime('now')
 `
 
-// Run when kashi becomes reachable again: rows that were backed off while
+// Run when central becomes reachable again: rows that were backed off while
 // the connection was down (or by a pre-pushLink build, up to an hour) go
 // out on the very next pass instead of each waiting out its own timer.
 func (q *Queries) MakePendingSyncOutboxDueNow(ctx context.Context) (int64, error) {
@@ -307,7 +307,7 @@ type MarkSyncOutboxFailedParams struct {
 	ID        int64  `json:"id"`
 }
 
-// Terminal state for a row kashi rejected outright (a 4xx, or an entity_type
+// Terminal state for a row central rejected outright (a 4xx, or an entity_type
 // it has no route for). It stays out of the drain batch until an explicit
 // resync re-arms it.
 func (q *Queries) MarkSyncOutboxFailed(ctx context.Context, arg MarkSyncOutboxFailedParams) error {
@@ -340,7 +340,7 @@ type RecordSyncOutboxNetworkErrorParams struct {
 	ID        int64  `json:"id"`
 }
 
-// A push that never got an answer from kashi (offline, DNS, timeout) says
+// A push that never got an answer from central (offline, DNS, timeout) says
 // nothing about the row itself, so it keeps its attempt count and stays due:
 // the worker backs off the connection as a whole instead (see pushLink).
 func (q *Queries) RecordSyncOutboxNetworkError(ctx context.Context, arg RecordSyncOutboxNetworkErrorParams) error {
@@ -355,7 +355,7 @@ WHERE status = 'failed'
 `
 
 // Gives every row parked as 'failed' another go (see retryFailedSyncOutbox):
-// whatever kashi refused may since have been fixed on its side, and a row
+// whatever central refused may since have been fixed on its side, and a row
 // older builds parked on a 401/403 was never about the row at all.
 // last_error stays, as the reason it's retrying.
 func (q *Queries) RequeueFailedSyncOutbox(ctx context.Context) (int64, error) {
@@ -398,7 +398,7 @@ type SetUnsyncedSyncOutboxFieldParams struct {
 	ClientRef string      `json:"clientRef"`
 }
 
-// Changes one top-level field of a row kashi hasn't accepted yet (an
+// Changes one top-level field of a row central hasn't accepted yet (an
 // expense re-categorised before it synced), so the edit goes up with the
 // record itself. 0 rows: it's synced (or was never queued).
 func (q *Queries) SetUnsyncedSyncOutboxField(ctx context.Context, arg SetUnsyncedSyncOutboxFieldParams) (int64, error) {

@@ -1,5 +1,5 @@
 -- What a unit on a deal gets outside a set, in place of the deal's fallback
--- (kashi's 000216): one "Buy 2 get 1" pool for the whole shop, the outlet
+-- (central's 000216): one "Buy 2 get 1" pool for the whole shop, the outlet
 -- codes' leftover units at 30% and the rest at 20%. NULL is the deal's own.
 ALTER TABLE discount_list_items ADD COLUMN deal_fallback_percent integer;
 

@@ -47,7 +47,7 @@ RETURNING *;
 -- name: AdoptUserAsSynced :one
 -- A user the till already created locally (e.g. a set_branch_user_pin
 -- command landed before the first roster pull) is matched by username and
--- linked to its kashi row. password_hash is left as-is.
+-- linked to its central row. password_hash is left as-is.
 UPDATE users
 SET role_id = ?, active = ?, attendance_user_id = ?, remote_id = ?
 WHERE username = ?

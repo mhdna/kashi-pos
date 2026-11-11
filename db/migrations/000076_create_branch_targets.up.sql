@@ -1,6 +1,6 @@
--- Read-only local cache of revenue targets kashi's admin sets for this
--- branch (see branch_targets in the kashi repo). Never written to locally
--- except by the sync-pull path in sync_pull.go -- remote_id is kashi's own
+-- Read-only local cache of revenue targets central's admin sets for this
+-- branch (see branch_targets in the central repo). Never written to locally
+-- except by the sync-pull path in sync_pull.go -- remote_id is central's own
 -- id, used to upsert rather than the natural-key matching used for
 -- currencies/cashbox_accounts, since targets have no other stable key.
 create table if not exists branch_targets (

@@ -1,5 +1,5 @@
--- Queues invoices for push to the central kashi backend (see
--- POST /branch/sales_invoices and /branch/return_invoices in the kashi
+-- Queues invoices for push to the central central backend (see
+-- POST /branch/sales_invoices and /branch/return_invoices in the central
 -- repo). payload_json is a frozen snapshot of exactly what gets POSTed,
 -- captured at invoice-creation time — not re-derived from other tables on
 -- each retry — so a later schema change here can never alter what an
