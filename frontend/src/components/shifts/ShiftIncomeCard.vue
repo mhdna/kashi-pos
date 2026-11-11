@@ -241,15 +241,16 @@ async function confirmManager() {
   overflow-y: auto;
 }
 
-/* Icon in a soft disc, the title, and the shift number as a small pill at the
-   far end; a hairline under it separates the heading from the lines. */
+/* Centred: the icon in a soft disc, the title under it, the shift number as a
+   small pill under that; a hairline under the lot separates it from the lines. */
 .shift-income-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  padding-bottom: 10px;
+  gap: 6px;
+  padding: 4px 0 14px;
   margin-bottom: 4px;
+  text-align: center;
   border-bottom: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
 }
 .shift-income-header-icon {
@@ -264,7 +265,6 @@ async function confirmManager() {
   color: #2e7d32;
 }
 .shift-income-header-title {
-  flex: 1 1 auto;
   min-width: 0;
   font-size: 1.05rem;
   font-weight: 700;
