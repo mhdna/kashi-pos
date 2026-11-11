@@ -494,6 +494,8 @@ export function SetUnknownPicturesAtCheckout(arg1:boolean):Promise<void>;
 
 export function SetUnknownProductBarcode(arg1:string):Promise<void>;
 
+export function SetVariantPickRequiredEnabled(arg1:boolean):Promise<void>;
+
 export function SetVisitorCounterEnabled(arg1:boolean):Promise<void>;
 
 export function SettleInvoicePayments(arg1:number,arg2:string):Promise<Record<string, any>>;

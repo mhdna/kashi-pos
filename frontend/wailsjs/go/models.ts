@@ -1268,9 +1268,11 @@ export namespace main {
 	}
 	export class liveCartLineOverride {
 	    barcode: string;
+	    line_ref?: string;
 	    price_cents?: number;
 	    discount?: number;
 	    no_deal?: boolean;
+	    unknown_deal?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new liveCartLineOverride(source);
@@ -1279,9 +1281,11 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.barcode = source["barcode"];
+	        this.line_ref = source["line_ref"];
 	        this.price_cents = source["price_cents"];
 	        this.discount = source["discount"];
 	        this.no_deal = source["no_deal"];
+	        this.unknown_deal = source["unknown_deal"];
 	    }
 	}
 	export class liveCartOverrides {

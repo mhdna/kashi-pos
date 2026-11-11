@@ -986,6 +986,10 @@ export function SetUnknownProductBarcode(arg1) {
   return window['go']['main']['App']['SetUnknownProductBarcode'](arg1);
 }
 
+export function SetVariantPickRequiredEnabled(arg1) {
+  return window['go']['main']['App']['SetVariantPickRequiredEnabled'](arg1);
+}
+
 export function SetVisitorCounterEnabled(arg1) {
   return window['go']['main']['App']['SetVisitorCounterEnabled'](arg1);
 }
