@@ -124,10 +124,10 @@ describe("ShiftIncomeCard", () => {
     expect(css).toMatch(/\.shift-income-body \{[^}]*padding-inline: 16px/);
     expect(css).toMatch(/\.shift-total \{[^}]*margin: 12px -16px/);
     expect(css).toMatch(/\.shift-income-actions \{[^}]*flex-shrink: 0/);
-    // The title is a centred band across the top, edge to edge, tinted like the total band.
+    // The title is a centred header across the top, edge to edge, with a divider and no background.
     expect(css).toMatch(/\.shift-income-title \{[^}]*justify-content: center/);
     expect(css).toMatch(/\.shift-income-title \{[^}]*margin: -16px -16px 8px/);
-    expect(css).toMatch(/\.shift-income-title \{[^}]*background: rgba\(67, 160, 71, 0\.13\)/);
+    expect(css).not.toMatch(/\.shift-income-title \{[^}]*background/);
     // The rows run to the same edges as the total and the buttons (no extra side padding).
     expect(css).toMatch(/\.shift-income-card :deep\(\.k-list-item\) \{[^}]*padding-inline: 0/);
   });

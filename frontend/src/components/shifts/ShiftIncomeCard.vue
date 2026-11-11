@@ -250,8 +250,8 @@ async function confirmManager() {
   padding-inline: 0;
 }
 
-/* A header band across the top of the card: centred, on the same tint as the
-   total band at the bottom, cancelling the card's 16px padding to run edge to edge. */
+/* A centred header across the top of the card, no background, with a divider
+   under it; it cancels the card's 16px padding so the divider runs edge to edge. */
 .shift-income-title {
   display: flex;
   align-items: center;
@@ -260,7 +260,6 @@ async function confirmManager() {
   margin: -16px -16px 8px;
   padding: 8px 16px;
   border-bottom: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
-  background: rgba(67, 160, 71, 0.13);
 }
 
 .shift-income-empty {
