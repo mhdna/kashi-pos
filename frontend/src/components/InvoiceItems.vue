@@ -1306,6 +1306,11 @@ function persistDiscount(item: LineItem): Promise<boolean> {
     item.discount = Math.min(100, Math.max(0, Math.trunc(Number(item.discount) || 0)));
     return Promise.resolve(true);
   }
+  // Only a discount the cashier typed into the discount field is remembered
+  // for the product. Central's live-cart discount, a discount turned off, or
+  // one that came from editing the price belongs to this sale alone, and with
+  // custom discounts off the backend would refuse it and block checkout.
+  if (!discountEditable(item) || item.discountOff) return Promise.resolve(true);
   const pending = pendingDiscounts.get(item.code);
   if (pending) return pending;
 

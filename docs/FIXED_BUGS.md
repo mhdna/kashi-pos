@@ -3,6 +3,25 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-11 · Checkout: "custom item discounts are disabled" on a discounted line
+
+**Symptom.** With custom item discounts off, checking out a cart showed "custom
+item discounts are disabled" and the sale didn't go through. It happened when a
+line had a discount the cashier didn't type into the discount field: one central
+set on the live cart, one from editing the price (discount mode), or a discount
+turned off.
+
+**Cause.** Before checkout, `flushChanges` saves every line's discount onto its
+product (`UpdateProductDiscount`) when it differs from what the line started
+with. It did this for all lines, not just ones whose discount field is editable,
+and the backend refuses any save while the setting is off. With the setting on,
+the same path silently made central's per-sale discount the product's own.
+
+**Fix.** `persistDiscount` saves only a discount the cashier could type
+(`discountEditable`) on a line whose discount isn't turned off; every other
+discount stays with this sale (`components/InvoiceItems.vue`). Tests:
+`components/InvoiceItems.discountSave.test.ts`.
+
 ## 2026-11-11 · Search results: the last rows can't be scrolled into view
 
 **Symptom.** Searching in place (the product list over the sale screen), the
