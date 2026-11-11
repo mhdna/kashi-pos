@@ -328,9 +328,9 @@ const items = computed(() => {
   color: #9e9e9e;
 }
 .nav-drawer {
-  background-color: #0c1727;
+  background-color: #161a21;
   border: 0 !important;
-  border-right: 1px solid #1a273b !important;
+  border-right: 1px solid #242a33 !important;
   box-shadow: none !important;
 }
 
@@ -357,7 +357,7 @@ const items = computed(() => {
 }
 
 .nav-items-group::-webkit-scrollbar-thumb {
-  background-color: #3a5378;
+  background-color: #4a5361;
   border-radius: 2px;
 }
 
@@ -370,7 +370,7 @@ const items = computed(() => {
 }
 
 .nav-item.k-list-item--active {
-  background-color: #1f3354;
+  background-color: #272e39;
 }
 
 .nav-item-content {
@@ -406,7 +406,7 @@ const items = computed(() => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid #0c1727;
+  border: 2px solid #161a21;
 }
 
 .nav-status-dot--up {
