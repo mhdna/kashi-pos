@@ -383,34 +383,14 @@
     </k-card>
   </k-dialog>
 
-  <!-- A scanned/typed product code shared by several variants: pick one. -->
-  <k-dialog v-model="variantPicker.show" max-width="560" scrollable>
-    <k-card>
-      <k-card-title>Choose a variant of {{ variantPicker.code }}</k-card-title>
-      <k-card-text class="pa-0">
-        <k-list>
-          <k-list-item
-            v-for="variant in variantPicker.variants"
-            :key="variant.barcode"
-            link
-            @click="pickVariant(variant)"
-          >
-            <k-list-item-title class="font-weight-medium">
-              {{ [variant.color, variant.size].filter(Boolean).join(" · ") || variant.name }}
-            </k-list-item-title>
-            <k-list-item-subtitle>{{ variant.name }} · {{ variant.barcode }}</k-list-item-subtitle>
-            <template #append>
-              <span class="font-weight-medium">${{ Number(variant.price || 0).toFixed(2) }}</span>
-            </template>
-          </k-list-item>
-        </k-list>
-      </k-card-text>
-      <k-card-actions>
-        <k-spacer />
-        <k-btn text="Cancel" @click="variantPicker.show = false" />
-      </k-card-actions>
-    </k-card>
-  </k-dialog>
+  <!-- A scanned/typed barcode or code whose item comes in several colours and
+       sizes: pick them (swatches and sizes), the same picker the search uses. -->
+  <VariantPicker
+    v-model="variantPicker.show"
+    :code="variantPicker.code"
+    :variants="variantPicker.variants"
+    @select="pickVariant"
+  />
 
   <!-- A product that asks a sale option: which one is being sold. -->
   <k-dialog v-model="saleOptionPicker.show" max-width="420">
@@ -478,6 +458,7 @@ import ActionBar from "@/components/ActionBar.vue";
 import AccountDialog from "@/components/AccountDialog.vue";
 import Calculator from "@/components/Calculator.vue";
 import ClientButton from "@/components/ClientButton.vue";
+import VariantPicker from "@/components/VariantPicker.vue";
 import InvoiceItems from "@/components/InvoiceItems.vue";
 import type { DealLine } from "@/lib/deals";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
@@ -1226,7 +1207,9 @@ async function onBarcodeEnter() {
   if (matches.length === 1) {
     if (!addProductToCart({ ...matches[0], qty: 1 })) return;
   } else if (matches.length > 1) {
-    variantPicker.code = value.trim();
+    // The item's code (what the variants share), not what was scanned: a
+    // barcode names one variant, the picker is about the whole item.
+    variantPicker.code = String(matches[0]?.code || value.trim());
     variantPicker.variants = matches;
     variantPicker.show = true;
     return;
