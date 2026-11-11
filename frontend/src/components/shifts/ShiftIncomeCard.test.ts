@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { ref } from "vue";
 import ui from "@/ui";
 
@@ -79,5 +81,25 @@ describe("ShiftIncomeCard", () => {
     await show([]);
     expect(wrapper!.find('[data-test="income-total"]').exists()).toBe(false);
     expect(wrapper!.text()).toContain("No income found for the current shift.");
+  });
+
+  // However many rows and expense lines there are, the buttons stay at the
+  // bottom of the card: the lines scroll in their own box, the buttons sit
+  // outside it.
+  it("keeps the action buttons outside the scrolling body", async () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({ accountId: i + 1, accountName: `Account ${i + 1}`, currencyCode: "USD", total: 1000 }));
+    await show(many);
+    const body = wrapper!.find(".shift-income-body");
+    const actions = wrapper!.find(".shift-income-actions");
+    expect(body.exists()).toBe(true);
+    expect(actions.exists()).toBe(true);
+    expect(body.element.contains(actions.element)).toBe(false);
+    expect(body.findAll(".shift-income-row").length).toBe(30);
+    expect(total()).toContain("$300.00");
+    // Vitest doesn't load component CSS: the rules are read from the source.
+    const css = readFileSync(resolve(process.cwd(), "src/components/shifts/ShiftIncomeCard.vue"), "utf8");
+    expect(css).toMatch(/\.shift-income-body \{[^}]*overflow-y: auto/);
+    expect(css).toMatch(/\.shift-income-body \{[^}]*min-height: 0/);
+    expect(css).toMatch(/\.shift-income-actions \{[^}]*flex-shrink: 0/);
   });
 });

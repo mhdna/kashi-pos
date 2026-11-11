@@ -4,6 +4,9 @@
       <k-icon icon="mdi-cash-register" color="grey-darken-1" class="me-2" />
       {{ title || "Shift Income" }}{{ shiftId ? ` (#${shiftId})` : "" }}
     </k-card-title>
+    <!-- Everything between the title and the buttons scrolls on its own, so
+         the buttons stay at the bottom of the card however long it gets. -->
+    <div class="shift-income-body">
     <k-progress-linear v-if="loading" indeterminate />
     <template v-else-if="items.length">
       <k-list density="compact" class="pa-0">
@@ -55,6 +58,7 @@
         <span>Net income</span>
         <span class="shift-net-amount">{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
       </div>
+    </div>
     </div>
     <div v-if="shiftId" class="shift-income-actions mt-auto">
       <k-btn
@@ -228,6 +232,12 @@ async function confirmManager() {
 .shift-income-card {
   display: flex;
   flex-direction: column;
+}
+
+.shift-income-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .shift-income-title {
