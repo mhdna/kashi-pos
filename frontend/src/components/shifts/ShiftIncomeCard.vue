@@ -257,17 +257,18 @@ async function confirmManager() {
   flex: 0 0 auto;
 }
 
-/* The total is the card's answer: bigger than the lines above it, on a soft
-   tinted block, amount right-aligned in figures that line up. */
+/* The total is the card's answer: a rule above it, square (no rounded block),
+   bigger than the lines it adds up, amount in figures that line up. */
 .shift-total {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin: 12px 4px 4px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(var(--k-theme-primary), 0.09);
+  margin: 12px 0 4px;
+  padding: 14px 16px 6px;
+  border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
+  border-radius: 0;
+  background: none;
 }
 .shift-total-label {
   font-size: 0.95rem;
