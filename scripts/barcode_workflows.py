@@ -9,7 +9,7 @@ first barcode, `p` pauses/resumes, `q` quits.
 
     scripts/barcode_workflows.py                 # newest till DB with discounts
     scripts/barcode_workflows.py --db ~/Library/Application\\ Support/kashi-pos/database-tb
-    scripts/barcode_workflows.py --central       # real data from kashi over ssh
+    scripts/barcode_workflows.py --central       # real data from central over ssh
     scripts/barcode_workflows.py --list          # just print the workflows
 """
 import argparse
@@ -63,7 +63,7 @@ def pick_db():
 
 COLS = ["barcode", "code", "name", "price", "d", "deal", "opts"]
 
-# The same three questions against kashi's Postgres (read-only, over `ssh kashi`).
+# The same three questions against central's Postgres (read-only, over `ssh central`).
 CENTRAL_PRODUCTS = """
 SELECT v.barcode, p.code, p.name, pi.price, COALESCE(di.discount, 0), COALESCE(di.deal_id::text, ''),
        (SELECT count(*) FROM product_sale_options o WHERE o.product_id = v.product_id)
@@ -213,12 +213,12 @@ def run(flows):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--db", help="till database (default: newest one with discounts)")
-    parser.add_argument("--central", action="store_true", help="read kashi's database over `ssh kashi` instead")
+    parser.add_argument("--central", action="store_true", help="read central's database over `ssh central` instead")
     parser.add_argument("--list", action="store_true", help="print the workflows and exit")
     args = parser.parse_args()
 
     if args.central:
-        print("source: kashi (ssh kashi, read-only)")
+        print("source: central (ssh central, read-only)")
         flows = build_workflows(*from_central())
     else:
         path = os.path.expanduser(args.db) if args.db else pick_db()

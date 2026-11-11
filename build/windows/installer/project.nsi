@@ -166,7 +166,7 @@ Section
     !insertmacro wails.webview2runtime
 
     # Installs made before the GB rebrand ran as Kashi-Cloud.exe with
-    # "Kashi Cloud" shortcuts; drop them so an upgrade leaves one app behind.
+    # "Central Cloud" shortcuts; drop them so an upgrade leaves one app behind.
     nsExec::Exec 'taskkill /F /T /IM "Kashi-Cloud.exe"'
     Pop $0
     Sleep 500
@@ -178,7 +178,7 @@ Section
 
     !insertmacro wails.files
 
-    # Let GB Cloud replace its own executable when kashi sends an update
+    # Let GB Cloud replace its own executable when central sends an update
     # (updater.go) without an admin prompt at the till: give the local Users
     # group modify rights on the install folder. *S-1-5-32-545 is
     # BUILTIN\Users on every Windows language.

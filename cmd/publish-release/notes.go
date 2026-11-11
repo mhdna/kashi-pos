@@ -10,11 +10,11 @@ import (
 )
 
 // When `make publish` gets no NOTES, the notes the cashiers see after the
-// update are written from the commits since the build kashi last published
+// update are written from the commits since the build central last published
 // for that flavor: "feat" lines as "New: …", "fix" as "Fixed: …", "perf" as
 // "Faster: …". Merges, releases, docs, tests and refactors are left out.
 
-// Optional "type(scope)!: " prefix, as kashi's cmd/release_notes reads it.
+// Optional "type(scope)!: " prefix, as central's cmd/release_notes reads it.
 var commitSubjectRe = regexp.MustCompile(`^([a-z]+)(?:\([^)]*\))?!?:\s*(.+)$`)
 
 var noteKinds = []struct{ kind, label string }{
@@ -89,7 +89,7 @@ func versionLess(a, b []int) bool {
 }
 
 // previousRelease is the newest version of the flavor below version among
-// what kashi has published, or "" when there's none.
+// what central has published, or "" when there's none.
 func previousRelease(releases []publishedRelease, flavor, version string) string {
 	target, ok := parseVersion(version)
 	if !ok {
@@ -119,7 +119,7 @@ func tagExists(tag string) bool {
 }
 
 // autoNotes writes the notes for version from the commits since the last
-// published build of the flavor (or the tag before, when kashi has none or
+// published build of the flavor (or the tag before, when central has none or
 // its tag isn't here). It says what it based them on; "" when there's
 // nothing to say or git can't tell.
 func autoNotes(baseURL, token, flavor, version string) (notes, since string) {
@@ -127,7 +127,7 @@ func autoNotes(baseURL, token, flavor, version string) (notes, since string) {
 		Releases []publishedRelease `json:"releases"`
 	}
 	if err := apiJSON(http.MethodGet, baseURL+"/app_releases", token, nil, &rels); err != nil {
-		fmt.Printf("Couldn't list kashi's releases for the notes (%v); using the previous tag.\n", err)
+		fmt.Printf("Couldn't list central's releases for the notes (%v); using the previous tag.\n", err)
 	}
 	to := "HEAD"
 	if tagExists("v" + version) {

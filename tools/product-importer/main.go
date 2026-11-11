@@ -19,7 +19,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:  "Kashi Product Importer " + appVersion,
+		Title:  "Central Product Importer " + appVersion,
 		Width:  1100,
 		Height: 800,
 		AssetServer: &assetserver.Options{

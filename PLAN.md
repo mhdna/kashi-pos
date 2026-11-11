@@ -1,4 +1,4 @@
-• # Revised Kashi POS Recovery and Development Plan
+• # Revised Central POS Recovery and Development Plan
 
   The app should move forward through controlled milestones. Each milestone must pass its acceptance gate before the next
   begins. Financial features should not be built on top of unreliable persistence or duplicated calculation logic.

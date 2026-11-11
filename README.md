@@ -1,14 +1,14 @@
 # kashi-pos
 
-The till app for each branch of a shop running [Kashi](https://github.com/mhdna/kashi).
+The till app for each branch of a shop running [Central](https://github.com/mhdna/kashi).
 It sells offline from its own SQLite database, prices every sale with the branch's
-price and discount lists and deals, and syncs with Kashi whenever it's online:
+price and discount lists and deals, and syncs with Central whenever it's online:
 sales go up, and products, prices, deals and stock come down.
 
 <p align="center">
-  <img src="docs/images/kashi-and-till.png" alt="A sale on a kashi-pos till, and the same sale seen live in kashi's Live cart" width="100%"/>
+  <img src="docs/images/kashi-and-till.png" alt="A sale on a kashi-pos till, and the same sale seen live in central's Live cart" width="100%"/>
 </p>
-<p align="center"><sub>A sale being rung up on the till (left), seen live from Kashi (right), which can reprice it. Demo data.</sub></p>
+<p align="center"><sub>A sale being rung up on the till (left), seen live from Central (right), which can reprice it. Demo data.</sub></p>
 
 ## About
 

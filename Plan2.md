@@ -1,4 +1,4 @@
-# Kashi POS Stabilization and Financial Correctness Plan
+# Central POS Stabilization and Financial Correctness Plan
 
 ## Summary
 

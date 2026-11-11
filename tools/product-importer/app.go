@@ -21,13 +21,13 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// SelectDatabase opens a native file picker for choosing the Kashi SQLite
+// SelectDatabase opens a native file picker for choosing the Central SQLite
 // database file. Returns an empty string if the user cancels.
 func (a *App) SelectDatabase() (string, error) {
-	// No filter: the Kashi database is usually an extensionless file named
+	// No filter: the Central database is usually an extensionless file named
 	// "database", which extension-based filters grey out on macOS.
 	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Select Kashi database file",
+		Title: "Select Central database file",
 	})
 }
 

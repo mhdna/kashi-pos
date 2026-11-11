@@ -105,16 +105,16 @@ func (k *kashiDB) inspect() error {
 		return fmt.Errorf("open database: %w", err)
 	}
 	if ok, err := k.hasColumn("products", "barcode"); err != nil || !ok {
-		return fmt.Errorf("this does not look like a Kashi database (no products table)")
+		return fmt.Errorf("this does not look like a Central database (no products table)")
 	}
 	if ok, _ := k.hasColumn("products", "brand"); !ok {
-		return fmt.Errorf("this database is from a Kashi version older than 0.8; update the POS first")
+		return fmt.Errorf("this database is from a Central version older than 0.8; update the POS first")
 	}
 	k.listPricing, _ = k.hasColumn("price_lists", "is_default")
 	if !k.listPricing {
 		return nil
 	}
-	// No active default list (e.g. a till kashi never sent one): prices are
+	// No active default list (e.g. a till central never sent one): prices are
 	// then only saved on the product row.
 	err := k.conn.QueryRow(`SELECT id, name FROM price_lists WHERE is_default = 1 AND is_active = 1 ORDER BY id LIMIT 1`).
 		Scan(&k.priceListID, &k.priceListName)
