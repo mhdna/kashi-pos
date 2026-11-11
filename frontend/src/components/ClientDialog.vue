@@ -156,7 +156,7 @@
           @focus="newPhoneActive = true"
         >
           <template #prepend>
-            <span class="country-flag">{{ selectedFlag }}</span>
+            <span class="country-flag country-flag--new-client">{{ selectedFlag }}</span>
             <span>+{{ selectedDialCode }}</span>
           </template>
         </PhoneField>
@@ -745,6 +745,11 @@ function reset() {
 .client-phone-country-trigger .country-flag {
   font-size: 1.9rem;
   margin-inline-end: 0;
+}
+
+.country-flag.country-flag--new-client {
+  font-size: 2rem;
+  margin-inline-end: 10px;
 }
 
 .client-phone-country-card:hover {
