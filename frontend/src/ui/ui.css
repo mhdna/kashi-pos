@@ -43,7 +43,8 @@
 
   /* ---------- progress ---------- */
   .k-progress-circular { display: inline-flex; position: relative; vertical-align: middle; width: var(--k-pc-size, 48px); height: var(--k-pc-size, 48px); color: var(--k-c, rgb(var(--k-theme-primary))); flex: none; align-items: center; justify-content: center; }
-  .k-progress-circular svg { width: 100%; height: 100%; position: absolute; inset: 0; transform: rotate(-90deg); }
+  /* The ring only: an icon in the middle (the slot) must not be rotated -90deg with it. */
+  .k-progress-circular > svg { width: 100%; height: 100%; position: absolute; inset: 0; transform: rotate(-90deg); }
   .k-progress-circular__underlay { stroke: currentColor; opacity: .16; fill: none; }
   .k-progress-circular__overlay { stroke: currentColor; fill: none; stroke-linecap: round; }
   .k-progress-circular__content { position: relative; display: inline-flex; align-items: center; justify-content: center; }
