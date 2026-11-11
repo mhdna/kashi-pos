@@ -62,7 +62,7 @@ func main() {
 		err = fmt.Errorf("unknown command %q", os.Args[1])
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		fail(err.Error())
 		os.Exit(1)
 	}
 }
@@ -185,9 +185,10 @@ func publish(args []string) error {
 			since = "the start"
 		}
 		if generated == "" {
-			fmt.Printf("No feat/fix/perf commits since %s, so no notes.\n", since)
+			warn("No feat/fix/perf commits since %s, so no notes.", since)
 		} else {
-			fmt.Printf("Notes, from the commits since %s:\n%s\n", since, generated)
+			step("Release notes, from the commits since %s:", since)
+			dim("%s", generated)
 		}
 	}
 
@@ -195,7 +196,7 @@ func publish(args []string) error {
 	// checksum and signature stay the exe's: that's what tills check.
 	upload, encoding := content, ""
 	if packed, err := compressBuild(*file, content); err != nil {
-		fmt.Printf("Couldn't compress the build, uploading it as is: %v\n", err)
+		warn("Couldn't compress the build, uploading it as is: %v", err)
 	} else {
 		upload, encoding = packed, "zstd"
 	}
@@ -206,8 +207,8 @@ func publish(args []string) error {
 		"sha256":    hex.EncodeToString(digest[:]),
 		"signature": base64.StdEncoding.EncodeToString(signature),
 	}
-	fmt.Printf("Uploading %s (%.1f MB, the program is %.1f MB) as GB Cloud %s (%s)…\n",
-		filepath.Base(*file), float64(len(upload))/(1<<20), float64(len(content))/(1<<20), *version, *flavor)
+	step("Uploading GB Cloud %s (%s): %.1f MB to send, the program is %.1f MB…",
+		*version, *flavor, float64(len(upload))/(1<<20), float64(len(content))/(1<<20))
 	status, answer, err := uploadRelease(baseURL, token, fields, filepath.Base(*file), upload, encoding)
 	if err != nil {
 		return err
@@ -215,7 +216,7 @@ func publish(args []string) error {
 	// A central without compressed releases takes the file as the exe, and
 	// its checksum then doesn't match: send the exe itself.
 	if status == http.StatusBadRequest && encoding != "" && strings.Contains(answer, "checksum") {
-		fmt.Printf("This central doesn't take compressed builds yet; uploading the whole %.1f MB…\n", float64(len(content))/(1<<20))
+		warn("This central doesn't take compressed builds yet; uploading the whole %.1f MB…", float64(len(content))/(1<<20))
 		status, answer, err = uploadRelease(baseURL, token, fields, filepath.Base(*file), content, "")
 		if err != nil {
 			return err
@@ -223,7 +224,7 @@ func publish(args []string) error {
 		encoding = ""
 	}
 	if status != http.StatusCreated {
-		return fmt.Errorf("upload failed (status %d): %s", status, answer)
+		return errors.New(uploadFailure(status, answer, *version, *flavor))
 	}
 	var created struct {
 		Release struct {
@@ -235,10 +236,10 @@ func publish(args []string) error {
 	}
 	cacheBuild(*flavor, *version, content)
 	if encoding != "" {
-		fmt.Println("Making patches from the builds the tills run…")
+		step("Making patches from the builds the tills run…")
 		publishPatches(baseURL, token, created.Release.ID, *version, *flavor, *file, content)
 	}
-	fmt.Printf("Published GB Cloud %s (%s).\n", *version, *flavor)
+	ok("Published GB Cloud %s (%s)", *version, *flavor)
 	if *targetAll {
 		*branches = "all"
 	}
@@ -297,7 +298,7 @@ func targetBranches(baseURL, token string, releaseID int64, version, flavor, cho
 		b.Registers = append(b.Registers, r)
 	}
 	if len(branches) == 0 {
-		fmt.Printf("No active %s till to send it to; set them on central's App Updates page.\n", flavor)
+		warn("No active %s till to send it to; set them on central's App Updates page.", flavor)
 		return nil
 	}
 
@@ -329,7 +330,7 @@ func targetBranches(baseURL, token string, releaseID int64, version, flavor, cho
 		return err
 	}
 	if len(chosen) == 0 {
-		fmt.Println("Not sent anywhere yet; choose tills on central's App Updates page.")
+		warn("Not sent anywhere yet; choose tills on central's App Updates page.")
 		return nil
 	}
 
@@ -345,11 +346,12 @@ func targetBranches(baseURL, token string, releaseID int64, version, flavor, cho
 	if err := apiJSON(http.MethodPut, baseURL+"/app_updates/target", token, body, nil); err != nil {
 		return fmt.Errorf("set target: %w", err)
 	}
-	fmt.Printf("Sent %s to %d till(s):\n%s\n", version, len(ids), strings.Join(lines, "\n"))
+	ok("Sent %s to %d till(s):", version, len(ids))
+	fmt.Println(strings.Join(lines, "\n"))
 	if force {
-		fmt.Println("Forced: each till installs it as soon as it has it, after a one-minute countdown.")
+		warn("Forced: each till installs it as soon as it has it, after a one-minute countdown.")
 	}
-	fmt.Println("Central deletes the build from the server once they've all installed it. Follow them on the App Updates page.")
+	dim("Central deletes the build from the server once they've all installed it. Follow them on the App Updates page.")
 	return nil
 }
 
