@@ -57,6 +57,12 @@ type LinkStatus struct {
 	KashiError   string `json:"kashiError"`
 	KashiLastOK  string `json:"kashiLastOk"`
 	KashiDownFor int64  `json:"kashiDownForSeconds"`
+	// Updating is true while kashi is being upgraded: its front door (the
+	// proxy) answers but the app behind it does not (502/503/504, or
+	// Cloudflare's 521-523). That is not "not connected": it ends by itself in
+	// a minute or two, so the screen says so instead.
+	Updating           bool  `json:"updating"`
+	UpdatingForSeconds int64 `json:"updatingForSeconds"`
 	// Live is the push channel: true while the websocket is connected.
 	Live          bool   `json:"live"`
 	LiveSince     string `json:"liveSince"`
@@ -84,6 +90,11 @@ type linkTracker struct {
 	kashiErr    string
 	kashiLastOK time.Time
 	kashiDownAt time.Time
+
+	// updatingSince is when kashi first answered "being upgraded" (see
+	// isUpdateStatus); zero when its last answer was a normal one.
+	updatingSince time.Time
+	updatingSeen  time.Time
 
 	live      bool
 	liveEver  bool
@@ -174,6 +185,42 @@ func (l *linkTracker) kashiResult(err error) {
 		}
 	}
 	if prev != l.kashi || prevErr != l.kashiErr {
+		l.changedLocked()
+	}
+}
+
+// linkUpdatingMaxAge is how long a "being upgraded" answer is believed with no
+// newer one: an upgrade takes a minute or two, so beyond this the till says
+// plainly that kashi does not answer.
+const linkUpdatingMaxAge = 10 * time.Minute
+
+// isUpdateStatus reports whether an HTTP status means "the front door is up
+// but the app is not": what kashi's proxy answers while a new version is
+// swapped in (502/503/504), or Cloudflare when it can't reach it (521-523).
+func isUpdateStatus(code int) bool {
+	switch code {
+	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout, 521, 522, 523:
+		return true
+	}
+	return false
+}
+
+// kashiStatus records the HTTP status of an answer from kashi. An update
+// answer starts (or keeps) the "being upgraded" state; any other answer ends it.
+func (l *linkTracker) kashiStatus(code int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := l.now()
+	was := !l.updatingSince.IsZero()
+	if isUpdateStatus(code) {
+		if !was {
+			l.updatingSince = now
+		}
+		l.updatingSeen = now
+	} else {
+		l.updatingSince, l.updatingSeen = time.Time{}, time.Time{}
+	}
+	if was != !l.updatingSince.IsZero() {
 		l.changedLocked()
 	}
 }
@@ -391,6 +438,10 @@ func (l *linkTracker) snapshot() LinkStatus {
 	if !l.kashiDownAt.IsZero() {
 		s.KashiDownFor = int64(l.now().Sub(l.kashiDownAt).Seconds())
 	}
+	if !l.updatingSince.IsZero() && l.now().Sub(l.updatingSeen) <= linkUpdatingMaxAge {
+		s.Updating = true
+		s.UpdatingForSeconds = int64(l.now().Sub(l.updatingSince).Seconds())
+	}
 	return s
 }
 
@@ -433,6 +484,9 @@ type linkTransport struct{ base http.RoundTripper }
 func (t linkTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp, err := t.base.RoundTrip(req)
 	link.kashiResult(err)
+	if err == nil {
+		link.kashiStatus(resp.StatusCode)
+	}
 	return resp, err
 }
 

@@ -306,3 +306,122 @@ func TestProbeInternetFalseWhenNothingAnswers(t *testing.T) {
 		t.Fatal("a cancelled probe can't reach anything")
 	}
 }
+
+// While kashi is upgraded its proxy answers 502/503/504 (or Cloudflare 521-523).
+// That is "being updated", not "not connected": the till says so, and it ends
+// with the first normal answer.
+func TestLinkUpdatingFollowsGatewayAnswers(t *testing.T) {
+	for _, code := range []int{502, 503, 504, 521, 522, 523} {
+		l, _ := newTestTracker()
+		l.kashiResult(nil)
+		l.kashiStatus(code)
+		s := l.snapshot()
+		if !s.Updating || s.Kashi != "up" {
+			t.Fatalf("status %d: %+v, want updating with kashi still answering", code, s)
+		}
+		l.kashiStatus(200)
+		if l.snapshot().Updating {
+			t.Fatalf("status %d: a normal answer must end the update state", code)
+		}
+	}
+}
+
+func TestLinkUpdatingIgnoresOrdinaryStatuses(t *testing.T) {
+	for _, code := range []int{200, 201, 204, 301, 400, 401, 403, 404, 409, 422, 429, 500, 501, 530} {
+		l, _ := newTestTracker()
+		l.kashiStatus(code)
+		if l.snapshot().Updating {
+			t.Fatalf("status %d is not an update", code)
+		}
+	}
+}
+
+func TestLinkUpdatingCountsFromTheFirstAnswerAndExpires(t *testing.T) {
+	l, emits := newTestTracker()
+	clock := time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
+	l.now = func() time.Time { return clock }
+	l.kashiStatus(502)
+	clock = clock.Add(90 * time.Second)
+	l.kashiStatus(503) // another gateway answer doesn't restart the clock
+	if s := l.snapshot(); !s.Updating || s.UpdatingForSeconds != 90 {
+		t.Fatalf("after 90 s: %+v", s)
+	}
+	// A refused connection in between (the proxy restarting too) keeps it.
+	l.kashiResult(errors.New("refused"))
+	if !l.snapshot().Updating {
+		t.Fatal("a refused connection mid-update must not end the update state")
+	}
+	// Nothing newer for a long time: it is just down, say so.
+	clock = clock.Add(linkUpdatingMaxAge + time.Second)
+	if l.snapshot().Updating {
+		t.Fatal("an update that never ends must stop being believed")
+	}
+	time.Sleep(100 * time.Millisecond) // the emit is a timer
+	if atomic.LoadInt32(emits) == 0 {
+		t.Fatal("starting an update must ask the screen to refetch")
+	}
+}
+
+func TestLinkUpdatingEmitsOnlyOnChange(t *testing.T) {
+	l, emits := newTestTracker()
+	l.kashiStatus(200)
+	time.Sleep(linkEmitMinGap + 50*time.Millisecond)
+	before := atomic.LoadInt32(emits)
+	l.kashiStatus(200)
+	l.kashiStatus(200)
+	time.Sleep(linkEmitMinGap + 50*time.Millisecond)
+	if atomic.LoadInt32(emits) != before {
+		t.Fatal("ordinary answers must not wake the screen")
+	}
+}
+
+// Through the real transport and a real server: a 502 from the proxy, then a
+// good answer once the new version is up.
+func TestLinkTransportSeesAnUpgrade(t *testing.T) {
+	saved := link
+	link = &linkTracker{now: time.Now}
+	defer func() { link = saved }()
+
+	status := int32(http.StatusBadGateway)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(int(atomic.LoadInt32(&status)))
+	}))
+	defer srv.Close()
+	client := &http.Client{Transport: linkTransport{base: http.DefaultTransport}}
+
+	get := func() {
+		resp, err := client.Get(srv.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+	}
+	get()
+	if s := link.snapshot(); !s.Updating || s.Kashi != "up" {
+		t.Fatalf("while the proxy says 502: %+v", s)
+	}
+	atomic.StoreInt32(&status, http.StatusOK)
+	get()
+	if s := link.snapshot(); s.Updating || s.Kashi != "up" {
+		t.Fatalf("once kashi answers normally again: %+v", s)
+	}
+}
+
+// The live link's handshake is refused with the same 502 while kashi restarts.
+func TestLinkWebsocketRefusedByProxyMeansUpdating(t *testing.T) {
+	saved := link
+	link = &linkTracker{now: time.Now}
+	defer func() { link = saved }()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer srv.Close()
+	c := newCentralClient(srv.URL, "CT", "key")
+	if _, err := c.DialWS(context.Background()); err == nil {
+		t.Fatal("a 502 handshake must fail")
+	}
+	if !link.snapshot().Updating {
+		t.Fatal("a handshake refused with 502 means kashi is being updated")
+	}
+}

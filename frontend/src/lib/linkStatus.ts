@@ -14,6 +14,9 @@ export interface LinkInfo {
   kashiError: string;
   kashiLastOk: string;
   kashiDownForSeconds: number;
+  /** kashi is being upgraded (its proxy answers, the app does not): not "not connected". */
+  updating: boolean;
+  updatingForSeconds: number;
   live: boolean;
   liveSince: string;
   liveLastBeat: string;
@@ -72,6 +75,7 @@ export interface Resync {
 
 const UNKNOWN_LINK: LinkInfo = {
   internet: "unknown", kashi: "unknown", kashiError: "", kashiLastOk: "", kashiDownForSeconds: 0,
+  updating: false, updatingForSeconds: 0,
   live: false, liveSince: "", liveLastBeat: "", liveError: "", liveRetryAt: "", liveEverUp: false,
   phase: "idle", label: "", detail: "", done: 0, total: 0, lastPullAt: "", lastPushAt: "", lastPullError: "",
 };
@@ -182,6 +186,16 @@ export function describeLink(
     });
   }
 
+  // kashi is being upgraded: its own state, not "No kashi" and not "Not live".
+  // It ends by itself, so it is calm (blue, spinning), and says so.
+  if (link.updating) {
+    return make({
+      tone: "busy", icon: "mdi-update", word: "Upgrading", sub: queued > 0 ? `${queued} waiting` : "kashi is updating",
+      spinner: { on: true, pct: null },
+      title: "kashi is being upgraded and will be back in a moment. Nothing is lost: sales are kept on this till and go to kashi when it is back.",
+    });
+  }
+
   if (resync.running) {
     return make({
       tone: "busy", icon: "mdi-sync", word: "Syncing", sub: resync.progress || "Full sync", spinner: { on: true, pct: null },
@@ -232,7 +246,10 @@ function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[
         : { key: "internet", label: "Internet", state: "idle", value: "Checking", detail: "" },
   );
 
-  if (link.kashi === "up") {
+  if (link.updating) {
+    const for_ = link.updatingForSeconds > 0 ? ` for ${durationText(link.updatingForSeconds)}` : "";
+    rows.push({ key: "kashi", label: "kashi server", state: "warn", value: `Being upgraded${for_}`, detail: "It is back in a moment; this till reconnects by itself." });
+  } else if (link.kashi === "up") {
     rows.push({ key: "kashi", label: "kashi server", state: "ok", value: "Reachable", detail: link.kashiLastOk ? `Last answer ${agoText(link.kashiLastOk, nowMs)}` : "" });
   } else if (link.kashi === "down") {
     const down = link.kashiDownForSeconds > 0 ? ` for ${durationText(link.kashiDownForSeconds)}` : "";
@@ -241,7 +258,9 @@ function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[
     rows.push({ key: "kashi", label: "kashi server", state: "idle", value: "Checking", detail: "" });
   }
 
-  if (link.live) {
+  if (link.updating && !link.live) {
+    rows.push({ key: "live", label: "Live link", state: "warn", value: "Waiting for the upgrade", detail: "It connects again once kashi is back." });
+  } else if (link.live) {
     const since = link.liveSince ? `Connected ${agoText(link.liveSince, nowMs)}` : "";
     const beat = link.liveLastBeat ? `heard from kashi ${agoText(link.liveLastBeat, nowMs)}` : "";
     rows.push({ key: "live", label: "Live link", state: "ok", value: "Connected", detail: [since, beat].filter(Boolean).join(", ") });

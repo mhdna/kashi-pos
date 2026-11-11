@@ -8,7 +8,7 @@ import { ACTIVITY_HOLD_MS } from "@/lib/linkStatus";
 
 const nowIso = () => new Date().toISOString();
 const baseLink = () => ({
-  internet: "up", kashi: "up", kashiError: "", kashiLastOk: nowIso(), kashiDownForSeconds: 0,
+  internet: "up", kashi: "up", kashiError: "", kashiLastOk: nowIso(), kashiDownForSeconds: 0, updating: false, updatingForSeconds: 0,
   live: true, liveSince: nowIso(), liveLastBeat: nowIso(), liveError: "", liveRetryAt: "", liveEverUp: true,
   phase: "idle", label: "", detail: "", done: 0, total: 0, lastPullAt: nowIso(), lastPushAt: nowIso(), lastPullError: "",
 });
@@ -51,6 +51,16 @@ describe("SyncIndicator", () => {
     expect(wrapper!.find('[data-test="sync-spinner"]').exists()).toBe(false);
     expect(wrapper!.find('[data-test="sync-internet"]').classes()).toContain("link-dot--ok");
     expect(wrapper!.find('[data-test="sync-live"]').classes()).toContain("link-dot--ok");
+  });
+
+  it("kashi being upgraded: says Upgrading with a spinner, apart from Not live", () => {
+    linkRef.value = { ...baseLink(), live: false, liveError: "bad handshake", updating: true, updatingForSeconds: 20 };
+    show();
+    expect(text("sync-word")).toBe("Upgrading");
+    expect(text("sync-word")).not.toBe("Not live");
+    expect(wrapper!.find('[data-test="sync-spinner"]').exists()).toBe(true);
+    expect(text("sync-sub")).toBe("kashi is updating");
+    expect(wrapper!.find('[data-test="sync-live"]').classes()).not.toContain("link-dot--ok");
   });
 
   it("the reported case: synced but not live shows amber and says Not live", () => {

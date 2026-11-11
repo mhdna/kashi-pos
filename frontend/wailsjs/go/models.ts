@@ -645,6 +645,8 @@ export namespace main {
 	    kashiError: string;
 	    kashiLastOk: string;
 	    kashiDownForSeconds: number;
+	    updating: boolean;
+	    updatingForSeconds: number;
 	    live: boolean;
 	    liveSince: string;
 	    liveLastBeat: string;
@@ -671,6 +673,8 @@ export namespace main {
 	        this.kashiError = source["kashiError"];
 	        this.kashiLastOk = source["kashiLastOk"];
 	        this.kashiDownForSeconds = source["kashiDownForSeconds"];
+        this.updating = source["updating"];
+        this.updatingForSeconds = source["updatingForSeconds"];
 	        this.live = source["live"];
 	        this.liveSince = source["liveSince"];
 	        this.liveLastBeat = source["liveLastBeat"];
