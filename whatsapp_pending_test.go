@@ -12,8 +12,8 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// A thank-you kashi didn't answer stays saved and is sent again later; once
-// kashi answers it's gone.
+// A thank-you central didn't answer stays saved and is sent again later; once
+// Central answers it's gone.
 func TestWhatsAppThankYouRetriedUntilKashiAnswers(t *testing.T) {
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,7 @@ func TestWhatsAppThankYouRetriedUntilKashiAnswers(t *testing.T) {
 		t.Fatalf("not retried: %d calls", calls.Load())
 	}
 	if pending, _ := store.ListWhatsAppPending(ctx); len(pending) != 0 {
-		t.Fatalf("still pending after kashi answered: %+v", pending)
+		t.Fatalf("still pending after central answered: %+v", pending)
 	}
 }
 
@@ -77,7 +77,7 @@ func TestWhatsAppPendingTooOldIsDropped(t *testing.T) {
 	}
 }
 
-// kashi answering "not sent, retry" (its bridge was down) keeps the
+// Central answering "not sent, retry" (its bridge was down) keeps the
 // thank-you pending, with the next try further off each time.
 func TestWhatsAppThankYouKeptWhenKashiSaysRetry(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -103,7 +103,7 @@ func TestWhatsAppThankYouKeptWhenKashiSaysRetry(t *testing.T) {
 	}
 }
 
-// A sale put on account tells kashi the client paid nothing now.
+// A sale put on account tells central the client paid nothing now.
 func TestWhatsAppThankYouSendsPaidAmountWithoutOnAccount(t *testing.T) {
 	var got whatsAppThankYouPayload
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

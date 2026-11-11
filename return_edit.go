@@ -11,7 +11,7 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// Editing a return or exchange after the fact, from kashi (command
+// Editing a return or exchange after the fact, from central (command
 // edit_return_invoice): the credit of its returned lines is set to a new
 // amount, e.g. a $15 hoodie credited -$12 (a deal charged back $3) is given
 // its full -$15. The return is changed in place, with the money that moves:
@@ -25,11 +25,11 @@ import (
 //   - a deal's recorded charge back, by what the edit gave back, so a later
 //     exchange of the sale doesn't charge it again.
 //
-// It then syncs to kashi (return_invoice_edit), which applies the same to its
+// It then syncs to central (return_invoice_edit), which applies the same to its
 // copy. Setting a line to an amount is idempotent: replaying the command
 // changes nothing the second time.
 
-// editReturnLine names a line as kashi lists it: its position among the
+// editReturnLine names a line as central lists it: its position among the
 // return's lines in the order they were recorded, and its barcode as a check.
 type editReturnLine struct {
 	Position  int    `json:"position"`
@@ -44,7 +44,7 @@ type editReturnInvoicePayload struct {
 	EditedBy  string           `json:"edited_by"`
 }
 
-// branchReturnEditPayload is POSTed to kashi's /branch/return_invoice_edits
+// branchReturnEditPayload is POSTed to central's /branch/return_invoice_edits
 // (api/branch_return_edit.go there; keep the two in step).
 type branchReturnEditPayload struct {
 	EditRef    string                        `json:"edit_ref"`
@@ -223,7 +223,7 @@ func (a *App) editReturnInvoice(ctx context.Context, p editReturnInvoicePayload)
 			return fmt.Errorf("cashbox balance: %w", err)
 		}
 
-		note := "Edited from kashi: " + strings.Join(notes, "; ")
+		note := "Edited from central: " + strings.Join(notes, "; ")
 		if p.EditedBy != "" {
 			note += " (by " + strings.TrimSpace(p.EditedBy) + ")"
 		}

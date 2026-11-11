@@ -12,9 +12,9 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// kashi used to learn only a sale's salesperson *name*, so renaming a
-// salesperson split them into two people on kashi's Salesperson Performance
-// page. Every invoice now also carries kashi's id for the salesperson (the
+// Central used to learn only a sale's salesperson *name*, so renaming a
+// salesperson split them into two people on central's Salesperson Performance
+// page. Every invoice now also carries central's id for the salesperson (the
 // local salespersons.remote_id), and once per till the ids of all past
 // sales are reported in bulk.
 
@@ -22,11 +22,11 @@ import (
 const salespersonIDsBatch = 1000
 
 // salespersonIDsRetry spaces out report attempts that didn't go through
-// (an older kashi without the endpoint, or kashi unreachable).
+// (an older central without the endpoint, or central unreachable).
 const salespersonIDsRetry = time.Hour
 
-// salespersonRemoteID is kashi's id for a local salesperson; 0 when there is
-// none or the salesperson isn't one of kashi's.
+// salespersonRemoteID is central's id for a local salesperson; 0 when there is
+// none or the salesperson isn't one of central's.
 func salespersonRemoteID(ctx context.Context, q *db.Queries, localID int64) int64 {
 	if localID <= 0 {
 		return 0
@@ -62,9 +62,9 @@ type invoiceSalespersonReport struct {
 	SalespersonID     int64  `json:"salesperson_id"`
 }
 
-// reportInvoiceSalespersons sends kashi the salesperson of every past sale,
+// reportInvoiceSalespersons sends central the salesperson of every past sale,
 // once. It waits for the outbox to drain: a sale still queued there isn't on
-// kashi yet, and one queued before this version has no id in its payload.
+// Central yet, and one queued before this version has no id in its payload.
 func (a *App) reportInvoiceSalespersons(ctx context.Context, client *centralClient) {
 	now := time.Now()
 	if next := a.salespersonIDsNextTry.Load(); next != 0 && now.Unix() < next {
@@ -113,6 +113,6 @@ func (a *App) sendInvoiceSalespersons(ctx context.Context, client *centralClient
 		}
 		updated += len(items)
 	}
-	log.Printf("salesperson ids: reported %d past sales to kashi", updated)
+	log.Printf("salesperson ids: reported %d past sales to central", updated)
 	return nil
 }

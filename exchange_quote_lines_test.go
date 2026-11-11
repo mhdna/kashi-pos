@@ -194,22 +194,22 @@ func checkoutMismatch(shop dealShop, saleID int64, lines []exchangeLine, quote E
 	return syncedReturnMismatch(shop, quote)
 }
 
-// syncedReturnMismatch holds the exchange sent to kashi to the quote: its
+// syncedReturnMismatch holds the exchange sent to central to the quote: its
 // lines add up to the net and its total to the till's, and every line says
-// why it is what it is, so kashi's invoice view can show it:
+// why it is what it is, so central's invoice view can show it:
 //
 //	line = unit*qty - percent off - deal - invoice share - swap credit + charged back
 func syncedReturnMismatch(shop dealShop, quote ExchangeQuote) string {
 	var raw string
 	if err := shop.app.conn.QueryRow(`SELECT payload_json FROM sync_outbox WHERE entity_type = 'return_invoice' ORDER BY id DESC LIMIT 1`).Scan(&raw); err != nil {
-		return "no exchange queued for kashi: " + err.Error()
+		return "no exchange queued for central: " + err.Error()
 	}
 	var payload branchInvoicePayload
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
 		return err.Error()
 	}
 	if want := quote.UnroundedCents + quote.RoundingCents; payload.GrandTotal != want {
-		return fmt.Sprintf("kashi is sent a total of %d, the till's is %d", payload.GrandTotal, want)
+		return fmt.Sprintf("Central is sent a total of %d, the till's is %d", payload.GrandTotal, want)
 	}
 	var sum, chargedBack, swap int64
 	for _, item := range payload.Items {
@@ -217,7 +217,7 @@ func syncedReturnMismatch(shop dealShop, quote ExchangeQuote) string {
 		chargedBack += item.ChargedBack
 		swap += item.SwapCredit
 		if item.ChargedBack < 0 || item.SwapCredit < 0 {
-			return fmt.Sprintf("kashi is sent a negative charge back or swap credit: %+v", item)
+			return fmt.Sprintf("Central is sent a negative charge back or swap credit: %+v", item)
 		}
 		if item.Quantity > 0 && (item.ChargedBack != 0 || item.SwapCredit != 0 || item.DealDiscount != 0 || item.InvoiceDiscount != 0) {
 			return fmt.Sprintf("a new item is sent a returned line's parts: %+v", item)
@@ -225,11 +225,11 @@ func syncedReturnMismatch(shop dealShop, quote ExchangeQuote) string {
 		percentOff := roundRatio(item.UnitPrice*int64(item.Discount), 100, "half_up") * item.Quantity
 		want := item.UnitPrice*item.Quantity - percentOff - item.DealDiscount - item.InvoiceDiscount - item.SwapCredit + item.ChargedBack
 		if item.LineTotal != want {
-			return fmt.Sprintf("kashi can't tell why line %s is %d: its parts make %d (%+v)", item.Barcode, item.LineTotal, want, item)
+			return fmt.Sprintf("Central can't tell why line %s is %d: its parts make %d (%+v)", item.Barcode, item.LineTotal, want, item)
 		}
 	}
 	if sum != quote.NetCents {
-		return fmt.Sprintf("the lines sent to kashi add up to %d, the net is %d", sum, quote.NetCents)
+		return fmt.Sprintf("the lines sent to central add up to %d, the net is %d", sum, quote.NetCents)
 	}
 	var quotedBack, quotedSwap int64
 	for _, l := range quote.Lines {
@@ -237,13 +237,13 @@ func syncedReturnMismatch(shop dealShop, quote ExchangeQuote) string {
 		quotedSwap += l.SwapCreditCents
 	}
 	if chargedBack != quotedBack || swap != quotedSwap {
-		return fmt.Sprintf("kashi is sent %d charged back and %d swap credit, the screen showed %d and %d", chargedBack, swap, quotedBack, quotedSwap)
+		return fmt.Sprintf("Central is sent %d charged back and %d swap credit, the screen showed %d and %d", chargedBack, swap, quotedBack, quotedSwap)
 	}
 	return ""
 }
 
 // The till's RS/CT/2026/00068: the hoodie's credit is $12, not $15, because
-// the Buy 1 Get 1 was charged back $3 off it. kashi is told so, line by line.
+// the Buy 1 Get 1 was charged back $3 off it. Central is told so, line by line.
 func TestExchangeSendsKashiWhyACreditIsWhatItIs(t *testing.T) {
 	shop := setUpDealShop(t)
 	sale := shop.sell(t, "A", "B", "C")
@@ -598,7 +598,7 @@ func TestExchangeQuoteAddsUpForEveryExchange(t *testing.T) {
 					hasReplacement = hasReplacement || l.Qty > 0
 				}
 				if !hasReplacement {
-					// A return with nothing bought is a refund (kashi or the
+					// A return with nothing bought is a refund (central or the
 					// admin), never an exchange at the till.
 					if _, cerr := shop.app.checkoutReturnExchangeInvoice(string(raw), "[]", sale.InvoiceID, shop.salesperson.ID, "", 0, posExchangePolicy); cerr == nil {
 						t.Fatalf("%s: an exchange with nothing bought went through", desc)

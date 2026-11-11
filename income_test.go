@@ -264,7 +264,7 @@ func TestNetSalesExcludesCalculateOnCheckoutCouponPayments(t *testing.T) {
 // report's net sales does - otherwise a branch could look like it hit its
 // revenue target purely off supplier-reimbursed vouchers it hasn't actually
 // been paid for yet. The shifts page's sales totals count them, to match
-// kashi's reports, and say how much they hold.
+// central's reports, and say how much they hold.
 func TestBalancePageIncomeExcludesCalculateOnCheckoutCouponPayments(t *testing.T) {
 	ctx := context.Background()
 	database := openTestDatabase(t)
@@ -342,7 +342,7 @@ func TestBalancePageIncomeExcludesCalculateOnCheckoutCouponPayments(t *testing.T
 		t.Fatalf("ListDailyInvoiceIncomeByMonth = %#v, want a single day totalling 3000", monthRows)
 	}
 
-	// The shifts page's own totals count sales the way kashi's reports do
+	// The shifts page's own totals count sales the way central's reports do
 	// (GetMonthSales), coupons included, so the till and the report agree;
 	// the coupon part is shown under the total instead of taken out of it.
 	shiftRows, err := store.GetShiftTotals(ctx, time.Now().Format("2006-01"))

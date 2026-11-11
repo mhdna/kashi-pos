@@ -12,20 +12,20 @@ import (
 	"time"
 )
 
-// The live cart: kashi can see the sale open on this till and change it.
+// The live cart: central can see the sale open on this till and change it.
 //
 // The screen reports its open sale (ReportLiveCart) on every change and every
-// 20 s while it has one; the till forwards it to kashi's /branch/live_cart.
+// 20 s while it has one; the till forwards it to central's /branch/live_cart.
 // It's a view, not a record: nothing is queued, and a report that fails is
 // simply replaced by the next one.
 //
-// Someone in kashi can then send a cart_override command for that sale: turn
+// Someone in central can then send a cart_override command for that sale: turn
 // every deal off, or give a line a price, a discount or no deal. Unknown items
 // all share one barcode, so theirs go by the line's ref (the cart's unknownRef)
 // and can also pick the line's deal choice. The till keeps
 // the overrides here and priceInvoiceTotals applies them itself, past the
 // branch's custom price/discount and deal/discount toggle settings: the point
-// is that kashi can do what the till's settings don't let a salesperson do.
+// is that central can do what the till's settings don't let a salesperson do.
 // Overrides belong to one sale (its saleRef); a report of another sale drops
 // them, so they can never leak into the next customer's.
 
@@ -35,7 +35,7 @@ const (
 	liveCartMaxPriceCents = 99999999
 )
 
-// liveCartLineOverride is what kashi set on one line, keyed by barcode, or
+// liveCartLineOverride is what central set on one line, keyed by barcode, or
 // for an unknown item by its line ref.
 type liveCartLineOverride struct {
 	Barcode string `json:"barcode"`
@@ -56,13 +56,13 @@ func (l liveCartLineOverride) sets() bool {
 	return l.PriceCents != nil || l.Discount != nil || l.NoDeal || l.UnknownDeal != ""
 }
 
-// liveCartOverrides is the whole set kashi wants on one sale. A command
+// liveCartOverrides is the whole set central wants on one sale. A command
 // replaces it, so sending it twice is harmless.
 type liveCartOverrides struct {
 	SaleRef     string                 `json:"sale_ref"`
 	AllDealsOff bool                   `json:"all_deals_off"`
 	Lines       []liveCartLineOverride `json:"lines"`
-	// Who in kashi set it, for the screen.
+	// Who in central set it, for the screen.
 	By string `json:"by,omitempty"`
 }
 
@@ -70,7 +70,7 @@ func (o liveCartOverrides) empty() bool {
 	return !o.AllDealsOff && len(o.Lines) == 0
 }
 
-// line is what kashi set on the line with this barcode; an unknown item's
+// line is what central set on the line with this barcode; an unknown item's
 // goes by its line ref instead (lineRef != "").
 func (o liveCartOverrides) line(barcode, lineRef string) (liveCartLineOverride, bool) {
 	barcode = strings.TrimSpace(barcode)
@@ -85,7 +85,7 @@ func (o liveCartOverrides) line(barcode, lineRef string) (liveCartLineOverride, 
 	return liveCartLineOverride{}, false
 }
 
-// liveCartState is the sale the screen last reported and kashi's overrides
+// liveCartState is the sale the screen last reported and central's overrides
 // for it.
 type liveCartState struct {
 	mu sync.Mutex
@@ -99,7 +99,7 @@ type liveCartState struct {
 	next    []byte
 }
 
-// activeOverrides is what pricing applies now: kashi's overrides when the
+// activeOverrides is what pricing applies now: central's overrides when the
 // screen is on that sale and selling, nothing otherwise.
 func (s *liveCartState) activeOverrides() liveCartOverrides {
 	s.mu.Lock()
@@ -110,7 +110,7 @@ func (s *liveCartState) activeOverrides() liveCartOverrides {
 	return s.overrides
 }
 
-// liveCartReport is what the screen sends; kashi stores it as given, so only
+// liveCartReport is what the screen sends; central stores it as given, so only
 // the fields the till needs itself are decoded.
 type liveCartReport struct {
 	SaleRef string          `json:"saleRef"`
@@ -118,9 +118,9 @@ type liveCartReport struct {
 	Lines   json.RawMessage `json:"lines"`
 }
 
-// ReportLiveCart takes the screen's open sale and sends it to kashi. A report
+// ReportLiveCart takes the screen's open sale and sends it to central. A report
 // of a different sale drops the overrides of the last one. It never fails
-// the screen: no kashi, or kashi unreachable, is just nothing sent.
+// the screen: no central, or central unreachable, is just nothing sent.
 func (a *App) ReportLiveCart(reportJSON string) error {
 	var report liveCartReport
 	if err := json.Unmarshal([]byte(reportJSON), &report); err != nil {
@@ -135,7 +135,7 @@ func (a *App) ReportLiveCart(reportJSON string) error {
 		s.overrides = liveCartOverrides{}
 		dropped = true
 	}
-	// The report carries the overrides in force, so kashi shows what the
+	// The report carries the overrides in force, so central shows what the
 	// till really applies.
 	var body map[string]any
 	if err := json.Unmarshal([]byte(reportJSON), &body); err != nil {
@@ -186,7 +186,7 @@ func (a *App) sendLiveCartReports() {
 		ctx, cancel := context.WithTimeout(context.Background(), liveCartReportTimeout)
 		err := client.sendJSON(ctx, http.MethodPost, "/branch/live_cart", payload)
 		cancel()
-		// An older kashi has no live cart: it answers 404, which isn't worth
+		// An older central has no live cart: it answers 404, which isn't worth
 		// a log line on every scan.
 		var perm *permanentError
 		if err != nil && !errors.Is(err, errCentralSyncDisabled) &&
@@ -196,7 +196,7 @@ func (a *App) sendLiveCartReports() {
 	}
 }
 
-// GetLiveCartOverrides is what kashi set on the sale on screen, for the
+// GetLiveCartOverrides is what central set on the sale on screen, for the
 // cart to show and lock (empty when nothing).
 func (a *App) GetLiveCartOverrides() liveCartOverrides {
 	o := a.liveCart.activeOverrides()
@@ -210,9 +210,9 @@ func (a *App) emitLiveCartChanged() {
 	a.emitAttendanceEvent("live_cart_overrides_changed")
 }
 
-// executeCartOverrideCommand applies kashi's overrides to the sale on screen.
+// executeCartOverrideCommand applies central's overrides to the sale on screen.
 // They only fit the sale they were made for: once the screen has moved on,
-// the command fails and kashi says so.
+// the command fails and central says so.
 func (a *App) executeCartOverrideCommand(payloadJSON json.RawMessage) error {
 	var o liveCartOverrides
 	if err := json.Unmarshal(payloadJSON, &o); err != nil {
@@ -268,9 +268,9 @@ func (a *App) executeCartOverrideCommand(payloadJSON json.RawMessage) error {
 	return nil
 }
 
-// applyLiveCartOverride prices a line as kashi set it. It runs where
+// applyLiveCartOverride prices a line as central set it. It runs where
 // validateAndPriceItems reads the line's list price and discount, and returns
-// whether the line is kashi's: the line's own custom price, per-unit prices
+// whether the line is central's: the line's own custom price, per-unit prices
 // and toggles are then ignored, whatever the branch's settings.
 func applyLiveCartOverride(o liveCartOverrides, item *salesInvoiceItem) (liveCartLineOverride, bool) {
 	if item.Qty <= 0 {
@@ -289,9 +289,9 @@ func applyLiveCartOverride(o liveCartOverrides, item *salesInvoiceItem) (liveCar
 }
 
 // applyUnknownLiveCartOverride is applyLiveCartOverride for an unknown item,
-// found by its line ref. Its price is the one the cashier typed unless kashi
-// set another, and the same goes for its discount; kashi's deal choice (or
-// no deal) replaces the salesperson's. The line's discount is then kashi's to
+// found by its line ref. Its price is the one the cashier typed unless central
+// set another, and the same goes for its discount; central's deal choice (or
+// no deal) replaces the salesperson's. The line's discount is then central's to
 // set past the branch's custom-discount setting.
 func applyUnknownLiveCartOverride(o liveCartOverrides, item *salesInvoiceItem) (liveCartLineOverride, bool) {
 	if item.Qty <= 0 || strings.TrimSpace(item.LineRef) == "" {

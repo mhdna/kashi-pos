@@ -12,11 +12,11 @@ import (
 	"time"
 )
 
-// errNoAppUpdateRoute means this kashi predates remote updates (404 on
+// errNoAppUpdateRoute means this central predates remote updates (404 on
 // /branch/app_update); the updater just stays quiet.
-var errNoAppUpdateRoute = errors.New("kashi has no app update route")
+var errNoAppUpdateRoute = errors.New("Central has no app update route")
 
-// appUpdateManifest is kashi's answer to "what should this till run?" --
+// appUpdateManifest is central's answer to "what should this till run?" --
 // see api/app_update.go there.
 type appUpdateManifest struct {
 	ID        int64  `json:"id"`
@@ -44,7 +44,7 @@ type appUpdatePatchInfo struct {
 }
 
 // GetAppUpdate returns this register's target release, or nil if it has none.
-// have is the SHA-256 of the exe this till runs ("" if unknown): kashi offers
+// have is the SHA-256 of the exe this till runs ("" if unknown): central offers
 // a patch from exactly that build when it has one.
 func (c *centralClient) GetAppUpdate(ctx context.Context, have string) (*appUpdateManifest, error) {
 	if !c.enabled() {
@@ -162,7 +162,7 @@ func (c *centralClient) downloadResumable(ctx context.Context, urlPath, path str
 	}
 }
 
-// appUpdateStatusReport is what the till tells kashi about itself and its
+// appUpdateStatusReport is what the till tells central about itself and its
 // update -- see branchAppUpdateStatus there.
 type appUpdateStatusReport struct {
 	AppVersion string `json:"app_version"`

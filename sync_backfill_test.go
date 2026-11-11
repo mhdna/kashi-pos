@@ -15,7 +15,7 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// fakeCentral is a minimal stand-in for kashi: it accepts invoice/client
+// fakeCentral is a minimal stand-in for central: it accepts invoice/client
 // pushes, remembers which refs it has seen, and answers reconcile against
 // that set. Pull/command/settings endpoints return empty so a full sync
 // tick can run against it.
@@ -28,13 +28,13 @@ type fakeCentral struct {
 	visitorRefs    map[string]int
 	productReports int
 	// clientBatchCalls counts /branch/clients_batch requests; clientBatchGone
-	// makes that route 404 like a kashi that predates it.
+	// makes that route 404 like a central that predates it.
 	clientBatchCalls int
 	clientBatchGone  bool
 	// productBarcodesGone/clientPhonesGone are opt-in: a test marks a
 	// barcode/phone here to make it a deactivation candidate. Anything not
 	// listed is reported present, matching a real branch whose existing
-	// catalog/roster kashi already knows about.
+	// catalog/roster central already knows about.
 	productBarcodesGone map[string]bool
 	clientPhonesGone    map[string]bool
 }
@@ -127,9 +127,9 @@ func (f *fakeCentral) handler() http.Handler {
 			missing := []string{}
 			switch req.Entity {
 			case "products":
-				// Unlike the other entities, kashi already knows this
+				// Unlike the other entities, central already knows this
 				// branch's whole catalog by default (products only ever
-				// flow kashi -> branch) -- a ref is "missing" (a
+				// flow central -> branch) -- a ref is "missing" (a
 				// deactivation candidate) only if a test explicitly marks
 				// it gone via f.productBarcodesGone.
 				for _, ref := range req.Refs {
@@ -220,7 +220,7 @@ func TestResyncAllBackfillsInvoicesAndClientsExactlyOnce(t *testing.T) {
 	}
 
 	if got := len(fc.invoiceRefs); got != 3 {
-		t.Fatalf("central received %d distinct invoices, want 3", got)
+		t.Fatalf("Central received %d distinct invoices, want 3", got)
 	}
 	for ref, count := range fc.invoiceRefs {
 		if count != 1 {
@@ -436,9 +436,9 @@ func TestResyncAllFirstDeactivationRequiresConfirmation(t *testing.T) {
 	defer server.Close()
 
 	app, store, _, client := setUpTestInvoiceApp(t, server.URL)
-	// Simulate a barcode kashi no longer has, and a client this branch had
+	// Simulate a barcode central no longer has, and a client this branch had
 	// previously linked (so it's eligible for deactivation) whose phone
-	// kashi no longer has.
+	// Central no longer has.
 	fc.productBarcodesGone["1"] = true
 	fc.clientRefs[strconv.FormatInt(client.ID, 10)] = 1
 	fc.clientPhonesGone[client.Phone] = true
@@ -510,7 +510,7 @@ func TestResyncAllConfirmedDeactivationWritesAndSetsFlag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A linked client whose phone kashi doesn't have is a phone mismatch
+	// A linked client whose phone central doesn't have is a phone mismatch
 	// (trimmed/synthetic/edited centrally), not a deletion: never deactivated.
 	if reloadedClient.IsActive != 1 {
 		t.Fatal("Sync All must never deactivate a client by phone")
@@ -713,7 +713,7 @@ func TestVisitorCountBackfill(t *testing.T) {
 	}
 }
 
-// The "Unknown item" placeholder is the till's own product, never kashi's,
+// The "Unknown item" placeholder is the till's own product, never central's,
 // so a sync-everything must not offer to deactivate it.
 func TestResyncAllNeverDeactivatesTheUnknownItem(t *testing.T) {
 	fc := newFakeCentral()

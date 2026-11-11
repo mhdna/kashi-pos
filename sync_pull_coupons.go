@@ -9,9 +9,9 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// Coupons, branches, and transfer requests all pull down from kashi in a
+// Coupons, branches, and transfer requests all pull down from central in a
 // flatter shape than their central columns actually are -- see
-// api/branch_sync_coupons.go in the kashi repo: nullable central columns
+// api/branch_sync_coupons.go in the central repo: nullable central columns
 // (a coupon's type_id, valid_until, ...) arrive as a plain zero value
 // ("", 0) rather than a JSON null or a {Int64, Valid} wrapper, the same
 // convention branchInvoiceRequest.ClientUID already uses on the up-sync
@@ -31,7 +31,7 @@ type syncedCouponType struct {
 // applySyncedCouponType upserts by central_id -- see
 // idx_coupon_types_central_id (000101). A type this till has never seen
 // (locally created, unsynced) is untouched; one whose central_id already
-// matches gets every field overwritten, kashi being authoritative for a
+// matches gets every field overwritten, central being authoritative for a
 // centrally-managed type from the moment it's synced.
 func applySyncedCouponType(ctx context.Context, q *db.Queries, t syncedCouponType) error {
 	_, err := q.UpsertCouponTypeByCentralID(ctx, db.UpsertCouponTypeByCentralIDParams{
@@ -57,7 +57,7 @@ type syncedCoupon struct {
 
 // applySyncedCoupon mirrors one central coupon row. Skipped entirely --
 // not merely left with a stale status, but not written to at all -- when
-// this till already redeemed the code itself: nothing kashi reports can
+// this till already redeemed the code itself: nothing central reports can
 // walk that back, and an out-of-order pull landing after the local
 // redemption must never resurrect a spent code. type_id is resolved from
 // the till's own coupon_types.central_id mapping; a code referencing a
@@ -121,8 +121,8 @@ type syncedTransferRequest struct {
 }
 
 // applySyncedTransferRequest is the till's own poll for what happened to
-// a transfer it proposed -- see notifyBranchTransferDecision in the kashi
-// repo. kashi's status is authoritative the moment it's synced; a
+// a transfer it proposed -- see notifyBranchTransferDecision in the central
+// repo. central's status is authoritative the moment it's synced; a
 // client_ref this till doesn't recognise (a transfer created centrally
 // with no matching local row, or one from another till on a shared
 // database -- neither should happen in practice) is a silent no-op, not

@@ -11,19 +11,19 @@ import (
 // card text size and lines, animations, the calculator's leading currency,
 // the theme. The screen owns them (they apply instantly, from localStorage,
 // before any binding call returns), but they're mirrored into
-// settings.display_prefs so kashi sees them in the settings report and can
+// settings.display_prefs so central sees them in the settings report and can
 // push new values (see migration 000110).
 //
 // Two writers, told apart by display_prefs_rev:
 //
 //	the screen  ReportDisplayPrefs after each local change; rev untouched
-//	kashi       applyRemoteDisplayPrefs from update_settings; rev + 1
+//	central       applyRemoteDisplayPrefs from update_settings; rev + 1
 //
 // The screen remembers the last rev it applied and adopts the stored prefs
 // whenever this one is newer -- at startup, and on the display_prefs_changed
 // event a push emits. Whichever happened last wins.
 
-// displayPrefKeys are the prefs kashi may set, each with a validator. A key
+// displayPrefKeys are the prefs central may set, each with a validator. A key
 // not listed here is dropped from a push rather than stored, so the screen
 // never receives something it doesn't know how to apply.
 var displayPrefKeys = map[string]func(json.RawMessage) error{
@@ -38,7 +38,7 @@ var displayPrefKeys = map[string]func(json.RawMessage) error{
 	"theme":                     oneOf("light", "dark"),
 	// Settings > Receipt: returns and exchanges print their receipt (when
 	// receipts are on). Unlike the rest it's read by the till's own checkout
-	// too, so a return kashi sends follows it (returnReceiptsOn).
+	// too, so a return central sends follows it (returnReceiptsOn).
 	"print_return_receipts": isBool,
 }
 
@@ -141,7 +141,7 @@ func (a *App) ReportDisplayPrefs(prefsJSON string) error {
 	return a.store.SetLocalDisplayPrefs(a.ctx, merged)
 }
 
-// applyRemoteDisplayPrefs is kashi's push (update_settings.display_prefs):
+// applyRemoteDisplayPrefs is central's push (update_settings.display_prefs):
 // every key is validated first, so one bad value fails the command instead
 // of half-applying it. A theme travels on to settings.theme too, since that
 // is where the app reads it at startup.

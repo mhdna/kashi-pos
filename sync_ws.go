@@ -15,12 +15,12 @@ const (
 	wsBackoffMax  = 60 * time.Second
 )
 
-// wsPingInterval/wsPongWait/wsWriteWait mirror kashi's own heartbeat
+// wsPingInterval/wsPongWait/wsWriteWait mirror central's own heartbeat
 // (api/ws_conn.go) -- ping the server well inside how long we'll wait for a
-// pong, so a connection that's actually dead (kashi restarted, or something
+// pong, so a connection that's actually dead (central restarted, or something
 // in between silently dropped the TCP connection) is detected within
 // roughly wsPongWait instead of only surfacing whenever the OS eventually
-// reaps it. This channel is push-only from kashi's side and can otherwise
+// reaps it. This channel is push-only from central's side and can otherwise
 // sit idle a long time between real messages.
 const (
 	wsPingInterval = 30 * time.Second
@@ -42,7 +42,7 @@ var wsConfigRecheckInterval = 10 * time.Second
 // reconfiguration and not a failure.
 var errWSReconnect = errors.New("ws client: central config changed, reconnecting")
 
-// wsMessage mirrors kashi's branchWSMessage (api/branch_ws.go) — a bare
+// wsMessage mirrors central's branchWSMessage (api/branch_ws.go) — a bare
 // delta pointer, never a payload. Receiving one always means "go re-fetch
 // this entity," which is exactly runSyncPullOnce's job for a single
 // entity — so a live push and a periodic poll can never disagree about
@@ -54,10 +54,10 @@ type wsMessage struct {
 	// other pushed message, that one needs to say *which* expense, not
 	// just "go re-fetch this kind of thing".
 	ClientRef string `json:"client_ref,omitempty"`
-	// Entities is set on "sync_changed": the pull entities kashi's
-	// database reported changes to (kashi's api/sync_notify.go).
+	// Entities is set on "sync_changed": the pull entities central's
+	// database reported changes to (central's api/sync_notify.go).
 	Entities []string `json:"entities,omitempty"`
-	// Features is set on "hello", kashi's first message of a session.
+	// Features is set on "hello", central's first message of a session.
 	Features []string `json:"features,omitempty"`
 	// Review is set on "review": a client just answered the rating poll
 	// for a sale at this branch.
@@ -83,7 +83,7 @@ var wsMessageEntity = map[string]string{
 	"transfer_requests_updated":          "transfer_requests",
 }
 
-// startWSClient runs the reconnect loop for kashi's push channel, and the
+// startWSClient runs the reconnect loop for central's push channel, and the
 // worker that does what the pushes ask for (runWSWorker). Both are
 // separate goroutines from the poll-based sync ticker (sync_worker.go) —
 // losing the WebSocket doesn't affect polling at all, it just means
@@ -231,15 +231,15 @@ func (a *App) sleepOrStop(d time.Duration) bool {
 // The session itself only reads, pings and queues: the catch-up, and every
 // pull or command a push asks for, run on runWSWorker. A pull can wait
 // minutes for syncPullMu ("Sync everything" holds it for its whole run),
-// and a session stuck behind one stops answering kashi's pings -- gorilla
-// only answers them while something reads -- so kashi drops the till as
+// and a session stuck behind one stops answering central's pings -- gorilla
+// only answers them while something reads -- so central drops the till as
 // dead and shows its branch offline exactly while it's busiest.
 func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 	defer conn.Close()
 	// Without a live session nothing is being pushed: back to full polling.
 	defer a.wsPushesAll.Store(false)
 	defer a.kashiQuickAccess.Store(false)
-	// kashi may have restarted while we were away; report settings afresh.
+	// Central may have restarted while we were away; report settings afresh.
 	a.settingsReport.forget()
 
 	conn.SetReadDeadline(time.Now().Add(wsPongWait))
@@ -365,15 +365,15 @@ func (a *App) handleWSMessage(client *centralClient, data []byte) {
 		return
 	}
 	if msg.Type == "hello" {
-		// A kashi that pushes every change lets the pull loop slow down to a
-		// backstop. An older kashi sends no hello, and its tills keep the
+		// A central that pushes every change lets the pull loop slow down to a
+		// backstop. An older central sends no hello, and its tills keep the
 		// 15s poll. runWSSession clears this when the session ends.
 		a.wsPushesAll.Store(slices.Contains(msg.Features, "sync_changed"))
 		a.kashiQuickAccess.Store(slices.Contains(msg.Features, "quick_access"))
 		return
 	}
 	if msg.Type == "pull_all" {
-		// kashi's change feed had a gap; catch up on everything.
+		// central's change feed had a gap; catch up on everything.
 		a.queueWSWork(wsWork{client: client, pullAll: true})
 		return
 	}
@@ -449,7 +449,7 @@ func (a *App) runQueuedWSWork() {
 		a.runSyncPullOnce(a.ctx, w.client)
 	}
 	// Walking pullEntities rather than w.entities skips any entity a newer
-	// kashi names that this build doesn't pull yet.
+	// Central names that this build doesn't pull yet.
 	for _, entity := range pullEntities {
 		if !slices.Contains(w.entities, entity) {
 			continue

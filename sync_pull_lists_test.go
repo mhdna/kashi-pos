@@ -13,7 +13,7 @@ func syncedListWith(uid string, items ...syncedPriceListItem) syncedPriceList {
 	}
 }
 
-// The reason lists are sent whole: an item kashi drops has no tombstone, so
+// The reason lists are sent whole: an item central drops has no tombstone, so
 // the only thing that can remove it locally is applying the list as a
 // replace. This is the regression guard for that.
 func TestApplySyncedPriceListRemovesItemsMissingFromThePayload(t *testing.T) {
@@ -41,7 +41,7 @@ func TestApplySyncedPriceListRemovesItemsMissingFromThePayload(t *testing.T) {
 		t.Fatalf("expected 2 items after the first apply, got %d", len(items))
 	}
 
-	// kashi drops var-b and reprices var-a.
+	// Central drops var-b and reprices var-a.
 	second := syncedListWith("central-uid-1",
 		syncedPriceListItem{ProductVariantUID: "var-a", Price: 150},
 	)
@@ -94,7 +94,7 @@ func TestApplySyncedPriceListIsIdempotent(t *testing.T) {
 	}
 }
 
-// A list kashi deactivates stops pricing anything. Its row stays, because sold
+// A list central deactivates stops pricing anything. Its row stays, because sold
 // lines point at it: deleting one with sales failed the whole pull.
 func TestApplySyncedPriceListEmptiesOnDeactivation(t *testing.T) {
 	ctx := context.Background()

@@ -213,9 +213,9 @@ func TestProductVariantsHaveDistinctBarcodesAndCatalogMetadata(t *testing.T) {
 			color, size, currency_code, brand, family, kind, season, product_year
 		) VALUES
 			('VAR-RED-S', 'SHIRT-1', 'Oxford Shirt', 'Shirts', 1, 4500, 0,
-			 'Red', 'S', 'USD', 'Kashi', 'Oxford', 'Shirt', 'Summer', 2026),
+			 'Red', 'S', 'USD', 'Central', 'Oxford', 'Shirt', 'Summer', 2026),
 			('VAR-BLUE-L', 'SHIRT-1', 'Oxford Shirt', 'Shirts', 1, 4500, 0,
-			 'Blue', 'L', 'USD', 'Kashi', 'Oxford', 'Shirt', 'Summer', 2026)
+			 'Blue', 'L', 'USD', 'Central', 'Oxford', 'Shirt', 'Summer', 2026)
 	`)
 	if err != nil {
 		t.Fatal(err)
@@ -223,7 +223,7 @@ func TestProductVariantsHaveDistinctBarcodesAndCatalogMetadata(t *testing.T) {
 	for _, barcode := range []string{"VAR-RED-S", "VAR-BLUE-L"} {
 		_, err := database.Exec(`
 			INSERT INTO attributes_values (attribute_id, value)
-			SELECT 2, 'Kashi' WHERE NOT EXISTS (SELECT 1 FROM attributes_values WHERE attribute_id = 2 AND value = 'Kashi')
+			SELECT 2, 'Central' WHERE NOT EXISTS (SELECT 1 FROM attributes_values WHERE attribute_id = 2 AND value = 'Central')
 			UNION ALL SELECT 1, 'Oxford' WHERE NOT EXISTS (SELECT 1 FROM attributes_values WHERE attribute_id = 1 AND value = 'Oxford')
 			UNION ALL SELECT 3, 'Shirt' WHERE NOT EXISTS (SELECT 1 FROM attributes_values WHERE attribute_id = 3 AND value = 'Shirt')
 			UNION ALL SELECT 7, 'Summer' WHERE NOT EXISTS (SELECT 1 FROM attributes_values WHERE attribute_id = 7 AND value = 'Summer')
@@ -236,7 +236,7 @@ func TestProductVariantsHaveDistinctBarcodesAndCatalogMetadata(t *testing.T) {
 			INSERT INTO products_attributes (attribute_id, attribute_value_id, product_id)
 			SELECT av.attribute_id, av.id, (SELECT id FROM products WHERE barcode = ?)
 			FROM attributes_values av
-			WHERE (av.attribute_id, av.value) IN ((2,'Kashi'), (1,'Oxford'), (3,'Shirt'), (7,'Summer'), (6,'2026'))
+			WHERE (av.attribute_id, av.value) IN ((2,'Central'), (1,'Oxford'), (3,'Shirt'), (7,'Summer'), (6,'2026'))
 		`, barcode)
 		if err != nil {
 			t.Fatal(err)
@@ -255,9 +255,9 @@ func TestProductVariantsHaveDistinctBarcodesAndCatalogMetadata(t *testing.T) {
 		t.Fatalf("variants were not kept separate: red=%#v blue=%#v", red, blue)
 	}
 	// year comes back as text now (attributes_values.value is always
-	// text, matching kashi's own attribute model), not the int64 the old
+	// text, matching central's own attribute model), not the int64 the old
 	// product_year column held.
-	if red["brand"] != "Kashi" || red["family"] != "Oxford" || red["kind"] != "Shirt" || red["season"] != "Summer" || red["year"] != "2026" {
+	if red["brand"] != "Central" || red["family"] != "Oxford" || red["kind"] != "Shirt" || red["season"] != "Summer" || red["year"] != "2026" {
 		t.Fatalf("catalog metadata missing from product: %#v", red)
 	}
 
@@ -361,7 +361,7 @@ func insertProducts(database *sql.DB, count int) error {
 	return tx.Commit()
 }
 
-// A product kashi has retired (is_active = 0) must not surface in a search.
+// A product central has retired (is_active = 0) must not surface in a search.
 // The cursor-paged path has always filtered it out; the offset-paged path did
 // not, so the same query returned different catalogs depending on which one
 // the screen happened to use, and a cashier could add an unsellable product
@@ -419,7 +419,7 @@ func TestProductSearchExcludesInactiveProducts(t *testing.T) {
 // The Products page shows what a sale would charge -- the active price
 // list's price -- and "No price" (priced:false) for a product no list prices
 // yet, not the product row's frozen price column (usually 0 for a product
-// synced from kashi, which is how a priced product used to show 0.00).
+// synced from central, which is how a priced product used to show 0.00).
 func TestListManagedProductsShowsListPrice(t *testing.T) {
 	app, store, _, _ := setUpTestInvoiceApp(t, "")
 	// SKU-1 is priced at 100 cents by setUpTestInvoiceApp's price list; give
@@ -602,7 +602,7 @@ func TestRefreshCartPricingFollowsTheLists(t *testing.T) {
 		t.Fatalf("before the discount = %v, want one row at $12 with none", rows)
 	}
 
-	// kashi puts the product on the discount list: the next read has it.
+	// Central puts the product on the discount list: the next read has it.
 	if _, err := database.Exec(`INSERT INTO discount_list_items (discount_list_id, product_uid, discount) SELECT id, 'uid-1', 25 FROM discount_lists WHERE uid = 'test-default-discount-list'`); err != nil {
 		t.Fatal(err)
 	}

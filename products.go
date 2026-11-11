@@ -35,7 +35,7 @@ const (
 	// setting existed.
 	overchangeConfirmationFlag = "overchange_confirmation"
 	// Gates the product-search (magnifier) button on the sale screen.
-	// Toggleable both from the local Settings page and remotely from kashi
+	// Toggleable both from the local Settings page and remotely from central
 	// (via an update_settings branch command). Defaults to true when unset,
 	// so a database that has never touched this flag keeps the search button
 	// available - matching behavior before this setting existed.
@@ -85,13 +85,13 @@ const (
 	variantPickRequiredFlag = "variant_pick_required"
 	// When on, the sync light shows every step of a pull, even one that finds
 	// nothing new. Off (the default): only steps that really received
-	// something. Set from kashi's branch settings.
+	// something. Set from central's branch settings.
 	syncVerboseFlag = "sync_verbose"
 )
 
 // SetDiscountToggleEnabled lets salespersons turn a line's discount off/on.
 // Called both by the local Settings page and by an update_settings command
-// from kashi.
+// from central.
 func (a *App) SetDiscountToggleEnabled(enabled bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
@@ -128,7 +128,7 @@ func (a *App) SetDiscountToggleDefaultOff(enabled bool) error {
 }
 
 // SetProductSearchCodeOnly toggles code-only product search. Called both by
-// the local Settings page and by an update_settings command from kashi.
+// the local Settings page and by an update_settings command from central.
 func (a *App) SetProductSearchCodeOnly(enabled bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
@@ -155,7 +155,7 @@ func (a *App) SetPriceEditRestricted(enabled bool) error {
 
 // normalizePriceEditCodes splits a comma/space/newline separated list into
 // distinct trimmed codes joined by commas, so the stored form is the same
-// however kashi or the Settings page typed it. Codes compare case-insensitively
+// however central or the Settings page typed it. Codes compare case-insensitively
 // on the sale screen, so case is kept as typed.
 func normalizePriceEditCodes(raw string) string {
 	seen := map[string]bool{}
@@ -214,7 +214,7 @@ func (a *App) scanByCodeEnabled() bool {
 
 // SetVariantPickRequiredEnabled turns the "cashier must pick the colour/size
 // when a scanned item has variants" default on or off. Called by the local
-// Settings page and by an update_settings command from kashi.
+// Settings page and by an update_settings command from central.
 func (a *App) SetVariantPickRequiredEnabled(enabled bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
@@ -241,7 +241,7 @@ func (a *App) SetSyncVerboseEnabled(enabled bool) error {
 
 // SetScanByCodeEnabled toggles the scan field's product-code fallback.
 // Called both by the local Settings page and by an update_settings command
-// from kashi; emits "settings_changed" like the other sale-screen toggles.
+// from central; emits "settings_changed" like the other sale-screen toggles.
 func (a *App) SetScanByCodeEnabled(enabled bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
@@ -394,7 +394,7 @@ func (a *App) ListQuickAccessProducts() ([]map[string]any, error) {
 }
 
 // listCentralQuickAccessProducts is ListQuickAccessProducts in 'kashi'
-// mode: kashi's branch list, same card shape.
+// mode: central's branch list, same card shape.
 func (a *App) listCentralQuickAccessProducts() ([]map[string]any, error) {
 	rows, err := a.store.ListCentralQuickAccessProducts(a.ctx)
 	if err != nil {
@@ -901,7 +901,7 @@ func (a *App) UpdateProductDiscount(code string, discount int64) error {
 
 // RefreshCartPricing returns the current list price and discount of each
 // barcode in the cart, so lines already on the sale screen can follow a price
-// or discount list that kashi has just changed. Barcodes that no longer
+// or discount list that central has just changed. Barcodes that no longer
 // resolve are left out; the screen keeps those lines as they are.
 func (a *App) RefreshCartPricing(barcodesJSON string) ([]map[string]any, error) {
 	if a.store == nil {
@@ -947,7 +947,7 @@ func normalizeProductSearchHiddenFields(raw string) string {
 }
 
 // SetProductSearchHiddenFields chooses which columns the product search dialog
-// leaves out. Called by an update_settings command from kashi.
+// leaves out. Called by an update_settings command from central.
 func (a *App) SetProductSearchHiddenFields(raw string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")

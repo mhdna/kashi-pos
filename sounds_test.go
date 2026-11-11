@@ -12,9 +12,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// Sounds are off on a fresh till, and kashi's update_settings turns them on
+// Sounds are off on a fresh till, and central's update_settings turns them on
 // and off again through the same setter the Settings page uses (the settings
-// report kashi sees reads the same soundsEnabled).
+// report central sees reads the same soundsEnabled).
 func TestSoundsOffByDefaultAndSetFromKashi(t *testing.T) {
 	ctx := context.Background()
 	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "sounds.db")+"?_pragma=foreign_keys(ON)")
@@ -44,7 +44,7 @@ func TestSoundsOffByDefaultAndSetFromKashi(t *testing.T) {
 			t.Fatalf("update_settings: %v", err)
 		}
 		if got := app.GetSoundsEnabled(); got != want {
-			t.Fatalf("after kashi set sounds_enabled=%v, GetSoundsEnabled() = %v", want, got)
+			t.Fatalf("after central set sounds_enabled=%v, GetSoundsEnabled() = %v", want, got)
 		}
 	}
 }

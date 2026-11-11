@@ -11,22 +11,22 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// Quick Access can come from this till or from kashi (kashi's
+// Quick Access can come from this till or from central (central's
 // api/branch_quick_access.go). settings.quick_access_mode is this register's
 // choice:
 //
 //	till   the till's own list (quick_access_items), edited here -- default
-//	kashi  its branch's list from kashi (central_quick_access_items), shown
+//	central  its branch's list from central (central_quick_access_items), shown
 //	       read-only and kept current by the "quick_access" sync entity
 //
 // Either side can flip it, and the later flip wins: each side keeps the time
-// its current value was chosen, kashi only accepts a flip newer than its own
-// (SetBranchRegisterQuickAccessMode there), and a pull only adopts kashi's
+// its current value was chosen, central only accepts a flip newer than its own
+// (SetBranchRegisterQuickAccessMode there), and a pull only adopts central's
 // value when it's newer than ours (applySyncedQuickAccess). A flip made
 // here travels through the outbox, so one made offline still arrives.
 //
-// None of this runs against a kashi that doesn't support it: the pull, the
-// import and the switch all wait for "quick_access" in kashi's hello.
+// None of this runs against a central that doesn't support it: the pull, the
+// import and the switch all wait for "quick_access" in central's hello.
 
 const (
 	quickAccessModeTill  = "till"
@@ -37,7 +37,7 @@ const (
 	quickAccessModeClientRef = "quick-access-mode"
 )
 
-var errQuickAccessManagedInKashi = fmt.Errorf("Quick Access on this register is managed in kashi")
+var errQuickAccessManagedInKashi = fmt.Errorf("Quick Access on this register is managed in central")
 
 type syncedQuickAccess struct {
 	Mode          string    `json:"mode"`
@@ -50,7 +50,7 @@ type syncedQuickAccess struct {
 	} `json:"items"`
 }
 
-// applySyncedQuickAccess stores kashi's branch list (always, so it's ready
+// applySyncedQuickAccess stores central's branch list (always, so it's ready
 // the moment the mode becomes 'kashi') and adopts kashi's mode if kashi's
 // choice is newer than ours -- a flip made here that hasn't uploaded yet is
 // newer, so it survives.
@@ -92,7 +92,7 @@ func parseQuickAccessTime(v string) time.Time {
 // need to know about where the cards come from.
 type QuickAccessSource struct {
 	Mode string `json:"mode"`
-	// KashiAvailable: connected to a kashi that manages Quick Access, so
+	// KashiAvailable: connected to a central that manages Quick Access, so
 	// switching to 'kashi' would actually show a list. The switch is still
 	// allowed without it (the flip waits in the outbox), but the UI warns.
 	KashiAvailable bool `json:"kashiAvailable"`
@@ -109,7 +109,7 @@ func (a *App) GetQuickAccessSource() (QuickAccessSource, error) {
 	return QuickAccessSource{Mode: settings.QuickAccessMode, KashiAvailable: a.kashiQuickAccess.Load()}, nil
 }
 
-// SetQuickAccessMode flips this register between its own list and kashi's.
+// SetQuickAccessMode flips this register between its own list and central's.
 // Admin-only, like editing the cards' colours.
 func (a *App) SetQuickAccessMode(mode string) error {
 	if a.store == nil {
@@ -154,8 +154,8 @@ func (a *App) SetQuickAccessMode(mode string) error {
 	return nil
 }
 
-// afterQuickAccessModePushed re-pulls Quick Access once kashi has our flip:
-// if kashi kept a newer flip instead, nothing changed there and nothing is
+// afterQuickAccessModePushed re-pulls Quick Access once central has our flip:
+// if central kept a newer flip instead, nothing changed there and nothing is
 // pushed, so this pull is how the till learns it lost.
 func (a *App) afterQuickAccessModePushed(client *centralClient) {
 	go func() {
@@ -165,8 +165,8 @@ func (a *App) afterQuickAccessModePushed(client *centralClient) {
 	}()
 }
 
-// maybeReportQuickAccess offers this till's own list to kashi, once, so the
-// branch's central list starts out as the cards the shop already uses. kashi
+// maybeReportQuickAccess offers this till's own list to central, once, so the
+// branch's central list starts out as the cards the shop already uses. central
 // only takes the first non-empty list per branch; an empty list here isn't
 // sent, so a register with real cards can still be the one that seeds it.
 func (a *App) maybeReportQuickAccess(ctx context.Context, client *centralClient) {

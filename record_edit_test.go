@@ -8,8 +8,8 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// A category edit rides along with an expense kashi doesn't have yet, and
-// goes up on its own once kashi has it -- never ahead of the expense.
+// A category edit rides along with an expense central doesn't have yet, and
+// goes up on its own once central has it -- never ahead of the expense.
 func TestUpdateExpenseCategoryFollowsTheExpense(t *testing.T) {
 	app, store, cashbox, _ := setUpTestInvoiceApp(t, "http://central.test")
 

@@ -8,8 +8,8 @@ import (
 	"net/http"
 )
 
-// reconcileBatchSize is how many refs the branch asks kashi about per call.
-// Kept at kashi's own per-request cap (see branchReconcileMaxRefs in
+// reconcileBatchSize is how many refs the branch asks central about per call.
+// Kept at central's own per-request cap (see branchReconcileMaxRefs in
 // api/branch_catchup.go) so a batch is never rejected for being too large.
 const reconcileBatchSize = 500
 
@@ -22,7 +22,7 @@ type reconcileResponse struct {
 	Missing []string `json:"missing"`
 }
 
-// Reconcile asks kashi which of `refs` (for one entity) it does NOT already
+// Reconcile asks central which of `refs` (for one entity) it does NOT already
 // hold for this branch. The branch queues only those, rather than
 // re-pushing everything and relying on (branch_id, client_ref) idempotency
 // to swallow the duplicates. Callers batch; this is one HTTP round trip.
@@ -60,8 +60,8 @@ func (c *centralClient) Reconcile(ctx context.Context, entity string, refs []str
 }
 
 // reconcileEntity walks `refs` in batches through Reconcile and returns the
-// union of what kashi is missing, preserving input order. An empty result
-// means kashi already has everything -- the "the new central server is
+// union of what central is missing, preserving input order. An empty result
+// means central already has everything -- the "the new central server is
 // already up to date" case after re-pointing the URL.
 func (a *App) reconcileEntity(ctx context.Context, client *centralClient, entity string, refs []string) ([]string, error) {
 	missing := make([]string, 0)

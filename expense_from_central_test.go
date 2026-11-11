@@ -54,8 +54,8 @@ func TestExpenseFromCentralLeavesTheShiftAlone(t *testing.T) {
 	}
 }
 
-// Like a category edit: the mark rides along with an expense kashi doesn't
-// have yet, and goes up on its own once kashi has it.
+// Like a category edit: the mark rides along with an expense central doesn't
+// have yet, and goes up on its own once central has it.
 func TestExpenseFromCentralFollowsTheExpense(t *testing.T) {
 	app, store, cashbox, _ := setUpTestInvoiceApp(t, "http://central.test")
 
@@ -107,7 +107,7 @@ func TestExpenseFromCentralFollowsTheExpense(t *testing.T) {
 	}
 }
 
-// kashi's change is applied without echoing it back; a ref another register
+// central's change is applied without echoing it back; a ref another register
 // holds is fine.
 func TestSetExpenseFromCentralCommand(t *testing.T) {
 	app, store, cashbox, _ := setUpTestInvoiceApp(t, "http://central.test")
@@ -141,6 +141,6 @@ func TestSetExpenseFromCentralCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(rows) != 0 {
-		t.Fatalf("a change from kashi queued %+v back to kashi, want nothing", rows)
+		t.Fatalf("a change from central queued %+v back to central, want nothing", rows)
 	}
 }

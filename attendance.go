@@ -209,7 +209,7 @@ func (a *App) SyncAttendance(date string) (map[string]any, error) {
 		salesperson, ok := byDoorID[strings.TrimSpace(item.UserID)]
 		if !ok {
 			// Not imported: a visitor, or an employee whose device user isn't
-			// linked to a salesperson (enrolled twice, a new number). kashi
+			// linked to a salesperson (enrolled twice, a new number). central
 			// is told about it below so the gap shows in its reports.
 			if strings.TrimSpace(item.UserID) != "" {
 				unlinked = append(unlinked, item)
@@ -668,8 +668,8 @@ func (a *App) ApproveAttendanceComplaint(id int64, approved bool, password strin
 
 // reviewAttendanceComplaint applies a manager's decision on a pending request;
 // actor is who decided, recorded on the request, its audit row and the copy
-// sent to kashi. ApproveAttendanceComplaint (manager password, on the till)
-// and kashi's review_attendance_request command (kashi checked its own
+// sent to central. ApproveAttendanceComplaint (manager password, on the till)
+// and central's review_attendance_request command (central checked its own
 // user's rights) both land here. Only a pending request can be reviewed, so
 // a decision arriving twice is refused rather than applied twice.
 func (a *App) reviewAttendanceComplaint(id int64, approved bool, actor string) error {
@@ -710,7 +710,7 @@ func (a *App) reviewAttendanceComplaint(id int64, approved bool, actor string) e
 	}
 
 	var changedFrom, changedTo string
-	// What kashi needs to mirror an approval: the punch it took away (its
+	// What central needs to mirror an approval: the punch it took away (its
 	// upload ref) and the punch it created, marked with who approved it.
 	var originalEventRef string
 	var newPunch *branchAttendanceEvent
@@ -799,7 +799,7 @@ func (a *App) reviewAttendanceComplaint(id int64, approved bool, actor string) e
 	}
 
 	if centralURL != "" {
-		// The new punch goes up like any punch, so kashi's attendance list
+		// The new punch goes up like any punch, so central's attendance list
 		// has it -- labelled with who approved it, not as a device punch.
 		if newPunch != nil {
 			body, err := json.Marshal(branchAttendanceEventsPayload{Events: []branchAttendanceEvent{*newPunch}})
@@ -874,10 +874,10 @@ func (a *App) ExportAttendanceMonth(month string) (string, error) {
 	return string(data), err
 }
 
-// reviewAttendanceRequestPayload is what kashi's review_attendance_request
-// command carries (see resolveCommandTarget in kashi's api/branch_command.go):
+// reviewAttendanceRequestPayload is what central's review_attendance_request
+// command carries (see resolveCommandTarget in central's api/branch_command.go):
 // the request's own ref ("acr-<id>-complaint", as this till sent it), the
-// decision, and who made it in kashi.
+// decision, and who made it in central.
 type reviewAttendanceRequestPayload struct {
 	ClientRef string `json:"client_ref"`
 	Approved  bool   `json:"approved"`
@@ -885,9 +885,9 @@ type reviewAttendanceRequestPayload struct {
 }
 
 // executeReviewAttendanceRequestCommand applies an approval or rejection made
-// in kashi. It goes through reviewAttendanceComplaint like a manager's
-// decision here, minus the manager password -- kashi already checked its own
-// user's rights -- and the result syncs back to kashi the same way.
+// in central. It goes through reviewAttendanceComplaint like a manager's
+// decision here, minus the manager password -- central already checked its own
+// user's rights -- and the result syncs back to central the same way.
 func (a *App) executeReviewAttendanceRequestCommand(payload json.RawMessage) error {
 	var p reviewAttendanceRequestPayload
 	if err := json.Unmarshal(payload, &p); err != nil {
@@ -907,10 +907,10 @@ func (a *App) executeReviewAttendanceRequestCommand(payload json.RawMessage) err
 // attendanceManagerApprovalFlag lets a manager decide attendance requests on
 // the till itself, with the manager password -- approve or reject a request,
 // or add a missed punch straight away. On unless turned off (here or from
-// kashi's branch settings); when off, requests wait for kashi.
+// central's branch settings); when off, requests wait for central.
 const attendanceManagerApprovalFlag = "attendance_manager_approval"
 
-var errManagerApprovalOff = fmt.Errorf("manager approval on the till is turned off for this branch -- approve it from kashi")
+var errManagerApprovalOff = fmt.Errorf("manager approval on the till is turned off for this branch -- approve it from central")
 
 func (a *App) attendanceManagerApprovalEnabled() bool {
 	if v, err := a.store.GetFeatureFlag(a.ctx, attendanceManagerApprovalFlag); err == nil {
@@ -929,7 +929,7 @@ func (a *App) GetAttendanceManagerApprovalEnabled() bool {
 }
 
 // SetAttendanceManagerApprovalEnabled is called by the Settings page and by
-// kashi's update_settings.
+// central's update_settings.
 func (a *App) SetAttendanceManagerApprovalEnabled(enabled bool) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
@@ -943,7 +943,7 @@ func (a *App) SetAttendanceManagerApprovalEnabled(enabled bool) error {
 
 // AddAttendanceWithManagerApproval records a punch the device missed, on the
 // manager's password, in one step: it files an "add" request and approves it
-// at once, so it leaves the same request, audit and kashi trail as one a
+// at once, so it leaves the same request, audit and central trail as one a
 // cashier filed and a manager approved.
 func (a *App) AddAttendanceWithManagerApproval(salespersonID int64, date, requestedTime, requestedType, password string) error {
 	if !a.attendanceManagerApprovalEnabled() {
@@ -962,12 +962,12 @@ func (a *App) AddAttendanceWithManagerApproval(salespersonID int64, date, reques
 	return a.reviewAttendanceComplaint(id, true, "manager approval")
 }
 
-// skippedAttendanceStatus marks a punch the till didn't import. kashi keeps it
+// skippedAttendanceStatus marks a punch the till didn't import. Central keeps it
 // out of worked hours and lists it as a punch nobody is linked to.
 const skippedAttendanceStatus = "Skipped: unlinked"
 
 // newSkippedAttendance turns device punches by users not linked to any
-// salesperson into events for kashi, each one once (attendance_skipped_sent).
+// salesperson into events for central, each one once (attendance_skipped_sent).
 // Only Success punches reach here; the device is asked for no others.
 func (a *App) newSkippedAttendance(tx *sql.Tx, ip string, items []akuvoxDoorLogItem) ([]branchAttendanceEvent, error) {
 	events := make([]branchAttendanceEvent, 0)

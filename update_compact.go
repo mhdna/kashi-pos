@@ -17,8 +17,8 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-// Small updates (kashi's api/app_update_compact.go). The till tells kashi the
-// SHA-256 of the exe it runs; kashi offers a patch from exactly that build
+// Small updates (central's api/app_update_compact.go). The till tells central the
+// SHA-256 of the exe it runs; central offers a patch from exactly that build
 // (~1-2 MB) when it has one, and the build zstd-compressed (~9 MB of ~28)
 // otherwise. A patch is zstd with the running exe as its dictionary. Whatever
 // arrives is unpacked to the plain exe and checked like before (verifyRelease:
@@ -43,7 +43,7 @@ var runningExeDigest struct {
 }
 
 // ownExeSha256 is the SHA-256 of the exe this till runs, or "" when it can't
-// be read (kashi then offers no patch).
+// be read (central then offers no patch).
 func ownExeSha256() string {
 	exe, err := os.Executable()
 	if err != nil {
@@ -122,8 +122,8 @@ func unpackZstd(src, dest string, dict []byte) error {
 	return err
 }
 
-// fetchReleaseSmall gets the release into part the smallest way kashi offers:
-// the patch, then the zstd build. It returns false when kashi offered
+// fetchReleaseSmall gets the release into part the smallest way central offers:
+// the patch, then the zstd build. It returns false when central offered
 // neither, or both failed, and the plain download should run.
 func (a *App) fetchReleaseSmall(ctx context.Context, client *centralClient, m *appUpdateManifest, releaseDir, part string, progress func(have, total int64)) bool {
 	if p := m.Patch; p != nil && p.ID > 0 {

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// kashi sends its whole set: what it still lists is upserted, what it
+// Central sends its whole set: what it still lists is upserted, what it
 // dropped is deleted, and an empty set clears the table.
 func TestApplySyncedCalendarEventsMirrorsTheWholeSet(t *testing.T) {
 	ctx := context.Background()
@@ -58,7 +58,7 @@ func TestApplySyncedCalendarSettings(t *testing.T) {
 	ctx := context.Background()
 	q := setUpTestClientDB(t).Queries
 
-	// Before kashi says anything: clothing, nothing hidden.
+	// Before central says anything: clothing, nothing hidden.
 	row, err := q.GetCalendarSettings(ctx)
 	if err != nil || row.BusinessType != "clothing" || row.HiddenEvents != "[]" {
 		t.Fatalf("defaults: %+v, %v", row, err)
@@ -74,7 +74,7 @@ func TestApplySyncedCalendarSettings(t *testing.T) {
 		t.Fatalf("got %+v", row)
 	}
 
-	// An older kashi sends no catalog: it is cleared, so the page uses its bundled copy.
+	// An older central sends no catalog: it is cleared, so the page uses its bundled copy.
 	if err := applySyncedCalendarSettings(ctx, q, []syncedCalendarSettings{{BusinessType: "tech"}}); err != nil {
 		t.Fatal(err)
 	}

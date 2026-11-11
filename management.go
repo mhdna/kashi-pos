@@ -234,8 +234,8 @@ func (a *App) ListShiftBalances(shiftID int64) ([]map[string]any, error) {
 //     go further) negative - e.g. LBP cash handed out as change that was
 //     really settled by a Whish transfer.
 //
-// Only an admin may leave the source negative this way; kashi's remote
-// command goes through replaceShiftBalance, since kashi checks its own
+// Only an admin may leave the source negative this way; central's remote
+// command goes through replaceShiftBalance, since central checks its own
 // user's permission before queuing it.
 func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCents int64, allowNegative bool) error {
 	if a.store == nil {
@@ -252,7 +252,7 @@ func (a *App) ReplaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCen
 }
 
 // replaceShiftBalance is ReplaceShiftBalance without the admin check, for
-// kashi's remote replace_shift_balance command.
+// central's remote replace_shift_balance command.
 func (a *App) replaceShiftBalance(shiftID, fromCashboxID, toCashboxID, amountCents int64, allowNegative bool) error {
 	check, err := a.checkShiftBalanceReplacement(shiftID, fromCashboxID, toCashboxID, amountCents, allowNegative)
 	if err != nil {
@@ -764,7 +764,7 @@ func (a *App) GetDailyIncomeByMonth(yearMonth string) ([]map[string]any, error) 
 	return result, nil
 }
 
-// MonthSales is the shifts page's monthly total, counted the way kashi's
+// MonthSales is the shifts page's monthly total, counted the way central's
 // reports count net sales, so the two agree: every sale by the day it was
 // rung up, returns netted, cancelled sales left out, coupons counted. The
 // coupon and on-account parts of it are given apart, since neither is
@@ -976,7 +976,7 @@ func isNonCollectedIncomeAccount(name string) bool {
 // InvoiceSyncState drives the per-invoice sync column (shown to every
 // user). State is "synced" only when the current central server confirmed it;
 // "pending" while queued, retrying, or confirmed by a *different* server
-// we're no longer pointed at (the list shows a spinner); "failed" when kashi
+// we're no longer pointed at (the list shows a spinner); "failed" when central
 // rejected it outright; "" when it was never queued. Error is the last push
 // error, if any -- e.g. why a pending invoice is still waiting.
 type InvoiceSyncState struct {

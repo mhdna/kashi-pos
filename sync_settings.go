@@ -13,15 +13,15 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// branchSettingsPayload mirrors branchSettingsRequest in kashi's
-// api/branch_settings.go. It carries the per-branch config kashi mirrors so
+// branchSettingsPayload mirrors branchSettingsRequest in central's
+// api/branch_settings.go. It carries the per-branch config central mirrors so
 // an admin can view and remotely edit it: business identity, behaviour
 // feature-flags, non-admin page-access locks, printing, and the attendance
 // device config.
 //
 // Still never leaves this install: api_key, theme, counter/register number,
 // and the attendance secrets (akuvox_password, approver_password_hash) --
-// kashi has no column for them and an update_settings command can't touch
+// Central has no column for them and an update_settings command can't touch
 // what it can't name.
 type branchSettingsPayload struct {
 	BranchName       string  `json:"branch_name"`
@@ -42,7 +42,7 @@ type branchSettingsPayload struct {
 	Instagram            string          `json:"instagram"`
 	SocialPlatforms      json.RawMessage `json:"social_platforms"`
 	SocialHandles        json.RawMessage `json:"social_handles"`
-	// SearchButtonEnabled is the one original field kashi is allowed to
+	// SearchButtonEnabled is the one original field central is allowed to
 	// write back as well as read (productSearchEnabledFlag in products.go).
 	SearchButtonEnabled bool `json:"search_button_enabled"`
 
@@ -73,8 +73,8 @@ type branchSettingsPayload struct {
 	InvoiceRatingsEnabled         bool `json:"invoice_ratings_enabled"`
 	SoundsEnabled                 bool `json:"sounds_enabled"`
 
-	// Device numbers typed in here for kashi's salespersons, keyed by kashi's
-	// salesperson id. kashi adopts them for any salesperson it hasn't set one
+	// Device numbers typed in here for central's salespersons, keyed by central's
+	// salesperson id. Central adopts them for any salesperson it hasn't set one
 	// for (see applySyncedSalesperson for the other direction).
 	SalespersonAttendanceIDs map[string]string `json:"salesperson_attendance_ids,omitempty"`
 
@@ -147,7 +147,7 @@ func (a *App) flagEnabled(ctx context.Context, key string) bool {
 
 // flagEnabledDefaultOn is flagEnabled for a flag the till treats as on
 // until it's set (see GetAppSettings). Reading such a flag with flagEnabled
-// reports a never-touched till as "off" while it behaves as "on", and kashi
+// reports a never-touched till as "off" while it behaves as "on", and central
 // then shows -- and on the next save, pushes -- the wrong value.
 func (a *App) flagEnabledDefaultOn(ctx context.Context, key string) bool {
 	v, err := a.store.GetFeatureFlag(ctx, key)
@@ -161,13 +161,13 @@ func (a *App) setFeatureFlagBool(ctx context.Context, key string, enabled bool) 
 }
 
 // settingsResendInterval re-sends an unchanged settings report this often
-// anyway, so kashi's copy heals itself even if it was lost without the
-// connection dropping (e.g. kashi's database was restored).
+// anyway, so central's copy heals itself even if it was lost without the
+// connection dropping (e.g. central's database was restored).
 const settingsResendInterval = time.Hour
 
-// settingsReport remembers the last settings report kashi accepted, so
+// settingsReport remembers the last settings report central accepted, so
 // pushSettings only sends one when something changed. It's a report, not a
-// sync: kashi stores it per register to show what each till runs and warn
+// sync: central stores it per register to show what each till runs and warn
 // on drift, and answers with the till's branch code.
 type settingsReport struct {
 	mu     sync.Mutex
@@ -175,8 +175,8 @@ type settingsReport struct {
 	sentAt time.Time
 }
 
-// unchanged reports whether sum is what kashi last accepted, recently
-// enough that re-sending it would tell kashi nothing new.
+// unchanged reports whether sum is what central last accepted, recently
+// enough that re-sending it would tell central nothing new.
 func (r *settingsReport) unchanged(sum [sha256.Size]byte, now time.Time) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -190,7 +190,7 @@ func (r *settingsReport) accepted(sum [sha256.Size]byte, now time.Time) {
 }
 
 // forget makes the next pushSettings send regardless -- called when a new
-// WebSocket session starts, since kashi may have restarted meanwhile.
+// WebSocket session starts, since central may have restarted meanwhile.
 func (r *settingsReport) forget() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -200,10 +200,10 @@ func (r *settingsReport) forget() {
 // pushSettings is called every pull tick (see runPullTick in
 // sync_worker.go), so a change is reported within one tick however it was
 // made -- the settings page, a remote update_settings command, a feature
-// toggle -- but it only sends when the report differs from the one kashi
+// toggle -- but it only sends when the report differs from the one central
 // last accepted (see settingsReport), on a new session, or hourly.
 // salespersonAttendanceIDsForReport lists the device numbers set here for
-// salespersons kashi knows (remote_id), keyed by kashi's id. A failed read
+// salespersons central knows (remote_id), keyed by central's id. A failed read
 // just leaves them out of this report; the next one carries them.
 func salespersonAttendanceIDsForReport(ctx context.Context, q *db.Queries) map[string]string {
 	salespersons, err := q.ListSalespersons(ctx)
@@ -352,8 +352,8 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		return fmt.Errorf("marshal settings payload: %w", err)
 	}
 
-	// The target server is part of the fingerprint: a report kashi A
-	// accepted says nothing about kashi B.
+	// The target server is part of the fingerprint: a report central A
+	// accepted says nothing about central B.
 	sum := sha256.Sum256(append([]byte(client.baseURL+"\n"), body...))
 	if a.settingsReport.unchanged(sum, time.Now()) {
 		return nil

@@ -10,7 +10,7 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// Deals (000128, kashi's 000201) price several units together: "Buy 2 get 1
+// Deals (000128, central's 000201) price several units together: "Buy 2 get 1
 // free", "Buy 1 get the 2nd 50% off", "3 for $50", "Buy 3 or more, 20% off
 // all". A discount list row names the deal a variant is on; every unit in the
 // cart on the same deal is pooled, whatever its product, and the cheapest
@@ -40,7 +40,7 @@ type dealTerms struct {
 	// 30%"); 0 for nothing.
 	FallbackPercent int64
 	// The fallback is only for a cart that makes no set: once a set forms,
-	// the units it leaves over pay the shelf price (kashi 000207).
+	// the units it leaves over pay the shelf price (central 000207).
 	FallbackOnlyWithoutSet bool
 }
 
@@ -59,7 +59,7 @@ func dealTermsFromInvoice(d db.InvoiceDeal) dealTerms {
 func (t dealTerms) rewardsFreeUnits() bool { return t.Kind == dealBuyGet }
 
 // withFallback is the terms as a unit with its own fallback sees them
-// (kashi's 000216: one deal pooling the shop, the outlet codes' leftover
+// (central's 000216: one deal pooling the shop, the outlet codes' leftover
 // units at 30% and the rest at 20%); an unset fallback is the deal's own.
 func (t dealTerms) withFallback(fallback sql.NullInt64) dealTerms {
 	if fallback.Valid {

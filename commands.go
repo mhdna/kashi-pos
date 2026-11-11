@@ -11,11 +11,11 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// runPendingCommandsOnce fetches every command kashi has queued for this
+// runPendingCommandsOnce fetches every command central has queued for this
 // branch and not yet acked, executes each in turn, and reports the outcome
 // back. One command failing to execute doesn't block the others, and a
 // decode/fetch failure here is logged and retried on the next tick or WS
-// push -- there's no local queue to get stuck, kashi's branch_commands
+// push -- there's no local queue to get stuck, central's branch_commands
 // table (status='pending') is the only queue.
 func (a *App) runPendingCommandsOnce(ctx context.Context, client *centralClient) {
 	commands, err := client.FetchPendingCommands(ctx)
@@ -39,7 +39,7 @@ func (a *App) runPendingCommandsOnce(ctx context.Context, client *centralClient)
 
 // executeCommand dispatches by type to a real, validated local function --
 // never raw SQL -- the whole point of routing settings edits through this
-// channel instead of kashi writing to the branch's database directly.
+// channel instead of central writing to the branch's database directly.
 func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 	switch cmd.Type {
 	case "update_settings":
@@ -75,9 +75,9 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 }
 
 // updateSettingsCommandPayload mirrors branchSettingsPayload in
-// sync_settings.go / branchSettingsRequest in kashi's api/branch_settings.go.
+// sync_settings.go / branchSettingsRequest in central's api/branch_settings.go.
 // Every field is a pointer so an absent one leaves the local value exactly
-// as it is rather than zeroing it: kashi sends partial payloads (a
+// as it is rather than zeroing it: central sends partial payloads (a
 // register's own printer fields, the "apply defaults" subset), and older
 // queued commands predate later fields.
 //
@@ -204,7 +204,7 @@ type updateSettingsCommandPayload struct {
 	AttendanceManagerApprovalEnabled   *bool   `json:"attendance_manager_approval_enabled"`
 
 	// AdminPassword force-sets the local "admin" account's password (plaintext
-	// -- kashi's bcrypt hash is unusable here). Absent/empty = leave it alone.
+	// -- central's bcrypt hash is unusable here). Absent/empty = leave it alone.
 	AdminPassword *string `json:"admin_password"`
 }
 
@@ -219,7 +219,7 @@ func deref[T any](p *T, fallback T) T {
 // the exact same App methods the local Settings page's "Save" button calls
 // -- so the same validation (tax rate bounds, known/active rounding
 // currency, positive exchange rate, branch code normalization, etc.)
-// applies whether the edit came from the till or from kashi. Anything the
+// applies whether the edit came from the till or from central. Anything the
 // payload doesn't carry is read from the current row first and passed
 // through unchanged.
 func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.RawMessage) error {
@@ -400,7 +400,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 	}
 
 	// Not through UpdateDefaultOpeningFloat: that asks for the manager
-	// password a person at the till types, which kashi's authenticated
+	// password a person at the till types, which central's authenticated
 	// command channel stands in for. Its other rule (never negative) holds.
 	if p.DefaultOpeningFloatUsd != nil || p.DefaultOpeningFloatLbp != nil {
 		usd := deref(p.DefaultOpeningFloatUsd, current.DefaultOpeningFloatUsd)
@@ -462,7 +462,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 
 type printShiftReportPayload struct {
 	// BranchShiftID is this till's own shifts.id, as it reported it in
-	// shift_close (kashi's branch_shifts.branch_shift_id).
+	// shift_close (central's branch_shifts.branch_shift_id).
 	BranchShiftID int64 `json:"branch_shift_id"`
 }
 
@@ -512,7 +512,7 @@ type setBranchUserPinPayload struct {
 	Pin      string `json:"pin"`
 }
 
-// executeSetBranchUserPinCommand sets a synced POS user's PIN. kashi never
+// executeSetBranchUserPinCommand sets a synced POS user's PIN. Central never
 // sends the PIN in the roster feed (see applySyncedBranchUser) -- it comes
 // here as plaintext over the authenticated command channel and is hashed
 // locally. If the roster pull hasn't created the user yet, create it now
@@ -555,23 +555,23 @@ func (a *App) executeSetBranchUserPinCommand(ctx context.Context, payload json.R
 	return err
 }
 
-// remoteReturnInvoiceCommandPayload mirrors the payload kashi's
+// remoteReturnInvoiceCommandPayload mirrors the payload central's
 // requestRemoteReturn builds (see ui/src/composables/useBranchInvoices.js and
-// api/branch_command.go in the kashi repo): client_ref identifies the
-// original sale to return by this install's own client_ref (not kashi's
+// api/branch_command.go in the central repo): client_ref identifies the
+// original sale to return by this install's own client_ref (not central's
 // branch_invoice_id, which is only carried along for correlation/logging).
 type remoteReturnInvoiceCommandPayload struct {
 	ClientRef       string `json:"client_ref"`
 	BranchInvoiceID int64  `json:"branch_invoice_id"`
 	Reason          string `json:"reason"`
-	// Items is optional -- kashi's admin UI sends the specific
+	// Items is optional -- central's admin UI sends the specific
 	// products/quantities an operator picked to return. Empty/absent
 	// preserves the old behavior (return every line at full quantity), so
-	// any command already sitting in kashi's pending queue from before
+	// any command already sitting in central's pending queue from before
 	// item-level selection existed still executes the same way.
-	// BranchProductID is this install's own local products.id -- kashi
+	// BranchProductID is this install's own local products.id -- central
 	// only ever echoes it back, it never assigns or reinterprets it (see
-	// branch_invoice_items in kashi's db/migrations).
+	// branch_invoice_items in central's db/migrations).
 	Items []remoteReturnInvoiceItemPayload `json:"items"`
 	// Cancel asks for the whole sale to be cancelled (see cancelInvoice)
 	// rather than returned; Items is ignored then.
@@ -580,7 +580,7 @@ type remoteReturnInvoiceCommandPayload struct {
 	// customer in place of the returned items, priced from this till's
 	// own lists like any replacement.
 	Replacements []remoteReplacementPayload `json:"replacements"`
-	// PrintReceipt is kashi's "Print the receipt on the till": false never
+	// PrintReceipt is central's "Print the receipt on the till": false never
 	// prints this return's receipt; absent (or true, ticked) leaves it to
 	// this till's "Print return receipts" setting.
 	PrintReceipt *bool `json:"print_receipt"`
@@ -595,8 +595,8 @@ func (p remoteReturnInvoiceCommandPayload) receipt() receiptChoice {
 	return receiptAsSettings
 }
 
-// remoteReplacementPayload names a product the way kashi knows it (see
-// withTillReplacements in kashi's api/branch_command.go): its uid, which the
+// remoteReplacementPayload names a product the way central knows it (see
+// withTillReplacements in central's api/branch_command.go): its uid, which the
 // product sync stamped here, and its barcode for one that hasn't got a uid.
 type remoteReplacementPayload struct {
 	ProductUID string `json:"product_uid"`
@@ -607,13 +607,13 @@ type remoteReplacementPayload struct {
 type remoteReturnInvoiceItemPayload struct {
 	BranchProductID int64 `json:"branch_product_id"`
 	Quantity        int64 `json:"quantity"`
-	// UnitPrice, when kashi sends it, is the sold line's unit price, so a
+	// UnitPrice, when central sends it, is the sold line's unit price, so a
 	// product sold at two prices on one sale is returned at the right one.
 	UnitPrice *int64 `json:"unit_price"`
 }
 
 // executeRemoteReturnInvoiceCommand looks up the original sale by the
-// client_ref kashi sent, builds a return of either the requested items
+// client_ref central sent, builds a return of either the requested items
 // (p.Items) or every line at full quantity (if none were specified), and
 // checks it out through checkoutAdminReturnInvoice -- the same return path
 // (and therefore the same validation, pricing, and branch-invoice-sync
@@ -651,7 +651,7 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 	if p.Cancel {
 		notes := strings.TrimSpace(p.Reason)
 		if notes == "" {
-			notes = "Cancelled from kashi"
+			notes = "Cancelled from central"
 		}
 		if err := a.cancelInvoice(ctx, invoiceID, notes, p.receipt()); err != nil {
 			return fmt.Errorf("cancel invoice: %w", err)
@@ -671,7 +671,7 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 		// several lines of one sale (a deal keeps its paid and free units
 		// apart, and two scans at different prices stay apart), so a
 		// request is spread over every line of its product -- at its price
-		// when kashi sends one -- and never takes more than they hold
+		// when central sends one -- and never takes more than they hold
 		// between them. Which unit counts as free is the return's own call
 		// (validateAndPriceExchange).
 		linesToReturn = make([]returnLine, 0, len(p.Items))
@@ -737,7 +737,7 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 	return nil
 }
 
-// executeRemoteExchange takes lines back and hands out kashi's replacements
+// executeRemoteExchange takes lines back and hands out central's replacements
 // on one exchange invoice, through the same admin exchange path (late, and
 // allowed to come to less than what's returned) a local admin exchange uses.
 // The difference is settled on the sale's own payment account, as a cancel
@@ -785,7 +785,7 @@ func (a *App) executeRemoteExchange(ctx context.Context, invoiceID, salespersonI
 	return nil
 }
 
-// replacementProduct finds kashi's product here by uid, then by barcode.
+// replacementProduct finds central's product here by uid, then by barcode.
 func (a *App) replacementProduct(ctx context.Context, r remoteReplacementPayload) (db.Product, error) {
 	if uid := strings.TrimSpace(r.ProductUID); uid != "" {
 		if product, err := a.store.GetProductByUID(ctx, sql.NullString{String: uid, Valid: true}); err == nil {
@@ -805,11 +805,11 @@ type transferDecisionPayload struct {
 	Status    string `json:"status"`
 }
 
-// executeTransferDecisionCommand records kashi's approve/cancel of a
+// executeTransferDecisionCommand records central's approve/cancel of a
 // transfer this till proposed, the moment it's made -- the same status
 // write the transfer_requests pull does (applySyncedTransferRequest), which
 // stays as the fallback for a till that missed the command. A ref this till
-// doesn't have fails the command so kashi shows it, rather than
+// doesn't have fails the command so central shows it, rather than
 // acknowledging a decision that went nowhere.
 func (a *App) executeTransferDecisionCommand(ctx context.Context, payload json.RawMessage) error {
 	var p transferDecisionPayload
@@ -834,8 +834,8 @@ func (a *App) executeTransferDecisionCommand(ctx context.Context, payload json.R
 }
 
 // replaceShiftBalancePayload names the payment methods by name: cashbox
-// accounts are synced from kashi and matched by name on the till (see
-// applySyncedCashboxAccount), so kashi's ids mean nothing here.
+// accounts are synced from central and matched by name on the till (see
+// applySyncedCashboxAccount), so central's ids mean nothing here.
 type replaceShiftBalancePayload struct {
 	FromAccount   string `json:"from_account"`
 	ToAccount     string `json:"to_account"`
@@ -845,7 +845,7 @@ type replaceShiftBalancePayload struct {
 
 // executeReplaceShiftBalanceCommand swaps (or, with allow_negative,
 // transfers) a balance in this till's open shift -- the same validation the
-// Shifts page's swap dialog uses, minus its admin check: kashi only queues
+// Shifts page's swap dialog uses, minus its admin check: central only queues
 // an allow_negative command for a user with its own permission for it.
 // Only the open shift: a closed shift has already reported its totals.
 func (a *App) executeReplaceShiftBalanceCommand(ctx context.Context, payload json.RawMessage) error {

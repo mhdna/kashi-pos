@@ -7,7 +7,7 @@ package main
 // The app writes its own entry under the current user's
 // Software\Microsoft\Windows\CurrentVersion\Run key on every launch, rather
 // than the installer doing it once, so tills that only ever take updates
-// from kashi (updater.go swaps the exe, the installer never runs) get it too,
+// from central (updater.go swaps the exe, the installer never runs) get it too,
 // and a moved install fixes itself. Turning it off in Task Manager's Startup
 // tab still works: Windows keeps that choice in a separate StartupApproved
 // key, which this never touches. The uninstaller deletes the entry.

@@ -26,7 +26,7 @@ func TestClockStatus(t *testing.T) {
 		t.Fatalf("PC on UTC, 5 min slow: %+v", got)
 	}
 
-	// An older kashi sends no zone: nothing to compare the PC's against.
+	// An older central sends no zone: nothing to compare the PC's against.
 	got = clockStatus("", 0, summer)
 	if got.ZoneMismatch {
 		t.Fatalf("no branch zone: %+v", got)

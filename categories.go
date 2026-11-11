@@ -3,9 +3,9 @@ package main
 import "fmt"
 
 // ListExpenseCategories / ListLoanCategories back the category dropdowns on
-// the Expenses and Loans pages. The rows are synced down from kashi (see
+// the Expenses and Loans pages. The rows are synced down from central (see
 // applySyncedExpenseCategory in sync_pull.go); the picker still submits the
-// category *name*, which kashi's /branch endpoints resolve on their side.
+// category *name*, which central's /branch endpoints resolve on their side.
 func (a *App) ListExpenseCategories() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")

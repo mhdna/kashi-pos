@@ -71,7 +71,7 @@ func TestSaleOptionPicksTheDiscount(t *testing.T) {
 		}
 	}
 
-	// kashi takes the options away: an empty array clears them.
+	// Central takes the options away: an empty array clears them.
 	v.SaleOptions = []string{}
 	if err := applySyncedProductVariant(ctx, q, v); err != nil {
 		t.Fatal(err)

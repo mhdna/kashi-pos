@@ -10,14 +10,14 @@ import (
 	"time"
 )
 
-// How clients rated this branch's sales: kashi's WhatsApp thank-you message
+// How clients rated this branch's sales: central's WhatsApp thank-you message
 // is followed by a poll (😍 Loved it, 🙂 It was okay, 😕 Not great), and the
 // invoices list shows each answer beside its sale. The answers live only in
-// kashi, so the list asks for the codes it has on screen (like the expense
-// photos); offline, unsynced, or a kashi too old to know shows nothing.
+// central, so the list asks for the codes it has on screen (like the expense
+// photos); offline, unsynced, or a central too old to know shows nothing.
 
 // Shows the ratings column on the invoices list. Defaults to on when unset:
-// a till that never touched it shows the ratings. kashi can push it as
+// a till that never touched it shows the ratings. Central can push it as
 // invoice_ratings_enabled.
 const invoiceRatingsFlag = "invoice_ratings"
 
@@ -46,7 +46,7 @@ func (a *App) SetInvoiceRatingsEnabled(enabled bool) error {
 	return nil
 }
 
-// GetInvoiceRatings is kashi's poll answers for these invoice codes, keyed by
+// GetInvoiceRatings is central's poll answers for these invoice codes, keyed by
 // code; sales nobody rated are left out. Never an error: anything that goes
 // wrong is just no ratings.
 func (a *App) GetInvoiceRatings(codes []string) map[string]InvoiceRating {

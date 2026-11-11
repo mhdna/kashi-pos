@@ -13,7 +13,7 @@ import (
 // An expense or loan keyed in by mistake is cancelled, not deleted: the row
 // stays, listed as cancelled, and the shift's spend and the month totals
 // stop counting it (see the cancelled_at filters in expense.sql/loan.sql).
-// An admin cancels one here and the cancel is queued for kashi; kashi's own
+// An admin cancels one here and the cancel is queued for central; central's own
 // cancel arrives as a cancel_record command and is applied without echoing
 // it back.
 
@@ -22,7 +22,7 @@ const (
 	recordKindLoan    = "loan"
 )
 
-// CancelExpense cancels one of this till's expenses and tells kashi. Admin
+// CancelExpense cancels one of this till's expenses and tells central. Admin
 // only, like CancelInvoice.
 func (a *App) CancelExpense(id int64) error {
 	if a.store == nil {
@@ -110,9 +110,9 @@ func recordExists(ctx context.Context, q *db.Queries, kind, clientRef string) er
 	return nil
 }
 
-// branchRecordCancelPayload is the exact JSON body POSTed to kashi's
+// branchRecordCancelPayload is the exact JSON body POSTed to central's
 // /branch/expenses/cancel and /branch/loans/cancel (see
-// branchCancelRecordRequest in api/branch_cancel.go in the kashi repo).
+// branchCancelRecordRequest in api/branch_cancel.go in the central repo).
 type branchRecordCancelPayload struct {
 	ClientRef string `json:"client_ref"`
 }
@@ -147,8 +147,8 @@ type cancelRecordPayload struct {
 	ClientRef string `json:"client_ref"`
 }
 
-// executeCancelRecordCommand applies kashi's cancel of an expense or loan.
-// kashi queues it for every register of the branch, so a ref this till
+// executeCancelRecordCommand applies central's cancel of an expense or loan.
+// Central queues it for every register of the branch, so a ref this till
 // doesn't hold is not an error -- another register has it.
 func (a *App) executeCancelRecordCommand(ctx context.Context, payload json.RawMessage) error {
 	var p cancelRecordPayload

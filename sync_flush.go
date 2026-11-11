@@ -18,7 +18,7 @@ import (
 // closeShiftRequiresSyncFlag: when on (and sync is configured), a shift can't
 // be closed -- and its receipt isn't printed -- while anything is still
 // waiting in sync_outbox. The close-shift screen runs FlushSyncOutbox first
-// and shows its progress. Default (missing row) is off. kashi can set it per
+// and shows its progress. Default (missing row) is off. Central can set it per
 // branch through update_settings.
 const closeShiftRequiresSyncFlag = "close_shift_requires_sync"
 
@@ -30,7 +30,7 @@ const (
 	// rows, and serially each one is a full round trip.
 	syncFlushConcurrency = 8
 	syncFlushBatchSize   = 500
-	// syncFlushMaxRounds bounds the retries of rows kashi answered with a
+	// syncFlushMaxRounds bounds the retries of rows central answered with a
 	// 5xx/429 mid-flush (they go on per-row backoff). Past that the flush
 	// gives up and reports them; the live push loop keeps trying.
 	syncFlushMaxRounds    = 4
@@ -134,7 +134,7 @@ func (a *App) checkCloseShiftSyncGate(shiftID int64) error {
 		return err
 	}
 	if pending > 0 {
-		return fmt.Errorf("%s: %d item(s) still waiting to upload to kashi", errCloseShiftSyncPending, pending)
+		return fmt.Errorf("%s: %d item(s) still waiting to upload to central", errCloseShiftSyncPending, pending)
 	}
 	return nil
 }
@@ -142,7 +142,7 @@ func (a *App) checkCloseShiftSyncGate(shiftID int64) error {
 // BypassCloseShiftSyncGate lets the next close of shiftID through without
 // everything uploaded -- the escape hatch for a branch that's genuinely
 // offline. Needs the admin password; nothing is lost, the rows stay queued
-// and upload whenever kashi is reachable again.
+// and upload whenever central is reachable again.
 func (a *App) BypassCloseShiftSyncGate(shiftID int64, adminPassword, reason string) error {
 	if a.store == nil {
 		return fmt.Errorf("database not initialized")
@@ -173,15 +173,15 @@ type SyncFlushProgress struct {
 }
 
 // FlushSyncOutbox uploads everything waiting in sync_outbox right now, as
-// fast as kashi will take it, and returns once the outbox is empty (or it
+// fast as central will take it, and returns once the outbox is empty (or it
 // can't get further). It's the "Sync now" behind the close-shift gate:
 //
 //   - ignores every backoff: the connection's (pushLink) and each row's;
 //   - sends syncFlushConcurrency rows at a time, in dependency waves so a
-//     return or settlement never reaches kashi before its sale;
+//     return or settlement never reaches central before its sale;
 //   - keeps the live push loop out meanwhile, so no row is sent twice.
 //
-// Rows kashi rejects outright still go to 'failed' -- retrying identical
+// Rows central rejects outright still go to 'failed' -- retrying identical
 // bytes won't change the answer -- and are reported, not waited on.
 func (a *App) FlushSyncOutbox() (SyncFlushProgress, error) {
 	if a.store == nil {
@@ -189,7 +189,7 @@ func (a *App) FlushSyncOutbox() (SyncFlushProgress, error) {
 	}
 	client := a.syncClient(a.ctx, "flush")
 	if client == nil {
-		return SyncFlushProgress{}, fmt.Errorf("sync with kashi isn't configured")
+		return SyncFlushProgress{}, fmt.Errorf("sync with central isn't configured")
 	}
 	transport := flushTransport()
 	defer transport.CloseIdleConnections()
@@ -217,7 +217,7 @@ func (a *App) FlushSyncOutbox() (SyncFlushProgress, error) {
 
 	if err := client.Health(ctx); err != nil && isNetworkError(err) {
 		a.pushLink.markDown(time.Now())
-		return SyncFlushProgress{}, fmt.Errorf("can't reach kashi -- check the internet connection")
+		return SyncFlushProgress{}, fmt.Errorf("can't reach central -- check the internet connection")
 	}
 	a.pushLink.markUp()
 	if err := a.releaseBackedOffOutbox(ctx); err != nil {
@@ -241,7 +241,7 @@ func (a *App) FlushSyncOutbox() (SyncFlushProgress, error) {
 		return final, runErr
 	}
 	if final.Remaining > 0 {
-		return final, fmt.Errorf("%d item(s) couldn't be uploaded yet -- kashi kept answering with an error", final.Remaining)
+		return final, fmt.Errorf("%d item(s) couldn't be uploaded yet -- central kept answering with an error", final.Remaining)
 	}
 	return final, nil
 }
@@ -269,7 +269,7 @@ func (a *App) flushOutbox(ctx context.Context, client *centralClient) error {
 
 	for round := 0; round < syncFlushMaxRounds; round++ {
 		if round > 0 {
-			// Rows kashi answered with a 5xx/429 are on per-row backoff; give
+			// Rows central answered with a 5xx/429 are on per-row backoff; give
 			// it a moment, then make them due again.
 			select {
 			case <-ctx.Done():
@@ -290,7 +290,7 @@ func (a *App) flushOutbox(ctx context.Context, client *centralClient) error {
 			}
 			a.flushBatch(ctx, client, entries, linkFailed)
 			if linkFailed() {
-				return fmt.Errorf("lost the connection to kashi -- check the internet and try again")
+				return fmt.Errorf("lost the connection to central -- check the internet and try again")
 			}
 			if err := ctx.Err(); err != nil {
 				return err

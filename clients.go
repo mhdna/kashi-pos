@@ -90,7 +90,7 @@ func (a *App) CreateClient(name, phone string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Deliberately not queued for sync: kashi owns the shared client roster,
+	// Deliberately not queued for sync: central owns the shared client roster,
 	// and a branch only pushes a client up once they've actually bought
 	// something (see the checkout paths). A never-purchasing local client
 	// stays local.
@@ -153,7 +153,7 @@ func (a *App) UpdateClient(clientID int64, name, phone string) (map[string]any, 
 
 // DeleteClient removes a client in standalone mode -- or deactivates it
 // when any invoice, coupon or account entry refers to it -- and returns
-// "deleted" or "deactivated". While connected to kashi, clients are
+// "deleted" or "deactivated". While connected to central, clients are
 // deactivated centrally and this is refused (see standalone.go).
 func (a *App) DeleteClient(clientID int64) (string, error) {
 	if err := a.requireStandalone(); err != nil {

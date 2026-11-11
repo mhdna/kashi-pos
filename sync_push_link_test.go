@@ -75,7 +75,7 @@ func TestPushPassStopsAtFirstNetworkErrorAndKeepsRowsDue(t *testing.T) {
 }
 
 // The reconnect half: invoices an older build (or a long outage) had backed
-// off by up to an hour must all go up on the first pass that reaches kashi,
+// off by up to an hour must all go up on the first pass that reaches central,
 // not each on its own timer.
 func TestPushTickReleasesBackedOffRowsWhenKashiIsReachable(t *testing.T) {
 	var posts int32
@@ -116,6 +116,6 @@ func TestPushTickReleasesBackedOffRowsWhenKashiIsReachable(t *testing.T) {
 		t.Fatalf("expected nothing pending, got %d", pending)
 	}
 	if !app.pushLink.isUp() {
-		t.Fatal("expected the push link to be up after reaching kashi")
+		t.Fatal("expected the push link to be up after reaching central")
 	}
 }

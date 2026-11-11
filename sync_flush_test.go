@@ -49,7 +49,7 @@ func pendingCount(t *testing.T, app *App, store *db.Store) int64 {
 
 // A day's backlog after the connection comes back: the flush must ignore
 // the link's and each row's backoff, send rows in parallel, and still never
-// let a return reach kashi before the sales queued ahead of it.
+// let a return reach central before the sales queued ahead of it.
 func TestFlushSyncOutboxUploadsBacklogInParallelSalesFirst(t *testing.T) {
 	var (
 		mu          sync.Mutex
@@ -112,7 +112,7 @@ func TestFlushSyncOutboxUploadsBacklogInParallelSalesFirst(t *testing.T) {
 		}
 	}
 	if firstReturn < lastSale {
-		t.Fatalf("a return reached kashi (#%d) before the last sale (#%d)", firstReturn, lastSale)
+		t.Fatalf("a return reached central (#%d) before the last sale (#%d)", firstReturn, lastSale)
 	}
 	if !app.pushLink.isUp() {
 		t.Fatal("expected a successful flush to mark the push link up")
@@ -148,7 +148,7 @@ func TestFlushSyncOutboxRetriesServerErrors(t *testing.T) {
 		t.Fatalf("pending after flush = %d, want 0", got)
 	}
 	if calls != 2 {
-		t.Fatalf("kashi saw %d requests, want 2 (one 503, one retry)", calls)
+		t.Fatalf("Central saw %d requests, want 2 (one 503, one retry)", calls)
 	}
 }
 
@@ -162,7 +162,7 @@ func TestFlushSyncOutboxFailsFastWhenKashiUnreachable(t *testing.T) {
 	app, store := setUpFlushApp(t, server.URL)
 	queueOutbox(t, store, "sales_invoice", 3)
 
-	if _, err := app.FlushSyncOutbox(); err == nil || !strings.Contains(err.Error(), "can't reach kashi") {
+	if _, err := app.FlushSyncOutbox(); err == nil || !strings.Contains(err.Error(), "can't reach central") {
 		t.Fatalf("err = %v, want a can't-reach-kashi error", err)
 	}
 	if got := pendingCount(t, app, store); got != 3 {

@@ -9,8 +9,8 @@ import (
 )
 
 // Price and discount lists arrive whole -- a list row with its complete item
-// set inline -- rather than as item-level deltas. kashi sends them that way
-// (see api/branch_sync_lists.go in the kashi repo) because nothing in this
+// set inline -- rather than as item-level deltas. Central sends them that way
+// (see api/branch_sync_lists.go in the central repo) because nothing in this
 // sync can express "this one item is gone": there is no row left to carry a
 // flag, and the periodic full-mirror check only reconciles clients and
 // products. Receiving the whole list lets the apply below clear and refill
@@ -40,7 +40,7 @@ type syncedDiscountListItem struct {
 	// The deal the variant is on (deals.go), one of the list's Deals.
 	DealUID string `json:"deal_uid,omitempty"`
 	// What the variant gets outside a set on that deal, in place of the
-	// deal's fallback (kashi's 000216); absent for the deal's own.
+	// deal's fallback (central's 000216); absent for the deal's own.
 	DealFallbackPercent *int64 `json:"deal_fallback_percent,omitempty"`
 }
 
@@ -61,9 +61,9 @@ type syncedDeal struct {
 	GetQty      int64  `json:"get_qty"`
 	Percent     int64  `json:"percent"`
 	BundlePrice int64  `json:"bundle_price"`
-	// What units outside a set get (kashi 000205); 0 for none.
+	// What units outside a set get (central 000205); 0 for none.
 	FallbackPercent int64 `json:"fallback_percent"`
-	// The fallback is only for a cart that makes no set (kashi 000207).
+	// The fallback is only for a cart that makes no set (central 000207).
 	FallbackOnlyWithoutSet bool `json:"fallback_only_without_set"`
 }
 
@@ -86,10 +86,10 @@ type syncedDiscountList struct {
 	Deals       []syncedDeal                   `json:"deals"`
 }
 
-// A list kashi reports as inactive is deleted outright rather than kept and
+// A list central reports as inactive is deleted outright rather than kept and
 // flagged: an inactive list prices nothing, and leaving thousands of dead
 // items behind on a till only slows the pricing queries down. It comes back
-// in full if kashi reactivates it.
+// in full if central reactivates it.
 func applySyncedPriceList(ctx context.Context, q *db.Queries, l syncedPriceList) error {
 	if l.UID == "" {
 		return fmt.Errorf("price list %q has no uid", l.Name)
@@ -108,7 +108,7 @@ func applySyncedPriceList(ctx context.Context, q *db.Queries, l syncedPriceList)
 	return applyListRows(ctx, q, list.ID, l.Items)
 }
 
-// applyListRows makes a price list's rows match what kashi sent, touching only
+// applyListRows makes a price list's rows match what central sent, touching only
 // the rows that differ. A list arrives whole whatever changed in it, so clearing
 // and refilling it rewrote thousands of rows, and moved the pricing version for
 // each, to change one.

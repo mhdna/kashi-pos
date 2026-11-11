@@ -99,7 +99,7 @@ func (a *App) ListPaymentMethods() ([]map[string]any, error) {
 			}
 		}
 	}
-	// Only active methods are offered. A method kashi no longer has is
+	// Only active methods are offered. A method central no longer has is
 	// deactivated rather than deleted (it is the FK target of past payments),
 	// so this is what keeps a retired tender off the calculator while its
 	// history still resolves.

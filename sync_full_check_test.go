@@ -14,7 +14,7 @@ import (
 )
 
 // fakeKashiCatalog answers the completeness-check routes from an in-memory
-// set of kashi clients/products, keyed by uid.
+// set of central clients/products, keyed by uid.
 type fakeKashiCatalog struct {
 	mu          sync.Mutex
 	clients     map[string]map[string]any
@@ -70,7 +70,7 @@ const (
 	fcProductUID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 )
 
-// A client kashi has and the till doesn't is fetched; a second check with
+// A client central has and the till doesn't is fetched; a second check with
 // nothing changed fetches nothing.
 func TestFullCheckFetchesMissingAndSkipsCurrent(t *testing.T) {
 	fk := newFakeKashiCatalog()
@@ -102,8 +102,8 @@ func TestFullCheckFetchesMissingAndSkipsCurrent(t *testing.T) {
 	}
 }
 
-// A client this branch had linked before uids existed adopts kashi's uid,
-// so kashi's (different) phone updates that same row instead of creating a
+// A client this branch had linked before uids existed adopts central's uid,
+// so central's (different) phone updates that same row instead of creating a
 // second client.
 func TestFullCheckAdoptsLinkedClientUID(t *testing.T) {
 	fk := newFakeKashiCatalog()
@@ -127,18 +127,18 @@ func TestFullCheckAdoptsLinkedClientUID(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got.Uid.String != fcClientUID || got.Phone != "71999888" {
-		t.Fatalf("expected linked row to adopt uid and kashi's phone, got %+v", got)
+		t.Fatalf("expected linked row to adopt uid and central's phone, got %+v", got)
 	}
 	if _, err := store.GetClientByPhone(app.ctx, client.Phone); err != sql.ErrNoRows {
 		t.Fatalf("old phone should no longer exist as a separate client, err=%v", err)
 	}
 }
 
-// Local products kashi doesn't have are deactivated only once full-mirror
-// mode is confirmed; kashi's products are matched by barcode and kept.
+// Local products central doesn't have are deactivated only once full-mirror
+// mode is confirmed; central's products are matched by barcode and kept.
 func TestFullCheckDeactivatesOrphanProductsOnlyWhenConfirmed(t *testing.T) {
 	fk := newFakeKashiCatalog()
-	fk.products[fcProductUID] = map[string]any{"uid": fcProductUID, "barcode": "KASHI-1", "code": "K1", "name": "Kashi Shirt",
+	fk.products[fcProductUID] = map[string]any{"uid": fcProductUID, "barcode": "KASHI-1", "code": "K1", "name": "Central Shirt",
 		"price": map[string]any{"Int64": 1000, "Valid": true}, "is_active": true, "updated_at": time.Now().UTC().Format(time.RFC3339Nano)}
 	server := httptest.NewServer(fk.handler())
 	defer server.Close()
@@ -169,7 +169,7 @@ func TestFullCheckDeactivatesOrphanProductsOnlyWhenConfirmed(t *testing.T) {
 	}
 	kashiProduct, err := store.GetProductByUID(app.ctx, sql.NullString{String: fcProductUID, Valid: true})
 	if err != nil || kashiProduct.IsActive != 1 {
-		t.Fatalf("kashi's product must exist and stay active: %+v err=%v", kashiProduct, err)
+		t.Fatalf("central's product must exist and stay active: %+v err=%v", kashiProduct, err)
 	}
 	for _, e := range rep.Entities {
 		if e.Entity == "products" && e.Deactivated != 1 {
@@ -178,12 +178,12 @@ func TestFullCheckDeactivatesOrphanProductsOnlyWhenConfirmed(t *testing.T) {
 	}
 }
 
-// The built-in "Unknown item" placeholder is the till's own, so kashi never
+// The built-in "Unknown item" placeholder is the till's own, so central never
 // has its uid; the full check must leave it on. One an earlier version
 // switched off is turned back on by the Unknown item button.
 func TestFullCheckKeepsTheUnknownItemPlaceholder(t *testing.T) {
 	fk := newFakeKashiCatalog()
-	fk.products[fcProductUID] = map[string]any{"uid": fcProductUID, "barcode": "KASHI-1", "code": "K1", "name": "Kashi Shirt",
+	fk.products[fcProductUID] = map[string]any{"uid": fcProductUID, "barcode": "KASHI-1", "code": "K1", "name": "Central Shirt",
 		"price": map[string]any{"Int64": 1000, "Valid": true}, "is_active": true, "updated_at": time.Now().UTC().Format(time.RFC3339Nano)}
 	server := httptest.NewServer(fk.handler())
 	defer server.Close()
@@ -215,9 +215,9 @@ func TestFullCheckKeepsTheUnknownItemPlaceholder(t *testing.T) {
 	}
 }
 
-// A till that already holds kashi's client (matching stamp) and has no
+// A till that already holds central's client (matching stamp) and has no
 // cursor pulls nothing in full: the missing client comes through the uid
-// check, the held one is skipped, and the cursor is seeded from kashi's clock.
+// check, the held one is skipped, and the cursor is seeded from central's clock.
 func TestPullSeedsCursorFromLocalCatalog(t *testing.T) {
 	fk := newFakeKashiCatalog()
 	stamp := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC).Format(time.RFC3339Nano)
@@ -245,7 +245,7 @@ func TestPullSeedsCursorFromLocalCatalog(t *testing.T) {
 	if err := store.SetSyncCursor(app.ctx, db.SetSyncCursorParams{Entity: "clients", Cursor: ""}); err != nil {
 		t.Fatal(err)
 	}
-	// kashi gains a second client the till has never seen.
+	// Central gains a second client the till has never seen.
 	other := "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
 	fk.clients[other] = map[string]any{"uid": other, "name": "Omar", "phone": "70555222", "is_active": true, "updated_at": stamp}
 	fk.fetches = 0

@@ -8,7 +8,7 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// kashi removing a card must change what the till would show, and the
+// Central removing a card must change what the till would show, and the
 // whole-set snapshot must notice (that is what fires sync_applied).
 func TestQuickAccessRemovalChangesTheSnapshot(t *testing.T) {
 	app, database := newProductTestApp(t)

@@ -11,21 +11,21 @@ import (
 )
 
 // ListBranchTargetsWithProgress returns this branch's revenue targets
-// (pulled down read-only from kashi, see sync_pull.go) each annotated with
+// (pulled down read-only from central, see sync_pull.go) each annotated with
 // how much the branch has earned in its date range so far.
 //
 // A branch can have several tills sharing one target, so progress is
-// kashi's branch-wide figure (every register's synced sales, refreshed each
-// sync tick by pullTargetsProgress) plus this till's own sales kashi hadn't
+// central's branch-wide figure (every register's synced sales, refreshed each
+// sync tick by pullTargetsProgress) plus this till's own sales central hadn't
 // received when that figure was fetched -- so a sale moves the bar
 // immediately, offline included, and is never counted twice once it syncs.
-// Without a figure from kashi yet (sync off, or an older kashi), it falls
+// Without a figure from central yet (sync off, or an older central), it falls
 // back to this till's own sales.
 //
 // Only targets overlapping the current calendar month are returned: the
 // till's shift / settings screens are a "how are we doing this month"
 // view, not a target archive. Older monthly targets stay in the local
-// mirror until kashi drops them; they're just not shown.
+// mirror until central drops them; they're just not shown.
 func (a *App) ListBranchTargetsWithProgress() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
@@ -62,7 +62,7 @@ func (a *App) ListBranchTargetsWithProgress() ([]map[string]any, error) {
 }
 
 func (a *App) targetAchievedCents(t db.BranchTarget) (int64, error) {
-	// kashi reports progress by its own target id, mirrored here as remote_id.
+	// Central reports progress by its own target id, mirrored here as remote_id.
 	central, err := a.store.GetBranchTargetProgress(a.ctx, t.RemoteID)
 	if errors.Is(err, sql.ErrNoRows) {
 		local, err := a.store.GetInvoiceIncomeTotalByDateRange(a.ctx, db.GetInvoiceIncomeTotalByDateRangeParams{
@@ -88,8 +88,8 @@ func (a *App) targetAchievedCents(t db.BranchTarget) (int64, error) {
 	return central.AchievedCents + databaseInt64(pending), nil
 }
 
-// pullTargetsProgress replaces the stored branch-wide progress with kashi's
-// current figures. The stored set is replaced whole, so a target kashi
+// pullTargetsProgress replaces the stored branch-wide progress with central's
+// current figures. The stored set is replaced whole, so a target central
 // stopped reporting falls back to local-only progress.
 func (a *App) pullTargetsProgress(ctx context.Context, client *centralClient) error {
 	progress, ok, err := client.GetTargetsProgress(ctx)

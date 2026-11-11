@@ -33,7 +33,7 @@ type pricedInvoiceProduct struct {
 	dealLabel    string
 	dealDiscount int64
 	// What the line's units get outside a set, in place of the deal's
-	// fallback (kashi's 000216); unset for the deal's own.
+	// fallback (central's 000216); unset for the deal's own.
 	dealFallback sql.NullInt64
 	// In an exchange, the replacement (exchangeRequest.replacements) this
 	// line was priced from; a line can be split into several.
@@ -128,10 +128,10 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 	products := make([]pricedInvoiceProduct, 0, len(items))
 	var subtotal int64
 	discountToggleChecked, dealToggleChecked := false, false
-	// What kashi set on the sale on screen (live_cart.go); empty otherwise.
+	// What central set on the sale on screen (live_cart.go); empty otherwise.
 	liveOverrides := a.liveCart.activeOverrides()
 	for _, item := range items {
-		// Every unknown item shares one barcode, so kashi names one by its
+		// Every unknown item shares one barcode, so central names one by its
 		// line ref instead.
 		var lineOverride liveCartLineOverride
 		overridden := false
@@ -176,7 +176,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		// sellable price comes from the active lists, keyed by the shared uid.
 		// They're zeroed first so a stale row value can never be charged -- a
 		// product in no list ends up at 0 and is rejected by
-		// priceInvoiceProduct below, which is what "kashi never priced this,
+		// priceInvoiceProduct below, which is what "Central never priced this,
 		// so it can't be sold" looks like at the till.
 		product.Price = 0
 		product.Discount = 0
@@ -188,7 +188,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			priceListID = listed.listID
 		}
 		// The option only counts if the product still asks it: one left over
-		// in a cart from before kashi took the product's options away is sold
+		// in a cart from before central took the product's options away is sold
 		// at the plain discount, rather than failing the sale.
 		saleOption := ""
 		if slices.Contains(listPricing.saleOptions[product.Uid.String], item.SaleOption) {
@@ -207,7 +207,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 		// the list once it no longer carries the list's value.
 		// The "Unknown item" placeholder has no list price: whatever the
 		// cashier typed is its price, whatever the custom-price settings say
-		// (kashi's picture session is what vouches for the sale instead).
+		// (central's picture session is what vouches for the sale instead).
 		isUnknown := product.Barcode == a.unknownBarcode()
 		// Its price is the cashier's to type, but a discount on top follows the
 		// branch's custom-discount setting like any other line.
@@ -248,10 +248,10 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			}
 			dealUID = ""
 		}
-		// A line kashi priced from the live cart: its price and discount are
-		// kashi's, past the branch's settings, and like any line priced by
+		// A line central priced from the live cart: its price and discount are
+		// central's, past the branch's settings, and like any line priced by
 		// hand it leaves its deal.
-		// kashi's discount on an unknown item (its price is already on the
+		// central's discount on an unknown item (its price is already on the
 		// line as a custom price, and its deal choice on item.UnknownDeal).
 		if overridden && isUnknown && lineOverride.Discount != nil {
 			product.Discount = *lineOverride.Discount
@@ -292,7 +292,7 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 				}
 			}
 		}
-		// kashi turned every deal off for this sale.
+		// Central turned every deal off for this sale.
 		if liveOverrides.AllDealsOff && dealUID != "" {
 			if !isUnknown {
 				if terms, ok := listPricing.deals[dealUID]; ok {

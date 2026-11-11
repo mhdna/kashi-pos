@@ -16,10 +16,10 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// syncedCurrency/syncedCashboxAccount mirror the JSON shapes kashi's
+// syncedCurrency/syncedCashboxAccount mirror the JSON shapes central's
 // GET /branch/sync/changes returns for these entities (see
-// api/branch_catchup.go in the kashi repo). Matched by their natural text
-// key (code / name), never by numeric id — kashi's row ids and this
+// api/branch_catchup.go in the central repo). Matched by their natural text
+// key (code / name), never by numeric id — central's row ids and this
 // install's local autoincrement ids are different number spaces, and
 // overwriting by id risks silently repointing an existing local row at
 // the wrong central entity.
@@ -40,9 +40,9 @@ type syncedCashboxAccount struct {
 	Color        string `json:"color"`
 }
 
-// syncedBranchTarget mirrors branch_targets rows kashi's admin sets for
-// this branch (see db/sqlc/models.go's BranchTarget in the kashi repo).
-// Matched by remote id (kashi's own id) rather than a natural key --
+// syncedBranchTarget mirrors branch_targets rows central's admin sets for
+// this branch (see db/sqlc/models.go's BranchTarget in the central repo).
+// Matched by remote id (central's own id) rather than a natural key --
 // unlike currencies/cashbox accounts, targets have no other stable key,
 // and there's no local editing to preserve since this branch never writes
 // to them itself.
@@ -56,13 +56,13 @@ type syncedBranchTarget struct {
 }
 
 // syncedProductVariant mirrors ListProductVariantsForSync's flattened row
-// shape (kashi has separate products/product_variants tables; kashi-pos
-// has one flat product row, so kashi flattens on its side rather than
+// shape (central has separate products/product_variants tables; kashi-pos
+// has one flat product row, so central flattens on its side rather than
 // kashi-pos needing to reconstruct a product from parts). ColorName/
 // SizeName are plain text, matched by name — see the package-level note
 // on syncedCurrency for why matching is never done by numeric id.
 type syncedProductVariant struct {
-	// UID is the variant's shared identity; empty from an older kashi.
+	// UID is the variant's shared identity; empty from an older central.
 	UID         string         `json:"uid"`
 	UpdatedAt   string         `json:"updated_at"`
 	Barcode     string         `json:"barcode"`
@@ -79,22 +79,22 @@ type syncedProductVariant struct {
 	Season      sql.NullString `json:"season"`
 	Year        sql.NullString `json:"year"`
 	// The options the till asks for when this product is sold (Summer,
-	// Winter...), by name and in display order. nil from a kashi that
+	// Winter...), by name and in display order. nil from a central that
 	// predates sale options -- left alone then, as nothing could have set
 	// them; an empty array clears them.
 	SaleOptions []string `json:"sale_options"`
-	// kashi's per-item "pick colour/size on scan" override: "" follows the
-	// till's setting, "always" asks, "never" doesn't. nil from a kashi that
+	// central's per-item "pick colour/size on scan" override: "" follows the
+	// till's setting, "always" asks, "never" doesn't. nil from a central that
 	// predates it -- left alone then, as nothing could have set it.
 	VariantPick *string `json:"variant_pick"`
 }
 
-// syncedExpenseCategory / syncedLoanCategory mirror the raw row kashi
+// syncedExpenseCategory / syncedLoanCategory mirror the raw row central
 // returns for scope='branch' expense_categories / loan_categories (see
 // api/branch_catchup.go). Matched by name -- see the package-level note on
 // syncedCurrency for why matching is never done by numeric id. icon/color
 // are carried straight through so a category renders identically here and
-// in kashi.
+// in central.
 type syncedExpenseCategory struct {
 	Name     string `json:"name"`
 	IsActive bool   `json:"is_active"`
@@ -110,8 +110,8 @@ type syncedLoanCategory struct {
 }
 
 // applySyncedCurrency creates or updates a local currency to match what
-// kashi reports. The local default currency (the fixed USC accounting
-// anchor) is intentionally left alone even if kashi reports changes for
+// Central reports. The local default currency (the fixed USC accounting
+// anchor) is intentionally left alone even if central reports changes for
 // it — kashi-pos's own UpdateCurrency query already refuses to touch a
 // default currency's rate for the same reason, and this respects that
 // same invariant rather than working around it.
@@ -262,9 +262,9 @@ func applySyncedLoanCategory(ctx context.Context, q *db.Queries, c syncedLoanCat
 }
 
 // pruneSyncedExpenseCategories / pruneSyncedLoanCategories drop every local
-// category kashi no longer reports. These two entities are pulled as a whole
+// category central no longer reports. These two entities are pulled as a whole
 // set (see wholeSetEntities), so a name missing from the batch was deleted in
-// kashi, renamed, or moved to scope='central' -- none of which a since-delta
+// central, renamed, or moved to scope='central' -- none of which a since-delta
 // can express. Safe to hard-delete: expenses.category / loans.category hold
 // the name as plain text, nothing references these rows.
 func pruneSyncedExpenseCategories(ctx context.Context, q *db.Queries, keep map[string]bool) error {
@@ -299,7 +299,7 @@ func pruneSyncedLoanCategories(ctx context.Context, q *db.Queries, keep map[stri
 
 // applySyncedBranchTarget is a plain upsert keyed by remote_id -- targets
 // are read-only display data here, so there's no local state to reconcile
-// beyond "match what kashi last reported".
+// beyond "match what central last reported".
 func applySyncedBranchTarget(ctx context.Context, q *db.Queries, t syncedBranchTarget) error {
 	if !t.IsActive {
 		return q.DeleteBranchTargetByRemoteID(ctx, t.ID)
@@ -313,24 +313,24 @@ func applySyncedBranchTarget(ctx context.Context, q *db.Queries, t syncedBranchT
 	})
 }
 
-// syncedSalesperson mirrors kashi's branch-scoped salespersons roster (see
-// db/sqlc/models.go's Salesperson in the kashi repo). Matched by remote id
+// syncedSalesperson mirrors central's branch-scoped salespersons roster (see
+// db/sqlc/models.go's Salesperson in the central repo). Matched by remote id
 // like syncedBranchTarget -- names can be edited centrally, so there's no
 // stable natural key to match on instead.
 type syncedSalesperson struct {
 	ID       int64  `json:"id"`
 	Name     string `json:"name"`
 	IsActive bool   `json:"is_active"`
-	// Avatar color, picked at random in kashi and changeable there.
+	// Avatar color, picked at random in central and changeable there.
 	Color string `json:"color"`
 	// The salesperson's user number on this branch's fingerprint device.
-	// Only taken when AttendanceUserIDSet says kashi decided it; until then
+	// Only taken when AttendanceUserIDSet says central decided it; until then
 	// the number typed in on this till stands, and is reported up instead
-	// (see salespersonAttendanceIDsForReport). An older kashi sends neither.
+	// (see salespersonAttendanceIDsForReport). An older central sends neither.
 	AttendanceUserID    string `json:"attendance_user_id"`
 	AttendanceUserIDSet bool   `json:"attendance_user_id_set"`
 	// Whether checkout offers them (staff who only punch attendance don't
-	// sell). Nil from an older kashi: leave the till's value, which
+	// sell). Nil from an older central: leave the till's value, which
 	// defaults to selling.
 	IsSalesperson *bool `json:"is_salesperson"`
 }
@@ -338,7 +338,7 @@ type syncedSalesperson struct {
 // applySyncedSalesperson upserts by remote_id. A remote_id it hasn't seen is
 // first matched by name against the till's own unlinked salespersons (made
 // before it was connected), so those are adopted instead of duplicated.
-// attendance_user_id is only written when kashi has set it.
+// attendance_user_id is only written when central has set it.
 func applySyncedSalesperson(ctx context.Context, q *db.Queries, s syncedSalesperson) error {
 	if err := upsertSyncedSalesperson(ctx, q, s); err != nil {
 		return err
@@ -397,8 +397,8 @@ func upsertSyncedSalesperson(ctx context.Context, q *db.Queries, s syncedSalespe
 	return err
 }
 
-// syncedBranchUser mirrors kashi's branch_users roster row (see
-// api/branch_user.go in the kashi repo). The PIN is never in this feed --
+// syncedBranchUser mirrors central's branch_users roster row (see
+// api/branch_user.go in the central repo). The PIN is never in this feed --
 // password_hash is set only by a set_branch_user_pin command or a local
 // admin reset, and applySyncedBranchUser never touches it.
 type syncedBranchUser struct {
@@ -409,7 +409,7 @@ type syncedBranchUser struct {
 	IsActive     bool   `json:"is_active"`
 }
 
-// applySyncedBranchUser upserts a POS user to match kashi's roster. Matched
+// applySyncedBranchUser upserts a POS user to match central's roster. Matched
 // first by remote_id; a username-only match (a user the till created
 // locally before its first roster pull -- see the set_branch_user_pin
 // command) is adopted rather than duplicated.
@@ -463,7 +463,7 @@ func applySyncedBranchUser(ctx context.Context, q *db.Queries, u syncedBranchUse
 	return err
 }
 
-// roleIDForName resolves a kashi role name ("admin"/"cashier") to this
+// roleIDForName resolves a central role name ("admin"/"cashier") to this
 // install's local roles.id, falling back to "cashier" for anything
 // unexpected so a synced user is never left role-less.
 func roleIDForName(ctx context.Context, q *db.Queries, name string) (int64, error) {
@@ -480,10 +480,10 @@ func roleIDForName(ctx context.Context, q *db.Queries, name string) (int64, erro
 }
 
 // applySyncedProductVariant creates or updates a local product to match
-// what kashi reports for one variant. Fields kashi doesn't model at all
+// what central reports for one variant. Fields central doesn't model at all
 // today (discount, currency_code, brand/family/kind/season/product_year)
 // are left at whatever this install already has — an update never
-// resets them, since kashi has no opinion on them yet.
+// resets them, since central has no opinion on them yet.
 func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProductVariant) error {
 	isActive := int64(0)
 	if v.IsActive {
@@ -507,7 +507,7 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 	// A product priced at 0 is unsellable - priceInvoiceProduct rejects it
 	// and every quote containing it fails, which surfaces at the till as a
 	// total that will not price. An absent price in the pull payload means
-	// "central didn't say", not "free", so keep what we already have.
+	// "Central didn't say", not "free", so keep what we already have.
 	if err == nil && !v.Price.Valid {
 		price = existing.Price
 	}
@@ -588,9 +588,9 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 	})
 }
 
-// findSyncedProduct finds the local copy of a kashi variant: by uid, else by
-// barcode -- in which case the row adopts kashi's uid on the spot, so every
-// later update matches by uid (and a barcode change in kashi updates the
+// findSyncedProduct finds the local copy of a central variant: by uid, else by
+// barcode -- in which case the row adopts central's uid on the spot, so every
+// later update matches by uid (and a barcode change in central updates the
 // same row instead of creating a new one). sql.ErrNoRows means "no local
 // copy yet".
 func findSyncedProduct(ctx context.Context, q *db.Queries, v syncedProductVariant) (db.Product, error) {
@@ -613,7 +613,7 @@ func findSyncedProduct(ctx context.Context, q *db.Queries, v syncedProductVarian
 }
 
 // freeProductBarcode makes barcode available to product keepID. Barcodes are
-// globally unique in kashi and pulls apply in updated_at order, so a
+// globally unique in central and pulls apply in updated_at order, so a
 // different local row still holding it is a stale local-only product: it is
 // deactivated and its barcode suffixed, keeping its invoice history intact.
 func freeProductBarcode(ctx context.Context, q *db.Queries, barcode string, keepID int64) error {
@@ -637,7 +637,7 @@ func freeProductBarcode(ctx context.Context, q *db.Queries, barcode string, keep
 // onto the shared attribute system (see 000073_create_product_attributes.up.sql),
 // not the legacy products columns — those are frozen/vestigial from the
 // main app's perspective now (see productMap in products.go). Attribute
-// ids (2=brand, 1=sub-category, 3=kind, 7=season, 6=year) match kashi's
+// ids (2=brand, 1=sub-category, 3=kind, 7=season, 6=year) match central's
 // fixed seed exactly, so this doesn't need a name lookup.
 func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID int64, v syncedProductVariant) error {
 	type assignment struct {
@@ -672,7 +672,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 	return nil
 }
 
-// pullEntities lists what gets pulled from kashi on each tick. Adding a
+// pullEntities lists what gets pulled from central on each tick. Adding a
 // new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
 var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories", "coupon_types", "coupons", "branches", "transfer_requests", "incoming_transfer_requests", "branch_stock", "quick_access", "invoice_discounts", "calendar_events", "calendar_settings"}
@@ -707,7 +707,7 @@ func (a *App) runSyncPullLocked(ctx context.Context, client *centralClient) {
 		a.reportSyncPass(ctx, client, results)
 	}()
 	for i, entity := range pullEntities {
-		// An older kashi answers an entity it doesn't know with an error.
+		// An older central answers an entity it doesn't know with an error.
 		if entity == "quick_access" && !a.kashiQuickAccess.Load() {
 			continue
 		}
@@ -734,13 +734,13 @@ func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity 
 	_, err := a.pullEntityLocked(ctx, client, entity)
 	link.end(phasePulling)
 	link.pulled(err)
-	// A change kashi pushed: say straight away whether it landed.
+	// A change central pushed: say straight away whether it landed.
 	a.reportSyncPass(ctx, client, []syncPullResult{{entity: entity, applied: a.lastPullApplied, err: err}})
 	return err
 }
 
-// syncPullPageLimit is the page size the branch asks kashi for on the two
-// unbounded catch-up entities (products, clients). kashi caps it at 1000;
+// syncPullPageLimit is the page size the branch asks central for on the two
+// unbounded catch-up entities (products, clients). Central caps it at 1000;
 // the small entities ignore it and answer in one shot.
 const syncPullPageLimit = 500
 
@@ -752,9 +752,9 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 		return false, fmt.Errorf("load cursor: %w", err)
 	}
 	// Whole-set entities always ask for everything. Most are answered whole
-	// regardless, but kashi still filters the categories by updated_at, and
+	// regardless, but central still filters the categories by updated_at, and
 	// an empty since is the only way to get their complete set (which
-	// pruneSynced*Categories relies on) from any kashi version.
+	// pruneSynced*Categories relies on) from any central version.
 	if _, isWholeSet := wholeSetEntities[entity]; isWholeSet {
 		since = ""
 	}
@@ -766,7 +766,7 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 		since = seeded
 	}
 
-	// Walk pages until kashi stops handing back a next_cursor. Each page is
+	// Walk pages until central stops handing back a next_cursor. Each page is
 	// applied in its own transaction so a first-ever pull of a big catalog
 	// isn't one multi-minute write lock; the entity's stored cursor is only
 	// advanced (to server_time) inside the final page's transaction, so a
@@ -849,7 +849,7 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 	// Tell the frontend to re-fetch, mirroring the WS push's "go re-fetch
 	// this" contract (see wsMessageEntity in sync_ws.go). Skipped when the
 	// whole walk applied nothing, so it doesn't fire every 15s for nothing.
-	// A whole-set entity always "applies" something (kashi resends the full
+	// A whole-set entity always "applies" something (central resends the full
 	// set every pass), so for those only a real difference in the local
 	// table counts -- otherwise every open page listening for it (the
 	// Balance page, for one) reloads every 15s.
@@ -858,7 +858,7 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 		changed = wholeSetChanged
 	}
 	// A whole-set entity sends everything every time, so only a real change
-	// is worth telling kashi about.
+	// is worth telling central about.
 	if changed {
 		a.lastPullApplied = int64(totalApplied)
 	}
@@ -869,10 +869,10 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 	return changed, nil
 }
 
-// wholeSetEntities are the entities kashi answers with its complete set on
-// every pull, ignoring `since` (see kashi's branch_catchup.go), so an
+// wholeSetEntities are the entities central answers with its complete set on
+// every pull, ignoring `since` (see central's branch_catchup.go), so an
 // item count says nothing about whether anything changed. The two category
-// entities are whole-set by our choice rather than kashi's: we pull them
+// entities are whole-set by our choice rather than central's: we pull them
 // with an empty since so deletions can be pruned locally.
 var wholeSetEntities = map[string]struct{}{
 	"currencies":         {},
@@ -900,7 +900,7 @@ func wholeSetSnapshot(ctx context.Context, q *db.Queries, entity string) (snapsh
 		snapshot, err = q.ListSyncedBranches(ctx)
 	case "expense_categories":
 		rows, lErr := q.ListExpenseCategories(ctx)
-		// updated_at is bumped by every apply, so compare only what kashi
+		// updated_at is bumped by every apply, so compare only what central
 		// sends.
 		var cats [][4]any
 		for _, r := range rows {
@@ -947,8 +947,8 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 				return fmt.Errorf("apply currency %s: %w", item.Code, err)
 			}
 		}
-		// kashi sends its whole set for this entity, so anything absent is
-		// something kashi does not have -- deactivate it rather than leaving
+		// Central sends its whole set for this entity, so anything absent is
+		// something central does not have -- deactivate it rather than leaving
 		// a currency on the till that central knows nothing about.
 		if err := reconcileCurrencies(ctx, q, items); err != nil {
 			return fmt.Errorf("reconcile currencies: %w", err)
@@ -1187,7 +1187,7 @@ func (a *App) emitSyncApplied(entity string) {
 
 // emitSettingsChanged tells the frontend a feature flag / settings value
 // changed out from under it -- e.g. the product-search button was toggled
-// remotely from kashi, or on another page of this app. Same ready-channel
+// remotely from central, or on another page of this app. Same ready-channel
 // guard as emitSyncApplied, for the same reason.
 func (a *App) emitSettingsChanged() {
 	select {
@@ -1219,7 +1219,7 @@ func (a *App) emitTransferUploadReady(clientRef, uploadURL string) {
 }
 
 // emitExpenseImagesUploaded tells the frontend a phone finished uploading
-// receipt photos for a given expense (pushed from kashi over the branch WS
+// receipt photos for a given expense (pushed from central over the branch WS
 // -- see sync_ws.go), so the open QR dialog can flip to its success state.
 func (a *App) emitExpenseImagesUploaded(clientRef string) {
 	select {
@@ -1257,7 +1257,7 @@ func (a *App) emitLoanUploadReady(clientRef, uploadURL string) {
 }
 
 // emitSyncStateChanged tells the frontend the push side of sync advanced --
-// a row was accepted by kashi, moved to failed, or re-armed by a resync --
+// a row was accepted by central, moved to failed, or re-armed by a resync --
 // so any open sync-status indicator (the nav-rail dot, the per-invoice
 // dots, the settings page) can refetch. Payload-free, same pull-not-push
 // discipline as the branch WS: the frontend reacts by calling GetSyncStatus

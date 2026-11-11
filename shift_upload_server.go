@@ -25,7 +25,7 @@ import (
 
 // newShiftUploadToken mints the secret embedded in the QR URL: 12 random
 // bytes as 16 URL-safe characters, short enough to type, and unguessable for
-// a single-use link that expires (kashi mints its tokens the same way).
+// a single-use link that expires (central mints its tokens the same way).
 func newShiftUploadToken() (string, error) {
 	raw := make([]byte, 12)
 	if _, err := rand.Read(raw); err != nil {
@@ -38,15 +38,15 @@ func newShiftUploadToken() (string, error) {
 // shift_receipt_uploads table), so the cashier's phone never needs an
 // internet connection -- only the same LAN as the till. shift_upload_server
 // is the tiny always-on HTTP listener that phone talks to; sync_shift_receipts.go
-// then forwards whatever it received on to kashi, retrying forever.
+// then forwards whatever it received on to central, retrying forever.
 const (
 	shiftUploadTokenTTL       = 2 * time.Hour
 	maxShiftReceiptImageBytes = 10 << 20 // 10MB
 	defaultShiftUploadListen  = "0.0.0.0:8788"
 )
 
-// shiftReceiptImageExt mirrors allowedExpenseImageContentTypes in the kashi
-// repo's api/expense_upload.go -- the same four types kashi will accept on
+// shiftReceiptImageExt mirrors allowedExpenseImageContentTypes in the central
+// repo's api/expense_upload.go -- the same four types central will accept on
 // the far end, checked here too so a bad file is rejected before it's
 // buffered rather than looping forever in the uploader.
 var shiftReceiptImageExt = map[string]string{
@@ -301,7 +301,7 @@ func (s *shiftUploadServer) upload(w http.ResponseWriter, r *http.Request, token
 }
 
 // shiftReceiptStorageDir is where the buffered photo lives on the POS until
-// kashi confirms it. Kept beside the database under the per-user config dir.
+// Central confirms it. Kept beside the database under the per-user config dir.
 func shiftReceiptStorageDir() string {
 	if dir, err := os.UserConfigDir(); err == nil {
 		return filepath.Join(dir, "kashi-pos", "shift-receipts")

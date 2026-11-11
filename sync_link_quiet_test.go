@@ -123,7 +123,7 @@ func TestSameAsLastRemembersPerEntity(t *testing.T) {
 
 // --- through a real pull ------------------------------------------------------
 
-// feed is a stand-in for kashi's /branch/sync/changes that answers each entity
+// feed is a stand-in for central's /branch/sync/changes that answers each entity
 // from a map (empty when absent) and notes what the light showed at that moment.
 type feed struct {
 	mu      sync.Mutex
@@ -182,7 +182,7 @@ func TestQuietPullOfNothingShowsNothing(t *testing.T) {
 	app, _, _, _ := setUpTestInvoiceApp(t, server.URL)
 
 	// An empty feed makes the first pass drop the test database's own
-	// currencies and cash accounts (a whole-set entity is whatever kashi says),
+	// currencies and cash accounts (a whole-set entity is whatever central says),
 	// which really is a change. Settle that, then the pass under test finds
 	// nothing at all.
 	runPass(t, app, server.URL)
@@ -206,7 +206,7 @@ func TestQuietPullShowsOnlyTheStepThatReceivedSomethingNew(t *testing.T) {
 	defer server.Close()
 	app, _, _, _ := setUpTestInvoiceApp(t, server.URL)
 
-	// A salesperson kashi re-sends unchanged (its two-minute overlap): the
+	// A salesperson central re-sends unchanged (its two-minute overlap): the
 	// first time is news, the same rows again are not.
 	f.set("salespersons", `[{"id":9001,"name":"Layla","is_active":true,"color":"#336699"}]`)
 	runPass(t, app, server.URL)
@@ -250,7 +250,7 @@ func TestVerbosePullShowsEveryStepEvenWhenNothingChanged(t *testing.T) {
 	}
 }
 
-// kashi's switch: off by default, turned on by an update_settings command, and
+// central's switch: off by default, turned on by an update_settings command, and
 // reported back in the till's settings push.
 func TestSyncVerboseSettingRoundTrips(t *testing.T) {
 	var body []byte

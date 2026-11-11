@@ -16,10 +16,10 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-// syncReporter tells kashi how this till's pulls went, for its Commands page:
+// syncReporter tells central how this till's pulls went, for its Commands page:
 // which entity failed to apply and why, how many rows landed, and what is still
-// waiting to go up. Only the till knows these: kashi can see that a pull repeats,
-// not the reason. Purely informational, so it never fails a sync, and a kashi
+// waiting to go up. Only the till knows these: central can see that a pull repeats,
+// not the reason. Purely informational, so it never fails a sync, and a central
 // too old to have the endpoint just answers 404.
 type syncReporter struct {
 	mu sync.Mutex
@@ -43,7 +43,7 @@ type syncReportEntity struct {
 	RowsApplied int64  `json:"rows_applied"`
 }
 
-// syncReportList is one list as this till holds it. Kashi works out the same from
+// syncReportList is one list as this till holds it. Central works out the same from
 // what it has, so comparing the two proves the till holds the right rows, where its
 // sync cursor only says what it should have received.
 type syncReportList struct {
@@ -89,7 +89,7 @@ func (r *syncReporter) syncReportEntities(results []syncPullResult) []syncReport
 			continue
 		}
 		if text == was && text != "" {
-			continue // kashi already has this error
+			continue // central already has this error
 		}
 		if text == "" {
 			delete(r.errors, res.entity)
@@ -125,7 +125,7 @@ func (a *App) reportSyncPass(ctx context.Context, client *centralClient, results
 	r.mu.Lock()
 	same := r.reportedOnce && r.outboxPending == pending && r.outboxFailed == failed
 	if r.listsSent == listsKey {
-		lists = nil // kashi already has these
+		lists = nil // central already has these
 	}
 	r.mu.Unlock()
 	if same && len(entities) == 0 && len(lists) == 0 {
@@ -182,7 +182,7 @@ func (a *App) syncReportLists(ctx context.Context, q *db.Queries) ([]syncReportL
 }
 
 // A fingerprint is a list's row count and a hash of its rows, worked out the same
-// way here and in kashi (api/list_fingerprint.go; a test in each repo checks the same
+// way here and in central (api/list_fingerprint.go; a test in each repo checks the same
 // rows give the same hash). One line per row, sorted, so row order can't change it:
 //
 //	price list:     "<variant uid>|<price>"

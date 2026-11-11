@@ -27,7 +27,7 @@ func TestSyncReportEntities(t *testing.T) {
 		t.Fatalf("repeat = %+v", got)
 	}
 
-	// Fixed: kashi hears it has cleared, even with nothing applied.
+	// Fixed: central hears it has cleared, even with nothing applied.
 	got = r.syncReportEntities([]syncPullResult{{entity: "discount_lists"}})
 	if len(got) != 1 || got[0].Error != "" {
 		t.Fatalf("cleared = %+v", got)
@@ -37,7 +37,7 @@ func TestSyncReportEntities(t *testing.T) {
 	}
 }
 
-// The same rows must give the same hash here and in kashi: its
+// The same rows must give the same hash here and in central: its
 // TestListFingerprintVector checks these very values.
 func TestListFingerprintMatchesKashi(t *testing.T) {
 	a, b := "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"
@@ -60,7 +60,7 @@ func TestListFingerprintMatchesKashi(t *testing.T) {
 }
 
 // A till fingerprints the lists in force, as they stand after a pull: a change shows,
-// and a list kashi switched off leaves the report.
+// and a list central switched off leaves the report.
 func TestSyncReportListsFollowTheTill(t *testing.T) {
 	ctx := context.Background()
 	store := setUpTestClientDB(t)

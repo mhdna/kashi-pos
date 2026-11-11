@@ -131,7 +131,7 @@ func shiftReportPreviewData() printReceiptData {
 		RoundingMode: roundingHalfUp,
 	}
 	return printReceiptData{
-		StoreName: "Kashi Market", Branch: "Downtown",
+		StoreName: "Central Market", Branch: "Downtown",
 		ReceiptWidth: 80, TitleSize: 21, BodySize: 11,
 		Font: "Belleza", BodyFont: "Printer Font A",
 		Cutoff: true, ShiftReport: report,

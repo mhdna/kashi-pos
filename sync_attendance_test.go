@@ -347,8 +347,8 @@ func lastChangeRequestID(t *testing.T, app *App) int64 {
 }
 
 // A punch the device never recorded is requested with action "add" (no
-// original event), approved from kashi through review_attendance_request,
-// and appears as a new punch; the decision goes back to kashi with kashi's
+// original event), approved from central through review_attendance_request,
+// and appears as a new punch; the decision goes back to central with central's
 // user as the actor, and a second decision on the same request is refused.
 func TestKashiApprovesAddedAttendanceRequest(t *testing.T) {
 	app, store := setUpTestAttendanceApp(t, "http://localhost:9999")
@@ -359,7 +359,7 @@ func TestKashiApprovesAddedAttendanceRequest(t *testing.T) {
 	requestID := lastChangeRequestID(t, app)
 
 	payload, _ := json.Marshal(reviewAttendanceRequestPayload{
-		ClientRef: fmt.Sprintf("acr-%d-complaint", requestID), Approved: true, Actor: "kashi: admin",
+		ClientRef: fmt.Sprintf("acr-%d-complaint", requestID), Approved: true, Actor: "central: admin",
 	})
 	if err := app.executeCommand(app.ctx, branchCommand{Type: "review_attendance_request", Payload: payload}); err != nil {
 		t.Fatalf("review_attendance_request: %v", err)
@@ -378,8 +378,8 @@ func TestKashiApprovesAddedAttendanceRequest(t *testing.T) {
 	if len(entries) != 2 {
 		t.Fatalf("expected complaint + approval in the outbox, got %d", len(entries))
 	}
-	if approval := decodeAttendanceChange(t, entries[1]); approval.Status != "approved" || approval.Actor != "kashi: admin" || approval.Action != "add" {
-		t.Fatalf("approval sent to kashi = %+v, want approved by 'kashi: admin' for an add", approval)
+	if approval := decodeAttendanceChange(t, entries[1]); approval.Status != "approved" || approval.Actor != "central: admin" || approval.Action != "add" {
+		t.Fatalf("approval sent to central = %+v, want approved by 'central: admin' for an add", approval)
 	}
 
 	if err := app.executeCommand(app.ctx, branchCommand{Type: "review_attendance_request", Payload: payload}); err == nil {
@@ -389,7 +389,7 @@ func TestKashiApprovesAddedAttendanceRequest(t *testing.T) {
 
 // Manager approval on the till is on by default: a manager adds a missed
 // punch in one step with the password. Turned off, the till's own approve
-// and add are refused, while kashi's review_attendance_request still works.
+// and add are refused, while central's review_attendance_request still works.
 func TestAttendanceManagerApprovalMode(t *testing.T) {
 	app, store := setUpTestAttendanceApp(t, "http://localhost:9999")
 	if err := app.UpdateAttendanceApproverPassword("secret"); err != nil {
@@ -426,15 +426,15 @@ func TestAttendanceManagerApprovalMode(t *testing.T) {
 	if err := app.ApproveAttendanceComplaint(requestID, true, "secret"); err == nil {
 		t.Fatal("approving on the till must be refused while the mode is off")
 	}
-	payload, _ := json.Marshal(reviewAttendanceRequestPayload{ClientRef: fmt.Sprintf("acr-%d-complaint", requestID), Approved: true, Actor: "kashi: admin"})
+	payload, _ := json.Marshal(reviewAttendanceRequestPayload{ClientRef: fmt.Sprintf("acr-%d-complaint", requestID), Approved: true, Actor: "central: admin"})
 	if err := app.executeCommand(app.ctx, branchCommand{Type: "review_attendance_request", Payload: payload}); err != nil {
-		t.Fatalf("kashi's approval must still work with the mode off: %v", err)
+		t.Fatalf("central's approval must still work with the mode off: %v", err)
 	}
 }
 
-// What kashi gets from an approved replace: the corrected punch, uploaded
+// What central gets from an approved replace: the corrected punch, uploaded
 // with who approved it and what it replaced, and in the approval the ref of
-// the original punch so kashi takes its copy away.
+// the original punch so central takes its copy away.
 func TestApprovedReplaceUploadsChangedPunchAndOriginalRef(t *testing.T) {
 	app, store := setUpTestAttendanceApp(t, "http://localhost:9999")
 	sp := makeSalesperson(t, app, store, "Fadi", "U5")
@@ -447,7 +447,7 @@ func TestApprovedReplaceUploadsChangedPunchAndOriginalRef(t *testing.T) {
 		t.Fatal(err)
 	}
 	requestID := lastChangeRequestID(t, app)
-	payload, _ := json.Marshal(reviewAttendanceRequestPayload{ClientRef: fmt.Sprintf("acr-%d-complaint", requestID), Approved: true, Actor: "kashi: admin"})
+	payload, _ := json.Marshal(reviewAttendanceRequestPayload{ClientRef: fmt.Sprintf("acr-%d-complaint", requestID), Approved: true, Actor: "central: admin"})
 	if err := app.executeCommand(app.ctx, branchCommand{Type: "review_attendance_request", Payload: payload}); err != nil {
 		t.Fatal(err)
 	}
@@ -467,8 +467,8 @@ func TestApprovedReplaceUploadsChangedPunchAndOriginalRef(t *testing.T) {
 		t.Fatalf("expected the corrected punch to be uploaded, got %d events", len(sent.Events))
 	}
 	punch := sent.Events[0]
-	if punch.EventTime != "09:00" || punch.ChangedBy != "kashi: admin" || punch.ChangeNote != "Changed from 09:20:00" {
-		t.Fatalf("uploaded punch = %+v, want 09:00 changed by 'kashi: admin' from 09:20:00", punch)
+	if punch.EventTime != "09:00" || punch.ChangedBy != "central: admin" || punch.ChangeNote != "Changed from 09:20:00" {
+		t.Fatalf("uploaded punch = %+v, want 09:00 changed by 'central: admin' from 09:20:00", punch)
 	}
 }
 
@@ -562,7 +562,7 @@ func TestSyncAttendanceRemovesPunchPulledBackBeforeFix(t *testing.T) {
 }
 
 // A device user linked to nobody (an employee enrolled twice, say) isn't
-// imported, but kashi is told about each such punch once, marked skipped,
+// imported, but central is told about each such punch once, marked skipped,
 // so its reports can show what the device has that attendance doesn't.
 func TestSyncAttendanceReportsUnlinkedPunchesOnce(t *testing.T) {
 	app, store := setUpTestAttendanceApp(t, "http://localhost:9999")

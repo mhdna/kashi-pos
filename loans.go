@@ -11,7 +11,7 @@ import (
 )
 
 // CreateLoan records a branch loan and, if this install is configured to
-// sync (central_api_url set), queues it for push to kashi in the same
+// sync (central_api_url set), queues it for push to central in the same
 // transaction as the write itself -- see queueBranchLoanSync's doc comment
 // in sync_outbox.go for why that matters. Mirrors CreateExpense in
 // expenses.go: an open shift is looked up on a best-effort basis, since a

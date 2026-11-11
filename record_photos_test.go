@@ -16,10 +16,10 @@ import (
 )
 
 // A new photo link for a loan comes back as the loan upload URL, built on
-// the till's own central URL; kashi's refusal reaches the cashier as-is.
+// the till's own central URL; central's refusal reaches the cashier as-is.
 func TestRequestLoanUploadLink(t *testing.T) {
 	var gotRef string
-	kashi := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	central := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/branch/loans/upload_link" {
 			http.NotFound(w, r)
 			return
@@ -36,7 +36,7 @@ func TestRequestLoanUploadLink(t *testing.T) {
 		}
 		w.Write([]byte(`{"upload_token":"abc123"}`))
 	}))
-	defer kashi.Close()
+	defer central.Close()
 
 	ctx := context.Background()
 	database, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "photos.db")+"?_pragma=foreign_keys(ON)")
@@ -51,7 +51,7 @@ func TestRequestLoanUploadLink(t *testing.T) {
 		branch_name, api_key, printer_id, printer_size, receipt_printer,
 		screen_port, receipt_width, receipt_height, theme, tax_rate,
 		rounding_mode, receipt_enabled, sales_inventory_id, central_api_url, branch_code
-	) VALUES ('Test', 'key', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0, ?, 'CN')`, kashi.URL); err != nil {
+	) VALUES ('Test', 'key', '', '80mm', '', '', 80, 297, 'system', 0, 'half_up', 0, 0, ?, 'CN')`, central.URL); err != nil {
 		t.Fatal(err)
 	}
 	app := &App{ctx: ctx, store: db.NewStore(database), conn: database}
@@ -60,11 +60,11 @@ func TestRequestLoanUploadLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotRef != "loan-1" || url != kashi.URL+"/l/abc123" {
+	if gotRef != "loan-1" || url != central.URL+"/l/abc123" {
 		t.Fatalf("ref %q, url %q", gotRef, url)
 	}
 
 	if _, err := app.RequestLoanUploadLink("full"); err == nil || !strings.Contains(err.Error(), "already has 3 photos") {
-		t.Fatalf("err = %v, want kashi's message", err)
+		t.Fatalf("err = %v, want central's message", err)
 	}
 }

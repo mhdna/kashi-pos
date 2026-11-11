@@ -42,7 +42,7 @@ func TestSyncWorkerDrainsOutboxOnSuccess(t *testing.T) {
 
 	// invoice + its client both drain
 	if posts != 2 {
-		t.Fatalf("expected 2 POSTs to kashi (invoice + client), got %d", posts)
+		t.Fatalf("expected 2 POSTs to central (invoice + client), got %d", posts)
 	}
 	if !sawInvoicePath.Load() {
 		t.Fatal("never POSTed to /branch/sales_invoices")
@@ -95,7 +95,7 @@ func TestSyncWorkerRetriesWithBackoffOnFailure(t *testing.T) {
 	}
 }
 
-// A kashi whose database is down answers its branch auth check with 401.
+// A central whose database is down answers its branch auth check with 401.
 // That says nothing about the rows, so they must stay pending, not be
 // parked as 'failed' until someone runs "sync everything".
 func TestSyncWorkerRetriesOnUnauthorized(t *testing.T) {
@@ -166,9 +166,9 @@ func TestSyncWorkerNoopWhenNotConfigured(t *testing.T) {
 	app.runSyncTick(app.ctx)
 }
 
-// While kashi pushes every change, the 15s pull tick only does the full
+// While central pushes every change, the 15s pull tick only does the full
 // pull (and the commands check) as a 5-minute backstop. Without that --
-// no live session, or an older kashi that sends no hello -- it pulls on
+// no live session, or an older central that sends no hello -- it pulls on
 // every tick, as before.
 func TestPullTickBacksOffWhileKashiPushesEverything(t *testing.T) {
 	fc := newFakeCentral()
@@ -211,10 +211,10 @@ func TestPullTickBacksOffWhileKashiPushesEverything(t *testing.T) {
 		t.Fatalf("after the backstop interval: pulled %d / commands %d; want 1 and 1", pulls, commands)
 	}
 
-	// An older kashi's hello (or none) keeps full polling.
+	// An older central's hello (or none) keeps full polling.
 	app.handleWSMessage(client, []byte(`{"type":"hello","features":[]}`))
 	if pulls, _ := tick(); pulls != 1 {
-		t.Fatalf("kashi without sync_changed: tick pulled %d times, want 1", pulls)
+		t.Fatalf("Central without sync_changed: tick pulled %d times, want 1", pulls)
 	}
 }
 
@@ -231,11 +231,11 @@ func TestPullTickSkipsNetworkWhileKashiUnreachable(t *testing.T) {
 	app.pushLink.markDown(time.Now())
 	app.runPullTick(app.ctx)
 	if n := requests.Load(); n != 0 {
-		t.Fatalf("pull tick made %d requests while kashi was unreachable, want 0", n)
+		t.Fatalf("pull tick made %d requests while central was unreachable, want 0", n)
 	}
 }
 
-// The settings report goes to kashi only when it changed, on a new session,
+// The settings report goes to central only when it changed, on a new session,
 // or hourly -- not on every 15s tick as before.
 func TestPushSettingsOnlySendsWhenSomethingChanged(t *testing.T) {
 	var puts atomic.Int32
@@ -283,9 +283,9 @@ func TestPushSettingsOnlySendsWhenSomethingChanged(t *testing.T) {
 	}
 }
 
-// A flag the till treats as on until set must be reported to kashi as on
-// too. Reported as off, kashi showed the product search button (and client
-// requirement) off for a till that had them on, and a save from kashi would
+// A flag the till treats as on until set must be reported to central as on
+// too. Reported as off, central showed the product search button (and client
+// requirement) off for a till that had them on, and a save from central would
 // then have turned them off for real.
 func TestPushSettingsReportsDefaultOnFlagsAsOn(t *testing.T) {
 	var body []byte
@@ -317,7 +317,7 @@ func TestPushSettingsReportsDefaultOnFlagsAsOn(t *testing.T) {
 }
 
 // Every row parked as failed goes back to pending, keeping its reason:
-// one an older build parked on a 401, and a real rejection that kashi may
+// one an older build parked on a 401, and a real rejection that central may
 // since have fixed.
 func TestRequeueFailedSyncOutbox(t *testing.T) {
 	app, store, cashbox, client := setUpTestInvoiceApp(t, "http://localhost:9999")

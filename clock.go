@@ -13,8 +13,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// The till keeps time the way kashi does: instants are stored in UTC, and
-// days and hours are read in the branch's timezone (kashi's
+// The till keeps time the way central does: instants are stored in UTC, and
+// days and hours are read in the branch's timezone (central's
 // branches.timezone), not whatever zone the PC happens to be set to.
 // Setting time.Local covers SQLite's 'localtime' too: modernc's libc
 // answers localtime() from Go's time.Local.
@@ -23,9 +23,9 @@ import (
 // formats with the PC's own zone), so those raise a warning instead.
 
 const (
-	// clockCheckInterval is how often runPullTick asks kashi for its clock.
+	// clockCheckInterval is how often runPullTick asks central for its clock.
 	clockCheckInterval = 10 * time.Minute
-	// clockOffAfter is how far the PC's clock may drift from kashi's before
+	// clockOffAfter is how far the PC's clock may drift from central's before
 	// the cashier is told.
 	clockOffAfter = 2 * time.Minute
 )
@@ -35,20 +35,20 @@ var osZone = time.Local
 
 // ClockStatus is what the clock warning shows.
 type ClockStatus struct {
-	// Checked is false until kashi has answered once.
+	// Checked is false until central has answered once.
 	Checked bool `json:"checked"`
 	// Zone is the branch's zone, the one the till keeps its days in.
 	Zone string `json:"zone"`
 	// PCZone is the PC's own UTC offset, e.g. "UTC+02:00".
 	PCZone       string `json:"pcZone"`
 	ZoneMismatch bool   `json:"zoneMismatch"`
-	// DriftSeconds is the PC's clock minus kashi's: positive when ahead.
+	// DriftSeconds is the PC's clock minus central's: positive when ahead.
 	DriftSeconds int64 `json:"driftSeconds"`
 	ClockOff     bool  `json:"clockOff"`
 }
 
 // useZone makes name the till's local zone. It runs once at startup and
-// again only if kashi reports a different zone, which is about never.
+// again only if central reports a different zone, which is about never.
 func useZone(name string) bool {
 	loc, err := time.LoadLocation(name)
 	if err != nil {
@@ -59,8 +59,8 @@ func useZone(name string) bool {
 	return true
 }
 
-// applySavedZone switches to the zone kashi last reported, before anything
-// reads the clock. Until kashi has answered once, the PC's zone stays.
+// applySavedZone switches to the zone central last reported, before anything
+// reads the clock. Until central has answered once, the PC's zone stays.
 func (a *App) applySavedZone() {
 	settings, err := a.store.GetSettings(a.ctx)
 	if err != nil {
@@ -72,14 +72,14 @@ func (a *App) applySavedZone() {
 	}
 }
 
-// branchClock is the clock half of kashi's /branch/health answer. Both
-// fields are empty from a kashi older than the clock check.
+// branchClock is the clock half of central's /branch/health answer. Both
+// fields are empty from a central older than the clock check.
 type branchClock struct {
 	Timezone   string    `json:"timezone"`
 	ServerTime time.Time `json:"server_time"`
 }
 
-// Clock reads kashi's clock and the branch's zone from /branch/health.
+// Clock reads central's clock and the branch's zone from /branch/health.
 func (c *centralClient) Clock(ctx context.Context) (branchClock, error) {
 	var out branchClock
 	if !c.enabled() {
@@ -101,7 +101,7 @@ func (c *centralClient) Clock(ctx context.Context) (branchClock, error) {
 	return out, err
 }
 
-// checkClock compares the PC's clock with kashi's, adopts the branch's zone
+// checkClock compares the PC's clock with central's, adopts the branch's zone
 // if it changed, and tells the UI.
 func (a *App) checkClock(ctx context.Context, client *centralClient) {
 	sent := time.Now()
@@ -112,9 +112,9 @@ func (a *App) checkClock(ctx context.Context, client *centralClient) {
 		return
 	}
 	if clock.ServerTime.IsZero() {
-		return // kashi predates the clock check
+		return // central predates the clock check
 	}
-	// kashi read its clock somewhere in the round trip; the middle is the
+	// Central read its clock somewhere in the round trip; the middle is the
 	// best guess, and good to well under clockOffAfter.
 	drift := sent.Add(received.Sub(sent) / 2).Sub(clock.ServerTime)
 

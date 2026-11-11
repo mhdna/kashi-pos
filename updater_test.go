@@ -48,7 +48,7 @@ func TestVerifyRelease(t *testing.T) {
 		t.Fatalf("good release: %v", err)
 	}
 
-	// Same file, signed by some other key (a compromised kashi).
+	// Same file, signed by some other key (a compromised central).
 	_, otherPriv, _ := ed25519.GenerateKey(rand.Reader)
 	digest := sha256.Sum256(content)
 	forged := *m

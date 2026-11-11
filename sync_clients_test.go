@@ -36,8 +36,8 @@ func mustClientByUID(t *testing.T, store *db.Store, uid string) db.Client {
 	return c
 }
 
-// kashi's is_active is copied down: a client kashi deactivates goes inactive
-// here, and comes back when kashi reactivates it.
+// central's is_active is copied down: a client central deactivates goes inactive
+// here, and comes back when central reactivates it.
 func TestApplySyncedClient_CopiesActiveFlag(t *testing.T) {
 	ctx := context.Background()
 	store := setUpTestClientDB(t)
@@ -57,7 +57,7 @@ func TestApplySyncedClient_CopiesActiveFlag(t *testing.T) {
 	}
 }
 
-// A phone edited in kashi updates the same local row (matched by uid) and
+// A phone edited in central updates the same local row (matched by uid) and
 // keeps its loyalty points, instead of creating a second client.
 func TestApplySyncedClient_PhoneChangeUpdatesInPlace(t *testing.T) {
 	ctx := context.Background()
@@ -84,7 +84,7 @@ func TestApplySyncedClient_PhoneChangeUpdatesInPlace(t *testing.T) {
 	}
 }
 
-// A local client created at the till adopts kashi's uid when kashi reports
+// A local client created at the till adopts central's uid when central reports
 // the same phone, rather than being duplicated.
 func TestApplySyncedClient_AdoptsUIDByPhone(t *testing.T) {
 	ctx := context.Background()
@@ -104,7 +104,7 @@ func TestApplySyncedClient_AdoptsUIDByPhone(t *testing.T) {
 	}
 }
 
-// kashi answering a push with another client's uid means the pushed row is
+// Central answering a push with another client's uid means the pushed row is
 // a duplicate of a client the till already holds: its invoices and points
 // move onto that client and the duplicate is removed.
 func TestAdoptCanonicalClientUID_MergesDuplicate(t *testing.T) {

@@ -18,25 +18,25 @@ import (
 )
 
 // Photos of this till's expenses, loans and transfers. The phone uploads them
-// straight to kashi (QR links), so the till has no copy of its own: the
-// Expenses, Loans and Transfers pages fetch them from kashi's
+// straight to central (QR links), so the till has no copy of its own: the
+// Expenses, Loans and Transfers pages fetch them from central's
 // /branch/expense_photos, /branch/loan_photos and /branch/transfer_photo,
-// which only ever serve this branch's own. A width asks kashi for a
-// thumbnail. No photo, or kashi unreachable with nothing saved, comes back
+// which only ever serve this branch's own. A width asks central for a
+// thumbnail. No photo, or central unreachable with nothing saved, comes back
 // empty, which the pages show as an icon instead of a picture.
 //
 // Every answer is kept in the encrypted photoCache (photo_cache.go), so a
 // photo seen once opens from disk after that, offline too. A saved copy is
-// shown at once and, if kashi last confirmed it over photoRecheckAfter ago,
-// checked in the background with its ETag (kashi answers 304 when it's
-// unchanged). When kashi has something else now -- the photo was turned or
+// shown at once and, if central last confirmed it over photoRecheckAfter ago,
+// checked in the background with its ETag (central answers 304 when it's
+// unchanged). When central has something else now -- the photo was turned or
 // replaced, or one was added -- the copy is replaced and
 // "record_photos_changed" tells the page which record to redraw.
 
 const photoFetchTimeout = 15 * time.Second
 
 // photoRecheckAfter is how long a saved copy is trusted before the next
-// showing asks kashi again (in the background; the copy still shows first).
+// showing asks central again (in the background; the copy still shows first).
 const photoRecheckAfter = 30 * time.Second
 
 // photoRecheckSlots caps the background checks running at once, so opening
@@ -59,7 +59,7 @@ func (a *App) photoClient() *centralClient {
 }
 
 // cachedPhotos opens the photo cache the first time it's needed; a
-// till where it can't be opened just fetches every photo from kashi.
+// till where it can't be opened just fetches every photo from central.
 func (a *App) cachedPhotos() *photoCache {
 	a.photoCacheOnce.Do(func() {
 		if a.photoCache != nil {
@@ -88,14 +88,14 @@ func (a *App) closePhotoCache() {
 	}
 }
 
-// photoCacheKey names a copy by the kashi, branch and request it came from,
+// photoCacheKey names a copy by the central, branch and request it came from,
 // so a till moved to another branch or server never shows the old one's.
 func photoCacheKey(client *centralClient, path string) string {
 	sum := sha256.Sum256([]byte(client.baseURL + "\x00" + client.branchCode + "\x00" + path))
 	return hex.EncodeToString(sum[:])
 }
 
-// fetchPhoto GETs one image (or photo list) from kashi. With an etag it asks
+// fetchPhoto GETs one image (or photo list) from central. With an etag it asks
 // for it only if it changed: notModified means the saved copy is current.
 // A 404 is a Missing photo, not an error.
 func (c *centralClient) fetchPhoto(ctx context.Context, path, etag string) (p cachedPhoto, notModified bool, err error) {
@@ -131,9 +131,9 @@ func (c *centralClient) fetchPhoto(ctx context.Context, path, etag string) (p ca
 	return cachedPhoto{Body: body, ContentType: contentType, ETag: resp.Header.Get("ETag")}, false, nil
 }
 
-// cachedPhoto returns kashi's answer for path: the saved copy if there is
+// cachedPhoto returns central's answer for path: the saved copy if there is
 // one (checked in the background when due), else fetched now and saved. ref
-// is the record it belongs to. ok is false when there's no copy and kashi
+// is the record it belongs to. ok is false when there's no copy and central
 // couldn't be reached.
 func (a *App) cachedPhoto(client *centralClient, path, ref string) (cachedPhoto, bool) {
 	cache := a.cachedPhotos()
@@ -160,10 +160,10 @@ func (a *App) cachedPhoto(client *centralClient, path, ref string) (cachedPhoto,
 	return p, true
 }
 
-// livePhoto asks kashi first and falls back to the saved copy only when
-// kashi can't be reached -- for the photo id lists, which the upload dialog
+// livePhoto asks central first and falls back to the saved copy only when
+// Central can't be reached -- for the photo id lists, which the upload dialog
 // polls to see a new photo arrive and so must never answer from a copy
-// while kashi is there to ask.
+// while central is there to ask.
 func (a *App) livePhoto(client *centralClient, path, ref string) (cachedPhoto, bool) {
 	cache := a.cachedPhotos()
 	key := photoCacheKey(client, path)
@@ -182,7 +182,7 @@ func (a *App) livePhoto(client *centralClient, path, ref string) (cachedPhoto, b
 	return cachedPhoto{}, false
 }
 
-// recheckPhoto asks kashi, in the background, whether the saved copy old is
+// recheckPhoto asks central, in the background, whether the saved copy old is
 // still what path returns, and replaces it if not. One check per copy at a
 // time; a failed check (offline) leaves the copy as it is.
 func (a *App) recheckPhoto(cache *photoCache, client *centralClient, path, ref, key string, old cachedPhoto) {
@@ -255,8 +255,8 @@ func widthQuery(width int) string {
 	return ""
 }
 
-// ListExpensePhotoIDs returns kashi's ids of an expense's photos (empty when
-// it has none, or kashi can't be reached and none were saved).
+// ListExpensePhotoIDs returns central's ids of an expense's photos (empty when
+// it has none, or central can't be reached and none were saved).
 func (a *App) ListExpensePhotoIDs(clientRef string) ([]int64, error) {
 	return a.listPhotoIDs("/branch/expense_photos", clientRef), nil
 }
@@ -338,9 +338,9 @@ func (a *App) getPhoto(base, clientRef string, id int64, width int) string {
 	return photoDataURL(a.cachedPhoto(client, path, clientRef))
 }
 
-// RequestExpenseUploadLink asks kashi for a new photo link for an expense
+// RequestExpenseUploadLink asks central for a new photo link for an expense
 // whose photo wasn't sent when it was made, and returns the URL to show as a
-// QR code. It fails if kashi hasn't received the expense yet or it already
+// QR code. It fails if central hasn't received the expense yet or it already
 // has 3 photos.
 func (a *App) RequestExpenseUploadLink(clientRef string) (string, error) {
 	client, token, err := a.requestUploadToken("/branch/expenses/upload_link", clientRef)
@@ -362,7 +362,7 @@ func (a *App) RequestLoanUploadLink(clientRef string) (string, error) {
 func (a *App) requestUploadToken(path, clientRef string) (*centralClient, string, error) {
 	client := a.photoClient()
 	if client == nil {
-		return nil, "", fmt.Errorf("this till isn't connected to kashi")
+		return nil, "", fmt.Errorf("this till isn't connected to central")
 	}
 	if clientRef == "" {
 		return nil, "", fmt.Errorf("this record has no reference to send")
@@ -377,7 +377,7 @@ func (a *App) requestUploadToken(path, clientRef string) (*centralClient, string
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
-		return nil, "", fmt.Errorf("couldn't reach kashi: %w", err)
+		return nil, "", fmt.Errorf("couldn't reach central: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -392,13 +392,13 @@ func (a *App) requestUploadToken(path, clientRef string) (*centralClient, string
 		UploadToken string `json:"upload_token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil || out.UploadToken == "" {
-		return nil, "", fmt.Errorf("kashi didn't send a link")
+		return nil, "", fmt.Errorf("Central didn't send a link")
 	}
 	return client, out.UploadToken, nil
 }
 
 // GetTransferPhoto returns a transfer's photo as a data: URL ("" if none):
-// by this till's clientRef for one it sent, by kashi's transferID for one it
+// by this till's clientRef for one it sent, by central's transferID for one it
 // receives. Its record ref is transferPhotoRef.
 func (a *App) GetTransferPhoto(clientRef string, transferID int64, width int) (string, error) {
 	client := a.photoClient()
