@@ -19,7 +19,7 @@ function files(dir: string): string[] {
 function wrapperRules(text: string): { selector: string; body: string }[] {
   const out: { selector: string; body: string }[] = [];
   for (const m of text.matchAll(/([^{}]*k-snackbar__wrapper[^{}]*)\{([^}]*)\}/g)) {
-    out.push({ selector: m[1].trim(), body: m[2] });
+    out.push({ selector: (m[1] ?? "").trim(), body: m[2] ?? "" });
   }
   return out;
 }
