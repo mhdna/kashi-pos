@@ -700,15 +700,24 @@ func (a *App) runSyncPullOnce(ctx context.Context, client *centralClient) {
 // itself.
 func (a *App) runSyncPullLocked(ctx context.Context, client *centralClient) {
 	results := make([]syncPullResult, 0, len(pullEntities))
-	defer func() { a.reportSyncPass(ctx, client, results) }()
-	for _, entity := range pullEntities {
+	var firstErr error
+	defer func() {
+		link.end(phasePulling)
+		link.pulled(firstErr)
+		a.reportSyncPass(ctx, client, results)
+	}()
+	for i, entity := range pullEntities {
 		// An older kashi answers an entity it doesn't know with an error.
 		if entity == "quick_access" && !a.kashiQuickAccess.Load() {
 			continue
 		}
+		link.begin(phasePulling, entityLabel(entity), i, len(pullEntities))
 		_, err := a.pullEntityLocked(ctx, client, entity)
 		if err != nil {
 			log.Printf("sync pull %s: %v", entity, err)
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
 		results = append(results, syncPullResult{entity: entity, applied: a.lastPullApplied, err: err})
 	}
@@ -721,7 +730,10 @@ func (a *App) runSyncPullLocked(ctx context.Context, client *centralClient) {
 func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity string) error {
 	a.syncPullMu.Lock()
 	defer a.syncPullMu.Unlock()
+	link.begin(phasePulling, entityLabel(entity), 0, 1)
 	_, err := a.pullEntityLocked(ctx, client, entity)
+	link.end(phasePulling)
+	link.pulled(err)
 	// A change kashi pushed: say straight away whether it landed.
 	a.reportSyncPass(ctx, client, []syncPullResult{{entity: entity, applied: a.lastPullApplied, err: err}})
 	return err
@@ -782,6 +794,9 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 		}
 		totalApplied += len(rawItems)
 		isLastPage := changes.NextCursor == ""
+		if totalApplied > 0 {
+			link.setDetail(fmt.Sprintf("%d changes", totalApplied))
+		}
 
 		if err := a.store.ExecTx(ctx, func(q *db.Queries) error {
 			before, isWholeSet, err := wholeSetSnapshot(ctx, q, entity)

@@ -95,7 +95,12 @@ func (a *App) startWSClient() {
 	a.wsClientStop = make(chan struct{})
 	a.wsClientKick = make(chan struct{}, 1)
 	a.wsWorkKick = make(chan struct{}, 1)
-	a.backgroundWG.Add(2)
+	link.setEmitter(a.emitLinkStateChanged)
+	a.backgroundWG.Add(3)
+	go func() {
+		defer a.backgroundWG.Done()
+		a.runInternetProbe()
+	}()
 	go func() {
 		defer a.backgroundWG.Done()
 		a.runWSClientLoop()
@@ -153,6 +158,7 @@ func (a *App) runWSClientLoop() {
 		conn, err := client.DialWS(a.ctx)
 		if err != nil {
 			log.Printf("ws client: connect failed: %v (retrying in %s)", err, backoff)
+			link.wsDown(err, backoff)
 			if !a.sleepOrStop(backoff) {
 				return
 			}
@@ -164,8 +170,12 @@ func (a *App) runWSClientLoop() {
 		// continuation of whatever caused earlier failures, so start
 		// escalating from the base again next time.
 		backoff = wsBackoffBase
+		link.wsUp()
 
 		if err := a.runWSSession(client, conn); err != nil {
+			if !errors.Is(err, errWSReconnect) {
+				link.wsDown(err, backoff)
+			}
 			if errors.Is(err, errWSReconnect) {
 				// Deliberate teardown after a config change -- redial now
 				// with the new settings, from the base backoff.
@@ -234,6 +244,7 @@ func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 	conn.SetReadDeadline(time.Now().Add(wsPongWait))
 	conn.SetPongHandler(func(string) error {
 		conn.SetReadDeadline(time.Now().Add(wsPongWait))
+		link.wsBeat()
 		return nil
 	})
 
@@ -307,6 +318,7 @@ func (a *App) runWSSession(client *centralClient, conn *websocket.Conn) error {
 			if f.err != nil {
 				return teardown(f.err)
 			}
+			link.wsBeat()
 			a.handleWSMessage(client, f.data)
 		}
 	}

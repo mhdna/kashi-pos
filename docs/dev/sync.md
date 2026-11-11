@@ -84,6 +84,22 @@ pull now", "a command is waiting", "an update is available". It's push only
 and can sit idle for a long time, so both sides ping; a dead connection is
 noticed within the pong wait instead of whenever the OS gives up.
 
+## What the till shows of the connection
+
+The nav-rail light (`SyncIndicator.vue`, tap for the detail) keeps four facts
+apart, from one tracker (`sync_link_status.go`, `GetLinkStatus`, event
+`link_state_changed`, at most ~4/s):
+
+| Fact | Where it comes from |
+| --- | --- |
+| Internet | Any answer from kashi proves it. While kashi is silent, a TCP probe to 1.1.1.1 / 8.8.8.8 / 9.9.9.9 every 20 s tells "no internet" from "kashi down". |
+| kashi | `linkTransport` wraps every central request: any HTTP answer (even 500) is "up", only no answer is "down". |
+| Live link | The websocket. This is what kashi's Branches page calls connected, so a till can be fully synced yet not live: it reads "Not live" (amber), not "Synced". |
+| Activity | Pull: entity N of 21 and its change count; push: record N of M. The spinner is determinate when the total is known. |
+
+The words and colours are worked out in `frontend/src/lib/linkStatus.ts`
+(tested over every combination). Being offline outranks every other state.
+
 ## Commands from kashi
 
 kashi queues commands per branch (`branch_commands`, status `pending`). The
