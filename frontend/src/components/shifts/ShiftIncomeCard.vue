@@ -1,5 +1,5 @@
 <template>
-  <k-sheet class="shift-income-card shifts-card py-4 px-2" style="flex: 1; min-width: 0">
+  <k-sheet class="shift-income-card shifts-card py-4 px-3" style="flex: 1; min-width: 0">
     <k-card-title class="shift-income-title text-body-1 font-weight-bold" data-test="income-title">
       <k-icon icon="mdi-cash-register" color="grey-darken-1" class="me-2" />
       {{ title || "Shift Income" }}{{ shiftId ? ` (#${shiftId})` : "" }}
@@ -233,15 +233,15 @@ async function confirmManager() {
 }
 
 /* Invisible: it only makes the middle scroll and keeps the buttons in view.
-   It spans the card edge to edge (cancelling the card's 8px side padding and
+   It spans the card edge to edge (cancelling the card's 12px side padding and
    putting it back inside) so the total band can fill the width. */
 .shift-income-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  margin-inline: -8px;
-  padding-inline: 8px;
+  margin-inline: -12px;
+  padding-inline: 12px;
 }
 
 /* The payment rows start and end where the total band and the buttons do:
@@ -257,7 +257,7 @@ async function confirmManager() {
   align-items: center;
   justify-content: center;
   min-height: 48px;
-  margin: -16px -8px 8px;
+  margin: -16px -12px 8px;
   padding: 8px;
   border-bottom: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
 }
@@ -292,8 +292,8 @@ async function confirmManager() {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin: 12px -8px 4px;
-  padding: 14px 8px;
+  margin: 12px -12px 4px;
+  padding: 14px 12px;
   border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 0;
   background: rgba(67, 160, 71, 0.13);
