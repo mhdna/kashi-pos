@@ -164,3 +164,44 @@ func TestMakeReleaseRunsWithoutDirectoryNoise(t *testing.T) {
 		t.Errorf("directory noise:\n%s", out)
 	}
 }
+
+// On a terminal each message leads with a badge: text on a coloured background.
+func TestBadgesHaveBackgroundColoursOnlyWhenColourIsOn(t *testing.T) {
+	for _, c := range []struct{ word, style string }{{"OK", "1;30;42"}, {"RUN", "1;30;46"}, {"WARN", "1;30;43"}, {"FAIL", "1;97;41"}} {
+		got := badge(true, "x", c.word, c.style)
+		if got != "\033["+c.style+"m "+c.word+" "+cReset {
+			t.Errorf("%s badge = %q", c.word, got)
+		}
+		// 4x is a background colour (40-47), 10x a bright one.
+		if !strings.Contains(c.style, ";4") {
+			t.Errorf("%s has no background colour in %q", c.word, c.style)
+		}
+		if badge(false, "x", c.word, c.style) != "x" {
+			t.Errorf("%s: plain mark expected without colour", c.word)
+		}
+	}
+}
+
+func TestShellMessagesUseBackgroundBadgesInColourAndMarksWithout(t *testing.T) {
+	run := func(env ...string) string {
+		c := exec.Command("sh", "../../scripts/say.sh", "ok", "done")
+		c.Env = append(os.Environ(), env...)
+		out, err := c.CombinedOutput()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(out)
+	}
+	if out := run("FORCE_COLOR=1", "NO_COLOR="); !strings.Contains(out, "\033[1;30;42m OK \033[0m done") {
+		t.Errorf("coloured: %q", out)
+	}
+	if out := run("NO_COLOR=1"); out != "✔ done\n" {
+		t.Errorf("plain: %q", out)
+	}
+	c := exec.Command("sh", "../../scripts/say.sh", "fail", "broke")
+	c.Env = append(os.Environ(), "FORCE_COLOR=1", "NO_COLOR=")
+	out, _ := c.CombinedOutput()
+	if !strings.Contains(string(out), "\033[1;97;41m FAIL \033[0m") {
+		t.Errorf("fail badge: %q", out)
+	}
+}

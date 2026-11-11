@@ -21,8 +21,8 @@ The wails build is long and noisy, so `make publish` / `make release` show one
 line instead (`scripts/quiet-build.sh`): a spinner and "Building GB Cloud X…",
 then "Built … in 42s". The full output goes to `.build.log` (git-ignored); a
 failed build shows the last 30 lines and where the log is. Messages are one
-coloured line each (`scripts/pretty.sh`; no colour when piped or with
-`NO_COLOR=1`). A refused upload says what it means: 409 already published (bump),
+line each, led by a coloured badge (RUN cyan, OK green, WARN yellow, FAIL red;
+`scripts/pretty.sh`); piped, or with `NO_COLOR=1`, a plain ✔ ▸ ! ✘ instead. A refused upload says what it means: 409 already published (bump),
 502/503/504/521-523 central is being updated (nothing was published, run it
 again), 413 too big, and so on (`uploadFailure`, `cmd/publish-release/ui.go`).
 

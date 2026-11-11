@@ -14,7 +14,7 @@ if [ -t 1 ] && [ -z "$NO_COLOR" ]; then
   i=0
   while kill -0 "$pid" 2>/dev/null; do
     case $((i % 4)) in 0) f='⠋';; 1) f='⠙';; 2) f='⠹';; *) f='⠸';; esac
-    printf '\r%s%s%s Building %s… %s%ss%s ' "$C_CYAN" "$f" "$C_RESET" "$label" "$C_DIM" "$(( $(date +%s) - start ))" "$C_RESET"
+    printf '\r%s %s%s%s %s… %s%ss%s ' "$B_BUILD" "$C_CYAN" "$f" "$C_RESET" "$label" "$C_DIM" "$(( $(date +%s) - start ))" "$C_RESET"
     i=$((i + 1)); sleep 0.15
   done
   printf '\r\033[K'

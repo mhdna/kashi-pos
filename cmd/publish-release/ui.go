@@ -11,13 +11,10 @@ import (
 // say what happened and what to do next. Colour only on a terminal (never with
 // NO_COLOR set; FORCE_COLOR=1 forces it), like scripts/pretty.sh.
 const (
-	cReset  = "\033[0m"
-	cDim    = "\033[2m"
-	cBold   = "\033[1m"
-	cRed    = "\033[31m"
-	cGreen  = "\033[32m"
-	cYellow = "\033[33m"
-	cCyan   = "\033[36m"
+	cReset = "\033[0m"
+	cDim   = "\033[2m"
+	cBold  = "\033[1m"
+	cRed   = "\033[31m"
 )
 
 func colorOn(f *os.File) bool {
@@ -39,17 +36,29 @@ func paint(on bool, color, text string) string {
 	return color + text + cReset
 }
 
-func line(f *os.File, mark, color, text string) {
-	on := colorOn(f)
-	fmt.Fprintf(f, "%s %s\n", paint(on, color, mark), text)
+// badge is a message's lead: dark text on a coloured background on a
+// terminal (the same look as scripts/pretty.sh), the plain mark otherwise.
+func badge(on bool, mark, word, style string) string {
+	if !on {
+		return mark
+	}
+	return "\033[" + style + "m " + word + " " + cReset
 }
 
-func step(format string, a ...any) { line(os.Stdout, "▸", cCyan, fmt.Sprintf(format, a...)) }
-func ok(format string, a ...any)   { line(os.Stdout, "✔", cGreen, fmt.Sprintf(format, a...)) }
-func warn(format string, a ...any) { line(os.Stdout, "!", cYellow, fmt.Sprintf(format, a...)) }
+func line(f *os.File, mark, word, style, text string) {
+	fmt.Fprintf(f, "%s %s\n", badge(colorOn(f), mark, word, style), text)
+}
+
+func step(format string, a ...any) {
+	line(os.Stdout, "▸", "RUN", "1;30;46", fmt.Sprintf(format, a...))
+}
+func ok(format string, a ...any) { line(os.Stdout, "✔", "OK", "1;30;42", fmt.Sprintf(format, a...)) }
+func warn(format string, a ...any) {
+	line(os.Stdout, "!", "WARN", "1;30;43", fmt.Sprintf(format, a...))
+}
 func fail(text string) {
 	on := colorOn(os.Stderr)
-	fmt.Fprintf(os.Stderr, "%s %s\n", paint(on, cRed, "✘"), paint(on, cBold, text))
+	fmt.Fprintf(os.Stderr, "%s %s\n", badge(on, "✘", "FAIL", "1;97;41"), paint(on, cBold+cRed, text))
 }
 func dim(format string, a ...any) {
 	fmt.Println(paint(colorOn(os.Stdout), cDim, fmt.Sprintf(format, a...)))
