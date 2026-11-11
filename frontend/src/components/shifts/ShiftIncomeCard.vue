@@ -7,7 +7,7 @@
     <k-progress-linear v-if="loading" indeterminate />
     <template v-else-if="items.length">
       <k-list density="compact" class="pa-0">
-        <k-list-item v-for="item in collectedItems" :key="item.accountName">
+        <k-list-item v-for="item in collectedItems" :key="item.accountName" class="shift-income-row">
         <template #prepend>
           <k-avatar :color="paymentAccentColor({ name: item.accountName, color: item.color })" variant="tonal" size="32">
             <k-icon icon="mdi-wallet" size="18" />
@@ -37,7 +37,7 @@
     <!-- Sold on account (not collected, so it's kept out of the income total
          above), then money that went out during the shift, then income minus
          that. Display only (see GetShiftTotals). -->
-    <div v-if="shiftId && (onAccountTotal || shiftExpenses.length || shiftLoans.length)" class="px-4 pt-2">
+    <div v-if="shiftId && (onAccountTotal || shiftExpenses.length || shiftLoans.length)" class="shift-income-extras">
       <div v-if="onAccountTotal" class="spend-row text-medium-emphasis">
         <span class="text-truncate"><k-icon icon="mdi-account-clock" size="16" class="me-1" />On account — not collected</span>
         <span>{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }}</span>
@@ -60,8 +60,9 @@
       <k-btn
         v-if="balanceSources.length > 0"
         block
+        class="shift-income-secondary"
         prepend-icon="mdi-swap-horizontal"
-        variant="tonal"
+        variant="outlined"
         @click="replacementOpen = true"
       >
         Swap balance
@@ -69,8 +70,9 @@
       <k-btn
         v-if="openingFloatEnabled"
         block
+        class="shift-income-secondary"
         prepend-icon="mdi-cash-plus"
-        variant="tonal"
+        variant="outlined"
         @click="openingFloatOpen = true"
       >
         Set opening cash
@@ -244,11 +246,29 @@ async function confirmManager() {
   width: 100%;
 }
 
+/* One footer: a rule above it, then the actions at one height. */
 .shift-income-actions {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
+}
+.shift-income-secondary {
+  min-height: 44px;
+}
+/* Rows start at the card's own left edge, like the title above them. */
+.shift-income-row {
+  padding-inline: 0 !important;
+  min-height: 52px;
+}
+.shift-income-row + .shift-income-row {
+  border-top: 1px solid rgba(var(--k-border-color), 0.5);
+}
+.shift-income-extras {
+  padding-top: 8px;
 }
 
 /* A block button is `flex: 1 0 auto`; stop the buttons stretching
@@ -266,7 +286,7 @@ async function confirmManager() {
   justify-content: space-between;
   gap: 12px;
   margin: 12px -16px 4px;
-  padding: 14px 32px;
+  padding: 14px 16px;
   border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 0;
   background: rgba(67, 160, 71, 0.13);
@@ -315,7 +335,7 @@ async function confirmManager() {
 
 .spend-button {
   height: auto !important;
-  min-height: 56px;
+  min-height: 48px;
   padding: 8px 6px !important;
 }
 
