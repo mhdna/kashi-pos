@@ -82,7 +82,7 @@
 
   <k-dialog v-model="optionsOpen" max-width="520">
     <k-card class="options-dialog-card" rounded="xl">
-      <div class="dialog-close-row px-4 pt-0">
+      <div class="dialog-close-row px-3 pt-0">
         <k-btn
           icon="mdi-close"
           variant="text"
@@ -91,7 +91,7 @@
         />
       </div>
 
-      <k-card-text class="px-4 pt-0 pb-4">
+      <k-card-text class="px-3 pt-0 pb-3">
         <section
           v-for="group in QUIT_GROUPS"
           :key="group.title"
@@ -110,7 +110,7 @@
               :data-test="`quit-${option.action}`"
               @click="runQuitOption(option.action)"
             >
-              <k-icon :icon="option.icon" size="44" />
+              <k-icon :icon="option.icon" size="36" />
               <span>{{ option.label }}</span>
             </k-card>
           </div>
@@ -535,7 +535,16 @@ const items = computed(() => {
 }
 
 .options-group + .options-group {
-  margin-top: 16px;
+  margin-top: 8px;
+}
+/* The Quit menu is compact: shorter cards, tighter gaps. */
+.options-group .options-grid {
+  gap: 8px;
+}
+.options-group .option-card {
+  min-height: 92px;
+  padding: 8px 10px;
+  gap: 6px;
 }
 /* No captions: each group has its own icon colour instead. Green for the
    shift, blue for the app, red for the computer; the cards stay plain. */
