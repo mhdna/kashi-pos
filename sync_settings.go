@@ -64,6 +64,7 @@ type branchSettingsPayload struct {
 	CloseShiftRequiresSync        bool `json:"close_shift_requires_sync"`
 	ScanByCodeEnabled             bool `json:"scan_by_code_enabled"`
 	VariantPickRequired           bool `json:"variant_pick_required"`
+	SyncVerbose                   bool `json:"sync_verbose"`
 	ProductSearchCodeOnly         bool `json:"product_search_code_only"`
 	PriceEditRestricted           bool `json:"price_edit_restricted"`
 	DiscountToggle                bool `json:"discount_toggle"`
@@ -290,6 +291,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		CloseShiftRequiresSync:        a.closeShiftRequiresSync(),
 		ScanByCodeEnabled:             a.scanByCodeEnabled(),
 		VariantPickRequired:           a.flagEnabled(ctx, variantPickRequiredFlag),
+		SyncVerbose:                   a.flagEnabled(ctx, syncVerboseFlag),
 		ProductSearchCodeOnly:         a.flagEnabled(ctx, productSearchCodeOnlyFlag),
 		PriceEditRestricted:           a.flagEnabled(ctx, priceEditRestrictedFlag),
 		DiscountToggle:                a.flagEnabled(ctx, discountToggleFlag),

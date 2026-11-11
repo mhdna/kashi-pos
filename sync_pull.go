@@ -711,7 +711,7 @@ func (a *App) runSyncPullLocked(ctx context.Context, client *centralClient) {
 		if entity == "quick_access" && !a.kashiQuickAccess.Load() {
 			continue
 		}
-		link.begin(phasePulling, entityLabel(entity), i, len(pullEntities))
+		link.checking(entityLabel(entity), i, len(pullEntities))
 		_, err := a.pullEntityLocked(ctx, client, entity)
 		if err != nil {
 			log.Printf("sync pull %s: %v", entity, err)
@@ -730,7 +730,7 @@ func (a *App) runSyncPullLocked(ctx context.Context, client *centralClient) {
 func (a *App) pullEntityOnce(ctx context.Context, client *centralClient, entity string) error {
 	a.syncPullMu.Lock()
 	defer a.syncPullMu.Unlock()
-	link.begin(phasePulling, entityLabel(entity), 0, 1)
+	link.checking(entityLabel(entity), 0, 1)
 	_, err := a.pullEntityLocked(ctx, client, entity)
 	link.end(phasePulling)
 	link.pulled(err)
@@ -794,8 +794,18 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 		}
 		totalApplied += len(rawItems)
 		isLastPage := changes.NextCursor == ""
-		if totalApplied > 0 {
+		_, isWholeSetEntity := wholeSetEntities[entity]
+		// What the light shows. Verbose: every step, with its count. Quiet:
+		// only a step that really received something different: more than one
+		// page is always real; one page counts when it isn't what the last
+		// pass already applied (a whole-set entity is judged after the apply,
+		// below, by whether the local table differs).
+		if totalApplied > 0 && link.isVerbose() {
 			link.setDetail(fmt.Sprintf("%d changes", totalApplied))
+		} else if totalApplied > 0 && !isWholeSetEntity {
+			if !isLastPage || pageCursor != "" || !link.sameAsLast(entity, changes.Items) {
+				link.reveal(fmt.Sprintf("%d changes", totalApplied))
+			}
 		}
 
 		if err := a.store.ExecTx(ctx, func(q *db.Queries) error {
@@ -813,6 +823,9 @@ func (a *App) pullEntityLocked(ctx context.Context, client *centralClient, entit
 				}
 				if !reflect.DeepEqual(before, after) {
 					wholeSetChanged = true
+					if !link.isVerbose() {
+						link.reveal(fmt.Sprintf("%d changes", len(rawItems)))
+					}
 				}
 			}
 			if isLastPage {

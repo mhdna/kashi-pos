@@ -83,6 +83,10 @@ const (
 	// ('always' / 'never') overrides it. Defaults to false when unset, so a
 	// till keeps adding the scanned barcode as it did before this setting.
 	variantPickRequiredFlag = "variant_pick_required"
+	// When on, the sync light shows every step of a pull, even one that finds
+	// nothing new. Off (the default): only steps that really received
+	// something. Set from kashi's branch settings.
+	syncVerboseFlag = "sync_verbose"
 )
 
 // SetDiscountToggleEnabled lets salespersons turn a line's discount off/on.
@@ -218,6 +222,19 @@ func (a *App) SetVariantPickRequiredEnabled(enabled bool) error {
 	if err := a.setFeatureFlagBool(a.ctx, variantPickRequiredFlag, enabled); err != nil {
 		return err
 	}
+	a.emitSettingsChanged()
+	return nil
+}
+
+// SetSyncVerboseEnabled turns the sync light's every-step display on or off.
+func (a *App) SetSyncVerboseEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, syncVerboseFlag, enabled); err != nil {
+		return err
+	}
+	link.setVerbose(enabled)
 	a.emitSettingsChanged()
 	return nil
 }

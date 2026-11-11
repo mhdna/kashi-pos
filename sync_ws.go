@@ -96,6 +96,7 @@ func (a *App) startWSClient() {
 	a.wsClientKick = make(chan struct{}, 1)
 	a.wsWorkKick = make(chan struct{}, 1)
 	link.setEmitter(a.emitLinkStateChanged)
+	link.setVerbose(a.flagEnabled(a.ctx, syncVerboseFlag))
 	a.backgroundWG.Add(3)
 	go func() {
 		defer a.backgroundWG.Done()
