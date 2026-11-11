@@ -328,9 +328,9 @@ const items = computed(() => {
   color: #9e9e9e;
 }
 .nav-drawer {
-  background-color: #161a21;
+  background-color: #0f1b2d;
   border: 0 !important;
-  border-right: 1px solid #242a33 !important;
+  border-right: 1px solid #1e2c42 !important;
   box-shadow: none !important;
 }
 
@@ -357,7 +357,7 @@ const items = computed(() => {
 }
 
 .nav-items-group::-webkit-scrollbar-thumb {
-  background-color: #4a5361;
+  background-color: #3a5378;
   border-radius: 2px;
 }
 
@@ -370,7 +370,7 @@ const items = computed(() => {
 }
 
 .nav-item.k-list-item--active {
-  background-color: #272e39;
+  background-color: #22375a;
 }
 
 .nav-item-content {
@@ -406,7 +406,7 @@ const items = computed(() => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid #161a21;
+  border: 2px solid #0f1b2d;
 }
 
 .nav-status-dot--up {
