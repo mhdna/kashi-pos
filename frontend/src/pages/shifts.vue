@@ -467,6 +467,7 @@ onBeforeUnmount(() => {
 .shifts-cards {
   flex: 1 1 auto;
   min-height: 0;
-  gap: 12px;
+  /* The strip between the shift income card and the right column. */
+  gap: 4px;
 }
 </style>
