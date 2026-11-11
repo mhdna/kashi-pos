@@ -54,7 +54,7 @@ const props = withDefaults(
     showActivator?: boolean;
     // Hides product names; the backend then matches only code/barcode.
     codeOnly?: boolean;
-    // Columns the branch leaves out of the list (kashi's branch setting).
+    // Columns the branch leaves out of the list (central's branch setting).
     hiddenFields?: string[];
   }>(),
   {

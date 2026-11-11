@@ -476,8 +476,8 @@ async function exportMonth() {
   }
 }
 // Manager approval on the till (on by default, switchable here or from
-// kashi): a manager decides requests, or records a missed punch at once,
-// with the manager password. Off, requests wait for kashi.
+// central): a manager decides requests, or records a missed punch at once,
+// with the manager password. Off, requests wait for central.
 const managerApproval = ref(false);
 async function loadManagerApproval() {
   try {

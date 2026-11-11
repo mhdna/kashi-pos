@@ -10,10 +10,10 @@
 import { onMounted, ref, watch } from "vue";
 
 // A record's photo thumbnail (an expense receipt, a transfer photo), fetched
-// from kashi the first time its row is drawn. The virtual table only draws
+// from central the first time its row is drawn. The virtual table only draws
 // visible rows, so scrolling a long list loads just what's on screen. Results
 // are kept for the session by `cacheKey`, so scrolling back or reopening the
-// page doesn't fetch again; "" (no photo, or kashi unreachable) shows the icon.
+// page doesn't fetch again; "" (no photo, or central unreachable) shows the icon.
 
 const props = withDefaults(
   defineProps<{

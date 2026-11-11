@@ -63,7 +63,7 @@ describe("the headline", () => {
     expect(describeLink(link(), null, idle, NOW)).toMatchObject({ tone: "off", word: "Off" });
   });
 
-  it("no internet and kashi silent: says no internet, and what is waiting", () => {
+  it("no internet and central silent: says no internet, and what is waiting", () => {
     const s = d({ internet: "down", kashi: "down", kashiError: "can't find the server", kashiDownForSeconds: 70, live: false }, { pending: 3 });
     expect(s).toMatchObject({ tone: "bad", word: "No internet", sub: "3 waiting", icon: "mdi-wifi-off" });
     expect(s.spinner.on).toBe(false);
@@ -71,9 +71,9 @@ describe("the headline", () => {
     expect(s.internetTone).toBe("bad");
   });
 
-  it("internet fine but kashi silent: names kashi, not the internet", () => {
+  it("internet fine but central silent: names central, not the internet", () => {
     const s = d({ internet: "up", kashi: "down", kashiError: "the server took too long to answer", live: false });
-    expect(s).toMatchObject({ tone: "bad", word: "No kashi" });
+    expect(s).toMatchObject({ tone: "bad", word: "No central" });
     expect(s.title).toContain("the server took too long to answer");
     expect(s.internetTone).toBe("ok");
   });
@@ -82,7 +82,7 @@ describe("the headline", () => {
     const s = d({ live: false, liveError: "read: connection reset", liveRetryAt: ahead(8) });
     expect(s).toMatchObject({ tone: "attention", word: "Not live", icon: "mdi-lan-disconnect" });
     expect(s.liveTone).toBe("attention");
-    expect(s.title).toContain("kashi shows this till as offline");
+    expect(s.title).toContain("central shows this till as offline");
   });
 
   it("a till that has not yet tried anything is Connecting, not red", () => {
@@ -104,8 +104,8 @@ describe("the headline", () => {
   });
 
   it("sending shows how many records are left", () => {
-    const s = d({ phase: "pushing", label: "Sending to kashi", done: 3, total: 12 }, { pending: 9 });
-    expect(s).toMatchObject({ tone: "busy", word: "Sending", sub: "Sending to kashi 3/12", icon: "mdi-cloud-upload" });
+    const s = d({ phase: "pushing", label: "Sending to central", done: 3, total: 12 }, { pending: 9 });
+    expect(s).toMatchObject({ tone: "busy", word: "Sending", sub: "Sending to central 3/12", icon: "mdi-cloud-upload" });
     expect(s.spinner).toEqual({ on: true, pct: 25 });
   });
 
@@ -146,7 +146,7 @@ describe("the detail rows", () => {
     expect(row(s, "internet")).toMatchObject({ state: "ok", value: "Connected" });
     expect(row(s, "kashi")).toMatchObject({ state: "ok", value: "Reachable", detail: "Last answer just now" });
     expect(row(s, "live")).toMatchObject({ state: "ok", value: "Connected" });
-    expect(row(s, "live").detail).toBe("Connected 10 min ago, heard from kashi 10 s ago");
+    expect(row(s, "live").detail).toBe("Connected 10 min ago, heard from central 10 s ago");
     expect(row(s, "now")).toMatchObject({ state: "idle", value: "Nothing to do" });
     expect(row(s, "received").value).toBe("20 s ago");
     expect(row(s, "sent").value).toBe("40 s ago");
@@ -158,14 +158,14 @@ describe("the detail rows", () => {
     expect(r).toMatchObject({ state: "warn", value: "Not connected" });
     expect(r.detail).toContain("read: closed");
     expect(r.detail).toContain("Trying again in 8 s");
-    expect(r.detail).toContain("kashi shows this till as offline");
+    expect(r.detail).toContain("Central shows this till as offline");
   });
 
   it("a retry that is due says now", () => {
     expect(row(d({ live: false, liveRetryAt: ago(1) }), "live").detail).toContain("Trying again now");
   });
 
-  it("kashi down shows how long and why; internet down tells what to check", () => {
+  it("Central down shows how long and why; internet down tells what to check", () => {
     const s = d({ internet: "down", kashi: "down", kashiError: "can't connect to the server", kashiDownForSeconds: 200, live: false });
     expect(row(s, "kashi")).toMatchObject({ state: "bad", value: "Not answering for 3 min", detail: "can't connect to the server" });
     expect(row(s, "internet")).toMatchObject({ state: "bad", value: "No connection" });
@@ -206,20 +206,20 @@ describe("every combination", () => {
     const states = ["up", "down", "unknown"];
     const phases = ["idle", "pulling", "pushing"];
     for (const internet of states)
-      for (const kashi of states)
+      for (const central of states)
         for (const live of [true, false])
           for (const phase of phases)
             for (const failed of [0, 2])
               for (const pending of [0, 3])
                 for (const running of [false, true]) {
-                  const s = d({ internet, kashi, live, phase, label: phase === "idle" ? "" : "X", done: 1, total: 4, liveEverUp: true },
+                  const s = d({ internet, kashi: central, live, phase, label: phase === "idle" ? "" : "X", done: 1, total: 4, liveEverUp: true },
                     { failed, pending }, { running, progress: running ? "p" : "" });
-                  const ctx = JSON.stringify({ internet, kashi, live, phase, failed, pending, running });
+                  const ctx = JSON.stringify({ internet, central, live, phase, failed, pending, running });
                   expect(s.word, ctx).toBeTruthy();
                   expect(["ok", "busy", "attention", "bad", "off"], ctx).toContain(s.tone);
-                  if (kashi === "down") expect(s.tone, ctx).toBe("bad");
+                  if (central === "down") expect(s.tone, ctx).toBe("bad");
                   if (s.tone === "ok") {
-                    expect(kashi, ctx).not.toBe("down");
+                    expect(central, ctx).not.toBe("down");
                     expect(live, ctx).toBe(true);
                     expect(failed + pending, ctx).toBe(0);
                     expect(phase, ctx).toBe("idle");

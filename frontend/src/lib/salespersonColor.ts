@@ -1,5 +1,5 @@
-// Same palette kashi picks a random salesperson color from (migration
-// 000112_salesperson_color in the kashi repo) -- all readable under white
+// Same palette central picks a random salesperson color from (migration
+// 000112_salesperson_color in the central repo) -- all readable under white
 // initials.
 const PALETTE = [
   "#E53935", "#D81B60", "#8E24AA", "#5E35B1", "#3949AB", "#1E88E5",
@@ -7,7 +7,7 @@ const PALETTE = [
 ];
 
 /**
- * Avatar background for a salesperson: the color set in kashi, or for a
+ * Avatar background for a salesperson: the color set in central, or for a
  * till-only salesperson (standalone mode, or not synced yet) a stable pick
  * from the palette based on the name, so it doesn't change between renders.
  */

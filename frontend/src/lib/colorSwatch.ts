@@ -1,8 +1,8 @@
-// A product's colour is free text typed in kashi ("Grey", "Off-White",
+// A product's colour is free text typed in central ("Grey", "Off-White",
 // "Red/Tra", "pur/cuv", "#N/A"). This turns it into what a swatch paints:
 // one CSS colour per part of a multi-colour name, in order.
 //
-// kashi's colours page has hex values, but the till doesn't receive them and
+// central's colours page has hex values, but the till doesn't receive them and
 // the products' colour text doesn't always match those names, so the till
 // reads the name itself. Parts it doesn't know are skipped; a name with no
 // known part gets no colour (the swatch draws an empty, dashed circle).

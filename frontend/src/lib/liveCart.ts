@@ -1,7 +1,7 @@
-// kashi's live cart (live_cart.go), as the cart sees it: which of kashi's
+// central's live cart (live_cart.go), as the cart sees it: which of central's
 // overrides a line takes, and how the line says so.
 
-// One line of kashi's overrides, as GetLiveCartOverrides returns it. A
+// One line of central's overrides, as GetLiveCartOverrides returns it. A
 // product's goes by its barcode; an unknown item's by its line ref (the
 // cart's unknownRef), since every unknown item shares one barcode.
 export interface LiveCartLineOverride {
@@ -21,7 +21,7 @@ export interface LiveCartLine {
   unknownRef?: string;
 }
 
-// The override kashi set on this line, if any. An unknown item without a ref
+// The override central set on this line, if any. An unknown item without a ref
 // (an old draft or hold) can't be named, so it takes none.
 export function liveOverrideFor(
   line: LiveCartLine,
@@ -42,7 +42,7 @@ const unknownDealNames: Record<string, string> = {
   none: "no deal",
 };
 
-// "Set in kashi: price $12.00, 10% off, no deal" for the line's lock chip.
+// "Set in central: price $12.00, 10% off, no deal" for the line's lock chip.
 export function liveOverrideTitle(o: {
   priceCents?: number | null;
   discount?: number | null;
@@ -54,5 +54,5 @@ export function liveOverrideTitle(o: {
   if (o.discount != null) parts.push(`${o.discount}% off`);
   if (o.noDeal) parts.push("no deal");
   else if (o.unknownDeal) parts.push(unknownDealNames[o.unknownDeal] ?? o.unknownDeal);
-  return `Set in kashi: ${parts.join(", ")}`;
+  return `Set in central: ${parts.join(", ")}`;
 }

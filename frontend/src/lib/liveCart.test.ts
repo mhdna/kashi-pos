@@ -34,11 +34,11 @@ describe("liveOverrideFor", () => {
 });
 
 describe("liveOverrideTitle", () => {
-  it("names everything kashi set", () => {
+  it("names everything central set", () => {
     expect(liveOverrideTitle({ priceCents: 1250, discount: 10, noDeal: true })).toBe(
-      "Set in kashi: price $12.50, 10% off, no deal",
+      "Set in central: price $12.50, 10% off, no deal",
     );
-    expect(liveOverrideTitle({ unknownDeal: "b2g1_30" })).toBe("Set in kashi: deal, else 30%");
-    expect(liveOverrideTitle({ unknownDeal: "none" })).toBe("Set in kashi: no deal");
+    expect(liveOverrideTitle({ unknownDeal: "b2g1_30" })).toBe("Set in central: deal, else 30%");
+    expect(liveOverrideTitle({ unknownDeal: "none" })).toBe("Set in central: no deal");
   });
 });

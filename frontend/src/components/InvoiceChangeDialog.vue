@@ -51,7 +51,7 @@ function clientTitle(client: any): string {
 }
 
 // The invoice's own salesperson stays on offer (and named) even when the
-// roster leaves them out, e.g. a till-only salesperson after kashi took over.
+// roster leaves them out, e.g. a till-only salesperson after central took over.
 function withCurrentSalesperson(roster: SalespersonOption[]): SalespersonOption[] {
   const inv = props.invoice;
   const id = Number(inv?.salespersonId || 0);

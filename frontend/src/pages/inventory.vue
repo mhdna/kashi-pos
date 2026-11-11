@@ -211,7 +211,7 @@ function openProduct(product: InventoryItem) {
   detailOpen.value = true;
 }
 
-// Other branches' stock arrives from kashi's branch_stock feed; when a pull
+// Other branches' stock arrives from central's branch_stock feed; when a pull
 // applied some, reload so the quantities shown are the new ones.
 let branchStockSyncUnsub: (() => void) | null = null;
 onMounted(() => {

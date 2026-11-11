@@ -8,8 +8,8 @@ import { useLinkStatus } from "@/composables/useLinkStatus";
 import { ACTIVITY_HOLD_MS, describeLink, shouldHoldBusy, type Summary } from "@/lib/linkStatus";
 
 // The nav rail's connection light: what the till is doing (spinner, "Products
-// 3/21"), whether the internet and the live link to kashi are up (the live
-// link is what kashi's Branches page shows as connected), and a dialog with
+// 3/21"), whether the internet and the live link to central are up (the live
+// link is what central's Branches page shows as connected), and a dialog with
 // the detail. Tap it any time to see why.
 const auth = useAuthStore();
 const router = useRouter();
@@ -138,7 +138,7 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 10px 4px 8px;
+  padding: 4px 4px 4px;
   cursor: pointer;
   text-align: center;
 }

@@ -5,7 +5,7 @@
       App updates
     </k-card-title>
     <div class="text-caption text-medium-emphasis px-4 pb-2">
-      Updates are sent from kashi's App Updates page and install at a safe moment.
+      Updates are sent from central's App Updates page and install at a safe moment.
     </div>
     <k-card-text>
       <div class="mb-1">

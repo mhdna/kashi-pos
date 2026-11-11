@@ -4,7 +4,7 @@ import { EventsOn } from "../../wailsjs/runtime/runtime";
 import type { LinkInfo } from "@/lib/linkStatus";
 
 /**
- * The connection (internet, kashi, the live channel, current activity) for the
+ * The connection (internet, central, the live channel, current activity) for the
  * sync indicator. The Go side says "link_state_changed" whenever any of it
  * moves; this refetches on that, and ticks a clock once a second so "12 s ago"
  * and "trying again in 8 s" stay true without asking Go again.

@@ -35,9 +35,9 @@ const dtmfTones: Record<string, string> = {
 };
 
 // Every sound goes through play(), so the sounds_enabled flag (Settings, or
-// kashi's branch settings) is checked here once. Off until the flag has been
+// central's branch settings) is checked here once. Off until the flag has been
 // read and says otherwise -- sounds are off by default. settings_changed
-// fires on any flag change, a push from kashi included, so a running till
+// fires on any flag change, a push from central included, so a running till
 // follows it without a restart.
 let soundsEnabled = false;
 

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // Record photo thumbnails: fetched once per cache key, and fetched again
-// when the till says the record's photos changed in kashi (a photo turned,
+// when the till says the record's photos changed in central (a photo turned,
 // replaced or added), so the row shows the new one without reopening the
 // page.
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -99,7 +99,7 @@ describe("RecordPhoto", () => {
   });
 });
 
-describe("rows when kashi changes a photo", () => {
+describe("rows when central changes a photo", () => {
   it("refetches only the changed record's thumbnail and shows the new one", async () => {
     let version = "v1";
     const load = vi.fn(async (ref: string) => `data:${ref}-${version}`);

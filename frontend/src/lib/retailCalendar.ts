@@ -1,8 +1,8 @@
 // The built-in calendar (Lebanese holidays, clothing seasons...). The events
-// themselves are DATA -- date rules -- that kashi sends in the
+// themselves are DATA -- date rules -- that central sends in the
 // "calendar_settings" sync entity and the till keeps in its local database, so
-// they work offline and a change in kashi reaches the till on its next pull,
-// with no till release. builtinEvents.json is a copy of kashi's
+// they work offline and a change in central reaches the till on its next pull,
+// with no till release. builtinEvents.json is a copy of central's
 // api/builtin_events.json, used only until the first pull; the rule kinds are
 // explained at expandRule below.
 
@@ -155,7 +155,7 @@ export function expandRule(rule: Rule, year: number): Range[] {
 
 const bundled = bundledCatalog as Catalog;
 
-// The catalog kashi last sent (JSON text from the local database), or the
+// The catalog central last sent (JSON text from the local database), or the
 // bundled one when none has arrived yet or it does not look right.
 let parsedFor = "";
 let parsed: Catalog = bundled;
@@ -199,7 +199,7 @@ function parseDay(s: string): Date | null {
 export interface CalendarSettings {
   businessType: string;
   hiddenEvents: string[];
-  /** kashi's built-in events as JSON text; empty until the first pull. */
+  /** central's built-in events as JSON text; empty until the first pull. */
   catalog?: string;
 }
 

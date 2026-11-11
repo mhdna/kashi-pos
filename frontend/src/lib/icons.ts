@@ -1,6 +1,6 @@
 import {
-  // a category set in kashi syncs down with its icon name, so all of them,
-  // Expense/loan category icons kashi offers (its data/expenseCategoryIcons.js);,
+  // a category set in central syncs down with its icon name, so all of them,
+  // Expense/loan category icons central offers (its data/expenseCategoryIcons.js);,
   // Expenses / transfers / loans lists and their dialogs.,
   // must be here or the icon renders blank.,
   mdiAccount,

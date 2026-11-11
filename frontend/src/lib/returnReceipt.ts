@@ -1,9 +1,9 @@
 // Whether a checkout prints its receipt. A sale prints whenever receipts are
 // on; an exchange also needs this till's "Print return and exchange
-// receipts", which is set from kashi (branch settings; it reaches the till
+// receipts", which is set from central (branch settings; it reaches the till
 // with its display prefs). The backend applies the same rule (tx_exchange.go
 // printsReturnReceipt); an unprinted one can be reprinted from Invoices or
-// from kashi's Print on till.
+// from central's Print on till.
 
 export type CheckoutMode = "sale" | "exchange";
 

@@ -343,7 +343,7 @@
   </k-snackbar>
 
   <!-- "warn" oversell mode: the branch would go below zero on these
-       products. The cashier decides; kashi flags it either way. -->
+       products. The cashier decides; central flags it either way. -->
   <k-dialog v-model="oversellDialog.show" max-width="480" persistent>
     <k-card>
       <k-card-title>Not enough stock</k-card-title>
@@ -353,7 +353,7 @@
           <strong>{{ line.name || line.code }}</strong> — {{ Math.max(line.available, 0) }} in stock,
           {{ line.requested }} in this sale
         </div>
-        <p class="mt-3 mb-0">Sell anyway? kashi will flag the stock to be corrected.</p>
+        <p class="mt-3 mb-0">Sell anyway? Central will flag the stock to be corrected.</p>
       </k-card-text>
       <k-card-actions>
         <k-spacer />
@@ -508,7 +508,7 @@ type InvoiceDraft = {
   // restart or logout/login instead of silently reverting to a normal sale.
   exchangeOriginalInvoiceId?: number;
   exchangeOriginalInvoiceCode?: string;
-  // The sale's ref for kashi's live cart view (live_cart.go).
+  // The sale's ref for central's live cart view (live_cart.go).
   saleRef?: string;
   // The unknown-item pictures session opened for this cart.
   unknownClientRef?: string;
@@ -539,7 +539,7 @@ const autoAppendLbpZeros = ref(false);
 const overchangeConfirmationEnabled = ref(true);
 const alwaysAnonymousClientEnabled = ref(false);
 // Gates the product-search button in the toolbar below. Toggleable from the
-// local Settings page and remotely from kashi; a "settings_changed" event
+// local Settings page and remotely from central; a "settings_changed" event
 // (see loadAppSettings) reflects either change here without a reload.
 const productSearchEnabled = ref(true);
 // Whether the scan field also accepts product codes (see FindProductsForScan);
@@ -548,7 +548,7 @@ const scanByCodeEnabled = ref(true);
 const productSearchCodeOnly = ref(false);
 const productSearchHiddenFields = ref<string[]>([]);
 const priceEditRestricted = ref(false);
-// A salesperson can tap a line's discount chip to turn it off/on (kashi's
+// A salesperson can tap a line's discount chip to turn it off/on (central's
 // discount_toggle), and new lines can start with it off; deal_toggle does
 // the same for a line's deal chip.
 const discountToggleEnabled = ref(false);
@@ -559,7 +559,7 @@ const priceChangeMode = computed(() =>
   priceChangeManualOverrideEnabled.value ? "override" : "discount",
 );
 // Manual price/discount edits at checkout are gated entirely by the custom
-// pricing feature flags above (toggled from Settings / remotely from kashi).
+// pricing feature flags above (toggled from Settings / remotely from central).
 // When an admin turns them on they apply to every operator, cashiers included.
 const branchName = ref("Store");
 const screenPort = ref("");
@@ -614,7 +614,7 @@ interface InvoiceQuote {
   // The priced lines, for the deals they carry (free units, the saving):
   // InvoiceItems marks them on the cart lines.
   lines?: DealLine[];
-  // kashi's whole-sale discount, already off grandTotalCents.
+  // central's whole-sale discount, already off grandTotalCents.
   invoiceDiscountCents?: number;
   invoiceDiscountName?: string;
   // Only in exchange mode: the whole exchange quote, checked to add up,
@@ -663,7 +663,7 @@ let unsubscribeSettingsChanged: (() => void) | undefined;
 let unsubscribeListChanges: Array<() => void> = [];
 let listRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-// kashi changed a price or discount list: lines already in the cart follow it
+// Central changed a price or discount list: lines already in the cart follow it
 // (see InvoiceItems.applyListPricing) and the cashier is told, so a total never
 // moves silently. Debounced, since one edit can touch several synced tables.
 function scheduleCartListRefresh() {
@@ -713,12 +713,12 @@ watch(pendingSettlementInvoice, () => void consumePendingSettlement());
 
 const draftSaver = createDraftSaver(INVOICE_DRAFT_KEY);
 
-// ---- kashi's live cart view (live_cart.go) ----
-// The sale on screen is reported to kashi on every change and every 20 s.
-// Someone in kashi can then turn its deals off or set a line's price or
+// ---- central's live cart view (live_cart.go) ----
+// The sale on screen is reported to central on every change and every 20 s.
+// Someone in central can then turn its deals off or set a line's price or
 // discount past this branch's settings; the till applies that itself and
 // tells the screen, which marks those lines and locks them. Each sale has its
-// own ref, so kashi's changes never carry over to the next one.
+// own ref, so central's changes never carry over to the next one.
 function newSaleRef(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -765,12 +765,12 @@ function liveCartReport() {
         dealDiscountCents: priced.reduce((sum, l) => sum + (l.dealDiscountCents ?? 0), 0),
         dealOff: priced.find((l) => l.offDealLabel)?.offDealLabel ?? "",
         unknown: isUnknownItem(i),
-        // An unknown item's own name for kashi to change it by (every
+        // An unknown item's own name for central to change it by (every
         // unknown item shares a barcode), and the deal choice it's on.
         lineRef: isUnknownItem(i) ? (i.unknownRef ?? "") : "",
         unknownDeal: priced.find((l) => l.unknownDeal)?.unknownDeal ?? "",
         unknownDealLabel: priced.find((l) => l.unknownDealLabel)?.unknownDealLabel ?? "",
-        kashi: Boolean(i.remote),
+        central: Boolean(i.remote),
       };
     }),
   };
@@ -790,8 +790,8 @@ function scheduleLiveCart() {
   liveReportTimer = setTimeout(sendLiveCart, 600);
 }
 
-// Puts what kashi set for this sale on the cart (or takes it off), and
-// re-prices when anything changed. announce: kashi just sent it.
+// Puts what central set for this sale on the cart (or takes it off), and
+// re-prices when anything changed. announce: central just sent it.
 async function syncLiveOverrides(announce: boolean) {
   try {
     const o: any = await GetLiveCartOverrides();
@@ -804,7 +804,7 @@ async function syncLiveOverrides(announce: boolean) {
     if (!changed && !dealsChanged && !announce) return;
     await refreshQuote();
     if (announce && mine) {
-      snackbar.text = allOff ? "kashi changed this sale: every deal is off" : "kashi changed this sale";
+      snackbar.text = allOff ? "Central changed this sale: every deal is off" : "Central changed this sale";
       snackbar.color = "info";
       snackbar.icon = "";
       snackbar.show = true;
@@ -1225,7 +1225,7 @@ async function onBarcodeEnter() {
   focusBarcode();
 }
 
-// A product that asks a sale option (Summer/Winter, set in kashi) can't go
+// A product that asks a sale option (Summer/Winter, set in central) can't go
 // into the cart until the cashier says which one is being sold: the same
 // barcode covers both, and they're discounted differently. Every way of
 // adding a product comes through here. Returns false when it opened the
@@ -1477,7 +1477,7 @@ async function confirmPricesIfUnusual(): Promise<boolean> {
 
 // --- "Unknown item": something with no code, rung up at a typed price, with a
 // picture of every unit taken on a phone before the customer pays. ---
-// The product kashi named for unknown items (or the built-in placeholder).
+// The product central named for unknown items (or the built-in placeholder).
 const unknownProductBarcode = ref("UNKNOWN");
 const isUnknownItem = (item: any) => item?.barcode === unknownProductBarcode.value;
 const unknownPrice = reactive({ show: false });
@@ -1498,7 +1498,7 @@ const showUnknownCorner = computed(
 async function onUnknownAdd(price: number) {
   try {
     const product = await GetUnknownProduct();
-    // unknownRef names the line to kashi, so its picture stays with it as
+    // unknownRef names the line to central, so its picture stays with it as
     // other lines come and go while the phone is open.
     const unknownRef = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
     invoiceItems.value?.addItem({ ...product, price, qty: 1, originalPrice: price, unknownRef } as any);
@@ -1509,7 +1509,7 @@ async function onUnknownAdd(price: number) {
   focusBarcode();
 }
 
-// One unit per piece sold, tagged with its cart line: kashi takes one picture
+// One unit per piece sold, tagged with its cart line: central takes one picture
 // per line, whatever its qty.
 function unknownUnits() {
   const units: UnknownUnit[] = [];
@@ -1618,7 +1618,7 @@ async function onCheckout() {
   if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
   printPhase.value = "printing";
   printCashCents.value = calculator.value?.cashTotalCents ?? 0;
-  // An exchange prints when kashi's "Print return and exchange receipts"
+  // An exchange prints when central's "Print return and exchange receipts"
   // is on for this till (it arrives with the till's settings).
   printing.value = checkoutPrints(isExchange ? "exchange" : "sale", receiptEnabled.value, printReturnReceipts.value);
   try {

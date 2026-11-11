@@ -130,7 +130,7 @@
               </k-alert>
 
               <k-divider class="my-4" />
-              <div class="text-subtitle-2 mb-1">Import branch history from kashi</div>
+              <div class="text-subtitle-2 mb-1">Import branch history from central</div>
               <div class="text-caption text-medium-emphasis mb-2">For a reinstalled till with no history yet.</div>
               <k-btn
                 variant="outlined"
@@ -225,7 +225,7 @@
             </k-card-text>
           </k-card>
           <k-card v-show="panelMatches('general-sync')" class="settings-card">
-            <k-card-title>Central sync (kashi)</k-card-title>
+            <k-card-title>Central sync (central)</k-card-title>
             <k-card-text class="field-grid">
               <k-text-field
                 v-model="form.apiKey"
@@ -254,7 +254,7 @@
                   v-model="resyncApplyStock"
                   density="compact"
                   hide-details
-                  label="Also apply stock movements to kashi"
+                  label="Also apply stock movements to central"
                 />
                 <div class="d-flex align-center ga-2 mt-2">
                   <k-btn
@@ -295,7 +295,7 @@
                   <thead>
                     <tr>
                       <th>Entity</th><th class="text-right">Local</th>
-                      <th class="text-right">On kashi</th><th class="text-right">Missing</th>
+                      <th class="text-right">On central</th><th class="text-right">Missing</th>
                       <th class="text-right">{{ resyncReport.dryRun ? "Would queue" : "Queued" }}</th>
                     </tr>
                   </thead>
@@ -313,7 +313,7 @@
                 <k-table v-if="resyncReport?.fullCheck" density="compact" class="mt-3">
                   <thead>
                     <tr>
-                      <th>Full check</th><th class="text-right">On kashi</th>
+                      <th>Full check</th><th class="text-right">On central</th>
                       <th class="text-right">Fetched</th><th class="text-right">Deactivated</th>
                     </tr>
                   </thead>
@@ -410,7 +410,7 @@
           <k-card v-show="panelMatches('money-currencies')" class="settings-card settings-card--wide">
             <k-card-title>Currencies &amp; rates</k-card-title>
             <k-card-text>
-              <div class="settings-note">Set in kashi.</div>
+              <div class="settings-note">Set in central.</div>
               <k-table density="compact">
                 <thead>
                   <tr>
@@ -438,7 +438,7 @@
           <k-card v-show="panelMatches('money-price-lists')" class="settings-card">
             <k-card-title>Price lists</k-card-title>
             <k-card-text>
-              <div class="settings-note">Set in kashi. A product no active list prices can't be sold.</div>
+              <div class="settings-note">Set in central. A product no active list prices can't be sold.</div>
               <k-table density="compact">
                 <thead>
                   <tr>
@@ -468,7 +468,7 @@
           <k-card v-show="panelMatches('money-discount-lists')" class="settings-card">
             <k-card-title>Discount lists</k-card-title>
             <k-card-text>
-              <div class="settings-note">Set in kashi.</div>
+              <div class="settings-note">Set in central.</div>
               <k-table density="compact">
                 <thead>
                   <tr>
@@ -544,7 +544,7 @@
           <k-card v-show="panelMatches('money-payment-methods')" class="settings-card settings-card--wide">
             <k-card-title>Payment methods</k-card-title>
             <k-card-text>
-              <div class="settings-note">Set in kashi.</div>
+              <div class="settings-note">Set in central.</div>
               <k-table density="compact">
                 <thead>
                   <tr>
@@ -762,7 +762,7 @@
                 variant="outlined"
                 @update:model-value="saveOversellMode"
               />
-<div class="settings-note mt-1">kashi alerts on any stock below zero.</div>
+<div class="settings-note mt-1">central alerts on any stock below zero.</div>
             </k-card-text>
           </k-card>
 
@@ -1149,16 +1149,16 @@
                   <k-btn size="small" value="kashi">kashi</k-btn>
                 </k-btn-toggle>
                 <span v-if="quickAccessMode === 'kashi'" class="text-caption text-medium-emphasis">
-                  Edit in kashi: Branch settings → Quick access.
+                  Edit in central: Branch settings → Quick access.
                 </span>
                 <span v-else-if="!quickAccessKashiAvailable" class="text-caption text-medium-emphasis">
-                  kashi isn't connected.
+                  Central isn't connected.
                 </span>
               </div>
               <div v-if="!quickAccessItems.length" class="text-body-2 text-medium-emphasis">
                 {{
                   quickAccessMode === "kashi"
-                    ? "No Quick Access cards set in kashi for this branch yet."
+                    ? "No Quick Access cards set in central for this branch yet."
                     : "No quick access items yet. Pin products from the sale screen first."
                 }}
               </div>
@@ -1466,7 +1466,7 @@
                 <k-icon start icon="mdi-plus" /> Add user
               </k-btn>
             </k-card-title>
-            <div class="settings-note px-4">kashi users: only their PIN can be reset here.</div>
+            <div class="settings-note px-4">central users: only their PIN can be reset here.</div>
             <k-data-table
               :headers="userHeaders"
               :items="users"
@@ -1484,7 +1484,7 @@
                   size="x-small"
                   variant="tonal"
                 >
-                  kashi
+                  central
                 </k-chip>
               </template>
               <template #item.active="{ item }">
@@ -1529,7 +1529,7 @@
               </k-btn>
             </k-card-title>
             <div v-if="salespersonsSyncManaged" class="settings-note px-4">
-              Set in kashi; only the attendance ID can be changed here.
+              Set in central; only the attendance ID can be changed here.
             </div>
             <k-data-table
               :headers="salespersonHeaders"
@@ -1688,7 +1688,7 @@
         </k-card-title>
         <k-card-text>
           <div v-if="editingSyncedUser" class="text-body-2 text-medium-emphasis mb-3">
-            {{ editingUser.username }} is managed from kashi. Only the PIN can be reset here.
+            {{ editingUser.username }} is managed from central. Only the PIN can be reset here.
           </div>
           <k-text-field
             v-if="!editingSyncedUser"
@@ -1744,10 +1744,10 @@
 
     <k-dialog :model-value="showDeactivationConfirm" max-width="480" persistent>
       <k-card v-if="pendingDeactivation">
-        <k-card-title>Deactivate products no longer on kashi?</k-card-title>
+        <k-card-title>Deactivate products no longer on central?</k-card-title>
         <k-card-text>
           <div class="mb-2">
-            kashi no longer has these. They'll be hidden from checkout here too (past invoices keep them).
+            Central no longer has these. They'll be hidden from checkout here too (past invoices keep them).
           </div>
           <div v-if="pendingDeactivation.productBarcodes.length" class="mb-2">
             <div class="text-caption text-medium-emphasis">
@@ -1830,8 +1830,8 @@
             {{ editingSalesperson?.fullName }} --
             {{
               editingSalesperson?.isSynced
-                ? "name, color and active state are managed from kashi."
-                : "not in kashi; add them there to manage their name."
+                ? "name, color and active state are managed from central."
+                : "not in central; add them there to manage their name."
             }}
           </div>
           <k-text-field v-model="salespersonAttendanceUserId" placeholder="Akuvox attendance ID" variant="outlined" density="compact" />
@@ -2136,13 +2136,13 @@ const panelMeta: Record<string, { tab: string; title: string; keywords: string }
   "printing-header-footer": { tab: "printing", title: "Receipt header & footer", keywords: "market name phone tagline description branch phone register name website return policy social platforms instagram facebook handle" },
   "printing-look": { tab: "printing", title: "Receipt look", keywords: "receipt look theme layout style design columns preview classic supermarket boutique modern bistro typewriter fonts" },
   "printing-devices": { tab: "printing", title: "Devices", keywords: "receipt printer customer screen com port serial" },
-  "general-quick-access-colors": { tab: "quick_access", title: "Quick access colors", keywords: "quick access card color colour background text font source kashi central managed till" },
+  "general-quick-access-colors": { tab: "quick_access", title: "Quick access colors", keywords: "quick access card color colour background text font source central central managed till" },
   "general-branch": { tab: "general", title: "Branch", keywords: "branch name code sales inventory" },
   "general-database": { tab: "general", title: "Database", keywords: "database path choose switch" },
   "general-branches": { tab: "general", title: "Branches", keywords: "branches switch default active add branch multiple instances" },
   "general-cash-machine": { tab: "general", title: "Cash machine", keywords: "cash machine windows performance slow programs apps startup close kiosk minimal onedrive teams" },
   "general-stuck-keys": { tab: "general", title: "Stuck keys", keywords: "stuck keys windows key win ctrl alt shift held anydesk remote mac keyboard scanner shortcuts" },
-  "general-sync": { tab: "general", title: "Central sync (kashi)", keywords: "central sync kashi server url branch code api key upload before close shift wait pending offline" },
+  "general-sync": { tab: "general", title: "Central sync (central)", keywords: "Central sync central server url branch code api key upload before close shift wait pending offline" },
   "general-targets": { tab: "general", title: "Targets", keywords: "targets revenue goal progress date range" },
   "general-admin-legacy": { tab: "general", title: "kashi-admin (legacy)", keywords: "remote admin api listen address token legacy tui" },
   "attendance-machine": { tab: "attendance", title: "Attendance machine", keywords: "akuvox ip username password manager duplicate interval enable cashier history auto close stale shifts" },
@@ -2453,7 +2453,7 @@ function platformLabel(platform: string) {
 }
 const serialPorts = ref<string[]>([]);
 const printers = ref<string[]>([]);
-// Read-only mirror of what kashi's admin has set for this branch (see
+// Read-only mirror of what central's admin has set for this branch (see
 // sync_pull.go) -- there is no create/edit here, targets are managed
 // centrally only.
 const branchTargets = ref<
@@ -2521,7 +2521,7 @@ const salespersonHeaders = [
   { title: "Status", key: "isActive", sortable: false },
   { title: "", key: "actions", sortable: false, align: "end" as const },
 ];
-// When central sync (kashi) is configured this branch's salesperson roster is
+// When central sync (central) is configured this branch's salesperson roster is
 // owned upstream and only the local attendance ID is editable. With no central
 // server set, salespersons are managed entirely locally (add/rename/delete).
 const salespersonsSyncManaged = computed(() => !!form.centralApiUrl?.trim());
@@ -2561,7 +2561,7 @@ async function loadQuickAccessItems() {
 
 // Where this register's Quick Access cards come from: its own list ("till")
 // or its branch's list in kashi ("kashi"). Flipping here reaches kashi
-// through the sync outbox; kashi can flip it too, and the later flip wins.
+// through the sync outbox; central can flip it too, and the later flip wins.
 const quickAccessMode = ref("till");
 const quickAccessKashiAvailable = ref(false);
 const changingQuickAccessMode = ref(false);
@@ -3140,7 +3140,7 @@ async function savePriceEditCodes() {
 }
 
 const oversellModes = [
-  { title: "Allow: sell, fix stock in kashi later", value: "allow" },
+  { title: "Allow: sell, fix stock in central later", value: "allow" },
   { title: "Warn: cashier confirms before selling", value: "warn" },
   { title: "Block: refuse the sale", value: "block" },
 ];
@@ -3462,7 +3462,7 @@ async function togglePageUnlock(page: string, value: boolean | null) {
   }
 }
 
-// kashi can flip this register's Quick Access source, or change its list,
+// Central can flip this register's Quick Access source, or change its list,
 // while this page is open.
 const stopQuickAccessListener = EventsOn("sync_applied:quick_access", () => void loadQuickAccessItems());
 onBeforeUnmount(stopQuickAccessListener);
@@ -3630,7 +3630,7 @@ async function saveSalesperson() {
   savingSalesperson.value = true;
   try {
     // No editing target => creating a new local salesperson. Only possible
-    // when central sync is off; with kashi sync on the roster is upstream-owned
+    // when central sync is off; with central sync on the roster is upstream-owned
     // and the Add button is hidden (see salespersonsSyncManaged).
     let id: number;
     if (!editing) {
@@ -3638,7 +3638,7 @@ async function saveSalesperson() {
       id = Number(created.id);
     } else {
       id = editing.id;
-      // Renaming is standalone-only -- with kashi connected the name is
+      // Renaming is standalone-only -- with central connected the name is
       // kashi-owned, also for a till-only leftover (see salespersonNameEditable).
       if (salespersonNameEditable.value) {
         await UpdateSalesperson(id, salespersonName.value);

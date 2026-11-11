@@ -109,7 +109,7 @@ describe("SyncIndicator", () => {
       expect(text("sync-word")).toBe("Synced");
 
       // A pass sends records...
-      linkRef.value = { ...baseLink(), phase: "pushing", label: "Sending to kashi", done: 0, total: 3 };
+      linkRef.value = { ...baseLink(), phase: "pushing", label: "Sending to central", done: 0, total: 3 };
       await flushPromises();
       expect(text("sync-word")).toBe("Sending");
 
@@ -140,7 +140,7 @@ describe("SyncIndicator", () => {
     vi.useFakeTimers();
     try {
       show();
-      linkRef.value = { ...baseLink(), phase: "pushing", label: "Sending to kashi", done: 0, total: 3 };
+      linkRef.value = { ...baseLink(), phase: "pushing", label: "Sending to central", done: 0, total: 3 };
       await flushPromises();
       linkRef.value = { ...baseLink(), internet: "down", kashi: "down", kashiError: "can't connect to the server", live: false };
       await flushPromises();

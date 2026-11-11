@@ -57,8 +57,8 @@
               :text="item.saleOption"
               variant="tonal"
             />
-            <!-- kashi set this line's price, discount or deal from its live
-                 cart view; it stays as kashi set it. -->
+            <!-- central set this line's price, discount or deal from its live
+                 cart view; it stays as central set it. -->
             <k-chip
               v-if="item.remote"
               class="invoice-item-sale-option"
@@ -69,7 +69,7 @@
               variant="tonal"
             >
               <k-icon class="me-1" icon="mdi-lock" size="12" />
-              kashi
+              central
             </k-chip>
             <!-- The line's deal in short ("B2G1"), and how many of its
                  units it gives free; the deal's full name shows on hover. -->
@@ -540,9 +540,9 @@ interface LineItem {
   // prop - used by exchange mode, where returned (negative-qty) lines stay
   // locked while replacement lines scanned afterward are fully editable.
   locked?: boolean;
-  // kashi priced this line from its live cart (live_cart.go): what it set,
-  // and the line's own price and discount to go back to when kashi lifts it.
-  // The till applies kashi's values itself; nothing here can be edited.
+  // Central priced this line from its live cart (live_cart.go): what it set,
+  // and the line's own price and discount to go back to when central lifts it.
+  // The till applies central's values itself; nothing here can be edited.
   remote?: RemoteLine;
 }
 
@@ -550,7 +550,7 @@ interface RemoteLine {
   priceCents?: number | null;
   discount?: number | null;
   noDeal?: boolean;
-  // An unknown item's deal choice from kashi; the till prices it, the cart
+  // An unknown item's deal choice from central; the till prices it, the cart
   // only shows it.
   unknownDeal?: string;
   prevPrice: number;
@@ -570,7 +570,7 @@ const props = defineProps<{
   // in priceEditCodes (lowercased by the caller).
   priceEditRestricted?: boolean;
   priceEditCodes?: string[];
-  // Barcode of the "Unknown item" product (kashi's branch setting).
+  // Barcode of the "Unknown item" product (central's branch setting).
   unknownBarcode?: string;
   perUnitPricesEnabled?: boolean;
   // "discount" (default): editing price or discount recomputes the other
@@ -588,9 +588,9 @@ const props = defineProps<{
   // opening the number-pad popup, and arrow keys move focus between fields.
   keyboardMode?: boolean;
   // A salesperson may turn a line's list discount off and on, with a
-  // confirmation, but never change it (kashi's discount_toggle).
+  // confirmation, but never change it (central's discount_toggle).
   discountToggleEnabled?: boolean;
-  // The same for a line's deal (kashi's deal_toggle).
+  // The same for a line's deal (central's deal_toggle).
   dealToggleEnabled?: boolean;
   // With the toggle on, new lines start with their discount off.
   discountDefaultOff?: boolean;
@@ -754,7 +754,7 @@ function confirmToggle() {
   toggleDialog.value = false;
 }
 
-// kashi turned a toggle off: every line gets its discount (or deal) back,
+// Central turned a toggle off: every line gets its discount (or deal) back,
 // since the till no longer accepts a line with it off.
 watch(
   () => props.discountToggleEnabled,
@@ -952,8 +952,8 @@ onMounted(async () => {
     categoryIcons.value = map;
   } catch {}
   try {
-    // Staff who only punch attendance (isSalesperson off in kashi) don't sell,
-    // and the till's own leftovers aren't offered once kashi manages the staff.
+    // Staff who only punch attendance (isSalesperson off in central) don't sell,
+    // and the till's own leftovers aren't offered once central manages the staff.
     salespersons.value = ((await ListSalespersons()) as Salesperson[])
       .filter((s: any) => s.isSalesperson !== false && s.isCurrent !== false)
       .sort((a, b) => a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }));
@@ -1433,9 +1433,9 @@ function remoteTitle(item: LineItem): string {
   return item.remote ? liveOverrideTitle(item.remote) : "";
 }
 
-// Puts kashi's live-cart overrides on the lines they name and takes them off
+// Puts central's live-cart overrides on the lines they name and takes them off
 // the rest, giving a freed line back its own price and discount. The till
-// prices from kashi's values whatever these say; this is so the cart shows
+// prices from central's values whatever these say; this is so the cart shows
 // them. Returns whether any line changed.
 function applyRemoteOverrides(lines: LiveCartLineOverride[]): boolean {
   let changed = false;

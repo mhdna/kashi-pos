@@ -183,7 +183,7 @@
       <span>Total</span>
       <span>{{ formatBalance(grandTotal, "USD", currencies, roundingMode) }}</span>
     </div>
-    <!-- The total counts every sale, as kashi's reports do; these parts of
+    <!-- The total counts every sale, as central's reports do; these parts of
          it aren't money in the drawer yet. -->
     <div v-if="couponTotal || onAccountTotal" class="text-caption text-medium-emphasis text-end">
       Includes

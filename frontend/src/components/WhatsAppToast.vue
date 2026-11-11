@@ -21,7 +21,7 @@ import { onMounted, onUnmounted, ref } from "vue";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 // The post-sale WhatsApp message, as seen from the till: "whatsapp_sent"
-// when kashi sent it (whatsapp.go), "review_received" when the client
+// when central sent it (whatsapp.go), "review_received" when the client
 // answered the rating poll (sync_ws.go). Queued like AttendanceToast so two
 // at once both show.
 
@@ -119,7 +119,7 @@ onUnmounted(() => {
   border: 1px solid rgba(var(--k-theme-on-surface), 0.12);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25) !important;
   /* Sits under home.vue's "Receipt printed" snackbar, which is also at the
-     top and usually still up when kashi reports the message sent. */
+     top and usually still up when central reports the message sent. */
   margin-top: 76px !important;
 }
 </style>

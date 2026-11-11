@@ -43,7 +43,7 @@ describe("Print return receipts", () => {
     expect((await freshDisplay()).printReturnReceipts.value).toBe(false);
   });
 
-  it("follows a push from kashi", async () => {
+  it("follows a push from central", async () => {
     const display = await freshDisplay();
     vi.mocked(GetDisplayPrefs).mockResolvedValue({ prefs: { print_return_receipts: false }, rev: 5 } as never);
     await display.startDisplayPrefsSync(() => {});

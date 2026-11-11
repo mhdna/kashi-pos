@@ -31,11 +31,11 @@ export function setProductSearchInPlace(inPlace: boolean) {
   reportDisplayPrefs();
 }
 
-/** "Print return and exchange receipts", set from kashi's branch settings
+/** "Print return and exchange receipts", set from central's branch settings
  * (it arrives with the display prefs; the till has no switch for it): whether
- * an exchange at the till prints, and whether a return kashi sends prints
+ * an exchange at the till prints, and whether a return central sends prints
  * (the backend reads the mirrored prefs, display_prefs.go returnReceiptsOn).
- * On unless kashi turned it off. */
+ * On unless central turned it off. */
 export const printReturnReceipts = ref(localStorage.getItem("kashi-print-return-receipts") !== "false");
 
 export function setPrintReturnReceipts(print: boolean) {
@@ -142,7 +142,7 @@ export function setQuickAccessFontScale(percent: number) {
 
 /* ---- kashi-managed display prefs ------------------------------------------
  * The prefs above live in localStorage so they apply instantly, but they are
- * mirrored to the till's database (display_prefs.go) so kashi can see them
+ * mirrored to the till's database (display_prefs.go) so central can see them
  * and push new values. A push bumps a revision; this screen adopts the stored
  * prefs whenever that revision is newer than the last one it applied. */
 
@@ -192,7 +192,7 @@ async function adoptPushedDisplayPrefs(applyTheme: (theme: string) => void) {
   localStorage.setItem(APPLIED_REV_KEY, String(rev));
 }
 
-/** Called once the database is ready: adopt anything kashi pushed while the
+/** Called once the database is ready: adopt anything central pushed while the
  * app was closed, listen for live pushes, and report this screen's values. */
 export async function startDisplayPrefsSync(applyTheme: (theme: string) => void) {
   const adopt = () => adoptPushedDisplayPrefs(applyTheme).catch(() => {});
