@@ -53,8 +53,8 @@ WIN_VERSION =$(if $(word 4,$(subst ., ,$(APP_VERSION))),$(APP_VERSION),$(APP_VER
 .PHONY: set-version
 set-version:
 	@echo "$(APP_VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$$' || \
-		{ echo "version '$(APP_VERSION)' must be X.Y.Z or X.Y.Z.W (tag it like v1.2.3)"; exit 1; }
-	sed -i.bak -E 's/("productVersion": *")[^"]*"/\1$(WIN_VERSION)"/' wails.json && rm -f wails.json.bak
+		{ ./scripts/say.sh fail "version '$(APP_VERSION)' must be X.Y.Z or X.Y.Z.W (tag it like v1.2.3)"; exit 1; }
+	@sed -i.bak -E 's/("productVersion": *")[^"]*"/\1$(WIN_VERSION)"/' wails.json && rm -f wails.json.bak
 
 # The next release: the latest tag plus one patch (1.1.65 -> 1.1.66), or
 # `make bump PART=minor` / `PART=major`, or `make bump VERSION=1.2.0`.
@@ -69,14 +69,14 @@ bump:
 	@set -e; \
 	last=$$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//'); last=$${last:-0.0.0}; \
 	if [ -n "$$(git status --porcelain)" ]; then \
-		echo "Not bumping: there are uncommitted changes (git status). Commit or stash them first."; exit 1; \
+		./scripts/say.sh fail "Not bumping: there are uncommitted changes (git status). Commit or stash them first."; exit 1; \
 	fi; \
 	if git rev-parse -q --verify "refs/tags/v$$last" >/dev/null && \
 	   [ -z "$$(git log --format=%s "v$$last..HEAD" | grep -v '^chore: release v')" ]; then \
-		echo "Not bumping: nothing committed since v$$last."; exit 1; \
+		./scripts/say.sh fail "Not bumping: nothing committed since v$$last."; exit 1; \
 	fi; \
-	echo "Checking it builds..."; \
-	go build -o /dev/null . || { echo "Not bumping: the code doesn't build."; exit 1; }; \
+	./scripts/say.sh step "Checking it builds…"; \
+	go build -o /dev/null . || { ./scripts/say.sh fail "Not bumping: the code doesn't build."; exit 1; }; \
 	next="$(VERSION)"; \
 	if [ -z "$$next" ]; then \
 		set -- $$(echo "$$last" | tr . " "); ma=$$1; mi=$$2; pa=$$3; \
@@ -84,22 +84,24 @@ bump:
 			major) next=$$((ma + 1)).0.0 ;; \
 			minor) next=$$ma.$$((mi + 1)).0 ;; \
 			patch) next=$$ma.$$mi.$$((pa + 1)) ;; \
-			*) echo "PART must be patch, minor or major"; exit 1 ;; \
+			*) ./scripts/say.sh fail "PART must be patch, minor or major"; exit 1 ;; \
 		esac; \
 	fi; \
-	echo "$$next" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "version '$$next' must be X.Y.Z"; exit 1; }; \
-	if git rev-parse -q --verify "refs/tags/v$$next" >/dev/null; then echo "v$$next is already tagged"; exit 1; fi; \
+	echo "$$next" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$' || { ./scripts/say.sh fail "version '$$next' must be X.Y.Z"; exit 1; }; \
+	if git rev-parse -q --verify "refs/tags/v$$next" >/dev/null; then ./scripts/say.sh fail "v$$next is already tagged"; exit 1; fi; \
 	sed -i.bak -E "s/(\"productVersion\": *\")[^\"]*\"/\1$$next.0\"/" wails.json && rm -f wails.json.bak; \
 	sed -i.bak -E "s/(INFO_PRODUCTVERSION \")[^\"]*\"/\1$$next.0\"/" build/windows/installer/wails_tools.nsh && rm -f build/windows/installer/wails_tools.nsh.bak; \
 	git commit -q -m "chore: release v$$next" -- wails.json build/windows/installer/wails_tools.nsh; \
 	git tag "v$$next"; \
-	echo "v$$last -> v$$next (committed and tagged; make publish ships it)"
+	./scripts/say.sh ok "Version bumped: v$$last → v$$next (committed and tagged; make publish ships it)"
 
+# The wails build is long and noisy: its output goes to .build.log and the
+# terminal shows one line (scripts/quiet-build.sh); a failure prints the end of it.
 build-windows: set-version
-	wails build -platform windows/amd64 -nsis -clean -ldflags "-X main.appVersion=$(APP_VERSION)"
+	@./scripts/quiet-build.sh "GB Cloud $(APP_VERSION) (standard)" .build.log -- wails build -platform windows/amd64 -nsis -clean -ldflags "-X main.appVersion=$(APP_VERSION)"
 
 build-windows-compact: set-version
-	KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 wails build -platform windows/amd64 -tags compact -nsis -clean -o "GB Cloud Compact.exe" -ldflags "-X main.appVersion=$(APP_VERSION)"
+	@KASHI_COMPACT=1 VITE_KASHI_COMPACT=1 ./scripts/quiet-build.sh "GB Cloud $(APP_VERSION) (compact)" .build.log -- wails build -platform windows/amd64 -tags compact -nsis -clean -o "GB Cloud Compact.exe" -ldflags "-X main.appVersion=$(APP_VERSION)"
 
 # Where publish talks to: the tills' central URL (with /api) and the admin to
 # sign in as. Kept in .publish.env (git-ignored, KEY=value lines) so they need
@@ -164,7 +166,7 @@ $(RELEASES):
 	@last=$$(git describe --tags --abbrev=0 2>/dev/null); \
 	if [ -z "$$(git status --porcelain)" ] && [ -n "$$last" ] && \
 	   [ -z "$$(git log --format=%s "$$last..HEAD" | grep -v '^chore: release v')" ]; then \
-		echo "Nothing new since $$last: publishing it as is (no bump)."; \
+		./scripts/say.sh step "Nothing new since $$last: publishing it as is (no bump)."; \
 	else \
 		$(MAKE) bump || exit 1; \
 	fi

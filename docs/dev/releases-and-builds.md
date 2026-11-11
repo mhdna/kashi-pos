@@ -15,6 +15,17 @@
 | `make publish-compact…` | The same for the compact flavor. |
 | `make receipt-previews` | Regenerate the receipt look images central's settings pages show; commit them in central. |
 
+## What the release commands print
+
+The wails build is long and noisy, so `make publish` / `make release` show one
+line instead (`scripts/quiet-build.sh`): a spinner and "Building GB Cloud X…",
+then "Built … in 42s". The full output goes to `.build.log` (git-ignored); a
+failed build shows the last 30 lines and where the log is. Messages are one
+coloured line each (`scripts/pretty.sh`; no colour when piped or with
+`NO_COLOR=1`). A refused upload says what it means: 409 already published (bump),
+502/503/504/521-523 central is being updated (nothing was published, run it
+again), 413 too big, and so on (`uploadFailure`, `cmd/publish-release/ui.go`).
+
 ## Releasing
 
 1. Finish the work and commit it. `make bump` refuses if anything is
