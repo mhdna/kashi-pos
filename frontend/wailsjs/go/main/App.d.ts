@@ -188,6 +188,8 @@ export function GetInvoiceRatings(arg1:Array<string>):Promise<Record<string, mai
 
 export function GetInvoiceSyncStates(arg1:Array<number>):Promise<Array<main.InvoiceSyncState>>;
 
+export function GetLinkStatus():Promise<main.LinkStatus>;
+
 export function GetLiveCartOverrides():Promise<main.liveCartOverrides>;
 
 export function GetLoanFirstPhoto(arg1:string,arg2:number):Promise<string>;
@@ -221,8 +223,6 @@ export function GetSoundsEnabled():Promise<boolean>;
 export function GetSpendSummary(arg1:number):Promise<Record<string, any>>;
 
 export function GetStartupError():Promise<string>;
-
-export function GetLinkStatus():Promise<main.LinkStatus>;
 
 export function GetSyncStatus():Promise<main.SyncStatusResult>;
 

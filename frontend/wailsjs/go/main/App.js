@@ -374,6 +374,10 @@ export function GetInvoiceSyncStates(arg1) {
   return window['go']['main']['App']['GetInvoiceSyncStates'](arg1);
 }
 
+export function GetLinkStatus() {
+  return window['go']['main']['App']['GetLinkStatus']();
+}
+
 export function GetLiveCartOverrides() {
   return window['go']['main']['App']['GetLiveCartOverrides']();
 }
@@ -440,10 +444,6 @@ export function GetSpendSummary(arg1) {
 
 export function GetStartupError() {
   return window['go']['main']['App']['GetStartupError']();
-}
-
-export function GetLinkStatus() {
-  return window['go']['main']['App']['GetLinkStatus']();
 }
 
 export function GetSyncStatus() {
