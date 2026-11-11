@@ -10,6 +10,7 @@ let firstClients: any[] | null = null;
 // The invoice list row fields the dialog reads.
 export interface ChangeableInvoice {
   id: number;
+  invoiceCode?: string;
   clientId?: number;
   clientName?: string;
   clientPhone?: string;
@@ -20,6 +21,7 @@ export interface ChangeableInvoice {
 export interface SalespersonOption {
   id: number;
   fullName: string;
+  color?: string | null;
 }
 
 export function cachedSalespersons(): SalespersonOption[] | null {

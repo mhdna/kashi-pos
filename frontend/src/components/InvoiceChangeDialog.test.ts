@@ -73,7 +73,14 @@ const saveBtn = () => q<HTMLButtonElement>(".invoice-change-save")!;
 const cancelBtn = () => q<HTMLButtonElement>(".invoice-change-cancel")!;
 const selectText = () => q(".k-select__text")?.textContent?.trim() ?? "";
 const selectPlaceholder = () => q(".k-select__placeholder")?.textContent?.trim() ?? "";
-const menuTitles = () => qa(".k-menu .k-list-item-title").map((el) => el.textContent?.trim() ?? "");
+// A row as the cashier reads it: the name, then " · phone" when it has one
+// (the phone is the row's second line).
+const rowText = (el: Element) =>
+  [el.querySelector(".k-list-item-title"), el.querySelector(".k-list-item-subtitle")]
+    .map((part) => part?.textContent?.trim() ?? "")
+    .filter(Boolean)
+    .join(" · ");
+const menuTitles = () => qa(".k-menu .k-list-item").map(rowText);
 const clientInput = () => q<HTMLInputElement>(".invoice-change-dialog .k-field__input")!;
 
 async function click(el: Element | null) {
@@ -85,7 +92,7 @@ async function openSelectMenu() {
   await click(q(".k-select__selection"));
 }
 async function pickMenuItem(title: string) {
-  const item = qa(".k-menu .k-list-item").find((el) => el.querySelector(".k-list-item-title")?.textContent?.trim() === title);
+  const item = qa(".k-menu .k-list-item").find((el) => rowText(el) === title);
   expect(item, `menu item "${title}" among ${JSON.stringify(menuTitles())}`).toBeTruthy();
   await click(item!);
 }
@@ -547,5 +554,82 @@ describe("Change Client", () => {
     await flushPromises();
     expect(clientInput().value).toBe("No Phone");
     expect(saveBtn().disabled).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe("the dialog's look: who it is now, and avatars", () => {
+  // The "Now" card read in order: avatar initials, name, then phone or note.
+  const now = () =>
+    qa('[data-test="change-current"] .k-avatar, [data-test="change-current"] .invoice-change-current__text > div')
+      .map((el) => el.textContent?.trim() ?? "")
+      .filter(Boolean)
+      .join(" ");
+  const rowInitials = () => qa(".k-menu .k-list-item .k-avatar").map((el) => el.textContent?.trim());
+
+  it("names the current salesperson with their initials, before the roster arrives", async () => {
+    listSalespersons.mockReturnValue(deferred<any[]>().promise);
+    mountDialog("salesperson", { id: 1, invoiceCode: "CT1-00042", salespersonId: 3, salespersonName: "Rana Haddad" });
+    await flushPromises();
+    expect(now()).toBe("RH Rana Haddad");
+    expect(dialog()?.textContent).toContain("Invoice CT1-00042");
+    expect(q(".k-select .k-avatar")?.textContent?.trim()).toBe("RH");
+  });
+
+  it("never shows a bare id as who it is now, even for a salesperson no longer offered", async () => {
+    listSalespersons.mockResolvedValue(ROSTER);
+    mountDialog("salesperson", { id: 1, salespersonId: 9, salespersonName: "" });
+    await flushPromises();
+    expect(now()).toBe("FS Former salesperson");
+    expect(now()).not.toMatch(/\b9\b/);
+  });
+
+  it("says Anonymous sale when the invoice has no salesperson", async () => {
+    listSalespersons.mockResolvedValue(ROSTER);
+    mountDialog("salesperson", { id: 1, salespersonId: 0 });
+    await flushPromises();
+    expect(now()).toBe("Anonymous sale");
+  });
+
+  it("gives every salesperson row an avatar with their initials", async () => {
+    listSalespersons.mockResolvedValue(ROSTER);
+    mountDialog("salesperson", { id: 1, salespersonId: 3, salespersonName: "Rana Haddad" });
+    await flushPromises();
+    await openSelectMenu();
+    expect(rowInitials()).toEqual(["RH", "OK"]);
+  });
+
+  it("moves the field's avatar to the salesperson picked", async () => {
+    listSalespersons.mockResolvedValue(ROSTER);
+    mountDialog("salesperson", { id: 1, salespersonId: 3, salespersonName: "Rana Haddad" });
+    await flushPromises();
+    await openSelectMenu();
+    await pickMenuItem("Omar Khalil");
+    expect(q(".k-select .k-avatar")?.textContent?.trim()).toBe("OK");
+    expect(now()).toBe("RH Rana Haddad"); // who it is now doesn't move until saved
+  });
+
+  it("names the current client with their phone", async () => {
+    searchClients.mockResolvedValue(CLIENTS);
+    mountDialog("client", { id: 1, clientId: 12, clientName: "Karim Aoun", clientPhone: "+96178834243" });
+    await flushPromises();
+    expect(now()).toBe("KA Karim Aoun (78) 834-243");
+  });
+
+  it("says Walk-in customer when the invoice has no client", async () => {
+    searchClients.mockResolvedValue(CLIENTS);
+    mountDialog("client", { id: 1, clientId: 0 });
+    await flushPromises();
+    expect(now()).toBe("Walk-in customer");
+  });
+
+  it("gives every client row an avatar, the phone on its second line", async () => {
+    searchClients.mockResolvedValue(CLIENTS);
+    mountDialog("client", { id: 1, clientId: 0 });
+    await flushPromises();
+    clientInput().dispatchEvent(new Event("focus"));
+    await flushPromises();
+    expect(rowInitials()).toEqual(["MS", "KA", "NP"]);
+    expect(qa(".k-menu .k-list-item-subtitle").map((el) => el.textContent?.trim())).toEqual(["(70) 111-222", "(78) 834-243"]);
   });
 });
