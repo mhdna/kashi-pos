@@ -278,7 +278,7 @@ async function confirmManager() {
   opacity: 0.8;
 }
 .shift-total-amount {
-  font-size: 1.6rem;
+  font-size: 1.3rem;
   font-weight: 800;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
