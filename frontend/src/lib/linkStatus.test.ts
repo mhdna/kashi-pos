@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agoText, describeLink, durationText, secondsUntil, type LinkInfo, type QueueInfo } from "./linkStatus";
+import { ACTIVITY_HOLD_MS, agoText, describeLink, durationText, secondsUntil, shouldHoldBusy, type LinkInfo, type QueueInfo } from "./linkStatus";
 
 const NOW = Date.parse("2026-11-11T12:00:00Z");
 const ago = (s: number) => new Date(NOW - s * 1000).toISOString();
@@ -230,5 +230,23 @@ describe("every combination", () => {
                   expect(s.internetIcon === "mdi-wifi-off", ctx).toBe(internet === "down");
                   expect(s.liveIcon === "mdi-lan-connect", ctx).toBe(live);
                 }
+  });
+});
+
+describe("shouldHoldBusy (no Synced flicker between passes)", () => {
+  const calm = () => d();
+  it("holds the calm Synced state while work was moving a moment ago", () => {
+    expect(shouldHoldBusy(calm(), 1000, 1000 + ACTIVITY_HOLD_MS)).toBe(true);
+    expect(shouldHoldBusy(calm(), 1000 + ACTIVITY_HOLD_MS, 1000 + ACTIVITY_HOLD_MS)).toBe(false);
+    expect(shouldHoldBusy(calm(), 5000, 0)).toBe(false);
+  });
+  it("never holds back work or a problem", () => {
+    const hold = Number.MAX_SAFE_INTEGER;
+    expect(shouldHoldBusy(d({ phase: "pushing", label: "x", total: 2 }), 0, hold)).toBe(false);
+    expect(shouldHoldBusy(d({}, { pending: 1 }), 0, hold)).toBe(false);
+    expect(shouldHoldBusy(d({}, { failed: 1 }), 0, hold)).toBe(false);
+    expect(shouldHoldBusy(d({ live: false }), 0, hold)).toBe(false);
+    expect(shouldHoldBusy(d({ kashi: "down", internet: "down" }), 0, hold)).toBe(false);
+    expect(shouldHoldBusy(describeLink(link(), queue({ configured: false }), idle, NOW), 0, hold)).toBe(false);
   });
 });

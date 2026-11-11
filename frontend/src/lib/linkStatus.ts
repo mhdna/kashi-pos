@@ -118,6 +118,20 @@ function pct(link: LinkInfo): number | null {
   return Math.max(0, Math.min(100, Math.round((link.done / link.total) * 100)));
 }
 
+/** How long the light keeps looking busy after the last bit of work. */
+export const ACTIVITY_HOLD_MS = 2500;
+
+/**
+ * One checkout queues several records and the till sends them in separate
+ * passes, then pulls the stock changes that come back; between passes it is
+ * idle for a moment. Showing every gap flashes "Synced" between "Sending" and
+ * "Updating". So the calm "Synced" state waits until nothing has moved for
+ * ACTIVITY_HOLD_MS. Anything that is a problem, or work, shows at once.
+ */
+export function shouldHoldBusy(next: Summary, nowMs: number, holdUntilMs: number): boolean {
+  return next.tone === "ok" && !next.spinner.on && nowMs < holdUntilMs;
+}
+
 export function describeLink(
   linkIn: LinkInfo | null | undefined,
   queue: QueueInfo | null | undefined,

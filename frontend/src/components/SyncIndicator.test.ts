@@ -4,6 +4,7 @@ import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { ref } from "vue";
 import ui from "@/ui";
+import { ACTIVITY_HOLD_MS } from "@/lib/linkStatus";
 
 const nowIso = () => new Date().toISOString();
 const baseLink = () => ({
@@ -99,5 +100,53 @@ describe("SyncIndicator", () => {
     await flushPromises();
     (document.body.querySelector('[data-test="sync-open-settings"]') as HTMLElement).click();
     expect(push).toHaveBeenCalledWith({ path: "/settings", query: { panel: "general-sync" } });
+  });
+
+  it("one checkout reads as Sending, then Synced a moment later, not a flicker", async () => {
+    vi.useFakeTimers();
+    try {
+      show();
+      expect(text("sync-word")).toBe("Synced");
+
+      // A pass sends records...
+      linkRef.value = { ...baseLink(), phase: "pushing", label: "Sending to kashi", done: 0, total: 3 };
+      await flushPromises();
+      expect(text("sync-word")).toBe("Sending");
+
+      // ...is idle for a beat between passes: the light must not flash Synced.
+      linkRef.value = baseLink();
+      await flushPromises();
+      expect(text("sync-word")).toBe("Sending");
+
+      // A second pass starts inside the hold: still busy.
+      vi.advanceTimersByTime(1000);
+      linkRef.value = { ...baseLink(), phase: "pulling", label: "Stock", done: 0, total: 1 };
+      await flushPromises();
+      expect(text("sync-word")).toBe("Updating");
+
+      // Quiet for the whole hold: now it settles.
+      linkRef.value = baseLink();
+      await flushPromises();
+      expect(text("sync-word")).toBe("Updating");
+      vi.advanceTimersByTime(ACTIVITY_HOLD_MS + 100);
+      await flushPromises();
+      expect(text("sync-word")).toBe("Synced");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a problem shows at once, even right after work", async () => {
+    vi.useFakeTimers();
+    try {
+      show();
+      linkRef.value = { ...baseLink(), phase: "pushing", label: "Sending to kashi", done: 0, total: 3 };
+      await flushPromises();
+      linkRef.value = { ...baseLink(), internet: "down", kashi: "down", kashiError: "can't connect to the server", live: false };
+      await flushPromises();
+      expect(text("sync-word")).toBe("No internet");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

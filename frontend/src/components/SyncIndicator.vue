@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useResyncStore } from "@/stores/resync";
 import { useSyncStatus } from "@/composables/useSyncStatus";
 import { useLinkStatus } from "@/composables/useLinkStatus";
-import { describeLink } from "@/lib/linkStatus";
+import { ACTIVITY_HOLD_MS, describeLink, shouldHoldBusy, type Summary } from "@/lib/linkStatus";
 
 // The nav rail's connection light: what the till is doing (spinner, "Products
 // 3/21"), whether the internet and the live link to kashi are up (the live
@@ -20,6 +20,28 @@ const { link, now } = useLinkStatus();
 const summary = computed(() =>
   describeLink(link.value, syncStatus.value, { running: resync.running, progress: resync.progress }, now.value),
 );
+
+// What the light shows: the live summary, except that "Synced" waits a moment
+// after the last bit of work (see shouldHoldBusy), so one checkout reads as
+// one Sending, then Synced, not a flicker.
+const shown = ref<Summary>(summary.value);
+let holdUntil = 0;
+let timer: ReturnType<typeof setTimeout> | null = null;
+watch(
+  summary,
+  (next) => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    if (next.spinner.on || next.tone === "busy") holdUntil = Date.now() + ACTIVITY_HOLD_MS;
+    if (shouldHoldBusy(next, Date.now(), holdUntil)) {
+      timer = setTimeout(() => (shown.value = summary.value), Math.max(0, holdUntil - Date.now()) + 20);
+      return;
+    }
+    shown.value = next;
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => timer && clearTimeout(timer));
 const open = ref(false);
 
 function openSyncSettings() {
@@ -31,40 +53,40 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
 
 <template>
   <div
-    :class="['sync-status', `sync-status--${summary.tone}`]"
-    :title="summary.title"
+    :class="['sync-status', `sync-status--${shown.tone}`]"
+    :title="shown.title"
     role="button"
-    :aria-label="`Sync: ${summary.word}`"
+    :aria-label="`Sync: ${shown.word}`"
     data-test="sync-indicator"
     @click="open = true"
   >
     <span class="sync-status-icon">
       <k-progress-circular
-        v-if="summary.spinner.on"
-        :indeterminate="summary.spinner.pct === null"
-        :model-value="summary.spinner.pct ?? 0"
+        v-if="shown.spinner.on"
+        :indeterminate="shown.spinner.pct === null"
+        :model-value="shown.spinner.pct ?? 0"
         size="26"
         width="3"
         color="#ffb74d"
         data-test="sync-spinner"
       >
-        <k-icon :icon="summary.icon" size="14" />
+        <k-icon :icon="shown.icon" size="14" />
       </k-progress-circular>
-      <k-icon v-else :icon="summary.icon" size="22" />
+      <k-icon v-else :icon="shown.icon" size="22" />
     </span>
-    <span class="sync-status-word" data-test="sync-word">{{ summary.word }}</span>
-    <span v-if="summary.sub" class="sync-status-sub" data-test="sync-sub">{{ summary.sub }}</span>
+    <span class="sync-status-word" data-test="sync-word">{{ shown.word }}</span>
+    <span v-if="shown.sub" class="sync-status-sub" data-test="sync-sub">{{ shown.sub }}</span>
     <span class="sync-status-links">
       <k-icon
-        :icon="summary.internetIcon"
+        :icon="shown.internetIcon"
         size="16"
-        :class="`link-dot link-dot--${summary.internetTone}`"
+        :class="`link-dot link-dot--${shown.internetTone}`"
         data-test="sync-internet"
       />
       <k-icon
-        :icon="summary.liveIcon"
+        :icon="shown.liveIcon"
         size="16"
-        :class="`link-dot link-dot--${summary.liveTone}`"
+        :class="`link-dot link-dot--${shown.liveTone}`"
         data-test="sync-live"
       />
     </span>
