@@ -264,6 +264,8 @@ func TestLinkLiveFollowsTheWebsocket(t *testing.T) {
 
 // A pull shows what it is fetching, moves through the entities, and goes idle.
 func TestLinkPullShowsProgressAndEndsIdle(t *testing.T) {
+	link.setVerbose(true) // verbose: every step is shown, found something or not
+	t.Cleanup(func() { link.setVerbose(false) })
 	var seen atomic.Value
 	seen.Store(map[string]bool{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

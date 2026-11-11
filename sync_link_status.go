@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"net"
 	"net/http"
@@ -32,6 +33,10 @@ const (
 	linkEmitMinGap       = 250 * time.Millisecond
 	linkInternetInterval = 20 * time.Second
 	linkInternetTimeout  = 3 * time.Second
+	// In quiet mode a step that really received something stays on the light
+	// at least this long, so a change that lands in a few milliseconds can
+	// still be seen.
+	linkMinShow = 1500 * time.Millisecond
 )
 
 // Phases of the till's current work. "idle" means nothing is moving.
@@ -96,6 +101,17 @@ type linkTracker struct {
 	lastPull    time.Time
 	lastPush    time.Time
 	lastPullErr string
+
+	// verbose: show every step of a pull, even one that finds nothing new.
+	// Quiet (the default) shows a step only once it has really received
+	// something different. The step being checked waits in step* until then.
+	verbose     bool
+	stepLabel   string
+	stepDone    int
+	stepTotal   int
+	revealedAt  time.Time
+	hideTimer   *time.Timer
+	fingerprint map[string][32]byte
 
 	emit      func()
 	lastEmit  time.Time
@@ -205,6 +221,75 @@ func (l *linkTracker) setInternet(state string) {
 	}
 }
 
+func (l *linkTracker) setVerbose(v bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.verbose = v
+	if v && l.phase == phasePulling {
+		return
+	}
+	l.changedLocked()
+}
+
+func (l *linkTracker) isVerbose() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.verbose
+}
+
+// checking says which pull step the till is on. Verbose shows it at once; quiet
+// only remembers it, and shows it later if the step turns out to receive
+// something (reveal).
+func (l *linkTracker) checking(label string, done, total int) {
+	l.mu.Lock()
+	l.stepLabel, l.stepDone, l.stepTotal = label, done, total
+	verbose := l.verbose
+	l.mu.Unlock()
+	if verbose {
+		l.begin(phasePulling, label, done, total)
+		return
+	}
+	// Moving on from a step that did receive something: let it show a moment.
+	l.end(phasePulling)
+}
+
+// reveal shows the step being checked, because it really received something
+// (quiet mode). detail is the short "N changes".
+func (l *linkTracker) reveal(detail string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.verbose {
+		l.detail = detail
+		l.changedLocked()
+		return
+	}
+	if l.phase != phasePulling {
+		l.revealedAt = l.now()
+	}
+	l.phase, l.label, l.done, l.total, l.detail = phasePulling, l.stepLabel, l.stepDone, l.stepTotal, detail
+	if l.hideTimer != nil {
+		l.hideTimer.Stop()
+		l.hideTimer = nil
+	}
+	l.changedLocked()
+}
+
+// sameAsLast reports whether this entity's batch is byte for byte what the
+// last pass already applied (and remembers it). kashi re-sends rows changed in
+// the last couple of minutes (its cursor overlap), and an unchanged one is not
+// news.
+func (l *linkTracker) sameAsLast(entity string, raw []byte) bool {
+	sum := sha256.Sum256(raw)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.fingerprint == nil {
+		l.fingerprint = map[string][32]byte{}
+	}
+	prev, ok := l.fingerprint[entity]
+	l.fingerprint[entity] = sum
+	return ok && prev == sum
+}
+
 // begin starts (or moves) the current activity. total 0 means "unknown".
 func (l *linkTracker) begin(phase, label string, done, total int) {
 	l.mu.Lock()
@@ -237,6 +322,21 @@ func (l *linkTracker) end(phase string) {
 	if l.phase != phase {
 		return
 	}
+	// A revealed quiet step stays up for linkMinShow, then goes.
+	if phase == phasePulling && !l.verbose && !l.revealedAt.IsZero() {
+		if wait := linkMinShow - l.now().Sub(l.revealedAt); wait > 0 {
+			if l.hideTimer == nil {
+				l.hideTimer = time.AfterFunc(wait, func() {
+					l.mu.Lock()
+					l.hideTimer = nil
+					l.mu.Unlock()
+					l.end(phasePulling)
+				})
+			}
+			return
+		}
+	}
+	l.revealedAt = time.Time{}
 	l.phase, l.label, l.detail, l.done, l.total = phaseIdle, "", "", 0, 0
 	l.changedLocked()
 }
