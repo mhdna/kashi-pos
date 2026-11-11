@@ -1,5 +1,5 @@
 <template>
-  <k-sheet class="shift-income-card shifts-card pa-4" style="flex: 1; min-width: 0">
+  <k-sheet class="shift-income-card shifts-card py-4 px-2" style="flex: 1; min-width: 0">
     <k-card-title class="shift-income-title text-body-1 font-weight-bold" data-test="income-title">
       <k-icon icon="mdi-cash-register" color="grey-darken-1" class="me-2" />
       {{ title || "Shift Income" }}{{ shiftId ? ` (#${shiftId})` : "" }}
@@ -40,7 +40,7 @@
     <!-- Sold on account (not collected, so it's kept out of the income total
          above), then money that went out during the shift, then income minus
          that. Display only (see GetShiftTotals). -->
-    <div v-if="shiftId && (onAccountTotal || shiftExpenses.length || shiftLoans.length)" class="px-4 pt-2">
+    <div v-if="shiftId && (onAccountTotal || shiftExpenses.length || shiftLoans.length)" class="px-0 pt-2">
       <div v-if="onAccountTotal" class="spend-row text-medium-emphasis">
         <span class="text-truncate"><k-icon icon="mdi-account-clock" size="16" class="me-1" />On account — not collected</span>
         <span>{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }}</span>
@@ -233,15 +233,15 @@ async function confirmManager() {
 }
 
 /* Invisible: it only makes the middle scroll and keeps the buttons in view.
-   It spans the card edge to edge (cancelling the card's 16px padding and
+   It spans the card edge to edge (cancelling the card's 8px side padding and
    putting it back inside) so the total band can fill the width. */
 .shift-income-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  margin-inline: -16px;
-  padding-inline: 16px;
+  margin-inline: -8px;
+  padding-inline: 8px;
 }
 
 /* The payment rows start and end where the total band and the buttons do:
@@ -251,14 +251,14 @@ async function confirmManager() {
 }
 
 /* A centred header across the top of the card, no background, with a divider
-   under it; it cancels the card's 16px padding so the divider runs edge to edge. */
+   under it; it cancels the card's side padding so the divider runs edge to edge. */
 .shift-income-title {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 48px;
-  margin: -16px -16px 8px;
-  padding: 8px 16px;
+  margin: -16px -8px 8px;
+  padding: 8px;
   border-bottom: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
 }
 
@@ -292,8 +292,8 @@ async function confirmManager() {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin: 12px -16px 4px;
-  padding: 14px 16px;
+  margin: 12px -8px 4px;
+  padding: 14px 8px;
   border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 0;
   background: rgba(67, 160, 71, 0.13);

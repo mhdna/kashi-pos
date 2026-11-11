@@ -47,6 +47,12 @@ async function show(items: any[]) {
 const total = () => wrapper!.find('[data-test="income-total"]').text();
 
 describe("ShiftIncomeCard", () => {
+  it("the card has 8px side padding, not 16px", async () => {
+    await show([{ accountName: "Cash $$", currencyCode: "USD", total: 243 }]);
+    const classes = wrapper!.find(".shift-income-card").classes();
+    expect(classes).toContain("px-2");
+    expect(classes).not.toContain("pa-4");
+  });
   it("the header carries the title and the shift number, and opens the card", async () => {
     await show([{ accountName: "Cash $$", currencyCode: "USD", total: 243 }]);
     const title = wrapper!.find('[data-test="income-title"]');
@@ -120,13 +126,13 @@ describe("ShiftIncomeCard", () => {
     expect(css).toMatch(/\.shift-income-body \{[^}]*overflow-y: auto/);
     expect(css).toMatch(/\.shift-income-body \{[^}]*min-height: 0/);
     // The body spans the card, so the total band (margin -16px) fills the width instead of being clipped.
-    expect(css).toMatch(/\.shift-income-body \{[^}]*margin-inline: -16px/);
-    expect(css).toMatch(/\.shift-income-body \{[^}]*padding-inline: 16px/);
-    expect(css).toMatch(/\.shift-total \{[^}]*margin: 12px -16px/);
+    expect(css).toMatch(/\.shift-income-body \{[^}]*margin-inline: -8px/);
+    expect(css).toMatch(/\.shift-income-body \{[^}]*padding-inline: 8px/);
+    expect(css).toMatch(/\.shift-total \{[^}]*margin: 12px -8px/);
     expect(css).toMatch(/\.shift-income-actions \{[^}]*flex-shrink: 0/);
     // The title is a centred header across the top, edge to edge, with a divider and no background.
     expect(css).toMatch(/\.shift-income-title \{[^}]*justify-content: center/);
-    expect(css).toMatch(/\.shift-income-title \{[^}]*margin: -16px -16px 8px/);
+    expect(css).toMatch(/\.shift-income-title \{[^}]*margin: -16px -8px 8px/);
     expect(css).not.toMatch(/\.shift-income-title \{[^}]*background/);
     // The rows run to the same edges as the total and the buttons (no extra side padding).
     expect(css).toMatch(/\.shift-income-card :deep\(\.k-list-item\) \{[^}]*padding-inline: 0/);
