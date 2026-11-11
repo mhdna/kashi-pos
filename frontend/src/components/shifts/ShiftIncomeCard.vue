@@ -13,7 +13,7 @@
         <k-list-item v-for="item in collectedItems" :key="item.accountName">
         <template #prepend>
           <k-avatar :color="paymentAccentColor({ name: item.accountName, color: item.color })" variant="tonal" size="32">
-            <k-icon icon="mdi-wallet" size="18" />
+            <k-icon :icon="paymentIcon(item.accountName)" size="18" data-test="payment-icon" />
           </k-avatar>
         </template>
         <template #title>
@@ -138,7 +138,7 @@ import { formatSpendAmount, sumToUsdCents } from "@/lib/spend";
 import { collectedTotalCents, netIncomeCents, onAccountTotalCents } from "@/lib/shiftIncome";
 import type { Balance, IncomeRow, PaymentMethod } from "@/types/shifts";
 import { formatBalance, formatUsd } from "@/lib/format";
-import { paymentAccentColor } from "@/lib/paymentColor";
+import { paymentAccentColor, paymentIcon } from "@/lib/paymentColor";
 import { useCurrencies } from "@/composables/useCurrencies";
 import { grantManagerPass } from "@/composables/useManagerPass";
 import { useAuthStore } from "@/stores/auth";

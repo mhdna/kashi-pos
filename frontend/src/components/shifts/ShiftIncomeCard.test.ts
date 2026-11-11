@@ -47,6 +47,18 @@ async function show(items: any[]) {
 const total = () => wrapper!.find('[data-test="income-total"]').text();
 
 describe("ShiftIncomeCard", () => {
+  it("each payment method gets its own icon, not the same wallet", async () => {
+    await show([
+      { accountName: "Cash $$", currencyCode: "USD", total: 243 },
+      { accountName: "Cash LL", currencyCode: "LBP", total: 45900000 },
+      { accountName: "Visa", currencyCode: "USD", total: 1998 },
+      { accountName: "Whish", currencyCode: "USD", total: 132 },
+    ]);
+    const icons = wrapper!.findAll('[data-test="payment-icon"]');
+    expect(icons).toHaveLength(4);
+    const shapes = icons.map(i => i.html());
+    expect(new Set(shapes).size).toBe(4);
+  });
   it("the reported case: Cash $243.00 shows a total collected of $243.00", async () => {
     await show([{ accountId: 1, accountName: "Cash $$", currencyCode: "USD", total: 24300 }]);
     expect(wrapper!.text()).toContain("$243.00");

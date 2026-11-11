@@ -35,3 +35,16 @@ export function paymentAccentColor(method: { name?: unknown; color?: unknown }):
   if (custom) return custom;
   return MATERIAL_COLOR_HEX[paymentColor(method.name)] ?? DEFAULT_ACCENT_HEX;
 }
+
+// The icon beside a payment method (shift income, ...), read from its name like
+// the colour above: a card for Visa and the like, a phone for Whish, a bank for
+// transfers, notes for Lebanese lira cash, and stacked cash for any other cash
+// (Cash $$). Every icon here is registered in icons.ts.
+export function paymentIcon(name: unknown): string {
+  const value = String(name ?? "").toLowerCase();
+  if (/visa|master ?card|credit|debit|\bcard\b/.test(value)) return "mdi-credit-card-outline";
+  if (value.includes("whish")) return "mdi-cellphone";
+  if (/bank|transfer|wire|cheque|check/.test(value)) return "mdi-bank";
+  if (/\bll\b|lbp|lebanese|lira/.test(value)) return "mdi-cash";
+  return "mdi-cash-multiple";
+}
