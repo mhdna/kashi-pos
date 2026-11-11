@@ -293,3 +293,7 @@ JOIN products_search s ON s.rowid = p.id
 WHERE s.code_text LIKE sqlc.arg(search_pattern)
   AND p.is_active = 1
   AND p.barcode != 'UNKNOWN';
+
+-- name: SetProductVariantPick :exec
+-- kashi's per-item "pick colour/size on scan" override: '', 'always', 'never'.
+UPDATE products SET variant_pick = ? WHERE id = ?;

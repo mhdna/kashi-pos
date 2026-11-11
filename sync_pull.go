@@ -83,6 +83,10 @@ type syncedProductVariant struct {
 	// predates sale options -- left alone then, as nothing could have set
 	// them; an empty array clears them.
 	SaleOptions []string `json:"sale_options"`
+	// kashi's per-item "pick colour/size on scan" override: "" follows the
+	// till's setting, "always" asks, "never" doesn't. nil from a kashi that
+	// predates it -- left alone then, as nothing could have set it.
+	VariantPick *string `json:"variant_pick"`
 }
 
 // syncedExpenseCategory / syncedLoanCategory mirror the raw row kashi
@@ -561,6 +565,11 @@ func applySyncedProductVariant(ctx context.Context, q *db.Queries, v syncedProdu
 
 	if err := applySyncedProductAttributes(ctx, q, productID, v); err != nil {
 		return err
+	}
+	if v.VariantPick != nil {
+		if err := q.SetProductVariantPick(ctx, db.SetProductVariantPickParams{VariantPick: *v.VariantPick, ID: productID}); err != nil {
+			return err
+		}
 	}
 	if v.SaleOptions != nil {
 		if err := q.DeleteProductSaleOptions(ctx, productID); err != nil {

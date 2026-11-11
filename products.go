@@ -77,6 +77,12 @@ const (
 	// salesperson taps to give it. Ignored while discount_toggle is off, so
 	// it can never leave a branch with discounts it has no way to turn on.
 	discountToggleDefaultOffFlag = "discount_toggle_default_off"
+	// When on, scanning a barcode whose item comes in several colours/sizes
+	// opens the variant picker instead of adding the scanned row: for stock
+	// whose barcodes aren't printed per variant. An item's own variant_pick
+	// ('always' / 'never') overrides it. Defaults to false when unset, so a
+	// till keeps adding the scanned barcode as it did before this setting.
+	variantPickRequiredFlag = "variant_pick_required"
 )
 
 // SetDiscountToggleEnabled lets salespersons turn a line's discount off/on.
@@ -200,6 +206,20 @@ func (a *App) scanByCodeEnabled() bool {
 		return v != 0
 	}
 	return true
+}
+
+// SetVariantPickRequiredEnabled turns the "cashier must pick the colour/size
+// when a scanned item has variants" default on or off. Called by the local
+// Settings page and by an update_settings command from kashi.
+func (a *App) SetVariantPickRequiredEnabled(enabled bool) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.setFeatureFlagBool(a.ctx, variantPickRequiredFlag, enabled); err != nil {
+		return err
+	}
+	a.emitSettingsChanged()
+	return nil
 }
 
 // SetScanByCodeEnabled toggles the scan field's product-code fallback.
@@ -934,7 +954,7 @@ func (a *App) productSearchHiddenFields() string {
 func (a *App) lookupForScan(value string) ([]db.Product, error) {
 	p, err := a.store.GetProductByBarcode(a.ctx, value)
 	if err == nil {
-		return []db.Product{p}, nil
+		return a.variantsToPick(p)
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
@@ -943,4 +963,43 @@ func (a *App) lookupForScan(value string) ([]db.Product, error) {
 		return nil, nil
 	}
 	return a.store.ListActiveProductsByCode(a.ctx, value)
+}
+
+// variantsToPick is what a scanned barcode turns into. Normally the product
+// itself. When the item asks for it (its own variant_pick, else the till's
+// variant_pick_required) and has colour/size variants sharing its code, all
+// of them, so the sale screen opens the picker: the barcode names the item,
+// the cashier says which colour/size. The scanned row alone is not enough --
+// it may be the plain item with no colour/size at all.
+func (a *App) variantsToPick(scanned db.Product) ([]db.Product, error) {
+	ask := a.flagEnabled(a.ctx, variantPickRequiredFlag)
+	switch scanned.VariantPick {
+	case "always":
+		ask = true
+	case "never":
+		ask = false
+	}
+	if !ask || strings.TrimSpace(scanned.Code) == "" {
+		return []db.Product{scanned}, nil
+	}
+	siblings, err := a.store.ListActiveProductsByCode(a.ctx, scanned.Code)
+	if err != nil {
+		return nil, err
+	}
+	variants := make([]db.Product, 0, len(siblings))
+	scannedIsVariant := false
+	for _, p := range siblings {
+		if p.Color == "" && p.Size == "" {
+			continue
+		}
+		variants = append(variants, p)
+		if p.ID == scanned.ID {
+			scannedIsVariant = true
+		}
+	}
+	// One variant and it is the scanned one: nothing to choose between.
+	if len(variants) == 0 || (len(variants) == 1 && scannedIsVariant) {
+		return []db.Product{scanned}, nil
+	}
+	return variants, nil
 }

@@ -182,6 +182,7 @@ default-on ones.
 | `release_stuck_keys` | **on** | Release modifier keys left held (till-only). |
 | `salesperson_per_invoice_required` | off | Every sale names a salesperson. |
 | `scan_by_code` | **on** | Product code in the scan field. |
+| `variant_pick_required` | off | A scanned barcode whose item has colour/size variants (same code) opens the variant picker. `products.variant_pick` (`always`/`never`, synced from kashi) overrides it per item. |
 | `invoice_ratings` | **on** | Invoices list shows each sale's WhatsApp poll answer (😍 🙂 😕), fetched live from kashi's `/branch/invoice_ratings` for the codes on screen (`invoice_ratings.go`). kashi pushes it as `invoice_ratings_enabled`. |
 | `shift_report_signatures` | **on** | Sign-off lines on the shift receipt. |
 | `shift_report_uppercase_header` | off | Capitalised shift receipt header. |

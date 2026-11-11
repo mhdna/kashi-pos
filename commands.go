@@ -126,6 +126,7 @@ type updateSettingsCommandPayload struct {
 	OverchangeConfirmation        *bool `json:"overchange_confirmation"`
 	CloseShiftRequiresSync        *bool `json:"close_shift_requires_sync"`
 	ScanByCodeEnabled             *bool `json:"scan_by_code_enabled"`
+	VariantPickRequired           *bool `json:"variant_pick_required"`
 	ProductSearchCodeOnly         *bool `json:"product_search_code_only"`
 	PriceEditRestricted           *bool `json:"price_edit_restricted"`
 	DiscountToggle                *bool `json:"discount_toggle"`
@@ -329,6 +330,7 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		{p.OverchangeConfirmation, func(b bool) error { return a.setFeatureFlagBool(ctx, overchangeConfirmationFlag, b) }},
 		{p.CloseShiftRequiresSync, a.SetCloseShiftRequiresSyncEnabled},
 		{p.ScanByCodeEnabled, a.SetScanByCodeEnabled},
+		{p.VariantPickRequired, a.SetVariantPickRequiredEnabled},
 		{p.ProductSearchCodeOnly, a.SetProductSearchCodeOnly},
 		{p.PriceEditRestricted, a.SetPriceEditRestricted},
 		{p.DiscountToggle, a.SetDiscountToggleEnabled},
