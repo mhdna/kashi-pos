@@ -75,7 +75,10 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
       <k-icon v-else :icon="shown.icon" size="22" />
     </span>
     <span class="sync-status-word" data-test="sync-word">{{ shown.word }}</span>
-    <span v-if="shown.sub" class="sync-status-sub" data-test="sync-sub">{{ shown.sub }}</span>
+    <!-- Always takes its line, so the word and the pill below never move. -->
+    <span class="sync-status-subslot">
+      <span v-if="shown.sub" class="sync-status-sub" data-test="sync-sub">{{ shown.sub }}</span>
+    </span>
     <span class="sync-status-links">
       <k-icon
         :icon="shown.internetIcon"
@@ -139,17 +142,25 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
   cursor: pointer;
   text-align: center;
 }
+/* The ring and the plain icon get the same box, so the word under them stays put. */
 .sync-status-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 26px;
+  width: 30px;
+  height: 30px;
 }
 .sync-status-word {
   font-size: 0.78rem;
   font-weight: 700;
   line-height: 1.15;
   margin-top: 2px;
+}
+.sync-status-subslot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 0.8rem;
 }
 .sync-status-sub {
   font-size: 0.62rem;
@@ -165,7 +176,7 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 5px;
+  margin-top: 2px;
   padding: 3px 9px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.07);
