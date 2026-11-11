@@ -84,6 +84,7 @@ defineExpose({ focus: () => input.value?.focus() });
     :disabled="disabled"
     :hide-details="hideDetails"
   >
+    <template v-if="$slots['prepend-inner']" #prepend-inner><slot name="prepend-inner" /></template>
     <template #append-inner><KProgressCircular v-if="loading" indeterminate size="18" :width="2" /></template>
     <input
       ref="input"
@@ -104,7 +105,16 @@ defineExpose({ focus: () => input.value?.focus() });
          a hidden marker here. -->
     <KMenu v-model="open" :anchor="anchorEl" match-width :close-on-content-click="false" :max-height="320">
       <KList>
-        <KListItem v-for="item in filtered" :key="String(item.value)" :title="item.title" :active="item.value === modelValue" @mousedown.prevent @click="pick(item)" />
+        <template v-for="item in filtered" :key="String(item.value)">
+          <!-- `props` carries the title, active state and handlers a custom row binds (v-bind="props"). -->
+          <slot
+            name="item"
+            :item="item"
+            :props="{ title: item.title, active: item.value === modelValue, onMousedown: (e: Event) => e.preventDefault(), onClick: () => pick(item) }"
+          >
+            <KListItem :title="item.title" :active="item.value === modelValue" @mousedown.prevent @click="pick(item)" />
+          </slot>
+        </template>
         <KListItem v-if="!filtered.length && !loading" title="No data available" />
       </KList>
     </KMenu>

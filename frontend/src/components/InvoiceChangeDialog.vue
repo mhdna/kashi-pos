@@ -16,6 +16,8 @@ import {
   type SalespersonOption,
 } from "@/lib/invoiceEditOptions";
 import { formatLebanesePhone } from "@/lib/phone";
+import { salespersonColor } from "@/lib/salespersonColor";
+import InitialsAvatar from "@/components/InitialsAvatar.vue";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -45,6 +47,27 @@ const saveDisabled = computed(() => {
   if (props.type === "client" && !value.value) return true;
   return (value.value || 0) === (original.value || 0);
 });
+
+// Who the invoice is with right now, shown above the picker.
+const current = computed(() => {
+  const inv = props.invoice;
+  if (props.type === "salesperson") {
+    const id = Number(inv?.salespersonId || 0);
+    if (!id) return { name: "", note: "Anonymous sale", color: undefined };
+    const known = salespersons.value.find((s) => s.id === id);
+    const name = known?.fullName || inv?.salespersonName || "Former salesperson";
+    return { name, note: "", color: salespersonColor(known ?? { fullName: name }) };
+  }
+  const id = Number(inv?.clientId || 0);
+  if (!id) return { name: "", note: "Walk-in customer", color: undefined };
+  const phone = inv?.clientPhone ? formatLebanesePhone(inv.clientPhone) : "";
+  return { name: inv?.clientName || "Client", note: phone, color: CLIENT_COLOR };
+});
+const CLIENT_COLOR = "#1E88E5";
+// A picker row's own client or salesperson (the kit's slots type it unknown).
+const rowOf = (item: { raw: unknown }) => item.raw as any;
+const pickedSalesperson = computed(() => salespersons.value.find((s) => s.id === value.value) ?? null);
+const pickedClient = computed(() => clients.value.find((c) => c.id === value.value) ?? null);
 
 function clientTitle(client: any): string {
   return client.phone ? `${client.name} · ${formatLebanesePhone(client.phone)}` : client.name;
@@ -172,10 +195,32 @@ onBeforeUnmount(() => clearTimeout(searchTimer));
 </script>
 
 <template>
-  <k-dialog :model-value="modelValue" max-width="420" @update:model-value="emit('update:modelValue', $event)">
+  <k-dialog :model-value="modelValue" max-width="460" @update:model-value="emit('update:modelValue', $event)">
     <k-card class="invoice-change-dialog" :data-type="type">
-      <k-card-title>{{ title }}</k-card-title>
-      <k-card-text>
+      <div class="invoice-change-header">
+        <k-avatar color="primary" variant="tonal" size="40">
+          <k-icon :icon="type === 'client' ? 'mdi-account-edit' : 'mdi-account-tie'" />
+        </k-avatar>
+        <div class="invoice-change-header__text">
+          <div class="text-h6">{{ title }}</div>
+          <div v-if="invoice?.invoiceCode" class="text-body-2 text-medium-emphasis">Invoice {{ invoice.invoiceCode }}</div>
+        </div>
+      </div>
+
+      <k-card-text class="pt-2">
+        <div class="invoice-change-label">Now</div>
+        <div class="invoice-change-current" data-test="change-current">
+          <InitialsAvatar v-if="current.name" :name="current.name" :color="current.color" :size="40" />
+          <k-avatar v-else color="grey" variant="tonal" size="40">
+            <k-icon :icon="type === 'client' ? 'mdi-account-outline' : 'mdi-account-off-outline'" />
+          </k-avatar>
+          <div class="invoice-change-current__text">
+            <div class="invoice-change-current__name">{{ current.name || current.note }}</div>
+            <div v-if="current.name && current.note" class="text-body-2 text-medium-emphasis">{{ current.note }}</div>
+          </div>
+        </div>
+
+        <div class="invoice-change-label mt-4">Change to</div>
         <k-autocomplete
           v-if="type === 'client'"
           :model-value="value"
@@ -187,9 +232,22 @@ onBeforeUnmount(() => clearTimeout(searchTimer));
           no-filter
           placeholder="Search by name or phone"
           variant="outlined"
+          hide-details
           @update:model-value="onPickClient"
           @update:search="onSearch"
-        />
+        >
+          <template #prepend-inner>
+            <InitialsAvatar v-if="pickedClient" :name="pickedClient.name || ''" :color="CLIENT_COLOR" :size="28" />
+            <k-icon v-else icon="mdi-magnify" />
+          </template>
+          <template #item="{ item, props: rowProps }">
+            <k-list-item v-bind="rowProps" class="invoice-change-option" :title="rowOf(item).name" :subtitle="rowOf(item).phone ? formatLebanesePhone(rowOf(item).phone) : undefined">
+              <template #prepend>
+                <InitialsAvatar :name="rowOf(item).name || ''" :color="CLIENT_COLOR" :size="32" class="me-3" />
+              </template>
+            </k-list-item>
+          </template>
+        </k-autocomplete>
         <k-select
           v-else
           v-model="value"
@@ -200,13 +258,60 @@ onBeforeUnmount(() => clearTimeout(searchTimer));
           clearable
           :loading="loading"
           variant="outlined"
-        />
+          hide-details
+        >
+          <template #prepend-inner>
+            <InitialsAvatar v-if="pickedSalesperson" :name="pickedSalesperson.fullName" :color="salespersonColor(pickedSalesperson)" :size="28" />
+            <k-icon v-else icon="mdi-account-tie" />
+          </template>
+          <template #item="{ item, props: rowProps }">
+            <k-list-item v-bind="rowProps" class="invoice-change-option">
+              <template #prepend>
+                <InitialsAvatar :name="rowOf(item).fullName" :color="salespersonColor(rowOf(item))" :size="32" class="me-3" />
+              </template>
+            </k-list-item>
+          </template>
+        </k-select>
       </k-card-text>
-      <k-card-actions>
+      <k-card-actions class="px-6 pb-4">
         <k-spacer />
         <k-btn variant="text" class="invoice-change-cancel" @click="close">Cancel</k-btn>
-        <k-btn color="primary" class="invoice-change-save" :loading="saving" :disabled="saveDisabled" @click="save">Save</k-btn>
+        <k-btn color="primary" variant="flat" prepend-icon="mdi-check" class="invoice-change-save" :loading="saving" :disabled="saveDisabled" @click="save">Save</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
 </template>
+
+<style scoped>
+.invoice-change-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px 8px;
+}
+.invoice-change-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(var(--k-theme-on-surface), 0.6);
+  margin-bottom: 6px;
+}
+.invoice-change-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(var(--k-theme-on-surface), 0.04);
+}
+.invoice-change-current__text {
+  min-width: 0;
+}
+.invoice-change-current__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>
