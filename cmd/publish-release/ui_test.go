@@ -138,3 +138,29 @@ func TestSayScriptPrintsEveryKind(t *testing.T) {
 		t.Error("an unknown kind must fail")
 	}
 }
+
+// `make release…` calls make again: that must not print "Entering/Leaving
+// directory" or echo the inner command line.
+func TestMakefileReleaseIsQuiet(t *testing.T) {
+	raw, err := os.ReadFile("../../Makefile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mk := string(raw)
+	if !strings.Contains(mk, "MAKEFLAGS += --no-print-directory") {
+		t.Error("the Makefile must set --no-print-directory")
+	}
+	if !strings.Contains(mk, "\t@$(MAKE) --no-print-directory $(patsubst release%,publish%,$@)") {
+		t.Error("the inner publish call must be silent (@) and not print directories")
+	}
+}
+
+func TestMakeReleaseRunsWithoutDirectoryNoise(t *testing.T) {
+	out, err := exec.Command("make", "-C", "../..", "-n", "release-all-force").CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if strings.Contains(string(out), "Entering directory") {
+		t.Errorf("directory noise:\n%s", out)
+	}
+}

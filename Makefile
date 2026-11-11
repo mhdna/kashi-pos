@@ -56,6 +56,9 @@ set-version:
 		{ ./scripts/say.sh fail "version '$(APP_VERSION)' must be X.Y.Z or X.Y.Z.W (tag it like v1.2.3)"; exit 1; }
 	@sed -i.bak -E 's/("productVersion": *")[^"]*"/\1$(WIN_VERSION)"/' wails.json && rm -f wails.json.bak
 
+# The release commands call make again; don't announce each directory change.
+MAKEFLAGS += --no-print-directory
+
 # The next release: the latest tag plus one patch (1.1.65 -> 1.1.66), or
 # `make bump PART=minor` / `PART=major`, or `make bump VERSION=1.2.0`.
 # Writes it into wails.json and the installer, commits only those two files
@@ -168,6 +171,6 @@ $(RELEASES):
 	   [ -z "$$(git log --format=%s "$$last..HEAD" | grep -v '^chore: release v')" ]; then \
 		./scripts/say.sh step "Nothing new since $$last: publishing it as is (no bump)."; \
 	else \
-		$(MAKE) bump || exit 1; \
+		$(MAKE) --no-print-directory bump || exit 1; \
 	fi
-	$(MAKE) $(patsubst release%,publish%,$@)
+	@$(MAKE) --no-print-directory $(patsubst release%,publish%,$@)
