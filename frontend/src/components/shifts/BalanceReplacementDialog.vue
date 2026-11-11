@@ -1,29 +1,118 @@
 <template>
-  <k-dialog :model-value="modelValue" max-width="460" @update:model-value="$emit('update:modelValue', $event)">
-    <k-card title="Swap balance">
-      <k-card-text>
-        <div class="text-body-2 mb-3">
-          Move value from <strong>{{ source?.accountName }}</strong>
-          ({{ source?.currencyCode ?? "USD" }}) to another cash account.
+  <k-dialog :model-value="modelValue" max-width="560" @update:model-value="$emit('update:modelValue', $event)">
+    <k-card class="swap-dialog">
+      <div class="swap-dialog__header">
+        <k-avatar color="primary" variant="tonal" size="40">
+          <k-icon icon="mdi-swap-horizontal" />
+        </k-avatar>
+        <div>
+          <div class="text-h6">{{ transfer ? "Transfer balance" : "Swap balance" }}</div>
+          <div class="text-body-2 text-medium-emphasis">
+            {{ transfer ? "Take an amount out of one account, even below zero." : "Move money from one cash account to another." }}
+          </div>
         </div>
-        <k-select v-model="sourceId" :items="sources" item-title="accountName" item-value="accountId" placeholder="From" variant="outlined" density="comfortable" class="mb-2" />
-        <k-select v-model="destinationId" :items="destinations" item-title="name" item-value="id" placeholder="Swap with" variant="outlined" density="comfortable" class="mb-2" />
-        <k-checkbox v-if="auth.isAdmin" v-model="transfer" label="Transfer: take the amount out of the source even if it goes below zero" density="compact" hide-details class="mb-2" />
-        <k-text-field v-model.number="amount" :prefix="sourceIsNegative && !transfer ? '−' : undefined" :placeholder="`Amount (${source?.currencyCode ?? 'USD'})`" type="number" min="0" :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01" variant="outlined" density="comfortable" />
-        <div v-if="destination && preview?.valid" class="text-caption text-medium-emphasis">
-          Destination receives {{ formatBalance(preview.destinationReceivesCents, destination.currencyCode ?? "USD", currencies, roundingMode) }}
-          <template v-if="transfer">
-            · {{ source?.accountName }} is left with {{ formatBalance(preview.sourceRemainingCents, source?.currencyCode ?? "USD", currencies, roundingMode) }}
-          </template>
+      </div>
+
+      <k-card-text class="pt-2">
+        <k-btn-toggle v-if="auth.isAdmin" v-model="mode" mandatory divided variant="outlined" color="primary" density="comfortable" class="swap-dialog__mode mb-4" data-test="swap-mode">
+          <k-btn value="swap" prepend-icon="mdi-swap-horizontal">Swap</k-btn>
+          <k-btn value="transfer" prepend-icon="mdi-arrow-right">Transfer</k-btn>
+        </k-btn-toggle>
+
+        <div class="swap-dialog__label">From</div>
+        <div class="swap-dialog__tiles" data-test="swap-sources">
+          <button
+            v-for="item in sources"
+            :key="item.accountId"
+            type="button"
+            class="swap-tile"
+            :class="{ 'swap-tile--selected': item.accountId === sourceId }"
+            :aria-pressed="item.accountId === sourceId"
+            data-test="swap-source"
+            @click="sourceId = item.accountId"
+          >
+            <k-avatar :color="paymentAccentColor({ name: item.accountName, color: item.color })" variant="tonal" size="36">
+              <k-icon :icon="paymentIcon(item.accountName)" size="20" />
+            </k-avatar>
+            <span class="swap-tile__text">
+              <span class="swap-tile__name">{{ item.accountName }}</span>
+              <span class="swap-tile__balance" :class="{ 'text-error': Number(item.balance) < 0 }">
+                {{ formatBalance(item.balance, item.currencyCode ?? "USD", currencies, roundingMode) }}
+              </span>
+            </span>
+            <k-icon :icon="currencyIcon(item.currencyCode ?? 'USD')" size="18" class="swap-tile__currency" :title="item.currencyCode ?? 'USD'" />
+          </button>
         </div>
-        <div v-else-if="preview && !preview.valid && preview.reason" class="text-caption text-red-darken-2">
-          {{ preview.reason }}
+
+        <div class="swap-dialog__arrow" aria-hidden="true">
+          <k-icon icon="mdi-arrow-down" size="20" />
+        </div>
+
+        <div class="swap-dialog__label">To</div>
+        <div class="swap-dialog__tiles" data-test="swap-destinations">
+          <button
+            v-for="method in destinations"
+            :key="method.id"
+            type="button"
+            class="swap-tile"
+            :class="{ 'swap-tile--selected': method.id === destinationId }"
+            :aria-pressed="method.id === destinationId"
+            data-test="swap-destination"
+            @click="destinationId = method.id"
+          >
+            <k-avatar :color="paymentAccentColor({ name: method.name })" variant="tonal" size="36">
+              <k-icon :icon="paymentIcon(method.name)" size="20" />
+            </k-avatar>
+            <span class="swap-tile__text">
+              <span class="swap-tile__name">{{ method.displayName || method.name }}</span>
+              <span class="swap-tile__balance">{{ method.currencyCode ?? "USD" }}</span>
+            </span>
+            <k-icon :icon="currencyIcon(method.currencyCode ?? 'USD')" size="18" class="swap-tile__currency" />
+          </button>
+        </div>
+
+        <div class="swap-dialog__label mt-4">Amount</div>
+        <div class="swap-dialog__amount">
+          <k-text-field
+            v-model.number="amount"
+            :prepend-inner-icon="currencyIcon(sourceCode)"
+            :prefix="sourceIsNegative && !transfer ? '−' : undefined"
+            :suffix="sourceCurrency?.symbol && sourceCode !== 'USD' ? sourceCurrency.symbol : undefined"
+            :placeholder="`Amount (${sourceCode})`"
+            type="number"
+            min="0"
+            :step="sourceCurrency && sourceCurrency.cashRoundingUnit > 1 ? sourceCurrency.cashRoundingUnit : 0.01"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+            data-test="swap-amount"
+          />
+          <k-btn v-if="source && !transfer" variant="tonal" size="large" data-test="swap-all" @click="fillAll">All</k-btn>
+        </div>
+
+        <div v-if="source && destination && preview?.valid" class="swap-summary" data-test="swap-summary">
+          <k-icon icon="mdi-check-circle" color="success" size="20" />
+          <div>
+            <div>
+              <strong>{{ destination.displayName || destination.name }}</strong> receives
+              <strong>{{ formatBalance(preview.destinationReceivesCents, destination.currencyCode ?? "USD", currencies, roundingMode) }}</strong>
+            </div>
+            <div v-if="transfer" class="text-medium-emphasis">
+              {{ source.accountName }} is left with {{ formatBalance(preview.sourceRemainingCents, sourceCode, currencies, roundingMode) }}
+            </div>
+          </div>
+        </div>
+        <div v-else-if="preview && !preview.valid && preview.reason" class="swap-summary swap-summary--error" data-test="swap-error">
+          <k-icon icon="mdi-alert-circle-outline" color="error" size="20" />
+          <div>{{ preview.reason }}</div>
         </div>
       </k-card-text>
-      <k-card-actions>
+      <k-card-actions class="px-6 pb-4">
         <k-spacer />
         <k-btn variant="text" @click="$emit('update:modelValue', false)">Cancel</k-btn>
-        <k-btn color="primary" :loading="saving" :disabled="!valid" @click="save">{{ transfer ? "Transfer" : "Swap" }}</k-btn>
+        <k-btn color="primary" variant="flat" :prepend-icon="transfer ? 'mdi-arrow-right' : 'mdi-swap-horizontal'" :loading="saving" :disabled="!valid" data-test="swap-save" @click="save">
+          {{ transfer ? "Transfer" : "Swap" }}
+        </k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
@@ -34,6 +123,8 @@ import { computed, ref, watch } from "vue";
 import { ReplaceShiftBalance, PreviewShiftBalanceReplacement, ConvertCashEntryToCents } from "../../../wailsjs/go/main/App";
 import type { Balance, PaymentMethod } from "@/types/shifts";
 import { formatBalance } from "@/lib/format";
+import { currencyIcon } from "@/lib/currencyIcon";
+import { paymentAccentColor, paymentIcon } from "@/lib/paymentColor";
 import { useCurrencies, findCurrency } from "@/composables/useCurrencies";
 import { useAuthStore } from "@/stores/auth";
 
@@ -55,7 +146,13 @@ const amount = ref<number | null>(null);
 const transfer = ref(false);
 const saving = ref(false);
 const source = computed(() => props.sources.find((item) => item.accountId === sourceId.value) ?? null);
-const sourceCurrency = computed(() => findCurrency(currencies.value, source.value?.currencyCode ?? "USD"));
+const sourceCode = computed(() => source.value?.currencyCode ?? "USD");
+const sourceCurrency = computed(() => findCurrency(currencies.value, sourceCode.value));
+// The Swap/Transfer switch (admins only) drives `transfer`.
+const mode = computed({
+  get: () => (transfer.value ? "transfer" : "swap"),
+  set: (value: string) => (transfer.value = value === "transfer"),
+});
 const sourceIsNegative = computed(() => Number(source.value?.balance ?? 0) < 0);
 const destinations = computed(() => props.paymentMethods.filter((method) => method.id !== source.value?.accountId));
 const destination = computed(() => destinations.value.find((method) => method.id === destinationId.value));
@@ -147,6 +244,11 @@ watch(transfer, (on) => {
   amount.value = on ? null : sourceAmount(source.value);
 });
 
+// "All" moves the source's whole balance, rounded to its cash unit.
+function fillAll() {
+  amount.value = sourceAmount(source.value);
+}
+
 async function save() {
   if (!valid.value || !props.shiftId || !source.value || !destinationId.value) return;
   saving.value = true;
@@ -161,3 +263,102 @@ async function save() {
   }
 }
 </script>
+
+<style scoped>
+.swap-dialog__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px 8px;
+}
+.swap-dialog__mode {
+  width: 100%;
+}
+.swap-dialog__mode :deep(.k-btn) {
+  flex: 1 1 0;
+}
+.swap-dialog__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(var(--k-theme-on-surface), 0.6);
+  margin-bottom: 6px;
+}
+.swap-dialog__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.swap-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 8px 10px;
+  border: 1px solid rgba(var(--k-theme-on-surface), 0.14);
+  border-radius: 10px;
+  background: rgb(var(--k-theme-surface));
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.swap-tile:hover {
+  background: rgba(var(--k-theme-on-surface), 0.04);
+}
+.swap-tile--selected {
+  border: 2px solid rgb(var(--k-theme-primary));
+  padding: 7px 9px;
+  background: rgba(var(--k-theme-primary), 0.06);
+}
+.swap-tile__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.swap-tile__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.swap-tile__balance {
+  font-size: 0.8125rem;
+  color: rgba(var(--k-theme-on-surface), 0.65);
+  font-variant-numeric: tabular-nums;
+}
+.swap-tile__currency {
+  opacity: 0.5;
+  flex: none;
+}
+.swap-dialog__arrow {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 2px;
+  color: rgba(var(--k-theme-on-surface), 0.5);
+}
+.swap-dialog__amount {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.swap-dialog__amount > :first-child {
+  flex: 1 1 auto;
+}
+.swap-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(var(--k-theme-success), 0.08);
+  font-size: 0.875rem;
+}
+.swap-summary--error {
+  background: rgba(var(--k-theme-error), 0.08);
+  color: rgb(var(--k-theme-error));
+}
+</style>
