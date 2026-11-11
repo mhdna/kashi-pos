@@ -973,6 +973,7 @@ func (a *App) GetAppSettings() (map[string]interface{}, error) {
 	}
 	result["closeShiftRequiresSync"] = a.closeShiftRequiresSync()
 	result["scanByCodeEnabled"] = a.scanByCodeEnabled()
+	result["variantPickRequired"] = a.flagEnabled(a.ctx, variantPickRequiredFlag)
 	result["productSearchCodeOnly"] = a.flagEnabled(a.ctx, productSearchCodeOnlyFlag)
 	result["unknownPicturesAtCheckout"] = a.flagEnabled(a.ctx, unknownPicturesAtCheckoutFlag)
 	result["priceEditRestricted"] = a.flagEnabled(a.ctx, priceEditRestrictedFlag)
