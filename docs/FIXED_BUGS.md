@@ -9,16 +9,16 @@ and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 list scrolled to its end but the last row of cards stayed half under the search
 bar at the bottom.
 
-**Cause.** The results stopped `--home-search-keyboard-height` above the pane's
-bottom, taken from the keyboard's own height. When the pane ends above the
-screen bottom, that inset is more than the keyboard overlaps, so the results
-reached under the keyboard (likely cause, from the screenshot; not reproduced
-here).
+**Cause.** The results box (`.home-search-results`) is positioned with `top: 0;
+bottom: <keyboard height>`, but the list inside it sets `height: 100%`, and an
+explicit height beats `bottom`. So the list was as tall as the whole pane and its
+last rows were behind the keyboard, past the end of the scroll. (The first fix
+for this, measuring the inset from the real positions, didn't touch that; it is
+kept, since it is still the right number.)
 
-**Fix.** The inset is now measured from where the pane and the keyboard really
-are (`searchResultsInset` in `lib/searchInset.ts`, measured in `pages/home.vue`
-on resize and when either changes), so the results end exactly at the keyboard.
-Test: `lib/searchInset.test.ts`.
+**Fix.** `.home-search-results` now gives its height outright:
+`calc(100% - var(--home-search-keyboard-height))` (`pages/home.vue`). Tests:
+`lib/searchInset.test.ts`.
 
 ## 2026-11-11 · Unknown-item QR forgotten after leaving the sale screen
 

@@ -31,3 +31,17 @@ describe("searchResultsInset", () => {
     }
   });
 });
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+// Vitest doesn't load component CSS: the rules are read from the source.
+describe("the search results box", () => {
+  const home = readFileSync(resolve(process.cwd(), "src/pages/home.vue"), "utf8");
+  const results = readFileSync(resolve(process.cwd(), "src/components/ProductSearchResults.vue"), "utf8");
+  it("the list has an explicit height of the pane minus the keyboard, since its own height: 100% overrides bottom", () => {
+    expect(results).toMatch(/\.product-list \{[^}]*height: 100%/);
+    expect(home).toMatch(/\.home-search-results \{[^}]*bottom: var\(--home-search-keyboard-height, 0px\)/);
+    expect(home).toMatch(/\.home-search-results \{[^}]*height: calc\(100% - var\(--home-search-keyboard-height, 0px\)\)/);
+  });
+});

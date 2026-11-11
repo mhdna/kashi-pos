@@ -2012,6 +2012,9 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   bottom: var(--home-search-keyboard-height, 0px);
+  /* The list's own `height: 100%` would win over top/bottom and make it as tall as
+     the whole pane, its end hidden behind the keyboard. Say the height outright. */
+  height: calc(100% - var(--home-search-keyboard-height, 0px));
   z-index: 11;
   background-color: rgb(var(--k-theme-surface));
 }
