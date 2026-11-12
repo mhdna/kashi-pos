@@ -43,6 +43,9 @@ watch(
 );
 onBeforeUnmount(() => timer && clearTimeout(timer));
 const open = ref(false);
+const motion = computed(() =>
+  shown.value.icon === "mdi-cloud-download" ? "down" : shown.value.icon === "mdi-cloud-upload" ? "up" : "spin",
+);
 
 function openSyncSettings() {
   open.value = false;
@@ -60,19 +63,14 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
     data-test="sync-indicator"
     @click="open = true"
   >
-    <span class="sync-status-icon">
-      <k-progress-circular
-        v-if="shown.spinner.on"
-        :indeterminate="shown.spinner.pct === null"
-        :model-value="shown.spinner.pct ?? 0"
-        size="26"
-        width="3"
-        color="#ffb74d"
-        data-test="sync-spinner"
-      >
-        <k-icon :icon="shown.icon" size="14" />
-      </k-progress-circular>
-      <k-icon v-else :icon="shown.icon" size="22" />
+    <!-- A round badge in the state's colour. While work moves it breathes and
+         its icon drifts (down for Updating, up for Sending): no ring that
+         fills by steps, which said nothing real. -->
+    <span
+      :class="['sync-status-icon', { 'sync-status-icon--busy': shown.spinner.on }, `sync-status-icon--${motion}`]"
+      :data-test="shown.spinner.on ? 'sync-spinner' : undefined"
+    >
+      <k-icon :icon="shown.icon" size="20" class="sync-status-glyph" />
     </span>
     <span class="sync-status-word" data-test="sync-word">{{ shown.word }}</span>
     <!-- Always takes its line, so the word and the pill below never move. -->
@@ -142,13 +140,46 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
   cursor: pointer;
   text-align: center;
 }
-/* The ring and the plain icon get the same box, so the word under them stays put. */
+/* One box in every state, so the word under it stays put. */
 .sync-status-icon {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  overflow: visible;
+}
+.sync-status-icon--busy::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  animation: sync-breathe 1.8s ease-out infinite;
+  pointer-events: none;
+}
+.sync-status-icon--busy.sync-status-icon--down .sync-status-glyph { animation: sync-drift-down 1.4s ease-in-out infinite; }
+.sync-status-icon--busy.sync-status-icon--up .sync-status-glyph { animation: sync-drift-up 1.4s ease-in-out infinite; }
+.sync-status-icon--busy.sync-status-icon--spin .sync-status-glyph { animation: sync-spin 2.4s linear infinite; }
+@keyframes sync-breathe {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes sync-drift-down {
+  0%, 100% { transform: translateY(-2px); }
+  50% { transform: translateY(2px); }
+}
+@keyframes sync-drift-up {
+  0%, 100% { transform: translateY(2px); }
+  50% { transform: translateY(-2px); }
+}
+@keyframes sync-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .sync-status-icon--busy::after,
+  .sync-status-icon--busy .sync-status-glyph { animation: none; }
 }
 .sync-status-word {
   font-size: 0.78rem;

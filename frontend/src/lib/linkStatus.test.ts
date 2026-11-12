@@ -91,10 +91,20 @@ describe("the headline", () => {
     expect(s.spinner.on).toBe(true);
   });
 
-  it("pulling shows the entity, the step and a determinate spinner", () => {
+  it("pulling shows only the entity on the rail, the full line in the title, no fake percentage", () => {
     const s = d({ phase: "pulling", label: "Products", done: 2, total: 21, detail: "500 changes" });
-    expect(s).toMatchObject({ tone: "busy", word: "Updating", sub: "Products 3/21 · 500 changes" });
-    expect(s.spinner).toEqual({ on: true, pct: 10 });
+    expect(s).toMatchObject({ tone: "busy", word: "Updating", sub: "Products", title: "Products 3/21 · 500 changes" });
+    expect(s.spinner).toEqual({ on: true, pct: null });
+  });
+
+  it("the reported case: a long clients catch-up never shows a climbing count on the rail", () => {
+    for (const n of [100, 200, 300, 399, 400, 500, 12000]) {
+      const s = d({ phase: "pulling", label: "Clients", done: 4, total: 21, detail: `${n} changes` });
+      expect(s.sub).toBe("Clients");
+      expect(s.sub).not.toMatch(/\d/);
+      expect(s.spinner.pct).toBeNull();
+      expect(s.rows.find(r => r.key === "now")!.value).toContain(`${n} changes`);
+    }
   });
 
   it("a single-entity pull has no meaningless 0/1", () => {
@@ -105,7 +115,7 @@ describe("the headline", () => {
 
   it("sending shows how many records are left", () => {
     const s = d({ phase: "pushing", label: "Sending to central", done: 3, total: 12 }, { pending: 9 });
-    expect(s).toMatchObject({ tone: "busy", word: "Sending", sub: "Sending to central 3/12", icon: "mdi-cloud-upload" });
+    expect(s).toMatchObject({ tone: "busy", word: "Sending", sub: "3 of 12", title: "Sending to central 3/12", icon: "mdi-cloud-upload" });
     expect(s.spinner).toEqual({ on: true, pct: 25 });
   });
 
@@ -133,8 +143,8 @@ describe("the headline", () => {
   });
 
   it("percent is clamped", () => {
-    expect(d({ phase: "pulling", label: "x", done: 50, total: 10 }).spinner.pct).toBe(100);
-    expect(d({ phase: "pulling", label: "x", done: -3, total: 10 }).spinner.pct).toBe(0);
+    expect(d({ phase: "pushing", label: "x", done: 50, total: 10 }).spinner.pct).toBe(100);
+    expect(d({ phase: "pushing", label: "x", done: -3, total: 10 }).spinner.pct).toBe(0);
   });
 });
 

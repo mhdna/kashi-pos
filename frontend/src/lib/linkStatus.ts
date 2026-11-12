@@ -54,7 +54,7 @@ export interface Summary {
   icon: string;
   /** One or two words for the nav rail. */
   word: string;
-  /** A line under the word while something moves ("Products 3/21"); else "". */
+  /** A short line under the word while something moves ("Products", "3 of 12"); else "". */
   sub: string;
   /** Spinner: on while work is moving; pct is null when the total is unknown. */
   spinner: { on: boolean; pct: number | null };
@@ -117,8 +117,22 @@ function workLine(link: LinkInfo): string {
   return parts.filter(Boolean).join(" ") + (link.detail ? ` · ${link.detail}` : "");
 }
 
+// The nav rail's short line while work moves: only the step's name when
+// pulling ("Clients"), since central never says how many rows are coming and a
+// climbing "100 changes, 200 changes..." means nothing to a cashier; when
+// sending, how far through the queue it is. The full line is in the dialog.
+function railLine(link: LinkInfo): string {
+  if (link.phase === "pushing") {
+    if (link.total > 1) return `${Math.min(Math.max(link.done, 0), link.total)} of ${link.total}`;
+    return link.total === 1 ? "1 record" : "";
+  }
+  return link.label;
+}
+
+// Real progress only: records sent out of the queue. A pull's done/total counts
+// kinds of data (3 of 21), not rows, so its ring would jump about for nothing.
 function pct(link: LinkInfo): number | null {
-  if (link.total <= 1) return null;
+  if (link.phase !== "pushing" || link.total <= 1) return null;
   return Math.max(0, Math.min(100, Math.round((link.done / link.total) * 100)));
 }
 
@@ -206,7 +220,7 @@ export function describeLink(
     const line = workLine(link);
     return make({
       tone: "busy", icon: link.phase === "pushing" ? "mdi-cloud-upload" : "mdi-cloud-download", word: link.phase === "pushing" ? "Sending" : "Updating",
-      sub: line, spinner: { on: true, pct: spinnerPct }, title: line,
+      sub: railLine(link), spinner: { on: true, pct: spinnerPct }, title: line,
     });
   }
 

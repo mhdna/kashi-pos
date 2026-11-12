@@ -3,6 +3,24 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-12 · The sync light counted 100, 200, 300… and its ring meant nothing
+
+**Symptom.** During a long pull the nav rail's sync light read "Updating ·
+Clients · 200 …", then 300, 400 and on, cut off, with a thin ring around a tiny
+icon that filled and emptied for no visible reason.
+
+**Cause.** The rail showed the whole work line, including the running "N
+changes" count; central never says how many rows are coming, so the number only
+climbs. The ring's percentage was the pull's step (entity 3 of 21), not rows.
+
+**Fix.** The rail now shows only the step's name while pulling ("Clients") and
+"3 of 12" while sending; the full line stays in the tooltip and the dialog's
+"Right now" row (`lib/linkStatus.ts`, `railLine`). Only sending has a real
+percentage. The icon sits in a round badge in the state's colour that breathes
+while busy and drifts down (Updating) or up (Sending) (`components/SyncIndicator.vue`).
+Tests: `lib/linkStatus.test.ts` ("a long clients catch-up never shows a climbing
+count"), `components/SyncIndicator.test.ts`.
+
 ## 2026-11-11 · Some notifications weren't grey like the rest
 
 **Symptom.** Most notifications were the see-through grey, but some weren't: the

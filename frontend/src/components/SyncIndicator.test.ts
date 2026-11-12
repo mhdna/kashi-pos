@@ -76,7 +76,23 @@ describe("SyncIndicator", () => {
     show();
     expect(wrapper!.find('[data-test="sync-spinner"]').exists()).toBe(true);
     expect(text("sync-word")).toBe("Updating");
-    expect(text("sync-sub")).toBe("Products 3/21");
+    expect(text("sync-sub")).toBe("Products");
+    expect(wrapper!.find('[data-test="sync-spinner"]').classes()).toContain("sync-status-icon--down");
+  });
+
+  it("the reported case: a long clients pull shows Clients, not a climbing count, and no step ring", () => {
+    linkRef.value = { ...baseLink(), phase: "pulling", label: "Clients", done: 4, total: 21, detail: "399 changes" };
+    show();
+    expect(text("sync-sub")).toBe("Clients");
+    expect(wrapper!.find(".k-progress-circular").exists()).toBe(false);
+  });
+
+  it("sending drifts upward and says how far through the queue it is", () => {
+    linkRef.value = { ...baseLink(), phase: "pushing", label: "Sending to central", done: 3, total: 12 };
+    show();
+    expect(text("sync-word")).toBe("Sending");
+    expect(text("sync-sub")).toBe("3 of 12");
+    expect(wrapper!.find('[data-test="sync-spinner"]').classes()).toContain("sync-status-icon--up");
   });
 
   it("no internet shows the wifi-off state in red", () => {
