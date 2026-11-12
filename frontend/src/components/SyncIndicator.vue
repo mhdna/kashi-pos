@@ -32,7 +32,8 @@ watch(
   (next) => {
     if (timer) clearTimeout(timer);
     timer = null;
-    if (next.spinner.on || next.tone === "busy") holdUntil = Date.now() + ACTIVITY_HOLD_MS;
+    // Only real work (spinning) restarts the hold; Waiting must not hold itself back.
+    if (next.spinner.on) holdUntil = Date.now() + ACTIVITY_HOLD_MS;
     if (shouldHoldBusy(next, Date.now(), holdUntil)) {
       timer = setTimeout(() => (shown.value = summary.value), Math.max(0, holdUntil - Date.now()) + 20);
       return;

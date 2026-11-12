@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-12 · The sync light flipped Updating, Waiting, Sending, Waiting…
+
+**Symptom.** On a till with a big backlog to send (81,979 records) pulling a long
+client catch-up, the nav rail's light kept flipping between Updating, Waiting and
+Sending, a new word every few seconds.
+
+**Cause.** The light held back only "Synced" for a moment after work stopped
+(`shouldHoldBusy`); "Waiting" (records queued, nothing moving this instant) showed
+at once, so it flashed in every gap between passes. The hold was also restarted by
+any busy state, Waiting included.
+
+**Fix.** Waiting is held like Synced, and only spinning work restarts the hold;
+amber and red problems still show at once (`lib/linkStatus.ts`,
+`components/SyncIndicator.vue`). Tests: `lib/linkStatus.test.ts` and
+`components/SyncIndicator.test.ts` ("a big backlog reads Updating, Sending, not
+Waiting in every gap").
+
 ## 2026-11-12 · In-place search lost the focus to the barcode field
 
 **Symptom.** Typing a code in the in-place product search, the focus kept jumping

@@ -143,11 +143,17 @@ export const ACTIVITY_HOLD_MS = 2500;
  * One checkout queues several records and the till sends them in separate
  * passes, then pulls the stock changes that come back; between passes it is
  * idle for a moment. Showing every gap flashes "Synced" between "Sending" and
- * "Updating". So the calm "Synced" state waits until nothing has moved for
- * ACTIVITY_HOLD_MS. Anything that is a problem, or work, shows at once.
+ * "Updating". So the calm states (Synced, and Waiting with records queued)
+ * wait until nothing has moved for ACTIVITY_HOLD_MS. A problem, or work,
+ * shows at once.
  */
 export function shouldHoldBusy(next: Summary, nowMs: number, holdUntilMs: number): boolean {
-  return next.tone === "ok" && !next.spinner.on && nowMs < holdUntilMs;
+  // "Waiting" (records queued, nothing moving this instant) is as calm as
+  // Synced: a till sending a big backlog in batches and pulling back what it
+  // sent was idle between each, and the light flipped Updating, Waiting,
+  // Sending, Waiting... A problem (amber or red) still shows at once.
+  const calm = next.tone === "ok" || next.tone === "busy";
+  return calm && !next.spinner.on && nowMs < holdUntilMs;
 }
 
 export function describeLink(

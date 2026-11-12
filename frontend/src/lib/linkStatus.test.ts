@@ -295,10 +295,16 @@ describe("shouldHoldBusy (no Synced flicker between passes)", () => {
     expect(shouldHoldBusy(calm(), 1000 + ACTIVITY_HOLD_MS, 1000 + ACTIVITY_HOLD_MS)).toBe(false);
     expect(shouldHoldBusy(calm(), 5000, 0)).toBe(false);
   });
+  it("the reported case: a big backlog doesn't flip to Waiting between passes", () => {
+    const waiting = d({}, { pending: 81979 });
+    expect(waiting.word).toBe("Waiting");
+    expect(shouldHoldBusy(waiting, 1000, 1000 + ACTIVITY_HOLD_MS)).toBe(true);
+    // Once nothing has moved for the hold, Waiting does show.
+    expect(shouldHoldBusy(waiting, 1000 + ACTIVITY_HOLD_MS, 1000 + ACTIVITY_HOLD_MS)).toBe(false);
+  });
   it("never holds back work or a problem", () => {
     const hold = Number.MAX_SAFE_INTEGER;
     expect(shouldHoldBusy(d({ phase: "pushing", label: "x", total: 2 }), 0, hold)).toBe(false);
-    expect(shouldHoldBusy(d({}, { pending: 1 }), 0, hold)).toBe(false);
     expect(shouldHoldBusy(d({}, { failed: 1 }), 0, hold)).toBe(false);
     expect(shouldHoldBusy(d({ live: false }), 0, hold)).toBe(false);
     expect(shouldHoldBusy(d({ kashi: "down", internet: "down" }), 0, hold)).toBe(false);

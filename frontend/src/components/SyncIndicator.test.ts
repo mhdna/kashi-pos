@@ -162,6 +162,49 @@ describe("SyncIndicator", () => {
     }
   });
 
+  it("the reported case: a big backlog reads Updating, Sending, not Waiting in every gap", async () => {
+    vi.useFakeTimers();
+    try {
+      queueRef.value = { configured: true, pending: 81979, failed: 0, confirmedElsewhere: 0 };
+      show();
+      expect(text("sync-word")).toBe("Waiting");
+
+      for (let pass = 0; pass < 5; pass++) {
+        linkRef.value = { ...baseLink(), phase: "pulling", label: "Clients", detail: `${(pass + 1) * 1000} changes`, done: 4, total: 21 };
+        await flushPromises();
+        expect(text("sync-word")).toBe("Updating");
+        // The gap between passes: still Updating, no Waiting flash.
+        linkRef.value = baseLink();
+        await flushPromises();
+        expect(text("sync-word"), `pass ${pass}`).toBe("Updating");
+        vi.advanceTimersByTime(800);
+        linkRef.value = { ...baseLink(), phase: "pushing", label: "Sending to central", done: 0, total: 500 };
+        await flushPromises();
+        expect(text("sync-word")).toBe("Sending");
+        linkRef.value = baseLink();
+        await flushPromises();
+        expect(text("sync-word"), `pass ${pass}`).toBe("Sending");
+        vi.advanceTimersByTime(800);
+      }
+
+      // Nothing moves for the whole hold: Waiting, with the count.
+      vi.advanceTimersByTime(ACTIVITY_HOLD_MS + 100);
+      await flushPromises();
+      expect(text("sync-word")).toBe("Waiting");
+      expect(text("sync-sub")).toBe("81979 to send");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("from Synced, a queued sale shows Waiting at once (nothing to hold)", async () => {
+    show();
+    expect(text("sync-word")).toBe("Synced");
+    queueRef.value = { configured: true, pending: 1, failed: 0, confirmedElsewhere: 0 };
+    await flushPromises();
+    expect(text("sync-word")).toBe("Waiting");
+  });
+
   it("a problem shows at once, even right after work", async () => {
     vi.useFakeTimers();
     try {
