@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-12 · In-place search: the code grid still ran behind the keyboard
+
+**Symptom.** Searching in place on the sale screen, the product grid's last rows
+(and its "N products" line) sat behind the search keyboard, so they couldn't be
+scrolled into view. The 2026-11-11 fixes for this didn't help on a real till.
+
+**Cause.** The results' height comes from home.vue's `.home-search-results`
+(`height: calc(100% - keyboard)`), but their root is ProductSearchResults'
+`.product-list` (`height: 100%`). Scoped, that one weighs two classes, the same as
+home.vue's rule, and the two are in different CSS chunks, so load order decided.
+In the built app `.product-list` won and the list was the whole pane tall.
+
+**Fix.** home.vue's rule is now `.home-page .home-right-pane .home-search-results`,
+outweighing `.product-list[data-v]` whatever the order (`pages/home.vue`). Test:
+`lib/searchResultsCss.test.ts` reads both stylesheets and checks the weights,
+counting the scoped attribute.
+
 ## 2026-11-12 · The sync light's busy badge never moved on a till
 
 **Symptom.** The new busy badge on the nav rail's sync light stood still on tills,

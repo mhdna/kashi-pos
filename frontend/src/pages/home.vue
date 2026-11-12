@@ -2006,7 +2006,11 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
-.home-search-results {
+/* Three classes deep: .product-list (the results' own root, height: 100%) is
+   scoped, so .product-list[data-v] weighs two, and it sits in another CSS chunk;
+   an equal weight wins or loses by load order. In the built app it won, so the
+   grid ran behind the keyboard. */
+.home-page .home-right-pane .home-search-results {
   position: absolute;
   top: 0;
   left: 0;
