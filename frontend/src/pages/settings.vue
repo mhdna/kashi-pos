@@ -3982,7 +3982,12 @@ async function deleteUser() {
   bottom: 0;
   z-index: 5;
   padding: 10px 0 14px;
-  background: var(--kashi-app-background);
+  /* No backdrop: only the Save button itself floats over the settings. */
+  pointer-events: none;
+}
+
+.settings-page-actions > * {
+  pointer-events: auto;
 }
 
 .settings-page :deep(.k-input) {

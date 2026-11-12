@@ -7,15 +7,7 @@
         :style="{ '--pin-logo-image': `url(${logo})` }"
         role="img"
         aria-label="K"
-      />
-      <k-btn
-        class="pin-admin-toggle"
-        :icon="mode === 'admin' ? 'mdi-keyboard-outline' : 'mdi-shield-key-outline'"
-        size="small"
-        variant="text"
-        :aria-label="mode === 'admin' ? 'Back to cashier PIN' : 'Admin sign-in'"
-        :title="mode === 'admin' ? 'Back to cashier PIN' : 'Admin sign-in'"
-        @click="toggleMode"
+        @click="onLogoTap"
       />
     </div>
 
@@ -179,6 +171,19 @@ async function switchBranch(code: string) {
   }
 }
 
+// Touch tills have no keyboard: tapping the logo 5 times quickly does the same.
+let logoTaps = 0;
+let logoTapTimer: ReturnType<typeof setTimeout> | undefined;
+function onLogoTap() {
+  logoTaps++;
+  clearTimeout(logoTapTimer);
+  logoTapTimer = setTimeout(() => (logoTaps = 0), 1500);
+  if (logoTaps >= 5) {
+    logoTaps = 0;
+    toggleMode();
+  }
+}
+
 function toggleMode() {
   if (loading.value) return;
   mode.value = mode.value === "pin" ? "admin" : "pin";
@@ -270,6 +275,12 @@ async function submitAdmin() {
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  // Hidden way into the admin form (and back): Ctrl/Cmd+Shift+A.
+  if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "a") {
+    event.preventDefault();
+    toggleMode();
+    return;
+  }
   if (mode.value !== "pin") return;
   if (/^\d$/.test(event.key)) enterDigit(event.key);
   else if (event.key === "Backspace") removeDigit();
@@ -354,18 +365,6 @@ onBeforeUnmount(() => {
   mask: var(--pin-logo-image) center / contain no-repeat;
   -webkit-mask: var(--pin-logo-image) center / contain no-repeat;
   margin-bottom: 0;
-}
-
-.pin-admin-toggle {
-  position: absolute;
-  right: -8px;
-  bottom: -4px;
-  opacity: 0.55;
-}
-
-.pin-admin-toggle:hover,
-.pin-admin-toggle:focus-visible {
-  opacity: 1;
 }
 
 .pin-branch-select {
