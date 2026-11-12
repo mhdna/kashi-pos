@@ -23,7 +23,8 @@ and list item was a deep tree of reactive components.
 - **Types**: `src/ui/global.d.ts` declares the components, so templates are
   type-checked by `vue-tsc`.
 - **No transitions, no ripples.** Only the spinners move (`k-progress-circular`,
-  `k-progress-linear`, the print spinner, the startup loader's), and they **always
+  `k-progress-linear`, the print spinner, the startup loader's, and the nav rail
+  sync light's busy badge, which replaced its ring), and they **always
   spin, whatever the Animations switch says**: they mean "working". Their rules
   carry `!important` to get past the global kill in `styles/settings.scss`.
 - **Animations are off by default, on every build** (`lib/animationsDefault.ts`).
@@ -33,6 +34,10 @@ and list item was a deep tree of reactive components.
   class sits on `<html>` (dialogs are teleported out of the app root). The switch
   now only governs the red status dot in the nav rail (solid red when off, pulsing
   when on) and the invoice salesperson menu's fade.
+- **Tabs scroll sideways when they don't fit** (`k-tabs`, rules in
+  `ui/tabsScroll.ts`): swipe, mouse wheel, or the edge arrows (an instant jump,
+  no smooth scroll), and the chosen tab is brought into view. The arrows fade
+  into `--k-tabs-fade` (the page background by default).
 - **Closed overlays cost nothing.** Dialogs, menus, tooltips and snackbars are
   rendered only while open, and teleported to `<body>`. Without a `v-model`
   (`<k-menu>` / `<k-dialog>` with an `#activator`) they keep their own open

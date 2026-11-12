@@ -317,7 +317,12 @@
   .k-slider--density-compact { min-height: 24px; }
 
   /* tabs */
-  .k-tabs { display: flex; height: 48px; flex: none; max-width: 100%; overflow: hidden; }
+  .k-tabs { position: relative; display: flex; height: 48px; flex: none; max-width: 100%; overflow: hidden; }
+  .k-tabs__track { display: flex; flex: 1 1 auto; min-width: 0; height: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+  .k-tabs__track::-webkit-scrollbar { display: none; }
+  .k-tabs__arrow { position: absolute; top: 0; bottom: 0; z-index: 1; display: inline-flex; align-items: center; width: 44px; padding: 0; border: 0; color: inherit; cursor: pointer; }
+  .k-tabs__arrow--prev { left: 0; justify-content: flex-start; padding-left: 6px; background: linear-gradient(to right, var(--k-tabs-fade, rgb(var(--k-theme-background))) 55%, transparent); }
+  .k-tabs__arrow--next { right: 0; justify-content: flex-end; padding-right: 6px; background: linear-gradient(to left, var(--k-tabs-fade, rgb(var(--k-theme-background))) 55%, transparent); }
   .k-tabs--density-compact { height: 36px; }
   .k-tabs--grow { flex-grow: 1; }
   .k-tabs--grow .k-tab { flex: 1 0 auto; max-width: none; }

@@ -3,6 +3,21 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-12 · Settings tabs past the edge of the screen couldn't be reached
+
+**Symptom.** On a till whose screen is narrower than the Settings tab bar, the
+last tabs ("Cash & shifts" and on) were cut off, and there was no way to scroll to
+them.
+
+**Cause.** The kit's `k-tabs` was `overflow: hidden`, so anything past its width
+was clipped with no scroll.
+
+**Fix.** `k-tabs` now holds its tabs in a track that scrolls sideways (swipe or
+mouse wheel), shows edge arrows while there is more on that side, and brings the
+chosen tab into view (`ui/KTabs.vue`, `ui/ui.css`, rules in `ui/tabsScroll.ts`).
+Tests: `ui/tabsScroll.test.ts`, `ui/KTabs.test.ts` ("Settings tabs wider than the
+screen can be scrolled to").
+
 ## 2026-11-12 · Setup screen showed the central API key in plain text
 
 **Symptom.** On a new till's "Set up this branch" screen, the pasted central API
