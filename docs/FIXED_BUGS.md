@@ -3,6 +3,18 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-12 · The sync light's busy badge never moved on a till
+
+**Symptom.** The new busy badge on the nav rail's sync light stood still on tills,
+so "Updating" looked the same as a stuck state.
+
+**Cause.** `styles/settings.scss` kills every animation with `!important`; only
+the kit's spinners opt back in, and the badge's animations didn't.
+
+**Fix.** The badge's breathe/drift/spin animations carry `!important` like the
+spinners, since they mean "working" (`components/SyncIndicator.vue`); reduced
+motion still stops them. `docs/dev/ui-components.md` lists it with the spinners.
+
 ## 2026-11-12 · Settings tabs past the edge of the screen couldn't be reached
 
 **Symptom.** On a till whose screen is narrower than the Settings tab bar, the

@@ -158,12 +158,14 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
   inset: 0;
   border-radius: 50%;
   border: 2px solid currentColor;
-  animation: sync-breathe 1.8s ease-out infinite;
+  /* Like the kit's spinners it means "working", so it moves whatever the
+     Animations switch says (styles/settings.scss kills all others). */
+  animation: sync-breathe 1.8s ease-out infinite !important;
   pointer-events: none;
 }
-.sync-status-icon--busy.sync-status-icon--down .sync-status-glyph { animation: sync-drift-down 1.4s ease-in-out infinite; }
-.sync-status-icon--busy.sync-status-icon--up .sync-status-glyph { animation: sync-drift-up 1.4s ease-in-out infinite; }
-.sync-status-icon--busy.sync-status-icon--spin .sync-status-glyph { animation: sync-spin 2.4s linear infinite; }
+.sync-status-icon--busy.sync-status-icon--down .sync-status-glyph { animation: sync-drift-down 1.4s ease-in-out infinite !important; }
+.sync-status-icon--busy.sync-status-icon--up .sync-status-glyph { animation: sync-drift-up 1.4s ease-in-out infinite !important; }
+.sync-status-icon--busy.sync-status-icon--spin .sync-status-glyph { animation: sync-spin 2.4s linear infinite !important; }
 @keyframes sync-breathe {
   0% { transform: scale(1); opacity: 0.55; }
   100% { transform: scale(1.4); opacity: 0; }
@@ -179,7 +181,7 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
 @keyframes sync-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   .sync-status-icon--busy::after,
-  .sync-status-icon--busy .sync-status-glyph { animation: none; }
+  .sync-status-icon--busy .sync-status-glyph { animation: none !important; }
 }
 .sync-status-word {
   font-size: 0.78rem;
