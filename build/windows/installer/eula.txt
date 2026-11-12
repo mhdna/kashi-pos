@@ -1,0 +1,96 @@
+GB CLOUD - END USER LICENSE AGREEMENT
+
+Please read this agreement carefully before installing or using GB Cloud
+(the "Software"). By clicking "I accept", installing, or using the Software,
+you (the business installing it, and every person who uses it on that
+business's behalf) agree to these terms. If you do not agree, do not install
+or use the Software.
+
+1. LICENSE
+
+GB ("we", "us") grants you a limited, non-exclusive, non-transferable,
+revocable license to install and use the Software on the tills and computers
+of your own business, only for running that business's sales, shifts,
+inventory and related operations, and only for as long as your agreement
+with us remains in force.
+
+2. OWNERSHIP
+
+The Software is licensed, not sold. We own the Software, including its code,
+design, database structure, file formats, receipts layouts and
+documentation, and all copies of it. You receive no rights except those
+written in this agreement.
+
+3. WHAT YOU MAY NOT DO
+
+You may not, and may not allow anyone else to:
+
+a) copy, install or run the Software on computers or for businesses not
+   covered by your agreement with us;
+b) sell, rent, lend, sublicense, share or transfer the Software to anyone;
+c) decompile, disassemble, reverse engineer, or try to obtain the source
+   code of the Software, except where the law expressly allows it despite
+   this restriction;
+d) modify the Software or make works based on it;
+e) open, edit, or delete the Software's database, settings or data files by
+   any means other than the Software itself;
+f) bypass, disable or interfere with the Software's kiosk mode, login and
+   permission checks, update mechanism, synchronisation, or any other
+   protection built into it;
+g) remove or change any copyright, trademark or ownership notice in the
+   Software.
+
+Changing data outside the Software can corrupt records, break
+synchronisation with your central server, and produce wrong sales, stock
+and cash figures. We are not responsible for any loss caused by doing so,
+and repairing it is not covered by any support we provide.
+
+4. UPDATES
+
+The Software may download and install updates automatically, including
+updates sent from your central server. You agree to receive them. Some
+updates may be required for the Software to keep working.
+
+5. YOUR DATA
+
+The sales, customer, stock and other business data you enter remain yours.
+You are responsible for the accuracy of the data you enter, for keeping
+backups, for the security of the computers and accounts the Software runs
+on, and for meeting the tax, invoicing, consumer and data-protection laws
+that apply to your business.
+
+The Software may record technical diagnostic information (such as errors
+and the actions that led to them) so that we can support and improve it.
+
+6. NO WARRANTY
+
+The Software is provided "as is" and "as available". To the fullest extent
+the law allows, we give no warranties of any kind, express or implied,
+including that the Software will be error-free, uninterrupted, or fit for a
+particular purpose.
+
+7. LIMITATION OF LIABILITY
+
+To the fullest extent the law allows, we are not liable for any indirect,
+incidental, special or consequential loss, including lost profits, lost
+sales, lost data, or business interruption, arising from the use of or
+inability to use the Software. Our total liability for any claim is limited
+to the amount you paid us for the Software in the twelve (12) months before
+the claim.
+
+8. TERMINATION
+
+This license ends automatically if you break any of its terms, or when your
+agreement with us ends. When it ends you must stop using the Software and
+delete all copies of it. Sections 2, 3, 6, 7 and 9 continue to apply after
+it ends.
+
+9. GENERAL
+
+This agreement is governed by the laws of Lebanon. If any part of it is
+found unenforceable, the rest remains in effect. This agreement, together
+with any written agreement between you and us, is the whole agreement about
+the Software. If that written agreement conflicts with this one, the
+written agreement applies.
+
+Copyright (c) GB. All rights reserved.

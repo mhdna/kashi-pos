@@ -46,6 +46,13 @@ Tills came with dozens of startup programs eating CPU and memory.
 - Kept: GB Cloud and its WebView2 and update helper, AnyDesk, touch screen
   drivers, the on-screen keyboard, Task Manager.
 
+## Licence agreement (`build/windows/installer/eula.txt`)
+
+The installer shows the EULA after the welcome page and keeps Next disabled
+until "I accept" is ticked; a copy is installed beside the exe. Keep the file
+plain ASCII (NSIS shows it as-is). Tills that only get updates from central
+never run the installer, so they never see a changed EULA.
+
 ## Starting with Windows (`autostart_windows.go`)
 
 The app writes its own entry under `HKCU\...\CurrentVersion\Run` on **every

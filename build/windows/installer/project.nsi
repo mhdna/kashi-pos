@@ -69,6 +69,10 @@ Function LaunchAppUnelevated
 FunctionEnd
 
 !insertmacro MUI_PAGE_WELCOME # Welcome to the installer page.
+# The EULA (eula.txt, kept ASCII so NSIS shows it as-is). The checkbox keeps
+# Next disabled until the user ticks "I accept".
+!define MUI_LICENSEPAGE_CHECKBOX
+!insertmacro MUI_PAGE_LICENSE "eula.txt"
 !insertmacro MUI_PAGE_DIRECTORY # In which folder install page.
 !insertmacro MUI_PAGE_INSTFILES # Installing page.
 !insertmacro MUI_PAGE_FINISH # Finished installation page.
@@ -177,6 +181,9 @@ Section
     SetOutPath $INSTDIR
 
     !insertmacro wails.files
+
+    # A copy of the EULA the user accepted, beside the app.
+    File "eula.txt"
 
     # Let GB Cloud replace its own executable when central sends an update
     # (updater.go) without an admin prompt at the till: give the local Users
