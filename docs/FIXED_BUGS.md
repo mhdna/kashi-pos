@@ -3,6 +3,23 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-12 · In-place search lost the focus to the barcode field
+
+**Symptom.** Typing a code in the in-place product search, the focus kept jumping
+to the barcode field at the top, so the next keys went there instead of the
+search.
+
+**Cause.** The sale screen pulls the focus back to the barcode field whenever
+nothing "blocks" it, and searching in place blocked it only through the shared
+`dialogOpen` flag. Every dialog, menu and number pad on the screen writes that
+flag, so one closing set it false mid-search and the barcode field took over.
+
+**Fix.** Whether the barcode field may take the focus is decided in
+`lib/barcodeFocus.ts`, and an open in-place search always blocks it, whatever
+`dialogOpen` says (`pages/home.vue`, `hasBlockingUi`). Tapping the barcode field
+still focuses it. Test: `lib/barcodeFocus.test.ts` ("searching in place keeps the
+focus even after a dialog closes").
+
 ## 2026-11-12 · In-place search: the code grid still ran behind the keyboard
 
 **Symptom.** Searching in place on the sale screen, the product grid's last rows

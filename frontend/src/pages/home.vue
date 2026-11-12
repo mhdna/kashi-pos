@@ -468,6 +468,7 @@ import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import ProductSearchKeyboard from "@/components/ProductSearchKeyboard.vue";
 import ProductSearchResults from "@/components/ProductSearchResults.vue";
 import { searchResultsInset } from "@/lib/searchInset";
+import { barcodeFocusBlocked } from "@/lib/barcodeFocus";
 import { useProductGridMode } from "@/composables/useProductGridMode";
 import UnknownPicturesDialog from "@/components/UnknownPicturesDialog.vue";
 import UnknownPicturesCorner from "@/components/UnknownPicturesCorner.vue";
@@ -1073,14 +1074,13 @@ function focusBarcode() {
 }
 
 function hasBlockingUi() {
-  return (
-    dialogOpen.value ||
-    Boolean(
-      document.querySelector(
-        ".k-overlay, .k-menu .k-overlay__content, [role='dialog'], [role='menu']",
-      ),
-    )
-  );
+  return barcodeFocusBlocked({
+    searchingInPlace: searchingInPlace.value,
+    dialogOpen: dialogOpen.value,
+    overlayOpen: Boolean(
+      document.querySelector(".k-overlay, .k-menu .k-overlay__content, [role='dialog'], [role='menu']"),
+    ),
+  });
 }
 
 // True while a keyboard-mode qty/discount/price field is focused - typing
