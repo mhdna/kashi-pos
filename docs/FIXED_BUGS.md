@@ -3,6 +3,20 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-12 · Setup screen showed the central API key in plain text
+
+**Symptom.** On a new till's "Set up this branch" screen, the pasted central API
+key and server address were readable by anyone looking at the screen.
+
+**Cause.** Both were plain text fields.
+
+**Fix.** The setup screen is now its own component (`components/BranchSetup.vue`)
+with the rules in `lib/branchSetup.ts`: the key and the server address are masked
+like passwords with an eye to check them, the code is upper-cased as it's typed,
+and a line says whether the till will sync, run on its own, or is missing half of
+the central pair. Tests: `lib/branchSetup.test.ts`, `components/BranchSetup.test.ts`
+("the API key and server address are masked until the eye is tapped").
+
 ## 2026-11-12 · The sync light counted 100, 200, 300… and its ring meant nothing
 
 **Symptom.** During a long pull the nav rail's sync light read "Updating ·
