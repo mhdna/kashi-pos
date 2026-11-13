@@ -10,6 +10,11 @@
           Next: {{ next.name }} · {{ whenLabel(next) }}
         </span>
         <k-spacer />
+        <!-- Says where the bar goes. It is part of the button: tapping it is tapping the bar. -->
+        <k-chip class="events-card-chip" size="small" variant="tonal" data-test="events-calendar-chip">
+          <k-icon start icon="mdi-calendar-month-outline" size="16" />
+          Calendar
+        </k-chip>
         <k-icon icon="mdi-chevron-right" class="events-card-chevron" />
       </button>
     </div>
@@ -90,7 +95,8 @@ onBeforeUnmount(() => unsub?.());
 }
 .events-card-toggle:hover { background: rgba(var(--k-theme-on-surface), 0.04); }
 .events-card-toggle:focus-visible { outline: 2px solid rgb(var(--k-theme-primary)); outline-offset: -2px; }
-.events-card-toggle-icon, .events-card-chevron { flex: 0 0 auto; }
+.events-card-toggle-icon, .events-card-chevron, .events-card-chip { flex: 0 0 auto; }
+.events-card-chip { pointer-events: none; }
 .events-card-count { flex: 0 0 auto; white-space: nowrap; }
 .events-card-next { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>

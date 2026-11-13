@@ -125,4 +125,30 @@ describe("EventsCard", () => {
     await flushPromises();
     expect(count()).toBe("1 event in the next 30 days");
   });
+
+  it("has a Calendar chip on the right, just before the arrow, inside the button", async () => {
+    await mountCard([ev(1, "Black Friday", "2026-11-27")]);
+    const chip = wrapper!.find("[data-test=events-calendar-chip]");
+    expect(chip.exists()).toBe(true);
+    expect(chip.text()).toBe("Calendar");
+    expect(chip.find(".k-icon").exists()).toBe(true);
+    // Inside the one button (so tapping it opens the calendar), after the text, right before the arrow.
+    const bar = toggle().element;
+    expect(bar.contains(chip.element)).toBe(true);
+    const kids = Array.from(bar.children);
+    const chipAt = kids.indexOf(chip.element);
+    expect(kids[chipAt + 1]?.classList.contains("events-card-chevron")).toBe(true);
+    expect(kids.indexOf(wrapper!.find(".events-card-count").element)).toBeLessThan(chipAt);
+  });
+
+  it("tapping the chip is tapping the bar: it goes to the calendar", async () => {
+    await mountCard([ev(1, "Black Friday", "2026-11-27")]);
+    await wrapper!.find("[data-test=events-calendar-chip]").trigger("click");
+    expect(push).toHaveBeenCalledWith("/events");
+  });
+
+  it("shows the chip when nothing is coming too", async () => {
+    await mountCard([]);
+    expect(wrapper!.find("[data-test=events-calendar-chip]").exists()).toBe(true);
+  });
 });
