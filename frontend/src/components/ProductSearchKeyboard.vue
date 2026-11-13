@@ -14,7 +14,10 @@
         @update:model-value="emit('update:modelValue', $event)"
         @keydown.esc="emit('close')"
       />
+      <!-- How the results are laid out (rows or columns) is for admins to set;
+           cashiers get the layout as it was left. -->
       <k-btn
+        v-if="auth.isAdmin"
         class="product-layout-toggle"
         variant="tonal"
         :aria-label="gridMode ? 'Show results as a list' : 'Show results in columns'"
@@ -49,6 +52,7 @@
 <script lang="ts" setup>
 import { ref, watch } from "vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import { useAuthStore } from "@/stores/auth";
 import { useTouchSelection } from "@/composables/useTouchSelection";
 import { keepFieldFocus } from "@/lib/keepFocus";
 
@@ -56,6 +60,7 @@ import { keepFieldFocus } from "@/lib/keepFocus";
 // of the search dialog, and of the sale screen while it searches in place.
 
 defineProps<{ modelValue: string; gridMode: boolean; codeOnly?: boolean }>();
+const auth = useAuthStore();
 const emit = defineEmits<{
   "update:modelValue": [value: string];
   "update:gridMode": [value: boolean];
