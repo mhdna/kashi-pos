@@ -29,7 +29,20 @@
             @click.stop="openDetails(item)"
           >
             <span class="invoice-item-title-text">
-              <span class="invoice-item-name text-caption font-weight-medium">{{ item.name }}</span>
+              <!-- A line set to its own salesperson (not the invoice's) shows who,
+                   as their avatar before the name. -->
+              <span class="invoice-item-name-row">
+                <InitialsAvatar
+                  v-if="lineSalesperson(item)"
+                  class="invoice-item-seller"
+                  data-test="line-seller"
+                  :name="lineSalesperson(item)!.fullName"
+                  :color="salespersonColor(lineSalesperson(item)!)"
+                  :size="22"
+                  :title="`Sold by ${lineSalesperson(item)!.fullName}`"
+                />
+                <span class="invoice-item-name text-caption font-weight-medium">{{ item.name }}</span>
+              </span>
               <span class="invoice-item-code text-overline text-medium-emphasis">
                 {{ item.code }}
                 <!-- The colour as a dot of that colour beside its name, the size as
@@ -568,6 +581,8 @@ import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
 import SalespersonGrid from "@/components/SalespersonGrid.vue";
 import ColorSwatch from "@/components/ColorSwatch.vue";
+import InitialsAvatar from "@/components/InitialsAvatar.vue";
+import { salespersonColor } from "@/lib/salespersonColor";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { keepFieldFocus } from "@/lib/keepFocus";
 import { nextZ } from "@/ui/overlay";
@@ -1010,6 +1025,13 @@ function closeNoteKeyboard() {
   noteFocused.value = false;
 }
 const salespersons = ref<Salesperson[]>([]);
+// The salesperson a line was set to, when it isn't the invoice's own; null for a
+// line that follows the invoice.
+function lineSalesperson(item: LineItem): { id: number; fullName: string } | null {
+  const id = Number(item.salespersonId || 0);
+  if (!id) return null;
+  return salespersons.value.find((person) => person.id === id) ?? { id, fullName: "Former salesperson" };
+}
 // The person picked for the open line, or null when it follows the invoice.
 const detailSalesperson = computed(() => {
   const id = Number(detailItem.value?.salespersonId || 0);
@@ -1805,6 +1827,17 @@ defineExpose({
 /* Chips beside the name stay centred; only the trigger fills the cell. */
 .invoice-item-title-row > :not(.invoice-item-details-trigger) {
   align-self: center;
+}
+
+.invoice-item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.invoice-item-seller {
+  flex: 0 0 auto;
 }
 
 .invoice-item-name,
