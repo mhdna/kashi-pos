@@ -120,10 +120,18 @@ describe("compact list", () => {
     expect(row(w, "11/11/2026").find("[data-test=visitors]").classes().join(" ")).toContain("x-small");
   });
 
+  it("lines the visitors up down the list: left-aligned in a column, header included, clear of the total", () => {
+    expect(css).toMatch(/\.mi-visitors-cell \{[^}]*justify-content: flex-start/);
+    expect(css).toMatch(/\.mi-visitors-head \{[^}]*text-align: start/);
+    // The total has a column of its own (right-aligned), so the visitors sit left of it.
+    expect(css).toMatch(/1fr 84px 104px/);
+    expect(css).toMatch(/\.mi-total-head,\s*\.mi-total \{[^}]*text-align: end/);
+  });
+
   it("the header sits over the rows' columns: the same first-column width and padding", () => {
     expect(css).toMatch(/\.monthly-income-header \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr auto/);
-    expect(css).toMatch(/\.monthly-income-row\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 76px auto/);
-    expect(css).toMatch(/\.monthly-income-header\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 76px auto/);
+    expect(css).toMatch(/\.monthly-income-row\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 84px 104px/);
+    expect(css).toMatch(/\.monthly-income-header\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 84px 104px/);
     expect(css).toMatch(/\.monthly-income-header \{[^}]*padding: 0 12px 0 0/);
     expect(css).toMatch(/\.monthly-income-row \{[^}]*padding: 0 12px 0 0/);
   });

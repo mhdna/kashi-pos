@@ -368,15 +368,16 @@ const emit = defineEmits<{
 }
 
 /* The visitors get a column of their own, the same width in the header and in
-   every row, so the numbers line up. */
+   every row, and the total a fixed one (which keeps the visitors a little to
+   its left), so the numbers line up. */
 .monthly-income-header.monthly-income--visitors {
-  grid-template-columns: var(--mi-chevron) 1fr 76px auto;
+  grid-template-columns: var(--mi-chevron) 1fr 84px 104px;
 }
 .monthly-income-row.monthly-income--visitors {
-  grid-template-columns: var(--mi-chevron) 1fr 76px auto;
+  grid-template-columns: var(--mi-chevron) 1fr 84px 104px;
 }
 .mi-visitors-head {
-  text-align: center;
+  text-align: start;
 }
 .mi-total-head,
 .mi-total {
@@ -401,7 +402,8 @@ const emit = defineEmits<{
 }
 .mi-visitors-cell {
   display: flex;
-  justify-content: center;
+  /* Every pill starts at the same left edge, so they line up down the list. */
+  justify-content: flex-start;
 }
 
 .monthly-income-header,
