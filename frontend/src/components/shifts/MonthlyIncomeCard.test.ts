@@ -120,6 +120,16 @@ describe("compact list", () => {
     expect(row(w, "11/11/2026").find("[data-test=visitors]").classes().join(" ")).toContain("x-small");
   });
 
+  it("every visitors chip is the same width, whatever the count", async () => {
+    const w = await mountCard({ visitorCounts: { "11/11/2026": 1, "12/11/2026": 87, "13/11/2026": 1135, "15/11/2026": 20000 } });
+    const chips = w.findAll("[data-test=visitors]");
+    expect(chips.map((c) => c.text())).toEqual(["1", "87", "1135", "20000"]);
+    for (const chip of chips) expect(chip.classes()).toContain("mi-visitors-chip");
+    // One fixed width on the shared class, wide enough for four digits and the icon.
+    expect(css).toMatch(/\.mi-visitors-chip \{[^}]*width: 68px/);
+    expect(css).toMatch(/\.mi-visitors-chip \{[^}]*justify-content: center/);
+  });
+
   it("lines the visitors up down the list: left-aligned in a column, header included, clear of the total", () => {
     expect(css).toMatch(/\.mi-visitors-cell \{[^}]*justify-content: flex-start/);
     expect(css).toMatch(/\.mi-visitors-head \{[^}]*text-align: start/);

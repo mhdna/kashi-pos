@@ -80,6 +80,7 @@
           <span v-if="showVisitors" class="mi-visitors-cell">
             <k-chip
               v-if="visitorCounts[item.day] != null"
+              class="mi-visitors-chip"
               color="orange"
               size="x-small"
               variant="flat"
@@ -399,6 +400,12 @@ const emit = defineEmits<{
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+.mi-visitors-chip {
+  /* The same width whatever the count (a few people or a thousand), the number
+     centred, so the chips make one clean column. */
+  width: 68px;
+  justify-content: center;
 }
 .mi-visitors-cell {
   display: flex;
