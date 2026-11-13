@@ -395,12 +395,7 @@ onBeforeUnmount(() => resizer.disconnect());
   border-radius: 3px;
   box-decoration-break: clone;
 }
-/* In the dark theme the pen is a soft amber wash with the light text kept, not
-   a bright block with light text on it. */
-:global(.k-theme--dark) .search-hit {
-  background-color: rgba(255, 214, 64, 0.32);
-  color: rgb(var(--k-theme-on-surface));
-}
+
 
 .product-grid-row {
   display: grid;
@@ -439,9 +434,6 @@ onBeforeUnmount(() => resizer.disconnect());
 
 .product-cell--named .product-cell-code .search-hit {
   color: #1f1f1f;
-}
-:global(.k-theme--dark) .product-cell--named .product-cell-code .search-hit {
-  color: rgb(var(--k-theme-on-surface));
 }
 
 .product-cell-meta {
@@ -558,5 +550,16 @@ onBeforeUnmount(() => resizer.disconnect());
   font-size: 0.75rem;
   text-align: center;
   word-break: break-word;
+}
+</style>
+
+<!-- Not scoped: the dark theme is a class on <html>, outside this component. -->
+<style>
+/* In the dark theme the pen is a soft amber wash with the light text kept, not
+   a bright block with light text on it. */
+html.k-theme--dark .search-hit,
+html.k-theme--dark .product-cell--named .product-cell-code .search-hit {
+  background-color: rgba(255, 214, 64, 0.32);
+  color: rgb(var(--k-theme-on-surface));
 }
 </style>

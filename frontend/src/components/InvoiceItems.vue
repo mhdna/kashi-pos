@@ -509,15 +509,19 @@
           :input="noteField"
           @update:model-value="detailItem.note = $event"
         />
+        <!-- The same Close button as the product search keyboard: red, with an X,
+             at the bottom right. -->
         <k-btn
           class="line-note-keyboard-close"
-          icon="mdi-keyboard-close"
+          color="error"
           variant="tonal"
-          size="small"
           aria-label="Close keyboard"
           data-test="line-note-keyboard-close"
           @click="closeNoteKeyboard"
-        />
+        >
+          <k-icon icon="mdi-close" size="28" class="me-1" />
+          Close
+        </k-btn>
       </div>
     </Teleport>
   </div>
@@ -1974,7 +1978,9 @@ defineExpose({
   box-sizing: border-box;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 12px 64px;
+  /* Room at both sides for the Close button at the bottom right, so the keys
+     stay centred. */
+  padding: 12px 132px;
   background: rgb(var(--k-theme-surface));
   /* It is teleported out of the app root, which is what sets the text colour,
      so say it here: otherwise the keys' labels stay black in the dark theme. */
@@ -1989,8 +1995,10 @@ defineExpose({
 }
 .line-note-keyboard-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  right: 16px;
+  bottom: 16px;
+  height: 48px;
+  z-index: 1;
 }
 .invoice-units-title {
   margin: 4px 0 8px;

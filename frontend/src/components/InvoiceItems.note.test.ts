@@ -93,6 +93,11 @@ describe("item note on-screen keyboard", () => {
     await typeKeys("hi");
     const close = keyboard()!.querySelector<HTMLElement>("[data-test=line-note-keyboard-close]");
     expect(close?.getAttribute("aria-label")).toBe("Close keyboard");
+    // The same Close button as the product search keyboard: red, tonal, an X and the word.
+    expect(close?.textContent?.trim()).toBe("Close");
+    expect(close?.className).toContain("k-btn--variant-tonal");
+    expect(close?.getAttribute("style") ?? "").toMatch(/error/);
+    expect(close?.querySelector(".k-icon")).toBeTruthy();
     close!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await flushPromises();
     expect(keyboard()).toBeNull();
