@@ -27,6 +27,7 @@
       </div>
 
       <div v-if="visitorCounterEnabled" class="visitor-counter" aria-label="People visits today">
+        <span class="visitor-counter-title">Visitors</span>
         <k-btn
           class="visitor-counter-btn"
           icon
@@ -520,9 +521,9 @@ const items = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin: 2px 6px 6px;
-  padding: 6px 0;
+  padding: 5px 0 6px;
   color: #ffffff;
   /* One panel, like the devices box under it. */
   background: rgba(0, 0, 0, 0.35);
@@ -530,23 +531,47 @@ const items = computed(() => {
   border-radius: 12px;
 }
 
-/* Up and down share one colour. */
+/* Same small caption as "Devices" below. */
+.visitor-counter-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #9e9e9e;
+}
+
 .visitor-counter-btn {
-  width: 40px;
-  height: 36px;
+  width: 48px;
+  height: 32px;
   color: #ffffff !important;
   background-color: #1f9d8a !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 2px 4px rgba(0, 0, 0, 0.35) !important;
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+
+.visitor-counter-btn:hover {
+  filter: brightness(1.1);
+}
+
+.visitor-counter-btn:active {
+  transform: scale(0.94);
 }
 
 .visitor-counter-btn :deep(.k-icon) {
-  font-size: 32px;
+  font-size: 28px;
 }
 
+/* The number sits in a recessed field between the two buttons. */
 .visitor-count {
+  box-sizing: border-box;
+  width: 48px;
+  padding: 4px 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
   font-size: 1.4rem;
   font-weight: 800;
-  line-height: 1;
-  min-width: 1.5rem;
+  line-height: 1.1;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
