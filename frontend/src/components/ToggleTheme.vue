@@ -59,7 +59,8 @@ async function toggleTheme() {
   margin-bottom: 2px;
 }
 .theme-toggle-btn {
-  width: 52px;
+  width: 38px;
+  min-width: 0;
   height: 35px;
 }
 </style>
