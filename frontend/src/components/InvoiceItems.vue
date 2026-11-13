@@ -179,7 +179,7 @@
               v-if="canEditPrice(item)"
               :ref="(element) => setFieldRef(index, 'price', element)"
               :model-value="
-                (priceChangeMode === 'discount' ? effectiveUnitPrice(item) : item.price).toFixed(2)
+                (priceChangeMode === 'discount' && !isUnknownItem(item) ? effectiveUnitPrice(item) : item.price).toFixed(2)
               "
               allow-decimal
               aria-label="Set custom item price"
@@ -1209,9 +1209,8 @@ function clearItems() {
   detailItem.value = null;
 }
 
-// The "Unknown item" placeholder: its price is whatever was typed when it was
-// added, one per unit, and is never edited afterwards (remove it and add it
-// again to change it).
+// The "Unknown item" placeholder: its price is whatever was typed for it, one
+// per unit, and can be retyped from the price cell's pad.
 function isUnknownItem(item: LineItem): boolean {
   return item.barcode === (props.unknownBarcode || "UNKNOWN");
 }
@@ -1223,14 +1222,11 @@ function codeAllowsPriceEdit(item: LineItem): boolean {
 }
 
 function canEditPrice(item: LineItem): boolean {
-  return (
-    customPricesEnabled.value &&
-    !item.remote &&
-    codeAllowsPriceEdit(item) &&
-    !readonly.value &&
-    !item.locked &&
-    item.qty > 0
-  );
+  // An unknown item's price is whatever is typed for it, so it can be retyped
+  // whether or not the branch allows custom prices (the till accepts a typed
+  // price for it regardless). Any other line follows the custom-price setting.
+  const allowed = isUnknownItem(item) || (customPricesEnabled.value && codeAllowsPriceEdit(item));
+  return allowed && !item.remote && !readonly.value && !item.locked && item.qty > 0;
 }
 
 // Whether a line's discount can be typed in: it follows the branch's
@@ -1358,7 +1354,11 @@ function setDraftDiscount(item: LineItem, value: unknown) {
 function setDraftPrice(item: LineItem, value: unknown) {
   const numeric = Number(value);
   const clamped = Number.isFinite(numeric) ? Math.min(999999.99, Math.max(0.01, numeric)) : 0.01;
-  if (priceChangeMode.value === "discount") {
+  if (isUnknownItem(item)) {
+    // No shelf price to discount from: the typed price is the price.
+    item.price = Math.round(clamped * 100) / 100;
+    item.originalPrice = item.price;
+  } else if (priceChangeMode.value === "discount") {
     // The typed value is the price the cashier wants to charge; back it out
     // into a discount off the line's original price rather than replacing
     // the base price itself.

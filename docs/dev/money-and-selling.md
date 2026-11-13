@@ -212,7 +212,9 @@ in central names the items afterwards. `unknown_pictures_at_checkout` controls
 the photo step.
 
 The cashier types the price, then **names the item** on the on-screen keyboard
-(`UnknownPriceDialog.vue`; a name is required, up to 80 letters). The name is
+(`UnknownPriceDialog.vue`; a name is required, up to 80 letters). The price can
+be retyped afterwards from the price cell's pad, even with custom prices off; the
+typed price simply is the price, it never becomes a discount. The name is
 saved on the line (`invoice_products.item_name`, only for the placeholder
 product; a name equal to "Unknown item" counts as none) and is what the invoice
 detail and list, and the receipt (including a reprint), call it. It is local to
