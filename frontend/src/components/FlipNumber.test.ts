@@ -162,7 +162,27 @@ describe("FlipNumber", () => {
       expect(tint(w)).toHaveLength(0);
     });
 
-    it("is amber going up and slate going down", async () => {
+    it("is slate blue going up and reddish going down: colours in the source", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/components/FlipNumber.vue"), "utf8");
+    const hex = (m: RegExpMatchArray) => [1, 3, 5].map((i) => parseInt(m[1]!.slice(i - 1, i + 1), 16)) as [number, number, number];
+    const up = hex(css.match(/\.flip-number \{[^}]*--tint: #([0-9a-f]{6})/)!);
+    const down = hex(css.match(/\.flip-number--down \{[^}]*--tint: #([0-9a-f]{6})/)!);
+    expect(up[2]).toBeGreaterThan(up[0]); // blue leads red: a blue, not the old amber
+    expect(up[2]).toBeGreaterThan(up[1]);
+    expect(down[0]).toBeGreaterThan(down[2]); // red leads: a reddish one, not the old slate blue
+    expect(down[0]).toBeGreaterThan(down[1]);
+    // The rings are the same families: blue going up, red going down.
+    const flash = (re: RegExp) => css.match(re)!.slice(1, 4).map(Number) as [number, number, number];
+    const upRing = flash(/\.flip-number \{[^}]*--flash: (\d+), (\d+), (\d+)/);
+    const downRing = flash(/\.flip-number--down \{[^}]*--flash: (\d+), (\d+), (\d+)/);
+    expect(upRing[2]).toBeGreaterThan(upRing[0]);
+    expect(downRing[0]).toBeGreaterThan(downRing[2]);
+    // And a flap that carries the tint falls back to blue, not amber.
+    const digit = readFileSync(resolve(process.cwd(), "src/components/FlipDigit.vue"), "utf8");
+    expect(digit).toMatch(/var\(--tint, #46608f\)/);
+  });
+
+  it("tells the direction: up and down classes on the number", async () => {
       const w = mount(FlipNumber, { props: { value: 5 } });
       expect(w.classes()).toContain("flip-number--up");
       await w.setProps({ value: 4 });

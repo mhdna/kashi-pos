@@ -89,7 +89,7 @@ watch(
   /* However many digits there are, they share the width: three digits get
      wide cards, four or five get narrower ones, never overflowing. */
   --cell: min(14px, calc((50px - (var(--n) - 1) * var(--gap)) / var(--n)));
-  --tint: #a86a0c;
+  --tint: #46608f;
   position: relative;
   box-sizing: border-box;
   display: flex;
@@ -107,24 +107,24 @@ watch(
   font-variant-numeric: tabular-nums;
   color: #fff;
 }
-/* Warm amber when the count goes up, slate blue when it goes down. */
+/* The colour while the count changes (see the two rules below). */
 .flip-digits {
   display: flex;
   align-items: stretch;
   gap: var(--gap);
   height: 100%;
 }
-/* Warm amber when the count goes up, slate blue when it goes down. Adding one is
-   the loud one (a big amber ring); taking one off a quiet white flash. */
+/* Slate blue when the count goes up, reddish when it goes down. Adding one is the
+   loud one (a big blue ring and a big grow); taking one off is a smaller red one. */
 .flip-number {
-  --flash: 255, 190, 40;
+  --flash: 110, 165, 255;
   --ring: 5px;
   --grow: 1.3;
 }
 .flip-number--down {
-  --tint: #46608f;
-  --flash: 255, 255, 255;
-  --ring: 2px;
+  --tint: #8f4646;
+  --flash: 255, 120, 120;
+  --ring: 3px;
   --grow: 1.1;
 }
 
