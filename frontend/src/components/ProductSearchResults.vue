@@ -391,9 +391,15 @@ onBeforeUnmount(() => resizer.disconnect());
 /* Like a highlighter pen: yellow behind the match, the text kept dark. */
 .search-hit {
   background-color: #ffe066;
-  color: rgb(var(--k-theme-on-surface));
+  color: #1f1f1f;
   border-radius: 3px;
   box-decoration-break: clone;
+}
+/* In the dark theme the pen is a soft amber wash with the light text kept, not
+   a bright block with light text on it. */
+:global(.k-theme--dark) .search-hit {
+  background-color: rgba(255, 214, 64, 0.32);
+  color: rgb(var(--k-theme-on-surface));
 }
 
 .product-grid-row {
@@ -432,6 +438,9 @@ onBeforeUnmount(() => resizer.disconnect());
 }
 
 .product-cell--named .product-cell-code .search-hit {
+  color: #1f1f1f;
+}
+:global(.k-theme--dark) .product-cell--named .product-cell-code .search-hit {
   color: rgb(var(--k-theme-on-surface));
 }
 
