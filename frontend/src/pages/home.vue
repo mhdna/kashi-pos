@@ -1521,13 +1521,15 @@ const showUnknownCorner = computed(
   () => !unknownPicturesAtCheckout.value && pageMode.value !== "settlement" && unknownCartUnits.value.length > 0,
 );
 
-async function onUnknownAdd(price: number) {
+async function onUnknownAdd(price: number, name: string) {
   try {
     const product = await GetUnknownProduct();
     // unknownRef names the line to central, so its picture stays with it as
     // other lines come and go while the phone is open.
     const unknownRef = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-    invoiceItems.value?.addItem({ ...product, price, qty: 1, originalPrice: price, unknownRef } as any);
+    // The cashier's name for it, so the list and the receipt show that and not
+    // "Unknown item".
+    invoiceItems.value?.addItem({ ...product, name: name || product.name, price, qty: 1, originalPrice: price, unknownRef } as any);
     playClickSound();
   } catch (e: any) {
     showDiscountError(e?.toString() || "Couldn't add an unknown item");

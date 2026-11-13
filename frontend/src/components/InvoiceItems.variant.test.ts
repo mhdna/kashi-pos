@@ -74,4 +74,15 @@ describe("cart line colour and size", () => {
     expect(w.find("[data-test=line-color]").text()).toBe("Ora/Cuv");
     expect(w.find("[data-test=line-color] .color-swatch").exists()).toBe(true);
   });
+
+  it("a named unknown item shows its name, and is still the unknown placeholder underneath", async () => {
+    const w = await cart([line({ name: "Red scarf", code: "UNKNOWN", barcode: "UNKNOWN", unknownRef: "r1" })]);
+    expect(w.find(".invoice-item-name").text()).toBe("Red scarf");
+    // Still handled as an unknown line: the picture-taking tint, no price edit.
+    expect(w.find(".invoice-item-unknown").exists()).toBe(true);
+    // Its checkout line carries the name the cashier gave it.
+    const sent = JSON.parse(JSON.stringify((w.vm as any).items))[0];
+    expect(sent.name).toBe("Red scarf");
+    expect(sent.barcode).toBe("UNKNOWN");
+  });
 });
