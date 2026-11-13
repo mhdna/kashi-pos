@@ -27,6 +27,10 @@
           <k-icon icon="mdi-chevron-right" size="28" />
         </k-btn>
       </template>
+      <template v-if="layout === 'note'">
+        <k-btn size="small" variant="text" @click="append('.')">.</k-btn>
+        <k-btn size="small" variant="text" @click="append(',')">,</k-btn>
+      </template>
       <k-btn size="small" variant="text" @click="append('-')">-</k-btn>
       <k-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
         Space
@@ -45,10 +49,10 @@ const props = withDefaults(
   defineProps<{
     modelValue: string;
     maxLength?: number;
-    layout?: "text" | "code";
+    layout?: "text" | "code" | "note";
     // The field being typed into. Given, keys type at its caret (replacing
     // a selection) and the caret keys show; without it they add at the end.
-    input?: HTMLInputElement | null;
+    input?: HTMLInputElement | HTMLTextAreaElement | null;
   }>(),
   {
     maxLength: 80,
@@ -67,7 +71,10 @@ const rows = [
   ["Z", "X", "C", "V", "B", "N", "M"],
 ];
 const numberRow = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
-const visibleRows = computed(() => (props.layout === "code" ? [numberRow, ...rows] : rows));
+const visibleRows = computed(() => (props.layout === "text" ? rows : [numberRow, ...rows]));
+// A note reads as sentences ("Gift wrap, call on Monday"), not Title Case
+// Words like a name: capitals only at the start and after . ! ?
+const sentenceCase = computed(() => props.layout === "note");
 const shift = ref(false);
 
 // The field's selection, or the end of the text when it isn't focused (or
@@ -94,13 +101,15 @@ function append(character: string) {
   const [start, end] = selection();
   if (props.modelValue.length - (end - start) >= props.maxLength) return;
   const before = props.modelValue.slice(0, start);
-  const wordStart = !before || /[\s'-]$/.test(before);
+  const wordStart = sentenceCase.value ? !before.trim() || /[.!?]\s+$/.test(before) : !before || /[\s'-]$/.test(before);
   const value =
     character === " "
       ? character
       : wordStart || shift.value
         ? character.toUpperCase()
-        : character.toLowerCase();
+        : sentenceCase.value && !/[a-z]/i.test(character)
+          ? character
+          : character.toLowerCase();
   const next = replaceRange(props.modelValue, start, end, value);
   commit(next.value, next.caret);
   if (character !== " ") shift.value = false;

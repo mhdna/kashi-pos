@@ -381,16 +381,35 @@
               @update:model-value="pickLineSalesperson"
             />
           </div>
-          <k-textarea
-            v-model="detailItem.note"
-            placeholder="Add a note about this item"
-            prepend-inner-icon="mdi-note-text-outline"
-            variant="outlined"
-            density="compact"
-            auto-grow
-            rows="2"
-            maxlength="2000"
-            counter
+          <!-- The note: tapping it opens the on-screen keyboard below. -->
+          <div class="line-note" :class="{ 'line-note--focused': noteFocused }">
+            <div class="line-note-head">
+              <k-icon icon="mdi-note-text-outline" size="18" />
+              <span class="line-note-title">Note</span>
+              <k-spacer />
+              <span class="line-note-count">{{ (detailItem.note ?? "").length }} / {{ NOTE_MAX }}</span>
+            </div>
+            <textarea
+              ref="noteField"
+              v-model="detailItem.note"
+              class="line-note-input"
+              data-test="line-note"
+              placeholder="Add a note about this item"
+              rows="3"
+              :maxlength="NOTE_MAX"
+              @focus="noteFocused = true"
+              @blur="noteFocused = false"
+            />
+          </div>
+          <InlineKeyboard
+            v-if="noteFocused"
+            :model-value="detailItem.note ?? ''"
+            @update:model-value="detailItem.note = $event"
+            class="line-note-keyboard"
+            data-test="line-note-keyboard"
+            layout="note"
+            :max-length="NOTE_MAX"
+            :input="noteField"
           />
           <div class="invoice-units-title">Units</div>
           <div class="invoice-unit-lines">
@@ -498,6 +517,7 @@ import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
 import SalespersonGrid from "@/components/SalespersonGrid.vue";
+import InlineKeyboard from "@/components/InlineKeyboard.vue";
 
 interface LineItem {
   name: string;
@@ -921,6 +941,11 @@ function discountedItemCents(item: LineItem): number {
 }
 
 const categoryIcons = ref<Map<string, string>>(new Map());
+const NOTE_MAX = 2000;
+const noteField = ref<HTMLTextAreaElement | null>(null);
+// The keyboard shows while the note is being typed in, and goes when the
+// cashier taps anywhere else.
+const noteFocused = ref(false);
 const salespersons = ref<Salesperson[]>([]);
 // The person picked for the open line, or null when it follows the invoice.
 const detailSalesperson = computed(() => {
@@ -951,6 +976,7 @@ const detailItem = ref<LineItem | null>(null);
 const dialogOpen = inject<Ref<boolean> | null>("dialogOpen", null);
 
 watch(detailsDialog, (open) => {
+  if (!open) noteFocused.value = false;
   if (dialogOpen) dialogOpen.value = open;
 });
 
@@ -1721,6 +1747,54 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.line-note {
+  margin-bottom: 12px;
+  padding: 8px 12px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgba(var(--k-theme-on-surface), 0.05);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.line-note--focused {
+  border-color: rgb(var(--k-theme-primary));
+  background: rgba(var(--k-theme-primary), 0.05);
+}
+.line-note-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: rgba(var(--k-theme-on-surface), 0.6);
+}
+.line-note-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.line-note-count {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.line-note-input {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  font: inherit;
+  line-height: 1.4;
+  resize: none;
+}
+.line-note-input::placeholder {
+  color: rgba(var(--k-theme-on-surface), 0.4);
+}
+.line-note-keyboard {
+  margin-bottom: 12px;
 }
 .invoice-units-title {
   margin: 4px 0 8px;
