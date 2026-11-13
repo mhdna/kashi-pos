@@ -156,6 +156,24 @@ describe("Change Salesperson (invoice and items)", () => {
     expect(details).toHaveBeenCalledTimes(2);
   });
 
+  it("puts the whole-invoice block on the left and the items on the right, side by side", async () => {
+    await mountDialog();
+    const body = q(".line-sp-body")!;
+    expect(body.classList.contains("line-sp-body--split")).toBe(true);
+    const [left, right] = Array.from(body.querySelectorAll<HTMLElement>(":scope > .line-sp-col"));
+    expect(left!.querySelector("[data-test=invoice-block]")).toBeTruthy();
+    expect(left!.querySelector("[data-test^=line-]")).toBeNull();
+    expect(right!.querySelectorAll("[data-test^=line-]")).toHaveLength(3);
+    expect(right!.querySelector("[data-test=invoice-block]")).toBeNull();
+  });
+
+  it("stays a single narrow column when there is nothing to list beside it", async () => {
+    details.mockResolvedValue({ items: [ITEMS[0]] } as any);
+    await mountDialog();
+    expect(q(".line-sp-body")!.classList.contains("line-sp-body--split")).toBe(false);
+    expect(qa(".line-sp-col")).toHaveLength(1);
+  });
+
   describe("one item or none", () => {
     const itemsShown = () => qa("[data-test^=line-]").length;
 

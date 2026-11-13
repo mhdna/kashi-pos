@@ -152,7 +152,7 @@ async function save() {
 </script>
 
 <template>
-  <k-dialog :model-value="modelValue" max-width="520" @update:model-value="emit('update:modelValue', $event)">
+  <k-dialog :model-value="modelValue" :max-width="showItems ? 980 : 520" @update:model-value="emit('update:modelValue', $event)">
     <k-card class="line-sp-dialog">
       <div class="line-sp-header">
         <k-avatar color="primary" variant="tonal" size="40"><k-icon icon="mdi-account-group" /></k-avatar>
@@ -162,41 +162,45 @@ async function save() {
         </div>
       </div>
 
-      <k-card-text class="line-sp-body">
-        <div class="line-sp-label">Whole invoice</div>
-        <!-- Always open: pick who the whole invoice is under. -->
-        <div class="line-sp-block" data-test="invoice-block">
-          <SalespersonGrid
-            :salespersons="salespersons"
-            :model-value="invoiceId"
-            default-label="No salesperson"
-            @update:model-value="pickInvoice"
-          />
-        </div>
-
-        <div v-if="showItems" class="line-sp-label mt-2">Items</div>
-        <div v-for="line in showItems ? lines : []" :key="line.lineId" class="line-sp-item" :class="{ 'line-sp-item--open': openLine === line.lineId }">
-          <button type="button" class="line-sp-row" :data-test="`line-${line.lineId}`" @click="toggle(line)">
-            <span class="line-sp-row__text">
-              <span class="line-sp-row__name">{{ line.name }}</span>
-              <span class="line-sp-row__meta">{{ line.qty }} × {{ line.code }}</span>
-            </span>
-            <span class="line-sp-who" :class="{ 'line-sp-who--changed': rowChanged(line) }">
-              <template v-if="personFor(line)">
-                <InitialsAvatar :name="personFor(line)!.fullName" :color="salespersonColor(personFor(line)!)" :size="28" />
-                <span class="line-sp-who__name">{{ personFor(line)!.fullName }}</span>
-              </template>
-              <span v-else class="line-sp-who__name line-sp-who__name--muted">{{ invoiceName ? `Invoice: ${invoiceName}` : "No salesperson" }}</span>
-              <k-icon :icon="openLine === line.lineId ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="20" class="line-sp-chevron" />
-            </span>
-          </button>
-          <div v-if="openLine === line.lineId" class="line-sp-picker">
+      <k-card-text class="line-sp-body" :class="{ 'line-sp-body--split': showItems }">
+        <!-- Left: who the whole invoice is under. Right: each item. -->
+        <div class="line-sp-col">
+          <div class="line-sp-label">Whole invoice</div>
+          <!-- Always open: pick who the whole invoice is under. -->
+          <div class="line-sp-block" data-test="invoice-block">
             <SalespersonGrid
               :salespersons="salespersons"
-              :model-value="currentId(line)"
-              :default-label="invoiceName ? `Same as invoice (${invoiceName.split(' ')[0]})` : 'Same as invoice'"
-              @update:model-value="pick(line, $event)"
+              :model-value="invoiceId"
+              default-label="No salesperson"
+              @update:model-value="pickInvoice"
             />
+          </div>
+        </div>
+        <div v-if="showItems" class="line-sp-col">
+          <div class="line-sp-label">Items</div>
+          <div v-for="line in lines" :key="line.lineId" class="line-sp-item" :class="{ 'line-sp-item--open': openLine === line.lineId }">
+            <button type="button" class="line-sp-row" :data-test="`line-${line.lineId}`" @click="toggle(line)">
+              <span class="line-sp-row__text">
+                <span class="line-sp-row__name">{{ line.name }}</span>
+                <span class="line-sp-row__meta">{{ line.qty }} × {{ line.code }}</span>
+              </span>
+              <span class="line-sp-who" :class="{ 'line-sp-who--changed': rowChanged(line) }">
+                <template v-if="personFor(line)">
+                  <InitialsAvatar :name="personFor(line)!.fullName" :color="salespersonColor(personFor(line)!)" :size="28" />
+                  <span class="line-sp-who__name">{{ personFor(line)!.fullName }}</span>
+                </template>
+                <span v-else class="line-sp-who__name line-sp-who__name--muted">{{ invoiceName ? `Invoice: ${invoiceName}` : "No salesperson" }}</span>
+                <k-icon :icon="openLine === line.lineId ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="20" class="line-sp-chevron" />
+              </span>
+            </button>
+            <div v-if="openLine === line.lineId" class="line-sp-picker">
+              <SalespersonGrid
+                :salespersons="salespersons"
+                :model-value="currentId(line)"
+                :default-label="invoiceName ? `Same as invoice (${invoiceName.split(' ')[0]})` : 'Same as invoice'"
+                @update:model-value="pick(line, $event)"
+              />
+            </div>
           </div>
         </div>
       </k-card-text>
@@ -218,11 +222,30 @@ async function save() {
   padding: 20px 24px 8px;
 }
 .line-sp-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  max-height: 68vh;
+}
+.line-sp-body--split {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+/* Each column scrolls on its own; nothing in it shrinks to fit. */
+.line-sp-col {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 60vh;
+  min-height: 0;
   overflow-y: auto;
+}
+@media (max-width: 760px) {
+  .line-sp-body--split {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+}
+.line-sp-col > * {
+  flex: 0 0 auto;
 }
 .line-sp-label {
   font-size: 0.75rem;
