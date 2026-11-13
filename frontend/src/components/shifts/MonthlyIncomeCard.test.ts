@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 //
-// The Balance page's month list: weekday and date, a Visitors column, quiet
-// zero and future days, today picked out, and a total bar.
+// The Balance page's month list: its original look at a normal size, with a
+// Day / Visitors / Total header over aligned columns.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { ref } from "vue";
@@ -61,42 +63,70 @@ async function mountCard(props: Record<string, unknown> = {}) {
 const row = (w: VueWrapper<any>, d: string) => w.find(`[data-day="${d}"]`);
 
 describe("month list", () => {
-  it("names the weekday before each date", async () => {
+  it("lists every day with its date and total, as before", async () => {
     const w = await mountCard();
-    expect(row(w, "11/11/2026").find(".mi-weekday").text()).toBe("Wed");
-    expect(row(w, "13/11/2026").find(".mi-weekday").text()).toBe("Fri");
-    expect(row(w, "13/11/2026").find(".mi-date").text()).toBe("13/11/2026");
+    expect(w.findAll(".monthly-income-row")).toHaveLength(5);
+    expect(row(w, "11/11/2026").text()).toContain("11/11/2026");
+    expect(row(w, "11/11/2026").find(".mi-total").text()).toBe("$2,883.00");
+    // A day with nothing sold and a day still to come both read $0.00: no dimming, no dash.
+    expect(row(w, "12/11/2026").find(".mi-total").text()).toBe("$0.00");
+    expect(row(w, "14/11/2026").find(".mi-total").text()).toBe("$0.00");
+    expect(row(w, "15/11/2026").find(".mi-total").text()).toBe("$50.00");
   });
 
-  it("picks out today, and only today", async () => {
+  it("picks out today with the grey row it always had, and a Today tag", async () => {
     const w = await mountCard();
-    expect(w.findAll(".mi-today")).toHaveLength(1);
-    expect(row(w, "13/11/2026").find(".mi-today").text()).toBe("Today");
     expect(row(w, "13/11/2026").classes()).toContain("monthly-income-current-day");
     expect(row(w, "12/11/2026").classes()).not.toContain("monthly-income-current-day");
+    expect(w.findAll("[data-test=today-tag]")).toHaveLength(1);
+    expect(row(w, "13/11/2026").find("[data-test=today-tag]").text()).toBe("Today");
+    expect(row(w, "13/11/2026").find(".mi-date, .mi-day").text()).toContain("13/11/2026");
+    expect(w.find(".mi-weekday").exists()).toBe(false);
   });
 
-  it("marks past, today and coming days, and days with nothing sold", async () => {
-    const w = await mountCard();
-    expect(row(w, "11/11/2026").classes()).toContain("monthly-income-row--past");
-    expect(row(w, "13/11/2026").classes()).toContain("monthly-income-row--today");
-    expect(row(w, "14/11/2026").classes()).toContain("monthly-income-row--future");
-    expect(row(w, "11/11/2026").classes()).not.toContain("monthly-income-row--empty");
-    expect(row(w, "12/11/2026").classes()).toContain("monthly-income-row--empty");
+  it("has no Today tag when today is not in the month shown", async () => {
+    const w = await mountCard({ currentDay: "05/12/2026" });
+    expect(w.find("[data-test=today-tag]").exists()).toBe(false);
   });
 
-  it("shows $0.00 for a past day with nothing and a dash for a coming one", async () => {
-    const w = await mountCard();
-    expect(row(w, "12/11/2026").find(".mi-total").text()).toBe("$0.00");
-    expect(row(w, "14/11/2026").find(".mi-total").text()).toBe("—");
-    // A coming day that already has something keeps its amount.
-    expect(row(w, "15/11/2026").find(".mi-total").text()).toBe("$50.00");
-    expect(row(w, "11/11/2026").find(".mi-total").text()).toBe("$2,883.00");
+  it("the tag follows today: another day gets it when it is another day", async () => {
+    const w = await mountCard({ currentDay: "12/11/2026" });
+    expect(row(w, "12/11/2026").find("[data-test=today-tag]").exists()).toBe(true);
+    expect(row(w, "13/11/2026").find("[data-test=today-tag]").exists()).toBe(false);
   });
 
-  it("the total bar says the month's total", async () => {
+  it("the total row says the month's total", async () => {
     const w = await mountCard();
     expect(w.find("[data-test=income-grand-total]").text()).toContain("$2,933.00");
+  });
+});
+
+describe("normal-size list", () => {
+  const css = readFileSync(resolve(process.cwd(), "src/components/shifts/MonthlyIncomeCard.vue"), "utf8");
+  const px = (re: RegExp) => Number(css.match(re)![1]);
+
+  it("has rows, header and total of a normal height, not the compact 30px", () => {
+    expect(px(/--mi-row: (\d+)px/)).toBeGreaterThanOrEqual(44);
+    expect(css).toMatch(/\.monthly-income-row \{[^}]*min-height: var\(--mi-row\)/);
+    expect(css).toMatch(/\.monthly-income-total \{[^}]*min-height: var\(--mi-row\)/);
+    expect(px(/\.monthly-income-header \{[^}]*min-height: (\d+)px/)).toBeGreaterThanOrEqual(36);
+    expect(css).not.toMatch(/min-height: 30px/);
+  });
+
+  it("has a regular-size chevron and visitors chip: the kit's default, not compact, comfortable or small", async () => {
+    const w = await mountCard();
+    const chevron = row(w, "11/11/2026").find(".monthly-income-expand").classes().join(" ");
+    expect(chevron).not.toMatch(/compact|comfortable|small/);
+    const chip = row(w, "11/11/2026").find("[data-test=visitors]").classes().join(" ");
+    expect(chip).not.toMatch(/x-small|small|large/);
+  });
+
+  it("the header sits over the rows' columns: the same first-column width and padding", () => {
+    expect(css).toMatch(/\.monthly-income-header \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr auto/);
+    expect(css).toMatch(/\.monthly-income-row\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 84px auto/);
+    expect(css).toMatch(/\.monthly-income-header\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 84px auto/);
+    expect(css).toMatch(/\.monthly-income-header \{[^}]*padding: 0 12px 0 0/);
+    expect(css).toMatch(/\.monthly-income-row \{[^}]*padding: 0 12px 0 0/);
   });
 });
 
@@ -110,13 +140,11 @@ describe("visitors column", () => {
     expect(row(w, "11/11/2026").element.children.length).toBe(4);
   });
 
-  it("shows the count, quietly for none, and nothing for a day with no count", async () => {
+  it("shows the count, 0 included, and nothing for a day with no count", async () => {
     const w = await mountCard();
     expect(row(w, "11/11/2026").find("[data-test=visitors]").text()).toBe("11");
     expect(row(w, "13/11/2026").find("[data-test=visitors]").text()).toBe("1135");
-    const none = row(w, "12/11/2026").find("[data-test=visitors]");
-    expect(none.text()).toBe("0");
-    expect(none.classes()).toContain("mi-visitors--none");
+    expect(row(w, "12/11/2026").find("[data-test=visitors]").text()).toBe("0");
     expect(row(w, "14/11/2026").find("[data-test=visitors]").exists()).toBe(false);
   });
 
@@ -141,11 +169,9 @@ describe("visitors column", () => {
 });
 
 describe("opening a day", () => {
-  it("a day with no shifts says so, with an icon", async () => {
+  it("a day with no shifts says so", async () => {
     const w = await mountCard({ expandedDays: ["12/11/2026"] });
-    const empty = w.find("[data-test=day-empty]");
-    expect(empty.text()).toBe("No data found for this day.");
-    expect(empty.find(".k-icon").exists()).toBe(true);
+    expect(w.find("[data-test=day-empty]").text()).toBe("No data found for this day.");
   });
 
   it("tapping a row asks to open it", async () => {

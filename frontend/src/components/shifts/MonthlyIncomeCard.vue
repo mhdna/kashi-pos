@@ -38,7 +38,11 @@
       </k-btn>
     </div>
 
-    <div class="monthly-income-header" :class="{ 'monthly-income--visitors': showVisitors }" data-test="income-header">
+    <div
+      class="monthly-income-header text-caption font-weight-bold"
+      :class="{ 'monthly-income--visitors': showVisitors }"
+      data-test="income-header"
+    >
       <span />
       <span>Day</span>
       <span v-if="showVisitors" class="mi-visitors-head">Visitors</span>
@@ -54,52 +58,45 @@
       >
         <div
           class="monthly-income-row"
-          :class="[
-            { 'monthly-income-current-day': item.day === currentDay, 'monthly-income--visitors': showVisitors },
-            `monthly-income-row--${dayKind(item.day, currentDay)}`,
-            { 'monthly-income-row--empty': !item.total },
-          ]"
+          :class="{ 'monthly-income-current-day': item.day === currentDay, 'monthly-income--visitors': showVisitors }"
           :data-day="item.day"
           @click="$emit('toggle-day', item.day)"
         >
           <k-btn
             class="monthly-income-expand"
             variant="text"
-            density="compact"
-            size="small"
             :icon="expandedDays.includes(item.day) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
             :aria-label="`${expandedDays.includes(item.day) ? 'Collapse' : 'Expand'} ${item.day}`"
             @click.stop="$emit('toggle-day', item.day)"
           />
           <span class="mi-day">
-            <span class="mi-weekday">{{ weekdayShort(item.day) }}</span>
-            <span class="mi-date">{{ item.day }}</span>
-            <span v-if="item.day === currentDay" class="mi-today">Today</span>
+            {{ item.day }}
+            <span v-if="item.day === currentDay" class="mi-today" data-test="today-tag">Today</span>
           </span>
           <!-- How many people came in that day, in a column of its own so the
-               numbers line up; the tooltip adds what each one spent. -->
+               numbers line up. -->
           <span v-if="showVisitors" class="mi-visitors-cell">
-            <span
+            <k-chip
               v-if="visitorCounts[item.day] != null"
-              class="mi-visitors"
-              :class="{ 'mi-visitors--none': !visitorCounts[item.day] }"
+              color="orange"
+              variant="flat"
               data-test="visitors"
               :title="visitorTitle(item.day, item.total)"
             >
-              <k-icon icon="mdi-account-group-outline" size="14" />{{ visitorCounts[item.day] }}
-            </span>
+              <k-icon start icon="mdi-account-group-outline" size="16" />
+              {{ visitorCounts[item.day] }}
+            </k-chip>
           </span>
-          <span class="mi-total">{{ totalText(item) }}</span>
+          <span class="font-weight-bold mi-total">{{ formatBalance(item.total, "USD", currencies, roundingMode) }}</span>
         </div>
-        <div v-if="expandedDays.includes(item.day)" class="monthly-income-detail">
-          <div v-if="!item.shifts.length" class="mi-empty text-caption text-medium-emphasis" data-test="day-empty">
-            <k-icon icon="mdi-information-outline" size="16" />
+        <div v-if="expandedDays.includes(item.day)" class="pa-0">
+          <div v-if="!item.shifts.length" class="pa-3 text-caption text-medium-emphasis" data-test="day-empty">
             No data found for this day.
           </div>
           <template v-else>
             <div v-for="shift in item.shifts" :key="shift.id">
               <div
-                class="d-flex align-center pa-2 shift-row"
+                class="d-flex align-center pa-3 shift-row"
                 @click.stop="$emit('toggle-shift', shift.id)"
               >
                 <k-chip
@@ -192,9 +189,9 @@
         </div>
       </div>
     </div>
-    <div class="monthly-income-total" data-test="income-grand-total">
+    <div class="monthly-income-total font-weight-bold" data-test="income-grand-total">
       <span>Total</span>
-      <span class="mi-grand">{{ formatBalance(grandTotal, "USD", currencies, roundingMode) }}</span>
+      <span>{{ formatBalance(grandTotal, "USD", currencies, roundingMode) }}</span>
     </div>
     <!-- The total counts every sale, as central's reports do; these parts of
          it aren't money in the drawer yet. -->
@@ -216,7 +213,7 @@ import { formatBalance, formatUsd } from "@/lib/format";
 import { formatServerDateTime } from "@/lib/datetime";
 import { useCurrencies } from "@/composables/useCurrencies";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
-import { dayKind, perVisitor, weekdayShort } from "@/lib/monthlyDays";
+import { perVisitor } from "@/lib/perVisitor";
 import TargetsProgressCard, { type BranchTarget } from "@/components/shifts/TargetsProgressCard.vue";
 
 const { currencies, roundingMode } = useCurrencies();
@@ -280,13 +277,8 @@ const props = defineProps<{
 
 const showVisitors = computed(() => props.visitorCounterEnabled);
 
-// A day to come with nothing in it shows a dash, not a $0.00 that reads as a
-// day that sold nothing.
-function totalText(item: DayRow): string {
-  if (!item.total && dayKind(item.day, props.currentDay) === "future") return "—";
-  return formatBalance(item.total, "USD", currencies.value, roundingMode.value);
-}
-
+// What the visitors chip says when hovered: how many people, and what each one
+// spent on average.
 function visitorTitle(day: string, total: number): string {
   const count = props.visitorCounts[day];
   if (count == null) return "";
@@ -348,7 +340,7 @@ const emit = defineEmits<{
 }
 
 .monthly-income-title {
-  min-height: 30px;
+  min-height: 40px;
   padding-bottom: 4px;
 }
 
@@ -358,160 +350,94 @@ const emit = defineEmits<{
   overflow-y: auto;
 }
 
+.monthly-income-card {
+  /* Normal-size rows: the width of the first (chevron) column, and the heights. */
+  --mi-chevron: 44px;
+  --mi-row: 48px;
+}
+
 .monthly-income-header,
-.monthly-income-row {
+.monthly-income-row,
+.monthly-income-total {
   display: grid;
   align-items: center;
   gap: 8px;
-  grid-template-columns: 32px 1fr auto;
-}
-/* A column for the visitors, the same width in the header and every row. */
-.monthly-income--visitors {
-  grid-template-columns: 32px 1fr 76px auto;
 }
 
-.monthly-income-total {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+/* The visitors get a column of their own, the same width in the header and in
+   every row, so the numbers line up. */
+.monthly-income-header.monthly-income--visitors {
+  grid-template-columns: var(--mi-chevron) 1fr 84px auto;
 }
-
-.monthly-income-header {
-  min-height: 32px;
-  padding: 0 12px 0 0;
-  border-bottom: 1px solid rgba(var(--k-theme-on-surface), 0.16);
-  color: rgba(var(--k-theme-on-surface), 0.6);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.monthly-income-row.monthly-income--visitors {
+  grid-template-columns: var(--mi-chevron) 1fr 84px auto;
 }
 .mi-visitors-head {
   text-align: center;
 }
-.mi-total-head {
+.mi-total-head,
+.mi-total {
   text-align: end;
 }
-
-.monthly-income-row {
-  position: relative;
-  min-height: 38px;
-  padding: 0 12px 0 0;
-  border-bottom: 1px solid rgba(var(--k-theme-on-surface), 0.07);
-  cursor: pointer;
-  transition: background-color 0.12s ease;
-}
-.monthly-income-row:hover {
-  background: rgba(var(--k-theme-on-surface), 0.05);
-}
-
-/* The date, with its weekday before it in a quiet tone. */
 .mi-day {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
   min-width: 0;
 }
-.mi-weekday {
-  width: 28px;
-  flex: 0 0 auto;
-  color: rgba(var(--k-theme-on-surface), 0.5);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.mi-date {
-  font-variant-numeric: tabular-nums;
-}
+/* A small tag on today's row. */
 .mi-today {
-  align-self: center;
-  padding: 1px 8px;
+  padding: 1px 10px;
   border-radius: 999px;
   background: rgb(var(--k-theme-primary));
   color: rgb(var(--k-theme-on-primary));
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-
 .mi-visitors-cell {
   display: flex;
   justify-content: center;
 }
-/* A small pill: people icon and the count, in the warning tone but soft. */
-.mi-visitors {
+
+.monthly-income-header,
+.monthly-income-total {
+  grid-template-columns: 1fr auto;
+}
+
+.monthly-income-row {
+  grid-template-columns: var(--mi-chevron) 1fr auto;
+}
+
+.monthly-income-header {
+  /* The same columns and padding as the rows under it, so Day, Visitors and
+     Total sit right over theirs. */
+  grid-template-columns: var(--mi-chevron) 1fr auto;
+  min-height: 36px;
+  padding: 0 12px 0 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+  color: rgba(var(--k-theme-on-surface), 0.7);
+}
+
+.monthly-income-header > span,
+.monthly-income-total > span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 9px;
-  border-radius: 999px;
-  background: color-mix(in srgb, rgb(var(--k-theme-warning)) 20%, transparent);
-  color: color-mix(in srgb, rgb(var(--k-theme-warning)) 70%, rgb(var(--k-theme-on-surface)));
-  font-size: 0.8125rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.mi-visitors--none {
-  background: transparent;
-  color: rgba(var(--k-theme-on-surface), 0.4);
-  font-weight: 500;
 }
 
-.mi-total {
-  text-align: end;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-/* A day with nothing sold keeps its place but steps back, so the days that did
-   sell stand out; a day still to come steps back further. */
-.monthly-income-row--empty .mi-total {
-  color: rgba(var(--k-theme-on-surface), 0.4);
-  font-weight: 500;
-}
-.monthly-income-row--future {
-  opacity: 0.6;
+.monthly-income-row {
+  min-height: var(--mi-row);
+  padding: 0 12px 0 0;
+  font-size: 1rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
 }
 
-/* Today: a tinted row with an accent bar down its left edge. */
 .monthly-income-current-day {
-  background: rgba(var(--k-theme-primary), 0.09);
-  box-shadow: inset 3px 0 0 rgb(var(--k-theme-primary));
-  font-weight: 600;
-}
-.monthly-income-current-day:hover {
-  background: rgba(var(--k-theme-primary), 0.13);
-}
-.monthly-income-current-day .mi-weekday {
-  color: rgb(var(--k-theme-primary));
-}
-
-/* What a day opens to, set in from the left under its own line. */
-.monthly-income-detail {
-  margin: 0 0 6px 16px;
-  border-left: 2px solid rgba(var(--k-theme-on-surface), 0.12);
-  background: rgba(var(--k-theme-on-surface), 0.025);
-}
-.mi-empty {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 12px;
-}
-
-.monthly-income-total {
-  min-height: 44px;
-  margin-top: 6px;
-  padding: 0 12px;
+  background: rgba(var(--k-theme-on-surface), 0.08);
   border-radius: 8px;
-  background: rgba(var(--k-theme-on-surface), 0.06);
   color: rgb(var(--k-theme-on-surface));
-  font-weight: 700;
-}
-.mi-grand {
-  font-size: 1.125rem;
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .shift-row {
@@ -523,6 +449,14 @@ const emit = defineEmits<{
   grid-column: 1;
   grid-row: 1;
   justify-self: start;
+}
+
+.monthly-income-total {
+  min-height: var(--mi-row);
+  padding: 0 12px;
+  font-size: 1.0625rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.35);
+  color: rgb(var(--k-theme-on-surface));
 }
 
 .monthly-income-total + .text-caption {
