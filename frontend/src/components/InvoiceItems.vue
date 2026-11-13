@@ -1471,6 +1471,20 @@ function remoteTitle(item: LineItem): string {
 // the rest, giving a freed line back its own price and discount. The till
 // prices from central's values whatever these say; this is so the cart shows
 // them. Returns whether any line changed.
+// Whether central's mark on a line is unchanged, field by field: a line back
+// from hold has been through the backend's JSON, which reorders its keys.
+function sameRemote(a: RemoteLine, b: RemoteLine | undefined): boolean {
+  return (
+    !!b &&
+    (a.priceCents ?? null) === (b.priceCents ?? null) &&
+    (a.discount ?? null) === (b.discount ?? null) &&
+    Boolean(a.noDeal) === Boolean(b.noDeal) &&
+    (a.unknownDeal || undefined) === (b.unknownDeal || undefined) &&
+    a.prevPrice === b.prevPrice &&
+    a.prevDiscount === b.prevDiscount
+  );
+}
+
 function applyRemoteOverrides(lines: LiveCartLineOverride[]): boolean {
   let changed = false;
   for (const item of items.value) {
@@ -1496,7 +1510,7 @@ function applyRemoteOverrides(lines: LiveCartLineOverride[]): boolean {
       prevPrice,
       prevDiscount,
     };
-    if (JSON.stringify(next) === JSON.stringify(item.remote)) continue;
+    if (sameRemote(next, item.remote)) continue;
     item.remote = next;
     item.price = o.price_cents != null ? o.price_cents / 100 : Number(item.originalPrice ?? prevPrice);
     item.discount = o.discount != null ? o.discount : Number(item.originalDiscount ?? prevDiscount);

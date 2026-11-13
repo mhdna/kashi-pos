@@ -10,6 +10,9 @@ export interface PendingHoldInvoice {
   salesperson?: any;
   calculator?: any;
   notes?: string;
+  saleRef?: string;
+  unknownClientRef?: string;
+  exchange?: { originalInvoiceId: number; originalInvoiceCode?: string };
 }
 
 export const pendingHoldInvoice = ref<PendingHoldInvoice | null>(null);

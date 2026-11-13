@@ -110,6 +110,25 @@ func (s *liveCartState) activeOverrides() liveCartOverrides {
 	return s.overrides
 }
 
+// overridesFor is central's overrides of this sale while it is the one on
+// screen and selling, for a hold to keep (false when there are none).
+func (s *liveCartState) overridesFor(saleRef string) (liveCartOverrides, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if saleRef == "" || s.mode != "sale" || s.saleRef != saleRef ||
+		s.overrides.SaleRef != saleRef || s.overrides.empty() {
+		return liveCartOverrides{}, false
+	}
+	return s.overrides, true
+}
+
+// resume puts a held sale's overrides back: that sale is on screen again.
+func (s *liveCartState) resume(o liveCartOverrides) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.saleRef, s.mode, s.overrides = o.SaleRef, "sale", o
+}
+
 // liveCartReport is what the screen sends; central stores it as given, so only
 // the fields the till needs itself are decoded.
 type liveCartReport struct {

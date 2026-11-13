@@ -1,0 +1,127 @@
+{
+  "calculator": {
+    "activeMethod": "cash",
+    "currentInput": "20",
+    "entries": [
+      {
+        "amount": 20,
+        "method": "cash"
+      }
+    ]
+  },
+  "client": {
+    "id": 1,
+    "name": "Walk-in"
+  },
+  "itemCount": 5,
+  "items": [
+    {
+      "barcode": "bc-A",
+      "code": "A",
+      "discount": 0,
+      "name": "Item A",
+      "note": "",
+      "originalDiscount": 0,
+      "originalPrice": 100,
+      "price": 85,
+      "qty": 2,
+      "salespersonId": 3,
+      "unitDiscounts": [
+        0,
+        0
+      ],
+      "unitPrices": [
+        85,
+        90
+      ]
+    },
+    {
+      "barcode": "bc-B",
+      "code": "B",
+      "discount": 15,
+      "name": "Item B",
+      "note": "gift wrap",
+      "originalDiscount": 0,
+      "originalPrice": 80,
+      "price": 80,
+      "qty": 1,
+      "unitDiscounts": [
+        15
+      ],
+      "unitPrices": [
+        80
+      ]
+    },
+    {
+      "barcode": "bc-JACKET",
+      "code": "JACKET",
+      "discount": 50,
+      "name": "Item JACKET",
+      "note": "",
+      "originalDiscount": 0,
+      "originalPrice": 100,
+      "price": 90,
+      "qty": 1,
+      "remote": {
+        "discount": 50,
+        "noDeal": false,
+        "prevDiscount": 0,
+        "prevPrice": 100,
+        "priceCents": 9000
+      },
+      "unitDiscounts": [
+        50
+      ],
+      "unitPrices": [
+        90
+      ]
+    },
+    {
+      "barcode": "bc-SOCKS",
+      "code": "SOCKS",
+      "dealOff": true,
+      "discount": 0,
+      "discountOff": true,
+      "name": "Item SOCKS",
+      "note": "",
+      "originalDiscount": 10,
+      "originalPrice": 20,
+      "price": 20,
+      "qty": 1,
+      "saleOption": "Summer",
+      "unitDiscounts": [
+        0
+      ],
+      "unitPrices": [
+        20
+      ]
+    },
+    {
+      "barcode": "UNKNOWN",
+      "code": "UNKNOWN",
+      "discount": 0,
+      "name": "Unknown item",
+      "note": "",
+      "originalDiscount": 0,
+      "originalPrice": 12.5,
+      "price": 12.5,
+      "qty": 1,
+      "unitDiscounts": [
+        0
+      ],
+      "unitPrices": [
+        12.5
+      ],
+      "unknownDeal": "none",
+      "unknownRef": "u1abc"
+    }
+  ],
+  "notes": "pick up at 5",
+  "saleRef": "sale-1",
+  "salesperson": {
+    "fullName": "Cashier",
+    "id": 3
+  },
+  "unknownClientRef": "pics-123",
+  "version": 1
+}

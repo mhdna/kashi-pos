@@ -119,6 +119,13 @@ LBP amounts.
   the sale has left. At least one unit stays returned (cancel the exchange to
   return nothing). Returned cart lines are built in one place
   (`lib/exchangeReturns.ts`), for the dialog and the picker alike.
+- **A hold keeps the whole sale** (`lib/holdSnapshot.ts`): every line as it
+  stood (custom and per-unit prices, discounts, toggles, notes, central's
+  marks), client, salesperson, calculator, notes, the sale's `saleRef` and
+  its unknown-item picture session. Restoring puts the lines back as held,
+  never through `addItem`. `HoldInvoice` stores central's live-cart overrides
+  of that sale with the hold; `ResumeHoldInvoice` puts them back in force and
+  deletes the hold.
 - **An exchange can be held** like a sale (a settlement can't). The hold
   snapshot carries `exchange: {originalInvoiceId, originalInvoiceCode}`, and
   restoring puts the lines back as held: never through `addItem`, which would

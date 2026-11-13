@@ -786,6 +786,10 @@ export function RestartComputer() {
   return window['go']['main']['App']['RestartComputer']();
 }
 
+export function ResumeHoldInvoice(arg1) {
+  return window['go']['main']['App']['ResumeHoldInvoice'](arg1);
+}
+
 export function ResyncAll(arg1) {
   return window['go']['main']['App']['ResyncAll'](arg1);
 }

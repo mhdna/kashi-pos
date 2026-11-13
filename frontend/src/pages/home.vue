@@ -435,6 +435,7 @@ import { saleOptionLook } from "@/lib/saleOptions";
 import {
   FindProductsForScan,
   HoldInvoice,
+  ResumeHoldInvoice,
   VoidInvoice,
   CheckoutInvoice,
   CheckoutExchangeInvoice,
@@ -442,7 +443,6 @@ import {
   SettleInvoicePayments,
   GetNextInvoiceCode,
   GetAppSettings,
-  DeleteHoldInvoice,
   GetOpenShift,
   OpenShift,
   WriteToScreen,
@@ -476,7 +476,7 @@ import ExchangeSummary from "@/components/ExchangeSummary.vue";
 import { checkoutPrints, exchangeDoneMessage } from "@/lib/returnReceipt";
 import ExchangeReturnsDialog from "@/components/ExchangeReturnsDialog.vue";
 import { checkExchangeQuote, type ExchangeQuoteResult } from "@/lib/exchangeQuote";
-import { buildHoldSnapshot, holdRestore } from "@/lib/holdSnapshot";
+import { buildHoldSnapshot, heldCart } from "@/lib/holdSnapshot";
 import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import { printReturnReceipts, productSearchInPlace, quickAccessRows } from "@/lib/display";
@@ -1390,6 +1390,10 @@ async function onHold() {
         salesperson: selectedSalesperson.value,
         calculator: calculator.value?.holdState(),
         notes: invoiceNotes.value,
+        // Central's overrides of this sale and its unknown-item pictures
+        // go by these, so they come back with it.
+        saleRef: saleRef.value,
+        unknownClientRef: unknownSession.clientRef || undefined,
         exchange: exchangeState.value,
       }),
     ),
@@ -1740,27 +1744,29 @@ async function refreshNextInvoiceCode(kind: "sales" | "exchange") {
 
 function onRestoreHold(hold: any) {
   if (!invoiceItems.value) return;
-  const restore = holdRestore(hold);
+  const held = heldCart(hold, newSaleRef);
   invoiceItems.value.clearItems();
-  if (restore.mode === "exchange") {
-    // Assigned as held, as restoreDraft does: addItem would turn a returned
-    // line (negative, locked, at its sold price) into a new unit for sale.
-    invoiceItems.value.items = restore.items;
-    exchangeState.value = { ...restore.exchange };
-  } else {
-    for (const item of restore.items) {
-      invoiceItems.value.addItem({ ...item, qty: item.qty || 1 });
-    }
-    exchangeState.value = null;
-  }
-  void refreshNextInvoiceCode(restore.mode === "exchange" ? "exchange" : "sales");
-  if (hold.client?.id) setClient(hold.client);
+  // Assigned as held, as restoreDraft does, never through addItem: that
+  // would price each line again and lose its custom price, per-unit prices,
+  // custom discount or central's price (and turn an exchange's returned line
+  // into a new unit for sale).
+  invoiceItems.value.items = held.restore.items;
+  exchangeState.value = held.restore.mode === "exchange" ? { ...held.restore.exchange } : null;
+  void refreshNextInvoiceCode(held.restore.mode === "exchange" ? "exchange" : "sales");
+  saleRef.value = held.saleRef;
+  unknownSession.clientRef = held.unknownClientRef;
+  unknownPicturesReadyFor = "";
+  if (held.client) setClient(held.client);
   else resetClient();
-  selectedSalesperson.value = hold.salesperson ?? null;
-  invoiceNotes.value = hold.notes ?? "";
+  selectedSalesperson.value = held.salesperson;
+  invoiceNotes.value = held.notes;
   noteDraft.value = invoiceNotes.value;
-  calculator.value?.restoreHoldState(hold.calculator);
-  void DeleteHoldInvoice(hold.id);
+  calculator.value?.restoreHoldState(held.calculator);
+  // Takes it off the hold list and puts central's overrides of the sale
+  // back in force; the cart then shows them again.
+  ResumeHoldInvoice(hold.id)
+    .then(() => syncLiveOverrides(false))
+    .catch(() => {});
 }
 
 function consumePendingHold() {

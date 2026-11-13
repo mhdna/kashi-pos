@@ -3,6 +3,36 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-13 · A sale put on hold came back without central's price or its unknown-item pictures
+
+**Symptom.** Putting a sale on hold and bringing it back lost what had been
+set on it: a price or discount central set from its live cart went back to
+the list price, and an unknown item's pictures were gone, so the phone had to
+take them again.
+
+**Cause.** The hold saved the cart's lines but not the sale itself. Central's
+overrides belong to one sale's ref (`saleRef`) and live only in the till's
+memory. Holding started a new sale with a new ref, which dropped them, and the
+restored sale got yet another new ref, so the screen took central's marks off
+its lines. The unknown-item picture session (`unknownClientRef`) wasn't held
+either, so a new session with no pictures was opened. A sale's lines were also
+re-added one by one through `addItem` instead of put back as held. And
+central's mark on a line (`remote`) was compared as a JSON string, so after
+the backend reordered its keys the same override looked like a change.
+
+**Fix.** The hold snapshot keeps the sale's ref and picture session
+(`lib/holdSnapshot.ts` `buildHoldSnapshot`, `heldCart`). `HoldInvoice`
+stores central's overrides of that sale with the hold, and the new
+`ResumeHoldInvoice` puts them back in force and takes the hold off the list
+(`invoice_service.go`, `live_cart.go` `overridesFor`/`resume`). `home.vue`
+`onRestoreHold` puts every line back as held, restores the ref and session,
+then resumes the hold. `InvoiceItems.vue` compares central's mark field by
+field (`sameRemote`). Tests: `hold_resume_test.go` (the whole sale, other
+sales' overrides, 300 random holds resumed in any order at the same total, a
+golden for the screen), `holdSnapshot.test.ts` (1,000 random carts, one cent
+off caught, the golden), `InvoiceItems.holdRestore.test.ts`,
+`homeHoldRestore.test.ts`.
+
 ## 2026-11-13 · Screens said "Walk-in" for a sale with no client, the picker said "Anonymous"
 
 **Symptom.** The checkout's client picker called a client-less sale

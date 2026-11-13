@@ -50,6 +50,12 @@ type invoiceItem struct {
 	DealDiscount float64 `json:"dealDiscount,omitempty"`
 }
 
+// HoldInvoice puts the cart on hold. The screen's snapshot is kept as sent
+// (lib/holdSnapshot.ts: every line as it stood, the client, salesperson,
+// calculator, notes, an exchange's sale, the sale's ref and its unknown-item
+// picture session), and so are central's live-cart overrides for that sale,
+// which otherwise live only in memory and would be dropped by the next sale.
+// ResumeHoldInvoice brings all of it back.
 func (a *App) HoldInvoice(snapshotJSON string) (int64, error) {
 	if a.store == nil {
 		return 0, fmt.Errorf("database not initialized")
@@ -60,12 +66,25 @@ func (a *App) HoldInvoice(snapshotJSON string) (int64, error) {
 			Barcode string  `json:"barcode"`
 			Qty     float64 `json:"qty"`
 		} `json:"items"`
+		SaleRef string `json:"saleRef"`
 	}
 	if err := json.Unmarshal([]byte(snapshotJSON), &snapshot); err != nil {
 		return 0, err
 	}
 	if len(snapshot.Items) == 0 {
 		return 0, fmt.Errorf("cannot hold an empty invoice")
+	}
+	if o, ok := a.liveCart.overridesFor(snapshot.SaleRef); ok {
+		var whole map[string]any
+		if err := json.Unmarshal([]byte(snapshotJSON), &whole); err != nil {
+			return 0, err
+		}
+		whole[holdLiveOverridesKey] = o
+		raw, err := json.Marshal(whole)
+		if err != nil {
+			return 0, err
+		}
+		snapshotJSON = string(raw)
 	}
 	inv, err := a.store.CreateHoldInvoice(a.ctx, snapshotJSON)
 	if err != nil {
@@ -90,6 +109,9 @@ func (a *App) HoldInvoice(snapshotJSON string) (int64, error) {
 	return inv.ID, nil
 }
 
+// holdLiveOverridesKey is where a hold keeps central's overrides of its sale.
+const holdLiveOverridesKey = "liveOverrides"
+
 func (a *App) ListHoldInvoices() ([]map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
@@ -100,42 +122,80 @@ func (a *App) ListHoldInvoices() ([]map[string]any, error) {
 	}
 	result := make([]map[string]any, len(list))
 	for i, inv := range list {
-		if strings.TrimSpace(inv.SnapshotJson) != "" {
-			var snapshot map[string]any
-			if json.Unmarshal([]byte(inv.SnapshotJson), &snapshot) == nil {
-				snapshot["id"] = inv.ID
-				snapshot["createdAt"] = inv.CreatedAt
-				if items, ok := snapshot["items"].([]any); ok {
-					snapshot["itemCount"] = len(items)
-				}
-				result[i] = snapshot
-				continue
-			}
-		}
-		items, _ := a.store.ListHoldInvoiceItems(a.ctx, inv.ID)
-		itemCount := len(items)
-		var itemList []map[string]any
-		for _, it := range items {
-			itemList = append(itemList, map[string]any{
-				"name":     it.Name,
-				"code":     it.Code,
-				"barcode":  it.Barcode,
-				"price":    float64(it.Price) / 100,
-				"color":    it.Color,
-				"size":     it.Size,
-				"discount": it.Discount,
-				"qty":      it.Qty,
-				"category": it.Category,
-			})
-		}
-		result[i] = map[string]any{
-			"id":        inv.ID,
-			"itemCount": itemCount,
-			"items":     itemList,
-			"createdAt": inv.CreatedAt,
-		}
+		result[i] = a.holdInvoiceView(inv)
 	}
 	return result, nil
+}
+
+// holdInvoiceView is a hold as the screen restores it: its snapshot, or for a
+// hold from before snapshots, its lines from hold_invoice_items.
+func (a *App) holdInvoiceView(inv db.HoldInvoice) map[string]any {
+	if strings.TrimSpace(inv.SnapshotJson) != "" {
+		var snapshot map[string]any
+		if json.Unmarshal([]byte(inv.SnapshotJson), &snapshot) == nil {
+			snapshot["id"] = inv.ID
+			snapshot["createdAt"] = inv.CreatedAt
+			if items, ok := snapshot["items"].([]any); ok {
+				snapshot["itemCount"] = len(items)
+			}
+			// Central's overrides go back to the till, not the screen.
+			delete(snapshot, holdLiveOverridesKey)
+			return snapshot
+		}
+	}
+	items, _ := a.store.ListHoldInvoiceItems(a.ctx, inv.ID)
+	var itemList []map[string]any
+	for _, it := range items {
+		itemList = append(itemList, map[string]any{
+			"name":     it.Name,
+			"code":     it.Code,
+			"barcode":  it.Barcode,
+			"price":    float64(it.Price) / 100,
+			"color":    it.Color,
+			"size":     it.Size,
+			"discount": it.Discount,
+			"qty":      it.Qty,
+			"category": it.Category,
+		})
+	}
+	return map[string]any{
+		"id":        inv.ID,
+		"itemCount": len(items),
+		"items":     itemList,
+		"createdAt": inv.CreatedAt,
+	}
+}
+
+// ResumeHoldInvoice takes a hold off the list and returns it for the screen
+// to put back. Central's overrides of the held sale go back in force for
+// that sale's ref, which the screen restores and reports again.
+func (a *App) ResumeHoldInvoice(id int64) (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	list, err := a.store.ListHoldInvoices(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, inv := range list {
+		if inv.ID != id {
+			continue
+		}
+		var held struct {
+			SaleRef       string             `json:"saleRef"`
+			LiveOverrides *liveCartOverrides `json:"liveOverrides"`
+		}
+		if json.Unmarshal([]byte(inv.SnapshotJson), &held) == nil &&
+			held.LiveOverrides != nil && held.SaleRef != "" && held.LiveOverrides.SaleRef == held.SaleRef {
+			a.liveCart.resume(*held.LiveOverrides)
+			a.emitLiveCartChanged()
+		}
+		if err := a.store.DeleteHoldInvoice(a.ctx, id); err != nil {
+			return nil, err
+		}
+		return a.holdInvoiceView(inv), nil
+	}
+	return nil, fmt.Errorf("that invoice is no longer on hold")
 }
 
 func (a *App) DeleteHoldInvoice(id int64) error {
