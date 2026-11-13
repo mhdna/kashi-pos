@@ -1734,6 +1734,9 @@ defineExpose({
 }
 
 .invoice-delete-control {
+  /* The row's cells stretch to its full height, so say where the button sits in
+     its: in the middle, level with the numbers beside it. */
+  align-items: center;
   width: 36px;
 }
 
