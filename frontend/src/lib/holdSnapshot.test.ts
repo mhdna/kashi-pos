@@ -290,6 +290,28 @@ describe("a held sale comes back exactly as it was held", () => {
     expect(snapshot).not.toHaveProperty("unknownClientRef");
   });
 
+  it("keeps that the session had every picture, so the restored cart isn't sent again", () => {
+    const held = heldCart(heldAndListed(buildHoldSnapshot({ ...parts, unknownPicturedFor: "sig-1" })), fresh);
+    expect([held.unknownClientRef, held.unknownPicturedFor]).toEqual(["pics-123", "sig-1"]);
+  });
+
+  it("a cart not yet pictured comes back not pictured", () => {
+    const snapshot = buildHoldSnapshot(parts);
+    expect(snapshot).not.toHaveProperty("unknownPicturedFor");
+    expect(heldCart(heldAndListed(snapshot), fresh).unknownPicturedFor).toBe("");
+  });
+
+  it("pictured means nothing without its session, held or restored", () => {
+    expect(buildHoldSnapshot({ items: [socks], unknownPicturedFor: "sig-1" })).not.toHaveProperty("unknownPicturedFor");
+    const forged = { version: 1, items: [socks], unknownPicturedFor: "sig-1" };
+    expect(heldCart(heldAndListed(forged), fresh).unknownPicturedFor).toBe("");
+    expect(heldCart(heldAndListed({ ...forged, unknownClientRef: "p", unknownPicturedFor: 7 }), fresh).unknownPicturedFor).toBe("");
+  });
+
+  it("a hold from before pictures were remembered comes back not pictured", () => {
+    expect(heldCart(heldSale, fresh).unknownPicturedFor).toBe("");
+  });
+
   it("an anonymous client (id 0) comes back as none", () => {
     expect(heldCart(heldAndListed(buildHoldSnapshot({ items: [socks], client: { id: 0 } })), fresh).client).toBeNull();
   });
@@ -333,10 +355,14 @@ describe("a held sale comes back exactly as it was held", () => {
         return line;
       });
       const ref = `sale-${run}`;
-      const held = heldCart(heldAndListed(buildHoldSnapshot({ items: cart, saleRef: ref, unknownClientRef: `p${run}` }), run), fresh);
+      const pictured = rand() < 0.5 ? `sig-${run}` : "";
+      const held = heldCart(
+        heldAndListed(buildHoldSnapshot({ items: cart, saleRef: ref, unknownClientRef: `p${run}`, unknownPicturedFor: pictured }), run),
+        fresh,
+      );
       expect(held.restore.items).toEqual(cart);
       expect(cartCents(held.restore.items)).toBe(cartCents(cart));
-      expect([held.saleRef, held.unknownClientRef]).toEqual([ref, `p${run}`]);
+      expect([held.saleRef, held.unknownClientRef, held.unknownPicturedFor]).toEqual([ref, `p${run}`, pictured]);
     }
   });
 

@@ -24,6 +24,10 @@ export interface HoldSnapshot {
   saleRef?: string;
   // The unknown-item pictures session opened for this cart.
   unknownClientRef?: string;
+  // The unknown units (UnknownPicturesCorner's signature) that session had
+  // every picture for, so a restored cart that hasn't changed isn't sent to
+  // central again.
+  unknownPicturedFor?: string;
   // Only on a held exchange.
   exchange?: HoldExchange;
 }
@@ -36,6 +40,7 @@ export function buildHoldSnapshot(parts: {
   notes?: string;
   saleRef?: string;
   unknownClientRef?: string;
+  unknownPicturedFor?: string;
   exchange?: HoldExchange | null;
 }): HoldSnapshot {
   const snapshot: HoldSnapshot = {
@@ -49,6 +54,8 @@ export function buildHoldSnapshot(parts: {
   };
   if (parts.saleRef) snapshot.saleRef = parts.saleRef;
   if (parts.unknownClientRef) snapshot.unknownClientRef = parts.unknownClientRef;
+  // Only means anything with the session it was pictured in.
+  if (parts.unknownClientRef && parts.unknownPicturedFor) snapshot.unknownPicturedFor = parts.unknownPicturedFor;
   const exchange = parts.exchange;
   if (exchange && exchange.originalInvoiceId > 0) {
     snapshot.exchange = {
@@ -125,6 +132,8 @@ export interface HeldCart {
   restore: HoldRestore;
   saleRef: string;
   unknownClientRef: string;
+  // "" unless the hold says its session had every picture (see HoldSnapshot).
+  unknownPicturedFor: string;
   client: any | null;
   salesperson: any | null;
   notes: string;
@@ -137,6 +146,10 @@ export function heldCart(hold: any, freshSaleRef: () => string): HeldCart {
     restore: holdRestore(hold),
     saleRef,
     unknownClientRef: typeof hold?.unknownClientRef === "string" ? hold.unknownClientRef : "",
+    unknownPicturedFor:
+      typeof hold?.unknownClientRef === "string" && hold.unknownClientRef && typeof hold?.unknownPicturedFor === "string"
+        ? hold.unknownPicturedFor
+        : "",
     client: hold?.client?.id ? hold.client : null,
     salesperson: hold?.salesperson ?? null,
     notes: typeof hold?.notes === "string" ? hold.notes : "",

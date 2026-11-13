@@ -3,6 +3,28 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-13 · A cart with every unknown item pictured fetched its QR code again
+
+**Symptom.** Once every unknown item in the cart had its picture ("2 of 2
+pictured"), logging out and back in, or putting the sale on hold and
+restoring it, showed a spinner and fetched the QR code from central again,
+though nothing was left to photograph.
+
+**Cause.** The draft and the hold kept the picture session's ref but not
+that it had finished, which lived only in memory (`unknownPicturesReadyFor`
+in `home.vue`). A remounted `UnknownPicturesCorner` always re-synced the
+session with central and kept polling it.
+
+**Fix.** `home.vue` keeps `unknownPicturedFor` (the signature of the cart
+that has every picture) in the draft and, through `lib/holdSnapshot.ts`, in a
+hold, only together with its session. `UnknownPicturesCorner` gets it as
+`picturedFor`: while the cart is still that one it shows "N of N pictured"
+with a check instead of the QR and calls nothing, and a live session stops
+polling once done. A changed cart syncs as before; checkout skips the
+pictures for it as it already did in memory. Covered by
+`UnknownPicturesCorner.test.ts`, `holdSnapshot.test.ts`,
+`homeUnknownSession.test.ts` and `homeHoldRestore.test.ts`.
+
 ## 2026-11-13 · A sale put on hold came back without central's price or its unknown-item pictures
 
 **Symptom.** Putting a sale on hold and bringing it back lost what had been

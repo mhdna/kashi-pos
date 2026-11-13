@@ -9,6 +9,14 @@
         variant="outlined"
       >
         <img v-if="qrDataUrl" alt="Unknown item pictures QR code" :src="qrDataUrl" class="unknown-corner__qr" />
+        <!-- Already pictured: no QR code to fetch, nothing left to scan. -->
+        <div
+          v-else-if="alreadyPictured"
+          class="unknown-corner__qr d-flex align-center justify-center"
+          data-test="unknown-corner-pictured"
+        >
+          <k-icon color="success" icon="mdi-check-circle" size="56" />
+        </div>
         <div v-else class="unknown-corner__qr d-flex align-center justify-center">
           <k-progress-circular v-if="!errorText" indeterminate size="28" />
           <k-icon v-else color="warning" icon="mdi-alert-circle-outline" size="32" />
@@ -32,6 +40,9 @@
       <div class="text-body-2 text-medium-emphasis" dir="rtl" lang="ar">
         امسح الرمز والتقط صورة لكل قطعة غير معروف كودها طبقا للسعر
       </div>
+      <div v-if="!qrDataUrl && alreadyPictured" class="text-body-1 text-success mt-2">
+        Every unknown item is pictured.
+      </div>
       <div v-if="errorText" class="text-caption text-warning mt-2">{{ errorText }}</div>
     </k-card>
   </k-menu>
@@ -52,7 +63,15 @@ import { SyncUnknownItemSession, UnknownItemSessionStatus } from "../../wailsjs/
 type Unit = { label: string; unitPriceCents: number; discount: number; lineRef: string; slotRef: string };
 type Slot = { slotRef: string; lineRef?: string; hasImage: boolean; waived: boolean; done: boolean };
 
-const props = defineProps<{ units: Unit[]; clientRef: string; paused?: boolean }>();
+const props = defineProps<{
+  units: Unit[];
+  clientRef: string;
+  paused?: boolean;
+  // The cart `signature` the session already had every picture for (the page
+  // keeps it with the draft and holds). While the cart still is that one, the
+  // corner shows it pictured and asks central for nothing.
+  picturedFor?: string;
+}>();
 const emit = defineEmits<{
   // The session opened for this cart (kept by the page for the next sync).
   session: [clientRef: string];
@@ -82,6 +101,22 @@ const lines = computed(() => {
 });
 const doneCount = computed(() => lines.value.filter(Boolean).length);
 const signature = computed(() => JSON.stringify(props.units));
+const alreadyPictured = computed(
+  () => Boolean(props.clientRef) && Boolean(props.picturedFor) && props.picturedFor === signature.value,
+);
+
+// Every line done, from the cart itself: what central said when it finished.
+function showPictured() {
+  errorText.value = "";
+  slots.value = props.units.map((unit) => ({
+    slotRef: unit.slotRef,
+    lineRef: unit.lineRef,
+    hasImage: true,
+    waived: false,
+    done: true,
+  }));
+  complete.value = true;
+}
 
 function apply(status: any, sig: string) {
   slots.value = status.slots ?? [];
@@ -129,6 +164,10 @@ async function sync() {
 function scheduleSync() {
   clearTimeout(syncTimer);
   generation++;
+  if (alreadyPictured.value) {
+    showPictured();
+    return;
+  }
   if (props.paused) return;
   syncTimer = setTimeout(() => void sync(), SYNC_DELAY_MS);
 }
@@ -143,7 +182,7 @@ watch(
     }
   },
 );
-watch([signature, () => props.paused], scheduleSync, { immediate: true });
+watch([signature, () => props.paused, alreadyPictured], scheduleSync, { immediate: true });
 onBeforeUnmount(() => {
   clearTimeout(syncTimer);
   generation++;

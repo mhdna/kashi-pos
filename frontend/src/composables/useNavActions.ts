@@ -12,6 +12,7 @@ export interface PendingHoldInvoice {
   notes?: string;
   saleRef?: string;
   unknownClientRef?: string;
+  unknownPicturedFor?: string;
   exchange?: { originalInvoiceId: number; originalInvoiceCode?: string };
 }
 

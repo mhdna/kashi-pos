@@ -12,7 +12,7 @@ describe("sale screen unknown-item session is kept in the draft", () => {
     expect(src).toMatch(/unknownClientRef: unknownSession\.clientRef \|\| undefined/);
   });
   it("saves the draft again when the session ref changes", () => {
-    expect(src).toMatch(/\(\) => unknownSession\.clientRef,\s*\],/);
+    expect(src).toMatch(/\(\) => unknownSession\.clientRef,\s*(unknownPicturedFor,\s*)?\],/);
   });
   it("restores the session ref from the draft (empty when there is none)", () => {
     expect(src).toMatch(/unknownSession\.clientRef = draft\.unknownClientRef \?\? ""/);
@@ -22,5 +22,19 @@ describe("sale screen unknown-item session is kept in the draft", () => {
   });
   it("a finished or cleared sale still forgets the session", () => {
     expect(src).toMatch(/unknownSession\.clientRef = "";\s*clearDraft\(\);/);
+  });
+  it("writes, watches and restores that the cart was pictured, with its session only", () => {
+    expect(src).toMatch(/unknownPicturedFor: \(unknownSession\.clientRef && unknownPicturedFor\.value\) \|\| undefined/);
+    expect(src).toMatch(/\(\) => unknownSession\.clientRef,\s*unknownPicturedFor,\s*\],/);
+    expect(src).toMatch(/unknownPicturedFor\.value = \(draft\.unknownClientRef && draft\.unknownPicturedFor\) \|\| ""/);
+    expect(src.indexOf("const unknownPicturedFor = ref")).toBeLessThan(src.indexOf("unknownPicturedFor,\n  ],"));
+  });
+  it("a new sale forgets it was pictured", () => {
+    expect(src).toMatch(/unknownPicturedFor\.value = "";\s*unknownSession\.clientRef = "";\s*clearDraft\(\);/);
+  });
+  it("tells the QR strip, and checkout skips the pictures, when the cart is the pictured one", () => {
+    expect(src).toMatch(/:pictured-for="unknownPicturedFor"/);
+    expect(src).toMatch(/@ready="unknownPicturedFor = \$event"/);
+    expect(src).toMatch(/if \(signature === unknownPicturedFor\.value\) return true;/);
   });
 });

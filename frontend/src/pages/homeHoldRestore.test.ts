@@ -18,6 +18,10 @@ describe("sale screen hold and restore", () => {
     expect(onRestore).toMatch(/invoiceItems\.value\.items = held\.restore\.items/);
     expect(onRestore).not.toMatch(/\.addItem\(/);
   });
+  it("holds and restores that the cart was already pictured", () => {
+    expect(onHold).toMatch(/unknownPicturedFor: unknownPicturedFor\.value \|\| undefined/);
+    expect(onRestore).toMatch(/unknownPicturedFor\.value = held\.unknownPicturedFor/);
+  });
   it("restores the sale's ref and picture session", () => {
     expect(onRestore).toMatch(/saleRef\.value = held\.saleRef/);
     expect(onRestore).toMatch(/unknownSession\.clientRef = held\.unknownClientRef/);
