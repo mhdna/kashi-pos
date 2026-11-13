@@ -82,4 +82,19 @@ describe("cart column header", () => {
     expect(blocks).toHaveLength(4); // header + 3 lines
     expect(blocks.slice(1).every((b) => b.querySelector(".invoice-item-actions"))).toBe(true);
   });
+
+  it("draws the column lines on the cart area, only while there are lines, and a Disc. one only with that column", async () => {
+    const empty = await cart({}, []);
+    expect(empty.classes()).not.toContain("invoice-items--table");
+    empty.unmount();
+    wrapper = null;
+    const plain = await cart({}, [shirt()]);
+    expect(plain.classes()).toContain("invoice-items--table");
+    expect(plain.classes()).not.toContain("invoice-items--disc");
+    plain.unmount();
+    wrapper = null;
+    const withDisc = await cart({ customDiscountsEnabled: true }, [shirt()]);
+    expect(withDisc.classes()).toContain("invoice-items--table");
+    expect(withDisc.classes()).toContain("invoice-items--disc");
+  });
 });
