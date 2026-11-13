@@ -345,7 +345,8 @@ const items = computed(() => {
   gap: 4px;
   margin: 0 6px 4px;
   padding: 4px 0 5px;
-  background: #000;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid #243653;
   border-radius: 8px;
   cursor: pointer;
 }
@@ -373,9 +374,9 @@ const items = computed(() => {
   color: #9e9e9e;
 }
 .nav-drawer {
-  background-color: #0f1b2d;
+  background: linear-gradient(180deg, #13243d 0%, #0d1828 100%);
   border: 0 !important;
-  border-right: 1px solid #1e2c42 !important;
+  border-right: 1px solid #243653 !important;
   box-shadow: none !important;
 }
 
@@ -411,11 +412,32 @@ const items = computed(() => {
   flex: 1 0 64px;
   min-height: 64px;
   max-height: 80px;
+  position: relative;
+  /* Quieter than the active page, so the current one stands out. */
+  color: #9fb3d1;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.06);
   color: #e3ecf8;
 }
 
+/* The page you are on: lighter panel, bright text and an accent bar. */
 .nav-item.k-list-item--active {
-  background-color: #22375a;
+  background: linear-gradient(90deg, rgba(79, 140, 255, 0.28), rgba(79, 140, 255, 0.1));
+  color: #ffffff;
+}
+
+.nav-item.k-list-item--active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: #6ea8ff;
 }
 
 .nav-item-content {
@@ -451,7 +473,7 @@ const items = computed(() => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid #0f1b2d;
+  border: 2px solid #0f1b2d; /* matches the sidebar */
 }
 
 .nav-status-dot--up {
