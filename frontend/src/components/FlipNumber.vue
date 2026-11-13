@@ -110,11 +110,24 @@ watch(
 .flip-flap {
   z-index: 3;
 }
+/* Always plays, whatever the animations setting says: it is feedback for a
+   tap, not decoration. styles/settings.scss puts `animation: none
+   !important` on every element, so these set the whole animation with
+   !important too (an !important rule on a real selector beats the one on
+   `*`). */
 .flip-flap-top {
-  animation: flip-fold 0.16s ease-in both;
+  animation-name: flip-fold !important;
+  animation-duration: 0.16s !important;
+  animation-delay: 0s !important;
+  animation-timing-function: ease-in !important;
+  animation-fill-mode: both !important;
 }
 .flip-flap-bottom {
-  animation: flip-unfold 0.16s ease-out 0.16s both;
+  animation-name: flip-unfold !important;
+  animation-duration: 0.16s !important;
+  animation-delay: 0.16s !important;
+  animation-timing-function: ease-out !important;
+  animation-fill-mode: both !important;
 }
 
 @keyframes flip-fold {
@@ -124,16 +137,5 @@ watch(
 @keyframes flip-unfold {
   from { transform: rotateX(90deg); filter: brightness(0.5); }
   to { transform: rotateX(0); filter: brightness(1); }
-}
-
-/* Always plays, even with animations off in Settings: it is feedback for a
-   tap, not decoration. The global kill switch (styles/compact.scss) zeroes
-   every duration with !important, so these win by being more specific. */
-:root.animations-disabled .flip-flap-top {
-  animation-duration: 0.16s !important;
-}
-:root.animations-disabled .flip-flap-bottom {
-  animation-duration: 0.16s !important;
-  animation-delay: 0.16s !important;
 }
 </style>

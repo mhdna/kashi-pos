@@ -3,6 +3,22 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-13 · The visitor counter's flip animation never played
+
+**Symptom.** Tapping the visitor counter's up/down buttons changed the number
+with no movement, even after the animation was made to ignore the Settings
+switch.
+
+**Cause.** `styles/settings.scss` puts `animation: none !important` (and the
+same for transitions) on every element, always, not only when animations are
+off. The first fix only reset the duration, so the animation name stayed `none`.
+
+**Fix.** `FlipNumber.vue` sets the whole animation (name, duration, delay,
+timing, fill mode) with `!important`, which beats the rule on `*`. Checked in the
+built CSS that the scoped keyframe names match. Component behaviour is covered
+by `FlipNumber.test.ts`; happy-dom doesn't run CSS animations, so the animation
+itself is checked by eye on a till.
+
 ## 2026-11-13 · A sale paid with LL change recorded a cent less than its total
 
 **Symptom.** At Centro, SA/CT/2026/03167 was $41.56 but its payments came to
