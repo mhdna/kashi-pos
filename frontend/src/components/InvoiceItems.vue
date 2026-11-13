@@ -361,18 +361,37 @@
           />
         </k-card-title>
         <k-card-text class="invoice-item-details-content">
-          <k-select
-            :model-value="detailItem.salespersonId || 0"
-            :items="salespersonOptions"
-            item-title="title"
-            item-value="value"
-            placeholder="Salesperson for this line"
-            prepend-inner-icon="mdi-account-tie"
-            variant="outlined"
-            density="compact"
-            :menu-props="{ transition: animationsEnabled ? 'fade-transition' : false }"
-            @update:model-value="detailItem.salespersonId = Number($event || 0)"
-          />
+          <!-- Who sold this line. Tapping opens the same picture grid as the
+               invoice's Salesperson button; "Invoice salesperson" hands the
+               line back to whoever the invoice is under. -->
+          <k-menu v-model="salespersonMenu" :close-on-content-click="false" location="bottom start">
+            <template #activator="{ props: menuProps }">
+              <button v-bind="menuProps" type="button" class="line-salesperson-btn" data-test="line-salesperson">
+                <InitialsAvatar
+                  v-if="detailSalesperson"
+                  :name="detailSalesperson.fullName"
+                  :color="salespersonColor(detailSalesperson)"
+                  :size="36"
+                />
+                <span v-else class="line-salesperson-none"><k-icon icon="mdi-account-tie" size="20" /></span>
+                <span class="line-salesperson-text">
+                  <span class="line-salesperson-caption">Sold by</span>
+                  <span class="line-salesperson-name">{{ detailSalesperson?.fullName ?? "Invoice salesperson" }}</span>
+                </span>
+                <k-icon icon="mdi-chevron-down" size="20" class="line-salesperson-chevron" />
+              </button>
+            </template>
+            <k-card class="line-salesperson-menu">
+              <div class="pa-2">
+                <SalespersonGrid
+                  :salespersons="salespersons"
+                  :model-value="detailItem.salespersonId || 0"
+                  default-label="Invoice salesperson"
+                  @update:model-value="pickLineSalesperson"
+                />
+              </div>
+            </k-card>
+          </k-menu>
           <k-textarea
             v-model="detailItem.note"
             placeholder="Add a note about this item"
@@ -384,7 +403,7 @@
             maxlength="2000"
             counter
           />
-          <div class="text-subtitle-2 mb-2">Units</div>
+          <div class="invoice-units-title">Units</div>
           <div class="invoice-unit-lines">
             <div
               v-for="unitIndex in detailUnitCount(detailItem)"
@@ -489,6 +508,9 @@ import {
 import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
+import SalespersonGrid from "@/components/SalespersonGrid.vue";
+import InitialsAvatar from "@/components/InitialsAvatar.vue";
+import { salespersonColor } from "@/lib/salespersonColor";
 
 interface LineItem {
   name: string;
@@ -913,10 +935,17 @@ function discountedItemCents(item: LineItem): number {
 
 const categoryIcons = ref<Map<string, string>>(new Map());
 const salespersons = ref<Salesperson[]>([]);
-const salespersonOptions = computed(() => [
-  { title: "Invoice salesperson (default)", value: 0 },
-  ...salespersons.value.map((person) => ({ title: person.fullName, value: person.id })),
-]);
+const salespersonMenu = ref(false);
+// The person picked for the open line, or null when it follows the invoice.
+const detailSalesperson = computed(() => {
+  const id = Number(detailItem.value?.salespersonId || 0);
+  if (!id) return null;
+  return salespersons.value.find((person) => person.id === id) ?? { id, fullName: "Former salesperson" };
+});
+function pickLineSalesperson(id: number) {
+  if (detailItem.value) detailItem.value.salespersonId = id;
+  salespersonMenu.value = false;
+}
 
 function iconFor(category: string): string {
   return categoryIcons.value.get(category) || "mdi-cart-outline";
@@ -1684,7 +1713,84 @@ defineExpose({
 }
 
 .invoice-unit-line {
-  min-height: 38px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: rgba(var(--k-theme-on-surface), 0.04);
+}
+.invoice-unit-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.invoice-units-title {
+  margin: 4px 0 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(var(--k-theme-on-surface), 0.6);
+}
+
+/* "Sold by" button in the item details: avatar, name, chevron. */
+.line-salesperson-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(var(--k-border-color), 0.28);
+  border-radius: 10px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.line-salesperson-btn:hover {
+  background-color: rgba(var(--k-theme-on-surface), 0.05);
+  border-color: rgba(var(--k-border-color), 0.5);
+}
+.line-salesperson-none {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(var(--k-theme-on-surface), 0.1);
+  color: rgba(var(--k-theme-on-surface), 0.65);
+}
+.line-salesperson-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.line-salesperson-caption {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(var(--k-theme-on-surface), 0.55);
+}
+.line-salesperson-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.line-salesperson-chevron {
+  flex: 0 0 auto;
+  opacity: 0.6;
+}
+.line-salesperson-menu {
+  width: min(420px, calc(100vw - 32px));
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .invoice-item-details-content {

@@ -18,23 +18,9 @@
       </div>
     </template>
     <k-card class="salespersons-grid">
-      <k-row class="pa-2 ga-2 fill-height" no-gutters>
-        <k-col v-for="p in salespersons" :key="p.id" cols="4" style="display: flex">
-          <button
-            type="button"
-            class="salesperson-card d-flex flex-column align-center justify-center w-100"
-            @click="selectSalesperson(p)"
-          >
-            <InitialsAvatar
-              :name="p.fullName ?? ''"
-              :color="salespersonColor(p)"
-              :size="48"
-              class="mb-2 flex-shrink-0"
-            />
-            <span class="text-caption text-center text-truncate w-100">{{ p.fullName }}</span>
-          </button>
-        </k-col>
-      </k-row>
+      <div class="pa-2">
+        <SalespersonGrid :salespersons="salespersons" :model-value="selected?.id ?? null" @update:model-value="pickById" />
+      </div>
     </k-card>
   </k-menu>
 </template>
@@ -42,8 +28,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { ListSalespersons } from "../../wailsjs/go/main/App";
-import InitialsAvatar from "./InitialsAvatar.vue";
-import { salespersonColor } from "@/lib/salespersonColor";
+import SalespersonGrid from "./SalespersonGrid.vue";
 import { useSalesperson, type Salesperson } from "@/composables/useSalesperson";
 
 defineProps<{ disabled?: boolean }>();
@@ -54,6 +39,11 @@ const { selectedSalesperson: selected, pulseMissingSalesperson } = useSalesperso
 
 const selectedName = computed(() => selected.value?.fullName.split(" ")[0] ?? "Salesperson");
 
+
+function pickById(id: number) {
+  const p = salespersons.value.find((s) => s.id === id);
+  if (p) selectSalesperson(p);
+}
 
 function selectSalesperson(p: Salesperson) {
   selected.value = p;
@@ -113,31 +103,5 @@ onMounted(async () => {
   width: min(420px, calc(100vw - 32px));
   max-height: 400px;
   overflow-y: auto;
-}
-
-.salesperson-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 112px;
-  padding: 12px;
-  background: transparent;
-  border: 1px solid rgba(var(--k-border-color), 0.18);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 120ms ease;
-  font-family: inherit;
-  font-size: inherit;
-  width: 100%;
-}
-
-.salesperson-card:hover {
-  background-color: rgba(var(--k-theme-on-surface), 0.08);
-  border-color: rgba(var(--k-border-color), 0.36);
-}
-
-.salesperson-card:active {
-  transform: scale(0.97);
 }
 </style>
