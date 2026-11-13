@@ -24,7 +24,7 @@ describe("FlipNumber", () => {
     const [top, bottom] = w.findAll(".flip-half:not(.flip-flap) .flip-num");
     expect(top!.text()).toBe("8");
     expect(bottom!.text()).toBe("7");
-    vi.advanceTimersByTime(400);
+    vi.advanceTimersByTime(700);
     await w.vm.$nextTick();
     expect(w.findAll(".flip-flap")).toHaveLength(0);
     expect(w.findAll(".flip-num").map((n) => n.text())).toEqual(["8", "8"]);
@@ -37,7 +37,7 @@ describe("FlipNumber", () => {
     await w.setProps({ value: 1 });
     expect(w.find(".flip-flap-top").text()).toBe("2");
     expect(w.find(".flip-flap-bottom").text()).toBe("1");
-    vi.advanceTimersByTime(400);
+    vi.advanceTimersByTime(700);
     await w.vm.$nextTick();
     expect(w.findAll(".flip-num").map((n) => n.text())).toEqual(["1", "1"]);
   });
@@ -47,10 +47,21 @@ describe("FlipNumber", () => {
     expect(w.classes()).not.toContain("flip--up");
     await w.setProps({ value: 6 });
     expect(w.classes()).toContain("flip--up");
-    vi.advanceTimersByTime(500);
+    vi.advanceTimersByTime(700);
     await w.vm.$nextTick();
     expect(w.classes()).not.toContain("flip--up");
     await w.setProps({ value: 5 });
     expect(w.classes()).toContain("flip--down");
+  });
+
+  it("keeps the highlight on for its whole 0.6s, not just the fold", async () => {
+    const w = mount(FlipNumber, { props: { value: 5 } });
+    await w.setProps({ value: 6 });
+    vi.advanceTimersByTime(500);
+    await w.vm.$nextTick();
+    expect(w.classes()).toContain("flip--up");
+    vi.advanceTimersByTime(200);
+    await w.vm.$nextTick();
+    expect(w.classes()).not.toContain("flip--up");
   });
 });

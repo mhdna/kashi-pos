@@ -29,8 +29,8 @@ const direction = ref<"up" | "down">("up");
 const run = ref(0);
 let timer: ReturnType<typeof setTimeout> | undefined;
 
-// Total flip: the fold down (0.14s) plus the unfold and settle (0.24s).
-const FLIP_MS = 380;
+// The longest part: the highlight (0.6s). The fold and unfold take 0.38s.
+const FLIP_MS = 620;
 
 watch(
   () => props.value,
@@ -152,18 +152,40 @@ watch(
   animation-fill-mode: both !important;
 }
 
-/* The whole card pops and flashes: teal when the count rises, amber when it
-   falls. */
+/* The whole card pops, rings and washes over when the count changes. Adding
+   one is the loud one (orange, big ring, strong wash); taking one off is a
+   quiet white flash, so the two never look alike. */
 .flip--up {
-  --flash: 232, 104, 10;
+  --flash: 255, 122, 24;
+  --ring: 6px;
+  --wash: 0.6;
+  --grow: 1.14;
 }
 .flip--down {
-  --flash: 232, 104, 10;
+  --flash: 255, 255, 255;
+  --ring: 2px;
+  --wash: 0.2;
+  --grow: 1.05;
 }
 .flip--up,
 .flip--down {
   animation-name: flip-pop !important;
-  animation-duration: 0.38s !important;
+  animation-duration: 0.6s !important;
+  animation-delay: 0s !important;
+  animation-timing-function: ease-out !important;
+  animation-fill-mode: both !important;
+}
+.flip--up::before,
+.flip--down::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(var(--flash), 1), rgba(var(--flash), 0.45));
+  pointer-events: none;
+  animation-name: flip-wash !important;
+  animation-duration: 0.6s !important;
   animation-delay: 0s !important;
   animation-timing-function: ease-out !important;
   animation-fill-mode: both !important;
@@ -183,8 +205,13 @@ watch(
   100% { opacity: 0; }
 }
 @keyframes flip-pop {
-  0% { transform: scale(1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(var(--flash), 0.7); }
-  35% { transform: scale(1.07); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 3px rgba(var(--flash), 0.55); }
+  0% { transform: scale(1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(var(--flash), 0.9); }
+  25% { transform: scale(var(--grow)); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 var(--ring) rgba(var(--flash), 0.95); }
   100% { transform: scale(1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(var(--flash), 0); }
+}
+@keyframes flip-wash {
+  0% { opacity: 0; }
+  20% { opacity: var(--wash); }
+  100% { opacity: 0; }
 }
 </style>
