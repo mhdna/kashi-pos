@@ -27,7 +27,6 @@
       </div>
 
       <div v-if="visitorCounterEnabled" class="visitor-counter" aria-label="People visits today">
-        <span class="visitor-counter-title">Visitors</span>
         <k-btn
           class="visitor-counter-btn"
           icon
@@ -534,20 +533,12 @@ const items = computed(() => {
   align-items: center;
   gap: 4px;
   margin: 2px 6px 6px;
-  padding: 5px 0 6px;
+  padding: 6px 0;
   color: #ffffff;
   /* One panel, like the devices box under it. */
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid #243653;
   border-radius: 12px;
-}
-
-/* Same small caption as "Devices" below. */
-.visitor-counter-title {
-  font-size: 0.65rem;
-  font-weight: 700;
-  line-height: 1.1;
-  color: #9e9e9e;
 }
 
 .visitor-counter-btn {
