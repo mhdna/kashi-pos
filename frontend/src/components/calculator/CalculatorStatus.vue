@@ -125,19 +125,27 @@ function flipCurrency() {
 </script>
 
 <style scoped>
-/* The strip around the card is tinted too, not just the card. */
+/* The strip around the card is tinted too, not just the card. It is drawn
+   behind the card outside the layout, so the card keeps its size/position. */
 .calculator-status {
-  padding: 8px;
-  border-radius: 14px;
+  position: relative;
 }
-.calculator-status.calculator-green {
+.calculator-status::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 14px;
+  pointer-events: none;
+}
+.calculator-status.calculator-green::before {
   background: rgba(46, 125, 50, 0.16);
 }
-.calculator-status.text-red-darken-2 {
+.calculator-status.text-red-darken-2::before {
   background: rgba(198, 40, 40, 0.16);
 }
 .calculator-amounts {
   position: relative;
+  z-index: 1;
   display: grid;
   grid-template-rows: repeat(2, minmax(0, 1fr));
   height: 66px;
