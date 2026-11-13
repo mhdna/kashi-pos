@@ -62,6 +62,10 @@ export function ChangeInvoiceClient(arg1, arg2) {
   return window['go']['main']['App']['ChangeInvoiceClient'](arg1, arg2);
 }
 
+export function ChangeInvoiceLineSalesperson(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ChangeInvoiceLineSalesperson'](arg1, arg2, arg3);
+}
+
 export function ChangeInvoiceSalesperson(arg1, arg2) {
   return window['go']['main']['App']['ChangeInvoiceSalesperson'](arg1, arg2);
 }

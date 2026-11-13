@@ -32,6 +32,8 @@ export function ChangeAdminPassword(arg1:string,arg2:string):Promise<void>;
 
 export function ChangeInvoiceClient(arg1:number,arg2:number):Promise<void>;
 
+export function ChangeInvoiceLineSalesperson(arg1:number,arg2:number,arg3:number):Promise<void>;
+
 export function ChangeInvoiceSalesperson(arg1:number,arg2:number):Promise<void>;
 
 export function ChangeInvoiceSettlement(arg1:number,arg2:number):Promise<void>;

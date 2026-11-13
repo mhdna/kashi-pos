@@ -19,6 +19,9 @@ UPDATE invoices SET client_id = ? WHERE id = ?;
 -- name: UpdateInvoiceSalesperson :exec
 UPDATE invoices SET salesperson_id = ? WHERE id = ?;
 
+-- name: UpdateInvoiceProductSalesperson :execrows
+UPDATE invoice_products SET salesperson_id = ? WHERE id = ? AND invoice_id = ?;
+
 -- name: UpdateInvoiceCashbox :exec
 UPDATE invoices SET cashbox_id = ? WHERE id = ?;
 
