@@ -345,7 +345,7 @@
       </k-card>
     </k-dialog>
 
-    <k-dialog v-model="detailsDialog" width="600" height="500" @after-leave="detailItem = null">
+    <k-dialog v-model="detailsDialog" width="600" height="640" @after-leave="detailItem = null">
       <k-card v-if="detailItem">
         <k-card-title class="d-flex align-center">
           <div class="min-width-0">
@@ -361,37 +361,26 @@
           />
         </k-card-title>
         <k-card-text class="invoice-item-details-content">
-          <!-- Who sold this line. Tapping opens the same picture grid as the
-               invoice's Salesperson button; "Invoice salesperson" hands the
-               line back to whoever the invoice is under. -->
-          <k-menu v-model="salespersonMenu" :close-on-content-click="false" location="bottom start">
-            <template #activator="{ props: menuProps }">
-              <button v-bind="menuProps" type="button" class="line-salesperson-btn" data-test="line-salesperson">
-                <InitialsAvatar
-                  v-if="detailSalesperson"
-                  :name="detailSalesperson.fullName"
-                  :color="salespersonColor(detailSalesperson)"
-                  :size="36"
-                />
-                <span v-else class="line-salesperson-none"><k-icon icon="mdi-account-tie" size="20" /></span>
-                <span class="line-salesperson-text">
-                  <span class="line-salesperson-caption">Sold by</span>
-                  <span class="line-salesperson-name">{{ detailSalesperson?.fullName ?? "Invoice salesperson" }}</span>
-                </span>
-                <k-icon icon="mdi-chevron-down" size="20" class="line-salesperson-chevron" />
-              </button>
-            </template>
-            <k-card class="line-salesperson-menu">
-              <div class="pa-2">
-                <SalespersonGrid
-                  :salespersons="salespersons"
-                  :model-value="detailItem.salespersonId || 0"
-                  default-label="Invoice salesperson"
-                  @update:model-value="pickLineSalesperson"
-                />
-              </div>
-            </k-card>
-          </k-menu>
+          <!-- Who sold this line: the salespeople laid out as cards, scrolling
+               when there are many. "Invoice salesperson" hands the line back
+               to whoever the invoice is under. -->
+          <div class="invoice-units-title d-flex align-center" data-test="line-salesperson">
+            <span>Sold by</span>
+            <k-spacer />
+            <span class="line-salesperson-current text-truncate">
+              {{ detailSalesperson?.fullName ?? "Invoice salesperson" }}
+            </span>
+          </div>
+          <div class="line-salesperson-cards">
+            <SalespersonGrid
+              :salespersons="salespersons"
+              :model-value="detailItem.salespersonId || 0"
+              default-label="Invoice salesperson"
+              :columns="4"
+              dense
+              @update:model-value="pickLineSalesperson"
+            />
+          </div>
           <k-textarea
             v-model="detailItem.note"
             placeholder="Add a note about this item"
@@ -509,8 +498,6 @@ import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
 import SalespersonGrid from "@/components/SalespersonGrid.vue";
-import InitialsAvatar from "@/components/InitialsAvatar.vue";
-import { salespersonColor } from "@/lib/salespersonColor";
 
 interface LineItem {
   name: string;
@@ -935,7 +922,6 @@ function discountedItemCents(item: LineItem): number {
 
 const categoryIcons = ref<Map<string, string>>(new Map());
 const salespersons = ref<Salesperson[]>([]);
-const salespersonMenu = ref(false);
 // The person picked for the open line, or null when it follows the invoice.
 const detailSalesperson = computed(() => {
   const id = Number(detailItem.value?.salespersonId || 0);
@@ -944,7 +930,6 @@ const detailSalesperson = computed(() => {
 });
 function pickLineSalesperson(id: number) {
   if (detailItem.value) detailItem.value.salespersonId = id;
-  salespersonMenu.value = false;
 }
 
 function iconFor(category: string): string {
@@ -1746,65 +1731,24 @@ defineExpose({
   color: rgba(var(--k-theme-on-surface), 0.6);
 }
 
-/* "Sold by" button in the item details: avatar, name, chevron. */
-.line-salesperson-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: transparent;
-  border: 1px solid rgba(var(--k-border-color), 0.28);
-  border-radius: 10px;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  transition: background-color 120ms ease, border-color 120ms ease;
-}
-.line-salesperson-btn:hover {
-  background-color: rgba(var(--k-theme-on-surface), 0.05);
-  border-color: rgba(var(--k-border-color), 0.5);
-}
-.line-salesperson-none {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 36px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(var(--k-theme-on-surface), 0.1);
-  color: rgba(var(--k-theme-on-surface), 0.65);
-}
-.line-salesperson-text {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-}
-.line-salesperson-caption {
-  font-size: 0.7rem;
+/* "Sold by" in the item details: the salespeople as cards, scrolling past
+   about two rows so the note and units stay in view. */
+.line-salesperson-current {
+  max-width: 60%;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(var(--k-theme-on-surface), 0.55);
+  letter-spacing: normal;
+  text-transform: none;
+  color: rgb(var(--k-theme-on-surface));
 }
-.line-salesperson-name {
-  overflow: hidden;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.line-salesperson-chevron {
-  flex: 0 0 auto;
-  opacity: 0.6;
-}
-.line-salesperson-menu {
-  width: min(420px, calc(100vw - 32px));
-  max-height: 400px;
+.line-salesperson-cards {
+  max-height: 212px;
+  margin-bottom: 16px;
+  padding: 8px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(var(--k-border-color), 0.18);
+  border-radius: 10px;
+  background: rgba(var(--k-theme-on-surface), 0.02);
 }
 
 .invoice-item-details-content {

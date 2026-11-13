@@ -1,7 +1,13 @@
 <template>
   <!-- Big tap targets: one tile per salesperson, an avatar over a name. The
        same picker as the invoice's header Salesperson button. -->
-  <div class="sp-grid" role="listbox" aria-label="Salesperson">
+  <div
+    class="sp-grid"
+    :class="{ 'sp-grid--dense': dense }"
+    :style="{ '--sp-columns': columns ?? 3 }"
+    role="listbox"
+    aria-label="Salesperson"
+  >
     <button
       v-if="defaultLabel"
       type="button"
@@ -12,7 +18,7 @@
       data-test="sp-default"
       @click="emit('update:modelValue', 0)"
     >
-      <span class="sp-default-avatar"><k-icon icon="mdi-account-tie" size="26" /></span>
+      <span class="sp-default-avatar"><k-icon icon="mdi-account-tie" :size="dense ? 22 : 26" /></span>
       <span class="sp-name">{{ defaultLabel }}</span>
     </button>
     <button
@@ -26,7 +32,7 @@
       :data-test="`sp-${person.id}`"
       @click="emit('update:modelValue', person.id)"
     >
-      <InitialsAvatar :name="person.fullName ?? ''" :color="salespersonColor(person)" :size="48" class="flex-shrink-0" />
+      <InitialsAvatar :name="person.fullName ?? ''" :color="salespersonColor(person)" :size="dense ? 40 : 48" class="flex-shrink-0" />
       <span class="sp-name">{{ person.fullName }}</span>
     </button>
   </div>
@@ -43,6 +49,10 @@ defineProps<{
   // Adds a first tile that stands for "nobody in particular" (id 0), e.g.
   // "Invoice salesperson". Left out when every pick must be a real person.
   defaultLabel?: string;
+  // How many tiles per row (3 when left out).
+  columns?: number;
+  // Smaller tiles, for a grid laid inside a dialog rather than a menu.
+  dense?: boolean;
 }>();
 const emit = defineEmits<{ "update:modelValue": [id: number] }>();
 </script>
@@ -50,7 +60,7 @@ const emit = defineEmits<{ "update:modelValue": [id: number] }>();
 <style scoped>
 .sp-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--sp-columns, 3), minmax(0, 1fr));
   gap: 8px;
 }
 .sp-tile {
@@ -89,6 +99,15 @@ const emit = defineEmits<{ "update:modelValue": [id: number] }>();
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.8125rem;
+}
+.sp-grid--dense .sp-tile {
+  gap: 6px;
+  min-height: 88px;
+  padding: 10px 6px;
+}
+.sp-grid--dense .sp-default-avatar {
+  width: 40px;
+  height: 40px;
 }
 .sp-default-avatar {
   display: inline-flex;
