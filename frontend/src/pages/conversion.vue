@@ -41,7 +41,7 @@
     <!-- A manager unlocks the page with the manager password each time it's
          opened; it's kept only while the page stays open. -->
     <div v-if="!unlocked" class="unlock">
-      <k-card class="unlock-card" width="400" rounded="xl" variant="outlined">
+      <k-card class="unlock-card" width="400" rounded="xl" variant="text">
         <span class="unlock-badge"><k-icon icon="mdi-lock-outline" size="28" /></span>
         <h2 class="unlock-title">Manager password</h2>
         <p class="unlock-hint">Enter it to see sales per visitor.</p>
@@ -356,7 +356,10 @@ onMounted(() => {
   max-width: 100%;
   padding: 32px 28px 28px;
   text-align: center;
-  box-shadow: 0 8px 28px rgba(15, 27, 45, 0.1);
+  /* No panel: the form sits straight on the page background. */
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 .unlock-badge {
   display: inline-flex;
