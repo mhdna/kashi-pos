@@ -5,6 +5,8 @@
   >
     <div class="home-panes d-flex">
       <div class="home-left-pane d-flex flex-column" style="flex: 5 5 0; min-width: 0; min-height: 0">
+        <!-- The top section (title, the assignees, the barcode row) on a slight tint. -->
+        <div class="home-top">
         <div>
           <k-card-title
             class="d-flex justify-space-between"
@@ -153,6 +155,7 @@
             :hidden-fields="productSearchHiddenFields"
             @select="onProductSelect"
           />
+        </div>
         </div>
         <InvoiceItems
           ref="invoiceItems"
@@ -1955,6 +1958,15 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* A slight tint behind the top of the invoice: the title, the assignees, the
+   barcode row and (InvoiceItems') column header under them. */
+.home-left-pane {
+  --top-tint: rgba(var(--k-theme-on-surface), 0.045);
+}
+.home-top {
+  padding-bottom: 12px;
+  background: var(--top-tint);
+}
 .empty-cart-card {
   background-color: rgb(var(--k-theme-surface)) !important;
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
