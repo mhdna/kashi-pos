@@ -4,6 +4,15 @@
     class="invoice-items mt-2 mb-2 me-0"
     :class="{ 'invoice-items--discount-chips': showDiscountChips }"
   >
+    <!-- Column titles, so the lines themselves carry just the numbers. The
+         columns are the same widths as the lines' controls. -->
+    <div v-if="displayItems.length" class="invoice-items-header" data-test="invoice-items-header" aria-hidden="true">
+      <span class="invoice-items-header__item">Item</span>
+      <span class="invoice-items-header__col invoice-header-qty">Qty</span>
+      <span v-if="anyDiscountEditable" class="invoice-items-header__col invoice-header-discount">Disc.</span>
+      <span class="invoice-items-header__col invoice-header-price">Price</span>
+      <span class="invoice-header-delete" />
+    </div>
     <div
       v-for="(item, index) in displayItems"
       :key="`${items.length - 1 - index}-${item.barcode || item.code}`"
@@ -134,7 +143,6 @@
                 :min="1"
                 :max="999"
                 aria-label="Edit item quantity"
-                prefix="Qty"
                 :keyboard-mode="keyboardMode"
                 @update:model-value="(value) => setQuantity(item, Number(value))"
                 @navigate="(direction) => moveVertical(index, 'qty', direction)"
@@ -1598,6 +1606,48 @@ defineExpose({
   white-space: nowrap;
 }
 
+.invoice-items-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  /* The lines' own padding: 24px at the start, 16px at the end. */
+  padding: 6px 16px 6px 24px;
+  background: var(--kashi-app-background, #f7f7f7);
+  border-bottom: 1px solid rgba(var(--k-border-color), 0.14);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(var(--k-theme-on-surface), 0.55);
+  white-space: nowrap;
+}
+.invoice-items-header__item {
+  flex: 1 1 auto;
+}
+.invoice-items-header__col {
+  flex: 0 0 auto;
+  text-align: center;
+}
+/* The same widths as the controls under them. */
+.invoice-header-qty {
+  width: 46px;
+}
+.invoice-header-discount {
+  width: 44px;
+}
+.invoice-header-price {
+  width: 64px;
+}
+.invoice-items--discount-chips .invoice-header-price {
+  width: 100px;
+}
+.invoice-header-delete {
+  flex: 0 0 36px;
+  width: 36px;
+}
+
 .invoice-qty-control,
 .invoice-discount-control,
 .invoice-delete-control {
@@ -1610,7 +1660,7 @@ defineExpose({
   width: 46px;
 }
 
-/* The pad reserves room for 999; the cart's highlight should hug "Qty 1". */
+/* The pad reserves room for 999; the cart's highlight should hug the number. */
 .invoice-qty-control :deep(.number-pad-activator) {
   min-width: 0 !important;
   padding-inline: 6px;
