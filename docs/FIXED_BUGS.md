@@ -3,6 +3,32 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-13 · A sale paid with LL change recorded a cent less than its total
+
+**Symptom.** At Centro, SA/CT/2026/03167 was $41.56 but its payments came to
+$41.55 ($40 and LL 1.55), so the cloud's day total ($649.99) was a cent above
+what the till's shift said it collected ($607.98 + $42 on account). The shift
+also showed LL 1,170,000 as $12.98, though at 90,000 that is $13.00.
+
+**Cause.** The customer paid LL 200,000 and got LL 60,000 back, so the till kept
+LL 140,000 (156¢). But each LL entry was turned into cents on its own (222¢ and
+67¢) and the cents were added (`netPaymentsByAccount`), which gave 155¢. The
+backend only ever got cents, so it couldn't add the LL itself.
+
+**Fix.** The calculator sends each LL entry's LL (`amountUnits`), and checkout
+and the payment quotes add an account's LL entries up in LL and convert once
+(`settleCashEntryCents` in `tx_invoice.go`, `invoice_quote.go`). The calculator
+counts paid the same way (`lib/cashPayments.ts`, `components/Calculator.vue`),
+so it no longer asks "Confirm change amount" when exactly the right LL is given
+back. Payments typed with their LL also snap to the LL grid from that LL, not
+from its cents, which could land a note a step off under round down/up.
+Sales already stored are not changed. Tests: `cash_payment_netting_test.go`
+(this sale, edges, randomized netting, 360 randomized checkouts through quote
+and checkout in every rounding mode, and the golden file
+`lib/testdata/cash_payment_netting.json`), `lib/cashPayments.test.ts` (same
+golden, randomized) and `components/Calculator.test.ts` (sale, exchange and
+settlement mode).
+
 ## 2026-11-13 · "Round up" added a step to amounts that were already exact
 
 **Symptom.** On a till set to round up, an amount that converted exactly still

@@ -164,6 +164,12 @@ func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string) (PaymentStatus,
 		return status, fmt.Errorf("rounding currency: %w", err)
 	}
 
+	// Count the payments as checkout will record them (cash-rounded
+	// entries snapped and netted per account); see normalizeCashRoundedPayments.
+	if _, err := normalizeCashRoundedPayments(a.ctx, a.store.Queries, payments, pricing.RoundingMode); err != nil {
+		return status, err
+	}
+
 	var paid int64
 	hasForeignCashPayment := false
 	for _, payment := range payments {
@@ -342,6 +348,12 @@ func (a *App) QuoteExchangePaymentStatus(itemsJSON, paymentsJSON string, origina
 		return status, fmt.Errorf("rounding currency: %w", err)
 	}
 
+	// Count the payments as checkout will record them (cash-rounded
+	// entries snapped and netted per account); see normalizeCashRoundedPayments.
+	if _, err := normalizeCashRoundedPayments(a.ctx, a.store.Queries, payments, roundingMode); err != nil {
+		return status, err
+	}
+
 	var paid int64
 	hasForeignCashPayment := false
 	for _, payment := range payments {
@@ -407,6 +419,12 @@ func (a *App) QuoteSettlementPaymentStatus(invoiceID int64, paymentsJSON string)
 	roundingCurrency, err := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
 	if err != nil {
 		return status, fmt.Errorf("rounding currency: %w", err)
+	}
+
+	// Count the payments as checkout will record them (cash-rounded
+	// entries snapped and netted per account); see normalizeCashRoundedPayments.
+	if _, err := normalizeCashRoundedPayments(a.ctx, a.store.Queries, payments, roundingMode); err != nil {
+		return status, err
 	}
 
 	var paid int64

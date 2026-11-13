@@ -95,6 +95,14 @@ LBP amounts.
   makes sense. `settings.max_overpayment_cents` caps overpayment.
 - Revenue is `SUM(invoices.grand_total)`, not the sum of payments, because
   payment entries include change rounding and unrecorded cash overpayment.
+- **LL is netted in LL.** The calculator sends each LL entry's LL as counted
+  (`amountUnits`) beside its cents. Checkout (and every payment quote) adds
+  an LL account's payments and change up in LL and converts once, each entry
+  recording its step in the running total (`settleCashEntryCents`,
+  `tx_invoice.go`; the calculator mirrors it in `lib/cashPayments.ts`, checked
+  against `lib/testdata/cash_payment_netting.json`). So LL 200,000 paid less
+  LL 60,000 back records the 156¢ of LL 140,000, not 222¢ − 67¢. A change
+  entry without its LL (an older till, a remote command) keeps its own cents.
 
 ## Returns and exchanges
 
