@@ -101,16 +101,15 @@ describe("FlipNumber", () => {
     expect(w.findAll("[data-test=flip-tint]")).toHaveLength(1);
   });
 
-  it("the ring and the pop are the shared bar's alone: no turning card draws its own", () => {
+  it("the ring and the colour are the shared bar's alone: no turning card draws its own", () => {
     const digit = readFileSync(resolve(process.cwd(), "src/components/FlipDigit.vue"), "utf8");
     const number = readFileSync(resolve(process.cwd(), "src/components/FlipNumber.vue"), "utf8");
-    // The card has no pop/ring animation or per-tap twin classes any more...
+    // A card has no ring or inner shadow of its own while it turns...
     expect(digit).not.toMatch(/@keyframes flip-pop/);
-    expect(digit).not.toMatch(/flip--(even|odd)/);
     expect(digit).toMatch(/\.flip--up,\s*\.flip--down \{\s*box-shadow: none;/);
-    // ...the one bar behind them does it, as a single piece.
+    // ...the one bar behind them and the one ring over them do that, as single pieces.
     expect(number).toMatch(/@keyframes flip-ring-pop/);
-    expect(number).toMatch(/@keyframes flip-stage-pop/);
+    expect(number).toMatch(/animation-name: flip-tint-fade, flip-tint-pop/);
     // The ring is above the cards (z-index 3 over their 1), so a lone turning digit
     // keeps its whole outline, its left side included.
     expect(number).toMatch(/\.flip-ring \{\s*z-index: 3;/);
@@ -202,42 +201,56 @@ describe("FlipNumber ring", () => {
   });
 });
 
-describe("FlipNumber grows while it changes", () => {
+describe("FlipNumber: only the digits that change grow", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  const stage = (w: ReturnType<typeof mount>) => w.find("[data-test=flip-stage]");
-  const twin = (w: ReturnType<typeof mount>) =>
-    stage(w).classes().filter((c) => c === "flip-stage--odd" || c === "flip-stage--even");
+  const grown = (w: ReturnType<typeof mount>) =>
+    w.findAll("[data-test=flip-digit]").map((c) => c.classes().some((k) => k === "flip--even" || k === "flip--odd"));
+  const origin = (w: ReturnType<typeof mount>, i: number) =>
+    Number(/--oxc: ([\d.-]+)/.exec(w.findAll("[data-test=flip-digit]")[i]!.attributes("style") ?? "")![1]);
 
-  it("the digits, the bar and the ring are one stage, so they grow together", async () => {
+  it("a lone turning digit grows by itself, the others stay as they are", async () => {
     const w = mount(FlipNumber, { props: { value: 477 } });
-    expect(stage(w).find(".flip-digits").exists()).toBe(true);
+    expect(grown(w)).toEqual([false, false, false]);
     await w.setProps({ value: 478 });
-    expect(stage(w).find("[data-test=flip-tint]").exists()).toBe(true);
-    expect(stage(w).find("[data-test=flip-ring]").exists()).toBe(true);
-    expect(stage(w).find(".flip-digits").exists()).toBe(true);
+    expect(grown(w)).toEqual([false, false, true]);
   });
 
-  it("grows only while the count is changing, and stops with the highlight", async () => {
+  it("a run that turns together grows together, from its own middle", async () => {
+    const w = mount(FlipNumber, { props: { value: 479 } });
+    await w.setProps({ value: 480 }); // the last two turn: cards 1 and 2
+    expect(grown(w)).toEqual([false, true, true]);
+    // The run's middle is a card and a half... measured from each card's left edge:
+    // card 1 grows from 1 card to its right, card 2 from 1 card to its left.
+    expect(origin(w, 1)).toBe(1);
+    expect(origin(w, 2)).toBe(0);
+    // All three turning (499 -> 500): the middle is card 1.5.
+    const all = mount(FlipNumber, { props: { value: 499 } });
+    await all.setProps({ value: 500 });
+    expect(grown(all)).toEqual([true, true, true]);
+    expect([0, 1, 2].map((i) => origin(all, i))).toEqual([1.5, 0.5, -0.5]);
+  });
+
+  it("stops with the highlight", async () => {
     const w = mount(FlipNumber, { props: { value: 5 } });
-    expect(twin(w)).toEqual([]);
     await w.setProps({ value: 6 });
-    expect(twin(w)).toHaveLength(1);
+    expect(grown(w)).toEqual([true]);
     vi.advanceTimersByTime(700);
     await w.vm.$nextTick();
-    expect(twin(w)).toEqual([]);
+    expect(grown(w)).toEqual([false]);
   });
 
-  it("restarts the grow on every tap: the stage swaps to its twin animation", async () => {
+  it("restarts on every tap: the card swaps to its twin animation", async () => {
     const w = mount(FlipNumber, { props: { value: 5 } });
+    const twin = () => w.find("[data-test=flip-digit]").classes().filter((c) => c === "flip--even" || c === "flip--odd");
     await w.setProps({ value: 6 });
-    const first = twin(w);
+    const first = twin();
     vi.advanceTimersByTime(100);
     await w.setProps({ value: 7 });
-    expect(twin(w)).not.toEqual(first);
+    expect(twin()).not.toEqual(first);
     await w.setProps({ value: 8 });
-    expect(twin(w)).toEqual(first);
+    expect(twin()).toEqual(first);
   });
 
   it("grows a lot going up and only a little going down", () => {

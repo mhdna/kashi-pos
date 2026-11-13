@@ -1,5 +1,9 @@
 <template>
-  <span class="flip" :class="flipping && `flip--${direction}`" data-test="flip-digit" aria-hidden="true">
+  <span class="flip" :class="flipping && [`flip--${direction}`, run % 2 ? 'flip--odd' : 'flip--even']"
+    :style="{ '--oxc': originCells }"
+    data-test="flip-digit"
+    aria-hidden="true"
+  >
     <!-- One digit as a split-flap card, like a flip clock. The top half
          already shows the new digit and the bottom half the old one; the old
          top half then folds down over the middle and the new bottom half
@@ -24,7 +28,13 @@ import { ref, watch } from "vue";
 
 // `direction` is the whole number's: which way the count went, not which way
 // this one digit went (479 to 480 is "up" for the 9 turning into a 0).
-const props = defineProps<{ char: string; direction: "up" | "down" }>();
+const props = defineProps<{
+  char: string;
+  direction: "up" | "down";
+  // Where this card grows from while it turns: how far (in cards) from its left
+  // edge the middle of the whole turning run is, so a run grows as one piece.
+  originCells?: number;
+}>();
 
 const previous = ref(props.char);
 const flipping = ref(false);
@@ -172,12 +182,28 @@ watch(
   animation-fill-mode: both !important;
 }
 
-/* The pop, the ring and the colour behind the digits belong to the number as a
-   whole (FlipNumber's one .flip-tint bar), not to each card: a turning card
-   draws none of its own, so several turning together read as one square. */
+/* The ring and the colour behind the digits belong to the number as a whole
+   (FlipNumber's one .flip-tint bar and .flip-ring), not to each card: a turning
+   card draws none of its own, so several turning together read as one square.
+   It does grow while it turns, though, each card about the middle of the whole
+   turning run (--oxc, in cards), so the run grows as one piece. A card that did
+   not change stays as it is. */
 .flip--up,
 .flip--down {
   box-shadow: none;
+  transform-origin: calc(var(--oxc, 0.5) * var(--cell, 17px)) 50%;
+  animation-duration: 0.6s !important;
+  animation-delay: 0s !important;
+  animation-timing-function: ease-out !important;
+  animation-fill-mode: both !important;
+}
+/* Two names for the same grow, swapped on every tap: a class that stays put does
+   not restart its animation, so tapping fast would show nothing new. */
+.flip--even {
+  animation-name: flip-grow !important;
+}
+.flip--odd {
+  animation-name: flip-grow-b !important;
 }
 /* The colour behind the digits while they turn is the number's one shared
    highlight (FlipNumber's .flip-tint, behind all the cards). So a turning card
@@ -207,6 +233,16 @@ watch(
   animation-fill-mode: both !important;
 }
 
+@keyframes flip-grow {
+  0% { transform: scale(1); }
+  25% { transform: scale(var(--grow, 1.2)); }
+  100% { transform: scale(1); }
+}
+@keyframes flip-grow-b {
+  0% { transform: scale(1); }
+  25% { transform: scale(var(--grow, 1.2)); }
+  100% { transform: scale(1); }
+}
 @keyframes flip-fold {
   from { transform: rotateX(0); filter: brightness(1); }
   to { transform: rotateX(-90deg); filter: brightness(0.45); }
