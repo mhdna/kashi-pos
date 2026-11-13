@@ -3,6 +3,29 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-13 · "No central" flashed red on a few seconds of bad Wi-Fi
+
+**Symptom.** Now and then the nav-rail light turned red, "No central", for a
+few seconds and cleared by itself, on a till whose internet and central were
+both fine.
+
+**Cause.** The light believed a single failed request. `linkTransport` marks
+central "down" on any request that gets no answer within the client's 10 s
+timeout, and the screen showed that at once. A short stall on the shop's
+connection (measured: TCP connect to Cloudflare taking 2.5 s to over 10 s,
+then 0.02 s again) was enough.
+
+**Fix.** `sync_link_status.go`: the tracker still records the failure at
+once (the internet probe and push back-off use it), but `snapshot` reports
+central, and the internet, as down only once the silence has lasted
+`linkDownGrace` (30 s), counted from whichever went silent first; until then
+it keeps the last good state, and a timer asks the screen to refetch when the
+grace ends. Covered by `TestLinkKashiDownWaitsOutTheGrace`,
+`TestLinkKashiDownBeforeAnyAnswerStaysUnknown`,
+`TestLinkInternetDownSharesTheOutageStart`, `TestLinkGraceEndAsksForARefetch`,
+and `TestLinkGraceGolden`, which writes `frontend/src/lib/testdata/link_grace.json`
+for the fixture block in `linkStatus.test.ts`.
+
 ## 2026-11-13 · A cart with every unknown item pictured fetched its QR code again
 
 **Symptom.** Once every unknown item in the cart had its picture ("2 of 2
