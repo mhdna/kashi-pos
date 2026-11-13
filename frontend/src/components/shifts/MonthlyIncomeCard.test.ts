@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
-// The Balance page's month list: its original look at a normal size, with a
-// Day / Visitors / Total header over aligned columns.
+// The Balance page's month list: its original compact look, with a Today tag and
+// a Day / Visitors / Total header over aligned columns.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -101,30 +101,29 @@ describe("month list", () => {
   });
 });
 
-describe("normal-size list", () => {
+describe("compact list", () => {
   const css = readFileSync(resolve(process.cwd(), "src/components/shifts/MonthlyIncomeCard.vue"), "utf8");
-  const px = (re: RegExp) => Number(css.match(re)![1]);
 
-  it("has rows, header and total of a normal height, not the compact 30px", () => {
-    expect(px(/--mi-row: (\d+)px/)).toBeGreaterThanOrEqual(44);
+  it("has compact rows, header and total: 30px, as it always had", () => {
+    expect(Number(css.match(/--mi-row: (\d+)px/)![1])).toBe(30);
     expect(css).toMatch(/\.monthly-income-row \{[^}]*min-height: var\(--mi-row\)/);
     expect(css).toMatch(/\.monthly-income-total \{[^}]*min-height: var\(--mi-row\)/);
-    expect(px(/\.monthly-income-header \{[^}]*min-height: (\d+)px/)).toBeGreaterThanOrEqual(36);
-    expect(css).not.toMatch(/min-height: 30px/);
+    expect(css).toMatch(/\.monthly-income-header \{[^}]*min-height: 30px/);
+    expect(css).not.toMatch(/min-height: (3[1-9]|4\d|5\d)px/);
   });
 
-  it("has a regular-size chevron and visitors chip: the kit's default, not compact, comfortable or small", async () => {
+  it("has the small compact chevron and the extra-small visitors chip", async () => {
     const w = await mountCard();
     const chevron = row(w, "11/11/2026").find(".monthly-income-expand").classes().join(" ");
-    expect(chevron).not.toMatch(/compact|comfortable|small/);
-    const chip = row(w, "11/11/2026").find("[data-test=visitors]").classes().join(" ");
-    expect(chip).not.toMatch(/x-small|small|large/);
+    expect(chevron).toContain("compact");
+    expect(chevron).toContain("small");
+    expect(row(w, "11/11/2026").find("[data-test=visitors]").classes().join(" ")).toContain("x-small");
   });
 
   it("the header sits over the rows' columns: the same first-column width and padding", () => {
     expect(css).toMatch(/\.monthly-income-header \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr auto/);
-    expect(css).toMatch(/\.monthly-income-row\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 84px auto/);
-    expect(css).toMatch(/\.monthly-income-header\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 84px auto/);
+    expect(css).toMatch(/\.monthly-income-row\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 76px auto/);
+    expect(css).toMatch(/\.monthly-income-header\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 76px auto/);
     expect(css).toMatch(/\.monthly-income-header \{[^}]*padding: 0 12px 0 0/);
     expect(css).toMatch(/\.monthly-income-row \{[^}]*padding: 0 12px 0 0/);
   });

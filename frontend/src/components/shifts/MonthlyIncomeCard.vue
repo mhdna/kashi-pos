@@ -65,6 +65,8 @@
           <k-btn
             class="monthly-income-expand"
             variant="text"
+            density="compact"
+            size="small"
             :icon="expandedDays.includes(item.day) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
             :aria-label="`${expandedDays.includes(item.day) ? 'Collapse' : 'Expand'} ${item.day}`"
             @click.stop="$emit('toggle-day', item.day)"
@@ -79,11 +81,12 @@
             <k-chip
               v-if="visitorCounts[item.day] != null"
               color="orange"
+              size="x-small"
               variant="flat"
               data-test="visitors"
               :title="visitorTitle(item.day, item.total)"
             >
-              <k-icon start icon="mdi-account-group-outline" size="16" />
+              <k-icon start icon="mdi-account-group-outline" size="12" />
               {{ visitorCounts[item.day] }}
             </k-chip>
           </span>
@@ -96,7 +99,7 @@
           <template v-else>
             <div v-for="shift in item.shifts" :key="shift.id">
               <div
-                class="d-flex align-center pa-3 shift-row"
+                class="d-flex align-center pa-2 shift-row"
                 @click.stop="$emit('toggle-shift', shift.id)"
               >
                 <k-chip
@@ -340,7 +343,7 @@ const emit = defineEmits<{
 }
 
 .monthly-income-title {
-  min-height: 40px;
+  min-height: 30px;
   padding-bottom: 4px;
 }
 
@@ -351,9 +354,9 @@ const emit = defineEmits<{
 }
 
 .monthly-income-card {
-  /* Normal-size rows: the width of the first (chevron) column, and the heights. */
-  --mi-chevron: 44px;
-  --mi-row: 48px;
+  /* Compact rows: the width of the first (chevron) column, and the height. */
+  --mi-chevron: 32px;
+  --mi-row: 30px;
 }
 
 .monthly-income-header,
@@ -367,10 +370,10 @@ const emit = defineEmits<{
 /* The visitors get a column of their own, the same width in the header and in
    every row, so the numbers line up. */
 .monthly-income-header.monthly-income--visitors {
-  grid-template-columns: var(--mi-chevron) 1fr 84px auto;
+  grid-template-columns: var(--mi-chevron) 1fr 76px auto;
 }
 .monthly-income-row.monthly-income--visitors {
-  grid-template-columns: var(--mi-chevron) 1fr 84px auto;
+  grid-template-columns: var(--mi-chevron) 1fr 76px auto;
 }
 .mi-visitors-head {
   text-align: center;
@@ -414,7 +417,7 @@ const emit = defineEmits<{
   /* The same columns and padding as the rows under it, so Day, Visitors and
      Total sit right over theirs. */
   grid-template-columns: var(--mi-chevron) 1fr auto;
-  min-height: 36px;
+  min-height: 30px;
   padding: 0 12px 0 0;
   border-bottom: 1px solid rgba(128, 128, 128, 0.35);
   color: rgba(var(--k-theme-on-surface), 0.7);
@@ -429,7 +432,6 @@ const emit = defineEmits<{
 .monthly-income-row {
   min-height: var(--mi-row);
   padding: 0 12px 0 0;
-  font-size: 1rem;
   border-bottom: 1px solid rgba(128, 128, 128, 0.2);
 }
 
@@ -454,7 +456,6 @@ const emit = defineEmits<{
 .monthly-income-total {
   min-height: var(--mi-row);
   padding: 0 12px;
-  font-size: 1.0625rem;
   border-top: 1px solid rgba(128, 128, 128, 0.35);
   color: rgb(var(--k-theme-on-surface));
 }
