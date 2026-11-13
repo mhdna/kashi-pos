@@ -375,7 +375,8 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			discountListName = discountListNameByID[line.DiscountListID.Int64]
 		}
 		items = append(items, map[string]any{
-			"name": product.Name, "code": product.Code, "barcode": product.Barcode, "category": product.Description,
+			"lineId": line.ID,
+			"name":   product.Name, "code": product.Code, "barcode": product.Barcode, "category": product.Description,
 			"color": product.Color, "size": product.Size,
 			"price": float64(line.UnitPrice) / 100, "lineTotal": float64(line.LineTotal) / 100,
 			"discount": line.Discount, "qty": line.Quantity,
@@ -462,6 +463,33 @@ func (a *App) ChangeInvoiceSalesperson(invoiceID, salespersonID int64) error {
 		}
 	}
 	return a.store.UpdateInvoiceSalesperson(a.ctx, db.UpdateInvoiceSalespersonParams{SalespersonID: salespersonID, ID: invoiceID})
+}
+
+// ChangeInvoiceLineSalesperson sets who sold one line of an invoice. 0 clears
+// it, so the line follows the invoice's own salesperson again. The line must
+// belong to that invoice.
+func (a *App) ChangeInvoiceLineSalesperson(invoiceID, lineID, salespersonID int64) error {
+	if a.store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if salespersonID < 0 {
+		return fmt.Errorf("invalid salesperson")
+	}
+	if salespersonID > 0 {
+		if _, err := a.store.GetSalespersonByID(a.ctx, salespersonID); err != nil {
+			return err
+		}
+	}
+	rows, err := a.store.UpdateInvoiceProductSalesperson(a.ctx, db.UpdateInvoiceProductSalespersonParams{
+		SalespersonID: salespersonID, ID: lineID, InvoiceID: invoiceID,
+	})
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("invoice line not found")
+	}
+	return nil
 }
 
 func (a *App) ChangeInvoiceSettlement(invoiceID, cashboxID int64) error {

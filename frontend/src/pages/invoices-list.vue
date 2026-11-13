@@ -154,7 +154,7 @@
           </template>
           <k-list density="compact" min-width="190">
             <k-list-item prepend-icon="mdi-account-edit" title="Change Client" @click.stop="startChange('client', item)" />
-            <k-list-item prepend-icon="mdi-account-tie" title="Change Salesperson" @click.stop="startChange('salesperson', item)" />
+            <k-list-item prepend-icon="mdi-account-tie" title="Change Salesperson" @click.stop="startLineSalespersons(item)" />
             <k-list-item prepend-icon="mdi-cash-sync" title="Change Settlement" :disabled="settlementLoading" @click.stop="startSettlementChange(item)" />
             <k-list-item v-if="auth.isAdmin" prepend-icon="mdi-cash-check" title="Fix Rounding" @click.stop="requestRounding(item)" />
             <k-list-item v-if="auth.isAdmin && item.isSale && !item.cancelled" prepend-icon="mdi-cancel" title="Cancel Invoice" base-color="error" @click.stop="requestCancel(item)" />
@@ -317,6 +317,12 @@
       @saved="onChangeSaved"
       @error="notify($event, 'error')"
     />
+    <InvoiceLineSalespersonDialog
+      v-model="lineSalespersonsOpen"
+      :invoice="changeInvoice"
+      @saved="onChangeSaved"
+      @error="notify($event, 'error')"
+    />
     <k-snackbar
       v-model="snackbar.show"
       class="app-snackbar"
@@ -359,6 +365,7 @@ import { toClient } from "@/lib/client";
 import { formatLebanesePhone } from "@/lib/phone";
 import { prefetchInvoiceEditOptions } from "@/lib/invoiceEditOptions";
 import InvoiceChangeDialog from "@/components/InvoiceChangeDialog.vue";
+import InvoiceLineSalespersonDialog from "@/components/InvoiceLineSalespersonDialog.vue";
 import { formatServerDateTime } from "@/lib/datetime";
 import { useAuthStore } from "../stores/auth";
 
@@ -415,6 +422,7 @@ const router = useRouter();
 const selected = ref<any>(null),
   detailOpen = ref(false),
   changeOpen = ref(false),
+  lineSalespersonsOpen = ref(false),
   printingId = ref<number | null>(null);
 const deleteOpen = ref(false),
   deleting = ref(false),
@@ -584,6 +592,11 @@ async function reprint(item: any) {
   } finally {
     printingId.value = null;
   }
+}
+function startLineSalespersons(item: any) {
+  actionMenus[item.id] = false;
+  changeInvoice.value = item;
+  lineSalespersonsOpen.value = true;
 }
 function startChange(type: "client" | "salesperson", item: any) {
   actionMenus[item.id] = false;
