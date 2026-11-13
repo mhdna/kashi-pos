@@ -69,7 +69,7 @@ watch(
   right: 0;
   height: 50%;
   overflow: hidden;
-  background: linear-gradient(180deg, #1b2a42, #15233a);
+  background: #16243b;
   backface-visibility: hidden;
 }
 .flip-top {
@@ -81,7 +81,6 @@ watch(
   bottom: 0;
   border-radius: 0 0 8px 8px;
   transform-origin: top;
-  background: linear-gradient(180deg, #121f34, #0f1b2d);
 }
 
 /* The number is as tall as the whole card; each half shows its own part. */
@@ -106,7 +105,8 @@ watch(
   right: 0;
   top: 50%;
   height: 1px;
-  background: rgba(0, 0, 0, 0.7);
+  /* Just enough to read as a hinge, not a cut through the digits. */
+  background: rgba(0, 0, 0, 0.22);
   z-index: 5;
   pointer-events: none;
 }
