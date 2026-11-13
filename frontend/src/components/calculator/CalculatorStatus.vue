@@ -1,6 +1,6 @@
 <template>
   <section class="mb-4">
-    <div class="calculator-amounts mb-2" :class="statusColor" :style="{ '--left-items': leftCount }">
+    <div class="calculator-amounts mb-2" :class="statusColor">
       <k-btn
         v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState && !quoteError && !exchangeShortfallText"
         class="calculator-amounts-flip"
@@ -144,7 +144,8 @@ const otherTotalText = computed(() => {
 // The pills show on the plain total only, not over an error, a hint or "Paid".
 const showPills = computed(() => !props.quoteError && !exchangeShortfallText.value && !props.showReadyState);
 const showRounded = computed(() => Boolean(props.roundedFromText) || isRounded.value);
-// How many lines the left side holds: the card is as tall as they need.
+// How many chips the left side holds (they stack, and wrap into a second
+// column when there are more than fit; the card keeps its height).
 const leftCount = computed(
   () =>
     (props.totalText ? 1 : 0) +
@@ -166,8 +167,7 @@ function flipCurrency() {
   position: relative;
   display: grid;
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  /* 66px, or taller when the left side stacks more than three lines. */
-  height: max(66px, calc(var(--left-items, 0) * 22px + 12px));
+  height: 66px;
   align-items: center;
   padding: 8px 12px;
   border: 1px solid rgba(var(--k-border-color), 0.12);
@@ -193,37 +193,48 @@ function flipCurrency() {
 .calculator-amounts-left {
   position: absolute;
   top: 6px;
+  bottom: 6px;
   left: 10px;
   /* Clear of the numbers in the middle; a long name is cut with an ellipsis. */
-  max-width: 36%;
+  max-width: 44%;
   display: flex;
   flex-direction: column;
+  flex-wrap: wrap;
+  /* Packed against the bottom of the card, whatever number of chips there are. */
+  justify-content: flex-end;
+  align-content: flex-start;
   align-items: flex-start;
-  gap: 4px;
+  gap: 3px 6px;
 }
+/* The invoice total is a chip like the rest, in a neutral tone. */
 .calculator-amounts-total {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(var(--k-theme-on-surface), 0.08);
+  color: rgba(var(--k-theme-on-surface), 0.75);
   font-size: var(--kashi-font-size-xs, 0.6875rem);
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
-  color: rgba(var(--k-theme-on-surface), 0.6);
+  white-space: nowrap;
 }
 .calculator-amounts-rounded {
   flex: 0 0 auto;
-  padding: 3px 8px;
+  padding: 2px 8px;
   border-radius: 999px;
   /* A tint of the status colour (green/red...) behind text in that colour. */
   background: color-mix(in srgb, currentColor 16%, transparent);
   font-size: var(--kashi-font-size-xs, 0.6875rem);
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.2;
 }
 .calculator-amounts-discount {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 3px 8px;
+  padding: 2px 8px;
   border-radius: 999px;
   /* Red: it is money taken off. The theme's error colour, so it also reads in
      the dark theme. */

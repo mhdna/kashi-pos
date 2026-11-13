@@ -140,17 +140,21 @@ describe("CalculatorStatus total and discount", () => {
       "Discount −$42.00",
     ]);
     expect(w.findAll(".calculator-amounts-discount")).toHaveLength(2);
-    // The card makes room: its height follows the number of lines stacked.
-    expect(w.find(".calculator-amounts").attributes("style")).toContain("--left-items: 4");
+    // The total is a chip, like the others.
+    expect(w.find("[data-test=invoice-total]").classes()).toContain("calculator-amounts-total");
   });
 
-  it("the card is only as tall as its left side needs", () => {
-    const style = (extra: Record<string, unknown>) =>
-      mountStatus(one, BOTH, extra).find(".calculator-amounts").attributes("style") ?? "";
-    expect(style({})).not.toContain("--left-items: 1");
-    expect(style({ totalText: "Total $250.00" })).toContain("--left-items: 1");
-    expect(style({ totalText: "Total $250.00", discountText: "Discount −$5.00" })).toContain("--left-items: 2");
+  it("the card keeps its own height whatever is on the left (no per-chip sizing)", () => {
+    for (const extra of [
+      {},
+      { totalText: "Total $250.00" },
+      { totalText: "Total $250.00", discountText: "Discount −$5.00", roundedFromText: "Rounded from $1", invoiceDiscountText: "10% −$2" },
+    ]) {
+      const card = mountStatus(one, BOTH, extra).find(".calculator-amounts");
+      expect(card.attributes("style") ?? "").not.toMatch(/height|left-items/);
+    }
   });
+
 
   it("shows only the Total over Paid, an error or an exchange hint: no pills there", () => {
     const pills = { roundedFromText: "Rounded from $1", discountText: "Discount −$5.00", totalText: "Total $250.00" };
