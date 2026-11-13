@@ -80,8 +80,10 @@
         <k-btn
           class="number-pad-key"
           :class="{ 'number-pad-key--wide': allowDecimal }"
+          color="error"
           size="small"
-          variant="text"
+          variant="flat"
+          data-test="number-pad-backspace"
           @click="backspace"
         >
           <k-icon icon="mdi-backspace-outline" size="20" />

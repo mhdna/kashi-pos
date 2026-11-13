@@ -81,4 +81,15 @@ describe("number pad heading", () => {
     expect(heading()).toBeNull();
     w.unmount();
   });
+
+  it("the backspace key is a red key with a white icon", async () => {
+    const { default: NumberPadMenu } = await import("./NumberPadMenu.vue");
+    const w = mount(NumberPadMenu, { props: { modelValue: 5 }, global: { plugins: [ui] }, attachTo: document.body });
+    await open(w.find(".number-pad-activator").element);
+    const key = document.body.querySelector("[data-test=number-pad-backspace]")!;
+    expect(key.className).toContain("k-btn--variant-flat");
+    expect(key.getAttribute("style") ?? "").toMatch(/error/);
+    expect(key.querySelector(".k-icon")).toBeTruthy();
+    w.unmount();
+  });
 });
