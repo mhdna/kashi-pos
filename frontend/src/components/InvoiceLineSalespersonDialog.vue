@@ -50,7 +50,16 @@ const invoicePerson = computed(() => {
   return { id, fullName: id === savedInvoiceId.value && props.invoice?.salespersonName ? props.invoice.salespersonName : "Former salesperson" };
 });
 const invoiceName = computed(() => invoicePerson.value?.fullName ?? "");
-const changes = computed(() => lineSalespersonChanges(lines.value, picks.value));
+// One item is the whole sale, so the items are only listed from two up.
+const showItems = computed(() => lines.value.length > 1);
+const changes = computed(() => {
+  const picked = lineSalespersonChanges(lines.value, picks.value);
+  // The lone item follows the invoice: if it was set apart earlier, a new
+  // invoice salesperson has to take it along or the change would not show.
+  const only = lines.value.length === 1 ? lines.value[0]! : null;
+  if (only && invoiceChanged.value && only.salespersonId !== 0) return [{ lineId: only.lineId, salespersonId: 0 }];
+  return picked;
+});
 const saveDisabled = computed(
   () => saving.value || loading.value || (changes.value.length === 0 && !invoiceChanged.value),
 );
@@ -182,10 +191,8 @@ async function save() {
           </div>
         </div>
 
-        <div class="line-sp-label mt-2">Items</div>
-        <div v-if="loading && !lines.length" class="line-sp-empty">Loading items…</div>
-        <div v-else-if="!lines.length" class="line-sp-empty">This invoice has no items.</div>
-        <div v-for="line in lines" :key="line.lineId" class="line-sp-item" :class="{ 'line-sp-item--open': openLine === line.lineId }">
+        <div v-if="showItems" class="line-sp-label mt-2">Items</div>
+        <div v-for="line in showItems ? lines : []" :key="line.lineId" class="line-sp-item" :class="{ 'line-sp-item--open': openLine === line.lineId }">
           <button type="button" class="line-sp-row" :data-test="`line-${line.lineId}`" @click="toggle(line)">
             <span class="line-sp-row__text">
               <span class="line-sp-row__name">{{ line.name }}</span>

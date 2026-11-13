@@ -149,10 +149,51 @@ describe("Change Salesperson (invoice and items)", () => {
     expect(details).toHaveBeenCalledTimes(2);
   });
 
-  it("says so when the invoice has no items", async () => {
-    details.mockResolvedValue({ items: [] } as any);
-    await mountDialog();
-    expect(q(".line-sp-empty")?.textContent).toContain("no items");
+  describe("one item or none", () => {
+    const itemsShown = () => qa("[data-test^=line-]").length;
+
+    it("lists the items only when there are two or more", async () => {
+      details.mockResolvedValue({ items: ITEMS.slice(0, 2) } as any);
+      await mountDialog();
+      expect(itemsShown()).toBe(2);
+      expect(qa(".line-sp-label").map((l) => l.textContent)).toEqual(["Whole invoice", "Items"]);
+      wrapper!.unmount();
+      document.body.innerHTML = "";
+      details.mockResolvedValue({ items: ITEMS.slice(0, 1) } as any);
+      await mountDialog();
+      expect(itemsShown()).toBe(0);
+      expect(qa(".line-sp-label").map((l) => l.textContent)).toEqual(["Whole invoice"]);
+    });
+
+    it("shows just the invoice selector when there are no items", async () => {
+      details.mockResolvedValue({ items: [] } as any);
+      await mountDialog();
+      expect(itemsShown()).toBe(0);
+      expect(q("[data-test=invoice-row]")).toBeTruthy();
+    });
+
+    it("a lone item that follows the invoice: only the invoice is changed", async () => {
+      details.mockResolvedValue({ items: [ITEMS[0]] } as any);
+      await mountDialog();
+      await click(q("[data-test=invoice-row]"));
+      await click(q("[data-test=sp-3]"));
+      await click(save());
+      expect(changeInvoice.mock.calls).toEqual([[101, 3]]);
+      expect(changeLine).not.toHaveBeenCalled();
+    });
+
+    it("a lone item set apart earlier follows the new invoice salesperson", async () => {
+      details.mockResolvedValue({ items: [ITEMS[1]] } as any); // Jeans, Rana
+      await mountDialog();
+      await click(q("[data-test=invoice-row]"));
+      await click(q("[data-test=sp-5]")); // Omar is already the invoice's: no change
+      expect(save().disabled).toBe(true);
+      await click(q("[data-test=invoice-row]"));
+      await click(q("[data-test=sp-default]")); // No salesperson: a real change
+      await click(save());
+      expect(changeInvoice.mock.calls).toEqual([[101, 0]]);
+      expect(changeLine.mock.calls).toEqual([[101, 11, 0]]);
+    });
   });
 
   describe("the whole invoice", () => {
