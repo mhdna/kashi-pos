@@ -155,10 +155,10 @@ watch(
 /* The whole card pops and flashes: teal when the count rises, amber when it
    falls. */
 .flip--up {
-  --flash: 31, 157, 138;
+  --flash: 232, 104, 10;
 }
 .flip--down {
-  --flash: 255, 160, 0;
+  --flash: 232, 104, 10;
 }
 .flip--up,
 .flip--down {

@@ -535,7 +535,7 @@ const items = computed(() => {
   width: 48px;
   height: 32px;
   color: #ffffff !important;
-  background-color: #1f9d8a !important;
+  background-color: #e8680a !important;
   border-radius: 8px !important;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 2px 4px rgba(0, 0, 0, 0.35) !important;
   transition: transform 0.08s ease, filter 0.15s ease;
