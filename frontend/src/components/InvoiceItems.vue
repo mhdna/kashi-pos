@@ -1642,7 +1642,10 @@ defineExpose({
   display: flex;
   /* The lines' own padding: 24px at the start, 16px at the end. */
   align-items: stretch;
-  padding: 6px 16px 6px 24px;
+  /* No vertical padding: the cells fill the header's height (and carry their
+     own), so the column lines run its full height and on into the rows. */
+  padding: 0 16px 0 24px;
+  min-height: 34px;
   background: var(--kashi-app-background, #f7f7f7);
   border-bottom: 1px solid var(--cart-line);
   font-size: 0.6875rem;
@@ -1656,6 +1659,7 @@ defineExpose({
   display: flex;
   flex: 1 1 auto;
   align-items: center;
+  padding-block: 8px;
 }
 .invoice-items-header__col {
   display: flex;
