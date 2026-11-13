@@ -664,13 +664,15 @@ func (a *App) listInvoicesPage(cursorID int64, itemsPerPage int, filters Invoice
 		clientIDs = append(clientIDs, id)
 	}
 	clientNames := make(map[int64]string, len(clientIDs))
+	walkInClientIDs := make(map[int64]bool, 1)
 	if len(clientIDs) > 0 {
 		clientRows, err := a.store.ListClientNamesByIDs(a.ctx, clientIDs)
 		if err != nil {
 			return InvoicePage{}, fmt.Errorf("invoice page clients: %w", err)
 		}
 		for _, row := range clientRows {
-			clientNames[row.ID] = row.Name
+			clientNames[row.ID] = clientDisplayName(db.Client{Name: row.Name, Phone: row.Phone})
+			walkInClientIDs[row.ID] = isWalkInPhone(row.Phone)
 		}
 	}
 	accounts, err := a.store.ListCashboxAccounts(a.ctx)
@@ -699,7 +701,7 @@ func (a *App) listInvoicesPage(cursorID int64, itemsPerPage int, filters Invoice
 
 	result := make([]map[string]any, len(invoices))
 	for i, inv := range invoices {
-		clientName := "Walk-in customer"
+		clientName := anonymousClientLabel
 		if inv.ClientID > 0 {
 			if name, ok := clientNames[inv.ClientID]; ok {
 				clientName = name
@@ -721,7 +723,7 @@ func (a *App) listInvoicesPage(cursorID int64, itemsPerPage int, filters Invoice
 		}
 		result[i] = map[string]any{
 			"id": inv.ID, "cashboxId": inv.CashboxID, "invoiceCode": inv.InvoiceCode,
-			"clientId": inv.ClientID, "clientName": clientName, "subtotal": inv.Subtotal,
+			"clientId": inv.ClientID, "clientName": clientName, "clientIsWalkIn": inv.ClientID <= 0 || walkInClientIDs[inv.ClientID], "subtotal": inv.Subtotal,
 			"discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
 			"createdAt": inv.CreatedAt, "salespersonId": inv.SalespersonID, "salespersonName": inv.SalespersonName,
 			"settlementAccounts": settlementAccounts,

@@ -3,6 +3,26 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-13 · Screens said "Walk-in" for a sale with no client, the picker said "Anonymous"
+
+**Symptom.** The checkout's client picker called a client-less sale
+"Anonymous", but the invoices list, the invoice details and the Change Client
+dialog said "Walk-in" or "Walk-in customer" (with phone 00000000) for the same
+sale. Searching the list for "anonymous" found nothing.
+
+**Cause.** Client-less sales are booked against a seeded pseudo-client stored
+as "Walk-in" (phone `00000000`). The list and details showed that stored name
+as is, and the frontend fell back to "Walk-in customer".
+
+**Fix.** `clientDisplayName` (`clients.go`) names the walk-in client
+"Anonymous" on every screen (`GetInvoiceDetails`, `listInvoicesPage`), and the
+customer filter in `db/query/invoice.sql` matches "Anonymous". Rows and details
+carry `clientIsWalkIn`, so the Change Client dialog shows plain "Anonymous".
+Printed receipts still say "Walk-in": checkout and reprint both go through
+`receiptCustomerName` / `receiptCustomerFromDetails`. Covered by
+`anonymous_label_test.go`, `invoice_page_test.go` and
+`InvoiceChangeDialog.test.ts`.
+
 ## 2026-11-13 · The visitor counter's flip animation never played
 
 **Symptom.** Tapping the visitor counter's up/down buttons changed the number

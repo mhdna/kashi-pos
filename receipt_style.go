@@ -88,7 +88,7 @@ func (c *receiptCanvas) centerRole(y int, value string, size float64, role fontR
 // MetaCentered centres the stacked lines.
 func (c *receiptCanvas) drawMeta(y int) int {
 	pairs := [][2]string{
-		{"Customer", fallbackReceiptValue(c.data.Customer, "Walk-in")},
+		{"Customer", fallbackReceiptValue(c.data.Customer, receiptWalkInLabel)},
 		{"Salesperson", formatReceiptSalesperson(c.data.Salesperson)},
 		{"Date", currentReceiptDate()},
 	}

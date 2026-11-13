@@ -98,8 +98,8 @@
         <k-chip v-if="item.cancelled" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</k-chip>
       </template>
       <template #item.clientId="{ item }">
-        <span class="invoice-cell-truncate" :title="item.clientName || 'Walk-in customer'">
-          {{ item.clientName || "Walk-in customer" }}
+        <span class="invoice-cell-truncate" :title="item.clientName || 'Anonymous'">
+          {{ item.clientName || "Anonymous" }}
         </span>
       </template>
       <template #item.salespersonName="{ item }">
@@ -189,7 +189,7 @@
             <div class="invoice-overview-card">
               <k-icon class="invoice-overview-icon" icon="mdi-account-outline" color="grey-darken-1" />
               <div class="invoice-overview-copy">
-                <div class="invoice-overview-value">{{ selected.clientName || "Walk-in customer" }}</div>
+                <div class="invoice-overview-value">{{ selected.clientName || "Anonymous" }}</div>
                 <div class="invoice-overview-detail">{{ selected.clientPhone ? formatLebanesePhone(selected.clientPhone) : "No phone number" }}</div>
               </div>
             </div>

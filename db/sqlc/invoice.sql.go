@@ -28,7 +28,7 @@ FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
 WHERE (COALESCE(?1, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?1) || '%')
-  AND (COALESCE(?2, '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(?2) || '%')
+  AND (COALESCE(?2, '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Anonymous' ELSE c.name END) LIKE '%' || lower(?2) || '%')
   AND (COALESCE(?3, '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(?3) || '%')
   AND (COALESCE(?4, '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(?4) || '%')
   AND (COALESCE(?5, '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(?5, '$', '')) || '%')
@@ -720,12 +720,13 @@ func (q *Queries) IncrementInvoicesIndex(ctx context.Context, arg IncrementInvoi
 }
 
 const listClientNamesByIDs = `-- name: ListClientNamesByIDs :many
-SELECT id, name FROM clients WHERE id IN (/*SLICE:ids*/?)
+SELECT id, name, phone FROM clients WHERE id IN (/*SLICE:ids*/?)
 `
 
 type ListClientNamesByIDsRow struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Phone string `json:"phone"`
 }
 
 func (q *Queries) ListClientNamesByIDs(ctx context.Context, ids []int64) ([]ListClientNamesByIDsRow, error) {
@@ -747,7 +748,7 @@ func (q *Queries) ListClientNamesByIDs(ctx context.Context, ids []int64) ([]List
 	items := []ListClientNamesByIDsRow{}
 	for rows.Next() {
 		var i ListClientNamesByIDsRow
-		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+		if err := rows.Scan(&i.ID, &i.Name, &i.Phone); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1689,7 +1690,7 @@ LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
 WHERE i.id < ?1
   AND (COALESCE(?2, '') = '' OR lower(i.invoice_code) LIKE '%' || lower(?2) || '%')
-  AND (COALESCE(?3, '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(?3) || '%')
+  AND (COALESCE(?3, '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Anonymous' ELSE c.name END) LIKE '%' || lower(?3) || '%')
   AND (COALESCE(?4, '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(?4) || '%')
   AND (COALESCE(?5, '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(?5) || '%')
   AND (COALESCE(?6, '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(?6, '$', '')) || '%')

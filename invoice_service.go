@@ -260,10 +260,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 		if marketName == "" {
 			marketName = "Market"
 		}
-		customer := "Walk-in"
-		if invoiceClientErr == nil && invoiceClient.Name != "" && !isWalkInClient(invoiceClient) {
-			customer = invoiceClient.Name
-		}
+		customer := receiptCustomerName(invoiceClient, invoiceClientErr == nil)
 		roundingCurrency, currErr := resolveCurrency(a.ctx, a.store.Queries, settings.RoundingCurrency)
 		if currErr != nil {
 			response["receiptError"] = currErr.Error()
@@ -404,11 +401,11 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			"currencyCode": account.CurrencyCode, "amount": payment.Amount,
 		})
 	}
-	clientName := "Walk-in"
+	clientName := anonymousClientLabel
 	clientPhone := ""
 	invoiceIsWalkIn := true
 	if client, clientErr := a.store.GetClientByID(a.ctx, inv.ClientID); clientErr == nil {
-		clientName, clientPhone = client.Name, client.Phone
+		clientName, clientPhone = clientDisplayName(client), client.Phone
 		invoiceIsWalkIn = isWalkInClient(client)
 	}
 	loyaltyPointsEarned := inv.GrandTotal / 100
@@ -422,7 +419,7 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 		}
 	}
 	return map[string]any{
-		"id": inv.ID, "invoiceCode": inv.InvoiceCode, "clientId": inv.ClientID, "clientName": clientName, "clientPhone": clientPhone,
+		"id": inv.ID, "invoiceCode": inv.InvoiceCode, "clientId": inv.ClientID, "clientName": clientName, "clientPhone": clientPhone, "clientIsWalkIn": invoiceIsWalkIn,
 		"salespersonId": inv.SalespersonID, "salespersonName": salespersonName, "cashboxId": inv.CashboxID,
 		"subtotal": inv.Subtotal, "discountedTotal": inv.DiscountedTotal, "grandTotal": inv.GrandTotal,
 		"invoiceDiscount": inv.InvoiceDiscount, "invoiceDiscountName": inv.InvoiceDiscountName,
@@ -914,7 +911,8 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	if marketName == "" {
 		marketName = "Market"
 	}
-	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), details["clientName"].(string), details["notes"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, grandTotal, taxCents, payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0,
+	customer := receiptCustomerFromDetails(details)
+	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), customer, details["notes"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, grandTotal, taxCents, payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0,
 		invoiceDiscount{Name: details["invoiceDiscountName"].(string), Cents: details["invoiceDiscount"].(int64)})
 }
 
