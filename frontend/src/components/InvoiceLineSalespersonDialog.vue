@@ -159,7 +159,7 @@ async function save() {
   <k-dialog :model-value="modelValue" :max-width="showItems ? SPLIT_WIDTH : 520" @update:model-value="emit('update:modelValue', $event)">
     <k-card class="line-sp-dialog">
       <div class="line-sp-header">
-        <k-icon icon="mdi-account-group" size="36" color="primary" />
+        <k-icon icon="mdi-account-group" size="26" color="primary" />
         <div class="line-sp-header__text">
           <div class="text-h6">Change Salesperson</div>
           <div v-if="invoice?.invoiceCode" class="text-body-2 text-medium-emphasis">Invoice {{ invoice.invoiceCode }}</div>
