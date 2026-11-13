@@ -37,6 +37,10 @@ type salesInvoiceItem struct {
 	// The cart's own name for the line, echoed on its quote lines so the
 	// cart can tell apart lines of one product (every unknown item).
 	LineRef string `json:"lineRef,omitempty"`
+	// The name the cashier gave an "Unknown item" when ringing it up, shown on
+	// the invoice and the receipt in place of "Unknown item". Only an unknown
+	// line takes one; any other line's name is its product's.
+	Name string `json:"name,omitempty"`
 }
 
 type checkoutPayment struct {
@@ -287,7 +291,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 			if err := q.CreateInvoiceProduct(a.ctx, db.CreateInvoiceProductParams{
 				InvoiceID: invoice.ID, ProductID: product.product.ID, UnitPrice: product.unitPrice,
 				LineTotal: product.lineTotal, Discount: product.discount, Quantity: product.qty,
-				SalespersonID: product.salespersonID, Note: product.note,
+				SalespersonID: product.salespersonID, Note: product.note, ItemName: product.itemName,
 				PriceListID:     sql.NullInt64{Int64: product.priceListID, Valid: product.priceListID != 0},
 				DiscountListID:  sql.NullInt64{Int64: product.discountListID, Valid: product.discountListID != 0},
 				SaleOption:      product.saleOption,
@@ -619,6 +623,9 @@ func parseSalesItems(raw, unknownBarcode, unknownCode string) ([]salesInvoiceIte
 		}
 		if len([]rune(item.Note)) > 2000 {
 			return nil, fmt.Errorf("note is too long for item %q", item.Code)
+		}
+		if len([]rune(strings.TrimSpace(item.Name))) > maxItemNameRunes {
+			return nil, fmt.Errorf("name is too long for item %q", item.Code)
 		}
 		if item.CustomPriceCents != nil && (*item.CustomPriceCents <= 0 || *item.CustomPriceCents > 99999999) {
 			return nil, fmt.Errorf("invalid custom price for item %q", item.Code)

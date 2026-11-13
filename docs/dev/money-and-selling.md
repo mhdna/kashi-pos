@@ -211,6 +211,14 @@ picture, unless a central user with the right permission lets it through. Someon
 in central names the items afterwards. `unknown_pictures_at_checkout` controls
 the photo step.
 
+The cashier types the price, then **names the item** on the on-screen keyboard
+(`UnknownPriceDialog.vue`; a name is required, up to 80 letters). The name is
+saved on the line (`invoice_products.item_name`, only for the placeholder
+product; a name equal to "Unknown item" counts as none) and is what the invoice
+detail and list, and the receipt (including a reprint), call it. It is local to
+the till: sync still sends the placeholder, and central names the picture its
+own way. An exchange's list of what can be returned uses the same name.
+
 Unknown items join the shop's deal (`unknown_item_deal.go`): the free-units
 deal the most products are on in the lists in force, whatever its numbers,
 pooled with every other unit on it. The salesperson picks one of three on each
