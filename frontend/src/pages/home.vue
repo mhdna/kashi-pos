@@ -181,7 +181,8 @@
           :client-ref="unknownSession.clientRef"
           :paused="unknownPictures.show"
           :units="unknownCartUnits"
-          @ready="unknownPicturesReadyFor = $event"
+          :pictured-for="unknownPicturedFor"
+          @ready="unknownPicturedFor = $event"
           @session="unknownSession.clientRef = $event"
         />
         <!-- Taller than the search keyboard, so hidden behind it while
@@ -517,6 +518,8 @@ type InvoiceDraft = {
   saleRef?: string;
   // The unknown-item pictures session opened for this cart.
   unknownClientRef?: string;
+  // The unknown units that session had every picture for (unknownPicturedFor).
+  unknownPicturedFor?: string;
 };
 const { client, clientSelected, setClient, resetClient, pulseMissingClient, setClientRequired } = useClient();
 const { selectedSalesperson, pulseSalesperson, salespersonPerInvoiceRequired, setSalespersonPerInvoiceRequired } =
@@ -734,6 +737,11 @@ const saleRef = ref(newSaleRef());
 // The session the sale screen's QR code opened for this cart. Kept in the
 // draft, so leaving the page and coming back keeps the same QR and pictures.
 const unknownSession = reactive({ clientRef: "" });
+// The unknown units (as UnknownPicturesCorner signs them) the session has
+// every picture for. Kept in the draft and in a hold too, so a cart that comes
+// back unchanged (logout and back, a restored hold) shows as pictured without
+// asking central for its QR code again, and checkout doesn't ask for them.
+const unknownPicturedFor = ref("");
 const liveAllDealsOff = ref(false);
 let liveReportTimer: ReturnType<typeof setTimeout> | undefined;
 let liveHeartbeat: ReturnType<typeof setInterval> | undefined;
@@ -841,6 +849,7 @@ function buildDraft(): string | null {
     exchangeOriginalInvoiceCode: exchangeState.value?.originalInvoiceCode,
     saleRef: saleRef.value,
     unknownClientRef: unknownSession.clientRef || undefined,
+    unknownPicturedFor: (unknownSession.clientRef && unknownPicturedFor.value) || undefined,
   } satisfies InvoiceDraft);
 }
 
@@ -852,6 +861,7 @@ watch(
     exchangeState,
     () => calculator.value?.holdState(),
     () => unknownSession.clientRef,
+    unknownPicturedFor,
   ],
   ([items, client]) => {
     if (restoringDraft || !client || settlementState.value) {
@@ -1017,6 +1027,7 @@ async function restoreDraft() {
     if (draft.client?.id) setClient(draft.client);
     if (draft.saleRef) saleRef.value = draft.saleRef;
     unknownSession.clientRef = draft.unknownClientRef ?? "";
+    unknownPicturedFor.value = (draft.unknownClientRef && draft.unknownPicturedFor) || "";
     invoiceNotes.value = draft.notes ?? "";
     noteDraft.value = invoiceNotes.value;
     calculator.value?.restoreHoldState(draft.calculator);
@@ -1051,7 +1062,7 @@ function clearInvoice() {
   invoiceNotes.value = "";
   noteDraft.value = "";
   noteDialog.value = false;
-  unknownPicturesReadyFor = "";
+  unknownPicturedFor.value = "";
   unknownSession.clientRef = "";
   clearDraft();
   resetClient();
@@ -1401,6 +1412,7 @@ async function onHold() {
         // go by these, so they come back with it.
         saleRef: saleRef.value,
         unknownClientRef: unknownSession.clientRef || undefined,
+        unknownPicturedFor: unknownPicturedFor.value || undefined,
         exchange: exchangeState.value,
       }),
     ),
@@ -1510,8 +1522,6 @@ const unknownPrice = reactive({ show: false });
 type UnknownUnit = { label: string; unitPriceCents: number; discount: number; lineRef: string; slotRef: string };
 const unknownPictures = reactive<{ show: boolean; units: UnknownUnit[] }>({ show: false, units: [] });
 let unknownPicturesAnswer: ((ready: boolean) => void) | null = null;
-// The cart (one unit per picture) the last finished session was opened for.
-let unknownPicturesReadyFor = "";
 // Off (the default): the QR code shows on the sale screen as soon as an
 // unknown item is in the cart, so the phone takes pictures while the sale is
 // still being rung up. On: only once the cashier pays.
@@ -1568,14 +1578,14 @@ async function ensureUnknownPictures(): Promise<boolean> {
   const units = unknownUnits();
   if (!units.length) return true;
   const signature = JSON.stringify(units);
-  if (signature === unknownPicturesReadyFor) return true;
-  unknownPicturesReadyFor = "";
+  if (signature === unknownPicturedFor.value) return true;
+  unknownPicturedFor.value = "";
   unknownPictures.units = units;
   unknownPictures.show = true;
   const ready = await new Promise<boolean>((resolve) => {
     unknownPicturesAnswer = resolve;
   });
-  if (ready) unknownPicturesReadyFor = signature;
+  if (ready) unknownPicturedFor.value = signature;
   return ready;
 }
 
@@ -1764,7 +1774,7 @@ function onRestoreHold(hold: any) {
   void refreshNextInvoiceCode(held.restore.mode === "exchange" ? "exchange" : "sales");
   saleRef.value = held.saleRef;
   unknownSession.clientRef = held.unknownClientRef;
-  unknownPicturesReadyFor = "";
+  unknownPicturedFor.value = held.unknownPicturedFor;
   if (held.client) setClient(held.client);
   else resetClient();
   selectedSalesperson.value = held.salesperson;
