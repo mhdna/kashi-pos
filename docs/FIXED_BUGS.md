@@ -75,6 +75,19 @@ Printed receipts still say "Walk-in": checkout and reprint both go through
 `anonymous_label_test.go`, `invoice_page_test.go` and
 `InvoiceChangeDialog.test.ts`.
 
+## 2026-11-13 · A tall blue bar down the sidebar when the visitor count changed
+
+**Symptom.** Pressing the visitor counter's up or down button drew a blue bar over
+the whole height of the sidebar, instead of a highlight on the changed digits.
+
+**Cause.** The highlight bar and ring behind and over the digits are positioned
+absolutely, against the counter's box (`.flip-number`). A colour edit removed that
+box's `position: relative`, so they were placed against the whole sidebar and took
+its height.
+
+**Fix.** `FlipNumber.vue` has `position: relative` again; `FlipNumber.test.ts` ("the
+box is the highlight's container") fails if it goes missing.
+
 ## 2026-11-13 · The visitor counter's flip animation never played
 
 **Symptom.** Tapping the visitor counter's up/down buttons changed the number

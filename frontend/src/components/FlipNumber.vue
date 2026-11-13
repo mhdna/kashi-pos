@@ -90,6 +90,9 @@ watch(
      wide cards, four or five get narrower ones, never overflowing. */
   --cell: min(14px, calc((50px - (var(--n) - 1) * var(--gap)) / var(--n)));
   --tint: #3a68c0;
+  /* The highlight bar and ring are placed against this box: without it they
+     are placed against the whole sidebar and fill its height. */
+  position: relative;
   box-sizing: border-box;
   display: flex;
   align-items: stretch;

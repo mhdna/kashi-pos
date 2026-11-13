@@ -283,4 +283,15 @@ describe("FlipNumber: only the digits that change grow", () => {
     expect(down).toBeGreaterThan(1);
     expect(down).toBeLessThan(up);
   });
+
+  it("the box is the highlight's container: relative, with the highlight laid inside it (not over the sidebar)", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/components/FlipNumber.vue"), "utf8");
+    // The bar and ring are absolutely placed, so something around them must be positioned.
+    expect(css).toMatch(/\.flip-tint,\s*\.flip-ring \{[^}]*position: absolute/);
+    expect(css).toMatch(/\.flip-number \{[^}]*position: relative/);
+    // And they are inside the number's own box, a fixed 40px tall: top and bottom are its padding.
+    expect(css).toMatch(/\.flip-tint,\s*\.flip-ring \{[^}]*top: var\(--pad\)/);
+    expect(css).toMatch(/\.flip-tint,\s*\.flip-ring \{[^}]*bottom: var\(--pad\)/);
+    expect(css).toMatch(/\.flip-number \{[^}]*height: 40px/);
+  });
 });
