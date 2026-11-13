@@ -1,11 +1,13 @@
 <template>
-  <span class="flip" data-test="flip-number" :aria-label="String(value)" role="img">
+  <span class="flip" :class="flipping && `flip--${direction}`" data-test="flip-number" :aria-label="String(value)" role="img">
     <!-- A split-flap card, like a flip clock. The top half already shows the
          new number and the bottom half the old one; the old top half then
          folds down over the middle and the new bottom half unfolds under it. -->
     <span class="flip-half flip-top"><span class="flip-num">{{ value }}</span></span>
     <span class="flip-half flip-bottom"><span class="flip-num">{{ flipping ? previous : value }}</span></span>
     <template v-if="flipping">
+      <!-- The shadow the falling flap throws on the lower half. -->
+      <span :key="`s${run}`" class="flip-shade" />
       <span :key="`t${run}`" class="flip-half flip-top flip-flap flip-flap-top">
         <span class="flip-num">{{ previous }}</span>
       </span>
@@ -23,16 +25,18 @@ const props = defineProps<{ value: number }>();
 
 const previous = ref(props.value);
 const flipping = ref(false);
+const direction = ref<"up" | "down">("up");
 const run = ref(0);
 let timer: ReturnType<typeof setTimeout> | undefined;
 
-// Total flip: the fold down (0.16s) plus the unfold (0.16s).
-const FLIP_MS = 340;
+// Total flip: the fold down (0.14s) plus the unfold and settle (0.24s).
+const FLIP_MS = 380;
 
 watch(
   () => props.value,
   (now, before) => {
     previous.value = before;
+    direction.value = now >= before ? "up" : "down";
     run.value += 1;
     flipping.value = true;
     clearTimeout(timer);
@@ -110,32 +114,77 @@ watch(
 .flip-flap {
   z-index: 3;
 }
-/* Always plays, whatever the animations setting says: it is feedback for a
-   tap, not decoration. styles/settings.scss puts `animation: none
-   !important` on every element, so these set the whole animation with
-   !important too (an !important rule on a real selector beats the one on
-   `*`). */
+/* All of these always play, whatever the animations setting says: it is
+   feedback for a tap, not decoration. styles/settings.scss puts
+   `animation: none !important` on every element, so each one sets its whole
+   animation with !important too (an !important rule on a real selector beats
+   the one on `*`). */
 .flip-flap-top {
   animation-name: flip-fold !important;
-  animation-duration: 0.16s !important;
+  animation-duration: 0.14s !important;
   animation-delay: 0s !important;
   animation-timing-function: ease-in !important;
   animation-fill-mode: both !important;
 }
+/* Unfolds a little past flat and settles back: a flap landing. */
 .flip-flap-bottom {
   animation-name: flip-unfold !important;
-  animation-duration: 0.16s !important;
-  animation-delay: 0.16s !important;
+  animation-duration: 0.24s !important;
+  animation-delay: 0.14s !important;
+  animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1) !important;
+  animation-fill-mode: both !important;
+}
+
+.flip-shade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+  z-index: 2;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+  pointer-events: none;
+  animation-name: flip-shade !important;
+  animation-duration: 0.38s !important;
+  animation-delay: 0s !important;
+  animation-timing-function: ease-in-out !important;
+  animation-fill-mode: both !important;
+}
+
+/* The whole card pops and flashes: teal when the count rises, amber when it
+   falls. */
+.flip--up {
+  --flash: 31, 157, 138;
+}
+.flip--down {
+  --flash: 255, 160, 0;
+}
+.flip--up,
+.flip--down {
+  animation-name: flip-pop !important;
+  animation-duration: 0.38s !important;
+  animation-delay: 0s !important;
   animation-timing-function: ease-out !important;
   animation-fill-mode: both !important;
 }
 
 @keyframes flip-fold {
   from { transform: rotateX(0); filter: brightness(1); }
-  to { transform: rotateX(-90deg); filter: brightness(0.5); }
+  to { transform: rotateX(-90deg); filter: brightness(0.45); }
 }
 @keyframes flip-unfold {
-  from { transform: rotateX(90deg); filter: brightness(0.5); }
+  from { transform: rotateX(90deg); filter: brightness(0.45); }
   to { transform: rotateX(0); filter: brightness(1); }
+}
+@keyframes flip-shade {
+  0% { opacity: 0; }
+  35% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes flip-pop {
+  0% { transform: scale(1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(var(--flash), 0.7); }
+  35% { transform: scale(1.07); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 3px rgba(var(--flash), 0.55); }
+  100% { transform: scale(1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(var(--flash), 0); }
 }
 </style>

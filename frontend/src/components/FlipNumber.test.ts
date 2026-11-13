@@ -41,4 +41,16 @@ describe("FlipNumber", () => {
     await w.vm.$nextTick();
     expect(w.findAll(".flip-num").map((n) => n.text())).toEqual(["1", "1"]);
   });
+
+  it("marks the card up or down while it flips", async () => {
+    const w = mount(FlipNumber, { props: { value: 5 } });
+    expect(w.classes()).not.toContain("flip--up");
+    await w.setProps({ value: 6 });
+    expect(w.classes()).toContain("flip--up");
+    vi.advanceTimersByTime(500);
+    await w.vm.$nextTick();
+    expect(w.classes()).not.toContain("flip--up");
+    await w.setProps({ value: 5 });
+    expect(w.classes()).toContain("flip--down");
+  });
 });
