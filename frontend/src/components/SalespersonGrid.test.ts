@@ -50,4 +50,14 @@ describe("SalespersonGrid", () => {
     expect(mountGrid({ modelValue: null }).findAll("[aria-selected=true]")).toHaveLength(0);
     expect(mountGrid({ modelValue: 0 }).findAll("[aria-selected=true]")).toHaveLength(0);
   });
+
+  it("lays out three tiles a row unless told otherwise", () => {
+    expect(mountGrid().find(".sp-grid").attributes("style")).toContain("--sp-columns: 3");
+    expect(mountGrid({ columns: 4 }).find(".sp-grid").attributes("style")).toContain("--sp-columns: 4");
+  });
+
+  it("draws smaller tiles when dense", () => {
+    expect(mountGrid().find(".sp-grid--dense").exists()).toBe(false);
+    expect(mountGrid({ dense: true }).find(".sp-grid--dense").exists()).toBe(true);
+  });
 });
