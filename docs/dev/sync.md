@@ -65,8 +65,9 @@ removed. While connected, only central deactivates.
 - `calendar_events` (the Events page) arrive as the whole set too, and what central
   drops is deleted. The built-in retail calendar is not synced: it is a copy in
   `frontend/src/lib/retailCalendar.ts`, to keep in step with central's. The same
-  events also show as the "Coming up" card on the Shifts page
-  (`components/shifts/EventsCard.vue`: next 90 days, 3 at most, in one row).
+  events also show as a bar on the Shifts page
+  (`components/shifts/EventsCard.vue`: how many fall in the next 30 days and the
+  next one; tapping it opens the calendar page).
 - Payment methods and currencies also arrive as the whole set, so a row central
   didn't send is retired (deactivated). Two things central can never touch:
   the `On Account` and `On Coupon` placeholder methods (the code finds them by
