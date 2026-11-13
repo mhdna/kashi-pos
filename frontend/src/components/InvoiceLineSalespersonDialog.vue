@@ -29,8 +29,7 @@ const emit = defineEmits<{
 const lines = ref<Line[]>([]);
 const salespersons = ref<SalespersonOption[]>([]);
 const picks = ref<Record<number, number>>({});
-// Which row's grid is open: a line id, or INVOICE for the whole invoice.
-const INVOICE = -1;
+// Which item's grid is open (the whole-invoice grid is always open).
 const openLine = ref<number | null>(null);
 // The whole-invoice pick, until saved; null while untouched.
 const invoicePick = ref<number | null>(null);
@@ -119,12 +118,8 @@ watch(
 function toggle(line: Line) {
   openLine.value = openLine.value === line.lineId ? null : line.lineId;
 }
-function toggleInvoice() {
-  openLine.value = openLine.value === INVOICE ? null : INVOICE;
-}
 function pickInvoice(id: number) {
   invoicePick.value = id;
-  openLine.value = null;
 }
 function pick(line: Line, id: number) {
   picks.value = { ...picks.value, [line.lineId]: id };
@@ -169,26 +164,14 @@ async function save() {
 
       <k-card-text class="line-sp-body">
         <div class="line-sp-label">Whole invoice</div>
-        <div class="line-sp-item" :class="{ 'line-sp-item--open': openLine === INVOICE }">
-          <button type="button" class="line-sp-row" data-test="invoice-row" @click="toggleInvoice">
-            <span class="line-sp-row__text"><span class="line-sp-row__name">Invoice</span></span>
-            <span class="line-sp-who" :class="{ 'line-sp-who--changed': invoiceChanged }">
-              <template v-if="invoicePerson">
-                <InitialsAvatar :name="invoicePerson.fullName" :color="salespersonColor(invoicePerson)" :size="28" />
-                <span class="line-sp-who__name">{{ invoicePerson.fullName }}</span>
-              </template>
-              <span v-else class="line-sp-who__name line-sp-who__name--muted">No salesperson</span>
-              <k-icon :icon="openLine === INVOICE ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="20" class="line-sp-chevron" />
-            </span>
-          </button>
-          <div v-if="openLine === INVOICE" class="line-sp-picker">
-            <SalespersonGrid
-              :salespersons="salespersons"
-              :model-value="invoiceId"
-              default-label="No salesperson"
-              @update:model-value="pickInvoice"
-            />
-          </div>
+        <!-- Always open: pick who the whole invoice is under. -->
+        <div class="line-sp-block" data-test="invoice-block">
+          <SalespersonGrid
+            :salespersons="salespersons"
+            :model-value="invoiceId"
+            default-label="No salesperson"
+            @update:model-value="pickInvoice"
+          />
         </div>
 
         <div v-if="showItems" class="line-sp-label mt-2">Items</div>
@@ -252,6 +235,11 @@ async function save() {
   padding: 24px 0;
   text-align: center;
   color: rgba(var(--k-theme-on-surface), 0.6);
+}
+.line-sp-block {
+  padding: 10px;
+  border: 1px solid rgba(var(--k-border-color), 0.2);
+  border-radius: 10px;
 }
 .line-sp-item {
   border: 1px solid rgba(var(--k-border-color), 0.2);

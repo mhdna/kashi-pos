@@ -67,7 +67,13 @@ const click = async (el: Element | null | undefined) => {
   await flushPromises();
 };
 const save = () => q(".line-sp-save") as HTMLButtonElement;
+// A tile in the always-open whole-invoice block, and one in the open item's grid.
+const inv = (id: number | string) => q(`[data-test=invoice-block] [data-test=sp-${id}]`);
+const item = (id: number | string) => q(`.line-sp-picker [data-test=sp-${id}]`);
+const row = (lineId: number) => q(`[data-test=line-${lineId}]`);
 const who = (lineId: number) => q(`[data-test=line-${lineId}] .line-sp-who__name`)!.textContent!.trim();
+// The tile picked in the whole-invoice block.
+const invoiceWho = () => q("[data-test=invoice-block] [aria-selected=true] .sp-name")!.textContent!.trim();
 
 describe("Change Salesperson (invoice and items)", () => {
   it("lists every item with who sold it, or the invoice's salesperson when nobody", async () => {
@@ -82,32 +88,32 @@ describe("Change Salesperson (invoice and items)", () => {
   it("keeps Save off until something changes", async () => {
     await mountDialog();
     expect(save().disabled).toBe(true);
-    await click(q("[data-test=line-10]"));
-    expect(save().disabled).toBe(true); // opening the grid changes nothing
+    await click(row(10));
+    expect(save().disabled).toBe(true); // opening a grid changes nothing
   });
 
-  it("opens one grid at a time, with real salespeople and a same-as-invoice tile", async () => {
+  it("opens one item's grid at a time, with real salespeople and a same-as-invoice tile", async () => {
     await mountDialog();
-    await click(q("[data-test=line-10]"));
+    await click(row(10));
     expect(qa(".line-sp-picker")).toHaveLength(1);
-    expect(q("[data-test=sp-3]")?.textContent).toContain("Rana Haddad");
-    expect(q("[data-test=sp-8]")).toBeNull(); // attendance-only staff
-    expect(q("[data-test=sp-default]")?.textContent).toContain("Same as invoice (Omar)");
-    await click(q("[data-test=line-11]"));
+    expect(item(3)?.textContent).toContain("Rana Haddad");
+    expect(item(8)).toBeNull(); // attendance-only staff
+    expect(item("default")?.textContent).toContain("Same as invoice (Omar)");
+    await click(row(11));
     expect(qa(".line-sp-picker")).toHaveLength(1);
-    await click(q("[data-test=line-11]"));
+    await click(row(11));
     expect(qa(".line-sp-picker")).toHaveLength(0);
   });
 
   it("saves only the lines that changed, then reports and closes", async () => {
     const w = await mountDialog();
-    await click(q("[data-test=line-10]"));
-    await click(q("[data-test=sp-5]")); // Shirt -> Omar
+    await click(row(10));
+    await click(item(5)); // Shirt -> Omar
     expect(who(10)).toBe("Omar Khalil");
-    await click(q("[data-test=line-11]"));
-    await click(q("[data-test=sp-default]")); // Jeans -> back to the invoice
-    await click(q("[data-test=line-12]"));
-    await click(q("[data-test=sp-3]")); // Scarf -> Rana
+    await click(row(11));
+    await click(item("default")); // Jeans -> back to the invoice
+    await click(row(12));
+    await click(item(3)); // Scarf -> Rana
     expect(save().disabled).toBe(false);
     await click(save());
     expect(changeLine.mock.calls).toEqual([
@@ -115,23 +121,24 @@ describe("Change Salesperson (invoice and items)", () => {
       [101, 11, 0],
       [101, 12, 3],
     ]);
+    expect(changeInvoice).not.toHaveBeenCalled();
     expect(w.emitted("saved")).toHaveLength(1);
     expect(w.props("modelValue")).toBe(false);
   });
 
   it("does not save a line put back the way it was", async () => {
     await mountDialog();
-    await click(q("[data-test=line-11]"));
-    await click(q("[data-test=sp-5]"));
-    await click(q("[data-test=line-11]"));
-    await click(q("[data-test=sp-3]")); // back to Rana, as saved
+    await click(row(11));
+    await click(item(5));
+    await click(row(11));
+    await click(item(3)); // back to Rana, as saved
     expect(save().disabled).toBe(true);
   });
 
   it("cancel closes without saving", async () => {
     const w = await mountDialog();
-    await click(q("[data-test=line-10]"));
-    await click(q("[data-test=sp-5]"));
+    await click(row(10));
+    await click(item(5));
     await click(q(".line-sp-cancel"));
     expect(changeLine).not.toHaveBeenCalled();
     expect(w.props("modelValue")).toBe(false);
@@ -139,8 +146,8 @@ describe("Change Salesperson (invoice and items)", () => {
 
   it("reports a failed save, stays open and reloads the truth", async () => {
     const w = await mountDialog();
-    await click(q("[data-test=line-10]"));
-    await click(q("[data-test=sp-5]"));
+    await click(row(10));
+    await click(item(5));
     changeLine.mockRejectedValueOnce(new Error("invoice line not found"));
     await click(save());
     expect(w.emitted("error")?.[0]?.[0]).toContain("invoice line not found");
@@ -165,18 +172,17 @@ describe("Change Salesperson (invoice and items)", () => {
       expect(qa(".line-sp-label").map((l) => l.textContent)).toEqual(["Whole invoice"]);
     });
 
-    it("shows just the invoice selector when there are no items", async () => {
+    it("shows just the invoice block when there are no items", async () => {
       details.mockResolvedValue({ items: [] } as any);
       await mountDialog();
       expect(itemsShown()).toBe(0);
-      expect(q("[data-test=invoice-row]")).toBeTruthy();
+      expect(q("[data-test=invoice-block]")).toBeTruthy();
     });
 
     it("a lone item that follows the invoice: only the invoice is changed", async () => {
       details.mockResolvedValue({ items: [ITEMS[0]] } as any);
       await mountDialog();
-      await click(q("[data-test=invoice-row]"));
-      await click(q("[data-test=sp-3]"));
+      await click(inv(3));
       await click(save());
       expect(changeInvoice.mock.calls).toEqual([[101, 3]]);
       expect(changeLine).not.toHaveBeenCalled();
@@ -185,11 +191,9 @@ describe("Change Salesperson (invoice and items)", () => {
     it("a lone item set apart earlier follows the new invoice salesperson", async () => {
       details.mockResolvedValue({ items: [ITEMS[1]] } as any); // Jeans, Rana
       await mountDialog();
-      await click(q("[data-test=invoice-row]"));
-      await click(q("[data-test=sp-5]")); // Omar is already the invoice's: no change
+      await click(inv(5)); // Omar is already the invoice's: no change
       expect(save().disabled).toBe(true);
-      await click(q("[data-test=invoice-row]"));
-      await click(q("[data-test=sp-default]")); // No salesperson: a real change
+      await click(inv("default")); // No salesperson: a real change
       await click(save());
       expect(changeInvoice.mock.calls).toEqual([[101, 0]]);
       expect(changeLine.mock.calls).toEqual([[101, 11, 0]]);
@@ -197,21 +201,22 @@ describe("Change Salesperson (invoice and items)", () => {
   });
 
   describe("the whole invoice", () => {
-    const invoiceWho = () => q("[data-test=invoice-row] .line-sp-who__name")!.textContent!.trim();
-
-    it("shows who the invoice is under, above the items", async () => {
+    it("is always open above the items, with the current salesperson picked", async () => {
       await mountDialog();
+      expect(q("[data-test=invoice-block]")).toBeTruthy();
+      expect(inv(3)?.textContent).toContain("Rana Haddad");
+      expect(inv(8)).toBeNull(); // attendance-only staff
       expect(invoiceWho()).toBe("Omar Khalil");
-      const labels = qa(".line-sp-label").map((l) => l.textContent);
-      expect(labels).toEqual(["Whole invoice", "Items"]);
+      expect(qa(".line-sp-label").map((l) => l.textContent)).toEqual(["Whole invoice", "Items"]);
+      // Picking keeps the block open: there is nothing to close.
+      await click(inv(3));
+      expect(inv(5)).toBeTruthy();
+      expect(invoiceWho()).toBe("Rana Haddad");
     });
 
     it("changes the invoice alone, leaving the items as they are", async () => {
       const w = await mountDialog();
-      await click(q("[data-test=invoice-row]"));
-      expect(q("[data-test=sp-8]")).toBeNull(); // attendance-only staff
-      await click(q("[data-test=sp-3]"));
-      expect(invoiceWho()).toBe("Rana Haddad");
+      await click(inv(3));
       expect(save().disabled).toBe(false);
       await click(save());
       expect(changeInvoice.mock.calls).toEqual([[101, 3]]);
@@ -221,8 +226,7 @@ describe("Change Salesperson (invoice and items)", () => {
 
     it("clears the invoice's salesperson with the No salesperson tile", async () => {
       await mountDialog();
-      await click(q("[data-test=invoice-row]"));
-      await click(q("[data-test=sp-default]"));
+      await click(inv("default"));
       expect(invoiceWho()).toBe("No salesperson");
       await click(save());
       expect(changeInvoice.mock.calls).toEqual([[101, 0]]);
@@ -230,22 +234,19 @@ describe("Change Salesperson (invoice and items)", () => {
 
     it("items that follow the invoice name the new person straight away", async () => {
       await mountDialog();
-      await click(q("[data-test=invoice-row]"));
-      await click(q("[data-test=sp-3]"));
+      await click(inv(3));
       expect(who(10)).toBe("Invoice: Rana Haddad");
-      await click(q("[data-test=line-10]"));
-      expect(q("[data-test=sp-default]")?.textContent).toContain("Same as invoice (Rana)");
+      await click(row(10));
+      expect(item("default")?.textContent).toContain("Same as invoice (Rana)");
     });
 
     it("saves the invoice first, then its items; picking the same person is no change", async () => {
       await mountDialog();
-      await click(q("[data-test=invoice-row]"));
-      await click(q("[data-test=sp-5]")); // Omar again: nothing changed
+      await click(inv(5)); // Omar again: nothing changed
       expect(save().disabled).toBe(true);
-      await click(q("[data-test=invoice-row]"));
-      await click(q("[data-test=sp-3]"));
-      await click(q("[data-test=line-10]"));
-      await click(q("[data-test=sp-5]"));
+      await click(inv(3));
+      await click(row(10));
+      await click(item(5));
       const order: string[] = [];
       changeInvoice.mockImplementation(async () => void order.push("invoice"));
       changeLine.mockImplementation(async () => void order.push("line"));
@@ -255,10 +256,9 @@ describe("Change Salesperson (invoice and items)", () => {
 
     it("a refused invoice change stops before touching any item", async () => {
       const w = await mountDialog();
-      await click(q("[data-test=invoice-row]"));
-      await click(q("[data-test=sp-3]"));
-      await click(q("[data-test=line-10]"));
-      await click(q("[data-test=sp-5]"));
+      await click(inv(3));
+      await click(row(10));
+      await click(item(5));
       changeInvoice.mockRejectedValueOnce(new Error("salesperson not found"));
       await click(save());
       expect(changeLine).not.toHaveBeenCalled();
