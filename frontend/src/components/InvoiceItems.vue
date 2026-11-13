@@ -4,8 +4,6 @@
     class="invoice-items mt-2 mb-2 me-0"
     :class="{
       'invoice-items--discount-chips': showDiscountChips,
-      'invoice-items--disc': anyDiscountEditable,
-      'invoice-items--table': displayItems.length > 0,
     }"
   >
     <!-- Column titles, so the lines themselves carry just the numbers. The
@@ -1673,11 +1671,6 @@ defineExpose({
   box-sizing: border-box;
   text-align: center;
 }
-/* Minimal dividers: a hairline at the start of the Qty, Disc. and Price
-   columns, in the header and in every line. */
-.invoice-items-header__col {
-  border-inline-start: 1px solid var(--cart-line);
-}
 /* The same widths as the controls under them. */
 .invoice-header-qty {
   width: 46px;
@@ -1763,41 +1756,12 @@ defineExpose({
 }
 
 .invoice-items {
-  /* The column lines, and the one under the header. */
+  /* The one line under the header. */
   --cart-line: rgba(var(--k-border-color), 0.22);
-  /* The widths of the controls on the right of every line. */
-  --w-price: 64px;
-  --w-disc: 0px;
-  --x-disc: -100px; /* off the box: no Disc. column, no line for it */
   height: 100%;
   overflow-y: auto;
 }
-.invoice-items--discount-chips {
-  --w-price: 100px;
-}
-.invoice-items--disc {
-  --w-disc: 44px;
-  --x-disc: calc(52px + var(--w-price) + 44px - 1px);
-}
-/* The column lines are drawn on the cart area itself, not on each line, so
-   they run all the way down however few lines there are. They sit at the left
-   edge of the Price, Disc. and Qty columns, measured from the right: the
-   16px padding and the 36px delete column, then each column's width. The
-   header paints over them and draws its own at the same places. */
-.invoice-items--table {
-  background-image:
-    linear-gradient(var(--cart-line), var(--cart-line)),
-    linear-gradient(var(--cart-line), var(--cart-line)),
-    linear-gradient(var(--cart-line), var(--cart-line));
-  background-repeat: no-repeat;
-  background-size: 1px 100%;
-  background-position:
-    right calc(52px + var(--w-price) - 1px) top,
-    right var(--x-disc) top,
-    right calc(52px + var(--w-price) + var(--w-disc) + 46px - 1px) top;
-}
-/* Only the header has a line under it; the rows run together, split by the
-   column lines alone. */
+/* Only the header has a line under it; the rows run together. */
 
 .invoice-item-details-trigger {
   background: transparent;
