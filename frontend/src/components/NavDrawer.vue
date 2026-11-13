@@ -576,28 +576,37 @@ const items = computed(() => {
   line-height: 1.1;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  overflow: hidden;
 }
 
 .visitor-count-value {
   display: block;
+  backface-visibility: hidden;
 }
 
+/* A flap turning over: the old number folds away around its middle and the
+   new one folds in, forward when the count rises, back when it falls. */
+.visitor-count {
+  perspective: 120px;
+}
 .count-flip-enter-active,
 .count-flip-leave-active {
-  transition: transform 0.12s ease, opacity 0.12s ease;
+  transition: transform 0.14s ease-in, opacity 0.14s ease-in;
 }
+.count-flip-enter-active {
+  transition-timing-function: ease-out;
+}
+.visitor-count--up .count-flip-enter-from { transform: rotateX(-90deg); opacity: 0; }
+.visitor-count--up .count-flip-leave-to { transform: rotateX(90deg); opacity: 0; }
+.visitor-count--down .count-flip-enter-from { transform: rotateX(90deg); opacity: 0; }
+.visitor-count--down .count-flip-leave-to { transform: rotateX(-90deg); opacity: 0; }
+
 /* Always plays, even with animations off in Settings: it is feedback for a
    tap, not decoration. !important to get past the global kill switch in
    styles/compact.scss (same exception as the status dot above). */
 :root.animations-disabled .count-flip-enter-active,
 :root.animations-disabled .count-flip-leave-active {
-  transition-duration: 0.12s !important;
+  transition-duration: 0.14s !important;
 }
-.visitor-count--up .count-flip-enter-from { transform: translateY(70%); opacity: 0; }
-.visitor-count--up .count-flip-leave-to { transform: translateY(-70%); opacity: 0; }
-.visitor-count--down .count-flip-enter-from { transform: translateY(-70%); opacity: 0; }
-.visitor-count--down .count-flip-leave-to { transform: translateY(70%); opacity: 0; }
 
 .options-grid {
   display: grid;
