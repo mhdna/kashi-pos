@@ -50,7 +50,7 @@
           autofocus
           density="comfortable"
           :error-messages="unlockError"
-          label="Password"
+          placeholder="Password"
           type="password"
           variant="outlined"
           class="unlock-field"
