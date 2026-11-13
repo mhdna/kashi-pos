@@ -32,13 +32,19 @@
       </div>
       <template v-else>
         <!-- <span class="calculator-amounts-label" :class="statusColor">{{ paymentStatus }}</span> -->
-        <div class="calculator-amount calculator-total-usd" :class="{ 'calculator-total-alone': !showSplit }">
+        <div class="calculator-amount calculator-total-usd" :class="{ 'calculator-total-alone': !showSplit && !otherTotalText }">
           <strong :class="statusColor">{{ displayedTotal }}</strong>
         </div>
         <div v-if="showSplit" class="calculator-amounts-split">
           <span :class="statusColor">{{ remainingAmount.first }}</span>
           <span v-if="remainingAmount.second" class="calculator-amounts-plus" aria-hidden="true">+</span>
           <span v-if="remainingAmount.second" :class="statusColor">{{ remainingAmount.second }}</span>
+        </div>
+        <!-- When the cash split would only repeat the total, the same amount in
+             the other currency goes there instead, so both views of the card
+             have two lines. -->
+        <div v-else-if="otherTotalText" class="calculator-amounts-split calculator-amounts-other">
+          <span :class="statusColor">{{ otherTotalText }}</span>
         </div>
         <!-- central's whole-sale discount, already off the total above. -->
         <span v-if="invoiceDiscountText" class="calculator-amounts-invoice-discount" :title="invoiceDiscountText">
@@ -115,6 +121,14 @@ const showSplit = computed(() => !splitRepeatsTotal(props.remainingAmount, displ
 const isRounded = computed(
   () => Boolean(props.remainingAmount.amountsByCurrency[currentIndex.value]?.rounded) || props.remainingAmount.secondaryRounded,
 );
+
+// The same total in the currency the flip button would switch to; "" on a
+// till with one currency.
+const otherTotalText = computed(() => {
+  const list = props.remainingAmount.amountsByCurrency;
+  if (list.length < 2) return "";
+  return list[(currentIndex.value + 1) % list.length]?.text ?? "";
+});
 
 function flipCurrency() {
   const list = props.remainingAmount.amountsByCurrency;
