@@ -348,11 +348,14 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   width: 100%;
-  min-height: 70vh;
+  height: 100%;
+  min-height: 360px;
   padding: 16px;
 }
 .unlock-card {
+  margin: 0 auto;
   max-width: 100%;
   padding: 32px 28px 28px;
   text-align: center;
@@ -381,8 +384,8 @@ onMounted(() => {
   font-size: 0.875rem;
   color: rgba(var(--k-theme-on-surface), 0.6);
 }
-.unlock-field {
-  text-align: left;
+.unlock-field :deep(input) {
+  text-align: center;
 }
 .tiles {
   display: grid;
