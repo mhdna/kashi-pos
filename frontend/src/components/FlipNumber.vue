@@ -1,5 +1,5 @@
 <template>
-  <span class="flip" :class="flipping && `flip--${direction}`" data-test="flip-number" :aria-label="String(value)" role="img">
+  <span class="flip" :class="flipping && [`flip--${direction}`, run % 2 ? 'flip--odd' : 'flip--even']" data-test="flip-number" :aria-label="String(value)" role="img">
     <!-- A split-flap card, like a flip clock. The top half already shows the
          new number and the bottom half the old one; the old top half then
          folds down over the middle and the new bottom half unfolds under it. -->
@@ -8,6 +8,8 @@
     <template v-if="flipping">
       <!-- The shadow the falling flap throws on the lower half. -->
       <span :key="`s${run}`" class="flip-shade" />
+      <!-- The colour wash over the card; keyed so every tap starts it afresh. -->
+      <span :key="`w${run}`" class="flip-wash" />
       <span :key="`t${run}`" class="flip-half flip-top flip-flap flip-flap-top">
         <span class="flip-num">{{ previous }}</span>
       </span>
@@ -167,17 +169,22 @@ watch(
   --wash: 0.2;
   --grow: 1.05;
 }
+/* Two names for the same pop, swapped on every tap: a class that stays put
+   does not restart its animation, so tapping fast would show nothing new. */
+.flip--even {
+  animation-name: flip-pop !important;
+}
+.flip--odd {
+  animation-name: flip-pop-b !important;
+}
 .flip--up,
 .flip--down {
-  animation-name: flip-pop !important;
   animation-duration: 0.6s !important;
   animation-delay: 0s !important;
   animation-timing-function: ease-out !important;
   animation-fill-mode: both !important;
 }
-.flip--up::before,
-.flip--down::before {
-  content: "";
+.flip-wash {
   position: absolute;
   inset: 0;
   z-index: 6;
@@ -205,6 +212,11 @@ watch(
   100% { opacity: 0; }
 }
 @keyframes flip-pop {
+  0% { transform: scale(1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(var(--flash), 0.9); }
+  25% { transform: scale(var(--grow)); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 var(--ring) rgba(var(--flash), 0.95); }
+  100% { transform: scale(1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(var(--flash), 0); }
+}
+@keyframes flip-pop-b {
   0% { transform: scale(1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(var(--flash), 0.9); }
   25% { transform: scale(var(--grow)); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 var(--ring) rgba(var(--flash), 0.95); }
   100% { transform: scale(1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(var(--flash), 0); }

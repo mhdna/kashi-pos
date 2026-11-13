@@ -64,4 +64,21 @@ describe("FlipNumber", () => {
     await w.vm.$nextTick();
     expect(w.classes()).not.toContain("flip--up");
   });
+
+  it("restarts the highlight on every tap, so fast taps each show it", async () => {
+    const w = mount(FlipNumber, { props: { value: 5 } });
+    await w.setProps({ value: 6 });
+    const first = w.find(".flip-wash").element;
+    const firstClass = w.classes().filter((c) => c === "flip--odd" || c === "flip--even");
+    vi.advanceTimersByTime(100); // tapped again before the first one has finished
+    await w.setProps({ value: 7 });
+    // A new wash element, and the card's animation swapped to its twin, which
+    // is what makes the browser start both again from the beginning.
+    expect(w.find(".flip-wash").element).not.toBe(first);
+    const secondClass = w.classes().filter((c) => c === "flip--odd" || c === "flip--even");
+    expect(secondClass).not.toEqual(firstClass);
+    await w.setProps({ value: 8 });
+    expect(w.classes().filter((c) => c === "flip--odd" || c === "flip--even")).toEqual(firstClass);
+    expect(w.classes()).toContain("flip--up");
+  });
 });
