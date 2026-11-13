@@ -23,7 +23,9 @@
       :data-count="tint.count"
       :style="{ '--from': tint.from, '--count': tint.count }"
     />
-    <FlipDigit v-for="(char, index) in digits" :key="digits.length - index" :char="char" :direction="direction" />
+    <span class="flip-digits">
+      <FlipDigit v-for="(char, index) in digits" :key="digits.length - index" :char="char" :direction="direction" />
+    </span>
   </span>
 </template>
 
@@ -62,10 +64,12 @@ watch(
 <style scoped>
 .flip-number {
   --pad: 3px;
-  --gap: 1px;
+  /* Cards touch: a digit is about 0.6em wide, so a 14px card fits it with no
+     space around it. */
+  --gap: 0px;
   /* However many digits there are, they share the width: three digits get
      wide cards, four or five get narrower ones, never overflowing. */
-  --cell: min(15px, calc((50px - (var(--n) - 1) * var(--gap)) / var(--n)));
+  --cell: min(14px, calc((50px - (var(--n) - 1) * var(--gap)) / var(--n)));
   --tint: #a86a0c;
   position: relative;
   box-sizing: border-box;
@@ -85,6 +89,12 @@ watch(
   color: #fff;
 }
 /* Warm amber when the count goes up, slate blue when it goes down. */
+.flip-digits {
+  display: flex;
+  align-items: stretch;
+  gap: var(--gap);
+  height: 100%;
+}
 .flip-number--down {
   --tint: #46608f;
 }

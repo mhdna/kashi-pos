@@ -57,10 +57,24 @@ watch(
   width: var(--cell, 17px);
   height: 100%;
   perspective: 140px;
-  border-radius: 4px;
+  /* Only the outer corners of the row are round; cards in between are square. */
+  --rl: 0px;
+  --rr: 0px;
+  border-radius: var(--rl) var(--rr) var(--rr) var(--rl);
   --base-bg: #16243b;
   background: var(--base-bg);
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.flip:first-child {
+  --rl: 4px;
+}
+.flip:last-child {
+  --rr: 4px;
+}
+/* Touching cards: a thin line between them rather than a gap. */
+.flip + .flip {
+  border-left: 1px solid rgba(0, 0, 0, 0.45);
+  box-sizing: border-box;
 }
 
 .flip-half {
@@ -74,12 +88,12 @@ watch(
 }
 .flip-top {
   top: 0;
-  border-radius: 4px 4px 0 0;
+  border-radius: var(--rl) var(--rr) 0 0;
   transform-origin: bottom;
 }
 .flip-bottom {
   bottom: 0;
-  border-radius: 0 0 4px 4px;
+  border-radius: 0 0 var(--rr) var(--rl);
   transform-origin: top;
 }
 
@@ -142,7 +156,7 @@ watch(
   bottom: 0;
   height: 50%;
   z-index: 2;
-  border-radius: 0 0 4px 4px;
+  border-radius: 0 0 var(--rr) var(--rl);
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
   pointer-events: none;
   animation-name: flip-shade !important;
