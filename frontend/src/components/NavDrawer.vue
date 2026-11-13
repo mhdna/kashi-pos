@@ -37,13 +37,7 @@
         >
           <k-icon icon="mdi-chevron-up" size="32" />
         </k-btn>
-        <span class="visitor-count" :class="`visitor-count--${countDirection}`">
-          <!-- The old number slides out and the new one slides in, up when it
-               goes up and down when it goes down. -->
-          <Transition name="count-flip" mode="out-in">
-            <span :key="visitorCount" class="visitor-count-value">{{ visitorCount }}</span>
-          </Transition>
-        </span>
+        <FlipNumber class="visitor-count" :value="visitorCount" />
         <k-btn
           class="visitor-counter-btn"
           icon
@@ -174,11 +168,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
+import FlipNumber from "@/components/FlipNumber.vue";
 import SyncIndicator from "@/components/SyncIndicator.vue";
 import { useDeviceStatus } from "@/composables/useDeviceStatus";
 import DevicesDialog from "@/components/DevicesDialog.vue";
@@ -196,11 +191,6 @@ const {
   count: visitorCount,
   adjust: adjustVisitors,
 } = useVisitorCounter();
-
-const countDirection = ref<"up" | "down">("up");
-watch(visitorCount, (now, before) => {
-  countDirection.value = now >= before ? "up" : "down";
-});
 
 const { status: attendanceStatus } = useAttendanceStatus();
 
@@ -564,50 +554,6 @@ const items = computed(() => {
 }
 
 /* The number sits in a recessed field between the two buttons. */
-.visitor-count {
-  box-sizing: border-box;
-  width: 48px;
-  padding: 4px 0;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.45);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-  font-size: 1.4rem;
-  font-weight: 800;
-  line-height: 1.1;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.visitor-count-value {
-  display: block;
-  backface-visibility: hidden;
-}
-
-/* A flap turning over: the old number folds away around its middle and the
-   new one folds in, forward when the count rises, back when it falls. */
-.visitor-count {
-  perspective: 120px;
-}
-.count-flip-enter-active,
-.count-flip-leave-active {
-  transition: transform 0.14s ease-in, opacity 0.14s ease-in;
-}
-.count-flip-enter-active {
-  transition-timing-function: ease-out;
-}
-.visitor-count--up .count-flip-enter-from { transform: rotateX(-90deg); opacity: 0; }
-.visitor-count--up .count-flip-leave-to { transform: rotateX(90deg); opacity: 0; }
-.visitor-count--down .count-flip-enter-from { transform: rotateX(90deg); opacity: 0; }
-.visitor-count--down .count-flip-leave-to { transform: rotateX(-90deg); opacity: 0; }
-
-/* Always plays, even with animations off in Settings: it is feedback for a
-   tap, not decoration. !important to get past the global kill switch in
-   styles/compact.scss (same exception as the status dot above). */
-:root.animations-disabled .count-flip-enter-active,
-:root.animations-disabled .count-flip-leave-active {
-  transition-duration: 0.14s !important;
-}
-
 .options-grid {
   display: grid;
   gap: 12px;
