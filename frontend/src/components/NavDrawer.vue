@@ -530,17 +530,12 @@ const items = computed(() => {
   border-radius: 12px;
 }
 
-/* Up adds a visitor (teal), down takes one off (muted slate): two clearly
-   different buttons instead of two identical orange ones. */
+/* Up and down share one colour. */
 .visitor-counter-btn {
   width: 40px;
   height: 36px;
   color: #ffffff !important;
   background-color: #1f9d8a !important;
-}
-
-.visitor-counter-btn:last-of-type {
-  background-color: #3a5378 !important;
 }
 
 .visitor-counter-btn :deep(.k-icon) {
