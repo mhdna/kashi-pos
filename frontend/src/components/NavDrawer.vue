@@ -38,7 +38,13 @@
         >
           <k-icon icon="mdi-chevron-up" size="32" />
         </k-btn>
-        <span class="visitor-count">{{ visitorCount }}</span>
+        <span class="visitor-count" :class="`visitor-count--${countDirection}`">
+          <!-- The old number slides out and the new one slides in, up when it
+               goes up and down when it goes down. -->
+          <Transition name="count-flip" mode="out-in">
+            <span :key="visitorCount" class="visitor-count-value">{{ visitorCount }}</span>
+          </Transition>
+        </span>
         <k-btn
           class="visitor-counter-btn"
           icon
@@ -169,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { usePageUnlocks } from "@/composables/usePageUnlocks";
@@ -191,6 +197,11 @@ const {
   count: visitorCount,
   adjust: adjustVisitors,
 } = useVisitorCounter();
+
+const countDirection = ref<"up" | "down">("up");
+watch(visitorCount, (now, before) => {
+  countDirection.value = now >= before ? "up" : "down";
+});
 
 const { status: attendanceStatus } = useAttendanceStatus();
 
@@ -574,7 +585,21 @@ const items = computed(() => {
   line-height: 1.1;
   text-align: center;
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
 }
+
+.visitor-count-value {
+  display: block;
+}
+
+.count-flip-enter-active,
+.count-flip-leave-active {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.visitor-count--up .count-flip-enter-from { transform: translateY(70%); opacity: 0; }
+.visitor-count--up .count-flip-leave-to { transform: translateY(-70%); opacity: 0; }
+.visitor-count--down .count-flip-enter-from { transform: translateY(-70%); opacity: 0; }
+.visitor-count--down .count-flip-leave-to { transform: translateY(70%); opacity: 0; }
 
 .options-grid {
   display: grid;
