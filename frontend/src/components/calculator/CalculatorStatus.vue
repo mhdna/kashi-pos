@@ -32,7 +32,7 @@
       </div>
       <template v-else>
         <!-- <span class="calculator-amounts-label" :class="statusColor">{{ paymentStatus }}</span> -->
-        <div class="calculator-amount calculator-total-usd">
+        <div class="calculator-amount calculator-total-usd" :class="{ 'calculator-total-alone': !showSplit }">
           <strong :class="statusColor">{{ displayedTotal }}</strong>
         </div>
         <div v-if="showSplit" class="calculator-amounts-split">
@@ -199,6 +199,8 @@ function flipCurrency() {
 }
 .calculator-total-usd { grid-row: 1; }
 .calculator-total-lbp { grid-row: 2; }
+/* No split line under it: centre the total in the whole card. */
+.calculator-total-alone { grid-row: 1 / -1; justify-content: center; }
 .calculator-error-state {
   grid-row: 1 / -1;
   display: flex;
