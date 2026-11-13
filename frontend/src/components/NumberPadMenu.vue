@@ -78,7 +78,7 @@
         <k-btn
           class="number-pad-key"
           :class="{ 'number-pad-key--wide': allowDecimal }"
-          color="warning"
+          color="blue-grey-darken-1"
           size="small"
           variant="tonal"
           data-test="number-pad-backspace"
