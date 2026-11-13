@@ -41,22 +41,22 @@
     <!-- A manager unlocks the page with the manager password each time it's
          opened; it's kept only while the page stays open. -->
     <div v-if="!unlocked" class="unlock">
-      <k-card class="pa-6" width="380" rounded="lg" variant="outlined">
-        <div class="d-flex align-center ga-2 mb-4">
-          <k-icon icon="mdi-lock-outline" />
-          <span class="text-subtitle-1 font-weight-bold">Manager password</span>
-        </div>
+      <k-card class="unlock-card" width="400" rounded="xl" variant="outlined">
+        <span class="unlock-badge"><k-icon icon="mdi-lock-outline" size="28" /></span>
+        <h2 class="unlock-title">Manager password</h2>
+        <p class="unlock-hint">Enter it to see sales per visitor.</p>
         <k-text-field
           v-model="password"
           autofocus
-          density="compact"
+          density="comfortable"
           :error-messages="unlockError"
           label="Password"
           type="password"
           variant="outlined"
+          class="unlock-field"
           @keyup.enter="unlock"
         />
-        <k-btn block color="primary" :loading="loading" text="Open" @click="unlock" />
+        <k-btn block color="primary" size="large" :loading="loading" text="Open" @click="unlock" />
       </k-card>
     </div>
 
@@ -348,7 +348,38 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100%;
+  width: 100%;
+  min-height: 70vh;
+  padding: 16px;
+}
+.unlock-card {
+  max-width: 100%;
+  padding: 32px 28px 28px;
+  text-align: center;
+  box-shadow: 0 8px 28px rgba(15, 27, 45, 0.1);
+}
+.unlock-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(var(--k-theme-primary), 0.12);
+  color: rgb(var(--k-theme-primary));
+}
+.unlock-title {
+  margin: 12px 0 4px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.unlock-hint {
+  margin: 0 0 20px;
+  font-size: 0.875rem;
+  color: rgba(var(--k-theme-on-surface), 0.6);
+}
+.unlock-field {
+  text-align: left;
 }
 .tiles {
   display: grid;
