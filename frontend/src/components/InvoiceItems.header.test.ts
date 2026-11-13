@@ -75,7 +75,7 @@ describe("cart column header", () => {
     expect(rowText).not.toContain("Qty");
   });
 
-  it("is a table of direct children: the header first, then one block per line (the borders rely on it)", async () => {
+  it("is a table of direct children: the header first, then one block per line (the header's line and the column lines rely on it)", async () => {
     const w = await cart({}, [shirt(), shirt({ code: "SH2", barcode: "222" }), shirt({ code: "SH3", barcode: "333" })]);
     const blocks = Array.from(w.element.children as HTMLCollection).filter((el): el is HTMLElement => el.tagName === "DIV");
     expect(blocks[0]!.classList.contains("invoice-items-header")).toBe(true);

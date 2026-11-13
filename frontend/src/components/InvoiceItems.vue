@@ -1749,15 +1749,13 @@ defineExpose({
 }
 
 .invoice-items {
-  /* The table's inside borders: between columns and between rows. */
+  /* The column lines, and the one under the header. */
   --cart-line: rgba(var(--k-border-color), 0.22);
   height: 100%;
   overflow-y: auto;
 }
-/* A line under every row but the last, and under the header; no outer border. */
-.invoice-items > div:not(:last-of-type) {
-  border-bottom: 1px solid var(--cart-line);
-}
+/* Only the header has a line under it; the rows run together, split by the
+   column lines alone. */
 
 .invoice-item-details-trigger {
   background: transparent;
