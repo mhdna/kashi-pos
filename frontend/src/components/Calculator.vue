@@ -149,6 +149,7 @@ import CalculatorKeypad from "@/components/calculator/CalculatorKeypad.vue";
 import CalculatorPaymentMethods from "@/components/calculator/CalculatorPaymentMethods.vue";
 import CalculatorStatus from "@/components/calculator/CalculatorStatus.vue";
 import { isCashPaymentMethod, isSpecialPaymentMethod } from "@/lib/paymentMethods";
+import { entryUnits, settledPaymentCents, type PaymentEntry } from "@/lib/cashPayments";
 
 interface PaymentMethod {
   id: number;
@@ -272,7 +273,20 @@ const invoiceDiscountText = computed(() => {
   if (cents <= 0) return "";
   return `${props.invoiceDiscountName || "Invoice discount"} −$${String(Number((cents / 100).toFixed(2)))}`;
 });
-const paidCents = computed(() => entries.value.reduce((sum, entry) => sum + entry.amountCents, 0));
+const paymentEntries = computed<PaymentEntry[]>(() =>
+  entries.value.map((entry) => ({
+    accountId: entry.accountId,
+    amount: entry.amount,
+    amountCents: entry.amountCents,
+    currency: currencyFor(entry.type),
+  })),
+);
+// What checkout records: an account's LL entries are added up in LL and
+// converted once (lib/cashPayments.ts), so LL 200,000 less LL 60,000 change
+// is the 156¢ of LL 140,000, not 222¢ - 67¢.
+const paidCents = computed(() =>
+  settledPaymentCents(paymentEntries.value, roundingMode.value).reduce((sum, cents) => sum + cents, 0),
+);
 
 // checkoutReady/cashRoundedToTotal require server-side logic (cash-rounding
 // grace, max-overpayment tolerance) and come from ONE backend answer
@@ -570,6 +584,15 @@ function pushEntry(methodName: string, amount: number, amountCents: number, isCh
   });
 }
 
+// What would be paid after giving this change, counted as checkout will
+// (LL netted in LL): giving exactly the LL owed back is never "too much",
+// even when that LL alone is a cent more than the cents owed.
+function paidAfterChange(methodName: string, amount: number, amountCents: number): number {
+  const method = paymentMethods.value.find((candidate) => candidate.name === methodName);
+  const next: PaymentEntry = { accountId: method?.id ?? 0, amount: -amount, amountCents: -amountCents, currency: currencyFor(methodName) };
+  return settledPaymentCents([...paymentEntries.value, next], roundingMode.value).reduce((sum, cents) => sum + cents, 0);
+}
+
 function confirmEntry(methodName = activeMethod.value) {
   const currency = currencyFor(methodName);
   const shouldAppendZeros =
@@ -588,7 +611,7 @@ function confirmEntry(methodName = activeMethod.value) {
   // blocked. But it's also exactly what a mistyped amount looks like, so
   // ask for confirmation instead of silently accepting or silently
   // rejecting it.
-  if (isChange && amountCents > diffCents.value && props.overchangeConfirmationEnabled !== false) {
+  if (isChange && paidAfterChange(methodName, amount, amountCents) < totalCents.value && props.overchangeConfirmationEnabled !== false) {
     pendingOverchange.value = { methodName, amount, amountCents, currencySymbol: currency.symbol };
     return;
   }
@@ -697,12 +720,18 @@ function restoreHoldState(state: any) {
 }
 
 const paymentsJSON = computed(() => {
-  return JSON.stringify(entries.value.map((entry) => ({
-    accountId: entry.accountId,
-    amountCents: entry.amountCents,
-    entryType: entry.amountCents < 0 ? "change" : "payment",
-    ...(entry.type.toLowerCase() === "on coupon" ? { couponCode: (entry as any).couponCode, couponTypeId: (entry as any).couponTypeId } : {}),
-  })));
+  return JSON.stringify(entries.value.map((entry, i) => {
+    const paymentEntry = paymentEntries.value[i];
+    // The LL as counted, so checkout can net change in LL (tx_invoice.go).
+    const amountUnits = paymentEntry ? entryUnits(paymentEntry) : undefined;
+    return {
+      accountId: entry.accountId,
+      amountCents: entry.amountCents,
+      entryType: entry.amountCents < 0 ? "change" : "payment",
+      ...(amountUnits ? { amountUnits } : {}),
+      ...(entry.type.toLowerCase() === "on coupon" ? { couponCode: (entry as any).couponCode, couponTypeId: (entry as any).couponTypeId } : {}),
+    };
+  }));
 });
 const firstEntryAccountId = computed(() => entries.value[0]?.accountId ?? 0);
 // Total physical cash tendered this sale (gross, not netted against change

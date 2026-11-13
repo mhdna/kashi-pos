@@ -45,6 +45,11 @@ type checkoutPayment struct {
 	EntryType    string `json:"entryType"`
 	CouponCode   string `json:"couponCode,omitempty"`
 	CouponTypeID int64  `json:"couponTypeId,omitempty"`
+	// AmountUnits is a cash-rounded currency's entry (LBP) as counted, in
+	// that currency's own units and unsigned. Checkout needs it to net an
+	// account's change against its payments in LBP before turning that
+	// into cents once; see normalizeCashRoundedPayments.
+	AmountUnits int64 `json:"amountUnits,omitempty"`
 }
 
 type SalesInvoiceParams struct {
@@ -431,11 +436,30 @@ func netPaymentsByAccount(payments []checkoutPayment) map[int64]int64 {
 	return netByAccount
 }
 
+// normalizeCashRoundedPayments turns the entries made in a cash-rounded
+// currency (LBP: notes come in 10,000s) into the cents they're really worth.
+//
+// A payment snaps to the currency's cash grid, as it always has. Then each
+// such account's entries are added up in the currency itself and converted
+// to cents once: the cents of each entry are the step that entry makes in
+// the running total. Converting every entry on its own and adding the cents
+// could be a cent out: LL 200,000 paid (222¢) less LL 60,000 change (67¢)
+// gave 155¢ for the LL 140,000 kept, which is 156¢, so a $41.56 sale
+// recorded $41.55 of payments (SA/CT/2026/03167, docs/FIXED_BUGS.md).
+//
+// That needs the LBP of each change entry (AmountUnits); an account with a
+// change entry that lacks it, or whose units don't give its cents, keeps
+// the entries' own cents (older callers, remote commands).
 func normalizeCashRoundedPayments(ctx context.Context, q *db.Queries, payments []checkoutPayment, roundingMode string) (bool, error) {
-	changed := false
+	type cashAccount struct {
+		currency db.Currency
+		indexes  []int
+	}
+	accounts := make(map[int64]*cashAccount)
+	var order []int64
 	for i := range payments {
 		payment := &payments[i]
-		if payment.AmountCents <= 0 {
+		if payment.AmountCents == 0 {
 			continue
 		}
 		account, err := q.GetCashboxAccountByID(ctx, payment.AccountID)
@@ -454,21 +478,119 @@ func normalizeCashRoundedPayments(ctx context.Context, q *db.Queries, payments [
 		if currency.CashRoundingUnit <= 1 {
 			continue
 		}
-		negative := payment.AmountCents < 0
-		amount := absInt64(payment.AmountCents)
-		canonical, err := roundCashEquivalentCents(amount, currency.UnitsPerUsdMicros, currency.CashRoundingUnit, roundingMode)
+		cash := accounts[payment.AccountID]
+		if cash == nil {
+			cash = &cashAccount{currency: currency}
+			accounts[payment.AccountID] = cash
+			order = append(order, payment.AccountID)
+		}
+		cash.indexes = append(cash.indexes, i)
+	}
+
+	changed := false
+	for _, accountID := range order {
+		cash := accounts[accountID]
+		entries := make([]cashEntry, len(cash.indexes))
+		for j, i := range cash.indexes {
+			entries[j] = cashEntry{Cents: payments[i].AmountCents, Units: payments[i].AmountUnits}
+		}
+		cents, err := settleCashEntryCents(entries, cash.currency.UnitsPerUsdMicros, cash.currency.CashRoundingUnit, roundingMode)
 		if err != nil {
 			return false, fmt.Errorf("round cash payment: %w", err)
 		}
-		if negative {
-			canonical = -canonical
-		}
-		if canonical != payment.AmountCents {
-			payment.AmountCents = canonical
-			changed = true
+		for j, i := range cash.indexes {
+			if payments[i].AmountCents != cents[j] {
+				payments[i].AmountCents = cents[j]
+				changed = true
+			}
 		}
 	}
 	return changed, nil
+}
+
+// cashEntry is one payment (Cents > 0) or change (Cents < 0) entry in a
+// cash-rounded currency, with its unsigned amount in that currency's units
+// (0 when the caller didn't send it).
+type cashEntry struct {
+	Cents int64 `json:"cents"`
+	Units int64 `json:"units"`
+}
+
+// settleCashEntryCents is the cents each of one account's entries records;
+// see normalizeCashRoundedPayments. Payments are snapped to the cash grid,
+// from their LL when they carry it and from their cents otherwise. When every change entry carries units that give its
+// cents, the entries are netted in units and the result is converted once,
+// so the cents add up to exactly the cents of the currency kept. Otherwise
+// each payment is snapped on its own and change keeps its cents.
+func settleCashEntryCents(entries []cashEntry, unitsPerUsdMicros, cashRoundingUnit int64, mode string) ([]int64, error) {
+	out := make([]int64, len(entries))
+	signedUnits := make([]int64, len(entries))
+	netted := true
+	for i, entry := range entries {
+		out[i] = entry.Cents
+		switch {
+		case entry.Cents > 0:
+			units, err := roundCurrencyUnitsFromCents(entry.Cents, unitsPerUsdMicros, cashRoundingUnit, mode)
+			if err != nil {
+				return nil, err
+			}
+			// Snap the LL itself when it came with the entry: going through
+			// the cents first can land a note on the wrong side of the grid
+			// under round down/up (LL 140,000 -> 155¢ -> LL 130,000).
+			if entry.Units > 0 {
+				if cents, err := roundCentsFromCurrencyUnits(entry.Units, unitsPerUsdMicros, mode); err == nil && cents == entry.Cents {
+					units = roundRatio(entry.Units, cashRoundingUnit, mode) * cashRoundingUnit
+				}
+			}
+			signedUnits[i] = units
+			if out[i], err = roundCentsFromCurrencyUnits(units, unitsPerUsdMicros, mode); err != nil {
+				return nil, err
+			}
+		case entry.Cents < 0:
+			if entry.Units <= 0 {
+				netted = false
+				continue
+			}
+			cents, err := roundCentsFromCurrencyUnits(entry.Units, unitsPerUsdMicros, mode)
+			if err != nil || cents != -entry.Cents {
+				netted = false
+				continue
+			}
+			signedUnits[i] = -entry.Units
+		}
+	}
+	if !netted {
+		return out, nil
+	}
+	var running, before int64
+	for i := range entries {
+		if entries[i].Cents == 0 {
+			out[i] = 0
+			continue
+		}
+		next := running + signedUnits[i]
+		if (signedUnits[i] > 0 && next < running) || (signedUnits[i] < 0 && next > running) {
+			return nil, fmt.Errorf("currency value is too large")
+		}
+		running = next
+		after, err := signedCentsFromCurrencyUnits(running, unitsPerUsdMicros, mode)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = after - before
+		before = after
+	}
+	return out, nil
+}
+
+// signedCentsFromCurrencyUnits is roundCentsFromCurrencyUnits for an amount
+// that may be negative (change given back), rounding its size.
+func signedCentsFromCurrencyUnits(units, unitsPerUsdMicros int64, mode string) (int64, error) {
+	cents, err := roundCentsFromCurrencyUnits(absInt64(units), unitsPerUsdMicros, mode)
+	if units < 0 {
+		cents = -cents
+	}
+	return cents, err
 }
 
 func parseSalesItems(raw, unknownBarcode, unknownCode string) ([]salesInvoiceItem, error) {

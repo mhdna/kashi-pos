@@ -1,0 +1,4142 @@
+[
+  {
+    "name": "SA/CT/2026/03167: LL 200,000 less LL 60,000",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 222,
+        "units": 200000
+      },
+      {
+        "cents": -67,
+        "units": 60000
+      }
+    ],
+    "cents": [
+      222,
+      -66
+    ]
+  },
+  {
+    "name": "payment off the grid",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 161,
+        "units": 145000
+      }
+    ],
+    "cents": [
+      167
+    ]
+  },
+  {
+    "name": "payment without its LL",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 161,
+        "units": 0
+      }
+    ],
+    "cents": [
+      156
+    ]
+  },
+  {
+    "name": "change without its LL",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 222,
+        "units": 200000
+      },
+      {
+        "cents": -67,
+        "units": 0
+      }
+    ],
+    "cents": [
+      222,
+      -67
+    ]
+  },
+  {
+    "name": "change whose LL doesn't give its cents",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 222,
+        "units": 200000
+      },
+      {
+        "cents": -70,
+        "units": 60000
+      }
+    ],
+    "cents": [
+      222,
+      -70
+    ]
+  },
+  {
+    "name": "round down: LL 140,000",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 155,
+        "units": 140000
+      }
+    ],
+    "cents": [
+      155
+    ]
+  },
+  {
+    "name": "round up: LL 140,000",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 156,
+        "units": 140000
+      }
+    ],
+    "cents": [
+      156
+    ]
+  },
+  {
+    "name": "89,500 a dollar in 5,000s",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 1117,
+        "units": 1000000
+      },
+      {
+        "cents": -6,
+        "units": 5000
+      },
+      {
+        "cents": -6,
+        "units": 5000
+      }
+    ],
+    "cents": [
+      1117,
+      -5,
+      -6
+    ]
+  },
+  {
+    "name": "random half_up 0",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 676,
+        "units": 605000
+      },
+      {
+        "cents": -358,
+        "units": 320000
+      },
+      {
+        "cents": -128,
+        "units": 115000
+      }
+    ],
+    "cents": [
+      676,
+      -358,
+      -128
+    ]
+  },
+  {
+    "name": "random half_up 1",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 383,
+        "units": 345000
+      },
+      {
+        "cents": -117,
+        "units": 105000
+      }
+    ],
+    "cents": [
+      389,
+      -117
+    ]
+  },
+  {
+    "name": "random half_up 2",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 628,
+        "units": 565000
+      },
+      {
+        "cents": -667,
+        "units": 600000
+      },
+      {
+        "cents": 39,
+        "units": 35000
+      }
+    ],
+    "cents": [
+      633,
+      -666,
+      44
+    ]
+  },
+  {
+    "name": "random half_up 3",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 291,
+        "units": 260000
+      },
+      {
+        "cents": 570,
+        "units": 510000
+      }
+    ],
+    "cents": [
+      291,
+      569
+    ]
+  },
+  {
+    "name": "random half_up 4",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 133,
+        "units": 120000
+      },
+      {
+        "cents": 778,
+        "units": 700000
+      }
+    ],
+    "cents": [
+      133,
+      778
+    ]
+  },
+  {
+    "name": "random half_up 5",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 589,
+        "units": 530000
+      },
+      {
+        "cents": -728,
+        "units": 655000
+      }
+    ],
+    "cents": [
+      589,
+      -728
+    ]
+  },
+  {
+    "name": "random half_up 6",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 346,
+        "units": 310000
+      },
+      {
+        "cents": 117,
+        "units": 105000
+      }
+    ],
+    "cents": [
+      346,
+      118
+    ]
+  },
+  {
+    "name": "random half_up 7",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 222,
+        "units": 200000
+      },
+      {
+        "cents": -472,
+        "units": 425000
+      },
+      {
+        "cents": -833,
+        "units": 750000
+      },
+      {
+        "cents": -600,
+        "units": 540000
+      }
+    ],
+    "cents": [
+      222,
+      -472,
+      -833,
+      -600
+    ]
+  },
+  {
+    "name": "random half_up 8",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 650,
+        "units": 585000
+      },
+      {
+        "cents": 489,
+        "units": 440000
+      },
+      {
+        "cents": 139,
+        "units": 125000
+      },
+      {
+        "cents": 794,
+        "units": 715000
+      }
+    ],
+    "cents": [
+      656,
+      488,
+      145,
+      800
+    ]
+  },
+  {
+    "name": "random half_up 9",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 291,
+        "units": 260000
+      },
+      {
+        "cents": 134,
+        "units": 120000
+      },
+      {
+        "cents": -782,
+        "units": 700000
+      }
+    ],
+    "cents": [
+      291,
+      134,
+      -783
+    ]
+  },
+  {
+    "name": "random half_up 10",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 422,
+        "units": 380000
+      },
+      {
+        "cents": 156,
+        "units": 140000
+      },
+      {
+        "cents": -350,
+        "units": 315000
+      }
+    ],
+    "cents": [
+      422,
+      156,
+      -350
+    ]
+  },
+  {
+    "name": "random half_up 11",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 389,
+        "units": 350000
+      }
+    ],
+    "cents": [
+      389
+    ]
+  },
+  {
+    "name": "random half_up 12",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 648,
+        "units": 580000
+      }
+    ],
+    "cents": [
+      648
+    ]
+  },
+  {
+    "name": "random half_up 13",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 583,
+        "units": 525000
+      },
+      {
+        "cents": 833,
+        "units": 750000
+      },
+      {
+        "cents": -22,
+        "units": 20000
+      }
+    ],
+    "cents": [
+      589,
+      833,
+      -22
+    ]
+  },
+  {
+    "name": "random half_up 14",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 739,
+        "units": 665000
+      },
+      {
+        "cents": 783,
+        "units": 705000
+      }
+    ],
+    "cents": [
+      744,
+      789
+    ]
+  },
+  {
+    "name": "random half_up 15",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 687,
+        "units": 615000
+      },
+      {
+        "cents": -413,
+        "units": 370000
+      }
+    ],
+    "cents": [
+      687,
+      -413
+    ]
+  },
+  {
+    "name": "random half_up 16",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 500,
+        "units": 450000
+      },
+      {
+        "cents": -428,
+        "units": 385000
+      },
+      {
+        "cents": -456,
+        "units": 410000
+      }
+    ],
+    "cents": [
+      500,
+      -428,
+      -455
+    ]
+  },
+  {
+    "name": "random half_up 17",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 611,
+        "units": 550000
+      }
+    ],
+    "cents": [
+      611
+    ]
+  },
+  {
+    "name": "random half_up 18",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 380,
+        "units": 340000
+      }
+    ],
+    "cents": [
+      380
+    ]
+  },
+  {
+    "name": "random half_up 19",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 711,
+        "units": 640000
+      }
+    ],
+    "cents": [
+      711
+    ]
+  },
+  {
+    "name": "random half_up 20",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 417,
+        "units": 375000
+      },
+      {
+        "cents": 289,
+        "units": 260000
+      },
+      {
+        "cents": 133,
+        "units": 120000
+      },
+      {
+        "cents": -217,
+        "units": 195000
+      },
+      {
+        "cents": -522,
+        "units": 470000
+      }
+    ],
+    "cents": [
+      422,
+      289,
+      133,
+      -216,
+      -522
+    ]
+  },
+  {
+    "name": "random half_up 21",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 587,
+        "units": 525000
+      },
+      {
+        "cents": -291,
+        "units": 260000
+      },
+      {
+        "cents": 821,
+        "units": 735000
+      },
+      {
+        "cents": 235,
+        "units": 210000
+      }
+    ],
+    "cents": [
+      587,
+      -291,
+      821,
+      235
+    ]
+  },
+  {
+    "name": "random half_up 22",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 561,
+        "units": 505000
+      },
+      {
+        "cents": -189,
+        "units": 170000
+      }
+    ],
+    "cents": [
+      567,
+      -189
+    ]
+  },
+  {
+    "name": "random half_up 23",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 150,
+        "units": 135000
+      },
+      {
+        "cents": 150,
+        "units": 135000
+      }
+    ],
+    "cents": [
+      156,
+      155
+    ]
+  },
+  {
+    "name": "random half_up 24",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 547,
+        "units": 490000
+      }
+    ],
+    "cents": [
+      547
+    ]
+  },
+  {
+    "name": "random half_up 25",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 344,
+        "units": 310000
+      },
+      {
+        "cents": 706,
+        "units": 635000
+      }
+    ],
+    "cents": [
+      344,
+      712
+    ]
+  },
+  {
+    "name": "random half_up 26",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 550,
+        "units": 495000
+      },
+      {
+        "cents": 228,
+        "units": 205000
+      },
+      {
+        "cents": -678,
+        "units": 610000
+      },
+      {
+        "cents": 489,
+        "units": 440000
+      }
+    ],
+    "cents": [
+      556,
+      233,
+      -678,
+      489
+    ]
+  },
+  {
+    "name": "random half_up 27",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 112,
+        "units": 100000
+      }
+    ],
+    "cents": [
+      112
+    ]
+  },
+  {
+    "name": "random half_up 28",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 233,
+        "units": 210000
+      },
+      {
+        "cents": 117,
+        "units": 105000
+      },
+      {
+        "cents": -672,
+        "units": 605000
+      },
+      {
+        "cents": 44,
+        "units": 40000
+      }
+    ],
+    "cents": [
+      233,
+      123,
+      -673,
+      45
+    ]
+  },
+  {
+    "name": "random half_up 29",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 300,
+        "units": 270000
+      },
+      {
+        "cents": -744,
+        "units": 670000
+      },
+      {
+        "cents": 50,
+        "units": 45000
+      },
+      {
+        "cents": 172,
+        "units": 155000
+      },
+      {
+        "cents": -411,
+        "units": 370000
+      }
+    ],
+    "cents": [
+      300,
+      -744,
+      55,
+      178,
+      -411
+    ]
+  },
+  {
+    "name": "random half_up 30",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 123,
+        "units": 110000
+      },
+      {
+        "cents": 810,
+        "units": 725000
+      }
+    ],
+    "cents": [
+      123,
+      810
+    ]
+  },
+  {
+    "name": "random half_up 31",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 633,
+        "units": 570000
+      }
+    ],
+    "cents": [
+      633
+    ]
+  },
+  {
+    "name": "random half_up 32",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 722,
+        "units": 650000
+      },
+      {
+        "cents": -367,
+        "units": 330000
+      }
+    ],
+    "cents": [
+      722,
+      -366
+    ]
+  },
+  {
+    "name": "random half_up 33",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 251,
+        "units": 225000
+      },
+      {
+        "cents": -760,
+        "units": 680000
+      }
+    ],
+    "cents": [
+      251,
+      -759
+    ]
+  },
+  {
+    "name": "random half_up 34",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 17,
+        "units": 15000
+      },
+      {
+        "cents": 50,
+        "units": 45000
+      },
+      {
+        "cents": -194,
+        "units": 175000
+      }
+    ],
+    "cents": [
+      22,
+      56,
+      -195
+    ]
+  },
+  {
+    "name": "random half_up 35",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 111,
+        "units": 100000
+      }
+    ],
+    "cents": [
+      111
+    ]
+  },
+  {
+    "name": "random half_up 36",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 682,
+        "units": 610000
+      },
+      {
+        "cents": 341,
+        "units": 305000
+      }
+    ],
+    "cents": [
+      682,
+      340
+    ]
+  },
+  {
+    "name": "random half_up 37",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 372,
+        "units": 335000
+      },
+      {
+        "cents": 172,
+        "units": 155000
+      },
+      {
+        "cents": -200,
+        "units": 180000
+      }
+    ],
+    "cents": [
+      378,
+      178,
+      -200
+    ]
+  },
+  {
+    "name": "random half_up 38",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 100,
+        "units": 90000
+      },
+      {
+        "cents": 33,
+        "units": 30000
+      }
+    ],
+    "cents": [
+      100,
+      33
+    ]
+  },
+  {
+    "name": "random half_up 39",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 285,
+        "units": 255000
+      }
+    ],
+    "cents": [
+      285
+    ]
+  },
+  {
+    "name": "random half_up 40",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 822,
+        "units": 740000
+      },
+      {
+        "cents": 561,
+        "units": 505000
+      }
+    ],
+    "cents": [
+      822,
+      567
+    ]
+  },
+  {
+    "name": "random half_up 41",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 700,
+        "units": 630000
+      },
+      {
+        "cents": 622,
+        "units": 560000
+      }
+    ],
+    "cents": [
+      700,
+      622
+    ]
+  },
+  {
+    "name": "random half_up 42",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 542,
+        "units": 485000
+      },
+      {
+        "cents": -682,
+        "units": 610000
+      }
+    ],
+    "cents": [
+      542,
+      -682
+    ]
+  },
+  {
+    "name": "random half_up 43",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 483,
+        "units": 435000
+      }
+    ],
+    "cents": [
+      489
+    ]
+  },
+  {
+    "name": "random half_up 44",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 322,
+        "units": 290000
+      },
+      {
+        "cents": -100,
+        "units": 90000
+      },
+      {
+        "cents": -178,
+        "units": 160000
+      },
+      {
+        "cents": -61,
+        "units": 55000
+      }
+    ],
+    "cents": [
+      322,
+      -100,
+      -178,
+      -61
+    ]
+  },
+  {
+    "name": "random half_up 45",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 268,
+        "units": 240000
+      },
+      {
+        "cents": -218,
+        "units": 195000
+      },
+      {
+        "cents": 832,
+        "units": 745000
+      },
+      {
+        "cents": -251,
+        "units": 225000
+      },
+      {
+        "cents": 816,
+        "units": 730000
+      }
+    ],
+    "cents": [
+      268,
+      -218,
+      833,
+      -252,
+      816
+    ]
+  },
+  {
+    "name": "random half_up 46",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 256,
+        "units": 230000
+      },
+      {
+        "cents": -717,
+        "units": 645000
+      },
+      {
+        "cents": -167,
+        "units": 150000
+      }
+    ],
+    "cents": [
+      256,
+      -717,
+      -167
+    ]
+  },
+  {
+    "name": "random half_up 47",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 700,
+        "units": 630000
+      }
+    ],
+    "cents": [
+      700
+    ]
+  },
+  {
+    "name": "random half_up 48",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 196,
+        "units": 175000
+      },
+      {
+        "cents": 827,
+        "units": 740000
+      }
+    ],
+    "cents": [
+      196,
+      826
+    ]
+  },
+  {
+    "name": "random half_up 49",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 761,
+        "units": 685000
+      },
+      {
+        "cents": 233,
+        "units": 210000
+      }
+    ],
+    "cents": [
+      767,
+      233
+    ]
+  },
+  {
+    "name": "random half_up 50",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 506,
+        "units": 455000
+      }
+    ],
+    "cents": [
+      511
+    ]
+  },
+  {
+    "name": "random half_up 51",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 156,
+        "units": 140000
+      },
+      {
+        "cents": 6,
+        "units": 5000
+      },
+      {
+        "cents": -603,
+        "units": 540000
+      },
+      {
+        "cents": -235,
+        "units": 210000
+      }
+    ],
+    "cents": [
+      156,
+      6,
+      -603,
+      -235
+    ]
+  },
+  {
+    "name": "random half_up 52",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 411,
+        "units": 370000
+      },
+      {
+        "cents": 433,
+        "units": 390000
+      }
+    ],
+    "cents": [
+      411,
+      433
+    ]
+  },
+  {
+    "name": "random half_up 53",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 72,
+        "units": 65000
+      }
+    ],
+    "cents": [
+      78
+    ]
+  },
+  {
+    "name": "random half_up 54",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 302,
+        "units": 270000
+      },
+      {
+        "cents": 771,
+        "units": 690000
+      }
+    ],
+    "cents": [
+      302,
+      771
+    ]
+  },
+  {
+    "name": "random half_up 55",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 78,
+        "units": 70000
+      },
+      {
+        "cents": -306,
+        "units": 275000
+      },
+      {
+        "cents": -128,
+        "units": 115000
+      }
+    ],
+    "cents": [
+      78,
+      -306,
+      -128
+    ]
+  },
+  {
+    "name": "random half_up 56",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 194,
+        "units": 175000
+      },
+      {
+        "cents": -422,
+        "units": 380000
+      }
+    ],
+    "cents": [
+      200,
+      -422
+    ]
+  },
+  {
+    "name": "random half_up 57",
+    "mode": "half_up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 358,
+        "units": 320000
+      },
+      {
+        "cents": -50,
+        "units": 45000
+      },
+      {
+        "cents": 782,
+        "units": 700000
+      }
+    ],
+    "cents": [
+      358,
+      -51,
+      782
+    ]
+  },
+  {
+    "name": "random half_up 58",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 511,
+        "units": 460000
+      },
+      {
+        "cents": -344,
+        "units": 310000
+      },
+      {
+        "cents": 239,
+        "units": 215000
+      },
+      {
+        "cents": -561,
+        "units": 505000
+      }
+    ],
+    "cents": [
+      511,
+      -344,
+      244,
+      -561
+    ]
+  },
+  {
+    "name": "random half_up 59",
+    "mode": "half_up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 244,
+        "units": 220000
+      },
+      {
+        "cents": 400,
+        "units": 360000
+      },
+      {
+        "cents": 806,
+        "units": 725000
+      }
+    ],
+    "cents": [
+      244,
+      400,
+      812
+    ]
+  },
+  {
+    "name": "random down 0",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 100,
+        "units": 90000
+      },
+      {
+        "cents": -391,
+        "units": 350000
+      }
+    ],
+    "cents": [
+      100,
+      -390
+    ]
+  },
+  {
+    "name": "random down 1",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 16,
+        "units": 15000
+      },
+      {
+        "cents": -444,
+        "units": 400000
+      }
+    ],
+    "cents": [
+      11,
+      -444
+    ]
+  },
+  {
+    "name": "random down 2",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 405,
+        "units": 365000
+      },
+      {
+        "cents": 355,
+        "units": 320000
+      }
+    ],
+    "cents": [
+      400,
+      355
+    ]
+  },
+  {
+    "name": "random down 3",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 620,
+        "units": 555000
+      },
+      {
+        "cents": -664,
+        "units": 595000
+      },
+      {
+        "cents": -642,
+        "units": 575000
+      }
+    ],
+    "cents": [
+      620,
+      -664,
+      -643
+    ]
+  },
+  {
+    "name": "random down 4",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 27,
+        "units": 25000
+      },
+      {
+        "cents": 522,
+        "units": 470000
+      }
+    ],
+    "cents": [
+      22,
+      522
+    ]
+  },
+  {
+    "name": "random down 5",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 322,
+        "units": 290000
+      },
+      {
+        "cents": -727,
+        "units": 655000
+      },
+      {
+        "cents": -794,
+        "units": 715000
+      }
+    ],
+    "cents": [
+      322,
+      -727,
+      -795
+    ]
+  },
+  {
+    "name": "random down 6",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 134,
+        "units": 120000
+      },
+      {
+        "cents": -463,
+        "units": 415000
+      },
+      {
+        "cents": -245,
+        "units": 220000
+      }
+    ],
+    "cents": [
+      134,
+      -463,
+      -246
+    ]
+  },
+  {
+    "name": "random down 7",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 833,
+        "units": 750000
+      },
+      {
+        "cents": 494,
+        "units": 445000
+      },
+      {
+        "cents": -38,
+        "units": 35000
+      }
+    ],
+    "cents": [
+      833,
+      489,
+      -39
+    ]
+  },
+  {
+    "name": "random down 8",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 322,
+        "units": 290000
+      },
+      {
+        "cents": -50,
+        "units": 45000
+      },
+      {
+        "cents": -650,
+        "units": 585000
+      }
+    ],
+    "cents": [
+      322,
+      -50,
+      -649
+    ]
+  },
+  {
+    "name": "random down 9",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 826,
+        "units": 740000
+      },
+      {
+        "cents": -251,
+        "units": 225000
+      },
+      {
+        "cents": 279,
+        "units": 250000
+      }
+    ],
+    "cents": [
+      826,
+      -251,
+      279
+    ]
+  },
+  {
+    "name": "random down 10",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 138,
+        "units": 125000
+      }
+    ],
+    "cents": [
+      133
+    ]
+  },
+  {
+    "name": "random down 11",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 333,
+        "units": 300000
+      },
+      {
+        "cents": 361,
+        "units": 325000
+      },
+      {
+        "cents": -394,
+        "units": 355000
+      }
+    ],
+    "cents": [
+      333,
+      355,
+      -394
+    ]
+  },
+  {
+    "name": "random down 12",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 11,
+        "units": 10000
+      },
+      {
+        "cents": -832,
+        "units": 745000
+      }
+    ],
+    "cents": [
+      11,
+      -832
+    ]
+  },
+  {
+    "name": "random down 13",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 661,
+        "units": 595000
+      },
+      {
+        "cents": -205,
+        "units": 185000
+      },
+      {
+        "cents": 494,
+        "units": 445000
+      }
+    ],
+    "cents": [
+      655,
+      -205,
+      488
+    ]
+  },
+  {
+    "name": "random down 14",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 161,
+        "units": 145000
+      },
+      {
+        "cents": -361,
+        "units": 325000
+      }
+    ],
+    "cents": [
+      155,
+      -360
+    ]
+  },
+  {
+    "name": "random down 15",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 625,
+        "units": 560000
+      }
+    ],
+    "cents": [
+      625
+    ]
+  },
+  {
+    "name": "random down 16",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 250,
+        "units": 225000
+      },
+      {
+        "cents": 322,
+        "units": 290000
+      }
+    ],
+    "cents": [
+      244,
+      322
+    ]
+  },
+  {
+    "name": "random down 17",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 327,
+        "units": 295000
+      },
+      {
+        "cents": 572,
+        "units": 515000
+      }
+    ],
+    "cents": [
+      322,
+      566
+    ]
+  },
+  {
+    "name": "random down 18",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 178,
+        "units": 160000
+      },
+      {
+        "cents": -776,
+        "units": 695000
+      },
+      {
+        "cents": 329,
+        "units": 295000
+      },
+      {
+        "cents": -324,
+        "units": 290000
+      }
+    ],
+    "cents": [
+      178,
+      -775,
+      329,
+      -324
+    ]
+  },
+  {
+    "name": "random down 19",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 583,
+        "units": 525000
+      },
+      {
+        "cents": 227,
+        "units": 205000
+      }
+    ],
+    "cents": [
+      577,
+      223
+    ]
+  },
+  {
+    "name": "random down 20",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 605,
+        "units": 545000
+      },
+      {
+        "cents": -233,
+        "units": 210000
+      }
+    ],
+    "cents": [
+      600,
+      -234
+    ]
+  },
+  {
+    "name": "random down 21",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 486,
+        "units": 435000
+      },
+      {
+        "cents": 798,
+        "units": 715000
+      }
+    ],
+    "cents": [
+      486,
+      798
+    ]
+  },
+  {
+    "name": "random down 22",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 650,
+        "units": 585000
+      },
+      {
+        "cents": 800,
+        "units": 720000
+      },
+      {
+        "cents": -350,
+        "units": 315000
+      }
+    ],
+    "cents": [
+      644,
+      800,
+      -350
+    ]
+  },
+  {
+    "name": "random down 23",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 633,
+        "units": 570000
+      },
+      {
+        "cents": 738,
+        "units": 665000
+      },
+      {
+        "cents": 638,
+        "units": 575000
+      }
+    ],
+    "cents": [
+      633,
+      733,
+      634
+    ]
+  },
+  {
+    "name": "random down 24",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 61,
+        "units": 55000
+      },
+      {
+        "cents": -162,
+        "units": 145000
+      },
+      {
+        "cents": 184,
+        "units": 165000
+      }
+    ],
+    "cents": [
+      61,
+      -161,
+      183
+    ]
+  },
+  {
+    "name": "random down 25",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 822,
+        "units": 740000
+      },
+      {
+        "cents": -444,
+        "units": 400000
+      },
+      {
+        "cents": -166,
+        "units": 150000
+      },
+      {
+        "cents": -344,
+        "units": 310000
+      }
+    ],
+    "cents": [
+      822,
+      -445,
+      -166,
+      -344
+    ]
+  },
+  {
+    "name": "random down 26",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 55,
+        "units": 50000
+      },
+      {
+        "cents": -566,
+        "units": 510000
+      }
+    ],
+    "cents": [
+      55,
+      -566
+    ]
+  },
+  {
+    "name": "random down 27",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 351,
+        "units": 315000
+      },
+      {
+        "cents": 346,
+        "units": 310000
+      },
+      {
+        "cents": 614,
+        "units": 550000
+      },
+      {
+        "cents": 547,
+        "units": 490000
+      }
+    ],
+    "cents": [
+      351,
+      347,
+      614,
+      548
+    ]
+  },
+  {
+    "name": "random down 28",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 705,
+        "units": 635000
+      },
+      {
+        "cents": 388,
+        "units": 350000
+      },
+      {
+        "cents": -77,
+        "units": 70000
+      },
+      {
+        "cents": -566,
+        "units": 510000
+      }
+    ],
+    "cents": [
+      700,
+      388,
+      -77,
+      -567
+    ]
+  },
+  {
+    "name": "random down 29",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 238,
+        "units": 215000
+      }
+    ],
+    "cents": [
+      233
+    ]
+  },
+  {
+    "name": "random down 30",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 553,
+        "units": 495000
+      },
+      {
+        "cents": -184,
+        "units": 165000
+      },
+      {
+        "cents": 675,
+        "units": 605000
+      },
+      {
+        "cents": 22,
+        "units": 20000
+      },
+      {
+        "cents": -385,
+        "units": 345000
+      }
+    ],
+    "cents": [
+      553,
+      -185,
+      676,
+      23,
+      -386
+    ]
+  },
+  {
+    "name": "random down 31",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 777,
+        "units": 700000
+      }
+    ],
+    "cents": [
+      777
+    ]
+  },
+  {
+    "name": "random down 32",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 105,
+        "units": 95000
+      },
+      {
+        "cents": 405,
+        "units": 365000
+      }
+    ],
+    "cents": [
+      100,
+      400
+    ]
+  },
+  {
+    "name": "random down 33",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 94,
+        "units": 85000
+      }
+    ],
+    "cents": [
+      94
+    ]
+  },
+  {
+    "name": "random down 34",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 622,
+        "units": 560000
+      },
+      {
+        "cents": 683,
+        "units": 615000
+      }
+    ],
+    "cents": [
+      622,
+      678
+    ]
+  },
+  {
+    "name": "random down 35",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 200,
+        "units": 180000
+      },
+      {
+        "cents": 488,
+        "units": 440000
+      },
+      {
+        "cents": 827,
+        "units": 745000
+      },
+      {
+        "cents": -783,
+        "units": 705000
+      }
+    ],
+    "cents": [
+      200,
+      488,
+      823,
+      -784
+    ]
+  },
+  {
+    "name": "random down 36",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 648,
+        "units": 580000
+      },
+      {
+        "cents": 268,
+        "units": 240000
+      }
+    ],
+    "cents": [
+      648,
+      268
+    ]
+  },
+  {
+    "name": "random down 37",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 38,
+        "units": 35000
+      }
+    ],
+    "cents": [
+      33
+    ]
+  },
+  {
+    "name": "random down 38",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 655,
+        "units": 590000
+      },
+      {
+        "cents": -355,
+        "units": 320000
+      },
+      {
+        "cents": -744,
+        "units": 670000
+      },
+      {
+        "cents": 644,
+        "units": 580000
+      },
+      {
+        "cents": -755,
+        "units": 680000
+      }
+    ],
+    "cents": [
+      655,
+      -355,
+      -744,
+      644,
+      -755
+    ]
+  },
+  {
+    "name": "random down 39",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 201,
+        "units": 180000
+      }
+    ],
+    "cents": [
+      201
+    ]
+  },
+  {
+    "name": "random down 40",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 766,
+        "units": 690000
+      },
+      {
+        "cents": 261,
+        "units": 235000
+      },
+      {
+        "cents": 27,
+        "units": 25000
+      }
+    ],
+    "cents": [
+      766,
+      256,
+      22
+    ]
+  },
+  {
+    "name": "random down 41",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 722,
+        "units": 650000
+      },
+      {
+        "cents": 383,
+        "units": 345000
+      }
+    ],
+    "cents": [
+      722,
+      378
+    ]
+  },
+  {
+    "name": "random down 42",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 418,
+        "units": 375000
+      },
+      {
+        "cents": -162,
+        "units": 145000
+      },
+      {
+        "cents": -614,
+        "units": 550000
+      }
+    ],
+    "cents": [
+      418,
+      -162,
+      -613
+    ]
+  },
+  {
+    "name": "random down 43",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 805,
+        "units": 725000
+      },
+      {
+        "cents": -200,
+        "units": 180000
+      },
+      {
+        "cents": -172,
+        "units": 155000
+      }
+    ],
+    "cents": [
+      800,
+      -200,
+      -173
+    ]
+  },
+  {
+    "name": "random down 44",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 588,
+        "units": 530000
+      },
+      {
+        "cents": -833,
+        "units": 750000
+      },
+      {
+        "cents": -311,
+        "units": 280000
+      },
+      {
+        "cents": 555,
+        "units": 500000
+      },
+      {
+        "cents": 333,
+        "units": 300000
+      }
+    ],
+    "cents": [
+      588,
+      -832,
+      -311,
+      555,
+      333
+    ]
+  },
+  {
+    "name": "random down 45",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 307,
+        "units": 275000
+      }
+    ],
+    "cents": [
+      307
+    ]
+  },
+  {
+    "name": "random down 46",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 261,
+        "units": 235000
+      },
+      {
+        "cents": -572,
+        "units": 515000
+      },
+      {
+        "cents": 661,
+        "units": 595000
+      }
+    ],
+    "cents": [
+      255,
+      -571,
+      654
+    ]
+  },
+  {
+    "name": "random down 47",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 305,
+        "units": 275000
+      },
+      {
+        "cents": -777,
+        "units": 700000
+      },
+      {
+        "cents": 322,
+        "units": 290000
+      }
+    ],
+    "cents": [
+      300,
+      -777,
+      322
+    ]
+  },
+  {
+    "name": "random down 48",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 603,
+        "units": 540000
+      }
+    ],
+    "cents": [
+      603
+    ]
+  },
+  {
+    "name": "random down 49",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 5,
+        "units": 5000
+      },
+      {
+        "cents": 5,
+        "units": 5000
+      },
+      {
+        "cents": 561,
+        "units": 505000
+      }
+    ],
+    "cents": [
+      0,
+      0,
+      555
+    ]
+  },
+  {
+    "name": "random down 50",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 294,
+        "units": 265000
+      },
+      {
+        "cents": 50,
+        "units": 45000
+      }
+    ],
+    "cents": [
+      288,
+      45
+    ]
+  },
+  {
+    "name": "random down 51",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 653,
+        "units": 585000
+      },
+      {
+        "cents": -743,
+        "units": 665000
+      }
+    ],
+    "cents": [
+      653,
+      -742
+    ]
+  },
+  {
+    "name": "random down 52",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 372,
+        "units": 335000
+      },
+      {
+        "cents": -822,
+        "units": 740000
+      }
+    ],
+    "cents": [
+      366,
+      -821
+    ]
+  },
+  {
+    "name": "random down 53",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 38,
+        "units": 35000
+      },
+      {
+        "cents": -666,
+        "units": 600000
+      }
+    ],
+    "cents": [
+      33,
+      -666
+    ]
+  },
+  {
+    "name": "random down 54",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 698,
+        "units": 625000
+      },
+      {
+        "cents": 324,
+        "units": 290000
+      }
+    ],
+    "cents": [
+      698,
+      324
+    ]
+  },
+  {
+    "name": "random down 55",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 572,
+        "units": 515000
+      },
+      {
+        "cents": 638,
+        "units": 575000
+      },
+      {
+        "cents": -316,
+        "units": 285000
+      }
+    ],
+    "cents": [
+      566,
+      634,
+      -317
+    ]
+  },
+  {
+    "name": "random down 56",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 700,
+        "units": 630000
+      },
+      {
+        "cents": 16,
+        "units": 15000
+      },
+      {
+        "cents": -650,
+        "units": 585000
+      }
+    ],
+    "cents": [
+      700,
+      11,
+      -650
+    ]
+  },
+  {
+    "name": "random down 57",
+    "mode": "down",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 296,
+        "units": 265000
+      },
+      {
+        "cents": 731,
+        "units": 655000
+      }
+    ],
+    "cents": [
+      296,
+      731
+    ]
+  },
+  {
+    "name": "random down 58",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 105,
+        "units": 95000
+      },
+      {
+        "cents": 433,
+        "units": 390000
+      }
+    ],
+    "cents": [
+      100,
+      433
+    ]
+  },
+  {
+    "name": "random down 59",
+    "mode": "down",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 716,
+        "units": 645000
+      },
+      {
+        "cents": 650,
+        "units": 585000
+      },
+      {
+        "cents": -361,
+        "units": 325000
+      }
+    ],
+    "cents": [
+      711,
+      644,
+      -361
+    ]
+  },
+  {
+    "name": "random up 0",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 475,
+        "units": 425000
+      },
+      {
+        "cents": 325,
+        "units": 290000
+      },
+      {
+        "cents": -23,
+        "units": 20000
+      }
+    ],
+    "cents": [
+      475,
+      324,
+      -22
+    ]
+  },
+  {
+    "name": "random up 1",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 95,
+        "units": 85000
+      },
+      {
+        "cents": -673,
+        "units": 605000
+      },
+      {
+        "cents": -17,
+        "units": 15000
+      },
+      {
+        "cents": 267,
+        "units": 240000
+      }
+    ],
+    "cents": [
+      100,
+      -673,
+      -16,
+      266
+    ]
+  },
+  {
+    "name": "random up 2",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 539,
+        "units": 485000
+      },
+      {
+        "cents": 362,
+        "units": 325000
+      }
+    ],
+    "cents": [
+      545,
+      367
+    ]
+  },
+  {
+    "name": "random up 3",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 827,
+        "units": 740000
+      },
+      {
+        "cents": 771,
+        "units": 690000
+      }
+    ],
+    "cents": [
+      827,
+      771
+    ]
+  },
+  {
+    "name": "random up 4",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 245,
+        "units": 220000
+      },
+      {
+        "cents": -717,
+        "units": 645000
+      },
+      {
+        "cents": 245,
+        "units": 220000
+      }
+    ],
+    "cents": [
+      245,
+      -718,
+      245
+    ]
+  },
+  {
+    "name": "random up 5",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 539,
+        "units": 485000
+      }
+    ],
+    "cents": [
+      545
+    ]
+  },
+  {
+    "name": "random up 6",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 90,
+        "units": 80000
+      },
+      {
+        "cents": 760,
+        "units": 680000
+      }
+    ],
+    "cents": [
+      90,
+      760
+    ]
+  },
+  {
+    "name": "random up 7",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 795,
+        "units": 715000
+      }
+    ],
+    "cents": [
+      800
+    ]
+  },
+  {
+    "name": "random up 8",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 134,
+        "units": 120000
+      },
+      {
+        "cents": 184,
+        "units": 165000
+      }
+    ],
+    "cents": [
+      134,
+      189
+    ]
+  },
+  {
+    "name": "random up 9",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 643,
+        "units": 575000
+      },
+      {
+        "cents": 269,
+        "units": 240000
+      },
+      {
+        "cents": 397,
+        "units": 355000
+      },
+      {
+        "cents": 40,
+        "units": 35000
+      }
+    ],
+    "cents": [
+      643,
+      268,
+      397,
+      39
+    ]
+  },
+  {
+    "name": "random up 10",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 378,
+        "units": 340000
+      },
+      {
+        "cents": -250,
+        "units": 225000
+      },
+      {
+        "cents": 384,
+        "units": 345000
+      }
+    ],
+    "cents": [
+      378,
+      -250,
+      389
+    ]
+  },
+  {
+    "name": "random up 11",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 678,
+        "units": 610000
+      },
+      {
+        "cents": -806,
+        "units": 725000
+      },
+      {
+        "cents": 39,
+        "units": 35000
+      }
+    ],
+    "cents": [
+      678,
+      -806,
+      44
+    ]
+  },
+  {
+    "name": "random up 12",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 397,
+        "units": 355000
+      },
+      {
+        "cents": -40,
+        "units": 35000
+      },
+      {
+        "cents": -565,
+        "units": 505000
+      }
+    ],
+    "cents": [
+      397,
+      -39,
+      -565
+    ]
+  },
+  {
+    "name": "random up 13",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 67,
+        "units": 60000
+      },
+      {
+        "cents": 162,
+        "units": 145000
+      },
+      {
+        "cents": 712,
+        "units": 640000
+      },
+      {
+        "cents": -506,
+        "units": 455000
+      }
+    ],
+    "cents": [
+      67,
+      167,
+      711,
+      -506
+    ]
+  },
+  {
+    "name": "random up 14",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 678,
+        "units": 610000
+      },
+      {
+        "cents": 617,
+        "units": 555000
+      },
+      {
+        "cents": -695,
+        "units": 625000
+      },
+      {
+        "cents": 717,
+        "units": 645000
+      },
+      {
+        "cents": 295,
+        "units": 265000
+      }
+    ],
+    "cents": [
+      678,
+      622,
+      -694,
+      722,
+      300
+    ]
+  },
+  {
+    "name": "random up 15",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 6,
+        "units": 5000
+      },
+      {
+        "cents": 559,
+        "units": 500000
+      },
+      {
+        "cents": 660,
+        "units": 590000
+      }
+    ],
+    "cents": [
+      6,
+      559,
+      659
+    ]
+  },
+  {
+    "name": "random up 16",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 489,
+        "units": 440000
+      },
+      {
+        "cents": -645,
+        "units": 580000
+      },
+      {
+        "cents": 312,
+        "units": 280000
+      },
+      {
+        "cents": -417,
+        "units": 375000
+      }
+    ],
+    "cents": [
+      489,
+      -645,
+      312,
+      -418
+    ]
+  },
+  {
+    "name": "random up 17",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 95,
+        "units": 85000
+      },
+      {
+        "cents": 339,
+        "units": 305000
+      },
+      {
+        "cents": -100,
+        "units": 90000
+      },
+      {
+        "cents": 612,
+        "units": 550000
+      }
+    ],
+    "cents": [
+      100,
+      345,
+      -100,
+      611
+    ]
+  },
+  {
+    "name": "random up 18",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 593,
+        "units": 530000
+      },
+      {
+        "cents": 146,
+        "units": 130000
+      }
+    ],
+    "cents": [
+      593,
+      145
+    ]
+  },
+  {
+    "name": "random up 19",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 367,
+        "units": 330000
+      }
+    ],
+    "cents": [
+      367
+    ]
+  },
+  {
+    "name": "random up 20",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 484,
+        "units": 435000
+      },
+      {
+        "cents": 673,
+        "units": 605000
+      },
+      {
+        "cents": 406,
+        "units": 365000
+      }
+    ],
+    "cents": [
+      489,
+      678,
+      411
+    ]
+  },
+  {
+    "name": "random up 21",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 526,
+        "units": 470000
+      },
+      {
+        "cents": -459,
+        "units": 410000
+      },
+      {
+        "cents": 375,
+        "units": 335000
+      }
+    ],
+    "cents": [
+      526,
+      -458,
+      374
+    ]
+  },
+  {
+    "name": "random up 22",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 217,
+        "units": 195000
+      },
+      {
+        "cents": 150,
+        "units": 135000
+      },
+      {
+        "cents": -706,
+        "units": 635000
+      }
+    ],
+    "cents": [
+      223,
+      155,
+      -706
+    ]
+  },
+  {
+    "name": "random up 23",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 250,
+        "units": 225000
+      },
+      {
+        "cents": 489,
+        "units": 440000
+      }
+    ],
+    "cents": [
+      256,
+      489
+    ]
+  },
+  {
+    "name": "random up 24",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 190,
+        "units": 170000
+      },
+      {
+        "cents": -783,
+        "units": 700000
+      }
+    ],
+    "cents": [
+      190,
+      -783
+    ]
+  },
+  {
+    "name": "random up 25",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 728,
+        "units": 655000
+      },
+      {
+        "cents": 173,
+        "units": 155000
+      },
+      {
+        "cents": 728,
+        "units": 655000
+      }
+    ],
+    "cents": [
+      734,
+      178,
+      733
+    ]
+  },
+  {
+    "name": "random up 26",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 795,
+        "units": 715000
+      },
+      {
+        "cents": -584,
+        "units": 525000
+      }
+    ],
+    "cents": [
+      800,
+      -583
+    ]
+  },
+  {
+    "name": "random up 27",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 688,
+        "units": 615000
+      },
+      {
+        "cents": 704,
+        "units": 630000
+      }
+    ],
+    "cents": [
+      688,
+      704
+    ]
+  },
+  {
+    "name": "random up 28",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 106,
+        "units": 95000
+      },
+      {
+        "cents": 595,
+        "units": 535000
+      },
+      {
+        "cents": -762,
+        "units": 685000
+      }
+    ],
+    "cents": [
+      112,
+      600,
+      -762
+    ]
+  },
+  {
+    "name": "random up 29",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 434,
+        "units": 390000
+      },
+      {
+        "cents": -323,
+        "units": 290000
+      }
+    ],
+    "cents": [
+      434,
+      -322
+    ]
+  },
+  {
+    "name": "random up 30",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 263,
+        "units": 235000
+      },
+      {
+        "cents": -190,
+        "units": 170000
+      }
+    ],
+    "cents": [
+      263,
+      -190
+    ]
+  },
+  {
+    "name": "random up 31",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 184,
+        "units": 165000
+      },
+      {
+        "cents": -284,
+        "units": 255000
+      }
+    ],
+    "cents": [
+      189,
+      -284
+    ]
+  },
+  {
+    "name": "random up 32",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 212,
+        "units": 190000
+      }
+    ],
+    "cents": [
+      212
+    ]
+  },
+  {
+    "name": "random up 33",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 604,
+        "units": 540000
+      },
+      {
+        "cents": -805,
+        "units": 720000
+      },
+      {
+        "cents": 17,
+        "units": 15000
+      },
+      {
+        "cents": 704,
+        "units": 630000
+      }
+    ],
+    "cents": [
+      604,
+      -806,
+      17,
+      705
+    ]
+  },
+  {
+    "name": "random up 34",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 423,
+        "units": 380000
+      }
+    ],
+    "cents": [
+      423
+    ]
+  },
+  {
+    "name": "random up 35",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 250,
+        "units": 225000
+      },
+      {
+        "cents": -112,
+        "units": 100000
+      }
+    ],
+    "cents": [
+      256,
+      -111
+    ]
+  },
+  {
+    "name": "random up 36",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 654,
+        "units": 585000
+      }
+    ],
+    "cents": [
+      654
+    ]
+  },
+  {
+    "name": "random up 37",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 217,
+        "units": 195000
+      }
+    ],
+    "cents": [
+      223
+    ]
+  },
+  {
+    "name": "random up 38",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 650,
+        "units": 585000
+      },
+      {
+        "cents": -67,
+        "units": 60000
+      }
+    ],
+    "cents": [
+      656,
+      -67
+    ]
+  },
+  {
+    "name": "random up 39",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 453,
+        "units": 405000
+      },
+      {
+        "cents": -207,
+        "units": 185000
+      }
+    ],
+    "cents": [
+      453,
+      -207
+    ]
+  },
+  {
+    "name": "random up 40",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 156,
+        "units": 140000
+      }
+    ],
+    "cents": [
+      156
+    ]
+  },
+  {
+    "name": "random up 41",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 323,
+        "units": 290000
+      },
+      {
+        "cents": -112,
+        "units": 100000
+      },
+      {
+        "cents": -784,
+        "units": 705000
+      },
+      {
+        "cents": -395,
+        "units": 355000
+      }
+    ],
+    "cents": [
+      323,
+      -111,
+      -785,
+      -394
+    ]
+  },
+  {
+    "name": "random up 42",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 12,
+        "units": 10000
+      },
+      {
+        "cents": 168,
+        "units": 150000
+      },
+      {
+        "cents": 151,
+        "units": 135000
+      }
+    ],
+    "cents": [
+      12,
+      167,
+      151
+    ]
+  },
+  {
+    "name": "random up 43",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 417,
+        "units": 375000
+      },
+      {
+        "cents": 328,
+        "units": 295000
+      }
+    ],
+    "cents": [
+      423,
+      333
+    ]
+  },
+  {
+    "name": "random up 44",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 773,
+        "units": 695000
+      },
+      {
+        "cents": -273,
+        "units": 245000
+      }
+    ],
+    "cents": [
+      778,
+      -272
+    ]
+  },
+  {
+    "name": "random up 45",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 805,
+        "units": 720000
+      },
+      {
+        "cents": -537,
+        "units": 480000
+      },
+      {
+        "cents": -710,
+        "units": 635000
+      }
+    ],
+    "cents": [
+      805,
+      -536,
+      -711
+    ]
+  },
+  {
+    "name": "random up 46",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 695,
+        "units": 625000
+      },
+      {
+        "cents": -745,
+        "units": 670000
+      }
+    ],
+    "cents": [
+      700,
+      -745
+    ]
+  },
+  {
+    "name": "random up 47",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 267,
+        "units": 240000
+      },
+      {
+        "cents": 345,
+        "units": 310000
+      },
+      {
+        "cents": 473,
+        "units": 425000
+      }
+    ],
+    "cents": [
+      267,
+      345,
+      477
+    ]
+  },
+  {
+    "name": "random up 48",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 51,
+        "units": 45000
+      },
+      {
+        "cents": 157,
+        "units": 140000
+      },
+      {
+        "cents": -23,
+        "units": 20000
+      }
+    ],
+    "cents": [
+      51,
+      156,
+      -22
+    ]
+  },
+  {
+    "name": "random up 49",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 328,
+        "units": 295000
+      },
+      {
+        "cents": 167,
+        "units": 150000
+      },
+      {
+        "cents": -50,
+        "units": 45000
+      },
+      {
+        "cents": -128,
+        "units": 115000
+      }
+    ],
+    "cents": [
+      334,
+      166,
+      -50,
+      -127
+    ]
+  },
+  {
+    "name": "random up 50",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 489,
+        "units": 440000
+      }
+    ],
+    "cents": [
+      489
+    ]
+  },
+  {
+    "name": "random up 51",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 615,
+        "units": 550000
+      }
+    ],
+    "cents": [
+      615
+    ]
+  },
+  {
+    "name": "random up 52",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 339,
+        "units": 305000
+      },
+      {
+        "cents": -200,
+        "units": 180000
+      }
+    ],
+    "cents": [
+      345,
+      -200
+    ]
+  },
+  {
+    "name": "random up 53",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 800,
+        "units": 720000
+      },
+      {
+        "cents": 650,
+        "units": 585000
+      },
+      {
+        "cents": 723,
+        "units": 650000
+      }
+    ],
+    "cents": [
+      800,
+      656,
+      722
+    ]
+  },
+  {
+    "name": "random up 54",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 442,
+        "units": 395000
+      },
+      {
+        "cents": 224,
+        "units": 200000
+      },
+      {
+        "cents": 252,
+        "units": 225000
+      }
+    ],
+    "cents": [
+      442,
+      223,
+      252
+    ]
+  },
+  {
+    "name": "random up 55",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 556,
+        "units": 500000
+      },
+      {
+        "cents": 378,
+        "units": 340000
+      }
+    ],
+    "cents": [
+      556,
+      378
+    ]
+  },
+  {
+    "name": "random up 56",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 56,
+        "units": 50000
+      }
+    ],
+    "cents": [
+      56
+    ]
+  },
+  {
+    "name": "random up 57",
+    "mode": "up",
+    "unitsPerUsd": 89500,
+    "cashRoundingUnit": 5000,
+    "entries": [
+      {
+        "cents": 414,
+        "units": 370000
+      },
+      {
+        "cents": -118,
+        "units": 105000
+      },
+      {
+        "cents": -90,
+        "units": 80000
+      },
+      {
+        "cents": 716,
+        "units": 640000
+      }
+    ],
+    "cents": [
+      414,
+      -117,
+      -90,
+      715
+    ]
+  },
+  {
+    "name": "random up 58",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 306,
+        "units": 275000
+      },
+      {
+        "cents": 295,
+        "units": 265000
+      }
+    ],
+    "cents": [
+      312,
+      300
+    ]
+  },
+  {
+    "name": "random up 59",
+    "mode": "up",
+    "unitsPerUsd": 90000,
+    "cashRoundingUnit": 10000,
+    "entries": [
+      {
+        "cents": 478,
+        "units": 430000
+      }
+    ],
+    "cents": [
+      478
+    ]
+  }
+]
