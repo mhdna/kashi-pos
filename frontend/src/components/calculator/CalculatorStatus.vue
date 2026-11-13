@@ -139,14 +139,14 @@ function flipCurrency() {
 .calculator-amounts.calculator-green {
   color: #2e7d32;
   border-color: #2e7d32;
-  box-shadow: inset 0 0 0 1px #2e7d32;
+  box-shadow: inset 0 0 0 3px #2e7d32;
 }
 .calculator-green {
   color: #2e7d32;
 }
 .calculator-amounts.text-red-darken-2 {
   border-color: #c62828;
-  box-shadow: inset 0 0 0 1px #c62828;
+  box-shadow: inset 0 0 0 3px #c62828;
 }
 .calculator-amounts-flip {
   position: absolute;
