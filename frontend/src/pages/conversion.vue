@@ -368,6 +368,10 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(249, 168, 37, 0.18);
   color: #f9a825;
 }
 .unlock-title {
