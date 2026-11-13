@@ -64,7 +64,7 @@
         >
           {{ digit }}
         </k-btn>
-        <k-btn class="number-pad-key" size="small" variant="text" @click="clear">C</k-btn>
+        <k-btn class="number-pad-key" color="error" size="small" variant="flat" data-test="number-pad-clear" @click="clear">C</k-btn>
         <k-btn class="number-pad-key" size="small" variant="tonal" @click="appendDigit('0')">
           0
         </k-btn>
@@ -80,9 +80,8 @@
         <k-btn
           class="number-pad-key"
           :class="{ 'number-pad-key--wide': allowDecimal }"
-          color="error"
           size="small"
-          variant="flat"
+          variant="text"
           data-test="number-pad-backspace"
           @click="backspace"
         >

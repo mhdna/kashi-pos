@@ -82,14 +82,18 @@ describe("number pad heading", () => {
     w.unmount();
   });
 
-  it("the backspace key is a red key with a white icon", async () => {
+  it("the C (clear) key is the red one; backspace is a plain key", async () => {
     const { default: NumberPadMenu } = await import("./NumberPadMenu.vue");
     const w = mount(NumberPadMenu, { props: { modelValue: 5 }, global: { plugins: [ui] }, attachTo: document.body });
     await open(w.find(".number-pad-activator").element);
-    const key = document.body.querySelector("[data-test=number-pad-backspace]")!;
-    expect(key.className).toContain("k-btn--variant-flat");
-    expect(key.getAttribute("style") ?? "").toMatch(/error/);
-    expect(key.querySelector(".k-icon")).toBeTruthy();
+    const clear = document.body.querySelector("[data-test=number-pad-clear]")!;
+    const back = document.body.querySelector("[data-test=number-pad-backspace]")!;
+    expect(clear.textContent!.trim()).toBe("C");
+    expect(clear.className).toContain("k-btn--variant-flat");
+    expect(clear.getAttribute("style") ?? "").toMatch(/error/);
+    expect(back.className).toContain("k-btn--variant-text");
+    expect(back.getAttribute("style") ?? "").not.toMatch(/error/);
+    expect(back.querySelector(".k-icon")).toBeTruthy();
     w.unmount();
   });
 });
