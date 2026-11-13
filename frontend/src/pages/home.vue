@@ -16,6 +16,7 @@
             </div>
             <div class="d-flex flex-column align-end">
               <div class="d-flex align-center ga-2">
+                <ToggleTheme />
                 <div
                   class="required-assignees d-flex align-center ga-2"
                   :class="{ 'required-assignees--missing': missingAssignmentFlash }"
@@ -482,6 +483,7 @@ import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import { printReturnReceipts, productSearchInPlace, quickAccessRows } from "@/lib/display";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
 import SalespersonsDialog from "@/components/SalespersonsDialog.vue";
+import ToggleTheme from "@/components/ToggleTheme.vue";
 import type { ExchangeSelection } from "@/lib/exchange";
 import { formatUsd } from "@/lib/format";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
