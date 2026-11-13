@@ -1976,6 +1976,9 @@ defineExpose({
   margin: 0 auto;
   padding: 12px 64px;
   background: rgb(var(--k-theme-surface));
+  /* It is teleported out of the app root, which is what sets the text colour,
+     so say it here: otherwise the keys' labels stay black in the dark theme. */
+  color: rgb(var(--k-theme-on-surface));
   border: 1px solid rgba(var(--k-border-color), 0.16);
   border-radius: 16px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.32);
