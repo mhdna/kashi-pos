@@ -1,5 +1,5 @@
 <template>
-  <k-dialog :model-value="modelValue" :max-width="step === 'name' ? 680 : 360" @update:model-value="emit('update:modelValue', $event)">
+  <k-dialog :model-value="modelValue" :max-width="step === 'name' ? 880 : 360" @update:model-value="emit('update:modelValue', $event)">
     <k-card class="pa-4">
       <!-- Step 1: the price, on a number pad. -->
       <template v-if="step === 'price'">
@@ -29,15 +29,15 @@
       <!-- Step 2: what it is, on the on-screen keyboard, so the invoice list and
            the receipt say it instead of "Unknown item". -->
       <template v-else>
-        <k-card-title class="px-0 pt-0 text-center text-h5">Name the item</k-card-title>
-        <div class="text-h6 text-medium-emphasis text-center mb-3">
+        <k-card-title class="px-0 pt-0 text-center text-h4">Name the item</k-card-title>
+        <div class="text-h5 text-medium-emphasis text-center mb-3">
           What is it? <span dir="rtl" lang="ar">ما هي القطعة؟</span>
           <span class="unknown-name-price">${{ display }}</span>
         </div>
         <div class="unknown-name-display mb-3" :class="{ 'unknown-name-display--empty': !name }" data-testid="unknown-name">
           {{ name || "Name" }}
         </div>
-        <InlineKeyboard v-model="name" layout="code" :max-length="MAX_NAME" />
+        <InlineKeyboard v-model="name" class="unknown-name-keyboard" layout="code" :max-length="MAX_NAME" />
         <k-card-actions class="px-0 pb-0 mt-3">
           <k-btn variant="text" data-test="unknown-back" @click="step = 'price'">Back</k-btn>
           <k-spacer />
@@ -143,16 +143,19 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
 .unknown-name-price {
   display: block;
   margin-top: 2px;
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 500;
   color: rgb(var(--k-theme-on-surface));
 }
 .unknown-name-display {
-  min-height: 56px;
-  padding: 12px 16px;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
   border: 2px solid rgba(var(--k-theme-primary), 0.7);
-  border-radius: 8px;
-  font-size: 1.75rem;
+  border-radius: 10px;
+  font-size: 2.5rem;
   line-height: 1.2;
   text-align: center;
   overflow-wrap: anywhere;
@@ -175,5 +178,19 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
   height: 100% !important;
   min-width: 0;
   padding: 0;
+}
+.unknown-name-keyboard :deep(.inline-keyboard-key) {
+  height: 72px;
+  max-width: 96px;
+  font-size: 2.5rem;
+}
+.unknown-name-keyboard :deep(.inline-keyboard-actions > .k-btn) {
+  height: 72px;
+  min-height: 72px;
+  font-size: 2.25rem;
+}
+.unknown-name-keyboard :deep(.inline-keyboard-row) {
+  gap: 8px;
+  margin-bottom: 8px;
 }
 </style>

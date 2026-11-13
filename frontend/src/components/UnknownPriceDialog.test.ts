@@ -2,6 +2,8 @@
 //
 // "Unknown item": the price on a number pad, then the item's name on the
 // on-screen keyboard; the sale's list and receipt say that name.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import ui from "@/ui";
@@ -145,5 +147,21 @@ describe("unknown item dialog", () => {
     await openDialog();
     await key("Enter");
     expect(body().textContent).not.toContain("Name the item");
+  });
+
+  it("the name step is a big one: a wide dialog, a tall name box and tall keys", async () => {
+    const source = readFileSync(resolve(process.cwd(), "src/components/UnknownPriceDialog.vue"), "utf8");
+    const num = (re: RegExp) => Number(source.match(re)![1]);
+    // The dialog widens for the name step (the price step stays a narrow pad).
+    expect(source).toMatch(/step === 'name' \? 880 : 360/);
+    expect(num(/\.unknown-name-display \{[^}]*min-height: (\d+)px/)).toBeGreaterThanOrEqual(80);
+    expect(num(/\.unknown-name-display \{[^}]*font-size: ([\d.]+)rem/)).toBeGreaterThanOrEqual(2.5);
+    expect(num(/\.unknown-name-keyboard :deep\(\.inline-keyboard-key\) \{[^}]*height: (\d+)px/)).toBeGreaterThanOrEqual(72);
+    expect(num(/\.unknown-name-keyboard :deep\(\.inline-keyboard-actions > \.k-btn\) \{[^}]*height: (\d+)px/)).toBeGreaterThanOrEqual(72);
+    // And the keyboard is the one carrying that class.
+    await openDialog();
+    await typePrice("5");
+    await click(next());
+    expect(q(".unknown-name-keyboard")).toBeTruthy();
   });
 });
