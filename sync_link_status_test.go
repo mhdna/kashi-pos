@@ -25,11 +25,14 @@ func newTestTracker() (*linkTracker, *int32) {
 
 func TestLinkKashiResultTracksReachability(t *testing.T) {
 	l, _ := newTestTracker()
+	clock := time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
+	l.now = func() time.Time { return clock }
 	if s := l.snapshot(); s.Kashi != "unknown" || s.Internet != "unknown" || s.Phase != phaseIdle {
 		t.Fatalf("fresh tracker = %+v, want everything unknown and idle", s)
 	}
 
 	l.kashiResult(&url.Error{Op: "Get", URL: "http://k", Err: &net.OpError{Op: "dial", Err: errors.New("refused")}})
+	clock = clock.Add(linkDownGrace)
 	s := l.snapshot()
 	if s.Kashi != "down" || s.KashiError != "can't connect to the server" {
 		t.Fatalf("after a failed request: %+v", s)
@@ -60,6 +63,130 @@ func TestLinkKashiDownForCountsFromTheFirstFailure(t *testing.T) {
 	l.kashiResult(errors.New("boom again")) // a second failure doesn't restart the clock
 	if got := l.snapshot().KashiDownFor; got != 90 {
 		t.Fatalf("down for %ds, want 90", got)
+	}
+}
+
+// The report: one request lost to a few seconds of bad Wi-Fi painted the
+// light "No central" until the next one got through. Now a failure shows only
+// once central has been silent for linkDownGrace.
+func TestLinkKashiDownWaitsOutTheGrace(t *testing.T) {
+	l, _ := newTestTracker()
+	clock := time.Date(2026, 11, 13, 22, 0, 0, 0, time.UTC)
+	l.now = func() time.Time { return clock }
+	l.kashiResult(nil)
+
+	timeout := &url.Error{Op: "Get", URL: "https://k/health", Err: context.DeadlineExceeded}
+	l.kashiResult(timeout)
+	if s := l.snapshot(); s.Kashi != "up" || s.KashiError != "" || s.KashiDownFor != 0 {
+		t.Fatalf("one failed request must not show: %+v", s)
+	}
+	clock = clock.Add(linkDownGrace - time.Second)
+	l.kashiResult(timeout) // still failing, still inside the grace
+	if s := l.snapshot(); s.Kashi != "up" {
+		t.Fatalf("%v of silence must not show yet: %+v", linkDownGrace-time.Second, s)
+	}
+
+	clock = clock.Add(time.Second)
+	s := l.snapshot()
+	if s.Kashi != "down" || s.KashiError != "the server took too long to answer" || s.KashiDownFor != 30 {
+		t.Fatalf("after %v of silence: %+v, want down for 30 s with the reason", linkDownGrace, s)
+	}
+
+	// The first answer ends it at once, and the next blip waits again.
+	l.kashiResult(nil)
+	if s := l.snapshot(); s.Kashi != "up" || s.KashiDownFor != 0 {
+		t.Fatalf("after an answer: %+v", s)
+	}
+	clock = clock.Add(time.Minute)
+	l.kashiResult(timeout)
+	clock = clock.Add(10 * time.Second)
+	if s := l.snapshot(); s.Kashi != "up" {
+		t.Fatalf("a new blip must wait out its own grace: %+v", s)
+	}
+}
+
+// A blip right after the till starts, before central ever answered, keeps the
+// light "unknown" (connecting) instead of red.
+func TestLinkKashiDownBeforeAnyAnswerStaysUnknown(t *testing.T) {
+	l, _ := newTestTracker()
+	clock := time.Date(2026, 11, 13, 22, 0, 0, 0, time.UTC)
+	l.now = func() time.Time { return clock }
+	l.kashiResult(errors.New("dial tcp: refused"))
+	if got := l.snapshot().Kashi; got != "unknown" {
+		t.Fatalf("Kashi = %q, want unknown inside the grace", got)
+	}
+	clock = clock.Add(linkDownGrace)
+	if got := l.snapshot().Kashi; got != "down" {
+		t.Fatalf("Kashi = %q, want down after the grace", got)
+	}
+}
+
+// The internet probe gets the same grace, counted from when the outage began:
+// if central went silent first, a lost internet shows as soon as central's
+// grace ends, so the light goes straight to "No internet", never "No central"
+// on the way.
+func TestLinkInternetDownSharesTheOutageStart(t *testing.T) {
+	l, _ := newTestTracker()
+	clock := time.Date(2026, 11, 13, 22, 0, 0, 0, time.UTC)
+	l.now = func() time.Time { return clock }
+	l.kashiResult(nil)
+
+	l.kashiResult(errors.New("dial tcp: no route"))
+	clock = clock.Add(20 * time.Second)
+	l.setInternet("down") // the probe runs a little later
+	if s := l.snapshot(); s.Internet != "up" || s.Kashi != "up" {
+		t.Fatalf("inside the grace: %+v, want both still up", s)
+	}
+	clock = clock.Add(10 * time.Second) // 30 s since central went silent
+	if s := l.snapshot(); s.Internet != "down" || s.Kashi != "down" {
+		t.Fatalf("after the grace: %+v, want both down together", s)
+	}
+
+	// On its own (central fine), a failed probe waits its own grace.
+	l2, _ := newTestTracker()
+	l2.now = func() time.Time { return clock }
+	l2.setInternet("up")
+	l2.setInternet("down")
+	if got := l2.snapshot().Internet; got != "up" {
+		t.Fatalf("Internet = %q right after a failed probe, want up", got)
+	}
+	clock = clock.Add(linkDownGrace)
+	if got := l2.snapshot().Internet; got != "down" {
+		t.Fatalf("Internet = %q after the grace, want down", got)
+	}
+	l2.setInternet("up")
+	if got := l2.snapshot().Internet; got != "up" {
+		t.Fatalf("Internet = %q after it came back, want up", got)
+	}
+}
+
+// When the grace ends the screen is asked to refetch, even if nothing else
+// happens, so the red light appears on time.
+func TestLinkGraceEndAsksForARefetch(t *testing.T) {
+	l, emits := newTestTracker()
+	var armed []time.Duration
+	var fire []func()
+	l.after = func(d time.Duration, fn func()) { armed = append(armed, d); fire = append(fire, fn) }
+	l.kashiResult(nil)
+	time.Sleep(2 * linkEmitMinGap)
+
+	l.kashiResult(errors.New("timeout"))
+	l.kashiResult(errors.New("timeout again")) // already down: no second timer
+	l.setInternet("down")
+	if len(armed) != 2 || armed[0] != linkDownGrace || armed[1] != linkDownGrace {
+		t.Fatalf("timers armed = %v, want one for central and one for the internet, each %v", armed, linkDownGrace)
+	}
+	time.Sleep(2 * linkEmitMinGap)
+	before := atomic.LoadInt32(emits)
+	fire[0]()
+	time.Sleep(2 * linkEmitMinGap)
+	if atomic.LoadInt32(emits) == before {
+		t.Fatal("the end of the grace must ask the screen to refetch")
+	}
+
+	l.kashiResult(nil)
+	if len(armed) != 2 {
+		t.Fatal("an answer must not arm a timer")
 	}
 }
 
@@ -203,8 +330,12 @@ func TestLinkTransportReportsEveryRequest(t *testing.T) {
 	if _, err := client.Get(server.URL + "/gone"); err == nil {
 		t.Fatal("expected a connection error")
 	}
-	if s := link.snapshot(); s.Kashi != "down" || s.KashiError == "" {
-		t.Fatalf("a refused connection must mark central down: %+v", s)
+	// The screen waits out linkDownGrace; the tracker itself knows at once.
+	link.mu.Lock()
+	raw, rawErr := link.kashi, link.kashiErr
+	link.mu.Unlock()
+	if raw != "down" || rawErr == "" {
+		t.Fatalf("a refused connection must mark central down: %q %q", raw, rawErr)
 	}
 }
 

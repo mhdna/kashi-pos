@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ACTIVITY_HOLD_MS, agoText, describeLink, durationText, secondsUntil, shouldHoldBusy, type LinkInfo, type QueueInfo } from "./linkStatus";
 
@@ -323,5 +324,48 @@ describe("the screen says central, never kashi", () => {
       expect(texts(l as Partial<LinkInfo>), JSON.stringify(l)).not.toMatch(/kashi/i);
     }
     expect(texts({})).toMatch(/central server/);
+  });
+});
+
+// Real snapshots from the Go tracker (TestLinkGraceGolden): a blip of up to
+// 30 s never reads "No central", and a real outage turns red only after it.
+describe("the light through a blip and an outage (backend fixture)", () => {
+  type Step = { name: string; atUnix: number; link: LinkInfo };
+  const steps: Step[] = JSON.parse(
+    readFileSync(new URL("./testdata/link_grace.json", import.meta.url), "utf8"),
+  );
+  const word = (name: string) => {
+    const s = steps.find((x) => x.name === name);
+    if (!s) throw new Error(`no step ${name}`);
+    return describeLink(s.link, queue({ pending: 2 }), idle, s.atUnix * 1000);
+  };
+
+  it("has every step", () => {
+    expect(steps.map((s) => s.name)).toEqual([
+      "answering",
+      "blip: one request failed",
+      "blip: 29 s of silence",
+      "blip over: central answers",
+      "central down 30 s, internet fine",
+      "outage: 20 s in, probe failed",
+      "outage: 30 s in",
+    ]);
+  });
+  it("stays calm through a blip", () => {
+    for (const name of ["answering", "blip: one request failed", "blip: 29 s of silence", "blip over: central answers", "outage: 20 s in, probe failed"]) {
+      const s = word(name);
+      expect(s.tone, name).not.toBe("bad");
+      expect(s.word, name).not.toBe("No central");
+      expect(s.word, name).not.toBe("No internet");
+      expect(s.internetTone, name).not.toBe("bad");
+    }
+  });
+  it("says No central once central has been silent 30 s", () => {
+    const s = word("central down 30 s, internet fine");
+    expect(s).toMatchObject({ tone: "bad", word: "No central", sub: "2 waiting" });
+    expect(s.title).toContain("dial tcp: connection refused");
+  });
+  it("goes straight to No internet in a real outage", () => {
+    expect(word("outage: 30 s in")).toMatchObject({ tone: "bad", word: "No internet", internetTone: "bad" });
   });
 });

@@ -9,7 +9,7 @@ export default {
     arrow([[200, 105], [225, 105]]), arrow([[375, 105], [400, 105]]),
     box(50, 180, 240, 90, 'local servers', 'plain', ':8788 shift receipt photo\n:8789 attendance ping'),
     box(315, 180, 235, 90, 'devices', 'plain', 'receipt printer, scanner,\ncash drawer, Akuvox door'),
-    box(640, 70, 240, 110, 'kashi', 'blue', 'central server\nGo + Postgres + web app'),
+    box(640, 70, 240, 110, 'central', 'blue', 'kashi server\nGo + Postgres + web app'),
     arrow([[580, 125], [640, 125]], 'sync\nWebSocket'),
     `<text class="note" x="450" y="350">A till works alone when no central URL is set (standalone mode).</text>`,
     `<text class="note" x="450" y="376">central owns products, prices and clients; the till owns invoices, shifts and cash.</text>`,
@@ -17,9 +17,9 @@ export default {
 
   syncOverview: svg(900, 330, [
     box(20, 110, 250, 110, 'Till', 'orange', 'invoices, exchanges, shifts,\nexpenses, loans, attendance'),
-    box(630, 110, 250, 110, 'kashi', 'blue', 'products, variants, prices,\nclients, salespersons, currencies'),
-    arrow([[270, 140], [630, 140]], 'push: outbox, every 15 s'),
-    arrow([[630, 195], [270, 195]], 'pull: updated_at cursor'),
+    box(630, 110, 250, 110, 'central', 'blue', 'products, variants, prices,\nclients, salespersons, currencies'),
+    arrow([[270, 140], [630, 140]], 'push: outbox, kicked on every write'),
+    arrow([[630, 195], [270, 195]], 'pull: updated_at cursor, every 15 s'),
     arrow([[750, 110], [750, 40], [150, 40], [150, 110]], 'WebSocket nudges: pull now, command waiting, update available', 'dash'),
     arrow([[750, 220], [750, 290], [150, 290], [150, 220]], 'commands: update_settings, print, sync_now ...', 'dash'),
   ].join('')),
@@ -27,11 +27,20 @@ export default {
   outbox: svg(900, 220, [
     box(10, 40, 190, 80, 'local write', 'orange', 'invoice, shift, expense'),
     box(235, 40, 190, 80, 'sync_outbox row', 'green', 'same transaction\nas the write'),
-    box(460, 40, 190, 80, 'push loop', 'blue', '15 s + 5 s backstop\n+ kick after a write'),
-    box(685, 40, 200, 80, 'kashi', 'plain'),
+    box(460, 40, 190, 80, 'push loop', 'blue', 'kick after a write\n+ 5 s backstop'),
+    box(685, 40, 200, 80, 'central', 'plain'),
     arrow([[200, 80], [235, 80]]), arrow([[425, 80], [460, 80]]), arrow([[650, 80], [685, 80]]),
     arrow([[555, 120], [555, 175], [300, 175], [300, 120]], 'no connection: stop the pass, wait 5 s, 10 s ... 1 min', 'dash'),
     `<text class="note" x="450" y="212">A real error from central (5xx, 408, 429) backs off only that row; failed rows retry hourly.</text>`,
+  ].join('')),
+
+  linkGrace: svg(900, 250, [
+    box(10, 30, 270, 90, 'one request fails', 'plain', 'tracker: down at once\nprobe + push back-off start'),
+    box(315, 30, 270, 90, 'up to 30 s', 'green', 'light keeps the last good state\n(up, or connecting)'),
+    box(620, 30, 270, 90, 'still silent at 30 s', 'orange', 'No central, or No internet\nif the probe failed too'),
+    arrow([[280, 75], [315, 75]]), arrow([[585, 75], [620, 75]]),
+    arrow([[450, 120], [450, 180], [145, 180], [145, 120]], 'any answer inside the grace: nothing ever showed', 'dash'),
+    `<text class="note" x="450" y="232">The outage counts from whichever went silent first; a timer refetches when the grace ends.</text>`,
   ].join('')),
 
   pricing: svg(900, 220, [

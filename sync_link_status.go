@@ -37,6 +37,13 @@ const (
 	// at least this long, so a change that lands in a few milliseconds can
 	// still be seen.
 	linkMinShow = 1500 * time.Millisecond
+	// linkDownGrace is how long central (or the internet) must stay silent
+	// before the screen says so. One request lost to a few seconds of bad
+	// Wi-Fi used to paint the light red ("No central") until the next request
+	// got through; the push loop retries within seconds, so a real outage
+	// still shows within this, and a blip never shows at all. The tracker
+	// itself (and the internet probe) still sees the failure at once.
+	linkDownGrace = 30 * time.Second
 )
 
 // Phases of the till's current work. "idle" means nothing is moving.
@@ -85,6 +92,10 @@ type linkTracker struct {
 
 	internet        string
 	internetChecked time.Time
+	internetDownAt  time.Time
+	// internetBefore is what the internet was before it went down, shown
+	// while the drop is still inside linkDownGrace.
+	internetBefore string
 
 	kashi       string
 	kashiErr    string
@@ -128,6 +139,8 @@ type linkTracker struct {
 	lastEmit  time.Time
 	emitTimer *time.Timer
 	now       func() time.Time
+	// after runs fn once d has passed (time.AfterFunc unless a test swaps it).
+	after func(d time.Duration, fn func())
 }
 
 var link = &linkTracker{now: time.Now}
@@ -182,6 +195,7 @@ func (l *linkTracker) kashiResult(err error) {
 		l.kashi, l.kashiErr = "down", friendlyNetError(err)
 		if prev != "down" {
 			l.kashiDownAt = now
+			l.afterGraceLocked()
 		}
 	}
 	if prev != l.kashi || prevErr != l.kashiErr {
@@ -263,9 +277,64 @@ func (l *linkTracker) setInternet(state string) {
 	defer l.mu.Unlock()
 	l.internetChecked = l.now()
 	if l.internet != state {
+		if state == "down" {
+			l.internetBefore, l.internetDownAt = l.internet, l.now()
+			l.afterGraceLocked()
+		} else {
+			l.internetDownAt = time.Time{}
+		}
 		l.internet = state
 		l.changedLocked()
 	}
+}
+
+// afterGraceLocked asks the screen to refetch once linkDownGrace has passed,
+// so a "down" held back by the grace shows then even if no other request
+// fails in between. A stale timer only costs one extra refetch. Caller
+// holds l.mu.
+func (l *linkTracker) afterGraceLocked() {
+	if l.emit == nil {
+		return
+	}
+	after := l.after
+	if after == nil {
+		after = func(d time.Duration, fn func()) { time.AfterFunc(d, fn) }
+	}
+	after(linkDownGrace, func() {
+		l.mu.Lock()
+		l.changedLocked()
+		l.mu.Unlock()
+	})
+}
+
+// shownKashi and shownInternet are what the screen is told: a "down" counts
+// only once it has lasted linkDownGrace. Until then the last good state
+// stands ("up", or "unknown" before anything answered). An outage starts at
+// whichever went silent first, so a real one that takes out the internet
+// turns into "No internet" in one step, not "No central" first. Caller
+// holds l.mu.
+func (l *linkTracker) shownKashi(now time.Time) string {
+	if l.kashi == "down" && now.Sub(l.kashiDownAt) < linkDownGrace {
+		if l.kashiLastOK.IsZero() {
+			return "unknown"
+		}
+		return "up"
+	}
+	return orDefault(l.kashi, "unknown")
+}
+
+func (l *linkTracker) shownInternet(now time.Time) string {
+	if l.internet != "down" {
+		return orDefault(l.internet, "unknown")
+	}
+	start := l.internetDownAt
+	if l.kashi == "down" && !l.kashiDownAt.IsZero() && l.kashiDownAt.Before(start) {
+		start = l.kashiDownAt
+	}
+	if now.Sub(start) < linkDownGrace {
+		return orDefault(l.internetBefore, "unknown")
+	}
+	return "down"
 }
 
 func (l *linkTracker) setVerbose(v bool) {
@@ -415,9 +484,10 @@ func (l *linkTracker) snapshot() LinkStatus {
 		}
 		return t.UTC().Format(time.RFC3339)
 	}
+	now := l.now()
 	s := LinkStatus{
-		Internet:      orDefault(l.internet, "unknown"),
-		Kashi:         orDefault(l.kashi, "unknown"),
+		Internet:      l.shownInternet(now),
+		Kashi:         l.shownKashi(now),
 		KashiError:    l.kashiErr,
 		KashiLastOK:   ts(l.kashiLastOK),
 		Live:          l.live,
@@ -435,8 +505,10 @@ func (l *linkTracker) snapshot() LinkStatus {
 		LastPushAt:    ts(l.lastPush),
 		LastPullError: l.lastPullErr,
 	}
-	if !l.kashiDownAt.IsZero() {
-		s.KashiDownFor = int64(l.now().Sub(l.kashiDownAt).Seconds())
+	if s.Kashi != "down" {
+		s.KashiError = "" // still inside the grace: nothing to explain yet
+	} else if !l.kashiDownAt.IsZero() {
+		s.KashiDownFor = int64(now.Sub(l.kashiDownAt).Seconds())
 	}
 	if !l.updatingSince.IsZero() && l.now().Sub(l.updatingSeen) <= linkUpdatingMaxAge {
 		s.Updating = true
