@@ -532,7 +532,7 @@ const items = computed(() => {
 }
 
 .visitor-counter-btn {
-  width: 48px;
+  width: 56px;
   height: 32px;
   color: #ffffff !important;
   background-color: #e8680a !important;
