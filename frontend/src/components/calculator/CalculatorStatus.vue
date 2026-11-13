@@ -49,8 +49,8 @@
         <div v-else-if="otherTotalText" class="calculator-amounts-split calculator-amounts-other">
           <span :class="statusColor">{{ otherTotalText }}</span>
         </div>
-        <!-- The pills along the bottom: "Rounded" on the left, the discounts on
-             the right, in one row so they never sit on top of each other. -->
+        <!-- The pills along the bottom left, "Rounded" then the discounts, in one
+             row so they never sit on top of each other. -->
         <div v-if="roundedFromText || isRounded || invoiceDiscountText || discountText" class="calculator-amounts-pills">
           <!-- What it was rounded from is in the tooltip; the pill just says so. -->
           <span
@@ -60,7 +60,7 @@
           >
             Rounded
           </span>
-          <span class="calculator-amounts-pills__right">
+          <span class="calculator-amounts-pills__group">
             <!-- central's whole-sale discount, already off the total above. -->
             <span v-if="invoiceDiscountText" class="calculator-amounts-discount" :title="invoiceDiscountText">
               {{ invoiceDiscountText }}
@@ -196,21 +196,21 @@ function flipCurrency() {
 }
 .calculator-amounts-pills {
   position: absolute;
-  right: 8px;
   bottom: 6px;
-  left: 8px;
+  left: 10px;
+  /* Everything stays on the left, clear of the numbers in the middle. */
+  max-width: 40%;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
   gap: 6px;
 }
-.calculator-amounts-pills__right {
+.calculator-amounts-pills__group {
   display: flex;
   min-width: 0;
-  margin-inline-start: auto;
   gap: 6px;
 }
 .calculator-amounts-rounded {
+  flex: 0 0 auto;
   padding: 3px 8px;
   border-radius: 999px;
   /* A tint of the status colour (green/red...) behind text in that colour. */

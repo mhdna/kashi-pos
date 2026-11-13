@@ -124,7 +124,7 @@ describe("CalculatorStatus total and discount", () => {
     expect(w.find("[data-test=discount-total]").text()).toBe("Discount −$34.50");
   });
 
-  it("puts Rounded, the invoice discount and the discount in one row, so they cannot overlap", () => {
+  it("puts Rounded, the invoice discount and the discount in one row on the left, so they cannot overlap", () => {
     const w = mountStatus({ first: "$128", second: "LL 50,000", firstCode: "" }, BOTH, {
       roundedFromText: "Rounded from $128.56",
       invoiceDiscountText: "15% over $150 −$42",
@@ -132,7 +132,9 @@ describe("CalculatorStatus total and discount", () => {
     });
     const row = w.find(".calculator-amounts-pills");
     expect(row.exists()).toBe(true);
-    expect(w.findAll(".calculator-amounts-pills > *")).toHaveLength(2); // Rounded, and the right-hand pair
+    expect(w.findAll(".calculator-amounts-pills > *")).toHaveLength(2); // Rounded, and the discounts beside it
+    // All on the left: nothing in the row is pushed to the right-hand side.
+    expect(row.find(".calculator-amounts-pills__group").exists()).toBe(true)
     expect(row.find(".calculator-amounts-rounded").exists()).toBe(true);
     expect(row.findAll(".calculator-amounts-discount").map((p) => p.text())).toEqual([
       "15% over $150 −$42",
