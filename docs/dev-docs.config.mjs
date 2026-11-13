@@ -28,7 +28,7 @@ export default {
     overview: ['architecture'],
     'money-and-selling': ['pricing'],
     'shifts-and-logins': ['shift'],
-    'sync-with-kashi': ['syncOverview', 'outbox'],
+    'sync-with-central': ['syncOverview'],
     attendance: ['attendance'],
     'releases-and-builds': ['update'],
   },
@@ -53,12 +53,13 @@ export default {
       'The "manager password" is the **attendance approver\'s** and also unlocks Expenses, Loans, Conversion.',
       'Stale shifts auto-close only if switched on; **empty ones are deleted**, not closed.',
     ],
-    'sync-with-kashi': [
+    'sync-with-central': [
+      '==A sale is never lost to a bad connection==: it is stored with its outbox row in one transaction, and the outbox **never gives up**.',
+      '**A network failure is about the connection, not the row**: the pass stops and the loop waits ==5 s, 10 s … 1 min==; the first answer sends everything.',
+      'The light says ==No central / No internet only after 30 s of silence== (`linkDownGrace`).',
       'central owns catalogue and prices; the till owns invoices, shifts, expenses, loans, attendance.',
-      'Match on **`uid`**, never integer ids.',
-      'Every synced write queues an outbox row **in the same transaction**.',
-      'A **network failure stops the whole pass** and waits; a 5xx/408/429 backs off just that row.',
-      '**Never delete what history points at**; deactivate. Price lists, payment methods, currencies arrive **whole**.',
+      'Match on **`uid`**, never integer ids. **Never delete what history points at**; deactivate.',
+      'The pull cursor advances only after a **whole** walk, so every apply must be **idempotent**.',
     ],
     attendance: [
       '**No background timer**: pulls on the device ping, at start, and every 60 s while the page is open.',
@@ -66,7 +67,7 @@ export default {
       '**Raising the duplicate interval deletes** punches already imported.',
       'IN/OUT comes from the **device**, not punch order.',
     ],
-    'windows-till': [
+    'the-windows-till': [
       '**Kiosk mode closes Explorer**; Close App brings it back.',
       '**Cash machine mode closes other programs every 30 s**; its setup removes apps for good.',
       'The scanner is recognised by **typing speed** (6+ keys under 50 ms), not USB id.',
@@ -98,9 +99,9 @@ export default {
     ],
   },
   chips: [
-    ['sync-with-kashi', 'Sync', 'mdiSync'],
+    ['sync-with-central', 'Sync', 'mdiSync'],
     ['money-and-selling', 'Money', 'mdiCashRegister'],
-    ['windows-till', 'Windows till', 'mdiMonitor'],
+    ['the-windows-till', 'Windows till', 'mdiMonitor'],
     ['releases-and-builds', 'Releases', 'mdiRocketLaunch'],
   ],
   diagrams,
