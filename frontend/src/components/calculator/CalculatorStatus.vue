@@ -1,5 +1,5 @@
 <template>
-  <section class="mb-4">
+  <section class="calculator-status mb-4" :class="statusColor">
     <div class="calculator-amounts mb-2" :class="statusColor">
       <k-btn
         v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState && !quoteError && !exchangeShortfallText"
@@ -125,6 +125,17 @@ function flipCurrency() {
 </script>
 
 <style scoped>
+/* The strip around the card is tinted too, not just the card. */
+.calculator-status {
+  padding: 8px;
+  border-radius: 14px;
+}
+.calculator-status.calculator-green {
+  background: rgba(46, 125, 50, 0.16);
+}
+.calculator-status.text-red-darken-2 {
+  background: rgba(198, 40, 40, 0.16);
+}
 .calculator-amounts {
   position: relative;
   display: grid;
@@ -139,7 +150,7 @@ function flipCurrency() {
 .calculator-amounts.calculator-green {
   color: #2e7d32;
   border-color: #2e7d32;
-  box-shadow: inset 0 0 0 1px #2e7d32, 0 0 0 3px rgba(46, 125, 50, 0.25), 0 0 14px 2px rgba(46, 125, 50, 0.35);
+  box-shadow: inset 0 0 0 1px #2e7d32;
   background: rgba(46, 125, 50, 0.08);
 }
 .calculator-green {
@@ -147,7 +158,7 @@ function flipCurrency() {
 }
 .calculator-amounts.text-red-darken-2 {
   border-color: #c62828;
-  box-shadow: inset 0 0 0 1px #c62828, 0 0 0 3px rgba(198, 40, 40, 0.25), 0 0 14px 2px rgba(198, 40, 40, 0.35);
+  box-shadow: inset 0 0 0 1px #c62828;
   background: rgba(198, 40, 40, 0.08);
 }
 .calculator-amounts-flip {
