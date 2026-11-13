@@ -520,17 +520,27 @@ const items = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  margin: 2px 8px;
-  padding: 2px 0;
+  gap: 6px;
+  margin: 2px 6px 6px;
+  padding: 6px 0;
   color: #ffffff;
+  /* One panel, like the devices box under it. */
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid #243653;
+  border-radius: 12px;
 }
 
+/* Up adds a visitor (teal), down takes one off (muted slate): two clearly
+   different buttons instead of two identical orange ones. */
 .visitor-counter-btn {
   width: 40px;
-  height: 40px;
-  background-color: #d95d00 !important;
+  height: 36px;
   color: #ffffff !important;
+  background-color: #1f9d8a !important;
+}
+
+.visitor-counter-btn:last-of-type {
+  background-color: #3a5378 !important;
 }
 
 .visitor-counter-btn :deep(.k-icon) {
@@ -538,11 +548,12 @@ const items = computed(() => {
 }
 
 .visitor-count {
-  font-size: 1.25rem;
+  font-size: 1.4rem;
   font-weight: 800;
   line-height: 1;
   min-width: 1.5rem;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .options-grid {
