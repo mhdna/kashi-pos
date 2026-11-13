@@ -89,8 +89,7 @@ watch(
   /* However many digits there are, they share the width: three digits get
      wide cards, four or five get narrower ones, never overflowing. */
   --cell: min(14px, calc((50px - (var(--n) - 1) * var(--gap)) / var(--n)));
-  --tint: #46608f;
-  position: relative;
+  --tint: #3a68c0;
   box-sizing: border-box;
   display: flex;
   align-items: stretch;
@@ -117,13 +116,13 @@ watch(
 /* Slate blue when the count goes up, reddish when it goes down. Adding one is the
    loud one (a big blue ring and a big grow); taking one off is a smaller red one. */
 .flip-number {
-  --flash: 110, 165, 255;
+  --flash: 90, 150, 255;
   --ring: 5px;
   --grow: 1.3;
 }
 .flip-number--down {
-  --tint: #8f4646;
-  --flash: 255, 120, 120;
+  --tint: #b53a3a;
+  --flash: 255, 85, 85;
   --ring: 3px;
   --grow: 1.1;
 }

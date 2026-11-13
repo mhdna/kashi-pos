@@ -225,7 +225,7 @@ watch(
   background: transparent;
 }
 .flip-flap::before {
-  background: var(--tint, #46608f);
+  background: var(--tint, #3a68c0);
   animation-name: flip-bg !important;
   animation-duration: 0.6s !important;
   animation-delay: 0s !important;

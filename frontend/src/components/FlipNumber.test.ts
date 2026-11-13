@@ -169,6 +169,8 @@ describe("FlipNumber", () => {
     const down = hex(css.match(/\.flip-number--down \{[^}]*--tint: #([0-9a-f]{6})/)!);
     expect(up[2]).toBeGreaterThan(up[0]); // blue leads red: a blue, not the old amber
     expect(up[2]).toBeGreaterThan(up[1]);
+    expect(up[2]).toBeGreaterThan(160); // a strong blue, not the muted slate
+    expect(down[0]).toBeGreaterThan(160); // and a strong red
     expect(down[0]).toBeGreaterThan(down[2]); // red leads: a reddish one, not the old slate blue
     expect(down[0]).toBeGreaterThan(down[1]);
     // The rings are the same families: blue going up, red going down.
@@ -179,7 +181,7 @@ describe("FlipNumber", () => {
     expect(downRing[0]).toBeGreaterThan(downRing[2]);
     // And a flap that carries the tint falls back to blue, not amber.
     const digit = readFileSync(resolve(process.cwd(), "src/components/FlipDigit.vue"), "utf8");
-    expect(digit).toMatch(/var\(--tint, #46608f\)/);
+    expect(digit).toMatch(/var\(--tint, #3a68c0\)/);
   });
 
   it("tells the direction: up and down classes on the number", async () => {
