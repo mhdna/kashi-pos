@@ -110,7 +110,7 @@ describe("FlipNumber", () => {
     expect(digit).toMatch(/\.flip--up,\s*\.flip--down \{\s*box-shadow: none;/);
     // ...the one bar behind them does it, as a single piece.
     expect(number).toMatch(/@keyframes flip-ring-pop/);
-    expect(number).toMatch(/animation-name: flip-tint-fade, flip-tint-pop/);
+    expect(number).toMatch(/@keyframes flip-stage-pop/);
     // The ring is above the cards (z-index 3 over their 1), so a lone turning digit
     // keeps its whole outline, its left side included.
     expect(number).toMatch(/\.flip-ring \{\s*z-index: 3;/);
@@ -199,5 +199,53 @@ describe("FlipNumber ring", () => {
     vi.advanceTimersByTime(100);
     await w.setProps({ value: 7 });
     expect(w.find("[data-test=flip-ring]").element).not.toBe(first);
+  });
+});
+
+describe("FlipNumber grows while it changes", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const stage = (w: ReturnType<typeof mount>) => w.find("[data-test=flip-stage]");
+  const twin = (w: ReturnType<typeof mount>) =>
+    stage(w).classes().filter((c) => c === "flip-stage--odd" || c === "flip-stage--even");
+
+  it("the digits, the bar and the ring are one stage, so they grow together", async () => {
+    const w = mount(FlipNumber, { props: { value: 477 } });
+    expect(stage(w).find(".flip-digits").exists()).toBe(true);
+    await w.setProps({ value: 478 });
+    expect(stage(w).find("[data-test=flip-tint]").exists()).toBe(true);
+    expect(stage(w).find("[data-test=flip-ring]").exists()).toBe(true);
+    expect(stage(w).find(".flip-digits").exists()).toBe(true);
+  });
+
+  it("grows only while the count is changing, and stops with the highlight", async () => {
+    const w = mount(FlipNumber, { props: { value: 5 } });
+    expect(twin(w)).toEqual([]);
+    await w.setProps({ value: 6 });
+    expect(twin(w)).toHaveLength(1);
+    vi.advanceTimersByTime(700);
+    await w.vm.$nextTick();
+    expect(twin(w)).toEqual([]);
+  });
+
+  it("restarts the grow on every tap: the stage swaps to its twin animation", async () => {
+    const w = mount(FlipNumber, { props: { value: 5 } });
+    await w.setProps({ value: 6 });
+    const first = twin(w);
+    vi.advanceTimersByTime(100);
+    await w.setProps({ value: 7 });
+    expect(twin(w)).not.toEqual(first);
+    await w.setProps({ value: 8 });
+    expect(twin(w)).toEqual(first);
+  });
+
+  it("grows a lot going up and only a little going down", () => {
+    const css = readFileSync(resolve(process.cwd(), "src/components/FlipNumber.vue"), "utf8");
+    const up = Number(css.match(/\.flip-number \{[^}]*--grow: ([\d.]+)/)![1]);
+    const down = Number(css.match(/\.flip-number--down \{[^}]*--grow: ([\d.]+)/)![1]);
+    expect(up).toBeGreaterThan(1.15);
+    expect(down).toBeGreaterThan(1);
+    expect(down).toBeLessThan(up);
   });
 });
