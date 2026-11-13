@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
-// The balance page's "Coming up" card: folded to one button with a count by
-// default, the list only after tapping it.
+// The balance page's "Coming up" bar: the count and the next event on one
+// button; tapping it goes straight to the calendar.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,7 +32,6 @@ async function mountCard(events: any[]) {
 const toggle = () => wrapper!.find(".events-card-toggle");
 const count = () => wrapper!.find(".events-card-count").text();
 const next = () => wrapper!.find(".events-card-next");
-const names = () => wrapper!.findAll(".events-card-name").map((n) => n.text());
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -46,13 +45,28 @@ afterEach(() => {
 });
 
 describe("EventsCard", () => {
-  it("starts folded: only the button, no list and no calendar link", async () => {
+  it("is just the one button: no list, no unfolding, no separate calendar link", async () => {
     await mountCard([ev(1, "Black Friday", "2026-11-27")]);
     expect(toggle().exists()).toBe(true);
-    expect(toggle().attributes("aria-expanded")).toBe("false");
+    expect(toggle().attributes("aria-expanded")).toBeUndefined();
     expect(wrapper!.find(".events-card-list").exists()).toBe(false);
     expect(wrapper!.find(".events-card-calendar").exists()).toBe(false);
-    expect(names()).toEqual([]);
+  });
+
+  it("goes straight to the calendar when tapped", async () => {
+    await mountCard([ev(1, "Black Friday", "2026-11-27")]);
+    await toggle().trigger("click");
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/events");
+    // And stays the same bar: nothing unfolded.
+    expect(wrapper!.find(".events-card-list").exists()).toBe(false);
+    expect(next().text()).toBe("Next: Black Friday · In 20 days");
+  });
+
+  it("goes to the calendar even when nothing is coming", async () => {
+    await mountCard([]);
+    await toggle().trigger("click");
+    expect(push).toHaveBeenCalledWith("/events");
   });
 
   it("counts what is on now or starts within 30 days", async () => {
@@ -76,20 +90,6 @@ describe("EventsCard", () => {
     expect(count()).toBe("No events in the next 30 days");
   });
 
-  it("opens the list on tap, with the calendar link, and folds again", async () => {
-    await mountCard([ev(1, "Black Friday", "2026-11-27"), ev(4, "Christmas", "2026-12-25")]);
-    await toggle().trigger("click");
-    expect(toggle().attributes("aria-expanded")).toBe("true");
-    expect(names()).toEqual(["Black Friday", "Christmas"]); // the list still looks 90 days ahead
-    expect(wrapper!.text()).toContain("In 20 days");
-
-    await wrapper!.find(".events-card-calendar").trigger("click");
-    expect(push).toHaveBeenCalledWith("/events");
-
-    await toggle().trigger("click");
-    expect(wrapper!.find(".events-card-list").exists()).toBe(false);
-  });
-
   it("is a bar across the page, as wide as the cards under it", async () => {
     await mountCard([ev(1, "Black Friday", "2026-11-27")]);
     const card = wrapper!.find(".events-card");
@@ -103,11 +103,9 @@ describe("EventsCard", () => {
     expect(css).toMatch(/\.events-card-toggle \{[^}]*flex: 1 1 auto/);
   });
 
-  it("names the next event on the folded bar, and hides it when open", async () => {
+  it("names the next event on the bar", async () => {
     await mountCard([ev(4, "Christmas", "2026-12-25"), ev(1, "Black Friday", "2026-11-27")]);
     expect(next().text()).toBe("Next: Black Friday · In 20 days");
-    await toggle().trigger("click");
-    expect(next().exists()).toBe(false);
   });
 
   it("says an event on now is now, and names nothing when nothing is coming", async () => {
