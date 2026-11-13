@@ -24,7 +24,11 @@ const BOTH = [
   { code: "LBP", text: "LL 2,685,000", rounded: false },
 ];
 
-function mountStatus(remaining: { first: string; second: string; firstCode?: string }, amountsByCurrency = BOTH) {
+function mountStatus(
+  remaining: { first: string; second: string; firstCode?: string },
+  amountsByCurrency = BOTH,
+  extra: Record<string, unknown> = {},
+) {
   return mount(CalculatorStatus, {
     global: { plugins: [ui] },
     props: {
@@ -38,6 +42,7 @@ function mountStatus(remaining: { first: string; second: string; firstCode?: str
         secondaryRounded: false,
         amountsByCurrency,
       },
+      ...extra,
     },
   });
 }
@@ -90,5 +95,52 @@ describe("CalculatorStatus split line", () => {
     const usd = mountStatus({ first: "$30", second: "", firstCode: "USD" });
     expect(usd.findAll(".calculator-amounts-split")).toHaveLength(1);
     expect(usd.find(".calculator-amounts-split").text()).toBe("LL 2,685,000");
+  });
+});
+
+describe("CalculatorStatus total and discount", () => {
+  const one = { first: "$30", second: "", firstCode: "USD" };
+
+  it("shows the invoice total in the corner only when it is given", () => {
+    expect(mountStatus(one).find("[data-test=invoice-total]").exists()).toBe(false);
+    const w = mountStatus(one, BOTH, { totalText: "Total $250.00" });
+    expect(w.find("[data-test=invoice-total]").text()).toBe("Total $250.00");
+  });
+
+  it("keeps the total on the card when it is paid in full", () => {
+    const w = mountStatus(one, BOTH, { showReadyState: true, paymentStatus: "Paid", totalText: "Total $250.00" });
+    expect(w.text()).toContain("Paid");
+    expect(w.find("[data-test=invoice-total]").text()).toBe("Total $250.00");
+  });
+
+  it("never shows it over an error or an exchange shortfall", () => {
+    const w = mountStatus(one, BOTH, { quoteError: "boom", totalText: "" });
+    expect(w.find("[data-test=invoice-total]").exists()).toBe(false);
+  });
+
+  it("shows the discount taken off, and no pill without one", () => {
+    expect(mountStatus(one).find("[data-test=discount-total]").exists()).toBe(false);
+    const w = mountStatus(one, BOTH, { discountText: "Discount −$34.50" });
+    expect(w.find("[data-test=discount-total]").text()).toBe("Discount −$34.50");
+  });
+
+  it("puts Rounded, the invoice discount and the discount in one row, so they cannot overlap", () => {
+    const w = mountStatus({ first: "$128", second: "LL 50,000", firstCode: "" }, BOTH, {
+      roundedFromText: "Rounded from $128.56",
+      invoiceDiscountText: "15% over $150 −$42",
+      discountText: "Discount −$42.00",
+    });
+    const row = w.find(".calculator-amounts-pills");
+    expect(row.exists()).toBe(true);
+    expect(w.findAll(".calculator-amounts-pills > *")).toHaveLength(2); // Rounded, and the right-hand pair
+    expect(row.find(".calculator-amounts-rounded").exists()).toBe(true);
+    expect(row.findAll(".calculator-amounts-discount").map((p) => p.text())).toEqual([
+      "15% over $150 −$42",
+      "Discount −$42.00",
+    ]);
+  });
+
+  it("has no pills row when there is nothing to say", () => {
+    expect(mountStatus(one).find(".calculator-amounts-pills").exists()).toBe(false);
   });
 });

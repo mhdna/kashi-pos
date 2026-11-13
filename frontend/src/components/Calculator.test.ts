@@ -125,3 +125,43 @@ describe.each(Object.keys(MODES) as (keyof typeof MODES)[])("Calculator in %s mo
     expect(document.body.textContent).toContain("Confirm change amount");
   });
 });
+
+// The invoice total on the card: only while the big number is something else.
+describe("Calculator shows the invoice total only when the big number is not it", () => {
+  const total = () => wrapper!.find("[data-test=invoice-total]");
+
+  it("nothing paid: the card shows the total itself, so no Total label", async () => {
+    const w = await mountCalculator("sale");
+    expect(total().exists()).toBe(false);
+    expect(w.text()).toContain("$41.56");
+  });
+
+  it("part paid: the card shows what is left and the label keeps the total", async () => {
+    const w = await mountCalculator("sale");
+    vi.mocked(QuotePaymentStatus).mockResolvedValue({ ...READY, diffCents: -1156, isPaidInFull: false, checkoutReady: false } as any);
+    await pay(w, "Cash $$", "30");
+    expect(w.vm.diff).toBeCloseTo(-11.56, 5);
+    expect(total().text()).toBe("Total $41.56");
+    expect(w.text()).toContain("$11.56");
+  });
+
+  it("paid in full: Paid, with the total still on the card", async () => {
+    const w = await mountCalculator("sale");
+    await pay(w, "Cash $$", "41.56");
+    expect(w.vm.diff).toBe(0);
+    expect(w.text()).toContain("Paid");
+    expect(total().text()).toBe("Total $41.56");
+  });
+
+  it("a settlement change that starts from what was paid keeps the total", async () => {
+    const w = await mountCalculator("settlement");
+    await pay(w, "Cash $$", "20");
+    expect(total().text()).toBe("Total $41.56");
+  });
+
+  it("an exchange never shows it", async () => {
+    const w = await mountCalculator("exchange");
+    await pay(w, "Cash $$", "20");
+    expect(total().exists()).toBe(false);
+  });
+});

@@ -11,6 +11,9 @@
         title="Switch total currency"
         @click="flipCurrency"
       />
+      <!-- The invoice's own total, only while the big number is something else
+           (what is left to pay, the change, "Paid"). -->
+      <span v-if="totalText" class="calculator-amounts-total" data-test="invoice-total">{{ totalText }}</span>
       <!-- A failed quote has no total to show. Rendering $0.00 here would
            read as a legitimate, fully-paid zero-value sale. -->
       <div v-if="quoteError" class="calculator-error-state">
@@ -46,18 +49,28 @@
         <div v-else-if="otherTotalText" class="calculator-amounts-split calculator-amounts-other">
           <span :class="statusColor">{{ otherTotalText }}</span>
         </div>
-        <!-- central's whole-sale discount, already off the total above. -->
-        <span v-if="invoiceDiscountText" class="calculator-amounts-invoice-discount" :title="invoiceDiscountText">
-          {{ invoiceDiscountText }}
-        </span>
-        <!-- What it was rounded from is in the tooltip; the pill just says so. -->
-        <span
-          v-if="roundedFromText || isRounded"
-          class="calculator-amounts-rounded"
-          :title="roundedFromText || undefined"
-        >
-          Rounded
-        </span>
+        <!-- The pills along the bottom: "Rounded" on the left, the discounts on
+             the right, in one row so they never sit on top of each other. -->
+        <div v-if="roundedFromText || isRounded || invoiceDiscountText || discountText" class="calculator-amounts-pills">
+          <!-- What it was rounded from is in the tooltip; the pill just says so. -->
+          <span
+            v-if="roundedFromText || isRounded"
+            class="calculator-amounts-rounded"
+            :title="roundedFromText || undefined"
+          >
+            Rounded
+          </span>
+          <span class="calculator-amounts-pills__right">
+            <!-- central's whole-sale discount, already off the total above. -->
+            <span v-if="invoiceDiscountText" class="calculator-amounts-discount" :title="invoiceDiscountText">
+              {{ invoiceDiscountText }}
+            </span>
+            <!-- Everything taken off the sale in all: lines, deals and that. -->
+            <span v-if="discountText" class="calculator-amounts-discount" data-test="discount-total">
+              {{ discountText }}
+            </span>
+          </span>
+        </div>
       </template>
     </div>
   </section>
@@ -82,6 +95,11 @@ const props = defineProps<{
   roundedFromText?: string;
   // "15% over $150 −$42": the sale's invoice discount, when it gets one.
   invoiceDiscountText?: string;
+  // "Discount −$42.00": everything taken off the sale in all.
+  discountText?: string;
+  // "Total $250.00": the invoice's total, given only when the card's own
+  // number is not it.
+  totalText?: string;
   remainingAmount: {
     // The two halves of the split, in display order -- which currency each
     // holds is per-branch config (see splitAmount in Calculator.vue).
@@ -166,10 +184,33 @@ function flipCurrency() {
   right: 4px;
   z-index: 1;
 }
-.calculator-amounts-rounded {
+.calculator-amounts-total {
   position: absolute;
+  top: 6px;
+  left: 10px;
+  font-size: var(--kashi-font-size-xs, 0.6875rem);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: rgba(var(--k-theme-on-surface), 0.6);
+}
+.calculator-amounts-pills {
+  position: absolute;
+  right: 8px;
   bottom: 6px;
   left: 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+}
+.calculator-amounts-pills__right {
+  display: flex;
+  min-width: 0;
+  margin-inline-start: auto;
+  gap: 6px;
+}
+.calculator-amounts-rounded {
   padding: 3px 8px;
   border-radius: 999px;
   /* A tint of the status colour (green/red...) behind text in that colour. */
@@ -178,18 +219,17 @@ function flipCurrency() {
   font-weight: 600;
   line-height: 1;
 }
-.calculator-amounts-invoice-discount {
-  position: absolute;
-  bottom: 6px;
-  right: 8px;
-  max-width: 60%;
+.calculator-amounts-discount {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(46, 125, 50, 0.14);
-  color: #2e7d32;
+  /* Red: it is money taken off. The theme's error colour, so it also reads in
+     the dark theme. */
+  background: color-mix(in srgb, rgb(var(--k-theme-error)) 14%, transparent);
+  color: rgb(var(--k-theme-error));
   font-size: var(--kashi-font-size-xs, 0.6875rem);
   font-weight: 600;
   line-height: 1;

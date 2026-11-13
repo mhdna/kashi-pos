@@ -258,6 +258,7 @@
             ref="calculator"
             :total-cents="quote?.grandTotalCents ?? 0"
             :unrounded-cents="quote?.unroundedCents"
+            :discount-cents="pageMode === 'exchange' ? 0 : (quote?.discountCents ?? 0)"
             :invoice-discount-cents="quote?.invoiceDiscountCents ?? 0"
             :invoice-discount-name="quote?.invoiceDiscountName ?? ''"
             :exchange-shortfall-cents="quote?.exchangeShortfallCents ?? 0"
@@ -621,6 +622,9 @@ interface InvoiceQuote {
   // central's whole-sale discount, already off grandTotalCents.
   invoiceDiscountCents?: number;
   invoiceDiscountName?: string;
+  // Everything taken off the sale (lines, deals and the invoice discount):
+  // the subtotal less the discounted subtotal.
+  discountCents?: number;
   // Only in exchange mode: the whole exchange quote, checked to add up,
   // for the cart lines' amounts and the breakdown under the cart.
   exchange?: ExchangeQuoteResult;
@@ -935,6 +939,7 @@ async function refreshQuote() {
       lines: result.lines ?? [],
       invoiceDiscountCents: Number(result.invoiceDiscountCents ?? 0),
       invoiceDiscountName: result.invoiceDiscountName ?? "",
+      discountCents: Math.max(0, Number(result.subtotalCents ?? 0) - Number(result.discountedSubtotalCents ?? 0)),
     };
   } catch (e) {
     if (token !== quoteRequestToken) return;

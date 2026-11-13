@@ -9,6 +9,8 @@
       :exchange-shortfall-cents="exchangeShortfallCents"
       :rounded-from-text="roundedFromText"
       :invoice-discount-text="invoiceDiscountText"
+      :discount-text="discountText"
+      :total-text="invoiceTotalText"
     />
 
     <k-card class="calculator-display pa-2 mb-3 mt-2" variant="outlined" rounded="lg">
@@ -137,6 +139,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { formatUsd } from "@/lib/format";
+import { discountLabel, invoiceTotalLabel } from "@/lib/cardTotals";
 import {
   roundCurrencyUnitsFromCents,
   roundCentsFromCurrencyUnits,
@@ -174,6 +177,9 @@ const props = defineProps<{
   // off totalCents; 0 for none.
   invoiceDiscountCents?: number;
   invoiceDiscountName?: string;
+  // Everything taken off the sale: line discounts, deals and the invoice
+  // discount (subtotal minus discounted subtotal); 0 for none.
+  discountCents?: number;
   // Set when the backend quote failed. totalCents is meaningless (0) in that
   // case, so the total is replaced by this message and checkout is blocked -
   // otherwise diffCents === 0 makes a pricing failure read as "Paid".
@@ -273,6 +279,8 @@ const invoiceDiscountText = computed(() => {
   if (cents <= 0) return "";
   return `${props.invoiceDiscountName || "Invoice discount"} −$${String(Number((cents / 100).toFixed(2)))}`;
 });
+// How much the sale was discounted in all, for the card.
+const discountText = computed(() => discountLabel(props.discountCents));
 const paymentEntries = computed<PaymentEntry[]>(() =>
   entries.value.map((entry) => ({
     accountId: entry.accountId,
@@ -358,6 +366,20 @@ watch(
 const quoteFailed = computed(() => Boolean(props.quoteError));
 const exchangeShortfallCents = computed(() => props.exchangeShortfallCents ?? 0);
 const diffCents = computed(() => paidCents.value - totalCents.value);
+// The invoice's own total, shown on the card only when the big number is not
+// it: once something is paid the card shows what is left (or the change), and a
+// settlement change starts from what was already paid, so the total would
+// otherwise be lost.
+const invoiceTotalText = computed(() =>
+  invoiceTotalLabel({
+    quoteFailed: quoteFailed.value,
+    exchangeMode: Boolean(props.exchangeMode),
+    hasItems: Boolean(props.hasItems),
+    settlementInvoiceId: props.settlementInvoiceId,
+    totalCents: totalCents.value,
+    diffCents: diffCents.value,
+  }),
+);
 const diff = computed(() => diffCents.value / 100);
 const isPaidInFull = computed(() => !quoteFailed.value && diffCents.value === 0);
 const cashRoundedToTotal = computed(() => backendStatus.value?.isCashRounded ?? false);
