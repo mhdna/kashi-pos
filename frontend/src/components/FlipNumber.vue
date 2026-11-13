@@ -23,6 +23,9 @@
       :data-count="tint.count"
       :style="{ '--from': tint.from, '--count': tint.count }"
     />
+    <!-- Its ring, drawn above the cards: behind them a neighbouring card would
+         cover the ring's side and a lone turning digit would lose its edge. -->
+    <span v-if="tint" :key="`ring${run}`" class="flip-ring" data-test="flip-ring" :style="{ '--from': tint.from, '--count': tint.count }" />
     <span class="flip-digits">
       <FlipDigit v-for="(char, index) in digits" :key="digits.length - index" :char="char" :direction="direction" />
     </span>
@@ -111,7 +114,8 @@ watch(
 
 /* Sits behind the cards, from the first changed card to the last one, and
    fades back to the card colour. The cards let it show through while they turn. */
-.flip-tint {
+.flip-tint,
+.flip-ring {
   position: absolute;
   top: var(--pad);
   bottom: var(--pad);
@@ -119,17 +123,31 @@ watch(
   left: calc(50% - (var(--n) * var(--cell) + (var(--n) - 1) * var(--gap)) / 2 + var(--from) * (var(--cell) + var(--gap)));
   width: calc(var(--count) * var(--cell) + (var(--count) - 1) * var(--gap));
   border-radius: 4px;
-  background: var(--tint);
   pointer-events: none;
-  /* The one square: it fades, rings and pops as a single piece. */
+  animation-delay: 0s !important;
+  animation-fill-mode: both !important;
+}
+.flip-tint {
+  z-index: 0;
+  background: var(--tint);
+  /* The one square: it fades and pops as a single piece. */
   animation-name: flip-tint-fade, flip-tint-pop !important;
   animation-duration: 0.6s, 0.6s !important;
-  animation-delay: 0s !important;
   animation-timing-function: ease-out !important;
-  animation-fill-mode: both !important;
+}
+.flip-ring {
+  z-index: 3;
+  animation-name: flip-ring-pop !important;
+  animation-duration: 0.6s !important;
+  animation-timing-function: ease-out !important;
 }
 
 @keyframes flip-tint-pop {
+  0% { transform: scale(1); }
+  25% { transform: scale(var(--grow)); }
+  100% { transform: scale(1); }
+}
+@keyframes flip-ring-pop {
   0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--flash), 0.9); }
   25% { transform: scale(var(--grow)); box-shadow: 0 0 0 var(--ring) rgba(var(--flash), 0.95); }
   100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--flash), 0); }

@@ -109,8 +109,12 @@ describe("FlipNumber", () => {
     expect(digit).not.toMatch(/flip--(even|odd)/);
     expect(digit).toMatch(/\.flip--up,\s*\.flip--down \{\s*box-shadow: none;/);
     // ...the one bar behind them does it, as a single piece.
-    expect(number).toMatch(/@keyframes flip-tint-pop/);
+    expect(number).toMatch(/@keyframes flip-ring-pop/);
     expect(number).toMatch(/animation-name: flip-tint-fade, flip-tint-pop/);
+    // The ring is above the cards (z-index 3 over their 1), so a lone turning digit
+    // keeps its whole outline, its left side included.
+    expect(number).toMatch(/\.flip-ring \{\s*z-index: 3;/);
+    expect(digit).toMatch(/\.flip \{[^}]*z-index: 1;/);
   });
 
   describe("one shared highlight behind the digits that change", () => {
@@ -165,5 +169,35 @@ describe("FlipNumber", () => {
       await w.setProps({ value: 4 });
       expect(w.classes()).toContain("flip-number--down");
     });
+  });
+});
+
+describe("FlipNumber ring", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("is its own layer over the same run as the bar, so a lone turning digit keeps its whole outline", async () => {
+    const w = mount(FlipNumber, { props: { value: 477 } });
+    expect(w.find("[data-test=flip-ring]").exists()).toBe(false);
+    await w.setProps({ value: 478 }); // a lone digit turns
+    const bar = w.find("[data-test=flip-tint]");
+    const ring = w.find("[data-test=flip-ring]");
+    expect(ring.exists()).toBe(true);
+    expect(ring.attributes("style")).toBe(bar.attributes("style")); // same --from and --count
+    vi.advanceTimersByTime(700);
+    await w.vm.$nextTick();
+    expect(w.find("[data-test=flip-ring]").exists()).toBe(false);
+    await w.setProps({ value: 480 }); // two digits turn
+    expect(w.findAll("[data-test=flip-ring]")).toHaveLength(1); // one ring for the whole run
+    expect(w.find("[data-test=flip-ring]").attributes("style")).toContain("--count: 2");
+  });
+
+  it("restarts with every tap", async () => {
+    const w = mount(FlipNumber, { props: { value: 5 } });
+    await w.setProps({ value: 6 });
+    const first = w.find("[data-test=flip-ring]").element;
+    vi.advanceTimersByTime(100);
+    await w.setProps({ value: 7 });
+    expect(w.find("[data-test=flip-ring]").element).not.toBe(first);
   });
 });
