@@ -74,4 +74,12 @@ describe("cart column header", () => {
     const rowText = w.findAll(".invoice-item-actions").map((a) => a.text()).join(" ");
     expect(rowText).not.toContain("Qty");
   });
+
+  it("is a table of direct children: the header first, then one block per line (the borders rely on it)", async () => {
+    const w = await cart({}, [shirt(), shirt({ code: "SH2", barcode: "222" }), shirt({ code: "SH3", barcode: "333" })]);
+    const blocks = Array.from(w.element.children as HTMLCollection).filter((el): el is HTMLElement => el.tagName === "DIV");
+    expect(blocks[0]!.classList.contains("invoice-items-header")).toBe(true);
+    expect(blocks).toHaveLength(4); // header + 3 lines
+    expect(blocks.slice(1).every((b) => b.querySelector(".invoice-item-actions"))).toBe(true);
+  });
 });

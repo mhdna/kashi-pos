@@ -30,8 +30,13 @@
               <span class="invoice-item-name text-caption font-weight-medium">{{ item.name }}</span>
               <span class="invoice-item-code text-overline text-medium-emphasis">
                 {{ item.code }}
-                <span v-if="item.color || item.size" class="text-caption text-medium-emphasis ms-2">
-                  {{ [item.color, item.size].filter(Boolean).join(" / ") }}
+                <!-- The colour as a dot of that colour beside its name, the size as
+                     a small round pill. -->
+                <span v-if="item.color || item.size" class="invoice-item-variant text-caption text-medium-emphasis ms-2">
+                  <span v-if="item.color" class="invoice-item-color" data-test="line-color">
+                    <ColorSwatch :name="item.color" :size="12" />{{ item.color }}
+                  </span>
+                  <span v-if="item.size" class="invoice-item-size" data-test="line-size">{{ item.size }}</span>
                 </span>
               </span>
               <!-- A returned line in an exchange: how its credit came about
@@ -551,6 +556,7 @@ import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
 import SalespersonGrid from "@/components/SalespersonGrid.vue";
+import ColorSwatch from "@/components/ColorSwatch.vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { keepFieldFocus } from "@/lib/keepFocus";
 import { nextZ } from "@/ui/overlay";
@@ -1601,9 +1607,32 @@ defineExpose({
 }
 
 .invoice-item-actions {
+  align-self: stretch;
+  align-items: stretch !important;
   justify-content: flex-end;
   margin-inline-start: auto;
   white-space: nowrap;
+}
+
+.invoice-item-variant {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  vertical-align: middle;
+}
+.invoice-item-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.invoice-item-size {
+  padding: 0 8px;
+  border: 1px solid rgba(var(--k-theme-on-surface), 0.3);
+  border-radius: 999px;
+  color: rgba(var(--k-theme-on-surface), 0.75);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 17px;
 }
 
 .invoice-items-header {
@@ -1611,11 +1640,11 @@ defineExpose({
   top: 0;
   z-index: 2;
   display: flex;
-  align-items: center;
   /* The lines' own padding: 24px at the start, 16px at the end. */
+  align-items: stretch;
   padding: 6px 16px 6px 24px;
   background: var(--kashi-app-background, #f7f7f7);
-  border-bottom: 1px solid rgba(var(--k-border-color), 0.14);
+  border-bottom: 1px solid var(--cart-line);
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -1624,11 +1653,25 @@ defineExpose({
   white-space: nowrap;
 }
 .invoice-items-header__item {
+  display: flex;
   flex: 1 1 auto;
+  align-items: center;
 }
 .invoice-items-header__col {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   text-align: center;
+}
+/* Minimal dividers: a hairline at the start of the Qty, Disc. and Price
+   columns, in the header and in every line. */
+.invoice-items-header__col,
+.invoice-qty-control,
+.invoice-discount-control,
+.invoice-price-control {
+  border-inline-start: 1px solid var(--cart-line);
 }
 /* The same widths as the controls under them. */
 .invoice-header-qty {
@@ -1657,6 +1700,8 @@ defineExpose({
 }
 
 .invoice-qty-control {
+  box-sizing: border-box;
+  align-items: center;
   width: 46px;
 }
 
@@ -1667,6 +1712,8 @@ defineExpose({
 }
 
 .invoice-discount-control {
+  box-sizing: border-box;
+  align-items: center;
   width: 44px;
 }
 
@@ -1681,40 +1728,67 @@ defineExpose({
 .invoice-items :deep(.k-list-item__append) {
   justify-content: flex-end;
   margin-inline-start: auto;
+  /* The whole row's height, so the column dividers run top to bottom. */
+  align-self: stretch;
 }
 
 .invoice-items :deep(.k-list-item) {
-  padding-inline-start: 24px; /* the text keeps its indent; the row itself starts at the edge */
+  /* The row has no padding at the start or top and bottom: the item cell's
+     own tap/hover area (the trigger below) carries it, so its highlight fills
+     the whole cell, edge to edge. */
+  padding: 0 16px 0 0;
+}
+.invoice-items :deep(.k-list-item__content) {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+.invoice-items :deep(.k-list-item-title) {
+  display: flex;
+  flex: 1 1 auto;
 }
 
 .invoice-items {
+  /* The table's inside borders: between columns and between rows. */
+  --cart-line: rgba(var(--k-border-color), 0.22);
   height: 100%;
   overflow-y: auto;
+}
+/* A line under every row but the last, and under the header; no outer border. */
+.invoice-items > div:not(:last-of-type) {
+  border-bottom: 1px solid var(--cart-line);
 }
 
 .invoice-item-details-trigger {
   background: transparent;
   border: 0;
-  border-radius: 4px;
+  border-radius: 0;
   color: inherit;
   cursor: pointer;
   display: flex;
   align-items: center;
   flex: 1 1 auto;
-  margin-inline-start: -6px;
+  align-self: stretch;
+  margin: 0;
+  min-height: 48px;
   min-width: 0;
   overflow: hidden;
-  padding: 3px 6px;
+  padding: 4px 6px 4px 24px;
   text-align: start;
 }
 
 /* The name opens the details and a chip does its own thing: side by side, never
    one inside the other. */
 .invoice-item-title-row {
-  align-items: center;
+  align-items: stretch;
   display: flex;
+  flex: 1 1 auto;
   gap: 10px;
   max-width: 100%;
+}
+/* Chips beside the name stay centred; only the trigger fills the cell. */
+.invoice-item-title-row > :not(.invoice-item-details-trigger) {
+  align-self: center;
 }
 
 .invoice-item-name,
@@ -1954,8 +2028,15 @@ defineExpose({
    final price falls on the same vertical line whether or not a discount
    sits beside the list price. */
 .invoice-price-control {
+  box-sizing: border-box;
   flex: 0 0 64px;
+  justify-content: center;
   width: 64px;
+}
+/* The editable price is a button, whose own border: 0 would hide its divider. */
+.invoice-price-editor.invoice-price-control {
+  border-inline-start: 1px solid var(--cart-line);
+  border-radius: 0;
 }
 
 /* Room for the discount chip slot beside the prices, while any line has one. */
