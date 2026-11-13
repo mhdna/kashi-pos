@@ -76,6 +76,12 @@ watch(
   border-left: 1px solid rgba(0, 0, 0, 0.45);
   box-sizing: border-box;
 }
+/* Two neighbours turning together are one highlighted square: no line
+   between them while they do. */
+.flip--up + .flip--up,
+.flip--down + .flip--down {
+  border-left-color: transparent;
+}
 
 .flip-half {
   position: absolute;
