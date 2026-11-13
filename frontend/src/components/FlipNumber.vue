@@ -95,8 +95,18 @@ watch(
   gap: var(--gap);
   height: 100%;
 }
+/* Warm amber when the count goes up, slate blue when it goes down. Adding one is
+   the loud one (a big amber ring); taking one off a quiet white flash. */
+.flip-number {
+  --flash: 255, 190, 40;
+  --ring: 5px;
+  --grow: 1.1;
+}
 .flip-number--down {
   --tint: #46608f;
+  --flash: 255, 255, 255;
+  --ring: 2px;
+  --grow: 1.04;
 }
 
 /* Sits behind the cards, from the first changed card to the last one, and
@@ -111,13 +121,19 @@ watch(
   border-radius: 4px;
   background: var(--tint);
   pointer-events: none;
-  animation-name: flip-tint-fade !important;
-  animation-duration: 0.6s !important;
+  /* The one square: it fades, rings and pops as a single piece. */
+  animation-name: flip-tint-fade, flip-tint-pop !important;
+  animation-duration: 0.6s, 0.6s !important;
   animation-delay: 0s !important;
   animation-timing-function: ease-out !important;
   animation-fill-mode: both !important;
 }
 
+@keyframes flip-tint-pop {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--flash), 0.9); }
+  25% { transform: scale(var(--grow)); box-shadow: 0 0 0 var(--ring) rgba(var(--flash), 0.95); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(var(--flash), 0); }
+}
 @keyframes flip-tint-fade {
   0% { background: var(--tint); }
   55% { background: var(--tint); }

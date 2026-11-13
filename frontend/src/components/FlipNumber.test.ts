@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import FlipNumber from "./FlipNumber.vue";
@@ -87,18 +89,28 @@ describe("FlipNumber", () => {
     expect(cards(w)[0]!.classes()).not.toContain("flip--up");
   });
 
-  it("restarts a digit's animation on every tap, so fast taps each show it", async () => {
+  it("restarts on every tap: a fresh highlight bar and fresh shade, so fast taps each show it", async () => {
     const w = mount(FlipNumber, { props: { value: 5 } });
-    const twin = () => cards(w)[0]!.classes().filter((c) => c === "flip--odd" || c === "flip--even");
     await w.setProps({ value: 6 });
-    const first = twin();
+    const bar = w.find("[data-test=flip-tint]").element;
     const shade = cards(w)[0]!.find(".flip-shade").element;
     await wait(w, 100); // tapped again before the first has finished
     await w.setProps({ value: 7 });
-    expect(twin()).not.toEqual(first); // swapped to the twin animation
-    expect(cards(w)[0]!.find(".flip-shade").element).not.toBe(shade); // and a fresh shade
-    await w.setProps({ value: 8 });
-    expect(twin()).toEqual(first);
+    expect(w.find("[data-test=flip-tint]").element).not.toBe(bar);
+    expect(cards(w)[0]!.find(".flip-shade").element).not.toBe(shade);
+    expect(w.findAll("[data-test=flip-tint]")).toHaveLength(1);
+  });
+
+  it("the ring and the pop are the shared bar's alone: no turning card draws its own", () => {
+    const digit = readFileSync(resolve(process.cwd(), "src/components/FlipDigit.vue"), "utf8");
+    const number = readFileSync(resolve(process.cwd(), "src/components/FlipNumber.vue"), "utf8");
+    // The card has no pop/ring animation or per-tap twin classes any more...
+    expect(digit).not.toMatch(/@keyframes flip-pop/);
+    expect(digit).not.toMatch(/flip--(even|odd)/);
+    expect(digit).toMatch(/\.flip--up,\s*\.flip--down \{\s*box-shadow: none;/);
+    // ...the one bar behind them does it, as a single piece.
+    expect(number).toMatch(/@keyframes flip-tint-pop/);
+    expect(number).toMatch(/animation-name: flip-tint-fade, flip-tint-pop/);
   });
 
   describe("one shared highlight behind the digits that change", () => {
