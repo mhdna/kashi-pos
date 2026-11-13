@@ -1,7 +1,7 @@
 <template>
   <div
     ref="invoiceScroll"
-    class="invoice-items mb-2 me-0"
+    class="invoice-items mt-2 mb-2 me-0"
     :class="{
       'invoice-items--discount-chips': showDiscountChips,
     }"
@@ -1657,10 +1657,7 @@ defineExpose({
      own), so the column lines run its full height and on into the rows. */
   padding: 0 16px 0 24px;
   min-height: 34px;
-  /* Opaque (the lines slide under it), and the sale page's top tint over the
-     page colour, so the header is part of the tinted top section. */
-  background-color: var(--kashi-app-background, #f7f7f7);
-  background-image: linear-gradient(var(--top-tint, transparent), var(--top-tint, transparent));
+  background: var(--kashi-app-background, #f7f7f7);
   border-bottom: 1px solid var(--cart-line);
   font-size: 0.6875rem;
   font-weight: 600;
