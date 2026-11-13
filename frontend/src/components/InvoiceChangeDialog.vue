@@ -59,7 +59,7 @@ const current = computed(() => {
     return { name, note: "", color: salespersonColor(known ?? { fullName: name }) };
   }
   const id = Number(inv?.clientId || 0);
-  if (!id) return { name: "", note: "Walk-in customer", color: undefined };
+  if (!id || inv?.clientIsWalkIn) return { name: "", note: "Anonymous", color: undefined };
   const phone = inv?.clientPhone ? formatLebanesePhone(inv.clientPhone) : "";
   return { name: inv?.clientName || "Client", note: phone, color: CLIENT_COLOR };
 });

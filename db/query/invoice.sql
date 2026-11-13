@@ -79,7 +79,7 @@ LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
 WHERE i.id < sqlc.arg(cursor)
   AND (COALESCE(sqlc.arg(invoice_filter), '') = '' OR lower(i.invoice_code) LIKE '%' || lower(sqlc.arg(invoice_filter)) || '%')
-  AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
+  AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Anonymous' ELSE c.name END) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
   AND (COALESCE(sqlc.arg(salesperson_filter), '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(sqlc.arg(salesperson_filter)) || '%')
   AND (COALESCE(sqlc.arg(date_filter), '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(sqlc.arg(date_filter)) || '%')
   AND (COALESCE(sqlc.arg(total_filter), '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(sqlc.arg(total_filter), '$', '')) || '%')
@@ -112,7 +112,7 @@ FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 LEFT JOIN clients c ON c.id = i.client_id
 WHERE (COALESCE(sqlc.arg(invoice_filter), '') = '' OR lower(i.invoice_code) LIKE '%' || lower(sqlc.arg(invoice_filter)) || '%')
-  AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(COALESCE(c.name, 'Walk-in customer')) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
+  AND (COALESCE(sqlc.arg(customer_filter), '') = '' OR lower(CASE WHEN c.id IS NULL OR c.phone = '00000000' OR trim(c.name) = '' THEN 'Anonymous' ELSE c.name END) LIKE '%' || lower(sqlc.arg(customer_filter)) || '%')
   AND (COALESCE(sqlc.arg(salesperson_filter), '') = '' OR lower(COALESCE(s.full_name, 'Anonymous')) LIKE '%' || lower(sqlc.arg(salesperson_filter)) || '%')
   AND (COALESCE(sqlc.arg(date_filter), '') = '' OR lower(datetime(i.created_at, 'localtime')) LIKE '%' || lower(sqlc.arg(date_filter)) || '%')
   AND (COALESCE(sqlc.arg(total_filter), '') = '' OR printf('%.2f', i.grand_total / 100.0) LIKE '%' || trim(replace(sqlc.arg(total_filter), '$', '')) || '%')
@@ -512,7 +512,7 @@ GROUP BY ca.id, ca.name, ca.currency_code
 ORDER BY ca.name;
 
 -- name: ListClientNamesByIDs :many
-SELECT id, name FROM clients WHERE id IN (sqlc.slice('ids'));
+SELECT id, name, phone FROM clients WHERE id IN (sqlc.slice('ids'));
 
 -- name: ListInvoicePaymentsByInvoiceIDs :many
 SELECT invoice_id, cashbox_id, amount FROM invoice_payments WHERE invoice_id IN (sqlc.slice('ids'));

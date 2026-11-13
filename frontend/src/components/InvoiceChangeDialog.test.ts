@@ -616,11 +616,18 @@ describe("the dialog's look: who it is now, and avatars", () => {
     expect(now()).toBe("KA Karim Aoun (78) 834-243");
   });
 
-  it("says Walk-in customer when the invoice has no client", async () => {
+  it("says Anonymous when the invoice has no client", async () => {
     searchClients.mockResolvedValue(CLIENTS);
     mountDialog("client", { id: 1, clientId: 0 });
     await flushPromises();
-    expect(now()).toBe("Walk-in customer");
+    expect(now()).toBe("Anonymous");
+  });
+
+  it("says Anonymous, with no avatar or phone, for the walk-in client", async () => {
+    searchClients.mockResolvedValue(CLIENTS);
+    mountDialog("client", { id: 1, clientId: 5, clientName: "Walk-in", clientPhone: "00000000", clientIsWalkIn: true });
+    await flushPromises();
+    expect(now()).toBe("Anonymous");
   });
 
   it("gives every client row an avatar, the phone on its second line", async () => {

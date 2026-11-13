@@ -13,6 +13,7 @@ export interface ChangeableInvoice {
   invoiceCode?: string;
   clientId?: number;
   clientName?: string;
+  clientIsWalkIn?: boolean;
   clientPhone?: string;
   salespersonId?: number;
   salespersonName?: string;

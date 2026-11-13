@@ -197,6 +197,43 @@ func isWalkInPhone(phone string) bool { return phone == walkInClientPhone }
 
 func isWalkInClient(c db.Client) bool { return isWalkInPhone(c.Phone) }
 
+// anonymousClientLabel is how the till's screens name a sale with no client.
+// Printed receipts keep receiptWalkInLabel instead.
+const (
+	anonymousClientLabel = "Anonymous"
+	receiptWalkInLabel   = "Walk-in"
+)
+
+// clientDisplayName is the client's name as the till's screens show it: the
+// seeded walk-in pseudo-client reads "Anonymous", never its stored "Walk-in".
+func clientDisplayName(c db.Client) string {
+	if isWalkInClient(c) || strings.TrimSpace(c.Name) == "" {
+		return anonymousClientLabel
+	}
+	return c.Name
+}
+
+// receiptCustomerName is the client's name as a printed receipt shows it: a
+// sale with no real client prints "Walk-in" (the screens say "Anonymous").
+func receiptCustomerName(c db.Client, found bool) string {
+	if !found || isWalkInClient(c) || strings.TrimSpace(c.Name) == "" {
+		return receiptWalkInLabel
+	}
+	return c.Name
+}
+
+// receiptCustomerFromDetails is receiptCustomerName for a reprint, which
+// starts from GetInvoiceDetails (whose clientName is the on-screen label).
+func receiptCustomerFromDetails(details map[string]any) string {
+	if walkIn, _ := details["clientIsWalkIn"].(bool); walkIn {
+		return receiptWalkInLabel
+	}
+	if name, _ := details["clientName"].(string); strings.TrimSpace(name) != "" {
+		return name
+	}
+	return receiptWalkInLabel
+}
+
 // lebaneseMobilePrefixes are the 8-digit mobile ranges (Alfa/Touch). The
 // phonenumbers metadata lags behind here -- it rejects most of 78/79 -- so
 // Lebanese numbers are checked against this list first.
