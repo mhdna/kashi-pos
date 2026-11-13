@@ -147,6 +147,9 @@ marks those lines "kashi" and locks them.
   A line with no ref (an old draft or hold) can't be named.
 - They live in memory: a till restart drops them and the lines go back to
   their own prices on the next report.
+- A held sale keeps them: `HoldInvoice` stores them with the hold, and
+  `ResumeHoldInvoice` puts them back for the same ref, which the restored sale
+  reports again. The hold list never shows them.
 
 ## Settings report
 

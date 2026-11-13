@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildHoldSnapshot, holdKind, holdRestore, holdTitle } from "./holdSnapshot";
+import { buildHoldSnapshot, heldCart, heldSaleLine, holdKind, holdRestore, holdTitle } from "./holdSnapshot";
+import heldSale from "./testdata/held_sale.json";
 
 // A returned line as the exchange puts it in the cart (InvoiceItems
 // addExchangeItems): negative, locked, at its sold price.
@@ -23,11 +24,28 @@ const unknown = {
   name: "Unknown item",
   price: 30,
   qty: 1,
+  discount: 0,
   unitPrices: [30],
   unitDiscounts: [0],
+  originalPrice: 30,
+  originalDiscount: 0,
+  note: "",
   unknownRef: "u1",
 };
-const socks = { code: "L6KS01.5", barcode: "bc-socks", name: "Kids Socks", price: 1.5, qty: 2 };
+// A line as the cart builds it (InvoiceItems addItem).
+const socks = {
+  code: "L6KS01.5",
+  barcode: "bc-socks",
+  name: "Kids Socks",
+  price: 1.5,
+  discount: 0,
+  qty: 2,
+  unitPrices: [1.5, 1.5],
+  unitDiscounts: [0, 0],
+  originalPrice: 1.5,
+  originalDiscount: 0,
+  note: "",
+};
 
 // Holding goes through JSON (HoldInvoice stores it as sent, ListHoldInvoices
 // hands it back with an id), so the tests do too.
@@ -113,7 +131,14 @@ describe("holding a sale", () => {
         { code: "B", qty: 2 },
       ],
     };
-    expect(holdRestore(old)).toEqual({ mode: "sale", items: old.items });
+    // Completed as addItem would build them, from their own price.
+    expect(holdRestore(old)).toEqual({
+      mode: "sale",
+      items: [
+        { code: "A", qty: 1, price: 0, discount: 0, unitPrices: [0], unitDiscounts: [0], originalPrice: 0, originalDiscount: 0, note: "" },
+        { code: "B", qty: 2, price: 0, discount: 0, unitPrices: [0, 0], unitDiscounts: [0, 0], originalPrice: 0, originalDiscount: 0, note: "" },
+      ],
+    });
     expect(holdTitle(old)).toBe("#3 — 2 items");
   });
 });
@@ -210,3 +235,132 @@ describe("holdKind", () => {
     }
   });
 });
+
+// What the user lost: central's price and discount, custom prices and
+// discounts, and an unknown item's pictures. A held sale now comes back as it
+// was held, with the sale's ref and picture session.
+describe("a held sale comes back exactly as it was held", () => {
+  const customPrice = { ...socks, code: "A", barcode: "bc-A", price: 85, qty: 2, unitPrices: [85, 90], unitDiscounts: [0, 0], originalPrice: 100, salespersonId: 3 };
+  const customDiscount = { ...socks, code: "B", barcode: "bc-B", price: 80, qty: 1, discount: 15, unitPrices: [80], unitDiscounts: [15], originalPrice: 80, note: "gift wrap" };
+  const centralPriced = {
+    ...socks, code: "JACKET", barcode: "bc-JACKET", price: 90, qty: 1, discount: 50, unitPrices: [90], unitDiscounts: [50],
+    originalPrice: 100, remote: { priceCents: 9000, discount: 50, noDeal: false, prevPrice: 100, prevDiscount: 0 },
+  };
+  const toggledOff = { ...socks, qty: 1, unitPrices: [1.5], unitDiscounts: [0], originalDiscount: 10, discountOff: true, dealOff: true, saleOption: "Summer" };
+  const pictured = { ...unknown, unknownDeal: "none" };
+  const items = [customPrice, customDiscount, centralPriced, toggledOff, pictured];
+  const parts = {
+    items,
+    client: { id: 4, name: "Rana" },
+    salesperson: { id: 3, fullName: "Cashier" },
+    calculator: { currentInput: "20", activeMethod: "cash", entries: [{ method: "cash", amount: 20 }] },
+    notes: "pick up at 5",
+    saleRef: "sale-1",
+    unknownClientRef: "pics-123",
+  };
+  const fresh = () => "fresh-ref";
+
+  it("every line, the sale's ref, its picture session and the rest", () => {
+    const held = heldCart(heldAndListed(buildHoldSnapshot(parts)), fresh);
+    expect(held.restore).toEqual({ mode: "sale", items });
+    expect(held).toMatchObject({
+      saleRef: "sale-1",
+      unknownClientRef: "pics-123",
+      client: parts.client,
+      salesperson: parts.salesperson,
+      calculator: parts.calculator,
+      notes: "pick up at 5",
+    });
+  });
+
+  it("keeps two lines of one product at their own prices apart", () => {
+    const second = { ...customPrice, price: 70, qty: 1, unitPrices: [70], unitDiscounts: [0] };
+    const held = heldCart(heldAndListed(buildHoldSnapshot({ items: [customPrice, second] })), fresh);
+    expect(held.restore.items).toEqual([customPrice, second]);
+  });
+
+  it("gives a hold from before the ref was kept a fresh one and no picture session", () => {
+    const held = heldCart(heldAndListed({ version: 1, items: [socks] }), fresh);
+    expect([held.saleRef, held.unknownClientRef, held.client, held.notes]).toEqual(["fresh-ref", "", null, ""]);
+  });
+
+  it("leaves the ref and session out of a hold that has none", () => {
+    const snapshot = buildHoldSnapshot({ items: [socks], saleRef: "", unknownClientRef: "" });
+    expect(snapshot).not.toHaveProperty("saleRef");
+    expect(snapshot).not.toHaveProperty("unknownClientRef");
+  });
+
+  it("an anonymous client (id 0) comes back as none", () => {
+    expect(heldCart(heldAndListed(buildHoldSnapshot({ items: [socks], client: { id: 0 } })), fresh).client).toBeNull();
+  });
+
+  it("puts back the backend's resumed hold as it was held (testdata/held_sale.json)", () => {
+    const held = heldCart(heldSale, fresh);
+    expect(held.restore.mode).toBe("sale");
+    expect(held.restore.items).toEqual(heldSale.items);
+    expect(held.saleRef).toBe("sale-1");
+    expect(held.unknownClientRef).toBe("pics-123");
+    const [a, b, jacket, socksLine, unknownLine] = held.restore.items;
+    expect(a).toMatchObject({ price: 85, unitPrices: [85, 90] });
+    expect(b).toMatchObject({ discount: 15, unitDiscounts: [15] });
+    expect(jacket.remote).toMatchObject({ priceCents: 9000, discount: 50 });
+    expect(socksLine).toMatchObject({ discountOff: true, dealOff: true, saleOption: "Summer" });
+    expect(unknownLine).toMatchObject({ unknownRef: "u1abc", unknownDeal: "none" });
+    expect(cartCents(held.restore.items)).toBe(cartCents(heldSale.items));
+    expect(held.calculator).toEqual(heldSale.calculator);
+    expect(heldSale).not.toHaveProperty("liveOverrides");
+  });
+
+  it("comes back at the same total, line for line, over a thousand random carts", () => {
+    let seed = 11;
+    const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const pick = <T>(xs: T[]) => xs[Math.floor(rand() * xs.length)]!;
+    for (let run = 0; run < 1000; run++) {
+      const cart = Array.from({ length: 1 + Math.floor(rand() * 6) }, (_, i) => {
+        const qty = 1 + Math.floor(rand() * 4);
+        const unitPrices = Array.from({ length: qty }, () => Math.round(rand() * 50000) / 100);
+        const unitDiscounts = Array.from({ length: qty }, () => Math.floor(rand() * 101));
+        const line: any = {
+          code: `C${i}`, barcode: `bc-${i}`, name: `Item ${i}`, qty, price: unitPrices[0], discount: unitDiscounts[0],
+          unitPrices, unitDiscounts, originalPrice: Math.round(rand() * 50000) / 100, originalDiscount: Math.floor(rand() * 101),
+          note: pick(["", "gift", "size M"]), salespersonId: Math.floor(rand() * 4),
+        };
+        if (rand() < 0.3) line.discountOff = true;
+        if (rand() < 0.3) line.dealOff = true;
+        if (rand() < 0.3) line.saleOption = pick(["Summer", "Winter"]);
+        if (rand() < 0.3) line.remote = { priceCents: Math.round(unitPrices[0]! * 100), discount: null, noDeal: rand() < 0.5, prevPrice: 1, prevDiscount: 0 };
+        if (rand() < 0.2) Object.assign(line, { code: "UNKNOWN", barcode: "UNKNOWN", unknownRef: `u${run}-${i}` });
+        return line;
+      });
+      const ref = `sale-${run}`;
+      const held = heldCart(heldAndListed(buildHoldSnapshot({ items: cart, saleRef: ref, unknownClientRef: `p${run}` }), run), fresh);
+      expect(held.restore.items).toEqual(cart);
+      expect(cartCents(held.restore.items)).toBe(cartCents(cart));
+      expect([held.saleRef, held.unknownClientRef]).toEqual([ref, `p${run}`]);
+    }
+  });
+
+  it("one cent off anywhere is caught", () => {
+    const back = heldCart(heldAndListed(buildHoldSnapshot({ items })), fresh).restore.items;
+    back[0].unitPrices[1] = 90.01;
+    expect(cartCents(back)).not.toBe(cartCents(items));
+  });
+
+  it("a complete line is never changed by completing it", () => {
+    for (const line of [...items, socks, unknown]) expect(heldSaleLine(line)).toEqual(line);
+  });
+});
+
+// A cart's total before deals, in cents: each unit at its price less its
+// discount.
+function cartCents(items: any[]): number {
+  return items.reduce(
+    (sum, item) =>
+      sum +
+      (item.unitPrices as number[]).reduce(
+        (s: number, price: number, i: number) => s + Math.round(price * 100 * (100 - item.unitDiscounts[i])) ,
+        0,
+      ),
+    0,
+  );
+}

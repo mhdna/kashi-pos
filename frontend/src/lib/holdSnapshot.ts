@@ -1,8 +1,12 @@
 // An invoice on hold, as home.vue saves it (HoldInvoice keeps the JSON as
-// sent) and restores it. A sale and an exchange can both be held; an
-// exchange keeps the sale it returns items from, so it comes back as the
-// same exchange: its returned lines (negative, locked, at their sold price)
-// exactly as they were, its replacements, and the sale to price them against.
+// sent) and restores it. Whatever was held comes back as it was: every line
+// with its prices, per-unit prices, discounts, toggles, notes and central's
+// marks, the sale's ref (central's live-cart overrides of the sale go by it,
+// and ResumeHoldInvoice puts them back) and its unknown-item picture session
+// (the pictures already taken stay with the sale). An exchange also keeps the
+// sale it returns items from, so it comes back as the same exchange: its
+// returned lines (negative, locked, at their sold price), its replacements,
+// and the sale to price them against.
 
 export interface HoldExchange {
   originalInvoiceId: number;
@@ -16,6 +20,10 @@ export interface HoldSnapshot {
   salesperson?: any;
   calculator?: any;
   notes?: string;
+  // The sale's ref for central's live cart (home.vue saleRef).
+  saleRef?: string;
+  // The unknown-item pictures session opened for this cart.
+  unknownClientRef?: string;
   // Only on a held exchange.
   exchange?: HoldExchange;
 }
@@ -26,6 +34,8 @@ export function buildHoldSnapshot(parts: {
   salesperson?: any;
   calculator?: any;
   notes?: string;
+  saleRef?: string;
+  unknownClientRef?: string;
   exchange?: HoldExchange | null;
 }): HoldSnapshot {
   const snapshot: HoldSnapshot = {
@@ -37,6 +47,8 @@ export function buildHoldSnapshot(parts: {
     calculator: parts.calculator,
     notes: parts.notes,
   };
+  if (parts.saleRef) snapshot.saleRef = parts.saleRef;
+  if (parts.unknownClientRef) snapshot.unknownClientRef = parts.unknownClientRef;
   const exchange = parts.exchange;
   if (exchange && exchange.originalInvoiceId > 0) {
     snapshot.exchange = {
@@ -56,11 +68,13 @@ function copy<T>(value: T): T {
 export type HoldRestore =
   { mode: "exchange"; items: any[]; exchange: HoldExchange } | { mode: "sale"; items: any[] };
 
-// How a hold comes back. An exchange is restored as it was, line for line.
-// A sale's lines are re-added one by one (addItem prices them again); a
-// returned line can only belong to an exchange, so a sale never brings one
-// back (a hold from before exchanges could be held, or a damaged one).
-// An exchange hold that has lost its returned lines is just a sale.
+// How a hold comes back: line for line, as it was held. Both a sale and an
+// exchange are put back on the cart as they are, never re-added through
+// addItem, which would price them again from the lists and lose a custom
+// price, a per-unit price, a custom discount or central's price. A returned
+// line can only belong to an exchange, so a sale never brings one back (a
+// hold from before exchanges could be held, or a damaged one). An exchange
+// hold that has lost its returned lines is just a sale.
 export function holdRestore(hold: any): HoldRestore {
   const items: any[] = Array.isArray(hold?.items) ? hold.items : [];
   const id = Number(hold?.exchange?.originalInvoiceId ?? 0);
@@ -73,7 +87,61 @@ export function holdRestore(hold: any): HoldRestore {
       exchange: { originalInvoiceId: id, ...(code ? { originalInvoiceCode: String(code) } : {}) },
     };
   }
-  return { mode: "sale", items: items.filter((item) => !(Number(item?.qty) < 0)) };
+  return {
+    mode: "sale",
+    items: items.filter((item) => item && !(Number(item.qty) < 0)).map(heldSaleLine),
+  };
+}
+
+// A held sale line as the cart keeps it. A line the screen held already is
+// complete and comes back unchanged; one from an older hold (no per-unit
+// prices, no list price) is completed the way addItem builds a line, from
+// its own price and discount, never the lists'.
+export function heldSaleLine(item: any): any {
+  const line = copy(item);
+  const qty = Math.max(1, Math.trunc(Number(line.qty) || 1));
+  const price = Number(line.price) || 0;
+  const discount = Number(line.discount) || 0;
+  line.qty = qty;
+  line.price = price;
+  line.discount = discount;
+  if (!(Array.isArray(line.unitPrices) && line.unitPrices.length === qty)) {
+    line.unitPrices = Array(qty).fill(price);
+  }
+  if (!(Array.isArray(line.unitDiscounts) && line.unitDiscounts.length === qty)) {
+    line.unitDiscounts = Array(qty).fill(discount);
+  }
+  line.originalPrice ??= price;
+  line.originalDiscount ??= discount;
+  line.note ??= "";
+  return line;
+}
+
+// Everything the sale screen puts back from a hold. The same sale again:
+// its ref (central's overrides of it go by it) and its unknown-item picture
+// session, so the pictures already taken stay with it. A hold from before
+// they were kept gets a fresh ref and no session.
+export interface HeldCart {
+  restore: HoldRestore;
+  saleRef: string;
+  unknownClientRef: string;
+  client: any | null;
+  salesperson: any | null;
+  notes: string;
+  calculator: any;
+}
+
+export function heldCart(hold: any, freshSaleRef: () => string): HeldCart {
+  const saleRef = typeof hold?.saleRef === "string" && hold.saleRef ? hold.saleRef : freshSaleRef();
+  return {
+    restore: holdRestore(hold),
+    saleRef,
+    unknownClientRef: typeof hold?.unknownClientRef === "string" ? hold.unknownClientRef : "",
+    client: hold?.client?.id ? hold.client : null,
+    salesperson: hold?.salesperson ?? null,
+    notes: typeof hold?.notes === "string" ? hold.notes : "",
+    calculator: hold?.calculator,
+  };
 }
 
 // The hold list's title: "#12 — 3 items", or for an exchange
