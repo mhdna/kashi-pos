@@ -155,10 +155,10 @@ watch(
 }
 
 /* The whole card pops, rings and washes over when the count changes. Adding
-   one is the loud one (green, big ring, strong wash); taking one off is a
+   one is the loud one (cyan, big ring, strong wash); taking one off is a
    quiet white flash, so the two never look alike. */
 .flip--up {
-  --flash: 67, 214, 110;
+  --flash: 40, 200, 255;
   --ring: 6px;
   --wash: 0.6;
   --grow: 1.14;
