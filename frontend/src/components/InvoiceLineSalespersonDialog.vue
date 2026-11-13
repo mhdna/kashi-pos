@@ -26,6 +26,10 @@ const emit = defineEmits<{
   error: [message: string];
 }>();
 
+// Wide enough for two columns, but never under the 72px nav on either side
+// (the dialog is centred on the whole window).
+const SPLIT_WIDTH = "min(860px, calc(100vw - 2 * 72px - 32px))";
+
 const lines = ref<Line[]>([]);
 const salespersons = ref<SalespersonOption[]>([]);
 const picks = ref<Record<number, number>>({});
@@ -152,7 +156,7 @@ async function save() {
 </script>
 
 <template>
-  <k-dialog :model-value="modelValue" :max-width="showItems ? 980 : 520" @update:model-value="emit('update:modelValue', $event)">
+  <k-dialog :model-value="modelValue" :max-width="showItems ? SPLIT_WIDTH : 520" @update:model-value="emit('update:modelValue', $event)">
     <k-card class="line-sp-dialog">
       <div class="line-sp-header">
         <k-avatar color="primary" variant="tonal" size="40"><k-icon icon="mdi-account-group" /></k-avatar>
