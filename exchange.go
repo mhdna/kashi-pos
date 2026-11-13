@@ -94,7 +94,7 @@ func (a *App) getExchangeInvoice(code string, enforceWindow bool) (map[string]an
 			"productId":       product.ID,
 			"code":            product.Code,
 			"barcode":         product.Barcode,
-			"name":            product.Name,
+			"name":            lineName(line, product),
 			"color":           product.Color,
 			"size":            product.Size,
 			"price":           float64(line.UnitPrice) / 100,

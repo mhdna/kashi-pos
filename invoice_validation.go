@@ -13,13 +13,16 @@ import (
 )
 
 type pricedInvoiceProduct struct {
-	product        db.Product
-	qty            int64
-	unitPrice      int64
-	discount       int64
-	lineTotal      int64
-	salespersonID  int64
-	note           string
+	product       db.Product
+	qty           int64
+	unitPrice     int64
+	discount      int64
+	lineTotal     int64
+	salespersonID int64
+	note          string
+	// The name given to an unknown item line (see salesInvoiceItem.Name); ''
+	// for any other line.
+	itemName       string
 	priceListID    int64
 	discountListID int64
 	saleOption     string
@@ -344,6 +347,10 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 			}
 			priced.salespersonID = item.SalespersonID
 			priced.note = strings.TrimSpace(item.Note)
+			// Only an unknown item takes a name, and "Unknown item" is no name.
+			if name := strings.TrimSpace(item.Name); product.Barcode == a.unknownBarcode() && name != product.Name {
+				priced.itemName = name
+			}
 			priced.saleOption = saleOption
 			priced.cartSaleOption = item.SaleOption
 			priced.dealUID = dealUID
@@ -383,12 +390,24 @@ func (a *App) validateAndPriceItems(q *db.Queries, inventoryID int64, items []sa
 	return products, subtotal, discountedSubtotal, receiptItems, nil
 }
 
+// maxItemNameRunes is the longest name a cashier can give an unknown item.
+const maxItemNameRunes = 80
+
+// displayName is what the line is called on the invoice and the receipt: the
+// name the cashier gave an unknown item, else its product's.
+func (p pricedInvoiceProduct) displayName() string {
+	if p.itemName != "" {
+		return p.itemName
+	}
+	return p.product.Name
+}
+
 // receiptItemFor is a priced line as the receipt prints it. A deal line
 // carries its saving as an amount (a bundle's share is rarely a whole
 // percent) and says so when a unit is free: "Shirt (FREE)".
 func receiptItemFor(p pricedInvoiceProduct) invoiceItem {
 	item := invoiceItem{
-		Name: nameWithSaleOption(p.product.Name, p.saleOption), Code: p.product.Code, Barcode: p.product.Barcode,
+		Name: nameWithSaleOption(p.displayName(), p.saleOption), Code: p.product.Code, Barcode: p.product.Barcode,
 		Category: p.product.Description, Color: p.product.Color, Size: p.product.Size,
 		Price: float64(p.unitPrice) / 100, Discount: float64(p.discount), Qty: float64(p.qty),
 	}

@@ -262,8 +262,8 @@ func (q *Queries) CreateInvoicePaymentEntry(ctx context.Context, arg CreateInvoi
 }
 
 const createInvoiceProduct = `-- name: CreateInvoiceProduct :exec
-INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount, invoice_discount, deal_fallback_percent)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO invoice_products (invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount, invoice_discount, deal_fallback_percent, item_name)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateInvoiceProductParams struct {
@@ -282,6 +282,7 @@ type CreateInvoiceProductParams struct {
 	DealDiscount        int64         `json:"dealDiscount"`
 	InvoiceDiscount     int64         `json:"invoiceDiscount"`
 	DealFallbackPercent sql.NullInt64 `json:"dealFallbackPercent"`
+	ItemName            string        `json:"itemName"`
 }
 
 func (q *Queries) CreateInvoiceProduct(ctx context.Context, arg CreateInvoiceProductParams) error {
@@ -301,6 +302,7 @@ func (q *Queries) CreateInvoiceProduct(ctx context.Context, arg CreateInvoicePro
 		arg.DealDiscount,
 		arg.InvoiceDiscount,
 		arg.DealFallbackPercent,
+		arg.ItemName,
 	)
 	return err
 }
@@ -482,7 +484,7 @@ func (q *Queries) GetInvoiceIndex(ctx context.Context, arg GetInvoiceIndexParams
 }
 
 const getInvoiceProduct = `-- name: GetInvoiceProduct :one
-SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount, invoice_discount, deal_fallback_percent FROM invoice_products WHERE invoice_id = ? AND product_id = ?
+SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount, invoice_discount, deal_fallback_percent, item_name FROM invoice_products WHERE invoice_id = ? AND product_id = ?
 `
 
 type GetInvoiceProductParams struct {
@@ -510,6 +512,7 @@ func (q *Queries) GetInvoiceProduct(ctx context.Context, arg GetInvoiceProductPa
 		&i.DealDiscount,
 		&i.InvoiceDiscount,
 		&i.DealFallbackPercent,
+		&i.ItemName,
 	)
 	return i, err
 }
@@ -1337,7 +1340,7 @@ func (q *Queries) ListInvoicePaymentsByInvoiceIDs(ctx context.Context, ids []int
 }
 
 const listInvoiceProducts = `-- name: ListInvoiceProducts :many
-SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount, invoice_discount, deal_fallback_percent FROM invoice_products WHERE invoice_id = ?
+SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount, invoice_discount, deal_fallback_percent, item_name FROM invoice_products WHERE invoice_id = ?
 `
 
 func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]InvoiceProduct, error) {
@@ -1366,6 +1369,7 @@ func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]I
 			&i.DealDiscount,
 			&i.InvoiceDiscount,
 			&i.DealFallbackPercent,
+			&i.ItemName,
 		); err != nil {
 			return nil, err
 		}
@@ -1381,7 +1385,7 @@ func (q *Queries) ListInvoiceProducts(ctx context.Context, invoiceID int64) ([]I
 }
 
 const listInvoiceProductsInOrder = `-- name: ListInvoiceProductsInOrder :many
-SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount, invoice_discount, deal_fallback_percent FROM invoice_products WHERE invoice_id = ? ORDER BY id
+SELECT id, invoice_id, product_id, unit_price, line_total, discount, quantity, salesperson_id, note, price_list_id, discount_list_id, sale_option, deal_uid, deal_discount, invoice_discount, deal_fallback_percent, item_name FROM invoice_products WHERE invoice_id = ? ORDER BY id
 `
 
 // The lines as they were recorded (and sent to central, which keeps them in
@@ -1412,6 +1416,7 @@ func (q *Queries) ListInvoiceProductsInOrder(ctx context.Context, invoiceID int6
 			&i.DealDiscount,
 			&i.InvoiceDiscount,
 			&i.DealFallbackPercent,
+			&i.ItemName,
 		); err != nil {
 			return nil, err
 		}
@@ -1880,7 +1885,7 @@ func (q *Queries) ListSaleDealAdjustments(ctx context.Context, salesInvoiceID in
 }
 
 const listSaleExchangeDealLines = `-- name: ListSaleExchangeDealLines :many
-SELECT ip.id, ip.invoice_id, ip.product_id, ip.unit_price, ip.line_total, ip.discount, ip.quantity, ip.salesperson_id, ip.note, ip.price_list_id, ip.discount_list_id, ip.sale_option, ip.deal_uid, ip.deal_discount, ip.invoice_discount, ip.deal_fallback_percent FROM return_invoices r
+SELECT ip.id, ip.invoice_id, ip.product_id, ip.unit_price, ip.line_total, ip.discount, ip.quantity, ip.salesperson_id, ip.note, ip.price_list_id, ip.discount_list_id, ip.sale_option, ip.deal_uid, ip.deal_discount, ip.invoice_discount, ip.deal_fallback_percent, ip.item_name FROM return_invoices r
 JOIN invoice_products ip ON ip.invoice_id = r.invoice_id
 WHERE r.sales_invoice_id = ? AND ip.deal_uid != ''
 ORDER BY ip.invoice_id, ip.id
@@ -1914,6 +1919,7 @@ func (q *Queries) ListSaleExchangeDealLines(ctx context.Context, salesInvoiceID 
 			&i.DealDiscount,
 			&i.InvoiceDiscount,
 			&i.DealFallbackPercent,
+			&i.ItemName,
 		); err != nil {
 			return nil, err
 		}

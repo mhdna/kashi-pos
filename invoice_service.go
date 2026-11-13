@@ -433,7 +433,7 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 		}
 		items = append(items, map[string]any{
 			"lineId": line.ID,
-			"name":   product.Name, "code": product.Code, "barcode": product.Barcode, "category": product.Description,
+			"name":   lineName(line, product), "code": product.Code, "barcode": product.Barcode, "category": product.Description,
 			"color": product.Color, "size": product.Size,
 			"price": float64(line.UnitPrice) / 100, "lineTotal": float64(line.LineTotal) / 100,
 			"discount": line.Discount, "qty": line.Quantity,
@@ -1104,4 +1104,13 @@ func socialPlatformIconBytes(platform string) []byte {
 	default:
 		return nil
 	}
+}
+
+// lineName is what an invoice line is called: the name the cashier gave an
+// unknown item when ringing it up, else its product's name.
+func lineName(line db.InvoiceProduct, product db.Product) string {
+	if line.ItemName != "" {
+		return line.ItemName
+	}
+	return product.Name
 }

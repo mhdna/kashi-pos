@@ -448,6 +448,7 @@ type InvoiceProduct struct {
 	DealDiscount        int64         `json:"dealDiscount"`
 	InvoiceDiscount     int64         `json:"invoiceDiscount"`
 	DealFallbackPercent sql.NullInt64 `json:"dealFallbackPercent"`
+	ItemName            string        `json:"itemName"`
 }
 
 type Loan struct {
