@@ -1,6 +1,6 @@
 <template>
   <section class="mb-4">
-    <div class="calculator-amounts mb-2" :class="statusColor">
+    <div class="calculator-amounts mb-2" :class="statusColor" :style="{ '--left-items': leftCount }">
       <k-btn
         v-if="remainingAmount.amountsByCurrency.length > 1 && !showReadyState && !quoteError && !exchangeShortfallText"
         class="calculator-amounts-flip"
@@ -11,9 +11,24 @@
         title="Switch total currency"
         @click="flipCurrency"
       />
-      <!-- The invoice's own total, only while the big number is something else
-           (what is left to pay, the change, "Paid"). -->
-      <span v-if="totalText" class="calculator-amounts-total" data-test="invoice-total">{{ totalText }}</span>
+      <!-- Down the left side, one under the other: the invoice's own total (only
+           while the big number is something else: what is left to pay, the
+           change, "Paid"), then "Rounded", then the discounts. -->
+      <div v-if="leftCount" class="calculator-amounts-left" data-test="card-left">
+        <span v-if="totalText" class="calculator-amounts-total" data-test="invoice-total">{{ totalText }}</span>
+        <template v-if="showPills">
+          <!-- What it was rounded from is in the tooltip; the pill just says so. -->
+          <span v-if="showRounded" class="calculator-amounts-rounded" :title="roundedFromText || undefined">Rounded</span>
+          <!-- central's whole-sale discount, already off the total. -->
+          <span v-if="invoiceDiscountText" class="calculator-amounts-discount" :title="invoiceDiscountText">
+            {{ invoiceDiscountText }}
+          </span>
+          <!-- Everything taken off the sale in all: lines, deals and that. -->
+          <span v-if="discountText" class="calculator-amounts-discount" data-test="discount-total">
+            {{ discountText }}
+          </span>
+        </template>
+      </div>
       <!-- A failed quote has no total to show. Rendering $0.00 here would
            read as a legitimate, fully-paid zero-value sale. -->
       <div v-if="quoteError" class="calculator-error-state">
@@ -48,28 +63,6 @@
              have two lines. -->
         <div v-else-if="otherTotalText" class="calculator-amounts-split calculator-amounts-other">
           <span :class="statusColor">{{ otherTotalText }}</span>
-        </div>
-        <!-- The pills along the bottom left, "Rounded" then the discounts, in one
-             row so they never sit on top of each other. -->
-        <div v-if="roundedFromText || isRounded || invoiceDiscountText || discountText" class="calculator-amounts-pills">
-          <!-- What it was rounded from is in the tooltip; the pill just says so. -->
-          <span
-            v-if="roundedFromText || isRounded"
-            class="calculator-amounts-rounded"
-            :title="roundedFromText || undefined"
-          >
-            Rounded
-          </span>
-          <span class="calculator-amounts-pills__group">
-            <!-- central's whole-sale discount, already off the total above. -->
-            <span v-if="invoiceDiscountText" class="calculator-amounts-discount" :title="invoiceDiscountText">
-              {{ invoiceDiscountText }}
-            </span>
-            <!-- Everything taken off the sale in all: lines, deals and that. -->
-            <span v-if="discountText" class="calculator-amounts-discount" data-test="discount-total">
-              {{ discountText }}
-            </span>
-          </span>
         </div>
       </template>
     </div>
@@ -148,6 +141,18 @@ const otherTotalText = computed(() => {
   return list[(currentIndex.value + 1) % list.length]?.text ?? "";
 });
 
+// The pills show on the plain total only, not over an error, a hint or "Paid".
+const showPills = computed(() => !props.quoteError && !exchangeShortfallText.value && !props.showReadyState);
+const showRounded = computed(() => Boolean(props.roundedFromText) || isRounded.value);
+// How many lines the left side holds: the card is as tall as they need.
+const leftCount = computed(
+  () =>
+    (props.totalText ? 1 : 0) +
+    (showPills.value
+      ? (showRounded.value ? 1 : 0) + (props.invoiceDiscountText ? 1 : 0) + (props.discountText ? 1 : 0)
+      : 0),
+);
+
 function flipCurrency() {
   const list = props.remainingAmount.amountsByCurrency;
   if (list.length === 0) return;
@@ -161,7 +166,8 @@ function flipCurrency() {
   position: relative;
   display: grid;
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  height: 66px;
+  /* 66px, or taller when the left side stacks more than three lines. */
+  height: max(66px, calc(var(--left-items, 0) * 22px + 12px));
   align-items: center;
   padding: 8px 12px;
   border: 1px solid rgba(var(--k-border-color), 0.12);
@@ -184,30 +190,23 @@ function flipCurrency() {
   right: 4px;
   z-index: 1;
 }
-.calculator-amounts-total {
+.calculator-amounts-left {
   position: absolute;
   top: 6px;
   left: 10px;
+  /* Clear of the numbers in the middle; a long name is cut with an ellipsis. */
+  max-width: 36%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.calculator-amounts-total {
   font-size: var(--kashi-font-size-xs, 0.6875rem);
   font-weight: 600;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: rgba(var(--k-theme-on-surface), 0.6);
-}
-.calculator-amounts-pills {
-  position: absolute;
-  bottom: 6px;
-  left: 10px;
-  /* Everything stays on the left, clear of the numbers in the middle. */
-  max-width: 40%;
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-}
-.calculator-amounts-pills__group {
-  display: flex;
-  min-width: 0;
-  gap: 6px;
 }
 .calculator-amounts-rounded {
   flex: 0 0 auto;

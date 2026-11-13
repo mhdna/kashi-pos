@@ -124,25 +124,43 @@ describe("CalculatorStatus total and discount", () => {
     expect(w.find("[data-test=discount-total]").text()).toBe("Discount −$34.50");
   });
 
-  it("puts Rounded, the invoice discount and the discount in one row on the left, so they cannot overlap", () => {
+  it("stacks the total, Rounded and the discounts down the left side, one under the other", () => {
     const w = mountStatus({ first: "$128", second: "LL 50,000", firstCode: "" }, BOTH, {
+      totalText: "Total $128.56",
       roundedFromText: "Rounded from $128.56",
       invoiceDiscountText: "15% over $150 −$42",
       discountText: "Discount −$42.00",
     });
-    const row = w.find(".calculator-amounts-pills");
-    expect(row.exists()).toBe(true);
-    expect(w.findAll(".calculator-amounts-pills > *")).toHaveLength(2); // Rounded, and the discounts beside it
-    // All on the left: nothing in the row is pushed to the right-hand side.
-    expect(row.find(".calculator-amounts-pills__group").exists()).toBe(true)
-    expect(row.find(".calculator-amounts-rounded").exists()).toBe(true);
-    expect(row.findAll(".calculator-amounts-discount").map((p) => p.text())).toEqual([
+    const left = w.find("[data-test=card-left]");
+    // One column holding them all, in this order (nothing floats on the right).
+    expect(left.findAll(":scope > *").map((el) => el.text())).toEqual([
+      "Total $128.56",
+      "Rounded",
       "15% over $150 −$42",
       "Discount −$42.00",
     ]);
+    expect(w.findAll(".calculator-amounts-discount")).toHaveLength(2);
+    // The card makes room: its height follows the number of lines stacked.
+    expect(w.find(".calculator-amounts").attributes("style")).toContain("--left-items: 4");
   });
 
-  it("has no pills row when there is nothing to say", () => {
-    expect(mountStatus(one).find(".calculator-amounts-pills").exists()).toBe(false);
+  it("the card is only as tall as its left side needs", () => {
+    const style = (extra: Record<string, unknown>) =>
+      mountStatus(one, BOTH, extra).find(".calculator-amounts").attributes("style") ?? "";
+    expect(style({})).not.toContain("--left-items: 1");
+    expect(style({ totalText: "Total $250.00" })).toContain("--left-items: 1");
+    expect(style({ totalText: "Total $250.00", discountText: "Discount −$5.00" })).toContain("--left-items: 2");
+  });
+
+  it("shows only the Total over Paid, an error or an exchange hint: no pills there", () => {
+    const pills = { roundedFromText: "Rounded from $1", discountText: "Discount −$5.00", totalText: "Total $250.00" };
+    const paid = mountStatus(one, BOTH, { ...pills, showReadyState: true, paymentStatus: "Paid" });
+    expect(paid.find("[data-test=card-left]").text()).toBe("Total $250.00");
+    const failed = mountStatus(one, BOTH, { ...pills, quoteError: "boom" });
+    expect(failed.find("[data-test=discount-total]").exists()).toBe(false);
+  });
+
+  it("has nothing on the left when there is nothing to say", () => {
+    expect(mountStatus(one).find("[data-test=card-left]").exists()).toBe(false);
   });
 });
