@@ -120,6 +120,13 @@ describe("compact list", () => {
     expect(row(w, "11/11/2026").find("[data-test=visitors]").classes().join(" ")).toContain("x-small");
   });
 
+  it("the Total heading is centred over its column, and Visitors starts at its pills' left edge", () => {
+    // Header cells are inline-flex, so it is justify-content that places them.
+    expect(css).toMatch(/\.monthly-income-header > span,[^{]*\{[^}]*display: inline-flex/);
+    expect(css).toMatch(/\.mi-total-head \{[^}]*justify-content: center/);
+    expect(css).toMatch(/\.mi-visitors-head \{[^}]*justify-content: flex-start/);
+  });
+
   it("every visitors chip is the same width, whatever the count", async () => {
     const w = await mountCard({ visitorCounts: { "11/11/2026": 1, "12/11/2026": 87, "13/11/2026": 1135, "15/11/2026": 20000 } });
     const chips = w.findAll("[data-test=visitors]");
@@ -135,7 +142,7 @@ describe("compact list", () => {
     expect(css).toMatch(/\.mi-visitors-head \{[^}]*text-align: start/);
     // The total has a column of its own (right-aligned), so the visitors sit left of it.
     expect(css).toMatch(/1fr 84px 104px/);
-    expect(css).toMatch(/\.mi-total-head,\s*\.mi-total \{[^}]*text-align: end/);
+    expect(css).toMatch(/\.mi-total \{[^}]*text-align: end/);
   });
 
   it("the header sits over the rows' columns: the same first-column width and padding", () => {

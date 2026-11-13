@@ -380,9 +380,17 @@ const emit = defineEmits<{
 .mi-visitors-head {
   text-align: start;
 }
-.mi-total-head,
 .mi-total {
   text-align: end;
+}
+/* The header cells are flex boxes, so they are placed with justify-content (a
+   text-align would do nothing): Total is centred over its column. */
+.mi-total-head {
+  justify-content: center;
+  text-align: center;
+}
+.mi-visitors-head {
+  justify-content: flex-start;
 }
 .mi-day {
   display: flex;
