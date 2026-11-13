@@ -64,6 +64,23 @@ describe("item note on-screen keyboard", () => {
     expect(keyboard()).toBeTruthy();
   });
 
+  it("is its own panel on the body, above the dialog, not inside the dialog card", async () => {
+    await openDetails();
+    await focus();
+    const kb = keyboard()!;
+    const dialogEl = document.body.querySelector<HTMLElement>(".k-dialog")!;
+    const content = dialogEl.querySelector(".k-overlay__content")!;
+    expect(content.contains(kb)).toBe(false);
+    expect(dialogEl.contains(kb)).toBe(false);
+    expect(kb.parentElement).toBe(document.body);
+    expect(Number(kb.style.zIndex)).toBeGreaterThan(Number(dialogEl.style.zIndex));
+    // The dialog is told to stand clear of it while typing.
+    expect(dialogEl.classList.contains("line-details--typing")).toBe(true);
+    note().dispatchEvent(new FocusEvent("blur"));
+    await flushPromises();
+    expect(dialogEl.classList.contains("line-details--typing")).toBe(false);
+  });
+
   it("hides the keyboard when the note loses focus", async () => {
     await openDetails();
     await focus();

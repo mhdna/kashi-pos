@@ -345,7 +345,14 @@
       </k-card>
     </k-dialog>
 
-    <k-dialog v-model="detailsDialog" width="600" height="640" @after-leave="detailItem = null">
+    <k-dialog
+      v-model="detailsDialog"
+      width="600"
+      height="640"
+      :class="{ 'line-details--typing': noteFocused }"
+      :style="{ '--note-keyboard-height': `${noteKeyboardHeight}px` }"
+      @after-leave="detailItem = null"
+    >
       <k-card v-if="detailItem">
         <k-card-title class="d-flex align-center">
           <div class="min-width-0">
@@ -401,16 +408,6 @@
               @blur="noteFocused = false"
             />
           </div>
-          <InlineKeyboard
-            v-if="noteFocused"
-            :model-value="detailItem.note ?? ''"
-            @update:model-value="detailItem.note = $event"
-            class="line-note-keyboard"
-            data-test="line-note-keyboard"
-            layout="note"
-            :max-length="NOTE_MAX"
-            :input="noteField"
-          />
           <div class="invoice-units-title">Units</div>
           <div class="invoice-unit-lines">
             <div
@@ -474,6 +471,27 @@
         </k-card-actions>
       </k-card>
     </k-dialog>
+
+    <!-- The note's keyboard: its own panel docked to the bottom of the screen,
+         above the dialog (which moves up out of its way), not inside it. -->
+    <Teleport to="body">
+      <div
+        v-if="noteFocused && detailsDialog && detailItem"
+        ref="noteKeyboardPanel"
+        class="line-note-keyboard"
+        :style="{ zIndex: noteKeyboardZ }"
+        data-test="line-note-keyboard"
+        @mousedown="keepFieldFocus"
+      >
+        <InlineKeyboard
+          :model-value="detailItem.note ?? ''"
+          layout="note"
+          :max-length="NOTE_MAX"
+          :input="noteField"
+          @update:model-value="detailItem.note = $event"
+        />
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -518,6 +536,8 @@ import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
 import SalespersonGrid from "@/components/SalespersonGrid.vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
+import { keepFieldFocus } from "@/lib/keepFocus";
+import { nextZ } from "@/ui/overlay";
 
 interface LineItem {
   name: string;
@@ -946,6 +966,20 @@ const noteField = ref<HTMLTextAreaElement | null>(null);
 // The keyboard shows while the note is being typed in, and goes when the
 // cashier taps anywhere else.
 const noteFocused = ref(false);
+const noteKeyboardPanel = ref<HTMLElement | null>(null);
+const noteKeyboardZ = ref(2000);
+// How tall the keyboard is, so the dialog can stand clear above it.
+const noteKeyboardHeight = ref(0);
+watch(noteFocused, (focused) => {
+  if (!focused) {
+    noteKeyboardHeight.value = 0;
+    return;
+  }
+  noteKeyboardZ.value = nextZ();
+  void nextTick(() => {
+    noteKeyboardHeight.value = noteKeyboardPanel.value?.offsetHeight ?? 0;
+  });
+});
 const salespersons = ref<Salesperson[]>([]);
 // The person picked for the open line, or null when it follows the invoice.
 const detailSalesperson = computed(() => {
@@ -1794,7 +1828,23 @@ defineExpose({
   color: rgba(var(--k-theme-on-surface), 0.4);
 }
 .line-note-keyboard {
-  margin-bottom: 12px;
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 8px 12px 10px;
+  background: rgb(var(--k-theme-surface));
+  border-top: 1px solid rgba(var(--k-border-color), 0.2);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
+}
+.line-note-keyboard > * {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+/* While typing, the dialog sits in the space above the keyboard. */
+:global(.line-details--typing) {
+  box-sizing: border-box;
+  padding-bottom: var(--note-keyboard-height);
 }
 .invoice-units-title {
   margin: 4px 0 8px;
