@@ -368,7 +368,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: rgb(var(--k-theme-primary));
+  color: #f9a825;
 }
 .unlock-title {
   margin: 12px 0 4px;
