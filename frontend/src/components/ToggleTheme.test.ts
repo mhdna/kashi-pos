@@ -28,9 +28,10 @@ const mountIt = () => (wrapper = mount(ToggleTheme, { global: { plugins: [ui] } 
 const button = () => wrapper!.find("[data-test=theme-toggle]");
 
 describe("theme toggle", () => {
-  it("has a Theme caption over a moon button in the light theme", () => {
+  it("is just a moon icon in the light theme: no caption, no background", () => {
     mountIt();
-    expect(wrapper!.text()).toContain("Theme");
+    expect(wrapper!.text()).toBe("");
+    expect(button().classes()).toContain("k-btn--variant-text");
     expect(button().attributes("aria-label")).toBe("Switch to dark theme");
     expect(button().find(".k-icon").exists()).toBe(true);
   });
