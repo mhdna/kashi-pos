@@ -68,10 +68,11 @@ func roundFloatToCents(value float64, mode string) (int64, error) {
 }
 
 // applyRoundingRemainder bumps a big.Int quotient by one whenever the
-// configured mode calls for rounding away from zero: always for "up", or
-// for "half_up" when the remainder is at least half of the denominator.
+// configured mode calls for rounding away from zero: for "up" when anything
+// is left over, or for "half_up" when the remainder is at least half of the
+// denominator. An exact amount is never bumped.
 func applyRoundingRemainder(quotient, remainder, denominator *big.Int, mode string) {
-	if mode == roundingUp || (mode == roundingHalfUp && new(big.Int).Mul(remainder, big.NewInt(2)).Cmp(denominator) >= 0) {
+	if (mode == roundingUp && remainder.Sign() != 0) || (mode == roundingHalfUp && new(big.Int).Mul(remainder, big.NewInt(2)).Cmp(denominator) >= 0) {
 		quotient.Add(quotient, big.NewInt(1))
 	}
 }

@@ -3,6 +3,21 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-13 · "Round up" added a step to amounts that were already exact
+
+**Symptom.** On a till set to round up, an amount that converted exactly still
+went up a step: $100 came to LL 9,010,000 instead of 9,000,000, and LL 90,000
+counted as $1.01. No till is known to use round up (the default is half up), so
+this was found by a test, not on the shop floor.
+
+**Cause.** `applyRoundingRemainder` (`money.go`), used by every currency
+conversion, added one for round up whatever was left over, even nothing.
+`roundRatio` and the calculator's own helpers already left exact amounts alone.
+
+**Fix.** Round up adds one only when there is a remainder (`money.go`). Tests:
+`money_test.go` (`TestRoundUpLeavesExactAmountsAlone`, and
+`TestCurrencyRoundingModesRandomized` over 1,500 amounts in every mode).
+
 ## 2026-11-12 · The sync light flipped Updating, Waiting, Sending, Waiting…
 
 **Symptom.** On a till with a big backlog to send (81,979 records) pulling a long

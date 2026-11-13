@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"testing"
 
 	db "kashi-pos/db/sqlc"
@@ -129,6 +130,57 @@ func TestParseSalesItemsRejectsUnsafeInput(t *testing.T) {
 	} {
 		if _, err := parseSalesItems(raw, "UNKNOWN", "UNKNOWN"); err == nil {
 			t.Fatalf("parseSalesItems(%s) unexpectedly succeeded", raw)
+		}
+	}
+}
+
+// Round up left exact amounts alone only in roundRatio: the currency
+// conversions added one anyway, so $100 came to LL 9,010,000 and
+// LL 90,000 to 101¢.
+func TestRoundUpLeavesExactAmountsAlone(t *testing.T) {
+	const lbp90k = 90_000 * unitsPerUsdMicroScale
+	if got, err := roundCurrencyUnitsFromCents(10_000, lbp90k, 10_000, roundingUp); err != nil || got != 9_000_000 {
+		t.Fatalf("$100 in LL, rounding up = %d, %v; want 9,000,000", got, err)
+	}
+	if got, err := roundCentsFromCurrencyUnits(90_000, lbp90k, roundingUp); err != nil || got != 100 {
+		t.Fatalf("LL 90,000 in cents, rounding up = %d, %v; want 100", got, err)
+	}
+	if got, err := roundCurrencyUnitsFromCents(1000, unitsPerUsdMicroScale, 1, roundingUp); err != nil || got != 10 {
+		t.Fatalf("$10.00 to whole dollars, rounding up = %d, %v; want 10", got, err)
+	}
+	if got, err := roundCashEquivalentCents(10_000, lbp90k, 10_000, roundingUp); err != nil || got != 10_000 {
+		t.Fatalf("$100 rounded to LL notes, rounding up = %d, %v; want 10,000", got, err)
+	}
+}
+
+// Every mode, hundreds of amounts: each conversion is the true value
+// rounded the mode's way, never more than one step from it, and an exact
+// amount is unchanged.
+func TestCurrencyRoundingModesRandomized(t *testing.T) {
+	rng := rand.New(rand.NewSource(42))
+	for _, rate := range []int64{90_000, 89_500, 1} {
+		micros := rate * unitsPerUsdMicroScale
+		for n := 0; n < 500; n++ {
+			units := rng.Int63n(50_000_000)
+			for _, mode := range []string{roundingHalfUp, roundingDown, roundingUp} {
+				got, err := roundCentsFromCurrencyUnits(units, micros, mode)
+				if err != nil {
+					t.Fatal(err)
+				}
+				// The true value is units*100/rate; got must be its floor or ceiling.
+				num, den := units*100, rate
+				floor, rem := num/den, num%den
+				want := floor
+				switch {
+				case mode == roundingUp && rem != 0:
+					want = floor + 1
+				case mode == roundingHalfUp && 2*rem >= den:
+					want = floor + 1
+				}
+				if got != want {
+					t.Fatalf("LL %d at %d, %s = %d¢, want %d¢", units, rate, mode, got, want)
+				}
+			}
 		}
 	}
 }
