@@ -138,13 +138,17 @@ function flipCurrency() {
 }
 .calculator-amounts.calculator-green {
   color: #2e7d32;
-  border-color: rgba(46, 125, 50, 0.5);
+  border-color: #2e7d32;
+  box-shadow: inset 0 0 0 1px #2e7d32;
+  background: rgba(46, 125, 50, 0.08);
 }
 .calculator-green {
   color: #2e7d32;
 }
 .calculator-amounts.text-red-darken-2 {
-  border-color: rgba(244, 67, 54, 0.5);
+  border-color: #c62828;
+  box-shadow: inset 0 0 0 1px #c62828;
+  background: rgba(198, 40, 40, 0.08);
 }
 .calculator-amounts-flip {
   position: absolute;
