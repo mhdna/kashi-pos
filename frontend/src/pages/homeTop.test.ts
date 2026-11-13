@@ -33,4 +33,16 @@ describe("sale page top section", () => {
     const closes = (inside.match(/<\/div>/g) ?? []).length;
     expect(closes).toBe(opens);
   });
+
+  it("a scan that worked flashes the barcode field green, one that did not red; never yellow", () => {
+    const success = source.match(/\.barcode-flash-success \.k-field \{[^}]*background-color: rgba\((\d+), (\d+), (\d+)/);
+    const error = source.match(/\.barcode-flash-error \.k-field \{[^}]*background-color: rgba\((\d+), (\d+), (\d+)/);
+    expect(success).toBeTruthy();
+    expect(error).toBeTruthy();
+    const [, r, g, b] = success!.map(Number) as [number, number, number, number];
+    expect(g).toBeGreaterThan(r); // green channel leads: not the old yellow (255, 214, 0)
+    expect(g).toBeGreaterThan(b);
+    const [, er, eg] = error!.map(Number) as [number, number, number];
+    expect(er).toBeGreaterThan(eg); // red stays red
+  });
 });

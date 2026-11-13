@@ -2121,7 +2121,8 @@ onBeforeUnmount(() => {
   border-radius: 4px;
 }
 .barcode-flash-success .k-field {
-  background-color: rgba(255, 214, 0, 0.35);
+  /* Green for a scan that worked (red below for one that didn't). */
+  background-color: rgba(67, 160, 71, 0.3);
 }
 .barcode-flash-error .k-field {
   background-color: rgba(244, 67, 54, 0.28);
