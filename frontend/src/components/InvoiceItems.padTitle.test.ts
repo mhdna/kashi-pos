@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // The number pad says what it is changing, above the number: "Quantity",
-// "Discount" or "Price", with the item's name under it.
+// "Discount" or "Price" (and, in the item details, which unit). No item name.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import ui from "@/ui";
@@ -40,38 +40,28 @@ const open = async (el: Element | null) => {
   await flushPromises();
 };
 const heading = () => document.body.querySelector("[data-test=number-pad-heading]");
-const parts = () => [
-  heading()?.querySelector(".number-pad-title")?.textContent,
-  heading()?.querySelector(".number-pad-subtitle")?.textContent,
-];
+const title = () => heading()?.querySelector(".number-pad-title")?.textContent;
 
 describe("number pad heading", () => {
-  it("names the quantity and the item", async () => {
+  it("names the quantity", async () => {
     const w = await cart({});
     await open(w.find(".invoice-qty-control .number-pad-activator").element);
-    expect(parts()).toEqual(["Quantity", "Shirt"]);
+    expect(title()).toBe("Quantity");
+    expect(heading()!.textContent!.trim()).toBe("Quantity"); // no item name
   });
 
-  it("names the discount and the item", async () => {
+  it("names the discount", async () => {
     const w = await cart({ customDiscountsEnabled: true });
     await open(w.find(".invoice-discount-control .number-pad-activator").element);
-    expect(parts()).toEqual(["Discount", "Shirt"]);
+    expect(title()).toBe("Discount");
+    expect(heading()!.textContent!.trim()).toBe("Discount");
   });
 
-  it("names the price and the item", async () => {
+  it("names the price", async () => {
     const w = await cart({ customPricesEnabled: true });
     await open(w.find(".invoice-price-editor").element);
-    expect(parts()).toEqual(["Price", "Shirt"]);
-  });
-
-  it("names the right item when there are several lines", async () => {
-    const w = await cart({}, [shirt(), shirt({ name: "Jeans", code: "JN2", barcode: "222" })]);
-    const second = w.findAll(".invoice-qty-control .number-pad-activator")[1]!;
-    await open(second.element);
-    expect(parts()).toEqual(["Quantity", expect.stringMatching(/Shirt|Jeans/)]);
-    // The pad belongs to the line that was tapped: its name matches that line.
-    const lineName = second.element.closest(".k-list-item")!.querySelector(".invoice-item-name")!.textContent;
-    expect(parts()[1]).toBe(lineName);
+    expect(title()).toBe("Price");
+    expect(heading()!.textContent!.trim()).toBe("Price");
   });
 
   it("a pad without a title shows no heading (the close-shift pads are unchanged)", async () => {
@@ -82,7 +72,7 @@ describe("number pad heading", () => {
     w.unmount();
   });
 
-  it("the C (clear) key is the red one; backspace is a plain key", async () => {
+  it("the C (clear) key is the red one; backspace is a soft amber key", async () => {
     const { default: NumberPadMenu } = await import("./NumberPadMenu.vue");
     const w = mount(NumberPadMenu, { props: { modelValue: 5 }, global: { plugins: [ui] }, attachTo: document.body });
     await open(w.find(".number-pad-activator").element);
@@ -91,7 +81,8 @@ describe("number pad heading", () => {
     expect(clear.textContent!.trim()).toBe("C");
     expect(clear.className).toContain("k-btn--variant-flat");
     expect(clear.getAttribute("style") ?? "").toMatch(/error/);
-    expect(back.className).toContain("k-btn--variant-text");
+    expect(back.className).toContain("k-btn--variant-tonal");
+    expect(back.getAttribute("style") ?? "").toMatch(/warning/);
     expect(back.getAttribute("style") ?? "").not.toMatch(/error/);
     expect(back.querySelector(".k-icon")).toBeTruthy();
     w.unmount();

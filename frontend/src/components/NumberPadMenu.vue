@@ -42,11 +42,9 @@
     </template>
 
     <k-card class="number-pad pa-2" rounded="lg">
-      <!-- What is being changed ("Quantity", "Price"), and optionally whose
-           (the item's name), above the number. -->
+      <!-- What is being changed ("Quantity", "Price"), above the number. -->
       <div v-if="title" class="number-pad-heading" data-test="number-pad-heading">
         <span class="number-pad-title">{{ title }}</span>
-        <span v-if="subtitle" class="number-pad-subtitle">{{ subtitle }}</span>
       </div>
       <div class="number-pad-display">
         <span v-if="prefix" class="number-pad-display-affix">{{ prefix }}</span>
@@ -80,8 +78,9 @@
         <k-btn
           class="number-pad-key"
           :class="{ 'number-pad-key--wide': allowDecimal }"
+          color="warning"
           size="small"
-          variant="text"
+          variant="tonal"
           data-test="number-pad-backspace"
           @click="backspace"
         >
@@ -117,9 +116,8 @@ const props = withDefaults(
     prefix?: string;
     suffix?: string;
     ariaLabel?: string;
-    // Shown above the number in the pad: what is being changed, and whose.
+    // Shown above the number in the pad: what is being changed.
     title?: string;
-    subtitle?: string;
     disabled?: boolean;
     tone?: "default" | "error";
     allowDecimal?: boolean;
@@ -420,15 +418,6 @@ defineExpose({ focus });
   text-transform: uppercase;
   color: rgba(var(--k-theme-on-surface), 0.6);
 }
-.number-pad-subtitle {
-  max-width: 100%;
-  overflow: hidden;
-  font-size: 0.75rem;
-  color: rgba(var(--k-theme-on-surface), 0.7);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .number-pad-display {
   align-items: baseline;
   display: flex;
