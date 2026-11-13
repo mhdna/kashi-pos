@@ -42,7 +42,7 @@
          opened; it's kept only while the page stays open. -->
     <div v-if="!unlocked" class="unlock">
       <k-card class="unlock-card" width="400" rounded="xl" variant="text">
-        <span class="unlock-badge"><k-icon icon="mdi-lock-outline" size="28" /></span>
+        <span class="unlock-badge"><k-icon icon="mdi-lock-outline" size="40" /></span>
         <h2 class="unlock-title">Manager password</h2>
         <p class="unlock-hint">Enter it to see sales per visitor.</p>
         <k-text-field
@@ -368,10 +368,6 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: rgba(var(--k-theme-primary), 0.12);
   color: rgb(var(--k-theme-primary));
 }
 .unlock-title {
