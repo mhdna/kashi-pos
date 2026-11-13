@@ -1,12 +1,12 @@
 <template>
-  <!-- Just the icon, no caption and no background. The wrapper leaves the
-       room the buttons beside it use for their captions, so the icon sits on
-       the same line as theirs. -->
+  <!-- Same shape as the Salesperson and Client buttons beside it: a small
+       caption over a tonal button. -->
   <div class="theme-toggle-wrap">
+    <div class="theme-toggle-subtitle">Theme</div>
     <k-btn
       class="theme-toggle-btn"
       size="small"
-      variant="text"
+      variant="tonal"
       color="blue-grey-darken-1"
       :loading="saving"
       :aria-label="`Switch to ${currentTheme === 'dark' ? 'light' : 'dark'} theme`"
@@ -14,7 +14,7 @@
       data-test="theme-toggle"
       @click="toggleTheme"
     >
-      <k-icon :icon="currentTheme === 'dark' ? 'mdi-weather-sunny' : 'mdi-weather-night'" size="24" />
+      <k-icon :icon="currentTheme === 'dark' ? 'mdi-weather-sunny' : 'mdi-weather-night'" size="18" />
     </k-btn>
   </div>
 </template>
@@ -51,12 +51,15 @@ async function toggleTheme() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* The height of the captions over the Salesperson and Client buttons. */
-  padding-top: calc(0.8rem * 1.2 + 2px);
+}
+.theme-toggle-subtitle {
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: rgba(var(--k-theme-on-surface), 0.6);
+  margin-bottom: 2px;
 }
 .theme-toggle-btn {
-  width: 44px;
+  width: 52px;
   height: 35px;
-  min-width: 0;
 }
 </style>
