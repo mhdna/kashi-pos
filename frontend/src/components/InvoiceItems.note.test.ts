@@ -74,11 +74,32 @@ describe("item note on-screen keyboard", () => {
     expect(dialogEl.contains(kb)).toBe(false);
     expect(kb.parentElement).toBe(document.body);
     expect(Number(kb.style.zIndex)).toBeGreaterThan(Number(dialogEl.style.zIndex));
-    // The dialog is told to stand clear of it while typing.
-    expect(dialogEl.classList.contains("line-details--typing")).toBe(true);
-    note().dispatchEvent(new FocusEvent("blur"));
+  });
+
+  it("floats over the dialog without moving it", async () => {
+    await openDetails();
+    const dialogEl = document.body.querySelector<HTMLElement>(".k-dialog")!;
+    const before = { cls: dialogEl.className, style: dialogEl.getAttribute("style") };
+    await focus();
+    expect(keyboard()).toBeTruthy();
+    expect(dialogEl.className).toBe(before.cls);
+    expect(dialogEl.getAttribute("style")).toBe(before.style);
+    expect(dialogEl.style.paddingBottom).toBe("");
+  });
+
+  it("has a close button that puts the keyboard away and keeps the note", async () => {
+    const vm = await openDetails();
+    await focus();
+    await typeKeys("hi");
+    const close = keyboard()!.querySelector<HTMLElement>("[data-test=line-note-keyboard-close]");
+    expect(close?.getAttribute("aria-label")).toBe("Close keyboard");
+    close!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await flushPromises();
-    expect(dialogEl.classList.contains("line-details--typing")).toBe(false);
+    expect(keyboard()).toBeNull();
+    expect(vm.items[0].note).toBe("Hi");
+    // Tapping the note again brings it back.
+    await focus();
+    expect(keyboard()).toBeTruthy();
   });
 
   it("hides the keyboard when the note loses focus", async () => {

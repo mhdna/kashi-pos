@@ -349,8 +349,6 @@
       v-model="detailsDialog"
       width="600"
       height="640"
-      :class="{ 'line-details--typing': noteFocused }"
-      :style="{ '--note-keyboard-height': `${noteKeyboardHeight}px` }"
       @after-leave="detailItem = null"
     >
       <k-card v-if="detailItem">
@@ -472,8 +470,9 @@
       </k-card>
     </k-dialog>
 
-    <!-- The note's keyboard: its own panel docked to the bottom of the screen,
-         above the dialog (which moves up out of its way), not inside it. -->
+    <!-- The note's keyboard: its own card floating over the bottom of the
+         screen, above the dialog (which stays where it is), not inside it.
+         Its close button puts it away, as tapping anywhere else does. -->
     <Teleport to="body">
       <div
         v-if="noteFocused && detailsDialog && detailItem"
@@ -489,6 +488,15 @@
           :max-length="NOTE_MAX"
           :input="noteField"
           @update:model-value="detailItem.note = $event"
+        />
+        <k-btn
+          class="line-note-keyboard-close"
+          icon="mdi-keyboard-close"
+          variant="tonal"
+          size="small"
+          aria-label="Close keyboard"
+          data-test="line-note-keyboard-close"
+          @click="closeNoteKeyboard"
         />
       </div>
     </Teleport>
@@ -968,18 +976,14 @@ const noteField = ref<HTMLTextAreaElement | null>(null);
 const noteFocused = ref(false);
 const noteKeyboardPanel = ref<HTMLElement | null>(null);
 const noteKeyboardZ = ref(2000);
-// How tall the keyboard is, so the dialog can stand clear above it.
-const noteKeyboardHeight = ref(0);
 watch(noteFocused, (focused) => {
-  if (!focused) {
-    noteKeyboardHeight.value = 0;
-    return;
-  }
-  noteKeyboardZ.value = nextZ();
-  void nextTick(() => {
-    noteKeyboardHeight.value = noteKeyboardPanel.value?.offsetHeight ?? 0;
-  });
+  if (focused) noteKeyboardZ.value = nextZ();
 });
+// The keyboard's close button: the note stops being typed in, so it goes.
+function closeNoteKeyboard() {
+  noteField.value?.blur();
+  noteFocused.value = false;
+}
 const salespersons = ref<Salesperson[]>([]);
 // The person picked for the open line, or null when it follows the invoice.
 const detailSalesperson = computed(() => {
@@ -1827,24 +1831,30 @@ defineExpose({
 .line-note-input::placeholder {
   color: rgba(var(--k-theme-on-surface), 0.4);
 }
+/* Floats over the bottom of the screen as a card; the dialog behind it
+   doesn't move. Side padding leaves room for the close button. */
 .line-note-keyboard {
   position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  padding: 8px 12px 10px;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  box-sizing: border-box;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 12px 64px;
   background: rgb(var(--k-theme-surface));
-  border-top: 1px solid rgba(var(--k-border-color), 0.2);
-  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(var(--k-border-color), 0.16);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.32);
 }
-.line-note-keyboard > * {
+.line-note-keyboard > .inline-keyboard {
   max-width: 1000px;
   margin: 0 auto;
 }
-/* While typing, the dialog sits in the space above the keyboard. */
-:global(.line-details--typing) {
-  box-sizing: border-box;
-  padding-bottom: var(--note-keyboard-height);
+.line-note-keyboard-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
 }
 .invoice-units-title {
   margin: 4px 0 8px;
