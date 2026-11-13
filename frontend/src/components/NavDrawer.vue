@@ -596,6 +596,13 @@ const items = computed(() => {
 .count-flip-leave-active {
   transition: transform 0.12s ease, opacity 0.12s ease;
 }
+/* Always plays, even with animations off in Settings: it is feedback for a
+   tap, not decoration. !important to get past the global kill switch in
+   styles/compact.scss (same exception as the status dot above). */
+:root.animations-disabled .count-flip-enter-active,
+:root.animations-disabled .count-flip-leave-active {
+  transition-duration: 0.12s !important;
+}
 .visitor-count--up .count-flip-enter-from { transform: translateY(70%); opacity: 0; }
 .visitor-count--up .count-flip-leave-to { transform: translateY(-70%); opacity: 0; }
 .visitor-count--down .count-flip-enter-from { transform: translateY(-70%); opacity: 0; }
