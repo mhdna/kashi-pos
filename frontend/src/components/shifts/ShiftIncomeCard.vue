@@ -106,26 +106,26 @@
     @saved="emit('opening-float-set')"
   />
   <k-dialog v-model="managerDialog.show" max-width="380">
-    <k-card>
-      <k-card-title class="d-flex align-center ga-2"><k-icon icon="mdi-lock-outline" />Manager password</k-card-title>
-      <k-card-text>
+    <k-card class="manager-dialog" rounded="xl">
+      <k-card-text class="manager-dialog-body">
+        <span class="manager-dialog-badge"><k-icon icon="mdi-lock-outline" size="40" /></span>
+        <h2 class="manager-dialog-title">Manager password</h2>
         <k-text-field
           v-model="managerDialog.password"
           autofocus
+          class="manager-dialog-field"
           placeholder="Manager password"
           :type="managerDialog.reveal ? 'text' : 'password'"
           variant="outlined"
-          density="compact"
+          density="comfortable"
           :append-inner-icon="managerDialog.reveal ? 'mdi-eye-off' : 'mdi-eye'"
           :error-messages="managerDialog.error"
           @click:append-inner="managerDialog.reveal = !managerDialog.reveal"
           @keyup.enter="confirmManager"
         />
+        <k-btn block color="primary" size="large" :loading="managerDialog.checking" @click="confirmManager">Open</k-btn>
+        <k-btn block variant="text" class="mt-1" @click="managerDialog.show = false">Cancel</k-btn>
       </k-card-text>
-      <k-card-actions>
-        <k-btn variant="text" @click="managerDialog.show = false">Cancel</k-btn><k-spacer />
-        <k-btn color="primary" :loading="managerDialog.checking" @click="confirmManager">Open</k-btn>
-      </k-card-actions>
     </k-card>
   </k-dialog>
 </template>
@@ -222,6 +222,35 @@ async function confirmManager() {
 </script>
 
 <style scoped>
+/* Manager-password dialog: same look as the Conversion unlock screen. */
+.manager-dialog-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 24px 20px;
+  text-align: center;
+}
+.manager-dialog-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(249, 168, 37, 0.18);
+  color: #f9a825;
+}
+.manager-dialog-title {
+  margin: 12px 0 20px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.manager-dialog-field {
+  width: 100%;
+}
+.manager-dialog-field :deep(input) {
+  text-align: center;
+}
 .shifts-card {
   height: 100%;
   min-height: 0;
