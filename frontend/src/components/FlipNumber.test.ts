@@ -100,4 +100,58 @@ describe("FlipNumber", () => {
     await w.setProps({ value: 8 });
     expect(twin()).toEqual(first);
   });
+
+  describe("one shared highlight behind the digits that change", () => {
+    const tint = (w: ReturnType<typeof mount>) => w.findAll("[data-test=flip-tint]");
+    const span = (w: ReturnType<typeof mount>) => {
+      const el = tint(w)[0]!;
+      return [Number(el.attributes("data-from")), Number(el.attributes("data-count"))];
+    };
+
+    it("has none at rest", () => {
+      expect(tint(mount(FlipNumber, { props: { value: 477 } }))).toHaveLength(0);
+    });
+
+    it("spans only the card that turned for a plain step", async () => {
+      const w = mount(FlipNumber, { props: { value: 477 } });
+      await w.setProps({ value: 478 });
+      expect(tint(w)).toHaveLength(1);
+      expect(span(w)).toEqual([2, 1]);
+    });
+
+    it("is ONE highlight across every card a carry turns, not one per card", async () => {
+      const w = mount(FlipNumber, { props: { value: 479 } });
+      await w.setProps({ value: 480 });
+      expect(turning(w)).toEqual([false, true, true]);
+      expect(tint(w)).toHaveLength(1);
+      expect(span(w)).toEqual([1, 2]);
+      await wait(w, 700);
+      await w.setProps({ value: 500 });
+      expect(span(w)).toEqual([0, 3]);
+    });
+
+    it("covers the new card when the number grows", async () => {
+      const w = mount(FlipNumber, { props: { value: 99 } });
+      await w.setProps({ value: 100 });
+      expect(span(w)).toEqual([0, 3]);
+    });
+
+    it("ends with the flip, and a fast second tap gets a fresh one", async () => {
+      const w = mount(FlipNumber, { props: { value: 5 } });
+      await w.setProps({ value: 6 });
+      const first = tint(w)[0]!.element;
+      await wait(w, 100);
+      await w.setProps({ value: 7 });
+      expect(tint(w)[0]!.element).not.toBe(first);
+      await wait(w, 700);
+      expect(tint(w)).toHaveLength(0);
+    });
+
+    it("is amber going up and slate going down", async () => {
+      const w = mount(FlipNumber, { props: { value: 5 } });
+      expect(w.classes()).toContain("flip-number--up");
+      await w.setProps({ value: 4 });
+      expect(w.classes()).toContain("flip-number--down");
+    });
+  });
 });

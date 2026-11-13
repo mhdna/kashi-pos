@@ -51,6 +51,7 @@ watch(
 <style scoped>
 .flip {
   position: relative;
+  z-index: 1;
   display: block;
   flex: 0 0 var(--cell, 17px);
   width: var(--cell, 17px);
@@ -179,10 +180,10 @@ watch(
   animation-timing-function: ease-out !important;
   animation-fill-mode: both !important;
 }
-/* The card behind the digit changes colour while it flips: warm amber when
-   the count goes up, slate blue when it goes down, then settles back to the
-   normal navy. It lives on a layer behind the digit (and on the flaps too, so
-   a turning flap matches the card). */
+/* The colour behind the digits while they turn is the number's one shared
+   highlight (FlipNumber's .flip-tint, behind all the cards). So a turning card
+   lets it show through instead of painting its own; only a flap, which has to
+   cover what is under it as it turns, carries the same tint, fading with it. */
 .flip-half::before {
   content: "";
   position: absolute;
@@ -190,21 +191,17 @@ watch(
   z-index: -1;
   background: var(--base-bg);
 }
-.flip--up {
-  --tint: #a86a0c;
-}
+.flip--up,
 .flip--down {
-  --tint: #46608f;
+  background: transparent;
 }
-.flip--even .flip-half::before {
+.flip--up .flip-half:not(.flip-flap)::before,
+.flip--down .flip-half:not(.flip-flap)::before {
+  background: transparent;
+}
+.flip-flap::before {
+  background: var(--tint, #a86a0c);
   animation-name: flip-bg !important;
-}
-/* The twin, swapped in on alternate taps so a fast second tap restarts it. */
-.flip--odd .flip-half::before {
-  animation-name: flip-bg-b !important;
-}
-.flip--up .flip-half::before,
-.flip--down .flip-half::before {
   animation-duration: 0.6s !important;
   animation-delay: 0s !important;
   animation-timing-function: ease-out !important;
@@ -235,11 +232,6 @@ watch(
   100% { transform: scale(1); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 0 0 rgba(var(--flash), 0); }
 }
 @keyframes flip-bg {
-  0% { background: var(--tint); }
-  55% { background: var(--tint); }
-  100% { background: var(--base-bg); }
-}
-@keyframes flip-bg-b {
   0% { background: var(--tint); }
   55% { background: var(--tint); }
   100% { background: var(--base-bg); }
