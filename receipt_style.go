@@ -159,14 +159,20 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
 	// it before the next section starts.
 	boxTop := c.ruleLine(y) + 16
 	y = boxTop + 16
+	// The figures sit inside the border, not on it.
+	const inset = 12
+	c.margin += inset
+	c.contentW -= 2 * inset
 	y, _ = c.twoCol(y, "TOTAL", amount, 13, true)
 	y += 8
 	if second[0] != "" {
 		y, _ = c.twoCol(y, second[0], second[1], 11, true)
 		y += 8
 	}
+	c.margin -= inset
+	c.contentW += 2 * inset
 	y += 14
-	c.dottedBox(boxTop, y-boxTop)
+	c.solidBox(boxTop, y-boxTop)
 	return y + 8
 }
 

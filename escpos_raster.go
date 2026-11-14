@@ -187,9 +187,9 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	invoiceDisc := float64(c.data.InvoiceDiscount.Cents) / 100
 	rounding := grandTotal - (subtotal - discountTotal - invoiceDisc) - tax
 	rows := [][2]string{{"Subtotal", fmt.Sprintf("$%.2f", subtotal)}}
-	if discountTotal > 0 {
-		rows = append(rows, [2]string{"Discount", fmt.Sprintf("-$%.2f", discountTotal)})
-	}
+	// Item discounts are not a row of their own: they show as "You saved"
+	// under the total. The invoice discount keeps its row, it is a line of
+	// the sum.
 	if c.data.InvoiceDiscount.Cents > 0 {
 		rows = append(rows, [2]string{invoiceDiscountLabel(c.data.InvoiceDiscount), fmt.Sprintf("-$%.2f", invoiceDisc)})
 	}
@@ -203,15 +203,16 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		}
 		rows = append(rows, [2]string{"Items", fmt.Sprintf("%.0f", units)})
 	}
-	if c.style.Savings && discountTotal > 0 {
-		rows = append(rows, [2]string{"You saved", fmt.Sprintf("$%.2f", discountTotal)})
-	}
 	for _, row := range rows {
 		y, _ = c.twoCol(y, row[0], row[1], 11, true)
 		y += c.gap(7)
 	}
 	y = c.drawTotal(y, grandTotal)
-	y += c.gap(6)
+	y += c.gap(14)
+	if saved := receiptSavings(discountTotal, c.data.InvoiceDiscount.Cents); saved != "" {
+		y, _ = c.center(y, saved, c.data.BodySize, true, false)
+		y += c.gap(14)
+	}
 
 	if len(c.data.Payments) > 0 {
 		y, _ = c.center(y, "PAYMENT DETAILS", c.data.BodySize-1, true, false)
@@ -588,6 +589,33 @@ func (c *receiptCanvas) rule(y int) int {
 		}
 	}
 	return y + 2
+}
+
+// receiptSavings is the "You saved" line under the total: item discounts plus
+// the invoice discount, empty when nothing was discounted.
+func receiptSavings(itemDiscount float64, invoiceDiscountCents int64) string {
+	saved := itemDiscount + float64(invoiceDiscountCents)/100
+	if saved < 0.005 {
+		return ""
+	}
+	return fmt.Sprintf("You saved $%.2f today", saved)
+}
+
+// solidBox is dottedBox's plain version: a thick unbroken border.
+func (c *receiptCanvas) solidBox(y, height int) int {
+	const thick = 3
+	left, right := c.margin, c.margin+c.contentW
+	for t := 0; t < thick; t++ {
+		for x := left; x < right; x++ {
+			c.img.Set(x, y+t, color.Black)
+			c.img.Set(x, y+height-t, color.Black)
+		}
+		for yy := y; yy <= y+height; yy++ {
+			c.img.Set(left+t, yy, color.Black)
+			c.img.Set(right-1-t, yy, color.Black)
+		}
+	}
+	return y
 }
 
 func (c *receiptCanvas) dottedBox(y, height int) int {

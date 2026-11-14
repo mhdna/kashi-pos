@@ -103,7 +103,6 @@ type receiptStyle struct {
 	// Gap adds pixels to every vertical space on the receipt.
 	Gap       int
 	ItemCount bool // "N items" line above the totals
-	Savings   bool // "You saved $X" line when anything was discounted
 }
 
 // receiptLayoutSpec is one arrangement of the item lines within a theme.
@@ -152,7 +151,7 @@ func receiptThemes() []receiptTheme {
 			Style: receiptStyle{
 				Fonts:      &receiptFontSet{Title: plexMonoBold, TitleBold: plexMonoBold, Body: plexMonoRegular, BodyBold: plexMonoBold, Name: plexMonoRegular},
 				TitleScale: 0.82, BodyScale: 0.86,
-				UpperStore: true, Rule: ruleDashed, Total: totalBand, ItemCount: true, Savings: true,
+				UpperStore: true, Rule: ruleDashed, Total: totalBand, ItemCount: true,
 				Thanks: "THANK YOU, COME AGAIN",
 			},
 			Layouts: []receiptLayoutSpec{
