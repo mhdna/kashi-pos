@@ -238,6 +238,7 @@ import {
   SubmitAttendanceComplaint,
   SyncAttendance,
 } from "../../wailsjs/go/main/App";
+import { onSalespersonsSynced } from "@/lib/salespersonsSync";
 import { useAuthStore } from "@/stores/auth";
 import { salespersonColor } from "@/lib/salespersonColor";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
@@ -316,6 +317,7 @@ async function refresh(syncDevice = true, quiet = false) {
     if (!quiet) loading.value = false;
   }
 }
+onSalespersonsSynced(() => loadRows().catch(() => {}));
 // The selected day's stored punches, grouped by employee.
 async function loadRows() {
   const [events, employees] = await Promise.all([ListAttendance(selectedDate.value), ListSalespersons()]);

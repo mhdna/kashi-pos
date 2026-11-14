@@ -371,6 +371,7 @@ import {
   GetSpendSummary,
   PrepareShiftClose,
 } from "../../wailsjs/go/main/App";
+import { onSalespersonsSynced } from "@/lib/salespersonsSync";
 import { formatSpendAmount } from "@/lib/spend";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
@@ -533,10 +534,16 @@ onMounted(async () => {
     balanceRows.value = (b as any[]) ?? [];
     void loadShiftSpend();
     // The till's own leftovers aren't offered once central manages the staff.
-    salespersons.value = (((await ListSalespersons()) as any[]) ?? []).filter((s) => s.isCurrent !== false);
+    await loadSalespersons();
     await autofillFromExpected();
   } catch {}
 });
+
+async function loadSalespersons() {
+  // The till's own leftovers aren't offered once central manages the staff.
+  salespersons.value = (((await ListSalespersons()) as any[]) ?? []).filter((s) => s.isCurrent !== false);
+}
+onSalespersonsSynced(() => loadSalespersons().catch(() => {}));
 
 onMounted(() => {
   closingClockTimer = setInterval(() => {

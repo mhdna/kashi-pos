@@ -88,6 +88,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { ListSalespersonSalesSummary, ListSalespersons } from "../../wailsjs/go/main/App";
+import { onSalespersonsSynced } from "@/lib/salespersonsSync";
 import { salespersonColor } from "@/lib/salespersonColor";
 import { useAuthStore } from "@/stores/auth";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
@@ -160,6 +161,8 @@ function scoreRows(summary: SummaryRow[]): ScoredRow[] {
 
 // Avatar colors by salesperson id; the sales summary itself doesn't carry them.
 const colorById = ref(new Map<number, string>());
+
+onSalespersonsSynced(refresh);
 
 async function refresh() {
   loading.value = true;

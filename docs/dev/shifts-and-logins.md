@@ -78,6 +78,9 @@ Code: `shifts.go`, `shift_auto_swap.go`, `shift_upload_server.go`,
 
 - While connected, central owns the roster. A salesperson left over from before
   the till was connected can still be deleted, but not renamed.
+- A change in central (Branches → Staff) reaches an open screen within about a
+  second: every screen that lists salespersons reloads on
+  `sync_applied:salespersons` (`lib/salespersonsSync.ts`).
 - `salesperson_per_invoice_required` (off by default): every sale must name a
   salesperson.
 - `client_required` (on by default): every sale needs a client, with an

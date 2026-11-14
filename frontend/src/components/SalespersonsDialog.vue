@@ -28,6 +28,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { ListSalespersons } from "../../wailsjs/go/main/App";
+import { onSalespersonsSynced } from "@/lib/salespersonsSync";
 import SalespersonGrid from "./SalespersonGrid.vue";
 import { useSalesperson, type Salesperson } from "@/composables/useSalesperson";
 
@@ -50,7 +51,10 @@ function selectSalesperson(p: Salesperson) {
   menu.value = false;
 }
 
-onMounted(async () => {
+onMounted(loadSalespersons);
+onSalespersonsSynced(loadSalespersons);
+
+async function loadSalespersons() {
   // Staff who only punch attendance (isSalesperson off in central) don't sell,
   // and the till's own leftovers aren't offered once central manages the staff.
   const list = ((await ListSalespersons()) as any[]).filter((s) => s.isSalesperson !== false && s.isCurrent !== false);
@@ -59,7 +63,7 @@ onMounted(async () => {
       a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }),
     );
   }
-});
+}
 </script>
 
 <style scoped>

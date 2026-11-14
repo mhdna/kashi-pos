@@ -556,6 +556,7 @@ import {
   ListSalespersons,
   UpdateProductDiscount,
 } from "../../wailsjs/go/main/App";
+import { onSalespersonsSynced } from "@/lib/salespersonsSync";
 import { roundDiscountCents, normalizeRoundingMode } from "@/lib/money";
 import {
   dealLineKey,
@@ -1076,6 +1077,10 @@ onMounted(async () => {
     }
     categoryIcons.value = map;
   } catch {}
+  await loadSalespersons();
+});
+
+async function loadSalespersons() {
   try {
     // Staff who only punch attendance (isSalesperson off in central) don't sell,
     // and the till's own leftovers aren't offered once central manages the staff.
@@ -1083,7 +1088,8 @@ onMounted(async () => {
       .filter((s: any) => s.isSalesperson !== false && s.isCurrent !== false)
       .sort((a, b) => a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }));
   } catch {}
-});
+}
+onSalespersonsSynced(loadSalespersons);
 
 function setQuantity(item: LineItem, value: number) {
   const qty = Math.max(1, Math.trunc(value));

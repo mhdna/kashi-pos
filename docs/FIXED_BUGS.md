@@ -3,6 +3,22 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-14 · A salesperson changed in central showed on the till only after changing page
+
+**Symptom.** A salesperson added, renamed, recoloured or switched off in
+central (Branches → Staff) didn't appear in the till's salesperson picker
+until the cashier left the sale screen and came back.
+
+**Cause.** Central pushed the change and the till applied it within a
+second, emitting `sync_applied:salespersons`, but no screen listened for
+that event: each loaded the list once, when it opened.
+
+**Fix.** `frontend/src/lib/salespersonsSync.ts` adds `onSalespersonsSynced`,
+which reloads on that event and stops listening when the screen closes. It is
+used by the sale screen's picker (`InvoiceItems.vue`), `SalespersonsDialog.vue`,
+`CloseShiftCard.vue`, and the Attendance, Salespersons and Settings pages.
+Covered by `salespersonsSync.test.ts`.
+
 ## 2026-11-13 · "No central" flashed red on a few seconds of bad Wi-Fi
 
 **Symptom.** Now and then the nav-rail light turned red, "No central", for a

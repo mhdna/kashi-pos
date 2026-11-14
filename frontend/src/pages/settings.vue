@@ -2025,6 +2025,7 @@ import {
   GetCashMachineStatus,
   StartCashMachineSetup,
 } from "../../wailsjs/go/main/App";
+import { onSalespersonsSynced } from "@/lib/salespersonsSync";
 import { EventsOn, WindowReloadApp } from "../../wailsjs/runtime/runtime";
 import type { main } from "../../wailsjs/go/models";
 import { formatUsd } from "@/lib/format";
@@ -3616,6 +3617,7 @@ async function loadSalespersons() {
     salespersons.value = await ListSalespersons();
   } catch {}
 }
+onSalespersonsSynced(loadSalespersons);
 
 function openSalespersonDialog(salesperson?: any) {
   editingSalesperson.value = salesperson ?? null;
