@@ -264,9 +264,7 @@ async function save() {
   color: rgba(var(--k-theme-on-surface), 0.6);
 }
 .line-sp-block {
-  padding: 10px;
-  border: 1px solid rgba(var(--k-border-color), 0.2);
-  border-radius: 10px;
+  padding: 0;
 }
 .line-sp-item {
   border: 1px solid rgba(var(--k-border-color), 0.2);
