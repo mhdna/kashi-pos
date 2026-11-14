@@ -27,7 +27,6 @@
       </div>
 
       <div v-if="visitorCounterEnabled" class="visitor-counter" aria-label="People visits today">
-        <FlipNumber class="visitor-count" :value="visitorCount" />
         <k-btn
           class="visitor-counter-btn"
           icon
@@ -38,6 +37,7 @@
         >
           <k-icon icon="mdi-chevron-up" size="32" />
         </k-btn>
+        <FlipNumber class="visitor-count" :value="visitorCount" />
         <k-btn
           class="visitor-counter-btn"
           icon
@@ -553,6 +553,7 @@ const items = computed(() => {
   font-size: 28px;
 }
 
+/* The number sits in a recessed field between the two buttons. */
 .options-grid {
   display: grid;
   gap: 12px;
