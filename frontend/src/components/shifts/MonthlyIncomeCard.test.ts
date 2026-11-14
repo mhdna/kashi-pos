@@ -133,7 +133,7 @@ describe("compact list", () => {
     expect(chips.map((c) => c.text())).toEqual(["1", "87", "1135", "20000"]);
     for (const chip of chips) expect(chip.classes()).toContain("mi-visitors-chip");
     // One fixed width on the shared class, wide enough for four digits and the icon.
-    expect(css).toMatch(/\.mi-visitors-chip \{[^}]*width: 68px/);
+    expect(css).toMatch(/\.mi-visitors-chip \{[^}]*width: 76px/);
     expect(css).toMatch(/\.mi-visitors-chip \{[^}]*justify-content: center/);
   });
 

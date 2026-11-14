@@ -87,7 +87,7 @@
               data-test="visitors"
               :title="visitorTitle(item.day, item.total)"
             >
-              <k-icon start icon="mdi-account-group-outline" size="12" />
+              <k-icon start icon="mdi-account-group-outline" size="18" />
               {{ visitorCounts[item.day] }}
             </k-chip>
           </span>
@@ -412,7 +412,7 @@ const emit = defineEmits<{
 .mi-visitors-chip {
   /* The same width whatever the count (a few people or a thousand), the number
      centred, so the chips make one clean column. */
-  width: 68px;
+  width: 76px;
   justify-content: center;
 }
 .mi-visitors-cell {
