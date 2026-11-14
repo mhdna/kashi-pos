@@ -410,10 +410,10 @@ const emit = defineEmits<{
   text-transform: uppercase;
 }
 .mi-visitors-chip {
-  /* The same width whatever the count (a few people or a thousand), the number
-     centred, so the chips make one clean column. */
+  /* The same width whatever the count (a few people or a thousand), icon and
+     number at the left, so the chips make one clean column. */
   width: 76px;
-  justify-content: center;
+  justify-content: flex-start;
 }
 .mi-visitors-cell {
   display: flex;

@@ -134,7 +134,7 @@ describe("compact list", () => {
     for (const chip of chips) expect(chip.classes()).toContain("mi-visitors-chip");
     // One fixed width on the shared class, wide enough for four digits and the icon.
     expect(css).toMatch(/\.mi-visitors-chip \{[^}]*width: 76px/);
-    expect(css).toMatch(/\.mi-visitors-chip \{[^}]*justify-content: center/);
+    expect(css).toMatch(/\.mi-visitors-chip \{[^}]*justify-content: flex-start/);
   });
 
   it("lines the visitors up down the list: left-aligned in a column, header included, clear of the total", () => {
