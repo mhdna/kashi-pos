@@ -411,7 +411,7 @@ onBeforeUnmount(() => resizer.disconnect());
   gap: 1px;
   min-width: 0;
   padding: 6px 14px;
-  border-radius: 10px;
+  border-radius: 0;
   background: rgba(var(--k-theme-on-surface), 0.045);
 }
 

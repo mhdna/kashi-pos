@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, useAttrs } from "vue";
-import { colorVars, roundedStyle, toUnit } from "./util";
+import { colorVars, toUnit } from "./util";
 
 const props = defineProps<{
   variant?: string;
@@ -23,8 +23,7 @@ const variant = computed(() => props.variant ?? "elevated");
 const hasItem = computed(() => !!(props.title || props.subtitle || slots.title || slots.subtitle || slots.prepend || slots.append));
 const style = computed(() => {
   const s: Record<string, string | undefined> = { ...colorVars(props.color) };
-  const r = roundedStyle(props.rounded);
-  if (r) s.borderRadius = r;
+  // Cards are always square in this app (ui.css), whatever rounded= says.
   if (props.elevation !== undefined) s.boxShadow = `var(--k-elevation-${props.elevation})`;
   if (props.elevation !== undefined && Number(props.elevation) === 0) s.boxShadow = "none";
   s.width = toUnit(props.width);
