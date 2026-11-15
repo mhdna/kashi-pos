@@ -15,6 +15,7 @@ vi.mock("../../wailsjs/go/main/App", () => api);
 vi.mock("qrcode", () => ({ default: { toDataURL: vi.fn(async (url: string) => `data:qr,${url}`) } }));
 
 import UnknownPicturesCorner from "./UnknownPicturesCorner.vue";
+import { clearQrCache } from "@/lib/unknownQrCache";
 
 const unit = (line: string, n = 1) => ({
   label: "Unknown item $25.00",
@@ -29,6 +30,7 @@ const sig = (units: any[]) => JSON.stringify(units);
 let wrapper: VueWrapper<any> | null = null;
 beforeEach(() => {
   vi.useFakeTimers();
+  clearQrCache();
   api.SyncUnknownItemSession.mockReset();
   api.UnknownItemSessionStatus.mockReset();
   api.SyncUnknownItemSession.mockImplementation(async (clientRef: string) => ({
@@ -118,5 +120,35 @@ describe("UnknownPicturesCorner", () => {
     // The QR it already had stays up.
     expect(w.find("img").exists()).toBe(true);
     expect(w.text()).toContain("2 of 2 pictured");
+  });
+
+  it("a new cart gets its session id before central is asked, and central gets that same id", async () => {
+    const w = await mountCorner({ clientRef: "" });
+    const told = w.emitted("session")?.[0]?.[0] as string;
+    expect(told).toBeTruthy();
+    expect(api.SyncUnknownItemSession).toHaveBeenCalledWith(told, sig(TWO));
+  });
+
+  it("leaving before central answers still leaves the page holding the session id", async () => {
+    // Central never answers this first call: the screen goes away mid-call.
+    api.SyncUnknownItemSession.mockImplementationOnce(() => new Promise(() => {}));
+    const w = mount(UnknownPicturesCorner, { props: { units: TWO, clientRef: "" }, global: { plugins: [ui] } });
+    await vi.advanceTimersByTimeAsync(400);
+    const told = w.emitted("session")?.[0]?.[0] as string;
+    w.unmount();
+    expect(told).toBeTruthy();
+    // Back on the screen with that id: central is asked for the same session.
+    await mountCorner({ clientRef: told });
+    expect(api.SyncUnknownItemSession).toHaveBeenLastCalledWith(told, sig(TWO));
+  });
+
+  it("coming back to the same cart shows its QR code at once, no spinner", async () => {
+    const first = await mountCorner({ clientRef: "pics-1" });
+    expect(first.find("img.unknown-corner__qr").attributes("src")).toBe("data:qr,https://central/u/pics-1");
+    first.unmount();
+    wrapper = mount(UnknownPicturesCorner, { props: { units: TWO, clientRef: "pics-1" }, global: { plugins: [ui] } });
+    // Before any timer or call: the same code is already there.
+    expect(wrapper.find("img.unknown-corner__qr").attributes("src")).toBe("data:qr,https://central/u/pics-1");
+    expect(wrapper.find(".k-progress-circular").exists()).toBe(false);
   });
 });

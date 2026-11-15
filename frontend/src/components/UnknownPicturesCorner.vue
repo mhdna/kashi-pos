@@ -50,6 +50,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import QRCode from "qrcode";
 import { SyncUnknownItemSession, UnknownItemSessionStatus } from "../../wailsjs/go/main/App";
+import { cachedQr, newClientRef, rememberQr } from "@/lib/unknownQrCache";
 
 // The sale screen's QR code for the unknown items' pictures, a strip under
 // the cart (where Quick Access sits) shown as soon as one is in the cart (unless the branch takes them at checkout). It
@@ -138,15 +139,25 @@ async function sync() {
   const mine = ++generation;
   const sig = signature.value;
   if (!props.units.length) return;
+  // A new cart gets its session id here, and the page is told before central
+  // is asked: if the screen goes away (a page switch, a hold) while the call is
+  // on its way, the cart still has its id and keeps the same QR code after.
+  let clientRef = props.clientRef;
+  if (!clientRef) {
+    clientRef = newClientRef();
+    emit("session", clientRef);
+  }
   try {
-    const info = await SyncUnknownItemSession(props.clientRef, sig);
+    const info = await SyncUnknownItemSession(clientRef, sig);
     if (mine !== generation) return;
     errorText.value = "";
-    if (info.clientRef !== props.clientRef) emit("session", info.clientRef);
+    if (info.clientRef !== clientRef) emit("session", info.clientRef);
     if (info.uploadUrl !== uploadUrl) {
-      uploadUrl = info.uploadUrl;
-      qrDataUrl.value = await QRCode.toDataURL(uploadUrl, { width: 260, margin: 1 });
+      const dataUrl = await QRCode.toDataURL(info.uploadUrl, { width: 260, margin: 1 });
+      rememberQr(info.clientRef, { uploadUrl: info.uploadUrl, dataUrl });
       if (mine !== generation) return;
+      uploadUrl = info.uploadUrl;
+      qrDataUrl.value = dataUrl;
     }
     apply(info, sig);
     void pollLoop(mine, info.clientRef, sig);
@@ -170,6 +181,16 @@ function scheduleSync() {
   syncTimer = setTimeout(() => void sync(), SYNC_DELAY_MS);
 }
 
+// The QR code this session already had, shown at once when the strip comes
+// back (central is still asked, but the code doesn't blink to a spinner).
+function showCachedQr(ref: string) {
+  const hit = cachedQr(ref);
+  if (!hit) return;
+  uploadUrl = hit.uploadUrl;
+  qrDataUrl.value = hit.dataUrl;
+}
+showCachedQr(props.clientRef);
+
 // A new cart (the page cleared clientRef) gets a new link.
 watch(
   () => props.clientRef,
@@ -177,7 +198,9 @@ watch(
     if (!ref) {
       uploadUrl = "";
       qrDataUrl.value = "";
+      return;
     }
+    showCachedQr(ref);
   },
 );
 watch([signature, () => props.paused, alreadyPictured], scheduleSync, { immediate: true });

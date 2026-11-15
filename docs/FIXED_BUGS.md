@@ -3,6 +3,29 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-15 · The unknown-items QR code changed, and spun, after a page switch or a hold
+
+**Symptom.** With an unknown item in the cart, leaving the sale screen and
+coming back (or holding the sale and restoring it) showed a spinner where
+the QR code was, and sometimes a different QR code, so a phone already on
+the old link no longer matched the cart.
+
+**Cause.** A new cart had no picture-session id until central answered the
+first sync; the till then made one up and the QR strip passed it to the
+page only after the answer, and dropped it if the strip had gone away in
+the meantime. Leaving the screen during that first call lost the id, so the
+next visit opened a new session with a new link. And the QR image lived
+only in the strip, so every time the strip was rebuilt it started empty
+and spun until central answered again.
+
+**Fix.** `UnknownPicturesCorner.vue` makes the session id itself and tells
+the page before asking central, so it is never lost mid-call; each
+session's QR code is kept for the app's lifetime (`lib/unknownQrCache.ts`)
+and shown at once when the strip comes back. Tests in
+`UnknownPicturesCorner.test.ts` (new cart gets its id first, leaving
+mid-call keeps it, coming back shows the code with no spinner); they fail
+on the old code.
+
 ## 2026-11-14 · A salesperson changed in central showed on the till only after changing page
 
 **Symptom.** A salesperson added, renamed, recoloured or switched off in
