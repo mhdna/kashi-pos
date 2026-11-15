@@ -1,5 +1,5 @@
-// The Coming up list: each event's icon and its "In 7 days" are coloured, with
-// no tinted circle or pill behind them.
+// The Coming up list: each event's icon and its "In 7 days" are plain neutral
+// grey, with no tinted circle or pill behind them.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -13,8 +13,14 @@ describe("events page, Coming up list", () => {
     expect(upcoming).not.toMatch(/<k-avatar/);
   });
 
-  it("still colours the icon and the when-label with the event's colour", () => {
-    expect(upcoming).toMatch(/<k-icon :icon="e.icon" :color="e.color"/);
-    expect(upcoming).toMatch(/variant="text" :color="e.color"/);
+  it("shows the icon and the when-label in neutral grey, not the event's colour", () => {
+    expect(upcoming).toMatch(/<k-icon :icon="e.icon" size="24" \/>/);
+    expect(upcoming).not.toMatch(/:color="e.color"/);
+    expect(upcoming).toMatch(/<span class="upcoming-when">/);
+  });
+
+  it("writes a date range with 'to', not a dash", () => {
+    expect(src).not.toMatch(/\$\{fmt\(e\.start\)\} [–—] /);
+    expect(src).toMatch(/\$\{fmt\(e\.start\)\} to \$\{fmt\(e\.end\)\}/);
   });
 });

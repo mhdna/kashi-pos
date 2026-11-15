@@ -10,12 +10,12 @@
         <h2>Coming up</h2>
         <div v-if="!upcoming.length" class="text-medium-emphasis">Nothing in the next {{ UPCOMING_DAYS }} days.</div>
         <div v-for="e in upcoming" :key="e.key" class="upcoming-row">
-          <span class="upcoming-icon"><k-icon :icon="e.icon" :color="e.color" size="24" /></span>
+          <span class="upcoming-icon"><k-icon :icon="e.icon" size="24" /></span>
           <div class="upcoming-text">
             <div class="font-weight-medium">{{ e.name }}</div>
             <div class="text-caption text-medium-emphasis">{{ rangeLabel(e) }}</div>
           </div>
-          <k-chip size="small" variant="text" :color="e.color" class="upcoming-when">{{ whenLabel(e) }}</k-chip>
+          <span class="upcoming-when">{{ whenLabel(e) }}</span>
         </div>
       </section>
 
@@ -77,7 +77,7 @@ const upcoming = computed(() =>
 const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 function rangeLabel(e: CalendarEvent) {
   const sameDay = startOfDay(e.start).getTime() === startOfDay(e.end).getTime();
-  return sameDay ? fmt(e.start) : `${fmt(e.start)} – ${fmt(e.end)}`;
+  return sameDay ? fmt(e.start) : `${fmt(e.start)} to ${fmt(e.end)}`;
 }
 function whenLabel(e: CalendarEvent) {
   if (e.start <= today.value) return "Now";
@@ -140,9 +140,9 @@ onBeforeUnmount(() => unsub?.());
 .upcoming h2 { font-size: 1rem; font-weight: 600; text-align: center; }
 .upcoming-row { display: flex; align-items: center; gap: 12px; padding: 8px 4px; }
 .upcoming-text { flex: 1 1 auto; min-width: 0; }
-/* The event's icon and its "In 7 days" in the event's colour, with nothing behind them. */
-.upcoming-icon { flex: 0 0 40px; display: inline-flex; justify-content: center; }
-.upcoming-when { padding-inline: 0; font-weight: 600; }
+/* The event's icon and its "In 7 days" are plain and neutral: no colour, nothing behind them. */
+.upcoming-icon { flex: 0 0 40px; display: inline-flex; justify-content: center; color: rgba(var(--k-theme-on-surface), 0.6); }
+.upcoming-when { flex: 0 0 auto; font-size: 0.875rem; font-weight: 600; color: rgba(var(--k-theme-on-surface), 0.7); white-space: nowrap; }
 .month { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .month-nav { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; padding-bottom: 8px; }
 .today-btn { position: absolute; inset-inline-end: 0; }
