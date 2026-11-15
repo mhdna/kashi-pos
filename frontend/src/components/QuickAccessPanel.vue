@@ -82,7 +82,7 @@
       <k-card-actions>
         <k-spacer />
         <k-btn variant="text" @click="removeDialog = false">Cancel</k-btn>
-        <k-btn color="error" variant="tonal" @click="confirmRemoval">Remove</k-btn>
+        <k-btn color="error" variant="flat" @click="confirmRemoval">Remove</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>

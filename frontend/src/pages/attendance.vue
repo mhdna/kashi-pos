@@ -49,8 +49,8 @@
               <k-list-item-title>{{ item.employeeName }}, {{ item.date }}</k-list-item-title>
               <k-list-item-subtitle>{{ requestSummary(item) }}</k-list-item-subtitle>
               <template v-if="managerApproval" #append>
-                <k-btn size="small" variant="text" color="error" @click="askManager({ kind: 'review', request: item, approved: false })">Reject</k-btn>
-                <k-btn size="small" variant="tonal" color="primary" @click="askManager({ kind: 'review', request: item, approved: true })">Approve</k-btn>
+                <k-btn size="small" variant="flat" color="error" @click="askManager({ kind: 'review', request: item, approved: false })">Reject</k-btn>
+                <k-btn size="small" variant="flat" color="primary" @click="askManager({ kind: 'review', request: item, approved: true })">Approve</k-btn>
               </template>
             </k-list-item>
           </k-list>

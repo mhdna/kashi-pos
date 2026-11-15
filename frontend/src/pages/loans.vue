@@ -110,7 +110,7 @@
         </k-card-text>
         <k-card-actions v-if="auth.isAdmin && !selected.cancelledAt" class="px-5 pb-4">
           <k-spacer />
-          <k-btn color="error" variant="tonal" prepend-icon="mdi-cancel" @click="requestCancel">Cancel loan</k-btn>
+          <k-btn color="error" variant="flat" @click="requestCancel">Cancel loan</k-btn>
         </k-card-actions>
       </k-card>
     </k-dialog>

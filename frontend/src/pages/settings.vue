@@ -1238,7 +1238,7 @@
                 <k-alert v-if="openingFloatNegative" type="warning" variant="tonal" density="compact" class="field-full">
                   Opening float cannot be negative.
                 </k-alert>
-                <k-btn color="primary" variant="tonal" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</k-btn>
+                <k-btn color="primary" variant="flat" :disabled="openingFloatNegative" class="field-full" @click="openingFloatDialog = true">Save opening float</k-btn>
                 <k-switch
                   :model-value="form.countOpeningCashOnClose"
                   :loading="countOpeningCashOnCloseSaving"

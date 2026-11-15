@@ -28,7 +28,11 @@ const props = defineProps<{
 const defaults = inject(btnDefaultsKey, {});
 const toggle = inject(btnToggleKey, null);
 
-const variant = computed(() => props.variant ?? defaults.variant ?? "elevated");
+// In card actions buttons default to text, but one given a color (Save,
+// Confirm, Delete, Reject) is the action itself, so it gets a solid fill.
+const variant = computed(
+  () => props.variant ?? (props.color && defaults.variant === "text" ? "flat" : defaults.variant) ?? "elevated",
+);
 const color = computed(() => props.color ?? defaults.color);
 const density = computed(() => props.density ?? defaults.density ?? "default");
 const isIcon = computed(() => props.icon !== undefined && props.icon !== false);
