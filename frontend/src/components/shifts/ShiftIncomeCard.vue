@@ -86,10 +86,10 @@
       </div>
       <!-- Manager only: each asks for the manager password before opening. -->
       <div class="spend-buttons">
-        <k-btn class="spend-button" color="primary" variant="tonal" @click="openManagerPage('/expenses')">
+        <k-btn class="spend-button" variant="tonal" @click="openManagerPage('/expenses')">
           <span class="spend-button-label"><k-icon icon="mdi-receipt-text-outline" size="18" class="me-1" />Expenses</span>
         </k-btn>
-        <k-btn class="spend-button" color="primary" variant="tonal" @click="openManagerPage('/loans')">
+        <k-btn class="spend-button" variant="tonal" @click="openManagerPage('/loans')">
           <span class="spend-button-label"><k-icon icon="mdi-hand-coin-outline" size="18" class="me-1" />Loans</span>
         </k-btn>
       </div>

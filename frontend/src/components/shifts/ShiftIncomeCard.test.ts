@@ -53,6 +53,16 @@ describe("ShiftIncomeCard", () => {
     expect(classes).toContain("px-0");
     expect(classes).not.toContain("pa-4");
   });
+  it("Expenses and Loans are neutral grey tonal buttons, not blue", async () => {
+    await show([{ accountName: "Cash $$", currencyCode: "USD", total: 243 }]);
+    const buttons = wrapper!.findAll(".spend-button");
+    expect(buttons).toHaveLength(2);
+    for (const b of buttons) {
+      expect(b.classes()).toContain("k-btn--variant-tonal");
+      expect(b.attributes("style") ?? "").not.toMatch(/primary/);
+      expect(b.classes().join(" ")).not.toMatch(/text-primary|bg-primary/);
+    }
+  });
   it("the header carries the title and the shift number, and opens the card", async () => {
     await show([{ accountName: "Cash $$", currencyCode: "USD", total: 243 }]);
     const title = wrapper!.find('[data-test="income-title"]');
