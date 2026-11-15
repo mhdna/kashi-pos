@@ -1647,7 +1647,7 @@ defineExpose({
 
 <style scoped>
 .invoice-item-unknown {
-  background: rgba(var(--k-theme-warning), 0.18);
+  background: rgba(255, 235, 59, 0.45);
 }
 
 .invoice-item-actions {
