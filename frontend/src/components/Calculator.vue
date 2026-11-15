@@ -17,25 +17,25 @@
     <!-- + and - choose the next amount's direction by hand: + counts it as
          given by the customer, - as change handed back, whatever is owed. -->
     <k-btn
-      class="calculator-sign text-h5"
+      class="calculator-sign"
       :class="{ 'calculator-sign--on': forcedSign === '+' }"
       variant="text"
       aria-label="Add the next amount as given"
       :aria-pressed="forcedSign === '+'"
       data-test="keypad-plus"
       @click="toggleSign('+')"
-      >+</k-btn
-    >
+      ><k-icon icon="mdi-plus" size="26"
+    /></k-btn>
     <k-btn
-      class="calculator-sign text-h5"
+      class="calculator-sign"
       :class="{ 'calculator-sign--on': forcedSign === '-' }"
       variant="text"
       aria-label="Take the next amount off as change"
       :aria-pressed="forcedSign === '-'"
       data-test="keypad-minus"
       @click="toggleSign('-')"
-      >&minus;</k-btn
-    >
+      ><k-icon icon="mdi-minus" size="26"
+    /></k-btn>
     <k-card class="calculator-display pa-2" variant="outlined" rounded="lg">
       <k-btn
         class="calculator-display-clear"
@@ -45,7 +45,7 @@
         aria-label="Clear"
         @click="clearInput"
       >
-        <k-icon icon="mdi-close" size="20" />
+        <k-icon icon="mdi-close" size="26" />
       </k-btn>
       <span class="calculator-display-value text-h3 font-weight-bold" data-test="calculator-display"
         ><span v-if="forcedSign" class="calculator-display-sign">{{ forcedSign === "-" ? "−" : "+" }}</span
@@ -59,7 +59,7 @@
         aria-label="Backspace"
         @click="backspace"
       >
-        <k-icon icon="mdi-backspace-outline" size="20" />
+        <k-icon icon="mdi-backspace-outline" size="26" />
       </k-btn>
     </k-card>
     </div>
@@ -878,8 +878,6 @@ defineExpose({
 .calculator-sign {
   flex: 0 0 auto;
   width: 40px;
-  font-size: 2rem !important;
-  font-weight: 500;
   min-width: 0 !important;
   height: auto !important;
   padding: 0 !important;
