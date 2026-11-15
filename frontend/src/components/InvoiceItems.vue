@@ -531,7 +531,6 @@
           data-test="line-note-keyboard-close"
           @click="closeNoteKeyboard"
         >
-          <k-icon icon="mdi-close" size="28" class="me-1" />
           Close
         </k-btn>
       </div>

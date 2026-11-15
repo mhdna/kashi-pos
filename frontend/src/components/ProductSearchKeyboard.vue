@@ -43,7 +43,6 @@
       aria-label="Close product search"
       @click="emit('close')"
     >
-      <k-icon icon="mdi-close" size="28" class="me-1" />
       Close
     </k-btn>
   </div>

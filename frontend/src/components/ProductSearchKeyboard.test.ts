@@ -47,6 +47,7 @@ describe("product search layout toggle", () => {
     expect(w.find(".product-inline-keyboard").exists()).toBe(true);
     expect(w.find(".product-search-close").exists()).toBe(true);
     expect(w.find(".product-search-close").classes()).toContain("k-btn--variant-flat");
+    expect(w.find(".product-search-close .k-icon").exists()).toBe(false);
   });
 
   it("the search field spans the row when the toggle is not there", () => {
