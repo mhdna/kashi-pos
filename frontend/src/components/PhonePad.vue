@@ -80,7 +80,4 @@ function press(key: string) {
   grid-column: span 3;
 }
 
-.phone-pad-key--clear {
-  color: rgb(var(--k-theme-error));
-}
 </style>

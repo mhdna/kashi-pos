@@ -87,7 +87,7 @@
           <div class="client-phone-country-pager">
             <k-btn
               icon="mdi-chevron-left"
-              variant="tonal"
+              variant="text"
               aria-label="Previous countries"
               :disabled="countryPage === 0"
               @click="countryPage--"
@@ -95,7 +95,7 @@
             <span class="text-medium-emphasis">{{ countryPage + 1 }} / {{ countryPageCount }}</span>
             <k-btn
               icon="mdi-chevron-right"
-              variant="tonal"
+              variant="text"
               aria-label="More countries"
               :disabled="countryPage === countryPageCount - 1"
               @click="countryPage++"
@@ -640,10 +640,10 @@ function reset() {
 
 .client-phone-country-trigger-search {
   align-items: center;
-  /* Teal, so it isn't mistaken for the blue Continue button below. */
-  background: #00796b;
+  /* Neutral grey, like the keypad, so it isn't mistaken for Continue. */
+  background: rgba(var(--k-theme-on-surface), 0.12);
   border-radius: 4px;
-  color: #fff;
+  color: rgb(var(--k-theme-on-surface));
   display: flex;
   font-size: 0.95rem;
   font-weight: 500;
