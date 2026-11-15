@@ -161,4 +161,9 @@ describe("unknown item dialog", () => {
     await click(next());
     expect(q(".unknown-name-keyboard")).toBeTruthy();
   });
+
+  it("the name step has no 'What is it?' line under its title", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/components/UnknownPriceDialog.vue"), "utf8");
+    expect(source).not.toMatch(/What is it\?|ما هي القطعة/);
+  });
 });

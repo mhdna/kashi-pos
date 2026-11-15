@@ -31,7 +31,6 @@
       <template v-else>
         <k-card-title class="px-0 pt-0 text-center text-h4">Name the item</k-card-title>
         <div class="text-h5 text-medium-emphasis text-center mb-3">
-          What is it? <span dir="rtl" lang="ar">ما هي القطعة؟</span>
           <span class="unknown-name-price">${{ display }}</span>
         </div>
         <div class="unknown-name-display mb-3" :class="{ 'unknown-name-display--empty': !name }" data-testid="unknown-name">
