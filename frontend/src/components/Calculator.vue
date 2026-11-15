@@ -13,7 +13,8 @@
       :total-text="invoiceTotalText"
     />
 
-    <k-card class="calculator-display pa-2 mb-3 mt-2" variant="outlined" rounded="lg">
+    <div class="calculator-display-row mb-3 mt-2">
+    <k-card class="calculator-display pa-2" variant="outlined" rounded="lg">
       <k-btn
         class="calculator-display-clear"
         icon
@@ -39,10 +40,33 @@
         <k-icon icon="mdi-backspace-outline" size="20" />
       </k-btn>
     </k-card>
+    <!-- + and - choose the next amount's direction by hand: + counts it as
+         given by the customer, - as change handed back, whatever is owed. -->
+    <k-btn
+      class="calculator-sign text-h5"
+      :class="{ 'calculator-sign--on': forcedSign === '+' }"
+      variant="text"
+      aria-label="Add the next amount as given"
+      :aria-pressed="forcedSign === '+'"
+      data-test="keypad-plus"
+      @click="toggleSign('+')"
+      >+</k-btn
+    >
+    <k-btn
+      class="calculator-sign text-h5"
+      :class="{ 'calculator-sign--on': forcedSign === '-' }"
+      variant="text"
+      aria-label="Take the next amount off as change"
+      :aria-pressed="forcedSign === '-'"
+      data-test="keypad-minus"
+      @click="toggleSign('-')"
+      >&minus;</k-btn
+    >
+    </div>
 
     <div class="d-flex ga-3">
       <div style="flex: 3 3 0; min-width: 0">
-        <CalculatorKeypad :sign="forcedSign" @digit="appendDigit" @sign="toggleSign" />
+        <CalculatorKeypad @digit="appendDigit" />
       </div>
       <div class="calculator-payment-methods-column d-flex flex-column ga-2">
         <CalculatorPaymentMethods
@@ -842,6 +866,28 @@ defineExpose({
 </style>
 
 <style scoped>
+.calculator-display-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.calculator-display-row > .calculator-display {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.calculator-sign {
+  flex: 0 0 auto;
+  width: 56px;
+  min-width: 0 !important;
+  height: auto !important;
+  padding: 0 !important;
+  border: 1px solid rgba(var(--k-theme-on-surface), 0.18);
+  border-radius: 0;
+}
+.calculator-sign--on {
+  background: rgba(var(--k-theme-on-surface), 0.12);
+  border-color: currentColor;
+}
 .calculator-display-sign {
   margin-inline-end: 4px;
 }
