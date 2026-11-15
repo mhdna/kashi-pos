@@ -73,13 +73,14 @@
               >Approve selected</k-btn
             >
           </div>
-          <k-list v-if="pendingComplaints.length" density="compact">
+          <k-list v-if="pendingComplaints.length" density="compact" class="requests-list">
             <k-list-item v-for="item in pendingComplaints" :key="item.id">
               <template v-if="managerApproval" #prepend>
                 <k-checkbox
                   :model-value="selectedRequestIds.has(item.id)"
                   density="compact"
                   hide-details
+                  class="me-2"
                   :data-test="`request-select-${item.id}`"
                   @update:model-value="(on: boolean) => toggleRequest(item.id, on)"
                 />
@@ -87,8 +88,10 @@
               <k-list-item-title>{{ item.employeeName }}, {{ item.date }}</k-list-item-title>
               <k-list-item-subtitle>{{ requestSummary(item) }}</k-list-item-subtitle>
               <template v-if="managerApproval" #append>
-                <k-btn size="small" variant="flat" color="error" @click="askManager({ kind: 'review', requests: [item], approved: false })">Reject</k-btn>
-                <k-btn size="small" variant="flat" color="primary" @click="askManager({ kind: 'review', requests: [item], approved: true })">Approve</k-btn>
+                <div class="d-flex ga-2">
+                  <k-btn size="small" variant="flat" color="error" @click="askManager({ kind: 'review', requests: [item], approved: false })">Reject</k-btn>
+                  <k-btn size="small" variant="flat" color="primary" @click="askManager({ kind: 'review', requests: [item], approved: true })">Approve</k-btn>
+                </div>
               </template>
             </k-list-item>
           </k-list>
@@ -649,7 +652,10 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 16px;
+  padding: 8px 16px 0;
+}
+.requests-list {
+  padding-top: 0;
 }
 .status-line {
   display: flex;
