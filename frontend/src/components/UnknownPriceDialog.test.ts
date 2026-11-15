@@ -149,15 +149,15 @@ describe("unknown item dialog", () => {
     expect(body().textContent).not.toContain("Name the item");
   });
 
-  it("the name step is a big one: a wide dialog, a tall name box and tall keys", async () => {
+  it("the name step is a roomy one: a wide dialog, a tall name box and tall keys", async () => {
     const source = readFileSync(resolve(process.cwd(), "src/components/UnknownPriceDialog.vue"), "utf8");
     const num = (re: RegExp) => Number(source.match(re)![1]);
     // The dialog widens for the name step (the price step stays a narrow pad).
-    expect(source).toMatch(/step === 'name' \? 880 : 360/);
-    expect(num(/\.unknown-name-display \{[^}]*min-height: (\d+)px/)).toBeGreaterThanOrEqual(80);
-    expect(num(/\.unknown-name-display \{[^}]*font-size: ([\d.]+)rem/)).toBeGreaterThanOrEqual(2.5);
-    expect(num(/\.unknown-name-keyboard :deep\(\.inline-keyboard-key\) \{[^}]*height: (\d+)px/)).toBeGreaterThanOrEqual(72);
-    expect(num(/\.unknown-name-keyboard :deep\(\.inline-keyboard-actions > \.k-btn\) \{[^}]*height: (\d+)px/)).toBeGreaterThanOrEqual(72);
+    expect(source).toMatch(/step === 'name' \? 760 : 360/);
+    expect(num(/\.unknown-name-display \{[^}]*min-height: (\d+)px/)).toBeGreaterThanOrEqual(64);
+    expect(num(/\.unknown-name-display \{[^}]*font-size: ([\d.]+)rem/)).toBeGreaterThanOrEqual(2);
+    expect(num(/\.unknown-name-keyboard :deep\(\.inline-keyboard-key\) \{[^}]*height: (\d+)px/)).toBeGreaterThanOrEqual(58);
+    expect(num(/\.unknown-name-keyboard :deep\(\.inline-keyboard-actions > \.k-btn\) \{[^}]*height: (\d+)px/)).toBeGreaterThanOrEqual(58);
     // And the keyboard is the one carrying that class.
     await openDialog();
     await typePrice("5");

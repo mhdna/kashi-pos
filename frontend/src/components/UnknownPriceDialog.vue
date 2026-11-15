@@ -1,5 +1,5 @@
 <template>
-  <k-dialog :model-value="modelValue" :max-width="step === 'name' ? 880 : 360" @update:model-value="emit('update:modelValue', $event)">
+  <k-dialog :model-value="modelValue" :max-width="step === 'name' ? 760 : 360" @update:model-value="emit('update:modelValue', $event)">
     <k-card class="pa-4">
       <!-- Step 1: the price, on a number pad. -->
       <template v-if="step === 'price'">
@@ -148,14 +148,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
   color: rgb(var(--k-theme-on-surface));
 }
 .unknown-name-display {
-  min-height: 80px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 12px 20px;
   border: 2px solid rgba(var(--k-theme-primary), 0.7);
   border-radius: 10px;
-  font-size: 2.5rem;
+  font-size: 2rem;
   line-height: 1.2;
   text-align: center;
   overflow-wrap: anywhere;
@@ -180,17 +180,17 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
   padding: 0;
 }
 .unknown-name-keyboard :deep(.inline-keyboard-key) {
-  height: 72px;
-  max-width: 96px;
-  font-size: 2.5rem;
+  height: 58px;
+  max-width: 80px;
+  font-size: 2rem;
 }
 .unknown-name-keyboard :deep(.inline-keyboard-actions > .k-btn) {
-  height: 72px;
-  min-height: 72px;
-  font-size: 2.25rem;
+  height: 58px;
+  min-height: 58px;
+  font-size: 1.8rem;
 }
 .unknown-name-keyboard :deep(.inline-keyboard-row) {
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 </style>
