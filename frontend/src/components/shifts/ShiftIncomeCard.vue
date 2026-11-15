@@ -105,9 +105,8 @@
     @saved="emit('opening-float-set')"
   />
   <k-dialog v-model="managerDialog.show" max-width="380">
-    <k-card class="manager-dialog" rounded="xl">
+    <k-card class="manager-dialog">
       <k-card-text class="manager-dialog-body">
-        <span class="manager-dialog-badge"><k-icon icon="mdi-lock-outline" size="40" /></span>
         <h2 class="manager-dialog-title">Manager password</h2>
         <k-text-field
           v-model="managerDialog.password"
@@ -228,16 +227,6 @@ async function confirmManager() {
   align-items: center;
   padding: 28px 24px 20px;
   text-align: center;
-}
-.manager-dialog-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: rgba(249, 168, 37, 0.18);
-  color: #f9a825;
 }
 .manager-dialog-title {
   margin: 12px 0 20px;

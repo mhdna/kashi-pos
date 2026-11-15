@@ -313,8 +313,8 @@ const items = computed(() => {
     {
       value: "conversion",
       to: "/conversion",
-      icon: "mdi-account-convert",
-      t: "Conversion",
+      icon: "mdi-chart-bar",
+      t: "Stats",
       locked: !auth.isAdmin && !visitorCounterEnabled.value,
     },
     {
