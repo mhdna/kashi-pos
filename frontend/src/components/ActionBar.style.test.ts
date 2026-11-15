@@ -24,6 +24,13 @@ describe("action bar buttons", () => {
     expect(css).not.toMatch(/border/);
   });
 
+  it("Cancel and Hold are raised cards like Check Out", () => {
+    const at = src.indexOf(".hold-void-column > .k-btn {");
+    const css = src.slice(at, src.indexOf("}", at));
+    expect(css).toMatch(/background-color: rgb\(var\(--k-theme-surface\)\)/);
+    expect(css).toMatch(/box-shadow: 0 2px 4px/);
+  });
+
   it("the hold and cancel Confirm is the primary button", () => {
     const confirm = src.slice(src.indexOf("<k-card-actions>"), src.indexOf("</k-card-actions>"));
     expect(confirm).toMatch(/color="primary"/);
