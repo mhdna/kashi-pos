@@ -52,7 +52,6 @@ function openSyncSettings() {
   open.value = false;
   router.push({ path: "/settings", query: { panel: "general-sync" } });
 }
-const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad: "mdi-close-circle", idle: "mdi-circle-outline" } as const;
 </script>
 
 <template>
@@ -95,35 +94,37 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
   </div>
 
   <k-dialog v-model="open" max-width="520">
-    <k-card rounded="xl" data-test="sync-dialog">
-      <k-card-title class="d-flex align-center ga-3 pt-4">
+    <k-card data-test="sync-dialog">
+      <!-- The headline is the state in words; a spinner beside it only while
+           work is moving. Each line below is a plain label and its value;
+           only a value that needs attention takes a colour. -->
+      <k-card-title class="sync-dialog-head pt-4">
+        <span>{{ summary.word }}</span>
         <k-progress-circular
           v-if="summary.spinner.on"
           :indeterminate="summary.spinner.pct === null"
           :model-value="summary.spinner.pct ?? 0"
-          size="28"
-          width="3"
+          size="20"
+          width="2"
         />
-        <k-icon v-else :icon="summary.icon" size="28" :class="`link-dot link-dot--${summary.tone}`" />
-        <span>{{ summary.word }}</span>
       </k-card-title>
       <k-card-text>
         <p class="sync-dialog-title" data-test="sync-dialog-title">{{ summary.title }}</p>
-        <ul class="sync-rows">
-          <li v-for="row in summary.rows" :key="row.key" :class="`sync-row sync-row--${row.state}`" :data-test="`sync-row-${row.key}`">
-            <k-icon :icon="rowIcon[row.state]" size="18" class="sync-row-icon" />
-            <div>
-              <div class="sync-row-head">
-                <span class="sync-row-label">{{ row.label }}</span>
-                <span class="sync-row-value">{{ row.value }}</span>
-              </div>
-              <div v-if="row.detail" class="sync-row-detail">{{ row.detail }}</div>
-            </div>
-          </li>
-        </ul>
+        <table class="sync-table">
+          <tbody>
+            <tr v-for="row in summary.rows" :key="row.key" :class="`sync-row sync-row--${row.state}`" :data-test="`sync-row-${row.key}`">
+              <th class="sync-row-label" scope="row">{{ row.label }}</th>
+              <td>
+                <div class="sync-row-value">{{ row.value }}</div>
+                <div v-if="row.detail" class="sync-row-detail">{{ row.detail }}</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </k-card-text>
       <k-card-actions>
         <k-btn v-if="auth.isAdmin" variant="text" data-test="sync-open-settings" @click="openSyncSettings">Sync settings</k-btn>
+        <k-spacer />
         <k-btn variant="text" @click="open = false">Close</k-btn>
       </k-card-actions>
     </k-card>
@@ -222,14 +223,17 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
 .link-dot--bad { color: #ef5350; }
 .link-dot--off { color: #9e9e9e; }
 .link-dot--busy { color: #ffb74d; }
-.sync-dialog-title { margin: 0 0 12px; opacity: 0.9; }
-.sync-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.sync-row { display: flex; gap: 10px; align-items: flex-start; }
-.sync-row-head { display: flex; gap: 8px; flex-wrap: wrap; }
-.sync-row-label { font-weight: 600; }
-.sync-row-detail { font-size: 0.8rem; opacity: 0.75; }
-.sync-row--ok .sync-row-icon { color: #66bb6a; }
-.sync-row--warn .sync-row-icon { color: #ffd54f; }
-.sync-row--bad .sync-row-icon { color: #ef5350; }
-.sync-row--idle .sync-row-icon { color: #9e9e9e; }
+.sync-dialog-head { display: flex; align-items: center; gap: 12px; }
+.sync-dialog-title { margin: 0 0 16px; opacity: 0.75; }
+.sync-table { width: 100%; border-collapse: collapse; }
+.sync-table th,
+.sync-table td { padding: 8px 0; vertical-align: top; text-align: start; border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity)); }
+.sync-table tr:first-child th,
+.sync-table tr:first-child td { border-top: 0; }
+.sync-row-label::first-letter { text-transform: uppercase; }
+.sync-row-label { font-weight: 400; opacity: 0.7; padding-inline-end: 24px !important; white-space: nowrap; width: 1%; }
+.sync-row-value { font-weight: 500; }
+.sync-row-detail { font-size: 0.8rem; opacity: 0.65; margin-top: 2px; }
+.sync-row--warn .sync-row-value { color: #b7791f; }
+.sync-row--bad .sync-row-value { color: #d32f2f; }
 </style>
