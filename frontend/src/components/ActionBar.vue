@@ -149,10 +149,6 @@ function doConfirm() {
 .checkout-button {
   flex: 1.4 1 0;
   min-width: 0;
-  /* A raised card: the surface colour with a soft shadow, no border, and the
-     green (orange for an exchange) icon and label on it. */
-  background-color: rgb(var(--k-theme-surface)) !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .checkout-content {
