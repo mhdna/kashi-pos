@@ -577,14 +577,8 @@ const items = computed(() => {
   padding: 8px 10px;
   gap: 6px;
 }
-/* No captions: each group has its own icon colour instead. Green for the
-   shift, blue for the app, red for the computer; the cards stay plain. */
-.options-group--shift { --option-color: 46, 125, 50; }
-.options-group--app { --option-color: 25, 118, 210; }
-.options-group--computer { --option-color: 211, 47, 47; }
-.options-group .option-card :deep(.k-icon) {
-  color: rgb(var(--option-color));
-}
+/* No captions, and no colour per group: the icons are neutral like the
+   labels. The groups are told apart by their order and spacing. */
 
 .options-dialog-card {
   border: 4px dotted rgba(0, 0, 0, 0.45);

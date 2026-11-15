@@ -20,7 +20,7 @@ export interface QuitOption {
   hint?: string;
 }
 
-/** The colour family of a group: green for the shift, blue for the app, red for the computer. */
+/** Which group this is: the shift, this app, or this computer. */
 export type QuitTone = "shift" | "app" | "computer";
 
 export interface QuitGroup {
