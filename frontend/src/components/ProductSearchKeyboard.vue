@@ -39,7 +39,7 @@
     <k-btn
       class="product-search-close"
       color="error"
-      variant="tonal"
+      variant="flat"
       aria-label="Close product search"
       @click="emit('close')"
     >

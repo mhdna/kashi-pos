@@ -526,7 +526,7 @@
         <k-btn
           class="line-note-keyboard-close"
           color="error"
-          variant="tonal"
+          variant="flat"
           aria-label="Close keyboard"
           data-test="line-note-keyboard-close"
           @click="closeNoteKeyboard"
