@@ -379,9 +379,9 @@ const items = computed(() => {
   color: #9e9e9e;
 }
 .nav-drawer {
-  background-color: #0f1b2d;
+  background: linear-gradient(180deg, #13243d 0%, #0d1828 100%);
   border: 0 !important;
-  border-right: 1px solid #1e2c42 !important;
+  border-right: 1px solid #243653 !important;
   box-shadow: none !important;
 }
 
