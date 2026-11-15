@@ -435,6 +435,8 @@ func (a *App) GetInvoiceDetails(id int64) (map[string]any, error) {
 			"lineId": line.ID,
 			"name":   lineName(line, product), "code": product.Code, "barcode": product.Barcode, "category": product.Description,
 			"color": product.Color, "size": product.Size,
+			"brand": product.Brand, "kind": product.Kind, "family": product.Family,
+			"season": product.Season, "productYear": product.ProductYear,
 			"price": float64(line.UnitPrice) / 100, "lineTotal": float64(line.LineTotal) / 100,
 			"discount": line.Discount, "qty": line.Quantity,
 			"salespersonId": line.SalespersonID, "salespersonName": lineSalespersonName,

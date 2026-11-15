@@ -236,9 +236,9 @@
                     :text="line.free ? `FREE · ${line.deal}` : line.deal"
                     variant="flat"
                   />
-                  <span v-if="line.color || line.size" class="text-caption text-medium-emphasis ms-2">{{ [line.color, line.size].filter(Boolean).join(" · ") }}</span>
                 </template>
                 <template #subtitle>{{ line.qty }} × ${{ Number(line.price).toFixed(2) }}<span v-if="line.discount"> · {{ line.discount }}% discount</span><span v-if="line.salespersonName"> · Sold by {{ line.salespersonName }}</span></template>
+                <InvoiceLineDetails :line="line" />
                 <template #append>
                   <k-tooltip v-if="line.note" :text="line.note" location="top"><template #activator="{ props: tooltipProps }"><k-icon v-bind="tooltipProps" icon="mdi-note-text-outline" size="18" color="primary" class="me-3" /></template></k-tooltip>
                   <span class="font-weight-bold">${{ Number(line.lineTotal).toFixed(2) }}</span>
@@ -361,6 +361,7 @@ import { formatLebanesePhone } from "@/lib/phone";
 import { prefetchInvoiceEditOptions } from "@/lib/invoiceEditOptions";
 import InvoiceChangeDialog from "@/components/InvoiceChangeDialog.vue";
 import InvoiceLineSalespersonDialog from "@/components/InvoiceLineSalespersonDialog.vue";
+import InvoiceLineDetails from "@/components/InvoiceLineDetails.vue";
 import { formatServerDateTime } from "@/lib/datetime";
 import { useAuthStore } from "../stores/auth";
 

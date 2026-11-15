@@ -1,0 +1,28 @@
+[
+  {
+    "barcode": "8000000113603",
+    "brand": "Tannav",
+    "category": "Skirts",
+    "code": "TNV551219-16",
+    "color": "Black",
+    "family": "Bottoms",
+    "kind": "Leather",
+    "name": "Lady Leather Skirt",
+    "productYear": 2026,
+    "season": "Winter",
+    "size": "16"
+  },
+  {
+    "barcode": "8000000114129",
+    "brand": "",
+    "category": "",
+    "code": "TNV551219",
+    "color": "",
+    "family": "",
+    "kind": "",
+    "name": "Lady Leather Skirt",
+    "productYear": 0,
+    "season": "",
+    "size": ""
+  }
+]
