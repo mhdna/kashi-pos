@@ -55,9 +55,8 @@
         <k-btn
           type="button"
           class="pin-key"
-          color="error"
           size="small"
-          variant="flat"
+          variant="tonal"
           :disabled="loading || locked || pin.length === 0"
           aria-label="Clear PIN"
           @click="clearPIN"
@@ -78,7 +77,6 @@
         <k-btn
           type="button"
           class="pin-key"
-          color="error"
           size="small"
           variant="tonal"
           :disabled="loading || locked || pin.length === 0"

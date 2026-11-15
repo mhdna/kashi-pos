@@ -36,20 +36,19 @@ async function mountForm() {
 const key = (label: string) => wrapper!.find(`[aria-label="${label}"]`);
 
 describe("PIN keypad colours", () => {
-  it("C is a solid red key", async () => {
+  it("C is a plain grey key like the digits", async () => {
     await mountForm();
     const c = key("Clear PIN");
     expect(c.text()).toBe("C");
-    expect(c.classes()).toContain("k-btn--variant-flat");
-    expect(c.attributes("style") ?? "").toMatch(/error/);
+    expect(c.classes()).toContain("k-btn--variant-tonal");
+    expect(c.attributes("style") ?? "").not.toMatch(/error/);
   });
 
-  it("backspace is a soft red key, apart from the solid C", async () => {
+  it("backspace is a plain grey key like the digits", async () => {
     await mountForm();
     const back = key("Delete last digit");
     expect(back.classes()).toContain("k-btn--variant-tonal");
-    expect(back.attributes("style") ?? "").toMatch(/error/);
-    expect(back.classes()).not.toContain("k-btn--variant-flat");
+    expect(back.attributes("style") ?? "").not.toMatch(/error/);
   });
 
   it("the digits stay plain grey keys", async () => {

@@ -72,20 +72,17 @@ describe("number pad heading", () => {
     w.unmount();
   });
 
-  it("C (clear) is a solid red key; backspace is a soft red one", async () => {
+  it("C (clear) and backspace are plain grey keys like the digits", async () => {
     const { default: NumberPadMenu } = await import("./NumberPadMenu.vue");
     const w = mount(NumberPadMenu, { props: { modelValue: 5 }, global: { plugins: [ui] }, attachTo: document.body });
     await open(w.find(".number-pad-activator").element);
     const clear = document.body.querySelector("[data-test=number-pad-clear]")!;
     const back = document.body.querySelector("[data-test=number-pad-backspace]")!;
     expect(clear.textContent!.trim()).toBe("C");
-    expect(clear.className).toContain("k-btn--variant-flat");
-    expect(clear.getAttribute("style") ?? "").toMatch(/error/);
-    expect(back.className).toContain("k-btn--variant-tonal");
-    // Red too, but only a tint of it: tonal where C is flat, so the two read as
-    // a pair and still differ.
-    expect(back.getAttribute("style") ?? "").toMatch(/error/);
-    expect(back.className).not.toBe(clear.className);
+    for (const k of [clear, back]) {
+      expect(k.className).toContain("k-btn--variant-tonal");
+      expect(k.getAttribute("style") ?? "").not.toMatch(/error/);
+    }
     expect(back.querySelector(".k-icon")).toBeTruthy();
     w.unmount();
   });
