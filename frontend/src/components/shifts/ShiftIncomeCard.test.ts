@@ -53,12 +53,12 @@ describe("ShiftIncomeCard", () => {
     expect(classes).toContain("px-0");
     expect(classes).not.toContain("pa-4");
   });
-  it("payment icons and the Total collected line have no tinted background", async () => {
+  it("payment icons have no tinted circle; Total collected keeps its green band", async () => {
     await show([{ accountName: "Cash $$", currencyCode: "USD", total: 243 }]);
     expect(wrapper!.find(".k-avatar").exists()).toBe(false);
     expect(wrapper!.find('[data-test="payment-icon"]').exists()).toBe(true);
     const css = readFileSync(resolve(process.cwd(), "src/components/shifts/ShiftIncomeCard.vue"), "utf8");
-    expect(css).not.toMatch(/\.shift-total \{[^}]*background/);
+    expect(css).toMatch(/\.shift-total \{[^}]*background: rgba\(67, 160, 71, 0\.13\)/);
   });
   it("Expenses and Loans are neutral grey tonal buttons, not blue", async () => {
     await show([{ accountName: "Cash $$", currencyCode: "USD", total: 243 }]);
