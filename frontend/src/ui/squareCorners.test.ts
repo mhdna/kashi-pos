@@ -41,9 +41,21 @@ describe("nothing is rounded", () => {
     const { globSync } = (await import("node:fs")) as any;
     const files: string[] = globSync("src/{components,pages}/**/*.vue", { cwd: process.cwd() });
     expect(files.length).toBeGreaterThan(50);
-    for (const f of files) {
-      const src = readFileSync(resolve(process.cwd(), f), "utf8");
+    // The visitor counter in the nav keeps its rounded look on purpose.
+    const keptRound = /FlipNumber\.vue$/;
+    for (const f of files.filter((name) => !keptRound.test(name))) {
+      const src = readFileSync(resolve(process.cwd(), f), "utf8").replace(/\.visitor-counter(-btn)? \{[^}]*\}/g, "");
       expect(src, f).not.toMatch(/border-radius: *(?!0[;\s!])\d+(\.\d+)?(px|rem|em)/);
     }
+  });
+});
+
+describe("visitor counter", () => {
+  it("keeps its rounded corners", () => {
+    const nav = readFileSync(resolve(__dirname, "../components/NavDrawer.vue"), "utf8");
+    const flip = readFileSync(resolve(__dirname, "../components/FlipNumber.vue"), "utf8");
+    expect(nav).toMatch(/\.visitor-counter \{[^}]*border-radius: 12px;/);
+    expect(nav).toMatch(/\.visitor-counter-btn \{[^}]*border-radius: 8px !important;/);
+    expect(flip).toMatch(/border-radius: 8px;/);
   });
 });

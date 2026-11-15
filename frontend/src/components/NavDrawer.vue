@@ -525,7 +525,7 @@ const items = computed(() => {
   /* One panel, like the devices box under it. */
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid #243653;
-  border-radius: 0;
+  border-radius: 12px;
 }
 
 .visitor-counter-btn {
@@ -533,7 +533,7 @@ const items = computed(() => {
   height: 32px;
   color: #ffffff !important;
   background-color: #e8680a !important;
-  border-radius: 0 !important;
+  border-radius: 8px !important;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 2px 4px rgba(0, 0, 0, 0.35) !important;
   transition: transform 0.08s ease, filter 0.15s ease;
 }
