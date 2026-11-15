@@ -207,11 +207,10 @@ function flipCurrency() {
   gap: 3px 6px;
 }
 /* The invoice total is a chip like the rest, in a neutral tone. */
+/* Total, Rounded and the discounts are plain coloured text: no pill behind them. */
 .calculator-amounts-total {
   flex: 0 0 auto;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(var(--k-theme-on-surface), 0.08);
+  padding: 2px 0;
   color: rgba(var(--k-theme-on-surface), 0.75);
   font-size: var(--kashi-font-size-xs, 0.6875rem);
   font-weight: 600;
@@ -221,10 +220,7 @@ function flipCurrency() {
 }
 .calculator-amounts-rounded {
   flex: 0 0 auto;
-  padding: 2px 8px;
-  border-radius: 999px;
-  /* A tint of the status colour (green/red...) behind text in that colour. */
-  background: color-mix(in srgb, currentColor 16%, transparent);
+  padding: 2px 0;
   font-size: var(--kashi-font-size-xs, 0.6875rem);
   font-weight: 600;
   line-height: 1.2;
@@ -234,11 +230,9 @@ function flipCurrency() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 2px 8px;
-  border-radius: 999px;
+  padding: 2px 0;
   /* Red: it is money taken off. The theme's error colour, so it also reads in
      the dark theme. */
-  background: color-mix(in srgb, rgb(var(--k-theme-error)) 14%, transparent);
   color: rgb(var(--k-theme-error));
   font-size: var(--kashi-font-size-xs, 0.6875rem);
   font-weight: 600;
