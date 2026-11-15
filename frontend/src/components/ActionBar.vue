@@ -79,7 +79,7 @@
         <k-spacer />
         <k-btn variant="text" @click="dialog = false">Cancel</k-btn>
         <k-btn
-          :color="action === 'hold' ? 'blue-grey-darken-2' : 'brown-darken-2'"
+          color="primary"
           variant="flat"
           @click="doConfirm"
           >Confirm</k-btn
