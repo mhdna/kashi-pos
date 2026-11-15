@@ -24,7 +24,10 @@
       >
         <k-icon icon="mdi-close" size="20" />
       </k-btn>
-      <span class="calculator-display-value text-h3 font-weight-bold">{{ displayValue }}</span>
+      <span class="calculator-display-value text-h3 font-weight-bold" data-test="calculator-display"
+        ><span v-if="forcedSign" class="calculator-display-sign">{{ forcedSign === "-" ? "−" : "+" }}</span
+        >{{ displayValue }}</span
+      >
       <k-btn
         class="calculator-display-backspace"
         icon
@@ -39,7 +42,7 @@
 
     <div class="d-flex ga-3">
       <div style="flex: 3 3 0; min-width: 0">
-        <CalculatorKeypad @digit="appendDigit" />
+        <CalculatorKeypad :sign="forcedSign" @digit="appendDigit" @sign="toggleSign" />
       </div>
       <div class="calculator-payment-methods-column d-flex flex-column ga-2">
         <CalculatorPaymentMethods
@@ -581,6 +584,15 @@ onBeforeUnmount(() => {
 // only multiplies manually typed amounts, never an auto-filled one.
 const inputWasAutoFilled = ref(false);
 
+// + or - pressed on the keypad: the next amount is given by the customer (+)
+// or handed back as change (-), whatever the till thinks is owed. Without
+// one, the till decides as before (change once enough is paid). It applies
+// to one amount, then goes back to automatic.
+const forcedSign = ref<"+" | "-" | null>(null);
+function toggleSign(sign: "+" | "-") {
+  forcedSign.value = forcedSign.value === sign ? null : sign;
+}
+
 function appendDigit(value: string) {
   inputWasAutoFilled.value = false;
   if (value === "." && currentInput.value.includes(".")) return;
@@ -594,6 +606,7 @@ function backspace() {
 function clearInput() {
   inputWasAutoFilled.value = false;
   currentInput.value = "";
+  forcedSign.value = null;
 }
 
 function pushEntry(methodName: string, amount: number, amountCents: number, isChange: boolean) {
@@ -626,20 +639,22 @@ function confirmEntry(methodName = activeMethod.value) {
   if (!Number.isFinite(amount) || amount <= 0 || currency.unitsPerUsd <= 0) return;
   const amountCents = roundCentsFromCurrencyUnits(amount, currency, roundingMode.value);
   if (amountCents <= 0) return;
-  const isChange = diffCents.value > 0;
+  const isChange = forcedSign.value ? forcedSign.value === "-" : diffCents.value > 0;
   // Change larger than what's owed is a legitimate move (e.g. breaking a
   // 100,000 LL note when only 50,000 is owed, with the customer handing
   // back the 50,000 difference in smaller notes) - so it must never be
   // blocked. But it's also exactly what a mistyped amount looks like, so
   // ask for confirmation instead of silently accepting or silently
   // rejecting it.
-  if (isChange && paidAfterChange(methodName, amount, amountCents) < totalCents.value && props.overchangeConfirmationEnabled !== false) {
+  // A - pressed by hand is the cashier's own call, so it isn't questioned.
+  if (isChange && !forcedSign.value && paidAfterChange(methodName, amount, amountCents) < totalCents.value && props.overchangeConfirmationEnabled !== false) {
     pendingOverchange.value = { methodName, amount, amountCents, currencySymbol: currency.symbol };
     return;
   }
   pushEntry(methodName, amount, amountCents, isChange);
   currentInput.value = "";
   inputWasAutoFilled.value = false;
+  forcedSign.value = null;
 }
 
 function confirmOverchange() {
@@ -649,6 +664,7 @@ function confirmOverchange() {
   pendingOverchange.value = null;
   currentInput.value = "";
   inputWasAutoFilled.value = false;
+  forcedSign.value = null;
 }
 
 function cancelOverchange() {
@@ -676,6 +692,9 @@ function fillRemainingInput(methodName = activeMethod.value) {
 function selectMethodAndConfirm(methodName: string) {
   activeMethod.value = methodName;
   if (methodName.toLowerCase() === "on account" && !props.clientId) return;
+  // With + or - pressed, a card needs a typed amount: filling in what's
+  // owed only makes sense when the till picks the direction itself.
+  if (!currentInput.value && forcedSign.value) return;
   if (!currentInput.value) fillRemainingInput(methodName);
   confirmEntry(methodName);
   // Each card click adds one payment entry immediately (there's no separate
@@ -716,6 +735,7 @@ function removeEntry(index: number) {
 }
 function clearAll() {
   currentInput.value = "";
+  forcedSign.value = null;
   entries.value = [];
   activeMethod.value = paymentMethods.value.find((m) => m.currencyCode === "USD")?.name ?? "USD";
 }
@@ -822,6 +842,9 @@ defineExpose({
 </style>
 
 <style scoped>
+.calculator-display-sign {
+  margin-inline-end: 4px;
+}
 .calculator-display {
   min-height: 42px;
   display: flex;

@@ -165,3 +165,55 @@ describe("Calculator shows the invoice total only when the big number is not it"
     expect(total().exists()).toBe(false);
   });
 });
+
+// + and - on the keypad pick the next amount's direction by hand.
+describe("Calculator + and - keys", () => {
+  const key = (sel: string) => document.body.querySelector<HTMLElement>(`[data-test="${sel}"]`)!;
+  const digit = (d: string) =>
+    [...document.body.querySelectorAll<HTMLElement>(".keypad-number")].find((b) => b.textContent?.trim() === d)!;
+
+  it("after $100 on a $41.56 sale, + 3 adds $3 given instead of $3 change", async () => {
+    const w = await mountCalculator("sale");
+    await pay(w, "Cash $$", "100");
+    key("keypad-plus").click();
+    await flushPromises();
+    expect(key("keypad-plus").getAttribute("aria-pressed")).toBe("true");
+    digit("3").click();
+    await flushPromises();
+    expect(key("calculator-display").textContent).toBe("+3");
+    w.vm.selectMethodAndConfirm("Cash $$");
+    await flushPromises();
+    expect(JSON.parse(w.vm.paymentsJSON)).toEqual([
+      { accountId: 1, amountCents: 10000, entryType: "payment" },
+      { accountId: 1, amountCents: 300, entryType: "payment" },
+    ]);
+    // One amount only: the key lets go and the till decides again.
+    expect(key("keypad-plus").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("- before an amount takes it off as change even while money is still owed", async () => {
+    const w = await mountCalculator("sale");
+    await pay(w, "Cash $$", "40");
+    key("keypad-minus").click();
+    digit("5").click();
+    await flushPromises();
+    expect(key("calculator-display").textContent).toBe("−5");
+    w.vm.selectMethodAndConfirm("Cash $$");
+    await flushPromises();
+    expect(JSON.parse(w.vm.paymentsJSON).at(-1)).toEqual({ accountId: 1, amountCents: -500, entryType: "change" });
+  });
+
+  it("pressing the same key again turns it off, and Clear drops it", async () => {
+    await mountCalculator("sale");
+    key("keypad-plus").click();
+    await flushPromises();
+    key("keypad-plus").click();
+    await flushPromises();
+    expect(key("keypad-plus").getAttribute("aria-pressed")).toBe("false");
+    key("keypad-minus").click();
+    await flushPromises();
+    document.body.querySelector<HTMLElement>(".calculator-display-clear")!.click();
+    await flushPromises();
+    expect(key("keypad-minus").getAttribute("aria-pressed")).toBe("false");
+  });
+});
