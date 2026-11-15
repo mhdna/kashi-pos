@@ -82,7 +82,7 @@
   </k-navigation-drawer>
 
   <k-dialog v-model="optionsOpen" max-width="520">
-    <k-card class="options-dialog-card" rounded="xl">
+    <k-card class="options-dialog-card">
       <div class="dialog-close-row px-3 pt-0">
         <k-btn
           icon="mdi-close"
@@ -123,7 +123,7 @@
   <DevicesDialog v-model="devicesOpen" />
 
   <k-dialog v-model="reloadAppConfirmOpen" max-width="360">
-    <k-card class="options-dialog-card" rounded="xl" data-test="reload-app-dialog">
+    <k-card class="options-dialog-card" data-test="reload-app-dialog">
       <k-card-title>Reload app</k-card-title>
       <k-card-text>
         Reload the app? It closes and opens again in a few seconds.
@@ -138,7 +138,7 @@
   </k-dialog>
 
   <k-dialog v-model="closeAppConfirmOpen" max-width="360">
-    <k-card class="options-dialog-card" rounded="xl">
+    <k-card class="options-dialog-card">
       <k-card-title>Close app</k-card-title>
       <k-card-text>Close the app and go to Windows?</k-card-text>
       <k-card-actions>
@@ -150,7 +150,7 @@
   </k-dialog>
 
   <k-dialog :model-value="powerConfirm !== null" max-width="360" @update:model-value="powerConfirm = null">
-    <k-card class="options-dialog-card" rounded="xl">
+    <k-card class="options-dialog-card">
       <k-card-title>{{ powerConfirm === 'restart' ? 'Restart PC' : 'Shut down PC' }}</k-card-title>
       <k-card-text>
         {{ powerConfirm === 'restart' ? 'Restart this computer now?' : 'Turn this computer off now?' }}
@@ -581,9 +581,6 @@ const items = computed(() => {
 /* No captions, and no colour per group: the icons are neutral like the
    labels. The groups are told apart by their order and spacing. */
 
-.options-dialog-card {
-  border: 4px dotted rgba(0, 0, 0, 0.45);
-}
 
 .option-card {
   align-items: center;

@@ -1,6 +1,6 @@
 <template>
   <k-dialog v-model="open" max-width="640">
-    <k-card class="devices-dialog-card" rounded="xl">
+    <k-card class="devices-dialog-card">
       <div class="dialog-close-row px-4 pt-0">
         <k-btn icon="mdi-close" variant="text" aria-label="Close devices" @click="open = false" />
       </div>
@@ -41,7 +41,7 @@
   </k-dialog>
 
   <k-dialog v-model="findOpen" max-width="720" scrollable>
-    <k-card class="devices-dialog-card" rounded="xl">
+    <k-card class="devices-dialog-card">
       <k-card-title class="d-flex align-center">
         Find the receipt printer
         <k-spacer />
@@ -193,9 +193,6 @@ async function forgetScanner() {
 </script>
 
 <style scoped>
-.devices-dialog-card {
-  border: 4px dotted rgba(0, 0, 0, 0.45);
-}
 .dialog-close-row {
   display: flex;
   justify-content: flex-end;
