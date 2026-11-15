@@ -72,3 +72,14 @@ describe("AppUpdateBanner on start", () => {
     expect(ConfirmAppStarted).not.toHaveBeenCalled();
   });
 });
+
+describe("the Updating GB Cloud screen", () => {
+  it("is a plain spinner with no icon in the middle", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(resolve(__dirname, "AppUpdateBanner.vue"), "utf8");
+    const block = src.slice(src.indexOf("<k-progress-circular indeterminate"), src.indexOf("Updating GB Cloud"));
+    expect(block).toMatch(/<k-progress-circular[^>]*\/>/);
+    expect(block).not.toMatch(/<k-icon/);
+  });
+});
