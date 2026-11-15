@@ -878,6 +878,8 @@ defineExpose({
 .calculator-sign {
   flex: 0 0 auto;
   width: 40px;
+  font-size: 2rem !important;
+  font-weight: 500;
   min-width: 0 !important;
   height: auto !important;
   padding: 0 !important;
