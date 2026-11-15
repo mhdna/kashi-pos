@@ -198,6 +198,7 @@ describe("Calculator + and - keys", () => {
     digit("5").click();
     await flushPromises();
     expect(key("calculator-display").textContent).toBe("−5");
+    expect(key("keypad-minus").classList).toContain("calculator-sign--minus-on");
     w.vm.selectMethodAndConfirm("Cash $$");
     await flushPromises();
     expect(JSON.parse(w.vm.paymentsJSON).at(-1)).toEqual({ accountId: 1, amountCents: -500, entryType: "change" });

@@ -18,7 +18,7 @@
          given by the customer, - as change handed back, whatever is owed. -->
     <k-btn
       class="calculator-sign"
-      :class="{ 'calculator-sign--on': forcedSign === '+' }"
+      :class="{ 'calculator-sign--plus-on': forcedSign === '+' }"
       variant="text"
       aria-label="Add the next amount as given"
       :aria-pressed="forcedSign === '+'"
@@ -28,7 +28,7 @@
     /></k-btn>
     <k-btn
       class="calculator-sign"
-      :class="{ 'calculator-sign--on': forcedSign === '-' }"
+      :class="{ 'calculator-sign--minus-on': forcedSign === '-' }"
       variant="text"
       aria-label="Take the next amount off as change"
       :aria-pressed="forcedSign === '-'"
@@ -884,9 +884,16 @@ defineExpose({
   border: 1px solid rgba(var(--k-theme-on-surface), 0.18);
   border-radius: 0;
 }
-.calculator-sign--on {
-  background: rgba(var(--k-theme-on-surface), 0.12);
-  border-color: currentColor;
+/* Pressed: + is green (money in), - is red (change out). */
+.calculator-sign--plus-on {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: #fff !important;
+}
+.calculator-sign--minus-on {
+  background: #c62828;
+  border-color: #c62828;
+  color: #fff !important;
 }
 .calculator-display-sign {
   margin-inline-end: 4px;
