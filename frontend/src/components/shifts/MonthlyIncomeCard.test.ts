@@ -108,12 +108,16 @@ describe("compact list", () => {
     expect(css).not.toMatch(/min-height: (3[1-9]|4\d|5\d)px/);
   });
 
-  it("has the small compact chevron and the extra-small visitors chip", async () => {
+  it("has the small compact chevron, and the visitors count is orange text with no pill", async () => {
     const w = await mountCard();
     const chevron = row(w, "11/11/2026").find(".monthly-income-expand").classes().join(" ");
     expect(chevron).toContain("compact");
     expect(chevron).toContain("small");
-    expect(row(w, "11/11/2026").find("[data-test=visitors]").classes().join(" ")).toContain("x-small");
+    const visitors = row(w, "11/11/2026").find("[data-test=visitors]");
+    expect(visitors.element.tagName).toBe("SPAN");
+    expect(visitors.classes().join(" ")).not.toMatch(/k-chip/);
+    expect(css).toMatch(/\.mi-visitors-chip \{[^}]*color: #e65100/);
+    expect(css).not.toMatch(/\.mi-visitors-chip \{[^}]*background/);
   });
 
   it("the Total heading is centred over its column, and Visitors starts at its pills' left edge", () => {
@@ -128,7 +132,7 @@ describe("compact list", () => {
     const chips = w.findAll("[data-test=visitors]");
     expect(chips.map((c) => c.text())).toEqual(["1", "87", "1135", "20000"]);
     for (const chip of chips) expect(chip.classes()).toContain("mi-visitors-chip");
-    // One fixed width on the shared class, wide enough for four digits and the icon.
+    // One fixed width on the shared class, wide enough for five digits.
     expect(css).toMatch(/\.mi-visitors-chip \{[^}]*width: 76px/);
     expect(css).toMatch(/\.mi-visitors-chip \{[^}]*justify-content: flex-start/);
   });

@@ -77,17 +77,12 @@
           <!-- How many people came in that day, in a column of its own so the
                numbers line up. -->
           <span v-if="showVisitors" class="mi-visitors-cell">
-            <k-chip
+            <span
               v-if="visitorCounts[item.day] != null"
               class="mi-visitors-chip"
-              color="orange"
-              size="x-small"
-              variant="flat"
               data-test="visitors"
               :title="visitorTitle(item.day, item.total)"
-            >
-              {{ visitorCounts[item.day] }}
-            </k-chip>
+            >{{ visitorCounts[item.day] }}</span>
           </span>
           <span class="font-weight-bold mi-total">{{ formatBalance(item.total, "USD", currencies, roundingMode) }}</span>
         </div>
@@ -398,10 +393,13 @@ const emit = defineEmits<{
 }
 /* A small tag on today's row. */
 .mi-visitors-chip {
-  /* The same width whatever the count (a few people or a thousand), icon and
-     number at the left, so the chips make one clean column. */
+  /* Just the number in orange, no pill behind it. The same width whatever the
+     count, number at the left, so the counts make one clean column. */
+  display: inline-flex;
   width: 76px;
   justify-content: flex-start;
+  color: #e65100;
+  font-weight: 600;
 }
 .mi-visitors-cell {
   display: flex;
