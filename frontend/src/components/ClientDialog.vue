@@ -730,7 +730,7 @@ function reset() {
   align-items: center;
   background: transparent;
   border: 1px solid rgba(var(--k-border-color), 0.18);
-  border-radius: 4px;
+  border-radius: 0;
   color: inherit;
   cursor: pointer;
   display: grid;

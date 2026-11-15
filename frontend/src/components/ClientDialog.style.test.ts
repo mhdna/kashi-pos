@@ -22,6 +22,10 @@ describe("phone number screen colours", () => {
     expect(pager.match(/variant="text"/g)).toHaveLength(2);
   });
 
+  it("the country cards are square, with no rounded corners", () => {
+    expect(rule(dialog, ".client-phone-country-card")).toMatch(/border-radius: 0;/);
+  });
+
   it("the C key has no red of its own", () => {
     expect(pad).not.toMatch(/\.phone-pad-key--clear \{[^}]*error/);
   });
