@@ -400,24 +400,20 @@
           />
         </k-card-title>
         <k-card-text class="invoice-item-details-content">
-          <!-- Who sold this line: the salespeople laid out as cards, scrolling
-               when there are many. "Invoice salesperson" hands the line back
-               to whoever the invoice is under. -->
-          <div class="invoice-units-title d-flex align-center" data-test="line-salesperson">
-            <span>Sold by</span>
-            <k-spacer />
-            <span class="line-salesperson-current text-truncate">
-              {{ detailSalesperson?.fullName ?? "Invoice salesperson" }}
-            </span>
-          </div>
-          <div class="line-salesperson-cards">
-            <SalespersonGrid
-              :salespersons="salespersons"
-              :model-value="detailItem.salespersonId || 0"
-              default-label="Invoice salesperson"
-              :columns="4"
-              dense
-              @update:model-value="pickLineSalesperson"
+          <!-- Who sold this line: a plain dropdown of names. "Invoice
+               salesperson" hands the line back to whoever the invoice is under. -->
+          <div class="line-salesperson" data-test="line-salesperson">
+            <div class="invoice-units-title">Sold by</div>
+            <k-select
+              class="line-salesperson-select"
+              :model-value="Number(detailItem.salespersonId || 0)"
+              :items="lineSalespersonOptions"
+              item-title="title"
+              item-value="value"
+              variant="outlined"
+              density="comfortable"
+              hide-details
+              @update:model-value="(value: unknown) => pickLineSalesperson(Number(value ?? 0))"
             />
           </div>
           <!-- The note: tapping it opens the on-screen keyboard below. -->
@@ -583,7 +579,6 @@ import {
 import { animationsEnabled } from "@/lib/display";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
 import type { Salesperson } from "@/composables/useSalesperson";
-import SalespersonGrid from "@/components/SalespersonGrid.vue";
 import ColorSwatch from "@/components/ColorSwatch.vue";
 import InitialsAvatar from "@/components/InitialsAvatar.vue";
 import { salespersonColor } from "@/lib/salespersonColor";
@@ -1041,6 +1036,14 @@ const detailSalesperson = computed(() => {
   const id = Number(detailItem.value?.salespersonId || 0);
   if (!id) return null;
   return salespersons.value.find((person) => person.id === id) ?? { id, fullName: "Former salesperson" };
+});
+// The dropdown's choices: the invoice's salesperson first, then everyone who
+// sells, plus a former salesperson the line still points at.
+const lineSalespersonOptions = computed(() => {
+  const options = [{ title: "Invoice salesperson", value: 0 }, ...salespersons.value.map((p) => ({ title: p.fullName, value: p.id }))];
+  const current = detailSalesperson.value;
+  if (current && !salespersons.value.some((p) => p.id === current.id)) options.push({ title: current.fullName, value: current.id });
+  return options;
 });
 function pickLineSalesperson(id: number) {
   if (detailItem.value) detailItem.value.salespersonId = id;
@@ -2054,24 +2057,9 @@ defineExpose({
   color: rgba(var(--k-theme-on-surface), 0.6);
 }
 
-/* "Sold by" in the item details: the salespeople as cards, scrolling past
-   about two rows so the note and units stay in view. */
-.line-salesperson-current {
-  max-width: 60%;
-  font-weight: 600;
-  letter-spacing: normal;
-  text-transform: none;
-  color: rgb(var(--k-theme-on-surface));
-}
-.line-salesperson-cards {
-  max-height: 212px;
+/* "Sold by" in the item details: a plain dropdown. */
+.line-salesperson {
   margin-bottom: 16px;
-  padding: 8px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border: 1px solid rgba(var(--k-border-color), 0.18);
-  border-radius: 10px;
-  background: rgba(var(--k-theme-on-surface), 0.02);
 }
 
 .invoice-item-details-content {

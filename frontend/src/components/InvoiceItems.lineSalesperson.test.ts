@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 //
-// Who sold a line: the item details dialog lays the salespeople out as cards
-// right in the dialog (no menu to open); picking a person (or "Invoice
-// salesperson") sets that one line, and that is what checkout sends for it.
+// Who sold a line: the item details dialog has a plain dropdown of names (no
+// avatars, no cards); picking a person (or "Invoice salesperson") sets that one
+// line, and that is what checkout sends for it.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import ui from "@/ui";
@@ -44,65 +44,56 @@ async function openDetails(line = shirt()) {
   return vm;
 }
 const soldBy = () => document.body.querySelector<HTMLElement>("[data-test=line-salesperson]")!;
-const tile = (id: string | number) => document.body.querySelector<HTMLElement>(`[data-test=sp-${id}]`);
-const click = async (el: Element | null | undefined) => {
-  el!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+const select = () => wrapper!.findComponent({ name: "KSelect" });
+const titles = () => (select().props("items") as { title: string; value: number }[]).map((o) => o.title);
+const pick = async (value: number) => {
+  select().vm.$emit("update:modelValue", value);
   await flushPromises();
 };
 
 describe("item details: who sold this line", () => {
   it("says the line follows the invoice's salesperson until someone is picked", async () => {
     await openDetails();
+    expect(soldBy().textContent).toContain("Sold by");
+    expect(select().props("modelValue")).toBe(0);
     expect(soldBy().textContent).toContain("Invoice salesperson");
   });
 
-  it("shows the cards in the dialog straight away, four to a row, scrolling", async () => {
+  it("is a dropdown of names: no cards, no avatars", async () => {
     await openDetails();
-    const box = document.body.querySelector<HTMLElement>(".line-salesperson-cards");
-    expect(box).not.toBeNull();
-    expect(box!.querySelector(".sp-grid--dense")).not.toBeNull();
-    expect(box!.querySelector<HTMLElement>(".sp-grid")!.style.getPropertyValue("--sp-columns")).toBe("4");
-    expect(document.body.querySelector(".line-salesperson-btn")).toBeNull();
-    expect(tile(3)).not.toBeNull();
+    expect(select().exists()).toBe(true);
+    expect(document.body.querySelector(".line-salesperson-cards")).toBeNull();
+    expect(soldBy().querySelector(".k-avatar, [data-test^=sp-]")).toBeNull();
   });
 
-  it("marks the line's current salesperson card as picked", async () => {
+  it("lists Invoice salesperson first, then the real salespeople, not attendance-only staff", async () => {
+    await openDetails();
+    expect(titles()).toEqual(["Invoice salesperson", "Ali A", "Fatima G"]);
+  });
+
+  it("shows the line's current salesperson as picked", async () => {
     await openDetails(shirt({ salespersonId: 5 }));
-    const picked = document.body.querySelectorAll(".line-salesperson-cards [aria-selected=true]");
-    expect(picked).toHaveLength(1);
-    expect(picked[0]!.getAttribute("data-test")).toBe("sp-5");
-  });
-
-  it("offers the real salespeople as tiles, not attendance-only staff", async () => {
-    await openDetails();
-    expect(tile(3)?.textContent).toContain("Ali A");
-    expect(tile(5)?.textContent).toContain("Fatima G");
-    expect(tile(8)).toBeNull();
-    expect(tile("default")?.textContent).toContain("Invoice salesperson");
-  });
-
-  it("picking a person sets that one line, names them and keeps the cards open", async () => {
-    const vm = await openDetails();
-    await click(tile(5));
-    expect(vm.items[0].salespersonId).toBe(5);
+    expect(select().props("modelValue")).toBe(5);
     expect(soldBy().textContent).toContain("Fatima G");
-    expect(tile(5)?.getAttribute("aria-selected")).toBe("true");
-    expect(tile(3)?.getAttribute("aria-selected")).toBe("false");
-    // Changing your mind is one more tap.
-    await click(tile(3));
+  });
+
+  it("picking a person sets that one line, and changing your mind is one more pick", async () => {
+    const vm = await openDetails();
+    await pick(5);
+    expect(vm.items[0].salespersonId).toBe(5);
+    await pick(3);
     expect(vm.items[0].salespersonId).toBe(3);
   });
 
   it("picking Invoice salesperson hands the line back", async () => {
     const vm = await openDetails(shirt({ salespersonId: 3 }));
-    expect(soldBy().textContent).toContain("Ali A");
-    await click(tile("default"));
+    await pick(0);
     expect(vm.items[0].salespersonId).toBe(0);
-    expect(soldBy().textContent).toContain("Invoice salesperson");
   });
 
   it("names a salesperson the roster no longer has rather than showing an id", async () => {
     await openDetails(shirt({ salespersonId: 77 }));
+    expect(titles()).toContain("Former salesperson");
     expect(soldBy().textContent).toContain("Former salesperson");
   });
 });
