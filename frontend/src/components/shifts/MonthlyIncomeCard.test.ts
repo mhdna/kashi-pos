@@ -145,6 +145,12 @@ describe("compact list", () => {
     expect(css).toMatch(/\.mi-total \{[^}]*text-align: end/);
   });
 
+  it("has vertical lines between Day, Visitors and Total, in the header and the rows", () => {
+    for (const sel of ["mi-visitors-head", "mi-visitors-cell", "mi-total-head", "mi-total"]) {
+      expect(css).toMatch(new RegExp(`\\.${sel},?[^{]*\\{[^}]*border-inline-start: 1px solid`));
+    }
+  });
+
   it("the header sits over the rows' columns: the same first-column width and padding", () => {
     expect(css).toMatch(/\.monthly-income-header \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr auto/);
     expect(css).toMatch(/\.monthly-income-row\.monthly-income--visitors \{[^}]*grid-template-columns: var\(--mi-chevron\) 1fr 84px 104px/);
