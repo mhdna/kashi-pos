@@ -70,7 +70,8 @@ describe("Requests menu, several at once", () => {
     expect(approve.disabled).toBe(true);
     await tick('[data-test="request-select-1"]');
     await tick('[data-test="request-select-3"]');
-    expect(q('[data-test="requests-select-all"]')!.textContent).toContain("2 selected");
+    // The label stays the same, so the menu doesn't change width and move.
+    expect(q('[data-test="requests-select-all"]')!.textContent?.trim()).toBe("Select all");
     approve.click();
     await flushPromises();
     expect(document.body.textContent).toContain("Approve 2 requests.");

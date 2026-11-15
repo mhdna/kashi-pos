@@ -49,7 +49,7 @@
               :model-value="allRequestsSelected"
               density="compact"
               hide-details
-              :label="selectedRequests.length ? `${selectedRequests.length} selected` : 'Select all'"
+              label="Select all"
               data-test="requests-select-all"
               @update:model-value="selectAllRequests"
             />
