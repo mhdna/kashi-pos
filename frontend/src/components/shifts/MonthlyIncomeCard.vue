@@ -73,7 +73,6 @@
           />
           <span class="mi-day">
             {{ item.day }}
-            <span v-if="item.day === currentDay" class="mi-today" data-test="today-tag">Today</span>
           </span>
           <!-- How many people came in that day, in a column of its own so the
                numbers line up. -->
@@ -87,7 +86,6 @@
               data-test="visitors"
               :title="visitorTitle(item.day, item.total)"
             >
-              <k-icon start icon="mdi-account-group-outline" size="18" />
               {{ visitorCounts[item.day] }}
             </k-chip>
           </span>
@@ -288,7 +286,7 @@ function visitorTitle(day: string, total: number): string {
   if (count == null) return "";
   const people = `${count} ${count === 1 ? "person" : "people"} visited`;
   const each = perVisitor(total, count);
-  return each === null ? people : `${people} · ${formatBalance(each, "USD", currencies.value, roundingMode.value)} per visitor`;
+  return each === null ? people : `${people}, ${formatBalance(each, "USD", currencies.value, roundingMode.value)} per visitor`;
 }
 
 const monthlyIncomeScroll = ref<HTMLElement | null>(null);
@@ -399,16 +397,6 @@ const emit = defineEmits<{
   min-width: 0;
 }
 /* A small tag on today's row. */
-.mi-today {
-  padding: 1px 10px;
-  border-radius: 999px;
-  background: rgb(var(--k-theme-primary));
-  color: rgb(var(--k-theme-on-primary));
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
 .mi-visitors-chip {
   /* The same width whatever the count (a few people or a thousand), icon and
      number at the left, so the chips make one clean column. */

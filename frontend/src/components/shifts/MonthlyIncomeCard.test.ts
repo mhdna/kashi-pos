@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// The Balance page's month list: its original compact look, with a Today tag and
+// The Balance page's month list: its original compact look, today shown by its grey row, and
 // a Day / Visitors / Total header over aligned columns.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -74,25 +74,21 @@ describe("month list", () => {
     expect(row(w, "15/11/2026").find(".mi-total").text()).toBe("$50.00");
   });
 
-  it("picks out today with the grey row it always had, and a Today tag", async () => {
+  it("picks out today with the grey row it always had, and no Today tag", async () => {
     const w = await mountCard();
     expect(row(w, "13/11/2026").classes()).toContain("monthly-income-current-day");
     expect(row(w, "12/11/2026").classes()).not.toContain("monthly-income-current-day");
-    expect(w.findAll("[data-test=today-tag]")).toHaveLength(1);
-    expect(row(w, "13/11/2026").find("[data-test=today-tag]").text()).toBe("Today");
+    expect(w.find("[data-test=today-tag]").exists()).toBe(false);
+    expect(row(w, "13/11/2026").text()).not.toMatch(/today/i);
     expect(row(w, "13/11/2026").find(".mi-date, .mi-day").text()).toContain("13/11/2026");
     expect(w.find(".mi-weekday").exists()).toBe(false);
   });
 
-  it("has no Today tag when today is not in the month shown", async () => {
-    const w = await mountCard({ currentDay: "05/12/2026" });
-    expect(w.find("[data-test=today-tag]").exists()).toBe(false);
-  });
-
-  it("the tag follows today: another day gets it when it is another day", async () => {
-    const w = await mountCard({ currentDay: "12/11/2026" });
-    expect(row(w, "12/11/2026").find("[data-test=today-tag]").exists()).toBe(true);
-    expect(row(w, "13/11/2026").find("[data-test=today-tag]").exists()).toBe(false);
+  it("the visitors chip is just the number, with no icon", async () => {
+    const w = await mountCard();
+    const chip = w.find("[data-test=visitors]");
+    expect(chip.exists()).toBe(true);
+    expect(chip.find(".k-icon").exists()).toBe(false);
   });
 
   it("the total row says the month's total", async () => {
@@ -175,12 +171,12 @@ describe("visitors column", () => {
   it("the tooltip says how many people, and what each spent", async () => {
     const w = await mountCard();
     expect(row(w, "11/11/2026").find("[data-test=visitors]").attributes("title")).toBe(
-      "11 people visited · $262.09 per visitor",
+      "11 people visited, $262.09 per visitor",
     );
     // No takings, visitors: $0.00 each; and a single visitor is a person.
     expect(row(w, "12/11/2026").find("[data-test=visitors]").attributes("title")).toBe("0 people visited");
     const one = await mountCard({ rows: [day("11/11/2026", 4000)], visitorCounts: { "11/11/2026": 1 } });
-    expect(one.find("[data-test=visitors]").attributes("title")).toBe("1 person visited · $40.00 per visitor");
+    expect(one.find("[data-test=visitors]").attributes("title")).toBe("1 person visited, $40.00 per visitor");
   });
 
   it("is gone when the visitor counter is off, and the rows have three cells", async () => {
