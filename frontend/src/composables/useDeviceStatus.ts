@@ -25,7 +25,7 @@ export type DeviceKind = "scanner" | "printer" | "keyboard" | "mouse";
 const connectedWords: Record<DeviceState, string> = {
   ok: "Connected",
   off: "Not connected",
-  unknown: "Not known yet",
+  unknown: "Unknown",
 };
 
 /** The four devices in rail order, with what to say about each. */
@@ -39,7 +39,7 @@ const devices = computed(() => {
       label: "Scanner",
       state: state(st?.scanner),
       name: st?.scannerName ?? "",
-      words: { ...connectedWords, unknown: "Scan a barcode once so the till knows it" },
+      words: { ...connectedWords, unknown: "Scan to detect" },
     },
     {
       kind: "printer",
@@ -47,7 +47,7 @@ const devices = computed(() => {
       label: "Printer",
       state: state(st?.printer),
       name: st?.printerName ?? "",
-      words: { ok: "Ready", off: "Offline", unknown: "None chosen in Settings" },
+      words: { ok: "Ready", off: "Offline", unknown: "Not set" },
     },
     { kind: "keyboard", icon: "mdi-keyboard", label: "Keyboard", state: state(st?.keyboard), name: st?.keyboardName ?? "", words: connectedWords },
     { kind: "mouse", icon: "mdi-mouse", label: "Mouse", state: state(st?.mouse), name: st?.mouseName ?? "", words: connectedWords },
