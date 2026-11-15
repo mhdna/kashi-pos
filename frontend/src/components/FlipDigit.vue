@@ -34,6 +34,8 @@ const props = defineProps<{
   // Where this card grows from while it turns: how far (in cards) from its left
   // edge the middle of the whole turning run is, so a run grows as one piece.
   originCells?: number;
+  // false: the digit just changes, no fold.
+  animated?: boolean;
 }>();
 
 const previous = ref(props.char);
@@ -48,6 +50,7 @@ watch(
   () => props.char,
   (_now, before) => {
     previous.value = before;
+    if (props.animated === false) return;
     run.value += 1;
     flipping.value = true;
     clearTimeout(timer);

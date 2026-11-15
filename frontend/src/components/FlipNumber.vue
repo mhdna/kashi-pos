@@ -33,6 +33,7 @@
         :char="char"
         :direction="direction"
         :origin-cells="originCells(index)"
+        :animated="animated"
       />
     </span>
   </span>
@@ -43,7 +44,9 @@ import { computed, ref, watch } from "vue";
 import FlipDigit from "./FlipDigit.vue";
 import { changedRun } from "@/lib/flipDigits";
 
-const props = defineProps<{ value: number }>();
+// animated: false shows the cards without the flip and the highlight (the
+// nav's visitor counter, for now).
+const props = withDefaults(defineProps<{ value: number; animated?: boolean }>(), { animated: true });
 
 const digits = computed(() => String(props.value).split(""));
 // Which way the count went. Set before the digits update, so every card that
@@ -70,6 +73,7 @@ watch(
   () => props.value,
   (now, before) => {
     direction.value = now >= before ? "up" : "down";
+    if (!props.animated) return;
     tint.value = changedRun(before, now);
     run.value += 1;
     clearTimeout(timer);

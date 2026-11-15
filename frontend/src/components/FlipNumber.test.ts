@@ -26,6 +26,15 @@ describe("FlipNumber", () => {
     expect(turning(w)).toEqual([false, false, false]);
   });
 
+  it("with animated off, the new number shows at once: no flap, no highlight", async () => {
+    const w = mount(FlipNumber, { props: { value: 479, animated: false } });
+    await w.setProps({ value: 480 });
+    expect(turning(w)).toEqual([false, false, false]);
+    expect(shown(w)).toEqual([["4", "4"], ["8", "8"], ["0", "0"]]);
+    expect(w.find("[data-test=flip-tint]").exists()).toBe(false);
+    expect(w.find("[data-test=flip-ring]").exists()).toBe(false);
+  });
+
   it("turns only the digit that changed", async () => {
     const w = mount(FlipNumber, { props: { value: 477 } });
     await w.setProps({ value: 478 });
