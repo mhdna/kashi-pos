@@ -18,3 +18,13 @@ describe("calculator card amounts", () => {
     expect(rule(".calculator-amounts-discount")).toMatch(/color: rgb\(var\(--k-theme-error\)\)/);
   });
 });
+
+describe("status card columns", () => {
+  it("keeps Total and discounts in their own column, clear of the numbers", () => {
+    const css = readFileSync(resolve(__dirname, "CalculatorStatus.vue"), "utf8");
+    expect(css).toMatch(/\.calculator-amounts \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\);/);
+    expect(css).toMatch(/\.calculator-amounts-left \{[^}]*grid-column: 1;/);
+    expect(css).not.toMatch(/\.calculator-amounts-left \{[^}]*position: absolute/);
+    expect(css).toMatch(/\.calculator-amounts-split,[^{]*\{\s*grid-column: 2;/);
+  });
+});

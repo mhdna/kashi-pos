@@ -3,6 +3,14 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-15: Discount text ran over the split amounts on the calculator card
+
+**Symptom:** on the calculator's status card, a long discount line ("15% over $150 -$42") or the total sat on top of the split numbers in the middle ("$20 + 450,000 LL"), so the two texts overlapped.
+
+**Cause:** the Total/Rounded/discount block was absolutely positioned over the card with only a 44% width cap, so nothing stopped the centred numbers from growing into it.
+
+**Fix:** the card is a three-column grid (left, middle, an equal right to keep the middle centred); the total and discounts live in the left column and the amounts in the middle, so they can't overlap (`frontend/src/components/calculator/CalculatorStatus.vue`; covered by `CalculatorStatus.style.test.ts`, "status card columns").
+
 ## 2026-11-15 · The unknown-items QR code changed, and spun, after a page switch or a hold
 
 **Symptom.** With an unknown item in the cart, leaving the sale screen and

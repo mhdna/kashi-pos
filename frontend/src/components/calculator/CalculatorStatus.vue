@@ -167,6 +167,11 @@ function flipCurrency() {
   position: relative;
   display: grid;
   grid-template-rows: repeat(2, minmax(0, 1fr));
+  /* Total and discounts get the left column, the numbers the middle one, and
+     an equal right column keeps the numbers centred. In their own columns
+     they can't run over each other, however long either gets. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: 8px;
   height: 66px;
   align-items: center;
   padding: 8px 12px;
@@ -191,12 +196,11 @@ function flipCurrency() {
   z-index: 1;
 }
 .calculator-amounts-left {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 10px;
-  /* Clear of the numbers in the middle; a long name is cut with an ellipsis. */
-  max-width: 44%;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  align-self: stretch;
+  min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   flex-wrap: wrap;
@@ -237,6 +241,13 @@ function flipCurrency() {
   font-size: var(--kashi-font-size-xs, 0.6875rem);
   font-weight: 600;
   line-height: 1;
+}
+.calculator-amounts-label,
+.calculator-amount,
+.calculator-amounts-split,
+.calculator-error-state,
+.calculator-accepted-state {
+  grid-column: 2;
 }
 .calculator-amounts-label {
   grid-row: 1;
