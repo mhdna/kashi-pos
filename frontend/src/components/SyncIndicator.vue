@@ -63,9 +63,9 @@ function openSyncSettings() {
     data-test="sync-indicator"
     @click="open = true"
   >
-    <!-- The state's icon in its colour, no badge behind it. While work moves it breathes and
-         its icon drifts (down for Updating, up for Sending): no ring that
-         fills by steps, which said nothing real. -->
+    <!-- The state's icon in its colour: no badge behind it and no motion. While
+         work moves, the icon (down for Updating, up for Sending) and the word
+         under it say so. -->
     <span
       :class="['sync-status-icon', { 'sync-status-icon--busy': shown.spinner.on }, `sync-status-icon--${motion}`]"
       :data-test="shown.spinner.on ? 'sync-spinner' : undefined"
@@ -153,37 +153,8 @@ function openSyncSettings() {
   border-radius: 50%;
   overflow: visible;
 }
-.sync-status-icon--busy::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  /* Like the kit's spinners it means "working", so it moves whatever the
-     Animations switch says (styles/settings.scss kills all others). */
-  animation: sync-breathe 1.8s ease-out infinite !important;
-  pointer-events: none;
-}
-.sync-status-icon--busy.sync-status-icon--down .sync-status-glyph { animation: sync-drift-down 1.4s ease-in-out infinite !important; }
-.sync-status-icon--busy.sync-status-icon--up .sync-status-glyph { animation: sync-drift-up 1.4s ease-in-out infinite !important; }
-.sync-status-icon--busy.sync-status-icon--spin .sync-status-glyph { animation: sync-spin 2.4s linear infinite !important; }
-@keyframes sync-breathe {
-  0% { transform: scale(1); opacity: 0.55; }
-  100% { transform: scale(1.4); opacity: 0; }
-}
-@keyframes sync-drift-down {
-  0%, 100% { transform: translateY(-2px); }
-  50% { transform: translateY(2px); }
-}
-@keyframes sync-drift-up {
-  0%, 100% { transform: translateY(2px); }
-  50% { transform: translateY(-2px); }
-}
-@keyframes sync-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .sync-status-icon--busy::after,
-  .sync-status-icon--busy .sync-status-glyph { animation: none !important; }
-}
+/* No animation while it works: the icon (down for Updating, up for Sending)
+   and the word say what is happening. */
 .sync-status-word {
   font-size: 0.78rem;
   font-weight: 700;
