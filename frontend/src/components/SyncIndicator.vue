@@ -64,7 +64,7 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
     data-test="sync-indicator"
     @click="open = true"
   >
-    <!-- A round badge in the state's colour. While work moves it breathes and
+    <!-- The state's icon in its colour, no badge behind it. While work moves it breathes and
          its icon drifts (down for Updating, up for Sending): no ring that
          fills by steps, which said nothing real. -->
     <span
@@ -150,7 +150,6 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: color-mix(in srgb, currentColor 16%, transparent);
   overflow: visible;
 }
 .sync-status-icon--busy::after {
@@ -205,15 +204,13 @@ const rowIcon = { ok: "mdi-check-circle", warn: "mdi-alert-circle-outline", bad:
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The two connection icons sit together in one quiet pill. */
+/* The two connection icons sit side by side; only their colour shows the state. */
 .sync-status-links {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   margin-top: 2px;
   padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.07);
 }
 .sync-status--ok { color: #66bb6a; }
 .sync-status--busy { color: #ffb74d; }
