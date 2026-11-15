@@ -159,7 +159,6 @@ async function save() {
   <k-dialog :model-value="modelValue" :max-width="showItems ? SPLIT_WIDTH : 520" @update:model-value="emit('update:modelValue', $event)">
     <k-card class="line-sp-dialog">
       <div class="line-sp-header">
-        <k-icon icon="mdi-account-group" size="26" color="primary" />
         <div class="line-sp-header__text">
           <div class="text-h6">Change Salesperson</div>
           <div v-if="invoice?.invoiceCode" class="text-body-2 text-medium-emphasis">Invoice {{ invoice.invoiceCode }}</div>
@@ -212,7 +211,7 @@ async function save() {
       <k-card-actions class="px-6 pb-4">
         <k-spacer />
         <k-btn variant="text" class="line-sp-cancel" @click="close">Cancel</k-btn>
-        <k-btn color="primary" variant="flat" prepend-icon="mdi-check" class="line-sp-save" :loading="saving" :disabled="saveDisabled" @click="save">Save</k-btn>
+        <k-btn color="primary" variant="flat" class="line-sp-save" :loading="saving" :disabled="saveDisabled" @click="save">Save</k-btn>
       </k-card-actions>
     </k-card>
   </k-dialog>
