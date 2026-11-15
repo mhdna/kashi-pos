@@ -178,6 +178,7 @@ describe("Calculator + and - keys", () => {
     key("keypad-plus").click();
     await flushPromises();
     expect(key("keypad-plus").getAttribute("aria-pressed")).toBe("true");
+    expect(key("keypad-plus").classList).toContain("calculator-sign--plus-on");
     digit("3").click();
     await flushPromises();
     expect(key("calculator-display").textContent).toBe("+3");
