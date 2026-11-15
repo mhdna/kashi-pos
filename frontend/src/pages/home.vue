@@ -313,17 +313,11 @@
 
   <k-overlay v-model="printing" class="align-center justify-center" persistent>
     <k-card class="pa-8 text-center" width="300">
-      <template v-if="printPhase === 'success'">
-        <div class="print-face" aria-hidden="true">:)</div>
-        <div class="text-h6 mt-2">Done!</div>
-      </template>
-      <template v-else>
-        <div v-if="printCashCents > 0" class="text-subtitle-1 mb-2">
-          {{ formatUsd(printCashCents / 100) }} into cash
-        </div>
-        <div class="print-spinner mb-4" aria-hidden="true"></div>
-        <div class="text-h6">Printing receipt...</div>
-      </template>
+      <div v-if="printCashCents > 0" class="text-subtitle-1 mb-2">
+        {{ formatUsd(printCashCents / 100) }} into cash
+      </div>
+      <div class="print-spinner mb-4" aria-hidden="true"></div>
+      <div class="text-h6">Printing receipt...</div>
     </k-card>
   </k-overlay>
 
@@ -1321,7 +1315,6 @@ function showDiscountError(message: string) {
 }
 
 const printing = ref(false);
-const printPhase = ref<"printing" | "success">("printing");
 const printCashCents = ref(0);
 const snackbar = reactive({ show: false, text: "", color: "success", icon: "" });
 
@@ -1654,7 +1647,6 @@ async function onCheckout() {
   if (!(await ensureUnknownPictures())) return;
   if (!(await confirmPricesIfUnusual())) return;
   if (!isExchange && !(await confirmOversellIfNeeded(json))) return;
-  printPhase.value = "printing";
   printCashCents.value = calculator.value?.cashTotalCents ?? 0;
   // An exchange prints when central's "Print return and exchange receipts"
   // is on for this till (it arrives with the till's settings).
@@ -1701,10 +1693,6 @@ async function onCheckout() {
     await nextTick();
     queueScreenUpdate("");
     await refreshNextInvoiceCode("sales");
-    if (printing.value) {
-      printPhase.value = "success";
-      await new Promise((resolve) => setTimeout(resolve, 900));
-    }
   } catch (e: any) {
     snackbar.text = e?.toString() || "Checkout failed";
     snackbar.color = "red-darken-4";
@@ -2007,23 +1995,6 @@ onBeforeUnmount(() => {
   to {
     transform: rotate(360deg);
   }
-}
-
-/* Same face used on the attendance page's "machine is working" card. */
-.print-face {
-  margin-inline: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  font-family: "Roboto", sans-serif;
-  font-size: 44px;
-  font-weight: 300;
-  line-height: 1;
-  background-color: #9fdada;
-  color: #2f8f8f;
 }
 
 .home-panes {
