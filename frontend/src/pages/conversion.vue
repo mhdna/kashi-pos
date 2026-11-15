@@ -120,7 +120,7 @@
         <span class="text-subtitle-1 font-weight-bold">Days</span>
         <k-spacer />
         <span v-if="report.uncountedDays" class="text-caption text-medium-emphasis">
-          Days without a visitor count aren't in the figures above
+          Days without visitors are excluded
         </span>
       </div>
       <div class="days">

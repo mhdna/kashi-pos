@@ -54,3 +54,9 @@ describe("headline wording", () => {
     expect(page).toMatch(/>\s*Buy rate\s*<\/div>/);
   });
 });
+
+describe("days note", () => {
+  it("says days without visitors are excluded", () => {
+    expect(page).toContain("Days without visitors are excluded");
+  });
+});
