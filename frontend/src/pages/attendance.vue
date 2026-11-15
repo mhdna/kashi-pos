@@ -117,9 +117,12 @@
           rounded="lg"
         >
           <template #prepend>
-            <k-avatar :color="salespersonColor({ color: item.color, fullName: item.employeeName })" class="me-3">
-              {{ item.employeeName?.charAt(0)?.toUpperCase() || "?" }}
-            </k-avatar>
+            <InitialsAvatar
+              :name="item.employeeName || '?'"
+              :color="salespersonColor({ color: item.color, fullName: item.employeeName })"
+              :size="48"
+              class="me-3"
+            />
           </template>
           <div class="attendance-item__main">
             <div class="attendance-identity">
@@ -266,6 +269,7 @@ import { onSalespersonsSynced } from "@/lib/salespersonsSync";
 import { useAuthStore } from "@/stores/auth";
 import { salespersonColor } from "@/lib/salespersonColor";
 import NumberPadMenu from "@/components/NumberPadMenu.vue";
+import InitialsAvatar from "@/components/InitialsAvatar.vue";
 import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 const auth = useAuthStore();

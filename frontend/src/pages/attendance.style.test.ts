@@ -28,4 +28,9 @@ describe("attendance page", () => {
     expect(template).not.toMatch(/[—–·]/);
     expect(src).not.toMatch(/` [^`]*(·| -- )[^`]*`|\$\{[^}]*\} (·|--) /);
   });
+
+  it("employee avatars show two initials, like the salesperson tiles", () => {
+    expect(src).toMatch(/<InitialsAvatar\s+:name="item.employeeName/);
+    expect(src).not.toMatch(/employeeName\?\.charAt\(0\)/);
+  });
 });
