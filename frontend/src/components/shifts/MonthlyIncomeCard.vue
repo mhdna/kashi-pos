@@ -97,15 +97,12 @@
                 class="d-flex align-center pa-2 shift-row"
                 @click.stop="$emit('toggle-shift', shift.id)"
               >
-                <k-chip
-                  :color="shift.isClosed ? 'grey' : 'green-darken-2'"
-                  size="x-small"
-                  variant="outlined"
-                  label
-                  class="me-2"
+                <span
+                  class="text-caption font-weight-medium me-2"
+                  :class="shift.isClosed ? 'text-medium-emphasis' : 'text-green-darken-2'"
+                  data-test="shift-state"
+                  >{{ shift.isClosed ? "Closed" : "Open" }}</span
                 >
-                  {{ shift.isClosed ? "Closed" : "Open" }}
-                </k-chip>
                 <span class="text-caption me-2">#{{ shift.id }}</span>
                 <span class="text-caption me-2">{{ formatServerDateTime(shift.createdAt) }}</span>
                 <span v-if="shift.closedAt" class="text-caption me-2">→ {{ formatServerDateTime(shift.closedAt) }}</span>

@@ -217,3 +217,14 @@ describe("opening a day", () => {
     expect(w.emitted("toggle-day")).toEqual([["12/11/2026"]]);
   });
 });
+
+describe("shift Open/Closed label", () => {
+  it("is plain colored text, not an outlined chip", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(resolve(__dirname, "MonthlyIncomeCard.vue"), "utf8");
+    const block = src.slice(src.indexOf('class="d-flex align-center pa-2 shift-row"'), src.indexOf("#{{ shift.id }}"));
+    expect(block).not.toMatch(/<k-chip|variant="outlined"/);
+    expect(block).toContain('data-test="shift-state"');
+  });
+});
