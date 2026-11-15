@@ -60,3 +60,9 @@ describe("days note", () => {
     expect(page).toContain("Days without visitors are excluded");
   });
 });
+
+describe("unlock screen", () => {
+  it("has no 'sales per visitor' hint under the field", () => {
+    expect(page).not.toMatch(/to see sales per visitor|unlock-hint/);
+  });
+});

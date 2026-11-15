@@ -41,7 +41,6 @@
     <div v-if="!unlocked" class="unlock">
       <k-card class="unlock-card" width="400" variant="text">
         <h2 class="unlock-title">Manager password</h2>
-        <p class="unlock-hint">Enter it to see sales per visitor.</p>
         <k-text-field
           v-model="password"
           autofocus
@@ -358,11 +357,6 @@ onMounted(() => {
   margin: 0 0 4px;
   font-size: 1.25rem;
   font-weight: 700;
-}
-.unlock-hint {
-  margin: 0 0 20px;
-  font-size: 0.875rem;
-  color: rgba(var(--k-theme-on-surface), 0.6);
 }
 .unlock-field :deep(input) {
   text-align: center;
