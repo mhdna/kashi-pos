@@ -1,7 +1,6 @@
 <template>
   <k-sheet class="monthly-income-card shifts-card pa-3" style="flex: 2; min-width: 0">
     <div class="monthly-income-title d-flex align-center">
-      <k-icon icon="mdi-calendar-month-outline" color="grey-darken-1" class="me-2" />
       <k-card-title class="text-body-1 font-weight-bold px-0">
         Monthly Shift Income ({{ month }})
       </k-card-title>
@@ -27,6 +26,7 @@
         @click="$emit('next-month')"
       />
       <k-spacer />
+      <!-- Expand all / Collapse all, switched off for now.
       <k-btn
         variant="tonal"
         size="small"
@@ -36,6 +36,7 @@
       >
         {{ allDaysExpanded ? "Collapse all" : "Expand all" }}
       </k-btn>
+      -->
     </div>
 
     <div

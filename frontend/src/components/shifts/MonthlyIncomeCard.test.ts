@@ -91,6 +91,13 @@ describe("month list", () => {
     expect(chip.find(".k-icon").exists()).toBe(false);
   });
 
+  it("has no calendar icon before its title and no Expand all button for now", async () => {
+    const w = await mountCard();
+    const title = w.find(".monthly-income-title");
+    expect(title.find(".k-icon").exists()).toBe(false);
+    expect(title.text()).not.toMatch(/Expand all|Collapse all/);
+  });
+
   it("the total row says the month's total", async () => {
     const w = await mountCard();
     expect(w.find("[data-test=income-grand-total]").text()).toContain("$2,933.00");

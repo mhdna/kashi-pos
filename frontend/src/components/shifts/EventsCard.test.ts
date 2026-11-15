@@ -60,7 +60,7 @@ describe("EventsCard", () => {
     expect(push).toHaveBeenCalledWith("/events");
     // And stays the same bar: nothing unfolded.
     expect(wrapper!.find(".events-card-list").exists()).toBe(false);
-    expect(next().text()).toBe("Next: Black Friday · In 20 days");
+    expect(next().text()).toBe("Next: Black Friday, In 20 days");
   });
 
   it("goes to the calendar even when nothing is coming", async () => {
@@ -105,12 +105,12 @@ describe("EventsCard", () => {
 
   it("names the next event on the bar", async () => {
     await mountCard([ev(4, "Christmas", "2026-12-25"), ev(1, "Black Friday", "2026-11-27")]);
-    expect(next().text()).toBe("Next: Black Friday · In 20 days");
+    expect(next().text()).toBe("Next: Black Friday, In 20 days");
   });
 
   it("says an event on now is now, and names nothing when nothing is coming", async () => {
     await mountCard([ev(1, "Running sale", "2026-11-01", "2026-11-10")]);
-    expect(next().text()).toBe("Next: Running sale · Now");
+    expect(next().text()).toBe("Next: Running sale, Now");
     wrapper!.unmount();
     await mountCard([ev(4, "Christmas", "2026-12-25")]);
     expect(next().exists()).toBe(false);
@@ -132,6 +132,8 @@ describe("EventsCard", () => {
     expect(chip.exists()).toBe(true);
     expect(chip.text()).toBe("Calendar");
     expect(chip.find(".k-icon").exists()).toBe(true);
+    expect(chip.classes()).toContain("k-chip--variant-text");
+    expect(chip.classes()).not.toContain("k-chip--variant-tonal");
     // Inside the one button (so tapping it opens the calendar), after the text, right before the arrow.
     const bar = toggle().element;
     expect(bar.contains(chip.element)).toBe(true);

@@ -4,14 +4,13 @@
   <k-sheet class="events-card">
     <div class="events-card-title">
       <button type="button" class="events-card-toggle" data-test="events-open-calendar" @click="router.push('/events')">
-        <k-icon icon="mdi-calendar-month-outline" color="grey-darken-1" class="events-card-toggle-icon" />
         <span class="events-card-count text-body-1 font-weight-bold">{{ countLabel }}</span>
         <span v-if="next" class="events-card-next text-body-2 text-medium-emphasis" dir="auto">
-          Next: {{ next.name }} · {{ whenLabel(next) }}
+          Next: {{ next.name }}, {{ whenLabel(next) }}
         </span>
         <k-spacer />
         <!-- Says where the bar goes. It is part of the button: tapping it is tapping the bar. -->
-        <k-chip class="events-card-chip" size="small" variant="tonal" data-test="events-calendar-chip">
+        <k-chip class="events-card-chip" size="small" variant="text" data-test="events-calendar-chip">
           <k-icon start icon="mdi-calendar-month-outline" size="16" />
           Calendar
         </k-chip>
