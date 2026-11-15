@@ -54,7 +54,7 @@ watch(() => props.cacheKey, () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
   background: rgba(var(--k-theme-on-surface), 0.06);
   flex-shrink: 0;

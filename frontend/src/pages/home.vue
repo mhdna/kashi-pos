@@ -2054,7 +2054,7 @@ onBeforeUnmount(() => {
 }
 
 .required-assignees {
-  border-radius: 12px;
+  border-radius: 0;
   padding: 2px;
 }
 
@@ -2077,7 +2077,7 @@ onBeforeUnmount(() => {
 .barcode-flash-success .k-field,
 .barcode-flash-error .k-field {
   transition: background-color 150ms ease;
-  border-radius: 4px;
+  border-radius: 0;
 }
 .barcode-flash-success .k-field {
   /* Green for a scan that worked (red below for one that didn't). */
@@ -2108,12 +2108,12 @@ onBeforeUnmount(() => {
 .sale-option-tile {
   text-transform: none;
   letter-spacing: normal;
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 .sale-option-discount {
   padding: 1px 10px;
-  border-radius: 999px;
+  border-radius: 0;
   background: #ffffff;
   color: #212121;
   font-size: 0.95rem;

@@ -392,7 +392,7 @@ onBeforeUnmount(() => resizer.disconnect());
 .search-hit {
   background-color: #ffe066;
   color: #1f1f1f;
-  border-radius: 3px;
+  border-radius: 0;
   box-decoration-break: clone;
 }
 

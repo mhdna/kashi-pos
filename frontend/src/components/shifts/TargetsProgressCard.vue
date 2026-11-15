@@ -79,7 +79,7 @@ function formatDate(value: string) {
 .target-track {
   width: 100%;
   height: 12px;
-  border-radius: 2px;
+  border-radius: 0;
   background: rgba(var(--k-theme-on-surface), 0.08);
   overflow: hidden;
 }

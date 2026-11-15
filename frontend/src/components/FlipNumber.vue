@@ -105,7 +105,7 @@ watch(
   width: 56px;
   height: 40px;
   padding: var(--pad);
-  border-radius: 8px;
+  border-radius: 0;
   background: #0b1320;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.08);
   font-size: min(1.4rem, calc(var(--cell) * 1.5));
@@ -144,7 +144,7 @@ watch(
   /* Centred like the cards: the row is as wide as its digits. */
   left: calc(50% - (var(--n) * var(--cell) + (var(--n) - 1) * var(--gap)) / 2 + var(--from) * (var(--cell) + var(--gap)));
   width: calc(var(--count) * var(--cell) + (var(--count) - 1) * var(--gap));
-  border-radius: 4px;
+  border-radius: 0;
   pointer-events: none;
   animation-delay: 0s !important;
   animation-fill-mode: both !important;

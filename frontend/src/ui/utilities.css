@@ -390,12 +390,12 @@
   .border-t{border-block-start-width:thin;border-block-start-style:solid;border-block-start-color:rgba(var(--k-border-color),var(--k-border-opacity))}
   .border-b{border-block-end-width:thin;border-block-end-style:solid;border-block-end-color:rgba(var(--k-border-color),var(--k-border-opacity))}
   .rounded-0{border-radius:0}
-  .rounded{border-radius:4px}
-  .rounded-lg{border-radius:8px}
-  .rounded-xl{border-radius:24px}
-  .rounded-pill{border-radius:9999px}
+  .rounded{border-radius:0}
+  .rounded-lg{border-radius:0}
+  .rounded-xl{border-radius:0}
+  .rounded-pill{border-radius:0}
   .rounded-circle{border-radius:50%}
-  .rounded-sm{border-radius:2px}
+  .rounded-sm{border-radius:0}
   .elevation-0{box-shadow:none}
   .elevation-1{box-shadow:var(--k-elevation-1)}
   .elevation-2{box-shadow:var(--k-elevation-2)}

@@ -432,7 +432,7 @@ onBeforeUnmount(() => {
 
 .pin-key {
   border: 1px solid rgba(var(--k-border-color), 0.18);
-  border-radius: 4px;
+  border-radius: 0;
   height: 100%;
   min-width: 0;
   padding: 0;

@@ -65,7 +65,7 @@ function press(key: string) {
   min-width: 0;
   padding: 0;
   border: 1px solid rgba(var(--k-border-color), 0.18);
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 2rem !important;
   transition:
     border-color 120ms ease,

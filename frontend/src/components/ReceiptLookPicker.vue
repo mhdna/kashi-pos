@@ -183,7 +183,7 @@ defineExpose({ reload: load });
   height: 150px;
   overflow: hidden;
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
-  border-radius: 8px;
+  border-radius: 0;
   background: #fff;
   display: flex;
   align-items: flex-start;
@@ -206,7 +206,7 @@ defineExpose({ reload: load });
   display: flex;
   justify-content: center;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: 0;
   background: rgba(var(--k-theme-on-surface), 0.06);
 }
 

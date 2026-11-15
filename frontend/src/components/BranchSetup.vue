@@ -194,7 +194,7 @@ function choose(code: string) {
   width: 100%;
   max-width: 520px;
   padding: 28px 28px 20px;
-  border-radius: 20px;
+  border-radius: 0;
   background: rgb(var(--k-theme-surface));
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08);
 }
@@ -207,7 +207,7 @@ function choose(code: string) {
 .setup-logo {
   width: 56px;
   height: 56px;
-  border-radius: 14px;
+  border-radius: 0;
   object-fit: contain;
   flex: 0 0 auto;
 }
@@ -225,7 +225,7 @@ function choose(code: string) {
 .setup-section {
   padding: 16px;
   margin-bottom: 14px;
-  border-radius: 14px;
+  border-radius: 0;
   border: 1px solid rgba(var(--k-theme-on-surface), 0.1);
 }
 .setup-section-head {
@@ -250,7 +250,7 @@ function choose(code: string) {
   font-size: 0.72rem;
   font-weight: 500;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 0;
   background: rgba(var(--k-theme-on-surface), 0.07);
   opacity: 0.8;
 }
@@ -287,7 +287,7 @@ function choose(code: string) {
   gap: 14px;
   width: 100%;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: 0;
   border: 1px solid rgba(var(--k-theme-on-surface), 0.1);
   background: transparent;
   color: inherit;

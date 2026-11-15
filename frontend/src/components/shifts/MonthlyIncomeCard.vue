@@ -438,7 +438,7 @@ const emit = defineEmits<{
 
 .monthly-income-current-day {
   background: rgba(var(--k-theme-on-surface), 0.08);
-  border-radius: 8px;
+  border-radius: 0;
   color: rgb(var(--k-theme-on-surface));
   font-weight: 600;
 }

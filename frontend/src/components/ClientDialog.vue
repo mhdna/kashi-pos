@@ -601,7 +601,7 @@ function reset() {
   align-items: center;
   background: transparent;
   border: 1px solid rgba(var(--k-border-color), 0.55);
-  border-radius: 4px;
+  border-radius: 0;
   color: inherit;
   cursor: pointer;
   display: grid;
@@ -642,7 +642,7 @@ function reset() {
   align-items: center;
   /* Neutral grey, like the keypad, so it isn't mistaken for Continue. */
   background: rgba(var(--k-theme-on-surface), 0.12);
-  border-radius: 4px;
+  border-radius: 0;
   color: rgb(var(--k-theme-on-surface));
   display: flex;
   font-size: 0.95rem;

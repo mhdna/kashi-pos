@@ -302,7 +302,7 @@ onBeforeUnmount(() => clearTimeout(searchTimer));
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 0;
   background: rgba(var(--k-theme-on-surface), 0.04);
 }
 .invoice-change-current__text {

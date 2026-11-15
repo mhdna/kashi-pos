@@ -540,7 +540,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   padding: 10px 6px;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid rgba(var(--k-theme-on-surface), 0.12);
   background: transparent;
   cursor: pointer;

@@ -176,7 +176,7 @@ function flipCurrency() {
   align-items: center;
   padding: 8px 12px;
   border: 1px solid rgba(var(--k-border-color), 0.12);
-  border-radius: 10px;
+  border-radius: 0;
   font-size: var(--kashi-font-size-base);
 }
 .calculator-amounts.calculator-green {

@@ -297,7 +297,7 @@ async function save() {
   min-height: 60px;
   padding: 8px 10px;
   border: 1px solid rgba(var(--k-theme-on-surface), 0.14);
-  border-radius: 10px;
+  border-radius: 0;
   background: rgb(var(--k-theme-surface));
   color: inherit;
   text-align: start;
@@ -353,7 +353,7 @@ async function save() {
   gap: 10px;
   margin-top: 12px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 0;
   background: rgba(var(--k-theme-success), 0.08);
   font-size: 0.875rem;
 }

@@ -90,7 +90,7 @@ async function loadSalespersons() {
 }
 .missing-selection-pulse {
   animation: missing-selection-pulse 700ms ease-in-out 2;
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 @keyframes missing-selection-pulse {

@@ -14,19 +14,10 @@ export function toUnit(value?: string | number | null): string | undefined {
   return /^-?\d+(\.\d+)?$/.test(value) ? `${value}px` : value;
 }
 
-export const roundedValue: Record<string, string> = {
-  "0": "0",
-  sm: "2px",
-  lg: "8px",
-  xl: "24px",
-  pill: "9999px",
-  circle: "50%",
-};
-
 export function roundedStyle(rounded?: string | boolean): string | undefined {
   if (rounded === undefined || rounded === false) return undefined;
-  if (rounded === true || rounded === "") return "4px";
-  return roundedValue[rounded] ?? rounded;
+  // Nothing in the app has rounded corners: only a true circle stays round.
+  return rounded === "circle" ? "50%" : "0";
 }
 
 export const namedSizes = ["x-small", "small", "large", "x-large"];

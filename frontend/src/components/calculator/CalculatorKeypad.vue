@@ -43,7 +43,7 @@ const digitKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(String);
 .keypad-button {
   height: 100%;
   width: 100%;
-  border-radius: 4px;
+  border-radius: 0;
   border: 1px solid rgba(var(--k-border-color), 0.18);
   font-variant-numeric: tabular-nums;
   font-size: 2rem !important;

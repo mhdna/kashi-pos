@@ -267,7 +267,7 @@ async function save() {
 }
 .line-sp-item {
   border: 1px solid rgba(var(--k-border-color), 0.2);
-  border-radius: 10px;
+  border-radius: 0;
   overflow: hidden;
 }
 .line-sp-item--open {

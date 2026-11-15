@@ -355,7 +355,7 @@ defineExpose({ focus });
   align-items: baseline;
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   color: inherit;
   cursor: pointer;
   display: inline-flex;

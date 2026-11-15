@@ -381,7 +381,7 @@ onMounted(() => {
 }
 .days {
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
-  border-radius: 8px;
+  border-radius: 0;
 }
 .day {
   display: grid;

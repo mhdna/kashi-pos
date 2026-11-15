@@ -29,7 +29,7 @@ const rows = computed(() => exchangeSummaryRows(props.quote));
 <style scoped>
 .exchange-summary {
   border: 1px solid rgba(var(--k-theme-on-surface), 0.12);
-  border-radius: 8px;
+  border-radius: 0;
   margin: 4px 8px;
   padding: 6px 10px;
   font-size: 0.85rem;

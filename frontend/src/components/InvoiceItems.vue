@@ -1672,7 +1672,7 @@ defineExpose({
 .invoice-item-size {
   padding: 0 8px;
   border: 1px solid rgba(var(--k-theme-on-surface), 0.3);
-  border-radius: 999px;
+  border-radius: 0;
   color: rgba(var(--k-theme-on-surface), 0.75);
   font-size: 0.6875rem;
   font-weight: 600;
@@ -1962,7 +1962,7 @@ defineExpose({
 .invoice-unit-line {
   min-height: 44px;
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: 0;
   background: rgba(var(--k-theme-on-surface), 0.04);
 }
 .invoice-unit-lines {
@@ -1974,7 +1974,7 @@ defineExpose({
   margin-bottom: 12px;
   padding: 8px 12px 10px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 0;
   background: rgba(var(--k-theme-on-surface), 0.05);
   transition: border-color 120ms ease, background-color 120ms ease;
 }
@@ -2033,7 +2033,7 @@ defineExpose({
      so say it here: otherwise the keys' labels stay black in the dark theme. */
   color: rgb(var(--k-theme-on-surface));
   border: 1px solid rgba(var(--k-border-color), 0.16);
-  border-radius: 16px;
+  border-radius: 0;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.32);
 }
 .line-note-keyboard > .inline-keyboard {
@@ -2068,7 +2068,7 @@ defineExpose({
 .invoice-price-editor {
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   color: inherit;
   cursor: pointer;
   flex: 1 1 auto;

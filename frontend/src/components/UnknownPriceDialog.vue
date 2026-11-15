@@ -154,7 +154,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
   justify-content: center;
   padding: 12px 20px;
   border: 2px solid rgba(var(--k-theme-primary), 0.7);
-  border-radius: 10px;
+  border-radius: 0;
   font-size: 1.5rem;
   line-height: 1.2;
   text-align: center;
@@ -173,7 +173,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
 }
 .unknown-key {
   border: 1px solid rgba(var(--k-border-color), 0.18);
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 2rem !important;
   height: 100% !important;
   min-width: 0;

@@ -200,7 +200,7 @@ function add(variant: Variant | null) {
 .variant-option {
   display: inline-flex; align-items: center; gap: 8px;
   min-height: 48px; min-width: 64px; padding: 6px 14px;
-  border-radius: 10px; border: 2px solid rgba(var(--k-theme-on-surface), 0.14);
+  border-radius: 0; border: 2px solid rgba(var(--k-theme-on-surface), 0.14);
   background: rgb(var(--k-theme-surface)); color: rgb(var(--k-theme-on-surface));
   font: inherit; font-size: 1rem; font-weight: 500; cursor: pointer;
   justify-content: center;

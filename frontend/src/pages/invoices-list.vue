@@ -937,7 +937,7 @@ onBeforeUnmount(() => {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.settlement-list { border: 1px solid rgba(var(--k-border-color), 0.12); border-radius: 10px; overflow: hidden; }
+.settlement-list { border: 1px solid rgba(var(--k-border-color), 0.12); border-radius: 0; overflow: hidden; }
 .settlement-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 13px; }
 .settlement-row + .settlement-row { border-top: 1px solid rgba(var(--k-border-color), 0.08); }
 .settlement-total { font-weight: 700; background: rgba(var(--k-theme-on-surface), 0.035); }

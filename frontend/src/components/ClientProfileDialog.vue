@@ -389,7 +389,7 @@ watch(
   display: flex;
   height: 220px;
   gap: 2px;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
 }
 

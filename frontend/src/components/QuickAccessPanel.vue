@@ -377,7 +377,7 @@ function onCardClick(item: QuickAccessItem, event: MouseEvent) {
 <style scoped>
 .quick-access {
   border: 1px solid rgba(var(--k-border-color), 0.12);
-  border-radius: 12px;
+  border-radius: 0;
   display: flex;
   flex: 0 0 42px;
   flex-direction: column;

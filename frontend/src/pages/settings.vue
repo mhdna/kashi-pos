@@ -3813,7 +3813,7 @@ async function deleteUser() {
 }
 .qa-color-row__preview {
   border: 1px solid rgba(var(--k-border-color), 0.12);
-  border-radius: 8px;
+  border-radius: 0;
   flex: 0 0 160px;
   line-height: 1.2;
   min-width: 0;
@@ -3868,7 +3868,7 @@ async function deleteUser() {
   display: inline-block;
   width: 14px;
   height: 14px;
-  border-radius: 4px;
+  border-radius: 0;
   border: 1px solid rgba(var(--k-theme-on-surface), 0.2);
 }
 
@@ -3927,7 +3927,7 @@ async function deleteUser() {
 }
 
 .settings-search :deep(.k-field) {
-  border-radius: 10px;
+  border-radius: 0;
 }
 
 .settings-empty {
@@ -4028,7 +4028,7 @@ async function deleteUser() {
   min-width: 0;
   background: transparent !important;
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: none !important;
 }
 

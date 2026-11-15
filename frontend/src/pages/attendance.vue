@@ -750,7 +750,7 @@ onUnmounted(() => {
   min-height: 40px;
   padding: 0 12px;
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
-  border-radius: 4px;
+  border-radius: 0;
 }
 .attendance-correction-row {
   display: flex;

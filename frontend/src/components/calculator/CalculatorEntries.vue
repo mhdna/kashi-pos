@@ -44,7 +44,7 @@ defineEmits<{ remove: [index: number] }>();
 .calculator-entry-chip {
   min-height: 36px;
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: 0;
   background: rgba(var(--k-theme-on-surface), 0.03);
   border: 1px solid rgba(var(--k-border-color), 0.16);
 }
