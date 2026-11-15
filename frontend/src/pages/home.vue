@@ -484,6 +484,7 @@ import type { ExchangeSelection } from "@/lib/exchange";
 import { formatUsd } from "@/lib/format";
 import { notifyIncomeChanged } from "@/lib/incomeEvents";
 import { normalizeRoundingMode, type RoundingMode } from "@/lib/money";
+import { friendlyQuoteError } from "@/lib/quoteErrors";
 import { playClickSound, playErrorSound, playSuccessSound, playWarningSound } from "@/lib/sound";
 import type { Client } from "@/lib/client";
 import { useClient } from "@/composables/useClient";
@@ -962,7 +963,7 @@ async function refreshQuote() {
 // cashier can read out over the phone.
 function quoteErrorMessage(e: unknown): string {
   const message = typeof e === "string" ? e : e instanceof Error ? e.message : String(e);
-  return message.trim() || "pricing failed";
+  return friendlyQuoteError(message) || "pricing failed";
 }
 
 watch(

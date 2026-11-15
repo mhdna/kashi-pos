@@ -31,8 +31,8 @@
       </div>
       <!-- A failed quote has no total to show. Rendering $0.00 here would
            read as a legitimate, fully-paid zero-value sale. -->
-      <div v-if="quoteError" class="calculator-error-state">
-        <k-icon icon="mdi-alert-circle" color="red-darken-2" size="28" />
+      <div v-if="quoteError" class="calculator-error-state calculator-hint-state">
+        <k-icon icon="mdi-alert-circle-outline" size="28" />
         <span class="calculator-error-text" :title="quoteError">{{ quoteError }}</span>
       </div>
       <!-- An exchange that isn't covered yet is a normal step, not an error:
