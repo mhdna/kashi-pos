@@ -401,7 +401,7 @@ const items = computed(() => {
   touch-action: pan-y;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: #555555 transparent;
+  scrollbar-color: #3a5378 transparent;
 }
 
 .nav-items-group::-webkit-scrollbar {
@@ -409,7 +409,7 @@ const items = computed(() => {
 }
 
 .nav-items-group::-webkit-scrollbar-thumb {
-  background-color: #555555;
+  background-color: #3a5378;
   border-radius: 2px;
 }
 
@@ -420,19 +420,30 @@ const items = computed(() => {
   max-height: 80px;
   position: relative;
   /* Quieter than the active page, so the current one stands out. */
-  color: rgba(255, 255, 255, 0.65);
+  color: #9fb3d1;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .nav-item:hover {
   background-color: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.9);
+  color: #e3ecf8;
 }
 
-/* The page you are on: a flat, lighter grey and white text. No gradient, no bar. */
+/* The page you are on: lighter panel, bright text and an accent bar. */
 .nav-item.k-list-item--active {
-  background-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(90deg, rgba(79, 140, 255, 0.28), rgba(79, 140, 255, 0.1));
   color: #ffffff;
+}
+
+.nav-item.k-list-item--active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: #6ea8ff;
 }
 
 .nav-item-content {
