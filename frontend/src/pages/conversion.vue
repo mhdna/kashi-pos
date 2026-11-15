@@ -128,9 +128,9 @@
              under its label whatever the row's last cell holds. -->
         <div class="day day--head">
           <div>Day</div>
-          <div class="day__stat"><k-icon icon="mdi-account-group" size="18" />Visitors</div>
-          <div class="day__stat"><k-icon icon="mdi-cart-outline" size="18" />Sales</div>
-          <div class="day__stat"><k-icon icon="mdi-cash-multiple" size="18" />Total</div>
+          <div class="day__stat">Visitors</div>
+          <div class="day__stat">Sales</div>
+          <div class="day__stat">Total</div>
           <div class="day__rate">Buy rate</div>
         </div>
         <div v-for="day in shownDays" :key="day.day" class="day">

@@ -39,3 +39,11 @@ describe("stats page surfaces", () => {
     expect(page).not.toMatch(/<k-chip/);
   });
 });
+
+describe("day table header", () => {
+  it("has plain labels, no icons", () => {
+    const head = page.slice(page.indexOf('<div class="day day--head">'), page.indexOf('<div v-for="day in shownDays"'));
+    expect(head).toContain("Visitors");
+    expect(head).not.toMatch(/<k-icon/);
+  });
+});
