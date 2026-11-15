@@ -479,8 +479,12 @@ const baseHeaders = [
     align: "end" as const,
   },
 ];
+// The sync dot column is for admins only.
 const headers = computed(() =>
-  ratingsEnabled.value ? baseHeaders : baseHeaders.filter((header) => header.key !== "rating"),
+  baseHeaders.filter(
+    (header) =>
+      (ratingsEnabled.value || header.key !== "rating") && (auth.isAdmin || header.key !== "syncState"),
+  ),
 );
 
 // How the client rated the sale in central's WhatsApp poll (invoice_ratings.go):

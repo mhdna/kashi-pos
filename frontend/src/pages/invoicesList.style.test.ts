@@ -19,3 +19,9 @@ describe("invoice details overview", () => {
     expect(src).not.toMatch(/mdi-credit-card-outline" size="19"/);
   });
 });
+
+describe("sync dot column", () => {
+  it("only admins get it", () => {
+    expect(src).toMatch(/auth\.isAdmin \|\| header\.key !== "syncState"/);
+  });
+});
