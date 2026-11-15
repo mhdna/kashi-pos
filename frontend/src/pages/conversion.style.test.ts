@@ -47,3 +47,10 @@ describe("day table header", () => {
     expect(head).not.toMatch(/<k-icon/);
   });
 });
+
+describe("headline wording", () => {
+  it("is short: Buy rate, then sales and visitors", () => {
+    expect(page).not.toMatch(/of every 100 visitors buy/);
+    expect(page).toMatch(/>\s*Buy rate\s*<\/div>/);
+  });
+});

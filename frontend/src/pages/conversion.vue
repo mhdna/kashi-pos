@@ -75,10 +75,10 @@
             </k-progress-circular>
             <div>
               <div class="text-h5 font-weight-bold text-high-emphasis">
-                {{ ratePercent }} of every 100 visitors buy
+                Buy rate
               </div>
               <div class="text-body-2 text-medium-emphasis mt-1">
-                {{ report.overall.invoices }} {{ plural(report.overall.invoices, "sale") }} from
+                {{ report.overall.invoices }} {{ plural(report.overall.invoices, "sale") }},
                 {{ report.overall.visitors }} {{ plural(report.overall.visitors, "visitor") }}
               </div>
             </div>
