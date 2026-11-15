@@ -20,7 +20,7 @@ describe("action bar buttons", () => {
       .slice(src.indexOf(".checkout-button {"), src.indexOf("}", src.indexOf(".checkout-button {")))
       .replace(/\/\*[\s\S]*?\*\//g, "");
     expect(css).toMatch(/background-color: rgb\(var\(--k-theme-surface\)\)/);
-    expect(css).toMatch(/box-shadow: 0 6px 14px/);
+    expect(css).toMatch(/box-shadow: 0 2px 4px/);
     expect(css).not.toMatch(/border/);
   });
 
