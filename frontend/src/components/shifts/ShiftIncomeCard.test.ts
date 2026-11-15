@@ -118,6 +118,13 @@ describe("ShiftIncomeCard", () => {
     await show([{ accountId: 1, accountName: "Cash $$", currencyCode: "USD", total: 24300 }]);
     expect(wrapper!.find('[data-test="net-income"]').text()).toContain("$238.00");
     expect(total()).toContain("$243.00");
+    // The reported case: net income was small bold text under a big total.
+    // It uses the total's own label and amount styles so they read the same size.
+    const net = wrapper!.find('[data-test="net-income-amount"]');
+    const totalAmount = wrapper!.find('[data-test="income-total"] .shift-total-amount');
+    expect(net.classes()).toContain("shift-total-amount");
+    expect(totalAmount.exists()).toBe(true);
+    expect(wrapper!.find('[data-test="net-income"] .shift-total-label').text()).toBe("Net income");
   });
 
   it("says so when the shift has no income, with no total", async () => {

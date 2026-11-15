@@ -59,9 +59,10 @@
         <span class="text-error">−{{ formatSpendAmount(row.amount, row.currencyCode, currencies) }}</span>
       </div>
       <!-- Only when something came off; otherwise it just repeats the total. -->
-      <div v-if="shiftExpenses.length || shiftLoans.length" class="d-flex justify-space-between pt-2 mt-1 border-t font-weight-bold" data-test="net-income">
-        <span>Net income</span>
-        <span>{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
+      <div v-if="shiftExpenses.length || shiftLoans.length" class="d-flex justify-space-between align-center pt-2 mt-1 border-t" data-test="net-income">
+        <!-- Same size as Total collected: it's the other number that matters. -->
+        <span class="shift-total-label">Net income</span>
+        <span class="shift-total-amount" data-test="net-income-amount">{{ formatBalance(netIncome, "USD", currencies, roundingMode) }}</span>
       </div>
     </div>
     </div>
