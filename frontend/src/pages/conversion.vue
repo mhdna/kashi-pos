@@ -86,18 +86,14 @@
 
         <div class="tiles mb-4">
           <div v-for="tile in tiles" :key="tile.label" class="tile">
-            <k-icon :icon="tile.icon" :color="tile.color" size="28" />
-            <div>
-              <div class="tile__value">{{ tile.value }}</div>
-              <div class="tile__label">{{ tile.label }}</div>
-            </div>
+            <div class="tile__value">{{ tile.value }}</div>
+            <div class="tile__label">{{ tile.label }}</div>
           </div>
         </div>
 
         <!-- What a day with this many visitors should bring, at the rate of
              the days that were about as busy. -->
         <div class="estimate mb-6">
-          <k-icon class="text-medium-emphasis" icon="mdi-walk" />
           <span>If</span>
           <k-text-field
             v-model.number="estimateVisitors"
@@ -235,26 +231,18 @@ const tiles = computed(() => {
     {
       label: "Visitors",
       value: o.visitors.toLocaleString(),
-      icon: "mdi-account-group",
-      color: "blue",
     },
     {
       label: "Sales",
       value: o.invoices.toLocaleString(),
-      icon: "mdi-cart-outline",
-      color: "green",
     },
     {
       label: "Average invoice",
       value: money(o.avgInvoice),
-      icon: "mdi-receipt-text-outline",
-      color: "orange",
     },
     {
       label: "Each visitor brings",
       value: money(o.revenuePerVisitor),
-      icon: "mdi-cash-multiple",
-      color: "purple",
     },
   ];
 });
@@ -367,12 +355,8 @@ onMounted(() => {
   gap: 12px;
 }
 .tile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 14px 16px;
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
-  border-radius: 8px;
 }
 .tile__value {
   font-size: 1.35rem;
@@ -390,7 +374,6 @@ onMounted(() => {
   gap: 8px;
   padding: 12px 16px;
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
-  border-radius: 8px;
   font-size: 1rem;
 }
 .estimate__input {
@@ -421,12 +404,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
 }
-.day__stat .k-icon {
-  opacity: 0.7;
-}
-/* Values line up under the header's label text, past its icon. */
 .day__value {
-  padding-left: 24px;
   font-variant-numeric: tabular-nums;
 }
 .day__rate {

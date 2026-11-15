@@ -66,3 +66,12 @@ describe("unlock screen", () => {
     expect(page).not.toMatch(/to see sales per visitor|unlock-hint/);
   });
 });
+
+describe("stats tiles and estimate", () => {
+  it("have no icons and square corners", () => {
+    const tiles = page.slice(page.indexOf('<div class="tiles'), page.indexOf("<!-- What a day"));
+    expect(tiles).not.toMatch(/<k-icon/);
+    expect(page).not.toMatch(/mdi-walk|icon: "mdi-/);
+    expect(page).not.toMatch(/\.(tile|estimate) \{[^}]*border-radius/);
+  });
+});
