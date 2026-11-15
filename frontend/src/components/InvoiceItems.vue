@@ -8,6 +8,7 @@
   >
     <!-- Column titles, so the lines themselves carry just the numbers. The
          columns are the same widths as the lines' controls. -->
+    <!-- The column header is switched off for now; each line says "Qty" again.
     <div v-if="displayItems.length" class="invoice-items-header" data-test="invoice-items-header" aria-hidden="true">
       <span class="invoice-items-header__item">Item</span>
       <span class="invoice-items-header__col invoice-header-qty">Qty</span>
@@ -15,6 +16,7 @@
       <span class="invoice-items-header__col invoice-header-price">Price</span>
       <span class="invoice-header-delete" />
     </div>
+    -->
     <div
       v-for="(item, index) in displayItems"
       :key="`${items.length - 1 - index}-${item.barcode || item.code}`"
@@ -164,6 +166,7 @@
                 :max="999"
                 aria-label="Edit item quantity"
                 title="Quantity"
+                prefix="Qty"
                 :keyboard-mode="keyboardMode"
                 @update:model-value="(value) => setQuantity(item, Number(value))"
                 @navigate="(direction) => moveVertical(index, 'qty', direction)"
