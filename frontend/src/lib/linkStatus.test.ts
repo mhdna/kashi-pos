@@ -155,7 +155,7 @@ describe("the detail rows", () => {
   it("a healthy till reads healthy, with when things last happened", () => {
     const s = d();
     expect(row(s, "internet")).toMatchObject({ state: "ok", value: "Connected" });
-    expect(row(s, "kashi")).toMatchObject({ state: "ok", value: "Reachable", detail: "Last answer just now" });
+    expect(row(s, "kashi")).toMatchObject({ state: "ok", value: "Connected", detail: "Last answer just now" });
     expect(row(s, "live")).toMatchObject({ state: "ok", value: "Connected" });
     expect(row(s, "live").detail).toBe("Connected 10 min ago, heard from central 10 s ago");
     expect(row(s, "now")).toMatchObject({ state: "idle", value: "None" });

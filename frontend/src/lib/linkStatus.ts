@@ -270,7 +270,7 @@ function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[
     const for_ = link.updatingForSeconds > 0 ? ` for ${durationText(link.updatingForSeconds)}` : "";
     rows.push({ key: "kashi", label: "central server", state: "warn", value: `Being upgraded${for_}`, detail: "It is back in a moment; this till reconnects by itself." });
   } else if (link.kashi === "up") {
-    rows.push({ key: "kashi", label: "central server", state: "ok", value: "Reachable", detail: link.kashiLastOk ? `Last answer ${agoText(link.kashiLastOk, nowMs)}` : "" });
+    rows.push({ key: "kashi", label: "central server", state: "ok", value: "Connected", detail: link.kashiLastOk ? `Last answer ${agoText(link.kashiLastOk, nowMs)}` : "" });
   } else if (link.kashi === "down") {
     const down = link.kashiDownForSeconds > 0 ? ` for ${durationText(link.kashiDownForSeconds)}` : "";
     rows.push({ key: "kashi", label: "central server", state: "bad", value: `Not answering${down}`, detail: link.kashiError });
