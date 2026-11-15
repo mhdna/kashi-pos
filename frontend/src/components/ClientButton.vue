@@ -5,6 +5,7 @@
       <k-btn
         size="small"
         variant="tonal"
+        rounded="0"
         class="header-fixed-width-btn"
         :disabled="disabled"
         :class="{ 'missing-selection-pulse': pulseClient }"
