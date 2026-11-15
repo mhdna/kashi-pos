@@ -62,6 +62,7 @@ defineEmits<{ select: [methodName: string] }>();
   box-shadow: none !important;
   border: 1px solid rgba(var(--k-border-color), 0.18);
   border-top: 10px solid var(--payment-accent);
+  border-radius: 0;
   height: 62px;
   display: flex;
   align-items: center;

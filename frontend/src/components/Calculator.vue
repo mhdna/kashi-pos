@@ -807,6 +807,7 @@ defineExpose({
   box-shadow: none !important;
   border: 1px solid rgba(var(--k-border-color), 0.18);
   border-top: 10px solid var(--payment-accent);
+  border-radius: 0;
   transition: border-color 120ms ease;
 }
 .payment-method-name {
