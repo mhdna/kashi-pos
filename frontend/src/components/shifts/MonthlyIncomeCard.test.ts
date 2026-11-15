@@ -120,26 +120,25 @@ describe("compact list", () => {
     expect(css).not.toMatch(/\.mi-visitors-chip \{[^}]*background/);
   });
 
-  it("the Total heading is centred over its column, and Visitors starts at its pills' left edge", () => {
+  it("the Total and Visitors headings are centred over their columns", () => {
     // Header cells are inline-flex, so it is justify-content that places them.
     expect(css).toMatch(/\.monthly-income-header > span,[^{]*\{[^}]*display: inline-flex/);
     expect(css).toMatch(/\.mi-total-head \{[^}]*justify-content: center/);
-    expect(css).toMatch(/\.mi-visitors-head \{[^}]*justify-content: flex-start/);
+    expect(css).toMatch(/\.mi-visitors-head \{[^}]*justify-content: center/);
   });
 
-  it("every visitors chip is the same width, whatever the count", async () => {
+  it("every visitors count is centred in its column, whatever the count", async () => {
     const w = await mountCard({ visitorCounts: { "11/11/2026": 1, "12/11/2026": 87, "13/11/2026": 1135, "15/11/2026": 20000 } });
     const chips = w.findAll("[data-test=visitors]");
     expect(chips.map((c) => c.text())).toEqual(["1", "87", "1135", "20000"]);
     for (const chip of chips) expect(chip.classes()).toContain("mi-visitors-chip");
     // One fixed width on the shared class, wide enough for five digits.
-    expect(css).toMatch(/\.mi-visitors-chip \{[^}]*width: 76px/);
-    expect(css).toMatch(/\.mi-visitors-chip \{[^}]*justify-content: flex-start/);
+    expect(css).toMatch(/\.mi-visitors-chip \{[^}]*justify-content: center/);
   });
 
-  it("lines the visitors up down the list: left-aligned in a column, header included, clear of the total", () => {
-    expect(css).toMatch(/\.mi-visitors-cell \{[^}]*justify-content: flex-start/);
-    expect(css).toMatch(/\.mi-visitors-head \{[^}]*text-align: start/);
+  it("lines the visitors up down the list: centred in a column, header included, clear of the total", () => {
+    expect(css).toMatch(/\.mi-visitors-cell \{[^}]*justify-content: center/);
+    expect(css).toMatch(/\.mi-visitors-head \{[^}]*text-align: center/);
     // The total has a column of its own (right-aligned), so the visitors sit left of it.
     expect(css).toMatch(/1fr 84px 104px/);
     expect(css).toMatch(/\.mi-total \{[^}]*text-align: end/);

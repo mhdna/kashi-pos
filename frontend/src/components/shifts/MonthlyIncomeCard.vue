@@ -371,7 +371,7 @@ const emit = defineEmits<{
   grid-template-columns: var(--mi-chevron) 1fr 84px 104px;
 }
 .mi-visitors-head {
-  text-align: start;
+  text-align: center;
 }
 .mi-total {
   text-align: end;
@@ -383,7 +383,7 @@ const emit = defineEmits<{
   text-align: center;
 }
 .mi-visitors-head {
-  justify-content: flex-start;
+  justify-content: center;
 }
 .mi-day {
   display: flex;
@@ -391,20 +391,22 @@ const emit = defineEmits<{
   gap: 10px;
   min-width: 0;
 }
-/* A small tag on today's row. */
 .mi-visitors-chip {
-  /* Just the number in orange, no pill behind it. The same width whatever the
-     count, number at the left, so the counts make one clean column. */
+  /* Just the number in orange, no pill behind it, centred in its column. */
   display: inline-flex;
-  width: 76px;
-  justify-content: flex-start;
+  justify-content: center;
   color: #e65100;
   font-weight: 600;
 }
 .mi-visitors-cell {
   display: flex;
-  /* Every pill starts at the same left edge, so they line up down the list. */
-  justify-content: flex-start;
+  /* The counts sit in the middle of the column, under a centred heading. */
+  justify-content: center;
+}
+/* No start padding in the Visitors column, so centred really is the middle. */
+.mi-visitors-head,
+.mi-visitors-cell {
+  padding-inline-start: 0 !important;
 }
 
 .monthly-income-header,
