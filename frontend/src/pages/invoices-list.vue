@@ -185,39 +185,34 @@
           <k-btn icon="mdi-close" variant="text" aria-label="Close invoice details" @click="detailOpen = false" />
         </k-card-title>
         <k-card-text class="invoice-detail-content">
-          <div class="invoice-overview-grid mb-5">
-            <div class="invoice-overview-card">
-              <k-icon class="invoice-overview-icon" icon="mdi-account-outline" color="grey-darken-1" />
-              <div class="invoice-overview-copy">
-                <div class="invoice-overview-value">{{ selected.clientName || "Anonymous" }}</div>
-                <div class="invoice-overview-detail">{{ selected.clientPhone ? formatLebanesePhone(selected.clientPhone) : "No phone number" }}</div>
-              </div>
+          <!-- Who and what, as plain labelled facts: no boxes, no coloured icons. -->
+          <dl class="invoice-facts mb-5" data-test="invoice-facts">
+            <div>
+              <dt>Client</dt>
+              <dd>
+                {{ selected.clientName || "Anonymous" }}
+                <span class="invoice-facts-sub">{{ selected.clientPhone ? formatLebanesePhone(selected.clientPhone) : "No phone number" }}</span>
+              </dd>
             </div>
-            <div class="invoice-overview-card">
-              <k-icon class="invoice-overview-icon" icon="mdi-account-tie" color="primary" />
-              <div class="invoice-overview-copy">
-                <div class="invoice-overview-value">{{ selected.salespersonName || "Anonymous" }}</div>
-              </div>
+            <div>
+              <dt>Salesperson</dt>
+              <dd>{{ selected.salespersonName || "Anonymous" }}</dd>
             </div>
-            <div class="invoice-overview-card">
-              <k-icon class="invoice-overview-icon" icon="mdi-star-four-points-outline" color="amber-darken-2" />
-              <div class="invoice-overview-copy">
-                <div class="invoice-overview-value">{{ Number(selected.loyaltyPointsEarned ?? Math.floor(Number(selected.grandTotal || 0) / 100)).toLocaleString() }} pts</div>
-              </div>
+            <div>
+              <dt>Points earned</dt>
+              <dd>{{ Number(selected.loyaltyPointsEarned ?? Math.floor(Number(selected.grandTotal || 0) / 100)).toLocaleString() }}</dd>
             </div>
-            <div class="invoice-overview-card">
-              <k-icon class="invoice-overview-icon" :icon="selected.notes?.trim() ? 'mdi-note-text-outline' : 'mdi-note-off-outline'" color="secondary" />
-              <div class="invoice-overview-copy">
-                <div class="invoice-overview-value" :class="{ 'text-medium-emphasis': !selected.notes?.trim() }">{{ selected.notes?.trim() || "None" }}</div>
-              </div>
+            <div>
+              <dt>Note</dt>
+              <dd :class="{ 'text-medium-emphasis': !selected.notes?.trim() }">{{ selected.notes?.trim() || "None" }}</dd>
             </div>
-          </div>
+          </dl>
 
           <section class="invoice-detail-section mb-4">
             <div class="section-label">Settlement</div>
             <div v-if="selected.payments?.length" class="settlement-list">
               <div v-for="payment in selected.payments" :key="`${payment.accountId}-${payment.amount}`" class="settlement-row">
-                <div class="d-flex align-center ga-2"><k-icon icon="mdi-credit-card-outline" size="19" color="primary" /><span>{{ settlementAccountName(payment) }}</span></div>
+                <span>{{ settlementAccountName(payment) }}</span>
                 <span class="font-weight-bold">${{ cents(payment.amount) }}</span>
               </div>
               <div class="settlement-row settlement-total"><span>Total paid</span><span>${{ cents(selectedPaid) }}</span></div>
@@ -907,28 +902,29 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   padding-inline: 2px;
 }
-.invoice-overview-grid {
+.invoice-facts {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px;
+  margin: 0;
 }
-.invoice-overview-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  height: 50px;
-  padding: 12px;
-  border: 1px solid rgba(var(--k-border-color), 0.12);
-  border-radius: 12px;
-  background: rgba(var(--k-theme-on-surface), 0.025);
+.invoice-facts dt {
+  margin-bottom: 2px;
+  font-size: 0.75rem;
+  color: rgba(var(--k-theme-on-surface), 0.6);
 }
-.invoice-overview-icon {
-  flex: 0 0 auto;
-  font-size: 30px !important;
+.invoice-facts dd {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
-.invoice-overview-copy { min-width: 0; }
-.invoice-overview-label,
+.invoice-facts-sub {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: rgba(var(--k-theme-on-surface), 0.62);
+}
 .section-label {
   margin-bottom: 8px;
   color: rgb(var(--k-theme-on-surface));
@@ -937,21 +933,6 @@ onBeforeUnmount(() => {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.invoice-overview-value,
-.invoice-overview-detail {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.invoice-overview-value {
-  margin-bottom: 5px;
-  font-size: 0.92rem;
-  font-weight: 700;
-}
-.invoice-overview-detail {
-  color: rgba(var(--k-theme-on-surface), 0.62);
-  font-size: 0.72rem;
-}
 .settlement-list { border: 1px solid rgba(var(--k-border-color), 0.12); border-radius: 10px; overflow: hidden; }
 .settlement-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 13px; }
 .settlement-row + .settlement-row { border-top: 1px solid rgba(var(--k-border-color), 0.08); }
@@ -959,6 +940,6 @@ onBeforeUnmount(() => {
 .invoice-items-list { border-top: 1px solid rgba(var(--k-border-color), 0.1); border-bottom: 1px solid rgba(var(--k-border-color), 0.1); }
 .invoice-totals { max-width: 360px; margin-left: auto; }
 @media (max-width: 560px) {
-  .invoice-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .invoice-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>
