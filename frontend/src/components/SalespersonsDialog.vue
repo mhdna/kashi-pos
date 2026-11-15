@@ -17,7 +17,7 @@
         </k-btn>
       </div>
     </template>
-    <k-card class="salespersons-grid">
+    <k-card class="salespersons-grid" rounded="0">
       <div class="pa-2">
         <SalespersonGrid :salespersons="salespersons" :model-value="selected?.id ?? null" @update:model-value="pickById" />
       </div>

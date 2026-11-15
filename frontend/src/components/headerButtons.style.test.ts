@@ -15,3 +15,12 @@ for (const file of ["SalespersonsDialog.vue", "ClientButton.vue"]) {
     });
   });
 }
+
+describe("salesperson picker corners", () => {
+  it("tiles and the menu card are square", () => {
+    const grid = readFileSync(resolve(__dirname, "SalespersonGrid.vue"), "utf8");
+    const dialog = readFileSync(resolve(__dirname, "SalespersonsDialog.vue"), "utf8");
+    expect(grid).toMatch(/\.sp-tile \{[^}]*border-radius: 0;/);
+    expect(dialog).toContain('<k-card class="salespersons-grid" rounded="0">');
+  });
+});

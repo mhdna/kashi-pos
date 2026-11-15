@@ -73,7 +73,7 @@ const emit = defineEmits<{ "update:modelValue": [id: number] }>();
   padding: 12px 8px;
   background: transparent;
   border: 1px solid rgba(var(--k-border-color), 0.18);
-  border-radius: 8px;
+  border-radius: 0;
   color: inherit;
   cursor: pointer;
   font: inherit;
