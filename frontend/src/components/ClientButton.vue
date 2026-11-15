@@ -4,7 +4,6 @@
     <div class="header-btn-anchor">
       <k-btn
         size="small"
-        color="teal-darken-1"
         variant="tonal"
         class="header-fixed-width-btn"
         :disabled="disabled"

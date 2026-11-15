@@ -6,7 +6,6 @@
         <k-btn
           v-bind="props"
           size="small"
-          color="blue-grey-darken-1"
           variant="tonal"
           class="header-fixed-width-btn"
           :disabled="disabled"
