@@ -1,7 +1,6 @@
 <template>
   <div v-if="sorted.length" class="targets-progress">
     <div class="targets-progress-title text-caption font-weight-bold text-medium-emphasis">
-      <k-icon icon="mdi-flag-outline" size="14" class="me-1" />
       Targets
     </div>
     <div class="target-stack">
@@ -13,9 +12,9 @@
           />
         </div>
         <div class="target-meta">
-          <span>{{ formatDate(target.dateFrom) }} – {{ formatDate(target.dateTo) }}</span>
-          <span class="font-weight-bold">
-            {{ formatUsd(target.achievedCents / 100) }} / {{ formatUsd(target.targetAmountCents / 100) }}
+          <span data-test="target-dates">{{ formatDate(target.dateFrom) }} to {{ formatDate(target.dateTo) }}</span>
+          <span class="font-weight-bold" data-test="target-amounts">
+            {{ formatUsd(target.achievedCents / 100) }} of {{ formatUsd(target.targetAmountCents / 100) }}
             ({{ Math.round(target.progressPct) }}%)
           </span>
         </div>
@@ -80,22 +79,15 @@ function formatDate(value: string) {
 .target-track {
   width: 100%;
   height: 12px;
-  border-radius: 6px;
+  border-radius: 2px;
   background: rgba(var(--k-theme-on-surface), 0.08);
   overflow: hidden;
 }
 
 .target-fill {
   height: 100%;
-  border-radius: 6px;
+  /* A plain fill: no stripes. */
   background-color: rgb(var(--k-theme-primary));
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.18) 0,
-    rgba(255, 255, 255, 0.18) 8px,
-    transparent 8px,
-    transparent 16px
-  );
 }
 
 .target-meta {
