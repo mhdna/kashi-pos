@@ -114,7 +114,6 @@
               :variant="dealFor(item)!.discountCents ? 'flat' : 'outlined'"
               @click="onDealChipClick($event, item)"
             >
-              <k-icon class="me-1" icon="mdi-gift-outline" size="14" />
               <span class="invoice-deal-chip-text">
                 <span>{{ dealChipLines(item)[0] }}</span>
                 <span v-if="dealChipLines(item)[1]" class="invoice-deal-chip-sub">{{ dealChipLines(item)[1] }}</span>

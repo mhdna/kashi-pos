@@ -63,9 +63,8 @@
                     class="ms-2"
                     :color="item.freeQty ? 'success' : undefined"
                     label
-                    prepend-icon="mdi-gift-outline"
                     size="x-small"
-                    :text="item.freeQty ? `${item.freeQty} FREE · ${item.deal}` : item.deal"
+                    :text="item.freeQty ? `${item.freeQty} FREE, ${item.deal}` : item.deal"
                     :variant="item.freeQty ? 'flat' : 'outlined'"
                   />
                 </template>

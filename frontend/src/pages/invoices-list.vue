@@ -231,9 +231,8 @@
                     class="ms-1"
                     :color="line.free ? 'success' : 'deep-purple'"
                     label
-                    prepend-icon="mdi-gift-outline"
                     size="x-small"
-                    :text="line.free ? `FREE · ${line.deal}` : line.deal"
+                    :text="line.free ? `FREE, ${line.deal}` : line.deal"
                     variant="flat"
                   />
                 </template>
