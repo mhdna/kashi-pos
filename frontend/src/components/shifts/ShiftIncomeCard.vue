@@ -322,7 +322,6 @@ async function confirmManager() {
   padding: 14px var(--income-inset);
   border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 0;
-  background: rgba(67, 160, 71, 0.13);
 }
 .payment-icon-slot {
   display: inline-flex;
