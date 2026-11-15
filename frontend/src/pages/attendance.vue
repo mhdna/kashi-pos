@@ -1,23 +1,11 @@
 <template>
   <div class="attendance-page pa-4">
-    <div :class="['status-card mb-4', status.reachable ? 'status-card--ok' : 'status-card--down']">
-      <k-icon :icon="status.reachable ? 'mdi-lan-connect' : 'mdi-lan-disconnect'" size="40" />
-      <div class="status-card-text">
-        <div class="status-card-title">
-          {{ status.reachable ? "Attendance machine is working" : "Attendance machine is not connected" }}
-        </div>
-        <div v-if="status.reachable" class="status-card-hint">
-          <k-icon icon="mdi-check-circle" size="18" />Clock-ins are being saved
-        </div>
-        <div v-else class="status-card-hint">
-          <k-icon icon="mdi-ethernet-cable" size="18" />Check the cable
-          <k-icon icon="mdi-account-tie" size="18" class="ms-3" />Tell your manager
-        </div>
-        <div v-if="auth.isAdmin && !status.reachable && status.message" class="text-caption mt-1">
-          {{ status.message }}
-        </div>
-      </div>
-      <div class="status-face" aria-hidden="true">{{ status.reachable ? ":)" : ":(" }}</div>
+    <div :class="['status-line mb-4', status.reachable ? 'status-line--ok' : 'status-line--down']">
+      <span class="status-line__state">{{ status.reachable ? "Machine connected" : "Machine not connected" }}</span>
+      <span v-if="!status.reachable" class="text-medium-emphasis">Check the cable or tell your manager.</span>
+      <span v-if="auth.isAdmin && !status.reachable && status.message" class="text-caption text-medium-emphasis">
+        {{ status.message }}
+      </span>
     </div>
     <div class="d-flex align-center mb-4 ga-3">
       <k-text-field
@@ -43,14 +31,13 @@
       /><k-spacer /><k-btn
         v-if="auth.isLoggedIn"
         variant="tonal"
-        prepend-icon="mdi-message-draw"
         class="me-1"
         :disabled="!rows.length"
         @click="openRequestDialog"
         >Request change</k-btn
       ><k-menu v-if="auth.isLoggedIn" :close-on-content-click="false">
         <template #activator="{ props }">
-          <k-btn v-bind="props" variant="tonal" prepend-icon="mdi-clipboard-check-outline" class="me-1">
+          <k-btn v-bind="props" variant="tonal" class="me-1">
             Requests<span v-if="pendingComplaints.length" class="ms-1">({{ pendingComplaints.length }})</span>
           </k-btn>
         </template>
@@ -59,7 +46,7 @@
           <k-divider />
           <k-list v-if="pendingComplaints.length" density="compact">
             <k-list-item v-for="item in pendingComplaints" :key="item.id">
-              <k-list-item-title>{{ item.employeeName }} · {{ item.date }}</k-list-item-title>
+              <k-list-item-title>{{ item.employeeName }}, {{ item.date }}</k-list-item-title>
               <k-list-item-subtitle>{{ requestSummary(item) }}</k-list-item-subtitle>
               <template v-if="managerApproval" #append>
                 <k-btn size="small" variant="text" color="error" @click="askManager({ kind: 'review', request: item, approved: false })">Reject</k-btn>
@@ -73,7 +60,6 @@
         v-if="auth.isAdmin"
         variant="tonal"
         class="me-2"
-        prepend-icon="mdi-download"
         @click="exportMonth"
         >Export month</k-btn
       ><k-btn icon="mdi-refresh" variant="text" :loading="loading" @click="refresh()" />
@@ -100,7 +86,7 @@
           <div class="attendance-item__main">
             <div class="attendance-identity">
               <k-list-item-title class="font-weight-bold">{{ item.employeeName }}</k-list-item-title>
-              <k-list-item-subtitle>Attendance ID: {{ item.userId || "—" }}</k-list-item-subtitle>
+              <k-list-item-subtitle v-if="item.userId">Attendance ID {{ item.userId }}</k-list-item-subtitle>
             </div>
             <div class="attendance-item__body">
               <div class="attendance-events">
@@ -281,7 +267,7 @@ const cashierHistory = ref(false);
 const canBrowseHistory = computed(() => auth.isAdmin || cashierHistory.value);
 const complaintEventOptions = computed(() =>
   (complaintEmployee.value?.events ?? []).map((event: any, index: number) => ({
-    title: `${eventKind(event, index)} · ${event.time}`,
+    title: `${eventKind(event, index)} ${event.time}`,
     value: event.id,
   })),
 );
@@ -502,7 +488,7 @@ const managerDialogText = computed(() => {
   if (action.kind === "add") {
     return `Record ${complaintType.value} ${correctedTime()} on ${selectedDate.value} for ${complaintEmployee.value?.employeeName ?? "this person"}.`;
   }
-  return `${action.approved ? "Approve" : "Reject"}: ${action.request.employeeName} · ${action.request.date} -- ${requestSummary(action.request)}.`;
+  return `${action.approved ? "Approve" : "Reject"}: ${action.request.employeeName}, ${action.request.date}: ${requestSummary(action.request)}.`;
 });
 function askManager(action: ManagerAction) {
   Object.assign(managerDialog, { show: true, password: "", error: "", saving: false, action });
@@ -585,57 +571,20 @@ onUnmounted(() => {
 .attendance-empty {
   grid-column: 1 / -1;
 }
-.status-card {
+.status-line {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
-  border-radius: 16px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
 }
-.status-card--ok {
-  background-color: #e3f4f4;
-  color: #1f6b6b;
-}
-.status-card--down {
-  background-color: #fde4dc;
-  color: #a8320f;
-}
-.status-card-text {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.status-card-title {
-  font-size: 1.25rem;
+.status-line__state {
   font-weight: 700;
 }
-.status-card-hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  font-weight: 500;
+.status-line--ok .status-line__state {
+  color: #2e7d32;
 }
-/* Face styling after the cashier-provided reference: round, Roboto light. */
-.status-face {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  font-family: "Roboto", sans-serif;
-  font-size: 44px;
-  font-weight: 300;
-  line-height: 1;
-}
-.status-card--ok .status-face {
-  background-color: #9fdada;
-  color: #2f8f8f;
-}
-.status-card--down .status-face {
-  background-color: #f57149;
-  color: #5d1a06;
+.status-line--down .status-line__state {
+  color: #c62828;
 }
 /* Flex rather than v-list-item's own grid: inside the two-column list grid,
    the nested grid sized the row before the punches wrapped, so a day with
@@ -643,7 +592,6 @@ onUnmounted(() => {
    with them. */
 .attendance-item {
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
-  min-height: 180px;
   margin: 0;
   display: flex;
   align-items: flex-start;
@@ -689,34 +637,23 @@ onUnmounted(() => {
 }
 .attendance-event {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: 6px;
   flex: 0 0 92px;
   width: 92px;
-  box-sizing: border-box;
-  padding: 5px 16px;
-  text-align: center;
-  border: 1px solid transparent;
-  border-radius: 8px;
-}
-.attendance-event--in {
-  color: #1b5e20;
-  background: rgba(76, 175, 80, 0.14);
-  border-color: rgba(76, 175, 80, 0.3);
-}
-.attendance-event--out {
-  color: #8a3500;
-  background: rgba(255, 152, 0, 0.14);
-  border-color: rgba(255, 152, 0, 0.3);
+  padding: 4px 0;
 }
 .attendance-event__label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.attendance-event--in .attendance-event__label {
+  color: #2e7d32;
+}
+.attendance-event--out .attendance-event__label {
+  color: #c62828;
 }
 .attendance-event__time {
-  font-weight: 700;
   white-space: nowrap;
 }
 .attendance-time-field {
