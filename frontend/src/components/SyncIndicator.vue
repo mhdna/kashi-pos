@@ -77,20 +77,6 @@ function openSyncSettings() {
     <span class="sync-status-subslot">
       <span v-if="shown.sub" class="sync-status-sub" data-test="sync-sub">{{ shown.sub }}</span>
     </span>
-    <span class="sync-status-links">
-      <k-icon
-        :icon="shown.internetIcon"
-        size="16"
-        :class="`link-dot link-dot--${shown.internetTone}`"
-        data-test="sync-internet"
-      />
-      <k-icon
-        :icon="shown.liveIcon"
-        size="16"
-        :class="`link-dot link-dot--${shown.liveTone}`"
-        data-test="sync-live"
-      />
-    </span>
   </div>
 
   <k-dialog v-model="open" max-width="520">
@@ -176,24 +162,11 @@ function openSyncSettings() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The two connection icons sit side by side; only their colour shows the state. */
-.sync-status-links {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 2px;
-  padding: 3px 9px;
-}
 .sync-status--ok { color: #66bb6a; }
 .sync-status--busy { color: #ffb74d; }
 .sync-status--attention { color: #ffd54f; }
 .sync-status--bad { color: #ef5350; }
 .sync-status--off { color: #9e9e9e; }
-.link-dot--ok { color: #66bb6a; }
-.link-dot--attention { color: #ffd54f; }
-.link-dot--bad { color: #ef5350; }
-.link-dot--off { color: #9e9e9e; }
-.link-dot--busy { color: #ffb74d; }
 .sync-dialog-head { display: flex; align-items: center; gap: 12px; }
 .sync-dialog-title { margin: 0 0 16px; opacity: 0.75; }
 .sync-table { width: 100%; border-collapse: collapse; }

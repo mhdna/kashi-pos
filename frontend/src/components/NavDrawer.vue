@@ -56,6 +56,8 @@
       <div class="device-panel" role="button" aria-label="Devices" @click="devicesOpen = true">
         <span class="device-panel-title">Devices</span>
         <div class="device-status">
+          <!-- Internet and the live link to central, with the devices. -->
+          <ConnectionIcons />
           <k-icon
             v-for="device in deviceIcons"
             :key="device.kind"
@@ -176,6 +178,7 @@ import { usePageUnlocks } from "@/composables/usePageUnlocks";
 import { useVisitorCounter } from "@/composables/useVisitorCounter";
 import FlipNumber from "@/components/FlipNumber.vue";
 import SyncIndicator from "@/components/SyncIndicator.vue";
+import ConnectionIcons from "@/components/ConnectionIcons.vue";
 import { useDeviceStatus } from "@/composables/useDeviceStatus";
 import DevicesDialog from "@/components/DevicesDialog.vue";
 import { useAttendanceStatus } from "@/composables/useAttendanceStatus";
@@ -363,7 +366,7 @@ const items = computed(() => {
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px 8px;
-  /* Two icons a row: scanner and printer, keyboard and mouse under them. */
+  /* Two icons a row: internet and live link, scanner and printer, keyboard and mouse. */
   width: 56px;
 }
 .device-status--ok {

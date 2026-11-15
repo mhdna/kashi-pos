@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
-import { ref } from "vue";
+import { defineComponent, h, ref } from "vue";
 import ui from "@/ui";
 import { ACTIVITY_HOLD_MS } from "@/lib/linkStatus";
 
@@ -24,6 +24,11 @@ vi.mock("@/stores/resync", () => ({ useResyncStore: () => ({ running: false, pro
 vi.mock("vue-router", () => ({ useRouter: () => ({ push }) }));
 
 import SyncIndicator from "./SyncIndicator.vue";
+import ConnectionIcons from "./ConnectionIcons.vue";
+
+// The sync light and, in the Devices box, the internet and live-link icons:
+// mounted together, as the nav rail shows them.
+const Rail = defineComponent({ render: () => h("div", [h(SyncIndicator), h(ConnectionIcons)]) });
 
 let wrapper: VueWrapper<any> | null = null;
 afterEach(() => {
@@ -38,12 +43,19 @@ afterEach(() => {
 
 function show() {
   setActivePinia(createPinia());
-  wrapper = mount(SyncIndicator, { global: { plugins: [ui] }, attachTo: document.body });
+  wrapper = mount(Rail, { global: { plugins: [ui] }, attachTo: document.body });
   return wrapper;
 }
 const text = (sel: string) => wrapper!.find(`[data-test="${sel}"]`).text();
 
 describe("SyncIndicator", () => {
+  it("leaves the internet and live-link icons to the Devices box", () => {
+    setActivePinia(createPinia());
+    wrapper = mount(SyncIndicator, { global: { plugins: [ui] }, attachTo: document.body });
+    expect(wrapper.find('[data-test="sync-internet"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="sync-live"]').exists()).toBe(false);
+  });
+
   it("healthy: Synced, both link icons green, no spinner or extra line", () => {
     show();
     expect(text("sync-word")).toBe("Synced");

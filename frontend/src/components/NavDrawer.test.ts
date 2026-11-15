@@ -17,6 +17,7 @@ vi.mock("@/composables/useVisitorCounter", () => ({
 vi.mock("@/composables/useDeviceStatus", () => ({ useDeviceStatus: () => ({ devices: ref([]) }) }));
 vi.mock("@/composables/useAttendanceStatus", () => ({ useAttendanceStatus: () => ({ status: ref({ reachable: true }) }) }));
 vi.mock("@/components/SyncIndicator.vue", () => ({ default: { template: "<div />" } }));
+vi.mock("@/components/ConnectionIcons.vue", () => ({ default: { template: '<span data-test="connection-icons" />' } }));
 vi.mock("@/components/DevicesDialog.vue", () => ({ default: { template: "<div />" } }));
 const Quit = vi.fn();
 vi.mock("../../wailsjs/runtime/runtime", () => ({ Quit: (...a: unknown[]) => Quit(...a) }));
@@ -113,5 +114,15 @@ describe("Quit menu", () => {
     await click('[data-test="quit-logout"]');
     expect(logout).toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith("/login");
+  });
+});
+
+describe("Devices box", () => {
+  it("holds the internet and live-link icons with the devices", async () => {
+    wrapper = mount(NavDrawer, { global: { plugins: [ui] }, attachTo: document.body });
+    await flushPromises();
+    const panel = q(".device-panel")!;
+    expect(panel.querySelector('[data-test="connection-icons"]')).toBeTruthy();
+    expect(panel.querySelector(".device-status")!.contains(panel.querySelector('[data-test="connection-icons"]'))).toBe(true);
   });
 });
