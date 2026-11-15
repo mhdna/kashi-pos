@@ -295,7 +295,7 @@ function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[
   }
 
   const work = workLine(link);
-  rows.push({ key: "now", label: "Right now", state: work ? "ok" : "idle", value: work || "Nothing to do", detail: "" });
+  rows.push({ key: "now", label: "Right now", state: work ? "ok" : "idle", value: work || "None", detail: "" });
 
   rows.push({
     key: "received", label: "Last update from central", state: link.lastPullError ? "warn" : "idle",
@@ -308,7 +308,7 @@ function buildRows(link: LinkInfo, queue: QueueInfo | null, nowMs: number): Row[
     rows.push({
       key: "queue", label: "Waiting to send",
       state: queue.failed > 0 ? "warn" : "idle",
-      value: queued === 0 && queue.failed === 0 ? "Nothing" : `${queued} waiting${queue.failed > 0 ? `, ${queue.failed} not accepted` : ""}`,
+      value: queued === 0 && queue.failed === 0 ? "None" : `${queued} waiting${queue.failed > 0 ? `, ${queue.failed} not accepted` : ""}`,
       detail: queue.failed > 0 ? "Not-accepted records are safe on this till; open Settings > Sync to retry." : "",
     });
   }

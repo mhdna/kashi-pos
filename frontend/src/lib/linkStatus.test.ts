@@ -158,10 +158,10 @@ describe("the detail rows", () => {
     expect(row(s, "kashi")).toMatchObject({ state: "ok", value: "Reachable", detail: "Last answer just now" });
     expect(row(s, "live")).toMatchObject({ state: "ok", value: "Connected" });
     expect(row(s, "live").detail).toBe("Connected 10 min ago, heard from central 10 s ago");
-    expect(row(s, "now")).toMatchObject({ state: "idle", value: "Nothing to do" });
+    expect(row(s, "now")).toMatchObject({ state: "idle", value: "None" });
     expect(row(s, "received").value).toBe("20 s ago");
     expect(row(s, "sent").value).toBe("40 s ago");
-    expect(row(s, "queue").value).toBe("Nothing");
+    expect(row(s, "queue").value).toBe("None");
   });
 
   it("the live row tells the reported case in words and when it retries", () => {
