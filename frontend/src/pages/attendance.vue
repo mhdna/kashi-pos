@@ -44,13 +44,51 @@
         <k-card min-width="390" max-width="520">
           <k-card-title class="d-flex align-center">Attendance requests<k-spacer /><span class="text-caption text-medium-emphasis">{{ pendingComplaints.length }} pending</span></k-card-title>
           <k-divider />
+          <div v-if="managerApproval && pendingComplaints.length" class="requests-bulk">
+            <k-checkbox
+              :model-value="allRequestsSelected"
+              density="compact"
+              hide-details
+              :label="selectedRequests.length ? `${selectedRequests.length} selected` : 'Select all'"
+              data-test="requests-select-all"
+              @update:model-value="selectAllRequests"
+            />
+            <k-spacer />
+            <k-btn
+              size="small"
+              variant="flat"
+              color="error"
+              :disabled="!selectedRequests.length"
+              data-test="requests-reject-selected"
+              @click="askManager({ kind: 'review', requests: selectedRequests, approved: false })"
+              >Reject selected</k-btn
+            >
+            <k-btn
+              size="small"
+              variant="flat"
+              color="primary"
+              :disabled="!selectedRequests.length"
+              data-test="requests-approve-selected"
+              @click="askManager({ kind: 'review', requests: selectedRequests, approved: true })"
+              >Approve selected</k-btn
+            >
+          </div>
           <k-list v-if="pendingComplaints.length" density="compact">
             <k-list-item v-for="item in pendingComplaints" :key="item.id">
+              <template v-if="managerApproval" #prepend>
+                <k-checkbox
+                  :model-value="selectedRequestIds.has(item.id)"
+                  density="compact"
+                  hide-details
+                  :data-test="`request-select-${item.id}`"
+                  @update:model-value="(on: boolean) => toggleRequest(item.id, on)"
+                />
+              </template>
               <k-list-item-title>{{ item.employeeName }}, {{ item.date }}</k-list-item-title>
               <k-list-item-subtitle>{{ requestSummary(item) }}</k-list-item-subtitle>
               <template v-if="managerApproval" #append>
-                <k-btn size="small" variant="flat" color="error" @click="askManager({ kind: 'review', request: item, approved: false })">Reject</k-btn>
-                <k-btn size="small" variant="flat" color="primary" @click="askManager({ kind: 'review', request: item, approved: true })">Approve</k-btn>
+                <k-btn size="small" variant="flat" color="error" @click="askManager({ kind: 'review', requests: [item], approved: false })">Reject</k-btn>
+                <k-btn size="small" variant="flat" color="primary" @click="askManager({ kind: 'review', requests: [item], approved: true })">Approve</k-btn>
               </template>
             </k-list-item>
           </k-list>
@@ -474,7 +512,22 @@ async function loadManagerApproval() {
     managerApproval.value = false;
   }
 }
-type ManagerAction = { kind: "review"; request: any; approved: boolean } | { kind: "add" };
+type ManagerAction = { kind: "review"; requests: any[]; approved: boolean } | { kind: "add" };
+// Requests ticked in the Requests menu, to approve or reject together.
+const selectedRequestIds = ref(new Set<number>());
+const selectedRequests = computed(() => pendingComplaints.value.filter((item: any) => selectedRequestIds.value.has(item.id)));
+const allRequestsSelected = computed(
+  () => pendingComplaints.value.length > 0 && selectedRequests.value.length === pendingComplaints.value.length,
+);
+function toggleRequest(id: number, on: boolean) {
+  const next = new Set(selectedRequestIds.value);
+  if (on) next.add(id);
+  else next.delete(id);
+  selectedRequestIds.value = next;
+}
+function selectAllRequests(on: boolean) {
+  selectedRequestIds.value = new Set(on ? pendingComplaints.value.map((item: any) => item.id) : []);
+}
 const managerDialog = reactive<{ show: boolean; password: string; error: string; saving: boolean; action: ManagerAction | null }>({
   show: false,
   password: "",
@@ -488,7 +541,12 @@ const managerDialogText = computed(() => {
   if (action.kind === "add") {
     return `Record ${complaintType.value} ${correctedTime()} on ${selectedDate.value} for ${complaintEmployee.value?.employeeName ?? "this person"}.`;
   }
-  return `${action.approved ? "Approve" : "Reject"}: ${action.request.employeeName}, ${action.request.date}: ${requestSummary(action.request)}.`;
+  const verb = action.approved ? "Approve" : "Reject";
+  if (action.requests.length === 1) {
+    const request = action.requests[0];
+    return `${verb}: ${request.employeeName}, ${request.date}: ${requestSummary(request)}.`;
+  }
+  return `${verb} ${action.requests.length} requests.`;
 });
 function askManager(action: ManagerAction) {
   Object.assign(managerDialog, { show: true, password: "", error: "", saving: false, action });
@@ -510,7 +568,19 @@ async function confirmManager() {
       );
       complaintDialog.value = false;
     } else {
-      await ApproveAttendanceComplaint(action.request.id, action.approved, managerDialog.password);
+      // One at a time, so a failure says how far it got; the ones done stay done.
+      let done = 0;
+      try {
+        for (const request of action.requests) {
+          await ApproveAttendanceComplaint(request.id, action.approved, managerDialog.password);
+          done++;
+          toggleRequest(request.id, false);
+        }
+      } catch (error) {
+        if (done > 0) await Promise.all([loadHistory(), refresh(false)]);
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(done > 0 ? `${done} of ${action.requests.length} done. ${message}` : message);
+      }
     }
     managerDialog.show = false;
     await Promise.all([loadHistory(), refresh(false)]);
@@ -570,6 +640,12 @@ onUnmounted(() => {
 }
 .attendance-empty {
   grid-column: 1 / -1;
+}
+.requests-bulk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
 }
 .status-line {
   display: flex;
