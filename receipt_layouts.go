@@ -31,6 +31,16 @@ func percent(v float64) string { return fmt.Sprintf("%.0f%%", v) }
 
 func qtyText(q float64) string { return fmt.Sprintf("%.0f", q) }
 
+// itemCodeText is the code a receipt prints under an item's name, so staff
+// can tell apart two products that share a name: the item's own code, or
+// its barcode when it has no code.
+func itemCodeText(item invoiceItem) string {
+	if code := strings.TrimSpace(item.Code); code != "" {
+		return code
+	}
+	return strings.TrimSpace(item.Barcode)
+}
+
 // variantText joins an item's colour and size ("Navy · M"), or "".
 func variantText(item invoiceItem) string {
 	var parts []string
@@ -137,6 +147,10 @@ func (c *receiptCanvas) drawGrid(y int, cfg gridConfig) (int, float64, float64) 
 			}
 		}
 		y = bottom + 4 + c.style.Gap/2
+		if code := itemCodeText(item); code != "" {
+			y, _ = c.textRole(c.margin+12, y, code, 10, roleBody, image.Black)
+			y += 4 + c.style.Gap/2
+		}
 		subline := cfg.subline
 		if narrow {
 			// what the hidden middle column carried
@@ -207,8 +221,8 @@ func drawClassicDetailed(c *receiptCanvas, y int) (int, float64, float64) {
 		discountTotal += discount
 		y, _ = c.itemRow(y, item.Name, dollars(net), 11)
 		y += 5
-		if item.Code != "" {
-			y, _ = c.indented(y, "Code: "+item.Code, 10)
+		if code := itemCodeText(item); code != "" {
+			y, _ = c.indented(y, "Code: "+code, 10)
 			y += 3
 		}
 		qty := fmt.Sprintf("%.0f x $%.2f", item.Qty, item.Price)
@@ -325,6 +339,9 @@ func drawSupermarketRegister(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 			y = t.step(bottom)
 		}
+		if code := itemCodeText(item); code != "" {
+			y = t.step(t.put(y, 2, code, roleBody))
+		}
 		if item.Qty != 1 || item.Discount > 0 {
 			detail := fmt.Sprintf("  %s @ %s", qtyText(item.Qty), plainAmount(item.Price))
 			bottom := t.put(y, 0, detail, roleBody)
@@ -361,6 +378,9 @@ func drawSupermarketQuantity(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 			y = t.step(bottom)
 		}
+		if code := itemCodeText(item); code != "" {
+			y = t.step(t.put(y, qtyW+1, code, roleBody))
+		}
 		if item.Discount > 0 {
 			bottom := t.put(y, qtyW+1, fmt.Sprintf("DISC %s", percent(item.Discount)), roleBody)
 			t.putRight(y, t.cols, "-"+plainAmount(discount), roleBody)
@@ -390,11 +410,7 @@ func drawSupermarketCodes(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 			y = t.step(bottom)
 		}
-		code := item.Code
-		if code == "" {
-			code = item.Barcode
-		}
-		detail := fmt.Sprintf("  %s", code)
+		detail := "  " + itemCodeText(item)
 		bottom := t.put(y, 0, detail, roleBody)
 		right := fmt.Sprintf("%s x %s", qtyText(item.Qty), plainAmount(item.Price))
 		if item.Discount > 0 {
@@ -431,6 +447,9 @@ func drawTypewriterTape(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 			y = t.step(t.put(y, nameStart, line, roleBody))
 		}
+		if code := itemCodeText(item); code != "" {
+			y = t.step(t.put(y, nameStart, code, roleBody))
+		}
 		if item.Discount > 0 {
 			bottom := t.put(y, nameStart, fmt.Sprintf("LESS %s", percent(item.Discount)), roleBody)
 			t.putRight(y, t.cols, "-"+plainAmount(discount), roleBody)
@@ -460,6 +479,9 @@ func drawTypewriterItemized(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 			y = t.step(bottom)
 		}
+		if code := itemCodeText(item); code != "" {
+			y = t.step(t.put(y, 2, code, roleBody))
+		}
 		bottom := t.put(y, 2, fmt.Sprintf("%s @ %s", qtyText(item.Qty), plainAmount(item.Price)), roleBody)
 		if item.Discount > 0 {
 			t.putRight(y, t.cols, plainAmount(gross), roleBody)
@@ -484,6 +506,10 @@ func drawBoutiqueCentered(c *receiptCanvas, y int) (int, float64, float64) {
 			y, _ = c.centerRole(y, line, 14, roleName)
 		}
 		y += 1
+		if code := itemCodeText(item); code != "" {
+			y, _ = c.centerRole(y, code, 10, roleBody)
+			y += 2
+		}
 		if variant := variantText(item); variant != "" {
 			y, _ = c.centerRole(y, variant, 10, roleBody)
 			y += 2
@@ -525,6 +551,10 @@ func drawBoutiqueLedger(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 		}
 		y = bottom + 1
+		if code := itemCodeText(item); code != "" {
+			y, _ = c.textRole(c.margin, y, code, 10, roleBody, image.Black)
+			y += 1
+		}
 		detail := fmt.Sprintf("%s × %s", qtyText(item.Qty), dollars(item.Price))
 		if item.Discount > 0 {
 			detail += fmt.Sprintf(" · -%s", percent(item.Discount))
@@ -563,6 +593,10 @@ func drawModernClean(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 		}
 		y = bottom + 3
+		if code := itemCodeText(item); code != "" {
+			y, _ = c.textRole(c.margin, y, code, 9.5, roleBody, image.Black)
+			y += 2
+		}
 		detail := fmt.Sprintf("%s × %s", qtyText(item.Qty), dollars(item.Price))
 		if variant := variantText(item); variant != "" {
 			detail = strings.ReplaceAll(variant, " · ", " / ") + "  ·  " + detail
@@ -621,6 +655,10 @@ func drawBistroMenu(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 		}
 		y = bottom + 3
+		if code := itemCodeText(item); code != "" {
+			y, _ = c.textRole(c.margin+14, y, code, 9.5, roleBody, image.Black)
+			y += 2
+		}
 		if item.Qty != 1 || item.Discount > 0 {
 			detail := fmt.Sprintf("%s × %s", qtyText(item.Qty), dollars(item.Price))
 			if item.Discount > 0 {
@@ -662,6 +700,10 @@ func drawBistroQuantity(c *receiptCanvas, y int) (int, float64, float64) {
 			}
 		}
 		y = bottom + 3
+		if code := itemCodeText(item); code != "" {
+			y, _ = c.textRole(nameX, y, code, 9.5, roleBody, image.Black)
+			y += 2
+		}
 		if item.Discount > 0 {
 			y, _ = c.textRole(nameX, y, fmt.Sprintf("%s off", percent(item.Discount)), 9.5, roleBody, image.Black)
 			y += 2

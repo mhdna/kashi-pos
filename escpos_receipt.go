@@ -66,6 +66,9 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 		subtotal += gross
 		totalDiscount += discount
 		writeESCPosLine(&out, sanitizeESCPos(item.Name), fmt.Sprintf("$%.2f", lineTotal), columns)
+		if code := itemCodeText(item); code != "" {
+			writeESCPosText(&out, "  "+sanitizeESCPos(code))
+		}
 		qtyLine := fmt.Sprintf("%.0f x $%.2f", item.Qty, item.Price)
 		if item.Discount > 0 {
 			qtyLine += fmt.Sprintf(" (-%.0f%%)", item.Discount)

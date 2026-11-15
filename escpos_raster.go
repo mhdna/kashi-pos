@@ -375,12 +375,19 @@ func (c *receiptCanvas) text(x, y int, value string, size float64, bold, title b
 	return c.textRole(x, y, value, size, fontRoleFor(bold, title), image.Black)
 }
 
+// receiptTextDrawn, when set (tests only), hears every piece of text the
+// raster receipt draws and the y it is drawn at.
+var receiptTextDrawn func(value string, y int)
+
 func (c *receiptCanvas) textRole(x, y int, value string, size float64, role fontRole, ink image.Image) (int, error) {
 	face, err := c.faceRole(size, role)
 	if err != nil {
 		return y, err
 	}
 	metrics := face.Metrics()
+	if receiptTextDrawn != nil {
+		receiptTextDrawn(value, y)
+	}
 	drawer := font.Drawer{Dst: c.img, Src: ink, Face: face, Dot: fixed.P(x, y+metrics.Ascent.Ceil())}
 	drawer.DrawString(value)
 	title := role == roleTitle || role == roleTitleBold
