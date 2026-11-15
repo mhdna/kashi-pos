@@ -12,6 +12,8 @@ describe("attendance page", () => {
     expect(src).toContain('"Machine connected"');
     expect(src).toContain('"Machine not connected"');
     expect(src).not.toMatch(/status-face|status-card|":\)"/);
+    expect(src).toContain("Check the cable.");
+    expect(src).not.toMatch(/tell your manager/i);
   });
 
   it("IN and OUT are green and red text with no background", () => {

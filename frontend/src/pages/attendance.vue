@@ -2,7 +2,7 @@
   <div class="attendance-page pa-4">
     <div :class="['status-line mb-4', status.reachable ? 'status-line--ok' : 'status-line--down']">
       <span class="status-line__state">{{ status.reachable ? "Machine connected" : "Machine not connected" }}</span>
-      <span v-if="!status.reachable" class="text-medium-emphasis">Check the cable or tell your manager.</span>
+      <span v-if="!status.reachable" class="text-medium-emphasis">Check the cable.</span>
       <span v-if="auth.isAdmin && !status.reachable && status.message" class="text-caption text-medium-emphasis">
         {{ status.message }}
       </span>
