@@ -877,7 +877,7 @@ defineExpose({
 }
 .calculator-sign {
   flex: 0 0 auto;
-  width: 56px;
+  width: 40px;
   min-width: 0 !important;
   height: auto !important;
   padding: 0 !important;
