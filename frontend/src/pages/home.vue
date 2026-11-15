@@ -232,7 +232,7 @@
             rounded="lg"
             width="180"
             height="110"
-            elevation="4"
+            elevation="0"
           >
             <k-icon icon="mdi-barcode-scan" size="42" class="mb-2" />
             <div class="empty-cart-label text-subtitle-2">
