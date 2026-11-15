@@ -432,21 +432,6 @@ const emit = defineEmits<{
   align-items: center;
 }
 
-/* Thin vertical lines between Day, Visitors and Total, full row height, in
-   the header and every row. */
-.mi-visitors-head,
-.mi-visitors-cell,
-.mi-total-head,
-.mi-total {
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-  padding-inline-start: 12px;
-  border-inline-start: 1px solid rgba(128, 128, 128, 0.25);
-}
-.mi-total {
-  justify-content: flex-end;
-}
 .monthly-income-row {
   min-height: var(--mi-row);
   padding: 0 12px 0 0;
