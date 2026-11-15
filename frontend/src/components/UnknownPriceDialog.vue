@@ -148,14 +148,14 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
   color: rgb(var(--k-theme-on-surface));
 }
 .unknown-name-display {
-  min-height: 64px;
+  min-height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 12px 20px;
   border: 2px solid rgba(var(--k-theme-primary), 0.7);
   border-radius: 10px;
-  font-size: 2rem;
+  font-size: 1.5rem;
   line-height: 1.2;
   text-align: center;
   overflow-wrap: anywhere;
@@ -179,18 +179,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
   min-width: 0;
   padding: 0;
 }
-.unknown-name-keyboard :deep(.inline-keyboard-key) {
-  height: 58px;
-  max-width: 80px;
-  font-size: 2rem;
-}
-.unknown-name-keyboard :deep(.inline-keyboard-actions > .k-btn) {
-  height: 58px;
-  min-height: 58px;
-  font-size: 1.8rem;
-}
-.unknown-name-keyboard :deep(.inline-keyboard-row) {
-  gap: 6px;
-  margin-bottom: 6px;
+/* The same keyboard, at the same width, as the new client's name. */
+.unknown-name-keyboard {
+  margin-inline: auto;
+  max-width: 700px;
 }
 </style>
