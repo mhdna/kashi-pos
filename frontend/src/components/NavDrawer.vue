@@ -54,7 +54,6 @@
       <SyncIndicator />
 
       <div class="device-panel" role="button" aria-label="Devices" @click="devicesOpen = true">
-        <span class="device-panel-title">Devices</span>
         <div class="device-status">
           <!-- Internet and the live link to central, with the devices. -->
           <ConnectionIcons />
@@ -354,12 +353,6 @@ const items = computed(() => {
   border: 1px solid #243653;
   border-radius: 8px;
   cursor: pointer;
-}
-.device-panel-title {
-  font-size: 0.65rem;
-  font-weight: 700;
-  line-height: 1.1;
-  color: #9e9e9e;
 }
 .device-status {
   display: flex;

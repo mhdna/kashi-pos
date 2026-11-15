@@ -125,4 +125,10 @@ describe("Devices box", () => {
     expect(panel.querySelector('[data-test="connection-icons"]')).toBeTruthy();
     expect(panel.querySelector(".device-status")!.contains(panel.querySelector('[data-test="connection-icons"]'))).toBe(true);
   });
+
+  it("has no Devices title, just the icons", async () => {
+    wrapper = mount(NavDrawer, { global: { plugins: [ui] }, attachTo: document.body });
+    await flushPromises();
+    expect(q(".device-panel")!.textContent).not.toContain("Devices");
+  });
 });
