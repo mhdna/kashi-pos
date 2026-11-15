@@ -11,9 +11,15 @@
       <k-list density="compact" class="pa-0">
         <k-list-item v-for="item in collectedItems" :key="item.accountName">
         <template #prepend>
-          <k-avatar :color="paymentAccentColor({ name: item.accountName, color: item.color })" variant="tonal" size="32">
-            <k-icon :icon="paymentIcon(item.accountName)" size="18" data-test="payment-icon" />
-          </k-avatar>
+          <!-- The method's icon in its colour, with no tinted circle behind it. -->
+          <span class="payment-icon-slot">
+            <k-icon
+              :icon="paymentIcon(item.accountName)"
+              :color="paymentAccentColor({ name: item.accountName, color: item.color })"
+              size="20"
+              data-test="payment-icon"
+            />
+          </span>
         </template>
         <template #title>
           {{ item.accountName }}
@@ -316,7 +322,12 @@ async function confirmManager() {
   padding: 14px var(--income-inset);
   border-top: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));
   border-radius: 0;
-  background: rgba(67, 160, 71, 0.13);
+}
+.payment-icon-slot {
+  display: inline-flex;
+  justify-content: center;
+  width: 32px;
+  margin-inline-end: 16px;
 }
 .shift-total-label {
   font-size: 0.95rem;
