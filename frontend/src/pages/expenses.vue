@@ -62,9 +62,9 @@
             <k-menu location="bottom start">
               <template #activator="{ props: menuProps }">
                 <button type="button" class="overview-card overview-card--edit" v-bind="menuProps" :disabled="categorySaving">
-                  <k-avatar size="36" :color="categoryOf(selected.category)?.color || 'blue-grey'" variant="tonal">
-                    <k-icon :icon="categoryOf(selected.category)?.icon || 'mdi-tag-outline'" size="20" />
-                  </k-avatar>
+                  <span class="category-icon">
+                    <k-icon :icon="categoryOf(selected.category)?.icon || 'mdi-tag-outline'" :color="categoryOf(selected.category)?.color || 'blue-grey'" size="24" />
+                  </span>
                   <div class="overview-value">{{ selected.category || "No category" }}</div>
                   <k-progress-circular v-if="categorySaving" indeterminate size="16" width="2" class="ms-auto" />
                   <k-icon v-else icon="mdi-pencil-outline" size="18" class="ms-auto text-medium-emphasis" />
@@ -175,9 +175,9 @@
                 :class="{ 'category-tile--on': form.category === category.name }"
                 @click="form.category = category.name"
               >
-                <k-avatar size="36" :color="category.color || 'blue-grey'" variant="tonal">
-                  <k-icon :icon="category.icon || 'mdi-tag-outline'" size="20" />
-                </k-avatar>
+                <span class="category-icon">
+                  <k-icon :icon="category.icon || 'mdi-tag-outline'" :color="category.color || 'blue-grey'" size="24" />
+                </span>
                 <span class="category-name">{{ category.name }}</span>
               </button>
             </div>
@@ -624,5 +624,14 @@ onBeforeUnmount(() => {
 }
 .payment-amount {
   flex: 1 1 45%;
+}
+/* A category's icon in its colour, with no tinted circle behind it. */
+.category-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
 }
 </style>
