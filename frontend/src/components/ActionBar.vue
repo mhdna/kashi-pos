@@ -46,7 +46,8 @@
       height="96"
       :color="checkoutColor"
       rounded="lg"
-      variant="text"
+      variant="outlined"
+      :style="checkoutButtonStyle"
       :class="{ 'checkout-button--blocked': !canCheckout }"
       @click="$emit('checkout')"
     >
@@ -108,6 +109,11 @@ const checkoutLabel = computed(() =>
   mode.value === "exchange" ? "Exchange" : mode.value === "settlement" ? "Change Settlement" : "Check Out",
 );
 const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "green-darken-3"));
+const checkoutButtonStyle = computed(() =>
+  mode.value === "exchange"
+    ? "background-color: transparent !important; border-color: rgba(255, 152, 0, 0.5) !important"
+    : "background-color: transparent !important; border-color: #2e7d32 !important; border-width: 2px !important",
+);
 
 const dialog = ref(false);
 const action = ref<"hold" | "void">("hold");
