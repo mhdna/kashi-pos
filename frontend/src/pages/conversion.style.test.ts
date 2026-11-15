@@ -31,3 +31,11 @@ describe("nav", () => {
     expect(nav).not.toMatch(/t: "Conversion"/);
   });
 });
+
+describe("stats page surfaces", () => {
+  it("the headline card, tile icons and buy rates have no tinted background", () => {
+    expect(page).toMatch(/<k-card class="headline[^"]*" rounded="lg" variant="outlined">/);
+    expect(page).not.toMatch(/<k-avatar/);
+    expect(page).not.toMatch(/<k-chip/);
+  });
+});

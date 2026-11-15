@@ -26,9 +26,7 @@
           @change="refresh"
         />
       </template>
-      <k-chip v-else-if="report" prepend-icon="mdi-calendar-today" size="small" variant="tonal"
-        >This month</k-chip
-      >
+      <span v-else-if="report" class="text-body-2 text-medium-emphasis">This month</span>
       <k-btn
         v-if="unlocked"
         icon="mdi-refresh"
@@ -70,7 +68,7 @@
 
       <template v-else>
         <!-- The one number the page is about. -->
-        <k-card class="headline mb-4 pa-5" rounded="lg" variant="tonal" color="primary">
+        <k-card class="headline mb-4 pa-5" rounded="lg" variant="outlined">
           <div class="d-flex align-center ga-5">
             <k-progress-circular :model-value="ratePercent" :size="96" :width="10" color="primary">
               <span class="text-h6 font-weight-bold">{{ ratePercent }}%</span>
@@ -89,9 +87,7 @@
 
         <div class="tiles mb-4">
           <div v-for="tile in tiles" :key="tile.label" class="tile">
-            <k-avatar :color="tile.color" rounded="lg" size="40" variant="tonal">
-              <k-icon :icon="tile.icon" />
-            </k-avatar>
+            <k-icon :icon="tile.icon" :color="tile.color" size="28" />
             <div>
               <div class="tile__value">{{ tile.value }}</div>
               <div class="tile__label">{{ tile.label }}</div>
@@ -146,14 +142,9 @@
           <div class="day__value">{{ day.invoices || "—" }}</div>
           <div class="day__value">{{ day.revenue ? wholeMoney(day.revenue) : "—" }}</div>
           <div class="day__rate">
-            <k-chip
-              v-if="day.visitors"
-              :color="day.invoices ? 'primary' : undefined"
-              size="small"
-              variant="tonal"
-            >
+            <span v-if="day.visitors" :class="day.invoices ? 'text-primary' : 'text-medium-emphasis'">
               {{ percent(day.invoices / day.visitors) }}
-            </k-chip>
+            </span>
             <span v-else class="text-caption text-medium-emphasis">not counted</span>
           </div>
         </div>
