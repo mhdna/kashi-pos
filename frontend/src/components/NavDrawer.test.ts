@@ -126,6 +126,13 @@ describe("Devices box", () => {
     expect(panel.querySelector(".device-status")!.contains(panel.querySelector('[data-test="connection-icons"]'))).toBe(true);
   });
 
+  it("has square corners", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(resolve(__dirname, "NavDrawer.vue"), "utf8");
+    expect(src).toMatch(/\.device-panel \{[^}]*border-radius: 0;/);
+  });
+
   it("has no Devices title, just the icons", async () => {
     wrapper = mount(NavDrawer, { global: { plugins: [ui] }, attachTo: document.body });
     await flushPromises();

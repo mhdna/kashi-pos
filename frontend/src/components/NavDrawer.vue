@@ -351,7 +351,7 @@ const items = computed(() => {
   padding: 4px 0 5px;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid #243653;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: pointer;
 }
 .device-status {
