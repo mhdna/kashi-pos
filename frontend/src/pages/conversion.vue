@@ -41,22 +41,27 @@
     <!-- A manager unlocks the page with the manager password each time it's
          opened; it's kept only while the page stays open. -->
     <div v-if="!unlocked" class="unlock">
-      <k-card class="unlock-card" width="400" rounded="xl" variant="text">
-        <span class="unlock-badge"><k-icon icon="mdi-lock-outline" size="40" /></span>
-        <h2 class="unlock-title">Manager password</h2>
-        <p class="unlock-hint">Enter it to see sales per visitor.</p>
-        <k-text-field
-          v-model="password"
-          autofocus
-          density="comfortable"
-          :error-messages="unlockError"
-          placeholder="Password"
-          type="password"
-          variant="outlined"
-          class="unlock-field"
-          @keyup.enter="unlock"
-        />
-        <k-btn block color="primary" size="large" :loading="loading" text="Open" @click="unlock" />
+      <k-card class="unlock-card" width="440" variant="text">
+        <h2 class="unlock-title">
+          <k-icon icon="mdi-lock-outline" size="22" class="unlock-icon" />
+          Sales per visitor
+        </h2>
+        <p class="unlock-hint">Only a manager can open this page. Enter the manager password.</p>
+        <div class="unlock-row">
+          <k-text-field
+            v-model="password"
+            autofocus
+            density="comfortable"
+            :error-messages="unlockError"
+            hide-details="auto"
+            placeholder="Manager password"
+            type="password"
+            variant="outlined"
+            class="unlock-field"
+            @keyup.enter="unlock"
+          />
+          <k-btn color="primary" height="48" :loading="loading" text="Open" @click="unlock" />
+        </div>
       </k-card>
     </div>
 
@@ -357,35 +362,37 @@ onMounted(() => {
 .unlock-card {
   margin: 0 auto;
   max-width: 100%;
-  padding: 32px 28px 28px;
-  text-align: center;
+  padding: 0;
+  text-align: start;
   /* No panel: the form sits straight on the page background. */
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
 }
-.unlock-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: rgba(249, 168, 37, 0.18);
-  color: #f9a825;
-}
 .unlock-title {
-  margin: 12px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
   font-size: 1.25rem;
   font-weight: 700;
 }
+/* Just the icon, in the text's own colour: no badge behind it. */
+.unlock-icon {
+  color: rgba(var(--k-theme-on-surface), 0.6);
+}
 .unlock-hint {
-  margin: 0 0 20px;
+  margin: 0 0 16px;
   font-size: 0.875rem;
   color: rgba(var(--k-theme-on-surface), 0.6);
 }
-.unlock-field :deep(input) {
-  text-align: center;
+.unlock-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.unlock-field {
+  flex: 1 1 auto;
 }
 .tiles {
   display: grid;
