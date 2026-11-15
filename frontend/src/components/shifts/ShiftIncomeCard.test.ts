@@ -57,6 +57,7 @@ describe("ShiftIncomeCard", () => {
     await show([{ accountName: "Cash $$", currencyCode: "USD", total: 243 }]);
     expect(wrapper!.find(".k-avatar").exists()).toBe(false);
     expect(wrapper!.find('[data-test="payment-icon"]').exists()).toBe(true);
+    const css = readFileSync(resolve(process.cwd(), "src/components/shifts/ShiftIncomeCard.vue"), "utf8");
     expect(css).not.toMatch(/\.shift-total \{[^}]*background/);
   });
   it("Expenses and Loans are neutral grey tonal buttons, not blue", async () => {
