@@ -30,4 +30,10 @@ describe("nav", () => {
     expect(nav).toMatch(/to: "\/conversion",\s*icon: "mdi-chart-bar",\s*t: "Stats",/);
     expect(nav).not.toMatch(/t: "Conversion"/);
   });
+
+  it("marks the current page with a flat grey, no gradient and no blue bar", () => {
+    expect(nav).toMatch(/\.nav-item\.k-list-item--active \{[^}]*background-color: rgba\(255, 255, 255, 0\.1\)/);
+    expect(nav).not.toMatch(/k-list-item--active[^{]*\{[^}]*linear-gradient/);
+    expect(nav).not.toMatch(/k-list-item--active::before/);
+  });
 });
