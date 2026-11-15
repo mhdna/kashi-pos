@@ -137,9 +137,6 @@ function doConfirm() {
 .hold-void-column > .k-btn {
   flex: 1 1 0;
   min-width: 0;
-  /* Raised cards like Check Out beside them: surface colour and a soft shadow. */
-  background-color: rgb(var(--k-theme-surface)) !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .checkout-total-summary {
