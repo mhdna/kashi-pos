@@ -57,6 +57,7 @@ describe("ShiftIncomeCard", () => {
     await show([{ accountName: "Cash $$", currencyCode: "USD", total: 243 }]);
     const title = wrapper!.find('[data-test="income-title"]');
     expect(title.text()).toContain("Current Shift Income (#15)");
+    expect(title.find(".k-icon").exists()).toBe(false);
     expect(title.classes()).not.toContain("px-0");
     expect(wrapper!.find(".shift-income-card").element.firstElementChild).toBe(title.element);
   });

@@ -1,7 +1,6 @@
 <template>
   <k-sheet class="shift-income-card shifts-card py-4 px-0" style="flex: 1; min-width: 0">
     <k-card-title class="shift-income-title text-body-1 font-weight-bold" data-test="income-title">
-      <k-icon icon="mdi-cash-register" color="grey-darken-1" class="me-2" />
       {{ title || "Shift Income" }}{{ shiftId ? ` (#${shiftId})` : "" }}
     </k-card-title>
     <!-- Everything between the title and the buttons scrolls on its own, so
@@ -42,7 +41,7 @@
          that. Display only (see GetShiftTotals). -->
     <div v-if="shiftId && (onAccountTotal || shiftExpenses.length || shiftLoans.length)" class="px-0 pt-2">
       <div v-if="onAccountTotal" class="spend-row text-medium-emphasis">
-        <span class="text-truncate"><k-icon icon="mdi-account-clock" size="16" class="me-1" />On account — not collected</span>
+        <span class="text-truncate"><k-icon icon="mdi-account-clock" size="16" class="me-1" />On account, not collected</span>
         <span>{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }}</span>
       </div>
       <div v-for="row in shiftExpenses" :key="`e-${row.id}`" class="spend-row">
