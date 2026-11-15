@@ -375,10 +375,11 @@ const items = computed(() => {
 .device-status--unknown {
   color: #9e9e9e;
 }
+/* Dark grey, neutral like the rest of the screen. */
 .nav-drawer {
-  background-color: #0f1b2d;
+  background-color: #212121;
   border: 0 !important;
-  border-right: 1px solid #1e2c42 !important;
+  border-right: 1px solid #2e2e2e !important;
   box-shadow: none !important;
 }
 
