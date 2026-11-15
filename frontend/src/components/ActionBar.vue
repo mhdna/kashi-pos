@@ -45,7 +45,7 @@
       class="checkout-button d-flex justify-center align-center font-weight-bold"
       height="96"
       :color="checkoutColor"
-      rounded="lg"
+      rounded="0"
       variant="outlined"
       :style="checkoutButtonStyle"
       :class="{ 'checkout-button--blocked': !canCheckout }"

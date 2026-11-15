@@ -20,3 +20,11 @@ describe("action bar buttons", () => {
     expect(confirm).not.toMatch(/brown|blue-grey/);
   });
 });
+
+describe("Check Out corners", () => {
+  it("are square", () => {
+    const src = readFileSync(resolve(__dirname, "ActionBar.vue"), "utf8");
+    const block = src.slice(src.indexOf('class="checkout-button'), src.indexOf('@click="$emit(\'checkout\')"'));
+    expect(block).toContain('rounded="0"');
+  });
+});
