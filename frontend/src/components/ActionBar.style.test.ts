@@ -12,7 +12,7 @@ describe("action bar buttons", () => {
     expect(checkout).toMatch(/variant="flat"/);
     expect(checkout).not.toMatch(/variant="outlined"/);
     expect(src).not.toMatch(/border-color: #2e7d32|background-color: transparent/);
-    expect(src).toMatch(/"green-darken-3"/);
+    expect(src).toMatch(/"green-darken-1"/);
   });
 
   it("the hold and cancel Confirm is the primary button", () => {

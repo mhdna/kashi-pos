@@ -107,7 +107,7 @@ const mode = computed(() => props.mode ?? "sale");
 const checkoutLabel = computed(() =>
   mode.value === "exchange" ? "Exchange" : mode.value === "settlement" ? "Change Settlement" : "Check Out",
 );
-const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "green-darken-3"));
+const checkoutColor = computed(() => (mode.value === "exchange" ? "orange-darken-3" : "green-darken-1"));
 
 const dialog = ref(false);
 const action = ref<"hold" | "void">("hold");
