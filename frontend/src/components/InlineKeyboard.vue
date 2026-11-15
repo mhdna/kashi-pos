@@ -145,10 +145,7 @@ function move(step: number) {
 .inline-keyboard {
   width: 100%;
 }
-.inline-keyboard-clear {
-  background-color: #c43f3f;
-  color: #fff;
-}
+.inline-keyboard-clear,
 .inline-keyboard-backspace {
   background-color: rgba(var(--k-theme-on-surface), 0.1);
 }
