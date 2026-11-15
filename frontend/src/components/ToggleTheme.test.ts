@@ -28,6 +28,13 @@ const mountIt = () => (wrapper = mount(ToggleTheme, { global: { plugins: [ui] } 
 const button = () => wrapper!.find("[data-test=theme-toggle]");
 
 describe("theme toggle", () => {
+  it("is hidden from the header for now", () => {
+    mountIt();
+    const wrap = wrapper!.find('[data-test="theme-toggle-wrap"]');
+    expect(wrap.exists()).toBe(true);
+    expect(wrap.attributes("style") ?? "").toMatch(/display:\s*none/);
+  });
+
   it("has a Theme caption over a moon button in the light theme", () => {
     mountIt();
     expect(wrapper!.text()).toContain("Theme");

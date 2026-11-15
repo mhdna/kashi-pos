@@ -1,7 +1,8 @@
 <template>
   <!-- Same shape as the Salesperson and Client buttons beside it: a small
        caption over a tonal button. -->
-  <div class="theme-toggle-wrap">
+  <!-- Hidden for now (SHOW_THEME_TOGGLE below); set it to true to bring the button back. -->
+  <div v-show="SHOW_THEME_TOGGLE" class="theme-toggle-wrap" data-test="theme-toggle-wrap">
     <div class="theme-toggle-subtitle">Theme</div>
     <k-btn
       class="theme-toggle-btn"
@@ -23,6 +24,9 @@
 import { ref } from "vue";
 import { useTheme } from "@/ui";
 import { SetTheme } from "../../wailsjs/go/main/App";
+
+// The header's Theme button is hidden for now; the theme stays whatever it is.
+const SHOW_THEME_TOGGLE = false;
 
 const theme = useTheme();
 
