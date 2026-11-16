@@ -1296,16 +1296,6 @@
                   Hybrid: office when online, else this till. Local: this till. Central: office.
                 </div>
               </template>
-              <k-switch
-                :model-value="form.autoCoverNegativeLbp"
-                :loading="autoCoverNegativeLbpSaving"
-                label="At close shift, cover a negative Cash LL balance from Cash $$"
-                color="primary"
-                hide-details
-                class="field-full"
-                @update:model-value="(value) => setAutoCoverNegativeLbp(value)"
-              />
-              <div class="settings-note field-full">So Cash LL closes at 0.</div>
             </k-card-text>
           </k-card>
 
@@ -1976,7 +1966,6 @@ import {
   SetShiftReportSignaturesEnabled,
   SetShiftReportUppercaseHeaderEnabled,
   SetCountOpeningCashOnCloseEnabled,
-  SetAutoCoverNegativeLBPEnabled,
   SetShiftReceiptUploadMode,
   SetPageUnlocked,
   UpdateDefaultOpeningFloat,
@@ -2317,7 +2306,6 @@ const form = reactive({
   closeShiftRequiresSync: false,
   openingFloatEnabled: true,
   countOpeningCashOnClose: true,
-  autoCoverNegativeLbp: false,
   shiftReceiptUploadMode: 2,
   adminEnabled: false,
   adminListen: "127.0.0.1:8787",
@@ -2371,7 +2359,6 @@ const shiftReceiptUploadModes = [
   { title: "Central only (straight to the office)", value: 1 },
 ];
 const countOpeningCashOnCloseSaving = ref(false);
-const autoCoverNegativeLbpSaving = ref(false);
 const editingPaymentMethodId = ref<number | null>(null);
 const paymentMethodSaving = ref(false);
 
@@ -2763,7 +2750,6 @@ async function loadSettings() {
         closeShiftRequiresSync: Boolean(s.closeShiftRequiresSync),
         openingFloatEnabled: s.openingFloatEnabled !== false,
         countOpeningCashOnClose: s.countOpeningCashOnClose !== false,
-        autoCoverNegativeLbp: Boolean(s.autoCoverNegativeLbp),
         shiftReceiptUploadMode: Number(s.shiftReceiptUploadMode ?? 2),
         akuvoxIP: s.attendance?.ip ?? "",
         akuvoxUsername: s.attendance?.username ?? "",
@@ -3408,22 +3394,6 @@ async function setOpeningFloatEnabled(value: boolean | null) {
     notify("Failed to update opening cash float setting", "red");
   } finally {
     openingFloatEnabledSaving.value = false;
-  }
-}
-
-async function setAutoCoverNegativeLbp(value: boolean | null) {
-  const enabled = Boolean(value);
-  const previous = form.autoCoverNegativeLbp;
-  form.autoCoverNegativeLbp = enabled;
-  autoCoverNegativeLbpSaving.value = true;
-  try {
-    await SetAutoCoverNegativeLBPEnabled(enabled);
-    notify(enabled ? "A negative Cash LL will be covered from Cash $$ at close" : "Negative Cash LL is left as it is at close");
-  } catch {
-    form.autoCoverNegativeLbp = previous;
-    notify("Failed to update the negative LBP setting", "red");
-  } finally {
-    autoCoverNegativeLbpSaving.value = false;
   }
 }
 

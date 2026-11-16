@@ -324,20 +324,14 @@ func (a *App) CloseShiftByID(id, closingPersonID, countedLBP, countedVisa, count
 	if closingPersonID <= 0 {
 		return nil, fmt.Errorf("closing person is required")
 	}
-	if countedLBP < 0 {
-		return nil, fmt.Errorf("counted LBP cannot be negative")
-	}
-	if countedVisa < 0 || countedWhish < 0 {
-		return nil, fmt.Errorf("counted Visa and Whish cannot be negative")
-	}
+	// Counted LBP, Visa and Whish may be negative: when more went out than
+	// came in (LBP change, card refunds) the drawer is counted as it stands,
+	// minus sign and all, instead of moving the shortfall to another account.
 	usdBillCounts, countedUSD, canonicalBreakdown, err := parseUSDBillCounts(usdBreakdownJSON)
 	if err != nil {
 		return nil, err
 	}
 	if err := a.checkCloseShiftSyncGate(id); err != nil {
-		return nil, err
-	}
-	if _, err := a.PrepareShiftClose(id); err != nil {
 		return nil, err
 	}
 

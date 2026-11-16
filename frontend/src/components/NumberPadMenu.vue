@@ -76,8 +76,23 @@
           .
         </k-btn>
         <k-btn
+          v-if="allowNegative"
           class="number-pad-key"
-          :class="{ 'number-pad-key--wide': allowDecimal }"
+          :class="{ 'number-pad-key--wide': !allowDecimal }"
+          size="small"
+          variant="tonal"
+          aria-label="Plus or minus"
+          data-test="number-pad-sign"
+          @click="toggleNegative"
+        >
+          +/−
+        </k-btn>
+        <k-btn
+          class="number-pad-key"
+          :class="{
+            'number-pad-key--wide': allowDecimal && !allowNegative,
+            'number-pad-key--double': allowDecimal && allowNegative,
+          }"
           size="small"
           variant="tonal"
           data-test="number-pad-backspace"
@@ -103,6 +118,12 @@ import {
   type ComponentPublicInstance,
   type Ref,
 } from "vue";
+import {
+  appendDecimalToDraft,
+  appendDigitToDraft,
+  draftValue,
+  toggleSign,
+} from "@/lib/numberPadDraft";
 
 const props = withDefaults(
   defineProps<{
@@ -121,6 +142,10 @@ const props = withDefaults(
     tone?: "default" | "error";
     allowDecimal?: boolean;
     decimalPlaces?: number;
+    // Adds a +/− key (and the "-" key in keyboard mode) so the value can go
+    // as low as -max: the close-shift count, where more LBP can go out as
+    // change than came in.
+    allowNegative?: boolean;
     // When true, the popup never opens - the activator just takes focus and
     // digit/backspace/arrow keys edit the value directly, for the invoice
     // list's keyboard mode.
@@ -139,6 +164,7 @@ const props = withDefaults(
     tone: "default",
     allowDecimal: false,
     decimalPlaces: 2,
+    allowNegative: false,
     keyboardMode: false,
   },
 );
@@ -173,7 +199,7 @@ const activatorMinWidthCh = computed(() => {
   const decimalChars = props.allowDecimal ? props.decimalPlaces + 1 : 0;
   const digits = Math.min(props.maxLength, wholeDigits + decimalChars);
   const affixChars = (props.prefix.length || 0) + (props.suffix.length || 0);
-  return digits + affixChars + (affixChars ? affixChars * 0.5 : 0);
+  return digits + (props.allowNegative ? 1 : 0) + affixChars + (affixChars ? affixChars * 0.5 : 0);
 });
 
 // While the pad is open it stays where it opened: the menu places itself once,
@@ -193,22 +219,32 @@ watch(open, (value) => {
 });
 
 function appendDigit(digit: string) {
-  if (!replaceOnInput.value && draft.value.length >= props.maxLength) return;
-  if (props.allowDecimal && draft.value.includes(".")) {
-    const fractionalPart = draft.value.split(".")[1] ?? "";
-    if (!replaceOnInput.value && fractionalPart.length >= props.decimalPlaces) return;
-  }
-  const candidate =
-    replaceOnInput.value || draft.value === "0" ? digit : `${draft.value}${digit}`;
-  if (!props.preserveString && Number(candidate) > props.max) return;
+  const candidate = appendDigitToDraft(draft.value, digit, {
+    replace: replaceOnInput.value,
+    maxLength: props.maxLength,
+    max: props.max,
+    allowDecimal: props.allowDecimal,
+    decimalPlaces: props.decimalPlaces,
+    preserveString: props.preserveString,
+  });
+  if (candidate === null) return;
   draft.value = candidate;
   replaceOnInput.value = false;
   emitDraft();
 }
 
 function appendDecimal() {
-  if (!props.allowDecimal || (!replaceOnInput.value && draft.value.includes("."))) return;
-  draft.value = replaceOnInput.value || !draft.value ? "0." : `${draft.value}.`;
+  if (!props.allowDecimal) return;
+  const candidate = appendDecimalToDraft(draft.value, replaceOnInput.value);
+  if (candidate === null) return;
+  draft.value = candidate;
+  replaceOnInput.value = false;
+  emitDraft();
+}
+
+function toggleNegative() {
+  if (!props.allowNegative) return;
+  draft.value = toggleSign(draft.value);
   replaceOnInput.value = false;
   emitDraft();
 }
@@ -227,10 +263,12 @@ function backspace() {
 
 function normalizedValue() {
   if (props.preserveString) return draft.value;
-  const raw = Number(draft.value) || 0;
-  const factor = 10 ** props.decimalPlaces;
-  const numeric = props.allowDecimal ? Math.round(raw * factor) / factor : Math.trunc(raw);
-  return Math.min(props.max, Math.max(props.min, numeric));
+  return draftValue(draft.value, {
+    min: props.allowNegative ? Math.min(props.min, -props.max) : props.min,
+    max: props.max,
+    allowDecimal: props.allowDecimal,
+    decimalPlaces: props.decimalPlaces,
+  });
 }
 
 function emitDraft() {
@@ -278,6 +316,11 @@ function onKeydown(event: KeyboardEvent) {
     if (/^[0-9]$/.test(event.key)) {
       event.preventDefault();
       appendDigit(event.key);
+      return;
+    }
+    if (event.key === "-" && props.allowNegative) {
+      event.preventDefault();
+      toggleNegative();
       return;
     }
     if (event.key === "." && props.allowDecimal) {
@@ -441,6 +484,10 @@ defineExpose({ focus });
 
 .number-pad-key--wide {
   grid-column: 1 / -1;
+}
+
+.number-pad-key--double {
+  grid-column: span 2;
 }
 
 .number-pad-key {

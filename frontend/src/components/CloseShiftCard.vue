@@ -108,6 +108,7 @@
           aria-label="Total LBP counted"
           :transition="false"
           :max="999999999999"
+          allow-negative
           suffix="LBP"
           @update:model-value="
             (value) => {
@@ -143,6 +144,7 @@
           aria-label="Counted Visa"
           :transition="false"
           allow-decimal
+          allow-negative
           :max="999999999.99"
           prefix="$"
           @update:model-value="
@@ -173,6 +175,7 @@
           aria-label="Counted Whish"
           :transition="false"
           allow-decimal
+          allow-negative
           :max="999999999.99"
           prefix="$"
           @update:model-value="
@@ -369,10 +372,10 @@ import {
   SkipShiftReceiptUpload,
   SwitchShiftReceiptToLocal,
   GetSpendSummary,
-  PrepareShiftClose,
 } from "../../wailsjs/go/main/App";
 import { onSalespersonsSynced } from "@/lib/salespersonsSync";
 import { formatSpendAmount } from "@/lib/spend";
+import { autofillCounts, countValid, fieldCents, usdDenominations } from "@/lib/closeShiftCount";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 const emit = defineEmits(["close"]);
@@ -385,7 +388,6 @@ const closingPersonId = ref<number | null>(null);
 const countedLbp = ref("");
 const countedVisa = ref("");
 const countedWhish = ref("");
-const usdDenominations = [100, 50, 20, 10, 5, 1] as const;
 const usdBillCounts = ref<Record<number, string>>(
   Object.fromEntries(usdDenominations.map((denomination) => [denomination, ""])),
 );
@@ -404,8 +406,8 @@ const countedUsdTotal = computed(() =>
 const countedLbpTotal = computed(
   () => `${Math.round(Number(countedLbp.value || 0)).toLocaleString()} LBP`,
 );
-const countedVisaCents = computed(() => Math.round(Number(countedVisa.value || 0) * 100));
-const countedWhishCents = computed(() => Math.round(Number(countedWhish.value || 0) * 100));
+const countedVisaCents = computed(() => fieldCents(countedVisa.value));
+const countedWhishCents = computed(() => fieldCents(countedWhish.value));
 const countedCouponCents = computed(() =>
   balanceRows.value
     .filter(
@@ -413,25 +415,17 @@ const countedCouponCents = computed(() =>
     )
     .reduce((total, balance) => total + Number(balance.balance || 0), 0),
 );
-const formValid = computed(() => {
-  const lbp = Number(countedLbp.value);
-  return (
+// LBP, Visa and Whish may be negative (see lib/closeShiftCount).
+const formValid = computed(
+  () =>
     Boolean(closingPersonId.value) &&
-    countedLbp.value !== "" &&
-    Number.isFinite(lbp) &&
-    lbp >= 0 &&
-    Number.isFinite(countedVisaCents.value) &&
-    countedVisaCents.value >= 0 &&
-    Number.isFinite(countedWhishCents.value) &&
-    countedWhishCents.value >= 0 &&
-    usdDenominations.every((denomination) => {
-      const raw = usdBillCounts.value[denomination] ?? "";
-      if (raw === "") return true;
-      const count = Number(raw);
-      return Number.isInteger(count) && count >= 0;
-    })
-  );
-});
+    countValid({
+      lbp: countedLbp.value,
+      visa: countedVisa.value,
+      whish: countedWhish.value,
+      bills: usdBillCounts.value,
+    }),
+);
 
 const autofilling = ref(false);
 const autofillError = ref("");
@@ -457,28 +451,23 @@ async function autofillFromExpected() {
   autofilling.value = true;
   autofillError.value = "";
   try {
-    const totals = await GetShiftExpectedTotals(shiftId.value);
-    // Expected can legitimately be negative (e.g. refunds exceeded sales in
-    // that currency this shift) - counted cash can't go negative, so clamp
-    // the suggestion at 0 rather than leaving the field blank, which would
-    // look like autofill did nothing.
-    const expectedLbp = Math.max(0, Math.round(Number(totals.expectedLbp) || 0));
-    const expectedVisaCents = Math.max(0, Math.round(Number(totals.expectedVisa) || 0));
-    const expectedWhishCents = Math.max(0, Math.round(Number(totals.expectedWhish) || 0));
-    countedLbp.value = String(expectedLbp);
+    // Expected can be negative (more LBP went out as change than came in,
+    // a card refund bigger than the card sales): autofill keeps the minus
+    // sign, so the count matches the drawer and the shift closes even.
+    const fields = autofillCounts(await GetShiftExpectedTotals(shiftId.value));
+    countedLbp.value = fields.lbp;
     autofilledLbp.value = true;
     editedLbp.value = false;
-    countedVisa.value = (expectedVisaCents / 100).toFixed(2);
+    countedVisa.value = fields.visa;
     autofilledVisa.value = true;
     editedVisa.value = false;
-    countedWhish.value = (expectedWhishCents / 100).toFixed(2);
+    countedWhish.value = fields.whish;
     autofilledWhish.value = true;
     editedWhish.value = false;
-    const suggestedBillCounts = (totals.usdBillCounts ?? {}) as Record<string, number>;
     for (const denomination of usdDenominations) {
-      const count = Number(suggestedBillCounts[String(denomination)] ?? 0);
-      usdBillCounts.value[denomination] = count > 0 ? String(count) : "";
-      autofilledBills.value[denomination] = count > 0;
+      const count = fields.bills[denomination] ?? "";
+      usdBillCounts.value[denomination] = count;
+      autofilledBills.value[denomination] = count !== "";
       editedBills.value[denomination] = false;
     }
   } catch (error) {
@@ -527,9 +516,6 @@ onMounted(async () => {
     const shift = await GetOpenShift();
     shiftId.value = shift.id as number;
     shiftCreatedAt.value = shift.createdAt ?? null;
-    // Branch-level close-time fixes (a negative Cash LL swapped into Cash $$)
-    // land before the balances and expected totals are read.
-    await PrepareShiftClose(shiftId.value).catch(() => false);
     const b = await ListShiftBalances(shiftId.value);
     balanceRows.value = (b as any[]) ?? [];
     void loadShiftSpend();
