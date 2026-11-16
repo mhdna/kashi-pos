@@ -640,8 +640,8 @@ function reset() {
 
 .client-phone-country-trigger-search {
   align-items: center;
-  /* Neutral grey, like the keypad, so it isn't mistaken for Continue. */
-  background: rgba(var(--k-theme-on-surface), 0.12);
+  /* Text only, no fill, so it isn't mistaken for Continue. */
+  background: transparent;
   border-radius: 0;
   color: rgb(var(--k-theme-on-surface));
   display: flex;
