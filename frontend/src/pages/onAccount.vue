@@ -2,10 +2,21 @@
   <div class="records-page">
     <div class="records-head">
       <div class="records-title">
-        <k-icon icon="mdi-account-clock" size="36" color="primary" />
         <h1>On Account</h1>
       </div>
       <k-spacer />
+      <k-select
+        v-model="month"
+        class="on-account-month"
+        :items="monthChoices"
+        item-title="title"
+        item-value="value"
+        density="compact"
+        variant="outlined"
+        hide-details
+        data-test="on-account-month"
+        @update:model-value="load"
+      />
       <k-text-field
         v-model="search"
         class="on-account-search"
@@ -70,9 +81,7 @@
             <div v-if="selected.phone" class="text-caption text-medium-emphasis" dir="ltr">{{ selected.phone }}</div>
           </div>
           <k-spacer />
-          <k-chip color="orange-darken-2" variant="tonal" data-test="detail-balance">
-            Owes {{ formatUsd(selected.outstanding / 100) }}
-          </k-chip>
+          <span class="owes-chip" data-test="detail-balance">Owes {{ formatUsd(selected.outstanding / 100) }}</span>
           <k-btn icon="mdi-close" variant="text" aria-label="Close" @click="detailOpen = false" />
         </k-card-title>
         <k-progress-linear v-if="detailLoading" indeterminate />
@@ -100,9 +109,6 @@
               </tr>
             </tbody>
           </k-table>
-          <div class="text-caption text-medium-emphasis mt-3">
-            Payments are taken from the Clients page, on the client's account.
-          </div>
         </k-card-text>
       </k-card>
     </k-dialog>
@@ -114,7 +120,7 @@ import { computed, onMounted, ref } from "vue";
 import { GetClientAccountDetails, ListOnAccountClients } from "../../wailsjs/go/main/App";
 import { formatUsd } from "@/lib/format";
 import { formatServerDateTime } from "@/lib/datetime";
-import { filterOnAccountClients, onAccountTotals, type OnAccountClient } from "@/lib/onAccount";
+import { currentMonth, filterOnAccountClients, monthChoices as buildMonthChoices, onAccountTotals, type OnAccountClient } from "@/lib/onAccount";
 
 const headers = [
   { title: "Client", key: "name", sortable: false },
@@ -129,6 +135,9 @@ const headers = [
 const clients = ref<OnAccountClient[]>([]);
 const loading = ref(false);
 const search = ref("");
+// Opens on this month's sales; the picker goes back a year or to every month.
+const month = ref(currentMonth());
+const monthChoices = buildMonthChoices();
 const rows = computed(() => filterOnAccountClients(clients.value, search.value ?? ""));
 // The numbers over the table follow the rows shown, so a search narrows them too.
 const totals = computed(() => onAccountTotals(rows.value));
@@ -136,7 +145,7 @@ const totals = computed(() => onAccountTotals(rows.value));
 async function load() {
   loading.value = true;
   try {
-    const result = await ListOnAccountClients();
+    const result = await ListOnAccountClients(month.value);
     clients.value = (result?.clients ?? []) as OnAccountClient[];
   } finally {
     loading.value = false;
@@ -167,6 +176,14 @@ async function openDetail(client: OnAccountClient) {
 <style scoped>
 @import "@/styles/records-page.css";
 
+.on-account-month {
+  max-width: 190px;
+}
+.owes-chip {
+  margin-inline: 8px;
+  color: rgb(var(--k-theme-error));
+  font-weight: 700;
+}
 .on-account-search {
   max-width: 280px;
 }
@@ -181,7 +198,6 @@ async function openDetail(client: OnAccountClient) {
   flex-direction: column;
   gap: 2px;
   padding: 10px 14px;
-  border: 1px solid rgba(var(--k-border-color), 0.2);
 }
 .on-account-total-label {
   font-size: 0.8rem;

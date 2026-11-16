@@ -19,8 +19,9 @@ const GetClientAccountDetails = vi.fn(async (id: number) => ({
   ],
   id,
 }));
+const ListOnAccountClients = vi.fn(async (_month: string) => list);
 vi.mock("../../wailsjs/go/main/App", () => ({
-  ListOnAccountClients: vi.fn(async () => list),
+  ListOnAccountClients: (m: string) => ListOnAccountClients(m),
   GetClientAccountDetails: (id: number) => GetClientAccountDetails(id),
 }));
 
@@ -36,6 +37,18 @@ async function show() {
 }
 
 describe("On Account page", () => {
+  it("opens on the current month, with no title icon, and the owes chip is red text with no fill", async () => {
+    const w = await show();
+    const now = new Date();
+    expect(ListOnAccountClients).toHaveBeenLastCalledWith(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
+    expect(w.find(".records-title .k-icon").exists()).toBe(false);
+    const css = readFileSync(resolve(process.cwd(), "src/pages/onAccount.vue"), "utf8");
+    expect(css).toMatch(/\.owes-chip \{[^}]*color: rgb\(var\(--k-theme-error\)\)/);
+    expect(css).not.toMatch(/\.owes-chip \{[^}]*background/);
+    expect(css).not.toContain("k-chip");
+    expect(css).not.toMatch(/\.on-account-total \{[^}]*border/);
+    expect(css).not.toContain("Payments are taken from");
+  });
   it("lists every client with what they owe, and totals the three numbers", async () => {
     const w = await show();
     const text = w.text();

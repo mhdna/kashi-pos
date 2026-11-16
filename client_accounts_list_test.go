@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -11,6 +13,7 @@ import (
 // onAccountFixture sells `amounts` on account to a new client, one invoice
 // each, and returns the client and the invoice ids.
 type onAccountFixture struct {
+	db        *sql.DB
 	app       *App
 	store     *db.Store
 	shiftID   int64
@@ -43,7 +46,7 @@ func newOnAccountFixture(t *testing.T) *onAccountFixture {
 		t.Fatal(err)
 	}
 	return &onAccountFixture{
-		app: &App{ctx: ctx, store: store}, store: store,
+		db: database, app: &App{ctx: ctx, store: store}, store: store,
 		shiftID: shift.ID, cashID: cash.ID, accountID: onAccount.ID,
 	}
 }
@@ -77,9 +80,13 @@ func (f *onAccountFixture) sell(t *testing.T, clientID, cents int64) int64 {
 	return invoice.ID
 }
 
-func onAccountRows(t *testing.T, app *App) (map[int64]map[string]any, map[string]any) {
+func onAccountRows(t *testing.T, app *App, month ...string) (map[int64]map[string]any, map[string]any) {
 	t.Helper()
-	got, err := app.ListOnAccountClients()
+	m := ""
+	if len(month) > 0 {
+		m = month[0]
+	}
+	got, err := app.ListOnAccountClients(m)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,5 +178,40 @@ func TestListOnAccountClientsMixedInvoices(t *testing.T) {
 	details, _ := f.app.GetClientAccountDetails(c)
 	if databaseInt64(details["balance"]) != 800 {
 		t.Fatalf("details = %#v", details)
+	}
+}
+
+func TestListOnAccountClientsByMonth(t *testing.T) {
+	f := newOnAccountFixture(t)
+	c := f.client(t, "Two Months")
+	f.sell(t, c, 1000) // this month
+	old := f.sell(t, c, 5000)
+	if _, err := f.db.Exec(`UPDATE client_account_entries SET created_at = datetime('now', 'start of month', '-5 days') WHERE invoice_id = ?`, old); err != nil {
+		t.Fatal(err)
+	}
+	onlyOld := f.client(t, "Old Only")
+	oldOnly := f.sell(t, onlyOld, 300)
+	if _, err := f.db.Exec(`UPDATE client_account_entries SET created_at = datetime('now', 'start of month', '-5 days') WHERE invoice_id = ?`, oldOnly); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now()
+	thisMonth := now.Format("2006-01")
+	lastMonth := now.AddDate(0, 0, -now.Day()).Format("2006-01") // day 0 is the last day of last month
+
+	byID, got := onAccountRows(t, f.app, thisMonth)
+	if len(byID) != 1 || byID[c]["total"].(int64) != 1000 || got["outstanding"].(int64) != 1000 || byID[c]["invoiceCount"].(int64) != 1 {
+		t.Fatalf("this month = %#v", got)
+	}
+	byID, got = onAccountRows(t, f.app, lastMonth)
+	if len(byID) != 2 || byID[c]["total"].(int64) != 5000 || byID[onlyOld]["outstanding"].(int64) != 300 || got["outstanding"].(int64) != 5300 {
+		t.Fatalf("last month = %#v", got)
+	}
+	_, got = onAccountRows(t, f.app, "")
+	if got["outstanding"].(int64) != 6300 {
+		t.Fatalf("all months = %#v", got)
+	}
+	if _, err := f.app.ListOnAccountClients("2026-13"); err == nil {
+		t.Fatal("a bad month was accepted")
 	}
 }

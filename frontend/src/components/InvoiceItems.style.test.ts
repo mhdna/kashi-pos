@@ -10,6 +10,9 @@ describe("discount colours", () => {
     const chips = items.match(/:color="item\.discountOff \? 'grey' : '(\w+)'"/g) ?? [];
     expect(chips).toHaveLength(2);
     for (const chip of chips) expect(chip).toContain("'error'");
+    // Red text only: no tinted background behind it.
+    expect(items.match(/:variant="item\.discountOff \? 'outlined' : 'text'"/g) ?? []).toHaveLength(2);
+    expect(items).not.toMatch(/item\.discountOff \? 'outlined' : 'tonal'/);
     expect(status).toMatch(/\.calculator-amounts-discount \{[^}]*color: rgb\(var\(--k-theme-error\)\)/);
   });
 });

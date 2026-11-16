@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterOnAccountClients, onAccountTotals, type OnAccountClient } from "./onAccount";
+import { currentMonth, filterOnAccountClients, monthChoices, onAccountTotals, type OnAccountClient } from "./onAccount";
 
 const mk = (id: number, name: string, total: number, paid: number, phone = ""): OnAccountClient => ({
   id, name, phone, invoiceCount: 1, total, paid, outstanding: total - paid,
@@ -42,5 +42,21 @@ describe("filterOnAccountClients", () => {
   });
   it("nothing matches gives an empty list", () => {
     expect(filterOnAccountClients(rows, "nobody")).toEqual([]);
+  });
+});
+
+describe("month picker", () => {
+  it("starts at the current month and pads single digits", () => {
+    expect(currentMonth(new Date(2026, 10, 16))).toBe("2026-11");
+    expect(currentMonth(new Date(2026, 0, 31))).toBe("2026-01");
+  });
+  it("lists twelve months back across a year change, then All months", () => {
+    const c = monthChoices(new Date(2026, 1, 10));
+    expect(c).toHaveLength(13);
+    expect(c[0]).toEqual({ title: "February 2026", value: "2026-02" });
+    expect(c[2]).toEqual({ title: "December 2025", value: "2025-12" });
+    expect(c[11]!.value).toBe("2025-03");
+    expect(c[12]).toEqual({ title: "All months", value: "" });
+    expect(new Set(c.map((x) => x.value)).size).toBe(13);
   });
 });

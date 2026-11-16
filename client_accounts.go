@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	db "kashi-pos/db/sqlc"
 )
@@ -117,12 +118,18 @@ func (a *App) PayClientAccount(invoiceID, cashboxID, amountCents int64) (map[str
 
 // ListOnAccountClients lists every client who still owes on account, biggest
 // debt first, with what they were sold, what they paid back and what is left.
-// All amounts are USD cents; fully paid clients are left out.
-func (a *App) ListOnAccountClients() (map[string]any, error) {
+// All amounts are USD cents; fully paid clients are left out. yearMonth
+// ("YYYY-MM") keeps only the sales rung up that month; "" lists every month.
+func (a *App) ListOnAccountClients(yearMonth string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	rows, err := a.store.ListClientAccountBalances(a.ctx)
+	if yearMonth != "" {
+		if _, err := time.Parse("2006-01", yearMonth); err != nil {
+			return nil, fmt.Errorf("invalid month %q; use YYYY-MM", yearMonth)
+		}
+	}
+	rows, err := a.store.ListClientAccountBalances(a.ctx, yearMonth)
 	if err != nil {
 		return nil, fmt.Errorf("list on-account clients: %w", err)
 	}

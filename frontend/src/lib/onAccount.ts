@@ -35,3 +35,21 @@ export function filterOnAccountClients(clients: OnAccountClient[], search: strin
     (client) => client.name.toLowerCase().includes(needle) || (client.phone ?? "").replace(/\s/g, "").includes(needle.replace(/\s/g, "")),
   );
 }
+
+/** "YYYY-MM" of the local month the till is in. */
+export function currentMonth(now: Date = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** The picker's choices: this month first, then back a year, then every month ("" = all). */
+export function monthChoices(now: Date = new Date(), count = 12): { title: string; value: string }[] {
+  const choices: { title: string; value: string }[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    choices.push({ title: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, value: currentMonth(d) });
+  }
+  choices.push({ title: "All months", value: "" });
+  return choices;
+}

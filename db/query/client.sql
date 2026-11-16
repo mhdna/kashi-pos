@@ -267,6 +267,8 @@ SELECT CAST(EXISTS (
 -- name: ListClientAccountBalances :many
 -- Every client who still owes on account: what they were sold on account,
 -- what they have paid back, and what is left. A fully paid client is left out.
+-- year_month ('YYYY-MM', local time) keeps only sales rung up that month;
+-- empty means every month.
 SELECT c.id, c.name, c.phone,
        COUNT(*) AS invoice_count,
        CAST(SUM(cae.amount) AS INTEGER) AS total,
@@ -281,5 +283,6 @@ LEFT JOIN (
     GROUP BY invoice_id
 ) p ON p.invoice_id = cae.invoice_id
 WHERE cae.amount - COALESCE(p.paid, 0) > 0
+  AND (sqlc.arg(year_month) = '' OR strftime('%Y-%m', cae.created_at, 'localtime') = sqlc.arg(year_month))
 GROUP BY c.id
 ORDER BY outstanding DESC, c.name COLLATE NOCASE, c.id;

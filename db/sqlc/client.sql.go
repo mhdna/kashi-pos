@@ -620,6 +620,7 @@ LEFT JOIN (
     GROUP BY invoice_id
 ) p ON p.invoice_id = cae.invoice_id
 WHERE cae.amount - COALESCE(p.paid, 0) > 0
+  AND (?1 = '' OR strftime('%Y-%m', cae.created_at, 'localtime') = ?1)
 GROUP BY c.id
 ORDER BY outstanding DESC, c.name COLLATE NOCASE, c.id
 `
@@ -637,8 +638,10 @@ type ListClientAccountBalancesRow struct {
 
 // Every client who still owes on account: what they were sold on account,
 // what they have paid back, and what is left. A fully paid client is left out.
-func (q *Queries) ListClientAccountBalances(ctx context.Context) ([]ListClientAccountBalancesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listClientAccountBalances)
+// year_month ('YYYY-MM', local time) keeps only sales rung up that month;
+// empty means every month.
+func (q *Queries) ListClientAccountBalances(ctx context.Context, yearMonth interface{}) ([]ListClientAccountBalancesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClientAccountBalances, yearMonth)
 	if err != nil {
 		return nil, err
 	}

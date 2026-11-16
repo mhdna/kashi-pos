@@ -435,7 +435,9 @@ type Querier interface {
 	ListCentralQuickAccessProducts(ctx context.Context) ([]ListCentralQuickAccessProductsRow, error)
 	// Every client who still owes on account: what they were sold on account,
 	// what they have paid back, and what is left. A fully paid client is left out.
-	ListClientAccountBalances(ctx context.Context) ([]ListClientAccountBalancesRow, error)
+	// year_month ('YYYY-MM', local time) keeps only sales rung up that month;
+	// empty means every month.
+	ListClientAccountBalances(ctx context.Context, yearMonth interface{}) ([]ListClientAccountBalancesRow, error)
 	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
 	ListClientAccountPayments(ctx context.Context, clientID int64) ([]ListClientAccountPaymentsRow, error)
 	ListClientNamesByIDs(ctx context.Context, ids []int64) ([]ListClientNamesByIDsRow, error)

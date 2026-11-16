@@ -251,7 +251,7 @@
                         density="comfortable"
                         label
                         size="x-small"
-                        :variant="item.discountOff ? 'outlined' : 'tonal'"
+                        :variant="item.discountOff ? 'outlined' : 'text'"
                         @click="onDiscountChipClick($event, item)"
                       >
                         <k-icon v-if="item.discountOff" class="me-1" icon="mdi-tag-off-outline" size="10" />
@@ -285,7 +285,7 @@
                     density="comfortable"
                     label
                     size="x-small"
-                    :variant="item.discountOff ? 'outlined' : 'tonal'"
+                    :variant="item.discountOff ? 'outlined' : 'text'"
                     :title="
                       item.discountOff
                         ? 'Discount turned off'
