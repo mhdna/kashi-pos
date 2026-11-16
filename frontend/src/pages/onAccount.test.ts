@@ -37,6 +37,11 @@ async function show() {
 }
 
 describe("On Account page", () => {
+  it("says so when the till can't answer, instead of spinning forever", async () => {
+    ListOnAccountClients.mockRejectedValueOnce(new Error("boom"));
+    const w = await show();
+    expect(w.find('[data-test="on-account-error"]').text()).toContain("boom");
+  });
   it("opens on the current month, with no title icon, and the owes chip is red text with no fill", async () => {
     const w = await show();
     const now = new Date();

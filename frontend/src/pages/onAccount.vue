@@ -45,6 +45,8 @@
       </div>
     </div>
 
+    <div v-if="loadError" class="text-error pb-2" data-test="on-account-error">Could not load: {{ loadError }}</div>
+
     <k-data-table-virtual
       class="records-table"
       :headers="headers"
@@ -134,6 +136,7 @@ const headers = [
 
 const clients = ref<OnAccountClient[]>([]);
 const loading = ref(false);
+const loadError = ref("");
 const search = ref("");
 // Opens on this month's sales; the picker goes back a year or to every month.
 const month = ref(currentMonth());
@@ -147,6 +150,10 @@ async function load() {
   try {
     const result = await ListOnAccountClients(month.value);
     clients.value = (result?.clients ?? []) as OnAccountClient[];
+    loadError.value = "";
+  } catch (error) {
+    clients.value = [];
+    loadError.value = String(error);
   } finally {
     loading.value = false;
   }
