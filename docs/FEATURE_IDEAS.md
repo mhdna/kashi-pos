@@ -11,6 +11,8 @@ Things to maybe build later. Not built unless asked.
 - Receipt: a QR of the invoice number at the bottom, plus scanning it at the till to open that sale for an exchange or return (2026-11-14).
 - Receipt: an item count line ("16 pcs · 8 lines") (2026-11-14).
 - Receipt: a solid total box and a "You saved $X today" line instead of the Discount row; built on the `receipt-total-saved` branch, not merged (2026-11-14).
+- Referral modes beyond the first one (a single 15% on the owner's next visit): e.g. the friend also gets a discount, other amounts or rules per program (2026-11-16).
+- WhatsApp a gift message with the referral reward, and send the friend their own code so referrals keep spreading (2026-11-16).
 
 ## In progress
 
