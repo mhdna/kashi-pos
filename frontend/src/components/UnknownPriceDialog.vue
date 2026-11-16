@@ -4,6 +4,9 @@
       <!-- Step 1: the price, on a number pad. -->
       <template v-if="step === 'price'">
         <k-card-title class="px-0 pt-0 text-center text-h5">Unknown item</k-card-title>
+        <div v-if="scannedBarcode" class="text-body-1 text-center mb-2" data-testid="unknown-scanned">
+          Not in the catalog: <span class="unknown-scanned-code">{{ scannedBarcode }}</span>
+        </div>
         <div class="text-h5 text-medium-emphasis text-center mb-3">
           Type the price<br />
           <span dir="rtl" lang="ar">أدخل سعر القطعة</span>
@@ -54,7 +57,9 @@ import InlineKeyboard from "@/components/InlineKeyboard.vue";
 // An "Unknown item" line: first its price, typed on a keypad (this till is a
 // touch screen), then its name, typed on the on-screen keyboard. The name is
 // what the invoice list and the receipt call it. Opening it starts afresh.
-const props = defineProps<{ modelValue: boolean }>();
+// scannedBarcode: the dialog opened for a scan the catalog doesn't know; it
+// shows, and the line keeps it (pages/home.vue, unknownBarcode).
+const props = defineProps<{ modelValue: boolean; scannedBarcode?: string }>();
 const emit = defineEmits<{
   "update:modelValue": [open: boolean];
   add: [price: number, name: string];
@@ -182,5 +187,9 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown, true));
 .unknown-name-keyboard {
   margin-inline: auto;
   max-width: 700px;
+}
+.unknown-scanned-code {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 </style>

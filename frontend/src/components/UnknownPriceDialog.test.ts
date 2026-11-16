@@ -16,9 +16,9 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-async function openDialog() {
+async function openDialog(scannedBarcode = "") {
   const w = mount(UnknownPriceDialog, {
-    props: { modelValue: false, "onUpdate:modelValue": (v: boolean) => void w.setProps({ modelValue: v }) },
+    props: { modelValue: false, scannedBarcode, "onUpdate:modelValue": (v: boolean) => void w.setProps({ modelValue: v }) },
     global: { plugins: [ui] },
     attachTo: document.body,
   });
@@ -165,5 +165,20 @@ describe("unknown item dialog", () => {
   it("the name step has no 'What is it?' line under its title", () => {
     const source = readFileSync(resolve(process.cwd(), "src/components/UnknownPriceDialog.vue"), "utf8");
     expect(source).not.toMatch(/What is it\?|ما هي القطعة/);
+  });
+});
+
+describe("UnknownPriceDialog: a scanned barcode the catalog doesn't know", () => {
+  it("says which barcode wasn't found, and still asks for the price and name", async () => {
+    await openDialog("8000000092403");
+    expect(q('[data-testid="unknown-scanned"]')!.textContent!.replace(/\s+/g, " ").trim()).toBe(
+      "Not in the catalog: 8000000092403",
+    );
+    expect(q('[data-testid="unknown-price"]')).not.toBeNull();
+  });
+
+  it("opened from the button, there is no barcode line", async () => {
+    await openDialog();
+    expect(q('[data-testid="unknown-scanned"]')).toBeNull();
   });
 });

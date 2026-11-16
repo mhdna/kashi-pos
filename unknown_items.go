@@ -209,6 +209,9 @@ type unknownSlotInput struct {
 	// Stable across re-sends of the same cart, so a unit keeps its picture
 	// as lines around it come and go. Empty: its position in the cart.
 	SlotRef string `json:"slotRef"`
+	// The barcode scanned for an item the catalog didn't know; central's
+	// label reader makes the product under it. Empty from the button.
+	Barcode string `json:"barcode"`
 }
 
 type unknownSessionResponse struct {
@@ -266,6 +269,7 @@ func (a *App) SyncUnknownItemSession(clientRef, slotsJSON string) (map[string]an
 		UnitPrice int64  `json:"unit_price"`
 		Discount  int64  `json:"discount"`
 		LineRef   string `json:"line_ref"`
+		Barcode   string `json:"barcode,omitempty"`
 	}
 	body := struct {
 		ClientRef string     `json:"client_ref"`
@@ -281,7 +285,7 @@ func (a *App) SyncUnknownItemSession(clientRef, slotsJSON string) (map[string]an
 		}
 		body.Slots = append(body.Slots, slotBody{
 			SlotRef: slotRef, Label: slot.Label, UnitPrice: slot.UnitPriceCents, Discount: slot.Discount,
-			LineRef: slot.LineRef,
+			LineRef: slot.LineRef, Barcode: strings.TrimSpace(slot.Barcode),
 		})
 	}
 	var resp unknownSessionResponse
