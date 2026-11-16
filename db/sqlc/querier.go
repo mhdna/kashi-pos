@@ -435,9 +435,14 @@ type Querier interface {
 	ListCentralQuickAccessProducts(ctx context.Context) ([]ListCentralQuickAccessProductsRow, error)
 	// Every client who still owes on account: what they were sold on account,
 	// what they have paid back, and what is left. A fully paid client is left out.
-	// year_month ('YYYY-MM', local time) keeps only sales rung up that month;
-	// empty means every month.
-	ListClientAccountBalances(ctx context.Context, yearMonth interface{}) ([]ListClientAccountBalancesRow, error)
+	// from_at/to_at (UTC 'YYYY-MM-DD HH:MM:SS', to_at exclusive) keep only the
+	// sales rung up in that range, and empty strings mean every sale. The entries
+	// are added up first: starting from clients walked all of them (130k on a
+	// real till) and took seconds.
+	// Name and phone come from a lookup by id per client, which SQLite always
+	// does by primary key: a join let stale statistics (clients counted as one
+	// row) pick a walk over every client instead.
+	ListClientAccountBalances(ctx context.Context, arg ListClientAccountBalancesParams) ([]ListClientAccountBalancesRow, error)
 	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
 	ListClientAccountPayments(ctx context.Context, clientID int64) ([]ListClientAccountPaymentsRow, error)
 	ListClientNamesByIDs(ctx context.Context, ids []int64) ([]ListClientNamesByIDsRow, error)

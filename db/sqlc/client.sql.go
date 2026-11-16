@@ -606,24 +606,40 @@ func (q *Queries) ListActiveClients(ctx context.Context) ([]Client, error) {
 }
 
 const listClientAccountBalances = `-- name: ListClientAccountBalances :many
-SELECT c.id, c.name, c.phone,
-       COUNT(*) AS invoice_count,
-       CAST(SUM(cae.amount) AS INTEGER) AS total,
-       CAST(SUM(COALESCE(p.paid, 0)) AS INTEGER) AS paid,
-       CAST(SUM(MAX(cae.amount - COALESCE(p.paid, 0), 0)) AS INTEGER) AS outstanding,
-       CAST(MAX(cae.created_at) AS TEXT) AS last_sale_at
-FROM client_account_entries cae
-JOIN clients c ON c.id = cae.client_id
-LEFT JOIN (
-    SELECT invoice_id, SUM(amount) AS paid
-    FROM client_account_payments
-    GROUP BY invoice_id
-) p ON p.invoice_id = cae.invoice_id
-WHERE cae.amount - COALESCE(p.paid, 0) > 0
-  AND (?1 = '' OR strftime('%Y-%m', cae.created_at, 'localtime') = ?1)
-GROUP BY c.id
-ORDER BY outstanding DESC, c.name COLLATE NOCASE, c.id
+WITH open_entries AS (
+    SELECT cae.client_id,
+           COUNT(*) AS invoice_count,
+           SUM(cae.amount) AS total,
+           SUM(COALESCE(p.paid, 0)) AS paid,
+           SUM(cae.amount - COALESCE(p.paid, 0)) AS outstanding,
+           MAX(cae.created_at) AS last_sale_at
+    FROM client_account_entries cae
+    LEFT JOIN (
+        SELECT invoice_id, SUM(amount) AS paid
+        FROM client_account_payments
+        GROUP BY invoice_id
+    ) p ON p.invoice_id = cae.invoice_id
+    WHERE cae.amount - COALESCE(p.paid, 0) > 0
+      AND (?1 = '' OR cae.created_at >= ?1)
+      AND (?2 = '' OR cae.created_at < ?2)
+    GROUP BY cae.client_id
+)
+SELECT o.client_id AS id,
+       CAST(COALESCE((SELECT c.name FROM clients c WHERE c.id = o.client_id), '') AS TEXT) AS name,
+       CAST(COALESCE((SELECT c.phone FROM clients c WHERE c.id = o.client_id), '') AS TEXT) AS phone,
+       CAST(o.invoice_count AS INTEGER) AS invoice_count,
+       CAST(o.total AS INTEGER) AS total,
+       CAST(o.paid AS INTEGER) AS paid,
+       CAST(o.outstanding AS INTEGER) AS outstanding,
+       CAST(o.last_sale_at AS TEXT) AS last_sale_at
+FROM open_entries o
+ORDER BY o.outstanding DESC, name COLLATE NOCASE, o.client_id
 `
+
+type ListClientAccountBalancesParams struct {
+	FromAt interface{} `json:"fromAt"`
+	ToAt   interface{} `json:"toAt"`
+}
 
 type ListClientAccountBalancesRow struct {
 	ID           int64  `json:"id"`
@@ -638,10 +654,15 @@ type ListClientAccountBalancesRow struct {
 
 // Every client who still owes on account: what they were sold on account,
 // what they have paid back, and what is left. A fully paid client is left out.
-// year_month ('YYYY-MM', local time) keeps only sales rung up that month;
-// empty means every month.
-func (q *Queries) ListClientAccountBalances(ctx context.Context, yearMonth interface{}) ([]ListClientAccountBalancesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listClientAccountBalances, yearMonth)
+// from_at/to_at (UTC 'YYYY-MM-DD HH:MM:SS', to_at exclusive) keep only the
+// sales rung up in that range, and empty strings mean every sale. The entries
+// are added up first: starting from clients walked all of them (130k on a
+// real till) and took seconds.
+// Name and phone come from a lookup by id per client, which SQLite always
+// does by primary key: a join let stale statistics (clients counted as one
+// row) pick a walk over every client instead.
+func (q *Queries) ListClientAccountBalances(ctx context.Context, arg ListClientAccountBalancesParams) ([]ListClientAccountBalancesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClientAccountBalances, arg.FromAt, arg.ToAt)
 	if err != nil {
 		return nil, err
 	}

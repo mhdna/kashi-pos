@@ -124,12 +124,18 @@ func (a *App) ListOnAccountClients(yearMonth string) (map[string]any, error) {
 	if a.store == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
+	// The month is the till's local month; created_at is stored in UTC, so
+	// the bounds go in as UTC strings and compare as plain text.
+	params := db.ListClientAccountBalancesParams{FromAt: "", ToAt: ""}
 	if yearMonth != "" {
-		if _, err := time.Parse("2006-01", yearMonth); err != nil {
+		start, err := time.ParseInLocation("2006-01", yearMonth, time.Local)
+		if err != nil {
 			return nil, fmt.Errorf("invalid month %q; use YYYY-MM", yearMonth)
 		}
+		params.FromAt = start.UTC().Format("2006-01-02 15:04:05")
+		params.ToAt = start.AddDate(0, 1, 0).UTC().Format("2006-01-02 15:04:05")
 	}
-	rows, err := a.store.ListClientAccountBalances(a.ctx, yearMonth)
+	rows, err := a.store.ListClientAccountBalances(a.ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("list on-account clients: %w", err)
 	}

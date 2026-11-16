@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +22,7 @@ type onAccountFixture struct {
 	cashID    int64
 	accountID int64
 	invIndex  int64
+	clients   int64
 }
 
 func newOnAccountFixture(t *testing.T) *onAccountFixture {
@@ -51,9 +54,14 @@ func newOnAccountFixture(t *testing.T) *onAccountFixture {
 	}
 }
 
+func (f *onAccountFixture) nextClient() int64 {
+	f.clients++
+	return f.clients
+}
+
 func (f *onAccountFixture) client(t *testing.T, name string) int64 {
 	t.Helper()
-	c, err := f.store.CreateClient(f.app.ctx, db.CreateClientParams{Name: name, Phone: "+9617" + fmt.Sprint(1000000+f.invIndex*7+int64(len(name)))})
+	c, err := f.store.CreateClient(f.app.ctx, db.CreateClientParams{Name: name, Phone: fmt.Sprintf("+9617%07d", f.nextClient())})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,4 +222,69 @@ func TestListOnAccountClientsByMonth(t *testing.T) {
 	if _, err := f.app.ListOnAccountClients("2026-13"); err == nil {
 		t.Fatal("a bad month was accepted")
 	}
+}
+
+// With the planner's statistics claiming clients has one row (as a real till
+// had: 130k clients, stats taken when it was empty), the list must still
+// start from the account entries and look each client up by id, never walk
+// the whole clients table.
+func TestListOnAccountClientsDoesNotScanClients(t *testing.T) {
+	f := newOnAccountFixture(t)
+	c := f.client(t, "Only Debtor")
+	f.sell(t, c, 500)
+	for i := 0; i < 300; i++ {
+		f.client(t, fmt.Sprintf("Filler %03d", i))
+	}
+	if _, err := f.db.Exec(`ANALYZE`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.db.Exec(`UPDATE sqlite_stat1 SET stat = '1 1' WHERE tbl = 'clients'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.db.Exec(`ANALYZE sqlite_schema`); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]any{{"", ""}, {"2026-11-01 00:00:00", "2026-12-01 00:00:00"}} {
+		rows, err := f.db.Query("EXPLAIN QUERY PLAN "+listClientAccountBalancesSQL(), args...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var plan []string
+		for rows.Next() {
+			var id, parent, notused int
+			var detail string
+			if err := rows.Scan(&id, &parent, &notused, &detail); err != nil {
+				t.Fatal(err)
+			}
+			plan = append(plan, detail)
+		}
+		rows.Close()
+		for _, step := range plan {
+			if step == "SCAN c" || strings.HasPrefix(step, "SCAN c USING") {
+				t.Fatalf("plan walks every client: %q", plan)
+			}
+		}
+	}
+	byID, _ := onAccountRows(t, f.app)
+	if len(byID) != 1 || byID[c]["outstanding"].(int64) != 500 {
+		t.Fatalf("rows = %#v", byID)
+	}
+}
+
+// listClientAccountBalancesSQL is the query as written in db/query/client.sql,
+// with its sqlc.arg()s as numbered parameters (from_at ?1, to_at ?2).
+func listClientAccountBalancesSQL() string {
+	raw, err := os.ReadFile("db/query/client.sql")
+	if err != nil {
+		panic(err)
+	}
+	src := string(raw)
+	start := strings.Index(src, "-- name: ListClientAccountBalances")
+	body := src[start:]
+	body = body[strings.Index(body, "\n")+1:]
+	if end := strings.Index(body, ";"); end >= 0 {
+		body = body[:end]
+	}
+	body = strings.ReplaceAll(body, "sqlc.arg(from_at)", "?1")
+	return strings.ReplaceAll(body, "sqlc.arg(to_at)", "?2")
 }

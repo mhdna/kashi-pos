@@ -9,6 +9,14 @@ Measured or reported slow things that are not fixed yet. Nothing recorded yet.
 
 ## Entries
 
+### 2026-11-16 · On Account page spun for seconds on a real till
+
+**Symptom.** Opening On Account (this month) showed the loading bar for seconds, looking stuck, with one client owing.
+
+**Finding.** On a copy of a dev till (130,879 clients, 1 account entry) the month query took 6.8 s through the app's driver, 17 ms without the month filter. SQLite started from `clients` and ran `strftime(created_at, 'localtime')` once per client; local-time conversion is slow in the pure-Go driver. It started from `clients` because `sqlite_stat1` still said clients had 1 row (stats taken when the table was empty).
+
+**Change.** `db/query/client.sql` (`ListClientAccountBalances`), `client_accounts.go`: the month is turned into UTC start/end strings in Go and compared as text; the entries are added up first and each client's name and phone looked up by primary key in a subquery, which SQLite does whatever the stats say. 6.8 s to 0.15 ms (9 ms cold). `TestListOnAccountClientsDoesNotScanClients` fakes the stale stats and fails if the plan walks clients.
+
 ### 2026-11-10 · Expense, loan and transfer photos loaded slowly every time
 
 **Symptom.** Opening Expenses, Loans or Transfers, or a record's detail, waited on central for every thumbnail and photo, each session; offline they never showed.

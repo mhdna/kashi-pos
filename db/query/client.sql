@@ -267,22 +267,38 @@ SELECT CAST(EXISTS (
 -- name: ListClientAccountBalances :many
 -- Every client who still owes on account: what they were sold on account,
 -- what they have paid back, and what is left. A fully paid client is left out.
--- year_month ('YYYY-MM', local time) keeps only sales rung up that month;
--- empty means every month.
-SELECT c.id, c.name, c.phone,
-       COUNT(*) AS invoice_count,
-       CAST(SUM(cae.amount) AS INTEGER) AS total,
-       CAST(SUM(COALESCE(p.paid, 0)) AS INTEGER) AS paid,
-       CAST(SUM(MAX(cae.amount - COALESCE(p.paid, 0), 0)) AS INTEGER) AS outstanding,
-       CAST(MAX(cae.created_at) AS TEXT) AS last_sale_at
-FROM client_account_entries cae
-JOIN clients c ON c.id = cae.client_id
-LEFT JOIN (
-    SELECT invoice_id, SUM(amount) AS paid
-    FROM client_account_payments
-    GROUP BY invoice_id
-) p ON p.invoice_id = cae.invoice_id
-WHERE cae.amount - COALESCE(p.paid, 0) > 0
-  AND (sqlc.arg(year_month) = '' OR strftime('%Y-%m', cae.created_at, 'localtime') = sqlc.arg(year_month))
-GROUP BY c.id
-ORDER BY outstanding DESC, c.name COLLATE NOCASE, c.id;
+-- from_at/to_at (UTC 'YYYY-MM-DD HH:MM:SS', to_at exclusive) keep only the
+-- sales rung up in that range, and empty strings mean every sale. The entries
+-- are added up first: starting from clients walked all of them (130k on a
+-- real till) and took seconds.
+WITH open_entries AS (
+    SELECT cae.client_id,
+           COUNT(*) AS invoice_count,
+           SUM(cae.amount) AS total,
+           SUM(COALESCE(p.paid, 0)) AS paid,
+           SUM(cae.amount - COALESCE(p.paid, 0)) AS outstanding,
+           MAX(cae.created_at) AS last_sale_at
+    FROM client_account_entries cae
+    LEFT JOIN (
+        SELECT invoice_id, SUM(amount) AS paid
+        FROM client_account_payments
+        GROUP BY invoice_id
+    ) p ON p.invoice_id = cae.invoice_id
+    WHERE cae.amount - COALESCE(p.paid, 0) > 0
+      AND (sqlc.arg(from_at) = '' OR cae.created_at >= sqlc.arg(from_at))
+      AND (sqlc.arg(to_at) = '' OR cae.created_at < sqlc.arg(to_at))
+    GROUP BY cae.client_id
+)
+-- Name and phone come from a lookup by id per client, which SQLite always
+-- does by primary key: a join let stale statistics (clients counted as one
+-- row) pick a walk over every client instead.
+SELECT o.client_id AS id,
+       CAST(COALESCE((SELECT c.name FROM clients c WHERE c.id = o.client_id), '') AS TEXT) AS name,
+       CAST(COALESCE((SELECT c.phone FROM clients c WHERE c.id = o.client_id), '') AS TEXT) AS phone,
+       CAST(o.invoice_count AS INTEGER) AS invoice_count,
+       CAST(o.total AS INTEGER) AS total,
+       CAST(o.paid AS INTEGER) AS paid,
+       CAST(o.outstanding AS INTEGER) AS outstanding,
+       CAST(o.last_sale_at AS TEXT) AS last_sale_at
+FROM open_entries o
+ORDER BY o.outstanding DESC, name COLLATE NOCASE, o.client_id;
