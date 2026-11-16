@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentMonth, filterOnAccountClients, monthChoices, onAccountTotals, type OnAccountClient } from "./onAccount";
+import { currentMonth, defaultMonth, filterOnAccountClients, monthChoices, monthTitle, onAccountTotals, type OnAccountClient } from "./onAccount";
 
 const mk = (id: number, name: string, total: number, paid: number, phone = ""): OnAccountClient => ({
   id, name, phone, invoiceCount: 1, total, paid, outstanding: total - paid,
@@ -46,17 +46,33 @@ describe("filterOnAccountClients", () => {
 });
 
 describe("month picker", () => {
-  it("starts at the current month and pads single digits", () => {
+  it("current month pads single digits", () => {
     expect(currentMonth(new Date(2026, 10, 16))).toBe("2026-11");
     expect(currentMonth(new Date(2026, 0, 31))).toBe("2026-01");
   });
-  it("lists twelve months back across a year change, then All months", () => {
-    const c = monthChoices(new Date(2026, 1, 10));
-    expect(c).toHaveLength(13);
-    expect(c[0]).toEqual({ title: "February 2026", value: "2026-02" });
-    expect(c[2]).toEqual({ title: "December 2025", value: "2025-12" });
-    expect(c[11]!.value).toBe("2025-03");
-    expect(c[12]).toEqual({ title: "All months", value: "" });
-    expect(new Set(c.map((x) => x.value)).size).toBe(13);
+  it("lists only the months given, newest first, once each, then All months", () => {
+    expect(monthChoices(["2025-12", "2026-11", "2026-02", "2026-11"])).toEqual([
+      { title: "November 2026", value: "2026-11" },
+      { title: "February 2026", value: "2026-02" },
+      { title: "December 2025", value: "2025-12" },
+      { title: "All months", value: "" },
+    ]);
+  });
+  it("with no debts only All months is offered", () => {
+    expect(monthChoices([])).toEqual([{ title: "All months", value: "" }]);
+  });
+  it("opens on this month when it has debts", () => {
+    expect(defaultMonth(["2026-09", "2026-11"], new Date(2026, 10, 16))).toBe("2026-11");
+  });
+  it("else on the newest month with debts", () => {
+    expect(defaultMonth(["2026-07", "2026-09"], new Date(2026, 10, 16))).toBe("2026-09");
+  });
+  it("else on all months", () => {
+    expect(defaultMonth([], new Date(2026, 10, 16))).toBe("");
+  });
+  it("names every month", () => {
+    for (let m = 1; m <= 12; m++) expect(monthTitle(`2026-${String(m).padStart(2, "0")}`)).not.toContain("undefined");
+    expect(monthTitle("2026-01")).toBe("January 2026");
+    expect(monthTitle("2026-12")).toBe("December 2026");
   });
 });

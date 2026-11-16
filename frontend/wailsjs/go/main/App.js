@@ -610,8 +610,16 @@ export function ListOnAccountClients(arg1) {
   return window['go']['main']['App']['ListOnAccountClients'](arg1);
 }
 
+export function ListOnAccountMonths() {
+  return window['go']['main']['App']['ListOnAccountMonths']();
+}
+
 export function ListPageUnlocks() {
   return window['go']['main']['App']['ListPageUnlocks']();
+}
+
+export function ListOnAccountMonths() {
+  return window['go']['main']['App']['ListOnAccountMonths']();
 }
 
 export function ListPaymentMethods() {

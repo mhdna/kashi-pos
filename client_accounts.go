@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -154,4 +155,32 @@ func (a *App) ListOnAccountClients(yearMonth string) (map[string]any, error) {
 	return map[string]any{
 		"clients": clients, "total": total, "paid": paid, "outstanding": outstanding,
 	}, nil
+}
+
+// ListOnAccountMonths lists the months ("YYYY-MM", the till's local time)
+// that have a sale still owed on account, newest first: the only months worth
+// offering in the On Account page's month picker.
+func (a *App) ListOnAccountMonths() ([]string, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	dates, err := a.store.ListOpenClientAccountEntryDates(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list on-account months: %w", err)
+	}
+	seen := map[string]bool{}
+	months := make([]string, 0)
+	for _, raw := range dates {
+		at, err := time.ParseInLocation("2006-01-02 15:04:05", strings.TrimSpace(raw), time.UTC)
+		if err != nil {
+			continue
+		}
+		month := at.In(time.Local).Format("2006-01")
+		if !seen[month] {
+			seen[month] = true
+			months = append(months, month)
+		}
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(months)))
+	return months, nil
 }

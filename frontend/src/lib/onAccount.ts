@@ -43,13 +43,24 @@ export function currentMonth(now: Date = new Date()): string {
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-/** The picker's choices: this month first, then back a year, then every month ("" = all). */
-export function monthChoices(now: Date = new Date(), count = 12): { title: string; value: string }[] {
-  const choices: { title: string; value: string }[] = [];
-  for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    choices.push({ title: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, value: currentMonth(d) });
-  }
-  choices.push({ title: "All months", value: "" });
-  return choices;
+/** "November 2026" for "2026-11". */
+export function monthTitle(month: string): string {
+  const [year, m] = month.split("-").map(Number);
+  return `${MONTH_NAMES[(m ?? 1) - 1]} ${year}`;
+}
+
+/**
+ * The picker's choices: only the months that still have something owed
+ * (from ListOnAccountMonths, newest first), then every month ("" = all).
+ */
+export function monthChoices(months: string[]): { title: string; value: string }[] {
+  const unique = [...new Set(months)].sort().reverse();
+  return [...unique.map((value) => ({ title: monthTitle(value), value })), { title: "All months", value: "" }];
+}
+
+/** Opens on this month when it has debts, else the newest month that does, else all months. */
+export function defaultMonth(months: string[], now: Date = new Date()): string {
+  const current = currentMonth(now);
+  if (months.includes(current)) return current;
+  return [...months].sort().reverse()[0] ?? "";
 }

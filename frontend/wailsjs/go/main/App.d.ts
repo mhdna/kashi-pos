@@ -306,6 +306,10 @@ export function ListManagedProducts(arg1:number,arg2:number,arg3:string):Promise
 
 export function ListOnAccountClients(arg1:string):Promise<Record<string, any>>;
 
+export function ListOnAccountMonths():Promise<Array<string>>;
+
+export function ListOnAccountMonths():Promise<Array<string>>;
+
 export function ListPageUnlocks():Promise<Record<string, boolean>>;
 
 export function ListPaymentMethods():Promise<Array<Record<string, any>>>;

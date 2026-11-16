@@ -119,10 +119,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { GetClientAccountDetails, ListOnAccountClients } from "../../wailsjs/go/main/App";
+import { GetClientAccountDetails, ListOnAccountClients, ListOnAccountMonths } from "../../wailsjs/go/main/App";
 import { formatUsd } from "@/lib/format";
 import { formatServerDateTime } from "@/lib/datetime";
-import { currentMonth, filterOnAccountClients, monthChoices as buildMonthChoices, onAccountTotals, type OnAccountClient } from "@/lib/onAccount";
+import { currentMonth, defaultMonth, filterOnAccountClients, monthChoices as buildMonthChoices, onAccountTotals, type OnAccountClient } from "@/lib/onAccount";
 
 const headers = [
   { title: "Client", key: "name", sortable: false },
@@ -138,9 +138,10 @@ const clients = ref<OnAccountClient[]>([]);
 const loading = ref(false);
 const loadError = ref("");
 const search = ref("");
-// Opens on this month's sales; the picker goes back a year or to every month.
+// The picker offers only months where someone still owes. It opens on this
+// month when it has debts, else the newest month that does.
 const month = ref(currentMonth());
-const monthChoices = buildMonthChoices();
+const monthChoices = ref(buildMonthChoices([]));
 const rows = computed(() => filterOnAccountClients(clients.value, search.value ?? ""));
 // The numbers over the table follow the rows shown, so a search narrows them too.
 const totals = computed(() => onAccountTotals(rows.value));
@@ -158,7 +159,16 @@ async function load() {
     loading.value = false;
   }
 }
-onMounted(load);
+onMounted(async () => {
+  try {
+    const months = ((await ListOnAccountMonths()) ?? []) as string[];
+    monthChoices.value = buildMonthChoices(months);
+    month.value = defaultMonth(months);
+  } catch {
+    // Without the months the picker keeps All months and this month's list.
+  }
+  await load();
+});
 
 const detailOpen = ref(false);
 const detailLoading = ref(false);

@@ -1177,6 +1177,42 @@ func (q *Queries) ListCouponsByClientID(ctx context.Context, clientID sql.NullIn
 	return items, nil
 }
 
+const listOpenClientAccountEntryDates = `-- name: ListOpenClientAccountEntryDates :many
+SELECT cae.created_at
+FROM client_account_entries cae
+LEFT JOIN (
+    SELECT invoice_id, SUM(amount) AS paid
+    FROM client_account_payments
+    GROUP BY invoice_id
+) p ON p.invoice_id = cae.invoice_id
+WHERE cae.amount - COALESCE(p.paid, 0) > 0
+`
+
+// When each still-owed on-account sale was rung up (UTC), for the On Account
+// page's month picker. Months are worked out in Go, in the till's time zone.
+func (q *Queries) ListOpenClientAccountEntryDates(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listOpenClientAccountEntryDates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var created_at string
+		if err := rows.Scan(&created_at); err != nil {
+			return nil, err
+		}
+		items = append(items, created_at)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const redeemCoupon = `-- name: RedeemCoupon :exec
 UPDATE coupons SET status = 'inactive', redeemed_invoice_id = ? WHERE code = ? AND status = 'active' AND redeemed_invoice_id IS NULL
 `

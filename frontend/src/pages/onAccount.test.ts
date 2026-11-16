@@ -20,7 +20,10 @@ const GetClientAccountDetails = vi.fn(async (id: number) => ({
   id,
 }));
 const ListOnAccountClients = vi.fn(async (_month: string) => list);
+const months = { list: [] as string[] };
+const ListOnAccountMonths = vi.fn(async () => months.list);
 vi.mock("../../wailsjs/go/main/App", () => ({
+  ListOnAccountMonths: () => ListOnAccountMonths(),
   ListOnAccountClients: (m: string) => ListOnAccountClients(m),
   GetClientAccountDetails: (id: number) => GetClientAccountDetails(id),
 }));
@@ -28,7 +31,7 @@ vi.mock("../../wailsjs/go/main/App", () => ({
 import OnAccount from "./onAccount.vue";
 
 let wrapper: VueWrapper<any> | null = null;
-afterEach(() => { wrapper?.unmount(); wrapper = null; });
+afterEach(() => { wrapper?.unmount(); wrapper = null; months.list = []; });
 
 async function show() {
   wrapper = mount(OnAccount, { global: { plugins: [ui] }, attachTo: document.body });
@@ -42,7 +45,16 @@ describe("On Account page", () => {
     const w = await show();
     expect(w.find('[data-test="on-account-error"]').text()).toContain("boom");
   });
+  it("the picker offers only months with debts, and opens on the newest when this month has none", async () => {
+    months.list = ["2026-03", "2025-12"];
+    const w = await show();
+    expect(ListOnAccountClients).toHaveBeenLastCalledWith("2026-03");
+    const choices = (w.vm as any).$?.setupState?.monthChoices ?? (w.vm as any).monthChoices;
+    expect(choices.map((c: any) => c.value)).toEqual(["2026-03", "2025-12", ""]);
+  });
   it("opens on the current month, with no title icon, and the owes chip is red text with no fill", async () => {
+    const now0 = new Date();
+    months.list = [`${now0.getFullYear()}-${String(now0.getMonth() + 1).padStart(2, "0")}`, "2020-01"];
     const w = await show();
     const now = new Date();
     expect(ListOnAccountClients).toHaveBeenLastCalledWith(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);

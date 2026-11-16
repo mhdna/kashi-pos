@@ -547,6 +547,9 @@ type Querier interface {
 	ListLoanCategories(ctx context.Context) ([]LoanCategory, error)
 	ListLoans(ctx context.Context, arg ListLoansParams) ([]Loan, error)
 	ListLoansForShift(ctx context.Context, shiftID sql.NullInt64) ([]Loan, error)
+	// When each still-owed on-account sale was rung up (UTC), for the On Account
+	// page's month picker. Months are worked out in Go, in the till's time zone.
+	ListOpenClientAccountEntryDates(ctx context.Context) ([]string, error)
 	ListOutgoingTransferRequests(ctx context.Context) ([]TransferRequest, error)
 	ListPermissions(ctx context.Context) ([]Permission, error)
 	ListPriceListItems(ctx context.Context, priceListID int64) ([]PriceListItem, error)

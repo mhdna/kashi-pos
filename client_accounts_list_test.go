@@ -288,3 +288,59 @@ func listClientAccountBalancesSQL() string {
 	body = strings.ReplaceAll(body, "sqlc.arg(from_at)", "?1")
 	return strings.ReplaceAll(body, "sqlc.arg(to_at)", "?2")
 }
+
+func TestListOnAccountMonths(t *testing.T) {
+	f := newOnAccountFixture(t)
+	months, err := f.app.ListOnAccountMonths()
+	if err != nil || len(months) != 0 {
+		t.Fatalf("empty till = %v, err=%v", months, err)
+	}
+	c := f.client(t, "Months")
+	f.sell(t, c, 100) // this month
+	f.sell(t, c, 100) // this month again: listed once
+	twoBack := f.sell(t, c, 100)
+	paidOff := f.sell(t, c, 100)
+	setAt := func(invoiceID int64, at time.Time) {
+		t.Helper()
+		if _, err := f.db.Exec(`UPDATE client_account_entries SET created_at = ? WHERE invoice_id = ?`, at.UTC().Format("2006-01-02 15:04:05"), invoiceID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	now := time.Now()
+	thisMonth := time.Date(now.Year(), now.Month(), 1, 12, 0, 0, 0, time.Local)
+	setAt(twoBack, thisMonth.AddDate(0, -2, 0))
+	// Fully paid: its month has nothing owed, so it isn't offered.
+	setAt(paidOff, thisMonth.AddDate(0, -1, 0))
+	if _, err := f.app.PayClientAccount(paidOff, f.cashID, 100); err != nil {
+		t.Fatal(err)
+	}
+	// The first minute of a local month is stored as the previous day in UTC
+	// east of Greenwich: it must still count for the local month.
+	edge := f.sell(t, c, 100)
+	setAt(edge, time.Date(now.Year(), now.Month(), 1, 0, 0, 30, 0, time.Local).AddDate(0, -4, 0))
+
+	months, err = f.app.ListOnAccountMonths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		thisMonth.Format("2006-01"),
+		thisMonth.AddDate(0, -2, 0).Format("2006-01"),
+		thisMonth.AddDate(0, -4, 0).Format("2006-01"),
+	}
+	if fmt.Sprint(months) != fmt.Sprint(want) {
+		t.Fatalf("months = %v, want %v", months, want)
+	}
+	// Every month offered has rows, and they add up to the whole list.
+	var sum int64
+	for _, m := range months {
+		_, got := onAccountRows(t, f.app, m)
+		if got["outstanding"].(int64) == 0 {
+			t.Fatalf("month %s offered but empty", m)
+		}
+		sum += got["outstanding"].(int64)
+	}
+	if _, all := onAccountRows(t, f.app); all["outstanding"].(int64) != sum {
+		t.Fatalf("months add to %d, all = %v", sum, all["outstanding"])
+	}
+}

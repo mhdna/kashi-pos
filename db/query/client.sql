@@ -302,3 +302,15 @@ SELECT o.client_id AS id,
        CAST(o.last_sale_at AS TEXT) AS last_sale_at
 FROM open_entries o
 ORDER BY o.outstanding DESC, name COLLATE NOCASE, o.client_id;
+
+-- name: ListOpenClientAccountEntryDates :many
+-- When each still-owed on-account sale was rung up (UTC), for the On Account
+-- page's month picker. Months are worked out in Go, in the till's time zone.
+SELECT cae.created_at
+FROM client_account_entries cae
+LEFT JOIN (
+    SELECT invoice_id, SUM(amount) AS paid
+    FROM client_account_payments
+    GROUP BY invoice_id
+) p ON p.invoice_id = cae.invoice_id
+WHERE cae.amount - COALESCE(p.paid, 0) > 0;
