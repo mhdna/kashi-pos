@@ -423,7 +423,7 @@ const items = computed(() => {
 
 /* The page you are on: lighter panel, bright text and an accent bar. */
 .nav-item.k-list-item--active {
-  background: linear-gradient(90deg, rgba(79, 140, 255, 0.28), rgba(79, 140, 255, 0.1));
+  background-color: rgba(79, 140, 255, 0.2);
   color: #ffffff;
 }
 

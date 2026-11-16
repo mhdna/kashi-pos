@@ -133,6 +133,15 @@ describe("Devices box", () => {
     expect(src).toMatch(/\.device-panel \{[^}]*border-radius: 0;/);
   });
 
+  it("the selected tab is one flat colour, not a gradient", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(resolve(__dirname, "NavDrawer.vue"), "utf8");
+    const rule = src.match(/\.nav-item\.k-list-item--active \{[^}]*\}/)![0];
+    expect(rule).not.toContain("gradient");
+    expect(rule).toMatch(/background-color: rgba\(79, 140, 255, 0\.2\)/);
+  });
+
   it("has no Devices title, just the icons", async () => {
     wrapper = mount(NavDrawer, { global: { plugins: [ui] }, attachTo: document.body });
     await flushPromises();

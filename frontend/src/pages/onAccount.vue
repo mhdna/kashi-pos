@@ -32,15 +32,15 @@
 
     <div class="on-account-totals" data-test="on-account-totals">
       <div class="on-account-total">
-        <span class="on-account-total-label">Sold on account</span>
+        <span class="on-account-total-label">Sold</span>
         <span class="on-account-total-value" data-test="total-sold">{{ formatUsd(totals.total / 100) }}</span>
       </div>
       <div class="on-account-total">
-        <span class="on-account-total-label">Paid back</span>
+        <span class="on-account-total-label">Collected</span>
         <span class="on-account-total-value" data-test="total-paid">{{ formatUsd(totals.paid / 100) }}</span>
       </div>
       <div class="on-account-total on-account-total--owed">
-        <span class="on-account-total-label">Still owed</span>
+        <span class="on-account-total-label">Owed</span>
         <span class="on-account-total-value" data-test="total-owed">{{ formatUsd(totals.outstanding / 100) }}</span>
       </div>
     </div>

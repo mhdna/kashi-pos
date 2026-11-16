@@ -52,6 +52,8 @@ describe("On Account page", () => {
   it("lists every client with what they owe, and totals the three numbers", async () => {
     const w = await show();
     const text = w.text();
+    for (const label of ["Sold", "Collected", "Owed"]) expect(w.find(".on-account-totals").text()).toContain(label);
+    expect(text).not.toContain("Paid back");
     expect(text).toContain("Big Debtor");
     expect(text).toContain("Partly Paid");
     expect(text).toContain("$3,500.00");
