@@ -2,7 +2,6 @@
   <div class="records-page" @scroll.passive.capture="list.onScroll">
     <div class="records-head">
       <div class="records-title">
-        <k-icon icon="mdi-hand-coin-outline" size="36" color="primary" />
         <h1>Loans</h1>
       </div>
       <k-spacer />
@@ -27,10 +26,10 @@
       </template>
       <template #item.description="{ item }">
         <span class="font-weight-medium" :class="{ 'text-decoration-line-through': item.cancelledAt }">{{ item.description || "—" }}</span>
-        <k-chip v-if="item.cancelledAt" size="x-small" color="error" variant="tonal" class="ml-2">Cancelled</k-chip>
+        <k-chip v-if="item.cancelledAt" size="x-small" color="error" variant="text" class="ml-2">Cancelled</k-chip>
       </template>
       <template #item.category="{ item }">
-        <k-chip v-if="item.category" size="small" variant="tonal" :color="categoryOf(item.category)?.color || 'blue-grey'" :prepend-icon="categoryOf(item.category)?.icon || 'mdi-tag-outline'">
+        <k-chip v-if="item.category" size="small" variant="text" :color="categoryOf(item.category)?.color || 'blue-grey'" :prepend-icon="categoryOf(item.category)?.icon || 'mdi-tag-outline'">
           {{ item.category }}
         </k-chip>
         <span v-else class="text-medium-emphasis">—</span>
@@ -99,10 +98,10 @@
           <!-- More photos: scan the QR with a phone, or pick files on this
                computer. Central takes up to 3 in all. -->
           <div v-if="!detailPhotosLoading && selected.clientRef && detailPhotos.length < 3" class="d-flex justify-center flex-wrap ga-2 mt-3">
-            <k-btn color="primary" variant="tonal" prepend-icon="mdi-camera-outline" @click="openUploadDialog(selected.clientRef, 'resend')">
+            <k-btn color="primary" variant="flat" prepend-icon="mdi-camera-outline" @click="openUploadDialog(selected.clientRef, 'resend')">
               {{ detailPhotos.length ? "Add with phone" : "Send photo with phone" }}
             </k-btn>
-            <k-btn color="primary" variant="tonal" prepend-icon="mdi-upload" :loading="computerUploading" @click="uploadFromComputer">
+            <k-btn color="primary" variant="flat" prepend-icon="mdi-upload" :loading="computerUploading" @click="uploadFromComputer">
               From this computer
             </k-btn>
           </div>
