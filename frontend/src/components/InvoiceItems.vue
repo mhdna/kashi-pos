@@ -247,7 +247,7 @@
                     <span v-if="showDiscountChips" class="invoice-price-discount">
                       <k-chip
                         v-if="canToggleDiscount(item) && chipDiscount(item)"
-                        :color="item.discountOff ? 'grey' : 'red'"
+                        :color="item.discountOff ? 'grey' : 'error'"
                         density="comfortable"
                         label
                         size="x-small"
@@ -281,7 +281,7 @@
                 <span v-if="showDiscountChips" class="invoice-price-discount">
                   <k-chip
                     v-if="chipDiscount(item) && !discountEditable(item)"
-                    :color="item.discountOff ? 'grey' : 'red'"
+                    :color="item.discountOff ? 'grey' : 'error'"
                     density="comfortable"
                     label
                     size="x-small"
