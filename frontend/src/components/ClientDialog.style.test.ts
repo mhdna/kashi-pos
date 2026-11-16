@@ -10,10 +10,11 @@ const pad = readFileSync(resolve(__dirname, "PhonePad.vue"), "utf8");
 const rule = (src: string, sel: string) => src.slice(src.indexOf(`${sel} {`), src.indexOf("}", src.indexOf(`${sel} {`)));
 
 describe("phone number screen colours", () => {
-  it("the country Search button is neutral grey, not teal", () => {
+  it("the country Search button is text only: no fill, not teal", () => {
     const css = rule(dialog, ".client-phone-country-trigger-search");
     expect(css).not.toMatch(/#00796b/i);
-    expect(css).toMatch(/background: rgba\(var\(--k-theme-on-surface\), 0\.12\)/);
+    expect(css).toMatch(/background: transparent/);
+    expect(css).toMatch(/color: rgb\(var\(--k-theme-on-surface\)\)/);
   });
 
   it("the page arrows are text buttons with no background", () => {
