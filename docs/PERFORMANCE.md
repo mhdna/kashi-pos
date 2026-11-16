@@ -9,6 +9,16 @@ Measured or reported slow things that are not fixed yet. Nothing recorded yet.
 
 ## Entries
 
+### 2026-11-16 · Query planner stats were frozen from when the tables were empty
+
+**Symptom.** The On Account page took seconds (entry below); any query joining a big table could do the same.
+
+**Finding.** On a dev till's database, `sqlite_stat1` said clients had 1 row (real: 130,879), products_attributes 1,107 (37,224), product_sale_options 6 (7,876), invoices 2. The `PRAGMA optimize` run at open never refreshed them: on a fresh connection it only checks tables already queried on it. `PRAGMA optimize=0x10002` fixed them in 195 ms on the 42 MB file; the old On Account query then ran in 0.25 ms instead of 6.8 s.
+
+**Change.** `app.go` (`refreshPlannerStats`): open runs `PRAGMA optimize=0x10002`, which checks every table and re-analyzes the ones that changed a lot. Test: `TestRefreshPlannerStatsUpdatesStaleCounts` (fails with plain `PRAGMA optimize`). Dev docs: `docs/dev/performance.md`.
+
+**Not done.** Running it again during the day (e.g. after a big client sync); startup only for now.
+
 ### 2026-11-16 · On Account page spun for seconds on a real till
 
 **Symptom.** Opening On Account (this month) showed the loading bar for seconds, looking stuck, with one client owing.

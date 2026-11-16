@@ -300,11 +300,7 @@ func (a *App) openDatabase(path string, createIfMissing bool) error {
 		_ = conn.Close()
 		return fmt.Errorf("migrate database: %w", err)
 	}
-	// Refresh the query planner's statistics after any schema change the
-	// migrations just made. Safe and cheap; recommended by SQLite.
-	if _, err := conn.ExecContext(a.ctx, "PRAGMA optimize"); err != nil {
-		log.Printf("PRAGMA optimize failed (non-fatal): %v", err)
-	}
+	refreshPlannerStats(a.ctx, conn)
 
 	a.conn = conn
 	a.store = db.NewStore(conn)
@@ -1559,5 +1555,24 @@ func (a *App) seedDefaults2() {
 			log.Println("seed client:", err)
 		}
 		log.Println("seeded walk-in client")
+	}
+}
+
+// refreshPlannerStats re-analyzes every table whose query-planner statistics
+// are out of date. Plain "PRAGMA optimize" on a fresh connection only looks
+// at tables that connection already queried (none, at open), so a till kept
+// the stats from when its tables were empty: clients counted as 1 row with
+// 130k in it, and SQLite chose plans that walked every client. 0x10000 makes
+// it check every table; 0x02 runs ANALYZE where needed. It only re-analyzes
+// tables that changed a lot (about 200 ms on a 42 MB till the first time,
+// about 1 ms after that) and uses SQLite's analysis_limit, so it stays fast.
+func refreshPlannerStats(ctx context.Context, conn *sql.DB) {
+	start := time.Now()
+	if _, err := conn.ExecContext(ctx, "PRAGMA optimize=0x10002"); err != nil {
+		log.Printf("PRAGMA optimize failed (non-fatal): %v", err)
+		return
+	}
+	if took := time.Since(start); took > 50*time.Millisecond {
+		log.Printf("refreshed query planner stats in %v", took)
 	}
 }
