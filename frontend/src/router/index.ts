@@ -76,6 +76,11 @@ const router = createRouter({
           meta: { requiresManager: true },
         },
         {
+          path: "on-account",
+          component: () => import("@/pages/onAccount.vue"),
+          meta: { requiresManager: true },
+        },
+        {
           path: "clients",
           component: () => import("@/pages/clients.vue"),
           meta: { lockable: "clients" },

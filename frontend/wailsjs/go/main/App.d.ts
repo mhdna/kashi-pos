@@ -304,6 +304,8 @@ export function ListLoans(arg1:number,arg2:number):Promise<Array<Record<string, 
 
 export function ListManagedProducts(arg1:number,arg2:number,arg3:string):Promise<main.ManagedProductPage>;
 
+export function ListOnAccountClients():Promise<Record<string, any>>;
+
 export function ListPageUnlocks():Promise<Record<string, boolean>>;
 
 export function ListPaymentMethods():Promise<Array<Record<string, any>>>;

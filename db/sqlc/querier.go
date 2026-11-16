@@ -433,6 +433,9 @@ type Querier interface {
 	// a product this till doesn't have (yet) or that was deactivated is skipped,
 	// same as ListQuickAccessProducts does for the till's own list.
 	ListCentralQuickAccessProducts(ctx context.Context) ([]ListCentralQuickAccessProductsRow, error)
+	// Every client who still owes on account: what they were sold on account,
+	// what they have paid back, and what is left. A fully paid client is left out.
+	ListClientAccountBalances(ctx context.Context) ([]ListClientAccountBalancesRow, error)
 	ListClientAccountEntries(ctx context.Context, clientID int64) ([]ListClientAccountEntriesRow, error)
 	ListClientAccountPayments(ctx context.Context, clientID int64) ([]ListClientAccountPaymentsRow, error)
 	ListClientNamesByIDs(ctx context.Context, ids []int64) ([]ListClientNamesByIDsRow, error)

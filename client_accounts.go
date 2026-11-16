@@ -114,3 +114,31 @@ func (a *App) PayClientAccount(invoiceID, cashboxID, amountCents int64) (map[str
 	}
 	return a.GetClientAccountDetails(clientID)
 }
+
+// ListOnAccountClients lists every client who still owes on account, biggest
+// debt first, with what they were sold, what they paid back and what is left.
+// All amounts are USD cents; fully paid clients are left out.
+func (a *App) ListOnAccountClients() (map[string]any, error) {
+	if a.store == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	rows, err := a.store.ListClientAccountBalances(a.ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list on-account clients: %w", err)
+	}
+	clients := make([]map[string]any, 0, len(rows))
+	var total, paid, outstanding int64
+	for _, row := range rows {
+		total += row.Total
+		paid += row.Paid
+		outstanding += row.Outstanding
+		clients = append(clients, map[string]any{
+			"id": row.ID, "name": row.Name, "phone": row.Phone,
+			"invoiceCount": row.InvoiceCount, "total": row.Total, "paid": row.Paid,
+			"outstanding": row.Outstanding, "lastSaleAt": row.LastSaleAt,
+		})
+	}
+	return map[string]any{
+		"clients": clients, "total": total, "paid": paid, "outstanding": outstanding,
+	}, nil
+}

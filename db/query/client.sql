@@ -263,3 +263,23 @@ SELECT CAST(EXISTS (
     UNION ALL SELECT 1 FROM coupons co WHERE co.client_id = sqlc.arg(id)
     UNION ALL SELECT 1 FROM client_account_entries cae WHERE cae.client_id = sqlc.arg(id)
 ) AS INTEGER) AS referenced;
+
+-- name: ListClientAccountBalances :many
+-- Every client who still owes on account: what they were sold on account,
+-- what they have paid back, and what is left. A fully paid client is left out.
+SELECT c.id, c.name, c.phone,
+       COUNT(*) AS invoice_count,
+       CAST(SUM(cae.amount) AS INTEGER) AS total,
+       CAST(SUM(COALESCE(p.paid, 0)) AS INTEGER) AS paid,
+       CAST(SUM(MAX(cae.amount - COALESCE(p.paid, 0), 0)) AS INTEGER) AS outstanding,
+       CAST(MAX(cae.created_at) AS TEXT) AS last_sale_at
+FROM client_account_entries cae
+JOIN clients c ON c.id = cae.client_id
+LEFT JOIN (
+    SELECT invoice_id, SUM(amount) AS paid
+    FROM client_account_payments
+    GROUP BY invoice_id
+) p ON p.invoice_id = cae.invoice_id
+WHERE cae.amount - COALESCE(p.paid, 0) > 0
+GROUP BY c.id
+ORDER BY outstanding DESC, c.name COLLATE NOCASE, c.id;

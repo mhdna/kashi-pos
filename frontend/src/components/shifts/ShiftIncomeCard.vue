@@ -99,6 +99,9 @@
         <k-btn class="spend-button" variant="tonal" @click="openManagerPage('/loans')">
           <span class="spend-button-label"><k-icon icon="mdi-hand-coin-outline" size="18" class="me-1" />Loans</span>
         </k-btn>
+        <k-btn class="spend-button spend-button--wide" variant="tonal" @click="openManagerPage('/on-account')">
+          <span class="spend-button-label"><k-icon icon="mdi-account-clock" size="18" class="me-1" />On Account</span>
+        </k-btn>
       </div>
     </div>
   </k-sheet>
@@ -366,6 +369,10 @@ async function confirmManager() {
   height: auto !important;
   min-height: 56px;
   padding: 8px 6px !important;
+}
+
+.spend-button--wide {
+  grid-column: 1 / -1;
 }
 
 .spend-button-label {

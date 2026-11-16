@@ -606,6 +606,10 @@ export function ListManagedProducts(arg1, arg2, arg3) {
   return window['go']['main']['App']['ListManagedProducts'](arg1, arg2, arg3);
 }
 
+export function ListOnAccountClients() {
+  return window['go']['main']['App']['ListOnAccountClients']();
+}
+
 export function ListPageUnlocks() {
   return window['go']['main']['App']['ListPageUnlocks']();
 }
