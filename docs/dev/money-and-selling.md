@@ -221,6 +221,16 @@ detail and list, and the receipt (including a reprint), call it. It is local to
 the till: sync still sends the placeholder, and central names the picture its
 own way. An exchange's list of what can be returned uses the same name.
 
+**A scanned barcode the catalog doesn't know** opens the same dialog when it
+is a real retail barcode (EAN-8, UPC-A, EAN-13 or GTIN-14 whose check digit
+holds, `lib/unknownScan.ts`); anything else is just "not found". The dialog
+says "Not in the catalog: <barcode>", the line keeps it (`unknownBarcode`) and
+every unit of that line sends it to central as `barcode` on its slot. Central's
+label reader then reads the picture's price label and, once the sale lands,
+makes the product under that exact barcode (tagged "From photo", at the
+cashier's price), so the next scan at any till finds it. See central's
+`api/label_reader.go`.
+
 Unknown items join the shop's deal (`unknown_item_deal.go`): the free-units
 deal the most products are on in the lists in force, whatever its numbers,
 pooled with every other unit on it. The salesperson picks one of three on each

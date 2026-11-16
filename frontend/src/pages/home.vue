@@ -107,7 +107,7 @@
             class="ms-1"
             variant="text"
             aria-label="Add an unknown item"
-            @click="unknownPrice.show = true"
+            @click="openUnknownPrice('')"
           >
             <k-icon icon="mdi-help-box-outline" size="26" />
           </k-btn>
@@ -136,7 +136,7 @@
             :rounding-mode="roundingMode"
             @exchange="onExchange"
           />
-          <UnknownPriceDialog v-model="unknownPrice.show" @add="onUnknownAdd" />
+          <UnknownPriceDialog v-model="unknownPrice.show" :scanned-barcode="unknownPrice.barcode" @add="onUnknownAdd" />
           <UnknownPicturesDialog
             v-if="unknownPictures.show"
             v-model="unknownPictures.show"
@@ -475,6 +475,7 @@ import ExchangeReturnsDialog from "@/components/ExchangeReturnsDialog.vue";
 import { checkExchangeQuote, type ExchangeQuoteResult } from "@/lib/exchangeQuote";
 import { buildHoldSnapshot, heldCart } from "@/lib/holdSnapshot";
 import UnknownPriceDialog from "@/components/UnknownPriceDialog.vue";
+import { type UnknownUnit as UnknownUnitShape, unknownScanBarcode, unknownUnitsOf } from "@/lib/unknownScan";
 import QuickAccessPanel from "@/components/QuickAccessPanel.vue";
 import { printReturnReceipts, productSearchInPlace, quickAccessRows } from "@/lib/display";
 import ReturnInvoiceMenu from "@/components/ReturnInvoiceMenu.vue";
@@ -1239,6 +1240,14 @@ async function onBarcodeEnter() {
   try {
     matches = (await FindProductsForScan(value)) ?? [];
   } catch {}
+  // A real retail barcode the catalog doesn't know: offer it as an unknown
+  // item that keeps the barcode, so central can make it a product.
+  const unknownBarcode = matches.length ? "" : unknownScanBarcode(value);
+  if (unknownBarcode && pageMode.value !== "settlement") {
+    flashBarcodeFeedback("error");
+    openUnknownPrice(unknownBarcode);
+    return;
+  }
   flashBarcodeFeedback(matches.length ? "success" : "error");
   if (matches.length === 1) {
     if (!addProductToCart({ ...matches[0], qty: 1 })) return;
@@ -1512,8 +1521,14 @@ async function confirmPricesIfUnusual(): Promise<boolean> {
 // The product central named for unknown items (or the built-in placeholder).
 const unknownProductBarcode = ref("UNKNOWN");
 const isUnknownItem = (item: any) => item?.barcode === unknownProductBarcode.value;
-const unknownPrice = reactive({ show: false });
-type UnknownUnit = { label: string; unitPriceCents: number; discount: number; lineRef: string; slotRef: string };
+// barcode: what was scanned when the dialog opened for a barcode the catalog
+// doesn't know ("" from the button); it rides on the line to central.
+const unknownPrice = reactive({ show: false, barcode: "" });
+function openUnknownPrice(barcode: string) {
+  unknownPrice.barcode = barcode;
+  unknownPrice.show = true;
+}
+type UnknownUnit = UnknownUnitShape;
 const unknownPictures = reactive<{ show: boolean; units: UnknownUnit[] }>({ show: false, units: [] });
 let unknownPicturesAnswer: ((ready: boolean) => void) | null = null;
 // Off (the default): the QR code shows on the sale screen as soon as an
@@ -1533,7 +1548,10 @@ async function onUnknownAdd(price: number, name: string) {
     const unknownRef = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
     // The cashier's name for it, so the list and the receipt show that and not
     // "Unknown item".
-    invoiceItems.value?.addItem({ ...product, name: name || product.name, price, qty: 1, originalPrice: price, unknownRef } as any);
+    // unknownBarcode: the scan that opened the dialog, if any.
+    const unknownBarcode = unknownPrice.barcode || undefined;
+    unknownPrice.barcode = "";
+    invoiceItems.value?.addItem({ ...product, name: name || product.name, price, qty: 1, originalPrice: price, unknownRef, unknownBarcode } as any);
     playClickSound();
   } catch (e: any) {
     showDiscountError(e?.toString() || "Couldn't add an unknown item");
@@ -1541,28 +1559,9 @@ async function onUnknownAdd(price: number, name: string) {
   focusBarcode();
 }
 
-// One unit per piece sold, tagged with its cart line: central takes one picture
-// per line, whatever its qty.
-function unknownUnits() {
-  const units: UnknownUnit[] = [];
-  let line = 0;
-  for (const item of invoiceItems.value?.items ?? []) {
-    if (!isUnknownItem(item) || !(item.qty > 0)) continue;
-    line++;
-    // A line from before unknownRef (an old draft or hold) goes by position.
-    const lineRef = String(item.unknownRef || line);
-    for (let i = 0; i < item.qty; i++) {
-      const price = Number(item.unitPrices?.[i] ?? item.price);
-      units.push({
-        label: `Unknown item $${price.toFixed(2)}`,
-        unitPriceCents: Math.round(price * 100),
-        discount: Math.trunc(Number(item.unitDiscounts?.[i] ?? item.discount ?? 0)),
-        lineRef,
-        slotRef: `${lineRef}:${i + 1}`,
-      });
-    }
-  }
-  return units;
+// One unit per piece sold, tagged with its cart line (lib/unknownScan.ts).
+function unknownUnits(): UnknownUnit[] {
+  return unknownUnitsOf(invoiceItems.value?.items ?? [], isUnknownItem);
 }
 
 // Resolves true once every unit of the cart has a picture (or a manager's

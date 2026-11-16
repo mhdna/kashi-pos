@@ -611,6 +611,9 @@ interface LineItem {
   // An unknown item line's own id, so its picture follows it (home.vue
   // unknownUnits).
   unknownRef?: string;
+  // The barcode scanned for an unknown item the catalog didn't know; central
+  // makes the product under it (home.vue onUnknownAdd).
+  unknownBarcode?: string;
   // The deal the salesperson picked for an unknown item line; unset is the
   // till's default (the shop's deal).
   unknownDeal?: UnknownDealChoice;
