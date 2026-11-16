@@ -25,3 +25,12 @@ describe("sync dot column", () => {
     expect(src).toMatch(/auth\.isAdmin \|\| header\.key !== "syncState"/);
   });
 });
+
+describe("invoice list salesperson", () => {
+  it("is the name with its icon and no background fill", () => {
+    const chip = src.slice(src.indexOf("#item.salespersonName"), src.indexOf("#item.settlementAccounts"));
+    expect(chip).toContain('prepend-icon="mdi-account-tie"');
+    expect(chip).toContain('variant="text"');
+    expect(chip).not.toContain("tonal");
+  });
+});

@@ -105,7 +105,7 @@
       <template #item.salespersonName="{ item }">
         <k-chip
           size="small"
-          variant="tonal"
+          variant="text"
           prepend-icon="mdi-account-tie"
           :title="item.salespersonName || 'Anonymous'"
         >
