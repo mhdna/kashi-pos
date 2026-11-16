@@ -1,6 +1,6 @@
 # Shifts, logins and people
 
-Code: `shifts.go`, `shift_auto_swap.go`, `shift_upload_server.go`,
+Code: `shifts.go`, `shift_upload_server.go`,
 `sync_shift_receipts.go`, `spend_summary.go`, `app.go` (logins),
 `salespersons.go`, `auth_credentials.go`.
 
@@ -20,9 +20,16 @@ Code: `shifts.go`, `shift_auto_swap.go`, `shift_upload_server.go`,
   cashier counts the whole drawer, float included. Off: they count only what
   came in during the shift, and the float is left out of both expected and
   printed figures so the difference still lines up.
-- **Negative LBP at close** (`auto_cover_negative_lbp`, off by default): if
-  more LBP went out as change than came in, the shortfall is swapped into USD
-  cash so LBP ends at 0.
+- **Negative counts at close:** LBP, Visa and Whish can be counted below 0
+  (the number pad has a +/− key; `-` in keyboard mode). When more LBP went
+  out as change than came in, or a card refund was bigger than the card
+  sales, the cashier counts the drawer as it stands and Autofill fills in the
+  negative expected amount too, so the shift closes with no difference.
+  Nothing is moved between accounts first. USD is counted in bills, so a bill
+  count is never negative. The old `auto_cover_negative_lbp` switch (swap a
+  negative Cash LL into Cash $$ at close) is gone; the till ignores the key if
+  central still sends it. Rules: `lib/closeShiftCount.ts`,
+  `lib/numberPadDraft.ts`.
 - **Close-shift receipt photo** (`settings.shift_receipt_upload_mode`, an enum,
   default `hybrid`): a QR code on screen; a phone photographs the printed
   shift receipt.
