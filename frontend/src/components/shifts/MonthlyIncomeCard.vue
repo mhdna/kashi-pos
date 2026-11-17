@@ -194,8 +194,8 @@
       Includes
       <template v-if="couponTotal">{{ formatBalance(couponTotal, "USD", currencies, roundingMode) }} in coupons</template>
       <template v-if="couponTotal && onAccountTotal"> and </template>
-      <template v-if="onAccountTotal">{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }} on account</template>,
-      not yet collected
+      <template v-if="onAccountTotal">{{ formatBalance(onAccountTotal, "USD", currencies, roundingMode) }} on account</template>
+      not collected
     </div>
     <TargetsProgressCard :targets="targets" class="mt-3" />
   </k-sheet>
