@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -553,5 +554,18 @@ func TestClientSyncKeepsTheReferralCode(t *testing.T) {
 	got, err := shop.store.GetClientByID(ctx, shop.owner.ID)
 	if err != nil || got.ReferralCode != shop.ownerCode || got.Name != "Rami K" {
 		t.Fatalf("got %+v %v", got, err)
+	}
+}
+
+// Central's socket messages about referrals pull the right entities, and
+// both are pulled entities at all.
+func TestReferralSocketMessagesPull(t *testing.T) {
+	for msg, want := range map[string]string{"referrals_updated": "referral_rewards", "referral_program_updated": "referral_program"} {
+		if got := wsMessageEntity[msg]; got != want {
+			t.Errorf("%s pulls %q, want %q", msg, got, want)
+		}
+		if !slices.Contains(pullEntities, want) {
+			t.Errorf("%s isn't pulled", want)
+		}
 	}
 }
