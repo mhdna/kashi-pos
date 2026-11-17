@@ -97,7 +97,7 @@
               label
               size="x-small"
               :title="remoteTitle(item)"
-              variant="tonal"
+              variant="text"
             >
               <k-icon class="me-1" icon="mdi-lock" size="12" />
               central
