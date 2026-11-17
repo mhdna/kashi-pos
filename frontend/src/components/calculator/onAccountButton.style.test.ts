@@ -1,5 +1,5 @@
-// The calculator's On Account button is switched off for now (commented out in
-// the template); the Coupon card beside it stays.
+// The calculator's On Account button is shown again, next to Coupon, and opens
+// the client picker (emit 'account') once the cart has items.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -8,14 +8,14 @@ const src = readFileSync(resolve(__dirname, "../Calculator.vue"), "utf8");
 const live = src.replace(/<!--[\s\S]*?-->/g, "");
 
 describe("calculator On Account button", () => {
-  it("is not in the rendered template", () => {
-    expect(live).not.toMatch(/>On Account</);
-    expect(live).not.toMatch(/emit\('account'\)/);
+  it("is in the rendered template and asks for a client", () => {
+    expect(live).toMatch(/>On Account</);
+    expect(live).toMatch(/emit\('account'\)/);
   });
-  it("is kept in a comment so it can come back", () => {
-    expect(src).toMatch(/<!--[^]*On Account[^]*-->/);
+  it("is not left in a comment", () => {
+    expect(src).not.toMatch(/On Account button, off for now/);
   });
-  it("leaves the Coupon button", () => {
+  it("keeps the Coupon button", () => {
     expect(live).toMatch(/>Coupon</);
   });
 });
