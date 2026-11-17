@@ -23,6 +23,9 @@ type exchangePolicy struct {
 	// receipt is whether this return or exchange prints its receipt (always
 	// only with receipts on in Settings); see returnReceiptChoice.
 	receipt receiptChoice
+	// exactPayments: the payments came from central's admin, entered against
+	// an estimate; they must add up to the till's own total exactly.
+	exactPayments bool
 }
 
 // receiptChoice is one return's "Print receipt": asked for, refused, or left
@@ -195,6 +198,11 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 				entryType = "change"
 			}
 			payments = []checkoutPayment{{AccountID: settlementAccountID, AmountCents: total, EntryType: entryType}}
+		}
+		if policy.exactPayments && len(payments) > 0 {
+			if err := checkExactPayments(payments, total); err != nil {
+				return err
+			}
 		}
 		// A sale still owed On Account: the refund comes off the debt first, and
 		// only the rest is checked against what the cashier entered.

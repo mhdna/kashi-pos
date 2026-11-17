@@ -360,6 +360,17 @@ func (q *Queries) DeleteClient(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteClientAccountEntryByInvoiceID = `-- name: DeleteClientAccountEntryByInvoiceID :exec
+DELETE FROM client_account_entries WHERE invoice_id = ?
+`
+
+// A sale's settlement changed away from On Account before anything was paid
+// back (client_account_payments would go with it: ON DELETE CASCADE).
+func (q *Queries) DeleteClientAccountEntryByInvoiceID(ctx context.Context, invoiceID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteClientAccountEntryByInvoiceID, invoiceID)
+	return err
+}
+
 const deleteCoupon = `-- name: DeleteCoupon :exec
 DELETE FROM coupons WHERE code = ?
 `

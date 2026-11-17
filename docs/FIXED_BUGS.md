@@ -3,6 +3,22 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-17: A refund split over two payment methods was refused
+
+**Symptom:** a return or exchange refunding part in cash and part another way failed with "payment total is too large".
+
+**Cause:** the overflow guard while adding up the payments was `amount > MaxInt64 - paid`; once a first refund line made `paid` negative, `MaxInt64 - paid` itself overflowed to a negative number and every next line looked too large.
+
+**Fix:** `paymentSumOverflows` checks both directions without overflowing, used by checkout and the three payment quotes (`tx_invoice.go`, `invoice_quote.go`; covered by `payment_sum_test.go` and `TestRemoteReturnRefundSplitBetweenMethods`).
+
+## 2026-11-17: Changing an on-account sale's settlement left the debt behind
+
+**Symptom:** a sale moved from On Account to cash with Change settlement still showed as owed on the On Account page, and moving a sale onto On Account again failed.
+
+**Cause:** `SettleInvoicePayments` replaced the payments but never touched the sale's `client_account_entries` row: the old one stayed, and a new On Account payment tried to add a second.
+
+**Fix:** `resettleClientAccount` (`on_account_returns.go`) drops the entry when nothing was paid back, or sets it to the new On Account amount (never under what was paid back) when something was. Covered by `TestChangeSettlementOnAndOffAccount`.
+
 ## 2026-11-17: A returned on-account sale stayed owed on the On Account page
 
 **Symptom:** a client's $65.56 sale put On Account was returned (RS/CT/2026/00069), yet the On Account page still counted it, next to their next sale: $131.00 owed instead of $65.44. The till also showed $65.56 cash going out that nobody was given.
