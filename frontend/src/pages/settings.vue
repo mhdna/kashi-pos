@@ -2264,7 +2264,7 @@ const form = reactive({
   branchPhone: "",
   registerName: "POS-01",
   marketDescription: "Shop for all",
-  returnPolicy: "Exchange within 3 days if items are unworn, unwashed and with tags.\nPlease present this receipt.",
+  returnPolicy: "Exchanges accepted within 3 days.",
   website: "yourwebsite.com",
   instagram: "@your_instagram",
   socialPlatforms: [] as string[],

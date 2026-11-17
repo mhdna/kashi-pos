@@ -15,6 +15,10 @@ const (
 	cutMode = 0x56
 )
 
+// defaultReturnPolicy is printed under EXCHANGE POLICY when the branch set
+// none.
+const defaultReturnPolicy = "Exchanges accepted within 3 days."
+
 func buildESCPosReceipt(data printReceiptData) []byte {
 	width := int(data.ReceiptWidth)
 	if width <= 0 {
@@ -97,7 +101,7 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	writeESCPosBoldLine(&out, "TOTAL", fmt.Sprintf("$%.2f", grandTotal), columns)
 	if currency := data.RoundingCurrency; currency.UnitsPerUsdMicros > 0 {
 		if roundedUnits, err := roundCurrencyUnitsFromCents(data.GrandTotalCents, currency.UnitsPerUsdMicros, currency.CashRoundingUnit, data.RoundingMode); err == nil {
-			writeESCPosLine(&out, currency.Code+" TOTAL", fmt.Sprintf("%s %s", formatInt(roundedUnits), currency.Symbol), columns)
+			writeESCPosLine(&out, currency.Code+" equivalent", fmt.Sprintf("%s %s", formatInt(roundedUnits), currency.Symbol), columns)
 		}
 	}
 	writeESCPosCentered(&out, "PAYMENT DETAILS", columns, true)
@@ -117,7 +121,7 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	writeESCPosCentered(&out, "EXCHANGE POLICY", columns, true)
 	policy := data.ReturnPolicy
 	if policy == "" {
-		policy = "Exchanges accepted within 3 days."
+		policy = defaultReturnPolicy
 	}
 	writeESCPosText(&out, "")
 	for _, line := range strings.Split(policy, "\n") {
