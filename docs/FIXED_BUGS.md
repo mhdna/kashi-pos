@@ -3,6 +3,14 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-17: The discount sat beside "Rounded" instead of under the total
+
+**Symptom:** on a cash sale with a rounded total and a discount, the card showed Total, then "Rounded" with "Discount −$14" on the same line, to its right, instead of the discount stacked under the total.
+
+**Cause:** the left column of the total card is 48px tall inside its 66px frame. Each chip had 2px of vertical padding and the gaps were 3px, so three chips did not fit one column; the flex column wrapped the last one into a second column beside "Rounded".
+
+**Fix:** the chips lose their vertical padding and the gap drops to 2px, so Total, Rounded and the discounts stack in one column (`frontend/src/components/calculator/CalculatorStatus.vue`). The existing test "stacks the total, Rounded and the discounts down the left side" keeps the order; happy-dom does not lay out CSS, so the wrap itself was checked by reading the box sizes, not by a test.
+
 ## 2026-11-17: A refund split over two payment methods was refused
 
 **Symptom:** a return or exchange refunding part in cash and part another way failed with "payment total is too large".
