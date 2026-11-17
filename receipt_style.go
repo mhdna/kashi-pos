@@ -116,7 +116,7 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
 	var second [2]string
 	if currency := c.data.RoundingCurrency; currency.UnitsPerUsdMicros > 0 {
 		if rounded, err := roundCurrencyUnitsFromCents(c.data.GrandTotalCents, currency.UnitsPerUsdMicros, currency.CashRoundingUnit, c.data.RoundingMode); err == nil {
-			second = [2]string{currency.Code + " TOTAL", formatInt(rounded) + " " + currency.Symbol}
+			second = [2]string{currency.Code + " equivalent", formatInt(rounded) + " " + currency.Symbol}
 		}
 	}
 	right := c.margin + c.contentW
@@ -132,7 +132,7 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
 		c.rightRole(right-pad, top+pad, amount, size, roleBodyBold, image.White)
 		y = top + h + 2*pad + 8
 		if second[0] != "" {
-			y, _ = c.twoCol(y, second[0], second[1], 11, true)
+			y, _ = c.twoCol(y, second[0], second[1], 10, true)
 			y += 8
 		}
 		return y
@@ -149,7 +149,7 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
 		y, _ = c.rightRole(right, y, amount, size, roleBodyBold, image.Black)
 		y += c.gap(8)
 		if second[0] != "" {
-			y, _ = c.twoCol(y, second[0], second[1], 11, true)
+			y, _ = c.twoCol(y, second[0], second[1], 10, true)
 			y += 8
 		}
 		return c.ruleLine(y) + 4
@@ -157,12 +157,13 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
 
 	// Room inside the box above and below the figures, and a little outside
 	// it before the next section starts.
-	boxTop := c.ruleLine(y) + 16
+	// No rule above the box: the box itself sets the total apart.
+	boxTop := y + 10
 	y = boxTop + 16
 	y, _ = c.twoCol(y, "TOTAL", amount, 13, true)
 	y += 8
 	if second[0] != "" {
-		y, _ = c.twoCol(y, second[0], second[1], 11, true)
+		y, _ = c.twoCol(y, second[0], second[1], 10, true)
 		y += 8
 	}
 	y += 14

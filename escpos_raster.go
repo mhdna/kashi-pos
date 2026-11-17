@@ -206,8 +206,9 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if c.style.Savings && discountTotal > 0 {
 		rows = append(rows, [2]string{"You saved", fmt.Sprintf("$%.2f", discountTotal)})
 	}
+	// Quieter than the total: regular weight, a size down.
 	for _, row := range rows {
-		y, _ = c.twoCol(y, row[0], row[1], 11, true)
+		y, _ = c.twoCol(y, row[0], row[1], 10, false)
 		y += c.gap(7)
 	}
 	y = c.drawTotal(y, grandTotal)
@@ -238,7 +239,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y += c.gap(8)
 	policy := c.data.ReturnPolicy
 	if policy == "" {
-		policy = "Exchange within 3 days if items are unworn, unwashed and with tags.\nPlease present this receipt."
+		policy = defaultReturnPolicy
 	}
 	y, _ = c.centerWrappedNormal(y, policy, c.data.BodySize-2.5, 2)
 	y = c.ruleLine(y+c.gap(6)) + c.gap(10)
