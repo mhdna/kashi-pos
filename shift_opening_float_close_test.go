@@ -8,7 +8,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 // The count_opening_cash_on_close flag decides whether the opening float is

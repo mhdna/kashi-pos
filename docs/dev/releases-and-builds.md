@@ -92,12 +92,12 @@ A build is ~28 MB; what moves over the wire is much less:
 
 ## Build gotchas
 
-- **Go toolchain is pinned to go1.25.5** in the Makefile (`GOTOOLCHAIN`):
-  Wails' package loader breaks under Go 1.27. Plain `go` commands outside
+- **Go toolchain is pinned to go1.26.11** in the Makefile (`GOTOOLCHAIN`):
+  Wails' package loader breaks under Go 1.27, and the SQLite driver needs 1.26. Plain `go` commands outside
   `make` may use a newer Go; that's fine for tests but not for `wails build`.
 - **The first Windows build after the Go module cache is cleared is slow.** It
-  downloads every module again, and `modernc.org/sqlite` + `modernc.org/libc`
-  (SQLite translated to Go) are large to download and to compile. On
+  downloads every module again, and `ncruces/go-sqlite3-wasm` (SQLite
+  translated to Go) is large to download and to compile. On
   2026-10-31 the cache had been wiped and one 18 MB module took ~12 minutes at
   ~24 KB/s. Later builds use the cache.
 - `wails build` runs `go list -export` over the whole project first, to

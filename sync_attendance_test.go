@@ -14,7 +14,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 // setUpTestAttendanceApp builds an App with both a.conn and a.store wired

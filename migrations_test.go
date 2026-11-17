@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestApplyMigrationsFreshDatabase(t *testing.T) {

@@ -9,7 +9,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestModifierWatchLetsGoOfAKeyNothingOnTheTillHolds(t *testing.T) {

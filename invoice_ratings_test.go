@@ -11,7 +11,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 // The invoices list gets central's poll answers for the codes it shows, unless

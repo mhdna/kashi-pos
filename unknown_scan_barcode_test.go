@@ -11,7 +11,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 // An unknown item scanned from a barcode the catalog didn't know sends that

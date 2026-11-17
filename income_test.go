@@ -9,7 +9,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestIncomeViewsUseLiveInvoicePaymentsAfterDeletion(t *testing.T) {

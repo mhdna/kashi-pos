@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
-	_ "modernc.org/sqlite"
 
 	db "kashi-pos/db/sqlc"
 )

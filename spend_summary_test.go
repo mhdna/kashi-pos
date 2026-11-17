@@ -8,7 +8,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 // The month totals add up per currency, and the shift lists hold what was

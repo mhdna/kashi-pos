@@ -257,7 +257,7 @@ possible fix: use `LIKE` when the count is large. Not done.
 | `foreign_keys(ON)` | Integrity. |
 
 `PRAGMA optimize=0x10002` runs once after the migrations at open (`refreshPlannerStats` in `app.go`), to refresh the planner's statistics. The `0x10000` bit matters: plain `PRAGMA optimize` on a fresh connection only looks at tables that connection already queried, which is none at open, so tills kept the stats from when their tables were empty (clients counted as 1 row with 130k in it) and SQLite picked plans that walked whole tables. It re-analyzes only tables that changed a lot: about 200 ms the first time on a 42 MB till, about 1 ms after that. The SQLite driver is
-`modernc.org/sqlite` (pure Go, no cgo); FTS5 and the trigram tokenizer are built in.
+`ncruces/go-sqlite3` (SQLite translated to Go, no cgo), registered as `sqlite` in `sqlite_driver.go`, which also turns modernc-style `path?_pragma=...` strings into the `file:` URIs ncruces reads and loads FTS5 (with the trigram tokenizer) on every connection. It replaced `modernc.org/sqlite` because it can encrypt the file (adiantum VFS); the switch added about 4 MB to the exe.
 
 ## Background work
 

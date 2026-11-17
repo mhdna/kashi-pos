@@ -12,7 +12,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 // A new photo link for a loan comes back as the loan upload URL, built on

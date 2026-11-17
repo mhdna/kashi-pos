@@ -8,7 +8,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestPerUnitInvoicePricesRequireFeatureAndGroupPriceLines(t *testing.T) {

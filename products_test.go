@@ -10,7 +10,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestListProductsPageBoundsAndSearch(t *testing.T) {

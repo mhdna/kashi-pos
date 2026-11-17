@@ -9,7 +9,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 // Exercises the widened update_settings command: a carried field is applied

@@ -8,7 +8,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 // Each product on the page gets the other branches' rows for its variant,

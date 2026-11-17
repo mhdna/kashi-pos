@@ -10,7 +10,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 func newReceiptLookApp(t *testing.T) *App {

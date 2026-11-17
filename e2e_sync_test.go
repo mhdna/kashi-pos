@@ -19,7 +19,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 func e2eApp(t *testing.T) (*App, *db.Store, *sql.DB) {

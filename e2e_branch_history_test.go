@@ -28,7 +28,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestE2EBranchHistoryImport(t *testing.T) {

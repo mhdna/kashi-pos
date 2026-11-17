@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ncruces/go-sqlite3"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	db "kashi-pos/db/sqlc"
@@ -1090,12 +1092,17 @@ func (a *App) resyncAttendanceChanges(ctx context.Context, client *centralClient
 }
 
 // isDatabaseBusy reports whether err is a transient SQLite lock/busy
-// condition worth retrying. modernc's driver surfaces these as text; the
-// codes are SQLITE_BUSY (5), SQLITE_LOCKED (6) and SQLITE_BUSY_SNAPSHOT
-// (517, which busy_timeout does NOT wait out on its own).
+// condition worth retrying: SQLITE_BUSY (5), SQLITE_LOCKED (6) and their
+// extended codes such as SQLITE_BUSY_SNAPSHOT (517, which busy_timeout does
+// NOT wait out on its own). The driver's error carries the code; the text
+// checks stay for errors that were wrapped into plain strings on the way.
 func isDatabaseBusy(err error) bool {
 	if err == nil {
 		return false
+	}
+	var se *sqlite3.Error
+	if errors.As(err, &se) {
+		return se.Code() == sqlite3.BUSY || se.Code() == sqlite3.LOCKED
 	}
 	msg := err.Error()
 	return strings.Contains(msg, "database is locked") ||

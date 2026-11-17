@@ -9,7 +9,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 func setUpTestInvoiceApp(t *testing.T, centralAPIURL string) (*App, *db.Store, db.CashboxAccount, db.Client) {

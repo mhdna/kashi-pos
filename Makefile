@@ -45,8 +45,9 @@ dev:
 APP_VERSION ?= $(patsubst v%,%,$(shell git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0))
 
 # Wails 2.11's package loader fails under Go 1.27 ("package ... without
-# types was imported from ..."), so builds run on the go.mod toolchain.
-export GOTOOLCHAIN ?= go1.25.5
+# types was imported from ..."), so builds run on Go 1.26 (the SQLite driver,
+# ncruces/go-sqlite3, needs at least 1.26).
+export GOTOOLCHAIN ?= go1.26.11
 
 WIN_VERSION =$(if $(word 4,$(subst ., ,$(APP_VERSION))),$(APP_VERSION),$(APP_VERSION).0)
 

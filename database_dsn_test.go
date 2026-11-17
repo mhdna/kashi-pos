@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	_ "modernc.org/sqlite"
 )
 
 // Checkout reads (pricing, payments, coupons) before its first write, while

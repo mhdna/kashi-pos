@@ -6,7 +6,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestAuthCredentialsChangeAndVerify(t *testing.T) {

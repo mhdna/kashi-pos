@@ -11,7 +11,6 @@ import (
 
 	db "kashi-pos/db/sqlc"
 
-	_ "modernc.org/sqlite"
 )
 
 func TestExchangeLoadsInvoiceAndPreventsDuplicateReturn(t *testing.T) {
