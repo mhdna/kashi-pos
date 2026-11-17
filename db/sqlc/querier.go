@@ -189,6 +189,9 @@ type Querier interface {
 	DeleteCashboxAccount(ctx context.Context, id int64) error
 	DeleteCentralQuickAccessItems(ctx context.Context) error
 	DeleteClient(ctx context.Context, id int64) error
+	// A sale's settlement changed away from On Account before anything was paid
+	// back (client_account_payments would go with it: ON DELETE CASCADE).
+	DeleteClientAccountEntryByInvoiceID(ctx context.Context, invoiceID int64) error
 	DeleteCoupon(ctx context.Context, code string) error
 	DeleteCouponType(ctx context.Context, id int64) error
 	DeleteDiscountListByUID(ctx context.Context, uid sql.NullString) error

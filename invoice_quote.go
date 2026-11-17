@@ -173,7 +173,7 @@ func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string) (PaymentStatus,
 	var paid int64
 	hasForeignCashPayment := false
 	for _, payment := range payments {
-		if payment.AmountCents > math.MaxInt64-paid {
+		if paymentSumOverflows(paid, payment.AmountCents) {
 			return status, fmt.Errorf("payment total is too large")
 		}
 		paid += payment.AmountCents
@@ -357,7 +357,7 @@ func (a *App) QuoteExchangePaymentStatus(itemsJSON, paymentsJSON string, origina
 	var paid int64
 	hasForeignCashPayment := false
 	for _, payment := range payments {
-		if payment.AmountCents > math.MaxInt64-paid {
+		if paymentSumOverflows(paid, payment.AmountCents) {
 			return status, fmt.Errorf("payment total is too large")
 		}
 		paid += payment.AmountCents
@@ -430,7 +430,7 @@ func (a *App) QuoteSettlementPaymentStatus(invoiceID int64, paymentsJSON string)
 	var paid int64
 	hasForeignCashPayment := false
 	for _, payment := range payments {
-		if payment.AmountCents > math.MaxInt64-paid {
+		if paymentSumOverflows(paid, payment.AmountCents) {
 			return status, fmt.Errorf("payment total is too large")
 		}
 		paid += payment.AmountCents
@@ -493,4 +493,11 @@ func (a *App) ConvertCashEntryToCents(currencyCode string, amount float64) (int6
 	}
 	usdAmount := amount * unitsPerUsdMicroScale / float64(currency.UnitsPerUsdMicros)
 	return roundFloatToCents(usdAmount, roundingMode)
+}
+
+// paymentSumOverflows reports whether paid+amount leaves int64, either way:
+// a refund (negative) split over several methods adds up below zero, where
+// the old MaxInt64-paid check itself overflowed and refused it.
+func paymentSumOverflows(paid, amount int64) bool {
+	return (amount > 0 && paid > math.MaxInt64-amount) || (amount < 0 && paid < math.MinInt64-amount)
 }

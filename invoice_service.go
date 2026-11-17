@@ -876,7 +876,11 @@ func (a *App) SettleInvoicePayments(invoiceID int64, paymentsJSON string) (map[s
 				return fmt.Errorf("record settlement entry: %w", err)
 			}
 		}
-		if err := recordSpecialPaymentMetadata(a, q, invoiceID, invoice.ClientID, payments); err != nil {
+		special, err := resettleClientAccount(a.ctx, q, invoiceID, payments)
+		if err != nil {
+			return err
+		}
+		if err := recordSpecialPaymentMetadata(a, q, invoiceID, invoice.ClientID, special); err != nil {
 			return err
 		}
 		netByAccount := netPaymentsByAccount(payments)

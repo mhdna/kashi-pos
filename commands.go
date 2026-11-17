@@ -69,6 +69,8 @@ func (a *App) executeCommand(ctx context.Context, cmd branchCommand) error {
 		return a.executeReviewAttendanceRequestCommand(cmd.Payload)
 	case "replace_shift_balance":
 		return a.executeReplaceShiftBalanceCommand(ctx, cmd.Payload)
+	case "change_invoice_settlement":
+		return a.executeChangeInvoiceSettlementCommand(ctx, cmd.Payload)
 	default:
 		return fmt.Errorf("unknown command type %q", cmd.Type)
 	}
@@ -582,6 +584,10 @@ type remoteReturnInvoiceCommandPayload struct {
 	// prints this return's receipt; absent (or true, ticked) leaves it to
 	// this till's "Print return receipts" setting.
 	PrintReceipt *bool `json:"print_receipt"`
+	// Payments are the refund (or, on an exchange, what's paid or given back)
+	// as central's admin split it between payment methods; they must add up
+	// to the till's own total. Empty: the till settles it on its own.
+	Payments []remotePayment `json:"payments"`
 }
 
 // receipt is the payload's receipt choice: an untick is a refusal; a tick
@@ -709,13 +715,29 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 		linesToReturn = fullReturnLines(lines)
 	}
 
+	paymentsJSON, err := a.remotePaymentsJSON(ctx, p.Payments)
+	if err != nil {
+		return err
+	}
+
 	if len(p.Replacements) > 0 {
-		return a.executeRemoteExchange(ctx, invoiceID, salespersonID, linesToReturn, p.Replacements, p.Reason, p.receipt())
+		return a.executeRemoteExchange(ctx, invoiceID, salespersonID, linesToReturn, p.Replacements, p.Reason, p.receipt(), paymentsJSON)
 	}
 
 	itemsJSON, err := a.returnItemsJSON(ctx, linesToReturn)
 	if err != nil {
 		return err
+	}
+	if paymentsJSON != "" {
+		notes := strings.TrimSpace(p.Reason)
+		if notes == "" {
+			notes = "Remote return"
+		}
+		policy := exchangePolicy{allowLate: true, allowLowerTotal: true, returnOnly: true, receipt: p.receipt(), exactPayments: true}
+		if _, err := a.checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON, invoiceID, salespersonID, notes, 0, policy); err != nil {
+			return fmt.Errorf("checkout return: %w", err)
+		}
+		return nil
 	}
 
 	accounts, err := a.store.ListCashboxAccounts(ctx)
@@ -740,7 +762,7 @@ func (a *App) executeRemoteReturnInvoiceCommand(ctx context.Context, payload jso
 // allowed to come to less than what's returned) a local admin exchange uses.
 // The difference is settled on the sale's own payment account, as a cancel
 // refunds to it.
-func (a *App) executeRemoteExchange(ctx context.Context, invoiceID, salespersonID int64, returned []returnLine, replacements []remoteReplacementPayload, reason string, receipt receiptChoice) error {
+func (a *App) executeRemoteExchange(ctx context.Context, invoiceID, salespersonID int64, returned []returnLine, replacements []remoteReplacementPayload, reason string, receipt receiptChoice, paymentsJSON string) error {
 	itemsJSON, err := a.returnItemsJSON(ctx, returned)
 	if err != nil {
 		return err
@@ -777,7 +799,13 @@ func (a *App) executeRemoteExchange(ctx context.Context, invoiceID, salespersonI
 	}
 	policy := adminReturnExchangePolicy
 	policy.receipt = receipt
-	if _, err := a.checkoutReturnExchangeInvoice(string(encoded), "", invoiceID, salespersonID, notes, source.CashboxID, policy); err != nil {
+	settlement := source.CashboxID
+	if paymentsJSON != "" {
+		// Central's admin split the difference between methods.
+		policy.exactPayments = true
+		settlement = 0
+	}
+	if _, err := a.checkoutReturnExchangeInvoice(string(encoded), paymentsJSON, invoiceID, salespersonID, notes, settlement, policy); err != nil {
 		return fmt.Errorf("checkout exchange: %w", err)
 	}
 	return nil

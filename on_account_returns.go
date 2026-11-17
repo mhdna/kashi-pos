@@ -88,3 +88,52 @@ func formatCents(cents int64) string {
 	}
 	return fmt.Sprintf("%s$%d.%02d", sign, cents/100, cents%100)
 }
+
+// resettleClientAccount brings a sale's on-account entry in line with its new
+// settlement, and gives back the payments recordSpecialPaymentMetadata should
+// still record. Before, the old entry stayed: a sale moved from On Account to
+// cash still showed as owed, and moving it to On Account again failed.
+//   - Nothing paid back yet: the old entry goes, and the new On Account amount
+//     (if any) is recorded afresh.
+//   - Some paid back: the entry keeps its payments and takes the new amount,
+//     which can't be less than what was paid.
+func resettleClientAccount(ctx context.Context, q *db.Queries, invoiceID int64, payments []checkoutPayment) ([]checkoutPayment, error) {
+	entry, err := q.GetClientAccountEntryByInvoiceID(ctx, invoiceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return payments, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("on-account entry: %w", err)
+	}
+	paidValue, err := q.GetClientAccountPaidByInvoiceID(ctx, invoiceID)
+	if err != nil {
+		return nil, fmt.Errorf("on-account payments: %w", err)
+	}
+	paid := databaseInt64(paidValue)
+	if paid == 0 {
+		if err := q.DeleteClientAccountEntryByInvoiceID(ctx, invoiceID); err != nil {
+			return nil, fmt.Errorf("clear on-account entry: %w", err)
+		}
+		return payments, nil
+	}
+	var onAccount int64
+	others := make([]checkoutPayment, 0, len(payments))
+	for _, p := range payments {
+		account, err := q.GetCashboxAccountByID(ctx, p.AccountID)
+		if err != nil {
+			return nil, fmt.Errorf("payment account: %w", err)
+		}
+		if strings.EqualFold(strings.TrimSpace(account.Name), "On Account") {
+			onAccount += p.AmountCents
+			continue
+		}
+		others = append(others, p)
+	}
+	if onAccount < paid {
+		return nil, fmt.Errorf("the client already paid %s of this sale back; keep at least that much On Account", formatCents(paid))
+	}
+	if err := q.UpdateClientAccountEntryAmount(ctx, db.UpdateClientAccountEntryAmountParams{Amount: onAccount, InvoiceID: entry.InvoiceID}); err != nil {
+		return nil, fmt.Errorf("update on-account entry: %w", err)
+	}
+	return others, nil
+}

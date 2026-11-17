@@ -740,7 +740,7 @@ func validatePayments(ctx context.Context, q *db.Queries, payments []checkoutPay
 				hasForeignCashPayment = true
 			}
 		}
-		if payment.AmountCents > math.MaxInt64-paid {
+		if paymentSumOverflows(paid, payment.AmountCents) {
 			return fmt.Errorf("payment total is too large")
 		}
 		paid += payment.AmountCents

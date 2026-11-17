@@ -187,6 +187,11 @@ VALUES (?, ?, ?, ?, datetime('now')) RETURNING *;
 -- name: UpdateClientAccountOwnerByInvoice :exec
 UPDATE client_account_entries SET client_id = ? WHERE invoice_id = ?;
 
+-- name: DeleteClientAccountEntryByInvoiceID :exec
+-- A sale's settlement changed away from On Account before anything was paid
+-- back (client_account_payments would go with it: ON DELETE CASCADE).
+DELETE FROM client_account_entries WHERE invoice_id = ?;
+
 -- name: UpdateClientAccountEntryAmount :exec
 UPDATE client_account_entries SET amount = ? WHERE invoice_id = ?;
 
