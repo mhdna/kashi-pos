@@ -196,11 +196,22 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 			}
 			payments = []checkoutPayment{{AccountID: settlementAccountID, AmountCents: total, EntryType: entryType}}
 		}
-		if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, roundingMode); err != nil {
+		// A sale still owed On Account: the refund comes off the debt first, and
+		// only the rest is checked against what the cashier entered.
+		payments, onAccountPart, err := settleRefundOnAccount(a.ctx, q, source.ID, total, payments)
+		if err != nil {
 			return err
 		}
-		if err := validatePayments(a.ctx, q, payments, total, settings.MaxOverpaymentCents, roundingCurrency, roundingMode); err != nil {
-			return err
+		if len(payments) > 0 || onAccountPart.rest != 0 {
+			if _, err := normalizeCashRoundedPayments(a.ctx, q, payments, roundingMode); err != nil {
+				return err
+			}
+			if err := validatePayments(a.ctx, q, payments, onAccountPart.rest, settings.MaxOverpaymentCents, roundingCurrency, roundingMode); err != nil {
+				return err
+			}
+		}
+		if onAccountPart.entry != nil {
+			payments = append([]checkoutPayment{*onAccountPart.entry}, payments...)
 		}
 		cashbox, err := exchangeCashbox(a, q, payments)
 		if err != nil {

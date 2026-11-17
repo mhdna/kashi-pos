@@ -41,7 +41,7 @@ SELECT c.id, c.name, c.phone, c.total_loyalty_points,
            WHERE cap.invoice_id = cae.invoice_id
        ), 0)), 0) AS INTEGER) AS account_balance
 FROM selected_clients c
-LEFT JOIN client_account_entries cae ON cae.client_id = c.id
+LEFT JOIN client_account_lines cae ON cae.client_id = c.id
 GROUP BY c.id
 ORDER BY c.id;
 
@@ -62,7 +62,7 @@ SELECT c.id, c.name, c.phone, c.total_loyalty_points,
            WHERE cap.invoice_id = cae.invoice_id
        ), 0)), 0) AS INTEGER) AS account_balance
 FROM selected_clients c
-LEFT JOIN client_account_entries cae ON cae.client_id = c.id
+LEFT JOIN client_account_lines cae ON cae.client_id = c.id
 GROUP BY c.id
 ORDER BY c.id;
 
@@ -133,7 +133,7 @@ VALUES (?, ?, ?, datetime('now')) RETURNING *;
 
 -- name: GetClientAccountBalance :one
 SELECT COALESCE(SUM(cae.amount - COALESCE(p.paid, 0)), 0) AS balance
-FROM client_account_entries cae
+FROM client_account_lines cae
 LEFT JOIN (
     SELECT invoice_id, SUM(amount) AS paid
     FROM client_account_payments
@@ -144,6 +144,15 @@ WHERE cae.client_id = ?;
 -- name: GetClientAccountEntryByInvoiceID :one
 SELECT * FROM client_account_entries WHERE invoice_id = ?;
 
+-- name: GetClientAccountOwedByInvoiceID :one
+-- What the client still owes on one on-account sale: its amount, less what
+-- returns of it refunded to On Account (client_account_lines), less payments.
+SELECT CAST(cal.amount - COALESCE((
+    SELECT SUM(cap.amount) FROM client_account_payments cap WHERE cap.invoice_id = cal.invoice_id
+), 0) AS INTEGER) AS owed
+FROM client_account_lines cal
+WHERE cal.invoice_id = ?;
+
 -- name: GetClientAccountPaidByInvoiceID :one
 SELECT COALESCE(SUM(amount), 0) FROM client_account_payments WHERE invoice_id = ?;
 
@@ -152,7 +161,7 @@ SELECT cae.id, cae.client_id, cae.invoice_id, i.invoice_code,
        cae.amount, CAST(COALESCE(p.paid, 0) AS INTEGER) AS paid,
        cae.amount - CAST(COALESCE(p.paid, 0) AS INTEGER) AS outstanding,
        cae.created_at
-FROM client_account_entries cae
+FROM client_account_lines cae
 JOIN invoices i ON i.id = cae.invoice_id
 LEFT JOIN (
     SELECT invoice_id, SUM(amount) AS paid
@@ -278,7 +287,7 @@ WITH open_entries AS (
            SUM(COALESCE(p.paid, 0)) AS paid,
            SUM(cae.amount - COALESCE(p.paid, 0)) AS outstanding,
            MAX(cae.created_at) AS last_sale_at
-    FROM client_account_entries cae
+    FROM client_account_lines cae
     LEFT JOIN (
         SELECT invoice_id, SUM(amount) AS paid
         FROM client_account_payments
@@ -307,7 +316,7 @@ ORDER BY o.outstanding DESC, name COLLATE NOCASE, o.client_id;
 -- When each still-owed on-account sale was rung up (UTC), for the On Account
 -- page's month picker. Months are worked out in Go, in the till's time zone.
 SELECT cae.created_at
-FROM client_account_entries cae
+FROM client_account_lines cae
 LEFT JOIN (
     SELECT invoice_id, SUM(amount) AS paid
     FROM client_account_payments
