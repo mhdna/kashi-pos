@@ -278,12 +278,13 @@ func (a *App) VoidInvoice(itemsJSON string, reason string) error {
 	return err
 }
 
-func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes string) (map[string]any, error) {
+// referralCode is the code of the client who sent this new customer, or empty.
+func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes, referralCode string) (map[string]any, error) {
 	unknownRef, err := a.verifyUnknownPictures(itemsJSON)
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}
-	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson), UnknownSessionRef: unknownRef})
+	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson), UnknownSessionRef: unknownRef, ReferralCode: referralCode})
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}

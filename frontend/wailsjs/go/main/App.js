@@ -94,6 +94,10 @@ export function CheckOversell(arg1) {
   return window['go']['main']['App']['CheckOversell'](arg1);
 }
 
+export function CheckReferralCode(arg1, arg2) {
+  return window['go']['main']['App']['CheckReferralCode'](arg1, arg2);
+}
+
 export function CheckShiftReceiptCaptured(arg1) {
   return window['go']['main']['App']['CheckShiftReceiptCaptured'](arg1);
 }
@@ -106,8 +110,8 @@ export function CheckoutExchangeInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7
   return window['go']['main']['App']['CheckoutExchangeInvoice'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
-export function CheckoutInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) {
-  return window['go']['main']['App']['CheckoutInvoice'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+export function CheckoutInvoice(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) {
+  return window['go']['main']['App']['CheckoutInvoice'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
 }
 
 export function ChooseDatabase() {
@@ -426,6 +430,10 @@ export function GetReceiptLooks() {
   return window['go']['main']['App']['GetReceiptLooks']();
 }
 
+export function GetReferralInfo(arg1) {
+  return window['go']['main']['App']['GetReferralInfo'](arg1);
+}
+
 export function GetShiftExpectedTotals(arg1) {
   return window['go']['main']['App']['GetShiftExpectedTotals'](arg1);
 }
@@ -730,12 +738,12 @@ export function QuoteExchangeTotal(arg1, arg2) {
   return window['go']['main']['App']['QuoteExchangeTotal'](arg1, arg2);
 }
 
-export function QuoteInvoiceTotal(arg1) {
-  return window['go']['main']['App']['QuoteInvoiceTotal'](arg1);
+export function QuoteInvoiceTotal(arg1, arg2) {
+  return window['go']['main']['App']['QuoteInvoiceTotal'](arg1, arg2);
 }
 
-export function QuotePaymentStatus(arg1, arg2) {
-  return window['go']['main']['App']['QuotePaymentStatus'](arg1, arg2);
+export function QuotePaymentStatus(arg1, arg2, arg3) {
+  return window['go']['main']['App']['QuotePaymentStatus'](arg1, arg2, arg3);
 }
 
 export function QuoteSettlementPaymentStatus(arg1, arg2) {

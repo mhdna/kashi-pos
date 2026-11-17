@@ -362,7 +362,7 @@ async function refreshPaymentStatus() {
             props.exchangeOriginalInvoiceId,
           )
         : props.itemsJson && props.itemsJson !== "[]"
-          ? await QuotePaymentStatus(props.itemsJson, paymentsJSON.value)
+          ? await QuotePaymentStatus(props.itemsJson, paymentsJSON.value, props.clientId ?? 0)
           : null;
     if (token !== statusRequestToken) return; // a newer request already superseded this one
     backendStatus.value = result && {
@@ -380,7 +380,7 @@ async function refreshPaymentStatus() {
 
 let statusDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 watch(
-  [entries, () => props.itemsJson, () => props.settlementInvoiceId, () => props.exchangeOriginalInvoiceId],
+  [entries, () => props.itemsJson, () => props.clientId, () => props.settlementInvoiceId, () => props.exchangeOriginalInvoiceId],
   () => {
     // No wait, for the same reason as home.vue's quote: the backend answers
     // in well under a millisecond; statusRequestToken drops stale replies.
