@@ -128,7 +128,7 @@ INSERT INTO invoices (
     cashbox_id, shift_id, invoice_code, invoice_index,
     year, client_id, inventory_id, discount,
     subtotal, discounted_total, grand_total, salesperson_id, notes
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at, lbp_total, lbp_rate, invoice_discount, invoice_discount_name
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at, lbp_total, lbp_rate, invoice_discount, invoice_discount_name, referral_code, referral_reward_uid
 `
 
 type CreateInvoiceParams struct {
@@ -185,6 +185,8 @@ func (q *Queries) CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (I
 		&i.LbpRate,
 		&i.InvoiceDiscount,
 		&i.InvoiceDiscountName,
+		&i.ReferralCode,
+		&i.ReferralRewardUid,
 	)
 	return i, err
 }
@@ -376,7 +378,7 @@ func (q *Queries) DeleteSalesInvoice(ctx context.Context, invoiceID int64) error
 }
 
 const getInvoiceByID = `-- name: GetInvoiceByID :one
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at, lbp_total, lbp_rate, invoice_discount, invoice_discount_name FROM invoices WHERE id = ?
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at, lbp_total, lbp_rate, invoice_discount, invoice_discount_name, referral_code, referral_reward_uid FROM invoices WHERE id = ?
 `
 
 func (q *Queries) GetInvoiceByID(ctx context.Context, id int64) (Invoice, error) {
@@ -403,6 +405,8 @@ func (q *Queries) GetInvoiceByID(ctx context.Context, id int64) (Invoice, error)
 		&i.LbpRate,
 		&i.InvoiceDiscount,
 		&i.InvoiceDiscountName,
+		&i.ReferralCode,
+		&i.ReferralRewardUid,
 	)
 	return i, err
 }
@@ -634,7 +638,7 @@ func (q *Queries) GetReturnedQuantityForProductPrice(ctx context.Context, arg Ge
 }
 
 const getSalesInvoiceByCode = `-- name: GetSalesInvoiceByCode :one
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid
 FROM invoices i
 JOIN sales_invoices s ON s.invoice_id = i.id
 WHERE lower(i.invoice_code) = lower(?)
@@ -664,12 +668,14 @@ func (q *Queries) GetSalesInvoiceByCode(ctx context.Context, lower string) (Invo
 		&i.LbpRate,
 		&i.InvoiceDiscount,
 		&i.InvoiceDiscountName,
+		&i.ReferralCode,
+		&i.ReferralRewardUid,
 	)
 	return i, err
 }
 
 const getSalesInvoiceByID = `-- name: GetSalesInvoiceByID :one
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid
 FROM invoices i
 JOIN sales_invoices s ON s.invoice_id = i.id
 WHERE i.id = ?
@@ -699,6 +705,8 @@ func (q *Queries) GetSalesInvoiceByID(ctx context.Context, id int64) (Invoice, e
 		&i.LbpRate,
 		&i.InvoiceDiscount,
 		&i.InvoiceDiscountName,
+		&i.ReferralCode,
+		&i.ReferralRewardUid,
 	)
 	return i, err
 }
@@ -1432,7 +1440,7 @@ func (q *Queries) ListInvoiceProductsInOrder(ctx context.Context, invoiceID int6
 }
 
 const listInvoices = `-- name: ListInvoices :many
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at, lbp_total, lbp_rate, invoice_discount, invoice_discount_name FROM invoices ORDER BY id
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at, lbp_total, lbp_rate, invoice_discount, invoice_discount_name, referral_code, referral_reward_uid FROM invoices ORDER BY id
 `
 
 func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
@@ -1465,6 +1473,8 @@ func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
 			&i.LbpRate,
 			&i.InvoiceDiscount,
 			&i.InvoiceDiscountName,
+			&i.ReferralCode,
+			&i.ReferralRewardUid,
 		); err != nil {
 			return nil, err
 		}
@@ -1480,7 +1490,7 @@ func (q *Queries) ListInvoices(ctx context.Context) ([]Invoice, error) {
 }
 
 const listInvoicesByDate = `-- name: ListInvoicesByDate :many
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 WHERE date(i.created_at, 'localtime') = ?1
@@ -1508,6 +1518,8 @@ type ListInvoicesByDateRow struct {
 	LbpRate             sql.NullInt64  `json:"lbpRate"`
 	InvoiceDiscount     int64          `json:"invoiceDiscount"`
 	InvoiceDiscountName string         `json:"invoiceDiscountName"`
+	ReferralCode        string         `json:"referralCode"`
+	ReferralRewardUid   string         `json:"referralRewardUid"`
 	SalespersonName     string         `json:"salespersonName"`
 }
 
@@ -1541,6 +1553,8 @@ func (q *Queries) ListInvoicesByDate(ctx context.Context, date string) ([]ListIn
 			&i.LbpRate,
 			&i.InvoiceDiscount,
 			&i.InvoiceDiscountName,
+			&i.ReferralCode,
+			&i.ReferralRewardUid,
 			&i.SalespersonName,
 		); err != nil {
 			return nil, err
@@ -1557,7 +1571,7 @@ func (q *Queries) ListInvoicesByDate(ctx context.Context, date string) ([]ListIn
 }
 
 const listInvoicesByDateRange = `-- name: ListInvoicesByDateRange :many
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid, COALESCE(s.full_name, 'Anonymous') AS salesperson_name
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
 WHERE date(i.created_at, 'localtime') >= ?1
@@ -1591,6 +1605,8 @@ type ListInvoicesByDateRangeRow struct {
 	LbpRate             sql.NullInt64  `json:"lbpRate"`
 	InvoiceDiscount     int64          `json:"invoiceDiscount"`
 	InvoiceDiscountName string         `json:"invoiceDiscountName"`
+	ReferralCode        string         `json:"referralCode"`
+	ReferralRewardUid   string         `json:"referralRewardUid"`
 	SalespersonName     string         `json:"salespersonName"`
 }
 
@@ -1624,6 +1640,8 @@ func (q *Queries) ListInvoicesByDateRange(ctx context.Context, arg ListInvoicesB
 			&i.LbpRate,
 			&i.InvoiceDiscount,
 			&i.InvoiceDiscountName,
+			&i.ReferralCode,
+			&i.ReferralRewardUid,
 			&i.SalespersonName,
 		); err != nil {
 			return nil, err
@@ -1640,7 +1658,7 @@ func (q *Queries) ListInvoicesByDateRange(ctx context.Context, arg ListInvoicesB
 }
 
 const listInvoicesByShiftID = `-- name: ListInvoicesByShiftID :many
-SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at, lbp_total, lbp_rate, invoice_discount, invoice_discount_name FROM invoices WHERE shift_id = ? ORDER BY id
+SELECT id, cashbox_id, shift_id, invoice_code, invoice_index, year, client_id, inventory_id, discount, subtotal, discounted_total, grand_total, created_at, salesperson_id, notes, cancelled_at, lbp_total, lbp_rate, invoice_discount, invoice_discount_name, referral_code, referral_reward_uid FROM invoices WHERE shift_id = ? ORDER BY id
 `
 
 func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]Invoice, error) {
@@ -1673,6 +1691,8 @@ func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]I
 			&i.LbpRate,
 			&i.InvoiceDiscount,
 			&i.InvoiceDiscountName,
+			&i.ReferralCode,
+			&i.ReferralRewardUid,
 		); err != nil {
 			return nil, err
 		}
@@ -1688,7 +1708,7 @@ func (q *Queries) ListInvoicesByShiftID(ctx context.Context, shiftID int64) ([]I
 }
 
 const listInvoicesPage = `-- name: ListInvoicesPage :many
-SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, COALESCE(s.full_name, 'Anonymous') AS salesperson_name,
+SELECT i.id, i.cashbox_id, i.shift_id, i.invoice_code, i.invoice_index, i.year, i.client_id, i.inventory_id, i.discount, i.subtotal, i.discounted_total, i.grand_total, i.created_at, i.salesperson_id, i.notes, i.cancelled_at, i.lbp_total, i.lbp_rate, i.invoice_discount, i.invoice_discount_name, i.referral_code, i.referral_reward_uid, COALESCE(s.full_name, 'Anonymous') AS salesperson_name,
   EXISTS (SELECT 1 FROM sales_invoices si WHERE si.invoice_id = i.id) AS is_sale
 FROM invoices i
 LEFT JOIN salespersons s ON s.id = i.salesperson_id
@@ -1755,6 +1775,8 @@ type ListInvoicesPageRow struct {
 	LbpRate             sql.NullInt64  `json:"lbpRate"`
 	InvoiceDiscount     int64          `json:"invoiceDiscount"`
 	InvoiceDiscountName string         `json:"invoiceDiscountName"`
+	ReferralCode        string         `json:"referralCode"`
+	ReferralRewardUid   string         `json:"referralRewardUid"`
 	SalespersonName     string         `json:"salespersonName"`
 	IsSale              bool           `json:"isSale"`
 }
@@ -1804,6 +1826,8 @@ func (q *Queries) ListInvoicesPage(ctx context.Context, arg ListInvoicesPagePara
 			&i.LbpRate,
 			&i.InvoiceDiscount,
 			&i.InvoiceDiscountName,
+			&i.ReferralCode,
+			&i.ReferralRewardUid,
 			&i.SalespersonName,
 			&i.IsSale,
 		); err != nil {

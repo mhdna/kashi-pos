@@ -1063,6 +1063,38 @@ export namespace main {
 	        this.kashiAvailable = source["kashiAvailable"];
 	    }
 	}
+	export class ReferralCodeCheck {
+	    code: string;
+	    ownerName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReferralCodeCheck(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.code = source["code"];
+	        this.ownerName = source["ownerName"];
+	    }
+	}
+	export class ReferralInfo {
+	    enabled: boolean;
+	    rewardPercent: number;
+	    code: string;
+	    rewardOfferPercent: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReferralInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.rewardPercent = source["rewardPercent"];
+	        this.code = source["code"];
+	        this.rewardOfferPercent = source["rewardOfferPercent"];
+	    }
+	}
 	export class ResyncEntityReport {
 	    entity: string;
 	    local: number;

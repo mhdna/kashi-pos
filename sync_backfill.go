@@ -633,6 +633,9 @@ func buildBranchInvoicePayloadFromDB(ctx context.Context, q *db.Queries, inv db.
 		Historical:             historical,
 	}
 	payload.LbpTotal, payload.LbpRate = storedInvoiceLBPTotal(inv)
+	if !isReturn {
+		payload.ReferralCode, payload.ReferralRewardUID = inv.ReferralCode, inv.ReferralRewardUid
+	}
 	if isReturn {
 		relatedRef, err := getOrCreateInvoiceClientRef(ctx, q, salesInvoiceID)
 		if err != nil {

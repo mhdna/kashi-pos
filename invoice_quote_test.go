@@ -91,7 +91,7 @@ func TestQuoteInvoiceTotalMatchesCheckoutGrandTotal(t *testing.T) {
 			app, cashbox, client, _ := setupQuoteTestApp(t, tc.taxRate, tc.roundingMode, tc.roundingCurrency)
 			items := cartJSON(tc.qty)
 
-			quote, err := app.QuoteInvoiceTotal(items)
+			quote, err := app.QuoteInvoiceTotal(items, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -116,13 +116,13 @@ func TestQuotePaymentStatusPredictsCheckoutAcceptance(t *testing.T) {
 	app, cashbox, client, _ := setupQuoteTestApp(t, 0.11, "half_up", "LBP")
 	items := cartJSON(3)
 
-	quote, err := app.QuoteInvoiceTotal(items)
+	quote, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	exactPayments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: quote.GrandTotalCents}})
-	status, err := app.QuotePaymentStatus(items, string(exactPayments))
+	status, err := app.QuotePaymentStatus(items, string(exactPayments), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestQuotePaymentStatusPredictsCheckoutAcceptance(t *testing.T) {
 	}
 
 	shortPayments, _ := json.Marshal([]checkoutPayment{{AccountID: cashbox.ID, AmountCents: quote.GrandTotalCents - 100}})
-	shortStatus, err := app.QuotePaymentStatus(items, string(shortPayments))
+	shortStatus, err := app.QuotePaymentStatus(items, string(shortPayments), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +199,7 @@ func TestQuotePaymentStatusAcceptsLBPCashRoundedEquivalent(t *testing.T) {
 	}
 
 	items := cartJSON(3)
-	quote, err := app.QuoteInvoiceTotal(items)
+	quote, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestQuotePaymentStatusAcceptsLBPCashRoundedEquivalent(t *testing.T) {
 		t.Fatal(err)
 	}
 	payments, _ := json.Marshal([]checkoutPayment{{AccountID: lbpAccount.ID, AmountCents: amountCents}})
-	status, err := app.QuotePaymentStatus(items, string(payments))
+	status, err := app.QuotePaymentStatus(items, string(payments), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func TestQuoteAndConvertCashEntryAgreeForANewlyAddedCurrency(t *testing.T) {
 	}
 
 	items := cartJSON(3)
-	quote, err := app.QuoteInvoiceTotal(items)
+	quote, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func TestQuoteAndConvertCashEntryAgreeForANewlyAddedCurrency(t *testing.T) {
 		t.Fatal(err)
 	}
 	payments, _ := json.Marshal([]checkoutPayment{{AccountID: eurAccount.ID, AmountCents: amountCents}})
-	status, err := app.QuotePaymentStatus(items, string(payments))
+	status, err := app.QuotePaymentStatus(items, string(payments), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +293,7 @@ func TestQuoteSurvivesSecondInventory(t *testing.T) {
 	items := cartJSON(1)
 
 	// Establish history: one sale against the configured inventory.
-	first, err := app.QuoteInvoiceTotal(items)
+	first, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +310,7 @@ func TestQuoteSurvivesSecondInventory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	quote, err := app.QuoteInvoiceTotal(items)
+	quote, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatalf("quote failed after a second inventory appeared: %v", err)
 	}
@@ -351,7 +351,7 @@ func TestSalesInventoryNeverBlocksASale(t *testing.T) {
 			if _, err := database.Exec(`UPDATE settings SET sales_inventory_id = ?`, tc.settingsID); err != nil {
 				t.Fatal(err)
 			}
-			quote, err := app.QuoteInvoiceTotal(cartJSON(1))
+			quote, err := app.QuoteInvoiceTotal(cartJSON(1), 0)
 			if err != nil {
 				t.Fatalf("sale blocked by inventory resolution: %v", err)
 			}
@@ -365,7 +365,7 @@ func TestSalesInventoryNeverBlocksASale(t *testing.T) {
 	if _, err := database.Exec(`DELETE FROM inventory_items`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := app.QuoteInvoiceTotal(cartJSON(1)); err != nil {
+	if _, err := app.QuoteInvoiceTotal(cartJSON(1), 0); err != nil {
 		t.Fatalf("sale blocked by an empty inventory: %v", err)
 	}
 }
@@ -378,7 +378,7 @@ func TestQuoteRejectsZeroPricedProduct(t *testing.T) {
 	if _, err := database.Exec(`UPDATE price_list_items SET price = 0`); err != nil {
 		t.Fatal(err)
 	}
-	quote, err := app.QuoteInvoiceTotal(cartJSON(1))
+	quote, err := app.QuoteInvoiceTotal(cartJSON(1), 0)
 	if err == nil {
 		t.Fatalf("expected an error, got a quote with grandTotalCents=%d", quote.GrandTotalCents)
 	}
@@ -396,7 +396,7 @@ func TestQuoteRejectsProductMissingFromEveryList(t *testing.T) {
 	if _, err := database.Exec(`DELETE FROM price_list_items`); err != nil {
 		t.Fatal(err)
 	}
-	quote, err := app.QuoteInvoiceTotal(cartJSON(1))
+	quote, err := app.QuoteInvoiceTotal(cartJSON(1), 0)
 	if err == nil {
 		t.Fatalf("expected an error, got a quote with grandTotalCents=%d", quote.GrandTotalCents)
 	}

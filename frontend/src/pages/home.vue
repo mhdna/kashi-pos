@@ -28,6 +28,7 @@
                   />
                 </div>
                 <NoteButton :note="invoiceNotes" @openDialog="openNoteDialog" />
+                <ReferralCodeButton v-if="pageMode === 'sale'" v-model="referralCode" :client-id="client.id" />
                 <k-dialog v-model="noteDialog" max-width="760">
                   <k-card>
                     <k-card-title>Add a note</k-card-title>
@@ -460,6 +461,7 @@ import InvoiceItems from "@/components/InvoiceItems.vue";
 import type { DealLine } from "@/lib/deals";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import NoteButton from "@/components/NoteButton.vue";
+import ReferralCodeButton from "@/components/ReferralCodeButton.vue";
 import OnHoldMenu from "@/components/OnHoldMenu.vue";
 import ProductSearchDialog from "@/components/ProductSearchDialog.vue";
 import ProductSearchKeyboard from "@/components/ProductSearchKeyboard.vue";
@@ -570,6 +572,8 @@ const screenPort = ref("");
 const invoiceCode = ref("Loading invoice code…");
 const invoiceNotes = ref("");
 const noteDialog = ref(false);
+// The code of the client who sent this new customer (ReferralCodeButton).
+const referralCode = ref("");
 const noteDraft = ref("");
 // The sale an exchange returns items from; its code names a held exchange.
 const exchangeState = ref<{ originalInvoiceId: number; originalInvoiceCode?: string } | null>(null);
@@ -937,7 +941,7 @@ async function refreshQuote() {
     return;
   }
   try {
-    const result = await QuoteInvoiceTotal(itemsJson);
+    const result = await QuoteInvoiceTotal(itemsJson, client.id);
     if (token !== quoteRequestToken) return;
     quote.value = {
       grandTotalCents: Number(result.grandTotalCents),
@@ -970,6 +974,8 @@ function quoteErrorMessage(e: unknown): string {
 watch(
   [
     () => invoiceItems.value?.items,
+    // The buyer's referral reward is part of the price.
+    () => client.id,
     roundingMode,
     roundingCurrency,
     taxRate,
@@ -1056,6 +1062,7 @@ function clearInvoice() {
     selectedSalesperson.value = null;
   }
   invoiceNotes.value = "";
+  referralCode.value = "";
   noteDraft.value = "";
   noteDialog.value = false;
   unknownPicturedFor.value = "";
@@ -1675,6 +1682,7 @@ async function onCheckout() {
           salesperson!.fullName,
           receiptPrinter.value,
           invoiceNotes.value,
+          referralCode.value,
         );
     snackbar.text = isExchange
       ? exchangeDoneMessage(result?.invoiceCode ?? "", Boolean(result?.receiptPrinted), result?.receiptError)

@@ -3,33 +3,37 @@ package main
 import "strings"
 
 type printReceiptData struct {
-	Items            []invoiceItem
-	StoreName        string
-	Branch           string
-	Phone            string
-	BranchPhone      string
-	Description      string
-	RegisterName     string
-	Salesperson      string
-	Customer         string
-	Notes            string
-	ReturnPolicy     string
-	Website          string
-	Instagram        string
-	SocialPlatforms  []string
-	SocialHandles    map[string]string
-	Font             string
-	TitleSize        float64
-	BodySize         float64
-	BodyFont         string
-	Cutoff           bool
-	ReceiptNo        string
-	PrinterName      string
-	GrandTotalCents  int64
-	TaxCents         int64
+	Items           []invoiceItem
+	StoreName       string
+	Branch          string
+	Phone           string
+	BranchPhone     string
+	Description     string
+	RegisterName    string
+	Salesperson     string
+	Customer        string
+	Notes           string
+	ReturnPolicy    string
+	Website         string
+	Instagram       string
+	SocialPlatforms []string
+	SocialHandles   map[string]string
+	Font            string
+	TitleSize       float64
+	BodySize        float64
+	BodyFont        string
+	Cutoff          bool
+	ReceiptNo       string
+	PrinterName     string
+	GrandTotalCents int64
+	TaxCents        int64
 	// The sale's invoice discount: a row of its own, apart from the item
 	// discounts (Items are priced before it).
 	InvoiceDiscount invoiceDiscount
+	// The customer's referral code and the line explaining it (referrals.go);
+	// both empty when it isn't printed.
+	ReferralCode     string
+	ReferralNote     string
 	Payments         []receiptPayment
 	RoundingCurrency receiptCurrency
 	RoundingMode     string

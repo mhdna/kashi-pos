@@ -29,7 +29,7 @@ func TestDiscountAndDealToggles(t *testing.T) {
 	}
 	quote := func(noDiscount, noDeal bool) InvoiceQuote {
 		t.Helper()
-		quote, err := shop.app.QuoteInvoiceTotal(cart(noDiscount, noDeal))
+		quote, err := shop.app.QuoteInvoiceTotal(cart(noDiscount, noDeal), 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -40,10 +40,10 @@ func TestDiscountAndDealToggles(t *testing.T) {
 	if got := quote(false, false).DiscountedSubtotalCents; got != freeShirtSet+jacketAt30 {
 		t.Fatalf("with both: %d, want the free shirt and 30%% off the jacket", got)
 	}
-	if _, err := shop.app.QuoteInvoiceTotal(cart(true, false)); err == nil {
+	if _, err := shop.app.QuoteInvoiceTotal(cart(true, false), 0); err == nil {
 		t.Fatal("turning a discount off must be refused while discount_toggle is off")
 	}
-	if _, err := shop.app.QuoteInvoiceTotal(cart(false, true)); err == nil {
+	if _, err := shop.app.QuoteInvoiceTotal(cart(false, true), 0); err == nil {
 		t.Fatal("turning a deal off must be refused while deal_toggle is off")
 	}
 
@@ -51,7 +51,7 @@ func TestDiscountAndDealToggles(t *testing.T) {
 	if err := shop.app.SetDiscountToggleEnabled(true); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := shop.app.QuoteInvoiceTotal(cart(false, true)); err == nil {
+	if _, err := shop.app.QuoteInvoiceTotal(cart(false, true), 0); err == nil {
 		t.Fatal("discount_toggle must not let a deal be turned off")
 	}
 	got := quote(true, false)

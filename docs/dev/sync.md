@@ -23,7 +23,7 @@ one is. Code: `sync_*.go`, `commands.go`, `live_cart.go`, `standalone.go`,
 
 | Data | Owner | On the till |
 |---|---|---|
-| Products, variants, prices, price lists, discount lists, deals, invoice discounts | central | Read-only mirror. ==Products are never pushed up.== |
+| Products, variants, prices, price lists, discount lists, deals, invoice discounts, referral rules and rewards | central | Read-only mirror. ==Products are never pushed up.== |
 | Clients | central | Mirror. While connected the till can still create a client and change its name and phone (sent up), but deleting or deactivating one is refused. |
 | Salespersons, branch users, categories, coupon types, coupons, currencies, payment methods, branches, branch stock, calendar | central | Mirror. |
 | Invoices, exchanges, settlements, return edits, shifts, expenses, loans, visitor counts, attendance, transfers requested here | the till | Pushed up. |
@@ -129,7 +129,8 @@ offline branch can close with the ==admin password and a reason==
   discount_lists, clients, branch_targets, salespersons, branch_users,
   expense_categories, loan_categories, coupon_types, coupons, branches,
   transfer_requests, incoming_transfer_requests, branch_stock, quick_access,
-  invoice_discounts, calendar_events, calendar_settings.
+  invoice_discounts, calendar_events, calendar_settings, referral_program,
+  referral_rewards.
 - Each follows central's `updated_at` cursor (`sync_cursors`), which ==only
   advances after a whole successful walk==, in the last page's transaction. So every apply must be
   idempotent: a failure mid-walk re-applies the same pages next time. One

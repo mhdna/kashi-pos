@@ -76,7 +76,7 @@ func (a *App) CheckOversell(itemsJSON string) (OversellCheck, error) {
 	if check.Mode == oversellAllow {
 		return check, nil
 	}
-	totals, err := a.priceInvoiceTotals(a.store.Queries, pricing.InventoryID, items, pricing.Settings, pricing.RoundingMode, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled)
+	totals, err := a.priceInvoiceTotals(a.store.Queries, pricing.InventoryID, items, pricing.Settings, pricing.RoundingMode, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled, 0)
 	if err != nil {
 		return check, err
 	}

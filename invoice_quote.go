@@ -62,7 +62,8 @@ type LineQuote struct {
 // QuoteInvoiceTotal prices a cart exactly as checkout would, without
 // persisting anything. Call this reactively as the cart changes instead of
 // recomputing tax/rounding in the frontend.
-func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
+// clientID is the buyer picked (0 for none), whose referral reward counts.
+func (a *App) QuoteInvoiceTotal(itemsJSON string, clientID int64) (InvoiceQuote, error) {
 	var quote InvoiceQuote
 	if a.store == nil {
 		return quote, fmt.Errorf("database not initialized")
@@ -75,7 +76,7 @@ func (a *App) QuoteInvoiceTotal(itemsJSON string) (InvoiceQuote, error) {
 	if err != nil {
 		return quote, err
 	}
-	totals, err := a.priceInvoiceTotals(a.store.Queries, pricing.InventoryID, items, pricing.Settings, pricing.RoundingMode, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled)
+	totals, err := a.priceInvoiceTotals(a.store.Queries, pricing.InventoryID, items, pricing.Settings, pricing.RoundingMode, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled, clientID)
 	if err != nil {
 		return quote, err
 	}
@@ -138,7 +139,7 @@ type PaymentStatus struct {
 // QuotePaymentStatus prices the cart (as QuoteInvoiceTotal does) and
 // evaluates a proposed set of payments against it using the same
 // sufficiency check checkout will apply.
-func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string) (PaymentStatus, error) {
+func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string, clientID int64) (PaymentStatus, error) {
 	var status PaymentStatus
 	if a.store == nil {
 		return status, fmt.Errorf("database not initialized")
@@ -155,7 +156,7 @@ func (a *App) QuotePaymentStatus(itemsJSON, paymentsJSON string) (PaymentStatus,
 	if err != nil {
 		return status, err
 	}
-	totals, err := a.priceInvoiceTotals(a.store.Queries, pricing.InventoryID, items, pricing.Settings, pricing.RoundingMode, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled)
+	totals, err := a.priceInvoiceTotals(a.store.Queries, pricing.InventoryID, items, pricing.Settings, pricing.RoundingMode, pricing.CustomPricingEnabled, pricing.PerUnitPricingEnabled, clientID)
 	if err != nil {
 		return status, err
 	}

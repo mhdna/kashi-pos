@@ -32,7 +32,7 @@ func TestListInvoicesPageBatchesClientAndSettlementLookups(t *testing.T) {
 	}
 
 	items := cartJSON(1)
-	quote, err := app.QuoteInvoiceTotal(items)
+	quote, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestListInvoicesPageKeysetPaginationWalksEveryRowOnce(t *testing.T) {
 	defer database.Close()
 
 	items := cartJSON(1)
-	quote, err := app.QuoteInvoiceTotal(items)
+	quote, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

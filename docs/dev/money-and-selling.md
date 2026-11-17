@@ -254,6 +254,29 @@ sell at their typed price and show no chip. The cart sends the line's
   and fixes its payments, account entries and shift balance with it (admins
   only).
 
+## Referrals
+
+- Every client has a ==referral code== central gave them (`clients.referral_code`,
+  e.g. `K7M4QH`). The alphabet leaves out characters that read like another
+  (no 0/O, 1/I/L, 2/Z, 5/S, 8/B, U/V), and the last character is a ==check
+  character==, so the till catches any one wrong character or two swapped
+  neighbours before looking anything up (`referrals.go`, `lib/referralCode.ts`).
+- The receipt prints the customer's code with a line saying what it gets them,
+  only while central has referrals on.
+- **The friend's sale:** the cashier types the code with the Referral button
+  in the cart header. The till takes it only for a customer (not the walk-in)
+  with ==no earlier sale here==, holding no reward, using someone else's code.
+  ==The friend gets nothing.== The code goes to central on the sale
+  (`referral_code`), and central checks again across every branch.
+- **The owner's reward:** central sends it down (`referral_rewards`): a percent,
+  maybe a cap and dates. On the owner's next sale it ==competes with the
+  invoice discounts==: the one that takes more off wins, a tie goes to the
+  rule, and the reward is ==used up only when it wins== (the sale's
+  `referral_reward_uid`, `referral_rewards.used_invoice_id`). A pull can't
+  make a reward used here usable again; cancelling the sale that used it does.
+- Central's rules (on or off, percent, minimum spend, days, cap) live in kashi
+  (`referral_program` on the till holds what it needs).
+
 ## The unfinished sale (draft)
 
 The cart, client, note and calculator state are kept in `localStorage`

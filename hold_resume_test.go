@@ -44,7 +44,7 @@ func TestHoldResumeKeepsTheWholeSale(t *testing.T) {
 	cart, _ := json.Marshal([]salesInvoiceItem{{Barcode: "bc-JACKET", Qty: 1}})
 	subtotal := func() int64 {
 		t.Helper()
-		quote, err := app.QuoteInvoiceTotal(string(cart))
+		quote, err := app.QuoteInvoiceTotal(string(cart), 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -215,7 +215,7 @@ func TestHoldResumeRandomized(t *testing.T) {
 			t.Fatal(err)
 		}
 		cartJSON, _ := json.Marshal(cart)
-		quote, err := app.QuoteInvoiceTotal(string(cartJSON))
+		quote, err := app.QuoteInvoiceTotal(string(cartJSON), 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -241,7 +241,7 @@ func TestHoldResumeRandomized(t *testing.T) {
 			}
 			assertSameSnapshot(t, h.snapshot, resumed)
 			reportSale(t, app, h.ref)
-			quote, err := app.QuoteInvoiceTotal(h.cart)
+			quote, err := app.QuoteInvoiceTotal(h.cart, 0)
 			if err != nil {
 				t.Fatal(err)
 			}

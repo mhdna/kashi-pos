@@ -48,7 +48,7 @@ func TestInvoiceDetailsSayAnonymousButReprintSaysWalkIn(t *testing.T) {
 	}
 
 	items := cartJSON(1)
-	quote, err := app.QuoteInvoiceTotal(items)
+	quote, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

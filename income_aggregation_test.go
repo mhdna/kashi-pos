@@ -27,7 +27,7 @@ func TestBalanceAggregationAgreesWithInvoiceTotalsAcrossMixedPayments(t *testing
 	}
 
 	items := cartJSON(3)
-	quote, err := app.QuoteInvoiceTotal(items)
+	quote, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestBalanceAggregationAgreesWithInvoiceTotalsAcrossMixedPayments(t *testing
 	}
 
 	// Invoice 3: split between Visa and LBP cash.
-	quote3, err := app.QuoteInvoiceTotal(items)
+	quote3, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

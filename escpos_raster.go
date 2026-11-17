@@ -243,6 +243,13 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y, _ = c.centerWrappedNormal(y, policy, c.data.BodySize-2.5, 2)
 	y = c.ruleLine(y+c.gap(6)) + c.gap(10)
 
+	if c.data.ReferralCode != "" {
+		y, _ = c.center(y, "YOUR CODE: "+c.data.ReferralCode, c.data.BodySize+1, true, false)
+		y += c.gap(8)
+		y, _ = c.centerWrappedNormal(y, c.data.ReferralNote, c.data.BodySize-2.5, 2)
+		y = c.ruleLine(y+c.gap(6)) + c.gap(10)
+	}
+
 	socials := socialFooterItems(c.data.SocialPlatforms, c.data.SocialHandles)
 	if len(socials) > 0 {
 		var rowBottom int

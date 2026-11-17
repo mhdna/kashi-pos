@@ -629,7 +629,7 @@ var entityLabels = map[string]string{
 	"expense_categories": "Expense categories", "loan_categories": "Loan categories",
 	"coupon_types": "Coupon types", "coupons": "Coupons", "branches": "Branches",
 	"transfer_requests": "Transfers", "incoming_transfer_requests": "Incoming transfers",
-	"branch_stock": "Stock", "quick_access": "Quick access", "invoice_discounts": "Invoice discounts",
+	"branch_stock": "Stock", "quick_access": "Quick access", "invoice_discounts": "Invoice discounts", "referral_program": "Referral rules", "referral_rewards": "Referral rewards",
 	"calendar_events": "Calendar events", "calendar_settings": "Calendar settings",
 }
 

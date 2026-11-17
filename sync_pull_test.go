@@ -65,6 +65,8 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 			fmt.Fprint(w, `{"entity":"calendar_events","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
 		case "calendar_settings":
 			fmt.Fprint(w, `{"entity":"calendar_settings","items":[],"server_time":"2026-08-24T00:00:00Z"}`)
+		case "referral_program", "referral_rewards":
+			fmt.Fprintf(w, `{"entity":%q,"items":[],"server_time":"2026-08-24T00:00:00Z"}`, entity)
 		default:
 			t.Fatalf("unexpected entity %q", entity)
 		}
@@ -103,8 +105,8 @@ func TestSyncPullAppliesCurrenciesAndCashboxAccountsAndAdvancesCursor(t *testing
 	// Second pull should send the saved cursor as `since`, not fetch
 	// everything all over again.
 	app.runSyncPullOnce(app.ctx, client)
-	if calls != 40 {
-		t.Fatalf("expected 40 total calls (20 entities x 2 ticks), got %d", calls)
+	if calls != 44 {
+		t.Fatalf("expected 44 total calls (22 entities x 2 ticks), got %d", calls)
 	}
 }
 

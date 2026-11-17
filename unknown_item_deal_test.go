@@ -18,7 +18,7 @@ func unknownLine(ref string, priceCents int64, choice string) salesInvoiceItem {
 func quoteItems(t *testing.T, app *App, items ...salesInvoiceItem) InvoiceQuote {
 	t.Helper()
 	itemsJSON, _ := json.Marshal(items)
-	quote, err := app.QuoteInvoiceTotal(string(itemsJSON))
+	quote, err := app.QuoteInvoiceTotal(string(itemsJSON), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestUnknownItemDealRejectsOtherChoices(t *testing.T) {
 		t.Fatal(err)
 	}
 	itemsJSON, _ := json.Marshal([]salesInvoiceItem{unknownLine("u1", 3000, "b2g1_50")})
-	if _, err := shop.app.QuoteInvoiceTotal(string(itemsJSON)); err == nil {
+	if _, err := shop.app.QuoteInvoiceTotal(string(itemsJSON), 0); err == nil {
 		t.Fatal("a choice outside the three was accepted")
 	}
 }
@@ -248,7 +248,7 @@ func TestUnknownItemDiscountFollowsTheSwitch(t *testing.T) {
 	line := unknownLine("u1", 3000, unknownDeal30)
 	line.UnitDiscounts = []int64{10}
 	itemsJSON, _ := json.Marshal([]salesInvoiceItem{line})
-	if _, err := shop.app.QuoteInvoiceTotal(string(itemsJSON)); err == nil {
+	if _, err := shop.app.QuoteInvoiceTotal(string(itemsJSON), 0); err == nil {
 		t.Fatal("a typed discount went through with custom discounts off")
 	}
 	if quote := quoteItems(t, shop.app, unknownLine("u1", 3000, unknownDeal30)); quote.GrandTotalCents != 2100 {

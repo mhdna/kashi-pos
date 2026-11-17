@@ -278,12 +278,13 @@ func (a *App) VoidInvoice(itemsJSON string, reason string) error {
 	return err
 }
 
-func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes string) (map[string]any, error) {
+// referralCode is the code of the client who sent this new customer, or empty.
+func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, storeName, branch, phone, salesperson, receiptPrinter, notes, referralCode string) (map[string]any, error) {
 	unknownRef, err := a.verifyUnknownPictures(itemsJSON)
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}
-	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson), UnknownSessionRef: unknownRef})
+	result, err := a.salesInvoiceTx(SalesInvoiceParams{ItemsJSON: itemsJSON, PaymentsJSON: paymentsJSON, ClientID: clientID, Notes: notes, Salesperson: strings.TrimSpace(salesperson), UnknownSessionRef: unknownRef, ReferralCode: referralCode})
 	if err != nil {
 		return nil, fmt.Errorf("invoice creation failed: %w", err)
 	}
@@ -326,7 +327,7 @@ func (a *App) CheckoutInvoice(itemsJSON, paymentsJSON string, clientID int64, st
 			response["receiptError"] = currErr.Error()
 			return response, nil
 		}
-		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.Notes, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.TaxCents, result.Payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0, result.InvoiceDiscount); err != nil {
+		if err := a.printReceipt(result.Items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, salesperson, customer, result.Notes, result.InvoiceCode, settings.ReceiptPrinter, result.GrandTotal, result.TaxCents, result.Payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0, result.InvoiceDiscount, clientID); err != nil {
 			response["receiptError"] = err.Error()
 		} else {
 			response["receiptPrinted"] = true
@@ -979,10 +980,10 @@ func (a *App) printInvoiceReceipt(id int64, payments []checkoutPayment) error {
 	}
 	customer := receiptCustomerFromDetails(details)
 	return a.printReceipt(items, marketName, settings.BranchName, settings.MarketPhone, settings.BranchPhone, settings.MarketDescription, settings.CounterNumber, details["salespersonName"].(string), customer, details["notes"].(string), details["invoiceCode"].(string), settings.ReceiptPrinter, grandTotal, taxCents, payments, roundingCurrency, settings.RoundingMode, settings.ReceiptWidth, settings.ReceiptHeight, settings.ReturnPolicy, settings.Website, settings.Instagram, decodeSocialPlatforms(settings.SocialPlatforms), decodeSocialHandles(settings.SocialHandles), settings.ReceiptFont, settings.ReceiptBodyFont, settings.ReceiptTitleSize, settings.ReceiptBodySize, settings.ReceiptCutoff != 0,
-		invoiceDiscount{Name: details["invoiceDiscountName"].(string), Cents: details["invoiceDiscount"].(int64)})
+		invoiceDiscount{Name: details["invoiceDiscountName"].(string), Cents: details["invoiceDiscount"].(int64)}, details["clientId"].(int64))
 }
 
-func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, registerName, salesperson, customer, notes, receiptNo, printerName string, grandTotalCents, taxCents int64, payments []checkoutPayment, roundingCurrency db.Currency, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram string, socialPlatforms []string, socialHandles map[string]string, font, bodyFont string, titleSize, bodySize float64, cutoff bool, invoiceDisc invoiceDiscount) error {
+func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branchPhone, description, registerName, salesperson, customer, notes, receiptNo, printerName string, grandTotalCents, taxCents int64, payments []checkoutPayment, roundingCurrency db.Currency, roundingMode string, receiptWidth, receiptHeight int64, returnPolicy, website, instagram string, socialPlatforms []string, socialHandles map[string]string, font, bodyFont string, titleSize, bodySize float64, cutoff bool, invoiceDisc invoiceDiscount, clientID int64) error {
 	if printerName == "" {
 		return fmt.Errorf("no receipt printer configured")
 	}
@@ -1012,6 +1013,7 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 		})
 	}
 	receiptPayments = aggregateReceiptPayments(receiptPayments)
+	referralCode, referralNote := a.receiptReferral(clientID)
 	theme, layout := a.receiptLook()
 	return printReceiptToPrinter(printReceiptData{
 		Theme:            theme,
@@ -1046,7 +1048,27 @@ func (a *App) printReceipt(items []invoiceItem, storeName, branch, phone, branch
 		ReceiptWidth:     receiptWidth,
 		ReceiptHeight:    receiptHeight,
 		InvoiceDiscount:  invoiceDisc,
+		ReferralCode:     referralCode,
+		ReferralNote:     referralNote,
 	})
+}
+
+// receiptReferral is the customer's referral code and the line under it,
+// or nothing (referrals.go). A failed lookup prints no code rather than no
+// receipt.
+func (a *App) receiptReferral(clientID int64) (code, note string) {
+	if clientID <= 0 {
+		return "", ""
+	}
+	client, err := a.store.GetClientByID(a.ctx, clientID)
+	if err != nil {
+		return "", ""
+	}
+	program, err := referralProgram(a.ctx, a.store.Queries)
+	if err != nil {
+		return "", ""
+	}
+	return referralReceiptNote(program, client)
 }
 
 func formatInt(value int64) string {

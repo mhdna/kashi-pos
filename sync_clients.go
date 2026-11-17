@@ -18,11 +18,14 @@ import (
 // central's uid yet, or for an older central that doesn't send one. IsActive is
 // nil from an older central (treated as active).
 type syncedClient struct {
-	UID       string `json:"uid"`
-	Name      string `json:"name"`
-	Phone     string `json:"phone"`
-	IsActive  *bool  `json:"is_active"`
-	UpdatedAt string `json:"updated_at"`
+	UID      string `json:"uid"`
+	Name     string `json:"name"`
+	Phone    string `json:"phone"`
+	IsActive *bool  `json:"is_active"`
+	// The client's referral code (referrals.go); nil from a central that
+	// predates them, which leaves the till's as it is.
+	ReferralCode *string `json:"referral_code"`
+	UpdatedAt    string  `json:"updated_at"`
 }
 
 // applySyncedClient makes the local copy of one central client match central:
@@ -85,6 +88,9 @@ func applySyncedClientRow(ctx context.Context, q *db.Queries, c syncedClient) (i
 					return 0, err
 				}
 			}
+			if err := setSyncedReferralCode(ctx, q, created.ID, c); err != nil {
+				return 0, err
+			}
 			return created.ID, q.SetClientActive(ctx, db.SetClientActiveParams{IsActive: active, ID: created.ID})
 		default:
 			return 0, err
@@ -117,7 +123,18 @@ func applySyncedClientRow(ctx context.Context, q *db.Queries, c syncedClient) (i
 	}); err != nil {
 		return 0, err
 	}
+	if err := setSyncedReferralCode(ctx, q, current.ID, c); err != nil {
+		return 0, err
+	}
 	return current.ID, q.SetClientActive(ctx, db.SetClientActiveParams{IsActive: active, ID: current.ID})
+}
+
+// setSyncedReferralCode stores the code central sent, when it sent one.
+func setSyncedReferralCode(ctx context.Context, q *db.Queries, id int64, c syncedClient) error {
+	if c.ReferralCode == nil {
+		return nil
+	}
+	return q.SetClientReferralCode(ctx, db.SetClientReferralCodeParams{ReferralCode: normalizeReferralCode(*c.ReferralCode), ID: id})
 }
 
 // mergeLocalClient folds the duplicate local client dropID into keepID:

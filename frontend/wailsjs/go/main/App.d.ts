@@ -48,13 +48,15 @@ export function CheckForAppUpdate():Promise<Record<string, any>>;
 
 export function CheckOversell(arg1:string):Promise<main.OversellCheck>;
 
+export function CheckReferralCode(arg1:string,arg2:number):Promise<main.ReferralCodeCheck>;
+
 export function CheckShiftReceiptCaptured(arg1:string):Promise<boolean>;
 
 export function CheckTransferUploadStatus(arg1:string):Promise<boolean>;
 
 export function CheckoutExchangeInvoice(arg1:string,arg2:string,arg3:number,arg4:number,arg5:number,arg6:string,arg7:boolean):Promise<Record<string, any>>;
 
-export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string):Promise<Record<string, any>>;
+export function CheckoutInvoice(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string,arg9:string,arg10:string):Promise<Record<string, any>>;
 
 export function ChooseDatabase():Promise<string>;
 
@@ -214,6 +216,8 @@ export function GetQuickAccessSource():Promise<main.QuickAccessSource>;
 
 export function GetReceiptLooks():Promise<Record<string, any>>;
 
+export function GetReferralInfo(arg1:number):Promise<main.ReferralInfo>;
+
 export function GetShiftExpectedTotals(arg1:number):Promise<Record<string, any>>;
 
 export function GetShiftReceiptUploadMode():Promise<number>;
@@ -366,9 +370,9 @@ export function QuoteExchangePaymentStatus(arg1:string,arg2:string,arg3:number):
 
 export function QuoteExchangeTotal(arg1:string,arg2:number):Promise<main.ExchangeQuote>;
 
-export function QuoteInvoiceTotal(arg1:string):Promise<main.InvoiceQuote>;
+export function QuoteInvoiceTotal(arg1:string,arg2:number):Promise<main.InvoiceQuote>;
 
-export function QuotePaymentStatus(arg1:string,arg2:string):Promise<main.PaymentStatus>;
+export function QuotePaymentStatus(arg1:string,arg2:string,arg3:number):Promise<main.PaymentStatus>;
 
 export function QuoteSettlementPaymentStatus(arg1:number,arg2:string):Promise<main.PaymentStatus>;
 

@@ -28,7 +28,7 @@ func TestLiveCartOverrides(t *testing.T) {
 	})
 	subtotal := func() int64 {
 		t.Helper()
-		quote, err := app.QuoteInvoiceTotal(string(cart))
+		quote, err := app.QuoteInvoiceTotal(string(cart), 0)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -76,7 +76,7 @@ func TestLiveCartOverrides(t *testing.T) {
 	}
 
 	// Checkout charges it.
-	quote, err := app.QuoteInvoiceTotal(string(cart))
+	quote, err := app.QuoteInvoiceTotal(string(cart), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

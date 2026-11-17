@@ -250,6 +250,11 @@ func (a *App) checkoutReturnExchangeInvoice(itemsJSON, paymentsJSON string, orig
 					return fmt.Errorf("mark cancelled: %w", err)
 				}
 			}
+			// A referral reward the sale used is the customer's again;
+			// central gives it back too once the cancel arrives.
+			if err := q.ReleaseReferralRewardsOfInvoice(a.ctx, sql.NullInt64{Int64: source.ID, Valid: true}); err != nil {
+				return fmt.Errorf("release referral reward: %w", err)
+			}
 		}
 
 		if settings.CentralApiUrl != "" {

@@ -186,6 +186,7 @@ type Client struct {
 	IsActive           int64          `json:"isActive"`
 	Uid                sql.NullString `json:"uid"`
 	RemoteUpdatedAt    sql.NullString `json:"remoteUpdatedAt"`
+	ReferralCode       string         `json:"referralCode"`
 }
 
 type ClientAccountEntry struct {
@@ -380,6 +381,8 @@ type Invoice struct {
 	LbpRate             sql.NullInt64  `json:"lbpRate"`
 	InvoiceDiscount     int64          `json:"invoiceDiscount"`
 	InvoiceDiscountName string         `json:"invoiceDiscountName"`
+	ReferralCode        string         `json:"referralCode"`
+	ReferralRewardUid   string         `json:"referralRewardUid"`
 }
 
 type InvoiceClientRef struct {
@@ -579,6 +582,24 @@ type QuickAccessItem struct {
 	CreatedAt string `json:"createdAt"`
 	Color     string `json:"color"`
 	TextColor string `json:"textColor"`
+}
+
+type ReferralProgram struct {
+	ID             int64 `json:"id"`
+	Enabled        int64 `json:"enabled"`
+	RewardPercent  int64 `json:"rewardPercent"`
+	MinFriendSpend int64 `json:"minFriendSpend"`
+}
+
+type ReferralReward struct {
+	Uid            string        `json:"uid"`
+	OwnerClientUid string        `json:"ownerClientUid"`
+	Percent        int64         `json:"percent"`
+	MaxCents       int64         `json:"maxCents"`
+	Status         string        `json:"status"`
+	AvailableFrom  string        `json:"availableFrom"`
+	ExpiresAt      string        `json:"expiresAt"`
+	UsedInvoiceID  sql.NullInt64 `json:"usedInvoiceId"`
 }
 
 type ReturnInvoice struct {

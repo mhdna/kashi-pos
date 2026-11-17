@@ -675,7 +675,7 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 // pullEntities lists what gets pulled from central on each tick. Adding a
 // new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
-var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories", "coupon_types", "coupons", "branches", "transfer_requests", "incoming_transfer_requests", "branch_stock", "quick_access", "invoice_discounts", "calendar_events", "calendar_settings"}
+var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories", "coupon_types", "coupons", "branches", "transfer_requests", "incoming_transfer_requests", "branch_stock", "quick_access", "invoice_discounts", "calendar_events", "calendar_settings", "referral_program", "referral_rewards"}
 
 // runSyncPullOnce catches this branch up on every entity in pullEntities,
 // one at a time. Each entity's cursor advances independently — a decode
@@ -1004,6 +1004,26 @@ func applySyncedEntityBatch(ctx context.Context, q *db.Queries, entity string, r
 		for _, item := range items {
 			if err := applySyncedInvoiceDiscount(ctx, q, item); err != nil {
 				return fmt.Errorf("apply invoice discount %s: %w", item.Name, err)
+			}
+		}
+	case "referral_program":
+		var items []syncedReferralProgram
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedReferralProgram(ctx, q, item); err != nil {
+				return fmt.Errorf("apply referral program: %w", err)
+			}
+		}
+	case "referral_rewards":
+		var items []syncedReferralReward
+		if err := json.Unmarshal(raw, &items); err != nil {
+			return fmt.Errorf("decode items: %w", err)
+		}
+		for _, item := range items {
+			if err := applySyncedReferralReward(ctx, q, item); err != nil {
+				return fmt.Errorf("apply referral reward %s: %w", item.UID, err)
 			}
 		}
 	case "clients":

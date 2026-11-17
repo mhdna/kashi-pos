@@ -81,6 +81,8 @@ var wsMessageEntity = map[string]string{
 	"loan_categories_updated":            "loan_categories",
 	"incoming_transfer_requests_updated": "incoming_transfer_requests",
 	"transfer_requests_updated":          "transfer_requests",
+	"referrals_updated":                  "referral_rewards",
+	"referral_program_updated":           "referral_program",
 }
 
 // startWSClient runs the reconnect loop for central's push channel, and the

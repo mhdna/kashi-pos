@@ -42,6 +42,8 @@ type Querier interface {
 	// ids and versions instead of re-downloading the whole catalog.
 	ClearSyncCursorsExcept(ctx context.Context, keep []string) error
 	ClientHasInvoice(ctx context.Context, clientID int64) (bool, error)
+	// Any sale of this client on this till, cancelled ones aside.
+	ClientHasSale(ctx context.Context, clientID int64) (bool, error)
 	// Anything that makes a client part of history: invoices, coupons, account
 	// entries. Such a client is deactivated, never deleted.
 	ClientIsReferenced(ctx context.Context, id int64) (int64, error)
@@ -265,6 +267,7 @@ type Querier interface {
 	GetClientAccountPaidByInvoiceID(ctx context.Context, invoiceID int64) (interface{}, error)
 	GetClientByID(ctx context.Context, id int64) (Client, error)
 	GetClientByPhone(ctx context.Context, phone string) (Client, error)
+	GetClientByReferralCode(ctx context.Context, referralCode string) (Client, error)
 	GetClientByUID(ctx context.Context, uid sql.NullString) (Client, error)
 	GetCouponByCode(ctx context.Context, code string) (Coupon, error)
 	GetCouponTypeByCentralID(ctx context.Context, centralID sql.NullInt64) (CouponType, error)
@@ -327,6 +330,7 @@ type Querier interface {
 	GetProductByCode(ctx context.Context, code string) (Product, error)
 	GetProductByID(ctx context.Context, id int64) (Product, error)
 	GetProductByUID(ctx context.Context, uid sql.NullString) (Product, error)
+	GetReferralProgram(ctx context.Context) (ReferralProgram, error)
 	GetReturnSaleID(ctx context.Context, invoiceID int64) (int64, error)
 	GetReturnedQuantityForProduct(ctx context.Context, arg GetReturnedQuantityForProductParams) (interface{}, error)
 	GetReturnedQuantityForProductPrice(ctx context.Context, arg GetReturnedQuantityForProductPriceParams) (interface{}, error)
@@ -634,6 +638,9 @@ type Querier interface {
 	ListTransferItems(ctx context.Context, transferID int64) ([]TransferItem, error)
 	ListTransferRequestItems(ctx context.Context, transferRequestID int64) ([]TransferRequestItem, error)
 	ListTransfers(ctx context.Context) ([]Transfer, error)
+	// A client's rewards central has as available and no sale here used; the
+	// caller checks the dates.
+	ListUsableReferralRewards(ctx context.Context, ownerClientUid string) ([]ReferralReward, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	ListVisitorCountsForMonth(ctx context.Context, monthPrefix string) ([]ListVisitorCountsForMonthRow, error)
 	// day is "YYYY-MM-DD" text, so a text comparison is a date comparison.
@@ -646,6 +653,7 @@ type Querier interface {
 	// out on the very next pass instead of each waiting out its own timer.
 	MakePendingSyncOutboxDueNow(ctx context.Context) (int64, error)
 	MarkInvoiceCancelled(ctx context.Context, id int64) error
+	MarkReferralRewardUsed(ctx context.Context, arg MarkReferralRewardUsedParams) (int64, error)
 	MarkShiftReceiptCaptured(ctx context.Context, arg MarkShiftReceiptCapturedParams) error
 	MarkShiftReceiptSynced(ctx context.Context, id int64) error
 	MarkShiftReceiptUploadAttemptFailed(ctx context.Context, arg MarkShiftReceiptUploadAttemptFailedParams) error
@@ -669,6 +677,7 @@ type Querier interface {
 	RedeemCoupon(ctx context.Context, arg RedeemCouponParams) error
 	// An edit gave back part of what a deal charged back on this return.
 	ReduceExchangeDealClawback(ctx context.Context, arg ReduceExchangeDealClawbackParams) error
+	ReleaseReferralRewardsOfInvoice(ctx context.Context, usedInvoiceID sql.NullInt64) error
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	RemoveQuickAccessProduct(ctx context.Context, productID int64) error
 	RepointClientAccountEntriesClient(ctx context.Context, arg RepointClientAccountEntriesClientParams) error
@@ -695,6 +704,7 @@ type Querier interface {
 	SetCashboxAccountActive(ctx context.Context, arg SetCashboxAccountActiveParams) error
 	SetCashboxAccountSortOrder(ctx context.Context, arg SetCashboxAccountSortOrderParams) error
 	SetClientActive(ctx context.Context, arg SetClientActiveParams) error
+	SetClientReferralCode(ctx context.Context, arg SetClientReferralCodeParams) error
 	SetClientRemoteUpdatedAt(ctx context.Context, arg SetClientRemoteUpdatedAtParams) error
 	// Adopt central's uid for a local client (pull match, or central answering a
 	// push with the canonical uid of an existing client with the same phone).
@@ -709,6 +719,7 @@ type Querier interface {
 	SetInvoiceDiscount(ctx context.Context, arg SetInvoiceDiscountParams) error
 	SetInvoiceLBPTotal(ctx context.Context, arg SetInvoiceLBPTotalParams) error
 	SetInvoiceProductLineTotal(ctx context.Context, arg SetInvoiceProductLineTotalParams) error
+	SetInvoiceReferral(ctx context.Context, arg SetInvoiceReferralParams) error
 	SetLastFullCheck(ctx context.Context, arg SetLastFullCheckParams) error
 	SetLastReconcile(ctx context.Context, lastReconcileJson string) error
 	SetLoanCategory(ctx context.Context, arg SetLoanCategoryParams) (Loan, error)
@@ -870,6 +881,9 @@ type Querier interface {
 	// Matched by uid, never by name or id -- a till's ids are its own, and a list
 	// renamed centrally must stay the same list here.
 	UpsertPriceListByUID(ctx context.Context, arg UpsertPriceListByUIDParams) (PriceList, error)
+	UpsertReferralProgram(ctx context.Context, arg UpsertReferralProgramParams) error
+	// used_invoice_id is the till's own and is never touched by a pull.
+	UpsertReferralReward(ctx context.Context, arg UpsertReferralRewardParams) error
 	UpsertSettings(ctx context.Context, arg UpsertSettingsParams) error
 	// Used by the "sync everything" / reconcile flow: a row for this client_ref
 	// may already exist (e.g. synced to a previous central server, or marked
