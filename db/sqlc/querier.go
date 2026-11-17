@@ -744,6 +744,8 @@ type Querier interface {
 	// Narrow like UpdateTheme: the settings page and central's update_settings
 	// command both set the printed invoice's theme and layout on their own.
 	SetReceiptLook(ctx context.Context, arg SetReceiptLookParams) error
+	// Narrow like SetReceiptLook: only central's update_settings sets it.
+	SetReceiptTexts(ctx context.Context, receiptTexts string) error
 	// central's push: stored and the rev bumped, so the screen adopts it.
 	SetRemoteDisplayPrefs(ctx context.Context, displayPrefs string) error
 	// A return or exchange keeps one total in all three (createExchangeInvoice).

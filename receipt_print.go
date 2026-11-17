@@ -32,8 +32,10 @@ type printReceiptData struct {
 	InvoiceDiscount invoiceDiscount
 	// The customer's referral code and the line explaining it (referrals.go);
 	// both empty when it isn't printed.
-	ReferralCode     string
-	ReferralNote     string
+	ReferralCode string
+	ReferralNote string
+	// The branch's wording and the parts it leaves out (receipt_texts.go).
+	Texts            receiptTexts
 	Payments         []receiptPayment
 	RoundingCurrency receiptCurrency
 	RoundingMode     string

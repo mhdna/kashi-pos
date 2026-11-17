@@ -188,6 +188,9 @@ type updateSettingsCommandPayload struct {
 	// alone keeps the other as it is.
 	ReceiptTheme  *string `json:"receipt_theme"`
 	ReceiptLayout *string `json:"receipt_layout"`
+	// ReceiptTexts is the receipt's wording and hidden parts as JSON
+	// (receipt_texts.go); "" is every default.
+	ReceiptTexts *string `json:"receipt_texts"`
 
 	// per-machine device identifiers
 	PrinterID      *string `json:"printer_id"`
@@ -366,6 +369,12 @@ func (a *App) executeUpdateSettingsCommand(ctx context.Context, payload json.Raw
 		theme, layout := a.receiptLook()
 		if err := a.SetReceiptLook(deref(p.ReceiptTheme, theme), deref(p.ReceiptLayout, layout)); err != nil {
 			return fmt.Errorf("update receipt look: %w", err)
+		}
+	}
+
+	if p.ReceiptTexts != nil {
+		if err := a.SetReceiptTexts(*p.ReceiptTexts); err != nil {
+			return fmt.Errorf("update receipt texts: %w", err)
 		}
 	}
 

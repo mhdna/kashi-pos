@@ -702,6 +702,7 @@ type Setting struct {
 	ProductSearchHiddenFields string         `json:"productSearchHiddenFields"`
 	ReceiptTheme              string         `json:"receiptTheme"`
 	ReceiptLayout             string         `json:"receiptLayout"`
+	ReceiptTexts              string         `json:"receiptTexts"`
 }
 
 type Shift struct {

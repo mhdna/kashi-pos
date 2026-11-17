@@ -98,6 +98,7 @@ type branchSettingsPayload struct {
 	// The printed invoice's look: theme id and that theme's layout id.
 	ReceiptTheme  string `json:"receipt_theme"`
 	ReceiptLayout string `json:"receipt_layout"`
+	ReceiptTexts  string `json:"receipt_texts"`
 
 	// per-machine device identifiers -- reported for display only; the
 	// admin UI defaults these to "managed at the branch".
@@ -316,6 +317,7 @@ func (a *App) pushSettings(ctx context.Context, client *centralClient) error {
 		ReceiptCutoff:    s.ReceiptCutoff != 0,
 		ReceiptTheme:     receiptThemeID,
 		ReceiptLayout:    receiptLayoutID,
+		ReceiptTexts:     s.ReceiptTexts,
 
 		PrinterID:      strings.TrimSpace(s.PrinterID),
 		ReceiptPrinter: strings.TrimSpace(s.ReceiptPrinter),

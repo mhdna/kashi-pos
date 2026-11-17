@@ -104,8 +104,13 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 			writeESCPosLine(&out, currency.Code+" equivalent", fmt.Sprintf("%s %s", formatInt(roundedUnits), currency.Symbol), columns)
 		}
 	}
-	writeESCPosCentered(&out, "PAYMENT DETAILS", columns, true)
+	if !data.Texts.hidden(receiptSectionPayments) {
+		writeESCPosCentered(&out, sanitizeESCPos(data.Texts.paymentsTitle()), columns, true)
+	}
 	for _, payment := range data.Payments {
+		if data.Texts.hidden(receiptSectionPayments) {
+			break
+		}
 		label := payment.AccountName
 		if label == "" {
 			label = "Cash"
@@ -118,23 +123,25 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 		writeESCPosLine(&out, label, formatReceiptPayment(payment, data.RoundingMode), columns)
 	}
 	out.WriteString(separator + "\n")
-	writeESCPosCentered(&out, "EXCHANGE POLICY", columns, true)
-	policy := data.ReturnPolicy
-	if policy == "" {
-		policy = defaultReturnPolicy
+	if !data.Texts.hidden(receiptSectionPolicy) {
+		writeESCPosCentered(&out, sanitizeESCPos(data.Texts.policyTitle()), columns, true)
+		policy := data.ReturnPolicy
+		if policy == "" {
+			policy = defaultReturnPolicy
+		}
+		writeESCPosText(&out, "")
+		for _, line := range strings.Split(policy, "\n") {
+			writeESCPosText(&out, line)
+		}
+		writeESCPosText(&out, "")
 	}
-	writeESCPosText(&out, "")
-	for _, line := range strings.Split(policy, "\n") {
-		writeESCPosText(&out, line)
-	}
-	writeESCPosText(&out, "")
 	if data.ReferralCode != "" {
 		out.WriteString(separator + "\n")
-		writeESCPosCentered(&out, "YOUR CODE: "+data.ReferralCode, columns, true)
+		writeESCPosCentered(&out, sanitizeESCPos(data.Texts.referralTitle())+" "+data.ReferralCode, columns, true)
 		writeESCPosText(&out, sanitizeESCPos(data.ReferralNote))
 		writeESCPosText(&out, "")
 	}
-	if len(data.SocialPlatforms) > 0 {
+	if len(data.SocialPlatforms) > 0 && !data.Texts.hidden(receiptSectionSocials) {
 		writeESCPosCentered(&out, "Follow us:", columns, true)
 		socialLines := formatSocialFooterLines(data.SocialPlatforms, data.SocialHandles)
 		for _, line := range socialLines {
@@ -142,7 +149,9 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 		}
 	}
 	out.WriteString(separator + "\n")
-	writeESCPosCentered(&out, "Thank you for shopping with us!", columns, false)
+	if !data.Texts.hidden(receiptSectionThanks) {
+		writeESCPosCentered(&out, sanitizeESCPos(data.Texts.thanks("")), columns, false)
+	}
 	writeESCPosCentered(&out, data.ReceiptNo, columns, false)
 	out.WriteString("\n\n\n")
 	// Keep the historical default for callers that do not provide receipt settings.

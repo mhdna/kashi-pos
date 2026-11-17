@@ -214,8 +214,9 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y = c.drawTotal(y, grandTotal)
 	y += c.gap(6)
 
-	if len(c.data.Payments) > 0 {
-		y, _ = c.center(y, "PAYMENT DETAILS", c.data.BodySize-1, true, false)
+	showPayments := len(c.data.Payments) > 0 && !c.data.Texts.hidden(receiptSectionPayments)
+	if showPayments {
+		y, _ = c.center(y, c.data.Texts.paymentsTitle(), c.data.BodySize-1, true, false)
 		y += c.gap(8)
 		for _, payment := range c.data.Payments {
 			label := payment.AccountName
@@ -232,27 +233,29 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		}
 	}
 
-	if len(c.data.Payments) > 0 {
+	if showPayments {
 		y = c.ruleLine(y) + c.gap(10)
 	}
-	y, _ = c.center(y, "EXCHANGE POLICY", c.data.BodySize-1.5, true, false)
-	y += c.gap(8)
-	policy := c.data.ReturnPolicy
-	if policy == "" {
-		policy = defaultReturnPolicy
+	if !c.data.Texts.hidden(receiptSectionPolicy) {
+		y, _ = c.center(y, c.data.Texts.policyTitle(), c.data.BodySize-1.5, true, false)
+		y += c.gap(8)
+		policy := c.data.ReturnPolicy
+		if policy == "" {
+			policy = defaultReturnPolicy
+		}
+		y, _ = c.centerWrappedNormal(y, policy, c.data.BodySize-2.5, 2)
+		y = c.ruleLine(y+c.gap(6)) + c.gap(10)
 	}
-	y, _ = c.centerWrappedNormal(y, policy, c.data.BodySize-2.5, 2)
-	y = c.ruleLine(y+c.gap(6)) + c.gap(10)
 
 	if c.data.ReferralCode != "" {
-		y, _ = c.center(y, "YOUR CODE: "+c.data.ReferralCode, c.data.BodySize+1, true, false)
+		y, _ = c.center(y, c.data.Texts.referralTitle()+" "+c.data.ReferralCode, c.data.BodySize+1, true, false)
 		y += c.gap(8)
 		y, _ = c.centerWrappedNormal(y, c.data.ReferralNote, c.data.BodySize-2.5, 2)
 		y = c.ruleLine(y+c.gap(6)) + c.gap(10)
 	}
 
 	socials := socialFooterItems(c.data.SocialPlatforms, c.data.SocialHandles)
-	if len(socials) > 0 {
+	if len(socials) > 0 && !c.data.Texts.hidden(receiptSectionSocials) {
 		var rowBottom int
 		if rowBottom, err = c.socialFooterRow(y, socials); err != nil {
 			return 0, err
@@ -265,11 +268,9 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		y += c.gap(8)
 	}
 	y += c.gap(10)
-	thanks := c.style.Thanks
-	if thanks == "" {
-		thanks = "Thank you for shopping with us!"
+	if !c.data.Texts.hidden(receiptSectionThanks) {
+		y, _ = c.center(y, c.data.Texts.thanks(c.style.Thanks), c.data.BodySize-1, true, false)
 	}
-	y, _ = c.center(y, thanks, c.data.BodySize-1, true, false)
 	y += 56
 	// Printer barcode temporarily disabled.
 	// y = c.barcode(y, c.data.ReceiptNo) + 24
