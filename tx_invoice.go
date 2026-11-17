@@ -71,6 +71,9 @@ type SalesInvoiceParams struct {
 	// UnknownSessionRef is the picture session of a cart holding "Unknown
 	// item" lines, sent to central with the sale (see unknown_items.go).
 	UnknownSessionRef string `json:"unknownSessionRef,omitempty"`
+	// ReferralCode is the code of the client who sent this new customer
+	// (referrals.go); empty when none.
+	ReferralCode string `json:"referralCode,omitempty"`
 }
 
 type SalesInvoiceResult struct {
@@ -102,7 +105,8 @@ type invoiceTotals struct {
 	InvoiceDiscount invoiceDiscount
 }
 
-func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool) (invoiceTotals, error) {
+// clientID is the buyer (0 for none), for their referral reward.
+func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []salesInvoiceItem, settings db.Setting, roundingMode string, customPricingEnabled, perUnitPricingEnabled bool, clientID int64) (invoiceTotals, error) {
 	var totals invoiceTotals
 	listPricing, err := loadActivePricing(a.ctx, q)
 	if err != nil {
@@ -113,7 +117,7 @@ func (a *App) priceInvoiceTotals(q *db.Queries, inventoryID int64, items []sales
 		return totals, err
 	}
 	totals.Products, totals.DiscountedSubtotal = products, discountedSubtotal
-	if err := a.applyInvoiceDiscount(q, &totals, roundingMode); err != nil {
+	if err := a.applyInvoiceDiscount(q, &totals, roundingMode, clientID); err != nil {
 		return totals, err
 	}
 	products, discountedSubtotal = totals.Products, totals.DiscountedSubtotal
@@ -239,7 +243,7 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		if err != nil {
 			return fmt.Errorf("payment account: %w", err)
 		}
-		totals, err := a.priceInvoiceTotals(q, inventoryID, items, settings, roundingMode, customPricingEnabled, perUnitPricingEnabled)
+		totals, err := a.priceInvoiceTotals(q, inventoryID, items, settings, roundingMode, customPricingEnabled, perUnitPricingEnabled, clientID)
 		if err != nil {
 			return err
 		}
@@ -264,6 +268,14 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 		}
 		if err := validatePayments(a.ctx, q, payments, grandTotal, settings.MaxOverpaymentCents, roundingCurrency, roundingMode); err != nil {
 			return err
+		}
+
+		// Checked before the sale exists: it has to be the customer's first.
+		referralCode := ""
+		if strings.TrimSpace(params.ReferralCode) != "" {
+			if referralCode, _, err = checkReferralCode(a.ctx, q, params.ReferralCode, clientID); err != nil {
+				return err
+			}
 		}
 
 		invoiceCode, invoiceIndex, err := a.allocateInvoiceCode(
@@ -323,6 +335,25 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				InvoiceDiscount: totals.InvoiceDiscount.Cents, InvoiceDiscountName: totals.InvoiceDiscount.Name, ID: invoice.ID,
 			}); err != nil {
 				return fmt.Errorf("record invoice discount: %w", err)
+			}
+		}
+		rewardUID := totals.InvoiceDiscount.RewardUID
+		if rewardUID != "" {
+			used, err := q.MarkReferralRewardUsed(a.ctx, db.MarkReferralRewardUsedParams{
+				UsedInvoiceID: sql.NullInt64{Int64: invoice.ID, Valid: true}, Uid: rewardUID,
+			})
+			if err != nil {
+				return fmt.Errorf("use referral reward: %w", err)
+			}
+			if used != 1 {
+				return fmt.Errorf("the referral reward was just used on another sale: check out again")
+			}
+		}
+		if referralCode != "" || rewardUID != "" {
+			if err := q.SetInvoiceReferral(a.ctx, db.SetInvoiceReferralParams{
+				ReferralCode: referralCode, ReferralRewardUid: rewardUID, ID: invoice.ID,
+			}); err != nil {
+				return fmt.Errorf("record referral: %w", err)
 			}
 		}
 		netByAccount := netPaymentsByAccount(payments)
@@ -416,6 +447,8 @@ func (a *App) salesInvoiceTx(params SalesInvoiceParams) (SalesInvoiceResult, err
 				LbpRate:                lbpRate,
 				InvoiceDiscount:        totals.InvoiceDiscount.Cents,
 				InvoiceDiscountName:    totals.InvoiceDiscount.Name,
+				ReferralCode:           referralCode,
+				ReferralRewardUID:      rewardUID,
 			}); err != nil {
 				return fmt.Errorf("queue branch invoice sync: %w", err)
 			}

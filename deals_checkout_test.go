@@ -80,7 +80,7 @@ func (s dealShop) sell(t *testing.T, codes ...string) SalesInvoiceResult {
 		items = append(items, salesInvoiceItem{Barcode: "bc-" + code, Qty: 1})
 	}
 	itemsJSON, _ := json.Marshal(items)
-	quote, err := s.app.QuoteInvoiceTotal(string(itemsJSON))
+	quote, err := s.app.QuoteInvoiceTotal(string(itemsJSON), s.client.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +264,7 @@ func TestDealQuoteLinesNameTheirSaleOption(t *testing.T) {
 		{Barcode: "bc-jeans", Qty: 1, SaleOption: "Summer"},
 		{Barcode: "bc-jeans", Qty: 3, SaleOption: "Winter"},
 	})
-	quote, err := app.QuoteInvoiceTotal(string(itemsJSON))
+	quote, err := app.QuoteInvoiceTotal(string(itemsJSON), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -348,7 +348,7 @@ func TestDealPoolsUnitsWithTheirOwnFallback(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			itemsJSON, _ := json.Marshal(tc.cart)
-			quote, err := app.QuoteInvoiceTotal(string(itemsJSON))
+			quote, err := app.QuoteInvoiceTotal(string(itemsJSON), 0)
 			if err != nil {
 				t.Fatal(err)
 			}

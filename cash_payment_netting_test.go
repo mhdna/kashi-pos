@@ -193,7 +193,7 @@ func (s lbpShop) lbpChange(t *testing.T, units int64) checkoutPayment {
 func (s lbpShop) checkout(t *testing.T, items string, payments []checkoutPayment) (int64, map[int64]int64) {
 	t.Helper()
 	raw, _ := json.Marshal(payments)
-	status, err := s.app.QuotePaymentStatus(items, string(raw))
+	status, err := s.app.QuotePaymentStatus(items, string(raw), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +255,7 @@ func TestCheckoutChangeWithoutUnitsKeepsItsCents(t *testing.T) {
 		{AccountID: shop.lbp.ID, AmountCents: 222, EntryType: "payment"},
 		{AccountID: shop.lbp.ID, AmountCents: -67, EntryType: "change"},
 	})
-	status, err := shop.app.QuotePaymentStatus(items, string(raw))
+	status, err := shop.app.QuotePaymentStatus(items, string(raw), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +277,7 @@ func TestCheckoutLBPPaymentsAddUpRandomized(t *testing.T) {
 		shop := setUpLBPShop(t, mode)
 		for n := 0; n < 120; n++ {
 			items := `[{"code":"SKU-4160","qty":` + itoa(1+rng.Intn(6)) + `}]`
-			quote, err := shop.app.QuoteInvoiceTotal(items)
+			quote, err := shop.app.QuoteInvoiceTotal(items, 0)
 			if err != nil {
 				t.Fatal(err)
 			}

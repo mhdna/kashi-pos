@@ -64,10 +64,12 @@ func rfc3339OrEmpty(t *time.Time) string {
 }
 
 // invoiceDiscount is what a sale gets: the rule's name and the cents it
-// takes off. The zero value is none.
+// takes off. The zero value is none. A referral reward (referrals.go) is
+// one too, with its uid in RewardUID.
 type invoiceDiscount struct {
-	Name  string
-	Cents int64
+	Name      string
+	Cents     int64
+	RewardUID string
 }
 
 // bestInvoiceDiscount picks, among the rules in force at now whose minimum
@@ -153,13 +155,25 @@ func spreadInvoiceDiscount(products []pricedInvoiceProduct, cents int64) []price
 }
 
 // applyInvoiceDiscount finds the sale's invoice discount and takes it off
-// its lines and its discounted subtotal.
-func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundingMode string) error {
+// its lines and its discounted subtotal. The buyer's referral reward
+// competes with the rules: it wins only when it takes off more, so a tie
+// keeps the reward for a later sale.
+func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundingMode string, clientID int64) error {
 	rules, err := q.ListInvoiceDiscounts(a.ctx)
 	if err != nil {
 		return fmt.Errorf("load invoice discounts: %w", err)
 	}
-	best := bestInvoiceDiscount(rules, totals.DiscountedSubtotal, time.Now(), roundingMode)
+	now := time.Now()
+	best := bestInvoiceDiscount(rules, totals.DiscountedSubtotal, now, roundingMode)
+	reward, ok, err := usableReferralReward(a.ctx, q, clientID, now)
+	if err != nil {
+		return fmt.Errorf("load referral reward: %w", err)
+	}
+	if ok {
+		if cents := referralRewardCents(reward, totals.DiscountedSubtotal, roundingMode); cents > best.Cents {
+			best = invoiceDiscount{Name: referralRewardLabel(reward.Percent), Cents: cents, RewardUID: reward.Uid}
+		}
+	}
 	if best.Cents <= 0 {
 		return nil
 	}

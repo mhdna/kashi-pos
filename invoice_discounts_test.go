@@ -25,13 +25,13 @@ func TestBestInvoiceDiscount(t *testing.T) {
 		want  invoiceDiscount
 	}{
 		{"below every minimum", []db.InvoiceDiscount{over150}, 14999, invoiceDiscount{}},
-		{"exactly the minimum", []db.InvoiceDiscount{over150}, 15000, invoiceDiscount{"15% at $150", 2250}},
-		{"the best one wins", []db.InvoiceDiscount{tenOff, over150, over300}, 40000, invoiceDiscount{"20% at $300", 8000}},
-		{"an amount can beat a percent", []db.InvoiceDiscount{tenOff, over150}, 16000, invoiceDiscount{"15% at $150", 2400}},
-		{"only the amount reaches", []db.InvoiceDiscount{tenOff, over150}, 12000, invoiceDiscount{"$10 at $100", 1000}},
-		{"an ended rule is out", []db.InvoiceDiscount{over150, ended}, 40000, invoiceDiscount{"15% at $150", 6000}},
+		{"exactly the minimum", []db.InvoiceDiscount{over150}, 15000, invoiceDiscount{Name: "15% at $150", Cents: 2250}},
+		{"the best one wins", []db.InvoiceDiscount{tenOff, over150, over300}, 40000, invoiceDiscount{Name: "20% at $300", Cents: 8000}},
+		{"an amount can beat a percent", []db.InvoiceDiscount{tenOff, over150}, 16000, invoiceDiscount{Name: "15% at $150", Cents: 2400}},
+		{"only the amount reaches", []db.InvoiceDiscount{tenOff, over150}, 12000, invoiceDiscount{Name: "$10 at $100", Cents: 1000}},
+		{"an ended rule is out", []db.InvoiceDiscount{over150, ended}, 40000, invoiceDiscount{Name: "15% at $150", Cents: 6000}},
 		{"a rule not started yet is out", []db.InvoiceDiscount{notYet}, 40000, invoiceDiscount{}},
-		{"never more than the total", []db.InvoiceDiscount{{Name: "big", Kind: invoiceDiscountAmount, Amount: 99999}}, 500, invoiceDiscount{"big", 500}},
+		{"never more than the total", []db.InvoiceDiscount{{Name: "big", Kind: invoiceDiscountAmount, Amount: 99999}}, 500, invoiceDiscount{Name: "big", Cents: 500}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -82,7 +82,7 @@ func TestCheckoutWithInvoiceDiscount(t *testing.T) {
 
 	// A, B, C on B2G1 (C free) + jacket: $280 after the deal, 15% = $42.
 	sale := shop.sell(t, "A", "B", "C", "JACKET")
-	if sale.GrandTotal != 28000-4200 || sale.InvoiceDiscount != (invoiceDiscount{"15% over $150", 4200}) {
+	if sale.GrandTotal != 28000-4200 || sale.InvoiceDiscount != (invoiceDiscount{Name: "15% over $150", Cents: 4200}) {
 		t.Fatalf("sale = %d, %+v", sale.GrandTotal, sale.InvoiceDiscount)
 	}
 	inv, err := shop.store.GetInvoiceByID(ctx, sale.InvoiceID)

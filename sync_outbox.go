@@ -110,6 +110,10 @@ type branchInvoicePayload struct {
 	// UnknownSessionRef ties a sale with "Unknown item" lines to the pictures
 	// taken for it (central's unknown_session_ref).
 	UnknownSessionRef string `json:"unknown_session_ref,omitempty"`
+	// Referrals (referrals.go): the code of the client who sent this new
+	// customer, and the reward this sale used. Both omitted when none.
+	ReferralCode      string `json:"referral_code,omitempty"`
+	ReferralRewardUID string `json:"referral_reward_uid,omitempty"`
 }
 
 type branchInvoicePayloadItem struct {

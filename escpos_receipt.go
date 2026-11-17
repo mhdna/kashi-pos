@@ -124,6 +124,12 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 		writeESCPosText(&out, line)
 	}
 	writeESCPosText(&out, "")
+	if data.ReferralCode != "" {
+		out.WriteString(separator + "\n")
+		writeESCPosCentered(&out, "YOUR CODE: "+data.ReferralCode, columns, true)
+		writeESCPosText(&out, sanitizeESCPos(data.ReferralNote))
+		writeESCPosText(&out, "")
+	}
 	if len(data.SocialPlatforms) > 0 {
 		writeESCPosCentered(&out, "Follow us:", columns, true)
 		socialLines := formatSocialFooterLines(data.SocialPlatforms, data.SocialHandles)

@@ -20,7 +20,7 @@ func TestReprintInvoiceUsesStoredTotalNotCurrentSettings(t *testing.T) {
 	app, cashbox, client, database := setupQuoteTestApp(t, 0.11, "half_up", "LBP")
 	items := cartJSON(3)
 
-	quote, err := app.QuoteInvoiceTotal(items)
+	quote, err := app.QuoteInvoiceTotal(items, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
