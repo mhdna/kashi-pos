@@ -3,6 +3,14 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-17: A returned on-account sale stayed owed on the On Account page
+
+**Symptom:** a client's $65.56 sale put On Account was returned (RS/CT/2026/00069), yet the On Account page still counted it, next to their next sale: $131.00 owed instead of $65.44. The till also showed $65.56 cash going out that nobody was given.
+
+**Cause:** a return never touched the client's account: the debt came only from the sale's on-account entry less payments. And a refund could not go to On Account ("on account cannot be used as change"), so the cashier refunded it in cash; a return from kashi of an on-account sale failed outright for the same reason.
+
+**Fix:** a return of a sale still owed On Account takes its refund off the debt first (a negative On Account entry); only what the client had already paid back is refunded in cash or another method (`on_account_returns.go`, `tx_exchange.go`). The balance queries read `client_account_lines`, which nets those refunds off each sale, and paying back is capped at what is left (`client_accounts.go`). Migration 000141 moves past cash refunds of unpaid on-account sales onto the account and gives the cash back to that shift. Covered by `on_account_returns_test.go`.
+
 ## 2026-11-17: Two eyes in password fields
 
 **Symptom:** the Manager password field (and other password fields) showed two show-password eyes side by side.

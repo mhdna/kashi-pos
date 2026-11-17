@@ -87,11 +87,11 @@ func (a *App) PayClientAccount(invoiceID, cashboxID, amountCents int64) (map[str
 		if entryErr != nil {
 			return fmt.Errorf("on-account invoice not found")
 		}
-		paidValue, paidErr := q.GetClientAccountPaidByInvoiceID(a.ctx, invoiceID)
-		if paidErr != nil {
-			return fmt.Errorf("load prior payments: %w", paidErr)
+		// Net of payments and of returns settled against the account.
+		outstanding, owedErr := q.GetClientAccountOwedByInvoiceID(a.ctx, invoiceID)
+		if owedErr != nil {
+			return fmt.Errorf("load what is owed: %w", owedErr)
 		}
-		outstanding := entry.Amount - databaseInt64(paidValue)
 		if outstanding <= 0 {
 			return fmt.Errorf("invoice is already paid")
 		}
