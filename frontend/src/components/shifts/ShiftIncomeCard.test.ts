@@ -60,10 +60,10 @@ describe("ShiftIncomeCard", () => {
     const css = readFileSync(resolve(process.cwd(), "src/components/shifts/ShiftIncomeCard.vue"), "utf8");
     expect(css).toMatch(/\.shift-total \{[^}]*background: rgba\(67, 160, 71, 0\.13\)/);
   });
-  it("Expenses, Loans and On Account are neutral grey tonal buttons, not blue", async () => {
+  it("Expenses and Loans are neutral grey tonal buttons, not blue; On Account is hidden for now", async () => {
     await show([{ accountName: "Cash $$", currencyCode: "USD", total: 243 }]);
     const buttons = wrapper!.findAll(".spend-button");
-    expect(buttons).toHaveLength(3);
+    expect(buttons.map((b) => b.text())).toEqual(["Expenses", "Loans"]);
     for (const b of buttons) {
       expect(b.classes()).toContain("k-btn--variant-tonal");
       expect(b.attributes("style") ?? "").not.toMatch(/primary/);

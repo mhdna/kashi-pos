@@ -99,9 +99,11 @@
         <k-btn class="spend-button" variant="tonal" @click="openManagerPage('/loans')">
           <span class="spend-button-label"><k-icon icon="mdi-hand-coin-outline" size="18" class="me-1" />Loans</span>
         </k-btn>
+        <!-- On Account button, hidden for now. Put it back by removing this comment.
         <k-btn class="spend-button spend-button--wide" variant="tonal" @click="openManagerPage('/on-account')">
           <span class="spend-button-label"><k-icon icon="mdi-account-clock" size="18" class="me-1" />On Account</span>
         </k-btn>
+        -->
       </div>
     </div>
   </k-sheet>

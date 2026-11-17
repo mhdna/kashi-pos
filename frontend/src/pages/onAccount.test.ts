@@ -95,10 +95,11 @@ describe("On Account page", () => {
     expect(entries[0]!.textContent).toContain("SA/1");
     expect(document.body.querySelector('[data-test="detail-balance"]')!.textContent).toContain("$2,500.00");
   });
-  it("is a manager-only route, opened from a third button on the balance card", () => {
+  it("is a manager-only route; its balance card button is hidden for now (kept in a comment)", () => {
     const router = readFileSync(resolve(process.cwd(), "src/router/index.ts"), "utf8");
     expect(router).toMatch(/path: "on-account",\s*component: \(\) => import\("@\/pages\/onAccount.vue"\),\s*meta: \{ requiresManager: true \}/);
     const card = readFileSync(resolve(process.cwd(), "src/components/shifts/ShiftIncomeCard.vue"), "utf8");
+    expect(card.replace(/<!--[\s\S]*?-->/g, "")).not.toContain("openManagerPage('/on-account')");
     expect(card).toContain("openManagerPage('/on-account')");
   });
 });
