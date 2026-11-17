@@ -3,6 +3,14 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-17: Two eyes in password fields
+
+**Symptom:** the Manager password field (and other password fields) showed two show-password eyes side by side.
+
+**Cause:** the Windows webview draws its own reveal button inside `type="password"` inputs, on top of the eye the app adds.
+
+**Fix:** a global rule hides the native one (`frontend/src/styles/compact.scss`; covered by `frontend/src/styles/nativeReveal.style.test.ts`).
+
 ## 2026-11-15: Discount text ran over the split amounts on the calculator card
 
 **Symptom:** on the calculator's status card, a long discount line ("15% over $150 -$42") or the total sat on top of the split numbers in the middle ("$20 + 450,000 LL"), so the two texts overlapped.
