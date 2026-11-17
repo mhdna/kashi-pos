@@ -618,10 +618,6 @@ export function ListPageUnlocks() {
   return window['go']['main']['App']['ListPageUnlocks']();
 }
 
-export function ListOnAccountMonths() {
-  return window['go']['main']['App']['ListOnAccountMonths']();
-}
-
 export function ListPaymentMethods() {
   return window['go']['main']['App']['ListPaymentMethods']();
 }
