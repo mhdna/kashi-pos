@@ -77,6 +77,7 @@
           @select="selectMethodAndConfirm"
         />
         <div class="calculator-action-cards" role="list" aria-label="Other actions">
+          <!-- On Account button, off for now. Put it back by removing this comment.
           <k-card
             class="calculator-type-card d-flex flex-column" style="--payment-accent: #757575"
             :class="{ 'calculator-type-card--disabled': !hasItems || restricted }"
@@ -91,6 +92,7 @@
               <span class="payment-method-name text-h6 font-weight-bold">On Account</span>
             </k-card-text>
           </k-card>
+          -->
           <k-card
             class="calculator-type-card d-flex flex-column" style="--payment-accent: #757575"
             :class="{ 'calculator-type-card--disabled': restricted }"
