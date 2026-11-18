@@ -67,7 +67,7 @@
             <div
               v-for="d in automatic"
               :key="d.uid"
-              class="reward-card"
+              class="reward-card reward-card--locked"
               :class="{ 'reward-card--applied': d.name === appliedName }"
               :title="dealTerms(d)"
               :data-test="`auto-${d.uid}`"
@@ -352,8 +352,13 @@ defineExpose({ loadInfo });
   color: rgb(245, 127, 23);
 }
 
-.reward-card--applied {
-  border-color: rgb(46, 125, 50);
+/* Locked deals are for reference: no border, so they don't read as buttons. */
+.reward-card--locked {
+  border-color: transparent;
+}
+
+.reward-card--applied .reward-size {
+  color: rgb(46, 125, 50);
 }
 
 .reward-top {

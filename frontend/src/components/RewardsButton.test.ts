@@ -101,6 +101,7 @@ describe("RewardsButton", () => {
     expect(find("auto-auto")?.querySelector(".reward-size")?.textContent).toBe("15%");
     expect(find("auto-auto")?.querySelector(".reward-line")?.textContent).toBe("$100 and up");
     expect(find("auto-auto")?.tagName).not.toBe("BUTTON");
+    expect(find("auto-auto")?.className).toContain("reward-card--locked");
     expect(find("auto-auto")?.querySelector("input, button")).toBeNull();
     // The referral code is a card like the deals, its entry behind it.
     expect(find("rewards-referral")?.classList.contains("reward-card")).toBe(true);
