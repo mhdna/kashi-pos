@@ -1,4 +1,4 @@
-.PHONY: dev-docs fmt lint test dev generate receipt-previews build-windows build-windows-compact
+.PHONY: dev-docs fmt lint test dev generate receipt-previews receipt-renderer build-windows build-windows-compact
 
 # Rebuild docs/dev-docs.html (the browsable developer docs) from docs/dev/*.md.
 dev-docs:
@@ -20,6 +20,20 @@ receipt-previews:
 	cp .receipt-previews/*.png $(KASHI_UI)/public/receipt-previews/
 	cp .receipt-previews/catalog.json $(KASHI_UI)/src/data/receiptThemes.json
 	rm -rf .receipt-previews
+
+# The receipt renderer for central: the files in scripts/receipt-render-files.txt
+# (they build alone, TestReceiptRendererBuildsAlone) and their fonts and icons,
+# as package receiptrender in central, which draws the Receipt Designer's live
+# receipt with them. Rerun after any receipt change, then commit in central.
+KASHI_DIR ?= ../kashi
+receipt-renderer:
+	rm -rf $(KASHI_DIR)/receiptrender && mkdir -p $(KASHI_DIR)/receiptrender/assets $(KASHI_DIR)/receiptrender/pdf-icons
+	for f in $$(cat scripts/receipt-render-files.txt); do \
+		{ echo "// Code copied from kashi-pos by make receipt-renderer. DO NOT EDIT; change it there."; echo; sed 's/^package main$$/package receiptrender/' $$f; } > $(KASHI_DIR)/receiptrender/$$f; \
+	done
+	cp -R assets/fonts $(KASHI_DIR)/receiptrender/assets/
+	cp pdf-icons/*.png $(KASHI_DIR)/receiptrender/pdf-icons/
+	git rev-parse --short HEAD > $(KASHI_DIR)/receiptrender/KASHI_POS_VERSION
 
 fmt:
 	cd frontend && pnpm run format

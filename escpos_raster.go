@@ -72,7 +72,7 @@ func renderReceiptRasterMarked(data printReceiptData) (*image.RGBA, []receiptMar
 	// The canvas is allocated up front, so this is an upper estimate; the
 	// drawn height is checked below. Themed layouts can take more room per
 	// item than the classic one, and narrow paper wraps names further.
-	estimatedHeight := 1900 + len(data.Items)*150 + len(data.SocialPlatforms)*60 + len(data.ReturnPolicy)*2
+	estimatedHeight := 1900 + len(data.Items)*150 + len(data.SocialPlatforms)*60 + len(data.ReturnPolicy)*2 + data.Texts.extraHeight()
 	if data.ShiftReport != nil {
 		estimatedHeight = 2400 + len(data.ShiftReport.Payments)*60
 	}
@@ -87,27 +87,38 @@ func renderReceiptRasterMarked(data printReceiptData) (*image.RGBA, []receiptMar
 	if data.ShiftReport == nil {
 		theme, layout = resolveReceiptTheme(data.Theme, data.Layout)
 	}
-	c := &receiptCanvas{
-		data:     data,
-		style:    theme.Style,
-		layout:   layout,
-		img:      image.NewRGBA(image.Rect(0, 0, width, estimatedHeight)),
-		width:    width,
-		margin:   24,
-		contentW: width - 48,
-		faces:    make(map[string]font.Face),
-	}
-	draw.Draw(c.img, c.img.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
-
+	// The canvas is allocated up front from the estimate. A receipt that
+	// runs past it (a design with big, long lines) is drawn once more on the
+	// largest canvas rather than not printed.
+	var c *receiptCanvas
 	var y int
-	var err error
-	if data.ShiftReport != nil {
-		y, err = c.drawShiftReport()
-	} else {
-		y, err = c.drawReceipt()
-	}
-	if err != nil {
-		return nil, nil, err
+	for {
+		c = &receiptCanvas{
+			data:     data,
+			style:    theme.Style,
+			layout:   layout,
+			img:      image.NewRGBA(image.Rect(0, 0, width, estimatedHeight)),
+			width:    width,
+			margin:   24,
+			contentW: width - 48,
+			faces:    make(map[string]font.Face),
+		}
+		draw.Draw(c.img, c.img.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
+
+		var err error
+		if data.ShiftReport != nil {
+			y, err = c.drawShiftReport()
+		} else {
+			y, err = c.drawReceipt()
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+		if y > c.img.Bounds().Dy() && estimatedHeight < rasterMaxHeight {
+			estimatedHeight = rasterMaxHeight
+			continue
+		}
+		break
 	}
 	if y <= 0 || y > c.img.Bounds().Dy() {
 		return nil, nil, fmt.Errorf("receipt raster height is invalid: %d", y)
@@ -137,18 +148,25 @@ func (c *receiptCanvas) gap(n int) int { return n + c.style.Gap }
 func (c *receiptCanvas) drawReceipt() (int, error) {
 	y := 0
 	var err error
-	store, branch := c.data.StoreName, c.data.Branch
+	t := c.data.Texts
+	headerTop := y
+	store := t.word("store_name", c.data.StoreName)
+	branch := t.word("branch_name", c.data.Branch)
 	if c.style.UpperStore {
 		store, branch = strings.ToUpper(store), strings.ToUpper(branch)
 	}
-	if y, err = c.center(y, store, c.data.TitleSize*c.titleFactor(), true, true); err != nil {
+	var shown bool
+	if y, shown, err = c.line(y, "store_name", store, c.data.TitleSize*c.titleFactor(), true, true, "center"); err != nil {
 		return 0, err
 	}
-	y += c.gap(4)
+	if shown {
+		y += c.gap(4)
+	}
 	branchPhone := c.data.BranchPhone
 	if branchPhone == "" {
 		branchPhone = c.data.Phone
 	}
+	branchPhone = t.word("phone", branchPhone)
 	branchSize := c.data.TitleSize - 8
 	phoneSize := c.data.TitleSize - 8
 	if branchSize <= 0 {
@@ -157,34 +175,39 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	if phoneSize <= 0 {
 		phoneSize = c.data.BodySize - 1
 	}
-	if branch != "" {
-		y, _ = c.center(y+2, branch, branchSize, false, true)
+	if branch != "" && !t.elementHidden("branch_name") {
+		y, _, _ = c.line(y+2, "branch_name", branch, branchSize, false, true, "center")
 		y += c.gap(10)
 	}
-	if branchPhone != "" {
-		y, _ = c.center(y, branchPhone, phoneSize, false, true)
+	if branchPhone != "" && !t.elementHidden("phone") {
+		y, _, _ = c.line(y, "phone", branchPhone, phoneSize, false, true, "center")
 		y += c.gap(12)
 	}
 	// Receipt description temporarily disabled.
 	// if c.data.Description != "" {
 	// 	y, _ = c.centerWrappedNormal(y, c.data.Description, c.data.BodySize-1, 8)
 	// }
-	y, _ = c.center(y+c.gap(8), receiptInvoiceLabel(c.data.ReceiptNo)+": "+c.data.ReceiptNo, c.data.BodySize-1, true, false)
-	y += c.gap(8)
-	if strings.TrimSpace(c.data.Website) != "" {
-		y, _ = c.center(y, strings.TrimSpace(c.data.Website), c.data.BodySize-1.5, true, false)
+	if !t.elementHidden("invoice_number") {
+		y, _, _ = c.line(y+c.gap(8), "invoice_number", c.invoiceLabel()+": "+c.data.ReceiptNo, c.data.BodySize-1, true, false, "center")
 		y += c.gap(8)
 	}
+	if website := t.word("website", strings.TrimSpace(c.data.Website)); website != "" && !t.elementHidden("website") {
+		y, _, _ = c.line(y, "website", website, c.data.BodySize-1.5, true, false, "center")
+		y += c.gap(8)
+	}
+	c.markGroup("header", headerTop, y)
 	y = c.ruleLine(y) + c.gap(10)
 	y = c.drawMeta(y)
 	if strings.TrimSpace(c.data.Notes) != "" {
 		y += c.gap(6)
-		y, _ = c.left(y, "Note: "+strings.TrimSpace(c.data.Notes), c.data.BodySize-1, false)
+		y, _ = c.left(y, t.word("note_label", "Note")+": "+strings.TrimSpace(c.data.Notes), c.data.BodySize-1, false)
 		y += c.gap(8)
 	}
 	y = c.ruleLine(y) + c.gap(10)
 
+	itemsTop := y
 	y, subtotal, discountTotal := c.layout.draw(c, y)
+	c.markGroup("columns", itemsTop, y)
 
 	y = c.ruleLine(y) + c.gap(10)
 	grandTotal := float64(c.data.GrandTotalCents) / 100
@@ -194,84 +217,94 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	tax := float64(c.data.TaxCents) / 100
 	invoiceDisc := float64(c.data.InvoiceDiscount.Cents) / 100
 	rounding := grandTotal - (subtotal - discountTotal - invoiceDisc) - tax
-	rows := [][2]string{{"Subtotal", fmt.Sprintf("$%.2f", subtotal)}}
+	var rows [][2]string
+	if !t.elementHidden("subtotal") {
+		rows = append(rows, [2]string{t.word("subtotal", "Subtotal"), fmt.Sprintf("$%.2f", subtotal)})
+	}
 	if discountTotal > 0 {
-		rows = append(rows, [2]string{"Discount", fmt.Sprintf("-$%.2f", discountTotal)})
+		rows = append(rows, [2]string{t.word("discount", "Discount"), fmt.Sprintf("-$%.2f", discountTotal)})
 	}
 	if c.data.InvoiceDiscount.Cents > 0 {
 		rows = append(rows, [2]string{invoiceDiscountLabel(c.data.InvoiceDiscount), fmt.Sprintf("-$%.2f", invoiceDisc)})
 	}
 	if math.Abs(rounding) > 0.005 {
-		rows = append(rows, [2]string{"Rounding", fmt.Sprintf("$%.2f", rounding)})
+		rows = append(rows, [2]string{t.word("rounding", "Rounding"), fmt.Sprintf("$%.2f", rounding)})
 	}
-	if c.style.ItemCount {
+	if c.style.ItemCount && !t.elementHidden("items_count") {
 		var units float64
 		for _, item := range c.data.Items {
 			units += item.Qty
 		}
-		rows = append(rows, [2]string{"Items", fmt.Sprintf("%.0f", units)})
+		rows = append(rows, [2]string{t.word("items_count", "Items"), fmt.Sprintf("%.0f", units)})
 	}
-	if c.style.Savings && discountTotal > 0 {
-		rows = append(rows, [2]string{"You saved", fmt.Sprintf("$%.2f", discountTotal)})
+	if c.style.Savings && discountTotal > 0 && !t.elementHidden("you_saved") {
+		rows = append(rows, [2]string{t.word("you_saved", "You saved"), fmt.Sprintf("$%.2f", discountTotal)})
 	}
+	totalsTop := y
 	// Quieter than the total: regular weight, a size down.
 	for _, row := range rows {
 		y, _ = c.twoCol(y, row[0], row[1], 10, false)
 		y += c.gap(7)
 	}
+	c.markGroup("totals", totalsTop, y)
 	y = c.drawTotal(y, grandTotal)
 	y += c.gap(6)
 
 	showPayments := len(c.data.Payments) > 0 && !c.data.Texts.hidden(receiptSectionPayments)
 	if showPayments {
 		sectionTop := y
-		title := c.data.Texts.paymentsTitle()
-		titleTop := y
-		y, _ = c.center(y, title, c.data.BodySize-1, true, false)
-		c.markText(receiptPartPaymentsTitle, title, titleTop, y, c.data.BodySize-1, true)
-		y += c.gap(8)
+		if !t.elementHidden("payments_title") {
+			titleTop := y
+			y, _, _ = c.line(y, "payments_title", t.paymentsTitle(), c.data.BodySize-1, true, false, "center")
+			c.markText(receiptPartPaymentsTitle, t.paymentsTitle(), titleTop, y, c.data.BodySize-1, true)
+			y += c.gap(8)
+		}
 		for _, payment := range c.data.Payments {
 			label := payment.AccountName
 			if label == "" {
 				label = "Cash"
 			}
 			if payment.EntryType == "change" {
-				label = "Change - " + label
+				label = t.word("change", "Change") + " - " + label
 			} else {
-				label = "Received - " + label
+				label = t.word("received", "Received") + " - " + label
 			}
 			y, _ = c.twoCol(y, label, formatReceiptPayment(payment, c.data.RoundingMode), 10, true)
 			y += c.gap(7)
 		}
 		y = c.ruleLine(y) + c.gap(10)
 		c.markSection(receiptSectionPayments, sectionTop, y)
+		c.markGroup("payments", sectionTop, y)
 	}
 	if !c.data.Texts.hidden(receiptSectionPolicy) {
 		sectionTop := y
-		title := c.data.Texts.policyTitle()
-		y, _ = c.center(y, title, c.data.BodySize-1.5, true, false)
-		c.markText(receiptPartPolicyTitle, title, sectionTop, y, c.data.BodySize-1.5, true)
-		y += c.gap(8)
+		if !t.elementHidden("policy_title") {
+			titleTop := y
+			y, _, _ = c.line(y, "policy_title", t.policyTitle(), c.data.BodySize-1.5, true, false, "center")
+			c.markText(receiptPartPolicyTitle, t.policyTitle(), titleTop, y, c.data.BodySize-1.5, true)
+			y += c.gap(8)
+		}
 		policy := c.data.ReturnPolicy
 		if policy == "" {
 			policy = defaultReturnPolicy
 		}
-		y, _ = c.centerWrappedNormal(y, policy, c.data.BodySize-2.5, 2)
+		y, _, _ = c.lineWrapped(y, "policy_text", t.word("policy_text", policy), c.data.BodySize-2.5, false, 2, "center")
 		y = c.ruleLine(y+c.gap(6)) + c.gap(10)
 		c.markSection(receiptSectionPolicy, sectionTop, y)
+		c.markGroup("policy", sectionTop, y)
 	}
 
 	if c.data.ReferralCode != "" {
 		sectionTop := y
-		title := c.data.Texts.referralTitle()
-		y, _ = c.center(y, title+" "+c.data.ReferralCode, c.data.BodySize+1, true, false)
-		c.markText(receiptPartReferralTitle, title, sectionTop, y, c.data.BodySize+1, true)
+		y, _, _ = c.line(y, "referral_title", t.referralTitle()+" "+c.data.ReferralCode, c.data.BodySize+1, true, false, "center")
+		c.markText(receiptPartReferralTitle, t.referralTitle(), sectionTop, y, c.data.BodySize+1, true)
 		y += c.gap(8)
 		noteTop := y
-		y, _ = c.centerWrappedNormal(y, c.data.ReferralNote, c.data.BodySize-2.5, 2)
+		y, _, _ = c.lineWrapped(y, "referral_note", c.data.ReferralNote, c.data.BodySize-2.5, false, 2, "center")
 		c.markText(receiptPartReferralNote, c.data.ReferralNote, noteTop, y, c.data.BodySize-2.5, false)
 		y = c.ruleLine(y+c.gap(6)) + c.gap(10)
 		c.markSection(receiptSectionReferral, sectionTop, y)
+		c.markGroup("referral", sectionTop, y)
 	}
 
 	socials := socialFooterItems(c.data.SocialPlatforms, c.data.SocialHandles)
@@ -283,17 +316,20 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		}
 		y = rowBottom + c.gap(10)
 		// Match the PDF receipt: show one centered handle beneath the icon row.
-		if y, err = c.center(y, socials[0].handle, c.data.BodySize-1.5, false, false); err != nil {
-			return 0, err
+		if !t.elementHidden("socials_handle") {
+			if y, _, err = c.line(y, "socials_handle", socials[0].handle, c.data.BodySize-1.5, false, false, "center"); err != nil {
+				return 0, err
+			}
+			y += c.gap(8)
 		}
-		y += c.gap(8)
 		c.markSection(receiptSectionSocials, sectionTop, y)
+		c.markGroup("socials", sectionTop, y)
 	}
 	y += c.gap(10)
-	if !c.data.Texts.hidden(receiptSectionThanks) {
+	if !c.data.Texts.hidden(receiptSectionThanks) && !t.elementHidden("thanks") {
 		thanks := c.data.Texts.thanks(c.style.Thanks)
 		thanksTop := y
-		y, _ = c.center(y, thanks, c.data.BodySize-1, true, false)
+		y, _, _ = c.line(y, "thanks", thanks, c.data.BodySize-1, true, false, "center")
 		c.markText(receiptPartThanks, thanks, thanksTop, y, c.data.BodySize-1, true)
 		// The room under the line goes with it (a script face's tails reach
 		// into it), so the section's band holds all its ink.
@@ -691,7 +727,8 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	)
 
 	label := c.data.Texts.socialsTitle()
-	labelWidth, err := c.measure(label, c.data.BodySize-1, true, false)
+	labelSize, labelBold := c.elementStyle("socials_title", c.data.BodySize-1, true)
+	labelWidth, err := c.measure(label, labelSize, labelBold, false)
 	if err != nil {
 		return y, err
 	}
@@ -700,7 +737,7 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 	if startX < c.margin {
 		startX = c.margin
 	}
-	if _, err = c.text(startX, y, label, c.data.BodySize-1, true, false); err != nil {
+	if _, err = c.text(startX, y, label, labelSize, labelBold, false); err != nil {
 		return y, err
 	}
 
@@ -721,7 +758,7 @@ func (c *receiptCanvas) socialFooterRow(y int, items []socialFooterItem) (int, e
 			rowBottom = y + iconSize
 		}
 	}
-	c.markText(receiptPartSocialsTitle, label, y, rowBottom, c.data.BodySize-1, true)
+	c.markText(receiptPartSocialsTitle, label, y, rowBottom, labelSize, labelBold)
 	title := &c.marks[len(c.marks)-1]
 	title.Left, title.Right = startX, startX+labelWidth
 	c.marks = append(c.marks, receiptMark{Kind: "icons", Part: receiptPartSocialsIcons, Top: y, Bottom: rowBottom, Left: iconsLeft, Right: x - gap})

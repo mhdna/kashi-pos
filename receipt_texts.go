@@ -33,6 +33,10 @@ type receiptTexts struct {
 	SocialsTitle  string   `json:"socials_title,omitempty"`
 	Thanks        string   `json:"thanks,omitempty"`
 	Hide          []string `json:"hide,omitempty"`
+	// Elements change single lines (receipt_design.go); DateFormat picks how
+	// the date prints.
+	Elements   map[string]receiptElement `json:"elements,omitempty"`
+	DateFormat string                    `json:"date_format,omitempty"`
 }
 
 const (
@@ -79,6 +83,8 @@ func normalizeReceiptTexts(t receiptTexts) receiptTexts {
 			}
 		}
 	}
+	out.Elements = normalizeReceiptElements(t.Elements, clean)
+	out.DateFormat = validReceiptDateFormat(t.DateFormat)
 	return out
 }
 
@@ -91,42 +97,20 @@ func (t receiptTexts) hidden(section string) bool {
 	return false
 }
 
-func (t receiptTexts) paymentsTitle() string { return orDefault(t.PaymentsTitle, defaultPaymentsTitle) }
-func (t receiptTexts) policyTitle() string   { return orDefault(t.PolicyTitle, defaultPolicyTitle) }
-func (t receiptTexts) referralTitle() string { return orDefault(t.ReferralTitle, defaultReferralTitle) }
-func (t receiptTexts) socialsTitle() string  { return orDefault(t.SocialsTitle, defaultSocialsTitle) }
+// Each wording is its element's (receipt_design.go): the branch's own words
+// in its capitals, else the default.
+func (t receiptTexts) paymentsTitle() string { return t.word("payments_title", defaultPaymentsTitle) }
+func (t receiptTexts) policyTitle() string   { return t.word("policy_title", defaultPolicyTitle) }
+func (t receiptTexts) referralTitle() string { return t.word("referral_title", defaultReferralTitle) }
+func (t receiptTexts) socialsTitle() string  { return t.word("socials_title", defaultSocialsTitle) }
 
 // referralNote is the line under the code, with the reward put in.
 func (t receiptTexts) referralNote(percent int64) string {
-	return strings.ReplaceAll(orDefault(t.ReferralNote, defaultReferralNote), "{percent}", fmt.Sprintf("%d%%", percent))
+	return strings.ReplaceAll(t.word("referral_note", defaultReferralNote), "{percent}", fmt.Sprintf("%d%%", percent))
 }
 
 // thanks is the last line: the branch's own, else the theme's, else the
 // default.
 func (t receiptTexts) thanks(themeThanks string) string {
-	return orDefault(t.Thanks, orDefault(themeThanks, "Thank you for shopping with us!"))
-}
-
-// SetReceiptTexts stores the receipt's wording from central's
-// update_settings; raw is the JSON, ” for every default.
-func (a *App) SetReceiptTexts(raw string) error {
-	if a.store == nil {
-		return fmt.Errorf("database not initialized")
-	}
-	stored := ""
-	if strings.TrimSpace(raw) != "" {
-		var t receiptTexts
-		if err := json.Unmarshal([]byte(raw), &t); err != nil {
-			return fmt.Errorf("receipt texts: %w", err)
-		}
-		t = normalizeReceiptTexts(t)
-		if b, err := json.Marshal(t); err == nil && string(b) != "{}" {
-			stored = string(b)
-		}
-	}
-	if err := a.store.SetReceiptTexts(a.ctx, stored); err != nil {
-		return err
-	}
-	a.emitSettingsChanged()
-	return nil
+	return t.word("thanks", orDefault(themeThanks, "Thank you for shopping with us!"))
 }

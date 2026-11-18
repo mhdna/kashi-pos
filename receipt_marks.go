@@ -54,11 +54,18 @@ func (c *receiptCanvas) markText(part, text string, top, bottom int, size float6
 
 // shiftMarks moves every mark up by top, the rows cropped off the image.
 func shiftMarks(marks []receiptMark, top int) []receiptMark {
-	out := make([]receiptMark, len(marks))
-	for i, m := range marks {
+	out := make([]receiptMark, 0, len(marks))
+	for _, m := range marks {
 		m.Top -= top
 		m.Bottom -= top
-		out[i] = m
+		if m.Top < 0 {
+			m.Top = 0
+		}
+		// A part that drew nothing (every line of it hidden) has no place.
+		if m.Bottom <= m.Top {
+			continue
+		}
+		out = append(out, m)
 	}
 	return out
 }

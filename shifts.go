@@ -841,14 +841,6 @@ func (a *App) computeExpectedShiftTotals(shiftID int64) (expectedUSD, expectedLB
 	return expectedUSD, expectedLBP, expectedVisa, expectedWhish, nil
 }
 
-// shiftSpendLine is one expense or loan as the end-of-shift report prints it.
-type shiftSpendLine struct {
-	Kind         string // "expense" or "loan"
-	Label        string
-	Amount       int64 // the account's currency, x100, as entered
-	CurrencyCode string
-}
-
 // shiftSpendTotals is what a shift's expenses and loans took out of each
 // bucket computeExpectedShiftTotals reconciles: USD/Visa/Whish in cents,
 // LBP in whole LBP. Lines lists every one of them, for the receipt --

@@ -66,9 +66,10 @@ func (c *receiptCanvas) wrapText(name string, size float64, role fontRole, first
 // --- column grid (classic A/B, modern table) -------------------------------
 
 type gridConfig struct {
-	midHeader string
-	midSample string
-	mid       func(item invoiceItem, discount float64) string
+	midIsPrice bool
+	midHeader  string
+	midSample  string
+	mid        func(item invoiceItem, discount float64) string
 	// subline is printed under an item (classic B's discount line); "" skips.
 	subline  func(item invoiceItem, discount float64) string
 	nameRole fontRole
@@ -85,8 +86,8 @@ func (c *receiptCanvas) drawGrid(y int, cfg gridConfig) (int, float64, float64) 
 	right := c.margin + c.contentW
 	hdrSize := c.data.BodySize
 	pad := 10
-	qtyHdr, _ := c.measureRole("QTY", hdrSize, roleBodyBold)
-	midHdr, _ := c.measureRole(cfg.midHeader, hdrSize, roleBodyBold)
+	qtyHdr, _ := c.measureRole(c.data.Texts.word("col_qty", "QTY"), hdrSize, roleBodyBold)
+	midHdr, _ := c.measureRole(c.gridMidHeader(cfg), hdrSize, roleBodyBold)
 	midSmp, _ := c.measureRole(cfg.midSample, cfg.size, cfg.numRole)
 	sumSmp, _ := c.measureRole("$000.00", cfg.size, cfg.sumRole)
 	totalW := maxInt(int(0.21*float64(c.contentW)), maxInt(sumSmp, qtyHdr)+pad)
@@ -109,20 +110,20 @@ func (c *receiptCanvas) drawGrid(y int, cfg gridConfig) (int, float64, float64) 
 	if cfg.headerBand {
 		h := c.lineHeight(hdrSize, roleBodyBold)
 		c.fillRect(c.margin, y, right, y+h+10, color.Black)
-		c.textRole(c.margin+6, y+5, "ITEM", hdrSize, roleBodyBold, image.White)
-		c.rightRole(qtyR, y+5, "QTY", hdrSize, roleBodyBold, image.White)
+		c.textRole(c.margin+6, y+5, c.data.Texts.word("col_item", "ITEM"), hdrSize, roleBodyBold, image.White)
+		c.rightRole(qtyR, y+5, c.data.Texts.word("col_qty", "QTY"), hdrSize, roleBodyBold, image.White)
 		if !narrow {
-			c.rightRole(midR, y+5, cfg.midHeader, hdrSize, roleBodyBold, image.White)
+			c.rightRole(midR, y+5, c.gridMidHeader(cfg), hdrSize, roleBodyBold, image.White)
 		}
-		c.rightRole(totalR-6, y+5, "TOTAL", hdrSize, roleBodyBold, image.White)
+		c.rightRole(totalR-6, y+5, c.data.Texts.word("col_total", "TOTAL"), hdrSize, roleBodyBold, image.White)
 		y += h + 10 + 10
 	} else {
-		c.textRole(c.margin, y, "ITEM", hdrSize, roleBodyBold, image.Black)
-		c.rightRole(qtyR, y, "QTY", hdrSize, roleBodyBold, image.Black)
+		c.textRole(c.margin, y, c.data.Texts.word("col_item", "ITEM"), hdrSize, roleBodyBold, image.Black)
+		c.rightRole(qtyR, y, c.data.Texts.word("col_qty", "QTY"), hdrSize, roleBodyBold, image.Black)
 		if !narrow {
-			c.rightRole(midR, y, cfg.midHeader, hdrSize, roleBodyBold, image.Black)
+			c.rightRole(midR, y, c.gridMidHeader(cfg), hdrSize, roleBodyBold, image.Black)
 		}
-		hb, _ := c.rightRole(totalR, y, "TOTAL", hdrSize, roleBodyBold, image.Black)
+		hb, _ := c.rightRole(totalR, y, c.data.Texts.word("col_total", "TOTAL"), hdrSize, roleBodyBold, image.Black)
 		y = c.ruleLine(hb+c.gap(6)) + c.gap(10)
 	}
 
@@ -156,7 +157,7 @@ func (c *receiptCanvas) drawGrid(y int, cfg gridConfig) (int, float64, float64) 
 			// what the hidden middle column carried
 			subline = func(item invoiceItem, discount float64) string {
 				text := ""
-				if cfg.midHeader == "PRICE" {
+				if cfg.midIsPrice {
 					text = "@ " + dollars(item.Price)
 				}
 				if item.Discount > 0 {
@@ -197,7 +198,7 @@ func drawClassicColumns(c *receiptCanvas, y int) (int, float64, float64) {
 
 func drawClassicPriceColumns(c *receiptCanvas, y int) (int, float64, float64) {
 	return c.drawGrid(y, gridConfig{
-		midHeader: "PRICE", midSample: "$000.00",
+		midHeader: "PRICE", midIsPrice: true, midSample: "$000.00",
 		mid: func(item invoiceItem, _ float64) string { return dollars(item.Price) },
 		subline: func(item invoiceItem, discount float64) string {
 			if item.Discount > 0 {
@@ -212,7 +213,7 @@ func drawClassicPriceColumns(c *receiptCanvas, y int) (int, float64, float64) {
 // drawClassicDetailed is the original layout: name and total, the code, and
 // a quantity line.
 func drawClassicDetailed(c *receiptCanvas, y int) (int, float64, float64) {
-	y, _ = c.twoCol(y, "ITEM", "TOTAL", c.data.BodySize, true)
+	y, _ = c.twoCol(y, c.data.Texts.word("col_item", "ITEM"), c.data.Texts.word("col_total", "TOTAL"), c.data.BodySize, true)
 	y = c.ruleLine(y+6) + 10
 	var subtotal, discountTotal float64
 	for _, item := range c.data.Items {
@@ -323,8 +324,8 @@ func (t tape) step(bottom int) int { return bottom + 3 }
 func drawSupermarketRegister(c *receiptCanvas, y int) (int, float64, float64) {
 	t := c.newTape(11)
 	amtW := 8
-	t.put(y, 0, "ITEM", roleBodyBold)
-	y = t.step(t.putRight(y, t.cols, "AMOUNT", roleBodyBold))
+	t.put(y, 0, c.data.Texts.word("col_item", "ITEM"), roleBodyBold)
+	y = t.step(t.putRight(y, t.cols, c.data.Texts.word("col_amount", "AMOUNT"), roleBodyBold))
 	y = t.rule(y + 2)
 	var subtotal, discountTotal float64
 	for _, item := range c.data.Items {
@@ -358,9 +359,9 @@ func drawSupermarketRegister(c *receiptCanvas, y int) (int, float64, float64) {
 func drawSupermarketQuantity(c *receiptCanvas, y int) (int, float64, float64) {
 	t := c.newTape(11)
 	amtW, qtyW := 8, 3
-	t.put(y, 0, "QTY", roleBodyBold)
-	t.put(y, qtyW+1, "ITEM", roleBodyBold)
-	y = t.step(t.putRight(y, t.cols, "TOTAL", roleBodyBold))
+	t.put(y, 0, c.data.Texts.word("col_qty", "QTY"), roleBodyBold)
+	t.put(y, qtyW+1, c.data.Texts.word("col_item", "ITEM"), roleBodyBold)
+	y = t.step(t.putRight(y, t.cols, c.data.Texts.word("col_total", "TOTAL"), roleBodyBold))
 	y = t.rule(y + 2)
 	var subtotal, discountTotal float64
 	for _, item := range c.data.Items {
@@ -395,7 +396,7 @@ func drawSupermarketCodes(c *receiptCanvas, y int) (int, float64, float64) {
 	t := c.newTape(11)
 	amtW := 8
 	t.put(y, 0, "ITEM / CODE", roleBodyBold)
-	y = t.step(t.putRight(y, t.cols, "AMOUNT", roleBodyBold))
+	y = t.step(t.putRight(y, t.cols, c.data.Texts.word("col_amount", "AMOUNT"), roleBodyBold))
 	y = t.rule(y + 2)
 	var subtotal, discountTotal float64
 	for _, item := range c.data.Items {
@@ -427,10 +428,10 @@ func drawTypewriterTape(c *receiptCanvas, y int) (int, float64, float64) {
 	qtyW, priceW, totalW := 3, 8, 8
 	nameStart := qtyW + 1
 	priceEnd := t.cols - totalW - 1
-	t.putRight(y, qtyW, "QTY", roleBodyBold)
-	t.put(y, nameStart, "ITEM", roleBodyBold)
-	t.putRight(y, priceEnd, "PRICE", roleBodyBold)
-	y = t.step(t.putRight(y, t.cols, "TOTAL", roleBodyBold))
+	t.putRight(y, qtyW, c.data.Texts.word("col_qty", "QTY"), roleBodyBold)
+	t.put(y, nameStart, c.data.Texts.word("col_item", "ITEM"), roleBodyBold)
+	t.putRight(y, priceEnd, c.data.Texts.word("col_price", "PRICE"), roleBodyBold)
+	y = t.step(t.putRight(y, t.cols, c.data.Texts.word("col_total", "TOTAL"), roleBodyBold))
 	y = t.rule(y + 2)
 	nameW := priceEnd - priceW - nameStart
 	var subtotal, discountTotal float64
@@ -463,8 +464,8 @@ func drawTypewriterTape(c *receiptCanvas, y int) (int, float64, float64) {
 func drawTypewriterItemized(c *receiptCanvas, y int) (int, float64, float64) {
 	t := c.newTape(9.5)
 	amtW := 8
-	t.put(y, 0, "ITEM", roleBodyBold)
-	y = t.step(t.putRight(y, t.cols, "AMOUNT", roleBodyBold))
+	t.put(y, 0, c.data.Texts.word("col_item", "ITEM"), roleBodyBold)
+	y = t.step(t.putRight(y, t.cols, c.data.Texts.word("col_amount", "AMOUNT"), roleBodyBold))
 	y = t.rule(y + 2)
 	var subtotal, discountTotal float64
 	for _, item := range c.data.Items {

@@ -63,15 +63,6 @@ func rfc3339OrEmpty(t *time.Time) string {
 	return t.UTC().Format(time.RFC3339)
 }
 
-// invoiceDiscount is what a sale gets: the rule's name and the cents it
-// takes off. The zero value is none. A referral reward (referrals.go) is
-// one too, with its uid in RewardUID.
-type invoiceDiscount struct {
-	Name      string
-	Cents     int64
-	RewardUID string
-}
-
 // bestInvoiceDiscount picks, among the rules in force at now whose minimum
 // the total reaches, the one that takes the most off it.
 func bestInvoiceDiscount(rules []db.InvoiceDiscount, total int64, now time.Time, roundingMode string) invoiceDiscount {
@@ -181,15 +172,6 @@ func (a *App) applyInvoiceDiscount(q *db.Queries, totals *invoiceTotals, roundin
 	totals.DiscountedSubtotal -= best.Cents
 	totals.InvoiceDiscount = best
 	return nil
-}
-
-// invoiceDiscountLabel is the receipt row's name: the rule's, or a plain
-// one for a rule saved without.
-func invoiceDiscountLabel(d invoiceDiscount) string {
-	if d.Name == "" {
-		return "Invoice discount"
-	}
-	return d.Name
 }
 
 // returnedInvoiceDiscount is the part of a sold line's invoice discount

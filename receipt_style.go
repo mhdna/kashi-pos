@@ -87,11 +87,20 @@ func (c *receiptCanvas) centerRole(y int, value string, size float64, role fontR
 // "Label: value" lines; MetaRows puts the label left and the value right;
 // MetaCentered centres the stacked lines.
 func (c *receiptCanvas) drawMeta(y int) int {
-	pairs := [][2]string{
-		{"Customer", fallbackReceiptValue(c.data.Customer, receiptWalkInLabel)},
-		{"Salesperson", formatReceiptSalesperson(c.data.Salesperson)},
-		{"Date", currentReceiptDate()},
+	t := c.data.Texts
+	all := [][3]string{
+		{"meta_customer", "Customer", fallbackReceiptValue(c.data.Customer, receiptWalkInLabel)},
+		{"meta_salesperson", "Salesperson", formatReceiptSalesperson(c.data.Salesperson)},
+		{"meta_date", "Date", receiptNow().Format(t.dateLayout())},
 	}
+	var pairs [][2]string
+	for _, p := range all {
+		if !t.elementHidden(p[0]) {
+			pairs = append(pairs, [2]string{t.word(p[0], p[1]), p[2]})
+		}
+	}
+	top := y
+	defer func() { c.markGroup("meta", top, y) }()
 	size := c.data.BodySize - 1
 	for _, pair := range pairs {
 		switch {
@@ -111,12 +120,17 @@ func (c *receiptCanvas) drawMeta(y int) int {
 
 // drawTotal prints the TOTAL line (and the rounding-currency equivalent) in
 // the theme's style, returning the y below it.
-func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
+func (c *receiptCanvas) drawTotal(y int, grandTotal float64) (bottom int) {
+	top := y
+	defer func() { c.markGroup("totals", top, bottom) }()
 	amount := fmt.Sprintf("$%.2f", grandTotal)
 	var second [2]string
 	if currency := c.data.RoundingCurrency; currency.UnitsPerUsdMicros > 0 {
 		if rounded, err := roundCurrencyUnitsFromCents(c.data.GrandTotalCents, currency.UnitsPerUsdMicros, currency.CashRoundingUnit, c.data.RoundingMode); err == nil {
-			second = [2]string{currency.Code + " equivalent", formatInt(rounded) + " " + currency.Symbol}
+			if !c.data.Texts.elementHidden("equivalent") {
+				label := strings.ReplaceAll(c.data.Texts.word("equivalent", "{currency} equivalent"), "{currency}", currency.Code)
+				second = [2]string{label, formatInt(rounded) + " " + currency.Symbol}
+			}
 		}
 	}
 	right := c.margin + c.contentW
@@ -128,7 +142,7 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
 		h := c.lineHeight(size, roleBodyBold)
 		top := y + 4
 		c.fillRect(c.margin, top, right, top+h+2*pad, color.Black)
-		c.textRole(c.margin+pad, top+pad, "TOTAL", size, roleBodyBold, image.White)
+		c.textRole(c.margin+pad, top+pad, c.data.Texts.word("total", "TOTAL"), size, roleBodyBold, image.White)
 		c.rightRole(right-pad, top+pad, amount, size, roleBodyBold, image.White)
 		y = top + h + 2*pad + 8
 		if second[0] != "" {
@@ -145,7 +159,7 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
 		if c.style.Fonts != nil {
 			labelRole = roleTitleBold
 		}
-		c.textRole(c.margin, y, "TOTAL", size, labelRole, image.Black)
+		c.textRole(c.margin, y, c.data.Texts.word("total", "TOTAL"), size, labelRole, image.Black)
 		y, _ = c.rightRole(right, y, amount, size, roleBodyBold, image.Black)
 		y += c.gap(8)
 		if second[0] != "" {
@@ -160,7 +174,7 @@ func (c *receiptCanvas) drawTotal(y int, grandTotal float64) int {
 	// No rule above the box: the box itself sets the total apart.
 	boxTop := y + 10
 	y = boxTop + 16
-	y, _ = c.twoCol(y, "TOTAL", amount, 13, true)
+	y, _ = c.twoCol(y, c.data.Texts.word("total", "TOTAL"), amount, 13, true)
 	y += 8
 	if second[0] != "" {
 		y, _ = c.twoCol(y, second[0], second[1], 10, true)

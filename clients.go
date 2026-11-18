@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nyaruka/phonenumbers"
 	db "kashi-pos/db/sqlc"
+
+	"github.com/nyaruka/phonenumbers"
 )
 
 func (a *App) GetClientByPhone(phone string) (map[string]any, error) {
@@ -196,13 +197,6 @@ const walkInClientPhone = "00000000"
 func isWalkInPhone(phone string) bool { return phone == walkInClientPhone }
 
 func isWalkInClient(c db.Client) bool { return isWalkInPhone(c.Phone) }
-
-// anonymousClientLabel is how the till's screens name a sale with no client.
-// Printed receipts keep receiptWalkInLabel instead.
-const (
-	anonymousClientLabel = "Anonymous"
-	receiptWalkInLabel   = "Walk-in"
-)
 
 // clientDisplayName is the client's name as the till's screens show it: the
 // seeded walk-in pseudo-client reads "Anonymous", never its stored "Walk-in".
