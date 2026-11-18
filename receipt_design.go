@@ -2,9 +2,10 @@ package main
 
 import (
 	"image"
+	"regexp"
 	"slices"
-	"time"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -96,6 +97,7 @@ var receiptElements = []receiptElementInfo{
 	{Key: "meta_date", Group: "meta", Label: "Date", Default: "Date", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "note_label", Group: "meta", Label: "Note", Default: "Note", Can: canText | canCase},
 
+	{Key: "deal_free", Group: "columns", Label: "Free item tag", Default: "(FREE)", Can: canText | canCase | canHide},
 	{Key: "col_item", Group: "columns", Label: "Item", Default: "ITEM", Can: canText | canCase},
 	{Key: "col_qty", Group: "columns", Label: "Quantity", Default: "QTY", Can: canText | canCase},
 	{Key: "col_disc", Group: "columns", Label: "Discount", Default: "DISC", Can: canText | canCase},
@@ -109,6 +111,7 @@ var receiptElements = []receiptElementInfo{
 	{Key: "items_count", Group: "totals", Label: "Items count", Default: "Items", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "you_saved", Group: "totals", Label: "You saved", Default: "You saved", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "total", Group: "totals", Label: "Total", Default: "TOTAL", Can: canText | canCase},
+	{Key: "invoice_discount", Group: "totals", Label: "Deal on the invoice", Default: "{name}", Can: canText | canCase | canSize | canBold},
 	{Key: "equivalent", Group: "totals", Label: "Other currency total", Default: "{currency} equivalent", Can: canText | canCase | canSize | canBold | canHide},
 
 	{Key: "payments_title", Group: "payments", Label: "Title", Default: defaultPaymentsTitle, Can: canAll},
@@ -200,8 +203,28 @@ func (t receiptTexts) element(key string) receiptElement {
 	return e
 }
 
-// applyReceiptCase writes s in the element's capitals.
+// receiptPlaceholder is a word the till fills in ({name}, {percent},
+// {currency}); capitals never touch it, so it is still found and filled.
+var receiptPlaceholder = regexp.MustCompile(`\{[a-z]+\}`)
+
+// applyReceiptCase writes s in the element's capitals, its placeholders as
+// they are.
 func applyReceiptCase(s, c string) string {
+	if c == "" {
+		return s
+	}
+	var b strings.Builder
+	last := 0
+	for _, loc := range receiptPlaceholder.FindAllStringIndex(s, -1) {
+		b.WriteString(applyCaseRun(s[last:loc[0]], c))
+		b.WriteString(s[loc[0]:loc[1]])
+		last = loc[1]
+	}
+	b.WriteString(applyCaseRun(s[last:], c))
+	return b.String()
+}
+
+func applyCaseRun(s, c string) string {
 	switch c {
 	case "upper":
 		return strings.ToUpper(s)
@@ -445,9 +468,9 @@ func (c *receiptCanvas) invoiceLabel() string {
 // gridMidHeader is the middle column's title in the branch's words.
 func (c *receiptCanvas) gridMidHeader(cfg gridConfig) string {
 	if cfg.midIsPrice {
-		return c.data.Texts.word("col_price", "PRICE")
+		return c.word("col_price", "PRICE")
 	}
-	return c.data.Texts.word("col_disc", cfg.midHeader)
+	return c.word("col_disc", cfg.midHeader)
 }
 
 // extraHeight is room, in pixels, a design may add to the receipt: its own
@@ -545,6 +568,10 @@ func (c *receiptCanvas) row(y int, key, word, label, amount string, size float64
 	top := y
 	y, _ = c.twoCol(y, label, amount, size, bold)
 	c.markLine(key, word, top, y, size, "left")
+	if w, err := c.measure(word, size, bold, false); err == nil {
+		m := &c.marks[len(c.marks)-1]
+		m.X0, m.X1 = c.margin, c.margin+w
+	}
 	return y
 }
 
@@ -570,4 +597,84 @@ func alignCode(align string) int {
 		return 3
 	}
 	return 2
+}
+
+// pendingWord is words about to be drawn (text) for an element whose own
+// words (word) are part of them.
+type pendingWord struct{ key, text, word string }
+
+// word is an element's words for a line drawn among others on a row (a
+// column title): the next time they are drawn, where they land is marked.
+func (c *receiptCanvas) word(key, def string) string {
+	w := c.data.Texts.word(key, def)
+	c.pendingWords = append(c.pendingWords, pendingWord{key, w, w})
+	return w
+}
+
+// wordWith is word followed by fixed words drawn with it ("ITEM / CODE").
+func (c *receiptCanvas) wordWith(key, def, after string) string {
+	w := c.data.Texts.word(key, def)
+	c.pendingWords = append(c.pendingWords, pendingWord{key, w + after, w})
+	return w + after
+}
+
+// markPendingWord marks words just drawn at x when they are a pending word.
+func (c *receiptCanvas) markPendingWord(value string, x, top, bottom int, size float64, role fontRole, width int) {
+	for i, p := range c.pendingWords {
+		if p.text != value {
+			continue
+		}
+		scale := c.bodyFactor()
+		if role == roleTitle || role == roleTitleBold {
+			scale = c.titleFactor()
+		}
+		c.marks = append(c.marks, receiptMark{
+			Kind: "line", Part: p.key, Top: top, Bottom: bottom, Text: p.word,
+			SizePx: size * scale * 2.6, Left: alignCode("left"), X0: x, X1: x + width,
+		})
+		c.pendingWords = append(c.pendingWords[:i], c.pendingWords[i+1:]...)
+		// The same words measured first are pending again; one mark each.
+		for j := len(c.pendingWords) - 1; j >= 0; j-- {
+			if c.pendingWords[j].key == p.key {
+				c.pendingWords = append(c.pendingWords[:j], c.pendingWords[j+1:]...)
+			}
+		}
+		return
+	}
+}
+
+// invoiceDiscountWords is the deal's line label in the branch's words;
+// {name} is the deal's own name ("Students 15%").
+func (t receiptTexts) invoiceDiscountWords(d invoiceDiscount) string {
+	e := t.element("invoice_discount")
+	text := strings.ReplaceAll(orDefault(e.Text, "{name}"), "{name}", invoiceDiscountLabel(d))
+	return applyReceiptCase(text, e.Case)
+}
+
+// freeTag is the words after a unit a deal gave free ("Shirt (FREE)"): the
+// till names it so, and the branch can reword the tag or leave it off.
+const freeTag = " (FREE)"
+
+// itemsWithFreeTag is the items as they print: a free unit's tag in the
+// branch's words. Untouched, it is exactly the till's own name.
+func (c *receiptCanvas) itemsWithFreeTag(items []invoiceItem) []invoiceItem {
+	return itemsWithFreeTag(c.data.Texts, items)
+}
+
+func itemsWithFreeTag(t receiptTexts, items []invoiceItem) []invoiceItem {
+	e := t.element("deal_free")
+	if e.Text == "" && e.Case == "" && !e.Hide {
+		return items
+	}
+	out := make([]invoiceItem, len(items))
+	for i, item := range items {
+		if item.Free && strings.HasSuffix(item.Name, freeTag) {
+			item.Name = strings.TrimSuffix(item.Name, freeTag)
+			if !e.Hide {
+				item.Name += " " + t.word("deal_free", "(FREE)")
+			}
+		}
+		out[i] = item
+	}
+	return out
 }

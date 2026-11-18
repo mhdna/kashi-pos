@@ -4,6 +4,8 @@ Things to maybe build later. Not built unless asked.
 
 ## Ideas
 
+- A banner on receipts where a special deal applied ("STUDENT DEAL"), with its own look per deal in central's Receipt Designer; it can hold an uploaded picture, printed in black and white (dithered) at the paper's width, shown as printed in the designer (2026-11-18).
+
 - Smarter catch-up: pull first the products and clients something on the till depends on (recent invoices, held sales, quick access, rewards' owners), then the rest in the background, so a big central change never holds up the till (2026-11-18).
 
 - Sync central's colour hex values to the till, so variant swatches use the colours set in central instead of reading the colour name (2026-11-07).

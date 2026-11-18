@@ -5,6 +5,7 @@ import (
 	"image"
 	"math/rand"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -240,5 +241,176 @@ func TestReceiptDecorRandomized(t *testing.T) {
 				t.Fatalf("%s/%s/%s: %s %d-%d outside 0-%d (%s)", theme.ID, layout.ID, mode, m.Part, m.Top, m.Bottom, img.Bounds().Dy(), raw)
 			}
 		}
+	}
+}
+
+// The reported case: each column title is its own words on the paper, where
+// it sits on its row, never taken for the totals' TOTAL.
+func TestDesignerColumnTitles(t *testing.T) {
+	for _, theme := range receiptThemeCatalog() {
+		for _, layout := range theme.Layouts {
+			where := theme.ID + "/" + layout.ID
+			var drawn []string
+			saved := receiptTextDrawn
+			receiptTextDrawn = func(v string, _ int) { drawn = append(drawn, v) }
+			out, err := RenderDesignerPreview(DesignerInput{Theme: theme.ID, Layout: layout.ID})
+			receiptTextDrawn = saved
+			if err != nil {
+				t.Fatal(err)
+			}
+			printsItem := false
+			for _, d := range drawn {
+				printsItem = printsItem || d == "ITEM" || strings.HasPrefix(d, "ITEM ")
+			}
+			var columns DesignerMark
+			for _, m := range out.Marks {
+				if m.Group == "columns" {
+					columns = m
+				}
+			}
+			cols := map[string]DesignerLine{}
+			for _, l := range out.Lines {
+				if l.Group != "columns" {
+					continue
+				}
+				if _, seen := cols[l.Key]; seen {
+					t.Fatalf("%s: %s marked twice", where, l.Key)
+				}
+				cols[l.Key] = l
+				if l.Left <= 0 || l.Right <= l.Left || l.Right > out.Width {
+					t.Fatalf("%s: %s at x %d-%d", where, l.Key, l.Left, l.Right)
+				}
+				if l.Top < columns.Top || l.Bottom > columns.Bottom {
+					t.Fatalf("%s: %s at %d-%d outside the items %d-%d", where, l.Key, l.Top, l.Bottom, columns.Top, columns.Bottom)
+				}
+			}
+			if _, ok := cols["col_item"]; printsItem && !ok {
+				t.Fatalf("%s: no ITEM title to click: %+v", where, cols)
+			}
+			// Titles on one row don't overlap.
+			for a, la := range cols {
+				for b, lb := range cols {
+					if a < b && la.Top == lb.Top && la.Left < lb.Right && lb.Left < la.Right {
+						t.Fatalf("%s: %s and %s overlap", where, a, b)
+					}
+				}
+			}
+		}
+	}
+	// A row's label is clickable on its own, from the paper's left.
+	out, _ := RenderDesignerPreview(DesignerInput{})
+	for _, l := range out.Lines {
+		if l.Key == "subtotal" && (l.Left != 24 || l.Right <= l.Left || l.Right > 300) {
+			t.Fatalf("subtotal label at %d-%d", l.Left, l.Right)
+		}
+	}
+}
+
+// The reported case: a sale with a deal shows its line, so the designer can
+// see and change how each deal reads.
+func TestDesignerDealPreview(t *testing.T) {
+	var drawn []string
+	saved := receiptTextDrawn
+	receiptTextDrawn = func(v string, _ int) { drawn = append(drawn, v) }
+	defer func() { receiptTextDrawn = saved }()
+
+	plain, err := RenderDesignerPreview(DesignerInput{Mode: receiptModeClient})
+	if err != nil {
+		t.Fatal(err)
+	}
+	drawn = nil
+	students, err := RenderDesignerPreview(DesignerInput{Mode: receiptModeClient, Deal: &DesignerDeal{Name: "Students 15%", Kind: "percent", Percent: 15}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The sample is $240.80; 15% is $36.12 off, $204.68 to pay.
+	for _, want := range []string{"Students 15%", "-$36.12", "$204.68"} {
+		if !drewText(drawn, want) {
+			t.Fatalf("%q not drawn: %q", want, drawn)
+		}
+	}
+	if students.Height <= plain.Height {
+		t.Fatal("the deal's line takes no room")
+	}
+	found := false
+	for _, l := range students.Lines {
+		found = found || (l.Key == "invoice_discount" && l.Text == "Students 15%" && l.Left > 0)
+	}
+	if !found {
+		t.Fatalf("the deal's line can't be clicked: %+v", students.Lines)
+	}
+
+	drawn = nil
+	_, err = RenderDesignerPreview(DesignerInput{Mode: receiptModeClient, Deal: &DesignerDeal{Name: "Staff", Kind: "amount", Amount: 500},
+		Texts: `{"elements":{"invoice_discount":{"text":"Deal: {name}","case":"upper"}}}`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !drewText(drawn, "DEAL: STAFF") || !drewText(drawn, "-$5.00") || !drewText(drawn, "$235.80") {
+		t.Fatalf("an amount deal with its own words: %q", drawn)
+	}
+	// The text receipt says the same.
+	data := receiptPreviewData(designBase(), receiptModeClient)
+	applyDesignerDeal(&data, DesignerDeal{Name: "Students 15%", Kind: "percent", Percent: 15})
+	data.Texts = receiptTexts{Elements: map[string]receiptElement{"invoice_discount": {Text: "Saved with {name}"}}}
+	if out := string(buildESCPosReceipt(data)); !strings.Contains(out, "Saved with Students 15%") {
+		t.Fatalf("text receipt: %s", out)
+	}
+	// Paid in cash with $5 back, as before the deal.
+	var paid, change int64
+	for _, p := range data.Payments {
+		if p.EntryType == "change" {
+			change += p.AmountCents
+		} else {
+			paid += p.AmountCents
+		}
+	}
+	if paid+change != data.GrandTotalCents || change != -500 {
+		t.Fatalf("payments %d %d for %d", paid, change, data.GrandTotalCents)
+	}
+	// A deal bigger than the sale takes it to nothing, never below.
+	data = receiptPreviewData(designBase(), receiptModeClient)
+	applyDesignerDeal(&data, DesignerDeal{Name: "Huge", Kind: "amount", Amount: 99999999})
+	if data.GrandTotalCents != 0 || data.InvoiceDiscount.Cents != 24080 {
+		t.Fatalf("huge deal: %d %+v", data.GrandTotalCents, data.InvoiceDiscount)
+	}
+}
+
+// The reported case: deals like buy 2 get 1 have a view, and the free unit's
+// tag can be reworded or left off; untouched it is the till's own.
+func TestDesignerItemDeal(t *testing.T) {
+	var drawn []string
+	saved := receiptTextDrawn
+	receiptTextDrawn = func(v string, _ int) { drawn = append(drawn, v) }
+	defer func() { receiptTextDrawn = saved }()
+	render := func(texts string) []string {
+		drawn = nil
+		if _, err := RenderDesignerPreview(DesignerInput{Mode: receiptModeItemDeal, Texts: texts}); err != nil {
+			t.Fatal(err)
+		}
+		return drawn
+	}
+	plain := render("")
+	if !drewText(plain, "(FREE)") || !drewText(plain, "$85.00") {
+		t.Fatalf("buy 2 get 1: %q", plain)
+	}
+	own := render(`{"elements":{"deal_free":{"text":"free gift","case":"upper"}}}`)
+	if !drewText(own, "FREE GIFT") || drewText(own, "(FREE)") {
+		t.Fatalf("own tag: %q", own)
+	}
+	off := render(`{"elements":{"deal_free":{"hide":true}}}`)
+	if drewText(off, "FREE") {
+		t.Fatalf("hidden tag printed: %q", off)
+	}
+	// The text receipt follows, and an item that isn't free keeps its name.
+	data := receiptPreviewData(designBase(), receiptModeItemDeal)
+	data.Texts = receiptTexts{Elements: map[string]receiptElement{"deal_free": {Text: "on us"}}}
+	out := string(buildESCPosReceipt(data))
+	if !strings.Contains(out, "Blue Linen Shirt on us") || strings.Contains(out, "(FREE)") {
+		t.Fatalf("text receipt: %s", out)
+	}
+	items := itemsWithFreeTag(receiptTexts{Elements: map[string]receiptElement{"deal_free": {Text: "x"}}}, []invoiceItem{{Name: "Hat (FREE)"}, {Name: "Cap (FREE)", Free: true}})
+	if items[0].Name != "Hat (FREE)" || items[1].Name != "Cap x" {
+		t.Fatalf("names %q %q", items[0].Name, items[1].Name)
 	}
 }

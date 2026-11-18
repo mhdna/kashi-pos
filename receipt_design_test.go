@@ -116,6 +116,18 @@ func TestReceiptCase(t *testing.T) {
 			t.Fatalf("%q: %q, want %q", c, got, io[1])
 		}
 	}
+	for in, want := range map[string]string{
+		"deal: {name}":             "DEAL: {name}",
+		"{percent} off for {name}": "{percent} OFF FOR {name}",
+		"in {currency}":            "IN {currency}",
+	} {
+		if got := applyReceiptCase(in, "upper"); got != want {
+			t.Fatalf("%q: %q, want %q", in, got, want)
+		}
+	}
+	if got := applyReceiptCase("saved with {name} today", "title"); got != "Saved With {name} Today" {
+		t.Fatalf("title case: %q", got)
+	}
 	if got := applyReceiptCase("شكراً لكم", "upper"); got != "شكراً لكم" {
 		t.Fatalf("arabic changed: %q", got)
 	}
@@ -244,11 +256,11 @@ func TestNormalizeReceiptElements(t *testing.T) {
 	in := receiptTexts{
 		DateFormat: "nope",
 		Elements: map[string]receiptElement{
-			"thanks":   {Text: "  Bye  ", Case: "upper", Size: 30, Bold: &yes, Align: "right", Hide: true},
-			"col_item": {Text: "Article", Size: 4, Bold: &yes, Align: "center", Hide: true, Case: "shout"},
-			"nonsense": {Text: "x"},
-			"total":    {},
-			"phone":    {Size: -20.3},
+			"thanks":     {Text: "  Bye  ", Case: "upper", Size: 30, Bold: &yes, Align: "right", Hide: true},
+			"col_item":   {Text: "Article", Size: 4, Bold: &yes, Align: "center", Hide: true, Case: "shout"},
+			"nonsense":   {Text: "x"},
+			"total":      {},
+			"phone":      {Size: -20.3},
 			"note_label": {Size: 1.26},
 		},
 	}

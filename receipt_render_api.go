@@ -29,6 +29,15 @@ type DesignerShop struct {
 	ReceiptWidth    int64             `json:"receipt_width"`
 }
 
+// DesignerDeal is an invoice discount the preview's sale gets: a percent or
+// an amount (cents) off the whole invoice.
+type DesignerDeal struct {
+	Name    string `json:"name"`
+	Kind    string `json:"kind"`
+	Percent int64  `json:"percent"`
+	Amount  int64  `json:"amount"`
+}
+
 // DesignerInput is one preview: a look, a mode, the design (receipt_texts
 // JSON) and the shop. ReferralPercent is the reward the referral mode shows.
 type DesignerInput struct {
@@ -38,6 +47,8 @@ type DesignerInput struct {
 	Texts           string
 	Shop            DesignerShop
 	ReferralPercent int64
+	// Deal, when set, is applied to the sale, so its line shows.
+	Deal *DesignerDeal
 }
 
 // DesignerMark is where one part of the receipt is, for the designer to open.
@@ -58,6 +69,10 @@ type DesignerLine struct {
 	Text   string  `json:"text"`
 	SizePx float64 `json:"size_px"`
 	Align  string  `json:"align"`
+	// Left and Right, when set, are the words' own x range in the picture
+	// (a column title among others); else the line spans the paper.
+	Left  int `json:"left,omitempty"`
+	Right int `json:"right,omitempty"`
 }
 
 // DesignerPreview is the drawn receipt (PNG, as the printer prints it),
@@ -107,6 +122,9 @@ func RenderDesignerPreview(in DesignerInput) (DesignerPreview, error) {
 			data.ReferralNote = data.Texts.referralNote(percent)
 		}
 	}
+	if in.Deal != nil && data.GrandTotalCents > 0 {
+		applyDesignerDeal(&data, *in.Deal)
+	}
 	png, marks, err := renderDesignerPNG(data, in.Theme, in.Layout)
 	if err != nil {
 		return DesignerPreview{}, err
@@ -151,7 +169,7 @@ func designerLines(marks []receiptMark) []DesignerLine {
 			// The title's words, without the sample code printed after them.
 			text = strings.TrimSuffix(text, " "+sampleReferralCode)
 		}
-		out = append(out, DesignerLine{Key: m.Part, Group: info.Group, Top: m.Top, Bottom: m.Bottom, Text: text, SizePx: m.SizePx, Align: aligns[m.Left]})
+		out = append(out, DesignerLine{Key: m.Part, Group: info.Group, Top: m.Top, Bottom: m.Bottom, Text: text, SizePx: m.SizePx, Align: aligns[m.Left], Left: m.X0, Right: m.X1})
 	}
 	return out
 }
@@ -224,4 +242,34 @@ func renderDesignerPNG(data printReceiptData, theme, layout string) ([]byte, []r
 	}
 	out, err := encodeBilevelPNGLevel(img, png.BestSpeed)
 	return out, marks, err
+}
+
+// applyDesignerDeal takes a deal off the sample sale, as the till does an
+// invoice discount: a row of its own, the total and the cash paid lowered.
+func applyDesignerDeal(data *printReceiptData, d DesignerDeal) {
+	total := data.GrandTotalCents
+	var cents int64
+	if d.Kind == "amount" {
+		cents = d.Amount
+	} else {
+		cents = (total*d.Percent + 50) / 100
+	}
+	cents = min(max(cents, 0), total)
+	if cents == 0 {
+		return
+	}
+	data.InvoiceDiscount = invoiceDiscount{Name: d.Name, Cents: cents}
+	data.GrandTotalCents = total - cents
+	var change int64
+	for _, p := range data.Payments {
+		if p.EntryType == "change" {
+			change += -p.AmountCents
+		}
+	}
+	for i, p := range data.Payments {
+		if p.EntryType != "change" {
+			data.Payments[i].AmountCents = data.GrandTotalCents + change
+			break
+		}
+	}
 }
