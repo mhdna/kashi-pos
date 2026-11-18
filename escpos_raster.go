@@ -237,7 +237,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 		rows = append(rows, [3]string{t.word("discount", "Discount"), fmt.Sprintf("-$%.2f", discountTotal), "discount"})
 	}
 	if c.data.InvoiceDiscount.Cents > 0 {
-		rows = append(rows, [3]string{invoiceDiscountLabel(c.data.InvoiceDiscount), fmt.Sprintf("-$%.2f", invoiceDisc), "discount"})
+		rows = append(rows, [3]string{t.invoiceDiscountWords(c.data.InvoiceDiscount), fmt.Sprintf("-$%.2f", invoiceDisc), "invoice_discount"})
 	}
 	if math.Abs(rounding) > 0.005 {
 		rows = append(rows, [3]string{t.word("rounding", "Rounding"), fmt.Sprintf("$%.2f", rounding), "rounding"})

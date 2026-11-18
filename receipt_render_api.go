@@ -29,6 +29,15 @@ type DesignerShop struct {
 	ReceiptWidth    int64             `json:"receipt_width"`
 }
 
+// DesignerDeal is an invoice discount the preview's sale gets: a percent or
+// an amount (cents) off the whole invoice.
+type DesignerDeal struct {
+	Name    string `json:"name"`
+	Kind    string `json:"kind"`
+	Percent int64  `json:"percent"`
+	Amount  int64  `json:"amount"`
+}
+
 // DesignerInput is one preview: a look, a mode, the design (receipt_texts
 // JSON) and the shop. ReferralPercent is the reward the referral mode shows.
 type DesignerInput struct {
@@ -38,6 +47,8 @@ type DesignerInput struct {
 	Texts           string
 	Shop            DesignerShop
 	ReferralPercent int64
+	// Deal, when set, is applied to the sale, so its line shows.
+	Deal *DesignerDeal
 }
 
 // DesignerMark is where one part of the receipt is, for the designer to open.
@@ -110,6 +121,9 @@ func RenderDesignerPreview(in DesignerInput) (DesignerPreview, error) {
 		} else {
 			data.ReferralNote = data.Texts.referralNote(percent)
 		}
+	}
+	if in.Deal != nil && data.GrandTotalCents > 0 {
+		applyDesignerDeal(&data, *in.Deal)
 	}
 	png, marks, err := renderDesignerPNG(data, in.Theme, in.Layout)
 	if err != nil {
@@ -228,4 +242,34 @@ func renderDesignerPNG(data printReceiptData, theme, layout string) ([]byte, []r
 	}
 	out, err := encodeBilevelPNGLevel(img, png.BestSpeed)
 	return out, marks, err
+}
+
+// applyDesignerDeal takes a deal off the sample sale, as the till does an
+// invoice discount: a row of its own, the total and the cash paid lowered.
+func applyDesignerDeal(data *printReceiptData, d DesignerDeal) {
+	total := data.GrandTotalCents
+	var cents int64
+	if d.Kind == "amount" {
+		cents = d.Amount
+	} else {
+		cents = (total*d.Percent + 50) / 100
+	}
+	cents = min(max(cents, 0), total)
+	if cents == 0 {
+		return
+	}
+	data.InvoiceDiscount = invoiceDiscount{Name: d.Name, Cents: cents}
+	data.GrandTotalCents = total - cents
+	var change int64
+	for _, p := range data.Payments {
+		if p.EntryType == "change" {
+			change += -p.AmountCents
+		}
+	}
+	for i, p := range data.Payments {
+		if p.EntryType != "change" {
+			data.Payments[i].AmountCents = data.GrandTotalCents + change
+			break
+		}
+	}
 }

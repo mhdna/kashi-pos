@@ -305,3 +305,73 @@ func TestDesignerColumnTitles(t *testing.T) {
 		}
 	}
 }
+
+// The reported case: a sale with a deal shows its line, so the designer can
+// see and change how each deal reads.
+func TestDesignerDealPreview(t *testing.T) {
+	var drawn []string
+	saved := receiptTextDrawn
+	receiptTextDrawn = func(v string, _ int) { drawn = append(drawn, v) }
+	defer func() { receiptTextDrawn = saved }()
+
+	plain, err := RenderDesignerPreview(DesignerInput{Mode: receiptModeClient})
+	if err != nil {
+		t.Fatal(err)
+	}
+	drawn = nil
+	students, err := RenderDesignerPreview(DesignerInput{Mode: receiptModeClient, Deal: &DesignerDeal{Name: "Students 15%", Kind: "percent", Percent: 15}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The sample is $240.80; 15% is $36.12 off, $204.68 to pay.
+	for _, want := range []string{"Students 15%", "-$36.12", "$204.68"} {
+		if !drewText(drawn, want) {
+			t.Fatalf("%q not drawn: %q", want, drawn)
+		}
+	}
+	if students.Height <= plain.Height {
+		t.Fatal("the deal's line takes no room")
+	}
+	found := false
+	for _, l := range students.Lines {
+		found = found || (l.Key == "invoice_discount" && l.Text == "Students 15%" && l.Left > 0)
+	}
+	if !found {
+		t.Fatalf("the deal's line can't be clicked: %+v", students.Lines)
+	}
+
+	drawn = nil
+	_, err = RenderDesignerPreview(DesignerInput{Mode: receiptModeClient, Deal: &DesignerDeal{Name: "Staff", Kind: "amount", Amount: 500},
+		Texts: `{"elements":{"invoice_discount":{"text":"Deal: {name}","case":"upper"}}}`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !drewText(drawn, "DEAL: STAFF") || !drewText(drawn, "-$5.00") || !drewText(drawn, "$235.80") {
+		t.Fatalf("an amount deal with its own words: %q", drawn)
+	}
+	// The text receipt says the same.
+	data := receiptPreviewData(designBase(), receiptModeClient)
+	applyDesignerDeal(&data, DesignerDeal{Name: "Students 15%", Kind: "percent", Percent: 15})
+	data.Texts = receiptTexts{Elements: map[string]receiptElement{"invoice_discount": {Text: "Saved with {name}"}}}
+	if out := string(buildESCPosReceipt(data)); !strings.Contains(out, "Saved with Students 15%") {
+		t.Fatalf("text receipt: %s", out)
+	}
+	// Paid in cash with $5 back, as before the deal.
+	var paid, change int64
+	for _, p := range data.Payments {
+		if p.EntryType == "change" {
+			change += p.AmountCents
+		} else {
+			paid += p.AmountCents
+		}
+	}
+	if paid+change != data.GrandTotalCents || change != -500 {
+		t.Fatalf("payments %d %d for %d", paid, change, data.GrandTotalCents)
+	}
+	// A deal bigger than the sale takes it to nothing, never below.
+	data = receiptPreviewData(designBase(), receiptModeClient)
+	applyDesignerDeal(&data, DesignerDeal{Name: "Huge", Kind: "amount", Amount: 99999999})
+	if data.GrandTotalCents != 0 || data.InvoiceDiscount.Cents != 24080 {
+		t.Fatalf("huge deal: %d %+v", data.GrandTotalCents, data.InvoiceDiscount)
+	}
+}

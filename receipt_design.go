@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -109,6 +110,7 @@ var receiptElements = []receiptElementInfo{
 	{Key: "items_count", Group: "totals", Label: "Items count", Default: "Items", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "you_saved", Group: "totals", Label: "You saved", Default: "You saved", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "total", Group: "totals", Label: "Total", Default: "TOTAL", Can: canText | canCase},
+	{Key: "invoice_discount", Group: "totals", Label: "Deal on the invoice", Default: "{name}", Can: canText | canCase | canSize | canBold},
 	{Key: "equivalent", Group: "totals", Label: "Other currency total", Default: "{currency} equivalent", Can: canText | canCase | canSize | canBold | canHide},
 
 	{Key: "payments_title", Group: "payments", Label: "Title", Default: defaultPaymentsTitle, Can: canAll},
@@ -200,8 +202,28 @@ func (t receiptTexts) element(key string) receiptElement {
 	return e
 }
 
-// applyReceiptCase writes s in the element's capitals.
+// receiptPlaceholder is a word the till fills in ({name}, {percent},
+// {currency}); capitals never touch it, so it is still found and filled.
+var receiptPlaceholder = regexp.MustCompile(`\{[a-z]+\}`)
+
+// applyReceiptCase writes s in the element's capitals, its placeholders as
+// they are.
 func applyReceiptCase(s, c string) string {
+	if c == "" {
+		return s
+	}
+	var b strings.Builder
+	last := 0
+	for _, loc := range receiptPlaceholder.FindAllStringIndex(s, -1) {
+		b.WriteString(applyCaseRun(s[last:loc[0]], c))
+		b.WriteString(s[loc[0]:loc[1]])
+		last = loc[1]
+	}
+	b.WriteString(applyCaseRun(s[last:], c))
+	return b.String()
+}
+
+func applyCaseRun(s, c string) string {
 	switch c {
 	case "upper":
 		return strings.ToUpper(s)
@@ -618,4 +640,12 @@ func (c *receiptCanvas) markPendingWord(value string, x, top, bottom int, size f
 		}
 		return
 	}
+}
+
+// invoiceDiscountWords is the deal's line label in the branch's words;
+// {name} is the deal's own name ("Students 15%").
+func (t receiptTexts) invoiceDiscountWords(d invoiceDiscount) string {
+	e := t.element("invoice_discount")
+	text := strings.ReplaceAll(orDefault(e.Text, "{name}"), "{name}", invoiceDiscountLabel(d))
+	return applyReceiptCase(text, e.Case)
 }
