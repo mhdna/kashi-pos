@@ -375,3 +375,42 @@ func TestDesignerDealPreview(t *testing.T) {
 		t.Fatalf("huge deal: %d %+v", data.GrandTotalCents, data.InvoiceDiscount)
 	}
 }
+
+// The reported case: deals like buy 2 get 1 have a view, and the free unit's
+// tag can be reworded or left off; untouched it is the till's own.
+func TestDesignerItemDeal(t *testing.T) {
+	var drawn []string
+	saved := receiptTextDrawn
+	receiptTextDrawn = func(v string, _ int) { drawn = append(drawn, v) }
+	defer func() { receiptTextDrawn = saved }()
+	render := func(texts string) []string {
+		drawn = nil
+		if _, err := RenderDesignerPreview(DesignerInput{Mode: receiptModeItemDeal, Texts: texts}); err != nil {
+			t.Fatal(err)
+		}
+		return drawn
+	}
+	plain := render("")
+	if !drewText(plain, "(FREE)") || !drewText(plain, "$85.00") {
+		t.Fatalf("buy 2 get 1: %q", plain)
+	}
+	own := render(`{"elements":{"deal_free":{"text":"free gift","case":"upper"}}}`)
+	if !drewText(own, "FREE GIFT") || drewText(own, "(FREE)") {
+		t.Fatalf("own tag: %q", own)
+	}
+	off := render(`{"elements":{"deal_free":{"hide":true}}}`)
+	if drewText(off, "FREE") {
+		t.Fatalf("hidden tag printed: %q", off)
+	}
+	// The text receipt follows, and an item that isn't free keeps its name.
+	data := receiptPreviewData(designBase(), receiptModeItemDeal)
+	data.Texts = receiptTexts{Elements: map[string]receiptElement{"deal_free": {Text: "on us"}}}
+	out := string(buildESCPosReceipt(data))
+	if !strings.Contains(out, "Blue Linen Shirt on us") || strings.Contains(out, "(FREE)") {
+		t.Fatalf("text receipt: %s", out)
+	}
+	items := itemsWithFreeTag(receiptTexts{Elements: map[string]receiptElement{"deal_free": {Text: "x"}}}, []invoiceItem{{Name: "Hat (FREE)"}, {Name: "Cap (FREE)", Free: true}})
+	if items[0].Name != "Hat (FREE)" || items[1].Name != "Cap x" {
+		t.Fatalf("names %q %q", items[0].Name, items[1].Name)
+	}
+}

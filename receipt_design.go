@@ -97,6 +97,7 @@ var receiptElements = []receiptElementInfo{
 	{Key: "meta_date", Group: "meta", Label: "Date", Default: "Date", Can: canText | canCase | canSize | canBold | canHide},
 	{Key: "note_label", Group: "meta", Label: "Note", Default: "Note", Can: canText | canCase},
 
+	{Key: "deal_free", Group: "columns", Label: "Free item tag", Default: "(FREE)", Can: canText | canCase | canHide},
 	{Key: "col_item", Group: "columns", Label: "Item", Default: "ITEM", Can: canText | canCase},
 	{Key: "col_qty", Group: "columns", Label: "Quantity", Default: "QTY", Can: canText | canCase},
 	{Key: "col_disc", Group: "columns", Label: "Discount", Default: "DISC", Can: canText | canCase},
@@ -648,4 +649,32 @@ func (t receiptTexts) invoiceDiscountWords(d invoiceDiscount) string {
 	e := t.element("invoice_discount")
 	text := strings.ReplaceAll(orDefault(e.Text, "{name}"), "{name}", invoiceDiscountLabel(d))
 	return applyReceiptCase(text, e.Case)
+}
+
+// freeTag is the words after a unit a deal gave free ("Shirt (FREE)"): the
+// till names it so, and the branch can reword the tag or leave it off.
+const freeTag = " (FREE)"
+
+// itemsWithFreeTag is the items as they print: a free unit's tag in the
+// branch's words. Untouched, it is exactly the till's own name.
+func (c *receiptCanvas) itemsWithFreeTag(items []invoiceItem) []invoiceItem {
+	return itemsWithFreeTag(c.data.Texts, items)
+}
+
+func itemsWithFreeTag(t receiptTexts, items []invoiceItem) []invoiceItem {
+	e := t.element("deal_free")
+	if e.Text == "" && e.Case == "" && !e.Hide {
+		return items
+	}
+	out := make([]invoiceItem, len(items))
+	for i, item := range items {
+		if item.Free && strings.HasSuffix(item.Name, freeTag) {
+			item.Name = strings.TrimSuffix(item.Name, freeTag)
+			if !e.Hide {
+				item.Name += " " + t.word("deal_free", "(FREE)")
+			}
+		}
+		out[i] = item
+	}
+	return out
 }

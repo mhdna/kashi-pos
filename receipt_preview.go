@@ -76,6 +76,9 @@ const (
 	receiptModeClient   = "client"
 	receiptModeExchange = "exchange"
 	receiptModeReturn   = "return"
+	// receiptModeItemDeal is a sale with a deal on its items (buy 2 get 1),
+	// for the designer only: the shipped pictures keep the five above.
+	receiptModeItemDeal = "item_deal"
 )
 
 var receiptPreviewModes = []string{receiptModeSale, receiptModeReferral, receiptModeClient, receiptModeExchange, receiptModeReturn}
@@ -98,6 +101,19 @@ func receiptPreviewData(base printReceiptData, mode string) printReceiptData {
 		data.ReferralNote = data.Texts.referralNote(sampleReferralPercent)
 	case receiptModeClient:
 		data.Customer = "Maya Haddad"
+	case receiptModeItemDeal:
+		// Buy 2 get 1 on the shirts: the third comes free.
+		data.Customer = "Maya Haddad"
+		data.Items = []invoiceItem{
+			{Name: "Blue Linen Shirt", Code: "SH-1042", Color: "Navy", Size: "M", Price: 20, Qty: 2, Deal: "Buy 2 get 1"},
+			{Name: "Blue Linen Shirt" + freeTag, Code: "SH-1042", Color: "Navy", Size: "M", Price: 20, Qty: 1, Deal: "Buy 2 get 1", Free: true, Discount: 100, DealDiscount: 20},
+			{Name: "Black Slim Fit Stretch Jeans", Code: "JN-220", Color: "Black", Size: "32", Price: 45, Qty: 1},
+		}
+		data.GrandTotalCents = 4000 + 4500
+		data.Payments = []receiptPayment{
+			{AccountName: "Cash", CurrencyCode: "USD", AmountCents: data.GrandTotalCents + 500, EntryType: "payment"},
+			{AccountName: "Cash", CurrencyCode: "USD", AmountCents: -500, EntryType: "change"},
+		}
 	case receiptModeExchange:
 		// The shirt goes back, the jeans come home instead.
 		data.Customer = "Maya Haddad"

@@ -65,7 +65,7 @@ func buildESCPosReceipt(data printReceiptData) []byte {
 	out.WriteString(separator + "\n")
 
 	var subtotal, totalDiscount float64
-	for _, item := range data.Items {
+	for _, item := range itemsWithFreeTag(data.Texts, data.Items) {
 		gross, discount, lineTotal := itemAmounts(item)
 		subtotal += gross
 		totalDiscount += discount
