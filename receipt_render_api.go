@@ -146,7 +146,12 @@ func designerLines(marks []receiptMark) []DesignerLine {
 		if !ok || info.Can&canText == 0 {
 			continue
 		}
-		out = append(out, DesignerLine{Key: m.Part, Group: info.Group, Top: m.Top, Bottom: m.Bottom, Text: m.Text, SizePx: m.SizePx, Align: aligns[m.Left]})
+		text := m.Text
+		if m.Part == "referral_title" {
+			// The title's words, without the sample code printed after them.
+			text = strings.TrimSuffix(text, " "+sampleReferralCode)
+		}
+		out = append(out, DesignerLine{Key: m.Part, Group: info.Group, Top: m.Top, Bottom: m.Bottom, Text: text, SizePx: m.SizePx, Align: aligns[m.Left]})
 	}
 	return out
 }

@@ -162,6 +162,9 @@ func TestDesignerLines(t *testing.T) {
 			t.Fatalf("%s not listed", key)
 		}
 	}
+	if byKey["referral_title"].Text != defaultReferralTitle {
+		t.Fatalf("the referral title's words carry the code: %q", byKey["referral_title"].Text)
+	}
 	if byKey["received"].Text != "Paid" || byKey["store_name"].Text != "Bazaar" || byKey["received"].Align != "left" || byKey["thanks"].Align != "center" {
 		t.Fatalf("lines: %+v %+v %+v", byKey["received"], byKey["store_name"], byKey["thanks"])
 	}
