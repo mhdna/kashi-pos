@@ -80,6 +80,7 @@ func TestGenerateReceiptPreviews(t *testing.T) {
 			"sections":         receiptSections,
 			"max_length":       receiptTextMaxLen,
 			"referral_percent": sampleReferralPercent,
+			"referral_code":    sampleReferralCode,
 		},
 	}, "", "  ")
 	if err != nil {

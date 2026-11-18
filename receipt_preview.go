@@ -80,8 +80,11 @@ const (
 
 var receiptPreviewModes = []string{receiptModeSale, receiptModeReferral, receiptModeClient, receiptModeExchange, receiptModeReturn}
 
-// sampleReferralPercent is the reward the referral sample prints.
-const sampleReferralPercent = 15
+// The referral sample's reward and code.
+const (
+	sampleReferralPercent = 15
+	sampleReferralCode    = "K7M4QH"
+)
 
 // receiptPreviewData is the sample receipt in one mode: a plain sale, a sale
 // to a client (with their referral code when referrals are on), an exchange
@@ -91,7 +94,7 @@ func receiptPreviewData(base printReceiptData, mode string) printReceiptData {
 	switch mode {
 	case receiptModeReferral:
 		data.Customer = "Maya Haddad"
-		data.ReferralCode = "K7M4QH"
+		data.ReferralCode = sampleReferralCode
 		data.ReferralNote = data.Texts.referralNote(sampleReferralPercent)
 	case receiptModeClient:
 		data.Customer = "Maya Haddad"
