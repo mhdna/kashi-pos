@@ -13,83 +13,93 @@
       <k-icon icon="mdi-gift-outline" size="20" class="flex-shrink-0" />
       <span v-if="activeCount > 0" class="rewards-badge" data-test="rewards-badge">{{ activeCount }}</span>
     </k-btn>
-    <k-dialog v-model="dialog" max-width="620">
+    <k-dialog v-model="dialog" max-width="780">
       <k-card>
         <k-card-title>Rewards</k-card-title>
         <k-card-text class="rewards-body">
-          <section v-if="pickable.length" data-test="rewards-pickable">
-            <div class="rewards-heading">For this sale</div>
-            <div
+          <div class="rewards-grid">
+            <button
               v-for="d in pickable"
               :key="d.uid"
-              class="rewards-row"
+              type="button"
+              role="switch"
+              class="reward-card reward-card--pick"
+              :class="{ 'reward-card--on': picked.includes(d.uid) }"
+              :aria-checked="picked.includes(d.uid)"
+              :aria-label="d.name"
               :data-test="`deal-${d.uid}`"
+              @click="togglePick(d.uid, !picked.includes(d.uid))"
             >
-              <div class="rewards-row-text">
-                <div class="rewards-name">{{ d.name }}</div>
-                <div class="rewards-terms">{{ dealTerms(d) }}</div>
-              </div>
-              <k-switch
-                color="primary"
-                hide-details
-                inset
-                :aria-label="d.name"
-                :data-test="`pick-${d.uid}`"
-                :model-value="picked.includes(d.uid)"
-                @update:model-value="(on: boolean) => togglePick(d.uid, on)"
-              />
-            </div>
-          </section>
-
-          <section v-if="referralEnabled" data-test="rewards-referral">
-            <div class="rewards-heading">Referral code</div>
-            <p class="rewards-explain">
-              A new customer can give the code of the client who sent them. That client gets
-              {{ rewardPercent }}% off their next visit.
-            </p>
-            <div v-if="modelValue" class="rewards-row" data-test="referral-current">
-              <div class="rewards-row-text">
-                <div class="rewards-name">{{ modelValue }}</div>
-                <div class="rewards-terms">{{ ownerName ? `Sent by ${ownerName}` : "Added to this sale" }}</div>
-              </div>
-              <k-btn variant="text" color="error" data-test="referral-remove" @click="removeCode">Remove</k-btn>
-            </div>
-            <template v-else>
-              <div class="d-flex align-center ga-2">
-                <k-text-field
-                  v-model="draft"
-                  class="flex-grow-1"
-                  hide-details
-                  placeholder="Code, like K7M4QH"
-                  variant="outlined"
-                  data-test="referral-input"
-                  @keydown.enter="check"
+              <span class="reward-top">
+                <span class="reward-size">{{ dealSize(d) }}</span>
+                <k-icon
+                  :icon="picked.includes(d.uid) ? 'mdi-check-circle' : 'mdi-circle-outline'"
+                  size="22"
+                  class="reward-state-icon"
+                  :data-test="`pick-${d.uid}`"
                 />
-                <k-btn color="primary" variant="elevated" :loading="checking" data-test="referral-add" @click="check">Add</k-btn>
-              </div>
-              <div v-if="message" class="rewards-message" :class="messageError ? 'text-error' : ''" data-test="referral-message">
-                {{ message }}
-              </div>
-              <InlineKeyboard v-model="draft" :max-length="12" class="mt-3" />
-            </template>
-          </section>
+              </span>
+              <span class="reward-name">{{ d.name }}</span>
+              <span class="reward-terms">{{ dealTerms(d) }}</span>
+              <span class="reward-foot">{{ picked.includes(d.uid) ? "On for this sale" : "Tap to turn on" }}</span>
+            </button>
 
-          <section v-if="automatic.length" data-test="rewards-automatic">
-            <div class="rewards-heading">Apply by themselves</div>
             <div
               v-for="d in automatic"
               :key="d.uid"
-              class="rewards-row"
+              class="reward-card reward-card--auto"
+              :class="{ 'reward-card--applied': d.name === appliedName }"
               :data-test="`auto-${d.uid}`"
             >
-              <div class="rewards-row-text">
-                <div class="rewards-name">{{ d.name }}</div>
-                <div class="rewards-terms">{{ dealTerms(d) }}</div>
-              </div>
-              <span v-if="d.name === appliedName" class="rewards-applied" data-test="auto-applied">On this sale</span>
+              <span class="reward-top">
+                <span class="reward-size">{{ dealSize(d) }}</span>
+                <k-icon icon="mdi-lock-outline" size="20" class="reward-lock" />
+              </span>
+              <span class="reward-name">{{ d.name }}</span>
+              <span class="reward-terms">{{ dealTerms(d) }}</span>
+              <span v-if="d.name === appliedName" class="reward-foot reward-foot--applied" data-test="auto-applied">On this sale</span>
+              <span v-else class="reward-foot">Applies by itself</span>
             </div>
-            <p class="rewards-note">Set in kashi; only kashi or an admin changes them.</p>
-          </section>
+
+            <div v-if="referralEnabled" class="reward-card reward-card--referral" data-test="rewards-referral">
+              <span class="reward-top">
+                <span class="reward-name">Referral code</span>
+                <k-icon icon="mdi-account-multiple" size="22" class="reward-lock" />
+              </span>
+              <span class="reward-terms">
+                A new customer can give the code of the client who sent them. That client gets
+                {{ rewardPercent }}% off their next visit.
+              </span>
+              <div v-if="modelValue" class="reward-referral-current" data-test="referral-current">
+                <div>
+                  <div class="reward-name">{{ modelValue }}</div>
+                  <div class="reward-terms">{{ ownerName ? `Sent by ${ownerName}` : "Added to this sale" }}</div>
+                </div>
+                <k-btn variant="text" color="error" data-test="referral-remove" @click="removeCode">Remove</k-btn>
+              </div>
+              <template v-else>
+                <div class="d-flex align-center ga-2 mt-2">
+                  <k-text-field
+                    v-model="draft"
+                    class="flex-grow-1"
+                    hide-details
+                    placeholder="Code, like K7M4QH"
+                    variant="outlined"
+                    data-test="referral-input"
+                    @keydown.enter="check"
+                  />
+                  <k-btn color="primary" variant="elevated" :loading="checking" data-test="referral-add" @click="check">Add</k-btn>
+                </div>
+                <div v-if="message" class="rewards-message" :class="messageError ? 'text-error' : ''" data-test="referral-message">
+                  {{ message }}
+                </div>
+                <InlineKeyboard v-model="draft" :max-length="12" class="mt-3" />
+              </template>
+            </div>
+          </div>
+          <p v-if="automatic.length" class="rewards-note" data-test="rewards-automatic">
+            The locked ones apply by themselves when the total is reached. Only kashi or an admin changes them.
+          </p>
         </k-card-text>
         <k-card-actions class="pa-4">
           <span v-if="appliedName" class="rewards-now" data-test="rewards-now">Now off this sale: {{ appliedName }}</span>
@@ -107,7 +117,7 @@ import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { CheckReferralCode, GetReferralInfo, ListRewardDeals } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { normalizeReferralCode, referralCodeHint } from "@/lib/referralCode";
-import { dealTerms, rewardsActiveCount, type RewardDeal } from "@/lib/rewards";
+import { dealSize, dealTerms, rewardsActiveCount, type RewardDeal } from "@/lib/rewards";
 
 // The sale's rewards: the deals the cashier picks (a student discount), the
 // referral code a new customer gives, and, for reference, the deals that
@@ -126,7 +136,8 @@ const serverError = ref("");
 const ownerName = ref("");
 
 const pickable = computed(() => deals.value.filter((d) => d.cashierPicks));
-const automatic = computed(() => deals.value.filter((d) => !d.cashierPicks));
+// Smallest minimum first: $50, $100, $150.
+const automatic = computed(() => deals.value.filter((d) => !d.cashierPicks).sort((a, b) => a.minTotal - b.minTotal));
 const visible = computed(() => referralEnabled.value || deals.value.length > 0);
 const activeCount = computed(() =>
   rewardsActiveCount(
@@ -264,50 +275,98 @@ defineExpose({ loadInfo });
 .rewards-body {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
 }
 
-.rewards-heading {
-  font-weight: 600;
-  margin-bottom: 8px;
+.rewards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
 }
 
-.rewards-row {
+.reward-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 2px solid rgba(var(--k-theme-on-surface), 0.12);
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  background: none;
+}
+
+.reward-card--pick {
+  cursor: pointer;
+}
+
+.reward-card--pick:active {
+  transform: scale(0.98);
+}
+
+.reward-card--on {
+  border-color: rgb(245, 127, 23);
+}
+
+.reward-card--on .reward-state-icon,
+.reward-card--on .reward-foot {
+  color: rgb(245, 127, 23);
+}
+
+.reward-card--applied {
+  border-color: rgb(46, 125, 50);
+}
+
+.reward-card--referral {
+  grid-column: 1 / -1;
+}
+
+.reward-top {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-  border-top: 1px solid rgba(var(--k-theme-on-surface), 0.1);
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.rewards-row-text {
-  flex: 1 1 auto;
-  min-width: 0;
+.reward-size {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
-.rewards-name {
-  font-weight: 500;
+.reward-state-icon,
+.reward-lock {
+  color: rgba(var(--k-theme-on-surface), 0.45);
 }
 
-.rewards-terms,
-.rewards-note,
-.rewards-explain {
+.reward-name {
+  font-weight: 600;
+}
+
+.reward-terms,
+.rewards-note {
   font-size: 0.9rem;
   color: rgba(var(--k-theme-on-surface), 0.65);
 }
 
-.rewards-explain {
-  margin-bottom: 12px;
-}
-
-.rewards-note {
+.reward-foot {
   margin-top: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(var(--k-theme-on-surface), 0.55);
 }
 
-.rewards-applied,
+.reward-foot--applied,
 .rewards-now {
   font-weight: 600;
   color: rgb(46, 125, 50);
+}
+
+.reward-referral-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
 }
 
 .rewards-message {

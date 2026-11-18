@@ -16,6 +16,11 @@ function dollars(cents: number): string {
   return Number.isInteger(v) ? `$${v}` : `$${v.toFixed(2)}`;
 }
 
+// dealSize is the deal's headline: "15%" or "$5".
+export function dealSize(d: RewardDeal): string {
+  return d.kind === "amount" ? dollars(d.amount) : `${d.percent}%`;
+}
+
 // dealTerms is what a deal takes off and when: "15% off the whole invoice",
 // "$5 off invoices of $100 or more".
 export function dealTerms(d: RewardDeal): string {

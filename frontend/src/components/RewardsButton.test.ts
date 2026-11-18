@@ -91,10 +91,15 @@ describe("RewardsButton", () => {
     expect(find("deal-students")?.textContent).toContain("15% off the whole invoice");
     expect(find("deal-staff")?.textContent).toContain("$5 off the whole invoice");
     expect(find("rewards-referral")).not.toBeNull();
-    // The automatic deal is there for reference: no switch.
+    // Each deal is a card with its size up top; the automatic one is there
+    // for reference: no switch, nothing to tap.
+    expect(find("deal-students")?.textContent).toContain("15%");
+    expect(find("deal-staff")?.textContent).toContain("$5");
     expect(find("auto-auto")?.textContent).toContain("15% off invoices of $100 or more");
-    expect(find("auto-auto")?.querySelector("input")).toBeNull();
-    expect(find("rewards-automatic")?.textContent).toContain("only kashi or an admin changes them");
+    expect(find("auto-auto")?.textContent).toContain("Applies by itself");
+    expect(find("auto-auto")?.tagName).not.toBe("BUTTON");
+    expect(find("auto-auto")?.querySelector("input, button")).toBeNull();
+    expect(find("rewards-automatic")?.textContent).toContain("Only kashi or an admin changes them");
     expect(document.body.textContent).not.toMatch(/[–—·•]/);
   });
 
@@ -102,13 +107,17 @@ describe("RewardsButton", () => {
     const w = await mountButton();
     expect(find("rewards-badge")).toBeNull();
     await openDialog();
-    const sw = find("pick-students")!.querySelector("input") as HTMLInputElement;
-    sw.click();
+    expect(find("deal-students")?.getAttribute("aria-checked")).toBe("false");
+    expect(find("deal-students")?.textContent).toContain("Tap to turn on");
+    find("deal-students")!.click();
     await flushPromises();
     expect(w.emitted("update:picked")?.at(-1)).toEqual([["students"]]);
     expect(find("rewards-badge")?.textContent).toBe("1");
     expect(find("rewards-open")!.className).toContain("rewards-on");
-    (find("pick-students")!.querySelector("input") as HTMLInputElement).click();
+    expect(find("deal-students")?.getAttribute("aria-checked")).toBe("true");
+    expect(find("deal-students")?.className).toContain("reward-card--on");
+    expect(find("deal-students")?.textContent).toContain("On for this sale");
+    find("deal-students")!.click();
     await flushPromises();
     expect(w.emitted("update:picked")?.at(-1)).toEqual([[]]);
   });
@@ -121,6 +130,7 @@ describe("RewardsButton", () => {
     expect(find("rewards-badge")?.textContent).toBe("1");
     await openDialog();
     expect(find("auto-applied")?.textContent).toBe("On this sale");
+    expect(find("auto-auto")?.className).toContain("reward-card--applied");
     expect(find("rewards-now")?.textContent).toContain("15% off $100");
   });
 
@@ -196,5 +206,23 @@ describe("RewardsButton", () => {
     const w = await mountButton({ modelValue: "K7M4QH" });
     await w.setProps({ clientId: 9 });
     expect(w.emitted("update:modelValue")?.at(-1)).toEqual([""]);
+  });
+});
+
+describe("RewardsButton cards, the reported set", () => {
+  it("shows the student discount to pick and the $50, $100 and $150 tiers in order", async () => {
+    listDeals.mockResolvedValue([
+      { uid: "s", name: "Students 15%", kind: "percent", percent: 15, amount: 0, minTotal: 0, cashierPicks: true },
+      { uid: "t150", name: "20% above $150", kind: "percent", percent: 20, amount: 0, minTotal: 15000, cashierPicks: false },
+      { uid: "t50", name: "10% above $50", kind: "percent", percent: 10, amount: 0, minTotal: 5000, cashierPicks: false },
+      { uid: "t100", name: "15% above $100", kind: "percent", percent: 15, amount: 0, minTotal: 10000, cashierPicks: false },
+    ] as never);
+    await mountButton({ appliedName: "15% above $100" });
+    await openDialog();
+    const cards = [...document.body.querySelectorAll(".reward-card")].map((c) => c.getAttribute("data-test"));
+    expect(cards).toEqual(["deal-s", "auto-t50", "auto-t100", "auto-t150", "rewards-referral"]);
+    expect(find("auto-t100")?.className).toContain("reward-card--applied");
+    expect(find("auto-t50")?.className).not.toContain("reward-card--applied");
+    expect(find("auto-t150")?.textContent).toContain("20% off invoices of $150 or more");
   });
 });
