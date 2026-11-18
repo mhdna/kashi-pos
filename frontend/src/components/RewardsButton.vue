@@ -55,7 +55,7 @@
             >
               <span class="reward-top">
                 <span class="reward-line" data-test="referral-foot">{{ modelValue || "Referral code" }}</span>
-                <k-icon :icon="modelValue ? 'mdi-check-circle' : 'mdi-account-multiple'" size="22" class="reward-state-icon" />
+                <k-icon v-if="modelValue" icon="mdi-check-circle" size="22" class="reward-state-icon" data-test="referral-tick" />
               </span>
               <span class="reward-size">{{ rewardPercent }}%</span>
             </button>

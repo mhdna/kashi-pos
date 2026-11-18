@@ -109,6 +109,7 @@ describe("RewardsButton", () => {
     expect(find("rewards-referral")?.classList.contains("reward-card")).toBe(true);
     expect(find("rewards-referral")?.textContent).toContain("Referral code");
     expect(find("referral-input")).toBeNull();
+    expect(find("rewards-referral")?.querySelector("svg, .k-icon")).toBeNull();
     expect(find("rewards-automatic")?.textContent).toBe("Locked");
     expect(document.body.textContent).not.toMatch(/[–—·•]/);
   });
@@ -202,6 +203,7 @@ describe("RewardsButton", () => {
     expect(find("referral-input")).toBeNull();
     expect(find("referral-foot")?.textContent).toBe("K7M4QH");
     expect(find("rewards-referral")?.className).toContain("reward-card--on");
+    expect(find("referral-tick")).not.toBeNull();
     find("rewards-referral")!.click();
     await flushPromises();
     expect(find("referral-current")?.textContent).toContain("Sent by Rami");
