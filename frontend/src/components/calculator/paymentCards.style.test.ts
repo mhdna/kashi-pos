@@ -11,3 +11,18 @@ describe("calculator payment cards", () => {
     });
   }
 });
+
+// Every card is the same height, whatever is beside it: a card that comes or
+// goes never resizes the others.
+describe("calculator cards keep one height", () => {
+  it("payment method cards are fixed at 62px", () => {
+    const src = readFileSync(resolve(__dirname, "CalculatorPaymentMethods.vue"), "utf8");
+    expect(src).toMatch(/\.calculator-type-card \{[^}]*height: 62px;[^}]*min-height: 62px;[^}]*max-height: 62px;/);
+  });
+  it("On Account and Coupon are the same, their names on one line", () => {
+    const src = readFileSync(resolve(__dirname, "../Calculator.vue"), "utf8");
+    expect(src).toMatch(/\.calculator-action-cards \{[^}]*grid-auto-rows: 62px;/);
+    expect(src).toMatch(/\.calculator-action-cards > \.calculator-type-card \{[^}]*height: 62px;[^}]*max-height: 62px;/);
+    expect(src).toMatch(/\.calculator-action-cards \.payment-method-name \{[^}]*white-space: nowrap;/);
+  });
+});

@@ -64,6 +64,8 @@ defineEmits<{ select: [methodName: string] }>();
   border-top: 10px solid var(--payment-accent);
   border-radius: 0;
   height: 62px;
+  min-height: 62px;
+  max-height: 62px;
   display: flex;
   align-items: center;
   justify-content: center;

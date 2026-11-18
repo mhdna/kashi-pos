@@ -842,10 +842,23 @@ defineExpose({
   min-width: 0;
 }
 
+/* On Account and Coupon match the payment cards: the same fixed height, so
+   no card grows or shrinks when another comes or goes. */
 .calculator-action-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 62px;
   gap: 8px;
+}
+.calculator-action-cards > .calculator-type-card {
+  height: 62px;
+  min-height: 62px;
+  max-height: 62px;
+}
+.calculator-action-cards .payment-method-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .calculator-type-card {
   cursor: pointer;

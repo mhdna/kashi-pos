@@ -3,6 +3,14 @@
 One entry per bug fixed in kashi-pos, newest first: what went wrong, why,
 and what changed. Add an entry in the same change as the fix (see AGENTS.md).
 
+## 2026-11-18: The calculator's cards changed height when one went away
+
+**Symptom:** the payment method cards and the On Account and Coupon cards weren't the same height, and taking a payment method away made the others grow or shrink.
+
+**Cause:** the payment method cards had a fixed 62px height, but On Account and Coupon had none: they stretched with the space around them, and "On Account" wrapped onto two lines.
+
+**Fix:** On Account and Coupon take the same fixed 62px rows and keep their names on one line; the payment cards are pinned with a min and max height too (`frontend/src/components/Calculator.vue`, `frontend/src/components/calculator/CalculatorPaymentMethods.vue`). Tests: "calculator cards keep one height" in `paymentCards.style.test.ts` (happy-dom doesn't lay out, so they read the styles).
+
 ## 2026-11-18: The Referral button stayed hidden after central turned referrals on
 
 **Symptom:** after switching referrals on for a branch in kashi, the till's sale screen still had no Referral button, even once the till had the new rules. It only appeared after leaving the sale screen and coming back, or restarting the till.
