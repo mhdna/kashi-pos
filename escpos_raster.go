@@ -202,6 +202,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	y = c.decorEnd("header", y, headerBox, true)
 	c.markGroup("header", headerTop, y)
 	y = c.divider("header", y) + c.gap(10)
+	y = c.drawBanners(y, "")
 	metaTop := y
 	y, metaBox := c.decorStart("meta", y)
 	y = c.drawMeta(y)
@@ -285,6 +286,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 			return 0, err
 		}
 	}
+	y = c.drawBanners(y, "bottom")
 	// Printer barcode temporarily disabled.
 	// y = c.barcode(y, c.data.ReceiptNo) + 24
 	y += 24

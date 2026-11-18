@@ -318,6 +318,14 @@ sell at their typed price and show no chip. The cart sends the line's
   solid or double, 1 to 4 thick, square or rounded (`decor`,
   `receipt_decor.go`). The parts under the totals print in `order`. Nothing set
   is the look exactly as before.
+- ==Banners== (`banners`, `receipt_banner.go`, up to 4) are display lettering
+  the till draws in black and white so they print crisp: ribbon, burst, stamp,
+  frame, ornament or stars, a title and a line under it, in the looks' own
+  fonts, shrunk to fit the paper. `when` is empty (always), `item_deal` (a line
+  has a buy X get Y deal), `deal` (a deal on the invoice) or `deal:<name>` (that
+  deal, on the invoice or a line); `place` is under the shop's name or
+  `bottom`. `receiptBannerPresets` are the designer's ready-made ones, and
+  `RenderBannerPreview` draws one alone for its gallery.
 - The renderer builds on its own (`scripts/receipt-render-files.txt`,
   `TestReceiptRendererBuildsAlone`): central copies it to draw the designer's
   live receipt with the same code.

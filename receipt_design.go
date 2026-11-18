@@ -477,7 +477,7 @@ func (c *receiptCanvas) gridMidHeader(cfg gridConfig) string {
 // words (a long one wraps) and lines made bigger. An over-estimate, since
 // the canvas is cut to what was drawn.
 func (t receiptTexts) extraHeight() int {
-	extra := 0
+	extra := 320 * len(t.Banners)
 	for _, e := range t.Elements {
 		grow := 1.0
 		if e.Size > 0 {
