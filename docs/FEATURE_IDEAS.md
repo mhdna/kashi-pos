@@ -4,6 +4,8 @@ Things to maybe build later. Not built unless asked.
 
 ## Ideas
 
+- Smarter catch-up: pull first the products and clients something on the till depends on (recent invoices, held sales, quick access, rewards' owners), then the rest in the background, so a big central change never holds up the till (2026-11-18).
+
 - Sync central's colour hex values to the till, so variant swatches use the colours set in central instead of reading the colour name (2026-11-07).
 - Use the new colour/size picker (`VariantPicker`) for a scanned code shared by several variants too, instead of the plain list in `home.vue` (2026-11-07).
 - Fetch the thumbnails of recent expenses, loans and transfers into the photo cache in the background, so even a first look at a page is instant (2026-11-10).

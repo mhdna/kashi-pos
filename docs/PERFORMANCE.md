@@ -5,9 +5,21 @@ Speed and size work, newest first (see the global rules). Each entry: **Symptom*
 
 ## Known slow spots
 
-Measured or reported slow things that are not fixed yet. Nothing recorded yet.
+Measured or reported slow things that are not fixed yet.
+
+- **A catch-up of every client takes minutes.** After central changed all ~130,000 clients at once (the referral codes migration), a till pulled them again page by page, "Clients 6/23, 1500 changes" for a long time. The settings now come first (entry below); the clients themselves are still one long pull.
 
 ## Entries
+
+### 2026-11-18: Settings waited behind a long clients pull
+
+**Symptom.** Referrals switched on in kashi didn't reach the till for minutes: the till was busy re-pulling every client, and the referral rules came after clients in the pull.
+
+**Finding.** Not timed; read from the pull order (`pullEntities`) and the till's `referral_program` cursor, which stayed at the time before the switch while "Clients" kept paging. Every entity is pulled in list order in one pass.
+
+**Change.** The small settings that need nothing else (branches, salespersons, users, invoice discounts, calendar settings, referral rules, categories, coupon types) are pulled first, before products and clients; what refers to products or clients stays after them (`sync_pull.go`, `TestPullOrder` in `sync_pull_order_test.go`).
+
+**Not done.** Pulling only the products and clients the till needs first (those on recent invoices, held sales, quick access) and the rest later; noted in `docs/FEATURE_IDEAS.md`.
 
 ### 2026-11-16 · Query planner stats were frozen from when the tables were empty
 

@@ -672,10 +672,23 @@ func applySyncedProductAttributes(ctx context.Context, q *db.Queries, productID 
 	return nil
 }
 
-// pullEntities lists what gets pulled from central on each tick. Adding a
-// new pulled entity is: extend this list, add its synced* struct and
+// pullEntities lists what gets pulled from central on each tick, in order.
+// Adding a new pulled entity is: extend this list, add its synced* struct and
 // apply* function above.
-var pullEntities = []string{"currencies", "cashbox_accounts", "products", "price_lists", "discount_lists", "clients", "branch_targets", "salespersons", "branch_users", "expense_categories", "loan_categories", "coupon_types", "coupons", "branches", "transfer_requests", "incoming_transfer_requests", "branch_stock", "quick_access", "invoice_discounts", "calendar_events", "calendar_settings", "referral_program", "referral_rewards"}
+//
+// The small settings that need nothing else come first, so a change central
+// makes to them (referrals switched on, a new invoice discount) reaches the
+// till in seconds even while a long catch-up of products or clients runs
+// (one that touched every client took minutes). What refers to products or
+// clients comes after them.
+var pullEntities = []string{
+	"currencies", "cashbox_accounts", "branches", "salespersons", "branch_users",
+	"invoice_discounts", "calendar_settings", "referral_program",
+	"expense_categories", "loan_categories", "coupon_types",
+	"products", "price_lists", "discount_lists", "quick_access", "branch_stock",
+	"clients", "referral_rewards", "coupons", "branch_targets",
+	"transfer_requests", "incoming_transfer_requests", "calendar_events",
+}
 
 // runSyncPullOnce catches this branch up on every entity in pullEntities,
 // one at a time. Each entity's cursor advances independently — a decode
