@@ -110,7 +110,10 @@ describe("RewardsButton", () => {
     expect(find("rewards-referral")?.textContent).toContain("Referral code");
     expect(find("referral-input")).toBeNull();
     expect(find("rewards-referral")?.querySelector("svg, .k-icon")).toBeNull();
-    expect(find("rewards-automatic")?.textContent).toBe("Locked");
+    expect(find("rewards-automatic")).toBeNull();
+    expect(document.body.textContent).toContain("Choose");
+    expect(document.body.textContent).not.toContain("For this sale");
+    expect(document.body.textContent).not.toContain("Locked");
     expect(document.body.textContent).not.toMatch(/[–—·•]/);
   });
 

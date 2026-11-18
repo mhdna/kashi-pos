@@ -17,7 +17,7 @@
       <k-card>
         <k-card-title>Rewards</k-card-title>
         <k-card-text class="rewards-body">
-          <div v-if="pickable.length || referralEnabled" class="rewards-heading">For this sale</div>
+          <div v-if="pickable.length || referralEnabled" class="rewards-heading">Choose</div>
           <div v-if="pickable.length || referralEnabled" class="rewards-grid" data-test="rewards-pick-grid">
             <button
               v-for="d in pickable"
@@ -62,8 +62,7 @@
 
           </div>
 
-          <div v-if="automatic.length" class="rewards-heading" data-test="rewards-automatic">Locked</div>
-          <div v-if="automatic.length" class="rewards-grid" data-test="rewards-automatic-grid">
+          <div v-if="automatic.length" class="rewards-grid rewards-grid--locked" data-test="rewards-automatic-grid">
             <div
               v-for="d in automatic"
               :key="d.uid"
@@ -314,6 +313,11 @@ defineExpose({ loadInfo });
   font-size: 0.9rem;
   font-weight: 600;
   color: rgba(var(--k-theme-on-surface), 0.6);
+}
+
+/* The locked deals sit on their own row, set apart by space alone. */
+.rewards-grid--locked {
+  margin-top: 8px;
 }
 
 .rewards-grid {
