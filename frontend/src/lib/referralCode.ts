@@ -29,11 +29,17 @@ export function validReferralCode(code: string): boolean {
   return want !== "" && code[code.length - 1] === want;
 }
 
-/** What the dialog says under a code that can't be right yet, or "" when it can be checked. */
+/** What the code field keeps of what was typed: capitals and digits, never
+ *  more than a code's length. */
+export function referralCodeInput(typed: string): string {
+  return typed.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, referralCodeLength);
+}
+
+/** What the dialog says under a whole code that can't be right, or "". A code
+ *  still being typed says nothing. */
 export function referralCodeHint(typed: string): string {
   const code = normalizeReferralCode(typed);
-  if (code.length === 0) return "";
-  if (code.length < referralCodeLength) return `${referralCodeLength - code.length} more characters`;
+  if (code.length < referralCodeLength) return "";
   if (!validReferralCode(code)) return "This isn't a referral code. Check it for a typo";
   return "";
 }

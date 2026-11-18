@@ -177,6 +177,23 @@ describe("RewardsButton", () => {
     expect(listeners.size).toBe(0);
   });
 
+  it("the reported case: the field stops at a code's length, with no message while typing", async () => {
+    await mountButton();
+    await openCode();
+    await type("k7m");
+    expect(find("referral-message")).toBeNull();
+    expect((find("referral-add") as HTMLButtonElement).disabled).toBe(true);
+    await type("k7m-4qhxyz");
+    await flushPromises();
+    const input = (find("referral-input")?.querySelector("input") ?? find("referral-input")) as HTMLInputElement;
+    expect(input.value).toBe("K7M4QH");
+    expect((find("referral-add") as HTMLButtonElement).disabled).toBe(false);
+    // The keyboard has no dash or space: a code never has them.
+    const keys = [...document.body.querySelectorAll(".inline-keyboard button")].map((b) => b.textContent?.trim());
+    expect(keys).not.toContain("-");
+    expect(keys).not.toContain("Space");
+  });
+
   it("explains the reward and catches a typo without asking the backend", async () => {
     await mountButton();
     await openCode();

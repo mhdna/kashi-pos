@@ -115,12 +115,12 @@
                 data-test="referral-input"
                 @keydown.enter="check"
               />
-              <k-btn color="primary" variant="elevated" :loading="checking" data-test="referral-add" @click="check">Send reward</k-btn>
+              <k-btn color="primary" variant="elevated" :loading="checking" :disabled="draft.length < referralCodeLength" data-test="referral-add" @click="check">Send reward</k-btn>
             </div>
             <div v-if="message" class="rewards-message" :class="messageError ? 'text-error' : ''" data-test="referral-message">
               {{ message }}
             </div>
-            <InlineKeyboard v-model="draft" :max-length="12" layout="caps" class="mt-3" />
+            <InlineKeyboard v-model="draft" :max-length="referralCodeLength" layout="caps" class="mt-3" />
           </template>
         </k-card-text>
         <k-card-actions class="pa-4">
@@ -137,7 +137,7 @@ import { computed, onUnmounted, ref, watch } from "vue";
 import InlineKeyboard from "@/components/InlineKeyboard.vue";
 import { CheckReferralCode, GetReferralInfo, ListRewardDeals } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
-import { normalizeReferralCode, referralCodeHint } from "@/lib/referralCode";
+import { normalizeReferralCode, referralCodeHint, referralCodeInput, referralCodeLength } from "@/lib/referralCode";
 import { dealSize, dealTerms, dealTitle, dealWhen, rewardsActiveCount, type RewardDeal } from "@/lib/rewards";
 
 // The sale's rewards: the deals the cashier picks (a student discount), the
@@ -206,8 +206,11 @@ function togglePick(uid: string, on: boolean) {
 const hint = computed(() => referralCodeHint(draft.value));
 const message = computed(() => serverError.value || hint.value);
 const messageError = computed(() => Boolean(serverError.value) || /typo/.test(hint.value));
-watch(draft, () => {
+watch(draft, (value) => {
   serverError.value = "";
+  // Only what a code can hold: capitals and digits, up to its length.
+  const kept = referralCodeInput(value);
+  if (kept !== value) draft.value = kept;
 });
 
 // Whether a code counts depends on the customer: another one starts over.

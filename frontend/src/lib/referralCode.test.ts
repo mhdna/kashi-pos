@@ -3,7 +3,7 @@ import {
   normalizeReferralCode,
   referralAlphabet,
   referralCheckChar,
-  referralCodeHint,
+  referralCodeHint, referralCodeInput,
   referralCodeLength,
   validReferralCode,
 } from "./referralCode";
@@ -57,10 +57,18 @@ describe("referral codes", () => {
     expect(validReferralCode("K7M4QHA")).toBe(false);
   });
 
-  it("hints while typing and on a typo", () => {
+  it("says nothing while a code is being typed, only on a whole code with a typo", () => {
     expect(referralCodeHint("")).toBe("");
-    expect(referralCodeHint("k7m")).toBe("3 more characters");
+    expect(referralCodeHint("k7m")).toBe("");
     expect(referralCodeHint("K7M4QA")).toMatch(/typo/);
     expect(referralCodeHint("K7M4QH")).toBe("");
+  });
+
+  it("the field keeps only what a code can hold", () => {
+    expect(referralCodeInput("k7m4qh")).toBe("K7M4QH");
+    expect(referralCodeInput("K7M-4QH")).toBe("K7M4QH");
+    expect(referralCodeInput(" k7 m4 qh ")).toBe("K7M4QH");
+    expect(referralCodeInput("K7M4QHXYZ")).toBe("K7M4QH");
+    expect(referralCodeInput("é$%K")).toBe("K");
   });
 });

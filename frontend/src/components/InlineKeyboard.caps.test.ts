@@ -33,10 +33,22 @@ describe("InlineKeyboard caps", () => {
     for (const k of ["K", "7", "M", "4", "Q", "H"]) await key(w, k).trigger("click");
     expect(w.props("modelValue")).toBe("K7M4QH");
   });
+  it("has no dash or space, and stops at its length", async () => {
+    const w = keyboard("caps", "K7M4Q");
+    const all = w.findAll("button").map((b) => b.text().trim());
+    expect(all).not.toContain("-");
+    expect(all).not.toContain("Space");
+    await w.setProps({ maxLength: 6 });
+    await key(w, "H").trigger("click");
+    await key(w, "X").trigger("click");
+    expect(w.props("modelValue")).toBe("K7M4QH");
+  });
+
   it("the text keyboard is as it was", async () => {
     const w = keyboard("text");
     const labels = w.findAll(".inline-keyboard-key").map((k) => k.text().trim());
     expect(labels[0]).toBe("q");
+    expect(w.findAll("button").map((b) => b.text().trim())).toContain("Space");
     await key(w, "q").trigger("click");
     await key(w, "w").trigger("click");
     expect(w.props("modelValue")).toBe("Qw");

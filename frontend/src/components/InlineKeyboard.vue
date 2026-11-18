@@ -31,10 +31,12 @@
         <k-btn size="small" variant="text" @click="append('.')">.</k-btn>
         <k-btn size="small" variant="text" @click="append(',')">,</k-btn>
       </template>
-      <k-btn size="small" variant="text" @click="append('-')">-</k-btn>
-      <k-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
-        Space
-      </k-btn>
+      <template v-if="!caps">
+        <k-btn size="small" variant="text" @click="append('-')">-</k-btn>
+        <k-btn class="inline-keyboard-space" size="small" variant="tonal" @click="append(' ')">
+          Space
+        </k-btn>
+      </template>
       <k-btn class="inline-keyboard-clear" size="small" variant="text" @click="clear">C</k-btn>
       <k-btn class="inline-keyboard-backspace" size="small" variant="text" @click="backspace" aria-label="Backspace"><k-icon icon="mdi-backspace-outline" size="20" /></k-btn>
     </div>
