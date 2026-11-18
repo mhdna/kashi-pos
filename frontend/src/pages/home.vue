@@ -85,18 +85,6 @@
             @keydown.enter="onBarcodeEnter"
           />
           <k-btn
-            icon
-            class="ms-1 note-btn"
-            :class="{ 'note-has-content': invoiceNotes.trim().length > 0 }"
-            variant="text"
-            aria-label="Invoice note"
-            title="Invoice note"
-            data-test="note-open"
-            @click="openNoteDialog"
-          >
-            <k-icon :icon="invoiceNotes.trim() ? 'mdi-check-circle' : 'mdi-note-text-outline'" size="26" />
-          </k-btn>
-          <k-btn
             v-if="pageMode !== 'settlement'"
             icon
             class="ms-1"
@@ -127,7 +115,7 @@
             aria-label="Add an unknown item"
             @click="openUnknownPrice('')"
           >
-            <k-icon icon="mdi-help-box-outline" size="26" />
+            <k-icon icon="mdi-barcode-off" size="26" />
           </k-btn>
           <k-btn
             v-if="pageMode !== 'settlement' && productSearchEnabled"
@@ -308,6 +296,8 @@
           :can-checkout="canCheckout"
           :has-items="hasItems"
           :mode="pageMode"
+          :has-note="invoiceNotes.trim().length > 0"
+          @note="openNoteDialog"
           @checkout="onCheckout"
           @hold="onHold"
           @void="onVoid"
@@ -1976,11 +1966,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* A sale with a note: the note button turns orange with a tick. */
-.note-btn.note-has-content {
-  color: rgb(245, 127, 23);
-}
-
 .empty-cart-card {
   background-color: rgb(var(--k-theme-surface)) !important;
   border: 1px solid rgba(var(--k-border-color), var(--k-border-opacity));

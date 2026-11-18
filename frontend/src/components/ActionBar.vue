@@ -32,6 +32,26 @@
         rounded="lg"
         variant="text"
         color="grey-darken-2"
+        aria-label="Invoice note"
+        data-test="note-open"
+        @click="$emit('note')"
+      >
+        <div class="d-flex flex-column align-center">
+          <k-icon
+            :icon="hasNote ? 'mdi-check-circle' : 'mdi-note-text-outline'"
+            :color="hasNote ? 'green-darken-2' : undefined"
+            size="28"
+            class="mb-1"
+            data-test="note-icon"
+          />
+          Note
+        </div>
+      </k-btn>
+      <k-btn
+        height="96"
+        rounded="lg"
+        variant="text"
+        color="grey-darken-2"
         :disabled="!hasItems || mode === 'settlement'"
         @click="ask('hold')"
       >
@@ -92,13 +112,15 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 
-const emit = defineEmits<{ hold: []; void: []; cancelMode: []; checkout: [] }>();
+const emit = defineEmits<{ hold: []; void: []; cancelMode: []; checkout: []; note: [] }>();
 const props = defineProps<{
   total: number;
   totalSummary: { first: string; second: string };
   canCheckout: boolean;
   hasItems: boolean;
   mode?: "sale" | "exchange" | "settlement";
+  // The sale has a note: the Note button shows it.
+  hasNote?: boolean;
 }>();
 
 const mode = computed(() => props.mode ?? "sale");
