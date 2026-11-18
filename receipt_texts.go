@@ -45,6 +45,8 @@ type receiptTexts struct {
 	// Order is the order of the parts under the totals; missing ones keep
 	// their place after the ones named.
 	Order []string `json:"order,omitempty"`
+	// Banners are bands of display lettering (receipt_banner.go).
+	Banners []receiptBanner `json:"banners,omitempty"`
 }
 
 const (
@@ -96,6 +98,7 @@ func normalizeReceiptTexts(t receiptTexts) receiptTexts {
 	out.Groups = normalizeReceiptGroups(t.Groups)
 	out.Decor = normalizeReceiptDecor(t.Decor)
 	out.Order = normalizeReceiptOrder(t.Order)
+	out.Banners = normalizeReceiptBanners(t.Banners)
 	return out
 }
 

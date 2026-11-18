@@ -4,7 +4,6 @@ Things to maybe build later. Not built unless asked.
 
 ## Ideas
 
-- A banner on receipts where a special deal applied ("STUDENT DEAL"), with its own look per deal in central's Receipt Designer; it can hold an uploaded picture, printed in black and white (dithered) at the paper's width, shown as printed in the designer (2026-11-18).
 
 - Smarter catch-up: pull first the products and clients something on the till depends on (recent invoices, held sales, quick access, rewards' owners), then the rest in the background, so a big central change never holds up the till (2026-11-18).
 
@@ -19,5 +18,7 @@ Things to maybe build later. Not built unless asked.
 - WhatsApp a gift message with the referral reward, and send the friend their own code so referrals keep spreading (2026-11-16).
 
 ## In progress
+
+- Receipt banners can hold an uploaded picture, printed in black and white (dithered); the drawn banners shipped first (2026-11-18).
 
 ## Done

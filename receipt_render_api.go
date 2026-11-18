@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"image/png"
 	"strings"
 	"time"
@@ -196,11 +197,13 @@ func DesignerCatalog() map[string]any {
 		"can": map[string]int{
 			"text": canText, "case": canCase, "size": canSize, "bold": canBold, "align": canAlign, "hide": canHide,
 		},
-		"line_styles":  receiptLineStyles,
-		"footer_order": receiptFooterOrder,
-		"size_min":     receiptElementMinSize,
-		"size_max":     receiptElementMaxSize,
-		"max_length":   receiptTextMaxLen,
+		"line_styles":    receiptLineStyles,
+		"banner_styles":  receiptBannerStyles,
+		"banner_presets": receiptBannerPresets,
+		"footer_order":   receiptFooterOrder,
+		"size_min":       receiptElementMinSize,
+		"size_max":       receiptElementMaxSize,
+		"max_length":     receiptTextMaxLen,
 	}
 }
 
@@ -272,4 +275,18 @@ func applyDesignerDeal(data *printReceiptData, d DesignerDeal) {
 			break
 		}
 	}
+}
+
+// RenderBannerPreview draws one banner (receiptBanner JSON) alone, as it
+// prints, for the designer's gallery.
+func RenderBannerPreview(raw string) ([]byte, error) {
+	var b receiptBanner
+	if err := json.Unmarshal([]byte(raw), &b); err != nil {
+		return nil, err
+	}
+	banners := normalizeReceiptBanners([]receiptBanner{b})
+	if len(banners) == 0 {
+		return nil, fmt.Errorf("no such banner")
+	}
+	return renderBannerPreview(banners[0])
 }
