@@ -24,6 +24,10 @@ type receiptMark struct {
 	Text   string  `json:"text,omitempty"`
 	SizePx float64 `json:"size_px,omitempty"`
 	Bold   bool    `json:"bold,omitempty"`
+	// X0 and X1, when set, are a line's own x range: words that share a row
+	// with others (column titles, a row's label).
+	X0 int `json:"x0,omitempty"`
+	X1 int `json:"x1,omitempty"`
 }
 
 // Text parts: one per receiptTexts wording.

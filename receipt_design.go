@@ -3,8 +3,8 @@ package main
 import (
 	"image"
 	"slices"
-	"time"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -445,9 +445,9 @@ func (c *receiptCanvas) invoiceLabel() string {
 // gridMidHeader is the middle column's title in the branch's words.
 func (c *receiptCanvas) gridMidHeader(cfg gridConfig) string {
 	if cfg.midIsPrice {
-		return c.data.Texts.word("col_price", "PRICE")
+		return c.word("col_price", "PRICE")
 	}
-	return c.data.Texts.word("col_disc", cfg.midHeader)
+	return c.word("col_disc", cfg.midHeader)
 }
 
 // extraHeight is room, in pixels, a design may add to the receipt: its own
@@ -545,6 +545,10 @@ func (c *receiptCanvas) row(y int, key, word, label, amount string, size float64
 	top := y
 	y, _ = c.twoCol(y, label, amount, size, bold)
 	c.markLine(key, word, top, y, size, "left")
+	if w, err := c.measure(word, size, bold, false); err == nil {
+		m := &c.marks[len(c.marks)-1]
+		m.X0, m.X1 = c.margin, c.margin+w
+	}
 	return y
 }
 
@@ -570,4 +574,48 @@ func alignCode(align string) int {
 		return 3
 	}
 	return 2
+}
+
+// pendingWord is words about to be drawn (text) for an element whose own
+// words (word) are part of them.
+type pendingWord struct{ key, text, word string }
+
+// word is an element's words for a line drawn among others on a row (a
+// column title): the next time they are drawn, where they land is marked.
+func (c *receiptCanvas) word(key, def string) string {
+	w := c.data.Texts.word(key, def)
+	c.pendingWords = append(c.pendingWords, pendingWord{key, w, w})
+	return w
+}
+
+// wordWith is word followed by fixed words drawn with it ("ITEM / CODE").
+func (c *receiptCanvas) wordWith(key, def, after string) string {
+	w := c.data.Texts.word(key, def)
+	c.pendingWords = append(c.pendingWords, pendingWord{key, w + after, w})
+	return w + after
+}
+
+// markPendingWord marks words just drawn at x when they are a pending word.
+func (c *receiptCanvas) markPendingWord(value string, x, top, bottom int, size float64, role fontRole, width int) {
+	for i, p := range c.pendingWords {
+		if p.text != value {
+			continue
+		}
+		scale := c.bodyFactor()
+		if role == roleTitle || role == roleTitleBold {
+			scale = c.titleFactor()
+		}
+		c.marks = append(c.marks, receiptMark{
+			Kind: "line", Part: p.key, Top: top, Bottom: bottom, Text: p.word,
+			SizePx: size * scale * 2.6, Left: alignCode("left"), X0: x, X1: x + width,
+		})
+		c.pendingWords = append(c.pendingWords[:i], c.pendingWords[i+1:]...)
+		// The same words measured first are pending again; one mark each.
+		for j := len(c.pendingWords) - 1; j >= 0; j-- {
+			if c.pendingWords[j].key == p.key {
+				c.pendingWords = append(c.pendingWords[:j], c.pendingWords[j+1:]...)
+			}
+		}
+		return
+	}
 }

@@ -58,6 +58,10 @@ type DesignerLine struct {
 	Text   string  `json:"text"`
 	SizePx float64 `json:"size_px"`
 	Align  string  `json:"align"`
+	// Left and Right, when set, are the words' own x range in the picture
+	// (a column title among others); else the line spans the paper.
+	Left  int `json:"left,omitempty"`
+	Right int `json:"right,omitempty"`
 }
 
 // DesignerPreview is the drawn receipt (PNG, as the printer prints it),
@@ -151,7 +155,7 @@ func designerLines(marks []receiptMark) []DesignerLine {
 			// The title's words, without the sample code printed after them.
 			text = strings.TrimSuffix(text, " "+sampleReferralCode)
 		}
-		out = append(out, DesignerLine{Key: m.Part, Group: info.Group, Top: m.Top, Bottom: m.Bottom, Text: text, SizePx: m.SizePx, Align: aligns[m.Left]})
+		out = append(out, DesignerLine{Key: m.Part, Group: info.Group, Top: m.Top, Bottom: m.Bottom, Text: text, SizePx: m.SizePx, Align: aligns[m.Left], Left: m.X0, Right: m.X1})
 	}
 	return out
 }

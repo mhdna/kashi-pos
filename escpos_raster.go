@@ -37,6 +37,9 @@ type receiptCanvas struct {
 	contentW int
 	faces    map[string]font.Face
 	marks    []receiptMark
+	// pendingWords are element words about to be drawn; the next time each is
+	// drawn, where it lands is marked (column titles share a row).
+	pendingWords []pendingWord
 }
 
 func buildESCPOSRasterReceipt(data printReceiptData) ([]byte, error) {
@@ -214,6 +217,7 @@ func (c *receiptCanvas) drawReceipt() (int, error) {
 	itemsTop := y
 	y, itemsBox := c.decorStart("columns", y)
 	y, subtotal, discountTotal := c.layout.draw(c, y)
+	c.pendingWords = nil
 	y = c.decorEnd("columns", y, itemsBox, true)
 	c.markGroup("columns", itemsTop, y)
 
@@ -535,6 +539,7 @@ func (c *receiptCanvas) textRole(x, y int, value string, size float64, role font
 	}
 	drawer := font.Drawer{Dst: c.img, Src: ink, Face: face, Dot: fixed.P(x, y+metrics.Ascent.Ceil())}
 	drawer.DrawString(value)
+	c.markPendingWord(value, x, y, y+metrics.Height.Ceil(), size, role, font.MeasureString(face, value).Ceil())
 	title := role == roleTitle || role == roleTitleBold
 	bold := role == roleBodyBold || role == roleTitleBold || role == roleName
 	if c.style.Fonts == nil && bold && ((title && c.data.Font == "Belleza") || (!title && c.data.BodyFont == "Belleza")) {

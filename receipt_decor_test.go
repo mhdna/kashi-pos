@@ -5,6 +5,7 @@ import (
 	"image"
 	"math/rand"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -239,6 +240,68 @@ func TestReceiptDecorRandomized(t *testing.T) {
 				raw, _ := json.Marshal(texts)
 				t.Fatalf("%s/%s/%s: %s %d-%d outside 0-%d (%s)", theme.ID, layout.ID, mode, m.Part, m.Top, m.Bottom, img.Bounds().Dy(), raw)
 			}
+		}
+	}
+}
+
+// The reported case: each column title is its own words on the paper, where
+// it sits on its row, never taken for the totals' TOTAL.
+func TestDesignerColumnTitles(t *testing.T) {
+	for _, theme := range receiptThemeCatalog() {
+		for _, layout := range theme.Layouts {
+			where := theme.ID + "/" + layout.ID
+			var drawn []string
+			saved := receiptTextDrawn
+			receiptTextDrawn = func(v string, _ int) { drawn = append(drawn, v) }
+			out, err := RenderDesignerPreview(DesignerInput{Theme: theme.ID, Layout: layout.ID})
+			receiptTextDrawn = saved
+			if err != nil {
+				t.Fatal(err)
+			}
+			printsItem := false
+			for _, d := range drawn {
+				printsItem = printsItem || d == "ITEM" || strings.HasPrefix(d, "ITEM ")
+			}
+			var columns DesignerMark
+			for _, m := range out.Marks {
+				if m.Group == "columns" {
+					columns = m
+				}
+			}
+			cols := map[string]DesignerLine{}
+			for _, l := range out.Lines {
+				if l.Group != "columns" {
+					continue
+				}
+				if _, seen := cols[l.Key]; seen {
+					t.Fatalf("%s: %s marked twice", where, l.Key)
+				}
+				cols[l.Key] = l
+				if l.Left <= 0 || l.Right <= l.Left || l.Right > out.Width {
+					t.Fatalf("%s: %s at x %d-%d", where, l.Key, l.Left, l.Right)
+				}
+				if l.Top < columns.Top || l.Bottom > columns.Bottom {
+					t.Fatalf("%s: %s at %d-%d outside the items %d-%d", where, l.Key, l.Top, l.Bottom, columns.Top, columns.Bottom)
+				}
+			}
+			if _, ok := cols["col_item"]; printsItem && !ok {
+				t.Fatalf("%s: no ITEM title to click: %+v", where, cols)
+			}
+			// Titles on one row don't overlap.
+			for a, la := range cols {
+				for b, lb := range cols {
+					if a < b && la.Top == lb.Top && la.Left < lb.Right && lb.Left < la.Right {
+						t.Fatalf("%s: %s and %s overlap", where, a, b)
+					}
+				}
+			}
+		}
+	}
+	// A row's label is clickable on its own, from the paper's left.
+	out, _ := RenderDesignerPreview(DesignerInput{})
+	for _, l := range out.Lines {
+		if l.Key == "subtotal" && (l.Left != 24 || l.Right <= l.Left || l.Right > 300) {
+			t.Fatalf("subtotal label at %d-%d", l.Left, l.Right)
 		}
 	}
 }
