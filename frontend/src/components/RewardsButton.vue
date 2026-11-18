@@ -116,7 +116,7 @@
                 data-test="referral-input"
                 @keydown.enter="check"
               />
-              <k-btn color="primary" variant="elevated" :loading="checking" data-test="referral-add" @click="check">Add</k-btn>
+              <k-btn color="primary" variant="elevated" :loading="checking" data-test="referral-add" @click="check">Send reward</k-btn>
             </div>
             <div v-if="message" class="rewards-message" :class="messageError ? 'text-error' : ''" data-test="referral-message">
               {{ message }}
