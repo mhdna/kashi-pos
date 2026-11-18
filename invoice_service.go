@@ -11,45 +11,6 @@ import (
 	db "kashi-pos/db/sqlc"
 )
 
-//go:embed assets/fonts/Belleza-Regular.ttf
-var bellezaFont []byte
-
-//go:embed assets/fonts/CascadiaMono-Regular.ttf
-var cascadiaMonoRegular []byte
-
-//go:embed assets/fonts/CascadiaMono-Bold.ttf
-var cascadiaMonoBold []byte
-
-//go:embed pdf-icons/facebook.png
-var facebookIcon []byte
-
-//go:embed pdf-icons/instagram.png
-var instagramIcon []byte
-
-//go:embed pdf-icons/threads.png
-var threadsIcon []byte
-
-//go:embed pdf-icons/tiktok.png
-var tiktokIcon []byte
-
-type invoiceItem struct {
-	Name     string  `json:"name"`
-	Code     string  `json:"code"`
-	Barcode  string  `json:"barcode"`
-	Category string  `json:"category"`
-	Color    string  `json:"color"`
-	Size     string  `json:"size"`
-	Price    float64 `json:"price"`
-	Discount float64 `json:"discount"`
-	Qty      float64 `json:"qty"`
-	// A deal line (deals.go): its deal, whether it is free, and the deal's
-	// saving in dollars, which the receipt prints instead of working one out
-	// from Discount (a bundle's share is not a whole percent).
-	Deal         string  `json:"deal,omitempty"`
-	Free         bool    `json:"free,omitempty"`
-	DealDiscount float64 `json:"dealDiscount,omitempty"`
-}
-
 // HoldInvoice puts the cart on hold. The screen's snapshot is kept as sent
 // (lib/holdSnapshot.ts: every line as it stood, the client, salesperson,
 // calculator, notes, an exchange's sale, the sale's ref and its unknown-item
@@ -1080,69 +1041,6 @@ func (a *App) receiptReferral(clientID int64, texts receiptTexts) (code, note st
 		return "", ""
 	}
 	return referralReceiptNote(program, client, texts)
-}
-
-func formatInt(value int64) string {
-	sign := ""
-	if value < 0 {
-		sign = "-"
-		value = -value
-	}
-	digits := fmt.Sprintf("%d", value)
-	for i := len(digits) - 3; i > 0; i -= 3 {
-		digits = digits[:i] + "," + digits[i:]
-	}
-	return sign + digits
-}
-
-func formatReceiptPayment(payment receiptPayment, roundingMode string) string {
-	amount := payment.AmountCents
-	if amount < 0 {
-		amount = -amount
-	}
-	// A whole-major-unit rounding unit greater than 1 identifies a physical
-	// cash currency that should be displayed as a rounded integer amount
-	// (e.g. LBP); anything else (the default accounting currency, cards)
-	// displays as a decimal dollar amount.
-	if payment.Currency.CashRoundingUnit > 1 {
-		if rounded, err := roundCurrencyUnitsFromCents(amount, payment.Currency.UnitsPerUsdMicros, payment.Currency.CashRoundingUnit, roundingMode); err == nil {
-			return fmt.Sprintf("%s %s", formatInt(rounded), payment.Currency.Symbol)
-		}
-		return "0 " + payment.Currency.Symbol
-	}
-	return fmt.Sprintf("$%.2f", float64(amount)/100)
-}
-
-type socialFooterItem struct {
-	platform string
-	handle   string
-}
-
-func socialFooterItems(platforms []string, handles map[string]string) []socialFooterItem {
-	items := make([]socialFooterItem, 0, len(platforms))
-	for _, platform := range platforms {
-		handle := strings.TrimSpace(handles[platform])
-		if handle == "" {
-			continue
-		}
-		items = append(items, socialFooterItem{platform: platform, handle: handle})
-	}
-	return items
-}
-
-func socialPlatformIconBytes(platform string) []byte {
-	switch platform {
-	case "facebook":
-		return facebookIcon
-	case "instagram":
-		return instagramIcon
-	case "threads":
-		return threadsIcon
-	case "tiktok":
-		return tiktokIcon
-	default:
-		return nil
-	}
 }
 
 // lineName is what an invoice line is called: the name the cashier gave an

@@ -517,13 +517,6 @@ func (l *linkTracker) snapshot() LinkStatus {
 	return s
 }
 
-func orDefault(s, d string) string {
-	if s == "" {
-		return d
-	}
-	return s
-}
-
 // friendlyNetError turns a Go network error into something a cashier can
 // act on. The raw text stays in the log; this is for the screen.
 func friendlyNetError(err error) string {

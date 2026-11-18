@@ -813,13 +813,6 @@ func evaluatePaymentSufficiency(paid, total, maxOverpaymentCents int64, rounding
 	return true, roundedEquivalent, nil
 }
 
-func absInt64(value int64) int64 {
-	if value < 0 {
-		return -value
-	}
-	return value
-}
-
 func recordSpecialPaymentMetadata(a *App, q *db.Queries, invoiceID, clientID int64, payments []checkoutPayment) error {
 	for _, payment := range payments {
 		account, err := q.GetCashboxAccountByID(a.ctx, payment.AccountID)
