@@ -344,11 +344,11 @@ defineExpose({ loadInfo });
 }
 
 .reward-card--on {
-  border-color: rgb(245, 127, 23);
+  border-color: rgb(46, 125, 50);
 }
 
 .reward-card--on .reward-state-icon {
-  color: rgb(245, 127, 23);
+  color: rgb(46, 125, 50);
 }
 
 /* Locked deals are for reference: no border, so they don't read as buttons. */
